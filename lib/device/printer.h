@@ -19,6 +19,12 @@
 # define PRINTER_CLASS adamPrinter
 #endif
 
+#ifdef BUILD_LYNX
+# include "comlynx/printer.h"
+# include "comlynx/printerlist.h"
+# define PRINTER_CLASS lynxPrinter
+#endif
+
 #ifdef BUILD_S100
 # include "s100spi/printer.h"
 # include "s100spi/printerlist.h"

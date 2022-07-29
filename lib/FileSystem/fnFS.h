@@ -75,6 +75,7 @@ public:
     virtual bool rename(const char* pathFrom, const char* pathTo) = 0;
 
     // By default, a directory should be sorted and special/hidden items should be filtered out
+    virtual bool is_dir(const char *path) = 0;
     virtual bool dir_open(const char *path, const char *pattern, uint16_t diroptions) = 0;
     virtual fsdir_entry_t *dir_read() = 0;
     virtual void dir_close() = 0;

@@ -17,46 +17,6 @@
 #include "led.h"
 #include "utils.h"
 
-
-#define SIO_FUJICMD_RESET 0xFF
-#define SIO_FUJICMD_GET_SSID 0xFE
-#define SIO_FUJICMD_SCAN_NETWORKS 0xFD
-#define SIO_FUJICMD_GET_SCAN_RESULT 0xFC
-#define SIO_FUJICMD_SET_SSID 0xFB
-#define SIO_FUJICMD_GET_WIFISTATUS 0xFA
-#define SIO_FUJICMD_MOUNT_HOST 0xF9
-#define SIO_FUJICMD_MOUNT_IMAGE 0xF8
-#define SIO_FUJICMD_OPEN_DIRECTORY 0xF7
-#define SIO_FUJICMD_READ_DIR_ENTRY 0xF6
-#define SIO_FUJICMD_CLOSE_DIRECTORY 0xF5
-#define SIO_FUJICMD_READ_HOST_SLOTS 0xF4
-#define SIO_FUJICMD_WRITE_HOST_SLOTS 0xF3
-#define SIO_FUJICMD_READ_DEVICE_SLOTS 0xF2
-#define SIO_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
-#define SIO_FUJICMD_GET_WIFI_ENABLED 0xEA
-#define SIO_FUJICMD_UNMOUNT_IMAGE 0xE9
-#define SIO_FUJICMD_GET_ADAPTERCONFIG 0xE8
-#define SIO_FUJICMD_NEW_DISK 0xE7
-#define SIO_FUJICMD_UNMOUNT_HOST 0xE6
-#define SIO_FUJICMD_GET_DIRECTORY_POSITION 0xE5
-#define SIO_FUJICMD_SET_DIRECTORY_POSITION 0xE4
-#define SIO_FUJICMD_SET_HSIO_INDEX 0xE3
-#define SIO_FUJICMD_SET_DEVICE_FULLPATH 0xE2
-#define SIO_FUJICMD_SET_HOST_PREFIX 0xE1
-#define SIO_FUJICMD_GET_HOST_PREFIX 0xE0
-#define SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
-#define SIO_FUJICMD_WRITE_APPKEY 0xDE
-#define SIO_FUJICMD_READ_APPKEY 0xDD
-#define SIO_FUJICMD_OPEN_APPKEY 0xDC
-#define SIO_FUJICMD_CLOSE_APPKEY 0xDB
-#define SIO_FUJICMD_GET_DEVICE_FULLPATH 0xDA
-#define SIO_FUJICMD_CONFIG_BOOT 0xD9
-#define SIO_FUJICMD_COPY_FILE 0xD8
-#define SIO_FUJICMD_MOUNT_ALL 0xD7
-#define SIO_FUJICMD_SET_BOOT_MODE 0xD6
-#define SIO_FUJICMD_STATUS 0x53
-#define SIO_FUJICMD_HSIO_INDEX 0x3F
-
 sioFuji theFuji; // global fuji device object
 
 //sioDisk sioDiskDevs[MAX_HOSTS];
@@ -191,7 +151,7 @@ void sioFuji::sio_net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
 
-    // Response to SIO_FUJICMD_GET_SCAN_RESULT
+    // Response to  FUJICMD_GET_SCAN_RESULT
     struct
     {
         char ssid[MAX_SSID_LEN+1];
@@ -215,7 +175,7 @@ void sioFuji::sio_net_get_ssid()
 {
     Debug_println("Fuji cmd: GET SSID");
 
-    // Response to SIO_FUJICMD_GET_SSID
+    // Response to  FUJICMD_GET_SSID
     struct
     {
         char ssid[MAX_SSID_LEN+1];
@@ -245,7 +205,7 @@ void sioFuji::sio_net_set_ssid()
 {
     Debug_println("Fuji cmd: SET SSID");
 
-    // Data for SIO_FUJICMD_SET_SSID
+    // Data for  FUJICMD_SET_SSID
     struct
     {
         char ssid[MAX_SSID_LEN+1];
@@ -489,7 +449,7 @@ void sioFuji::sio_copy_file()
 }
 
 // Mount all
-void sioFuji::sio_mount_all()
+void sioFuji::mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
@@ -623,7 +583,7 @@ void sioFuji::sio_write_app_key()
 
     Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
 
-    // Data for SIO_FUJICMD_WRITE_APPKEY
+    // Data for  FUJICMD_WRITE_APPKEY
     uint8_t value[MAX_APPKEY_LEN];
 
     uint8_t ck = bus_to_peripheral((uint8_t *)value, sizeof(value));
@@ -1057,7 +1017,7 @@ void sioFuji::sio_get_adapter_config()
 {
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
-    // Response to SIO_FUJICMD_GET_ADAPTERCONFIG
+    // Response to  FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
     memset(&cfg, 0, sizeof(cfg));
@@ -1519,6 +1479,33 @@ void sioFuji::insert_boot_device(uint8_t d)
     _bootDisk.device_active = false;
 }
 
+// Set UDP Stream HOST & PORT and start it
+void sioFuji::sio_enable_udpstream()
+{
+    char host[64];
+
+    uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
+
+    if (sio_checksum((uint8_t *)&host, sizeof(host)) != ck)
+        sio_error();
+    else
+    {
+        int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
+
+        Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
+
+        // Save the host and port
+        Config.store_udpstream_host(host);
+        Config.store_udpstream_port(port);
+        Config.save();
+
+        sio_complete();
+
+        // Start the UDP Stream
+        SIO.setUDPHost(host, port);
+    }
+}
+
 // Initializes base settings and adds our devices to the SIO bus
 void sioFuji::setup(systemBus *siobus)
 {
@@ -1561,153 +1548,157 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case SIO_FUJICMD_HSIO_INDEX:
+    case FUJICMD_HSIO_INDEX:
         sio_ack();
         sio_high_speed();
         break;
-    case SIO_FUJICMD_SET_HSIO_INDEX:
+    case FUJICMD_SET_HSIO_INDEX:
         sio_ack();
         sio_set_hsio_index();
         break;
-    case SIO_FUJICMD_STATUS:
+    case FUJICMD_STATUS:
         sio_ack();
         sio_status();
         break;
-    case SIO_FUJICMD_RESET:
+    case FUJICMD_RESET:
         sio_ack();
         sio_reset_fujinet();
         break;
-    case SIO_FUJICMD_SCAN_NETWORKS:
+    case FUJICMD_SCAN_NETWORKS:
         sio_ack();
         sio_net_scan_networks();
         break;
-    case SIO_FUJICMD_GET_SCAN_RESULT:
+    case FUJICMD_GET_SCAN_RESULT:
         sio_ack();
         sio_net_scan_result();
         break;
-    case SIO_FUJICMD_SET_SSID:
+    case FUJICMD_SET_SSID:
         sio_ack();
         sio_net_set_ssid();
         break;
-    case SIO_FUJICMD_GET_SSID:
+    case FUJICMD_GET_SSID:
         sio_ack();
         sio_net_get_ssid();
         break;
-    case SIO_FUJICMD_GET_WIFISTATUS:
+    case FUJICMD_GET_WIFISTATUS:
         sio_ack();
         sio_net_get_wifi_status();
         break;
-    case SIO_FUJICMD_MOUNT_HOST:
+    case FUJICMD_MOUNT_HOST:
         sio_ack();
         sio_mount_host();
         break;
-    case SIO_FUJICMD_MOUNT_IMAGE:
+    case FUJICMD_MOUNT_IMAGE:
         sio_ack();
         sio_disk_image_mount();
         break;
-    case SIO_FUJICMD_OPEN_DIRECTORY:
+    case FUJICMD_OPEN_DIRECTORY:
         sio_ack();
         sio_open_directory();
         break;
-    case SIO_FUJICMD_READ_DIR_ENTRY:
+    case FUJICMD_READ_DIR_ENTRY:
         sio_ack();
         sio_read_directory_entry();
         break;
-    case SIO_FUJICMD_CLOSE_DIRECTORY:
+    case FUJICMD_CLOSE_DIRECTORY:
         sio_ack();
         sio_close_directory();
         break;
-    case SIO_FUJICMD_GET_DIRECTORY_POSITION:
+    case FUJICMD_GET_DIRECTORY_POSITION:
         sio_ack();
         sio_get_directory_position();
         break;
-    case SIO_FUJICMD_SET_DIRECTORY_POSITION:
+    case FUJICMD_SET_DIRECTORY_POSITION:
         sio_ack();
         sio_set_directory_position();
         break;
-    case SIO_FUJICMD_READ_HOST_SLOTS:
+    case FUJICMD_READ_HOST_SLOTS:
         sio_ack();
         sio_read_host_slots();
         break;
-    case SIO_FUJICMD_WRITE_HOST_SLOTS:
+    case FUJICMD_WRITE_HOST_SLOTS:
         sio_ack();
         sio_write_host_slots();
         break;
-    case SIO_FUJICMD_READ_DEVICE_SLOTS:
+    case FUJICMD_READ_DEVICE_SLOTS:
         sio_ack();
         sio_read_device_slots();
         break;
-    case SIO_FUJICMD_WRITE_DEVICE_SLOTS:
+    case FUJICMD_WRITE_DEVICE_SLOTS:
         sio_ack();
         sio_write_device_slots();
         break;
-    case SIO_FUJICMD_GET_WIFI_ENABLED:
+    case FUJICMD_GET_WIFI_ENABLED:
         sio_ack();
         sio_net_get_wifi_enabled();
         break;
-    case SIO_FUJICMD_UNMOUNT_IMAGE:
+    case FUJICMD_UNMOUNT_IMAGE:
         sio_ack();
         sio_disk_image_umount();
         break;
-    case SIO_FUJICMD_GET_ADAPTERCONFIG:
+    case FUJICMD_GET_ADAPTERCONFIG:
         sio_ack();
         sio_get_adapter_config();
         break;
-    case SIO_FUJICMD_NEW_DISK:
+    case FUJICMD_NEW_DISK:
         sio_ack();
         sio_new_disk();
         break;
-    case SIO_FUJICMD_SET_DEVICE_FULLPATH:
+    case FUJICMD_SET_DEVICE_FULLPATH:
         sio_ack();
         sio_set_device_filename();
         break;
-    case SIO_FUJICMD_SET_HOST_PREFIX:
+    case FUJICMD_SET_HOST_PREFIX:
         sio_ack();
         sio_set_host_prefix();
         break;
-    case SIO_FUJICMD_GET_HOST_PREFIX:
+    case FUJICMD_GET_HOST_PREFIX:
         sio_ack();
         sio_get_host_prefix();
         break;
-    case SIO_FUJICMD_SET_SIO_EXTERNAL_CLOCK:
+    case FUJICMD_SET_SIO_EXTERNAL_CLOCK:
         sio_ack();
         sio_set_sio_external_clock();
         break;
-    case SIO_FUJICMD_WRITE_APPKEY:
+    case FUJICMD_WRITE_APPKEY:
         sio_ack();
         sio_write_app_key();
         break;
-    case SIO_FUJICMD_READ_APPKEY:
+    case FUJICMD_READ_APPKEY:
         sio_ack();
         sio_read_app_key();
         break;
-    case SIO_FUJICMD_OPEN_APPKEY:
+    case FUJICMD_OPEN_APPKEY:
         sio_ack();
         sio_open_app_key();
         break;
-    case SIO_FUJICMD_CLOSE_APPKEY:
+    case FUJICMD_CLOSE_APPKEY:
         sio_ack();
         sio_close_app_key();
         break;
-    case SIO_FUJICMD_GET_DEVICE_FULLPATH:
+    case FUJICMD_GET_DEVICE_FULLPATH:
         sio_ack();
         sio_get_device_filename();
         break;
-    case SIO_FUJICMD_CONFIG_BOOT:
+    case FUJICMD_CONFIG_BOOT:
         sio_ack();
         sio_set_boot_config();
         break;
-    case SIO_FUJICMD_COPY_FILE:
+    case FUJICMD_COPY_FILE:
         sio_ack();
         sio_copy_file();
         break;
-    case SIO_FUJICMD_MOUNT_ALL:
+    case FUJICMD_MOUNT_ALL:
         sio_ack();
-        sio_mount_all();
+        mount_all();
         break;
-    case SIO_FUJICMD_SET_BOOT_MODE:
+    case FUJICMD_SET_BOOT_MODE:
         sio_ack();
         sio_set_boot_mode();
+        break;
+    case FUJICMD_ENABLE_UDPSTREAM:
+        sio_ack();
+        sio_enable_udpstream();
         break;
     default:
         sio_nak();

@@ -80,21 +80,7 @@ void main_setup()
     // Load our stored configuration
     Config.load();
 
-    if (Config.get_bt_status())
-    {
-#ifdef BLUETOOTH_SUPPORT
-        // Start SIO2BT mode if we were in it last shutdown
-        fnLedManager.set(eLed::LED_BT, true); // BT LED ON
-        fnBtManager.start();
-#endif
-    }
-    else if (Config.get_wifi_enabled())
-    {
-        // Set up the WiFi adapter if enabled in config
-        fnWiFi.start();
-        // Go ahead and try reconnecting to WiFi
-        fnWiFi.connect();
-    }
+    // WiFi/BT auto connect moved to app_main()
 
 #ifdef BUILD_ATARI
     theFuji.setup(&SIO);
@@ -102,7 +88,7 @@ void main_setup()
 
     SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
-    SIO.addDevice(&sioMIDI, SIO_DEVICEID_MIDI); // MIDIMaze
+    SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
@@ -133,6 +119,11 @@ void main_setup()
     // Setup IEC Bus
     theFuji.setup(&IEC);
 #endif // BUILD_CBM
+
+#ifdef BUILD_LYNX
+    theFuji.setup(&ComLynx);
+    ComLynx.setup();
+#endif
 
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
@@ -235,6 +226,23 @@ extern "C"
 #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
+
+        // Now that our main service is running, try connecting to WiFi or BlueTooth
+        if (Config.get_bt_status())
+        {
+#ifdef BLUETOOTH_SUPPORT
+            // Start SIO2BT mode if we were in it last shutdown
+            fnLedManager.set(eLed::LED_BT, true); // BT LED ON
+            fnBtManager.start();
+#endif
+        }
+        else if (Config.get_wifi_enabled())
+        {
+            // Set up the WiFi adapter if enabled in config
+            fnWiFi.start();
+            // Go ahead and try reconnecting to WiFi
+            fnWiFi.connect();
+        }
 
         // Sit here twiddling our thumbs
         while (true)

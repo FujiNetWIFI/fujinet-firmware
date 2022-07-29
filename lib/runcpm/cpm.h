@@ -489,7 +489,9 @@ void _Bdos(void)
 		if (LOW_REGISTER(DE) != 0x0A)
 		{
 			trans_ch = LOW_REGISTER(DE) == 0x0D ? 0x9B : LOW_REGISTER(DE);
+#ifdef BUILD_ATARI
 			SIO.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
+#endif /*BUILD_ATARI */
 		}
 #ifdef USE_LST
 		if (!lst_open)

@@ -56,6 +56,7 @@ void FNJSON::setReadQuery(string queryString)
 {
     _queryString = queryString;
     _item = resolveQuery();
+    json_bytes_remaining=readValueLen();
 }
 
 /**
@@ -107,7 +108,7 @@ string FNJSON::getValue(cJSON *item)
     else if (cJSON_IsNumber(item))
     {
         stringstream ss;
-        ss << item->valuedouble;
+        ss << item->valueint;
         return ss.str() + lineEnding;
     }
     else if (cJSON_IsObject(item))
@@ -202,4 +203,13 @@ bool FNJSON::parse()
     Debug_printf("Parsed JSON: %s\n", cJSON_Print(_json));
 
     return true;
+}
+
+bool FNJSON::status(NetworkStatus *s)
+{
+    Debug_printf("FNJSON::status(%u) %s\n",json_bytes_remaining,getValue(_item).c_str());
+    s->connected = true;
+    s->rxBytesWaiting = json_bytes_remaining;
+    s->error = json_bytes_remaining == 0 ? 136 : 0;
+    return false;
 }

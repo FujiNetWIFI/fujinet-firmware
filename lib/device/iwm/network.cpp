@@ -62,6 +62,164 @@ iwmNetwork::~iwmNetwork()
 
 /** iwm COMMANDS ***************************************************************/
 
+void iwmNetwork::shutdown()
+{
+    // TODO: come back here and make shutdown() close all connections.
+}
+
+void iwmNetwork::encode_status_reply_packet()
+{
+    uint8_t checksum = 0;
+    uint8_t data[4];
+
+    // Build the contents of the packet
+    data[0] = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+    data[1] = 0; // block size 1
+    data[2] = 0; // block size 2
+    data[3] = 0; // block size 3
+    // to do - just call encode data using the data[] array?
+    packet_buffer[0] = 0xff; // sync bytes
+    packet_buffer[1] = 0x3f;
+    packet_buffer[2] = 0xcf;
+    packet_buffer[3] = 0xf3;
+    packet_buffer[4] = 0xfc;
+    packet_buffer[5] = 0xff;
+
+    packet_buffer[6] = 0xc3;  // PBEGIN - start byte
+    packet_buffer[7] = 0x80;  // DEST - dest id - host
+    packet_buffer[8] = id();  // d.device_id; // SRC - source id - us
+    packet_buffer[9] = 0x81;  // TYPE -status
+    packet_buffer[10] = 0x80; // AUX
+    packet_buffer[11] = 0x80; // STAT - data status
+    packet_buffer[12] = 0x84; // ODDCNT - 4 data bytes
+    packet_buffer[13] = 0x80; // GRP7CNT
+    // 4 odd bytes
+    packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
+    packet_buffer[15] = data[0] | 0x80;                                                                                               // data 1
+    packet_buffer[16] = data[1] | 0x80;                                                                                               // data 2
+    packet_buffer[17] = data[2] | 0x80;                                                                                               // data 3
+    packet_buffer[18] = data[3] | 0x80;                                                                                               // data 4
+
+    for (int i = 0; i < 4; i++)
+    { // calc the data bytes checksum
+        checksum ^= data[i];
+    }
+    for (int count = 7; count < 14; count++) // xor the packet header bytes
+        checksum = checksum ^ packet_buffer[count];
+    packet_buffer[19] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
+    packet_buffer[20] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
+
+    packet_buffer[21] = 0xc8; // PEND
+    packet_buffer[22] = 0x00; // end of packet in buffer
+}
+
+void iwmNetwork::encode_status_dib_reply_packet()
+{
+    int grpbyte, grpcount, i;
+    int grpnum, oddnum;
+    uint8_t checksum = 0, grpmsb;
+    uint8_t group_buffer[7];
+    uint8_t data[25];
+    // data buffer=25: 3 x Grp7 + 4 odds
+    grpnum = 3;
+    oddnum = 4;
+
+    //* write data buffer first (25 bytes) 3 grp7 + 4 odds
+    // General Status byte
+    // Bit 7: Block  device
+    // Bit 6: Write allowed
+    // Bit 5: Read allowed
+    // Bit 4: Device online or disk in drive
+    // Bit 3: Format allowed
+    // Bit 2: Media write protected (block devices only)
+    // Bit 1: Currently interrupting (//c only)
+    // Bit 0: Currently open (char devices only)
+    data[0] = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+    data[1] = 0;    // block size 1
+    data[2] = 0;    // block size 2
+    data[3] = 0;    // block size 3
+    data[4] = 0x07; // ID string length - 11 chars
+    data[5] = 'N';
+    data[6] = 'E';
+    data[7] = 'T';
+    data[8] = 'W';
+    data[9] = 'O';
+    data[10] = 'R';
+    data[11] = 'K';
+    data[12] = ' ';
+    data[13] = ' ';
+    data[14] = ' ';
+    data[15] = ' ';
+    data[16] = ' ';
+    data[17] = ' ';
+    data[18] = ' ';
+    data[19] = ' ';
+    data[20] = ' ';                             // ID string (16 chars total)
+    data[21] = SP_TYPE_BYTE_FUJINET_NETWORK;    // Device type    - 0x02  harddisk
+    data[22] = SP_SUBTYPE_BYTE_FUJINET_NETWORK; // Device Subtype - 0x0a
+    data[23] = 0x00;                            // Firmware version 2 bytes
+    data[24] = 0x01;                            //
+
+    // print_packet ((uint8_t*) data,get_packet_length()); // debug
+    // Debug_print(("\nData loaded"));
+    // Calculate checksum of sector bytes before we destroy them
+    for (int count = 0; count < 25; count++) // xor all the data bytes
+        checksum = checksum ^ data[count];
+
+    // Start assembling the packet at the rear and work
+    // your way to the front so we don't overwrite data
+    // we haven't encoded yet
+
+    // grps of 7
+    for (grpcount = grpnum - 1; grpcount >= 0; grpcount--) // 3
+    {
+        for (i = 0; i < 7; i++)
+        {
+            group_buffer[i] = data[i + oddnum + (grpcount * 7)]; // data should have 26 cells?
+        }
+        // add group msb byte
+        grpmsb = 0;
+        for (grpbyte = 0; grpbyte < 7; grpbyte++)
+            grpmsb = grpmsb | ((group_buffer[grpbyte] >> (grpbyte + 1)) & (0x80 >> (grpbyte + 1)));
+        packet_buffer[(14 + oddnum + 1) + (grpcount * 8)] = grpmsb | 0x80; // set msb to one
+
+        // now add the group data bytes bits 6-0
+        for (grpbyte = 0; grpbyte < 7; grpbyte++)
+            packet_buffer[(14 + oddnum + 2) + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
+    }
+
+    // odd byte
+    packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
+    packet_buffer[15] = data[0] | 0x80;
+    packet_buffer[16] = data[1] | 0x80;
+    packet_buffer[17] = data[2] | 0x80;
+    packet_buffer[18] = data[3] | 0x80;
+    ;
+
+    packet_buffer[0] = 0xff; // sync bytes
+    packet_buffer[1] = 0x3f;
+    packet_buffer[2] = 0xcf;
+    packet_buffer[3] = 0xf3;
+    packet_buffer[4] = 0xfc;
+    packet_buffer[5] = 0xff;
+    packet_buffer[6] = 0xc3;  // PBEGIN - start byte
+    packet_buffer[7] = 0x80;  // DEST - dest id - host
+    packet_buffer[8] = id();  // d.device_id; // SRC - source id - us
+    packet_buffer[9] = 0x81;  // TYPE -status
+    packet_buffer[10] = 0x80; // AUX
+    packet_buffer[11] = 0x80; // STAT - data status
+    packet_buffer[12] = 0x84; // ODDCNT - 4 data bytes
+    packet_buffer[13] = 0x83; // GRP7CNT - 3 grps of 7
+
+    for (int count = 7; count < 14; count++) // xor the packet header bytes
+        checksum = checksum ^ packet_buffer[count];
+    packet_buffer[43] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
+    packet_buffer[44] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
+
+    packet_buffer[45] = 0xc8; // PEND
+    packet_buffer[46] = 0x00; // end of packet in buffer
+}
+
 /**
  * net Open command
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
@@ -69,10 +227,12 @@ iwmNetwork::~iwmNetwork()
  */
 void iwmNetwork::open()
 {
-    uint16_t idx = 0;
+    int idx = 0;
     uint8_t _aux1 = packet_buffer[idx++];
     uint8_t _aux2 = packet_buffer[idx++];
-    string d = string((char *)&packet_buffer[2], 256);
+    string d = string((char *)&packet_buffer[idx], 256);
+
+    Debug_printf("aux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
     channelMode = PROTOCOL;
 
@@ -97,7 +257,6 @@ void iwmNetwork::open()
     Debug_printf("open()\n");
 
     // Parse and instantiate protocol
-    d = string((char *)response, 256);
     parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
@@ -269,15 +428,18 @@ void iwmNetwork::mkdir()
 
 void iwmNetwork::channel_mode()
 {
-    switch (packet_buffer[1])
+    switch (packet_buffer[0])
     {
     case 0:
+        Debug_printf("channelMode = PROTOCOL\n");
         channelMode = PROTOCOL;
         break;
     case 1:
+        Debug_printf("channelMode = JSON\n");
         channelMode = JSON;
         break;
     default:
+        Debug_printf("INVALID MODE = %02x\r\n", packet_buffer[0]);
         break;
     }
 }
@@ -293,7 +455,13 @@ void iwmNetwork::json_query(cmdPacket_t cmd)
     addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
     addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
-    json.setReadQuery(string((char *)packet_buffer, numbytes));
+    Debug_printf("Query set to: %s\n", string((char *)packet_buffer,num_decoded).c_str());
+    json.setReadQuery(string((char *)packet_buffer, num_decoded));
+}
+
+void iwmNetwork::json_parse()
+{
+    json.parse();
 }
 
 /**
@@ -391,7 +559,7 @@ void iwmNetwork::special_40()
         encode_error_reply_packet(SP_ERR_BADCMD);
     }
 
-    IWM.iwm_send_packet((uint8_t *)packet_buffer);
+    IWM.SEND_PACKET((uint8_t *)packet_buffer);
 }
 
 /**
@@ -421,14 +589,18 @@ void iwmNetwork::special_80()
 
 void iwmNetwork::iwm_open(cmdPacket_t cmd)
 {
-    Debug_printf("\r\nOpen Network Unit # %02x", cmd.g7byte1);
+    Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
     encode_status_reply_packet();
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 void iwmNetwork::iwm_close(cmdPacket_t cmd)
 {
     // Probably need to send close command here.
+    Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
+    encode_status_reply_packet();
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    close();
 }
 
 void iwmNetwork::status()
@@ -441,7 +613,7 @@ void iwmNetwork::status()
         err = protocol->status(&s);
         break;
     case JSON:
-        // err = json.status(&status);
+        err = json.status(&s);
         break;
     }
 
@@ -450,9 +622,6 @@ void iwmNetwork::status()
     packet_buffer[2] = s.connected;
     packet_buffer[3] = s.error;
     packet_len = 4;
-
-    encode_data_packet(packet_len);
-    IWM.iwm_send_packet((uint8_t *)packet_buffer);
 }
 
 void iwmNetwork::iwm_status(cmdPacket_t cmd)
@@ -464,10 +633,53 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
 
     switch (status_code)
     {
-    case IWM_STATUS_STATUS:
+    case IWM_STATUS_STATUS: // 0x00
+        encode_status_reply_packet();
+        IWM.SEND_PACKET((unsigned char *)packet_buffer);
+        return;
+        break;
+    // case IWM_STATUS_DCB:                  // 0x01
+    // case IWM_STATUS_NEWLINE:              // 0x02
+    case IWM_STATUS_DIB: // 0x03
+        encode_status_dib_reply_packet();
+        IWM.SEND_PACKET((unsigned char *)packet_buffer);
+        return;
+        break;
+    case 'R':
+        net_read();
+        break;
+    case 'S':
         status();
         break;
     }
+
+    Debug_printf("\r\nStatus code complete, sending response");
+    encode_data_packet(packet_len);
+
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+}
+
+void iwmNetwork::net_read()
+{
+}
+
+bool iwmNetwork::read_channel_json(unsigned short num_bytes, cmdPacket_t cmd)
+{
+    if (num_bytes > json.json_bytes_remaining)
+    {
+        json.json_bytes_remaining = 0;
+        iwm_return_ioerror(cmd);
+        return true;
+    }
+    else
+    {
+        json.json_bytes_remaining -= num_bytes;
+
+        json.readValue(packet_buffer, num_bytes);
+        packet_len = json.readValueLen();
+    }
+
+    return false;
 }
 
 bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
@@ -487,21 +699,22 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
     }
 
     // Truncate bytes waiting to response size
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
-    response_len = ns.rxBytesWaiting;
+    ns.rxBytesWaiting = (ns.rxBytesWaiting > 512) ? 512 : ns.rxBytesWaiting;
+    packet_len = ns.rxBytesWaiting;
 
-    if (protocol->read(response_len)) // protocol adapter returned error
+    if (protocol->read(packet_len)) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
+        iwm_return_ioerror(cmd);
         return true;
     }
     else // everything ok
     {
         statusByte.bits.client_error = 0;
-        statusByte.bits.client_data_available = response_len > 0;
-        memcpy(response, receiveBuffer->data(), response_len);
-        receiveBuffer->erase(0, response_len);
+        statusByte.bits.client_data_available = packet_len > 0;
+        memcpy(packet_buffer, receiveBuffer->data(), packet_len);
+        receiveBuffer->erase(0, packet_len);
     }
     return false;
 }
@@ -529,7 +742,7 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
     addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
     addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
-    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x", source, numbytes, addy);
+    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", source, numbytes, addy);
 
     switch (channelMode)
     {
@@ -537,8 +750,22 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
         read_channel(numbytes, cmd);
         break;
     case JSON:
+        read_channel_json(numbytes, cmd);
         break;
     }
+
+    encode_data_packet(packet_len);
+    Debug_printf("\r\nsending block packet ...");
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    packet_len = 0;
+    memset(packet_buffer, 0, sizeof(packet_buffer));
+}
+
+void iwmNetwork::net_write()
+{
+    // TODO: Handle errors.
+    *transmitBuffer += string((char *)packet_buffer, num_decoded);
+    write_channel(num_decoded);
 }
 
 void iwmNetwork::iwm_write(cmdPacket_t cmd)
@@ -573,12 +800,12 @@ void iwmNetwork::iwm_write(cmdPacket_t cmd)
         if (write_channel(num_bytes))
         {
             encode_error_reply_packet(SP_ERR_IOERROR);
-            IWM.iwm_send_packet((uint8_t *)packet_buffer);
+            IWM.SEND_PACKET((uint8_t *)packet_buffer);
         }
         else
         {
             encode_write_status_packet(source, 0);
-            IWM.iwm_send_packet((uint8_t *)packet_buffer);
+            IWM.SEND_PACKET((uint8_t *)packet_buffer);
         }
     }
 }
@@ -619,11 +846,8 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
     case 'C':
         close();
         break;
-    case 'S':
-        status();
-        break;
     case 'W':
-        write();
+        net_write();
         break;
     case 0xFC:
         channel_mode();
@@ -646,11 +870,12 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
                 special_80();
             else
                 Debug_printf("iwmnet_control_send() - Unknown Command: %02x\n", control_code);
+            break;
         case JSON:
             switch (control_code)
             {
             case 'P':
-                json.parse();
+                json_parse();
                 break;
             case 'Q':
                 json_query(cmd);
@@ -663,6 +888,12 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
         }
         do_inquiry(control_code);
     }
+
+    if (statusByte.bits.client_error == true)
+        err_result = SP_ERR_IOERROR;
+
+    encode_error_reply_packet(err_result);
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 void iwmNetwork::process(cmdPacket_t cmd)
@@ -700,7 +931,7 @@ void iwmNetwork::process(cmdPacket_t cmd)
         iwm_read(cmd);
         break;
     case 0x89: // write
-        iwm_return_badcmd(cmd);
+        iwm_write(cmd);
         break;
     } // switch (cmd)
     fnLedManager.set(LED_BUS, false);

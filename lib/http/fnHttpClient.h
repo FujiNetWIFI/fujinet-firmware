@@ -29,6 +29,7 @@ private:
     int _max_redirects;
     bool connected = false;
     esp_http_client_auth_type_t _auth_type;
+    esp_err_t _client_err;
 
     uint16_t _port = 80;
     header_map_t _stored_headers;

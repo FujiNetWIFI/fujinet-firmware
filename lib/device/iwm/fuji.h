@@ -5,11 +5,12 @@
 
 #include "../../include/debug.h"
 #include "bus.h"
-// #include "iwm/network.h"
+#include "iwm/network.h"
 #include "iwm/printer.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
+#include "fujiCmd.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 4 // to do for now
@@ -77,6 +78,8 @@ private:
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
+
+    iwmNetwork *theNetwork;
 
     int _current_open_directory_slot = -1;
 
@@ -169,8 +172,6 @@ public:
     
     iwmDisk *bootdisk();
 
-    // smartNetwork *network();
-
     void debug_tape();
 
     void insert_boot_device(uint8_t d);
@@ -187,7 +188,7 @@ public:
     void _populate_slots_from_config();
     void _populate_config_from_slots();
 
-    void sio_mount_all();              // 0xD7
+    bool mount_all();              // 0xD7
 
     void FujiStatus(cmdPacket_t cmd) { iwm_status(cmd); }
     void FujiControl(cmdPacket_t cmd) { iwm_ctrl(cmd); }

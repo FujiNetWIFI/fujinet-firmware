@@ -10,46 +10,6 @@
 
 #include <string>
 
-#define IWM_FUJICMD_RESET 0xFF
-#define IWM_FUJICMD_GET_SSID 0xFE
-#define IWM_FUJICMD_SCAN_NETWORKS 0xFD
-#define IWM_FUJICMD_GET_SCAN_RESULT 0xFC
-#define IWM_FUJICMD_SET_SSID 0xFB
-#define IWM_FUJICMD_GET_WIFISTATUS 0xFA
-#define IWM_FUJICMD_MOUNT_HOST 0xF9
-#define IWM_FUJICMD_MOUNT_IMAGE 0xF8
-#define IWM_FUJICMD_OPEN_DIRECTORY 0xF7
-#define IWM_FUJICMD_READ_DIR_ENTRY 0xF6
-#define IWM_FUJICMD_CLOSE_DIRECTORY 0xF5
-#define IWM_FUJICMD_READ_HOST_SLOTS 0xF4
-#define IWM_FUJICMD_WRITE_HOST_SLOTS 0xF3
-#define IWM_FUJICMD_READ_DEVICE_SLOTS 0xF2
-#define IWM_FUJICMD_WRITE_DEVICE_SLOTS 0xF1
-#define IWM_FUJICMD_UNMOUNT_IMAGE 0xE9
-#define IWM_FUJICMD_GET_ADAPTERCONFIG 0xE8
-#define IWM_FUJICMD_NEW_DISK 0xE7
-#define IWM_FUJICMD_UNMOUNT_HOST 0xE6
-#define IWM_FUJICMD_GET_DIRECTORY_POSITION 0xE5
-#define IWM_FUJICMD_SET_DIRECTORY_POSITION 0xE4
-//#define IWM_FUJICMD_SET_HSIO_INDEX 0xE3
-#define IWM_FUJICMD_SET_DEVICE_FULLPATH 0xE2
-#define IWM_FUJICMD_SET_HOST_PREFIX 0xE1
-#define IWM_FUJICMD_GET_HOST_PREFIX 0xE0
-//#define IWM_FUJICMD_SET_SIO_EXTERNAL_CLOCK 0xDF
-#define IWM_FUJICMD_WRITE_APPKEY 0xDE
-#define IWM_FUJICMD_READ_APPKEY 0xDD
-#define IWM_FUJICMD_OPEN_APPKEY 0xDC
-#define IWM_FUJICMD_CLOSE_APPKEY 0xDB
-#define IWM_FUJICMD_GET_DEVICE_FULLPATH 0xDA
-#define IWM_FUJICMD_CONFIG_BOOT 0xD9
-#define IWM_FUJICMD_COPY_FILE 0xD8
-#define IWM_FUJICMD_MOUNT_ALL 0xD7
-#define IWM_FUJICMD_SET_BOOT_MODE 0xD6
-#define IWM_FUJICMD_ENABLE_DEVICE 0xD5
-#define IWM_FUJICMD_DISABLE_DEVICE 0xD4
-#define IWM_FUJICMD_STATUS 0x53
-//#define IWM_FUJICMD_HSIO_INDEX 0x3F
-
 #define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40
 
@@ -78,7 +38,7 @@ void iwmFuji::iwm_ctrl_reset_fujinet() // SP CTRL command
 {
     Debug_printf("\r\nFuji cmd: REBOOT");
     encode_status_reply_packet();
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.SEND_PACKET((unsigned char *)packet_buffer);
     // save device unit SP address somewhere and restore it after reboot?
     fnSystem.reboot();
 }
@@ -87,7 +47,7 @@ void iwmFuji::iwm_stat_net_get_ssid() // SP STATUS command
 {
    Debug_printf("\r\nFuji cmd: GET SSID");
 
-    // Response to IWM_FUJICMD_GET_SSID
+    // Response to FUJICMD_GET_SSID
     struct
     {
         char ssid[MAX_SSID_LEN + 1];
@@ -167,7 +127,7 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
         // uint16_t s = num_decoded;
         // s--;
 
-        // Data for IWM_FUJICMD_SET_SSID
+        // Data for FUJICMD_SET_SSID
         struct
         {
             char ssid[MAX_SSID_LEN + 1];
@@ -313,10 +273,9 @@ void iwmFuji::iwm_ctrl_copy_file()
     fclose(destFile);
     free(dataBuf);
 }
-
-/* 
+ 
 // Mount all
-bool iwmFuji::iwm_mount_all()
+bool iwmFuji::mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
@@ -367,7 +326,7 @@ bool iwmFuji::iwm_mount_all()
     // Go ahead and respond ok
     return false;
 } 
-*/
+
 
 // Set boot mode
 void iwmFuji::iwm_ctrl_set_boot_mode()
@@ -614,13 +573,7 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
 
         fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
-        if (f == nullptr)
-        {
-            Debug_println("Reached end of of directory");
-            dirpath[0] = 0x7F;
-            dirpath[1] = 0x7F;
-        }
-        else
+        if (f != nullptr)
         {
             Debug_printf("::read_direntry \"%s\"\n", f->filename);
 
@@ -658,36 +611,41 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
                 dirpath[filelen + 1] = '\0';
                 Debug_printf("::entry is dir - %s\n", dirpath);
             }
+            // Hack-o-rama to add file type character to beginning of path. - this was for Adam, but must keep for CONFIG compatability
+            // in Apple 2 config will somehow have to work around these extra char's
+            if (maxlen == DIR_MAX_LEN)
+            {
+              memmove(&dirpath[2], dirpath, 254);
+              // if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
+              // {
+              //     dirpath[0] = 0x85;
+              //     dirpath[1] = 0x86;
+              // }
+              // else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
+              // {
+              //     dirpath[0] = 0x87;
+              //     dirpath[1] = 0x88;
+              // }
+              // else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
+              // {
+              //     dirpath[0] = 0x89;
+              //     dirpath[1] = 0x8a;
+              // }
+              // else if (strstr(dirpath, "/"))
+              // {
+              //     dirpath[0] = 0x83;
+              //     dirpath[1] = 0x84;
+              // }
+              // else
+              dirpath[0] = dirpath[1] = 0x20;
+            }
         }
-
-        // Hack-o-rama to add file type character to beginning of path. - this was for Adam, but must keep for CONFIG compatability
-        // in Apple 2 config will somehow have to work around these extra char's
-        if (maxlen == DIR_MAX_LEN)
+        else
         {
-            memmove(&dirpath[2], dirpath, 254);
-            // if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
-            // {
-            //     dirpath[0] = 0x85;
-            //     dirpath[1] = 0x86;
-            // }
-            // else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
-            // {
-            //     dirpath[0] = 0x87;
-            //     dirpath[1] = 0x88;
-            // }
-            // else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
-            // {
-            //     dirpath[0] = 0x89;
-            //     dirpath[1] = 0x8a;
-            // }
-            // else if (strstr(dirpath, "/"))
-            // {
-            //     dirpath[0] = 0x83;
-            //     dirpath[1] = 0x84;
-            // }
-            // else
-                dirpath[0] = dirpath[1] = 0x20;
-        } 
+          Debug_println("Reached end of of directory");
+          dirpath[0] = 0x7F;
+          dirpath[1] = 0x7F;
+        }
         memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
         memcpy(ctrl_stat_buffer, dirpath, maxlen);
         ctrl_stat_len = maxlen;
@@ -746,7 +704,7 @@ void iwmFuji::iwm_stat_get_adapter_config()
 {
     Debug_printf("\r\nFuji cmd: GET ADAPTER CONFIG");
 
-    // Response to IWM_FUJICMD_GET_ADAPTERCONFIG
+    // Response to FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
     memset(&cfg, 0, sizeof(cfg));
@@ -1049,62 +1007,10 @@ void iwmFuji::iwm_ctrl_disable_device()
     IWM.disableDevice(d);
 }
 
-// Mount all
-void iwmFuji::sio_mount_all() // 0xD7 (yes, I know.)
-{
-    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
-
-    for (int i = 0; i < 8; i++)
-    {
-        fujiDisk &disk = _fnDisks[i];
-        fujiHost &host = _fnHosts[disk.host_slot];
-        char flag[3] = {'r', 0, 0};
-
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-            flag[1] = '+';
-
-        if (disk.host_slot != 0xFF)
-        {
-            nodisks = false; // We have a disk in a slot
-
-            if (host.mount() == false)
-            {
-                return;
-            }
-
-            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-                         disk.filename, disk.host_slot, flag, i + 1);
-
-            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-            if (disk.fileh == nullptr)
-            {
-                return;
-            }
-
-            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-            boot_config = false;
-
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
-
-            // And now mount it
-            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-        }
-    }
-
-    if (nodisks)
-    {
-        // No disks in a slot, disable config
-        boot_config = false;
-    }
-}
-
 iwmDisk *iwmFuji::bootdisk()
 {
     return _bootDisk;
 }
-
 
 // Initializes base settings and adds our devices to the SIO bus
 void iwmFuji::setup(iwmBus *iwmbus)
@@ -1120,11 +1026,14 @@ void iwmFuji::setup(iwmBus *iwmbus)
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;  // to do - understand?
 
-    for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
-    {
-      _fnDisks[i].disk_dev.set_disk_number('0' + i);
-      _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
-    }
+    theNetwork = new iwmNetwork();
+    _iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network);
+
+   for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
+   {
+     _fnDisks[i].disk_dev.set_disk_number('0' + i);
+     _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
+   }
 
     Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
@@ -1135,8 +1044,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
     }
     else
     {
-        FILE *f = fnSPIFFS.file_open("/mount-and-boot.po");
-        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);
+      mount_all();
     }
 
     // theNetwork = new adamNetwork();
@@ -1269,7 +1177,7 @@ void iwmFuji::encode_status_dib_reply_packet()
   // grps of 7
   for (grpcount = grpnum - 1; grpcount >= 0; grpcount--) // 3
   {
-    for (i = 0; i < 8; i++)
+    for (i = 0; i < 7; i++)
     {
       group_buffer[i] = data[i + oddnum + (grpcount * 7)]; // data should have 26 cells?
     }
@@ -1320,7 +1228,7 @@ void iwmFuji::iwm_open(cmdPacket_t cmd)
 {
   Debug_printf("\r\nOpen FujiNet Unit # %02x",cmd.g7byte1);
   encode_status_reply_packet();
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 void iwmFuji::iwm_close(cmdPacket_t cmd)
@@ -1344,14 +1252,14 @@ void iwmFuji::iwm_read(cmdPacket_t cmd)
 
   // Debug_printf(" - ERROR - No image mounted");
   // encode_error_reply_packet(source, SP_ERR_OFFLINE);
-  // IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  // IWM.SEND_PACKET((unsigned char *)packet_buffer);
   // return;
 
   memcpy(packet_buffer,"HELLO WORLD",11);
   encode_data_packet(11);
   Debug_printf("\r\nsending data packet with %d elements ...", 11);
   //print_packet();
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 
@@ -1369,89 +1277,89 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       break;
     case IWM_STATUS_STATUS:                  // 0x00
       encode_status_reply_packet();
-      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      IWM.SEND_PACKET((unsigned char *)packet_buffer);
       return;
       break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB:                     // 0x03
       encode_status_dib_reply_packet();
-      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      IWM.SEND_PACKET((unsigned char *)packet_buffer);
       return;
       break;
-    // case IWM_FUJICMD_RESET:               // 0xFF
-    case IWM_FUJICMD_GET_SSID:               // 0xFE
+    // case FUJICMD_RESET:               // 0xFF
+    case FUJICMD_GET_SSID:               // 0xFE
       iwm_stat_net_get_ssid();
       break;
-    case IWM_FUJICMD_SCAN_NETWORKS:          // 0xFD
+    case FUJICMD_SCAN_NETWORKS:          // 0xFD
       iwm_stat_net_scan_networks(); 
       break;
-    case IWM_FUJICMD_GET_SCAN_RESULT:        // 0xFC
+    case FUJICMD_GET_SCAN_RESULT:        // 0xFC
       iwm_stat_net_scan_result(); 
       break;
-    // case IWM_FUJICMD_SET_SSID:            // 0xFB
-    case IWM_FUJICMD_GET_WIFISTATUS:         // 0xFA
+    // case FUJICMD_SET_SSID:            // 0xFB
+    case FUJICMD_GET_WIFISTATUS:         // 0xFA
       iwm_stat_net_get_wifi_status();
       break;
-    // case IWM_FUJICMD_MOUNT_HOST:             // 0xF9
-    // case IWM_FUJICMD_MOUNT_IMAGE:            // 0xF8
-    // case IWM_FUJICMD_OPEN_DIRECTORY:         // 0xF7
-    case IWM_FUJICMD_READ_DIR_ENTRY:         // 0xF6
+    // case FUJICMD_MOUNT_HOST:             // 0xF9
+    // case FUJICMD_MOUNT_IMAGE:            // 0xF8
+    // case FUJICMD_OPEN_DIRECTORY:         // 0xF7
+    case FUJICMD_READ_DIR_ENTRY:         // 0xF6
       iwm_stat_read_directory_entry();
       break;
-    // case IWM_FUJICMD_CLOSE_DIRECTORY:        // 0xF5
-    case IWM_FUJICMD_READ_HOST_SLOTS:        // 0xF4
+    // case FUJICMD_CLOSE_DIRECTORY:        // 0xF5
+    case FUJICMD_READ_HOST_SLOTS:        // 0xF4
       iwm_stat_read_host_slots();
       break;
-    // case IWM_FUJICMD_WRITE_HOST_SLOTS:       // 0xF3
-    case IWM_FUJICMD_READ_DEVICE_SLOTS:      // 0xF2
+    // case FUJICMD_WRITE_HOST_SLOTS:       // 0xF3
+    case FUJICMD_READ_DEVICE_SLOTS:      // 0xF2
       iwm_stat_read_device_slots();
       break;
-    // case IWM_FUJICMD_WRITE_DEVICE_SLOTS:     // 0xF1
-    // case IWM_FUJICMD_UNMOUNT_IMAGE:          // 0xE9
-    case IWM_FUJICMD_GET_ADAPTERCONFIG:      // 0xE8
+    // case FUJICMD_WRITE_DEVICE_SLOTS:     // 0xF1
+    // case FUJICMD_UNMOUNT_IMAGE:          // 0xE9
+    case FUJICMD_GET_ADAPTERCONFIG:      // 0xE8
       iwm_stat_get_adapter_config();         // to do - set up as a DCB?
       break;
-    // case IWM_FUJICMD_NEW_DISK:               // 0xE7
-    // case IWM_FUJICMD_UNMOUNT_HOST:           // 0xE6
-    case IWM_FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
+    // case FUJICMD_NEW_DISK:               // 0xE7
+    // case FUJICMD_UNMOUNT_HOST:           // 0xE6
+    case FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
       iwm_stat_get_directory_position();
       break;
-    // case IWM_FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
-    // case IWM_FUJICMD_SET_DEVICE_FULLPATH:    // 0xE2
-    // case IWM_FUJICMD_SET_HOST_PREFIX:        // 0xE1
-    case IWM_FUJICMD_GET_HOST_PREFIX:        // 0xE0
+    // case FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
+    // case FUJICMD_SET_DEVICE_FULLPATH:    // 0xE2
+    // case FUJICMD_SET_HOST_PREFIX:        // 0xE1
+    case FUJICMD_GET_HOST_PREFIX:        // 0xE0
       iwm_stat_get_host_prefix();
       break;
-    // case IWM_FUJICMD_WRITE_APPKEY:           // 0xDE
-    case IWM_FUJICMD_READ_APPKEY:            // 0xDD
+    // case FUJICMD_WRITE_APPKEY:           // 0xDE
+    case FUJICMD_READ_APPKEY:            // 0xDD
       iwm_stat_read_app_key();
       break;
-    // case IWM_FUJICMD_OPEN_APPKEY:            // 0xDC
-    // case IWM_FUJICMD_CLOSE_APPKEY:           // 0xDB
-    case IWM_FUJICMD_GET_DEVICE_FULLPATH:    // 0xDA
+    // case FUJICMD_OPEN_APPKEY:            // 0xDC
+    // case FUJICMD_CLOSE_APPKEY:           // 0xDB
+    case FUJICMD_GET_DEVICE_FULLPATH:    // 0xDA
       // to do?
       break;
-    // case IWM_FUJICMD_CONFIG_BOOT:            // 0xD9
-    // case IWM_FUJICMD_COPY_FILE:              // 0xD8
-    // case IWM_FUJICMD_MOUNT_ALL:              // 0xD7
-    // case IWM_FUJICMD_SET_BOOT_MODE:          // 0xD6
-    // case IWM_FUJICMD_ENABLE_DEVICE:          // 0xD5
-    // case IWM_FUJICMD_DISABLE_DEVICE:         // 0xD4
-    case IWM_FUJICMD_STATUS:                    // 0x53
+    // case FUJICMD_CONFIG_BOOT:            // 0xD9
+    // case FUJICMD_COPY_FILE:              // 0xD8
+    // case FUJICMD_MOUNT_ALL:              // 0xD7
+    // case FUJICMD_SET_BOOT_MODE:          // 0xD6
+    // case FUJICMD_ENABLE_DEVICE:          // 0xD5
+    // case FUJICMD_DISABLE_DEVICE:         // 0xD4
+    case FUJICMD_STATUS:                    // 0x53
       // to do? parallel to SP status?
       break;
     default:
       Debug_printf("\r\nBad Status Code, sending error response");
       encode_error_reply_packet(SP_ERR_BADCTL);
-      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      IWM.SEND_PACKET((unsigned char *)packet_buffer);
       return;
       break;
   }
   Debug_printf("\r\nStatus code complete, sending response");
   encode_data_packet(packet_len);
   
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 
@@ -1476,96 +1384,96 @@ void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
       iwm_dummy_command();
       break;
     case IWM_CTRL_RESET:    // 0x00
-    case IWM_FUJICMD_RESET: // 0xFF
+    case FUJICMD_RESET: // 0xFF
       iwm_ctrl_reset_fujinet();
       break;
-    // case IWM_FUJICMD_GET_SSID:               // 0xFE
-    // case IWM_FUJICMD_SCAN_NETWORKS:          // 0xFD
-    case IWM_FUJICMD_GET_SCAN_RESULT:        // 0xFC
+    // case FUJICMD_GET_SSID:               // 0xFE
+    // case FUJICMD_SCAN_NETWORKS:          // 0xFD
+    case FUJICMD_GET_SCAN_RESULT:        // 0xFC
       iwm_ctrl_net_scan_result();
       break;
-    case IWM_FUJICMD_SET_SSID:
+    case FUJICMD_SET_SSID:
       iwm_ctrl_net_set_ssid();                // 0xFB
       break;
-    //case IWM_FUJICMD_GET_WIFISTATUS:         // 0xFA
-    case IWM_FUJICMD_MOUNT_HOST: // 0xF9
+    //case FUJICMD_GET_WIFISTATUS:         // 0xFA
+    case FUJICMD_MOUNT_HOST: // 0xF9
       iwm_ctrl_mount_host();
       break;
-    case IWM_FUJICMD_MOUNT_IMAGE: // 0xF8
+    case FUJICMD_MOUNT_IMAGE: // 0xF8
       iwm_ctrl_disk_image_mount();
       break;
-    case IWM_FUJICMD_OPEN_DIRECTORY:         // 0xF7
+    case FUJICMD_OPEN_DIRECTORY:         // 0xF7
       iwm_ctrl_open_directory();
       break;
-    case IWM_FUJICMD_READ_DIR_ENTRY:         // 0xF6
+    case FUJICMD_READ_DIR_ENTRY:         // 0xF6
       iwm_ctrl_read_directory_entry();
       break;
-    case IWM_FUJICMD_CLOSE_DIRECTORY:        // 0xF5
+    case FUJICMD_CLOSE_DIRECTORY:        // 0xF5
       iwm_ctrl_close_directory();
       break;
-    // case IWM_FUJICMD_READ_HOST_SLOTS:        // 0xF4
-    case IWM_FUJICMD_WRITE_HOST_SLOTS:       // 0xF3
+    // case FUJICMD_READ_HOST_SLOTS:        // 0xF4
+    case FUJICMD_WRITE_HOST_SLOTS:       // 0xF3
       iwm_ctrl_write_host_slots();
       break;
-    // case IWM_FUJICMD_READ_DEVICE_SLOTS:      // 0xF2
-    case IWM_FUJICMD_WRITE_DEVICE_SLOTS:     // 0xF1
+    // case FUJICMD_READ_DEVICE_SLOTS:      // 0xF2
+    case FUJICMD_WRITE_DEVICE_SLOTS:     // 0xF1
       iwm_ctrl_write_device_slots();
       break;
-    case IWM_FUJICMD_UNMOUNT_IMAGE:          // 0xE9
+    case FUJICMD_UNMOUNT_IMAGE:          // 0xE9
       iwm_ctrl_disk_image_umount();
       break;
-    // case IWM_FUJICMD_GET_ADAPTERCONFIG:      // 0xE8
-    case IWM_FUJICMD_NEW_DISK:               // 0xE7
+    // case FUJICMD_GET_ADAPTERCONFIG:      // 0xE8
+    case FUJICMD_NEW_DISK:               // 0xE7
       iwm_ctrl_new_disk();
       break;
-    case IWM_FUJICMD_UNMOUNT_HOST:           // 0xE6
+    case FUJICMD_UNMOUNT_HOST:           // 0xE6
       // to do
       break;
-    // case IWM_FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
-    case IWM_FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
+    // case FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
+    case FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
       iwm_ctrl_set_directory_position();
       break;
-    case IWM_FUJICMD_SET_DEVICE_FULLPATH: // 0xE2
+    case FUJICMD_SET_DEVICE_FULLPATH: // 0xE2
       iwm_ctrl_set_device_filename();
       break;
-    case IWM_FUJICMD_SET_HOST_PREFIX:     // 0xE1
+    case FUJICMD_SET_HOST_PREFIX:     // 0xE1
       iwm_ctrl_set_host_prefix();
       break;
-    // case IWM_FUJICMD_GET_HOST_PREFIX:     // 0xE0
-    case IWM_FUJICMD_WRITE_APPKEY:        // 0xDE
+    // case FUJICMD_GET_HOST_PREFIX:     // 0xE0
+    case FUJICMD_WRITE_APPKEY:        // 0xDE
       iwm_ctrl_write_app_key();
       break;
-    case IWM_FUJICMD_READ_APPKEY:         // 0xDD
+    case FUJICMD_READ_APPKEY:         // 0xDD
       iwm_ctrl_read_app_key(); // use before reading the key using statys
       break;
-    // case IWM_FUJICMD_OPEN_APPKEY:         // 0xDC
-    // case IWM_FUJICMD_CLOSE_APPKEY:        // 0xDB
-    // case IWM_FUJICMD_GET_DEVICE_FULLPATH: // 0xDA
-    case IWM_FUJICMD_CONFIG_BOOT: // 0xD9
+    // case FUJICMD_OPEN_APPKEY:         // 0xDC
+    // case FUJICMD_CLOSE_APPKEY:        // 0xDB
+    // case FUJICMD_GET_DEVICE_FULLPATH: // 0xDA
+    case FUJICMD_CONFIG_BOOT: // 0xD9
       iwm_ctrl_set_boot_config();
       break;
-    case IWM_FUJICMD_COPY_FILE: // 0xD8
+    case FUJICMD_COPY_FILE: // 0xD8
       iwm_ctrl_copy_file();
       break;
-    case IWM_FUJICMD_MOUNT_ALL: // 0xD7
-      sio_mount_all();
+    case FUJICMD_MOUNT_ALL: // 0xD7
+      mount_all();
       break;
-    case IWM_FUJICMD_SET_BOOT_MODE: // 0xD6
+    case FUJICMD_SET_BOOT_MODE: // 0xD6
       iwm_ctrl_set_boot_mode();
       break;
-    case IWM_FUJICMD_ENABLE_DEVICE:       // 0xD5
+    case FUJICMD_ENABLE_DEVICE:       // 0xD5
       iwm_ctrl_enable_device();
       break;
-    case IWM_FUJICMD_DISABLE_DEVICE:      // 0xD4
+    case FUJICMD_DISABLE_DEVICE:      // 0xD4
       iwm_ctrl_disable_device();
       break;
-    // case IWM_FUJICMD_STATUS:              // 0x53
+    // case FUJICMD_STATUS:              // 0x53
     default: 
       err_result = SP_ERR_BADCTL;
       break;
   }
   encode_error_reply_packet(err_result); 
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 
