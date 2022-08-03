@@ -18,6 +18,7 @@ sdkconfig
 sdkconfig.fujinet-v1
 sdkconfig.fujinet-v1-8mb
 sdkconfig.fujinet-v1-4mb
+sdkconfig.fujiapple-rev0
 
 include/ssid.h
 /*.log
