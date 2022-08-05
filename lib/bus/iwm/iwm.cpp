@@ -473,7 +473,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
       a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
     else
     {
-      Debug_printf("\r\nRead Packet: too many bytes %d", idx);
+      //Debug_printf("\r\nRead Packet: too many bytes %d", idx); // This can make the guru meditate
       iwm_extra_clr();
       // portENABLE_INTERRUPTS();
       return 1;
@@ -511,7 +511,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
   {
     if (!idx)
     {
-      Debug_printf("\r\nRead Packet: no end of packet marker");
+      //Debug_printf("\r\nRead Packet: no end of packet marker"); // This can make the guru meditate
       a[0] = 0;
       // portENABLE_INTERRUPTS();
       iwm_extra_clr();
