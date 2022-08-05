@@ -1256,12 +1256,14 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     config.max_resp_headers = 16;
     config.max_uri_handlers = 16;
     config.task_priority = 12; // Bump this higher than fnService loop
+    //config.core_id = 0; // Pin to CPU core 0
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed
     config.global_user_ctx_free_fn = (httpd_free_ctx_fn_t)custom_global_ctx_free;
 
     Debug_printf("Starting web server on port %d\n", config.server_port);
+    //Debug_printf("Starting web server on port %d, CPU Core %d\n", config.server_port, config.core_id);
 
     if (httpd_start(&(state.hServer), &config) == ESP_OK)
     {
