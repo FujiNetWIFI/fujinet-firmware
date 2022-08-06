@@ -16,6 +16,13 @@
 // input line WRDATA is being sampled
 #undef EXTRA
 
+#ifdef EXTRA
+#ifdef PINMAP_A2_REV0
+#define SP_EXTRA SP_DRIVE2
+#endif
+#endif
+
+
 /******************************************************************************
 Based on:
 Apple //c Smartport Compact Flash adapter
@@ -200,14 +207,22 @@ inline bool iwmBus::iwm_req_val()
 inline void iwmBus::iwm_extra_set()
 {
 #ifdef EXTRA
+#ifdef PINMAP_A2_REV0
+  GPIO.out_w1ts = ((uint32_t)1 << SP_EXTRA);
+#else
   GPIO.out1_w1ts.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
+#endif
 #endif
 }
 
 inline void iwmBus::iwm_extra_clr()
 {
 #ifdef EXTRA
+#ifdef PINMAP_A2_REV0
+  GPIO.out_w1tc = ((uint32_t)1 << SP_EXTRA);
+#else
   GPIO.out1_w1tc.data = ((uint32_t)0x01 << (SP_EXTRA - 32));  
+#endif
 #endif
 }
 
@@ -868,6 +883,8 @@ void iwmBus::setup(void)
 #endif
 #ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
+  fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
