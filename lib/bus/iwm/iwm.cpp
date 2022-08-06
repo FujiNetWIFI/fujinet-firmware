@@ -455,7 +455,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
       // this is an exclusive OR operation
       current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
       iwm_extra_set(); // signal to logic analyzer we just read the WR value
-      iwm_timer_alarm_set(39); // 4 usec
+      iwm_timer_alarm_set(38); // 4 usec
       bit = prev_level ^ current_level; // could be a != because we're looking for an edge
       rxbyte <<= 1;
       rxbyte |= bit;
