@@ -47,4 +47,5 @@
 #define SP_EN35     39
 #define SP_HDSEL    13
 
+#define SP_EXTRA    SP_DRIVE2 // For extra debugging with logic analyzer
 #endif /* PINMAP_A2_REV0 */
