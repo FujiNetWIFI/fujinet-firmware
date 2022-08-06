@@ -14,7 +14,7 @@
 
 // used for debugging - toggles line to show when the 
 // input line WRDATA is being sampled
-#define EXTRA
+#undef EXTRA
 
 #ifdef EXTRA
 #ifdef PINMAP_A2_REV0
