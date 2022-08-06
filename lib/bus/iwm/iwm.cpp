@@ -12,17 +12,6 @@
 #include "../device/iwm/fuji.h"
 #include "../device/iwm/cpm.h"
 
-// used for debugging - toggles line to show when the 
-// input line WRDATA is being sampled
-#undef EXTRA
-
-#ifdef EXTRA
-#ifdef PINMAP_A2_REV0
-#define SP_EXTRA SP_DRIVE2
-#endif
-#endif
-
-
 /******************************************************************************
 Based on:
 Apple //c Smartport Compact Flash adapter
