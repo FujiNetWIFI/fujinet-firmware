@@ -23,9 +23,8 @@
 #endif
 
 #ifdef BUILD_CBM
-//# include "iec/printer.h"
-//# include "iec/printerlist.h"
-# include "iec/fuji.h"
+#include "iec/disk.h"
+#include "iec/fuji.h"
 #endif
 
 #ifdef BUILD_ADAM
