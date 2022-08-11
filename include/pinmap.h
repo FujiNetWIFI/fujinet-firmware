@@ -7,7 +7,7 @@
 #include "pinmap/atariv1.h"
 #include "pinmap/adamv1.h"
 #include "pinmap/cbm.h"
-#include "pinmap/cbm_d32pro.h"
+#include "pinmap/cbm_rev0.h"
 #include "pinmap/esp32s3.h"
 #include "pinmap/lynx.h"
 
