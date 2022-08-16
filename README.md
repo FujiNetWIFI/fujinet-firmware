@@ -37,7 +37,7 @@ This is the primary ESP32 firmware project. In addition, there are several relat
 
 How to contact us outside of GitHub:
 
-There is active discussion and work on Discord: https://discord.gg/hhKm9AH
+There is active discussion and work on Discord: https://discord.gg/7MfFTvD
 
 There are two active threads on the AtariAge forums:  
 * Software development discussion in
