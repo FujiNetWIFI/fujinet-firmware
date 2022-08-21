@@ -329,6 +329,30 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 
 //------------------------------------------------------
 
+int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
+{ // read data stream using SPI
+  
+  while (1)
+  {
+    /* code */
+  
+  
+  // set up a test - see if i can read the buffer as written by DMA
+  spi_len = 4*n; // 1mpbs/250kbps
+  esp_err_t ret;
+  spi_transaction_t trans;
+  memset(&trans, 0, sizeof(spi_transaction_t));
+  memset(spi_buffer, 0xff , sizeof(spi_buffer));
+  trans.rx_buffer = spi_buffer; // finally send the line data
+  trans.rxlength = spi_len * 8;   // Data length, in bits
+  trans.length = spi_len * 8;   // Data length, in bits
+  trans.flags = 0;              
+
+  ret = spi_device_polling_transmit(spirx, &trans);
+  print_packet(spi_buffer);
+  fnSystem.delay(1000);
+  }
+}
 
 int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n) 
 {
@@ -824,7 +848,7 @@ void iwmBus::setup(void)
       .mode = 0,                         // SPI mode 0
       .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
       .spics_io_num = -1,                // CS pin
-      .queue_size = 7                    // We want to be able to queue 7 transactions at a time
+      .queue_size = 2                    // We want to be able to queue 7 transactions at a time
   };
 
 #ifdef PINMAP_A2_REV0
@@ -835,6 +859,20 @@ void iwmBus::setup(void)
     ret=spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
 #endif
   assert(ret == ESP_OK);
+
+#ifdef TEXT_RX_SPI
+  spi_bus_config_t bus_cfg = {
+      .mosi_io_num = -1, 
+      .miso_io_num = SP_WRDATA,
+      .sclk_io_num = -1,
+      .quadwp_io_num = -1,
+      .quadhd_io_num = -1,
+      .max_transfer_sz = 4000};
+  spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+  ret=spi_bus_add_device(VSPI_HOST, &devcfg, &spirx);
+#endif
+
+
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
@@ -1472,6 +1510,7 @@ void iwmBus::service()
     break;
   case iwm_phases_t::enable:
     // expect a command packet
+    iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN);
     portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
     while (iwm_read_packet(command_packet.data, COMMAND_PACKET_LEN))
     {
