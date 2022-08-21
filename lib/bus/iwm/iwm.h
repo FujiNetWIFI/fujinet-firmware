@@ -308,6 +308,9 @@ private:
   uint8_t spi_buffer[4 * BLOCK_PACKET_LEN]; //smartport packet buffer
   uint16_t spi_len;
   spi_device_handle_t spi;
+  #ifdef TEXT_RX_SPI
+  spi_device_handle_t spirx;
+  #endif
 
   // low level bit-banging i/o functions
   struct iwm_timer_t
@@ -357,6 +360,7 @@ private:
   bool verify_cmdpkt_checksum(void);
 
 public:
+  int iwm_read_packet_spi(uint8_t *a, int n); 
   int iwm_read_packet(uint8_t *a, int n);
   int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
   void encode_spi_packet(uint8_t *a);
