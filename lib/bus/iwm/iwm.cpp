@@ -94,6 +94,37 @@ void print_packet(uint8_t* data)
   }
   // Debug_printf("\r\n");
 }
+
+void print_packet_wave(uint8_t* data, int bytes)
+{
+  int row;
+  char tbs[8];
+
+  Debug_printf(("\r\n"));
+  for (int count = 0; count < bytes; count = count + 12) 
+  {
+    sprintf(tbs, ("%04X: "), count);
+    Debug_print(tbs);
+    for (row = 0; row < 12; row++) {
+      if (count + row >= bytes)
+        Debug_print(("         "));
+      else {
+        uint8_t b = data[count + row];
+        for (int bnum=0; bnum<8; bnum++)
+        {
+          if (b & 0x80)
+            Debug_print("#");
+            else
+            Debug_print("_");
+            b <<= 1;
+        }
+        Debug_print(".");
+         }
+    }
+    Debug_printf(("\r\n"));
+  }
+}
+
 //#endif
 
 //------------------------------------------------------------------------------
@@ -332,26 +363,24 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
   
-  while (1)
-  {
-    /* code */
-  
+
   
   // set up a test - see if i can read the buffer as written by DMA
-  spi_len = 4*n; // 1mpbs/250kbps
+  spi_len = 2*4*n + 28; // 1mpbs/250kbps
   esp_err_t ret;
   spi_transaction_t trans;
   memset(&trans, 0, sizeof(spi_transaction_t));
-  memset(spi_buffer, 0xff , sizeof(spi_buffer));
+  memset(spi_buffer, 0x00 , sizeof(spi_buffer));
   trans.rx_buffer = spi_buffer; // finally send the line data
   trans.rxlength = spi_len * 8;   // Data length, in bits
   trans.length = spi_len * 8;   // Data length, in bits
   trans.flags = 0;              
 
-  ret = spi_device_polling_transmit(spirx, &trans);
-  print_packet(spi_buffer);
-  fnSystem.delay(1000);
-  }
+  ret = spi_device_transmit(spirx, &trans);
+  print_packet_wave(spi_buffer,spi_len);
+
+  return 0;
+
 }
 
 int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n) 
@@ -868,8 +897,14 @@ void iwmBus::setup(void)
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
       .max_transfer_sz = 4000};
+   spi_device_interface_config_t rxcfg = {
+      .mode = 0,                         // SPI mode 0
+      .clock_speed_hz = 2 * 1000 * 1000, // Clock out at 1 MHz
+      .spics_io_num = -1,                // CS pin
+      .queue_size = 2                    // We want to be able to queue 7 transactions at a time
+  };
   spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
-  ret=spi_bus_add_device(VSPI_HOST, &devcfg, &spirx);
+  ret=spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
 #endif
 
 
