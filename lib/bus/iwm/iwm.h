@@ -310,6 +310,8 @@ private:
   spi_device_handle_t spi;
   #ifdef TEXT_RX_SPI
   spi_device_handle_t spirx;
+  const int f_over = 2;
+  const int f_nyquist = 500 * 1000; // 2 x 250 kbps
   #endif
 
   // low level bit-banging i/o functions
