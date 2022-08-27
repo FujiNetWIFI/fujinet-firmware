@@ -40,6 +40,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 //#define IWM_TX_PW             1 // microseconds - 1/2 us for fast mode
 
 #undef VERBOSE_IWM
+//#define VERBOSE_IWM
 
 //------------------------------------------------------------------------------
 //#ifdef DEBUG
@@ -359,8 +360,20 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 }
 
 //------------------------------------------------------
+bool iwmBus::spirx_get_next_sample()
+{
+  // int spirx_byte_ctr;
+  // int spirx_bit_ctr;
+  // uint8_t spirx_temp;
+  if (spirx_bit_ctr > 7)
+  {
+    spirx_bit_ctr = 0;
+    spirx_byte_ctr++;
+  }
+  return (((spi_buffer[spirx_byte_ctr] << spirx_bit_ctr++) & 0x80) == 0x80);
+}
 
-int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
+int iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
   int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
   int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
@@ -380,8 +393,122 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   ret = spi_device_transmit(spirx, &trans);
   print_packet_wave(spi_buffer,spi_len);
 
-  return 0;
+  // test print
+#ifdef VERBOSE
+  spirx_byte_ctr = 0; // initialize the SPI buffer sampler
+  spirx_bit_ctr = 0;
+  for (int i = 0; i < numsamples; i++)
+  {
+    Debug_print(spirx_get_next_sample());
+  }
+  Debug_println("end");
+#endif
+  // decode the packet here
+  spirx_byte_ctr = 0; // initialize the SPI buffer sampler
+  spirx_bit_ctr = 0;
 
+  bool have_data = true;
+  bool synced = false;
+  int idx = 0;             // index into *a
+  bool bit = false; // = 0;        // logical bit value
+  bool prev_bit = true;
+  uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
+  int numbits = 8;             // number of bits left to read into the rxbyte
+
+  bool prev_level = true;
+  bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
+  do // have_data
+  {
+    // beginning of the byte
+    // delay 2 us until middle of 4-us bit
+    // spirx: iwm_timer_alarm_set(16);  // 2 usec
+    // spirx: just start reading data because the SPI setup takes a while anyway
+    do
+    {
+      // spirx: iwm_extra_clr(); // signal to LA we're in the nested loop
+      // spirx: iwm_timer_wait();
+      // spirx: current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
+      
+      // spirx: iwm_timer_alarm_set(38); // 4 usec
+      bit = false; // assume no edge in this next bit
+#ifdef VERBOSE_IWM
+      Debug_printf("\r\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
+      Debug_printf("\r\nspibyte spibit intctr sampval preval rxbit rxbyte");
+#endif
+      int i = 0;
+      while (i < pulsewidth)
+      {      
+        current_level = spirx_get_next_sample();
+      // spirx: iwm_extra_set(); // signal to logic analyzer we just read the WR value
+ #ifdef VERBOSE_IWM
+        Debug_printf("\r\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
+ #endif
+        // sprix:
+        // loop through 4 usec worth of samples looking for an edge
+        // if found, jump forward 2 usec and set bit = 1;
+        // otherwise, bit = 0;
+        if ((prev_level != current_level))
+        {
+          i = halfwidth; // resync the receiver - must be halfway through 4-us period at an edge
+          bit = true;
+        }
+        prev_level = current_level;
+        i++;
+      }
+      rxbyte <<= 1;
+      rxbyte |= bit;
+      prev_bit = bit;
+      
+      if ((--numbits) == 0)
+        break; // end of byte
+    } while(true); // shouldn't this just be "while(--numbits>0)"   ?????
+    if ((rxbyte == 0xc3) && (!synced))
+    {
+#ifdef VERBOSE_IWM
+      Debug_printf("\r\nSYNCED!"); // This can make the guru meditate
+#endif
+      synced = true;
+      idx = 5;
+    }
+    if (idx<n)
+      a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
+    else
+    {
+    //#ifdef VERBOSE_IWM
+      Debug_printf("\r\nRead Packet: too many bytes %d", idx); // This can make the guru meditate
+    // #endif
+      //iwm_extra_clr();
+      // portENABLE_INTERRUPTS();
+      print_packet(a);
+      return 1;
+    }
+      // wait for leading edge of next byte or timeout for end of packet
+      int timeout_ctr = pulsewidth / 4 * 190; 
+      // sprix: iwm_timer_alarm_snooze(190); // 19 usec from smartportsd assy routine
+//#ifdef VERBOSE_IWM
+      Debug_printf("%02x ", rxbyte);
+//#endif
+      // now wait for leading edge of next byte
+      do // return (GPIO.in1.val >> (pin - 32)) & 0x1;
+      {
+        // sprix: iwm_timer_latch();
+        // sprix: iwm_timer_read();
+        // sprix: if (iwm_timer.t0 > iwm_timer.tn)
+        if (--timeout_ctr < 1)
+        {
+          // end of packet
+// #ifdef VERBOSE_IWM
+          Debug_printf("\r\nEND OF PACKET!"); // This can make the guru meditate
+//#endif
+          have_data = false;
+          break;
+        }
+      } while (spirx_get_next_sample() == prev_level); // while (iwm_wrdata_val() == prev_level);
+      numbits = 8;                                     // ;1   8bits to read
+      // } // endif
+  } while (have_data); //(have_data); // while have_data
+  print_packet(a);
+  return 0;
 }
 
 int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n) 

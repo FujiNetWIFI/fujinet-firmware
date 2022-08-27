@@ -310,7 +310,7 @@ private:
   spi_device_handle_t spi;
   #ifdef TEXT_RX_SPI
   spi_device_handle_t spirx;
-  const int f_over = 2;
+  const int f_over = 4;
   const int f_nyquist = 500 * 1000; // 2 x 250 kbps
   #endif
 
@@ -360,6 +360,10 @@ private:
 
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
+
+  int spirx_byte_ctr;
+  int spirx_bit_ctr;
+  bool spirx_get_next_sample();
 
 public:
   int iwm_read_packet_spi(uint8_t *a, int n); 
