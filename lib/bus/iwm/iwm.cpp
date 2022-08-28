@@ -375,6 +375,7 @@ bool iwmBus::spirx_get_next_sample()
 
 int iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
+#ifdef TEXT_RX_SPI
   int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
   int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
   int numsamples = pulsewidth * (n + 2) * 8;
@@ -394,7 +395,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   print_packet_wave(spi_buffer,spi_len);
 
   // test print
-#ifdef VERBOSE
+#ifdef VERBOSE_IWM
   spirx_byte_ctr = 0; // initialize the SPI buffer sampler
   spirx_bit_ctr = 0;
   for (int i = 0; i < numsamples; i++)
@@ -464,9 +465,9 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     } while(true); // shouldn't this just be "while(--numbits>0)"   ?????
     if ((rxbyte == 0xc3) && (!synced))
     {
-#ifdef VERBOSE_IWM
+// #ifdef VERBOSE_IWM
       Debug_printf("\r\nSYNCED!"); // This can make the guru meditate
-#endif
+// #endif
       synced = true;
       idx = 5;
     }
@@ -508,6 +509,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       // } // endif
   } while (have_data); //(have_data); // while have_data
   print_packet(a);
+#endif // TEXT_RX_SPI
   return 0;
 }
 
