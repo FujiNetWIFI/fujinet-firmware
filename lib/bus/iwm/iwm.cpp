@@ -376,6 +376,7 @@ bool iwmBus::spirx_get_next_sample()
 int iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
 #ifdef TEXT_RX_SPI
+
   int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
   int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
   int numsamples = pulsewidth * (n + 2) * 8;
@@ -392,10 +393,14 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   trans.flags = 0;              
 
   //ret = 
-  spi_device_transmit(spirx, &trans);
-  //print_packet_wave(spi_buffer,spi_len);
-  // test print
+  //spi_device_transmit(spirx, &trans);
+  while ( !iwm_req_val() )  {}; // wait until REQ
+  spi_device_queue_trans(spirx, &trans,portMAX_DELAY);
 #ifdef VERBOSE_IWM
+  memcpy(spi_buffer2,spi_buffer,spi_len);
+  print_packet_wave(spi_buffer2,spi_len);
+  print_packet_wave(spi_buffer,spi_len);
+  // test print
   spirx_byte_ctr = 0; // initialize the SPI buffer sampler
   spirx_bit_ctr = 0;
   for (int i = 0; i < numsamples; i++)
@@ -418,6 +423,9 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 
   bool prev_level = true;
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
+ 
+  
+  fnSystem.delay_microseconds(32*10*5);
   do // have_data
   {
     // beginning of the byte
@@ -517,7 +525,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   return 0;
 }
 
-int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n) 
+int IRAM_ATTR iwmBus:: iwm_read_packet(uint8_t *a, int n) 
 {
   //*****************************************************************************
   // Function: iwm_read_packet

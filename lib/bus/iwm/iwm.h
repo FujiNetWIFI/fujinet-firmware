@@ -306,6 +306,9 @@ private:
 
   // iwm packet handling
   uint8_t spi_buffer[4 * BLOCK_PACKET_LEN]; //smartport packet buffer
+#ifdef TEXT_RX_SPI
+  uint8_t spi_buffer2[4 * BLOCK_PACKET_LEN]; //smartport packet buffer
+#endif
   uint16_t spi_len;
   spi_device_handle_t spi;
   #ifdef TEXT_RX_SPI
