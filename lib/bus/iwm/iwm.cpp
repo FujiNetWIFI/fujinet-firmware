@@ -375,6 +375,12 @@ bool iwmBus::spirx_get_next_sample()
 
 int iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
+  iwm_extra_clr();
+  iwm_extra_set();
+  iwm_extra_clr();
+  iwm_extra_set();
+  iwm_extra_clr();
+
 #ifdef TEXT_RX_SPI
 
   int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
@@ -425,7 +431,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
  
   
-  fnSystem.delay_microseconds(32*10*5);
+  fnSystem.delay_microseconds(444); // wait for sync bytes
   do // have_data
   {
     // beginning of the byte
@@ -446,7 +452,8 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 #endif
       int i = 0;
       while (i < pulsewidth)
-      {      
+      { 
+                 iwm_extra_set();   
         current_level = spirx_get_next_sample();
       // spirx: iwm_extra_set(); // signal to logic analyzer we just read the WR value
  #ifdef VERBOSE_IWM
@@ -463,6 +470,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
         }
         prev_level = current_level;
         i++;
+  iwm_extra_clr(); // signal to LA we're in the nested loop     
       }
       rxbyte <<= 1;
       rxbyte |= bit;
