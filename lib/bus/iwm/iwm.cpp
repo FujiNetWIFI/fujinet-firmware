@@ -382,18 +382,18 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   spi_len = numsamples / 8 + 1;
   // set up a test - see if i can read the buffer as written by DMA
   
-  esp_err_t ret;
+  //esp_err_t ret;
   spi_transaction_t trans;
   memset(&trans, 0, sizeof(spi_transaction_t));
-  memset(spi_buffer, 0x00 , sizeof(spi_len));
+  memset(spi_buffer, 0x00 , spi_len);
   trans.rx_buffer = spi_buffer; // finally send the line data
   trans.rxlength = spi_len * 8;   // Data length, in bits
   trans.length = spi_len * 8;   // Data length, in bits
   trans.flags = 0;              
 
-  ret = spi_device_transmit(spirx, &trans);
-  print_packet_wave(spi_buffer,spi_len);
-
+  //ret = 
+  spi_device_transmit(spirx, &trans);
+  //print_packet_wave(spi_buffer,spi_len);
   // test print
 #ifdef VERBOSE_IWM
   spirx_byte_ctr = 0; // initialize the SPI buffer sampler
@@ -412,7 +412,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool synced = false;
   int idx = 0;             // index into *a
   bool bit = false; // = 0;        // logical bit value
-  bool prev_bit = true;
+  //bool prev_bit = true;
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
   int numbits = 8;             // number of bits left to read into the rxbyte
 
@@ -458,7 +458,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       }
       rxbyte <<= 1;
       rxbyte |= bit;
-      prev_bit = bit;
+      //prev_bit = bit;
       
       if ((--numbits) == 0)
         break; // end of byte
@@ -466,13 +466,17 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     if ((rxbyte == 0xc3) && (!synced))
     {
 // #ifdef VERBOSE_IWM
-      Debug_printf("\r\nSYNCED!"); // This can make the guru meditate
+      //Debug_printf("\r\nSYNCED!"); // This can make the guru meditate
 // #endif
       synced = true;
       idx = 5;
     }
     if (idx<n)
-      a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
+    {
+      a[idx++] = rxbyte;  // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
+      if (rxbyte == 0xc8) // woohoo end of packet!
+        return 0;
+    }
     else
     {
     //#ifdef VERBOSE_IWM
@@ -487,7 +491,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       int timeout_ctr = pulsewidth / 4 * 190; 
       // sprix: iwm_timer_alarm_snooze(190); // 19 usec from smartportsd assy routine
 //#ifdef VERBOSE_IWM
-      Debug_printf("%02x ", rxbyte);
+      // Debug_printf("%02x ", rxbyte);
 //#endif
       // now wait for leading edge of next byte
       do // return (GPIO.in1.val >> (pin - 32)) & 0x1;
@@ -499,7 +503,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
         {
           // end of packet
 // #ifdef VERBOSE_IWM
-          Debug_printf("\r\nEND OF PACKET!"); // This can make the guru meditate
+          //Debug_printf("\r\nEND OF PACKET!"); // This can make the guru meditate
 //#endif
           have_data = false;
           break;
@@ -508,7 +512,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       numbits = 8;                                     // ;1   8bits to read
       // } // endif
   } while (have_data); //(have_data); // while have_data
-  print_packet(a);
+  // print_packet(a);
 #endif // TEXT_RX_SPI
   return 0;
 }
@@ -1676,13 +1680,14 @@ void iwmBus::service()
     // expect a command packet
 #ifdef TEXT_RX_SPI
     iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN);
-#endif
+#else
     portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
     while (iwm_read_packet(command_packet.data, COMMAND_PACKET_LEN))
     {
       portENABLE_INTERRUPTS();
       return;
     }
+#endif
     // should not ACK unless we know this is our Command
     if (command_packet.command == 0x85)
     {
