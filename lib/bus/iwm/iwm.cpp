@@ -88,7 +88,7 @@ void print_packet(uint8_t* data)
   Debug_printf("\r\n");
   for (int i = 0; i < 40; i++)
   {
-    if (data[i])
+    if (data[i]!=0 || i==0)
       Debug_printf("%02x ", data[i]);
     else
       break;
@@ -431,9 +431,10 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
  
   
-  fnSystem.delay_microseconds(444); // wait for sync bytes
+  fnSystem.delay_microseconds(64); // wait for first sync byte
   do // have_data
   {
+          fnSystem.delay_microseconds(12); // tweaked based on execution time - could use iwm_timer to pace it off the clock
     // beginning of the byte
     // delay 2 us until middle of 4-us bit
     // spirx: iwm_timer_alarm_set(16);  // 2 usec
@@ -1696,6 +1697,9 @@ void iwmBus::service()
     // expect a command packet
 #ifdef TEXT_RX_SPI
     iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN);
+          //     iwm_ack_clr();
+          // iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
+          // print_packet(command_packet.data, COMMAND_PACKET_LEN);
 #else
     portDISABLE_INTERRUPTS(); // probably put the critical section inside the read packet function?
     while (iwm_read_packet(command_packet.data, COMMAND_PACKET_LEN))
@@ -1709,8 +1713,12 @@ void iwmBus::service()
     {
       iwm_ack_clr();
       iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
+#ifndef TEXT_RX_SPI
       portENABLE_INTERRUPTS();
+#endif
       // wait for REQ to go low
+      //iwm_timer_reset();
+      iwm_timer_reset();
       iwm_timer_latch();          // latch highspeed timer value
       iwm_timer_read();           //  grab timer low word
       iwm_timer_alarm_set(50000); // todo: figure out
@@ -1739,8 +1747,11 @@ void iwmBus::service()
         {
           iwm_ack_clr();
           iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
+#ifndef TEXT_RX_SPI
           portENABLE_INTERRUPTS();
+#endif
           // wait for REQ to go low
+          iwm_timer_reset();
           iwm_timer_latch();          // latch highspeed timer value
           iwm_timer_read();           //  grab timer low word
           iwm_timer_alarm_set(50000); // todo: figure out
@@ -1753,9 +1764,6 @@ void iwmBus::service()
               return;
             }
           }
-#ifdef DEBUG
-          print_packet(command_packet.data);
-#endif
 
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
