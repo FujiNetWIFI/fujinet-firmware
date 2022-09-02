@@ -5,6 +5,10 @@
 # include "sio/fuji.h"
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/fuji.h"
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/fuji.h"
 #endif
