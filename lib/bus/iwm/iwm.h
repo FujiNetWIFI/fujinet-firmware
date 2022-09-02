@@ -305,7 +305,7 @@ private:
   iwmPrinter *_printerdev = nullptr;
 
   // iwm packet handling
-  uint8_t spi_buffer[4 * BLOCK_PACKET_LEN]; //smartport packet buffer
+  uint8_t spi_buffer[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
   spi_device_handle_t spi;
   #ifdef TEXT_RX_SPI

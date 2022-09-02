@@ -1372,7 +1372,7 @@ void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
   Debug_printf("\r\nDevice %02x Control Code %02x", source, control_code);
   Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 #ifdef TEXT_RX_SPI
-  IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, 50);
+  IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
 #else
   IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
 #endif
