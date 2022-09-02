@@ -745,7 +745,7 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
       print_packet(a);
 #endif
       // this was called in read_packet_spi -> spi_device_queue_trans(spirx, &trans,portMAX_DELAY);
-      //spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
       return 0;
   //}  
 #else
@@ -1064,7 +1064,7 @@ void iwmBus::setup(void)
       .sclk_io_num = -1,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = 4000};
+      .max_transfer_sz = 5000 };
    spi_device_interface_config_t rxcfg = {
       .mode = 0,                         // SPI mode 0
       .clock_speed_hz = f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
@@ -1731,7 +1731,7 @@ void iwmBus::service()
       iwm_ack_clr();
       iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
 #ifdef TEXT_RX_SPI
-      // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
 #else 
       portENABLE_INTERRUPTS();
 #endif
@@ -1767,7 +1767,7 @@ void iwmBus::service()
           iwm_ack_clr();
           iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
 #ifdef TEXT_RX_SPI
-          // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+          spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
 #else
           portENABLE_INTERRUPTS();
 #endif
