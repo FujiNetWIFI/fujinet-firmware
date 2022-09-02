@@ -309,6 +309,8 @@ private:
   uint16_t spi_len;
   spi_device_handle_t spi;
   #ifdef TEXT_RX_SPI
+  spi_transaction_t rxtrans;
+  spi_transaction_t* transptr;
   spi_device_handle_t spirx;
   const int f_over = 4;
   const int f_nyquist = 500 * 1000; // 2 x 250 kbps

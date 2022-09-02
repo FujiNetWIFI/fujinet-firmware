@@ -390,18 +390,18 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // set up a test - see if i can read the buffer as written by DMA
   
   //esp_err_t ret;
-  spi_transaction_t trans;
-  memset(&trans, 0, sizeof(spi_transaction_t));
+  transptr = &rxtrans;
+  memset(transptr, 0, sizeof(spi_transaction_t));
   memset(spi_buffer, 0xff , sizeof(spi_buffer));
-  trans.rx_buffer = spi_buffer; // finally send the line data
-  trans.rxlength = spi_len * 8;   // Data length, in bits
-  trans.length = spi_len * 8;   // Data length, in bits
-  trans.flags = 0;              
+  rxtrans.rx_buffer = spi_buffer; // finally send the line data
+  rxtrans.rxlength = spi_len * 8;   // Data length, in bits
+  rxtrans.length = spi_len * 8;   // Data length, in bits
+  rxtrans.flags = 0;              
 
   //ret = 
   //spi_device_transmit(spirx, &trans);
   while ( !iwm_req_val() )  {}; // wait until REQ
-  spi_device_queue_trans(spirx, &trans,portMAX_DELAY);
+  spi_device_queue_trans(spirx, &rxtrans,portMAX_DELAY);
 #ifdef VERBOSE_IWM
   memcpy(spi_buffer2,spi_buffer,spi_len);
   print_packet_wave(spi_buffer2,spi_len);
@@ -736,16 +736,18 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 {
 #ifdef TEXT_RX_SPI
   iwm_ack_disable();
-  for (int i=0; i < attempts; i++)
-  {
-    iwm_read_packet(a, n);
+  //for (int i=0; i < attempts; i++)
+  //{
+    iwm_read_packet_spi(a, n);
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
       iwm_ack_enable();
 #ifdef DEBUG
       print_packet(a);
 #endif
+      // this was called in read_packet_spi -> spi_device_queue_trans(spirx, &trans,portMAX_DELAY);
+      //spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
       return 0;
-  }  
+  //}  
 #else
   // iwm_ack_set(); // todo - is set really needed?
   iwm_ack_disable();
@@ -1393,6 +1395,7 @@ bool iwmDevice::decode_data_packet(void)
 
   if (checksum != (oddbits | evenbits))
   {
+    Debug_printf("\r\nCHECKSUM ERROR!");
     return true; // error!
   }
   
@@ -1727,7 +1730,9 @@ void iwmBus::service()
     {
       iwm_ack_clr();
       iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
-#ifndef TEXT_RX_SPI
+#ifdef TEXT_RX_SPI
+      // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+#else 
       portENABLE_INTERRUPTS();
 #endif
       // wait for REQ to go low
@@ -1761,7 +1766,9 @@ void iwmBus::service()
         {
           iwm_ack_clr();
           iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
-#ifndef TEXT_RX_SPI
+#ifdef TEXT_RX_SPI
+          // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+#else
           portENABLE_INTERRUPTS();
 #endif
           // wait for REQ to go low
