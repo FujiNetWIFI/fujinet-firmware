@@ -5,6 +5,10 @@
 # include "sio/udpstream.h"
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/udpstream.h"
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/udpstream.h"
 #endif

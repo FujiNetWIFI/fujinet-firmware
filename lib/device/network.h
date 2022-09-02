@@ -5,6 +5,10 @@
 # include "sio/network.h"
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/network.h"
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/network.h"
 #endif
