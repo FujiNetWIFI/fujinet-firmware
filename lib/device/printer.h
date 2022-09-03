@@ -7,6 +7,12 @@
 # define PRINTER_CLASS sioPrinter
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/printer.h"
+# include "rs232/printerlist.h"
+# define PRINTER_CLASS rs232Printer
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/printer.h"
 # include "iec/printerlist.h"

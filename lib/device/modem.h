@@ -6,6 +6,11 @@
   extern sioModem *sioR;
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/modem.h"
+  extern rs232Modem *sioR;
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/modem.h"
   extern iecModem *sioR;
