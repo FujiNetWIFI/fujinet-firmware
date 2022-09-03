@@ -5,6 +5,10 @@
 # include "sio/siocpm.h"
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/rs232cpm.h"
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/cpm.h"
 #endif

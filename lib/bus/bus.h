@@ -36,4 +36,9 @@
 #define SYSTEM_BUS s100Bus
 #endif
 
+#ifdef BUILD_RS232
+#include "rs232/rs232.h"
+#define SYSTEM_BUS RS232
+#endif
+
 #endif // BUS_H

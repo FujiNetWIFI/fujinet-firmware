@@ -8,6 +8,11 @@
 # include "atari/diskTypeXex.h"
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/diskType.h"
+# include "rs232/diskTypeImg.h"
+#endif
+
 #ifdef BUILD_CBM
 # include "cbm/mediaType.h"
 #endif
