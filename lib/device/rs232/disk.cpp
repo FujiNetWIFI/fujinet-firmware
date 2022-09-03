@@ -214,26 +214,11 @@ mediatype_t rs232Disk::mount(FILE *f, const char *filename, uint32_t disksize, m
     // Now mount based on MediaType
     switch (disk_type)
     {
-    case MEDIATYPE_CAS:
-    case MEDIATYPE_WAV:
-        // open the cassette file
-        theFuji.cassette()->mount_cassette_file(f, disksize);
-        return disk_type;
-        // TODO left off here for tape cassette
-        break;
-    case MEDIATYPE_XEX:
-        device_active = true;
-        _disk = new MediaTypeXEX();
-        return _disk->mount(f, disksize);
-    case MEDIATYPE_ATX:
-        device_active = true;
-        _disk = new MediaTypeATX();
-        return _disk->mount(f, disksize);
-    case MEDIATYPE_ATR:
+    case MEDIATYPE_IMG:
     case MEDIATYPE_UNKNOWN:
     default:
         device_active = true;
-        _disk = new MediaTypeATR();
+        _disk = new MediaTypeImg();
         return _disk->mount(f, disksize);
     }
 }
@@ -262,7 +247,7 @@ bool rs232Disk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 
-    return MediaTypeATR::create(f, sectorSize, numSectors);
+    return MediaTypeImg::create(f, sectorSize, numSectors);
 }
 
 // Process command
@@ -286,79 +271,20 @@ void rs232Disk::rs232_process(uint32_t commanddata, uint8_t checksum)
         rs232_ack();
         rs232_read();
         return;
-    case RS232_DISKCMD_HRS232_READ:
-        if (_disk->_allow_hrs232)
-        {
-            rs232_ack();
-            rs232_read();
-            return;
-        }
-        break;
     case RS232_DISKCMD_PUT:
         rs232_ack();
         rs232_write(false);
         return;
-    case RS232_DISKCMD_HRS232_PUT:
-        if (_disk->_allow_hrs232)
-        {
-            rs232_ack();
-            rs232_write(false);
-            return;
-        }
-        break;
     case RS232_DISKCMD_STATUS:
-    case RS232_DISKCMD_HRS232_STATUS:
-        if (is_config_device == true)
-        {
-            if (theFuji.boot_config == true)
-            {
-                if ( status_wait_count > 0 && theFuji.status_wait_enabled )
-                {
-                    Debug_print("ignoring status command\n");
-                    status_wait_count--;
-                }
-                else
-                {
-                    device_active = true;
-                    rs232_ack();
-                    rs232_status();
-                }
-            }
-        }
-        else
-        {
-            if (cmdFrame.comnd == RS232_DISKCMD_HRS232_STATUS && _disk->_allow_hrs232 == false)
-                break;
-            rs232_ack();
-            rs232_status();
-        }
-        return;
     case RS232_DISKCMD_WRITE:
         rs232_ack();
         rs232_write(true);
         return;
-    case RS232_DISKCMD_HRS232_WRITE:
-        if (_disk->_allow_hrs232)
-        {
-            rs232_ack();
-            rs232_write(true);
-            return;
-        }
-        break;
     case RS232_DISKCMD_FORMAT:
     case RS232_DISKCMD_FORMAT_MEDIUM:
         rs232_ack();
         rs232_format();
         return;
-    case RS232_DISKCMD_HRS232_FORMAT:
-    case RS232_DISKCMD_HRS232_FORMAT_MEDIUM:
-        if (_disk->_allow_hrs232)
-        {
-            rs232_ack();
-            rs232_format();
-            return;
-        }
-        break;
     case RS232_DISKCMD_PERCOM_READ:
         rs232_ack();
         rs232_read_percom_block();
@@ -367,14 +293,6 @@ void rs232Disk::rs232_process(uint32_t commanddata, uint8_t checksum)
         rs232_ack();
         rs232_write_percom_block();
         return;
-    case RS232_DISKCMD_HRS232_INDEX:
-        if (_disk->_allow_hrs232)
-        {
-            rs232_ack();
-            rs232_high_speed();
-            return;
-        }
-        break;
     }
 
     rs232_nak();

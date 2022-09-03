@@ -25,7 +25,6 @@
 #ifdef BUILD_RS232
 # include "rs232/apetime.h"
 # include "rs232/disk.h"
-# include "rs232/udpstream.h"
 # include "rs232/modem.h"
 # include "rs232/network.h"
 # include "rs232/printer.h"
@@ -34,7 +33,6 @@
 # include "rs232/fuji.h"
 
     rs232ApeTime apeTime;
-    rs232UDPStream udpDev;
     rs232Modem *sioR;
     rs232CPM sioZ;
 #endif

@@ -65,35 +65,6 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
  */
 void say_number(unsigned char n)
 {
-    switch (n)
-    {
-    case 1:
-        util_sam_say("WAH7NQ", true);
-        break;
-    case 2:
-        util_sam_say("TUW7", true);
-        break;
-    case 3:
-        util_sam_say("THRIYY7Q", true);
-        break;
-    case 4:
-        util_sam_say("FOH7R", true);
-        break;
-    case 5:
-        util_sam_say("F7AYVQ", true);
-        break;
-    case 6:
-        util_sam_say("SIH7IHKSQ", true);
-        break;
-    case 7:
-        util_sam_say("SEHV7EHNQ", true);
-        break;
-    case 8:
-        util_sam_say("AEY74Q", true);
-        break;
-    default:
-        Debug_printf("say_number() - Uncaught number %d", n);
-    }
 }
 
 /**
@@ -101,8 +72,6 @@ void say_number(unsigned char n)
  */
 void say_swap_label()
 {
-    // DISK
-    util_sam_say("DIHSK7Q ", true);
 }
 
 // Constructor
@@ -698,29 +667,6 @@ void rs232Fuji::rs232_read_app_key()
 // DEBUG TAPE
 void rs232Fuji::debug_tape()
 {
-    // if not mounted then disable cassette and do nothing
-    // if mounted then activate cassette
-    // if mounted and active, then deactivate
-    // no longer need to handle file open/close
-    if (_cassetteDev.is_mounted() == true)
-    {
-        if (_cassetteDev.is_active() == false)
-        {
-            Debug_println("::debug_tape ENABLE");
-            _cassetteDev.rs232_enable_cassette();
-        }
-        else
-        {
-            Debug_println("::debug_tape DISABLE");
-            _cassetteDev.rs232_disable_cassette();
-        }
-    }
-    else
-    {
-        Debug_println("::debug_tape NO CAS FILE MOUNTED");
-        Debug_println("::debug_tape DISABLE");
-        _cassetteDev.rs232_disable_cassette();
-    }
 }
 
 // Disk Image Unmount
@@ -734,12 +680,6 @@ void rs232Fuji::rs232_disk_image_umount()
     if (deviceSlot < MAX_DISK_DEVICES)
     {
         _fnDisks[deviceSlot].disk_dev.unmount();
-        if (_fnDisks[deviceSlot].disk_type == MEDIATYPE_CAS || _fnDisks[deviceSlot].disk_type == MEDIATYPE_WAV)
-        {
-            // tell cassette it unmount
-            _cassetteDev.umount_cassette_file();
-            _cassetteDev.rs232_disable_cassette();
-        }
         _fnDisks[deviceSlot].reset();
     }
     // Handle tape
@@ -1022,7 +962,7 @@ void rs232Fuji::rs232_get_adapter_config()
 
     memset(&cfg, 0, sizeof(cfg));
 
-    strlcpy(cfg.fn_verrs232n, fnSystem.get_fujinet_verrs232n(true), sizeof(cfg.fn_verrs232n));
+    strlcpy(cfg.fn_verrs232n, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_verrs232n));
 
     if (!fnWiFi.connected())
     {
@@ -1341,34 +1281,6 @@ void rs232Fuji::_populate_config_from_slots()
     }
 }
 
-// AUX1 is our index value (from 0 to RS232_HISPEED_LOWEST_INDEX)
-// AUX2 requests a save of the change if set to 1
-void rs232Fuji::rs232_set_hrs232_index()
-{
-    Debug_println("Fuji cmd: SET HRS232 INDEX");
-
-    // DAUX1 holds the desired index value
-    uint8_t index = cmdFrame.aux1;
-
-    // Make sure it's a valid value
-    if (index > RS232_HISPEED_LOWEST_INDEX)
-    {
-        rs232_error();
-        return;
-    }
-
-    RS232.setHighSpeedIndex(index);
-
-    // Go ahead and save it if AUX2 = 1
-    if (cmdFrame.aux2 & 1)
-    {
-        Config.store_general_hrs232index(index);
-        Config.save();
-    }
-
-    rs232_complete();
-}
-
 // Write a 256 byte filename to the device slot
 void rs232Fuji::rs232_set_device_filename()
 {
@@ -1529,9 +1441,6 @@ void rs232Fuji::setup(systemBus *rs232bus)
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
         _rs232_bus->addDevice(&rs232NetDevs[i], RS232_DEVICEID_FN_NETWORK + i);
 
-    _rs232_bus->addDevice(&_cassetteDev, RS232_DEVICEID_CASSETTE);
-    cassette()->set_buttons(Config.get_cassette_buttons());
-    cassette()->set_pulldown(Config.get_cassette_pulldown());
 }
 
 rs232Disk *rs232Fuji::bootdisk()
@@ -1548,14 +1457,6 @@ void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_HRS232_INDEX:
-        rs232_ack();
-        rs232_high_speed();
-        break;
-    case FUJICMD_SET_HRS232_INDEX:
-        rs232_ack();
-        rs232_set_hrs232_index();
-        break;
     case FUJICMD_STATUS:
         rs232_ack();
         rs232_status();
@@ -1655,10 +1556,6 @@ void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_GET_HOST_PREFIX:
         rs232_ack();
         rs232_get_host_prefix();
-        break;
-    case FUJICMD_SET_RS232_EXTERNAL_CLOCK:
-        rs232_ack();
-        rs232_set_rs232_external_clock();
         break;
     case FUJICMD_WRITE_APPKEY:
         rs232_ack();

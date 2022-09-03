@@ -6,7 +6,7 @@
 #endif
 
 #ifdef BUILD_RS232
-# include "sio/rs232cpm.h"
+# include "rs232/rs232cpm.h"
 #endif
 
 #ifdef BUILD_CBM
