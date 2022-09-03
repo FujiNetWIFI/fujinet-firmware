@@ -61,8 +61,6 @@ private:
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
-    rs232Cassette _cassetteDev;
-
     int _current_open_directory_slot = -1;
 
     rs232Disk _bootDisk; // special disk drive just for configuration
@@ -125,7 +123,6 @@ public:
 
     rs232Network *network();
 
-    rs232Cassette *cassette() { return &_cassetteDev; };
     void debug_tape();
 
     void insert_boot_device(uint8_t d);

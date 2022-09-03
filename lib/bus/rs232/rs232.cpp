@@ -7,7 +7,7 @@
 #include "fuji.h"
 #include "udpstream.h"
 #include "modem.h"
-#include "rs232cpm.h"
+#include "siocpm.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -58,11 +58,11 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
         rs232_complete();
 
     // Write data frame
-    fnUartRS232.write(buf, len);
+    fnUartSIO.write(buf, len);
     // Write checksum
-    fnUartRS232.write(rs232_checksum(buf, len));
+    fnUartSIO.write(rs232_checksum(buf, len));
 
-    fnUartRS232.flush();
+    fnUartSIO.flush();
 }
 
 /*
@@ -77,13 +77,13 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     Debug_printf("<-RS232 read %hu bytes\n", len);
 
     __BEGIN_IGNORE_UNUSEDVARS
-    size_t l = fnUartRS232.readBytes(buf, len);
+    size_t l = fnUartSIO.readBytes(buf, len);
     __END_IGNORE_UNUSEDVARS
 
     // Wait for checksum
-    while (fnUartRS232.available() <= 0)
+    while (fnUartSIO.available() <= 0)
         fnSystem.yield();
-    uint8_t ck_rcv = fnUartRS232.read();
+    uint8_t ck_rcv = fnUartSIO.read();
 
     uint8_t ck_tst = rs232_checksum(buf, len);
 
@@ -110,17 +110,17 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 // RS232 NAK
 void virtualDevice::rs232_nak()
 {
-    fnUartRS232.write('N');
-    fnUartRS232.flush();
+    fnUartSIO.write('N');
+    fnUartSIO.flush();
     Debug_println("NAK!");
 }
 
 // RS232 ACK
 void virtualDevice::rs232_ack()
 {
-    fnUartRS232.write('A');
+    fnUartSIO.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
-    fnUartRS232.flush();
+    fnUartSIO.flush();
     Debug_println("ACK!");
 }
 
@@ -128,7 +128,7 @@ void virtualDevice::rs232_ack()
 void virtualDevice::rs232_complete()
 {
     fnSystem.delay_microseconds(DELAY_T5);
-    fnUartRS232.write('C');
+    fnUartSIO.write('C');
     Debug_println("COMPLETE!");
 }
 
@@ -136,7 +136,7 @@ void virtualDevice::rs232_complete()
 void virtualDevice::rs232_error()
 {
     fnSystem.delay_microseconds(DELAY_T5);
-    fnUartRS232.write('E');
+    fnUartSIO.write('E');
     Debug_println("ERROR!");
 }
 
@@ -155,7 +155,7 @@ void systemBus::_rs232_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting RS232 baud");
-        fnUartRS232.set_baudrate(_rs232Baud);
+        fnUartSIO.set_baudrate(_rs232Baud);
     }
 
     // Read CMD frame
@@ -163,7 +163,7 @@ void systemBus::_rs232_process_cmd()
     tempFrame.commanddata = 0;
     tempFrame.checksum = 0;
 
-    if (fnUartRS232.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
+    if (fnUartSIO.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
         // Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
@@ -174,7 +174,7 @@ void systemBus::_rs232_process_cmd()
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
     // Wait for CMD line to raise again
-    while (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+    while (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
         fnSystem.yield();
 
     uint8_t ck = rs232_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
@@ -198,22 +198,6 @@ void systemBus::_rs232_process_cmd()
         }
         else
         {
-            // Command RS232_DEVICEID_TYPE3POLL is a Type3 poll - send it to every device that cares
-            if (tempFrame.device == RS232_DEVICEID_TYPE3POLL)
-            {
-                Debug_println("RS232 TYPE3 POLL");
-                for (auto devicep : _daisyChain)
-                {
-                    if (devicep->listen_to_type3_polls)
-                    {
-                        Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
-                        _activeDev = devicep;
-                        // handle command
-                        _activeDev->rs232_process(tempFrame.commanddata, tempFrame.checksum);
-                    }
-                }
-            }
-            else
             {
                 // find device, ack and pass control
                 // or go back to WAIT
@@ -233,12 +217,6 @@ void systemBus::_rs232_process_cmd()
     {
         Debug_print("CHECKSUM_ERROR\n");
         // Switch to/from hispeed RS232 if we get enough failed frame checksums
-        _command_frame_counter++;
-        if (COMMAND_FRAME_SPEED_CHANGE_THRESHOLD == _command_frame_counter)
-        {
-            _command_frame_counter = 0;
-            toggleBaudrate();
-        }
     }
     fnLedManager.set(eLed::LED_BUS, false);
 }
@@ -277,59 +255,14 @@ void systemBus::service()
     // modes disrupt normal RS232 handling - should probably make a separate task for this)
     _rs232_process_queue();
 
-    if (_udpDev != nullptr && _udpDev->udpstreamActive)
-    {
-        if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
-        {
-#ifdef DEBUG
-            Debug_println("CMD Asserted, stopping UDP Stream");
-#endif
-            _udpDev->rs232_disable_udpstream();
-        }
-        else
-        {
-            _udpDev->rs232_handle_udpstream();
-            return; // break!
-        }
-    }
-    else if (_cpmDev != nullptr && _cpmDev->cpmActive)
+    if (_cpmDev != nullptr && _cpmDev->cpmActive)
     {
         _cpmDev->rs232_handle_cpm();
         return; // break!
     }
 
-    // check if cassette is mounted and enabled first
-    if (_fujiDev->cassette()->is_mounted() && Config.get_cassette_enabled())
-    { // the test which tape activation mode
-        if (_fujiDev->cassette()->has_pulldown())
-        {                                                    // motor line mode
-            if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH) // TODO: use cassette helper function for consistency?
-            {
-                if (_fujiDev->cassette()->is_active() == false) // keep this logic because motor line mode
-                {
-                    Debug_println("MOTOR ON: activating cassette");
-                    _fujiDev->cassette()->rs232_enable_cassette();
-                }
-            }
-            else // check if need to stop tape
-            {
-                if (_fujiDev->cassette()->is_active() == true)
-                {
-                    Debug_println("MOTOR OFF: de-activating cassette");
-                    _fujiDev->cassette()->rs232_disable_cassette();
-                }
-            }
-        }
-
-        if (_fujiDev->cassette()->is_active() == true) // handle cassette data traffic
-        {
-            _fujiDev->cassette()->rs232_handle_cassette(); //
-            return;                                      // break!
-        }
-    }
-
     // Go process a command frame if the RS232 CMD line is asserted
-    if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+    if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
     {
         _rs232_process_cmd();
     }
@@ -341,7 +274,7 @@ void systemBus::service()
     else
     // Neither CMD nor active modem, so throw out any stray input data
     {
-        fnUartRS232.flush_input();
+        fnUartSIO.flush_input();
     }
 
     // Handle interrupts from network protocols
@@ -358,39 +291,28 @@ void systemBus::setup()
     Debug_println("RS232 SETUP");
 
     // Set up UART
-    fnUartRS232.begin(_rs232Baud);
+    fnUartSIO.begin(_rs232Baud);
 
     // INT PIN
-    fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_INT, DIGI_HIGH);
+    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
     // PROC PIN
-    fnSystem.set_pin_mode(PIN_PROC, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_PROC, DIGI_HIGH);
+    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
     // MTR PIN
     //fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
-    fnSystem.set_pin_mode(PIN_MTR, gpio_mode_t::GPIO_MODE_INPUT);
+    // fnSystem.set_pin_mode(PIN_MTR, gpio_mode_t::GPIO_MODE_INPUT);
     // CMD PIN
-    //fnSystem.set_pin_mode(PIN_CMD, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
-    fnSystem.set_pin_mode(PIN_CMD, gpio_mode_t::GPIO_MODE_INPUT);
+    //fnSystem.set_pin_mode(PIN_RS232_DTR, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
+    fnSystem.set_pin_mode(PIN_RS232_DTR, gpio_mode_t::GPIO_MODE_INPUT);
     // CKI PIN
     //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
-    fnSystem.set_pin_mode(PIN_CKI, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
-    fnSystem.digital_write(PIN_CKI, DIGI_LOW);
     // CKO PIN
-    fnSystem.set_pin_mode(PIN_CKO, gpio_mode_t::GPIO_MODE_INPUT);
 
     // Create a message queue
     qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
 
-    // Set the initial HRS232 index
-    // First see if Config has read a value
-    int i = Config.get_general_hrs232index();
-    if (i != HRS232_INVALID_INDEX)
-        setHighSpeedIndex(i);
-    else
-        setHighSpeedIndex(_rs232HighSpeedIndex);
-
-    fnUartRS232.flush_input();
+    fnUartSIO.flush_input();
 }
 
 // Add device to RS232 bus
@@ -411,10 +333,6 @@ void systemBus::addDevice(virtualDevice *pDevice, int device_id)
     else if (device_id == RS232_DEVICEID_MIDI)
     {
         _udpDev = (rs232UDPStream *)pDevice;
-    }
-    else if (device_id == RS232_DEVICEID_CASSETTE)
-    {
-        _cassetteDev = (rs232Cassette *)pDevice;
     }
     else if (device_id == RS232_DEVICEID_CPM)
     {
@@ -480,14 +398,14 @@ void systemBus::shutdown()
 
 void systemBus::toggleBaudrate()
 {
-    int baudrate = _rs232Baud == RS232_STANDARD_BAUDRATE ? _rs232BaudHigh : RS232_STANDARD_BAUDRATE;
+    int baudrate = _rs232Baud == RS232_BAUDRATE ? _rs232BaudHigh : RS232_BAUDRATE;
 
     if (useUltraHigh == true)
-        baudrate = _rs232Baud == RS232_STANDARD_BAUDRATE ? _rs232BaudUltraHigh : RS232_STANDARD_BAUDRATE;
+        baudrate = _rs232Baud == RS232_BAUDRATE ? _rs232BaudUltraHigh : RS232_BAUDRATE;
 
     Debug_printf("Toggling baudrate from %d to %d\n", _rs232Baud, baudrate);
     _rs232Baud = baudrate;
-    fnUartRS232.set_baudrate(_rs232Baud);
+    fnUartSIO.set_baudrate(_rs232Baud);
 }
 
 int systemBus::getBaudrate()
@@ -505,25 +423,18 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _rs232Baud, baud);
     _rs232Baud = baud;
-    fnUartRS232.set_baudrate(baud);
+    fnUartSIO.set_baudrate(baud);
 }
 
 // Set HRS232 index. Sets high speed RS232 baud and also returns that value.
 int systemBus::setHighSpeedIndex(int hrs232_index)
 {
-    int temp = _rs232BaudHigh;
-    _rs232BaudHigh = (RS232_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (hrs232_index + 7)) + 3);
-    _rs232HighSpeedIndex = hrs232_index;
-
-    int alt = RS232_ATARI_PAL_FREQUENCY / (2 * hrs232_index + 14);
-
-    Debug_printf("Set HRS232 baud from %d to %d (index %d), alt=%d\n", temp, _rs232BaudHigh, hrs232_index, alt);
-    return _rs232BaudHigh;
+    return 0;
 }
 
 int systemBus::getHighSpeedIndex()
 {
-    return _rs232HighSpeedIndex;
+    return 0;
 }
 
 int systemBus::getHighSpeedBaud()
@@ -533,88 +444,10 @@ int systemBus::getHighSpeedBaud()
 
 void systemBus::setUDPHost(const char *hostname, int port)
 {
-    // Turn off if hostname is STOP
-    if (!strcmp(hostname, "STOP"))
-    {
-        if (_udpDev->udpstreamActive)
-            _udpDev->rs232_disable_udpstream();
-
-        return;
-    }
-
-    if (hostname != nullptr && hostname[0] != '\0')
-    {
-        // Try to resolve the hostname and store that so we don't have to keep looking it up
-        _udpDev->udpstream_host_ip = get_ip4_addr_by_name(hostname);
-
-        if (_udpDev->udpstream_host_ip == IPADDR_NONE)
-        {
-            Debug_printf("Failed to resolve hostname \"%s\"\n", hostname);
-        }
-    }
-    else
-    {
-        _udpDev->udpstream_host_ip = IPADDR_NONE;
-    }
-
-    if (port > 0 && port <= 65535)
-    {
-        _udpDev->udpstream_port = port;
-    }
-    else
-    {
-        _udpDev->udpstream_port = 5004;
-        Debug_printf("UDPStream port not provided or invalid (%d), setting to 5004\n", port);
-    }
-
-    // Restart UDP Stream mode if needed
-    if (_udpDev->udpstreamActive)
-        _udpDev->rs232_disable_udpstream();
-    if (_udpDev->udpstream_host_ip != IPADDR_NONE)
-        _udpDev->rs232_enable_udpstream();
 }
 
 void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 {
-    useUltraHigh = _enable;
-
-    if (_enable == true)
-    {
-        // Setup PWM channel for CLOCK IN
-        ledc_channel_config_t ledc_channel_rs232_ckin;
-        ledc_channel_rs232_ckin.gpio_num = PIN_CKI;
-        ledc_channel_rs232_ckin.speed_mode = LEDC_HIGH_SPEED_MODE;
-        ledc_channel_rs232_ckin.channel = LEDC_CHANNEL_1;
-        ledc_channel_rs232_ckin.intr_type = LEDC_INTR_DISABLE;
-        ledc_channel_rs232_ckin.timer_sel = LEDC_TIMER_1;
-        ledc_channel_rs232_ckin.duty = 1;
-        ledc_channel_rs232_ckin.hpoint = 0;
-
-        // Setup PWM timer for CLOCK IN
-        ledc_timer_config_t ledc_timer;
-        ledc_timer.clk_cfg = LEDC_AUTO_CLK;
-        ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
-        ledc_timer.duty_resolution = LEDC_TIMER_1_BIT;
-        ledc_timer.timer_num = LEDC_TIMER_1;
-        ledc_timer.freq_hz = _ultraHighBaud;
-
-        _rs232BaudUltraHigh = _ultraHighBaud;
-
-        Debug_printf("Enabling RS232 clock, rate: %lu\n", ledc_timer.freq_hz);
-
-        // Enable PWM on CLOCK IN
-        ledc_channel_config(&ledc_channel_rs232_ckin);
-        ledc_timer_config(&ledc_timer);
-        fnUartRS232.set_baudrate(_rs232BaudUltraHigh);
-    }
-    else
-    {
-        Debug_printf("Disabling RS232 clock.\n");
-        ledc_stop(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
-
-        _rs232BaudUltraHigh = 0;
-        fnUartRS232.set_baudrate(RS232_STANDARD_BAUDRATE);
-    }
 }
 
 systemBus RS232; // Global RS232 object

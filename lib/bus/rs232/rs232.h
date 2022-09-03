@@ -29,6 +29,9 @@
 
 #define RS232_DEVICEID_CPM 0x5A
 
+#define DELAY_T4 800
+#define DELAY_T5 800
+
 union cmdFrame_t
 {
     struct

@@ -58,7 +58,7 @@ void rs232CPM::rs232_handle_cpm()
 
 void rs232CPM::init_cpm(int baud)
 {
-    fnUartRS232.set_baudrate(baud);
+    fnUartSIO.set_baudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);

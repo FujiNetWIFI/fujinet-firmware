@@ -1,5 +1,5 @@
-#ifndef _MEDIATYPE_
-#define _MEDIATYPE_
+#ifndef _MEDIATYPE_RS232
+#define _MEDIATYPE_RS232
 
 #include <stdio.h>
 
@@ -11,7 +11,7 @@
 #define DISK_BYTES_PER_SECTOR_DOUBLE 256
 #define DISK_BYTES_PER_SECTOR_DOUBLE_DOUBLE 512
 
-#defZenith Data Systems Z Note 425ine DISK_CTRL_STATUS_CLEAR 0x00
+#define DISK_CTRL_STATUS_CLEAR 0x00
 #define DISK_CTRL_STATUS_BUSY 0x01
 #define DISK_CTRL_STATUS_DATA_PENDING 0x02
 #define DISK_CTRL_STATUS_DATA_LOST 0x04
@@ -33,11 +33,7 @@
 enum mediatype_t 
 {
     MEDIATYPE_UNKNOWN = 0,
-    MEDIATYPE_ATR,
-    MEDIATYPE_ATX,
-    MEDIATYPE_XEX,
-    MEDIATYPE_CAS,
-    MEDIATYPE_WAV,
+    MEDIATYPE_IMG,
     MEDIATYPE_COUNT
 };
 
@@ -71,7 +67,6 @@ public:
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
 
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
-    bool _allow_hsio = true;
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
     virtual void unmount();

@@ -1,4 +1,4 @@
-#ifdef BUILD_ATARI
+#ifdef BUILD_RS232
 
 /**
  * N: Firmware
@@ -1057,7 +1057,7 @@ void rs232Network::processCommaFromDevicespec()
  */
 void rs232Network::rs232_assert_interrupt()
 {
-    fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+    fnSystem.digital_write(PIN_RS232_DTR, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
 }
 
 void rs232Network::rs232_set_translation()
