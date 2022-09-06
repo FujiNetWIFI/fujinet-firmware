@@ -12,10 +12,6 @@
 #include "../device/iwm/fuji.h"
 #include "../device/iwm/cpm.h"
 
-// used for debugging - toggles line to show when the 
-// input line WRDATA is being sampled
-#undef EXTRA
-
 /******************************************************************************
 Based on:
 Apple //c Smartport Compact Flash adapter
@@ -200,14 +196,22 @@ inline bool iwmBus::iwm_req_val()
 inline void iwmBus::iwm_extra_set()
 {
 #ifdef EXTRA
+#ifdef PINMAP_A2_REV0
+  GPIO.out_w1ts = ((uint32_t)1 << SP_EXTRA);
+#else
   GPIO.out1_w1ts.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
+#endif
 #endif
 }
 
 inline void iwmBus::iwm_extra_clr()
 {
 #ifdef EXTRA
+#ifdef PINMAP_A2_REV0
+  GPIO.out_w1tc = ((uint32_t)1 << SP_EXTRA);
+#else
   GPIO.out1_w1tc.data = ((uint32_t)0x01 << (SP_EXTRA - 32));  
+#endif
 #endif
 }
 
@@ -455,7 +459,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
       // this is an exclusive OR operation
       current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
       iwm_extra_set(); // signal to logic analyzer we just read the WR value
-      iwm_timer_alarm_set(39); // 4 usec
+      iwm_timer_alarm_set(38); // 4 usec
       bit = prev_level ^ current_level; // could be a != because we're looking for an edge
       rxbyte <<= 1;
       rxbyte |= bit;
@@ -473,7 +477,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
       a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
     else
     {
-      Debug_printf("\r\nRead Packet: too many bytes %d", idx);
+      //Debug_printf("\r\nRead Packet: too many bytes %d", idx); // This can make the guru meditate
       iwm_extra_clr();
       // portENABLE_INTERRUPTS();
       return 1;
@@ -511,7 +515,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
   {
     if (!idx)
     {
-      Debug_printf("\r\nRead Packet: no end of packet marker");
+      //Debug_printf("\r\nRead Packet: no end of packet marker"); // This can make the guru meditate
       a[0] = 0;
       // portENABLE_INTERRUPTS();
       iwm_extra_clr();
@@ -868,6 +872,8 @@ void iwmBus::setup(void)
 #endif
 #ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
+  fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);

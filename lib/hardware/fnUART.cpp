@@ -11,7 +11,11 @@
 
 #define UART_DEBUG UART_NUM_0
 #define UART_ADAMNET UART_NUM_2
+#ifdef BUILD_RS232
+#define UART_SIO UART_NUM_1
+#else
 #define UART_SIO UART_NUM_2
+#endif
 
 // Number of RTOS ticks to wait for data in TX buffer to complete sending
 #define MAX_FLUSH_WAIT_TICKS 200
@@ -83,11 +87,13 @@ void UARTManager::begin(int baud)
         rx = PIN_UART1_RX;
         tx = PIN_UART1_TX;
     }
+#ifndef BUILD_RS232
     else if (_uart_num == 2)
     {
         rx = PIN_UART2_RX;
         tx = PIN_UART2_TX;
     }
+#endif /* BUILD_RS232 */
     else
     {
         return;

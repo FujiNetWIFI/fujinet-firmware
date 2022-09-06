@@ -307,7 +307,7 @@ SystemManager::chipmodels SystemManager::get_cpu_model()
 
 int SystemManager::get_sio_voltage()
 {
-#ifndef CONFIG_IDF_TARGET_ESP32S3
+#if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(PINMAP_A2_REV0)
     // Configure ADC1_CH7
     adc1_config_width(ADC_WIDTH_12Bit);
     adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_11db);

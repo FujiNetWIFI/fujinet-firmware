@@ -1387,7 +1387,7 @@ void lynxFuji::comlynx_control_send()
         comlynx_disable_device();
         break;
     case FUJICMD_MOUNT_ALL:
-        sio_mount_all();
+        mount_all();
         break;
     case FUJICMD_SET_BOOT_MODE:
         comlynx_set_boot_mode();

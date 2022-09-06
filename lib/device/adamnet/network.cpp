@@ -769,7 +769,8 @@ void adamNetwork::adamnet_control_receive_channel_protocol()
 
     // Get status
     protocol->status(&ns);
-    Debug_printf("!!! rxBytesWaiting: %d\n",ns.rxBytesWaiting);
+    if (ns.rxBytesWaiting > 0)
+        Debug_printf("!!! rxBytesWaiting: %d\n",ns.rxBytesWaiting);
     if (ns.rxBytesWaiting > 0)
         adamnet_response_ack();
     else

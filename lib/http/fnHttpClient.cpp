@@ -43,7 +43,7 @@ bool fnHttpClient::begin(std::string url)
     cfg.url = url.c_str();
     cfg.event_handler = _httpevent_handler;
     cfg.user_data = this;
-    cfg.timeout_ms = 3500; // Timeouts seem to actually be twice this value
+    cfg.timeout_ms = 15000; // Timeouts seem to actually be twice this value (really?)
 
     // Keep track of what the max redirect count is set to (the default is 10)
     _max_redirects = cfg.max_redirection_count == 0 ? 10 : cfg.max_redirection_count;
