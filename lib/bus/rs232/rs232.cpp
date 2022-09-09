@@ -222,6 +222,7 @@ void systemBus::_rs232_process_cmd()
 }
 
 // Look to see if we have any waiting messages and process them accordingly
+/*
 void systemBus::_rs232_process_queue()
 {
     rs232_message_t msg;
@@ -240,6 +241,7 @@ void systemBus::_rs232_process_queue()
         }
     }
 }
+*/
 
 /*
  Primary RS232 serivce loop:
@@ -253,7 +255,7 @@ void systemBus::service()
 {
     // Check for any messages in our queue (this should always happen, even if any other special
     // modes disrupt normal RS232 handling - should probably make a separate task for this)
-    _rs232_process_queue();
+    /*_rs232_process_queue();*/
 
     if (_cpmDev != nullptr && _cpmDev->cpmActive)
     {

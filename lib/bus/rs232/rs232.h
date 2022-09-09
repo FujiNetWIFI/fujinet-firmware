@@ -211,7 +211,7 @@ private:
     bool useUltraHigh = false; // Use fujinet derived clock.
 
     void _rs232_process_cmd();
-    void _rs232_process_queue();
+    /* void _rs232_process_queue(); */
 
 public:
     void setup();
