@@ -941,11 +941,11 @@ void iwmFuji::iwm_ctrl_set_device_filename()
     s--;
    
 
-    Debug_printf("SET DEVICE SLOT %d filename\n", ds);
+    Debug_printf("\r\nSET DEVICE SLOT %d", ds);
 
     // adamnet_recv_buffer((uint8_t *)&f, s);
     memcpy((uint8_t *)&f, &packet_buffer[idx], s);
-    Debug_printf("filename: %s\n", f);
+    Debug_printf("\r\nfilename: %s", f);
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
     _populate_config_from_slots();  // this one maybe unnecessary?
