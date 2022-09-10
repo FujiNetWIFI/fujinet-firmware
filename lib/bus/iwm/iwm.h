@@ -305,9 +305,16 @@ private:
   iwmPrinter *_printerdev = nullptr;
 
   // iwm packet handling
-  uint8_t spi_buffer[4 * BLOCK_PACKET_LEN]; //smartport packet buffer
+  uint8_t spi_buffer[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
   spi_device_handle_t spi;
+  #ifdef TEXT_RX_SPI
+  spi_transaction_t rxtrans;
+  spi_transaction_t* transptr;
+  spi_device_handle_t spirx;
+  const int f_over = 4;
+  const int f_nyquist = 500 * 1000; // 2 x 250 kbps
+  #endif
 
   // low level bit-banging i/o functions
   struct iwm_timer_t
@@ -356,7 +363,12 @@ private:
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
 
+  int spirx_byte_ctr;
+  int spirx_bit_ctr;
+  bool spirx_get_next_sample();
+
 public:
+  int iwm_read_packet_spi(uint8_t *a, int n); 
   int iwm_read_packet(uint8_t *a, int n);
   int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
   void encode_spi_packet(uint8_t *a);
