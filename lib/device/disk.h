@@ -6,6 +6,11 @@
 # define DEVICE_TYPE sioDisk
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/disk.h"
+# define DEVICE_TYPE rs232Disk
+#endif
+
 #ifdef BUILD_APPLE
 #include "iwm/disk.h"
 #define DEVICE_TYPE iwmDisk

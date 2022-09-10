@@ -22,6 +22,21 @@
     sioCPM sioZ;
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/apetime.h"
+# include "rs232/disk.h"
+# include "rs232/modem.h"
+# include "rs232/network.h"
+# include "rs232/printer.h"
+# include "rs232/printerlist.h"
+# include "rs232/rs232cpm.h"
+# include "rs232/fuji.h"
+
+    rs232ApeTime apeTime;
+    rs232Modem *sioR;
+    rs232CPM sioZ;
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/printer.h"
 # include "iec/printerlist.h"

@@ -26,7 +26,7 @@ void KeyManager::setup()
 #else
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NO_BUTTONS */
-#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE)
+#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232)
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NOT LYNX OR A2 */
     // Enable safe reset on Button C if available
@@ -147,6 +147,10 @@ void KeyManager::_keystate_task(void *param)
 
     KeyManager *pKM = (KeyManager *)param;
 
+#if defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232)
+    pKM->_keys[eKey::BUTTON_B].disabled = true;
+#endif
+
     while (true)
     {
         vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -191,7 +195,11 @@ void KeyManager::_keystate_task(void *param)
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_A: SHORT PRESS");
 
+#ifdef PINMAP_A2_REV0
+            fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
+#else
             fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
+#endif
 
 // Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
 #ifdef BLUETOOTH_SUPPORT

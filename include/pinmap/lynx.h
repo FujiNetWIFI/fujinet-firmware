@@ -24,8 +24,8 @@
 
 /* LEDs */
 #define PIN_LED_WIFI 2 // led.cpp
-#define PIN_LED_BUS 12
-#define PIN_LED_BT -1 // No BT LED
+#define PIN_LED_BUS 4
+#define PIN_LED_BT 13 // No BT LED
 
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h

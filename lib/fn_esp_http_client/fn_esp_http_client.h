@@ -432,6 +432,17 @@ int esp_http_client_read_response(esp_http_client_handle_t client, char *buffer,
 int esp_http_client_get_status_code(esp_http_client_handle_t client);
 
 /**
+ * @brief      Get HTTP client session errno
+ *
+ * @param[in]  client  The esp_http_client handle
+ *
+ * @return
+ *         - (-1) if invalid argument
+ *         - errno
+ */
+int esp_http_client_get_errno(esp_http_client_handle_t client);
+
+/**
  * @brief      Get http response content length (from header Content-Length)
  *             the valid value if this function invoke after `esp_http_client_perform`
  *
