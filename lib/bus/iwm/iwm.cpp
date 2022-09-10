@@ -774,25 +774,22 @@ int IRAM_ATTR iwmBus:: iwm_read_packet(uint8_t *a, int n)
 
 int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 {
-#ifdef TEXT_RX_SPI
+  // iwm_ack_set(); // todo - is set really needed?
   iwm_ack_disable();
-  //for (int i=0; i < attempts; i++)
-  //{
-    iwm_read_packet_spi(a, n);
+  for (int i = 0; i < attempts; i++)
+  {
+#ifdef TEXT_RX_SPI
+    if (!iwm_read_packet_spi(a, n))
+    {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
       iwm_ack_enable();
 #ifdef DEBUG
       print_packet(a);
 #endif
-      // this was called in read_packet_spi -> spi_device_queue_trans(spirx, &trans,portMAX_DELAY);
       spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
       return 0;
-  //}  
+    }
 #else
-  // iwm_ack_set(); // todo - is set really needed?
-  iwm_ack_disable();
-  for (int i=0; i < attempts; i++)
-  {
     portDISABLE_INTERRUPTS();
     if (!iwm_read_packet(a, n))
     {
@@ -805,8 +802,8 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
       return 0;
     }
     portENABLE_INTERRUPTS();
-  }
 #endif
+  }
 #ifdef DEBUG
   print_packet(a);
 #endif
@@ -1791,11 +1788,16 @@ void iwmBus::service()
           return;
         }
       }
+
 #ifdef DEBUG
       print_packet(command_packet.data);
       Debug_printf("\r\nhandling init command");
 #endif
-      // to do - checksum verification? How to respond?
+      if (verify_cmdpkt_checksum())
+      {
+        Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        Debug_printf("\r\ndo init anyway");
+      }      // to do - checksum verification? How to respond?
       handle_init();
     }
     else
