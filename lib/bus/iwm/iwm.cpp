@@ -462,7 +462,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
  
   
-  fnSystem.delay_microseconds(74); // wait for first sync byte
+  fnSystem.delay_microseconds(60); // wait for first sync byte
     //iwm_timer_reset();
     iwm_timer_latch();        // latch highspeed timer value
     iwm_timer_read();      //  grab timer low word
@@ -473,7 +473,8 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     //iwm_timer_reset();
     iwm_timer_latch();        // latch highspeed timer value
     iwm_timer_read();      //  grab timer low word
-    iwm_timer_alarm_set(310); // 32 us 
+
+    iwm_timer_alarm_set(synced ? 311 : 390); // 31 us for regular byte, 39 us for 10-bit sync bytes 
     //fnSystem.delay_microseconds(12); // tweaked based on execution time - could use iwm_timer to pace it off the clock
     // beginning of the byte
     // delay 2 us until middle of 4-us bit
