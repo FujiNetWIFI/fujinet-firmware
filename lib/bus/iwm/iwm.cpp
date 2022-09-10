@@ -375,11 +375,17 @@ bool iwmBus::spirx_get_next_sample()
 
 int iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
+  iwm_timer_reset();
+   
+  // signal the logic analyzer
   iwm_extra_clr();
   iwm_extra_set();
   iwm_extra_clr();
   iwm_extra_set();
   iwm_extra_clr();
+
+ 
+
 
 #ifdef TEXT_RX_SPI
 
@@ -400,7 +406,32 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 
   //ret = 
   //spi_device_transmit(spirx, &trans);
-  while ( !iwm_req_val() )  {}; // wait until REQ
+  // todo: can we create a wait for req with timout function to use elsewhere?
+  // it woudl return bool false when REQ does its thing or true when timeout.
+
+     // setup a timeout counter to wait for REQ response
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(1000); // logic analyzer says 40 usec
+
+
+  while ( !iwm_req_val() )  
+  {
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
+    { // timeout!
+#ifdef VERBOSE_IWM
+      // timeout
+      Debug_print("t");
+#endif
+      //Debug_printf("\r\nREQ timeout before read");
+      iwm_extra_set();
+      iwm_extra_clr();
+      // portENABLE_INTERRUPTS();
+      return 1;
+    }
+  };
   spi_device_queue_trans(spirx, &rxtrans,portMAX_DELAY);
 #ifdef VERBOSE_IWM
   memcpy(spi_buffer2,spi_buffer,spi_len);
@@ -432,9 +463,18 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
  
   
   fnSystem.delay_microseconds(60); // wait for first sync byte
+    //iwm_timer_reset();
+    iwm_timer_latch();        // latch highspeed timer value
+    iwm_timer_read();      //  grab timer low word
+    iwm_timer_alarm_set(1); // 32 us 
   do // have_data
   {
-          fnSystem.delay_microseconds(12); // tweaked based on execution time - could use iwm_timer to pace it off the clock
+    iwm_timer_wait();
+    //iwm_timer_reset();
+    iwm_timer_latch();        // latch highspeed timer value
+    iwm_timer_read();      //  grab timer low word
+    iwm_timer_alarm_set(320); // 32 us 
+    //fnSystem.delay_microseconds(12); // tweaked based on execution time - could use iwm_timer to pace it off the clock
     // beginning of the byte
     // delay 2 us until middle of 4-us bit
     // spirx: iwm_timer_alarm_set(16);  // 2 usec
@@ -1713,7 +1753,8 @@ void iwmBus::service()
   case iwm_phases_t::enable:
     // expect a command packet
 #ifdef TEXT_RX_SPI
-    iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN);
+    if(iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
+      return;
           //     iwm_ack_clr();
           // iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
           // print_packet(command_packet.data, COMMAND_PACKET_LEN);
