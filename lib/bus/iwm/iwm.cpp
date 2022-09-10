@@ -332,7 +332,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   // ph3=0 ph2=1 ph1=0 ph0=1
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
-  if (iwm_phase_val(1) && iwm_phase_val(3))
+  if (iwm_phase_val(1) && iwm_phase_val(3) && !iwm_phase_val(2))
     phasestate = iwm_phases_t::enable;
   else if (iwm_phase_val(0) && iwm_phase_val(2) && !iwm_phase_val(1) && !iwm_phase_val(3))
     phasestate = iwm_phases_t::reset;
@@ -473,7 +473,6 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     //iwm_timer_reset();
     iwm_timer_latch();        // latch highspeed timer value
     iwm_timer_read();      //  grab timer low word
-
     iwm_timer_alarm_set(synced ? 311 : 390); // 31 us for regular byte, 39 us for 10-bit sync bytes 
     //fnSystem.delay_microseconds(12); // tweaked based on execution time - could use iwm_timer to pace it off the clock
     // beginning of the byte
