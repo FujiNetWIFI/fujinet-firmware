@@ -1278,6 +1278,11 @@ int esp_http_client_get_status_code(esp_http_client_handle_t client)
     return client->response->status_code;
 }
 
+int esp_http_client_get_errno(esp_http_client_handle_t client)
+{
+    return esp_transport_get_errno(client->transport);
+}
+
 int esp_http_client_get_content_length(esp_http_client_handle_t client)
 {
     return client->response->content_length;

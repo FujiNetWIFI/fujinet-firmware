@@ -830,7 +830,7 @@ void fnConfig::load()
 {
     Debug_println("fnConfig::load");
 
-#if defined(NO_BUTTONS) || defined(BUILD_LYNX) || defined(BUILD_APPLE)
+#if defined(NO_BUTTONS) || defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232)
     // Don't erase config if there are no buttons or on devices without Button B
 #else
     // Clear the config file if key is currently pressed
