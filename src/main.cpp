@@ -125,6 +125,11 @@ void main_setup()
     ComLynx.setup();
 #endif
 
+#ifdef BUILD_RS232
+    theFuji.setup(&RS232);
+    RS232.setup();
+#endif
+
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
