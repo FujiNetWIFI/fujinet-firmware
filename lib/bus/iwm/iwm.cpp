@@ -373,6 +373,11 @@ bool iwmBus::spirx_get_next_sample()
   return (((spi_buffer[spirx_byte_ctr] << spirx_bit_ctr++) & 0x80) == 0x80);
 }
 
+  uint8_t iwmBus::spirx_look_ahead(int n)
+  {
+    return spi_buffer[spirx_byte_ctr+n];
+  }
+
 int iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
   iwm_timer_reset();
@@ -383,9 +388,6 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   iwm_extra_clr();
   iwm_extra_set();
   iwm_extra_clr();
-
- 
-
 
 #ifdef TEXT_RX_SPI
 
@@ -404,16 +406,10 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   rxtrans.length = spi_len * 8;   // Data length, in bits
   rxtrans.flags = 0;              
 
-  //ret = 
-  //spi_device_transmit(spirx, &trans);
-  // todo: can we create a wait for req with timout function to use elsewhere?
-  // it woudl return bool false when REQ does its thing or true when timeout.
-
-     // setup a timeout counter to wait for REQ response
+  // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
   iwm_timer_alarm_set(1000); // logic analyzer says 40 usec
-
 
   while ( !iwm_req_val() )  
   {
@@ -428,7 +424,6 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       //Debug_printf("\r\nREQ timeout before read");
       iwm_extra_set();
       iwm_extra_clr();
-      // portENABLE_INTERRUPTS();
       return 1;
     }
   };
@@ -460,33 +455,37 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 
   bool prev_level = true;
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
- 
-  
-  fnSystem.delay_microseconds(60); // wait for first sync byte
-    //iwm_timer_reset();
-    iwm_timer_latch();        // latch highspeed timer value
-    iwm_timer_read();      //  grab timer low word
-    iwm_timer_alarm_set(1); // 32 us 
+   
+  fnSystem.delay_microseconds(60); // wait for first sync byte or so
+  iwm_timer_latch();               // latch highspeed timer value
+  iwm_timer_read();                //  grab timer low word
+  iwm_timer_alarm_set(1);          // dummy alarm
   do // have_data
   {
     iwm_timer_wait();
-    //iwm_timer_reset();
-    iwm_timer_latch();        // latch highspeed timer value
+    iwm_timer_latch();     // latch highspeed timer value
     iwm_timer_read();      //  grab timer low word
-    iwm_timer_alarm_set(synced ? 311 : 390); // 31 us for regular byte, 39 us for 10-bit sync bytes 
-    //fnSystem.delay_microseconds(12); // tweaked based on execution time - could use iwm_timer to pace it off the clock
-    // beginning of the byte
-    // delay 2 us until middle of 4-us bit
-    // spirx: iwm_timer_alarm_set(16);  // 2 usec
-    // spirx: just start reading data because the SPI setup takes a while anyway
+    if (
+        (spirx_look_ahead(0) == 0xff) && 
+        (spirx_look_ahead(1) == 0xff) && 
+        (spirx_look_ahead(2) == 0xff) && 
+        (spirx_look_ahead(3) == 0xff) &&
+        (spirx_look_ahead(4) == 0xff))
+    {
+      Debug_printf("\r\nLook ahead = 0xffffffffff");
+      iwm_timer_alarm_set(synced ? 311 : 390); // 31 us for regular byte, 39 us for 10-bit sync bytes     }
+                                               // iwm_timer_latch();     // latch highspeed timer value
+                                               // iwm_timer_read();      //  grab timer low word
+    }
+    else
+    {
+      iwm_timer_alarm_set(synced ? 311 : 390); // 31 us for regular byte, 39 us for 10-bit sync bytes
+                                               // beginning of the byte
+                                               // look ahead - if all FF's, then wait a little.
+    }
     do
     {
-      // spirx: iwm_extra_clr(); // signal to LA we're in the nested loop
-      // spirx: iwm_timer_wait();
-      // spirx: current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
-      
-      // spirx: iwm_timer_alarm_set(38); // 4 usec
-      bit = false; // assume no edge in this next bit
+     bit = false; // assume no edge in this next bit
 #ifdef VERBOSE_IWM
       Debug_printf("\r\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
       Debug_printf("\r\nspibyte spibit intctr sampval preval rxbit rxbyte");
@@ -496,7 +495,6 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       {
         iwm_extra_set();
         current_level = spirx_get_next_sample();
-      // spirx: iwm_extra_set(); // signal to logic analyzer we just read the WR value
 #ifdef VERBOSE_IWM
         Debug_printf("\r\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
 #endif
@@ -522,53 +520,26 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     } while(true); // shouldn't this just be "while(--numbits>0)"   ?????
     if ((rxbyte == 0xc3) && (!synced))
     {
-// #ifdef VERBOSE_IWM
-      //Debug_printf("\r\nSYNCED!"); // This can make the guru meditate
-// #endif
       synced = true;
       idx = 5;
     }
-    //if (idx<n)
-    //{
-      a[idx++] = rxbyte;  // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
-      //if (rxbyte == 0xc8) // woohoo end of packet!
-      //  return 0;
-    //}
-    //else
-    //{
-    //#ifdef VERBOSE_IWM
-      // Debug_printf("\r\nRead Packet: too many bytes %d", idx); // This can make the guru meditate
-    // #endif
-      //iwm_extra_clr();
-      // portENABLE_INTERRUPTS();
-     // print_packet(a);
-     // return 1;
-    //}
+      a[idx++] = rxbyte;
       // wait for leading edge of next byte or timeout for end of packet
       int timeout_ctr = f_nyquist * f_over * 19 / 1000000; 
-      // sprix: iwm_timer_alarm_snooze(190); // 19 usec from smartportsd assy routine
 //#ifdef VERBOSE_IWM
       // Debug_printf("%02x ", rxbyte);
 //#endif
       // now wait for leading edge of next byte
-      do // return (GPIO.in1.val >> (pin - 32)) & 0x1;
+      do 
       {
-        // sprix: iwm_timer_latch();
-        // sprix: iwm_timer_read();
-        // sprix: if (iwm_timer.t0 > iwm_timer.tn)
         if (--timeout_ctr < 1)
-        {
-          // end of packet
-// #ifdef VERBOSE_IWM
-          //Debug_printf("\r\nEND OF PACKET!"); // This can make the guru meditate
-//#endif
+        { // end of packet
           have_data = false;
           break;
         }
-      } while (spirx_get_next_sample() == prev_level); // while (iwm_wrdata_val() == prev_level);
-      numbits = 8;                                     // ;1   8bits to read
-      // } // endif
-  } while (have_data); //(have_data); // while have_data
+      } while (spirx_get_next_sample() == prev_level); 
+      numbits = 8;
+  } while (have_data); // while have_data
   // print_packet(a);
 #endif // TEXT_RX_SPI
   return 0;
@@ -1816,6 +1787,7 @@ void iwmBus::service()
 #else
           portENABLE_INTERRUPTS();
 #endif
+          print_packet(command_packet.data);
           // wait for REQ to go low
           iwm_timer_reset();
           iwm_timer_latch();          // latch highspeed timer value
