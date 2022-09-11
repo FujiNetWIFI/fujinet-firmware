@@ -119,6 +119,7 @@ union cmdFrame_t
 
 #define COMMAND_PACKET_LEN  28
 #define BLOCK_PACKET_LEN    606
+#define SPI_BUFFER_LEN      8 * (BLOCK_PACKET_LEN+2)
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -305,7 +306,7 @@ private:
   iwmPrinter *_printerdev = nullptr;
 
   // iwm packet handling
-  uint8_t spi_buffer[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
+  uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
   spi_device_handle_t spi;
   #ifdef TEXT_RX_SPI

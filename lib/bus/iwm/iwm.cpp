@@ -398,7 +398,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   //esp_err_t ret;
   transptr = &rxtrans;
   memset(transptr, 0, sizeof(spi_transaction_t));
-  memset(spi_buffer, 0xff , sizeof(spi_buffer));
+  memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
   rxtrans.rx_buffer = spi_buffer; // finally send the line data
   rxtrans.rxlength = spi_len * 8;   // Data length, in bits
   rxtrans.length = spi_len * 8;   // Data length, in bits
@@ -813,7 +813,7 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 void iwmBus::encode_spi_packet(uint8_t *a)
 {
   // clear out spi buffer
-  memset(spi_buffer, 0, sizeof(spi_buffer));
+  memset(spi_buffer, 0, SPI_BUFFER_LEN);
   // loop through "l" bytes of the buffer "a"
   uint16_t i=0,j=0;
   while(a[i])
@@ -1064,6 +1064,8 @@ void iwmBus::setup(void)
 
   timer_config();
   Debug_printf("\r\nIWM timer started");
+
+  spi_buffer=(uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA); 
 
 #ifdef PINMAP_A2_FN10
   spi_bus_config_t bus_cfg = {
