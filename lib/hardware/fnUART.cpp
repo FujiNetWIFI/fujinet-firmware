@@ -8,14 +8,6 @@
 #include "../../include/pinmap.h"
 
 
-#define UART_DEBUG UART_NUM_0
-#define UART_ADAMNET UART_NUM_2
-#ifdef BUILD_RS232
-#define UART_SIO UART_NUM_1
-#else
-#define UART_SIO UART_NUM_2
-#endif
-
 // Number of RTOS ticks to wait for data in TX buffer to complete sending
 #define MAX_FLUSH_WAIT_TICKS 200
 #define MAX_READ_WAIT_TICKS 200
@@ -23,7 +15,10 @@
 #define MAX_WRITE_BUFFER_TICKS 1000
 
 UARTManager fnUartDebug(UART_DEBUG);
+// TODO for Atari code do not use fnUartSIO directly, use fnSioLink
+//#ifndef BUILD_ATARI
 UARTManager fnUartSIO(UART_SIO);
+//#endif // !BUILD_ATARI
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
@@ -166,6 +161,15 @@ int UARTManager::available()
 int UARTManager::peek()
 {
     return 0;
+}
+
+/* Get current baud rate
+*/
+uint32_t UARTManager::get_baudrate()
+{
+    uint32_t baud;
+    uart_get_baudrate(_uart_num, &baud);
+    return baud;
 }
 
 /* Changes baud rate

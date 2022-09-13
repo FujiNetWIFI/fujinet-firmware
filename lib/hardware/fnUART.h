@@ -8,6 +8,14 @@
 #include <string>
 
 
+#define UART_DEBUG UART_NUM_0
+#define UART_ADAMNET UART_NUM_2
+#ifdef BUILD_RS232
+#define UART_SIO UART_NUM_1
+#else
+#define UART_SIO UART_NUM_2
+#endif
+
 class UARTManager
 {
 private:
@@ -22,8 +30,10 @@ public:
 
     void begin(int baud);
     void end();
-    void set_baudrate(uint32_t baud);
     bool initialized() { return _initialized; }
+
+    uint32_t get_baudrate();
+    void set_baudrate(uint32_t baud);
 
     int available();
     int peek();
