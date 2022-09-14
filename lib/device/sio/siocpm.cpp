@@ -5,11 +5,11 @@
 #include "siocpm.h"
 
 #include "fnSystem.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 #include "fuji.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
+#include "busLink.h"
 
 #include "../runcpm/globals.h"
 #include "../runcpm/abstraction_fujinet.h"
@@ -58,7 +58,7 @@ void sioCPM::sio_handle_cpm()
 
 void sioCPM::init_cpm(int baud)
 {
-    fnUartSIO.set_baudrate(baud);
+    fnSioLink.set_baudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);

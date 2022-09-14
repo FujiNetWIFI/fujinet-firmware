@@ -15,10 +15,12 @@
 #define MAX_WRITE_BUFFER_TICKS 1000
 
 UARTManager fnUartDebug(UART_DEBUG);
-// TODO for Atari code do not use fnUartSIO directly, use fnSioLink
-//#ifndef BUILD_ATARI
+// For Atari code, do not use fnUartSIO directly
+// Use drop in replacement fnSioLink (can do SerialSIO and NetSIO)
+// (include "busLink.h" or just "bus.h")
+#ifndef BUILD_ATARI
 UARTManager fnUartSIO(UART_SIO);
-//#endif // !BUILD_ATARI
+#endif // !BUILD_ATARI
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}

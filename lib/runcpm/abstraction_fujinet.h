@@ -481,16 +481,16 @@ uint8_t _sys_makedisk(uint8_t drive)
 int _kbhit(void)
 {
 	if (teeMode == true)
-		return client.available() | (fnUartSIO.available()>0);
+		return client.available() | (SYSTEM_BUS_LINK.available()>0);
 	else
-		return min(0, fnUartSIO.available());
+		return min(0, SYSTEM_BUS_LINK.available());
 }
 
 uint8_t _getch(void)
 {
 	if (teeMode == true)
 	{
-		while (fnUartSIO.available() > 0)
+		while (SYSTEM_BUS_LINK.available() > 0)
 		{
 			if (client.available())
 			{
@@ -499,21 +499,21 @@ uint8_t _getch(void)
 				return ch & 0x7F;
 			}
 		}
-		return fnUartSIO.read() & 0x7F;
+		return SYSTEM_BUS_LINK.read() & 0x7F;
 	}
 	else
 	{
-		while (fnUartSIO.available() <= 0)
+		while (SYSTEM_BUS_LINK.available() <= 0)
 		{
 		}
-		return fnUartSIO.read() & 0x7f;
+		return SYSTEM_BUS_LINK.read() & 0x7f;
 	}
 }
 
 uint8_t _getche(void)
 {
 	uint8_t ch = _getch() & 0x7f;
-	fnUartSIO.write(ch);
+	SYSTEM_BUS_LINK.write(ch);
 	if (teeMode == true)
 		client.write(ch);
 	return ch;
@@ -521,7 +521,7 @@ uint8_t _getche(void)
 
 void _putch(uint8_t ch)
 {
-	fnUartSIO.write(ch & 0x7f);
+	SYSTEM_BUS_LINK.write(ch & 0x7f);
 	if (teeMode == true)
 		client.write(ch);
 }

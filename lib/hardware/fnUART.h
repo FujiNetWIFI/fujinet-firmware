@@ -71,6 +71,11 @@ public:
 };
 
 extern UARTManager fnUartDebug;
+// For Atari code, do not use fnUartSIO directly
+// Use drop in replacement fnSioLink (can do SerialSIO and NetSIO)
+// (include "busLink.h" or just "bus.h")
+#ifndef BUILD_ATARI
 extern UARTManager fnUartSIO;
+#endif // !BUILD_ATARI
 
 #endif //FNUART_H

@@ -41,4 +41,7 @@
 #define SYSTEM_BUS RS232
 #endif
 
+// Include the interface to communicate with System Bus
+#include "busLink.h"
+
 #endif // BUS_H
