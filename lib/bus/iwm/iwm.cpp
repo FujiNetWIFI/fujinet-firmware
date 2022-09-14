@@ -426,7 +426,8 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       return 1;
     }
   };
-  spi_device_queue_trans(spirx, &rxtrans,portMAX_DELAY);
+  // spi_device_queue_trans(spirx, &rxtrans, portMAX_DELAY);
+  spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
 #ifdef VERBOSE_IWM
   memcpy(spi_buffer2,spi_buffer,spi_len);
   print_packet_wave(spi_buffer2,spi_len);
@@ -755,16 +756,21 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
   for (int i = 0; i < attempts; i++)
   {
 #ifdef TEXT_RX_SPI
+portDISABLE_INTERRUPTS();
     if (!iwm_read_packet_spi(a, n))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
       iwm_ack_enable();
+      portENABLE_INTERRUPTS();
 #ifdef DEBUG
       print_packet(a);
 #endif
-      spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      spi_device_polling_end(spirx, portMAX_DELAY);
       return 0;
+      
     }
+    portENABLE_INTERRUPTS();
 #else
     portDISABLE_INTERRUPTS();
     if (!iwm_read_packet(a, n))
@@ -1728,8 +1734,12 @@ void iwmBus::service()
   case iwm_phases_t::enable:
     // expect a command packet
 #ifdef TEXT_RX_SPI
+    portDISABLE_INTERRUPTS();
     if(iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
+    {
+      portENABLE_INTERRUPTS();
       return;
+    }
           //     iwm_ack_clr();
           // iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
           // print_packet(command_packet.data, COMMAND_PACKET_LEN);
@@ -1747,7 +1757,9 @@ void iwmBus::service()
       iwm_ack_clr();
       iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
 #ifdef TEXT_RX_SPI
-      spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      spi_device_polling_end(spirx, portMAX_DELAY);
+      portENABLE_INTERRUPTS();
 #else 
       portENABLE_INTERRUPTS();
 #endif
@@ -1788,7 +1800,9 @@ void iwmBus::service()
           iwm_ack_clr();
           iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
 #ifdef TEXT_RX_SPI
-          spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+          // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+          spi_device_polling_end(spirx, portMAX_DELAY);
+          portENABLE_INTERRUPTS();
 #else
           portENABLE_INTERRUPTS();
 #endif
