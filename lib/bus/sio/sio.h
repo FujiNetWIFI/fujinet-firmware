@@ -146,6 +146,7 @@ protected:
      * Atari that we are now processing the command.
      */
     void sio_ack();
+    void sio_late_ack();   // for NetSIO, ACK is delayed until we now how much data will be read from Atari
 
     /**
      * @brief Send a non-acknowledgement (NAK) to the Atari 'N'
@@ -263,6 +264,8 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
+    bool _command_processed = false;
+
     void _sio_process_cmd();
     void _sio_process_queue();
 
@@ -289,6 +292,10 @@ public:
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0);    // enable ultrahigh/set baud rate
     bool getUltraHighEnabled() { return useUltraHigh; }
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; }
+
+    void set_command_processed(bool processed);
+    void sio_empty_ack();                                       // for NetSIO, to notify hub we are not interested to handle the command
+                                                                // Atari emulation can be resumed, no need to wait till timeout
 
     sioCassette *getCassette() { return _cassetteDev; }
     sioPrinter *getPrinter() { return _printerdev; }

@@ -76,6 +76,11 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
 
+    if (fnSioLink.get_sio_mode() == SioLink::sio_mode::NETSIO)
+    {
+        fnSioLink.netsio_write_size(len); // set hint for NetSIO
+    }
+
     __BEGIN_IGNORE_UNUSEDVARS
     size_t l = fnSioLink.readBytes(buf, len);
     __END_IGNORE_UNUSEDVARS
@@ -112,6 +117,7 @@ void virtualDevice::sio_nak()
 {
     fnSioLink.write('N');
     fnSioLink.flush();
+    SIO.set_command_processed(true);
     Debug_println("NAK!");
 }
 
@@ -121,7 +127,24 @@ void virtualDevice::sio_ack()
     fnSioLink.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
     fnSioLink.flush();
+    SIO.set_command_processed(true);
     Debug_println("ACK!");
+}
+
+// SIO delayed ACK
+// for NetSIO, ACK is delayed until we now how much data will be read from Atari
+void virtualDevice::sio_late_ack()
+{
+    if (fnSioLink.get_sio_mode() == SioLink::sio_mode::NETSIO)
+    {
+        fnSioLink.netsio_late_sync('A');
+        SIO.set_command_processed(true);
+        Debug_println("ACK+!");
+    }
+    else
+    {
+        sio_ack();
+    }
 }
 
 // SIO COMPLETE
@@ -151,6 +174,8 @@ void virtualDevice::sio_high_speed()
 // Read and process a command frame from SIO
 void systemBus::_sio_process_cmd()
 {
+    _command_processed = false;
+
     if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
         _modemDev->modemActive = false;
@@ -227,6 +252,11 @@ void systemBus::_sio_process_cmd()
                     }
                 }
             }
+        }
+        if (!_command_processed)
+        {
+            // Notify NetSIO hub we are not interested to handle the command
+            sio_empty_ack();
         }
     } // valid checksum
     else
@@ -363,7 +393,7 @@ void systemBus::setup()
     // Setup SIO ports: serial UART and NetSIO
     fnSioLink.setup_serial_port(); // UART
     // fnSioLink.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port()); // NetSIO
-    // fnSioLink.set_sio_mode(Config.get_netsio_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
+    // fnSioLink.set_sio_mode(Config.get_netsio_enabled() ? SioLink::sio_mode::NETSIO : SioLink::sio_mode::SERIAL);
     fnSioLink.begin(_sioBaud);
 
     fnSioLink.set_interrupt(false);
@@ -466,6 +496,9 @@ void systemBus::shutdown()
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
+
+    if (fnSioLink.get_sio_mode() != SioLink::sio_mode::SERIAL) // don't touch SIO UART, it may not like it
+        fnSioLink.end();
 }
 
 void systemBus::toggleBaudrate()
@@ -519,6 +552,21 @@ int systemBus::getHighSpeedIndex()
 int systemBus::getHighSpeedBaud()
 {
     return _sioBaudHigh;
+}
+
+// indicate that command was acknowledged
+void systemBus::set_command_processed(bool processed)
+{
+    _command_processed = processed;
+}
+
+// Empty acknowledgment message for NetSIO hub
+void systemBus::sio_empty_ack()
+{
+    if (fnSioLink.get_sio_mode() == SioLink::sio_mode::NETSIO)
+    {
+        fnSioLink.netsio_empty_sync();
+    }
 }
 
 void systemBus::setUDPHost(const char *hostname, int port)

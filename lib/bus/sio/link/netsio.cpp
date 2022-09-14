@@ -129,7 +129,7 @@ void NetSioPort::end()
         send(_fd, &disconnect, 1, 0);
         close(_fd);
         _fd  = -1;
-        fnSystem.delay(50); // wait a bit (wifi may go off)
+        fnSystem.delay(50); // wait a while, otherwise wifi may turn off too quickly (during shutdown)
         Debug_printf("### NetSIO stopped ###\n");
     }
     _initialized = false;
@@ -311,7 +311,7 @@ int NetSioPort::handle_netsio()
             case NETSIO_DATA_BYTE_SYNC:
                 if (received >= 3)
                     _sync_request_num = rxbuf[2];
-                // [[fallthrough]]; // > No warning
+                [[fallthrough]]; // > No warning
 
             case NETSIO_DATA_BYTE:
                 b = rxbuf[1];
@@ -339,7 +339,7 @@ int NetSioPort::handle_netsio()
             case NETSIO_COMMAND_OFF_SYNC:
                 if (received >= 2) 
                     _sync_request_num = rxbuf[1]; // sync request sequence number
-                // [[fallthrough]]; // > No warning
+                [[fallthrough]]; // > No warning
 
             case NETSIO_COMMAND_OFF:
                 _command_asserted = false;
