@@ -367,6 +367,7 @@ private:
   int spirx_byte_ctr;
   int spirx_bit_ctr;
   bool spirx_get_next_sample();
+  uint8_t spirx_look_ahead(int n);
 
 public:
   int iwm_read_packet_spi(uint8_t *a, int n); 
