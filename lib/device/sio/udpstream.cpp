@@ -82,7 +82,7 @@ void sioUDPStream::sio_handle_udpstream()
         while (true)
         {
             // Break out of UDPStream mode if COMMAND is asserted
-            if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+            if (fnSioLink.command_asserted())
             {
 #ifdef DEBUG
                 Debug_println("CMD Asserted in LOOP, stopping UDPStream");

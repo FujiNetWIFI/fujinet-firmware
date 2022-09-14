@@ -10,12 +10,12 @@
 
 bool SerialSioPort::command_asserted()
 {
-    return ! (bool)fnSystem.digital_read(PIN_CMD); // command line is asserted with low voltage
+    return fnSystem.digital_read(PIN_CMD) == DIGI_LOW; // command line is asserted with low voltage
 }
 
 bool SerialSioPort::motor_asserted()
 {
-    return (bool)fnSystem.digital_read(PIN_MTR);
+    return fnSystem.digital_read(PIN_MTR) == DIGI_HIGH;
 }
 
 void SerialSioPort::set_proceed(bool level)
