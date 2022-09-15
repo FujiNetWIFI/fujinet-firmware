@@ -387,13 +387,10 @@ void systemBus::setup()
 {
     Debug_println("SIO SETUP");
 
-    // Set up UART
-    fnSioLink.begin(_sioBaud);
-
     // Setup SIO ports: serial UART and NetSIO
     fnSioLink.setup_serial_port(); // UART
-    // fnSioLink.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port()); // NetSIO
-    // fnSioLink.set_sio_mode(Config.get_netsio_enabled() ? SioLink::sio_mode::NETSIO : SioLink::sio_mode::SERIAL);
+    fnSioLink.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port()); // NetSIO
+    fnSioLink.set_sio_mode(Config.get_netsio_enabled() ? SioLink::sio_mode::NETSIO : SioLink::sio_mode::SERIAL);
     fnSioLink.begin(_sioBaud);
 
     fnSioLink.set_interrupt(false);
