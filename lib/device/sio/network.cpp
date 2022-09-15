@@ -84,7 +84,7 @@ void sioNetwork::sio_open()
 {
     Debug_println("sioNetwork::sio_open()\n");
 
-    sio_ack();
+    sio_late_ack();
 
     channelMode = PROTOCOL;
 
@@ -267,7 +267,7 @@ void sioNetwork::sio_write()
         Debug_printf("Could not allocate %u bytes.\n", num_bytes);
     }
 
-    sio_ack();
+    sio_late_ack();
 
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
@@ -562,7 +562,7 @@ void sioNetwork::sio_special()
         sio_special_40();
         break;
     case 0x80: // Payload to Peripheral
-        sio_ack();
+        sio_late_ack();
         sio_special_80();
         break;
     default:

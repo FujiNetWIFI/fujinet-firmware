@@ -97,7 +97,7 @@ void sioApeTime::sio_process(uint32_t commanddata, uint8_t checksum)
         _sio_get_time(false);
         break;
     case SIO_APETIMECMD_SETTZ:
-        sio_ack();
+        sio_late_ack();
         _sio_set_tz();
         break;
     case SIO_APETIMECMD_GETTZTIME:

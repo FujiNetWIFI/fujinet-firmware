@@ -1860,7 +1860,7 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
             sio_status();
             break;
         case SIO_MODEMCMD_WRITE:
-            sio_ack();
+            sio_late_ack();
             sio_write();
             break;
         case SIO_MODEMCMD_STREAM:

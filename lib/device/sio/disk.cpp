@@ -295,13 +295,13 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         }
         break;
     case SIO_DISKCMD_PUT:
-        sio_ack();
+        sio_late_ack();
         sio_write(false);
         return;
     case SIO_DISKCMD_HSIO_PUT:
         if (_disk->_allow_hsio)
         {
-            sio_ack();
+            sio_late_ack();
             sio_write(false);
             return;
         }
@@ -334,13 +334,13 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         }
         return;
     case SIO_DISKCMD_WRITE:
-        sio_ack();
+        sio_late_ack();
         sio_write(true);
         return;
     case SIO_DISKCMD_HSIO_WRITE:
         if (_disk->_allow_hsio)
         {
-            sio_ack();
+            sio_late_ack();
             sio_write(true);
             return;
         }
@@ -364,7 +364,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_read_percom_block();
         return;
     case SIO_DISKCMD_PERCOM_WRITE:
-        sio_ack();
+        sio_late_ack();
         sio_write_percom_block();
         return;
     case SIO_DISKCMD_HSIO_INDEX:

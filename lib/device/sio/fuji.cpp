@@ -1573,7 +1573,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_net_scan_result();
         break;
     case FUJICMD_SET_SSID:
-        sio_ack();
+        sio_late_ack();
         sio_net_set_ssid();
         break;
     case FUJICMD_GET_SSID:
@@ -1593,7 +1593,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_disk_image_mount();
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        sio_ack();
+        sio_late_ack();
         sio_open_directory();
         break;
     case FUJICMD_READ_DIR_ENTRY:
@@ -1617,7 +1617,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_read_host_slots();
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
-        sio_ack();
+        sio_late_ack();
         sio_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
@@ -1625,7 +1625,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        sio_ack();
+        sio_late_ack();
         sio_write_device_slots();
         break;
     case FUJICMD_GET_WIFI_ENABLED:
@@ -1641,15 +1641,15 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_get_adapter_config();
         break;
     case FUJICMD_NEW_DISK:
-        sio_ack();
+        sio_late_ack();
         sio_new_disk();
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        sio_ack();
+        sio_late_ack();
         sio_set_device_filename();
         break;
     case FUJICMD_SET_HOST_PREFIX:
-        sio_ack();
+        sio_late_ack();
         sio_set_host_prefix();
         break;
     case FUJICMD_GET_HOST_PREFIX:
@@ -1661,7 +1661,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_set_sio_external_clock();
         break;
     case FUJICMD_WRITE_APPKEY:
-        sio_ack();
+        sio_late_ack();
         sio_write_app_key();
         break;
     case FUJICMD_READ_APPKEY:
@@ -1669,7 +1669,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_read_app_key();
         break;
     case FUJICMD_OPEN_APPKEY:
-        sio_ack();
+        sio_late_ack();
         sio_open_app_key();
         break;
     case FUJICMD_CLOSE_APPKEY:
@@ -1685,7 +1685,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_set_boot_config();
         break;
     case FUJICMD_COPY_FILE:
-        sio_ack();
+        sio_late_ack();
         sio_copy_file();
         break;
     case FUJICMD_MOUNT_ALL:
@@ -1697,7 +1697,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_set_boot_mode();
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
-        sio_ack();
+        sio_late_ack();
         sio_enable_udpstream();
         break;
     default:
