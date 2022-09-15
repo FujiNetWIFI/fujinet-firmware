@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 #include "fnSioLink.h"
 
 /*
@@ -228,3 +230,5 @@ void SioLink::reset_sio_port(sio_mode mode)
     set_sio_mode(mode);
     begin(baud);
 }
+
+#endif /* BUILD_ATARI */

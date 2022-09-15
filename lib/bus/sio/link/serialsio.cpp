@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 
 #include "serialsio.h"
 #include "fnSystem.h"
@@ -47,3 +48,5 @@ void SerialSioPort::setup()
     // CKO PIN
     fnSystem.set_pin_mode(PIN_CKO, gpio_mode_t::GPIO_MODE_INPUT);
 }
+
+#endif /* BUILD_ATARI */

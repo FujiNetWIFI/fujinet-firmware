@@ -1,3 +1,5 @@
+#ifdef BUILD_ATARI
+
 #include "netsio.h"
 #include "netsio_proto.h"
 
@@ -754,3 +756,5 @@ void NetSioPort::send_empty_sync()
     if (_sync_request_num >= 0)
         send_sync_response(NETSIO_EMPTY_SYNC);
 }
+
+#endif /* BUILD_ATARI */
