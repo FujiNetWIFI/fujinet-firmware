@@ -456,10 +456,11 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool prev_level = true;
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
    
-  fnSystem.delay_microseconds(50); // wait for first sync byte or so
+  //fnSystem.delay_microseconds(50); // wait for first sync byte or so
   iwm_timer_latch();               // latch highspeed timer value
   iwm_timer_read();                //  grab timer low word
-  iwm_timer_alarm_set(1);          // dummy alarm
+  iwm_timer_alarm_set(500);          // dummy alarm
+  iwm_timer_wait();
   do // have_data
   {
     iwm_extra_set(); // signal to LA we're in the nested loop
