@@ -398,7 +398,9 @@ void fnHttpServiceConfigurator::config_netsio(std::string enable_netsio, std::st
         }
         Config.store_netsio_port(port);
         Config.store_netsio_host(host.c_str());
+#ifdef BUILD_ATARI
         fnSioLink.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port());
+#endif
     }
     if (!enable_netsio.empty())
     {
