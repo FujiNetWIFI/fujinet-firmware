@@ -57,6 +57,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PRINTER_ENABLED,
         FN_MODEM_ENABLED,
         FN_MODEM_SNIFFER_ENABLED,
+        FN_NETSIO_ENABLED,
+        FN_NETSIO_HOST,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -142,6 +144,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PRINTER_ENABLED",
         "FN_MODEM_ENABLED",
         "FN_MODEM_SNIFFER_ENABLED",
+        "FN_NETSIO_ENABLED",
+        "FN_NETSIO_HOST",
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
         "FN_DRIVE3HOST",
@@ -355,6 +359,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_MODEM_SNIFFER_ENABLED:
         resultstream << Config.get_modem_sniffer_enabled();
+        break;
+    case FN_NETSIO_ENABLED:
+        resultstream << Config.get_netsio_enabled();
+        break;
+    case FN_NETSIO_HOST:
+        resultstream << Config.get_netsio_host();
+        if (Config.get_netsio_port() != CONFIG_DEFAULT_NETSIO_PORT)
+            resultstream << ":" << Config.get_netsio_port();
         break;
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:

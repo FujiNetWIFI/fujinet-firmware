@@ -376,6 +376,43 @@ void fnHttpServiceConfigurator::config_printer(std::string printernumber, std::s
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_netsio(std::string enable_netsio, std::string netsio_host_port)
+{
+    Debug_printf("Set NetSIO: %s, %s\n", enable_netsio.c_str(), netsio_host_port.c_str());
+
+    // Store our change in Config
+    if (!netsio_host_port.empty())
+    {
+        // TODO parse netsio_host_port, detect if host part is followed by :port
+        std::size_t found = netsio_host_port.find(':');
+        std::string host = netsio_host_port;
+        int port = CONFIG_DEFAULT_NETSIO_PORT;
+        if (found != std::string::npos)
+        {
+            host = netsio_host_port.substr(0, found);
+            if (host.empty())
+                host = "localhost";
+            port = std::atoi(netsio_host_port.substr(found+1).c_str());
+            if (port < 1 || port > 65535)
+                port = CONFIG_DEFAULT_NETSIO_PORT;
+        }
+        Config.store_netsio_port(port);
+        Config.store_netsio_host(host.c_str());
+        fnSioLink.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port());
+    }
+    if (!enable_netsio.empty())
+    {
+        Config.store_netsio_enabled(util_string_value_is_true(enable_netsio));
+    }
+    Debug_println("Activate SIO mode");
+    sio_message_t msg;
+    msg.message_id = SIOMSG_SWAP_SIOMODE;
+    xQueueSend(SIO.qSioMessages, &msg, 0);
+
+    // Save change
+    Config.save();
+}
+
 int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t postlen)
 {
 #ifdef DEBUG
@@ -388,6 +425,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
     std::map<std::string, std::string> postvals = parse_postdata(decoded_buf, postlen);
 
     free(decoded_buf);
+
+    bool update_netsio = false;
+    std::string str_netsio_enable;
+    std::string str_netsio_host;
 
     for (std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); i++)
     {
@@ -459,6 +500,21 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         {
             config_modem_sniffer_enabled(i->second);
         }
+        else if (i->first.compare("netsio_enable") == 0)
+        {
+            str_netsio_enable = i->second;
+            update_netsio = true;
+        }
+        else if (i->first.compare("netsio_host") == 0)
+        {
+            str_netsio_host = i->second;
+            update_netsio = true;
+        }
+    }
+
+    if (update_netsio)
+    {
+        config_netsio(str_netsio_enable, str_netsio_host);
     }
 
     return 0;

@@ -32,3 +32,4 @@ selectListValue("select_play_record", current_play_record);
 selectListValue("select_pulldown", current_pulldown);
 selectListValue("select_cassette_enabled", current_cassette_enabled);
 selectListValue("select_status_wait_enable", current_status_wait_enabled);
+selectListValue("select_netsio_enable", current_netsio_enabled);

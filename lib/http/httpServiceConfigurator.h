@@ -24,6 +24,7 @@ class fnHttpServiceConfigurator
     static void config_printer_enabled(std::string printer_enabled);
     static void config_modem_enabled(std::string modem_enabled);
     static void config_modem_sniffer_enabled(std::string modem_sniffer_enabled);
+    static void config_netsio(std::string enable_netsio, std::string netsio_host_port);
 
 public:
     static char * url_decode(char * dst, const char * src, size_t dstsize);
