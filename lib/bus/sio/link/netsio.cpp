@@ -40,7 +40,7 @@ NetSioPort::NetSioPort() :
     _rxtail(0),
     _rxfull(false),
     _sync_request_num(-1),
-    _sync_write_size(0),
+    _sync_write_size(-1),
     _errcount(0)
 {}
 
@@ -350,7 +350,7 @@ int NetSioPort::handle_netsio()
             case NETSIO_COMMAND_ON:
                 _command_asserted = true;
                 _sync_request_num = -1; // cancel any sync request
-                _sync_write_size = 0;
+                _sync_write_size = -1;
                 rxbuffer_flush();   // flush any stray input data
                 break;
 
@@ -623,12 +623,13 @@ size_t NetSioPort::read(uint8_t *buffer, size_t length)
     if (!_initialized)
         return 0;
 
-    if (_sync_request_num >= 0 && _sync_write_size > 0)
+    if (_sync_request_num >= 0 && _sync_write_size >= 0)
     {
-        // first send late sync response
-        write(_sync_ack_byte);
+        // handle pending sync request
+        // send late ACK byte
+        send_sync_response(NETSIO_ACK_SYNC, _sync_ack_byte, _sync_write_size);
         // no delay here, emulator is not running
-        // 850 us pre-ACK delay will be added in netsio.atdevice
+        // 850 us pre-ACK delay will be added by netsio.atdevice
     }
 
     int result;
@@ -664,9 +665,22 @@ ssize_t NetSioPort::write(uint8_t c)
         return 0;
 
     if (_sync_request_num >= 0)
-        // SYNC RESPONSE
-        // send byte (should be ACK/NAK) bundled in sync response
-        return send_sync_response(NETSIO_ACK_SYNC, c, _sync_write_size);
+    {
+        // handle pending sync request
+        if (_sync_write_size < 0)
+        {
+            // SYNC RESPONSE
+            // send byte (should be ACK/NAK) bundled in sync response
+            return send_sync_response(NETSIO_ACK_SYNC, c, 0);
+        }
+        else
+        {
+            // sio_late_ack() was not from whatever reason followed by bus_to_peripheral()
+            Debug_println("Warn: NetSIO late ACK without bus_to_peripheral");
+            // send late ACK byte
+            send_sync_response(NETSIO_ACK_SYNC, _sync_ack_byte, _sync_write_size);
+        }
+    }
 
     // DATA BYTE
     // send byte as usually
@@ -724,6 +738,7 @@ const char* NetSioPort::get_host(int &port)
 void NetSioPort::set_sync_ack_byte(int ack_byte)
 {
     _sync_ack_byte = ack_byte;
+    _sync_write_size = 0;
 }
 
 void NetSioPort::set_sync_write_size(int write_size)
@@ -745,7 +760,7 @@ ssize_t NetSioPort::send_sync_response(uint8_t response_type, uint8_t ack_byte, 
     txbuf[5] = (uint8_t)((sync_write_size >> 8) & 0xff);
     // clear sync request
     _sync_request_num = -1;
-    _sync_write_size = 0;
+    _sync_write_size = -1;
 
     ssize_t result = write_sock(txbuf, sizeof(txbuf));
     return (result > 0 && response_type != NETSIO_EMPTY_SYNC) ? 1 : 0; // amount of data bytes written

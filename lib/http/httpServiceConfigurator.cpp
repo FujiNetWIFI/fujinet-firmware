@@ -405,7 +405,7 @@ void fnHttpServiceConfigurator::config_netsio(std::string enable_netsio, std::st
         Config.store_netsio_enabled(util_string_value_is_true(enable_netsio));
     }
     Debug_println("Activate SIO mode");
-#ifdef ATARI
+#ifdef BUILD_ATARI
     sio_message_t msg;
     msg.message_id = SIOMSG_SWAP_SIOMODE;
     xQueueSend(SIO.qSioMessages, &msg, 0);
