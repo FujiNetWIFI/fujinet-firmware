@@ -754,10 +754,11 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 {
   // iwm_ack_set(); // todo - is set really needed?
   iwm_ack_disable();
+  portDISABLE_INTERRUPTS();
   for (int i = 0; i < attempts; i++)
   {
 #ifdef TEXT_RX_SPI
-portDISABLE_INTERRUPTS();
+//portDISABLE_INTERRUPTS();
     if (!iwm_read_packet_spi(a, n))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
@@ -771,7 +772,7 @@ portDISABLE_INTERRUPTS();
       return 0;
       
     }
-    portENABLE_INTERRUPTS();
+    // portENABLE_INTERRUPTS();
 #else
     portDISABLE_INTERRUPTS();
     if (!iwm_read_packet(a, n))
@@ -790,6 +791,7 @@ portDISABLE_INTERRUPTS();
 #ifdef DEBUG
   print_packet(a);
 #endif
+  portENABLE_INTERRUPTS();
   return 1;
 }
 
