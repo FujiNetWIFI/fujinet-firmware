@@ -263,6 +263,21 @@ void systemBus::service()
         return; // break!
     }
 
+    // For testing, show recv on debug serial and send it back
+    /*char daByte;
+    if (fnUartSIO.available())
+    {
+        fnLedManager.set(eLed::LED_BUS, true);
+        daByte = fnUartSIO.read();
+        Debug_printf("RCV: %c\n", daByte);
+        fnUartSIO.write(daByte); // Send it back
+        fnUartSIO.write(13); // CR
+        fnUartSIO.write(10); // LF
+        fnLedManager.set(eLed::LED_BUS, false);
+    }
+    return;
+    */
+
     // Go process a command frame if the RS232 CMD line is asserted
     if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
     {
@@ -276,6 +291,7 @@ void systemBus::service()
     else
     // Neither CMD nor active modem, so throw out any stray input data
     {
+        //Debug_println("RS232 Srvc Flush");
         fnUartSIO.flush_input();
     }
 
@@ -301,9 +317,9 @@ void systemBus::setup()
     // PROC PIN
     fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
-    // MTR PIN
-    //fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
-    // fnSystem.set_pin_mode(PIN_MTR, gpio_mode_t::GPIO_MODE_INPUT);
+    // INVALID PIN
+    //fnSystem.set_pin_mode(PIN_RS232_INVALID, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
+    fnSystem.set_pin_mode(PIN_RS232_INVALID, gpio_mode_t::GPIO_MODE_INPUT);
     // CMD PIN
     //fnSystem.set_pin_mode(PIN_RS232_DTR, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
     fnSystem.set_pin_mode(PIN_RS232_DTR, gpio_mode_t::GPIO_MODE_INPUT);
@@ -314,6 +330,7 @@ void systemBus::setup()
     // Create a message queue
     qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
 
+    Debug_println("RS232 Setup Flush");
     fnUartSIO.flush_input();
 }
 
@@ -453,4 +470,4 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 }
 
 systemBus RS232; // Global RS232 object
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */
