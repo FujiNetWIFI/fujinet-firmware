@@ -408,7 +408,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(1000); // logic analyzer says 40 usec
+  iwm_timer_alarm_set(100000); // logic analyzer says 40 usec
 
   while ( !iwm_req_val() )  
   {
