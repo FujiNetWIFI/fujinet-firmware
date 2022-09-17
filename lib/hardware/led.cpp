@@ -27,10 +27,10 @@ void LedManager::setup()
     fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
 #elif defined(PINMAP_RS232_REV0)
-    fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_INPUT);
+    fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.digital_write(PIN_LED_BUS, DIGI_HIGH);
 
-    fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_INPUT);
+    fnSystem.set_pin_mode(PIN_LED_WIFI, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.digital_write(PIN_LED_WIFI, DIGI_HIGH);
 #else
     fnSystem.set_pin_mode(PIN_LED_BUS, gpio_mode_t::GPIO_MODE_OUTPUT);
@@ -54,8 +54,6 @@ void LedManager::set(eLed led, bool on)
         fnSystem.digital_write(mLedPin[led], (on ? DIGI_HIGH : DIGI_LOW));
     else
         fnSystem.digital_write(mLedPin[led], (on ? DIGI_LOW : DIGI_HIGH));
-#elif defined(PINMAP_RS232_REV0)
-    fnSystem.digital_write(mLedPin[led], (on ? DIGI_HIGH : DIGI_LOW));
 #else
     fnSystem.digital_write(mLedPin[led], (on ? DIGI_LOW : DIGI_HIGH));
 #endif
