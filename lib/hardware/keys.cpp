@@ -148,9 +148,14 @@ void KeyManager::_keystate_task(void *param)
     KeyManager *pKM = (KeyManager *)param;
 
 #if defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232)
+    // No button B onboard
     pKM->_keys[eKey::BUTTON_B].disabled = true;
 #endif
 
+#ifdef BUILD_RS232
+    // No button A onboard
+    pKM->_keys[eKey::BUTTON_A].disabled = true;
+#endif
     while (true)
     {
         vTaskDelay(100 / portTICK_PERIOD_MS);
