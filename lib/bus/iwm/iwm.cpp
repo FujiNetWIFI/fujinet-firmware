@@ -383,19 +383,13 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   iwm_timer_reset();
    
   // signal the logic analyzer
-  iwm_extra_clr();
-  iwm_extra_set();
-  iwm_extra_clr();
   iwm_extra_set();
 
 #ifdef TEXT_RX_SPI
 
-
   int numsamples = pulsewidth * (n + 2) * 8;
   spi_len = numsamples / 8 + 1;
-  // set up a test - see if i can read the buffer as written by DMA
   
-  //esp_err_t ret;
   transptr = &rxtrans;
   memset(transptr, 0, sizeof(spi_transaction_t));
   memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
@@ -419,14 +413,13 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       // timeout
       Debug_print("t");
 #endif
-      //Debug_printf("\r\nREQ timeout before read");
-      iwm_extra_set();
       iwm_extra_clr();
       return 1;
     }
   };
-  // spi_device_queue_trans(spirx, &rxtrans, portMAX_DELAY);
+
   spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
+
 #ifdef VERBOSE_IWM
   memcpy(spi_buffer2,spi_buffer,spi_len);
   print_packet_wave(spi_buffer2,spi_len);
@@ -440,6 +433,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   }
   Debug_println("end");
 #endif
+
   // decode the packet here
   spirx_byte_ctr = 0; // initialize the SPI buffer sampler
   spirx_bit_ctr = 0;
@@ -448,7 +442,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool synced = false;
   int idx = 0;             // index into *a
   bool bit = false; // = 0;        // logical bit value
-  //bool prev_bit = true;
+
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
   int numbits = 8;             // number of bits left to read into the rxbyte
 
@@ -466,27 +460,9 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     iwm_timer_wait();
     iwm_timer_latch();     // latch highspeed timer value
     iwm_timer_read();      //  grab timer low word
-    // do some testing with the waveform
-    // if (synced)
-    //   print_packet_wave(&spi_buffer[spirx_byte_ctr],4);
-    // if (
-    //     (spirx_look_ahead(0) == 0xff) && 
-    //     (spirx_look_ahead(1) == 0xff) && 
-    //     (spirx_look_ahead(2) == 0xff) && 
-    //     (spirx_look_ahead(3) == 0xff) &&
-    //     (spirx_look_ahead(4) == 0xff))
-    // {
-    //   Debug_printf("\r\nLook ahead = 0xffffffffff");
-    //   iwm_timer_alarm_set(synced ? 311 : 390); // 31 us for regular byte, 39 us for 10-bit sync bytes     }
-    //                                            // iwm_timer_latch();     // latch highspeed timer value
-    //                                            // iwm_timer_read();      //  grab timer low word
-    // }
-    // else
-    // {
-    iwm_timer_alarm_set(synced ? 311 : 390); // 31 us for regular byte, 39 us for 10-bit sync bytes
-                                               // beginning of the byte
-                                               // look ahead - if all FF's, then wait a little.
-    // }
+    
+    iwm_timer_alarm_set(synced ? 311 : 390); // 31.1 us for regular byte, 39 us for 10-bit sync bytes
+
     iwm_extra_clr();
     do
     {
@@ -518,11 +494,10 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       }
       rxbyte <<= 1;
       rxbyte |= bit;
-      //prev_bit = bit;
-      
-      if ((--numbits) == 0)
-        break; // end of byte
-    } while(true); // shouldn't this just be "while(--numbits>0)"   ?????
+       
+      // if ((--numbits) == 0)
+      //   break; // end of byte
+    } while (--numbits > 0); // shouldn't this just be "while(--numbits>0)"   ?????
     if ((rxbyte == 0xc3) && (!synced))
     {
       synced = true;
@@ -531,9 +506,9 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     a[idx++] = rxbyte;
     // wait for leading edge of next byte or timeout for end of packet
     int timeout_ctr = f_nyquist * f_over * 19 / 1000000;
-    //#ifdef VERBOSE_IWM
-    // Debug_printf("%02x ", rxbyte);
-    //#endif
+#ifdef VERBOSE_IWM
+    Debug_printf("%02x ", rxbyte);
+#endif
     // now wait for leading edge of next byte
     iwm_extra_clr();
     do
