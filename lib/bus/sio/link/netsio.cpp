@@ -14,6 +14,7 @@
 
 #include "config.h"
 #include "fnSystem.h"
+#include "fnWiFi.h"
 
 
 /* alive response timeout in seconds
@@ -62,8 +63,21 @@ void NetSioPort::begin(int baud)
     _motor_asserted = false;
     rxbuffer_flush();
 
-    int suspend_ms = _errcount < 3 ? 1000 : 5000;
+    // Wait for WiFi
+    int suspend_ms = _errcount < 5 ? 400 : 2000;
+    if (!fnWiFi.connected())
+    {
+        Debug_println("NetSIO: No WiFi!");
+        _errcount++;
+        suspend(suspend_ms);
+		return;
+	}
 
+    //
+    // Connect to hub
+    //
+
+    suspend_ms = _errcount < 5 ? 1000 : 5000;
     Debug_printf("Setting up NetSIO (%s:%d)\n", _host, _port);
     _fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 
@@ -101,7 +115,7 @@ void NetSioPort::begin(int baud)
 
     fcntl(_fd, F_SETFL, O_NONBLOCK);
 
-    // fast ping hub
+    // Fast ping hub
     if (ping(2, 50, 50) < 0)
     {
         _errcount++;
@@ -109,7 +123,7 @@ void NetSioPort::begin(int baud)
         return;
     }
 
-    // connect device
+    // Connect device
     uint8_t connect = NETSIO_DEVICE_CONNECT;
     send(_fd, &connect, 1, 0);
 
@@ -139,7 +153,7 @@ void NetSioPort::end()
 
 void NetSioPort::suspend(int ms)
 {
-    Debug_println("Suspending NetSIO");
+    Debug_printf("Suspending NetSIO for %d ms\n", ms);
     _resume_time = fnSystem.millis() + ms;
     end();
 }
