@@ -378,7 +378,7 @@ bool iwmBus::spirx_get_next_sample()
     return spi_buffer[spirx_byte_ctr+n];
   }
 
-int iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
+int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
   iwm_timer_reset();
    
@@ -390,8 +390,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 
 #ifdef TEXT_RX_SPI
 
-  int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
-  int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
+
   int numsamples = pulsewidth * (n + 2) * 8;
   spi_len = numsamples / 8 + 1;
   // set up a test - see if i can read the buffer as written by DMA
@@ -408,7 +407,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(100000); // logic analyzer says 40 usec
+  iwm_timer_alarm_set(1000); // logic analyzer says 40 usec
 
   while ( !iwm_req_val() )  
   {

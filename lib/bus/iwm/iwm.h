@@ -315,6 +315,8 @@ private:
   spi_device_handle_t spirx;
   const int f_over = 4;
   const int f_nyquist = 500 * 1000; // 2 x 250 kbps
+  const int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
+  const int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
   #endif
 
   // low level bit-banging i/o functions
