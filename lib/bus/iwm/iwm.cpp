@@ -333,7 +333,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   // ph3=0 ph2=1 ph1=0 ph0=1
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
-  if (iwm_phase_val(1) && iwm_phase_val(3) && !iwm_phase_val(2))
+  if (iwm_phase_val(1) && iwm_phase_val(3) && !iwm_phase_val(0) && !iwm_phase_val(2))
     phasestate = iwm_phases_t::enable;
   else if (iwm_phase_val(0) && iwm_phase_val(2) && !iwm_phase_val(1) && !iwm_phase_val(3))
     phasestate = iwm_phases_t::reset;
