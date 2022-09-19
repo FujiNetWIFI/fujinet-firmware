@@ -42,6 +42,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #undef VERBOSE_IWM
 //#define VERBOSE_IWM
 
+
 //------------------------------------------------------------------------------
 //#ifdef DEBUG
 //*****************************************************************************
@@ -337,7 +338,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   else if (iwm_phase_val(0) && iwm_phase_val(2) && !iwm_phase_val(1) && !iwm_phase_val(3))
     phasestate = iwm_phases_t::reset;
 
-#ifdef DEBUG
+#ifdef VERBOSE_IWM
   if (phasestate != oldphase)
   {
     //Debug_printf("\r\n%d%d%d%d",iwm_phase_val(0),iwm_phase_val(1),iwm_phase_val(2),iwm_phase_val(3));
@@ -390,6 +391,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   int numsamples = pulsewidth * (n + 2) * 8;
   spi_len = numsamples / 8 + 1;
   
+  // i tired moving this initialization stuff to outside this routine in places that were not time critical. It did not improve entry time.
   transptr = &rxtrans;
   memset(transptr, 0, sizeof(spi_transaction_t));
   memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
