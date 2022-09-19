@@ -285,7 +285,8 @@ bool NetSioPort::keep_alive()
         uint8_t alive = NETSIO_ALIVE_REQUEST;
         send(_fd, &alive, 1, 0);
     }
-    else if (ms - _alive_response >= ALIVE_TIMEOUT_MS)
+    // check for keep alive response
+    if (ms - _alive_response >= ALIVE_TIMEOUT_MS)
     {
         Debug_println("NetSIO connection lost");
         // ping hub
@@ -621,6 +622,9 @@ void NetSioPort::set_interrupt(bool level)
 */
 int NetSioPort::read(void)
 {
+    if (!_initialized)
+        return -1;
+
     if (!wait_for_data(500))
     {
         Debug_println("NetSIO read() - TIMEOUT");
@@ -696,12 +700,19 @@ ssize_t NetSioPort::write(uint8_t c)
         }
     }
 
+    handle_netsio();
+
     // DATA BYTE
     // send byte as usually
     txbuf[0] = NETSIO_DATA_BYTE; // byte command
     txbuf[1] = c;                // value
 
     ssize_t result = write_sock(txbuf, sizeof(txbuf));
+
+    // slow down / TODO flow control
+    uint32_t tt = ((result > 0) ? 10000000 : 0) / _baud;
+    if (tt > 50) fnSystem.delay_microseconds(tt);
+
     return (result > 0) ? 1 : 0; // amount of data bytes written
 }
 
@@ -715,6 +726,8 @@ ssize_t NetSioPort::write(const uint8_t *buffer, size_t size)
     if (!_initialized)
         return 0;
 
+    handle_netsio();
+
     while (txbytes < size)
     {
         // send block
@@ -724,6 +737,9 @@ ssize_t NetSioPort::write(const uint8_t *buffer, size_t size)
         result = write_sock(txbuf, to_send+1);
         if (result > 0) {
             txbytes += result-1;
+            // slow down / TODO flow control
+            uint32_t tt = result * 10000000 / _baud;
+            if (tt > 50) fnSystem.delay_microseconds(tt);
         }
         else if (result < 1) {
             break;
