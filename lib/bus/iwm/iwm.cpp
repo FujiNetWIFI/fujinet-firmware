@@ -513,14 +513,17 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 #endif
     // now wait for leading edge of next byte
     iwm_extra_clr();
-    do
-    {
-      if (--timeout_ctr < 1)
-      { // end of packet
-        have_data = false;
-        break;
-      }
-    } while (spirx_get_next_sample() == prev_level);
+    if (idx > n)
+      have_data = false;
+    else
+      do
+      {
+        if (--timeout_ctr < 1)
+        { // end of packet
+          have_data = false;
+          break;
+        }
+      } while (spirx_get_next_sample() == prev_level);
     numbits = 8;
   } while (have_data); // while have_data
   // print_packet(a);
