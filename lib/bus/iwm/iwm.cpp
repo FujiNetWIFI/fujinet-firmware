@@ -421,6 +421,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   };
 
   spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
+  iwm_extra_clr();
 
 #ifdef VERBOSE_IWM
   memcpy(spi_buffer2,spi_buffer,spi_len);
@@ -450,7 +451,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 
   bool prev_level = true;
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
-   
+
   //fnSystem.delay_microseconds(50); // wait for first sync byte or so
   iwm_timer_latch();               // latch highspeed timer value
   iwm_timer_read();                //  grab timer low word
@@ -1002,7 +1003,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   iwm_timer_reset();
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(10000); // 1 millisecond
+  iwm_timer_alarm_set(15000); // 1.5 millisecond - 1 ms not long enough for yellowstone
 
   // while (!fnSystem.digital_read(SP_REQ))
   while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
