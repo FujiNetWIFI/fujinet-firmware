@@ -108,7 +108,12 @@ string FNJSON::getValue(cJSON *item)
     else if (cJSON_IsNumber(item))
     {
         stringstream ss;
-        ss << item->valueint;
+
+        if (item->valueint > 2147483647)
+            ss << item->valuedouble;
+        else
+            ss << item->valueint;
+            
         return ss.str() + lineEnding;
     }
     else if (cJSON_IsObject(item))
