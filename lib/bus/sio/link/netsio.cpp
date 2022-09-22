@@ -24,7 +24,7 @@
  *  be made
  */
 #define ALIVE_RATE_MS       2000
-#define ALIVE_TIMEOUT_MS    7500
+#define ALIVE_TIMEOUT_MS   15000
 
 // Constructor
 NetSioPort::NetSioPort() :
@@ -700,8 +700,6 @@ ssize_t NetSioPort::write(uint8_t c)
         }
     }
 
-    handle_netsio();
-
     // DATA BYTE
     // send byte as usually
     txbuf[0] = NETSIO_DATA_BYTE; // byte command
@@ -709,9 +707,14 @@ ssize_t NetSioPort::write(uint8_t c)
 
     ssize_t result = write_sock(txbuf, sizeof(txbuf));
 
-    // slow down / TODO flow control
-    uint32_t tt = ((result > 0) ? 10000000 : 0) / _baud;
-    if (tt > 50) fnSystem.delay_microseconds(tt);
+    if (result > 0)
+    {
+        // slow down / TODO flow control
+        uint32_t tt = 9000 / _baud + 10;
+        fnSystem.delay(tt);
+        // keep netsio running
+        handle_netsio();
+    }
 
     return (result > 0) ? 1 : 0; // amount of data bytes written
 }
@@ -726,8 +729,6 @@ ssize_t NetSioPort::write(const uint8_t *buffer, size_t size)
     if (!_initialized)
         return 0;
 
-    handle_netsio();
-
     while (txbytes < size)
     {
         // send block
@@ -735,13 +736,21 @@ ssize_t NetSioPort::write(const uint8_t *buffer, size_t size)
         txbuf[0] = NETSIO_DATA_BLOCK;
         memcpy(txbuf+1, buffer+txbytes, to_send);
         result = write_sock(txbuf, to_send+1);
-        if (result > 0) {
+        if (result > 0) 
+        {
             txbytes += result-1;
             // slow down / TODO flow control
-            uint32_t tt = result * 10000000 / _baud;
-            if (tt > 50) fnSystem.delay_microseconds(tt);
+            uint32_t tt = result * 8500 / _baud + 50;
+            while (tt)
+            {
+                // but keep netsio running (100ms ticks)
+                fnSystem.delay(tt > 100 ? 100 : tt);
+                tt -= (tt > 100 ? 100 : tt);
+                handle_netsio();
+            }
         }
-        else if (result < 1) {
+        else if (result < 1) 
+        {
             break;
         }
     }
