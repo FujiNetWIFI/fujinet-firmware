@@ -315,6 +315,8 @@ private:
   spi_device_handle_t spirx;
   const int f_over = 4;
   const int f_nyquist = 500 * 1000; // 2 x 250 kbps
+  const int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
+  const int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
   #endif
 
   // low level bit-banging i/o functions
@@ -367,6 +369,7 @@ private:
   int spirx_byte_ctr;
   int spirx_bit_ctr;
   bool spirx_get_next_sample();
+  uint8_t spirx_look_ahead(int n);
 
 public:
   int iwm_read_packet_spi(uint8_t *a, int n); 

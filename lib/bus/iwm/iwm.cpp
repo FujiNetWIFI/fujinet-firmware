@@ -42,6 +42,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 #undef VERBOSE_IWM
 //#define VERBOSE_IWM
 
+
 //------------------------------------------------------------------------------
 //#ifdef DEBUG
 //*****************************************************************************
@@ -332,12 +333,12 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   // ph3=0 ph2=1 ph1=0 ph0=1
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
-  if (iwm_phase_val(1) && iwm_phase_val(3) && !iwm_phase_val(2))
+  if (iwm_phase_val(1) && iwm_phase_val(3) && !iwm_phase_val(0) && !iwm_phase_val(2))
     phasestate = iwm_phases_t::enable;
   else if (iwm_phase_val(0) && iwm_phase_val(2) && !iwm_phase_val(1) && !iwm_phase_val(3))
     phasestate = iwm_phases_t::reset;
 
-#ifdef DEBUG
+#ifdef VERBOSE_IWM
   if (phasestate != oldphase)
   {
     //Debug_printf("\r\n%d%d%d%d",iwm_phase_val(0),iwm_phase_val(1),iwm_phase_val(2),iwm_phase_val(3));
@@ -373,29 +374,24 @@ bool iwmBus::spirx_get_next_sample()
   return (((spi_buffer[spirx_byte_ctr] << spirx_bit_ctr++) & 0x80) == 0x80);
 }
 
-int iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
+  uint8_t iwmBus::spirx_look_ahead(int n)
+  {
+    return spi_buffer[spirx_byte_ctr+n];
+  }
+
+int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
   iwm_timer_reset();
    
   // signal the logic analyzer
-  iwm_extra_clr();
   iwm_extra_set();
-  iwm_extra_clr();
-  iwm_extra_set();
-  iwm_extra_clr();
-
- 
-
 
 #ifdef TEXT_RX_SPI
 
-  int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
-  int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
   int numsamples = pulsewidth * (n + 2) * 8;
   spi_len = numsamples / 8 + 1;
-  // set up a test - see if i can read the buffer as written by DMA
   
-  //esp_err_t ret;
+  // i tired moving this initialization stuff to outside this routine in places that were not time critical. It did not improve entry time.
   transptr = &rxtrans;
   memset(transptr, 0, sizeof(spi_transaction_t));
   memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
@@ -404,16 +400,10 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   rxtrans.length = spi_len * 8;   // Data length, in bits
   rxtrans.flags = 0;              
 
-  //ret = 
-  //spi_device_transmit(spirx, &trans);
-  // todo: can we create a wait for req with timout function to use elsewhere?
-  // it woudl return bool false when REQ does its thing or true when timeout.
-
-     // setup a timeout counter to wait for REQ response
+  // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
   iwm_timer_alarm_set(1000); // logic analyzer says 40 usec
-
 
   while ( !iwm_req_val() )  
   {
@@ -425,14 +415,14 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       // timeout
       Debug_print("t");
 #endif
-      //Debug_printf("\r\nREQ timeout before read");
-      iwm_extra_set();
       iwm_extra_clr();
-      // portENABLE_INTERRUPTS();
       return 1;
     }
   };
-  spi_device_queue_trans(spirx, &rxtrans,portMAX_DELAY);
+
+  spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
+  iwm_extra_clr();
+
 #ifdef VERBOSE_IWM
   memcpy(spi_buffer2,spi_buffer,spi_len);
   print_packet_wave(spi_buffer2,spi_len);
@@ -446,6 +436,7 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   }
   Debug_println("end");
 #endif
+
   // decode the packet here
   spirx_byte_ctr = 0; // initialize the SPI buffer sampler
   spirx_bit_ctr = 0;
@@ -454,39 +445,31 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool synced = false;
   int idx = 0;             // index into *a
   bool bit = false; // = 0;        // logical bit value
-  //bool prev_bit = true;
+
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
   int numbits = 8;             // number of bits left to read into the rxbyte
 
   bool prev_level = true;
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
- 
-  
-  fnSystem.delay_microseconds(60); // wait for first sync byte
-    //iwm_timer_reset();
-    iwm_timer_latch();        // latch highspeed timer value
-    iwm_timer_read();      //  grab timer low word
-    iwm_timer_alarm_set(1); // 32 us 
+
+  //fnSystem.delay_microseconds(50); // wait for first sync byte or so
+  iwm_timer_latch();               // latch highspeed timer value
+  iwm_timer_read();                //  grab timer low word
+  iwm_timer_alarm_set(500);          // dummy alarm
+  iwm_timer_wait();
   do // have_data
   {
+    iwm_extra_set(); // signal to LA we're in the nested loop
     iwm_timer_wait();
-    //iwm_timer_reset();
-    iwm_timer_latch();        // latch highspeed timer value
+    iwm_timer_latch();     // latch highspeed timer value
     iwm_timer_read();      //  grab timer low word
-    iwm_timer_alarm_set(synced ? 311 : 390); // 31 us for regular byte, 39 us for 10-bit sync bytes 
-    //fnSystem.delay_microseconds(12); // tweaked based on execution time - could use iwm_timer to pace it off the clock
-    // beginning of the byte
-    // delay 2 us until middle of 4-us bit
-    // spirx: iwm_timer_alarm_set(16);  // 2 usec
-    // spirx: just start reading data because the SPI setup takes a while anyway
+    
+    iwm_timer_alarm_set(synced ? 311 : 390); // 31.1 us for regular byte, 39 us for 10-bit sync bytes
+
+    iwm_extra_clr();
     do
     {
-      // spirx: iwm_extra_clr(); // signal to LA we're in the nested loop
-      // spirx: iwm_timer_wait();
-      // spirx: current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
-      
-      // spirx: iwm_timer_alarm_set(38); // 4 usec
-      bit = false; // assume no edge in this next bit
+     bit = false; // assume no edge in this next bit
 #ifdef VERBOSE_IWM
       Debug_printf("\r\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
       Debug_printf("\r\nspibyte spibit intctr sampval preval rxbit rxbyte");
@@ -494,9 +477,8 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
       int i = 0;
       while (i < pulsewidth)
       {
-        iwm_extra_set();
         current_level = spirx_get_next_sample();
-      // spirx: iwm_extra_set(); // signal to logic analyzer we just read the WR value
+        current_level ? iwm_extra_clr() : iwm_extra_set();
 #ifdef VERBOSE_IWM
         Debug_printf("\r\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
 #endif
@@ -511,64 +493,40 @@ int iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
         }
         prev_level = current_level;
         i++;
-        iwm_extra_clr(); // signal to LA we're in the nested loop
+        iwm_extra_set(); // signal to LA we're in the nested loop
       }
       rxbyte <<= 1;
       rxbyte |= bit;
-      //prev_bit = bit;
-      
-      if ((--numbits) == 0)
-        break; // end of byte
-    } while(true); // shouldn't this just be "while(--numbits>0)"   ?????
+       
+      // if ((--numbits) == 0)
+      //   break; // end of byte
+    } while (--numbits > 0); // shouldn't this just be "while(--numbits>0)"   ?????
     if ((rxbyte == 0xc3) && (!synced))
     {
-// #ifdef VERBOSE_IWM
-      //Debug_printf("\r\nSYNCED!"); // This can make the guru meditate
-// #endif
       synced = true;
       idx = 5;
     }
-    //if (idx<n)
-    //{
-      a[idx++] = rxbyte;  // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
-      //if (rxbyte == 0xc8) // woohoo end of packet!
-      //  return 0;
-    //}
-    //else
-    //{
-    //#ifdef VERBOSE_IWM
-      // Debug_printf("\r\nRead Packet: too many bytes %d", idx); // This can make the guru meditate
-    // #endif
-      //iwm_extra_clr();
-      // portENABLE_INTERRUPTS();
-     // print_packet(a);
-     // return 1;
-    //}
-      // wait for leading edge of next byte or timeout for end of packet
-      int timeout_ctr = f_nyquist * f_over * 19 / 1000000; 
-      // sprix: iwm_timer_alarm_snooze(190); // 19 usec from smartportsd assy routine
-//#ifdef VERBOSE_IWM
-      // Debug_printf("%02x ", rxbyte);
-//#endif
-      // now wait for leading edge of next byte
-      do // return (GPIO.in1.val >> (pin - 32)) & 0x1;
+    a[idx++] = rxbyte;
+    // wait for leading edge of next byte or timeout for end of packet
+    int timeout_ctr = f_nyquist * f_over * 19 / 1000000;
+#ifdef VERBOSE_IWM
+    Debug_printf("%02x ", rxbyte);
+#endif
+    // now wait for leading edge of next byte
+    iwm_extra_clr();
+    if (idx > n)
+      have_data = false;
+    else
+      do
       {
-        // sprix: iwm_timer_latch();
-        // sprix: iwm_timer_read();
-        // sprix: if (iwm_timer.t0 > iwm_timer.tn)
         if (--timeout_ctr < 1)
-        {
-          // end of packet
-// #ifdef VERBOSE_IWM
-          //Debug_printf("\r\nEND OF PACKET!"); // This can make the guru meditate
-//#endif
+        { // end of packet
           have_data = false;
           break;
         }
-      } while (spirx_get_next_sample() == prev_level); // while (iwm_wrdata_val() == prev_level);
-      numbits = 8;                                     // ;1   8bits to read
-      // } // endif
-  } while (have_data); //(have_data); // while have_data
+      } while (spirx_get_next_sample() == prev_level);
+    numbits = 8;
+  } while (have_data); // while have_data
   // print_packet(a);
 #endif // TEXT_RX_SPI
   return 0;
@@ -776,19 +734,25 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 {
   // iwm_ack_set(); // todo - is set really needed?
   iwm_ack_disable();
+  portDISABLE_INTERRUPTS();
   for (int i = 0; i < attempts; i++)
   {
 #ifdef TEXT_RX_SPI
+//portDISABLE_INTERRUPTS();
     if (!iwm_read_packet_spi(a, n))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
       iwm_ack_enable();
+      portENABLE_INTERRUPTS();
 #ifdef DEBUG
       print_packet(a);
 #endif
-      spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      spi_device_polling_end(spirx, portMAX_DELAY);
       return 0;
+      
     }
+    // portENABLE_INTERRUPTS();
 #else
     portDISABLE_INTERRUPTS();
     if (!iwm_read_packet(a, n))
@@ -807,6 +771,7 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 #ifdef DEBUG
   print_packet(a);
 #endif
+  portENABLE_INTERRUPTS();
   return 1;
 }
 
@@ -991,7 +956,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   //
   //*****************************************************************************
 
-  print_packet((uint8_t *)a);
+  //print_packet((uint8_t *)a);
   encode_spi_packet((uint8_t *)a);
 
   // send data stream using SPI
@@ -1038,7 +1003,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   iwm_timer_reset();
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(10000); // 1/2 millisecond
+  iwm_timer_alarm_set(15000); // 1.5 millisecond - 1 ms not long enough for yellowstone
 
   // while (!fnSystem.digital_read(SP_REQ))
   while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -1752,8 +1717,12 @@ void iwmBus::service()
   case iwm_phases_t::enable:
     // expect a command packet
 #ifdef TEXT_RX_SPI
+    portDISABLE_INTERRUPTS();
     if(iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
+    {
+      portENABLE_INTERRUPTS();
       return;
+    }
           //     iwm_ack_clr();
           // iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
           // print_packet(command_packet.data, COMMAND_PACKET_LEN);
@@ -1771,7 +1740,9 @@ void iwmBus::service()
       iwm_ack_clr();
       iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
 #ifdef TEXT_RX_SPI
-      spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+      spi_device_polling_end(spirx, portMAX_DELAY);
+      portENABLE_INTERRUPTS();
 #else 
       portENABLE_INTERRUPTS();
 #endif
@@ -1812,10 +1783,13 @@ void iwmBus::service()
           iwm_ack_clr();
           iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
 #ifdef TEXT_RX_SPI
-          spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+          // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
+          spi_device_polling_end(spirx, portMAX_DELAY);
+          portENABLE_INTERRUPTS();
 #else
           portENABLE_INTERRUPTS();
 #endif
+
           // wait for REQ to go low
           iwm_timer_reset();
           iwm_timer_latch();          // latch highspeed timer value
@@ -1833,6 +1807,7 @@ void iwmBus::service()
 
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
+          print_packet(command_packet.data);
           
           _activeDev = devicep;
           // handle command

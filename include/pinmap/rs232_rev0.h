@@ -23,8 +23,8 @@
 #define PIN_BUTTON_C 39 // Safe reset
 
 /* LEDs - leds.cpp */
-#define PIN_LED_WIFI    34
-#define PIN_LED_BUS     35
+#define PIN_LED_WIFI    14
+#define PIN_LED_BUS     12
 #define PIN_LED_BT      -1 // No BT LED
 
 /* Audio Output - samlib.h */
