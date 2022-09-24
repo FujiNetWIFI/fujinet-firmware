@@ -9,6 +9,8 @@
 
 #include <string.h>
 #include <sstream>
+#include <math.h>
+#include <iomanip>
 
 #include "../../include/debug.h"
 
@@ -95,25 +97,49 @@ string FNJSON::processString(string in)
 string FNJSON::getValue(cJSON *item)
 {
     if (cJSON_IsString(item))
-        return processString(string(cJSON_GetStringValue(item)) + lineEnding);
+    {
+        stringstream ss;
+
+        Debug_printf("S: [cJSON_IsString] %s\n",cJSON_GetStringValue(item));
+
+        //ss << string(cJSON_GetStringValue(item));
+        ss << cJSON_GetStringValue(item);
+
+        return processString(ss.str() + lineEnding);
+    }
     else if (cJSON_IsBool(item))
     {
+        Debug_printf("S: [cJSON_IsBool] %s\n",cJSON_IsTrue(item) ? "true" : "false");
+
         if (cJSON_IsTrue(item))
             return "TRUE" + lineEnding;
         else if (cJSON_IsFalse(item))
             return "FALSE" + lineEnding;
     }
     else if (cJSON_IsNull(item))
+    {
+        Debug_printf("S: [cJSON_IsNull]\n");
+
         return "NULL" + lineEnding;
+    }
     else if (cJSON_IsNumber(item))
     {
         stringstream ss;
 
-        if (item->valueint > 2147483647)
-            ss << item->valuedouble;
+        Debug_printf("S: [cJSON_IsNumber] %f\n",cJSON_GetNumberValue(item));
+
+        // Is the number an integer?
+        if (floor(cJSON_GetNumberValue(item)) == cJSON_GetNumberValue(item))
+        {
+            // yes, return as 64 bit integer
+            ss << (int64_t)(cJSON_GetNumberValue(item));
+        }
         else
-            ss << item->valueint;
-            
+        {
+            // no, return as double with max. 10 digits
+            ss << setprecision(10)<<cJSON_GetNumberValue(item);
+        }
+
         return ss.str() + lineEnding;
     }
     else if (cJSON_IsObject(item))
