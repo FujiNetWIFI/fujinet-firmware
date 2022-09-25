@@ -456,7 +456,7 @@ void iwmNetwork::json_query(cmdPacket_t cmd)
     addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
     Debug_printf("Query set to: %s\n", string((char *)packet_buffer,num_decoded).c_str());
-    json.setReadQuery(string((char *)packet_buffer, num_decoded),cmdframe.aux2);
+    json.setReadQuery(string((char *)packet_buffer, num_decoded),cmdFrame.aux2);
 }
 
 void iwmNetwork::json_parse()
