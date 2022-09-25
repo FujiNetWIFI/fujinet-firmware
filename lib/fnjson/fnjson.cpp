@@ -54,9 +54,10 @@ void FNJSON::setProtocol(NetworkProtocol *newProtocol)
 /**
  * Set read query string
  */
-void FNJSON::setReadQuery(string queryString)
+void FNJSON::setReadQuery(string queryString, uint8_t queryParam)
 {
     _queryString = queryString;
+    _queryParam = queryParam;
     _item = resolveQuery();
     json_bytes_remaining=readValueLen();
 }

@@ -21,7 +21,7 @@ public:
 
     void setLineEnding(string _lineEnding);
     void setProtocol(NetworkProtocol *newProtocol);
-    void setReadQuery(string queryString);
+    void setReadQuery(string queryString, uint8_t queryParam);
     cJSON *resolveQuery();
     bool status(NetworkStatus *status);
     
@@ -36,6 +36,7 @@ private:
     cJSON *_item;
     NetworkProtocol *_protocol;
     string _queryString;
+    uint8_t _queryParam;
     string lineEnding;
     string getValue(cJSON *item);
     string _parseBuffer;
