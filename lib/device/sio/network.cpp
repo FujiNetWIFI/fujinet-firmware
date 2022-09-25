@@ -1091,7 +1091,7 @@ void sioNetwork::sio_set_json_query()
 
     inp = strrchr((const char *)in, ':');
     inp++;
-    json.setReadQuery(string(inp));
+    json.setReadQuery(string(inp), cmdFrame.aux2);
     json_bytes_remaining = json.readValueLen();
     tmp = (uint8_t *)malloc(json.readValueLen());
     json.readValue(tmp,json_bytes_remaining);
