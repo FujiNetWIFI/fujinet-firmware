@@ -11,6 +11,7 @@
 #include <sstream>
 #include <math.h>
 #include <iomanip>
+#include <ostream>
 
 #include "../../include/debug.h"
 
@@ -54,9 +55,10 @@ void FNJSON::setProtocol(NetworkProtocol *newProtocol)
 /**
  * Set read query string
  */
-void FNJSON::setReadQuery(string queryString)
+void FNJSON::setReadQuery(string queryString, uint8_t queryParam)
 {
     _queryString = queryString;
+    _queryParam = queryParam;
     _item = resolveQuery();
     json_bytes_remaining=readValueLen();
 }
@@ -102,8 +104,48 @@ string FNJSON::getValue(cJSON *item)
 
         Debug_printf("S: [cJSON_IsString] %s\n",cJSON_GetStringValue(item));
 
-        //ss << string(cJSON_GetStringValue(item));
         ss << cJSON_GetStringValue(item);
+        #ifdef BUILD_ATARI
+
+        // SIO AUX bits 0+1 control the mapping
+        //   Bit 0=0 - don't touch the characters
+        //   Bit 0=1 - convert the characters when possible
+        //   Bit 1=0 - convert to generic ASCII/ATASCII (no font change needed)
+        //   Bit 1=1 - convert to ATASCII international charset (need to be switched on ATARI, i.e via POKE 756,204)
+        
+        // SIO AUX2 Bit 1 set?
+        if ((_queryParam & 1) != 0)
+        {
+            // yes, map special characters
+            string str_utf8mapping = ss.str(); 
+            Debug_printf("S: [Mapping->ATARI]\n");
+
+            // SIO AUX2 Bit 2 set?
+            if ((_queryParam & 2) != 0)
+            {
+                // yes, mapping to international charset
+                string mapFrom[] =  { "á",    "ù",    "Ñ",    "É",    "ç",    "ô",    "ò",    "ì",    "£",    "ï",    "ü",    "ä",    "Ö",    "ú",    "ó",    "ö",    "Ü",    "â",    "û",    "î",    "é",    "è",    "ñ",    "ê",    "å",    "à",    "Å",    "¡",    "Ä",    "ß"  };
+                string mapTo[] =    { "\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x0a", "\x0b", "\x0c", "\x0d", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x60", "\x7b", "ss" };
+                int elementCount = sizeof(mapFrom)/sizeof(mapFrom[0]);
+                for (int elementIndex=0; elementIndex < elementCount; elementIndex++)
+                    if(str_utf8mapping.find(mapFrom[elementIndex]) != std::string::npos) 
+                        str_utf8mapping.replace(str_utf8mapping.find(mapFrom[elementIndex]), string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
+            }
+            else
+            {
+                // no, mapping to normal ASCI (workaround)
+                string mapFrom[] =  { "Ä",  "Ö",  "Ü",  "ä",  "ö",  "ü",  "ß",  "é", "è", "á", "à", "ó", "ò", "ú", "ù" };
+                string mapTo[] =    { "Ae", "Oe", "Ue", "ae", "oe", "ue", "ss", "e", "e", "a", "a", "o", "o", "u", "u" };
+                int elementCount = sizeof(mapFrom)/sizeof(mapFrom[0]);
+                for (int elementIndex=0; elementIndex < elementCount; elementIndex++)
+                    if(str_utf8mapping.find(mapFrom[elementIndex]) != std::string::npos) 
+                        str_utf8mapping.replace(str_utf8mapping.find(mapFrom[elementIndex]), string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
+            }
+
+            ss.str(str_utf8mapping);
+            Debug_printf("S: [Mapping->ATARI] %s\n",ss.str().c_str());
+        }
+        #endif
 
         return processString(ss.str() + lineEnding);
     }
