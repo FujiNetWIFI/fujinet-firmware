@@ -1029,6 +1029,9 @@ void iwmFuji::setup(iwmBus *iwmbus)
     theNetwork = new iwmNetwork();
     _iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network);
 
+    theCPM = new iwmCPM();
+    _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
+
    for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
    {
      _fnDisks[i].disk_dev.set_disk_number('0' + i);
