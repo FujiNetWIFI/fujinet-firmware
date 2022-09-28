@@ -480,17 +480,17 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-
+	return 0;
 }
 
 uint8_t _getch(void)
 {
-
+	return 0;
 }
 
 uint8_t _getche(void)
 {
-
+	return 0;
 }
 
 void _putch(uint8_t ch)
