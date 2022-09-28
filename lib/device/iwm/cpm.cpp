@@ -1,5 +1,3 @@
-#ifdef BUILD_APPLE
-
 #define CCP_INTERNAL
 
 #include "siocpm.h"
@@ -67,5 +65,3 @@ void iwmCPM::init_cpm(int baud)
     memset(fcbname, 0, sizeof(fcbname));
     memset(pattern, 0, sizeof(pattern));
 }
-
-#endif /* BUILD_APPLE */
