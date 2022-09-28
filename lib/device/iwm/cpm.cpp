@@ -12,7 +12,6 @@
 #include "fnFsSD.h"
 
 #include "../runcpm/globals.h"
-#include "../runcpm/abstraction_fujinet.h"
 #include "../runcpm/ram.h"     // ram.h - Implements the RAM
 #include "../runcpm/console.h" // console.h - implements console.
 #include "../runcpm/cpu.h"     // cpu.h - Implements the emulated CPU
