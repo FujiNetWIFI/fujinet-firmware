@@ -6,7 +6,7 @@
 
 #include <forward_list>
 
-#define RS232_BAUDRATE 19200
+#define RS232_BAUDRATE 9600
 
 #define RS232_DEVICEID_DISK 0x31
 #define RS232_DEVICEID_DISK_LAST 0x3F

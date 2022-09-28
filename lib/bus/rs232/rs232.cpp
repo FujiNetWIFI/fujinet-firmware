@@ -264,19 +264,16 @@ void systemBus::service()
     }
 
     // For testing, show recv on debug serial and send it back
-    /*char daByte;
+    char daByte;
     if (fnUartSIO.available())
     {
         fnLedManager.set(eLed::LED_BUS, true);
         daByte = fnUartSIO.read();
         Debug_printf("RCV: %c\n", daByte);
-        fnUartSIO.write(daByte); // Send it back
-        fnUartSIO.write(13); // CR
-        fnUartSIO.write(10); // LF
         fnLedManager.set(eLed::LED_BUS, false);
     }
     return;
-    */
+    
 
     // Go process a command frame if the RS232 CMD line is asserted
     if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
@@ -327,6 +324,12 @@ void systemBus::setup()
     //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
     // CKO PIN
 
+    fnSystem.set_pin_mode(PIN_RS232_CTS, gpio_mode_t::GPIO_MODE_OUTPUT);
+    fnSystem.digital_write(PIN_RS232_CTS,DIGI_LOW);
+
+    fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
+    fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
+    
     // Create a message queue
     qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
 

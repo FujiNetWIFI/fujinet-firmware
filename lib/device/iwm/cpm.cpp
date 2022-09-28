@@ -1,5 +1,4 @@
-#ifdef BUILD_APPLE
-
+#ifdef BUILD_APPLE2
 #define CCP_INTERNAL
 
 #include "siocpm.h"
@@ -11,8 +10,9 @@
 #include "fnFS.h"
 #include "fnFsSD.h"
 
+#include "../runcpm/abstraction_fujinet_apple2.h"
+
 #include "../runcpm/globals.h"
-#include "../runcpm/abstraction_fujinet.h"
 #include "../runcpm/ram.h"     // ram.h - Implements the RAM
 #include "../runcpm/console.h" // console.h - implements console.
 #include "../runcpm/cpu.h"     // cpu.h - Implements the emulated CPU
@@ -69,4 +69,4 @@ void iwmCPM::init_cpm(int baud)
     memset(pattern, 0, sizeof(pattern));
 }
 
-#endif /* BUILD_APPLE */
+#endif /* BUILD_APPLE2 */
