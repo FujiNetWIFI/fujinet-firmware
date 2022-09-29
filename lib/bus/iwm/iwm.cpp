@@ -388,17 +388,20 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 
 #ifdef TEXT_RX_SPI
 
-  int numsamples = pulsewidth * (n + 2) * 8;
-  spi_len = numsamples / 8 + 1;
+  memset(a, 0x00 , BLOCK_PACKET_LEN); // clear out buffer
+
+  // int numsamples = pulsewidth * (n + 2) * 8;
+  spi_len = (n + 3) * pulsewidth ; // numsamples / 8 + 1;
   
   // i tired moving this initialization stuff to outside this routine in places that were not time critical. It did not improve entry time.
   transptr = &rxtrans;
-  memset(transptr, 0, sizeof(spi_transaction_t));
   memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
-  rxtrans.rx_buffer = spi_buffer; // finally send the line data
+  memset(transptr, 0, sizeof(spi_transaction_t));
+  rxtrans.flags = 0; 
+  rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
   rxtrans.rxlength = spi_len * 8;   // Data length, in bits
-  rxtrans.length = spi_len * 8;   // Data length, in bits
-  rxtrans.flags = 0;              
+  rxtrans.tx_buffer = nullptr;
+  rxtrans.rx_buffer = spi_buffer; // finally send the line data
 
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
@@ -420,7 +423,14 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     }
   };
 
-  spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
+  // iwm_timer_latch();               // latch highspeed timer value
+  // iwm_timer_read();                //  grab timer low word
+  // // Apple II+ Yellowstone: iwm_timer_alarm_set(410-80-20);          // wait for first sync byte
+  // iwm_timer_alarm_set(1);          // wait for first sync byte
+  // iwm_timer_wait();
+
+  esp_err_t ret = spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
+  assert(ret == ESP_OK);
   iwm_extra_clr();
 
 #ifdef VERBOSE_IWM
@@ -452,10 +462,10 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool prev_level = true;
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
 
-  //fnSystem.delay_microseconds(50); // wait for first sync byte or so
+  
   iwm_timer_latch();               // latch highspeed timer value
   iwm_timer_read();                //  grab timer low word
-  iwm_timer_alarm_set(500);          // dummy alarm
+  iwm_timer_alarm_set(390 * 3 / 2);          // wait for first 1.5 sync bytes
   iwm_timer_wait();
   do // have_data
   {
@@ -464,12 +474,16 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     iwm_timer_latch();     // latch highspeed timer value
     iwm_timer_read();      //  grab timer low word
     
-    iwm_timer_alarm_set(synced ? 311 : 390); // 31.1 us for regular byte, 39 us for 10-bit sync bytes
+// 
+    //iwm_timer_alarm_set(synced ? (idx > 0 ? 311 : 312) : 390); // 31.2 us for regular byte, 39 us for 10-bit sync bytes
+    iwm_timer_alarm_set(synced ? 311 : 390); // 31.2 us for regular byte, 39 us for 10-bit sync bytes
+    // if it doesn't work for a system, try adjusting 312 down to 311.
+    // think about a calibration algorithm to figure out 311 vs 312, the first sync byte hold off timer, and the sync timer adjust
 
     iwm_extra_clr();
     do
     {
-     bit = false; // assume no edge in this next bit
+      bit = false; // assume no edge in this next bit
 #ifdef VERBOSE_IWM
       Debug_printf("\r\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
       Debug_printf("\r\nspibyte spibit intctr sampval preval rxbit rxbyte");
@@ -493,22 +507,20 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
         }
         prev_level = current_level;
         i++;
-        iwm_extra_set(); // signal to LA we're in the nested loop
       }
       rxbyte <<= 1;
       rxbyte |= bit;
-       
-      // if ((--numbits) == 0)
-      //   break; // end of byte
+      iwm_extra_set(); // signal to LA we're done with this bit
     } while (--numbits > 0); // shouldn't this just be "while(--numbits>0)"   ?????
     if ((rxbyte == 0xc3) && (!synced))
     {
       synced = true;
       idx = 5;
+      iwm_timer_alarm_set(1);          // reset timer for sync byte to get back on track - suggested by robj
     }
     a[idx++] = rxbyte;
     // wait for leading edge of next byte or timeout for end of packet
-    int timeout_ctr = f_nyquist * f_over * 19 / 1000000;
+    int timeout_ctr = (f_spirx * 19) / (1000 * 1000); //((f_nyquist * f_over) * 18) / (1000 * 1000);
 #ifdef VERBOSE_IWM
     Debug_printf("%02x ", rxbyte);
 #endif
@@ -956,6 +968,8 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   //
   //*****************************************************************************
 
+  portDISABLE_INTERRUPTS();
+
   //print_packet((uint8_t *)a);
   encode_spi_packet((uint8_t *)a);
 
@@ -1003,7 +1017,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   iwm_timer_reset();
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(15000); // 1.5 millisecond - 1 ms not long enough for yellowstone
+  iwm_timer_alarm_set(15000); // 1 ms not long enough for yellowstone
 
   // while (!fnSystem.digital_read(SP_REQ))
   while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -1013,13 +1027,14 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
     if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     {
       iwm_rddata_disable();
-      Debug_println("REQ timeout");
+      Debug_println("Send REQ timeout");
      // iwm_ack_disable();       // need to release the bus
-      //portENABLE_INTERRUPTS(); // takes 7 us to execute
+      portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
   };
   iwm_rddata_disable();
+  portENABLE_INTERRUPTS();
   return 0;
 }
 
@@ -1063,20 +1078,27 @@ void iwmBus::setup(void)
 #ifdef TEXT_RX_SPI
 // use different SPI than SDCARD
   spi_bus_config_t bus_cfg = {
-      .mosi_io_num = -1, 
+      .mosi_io_num = -1,
       .miso_io_num = SP_WRDATA,
       .sclk_io_num = -1,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = 5000 };
-   spi_device_interface_config_t rxcfg = {
-      .mode = 0,                         // SPI mode 0
-      .clock_speed_hz = f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
-      .spics_io_num = -1,                // CS pin
-      .queue_size = 2                    // We want to be able to queue 7 transactions at a time
-  };
-  spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
-  ret=spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
+      .max_transfer_sz = 5000,
+      .flags = SPICOMMON_BUSFLAG_MASTER,
+      .intr_flags = 0};
+  spi_device_interface_config_t rxcfg = {
+      .mode = 0, // SPI mode 0
+      .cs_ena_pretrans = 0,
+      .cs_ena_posttrans = 0,
+      .clock_speed_hz = f_spirx, // f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
+      .spics_io_num = -1,        // CS pin
+      .flags = SPI_DEVICE_HALFDUPLEX,
+      .queue_size = 1};          // We want to be able to queue 7 transactions at a time
+
+  ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+  assert(ret == ESP_OK);
+  ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
+  assert(ret == ESP_OK);
 #endif
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
@@ -1365,7 +1387,11 @@ bool iwmDevice::decode_data_packet(void)
   numgrps = packet_buffer[12] & 0x7f;
   numdata = numodd + numgrps * 7;
   Debug_printf("\r\nDecoding %d bytes",numdata);
-
+  // if (numdata==512)
+  // {
+  //   // print out packets
+  //   print_packet(packet_buffer,BLOCK_PACKET_LEN);
+  // }
   // First, checksum  packet header, because we're about to destroy it
   for (int count = 6; count < 13; count++) // now xor the packet header bytes
     checksum = checksum ^ packet_buffer[count];

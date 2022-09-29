@@ -117,8 +117,8 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
-#define COMMAND_PACKET_LEN  28
-#define BLOCK_PACKET_LEN    606
+#define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
+#define BLOCK_PACKET_LEN    604 //606
 #define SPI_BUFFER_LEN      8 * (BLOCK_PACKET_LEN+2)
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
@@ -313,10 +313,18 @@ private:
   spi_transaction_t rxtrans;
   spi_transaction_t* transptr;
   spi_device_handle_t spirx;
-  const int f_over = 4;
-  const int f_nyquist = 500 * 1000; // 2 x 250 kbps
-  const int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
-  const int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
+  //const int f_over = 4;
+  //const int f_nyquist = 2 * 250 * 1000; // 255682; // 500 * 1000; // 2 x 250 kbps
+  /**
+   * N  Clock MHz   Bit width     Bit/Byte period
+   * 39	2.051282051	0.2564102564	3.9	31.2
+   * 40	2	          0.25	        4.0	32
+   * 41	1.951219512	0.243902439	  4.1	32.8
+   * 42	1.904761905	0.2380952381	4.2	33.6
+  **/
+  const int f_spirx = APB_CLK_FREQ / 39; // 80 * 1000 * 1000 / 42; 
+  const int pulsewidth = 8; // f_spirx * 4 / 1000 / 1000; // 2 * f_over; //+ 1 for DIY SOFTSP((f_nyquist * f_over) * 4) / 1000000;  // fny*fover * (1/(fny/2)) = 2*fover
+  const int halfwidth = 4 ; // pulsewidth / 2; // maybe need to account for even or odd
   #endif
 
   // low level bit-banging i/o functions
