@@ -5,6 +5,7 @@
 #ifndef ABSTRACTION_FUJINET_APPLE2_H
 #define ABSTRACTION_FUJINET_APPLE2_H
 
+#include <queue>
 #include <string.h>
 
 #include "globals.h"
@@ -21,6 +22,8 @@
 #include "fuji.h"
 
 #define HostOS 0x07 // FUJINET
+
+using namespace std;
 
 typedef struct
 {
@@ -49,6 +52,8 @@ fnTcpClient client;
 fnTcpServer *server;
 bool teeMode = false;
 unsigned short portActive = 0;
+
+QueueHandle_t txq, rxq;
 
 char *full_path(char *fn)
 {
@@ -80,6 +85,7 @@ bool _RamLoad(char *fn, uint16_t address)
 		}
 		fclose(f);
 	}
+	Debug_printf("CCP last address: %04x\n",address);
 	return (result);
 }
 
@@ -480,21 +486,27 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-	return 0;
+	return !uxQueueMessagesWaiting(txq);
 }
 
 uint8_t _getch(void)
 {
-	return 0;
+	while (!uxQueueMessagesWaiting(txq)) { vTaskDelay(1); };
+	uint8_t c;
+	xQueueReceive(txq,&c,0);
+	return c;
 }
 
 uint8_t _getche(void)
 {
-	return 0;
+	uint8_t c = _getch();
+	xQueueSend(rxq,(void *)&c,0);
+	return c;
 }
 
 void _putch(uint8_t ch)
 {
+	xQueueSend(rxq,(void *)&ch,0);
 }
 
 void _clrscr(void)

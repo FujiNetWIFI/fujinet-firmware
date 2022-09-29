@@ -957,6 +957,8 @@ static inline void Z80run(void) {
 	register uint32 op;
 	register uint32 adr;
 
+	Debug_printf("PC(%04x)\n",PC);
+
 	/* main instruction fetch/decode loop */
 	while (!Status) {	/* loop until Status != 0 */
 

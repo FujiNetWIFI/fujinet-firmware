@@ -22,12 +22,37 @@
 #include "../runcpm/host.h"    // host.h - Custom host-specific BDOS call
 #include "../runcpm/cpm.h"     // cpm.h - Defines the CPM structures and calls
 #ifdef CCP_INTERNAL
-# include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
+#include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
 #endif
+
+static void cpmTask(void *arg)
+{
+    while (1)
+    {
+        Status = Debug = 0;
+        Break = Step = -1;
+        SingleStep = false;
+        RAM = (uint8_t *)malloc(MEMSIZE);
+        memset(RAM, 0, MEMSIZE);
+        memset(filename, 0, sizeof(filename));
+        memset(newname, 0, sizeof(newname));
+        memset(fcbname, 0, sizeof(fcbname));
+        memset(pattern, 0, sizeof(pattern));
+        Debug_printf("Before puts\n");
+        vTaskDelay(100);
+        _puts(CCPHEAD);
+        Debug_printf("Before PatchCPM\n");
+        _PatchCPM();
+        Debug_printf("Before CCP\n");
+        _ccp();
+        Debug_printf("After CCP\n");
+    }
+}
 
 iwmCPM::iwmCPM()
 {
-
+    rxq = xQueueCreate(2048,1);
+    txq = xQueueCreate(2048,1);
 }
 
 void iwmCPM::encode_status_reply_packet()
@@ -117,11 +142,11 @@ void iwmCPM::encode_status_dib_reply_packet()
     data[17] = ' ';
     data[18] = ' ';
     data[19] = ' ';
-    data[20] = ' ';                             // ID string (16 chars total)
+    data[20] = ' ';                         // ID string (16 chars total)
     data[21] = SP_TYPE_BYTE_FUJINET_CPM;    // Device type    - 0x02  harddisk
     data[22] = SP_SUBTYPE_BYTE_FUJINET_CPM; // Device Subtype - 0x0a
-    data[23] = 0x00;                            // Firmware version 2 bytes
-    data[24] = 0x01;                            //
+    data[23] = 0x00;                        // Firmware version 2 bytes
+    data[24] = 0x01;                        //
 
     // print_packet ((uint8_t*) data,get_packet_length()); // debug
     // Debug_print(("\nData loaded"));
@@ -225,6 +250,13 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
         IWM.SEND_PACKET((unsigned char *)packet_buffer);
         return;
         break;
+    case 'S': // Status
+        UBaseType_t mw = uxQueueMessagesWaiting(rxq);
+        packet_buffer[0] = mw & 0xFF;
+        packet_buffer[1] = mw >> 8;
+        packet_len = 2;
+        Debug_printf("%04x bytes waiting\n",mw);
+        break;
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
@@ -246,7 +278,25 @@ void iwmCPM::iwm_read(cmdPacket_t cmd)
 
     Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", source, numbytes, addy);
 
-    // todo
+    memset(packet_buffer,0,sizeof(packet_buffer));
+
+    UBaseType_t mw = uxQueueMessagesWaiting(rxq);
+
+    if (!mw)
+    {
+        Debug_printf("!!! TRYING TO READ ZERO BYTES !!!\n");
+        iwm_return_ioerror(cmd);
+        return;
+    }
+
+    for (int i=0;i<=numbytes;i++)
+    {
+        uint8_t b;
+        xQueueReceive(rxq,&b,0);
+        packet_buffer[i] = b;
+    }
+
+    Debug_printf("%s\n",packet_buffer);
 
     encode_data_packet(packet_len);
     Debug_printf("\r\nsending block packet ...");
@@ -257,7 +307,6 @@ void iwmCPM::iwm_read(cmdPacket_t cmd)
 
 void iwmCPM::iwm_write(cmdPacket_t cmd)
 {
-    uint8_t status = 0;
     uint8_t source = cmd.dest; // packet_buffer[6];
     // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
     Debug_printf("\r\nCPM# %02x ", source);
@@ -300,9 +349,16 @@ void iwmCPM::iwm_ctrl(cmdPacket_t cmd)
     decode_data_packet();
     print_packet((uint8_t *)packet_buffer);
 
-    //switch (control_code)
-    //{
-    //}
+    switch (control_code)
+    {
+    case 'B': // Boot
+        xTaskCreate(cpmTask, "cpmtask", 32768, NULL, 10, &cpmTaskHandle);
+        break;
+    case 'W': // Write
+        Debug_printf("Pushing character %c",packet_buffer[0]);
+        xQueueSend(txq,&packet_buffer[0],0);
+        break;
+    }
 
     encode_error_reply_packet(err_result);
     IWM.SEND_PACKET((unsigned char *)packet_buffer);
@@ -317,6 +373,13 @@ void iwmCPM::process(cmdPacket_t cmd)
         Debug_printf("\r\nhandling status command");
         iwm_status(cmd);
         break;
+    case 0x84: // control
+        Debug_printf("\r\nhandling control command");
+        iwm_ctrl(cmd);
+        break;
+    case 0x88: // read
+        Debug_printf("\r\nhandling read command");
+        iwm_read(cmd);
     } // switch (cmd)
     fnLedManager.set(LED_BUS, false);
 }
