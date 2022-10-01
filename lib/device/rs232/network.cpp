@@ -1057,7 +1057,7 @@ void rs232Network::processCommaFromDevicespec()
  */
 void rs232Network::rs232_assert_interrupt()
 {
-    fnSystem.digital_write(PIN_RS232_DTR, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+    fnSystem.digital_write(PIN_RS232_RI, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
 }
 
 void rs232Network::rs232_set_translation()
