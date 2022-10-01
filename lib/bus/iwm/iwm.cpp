@@ -393,7 +393,14 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // int numsamples = pulsewidth * (n + 2) * 8;
   spi_len = (n + 3) * pulsewidth ; // numsamples / 8 + 1;
   
-  // i tired moving this initialization stuff to outside this routine in places that were not time critical. It did not improve entry time.
+/** for the DIY SP and YS - make buffers longer
+ *  memset(spi_buffer, 0xff , SPI_BUFFER_LEN + 200);
+  rxtrans.rx_buffer = spi_buffer; // finally send the line data
+  rxtrans.rxlength = (spi_len + 200) * 8;   // Data length, in bits
+  rxtrans.length = (spi_len + 200)  * 8;   // Data length, in bits
+  */
+
+  
   transptr = &rxtrans;
   memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
   memset(transptr, 0, sizeof(spi_transaction_t));
@@ -462,23 +469,42 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool prev_level = true;
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
 
+  //for tracking the number of samples
+  int bit_position;
+  int last_bit_pos = 0;
+  int samples;
+  bool start_packet = true;
   
   iwm_timer_latch();               // latch highspeed timer value
   iwm_timer_read();                //  grab timer low word
-  iwm_timer_alarm_set(390 * 3 / 2);          // wait for first 1.5 sync bytes
-  iwm_timer_wait();
+  iwm_timer_alarm_set(391 * 3 / 2);          // wait for first 1.5 sync bytes
+  //iwm_timer_wait();
   do // have_data
   {
     iwm_extra_set(); // signal to LA we're in the nested loop
+
+    bit_position = spirx_byte_ctr * 8 + spirx_bit_ctr; // current bit positon
+    samples = bit_position - last_bit_pos; // difference since last time
+    last_bit_pos = bit_position;
+
     iwm_timer_wait();
-    iwm_timer_latch();     // latch highspeed timer value
-    iwm_timer_read();      //  grab timer low word
+
+    if (start_packet) // is at the start, assume sync byte, 39 us for 10-bit sync bytes
+    {
+      iwm_timer_alarm_set( 391 ); // latch and read already done in iwm_timer_wait()
+      start_packet = false;
+    }
+    else
+    {      
+      iwm_timer_alarm_snooze( (samples * 10 * 1000 * 1000) / f_spirx); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
+    }
     
+     
 // 
-    //iwm_timer_alarm_set(synced ? (idx > 0 ? 311 : 312) : 390); // 31.2 us for regular byte, 39 us for 10-bit sync bytes
-    iwm_timer_alarm_set(synced ? 311 : 390); // 31.2 us for regular byte, 39 us for 10-bit sync bytes
-    // if it doesn't work for a system, try adjusting 312 down to 311.
-    // think about a calibration algorithm to figure out 311 vs 312, the first sync byte hold off timer, and the sync timer adjust
+    // //iwm_timer_alarm_set(synced ? (idx > 0 ? 311 : 312) : 390); // 31.2 us for regular byte, 39 us for 10-bit sync bytes
+    // iwm_timer_alarm_set(synced ? 311 : 390); // 31.2 us for regular byte, 39 us for 10-bit sync bytes
+    // // if it doesn't work for a system, try adjusting 312 down to 311.
+    // // think about a calibration algorithm to figure out 311 vs 312, the first sync byte hold off timer, and the sync timer adjust
 
     iwm_extra_clr();
     do
@@ -516,7 +542,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     {
       synced = true;
       idx = 5;
-      iwm_timer_alarm_set(1);          // reset timer for sync byte to get back on track - suggested by robj
+      // iwm_timer_alarm_set(1);          // reset timer for sync byte to get back on track - suggested by robj
     }
     a[idx++] = rxbyte;
     // wait for leading edge of next byte or timeout for end of packet
