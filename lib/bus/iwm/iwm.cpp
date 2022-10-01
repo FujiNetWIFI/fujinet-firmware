@@ -72,7 +72,7 @@ void print_packet (uint8_t* data, int bytes)
     }
     Debug_print(("-"));
     for (row = 0; row < 16; row++) {
-      if ((data[count + row] > 31) && (count + row < bytes) && (data[count + row] < 129))
+      if ((data[count + row] > 31) && (count + row < bytes) && (data[count + row] < 128))
       {
         xx = data[count + row];
         Debug_print(xx);
@@ -391,7 +391,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   memset(a, 0x00 , BLOCK_PACKET_LEN); // clear out buffer
 
   // int numsamples = pulsewidth * (n + 2) * 8;
-  spi_len = (n + 3) * pulsewidth ; // numsamples / 8 + 1;
+  spi_len = (n + 3) * pulsewidth + 200 ; // numsamples / 8 + 1;
   
 /** for the DIY SP and YS - make buffers longer
  *  memset(spi_buffer, 0xff , SPI_BUFFER_LEN + 200);
@@ -406,7 +406,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   memset(transptr, 0, sizeof(spi_transaction_t));
   rxtrans.flags = 0; 
   rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
-  rxtrans.rxlength = spi_len * 8;   // Data length, in bits
+  rxtrans.rxlength = spi_len * 8 + 400;   // Data length, in bits
   rxtrans.tx_buffer = nullptr;
   rxtrans.rx_buffer = spi_buffer; // finally send the line data
 
@@ -433,7 +433,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // iwm_timer_latch();               // latch highspeed timer value
   // iwm_timer_read();                //  grab timer low word
   // // Apple II+ Yellowstone: iwm_timer_alarm_set(410-80-20);          // wait for first sync byte
-  // iwm_timer_alarm_set(1);          // wait for first sync byte
+  // iwm_timer_alarm_set(310);          // wait for first sync byte
   // iwm_timer_wait();
 
   esp_err_t ret = spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
@@ -497,6 +497,8 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     else
     {      
       iwm_timer_alarm_snooze( (samples * 10 * 1000 * 1000) / f_spirx); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
+      //iwm_timer_alarm_snooze( samples * 10 / 2); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
+      //iwm_timer_alarm_snooze( samples * 9 / 2); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
     }
     
      
@@ -1413,11 +1415,11 @@ bool iwmDevice::decode_data_packet(void)
   numgrps = packet_buffer[12] & 0x7f;
   numdata = numodd + numgrps * 7;
   Debug_printf("\r\nDecoding %d bytes",numdata);
-  // if (numdata==512)
-  // {
-  //   // print out packets
-  //   print_packet(packet_buffer,BLOCK_PACKET_LEN);
-  // }
+  if (numdata==512)
+  {
+    // print out packets
+    print_packet(packet_buffer,BLOCK_PACKET_LEN);
+  }
   // First, checksum  packet header, because we're about to destroy it
   for (int count = 6; count < 13; count++) // now xor the packet header bytes
     checksum = checksum ^ packet_buffer[count];

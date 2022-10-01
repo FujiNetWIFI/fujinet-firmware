@@ -119,7 +119,7 @@ union cmdFrame_t
 
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_PACKET_LEN    604 //606
-#define SPI_BUFFER_LEN      8 * (BLOCK_PACKET_LEN+2)
+#define SPI_BUFFER_LEN      8 * (BLOCK_PACKET_LEN+2) +400
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
