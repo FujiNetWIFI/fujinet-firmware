@@ -396,19 +396,18 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // nominal command length is 27 bytes * 8 * 8 = 1728 samples
   // 1798/1728 = 1.04
 
+  // command packet on YS is 919 us
+  // 2.052 * 919 = 1886 samples
+  // 1886 / 1728 = 1.0914
+
   // write block packet on DIY 29 is 20.1 ms long
   // 2052kHz * 20.1ms =  41245 samples = 5156 bytes
   // nominal 604 bytes for block packet = 38656 samples
   // 41245/38656 = 1.067
+  // 
+  // write block packet on YS is 18.95 ms so should fit within DIY
 
-  spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead
-  
-/** for the DIY SP and YS - make buffers longer
- *  memset(spi_buffer, 0xff , SPI_BUFFER_LEN + 200);
-  rxtrans.rx_buffer = spi_buffer; // finally send the line data
-  rxtrans.rxlength = (spi_len + 200) * 8;   // Data length, in bits
-  rxtrans.length = (spi_len + 200)  * 8;   // Data length, in bits
-  */
+  spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
   
   transptr = &rxtrans;
   memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
@@ -486,7 +485,8 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   
   iwm_timer_latch();               // latch highspeed timer value
   iwm_timer_read();                //  grab timer low word
-  iwm_timer_alarm_set(391 * 3 / 2);          // wait for first 1.5 sync bytes
+  // sync byte is 10 * 8 * (10*1000*1000/2051282) = 390 samples long
+  iwm_timer_alarm_set(390 * 3 / 2);          // wait for first 1.5 sync bytes
   //iwm_timer_wait();
   do // have_data
   {
@@ -498,24 +498,15 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 
     iwm_timer_wait();
 
-    if (start_packet) // is at the start, assume sync byte, 39 us for 10-bit sync bytes
+    if (start_packet) // is at the start, assume sync byte, 39.2 us for 10-bit sync bytes
     {
-      iwm_timer_alarm_set( 391 ); // latch and read already done in iwm_timer_wait()
+      iwm_timer_alarm_set( 390 ); // latch and read already done in iwm_timer_wait()
       start_packet = false;
     }
     else
     {      
       iwm_timer_alarm_snooze( (samples * 10 * 1000 * 1000) / f_spirx); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
-      //iwm_timer_alarm_snooze( samples * 10 / 2); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
-      //iwm_timer_alarm_snooze( samples * 9 / 2); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
     }
-    
-     
-// 
-    // //iwm_timer_alarm_set(synced ? (idx > 0 ? 311 : 312) : 390); // 31.2 us for regular byte, 39 us for 10-bit sync bytes
-    // iwm_timer_alarm_set(synced ? 311 : 390); // 31.2 us for regular byte, 39 us for 10-bit sync bytes
-    // // if it doesn't work for a system, try adjusting 312 down to 311.
-    // // think about a calibration algorithm to figure out 311 vs 312, the first sync byte hold off timer, and the sync timer adjust
 
     iwm_extra_clr();
     do
@@ -1424,11 +1415,11 @@ bool iwmDevice::decode_data_packet(void)
   numgrps = packet_buffer[12] & 0x7f;
   numdata = numodd + numgrps * 7;
   Debug_printf("\r\nDecoding %d bytes",numdata);
-  if (numdata==512)
-  {
-    // print out packets
-    print_packet(packet_buffer,BLOCK_PACKET_LEN);
-  }
+  // if (numdata==512)
+  // {
+  //   // print out packets
+  //   print_packet(packet_buffer,BLOCK_PACKET_LEN);
+  // }
   // First, checksum  packet header, because we're about to destroy it
   for (int count = 6; count < 13; count++) // now xor the packet header bytes
     checksum = checksum ^ packet_buffer[count];
