@@ -391,7 +391,17 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   memset(a, 0x00 , BLOCK_PACKET_LEN); // clear out buffer
 
   // int numsamples = pulsewidth * (n + 2) * 8;
-  spi_len = (n + 3) * pulsewidth + 200 ; // numsamples / 8 + 1;
+  // command packet on DIY SP is 872 us long
+  // 2051282 * 872e-6 = 1798 samples = 224 byes
+  // nominal command length is 27 bytes * 8 * 8 = 1728 samples
+  // 1798/1728 = 1.04
+
+  // write block packet on DIY 29 is 20.1 ms long
+  // 2052kHz * 20.1ms =  41245 samples = 5156 bytes
+  // nominal 604 bytes for block packet = 38656 samples
+  // 41245/38656 = 1.067
+
+  spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead
   
 /** for the DIY SP and YS - make buffers longer
  *  memset(spi_buffer, 0xff , SPI_BUFFER_LEN + 200);
@@ -399,14 +409,13 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   rxtrans.rxlength = (spi_len + 200) * 8;   // Data length, in bits
   rxtrans.length = (spi_len + 200)  * 8;   // Data length, in bits
   */
-
   
   transptr = &rxtrans;
   memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
   memset(transptr, 0, sizeof(spi_transaction_t));
   rxtrans.flags = 0; 
   rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
-  rxtrans.rxlength = spi_len * 8 + 400;   // Data length, in bits
+  rxtrans.rxlength = spi_len * 8;   // Data length, in bits
   rxtrans.tx_buffer = nullptr;
   rxtrans.rx_buffer = spi_buffer; // finally send the line data
 
@@ -1111,7 +1120,7 @@ void iwmBus::setup(void)
       .sclk_io_num = -1,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = 5000,
+      .max_transfer_sz = SPI_BUFFER_LEN,
       .flags = SPICOMMON_BUSFLAG_MASTER,
       .intr_flags = 0};
   spi_device_interface_config_t rxcfg = {
