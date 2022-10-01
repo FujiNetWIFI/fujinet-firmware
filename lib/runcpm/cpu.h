@@ -18,6 +18,7 @@ int32 DE1; /* alternate DE register                        */
 int32 HL1; /* alternate HL register                        */
 int32 IFF; /* Interrupt Flip Flop                          */
 int32 IR;  /* Interrupt (upper) / Refresh (lower) register */
+bool SingleStep = false; /* single loop for threaded use */
 int32 Status = 0; /* Status of the CPU 0=running 1=end request 2=back to CCP */
 int32 Debug = 0;
 int32 Break = -1;
@@ -955,6 +956,8 @@ static inline void Z80run(void) {
 	register uint32 cbits;
 	register uint32 op;
 	register uint32 adr;
+
+	Debug_printf("PC(%04x)\n",PC);
 
 	/* main instruction fetch/decode loop */
 	while (!Status) {	/* loop until Status != 0 */
@@ -4114,6 +4117,9 @@ static inline void Z80run(void) {
 			PUSH(PC);
 			PC = 0x38;
 		}
+		
+		if (SingleStep == true)
+			break;
 	}
 end_decode:
 	;

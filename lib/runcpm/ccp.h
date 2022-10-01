@@ -535,6 +535,7 @@ void _ccp(void) {
 		_RamWrite(BatchFCB + i, _RamRead(tmpFCB + i));
 
 	while (TRUE) {
+		vTaskDelay(10);
 		curDrive = (uint8)_ccp_bdos(DRV_GET, 0x0000);	// Get current drive
 		curUser = (uint8)_ccp_bdos(F_USERNUM, 0x00FF);	// Get current user
 		_RamWrite(0x0004, (curUser << 4) + curDrive);	// Set user/drive on addr 0x0004

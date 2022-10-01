@@ -475,7 +475,7 @@ void adamNetwork::json_query(unsigned short s)
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    json.setReadQuery(std::string((char *)c, s));
+    json.setReadQuery(std::string((char *)c, s),cmdFrame.aux2);
 
     Debug_printf("adamNetwork::json_query(%s)\n", c);
 
