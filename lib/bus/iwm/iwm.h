@@ -119,9 +119,9 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
-#define COMMAND_PACKET_LEN  28
-#define BLOCK_PACKET_LEN    606
-#define SPI_BUFFER_LEN      8 * (BLOCK_PACKET_LEN+2)
+#define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
+#define BLOCK_PACKET_LEN    604 //606
+#define SPI_BUFFER_LEN      6000 // 8 * (BLOCK_PACKET_LEN+2) +400 // should be long enough for 20.1 ms + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -315,10 +315,18 @@ private:
   spi_transaction_t rxtrans;
   spi_transaction_t* transptr;
   spi_device_handle_t spirx;
-  const int f_over = 4;
-  const int f_nyquist = 500 * 1000; // 2 x 250 kbps
-  const int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
-  const int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
+  //const int f_over = 4;
+  //const int f_nyquist = 2 * 250 * 1000; // 255682; // 500 * 1000; // 2 x 250 kbps
+  /**
+   * N  Clock MHz   Bit rate      Bit/Byte period
+   * 39	2.051282051	0.2564102564	3.9	31.2          245610 is very close to 255682
+   * 40	2	          0.25	        4.0	32
+   * 41	1.951219512	0.243902439	  4.1	32.8
+   * 42	1.904761905	0.2380952381	4.2	33.6
+  **/
+  const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz
+  const int pulsewidth = 8; // 8 samples per bit
+  const int halfwidth = pulsewidth / 2;
   #endif
 
   // low level bit-banging i/o functions
