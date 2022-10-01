@@ -7,6 +7,7 @@
 #include "bus.h"
 #include "iwm/network.h"
 #include "iwm/printer.h"
+#include "iwm/cpm.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -80,6 +81,8 @@ private:
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
     iwmNetwork *theNetwork;
+
+    iwmCPM *theCPM;
 
     int _current_open_directory_slot = -1;
 

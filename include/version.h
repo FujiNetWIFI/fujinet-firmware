@@ -15,6 +15,3 @@
 #define FN_VERSION_DATE "2022-10-01 13:42:42"
 
 #define FN_VERSION_FULL "0.5.fe3ea64b"
-
-
-

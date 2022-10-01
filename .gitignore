@@ -19,6 +19,11 @@ sdkconfig.fujinet-v1
 sdkconfig.fujinet-v1-8mb
 sdkconfig.fujinet-v1-4mb
 sdkconfig.fujiapple-rev0
+sdkconfig.fujinet-rs232-rev0
+sdkconfig.fujinet-lynx-prototype
+sdkconfig.fujinet-lynx-devkitc
+sdkconfig.fujinet-adam-v1
+sdkconfig.fujinet-cbm
 
 include/ssid.h
 /*.log
