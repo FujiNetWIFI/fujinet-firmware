@@ -119,7 +119,7 @@ union cmdFrame_t
 
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_PACKET_LEN    604 //606
-#define SPI_BUFFER_LEN      8 * (BLOCK_PACKET_LEN+2) +400
+#define SPI_BUFFER_LEN      6000 // 8 * (BLOCK_PACKET_LEN+2) +400 // should be long enough for 20.1 ms + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -322,7 +322,7 @@ private:
    * 41	1.951219512	0.243902439	  4.1	32.8
    * 42	1.904761905	0.2380952381	4.2	33.6
   **/
-  const int f_spirx = APB_CLK_FREQ / 39; // 80 * 1000 * 1000 / 42; 
+  const int f_spirx = APB_CLK_FREQ / 39; // 80 * 1000 * 1000 / 42;   2051282 Hz or 2052kHz or 2.052 MHz
   const int pulsewidth = 8; // f_spirx * 4 / 1000 / 1000; // 2 * f_over; //+ 1 for DIY SOFTSP((f_nyquist * f_over) * 4) / 1000000;  // fny*fover * (1/(fny/2)) = 2*fover
   const int halfwidth = 4 ; // pulsewidth / 2; // maybe need to account for even or odd
   #endif
