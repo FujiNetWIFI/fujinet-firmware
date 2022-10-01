@@ -40,7 +40,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 //#define IWM_TX_PW             1 // microseconds - 1/2 us for fast mode
 
 #undef VERBOSE_IWM
-//#define VERBOSE_IWM
+// #define VERBOSE_IWM
 
 
 //------------------------------------------------------------------------------
@@ -374,11 +374,6 @@ bool iwmBus::spirx_get_next_sample()
   return (((spi_buffer[spirx_byte_ctr] << spirx_bit_ctr++) & 0x80) == 0x80);
 }
 
-  uint8_t iwmBus::spirx_look_ahead(int n)
-  {
-    return spi_buffer[spirx_byte_ctr+n];
-  }
-
 int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
   iwm_timer_reset();
@@ -406,6 +401,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // 41245/38656 = 1.067
   // 
   // write block packet on YS is 18.95 ms so should fit within DIY
+  // IIgs take 18.88 ms for a write block
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
   
@@ -447,20 +443,6 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   esp_err_t ret = spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
   assert(ret == ESP_OK);
   iwm_extra_clr();
-
-#ifdef VERBOSE_IWM
-  memcpy(spi_buffer2,spi_buffer,spi_len);
-  print_packet_wave(spi_buffer2,spi_len);
-  print_packet_wave(spi_buffer,spi_len);
-  // test print
-  spirx_byte_ctr = 0; // initialize the SPI buffer sampler
-  spirx_bit_ctr = 0;
-  for (int i = 0; i < numsamples; i++)
-  {
-    Debug_print(spirx_get_next_sample());
-  }
-  Debug_println("end");
-#endif
 
   // decode the packet here
   spirx_byte_ctr = 0; // initialize the SPI buffer sampler
