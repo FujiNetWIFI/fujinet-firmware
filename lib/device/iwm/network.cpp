@@ -933,6 +933,9 @@ void iwmNetwork::process(cmdPacket_t cmd)
     case 0x89: // write
         iwm_write(cmd);
         break;
+    default:
+        iwm_return_badcmd(cmd);
+        break;
     } // switch (cmd)
     fnLedManager.set(LED_BUS, false);
 }
