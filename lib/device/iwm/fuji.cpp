@@ -1374,11 +1374,7 @@ void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
   uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
   Debug_printf("\r\nDevice %02x Control Code %02x", source, control_code);
   Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
-#ifdef TEXT_RX_SPI
   IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
-#else
-  IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
-#endif
   Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, packet_buffer[12] & 0x7f);
   print_packet((uint8_t *)packet_buffer);
   decode_data_packet();

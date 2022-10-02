@@ -381,33 +381,32 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // signal the logic analyzer
   iwm_extra_set();
 
-#ifdef TEXT_RX_SPI
-
   memset(a, 0x00 , BLOCK_PACKET_LEN); // clear out buffer
 
-  // int numsamples = pulsewidth * (n + 2) * 8;
-  // command packet on DIY SP is 872 us long
-  // 2051282 * 872e-6 = 1798 samples = 224 byes
-  // nominal command length is 27 bytes * 8 * 8 = 1728 samples
-  // 1798/1728 = 1.04
+  /* calculations for determining array sizes
+  int numsamples = pulsewidth * (n + 2) * 8;
+  command packet on DIY SP is 872 us long
+  2051282 * 872e-6 = 1798 samples = 224 byes
+  nominal command length is 27 bytes * 8 * 8 = 1728 samples
+  1798/1728 = 1.04
 
-  // command packet on YS is 919 us
-  // 2.052 * 919 = 1886 samples
-  // 1886 / 1728 = 1.0914
+  command packet on YS is 919 us
+  2.052 * 919 = 1886 samples
+  1886 / 1728 = 1.0914    --    this one says we need 10% extra array length
 
-  // write block packet on DIY 29 is 20.1 ms long
-  // 2052kHz * 20.1ms =  41245 samples = 5156 bytes
-  // nominal 604 bytes for block packet = 38656 samples
-  // 41245/38656 = 1.067
-  // 
-  // write block packet on YS is 18.95 ms so should fit within DIY
-  // IIgs take 18.88 ms for a write block
+  write block packet on DIY 29 is 20.1 ms long
+  2052kHz * 20.1ms =  41245 samples = 5156 bytes
+  nominal 604 bytes for block packet = 38656 samples
+  41245/38656 = 1.067
+  
+  write block packet on YS is 18.95 ms so should fit within DIY
+  IIgs take 18.88 ms for a write block 
+  */
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
   
-  transptr = &rxtrans;
   memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
-  memset(transptr, 0, sizeof(spi_transaction_t));
+  memset(&rxtrans, 0, sizeof(spi_transaction_t));
   rxtrans.flags = 0; 
   rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
   rxtrans.rxlength = spi_len * 8;   // Data length, in bits
@@ -550,7 +549,6 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     numbits = 8;
   } while (have_data); // while have_data
   // print_packet(a);
-#endif // TEXT_RX_SPI
   return 0;
 }
 
@@ -759,8 +757,7 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
   portDISABLE_INTERRUPTS();
   for (int i = 0; i < attempts; i++)
   {
-#ifdef TEXT_RX_SPI
-//portDISABLE_INTERRUPTS();
+#ifdef PINMAP_A2_REV0
     if (!iwm_read_packet_spi(a, n))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
@@ -769,13 +766,10 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 #ifdef DEBUG
       print_packet(a);
 #endif
-      // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
       spi_device_polling_end(spirx, portMAX_DELAY);
       return 0;
-      
-    }
-    // portENABLE_INTERRUPTS();
-#else
+    } // if
+#else // PINMAP_A2_REV0
     portDISABLE_INTERRUPTS();
     if (!iwm_read_packet(a, n))
     {
@@ -788,9 +782,10 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
       return 0;
     }
     portENABLE_INTERRUPTS();
-#endif
+#endif // PINMAP_A2_REV0
   }
 #ifdef DEBUG
+  Debug_printf("\r\nERROR: Read Packet tries exceeds %d attempts", attempts);
   print_packet(a);
 #endif
   portENABLE_INTERRUPTS();
@@ -1050,6 +1045,8 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
 
 void iwmBus::setup(void)
 {
+  esp_err_t ret; // used for calling SPI library functions below
+
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
 
   timer_config();
@@ -1058,6 +1055,7 @@ void iwmBus::setup(void)
   spi_buffer=(uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA); 
 
 #ifdef PINMAP_A2_FN10
+  // config the other SPI for transmit
   spi_bus_config_t bus_cfg = {
       .mosi_io_num = SP_RDDATA,
       .miso_io_num = -1,
@@ -1068,7 +1066,6 @@ void iwmBus::setup(void)
   spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
 #endif
 
-  esp_err_t ret;
   spi_device_interface_config_t devcfg = {
       .mode = 0,                         // SPI mode 0
       .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
@@ -1085,7 +1082,8 @@ void iwmBus::setup(void)
 #endif
   assert(ret == ESP_OK);
 
-#ifdef TEXT_RX_SPI
+// SPI for receiving packets - sprirx
+#ifdef PINMAP_A2_REV0
 // use different SPI than SDCARD
   spi_bus_config_t bus_cfg = {
       .mosi_io_num = -1,
@@ -1752,7 +1750,7 @@ void iwmBus::service()
     break;
   case iwm_phases_t::enable:
     // expect a command packet
-#ifdef TEXT_RX_SPI
+#ifdef PINMAP_A2_REV0
     portDISABLE_INTERRUPTS();
     if(iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
     {
@@ -1775,7 +1773,7 @@ void iwmBus::service()
     {
       iwm_ack_clr();
       iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
-#ifdef TEXT_RX_SPI
+#ifdef PINMAP_A2_REV0
       // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
       spi_device_polling_end(spirx, portMAX_DELAY);
       portENABLE_INTERRUPTS();
@@ -1818,7 +1816,7 @@ void iwmBus::service()
         {
           iwm_ack_clr();
           iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
-#ifdef TEXT_RX_SPI
+#ifdef PINMAP_A2_REV0
           // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
           spi_device_polling_end(spirx, portMAX_DELAY);
           portENABLE_INTERRUPTS();

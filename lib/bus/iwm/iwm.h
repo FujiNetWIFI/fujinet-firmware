@@ -311,18 +311,16 @@ private:
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
   spi_device_handle_t spi;
-  #ifdef TEXT_RX_SPI
+  #ifdef PINMAP_A2_REV0
   spi_transaction_t rxtrans;
-  spi_transaction_t* transptr;
   spi_device_handle_t spirx;
   //const int f_over = 4;
   //const int f_nyquist = 2 * 250 * 1000; // 255682; // 500 * 1000; // 2 x 250 kbps
   /**
-   * N  Clock MHz   Bit rate      Bit/Byte period
-   * 39	2.051282051	0.2564102564	3.9	31.2          245610 is very close to 255682
-   * 40	2	          0.25	        4.0	32
-   * 41	1.951219512	0.243902439	  4.1	32.8
-   * 42	1.904761905	0.2380952381	4.2	33.6
+   * N  Clock MHz   /8 Bit rate (kHz)    Bit/Byte period (us)
+   * 39	2.051282051	256.4102564	        3.9	31.2          256410 is only 0.3% faster than 255682
+   * 40	2	          250.	                4.0	32
+   * 41	1.951219512	243.902439	          4.1	32.8
   **/
   const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz
   const int pulsewidth = 8; // 8 samples per bit
