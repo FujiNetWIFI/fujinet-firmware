@@ -380,6 +380,10 @@ void iwmCPM::process(cmdPacket_t cmd)
     case 0x88: // read
         Debug_printf("\r\nhandling read command");
         iwm_read(cmd);
+        break;
+    default:
+        iwm_return_badcmd(cmd);
+        break;
     } // switch (cmd)
     fnLedManager.set(LED_BUS, false);
 }
