@@ -78,7 +78,9 @@ void print_packet (uint8_t* data, int bytes)
         Debug_print(xx);
       }
       else
+      {
         Debug_print(("."));
+      }
     }
     Debug_printf(("\r\n"));
   }
@@ -115,10 +117,14 @@ void print_packet_wave(uint8_t* data, int bytes)
         for (int bnum=0; bnum<8; bnum++)
         {
           if (b & 0x80)
+          {
             Debug_print("#");
-            else
+          }
+          else
+          {
             Debug_print("_");
-            b <<= 1;
+          }
+          b <<= 1;
         }
         Debug_print(".");
          }
@@ -1067,7 +1073,10 @@ void iwmBus::setup(void)
 #endif
 
   spi_device_interface_config_t devcfg = {
-      .mode = 0,                         // SPI mode 0
+      .mode = 0,                   // SPI mode 0
+      .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+      .cs_ena_pretrans = 0,        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
+      .cs_ena_posttrans = 0,       ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
       .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
       .spics_io_num = -1,                // CS pin
       .queue_size = 2                    // We want to be able to queue 7 transactions at a time

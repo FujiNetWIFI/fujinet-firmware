@@ -22,7 +22,7 @@
 //#define SEND_PACKET iwm_send_packet
 
 
-// todo - see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
+// see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
 #define SP_ERR_BADCMD 0x01     // invalid command
 #define SP_ERR_BUSERR 0x06     // communications error
