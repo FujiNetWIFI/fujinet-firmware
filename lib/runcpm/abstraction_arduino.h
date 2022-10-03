@@ -1,8 +1,6 @@
 #ifndef ABSTRACT_H
 #define ABSTRACT_H
 
-#include <stdio.h>
-
 #ifdef PROFILE
 #define printf(a, b) Serial.println(b)
 #endif
@@ -10,13 +8,13 @@
 #if defined ARDUINO_SAM_DUE || defined ADAFRUIT_GRAND_CENTRAL_M4
 #define HostOS 0x01
 #endif
-#ifdef CORE_TEENSY
+#if defined CORE_TEENSY
 #define HostOS 0x04
 #endif
-#ifdef ESP32
+#if defined ESP32
 #define HostOS 0x05
 #endif
-#ifdef _STM32_DEF_
+#if defined _STM32_DEF_
 #define HostOS 0x06
 #endif
 
@@ -58,6 +56,10 @@ typedef struct {
 } CPM_DIRENTRY;
 
 static DirFat_t fileDirEntry;
+
+bool _sys_exists(uint8* filename) {
+	return(SD.exists((const char *)filename));
+}
 
 File _sys_fopen_w(uint8* filename) {
 	return(SD.open((char*)filename, O_CREAT | O_WRITE));
@@ -477,6 +479,16 @@ uint8 _sys_makedisk(uint8 drive) {
 	}
 
 	return(result);
+}
+
+/* Hardware abstraction functions */
+/*===============================================================================*/
+void _HardwareOut(const uint32 Port, const uint32 Value) {
+
+}
+
+uint32 _HardwareIn(const uint32 Port) {
+	return 0;
 }
 
 /* Console abstraction functions */

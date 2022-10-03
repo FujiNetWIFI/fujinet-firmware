@@ -58,6 +58,18 @@ char *full_path(char *fn)
 	return full_filename;
 }
 
+
+//
+// Hardware functions, new in 5.x
+//
+void _HardwareOut(const uint32 Port, const uint32 Value) {
+
+}
+
+uint32 _HardwareIn(const uint32 Port) {
+	return 0;
+}
+
 /* Memory abstraction functions */
 /*===============================================================================*/
 bool _RamLoad(char *fn, uint16_t address)
@@ -87,6 +99,11 @@ bool _RamLoad(char *fn, uint16_t address)
 /*===============================================================================*/
 FILE *rootdir;
 FILE *userdir;
+
+bool _sys_exists(uint8* filename)
+{
+	return fnSDFAT.exists(full_path((char *)filename));
+}
 
 int _sys_fputc(uint8_t ch, FILE *f)
 {
@@ -480,10 +497,7 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-	if (teeMode == true)
-		return client.available() | (fnUartSIO.available()>0);
-	else
-		return min(0, fnUartSIO.available());
+	return fnUartSIO.available();
 }
 
 uint8_t _getch(void)
