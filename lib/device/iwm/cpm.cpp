@@ -31,7 +31,6 @@ static void cpmTask(void *arg)
     {
         Status = Debug = 0;
         Break = Step = -1;
-        SingleStep = false;
         RAM = (uint8_t *)malloc(MEMSIZE);
         memset(RAM, 0, MEMSIZE);
         memset(filename, 0, sizeof(filename));
