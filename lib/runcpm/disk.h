@@ -1,5 +1,5 @@
-#ifndef CPMDISK_H
-#define CPMDISK_H
+#ifndef CPM_DISK_H
+#define CPM_DISK_H
 
 /* see main.c for definition */
 
@@ -17,13 +17,13 @@ Disk errors
 #define errWRITEPROT 1
 #define errSELECT 2
 
-#define RW	(roVector & (1 << F->dr))
+#define RW	(roVector & (1 << cDrive))
 
 // Prints out a BDOS error
 void _error(uint8 error) {
-	_puts("\r\nBdos Error on ");
+	_puts("\r\nBdos Err on ");
 	_putcon('A' + cDrive);
-	_puts(" : ");
+	_puts(": ");
 	switch (error) {
 	case errWRITEPROT:
 		_puts("R/O");
@@ -37,8 +37,7 @@ void _error(uint8 error) {
 	}
 	Status = _getch();
 	_puts("\r\n");
-	cDrive = oDrive;
-	_RamWrite(0x0004, (_RamRead(0x0004) & 0xf0) | oDrive);
+	cDrive = oDrive = _RamRead(DSKByte) & 0x0f;
 	Status = 2;
 }
 
@@ -85,6 +84,10 @@ uint8 _FCBtoHostname(uint16 fcbaddr, uint8* filename) {
 	if (F->dr != '?') {
 		while (i < 8) {
 			c = F->fn[i] & 0x7F;
+#ifdef NOSLASH
+			if (c == '/')
+				c = '_';
+#endif
 			if (c > 32)
 				*(filename++) = toupper(c);
 			if (c == '?')
@@ -99,6 +102,10 @@ uint8 _FCBtoHostname(uint16 fcbaddr, uint8* filename) {
 					addDot = FALSE;
 					*(filename++) = '.';  // Only add the dot if there's an extension
 				}
+#ifdef NOSLASH
+				if (c == '/')
+					c = '_';
+#endif
 				*(filename++) = toupper(c);
 			}
 			if (c == '?')
@@ -556,7 +563,6 @@ uint8 _GetFileSize(uint16 fcbaddr) {
 		F->r0 = count & 0xff;
 		F->r1 = (count >> 8) & 0xff;
 		F->r2 = (count >> 16) & 0xff;
-		result = 0x00;
 	}
 	return(result);
 }
@@ -617,7 +623,7 @@ uint8 _RunLua(uint16 fcbaddr) {
 	uint8 result = 0xff;
 
 	if (_FCBtoHostname(fcbaddr, &luascript[0])) {	// Script name must be unique
-		if (!_SearchFirst(fcbaddr, FALSE)) {			// and must exist
+		if (!_SearchFirst(fcbaddr, FALSE)) {		// and must exist
 			result = _RunLuaScript((char*)&luascript[0]);
 		}
 	}
@@ -626,4 +632,4 @@ uint8 _RunLua(uint16 fcbaddr) {
 }
 #endif
 
-#endif
+#endif /* CPM_DISK_H */
