@@ -37,21 +37,17 @@ static void cpmTask(void *arg)
         memset(newname, 0, sizeof(newname));
         memset(fcbname, 0, sizeof(fcbname));
         memset(pattern, 0, sizeof(pattern));
-        Debug_printf("Before puts\n");
         vTaskDelay(100);
         _puts(CCPHEAD);
-        Debug_printf("Before PatchCPM\n");
         _PatchCPM();
-        Debug_printf("Before CCP\n");
         _ccp();
-        Debug_printf("After CCP\n");
     }
 }
 
 iwmCPM::iwmCPM()
 {
-    rxq = xQueueCreate(2048,1);
-    txq = xQueueCreate(2048,1);
+    rxq = xQueueCreate(2048,sizeof(char));
+    txq = xQueueCreate(2048,sizeof(char));
 }
 
 void iwmCPM::encode_status_reply_packet()
@@ -232,8 +228,8 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
 {
     uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
     uint8_t status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-    Debug_printf("\r\nDevice %02x Status Code %02x", source, status_code);
-    Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+    Debug_printf("\r\nDevice %02x Status Code %02x\n", source, status_code);
+    Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 
     switch (status_code)
     {
@@ -250,11 +246,11 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
         return;
         break;
     case 'S': // Status
-        UBaseType_t mw = uxQueueMessagesWaiting(rxq);
+        unsigned short mw = uxQueueMessagesWaiting(rxq);
         packet_buffer[0] = mw & 0xFF;
         packet_buffer[1] = mw >> 8;
         packet_len = 2;
-        Debug_printf("%04x bytes waiting\n",mw);
+        Debug_printf("%u bytes waiting\n",mw);
         break;
     }
 
@@ -279,20 +275,12 @@ void iwmCPM::iwm_read(cmdPacket_t cmd)
 
     memset(packet_buffer,0,sizeof(packet_buffer));
 
-    UBaseType_t mw = uxQueueMessagesWaiting(rxq);
-
-    if (!mw)
+    for (int i=0;i<numbytes;i++)
     {
-        Debug_printf("!!! TRYING TO READ ZERO BYTES !!!\n");
-        iwm_return_ioerror(cmd);
-        return;
-    }
-
-    for (int i=0;i<=numbytes;i++)
-    {
-        uint8_t b;
-        xQueueReceive(rxq,&b,0);
+        char b;
+        xQueueReceive(rxq,&b,portMAX_DELAY);
         packet_buffer[i] = b;
+        packet_len++;
     }
 
     Debug_printf("%s\n",packet_buffer);
@@ -351,11 +339,12 @@ void iwmCPM::iwm_ctrl(cmdPacket_t cmd)
     switch (control_code)
     {
     case 'B': // Boot
-        xTaskCreate(cpmTask, "cpmtask", 32768, NULL, 10, &cpmTaskHandle);
+        Debug_printf("!!! STARTING CP/M TASK!!!\n");
+        xTaskCreate(cpmTask, "cpmtask", 32768, NULL, 11, &cpmTaskHandle);
         break;
     case 'W': // Write
         Debug_printf("Pushing character %c",packet_buffer[0]);
-        xQueueSend(txq,&packet_buffer[0],0);
+        xQueueSend(txq,&packet_buffer[0],portMAX_DELAY);
         break;
     }
 
