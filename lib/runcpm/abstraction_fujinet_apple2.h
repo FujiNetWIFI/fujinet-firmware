@@ -5,6 +5,7 @@
 #ifndef ABSTRACTION_FUJINET_APPLE2_H
 #define ABSTRACTION_FUJINET_APPLE2_H
 
+#include <queue>
 #include <string.h>
 
 #include "globals.h"
@@ -21,6 +22,11 @@
 #include "fuji.h"
 
 #define HostOS 0x07 // FUJINET
+
+using namespace std;
+
+QueueHandle_t rxq;
+QueueHandle_t txq;
 
 typedef struct
 {
@@ -80,13 +86,30 @@ bool _RamLoad(char *fn, uint16_t address)
 		}
 		fclose(f);
 	}
+	Debug_printf("CCP last address: %04x\n",address);
 	return (result);
+}
+
+//
+// Hardware functions, new in 5.x
+//
+void _HardwareOut(const uint32 Port, const uint32 Value) {
+
+}
+
+uint32 _HardwareIn(const uint32 Port) {
+	return 0;
 }
 
 /* filesystem (disk) abstraction fuctions */
 /*===============================================================================*/
 FILE *rootdir;
 FILE *userdir;
+
+bool _sys_exists(uint8* filename)
+{
+	return fnSDFAT.exists(full_path((char *)filename));
+}
 
 int _sys_fputc(uint8_t ch, FILE *f)
 {
@@ -480,21 +503,26 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-
+	return uxQueueMessagesWaiting(txq);
 }
 
 uint8_t _getch(void)
 {
-
+	uint8_t c;
+	xQueueReceive(txq,&c,portMAX_DELAY);
+	return c;
 }
 
 uint8_t _getche(void)
 {
-
+	uint8_t c = _getch();
+	xQueueSend(rxq,&c,portMAX_DELAY);
+	return c;
 }
 
 void _putch(uint8_t ch)
 {
+	xQueueSend(rxq,&ch,portMAX_DELAY);
 }
 
 void _clrscr(void)

@@ -40,7 +40,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 //#define IWM_TX_PW             1 // microseconds - 1/2 us for fast mode
 
 #undef VERBOSE_IWM
-//#define VERBOSE_IWM
+// #define VERBOSE_IWM
 
 
 //------------------------------------------------------------------------------
@@ -72,13 +72,15 @@ void print_packet (uint8_t* data, int bytes)
     }
     Debug_print(("-"));
     for (row = 0; row < 16; row++) {
-      if ((data[count + row] > 31) && (count + row < bytes) && (data[count + row] < 129))
+      if ((data[count + row] > 31) && (count + row < bytes) && (data[count + row] < 128))
       {
         xx = data[count + row];
         Debug_print(xx);
       }
       else
+      {
         Debug_print(("."));
+      }
     }
     Debug_printf(("\r\n"));
   }
@@ -115,10 +117,14 @@ void print_packet_wave(uint8_t* data, int bytes)
         for (int bnum=0; bnum<8; bnum++)
         {
           if (b & 0x80)
+          {
             Debug_print("#");
-            else
+          }
+          else
+          {
             Debug_print("_");
-            b <<= 1;
+          }
+          b <<= 1;
         }
         Debug_print(".");
          }
@@ -374,11 +380,6 @@ bool iwmBus::spirx_get_next_sample()
   return (((spi_buffer[spirx_byte_ctr] << spirx_bit_ctr++) & 0x80) == 0x80);
 }
 
-  uint8_t iwmBus::spirx_look_ahead(int n)
-  {
-    return spi_buffer[spirx_byte_ctr+n];
-  }
-
 int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
 { // read data stream using SPI
   iwm_timer_reset();
@@ -386,19 +387,37 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // signal the logic analyzer
   iwm_extra_set();
 
-#ifdef TEXT_RX_SPI
+  memset(a, 0x00 , BLOCK_PACKET_LEN); // clear out buffer
 
+  /* calculations for determining array sizes
   int numsamples = pulsewidth * (n + 2) * 8;
-  spi_len = numsamples / 8 + 1;
+  command packet on DIY SP is 872 us long
+  2051282 * 872e-6 = 1798 samples = 224 byes
+  nominal command length is 27 bytes * 8 * 8 = 1728 samples
+  1798/1728 = 1.04
+
+  command packet on YS is 919 us
+  2.052 * 919 = 1886 samples
+  1886 / 1728 = 1.0914    --    this one says we need 10% extra array length
+
+  write block packet on DIY 29 is 20.1 ms long
+  2052kHz * 20.1ms =  41245 samples = 5156 bytes
+  nominal 604 bytes for block packet = 38656 samples
+  41245/38656 = 1.067
   
-  // i tired moving this initialization stuff to outside this routine in places that were not time critical. It did not improve entry time.
-  transptr = &rxtrans;
-  memset(transptr, 0, sizeof(spi_transaction_t));
+  write block packet on YS is 18.95 ms so should fit within DIY
+  IIgs take 18.88 ms for a write block 
+  */
+
+  spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
+  
   memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
-  rxtrans.rx_buffer = spi_buffer; // finally send the line data
+  memset(&rxtrans, 0, sizeof(spi_transaction_t));
+  rxtrans.flags = 0; 
+  rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
   rxtrans.rxlength = spi_len * 8;   // Data length, in bits
-  rxtrans.length = spi_len * 8;   // Data length, in bits
-  rxtrans.flags = 0;              
+  rxtrans.tx_buffer = nullptr;
+  rxtrans.rx_buffer = spi_buffer; // finally send the line data
 
   // setup a timeout counter to wait for REQ response
   iwm_timer_latch();        // latch highspeed timer value
@@ -420,22 +439,15 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     }
   };
 
-  spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
-  iwm_extra_clr();
+  // iwm_timer_latch();               // latch highspeed timer value
+  // iwm_timer_read();                //  grab timer low word
+  // // Apple II+ Yellowstone: iwm_timer_alarm_set(410-80-20);          // wait for first sync byte
+  // iwm_timer_alarm_set(310);          // wait for first sync byte
+  // iwm_timer_wait();
 
-#ifdef VERBOSE_IWM
-  memcpy(spi_buffer2,spi_buffer,spi_len);
-  print_packet_wave(spi_buffer2,spi_len);
-  print_packet_wave(spi_buffer,spi_len);
-  // test print
-  spirx_byte_ctr = 0; // initialize the SPI buffer sampler
-  spirx_bit_ctr = 0;
-  for (int i = 0; i < numsamples; i++)
-  {
-    Debug_print(spirx_get_next_sample());
-  }
-  Debug_println("end");
-#endif
+  esp_err_t ret = spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
+  assert(ret == ESP_OK);
+  iwm_extra_clr();
 
   // decode the packet here
   spirx_byte_ctr = 0; // initialize the SPI buffer sampler
@@ -452,24 +464,41 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   bool prev_level = true;
   bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
 
-  //fnSystem.delay_microseconds(50); // wait for first sync byte or so
+  //for tracking the number of samples
+  int bit_position;
+  int last_bit_pos = 0;
+  int samples;
+  bool start_packet = true;
+  
   iwm_timer_latch();               // latch highspeed timer value
   iwm_timer_read();                //  grab timer low word
-  iwm_timer_alarm_set(500);          // dummy alarm
-  iwm_timer_wait();
+  // sync byte is 10 * 8 * (10*1000*1000/2051282) = 390 samples long
+  iwm_timer_alarm_set(390 * 3 / 2);          // wait for first 1.5 sync bytes
+  //iwm_timer_wait();
   do // have_data
   {
     iwm_extra_set(); // signal to LA we're in the nested loop
+
+    bit_position = spirx_byte_ctr * 8 + spirx_bit_ctr; // current bit positon
+    samples = bit_position - last_bit_pos; // difference since last time
+    last_bit_pos = bit_position;
+
     iwm_timer_wait();
-    iwm_timer_latch();     // latch highspeed timer value
-    iwm_timer_read();      //  grab timer low word
-    
-    iwm_timer_alarm_set(synced ? 311 : 390); // 31.1 us for regular byte, 39 us for 10-bit sync bytes
+
+    if (start_packet) // is at the start, assume sync byte, 39.2 us for 10-bit sync bytes
+    {
+      iwm_timer_alarm_set( 390 ); // latch and read already done in iwm_timer_wait()
+      start_packet = false;
+    }
+    else
+    {      
+      iwm_timer_alarm_snooze( (samples * 10 * 1000 * 1000) / f_spirx); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
+    }
 
     iwm_extra_clr();
     do
     {
-     bit = false; // assume no edge in this next bit
+      bit = false; // assume no edge in this next bit
 #ifdef VERBOSE_IWM
       Debug_printf("\r\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
       Debug_printf("\r\nspibyte spibit intctr sampval preval rxbit rxbyte");
@@ -493,22 +522,20 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
         }
         prev_level = current_level;
         i++;
-        iwm_extra_set(); // signal to LA we're in the nested loop
       }
       rxbyte <<= 1;
       rxbyte |= bit;
-       
-      // if ((--numbits) == 0)
-      //   break; // end of byte
+      iwm_extra_set(); // signal to LA we're done with this bit
     } while (--numbits > 0); // shouldn't this just be "while(--numbits>0)"   ?????
     if ((rxbyte == 0xc3) && (!synced))
     {
       synced = true;
       idx = 5;
+      // iwm_timer_alarm_set(1);          // reset timer for sync byte to get back on track - suggested by robj
     }
     a[idx++] = rxbyte;
     // wait for leading edge of next byte or timeout for end of packet
-    int timeout_ctr = f_nyquist * f_over * 19 / 1000000;
+    int timeout_ctr = (f_spirx * 19) / (1000 * 1000); //((f_nyquist * f_over) * 18) / (1000 * 1000);
 #ifdef VERBOSE_IWM
     Debug_printf("%02x ", rxbyte);
 #endif
@@ -528,7 +555,6 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
     numbits = 8;
   } while (have_data); // while have_data
   // print_packet(a);
-#endif // TEXT_RX_SPI
   return 0;
 }
 
@@ -737,8 +763,7 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
   portDISABLE_INTERRUPTS();
   for (int i = 0; i < attempts; i++)
   {
-#ifdef TEXT_RX_SPI
-//portDISABLE_INTERRUPTS();
+#ifdef PINMAP_A2_REV0
     if (!iwm_read_packet_spi(a, n))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
@@ -747,13 +772,10 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 #ifdef DEBUG
       print_packet(a);
 #endif
-      // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
       spi_device_polling_end(spirx, portMAX_DELAY);
       return 0;
-      
-    }
-    // portENABLE_INTERRUPTS();
-#else
+    } // if
+#else // PINMAP_A2_REV0
     portDISABLE_INTERRUPTS();
     if (!iwm_read_packet(a, n))
     {
@@ -766,9 +788,10 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
       return 0;
     }
     portENABLE_INTERRUPTS();
-#endif
+#endif // PINMAP_A2_REV0
   }
 #ifdef DEBUG
+  Debug_printf("\r\nERROR: Read Packet tries exceeds %d attempts", attempts);
   print_packet(a);
 #endif
   portENABLE_INTERRUPTS();
@@ -956,6 +979,8 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   //
   //*****************************************************************************
 
+  portDISABLE_INTERRUPTS();
+
   //print_packet((uint8_t *)a);
   encode_spi_packet((uint8_t *)a);
 
@@ -1003,7 +1028,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   iwm_timer_reset();
   iwm_timer_latch();        // latch highspeed timer value
   iwm_timer_read();      //  grab timer low word
-  iwm_timer_alarm_set(15000); // 1.5 millisecond - 1 ms not long enough for yellowstone
+  iwm_timer_alarm_set(15000); // 1 ms not long enough for yellowstone
 
   // while (!fnSystem.digital_read(SP_REQ))
   while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
@@ -1013,18 +1038,21 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
     if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
     {
       iwm_rddata_disable();
-      Debug_println("REQ timeout");
+      Debug_println("Send REQ timeout");
      // iwm_ack_disable();       // need to release the bus
-      //portENABLE_INTERRUPTS(); // takes 7 us to execute
+      portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
   };
   iwm_rddata_disable();
+  portENABLE_INTERRUPTS();
   return 0;
 }
 
 void iwmBus::setup(void)
 {
+  esp_err_t ret; // used for calling SPI library functions below
+
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
 
   timer_config();
@@ -1033,6 +1061,7 @@ void iwmBus::setup(void)
   spi_buffer=(uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA); 
 
 #ifdef PINMAP_A2_FN10
+  // config the other SPI for transmit
   spi_bus_config_t bus_cfg = {
       .mosi_io_num = SP_RDDATA,
       .miso_io_num = -1,
@@ -1043,9 +1072,11 @@ void iwmBus::setup(void)
   spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
 #endif
 
-  esp_err_t ret;
   spi_device_interface_config_t devcfg = {
-      .mode = 0,                         // SPI mode 0
+      .mode = 0,                   // SPI mode 0
+      .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+      .cs_ena_pretrans = 0,        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
+      .cs_ena_posttrans = 0,       ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
       .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
       .spics_io_num = -1,                // CS pin
       .queue_size = 2                    // We want to be able to queue 7 transactions at a time
@@ -1060,23 +1091,31 @@ void iwmBus::setup(void)
 #endif
   assert(ret == ESP_OK);
 
-#ifdef TEXT_RX_SPI
+// SPI for receiving packets - sprirx
+#ifdef PINMAP_A2_REV0
 // use different SPI than SDCARD
   spi_bus_config_t bus_cfg = {
-      .mosi_io_num = -1, 
+      .mosi_io_num = -1,
       .miso_io_num = SP_WRDATA,
       .sclk_io_num = -1,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = 5000 };
-   spi_device_interface_config_t rxcfg = {
-      .mode = 0,                         // SPI mode 0
-      .clock_speed_hz = f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
-      .spics_io_num = -1,                // CS pin
-      .queue_size = 2                    // We want to be able to queue 7 transactions at a time
-  };
-  spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
-  ret=spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
+      .max_transfer_sz = SPI_BUFFER_LEN,
+      .flags = SPICOMMON_BUSFLAG_MASTER,
+      .intr_flags = 0};
+  spi_device_interface_config_t rxcfg = {
+      .mode = 0, // SPI mode 0
+      .cs_ena_pretrans = 0,
+      .cs_ena_posttrans = 0,
+      .clock_speed_hz = f_spirx, // f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
+      .spics_io_num = -1,        // CS pin
+      .flags = SPI_DEVICE_HALFDUPLEX,
+      .queue_size = 1};          // We want to be able to queue 7 transactions at a time
+
+  ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+  assert(ret == ESP_OK);
+  ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
+  assert(ret == ESP_OK);
 #endif
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
@@ -1365,7 +1404,11 @@ bool iwmDevice::decode_data_packet(void)
   numgrps = packet_buffer[12] & 0x7f;
   numdata = numodd + numgrps * 7;
   Debug_printf("\r\nDecoding %d bytes",numdata);
-
+  // if (numdata==512)
+  // {
+  //   // print out packets
+  //   print_packet(packet_buffer,BLOCK_PACKET_LEN);
+  // }
   // First, checksum  packet header, because we're about to destroy it
   for (int count = 6; count < 13; count++) // now xor the packet header bytes
     checksum = checksum ^ packet_buffer[count];
@@ -1716,7 +1759,7 @@ void iwmBus::service()
     break;
   case iwm_phases_t::enable:
     // expect a command packet
-#ifdef TEXT_RX_SPI
+#ifdef PINMAP_A2_REV0
     portDISABLE_INTERRUPTS();
     if(iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
     {
@@ -1739,7 +1782,7 @@ void iwmBus::service()
     {
       iwm_ack_clr();
       iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
-#ifdef TEXT_RX_SPI
+#ifdef PINMAP_A2_REV0
       // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
       spi_device_polling_end(spirx, portMAX_DELAY);
       portENABLE_INTERRUPTS();
@@ -1782,7 +1825,7 @@ void iwmBus::service()
         {
           iwm_ack_clr();
           iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
-#ifdef TEXT_RX_SPI
+#ifdef PINMAP_A2_REV0
           // spi_device_get_trans_result(spirx, &transptr, portMAX_DELAY);
           spi_device_polling_end(spirx, portMAX_DELAY);
           portENABLE_INTERRUPTS();

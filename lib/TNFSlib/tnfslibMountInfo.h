@@ -5,7 +5,7 @@
 
 
 #define TNFS_DEFAULT_PORT 16384
-#define TNFS_RETRIES 5 // Number of times to retry if we fail to send/receive a packet
+#define TNFS_RETRIES 10 // Number of times to retry if we fail to send/receive a packet
 #define TNFS_TIMEOUT 2000 // This is how long we wait for a reply packet from the server before trying again
 #define TNFS_RETRY_DELAY 1000 // Default delay before retrying. Server will provide a minimum during TNFS_CMD_MOUNT
 #define TNFS_MAX_BACKOFF_DELAY 3000 // Longest we'll wait if server sends us a EAGAIN error

@@ -151,6 +151,7 @@ void virtualDevice::rs232_high_speed()
 // Read and process a command frame from RS232
 void systemBus::_rs232_process_cmd()
 {
+    Debug_printf("rs232_process_cmd()\n");
     if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
         _modemDev->modemActive = false;
@@ -165,7 +166,7 @@ void systemBus::_rs232_process_cmd()
 
     if (fnUartSIO.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
-        // Debug_println("Timeout waiting for data after CMD pin asserted");
+        Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
     }
     // Turn on the RS232 indicator LED
@@ -175,7 +176,7 @@ void systemBus::_rs232_process_cmd()
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
     // Wait for CMD line to raise again
     while (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
-        fnSystem.yield();
+        vTaskDelay(1);
 
     uint8_t ck = rs232_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
     if (ck == tempFrame.checksum)
@@ -215,7 +216,7 @@ void systemBus::_rs232_process_cmd()
     } // valid checksum
     else
     {
-        Debug_print("CHECKSUM_ERROR\n");
+        Debug_printf("CHECKSUM_ERROR: Calc checksum: %02x\n",ck);
         // Switch to/from hispeed RS232 if we get enough failed frame checksums
     }
     fnLedManager.set(eLed::LED_BUS, false);
@@ -261,19 +262,7 @@ void systemBus::service()
     {
         _cpmDev->rs232_handle_cpm();
         return; // break!
-    }
-
-    // For testing, show recv on debug serial and send it back
-    char daByte;
-    if (fnUartSIO.available())
-    {
-        fnLedManager.set(eLed::LED_BUS, true);
-        daByte = fnUartSIO.read();
-        Debug_printf("RCV: %c\n", daByte);
-        fnLedManager.set(eLed::LED_BUS, false);
-    }
-    return;
-    
+    }    
 
     // Go process a command frame if the RS232 CMD line is asserted
     if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)

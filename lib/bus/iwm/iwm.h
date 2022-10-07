@@ -22,7 +22,7 @@
 //#define SEND_PACKET iwm_send_packet
 
 
-// todo - see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
+// see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
 #define SP_ERR_BADCMD 0x01     // invalid command
 #define SP_ERR_BUSERR 0x06     // communications error
@@ -64,9 +64,11 @@
 
 #define SP_TYPE_BYTE_FUJINET 0x10
 #define SP_TYPE_BYTE_FUJINET_NETWORK 0x11
+#define SP_TYPE_BYTE_FUJINET_CPM 0x12
 
 #define SP_SUBTYPE_BYTE_FUJINET 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_CPM 0x00
 
 #define PACKET_TYPE_CMD 0x80
 #define PACKET_TYPE_STATUS 0x81
@@ -117,9 +119,9 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
-#define COMMAND_PACKET_LEN  28
-#define BLOCK_PACKET_LEN    606
-#define SPI_BUFFER_LEN      8 * (BLOCK_PACKET_LEN+2)
+#define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
+#define BLOCK_PACKET_LEN    604 //606
+#define SPI_BUFFER_LEN      6000 // 8 * (BLOCK_PACKET_LEN+2) +400 // should be long enough for 20.1 ms + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -309,14 +311,20 @@ private:
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
   spi_device_handle_t spi;
-  #ifdef TEXT_RX_SPI
+  #ifdef PINMAP_A2_REV0
   spi_transaction_t rxtrans;
-  spi_transaction_t* transptr;
   spi_device_handle_t spirx;
-  const int f_over = 4;
-  const int f_nyquist = 500 * 1000; // 2 x 250 kbps
-  const int pulsewidth = ((f_nyquist * f_over) * 4) / 1000000; 
-  const int halfwidth = pulsewidth / 2; // maybe need to account for even or odd
+  //const int f_over = 4;
+  //const int f_nyquist = 2 * 250 * 1000; // 255682; // 500 * 1000; // 2 x 250 kbps
+  /**
+   * N  Clock MHz   /8 Bit rate (kHz)    Bit/Byte period (us)
+   * 39	2.051282051	256.4102564	        3.9	31.2          256410 is only 0.3% faster than 255682
+   * 40	2	          250.	                4.0	32
+   * 41	1.951219512	243.902439	          4.1	32.8
+  **/
+  const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz
+  const int pulsewidth = 8; // 8 samples per bit
+  const int halfwidth = pulsewidth / 2;
   #endif
 
   // low level bit-banging i/o functions
@@ -369,7 +377,6 @@ private:
   int spirx_byte_ctr;
   int spirx_bit_ctr;
   bool spirx_get_next_sample();
-  uint8_t spirx_look_ahead(int n);
 
 public:
   int iwm_read_packet_spi(uint8_t *a, int n); 
