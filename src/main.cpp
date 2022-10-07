@@ -128,6 +128,7 @@ void main_setup()
 #ifdef BUILD_RS232
     theFuji.setup(&RS232);
     RS232.setup();
+    RS232.addDevice(&theFuji,0x70);
 #endif
 
 #ifdef BUILD_ADAM
