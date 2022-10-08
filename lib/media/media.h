@@ -40,6 +40,11 @@
 # include "adam/mediaTypeDSK.h"
 #endif
 
+#ifdef BUILD_RC2014
+# include "rc2014/mediaType.h"
+# include "rc2014/mediaTypeIMG.h"
+#endif
+
 #ifdef NEW_TARGET
 # include "new/mediaType.h"
 # include "new/mediaTypeDDP.h"
