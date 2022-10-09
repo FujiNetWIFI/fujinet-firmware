@@ -73,6 +73,8 @@ public:
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
 
+    uint16_t _high_score_sector; /* High score sector to allow write. 1-65535 */
+
     virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
     virtual void unmount();
 
