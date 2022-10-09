@@ -1,6 +1,8 @@
 #include "fnHardwareTimer.h"
 
 /** how to use the fnHardwareTimer
+ * 
+ * questions? ask @jeffpiep
  *  
  * The fnTimer object has all the functions needed to do 100-ns level timing by polling
  * Here's kind-of how to use it:
@@ -42,7 +44,7 @@
       // timeout!
     }
   };
-  // if you make it to hear, the event did not time out
+  // if you make it to here, the event did not time out
 
  * 
  * Remember, you have to latch() before you read() before you set an alarm_set()
