@@ -387,7 +387,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   // signal the logic analyzer
   iwm_extra_set();
 
-  memset(a, 0x00 , BLOCK_PACKET_LEN); // clear out buffer
+  // memset(a, 0x00 , BLOCK_PACKET_LEN); // clear out buffer
 
   /* calculations for determining array sizes
   int numsamples = pulsewidth * (n + 2) * 8;

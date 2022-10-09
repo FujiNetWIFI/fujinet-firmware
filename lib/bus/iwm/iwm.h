@@ -322,7 +322,8 @@ private:
    * 40	2	          250.	                4.0	32
    * 41	1.951219512	243.902439	          4.1	32.8
   **/
-  const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz
+  // const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz
+  const int f_spirx = APB_CLK_FREQ / 40; // 2 MHz - need slower rate for PAL
   const int pulsewidth = 8; // 8 samples per bit
   const int halfwidth = pulsewidth / 2;
   #endif
