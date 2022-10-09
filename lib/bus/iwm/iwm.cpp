@@ -307,10 +307,16 @@ inline void iwmBus::iwm_ack_disable()
 
 //------------------------------------------------------
 
+uint8_t iwmBus::iwm_phase_vector()
+{
+  uint8_t phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+  return phases;
+}
+
 bool iwmBus::iwm_phase_val(uint8_t p)
 {
 #ifdef PINMAP_A2_REV0
-  uint8_t phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+  uint8_t phases = iwm_phase_vector();
   if (p < 4)
     return (phases >> p) & 0x01;
 #else
@@ -339,10 +345,15 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   // ph3=0 ph2=1 ph1=0 ph0=1
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
-  if (iwm_phase_val(1) && iwm_phase_val(3) && !iwm_phase_val(0) && !iwm_phase_val(2))
+  uint8_t phases = iwm_phase_vector();
+  if (phases == 0b1010)
     phasestate = iwm_phases_t::enable;
-  else if (iwm_phase_val(0) && iwm_phase_val(2) && !iwm_phase_val(1) && !iwm_phase_val(3))
+  else if (phases == 0b0101)
     phasestate = iwm_phases_t::reset;
+  // if (iwm_phase_val(1) && iwm_phase_val(3) && !iwm_phase_val(0) && !iwm_phase_val(2))
+  //   phasestate = iwm_phases_t::enable;
+  //else if (iwm_phase_val(0) && iwm_phase_val(2) && !iwm_phase_val(1) && !iwm_phase_val(3))
+  //  phasestate = iwm_phases_t::reset;
 
 #ifdef VERBOSE_IWM
   if (phasestate != oldphase)
