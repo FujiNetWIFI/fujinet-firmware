@@ -2,6 +2,7 @@
 #define _MEDIATYPE_
 
 #include <stdio.h>
+#include <fujiHost.h>
 
 #define INVALID_SECTOR_VALUE 65536
 
@@ -52,7 +53,8 @@ protected:
     uint8_t _disk_controller_status = DISK_CTRL_STATUS_CLEAR;
     bool _disk_readonly = true;
     uint16_t _high_score_sector = 0; /* High score sector to allow write. 1-65535 */
-
+    uint8_t _high_score_num_sectors = 0;
+    
 public:
     struct
     {
@@ -73,6 +75,9 @@ public:
     char _disk_filename[256];
 
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
+
+    fujiHost *_disk_host = nullptr;
+    FILE *_disk_hsfileh = nullptr;
 
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
