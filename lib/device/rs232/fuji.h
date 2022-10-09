@@ -108,6 +108,7 @@ protected:
     void rs232_set_boot_config();        // 0xD9
     void rs232_copy_file();              // 0xD8
     void rs232_set_boot_mode();          // 0xD6
+    void rs232_test();                   // 0x00
 
     void rs232_status() override;
     void rs232_process(uint32_t commanddata, uint8_t checksum) override;
