@@ -25,6 +25,9 @@
 
 using namespace std;
 
+QueueHandle_t rxq;
+QueueHandle_t txq;
+
 typedef struct
 {
 	uint8_t dr;
@@ -52,8 +55,6 @@ fnTcpClient client;
 fnTcpServer *server;
 bool teeMode = false;
 unsigned short portActive = 0;
-
-QueueHandle_t txq, rxq;
 
 char *full_path(char *fn)
 {
@@ -502,27 +503,26 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-	return !uxQueueMessagesWaiting(txq);
+	return uxQueueMessagesWaiting(txq);
 }
 
 uint8_t _getch(void)
 {
-	while (!uxQueueMessagesWaiting(txq)) { vTaskDelay(1); };
 	uint8_t c;
-	xQueueReceive(txq,&c,0);
+	xQueueReceive(txq,&c,portMAX_DELAY);
 	return c;
 }
 
 uint8_t _getche(void)
 {
 	uint8_t c = _getch();
-	xQueueSend(rxq,(void *)&c,0);
+	xQueueSend(rxq,&c,portMAX_DELAY);
 	return c;
 }
 
 void _putch(uint8_t ch)
 {
-	xQueueSend(rxq,(void *)&ch,0);
+	xQueueSend(rxq,&ch,portMAX_DELAY);
 }
 
 void _clrscr(void)
