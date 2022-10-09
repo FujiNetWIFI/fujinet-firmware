@@ -231,6 +231,11 @@ mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
     _disk_image_size = disksize;
     _disk_last_sector = INVALID_SECTOR_VALUE;
 
+    _high_score_sector = UINT16_FROM_HILOBYTES(buf[14],buf[13]);
+
+    if (_high_score_sector>0)
+        Debug_printf("High Score Sector Specified: %u\n",_high_score_sector);
+
     Debug_printf("mounted ATR: paragraphs=%d, sect_size=%d, sect_count=%d, disk_size=%d\n",
                  num_paragraphs, num_bytes_sector, _disk_num_sectors, disksize);
 
