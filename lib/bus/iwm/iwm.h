@@ -357,6 +357,7 @@ private:
   void iwm_extra_clr();
   bool iwm_enable_val();
 
+  uint8_t iwm_phase_vector();
   bool iwm_phase_val(uint8_t p);
 
   enum class iwm_phases_t
