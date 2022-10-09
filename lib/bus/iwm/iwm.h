@@ -329,19 +329,6 @@ private:
   #endif
 
   // low level bit-banging i/o functions
-  struct iwm_timer_t
-  {
-    uint32_t tn;
-    uint32_t t0;
-  } iwm_timer;
-
-  void timer_config();
-  void iwm_timer_latch();
-  void iwm_timer_read();
-  void iwm_timer_alarm_set(int s);
-  void iwm_timer_alarm_snooze(int s);
-  void iwm_timer_wait();
-  void iwm_timer_reset();
 
   void iwm_rddata_set();
   void iwm_rddata_clr();
