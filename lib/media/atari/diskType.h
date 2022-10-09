@@ -50,6 +50,8 @@ protected:
     uint16_t _disk_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
     int32_t _disk_last_sector = INVALID_SECTOR_VALUE;
     uint8_t _disk_controller_status = DISK_CTRL_STATUS_CLEAR;
+    bool _disk_readonly = true;
+    uint16_t _high_score_sector = 0; /* High score sector to allow write. 1-65535 */
 
 public:
     struct
@@ -68,12 +70,12 @@ public:
         uint8_t reserved3;
     } _percomBlock;
 
+    char _disk_filename[256];
+
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
 
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
-
-    uint16_t _high_score_sector; /* High score sector to allow write. 1-65535 */
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
     virtual void unmount();
