@@ -12,7 +12,6 @@
 
 #include "utils.h"
 
-
 #define ATR_MAGIC_HEADER 0x0296 // Sum of 'NICKATARI'
 
 // Returns byte offset of given sector number (1-based)
@@ -92,6 +91,13 @@ bool MediaTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool MediaTypeATR::write(uint16_t sectornum, bool verify)
 {
+    FILE *oldFileh, *hsFileh;
+    unsigned short sector_range_begin = _high_score_sector;
+    unsigned short sector_range_end = _high_score_sector + _high_score_num_sectors;
+
+    oldFileh = nullptr;
+    hsFileh = nullptr;
+
     Debug_printf("ATR WRITE\n", sectornum, _disk_num_sectors);
 
     // Return an error if we're trying to write beyond the end of the disk
@@ -99,6 +105,21 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
     {
         Debug_printf("::write sector %d > %d\n", sectornum, _disk_num_sectors);
         return true;
+    }
+
+    if ((sectornum <= sector_range_end) || (sectornum >= sector_range_begin))
+    {
+        Debug_printf("High score mode activated, attempting write open\n");
+        if (_disk_host == nullptr)
+        {
+            Debug_printf("!!! Why is host slot null?\n");
+        }
+        else
+        {
+            oldFileh = _disk_fileh;
+            hsFileh = _disk_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename)+1, "r+");
+            _disk_fileh = hsFileh;
+        }
     }
 
     uint16_t sectorSize = sector_size(sectornum);
@@ -128,6 +149,16 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
     int ret = fflush(_disk_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
     ret = fsync(fileno(_disk_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("ATR::write fsync:%d\n", ret);
+
+    if (sectornum == _high_score_sector)
+    {
+        Debug_printf("Closing high score sector.\n");
+
+        if (hsFileh != nullptr)
+            fclose(hsFileh);
+
+        _disk_fileh = oldFileh;
+    }
 
     _disk_last_sector = sectornum;
 
@@ -171,7 +202,7 @@ bool MediaTypeATR::format(uint16_t *responsesize)
     return false;
 }
 
-/* 
+/*
  Mount ATR disk
  Header layout:
  00 lobyte 0x96
@@ -181,7 +212,7 @@ bool MediaTypeATR::format(uint16_t *responsesize)
  04 lobyte sector size (0x80, 0x100, etc.)
  05 hibyte
  06   byte paragraphs on disk extension (24-bits total)
- 
+
  07-0F have two possible interpretations but are no critical for our use
 */
 mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
@@ -192,7 +223,7 @@ mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
 
     uint16_t num_bytes_sector;
     uint32_t num_paragraphs;
-    uint8_t buf[7];
+    uint8_t buf[16];
 
     // Get file and sector size from header
     int i;
@@ -230,6 +261,12 @@ mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
     _disk_fileh = f;
     _disk_image_size = disksize;
     _disk_last_sector = INVALID_SECTOR_VALUE;
+
+    _high_score_sector = UINT16_FROM_HILOBYTES(buf[14], buf[13]);
+    _high_score_num_sectors = buf[12]-1;
+
+    if (_high_score_sector > 0)
+        Debug_printf("High Score Sector Specified: %u\n", _high_score_sector);
 
     Debug_printf("mounted ATR: paragraphs=%d, sect_size=%d, sect_count=%d, disk_size=%d\n",
                  num_paragraphs, num_bytes_sector, _disk_num_sectors, disksize);
