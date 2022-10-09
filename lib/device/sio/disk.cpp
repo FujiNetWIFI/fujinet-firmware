@@ -236,6 +236,10 @@ mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         _disk = new MediaTypeATR();
         return _disk->mount(f, disksize);
     }
+
+    if (_disk != nullptr)
+        strcpy(_disk->_disk_filename,filename);
+
 }
 
 // Destructor
