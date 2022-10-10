@@ -17,10 +17,6 @@
 // required for ESP32 Rev C
 #define SEND_PACKET iwm_send_packet_spi
 
-// activate for old bit bang flag code that works on ESP32 Rev B
-#undef USE_BIT_BANG_TX
-//#define SEND_PACKET iwm_send_packet
-
 
 // see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
@@ -231,6 +227,10 @@ protected:
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
+  // all this encoding/decoding should go to low level
+  // however, need to change robj's code to NOT decode/encode packet *in place* using packet_buffer[].
+  // so need an encoded packet buffer in the low level and a packet_data[] or whatever in the high level.
+  // the command packet might be an exception
   // iwm packet handling
   static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   static uint16_t packet_len;
@@ -255,6 +255,7 @@ protected:
   virtual void shutdown() = 0;
   virtual void process(cmdPacket_t cmd) = 0;
 
+  // these are good for the high level device
   virtual void iwm_status(cmdPacket_t cmd);
   virtual void iwm_readblock(cmdPacket_t cmd) {};
   virtual void iwm_writeblock(cmdPacket_t cmd) {};
@@ -307,6 +308,7 @@ private:
   iwmCPM *_cpmDev = nullptr;
   iwmPrinter *_printerdev = nullptr;
 
+  // this block should go to low level
   // iwm packet handling
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
@@ -329,7 +331,6 @@ private:
   #endif
 
   // low level bit-banging i/o functions
-
   void iwm_rddata_set();
   void iwm_rddata_clr();
   void iwm_rddata_disable();
@@ -368,6 +369,8 @@ private:
   bool spirx_get_next_sample();
 
 public:
+
+  // these are low level commands and should be called/replace with one layer more of abstraction
   int iwm_read_packet_spi(uint8_t *a, int n); 
   int iwm_read_packet(uint8_t *a, int n);
   int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
@@ -375,8 +378,7 @@ public:
   int iwm_send_packet(uint8_t *a);
   int iwm_send_packet_spi(uint8_t *a);
 
-  void test_spi();
-
+  // these things stay for the most part
   void setup();
   void service();
   void shutdown();
@@ -391,14 +393,6 @@ public:
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
-  // iwmDevice *smort;
-
-
-#ifdef TESTTX
-  void test_send(iwmDevice* smort);
-#endif
-
-  // void startup_hack();
 
 };
 
