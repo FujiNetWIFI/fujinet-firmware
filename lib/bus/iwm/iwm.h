@@ -17,7 +17,6 @@
 // required for ESP32 Rev C
 #define SEND_PACKET iwm_send_packet_spi
 
-
 // see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
 #define SP_ERR_BADCMD 0x01     // invalid command
@@ -85,9 +84,6 @@
 #define IWM_STATUS_DIB 0x03
 #define IWM_STATUS_UNI35 0x05
 
-#undef TESTTX
-//#define TESTTX
-
 // class def'ns
 class iwmFuji;     // declare here so can reference it, but define in fuji.h
 class iwmModem;    // declare here so can reference it, but define in modem.h
@@ -117,7 +113,7 @@ union cmdFrame_t
 
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_PACKET_LEN    604 //606
-#define SPI_BUFFER_LEN      6000 // 8 * (BLOCK_PACKET_LEN+2) +400 // should be long enough for 20.1 ms + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
+#define SPI_BUFFER_LEN      6000 // should be long enough for 20.1 ms + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -179,7 +175,7 @@ struct
   uint8_t pend;    // 26
   uint8_t clear;   // 27
   };
-  uint8_t data[COMMAND_PACKET_LEN];
+  uint8_t data[COMMAND_PACKET_LEN + 1];
 };
 
 enum class iwm_smartport_type_t
@@ -287,10 +283,6 @@ public:
    */
   iwmBus iwm_get_bus();
 
-  /**
-   * Startup hack for now
-   */
-  // virtual void startup_hack() = 0;
 };
 
 class iwmBus
