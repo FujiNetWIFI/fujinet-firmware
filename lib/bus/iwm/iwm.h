@@ -322,25 +322,13 @@ private:
    * 40	2	          250.	                4.0	32
    * 41	1.951219512	243.902439	          4.1	32.8
   **/
-  const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz
+  // const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz
+  const int f_spirx = APB_CLK_FREQ / 40; // 2 MHz - need slower rate for PAL
   const int pulsewidth = 8; // 8 samples per bit
   const int halfwidth = pulsewidth / 2;
   #endif
 
   // low level bit-banging i/o functions
-  struct iwm_timer_t
-  {
-    uint32_t tn;
-    uint32_t t0;
-  } iwm_timer;
-
-  void timer_config();
-  void iwm_timer_latch();
-  void iwm_timer_read();
-  void iwm_timer_alarm_set(int s);
-  void iwm_timer_alarm_snooze(int s);
-  void iwm_timer_wait();
-  void iwm_timer_reset();
 
   void iwm_rddata_set();
   void iwm_rddata_clr();
@@ -356,6 +344,7 @@ private:
   void iwm_extra_clr();
   bool iwm_enable_val();
 
+  uint8_t iwm_phase_vector();
   bool iwm_phase_val(uint8_t p);
 
   enum class iwm_phases_t
