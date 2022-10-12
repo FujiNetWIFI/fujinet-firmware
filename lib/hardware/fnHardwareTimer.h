@@ -21,12 +21,12 @@ private:
 public:
   void config();
   void reset() { TIMERG1.hw_timer[TIMER_1].load_low = 0; TIMERG1.hw_timer[TIMER_1].reload = 0;};
-  void wait() { do{latch(); read();} while (!test()); };
+  void wait() { do{latch(); read();} while (!timeout()); };
   void latch() { TIMERG1.hw_timer[TIMER_1].update = 0; };
   void read() { fn_timer.t0 = TIMERG1.hw_timer[TIMER_1].cnt_low; };
   void alarm_set(int s) { fn_timer.tn = fn_timer.t0 + s * TIMER_100NS_FACTOR - TIMER_ADJUST; };
   void alarm_snooze(int s) { fn_timer.tn += s * TIMER_100NS_FACTOR - TIMER_ADJUST; };
-  bool test() { return (fn_timer.t0 > fn_timer.tn); };
+  bool timeout() { return (fn_timer.t0 > fn_timer.tn); };
 };
 
 extern HardwareTimer fnTimer;

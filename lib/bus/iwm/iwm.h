@@ -5,6 +5,7 @@
 #include "../../include/debug.h"
 
 #include "bus.h"
+#include "iwm_ll.h"
 
 #include <cstdint>
 #include <forward_list>
@@ -16,11 +17,6 @@
 // activate for using SPI to transmit data from ESP to Apple II
 // required for ESP32 Rev C
 #define SEND_PACKET iwm_send_packet_spi
-
-// activate for old bit bang flag code that works on ESP32 Rev B
-#undef USE_BIT_BANG_TX
-//#define SEND_PACKET iwm_send_packet
-
 
 // see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
@@ -89,9 +85,6 @@
 #define IWM_STATUS_DIB 0x03
 #define IWM_STATUS_UNI35 0x05
 
-#undef TESTTX
-//#define TESTTX
-
 // class def'ns
 class iwmFuji;     // declare here so can reference it, but define in fuji.h
 class iwmModem;    // declare here so can reference it, but define in modem.h
@@ -121,7 +114,6 @@ union cmdFrame_t
 
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_PACKET_LEN    604 //606
-#define SPI_BUFFER_LEN      6000 // 8 * (BLOCK_PACKET_LEN+2) +400 // should be long enough for 20.1 ms + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -151,6 +143,7 @@ C3 PBEGIN   MARKS BEGINNING OF PACKET 32 micro Sec.
 BB CHKSUM1  1ST BYTE OF CHECKSUM 32 micro Sec.
 EE CHKSUM2  2ND BYTE OF CHECKSUM 32 micro Sec.
 C8 PEND     PACKET END BYTE 32 micro Sec.
+00 CLEAR    zero after packet for FujiNet use
 */
 struct
 {
@@ -183,7 +176,7 @@ struct
   uint8_t pend;    // 26
   uint8_t clear;   // 27
   };
-  uint8_t data[COMMAND_PACKET_LEN];
+  uint8_t data[COMMAND_PACKET_LEN + 1];
 };
 
 enum class iwm_smartport_type_t
@@ -231,6 +224,10 @@ protected:
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
+  // all this encoding/decoding should go to low level
+  // however, need to change robj's code to NOT decode/encode packet *in place* using packet_buffer[].
+  // so need an encoded packet buffer in the low level and a packet_data[] or whatever in the high level.
+  // the command packet might be an exception
   // iwm packet handling
   static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   static uint16_t packet_len;
@@ -238,8 +235,8 @@ protected:
   bool decode_data_packet(void); //decode smartport 512 byte data packet
   static uint16_t num_decoded;
 
-  void encode_data_packet(); //encode smartport 512 byte data packet
-  void encode_data_packet(uint16_t num); //encode smartport "num" byte data packet
+  // void encode_data_packet(); //encode smartport 512 byte data packet
+  void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
   void encode_write_status_packet(uint8_t source, uint8_t status);
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
@@ -255,6 +252,7 @@ protected:
   virtual void shutdown() = 0;
   virtual void process(cmdPacket_t cmd) = 0;
 
+  // these are good for the high level device
   virtual void iwm_status(cmdPacket_t cmd);
   virtual void iwm_readblock(cmdPacket_t cmd) {};
   virtual void iwm_writeblock(cmdPacket_t cmd) {};
@@ -286,10 +284,6 @@ public:
    */
   iwmBus iwm_get_bus();
 
-  /**
-   * Startup hack for now
-   */
-  // virtual void startup_hack() = 0;
 };
 
 class iwmBus
@@ -307,11 +301,12 @@ private:
   iwmCPM *_cpmDev = nullptr;
   iwmPrinter *_printerdev = nullptr;
 
+  // this block should go to low level
   // iwm packet handling
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
   spi_device_handle_t spi;
-  #ifdef PINMAP_A2_REV0
+ 
   spi_transaction_t rxtrans;
   spi_device_handle_t spirx;
   //const int f_over = 4;
@@ -326,20 +321,13 @@ private:
   const int f_spirx = APB_CLK_FREQ / 40; // 2 MHz - need slower rate for PAL
   const int pulsewidth = 8; // 8 samples per bit
   const int halfwidth = pulsewidth / 2;
-  #endif
 
   // low level bit-banging i/o functions
-
   void iwm_rddata_set();
   void iwm_rddata_clr();
-  void iwm_rddata_disable();
-  void iwm_rddata_enable();
-  bool iwm_wrdata_val();
   bool iwm_req_val();
   void iwm_ack_set();
   void iwm_ack_clr();
-  void iwm_ack_enable();
-  void iwm_ack_disable();
   void iwm_extra_set();
   void iwm_extra_clr();
   bool iwm_enable_val();
@@ -368,6 +356,8 @@ private:
   bool spirx_get_next_sample();
 
 public:
+
+  // these are low level commands and should be called/replace with one layer more of abstraction
   int iwm_read_packet_spi(uint8_t *a, int n); 
   int iwm_read_packet(uint8_t *a, int n);
   int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
@@ -375,8 +365,7 @@ public:
   int iwm_send_packet(uint8_t *a);
   int iwm_send_packet_spi(uint8_t *a);
 
-  void test_spi();
-
+  // these things stay for the most part
   void setup();
   void service();
   void shutdown();
@@ -391,14 +380,6 @@ public:
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
-  // iwmDevice *smort;
-
-
-#ifdef TESTTX
-  void test_send(iwmDevice* smort);
-#endif
-
-  // void startup_hack();
 
 };
 
