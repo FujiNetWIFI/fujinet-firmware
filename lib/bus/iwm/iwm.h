@@ -325,14 +325,9 @@ private:
   // low level bit-banging i/o functions
   void iwm_rddata_set();
   void iwm_rddata_clr();
-  void iwm_rddata_disable();
-  void iwm_rddata_enable();
-  // bool iwm_wrdata_val();
   bool iwm_req_val();
   void iwm_ack_set();
   void iwm_ack_clr();
-  void iwm_ack_enable();
-  void iwm_ack_disable();
   void iwm_extra_set();
   void iwm_extra_clr();
   bool iwm_enable_val();
