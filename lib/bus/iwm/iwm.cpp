@@ -149,10 +149,10 @@ inline void iwmBus::iwm_rddata_disable()
 {
 }
 
-inline bool iwmBus::iwm_wrdata_val()
-{
-  return (GPIO.in & ((uint32_t)0x01 << (SP_WRDATA)));
-}
+// inline bool iwmBus::iwm_wrdata_val()
+// {
+//   return (GPIO.in & ((uint32_t)0x01 << (SP_WRDATA)));
+// }
 
 inline bool iwmBus::iwm_req_val()
 {
@@ -202,22 +202,24 @@ inline bool iwmBus::iwm_enable_val()
  */
 inline void iwmBus::iwm_ack_clr()
 {
-  GPIO.out_w1tc = ((uint32_t)0x01 << SP_ACK);
+  // GPIO.out_w1tc = ((uint32_t)0x01 << SP_ACK); // temporary test - use enable to clear and disable to set. Setup already cleared
+  GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  
 }
 
 inline void iwmBus::iwm_ack_set()
 {
-  GPIO.out_w1ts = ((uint32_t)0x01 << SP_ACK);
+  // GPIO.out_w1ts = ((uint32_t)0x01 << SP_ACK);
+  GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK); // temporary test - use enable to clear and disable to set. Setup already cleared
 }
 
 inline void iwmBus::iwm_ack_enable()
 {
-  GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  
+  // GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  
 }
 
 inline void iwmBus::iwm_ack_disable()
 {
-  GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK);
+  // GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK);
 }
 
 //------------------------------------------------------
@@ -453,8 +455,8 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
 
 int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 {
-  // iwm_ack_set(); // todo - is set really needed?
-  iwm_ack_disable();
+  iwm_ack_set(); // go hi-z
+  // iwm_ack_disable();
   portDISABLE_INTERRUPTS();
   for (int i = 0; i < attempts; i++)
   {
@@ -572,8 +574,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   fnTimer.read();      //  grab timer low word
   fnTimer.alarm_set(15000); // 1 ms not long enough for yellowstone
 
-  // while (!fnSystem.digital_read(SP_REQ))
-  while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  while (iwm_req_val()) 
   {
     fnTimer.latch();   // latch highspeed timer value
     fnTimer.read(); // grab timer low word
@@ -644,10 +645,11 @@ void iwmBus::setup(void)
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
-  fnSystem.digital_write(SP_ACK, DIGI_HIGH); // ID ACK for Logic Analyzer
-  fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
+  // fnSystem.digital_write(SP_ACK, DIGI_HIGH); // ID ACK for Logic Analyzer
+  // fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //
+  //fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //
+  iwm_ack_set(); // go to hi-z
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
@@ -758,10 +760,10 @@ void iwmDevice::encode_data_packet(uint16_t num)
   packet_buffer[lastidx] = 0x00;  //mark the end of the packet_buffer
 }
 
-void iwmDevice::encode_data_packet() // to do overload with packet size for read?
-{
-  encode_data_packet(512);
-}
+// void iwmDevice::encode_data_packet() // to do overload with packet size for read?
+// {
+//   encode_data_packet(512);
+// }
 
 //*****************************************************************************
 // Function: encode_extended_data_packet
@@ -1173,8 +1175,8 @@ int iwmDevice::get_packet_length (void)
 //*****************************************************************************
 void iwmBus::service()
 {
-  iwm_ack_disable(); // go hi-Z
-  iwm_ack_clr();     // prep for the next read packet
+  iwm_ack_set(); // go hi-Z
+  // iwm_ack_clr();     // prep for the next read packet
 
   if (iwm_drive_enables())
   {
