@@ -88,12 +88,15 @@ bool MediaTypeATR::read(uint16_t sectornum, uint16_t *readcount)
     return err;
 }
 
+bool inHighScoreRange(int minimum, int maximum, int val)
+{
+    return ((minimum <= val) && (val <= maximum));
+}
+
 // Returns TRUE if an error condition occurred
 bool MediaTypeATR::write(uint16_t sectornum, bool verify)
 {
     FILE *oldFileh, *hsFileh;
-    unsigned short sector_range_begin = _high_score_sector;
-    unsigned short sector_range_end = _high_score_sector + _high_score_num_sectors;
 
     oldFileh = nullptr;
     hsFileh = nullptr;
@@ -107,7 +110,7 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
         return true;
     }
 
-    if ((sectornum <= sector_range_end) || (sectornum >= sector_range_begin))
+    if (_high_score_sector != 0)
     {
         Debug_printf("High score mode activated, attempting write open\n");
         if (_disk_host == nullptr)
@@ -117,11 +120,10 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
         else
         {
             oldFileh = _disk_fileh;
-            hsFileh = _disk_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename)+1, "r+");
+            hsFileh = _disk_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename) + 1, "r+");
             _disk_fileh = hsFileh;
         }
     }
-
     uint16_t sectorSize = sector_size(sectornum);
     uint32_t offset = _sector_to_offset(sectornum);
 
@@ -150,7 +152,7 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
     ret = fsync(fileno(_disk_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("ATR::write fsync:%d\n", ret);
 
-    if (sectornum == _high_score_sector)
+    if (_high_score_sector != 0)
     {
         Debug_printf("Closing high score sector.\n");
 
@@ -263,7 +265,7 @@ mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
     _disk_last_sector = INVALID_SECTOR_VALUE;
 
     _high_score_sector = UINT16_FROM_HILOBYTES(buf[14], buf[13]);
-    _high_score_num_sectors = buf[12]-1;
+    _high_score_num_sectors = buf[12] - 1;
 
     if (_high_score_sector > 0)
         Debug_printf("High Score Sector Specified: %u\n", _high_score_sector);
