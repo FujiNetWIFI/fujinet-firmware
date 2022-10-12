@@ -5,6 +5,7 @@
 #include "../../include/debug.h"
 
 #include "bus.h"
+#include "iwm_ll.h"
 
 #include <cstdint>
 #include <forward_list>
@@ -113,7 +114,6 @@ union cmdFrame_t
 
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_PACKET_LEN    604 //606
-#define SPI_BUFFER_LEN      6000 // should be long enough for 20.1 ms + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -143,6 +143,7 @@ C3 PBEGIN   MARKS BEGINNING OF PACKET 32 micro Sec.
 BB CHKSUM1  1ST BYTE OF CHECKSUM 32 micro Sec.
 EE CHKSUM2  2ND BYTE OF CHECKSUM 32 micro Sec.
 C8 PEND     PACKET END BYTE 32 micro Sec.
+00 CLEAR    zero after packet for FujiNet use
 */
 struct
 {
@@ -234,8 +235,8 @@ protected:
   bool decode_data_packet(void); //decode smartport 512 byte data packet
   static uint16_t num_decoded;
 
-  void encode_data_packet(); //encode smartport 512 byte data packet
-  void encode_data_packet(uint16_t num); //encode smartport "num" byte data packet
+  // void encode_data_packet(); //encode smartport 512 byte data packet
+  void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
   void encode_write_status_packet(uint8_t source, uint8_t status);
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
@@ -305,7 +306,7 @@ private:
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
   spi_device_handle_t spi;
-  #ifdef PINMAP_A2_REV0
+ 
   spi_transaction_t rxtrans;
   spi_device_handle_t spirx;
   //const int f_over = 4;
@@ -320,14 +321,13 @@ private:
   const int f_spirx = APB_CLK_FREQ / 40; // 2 MHz - need slower rate for PAL
   const int pulsewidth = 8; // 8 samples per bit
   const int halfwidth = pulsewidth / 2;
-  #endif
 
   // low level bit-banging i/o functions
   void iwm_rddata_set();
   void iwm_rddata_clr();
   void iwm_rddata_disable();
   void iwm_rddata_enable();
-  bool iwm_wrdata_val();
+  // bool iwm_wrdata_val();
   bool iwm_req_val();
   void iwm_ack_set();
   void iwm_ack_clr();
