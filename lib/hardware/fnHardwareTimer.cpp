@@ -39,7 +39,7 @@
   {
     fnTimer.latch();   // latch highspeed timer value
     fnTimer.read(); // grab timer low word
-    if (fnTimer.test())                      // test for timeout
+    if (fnTimer.timeout())   // test for timeout
     { 
       // timeout!
     }

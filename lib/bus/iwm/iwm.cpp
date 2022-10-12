@@ -132,27 +132,14 @@ uint16_t iwmDevice::packet_len = 0;
 uint16_t iwmDevice::num_decoded = 0;
 
 inline void iwmBus::iwm_rddata_set()
-{
+{ // make RDDATA go hi-z through the tri-state
   GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
 }
 
 inline void iwmBus::iwm_rddata_clr()
-{
+{ // enable the tri-state buffer activating RDDATA
   GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
 }
-
-inline void iwmBus::iwm_rddata_enable()
-{
-}
-
-inline void iwmBus::iwm_rddata_disable()
-{
-}
-
-// inline bool iwmBus::iwm_wrdata_val()
-// {
-//   return (GPIO.in & ((uint32_t)0x01 << (SP_WRDATA)));
-// }
 
 inline bool iwmBus::iwm_req_val()
 {
@@ -202,24 +189,13 @@ inline bool iwmBus::iwm_enable_val()
  */
 inline void iwmBus::iwm_ack_clr()
 {
-  // GPIO.out_w1tc = ((uint32_t)0x01 << SP_ACK); // temporary test - use enable to clear and disable to set. Setup already cleared
-  GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  
+  GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  // enable the line already set to low
 }
 
 inline void iwmBus::iwm_ack_set()
 {
-  // GPIO.out_w1ts = ((uint32_t)0x01 << SP_ACK);
-  GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK); // temporary test - use enable to clear and disable to set. Setup already cleared
-}
-
-inline void iwmBus::iwm_ack_enable()
-{
-  // GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  
-}
-
-inline void iwmBus::iwm_ack_disable()
-{
-  // GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK);
+  
+  GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK); // disable the line so it goes hi-z
 }
 
 //------------------------------------------------------
@@ -275,7 +251,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 }
 
 //------------------------------------------------------
-bool iwmBus::spirx_get_next_sample()
+bool IRAM_ATTR iwmBus::spirx_get_next_sample()
 {
   if (spirx_bit_ctr > 7)
   {
@@ -331,7 +307,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n)
   {
     fnTimer.latch();   // latch highspeed timer value
     fnTimer.read(); // grab timer low word
-    if (fnTimer.test())                      // test for timeout
+    if (fnTimer.timeout())                      // test for timeout
     { // timeout!
 #ifdef VERBOSE_IWM
       // timeout
@@ -463,7 +439,6 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
     if (!iwm_read_packet_spi(a, n))
     {
       iwm_ack_clr(); // todo - make ack functions public so devices can call them?
-      iwm_ack_enable();
       portENABLE_INTERRUPTS();
 #ifdef DEBUG
       print_packet(a);
@@ -536,7 +511,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   trans.length = spi_len * 8;   // Data length, in bits
   trans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
 
-  iwm_ack_set(); // ack is already enabled by the response to the command read
+  iwm_ack_set(); // go hi-z
 
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
   // setup a timeout counter to wait for REQ response
@@ -550,22 +525,19 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   {
     fnTimer.latch();   // latch highspeed timer value
     fnTimer.read(); // grab timer low word
-    if (fnTimer.test())                      // test for timeout
+    if (fnTimer.timeout())                      // test for timeout
     {
       // timeout!
       Debug_printf("\r\nSendPacket timeout waiting for REQ");
-      iwm_rddata_disable();
-      //iwm_ack_disable(); // need to release the bus if we're quitting
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
   };
 // ;
 
-  iwm_rddata_enable();
-  iwm_rddata_clr();
+  iwm_rddata_clr(); // enable the tri-state buffer
   ret = spi_device_polling_transmit(spi, &trans);
-  iwm_rddata_set();
+  iwm_rddata_set(); // make rddata hi-z
   iwm_ack_clr();
   assert(ret == ESP_OK);
 
@@ -578,16 +550,14 @@ int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
   {
     fnTimer.latch();   // latch highspeed timer value
     fnTimer.read(); // grab timer low word
-    if (fnTimer.test())                      // test for timeout
+    if (fnTimer.timeout())                      // test for timeout
     {
-      iwm_rddata_disable();
       Debug_println("Send REQ timeout");
      // iwm_ack_disable();       // need to release the bus
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
   };
-  iwm_rddata_disable();
   portENABLE_INTERRUPTS();
   return 0;
 }
@@ -1182,12 +1152,11 @@ void iwmBus::service()
   {
     //Debug_printf("\r\nFloppy Drive ENabled!");
     iwm_rddata_clr();
-    iwm_rddata_enable();
   }
   else
   {
     //Debug_printf("\r\nFloppy Drive DISabled!"); // debug msg latency here screws up SP timing.
-    iwm_rddata_disable();
+     iwm_rddata_set(); // make rddata hi-z
   }
 
   // read phase lines to check for smartport reset or enable
@@ -1224,7 +1193,6 @@ void iwmBus::service()
     if (command_packet.command == 0x85)
     {
       iwm_ack_clr();
-      iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
       spi_device_polling_end(spirx, portMAX_DELAY);
       portENABLE_INTERRUPTS();
 
@@ -1238,7 +1206,7 @@ void iwmBus::service()
       {
         fnTimer.latch();               // latch highspeed timer value
         fnTimer.read();                // grab timer low word
-        if (fnTimer.test()) // test for timeout
+        if (fnTimer.timeout()) // test for timeout
         {                                // timeout!
           return;
         }
@@ -1263,7 +1231,6 @@ void iwmBus::service()
         if (command_packet.dest == devicep->_devnum)
         {
           iwm_ack_clr();
-          iwm_ack_enable(); // now ACK is enabled and cleared low, it is reset in the handlers
 
           spi_device_polling_end(spirx, portMAX_DELAY);
           portENABLE_INTERRUPTS();
@@ -1277,7 +1244,7 @@ void iwmBus::service()
           {
             fnTimer.latch();               // latch highspeed timer value
             fnTimer.read();                // grab timer low word
-            if (fnTimer.test()) // test for timeout
+            if (fnTimer.timeout()) // test for timeout
             {                                // timeout!
               return;
             }
@@ -1318,8 +1285,6 @@ void iwmBus::handle_init()
   fnLedManager.set(LED_BUS, true);
 
   iwm_rddata_clr();
-  iwm_rddata_enable();
-
   
   // to do - get the next device in the daisy chain and assign ID
   for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
