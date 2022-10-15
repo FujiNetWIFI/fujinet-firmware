@@ -559,7 +559,7 @@ void iwmNetwork::special_40()
         encode_error_reply_packet(SP_ERR_BADCMD);
     }
 
-    IWM.SEND_PACKET((uint8_t *)packet_buffer);
+    IWM.iwm_send_packet((uint8_t *)packet_buffer);
 }
 
 /**
@@ -591,7 +591,7 @@ void iwmNetwork::iwm_open(cmdPacket_t cmd)
 {
     Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
     encode_status_reply_packet();
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmNetwork::iwm_close(cmdPacket_t cmd)
@@ -599,7 +599,7 @@ void iwmNetwork::iwm_close(cmdPacket_t cmd)
     // Probably need to send close command here.
     Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
     encode_status_reply_packet();
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
     close();
 }
 
@@ -635,14 +635,14 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
     {
     case IWM_STATUS_STATUS: // 0x00
         encode_status_reply_packet();
-        IWM.SEND_PACKET((unsigned char *)packet_buffer);
+        IWM.iwm_send_packet((unsigned char *)packet_buffer);
         return;
         break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB: // 0x03
         encode_status_dib_reply_packet();
-        IWM.SEND_PACKET((unsigned char *)packet_buffer);
+        IWM.iwm_send_packet((unsigned char *)packet_buffer);
         return;
         break;
     case 'R':
@@ -656,7 +656,7 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
     Debug_printf("\r\nStatus code complete, sending response");
     encode_data_packet(packet_len);
 
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmNetwork::net_read()
@@ -756,7 +756,7 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
 
     encode_data_packet(packet_len);
     Debug_printf("\r\nsending block packet ...");
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
     packet_len = 0;
     memset(packet_buffer, 0, sizeof(packet_buffer));
 }
@@ -800,12 +800,12 @@ void iwmNetwork::iwm_write(cmdPacket_t cmd)
         if (write_channel(num_bytes))
         {
             encode_error_reply_packet(SP_ERR_IOERROR);
-            IWM.SEND_PACKET((uint8_t *)packet_buffer);
+            IWM.iwm_send_packet((uint8_t *)packet_buffer);
         }
         else
         {
             encode_write_status_packet(source, 0);
-            IWM.SEND_PACKET((uint8_t *)packet_buffer);
+            IWM.iwm_send_packet((uint8_t *)packet_buffer);
         }
     }
 }
@@ -893,7 +893,7 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
         err_result = SP_ERR_IOERROR;
 
     encode_error_reply_packet(err_result);
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmNetwork::process(cmdPacket_t cmd)
