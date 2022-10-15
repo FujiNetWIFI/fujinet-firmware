@@ -131,84 +131,19 @@ uint8_t iwmDevice::packet_buffer[BLOCK_PACKET_LEN] = { 0 };
 uint16_t iwmDevice::packet_len = 0;
 uint16_t iwmDevice::num_decoded = 0;
 
-inline void iwmBus::iwm_rddata_set()
-{ // make RDDATA go hi-z through the tri-state
-  GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA);
-}
-
-inline void iwmBus::iwm_rddata_clr()
-{ // enable the tri-state buffer activating RDDATA
-  GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA);
-}
-
-inline bool iwmBus::iwm_req_val()
+void iwmBus::iwm_ack_deassert()
 {
-  return (GPIO.in1.val & (0x01 << (SP_REQ-32)));
+  smartport.iwm_ack_set(); // go hi-z
 }
 
-inline void iwmBus::iwm_extra_set()
+void iwmBus::iwm_ack_assert()
 {
-#ifdef EXTRA
-  GPIO.out_w1ts = ((uint32_t)1 << SP_EXTRA);
-#endif
-}
-
-inline void iwmBus::iwm_extra_clr()
-{
-#ifdef EXTRA
-  GPIO.out_w1tc = ((uint32_t)1 << SP_EXTRA);
-#endif
-}
-
-inline bool iwmBus::iwm_enable_val()
-{
-  return true;
-}
-
-//------------------------------------------------------
-/** ACK and REQ
- * how ACK works, my interpretation of the iigs firmware reference.
- * ACK is normally high-Z when device is ready to receive commands.
- * host will send REQ high to make a request and send a command.
- * device responds after command is received by sending ACK low.
- * host completes command handshake by sending REQ low.
- * device signals its ready for the next step (receive/send/status)
- * by sending ACK back high.
- * 
- * how ACK works with multiple devices on bus:
- * ACK is normally high-Z (pulled up?)
- * when a device receives a command addressed to it, and it is ready
- * to respond, it'll send ACK low. (To me, this seems like a perfect
- * scenario for open collector output but I think it's a 3-state line)
- * 
- * possible circuits:
- * Disk II physical interface - ACK uses the WPROT line, which is a tri-state ls125 buffer on the
- * Disk II analog card. There's no pull up/down/load resistor. This line drives the /SR input of the 
- * ls323 on the bus interface card. I surmise that WPROT goes low or is hi-z, which doesn't 
- * reset the ls125.  
- */
-inline void iwmBus::iwm_ack_clr()
-{
-  GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK);  // enable the line already set to low
-}
-
-inline void iwmBus::iwm_ack_set()
-{
-  
-  GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK); // disable the line so it goes hi-z
-}
-
-//------------------------------------------------------
-
-uint8_t iwmBus::iwm_phase_vector()
-{
-  uint8_t phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
-  return phases;
+  smartport.iwm_ack_clr();
 }
 
 bool iwmBus::iwm_phase_val(uint8_t p)
 {
-  uint8_t phases = iwm_phase_vector();
+  uint8_t phases = smartport.iwm_phase_vector();
   if (p < 4)
     return (phases >> p) & 0x01;
   Debug_printf("\r\nphase number out of range");
@@ -222,7 +157,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   // ph3=0 ph2=1 ph1=0 ph0=1
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
-  uint8_t phases = iwm_phase_vector();
+  uint8_t phases = smartport.iwm_phase_vector();
   if (phases == 0b1010)
     phasestate = iwm_phases_t::enable;
   else if (phases == 0b0101)
@@ -251,199 +186,27 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 }
 
 //------------------------------------------------------
-bool IRAM_ATTR iwmBus::spirx_get_next_sample()
+
+int iwmBus::iwm_send_packet(uint8_t *a)
 {
-  if (spirx_bit_ctr > 7)
-  {
-    spirx_bit_ctr = 0;
-    spirx_byte_ctr++;
-  }
-  return (((spi_buffer[spirx_byte_ctr] << spirx_bit_ctr++) & 0x80) == 0x80);
-}
-
-int IRAM_ATTR iwmBus::iwm_read_packet_spi(uint8_t *a, int n) 
-{ // read data stream using SPI
-  fnTimer.reset();
-   
-  // signal the logic analyzer
-  iwm_extra_set();
-
-  /* calculations for determining array sizes
-  int numsamples = pulsewidth * (n + 2) * 8;
-  command packet on DIY SP is 872 us long
-  2051282 * 872e-6 = 1798 samples = 224 byes
-  nominal command length is 27 bytes * 8 * 8 = 1728 samples
-  1798/1728 = 1.04
-
-  command packet on YS is 919 us
-  2.052 * 919 = 1886 samples
-  1886 / 1728 = 1.0914    --    this one says we need 10% extra array length
-
-  write block packet on DIY 29 is 20.1 ms long
-  2052kHz * 20.1ms =  41245 samples = 5156 bytes
-  nominal 604 bytes for block packet = 38656 samples
-  41245/38656 = 1.067
-  
-  write block packet on YS is 18.95 ms so should fit within DIY
-  IIgs take 18.88 ms for a write block 
-  */
-
-  spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
-  
-  memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
-  memset(&rxtrans, 0, sizeof(spi_transaction_t));
-  rxtrans.flags = 0; 
-  rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
-  rxtrans.rxlength = spi_len * 8;   // Data length, in bits
-  rxtrans.tx_buffer = nullptr;
-  rxtrans.rx_buffer = spi_buffer; // finally send the line data
-
-  // setup a timeout counter to wait for REQ response
-  fnTimer.latch();        // latch highspeed timer value
-  fnTimer.read();      //  grab timer low word
-  fnTimer.alarm_set(1000); // logic analyzer says 40 usec
-
-  while ( !iwm_req_val() )  
-  {
-    fnTimer.latch();   // latch highspeed timer value
-    fnTimer.read(); // grab timer low word
-    if (fnTimer.timeout())                      // test for timeout
-    { // timeout!
-#ifdef VERBOSE_IWM
-      // timeout
-      Debug_print("t");
-#endif
-      iwm_extra_clr();
-      return 1;
-    }
-  };
-
-  esp_err_t ret = spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
-  assert(ret == ESP_OK);
-  iwm_extra_clr();
-
-  // decode the packet here
-  spirx_byte_ctr = 0; // initialize the SPI buffer sampler
-  spirx_bit_ctr = 0;
-
-  bool have_data = true;
-  bool synced = false;
-  int idx = 0;             // index into *a
-  bool bit = false; // = 0;        // logical bit value
-
-  uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
-  int numbits = 8;             // number of bits left to read into the rxbyte
-
-  bool prev_level = true;
-  bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
-
-  //for tracking the number of samples
-  int bit_position;
-  int last_bit_pos = 0;
-  int samples;
-  bool start_packet = true;
-  
-  fnTimer.latch();               // latch highspeed timer value
-  fnTimer.read();                //  grab timer low word
-  // sync byte is 10 * 8 * (10*1000*1000/2051282) = 39.0 us long
-  fnTimer.alarm_set(390 * 3 / 2);          // wait for first 1.5 sync bytes
-
-  do // have_data
-  {
-    iwm_extra_set(); // signal to LA we're in the nested loop
-
-    bit_position = spirx_byte_ctr * 8 + spirx_bit_ctr; // current bit positon
-    samples = bit_position - last_bit_pos; // difference since last time
-    last_bit_pos = bit_position;
-
-    fnTimer.wait();
-
-    if (start_packet) // is at the start, assume sync byte, 39.2 us for 10-bit sync bytes
-    {
-      fnTimer.alarm_set( 390 ); // latch and read already done in fnTimer.wait()
-      start_packet = false;
-    }
-    else
-    {      
-      fnTimer.alarm_snooze( (samples * 10 * 1000 * 1000) / f_spirx); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
-    }
-
-    iwm_extra_clr();
-    do
-    {
-      bit = false; // assume no edge in this next bit
-#ifdef VERBOSE_IWM
-      Debug_printf("\r\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
-      Debug_printf("\r\nspibyte spibit intctr sampval preval rxbit rxbyte");
-#endif
-      int i = 0;
-      while (i < pulsewidth)
-      {
-        current_level = spirx_get_next_sample();
-        current_level ? iwm_extra_clr() : iwm_extra_set();
-#ifdef VERBOSE_IWM
-        Debug_printf("\r\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
-#endif
-        // sprix:
-        // loop through 4 usec worth of samples looking for an edge
-        // if found, jump forward 2 usec and set bit = 1;
-        // otherwise, bit = 0;
-        if ((prev_level != current_level))
-        {
-          i = halfwidth; // resync the receiver - must be halfway through 4-us period at an edge
-          bit = true;
-        }
-        prev_level = current_level;
-        i++;
-      }
-      rxbyte <<= 1;
-      rxbyte |= bit;
-      iwm_extra_set(); // signal to LA we're done with this bit
-    } while (--numbits > 0); 
-    if ((rxbyte == 0xc3) && (!synced))
-    {
-      synced = true;
-      idx = 5;
-    }
-    a[idx++] = rxbyte;
-    // wait for leading edge of next byte or timeout for end of packet
-    int timeout_ctr = (f_spirx * 19) / (1000 * 1000); //((f_nyquist * f_over) * 18) / (1000 * 1000);
-#ifdef VERBOSE_IWM
-    Debug_printf("%02x ", rxbyte);
-#endif
-    // now wait for leading edge of next byte
-    iwm_extra_clr();
-    if (idx > n)
-      have_data = false;
-    else
-      do
-      {
-        if (--timeout_ctr < 1)
-        { // end of packet
-          have_data = false;
-          break;
-        }
-      } while (spirx_get_next_sample() == prev_level);
-    numbits = 8;
-  } while (have_data); // while have_data
-  return 0;
+  return smartport.iwm_send_packet_spi(a);
 }
 
 int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 {
-  iwm_ack_set(); // go hi-z
-  // iwm_ack_disable();
+  iwm_ack_deassert();
+
   portDISABLE_INTERRUPTS();
   for (int i = 0; i < attempts; i++)
   {
-    if (!iwm_read_packet_spi(a, n))
+    if (!smartport.iwm_read_packet_spi(a, n))
     {
-      iwm_ack_clr(); // todo - make ack functions public so devices can call them?
+      iwm_ack_assert();
       portENABLE_INTERRUPTS();
 #ifdef DEBUG
       print_packet(a);
 #endif
-      spi_device_polling_end(spirx, portMAX_DELAY);
+      smartport.spi_end(); // spi_device_polling_end(spirx, portMAX_DELAY);
       return 0;
     } // if
   }
@@ -455,171 +218,22 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
   return 1;
 }
 
-void iwmBus::encode_spi_packet(uint8_t *a)
-{
-  // clear out spi buffer
-  memset(spi_buffer, 0, SPI_BUFFER_LEN);
-  // loop through "l" bytes of the buffer "a"
-  uint16_t i=0,j=0;
-  while(a[i])
-  {
-    // Debug_printf("\r\nByte %02X: ",a[i]);
-    // for each byte, loop through 4 x 2-bit pairs
-    uint8_t mask = 0x80;
-    for (int k = 0; k < 4; k++)
-    {
-      if (a[i] & mask)
-      {
-        spi_buffer[j] |= 0x40;
-      }
-      mask >>= 1;
-      if (a[i] & mask)
-      {
-        spi_buffer[j] |= 0x04;
-      }
-      mask >>= 1;
-      // Debug_printf("%02x",spi_buffer[j]);
-      j++;
-    }
-    i++;
-  }
-  spi_len = --j;
-}
-
-int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
-{
-  //*****************************************************************************
-  // Function: iwm_send_packet_spi
-  // Parameters: packet_buffer pointer
-  // Returns: status (not used yet, always returns 0)
-  //
-  // Description: This handles the ACK and REQ lines and sends the packet from the
-  // pointer passed to it. (packet_buffer)
-  //
-  //*****************************************************************************
-
-  portDISABLE_INTERRUPTS();
-
-  //print_packet((uint8_t *)a);
-  encode_spi_packet((uint8_t *)a);
-
-  // send data stream using SPI
-  esp_err_t ret;
-  spi_transaction_t trans;
-  memset(&trans, 0, sizeof(spi_transaction_t));
-  trans.tx_buffer = spi_buffer; // finally send the line data
-  trans.length = spi_len * 8;   // Data length, in bits
-  trans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
-
-  iwm_ack_set(); // go hi-z
-
-  // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
-  // setup a timeout counter to wait for REQ response
-  fnTimer.reset();
-  fnTimer.latch();        // latch highspeed timer value
-  fnTimer.read();      //  grab timer low word
-  fnTimer.alarm_set(300000); // increased to 30 millisecond per IIgs & gsos
-
-  // while (!fnSystem.digital_read(SP_REQ))
-  while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
-  {
-    fnTimer.latch();   // latch highspeed timer value
-    fnTimer.read(); // grab timer low word
-    if (fnTimer.timeout())                      // test for timeout
-    {
-      // timeout!
-      Debug_printf("\r\nSendPacket timeout waiting for REQ");
-      portENABLE_INTERRUPTS(); // takes 7 us to execute
-      return 1;
-    }
-  };
-// ;
-
-  iwm_rddata_clr(); // enable the tri-state buffer
-  ret = spi_device_polling_transmit(spi, &trans);
-  iwm_rddata_set(); // make rddata hi-z
-  iwm_ack_clr();
-  assert(ret == ESP_OK);
-
-  fnTimer.reset();
-  fnTimer.latch();        // latch highspeed timer value
-  fnTimer.read();      //  grab timer low word
-  fnTimer.alarm_set(15000); // 1 ms not long enough for yellowstone
-
-  while (iwm_req_val()) 
-  {
-    fnTimer.latch();   // latch highspeed timer value
-    fnTimer.read(); // grab timer low word
-    if (fnTimer.timeout())                      // test for timeout
-    {
-      Debug_println("Send REQ timeout");
-     // iwm_ack_disable();       // need to release the bus
-      portENABLE_INTERRUPTS(); // takes 7 us to execute
-      return 1;
-    }
-  };
-  portENABLE_INTERRUPTS();
-  return 0;
-}
 
 void iwmBus::setup(void)
 {
-  esp_err_t ret; // used for calling SPI library functions below
+  
 
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
 
   fnTimer.config();
   Debug_printf("\r\nIWM timer started");
 
-  spi_buffer=(uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA); 
-
-  spi_device_interface_config_t devcfg = {
-      .mode = 0,                   // SPI mode 0
-      .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-      .cs_ena_pretrans = 0,        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
-      .cs_ena_posttrans = 0,       ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
-      .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
-      .spics_io_num = -1,                // CS pin
-      .queue_size = 2                    // We want to be able to queue 7 transactions at a time
-  };
-
-    // use same SPI as SDCARD
-    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-
-  assert(ret == ESP_OK);
-
-// SPI for receiving packets - sprirx
-// use different SPI than SDCARD
-  spi_bus_config_t bus_cfg = {
-      .mosi_io_num = -1,
-      .miso_io_num = SP_WRDATA,
-      .sclk_io_num = -1,
-      .quadwp_io_num = -1,
-      .quadhd_io_num = -1,
-      .max_transfer_sz = SPI_BUFFER_LEN,
-      .flags = SPICOMMON_BUSFLAG_MASTER,
-      .intr_flags = 0};
-  spi_device_interface_config_t rxcfg = {
-      .mode = 0, // SPI mode 0
-      .cs_ena_pretrans = 0,
-      .cs_ena_posttrans = 0,
-      .clock_speed_hz = f_spirx, // f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
-      .spics_io_num = -1,        // CS pin
-      .flags = SPI_DEVICE_HALFDUPLEX,
-      .queue_size = 1};          // We want to be able to queue 7 transactions at a time
-
-  ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
-  assert(ret == ESP_OK);
-  ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
-  assert(ret == ESP_OK);
+  smartport.setup();
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
-  // fnSystem.digital_write(SP_ACK, DIGI_HIGH); // ID ACK for Logic Analyzer
-  // fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  //fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //
-  iwm_ack_set(); // go to hi-z
+  iwm_ack_deassert(); // go to hi-z
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
@@ -636,15 +250,7 @@ void iwmBus::setup(void)
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
 
-#ifdef EXTRA
-  fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
-  fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
-  fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
-  fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
-  fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
-  fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
-  Debug_printf("\r\nEXTRA signaling line configured");
-#endif
+
 
   Debug_printf("\r\nIWM GPIO configured");
 }
@@ -990,14 +596,14 @@ void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   encode_error_reply_packet(SP_ERR_BADCMD);
-  IWM.SEND_PACKET((unsigned char *)packet_buffer);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmDevice::iwm_return_ioerror(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   encode_error_reply_packet(SP_ERR_IOERROR);
-  IWM.SEND_PACKET((unsigned char *)packet_buffer);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 //*****************************************************************************
@@ -1073,7 +679,7 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
       encode_status_reply_packet();
     }
   print_packet(&packet_buffer[14]);
-  IWM.SEND_PACKET((unsigned char *)packet_buffer);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 //*****************************************************************************
@@ -1145,19 +751,18 @@ int iwmDevice::get_packet_length (void)
 //*****************************************************************************
 void iwmBus::service()
 {
-  iwm_ack_set(); // go hi-Z
-  // iwm_ack_clr();     // prep for the next read packet
+  iwm_ack_deassert(); // go hi-Z
 
-  if (iwm_drive_enables())
-  {
-    //Debug_printf("\r\nFloppy Drive ENabled!");
-    iwm_rddata_clr();
-  }
-  else
-  {
-    //Debug_printf("\r\nFloppy Drive DISabled!"); // debug msg latency here screws up SP timing.
-     iwm_rddata_set(); // make rddata hi-z
-  }
+  // if (iwm_drive_enables())
+  // {
+  //   //Debug_printf("\r\nFloppy Drive ENabled!");
+  //   iwm_rddata_clr();
+  // }
+  // else
+  // {
+  //   //Debug_printf("\r\nFloppy Drive DISabled!"); // debug msg latency here screws up SP timing.
+  //    iwm_rddata_set(); // make rddata hi-z
+  // }
 
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
@@ -1184,7 +789,7 @@ void iwmBus::service()
   case iwm_phases_t::enable:
     // expect a command packet
     portDISABLE_INTERRUPTS();
-    if(iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
+    if(smartport.iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
     {
       portENABLE_INTERRUPTS();
       return;
@@ -1192,25 +797,14 @@ void iwmBus::service()
     // should not ACK unless we know this is our Command
     if (command_packet.command == 0x85)
     {
-      iwm_ack_clr();
-      spi_device_polling_end(spirx, portMAX_DELAY);
+      iwm_ack_assert();
+      smartport.spi_end();
       portENABLE_INTERRUPTS();
 
       // wait for REQ to go low
-      //fnTimer.reset();
-      fnTimer.reset();
-      fnTimer.latch();          // latch highspeed timer value
-      fnTimer.read();           //  grab timer low word
-      fnTimer.alarm_set(50000); // todo: figure out
-      while (iwm_req_val())
-      {
-        fnTimer.latch();               // latch highspeed timer value
-        fnTimer.read();                // grab timer low word
-        if (fnTimer.timeout()) // test for timeout
-        {                                // timeout!
-          return;
-        }
-      }
+      if (smartport.req_timeout(50000))
+        return;
+
 
 #ifdef DEBUG
       print_packet(command_packet.data);
@@ -1230,25 +824,14 @@ void iwmBus::service()
       {
         if (command_packet.dest == devicep->_devnum)
         {
-          iwm_ack_clr();
+          iwm_ack_assert();
 
-          spi_device_polling_end(spirx, portMAX_DELAY);
+          smartport.spi_end();
           portENABLE_INTERRUPTS();
 
           // wait for REQ to go low
-          fnTimer.reset();
-          fnTimer.latch();          // latch highspeed timer value
-          fnTimer.read();           //  grab timer low word
-          fnTimer.alarm_set(50000); // todo: figure out
-          while (iwm_req_val())
-          {
-            fnTimer.latch();               // latch highspeed timer value
-            fnTimer.read();                // grab timer low word
-            if (fnTimer.timeout()) // test for timeout
-            {                                // timeout!
-              return;
-            }
-          }
+          if (smartport.req_timeout(50000))
+            return;
 
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
@@ -1284,7 +867,7 @@ void iwmBus::handle_init()
 
   fnLedManager.set(LED_BUS, true);
 
-  iwm_rddata_clr();
+  // iwm_rddata_clr();
   
   // to do - get the next device in the daisy chain and assign ID
   for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
@@ -1303,7 +886,7 @@ void iwmBus::handle_init()
         status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
       pDevice->encode_init_reply_packet(command_packet.dest, status);
       Debug_printf("\r\nSending INIT Response Packet...");
-      SEND_PACKET((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
+      smartport.iwm_send_packet_spi((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
 
       // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
