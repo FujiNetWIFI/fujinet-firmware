@@ -10,13 +10,8 @@
 #include <cstdint>
 #include <forward_list>
 #include <string>
-#include "driver/spi_master.h"
 
 #include "fnFS.h"
-
-// activate for using SPI to transmit data from ESP to Apple II
-// required for ESP32 Rev C
-#define SEND_PACKET iwm_send_packet_spi
 
 // see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
@@ -301,38 +296,6 @@ private:
   iwmCPM *_cpmDev = nullptr;
   iwmPrinter *_printerdev = nullptr;
 
-  // this block should go to low level
-  // iwm packet handling
-  uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
-  uint16_t spi_len;
-  spi_device_handle_t spi;
- 
-  spi_transaction_t rxtrans;
-  spi_device_handle_t spirx;
-  //const int f_over = 4;
-  //const int f_nyquist = 2 * 250 * 1000; // 255682; // 500 * 1000; // 2 x 250 kbps
-  /**
-   * N  Clock MHz   /8 Bit rate (kHz)    Bit/Byte period (us)
-   * 39	2.051282051	256.4102564	        3.9	31.2          256410 is only 0.3% faster than 255682
-   * 40	2	          250.	                4.0	32
-   * 41	1.951219512	243.902439	          4.1	32.8
-  **/
-  // const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz
-  const int f_spirx = APB_CLK_FREQ / 40; // 2 MHz - need slower rate for PAL
-  const int pulsewidth = 8; // 8 samples per bit
-  const int halfwidth = pulsewidth / 2;
-
-  // low level bit-banging i/o functions
-  void iwm_rddata_set();
-  void iwm_rddata_clr();
-  bool iwm_req_val();
-  void iwm_ack_set();
-  void iwm_ack_clr();
-  void iwm_extra_set();
-  void iwm_extra_clr();
-  bool iwm_enable_val();
-
-  uint8_t iwm_phase_vector();
   bool iwm_phase_val(uint8_t p);
 
   enum class iwm_phases_t
@@ -348,22 +311,18 @@ private:
 
   bool iwm_drive_enables();
 
+  void iwm_ack_deassert();
+  void iwm_ack_assert();
+
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
 
-  int spirx_byte_ctr;
-  int spirx_bit_ctr;
-  bool spirx_get_next_sample();
 
 public:
 
   // these are low level commands and should be called/replace with one layer more of abstraction
-  int iwm_read_packet_spi(uint8_t *a, int n); 
-  int iwm_read_packet(uint8_t *a, int n);
   int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
-  void encode_spi_packet(uint8_t *a);
   int iwm_send_packet(uint8_t *a);
-  int iwm_send_packet_spi(uint8_t *a);
 
   // these things stay for the most part
   void setup();

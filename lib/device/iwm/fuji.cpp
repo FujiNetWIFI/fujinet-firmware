@@ -38,7 +38,7 @@ void iwmFuji::iwm_ctrl_reset_fujinet() // SP CTRL command
 {
     Debug_printf("\r\nFuji cmd: REBOOT");
     encode_status_reply_packet();
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
     // save device unit SP address somewhere and restore it after reboot?
     fnSystem.reboot();
 }
@@ -1231,7 +1231,7 @@ void iwmFuji::iwm_open(cmdPacket_t cmd)
 {
   Debug_printf("\r\nOpen FujiNet Unit # %02x",cmd.g7byte1);
   encode_status_reply_packet();
-  IWM.SEND_PACKET((unsigned char *)packet_buffer);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmFuji::iwm_close(cmdPacket_t cmd)
@@ -1255,14 +1255,14 @@ void iwmFuji::iwm_read(cmdPacket_t cmd)
 
   // Debug_printf(" - ERROR - No image mounted");
   // encode_error_reply_packet(source, SP_ERR_OFFLINE);
-  // IWM.SEND_PACKET((unsigned char *)packet_buffer);
+  // IWM.iwm_send_packet((unsigned char *)packet_buffer);
   // return;
 
   memcpy(packet_buffer,"HELLO WORLD",11);
   encode_data_packet(11);
   Debug_printf("\r\nsending data packet with %d elements ...", 11);
   //print_packet();
-  IWM.SEND_PACKET((unsigned char *)packet_buffer);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 
@@ -1280,14 +1280,14 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       break;
     case IWM_STATUS_STATUS:                  // 0x00
       encode_status_reply_packet();
-      IWM.SEND_PACKET((unsigned char *)packet_buffer);
+      IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return;
       break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB:                     // 0x03
       encode_status_dib_reply_packet();
-      IWM.SEND_PACKET((unsigned char *)packet_buffer);
+      IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return;
       break;
     // case FUJICMD_RESET:               // 0xFF
@@ -1355,14 +1355,14 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
     default:
       Debug_printf("\r\nBad Status Code, sending error response");
       encode_error_reply_packet(SP_ERR_BADCTL);
-      IWM.SEND_PACKET((unsigned char *)packet_buffer);
+      IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return;
       break;
   }
   Debug_printf("\r\nStatus code complete, sending response");
   encode_data_packet(packet_len);
   
-  IWM.SEND_PACKET((unsigned char *)packet_buffer);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 
@@ -1476,7 +1476,7 @@ void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
       break;
   }
   encode_error_reply_packet(err_result); 
-  IWM.SEND_PACKET((unsigned char *)packet_buffer);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 
