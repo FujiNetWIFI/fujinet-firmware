@@ -131,6 +131,8 @@ uint8_t iwmDevice::packet_buffer[BLOCK_PACKET_LEN] = { 0 };
 uint16_t iwmDevice::packet_len = 0;
 uint16_t iwmDevice::num_decoded = 0;
 
+
+
 void iwmBus::iwm_ack_deassert()
 {
   smartport.iwm_ack_set(); // go hi-z
