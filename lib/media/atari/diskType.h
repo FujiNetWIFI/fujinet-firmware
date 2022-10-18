@@ -47,7 +47,6 @@ class MediaType
 protected:
     FILE *_disk_fileh = nullptr;
     uint32_t _disk_image_size = 0;
-    uint32_t _disk_num_sectors = 0;
     uint16_t _disk_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
     int32_t _disk_last_sector = INVALID_SECTOR_VALUE;
     uint8_t _disk_controller_status = DISK_CTRL_STATUS_CLEAR;
@@ -75,6 +74,7 @@ public:
     char _disk_filename[256];
 
     uint8_t _disk_sectorbuff[DISK_SECTORBUF_SIZE];
+    uint32_t _disk_num_sectors = 0;
 
     fujiHost *_disk_host = nullptr;
     FILE *_disk_hsfileh = nullptr;
