@@ -38,7 +38,7 @@ sioDisk::sioDisk()
 // Read disk data and send to computer
 void sioDisk::sio_read()
 {
-    //Debug_print("disk READ\n");
+    // Debug_print("disk READ\n");
 
     if (_disk == nullptr)
     {
@@ -57,7 +57,7 @@ void sioDisk::sio_read()
 // Write disk data from computer
 void sioDisk::sio_write(bool verify)
 {
-    //Debug_print("disk WRITE\n");
+    // Debug_print("disk WRITE\n");
 
     if (_disk != nullptr)
     {
@@ -113,7 +113,7 @@ void sioDisk::sio_status()
               810 drive: $E0 = 224 vertical blanks (4 mins NTSC)
             XF551 drive: $FE = 254 veritcal blanks (4.5 mins NTSC)
 
-        #3 - Unused ($00)    
+        #3 - Unused ($00)
     */
     // TODO: Why $DF for second byte?
     // TODO: Set bit 4 of drive status and bit 6 of FDC status on read-only disk
@@ -227,7 +227,7 @@ mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         if (host != nullptr)
         {
             _disk->_disk_host = host;
-            strcpy(_disk->_disk_filename,filename);
+            strcpy(_disk->_disk_filename, filename);
         }
         return _disk->mount(f, disksize);
     case MEDIATYPE_ATX:
@@ -236,7 +236,7 @@ mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         if (host != nullptr)
         {
             _disk->_disk_host = host;
-            strcpy(_disk->_disk_filename,filename);
+            strcpy(_disk->_disk_filename, filename);
         }
         return _disk->mount(f, disksize);
     case MEDIATYPE_ATR:
@@ -247,7 +247,7 @@ mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         if (host != nullptr)
         {
             _disk->_disk_host = host;
-            strcpy(_disk->_disk_filename,filename);
+            strcpy(_disk->_disk_filename, filename);
         }
         return _disk->mount(f, disksize);
     }
@@ -298,8 +298,21 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     switch (cmdFrame.comnd)
     {
     case SIO_DISKCMD_READ:
-        sio_ack();
-        sio_read();
+        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
+        {
+            sio_nak();
+            return;
+        }
+        else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
+        {
+            sio_nak();
+            return;
+        }
+        else
+        {
+            sio_ack();
+            sio_read();
+        }
         return;
     case SIO_DISKCMD_HSIO_READ:
         if (_disk->_allow_hsio)
@@ -310,15 +323,40 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         }
         break;
     case SIO_DISKCMD_PUT:
-        sio_ack();
-        sio_write(false);
+        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
+        {
+            sio_nak();
+            return;
+        }
+        else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
+        {
+            sio_nak();
+            return;
+        }
+        else
+        {
+            sio_ack();
+            sio_write(false);
+        }
         return;
     case SIO_DISKCMD_HSIO_PUT:
         if (_disk->_allow_hsio)
         {
-            sio_ack();
-            sio_write(false);
-            return;
+            if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
+            {
+                sio_nak();
+                return;
+            }
+            else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
+            {
+                sio_nak();
+                return;
+            }
+            else
+            {
+                sio_ack();
+                sio_write(false);
+            }
         }
         break;
     case SIO_DISKCMD_STATUS:
@@ -327,7 +365,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             if (theFuji.boot_config == true)
             {
-                if ( status_wait_count > 0 && theFuji.status_wait_enabled )
+                if (status_wait_count > 0 && theFuji.status_wait_enabled)
                 {
                     Debug_print("ignoring status command\n");
                     status_wait_count--;
@@ -349,14 +387,40 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         }
         return;
     case SIO_DISKCMD_WRITE:
-        sio_ack();
-        sio_write(true);
+        if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
+        {
+            sio_nak();
+            return;
+        }
+        else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
+        {
+            sio_nak();
+            return;
+        }
+        else
+        {
+            sio_ack();
+            sio_write(true);
+        }
         return;
     case SIO_DISKCMD_HSIO_WRITE:
         if (_disk->_allow_hsio)
         {
-            sio_ack();
-            sio_write(true);
+            if (UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1) > _disk->_disk_num_sectors)
+            {
+                sio_nak();
+                return;
+            }
+            else if ((cmdFrame.aux1 == 0) && (cmdFrame.aux2 == 0))
+            {
+                sio_nak();
+                return;
+            }
+            else
+            {
+                sio_ack();
+                sio_write(true);
+            }
             return;
         }
         break;
