@@ -485,6 +485,8 @@ void sioNetwork::sio_set_prefix()
         prefix += prefixSpec_str;
     }
 
+    prefix = util_get_canonical_path(prefix);
+
     Debug_printf("Prefix now: %s\n", prefix.c_str());
 
     // We are okay, signal complete.

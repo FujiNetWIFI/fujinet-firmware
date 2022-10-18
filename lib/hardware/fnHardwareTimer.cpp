@@ -39,7 +39,7 @@
   {
     fnTimer.latch();   // latch highspeed timer value
     fnTimer.read(); // grab timer low word
-    if (fnTimer.test())                      // test for timeout
+    if (fnTimer.timeout())   // test for timeout
     { 
       // timeout!
     }
@@ -49,10 +49,16 @@
  * 
  * Remember, you have to latch() before you read() before you set an alarm_set()
  * I made it this way in case there's some algorithm that needs the elemental functions
- * Every command matters when trying to get 100-ns level timing.
+ * Every command matters when trying to get 100-ns level timing. 
  * I found I have to compile in release mode to get that level of timing.
  * 
-
+ * Caveat: this library used to be integrated into iwm.h/cpp with inline function definitions.
+ * I tested it for 100-ns resolution in that implementation and was able to make it work
+ * for SmartPort bit-banging. Since then, I switched to using SPI to create the precise
+ * bit timings. I still use this library for pacing read decoding and doing timeout
+ * testing on handshaking. It works fine broken out into a separate unit.
+ * I have not tested this library in its new form for 100-ns accuracy and precision bit-banging.
+ *
 */
 
 void HardwareTimer::config()
