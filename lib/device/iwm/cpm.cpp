@@ -213,7 +213,7 @@ void iwmCPM::iwm_open(cmdPacket_t cmd)
 {
     Debug_printf("\r\nOpen CP/M Unit # %02x\n", cmd.g7byte1);
     encode_status_reply_packet();
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmCPM::iwm_close(cmdPacket_t cmd)
@@ -221,7 +221,7 @@ void iwmCPM::iwm_close(cmdPacket_t cmd)
     // Probably need to send close command here.
     Debug_printf("\r\nClose CP/M Unit # %02x\n", cmd.g7byte1);
     encode_status_reply_packet();
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmCPM::iwm_status(cmdPacket_t cmd)
@@ -235,14 +235,14 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
     {
     case IWM_STATUS_STATUS: // 0x00
         encode_status_reply_packet();
-        IWM.SEND_PACKET((unsigned char *)packet_buffer);
+        IWM.iwm_send_packet((unsigned char *)packet_buffer);
         return;
         break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB: // 0x03
         encode_status_dib_reply_packet();
-        IWM.SEND_PACKET((unsigned char *)packet_buffer);
+        IWM.iwm_send_packet((unsigned char *)packet_buffer);
         return;
         break;
     case 'S': // Status
@@ -257,7 +257,7 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
     Debug_printf("\r\nStatus code complete, sending response");
     encode_data_packet(packet_len);
 
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmCPM::iwm_read(cmdPacket_t cmd)
@@ -287,7 +287,7 @@ void iwmCPM::iwm_read(cmdPacket_t cmd)
 
     encode_data_packet(packet_len);
     Debug_printf("\r\nsending block packet ...");
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
     packet_len = 0;
     memset(packet_buffer, 0, sizeof(packet_buffer));
 }
@@ -349,7 +349,7 @@ void iwmCPM::iwm_ctrl(cmdPacket_t cmd)
     }
 
     encode_error_reply_packet(err_result);
-    IWM.SEND_PACKET((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmCPM::process(cmdPacket_t cmd)
