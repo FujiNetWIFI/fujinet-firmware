@@ -253,11 +253,6 @@ void systemBus::_sio_process_cmd()
                 }
             }
         }
-        if (!_command_processed)
-        {
-            // Notify NetSIO hub we are not interested to handle the command
-            sio_empty_ack();
-        }
     } // valid checksum
     else
     {
@@ -269,6 +264,12 @@ void systemBus::_sio_process_cmd()
             _command_frame_counter = 0;
             toggleBaudrate();
         }
+    }
+
+    if (!_command_processed)
+    {
+        // Notify NetSIO hub that we are not interested to handle this command
+        sio_empty_ack();
     }
     fnLedManager.set(eLed::LED_BUS, false);
 }
