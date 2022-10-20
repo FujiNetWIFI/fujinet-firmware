@@ -79,7 +79,8 @@ public:
   bool spirx_get_next_sample();
   int iwm_read_packet_spi(uint8_t *a, int n);
   void spi_end();
-  bool req_timeout(int t);
+  bool req_wait_for_falling_timeout(int t);
+  bool req_wait_for_rising_timeout(int t);
   void setup();
 };
 
