@@ -82,53 +82,32 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi(uint8_t *a)
   trans.length = spi_len * 8;   // Data length, in bits
   trans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
 
-  iwm_ack_set(); // go hi-z
+  iwm_ack_set(); // go hi-z - signal ready to send data
 
   // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
-  // setup a timeout counter to wait for REQ response
-  fnTimer.reset();
-  fnTimer.latch();        // latch highspeed timer value
-  fnTimer.read();      //  grab timer low word
-  fnTimer.alarm_set(300000); // increased to 30 millisecond per IIgs & gsos
-
-  // while (!fnSystem.digital_read(SP_REQ))
-  while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
-  {
-    fnTimer.latch();   // latch highspeed timer value
-    fnTimer.read(); // grab timer low word
-    if (fnTimer.timeout())                      // test for timeout
+  if (req_wait_for_rising_timeout(300000))
     {
       // timeout!
       Debug_printf("\r\nSendPacket timeout waiting for REQ");
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
-  };
-// ;
 
+  // send the data
   iwm_rddata_clr(); // enable the tri-state buffer
   ret = spi_device_polling_transmit(spi, &trans);
   iwm_rddata_set(); // make rddata hi-z
   iwm_ack_clr();
   assert(ret == ESP_OK);
 
-  fnTimer.reset();
-  fnTimer.latch();        // latch highspeed timer value
-  fnTimer.read();      //  grab timer low word
-  fnTimer.alarm_set(15000); // 1 ms not long enough for yellowstone
-
-  while (iwm_req_val()) 
+  // wait for REQ to go low
+  if (smartport.req_wait_for_falling_timeout(15000))
   {
-    fnTimer.latch();   // latch highspeed timer value
-    fnTimer.read(); // grab timer low word
-    if (fnTimer.timeout())                      // test for timeout
-    {
-      Debug_println("Send REQ timeout");
-     // iwm_ack_disable();       // need to release the bus
-      portENABLE_INTERRUPTS(); // takes 7 us to execute
-      return 1;
-    }
-  };
+    Debug_println("Send REQ timeout");
+    // iwm_ack_disable();       // need to release the bus
+    portENABLE_INTERRUPTS(); // takes 7 us to execute
+    return 1;
+  }
   portENABLE_INTERRUPTS();
   return 0;
 }
@@ -182,24 +161,15 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t *a, int n)
   rxtrans.rx_buffer = spi_buffer; // finally send the line data
 
   // setup a timeout counter to wait for REQ response
-  fnTimer.latch();        // latch highspeed timer value
-  fnTimer.read();      //  grab timer low word
-  fnTimer.alarm_set(1000); // logic analyzer says 40 usec
-
-  while ( !iwm_req_val() )  
-  {
-    fnTimer.latch();   // latch highspeed timer value
-    fnTimer.read(); // grab timer low word
-    if (fnTimer.timeout())                      // test for timeout
-    { // timeout!
+  if (req_wait_for_rising_timeout(1000))
+  { // timeout!
 #ifdef VERBOSE_IWM
-      // timeout
-      Debug_print("t");
+    // timeout
+    Debug_print("t");
 #endif
-      iwm_extra_clr();
-      return 1;
-    }
-  };
+    iwm_extra_clr();
+    return 1;
+  }
 
   esp_err_t ret = spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
   assert(ret == ESP_OK);
@@ -314,13 +284,31 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t *a, int n)
 
 void iwm_sp_ll::spi_end() { spi_device_polling_end(spirx, portMAX_DELAY); };
 
-bool iwm_sp_ll::req_timeout(int t)
+bool iwm_sp_ll::req_wait_for_falling_timeout(int t)
 {
   fnTimer.reset();
   fnTimer.latch();      // latch highspeed timer value
   fnTimer.read();       //  grab timer low word
   fnTimer.alarm_set(t); // t in 100ns units
   while (iwm_req_val())
+  {
+    fnTimer.latch();       // latch highspeed timer value
+    fnTimer.read();        // grab timer low word
+    if (fnTimer.timeout()) // test for timeout
+    {                      // timeout!
+      return true;
+    }
+  }
+  return false;
+}
+
+bool iwm_sp_ll::req_wait_for_rising_timeout(int t)
+{
+  fnTimer.reset();
+  fnTimer.latch();      // latch highspeed timer value
+  fnTimer.read();       //  grab timer low word
+  fnTimer.alarm_set(t); // t in 100ns units
+  while (!iwm_req_val())
   {
     fnTimer.latch();       // latch highspeed timer value
     fnTimer.read();        // grab timer low word

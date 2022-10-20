@@ -141,6 +141,7 @@ void iwmBus::iwm_ack_deassert()
 void iwmBus::iwm_ack_assert()
 {
   smartport.iwm_ack_clr();
+  smartport.spi_end();
 }
 
 bool iwmBus::iwm_phase_val(uint8_t p)
@@ -196,9 +197,8 @@ int iwmBus::iwm_send_packet(uint8_t *a)
 
 int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 {
-  iwm_ack_deassert();
-
   portDISABLE_INTERRUPTS();
+  iwm_ack_deassert();
   for (int i = 0; i < attempts; i++)
   {
     if (!smartport.iwm_read_packet_spi(a, n))
@@ -208,7 +208,6 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 #ifdef DEBUG
       print_packet(a);
 #endif
-      smartport.spi_end(); // spi_device_polling_end(spirx, portMAX_DELAY);
       return 0;
     } // if
   }
@@ -223,36 +222,33 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
 
 void iwmBus::setup(void)
 {
-  
-
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
 
   fnTimer.config();
   Debug_printf("\r\nIWM timer started");
 
   smartport.setup();
+  Debug_printf("\r\nSPI configured for smartport I/O");
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
-  //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  iwm_ack_deassert(); // go to hi-z
+  //set ack to input to avoid clashing with other devices when sp bus is not enabled
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT);
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
 
-  fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT);
+  // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
 
   fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
   fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
-
-
 
   Debug_printf("\r\nIWM GPIO configured");
 }
@@ -799,12 +795,11 @@ void iwmBus::service()
     // should not ACK unless we know this is our Command
     if (command_packet.command == 0x85)
     {
-      iwm_ack_assert();
-      smartport.spi_end();
+      iwm_ack_assert(); // includes waiting for spi read transaction to finish
       portENABLE_INTERRUPTS();
 
       // wait for REQ to go low
-      if (smartport.req_timeout(50000))
+      if (smartport.req_wait_for_falling_timeout(50000))
         return;
 
 
@@ -826,13 +821,10 @@ void iwmBus::service()
       {
         if (command_packet.dest == devicep->_devnum)
         {
-          iwm_ack_assert();
-
-          smartport.spi_end();
+          iwm_ack_assert(); // includes waiting for spi read transaction to finish
           portENABLE_INTERRUPTS();
-
           // wait for REQ to go low
-          if (smartport.req_timeout(50000))
+          if (smartport.req_wait_for_falling_timeout(50000))
             return;
 
           // need to take time here to service other ESP processes so they can catch up
