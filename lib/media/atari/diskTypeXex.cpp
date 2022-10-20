@@ -204,6 +204,12 @@ mediatype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
     _disk_last_sector = INVALID_SECTOR_VALUE;
     _disktype = MEDIATYPE_XEX;
 
+    uint16_t data_per_sector = _disk_sector_size - SECTOR_LINK_SIZE;
+    _disk_num_sectors = _disk_image_size / data_per_sector;
+
+    if (_disk_num_sectors < 720)
+        _disk_num_sectors = 720;
+
     Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%d\n", _xex_bootloadersize, _disk_image_size);
 
     return _disktype;
