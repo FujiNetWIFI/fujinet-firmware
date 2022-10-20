@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cstring>
 #include <sstream>
-#include <bits/stdc++.h>
+#include <stack>
 
 #include "../../include/debug.h"
 
