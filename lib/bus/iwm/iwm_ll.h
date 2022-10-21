@@ -81,7 +81,8 @@ public:
   void spi_end();
   bool req_wait_for_falling_timeout(int t);
   bool req_wait_for_rising_timeout(int t);
-  void setup();
+  void setup_spi();
+  void setup_gpio();
 };
 
 extern iwm_sp_ll smartport;
