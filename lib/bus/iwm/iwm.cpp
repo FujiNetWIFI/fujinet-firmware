@@ -225,32 +225,14 @@ void iwmBus::setup(void)
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
 
   fnTimer.config();
-  Debug_printf("\r\nIWM timer started");
+  Debug_printf("\r\nFujiNet Hardware timer started");
 
-  smartport.setup();
+  smartport.setup_spi();
   Debug_printf("\r\nSPI configured for smartport I/O");
-
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
-  fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
-  //set ack to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT);
   
-  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
-  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
-
-  // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
-
-  fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
-  fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
-
+  smartport.setup_gpio();
   Debug_printf("\r\nIWM GPIO configured");
+  
 }
 
 //*****************************************************************************
@@ -768,12 +750,9 @@ void iwmBus::service()
   case iwm_phases_t::idle:
     break;
   case iwm_phases_t::reset:
-    // instead of the code in this section, we should call a reset handler
-    // the handler should reset every device
-    // and wait for reset to clear (probably with a timeout)
     Debug_printf(("\r\nReset"));
-    // hard coding 1 partition - will use disk class instances instead
-    // smort->_devnum = 0;
+ 
+    // clear all the device addresses
     for (auto devicep : _daisyChain)
       devicep->_devnum = 0;
 
@@ -816,7 +795,6 @@ void iwmBus::service()
     }
     else
     {
-      // smort->process(command_packet);
       for (auto devicep : _daisyChain)
       {
         if (command_packet.dest == devicep->_devnum)

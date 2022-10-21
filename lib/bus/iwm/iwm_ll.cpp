@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "iwm_ll.h"
+#include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
 
@@ -320,7 +321,7 @@ bool iwm_sp_ll::req_wait_for_rising_timeout(int t)
   return false;
 }
 
-void iwm_sp_ll::setup()
+void iwm_sp_ll::setup_spi()
 {
 
   esp_err_t ret; // used for calling SPI library functions below
@@ -370,6 +371,30 @@ void iwm_sp_ll::setup()
   ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
   assert(ret == ESP_OK);
 
+}
+
+void iwm_sp_ll::setup_gpio()
+{
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
+  //set ack to input to avoid clashing with other devices when sp bus is not enabled
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT);
+  
+  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
+  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
+
+  // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
+
+  fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
+  fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
+
 #ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
@@ -379,7 +404,7 @@ void iwm_sp_ll::setup()
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   Debug_printf("\r\nEXTRA signaling line configured");
 #endif
-
+  
 }
 
 iwm_sp_ll smartport;
