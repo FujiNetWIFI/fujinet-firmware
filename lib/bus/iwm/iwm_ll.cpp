@@ -326,7 +326,7 @@ void iwm_sp_ll::setup_spi()
 
   esp_err_t ret; // used for calling SPI library functions below
 
-    spi_buffer=(uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA); 
+  spi_buffer=(uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA); 
 
   spi_device_interface_config_t devcfg = {
       .mode = 0,                   // SPI mode 0

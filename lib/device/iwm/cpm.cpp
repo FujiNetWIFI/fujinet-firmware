@@ -348,7 +348,7 @@ void iwmCPM::iwm_ctrl(cmdPacket_t cmd)
         break;
     }
 
-    encode_error_reply_packet(err_result);
+    encode_reply_packet(err_result);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 

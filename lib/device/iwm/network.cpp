@@ -556,7 +556,7 @@ void iwmNetwork::special_40()
     }
     else
     {
-        encode_error_reply_packet(SP_ERR_BADCMD);
+        encode_reply_packet(SP_ERR_BADCMD);
     }
 
     IWM.iwm_send_packet((uint8_t *)packet_buffer);
@@ -799,12 +799,12 @@ void iwmNetwork::iwm_write(cmdPacket_t cmd)
         *transmitBuffer += string((char *)response, num_bytes);
         if (write_channel(num_bytes))
         {
-            encode_error_reply_packet(SP_ERR_IOERROR);
+            encode_reply_packet(SP_ERR_IOERROR);
             IWM.iwm_send_packet((uint8_t *)packet_buffer);
         }
         else
         {
-            encode_write_status_packet(source, 0);
+            encode_reply_packet(source, 0);
             IWM.iwm_send_packet((uint8_t *)packet_buffer);
         }
     }
@@ -892,7 +892,7 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
     if (statusByte.bits.client_error == true)
         err_result = SP_ERR_IOERROR;
 
-    encode_error_reply_packet(err_result);
+    encode_reply_packet(err_result);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 

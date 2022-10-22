@@ -463,42 +463,16 @@ bool iwmDevice::decode_data_packet(void)
 }
 
 //*****************************************************************************
-// Function: encode_write_status_packet
+// Function: encode_reply_packet
 // Parameters: source,status
 // Returns: none
 //
 // Description: this is the reply to the write block data packet. The reply
 // indicates the status of the write block cmd.
 //*****************************************************************************
-void iwmDevice::encode_write_status_packet(uint8_t source, uint8_t status)
+void iwmDevice::encode_reply_packet(uint8_t source, uint8_t status)
 {
-  uint8_t checksum = 0;
-
-  packet_buffer[0] = 0xff;  //sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  //  int i;
-  packet_buffer[5] = 0xff;
-
-  packet_buffer[6] = 0xc3;  //PBEGIN - start byte
-  packet_buffer[7] = 0x80;  //DEST - dest id - host
-  packet_buffer[8] = source; //SRC - source id - us
-  packet_buffer[9] = PACKET_TYPE_STATUS;  //TYPE
-  packet_buffer[10] = 0x80; //AUX
-  packet_buffer[11] = status | 0x80; //STAT
-  packet_buffer[12] = 0x80; //ODDCNT
-  packet_buffer[13] = 0x80; //GRP7CNT
-
-  for (int count = 7; count < 14; count++) // xor the packet header bytes
-    checksum = checksum ^ packet_buffer[count];
-  packet_buffer[14] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  packet_buffer[15] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-  packet_buffer[16] = 0xc8;  //pkt end
-  packet_buffer[17] = 0x00;  //mark the end of the packet_buffer
-
+  encode_reply_packet(status);
 }
 
 //*****************************************************************************
@@ -543,7 +517,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 
 }
 
-void iwmDevice::encode_error_reply_packet (uint8_t stat)
+void iwmDevice::encode_reply_packet (uint8_t stat)
 {
   uint8_t checksum = 0;
 
@@ -575,14 +549,14 @@ void iwmDevice::encode_error_reply_packet (uint8_t stat)
 void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
-  encode_error_reply_packet(SP_ERR_BADCMD);
+  encode_reply_packet(SP_ERR_BADCMD);
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmDevice::iwm_return_ioerror(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
-  encode_error_reply_packet(SP_ERR_IOERROR);
+  encode_reply_packet(SP_ERR_IOERROR);
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
