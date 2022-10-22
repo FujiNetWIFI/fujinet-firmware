@@ -471,19 +471,6 @@ bool iwmDevice::decode_data_packet(void)
 }
 
 //*****************************************************************************
-// Function: encode_reply_packet
-// Parameters: source,status
-// Returns: none
-//
-// Description: this is the reply to the write block data packet. The reply
-// indicates the status of the write block cmd.
-//*****************************************************************************
-void iwmDevice::encode_reply_packet(uint8_t source, uint8_t status)
-{
-  encode_reply_packet(status);
-}
-
-//*****************************************************************************
 // Function: encode_init_reply_packet
 // Parameters: source
 // Returns: none
