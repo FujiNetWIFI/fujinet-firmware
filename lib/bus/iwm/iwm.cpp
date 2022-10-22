@@ -262,8 +262,15 @@ void iwmDevice::packet_set_sync_bytes()
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void iwmDevice::encode_data_packet(uint16_t num) 
+void iwmDevice::encode_packet(uint8_t source, uint8_t packet_type, uint8_t status, uint8_t* a, uint16_t num) 
 {
+  // generic version would need:
+  // source id
+  // packet type
+  // status code
+  // pointer to the data
+  // number of bytes to encode
+
   int grpbyte, grpcount;
   uint8_t checksum = 0, grpmsb;
   uint8_t group_buffer[7];

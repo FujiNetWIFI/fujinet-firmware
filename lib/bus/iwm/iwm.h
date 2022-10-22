@@ -229,12 +229,13 @@ protected:
   static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   static uint16_t packet_len;
   void packet_set_sync_bytes();
-  
+
   bool decode_data_packet(void); //decode smartport 512 byte data packet
   static uint16_t num_decoded;
 
   // void encode_data_packet(); //encode smartport 512 byte data packet
-  void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
+  // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
+  void encode_packet(uint8_t source, uint8_t packet_type, uint8_t status, uint8_t* data, uint16_t num); 
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
   void encode_reply_packet(uint8_t stat);
