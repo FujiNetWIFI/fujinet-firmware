@@ -161,10 +161,18 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
   uint8_t phases = smartport.iwm_phase_vector();
-  if (phases == 0b1010)
+  switch (phases)
+  {
+  case 0b1010:
     phasestate = iwm_phases_t::enable;
-  else if (phases == 0b0101)
+    break;
+  case 0b0101:
     phasestate = iwm_phases_t::reset;
+    break;
+  default:
+    phasestate = iwm_phases_t::idle;
+    break;
+  }
 
 #ifdef VERBOSE_IWM
   if (phasestate != oldphase)
