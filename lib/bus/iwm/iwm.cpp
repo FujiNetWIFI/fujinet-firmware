@@ -307,7 +307,7 @@ void iwmDevice::encode_data_packet(uint16_t num)
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
   packet_buffer[8] = id(); //SRC - source id - us
-  packet_buffer[9] = 0x82;  //TYPE - 0x82 = data
+  packet_buffer[9] = PACKET_TYPE_DATA;  //TYPE - 0x82 = data
   packet_buffer[10] = 0x80; //AUX
   packet_buffer[11] = 0x80; //STAT
   packet_buffer[12] = numodds | 0x80; //ODDCNT  - 1 odd byte for 512 byte packet
