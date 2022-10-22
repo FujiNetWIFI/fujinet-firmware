@@ -14,92 +14,6 @@ FileSystemTNFS tserver;
 iwmDisk::~iwmDisk()
 {
 }
-/* 
-void iwmDisk::init()
-{
-  open_tnfs_image();
-  //open_image("/autorun.po");//("/STABLE.32MB.po");
-  if (_disk->status())
-  {
-    Debug_printf("\r\nfile open good");
-  }
-  else
-  {
-    Debug_printf("\r\nImage open error!");
-  }
-  Debug_printf("\r\nDemo TNFS file open complete - remember to remove this code");
-}
- */
-/* 
-bool iwmDisk::open_tnfs_image()
-{
-#ifdef LOCAL_TNFS
-  Debug_printf("\r\nmounting server");
-  tserver.start("192.168.1.181"); //"atari-apps.irata.online");
-  Debug_printf("\r\nopening file");
-  _disk->fileptr() = tserver.file_open("/autorun.po", "rb+");
-  // _disk->fileptr() = tserver.file_open("/prodos8abbrev.po", "rb+");
-  // _disk->fileptr() = tserver.file_open("/prodos16mb.po", "rb");
-#else
-  Debug_printf("\r\nmounting server");
-  tserver.start("159.203.160.80"); //"atari-apps.irata.online");
-  Debug_printf("\r\nopening file");
-  _disk->fileptr() = tserver.file_open("/test.hdv", "rb");
-#endif
-
-  Debug_printf(("\r\nTesting file "));
-  // _disk->fileptr().printName();
-  if (_disk->fileptr() == nullptr) // .isOpen()||!_disk->fileptr().isFile())
-  {
-    Debug_printf(("\r\nFile must exist, be open and be a regular file before checking for valid image type!"));
-    return false;
-  }
-
-  long s = tserver.filesize(_disk->fileptr());
-
-  if ((s != ((s >> 9) << 9)) || (s == 0) || (s == -1))
-  {
-    Debug_printf(("\r\nFile must be an unadorned ProDOS order image with no header!"));
-    Debug_printf(("\r\nThis means its size must be an exact multiple of 512!"));
-    return false;
-  }
-
-  Debug_printf(("\r\nFile good!"));
-  _disk->num_blocks = tserver.filesize(_disk->fileptr()) >> 9;
-
-  return true;
-}
- */
-// TODO: Allow image files with headers, too
-// TODO: Respect read-only bit in header
-/* 
-bool iwmDisk::open_image(std::string filename)
-{
-  // _disk->fileptr() = sdcard.open(filename, O_RDWR);
-  Debug_printf("\r\nright before file open call");
-  _disk->fileptr() = fnSDFAT.file_open(filename.c_str(), "rb");
-  Debug_printf(("\r\nTesting file "));
-  // _disk->fileptr().printName();
-  if (_disk->fileptr() == nullptr) // .isOpen()||!_disk->fileptr().isFile())
-  {
-    Debug_printf(("\r\nFile must exist, be open and be a regular file before checking for valid image type!"));
-    return false;
-  }
-
-  long s = fnSDFAT.filesize(_disk->fileptr());
-  if ((s != ((s >> 9) << 9)) || (s == 0) || (s == -1))
-  {
-    Debug_printf(("\r\nFile must be an unadorned ProDOS order image with no header!"));
-    Debug_printf(("\r\nThis means its size must be an exact multiple of 512!"));
-    return false;
-  }
-
-  Debug_printf(("\r\nFile good!"));
-  _disk->num_blocks = fnSDFAT.filesize(_disk->fileptr()) >> 9;
-
-  return true;
-}
- */
 
 //*****************************************************************************
 // Function: encode_status_reply_packet
@@ -539,7 +453,8 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     return; // todo - true or false?
   }
-  encode_data_packet();
+  // encode_data_packet();
+  encode_packet(id(), PACKET_TYPE_DATA, 0, packet_buffer, 512); 
   Debug_printf("\r\nsending block packet ...");
   if (!IWM.iwm_send_packet((unsigned char *)packet_buffer))
     last_block_num = block_num;

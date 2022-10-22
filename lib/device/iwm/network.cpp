@@ -543,7 +543,8 @@ void iwmNetwork::special_40()
     if (protocol->special_40(packet_buffer, 256, &cmdFrame) == false)
     {
         packet_len = 256;
-        encode_data_packet(packet_len);
+        //encode_data_packet(packet_len);
+        encode_packet(id(), PACKET_TYPE_DATA, 0, packet_buffer, packet_len);
     }
     else
     {
@@ -645,8 +646,8 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    encode_data_packet(packet_len);
-
+    //encode_data_packet(packet_len);
+    encode_packet(id(), PACKET_TYPE_DATA, 0, packet_buffer, packet_len);
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
@@ -745,7 +746,8 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
         break;
     }
 
-    encode_data_packet(packet_len);
+    //encode_data_packet(packet_len);
+    encode_packet(id(), PACKET_TYPE_DATA, 0, packet_buffer, packet_len);
     Debug_printf("\r\nsending block packet ...");
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     packet_len = 0;
