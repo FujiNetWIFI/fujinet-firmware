@@ -224,9 +224,12 @@ protected:
   // so need an encoded packet buffer in the low level and a packet_data[] or whatever in the high level.
   // the command packet might be an exception
   // iwm packet handling
+  static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
+  static u_int16_t data_len; // how many bytes in the data buffer
   static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   static uint16_t packet_len;
-
+  void packet_set_sync_bytes();
+  
   bool decode_data_packet(void); //decode smartport 512 byte data packet
   static uint16_t num_decoded;
 

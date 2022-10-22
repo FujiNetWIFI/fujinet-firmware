@@ -243,6 +243,16 @@ void iwmBus::setup(void)
   
 }
 
+void iwmDevice::packet_set_sync_bytes()
+{
+  packet_buffer[0] = 0xff;  //sync bytes
+  packet_buffer[1] = 0x3f;
+  packet_buffer[2] = 0xcf;
+  packet_buffer[3] = 0xf3;
+  packet_buffer[4] = 0xfc;
+  packet_buffer[5] = 0xff;
+}
+
 //*****************************************************************************
 // Function: encode_data_packet
 // Parameters: source id
@@ -297,12 +307,7 @@ void iwmDevice::encode_data_packet(uint16_t num)
   }
 
   // header
-  packet_buffer[0] = 0xff;  //sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
+  packet_set_sync_bytes();
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
@@ -373,12 +378,7 @@ void iwmDevice::encode_extended_data_packet (uint8_t source)
   packet_buffer[14] = ((packet_buffer[0] >> 1) & 0x40) | 0x80;
   packet_buffer[15] = packet_buffer[0] | 0x80;
 
-  packet_buffer[0] = 0xff;  //sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
+  packet_set_sync_bytes();
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
@@ -485,12 +485,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 {
   uint8_t checksum = 0;
 
-  packet_buffer[0] = 0xff;  //sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
+  packet_set_sync_bytes();
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
@@ -516,12 +511,7 @@ void iwmDevice::encode_reply_packet (uint8_t stat)
 {
   uint8_t checksum = 0;
 
-  packet_buffer[0] = 0xff;  //sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
+  packet_set_sync_bytes();
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host

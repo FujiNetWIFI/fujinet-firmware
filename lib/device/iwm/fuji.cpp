@@ -1085,12 +1085,7 @@ void iwmFuji::encode_status_reply_packet()
   data[2] = 0;  // block size 2
   data[3] = 0; // block size 3
   // to do - just call encode data using the data[] array?
-  packet_buffer[0] = 0xff; // sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
+packet_set_sync_bytes();
 
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
@@ -1203,12 +1198,8 @@ void iwmFuji::encode_status_dib_reply_packet()
   packet_buffer[18] = data[3] | 0x80;
   ;
 
-  packet_buffer[0] = 0xff; // sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
+packet_set_sync_bytes();
+
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
   packet_buffer[8] = id(); // d.device_id; // SRC - source id - us

@@ -137,22 +137,16 @@ void iwmDisk::encode_status_reply_packet()
     data[1] = _disk->num_blocks & 0xff;
     data[2] = (_disk->num_blocks >> 8) & 0xff;
     data[3] = (_disk->num_blocks >> 16) & 0xff;
-}
-  packet_buffer[0] = 0xff; // sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
-
-  packet_buffer[6] = 0xc3;        // PBEGIN - start byte
-  packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = id(); //d.device_id; // SRC - source id - us
-  packet_buffer[9] = PACKET_TYPE_STATUS;        // TYPE -status
-  packet_buffer[10] = 0x80;       // AUX
-  packet_buffer[11] = 0x80;       // STAT - data status
-  packet_buffer[12] = 0x84;       // ODDCNT - 4 data bytes
-  packet_buffer[13] = 0x80;       // GRP7CNT
+  }
+  packet_set_sync_bytes();
+  packet_buffer[6] = 0xc3;               // PBEGIN - start byte
+  packet_buffer[7] = 0x80;               // DEST - dest id - host
+  packet_buffer[8] = id();               // d.device_id; // SRC - source id - us
+  packet_buffer[9] = PACKET_TYPE_STATUS; // TYPE -status
+  packet_buffer[10] = 0x80;              // AUX
+  packet_buffer[11] = 0x80;              // STAT - data status
+  packet_buffer[12] = 0x84;              // ODDCNT - 4 data bytes
+  packet_buffer[13] = 0x80;              // GRP7CNT
   // 4 odd bytes
   packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
   packet_buffer[15] = data[0] | 0x80;                                                                                               // data 1
@@ -211,12 +205,7 @@ void iwmDisk::encode_extended_status_reply_packet()
     data[4] = (_disk->num_blocks >> 24) & 0xff;
   
   }
-  packet_buffer[0] = 0xff; // sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
+  packet_set_sync_bytes();
 
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
@@ -358,12 +347,8 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
 
     Debug_printf("\r\npacket buffer 14: %02x", packet_buffer[14]);
 
-    packet_buffer[0] = 0xff; // sync bytes
-    packet_buffer[1] = 0x3f;
-    packet_buffer[2] = 0xcf;
-    packet_buffer[3] = 0xf3;
-    packet_buffer[4] = 0xfc;
-    packet_buffer[5] = 0xff;
+packet_set_sync_bytes();
+
     packet_buffer[6] = 0xc3;  // PBEGIN - start byte
     packet_buffer[7] = 0x80;  // DEST - dest id - host
     packet_buffer[8] = id();  // d.device_id; // SRC - source id - us
@@ -397,12 +382,7 @@ void iwmDisk::encode_extended_status_dib_reply_packet()
 {
   uint8_t checksum = 0;
 
-  packet_buffer[0] = 0xff; // sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
+ packet_set_sync_bytes();
 
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
