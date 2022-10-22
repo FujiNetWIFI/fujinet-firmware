@@ -1254,7 +1254,7 @@ void iwmFuji::iwm_read(cmdPacket_t cmd)
 
 
   // Debug_printf(" - ERROR - No image mounted");
-  // encode_error_reply_packet(source, SP_ERR_OFFLINE);
+  // encode_reply_packet(source, SP_ERR_OFFLINE);
   // IWM.iwm_send_packet((unsigned char *)packet_buffer);
   // return;
 
@@ -1354,7 +1354,7 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       break;
     default:
       Debug_printf("\r\nBad Status Code, sending error response");
-      encode_error_reply_packet(SP_ERR_BADCTL);
+      encode_reply_packet(SP_ERR_BADCTL);
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return;
       break;
@@ -1475,7 +1475,7 @@ void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
       err_result = SP_ERR_BADCTL;
       break;
   }
-  encode_error_reply_packet(err_result); 
+  encode_reply_packet(err_result); 
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 

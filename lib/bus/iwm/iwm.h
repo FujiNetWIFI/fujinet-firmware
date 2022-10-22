@@ -232,10 +232,10 @@ protected:
 
   // void encode_data_packet(); //encode smartport 512 byte data packet
   void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
-  void encode_write_status_packet(uint8_t source, uint8_t status);
+  void encode_reply_packet(uint8_t source, uint8_t status);
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
-  void encode_error_reply_packet(uint8_t stat);
+  void encode_reply_packet(uint8_t stat);
   virtual void encode_status_dib_reply_packet() = 0;
 
   void encode_extended_data_packet(uint8_t source);
