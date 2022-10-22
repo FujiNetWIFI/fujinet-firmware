@@ -10,15 +10,27 @@
 #define SPI_BUFFER_LEN      6000 // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 
 /** ACK and REQ
- * how ACK works, my interpretation of the iigs firmware reference.
- * ACK is normally high-Z when device is ready to receive commands.
- * host will send REQ high to make a request and send a command.
- * device responds after command is received by sending ACK low.
- * host completes command handshake by sending REQ low.
- * device signals its ready for the next step (receive/send/status)
- * by sending ACK back high.
  * 
- * how ACK works with multiple devices on bus:
+ * SmartPort ACK and REQ lines are used in a return-to-zero 4-phase handshake sequence.
+ * 
+ * how ACK works, my interpretation of the iigs firmware reference.
+ * ACK is normally high-Z (deasserted) when device is ready to receive commands.
+ * host will send (assert) REQ high to make a request and send a command.
+ * device responds after command is received by sending (assert) ACK low.
+ * host completes command handshake by sending REQ low (deassert).
+ * device signals its ready for the next step (receive/send/status)
+ * by sending ACK back high (deassert).
+ * 
+ * The sequence is:
+ * 
+ * step   REQ         ACK               smartport state
+ * 0      deassert    deassert          idle
+ * 1      assert      deassert          enabled, apple ii sending command or data to peripheral
+ * 2      assert      assert            peripheral acknowledges it received data
+ * 3      deassert    assert            apple ii does it's part to return to idle, peripheral is processing command or data
+ * 0      deassert    deassert          peripheral returns to idle when it's ready for another command
+ * 
+ * Electrically, how ACK works with multiple devices on bus:
  * ACK is normally high-Z (pulled up?)
  * when a device receives a command addressed to it, and it is ready
  * to respond, it'll send ACK low. (To me, this seems like a perfect
@@ -38,49 +50,48 @@ private:
   void iwm_rddata_set() { GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); }; // make RDDATA go hi-z through the tri-state
   void iwm_rddata_clr() { GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); }; // enable the tri-state buffer activating RDDATA
   bool iwm_req_val() { return (GPIO.in1.val & (0x01 << (SP_REQ-32))); };
- void iwm_extra_set();
+  void iwm_extra_set();
   void iwm_extra_clr();
   bool iwm_enable_val();
 
- 
-
-  // this block should go to low level
-  // iwm packet handling
+  // SPI data handling
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
   spi_device_handle_t spi;
- 
+  // SPI receiver
   spi_transaction_t rxtrans;
   spi_device_handle_t spirx;
-  //const int f_over = 4;
-  //const int f_nyquist = 2 * 250 * 1000; // 255682; // 500 * 1000; // 2 x 250 kbps
-  /**
+  /** SPI data clock 
    * N  Clock MHz   /8 Bit rate (kHz)    Bit/Byte period (us)
    * 39	2.051282051	256.4102564	        3.9	31.2          256410 is only 0.3% faster than 255682
    * 40	2	          250.	                4.0	32
    * 41	1.951219512	243.902439	          4.1	32.8
   **/
-  // const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz
+  // const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz - works for NTSC but ...
   const int f_spirx = APB_CLK_FREQ / 40; // 2 MHz - need slower rate for PAL
   const int pulsewidth = 8; // 8 samples per bit
   const int halfwidth = pulsewidth / 2;
 
+  // SPI receiver data stream counters
   int spirx_byte_ctr;
   int spirx_bit_ctr;
  
 public:
+  // Phase lines and ACK handshaking
   void iwm_ack_set() { GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK); }; // disable the line so it goes hi-z
   void iwm_ack_clr() { GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK); };  // enable the line already set to low
+  bool req_wait_for_falling_timeout(int t);
+  bool req_wait_for_rising_timeout(int t);
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
 
-
+  // Smartport Bus handling by SPI interface
   void encode_spi_packet(uint8_t *a);
   int iwm_send_packet_spi(uint8_t *a);
   bool spirx_get_next_sample();
   int iwm_read_packet_spi(uint8_t *a, int n);
   void spi_end();
-  bool req_wait_for_falling_timeout(int t);
-  bool req_wait_for_rising_timeout(int t);
+
+  // hardware configuration setup
   void setup_spi();
   void setup_gpio();
 };
