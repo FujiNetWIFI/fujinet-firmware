@@ -148,7 +148,7 @@ void iwmDisk::encode_status_reply_packet()
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
   packet_buffer[8] = id(); //d.device_id; // SRC - source id - us
-  packet_buffer[9] = 0x81;        // TYPE -status
+  packet_buffer[9] = PACKET_TYPE_STATUS;        // TYPE -status
   packet_buffer[10] = 0x80;       // AUX
   packet_buffer[11] = 0x80;       // STAT - data status
   packet_buffer[12] = 0x84;       // ODDCNT - 4 data bytes
@@ -367,7 +367,7 @@ void iwmDisk::encode_status_dib_reply_packet() // to do - abstract this out with
     packet_buffer[6] = 0xc3;  // PBEGIN - start byte
     packet_buffer[7] = 0x80;  // DEST - dest id - host
     packet_buffer[8] = id();  // d.device_id; // SRC - source id - us
-    packet_buffer[9] = 0x81;  // TYPE -status
+    packet_buffer[9] = PACKET_TYPE_STATUS;  // TYPE -status
     packet_buffer[10] = 0x80; // AUX
     packet_buffer[11] = 0x80; // STAT - data status
     packet_buffer[12] = 0x84; // ODDCNT - 4 data bytes
@@ -407,7 +407,7 @@ void iwmDisk::encode_extended_status_dib_reply_packet()
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
   packet_buffer[8] = id(); //d.device_id; // SRC - source id - us
-  packet_buffer[9] = 0x81;        // TYPE -status
+  packet_buffer[9] = PACKET_TYPE_STATUS;        // TYPE -status
   packet_buffer[10] = 0x80;       // AUX
   packet_buffer[11] = 0x83;       // STAT - data status
   packet_buffer[12] = 0x80;       // ODDCNT - 4 data bytes
@@ -617,7 +617,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
         //return;
       }
       //now return status code to host
-      encode_reply_packet(source, status);
+      encode_reply_packet(status);
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
       //Serial.print(F("\r\nSent status Packet Data\r\n") );
       //print_packet ((unsigned char*) sector_buffer,512);

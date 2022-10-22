@@ -1095,7 +1095,7 @@ void iwmFuji::encode_status_reply_packet()
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
   packet_buffer[8] = id(); //d.device_id; // SRC - source id - us
-  packet_buffer[9] = 0x81;        // TYPE -status
+  packet_buffer[9] = PACKET_TYPE_STATUS;        // TYPE -status
   packet_buffer[10] = 0x80;       // AUX
   packet_buffer[11] = 0x80;       // STAT - data status
   packet_buffer[12] = 0x84;       // ODDCNT - 4 data bytes
@@ -1212,7 +1212,7 @@ void iwmFuji::encode_status_dib_reply_packet()
   packet_buffer[6] = 0xc3;        // PBEGIN - start byte
   packet_buffer[7] = 0x80;        // DEST - dest id - host
   packet_buffer[8] = id(); // d.device_id; // SRC - source id - us
-  packet_buffer[9] = 0x81;        // TYPE -status
+  packet_buffer[9] = PACKET_TYPE_STATUS;        // TYPE -status
   packet_buffer[10] = 0x80;       // AUX
   packet_buffer[11] = 0x80;       // STAT - data status
   packet_buffer[12] = 0x84;       // ODDCNT - 4 data bytes
