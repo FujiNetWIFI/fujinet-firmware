@@ -313,6 +313,8 @@ private:
 
   void iwm_ack_deassert();
   void iwm_ack_assert();
+  bool iwm_req_deassert_timeout(int t) { return smartport.req_wait_for_falling_timeout(t); };
+  // bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
 
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);

@@ -752,8 +752,10 @@ void iwmBus::service()
       portENABLE_INTERRUPTS();
 
       // wait for REQ to go low
-      if (smartport.req_wait_for_falling_timeout(50000))
+      if (iwm_req_deassert_timeout(50000))
         return;
+      // if (smartport.req_wait_for_falling_timeout(50000))
+      //   return;
 
 
 #ifdef DEBUG
@@ -776,7 +778,7 @@ void iwmBus::service()
           iwm_ack_assert(); // includes waiting for spi read transaction to finish
           portENABLE_INTERRUPTS();
           // wait for REQ to go low
-          if (smartport.req_wait_for_falling_timeout(50000))
+          if (iwm_req_deassert_timeout(50000))
             return;
 
           // need to take time here to service other ESP processes so they can catch up
