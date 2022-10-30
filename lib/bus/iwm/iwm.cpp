@@ -131,7 +131,8 @@ void print_packet_wave(uint8_t* data, int bytes)
 // uint16_t iwmDevice::packet_len = 0;
 // uint16_t iwmDevice::num_decoded = 0;
 
-
+uint8_t iwmDevice::data_buffer[MAX_DATA_LEN] = { 0 };
+int iwmDevice::data_len = 0;
 
 void iwmBus::iwm_ack_deassert()
 {
