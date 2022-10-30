@@ -59,7 +59,7 @@ void iwmCPM::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    encode_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
+    IWM.encode_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
 }
 
 void iwmCPM::send_status_dib_reply_packet()
@@ -101,7 +101,7 @@ void iwmCPM::send_status_dib_reply_packet()
     data[22] = SP_SUBTYPE_BYTE_FUJINET_CPM; // Device Subtype - 0x0a
     data[23] = 0x00;                        // Firmware version 2 bytes
     data[24] = 0x01;                        //
-    encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+    IWM.encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
 void iwmCPM::sio_status()
@@ -114,7 +114,7 @@ void iwmCPM::iwm_open(cmdPacket_t cmd)
 {
     Debug_printf("\r\nOpen CP/M Unit # %02x\n", cmd.g7byte1);
     send_status_reply_packet();
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet();
 }
 
 void iwmCPM::iwm_close(cmdPacket_t cmd)
@@ -122,7 +122,7 @@ void iwmCPM::iwm_close(cmdPacket_t cmd)
     // Probably need to send close command here.
     Debug_printf("\r\nClose CP/M Unit # %02x\n", cmd.g7byte1);
     send_status_reply_packet();
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet();
 }
 
 void iwmCPM::iwm_status(cmdPacket_t cmd)
@@ -136,30 +136,29 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
     {
     case IWM_STATUS_STATUS: // 0x00
         send_status_reply_packet();
-        IWM.iwm_send_packet((unsigned char *)packet_buffer);
+        IWM.iwm_send_packet();
         return;
         break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB: // 0x03
         send_status_dib_reply_packet();
-        IWM.iwm_send_packet((unsigned char *)packet_buffer);
+        IWM.iwm_send_packet();
         return;
         break;
     case 'S': // Status
         unsigned short mw = uxQueueMessagesWaiting(rxq);
-        packet_buffer[0] = mw & 0xFF;
-        packet_buffer[1] = mw >> 8;
-        packet_len = 2;
+        data_buffer[0] = mw & 0xFF;
+        data_buffer[1] = mw >> 8;
+        data_len = 2;
         Debug_printf("%u bytes waiting\n",mw);
         break;
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    //send_data_packet(packet_len);
-    encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, packet_len);
+    IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet();
 }
 
 void iwmCPM::iwm_read(cmdPacket_t cmd)
@@ -175,24 +174,23 @@ void iwmCPM::iwm_read(cmdPacket_t cmd)
 
     Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", source, numbytes, addy);
 
-    memset(packet_buffer,0,sizeof(packet_buffer));
+    memset(data_buffer,0,sizeof(data_buffer));
 
     for (int i=0;i<numbytes;i++)
     {
         char b;
         xQueueReceive(rxq,&b,portMAX_DELAY);
-        packet_buffer[i] = b;
-        packet_len++;
+        data_buffer[i] = b;
+        data_len++;
     }
 
-    Debug_printf("%s\n",packet_buffer);
+    Debug_printf("%s\n",data_buffer);
 
-    //send_data_packet(packet_len);
-    encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, packet_len);
+    IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     Debug_printf("\r\nsending block packet ...");
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
-    packet_len = 0;
-    memset(packet_buffer, 0, sizeof(packet_buffer));
+    IWM.iwm_send_packet();
+    data_len = 0;
+    memset(data_buffer, 0, sizeof(data_buffer));
 }
 
 void iwmCPM::iwm_write(cmdPacket_t cmd)
@@ -212,13 +210,14 @@ void iwmCPM::iwm_write(cmdPacket_t cmd)
 
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
-    if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer, BLOCK_PACKET_LEN))
+    data_len = 512;
+    if (IWM.iwm_read_packet_timeout(100, data_buffer, data_len))
     {
         Debug_printf("\r\nTIMEOUT in read packet!");
         return;
     }
     // partition number indicates which 32mb block we access
-    if (decode_data_packet())
+    if (data_len == -1)
         iwm_return_ioerror(cmd);
     else
     {
@@ -230,27 +229,30 @@ void iwmCPM::iwm_ctrl(cmdPacket_t cmd)
 {
     uint8_t err_result = SP_ERR_NOERROR;
 
-    uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // packet_buffer[6];
+    uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
     uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
     Debug_printf("\r\nDevice %02x Control Code %02x", source, control_code);
     Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
-    IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
-    Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, packet_buffer[12] & 0x7f);
-    decode_data_packet();
-    print_packet((uint8_t *)packet_buffer);
+    data_len = 512;
+    IWM.iwm_read_packet_timeout(100, data_buffer, data_len);
+    // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
+    print_packet(data_buffer);
 
-    switch (control_code)
-    {
-    case 'B': // Boot
-        Debug_printf("!!! STARTING CP/M TASK!!!\n");
-        xTaskCreate(cpmTask, "cpmtask", 32768, NULL, 11, &cpmTaskHandle);
-        break;
-    case 'W': // Write
-        Debug_printf("Pushing character %c",packet_buffer[0]);
-        xQueueSend(txq,&packet_buffer[0],portMAX_DELAY);
-        break;
-    }
-
+    if (data_len > 0)
+        switch (control_code)
+        {
+        case 'B': // Boot
+            Debug_printf("!!! STARTING CP/M TASK!!!\n");
+            xTaskCreate(cpmTask, "cpmtask", 32768, NULL, 11, &cpmTaskHandle);
+            break;
+        case 'W': // Write
+            Debug_printf("Pushing character %c", data_buffer[0]);
+            xQueueSend(txq, &data_buffer[0], portMAX_DELAY);
+            break;
+        }
+    else
+        err_result = SP_ERR_IOERROR;
+    
     send_reply_packet(err_result);
 }
 

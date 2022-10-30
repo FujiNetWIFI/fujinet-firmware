@@ -50,7 +50,7 @@ void iwmDisk::send_status_reply_packet()
     data[2] = (_disk->num_blocks >> 8) & 0xff;
     data[3] = (_disk->num_blocks >> 16) & 0xff;
   }
-  encode_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
+  IWM.encode_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
 }
 
 //*****************************************************************************
@@ -66,8 +66,6 @@ void iwmDisk::send_status_reply_packet()
 //*****************************************************************************
 void iwmDisk::send_extended_status_reply_packet()
 {
-  uint8_t checksum = 0;
-
   uint8_t data[5];
   data[0] = 0b11101000;
   // Build the contents of the packet
@@ -91,7 +89,7 @@ void iwmDisk::send_extended_status_reply_packet()
     data[4] = (_disk->num_blocks >> 24) & 0xff;
   
   }
-  encode_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 5);
+  IWM.encode_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 5);
 }
 
 //*****************************************************************************
@@ -156,7 +154,7 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
   data[22] = 0x0a; // Device Subtype - 0x0a
   data[23] = 0x01; // Firmware version 2 bytes
   data[24] = 0x0f; //
-  encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+  IWM.encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
 //*****************************************************************************
@@ -221,7 +219,7 @@ void iwmDisk::send_extended_status_dib_reply_packet()
   data[22] = 0x0a; // Device Subtype - 0x0a
   data[23] = 0x01; // Firmware version 2 bytes
   data[24] = 0x0f; //
-  encode_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 25);
+  IWM.encode_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 25);
 }
 
 void iwmDisk::process(cmdPacket_t cmd)
@@ -308,7 +306,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
   if (block_num == 0 || block_num != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
   {
     Debug_printf("\r\n");
-    if (fseek(_disk->fileptr(), (block_num * 512), SEEK_SET))
+    if (fseek(_disk->fileptr(), (block_num * BLOCK_DATA_LEN), SEEK_SET))
     {
       Debug_printf("\r\nRead seek err! block #%02x", block_num);
       send_reply_packet(SP_ERR_BADBLOCK);
@@ -316,17 +314,17 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     }
   }
 
-  sdstato = fread((unsigned char *)packet_buffer, 1, 512, _disk->fileptr()); // Reading block from SD Card
-  if (sdstato != 512)
+  sdstato = fread((unsigned char *)data_buffer, 1, BLOCK_DATA_LEN, _disk->fileptr()); // Reading block from SD Card
+  if (sdstato != BLOCK_DATA_LEN)
   {
     Debug_printf("\r\nFile Read err: %d bytes", sdstato);
     send_reply_packet(SP_ERR_IOERROR);
     return; // todo - true or false?
   }
   // send_data_packet();
-  encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, 512); 
+  IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, BLOCK_DATA_LEN); 
   Debug_printf("\r\nsending block packet ...");
-  if (!IWM.iwm_send_packet((unsigned char *)packet_buffer))
+  if (!IWM.iwm_send_packet())
     last_block_num = block_num;
   else
     last_block_num = 0xFFFFFFFF;  // force seek next time if send error
@@ -346,13 +344,14 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
   Debug_printf("Write block %04x", block_num);
   //get write data packet, keep trying until no timeout
   // to do - this blows up - check handshaking
-  if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer, BLOCK_PACKET_LEN))
+  data_len = BLOCK_DATA_LEN;
+  if (IWM.iwm_read_packet_timeout(100, (unsigned char *)data_buffer, data_len))
   {
     Debug_printf("\r\nTIMEOUT in read packet!");
     return;
   }
   // partition number indicates which 32mb block we access
-  if (decode_data_packet())
+  if (data_len == -1)
     iwm_return_ioerror(cmd);
   else
     { // ok
@@ -362,7 +361,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
       if (block_num != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
       {
         Debug_printf("\r\n");
-        if (fseek(_disk->fileptr(), (block_num * 512), SEEK_SET))
+        if (fseek(_disk->fileptr(), (block_num * BLOCK_DATA_LEN), SEEK_SET))
         {
           Debug_printf("\r\nRead seek err! block #%02x", block_num);
           send_reply_packet(SP_ERR_BADBLOCK);
@@ -370,8 +369,8 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
                   // to do - set a flag here to check for error status
         }
       }
-      size_t sdstato = fwrite((unsigned char *)packet_buffer, 1, 512, _disk->fileptr());
-      if (sdstato != 512)
+      size_t sdstato = fwrite((unsigned char *)data_buffer, 1, BLOCK_DATA_LEN, _disk->fileptr());
+      if (sdstato != BLOCK_DATA_LEN)
       {
         Debug_printf("\r\nFile Write err: %d bytes", sdstato);
         if (sdstato == 0)
