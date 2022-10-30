@@ -253,7 +253,6 @@ protected:
   // void send_reply_packet(uint8_t source, uint8_t status) { send_reply_packet(status); };
   virtual void send_status_dib_reply_packet() = 0;
 
-  void send_extended_data_packet(uint8_t source);
   virtual void send_extended_status_reply_packet() = 0;
   virtual void send_extended_status_dib_reply_packet() = 0;
   

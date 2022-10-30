@@ -1088,14 +1088,7 @@ void iwmFuji::send_status_reply_packet()
 
 void iwmFuji::send_status_dib_reply_packet()
 {
-  int grpbyte, grpcount, i;
-  int grpnum, oddnum;
-  uint8_t checksum = 0, grpmsb;
-  uint8_t group_buffer[7];
   uint8_t data[25];
-  // data buffer=25: 3 x Grp7 + 4 odds
-  grpnum = 3;
-  oddnum = 4;
 
   //* write data buffer first (25 bytes) 3 grp7 + 4 odds
   // General Status byte
@@ -1132,61 +1125,7 @@ void iwmFuji::send_status_dib_reply_packet()
   data[22] = SP_SUBTYPE_BYTE_FUJINET; // Device Subtype - 0x0a
   data[23] = 0x00; // Firmware version 2 bytes
   data[24] = 0x01; //
-
-  // print_packet ((uint8_t*) data,get_packet_length()); // debug
-  // Debug_print(("\nData loaded"));
-  // Calculate checksum of sector bytes before we destroy them
-  for (int count = 0; count < 25; count++) // xor all the data bytes
-    checksum = checksum ^ data[count];
-
-  // Start assembling the packet at the rear and work
-  // your way to the front so we don't overwrite data
-  // we haven't encoded yet
-
-  // grps of 7
-  for (grpcount = grpnum - 1; grpcount >= 0; grpcount--) // 3
-  {
-    for (i = 0; i < 7; i++)
-    {
-      group_buffer[i] = data[i + oddnum + (grpcount * 7)]; // data should have 26 cells?
-    }
-    // add group msb byte
-    grpmsb = 0;
-    for (grpbyte = 0; grpbyte < 7; grpbyte++)
-      grpmsb = grpmsb | ((group_buffer[grpbyte] >> (grpbyte + 1)) & (0x80 >> (grpbyte + 1)));
-    packet_buffer[(14 + oddnum + 1) + (grpcount * 8)] = grpmsb | 0x80; // set msb to one
-
-    // now add the group data bytes bits 6-0
-    for (grpbyte = 0; grpbyte < 7; grpbyte++)
-      packet_buffer[(14 + oddnum + 2) + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
-  }
-
-  // odd byte
-  packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
-  packet_buffer[15] = data[0] | 0x80;
-  packet_buffer[16] = data[1] | 0x80;
-  packet_buffer[17] = data[2] | 0x80;
-  packet_buffer[18] = data[3] | 0x80;
-  ;
-
-  packet_set_sync_bytes();
-
-  packet_buffer[6] = 0xc3;        // PBEGIN - start byte
-  packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = id(); // d.device_id; // SRC - source id - us
-  packet_buffer[9] = PACKET_TYPE_STATUS;        // TYPE -status
-  packet_buffer[10] = 0x80;       // AUX
-  packet_buffer[11] = 0x80;       // STAT - data status
-  packet_buffer[12] = 0x84;       // ODDCNT - 4 data bytes
-  packet_buffer[13] = 0x83;       // GRP7CNT - 3 grps of 7
-
-  for (int count = 7; count < 14; count++) // xor the packet header bytes
-    checksum = checksum ^ packet_buffer[count];
-  packet_buffer[43] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  packet_buffer[44] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-  packet_buffer[45] = 0xc8; // PEND
-  packet_buffer[46] = 0x00; // end of packet in buffer
+  encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
 void iwmFuji::iwm_open(cmdPacket_t cmd)
