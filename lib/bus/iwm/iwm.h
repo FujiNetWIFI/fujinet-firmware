@@ -249,7 +249,7 @@ protected:
   void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num); 
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
-  void encode_reply_packet(uint8_t stat);
+  void encode_reply_packet(uint8_t status);
   // void encode_reply_packet(uint8_t source, uint8_t status) { encode_reply_packet(status); };
   virtual void encode_status_dib_reply_packet() = 0;
 
