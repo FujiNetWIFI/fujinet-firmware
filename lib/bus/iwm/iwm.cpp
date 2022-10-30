@@ -582,12 +582,12 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
     send_status_dib_reply_packet();
     // print_packet ((unsigned char*) packet_buffer,get_packet_length());
     // fnSystem.delay(50);
-    }
-    else
-    { // else just return device status
-      Debug_printf("\r\nSending Status");
-      send_status_reply_packet();
-    }
+  }
+  else
+  { // else just return device status
+    Debug_printf("\r\nSending Status");
+    send_status_reply_packet();
+  }
   print_packet(&packet_buffer[14]);
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }

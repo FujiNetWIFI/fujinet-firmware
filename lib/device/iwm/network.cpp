@@ -77,35 +77,7 @@ void iwmNetwork::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    // to do - just call encode data using the data[] array?
-packet_set_sync_bytes();
-
-    packet_buffer[6] = 0xc3;  // PBEGIN - start byte
-    packet_buffer[7] = 0x80;  // DEST - dest id - host
-    packet_buffer[8] = id();  // d.device_id; // SRC - source id - us
-    packet_buffer[9] = PACKET_TYPE_STATUS;  // TYPE -status
-    packet_buffer[10] = 0x80; // AUX
-    packet_buffer[11] = 0x80; // STAT - data status
-    packet_buffer[12] = 0x84; // ODDCNT - 4 data bytes
-    packet_buffer[13] = 0x80; // GRP7CNT
-    // 4 odd bytes
-    packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
-    packet_buffer[15] = data[0] | 0x80;                                                                                               // data 1
-    packet_buffer[16] = data[1] | 0x80;                                                                                               // data 2
-    packet_buffer[17] = data[2] | 0x80;                                                                                               // data 3
-    packet_buffer[18] = data[3] | 0x80;                                                                                               // data 4
-
-    for (int i = 0; i < 4; i++)
-    { // calc the data bytes checksum
-        checksum ^= data[i];
-    }
-    for (int count = 7; count < 14; count++) // xor the packet header bytes
-        checksum = checksum ^ packet_buffer[count];
-    packet_buffer[19] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-    packet_buffer[20] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-    packet_buffer[21] = 0xc8; // PEND
-    packet_buffer[22] = 0x00; // end of packet in buffer
+    encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmNetwork::send_status_dib_reply_packet()
