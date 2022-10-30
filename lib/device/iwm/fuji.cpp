@@ -37,7 +37,7 @@ void iwmFuji::iwm_hello_world()
 void iwmFuji::iwm_ctrl_reset_fujinet() // SP CTRL command
 {
     Debug_printf("\r\nFuji cmd: REBOOT");
-    encode_status_reply_packet();
+    send_status_reply_packet();
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
     // save device unit SP address somewhere and restore it after reboot?
     fnSystem.reboot();
@@ -1073,7 +1073,7 @@ std::string iwmFuji::get_host_prefix(int host_slot)
     return std::string();
 }
 
-void iwmFuji::encode_status_reply_packet()
+void iwmFuji::send_status_reply_packet()
 {
 
   uint8_t checksum = 0;
@@ -1115,7 +1115,7 @@ packet_set_sync_bytes();
   packet_buffer[22] = 0x00; // end of packet in buffer
 }
 
-void iwmFuji::encode_status_dib_reply_packet()
+void iwmFuji::send_status_dib_reply_packet()
 {
   int grpbyte, grpcount, i;
   int grpnum, oddnum;
@@ -1221,7 +1221,7 @@ void iwmFuji::encode_status_dib_reply_packet()
 void iwmFuji::iwm_open(cmdPacket_t cmd)
 {
   Debug_printf("\r\nOpen FujiNet Unit # %02x",cmd.g7byte1);
-  encode_status_reply_packet();
+  send_status_reply_packet();
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
@@ -1248,14 +1248,14 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       iwm_hello_world();
       break;
     case IWM_STATUS_STATUS:                  // 0x00
-      encode_status_reply_packet();
+      send_status_reply_packet();
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return;
       break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB:                     // 0x03
-      encode_status_dib_reply_packet();
+      send_status_dib_reply_packet();
       IWM.iwm_send_packet((unsigned char *)packet_buffer);
       return;
       break;
@@ -1323,13 +1323,12 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       break;
     default:
       Debug_printf("\r\nBad Status Code, sending error response");
-      encode_reply_packet(SP_ERR_BADCTL);
-      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      send_reply_packet(SP_ERR_BADCTL);
       return;
       break;
   }
   Debug_printf("\r\nStatus code complete, sending response");
-  // encode_data_packet(packet_len);
+  // send_data_packet(packet_len);
   encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, packet_len);
   
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
@@ -1445,8 +1444,7 @@ void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
       err_result = SP_ERR_BADCTL;
       break;
   }
-  encode_reply_packet(err_result); 
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  send_reply_packet(err_result); 
 }
 
 

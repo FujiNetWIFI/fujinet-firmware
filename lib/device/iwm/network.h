@@ -104,10 +104,10 @@ public:
     void iwm_status(cmdPacket_t cmd) override;
 
     void shutdown() override;
-    void encode_status_reply_packet() override;
-    void encode_extended_status_reply_packet() override{};
-    void encode_status_dib_reply_packet() override;
-    void encode_extended_status_dib_reply_packet() override{};
+    void send_status_reply_packet() override;
+    void send_extended_status_reply_packet() override{};
+    void send_status_dib_reply_packet() override;
+    void send_extended_status_dib_reply_packet() override{};
 
     /**
      * @brief Called to set prefix

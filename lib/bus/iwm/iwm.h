@@ -244,18 +244,18 @@ protected:
   bool decode_data_packet(void); //decode smartport 512 byte data packet
   static uint16_t num_decoded;
 
-  // void encode_data_packet(); //encode smartport 512 byte data packet
+  // void send_data_packet(); //encode smartport 512 byte data packet
   // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
   void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num); 
-  void encode_init_reply_packet(uint8_t source, uint8_t status);
-  virtual void encode_status_reply_packet() = 0;
-  void encode_reply_packet(uint8_t status);
-  // void encode_reply_packet(uint8_t source, uint8_t status) { encode_reply_packet(status); };
-  virtual void encode_status_dib_reply_packet() = 0;
+  void send_init_reply_packet(uint8_t source, uint8_t status);
+  virtual void send_status_reply_packet() = 0;
+  void send_reply_packet(uint8_t status);
+  // void send_reply_packet(uint8_t source, uint8_t status) { send_reply_packet(status); };
+  virtual void send_status_dib_reply_packet() = 0;
 
-  void encode_extended_data_packet(uint8_t source);
-  virtual void encode_extended_status_reply_packet() = 0;
-  virtual void encode_extended_status_dib_reply_packet() = 0;
+  void send_extended_data_packet(uint8_t source);
+  virtual void send_extended_status_reply_packet() = 0;
+  virtual void send_extended_status_dib_reply_packet() = 0;
   
   int get_packet_length(void);
 

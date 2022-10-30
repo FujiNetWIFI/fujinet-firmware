@@ -50,7 +50,7 @@ iwmCPM::iwmCPM()
     txq = xQueueCreate(2048,sizeof(char));
 }
 
-void iwmCPM::encode_status_reply_packet()
+void iwmCPM::send_status_reply_packet()
 {
     uint8_t checksum = 0;
     uint8_t data[4];
@@ -91,7 +91,7 @@ void iwmCPM::encode_status_reply_packet()
     packet_buffer[22] = 0x00; // end of packet in buffer
 }
 
-void iwmCPM::encode_status_dib_reply_packet()
+void iwmCPM::send_status_dib_reply_packet()
 {
     int grpbyte, grpcount, i;
     int grpnum, oddnum;
@@ -203,7 +203,7 @@ void iwmCPM::sio_status()
 void iwmCPM::iwm_open(cmdPacket_t cmd)
 {
     Debug_printf("\r\nOpen CP/M Unit # %02x\n", cmd.g7byte1);
-    encode_status_reply_packet();
+    send_status_reply_packet();
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
@@ -211,7 +211,7 @@ void iwmCPM::iwm_close(cmdPacket_t cmd)
 {
     // Probably need to send close command here.
     Debug_printf("\r\nClose CP/M Unit # %02x\n", cmd.g7byte1);
-    encode_status_reply_packet();
+    send_status_reply_packet();
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
@@ -225,14 +225,14 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
     switch (status_code)
     {
     case IWM_STATUS_STATUS: // 0x00
-        encode_status_reply_packet();
+        send_status_reply_packet();
         IWM.iwm_send_packet((unsigned char *)packet_buffer);
         return;
         break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB: // 0x03
-        encode_status_dib_reply_packet();
+        send_status_dib_reply_packet();
         IWM.iwm_send_packet((unsigned char *)packet_buffer);
         return;
         break;
@@ -246,7 +246,7 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    //encode_data_packet(packet_len);
+    //send_data_packet(packet_len);
     encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, packet_len);
 
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
@@ -277,7 +277,7 @@ void iwmCPM::iwm_read(cmdPacket_t cmd)
 
     Debug_printf("%s\n",packet_buffer);
 
-    //encode_data_packet(packet_len);
+    //send_data_packet(packet_len);
     encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, packet_len);
     Debug_printf("\r\nsending block packet ...");
     IWM.iwm_send_packet((unsigned char *)packet_buffer);
@@ -341,8 +341,7 @@ void iwmCPM::iwm_ctrl(cmdPacket_t cmd)
         break;
     }
 
-    encode_reply_packet(err_result);
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    send_reply_packet(err_result);
 }
 
 void iwmCPM::process(cmdPacket_t cmd)
