@@ -495,55 +495,11 @@ bool iwmDevice::decode_data_packet(void)
 void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 {
   encode_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
-
-  // uint8_t checksum = 0;
-
-  // packet_set_sync_bytes();
-
-  // packet_buffer[6] = 0xc3;  //PBEGIN - start byte
-  // packet_buffer[7] = 0x80;  //DEST - dest id - host
-  // packet_buffer[8] = source; //SRC - source id - us
-  // packet_buffer[9] = 0x80;  //TYPE
-  // packet_buffer[10] = 0x80; //AUX
-  // packet_buffer[11] = status | 0x80; //STAT - data status
-
-  // packet_buffer[12] = 0x80; //ODDCNT
-  // packet_buffer[13] = 0x80; //GRP7CNT
-
-  // for (int count = 7; count < 14; count++) // xor the packet header bytes
-  //   checksum = checksum ^ packet_buffer[count];
-  // packet_buffer[14] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  // packet_buffer[15] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-  // packet_buffer[16] = 0xc8; //PEND
-  // packet_buffer[17] = 0x00; //end of packet in buffer
-
 }
 
-void iwmDevice::encode_reply_packet (uint8_t stat)
+void iwmDevice::encode_reply_packet (uint8_t status)
 {
-  encode_packet(id(), iwm_packet_type_t::status, stat, nullptr, 0);
-
-  // uint8_t checksum = 0;
-
-  // packet_set_sync_bytes();
-
-  // packet_buffer[6] = 0xc3;  //PBEGIN - start byte
-  // packet_buffer[7] = 0x80;  //DEST - dest id - host
-  // packet_buffer[8] = id(); //SRC - source id - us
-  // packet_buffer[9] = PACKET_TYPE_STATUS;  //TYPE -status
-  // packet_buffer[10] = 0x80; //AUX
-  // packet_buffer[11] = stat | 0x80; //STAT - data status - error
-  // packet_buffer[12] = 0x80; //ODDCNT - 0 data bytes
-  // packet_buffer[13] = 0x80; //GRP7CNT
-
-  // for (int count = 7; count < 14; count++) // xor the packet header bytes
-  //   checksum = checksum ^ packet_buffer[count];
-  // packet_buffer[14] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  // packet_buffer[15] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-  // packet_buffer[16] = 0xc8; //PEND
-  // packet_buffer[17] = 0x00; //end of packet in buffer
+  encode_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
 }
 
 void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
@@ -625,7 +581,7 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
     Debug_printf("\r\n******** Sending DIB! ********");
     encode_status_dib_reply_packet();
     // print_packet ((unsigned char*) packet_buffer,get_packet_length());
-    fnSystem.delay(50);
+    // fnSystem.delay(50);
     }
     else
     { // else just return device status
