@@ -127,9 +127,9 @@ void print_packet_wave(uint8_t* data, int bytes)
 
 //------------------------------------------------------------------------------
 
-uint8_t iwmDevice::packet_buffer[BLOCK_PACKET_LEN] = { 0 };
-uint16_t iwmDevice::packet_len = 0;
-uint16_t iwmDevice::num_decoded = 0;
+// uint8_t iwmDevice::packet_buffer[BLOCK_PACKET_LEN] = { 0 };
+// uint16_t iwmDevice::packet_len = 0;
+// uint16_t iwmDevice::num_decoded = 0;
 
 
 
@@ -198,33 +198,36 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 
 //------------------------------------------------------
 
-int iwmBus::iwm_send_packet(uint8_t *data)
+int iwmBus::iwm_send_packet()
 {
-  return smartport.iwm_send_packet_spi(data);
+  return smartport.iwm_send_packet_spi(packet_buffer);
 }
 
-int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int n)
+bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 {
+  int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
+  Debug_printf("\r\nAttempting to receive %d length packet", nn);
   portDISABLE_INTERRUPTS();
   iwm_ack_deassert();
   for (int i = 0; i < attempts; i++)
   {
-    if (!smartport.iwm_read_packet_spi(data, n))
+    if (!smartport.iwm_read_packet_spi(packet_buffer, nn))
     {
       iwm_ack_assert();
       portENABLE_INTERRUPTS();
 #ifdef DEBUG
       print_packet(data);
 #endif
-      return 0;
+      n = decode_data_packet(data);
+      return false;
     } // if
   }
 #ifdef DEBUG
   Debug_printf("\r\nERROR: Read Packet tries exceeds %d attempts", attempts);
-  print_packet(data);
+  // print_packet(data);
 #endif
   portENABLE_INTERRUPTS();
-  return 1;
+  return true;
 }
 
 
@@ -253,7 +256,7 @@ void iwmBus::setup(void)
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 
+void iwmBus::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 
 {
   // generic version would need:
   // source id
@@ -344,7 +347,7 @@ void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
 // Description: decode 512 (arbitrary now) byte data packet for write block command from host
 // decodes the data from the packet_buffer IN-PLACE!
 //*****************************************************************************
-bool iwmDevice::decode_data_packet(void)
+int iwmBus::decode_data_packet(uint8_t* data)
 {
   int grpbyte, grpcount;
   uint8_t numgrps, numodd;
@@ -372,7 +375,7 @@ bool iwmDevice::decode_data_packet(void)
 
   //add oddbyte(s), 1 in a 512 data packet
   for(int i = 0; i < numodd; i++){
-    packet_buffer[i] = ((packet_buffer[13] << (i+1)) & 0x80) | (packet_buffer[14+i] & 0x7f);
+    data[i] = ((packet_buffer[13] << (i+1)) & 0x80) | (packet_buffer[14+i] & 0x7f);
   }
 
   // 73 grps of 7 in a 512 byte packet
@@ -380,27 +383,27 @@ bool iwmDevice::decode_data_packet(void)
   for (grpcount = 0; grpcount < numgrps; grpcount++)
   {
     memcpy(group_buffer, packet_buffer + grpstart + (grpcount * 8), 8);
-    for (grpbyte = 0; grpbyte < 7; grpbyte++) {
+    for (grpbyte = 0; grpbyte < 7; grpbyte++)
+    {
       bit7 = (group_buffer[0] << (grpbyte + 1)) & 0x80;
       bit0to6 = (group_buffer[grpbyte + 1]) & 0x7f;
-      packet_buffer[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
+      data[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
     }
   }
 
   //verify checksum
   for (int count = 0; count < numdata; count++) // xor all the data bytes
-    checksum = checksum ^ packet_buffer[count];
+    checksum = checksum ^ data[count];
 
-  Debug_printf("\r\ndecode data packet checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
+  Debug_printf("\r\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
 
   if (checksum != (oddbits | evenbits))
   {
     Debug_printf("\r\nCHECKSUM ERROR!");
-    return true; // error!
+    return -1; // error!
   }
   
-  num_decoded = numdata;
-  return false;
+  return numdata;
 }
 
 //*****************************************************************************
@@ -416,14 +419,14 @@ bool iwmDevice::decode_data_packet(void)
 //*****************************************************************************
 void iwmDevice::send_init_reply_packet (uint8_t source, uint8_t status)
 {
-  encode_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.encode_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
+  IWM.iwm_send_packet();
 }
 
 void iwmDevice::send_reply_packet (uint8_t status)
 {
-  encode_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.encode_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
+  IWM.iwm_send_packet();
 }
 
 void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
@@ -510,25 +513,9 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
     Debug_printf("\r\nSending Status");
     send_status_reply_packet();
   }
-  print_packet(&packet_buffer[14]);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  //print_packet(&packet_buffer[14]);
+  IWM.iwm_send_packet();
 }
-
-//*****************************************************************************
-// Function: packet_length
-// Parameters: none
-// Returns: length
-//
-// Description: Calculates the length of the packet in the packet_buffer.
-// A zero marks the end of the packet data.
-//*****************************************************************************
-int iwmDevice::get_packet_length (void)
-{
-  int x = 5; // start at the 0xc3 beginning of packet
-  while (packet_buffer[x++]);
-  return x - 1; // point to last packet byte = C8
-}
-
 
 //*****************************************************************************
 // Function: main loop

@@ -77,7 +77,7 @@ void iwmNetwork::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+    IWM.encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmNetwork::send_status_dib_reply_packet()
@@ -119,7 +119,7 @@ void iwmNetwork::send_status_dib_reply_packet()
     data[22] = SP_SUBTYPE_BYTE_FUJINET_NETWORK; // Device Subtype - 0x0a
     data[23] = 0x00;                            // Firmware version 2 bytes
     data[24] = 0x01;                            //
-    encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+    IWM.encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
 /**
@@ -130,9 +130,9 @@ void iwmNetwork::send_status_dib_reply_packet()
 void iwmNetwork::open()
 {
     int idx = 0;
-    uint8_t _aux1 = packet_buffer[idx++];
-    uint8_t _aux2 = packet_buffer[idx++];
-    string d = string((char *)&packet_buffer[idx], 256);
+    uint8_t _aux1 = data_buffer[idx++];
+    uint8_t _aux2 = data_buffer[idx++];
+    string d = string((char *)&data_buffer[idx], 256);
 
     Debug_printf("aux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
@@ -217,7 +217,7 @@ void iwmNetwork::get_prefix()
  */
 void iwmNetwork::set_prefix()
 {
-    string prefixSpec_str = string((const char *)packet_buffer);
+    string prefixSpec_str = string((const char *)data_buffer);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("iwmNetwork::iwmnet_set_prefix(%s)\n", prefixSpec_str.c_str());
 
@@ -266,7 +266,7 @@ void iwmNetwork::set_prefix()
  */
 void iwmNetwork::set_login()
 {
-    login = string((char *)packet_buffer, 256);
+    login = string((char *)data_buffer, 256);
 }
 
 /**
@@ -274,14 +274,14 @@ void iwmNetwork::set_login()
  */
 void iwmNetwork::set_password()
 {
-    password = string((char *)packet_buffer, 256);
+    password = string((char *)data_buffer, 256);
 }
 
 void iwmNetwork::del()
 {
     string d;
 
-    d = string((char *)packet_buffer, 256);
+    d = string((char *)data_buffer, 256);
     parse_and_instantiate_protocol(d);
 
     if (protocol == nullptr)
@@ -300,7 +300,7 @@ void iwmNetwork::rename()
 {
     string d;
 
-    d = string((char *)packet_buffer, 256);
+    d = string((char *)data_buffer, 256);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = ' ';
@@ -316,7 +316,7 @@ void iwmNetwork::mkdir()
 {
     string d;
 
-    d = string((char *)packet_buffer, 256);
+    d = string((char *)data_buffer, 256);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = '*';
@@ -330,7 +330,7 @@ void iwmNetwork::mkdir()
 
 void iwmNetwork::channel_mode()
 {
-    switch (packet_buffer[0])
+    switch (data_buffer[0])
     {
     case 0:
         Debug_printf("channelMode = PROTOCOL\n");
@@ -341,14 +341,14 @@ void iwmNetwork::channel_mode()
         channelMode = JSON;
         break;
     default:
-        Debug_printf("INVALID MODE = %02x\r\n", packet_buffer[0]);
+        Debug_printf("INVALID MODE = %02x\r\n", data_buffer[0]);
         break;
     }
 }
 
 void iwmNetwork::json_query(cmdPacket_t cmd)
 {
-    uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
+    uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
 
     uint16_t numbytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
@@ -357,8 +357,8 @@ void iwmNetwork::json_query(cmdPacket_t cmd)
     addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
     addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
-    Debug_printf("Query set to: %s\n", string((char *)packet_buffer,num_decoded).c_str());
-    json.setReadQuery(string((char *)packet_buffer, num_decoded),cmdFrame.aux2);
+    Debug_printf("Query set to: %s\n", string((char *)data_buffer, data_len).c_str());
+    json.setReadQuery(string((char *)data_buffer, data_len),cmdFrame.aux2);
 }
 
 void iwmNetwork::json_parse()
@@ -434,8 +434,8 @@ void iwmNetwork::do_inquiry(unsigned char inq_cmd)
  */
 void iwmNetwork::special_00()
 {
-    cmdFrame.aux1 = packet_buffer[0];
-    cmdFrame.aux2 = packet_buffer[1];
+    cmdFrame.aux1 = data_buffer[0];
+    cmdFrame.aux2 = data_buffer[1];
 
     protocol->special_00(&cmdFrame);
 }
@@ -448,15 +448,15 @@ void iwmNetwork::special_00()
  */
 void iwmNetwork::special_40()
 {
-    cmdFrame.aux1 = packet_buffer[0];
-    cmdFrame.aux2 = packet_buffer[1];
+    cmdFrame.aux1 = data_buffer[0];
+    cmdFrame.aux2 = data_buffer[1];
 
-    if (protocol->special_40(packet_buffer, 256, &cmdFrame) == false)
+    if (protocol->special_40(data_buffer, 256, &cmdFrame) == false)
     {
-        packet_len = 256;
-        //send_data_packet(packet_len);
-        encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, packet_len);
-        IWM.iwm_send_packet((uint8_t *)packet_buffer);
+        data_len = 256;
+        //send_data_packet(data_len);
+        IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+        IWM.iwm_send_packet();
     }
     else
     {
@@ -473,13 +473,13 @@ void iwmNetwork::special_40()
 void iwmNetwork::special_80()
 {
     // Get special (devicespec) from computer
-    cmdFrame.aux1 = packet_buffer[0];
-    cmdFrame.aux2 = packet_buffer[1];
+    cmdFrame.aux1 = data_buffer[0];
+    cmdFrame.aux2 = data_buffer[1];
 
-    Debug_printf("iwmNetwork::iwmnet_special_80() - %s\n", &packet_buffer[2]);
+    Debug_printf("iwmNetwork::iwmnet_special_80() - %s\n", &data_buffer[2]);
 
     // Do protocol action and return
-    if (protocol->special_80(&packet_buffer[2], SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (protocol->special_80(&data_buffer[2], SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
     {
         // GOOD
     }
@@ -493,7 +493,7 @@ void iwmNetwork::iwm_open(cmdPacket_t cmd)
 {
     Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
     send_status_reply_packet();
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet();
 }
 
 void iwmNetwork::iwm_close(cmdPacket_t cmd)
@@ -501,7 +501,7 @@ void iwmNetwork::iwm_close(cmdPacket_t cmd)
     // Probably need to send close command here.
     Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
     send_status_reply_packet();
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    IWM.iwm_send_packet();
     close();
 }
 
@@ -519,16 +519,16 @@ void iwmNetwork::status()
         break;
     }
 
-    packet_buffer[0] = s.rxBytesWaiting & 0xFF;
-    packet_buffer[1] = s.rxBytesWaiting >> 8;
-    packet_buffer[2] = s.connected;
-    packet_buffer[3] = s.error;
-    packet_len = 4;
+    data_buffer[0] = s.rxBytesWaiting & 0xFF;
+    data_buffer[1] = s.rxBytesWaiting >> 8;
+    data_buffer[2] = s.connected;
+    data_buffer[3] = s.error;
+    data_len = 4;
 }
 
 void iwmNetwork::iwm_status(cmdPacket_t cmd)
 {
-    uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
+    uint8_t source = cmd.dest;                                                // we are the destination and will become the source // data_buffer[6];
     uint8_t status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     Debug_printf("\r\nDevice %02x Status Code %02x", source, status_code);
     Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
@@ -537,14 +537,14 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
     {
     case IWM_STATUS_STATUS: // 0x00
         send_status_reply_packet();
-        IWM.iwm_send_packet((unsigned char *)packet_buffer);
+        IWM.iwm_send_packet();
         return;
         break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB: // 0x03
         send_status_dib_reply_packet();
-        IWM.iwm_send_packet((unsigned char *)packet_buffer);
+        IWM.iwm_send_packet();
         return;
         break;
     case 'R':
@@ -556,9 +556,9 @@ void iwmNetwork::iwm_status(cmdPacket_t cmd)
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    //send_data_packet(packet_len);
-    encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, packet_len);
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    //send_data_packet(data_len);
+    IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    IWM.iwm_send_packet();
 }
 
 void iwmNetwork::net_read()
@@ -577,8 +577,8 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, cmdPacket_t cmd)
     {
         json.json_bytes_remaining -= num_bytes;
 
-        json.readValue(packet_buffer, num_bytes);
-        packet_len = json.readValueLen();
+        json.readValue(data_buffer, num_bytes);
+        data_len = json.readValueLen();
     }
 
     return false;
@@ -602,9 +602,9 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
 
     // Truncate bytes waiting to response size
     ns.rxBytesWaiting = (ns.rxBytesWaiting > 512) ? 512 : ns.rxBytesWaiting;
-    packet_len = ns.rxBytesWaiting;
+    data_len = ns.rxBytesWaiting;
 
-    if (protocol->read(packet_len)) // protocol adapter returned error
+    if (protocol->read(data_len)) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
@@ -614,9 +614,9 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
     else // everything ok
     {
         statusByte.bits.client_error = 0;
-        statusByte.bits.client_data_available = packet_len > 0;
-        memcpy(packet_buffer, receiveBuffer->data(), packet_len);
-        receiveBuffer->erase(0, packet_len);
+        statusByte.bits.client_data_available = data_len > 0;
+        memcpy(data_buffer, receiveBuffer->data(), data_len);
+        receiveBuffer->erase(0, data_len);
     }
     return false;
 }
@@ -635,7 +635,7 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
 
 void iwmNetwork::iwm_read(cmdPacket_t cmd)
 {
-    uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
+    uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
 
     uint16_t numbytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
@@ -656,25 +656,25 @@ void iwmNetwork::iwm_read(cmdPacket_t cmd)
         break;
     }
 
-    //send_data_packet(packet_len);
-    encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, packet_len);
+    //send_data_packet(data_len);
+    IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     Debug_printf("\r\nsending block packet ...");
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
-    packet_len = 0;
-    memset(packet_buffer, 0, sizeof(packet_buffer));
+    IWM.iwm_send_packet();
+    data_len = 0;
+    memset(data_buffer, 0, sizeof(data_buffer));
 }
 
 void iwmNetwork::net_write()
 {
     // TODO: Handle errors.
-    *transmitBuffer += string((char *)packet_buffer, num_decoded);
-    write_channel(num_decoded);
+    *transmitBuffer += string((char *)data_buffer, data_len);
+    write_channel(data_len);
 }
 
 void iwmNetwork::iwm_write(cmdPacket_t cmd)
 {
     uint8_t status = 0;
-    uint8_t source = cmd.dest; // packet_buffer[6];
+    uint8_t source = cmd.dest; // data_buffer[6];
     // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
     Debug_printf("\r\nNet# %02x ", source);
 
@@ -689,13 +689,14 @@ void iwmNetwork::iwm_write(cmdPacket_t cmd)
 
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
-    if (IWM.iwm_read_packet_timeout(100, (unsigned char *)packet_buffer, BLOCK_PACKET_LEN))
+    data_len = BLOCK_DATA_LEN;
+    if (IWM.iwm_read_packet_timeout(100, (unsigned char *)data_buffer, data_len))
     {
         Debug_printf("\r\nTIMEOUT in read packet!");
         return;
     }
     // partition number indicates which 32mb block we access
-    if (decode_data_packet())
+    if (data_len == -1)
         iwm_return_ioerror(cmd);
     else
     {
@@ -715,14 +716,14 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
 {
     uint8_t err_result = SP_ERR_NOERROR;
 
-    uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // packet_buffer[6];
+    uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
     uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
     Debug_printf("\r\nDevice %02x Control Code %02x", source, control_code);
     Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
-    IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
-    Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, packet_buffer[12] & 0x7f);
-    decode_data_packet();
-    print_packet((uint8_t *)packet_buffer);
+    data_len = BLOCK_DATA_LEN;
+    IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+    // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", data_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
+    print_packet((uint8_t *)data_buffer);
 
     switch (control_code)
     {

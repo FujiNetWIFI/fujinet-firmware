@@ -120,6 +120,7 @@ union cmdFrame_t
 
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_PACKET_LEN    604 //606
+#define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -236,16 +237,10 @@ protected:
   // the command packet might be an exception
   // iwm packet handling
   static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
-  static u_int16_t data_len; // how many bytes in the data buffer
-  static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  static uint16_t packet_len;
+  static int data_len; // how many bytes in the data buffer
 
-  bool decode_data_packet(void); //decode smartport 512 byte data packet
-  static uint16_t num_decoded;
-
-  // void send_data_packet(); //encode smartport 512 byte data packet
+   // void send_data_packet(); //encode smartport 512 byte data packet
   // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
-  void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num); 
   void send_init_reply_packet(uint8_t source, uint8_t status);
   virtual void send_status_reply_packet() = 0;
   void send_reply_packet(uint8_t status);
@@ -255,8 +250,6 @@ protected:
   virtual void send_extended_status_reply_packet() = 0;
   virtual void send_extended_status_dib_reply_packet() = 0;
   
-  int get_packet_length(void);
-
   virtual void shutdown() = 0;
   virtual void process(cmdPacket_t cmd) = 0;
 
@@ -336,8 +329,13 @@ private:
 public:
 
   // these are low level commands and should be called/replace with one layer more of abstraction
-  int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
-  int iwm_send_packet(uint8_t *a);
+  bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
+  int decode_data_packet(uint8_t* data); //decode smartport 512 byte data packet
+ 
+  int iwm_send_packet();
+  void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num); 
+  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  uint16_t packet_len;
 
   // these things stay for the most part
   void setup();
