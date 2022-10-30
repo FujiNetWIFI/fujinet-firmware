@@ -454,7 +454,7 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     return; // todo - true or false?
   }
   // encode_data_packet();
-  encode_packet(id(), PACKET_TYPE_DATA, 0, packet_buffer, 512); 
+  encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, 512); 
   Debug_printf("\r\nsending block packet ...");
   if (!IWM.iwm_send_packet((unsigned char *)packet_buffer))
     last_block_num = block_num;

@@ -65,6 +65,17 @@
 #define PACKET_TYPE_STATUS 0x81
 #define PACKET_TYPE_DATA 0x82
 
+enum class iwm_packet_type_t
+{
+  cmd = PACKET_TYPE_CMD,
+  status = PACKET_TYPE_STATUS,
+  data = PACKET_TYPE_DATA,
+  ext_cmd = PACKET_TYPE_CMD | 0x40,
+  ext_status = PACKET_TYPE_STATUS | 0x40,
+  ext_data = PACKET_TYPE_DATA | 0x40
+};
+
+
 #define IWM_CTRL_RESET 0x00
 #define IWM_CTRL_SET_DCB 0x01
 #define IWM_CTRL_SET_NEWLINE 0x02
@@ -235,7 +246,7 @@ protected:
 
   // void encode_data_packet(); //encode smartport 512 byte data packet
   // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
-  void encode_packet(uint8_t source, uint8_t packet_type, uint8_t status, uint8_t* data, uint16_t num); 
+  void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, uint8_t* data, uint16_t num); 
   void encode_init_reply_packet(uint8_t source, uint8_t status);
   virtual void encode_status_reply_packet() = 0;
   void encode_reply_packet(uint8_t stat);

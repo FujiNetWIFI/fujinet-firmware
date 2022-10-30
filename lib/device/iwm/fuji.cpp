@@ -1330,7 +1330,7 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
   }
   Debug_printf("\r\nStatus code complete, sending response");
   // encode_data_packet(packet_len);
-  encode_packet(id(), PACKET_TYPE_DATA, 0, packet_buffer, packet_len);
+  encode_packet(id(), iwm_packet_type_t::data, 0, packet_buffer, packet_len);
   
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
