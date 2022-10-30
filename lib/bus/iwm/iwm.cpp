@@ -272,14 +272,14 @@ void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
   // number of bytes to encode
 
   uint8_t checksum = 0;
-  uint8_t numgrps = 0;
-  uint8_t numodds = 0;
+  int numgrps = 0;
+  int numodds = 0;
 
   if ((data != nullptr) && (num != 0))
   {           
   int grpbyte, grpcount;
   uint8_t grpmsb;
-    uint8_t group_buffer[7];
+  uint8_t group_buffer[7];
                                     // Calculate checksum of sector bytes before we destroy them
     for (int count = 0; count < num; count++) // xor all the data bytes
       checksum = checksum ^ data[count];
@@ -293,7 +293,7 @@ void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
     numodds = num % 7;
 
     // grps of 7
-    for (grpcount = numgrps; grpcount >= 0; grpcount--) // 73
+    for (grpcount = numgrps - 1; grpcount >= 0; grpcount--) // 73
     {
       memcpy(group_buffer, data + numodds + (grpcount * 7), 7);
       // add group msb byte
@@ -313,8 +313,8 @@ void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
   packet_buffer[14] = 0x80; // init the oddmsb
   for (int oddcnt = 0; oddcnt < numodds; oddcnt++)
   {
-    packet_buffer[14] |= (packet_buffer[oddcnt] & 0x80) >> (1 + oddcnt);
-    packet_buffer[15 + oddcnt] = packet_buffer[oddcnt] | 0x80;
+    packet_buffer[14] |= (data[oddcnt] & 0x80) >> (1 + oddcnt);
+    packet_buffer[15 + oddcnt] = data[oddcnt] | 0x80;
   }
 
   // header
