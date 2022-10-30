@@ -107,14 +107,7 @@ void iwmDisk::send_extended_status_reply_packet()
 //*****************************************************************************
 void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with passsed parameters
 {
-  int grpbyte, grpcount, i;
-  int grpnum, oddnum;
-  uint8_t checksum = 0, grpmsb;
-  uint8_t group_buffer[7];
   uint8_t data[25];
-  // data buffer=25: 3 x Grp7 + 4 odds
-  grpnum = 3;
-  oddnum = 4;
 
   //* write data buffer first (25 bytes) 3 grp7 + 4 odds
   // General Status byte
@@ -163,65 +156,7 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
   data[22] = 0x0a; // Device Subtype - 0x0a
   data[23] = 0x01; // Firmware version 2 bytes
   data[24] = 0x0f; //
-
-  // print_packet ((uint8_t*) data,get_packet_length()); // debug
-  // Debug_print(("\nData loaded"));
-  // Calculate checksum of sector bytes before we destroy them
-  for (int count = 0; count < 25; count++) // xor all the data bytes
-    checksum = checksum ^ data[count];
-
-  // Start assembling the packet at the rear and work
-  // your way to the front so we don't overwrite data
-  // we haven't encoded yet
-
-  // grps of 7
-  for (grpcount = grpnum - 1; grpcount >= 0; grpcount--) // 3
-  {
-    // for (i = 0; i < 8; i++)
-    for (i = 0; i < 7; i++) // think index should be 0..6 not 0..7
-    {
-      group_buffer[i] = data[i + oddnum + (grpcount * 7)];
-    }
-    // add group msb byte
-    grpmsb = 0;
-    for (grpbyte = 0; grpbyte < 7; grpbyte++)
-      grpmsb = grpmsb | ((group_buffer[grpbyte] >> (grpbyte + 1)) & (0x80 >> (grpbyte + 1)));
-    packet_buffer[(14 + oddnum + 1) + (grpcount * 8)] = grpmsb | 0x80; // set msb to one
-
-    // now add the group data bytes bits 6-0
-    for (grpbyte = 0; grpbyte < 7; grpbyte++)
-      packet_buffer[(14 + oddnum + 2) + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
-  }
-
-    //Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
-    // odd byte
-    packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
-    packet_buffer[15] = data[0] | 0x80;
-    packet_buffer[16] = data[1] | 0x80;
-    packet_buffer[17] = data[2] | 0x80;
-    packet_buffer[18] = data[3] | 0x80;
-    ;
-
-    Debug_printf("\r\npacket buffer 14: %02x", packet_buffer[14]);
-
-packet_set_sync_bytes();
-
-    packet_buffer[6] = 0xc3;  // PBEGIN - start byte
-    packet_buffer[7] = 0x80;  // DEST - dest id - host
-    packet_buffer[8] = id();  // d.device_id; // SRC - source id - us
-    packet_buffer[9] = PACKET_TYPE_STATUS;  // TYPE -status
-    packet_buffer[10] = 0x80; // AUX
-    packet_buffer[11] = 0x80; // STAT - data status
-    packet_buffer[12] = 0x84; // ODDCNT - 4 data bytes
-    packet_buffer[13] = 0x83; // GRP7CNT - 3 grps of 7
-
-    for (int count = 7; count < 14; count++) // xor the packet header bytes
-      checksum = checksum ^ packet_buffer[count];
-    packet_buffer[43] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-    packet_buffer[44] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-    packet_buffer[45] = 0xc8; // PEND
-    packet_buffer[46] = 0x00; // end of packet in buffer
+  encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
 //*****************************************************************************
@@ -237,61 +172,56 @@ packet_set_sync_bytes();
 //*****************************************************************************
 void iwmDisk::send_extended_status_dib_reply_packet()
 {
-  uint8_t checksum = 0;
+  uint8_t data[25];
 
- packet_set_sync_bytes();
-
-  packet_buffer[6] = 0xc3;        // PBEGIN - start byte
-  packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = id(); //d.device_id; // SRC - source id - us
-  packet_buffer[9] = PACKET_TYPE_STATUS;        // TYPE -status
-  packet_buffer[10] = 0x80;       // AUX
-  packet_buffer[11] = 0x83;       // STAT - data status
-  packet_buffer[12] = 0x80;       // ODDCNT - 4 data bytes
-  packet_buffer[13] = 0x83;       // GRP7CNT - 3 grps of 7
-  packet_buffer[14] = 0xf0;       // grp1 msb
+  //* write data buffer first (25 bytes) 3 grp7 + 4 odds
+  // General Status byte
+  // Bit 7: Block  device
+  // Bit 6: Write allowed
+  // Bit 5: Read allowed
+  // Bit 4: Device online or disk in drive
+  // Bit 3: Format allowed
+  // Bit 2: Media write protected (block devices only)
+  // Bit 1: Currently interrupting (//c only)
+  // Bit 0: Currently open (char devices only)
+  data[0] = 0b11101000;
+  data[1] = 0;
+  data[2] = 0;
+  data[3] = 0;
   if (_disk != nullptr)
   {
-    packet_buffer[15] = 0b11101000 | (1 << 4); // general status - f8
-    // number of blocks =0x00ffff = 65525 or 32mb
-    packet_buffer[16] = _disk->num_blocks & 0xff;                  // block size 1
-    packet_buffer[17] = (_disk->num_blocks >> 8) & 0xff;           // block size 2
-    packet_buffer[18] = ((_disk->num_blocks >> 16) & 0xff) | 0x80; // block size 3 - why is the high bit set?
-    packet_buffer[19] = ((_disk->num_blocks >> 24) & 0xff) | 0x80; // block size 3 - why is the high bit set?
+    data[0] |= (1 << 4);
+    data[1] = (_disk->num_blocks) & 0xff;         // block size 1
+    data[2] = (_disk->num_blocks >> 8) & 0xff;  // block size 2
+    data[3] = (_disk->num_blocks >> 16) & 0xff; // block size 3
+    Debug_printf("\r\nDIB number of blocks %d", _disk->num_blocks);
+    //Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
   }
-  packet_buffer[20] = 0x8d;                             // ID string length - 13 chars
-  packet_buffer[21] = 'S';
-  packet_buffer[22] = 'm';  // ID string (16 chars total)
-  packet_buffer[23] = 0x80; // grp2 msb
-  packet_buffer[24] = 'a';
-  packet_buffer[25] = 'r';
-  packet_buffer[26] = 't';
-  packet_buffer[27] = 'p';
-  packet_buffer[28] = 'o';
-  packet_buffer[29] = 'r';
-  packet_buffer[30] = 't';
-  packet_buffer[31] = 0x80; // grp3 msb
-  packet_buffer[32] = ' ';
-  packet_buffer[33] = 'S';
-  packet_buffer[34] = 'D';
-  packet_buffer[35] = ' ';
-  packet_buffer[36] = ' ';
-  packet_buffer[37] = ' ';
-  packet_buffer[38] = ' ';
-  packet_buffer[39] = 0x80; // odd msb
-  packet_buffer[40] = 0x02; // Device type    - 0x02  harddisk
-  packet_buffer[41] = 0x00; // Device Subtype - 0x20
-  packet_buffer[42] = 0x01; // Firmware version 2 bytes
-  packet_buffer[43] = 0x0f;
-  packet_buffer[44] = 0x90; //
-
-  for (int count = 7; count < 45; count++) // xor the packet bytes
-    checksum = checksum ^ packet_buffer[count];
-  packet_buffer[45] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  packet_buffer[46] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-  packet_buffer[47] = 0xc8; // PEND
-  packet_buffer[48] = 0x00; // end of packet in buffer
+  Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]); // this debug is required to make it work
+  // ALERT!!!!!! The above debug is somehow required to make the assignment of data[0..3] above stick.
+  // otherwise, data[0..3]=0. Have no idea why!?!?!?!?!??!?!?!?!?!?!?!?!??!
+  data[4] = 0x0E; // ID string length - 14 chars
+  data[5] = 'F';
+  data[6] = 'U';
+  data[7] = 'J';
+  data[8] = 'I';
+  data[9] = 'N';
+  data[10] = 'E';
+  data[11] = 'T';
+  data[12] = '_';
+  data[13] = 'D';
+  data[14] = 'I';
+  data[15] = 'S';
+  data[16] = 'K';
+  data[17] = '_';
+  data[18] = disk_num; //'1';
+  data[19] = ' ';
+  data[20] = ' ';  // ID string (16 chars total)
+  data[21] = 0x02; // Device type    - 0x02  harddisk
+  data[22] = 0x0a; // Device Subtype - 0x0a
+  data[23] = 0x01; // Firmware version 2 bytes
+  data[24] = 0x0f; //
+  encode_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 25);
 }
 
 void iwmDisk::process(cmdPacket_t cmd)
