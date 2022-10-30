@@ -198,30 +198,30 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 
 //------------------------------------------------------
 
-int iwmBus::iwm_send_packet(uint8_t *a)
+int iwmBus::iwm_send_packet(uint8_t *data)
 {
-  return smartport.iwm_send_packet_spi(a);
+  return smartport.iwm_send_packet_spi(data);
 }
 
-int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
+int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int n)
 {
   portDISABLE_INTERRUPTS();
   iwm_ack_deassert();
   for (int i = 0; i < attempts; i++)
   {
-    if (!smartport.iwm_read_packet_spi(a, n))
+    if (!smartport.iwm_read_packet_spi(data, n))
     {
       iwm_ack_assert();
       portENABLE_INTERRUPTS();
 #ifdef DEBUG
-      print_packet(a);
+      print_packet(data);
 #endif
       return 0;
     } // if
   }
 #ifdef DEBUG
   Debug_printf("\r\nERROR: Read Packet tries exceeds %d attempts", attempts);
-  print_packet(a);
+  print_packet(data);
 #endif
   portENABLE_INTERRUPTS();
   return 1;
@@ -262,7 +262,7 @@ void iwmDevice::packet_set_sync_bytes()
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, uint8_t* a, uint16_t num) 
+void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 
 {
   // generic version would need:
   // source id
@@ -275,14 +275,14 @@ void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
   uint8_t numgrps = 0;
   uint8_t numodds = 0;
 
-  if ((a != nullptr) && (num != 0))
+  if ((data != nullptr) && (num != 0))
   {           
   int grpbyte, grpcount;
   uint8_t grpmsb;
     uint8_t group_buffer[7];
                                     // Calculate checksum of sector bytes before we destroy them
     for (int count = 0; count < num; count++) // xor all the data bytes
-      checksum = checksum ^ packet_buffer[count];
+      checksum = checksum ^ data[count];
 
     // Start assembling the packet at the rear and work
     // your way to the front so we don't overwrite data
@@ -295,7 +295,7 @@ void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
     // grps of 7
     for (grpcount = numgrps; grpcount >= 0; grpcount--) // 73
     {
-      memcpy(group_buffer, packet_buffer + numodds + (grpcount * 7), 7);
+      memcpy(group_buffer, data + numodds + (grpcount * 7), 7);
       // add group msb byte
       grpmsb = 0;
       for (grpbyte = 0; grpbyte < 7; grpbyte++)
