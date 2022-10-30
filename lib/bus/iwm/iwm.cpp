@@ -243,15 +243,6 @@ void iwmBus::setup(void)
   
 }
 
-void iwmDevice::packet_set_sync_bytes()
-{
-  packet_buffer[0] = 0xff;  //sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
-}
 
 //*****************************************************************************
 // Function: encode_data_packet
@@ -318,7 +309,12 @@ void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
   }
 
   // header
-  packet_set_sync_bytes();
+  packet_buffer[0] = 0xff; // sync bytes
+  packet_buffer[1] = 0x3f;
+  packet_buffer[2] = 0xcf;
+  packet_buffer[3] = 0xf3;
+  packet_buffer[4] = 0xfc;
+  packet_buffer[5] = 0xff;
 
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host

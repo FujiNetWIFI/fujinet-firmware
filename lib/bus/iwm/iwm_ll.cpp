@@ -26,25 +26,25 @@ inline bool iwm_sp_ll::iwm_enable_val()
   return true;
 }
 
-void iwm_sp_ll::encode_spi_packet(uint8_t *a)
+void iwm_sp_ll::encode_spi_packet(uint8_t *data)
 {
   // clear out spi buffer
   memset(spi_buffer, 0, SPI_BUFFER_LEN);
-  // loop through "l" bytes of the buffer "a"
+  // loop through "l" bytes of the buffer "data"
   uint16_t i=0,j=0;
-  while(a[i])
+  while(data[i])
   {
-    // Debug_printf("\r\nByte %02X: ",a[i]);
+    // Debug_printf("\r\nByte %02X: ",data[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
     {
-      if (a[i] & mask)
+      if (data[i] & mask)
       {
         spi_buffer[j] |= 0x40;
       }
       mask >>= 1;
-      if (a[i] & mask)
+      if (data[i] & mask)
       {
         spi_buffer[j] |= 0x04;
       }
@@ -58,7 +58,7 @@ void iwm_sp_ll::encode_spi_packet(uint8_t *a)
 }
 
 
-int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi(uint8_t *a)
+int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi(uint8_t *data)
 {
   //*****************************************************************************
   // Function: iwm_send_packet_spi
@@ -72,8 +72,8 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi(uint8_t *a)
 
   portDISABLE_INTERRUPTS();
 
-  //print_packet((uint8_t *)a);
-  encode_spi_packet((uint8_t *)a);
+  //print_packet((uint8_t *)data);
+  encode_spi_packet((uint8_t *)data);
 
   // send data stream using SPI
   esp_err_t ret;
@@ -124,7 +124,7 @@ bool IRAM_ATTR iwm_sp_ll::spirx_get_next_sample()
 }
 
 
-int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t *a, int n) 
+int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t *data, int n) 
 { // read data stream using SPI
   fnTimer.reset();
    
@@ -182,7 +182,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t *a, int n)
 
   bool have_data = true;
   bool synced = false;
-  int idx = 0;             // index into *a
+  int idx = 0;             // index into *data
   bool bit = false; // = 0;        // logical bit value
 
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
@@ -259,7 +259,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t *a, int n)
       synced = true;
       idx = 5;
     }
-    a[idx++] = rxbyte;
+    data[idx++] = rxbyte;
     // wait for leading edge of next byte or timeout for end of packet
     int timeout_ctr = (f_spirx * 19) / (1000 * 1000); //((f_nyquist * f_over) * 18) / (1000 * 1000);
 #ifdef VERBOSE_IWM
