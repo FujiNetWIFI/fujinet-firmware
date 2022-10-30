@@ -262,7 +262,7 @@ void iwmDevice::packet_set_sync_bytes()
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void iwmDevice::encode_packet(uint8_t source, uint8_t packet_type, uint8_t status, uint8_t* a, uint16_t num) 
+void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, uint8_t* a, uint16_t num) 
 {
   // generic version would need:
   // source id
@@ -323,7 +323,7 @@ void iwmDevice::encode_packet(uint8_t source, uint8_t packet_type, uint8_t statu
   packet_buffer[6] = 0xc3;  //PBEGIN - start byte
   packet_buffer[7] = 0x80;  //DEST - dest id - host
   packet_buffer[8] = source; //SRC - source id - us
-  packet_buffer[9] = packet_type;  //TYPE - 0x82 = data
+  packet_buffer[9] = static_cast<uint8_t>(packet_type);  //TYPE - 0x82 = data
   packet_buffer[10] = 0x80; //AUX
   packet_buffer[11] = status | 0x80; //STAT
   packet_buffer[12] = numodds | 0x80; //ODDCNT  - 1 odd byte for 512 byte packet
@@ -494,7 +494,7 @@ bool iwmDevice::decode_data_packet(void)
 //*****************************************************************************
 void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 {
-  encode_packet(source, PACKET_TYPE_STATUS, status, nullptr, 0);
+  encode_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
 
   // uint8_t checksum = 0;
 
@@ -522,7 +522,7 @@ void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
 
 void iwmDevice::encode_reply_packet (uint8_t stat)
 {
-  encode_packet(id(), PACKET_TYPE_STATUS, stat, nullptr, 0);
+  encode_packet(id(), iwm_packet_type_t::status, stat, nullptr, 0);
 
   // uint8_t checksum = 0;
 
