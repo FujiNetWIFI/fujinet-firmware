@@ -346,7 +346,7 @@ void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
 // }
 
 //*****************************************************************************
-// Function: encode_extended_data_packet
+// Function: send_extended_data_packet
 // Parameters: source id
 // Returns: none
 //
@@ -354,7 +354,7 @@ void iwmDevice::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
 // requires the data to be in the packet buffer, and builds the smartport
 // packet IN PLACE in the packet buffer
 //*****************************************************************************
-void iwmDevice::encode_extended_data_packet (uint8_t source)
+void iwmDevice::send_extended_data_packet (uint8_t source)
 {
   int grpbyte, grpcount;
   uint8_t checksum = 0, grpmsb;
@@ -482,7 +482,7 @@ bool iwmDevice::decode_data_packet(void)
 }
 
 //*****************************************************************************
-// Function: encode_init_reply_packet
+// Function: send_init_reply_packet
 // Parameters: source
 // Returns: none
 //
@@ -492,29 +492,29 @@ bool iwmDevice::decode_data_packet(void)
 // to 4 partions, i.e. devices, so we need to specify when we are doing the last
 // init reply.
 //*****************************************************************************
-void iwmDevice::encode_init_reply_packet (uint8_t source, uint8_t status)
+void iwmDevice::send_init_reply_packet (uint8_t source, uint8_t status)
 {
   encode_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
-void iwmDevice::encode_reply_packet (uint8_t status)
+void iwmDevice::send_reply_packet (uint8_t status)
 {
   encode_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
+  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
-  encode_reply_packet(SP_ERR_BADCMD);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
-}
+  send_reply_packet(SP_ERR_BADCMD);
+  }
 
 void iwmDevice::iwm_return_ioerror(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
-  encode_reply_packet(SP_ERR_IOERROR);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
-}
+  send_reply_packet(SP_ERR_IOERROR);
+  }
 
 //*****************************************************************************
 // Function: verify_cmdpkt_checksum
@@ -579,14 +579,14 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
   if (status_code == 0x03)
   { // if statcode=3, then status with device info block
     Debug_printf("\r\n******** Sending DIB! ********");
-    encode_status_dib_reply_packet();
+    send_status_dib_reply_packet();
     // print_packet ((unsigned char*) packet_buffer,get_packet_length());
     // fnSystem.delay(50);
     }
     else
     { // else just return device status
       Debug_printf("\r\nSending Status");
-      encode_status_reply_packet();
+      send_status_reply_packet();
     }
   print_packet(&packet_buffer[14]);
   IWM.iwm_send_packet((unsigned char *)packet_buffer);
@@ -788,9 +788,10 @@ void iwmBus::handle_init()
       pDevice->_devnum = command_packet.dest; // assign address
       if (++it == _daisyChain.end())
         status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
-      pDevice->encode_init_reply_packet(command_packet.dest, status);
       Debug_printf("\r\nSending INIT Response Packet...");
-      smartport.iwm_send_packet_spi((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
+      pDevice->send_init_reply_packet(command_packet.dest, status);
+
+      //smartport.iwm_send_packet_spi((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
 
       // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
