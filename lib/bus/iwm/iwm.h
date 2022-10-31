@@ -325,12 +325,12 @@ private:
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
 
+  int decode_data_packet(uint8_t* data); //decode smartport 512 byte data packet
 
 public:
 
   // these are low level commands and should be called/replace with one layer more of abstraction
   bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
-  int decode_data_packet(uint8_t* data); //decode smartport 512 byte data packet
  
   int iwm_send_packet();
   void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num); 
