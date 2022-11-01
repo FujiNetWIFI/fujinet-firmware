@@ -38,7 +38,6 @@ void iwmFuji::iwm_ctrl_reset_fujinet() // SP CTRL command
 {
     Debug_printf("\r\nFuji cmd: REBOOT");
     send_status_reply_packet();
-    IWM.iwm_send_packet();
     // save device unit SP address somewhere and restore it after reboot?
     fnSystem.reboot();
 }
@@ -1083,7 +1082,7 @@ void iwmFuji::send_status_reply_packet()
   data[1] = 0;         // block size 1
   data[2] = 0;  // block size 2
   data[3] = 0; // block size 3
-  IWM.encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmFuji::send_status_dib_reply_packet()
@@ -1125,14 +1124,13 @@ void iwmFuji::send_status_dib_reply_packet()
   data[22] = SP_SUBTYPE_BYTE_FUJINET; // Device Subtype - 0x0a
   data[23] = 0x00; // Firmware version 2 bytes
   data[24] = 0x01; //
-  IWM.encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
 void iwmFuji::iwm_open(cmdPacket_t cmd)
 {
   Debug_printf("\r\nOpen FujiNet Unit # %02x",cmd.g7byte1);
   send_status_reply_packet();
-  IWM.iwm_send_packet();
 }
 
 void iwmFuji::iwm_close(cmdPacket_t cmd)
@@ -1159,14 +1157,12 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       break;
     case IWM_STATUS_STATUS:                  // 0x00
       send_status_reply_packet();
-      IWM.iwm_send_packet();
       return;
       break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB:                     // 0x03
       send_status_dib_reply_packet();
-      IWM.iwm_send_packet();
       return;
       break;
     // case FUJICMD_RESET:               // 0xFF
@@ -1238,12 +1234,8 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       break;
   }
   Debug_printf("\r\nStatus code complete, sending response");
-  // send_data_packet(data_len);
-  IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
-  
-  IWM.iwm_send_packet();
-}
-
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+ }
 
 void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
 {

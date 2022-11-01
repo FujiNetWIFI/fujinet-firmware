@@ -50,7 +50,7 @@ void iwmDisk::send_status_reply_packet()
     data[2] = (_disk->num_blocks >> 8) & 0xff;
     data[3] = (_disk->num_blocks >> 16) & 0xff;
   }
-  IWM.encode_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
+  IWM.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
 }
 
 //*****************************************************************************
@@ -89,7 +89,7 @@ void iwmDisk::send_extended_status_reply_packet()
     data[4] = (_disk->num_blocks >> 24) & 0xff;
   
   }
-  IWM.encode_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 5);
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 5);
 }
 
 //*****************************************************************************
@@ -154,7 +154,7 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
   data[22] = 0x0a; // Device Subtype - 0x0a
   data[23] = 0x01; // Firmware version 2 bytes
   data[24] = 0x0f; //
-  IWM.encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
 //*****************************************************************************
@@ -219,7 +219,7 @@ void iwmDisk::send_extended_status_dib_reply_packet()
   data[22] = 0x0a; // Device Subtype - 0x0a
   data[23] = 0x01; // Firmware version 2 bytes
   data[24] = 0x0f; //
-  IWM.encode_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 25);
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 25);
 }
 
 void iwmDisk::process(cmdPacket_t cmd)
@@ -322,9 +322,8 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     return; // todo - true or false?
   }
   // send_data_packet();
-  IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, BLOCK_DATA_LEN); 
   Debug_printf("\r\nsending block packet ...");
-  if (!IWM.iwm_send_packet())
+  if (!IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, BLOCK_DATA_LEN))
     last_block_num = block_num;
   else
     last_block_num = 0xFFFFFFFF;  // force seek next time if send error
