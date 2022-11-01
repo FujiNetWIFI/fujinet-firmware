@@ -199,8 +199,9 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 
 //------------------------------------------------------
 
-int iwmBus::iwm_send_packet()
+int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num)
 {
+  encode_packet(source, packet_type, status, data, num);  
   return smartport.iwm_send_packet_spi(packet_buffer);
 }
 
@@ -420,14 +421,12 @@ int iwmBus::decode_data_packet(uint8_t* data)
 //*****************************************************************************
 void iwmDevice::send_init_reply_packet (uint8_t source, uint8_t status)
 {
-  IWM.encode_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
-  IWM.iwm_send_packet();
+  IWM.iwm_send_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
 }
 
 void iwmDevice::send_reply_packet (uint8_t status)
 {
-  IWM.encode_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
-  IWM.iwm_send_packet();
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
 }
 
 void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
@@ -514,8 +513,6 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
     Debug_printf("\r\nSending Status");
     send_status_reply_packet();
   }
-  //print_packet(&packet_buffer[14]);
-  IWM.iwm_send_packet();
 }
 
 //*****************************************************************************

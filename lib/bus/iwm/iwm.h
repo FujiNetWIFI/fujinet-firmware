@@ -325,24 +325,20 @@ private:
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
 
-  int decode_data_packet(uint8_t* data); //decode smartport 512 byte data packet
-
-public:
-
-  // these are low level commands and should be called/replace with one layer more of abstraction
-  bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
- 
-  int iwm_send_packet();
-  void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num); 
   uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   uint16_t packet_len;
+  int decode_data_packet(uint8_t* data); //decode smartport data packet
+  void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
+  void handle_init(); 
 
+public:
+  bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
+   int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
+ 
   // these things stay for the most part
   void setup();
   void service();
   void shutdown();
-
-  void handle_init(); // todo: put this function in the right place
 
   int numDevices();
   void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
@@ -352,7 +348,6 @@ public:
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
-
 };
 
 extern iwmBus IWM;

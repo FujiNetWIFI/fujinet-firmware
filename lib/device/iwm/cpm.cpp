@@ -59,7 +59,7 @@ void iwmCPM::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    IWM.encode_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
+    IWM.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
 }
 
 void iwmCPM::send_status_dib_reply_packet()
@@ -101,7 +101,7 @@ void iwmCPM::send_status_dib_reply_packet()
     data[22] = SP_SUBTYPE_BYTE_FUJINET_CPM; // Device Subtype - 0x0a
     data[23] = 0x00;                        // Firmware version 2 bytes
     data[24] = 0x01;                        //
-    IWM.encode_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
 void iwmCPM::sio_status()
@@ -114,7 +114,6 @@ void iwmCPM::iwm_open(cmdPacket_t cmd)
 {
     Debug_printf("\r\nOpen CP/M Unit # %02x\n", cmd.g7byte1);
     send_status_reply_packet();
-    IWM.iwm_send_packet();
 }
 
 void iwmCPM::iwm_close(cmdPacket_t cmd)
@@ -122,7 +121,6 @@ void iwmCPM::iwm_close(cmdPacket_t cmd)
     // Probably need to send close command here.
     Debug_printf("\r\nClose CP/M Unit # %02x\n", cmd.g7byte1);
     send_status_reply_packet();
-    IWM.iwm_send_packet();
 }
 
 void iwmCPM::iwm_status(cmdPacket_t cmd)
@@ -136,14 +134,12 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
     {
     case IWM_STATUS_STATUS: // 0x00
         send_status_reply_packet();
-        IWM.iwm_send_packet();
         return;
         break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB: // 0x03
         send_status_dib_reply_packet();
-        IWM.iwm_send_packet();
         return;
         break;
     case 'S': // Status
@@ -156,9 +152,7 @@ void iwmCPM::iwm_status(cmdPacket_t cmd)
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
-
-    IWM.iwm_send_packet();
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
 void iwmCPM::iwm_read(cmdPacket_t cmd)
@@ -186,9 +180,9 @@ void iwmCPM::iwm_read(cmdPacket_t cmd)
 
     Debug_printf("%s\n",data_buffer);
 
-    IWM.encode_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+
     Debug_printf("\r\nsending block packet ...");
-    IWM.iwm_send_packet();
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
 }
