@@ -61,21 +61,6 @@
 #define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_CPM 0x00
 
-#define PACKET_TYPE_CMD 0x80
-#define PACKET_TYPE_STATUS 0x81
-#define PACKET_TYPE_DATA 0x82
-
-enum class iwm_packet_type_t
-{
-  cmd = PACKET_TYPE_CMD,
-  status = PACKET_TYPE_STATUS,
-  data = PACKET_TYPE_DATA,
-  ext_cmd = PACKET_TYPE_CMD | 0x40,
-  ext_status = PACKET_TYPE_STATUS | 0x40,
-  ext_data = PACKET_TYPE_DATA | 0x40
-};
-
-
 #define IWM_CTRL_RESET 0x00
 #define IWM_CTRL_SET_DCB 0x01
 #define IWM_CTRL_SET_NEWLINE 0x02
@@ -119,7 +104,6 @@ union cmdFrame_t
 };
 
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
-#define BLOCK_PACKET_LEN    604 //606
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
@@ -325,10 +309,7 @@ private:
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
 
-  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  uint16_t packet_len;
-  int decode_data_packet(uint8_t* data); //decode smartport data packet
-  void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
+
   void handle_init(); 
 
 public:

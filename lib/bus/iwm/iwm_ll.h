@@ -8,6 +8,21 @@
 #include "../../include/pinmap.h"
 
 #define SPI_BUFFER_LEN      6000 // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
+#define BLOCK_PACKET_LEN    604 //606
+
+#define PACKET_TYPE_CMD 0x80
+#define PACKET_TYPE_STATUS 0x81
+#define PACKET_TYPE_DATA 0x82
+
+enum class iwm_packet_type_t
+{
+  cmd = PACKET_TYPE_CMD,
+  status = PACKET_TYPE_STATUS,
+  data = PACKET_TYPE_DATA,
+  ext_cmd = PACKET_TYPE_CMD | 0x40,
+  ext_status = PACKET_TYPE_STATUS | 0x40,
+  ext_data = PACKET_TYPE_DATA | 0x40
+};
 
 /** ACK and REQ
  * 
@@ -75,7 +90,10 @@ private:
   // SPI receiver data stream counters
   int spirx_byte_ctr;
   int spirx_bit_ctr;
- 
+
+  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  uint16_t packet_len;
+
 public:
   // Phase lines and ACK handshaking
   void iwm_ack_set() { GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK); }; // disable the line so it goes hi-z
@@ -85,11 +103,15 @@ public:
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
 
   // Smartport Bus handling by SPI interface
-  void encode_spi_packet(uint8_t *a);
-  int iwm_send_packet_spi(uint8_t *a);
+  void encode_spi_packet();
+  int iwm_send_packet_spi();
   bool spirx_get_next_sample();
-  int iwm_read_packet_spi(uint8_t *a, int n);
+  int iwm_read_packet_spi(uint8_t *buffer, int n);
+  int iwm_read_packet_spi(int n);
   void spi_end();
+
+  int decode_data_packet(uint8_t* data); //decode smartport data packet
+  void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
 
   // hardware configuration setup
   void setup_spi();
