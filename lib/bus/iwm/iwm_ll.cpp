@@ -26,25 +26,25 @@ inline bool iwm_sp_ll::iwm_enable_val()
   return true;
 }
 
-void iwm_sp_ll::encode_spi_packet(uint8_t *data)
+void iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
   memset(spi_buffer, 0, SPI_BUFFER_LEN);
-  // loop through "l" bytes of the buffer "data"
+  // loop through "l" bytes of the buffer "packet_buffer"
   uint16_t i=0,j=0;
-  while(data[i])
+  while(packet_buffer[i])
   {
-    // Debug_printf("\r\nByte %02X: ",data[i]);
+    // Debug_printf("\r\nByte %02X: ",packet_buffer[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
     {
-      if (data[i] & mask)
+      if (packet_buffer[i] & mask)
       {
         spi_buffer[j] |= 0x40;
       }
       mask >>= 1;
-      if (data[i] & mask)
+      if (packet_buffer[i] & mask)
       {
         spi_buffer[j] |= 0x04;
       }
@@ -58,7 +58,7 @@ void iwm_sp_ll::encode_spi_packet(uint8_t *data)
 }
 
 
-int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi(uint8_t *data)
+int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
 {
   //*****************************************************************************
   // Function: iwm_send_packet_spi
@@ -72,8 +72,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi(uint8_t *data)
 
   portDISABLE_INTERRUPTS();
 
-  //print_packet((uint8_t *)data);
-  encode_spi_packet((uint8_t *)data);
+  encode_spi_packet();
 
   // send data stream using SPI
   esp_err_t ret;
@@ -124,7 +123,12 @@ bool IRAM_ATTR iwm_sp_ll::spirx_get_next_sample()
 }
 
 
-int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t *data, int n) 
+int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(int n)
+{
+  return iwm_read_packet_spi(packet_buffer, n);
+}
+
+int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n) 
 { // read data stream using SPI
   fnTimer.reset();
    
@@ -182,7 +186,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t *data, int n)
 
   bool have_data = true;
   bool synced = false;
-  int idx = 0;             // index into *data
+  int idx = 0;             // index into *buffer
   bool bit = false; // = 0;        // logical bit value
 
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
@@ -259,7 +263,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t *data, int n)
       synced = true;
       idx = 5;
     }
-    data[idx++] = rxbyte;
+    buffer[idx++] = rxbyte;
     // wait for leading edge of next byte or timeout for end of packet
     int timeout_ctr = (f_spirx * 19) / (1000 * 1000); //((f_nyquist * f_over) * 18) / (1000 * 1000);
 #ifdef VERBOSE_IWM
@@ -405,6 +409,156 @@ void iwm_sp_ll::setup_gpio()
   Debug_printf("\r\nEXTRA signaling line configured");
 #endif
   
+}
+
+void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 
+{
+  // generic version would need:
+  // source id
+  // packet type
+  // status code
+  // pointer to the data
+  // number of bytes to encode
+
+  uint8_t checksum = 0;
+  int numgrps = 0;
+  int numodds = 0;
+
+  if ((data != nullptr) && (num != 0))
+  {           
+  int grpbyte, grpcount;
+  uint8_t grpmsb;
+  uint8_t group_buffer[7];
+                                    // Calculate checksum of sector bytes before we destroy them
+    for (int count = 0; count < num; count++) // xor all the data bytes
+      checksum = checksum ^ data[count];
+
+    // Start assembling the packet at the rear and work
+    // your way to the front so we don't overwrite data
+    // we haven't encoded yet
+
+    // how many groups of 7?
+    numgrps = num / 7;
+    numodds = num % 7;
+
+    // grps of 7
+    for (grpcount = numgrps - 1; grpcount >= 0; grpcount--) // 73
+    {
+      memcpy(group_buffer, data + numodds + (grpcount * 7), 7);
+      // add group msb byte
+      grpmsb = 0;
+      for (grpbyte = 0; grpbyte < 7; grpbyte++)
+        grpmsb = grpmsb | ((group_buffer[grpbyte] >> (grpbyte + 1)) & (0x80 >> (grpbyte + 1)));
+      // groups start after odd bytes, which is at 13 + numodds + (numodds != 0) + 1
+      int grpstart = 13 + numodds + (numodds != 0) + 1;
+      packet_buffer[grpstart + (grpcount * 8)] = grpmsb | 0x80; // set msb to one
+
+      // now add the group data bytes bits 6-0
+      for (grpbyte = 0; grpbyte < 7; grpbyte++)
+        packet_buffer[grpstart + 1 + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
+    }
+  }
+  // oddbytes
+  packet_buffer[14] = 0x80; // init the oddmsb
+  for (int oddcnt = 0; oddcnt < numodds; oddcnt++)
+  {
+    packet_buffer[14] |= (data[oddcnt] & 0x80) >> (1 + oddcnt);
+    packet_buffer[15 + oddcnt] = data[oddcnt] | 0x80;
+  }
+
+  // header
+  packet_buffer[0] = 0xff; // sync bytes
+  packet_buffer[1] = 0x3f;
+  packet_buffer[2] = 0xcf;
+  packet_buffer[3] = 0xf3;
+  packet_buffer[4] = 0xfc;
+  packet_buffer[5] = 0xff;
+
+  packet_buffer[6] = 0xc3;  //PBEGIN - start byte
+  packet_buffer[7] = 0x80;  //DEST - dest id - host
+  packet_buffer[8] = source; //SRC - source id - us
+  packet_buffer[9] = static_cast<uint8_t>(packet_type);  //TYPE - 0x82 = data
+  packet_buffer[10] = 0x80; //AUX
+  packet_buffer[11] = status | 0x80; //STAT
+  packet_buffer[12] = numodds | 0x80; //ODDCNT  - 1 odd byte for 512 byte packet
+  packet_buffer[13] = numgrps | 0x80; //GRP7CNT - 73 groups of 7 bytes for 512 byte packet
+
+  for (int count = 7; count < 14; count++) // now xor the packet header bytes
+    checksum = checksum ^ packet_buffer[count];
+  int lastidx = 14 + numodds + (numodds != 0) + numgrps * 8;
+  packet_buffer[lastidx++] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
+  packet_buffer[lastidx++] = (checksum >> 1) | 0xaa; // 1 c7 1 c5 1 c3 1 c1
+
+  //end bytes
+  packet_buffer[lastidx++] = 0xc8;  //pkt end
+  packet_buffer[lastidx] = 0x00;  //mark the end of the packet_buffer
+}
+
+//*****************************************************************************
+// Function: decode_data_packet
+// Parameters: none
+// Returns: error code, >0 = error encountered
+//
+// Description: decode 512 (arbitrary now) byte data packet for write block command from host
+// decodes the data from the packet_buffer IN-PLACE!
+//*****************************************************************************
+int iwm_sp_ll::decode_data_packet(uint8_t* data)
+{
+  int grpbyte, grpcount;
+  uint8_t numgrps, numodd;
+  uint16_t numdata;
+  uint8_t checksum = 0, bit0to6, bit7, oddbits, evenbits;
+  uint8_t group_buffer[8];
+
+  //Handle arbitrary length packets :) 
+  numodd = packet_buffer[11] & 0x7f;
+  numgrps = packet_buffer[12] & 0x7f;
+  numdata = numodd + numgrps * 7;
+  Debug_printf("\r\nDecoding %d bytes",numdata);
+  // if (numdata==512)
+  // {
+  //   // print out packets
+  //   print_packet(packet_buffer,BLOCK_PACKET_LEN);
+  // }
+  // First, checksum  packet header, because we're about to destroy it
+  for (int count = 6; count < 13; count++) // now xor the packet header bytes
+    checksum = checksum ^ packet_buffer[count];
+
+  int chkidx = 13 + numodd + (numodd != 0) + numgrps * 8;
+  evenbits = packet_buffer[chkidx] & 0x55;
+  oddbits = (packet_buffer[chkidx + 1] & 0x55) << 1;
+
+  //add oddbyte(s), 1 in a 512 data packet
+  for(int i = 0; i < numodd; i++){
+    data[i] = ((packet_buffer[13] << (i+1)) & 0x80) | (packet_buffer[14+i] & 0x7f);
+  }
+
+  // 73 grps of 7 in a 512 byte packet
+  int grpstart = 12 + numodd + (numodd != 0) + 1;
+  for (grpcount = 0; grpcount < numgrps; grpcount++)
+  {
+    memcpy(group_buffer, packet_buffer + grpstart + (grpcount * 8), 8);
+    for (grpbyte = 0; grpbyte < 7; grpbyte++)
+    {
+      bit7 = (group_buffer[0] << (grpbyte + 1)) & 0x80;
+      bit0to6 = (group_buffer[grpbyte + 1]) & 0x7f;
+      data[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
+    }
+  }
+
+  //verify checksum
+  for (int count = 0; count < numdata; count++) // xor all the data bytes
+    checksum = checksum ^ data[count];
+
+  Debug_printf("\r\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
+
+  if (checksum != (oddbits | evenbits))
+  {
+    Debug_printf("\r\nCHECKSUM ERROR!");
+    return -1; // error!
+  }
+  
+  return numdata;
 }
 
 iwm_sp_ll smartport;
