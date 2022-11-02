@@ -351,7 +351,7 @@ void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
   }
   // partition number indicates which 32mb block we access
   if (data_len == -1)
-    iwm_return_ioerror(cmd);
+    iwm_return_ioerror();
   else
     { // ok
       //write block to CF card

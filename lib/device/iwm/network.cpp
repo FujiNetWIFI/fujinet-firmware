@@ -563,7 +563,7 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, cmdPacket_t cmd)
     if (num_bytes > json.json_bytes_remaining)
     {
         json.json_bytes_remaining = 0;
-        iwm_return_ioerror(cmd);
+        iwm_return_ioerror();
         return true;
     }
     else
@@ -589,7 +589,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
 
     if (ns.rxBytesWaiting == 0)
     {
-        iwm_return_ioerror(cmd);
+        iwm_return_ioerror();
         return true;
     }
 
@@ -601,7 +601,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
-        iwm_return_ioerror(cmd);
+        iwm_return_ioerror();
         return true;
     }
     else // everything ok
@@ -688,7 +688,7 @@ void iwmNetwork::iwm_write(cmdPacket_t cmd)
     }
     // partition number indicates which 32mb block we access
     if (data_len == -1)
-        iwm_return_ioerror(cmd);
+        iwm_return_ioerror();
     else
     {
         *transmitBuffer += string((char *)response, num_bytes);
