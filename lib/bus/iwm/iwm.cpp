@@ -287,9 +287,9 @@ void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
   send_reply_packet(SP_ERR_BADCMD);
   }
 
-void iwmDevice::iwm_return_ioerror(cmdPacket_t cmd)
+void iwmDevice::iwm_return_ioerror()
 {
-  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+  // Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   send_reply_packet(SP_ERR_IOERROR);
   }
 
@@ -505,7 +505,7 @@ void iwmBus::service()
           if (verify_cmdpkt_checksum())
           {
             Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            _activeDev->iwm_return_ioerror(command_packet);
+            _activeDev->iwm_return_ioerror();
           }
           else
           {
