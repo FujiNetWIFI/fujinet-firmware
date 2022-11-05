@@ -41,84 +41,152 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         urlParser->port = 22;
     }
 
-    if ((ret = libssh2_init(0)) != 0)
+    if ((ret = ssh_init()) != 0)
     {
-        Debug_printf("NetworkProtocolSSH::open() - libssh2_init not successful. Value returned: %d\n", ret);
+        Debug_printf("NetworkProtocolSSH::open() - ssh_init not successful. Value returned: %d\n", ret);
         error = NETWORK_ERROR_GENERAL;
         return true;
     }
 
-    if (client.connect(urlParser->hostName.c_str(), atoi(urlParser->port.c_str())) == 0)
-    {
-        Debug_printf("NetworkProtocolSSH::open() - Could not connect to host. Aborting.\n");
-        error = NETWORK_ERROR_NOT_CONNECTED;
-        return true;
-    }
-
     Debug_printf("NetworkProtocolSSH::open() - Opening session.\n");
-    session = libssh2_session_init();
-    if (session == nullptr)
+    session = ssh_new();
+    if (session == NULL)
     {
         Debug_printf("Could not create session. aborting.\n");
         error = NETWORK_ERROR_NOT_CONNECTED;
         return true;
     }
 
-    Debug_printf("NetworkProtocolSSH::open() - Attempting session handshake with fd %u\n", client.fd());
-    if (libssh2_session_handshake(session, client.fd()))
+    int verbosity = SSH_LOG_PROTOCOL;
+    int port = atoi(urlParser->port.c_str());
+    ssh_options_set(session, SSH_OPTIONS_USER, login->c_str());
+    ssh_options_set(session, SSH_OPTIONS_HOST, urlParser->hostName.c_str());
+    ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
+    ssh_options_set(session, SSH_OPTIONS_PORT, &port);
+    session->opts.config_processed = true;
+
+    ret = ssh_connect(session);
+    if (ret != SSH_OK)
     {
         error = NETWORK_ERROR_NOT_CONNECTED;
-        Debug_printf("NetworkProtocolSSH::open() - Could not perform SSH handshake.\n");
+        const char *message = ssh_get_error(session);
+        Debug_printf("NetworkProtocolSSH::open() - Could not connect, error: %s.\n", message);
         return true;
     }
 
-    fingerprint = libssh2_hostkey_hash(session, LIBSSH2_HOSTKEY_HASH_SHA1);
+    ssh_key srv_pubkey = NULL;
+    ret = ssh_get_server_publickey(session, &srv_pubkey);
+    if (ret < 0) {
+        error = NETWORK_ERROR_GENERAL;
+        const char *message = ssh_get_error(session);
+        Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key, error: %s.\n", message);
+        return true;
+    }
 
-    Debug_printf("SSH Host Key Fingerprint is: ");
+    size_t hlen;
+    ret = ssh_get_publickey_hash(srv_pubkey,
+                                SSH_PUBLICKEY_HASH_SHA1,
+                                &fingerprint,
+                                &hlen);
+    if (ret == -1) {
+        error = NETWORK_ERROR_GENERAL;
+        const char *message = ssh_get_error(session);
+        Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key hash, error: %s.\n", message);
+        return true;
+    }
+    
+    // TODO: We really should be first checking this is a known server to stop MITM attacks etc. before continuing
+    // Minimally we could check the fingerprint is in a known list, as we don't really have known_hosts file.
+    ssh_key_free(srv_pubkey);
 
-    for (int i = 0; i < 20; i++)
+    Debug_printf("SSH Host Key Fingerprint with length %d is: ", hlen);
+    // ODE FOR string.join();
+    for (int i = 0; i < hlen; i++)
     {
-        Debug_printf("%02X", (unsigned char)fingerprint[i]);
-        if (i < 19)
+        Debug_printf("%02X", fingerprint[i]);
+        if (i < (hlen - 1))
             Debug_printf(":");
     }
-
     Debug_printf("\n");
+    ssh_clean_pubkey_hash(&fingerprint);
 
-    userauthlist = libssh2_userauth_list(session, login->c_str(), login->length());
-     Debug_printf("Authentication methods: %s\n", userauthlist);
 
-    if (libssh2_userauth_password(session, login->c_str(), password->c_str()))
-    {
+    ret = ssh_userauth_none(session, NULL);
+    // TODO: Are we in blocking mode? If we are not, then we will have to deal with SSH_AUTH_AGAIN
+    if (ret == SSH_AUTH_ERROR) {
         error = NETWORK_ERROR_GENERAL;
-        Debug_printf("Could not perform userauth.\n");
+        const char *message = ssh_get_error(session);
+        Debug_printf("NetworkProtocolSSH::open() - Could not issue 'none' userauth method to server, error: %s.\n", message);
         return true;
     }
 
-    channel = libssh2_channel_open_session(session);
+    ret = ssh_userauth_list(session, NULL);
+    bool allowsPassword = ret & SSH_AUTH_METHOD_PASSWORD;
+    bool allowsPublicKey = ret & SSH_AUTH_METHOD_PUBLICKEY;
+    bool allowsHostBased = ret & SSH_AUTH_METHOD_HOSTBASED;
+    bool allowsInteractive = ret & SSH_AUTH_METHOD_INTERACTIVE;
+    Debug_printf("Authentication methods:\n"
+                 "Password:    %s\n"
+                 "Public Key:  %s\n"
+                 "Host Based:  %s\n"
+                 "Interactive: %s\n", 
+        allowsPassword ? "true":"false",
+        allowsPublicKey ? "true":"false",
+        allowsHostBased ? "true":"false",
+        allowsInteractive ? "true":"false"
+    );
 
-    if (!channel)
-    {
+    if (!allowsPassword) {
+        // May as well stop here, as our only ability (password) isn't allowed
         error = NETWORK_ERROR_GENERAL;
-        Debug_printf("Could not open session channel.\n");
+        Debug_printf("NetworkProtocolSSH::open() - Could not login to server as it does not allow password auth.\n");
         return true;
     }
 
-    if (libssh2_channel_request_pty(channel, "vanilla"))
+    ret = ssh_userauth_password(session, NULL, password->c_str());
+    // SSH_AUTH_AGAIN may need to be handled here too, if we're in non-blocking mode.
+
+    if (ret != SSH_AUTH_SUCCESS) {
+        error = NETWORK_ERROR_ACCESS_DENIED;
+        const char *message = ssh_get_error(session);
+        Debug_printf("NetworkProtocolSSH::open() - Unable to authorise with given password, error: %s.\n", message);
+        ssh_disconnect(session);
+        ssh_free(session);
+    }
+
+    channel = ssh_channel_new(session);
+    if (channel == NULL) {
+        error = NETWORK_ERROR_GENERAL;
+        const char *message = ssh_get_error(session);
+        Debug_printf("NetworkProtocolSSH::open() - Could not open new channel, error: %s.\n", message);
+        return true;
+    }
+    ret = ssh_channel_open_session(channel);
+    if (ret != SSH_OK) {
+        error = NETWORK_ERROR_GENERAL;
+        const char *message = ssh_get_error(session);
+        Debug_printf("NetworkProtocolSSH::open() - Could not open session, error: %s.\n", message);
+        return true;
+    }
+
+
+    ret = ssh_channel_request_pty_size(channel, "vanilla", 80, 24);
+    if (ret != SSH_OK)
     {
         error = NETWORK_ERROR_GENERAL;
         Debug_printf("Could not request pty\n");
         return true;
     }
 
-    if (libssh2_channel_shell(channel))
+    ret = ssh_channel_request_shell(channel);
+    if (ret != SSH_OK)
     {
         error = NETWORK_ERROR_GENERAL;
         Debug_printf("Could not open shell on channel\n");
         return true;
     }
 
-    libssh2_channel_set_blocking(channel, 0);
+    ssh_channel_set_blocking(channel, 0);
 
     // At this point, we should be able to talk to the shell.
     Debug_printf("Shell opened.\n");
@@ -128,9 +196,8 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolSSH::close()
 {
-    libssh2_session_disconnect(session, "Closed by NetworkProtocolSSH::close()");
-    libssh2_session_free(session);
-    libssh2_exit();
+    ssh_disconnect(session);
+    ssh_free(session);
     return false;
 }
 
@@ -145,9 +212,9 @@ bool NetworkProtocolSSH::write(unsigned short len)
     bool err = false;
 
     len = translate_transmit_buffer();
-    libssh2_channel_write(channel, transmitBuffer->data(), len);
+    ssh_channel_write(channel, transmitBuffer->data(), len);
 
-    // Return success
+    // Return success - WTF?
     error = 1;
     transmitBuffer->erase(0, len);
 
@@ -156,9 +223,10 @@ bool NetworkProtocolSSH::write(unsigned short len)
 
 bool NetworkProtocolSSH::status(NetworkStatus *status)
 {
-    status->rxBytesWaiting = available();    
-    status->connected = libssh2_channel_eof(channel) == 0 ? 1 : 0;
-    status->error = libssh2_channel_eof(channel) == 0 ? 1 : NETWORK_ERROR_END_OF_FILE;
+    status->rxBytesWaiting = available();
+    bool isEOF = ssh_channel_is_eof(channel) == 0;
+    status->connected = isEOF ? 1 : 0;
+    status->error = isEOF ? 1 : NETWORK_ERROR_END_OF_FILE;
     NetworkProtocol::status(status);
     return false;
 }
@@ -187,10 +255,10 @@ unsigned short NetworkProtocolSSH::available()
 {
     if (receiveBuffer->length() == 0)
     {
-        if (libssh2_channel_eof(channel) == 0)
+        if (ssh_channel_is_eof(channel) == 0)
         {
-            int len = libssh2_channel_read(channel, rxbuf, RXBUF_SIZE);
-            if (len != LIBSSH2_ERROR_EAGAIN)
+            int len = ssh_channel_read(channel, rxbuf, RXBUF_SIZE, 0);
+            if (len != SSH_AGAIN)
             {
                 receiveBuffer->append(rxbuf, len);
                 translate_receive_buffer();
