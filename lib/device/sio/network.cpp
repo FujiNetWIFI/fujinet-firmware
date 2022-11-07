@@ -468,6 +468,28 @@ void sioNetwork::sio_set_prefix()
         // truncate to that location.
         prefix = prefix.substr(0, pathLocations.back() + 1);
     }
+    else if ((prefixSpec_str == "/") || (prefixSpec_str == ">")) // Go back to hostname.
+    {
+        // TNFS://foo.com/path
+        size_t pos = prefix.find("/");
+        
+        if (pos == string::npos)
+            prefix.clear();
+        
+        pos = prefix.find("/",++pos);
+
+        if (pos == string::npos)
+            prefix.clear();
+
+        pos = prefix.find("/",++pos);
+
+        if (pos == string::npos)
+            prefix += "/";
+
+        pos = prefix.find("/",++pos);
+
+        prefix = prefix.substr(0,pos);
+    }
     else if (prefixSpec_str[0] == '/') // N:/DIR
     {
         prefix = prefixSpec_str;
@@ -1092,6 +1114,13 @@ void sioNetwork::sio_set_json_query()
     }
 
     inp = strrchr((const char *)in, ':');
+    
+    if (inp == NULL)
+    {
+        sio_error();
+        return;
+    }
+
     inp++;
     json.setReadQuery(string(inp), cmdFrame.aux2);
     json_bytes_remaining = json.readValueLen();

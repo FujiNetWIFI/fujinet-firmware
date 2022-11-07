@@ -12,8 +12,8 @@
 #include "Protocol.h"
 
 #include "fnTcpClient.h"
-#include "../libssh2/utility/libssh2/libssh2.h"
-
+#include "libssh/libssh.h"
+#include "libssh/session.h"
 
 using namespace std;
 
@@ -95,14 +95,14 @@ public:
 
 private:
     /**
-     * The Libssh2 session structure
+     * The libssh session structure
      */
-    LIBSSH2_SESSION *session;
+    ssh_session session;
 
     /**
-     * The LibSSH2 communication channel
+     * The libssh communication channel
      */
-    LIBSSH2_CHANNEL *channel;
+    ssh_channel channel;
 
     /**
      * The underlying TCP client
@@ -112,7 +112,7 @@ private:
     /**
      * Host Key Fingerprint
      */
-    const char *fingerprint;
+    unsigned char *fingerprint;
 
     /**
      * User Auth list
