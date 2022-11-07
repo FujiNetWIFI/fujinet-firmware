@@ -222,48 +222,48 @@ void iwmDisk::send_extended_status_dib_reply_packet()
   IWM.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 25);
 }
 
-void iwmDisk::process(cmdPacket_t cmd)
+void iwmDisk::process(iwm_decoded_cmd_t cmd)
 {
   uint8_t status_code;
   fnLedManager.set(LED_BUS, true);
   switch (cmd.command)
   {
-  case 0x80: // status
+  case 0x00: // status
     Debug_printf("\r\nhandling status command");
-    status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+    status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x00); // status codes 00-FF
     if (disk_num == '0' && status_code > 0x05) // max regular status code is 0x05 to UniDisk
       theFuji.FujiStatus(cmd);
     else  
       iwm_status(cmd);
     break;
-  case 0x81: // read block
+  case 0x01: // read block
     Debug_printf("\r\nhandling read block command");
     iwm_readblock(cmd);
     break;
-  case 0x82: // write block
+  case 0x02: // write block
     Debug_printf("\r\nhandling write block command");
     iwm_writeblock(cmd);
     break;
-  case 0x83: // format
+  case 0x03: // format
     iwm_return_badcmd(cmd);
     break;
-  case 0x84: // control
-    status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+  case 0x04: // control
+    status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     if (disk_num == '0' && status_code > 0x0A) // max regular control code is 0x0A to 3.5" disk
       theFuji.FujiControl(cmd);
     else  
       iwm_return_badcmd(cmd);
     break;
-  case 0x86: // open
+  case 0x06: // open
     iwm_return_badcmd(cmd);
     break;
-  case 0x87: // close
+  case 0x07: // close
     iwm_return_badcmd(cmd);
     break;
-  case 0x88: // read
+  case 0x08: // read
     iwm_return_badcmd(cmd);
     break;
-  case 0x89: // write
+  case 0x09: // write
     iwm_return_badcmd(cmd);
     break;
   default:
@@ -272,17 +272,17 @@ void iwmDisk::process(cmdPacket_t cmd)
   fnLedManager.set(LED_BUS, false);
 }
 
-unsigned long int last_block_num=0xFFFFFFFF;
+uint32_t last_block_num=0xFFFFFFFF;
 
-void iwmDisk::iwm_readblock(cmdPacket_t cmd)
+void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
 {
-  uint8_t LBH, LBL, LBN, LBT;
-  unsigned long int block_num;
+  // uint8_t LBH, LBL, LBN, LBT;
+  uint32_t block_num;
   size_t sdstato;
-  uint8_t source;
+  // uint8_t source;
 
-  source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
-  Debug_printf("\r\nDrive %02x ", source);
+  // source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
+  Debug_printf("\r\nDrive %02x ", id());
 
   if (!(_disk != nullptr))
   {
@@ -291,17 +291,18 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     return;
   }
 
-  LBH = cmd.grp7msb; //packet_buffer[16]; // high order bits
-  LBT = cmd.g7byte5; //packet_buffer[21]; // block number high
-  LBL = cmd.g7byte4; //packet_buffer[20]; // block number middle
-  LBN = cmd.g7byte3; //  packet_buffer[19]; // block number low
-  block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
-  // block num second byte
-  // print_packet ((unsigned char*) packet_buffer,get_packet_length());
-  // Added (unsigned short) cast to ensure calculated block is not underflowing.
-  block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
-  block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
-  Debug_printf(" Read block %04x", block_num);
+  // LBH = cmd.grp7msb; //packet_buffer[16]; // high order bits
+  // LBT = cmd.g7byte5; //packet_buffer[21]; // block number high
+  // LBL = cmd.g7byte4; //packet_buffer[20]; // block number middle
+  // LBN = cmd.g7byte3; //  packet_buffer[19]; // block number low
+  // block_num = (LBN & 0x7f) | (((unsigned short)LBH << 3) & 0x80);
+  // // block num second byte
+  // // print_packet ((unsigned char*) packet_buffer,get_packet_length());
+  // // Added (unsigned short) cast to ensure calculated block is not underflowing.
+  // block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
+  // block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
+  block_num = get_block_number(cmd);
+  Debug_printf(" Read block %06x", block_num);
 
   if (block_num == 0 || block_num != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
   {
@@ -329,18 +330,18 @@ void iwmDisk::iwm_readblock(cmdPacket_t cmd)
     last_block_num = 0xFFFFFFFF;  // force seek next time if send error
 }
 
-void iwmDisk::iwm_writeblock(cmdPacket_t cmd)
+void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
 {
   uint8_t status = 0;
-  uint8_t source = cmd.dest; // packet_buffer[6];
+ //  uint8_t source = cmd.dest; // packet_buffer[6];
   // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
-  Debug_printf("\r\nDrive %02x ", source);
+  Debug_printf("\r\nDrive %02x ", id());
   //Added (unsigned short) cast to ensure calculated block is not underflowing.
-  unsigned long int block_num = (cmd.g7byte3 & 0x7f) | (((unsigned short)cmd.grp7msb << 3) & 0x80);
+  uint32_t block_num = get_block_number(cmd); // (cmd.g7byte3 & 0x7f) | (((unsigned short)cmd.grp7msb << 3) & 0x80);
   // block num second byte
   //Added (unsigned short) cast to ensure calculated block is not underflowing.
-  block_num = block_num + (((cmd.g7byte4 & 0x7f) | (((unsigned short)cmd.grp7msb << 4) & 0x80)) * 256);
-  Debug_printf("Write block %04x", block_num);
+  // block_num = block_num + (((cmd.g7byte4 & 0x7f) | (((unsigned short)cmd.grp7msb << 4) & 0x80)) * 256);
+  Debug_printf("Write block %06x", block_num);
   //get write data packet, keep trying until no timeout
   // to do - this blows up - check handshaking
   data_len = BLOCK_DATA_LEN;
