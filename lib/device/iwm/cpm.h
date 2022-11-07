@@ -22,20 +22,20 @@ private:
 public:
     iwmCPM();
 
-    void process(cmdPacket_t cmd) override;
+    void process(iwm_decoded_cmd_t cmd) override;
 
-    void iwm_ctrl(cmdPacket_t cmd) override;
-    void iwm_open(cmdPacket_t cmd) override;
-    void iwm_close(cmdPacket_t cmd) override;
-    void iwm_read(cmdPacket_t cmd) override;
-    void iwm_write(cmdPacket_t cmd) override;
-    void iwm_status(cmdPacket_t cmd) override;
+    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
+    void iwm_open(iwm_decoded_cmd_t cmd) override;
+    void iwm_close(iwm_decoded_cmd_t cmd) override;
+    void iwm_read(iwm_decoded_cmd_t cmd) override;
+    void iwm_write(iwm_decoded_cmd_t cmd) override;
+    void iwm_status(iwm_decoded_cmd_t cmd) override;
 
     void shutdown() override;
-    void encode_status_reply_packet() override;
-    void encode_extended_status_reply_packet() override{};
-    void encode_status_dib_reply_packet() override;
-    void encode_extended_status_dib_reply_packet() override{};
+    void send_status_reply_packet() override;
+    void send_extended_status_reply_packet() override{};
+    void send_status_dib_reply_packet() override;
+    void send_extended_status_dib_reply_packet() override{};
     bool cpmActive = false; 
     void init_cpm(int baud);
     virtual void sio_status();
