@@ -170,6 +170,17 @@ struct
   uint8_t data[COMMAND_PACKET_LEN + 1];
 };
 
+union iwm_decoded_cmd_t
+{
+  struct
+  {
+    uint8_t command;
+    uint8_t count;
+    uint8_t params[7];
+  };
+  uint8_t decoded[9];
+};
+
 enum class iwm_smartport_type_t
 {
   Block_Device,
@@ -235,20 +246,24 @@ protected:
   virtual void send_extended_status_dib_reply_packet() = 0;
   
   virtual void shutdown() = 0;
-  virtual void process(cmdPacket_t cmd) = 0;
+  virtual void process(iwm_decoded_cmd_t cmd) = 0;
 
   // these are good for the high level device
-  virtual void iwm_status(cmdPacket_t cmd);
-  virtual void iwm_readblock(cmdPacket_t cmd) {};
-  virtual void iwm_writeblock(cmdPacket_t cmd) {};
-  virtual void iwm_format(cmdPacket_t cmd) {};
-  virtual void iwm_ctrl(cmdPacket_t cmd) {};
-  virtual void iwm_open(cmdPacket_t cmd) {};
-  virtual void iwm_close(cmdPacket_t cmd) {};
-  virtual void iwm_read(cmdPacket_t cmd) {};
-  virtual void iwm_write(cmdPacket_t cmd) {};
+  virtual void iwm_status(iwm_decoded_cmd_t cmd);
+  virtual void iwm_readblock(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_writeblock(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_format(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_ctrl(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_open(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_close(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_read(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_write(iwm_decoded_cmd_t cmd) {};
 
-  void iwm_return_badcmd(cmdPacket_t cmd);
+  uint8_t get_status_code(iwm_decoded_cmd_t cmd) {return cmd.params[2];}
+  uint16_t get_numbytes(iwm_decoded_cmd_t cmd) { return cmd.params[2] + (cmd.params[3] << 8); };
+  uint32_t get_address(iwm_decoded_cmd_t cmd) { return cmd.params[4] + (cmd.params[5] << 8) + (cmd.params[6] << 16); }
+
+  void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
   void iwm_return_ioerror();
 
 public:
@@ -308,7 +323,7 @@ private:
 
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
-
+  iwm_decoded_cmd_t command;
 
   void handle_init(); 
 

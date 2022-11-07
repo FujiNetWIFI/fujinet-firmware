@@ -94,15 +94,14 @@ public:
      */
     virtual void status();
 
-    void process(cmdPacket_t cmd) override;
+    void process(iwm_decoded_cmd_t cmd) override;
 
-    void iwm_ctrl(cmdPacket_t cmd) override;
-    void iwm_open(cmdPacket_t cmd) override;
-    void iwm_close(cmdPacket_t cmd) override;
-    void iwm_read(cmdPacket_t cmd) override;
-    void iwm_write(cmdPacket_t cmd) override;
-    void iwm_status(cmdPacket_t cmd) override;
-
+    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
+    void iwm_open(iwm_decoded_cmd_t cmd) override;
+    void iwm_close(iwm_decoded_cmd_t cmd) override;
+    void iwm_read(iwm_decoded_cmd_t cmd) override;
+    void iwm_write(iwm_decoded_cmd_t cmd) override;
+    void iwm_status(iwm_decoded_cmd_t cmd) override;
     void shutdown() override;
     void send_status_reply_packet() override;
     void send_extended_status_reply_packet() override{};
@@ -143,7 +142,7 @@ public:
      * @brief JSON Query
      * @param s size of query
      */
-    void json_query(cmdPacket_t cmd);
+    void json_query(iwm_decoded_cmd_t cmd);
 
     virtual void del();
     virtual void rename();
@@ -341,14 +340,14 @@ private:
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel(unsigned short num_bytes, cmdPacket_t cmd);
+    bool read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
 
     /**
      * Perform the correct read based on value of channelMode
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool read_channel_json(unsigned short num_bytes, cmdPacket_t cmd);
+    bool read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd);
 
     /**
      * Perform the correct write based on value of channelMode

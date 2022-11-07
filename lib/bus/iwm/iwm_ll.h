@@ -110,7 +110,8 @@ public:
   int iwm_read_packet_spi(int n);
   void spi_end();
 
-  int decode_data_packet(uint8_t* data); //decode smartport data packet
+  int decode_data_packet(uint8_t* input_data, uint8_t* output_data); //decode smartport data packet
+  int decode_data_packet(uint8_t* output_data); //decode smartport data packet
   void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
 
   // hardware configuration setup

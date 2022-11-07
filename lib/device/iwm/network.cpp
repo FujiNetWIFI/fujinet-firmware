@@ -345,16 +345,16 @@ void iwmNetwork::channel_mode()
     }
 }
 
-void iwmNetwork::json_query(cmdPacket_t cmd)
+void iwmNetwork::json_query(iwm_decoded_cmd_t cmd)
 {
-    uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
+    // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
 
-    uint16_t numbytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
+    uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+    // numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
 
-    uint32_t addy = (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
+    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
+    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
     Debug_printf("Query set to: %s\n", string((char *)data_buffer, data_len).c_str());
     json.setReadQuery(string((char *)data_buffer, data_len),cmdFrame.aux2);
@@ -487,16 +487,16 @@ void iwmNetwork::special_80()
     }
 }
 
-void iwmNetwork::iwm_open(cmdPacket_t cmd)
+void iwmNetwork::iwm_open(iwm_decoded_cmd_t cmd)
 {
-    Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
+    //Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
     send_status_reply_packet();
 }
 
-void iwmNetwork::iwm_close(cmdPacket_t cmd)
+void iwmNetwork::iwm_close(iwm_decoded_cmd_t cmd)
 {
     // Probably need to send close command here.
-    Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
+    //Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
     send_status_reply_packet();
     close();
 }
@@ -522,12 +522,12 @@ void iwmNetwork::status()
     data_len = 4;
 }
 
-void iwmNetwork::iwm_status(cmdPacket_t cmd)
+void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
 {
-    uint8_t source = cmd.dest;                                                // we are the destination and will become the source // data_buffer[6];
-    uint8_t status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-    Debug_printf("\r\nDevice %02x Status Code %02x", source, status_code);
-    Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+    // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // data_buffer[6];
+    uint8_t status_code = get_status_code(cmd); //(cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+    Debug_printf("\r\nDevice %02x Status Code %02x", id(), status_code);
+    //Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 
     switch (status_code)
     {
@@ -558,7 +558,7 @@ void iwmNetwork::net_read()
 {
 }
 
-bool iwmNetwork::read_channel_json(unsigned short num_bytes, cmdPacket_t cmd)
+bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     if (num_bytes > json.json_bytes_remaining)
     {
@@ -577,7 +577,7 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, cmdPacket_t cmd)
     return false;
 }
 
-bool iwmNetwork::read_channel(unsigned short num_bytes, cmdPacket_t cmd)
+bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     NetworkStatus ns;
 
@@ -626,18 +626,18 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
     return false;
 }
 
-void iwmNetwork::iwm_read(cmdPacket_t cmd)
+void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 {
-    uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
+    // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
 
-    uint16_t numbytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
+    uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+    // numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
 
-    uint32_t addy = (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
+    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
+    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
-    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", source, numbytes, addy);
+    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
 
     switch (channelMode)
     {
@@ -663,18 +663,18 @@ void iwmNetwork::net_write()
     write_channel(data_len);
 }
 
-void iwmNetwork::iwm_write(cmdPacket_t cmd)
+void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 {
-    uint8_t source = cmd.dest; // data_buffer[6];
+    // uint8_t source = cmd.dest; // data_buffer[6];
     // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
-    Debug_printf("\r\nNet# %02x ", source);
+    Debug_printf("\r\nNet# %02x ", id());
 
-    uint16_t num_bytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    num_bytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
+    uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+    // num_bytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
 
-    uint32_t addy = (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
+    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
+    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
     Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
 
@@ -703,14 +703,14 @@ void iwmNetwork::iwm_write(cmdPacket_t cmd)
     }
 }
 
-void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
+void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
     uint8_t err_result = SP_ERR_NOERROR;
 
-    uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
-    uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
-    Debug_printf("\r\nDevice %02x Control Code %02x", source, control_code);
-    Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+    // uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
+    uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
+    Debug_printf("\r\nDevice %02x Control Code %02x", id(), control_code);
+    // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
     data_len = BLOCK_DATA_LEN;
     IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
     // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", data_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
@@ -788,41 +788,41 @@ void iwmNetwork::iwm_ctrl(cmdPacket_t cmd)
     send_reply_packet(err_result);
 }
 
-void iwmNetwork::process(cmdPacket_t cmd)
+void iwmNetwork::process(iwm_decoded_cmd_t cmd)
 {
     fnLedManager.set(LED_BUS, true);
     switch (cmd.command)
     {
-    case 0x80: // status
+    case 0x00: // status
         Debug_printf("\r\nhandling status command");
         iwm_status(cmd);
         break;
-    case 0x81: // read block
+    case 0x01: // read block
         iwm_return_badcmd(cmd);
         break;
-    case 0x82: // write block
+    case 0x02: // write block
         iwm_return_badcmd(cmd);
         break;
-    case 0x83: // format
+    case 0x03: // format
         iwm_return_badcmd(cmd);
         break;
-    case 0x84: // control
+    case 0x04: // control
         Debug_printf("\r\nhandling control command");
         iwm_ctrl(cmd);
         break;
-    case 0x86: // open
+    case 0x06: // open
         Debug_printf("\r\nhandling open command");
         iwm_open(cmd);
         break;
-    case 0x87: // close
+    case 0x07: // close
         Debug_printf("\r\nhandling close command");
         iwm_close(cmd);
         break;
-    case 0x88: // read
+    case 0x08: // read
         Debug_printf("\r\nhandling read command");
         iwm_read(cmd);
         break;
-    case 0x89: // write
+    case 0x09: // write
         iwm_write(cmd);
         break;
     default:
