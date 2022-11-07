@@ -1114,6 +1114,13 @@ void sioNetwork::sio_set_json_query()
     }
 
     inp = strrchr((const char *)in, ':');
+    
+    if (inp == NULL)
+    {
+        sio_error();
+        return;
+    }
+
     inp++;
     json.setReadQuery(string(inp), cmdFrame.aux2);
     json_bytes_remaining = json.readValueLen();
