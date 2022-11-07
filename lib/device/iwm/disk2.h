@@ -16,9 +16,9 @@ protected:
     void send_extended_status_reply_packet() override {};
     void send_status_dib_reply_packet() override {};
     void send_extended_status_dib_reply_packet() override {};
-    void process(cmdPacket_t cmd) override {}; 
-    void iwm_readblock(cmdPacket_t cmd) override {};
-    void iwm_writeblock(cmdPacket_t cmd) override {};
+    void process(iwm_decoded_cmd_t cmd) override {}; 
+    void iwm_readblock(iwm_decoded_cmd_t cmd) override {};
+    void iwm_writeblock(iwm_decoded_cmd_t cmd) override {};
    
     void shutdown() override;
     char disk_num;

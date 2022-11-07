@@ -67,7 +67,7 @@ void print_packet (uint8_t* data, int bytes)
       if ((data[count + row] > 31) && (count + row < bytes) && (data[count + row] < 128))
       {
         xx = data[count + row];
-        Debug_print(xx);
+        Debug_printf("%c",xx);
       }
       else
       {
@@ -281,7 +281,7 @@ void iwmDevice::send_reply_packet (uint8_t status)
   IWM.iwm_send_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
 }
 
-void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
+void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   send_reply_packet(SP_ERR_BADCMD);
@@ -348,10 +348,10 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   return (pkt_checksum != calc_checksum);  
 }
 
-void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
+void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 {
-  uint8_t status_code = cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
-  Debug_printf("\r\nTarget Device: %02x", cmd.dest);
+  uint8_t status_code = cmd.params[2]; //cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+  Debug_printf("\r\nTarget Device: %02x", id());
   // add a switch case statement for ALL THE STATUSESESESESS
   if (status_code == 0x03)
   { // if statcode=3, then status with device info block
@@ -509,7 +509,10 @@ void iwmBus::service()
           }
           else
           {
-            _activeDev->process(command_packet);
+            memset(command.decoded, 0, sizeof(command.decoded));
+            smartport.decode_data_packet(command_packet.data, command.decoded);
+            print_packet(command.decoded,9);
+            _activeDev->process(command);
           }
         }
       }

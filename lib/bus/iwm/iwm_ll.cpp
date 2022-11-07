@@ -502,7 +502,12 @@ void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
 // Description: decode 512 (arbitrary now) byte data packet for write block command from host
 // decodes the data from the packet_buffer IN-PLACE!
 //*****************************************************************************
-int iwm_sp_ll::decode_data_packet(uint8_t* data)
+int iwm_sp_ll::decode_data_packet(uint8_t* output_data)
+{
+  return decode_data_packet(packet_buffer, output_data);
+}
+
+int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 {
   int grpbyte, grpcount;
   uint8_t numgrps, numodd;
@@ -511,44 +516,44 @@ int iwm_sp_ll::decode_data_packet(uint8_t* data)
   uint8_t group_buffer[8];
 
   //Handle arbitrary length packets :) 
-  numodd = packet_buffer[11] & 0x7f;
-  numgrps = packet_buffer[12] & 0x7f;
+  numodd = input_data[11] & 0x7f;
+  numgrps = input_data[12] & 0x7f;
   numdata = numodd + numgrps * 7;
   Debug_printf("\r\nDecoding %d bytes",numdata);
   // if (numdata==512)
   // {
   //   // print out packets
-  //   print_packet(packet_buffer,BLOCK_PACKET_LEN);
+  //   print_packet(input_data,BLOCK_PACKET_LEN);
   // }
   // First, checksum  packet header, because we're about to destroy it
   for (int count = 6; count < 13; count++) // now xor the packet header bytes
-    checksum = checksum ^ packet_buffer[count];
+    checksum = checksum ^ input_data[count];
 
   int chkidx = 13 + numodd + (numodd != 0) + numgrps * 8;
-  evenbits = packet_buffer[chkidx] & 0x55;
-  oddbits = (packet_buffer[chkidx + 1] & 0x55) << 1;
+  evenbits = input_data[chkidx] & 0x55;
+  oddbits = (input_data[chkidx + 1] & 0x55) << 1;
 
   //add oddbyte(s), 1 in a 512 data packet
   for(int i = 0; i < numodd; i++){
-    data[i] = ((packet_buffer[13] << (i+1)) & 0x80) | (packet_buffer[14+i] & 0x7f);
+    output_data[i] = ((input_data[13] << (i+1)) & 0x80) | (input_data[14+i] & 0x7f);
   }
 
   // 73 grps of 7 in a 512 byte packet
   int grpstart = 12 + numodd + (numodd != 0) + 1;
   for (grpcount = 0; grpcount < numgrps; grpcount++)
   {
-    memcpy(group_buffer, packet_buffer + grpstart + (grpcount * 8), 8);
+    memcpy(group_buffer, input_data + grpstart + (grpcount * 8), 8);
     for (grpbyte = 0; grpbyte < 7; grpbyte++)
     {
       bit7 = (group_buffer[0] << (grpbyte + 1)) & 0x80;
       bit0to6 = (group_buffer[grpbyte + 1]) & 0x7f;
-      data[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
+      output_data[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
     }
   }
 
   //verify checksum
-  for (int count = 0; count < numdata; count++) // xor all the data bytes
-    checksum = checksum ^ data[count];
+  for (int count = 0; count < numdata; count++) // xor all the output_data bytes
+    checksum = checksum ^ output_data[count];
 
   Debug_printf("\r\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
 
