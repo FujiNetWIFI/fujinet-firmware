@@ -186,13 +186,13 @@ private:
     bool answered=false;
 
     void shutdown() override;
-    void process(cmdPacket_t cmd) override{};
+    void process(iwm_decoded_cmd_t cmd) override{};
 
-    void encode_status_reply_packet() override{};
-    void encode_status_dib_reply_packet() override{};
+    void send_status_reply_packet() override{};
+    void send_status_dib_reply_packet() override{};
 
-    void encode_extended_status_reply_packet() override{};
-    void encode_extended_status_dib_reply_packet() override{};
+    void send_extended_status_reply_packet() override{};
+    void send_extended_status_dib_reply_packet() override{};
     
     void crx_toggle(bool toggle);                // CRX active/inactive?
 

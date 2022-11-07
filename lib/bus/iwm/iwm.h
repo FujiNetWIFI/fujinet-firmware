@@ -61,10 +61,6 @@
 #define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_CPM 0x00
 
-#define PACKET_TYPE_CMD 0x80
-#define PACKET_TYPE_STATUS 0x81
-#define PACKET_TYPE_DATA 0x82
-
 #define IWM_CTRL_RESET 0x00
 #define IWM_CTRL_SET_DCB 0x01
 #define IWM_CTRL_SET_NEWLINE 0x02
@@ -108,7 +104,7 @@ union cmdFrame_t
 };
 
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
-#define BLOCK_PACKET_LEN    604 //606
+#define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -174,6 +170,17 @@ struct
   uint8_t data[COMMAND_PACKET_LEN + 1];
 };
 
+union iwm_decoded_cmd_t
+{
+  struct
+  {
+    uint8_t command;
+    uint8_t count;
+    uint8_t params[7];
+  };
+  uint8_t decoded[9];
+};
+
 enum class iwm_smartport_type_t
 {
   Block_Device,
@@ -224,42 +231,40 @@ protected:
   // so need an encoded packet buffer in the low level and a packet_data[] or whatever in the high level.
   // the command packet might be an exception
   // iwm packet handling
-  static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  static uint16_t packet_len;
+  static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
+  static int data_len; // how many bytes in the data buffer
 
-  bool decode_data_packet(void); //decode smartport 512 byte data packet
-  static uint16_t num_decoded;
+   // void send_data_packet(); //encode smartport 512 byte data packet
+  // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
+  void send_init_reply_packet(uint8_t source, uint8_t status);
+  virtual void send_status_reply_packet() = 0;
+  void send_reply_packet(uint8_t status);
+  // void send_reply_packet(uint8_t source, uint8_t status) { send_reply_packet(status); };
+  virtual void send_status_dib_reply_packet() = 0;
 
-  // void encode_data_packet(); //encode smartport 512 byte data packet
-  void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
-  void encode_write_status_packet(uint8_t source, uint8_t status);
-  void encode_init_reply_packet(uint8_t source, uint8_t status);
-  virtual void encode_status_reply_packet() = 0;
-  void encode_error_reply_packet(uint8_t stat);
-  virtual void encode_status_dib_reply_packet() = 0;
-
-  void encode_extended_data_packet(uint8_t source);
-  virtual void encode_extended_status_reply_packet() = 0;
-  virtual void encode_extended_status_dib_reply_packet() = 0;
+  virtual void send_extended_status_reply_packet() = 0;
+  virtual void send_extended_status_dib_reply_packet() = 0;
   
-  int get_packet_length(void);
-
   virtual void shutdown() = 0;
-  virtual void process(cmdPacket_t cmd) = 0;
+  virtual void process(iwm_decoded_cmd_t cmd) = 0;
 
   // these are good for the high level device
-  virtual void iwm_status(cmdPacket_t cmd);
-  virtual void iwm_readblock(cmdPacket_t cmd) {};
-  virtual void iwm_writeblock(cmdPacket_t cmd) {};
-  virtual void iwm_format(cmdPacket_t cmd) {};
-  virtual void iwm_ctrl(cmdPacket_t cmd) {};
-  virtual void iwm_open(cmdPacket_t cmd) {};
-  virtual void iwm_close(cmdPacket_t cmd) {};
-  virtual void iwm_read(cmdPacket_t cmd) {};
-  virtual void iwm_write(cmdPacket_t cmd) {};
+  virtual void iwm_status(iwm_decoded_cmd_t cmd);
+  virtual void iwm_readblock(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_writeblock(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_format(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_ctrl(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_open(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_close(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_read(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_write(iwm_decoded_cmd_t cmd) {};
 
-  void iwm_return_badcmd(cmdPacket_t cmd);
-  void iwm_return_ioerror(cmdPacket_t cmd);
+  uint8_t get_status_code(iwm_decoded_cmd_t cmd) {return cmd.params[2];}
+  uint16_t get_numbytes(iwm_decoded_cmd_t cmd) { return cmd.params[2] + (cmd.params[3] << 8); };
+  uint32_t get_address(iwm_decoded_cmd_t cmd) { return cmd.params[4] + (cmd.params[5] << 8) + (cmd.params[6] << 16); }
+
+  void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
+  void iwm_return_ioerror();
 
 public:
   bool device_active;
@@ -313,23 +318,23 @@ private:
 
   void iwm_ack_deassert();
   void iwm_ack_assert();
+  bool iwm_req_deassert_timeout(int t) { return smartport.req_wait_for_falling_timeout(t); };
+  // bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
 
   cmdPacket_t command_packet;
   bool verify_cmdpkt_checksum(void);
+  iwm_decoded_cmd_t command;
 
+  void handle_init(); 
 
 public:
-
-  // these are low level commands and should be called/replace with one layer more of abstraction
-  int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
-  int iwm_send_packet(uint8_t *a);
-
+  bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
+   int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
+ 
   // these things stay for the most part
   void setup();
   void service();
   void shutdown();
-
-  void handle_init(); // todo: put this function in the right place
 
   int numDevices();
   void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
@@ -339,7 +344,6 @@ public:
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
-
 };
 
 extern iwmBus IWM;

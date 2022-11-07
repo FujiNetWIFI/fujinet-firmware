@@ -23,22 +23,21 @@ iwmFuji::iwmFuji()
 void iwmFuji::iwm_dummy_command() // SP CTRL command
 {
   Debug_printf("\r\nData Received: ");
-  for (int i=0; i<num_decoded; i++)
-    Debug_printf(" %02x", packet_buffer[i]);
+  for (int i=0; i<data_len; i++)
+    Debug_printf(" %02x", data_buffer[i]);
 }
 
 void iwmFuji::iwm_hello_world()
 {
   Debug_printf("\r\nFuji cmd: HELLO WORLD");
-  memcpy(packet_buffer, "HELLO WORLD", 11);
-  packet_len = 11;
+  memcpy(data_buffer, "HELLO WORLD", 11);
+  data_len = 11;
 }
 
 void iwmFuji::iwm_ctrl_reset_fujinet() // SP CTRL command
 {
     Debug_printf("\r\nFuji cmd: REBOOT");
-    encode_status_reply_packet();
-    IWM.iwm_send_packet((unsigned char *)packet_buffer);
+    send_status_reply_packet();
     // save device unit SP address somewhere and restore it after reboot?
     fnSystem.reboot();
 }
@@ -71,8 +70,8 @@ void iwmFuji::iwm_stat_net_get_ssid() // SP STATUS command
            s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
 
     // Move into response.
-    memcpy(packet_buffer, &cfg, sizeof(cfg));
-    packet_len = sizeof(cfg);
+    memcpy(data_buffer, &cfg, sizeof(cfg));
+    data_len = sizeof(cfg);
 } // 0xFE
 
 void iwmFuji::iwm_stat_net_scan_networks() // SP STATUS command 
@@ -90,8 +89,8 @@ void iwmFuji::iwm_stat_net_scan_networks() // SP STATUS command
 
     isReady = true;
 
-    packet_buffer[0] = _countScannedSSIDs;
-    packet_len = 1;
+    data_buffer[0] = _countScannedSSIDs;
+    data_len = 1;
 } // 0xFD
 
 void iwmFuji::iwm_ctrl_net_scan_result() //SP STATUS command 
@@ -99,7 +98,7 @@ void iwmFuji::iwm_ctrl_net_scan_result() //SP STATUS command
   Debug_print("\r\nFuji cmd: GET SCAN RESULT");
   //scanStarted = false;
 
-  uint8_t n = packet_buffer[0]; 
+  uint8_t n = data_buffer[0]; 
 
   memset(&detail, 0, sizeof(detail));
 
@@ -113,9 +112,9 @@ void iwmFuji::iwm_stat_net_scan_result() //SP STATUS command
 {
     Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
 
-    memset(packet_buffer, 0, sizeof(packet_buffer));
-    memcpy(packet_buffer, &detail, sizeof(detail));
-    packet_len = sizeof(detail);
+    memset(data_buffer, 0, sizeof(data_buffer));
+    memcpy(data_buffer, &detail, sizeof(detail));
+    data_len = sizeof(detail);
 } // 0xFC
 
 void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
@@ -124,7 +123,7 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
   // if (!fnWiFi.connected() && setSSIDStarted == false)
   //   {
 
-        // uint16_t s = num_decoded;
+        // uint16_t s = data_len;
         // s--;
 
         // Data for FUJICMD_SET_SSID
@@ -135,8 +134,8 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
         } cfg;
 
         // to do - copy data over to cfg
-        memcpy(cfg.ssid, &packet_buffer, sizeof(cfg.ssid));
-        memcpy(cfg.password, &packet_buffer[sizeof(cfg.ssid)], sizeof(cfg.password));
+        memcpy(cfg.ssid, &data_buffer, sizeof(cfg.ssid));
+        memcpy(cfg.password, &data_buffer[sizeof(cfg.ssid)], sizeof(cfg.password));
         // adamnet_recv_buffer((uint8_t *)&cfg, s);
 
             bool save = false; // for now don't save - to do save if connection was succesful
@@ -164,15 +163,15 @@ void iwmFuji::iwm_stat_net_get_wifi_status() // SP Status command
     Debug_printf("\r\nFuji cmd: GET WIFI STATUS");
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
-    packet_buffer[0] = wifiStatus;
-    packet_len = 1;
+    data_buffer[0] = wifiStatus;
+    data_len = 1;
     Debug_printf("\r\nReturning Status: %d", wifiStatus);
 }
 
 // Mount Server
 void iwmFuji::iwm_ctrl_mount_host() // SP CTRL command
 {
-    unsigned char hostSlot = packet_buffer[0]; // adamnet_recv();
+    unsigned char hostSlot = data_buffer[0]; // adamnet_recv();
     Debug_printf("\r\nFuji cmd: MOUNT HOST no. %d", hostSlot);
 
     if ((hostSlot < 8) && (hostMounted[hostSlot] == false))
@@ -187,8 +186,8 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 {
     Debug_printf("\r\nFuji cmd: MOUNT IMAGE");
 
-    uint8_t deviceSlot = packet_buffer[0]; //adamnet_recv();
-    uint8_t options = packet_buffer[1]; //adamnet_recv(); // DISK_ACCESS_MODE
+    uint8_t deviceSlot = data_buffer[0]; //adamnet_recv();
+    uint8_t options = data_buffer[1]; //adamnet_recv(); // DISK_ACCESS_MODE
     
     // TODO: Implement FETCH?
     char flag[3] = {'r', 0, 0};
@@ -218,7 +217,7 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void iwmFuji::iwm_ctrl_set_boot_config() // SP CTRL command
 {
-    boot_config = packet_buffer[0]; // adamnet_recv();
+    boot_config = data_buffer[0]; // adamnet_recv();
     //adamnet_recv();
 }
 
@@ -235,9 +234,9 @@ void iwmFuji::iwm_ctrl_copy_file()
     unsigned char sourceSlot;
     unsigned char destSlot;
 
-    sourceSlot = packet_buffer[0]; // adamnet_recv();
-    destSlot = packet_buffer[0]; //adamnet_recv();
-    copySpec = std::string((char *)&packet_buffer[2]);
+    sourceSlot = data_buffer[0]; // adamnet_recv();
+    destSlot = data_buffer[0]; //adamnet_recv();
+    copySpec = std::string((char *)&data_buffer[2]);
     Debug_printf("copySpec: %s\n", copySpec.c_str());
 
     // Chop up copyspec.
@@ -331,7 +330,7 @@ bool iwmFuji::mount_all()
 // Set boot mode
 void iwmFuji::iwm_ctrl_set_boot_mode()
 {
-    uint8_t bm = packet_buffer[0]; // adamnet_recv();
+    uint8_t bm = data_buffer[0]; // adamnet_recv();
     
     insert_boot_device(bm);
     boot_config = true;
@@ -350,17 +349,17 @@ char *_generate_appkey_filename(appkey *info)
 */
 void iwmFuji::iwm_ctrl_write_app_key()
 {
-    uint16_t creator = num_decoded;//adamnet_recv_length();
+    uint16_t creator = data_len;//adamnet_recv_length();
     int idx = 0;
-    uint8_t app = packet_buffer[idx++];//adamnet_recv();
-    uint8_t key = packet_buffer[idx++];//adamnet_recv();
+    uint8_t app = data_buffer[idx++];//adamnet_recv();
+    uint8_t key = data_buffer[idx++];//adamnet_recv();
     uint8_t data[64];
     char appkeyfilename[30];
     FILE *fp;
 
     snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key",creator,app,key);
 
-    memcpy(data, &packet_buffer[idx], 64); // adamnet_recv_buffer(data,64);
+    memcpy(data, &data_buffer[idx], 64); // adamnet_recv_buffer(data,64);
 
     Debug_printf("Fuji Cmd: WRITE APPKEY %s\n",appkeyfilename);
 
@@ -384,10 +383,10 @@ void iwmFuji::iwm_ctrl_write_app_key()
 */
 void iwmFuji::iwm_ctrl_read_app_key()
 {
-    uint16_t creator = get_packet_length();//adamnet_recv_length();
+    uint16_t creator = data_len;//adamnet_recv_length();
     int idx = 0;
-    uint8_t app = packet_buffer[idx++];//adamnet_recv();
-    uint8_t key = packet_buffer[idx++];//adamnet_recv();
+    uint8_t app = data_buffer[idx++];//adamnet_recv();
+    uint8_t key = data_buffer[idx++];//adamnet_recv();
     
     char appkeyfilename[30];
     FILE *fp;
@@ -410,9 +409,9 @@ void iwmFuji::iwm_ctrl_read_app_key()
 void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the read app key control command
 {
   Debug_printf("\r\nFuji cmd: READ APP KEY");
-  memset(packet_buffer, 0, sizeof(packet_buffer));
-  memcpy(ctrl_stat_buffer, packet_buffer, ctrl_stat_len);
-  packet_len = ctrl_stat_len;
+  memset(data_buffer, 0, sizeof(data_buffer));
+  memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
+  data_len = ctrl_stat_len;
 }
 
 // DEBUG TAPE
@@ -423,7 +422,7 @@ void iwmFuji::debug_tape()
 // Disk Image Unmount
 void iwmFuji::iwm_ctrl_disk_image_umount()
 {
-    unsigned char ds = packet_buffer[0];//adamnet_recv();
+    unsigned char ds = data_buffer[0];//adamnet_recv();
     
     _fnDisks[ds].disk_dev.unmount();
     _fnDisks[ds].reset();
@@ -479,11 +478,11 @@ void iwmFuji::iwm_ctrl_open_directory()
     Debug_printf("\r\nFuji cmd: OPEN DIRECTORY");
 
     int idx = 0;
-    uint8_t hostSlot = packet_buffer[idx++];// adamnet_recv();
+    uint8_t hostSlot = data_buffer[idx++];// adamnet_recv();
 
-    uint16_t s = num_decoded - 1; // two strings but not the slot number
+    uint16_t s = data_len - 1; // two strings but not the slot number
   
-    memcpy((uint8_t *)&dirpath, (uint8_t *)&packet_buffer[idx], s); // adamnet_recv_buffer((uint8_t *)&dirpath, s);
+    memcpy((uint8_t *)&dirpath, (uint8_t *)&data_buffer[idx], s); // adamnet_recv_buffer((uint8_t *)&dirpath, s);
 
     if (_current_open_directory_slot == -1)
     {
@@ -564,8 +563,8 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
 void iwmFuji::iwm_ctrl_read_directory_entry()
 {
-    uint8_t maxlen = packet_buffer[0]; 
-    uint8_t addtl = packet_buffer[1];
+    uint8_t maxlen = data_buffer[0]; 
+    uint8_t addtl = data_buffer[1];
 
     // if (response[0] == 0x00) // to do - figure out the logic here?
     // {
@@ -660,8 +659,8 @@ void iwmFuji::iwm_ctrl_read_directory_entry()
 void iwmFuji::iwm_stat_read_directory_entry()
 {
   Debug_printf("\r\nFuji cmd: READ DIRECTORY ENTRY");
-  memcpy(packet_buffer, ctrl_stat_buffer, ctrl_stat_len);
-  packet_len = ctrl_stat_len;
+  memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
+  data_len = ctrl_stat_len;
 }
 
 void iwmFuji::iwm_stat_get_directory_position()
@@ -670,8 +669,8 @@ void iwmFuji::iwm_stat_get_directory_position()
 
     uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
 
-    packet_len = sizeof(pos);
-    memcpy(packet_buffer, &pos, sizeof(pos));
+    data_len = sizeof(pos);
+    memcpy(data_buffer, &pos, sizeof(pos));
 }
 
 void iwmFuji::iwm_ctrl_set_directory_position()
@@ -682,7 +681,7 @@ void iwmFuji::iwm_ctrl_set_directory_position()
     uint16_t pos = 0;
 
     // adamnet_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
-    memcpy((uint8_t *)&pos, (uint8_t *)&packet_buffer, sizeof(uint16_t));
+    memcpy((uint8_t *)&pos, (uint8_t *)&data_buffer, sizeof(uint16_t));
 
     Debug_printf("pos is now %u", pos);
 
@@ -726,26 +725,26 @@ void iwmFuji::iwm_stat_get_adapter_config()
 
     fnWiFi.get_mac(cfg.macAddress);
 
-    memcpy(packet_buffer, &cfg, sizeof(cfg));
-    packet_len = sizeof(cfg);
+    memcpy(data_buffer, &cfg, sizeof(cfg));
+    data_len = sizeof(cfg);
 }
 
 //  Make new disk and shove into device slot
 void iwmFuji::iwm_ctrl_new_disk()
 {
     int idx = 0;
-    uint8_t hs = packet_buffer[idx++]; //adamnet_recv();
-    uint8_t ds = packet_buffer[idx++]; //adamnet_recv();
+    uint8_t hs = data_buffer[idx++]; //adamnet_recv();
+    uint8_t ds = data_buffer[idx++]; //adamnet_recv();
     uint32_t numBlocks;
     uint8_t *c = (uint8_t *)&numBlocks;
     uint8_t p[256];
 
 
     //adamnet_recv_buffer(c, sizeof(uint32_t));
-    memcpy((uint8_t *)c, (uint8_t *)&packet_buffer[idx],sizeof(uint32_t) );
+    memcpy((uint8_t *)c, (uint8_t *)&data_buffer[idx],sizeof(uint32_t) );
     idx += sizeof(uint32_t);
     
-    memcpy(p, (uint8_t *)&packet_buffer[idx], sizeof(p));
+    memcpy(p, (uint8_t *)&data_buffer[idx], sizeof(p));
     //adamnet_recv_buffer(p, 256);
 
     fujiDisk &disk = _fnDisks[ds];
@@ -782,8 +781,8 @@ void iwmFuji::iwm_stat_read_host_slots()
     for (int i = 0; i < MAX_HOSTS; i++)
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
-    memcpy(packet_buffer, hostSlots, sizeof(hostSlots));
-    packet_len = sizeof(hostSlots);
+    memcpy(data_buffer, hostSlots, sizeof(hostSlots));
+    data_len = sizeof(hostSlots);
 }
 
 // Read and save host slot data from computer
@@ -793,7 +792,7 @@ void iwmFuji::iwm_ctrl_write_host_slots()
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     //adamnet_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
-    memcpy((uint8_t *)hostSlots, packet_buffer, sizeof(hostSlots));
+    memcpy((uint8_t *)hostSlots, data_buffer, sizeof(hostSlots));
 
     for (int i = 0; i < MAX_HOSTS; i++)
     {
@@ -843,8 +842,8 @@ void iwmFuji::iwm_stat_read_device_slots()
 
     returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
 
-    memcpy(packet_buffer, &diskSlots, returnsize);
-    packet_len = returnsize;
+    memcpy(data_buffer, &diskSlots, returnsize);
+    data_len = returnsize;
 }
 
 // Read and save disk slot data from computer
@@ -860,7 +859,7 @@ void iwmFuji::iwm_ctrl_write_device_slots()
     } diskSlots[MAX_DISK_DEVICES];
 
     // adamnet_recv_buffer((uint8_t *)&diskSlots, sizeof(diskSlots));
-    memcpy((uint8_t *)&diskSlots, packet_buffer, sizeof(diskSlots));
+    memcpy((uint8_t *)&diskSlots, data_buffer, sizeof(diskSlots));
     
     // Load the data into our current device array
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -936,15 +935,15 @@ void iwmFuji::iwm_ctrl_set_device_filename()
 {
     char f[MAX_FILENAME_LEN];
     int idx = 0;
-    unsigned char ds = packet_buffer[idx++];// adamnet_recv();
-    uint16_t s = num_decoded;
+    unsigned char ds = data_buffer[idx++];// adamnet_recv();
+    uint16_t s = data_len;
     s--;
    
 
     Debug_printf("\r\nSET DEVICE SLOT %d", ds);
 
     // adamnet_recv_buffer((uint8_t *)&f, s);
-    memcpy((uint8_t *)&f, &packet_buffer[idx], s);
+    memcpy((uint8_t *)&f, &data_buffer[idx], s);
     Debug_printf("\r\nfilename: %s", f);
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
@@ -954,7 +953,7 @@ void iwmFuji::iwm_ctrl_set_device_filename()
 // Get a 256 byte filename from device slot
 void iwmFuji::iwm_ctrl_get_device_filename()
 {
-    unsigned char ds = packet_buffer[0];//adamnet_recv();
+    unsigned char ds = data_buffer[0];//adamnet_recv();
 
     ctrl_stat_len = MAX_FILENAME_LEN;
     memcpy(ctrl_stat_buffer, _fnDisks[ds].filename, ctrl_stat_len);
@@ -963,8 +962,8 @@ void iwmFuji::iwm_ctrl_get_device_filename()
 void iwmFuji::iwm_stat_get_device_filename()
 {
   Debug_printf("\r\nFuji cmd: GET DEVICE FILENAME");
-  memcpy(packet_buffer, ctrl_stat_buffer, ctrl_stat_len);
-  packet_len = 256;
+  memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
+  data_len = 256;
 }
 
 // Mounts the desired boot disk number
@@ -993,7 +992,7 @@ void iwmFuji::insert_boot_device(uint8_t d)
 
 void iwmFuji::iwm_ctrl_enable_device()
 {
-    unsigned char d = packet_buffer[0]; // adamnet_recv();
+    unsigned char d = data_buffer[0]; // adamnet_recv();
 
     Debug_printf("\r\nFuji cmd: ENABLE DEVICE");
     IWM.enableDevice(d);
@@ -1001,7 +1000,7 @@ void iwmFuji::iwm_ctrl_enable_device()
 
 void iwmFuji::iwm_ctrl_disable_device()
 {
-    unsigned char d = packet_buffer[0]; // adamnet_recv();
+    unsigned char d = data_buffer[0]; // adamnet_recv();
 
     Debug_printf("\r\nFuji cmd: DISABLE DEVICE");
     IWM.disableDevice(d);
@@ -1073,10 +1072,9 @@ std::string iwmFuji::get_host_prefix(int host_slot)
     return std::string();
 }
 
-void iwmFuji::encode_status_reply_packet()
+void iwmFuji::send_status_reply_packet()
 {
 
-  uint8_t checksum = 0;
   uint8_t data[4];
 
   // Build the contents of the packet
@@ -1084,52 +1082,12 @@ void iwmFuji::encode_status_reply_packet()
   data[1] = 0;         // block size 1
   data[2] = 0;  // block size 2
   data[3] = 0; // block size 3
-  // to do - just call encode data using the data[] array?
-  packet_buffer[0] = 0xff; // sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
-
-  packet_buffer[6] = 0xc3;        // PBEGIN - start byte
-  packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = id(); //d.device_id; // SRC - source id - us
-  packet_buffer[9] = 0x81;        // TYPE -status
-  packet_buffer[10] = 0x80;       // AUX
-  packet_buffer[11] = 0x80;       // STAT - data status
-  packet_buffer[12] = 0x84;       // ODDCNT - 4 data bytes
-  packet_buffer[13] = 0x80;       // GRP7CNT
-  // 4 odd bytes
-  packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
-  packet_buffer[15] = data[0] | 0x80;                                                                                               // data 1
-  packet_buffer[16] = data[1] | 0x80;                                                                                               // data 2
-  packet_buffer[17] = data[2] | 0x80;                                                                                               // data 3
-  packet_buffer[18] = data[3] | 0x80;                                                                                               // data 4
-
-  for (int i = 0; i < 4; i++)
-  { // calc the data bytes checksum
-    checksum ^= data[i];
-  }
-  for (int count = 7; count < 14; count++) // xor the packet header bytes
-    checksum = checksum ^ packet_buffer[count];
-  packet_buffer[19] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  packet_buffer[20] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-  packet_buffer[21] = 0xc8; // PEND
-  packet_buffer[22] = 0x00; // end of packet in buffer
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
-void iwmFuji::encode_status_dib_reply_packet()
+void iwmFuji::send_status_dib_reply_packet()
 {
-  int grpbyte, grpcount, i;
-  int grpnum, oddnum;
-  uint8_t checksum = 0, grpmsb;
-  uint8_t group_buffer[7];
   uint8_t data[25];
-  // data buffer=25: 3 x Grp7 + 4 odds
-  grpnum = 3;
-  oddnum = 4;
 
   //* write data buffer first (25 bytes) 3 grp7 + 4 odds
   // General Status byte
@@ -1166,112 +1124,31 @@ void iwmFuji::encode_status_dib_reply_packet()
   data[22] = SP_SUBTYPE_BYTE_FUJINET; // Device Subtype - 0x0a
   data[23] = 0x00; // Firmware version 2 bytes
   data[24] = 0x01; //
-
-  // print_packet ((uint8_t*) data,get_packet_length()); // debug
-  // Debug_print(("\nData loaded"));
-  // Calculate checksum of sector bytes before we destroy them
-  for (int count = 0; count < 25; count++) // xor all the data bytes
-    checksum = checksum ^ data[count];
-
-  // Start assembling the packet at the rear and work
-  // your way to the front so we don't overwrite data
-  // we haven't encoded yet
-
-  // grps of 7
-  for (grpcount = grpnum - 1; grpcount >= 0; grpcount--) // 3
-  {
-    for (i = 0; i < 7; i++)
-    {
-      group_buffer[i] = data[i + oddnum + (grpcount * 7)]; // data should have 26 cells?
-    }
-    // add group msb byte
-    grpmsb = 0;
-    for (grpbyte = 0; grpbyte < 7; grpbyte++)
-      grpmsb = grpmsb | ((group_buffer[grpbyte] >> (grpbyte + 1)) & (0x80 >> (grpbyte + 1)));
-    packet_buffer[(14 + oddnum + 1) + (grpcount * 8)] = grpmsb | 0x80; // set msb to one
-
-    // now add the group data bytes bits 6-0
-    for (grpbyte = 0; grpbyte < 7; grpbyte++)
-      packet_buffer[(14 + oddnum + 2) + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
-  }
-
-  // odd byte
-  packet_buffer[14] = 0x80 | ((data[0] >> 1) & 0x40) | ((data[1] >> 2) & 0x20) | ((data[2] >> 3) & 0x10) | ((data[3] >> 4) & 0x08); // odd msb
-  packet_buffer[15] = data[0] | 0x80;
-  packet_buffer[16] = data[1] | 0x80;
-  packet_buffer[17] = data[2] | 0x80;
-  packet_buffer[18] = data[3] | 0x80;
-  ;
-
-  packet_buffer[0] = 0xff; // sync bytes
-  packet_buffer[1] = 0x3f;
-  packet_buffer[2] = 0xcf;
-  packet_buffer[3] = 0xf3;
-  packet_buffer[4] = 0xfc;
-  packet_buffer[5] = 0xff;
-  packet_buffer[6] = 0xc3;        // PBEGIN - start byte
-  packet_buffer[7] = 0x80;        // DEST - dest id - host
-  packet_buffer[8] = id(); // d.device_id; // SRC - source id - us
-  packet_buffer[9] = 0x81;        // TYPE -status
-  packet_buffer[10] = 0x80;       // AUX
-  packet_buffer[11] = 0x80;       // STAT - data status
-  packet_buffer[12] = 0x84;       // ODDCNT - 4 data bytes
-  packet_buffer[13] = 0x83;       // GRP7CNT - 3 grps of 7
-
-  for (int count = 7; count < 14; count++) // xor the packet header bytes
-    checksum = checksum ^ packet_buffer[count];
-  packet_buffer[43] = checksum | 0xaa;      // 1 c6 1 c4 1 c2 1 c0
-  packet_buffer[44] = checksum >> 1 | 0xaa; // 1 c7 1 c5 1 c3 1 c1
-
-  packet_buffer[45] = 0xc8; // PEND
-  packet_buffer[46] = 0x00; // end of packet in buffer
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
-void iwmFuji::iwm_open(cmdPacket_t cmd)
+void iwmFuji::iwm_open(iwm_decoded_cmd_t cmd)
 {
-  Debug_printf("\r\nOpen FujiNet Unit # %02x",cmd.g7byte1);
-  encode_status_reply_packet();
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  // Debug_printf("\r\nOpen FujiNet Unit # %02x",cmd.g7byte1);
+  send_status_reply_packet();
 }
 
-void iwmFuji::iwm_close(cmdPacket_t cmd)
+void iwmFuji::iwm_close(iwm_decoded_cmd_t cmd)
 {
 }
 
 
-void iwmFuji::iwm_read(cmdPacket_t cmd)
+void iwmFuji::iwm_read(iwm_decoded_cmd_t cmd)
 {
-  uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
-
-  uint16_t numbytes = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-  numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
-
-  uint32_t addy = (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-  addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-  addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
-
-  Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x", source, numbytes, addy);
-
-
-  // Debug_printf(" - ERROR - No image mounted");
-  // encode_error_reply_packet(source, SP_ERR_OFFLINE);
-  // IWM.iwm_send_packet((unsigned char *)packet_buffer);
-  // return;
-
-  memcpy(packet_buffer,"HELLO WORLD",11);
-  encode_data_packet(11);
-  Debug_printf("\r\nsending data packet with %d elements ...", 11);
-  //print_packet();
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
 }
 
 
-void iwmFuji::iwm_status(cmdPacket_t cmd)
+void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 {
-  uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
-  uint8_t status_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-  Debug_printf("\r\nDevice %02x Status Code %02x", source, status_code);
-  Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+  // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
+  uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+  Debug_printf("\r\nDevice %02x Status Code %02x", id(), status_code);
+  // Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 
   switch (status_code)
   {
@@ -1279,15 +1156,13 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       iwm_hello_world();
       break;
     case IWM_STATUS_STATUS:                  // 0x00
-      encode_status_reply_packet();
-      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      send_status_reply_packet();
       return;
       break;
     // case IWM_STATUS_DCB:                  // 0x01
     // case IWM_STATUS_NEWLINE:              // 0x02
     case IWM_STATUS_DIB:                     // 0x03
-      encode_status_dib_reply_packet();
-      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      send_status_dib_reply_packet();
       return;
       break;
     // case FUJICMD_RESET:               // 0xFF
@@ -1354,30 +1229,26 @@ void iwmFuji::iwm_status(cmdPacket_t cmd)
       break;
     default:
       Debug_printf("\r\nBad Status Code, sending error response");
-      encode_error_reply_packet(SP_ERR_BADCTL);
-      IWM.iwm_send_packet((unsigned char *)packet_buffer);
+      send_reply_packet(SP_ERR_BADCTL);
       return;
       break;
   }
   Debug_printf("\r\nStatus code complete, sending response");
-  encode_data_packet(packet_len);
-  
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
-}
+  IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+ }
 
-
-void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
+void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
   err_result = SP_ERR_NOERROR;
   
-  uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
-  uint8_t control_code = (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
-  Debug_printf("\r\nDevice %02x Control Code %02x", source, control_code);
-  Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
-  IWM.iwm_read_packet_timeout(100, (uint8_t *)packet_buffer, BLOCK_PACKET_LEN);
-  Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, packet_buffer[12] & 0x7f);
-  print_packet((uint8_t *)packet_buffer);
-  decode_data_packet();
+  // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
+  uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
+  Debug_printf("\r\nDevice %02x Control Code %02x", id(), control_code);
+  // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+  data_len = 512;
+  IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+  Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", data_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
+  print_packet((uint8_t *)data_buffer);
 
   switch (control_code)
   {
@@ -1475,46 +1346,45 @@ void iwmFuji::iwm_ctrl(cmdPacket_t cmd)
       err_result = SP_ERR_BADCTL;
       break;
   }
-  encode_error_reply_packet(err_result); 
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  send_reply_packet(err_result); 
 }
 
 
-void iwmFuji::process(cmdPacket_t cmd)
+void iwmFuji::process(iwm_decoded_cmd_t cmd)
 {
   fnLedManager.set(LED_BUS, true);
   switch (cmd.command)
   {
-  case 0x80: // status
+  case 0x00: // status
     Debug_printf("\r\nhandling status command");
     iwm_status(cmd);
     break;
-  case 0x81: // read block
+  case 0x01: // read block
     iwm_return_badcmd(cmd);
     break;
-  case 0x82: // write block
+  case 0x02: // write block
     iwm_return_badcmd(cmd);
     break;
-  case 0x83: // format
+  case 0x03: // format
     iwm_return_badcmd(cmd);
     break;
-  case 0x84: // control
+  case 0x04: // control
     Debug_printf("\r\nhandling control command");
     iwm_ctrl(cmd);
     break;
-  case 0x86: // open
+  case 0x06: // open
     Debug_printf("\r\nhandling open command");
     iwm_open(cmd);
     break;
-  case 0x87: // close
+  case 0x07: // close
     Debug_printf("\r\nhandling close command");
     iwm_close(cmd);
     break;
-  case 0x88: // read
+  case 0x08: // read
     Debug_printf("\r\nhandling read command");
     iwm_read(cmd);
     break;
-  case 0x89: // write
+  case 0x09: // write
     iwm_return_badcmd(cmd);
     break;
   } // switch (cmd)
