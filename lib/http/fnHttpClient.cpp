@@ -28,7 +28,11 @@ fnHttpClient::~fnHttpClient()
     close();
 
     if (_handle != nullptr)
+    {
+        Debug_printf("esp_http_client_cleanup(%p)\n",_handle);
+        Debug_printf("free heap: %lu\n",esp_get_free_heap_size());
         esp_http_client_cleanup(_handle);
+    }
 
     free(_buffer);
 }
@@ -355,7 +359,7 @@ void fnHttpClient::_perform_subtask(void *param)
     //Debug_printf("esp_http_client_perform start\n");
 
     esp_err_t e = esp_http_client_perform(parent->_handle);
-    // Debug_printf("esp_http_client_perform returned %d, stack HWM %u\n", e, uxTaskGetStackHighWaterMark(nullptr));
+    Debug_printf("esp_http_client_perform returned %d, stack HWM %u\n", e, uxTaskGetStackHighWaterMark(nullptr));
 
     // Save error
     parent->_client_err = e;
@@ -446,6 +450,7 @@ int fnHttpClient::_perform()
         break;
     default:
         status = esp_http_client_get_status_code(_handle);
+        Debug_printf("esp_http_client_get_status_code = %u\n",status);
         // Other error, use fake HTTP status code 900
         // it will be translated to NETWORK_ERROR_GENERAL (144) in NetworkProtocolHTTP::fserror_to_error()
         if (status < 0) status = 900;
