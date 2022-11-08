@@ -32,6 +32,8 @@ FNJSON::~FNJSON()
 {
     Debug_printf("FNJSON::dtor()\n");
     _protocol = nullptr;
+    if (_json != nullptr)
+        cJSON_Delete(_json);
     _json = nullptr;
 }
 
@@ -246,6 +248,9 @@ bool FNJSON::parse()
 {
     NetworkStatus ns;
     _parseBuffer.clear();
+
+    if (_json != nullptr)
+        cJSON_Delete(_json);
 
     if (_protocol == nullptr)
     {
