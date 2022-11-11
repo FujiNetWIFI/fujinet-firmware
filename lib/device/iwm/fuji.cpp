@@ -1028,6 +1028,9 @@ void iwmFuji::setup(iwmBus *iwmbus)
     theNetwork = new iwmNetwork();
     _iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network);
 
+    theClock = new iwmClock();
+    _iwm_bus->addDevice(theClock, iwm_fujinet_type_t::Clock);
+
     theCPM = new iwmCPM();
     _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
 
