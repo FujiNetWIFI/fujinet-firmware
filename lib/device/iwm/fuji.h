@@ -8,6 +8,7 @@
 #include "iwm/network.h"
 #include "iwm/printer.h"
 #include "iwm/cpm.h"
+#include "iwm/clock.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -83,6 +84,8 @@ private:
     iwmNetwork *theNetwork;
 
     iwmCPM *theCPM;
+
+    iwmClock *theClock;
 
     int _current_open_directory_slot = -1;
 
