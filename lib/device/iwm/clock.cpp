@@ -66,6 +66,9 @@ void iwmClock::send_status_dib_reply_packet()
 
 void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
 {
+    time_t tt;
+    struct tm *now;
+
     uint8_t status_code = get_status_code(cmd); 
     Debug_printf("\r\nDevice %02x Status Code %02x\n", id(), status_code);
 
@@ -79,11 +82,11 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         send_status_dib_reply_packet();
         return;
         break;
-    case 'T': // Time
-        time_t tt = time(nullptr);
+    case 'T': // Date and time, easy to be used by general programs
+        tt = time(nullptr);
         setenv("TZ",Config.get_general_timezone().c_str(),1);
         tzset();
-        struct tm * now = localtime(&tt);
+        now = localtime(&tt);
 
         data_buffer[0] = (now->tm_year)/100 + 19;
         data_buffer[1] = now->tm_year%100;
@@ -93,6 +96,19 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         data_buffer[5] = now->tm_min;
         data_buffer[6] = now->tm_sec;
         data_len = 7;
+        break;
+    case 'P': // Date and time, to be used by a ProDOS driver
+        tt = time(nullptr);
+        setenv("TZ",Config.get_general_timezone().c_str(),1);
+        tzset();
+        now = localtime(&tt);
+
+        // See format in 6.1 of https://prodos8.com/docs/techref/adding-routines-to-prodos/
+        data_buffer[0] = now->tm_mday + ((now->tm_mon + 1)<<5);
+        data_buffer[1] = ((now->tm_year%100)<<1) + ((now->tm_mon + 1)>>3);
+        data_buffer[2] = now->tm_min;
+        data_buffer[3] = now->tm_hour;
+        data_len = 4;
         break;
     }
 
