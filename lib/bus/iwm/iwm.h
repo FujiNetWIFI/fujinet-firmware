@@ -56,10 +56,12 @@
 #define SP_TYPE_BYTE_FUJINET 0x10
 #define SP_TYPE_BYTE_FUJINET_NETWORK 0x11
 #define SP_TYPE_BYTE_FUJINET_CPM 0x12
+#define SP_TYPE_BYTE_FUJINET_CLOCK 0x13
 
 #define SP_SUBTYPE_BYTE_FUJINET 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_CPM 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_CLOCK 0x00
 
 #define IWM_CTRL_RESET 0x00
 #define IWM_CTRL_SET_DCB 0x01
@@ -83,6 +85,7 @@ class iwmNetwork;  // declare here so can reference it, but define in network.h
 class iwmPrinter;  // Printer device
 class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for prototyping in iwmBus::service()
 class iwmCPM;      // CPM Virtual Device
+class iwmClock;    // Real Time Clock Device
 class iwmBus;      // forward declare bus so can be friend
 
 // Sorry, this  is the protocol adapter's fault. -Thom
@@ -196,6 +199,7 @@ enum class iwm_fujinet_type_t
   CPM,
   Printer,
   Voice,
+  Clock,
   Other
 };
 
@@ -300,6 +304,7 @@ private:
   //sioCassette *_cassetteDev = nullptr;
   iwmCPM *_cpmDev = nullptr;
   iwmPrinter *_printerdev = nullptr;
+  iwmClock *_clockDev = nullptr;
 
   bool iwm_phase_val(uint8_t p);
 

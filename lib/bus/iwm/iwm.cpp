@@ -12,6 +12,7 @@
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
 #include "../device/iwm/cpm.h"
+#include "../device/iwm/clock.h"
 
 /******************************************************************************
 Based on:
@@ -623,6 +624,9 @@ void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
     case iwm_fujinet_type_t::Voice:
     // not yet implemented: todo - take SAM and implement as a special block device. Also then available for disk rotate annunciation. 
       break;
+    case iwm_fujinet_type_t::Clock:
+       _clockDev = (iwmClock *)pDevice;
+       break;
     case iwm_fujinet_type_t::Other:
       break;
     }
