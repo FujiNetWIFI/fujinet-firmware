@@ -25,6 +25,7 @@ sdkconfig.fujinet-lynx-prototype
 sdkconfig.fujinet-lynx-devkitc
 sdkconfig.fujinet-adam-v1
 sdkconfig.fujinet-cbm
+sdkconfig.esp32s3
 
 include/ssid.h
 /*.log
