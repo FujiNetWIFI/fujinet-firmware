@@ -2,14 +2,14 @@
 #include "disk.h"
 
 #include "fnSystem.h"
-#include "fnFsTNFS.h"
-#include "fnFsSD.h"
+// #include "fnFsTNFS.h"
+// #include "fnFsSD.h"
 #include "led.h"
 #include "fuji.h"
 
-#define LOCAL_TNFS
+// #define LOCAL_TNFS
 
-FileSystemTNFS tserver;
+// FileSystemTNFS tserver;
 
 iwmDisk::~iwmDisk()
 {
@@ -272,13 +272,11 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
   fnLedManager.set(LED_BUS, false);
 }
 
-uint32_t last_block_num=0xFFFFFFFF;
-
 void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
 {
   // uint8_t LBH, LBL, LBN, LBT;
   uint32_t block_num;
-  size_t sdstato;
+  uint16_t sdstato;
   // uint8_t source;
 
   // source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
@@ -304,30 +302,18 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   block_num = get_block_number(cmd);
   Debug_printf(" Read block %06x", block_num);
 
-  if (block_num == 0 || block_num != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
+  sdstato = BLOCK_DATA_LEN;
+  if (_disk->read(block_num, &sdstato, data_buffer))
   {
-    Debug_printf("\r\n");
-    if (fseek(_disk->fileptr(), (block_num * BLOCK_DATA_LEN), SEEK_SET))
-    {
-      Debug_printf("\r\nRead seek err! block #%02x", block_num);
-      send_reply_packet(SP_ERR_BADBLOCK);
-      return; // todo - send an error status packet?
-    }
-  }
-
-  sdstato = fread((unsigned char *)data_buffer, 1, BLOCK_DATA_LEN, _disk->fileptr()); // Reading block from SD Card
-  if (sdstato != BLOCK_DATA_LEN)
-  {
-    Debug_printf("\r\nFile Read err: %d bytes", sdstato);
+    Debug_printf("\r\nFile Seek or Read err: %d bytes", sdstato);
     send_reply_packet(SP_ERR_IOERROR);
     return; // todo - true or false?
   }
+  
   // send_data_packet();
   Debug_printf("\r\nsending block packet ...");
-  if (!IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, BLOCK_DATA_LEN))
-    last_block_num = block_num;
-  else
-    last_block_num = 0xFFFFFFFF;  // force seek next time if send error
+  if (IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, BLOCK_DATA_LEN))
+   ((MediaTypePO*)_disk)->reset_seek_opto();  // force seek next time if send error
 }
 
 void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
@@ -355,21 +341,9 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
     iwm_return_ioerror();
   else
     { // ok
-      //write block to CF card
-      //Serial.print(F("\r\nWrite Bl. n.r: "));
-      //Serial.print(block_num);
-      if (block_num != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
-      {
-        Debug_printf("\r\n");
-        if (fseek(_disk->fileptr(), (block_num * BLOCK_DATA_LEN), SEEK_SET))
-        {
-          Debug_printf("\r\nRead seek err! block #%02x", block_num);
-          send_reply_packet(SP_ERR_BADBLOCK);
-          return; // todo - send an error status packet?
-                  // to do - set a flag here to check for error status
-        }
-      }
-      size_t sdstato = fwrite((unsigned char *)data_buffer, 1, BLOCK_DATA_LEN, _disk->fileptr());
+      uint16_t sdstato = BLOCK_DATA_LEN;
+      _disk->write(block_num, &sdstato, data_buffer);
+      
       if (sdstato != BLOCK_DATA_LEN)
       {
         Debug_printf("\r\nFile Write err: %d bytes", sdstato);
@@ -381,11 +355,6 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
       }
       //now return status code to host
       send_reply_packet(status);
-      //Serial.print(F("\r\nSent status Packet Data\r\n") );
-      //print_packet ((unsigned char*) sector_buffer,512);
-
-      //print_packet ((unsigned char*) packet_buffer,get_packet_length());
-      last_block_num = block_num;
     }
 }
 
