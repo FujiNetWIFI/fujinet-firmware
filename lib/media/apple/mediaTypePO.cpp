@@ -2,13 +2,40 @@
 
 #include "mediaTypePO.h"
 
-bool MediaTypePO::read(uint32_t blockNum, uint16_t *readcount)
+bool MediaTypePO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
-    return false;
+    size_t readsize = *count;
+if (blockNum == 0 || blockNum != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
+  {
+     if (fseek(_media_fileh, (blockNum * readsize), SEEK_SET))
+    {
+        reset_seek_opto();
+        return true;
+    }
+  }
+  last_block_num = blockNum;
+  readsize = fread((unsigned char *)buffer, 1, readsize, _media_fileh); // Reading block from SD Card
+  return (readsize != *count);
 }
 
-bool MediaTypePO::write(uint32_t blockNum, bool verify)
+bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
+    size_t writesize = *count;
+    if (blockNum != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
+    {
+         if (fseek(_media_fileh, (blockNum * writesize), SEEK_SET))
+        {
+            reset_seek_opto();
+            return true;
+        }
+    }
+    last_block_num = blockNum;
+    writesize = fwrite((unsigned char *)buffer, 1, writesize, _media_fileh);
+    if (writesize != *count)
+    {
+       reset_seek_opto();
+       return true;
+    }
     return false;
 }
 
