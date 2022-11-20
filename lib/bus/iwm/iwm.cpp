@@ -10,6 +10,7 @@
 #include "led.h"
 
 #include "../device/iwm/disk.h"
+#include "../device/iwm/disk2.h"
 #include "../device/iwm/fuji.h"
 #include "../device/iwm/cpm.h"
 #include "../device/iwm/clock.h"
@@ -247,6 +248,8 @@ void iwmBus::setup(void)
   smartport.setup_gpio();
   Debug_printf("\r\nIWM GPIO configured");
   
+  diskii[0] = new iwmDisk2();
+  diskii[1] = new iwmDisk2();
 }
 
 
@@ -423,16 +426,31 @@ void iwmBus::service()
 {
   iwm_ack_deassert(); // go hi-Z
 
-  // if (iwm_drive_enables())
-  // {
-  //   //Debug_printf("\r\nFloppy Drive ENabled!");
-  //   iwm_rddata_clr();
-  // }
-  // else
-  // {
-  //   //Debug_printf("\r\nFloppy Drive DISabled!"); // debug msg latency here screws up SP timing.
-  //    iwm_rddata_set(); // make rddata hi-z
-  // }
+  // check on the diskii status
+  switch (iwm_drive_enabled())
+  {
+  case iwm_enable_state_t::off:
+    // get out of there and service the smartport bus
+    break;
+  case iwm_enable_state_t::off2on:
+    // start up the diskii process:
+    // enable RDDATA
+    // fill the SPI queue
+      return;
+  case iwm_enable_state_t::on2off:
+    // shut down the diskii process:
+    // let the SPI queue run out,
+    // then disable the RDDATA
+    return;
+  case iwm_enable_state_t::on:
+    // maintain the diskii process:
+    // update the head position based on phases
+    // put the right track in the SPI buffer
+    // add to the SPI queue every 200 ms
+    // keep track of how many transactions in the SPI queue
+    ((iwmDisk2 *)diskii[enable_values-1])->process();
+    return;
+  }
 
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
@@ -521,10 +539,23 @@ void iwmBus::service()
   } // switch (phasestate)
 }
 
-bool iwmBus::iwm_drive_enables()
+iwm_enable_state_t iwmBus::iwm_drive_enabled()
 {
-  return false; // ignore floppy drives for now
-  //return !iwm_enable_val();
+  uint8_t newstate = smartport.iwm_enable_states();
+  iwm_enable_state_t ret = iwm_enable_state_t::off;
+
+  if (enable_values != newstate)
+  {
+    // if new state is 0, then start a 1 second countdown 
+    // when 1 second is up
+    ret = (newstate != 0) ? iwm_enable_state_t::off2on : iwm_enable_state_t::on2off;
+    enable_values = newstate;
+  }
+  else
+  {
+    ret = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::off;
+  }
+  return ret;
 }
 
 void iwmBus::handle_init()

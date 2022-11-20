@@ -22,13 +22,19 @@ protected:
    
     void shutdown() override;
     char disk_num;
+    bool enabled;
+    int track_pos;
+    uint8_t oldphases;
 
 public:
     iwmDisk2();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
-    bool write_blank(FILE *f, uint16_t numBlocks);
+
+    bool phases_valid(uint8_t phases);
+    bool move_head();
+    void process();
 
     void set_disk_number(char c) { disk_num = c; }
     char get_disk_number() { return disk_num; };

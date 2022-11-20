@@ -21,15 +21,22 @@ inline void iwm_sp_ll::iwm_extra_clr()
 #endif
 }
 
-inline bool iwm_sp_ll::iwm_enable_val()
+uint8_t iwm_sp_ll::iwm_enable_states()
 {
-  return true;
+  uint8_t states = 0;
+  
+  states |= (GPIO.in1.val & (SP_DRIVE1-32)) >> (SP_DRIVE1-32-0);
+  states |= (GPIO.in & SP_DRIVE2) >> (SP_DRIVE2-1);
+  states |= (GPIO.in1.val & (SP_EN35-32)) >> (SP_EN35-32-2);
+  states |= (GPIO.in & SP_HDSEL) >> (SP_HDSEL - 3);
+
+  return states;
 }
 
 void iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
-  memset(spi_buffer, 0, SPI_BUFFER_LEN);
+  memset(spi_buffer, 0, SPI_TX_LEN);
   // loop through "l" bytes of the buffer "packet_buffer"
   uint16_t i=0,j=0;
   while(packet_buffer[i])
@@ -157,7 +164,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
   
-  memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
+  memset(spi_buffer, 0xff , SPI_RX_LEN);
   memset(&rxtrans, 0, sizeof(spi_transaction_t));
   rxtrans.flags = 0; 
   rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
@@ -330,7 +337,7 @@ void iwm_sp_ll::setup_spi()
 
   esp_err_t ret; // used for calling SPI library functions below
 
-  spi_buffer=(uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA); 
+  spi_buffer=(uint8_t*)heap_caps_malloc(SPI_TX_LEN, MALLOC_CAP_DMA); // allocate enough for Disk][ TX but also use this buffer for SPI RX
 
   spi_device_interface_config_t devcfg = {
       .mode = 0,                   // SPI mode 0
@@ -340,7 +347,7 @@ void iwm_sp_ll::setup_spi()
       .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
       .input_delay_ns = 0,
       .spics_io_num = -1,                // CS pin
-      .queue_size = 2                    // We want to be able to queue 7 transactions at a time
+      .queue_size = 5                    // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
   };
 
     // use same SPI as SDCARD
@@ -356,7 +363,7 @@ void iwm_sp_ll::setup_spi()
       .sclk_io_num = -1,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = SPI_BUFFER_LEN,
+      .max_transfer_sz = SPI_RX_LEN,
       .flags = SPICOMMON_BUSFLAG_MASTER,
       .intr_flags = 0};
   spi_device_interface_config_t rxcfg = {
