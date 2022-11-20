@@ -10,7 +10,7 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fnFsSPIFFS.h"
-#include "modem.h"
+#include "../device/modem.h"
 #include "printer.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"

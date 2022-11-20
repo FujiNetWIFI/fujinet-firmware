@@ -5,7 +5,7 @@
 
 #include "../../include/debug.h"
 
-#include "modem.h"
+#include "../device/modem.h"
 #include "modem-sniffer.h"
 
 #include "fnSystem.h"
