@@ -1,16 +1,14 @@
 #ifndef MODEM_H
 #define MODEM_H
 
-// usually provided by esp32sshclient
 #include <string.h>
 
 #include "bus.h"
 #include "fnTcpClient.h"
 #include "fnTcpServer.h"
+#include "fnUART.h"
 #include "modem-sniffer.h"
 #include "libtelnet.h"
-// #include "esp32sshclient.h"
-
 
 /* Keep strings under 40 characters, for the benefit of 40-column users! */
 #define HELPL01 "       FujiNet Virtual Modem 850"
@@ -41,7 +39,7 @@
 #define HELPL26 "ATPB<num>=<host>  | Add to Phonebook"
 
 /* Not explicitly mentioned at this time, since they are commonly known:
- * (these are sioModem class's _at_cmds enums)
+ * (these are fujiModem class's _at_cmds enums)
  * - AT
  * - ATA (mentioned below)
  * - AT? (the help command itself)
@@ -70,7 +68,7 @@
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 
-class sioModem : public virtualDevice
+class modem : public virtualDevice
 {
 private:
 
@@ -178,9 +176,9 @@ private:
     bool use_telnet=false;          // Use telnet mode?
     bool do_echo;                   // telnet echo toggle.
     string term_type;               // telnet terminal type.
-    // ESP32SSHCLIENT ssh;             // ssh instance.
     long answerTimer;
     bool answered=false;
+    UARTManager* uart;              // UART manager to use.
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
@@ -230,8 +228,8 @@ public:
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
 
-    sioModem(FileSystem *_fs, bool snifferEnable);
-    virtual ~sioModem();
+    modem(FileSystem *_fs, bool snifferEnable);
+    virtual ~modem();
 
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
     ModemSniffer *get_modem_sniffer() { return modemSniffer; }
@@ -240,6 +238,8 @@ public:
     void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
     string get_term_type() {return term_type; }
     void set_term_type(string _term_type) { term_type = _term_type; }
+    UARTManager* get_uart() { return uart; }
+    void set_uart(UARTManager *_uart) { uart = _uart; }
 
 };
 

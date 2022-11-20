@@ -1,5 +1,3 @@
-#ifdef BUILD_ATARI
-
 #include "modem.h"
 
 #include "../../../include/debug.h"
@@ -55,24 +53,24 @@ static const telnet_telopt_t telopts[] = {
  */
 static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data)
 {
-    sioModem *modem = (sioModem *)user_data; // somehow it thinks this is unused?
+    modem *m = (modem *)user_data; // somehow it thinks this is unused?
 
     switch (ev->type)
     {
     case TELNET_EV_DATA:
-        if (ev->data.size && fnUartSIO.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+        if (ev->data.size && m->get_uart()->write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
             Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
         break;
     case TELNET_EV_SEND:
-        modem->get_tcp_client().write((uint8_t *)ev->data.buffer, ev->data.size);
+        m->get_tcp_client().write((uint8_t *)ev->data.buffer, ev->data.size);
         break;
     case TELNET_EV_WILL:
         if (ev->neg.telopt == TELNET_TELOPT_ECHO)
-            modem->set_do_echo(false);
+            m->set_do_echo(false);
         break;
     case TELNET_EV_WONT:
         if (ev->neg.telopt == TELNET_TELOPT_ECHO)
-            modem->set_do_echo(true);
+            m->set_do_echo(true);
         break;
     case TELNET_EV_DO:
         break;
@@ -80,7 +78,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
         break;
     case TELNET_EV_TTYPE:
         if (ev->ttype.cmd == TELNET_TTYPE_SEND)
-            telnet_ttype_is(telnet, modem->get_term_type().c_str());
+            telnet_ttype_is(telnet, m->get_term_type().c_str());
         break;
     case TELNET_EV_SUBNEGOTIATION:
         break;
@@ -93,7 +91,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     }
 }
 
-sioModem::sioModem(FileSystem *_fs, bool snifferEnable)
+modem::modem(FileSystem *_fs, bool snifferEnable)
 {
     listen_to_type3_polls = true;
     activeFS = _fs;
@@ -102,7 +100,7 @@ sioModem::sioModem(FileSystem *_fs, bool snifferEnable)
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
 }
 
-sioModem::~sioModem()
+modem::~modem()
 {
     if (modemSniffer != nullptr)
     {
@@ -116,7 +114,7 @@ sioModem::~sioModem()
 }
 
 // 0x40 / '@' - TYPE 3 POLL
-void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
+void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
 {
     bool respond = false;
 
@@ -186,7 +184,7 @@ void sioModem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
 }
 
 // 0x3F / '?' - TYPE 1 POLL
-void sioModem::sio_poll_1()
+void modem::sio_poll_1()
 {
     /*  From Altirra sources - rs232.cpp
         Send back SIO command for booting. This is a 12 uint8_t + chk block that
@@ -239,7 +237,7 @@ void sioModem::sio_poll_1()
 
 // 0x21 / '!' - RELOCATOR DOWNLOAD
 // 0x26 / '&' - HANDLER DOWNLOAD
-void sioModem::sio_send_firmware(uint8_t loadcommand)
+void modem::sio_send_firmware(uint8_t loadcommand)
 {
     const char *firmware;
     if (loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR)
@@ -285,7 +283,7 @@ void sioModem::sio_send_firmware(uint8_t loadcommand)
 }
 
 // 0x57 / 'W' - WRITE
-void sioModem::sio_write()
+void modem::sio_write()
 {
     uint8_t ck;
 
@@ -335,7 +333,7 @@ void sioModem::sio_write()
 }
 
 // 0x53 / 'S' - STATUS
-void sioModem::sio_status()
+void modem::sio_status()
 {
 
     Debug_println("Modem cmd: STATUS");
@@ -373,13 +371,13 @@ void sioModem::sio_status()
         answerTimer = fnSystem.millis();
     }
 
-    Debug_printf("sioModem::sio_status(%02x,%02x)\n", mdmStatus[0], mdmStatus[1]);
+    Debug_printf("modem::sio_status(%02x,%02x)\n", mdmStatus[0], mdmStatus[1]);
 
     bus_to_computer(mdmStatus, sizeof(mdmStatus), false);
 }
 
 // 0x41 / 'A' - CONTROL
-void sioModem::sio_control()
+void modem::sio_control()
 {
     /* AUX1: Set control state
         7: Enable DTR (Data Terminal Ready) change (1=change, 0=ignore)
@@ -431,7 +429,7 @@ void sioModem::sio_control()
 }
 
 // 0x42 / 'B' - CONFIGURE
-void sioModem::sio_config()
+void modem::sio_config()
 {
 
     Debug_println("Modem cmd: CONFIGURE");
@@ -502,14 +500,14 @@ void sioModem::sio_config()
 }
 
 // 0x44 / 'D' - Dump
-void sioModem::sio_set_dump()
+void modem::sio_set_dump()
 {
     modemSniffer->setEnable(cmdFrame.aux1);
     sio_complete();
 }
 
 // 0x58 / 'X' - STREAM
-void sioModem::sio_stream()
+void modem::sio_stream()
 {
     Debug_println("Modem cmd: STREAM");
     /* AUX1: I/O direction
@@ -561,7 +559,7 @@ void sioModem::sio_stream()
 
     bus_to_computer((uint8_t *)response, sizeof(response), false);
 
-    fnUartSIO.set_baudrate(modemBaud);
+    get_uart()->set_baudrate(modemBaud);
     modemActive = true;
     Debug_printf("Modem streaming at %u baud\n", modemBaud);
 }
@@ -569,7 +567,7 @@ void sioModem::sio_stream()
 /**
  * Set listen port
  */
-void sioModem::sio_listen()
+void modem::sio_listen()
 {
     if (listenPort != 0)
     {
@@ -593,7 +591,7 @@ void sioModem::sio_listen()
 /**
  * Stop listen
  */
-void sioModem::sio_unlisten()
+void modem::sio_unlisten()
 {
     sio_ack();
     tcpClient.stop();
@@ -604,7 +602,7 @@ void sioModem::sio_unlisten()
 /**
  * Lock MODEM baud rate to last configured value
  */
-void sioModem::sio_baudlock()
+void modem::sio_baudlock()
 {
     sio_ack();
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
@@ -618,7 +616,7 @@ void sioModem::sio_baudlock()
 /**
  * enable/disable auto-answer
  */
-void sioModem::sio_autoanswer()
+void modem::sio_autoanswer()
 {
     sio_ack();
     autoAnswer = (cmdFrame.aux1 > 0 ? true : false);
@@ -628,7 +626,7 @@ void sioModem::sio_autoanswer()
     sio_complete();
 }
 
-void sioModem::at_connect_resultCode(int modemBaud)
+void modem::at_connect_resultCode(int modemBaud)
 {
     int resultCode = 0;
     switch (modemBaud)
@@ -655,105 +653,105 @@ void sioModem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
-    fnUartSIO.print(resultCode);
-    fnUartSIO.write(ASCII_CR);
+    get_uart()->print(resultCode);
+    get_uart()->write(ASCII_CR);
 }
 
 /**
  * Emit result code if ATV0
  * No Atascii translation here, as this is intended for machine reading.
  */
-void sioModem::at_cmd_resultCode(int resultCode)
+void modem::at_cmd_resultCode(int resultCode)
 {
-    fnUartSIO.print(resultCode);
-    fnUartSIO.write(ASCII_CR);
-    fnUartSIO.write(ASCII_LF);
+    get_uart()->print(resultCode);
+    get_uart()->write(ASCII_CR);
+    get_uart()->write(ASCII_LF);
 }
 
 /**
    replacement println for AT that is CR/EOL aware
 */
-void sioModem::at_cmd_println()
+void modem::at_cmd_println()
 {
     if (cmdOutput == false)
         return;
 
     if (cmdAtascii == true)
     {
-        fnUartSIO.write(ATASCII_EOL);
+        get_uart()->write(ATASCII_EOL);
     }
     else
     {
-        fnUartSIO.write(ASCII_CR);
-        fnUartSIO.write(ASCII_LF);
+        get_uart()->write(ASCII_CR);
+        get_uart()->write(ASCII_LF);
     }
-    fnUartSIO.flush();
+    get_uart()->flush();
 }
 
-void sioModem::at_cmd_println(const char *s, bool addEol)
+void modem::at_cmd_println(const char *s, bool addEol)
 {
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(s);
+    get_uart()->print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            get_uart()->write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            get_uart()->write(ASCII_CR);
+            get_uart()->write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
+    get_uart()->flush();
 }
 
-void sioModem::at_cmd_println(int i, bool addEol)
+void modem::at_cmd_println(int i, bool addEol)
 {
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(i);
+    get_uart()->print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            get_uart()->write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            get_uart()->write(ASCII_CR);
+            get_uart()->write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
+    get_uart()->flush();
 }
 
-void sioModem::at_cmd_println(std::string s, bool addEol)
+void modem::at_cmd_println(std::string s, bool addEol)
 {
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(s);
+    get_uart()->print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            get_uart()->write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            get_uart()->write(ASCII_CR);
+            get_uart()->write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
+    get_uart()->flush();
 }
 
-void sioModem::at_handle_wificonnect()
+void modem::at_handle_wificonnect()
 {
     int keyIndex = cmd.find(',');
     std::string ssid, key;
@@ -808,7 +806,7 @@ void sioModem::at_handle_wificonnect()
     }
 }
 
-void sioModem::at_handle_port()
+void modem::at_handle_port()
 {
     //int port = cmd.substring(6).toInt();
     int port = std::stoi(cmd.substr(6));
@@ -837,7 +835,7 @@ void sioModem::at_handle_port()
     }
 }
 
-void sioModem::at_handle_get()
+void modem::at_handle_get()
 {
     // From the URL, aquire required variables
     // (12 = "ATGEThttp://")
@@ -903,7 +901,7 @@ void sioModem::at_handle_get()
     }
 }
 
-void sioModem::at_handle_help()
+void modem::at_handle_help()
 {
     at_cmd_println(HELPL01);
     at_cmd_println(HELPL02);
@@ -953,7 +951,7 @@ void sioModem::at_handle_help()
         at_cmd_println("OK");
 }
 
-void sioModem::at_handle_wifilist()
+void modem::at_handle_wifilist()
 {
     at_cmd_println();
     at_cmd_println(HELPSCAN1);
@@ -1003,7 +1001,7 @@ void sioModem::at_handle_wifilist()
         at_cmd_println("OK");
 }
 
-void sioModem::at_handle_answer()
+void modem::at_handle_answer()
 {
     Debug_printf("HANDLE ANSWER !!!\n");
     if (tcpServer.hasClient())
@@ -1016,12 +1014,12 @@ void sioModem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartSIO.flush();
+        get_uart()->flush();
         answerHack = false;
     }
 }
 
-void sioModem::at_handle_dial()
+void modem::at_handle_dial()
 {
     int portIndex = cmd.find(':');
     std::string host, port;
@@ -1095,7 +1093,7 @@ void sioModem::at_handle_dial()
 }
 /*Following functions manage the phonebook*/
 /*Display current Phonebook*/
-void sioModem::at_handle_pblist()
+void modem::at_handle_pblist()
 {
     at_cmd_println();
     at_cmd_println("Phone#       Host");
@@ -1115,7 +1113,7 @@ void sioModem::at_handle_pblist()
 }
 
 /*Add and del entry in the phonebook*/
-void sioModem::at_handle_pb()
+void modem::at_handle_pb()
 {
     // From the AT command get the info to add. Ex: atpb4321=irata.online:8002
     //or delete ex: atpb4321
@@ -1188,7 +1186,7 @@ void sioModem::at_handle_pb()
 /*
    Perform a command given in AT Modem command mode
 */
-void sioModem::modemCommand()
+void modem::modemCommand()
 {
     /* Some of these are ignored; to see their meanings,
      * review `modem.h`'s sioModem class's _at_cmds enums. */
@@ -1523,7 +1521,7 @@ void sioModem::modemCommand()
 /*
   Handle incoming & outgoing data for modem
 */
-void sioModem::sio_handle_modem()
+void modem::sio_handle_modem()
 {
     /**** AT command mode ****/
     if (cmdMode == true)
@@ -1560,11 +1558,11 @@ void sioModem::sio_handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if (fnUartSIO.available() > 0)
+        if (get_uart()->available() > 0)
         {
             // get char from Atari SIO
             //char chr = SIO_UART.read();
-            char chr = fnUartSIO.read();
+            char chr = get_uart()->read();
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -1589,9 +1587,9 @@ void sioModem::sio_handle_modem()
                     // Clear with a space
                     if (commandEcho == true)
                     {
-                        fnUartSIO.write(ASCII_BACKSPACE);
-                        fnUartSIO.write(' ');
-                        fnUartSIO.write(ASCII_BACKSPACE);
+                        get_uart()->write(ASCII_BACKSPACE);
+                        get_uart()->write(' ');
+                        get_uart()->write(ASCII_BACKSPACE);
                     }
                 }
             }
@@ -1604,7 +1602,7 @@ void sioModem::sio_handle_modem()
                 {
                     cmd.erase(len - 1);
                     if (commandEcho == true)
-                        fnUartSIO.write(ATASCII_BACKSPACE);
+                        get_uart()->write(ATASCII_BACKSPACE);
                 }
             }
             // Take into account arrow key movement and clear screen
@@ -1612,7 +1610,7 @@ void sioModem::sio_handle_modem()
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 if (commandEcho == true)
-                    fnUartSIO.write(chr);
+                    get_uart()->write(chr);
             }
             else
             {
@@ -1622,7 +1620,7 @@ void sioModem::sio_handle_modem()
                     cmd += chr;
                 }
                 if (commandEcho == true)
-                    fnUartSIO.write(chr);
+                    get_uart()->write(chr);
             }
         }
     }
@@ -1653,8 +1651,8 @@ void sioModem::sio_handle_modem()
             }
         }
 
-        int sioBytesAvail = fnUartSIO.available();
-        //int sioBytesAvail = min(0, fnUartSIO.available());
+        int sioBytesAvail = get_uart()->available();
+        //int sioBytesAvail = min(0, get_uart()->available());
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
@@ -1669,7 +1667,7 @@ void sioModem::sio_handle_modem()
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = fnUartSIO.readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
+            int sioBytesRead = get_uart()->readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
                                                    (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
@@ -1719,8 +1717,8 @@ void sioModem::sio_handle_modem()
             }
             else
             {
-                fnUartSIO.write(buf, bytesRead);
-                fnUartSIO.flush();
+                get_uart()->write(buf, bytesRead);
+                get_uart()->flush();
             }
 
             // And dump to sniffer, if enabled.
@@ -1784,7 +1782,7 @@ void sioModem::sio_handle_modem()
     }
 }
 
-void sioModem::shutdown()
+void modem::shutdown()
 {
     if (modemSniffer != nullptr)
         if (modemSniffer->getEnable())
@@ -1794,16 +1792,16 @@ void sioModem::shutdown()
 /*
   Process command
 */
-void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
+void modem::sio_process(uint32_t commanddata, uint8_t checksum)
 {
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
     if (!Config.get_modem_enabled())
-        Debug_println("sioModem::disabled, ignoring");
+        Debug_println("modem::disabled, ignoring");
     else
     {
-        Debug_println("sioModem::sio_process() called");
+        Debug_println("modem::sio_process() called");
 
         switch (cmdFrame.comnd)
         {
@@ -1872,5 +1870,3 @@ void sioModem::sio_process(uint32_t commanddata, uint8_t checksum)
         }
     }
 }
-
-#endif /* BUILD_ATARI */
