@@ -5,6 +5,17 @@
 #include "html_printer.h"
 #include "epson_80.h"
 
+iwmPrinter::iwmPrinter(FileSystem *filesystem, printer_type printer_type)
+{
+    _storage = filesystem;
+    set_printer_type(printer_type);
+}
+
+iwmPrinter::~iwmPrinter()
+{
+    delete _pptr;
+}
+
 void iwmPrinter::send_status_reply_packet()
 {
     uint8_t data[4];
