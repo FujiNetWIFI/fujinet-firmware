@@ -171,12 +171,15 @@ void main_setup()
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-    // spDevice spsd;
     appleModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
+    
+    iwmPrinter::printer_type ptype = Config.get_printer_type(0);
+    //iwmPrinter *ptr = new iwmPrinter(ptrfs, ptype);
+    //fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+    //IWM.addDevice(ptr, iwm_fujinet_type_t::Printer);
 
-    // IWM.addDevice(&theFuji, iwm_fujinet_type_t::FujiNet);
     theFuji.setup(&IWM);
     IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
 
