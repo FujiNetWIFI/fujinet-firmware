@@ -4,6 +4,7 @@
 #include "fnSystem.h"
 #include "led.h"
 #include "fuji.h"
+#include "fnHardwareTimer.h"
 
 #define MAX_TRACKS 140
 
@@ -131,7 +132,12 @@ void iwmDisk2::process()
 {
   if (move_head())
   {
-    // set up new track to output
+    change_track(); // set up new track to output
+  }
+  if (fnTimer.timeout())
+  {
+    update_spi_queue();
+    smartport.spi_end();
   }
 }
 

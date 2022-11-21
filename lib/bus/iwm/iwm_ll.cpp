@@ -149,7 +149,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   nominal command length is 27 bytes * 8 * 8 = 1728 samples
   1798/1728 = 1.04
 
-  command packet on YS is 919 us
+  command packet on YellowStone (YS) is 919 us
   2.052 * 919 = 1886 samples
   1886 / 1728 = 1.0914    --    this one says we need 10% extra array length
 
