@@ -9,21 +9,21 @@ class printerlist
 private:
     struct printerlist_entry
     {
-        applePrinter::printer_type type = applePrinter::printer_type::PRINTER_INVALID;
-        applePrinter *pPrinter = nullptr;
+        iwmPrinter::printer_type type = iwmPrinter::printer_type::PRINTER_INVALID;
+        iwmPrinter *pPrinter = nullptr;
         int port = 0;
     };
     printerlist_entry _printers[PRINTERLIST_SIZE];
 
 public:
-    void set_entry(int index, applePrinter *ptr, applePrinter::printer_type ptype, int pport);
+    void set_entry(int index, iwmPrinter *ptr, iwmPrinter::printer_type ptype, int pport);
 
-    void set_ptr(int index, applePrinter *ptr);
-    void set_type(int index, applePrinter::printer_type ptype);
+    void set_ptr(int index, iwmPrinter *ptr);
+    void set_type(int index, iwmPrinter::printer_type ptype);
     void set_port(int index, int pport);
 
-    applePrinter * get_ptr(int index);
-    applePrinter::printer_type get_type(int index);
+    iwmPrinter * get_ptr(int index);
+    iwmPrinter::printer_type get_type(int index);
     int get_port(int index);
 };
 

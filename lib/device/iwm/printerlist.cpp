@@ -5,7 +5,7 @@
 // Global object to hold our printers
 printerlist fnPrinters;
 
-void printerlist::set_entry(int index, applePrinter *ptr, applePrinter::printer_type ptype, int pport)
+void printerlist::set_entry(int index, iwmPrinter *ptr, iwmPrinter::printer_type ptype, int pport)
 {
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return;
@@ -14,13 +14,13 @@ void printerlist::set_entry(int index, applePrinter *ptr, applePrinter::printer_
     _printers[index].type = ptype;
     _printers[index].port = pport;
 }
-void printerlist::set_ptr(int index, applePrinter *ptr)
+void printerlist::set_ptr(int index, iwmPrinter *ptr)
 {
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return;
     _printers[index].pPrinter = ptr;
 }
-void printerlist::set_type(int index, applePrinter::printer_type ptype)
+void printerlist::set_type(int index, iwmPrinter::printer_type ptype)
 {
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return;
@@ -32,16 +32,16 @@ void printerlist::set_port(int index, int pport)
         return;
     _printers[index].port = pport;
 }
-applePrinter * printerlist::get_ptr(int index)
+iwmPrinter * printerlist::get_ptr(int index)
 {
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return nullptr;
     return _printers[index].pPrinter;
 }
-applePrinter::printer_type printerlist::get_type(int index)
+iwmPrinter::printer_type printerlist::get_type(int index)
 {
     if(index < 0 || index >= PRINTERLIST_SIZE)
-        return applePrinter::printer_type::PRINTER_INVALID;
+        return iwmPrinter::printer_type::PRINTER_INVALID;
     return _printers[index].type;
 }
 int printerlist::get_port(int index)

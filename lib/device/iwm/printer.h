@@ -10,7 +10,7 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-class applePrinter : public iwmDevice
+class iwmPrinter : public iwmDevice
 {
 protected:
     // TODO following are copied over from sio/printer.h
@@ -49,8 +49,8 @@ public:
         "HTML printer",
     };
 
-    applePrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
-    ~applePrinter();
+    iwmPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
+    ~iwmPrinter();
 
     static printer_type match_modelname(std::string model_name);
     void set_printer_type(printer_type printer_type);
