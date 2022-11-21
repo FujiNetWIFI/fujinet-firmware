@@ -13,13 +13,19 @@
 class iwmPrinter : public iwmDevice
 {
 protected:
-    // TODO following are copied over from sio/printer.h
-    // SMARTPORT THINGS
-    // uint8_t _buffer[40];
-    // void smart_write(uint8_t aux1, uint8_t aux2);
-    // void smart_status() override;
-    // void smart_process(uint32_t commanddata, uint8_t checksum) override;
-    // void shutdown() override;
+
+    // IWM Status methods
+    void send_status_reply_packet() override;
+    void send_extended_status_reply_packet() override;
+    void send_status_dib_reply_packet() override;
+    void send_extended_status_dib_reply_packet() override;
+
+    // IWM methods
+    void iwm_status(iwm_decoded_cmd_t cmd) override;
+    void iwm_open(iwm_decoded_cmd_t cmd) override;
+    void iwm_close(iwm_decoded_cmd_t cmd) override;
+    void iwm_write(iwm_decoded_cmd_t cmd) override;
+    void process(iwm_decoded_cmd_t cmd) override;
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
