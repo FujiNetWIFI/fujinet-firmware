@@ -202,14 +202,18 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 
 int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num)
 {
-  smartport.encode_packet(source, packet_type, status, data, num);  
-  return smartport.iwm_send_packet_spi();
+  smartport.encode_packet(source, packet_type, status, data, num);
+  inCriticalSection=true;
+  int r = smartport.iwm_send_packet_spi();
+  inCriticalSection=false;
+  return r;
 }
 
 bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 {
   int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
   Debug_printf("\r\nAttempting to receive %d length packet", nn);
+  inCriticalSection=true;
   portDISABLE_INTERRUPTS();
   iwm_ack_deassert();
   for (int i = 0; i < attempts; i++)
@@ -230,6 +234,7 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
   // print_packet(data);
 #endif
   portENABLE_INTERRUPTS();
+  inCriticalSection=false;
   return true;
 }
 
@@ -455,15 +460,18 @@ void iwmBus::service()
     break;
   case iwm_phases_t::enable:
     // expect a command packet
+    inCriticalSection=true;
     portDISABLE_INTERRUPTS();
     if(smartport.iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
     {
+      inCriticalSection=false;
       portENABLE_INTERRUPTS();
       return;
     }
     // should not ACK unless we know this is our Command
     if (command_packet.command == 0x85)
     {
+      inCriticalSection=false;
       iwm_ack_assert(); // includes waiting for spi read transaction to finish
       portENABLE_INTERRUPTS();
 
@@ -491,6 +499,7 @@ void iwmBus::service()
       {
         if (command_packet.dest == devicep->_devnum)
         {
+          inCriticalSection=false;
           iwm_ack_assert(); // includes waiting for spi read transaction to finish
           portENABLE_INTERRUPTS();
           // wait for REQ to go low
@@ -518,6 +527,7 @@ void iwmBus::service()
         }
       }
     }
+    inCriticalSection=false;
   } // switch (phasestate)
 }
 

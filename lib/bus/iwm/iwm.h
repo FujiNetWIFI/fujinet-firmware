@@ -335,6 +335,7 @@ private:
   void handle_init(); 
 
 public:
+  bool inCriticalSection = false;
   bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
    int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
  
