@@ -128,6 +128,17 @@ bool iwmDisk2::move_head()
   return (delta != 0);
 }
 
+void iwmDisk2::change_track()
+{
+
+}
+
+void iwmDisk2::update_spi_queue()
+{
+  
+}
+
+
 void iwmDisk2::process()
 {
   if (move_head())
