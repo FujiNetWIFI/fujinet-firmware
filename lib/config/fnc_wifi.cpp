@@ -1,4 +1,7 @@
 #include "fnConfig.h"
+#include "fnWiFi.h"
+#include "crypt.h"
+#include "string_utils.h"
 #include <cstring>
 #include "../../include/debug.h"
 
@@ -36,6 +39,9 @@ void fnConfig::store_wifi_passphrase(const char *passphrase_octets, int num_octe
             break;
         else
             _wifi.passphrase += passphrase_octets[i];
+    }
+    if (_general.encrypt_passphrase) {
+        _wifi.passphrase = crypto.crypt(_wifi.passphrase);
     }
 }
 
@@ -75,7 +81,6 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
                 else
                     _wifi.enabled = false;
             }
-
         }
     }
 }

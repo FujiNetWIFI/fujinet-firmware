@@ -8,6 +8,7 @@
 #include "device.h"
 #include "keys.h"
 #include "led.h"
+#include "crypt.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -77,6 +78,9 @@ void main_setup()
     fnSPIFFS.start();
     fnSDFAT.start();
 
+    // setup crypto key - must be done before loading the config
+    crypto.setkey("FNK" + fnWiFi.get_mac_str());
+
     // Load our stored configuration
     Config.load();
 
@@ -104,7 +108,6 @@ void main_setup()
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
     sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-    // uart needs setting. is this right?
     sioR->set_uart(&fnUartSIO);
 
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
