@@ -929,7 +929,7 @@
 						var current_boot_mode = "<%FN_BOOT_MODE%>";
 						var current_status_wait_enabled = "<%FN_STATUS_WAIT_ENABLED%>";
 						var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
-					</script>
+						var current_encrypt_passphrase_enabled = "<%FN_ENCRYPT_PASSPHRASE_ENABLED%>";
 					</script>
 					<div class="settings-left">
 						<div class="svgicon">
@@ -1030,6 +1030,27 @@
 						<div class="set">
 							<div class="settings-label">
 								<label>
+									Enable passphrase encryption
+									<div class="tooltip">&#9432;
+										<span class="tooltiptext small-text">
+											This will encrypt/decrypt the passphrase for the WiFi connection in config,
+											offering protection from casual observation of passphrases in INI files.
+										</span>
+									</div>
+								</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="encrypt-passphrase-yes" name="passphrase_encrypt" type="radio" value="1">
+									<label for="encrypt-passphrase-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="encrypt-passphrase-no" name="passphrase_encrypt" type="radio" value="0">
+									<label for="encrypt-passphrase-no" class="r-yes-no">No</label>
+								</div>
+							</div>
+						</div>
+						<div class="set">
+							<div class="settings-label">
+								<label>
 									Enable SIO STATUS wait routine
 									<div class="tooltip">&#9432;
 										<span class="tooltiptext small-text">
@@ -1040,7 +1061,6 @@
 											ejecting config Disk on boot.
 										</span>
 									</div>
-
 								</label>
 							</div>
 							<div class="settings-value">
