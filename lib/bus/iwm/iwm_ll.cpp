@@ -7,6 +7,13 @@
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
 
+volatile uint8_t _phases = 0;
+
+void phi_isr_handler(void *arg)
+{
+  _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+}
+
 inline void iwm_sp_ll::iwm_extra_set()
 {
 #ifdef EXTRA
@@ -384,10 +391,10 @@ void iwm_sp_ll::setup_gpio()
   //set ack to input to avoid clashing with other devices when sp bus is not enabled
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT);
   
-  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
-  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
+  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 
   // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
 
@@ -408,7 +415,13 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   Debug_printf("\r\nEXTRA signaling line configured");
 #endif
+
   
+  // attach the interrupt service routine
+  gpio_isr_handler_add(gpio_num_t::GPIO_NUM_32, phi_isr_handler, NULL);
+  gpio_isr_handler_add(gpio_num_t::GPIO_NUM_33, phi_isr_handler, NULL);
+  gpio_isr_handler_add(gpio_num_t::GPIO_NUM_34, phi_isr_handler, NULL);
+  gpio_isr_handler_add(gpio_num_t::GPIO_NUM_35, phi_isr_handler, NULL);
 }
 
 void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 

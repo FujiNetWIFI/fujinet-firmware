@@ -148,7 +148,7 @@ void iwmBus::iwm_ack_assert()
 
 bool iwmBus::iwm_phase_val(uint8_t p)
 {
-  uint8_t phases = smartport.iwm_phase_vector();
+  uint8_t phases = _phases; // smartport.iwm_phase_vector();
   if (p < 4)
     return (phases >> p) & 0x01;
   Debug_printf("\r\nphase number out of range");
@@ -162,7 +162,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   // ph3=0 ph2=1 ph1=0 ph0=1
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
-  uint8_t phases = smartport.iwm_phase_vector();
+  uint8_t phases = _phases; // smartport.iwm_phase_vector();
   switch (phases)
   {
   case 0b1010:
