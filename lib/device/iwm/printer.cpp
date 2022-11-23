@@ -4,6 +4,7 @@
 #include "file_printer.h"
 #include "html_printer.h"
 #include "epson_80.h"
+#include "fnSystem.h"
 
 iwmPrinter::iwmPrinter(FileSystem *filesystem, printer_type printer_type)
 {
@@ -155,6 +156,7 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
         offset += l;
     }
 
+    _last_ms = fnSystem.millis();
     send_reply_packet(SP_ERR_NOERROR);
 }
 
