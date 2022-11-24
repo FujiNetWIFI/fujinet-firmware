@@ -3,15 +3,24 @@
 #include <string.h>
 
 #include "iwm_ll.h"
+#include "iwm.h"
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
 
 volatile uint8_t _phases = 0;
+volatile bool sp_bus_enabled = false;
 
 void phi_isr_handler(void *arg)
 {
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+  if (sp_bus_enabled && (_phases == 0b1011))
+  {
+    smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
+    smartport.iwm_ack_clr();
+    smartport.spi_end();
+  }
+  sp_bus_enabled = (_phases == 0b1010);
 }
 
 inline void iwm_sp_ll::iwm_extra_set()
@@ -418,10 +427,10 @@ void iwm_sp_ll::setup_gpio()
 
   
   // attach the interrupt service routine
-  gpio_isr_handler_add(gpio_num_t::GPIO_NUM_32, phi_isr_handler, NULL);
-  gpio_isr_handler_add(gpio_num_t::GPIO_NUM_33, phi_isr_handler, NULL);
-  gpio_isr_handler_add(gpio_num_t::GPIO_NUM_34, phi_isr_handler, NULL);
-  gpio_isr_handler_add(gpio_num_t::GPIO_NUM_35, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
 }
 
 void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 

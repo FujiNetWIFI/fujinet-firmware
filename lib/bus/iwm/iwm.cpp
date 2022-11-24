@@ -452,7 +452,7 @@ void iwmBus::service()
       devicep->_devnum = 0;
 
     while (iwm_phases() == iwm_phases_t::reset)
-      ; // no timeout needed because the IWM must eventually clear reset.
+      portYIELD(); // no timeout needed because the IWM must eventually clear reset.
     // even if it doesn't, we would just come back to here, so might as
     // well wait until reset clears.
 
@@ -461,23 +461,40 @@ void iwmBus::service()
   case iwm_phases_t::enable:
     // expect a command packet
     inCriticalSection=true;
-    portDISABLE_INTERRUPTS();
-    if(smartport.iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
-    {
-      inCriticalSection=false;
-      portENABLE_INTERRUPTS();
-      return;
-    }
+    // portDISABLE_INTERRUPTS();
+    // if(smartport.iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
+    // {
+    //   inCriticalSection=false;
+    //   portENABLE_INTERRUPTS();
+    //   return;
+    // }
     // should not ACK unless we know this is our Command
+    
+    // state machine steps
+    if (iwm_req_assert_timeout(10000))
+      return;
+    if (iwm_req_deassert_timeout(50000))
+      return;
+    /** instead of iwm_phases, create an iwm_state() and switch on that. States would be:
+     * IDLE
+     * RESET
+     * RESET CLEARED
+     * ENABLED
+     * REQ ASSERTED
+     * REQ DEASSERTED
+     * pretty much what i'm doing above - in fact don't need to change the function calls here,
+     * just need to change what's in the functions
+     * */
+    
     if (command_packet.command == 0x85)
     {
       inCriticalSection=false;
-      iwm_ack_assert(); // includes waiting for spi read transaction to finish
-      portENABLE_INTERRUPTS();
+      // iwm_ack_assert(); // includes waiting for spi read transaction to finish
+      // portENABLE_INTERRUPTS();
 
       // wait for REQ to go low
-      if (iwm_req_deassert_timeout(50000))
-        return;
+      // if (iwm_req_deassert_timeout(50000))
+      //   return;
       // if (smartport.req_wait_for_falling_timeout(50000))
       //   return;
 
@@ -500,11 +517,11 @@ void iwmBus::service()
         if (command_packet.dest == devicep->_devnum)
         {
           inCriticalSection=false;
-          iwm_ack_assert(); // includes waiting for spi read transaction to finish
-          portENABLE_INTERRUPTS();
+          // iwm_ack_assert(); // includes waiting for spi read transaction to finish
+          // portENABLE_INTERRUPTS();
           // wait for REQ to go low
-          if (iwm_req_deassert_timeout(50000))
-            return;
+          // if (iwm_req_deassert_timeout(50000))
+          //   return;
 
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
