@@ -127,7 +127,6 @@ void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
 void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
 {
     uint16_t num_bytes = get_numbytes(cmd);
-    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
     
     Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
     
