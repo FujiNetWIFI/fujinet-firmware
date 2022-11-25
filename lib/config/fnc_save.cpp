@@ -173,7 +173,7 @@ void fnConfig::save()
     // Copy to SD if possible, only when wrote SPIFFS first 
     if (fnSDFAT.running() && fnConfig::get_general_fnconfig_spifs() == true)
     {
-        Debug_println("Attemptiong config copy to SD");
+        Debug_println("Attempting config copy to SD");
         if (0 == fnSystem.copy_file(&fnSPIFFS, CONFIG_FILENAME, &fnSDFAT, CONFIG_FILENAME))
         {
             Debug_println("Failed to copy config to SD");

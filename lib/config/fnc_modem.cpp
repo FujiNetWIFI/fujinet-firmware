@@ -19,14 +19,7 @@ void fnConfig::store_modem_sniffer_enabled(bool modem_sniffer_enabled)
 {
 #ifdef BUILD_ATARI
     ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
-
-    if (modem_sniffer_enabled)
-    {
-        if (!modemSniffer->getEnable())
-            modemSniffer->setEnable(true);
-    }
-    else
-        modemSniffer->setEnable(false);
+    modemSniffer->setEnable(modem_sniffer_enabled);
 
     if (_modem.sniffer_enabled == modem_sniffer_enabled)
         return;
