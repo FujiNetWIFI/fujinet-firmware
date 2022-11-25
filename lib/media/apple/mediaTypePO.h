@@ -9,6 +9,7 @@ class MediaTypePO : public MediaType
 {
 private:
     uint32_t last_block_num = 0xFFFFFFFF;
+    uint32_t offset = 0;
 public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override;
     virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override;
