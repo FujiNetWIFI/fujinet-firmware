@@ -10,7 +10,6 @@ iwmPrinter::iwmPrinter(FileSystem *filesystem, printer_type printer_type)
 {
     _storage = filesystem;
     set_printer_type(printer_type);
-    getPrinterPtr()->setEOLBypass(true);
 }
 
 iwmPrinter::~iwmPrinter()
