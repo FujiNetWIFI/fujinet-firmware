@@ -9,18 +9,18 @@
 #include "../../include/debug.h"
 
 volatile uint8_t _phases = 0;
-volatile bool sp_bus_enabled = false;
+volatile bool sp_command_mode = false;
 
-void phi_isr_handler(void *arg)
+void IRAM_ATTR phi_isr_handler(void *arg)
 {
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
-  if (sp_bus_enabled && (_phases == 0b1011))
+  if (!sp_command_mode && (_phases == 0b1011))
   {
     smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
     smartport.iwm_ack_clr();
     smartport.spi_end();
+    sp_command_mode = true;
   }
-  sp_bus_enabled = (_phases == 0b1010);
 }
 
 inline void iwm_sp_ll::iwm_extra_set()
@@ -42,7 +42,7 @@ inline bool iwm_sp_ll::iwm_enable_val()
   return true;
 }
 
-void iwm_sp_ll::encode_spi_packet()
+void IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
   memset(spi_buffer, 0, SPI_BUFFER_LEN);
@@ -303,7 +303,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   return 0;
 }
 
-void iwm_sp_ll::spi_end() { spi_device_polling_end(spirx, portMAX_DELAY); };
+void IRAM_ATTR iwm_sp_ll::spi_end() { spi_device_polling_end(spirx, portMAX_DELAY); };
 
 bool iwm_sp_ll::req_wait_for_falling_timeout(int t)
 {

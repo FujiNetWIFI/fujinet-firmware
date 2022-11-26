@@ -166,6 +166,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   switch (phases)
   {
   case 0b1010:
+  case 0b1011:
     phasestate = iwm_phases_t::enable;
     break;
   case 0b0101:
@@ -470,10 +471,7 @@ void iwmBus::service()
     // }
     // should not ACK unless we know this is our Command
     
-    // state machine steps
-    if (iwm_req_assert_timeout(10000))
-      return;
-    if (iwm_req_deassert_timeout(50000))
+    if (!sp_command_mode)
       return;
     /** instead of iwm_phases, create an iwm_state() and switch on that. States would be:
      * IDLE
@@ -493,8 +491,8 @@ void iwmBus::service()
       // portENABLE_INTERRUPTS();
 
       // wait for REQ to go low
-      // if (iwm_req_deassert_timeout(50000))
-      //   return;
+      if (iwm_req_deassert_timeout(50000))
+        return;
       // if (smartport.req_wait_for_falling_timeout(50000))
       //   return;
 
@@ -520,8 +518,8 @@ void iwmBus::service()
           // iwm_ack_assert(); // includes waiting for spi read transaction to finish
           // portENABLE_INTERRUPTS();
           // wait for REQ to go low
-          // if (iwm_req_deassert_timeout(50000))
-          //   return;
+          if (iwm_req_deassert_timeout(50000))
+            return;
 
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
@@ -544,6 +542,7 @@ void iwmBus::service()
         }
       }
     }
+    sp_command_mode = false;
     inCriticalSection=false;
   } // switch (phasestate)
 }
