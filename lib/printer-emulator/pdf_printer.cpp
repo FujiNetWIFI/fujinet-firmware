@@ -367,6 +367,8 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     do
     {
         c = buffer[i++];
+        if (textMode == true)
+            c &= 0x7F;
         cc = c;
         if (translate850 && c == ATASCII_EOL)
             c = ASCII_CR; // the 850 interface converts EOL to CR
