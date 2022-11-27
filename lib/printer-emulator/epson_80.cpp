@@ -617,7 +617,7 @@ void epson80::post_new_file()
     pageWidth = 612.0;
     pageHeight = 792.0;
 #ifndef BUILD_APPLE2
-    topMargin = 0;
+    topMargin = 16.0;
 #else
     topMargin = -1.5;
 #endif /* APPLE2 */
