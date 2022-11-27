@@ -451,7 +451,7 @@ bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
       unsigned short version = 0x01; 
       unsigned long format = 0x01; // Prodos order
       unsigned long flags = 0x00;
-      unsigned long numBlocks = numBlocks;
+      unsigned long numBlocks = 0;
       unsigned long offset = 0x40UL; // Offset to disk data
       unsigned long len = (numBlocks * 512);
       unsigned long commentOffset = 0UL; // no comment.
@@ -461,12 +461,18 @@ bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
       unsigned char reserved[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     } header;
 
+    Debug_printf("Writing 2MG Header\n");
+
+    header.numBlocks = numBlocks;
+
     fwrite(&header,sizeof(header),1,f);
   }
 
-  // Write out 512 byte blocks of emptiness.
-  for (int i=0;i<numBlocks;i++)
-    fwrite(&buf,sizeof(unsigned char),sizeof(buf),f);
+  long offset = (numBlocks - 1) * 512;
+
+  // Sparse Write
+  fseek(f,offset,SEEK_SET);
+  fwrite(&buf,sizeof(unsigned char),sizeof(buf),f);
 
   blank_header_type = 0; // Reset to unadorned.
   return false;
