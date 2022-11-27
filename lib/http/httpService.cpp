@@ -904,10 +904,12 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DISK TO MOUNT<span id=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) + qp.query_parsed["path"] + "</header>\n"
-                                                                                  "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-                                                                                  "               <div class=\"fileline\">\n"
-                                                                                  "                      <ul>\n";
+        string(theFuji.get_hosts(hs)->get_hostname()) + 
+        qp.query_parsed["path"] + 
+        "</header>\n"
+        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+        "               <div class=\"fileline\">\n"
+        "                   <ul>\n";
 
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();
@@ -1040,10 +1042,11 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DRIVE SLOT<span id=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</header>\n"
-                                                                                               "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-                                                                                               "               <div class=\"fileline\">\n"
-                                                                                               "                      <ul>\n";
+        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + 
+        "</header>\n"
+        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+        "               <div class=\"fileline\">\n"
+        "                      <ul>\n";
 
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();
