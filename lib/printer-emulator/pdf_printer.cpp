@@ -234,7 +234,9 @@ void pdfPrinter::pdf_new_line()
     // position new line and start text string array
     if (pdf_dY != 0)
         fprintf(_file, "0 Ts ");
+#ifndef BUILD_APPLE
     pdf_dY -= lineHeight;
+#endif
     fprintf(_file, "0 %g Td [(", pdf_dY);
     pdf_Y += pdf_dY; // line feed
     pdf_dY = 0;
