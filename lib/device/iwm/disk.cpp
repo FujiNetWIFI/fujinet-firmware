@@ -245,7 +245,7 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
     iwm_writeblock(cmd);
     break;
   case 0x03: // format
-    iwm_return_badcmd(cmd);
+    iwm_return_noerror();
     break;
   case 0x04: // control
     status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
