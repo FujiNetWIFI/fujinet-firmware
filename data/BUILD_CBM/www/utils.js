@@ -1,8 +1,11 @@
-function writeLocaleNumber(num) {
-	document.write(num.toLocaleString());
+function writeLocaleNumber(num, id) {
+	const e = document.getElementById(id);
+	if (e !== null) {
+		e.innerText = num.toLocaleString();
+	}
 }
 
-function writeUptimeString(secs) {
+function writeUptimeString(secs, id) {
 
 	var mins = secs / 60 | 0;
 	var hours = mins / 60 | 0;
@@ -19,5 +22,8 @@ function writeUptimeString(secs) {
 	if (secs % 60)
 		result += (secs % 60) + ' seconds';
 
-	document.write(result);
+	const e = document.getElementById(id);
+	if (e !== null) {
+		e.innerText = result;
+	}
 }
