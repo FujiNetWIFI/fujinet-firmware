@@ -271,6 +271,7 @@ protected:
 
   void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
   void iwm_return_ioerror();
+  void iwm_return_noerror();
 
 public:
   bool device_active;
