@@ -425,11 +425,50 @@ void iwmDisk::unmount()
 
 bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
+  
   return false;
 }
 
+/**
+ * Used for writing ProDOS images which exist in multiples of 
+ * 512 byte blocks.
+ */
 bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
 {
+  unsigned char buf[512];
+
+  memset(&buf,0,sizeof(buf));
+
+  if (blank_header_type == 1) // 2MG
+  {
+    // Quickly construct and write 2MG header
+
+    struct _2mg_header
+    {
+      unsigned char id[4] = {'2','I','M','G'};
+      unsigned char creator[4] = {'F','U','J','I'};
+      unsigned short header_size = 0x40; // 64 bytes
+      unsigned short version = 0x01; 
+      unsigned long format = 0x01; // Prodos order
+      unsigned long flags = 0x00;
+      unsigned long numBlocks = numBlocks;
+      unsigned long offset = 0x40UL; // Offset to disk data
+      unsigned long len = (numBlocks * 512);
+      unsigned long commentOffset = 0UL; // no comment.
+      unsigned long commentLen = 0UL; // no comment.
+      unsigned long creatorDataOffset = 0UL; // No creator data
+      unsigned long creatorDataLen = 0UL; // No creator data
+      unsigned char reserved[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    } header;
+
+    fwrite(&header,sizeof(header),1,f);
+  }
+
+  // Write out 512 byte blocks of emptiness.
+  for (int i=0;i<numBlocks;i++)
+    fwrite(&buf,sizeof(unsigned char),sizeof(buf),f);
+
+  blank_header_type = 0; // Reset to unadorned.
   return false;
 }
 
