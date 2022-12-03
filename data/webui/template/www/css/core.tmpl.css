@@ -13,14 +13,14 @@ body {
 
 @font-face {
     font-family: 'Futura';
-    src: url('{{ font_path }}FuturaBT-Light.woff2') format('woff2');
+    src: url('{{ paths.font_path }}/FuturaBT-Light.woff2') format('woff2');
     font-weight: 300;
     font-style: normal;
 }
 
 @font-face {
     font-family: 'Inconsolata';
-    src: url('{{ font_path }}Inconsolata-Light.woff2') format('woff2');
+    src: url('{{ paths.font_path }}/Inconsolata-Light.woff2') format('woff2');
     font-weight: 300;
     font-style: normal;
 }
