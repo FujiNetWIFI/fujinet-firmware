@@ -1,0 +1,18 @@
+paths:
+  # fonts in the root dir because of file name length issues
+  font_path: /file?
+  css_path: /file?css
+  js_path: /file?js
+components:
+  network: true
+  hardware: true
+  hosts_list: true
+  mount_list: true
+  printer_settings: true
+  modem_settings: true
+  hsio_settings: true
+  timezone: true
+  udp_stream: true
+  program_recorder: true
+  disk_swap: true
+  boot_settings: true

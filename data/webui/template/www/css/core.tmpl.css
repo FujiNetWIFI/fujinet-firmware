@@ -1,0 +1,532 @@
+body {
+    font-family: Futura, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+    margin: 1rem 1.5rem 1rem 1.5rem;
+}
+
+#logowob {
+    content: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB2aWV3Qm94PSIwIDAgMTkzIDE4OSIgdmVyc2lvbj0iMS4xIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHhtbG5zOnhsaW5rPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5L3hsaW5rIiB4bWw6c3BhY2U9InByZXNlcnZlIiB4bWxuczpzZXJpZj0iaHR0cDovL3d3dy5zZXJpZi5jb20vIiBzdHlsZT0iZmlsbC1ydWxlOmV2ZW5vZGQ7Y2xpcC1ydWxlOmV2ZW5vZGQ7c3Ryb2tlLWxpbmVqb2luOnJvdW5kO3N0cm9rZS1taXRlcmxpbWl0OjI7Ij4KICAgIDxnPgogICAgICAgIDxjaXJjbGUgY3g9IjEzMS4zOTUiIGN5PSIxMjYuMjY4IiByPSIyMS41MTEiIHN0eWxlPSJzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi41OHB4OyIvPgogICAgICAgIDxjaXJjbGUgY3g9IjEzMS4zOTUiIGN5PSI4My4yNDUiIHI9IjIxLjUxMSIgc3R5bGU9InN0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjU4cHg7Ii8+CiAgICAgICAgPGNpcmNsZSBjeD0iODguMzcyIiBjeT0iODMuMjQ1IiByPSIyMS41MTEiIHN0eWxlPSJmaWxsOiNmZmY7c3Ryb2tlOiNmZmY7c3Ryb2tlLXdpZHRoOjIuNThweDsiLz4KICAgICAgICA8Y2lyY2xlIGN4PSI0NS4zNDkiIGN5PSI4My4yNDUiIHI9IjIxLjUxMSIgc3R5bGU9InN0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjU4cHg7Ii8+CiAgICAgICAgPGNpcmNsZSBjeD0iODguMzcyIiBjeT0iNDAuMjIzIiByPSIyMS41MTEiIHN0eWxlPSJzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi41OHB4OyIvPgogICAgICAgIDxwYXRoIGQ9Ik00NS4zNDksMTA0Ljc1N2wwLDQzLjAyMiIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4xOXB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik00NS4zNDksNjEuNzM0bDAsLTMxLjM2NSIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4wM3B4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik04OC4zNzIsMS43NjhsMCwxNi45NDMiIHN0eWxlPSJmaWxsOm5vbmU7c3Ryb2tlOiNmZmY7c3Ryb2tlLXdpZHRoOjEuOTZweDtzdHJva2UtbGluZWNhcDpzcXVhcmU7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1taXRlcmxpbWl0OjEuNTsiLz4KICAgICAgICA8cGF0aCBkPSJNMTA5Ljg4Myw0MC4yMjNsMzYuNzMsLTAiIHN0eWxlPSJmaWxsOm5vbmU7c3Ryb2tlOiNmZmY7c3Ryb2tlLXdpZHRoOjIuMXB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik02Ni44NjEsNDAuMjIzbC0zNi43MywtMCIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi40cHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTIzLjgzOCw4My4yNDVsLTIxLjUxMSwwLjY2NSIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi41OHB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik0xNTIuOTA2LDgzLjI0NWw2Ljk5NiwwIiBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoxLjkycHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTM0LjA3OCwxMjYuMjY4bDc1LjgwNSwwIiBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjQzcHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTYuMTE0LDczLjEyN2wwLDI1Ljc0NyIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi40OXB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik04OC4zNzIsMTA0Ljc1N2wwLDcyLjMwNSIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4zOHB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik0xMzEuMzk1LDE0Ny43NzlsLTAsMzkuMjY4IiBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjE0cHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTE1Mi45MDYsMTI2LjI2OGwxNC4xNTgsMCIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4xOXB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik03OS4zODcsMTY5LjI5MWwxMTAuNzY3LC0wIiBzdHlsZT0iZmlsbDpub25lO3N0cm9rZTojZmZmO3N0cm9rZS13aWR0aDoyLjYycHg7c3Ryb2tlLWxpbmVjYXA6c3F1YXJlO3N0cm9rZS1saW5lam9pbjptaXRlcjtzdHJva2UtbWl0ZXJsaW1pdDoxLjU7Ii8+CiAgICAgICAgPHBhdGggZD0iTTE3NC40MTcsMTQyLjA4MWwwLDM5LjI2OCIgc3R5bGU9ImZpbGw6bm9uZTtzdHJva2U6I2ZmZjtzdHJva2Utd2lkdGg6Mi4yNnB4O3N0cm9rZS1saW5lY2FwOnNxdWFyZTtzdHJva2UtbGluZWpvaW46bWl0ZXI7c3Ryb2tlLW1pdGVybGltaXQ6MS41OyIvPgogICAgICAgIDxwYXRoIGQ9Ik0xMzEuMzk1LDMwLjM2OWwtMCwzMS4zNjUiIHN0eWxlPSJmaWxsOm5vbmU7c3Ryb2tlOiNmZmY7c3Ryb2tlLXdpZHRoOjIuMjZweDtzdHJva2UtbGluZWNhcDpzcXVhcmU7c3Ryb2tlLWxpbmVqb2luOm1pdGVyO3N0cm9rZS1taXRlcmxpbWl0OjEuNTsiLz4KICAgIDwvZz4KPC9zdmc+);
+    width: 2.2rem;
+    height: 2rem;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+@font-face {
+    font-family: 'Futura';
+    src: url('{{ paths.font_path }}/FuturaBT-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'Inconsolata';
+    src: url('{{ paths.font_path }}/Inconsolata-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+}
+
+hr {
+    margin: 0.5rem 0.5rem;
+}
+
+.header {
+    width: 100%;
+}
+
+.headerlogo {
+    width: 20rem;
+    margin: 0 auto;
+}
+
+.formwrapper {
+    margin: auto;
+    text-align: center;
+}
+
+.flexparent {
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: flex-start;
+    align-content: stretch;
+}
+
+.flexchild {
+    border: 0.25rem solid #000;
+    width: 100%;
+    margin: 0.5rem;
+}
+
+.flexchild .child-header {
+    color: #fff;
+    border: 0.25rem solid #000;
+    background-color: #000;
+    padding: 0.2rem;
+    font-size: 1.5rem;
+}
+
+.detline {
+    display: table;
+    width: 100%;
+}
+
+.detlinecol {
+    display: table-cell;
+}
+
+.detline:after {
+    content: "";
+    display: table;
+    clear: both;
+}
+
+.deth {
+    border-right: 0.2rem solid #999;
+    background-color: #cccccc;
+    text-align: right;
+    width: 35%;
+    padding-right: 0.2rem;
+}
+
+.detline.alt .deth {
+    background-color: #aaaaaa;
+}
+
+.det {
+    font-family: Inconsolata, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    border: none;
+    text-align: right;
+    width: 65%;
+    padding: 0.2rem 0.25rem 0.2rem 0.25rem;
+}
+
+.detline.alt .det {
+    background-color: #eeeeee;
+}
+
+.ra {
+    text-align: right
+}
+
+.radio-container {
+    background: #fff;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0.25rem;
+    display: inline-block;
+    padding: 0.25em;
+}
+
+.radio-container label {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    transition: 0.2s all ease-in-out;
+    height: 2rem;
+    line-height: 2rem;
+}
+
+.radio-container .r-yes-no {
+    width: 3rem;
+    font-size: medium;
+}
+
+.radio-container .r-pr-activate {
+    width: 3rem;
+    font-size: 45%;
+}
+
+.radio-container .r-printer-port {
+    width: 2.5rem;
+}
+
+.radio-container input[type=radio] {
+    display: none;
+}
+
+.radio-container input[type=radio]:checked+label {
+    background: #cccccc;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.svgicon {
+    width: 65%;
+    margin: auto;
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+    color: #999999;
+}
+
+.settings {
+    display: grid;
+    width: 100%;
+    grid-template-areas: "h h" "l c" "l f";
+    grid-template-columns: 35% 65%;
+    grid-template-rows: 3rem 1fr 3rem;
+}
+
+.settings .settings-left {
+    grid-area: l;
+    border-right: 0.2rem solid #999;
+    background-color: #cccccc;
+    width: 100%;
+    min-height: 17rem;
+}
+
+.settings .settings-header {
+    grid-area: h;
+    color: #fff;
+    border: 0.25rem solid #000;
+    background-color: #000;
+    padding: 0.2rem;
+    font-size: 1.5rem;
+    text-transform: uppercase;
+}
+
+.settings .settings-content {
+    grid-area: c;
+    padding: 1rem 0;
+}
+
+.settings .settings-footer {
+    grid-area: f;
+    text-align: center;
+}
+
+.settings .settings-footer button {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    height: 2rem;
+    line-height: 1.9rem;
+    width: 5rem;
+    border-radius: 1.5rem;
+    background: #999;
+    color: #fff;
+}
+
+.settings .settings-content button {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    height: 2rem;
+    line-height: 1.9rem;
+    border-radius: 0.5rem;
+    background: #999;
+    color: #fff;
+}
+
+.settings button:hover {
+    background: #444;
+}
+
+.settings .set {
+    width: 100%;
+    display: grid;
+    grid-template-areas: "slabel svalue";
+    grid-template-columns: inherit;
+    grid-template-rows: 3rem;
+}
+
+.settings .set-info {
+    width: 100%;
+    display: grid;
+    grid-template-areas: "slabel svalue";
+    grid-template-columns: inherit;
+    grid-template-rows: 1.5rem;
+}
+
+.settings .settings-label {
+    grid-area: slabel;
+    text-align: right;
+    display: flex;
+    justify-content: right;
+    align-items: center;
+    padding: 0 0.25rem 0 0.5rem;
+}
+
+.settings .settings-value {
+    grid-area: svalue;
+    text-align: left;
+    display: flex;
+    justify-content: left;
+    align-items: center;
+    padding-left: 0.25rem;
+}
+
+.settings-45-55 {
+    grid-template-columns: 45% 55%;
+}
+
+.settings-55-45 {
+    grid-template-columns: 55% 45%;
+}
+
+.settings-60-40 {
+    grid-template-columns: 60% 40%;
+}
+
+.settings-65-35 {
+    grid-template-columns: 65% 35%;
+}
+
+.settings input {
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 0.25rem;
+    height: 2rem;
+    line-height: 2rem;
+    padding-left: 0.25rem;
+    width: 75%;
+}
+
+.settings input,
+.settings label {
+    color: rgba(0, 0, 0, 0.8);
+}
+
+.settings .settings-text {
+    text-align: center;
+    padding: 0.5rem 1rem 0;
+}
+
+.radio-container .r-config-boot-mode {
+    width: 3rem;
+    font-size: x-small;
+}
+
+:root {
+    --select-border: #ccc;
+    --select-focus: #aaa;
+    --select-arrow: var(--select-border);
+}
+
+select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-color: transparent;
+    border: none;
+    padding: 0 1em 0 0;
+    margin: 0;
+    width: 100%;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: inherit;
+    line-height: inherit;
+    z-index: 1;
+    outline: none;
+}
+
+select::-ms-expand {
+    display: none;
+}
+
+.select {
+    display: grid;
+    grid-template-areas: "select";
+    align-items: center;
+    position: relative;
+    max-width: 30ch;
+    max-height: 2rem;
+    width: 80%;
+    border: 1px solid var(--select-border);
+    border-radius: 0.25em;
+    padding: 0.25em 0.5em;
+    margin-top: 0.25em;
+    /* pushes top of select down to centre */
+    cursor: pointer;
+    margin-left: 0.25rem;
+    line-height: 2;
+    /* moves opening values down slightly */
+    background-color: #fff;
+    background-image: linear-gradient(to top, #f9f9f9, #fff 33%);
+}
+
+.select select,
+.select::after {
+    grid-area: select;
+}
+
+.select:not(.select--multiple)::after {
+    content: "";
+    justify-self: end;
+    width: 0.8em;
+    height: 0.5em;
+    background-color: var(--select-arrow);
+    -webkit-clip-path: polygon(100% 0%, 0 0%, 50% 100%);
+    clip-path: polygon(100% 0%, 0 0%, 50% 100%);
+}
+
+select:focus+.focus {
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    border: 2px solid var(--select-focus);
+    border-radius: inherit;
+}
+
+.select+label {
+    margin-top: 2rem;
+}
+
+.tooltip {
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted #666;
+}
+
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 10rem;
+    background-color: #ccc;
+    color: #000;
+    text-align: center;
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.35rem;
+    position: absolute;
+    z-index: 1;
+    bottom: 150%;
+    left: 50%;
+    margin-left: -5.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.4);
+}
+
+.tooltip .tooltiptext::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: #666 transparent transparent transparent;
+}
+
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+
+.small-text {
+    font-size: small;
+}
+
+.smaller-text {
+    font-size: smaller;
+}
+
+.x-small-text {
+    font-size: x-small;
+}
+
+.small {
+    font-size: smaller;
+    line-height: 1.5;
+}
+
+.important {
+    color: #000;
+    font-weight: bolder;
+}
+
+@media only screen and (min-width: 500px) {
+    .radio-container .r-pr-activate {
+        width: 4rem;
+        font-size: x-small;
+    }
+
+    .radio-container .r-yes-no {
+        width: 2rem;
+        font-size: small;
+    }
+
+    .radio-container .r-config-boot-mode {
+        width: 2.5rem;
+        font-size: xx-small;
+    }
+}
+
+@media only screen and (min-width: 520px) {
+    .radio-container .r-config-boot-mode {
+        width: 3rem;
+        font-size: x-small;
+    }
+
+    .radio-container .r-yes-no {
+        width: 3rem;
+        font-size: inherit;
+    }
+}
+
+@media only screen and (min-width: 600px) {
+    .radio-container .r-pr-activate {
+        width: 5rem;
+        font-size: small;
+    }
+
+    .radio-container .r-config-boot-mode {
+        width: 3.6rem;
+        font-size: small;
+    }
+}
+
+@media only screen and (min-width: 800px) {
+    .radio-container .r-pr-activate {
+        width: 6rem;
+        font-size: smaller;
+    }
+
+    .radio-container .r-config-boot-mode {
+        width: 4rem;
+        font-size: small;
+    }
+}
+
+@media only screen and (min-width: 1024px) {
+    .flexparent {
+        flex-direction: row;
+    }
+
+    .flexchild {
+        width: 47.5%;
+    }
+
+    .radio-container .r-pr-activate {
+        width: 4.2rem;
+        font-size: x-small;
+    }
+
+    .radio-container .r-config-boot-mode {
+        width: 3rem;
+        font-size: x-small;
+    }
+}
+
+@media only screen and (min-width: 1280px) {
+    .flexparent {
+        flex-direction: row;
+    }
+
+    .radio-container .r-pr-activate {
+        width: 5.5rem;
+        font-size: small;
+    }
+
+    .radio-container .r-config-boot-mode {
+        width: 3.5rem;
+        font-size: small;
+    }
+}
+
+@media only screen and (min-width: 1400px) {
+    .radio-container .r-config-boot-mode {
+        width: 4.2rem;
+        font-size: small;
+    }
+}
+
+#txt_hostname {
+    text-align: right;
+}
