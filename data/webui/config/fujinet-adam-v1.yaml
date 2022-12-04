@@ -9,9 +9,9 @@ components:
   mount_list: true
   printer_settings: true
   modem_settings: true
-  hsio_settings: true
+  hsio_settings: false
   timezone: true
   udp_stream: true
-  program_recorder: true
+  program_recorder: false
   disk_swap: true
   boot_settings: true
