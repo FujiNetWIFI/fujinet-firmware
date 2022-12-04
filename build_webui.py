@@ -48,7 +48,7 @@ if not build_platform.startswith('BUILD_'):
 if (os.path.isdir(f"data/{build_platform}")):
     shutil.rmtree(f"data/{build_platform}")
 
-# copy common files
+# copy common files not in www dir - these are files that do not need templating, e.g. binary files
 common_prefix = 'data/webui/common/'
 for filename in glob.iglob(f'{common_prefix}**', recursive=True):
     if os.path.isfile(filename):
