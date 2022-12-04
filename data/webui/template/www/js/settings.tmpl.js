@@ -1,6 +1,9 @@
 function changeTz() {
-	var sel = document.getElementById("select_tz").value;
-	document.getElementById("txt_timezone").value = sel;
+	const selElement = document.getElementById("select_tz");
+	const setElement = document.getElementById("txt_timezone")
+	if (selElement == null || setElement == null) return;
+
+	setElement.value = selElement.value;
 }
 
 function submitForm(id) {
@@ -12,6 +15,8 @@ function submitForm(id) {
 
 function selectListValue(selectName, currentValue) {
 	var mySelect = document.getElementById(selectName);
+	if (mySelect == null) return;
+
 	var opts = mySelect.options;
 	
 	for (var opt, j = 0; opt = opts[j]; j++) {
@@ -23,6 +28,10 @@ function selectListValue(selectName, currentValue) {
 }
 
 function setInputValue(isEnabled, idOn, idOff) {
+	const onElement = document.getElementById(idOn)
+	const offElement = document.getElementById(idOff)
+	if (onElement == null || offElement == null) return;
+
 	if (isEnabled) {
 		document.getElementById(idOn).checked = true;
 		document.getElementById(idOff).checked = false;
@@ -32,29 +41,51 @@ function setInputValue(isEnabled, idOn, idOff) {
 	}
 }
 
-// Set the Select dropdown value from the current value
-selectListValue("select_printermodel1", current_printer);
-selectListValue("select_hsioindex", current_hsioindex);
+function setPrinterPort(printer_port) {
+	// Printer PORT is triple value.
+	const pp1E = document.getElementById("printer-port-p1");
+	const pp2E = document.getElementById("printer-port-p2");
+	const pp3E = document.getElementById("printer-port-p3");
+	if (pp1E == null || pp2E == null || pp3E == null) return;
 
-// Set the non-list values in the form
+	if (printer_port == "1") {
+		pp1E.checked = true;
+	} else if (printer_port == "2") {
+		pp2E.checked = true;
+	} else if (printer_port == "3") {
+		pp3E.checked = true;
+	} else {
+		console.log("ERROR: unknown printer_port value:", printer_port);
+	}
+}
+
+{% if components.printer_settings %}
 setInputValue(current_printer_enabled == 1, "printer-virt-yes", "printer-virt-no");
+setPrinterPort(current_printerport);
+selectListValue("select_printermodel1", current_printer);
+{% endif %}
+
+{% if components.modem_settings %}
 setInputValue(current_modem_enabled == 1, "modem-virt-yes", "modem-virt-no");
 setInputValue(current_modem_sniffer_enabled == 1, "modem-sniffer-yes", "modem-sniffer-no");
+{% endif %}
+
+{% if components.hsio_settings %}
+selectListValue("select_hsioindex", current_hsioindex);
+{% endif %}
+
+{% if components.program_recorder %}
 setInputValue(current_cassette_enabled == 1, "pr-virt-yes", "pr-virt-no");
 setInputValue(current_play_record == "0 PLAY", "pr-mode-play", "pr-mode-rec");
 setInputValue(current_pulldown == "0 B Button Press", "pr-act-b", "pr-act-pull");
+{% endif %}
+
+{% if components.disk_swap %}
 setInputValue(current_rotation_sounds == 1, "sam-rot-yes", "sam-rot-no");
+{% endif %}
+
+{% if components.boot_settings %}
 setInputValue(current_boot_mode == 0, "boot-config-mode-config", "boot-config-mode-mount");
 setInputValue(current_status_wait_enabled == 1, "boot-sio-wait-yes", "boot-sio-wait-no");
 setInputValue(current_config_enabled == 1, "boot-config-disk-yes", "boot-config-disk-no");
-
-// Printer PORT is triple value.
-if (current_printerport == "1") {
-	document.getElementById("printer-port-p1").checked = true;
-} else if (current_printerport == "2") {
-	document.getElementById("printer-port-p2").checked = true;
-} else if (current_printerport == "3") {
-	document.getElementById("printer-port-p3").checked = true;
-} else {
-	console.log("ERROR: unknown current_printer value:", current_printerport);
-}
+{% endif %}
