@@ -22,6 +22,8 @@ public:
                 return sioPrinter::printer_model_str[sioPrinter::PRINTER_FILE_ASCII];
             #elif BUILD_CBM
                 return iecPrinter::printer_model_str[iecPrinter::PRINTER_FILE_ASCII];
+            #elif BUILD_APPLE
+                return iwmPrinter::printer_model_str[iwmPrinter::PRINTER_FILE_ASCII];
             #elif BUILD_ADAM
                 return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_ASCII];
             #elif NEW_TARGET
@@ -36,6 +38,8 @@ public:
                 return sioPrinter::printer_model_str[sioPrinter::PRINTER_FILE_RAW];
             #elif BUILD_CBM
                 return iecPrinter::printer_model_str[iecPrinter::PRINTER_FILE_RAW];
+            #elif BUILD_APPLE
+                return iwmPrinter::printer_model_str[iwmPrinter::PRINTER_FILE_RAW];
             #elif BUILD_ADAM
                 return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_RAW];
             #elif NEW_TARGET
@@ -50,6 +54,8 @@ public:
                 return sioPrinter::printer_model_str[sioPrinter::PRINTER_FILE_TRIM];
             #elif BUILD_CBM
                 return iecPrinter::printer_model_str[iecPrinter::PRINTER_FILE_TRIM];
+            #elif BUILD_APPLE
+                return iwmPrinter::printer_model_str[iwmPrinter::PRINTER_FILE_TRIM];
             #elif BUILD_ADAM
                 return adamPrinter::printer_model_str[adamPrinter::PRINTER_FILE_TRIM];
             #elif NEW_TARGET

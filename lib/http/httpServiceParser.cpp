@@ -304,6 +304,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifdef BUILD_ATARI
             resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
 #endif /* BUILD_ATARI */
+#ifdef BUILD_APPLE
+            resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+#endif /* BUILD_APPLE */
         }
         break;
     case FN_PRINTER1_PORT:
@@ -319,6 +322,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifdef BUILD_ATARI
             resultstream << (fnPrinters.get_port(0) + 1);
 #endif /* BUILD_ATARI */
+#ifdef BUILD_APPLE
+            resultstream << (fnPrinters.get_port(0) + 1);
+#endif /* BUILD_APPLE */
         }
         break;
 #ifdef BUILD_ATARI        
