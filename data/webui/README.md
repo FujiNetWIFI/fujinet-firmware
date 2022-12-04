@@ -13,13 +13,30 @@ During a build, files will be:
 
 ## Existing Users - Required Changes
 
-Existing users need to make the following change in `platformio.ini` in order to build:
+Existing users need to make the following change in `platformio.ini` in order to build. Look for the [env] section in the top middle.
 
 ```ini
+[env]
+; Common settings for all enivornments
+framework = espidf
+extra_scripts = pre:build_version.py
+...
+[more configs...]
+```
+
+Change to:
+(you are adding build_packages.py and build_webui.py to the extra_scripts, but also keeping build_version.py in there )
+
+```ini
+[env]
+; Common settings for all enivornments
+framework = espidf
 extra_scripts = 
     pre:build_packages.py
     pre:build_version.py
     pre:build_webui.py
+...
+[more configs...]
 ```
 
 This is because the file is not under source control.
