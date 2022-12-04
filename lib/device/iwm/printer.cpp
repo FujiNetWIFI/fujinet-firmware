@@ -6,6 +6,8 @@
 #include "epson_80.h"
 #include "fnSystem.h"
 
+constexpr const char * const iwmPrinter::printer_model_str[PRINTER_INVALID];
+
 iwmPrinter::iwmPrinter(FileSystem *filesystem, printer_type printer_type)
 {
     _storage = filesystem;
