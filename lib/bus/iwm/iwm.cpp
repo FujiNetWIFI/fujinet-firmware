@@ -162,7 +162,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   // ph3=0 ph2=1 ph1=0 ph0=1
   // phase lines for smartport bus enable
   // ph3=1 ph2=x ph1=1 ph0=x
-  uint8_t phases = _phases; // smartport.iwm_phase_vector();
+  uint8_t phases = smartport.iwm_phase_vector();
   switch (phases)
   {
   case 0b1010:
@@ -427,7 +427,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 //*****************************************************************************
 void iwmBus::service()
 {
-  iwm_ack_deassert(); // go hi-Z
+  // iwm_ack_deassert(); // go hi-Z
 
   // if (iwm_drive_enables())
   // {
@@ -472,7 +472,10 @@ void iwmBus::service()
     // should not ACK unless we know this is our Command
     
     if (!sp_command_mode)
+    {
+      //iwm_ack_deassert(); // go hi-Z
       return;
+    }
     /** instead of iwm_phases, create an iwm_state() and switch on that. States would be:
      * IDLE
      * RESET
@@ -492,7 +495,10 @@ void iwmBus::service()
 
       // wait for REQ to go low
       if (iwm_req_deassert_timeout(50000))
+      {
+        //iwm_ack_deassert(); // go hi-Z
         return;
+      }
       // if (smartport.req_wait_for_falling_timeout(50000))
       //   return;
 
@@ -519,8 +525,10 @@ void iwmBus::service()
           // portENABLE_INTERRUPTS();
           // wait for REQ to go low
           if (iwm_req_deassert_timeout(50000))
+          {
+            //iwm_ack_deassert(); // go hi-Z
             return;
-
+          }
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
           print_packet(command_packet.data);
@@ -544,6 +552,7 @@ void iwmBus::service()
     }
     sp_command_mode = false;
     inCriticalSection=false;
+    iwm_ack_deassert(); // go hi-Z
   } // switch (phasestate)
 }
 

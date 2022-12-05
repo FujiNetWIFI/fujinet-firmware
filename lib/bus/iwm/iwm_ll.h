@@ -103,7 +103,7 @@ public:
   void iwm_ack_clr() { GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK); };  // enable the line already set to low
   bool req_wait_for_falling_timeout(int t);
   bool req_wait_for_rising_timeout(int t);
-  // uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
+  uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
 
   // Smartport Bus handling by SPI interface
   void encode_spi_packet();

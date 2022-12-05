@@ -117,7 +117,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   assert(ret == ESP_OK);
 
   // wait for REQ to go low
-  if (smartport.req_wait_for_falling_timeout(15000))
+  if (req_wait_for_falling_timeout(15000))
   {
     Debug_println("Send REQ timeout");
     // iwm_ack_disable();       // need to release the bus
@@ -401,9 +401,9 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT);
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
-  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 
   // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
 
@@ -428,9 +428,9 @@ void iwm_sp_ll::setup_gpio()
   
   // attach the interrupt service routine
   gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, NULL);
-  gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
-  gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
-  gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
+  //gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
+ //gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
+  //gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
 }
 
 void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 
