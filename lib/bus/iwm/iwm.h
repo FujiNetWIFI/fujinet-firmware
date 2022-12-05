@@ -295,7 +295,7 @@ public:
 class iwmBus
 {
 private:
-  std::forward_list<iwmDevice *> _daisyChain;
+
 
   iwmDevice *_activeDev = nullptr;
 
@@ -335,6 +335,8 @@ private:
   void handle_init(); 
 
 public:
+  std::forward_list<iwmDevice *> _daisyChain;
+  
   cmdPacket_t command_packet;
   bool inCriticalSection = false;
   bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
