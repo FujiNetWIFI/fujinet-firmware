@@ -5,7 +5,6 @@
 
 // TODO: Combine html_printer.cpp/h and file_printer.cpp/h
 
-
 bool filePrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 {
     int i;
@@ -20,21 +19,30 @@ bool filePrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     // Everything up to and including the ATASCII_EOL is written without modification
     case TRIM:
         for (i = 0; i < n; i++)
-         {
+        {
             fputc(buffer[i], _file);
             if (buffer[i] == ATASCII_EOL)
                 break;
-         }
+        }
         break;
     case ASCII:
     default:
         // Only ASCII-valid characters (including inverse charaters stripped of inverse bit)
         // are written up to the ATASCII_EOL which is converted to ASCII_CRLF
         for (i = 0; i < n; i++)
-         {
+        {
 #ifdef BUILD_APPLE
             buffer[i] &= 0x7F; // Strip off high bit.
-#endif /* BUILD_APPLE */
+                               // Strip LF
+            if (buffer[i] == 10)
+                break;
+            // Handle CR
+            if (buffer[i] == 13)
+            {
+                fputs(ASCII_CRLF, _file);
+                break;
+            }
+#endif /* BUILD_APPLE */ (edited)
             if (buffer[i] == ATASCII_EOL)
             {
                 fputs(ASCII_CRLF, _file);
@@ -43,11 +51,11 @@ bool filePrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
             // If it's an inverse character, convert to normal
             char c = ATASCII_REMOVE_INVERSE(buffer[i]);
             // If it's a printable character, just copy it
-            if(c >=32 && c <= 122 && c != 96)            
+            if (c >= 32 && c <= 122 && c != 96)
             {
                 fputc(c, _file);
             }
-         }
+        }
     }
     return true;
 }
