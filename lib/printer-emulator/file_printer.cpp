@@ -32,6 +32,9 @@ bool filePrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
         // are written up to the ATASCII_EOL which is converted to ASCII_CRLF
         for (i = 0; i < n; i++)
          {
+#ifdef BUILD_APPLE
+            buffer[i] &= 0x7F; // Strip off high bit.
+#endif /* BUILD_APPLE */
             if (buffer[i] == ATASCII_EOL)
             {
                 fputs(ASCII_CRLF, _file);
