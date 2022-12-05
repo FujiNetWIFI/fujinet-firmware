@@ -17,9 +17,23 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   if (!sp_command_mode && (_phases == 0b1011))
   {
     smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
-    smartport.iwm_ack_clr();
+    if (IWM.command_packet.command == 0x85)
+    {
+      smartport.iwm_ack_clr();
+      sp_command_mode = true;
+    }
+    else
+    {
+      for (auto devicep : IWM._daisyChain)
+      {
+        if (IWM.command_packet.dest == devicep->id())
+        {
+          smartport.iwm_ack_clr();
+          sp_command_mode = true;
+        }
+      }
+    }
     smartport.spi_end();
-    sp_command_mode = true;
   }
 }
 
