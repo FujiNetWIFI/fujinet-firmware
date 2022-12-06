@@ -103,6 +103,7 @@ void iwmPrinter::send_extended_status_dib_reply_packet()
 
 void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
 {
+    Debug_printf("\nPrinter: Status cmd %02X\n", cmd.command);
     switch (get_status_code(cmd))
     {
         case IWM_STATUS_STATUS:
@@ -118,21 +119,23 @@ void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
 
 void iwmPrinter::iwm_open(iwm_decoded_cmd_t cmd)
 {
-    // Not sure what to put here yet.
+    Debug_printf("\nPrinter: Open\n");
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
 {
-    // Not sure what to put here yet.
+    Debug_printf("\nPrinter: Close\n");
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
 {
     uint16_t num_bytes = get_numbytes(cmd);
     
-    Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
+    Debug_printf("\nPrinter: Write %u bytes to address %04x\n", num_bytes);
     
-    data_len = BLOCK_DATA_LEN;
+    data_len = num_bytes;
     
     if (IWM.iwm_read_packet_timeout(100, (unsigned char *)data_buffer, data_len))
     {
@@ -178,6 +181,7 @@ void iwmPrinter::process(iwm_decoded_cmd_t cmd)
         iwm_write(cmd);
         break;
     default:
+        Debug_printf("\nPrinter: Bad cmd %02X\n", cmd.command);
         iwm_return_badcmd(cmd);
         break;
     }
