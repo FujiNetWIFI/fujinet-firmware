@@ -75,6 +75,8 @@ public:
             return sioPrinter::printer_model_str[sioPrinter::PRINTER_EPSON];
         #elif BUILD_CBM
             return iecPrinter::printer_model_str[iecPrinter::PRINTER_EPSON];
+        #elif BUILD_APPLE
+            return iwmPrinter::printer_model_str[iwmPrinter::PRINTER_EPSON];
         #elif BUILD_ADAM
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_EPSON];
         #elif NEW_TARGET
