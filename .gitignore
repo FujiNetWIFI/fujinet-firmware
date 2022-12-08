@@ -44,3 +44,6 @@ build/CMakeFiles/3.20.2/CompilerIdC/a.out
 build/CMakeFiles/3.20.2/CompilerIdC/CMakeCCompilerId.c
 build/CMakeFiles/3.20.2/CompilerIdCXX/a.out
 build/CMakeFiles/3.20.2/CompilerIdCXX/CMakeCXXCompilerId.cpp
+
+# ignore generated WebUI files
+data/BUILD_*

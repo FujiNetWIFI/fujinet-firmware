@@ -298,7 +298,12 @@ void iwmDevice::iwm_return_ioerror()
 {
   // Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   send_reply_packet(SP_ERR_IOERROR);
-  }
+}
+
+void iwmDevice::iwm_return_noerror()
+{
+  send_reply_packet(SP_ERR_NOERROR);
+}
 
 //*****************************************************************************
 // Function: verify_cmdpkt_checksum

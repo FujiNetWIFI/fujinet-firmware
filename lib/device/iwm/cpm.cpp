@@ -196,7 +196,6 @@ void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
     uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     // num_bytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
 
-    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
     // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
     // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 

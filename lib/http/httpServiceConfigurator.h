@@ -10,12 +10,15 @@ Broke out system configuration functions to make things easier to read.
 
 class fnHttpServiceConfigurator
 {
-    static void config_printer(std::string printernumber, std::string printermodel, std::string printerport);
+    static void config_printer_model(std::string printernumber, std::string printerport);
+    static void config_printer_port(std::string printernumber, std::string printerport);
     static void config_hsio(std::string hsio_index);
     static void config_timezone(std::string timezone);
     static void config_hostname(std::string hostname);
     static void config_udpstream(std::string host_ip);
-    static void config_cassette(std::string play_record, std::string resistor, bool rew);
+    static void config_cassette_play(std::string play_record);
+    static void config_cassette_resistor(std::string resistor);
+    static void config_cassette_rewind();
     static void config_cassette_enabled(std::string cassette_enabled);
     static void config_rotation_sounds(std::string rotation_sounds);
     static void config_enable_config(std::string enable_config);

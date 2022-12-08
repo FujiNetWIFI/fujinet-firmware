@@ -4,6 +4,9 @@
 #include "file_printer.h"
 #include "html_printer.h"
 #include "epson_80.h"
+#include "fnSystem.h"
+
+constexpr const char * const iwmPrinter::printer_model_str[PRINTER_INVALID];
 
 iwmPrinter::iwmPrinter(FileSystem *filesystem, printer_type printer_type)
 {
@@ -126,7 +129,6 @@ void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
 void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
 {
     uint16_t num_bytes = get_numbytes(cmd);
-    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
     
     Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
     
@@ -155,6 +157,7 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
         offset += l;
     }
 
+    _last_ms = fnSystem.millis();
     send_reply_packet(SP_ERR_NOERROR);
 }
 
