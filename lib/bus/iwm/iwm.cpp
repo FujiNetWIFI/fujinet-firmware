@@ -148,7 +148,7 @@ void iwmBus::iwm_ack_assert()
 
 bool iwmBus::iwm_phase_val(uint8_t p)
 {
-  uint8_t phases = smartport.iwm_phase_vector();
+  uint8_t phases = _phases; // smartport.iwm_phase_vector();
   if (p < 4)
     return (phases >> p) & 0x01;
   Debug_printf("\r\nphase number out of range");
@@ -166,6 +166,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
   switch (phases)
   {
   case 0b1010:
+  case 0b1011:
     phasestate = iwm_phases_t::enable;
     break;
   case 0b0101:
@@ -431,7 +432,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 //*****************************************************************************
 void iwmBus::service()
 {
-  iwm_ack_deassert(); // go hi-Z
+  // iwm_ack_deassert(); // go hi-Z
 
   // if (iwm_drive_enables())
   // {
@@ -457,7 +458,7 @@ void iwmBus::service()
       devicep->_devnum = 0;
 
     while (iwm_phases() == iwm_phases_t::reset)
-      ; // no timeout needed because the IWM must eventually clear reset.
+      portYIELD(); // no timeout needed because the IWM must eventually clear reset.
     // even if it doesn't, we would just come back to here, so might as
     // well wait until reset clears.
 
@@ -466,23 +467,43 @@ void iwmBus::service()
   case iwm_phases_t::enable:
     // expect a command packet
     inCriticalSection=true;
-    portDISABLE_INTERRUPTS();
-    if(smartport.iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
+    // portDISABLE_INTERRUPTS();
+    // if(smartport.iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
+    // {
+    //   inCriticalSection=false;
+    //   portENABLE_INTERRUPTS();
+    //   return;
+    // }
+    // should not ACK unless we know this is our Command
+    
+    if (!sp_command_mode)
     {
-      inCriticalSection=false;
-      portENABLE_INTERRUPTS();
+      //iwm_ack_deassert(); // go hi-Z
       return;
     }
-    // should not ACK unless we know this is our Command
+    /** instead of iwm_phases, create an iwm_state() and switch on that. States would be:
+     * IDLE
+     * RESET
+     * RESET CLEARED
+     * ENABLED
+     * REQ ASSERTED
+     * REQ DEASSERTED
+     * pretty much what i'm doing above - in fact don't need to change the function calls here,
+     * just need to change what's in the functions
+     * */
+    
     if (command_packet.command == 0x85)
     {
       inCriticalSection=false;
-      iwm_ack_assert(); // includes waiting for spi read transaction to finish
-      portENABLE_INTERRUPTS();
+      // iwm_ack_assert(); // includes waiting for spi read transaction to finish
+      // portENABLE_INTERRUPTS();
 
       // wait for REQ to go low
       if (iwm_req_deassert_timeout(50000))
+      {
+        //iwm_ack_deassert(); // go hi-Z
         return;
+      }
       // if (smartport.req_wait_for_falling_timeout(50000))
       //   return;
 
@@ -505,12 +526,14 @@ void iwmBus::service()
         if (command_packet.dest == devicep->_devnum)
         {
           inCriticalSection=false;
-          iwm_ack_assert(); // includes waiting for spi read transaction to finish
-          portENABLE_INTERRUPTS();
+          // iwm_ack_assert(); // includes waiting for spi read transaction to finish
+          // portENABLE_INTERRUPTS();
           // wait for REQ to go low
           if (iwm_req_deassert_timeout(50000))
+          {
+            //iwm_ack_deassert(); // go hi-Z
             return;
-
+          }
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
           print_packet(command_packet.data);
@@ -532,7 +555,9 @@ void iwmBus::service()
         }
       }
     }
+    sp_command_mode = false;
     inCriticalSection=false;
+    iwm_ack_deassert(); // go hi-Z
   } // switch (phasestate)
 }
 

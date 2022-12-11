@@ -296,7 +296,7 @@ public:
 class iwmBus
 {
 private:
-  std::forward_list<iwmDevice *> _daisyChain;
+
 
   iwmDevice *_activeDev = nullptr;
 
@@ -327,15 +327,18 @@ private:
   void iwm_ack_deassert();
   void iwm_ack_assert();
   bool iwm_req_deassert_timeout(int t) { return smartport.req_wait_for_falling_timeout(t); };
-  // bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
+  bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
 
-  cmdPacket_t command_packet;
+
   bool verify_cmdpkt_checksum(void);
   iwm_decoded_cmd_t command;
 
   void handle_init(); 
 
 public:
+  std::forward_list<iwmDevice *> _daisyChain;
+  
+  cmdPacket_t command_packet;
   bool inCriticalSection = false;
   bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
    int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
