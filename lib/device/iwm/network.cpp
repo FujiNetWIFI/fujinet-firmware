@@ -515,6 +515,11 @@ void iwmNetwork::status()
         break;
     }
 
+    Debug_printf("Bytes Waiting: %u, Connected: %u, Error: %u\n",s.rxBytesWaiting,s.connected,s.error);
+
+    if (s.rxBytesWaiting > 512)
+        s.rxBytesWaiting = 512;
+    
     data_buffer[0] = s.rxBytesWaiting & 0xFF;
     data_buffer[1] = s.rxBytesWaiting >> 8;
     data_buffer[2] = s.connected;
