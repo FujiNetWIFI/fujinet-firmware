@@ -15,7 +15,8 @@ def prep_dst(fname, build_platform, prefix):
 
 def process_template(fname, build_platform, template_env, config, prefix):
     print(f"processing template file {fname}")
-    template = template_env.get_template(fname.replace(prefix, ''))
+    # jinja2 insists on '/' as the path separator even on windows. see https://github.com/pallets/jinja/issues/767
+    template = template_env.get_template(fname.replace(prefix, '').replace('\\', '/'))
     r = template.render(config)
     destination = prep_dst(fname, build_platform, prefix).replace('.tmpl.', '.')
     with open(destination, 'w') as f:
