@@ -265,7 +265,9 @@ void iwmNetwork::set_prefix()
  */
 void iwmNetwork::set_login()
 {
+    login.clear();
     login = string((char *)data_buffer, 256);
+    Debug_printf("Login is %s\n",login.c_str());
 }
 
 /**
@@ -273,7 +275,9 @@ void iwmNetwork::set_login()
  */
 void iwmNetwork::set_password()
 {
+    password.clear();
     password = string((char *)data_buffer, 256);
+    Debug_printf("Password is %s\n",password.c_str());
 }
 
 void iwmNetwork::del()
