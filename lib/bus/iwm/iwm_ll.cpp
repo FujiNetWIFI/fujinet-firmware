@@ -3,9 +3,39 @@
 #include <string.h>
 
 #include "iwm_ll.h"
+#include "iwm.h"
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
+
+volatile uint8_t _phases = 0;
+volatile bool sp_command_mode = false;
+
+void IRAM_ATTR phi_isr_handler(void *arg)
+{
+  _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+  if (!sp_command_mode && (_phases == 0b1011))
+  {
+    smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
+    if (IWM.command_packet.command == 0x85)
+    {
+      smartport.iwm_ack_clr();
+      sp_command_mode = true;
+    }
+    else
+    {
+      for (auto devicep : IWM._daisyChain)
+      {
+        if (IWM.command_packet.dest == devicep->id())
+        {
+          smartport.iwm_ack_clr();
+          sp_command_mode = true;
+        }
+      }
+    }
+    smartport.spi_end();
+  }
+}
 
 inline void iwm_sp_ll::iwm_extra_set()
 {
@@ -26,7 +56,7 @@ inline bool iwm_sp_ll::iwm_enable_val()
   return true;
 }
 
-void iwm_sp_ll::encode_spi_packet()
+void IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
   memset(spi_buffer, 0, SPI_BUFFER_LEN);
@@ -101,7 +131,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   assert(ret == ESP_OK);
 
   // wait for REQ to go low
-  if (smartport.req_wait_for_falling_timeout(15000))
+  if (req_wait_for_falling_timeout(15000))
   {
     Debug_println("Send REQ timeout");
     // iwm_ack_disable();       // need to release the bus
@@ -287,7 +317,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   return 0;
 }
 
-void iwm_sp_ll::spi_end() { spi_device_polling_end(spirx, portMAX_DELAY); };
+void IRAM_ATTR iwm_sp_ll::spi_end() { spi_device_polling_end(spirx, portMAX_DELAY); };
 
 bool iwm_sp_ll::req_wait_for_falling_timeout(int t)
 {
@@ -384,10 +414,10 @@ void iwm_sp_ll::setup_gpio()
   //set ack to input to avoid clashing with other devices when sp bus is not enabled
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT);
   
-  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
-  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
+  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 
   // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
 
@@ -408,7 +438,13 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   Debug_printf("\r\nEXTRA signaling line configured");
 #endif
+
   
+  // attach the interrupt service routine
+  gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, NULL);
+  //gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
+ //gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
+  //gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
 }
 
 void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 
