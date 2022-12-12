@@ -8,6 +8,20 @@
 // http://upnp.org/specs/arch/UPnP-arch-DeviceArchitecture-v1.0.pdf
 //
 
+// // Simple Service Discovery Protocol setup
+// server.on("/device.xml", HTTP_GET, [](AsyncWebServerRequest *request){
+//     request->send(200, "text/xml", SSDPDevice.schema());
+// });
+// SSDPDevice.setName( "FujiNet (C) 2022" );
+// SSDPDevice.setDeviceType("urn:schemas-upnp-org:device:ManageableDevice:1");
+// SSDPDevice.setSchemaURL("device.xml");
+// SSDPDevice.setSerialNumber(ESP.getEfuseMac());
+// SSDPDevice.setURL("http://" + fujinet.hostname + ".local");
+// SSDPDevice.setModelName( "fujinet" );
+// SSDPDevice.setModelNumber("1.6");
+// SSDPDevice.setManufacturer("FujiNet");
+// SSDPDevice.setManufacturerURL("https://fujinet.online/");
+
 
 #ifndef _SSDPDEVICE_h
 #define _SSDPDEVICE_h
