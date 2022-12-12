@@ -1,7 +1,3 @@
-// based on https://github.com/esp8266/Arduino/issues/2283 
-// https://github.com/esp8266/Arduino/files/980894/SSDPDevice.zip
-// by Pawel Dino
-
 
 #include "SSDPDevice.h"
 
