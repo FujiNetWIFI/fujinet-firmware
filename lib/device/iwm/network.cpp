@@ -208,7 +208,9 @@ void iwmNetwork::close()
  */
 void iwmNetwork::get_prefix()
 {
-    // RE-implement
+    Debug_printf("iwmNetwork::get_prefix(%s)\n",prefix.c_str());
+    memcpy(data_buffer,prefix.c_str(),prefix.length());
+    data_len = prefix.length();
 }
 
 /**
@@ -549,6 +551,9 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     case IWM_STATUS_DIB: // 0x03
         send_status_dib_reply_packet();
         return;
+        break;
+    case '0':
+        get_prefix();
         break;
     case 'R':
         net_read();
