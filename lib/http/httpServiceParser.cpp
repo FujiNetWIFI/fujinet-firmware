@@ -12,6 +12,8 @@
 #include "httpService.h"
 #include "fuji.h"
 
+#include "SSDPDevice.h"
+
 using namespace std;
 
 #define MAX_PRINTER_LIST_BUFFER (2048)
@@ -100,6 +102,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_ERRMSG,
         FN_HARDWARE_VER,
         FN_PRINTER_LIST,
+        FN_UUID,
         FN_LASTTAG
     };
 
@@ -184,6 +187,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST8PREFIX",
         "FN_ERRMSG",
         "FN_HARDWARE_VER",
+        "FN_UUID",
         "FN_PRINTER_LIST"
     };
 
@@ -213,6 +217,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_VERSION:
         resultstream << fnSystem.get_fujinet_version();
+        break;
+    case FN_UUID:
+        resultstream << SSDPDevice.getUUID();
         break;
     case FN_IPADDRESS:
         resultstream << fnSystem.Net.get_ip4_address_str();
@@ -487,6 +494,8 @@ bool fnHttpServiceParser::is_parsable(const char *extension)
     if (extension != NULL)
     {
         if (strncmp(extension, "html", 4) == 0)
+            return true;
+        if (strncmp(extension, "xml", 3) == 0)
             return true;
     }
     return false;

@@ -268,6 +268,7 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
     fpath += filename;
 
     // Handle file differently if it's one of the types we parse
+    Debug_printf("send_file[%s]\r\n", filename);
     if (fnHttpServiceParser::is_parsable(get_extension(filename)))
         return send_file_parsed(req, fpath.c_str());
 

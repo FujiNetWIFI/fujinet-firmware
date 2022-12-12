@@ -236,24 +236,24 @@ void SSDPDeviceClass::send(ssdp_send_parameters_t *parameters) {
 	parameters->time = parameters->type == NOTIFY_ALIVE ? parameters->time + SSDP_INTERVAL * 900L : 0; // 1000 ms - 100 ms
 }
 
-std::string SSDPDeviceClass::schema() {
-	uint32_t ip = fnWiFi.localIP();
-	char schema[2048];
-	sprintf(schema, SSDP_SCHEMA_TEMPLATE,
-		LIP2STR(&ip), m_port,
-		m_deviceType,
-		m_friendlyName,
-		m_presentationURL,
-		m_serialNumber,
-		m_modelName,
-		m_modelNumber,
-		m_modelURL,
-		m_manufacturer,
-		m_manufacturerURL,
-		m_uuid
-	);
-	return std::string(schema);
-}
+// std::string SSDPDeviceClass::schema() {
+// 	uint32_t ip = fnWiFi.localIP();
+// 	char schema[2048];
+// 	sprintf(schema, SSDP_SCHEMA_TEMPLATE,
+// 		LIP2STR(&ip), m_port,
+// 		m_deviceType,
+// 		m_friendlyName,
+// 		m_presentationURL,
+// 		m_serialNumber,
+// 		m_modelName,
+// 		m_modelNumber,
+// 		m_modelURL,
+// 		m_manufacturer,
+// 		m_manufacturerURL,
+// 		m_uuid
+// 	);
+// 	return std::string(schema);
+// }
 
 void SSDPDeviceClass::handleClient() {
 	IPAddress current = fnWiFi.localIP();

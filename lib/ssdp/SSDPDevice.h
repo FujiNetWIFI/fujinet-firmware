@@ -32,7 +32,7 @@
 #include "IPAddress.h"
 
 #include "fnWiFi.h"
-#include "fnUdp.h"
+#include "fnUDP.h"
 
 
 #define pip41(ipaddr) ((u16_t)(((u8_t*)(ipaddr))[0]))
@@ -92,49 +92,49 @@ static const char* SSDP_PACKET_TEMPLATE =
 	"LOCATION: http://%u.%u.%u.%u:%u/%s\r\n" // WiFi.localIP(), m_port, m_schemaURL
 	"\r\n";
 
-static const char* SSDP_SCHEMA_TEMPLATE =
-	"HTTP/1.1 200 OK\r\n"
-	"Content-Type: text/xml\r\n"
-	"Connection: close\r\n"
-	"Access-Control-Allow-Origin: *\r\n"
-	"\r\n"
-	"<?xml version=\"1.0\"?>"
-	"<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
-		"<specVersion>"
-			"<major>1</major>"
-			"<minor>0</minor>"
-		"</specVersion>"
-		"<URLBase>http://%u.%u.%u.%u:%u/%s</URLBase>" // WiFi.localIP(), _port
-		"<device>"
-			"<deviceType>%s</deviceType>"
-			"<friendlyName>%s</friendlyName>"
-			"<presentationURL>%s</presentationURL>"
-			"<serialNumber>%s</serialNumber>"
-			"<modelName>%s</modelName>"
-			"<modelNumber>%s</modelNumber>"
-			"<modelURL>%s</modelURL>"
-			"<manufacturer>%s</manufacturer>"
-			"<manufacturerURL>%s</manufacturerURL>"
-			"<UDN>uuid:%s</UDN>"
-		"</device>"
-//    "<iconList>"
-//      "<icon>"
-//        "<mimetype>image/png</mimetype>"
-//        "<height>48</height>"
-//        "<width>48</width>"
-//        "<depth>24</depth>"
-//        "<url>icon48.png</url>"
-//      "</icon>"
-//      "<icon>"
-//       "<mimetype>image/png</mimetype>"
-//       "<height>120</height>"
-//       "<width>120</width>"
-//       "<depth>24</depth>"
-//       "<url>icon120.png</url>"
-//      "</icon>"
-//    "</iconList>"
-	"</root>\r\n"
-	"\r\n";
+// static const char* SSDP_SCHEMA_TEMPLATE =
+// 	"HTTP/1.1 200 OK\r\n"
+// 	"Content-Type: text/xml\r\n"
+// 	"Connection: close\r\n"
+// 	"Access-Control-Allow-Origin: *\r\n"
+// 	"\r\n"
+// 	"<?xml version=\"1.0\"?>"
+// 	"<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
+// 		"<specVersion>"
+// 			"<major>1</major>"
+// 			"<minor>0</minor>"
+// 		"</specVersion>"
+// 		"<URLBase>http://%u.%u.%u.%u:%u/%s</URLBase>" // WiFi.localIP(), _port
+// 		"<device>"
+// 			"<deviceType>%s</deviceType>"
+// 			"<friendlyName>%s</friendlyName>"
+// 			"<presentationURL>%s</presentationURL>"
+// 			"<serialNumber>%s</serialNumber>"
+// 			"<modelName>%s</modelName>"
+// 			"<modelNumber>%s</modelNumber>"
+// 			"<modelURL>%s</modelURL>"
+// 			"<manufacturer>%s</manufacturer>"
+// 			"<manufacturerURL>%s</manufacturerURL>"
+// 			"<UDN>uuid:%s</UDN>"
+// 		"</device>"
+// //    "<iconList>"
+// //      "<icon>"
+// //        "<mimetype>image/png</mimetype>"
+// //        "<height>48</height>"
+// //        "<width>48</width>"
+// //        "<depth>24</depth>"
+// //        "<url>icon48.png</url>"
+// //      "</icon>"
+// //      "<icon>"
+// //       "<mimetype>image/png</mimetype>"
+// //       "<height>120</height>"
+// //       "<width>120</width>"
+// //       "<depth>24</depth>"
+// //       "<url>icon120.png</url>"
+// //      "</icon>"
+// //    "</iconList>"
+// 	"</root>\r\n"
+// 	"\r\n";
 
 typedef enum {
 	NOTIFY_ALIVE_INIT,
@@ -199,9 +199,11 @@ public:
 	void update();
 
 	// void schema(WiFiClient client);
-	std::string schema();
+	// std::string schema();
 
 	void handleClient();
+
+	const char* getUUID() { return m_uuid; };
 
 	void setDeviceType(const std::string& deviceType) { setDeviceType(deviceType.c_str()); }
 	void setDeviceType(const char *deviceType);
