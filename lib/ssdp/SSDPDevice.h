@@ -21,6 +21,7 @@
 // SSDPDevice.setModelNumber("1.6");
 // SSDPDevice.setManufacturer("FujiNet");
 // SSDPDevice.setManufacturerURL("https://fujinet.online/");
+//
 
 
 #ifndef _SSDPDEVICE_h
@@ -30,21 +31,14 @@
 
 #include "IPAddress.h"
 
-// #ifdef ESP8266 
-// #include <ESP8266WiFi.h>
-// #include <WiFiUDP.h>
-// #endif
-
-// #ifdef ESP32 
 #include "fnWiFi.h"
 #include "fnUdp.h"
-// #endif
+
 
 #define pip41(ipaddr) ((u16_t)(((u8_t*)(ipaddr))[0]))
 #define pip42(ipaddr) ((u16_t)(((u8_t*)(ipaddr))[1]))
 #define pip43(ipaddr) ((u16_t)(((u8_t*)(ipaddr))[2]))
 #define pip44(ipaddr) ((u16_t)(((u8_t*)(ipaddr))[3]))
-
 
 #define LIP2STR(ipaddr) pip41(ipaddr), \
     pip42(ipaddr), \
@@ -99,42 +93,48 @@ static const char* SSDP_PACKET_TEMPLATE =
 	"\r\n";
 
 static const char* SSDP_SCHEMA_TEMPLATE =
-	"<?xml version=\"1.0\"?>\n"
-	"<root xmlns=\"urn:schemas-upnp-org:device-1-0\">\n"
-		"<specVersion>\n"
-			"<major>1</major>\n"
-			"<minor>0</minor>\n"
-		"</specVersion>\n"
-		"<URLBase>http://%u.%u.%u.%u:%u/</URLBase>\n" // WiFi.localIP(), _port
-		"<device>\n"
-			"<deviceType>%s</deviceType>\n"
-			"<friendlyName>%s</friendlyName>\n"
-			"<presentationURL>%s</presentationURL>\n"
-			"<serialNumber>%s</serialNumber>\n"
-			"<modelName>%s</modelName>\n"
-			"<modelNumber>%s</modelNumber>\n"
-			"<modelURL>%s</modelURL>\n"
-			"<manufacturer>%s</manufacturer>\n"
-			"<manufacturerURL>%s</manufacturerURL>\n"
-			"<UDN>uuid:%s</UDN>\n"
-		"</device>\n"
-		"<iconList>\n"
-			"<icon>\n"
-				"<mimetype>image/png</mimetype>\n"
-				"<height>48</height>\n"
-				"<width>48</width>\n"
-				"<depth>24</depth>\n"
-				"<url>/icon48.png</url>\n"
-			"</icon>\n"
-			"<icon>\n"
-				"<mimetype>image/png</mimetype>\n"
-				"<height>128</height>\n"
-				"<width>128</width>\n"
-				"<depth>24</depth>\n"
-				"<url>/icon128.png</url>\n"
-			"</icon>\n"
-		"</iconList>\n"
-	"</root>\n";
+	"HTTP/1.1 200 OK\r\n"
+	"Content-Type: text/xml\r\n"
+	"Connection: close\r\n"
+	"Access-Control-Allow-Origin: *\r\n"
+	"\r\n"
+	"<?xml version=\"1.0\"?>"
+	"<root xmlns=\"urn:schemas-upnp-org:device-1-0\">"
+		"<specVersion>"
+			"<major>1</major>"
+			"<minor>0</minor>"
+		"</specVersion>"
+		"<URLBase>http://%u.%u.%u.%u:%u/%s</URLBase>" // WiFi.localIP(), _port
+		"<device>"
+			"<deviceType>%s</deviceType>"
+			"<friendlyName>%s</friendlyName>"
+			"<presentationURL>%s</presentationURL>"
+			"<serialNumber>%s</serialNumber>"
+			"<modelName>%s</modelName>"
+			"<modelNumber>%s</modelNumber>"
+			"<modelURL>%s</modelURL>"
+			"<manufacturer>%s</manufacturer>"
+			"<manufacturerURL>%s</manufacturerURL>"
+			"<UDN>uuid:%s</UDN>"
+		"</device>"
+//    "<iconList>"
+//      "<icon>"
+//        "<mimetype>image/png</mimetype>"
+//        "<height>48</height>"
+//        "<width>48</width>"
+//        "<depth>24</depth>"
+//        "<url>icon48.png</url>"
+//      "</icon>"
+//      "<icon>"
+//       "<mimetype>image/png</mimetype>"
+//       "<height>120</height>"
+//       "<width>120</width>"
+//       "<depth>24</depth>"
+//       "<url>icon120.png</url>"
+//      "</icon>"
+//    "</iconList>"
+	"</root>\r\n"
+	"\r\n";
 
 typedef enum {
 	NOTIFY_ALIVE_INIT,

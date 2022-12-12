@@ -224,13 +224,8 @@ void SSDPDeviceClass::send(ssdp_send_parameters_t *parameters) {
 	);
 
 	if (parameters->address == (uint32_t) SSDP_MULTICAST_ADDR) {
-#ifdef ESP8266
-		m_server->beginPacketMulticast(parameters->address, parameters->port, m_ttl);
-#endif
-#ifdef ESP32
-    m_server->beginMulticast(parameters->address, parameters->port);
-    m_server->beginMulticastPacket();
-#endif
+		m_server->beginMulticast(parameters->address, parameters->port);
+		m_server->beginMulticastPacket();
 	}	else {
 		m_server->beginPacket(parameters->address, parameters->port);
 	}
@@ -240,23 +235,6 @@ void SSDPDeviceClass::send(ssdp_send_parameters_t *parameters) {
 
 	parameters->time = parameters->type == NOTIFY_ALIVE ? parameters->time + SSDP_INTERVAL * 900L : 0; // 1000 ms - 100 ms
 }
-
-// void SSDPDeviceClass::schema(WiFiClient client) {
-// 	uint32_t ip = WiFi.localIP();
-// 	client.printf(SSDP_SCHEMA_TEMPLATE,
-// 		LIP2STR(&ip), m_port, m_schemaURL,
-// 		m_deviceType,
-// 		m_friendlyName,
-// 		m_presentationURL,
-// 		m_serialNumber,
-// 		m_modelName,
-// 		m_modelNumber,
-// 		m_modelURL,
-// 		m_manufacturer,
-// 		m_manufacturerURL,
-// 		m_uuid
-// 	);
-// }
 
 std::string SSDPDeviceClass::schema() {
 	uint32_t ip = fnWiFi.localIP();
@@ -290,13 +268,9 @@ void SSDPDeviceClass::handleClient() {
 		if (current != INADDR_NONE) {
 			if (!m_server) m_server = new fnUDP();
 
-#ifdef ESP8266
-			m_server->beginMulticast(current, SSDP_MULTICAST_ADDR, SSDP_PORT);
-#endif
-#ifdef ESP32
-      m_server->beginMulticast(SSDP_MULTICAST_ADDR, SSDP_PORT);
-      m_server->beginMulticastPacket();
-#endif
+			m_server->beginMulticast(SSDP_MULTICAST_ADDR, SSDP_PORT);
+			m_server->beginMulticastPacket();
+
 			postNotifyALive();
 		}
 		else if (m_server) {
