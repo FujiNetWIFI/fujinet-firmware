@@ -372,6 +372,14 @@ esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t fnHttpService::get_handler_ssdp(httpd_req_t *req)
+{
+    Debug_printf("Index request handler %p\n", xTaskGetCurrentTaskHandle());
+
+    send_file(req, "device.xml");
+    return ESP_OK;
+}
+
 esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
 {
     TaskHandle_t task = xTaskGetCurrentTaskHandle();
@@ -1241,6 +1249,13 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/config",
          .method = HTTP_POST,
          .handler = post_handler_config,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/device.xml",
+         .method = HTTP_GET,
+         .handler = get_handler_ssdp,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,
