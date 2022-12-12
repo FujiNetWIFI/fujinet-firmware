@@ -187,8 +187,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST8PREFIX",
         "FN_ERRMSG",
         "FN_HARDWARE_VER",
-        "FN_UUID",
-        "FN_PRINTER_LIST"
+        "FN_PRINTER_LIST",
+        "FN_UUID"
     };
 
     stringstream resultstream;

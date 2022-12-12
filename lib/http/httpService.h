@@ -92,7 +92,6 @@ public:
 
     static esp_err_t get_handler_test(httpd_req_t *req);
     static esp_err_t get_handler_index(httpd_req_t *req);
-    static esp_err_t get_handler_ssdp(httpd_req_t *req);
     static esp_err_t get_handler_file_in_query(httpd_req_t *req);
     static esp_err_t get_handler_file_in_path(httpd_req_t *req);
     static esp_err_t get_handler_print(httpd_req_t *req);

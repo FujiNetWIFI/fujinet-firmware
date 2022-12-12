@@ -25,7 +25,7 @@ SSDPDeviceClass::SSDPDeviceClass() :
 	m_modelURL[0] = '\0';
 	m_manufacturer[0] = '\0';
 	m_manufacturerURL[0] = '\0';
-	sprintf(m_schemaURL, "ssdp/schema.xml");
+	sprintf(m_schemaURL, "device.xml");
 
     uint64_t chipId = 0LL;
     esp_efuse_mac_get_default((uint8_t*) (&chipId));
@@ -182,39 +182,39 @@ void SSDPDeviceClass::send(ssdp_send_parameters_t *parameters) {
 	const char *uri = 0, *usn1 = 0, *usn2 = 0, *usn3 = 0;
 
 	switch (parameters->type) {
-	case NOTIFY_ALIVE_INIT:
-	case NOTIFY_ALIVE:
-		typeTemplate = SSDP_NOTIFY_ALIVE_TEMPLATE;
-		break;
-	case NOTIFY_UPDATE:
-		typeTemplate = SSDP_NOTIFY_UPDATE_TEMPLATE;
-		break;
-	default: // RESPONSE
-		typeTemplate = SSDP_RESPONSE_TEMPLATE;
-		break;
+		case NOTIFY_ALIVE_INIT:
+		case NOTIFY_ALIVE:
+			typeTemplate = SSDP_NOTIFY_ALIVE_TEMPLATE;
+			break;
+		case NOTIFY_UPDATE:
+			typeTemplate = SSDP_NOTIFY_UPDATE_TEMPLATE;
+			break;
+		default: // RESPONSE
+			typeTemplate = SSDP_RESPONSE_TEMPLATE;
+			break;
 	}
 
 	std::string uuid = "uuid:" + std::string(m_uuid);
 
 	switch (parameters->udn) {
-	case ROOT_FOR_ALL:
-		uri = "upnp:rootdevice";
-		usn1 = uuid.c_str();
-		usn2 = "::";
-		usn3 = "upnp:rootdevice";
-		break;
-	case ROOT_BY_UUID:
-		uri = uuid.c_str();
-		usn1 = uuid.c_str();
-		usn2 = "";
-		usn3 = "";
-		break;
-	case ROOT_BY_TYPE:
-		uri = m_deviceType;
-		usn1 = uuid.c_str();
-		usn2 = "::";
-		usn3 = m_deviceType;
-		break;
+		case ROOT_FOR_ALL:
+			uri = "upnp:rootdevice";
+			usn1 = uuid.c_str();
+			usn2 = "::";
+			usn3 = "upnp:rootdevice";
+			break;
+		case ROOT_BY_UUID:
+			uri = uuid.c_str();
+			usn1 = uuid.c_str();
+			usn2 = "";
+			usn3 = "";
+			break;
+		case ROOT_BY_TYPE:
+			uri = m_deviceType;
+			usn1 = uuid.c_str();
+			usn2 = "::";
+			usn3 = m_deviceType;
+			break;
 	}
 
 	int len = snprintf((char *)buffer, sizeof(buffer),

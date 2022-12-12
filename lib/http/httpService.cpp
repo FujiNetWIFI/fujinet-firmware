@@ -268,7 +268,6 @@ void fnHttpService::send_file(httpd_req_t *req, const char *filename)
     fpath += filename;
 
     // Handle file differently if it's one of the types we parse
-    Debug_printf("send_file[%s]\r\n", filename);
     if (fnHttpServiceParser::is_parsable(get_extension(filename)))
         return send_file_parsed(req, fpath.c_str());
 
@@ -369,14 +368,6 @@ esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
     Debug_printf("Index request handler %p\n", xTaskGetCurrentTaskHandle());
 
     send_file(req, "index.html");
-    return ESP_OK;
-}
-
-esp_err_t fnHttpService::get_handler_ssdp(httpd_req_t *req)
-{
-    Debug_printf("Index request handler %p\n", xTaskGetCurrentTaskHandle());
-
-    send_file(req, "device.xml");
     return ESP_OK;
 }
 
@@ -1174,92 +1165,117 @@ void fnHttpService::custom_global_ctx_free(void *ctx)
 httpd_handle_t fnHttpService::start_server(serverstate &state)
 {
     std::vector<httpd_uri_t> uris{
-        {.uri = "/hsdir",
-         .method = HTTP_GET,
-         .handler = get_handler_dir,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/dslot",
-         .method = HTTP_GET,
-         .handler = get_handler_slot,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/",
-         .method = HTTP_GET,
-         .handler = get_handler_index,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/file",
-         .method = HTTP_GET,
-         .handler = get_handler_file_in_query,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/print",
-         .method = HTTP_GET,
-         .handler = get_handler_print,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/modem-sniffer.txt",
-         .method = HTTP_GET,
-         .handler = get_handler_modem_sniffer,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/favicon.ico",
-         .method = HTTP_GET,
-         .handler = get_handler_file_in_path,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/mount",
-         .method = HTTP_GET,
-         .handler = get_handler_mount,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/unmount",
-         .method = HTTP_GET,
-         .handler = get_handler_eject,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
+        {
+            .uri = "/hsdir",
+            .method = HTTP_GET,
+            .handler = get_handler_dir,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
+        {
+            .uri = "/dslot",
+            .method = HTTP_GET,
+            .handler = get_handler_slot,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
+        {
+            .uri = "/",
+            .method = HTTP_GET,
+            .handler = get_handler_index,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
+        {
+            .uri = "/file",
+            .method = HTTP_GET,
+            .handler = get_handler_file_in_query,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
+        {
+            .uri = "/print",
+            .method = HTTP_GET,
+            .handler = get_handler_print,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
+        {
+            .uri = "/modem-sniffer.txt",
+            .method = HTTP_GET,
+            .handler = get_handler_modem_sniffer,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
+        {
+            .uri = "/favicon.ico",
+            .method = HTTP_GET,
+            .handler = get_handler_file_in_path,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
+        {
+            .uri = "/mount",
+            .method = HTTP_GET,
+            .handler = get_handler_mount,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
+        {
+            .uri = "/unmount",
+            .method = HTTP_GET,
+            .handler = get_handler_eject,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
 #ifdef BUILD_ADAM
-        {.uri = "/term",
-         .method = HTTP_GET,
-         .handler = get_handler_term,
-         .user_ctx = NULL,
-         .is_websocket = true,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},         
+        {
+            .uri = "/term",
+            .method = HTTP_GET,
+            .handler = get_handler_term,
+            .user_ctx = NULL,
+            .is_websocket = true,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },         
 #endif
-        {.uri = "/config",
-         .method = HTTP_POST,
-         .handler = post_handler_config,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr},
-        {.uri = "/device.xml",
-         .method = HTTP_GET,
-         .handler = get_handler_ssdp,
-         .user_ctx = NULL,
-         .is_websocket = false,
-         .handle_ws_control_frames = false,
-         .supported_subprotocol = nullptr}};
+        {
+            .uri = "/config",
+            .method = HTTP_POST,
+            .handler = post_handler_config,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        },
+        {
+            .uri = "/device.xml",
+            .method = HTTP_GET,
+            .handler = get_handler_file_in_path,
+            .user_ctx = NULL,
+            .is_websocket = false,
+            .handle_ws_control_frames = false,
+            .supported_subprotocol = nullptr
+        }
+    };
 
     if (!fnWiFi.connected())
     {

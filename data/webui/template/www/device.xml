@@ -11,26 +11,10 @@
         <presentationURL>http://<%FN_IPADDRESS%></presentationURL>
         <serialNumber><%FN_WIFIMAC%></serialNumber>
         <modelName>fujinet</modelName>
-        <modelNumber><%FN_VERSION%></modelNumber>
+        <modelNumber><%FN_HARDWARE_VER%></modelNumber>
         <modelURL>https://fujinet.online/shop/atari/fujinet-1-6/</modelURL>
         <manufacturer>FujiNet</manufacturer>
         <manufacturerURL>https://fujinet.online/</manufacturerURL>
         <UDN>uuid:<%FN_UUID%></UDN>
-    </device>
-    <iconList>
-      <icon>
-        <mimetype>image/png</mimetype>
-        <height>48</height>
-        <width>48</width>
-        <depth>24</depth>
-        <url>icon48.png</url>
-      </icon>
-      <icon>
-       <mimetype>image/png</mimetype>
-       <height>120</height>
-       <width>120</width>
-       <depth>24</depth>
-       <url>icon120.png</url>
-      </icon>
-    </iconList>
+    </device> 
 </root>
