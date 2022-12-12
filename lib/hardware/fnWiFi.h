@@ -62,6 +62,8 @@ public:
     uint8_t scan_networks(uint8_t maxresults = FNWIFI_SCAN_RESULTS_MAX);
     int get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi = NULL,
                         uint8_t *channel = NULL, char bssid[18] = NULL, uint8_t *encryption = NULL);
+
+    int32_t localIP();
 };
 
 extern WiFiManager fnWiFi;

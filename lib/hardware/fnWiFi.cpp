@@ -543,3 +543,11 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
         }
     }
 }
+
+int32_t WiFiManager::localIP()
+{
+    std::string result;
+    esp_netif_ip_info_t ip_info;
+    esp_err_t e = esp_netif_get_ip_info(get_adapter_handle(), &ip_info);
+    return ip_info.ip.addr;
+}
