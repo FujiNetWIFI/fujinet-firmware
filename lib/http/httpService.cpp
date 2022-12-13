@@ -112,7 +112,7 @@ void fnHttpService::return_http_error(httpd_req_t *req, _fnwserr errnum)
 
 const char *fnHttpService::find_mimetype_str(const char *extension)
 {
-    static std::map<std::string, std::string> mime_map{
+    static std::map<std::string, std::string> mime_map {
         {"css", "text/css"},
         {"png", "image/png"},
         {"jpg", "image/jpeg"},
@@ -123,7 +123,9 @@ const char *fnHttpService::find_mimetype_str(const char *extension)
         {"txt", "text/plain"},
         {"bin", "application/octet-stream"},
         {"js", "text/javascript"},
-        {"atascii", "application/octet-stream"}};
+        {"atascii", "application/octet-stream"},
+        {"xml", "text/xml; charset=\"utf-8\""}
+    };
 
     if (extension != NULL)
     {
