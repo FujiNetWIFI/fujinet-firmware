@@ -201,7 +201,8 @@ public:
 	// void schema(WiFiClient client);
 	// std::string schema();
 
-	void handleClient();
+	void start();
+	void service();
 
 	const char* getUUID() { return m_uuid; };
 

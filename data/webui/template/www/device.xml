@@ -7,13 +7,13 @@
     <URLBase><%FN_IPADDRESS%></URLBase>
     <device>
         <deviceType>urn:schemas-upnp-org:device:ManageableDevice:1</deviceType>
-        <friendlyName>FujiNet (C) 2022</friendlyName>
+        <friendlyName>FujiNet (Multi-device emulator)</friendlyName>
         <presentationURL>http://<%FN_IPADDRESS%></presentationURL>
-        <serialNumber><%FN_WIFIMAC%></serialNumber>
-        <modelName>fujinet</modelName>
-        <modelNumber><%FN_HARDWARE_VER%></modelNumber>
-        <modelURL>https://fujinet.online/shop/atari/fujinet-1-6/</modelURL>
-        <manufacturer>FujiNet</manufacturer>
+        <serialNumber>FNA8B3C214F90</serialNumber>
+        <modelName>FN ATARI 1.6.1</modelName>
+        <modelNumber>FN-A8B-1.6.1</modelNumber>
+        <modelURL>https://github.com/FujiNetWIFI/fujinet-platformio/wiki</modelURL>
+        <manufacturer>FujiNet Online</manufacturer>
         <manufacturerURL>https://fujinet.online/</manufacturerURL>
         <UDN>uuid:<%FN_UUID%></UDN>
     </device> 

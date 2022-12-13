@@ -16,7 +16,6 @@
 #include "fnFsSPIFFS.h"
 
 #include "httpService.h"
-#include "SSDPDevice.h"
 
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
@@ -215,7 +214,6 @@ void fn_service_loop(void *param)
 #endif // BLUETOOTH_SUPPORT
 
             SYSTEM_BUS.service();
-            SSDPDevice.handleClient();
 
         taskYIELD(); // Allow other tasks to run
     }

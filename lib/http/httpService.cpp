@@ -16,6 +16,8 @@
 #include "httpServiceParser.h"
 #include "fuji.h"
 
+#include "SSDPDevice.h"
+
 using namespace std;
 
 // Global HTTPD
@@ -210,7 +212,7 @@ void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
 
 /* Send file content after parsing for replaceable strings
  */
-void fnHttpService::This send_file_parsed(httpd_req_t *req, const char *filename)
+void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
 {
     // Note that we don't add FNWS_FILE_ROOT as it should've been done in send_file()
     Debug_printf("Opening file for parsing: '%s'\n", filename);
@@ -1305,6 +1307,9 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         // Register URI handlers
         for (const httpd_uri_t uridef : uris)
             httpd_register_uri_handler(state.hServer, &uridef);
+
+        // Start SSDP Service
+        SSDPDevice.start();
     }
     else
     {

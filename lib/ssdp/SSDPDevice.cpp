@@ -10,6 +10,24 @@
 #include "fnWiFi.h"
 #include "IPAddress.h"
 
+SSDPDeviceClass SSDPDevice;
+
+static void ssdp_service_task(void* arg)
+{
+    while ( true ) 
+    {
+        SSDPDevice.service();
+        taskYIELD();
+    }
+}
+
+
+void SSDPDeviceClass::start()
+{
+    // Start task
+    xTaskCreatePinnedToCore(ssdp_service_task, "ssdp_service_task", 4096, NULL, 10, NULL, 0);
+}
+
 SSDPDeviceClass::SSDPDeviceClass() :
 	m_server(0),
 	m_port(80),
@@ -255,7 +273,7 @@ void SSDPDeviceClass::send(ssdp_send_parameters_t *parameters) {
 // 	return std::string(schema);
 // }
 
-void SSDPDeviceClass::handleClient() {
+void SSDPDeviceClass::service() {
 	IPAddress current = fnWiFi.localIP();
 
 	if (m_last != current) {
@@ -319,7 +337,8 @@ void SSDPDeviceClass::handleClient() {
 
 		m_server->flush();
 	}
-	else {
+	else 
+	{
 		unsigned long time = esp_timer_get_time();
 
 		for (int i = 0; i < SSDP_QUEUE_SIZE; i++) {
@@ -382,4 +401,4 @@ void SSDPDeviceClass::setTTL(const uint8_t ttl) {
 	m_ttl = ttl;
 }
 
-SSDPDeviceClass SSDPDevice;
+
