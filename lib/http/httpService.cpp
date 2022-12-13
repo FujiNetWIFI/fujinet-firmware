@@ -215,7 +215,8 @@ void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
 void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
 {
     // Note that we don't add FNWS_FILE_ROOT as it should've been done in send_file()
-    Debug_printf("Opening file for parsing: '%s'\n", filename);
+    if ( std::string(filename).find("device.xml") < 0 )
+        Debug_printf("Opening file for parsing: '%s'\n", filename);
 
     _fnwserr err = fnwserr_noerrr;
 
@@ -1260,18 +1261,18 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         },         
 #endif
         {
-            .uri = "/config",
-            .method = HTTP_POST,
-            .handler = post_handler_config,
+            .uri = "/device.xml",
+            .method = HTTP_GET,
+            .handler = get_handler_file_in_path,
             .user_ctx = NULL,
             .is_websocket = false,
             .handle_ws_control_frames = false,
             .supported_subprotocol = nullptr
         },
         {
-            .uri = "/device.xml",
-            .method = HTTP_GET,
-            .handler = get_handler_file_in_path,
+            .uri = "/config",
+            .method = HTTP_POST,
+            .handler = post_handler_config,
             .user_ctx = NULL,
             .is_websocket = false,
             .handle_ws_control_frames = false,

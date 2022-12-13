@@ -10,6 +10,8 @@
 #include "fnWiFi.h"
 #include "IPAddress.h"
 
+#include "../../include/debug.h"
+
 SSDPDeviceClass SSDPDevice;
 
 static void ssdp_service_task(void* arg)
