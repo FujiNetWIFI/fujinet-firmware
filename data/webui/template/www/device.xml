@@ -4,17 +4,16 @@
         <major>1</major>
         <minor>0</minor>
     </specVersion>
-    <URLBase><%FN_IPADDRESS%></URLBase>
     <device>
         <deviceType>urn:schemas-upnp-org:device:ManageableDevice:1</deviceType>
+        <UDN>uuid:<%FN_UUID%></UDN>
         <friendlyName>FujiNet (Multi-device emulator)</friendlyName>
-        <presentationURL>http://<%FN_IPADDRESS%></presentationURL>
-        <serialNumber>FNA8B3C214F90</serialNumber>
+        <manufacturer>FujiNet Online</manufacturer>
+        <manufacturerURL>https://fujinet.online/</manufacturerURL>
         <modelName>FN ATARI 1.6.1</modelName>
         <modelNumber>FN-A8B-1.6.1</modelNumber>
         <modelURL>https://github.com/FujiNetWIFI/fujinet-platformio/wiki</modelURL>
-        <manufacturer>FujiNet Online</manufacturer>
-        <manufacturerURL>https://fujinet.online/</manufacturerURL>
-        <UDN>uuid:<%FN_UUID%></UDN>
+        <serialNumber>FNA8B3C214F90</serialNumber>
+        <presentationURL>http://<%FN_IPADDRESS%></presentationURL>
     </device> 
 </root>
