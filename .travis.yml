@@ -36,6 +36,8 @@ cache:
 install:
     - cp platformio-sample.ini platformio.ini
     - pip install -U platformio
+    - pip install Jinja2
+    - pip install pyyaml
     - platformio update
 
 script:

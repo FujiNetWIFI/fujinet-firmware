@@ -49,6 +49,7 @@ protected:
     char disk_num;
 
 public:
+    uint8_t blank_header_type = 0; // unadorned by default.
     iwmDisk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();

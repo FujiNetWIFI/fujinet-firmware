@@ -26,6 +26,8 @@ public:
                 return sioPrinter::printer_model_str[sioPrinter::PRINTER_HTML];
             #elif BUILD_CBM
                 return iecPrinter::printer_model_str[iecPrinter::PRINTER_HTML];
+            #elif BUILD_APPLE
+                return iwmPrinter::printer_model_str[iwmPrinter::PRINTER_HTML];
             #elif BUILD_ADAM
                 return adamPrinter::printer_model_str[adamPrinter::PRINTER_HTML];
             #elif NEW_TARGET
