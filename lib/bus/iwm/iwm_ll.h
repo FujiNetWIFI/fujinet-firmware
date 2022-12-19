@@ -7,7 +7,8 @@
 
 #include "../../include/pinmap.h"
 
-#define SPI_BUFFER_LEN      6000 // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
+#define SPI_TX_LEN          25000 // 200 ms at 1 mbps for disk ii
+#define SPI_RX_LEN          6000 // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define BLOCK_PACKET_LEN    604 //606
 
 #define PACKET_TYPE_CMD 0x80
@@ -70,8 +71,7 @@ private:
   bool iwm_req_val() { return (GPIO.in1.val & (0x01 << (SP_REQ-32))); };
   void iwm_extra_set();
   void iwm_extra_clr();
-  bool iwm_enable_val();
-
+  
   // SPI data handling
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
@@ -104,6 +104,7 @@ public:
   bool req_wait_for_falling_timeout(int t);
   bool req_wait_for_rising_timeout(int t);
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
+  uint8_t iwm_enable_states();
 
   // Smartport Bus handling by SPI interface
   void encode_spi_packet();
