@@ -57,11 +57,13 @@
 #define SP_TYPE_BYTE_FUJINET_NETWORK 0x11
 #define SP_TYPE_BYTE_FUJINET_CPM 0x12
 #define SP_TYPE_BYTE_FUJINET_CLOCK 0x13
+#define SP_TYPE_BYTE_FUJINET_PRINTER 0x14
 
 #define SP_SUBTYPE_BYTE_FUJINET 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_CPM 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_CLOCK 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_PRINTER 0x00
 
 #define IWM_CTRL_RESET 0x00
 #define IWM_CTRL_SET_DCB 0x01
@@ -276,6 +278,7 @@ protected:
 
   void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
   void iwm_return_ioerror();
+  void iwm_return_noerror();
 
 public:
   bool device_active;
@@ -300,7 +303,7 @@ public:
 class iwmBus
 {
 private:
-  std::forward_list<iwmDevice *> _daisyChain;
+
 
   iwmDevice *_activeDev = nullptr;
 
@@ -332,15 +335,19 @@ private:
   void iwm_ack_deassert();
   void iwm_ack_assert();
   bool iwm_req_deassert_timeout(int t) { return smartport.req_wait_for_falling_timeout(t); };
-  // bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
+  bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
 
-  cmdPacket_t command_packet;
+
   bool verify_cmdpkt_checksum(void);
   iwm_decoded_cmd_t command;
 
   void handle_init(); 
 
 public:
+  std::forward_list<iwmDevice *> _daisyChain;
+  
+  cmdPacket_t command_packet;
+  bool inCriticalSection = false;
   bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
    int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
  

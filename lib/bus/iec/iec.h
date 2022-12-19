@@ -136,7 +136,8 @@ protected:
 
     int _device_id;
 
-    virtual void _process(uint32_t commanddata, uint8_t checksum) = 0;
+    virtual void iec_status() = 0;
+    virtual void iec_process(uint32_t commanddata, uint8_t checksum) = 0;
 
 	// Reset device
 	virtual void reset(void);

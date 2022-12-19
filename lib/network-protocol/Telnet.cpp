@@ -34,22 +34,13 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
         return;
     }
 
-    Debug_printf("_event_handler(%d)\n", ev->type);
-
     switch (ev->type)
     {
     case TELNET_EV_DATA: // Received Data
         *receiveBuffer += string(ev->data.buffer, ev->data.size);
         protocol->newRxLen = receiveBuffer->size();
-        Debug_printf("Received TELNET DATA: %s\n", receiveBuffer->c_str());
         break;
     case TELNET_EV_SEND:
-        Debug_printf("Sending: ");
-        for (int i = 0; i < ev->data.size; i++)
-        {
-            Debug_printf("%02x ", ev->data.buffer[i]);
-        }
-        Debug_printf("\n");
         protocol->flush(ev->data.buffer, ev->data.size);
         break;
     case TELNET_EV_WILL:

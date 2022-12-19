@@ -735,6 +735,7 @@ void iwmFuji::iwm_ctrl_new_disk()
     int idx = 0;
     uint8_t hs = data_buffer[idx++]; //adamnet_recv();
     uint8_t ds = data_buffer[idx++]; //adamnet_recv();
+    uint8_t t = data_buffer[idx++]; // added for apple2;
     uint32_t numBlocks;
     uint8_t *c = (uint8_t *)&numBlocks;
     uint8_t p[256];
@@ -763,6 +764,7 @@ void iwmFuji::iwm_ctrl_new_disk()
 
     Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
+    disk.disk_dev.blank_header_type = t;
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
     fclose(disk.fileh);
@@ -1262,6 +1264,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
       break;
     case IWM_CTRL_RESET:    // 0x00
     case FUJICMD_RESET: // 0xFF
+      send_reply_packet(err_result); 
       iwm_ctrl_reset_fujinet();
       break;
     // case FUJICMD_GET_SSID:               // 0xFE

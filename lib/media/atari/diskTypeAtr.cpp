@@ -160,9 +160,10 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
             fclose(hsFileh);
 
         _disk_fileh = oldFileh;
+        _disk_last_sector = INVALID_SECTOR_VALUE; // force a cache invalidate.
     }
-
-    _disk_last_sector = sectornum;
+    else
+        _disk_last_sector = sectornum;
 
     return false;
 }

@@ -208,7 +208,9 @@ void iwmNetwork::close()
  */
 void iwmNetwork::get_prefix()
 {
-    // RE-implement
+    Debug_printf("iwmNetwork::get_prefix(%s)\n",prefix.c_str());
+    memcpy(data_buffer,prefix.c_str(),prefix.length());
+    data_len = prefix.length();
 }
 
 /**
@@ -265,7 +267,9 @@ void iwmNetwork::set_prefix()
  */
 void iwmNetwork::set_login()
 {
+    login.clear();
     login = string((char *)data_buffer, 256);
+    Debug_printf("Login is %s\n",login.c_str());
 }
 
 /**
@@ -273,7 +277,9 @@ void iwmNetwork::set_login()
  */
 void iwmNetwork::set_password()
 {
+    password.clear();
     password = string((char *)data_buffer, 256);
+    Debug_printf("Password is %s\n",password.c_str());
 }
 
 void iwmNetwork::del()
@@ -515,6 +521,11 @@ void iwmNetwork::status()
         break;
     }
 
+    Debug_printf("Bytes Waiting: %u, Connected: %u, Error: %u\n",s.rxBytesWaiting,s.connected,s.error);
+
+    if (s.rxBytesWaiting > 512)
+        s.rxBytesWaiting = 512;
+    
     data_buffer[0] = s.rxBytesWaiting & 0xFF;
     data_buffer[1] = s.rxBytesWaiting >> 8;
     data_buffer[2] = s.connected;
@@ -540,6 +551,9 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     case IWM_STATUS_DIB: // 0x03
         send_status_dib_reply_packet();
         return;
+        break;
+    case '0':
+        get_prefix();
         break;
     case 'R':
         net_read();

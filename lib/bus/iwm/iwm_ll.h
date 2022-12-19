@@ -15,6 +15,9 @@
 #define PACKET_TYPE_STATUS 0x81
 #define PACKET_TYPE_DATA 0x82
 
+extern volatile uint8_t _phases;
+extern volatile bool sp_command_mode;
+
 enum class iwm_packet_type_t
 {
   cmd = PACKET_TYPE_CMD,
