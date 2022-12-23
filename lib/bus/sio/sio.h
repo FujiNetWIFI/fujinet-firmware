@@ -290,6 +290,9 @@ public:
     bool getUltraHighEnabled() { return useUltraHigh; }
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; }
 
+    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
+
     sioCassette *getCassette() { return _cassetteDev; }
     sioPrinter *getPrinter() { return _printerdev; }
     sioCPM *getCPM() { return _cpmDev; }
