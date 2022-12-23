@@ -209,6 +209,7 @@ void iwmNetwork::close()
 void iwmNetwork::get_prefix()
 {
     Debug_printf("iwmNetwork::get_prefix(%s)\n",prefix.c_str());
+    memset(data_buffer,0,sizeof(data_buffer));
     memcpy(data_buffer,prefix.c_str(),prefix.length());
     data_len = prefix.length();
 }
