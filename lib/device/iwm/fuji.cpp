@@ -1264,6 +1264,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
       break;
     case IWM_CTRL_RESET:    // 0x00
     case FUJICMD_RESET: // 0xFF
+      send_reply_packet(err_result); 
       iwm_ctrl_reset_fujinet();
       break;
     // case FUJICMD_GET_SSID:               // 0xFE
