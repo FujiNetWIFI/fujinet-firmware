@@ -729,6 +729,8 @@ void iwmBus::disableDevice(uint8_t device_id)
 // Give devices an opportunity to clean up before a reboot
 void iwmBus::shutdown()
 {
+    shuttingDown = true;
+
     for (auto devicep : _daisyChain)
     {
         Debug_printf("Shutting down device %02x\n",devicep->id());

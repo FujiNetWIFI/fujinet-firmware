@@ -315,6 +315,8 @@ void systemBus::setup()
 
 void systemBus::shutdown()
 {
+    shuttingDown = true;
+
     for (auto devicep : _daisyChain)
     {
         Debug_printf("Shutting down device %02x\n", devicep.second->id());

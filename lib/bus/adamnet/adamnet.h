@@ -264,6 +264,9 @@ public:
     void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
     bool deviceEnabled(uint8_t device_id);
     QueueHandle_t qAdamNetMessages = nullptr;
+
+    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
 };
 
 extern systemBus AdamNet;
