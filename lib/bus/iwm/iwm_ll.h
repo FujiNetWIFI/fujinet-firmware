@@ -7,8 +7,8 @@
 
 #include "../../include/pinmap.h"
 
-#define SPI_TX_LEN          25000 // 200 ms at 1 mbps for disk ii
-#define SPI_RX_LEN          6000 // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
+#define SPI_II_LEN 25000        // 200 ms at 1 mbps for disk ii
+#define SPI_SP_LEN 6000         // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define BLOCK_PACKET_LEN    604 //606
 
 #define PACKET_TYPE_CMD 0x80
@@ -104,7 +104,6 @@ public:
   bool req_wait_for_falling_timeout(int t);
   bool req_wait_for_rising_timeout(int t);
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
-  uint8_t iwm_enable_states();
 
   // Smartport Bus handling by SPI interface
   void encode_spi_packet();
@@ -123,7 +122,32 @@ public:
   void setup_gpio();
 };
 
+class iwm_diskii_ll
+{
+private:
+  // SPI data handling
+  uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
+  uint16_t spi_len;
+  spi_device_handle_t spi;
+  int fspi;
+  spi_transaction_t trans[5];
+
+public:
+  // Phase lines and ACK handshaking
+  uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
+  uint8_t iwm_enable_states();
+
+  // Smartport Bus handling by SPI interface
+  void setup_spi(int bit_ns, int chiprate);
+  void encode_spi_packet(uint8_t *track, int tracklen, int chiprate);
+  void iwm_prepare_track_spi();
+  void iwm_queue_track_spi();
+  void iwm_queue_track_spi(int i);
+  void spi_end(int i);
+};
+
 extern iwm_sp_ll smartport;
+extern iwm_diskii_ll diskii_xface;
 
 #endif // IWM_LL_H
 #endif // BUILD_APPLE

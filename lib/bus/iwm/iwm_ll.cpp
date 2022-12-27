@@ -51,10 +51,11 @@ inline void iwm_sp_ll::iwm_extra_clr()
 #endif
 }
 
-uint8_t iwm_sp_ll::iwm_enable_states()
+uint8_t iwm_diskii_ll::iwm_enable_states()
 {
   uint8_t states = 0;
-  
+
+  // what algorithm is this? I don't know what I did.
   states |= (GPIO.in1.val & (SP_DRIVE1-32)) >> (SP_DRIVE1-32-0);
   states |= (GPIO.in & SP_DRIVE2) >> (SP_DRIVE2-1);
   states |= (GPIO.in1.val & (SP_EN35-32)) >> (SP_EN35-32-2);
@@ -66,7 +67,7 @@ uint8_t iwm_sp_ll::iwm_enable_states()
 void IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
-  memset(spi_buffer, 0, SPI_TX_LEN);
+  memset(spi_buffer, 0, SPI_SP_LEN);
   // loop through "l" bytes of the buffer "packet_buffer"
   uint16_t i=0,j=0;
   while(packet_buffer[i])
@@ -193,8 +194,8 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   */
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
-  
-  memset(spi_buffer, 0xff , SPI_RX_LEN);
+
+  memset(spi_buffer, 0xff, SPI_SP_LEN);
   memset(&rxtrans, 0, sizeof(spi_transaction_t));
   rxtrans.flags = 0; 
   rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
@@ -367,33 +368,33 @@ void iwm_sp_ll::setup_spi()
 
   esp_err_t ret; // used for calling SPI library functions below
 
-  spi_buffer=(uint8_t*)heap_caps_malloc(SPI_TX_LEN, MALLOC_CAP_DMA); // allocate enough for Disk][ TX but also use this buffer for SPI RX
+  spi_buffer = (uint8_t *)heap_caps_malloc(SPI_SP_LEN, MALLOC_CAP_DMA); //  use this buffer for SPI RX
 
   spi_device_interface_config_t devcfg = {
-      .mode = 0,                   // SPI mode 0
-      .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-      .cs_ena_pretrans = 0,        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
-      .cs_ena_posttrans = 0,       ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
+      .mode = 0,                         // SPI mode 0
+      .duty_cycle_pos = 0,               ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+      .cs_ena_pretrans = 0,              ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
+      .cs_ena_posttrans = 0,             ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
       .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
       .input_delay_ns = 0,
-      .spics_io_num = -1,                // CS pin
-      .queue_size = 5                    // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
+      .spics_io_num = -1, // CS pin
+      .queue_size = 2     // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
   };
 
-    // use same SPI as SDCARD
-    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+  // use same SPI as SDCARD
+  ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
 
   assert(ret == ESP_OK);
 
-// SPI for receiving packets - sprirx
-// use different SPI than SDCARD
+  // SPI for receiving SP packets - sprirx
+  // use different SPI than SDCARD
   spi_bus_config_t bus_cfg = {
       .mosi_io_num = -1,
       .miso_io_num = SP_WRDATA,
       .sclk_io_num = -1,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = SPI_RX_LEN,
+      .max_transfer_sz = SPI_SP_LEN,
       .flags = SPICOMMON_BUSFLAG_MASTER,
       .intr_flags = 0};
   spi_device_interface_config_t rxcfg = {
@@ -609,6 +610,139 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   return numdata;
 }
 
+void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int chiprate)
+{
+  // fix up for DISK II emulation:
+  // make spi buffer bigger based on chip rate
+  // pass pointer to track data instead of using packet_buffer
+
+  // clear out spi buffer
+  memset(spi_buffer, 0, SPI_II_LEN);
+  // loop through "l" bytes of the buffer "packet_buffer"
+  uint16_t i = 0, j = 0;
+  for (i = 0; i < tracklen; i++)
+  {
+    // Debug_printf("\r\nByte %02X: ",packet_buffer[i]);
+    // for each byte, loop through 4 x 2-bit pairs
+    uint8_t mask = 0x80;
+    for (int k = 0; k < 4; k++)
+    {
+      if (track[i] & mask)
+      {
+        spi_buffer[j] |= 0x40;
+      }
+      mask >>= 1;
+      if (track[i] & mask)
+      {
+        spi_buffer[j] |= 0x04;
+      }
+      mask >>= 1;
+      // Debug_printf("%02x",spi_buffer[j]);
+      j++;
+    }
+    i++;
+  }
+  spi_len = --j;
+}
+
+void iwm_diskii_ll::setup_spi(int bit_ns, int chiprate)
+{
+  esp_err_t ret; // used for calling SPI library functions below
+  int spi_buffer_len;
+
+  // compute length of 1 track in chips
+  // 200 milleseconds
+  // 1 bit in nanoseconds (usually about 4000)
+  // number of chips per bit (usually 4)
+  spi_buffer_len = 200 * 1000 * 1000 * chiprate / bit_ns / 8;
+  spi_len = spi_buffer_len;
+  spi_buffer = (uint8_t *)heap_caps_malloc(spi_buffer_len, MALLOC_CAP_DMA);
+
+  spi_device_interface_config_t devcfg = {
+      .mode = 0,                                                // SPI mode 0
+      .duty_cycle_pos = 0,                                      ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+      .cs_ena_pretrans = 0,                                     ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
+      .cs_ena_posttrans = 0,                                    ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
+      .clock_speed_hz = chiprate * 1000 * 1000 * 1000 / bit_ns, // Clock out at 1 MHz
+      .input_delay_ns = 0,
+      .spics_io_num = -1, // CS pin
+      .queue_size = 5     // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
+  };
+
+  // use same SPI as SDCARD
+  ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+
+  assert(ret == ESP_OK);
+
+  // SPI for receiving SP packets - sprirx
+  // use different SPI than SDCARD
+  /*   spi_bus_config_t bus_cfg = {
+        .mosi_io_num = -1,
+        .miso_io_num = SP_WRDATA,
+        .sclk_io_num = -1,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = SPI_SP_LEN,
+        .flags = SPICOMMON_BUSFLAG_MASTER,
+        .intr_flags = 0};
+    spi_device_interface_config_t rxcfg = {
+        .mode = 0, // SPI mode 0
+        .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+        .cs_ena_pretrans = 0,
+        .cs_ena_posttrans = 0,
+        .clock_speed_hz = f_spirx, // f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
+        .input_delay_ns = 0,
+        .spics_io_num = -1,        // CS pin
+        .flags = SPI_DEVICE_HALFDUPLEX,
+        .queue_size = 1};          // We want to be able to queue 7 transactions at a time
+
+    ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+    assert(ret == ESP_OK);
+    ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
+    assert(ret == ESP_OK);
+   */
+}
+
+void iwm_diskii_ll::iwm_prepare_track_spi()
+{
+  // i think i need 5 transactions so i can queue them up all at once
+  // then i need to figure out how to see when they each end and re-queue them
+  esp_err_t ret;
+
+  for (int i = 0; i < 5; i++)
+  {
+    memset(&trans[i], 0, sizeof(spi_transaction_t));
+    trans[i].tx_buffer = spi_buffer; // finally send the line data
+    trans[i].length = spi_len * 8;   // Data length, in bits
+    trans[i].flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
+  }
+}
+
+void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi(int i)
+{
+  esp_err_t ret;
+  ret = spi_device_queue_trans(spi, &trans[i], portMAX_DELAY);
+  assert(ret == ESP_OK);
+}
+
+void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
+{
+  esp_err_t ret;
+  for (int i = 0; i < 5; i++)
+  {
+    ret = spi_device_queue_trans(spi, &trans[i], portMAX_DELAY);
+    assert(ret == ESP_OK);
+  }
+}
+
+void iwm_diskii_ll::spi_end(int i)
+{
+  esp_err_t ret;
+  spi_transaction_t *t = &trans[i];
+  ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
+}
+
 iwm_sp_ll smartport;
+iwm_diskii_ll diskii_xface;
 
 #endif
