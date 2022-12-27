@@ -447,11 +447,15 @@ void iwmBus::service()
     // start up the diskii process:
     // enable RDDATA
     // fill the SPI queue
-      return;
+    smartport.iwm_rddata_clr();
+    diskii_xface.iwm_prepare_track_spi();
+    return;
   case iwm_enable_state_t::on2off:
     // shut down the diskii process:
     // let the SPI queue run out,
     // then disable the RDDATA
+    diskii_xface.spi_end();
+    smartport.iwm_rddata_set();
     return;
   case iwm_enable_state_t::on:
     // maintain the diskii process:
@@ -581,7 +585,7 @@ void iwmBus::service()
 
 iwm_enable_state_t iwmBus::iwm_drive_enabled()
 {
-  uint8_t newstate = smartport.iwm_enable_states();
+  uint8_t newstate = diskii_xface.iwm_enable_states();
   iwm_enable_state_t ret = iwm_enable_state_t::off;
 
   if (enable_values != newstate)
