@@ -673,73 +673,57 @@ void iwm_diskii_ll::setup_spi(int bit_ns, int chiprate)
   ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
 
   assert(ret == ESP_OK);
-
-  // SPI for receiving SP packets - sprirx
-  // use different SPI than SDCARD
-  /*   spi_bus_config_t bus_cfg = {
-        .mosi_io_num = -1,
-        .miso_io_num = SP_WRDATA,
-        .sclk_io_num = -1,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = SPI_SP_LEN,
-        .flags = SPICOMMON_BUSFLAG_MASTER,
-        .intr_flags = 0};
-    spi_device_interface_config_t rxcfg = {
-        .mode = 0, // SPI mode 0
-        .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-        .cs_ena_pretrans = 0,
-        .cs_ena_posttrans = 0,
-        .clock_speed_hz = f_spirx, // f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
-        .input_delay_ns = 0,
-        .spics_io_num = -1,        // CS pin
-        .flags = SPI_DEVICE_HALFDUPLEX,
-        .queue_size = 1};          // We want to be able to queue 7 transactions at a time
-
-    ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
-    assert(ret == ESP_OK);
-    ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
-    assert(ret == ESP_OK);
-   */
 }
 
-void iwm_diskii_ll::iwm_prepare_track_spi()
+void iwm_diskii_ll::iwm_startup()
 {
-  // i think i need 5 transactions so i can queue them up all at once
-  // then i need to figure out how to see when they each end and re-queue them
   esp_err_t ret;
 
+  ret = spi_device_acquire_bus(spi, portMAX_DELAY);
+  assert(ret == ESP_OK);
+
+  iwm_rddata_clr();
+  // TODO: change this to a FIFO queue with push and pop or whatever the right operations are
   for (int i = 0; i < 5; i++)
   {
-    memset(&trans[i], 0, sizeof(spi_transaction_t));
-    trans[i].tx_buffer = spi_buffer; // finally send the line data
-    trans[i].length = spi_len * 8;   // Data length, in bits
-    trans[i].flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
+    iwm_queue_track_spi();
   }
 }
 
-void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi(int i)
+void iwm_diskii_ll::iwm_terminate()
 {
-  esp_err_t ret;
-  ret = spi_device_queue_trans(spi, &trans[i], portMAX_DELAY);
-  assert(ret == ESP_OK);
+  // TODO: change this to a FIFO queue with push and pop or whatever the right operations are
+  for (int i = 0; i < 5; i++)
+  {
+    spi_end();
+  }
+
+  iwm_rddata_set();
+
+  spi_device_release_bus(spi);
 }
 
 void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
 {
+  // TODO: change this to a FIFO queue with push and pop or whatever the right operations are
   esp_err_t ret;
-  for (int i = 0; i < 5; i++)
-  {
-    ret = spi_device_queue_trans(spi, &trans[i], portMAX_DELAY);
-    assert(ret == ESP_OK);
-  }
+  spi_transaction_t mytrans;
+  memset(&mytrans, 0, sizeof(spi_transaction_t));
+  mytrans.tx_buffer = spi_buffer; // finally send the line data
+  mytrans.length = spi_len * 8;   // Data length, in bits
+  mytrans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
+  trans.push(mytrans);
+  ret = spi_device_queue_trans(spi, &trans.back(), portMAX_DELAY);
+  assert(ret == ESP_OK);
 }
 
-void iwm_diskii_ll::spi_end(int i)
+void iwm_diskii_ll::spi_end()
 {
+  // TODO: change this to a FIFO queue with push and pop or whatever the right operations are
   esp_err_t ret;
-  spi_transaction_t *t = &trans[i];
+  spi_transaction_t *t = &trans.front();
   ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
+  trans.pop();
 }
 
 iwm_sp_ll smartport;

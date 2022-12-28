@@ -2,6 +2,7 @@
 #ifndef IWM_LL_H
 #define IWM_LL_H
 
+#include <queue>
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
 
@@ -130,7 +131,10 @@ private:
   uint16_t spi_len;
   spi_device_handle_t spi;
   int fspi;
-  spi_transaction_t trans[5];
+  std::queue<spi_transaction_t> trans;
+
+  void iwm_rddata_set() { GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); }; // make RDDATA go hi-z through the tri-state
+  void iwm_rddata_clr() { GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); }; // enable the tri-state buffer activating RDDATA
 
 public:
   // Phase lines and ACK handshaking
@@ -140,10 +144,10 @@ public:
   // Smartport Bus handling by SPI interface
   void setup_spi(int bit_ns, int chiprate);
   void encode_spi_packet(uint8_t *track, int tracklen, int chiprate);
-  void iwm_prepare_track_spi();
+  void iwm_startup();
+  void iwm_terminate();
   void iwm_queue_track_spi();
-  void iwm_queue_track_spi(int i);
-  void spi_end(int i);
+  void spi_end();
 };
 
 extern iwm_sp_ll smartport;
