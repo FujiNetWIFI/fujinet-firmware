@@ -51,19 +51,6 @@ inline void iwm_sp_ll::iwm_extra_clr()
 #endif
 }
 
-uint8_t iwm_diskii_ll::iwm_enable_states()
-{
-  uint8_t states = 0;
-
-  // what algorithm is this? I don't know what I did.
-  states |= (GPIO.in1.val & (SP_DRIVE1-32)) >> (SP_DRIVE1-32-0);
-  states |= (GPIO.in & SP_DRIVE2) >> (SP_DRIVE2-1);
-  states |= (GPIO.in1.val & (SP_EN35-32)) >> (SP_EN35-32-2);
-  states |= (GPIO.in & SP_HDSEL) >> (SP_HDSEL - 3);
-
-  return states;
-}
-
 void IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
@@ -675,6 +662,18 @@ void iwm_diskii_ll::setup_spi(int bit_ns, int chiprate)
   assert(ret == ESP_OK);
 }
 
+uint8_t iwm_diskii_ll::iwm_enable_states()
+{
+  uint8_t states = 0;
+
+  states |= (GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32 - 0);
+  states |= (GPIO.in & (0x01 << SP_DRIVE2)) >> (SP_DRIVE2 - 1);
+  states |= (GPIO.in1.val & (0x01 << (SP_EN35 - 32))) >> (SP_EN35 - 32 - 2);
+  states |= (GPIO.in & (0x01 << SP_HDSEL)) >> (SP_HDSEL - 3);
+
+  return states;
+}
+
 void iwm_diskii_ll::iwm_startup()
 {
   esp_err_t ret;
@@ -683,7 +682,6 @@ void iwm_diskii_ll::iwm_startup()
   assert(ret == ESP_OK);
 
   iwm_rddata_clr();
-  // TODO: change this to a FIFO queue with push and pop or whatever the right operations are
   for (int i = 0; i < 5; i++)
   {
     iwm_queue_track_spi();
@@ -692,7 +690,6 @@ void iwm_diskii_ll::iwm_startup()
 
 void iwm_diskii_ll::iwm_terminate()
 {
-  // TODO: change this to a FIFO queue with push and pop or whatever the right operations are
   for (int i = 0; i < 5; i++)
   {
     spi_end();
@@ -705,7 +702,6 @@ void iwm_diskii_ll::iwm_terminate()
 
 void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
 {
-  // TODO: change this to a FIFO queue with push and pop or whatever the right operations are
   esp_err_t ret;
   spi_transaction_t mytrans;
   memset(&mytrans, 0, sizeof(spi_transaction_t));
@@ -719,7 +715,6 @@ void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
 
 void iwm_diskii_ll::spi_end()
 {
-  // TODO: change this to a FIFO queue with push and pop or whatever the right operations are
   esp_err_t ret;
   spi_transaction_t *t = &trans.front();
   ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
