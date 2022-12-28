@@ -435,8 +435,6 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 //*****************************************************************************
 void iwmBus::service()
 {
-  // iwm_ack_deassert(); // go hi-Z
-
   // check on the diskii status
   switch (iwm_drive_enabled())
   {
@@ -445,17 +443,11 @@ void iwmBus::service()
     break;
   case iwm_enable_state_t::off2on:
     // start up the diskii process:
-    // enable RDDATA
-    // fill the SPI queue
-    smartport.iwm_rddata_clr();
-    diskii_xface.iwm_prepare_track_spi();
+    diskii_xface.iwm_startup();
     return;
   case iwm_enable_state_t::on2off:
     // shut down the diskii process:
-    // let the SPI queue run out,
-    // then disable the RDDATA
-    diskii_xface.spi_end();
-    smartport.iwm_rddata_set();
+    diskii_xface.iwm_terminate();
     return;
   case iwm_enable_state_t::on:
     // maintain the diskii process:
