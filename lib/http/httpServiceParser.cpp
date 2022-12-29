@@ -100,6 +100,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_ERRMSG,
         FN_HARDWARE_VER,
         FN_PRINTER_LIST,
+        FN_ENCRYPT_PASSPHRASE_ENABLED,
         FN_LASTTAG
     };
 
@@ -184,7 +185,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST8PREFIX",
         "FN_ERRMSG",
         "FN_HARDWARE_VER",
-        "FN_PRINTER_LIST"
+        "FN_PRINTER_LIST",
+        "FN_ENCRYPT_PASSPHRASE_ENABLED"
     };
 
     stringstream resultstream;
@@ -471,6 +473,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             } else
                 resultstream << "Insufficent memory";
         }
+        break;
+    case FN_ENCRYPT_PASSPHRASE_ENABLED:
+        resultstream << Config.get_general_encrypt_passphrase();
         break;
     default:
         resultstream << tag;

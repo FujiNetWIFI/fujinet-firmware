@@ -2,6 +2,8 @@
 #define _FN_CONFIG_H
 
 #include "printer.h"
+#include "crypt.h"
+#include "../../include/debug.h"
 
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8
@@ -73,13 +75,23 @@ public:
     void store_general_fnconfig_spifs(bool fnconfig_spifs);
     bool get_general_status_wait_enabled() { return _general.status_wait_enabled; }
     void store_general_status_wait_enabled(bool status_wait_enabled);
+    void store_general_encrypt_passphrase(bool encrypt_passphrase);
+    bool get_general_encrypt_passphrase();
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
 
     // WIFI
     bool have_wifi_info() { return _wifi.ssid.empty() == false; };
     std::string get_wifi_ssid() { return _wifi.ssid; };
-    std::string get_wifi_passphrase() { return _wifi.passphrase; };
+    std::string get_wifi_passphrase() {
+        if (_general.encrypt_passphrase) {
+            // crypt is a isomorphic operation, calling it when passphrase is encrypted will decrypt it.
+            Debug_println("Decrypting passphrase");
+            return crypto.crypt(_wifi.passphrase);
+        } else {
+            return _wifi.passphrase;
+        }
+    }
     void store_wifi_ssid(const char *ssid_octets, int num_octets);
     void store_wifi_passphrase(const char *passphrase_octets, int num_octets);
     void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); };
@@ -283,6 +295,7 @@ private:
         int boot_mode = 0;
         bool fnconfig_spifs = true;
         bool status_wait_enabled = true;
+        bool encrypt_passphrase = false;
     #ifdef BUILD_ADAM
         bool printer_enabled = false; // Not by default.
     #else
