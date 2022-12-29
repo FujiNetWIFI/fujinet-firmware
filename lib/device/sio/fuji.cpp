@@ -228,6 +228,7 @@ void sioFuji::sio_net_set_ssid()
         if (save)
         {
             Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+            // Clear text here, it will be encrypted internally
             Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
             Config.save();
         }
@@ -1539,6 +1540,8 @@ void sioFuji::setup(systemBus *siobus)
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
+
+    
 }
 
 sioDisk *sioFuji::bootdisk()
