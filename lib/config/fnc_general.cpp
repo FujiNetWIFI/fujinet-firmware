@@ -54,9 +54,16 @@ void fnConfig::store_general_encrypt_passphrase(bool encrypt_passphrase)
     // It changed, so either we were encrypting before and it needs decrypting, or v.v.
     // Either way, we will simply reverse the buffer, as enc/dec are isomorphic
     _wifi.passphrase = crypto.crypt(_wifi.passphrase);
-    // Debug_printf("fnConfig::store_general_encrypt_passphrase passphrase is now: >%s<\n", _wifi.passphrase.c_str());
-    // Debug_printf("fnConfig::store_general_encrypt_passphrase setting _general.encrypt_passphrase to %d\n", encrypt_passphrase);
     _general.encrypt_passphrase = encrypt_passphrase;
+
+    // Do the same to any enabled stored wifi configs
+    for (int i = 0; i < MAX_WIFI_STORED; i++)
+    {
+        if (_wifi_stored[i].enabled) {
+            _wifi_stored[i].passphrase = crypto.crypt(_wifi_stored[i].passphrase);
+        }
+    }
+
     _dirty = true;
     
 }
