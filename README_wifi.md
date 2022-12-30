@@ -6,9 +6,9 @@ In the WiFi UI configuration is an option to enable wifi passphrase encryptiong.
 
 The option will enable/disable wifi passphrase encryption with a key unique to the FUJINET device and offers protection from observation of passphrases in INI files.
 
-The encryption routine is taken from https://github.com/torvalds/uemacs 'micro emacs' and is isomorphic (encrypt/decrypt are mirror functions), as well as giving characters in the ascii domain to ensure no binary gets in the INI file.
+The encryption routine is taken from <https://github.com/torvalds/uemacs> 'micro emacs' and is isomorphic (encrypt/decrypt are mirror functions), as well as giving characters in the ascii domain to ensure no binary gets in the INI file.
 
-# Recovering default state (if shit happens)
+## Recovering default state (if shit happens)
 
 If you somehow change the MAC address of your FUJINET and want to reset back to normal, you can either reset your config (Power ON + B), or change the global `encrypt_passphrase` value back to 0, and using clear text for the passphrase in the INI file, as shown below:
 
@@ -23,8 +23,10 @@ passphrase=your_plaintext_here
 ```
 
 ## Console Monitor Output
+
 Output in serial monitor will show the decryption in action, for example:
-```
+
+```text
 11:15:12.979 > WiFiManager::start() complete
 11:15:13.065 > WIFI_EVENT_STA_START
 11:15:13.065 > Decrypting passphrase

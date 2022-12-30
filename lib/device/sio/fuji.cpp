@@ -204,6 +204,7 @@ void sioFuji::sio_net_get_ssid()
 void sioFuji::sio_net_set_ssid()
 {
     Debug_println("Fuji cmd: SET SSID");
+    int i;
 
     // Data for  FUJICMD_SET_SSID
     struct
@@ -227,9 +228,61 @@ void sioFuji::sio_net_set_ssid()
         // Only save these if we're asked to, otherwise assume it was a test for connectivity
         if (save)
         {
+            // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
+            // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
+            // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
+
+            int ssid_in_stored = -1;
+            for (i = 0; i < MAX_WIFI_STORED; i++)
+            {
+                if (Config.get_wifi_stored_ssid(i) == cfg.ssid)
+                {
+                    ssid_in_stored = i;
+                    break;
+                }
+            }
+
+            // case 1
+            if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+                Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
+                // Move enabled stored down one, last one will drop off
+                for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
+                {
+                    bool enabled = Config.get_wifi_stored_enabled(j - 1);
+                    if (!enabled) continue;
+
+                    Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
+                    Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
+                    Config.store_wifi_stored_enabled(j, true); // already confirmed this is enabled
+                }
+                // push the current to the top of stored
+                Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
+                Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
+                Config.store_wifi_stored_enabled(0, true);
+            }
+
+            // case 2
+            if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+                Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\n", ssid_in_stored);
+                // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
+                for (int j = ssid_in_stored; j > 0; j--)
+                {
+                    Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
+                    Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
+                    Config.store_wifi_stored_enabled(j, true);
+                }
+
+                // push the current to the top of stored
+                Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
+                Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
+                Config.store_wifi_stored_enabled(0, true);
+            }
+
+            // save the new SSID as current
             Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-            // Clear text here, it will be encrypted internally
+            // Clear text here, it will be encrypted internally if enabled for encryption
             Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+
             Config.save();
         }
 

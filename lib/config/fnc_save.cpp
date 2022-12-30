@@ -11,6 +11,7 @@
 */
 void fnConfig::save()
 {
+    int i;
 
     Debug_println("fnConfig::save");
 
@@ -39,13 +40,26 @@ void fnConfig::save()
     ss << "printer_enabled=" << _general.printer_enabled << LINETERM;
     ss << "encrypt_passphrase=" << _general.encrypt_passphrase << LINETERM;
 
-    ss << LINETERM;
+    // ss << LINETERM;
 
     // WIFI
     ss << LINETERM << "[WiFi]" LINETERM;
     ss << "enabled=" << _wifi.enabled << LINETERM;
     ss << "SSID=" << _wifi.ssid << LINETERM;
     ss << "passphrase=" << _wifi.passphrase << LINETERM;
+
+    // WIFI STORED
+    for (i = 0; i < MAX_WIFI_STORED; i++)
+    {
+        if (_wifi_stored[i].enabled)
+        {
+            ss << LINETERM << "[WiFiStored" << (i + 1) << "]" LINETERM;
+            ss << "SSID=" << _wifi_stored[i].ssid << LINETERM;
+            ss << "passphrase=" << _wifi_stored[i].passphrase << LINETERM;
+        }
+        else
+            break;
+    }
 
     // BLUETOOTH
     ss << LINETERM << "[Bluetooth]" LINETERM;
@@ -58,7 +72,6 @@ void fnConfig::save()
     ss << "sntpserver=" << _network.sntpserver << LINETERM;
 
     // HOSTS
-    int i;
     for (i = 0; i < MAX_HOST_SLOTS; i++)
     {
         if (_host_slots[i].type != HOSTTYPE_INVALID)

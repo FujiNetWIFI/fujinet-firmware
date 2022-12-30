@@ -7,16 +7,25 @@
 #include <esp_wifi.h>
 
 #include <string>
+#include <vector>
 
-
-#define FNWIFI_RECONNECT_RETRIES 8
+#define FNWIFI_RECONNECT_RETRIES 4
 #define FNWIFI_SCAN_RESULTS_MAX 20
 #define FNWIFI_BIT_CONNECTED BIT0
+
+// using namespace std;
 
 class WiFiManager
 {
 private:
-    bool _started = false;
+     struct stored_wifi
+    {
+        char ssid[MAX_SSID_LEN+1];
+        int index;
+        // bool enabled;
+    };
+
+   bool _started = false;
     bool _connected = false;
     std::string _ssid;
     std::string _password;
@@ -26,6 +35,7 @@ private:
     wifi_ap_record_t * _scan_records = nullptr;
     uint16_t _scan_record_count = 0;
     bool _scan_in_progress = false;
+    bool _disconnecting = false;
 
     uint16_t _reconnect_attempts = 0;
 
@@ -35,6 +45,16 @@ private:
                                     int32_t event_id, void *event_data);
     EventGroupHandle_t _wifi_event_group;
     int remove_duplicate_scan_results(wifi_ap_record_t scan_records[], uint16_t record_count);
+
+    bool _trying_stored = false;
+    uint16_t _stored_index = 0;
+    bool _all_stored_failed = false;
+    uint16_t _common_index = 0;
+    std::vector<stored_wifi> _matched_wifis;
+
+    std::vector<std::string> get_network_names();
+    std::vector<stored_wifi> get_stored_wifis();
+    std::vector<stored_wifi> match_stored_with_network_wifis(std::vector<std::string> network_names, std::vector<stored_wifi> stored_wifis);
 
 public:
     int retries;
