@@ -13,6 +13,11 @@ volatile bool sp_command_mode = false;
 
 void IRAM_ATTR phi_isr_handler(void *arg)
 {
+  // handle SP Command Packet or Disk ][ track changes
+  // maintain the diskii process:
+  // update the head position based on phases
+  // put the right track in the SPI buffer
+
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
   if (!sp_command_mode && (_phases == 0b1011))
   {
@@ -410,9 +415,9 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT);
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
-  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 
   // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
 
@@ -437,9 +442,9 @@ void iwm_sp_ll::setup_gpio()
   
   // attach the interrupt service routine
   gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, NULL);
-  //gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
- //gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
-  //gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
 }
 
 void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 
@@ -674,51 +679,44 @@ uint8_t iwm_diskii_ll::iwm_enable_states()
   return states;
 }
 
-void iwm_diskii_ll::iwm_startup()
-{
-  esp_err_t ret;
-
-  ret = spi_device_acquire_bus(spi, portMAX_DELAY);
-  assert(ret == ESP_OK);
-
-  iwm_rddata_clr();
-  for (int i = 0; i < 5; i++)
-  {
-    iwm_queue_track_spi();
-  }
-}
-
-void iwm_diskii_ll::iwm_terminate()
-{
-  for (int i = 0; i < 5; i++)
-  {
-    spi_end();
-  }
-
-  iwm_rddata_set();
-
-  spi_device_release_bus(spi);
-}
-
 void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
 {
   esp_err_t ret;
-  spi_transaction_t mytrans;
-  memset(&mytrans, 0, sizeof(spi_transaction_t));
-  mytrans.tx_buffer = spi_buffer; // finally send the line data
-  mytrans.length = spi_len * 8;   // Data length, in bits
-  mytrans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
-  trans.push(mytrans);
-  ret = spi_device_queue_trans(spi, &trans.back(), portMAX_DELAY);
-  assert(ret == ESP_OK);
+
+  if (trans.empty())
+  {
+    ret = spi_device_acquire_bus(spi, portMAX_DELAY);
+    assert(ret == ESP_OK);
+    iwm_rddata_clr();
+  }
+
+  while (trans.size() < 5)
+  {
+    spi_transaction_t mytrans;
+    memset(&mytrans, 0, sizeof(spi_transaction_t));
+    mytrans.tx_buffer = spi_buffer; // finally send the line data
+    mytrans.length = spi_len * 8;   // Data length, in bits
+    mytrans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
+    trans.push(mytrans);
+    ret = spi_device_queue_trans(spi, &trans.back(), portMAX_DELAY);
+    assert(ret == ESP_OK);
+  }
 }
 
 void iwm_diskii_ll::spi_end()
 {
+  if (trans.empty())
+    return;
+
   esp_err_t ret;
   spi_transaction_t *t = &trans.front();
   ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
   trans.pop();
+  if (trans.empty())
+  {
+    iwm_rddata_set();
+    spi_device_release_bus(spi);
+  }
 }
 
 iwm_sp_ll smartport;
