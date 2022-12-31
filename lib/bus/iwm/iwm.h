@@ -208,9 +208,9 @@ enum class iwm_fujinet_type_t
 enum class iwm_enable_state_t
 {
   off,
-  off2on,
-  on,
-  on2off
+  // off2on,
+  on
+  // on2off
 };
 
 struct iwm_device_info_block_t

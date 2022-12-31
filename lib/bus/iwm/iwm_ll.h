@@ -144,8 +144,6 @@ public:
   // Smartport Bus handling by SPI interface
   void setup_spi(int bit_ns, int chiprate);
   void encode_spi_packet(uint8_t *track, int tracklen, int chiprate);
-  void iwm_startup();
-  void iwm_terminate();
   void iwm_queue_track_spi();
   void spi_end();
 };
