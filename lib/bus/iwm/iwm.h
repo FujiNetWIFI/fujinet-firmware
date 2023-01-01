@@ -356,6 +356,10 @@ public:
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
+
+  bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+  bool getShuttingDown() { return shuttingDown; };
+
 };
 
 extern iwmBus IWM;

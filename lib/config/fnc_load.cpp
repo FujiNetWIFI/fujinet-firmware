@@ -7,6 +7,7 @@
 
 #include "keys.h"
 #include "utils.h"
+#include "crypt.h"
 
 #include "../../include/debug.h"
 
@@ -21,6 +22,7 @@ void fnConfig::load()
     // Don't erase config if there are no buttons or on devices without Button B
 #else
     // Clear the config file if key is currently pressed
+    // This is the "Turn on while holding B button to reset Config" option.
     if (fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {
         Debug_println("fnConfig deleting configuration file and skipping SD check");
@@ -31,6 +33,9 @@ void fnConfig::load()
         if (fnSPIFFS.exists(CONFIG_FILENAME))
             fnSPIFFS.remove(CONFIG_FILENAME);
 
+        // full reset, so set us as not encrypting
+        _general.encrypt_passphrase = false;
+        
         _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }
@@ -154,6 +159,7 @@ New behavior: copy from SD first if available, then read SPIFFS.
             break;
         }
     }
+
     _dirty = false;
 
     if (fnConfig::get_general_fnconfig_spifs() == true) // Only if spiffs is enabled

@@ -4,6 +4,7 @@
 #include "../../include/debug.h"
 
 #include "fnSystem.h"
+#include "bus.h"
 #include "fnUDP.h"
 
 #include "utils.h"
@@ -1229,6 +1230,12 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
             uint8_t current_sequence_num = pkt.sequence_num;
             do
             {
+                if (SYSTEM_BUS.getShuttingDown())
+                {
+                    Debug_println("TNFS Breakout due to Shutdown");
+                    return true; // false success just to get out
+                }
+
                 if (udp.parsePacket())
                 {
                     unsigned short l = udp.read(pkt.rawData, sizeof(pkt.rawData));
