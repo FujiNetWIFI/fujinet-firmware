@@ -37,6 +37,7 @@ void fnConfig::save()
     ss << "fnconfig_on_spifs=" << _general.fnconfig_spifs << LINETERM;
     ss << "status_wait_enabled=" << _general.status_wait_enabled << LINETERM;
     ss << "printer_enabled=" << _general.printer_enabled << LINETERM;
+    ss << "encrypt_passphrase=" << _general.encrypt_passphrase << LINETERM;
 
     ss << LINETERM;
 
@@ -44,7 +45,6 @@ void fnConfig::save()
     ss << LINETERM << "[WiFi]" LINETERM;
     ss << "enabled=" << _wifi.enabled << LINETERM;
     ss << "SSID=" << _wifi.ssid << LINETERM;
-    // TODO: Encrypt passphrase!
     ss << "passphrase=" << _wifi.passphrase << LINETERM;
 
     // BLUETOOTH

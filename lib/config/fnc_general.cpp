@@ -1,6 +1,7 @@
 #include "fnConfig.h"
 #include <cstring>
 #include "utils.h"
+#include "../../include/debug.h"
 
 void fnConfig::store_general_devicename(const char *devicename)
 {
@@ -44,6 +45,24 @@ void fnConfig::store_general_status_wait_enabled(bool status_wait_enabled)
 
     _general.status_wait_enabled = status_wait_enabled;
     _dirty = true;
+}
+void fnConfig::store_general_encrypt_passphrase(bool encrypt_passphrase)
+{
+    if (_general.encrypt_passphrase == encrypt_passphrase)
+        return;
+
+    // It changed, so either we were encrypting before and it needs decrypting, or v.v.
+    // Either way, we will simply reverse the buffer, as enc/dec are isomorphic
+    _wifi.passphrase = crypto.crypt(_wifi.passphrase);
+    // Debug_printf("fnConfig::store_general_encrypt_passphrase passphrase is now: >%s<\n", _wifi.passphrase.c_str());
+    // Debug_printf("fnConfig::store_general_encrypt_passphrase setting _general.encrypt_passphrase to %d\n", encrypt_passphrase);
+    _general.encrypt_passphrase = encrypt_passphrase;
+    _dirty = true;
+    
+}
+bool fnConfig::get_general_encrypt_passphrase()
+{
+    return _general.encrypt_passphrase;
 }
 void fnConfig::store_general_boot_mode(uint8_t boot_mode)
 {
@@ -130,6 +149,10 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "printer_enabled") == 0)
             {
                 _general.printer_enabled = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "encrypt_passphrase") == 0)
+            {
+                _general.encrypt_passphrase = util_string_value_is_true(value);
             }
         }
     }
