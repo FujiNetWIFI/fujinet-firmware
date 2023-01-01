@@ -25,6 +25,8 @@
 #include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
 #endif
 
+#define CPM_TASK_PRIORITY 0
+
 static void cpmTask(void *arg)
 {
     while (1)
@@ -236,7 +238,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
         {
         case 'B': // Boot
             Debug_printf("!!! STARTING CP/M TASK!!!\n");
-            xTaskCreate(cpmTask, "cpmtask", 32768, NULL, 11, &cpmTaskHandle);
+            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle,1);
             break;
         case 'W': // Write
             Debug_printf("Pushing character %c", data_buffer[0]);
