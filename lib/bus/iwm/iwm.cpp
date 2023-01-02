@@ -255,6 +255,8 @@ void iwmBus::setup(void)
   Debug_printf("\r\nIWM GPIO configured");
   
   diskii[0] = new iwmDisk2();
+  FILE *f = fnSDFAT.file_open("DOS 3.3 System Master.woz");
+  ((iwmDisk2 *)diskii[0])->mount(f);
   diskii[1] = new iwmDisk2();
 }
 
