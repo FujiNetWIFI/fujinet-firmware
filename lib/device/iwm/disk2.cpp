@@ -42,12 +42,13 @@ iwmDisk2::iwmDisk2()
   Debug_printf("\r\nNew Disk ][ object");
 }
 
-mediatype_t iwmDisk2::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t iwmDisk2::mount(FILE *f)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
 {
 
   mediatype_t mt = MEDIATYPE_UNKNOWN;
+  mediatype_t disk_type = MEDIATYPE_WOZ;
 
-  Debug_printf("disk MOUNT %s\n", filename);
+  // Debug_printf("disk MOUNT %s\n", filename);
 
   // Destroy any existing MediaType
   if (_disk != nullptr)
@@ -57,18 +58,16 @@ mediatype_t iwmDisk2::mount(FILE *f, const char *filename, uint32_t disksize, me
   }
 
     // Determine MediaType based on filename extension
-    if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
-        disk_type = MediaType::discover_mediatype(filename);
+    // if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
+    //     disk_type = MediaType::discover_mediatype(filename);
 
     switch (disk_type)
     {
-    case MEDIATYPE_PO:
-        Debug_printf("\r\nMedia Type PO");
+    case MEDIATYPE_WOZ:
+        Debug_printf("\r\nMedia Type WOZ");
         device_active = true;
-        _disk = new MediaTypePO();
-        mt = _disk->mount(f, disksize);
-        //_disk->fileptr() = f;
-        // mt = MEDIATYPE_PO;
+        _disk = new MediaTypeWOZ();
+        mt = ((MediaTypeWOZ *)_disk)->mount(f);
         break;
     default:
         Debug_printf("\r\nMedia Type UNKNOWN - no mount");
