@@ -4,6 +4,7 @@
 
 #include "iwm_ll.h"
 #include "iwm.h"
+#include "../device/iwm/disk2.h"
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
@@ -19,7 +20,13 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // put the right track in the SPI buffer
 
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
-  if (!sp_command_mode && (_phases == 0b1011))
+
+  if (diskii_xface.iwm_enable_states() & 0b11)
+  {
+    if (((iwmDisk2 *)IWM.diskii[0])->move_head())
+      ((iwmDisk2 *)IWM.diskii[0])->change_track();
+  }
+  else if (!sp_command_mode && (_phases == 0b1011))
   {
     smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
     if (IWM.command_packet.command == 0x85)
@@ -671,12 +678,14 @@ uint8_t iwm_diskii_ll::iwm_enable_states()
 {
   uint8_t states = 0;
 
-  states |= (GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32 - 0);
-  states |= (GPIO.in & (0x01 << SP_DRIVE2)) >> (SP_DRIVE2 - 1);
-  states |= (GPIO.in1.val & (0x01 << (SP_EN35 - 32))) >> (SP_EN35 - 32 - 2);
-  states |= (GPIO.in & (0x01 << SP_HDSEL)) >> (SP_HDSEL - 3);
+// don't know why this doesn't work:
+  // states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32 - 0);
+  // states |= !(GPIO.in & (0x01 << SP_DRIVE2)) >> (SP_DRIVE2 - 1);
+  // states |= !(GPIO.in1.val & (0x01 << (SP_EN35 - 32))) >> (SP_EN35 - 32 - 2);
+  // states |= !(GPIO.in & (0x01 << SP_HDSEL)) >> (SP_HDSEL - 3);
 
-  return states;
+  return (!((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2)) & 0x01;
+  //return states;
 }
 
 void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
@@ -711,6 +720,7 @@ void iwm_diskii_ll::spi_end()
   esp_err_t ret;
   spi_transaction_t *t = &trans.front();
   ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
+  assert(ret == ESP_OK);
   trans.pop();
   if (trans.empty())
   {

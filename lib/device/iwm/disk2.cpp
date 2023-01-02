@@ -37,6 +37,8 @@ void iwmDisk2::shutdown()
 
 iwmDisk2::iwmDisk2()
 {
+  track_pos = 100;
+  oldphases = 0;
   Debug_printf("\r\nNew Disk ][ object");
 }
 
@@ -145,11 +147,11 @@ void iwmDisk2::process()
   {
     change_track(); // set up new track to output
   }
-  if (fnTimer.timeout())
-  {
-    update_spi_queue();
-    smartport.spi_end();
-  }
+  // if (fnTimer.timeout())
+  // {
+  //   update_spi_queue();
+  //   smartport.spi_end();
+  // }
 }
 
 #endif /* BUILD_APPLE */

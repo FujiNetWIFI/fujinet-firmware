@@ -442,7 +442,7 @@ void iwmBus::service()
     // if trans queue is empty, get out of there and service the smartport bus
     // if trans queue not empty, then do a spi end
     // in spi end, when its the last one, disable the bus etc.
-    diskii_xface.spi_end();
+    // diskii_xface.spi_end();
     break;
   // case iwm_enable_state_t::off2on:
   //   // start up the diskii process:
@@ -453,7 +453,15 @@ void iwmBus::service()
   //   diskii_xface.iwm_terminate();
   //   return;
   case iwm_enable_state_t::on:
-    diskii_xface.iwm_queue_track_spi();
+#ifdef DEBUG
+    new_track = ((iwmDisk2 *)diskii[0])->get_track_pos();
+    if (old_track != new_track)
+    {
+      Debug_printf("\r\ntrack position: %03d", new_track);
+      old_track = new_track;
+    }
+#endif
+    // diskii_xface.iwm_queue_track_spi();
     // add to the SPI queue every 200 ms
     // keep track of how many transactions in the SPI queue
     // ((iwmDisk2 *)diskii[enable_values-1])->process();
@@ -579,10 +587,8 @@ void iwmBus::service()
 iwm_enable_state_t iwmBus::iwm_drive_enabled()
 {
   uint8_t newstate = diskii_xface.iwm_enable_states();
-  iwm_enable_state_t ret = iwm_enable_state_t::off;
-
-  ret = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::off;
-  return ret;
+  // Debug_printf("\r\ndisk ii enable states: %02x",newstate);
+  return (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::off;
 }
 
 void iwmBus::handle_init()

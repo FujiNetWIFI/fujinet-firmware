@@ -13,10 +13,11 @@
 
 #define DISK_CTRL_STATUS_CLEAR 0x00
 
-enum mediatype_t 
+enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_PO,
+    MEDIATYPE_WOZ,
     MEDIATYPE_COUNT
 };
 
