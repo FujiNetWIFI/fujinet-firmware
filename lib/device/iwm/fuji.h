@@ -201,7 +201,7 @@ public:
 
     iwmFuji();
 
-    // virtual void startup_hack() override { Debug_printf("\r\n Fuji startup hack"); }
+    // virtual void startup_hack() override { Debug_printf("\n Fuji startup hack"); }
 };
 
 extern iwmFuji theFuji;
