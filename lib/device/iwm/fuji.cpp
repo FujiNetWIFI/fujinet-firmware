@@ -1034,7 +1034,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
     _iwm_bus->addDevice(theClock, iwm_fujinet_type_t::Clock);
 
     theCPM = new iwmCPM();
-    _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
+    _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);    
 
    for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
    {
