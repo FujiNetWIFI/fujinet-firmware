@@ -174,9 +174,9 @@ void main_setup()
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-    appleModem *sioR;
+    iwmModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
+    sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
     
     iwmPrinter::printer_type ptype = Config.get_printer_type(0);
     iwmPrinter *ptr = new iwmPrinter(ptrfs, ptype);

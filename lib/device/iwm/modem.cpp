@@ -36,7 +36,7 @@ static const telnet_telopt_t telopts[] = {
  */
 static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data)
 {
-    appleModem *modem = (appleModem *)user_data; // somehow it thinks this is unused?
+    iwmModem *modem = (iwmModem *)user_data; // somehow it thinks this is unused?
 
     switch (ev->type)
     {
@@ -74,7 +74,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     }
 }
 
-appleModem::appleModem(FileSystem *_fs, bool snifferEnable)
+iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
 {
     activeFS = _fs;
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
@@ -82,7 +82,7 @@ appleModem::appleModem(FileSystem *_fs, bool snifferEnable)
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
 }
 
-appleModem::~appleModem()
+iwmModem::~iwmModem()
 {
     if (modemSniffer != nullptr)
     {
@@ -100,7 +100,7 @@ appleModem::~appleModem()
 
 // }
 
-void appleModem::at_connect_resultCode(int modemBaud)
+void iwmModem::at_connect_resultCode(int modemBaud)
 {
     int resultCode = 0;
     switch (modemBaud)
@@ -135,7 +135,7 @@ void appleModem::at_connect_resultCode(int modemBaud)
  * Emit result code if ATV0
  * No Atascii translation here, as this is intended for machine reading.
  */
-void appleModem::at_cmd_resultCode(int resultCode)
+void iwmModem::at_cmd_resultCode(int resultCode)
 {
     fnUartSIO.print(resultCode);
     fnUartSIO.write(ASCII_CR);
@@ -145,7 +145,7 @@ void appleModem::at_cmd_resultCode(int resultCode)
 /**
    replacement println for AT that is CR/EOL aware
 */
-void appleModem::at_cmd_println()
+void iwmModem::at_cmd_println()
 {
     if (cmdOutput == false)
         return;
@@ -162,7 +162,7 @@ void appleModem::at_cmd_println()
     fnUartSIO.flush();
 }
 
-void appleModem::at_cmd_println(const char *s, bool addEol)
+void iwmModem::at_cmd_println(const char *s, bool addEol)
 {
     if (cmdOutput == false)
         return;
@@ -183,7 +183,7 @@ void appleModem::at_cmd_println(const char *s, bool addEol)
     fnUartSIO.flush();
 }
 
-void appleModem::at_cmd_println(int i, bool addEol)
+void iwmModem::at_cmd_println(int i, bool addEol)
 {
     if (cmdOutput == false)
         return;
@@ -204,7 +204,7 @@ void appleModem::at_cmd_println(int i, bool addEol)
     fnUartSIO.flush();
 }
 
-void appleModem::at_cmd_println(std::string s, bool addEol)
+void iwmModem::at_cmd_println(std::string s, bool addEol)
 {
     if (cmdOutput == false)
         return;
@@ -225,7 +225,7 @@ void appleModem::at_cmd_println(std::string s, bool addEol)
     fnUartSIO.flush();
 }
 
-void appleModem::at_handle_wificonnect()
+void iwmModem::at_handle_wificonnect()
 {
     int keyIndex = cmd.find(',');
     std::string ssid, key;
@@ -280,7 +280,7 @@ void appleModem::at_handle_wificonnect()
     }
 }
 
-void appleModem::at_handle_port()
+void iwmModem::at_handle_port()
 {
     //int port = cmd.substring(6).toInt();
     int port = std::stoi(cmd.substr(6));
@@ -309,7 +309,7 @@ void appleModem::at_handle_port()
     }
 }
 
-void appleModem::at_handle_get()
+void iwmModem::at_handle_get()
 {
     // From the URL, acquire required variables
     // (12 = "ATGEThttp://")
@@ -375,7 +375,7 @@ void appleModem::at_handle_get()
     }
 }
 
-void appleModem::at_handle_help()
+void iwmModem::at_handle_help()
 {
     at_cmd_println(HELPL01);
     at_cmd_println(HELPL02);
@@ -425,7 +425,7 @@ void appleModem::at_handle_help()
         at_cmd_println("OK");
 }
 
-void appleModem::at_handle_wifilist()
+void iwmModem::at_handle_wifilist()
 {
     at_cmd_println();
     at_cmd_println(HELPSCAN1);
@@ -475,7 +475,7 @@ void appleModem::at_handle_wifilist()
         at_cmd_println("OK");
 }
 
-void appleModem::at_handle_answer()
+void iwmModem::at_handle_answer()
 {
     Debug_printf("HANDLE ANSWER !!!\n");
     if (tcpServer.hasClient())
@@ -493,7 +493,7 @@ void appleModem::at_handle_answer()
     }
 }
 
-void appleModem::at_handle_dial()
+void iwmModem::at_handle_dial()
 {
     int portIndex = cmd.find(':');
     std::string host, port;
@@ -567,7 +567,7 @@ void appleModem::at_handle_dial()
 }
 /*Following functions manage the phonebook*/
 /*Display current Phonebook*/
-void appleModem::at_handle_pblist()
+void iwmModem::at_handle_pblist()
 {
     at_cmd_println();
     at_cmd_println("Phone#       Host");
@@ -587,7 +587,7 @@ void appleModem::at_handle_pblist()
 }
 
 /*Add and del entry in the phonebook*/
-void appleModem::at_handle_pb()
+void iwmModem::at_handle_pb()
 {
     // From the AT command get the info to add. Ex: atpb4321=irata.online:8002
     //or delete ex: atpb4321
@@ -660,7 +660,7 @@ void appleModem::at_handle_pb()
 /*
    Perform a command given in AT Modem command mode
 */
-void appleModem::modemCommand()
+void iwmModem::modemCommand()
 {
     /* Some of these are ignored; to see their meanings,
      * review `modem.h`'s sioModem class's _at_cmds enums. */
@@ -992,7 +992,7 @@ void appleModem::modemCommand()
 /*
   Handle incoming & outgoing data for modem
 */
-void appleModem::sio_handle_modem()
+void iwmModem::sio_handle_modem()
 {
     /**** AT command mode ****/
     if (cmdMode == true)
@@ -1253,7 +1253,7 @@ void appleModem::sio_handle_modem()
     }
 }
 
-void appleModem::shutdown()
+void iwmModem::shutdown()
 {
     if (modemSniffer != nullptr)
         if (modemSniffer->getEnable())

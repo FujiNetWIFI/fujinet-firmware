@@ -73,7 +73,7 @@
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 
-class appleModem : public iwmDevice
+class iwmModem : public iwmDevice
 {
 private:
 
@@ -225,8 +225,8 @@ public:
     bool modemActive = false; // If we are in modem mode or not
     void sio_handle_modem();  // Handle incoming & outgoing data for modem
 
-    appleModem(FileSystem *_fs, bool snifferEnable);
-    virtual ~appleModem();
+    iwmModem(FileSystem *_fs, bool snifferEnable);
+    virtual ~iwmModem();
 
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
     ModemSniffer *get_modem_sniffer() { return modemSniffer; }
