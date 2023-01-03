@@ -39,7 +39,7 @@ iwmDisk2::iwmDisk2()
 {
   track_pos = 100;
   oldphases = 0;
-  Debug_printf("\r\nNew Disk ][ object");
+  Debug_printf("\nNew Disk ][ object");
 }
 
 mediatype_t iwmDisk2::mount(FILE *f)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
@@ -64,13 +64,13 @@ mediatype_t iwmDisk2::mount(FILE *f)//, const char *filename), uint32_t disksize
     switch (disk_type)
     {
     case MEDIATYPE_WOZ:
-        Debug_printf("\r\nMedia Type WOZ");
+        Debug_printf("\nMedia Type WOZ");
         device_active = true;
         _disk = new MediaTypeWOZ();
         mt = ((MediaTypeWOZ *)_disk)->mount(f);
         break;
     default:
-        Debug_printf("\r\nMedia Type UNKNOWN - no mount");
+        Debug_printf("\nMedia Type UNKNOWN - no mount");
         device_active = false;
         break;
     }

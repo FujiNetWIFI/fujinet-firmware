@@ -71,7 +71,7 @@ void IRAM_ATTR iwm_sp_ll::encode_spi_packet()
   uint16_t i=0,j=0;
   while(packet_buffer[i])
   {
-    // Debug_printf("\r\nByte %02X: ",packet_buffer[i]);
+    // Debug_printf("\nByte %02X: ",packet_buffer[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
@@ -125,7 +125,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   if (req_wait_for_rising_timeout(300000))
     {
       // timeout!
-      Debug_printf("\r\nSendPacket timeout waiting for REQ");
+      Debug_printf("\nSendPacket timeout waiting for REQ");
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
@@ -268,8 +268,8 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
     {
       bit = false; // assume no edge in this next bit
 #ifdef VERBOSE_IWM
-      Debug_printf("\r\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
-      Debug_printf("\r\nspibyte spibit intctr sampval preval rxbit rxbyte");
+      Debug_printf("\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
+      Debug_printf("\nspibyte spibit intctr sampval preval rxbit rxbyte");
 #endif
       int i = 0;
       while (i < pulsewidth)
@@ -277,7 +277,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
         current_level = spirx_get_next_sample();
         current_level ? iwm_extra_clr() : iwm_extra_set();
 #ifdef VERBOSE_IWM
-        Debug_printf("\r\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
+        Debug_printf("\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
 #endif
         // sprix:
         // loop through 4 usec worth of samples looking for an edge
@@ -443,7 +443,7 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
-  Debug_printf("\r\nEXTRA signaling line configured");
+  Debug_printf("\nEXTRA signaling line configured");
 #endif
 
   
@@ -562,7 +562,7 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   numodd = input_data[11] & 0x7f;
   numgrps = input_data[12] & 0x7f;
   numdata = numodd + numgrps * 7;
-  Debug_printf("\r\nDecoding %d bytes",numdata);
+  Debug_printf("\nDecoding %d bytes",numdata);
   // if (numdata==512)
   // {
   //   // print out packets
@@ -598,11 +598,11 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   for (int count = 0; count < numdata; count++) // xor all the output_data bytes
     checksum = checksum ^ output_data[count];
 
-  Debug_printf("\r\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
+  Debug_printf("\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
 
   if (checksum != (oddbits | evenbits))
   {
-    Debug_printf("\r\nCHECKSUM ERROR!");
+    Debug_printf("\nCHECKSUM ERROR!");
     return -1; // error!
   }
   
@@ -621,7 +621,7 @@ void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, in
   uint16_t i = 0, j = 0;
   for (i = 0; i < tracklen; i++)
   {
-    // Debug_printf("\r\nByte %02X: ",packet_buffer[i]);
+    // Debug_printf("\nByte %02X: ",packet_buffer[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
