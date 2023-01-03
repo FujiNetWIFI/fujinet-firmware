@@ -52,8 +52,26 @@ mediatype_t MediaTypeWOZ::mount(FILE *f, uint32_t disksize)
     for (int i=0; i<MAX_TRACKS; i++)
         Debug_printf("\n%d, %d, %lu", trks[i].start_block, trks[i].block_count, trks[i].bit_count);
 #endif
-    // read WOZ tracks into SPIRAM
-
+    // read WOZ tracks into RAM
+    for (int i=0; i<160; i++)
+    {
+        size_t s = trks[i].block_count * 512;
+        if (s != 0)
+        {
+            trk_ptrs[i] = (uint8_t *)heap_caps_malloc(s, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+            if (trk_ptrs[i] != nullptr)
+            {
+                Debug_printf("\nReading track %d", i);
+                fseek(f, trks[i].start_block * 512, SEEK_SET);
+                fread(trk_ptrs[i], 1, s, f);
+            }
+            else
+            {
+                Debug_printf("\nNo RAM allocated!");
+                return MEDIATYPE_UNKNOWN;
+            }
+        }
+    }
 
     return MEDIATYPE_WOZ;
 }

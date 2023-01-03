@@ -7,7 +7,7 @@
 
 #define MAX_TRACKS 160
 
-struct TRK
+struct TRK_t
 {
     uint16_t start_block;
     uint16_t block_count;
@@ -19,7 +19,8 @@ class MediaTypeWOZ : public MediaType
 {
 private:
     uint8_t tmap[MAX_TRACKS];
-    TRK trks[MAX_TRACKS];
+    TRK_t trks[MAX_TRACKS];
+    uint8_t *trk_ptrs[MAX_TRACKS];
 
 public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
