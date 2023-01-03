@@ -24,6 +24,7 @@ protected:
     char disk_num;
     bool enabled;
     int track_pos;
+    int old_pos;
     uint8_t oldphases;
 
 public:

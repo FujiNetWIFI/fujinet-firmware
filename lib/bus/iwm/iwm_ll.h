@@ -8,7 +8,7 @@
 
 #include "../../include/pinmap.h"
 
-#define SPI_II_LEN 25000        // 200 ms at 1 mbps for disk ii
+#define SPI_II_LEN 26000        // 200 ms at 1 mbps for disk ii + some extra
 #define SPI_SP_LEN 6000         // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define BLOCK_PACKET_LEN    604 //606
 
@@ -143,7 +143,7 @@ public:
 
   // Smartport Bus handling by SPI interface
   void setup_spi(int bit_ns, int chiprate);
-  void encode_spi_packet(uint8_t *track, int tracklen, int chiprate);
+  void encode_spi_packet(uint8_t *track, int tracklen, int trackbits);
   void iwm_queue_track_spi();
   void spi_end();
 };

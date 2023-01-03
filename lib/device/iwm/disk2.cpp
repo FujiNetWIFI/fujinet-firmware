@@ -6,8 +6,6 @@
 #include "fuji.h"
 #include "fnHardwareTimer.h"
 
-#define MAX_TRACKS 140
-
 const int8_t phases_lut [16][16] = {
 { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
 { 0, 0, 2, 1, 0, 0, 0, 0,-2,-1, 0, 0, 0, 0, 0, 0},
@@ -37,7 +35,8 @@ void iwmDisk2::shutdown()
 
 iwmDisk2::iwmDisk2()
 {
-  track_pos = 100;
+  track_pos = 2;
+  old_pos = 0;
   oldphases = 0;
   Debug_printf("\nNew Disk ][ object");
 }
@@ -115,14 +114,15 @@ bool iwmDisk2::move_head()
   if (phases_valid(newphases))
   {
     delta = phases_lut[oldphases][newphases];
+    old_pos = track_pos;
     track_pos += delta;
     if (track_pos < 0)
     {
       track_pos = 0;
     }
-    else if (track_pos > MAX_TRACKS)
+    else if (track_pos > MAX_TRACKS-1)
     {
-      track_pos = MAX_TRACKS;
+      track_pos = MAX_TRACKS-1;
     }
     oldphases = newphases;
   }
@@ -131,6 +131,17 @@ bool iwmDisk2::move_head()
 
 void iwmDisk2::change_track()
 {
+  if (old_pos == track_pos)
+    return;
+  
+  // need to tell diskii_xface the number of bits in the track
+  // and where the track data is located so it can convert it
+  diskii_xface.encode_spi_packet(
+    ((MediaTypeWOZ*)_disk)->get_track(track_pos),
+    ((MediaTypeWOZ*)_disk)->track_len(track_pos),
+    ((MediaTypeWOZ*)_disk)->num_bits(track_pos)
+    );
+
 
 }
 
@@ -142,15 +153,7 @@ void iwmDisk2::update_spi_queue()
 
 void iwmDisk2::process()
 {
-  if (move_head())
-  {
-    change_track(); // set up new track to output
-  }
-  // if (fnTimer.timeout())
-  // {
-  //   update_spi_queue();
-  //   smartport.spi_end();
-  // }
+
 }
 
 #endif /* BUILD_APPLE */
