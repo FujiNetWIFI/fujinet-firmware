@@ -609,7 +609,7 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   return numdata;
 }
 
-void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int chiprate)
+void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int trackbits)
 {
   // fix up for DISK II emulation:
   // make spi buffer bigger based on chip rate
@@ -641,7 +641,8 @@ void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, in
     }
     i++;
   }
-  spi_len = --j;
+  // spi_len = --j;
+  spi_len = trackbits / 2; // 2 bits per encoded byte
 }
 
 void iwm_diskii_ll::setup_spi(int bit_ns, int chiprate)
@@ -653,8 +654,8 @@ void iwm_diskii_ll::setup_spi(int bit_ns, int chiprate)
   // 200 milleseconds
   // 1 bit in nanoseconds (usually about 4000)
   // number of chips per bit (usually 4)
-  spi_buffer_len = 200 * 1000 * 1000 * chiprate / bit_ns / 8;
-  spi_len = spi_buffer_len;
+  spi_buffer_len = SPI_II_LEN;// 200 * 1000 * 1000 * chiprate / bit_ns / 8;
+  spi_len = 50304 / 2; // standard DOS 3.3 answer spi_buffer_len;
   spi_buffer = (uint8_t *)heap_caps_malloc(spi_buffer_len, MALLOC_CAP_DMA);
 
   spi_device_interface_config_t devcfg = {

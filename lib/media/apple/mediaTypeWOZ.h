@@ -33,6 +33,9 @@ public:
 
     virtual bool status() override {return (_media_fileh != nullptr);}
 
+    uint8_t *get_track(int t) { return trk_ptrs[tmap[t]]; };
+    int track_len(int t) { return trks[tmap[t]].block_count * 512; };
+    int num_bits(int t) { return trks[tmap[t]].bit_count; };
     // static bool create(FILE *f, uint32_t numBlock);
 };
 
