@@ -25,7 +25,7 @@
 #include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
 #endif
 
-#define CPM_TASK_PRIORITY 0
+#define CPM_TASK_PRIORITY 50
 
 static void cpmTask(void *arg)
 {
