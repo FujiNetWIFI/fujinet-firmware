@@ -38,7 +38,7 @@ extern adamModem *sioR;
 
 #ifdef BUILD_APPLE
 # include "iwm/modem.h"
-  extern appleModem *sioR;
+  extern iwmModem *sioR;
 #endif
 
 
