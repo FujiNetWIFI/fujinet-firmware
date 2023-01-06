@@ -113,6 +113,11 @@ bool fnConfig::get_device_slot_enable_8()
     return _denable.device_8_enabled;
 }
 
+bool fnConfig::get_apetime_enable()
+{
+    return _denable.apetime;
+}
+
 void fnConfig::_read_section_device_enable(std::stringstream &ss)
 {
     std::string line;
@@ -140,6 +145,8 @@ void fnConfig::_read_section_device_enable(std::stringstream &ss)
                 _denable.device_7_enabled = atoi(value.c_str());
             else if (strcasecmp(name.c_str(), "enable_device_slot_8") == 0)
                 _denable.device_8_enabled = atoi(value.c_str());
+            else if (strcasecmp(name.c_str(), "enable_apetime") == 0)
+                _denable.apetime = atoi(value.c_str());        
         }
     }
 }

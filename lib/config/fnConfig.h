@@ -173,6 +173,8 @@ public:
     void store_device_slot_enable_7(bool enabled);
     void store_device_slot_enable_8(bool enabled);
 
+    bool get_apetime_enable();
+    void store_apetime_enable();
 
     void load();
     void save();
@@ -331,6 +333,7 @@ private:
         bool device_6_enabled = true;
         bool device_7_enabled = true;
         bool device_8_enabled = true;
+        bool apetime = true;
     };
 
     struct phbook_info
