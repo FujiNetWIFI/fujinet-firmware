@@ -141,6 +141,7 @@ void fnConfig::save()
     ss << "enable_device_slot_6=" << _denable.device_6_enabled << LINETERM;
     ss << "enable_device_slot_7=" << _denable.device_7_enabled << LINETERM;
     ss << "enable_device_slot_8=" << _denable.device_8_enabled << LINETERM;
+    ss << "enable_apetime=" << _denable.apetime << LINETERM;
 
     // Write the results out
     FILE *fout = NULL;
