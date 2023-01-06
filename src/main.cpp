@@ -92,6 +92,11 @@ void main_setup()
 
     SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
+    if (Config.get_apetime_enable() == false)
+        apeTime.device_active = false;
+    else
+        apeTime.device_active = true;
+
     SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 
     // Create a new printer object, setting its output depending on whether we have SD or not
