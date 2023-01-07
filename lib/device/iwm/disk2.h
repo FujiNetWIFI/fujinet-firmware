@@ -37,8 +37,8 @@ public:
     bool move_head();
     void change_track();
 
-    void set_disk_number(char c) { disk_num = c; }
-    char get_disk_number() { return disk_num; };
+    // void set_disk_number(char c) { disk_num = c; }
+    // char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
     // void init();
     ~iwmDisk2();

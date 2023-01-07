@@ -368,7 +368,6 @@ public:
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
 
-  iwmDevice *diskii[2];
 };
 
 extern iwmBus IWM;
