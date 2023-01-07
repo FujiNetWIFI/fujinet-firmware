@@ -158,6 +158,7 @@ private:
   
     QueueHandle_t mrxq;
     QueueHandle_t mtxq;
+    TaskHandle_t modemTask;
 
     /* Modem Active Variables */
     std::string cmd = "";          // Gather a new AT command to this string from serial
@@ -233,7 +234,7 @@ protected:
 public:
 
     bool modemActive = false; // If we are in modem mode or not
-    void sio_handle_modem();  // Handle incoming & outgoing data for modem
+    void handle_modem();  // Handle incoming & outgoing data for modem
 
     iwmModem(FileSystem *_fs, bool snifferEnable);
     virtual ~iwmModem();
