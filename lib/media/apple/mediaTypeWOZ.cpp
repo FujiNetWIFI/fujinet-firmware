@@ -6,6 +6,7 @@
 mediatype_t MediaTypeWOZ::mount(FILE *f, uint32_t disksize)
 {
     _media_fileh = f;
+    diskiiemulation = true;
     // check WOZ header
     char hdr[12];
     fread(&hdr,sizeof(char),12,f);

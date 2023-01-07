@@ -141,13 +141,19 @@ public:
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
   uint8_t iwm_enable_states();
 
-  void disable_output() { iwm_rddata_set(); };
 
-  // Smartport Bus handling by SPI interface
+
+  void disable_output() { iwm_rddata_set(); };
+  void enable_output()  { iwm_rddata_clr(); };
+  
+    // Smartport Bus handling by SPI interface
   void setup_spi(int bit_ns, int chiprate);
   void encode_spi_packet(uint8_t *track, int tracklen, int trackbits);
   void iwm_queue_track_spi();
   void spi_end();
+
+
+
 };
 
 extern iwm_sp_ll smartport;
