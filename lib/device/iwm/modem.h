@@ -186,10 +186,17 @@ private:
     bool answered=false;
 
     void shutdown() override;
-    void process(iwm_decoded_cmd_t cmd) override{};
+    void process(iwm_decoded_cmd_t cmd) override;
 
-    void send_status_reply_packet() override{};
-    void send_status_dib_reply_packet() override{};
+    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
+    void iwm_open(iwm_decoded_cmd_t cmd) override{};
+    void iwm_close(iwm_decoded_cmd_t cmd) override{};
+    void iwm_read(iwm_decoded_cmd_t cmd) override;
+    void iwm_write(iwm_decoded_cmd_t cmd) override;
+    void iwm_status(iwm_decoded_cmd_t cmd) override;
+
+    void send_status_reply_packet() override;
+    void send_status_dib_reply_packet() override;
 
     void send_extended_status_reply_packet() override{};
     void send_extended_status_dib_reply_packet() override{};
