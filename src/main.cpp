@@ -182,7 +182,7 @@ void main_setup()
     iwmModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
-    
+    IWM.addDevice(sioR,iwm_fujinet_type_t::Modem);    
     iwmPrinter::printer_type ptype = Config.get_printer_type(0);
     iwmPrinter *ptr = new iwmPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
