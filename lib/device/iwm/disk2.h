@@ -36,8 +36,6 @@ public:
     bool phases_valid(uint8_t phases);
     bool move_head();
     void change_track();
-    void update_spi_queue();
-    void process();
 
     void set_disk_number(char c) { disk_num = c; }
     char get_disk_number() { return disk_num; };

@@ -257,9 +257,9 @@ void iwmBus::setup(void)
   diskii_xface.setup_spi(4000, 4);
 
   diskii[0] = new iwmDisk2();
-  FILE *f = fnSDFAT.file_open("DOS 3.3 System Master.woz");
-  ((iwmDisk2 *)diskii[0])->mount(f);
-  fclose(f);
+  // FILE *f = fnSDFAT.file_open("DOS 3.3 System Master.woz");
+  // ((iwmDisk2 *)diskii[0])->mount(f);
+  // fclose(f);
   diskii[1] = new iwmDisk2();
 }
 
@@ -444,22 +444,10 @@ void iwmBus::service()
   switch (iwm_drive_enabled())
   {
   case iwm_enable_state_t::off:
-    // if trans queue is empty, get out of there and service the smartport bus
-    // if trans queue not empty, then do a spi end
-    // in spi end, when its the last one, disable the bus etc.
-    diskii_xface.disable_output();
+    // diskii_xface.disable_output();
     diskii_xface.spi_end();
-    smartport.iwm_ack_set();
-
+    // smartport.iwm_ack_set();
     break;
-  // case iwm_enable_state_t::off2on:
-  //   // start up the diskii process:
-  //   diskii_xface.iwm_startup(); // move to ON
-  //   return;
-  // case iwm_enable_state_t::on2off:
-  //   // shut down the diskii process:
-  //   diskii_xface.iwm_terminate();
-  //   return;
   case iwm_enable_state_t::on:
 #ifdef DEBUG
     new_track = ((iwmDisk2 *)diskii[0])->get_track_pos();
@@ -469,12 +457,13 @@ void iwmBus::service()
       old_track = new_track;
     }
 #endif
-    smartport.iwm_ack_clr(); 
-    diskii_xface.iwm_queue_track_spi();
-    // add to the SPI queue every 200 ms
-    // keep track of how many transactions in the SPI queue
-    // ((iwmDisk2 *)diskii[enable_values-1])->process();
-    diskii_xface.spi_end();
+    // smartport.iwm_ack_clr();  - need to deal with write protect
+    diskii_xface.enable_output();
+    if (diskii[0]->device_active)
+    {
+      diskii_xface.iwm_queue_track_spi();
+      diskii_xface.spi_end();
+    }
     return;
   }
 

@@ -39,6 +39,7 @@ iwmDisk2::iwmDisk2()
   old_pos = 0;
   oldphases = 0;
   Debug_printf("\nNew Disk ][ object");
+  device_active = false;
 }
 
 mediatype_t iwmDisk2::mount(FILE *f)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
@@ -132,6 +133,9 @@ bool iwmDisk2::move_head()
 
 void iwmDisk2::change_track()
 {
+  if (!device_active)
+    return;
+
   if (old_pos == track_pos)
     return;
 
@@ -143,17 +147,6 @@ void iwmDisk2::change_track()
         ((MediaTypeWOZ *)_disk)->track_len(track_pos),
         ((MediaTypeWOZ *)_disk)->num_bits(track_pos));
 
-
-}
-
-void iwmDisk2::update_spi_queue()
-{
-  
-}
-
-
-void iwmDisk2::process()
-{
 
 }
 
