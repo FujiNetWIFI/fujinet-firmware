@@ -143,7 +143,7 @@ unsigned short iwmModem::modem_print(int i)
 
     itoa(i,out,10);
 
-    modem_print(out);
+    return modem_print(out);
 }
 
 unsigned short iwmModem::modem_read(uint8_t *buf, unsigned short len)
