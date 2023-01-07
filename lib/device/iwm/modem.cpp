@@ -11,6 +11,7 @@
 #include "fnSystem.h"
 #include "../utils/utils.h"
 #include "fnConfig.h"
+#include "led.h"
 
 #define RECVBUFSIZE 1024
 
@@ -1260,12 +1261,173 @@ void iwmModem::shutdown()
             modemSniffer->closeOutput();
 }
 
-/*
-  Process command
-*/
-/* void appleModem::smart_process(uint8_t b)
+void iwmModem::send_status_reply_packet()
 {
+    uint8_t data[4];
 
+    // Build the contents of the packet
+    data[0] = STATCODE_READ_ALLOWED | STATCODE_WRITE_ALLOWED | STATCODE_DEVICE_ONLINE;
+    data[1] = 0; // block size 1
+    data[2] = 0; // block size 2
+    data[3] = 0; // block size 3
+    IWM.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
 }
- */
+
+void iwmModem::send_status_dib_reply_packet()
+{
+    uint8_t data[25];
+
+    //* write data buffer first (25 bytes) 3 grp7 + 4 odds
+    // General Status byte
+    // Bit 7: Block  device
+    // Bit 6: Write allowed
+    // Bit 5: Read allowed
+    // Bit 4: Device online or disk in drive
+    // Bit 3: Format allowed
+    // Bit 2: Media write protected (block devices only)
+    // Bit 1: Currently interrupting (//c only)
+    // Bit 0: Currently open (char devices only)
+    data[0] = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+    data[1] = 0;    // block size 1
+    data[2] = 0;    // block size 2
+    data[3] = 0;    // block size 3
+    data[4] = 0x05; // ID string length - 11 chars
+    data[5] = 'M';
+    data[6] = 'O';
+    data[7] = 'D';
+    data[8] = 'E';
+    data[9] = 'M';
+    data[10] = ' ';
+    data[11] = ' ';
+    data[12] = ' ';
+    data[13] = ' ';
+    data[14] = ' ';
+    data[15] = ' ';
+    data[16] = ' ';
+    data[17] = ' ';
+    data[18] = ' ';
+    data[19] = ' ';
+    data[20] = ' ';                         // ID string (16 chars total)
+    data[21] = SP_TYPE_BYTE_FUJINET_MODEM;    // Device type    - 0x02  harddisk
+    data[22] = SP_SUBTYPE_BYTE_FUJINET_MODEM; // Device Subtype - 0x0a
+    data[23] = 0x00;                        // Firmware version 2 bytes
+    data[24] = 0x01;                        //
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+}
+
+void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
+{
+    uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+
+    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
+
+    memset(data_buffer,0,sizeof(data_buffer));
+
+    for (int i=0;i<numbytes;i++)
+    {
+        //char b;
+        //xQueueReceive(rxq,&b,portMAX_DELAY);
+        //data_buffer[i] = b;
+        //data_len++;
+    }
+
+    Debug_printf("\r\nsending block packet ...");
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    data_len = 0;
+    memset(data_buffer, 0, sizeof(data_buffer));
+}
+
+void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
+{
+    uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+
+    Debug_printf("\nWrite %u bytes\n", num_bytes);
+
+    // get write data packet, keep trying until no timeout
+    //  to do - this blows up - check handshaking
+    data_len = 512;
+    if (IWM.iwm_read_packet_timeout(100, data_buffer, data_len))
+    {
+        Debug_printf("\r\nTIMEOUT in read packet!");
+        return;
+    }
+    // partition number indicates which 32mb block we access
+    if (data_len == -1)
+        iwm_return_ioerror();
+    else
+    {
+        // DO write
+    }
+}
+
+void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
+{
+    uint8_t err_result = SP_ERR_NOERROR;
+
+    uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
+    Debug_printf("\r\nDevice %02x Control Code %02x", id(), control_code);
+    data_len = 512;
+    IWM.iwm_read_packet_timeout(100, data_buffer, data_len);
+    print_packet(data_buffer);
+
+    if (data_len > 0)
+        switch (control_code)
+        {
+        }
+    else
+        err_result = SP_ERR_IOERROR;
+    
+    send_reply_packet(err_result);
+}
+
+void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
+{
+    // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
+    uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+    Debug_printf("\r\nDevice %02x Status Code %02x\n", id(), status_code);
+    // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+
+    switch (status_code)
+    {
+    case IWM_STATUS_STATUS: // 0x00
+        send_status_reply_packet();
+        return;
+        break;
+    case IWM_STATUS_DIB: // 0x03
+        send_status_dib_reply_packet();
+        return;
+        break;
+    case 'S': // Status
+        break;
+    }
+
+    Debug_printf("\r\nStatus code complete, sending response");
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+}
+
+void iwmModem::process(iwm_decoded_cmd_t cmd)
+{
+    fnLedManager.set(LED_BUS, true);
+    switch (cmd.command)
+    {
+    case 0x00: // status
+        Debug_printf("\r\nhandling status command");
+        iwm_status(cmd);
+        break;
+    case 0x04: // control
+        Debug_printf("\r\nhandling control command");
+        iwm_ctrl(cmd);
+        break;
+    case 0x08: // read
+        Debug_printf("\r\nhandling read command");
+        iwm_read(cmd);
+        break;
+    default:
+        iwm_return_badcmd(cmd);
+        break;
+    } // switch (cmd)
+    fnLedManager.set(LED_BUS, false);
+}
+
 #endif /* BUILD_APPLE */
