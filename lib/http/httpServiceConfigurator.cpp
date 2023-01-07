@@ -404,12 +404,15 @@ void fnHttpServiceConfigurator::config_printer_port(std::string printernumber, s
 void fnHttpServiceConfigurator::config_encrypt_passphrase_enabled(std::string encrypt_passphrase_enabled)
 {
     Debug_printf("encrypt_passphrase_enabled Enable Value: %s\n", encrypt_passphrase_enabled.c_str());
-
-    // Store
     Config.store_general_encrypt_passphrase(atoi(encrypt_passphrase_enabled.c_str()));
-    // Save*
     Config.save();
+}
 
+void fnHttpServiceConfigurator::config_apetime_enabled(std::string enabled)
+{
+    Debug_printf("New APETIME Enable Value: %s\n", enabled.c_str());
+    Config.store_apetime_enabled(atoi(enabled.c_str()));
+    Config.save();
 }
 
 int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t postlen)
@@ -498,6 +501,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("passphrase_encrypt") == 0)
         {
             config_encrypt_passphrase_enabled(i->second);
+        }
+        else if (i->first.compare("apetime_enabled") == 0)
+        {
+            config_apetime_enabled(i->second);
         }
     }
 
