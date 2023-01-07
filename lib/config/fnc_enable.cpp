@@ -113,9 +113,18 @@ bool fnConfig::get_device_slot_enable_8()
     return _denable.device_8_enabled;
 }
 
-bool fnConfig::get_apetime_enable()
+bool fnConfig::get_apetime_enabled()
 {
     return _denable.apetime;
+}
+
+void fnConfig::store_apetime_enabled(bool enabled)
+{
+    if (_denable.apetime != enabled)
+    {
+        _denable.apetime = enabled;
+        _dirty = true;
+    }
 }
 
 void fnConfig::_read_section_device_enable(std::stringstream &ss)

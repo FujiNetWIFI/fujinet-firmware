@@ -90,3 +90,7 @@ setInputValue(current_status_wait_enabled == 1, "boot-sio-wait-yes", "boot-sio-w
 setInputValue(current_config_enabled == 1, "boot-config-disk-yes", "boot-config-disk-no");
 setInputValue(current_encrypt_passphrase_enabled == 1, "encrypt-passphrase-yes", "encrypt-passphrase-no");
 {% endif %}
+
+{% if components.apetime %}
+setInputValue(current_apetime == 1, "tz-apetime-yes", "tz-apetime-no");
+{% endif %}
