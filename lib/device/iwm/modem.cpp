@@ -42,7 +42,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     switch (ev->type)
     {
     case TELNET_EV_DATA:
-        if (ev->data.size && fnUartSIO.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+        if (ev->data.size && modem->modem_write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
             Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
         break;
     case TELNET_EV_SEND:
@@ -101,21 +101,35 @@ iwmModem::~iwmModem()
     vQueueDelete(mtxq);
 }
 
-void iwmModem::modem_write(char* buf, unsigned short len)
+unsigned short iwmModem::modem_write(uint8_t* buf, unsigned short len)
 {
+    unsigned short l=0;
+
     while (len>0)
+    {
         xQueueSend(mrxq,&buf[len--],portMAX_DELAY);
+        l++;
+    }
+    return l;
 }
 
-void iwmModem::modem_write(char c)
+unsigned short iwmModem::modem_write(char c)
 {
     xQueueSend(mrxq,&c,portMAX_DELAY);
+    return 1;
 }
 
-void iwmModem::modem_print(char *s)
+unsigned short iwmModem::modem_print(char *s)
 {
+    unsigned short l=0;
+
     while (*s!=0x00)
+    {
         xQueueSend(mrxq,s++,portMAX_DELAY);
+        l++;
+    }
+
+    return l;
 }
 
 void iwmModem::at_connect_resultCode(int modemBaud)

@@ -228,11 +228,6 @@ private:
     void at_handle_pb();
     void at_handle_pbclear();
 
-    // Low level routines to write to modem IWM queue
-    void modem_write(char* buf, unsigned short len);
-    void modem_write(char c);
-    void modem_print(char *s);
-
 protected:
 
 public:
@@ -251,6 +246,10 @@ public:
     std::string get_term_type() {return term_type; }
     void set_term_type(std::string _term_type) { term_type = _term_type; }
 
+    // Low level routines to write to modem IWM queue
+    unsigned short modem_write(uint8_t* buf, unsigned short len);
+    unsigned short modem_write(char c);
+    unsigned short modem_print(char *s);
 
 //  virtual void startup_hack() override {};
 };
