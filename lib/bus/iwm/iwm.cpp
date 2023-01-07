@@ -257,9 +257,9 @@ void iwmBus::setup(void)
   diskii_xface.setup_spi(4000, 4);
 
   diskii[0] = new iwmDisk2();
-  // FILE *f = fnSDFAT.file_open("DOS 3.3 System Master.woz");
-  // ((iwmDisk2 *)diskii[0])->mount(f);
-  // fclose(f);
+  FILE *f = fnSDFAT.file_open("DOS 3.3 System Master.woz");
+  ((iwmDisk2 *)diskii[0])->mount(f);
+  fclose(f);
   diskii[1] = new iwmDisk2();
 }
 
@@ -450,7 +450,7 @@ void iwmBus::service()
     break;
   case iwm_enable_state_t::on:
 #ifdef DEBUG
-    new_track = ((iwmDisk2 *)diskii[0])->get_track_pos();
+    new_track = ((iwmDisk2 *)diskii[diskii_xface.iwm_enable_states()-1])->get_track_pos();
     if (old_track != new_track)
     {
       Debug_printf("\ntrack position: %03d", new_track);
@@ -459,7 +459,7 @@ void iwmBus::service()
 #endif
     // smartport.iwm_ack_clr();  - need to deal with write protect
     diskii_xface.enable_output();
-    if (diskii[0]->device_active)
+    if (diskii[diskii_xface.iwm_enable_states()-1]->device_active)
     {
       diskii_xface.iwm_queue_track_spi();
       diskii_xface.spi_end();
