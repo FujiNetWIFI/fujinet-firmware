@@ -35,7 +35,7 @@ void iwmDisk2::shutdown()
 
 iwmDisk2::iwmDisk2()
 {
-  track_pos = 2;
+  track_pos = 80;
   old_pos = 0;
   oldphases = 0;
   Debug_printf("\nNew Disk ][ object");
@@ -67,6 +67,7 @@ mediatype_t iwmDisk2::mount(FILE *f)//, const char *filename), uint32_t disksize
         device_active = true;
         _disk = new MediaTypeWOZ();
         mt = ((MediaTypeWOZ *)_disk)->mount(f);
+        change_track(); // initialize spi buffer
         break;
     default:
         Debug_printf("\nMedia Type UNKNOWN - no mount");
@@ -133,14 +134,14 @@ void iwmDisk2::change_track()
 {
   if (old_pos == track_pos)
     return;
-  
-  // need to tell diskii_xface the number of bits in the track
-  // and where the track data is located so it can convert it
-  diskii_xface.encode_spi_packet(
-    ((MediaTypeWOZ*)_disk)->get_track(track_pos),
-    ((MediaTypeWOZ*)_disk)->track_len(track_pos),
-    ((MediaTypeWOZ*)_disk)->num_bits(track_pos)
-    );
+
+  if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
+    // need to tell diskii_xface the number of bits in the track
+    // and where the track data is located so it can convert it
+    diskii_xface.encode_spi_packet(
+        ((MediaTypeWOZ *)_disk)->get_track(track_pos),
+        ((MediaTypeWOZ *)_disk)->track_len(track_pos),
+        ((MediaTypeWOZ *)_disk)->num_bits(track_pos));
 
 
 }

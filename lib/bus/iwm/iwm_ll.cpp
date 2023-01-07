@@ -616,16 +616,17 @@ void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, in
   // pass pointer to track data instead of using packet_buffer
 
   // clear out spi buffer
-  memset(spi_buffer, 0, SPI_II_LEN);
+  // memset(spi_buffer, 0, SPI_II_LEN);
   // loop through "l" bytes of the buffer "packet_buffer"
-  uint16_t i = 0, j = 0;
-  for (i = 0; i < tracklen; i++)
+  int i = 0, j = 0;
+  for (i = 0; i < (trackbits / 8); i++)
   {
     // Debug_printf("\nByte %02X: ",packet_buffer[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
     {
+      spi_buffer[j] = 0;
       if (track[i] & mask)
       {
         spi_buffer[j] |= 0x40;
@@ -638,8 +639,7 @@ void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, in
       mask >>= 1;
       // Debug_printf("%02x",spi_buffer[j]);
       j++;
-    }
-    i++;
+    }   
   }
   // spi_len = --j;
   spi_len = trackbits / 2; // 2 bits per encoded byte
@@ -663,7 +663,7 @@ void iwm_diskii_ll::setup_spi(int bit_ns, int chiprate)
       .duty_cycle_pos = 0,                                      ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
       .cs_ena_pretrans = 0,                                     ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
       .cs_ena_posttrans = 0,                                    ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
-      .clock_speed_hz = chiprate * 1000 * 1000 * 1000 / bit_ns, // Clock out at 1 MHz
+      .clock_speed_hz = 1000 * 1000, // chiprate * 1000 * 1000 * 1000 / bit_ns, // Clock out at 1 MHz
       .input_delay_ns = 0,
       .spics_io_num = -1, // CS pin
       .queue_size = 5     // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
@@ -695,12 +695,12 @@ void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
 
   if (trans.empty())
   {
-    ret = spi_device_acquire_bus(spi, portMAX_DELAY);
-    assert(ret == ESP_OK);
+    // ret = spi_device_acquire_bus(spi, portMAX_DELAY);
+    // assert(ret == ESP_OK);
     iwm_rddata_clr();
   }
 
-  while (trans.size() < 5)
+  while (trans.size() < 2)
   {
     spi_transaction_t mytrans;
     memset(&mytrans, 0, sizeof(spi_transaction_t));
@@ -723,11 +723,11 @@ void iwm_diskii_ll::spi_end()
   ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
   assert(ret == ESP_OK);
   trans.pop();
-  if (trans.empty())
-  {
-    iwm_rddata_set();
-    spi_device_release_bus(spi);
-  }
+  // if (trans.empty())
+  // {
+  //   iwm_rddata_set();
+  //   // spi_device_release_bus(spi);
+  // }
 }
 
 iwm_sp_ll smartport;

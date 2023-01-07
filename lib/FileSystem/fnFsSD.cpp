@@ -403,7 +403,11 @@ bool FileSystemSDFAT::start()
         .sclk_io_num = PIN_SD_HOST_SCK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
+#ifdef BUILD_APPLE
+        .max_transfer_sz = 26000
+#else
         .max_transfer_sz = 4000
+#endif
     };
 
     spi_bus_initialize(HSPI_HOST,&bus_cfg,1);

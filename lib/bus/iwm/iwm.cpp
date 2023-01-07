@@ -254,9 +254,12 @@ void iwmBus::setup(void)
   smartport.setup_gpio();
   Debug_printf("\nIWM GPIO configured");
   
+  diskii_xface.setup_spi(4000, 4);
+
   diskii[0] = new iwmDisk2();
   FILE *f = fnSDFAT.file_open("DOS 3.3 System Master.woz");
   ((iwmDisk2 *)diskii[0])->mount(f);
+  fclose(f);
   diskii[1] = new iwmDisk2();
 }
 
@@ -444,7 +447,10 @@ void iwmBus::service()
     // if trans queue is empty, get out of there and service the smartport bus
     // if trans queue not empty, then do a spi end
     // in spi end, when its the last one, disable the bus etc.
+    diskii_xface.disable_output();
     diskii_xface.spi_end();
+    smartport.iwm_ack_set();
+
     break;
   // case iwm_enable_state_t::off2on:
   //   // start up the diskii process:
@@ -463,10 +469,12 @@ void iwmBus::service()
       old_track = new_track;
     }
 #endif
+    smartport.iwm_ack_clr(); 
     diskii_xface.iwm_queue_track_spi();
     // add to the SPI queue every 200 ms
     // keep track of how many transactions in the SPI queue
     // ((iwmDisk2 *)diskii[enable_values-1])->process();
+    diskii_xface.spi_end();
     return;
   }
 

@@ -128,7 +128,7 @@ class iwm_diskii_ll
 private:
   // SPI data handling
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
-  uint16_t spi_len;
+  int spi_len;
   spi_device_handle_t spi;
   int fspi;
   std::queue<spi_transaction_t> trans;
@@ -140,6 +140,8 @@ public:
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
   uint8_t iwm_enable_states();
+
+  void disable_output() { iwm_rddata_set(); };
 
   // Smartport Bus handling by SPI interface
   void setup_spi(int bit_ns, int chiprate);
