@@ -132,6 +132,15 @@ unsigned short iwmModem::modem_print(char *s)
     return l;
 }
 
+unsigned short iwmModem::modem_print(int i)
+{
+    char out[80];
+
+    itoa(i,out,10);
+
+    modem_print(out);
+}
+
 void iwmModem::at_connect_resultCode(int modemBaud)
 {
     int resultCode = 0;
@@ -159,8 +168,8 @@ void iwmModem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
-    fnUartSIO.print(resultCode);
-    fnUartSIO.write(ASCII_CR);
+    modem_print(resultCode);
+    modem_write(ASCII_CR);
 }
 
 /**
