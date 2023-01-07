@@ -119,7 +119,7 @@ unsigned short iwmModem::modem_write(char c)
     return 1;
 }
 
-unsigned short iwmModem::modem_print(char *s)
+unsigned short iwmModem::modem_print(const char *s)
 {
     unsigned short l=0;
 
@@ -130,6 +130,11 @@ unsigned short iwmModem::modem_print(char *s)
     }
 
     return l;
+}
+
+unsigned short iwmModem::modem_print(std::string s)
+{
+    return modem_print(s.c_str());
 }
 
 unsigned short iwmModem::modem_print(int i)
@@ -178,9 +183,9 @@ void iwmModem::at_connect_resultCode(int modemBaud)
  */
 void iwmModem::at_cmd_resultCode(int resultCode)
 {
-    fnUartSIO.print(resultCode);
-    fnUartSIO.write(ASCII_CR);
-    fnUartSIO.write(ASCII_LF);
+    modem_print(resultCode);
+    modem_write(ASCII_CR);
+    modem_write(ASCII_LF);
 }
 
 /**
@@ -193,14 +198,13 @@ void iwmModem::at_cmd_println()
 
     if (cmdAtascii == true)
     {
-        fnUartSIO.write(ATASCII_EOL);
+        modem_write(ATASCII_EOL);
     }
     else
     {
-        fnUartSIO.write(ASCII_CR);
-        fnUartSIO.write(ASCII_LF);
+        modem_write(ASCII_CR);
+        modem_write(ASCII_LF);
     }
-    fnUartSIO.flush();
 }
 
 void iwmModem::at_cmd_println(const char *s, bool addEol)
@@ -208,20 +212,19 @@ void iwmModem::at_cmd_println(const char *s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(s);
+    modem_print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            modem_write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            modem_write(ASCII_CR);
+            modem_write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
 }
 
 void iwmModem::at_cmd_println(int i, bool addEol)
@@ -229,20 +232,19 @@ void iwmModem::at_cmd_println(int i, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(i);
+    modem_print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            modem_write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            modem_write(ASCII_CR);
+            modem_write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
 }
 
 void iwmModem::at_cmd_println(std::string s, bool addEol)
@@ -250,20 +252,19 @@ void iwmModem::at_cmd_println(std::string s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(s);
+    modem_print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            modem_write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            modem_write(ASCII_CR);
+            modem_write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
 }
 
 void iwmModem::at_handle_wificonnect()
@@ -273,12 +274,10 @@ void iwmModem::at_handle_wificonnect()
     if (keyIndex != std::string::npos)
     {
         ssid = cmd.substr(13, keyIndex - 13 + 1);
-        //key = cmd.substring(keyIndex + 1, cmd.length());
         key = cmd.substr(keyIndex + 1);
     }
     else
     {
-        //ssid = cmd.substring(6, cmd.length());
         ssid = cmd.substr(6);
         key = "";
     }
@@ -529,7 +528,6 @@ void iwmModem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartSIO.flush();
         answerHack = false;
     }
 }
@@ -1070,11 +1068,11 @@ void iwmModem::sio_handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if (fnUartSIO.available())
+        if (uxQueueMessagesWaiting(mtxq))
         {
-            // get char from Atari SIO
-            //char chr = SIO_UART.read();
-            char chr = fnUartSIO.read();
+            char chr;
+
+            xQueueReceive(mtxq,&chr,portMAX_DELAY);
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -1099,9 +1097,9 @@ void iwmModem::sio_handle_modem()
                     // Clear with a space
                     if (commandEcho == true)
                     {
-                        fnUartSIO.write(ASCII_BACKSPACE);
-                        fnUartSIO.write(' ');
-                        fnUartSIO.write(ASCII_BACKSPACE);
+                        modem_write(ASCII_BACKSPACE);
+                        modem_write(' ');
+                        modem_write(ASCII_BACKSPACE);
                     }
                 }
             }
@@ -1114,7 +1112,7 @@ void iwmModem::sio_handle_modem()
                 {
                     cmd.erase(len - 1);
                     if (commandEcho == true)
-                        fnUartSIO.write(ATASCII_BACKSPACE);
+                        modem_write(ATASCII_BACKSPACE);
                 }
             }
             // Take into account arrow key movement and clear screen
@@ -1122,7 +1120,7 @@ void iwmModem::sio_handle_modem()
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 if (commandEcho == true)
-                    fnUartSIO.write(chr);
+                    modem_write(chr);
             }
             else
             {
@@ -1132,7 +1130,7 @@ void iwmModem::sio_handle_modem()
                     cmd += chr;
                 }
                 if (commandEcho == true)
-                    fnUartSIO.write(chr);
+                    modem_write(chr);
             }
         }
     }
@@ -1163,8 +1161,7 @@ void iwmModem::sio_handle_modem()
             }
         }
 
-        //int sioBytesAvail = SIO_UART.available();
-        int sioBytesAvail = fnUartSIO.available();
+        int sioBytesAvail = uxQueueMessagesWaiting(mtxq);
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
