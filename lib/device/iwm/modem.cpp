@@ -146,6 +146,16 @@ unsigned short iwmModem::modem_print(int i)
     modem_print(out);
 }
 
+unsigned short iwmModem::modem_read(uint8_t *buf, unsigned short len)
+{
+    unsigned short i, l=0;
+
+    for (i=0;i<len;i++)
+        l += xQueueReceive(mtxq,&buf[i],portMAX_DELAY);
+
+    return l;
+}
+
 void iwmModem::at_connect_resultCode(int modemBaud)
 {
     int resultCode = 0;
@@ -1176,8 +1186,8 @@ void iwmModem::sio_handle_modem()
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = fnUartSIO.readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
-                                                   (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
+            int sioBytesRead = modem_read(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
+                                            (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
             for (int i = 0; i < (int)sioBytesRead; i++)
@@ -1226,8 +1236,7 @@ void iwmModem::sio_handle_modem()
             }
             else
             {
-                fnUartSIO.write(buf, bytesRead);
-                fnUartSIO.flush();
+                modem_write(buf, bytesRead);
             }
 
             // And dump to sniffer, if enabled.
