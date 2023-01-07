@@ -75,6 +75,17 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     }
 }
 
+static void _modem_task(void *arg)
+{
+    iwmModem *m = (iwmModem *)arg;
+
+    while (true)
+    {
+        m->handle_modem();
+        vTaskDelay(10);    
+    }
+}
+
 iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
 {
     activeFS = _fs;
@@ -83,6 +94,7 @@ iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
     mrxq = xQueueCreate(2048,sizeof(char));
     mtxq = xQueueCreate(2048,sizeof(char));
+    xTaskCreatePinnedToCore(_modem_task,"modemTask",4096,this,50,&modemTask,0);
 }
 
 iwmModem::~iwmModem()
@@ -97,6 +109,7 @@ iwmModem::~iwmModem()
         telnet_free(telnet);
     }
 
+    vTaskDelete(&modemTask);
     vQueueDelete(mrxq);
     vQueueDelete(mtxq);
 }
@@ -1041,7 +1054,7 @@ void iwmModem::modemCommand()
 /*
   Handle incoming & outgoing data for modem
 */
-void iwmModem::sio_handle_modem()
+void iwmModem::handle_modem()
 {
     /**** AT command mode ****/
     if (cmdMode == true)
