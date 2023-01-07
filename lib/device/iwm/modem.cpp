@@ -81,6 +81,8 @@ iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
     set_term_type("dumb");
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
+    mrxq = xQueueCreate(2048,sizeof(char));
+    mtxq = xQueueCreate(2048,sizeof(char));
 }
 
 iwmModem::~iwmModem()
@@ -94,12 +96,27 @@ iwmModem::~iwmModem()
     {
         telnet_free(telnet);
     }
+
+    vQueueDelete(mrxq);
+    vQueueDelete(mtxq);
 }
 
-// void appleModem::smart_control_status()
-// {
+void iwmModem::modem_write(char* buf, unsigned short len)
+{
+    while (len>0)
+        xQueueSend(mrxq,&buf[len--],portMAX_DELAY);
+}
 
-// }
+void iwmModem::modem_write(char c)
+{
+    xQueueSend(mrxq,&c,portMAX_DELAY);
+}
+
+void iwmModem::modem_print(char *s)
+{
+    while (*s!=0x00)
+        xQueueSend(mrxq,s++,portMAX_DELAY);
+}
 
 void iwmModem::at_connect_resultCode(int modemBaud)
 {
