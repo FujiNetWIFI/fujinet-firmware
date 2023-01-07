@@ -1047,11 +1047,11 @@ void iwmFuji::setup(iwmBus *iwmbus)
     {
         FILE *f = fnSPIFFS.file_open("/autorun.po");
          _fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
-        //_fnDisks[0].disk_dev.init(); // temporary for opening autorun.po on local TNFS
     }
     else
     {
-      mount_all();
+        FILE *f = fnSPIFFS.file_open("/mount-and-boot.po");
+         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);      
     }
 
     // theNetwork = new adamNetwork();
