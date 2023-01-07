@@ -64,7 +64,7 @@ mediatype_t iwmDisk2::mount(FILE *f)//, const char *filename), uint32_t disksize
     switch (disk_type)
     {
     case MEDIATYPE_WOZ:
-        Debug_printf("\nMedia Type WOZ");
+        Debug_printf("\nMounting Media Type WOZ");
         device_active = true;
         _disk = new MediaTypeWOZ();
         mt = ((MediaTypeWOZ *)_disk)->mount(f);
@@ -136,8 +136,8 @@ void iwmDisk2::change_track()
   if (!device_active)
     return;
 
-  if (old_pos == track_pos)
-    return;
+  // if (old_pos == track_pos)
+  //   return;
 
   if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
     // need to tell diskii_xface the number of bits in the track

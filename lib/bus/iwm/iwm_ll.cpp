@@ -5,6 +5,7 @@
 #include "iwm_ll.h"
 #include "iwm.h"
 #include "../device/iwm/disk2.h"
+#include "../device/iwm/fuji.h"
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
@@ -23,8 +24,8 @@ void IRAM_ATTR phi_isr_handler(void *arg)
 
   if (diskii_xface.iwm_enable_states() & 0b11)
   {
-    if (((iwmDisk2 *)IWM.diskii[0])->move_head())
-      ((iwmDisk2 *)IWM.diskii[0])->change_track();
+    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].move_head())
+      theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].change_track();
   }
   else if (!sp_command_mode && (_phases == 0b1011))
   {
