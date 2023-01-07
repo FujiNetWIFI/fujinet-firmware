@@ -249,7 +249,8 @@ public:
     // Low level routines to write to modem IWM queue
     unsigned short modem_write(uint8_t* buf, unsigned short len);
     unsigned short modem_write(char c);
-    unsigned short modem_print(char *s);
+    unsigned short modem_print(const char *s);
+    unsigned short modem_print(std::string s);
     unsigned short modem_print(int i);
 
 //  virtual void startup_hack() override {};
