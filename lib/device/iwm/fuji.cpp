@@ -217,6 +217,7 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
     }
     else if (mt == mediatype_t::MEDIATYPE_WOZ)
     {
+      _fnDisk2s[deviceSlot % 2].init();
       _fnDisk2s[deviceSlot % 2].mount(disk.fileh); // modulo to ensure device 0 or 1
     }
 }
