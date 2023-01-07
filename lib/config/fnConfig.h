@@ -173,8 +173,8 @@ public:
     void store_device_slot_enable_7(bool enabled);
     void store_device_slot_enable_8(bool enabled);
 
-    bool get_apetime_enable();
-    void store_apetime_enable();
+    bool get_apetime_enabled();
+    void store_apetime_enabled(bool enabled);
 
     void load();
     void save();
