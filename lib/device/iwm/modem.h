@@ -253,6 +253,8 @@ public:
     unsigned short modem_print(std::string s);
     unsigned short modem_print(int i);
 
+    unsigned short modem_read(uint8_t *buf, unsigned short len);
+
 //  virtual void startup_hack() override {};
 };
 
