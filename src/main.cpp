@@ -92,7 +92,7 @@ void main_setup()
 
     SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
-    if (Config.get_apetime_enable() == false)
+    if (Config.get_apetime_enabled() == false)
         apeTime.device_active = false;
     else
         apeTime.device_active = true;
