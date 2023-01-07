@@ -155,6 +155,9 @@ private:
     int count_ReqRelocator = 0;
     int count_ReqHandler = 0;
     bool firmware_sent = false;
+  
+    QueueHandle_t mrxq;
+    QueueHandle_t mtxq;
 
     /* Modem Active Variables */
     std::string cmd = "";          // Gather a new AT command to this string from serial
@@ -224,6 +227,11 @@ private:
     void at_handle_pblist();
     void at_handle_pb();
     void at_handle_pbclear();
+
+    // Low level routines to write to modem IWM queue
+    void modem_write(char* buf, unsigned short len);
+    void modem_write(char c);
+    void modem_print(char *s);
 
 protected:
 
