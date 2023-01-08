@@ -98,6 +98,7 @@ private:
   uint16_t packet_len;
 
 public:
+  SemaphoreHandle_t spiMutex;
   // Phase lines and ACK handshaking
   void iwm_ack_set() { GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK); }; // disable the line so it goes hi-z
   void iwm_ack_clr() { GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK); };  // enable the line already set to low
