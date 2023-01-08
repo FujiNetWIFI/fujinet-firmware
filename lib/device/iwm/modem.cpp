@@ -13,7 +13,7 @@
 #include "fnConfig.h"
 #include "led.h"
 
-#define RECVBUFSIZE 1024
+#define RECVBUFSIZE 512
 
 /* Tested this delay several times on an 800 with Incognito
    using HSIO routines. Anything much lower gave inconsistent
@@ -1447,9 +1447,14 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
 void iwmModem::iwm_modem_status()
 {
     unsigned short mw = uxQueueMessagesWaiting(mrxq);
+
+    if (mw > 512)
+        mw = 512;
+        
     data_buffer[0] = mw & 0xFF;
     data_buffer[1] = mw >> 8;
     data_len = 2;
+    Debug_printf("--- %u bytes waiting\n",mw);
 }
 
 void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
