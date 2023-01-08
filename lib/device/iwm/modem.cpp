@@ -120,9 +120,10 @@ unsigned short iwmModem::modem_write(uint8_t *buf, unsigned short len)
 
     while (len > 0)
     {
-        xQueueSend(mrxq, &buf[len--], portMAX_DELAY);
-        l++;
+        xQueueSend(mrxq, &buf[l++], portMAX_DELAY);
+        len--;
     }
+
     return l;
 }
 
@@ -1379,16 +1380,16 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
     uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
 
-    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
 
     memset(data_buffer, 0, sizeof(data_buffer));
 
     for (int i = 0; i < numbytes; i++)
     {
-        // char b;
-        // xQueueReceive(rxq,&b,portMAX_DELAY);
-        // data_buffer[i] = b;
-        // data_len++;
+        char b;
+        xQueueReceive(mrxq, &b, portMAX_DELAY);
+        data_buffer[i] = b;
+        data_len++;
     }
 
     Debug_printf("\r\nsending block packet ...");
@@ -1401,23 +1402,26 @@ void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
 {
     uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
 
-    Debug_printf("\nWrite %u bytes\n", num_bytes);
+    Debug_printf("\nWRITE %u bytes\n", num_bytes);
 
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
-    data_len = 512;
+
+    data_len = num_bytes;
+
     if (IWM.iwm_read_packet_timeout(100, data_buffer, data_len))
     {
         Debug_printf("\r\nTIMEOUT in read packet!");
         return;
     }
-    // partition number indicates which 32mb block we access
-    if (data_len == -1)
-        iwm_return_ioerror();
-    else
+
     {
         // DO write
+        for (int i = 0; i < num_bytes; i++)
+            xQueueSend(mtxq, &data_buffer[i], portMAX_DELAY);
     }
+
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -1490,6 +1494,10 @@ void iwmModem::process(iwm_decoded_cmd_t cmd)
     case 0x08: // read
         Debug_printf("\r\nhandling read command");
         iwm_read(cmd);
+        break;
+    case 0x09: // write
+        Debug_printf("\r\nhandling write command");
+        iwm_write(cmd);
         break;
     default:
         iwm_return_badcmd(cmd);
