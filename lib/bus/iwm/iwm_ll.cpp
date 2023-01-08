@@ -16,7 +16,8 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
   if (!sp_command_mode && (_phases == 0b1011))
   {
-    xSemaphoreTakeFromISR(smartport.spiMutex,NULL);
+    // This go boom.
+    // xSemaphoreTakeFromISR(smartport.spiMutex,NULL);
     smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
     if (IWM.command_packet.command == 0x85)
     {
@@ -35,7 +36,8 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
     }
     smartport.spi_end();
-    xSemaphoreGiveFromISR(smartport.spiMutex,NULL);
+    // This go boom
+    // xSemaphoreGiveFromISR(smartport.spiMutex,NULL);
   }
 }
 
@@ -102,7 +104,6 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   //
   //*****************************************************************************
 
-  xSemaphoreTake(spiMutex,portMAX_DELAY);
   portDISABLE_INTERRUPTS();
 
   encode_spi_packet();
@@ -143,7 +144,6 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   }
   portENABLE_INTERRUPTS();
   return 0;
-  xSemaphoreGive(spiMutex);
 }
 
 bool IRAM_ATTR iwm_sp_ll::spirx_get_next_sample()
