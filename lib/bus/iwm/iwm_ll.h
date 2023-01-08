@@ -4,6 +4,7 @@
 
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
+#include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
 
