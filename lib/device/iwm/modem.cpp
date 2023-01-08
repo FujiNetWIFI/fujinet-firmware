@@ -1450,11 +1450,11 @@ void iwmModem::iwm_modem_status()
 
     if (mw > 512)
         mw = 512;
-        
+
     data_buffer[0] = mw & 0xFF;
     data_buffer[1] = mw >> 8;
     data_len = 2;
-    Debug_printf("--- %u bytes waiting\n",mw);
+    Debug_printf("--- %u bytes waiting\n", mw);
 }
 
 void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
@@ -1485,7 +1485,6 @@ void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
 
 void iwmModem::process(iwm_decoded_cmd_t cmd)
 {
-    fnLedManager.set(LED_BUS, true);
     switch (cmd.command)
     {
     case 0x00: // status
@@ -1498,11 +1497,15 @@ void iwmModem::process(iwm_decoded_cmd_t cmd)
         break;
     case 0x08: // read
         Debug_printf("\r\nhandling read command");
+        fnLedManager.set(LED_BUS, true);
         iwm_read(cmd);
+        fnLedManager.set(LED_BUS, false);
         break;
     case 0x09: // write
         Debug_printf("\r\nhandling write command");
+        fnLedManager.set(LED_BUS, true);
         iwm_write(cmd);
+        fnLedManager.set(LED_BUS, true);
         break;
     default:
         iwm_return_badcmd(cmd);
