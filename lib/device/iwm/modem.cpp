@@ -15,6 +15,9 @@
 
 #define RECVBUFSIZE 512
 
+#define MODEM_TASK_PRIORITY 10
+#define MODEM_TASK_CPU 0
+
 /* Tested this delay several times on an 800 with Incognito
    using HSIO routines. Anything much lower gave inconsistent
    firmware loading. Delay is unnoticeable when running at
@@ -94,7 +97,7 @@ iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
     mrxq = xQueueCreate(2048, sizeof(char));
     mtxq = xQueueCreate(2048, sizeof(char));
-    xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, 50, &modemTask, 0);
+    xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
 }
 
 iwmModem::~iwmModem()
