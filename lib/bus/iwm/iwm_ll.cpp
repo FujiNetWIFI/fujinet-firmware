@@ -405,6 +405,10 @@ void iwm_sp_ll::setup_spi()
   ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
   assert(ret == ESP_OK);
 
+  if (spiMutex == NULL)
+  {
+    spiMutex = xSemaphoreCreateMutex();
+  }
 }
 
 void iwm_sp_ll::setup_gpio()
