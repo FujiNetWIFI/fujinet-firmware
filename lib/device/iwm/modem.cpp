@@ -1440,6 +1440,14 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
     send_reply_packet(err_result);
 }
 
+void iwmModem::iwm_modem_status()
+{
+        unsigned short mw = uxQueueMessagesWaiting(mrxq);
+        data_buffer[0] = mw & 0xFF;
+        data_buffer[1] = mw >> 8;
+        data_len = 2;
+}
+
 void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
 {
     // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
@@ -1458,6 +1466,7 @@ void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
         return;
         break;
     case 'S': // Status
+        iwm_modem_status();
         break;
     }
 

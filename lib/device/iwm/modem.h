@@ -199,6 +199,8 @@ private:
     void iwm_write(iwm_decoded_cmd_t cmd) override;
     void iwm_status(iwm_decoded_cmd_t cmd) override;
 
+    void iwm_modem_status();
+
     void send_status_reply_packet() override;
     void send_status_dib_reply_packet() override;
 
