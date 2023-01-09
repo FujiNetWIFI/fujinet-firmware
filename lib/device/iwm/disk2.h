@@ -36,7 +36,7 @@ public:
     int get_track_pos() { return track_pos; };
     bool phases_valid(uint8_t phases);
     bool move_head();
-    void change_track();
+    void change_track(int indicator);
 
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
