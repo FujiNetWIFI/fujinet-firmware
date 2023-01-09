@@ -146,6 +146,10 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         break;
     case 'S': // Status
         unsigned short mw = uxQueueMessagesWaiting(rxq);
+        
+        if (mw > 512)
+            mw = 512;
+
         data_buffer[0] = mw & 0xFF;
         data_buffer[1] = mw >> 8;
         data_len = 2;
