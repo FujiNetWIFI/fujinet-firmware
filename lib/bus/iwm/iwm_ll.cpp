@@ -12,6 +12,7 @@
 
 volatile uint8_t _phases = 0;
 volatile bool sp_command_mode = false;
+volatile int isrctr = 0;
 
 void IRAM_ATTR phi_isr_handler(void *arg)
 {
@@ -24,8 +25,13 @@ void IRAM_ATTR phi_isr_handler(void *arg)
 
   if (diskii_xface.iwm_enable_states() & 0b11)
   {
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].move_head())
-      theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].change_track();
+    
+    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
+    {
+      isrctr++;
+      theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(isrctr);
+      isrctr--;
+    }
   }
   else if (!sp_command_mode && (_phases == 0b1011))
   {
@@ -610,15 +616,10 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   return numdata;
 }
 
-void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int trackbits)
+void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator = 0)
 {
-  // fix up for DISK II emulation:
-  // make spi buffer bigger based on chip rate
-  // pass pointer to track data instead of using packet_buffer
+  uint8_t temp;
 
-  // clear out spi buffer
-  // memset(spi_buffer, 0, SPI_II_LEN);
-  // loop through "l" bytes of the buffer "packet_buffer"
   int i = 0, j = 0;
   for (i = 0; i < (trackbits / 8); i++)
   {
@@ -627,22 +628,23 @@ void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, in
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
     {
-      spi_buffer[j] = 0;
+      temp = 0;
       if (track[i] & mask)
       {
-        spi_buffer[j] |= 0x40;
+        temp |= 0x40;
       }
       mask >>= 1;
       if (track[i] & mask)
       {
-        spi_buffer[j] |= 0x04;
+        temp |= 0x04;
       }
       mask >>= 1;
       // Debug_printf("%02x",spi_buffer[j]);
-      j++;
-    }   
+      // if (indicator != isrctr)
+      //   return; // if there's a more recent interrupt, quit out of this one.
+      spi_buffer[j++] = temp;
+    }
   }
-  // spi_len = --j;
   spi_len = trackbits / 2; // 2 bits per encoded byte
 }
 

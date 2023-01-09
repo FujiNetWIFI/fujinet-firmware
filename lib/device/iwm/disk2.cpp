@@ -76,7 +76,7 @@ mediatype_t iwmDisk2::mount(FILE *f)//, const char *filename), uint32_t disksize
         device_active = true;
         _disk = new MediaTypeWOZ();
         mt = ((MediaTypeWOZ *)_disk)->mount(f);
-        change_track(); // initialize spi buffer
+        change_track(0); // initialize spi buffer
         break;
     default:
         Debug_printf("\nMedia Type UNKNOWN - no mount");
@@ -85,7 +85,6 @@ mediatype_t iwmDisk2::mount(FILE *f)//, const char *filename), uint32_t disksize
     }
 
     return mt;
-
 }
 
 void iwmDisk2::unmount()
@@ -98,7 +97,7 @@ bool iwmDisk2::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
   return false;
 }
 
-bool iwmDisk2::phases_valid(uint8_t phases)
+bool IRAM_ATTR iwmDisk2::phases_valid(uint8_t phases)
 {
   switch (phases) // lazy brute force way
   {
@@ -117,7 +116,7 @@ bool iwmDisk2::phases_valid(uint8_t phases)
   return false;
 }
 
-bool iwmDisk2::move_head()
+bool IRAM_ATTR iwmDisk2::move_head()
 {
   int delta;
   uint8_t newphases = smartport.iwm_phase_vector(); // could access through IWM instead
@@ -139,7 +138,7 @@ bool iwmDisk2::move_head()
   return (delta != 0);
 }
 
-void iwmDisk2::change_track()
+void IRAM_ATTR iwmDisk2::change_track(int indicator)
 {
   if (!device_active)
     return;
@@ -153,9 +152,8 @@ void iwmDisk2::change_track()
     diskii_xface.encode_spi_packet(
         ((MediaTypeWOZ *)_disk)->get_track(track_pos),
         ((MediaTypeWOZ *)_disk)->track_len(track_pos),
-        ((MediaTypeWOZ *)_disk)->num_bits(track_pos));
-
-
+        ((MediaTypeWOZ *)_disk)->num_bits(track_pos),
+        indicator);
 }
 
 #endif /* BUILD_APPLE */
