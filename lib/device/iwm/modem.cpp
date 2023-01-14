@@ -95,8 +95,8 @@ iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
     set_term_type("dumb");
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
-    mrxq = xQueueCreate(2048, sizeof(char));
-    mtxq = xQueueCreate(2048, sizeof(char));
+    mrxq = xQueueCreate(16384, sizeof(char));
+    mtxq = xQueueCreate(16384, sizeof(char));
     xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
 }
 
@@ -1451,8 +1451,8 @@ void iwmModem::iwm_modem_status()
 {
     unsigned short mw = uxQueueMessagesWaiting(mrxq);
 
-    if (mw > 512)
-        mw = 512;
+    //if (mw > 512)
+    //    mw = 512;
 
     data_buffer[0] = mw & 0xFF;
     data_buffer[1] = mw >> 8;
