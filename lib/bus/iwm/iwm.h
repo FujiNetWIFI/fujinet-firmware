@@ -207,6 +207,13 @@ enum class iwm_fujinet_type_t
   Other
 };
 
+enum class iwm_enable_state_t
+{
+  off,
+  // off2on,
+  on
+  // on2off
+};
 
 struct iwm_device_info_block_t
 {
@@ -324,7 +331,8 @@ private:
   iwm_phases_t oldphase;
 #endif
 
-  bool iwm_drive_enables();
+  iwm_enable_state_t iwm_drive_enabled();
+  uint8_t enable_values;
 
   void iwm_ack_deassert();
   void iwm_ack_assert();
@@ -336,6 +344,9 @@ private:
   iwm_decoded_cmd_t command;
 
   void handle_init(); 
+
+  int old_track = -1;
+  int new_track;
 
 public:
   std::forward_list<iwmDevice *> _daisyChain;
@@ -357,6 +368,7 @@ public:
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
+
 
   bool shuttingDown = false;                                  // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
