@@ -107,6 +107,10 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 return SECTION_CPM;
             }
+            else if (strncasecmp("ENABLE", s1.c_str(), 8) == 0)
+            {
+                return SECTION_DEVICE_ENABLE;
+            }
         }
     }
     return SECTION_UNKNOWN;
