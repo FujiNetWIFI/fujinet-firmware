@@ -48,6 +48,10 @@ protected:
 
     char disk_num;
 
+    /* Determine smartport type based on # of blocks */
+    uint8_t smartport_device_type();
+    uint8_t smartport_device_subtype();
+
 public:
     uint8_t blank_header_type = 0; // unadorned by default.
     iwmDisk();
