@@ -15,6 +15,22 @@ iwmDisk::~iwmDisk()
 {
 }
 
+uint8_t iwmDisk::smartport_device_type()
+{
+  if (_disk->num_blocks < 1601)
+    return 0x01; // Floppy disk
+  else
+    return 0x02; // Hard disk
+}
+
+uint8_t iwmDisk::smartport_device_subtype()
+{
+  if (_disk->num_blocks < 1601)
+    return 0x00; // Floppy disk
+  else
+    return 0x0a; // Hard Disk
+}
+
 //*****************************************************************************
 // Function: send_status_reply_packet
 // Parameters: source
@@ -150,8 +166,8 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
   data[18] = disk_num; //'1';
   data[19] = ' ';
   data[20] = ' ';  // ID string (16 chars total)
-  data[21] = 0x02; // Device type    - 0x02  harddisk
-  data[22] = 0x0a; // Device Subtype - 0x0a
+  data[21] = smartport_device_type();
+  data[22] = smartport_device_subtype();
   data[23] = 0x01; // Firmware version 2 bytes
   data[24] = 0x0f; //
   IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
