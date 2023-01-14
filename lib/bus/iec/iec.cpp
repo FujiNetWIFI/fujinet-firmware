@@ -1185,6 +1185,8 @@ void iecBus::reset()
 // Give devices an opportunity to clean up before a reboot
 void iecBus::shutdown()
 {
+    shuttingDown = true;
+
     for (auto devicep : _daisyChain)
     {
         Debug_printf("Shutting down device %02x\n",devicep->device_id());

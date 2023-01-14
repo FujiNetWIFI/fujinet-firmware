@@ -35,6 +35,8 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   }
   else if (!sp_command_mode && (_phases == 0b1011))
   {
+    // This go boom.
+    // xSemaphoreTakeFromISR(smartport.spiMutex,NULL);
     smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
     if (IWM.command_packet.command == 0x85)
     {
@@ -53,6 +55,8 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
     }
     smartport.spi_end();
+    // This go boom
+    // xSemaphoreGiveFromISR(smartport.spiMutex,NULL);
   }
 }
 
@@ -419,6 +423,10 @@ void iwm_sp_ll::setup_spi()
   ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
   assert(ret == ESP_OK);
 
+  if (smartport.spiMutex == NULL)
+  {
+    smartport.spiMutex = xSemaphoreCreateMutex();
+  }
 }
 
 void iwm_sp_ll::setup_gpio()

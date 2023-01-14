@@ -58,12 +58,14 @@
 #define SP_TYPE_BYTE_FUJINET_CPM 0x12
 #define SP_TYPE_BYTE_FUJINET_CLOCK 0x13
 #define SP_TYPE_BYTE_FUJINET_PRINTER 0x14
+#define SP_TYPE_BYTE_FUJINET_MODEM 0x15
 
 #define SP_SUBTYPE_BYTE_FUJINET 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_CPM 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_CLOCK 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_PRINTER 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_MODEM 0x00
 
 #define IWM_CTRL_RESET 0x00
 #define IWM_CTRL_SET_DCB 0x01
@@ -350,7 +352,6 @@ public:
   std::forward_list<iwmDevice *> _daisyChain;
   
   cmdPacket_t command_packet;
-  bool inCriticalSection = false;
   bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
    int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
  
@@ -367,6 +368,10 @@ public:
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
+
+
+  bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+  bool getShuttingDown() { return shuttingDown; };
 
 };
 

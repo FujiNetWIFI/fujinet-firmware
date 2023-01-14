@@ -581,6 +581,11 @@
 					<div class="settings-header">
 						Time<span id="logowob"></span>Zone
 					</div>
+					<script>
+						{% if components.apetime %}
+						var current_apetime = "<%FN_APETIME_ENABLED%>";
+						{% endif %}
+					</script>
 					<div class="settings-left">
 						<div class="svgicon">
 							<svg width="100%" height="100%" viewBox="0 0 200 201" version="1.1" xmlns="http://www.w3.org/2000/svg"
@@ -641,6 +646,21 @@
 								<input type="text" name="timezone" id="txt_timezone" value="<%FN_TIMEZONE%>">
 							</div>
 						</div>
+						{% if components.apetime %}
+						<div class="set">
+							<div class="settings-label">
+								<label for="">Enable APETIME</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="tz-apetime-yes" name="apetime_enabled" type="radio" value="1">
+									<label for="tz-apetime-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="tz-apetime-no" name="apetime_enabled" type="radio" value="0">
+									<label for="tz-apetime-no" class="r-yes-no">No</label>
+								</div>
+							</div>
+						</div>
+						{% endif %}
 					</div>
 					<div class="settings-footer">
 						<div class="save-button">
@@ -929,7 +949,7 @@
 						var current_boot_mode = "<%FN_BOOT_MODE%>";
 						var current_status_wait_enabled = "<%FN_STATUS_WAIT_ENABLED%>";
 						var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
-					</script>
+						var current_encrypt_passphrase_enabled = "<%FN_ENCRYPT_PASSPHRASE_ENABLED%>";
 					</script>
 					<div class="settings-left">
 						<div class="svgicon">
@@ -1030,6 +1050,27 @@
 						<div class="set">
 							<div class="settings-label">
 								<label>
+									Enable passphrase encryption
+									<div class="tooltip">&#9432;
+										<span class="tooltiptext small-text">
+											This will encrypt/decrypt the passphrase for the WiFi connection in config,
+											offering protection from casual observation of passphrases in INI files.
+										</span>
+									</div>
+								</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="encrypt-passphrase-yes" name="passphrase_encrypt" type="radio" value="1">
+									<label for="encrypt-passphrase-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="encrypt-passphrase-no" name="passphrase_encrypt" type="radio" value="0">
+									<label for="encrypt-passphrase-no" class="r-yes-no">No</label>
+								</div>
+							</div>
+						</div>
+						<div class="set">
+							<div class="settings-label">
+								<label>
 									Enable SIO STATUS wait routine
 									<div class="tooltip">&#9432;
 										<span class="tooltiptext small-text">
@@ -1040,7 +1081,6 @@
 											ejecting config Disk on boot.
 										</span>
 									</div>
-
 								</label>
 							</div>
 							<div class="settings-value">

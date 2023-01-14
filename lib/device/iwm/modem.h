@@ -73,7 +73,7 @@
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 
-class appleModem : public iwmDevice
+class iwmModem : public iwmDevice
 {
 private:
 
@@ -155,6 +155,10 @@ private:
     int count_ReqRelocator = 0;
     int count_ReqHandler = 0;
     bool firmware_sent = false;
+  
+    QueueHandle_t mrxq;
+    QueueHandle_t mtxq;
+    TaskHandle_t modemTask;
 
     /* Modem Active Variables */
     std::string cmd = "";          // Gather a new AT command to this string from serial
@@ -186,10 +190,19 @@ private:
     bool answered=false;
 
     void shutdown() override;
-    void process(iwm_decoded_cmd_t cmd) override{};
+    void process(iwm_decoded_cmd_t cmd) override;
 
-    void send_status_reply_packet() override{};
-    void send_status_dib_reply_packet() override{};
+    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
+    void iwm_open(iwm_decoded_cmd_t cmd) override{};
+    void iwm_close(iwm_decoded_cmd_t cmd) override{};
+    void iwm_read(iwm_decoded_cmd_t cmd) override;
+    void iwm_write(iwm_decoded_cmd_t cmd) override;
+    void iwm_status(iwm_decoded_cmd_t cmd) override;
+
+    void iwm_modem_status();
+
+    void send_status_reply_packet() override;
+    void send_status_dib_reply_packet() override;
 
     void send_extended_status_reply_packet() override{};
     void send_extended_status_dib_reply_packet() override{};
@@ -223,10 +236,10 @@ protected:
 public:
 
     bool modemActive = false; // If we are in modem mode or not
-    void sio_handle_modem();  // Handle incoming & outgoing data for modem
+    void handle_modem();  // Handle incoming & outgoing data for modem
 
-    appleModem(FileSystem *_fs, bool snifferEnable);
-    virtual ~appleModem();
+    iwmModem(FileSystem *_fs, bool snifferEnable);
+    virtual ~iwmModem();
 
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
     ModemSniffer *get_modem_sniffer() { return modemSniffer; }
@@ -236,6 +249,14 @@ public:
     std::string get_term_type() {return term_type; }
     void set_term_type(std::string _term_type) { term_type = _term_type; }
 
+    // Low level routines to write to modem IWM queue
+    unsigned short modem_write(uint8_t* buf, unsigned short len);
+    unsigned short modem_write(char c);
+    unsigned short modem_print(const char *s);
+    unsigned short modem_print(std::string s);
+    unsigned short modem_print(int i);
+
+    unsigned short modem_read(uint8_t *buf, unsigned short len);
 
 //  virtual void startup_hack() override {};
 };

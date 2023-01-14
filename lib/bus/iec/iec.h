@@ -306,6 +306,9 @@ public:
     virtualDevice *deviceById(int device_id);
     void changeDeviceId(virtualDevice *pDevice, int device_id);
 
+    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
+
 	//iecPrinter *getPrinter(void) { return _printerdev; }
 
 	QueueHandle_t qBusMessages = nullptr;

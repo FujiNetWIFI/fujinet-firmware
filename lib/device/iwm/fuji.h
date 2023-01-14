@@ -10,6 +10,7 @@
 #include "iwm/printer.h"
 #include "iwm/cpm.h"
 #include "iwm/clock.h"
+#include "iwm/modem.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"

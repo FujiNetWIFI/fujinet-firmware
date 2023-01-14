@@ -209,6 +209,7 @@ void iwmNetwork::close()
 void iwmNetwork::get_prefix()
 {
     Debug_printf("iwmNetwork::get_prefix(%s)\n",prefix.c_str());
+    memset(data_buffer,0,sizeof(data_buffer));
     memcpy(data_buffer,prefix.c_str(),prefix.length());
     data_len = prefix.length();
 }
@@ -679,16 +680,10 @@ void iwmNetwork::net_write()
 
 void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // data_buffer[6];
-    // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
     Debug_printf("\r\nNet# %02x ", id());
 
     uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // num_bytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
-
     uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
     Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
 
