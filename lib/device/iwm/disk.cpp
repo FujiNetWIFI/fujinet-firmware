@@ -144,9 +144,9 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
     data[2] = (_disk->num_blocks >> 8) & 0xff;  // block size 2
     data[3] = (_disk->num_blocks >> 16) & 0xff; // block size 3
     Debug_printf("\r\nDIB number of blocks %d", _disk->num_blocks);
-    //Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
+    //Debug_printf("\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
   }
-  Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]); // this debug is required to make it work
+  Debug_printf("\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]); // this debug is required to make it work
   // ALERT!!!!!! The above debug is somehow required to make the assignment of data[0..3] above stick.
   // otherwise, data[0..3]=0. Have no idea why!?!?!?!?!??!?!?!?!?!?!?!?!??!
   data[4] = 0x0E; // ID string length - 14 chars
@@ -209,9 +209,9 @@ void iwmDisk::send_extended_status_dib_reply_packet()
     data[2] = (_disk->num_blocks >> 8) & 0xff;  // block size 2
     data[3] = (_disk->num_blocks >> 16) & 0xff; // block size 3
     Debug_printf("\r\nDIB number of blocks %d", _disk->num_blocks);
-    //Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
+    //Debug_printf("\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]);
   }
-  Debug_printf("\r\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]); // this debug is required to make it work
+  Debug_printf("\n%02x %02x %02x %02x", data[0], data[1], data[2], data[3]); // this debug is required to make it work
   // ALERT!!!!!! The above debug is somehow required to make the assignment of data[0..3] above stick.
   // otherwise, data[0..3]=0. Have no idea why!?!?!?!?!??!?!?!?!?!?!?!?!??!
   data[4] = 0x0E; // ID string length - 14 chars
@@ -497,7 +497,7 @@ bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
 
 /* void iwmDisk::startup_hack()
 {
-  // Debug_printf("\r\n Disk startup hack");
+  // Debug_printf("\n Disk startup hack");
   // init();
 }
  */
