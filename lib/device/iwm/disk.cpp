@@ -17,6 +17,9 @@ iwmDisk::~iwmDisk()
 
 uint8_t iwmDisk::smartport_device_type()
 {
+  if (_disk == nullptr)
+    return 0x02;
+
   if (_disk->num_blocks < 1601)
     return 0x01; // Floppy disk
   else
@@ -25,6 +28,9 @@ uint8_t iwmDisk::smartport_device_type()
 
 uint8_t iwmDisk::smartport_device_subtype()
 {
+  if (_disk == nullptr)
+    return 0x0a;
+    
   if (_disk->num_blocks < 1601)
     return 0x00; // Floppy disk
   else
