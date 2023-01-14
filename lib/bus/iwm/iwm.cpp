@@ -214,6 +214,7 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
   int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
 
   Debug_printf("\nAttempting to receive %d length packet", nn);
+  inCriticalSection=true;
 
   portDISABLE_INTERRUPTS();
   iwm_ack_deassert();
