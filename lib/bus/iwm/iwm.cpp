@@ -457,7 +457,6 @@ void iwmBus::service()
     if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].device_active)
     {
       diskii_xface.iwm_queue_track_spi();
-      diskii_xface.spi_end();
     }
     return;
   }
