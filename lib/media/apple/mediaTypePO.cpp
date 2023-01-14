@@ -46,7 +46,6 @@ bool MediaTypePO::format(uint16_t *respopnsesize)
 
 mediatype_t MediaTypePO::mount(FILE *f, uint32_t disksize)
 {
-    diskiiemulation = false;
     char hdr[4];
     fread(&hdr,sizeof(char),4,f);
     if (hdr[0] == '2' && hdr[1] == 'I' && hdr[2] == 'M' && hdr[3] == 'G')

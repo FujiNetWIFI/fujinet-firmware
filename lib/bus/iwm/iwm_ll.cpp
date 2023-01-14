@@ -4,36 +4,17 @@
 
 #include "iwm_ll.h"
 #include "iwm.h"
-#include "../device/iwm/disk2.h"
-#include "../device/iwm/fuji.h"
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
 
 volatile uint8_t _phases = 0;
 volatile bool sp_command_mode = false;
-volatile int isrctr = 0;
 
 void IRAM_ATTR phi_isr_handler(void *arg)
 {
-  // handle SP Command Packet or Disk ][ track changes
-  // maintain the diskii process:
-  // update the head position based on phases
-  // put the right track in the SPI buffer
-
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
-
-  if (diskii_xface.iwm_enable_states() & 0b11)
-  {
-    
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
-    {
-      isrctr++;
-      theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(isrctr);
-      isrctr--;
-    }
-  }
-  else if (!sp_command_mode && (_phases == 0b1011))
+  if (!sp_command_mode && (_phases == 0b1011))
   {
     // This go boom.
     // xSemaphoreTakeFromISR(smartport.spiMutex,NULL);
@@ -74,15 +55,20 @@ inline void iwm_sp_ll::iwm_extra_clr()
 #endif
 }
 
+inline bool iwm_sp_ll::iwm_enable_val()
+{
+  return true;
+}
+
 void IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
-  memset(spi_buffer, 0, SPI_SP_LEN);
+  memset(spi_buffer, 0, SPI_BUFFER_LEN);
   // loop through "l" bytes of the buffer "packet_buffer"
   uint16_t i=0,j=0;
   while(packet_buffer[i])
   {
-    // Debug_printf("\nByte %02X: ",packet_buffer[i]);
+    // Debug_printf("\r\nByte %02X: ",packet_buffer[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
@@ -136,7 +122,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   if (req_wait_for_rising_timeout(300000))
     {
       // timeout!
-      Debug_printf("\nSendPacket timeout waiting for REQ");
+      Debug_printf("\r\nSendPacket timeout waiting for REQ");
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
@@ -190,7 +176,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   nominal command length is 27 bytes * 8 * 8 = 1728 samples
   1798/1728 = 1.04
 
-  command packet on YellowStone (YS) is 919 us
+  command packet on YS is 919 us
   2.052 * 919 = 1886 samples
   1886 / 1728 = 1.0914    --    this one says we need 10% extra array length
 
@@ -204,8 +190,8 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   */
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
-
-  memset(spi_buffer, 0xff, SPI_SP_LEN);
+  
+  memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
   memset(&rxtrans, 0, sizeof(spi_transaction_t));
   rxtrans.flags = 0; 
   rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
@@ -279,8 +265,8 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
     {
       bit = false; // assume no edge in this next bit
 #ifdef VERBOSE_IWM
-      Debug_printf("\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
-      Debug_printf("\nspibyte spibit intctr sampval preval rxbit rxbyte");
+      Debug_printf("\r\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
+      Debug_printf("\r\nspibyte spibit intctr sampval preval rxbit rxbyte");
 #endif
       int i = 0;
       while (i < pulsewidth)
@@ -288,7 +274,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
         current_level = spirx_get_next_sample();
         current_level ? iwm_extra_clr() : iwm_extra_set();
 #ifdef VERBOSE_IWM
-        Debug_printf("\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
+        Debug_printf("\r\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
 #endif
         // sprix:
         // loop through 4 usec worth of samples looking for an edge
@@ -378,33 +364,33 @@ void iwm_sp_ll::setup_spi()
 
   esp_err_t ret; // used for calling SPI library functions below
 
-  spi_buffer = (uint8_t *)heap_caps_malloc(SPI_SP_LEN, MALLOC_CAP_DMA); //  use this buffer for SPI RX
+  spi_buffer=(uint8_t*)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA); 
 
   spi_device_interface_config_t devcfg = {
-      .mode = 0,                         // SPI mode 0
-      .duty_cycle_pos = 0,               ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-      .cs_ena_pretrans = 0,              ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
-      .cs_ena_posttrans = 0,             ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
+      .mode = 0,                   // SPI mode 0
+      .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+      .cs_ena_pretrans = 0,        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
+      .cs_ena_posttrans = 0,       ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
       .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
       .input_delay_ns = 0,
-      .spics_io_num = -1, // CS pin
-      .queue_size = 2     // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
+      .spics_io_num = -1,                // CS pin
+      .queue_size = 2                    // We want to be able to queue 7 transactions at a time
   };
 
-  // use same SPI as SDCARD
-  ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+    // use same SPI as SDCARD
+    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
 
   assert(ret == ESP_OK);
 
-  // SPI for receiving SP packets - sprirx
-  // use different SPI than SDCARD
+// SPI for receiving packets - sprirx
+// use different SPI than SDCARD
   spi_bus_config_t bus_cfg = {
       .mosi_io_num = -1,
       .miso_io_num = SP_WRDATA,
       .sclk_io_num = -1,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
-      .max_transfer_sz = SPI_SP_LEN,
+      .max_transfer_sz = SPI_BUFFER_LEN,
       .flags = SPICOMMON_BUSFLAG_MASTER,
       .intr_flags = 0};
   spi_device_interface_config_t rxcfg = {
@@ -437,9 +423,9 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT);
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
-  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 
   // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
 
@@ -458,15 +444,15 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
-  Debug_printf("\nEXTRA signaling line configured");
+  Debug_printf("\r\nEXTRA signaling line configured");
 #endif
 
   
   // attach the interrupt service routine
   gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, NULL);
-  gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
-  gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
-  gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
+  //gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
+ //gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
+  //gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
 }
 
 void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 
@@ -577,7 +563,7 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   numodd = input_data[11] & 0x7f;
   numgrps = input_data[12] & 0x7f;
   numdata = numodd + numgrps * 7;
-  Debug_printf("\nDecoding %d bytes",numdata);
+  Debug_printf("\r\nDecoding %d bytes",numdata);
   // if (numdata==512)
   // {
   //   // print out packets
@@ -613,140 +599,17 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   for (int count = 0; count < numdata; count++) // xor all the output_data bytes
     checksum = checksum ^ output_data[count];
 
-  Debug_printf("\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
+  Debug_printf("\r\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
 
   if (checksum != (oddbits | evenbits))
   {
-    Debug_printf("\nCHECKSUM ERROR!");
+    Debug_printf("\r\nCHECKSUM ERROR!");
     return -1; // error!
   }
   
   return numdata;
 }
 
-void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator = 0)
-{
-  uint8_t temp;
-
-  int i = 0, j = 0;
-  for (i = 0; i < (trackbits / 8); i++)
-  {
-    // Debug_printf("\nByte %02X: ",packet_buffer[i]);
-    // for each byte, loop through 4 x 2-bit pairs
-    uint8_t mask = 0x80;
-    for (int k = 0; k < 4; k++)
-    {
-      temp = 0;
-      if (track[i] & mask)
-      {
-        temp |= 0x40;
-      }
-      mask >>= 1;
-      if (track[i] & mask)
-      {
-        temp |= 0x04;
-      }
-      mask >>= 1;
-      // Debug_printf("%02x",spi_buffer[j]);
-      // if (indicator != isrctr)
-      //   return; // if there's a more recent interrupt, quit out of this one.
-      spi_buffer[j++] = temp;
-    }
-  }
-  spi_len = trackbits / 2; // 2 bits per encoded byte
-}
-
-void iwm_diskii_ll::setup_spi(int bit_ns, int chiprate)
-{
-  esp_err_t ret; // used for calling SPI library functions below
-  int spi_buffer_len;
-
-  // compute length of 1 track in chips
-  // 200 milleseconds
-  // 1 bit in nanoseconds (usually about 4000)
-  // number of chips per bit (usually 4)
-  spi_buffer_len = SPI_II_LEN;// 200 * 1000 * 1000 * chiprate / bit_ns / 8;
-  spi_len = 50304 / 2; // standard DOS 3.3 answer spi_buffer_len;
-  spi_buffer = (uint8_t *)heap_caps_malloc(spi_buffer_len, MALLOC_CAP_DMA);
-
-  spi_device_interface_config_t devcfg = {
-      .mode = 0,                                                // SPI mode 0
-      .duty_cycle_pos = 0,                                      ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-      .cs_ena_pretrans = 0,                                     ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
-      .cs_ena_posttrans = 0,                                    ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
-      .clock_speed_hz = 1000 * 1000, // chiprate * 1000 * 1000 * 1000 / bit_ns, // Clock out at 1 MHz
-      .input_delay_ns = 0,
-      .spics_io_num = -1, // CS pin
-      .queue_size = 5     // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
-  };
-
-  // use same SPI as SDCARD
-  ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-
-  assert(ret == ESP_OK);
-}
-
-uint8_t iwm_diskii_ll::iwm_enable_states()
-{
-  uint8_t states = 0;
-
-// don't know why this doesn't work:
-  // 
-  states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
-  states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32 - 1);
-  // states |= !(GPIO.in1.val & (0x01 << (SP_EN35 - 32))) >> (SP_EN35 - 32 - 2);
-  // states |= !(GPIO.in & (0x01 << SP_HDSEL)) >> (SP_HDSEL - 3);
-
-  return states;
-  //return states;
-}
-
-void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
-{
-  esp_err_t ret;
-
-  // if (trans.empty())
-  // {
-  //   // ret = spi_device_acquire_bus(spi, portMAX_DELAY);
-  //   // assert(ret == ESP_OK);
-  //   iwm_rddata_clr();
-  // }
-
-  if (trans.size() > 1)
-    spi_end();
-    
-  while (trans.size() < 2)
-  {
-    spi_transaction_t mytrans;
-    memset(&mytrans, 0, sizeof(spi_transaction_t));
-    mytrans.tx_buffer = spi_buffer; // finally send the line data
-    mytrans.length = spi_len * 8;   // Data length, in bits
-    mytrans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
-    trans.push(mytrans);
-    ret = spi_device_queue_trans(spi, &trans.back(), portMAX_DELAY);
-    assert(ret == ESP_OK);
-  }
-}
-
-void iwm_diskii_ll::spi_end()
-{
-  if (trans.empty())
-    return;
-
-  esp_err_t ret;
-  spi_transaction_t *t = &trans.front();
-  ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
-  assert(ret == ESP_OK);
-  trans.pop();
-  if (trans.empty())
-  {
-    disable_output();
-    smartport.iwm_ack_set(); 
-    // spi_device_release_bus(spi);
-  }
-}
-
 iwm_sp_ll smartport;
-iwm_diskii_ll diskii_xface;
 
 #endif
