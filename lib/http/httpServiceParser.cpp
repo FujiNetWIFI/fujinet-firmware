@@ -100,6 +100,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_ERRMSG,
         FN_HARDWARE_VER,
         FN_PRINTER_LIST,
+        FN_ENCRYPT_PASSPHRASE_ENABLED,
+        FN_APETIME_ENABLED,
         FN_LASTTAG
     };
 
@@ -184,7 +186,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST8PREFIX",
         "FN_ERRMSG",
         "FN_HARDWARE_VER",
-        "FN_PRINTER_LIST"
+        "FN_PRINTER_LIST",
+        "FN_ENCRYPT_PASSPHRASE_ENABLED",
+        "FN_APETIME_ENABLED"
     };
 
     stringstream resultstream;
@@ -262,6 +266,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_TIMEZONE:
         resultstream << Config.get_general_timezone();
         break;
+#ifdef BUILD_ATARI
+    case FN_APETIME_ENABLED:
+        resultstream << Config.get_apetime_enabled();
+        break;
+#endif /* BUILD_ATARI */
+
     case FN_ROTATION_SOUNDS:
         resultstream << Config.get_general_rotation_sounds();
         break;
@@ -471,6 +481,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             } else
                 resultstream << "Insufficent memory";
         }
+        break;
+    case FN_ENCRYPT_PASSPHRASE_ENABLED:
+        resultstream << Config.get_general_encrypt_passphrase();
         break;
     default:
         resultstream << tag;

@@ -988,12 +988,12 @@ void iwmFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fnSPIFFS.file_open(config_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_PO);        
+        _fnDisks[0].disk_dev.mount(fBoot, config_atr, 143360, MEDIATYPE_PO);        
         break;
     case 1:
 
         fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_PO);        
+        _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 143360, MEDIATYPE_PO);        
         break;
     }
 
@@ -1043,7 +1043,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
     _iwm_bus->addDevice(theClock, iwm_fujinet_type_t::Clock);
 
     theCPM = new iwmCPM();
-    _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
+    _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);    
 
    for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
    {
@@ -1056,11 +1056,11 @@ void iwmFuji::setup(iwmBus *iwmbus)
     {
         FILE *f = fnSPIFFS.file_open("/autorun.po");
          _fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
-        //_fnDisks[0].disk_dev.init(); // temporary for opening autorun.po on local TNFS
     }
     else
     {
-      mount_all();
+        FILE *f = fnSPIFFS.file_open("/mount-and-boot.po");
+         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);      
     }
 
     // theNetwork = new adamNetwork();

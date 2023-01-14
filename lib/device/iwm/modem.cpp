@@ -11,8 +11,12 @@
 #include "fnSystem.h"
 #include "../utils/utils.h"
 #include "fnConfig.h"
+#include "led.h"
 
-#define RECVBUFSIZE 1024
+#define RECVBUFSIZE 512
+
+#define MODEM_TASK_PRIORITY 10
+#define MODEM_TASK_CPU 0
 
 /* Tested this delay several times on an 800 with Incognito
    using HSIO routines. Anything much lower gave inconsistent
@@ -36,12 +40,12 @@ static const telnet_telopt_t telopts[] = {
  */
 static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data)
 {
-    appleModem *modem = (appleModem *)user_data; // somehow it thinks this is unused?
+    iwmModem *modem = (iwmModem *)user_data; // somehow it thinks this is unused?
 
     switch (ev->type)
     {
     case TELNET_EV_DATA:
-        if (ev->data.size && fnUartSIO.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+        if (ev->data.size && modem->modem_write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
             Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
         break;
     case TELNET_EV_SEND:
@@ -74,15 +78,29 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     }
 }
 
-appleModem::appleModem(FileSystem *_fs, bool snifferEnable)
+static void _modem_task(void *arg)
+{
+    iwmModem *m = (iwmModem *)arg;
+
+    while (true)
+    {
+        m->handle_modem();
+        vTaskDelay(10);
+    }
+}
+
+iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
 {
     activeFS = _fs;
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
     set_term_type("dumb");
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
+    mrxq = xQueueCreate(16384, sizeof(char));
+    mtxq = xQueueCreate(16384, sizeof(char));
+    xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
 }
 
-appleModem::~appleModem()
+iwmModem::~iwmModem()
 {
     if (modemSniffer != nullptr)
     {
@@ -93,14 +111,69 @@ appleModem::~appleModem()
     {
         telnet_free(telnet);
     }
+
+    vTaskDelete(&modemTask);
+    vQueueDelete(mrxq);
+    vQueueDelete(mtxq);
 }
 
-// void appleModem::smart_control_status()
-// {
+unsigned short iwmModem::modem_write(uint8_t *buf, unsigned short len)
+{
+    unsigned short l = 0;
 
-// }
+    while (len > 0)
+    {
+        xQueueSend(mrxq, &buf[l++], portMAX_DELAY);
+        len--;
+    }
 
-void appleModem::at_connect_resultCode(int modemBaud)
+    return l;
+}
+
+unsigned short iwmModem::modem_write(char c)
+{
+    xQueueSend(mrxq, &c, portMAX_DELAY);
+    return 1;
+}
+
+unsigned short iwmModem::modem_print(const char *s)
+{
+    unsigned short l = 0;
+
+    while (*s != 0x00)
+    {
+        xQueueSend(mrxq, s++, portMAX_DELAY);
+        l++;
+    }
+
+    return l;
+}
+
+unsigned short iwmModem::modem_print(std::string s)
+{
+    return modem_print(s.c_str());
+}
+
+unsigned short iwmModem::modem_print(int i)
+{
+    char out[80];
+
+    itoa(i, out, 10);
+
+    return modem_print(out);
+}
+
+unsigned short iwmModem::modem_read(uint8_t *buf, unsigned short len)
+{
+    unsigned short i, l = 0;
+
+    for (i = 0; i < len; i++)
+        l += xQueueReceive(mtxq, &buf[i], portMAX_DELAY);
+
+    return l;
+}
+
+void iwmModem::at_connect_resultCode(int modemBaud)
 {
     int resultCode = 0;
     switch (modemBaud)
@@ -127,117 +200,111 @@ void appleModem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
-    fnUartSIO.print(resultCode);
-    fnUartSIO.write(ASCII_CR);
+    modem_print(resultCode);
+    modem_write(ASCII_CR);
 }
 
 /**
  * Emit result code if ATV0
  * No Atascii translation here, as this is intended for machine reading.
  */
-void appleModem::at_cmd_resultCode(int resultCode)
+void iwmModem::at_cmd_resultCode(int resultCode)
 {
-    fnUartSIO.print(resultCode);
-    fnUartSIO.write(ASCII_CR);
-    fnUartSIO.write(ASCII_LF);
+    modem_print(resultCode);
+    modem_write(ASCII_CR);
+    modem_write(ASCII_LF);
 }
 
 /**
    replacement println for AT that is CR/EOL aware
 */
-void appleModem::at_cmd_println()
+void iwmModem::at_cmd_println()
 {
     if (cmdOutput == false)
         return;
 
     if (cmdAtascii == true)
     {
-        fnUartSIO.write(ATASCII_EOL);
+        modem_write(ATASCII_EOL);
     }
     else
     {
-        fnUartSIO.write(ASCII_CR);
-        fnUartSIO.write(ASCII_LF);
+        modem_write(ASCII_CR);
+        modem_write(ASCII_LF);
     }
-    fnUartSIO.flush();
 }
 
-void appleModem::at_cmd_println(const char *s, bool addEol)
+void iwmModem::at_cmd_println(const char *s, bool addEol)
 {
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(s);
+    modem_print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            modem_write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            modem_write(ASCII_CR);
+            modem_write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
 }
 
-void appleModem::at_cmd_println(int i, bool addEol)
+void iwmModem::at_cmd_println(int i, bool addEol)
 {
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(i);
+    modem_print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            modem_write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            modem_write(ASCII_CR);
+            modem_write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
 }
 
-void appleModem::at_cmd_println(std::string s, bool addEol)
+void iwmModem::at_cmd_println(std::string s, bool addEol)
 {
     if (cmdOutput == false)
         return;
 
-    fnUartSIO.print(s);
+    modem_print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartSIO.write(ATASCII_EOL);
+            modem_write(ATASCII_EOL);
         }
         else
         {
-            fnUartSIO.write(ASCII_CR);
-            fnUartSIO.write(ASCII_LF);
+            modem_write(ASCII_CR);
+            modem_write(ASCII_LF);
         }
     }
-    fnUartSIO.flush();
 }
 
-void appleModem::at_handle_wificonnect()
+void iwmModem::at_handle_wificonnect()
 {
     int keyIndex = cmd.find(',');
     std::string ssid, key;
     if (keyIndex != std::string::npos)
     {
         ssid = cmd.substr(13, keyIndex - 13 + 1);
-        //key = cmd.substring(keyIndex + 1, cmd.length());
         key = cmd.substr(keyIndex + 1);
     }
     else
     {
-        //ssid = cmd.substring(6, cmd.length());
         ssid = cmd.substr(6);
         key = "";
     }
@@ -280,9 +347,9 @@ void appleModem::at_handle_wificonnect()
     }
 }
 
-void appleModem::at_handle_port()
+void iwmModem::at_handle_port()
 {
-    //int port = cmd.substring(6).toInt();
+    // int port = cmd.substring(6).toInt();
     int port = std::stoi(cmd.substr(6));
     if (port > 65535 || port < 0)
     {
@@ -309,7 +376,7 @@ void appleModem::at_handle_port()
     }
 }
 
-void appleModem::at_handle_get()
+void iwmModem::at_handle_get()
 {
     // From the URL, acquire required variables
     // (12 = "ATGEThttp://")
@@ -328,12 +395,12 @@ void appleModem::at_handle_get()
     }
     else
     {
-        //port = cmd.substring(portIndex + 1, pathIndex).toInt();
+        // port = cmd.substring(portIndex + 1, pathIndex).toInt();
         port = std::stoi(cmd.substr(portIndex + 1, pathIndex - (portIndex + 1) + 1));
     }
-    //host = cmd.substring(12, portIndex);
+    // host = cmd.substring(12, portIndex);
     host = cmd.substr(12, portIndex - 12 + 1);
-    //path = cmd.substring(pathIndex, cmd.length());
+    // path = cmd.substring(pathIndex, cmd.length());
     path = cmd.substr(pathIndex);
     if (path.empty())
         path = "/";
@@ -375,7 +442,7 @@ void appleModem::at_handle_get()
     }
 }
 
-void appleModem::at_handle_help()
+void iwmModem::at_handle_help()
 {
     at_cmd_println(HELPL01);
     at_cmd_println(HELPL02);
@@ -425,7 +492,7 @@ void appleModem::at_handle_help()
         at_cmd_println("OK");
 }
 
-void appleModem::at_handle_wifilist()
+void iwmModem::at_handle_wifilist()
 {
     at_cmd_println();
     at_cmd_println(HELPSCAN1);
@@ -475,7 +542,7 @@ void appleModem::at_handle_wifilist()
         at_cmd_println("OK");
 }
 
-void appleModem::at_handle_answer()
+void iwmModem::at_handle_answer()
 {
     Debug_printf("HANDLE ANSWER !!!\n");
     if (tcpServer.hasClient())
@@ -488,12 +555,11 @@ void appleModem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartSIO.flush();
         answerHack = false;
     }
 }
 
-void appleModem::at_handle_dial()
+void iwmModem::at_handle_dial()
 {
     int portIndex = cmd.find(':');
     std::string host, port;
@@ -567,7 +633,7 @@ void appleModem::at_handle_dial()
 }
 /*Following functions manage the phonebook*/
 /*Display current Phonebook*/
-void appleModem::at_handle_pblist()
+void iwmModem::at_handle_pblist()
 {
     at_cmd_println();
     at_cmd_println("Phone#       Host");
@@ -587,20 +653,20 @@ void appleModem::at_handle_pblist()
 }
 
 /*Add and del entry in the phonebook*/
-void appleModem::at_handle_pb()
+void iwmModem::at_handle_pb()
 {
     // From the AT command get the info to add. Ex: atpb4321=irata.online:8002
-    //or delete ex: atpb4321
+    // or delete ex: atpb4321
     // ("ATPB" length 4)
     std::string phnumber, host, port;
     int hostIndex = cmd.find('=');
     int portIndex = cmd.find(':');
 
-    //Equal symbol found, so assume adding entry
+    // Equal symbol found, so assume adding entry
     if (hostIndex != std::string::npos)
     {
         phnumber = cmd.substr(4, hostIndex - 4);
-        //Check pure numbers entry
+        // Check pure numbers entry
         if (phnumber.find_first_not_of("0123456789") == std::string::npos)
         {
             if (portIndex != std::string::npos)
@@ -636,7 +702,7 @@ void appleModem::at_handle_pb()
                 at_cmd_println("ERROR");
         }
     }
-    //No Equal symbol present, so Delete an entry
+    // No Equal symbol present, so Delete an entry
     else
     {
         std::string phnumber = cmd.substr(4);
@@ -660,7 +726,7 @@ void appleModem::at_handle_pb()
 /*
    Perform a command given in AT Modem command mode
 */
-void appleModem::modemCommand()
+void iwmModem::modemCommand()
 {
     /* Some of these are ignored; to see their meanings,
      * review `modem.h`'s sioModem class's _at_cmds enums. */
@@ -714,13 +780,13 @@ void appleModem::modemCommand()
             "ATPB",
             "ATO"};
 
-    //cmd.trim();
+    // cmd.trim();
     util_string_trim(cmd);
     if (cmd.empty())
         return;
 
     std::string upperCaseCmd = cmd;
-    //upperCaseCmd.toUpperCase();
+    // upperCaseCmd.toUpperCase();
     util_string_toupper(upperCaseCmd);
 
     if (commandEcho == true)
@@ -729,7 +795,7 @@ void appleModem::modemCommand()
     Debug_printf("AT Cmd: %s\n", upperCaseCmd.c_str());
 
     // Replace EOL with CR
-    //if (upperCaseCmd.indexOf(ATASCII_EOL) != 0)
+    // if (upperCaseCmd.indexOf(ATASCII_EOL) != 0)
     //    upperCaseCmd[upperCaseCmd.indexOf(ATASCII_EOL)] = ASCII_CR;
     int eol1 = upperCaseCmd.find(ATASCII_EOL);
     if (eol1 != std::string::npos)
@@ -992,7 +1058,7 @@ void appleModem::modemCommand()
 /*
   Handle incoming & outgoing data for modem
 */
-void appleModem::sio_handle_modem()
+void iwmModem::handle_modem()
 {
     /**** AT command mode ****/
     if (cmdMode == true)
@@ -1028,12 +1094,12 @@ void appleModem::sio_handle_modem()
         }
 
         // In command mode - don't exchange with TCP but gather characters to a string
-        //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if (fnUartSIO.available())
+        // if (SIO_UART.available() /*|| blockWritePending == true */ )
+        if (uxQueueMessagesWaiting(mtxq))
         {
-            // get char from Atari SIO
-            //char chr = SIO_UART.read();
-            char chr = fnUartSIO.read();
+            char chr;
+
+            xQueueReceive(mtxq, &chr, portMAX_DELAY);
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -1058,9 +1124,9 @@ void appleModem::sio_handle_modem()
                     // Clear with a space
                     if (commandEcho == true)
                     {
-                        fnUartSIO.write(ASCII_BACKSPACE);
-                        fnUartSIO.write(' ');
-                        fnUartSIO.write(ASCII_BACKSPACE);
+                        modem_write(ASCII_BACKSPACE);
+                        modem_write(' ');
+                        modem_write(ASCII_BACKSPACE);
                     }
                 }
             }
@@ -1073,7 +1139,7 @@ void appleModem::sio_handle_modem()
                 {
                     cmd.erase(len - 1);
                     if (commandEcho == true)
-                        fnUartSIO.write(ATASCII_BACKSPACE);
+                        modem_write(ATASCII_BACKSPACE);
                 }
             }
             // Take into account arrow key movement and clear screen
@@ -1081,17 +1147,17 @@ void appleModem::sio_handle_modem()
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 if (commandEcho == true)
-                    fnUartSIO.write(chr);
+                    modem_write(chr);
             }
             else
             {
                 if (cmd.length() < MAX_CMD_LENGTH)
                 {
-                    //cmd.concat(chr);
+                    // cmd.concat(chr);
                     cmd += chr;
                 }
                 if (commandEcho == true)
-                    fnUartSIO.write(chr);
+                    modem_write(chr);
             }
         }
     }
@@ -1122,24 +1188,23 @@ void appleModem::sio_handle_modem()
             }
         }
 
-        //int sioBytesAvail = SIO_UART.available();
-        int sioBytesAvail = fnUartSIO.available();
+        int sioBytesAvail = uxQueueMessagesWaiting(mtxq);
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
         {
             // In telnet in worst case we have to escape every uint8_t
             // so leave half of the buffer always free
-            //int max_buf_size;
-            //if (telnet == true)
+            // int max_buf_size;
+            // if (telnet == true)
             //  max_buf_size = TX_BUF_SIZE / 2;
-            //else
+            // else
             //  max_buf_size = TX_BUF_SIZE;
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = fnUartSIO.readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
-                                                   (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
+            int sioBytesRead = modem_read(&txBuf[0], // SIO_UART.readBytes(&txBuf[0],
+                                          (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
             for (int i = 0; i < (int)sioBytesRead; i++)
@@ -1188,8 +1253,7 @@ void appleModem::sio_handle_modem()
             }
             else
             {
-                fnUartSIO.write(buf, bytesRead);
-                fnUartSIO.flush();
+                modem_write(buf, bytesRead);
             }
 
             // And dump to sniffer, if enabled.
@@ -1207,7 +1271,7 @@ void appleModem::sio_handle_modem()
             Debug_println("Going back to command mode");
 
             at_cmd_println("OK");
-    
+
             cmdMode = true;
 
             plusCount = 0;
@@ -1253,19 +1317,204 @@ void appleModem::sio_handle_modem()
     }
 }
 
-void appleModem::shutdown()
+void iwmModem::shutdown()
 {
     if (modemSniffer != nullptr)
         if (modemSniffer->getEnable())
             modemSniffer->closeOutput();
 }
 
-/*
-  Process command
-*/
-/* void appleModem::smart_process(uint8_t b)
+void iwmModem::send_status_reply_packet()
 {
+    uint8_t data[4];
 
+    // Build the contents of the packet
+    data[0] = STATCODE_READ_ALLOWED | STATCODE_WRITE_ALLOWED | STATCODE_DEVICE_ONLINE;
+    data[1] = 0; // block size 1
+    data[2] = 0; // block size 2
+    data[3] = 0; // block size 3
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
- */
+
+void iwmModem::send_status_dib_reply_packet()
+{
+    uint8_t data[25];
+
+    //* write data buffer first (25 bytes) 3 grp7 + 4 odds
+    // General Status byte
+    // Bit 7: Block  device
+    // Bit 6: Write allowed
+    // Bit 5: Read allowed
+    // Bit 4: Device online or disk in drive
+    // Bit 3: Format allowed
+    // Bit 2: Media write protected (block devices only)
+    // Bit 1: Currently interrupting (//c only)
+    // Bit 0: Currently open (char devices only)
+    data[0] = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+    data[1] = 0;    // block size 1
+    data[2] = 0;    // block size 2
+    data[3] = 0;    // block size 3
+    data[4] = 0x05; // ID string length - 11 chars
+    data[5] = 'M';
+    data[6] = 'O';
+    data[7] = 'D';
+    data[8] = 'E';
+    data[9] = 'M';
+    data[10] = ' ';
+    data[11] = ' ';
+    data[12] = ' ';
+    data[13] = ' ';
+    data[14] = ' ';
+    data[15] = ' ';
+    data[16] = ' ';
+    data[17] = ' ';
+    data[18] = ' ';
+    data[19] = ' ';
+    data[20] = ' ';                           // ID string (16 chars total)
+    data[21] = SP_TYPE_BYTE_FUJINET_MODEM;    // Device type    - 0x02  harddisk
+    data[22] = SP_SUBTYPE_BYTE_FUJINET_MODEM; // Device Subtype - 0x0a
+    data[23] = 0x00;                          // Firmware version 2 bytes
+    data[24] = 0x01;                          //
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+}
+
+void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
+{
+    uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+    uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
+
+    memset(data_buffer, 0, sizeof(data_buffer));
+
+    for (int i = 0; i < numbytes; i++)
+    {
+        char b;
+        xQueueReceive(mrxq, &b, portMAX_DELAY);
+        data_buffer[i] = b;
+        data_len++;
+    }
+
+    Debug_printf("\r\nsending block packet ...");
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    data_len = 0;
+    memset(data_buffer, 0, sizeof(data_buffer));
+}
+
+void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
+{
+    uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+
+    Debug_printf("\nWRITE %u bytes\n", num_bytes);
+
+    // get write data packet, keep trying until no timeout
+    //  to do - this blows up - check handshaking
+
+    data_len = num_bytes;
+
+    if (IWM.iwm_read_packet_timeout(100, data_buffer, data_len))
+    {
+        Debug_printf("\r\nTIMEOUT in read packet!");
+        return;
+    }
+
+    {
+        // DO write
+        for (int i = 0; i < num_bytes; i++)
+            xQueueSend(mtxq, &data_buffer[i], portMAX_DELAY);
+    }
+
+    send_reply_packet(SP_ERR_NOERROR);
+}
+
+void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
+{
+    uint8_t err_result = SP_ERR_NOERROR;
+
+    uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
+    Debug_printf("\r\nDevice %02x Control Code %02x", id(), control_code);
+    data_len = 512;
+    IWM.iwm_read_packet_timeout(100, data_buffer, data_len);
+    print_packet(data_buffer);
+
+    if (data_len > 0)
+        switch (control_code)
+        {
+        }
+    else
+        err_result = SP_ERR_IOERROR;
+
+    send_reply_packet(err_result);
+}
+
+void iwmModem::iwm_modem_status()
+{
+    unsigned short mw = uxQueueMessagesWaiting(mrxq);
+
+    //if (mw > 512)
+    //    mw = 512;
+
+    data_buffer[0] = mw & 0xFF;
+    data_buffer[1] = mw >> 8;
+    data_len = 2;
+    Debug_printf("--- %u bytes waiting\n", mw);
+}
+
+void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
+{
+    // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
+    uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+    Debug_printf("\r\nDevice %02x Status Code %02x\n", id(), status_code);
+    // Debug_printf("\r\nStatus List is at %02x %02x\n", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+
+    switch (status_code)
+    {
+    case IWM_STATUS_STATUS: // 0x00
+        send_status_reply_packet();
+        return;
+        break;
+    case IWM_STATUS_DIB: // 0x03
+        send_status_dib_reply_packet();
+        return;
+        break;
+    case 'S': // Status
+        iwm_modem_status();
+        break;
+    }
+
+    Debug_printf("\r\nStatus code complete, sending response");
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+}
+
+void iwmModem::process(iwm_decoded_cmd_t cmd)
+{
+    switch (cmd.command)
+    {
+    case 0x00: // status
+        Debug_printf("\r\nhandling status command");
+        iwm_status(cmd);
+        break;
+    case 0x04: // control
+        Debug_printf("\r\nhandling control command");
+        iwm_ctrl(cmd);
+        break;
+    case 0x08: // read
+        Debug_printf("\r\nhandling read command");
+        fnLedManager.set(LED_BUS, true);
+        iwm_read(cmd);
+        fnLedManager.set(LED_BUS, false);
+        break;
+    case 0x09: // write
+        Debug_printf("\r\nhandling write command");
+        fnLedManager.set(LED_BUS, true);
+        iwm_write(cmd);
+        fnLedManager.set(LED_BUS, true);
+        break;
+    default:
+        iwm_return_badcmd(cmd);
+        break;
+    } // switch (cmd)
+    fnLedManager.set(LED_BUS, false);
+}
+
 #endif /* BUILD_APPLE */
