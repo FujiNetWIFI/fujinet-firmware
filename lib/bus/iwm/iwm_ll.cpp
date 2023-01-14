@@ -704,6 +704,9 @@ void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
   //   iwm_rddata_clr();
   // }
 
+  if (trans.size() > 1)
+    spi_end();
+    
   while (trans.size() < 2)
   {
     spi_transaction_t mytrans;
