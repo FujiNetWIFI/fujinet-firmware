@@ -10,7 +10,6 @@
 #include "led.h"
 
 #include "../device/iwm/disk.h"
-#include "../device/iwm/disk2.h"
 #include "../device/iwm/fuji.h"
 #include "../device/iwm/cpm.h"
 #include "../device/iwm/clock.h"
@@ -82,7 +81,7 @@ void print_packet (uint8_t* data, int bytes)
 
 void print_packet(uint8_t* data)
 {
-  Debug_printf("\n");
+  Debug_printf("\r\n");
   for (int i = 0; i < 40; i++)
   {
     if (data[i]!=0 || i==0)
@@ -90,7 +89,7 @@ void print_packet(uint8_t* data)
     else
       break;
   }
-  // Debug_printf("\n");
+  // Debug_printf("\r\n");
 }
 
 void print_packet_wave(uint8_t* data, int bytes)
@@ -152,7 +151,7 @@ bool iwmBus::iwm_phase_val(uint8_t p)
   uint8_t phases = _phases; // smartport.iwm_phase_vector();
   if (p < 4)
     return (phases >> p) & 0x01;
-  Debug_printf("\nphase number out of range");
+  Debug_printf("\r\nphase number out of range");
   return false;
 }
 
@@ -181,17 +180,17 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 #ifdef VERBOSE_IWM
   if (phasestate != oldphase)
   {
-    //Debug_printf("\n%d%d%d%d",iwm_phase_val(0),iwm_phase_val(1),iwm_phase_val(2),iwm_phase_val(3));
+    //Debug_printf("\r\n%d%d%d%d",iwm_phase_val(0),iwm_phase_val(1),iwm_phase_val(2),iwm_phase_val(3));
     switch (phasestate)
     {
     case iwm_phases_t::idle:
-      Debug_printf("\nidle");
+      Debug_printf("\r\nidle");
       break;
     case iwm_phases_t::reset:
-      Debug_printf("\nreset");
+      Debug_printf("\r\nreset");
       break;
     case iwm_phases_t::enable:
-      Debug_printf("\nenable");
+      Debug_printf("\r\nenable");
     }
     oldphase=phasestate;
   }
@@ -212,10 +211,7 @@ int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8
 bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 {
   int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
-
-  Debug_printf("\nAttempting to receive %d length packet", nn);
-  inCriticalSection=true;
-
+  Debug_printf("\r\nAttempting to receive %d length packet", nn);
   portDISABLE_INTERRUPTS();
   iwm_ack_deassert();
   for (int i = 0; i < attempts; i++)
@@ -232,7 +228,7 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
     } // if
   }
 #ifdef DEBUG
-  Debug_printf("\nERROR: Read Packet tries exceeds %d attempts", attempts);
+  Debug_printf("\r\nERROR: Read Packet tries exceeds %d attempts", attempts);
   // print_packet(data);
 #endif
   portENABLE_INTERRUPTS();
@@ -245,16 +241,14 @@ void iwmBus::setup(void)
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
 
   fnTimer.config();
-  Debug_printf("\nFujiNet Hardware timer started");
+  Debug_printf("\r\nFujiNet Hardware timer started");
 
   smartport.setup_spi();
-  Debug_printf("\nSPI configured for smartport I/O");
+  Debug_printf("\r\nSPI configured for smartport I/O");
   
   smartport.setup_gpio();
-  Debug_printf("\nIWM GPIO configured");
+  Debug_printf("\r\nIWM GPIO configured");
   
-  diskii_xface.setup_spi(4000, 4);
-
 }
 
 
@@ -292,13 +286,13 @@ void iwmDevice::send_reply_packet (uint8_t status)
 
 void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 {
-  Debug_printf("\nUnit %02x Bad Command %02x", id(), cmd.command);
+  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   send_reply_packet(SP_ERR_BADCMD);
   }
 
 void iwmDevice::iwm_return_ioerror()
 {
-  // Debug_printf("\nUnit %02x Bad Command %02x", id(), cmd.command);
+  // Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   send_reply_packet(SP_ERR_IOERROR);
 }
 
@@ -324,7 +318,7 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   uint8_t pkt_checksum;
 
   //length = get_packet_length();
-  //Debug_printf("\npacket length = %d", length);
+  //Debug_printf("\r\npacket length = %d", length);
   //2 oddbytes in cmd packet
   // calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
   // calc_checksum ^= ((packet_buffer[13] << 2) & 0x80) | (packet_buffer[15] & 0x7f);
@@ -354,7 +348,7 @@ bool iwmBus::verify_cmdpkt_checksum(void)
   //  Debug_print(pkt_checksum,DEC);
   //  Debug_print(("Calc Chksum Byte:\r\n"));
   //  Debug_print(calc_checksum,DEC);
-  //  Debug_printf("\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
+  //  Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
   // if ( pkt_checksum == calc_checksum )
   //   return false;
   // else
@@ -365,18 +359,18 @@ bool iwmBus::verify_cmdpkt_checksum(void)
 void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 {
   uint8_t status_code = cmd.params[2]; //cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
-  Debug_printf("\nTarget Device: %02x", id());
+  Debug_printf("\r\nTarget Device: %02x", id());
   // add a switch case statement for ALL THE STATUSESESESESS
   if (status_code == 0x03)
   { // if statcode=3, then status with device info block
-    Debug_printf("\n******** Sending DIB! ********");
+    Debug_printf("\r\n******** Sending DIB! ********");
     send_status_dib_reply_packet();
     // print_packet ((unsigned char*) packet_buffer,get_packet_length());
     // fnSystem.delay(50);
   }
   else
   { // else just return device status
-    Debug_printf("\nSending Status");
+    Debug_printf("\r\nSending Status");
     send_status_reply_packet();
   }
 }
@@ -434,31 +428,18 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 //*****************************************************************************
 void iwmBus::service()
 {
-  // check on the diskii status
-  switch (iwm_drive_enabled())
-  {
-  case iwm_enable_state_t::off:
-    // diskii_xface.disable_output();
-    diskii_xface.spi_end();
-    // smartport.iwm_ack_set();
-    break;
-  case iwm_enable_state_t::on:
-#ifdef DEBUG
-    // new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].get_track_pos();
-    // if (old_track != new_track)
-    // {
-    //   Debug_printf("\ntrack position %03d on disk %d", new_track, diskii_xface.iwm_enable_states());
-    //   old_track = new_track;
-    // }
-#endif
-    // smartport.iwm_ack_clr();  - need to deal with write protect
-    diskii_xface.enable_output();
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].device_active)
-    {
-      diskii_xface.iwm_queue_track_spi();
-    }
-    return;
-  }
+  // iwm_ack_deassert(); // go hi-Z
+
+  // if (iwm_drive_enables())
+  // {
+  //   //Debug_printf("\r\nFloppy Drive ENabled!");
+  //   iwm_rddata_clr();
+  // }
+  // else
+  // {
+  //   //Debug_printf("\r\nFloppy Drive DISabled!"); // debug msg latency here screws up SP timing.
+  //    iwm_rddata_set(); // make rddata hi-z
+  // }
 
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
@@ -522,12 +503,12 @@ void iwmBus::service()
 
 #ifdef DEBUG
       print_packet(command_packet.data);
-      Debug_printf("\nhandling init command");
+      Debug_printf("\r\nhandling init command");
 #endif
       if (verify_cmdpkt_checksum())
       {
-        Debug_printf("\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        Debug_printf("\ndo init anyway");
+        Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        Debug_printf("\r\ndo init anyway");
       }      // to do - checksum verification? How to respond?
       handle_init();
     }
@@ -553,7 +534,7 @@ void iwmBus::service()
           // handle command
           if (verify_cmdpkt_checksum())
           {
-            Debug_printf("\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
             _activeDev->iwm_return_ioerror();
           }
           else
@@ -571,11 +552,10 @@ void iwmBus::service()
   } // switch (phasestate)
 }
 
-iwm_enable_state_t iwmBus::iwm_drive_enabled()
+bool iwmBus::iwm_drive_enables()
 {
-  uint8_t newstate = diskii_xface.iwm_enable_states();
-  // Debug_printf("\ndisk ii enable states: %02x",newstate);
-  return (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::off;
+  return false; // ignore floppy drives for now
+  //return !iwm_enable_val();
 }
 
 void iwmBus::handle_init()
@@ -602,7 +582,7 @@ void iwmBus::handle_init()
       pDevice->_devnum = command_packet.dest; // assign address
       if (++it == _daisyChain.end())
         status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
-      Debug_printf("\nSending INIT Response Packet...");
+      Debug_printf("\r\nSending INIT Response Packet...");
       pDevice->send_init_reply_packet(command_packet.dest, status);
 
       //smartport.iwm_send_packet_spi((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
