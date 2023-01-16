@@ -659,7 +659,7 @@ void iwm_diskii_ll::setup_spi() // int bit_ns, int chiprate
   // number of chips per bit (usually 4)
   spi_buffer_len = SPI_II_LEN;// 200 * 1000 * 1000 * chiprate / bit_ns / 8;
   spi_len = 50304 / 2; // set to default standard DOS 3.3
-  spi_buffer = (uint8_t *)heap_caps_malloc(spi_buffer_len, MALLOC_CAP_DMA);
+  spi_buffer = (uint8_t *)heap_caps_malloc(spi_buffer_len, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
   Debug_printf("\nspi_buffer located at %lu", spi_buffer);
 
   spi_device_interface_config_t devcfg = {
