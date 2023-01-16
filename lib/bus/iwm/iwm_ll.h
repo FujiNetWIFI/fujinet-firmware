@@ -9,7 +9,7 @@
 
 #include "../../include/pinmap.h"
 
-#define SPI_II_LEN 26000        // 200 ms at 1 mbps for disk ii + some extra
+#define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
 #define SPI_SP_LEN 6000         // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define BLOCK_PACKET_LEN    604 //606
 
