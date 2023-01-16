@@ -686,7 +686,7 @@ uint8_t iwm_diskii_ll::iwm_enable_states()
 // don't know why this doesn't work:
   // 
   states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
-  states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32 - 1);
+  // states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32 - 1);
   // states |= !(GPIO.in1.val & (0x01 << (SP_EN35 - 32))) >> (SP_EN35 - 32 - 2);
   // states |= !(GPIO.in & (0x01 << SP_HDSEL)) >> (SP_HDSEL - 3);
 
