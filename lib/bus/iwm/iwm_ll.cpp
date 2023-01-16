@@ -648,7 +648,7 @@ void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, in
   spi_len = trackbits / 2; // 2 bits per encoded byte
 }
 
-void iwm_diskii_ll::setup_spi(int bit_ns, int chiprate)
+void iwm_diskii_ll::setup_spi() // int bit_ns, int chiprate
 {
   esp_err_t ret; // used for calling SPI library functions below
   int spi_buffer_len;
@@ -658,8 +658,9 @@ void iwm_diskii_ll::setup_spi(int bit_ns, int chiprate)
   // 1 bit in nanoseconds (usually about 4000)
   // number of chips per bit (usually 4)
   spi_buffer_len = SPI_II_LEN;// 200 * 1000 * 1000 * chiprate / bit_ns / 8;
-  spi_len = 50304 / 2; // standard DOS 3.3 answer spi_buffer_len;
+  spi_len = 50304 / 2; // set to default standard DOS 3.3
   spi_buffer = (uint8_t *)heap_caps_malloc(spi_buffer_len, MALLOC_CAP_DMA);
+  Debug_printf("\nspi_buffer located at %lu", spi_buffer);
 
   spi_device_interface_config_t devcfg = {
       .mode = 0,                                                // SPI mode 0

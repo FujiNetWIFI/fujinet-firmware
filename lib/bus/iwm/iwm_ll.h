@@ -149,7 +149,7 @@ public:
   void enable_output()  { iwm_rddata_clr(); };
   
     // Smartport Bus handling by SPI interface
-  void setup_spi(int bit_ns, int chiprate);
+  void setup_spi(); // int bit_ns, int chiprate
   void encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator);
   void iwm_queue_track_spi();
   void spi_end();
