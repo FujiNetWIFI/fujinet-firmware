@@ -247,12 +247,11 @@ void iwmBus::setup(void)
   smartport.setup_spi();
   Debug_printf("\r\nSPI configured for smartport I/O");
   
-  smartport.setup_gpio();
-  Debug_printf("\r\nIWM GPIO configured");
-  
   diskii_xface.setup_spi();
   Debug_printf("\r\nSPI configured for Disk ][ Output");
 
+  smartport.setup_gpio();
+  Debug_printf("\r\nIWM GPIO configured");
 }
 
 
