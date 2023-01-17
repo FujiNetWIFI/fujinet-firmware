@@ -30,7 +30,6 @@ void IRAM_ATTR phi_isr_handler(void *arg)
     {
       isrctr++;
       theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(isrctr);
-      isrctr--;
     }
   }
   else if (!sp_command_mode && (_phases == 0b1011))
@@ -679,19 +678,20 @@ void iwm_diskii_ll::setup_spi() // int bit_ns, int chiprate
   assert(ret == ESP_OK);
 }
 
-uint8_t iwm_diskii_ll::iwm_enable_states()
+uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 {
   uint8_t states = 0;
 
-// don't know why this doesn't work:
-  // 
   states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
+  // for Thom's IIc+
+  // states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32);
+
+  // rest of the floppy enable lines:
   // states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32 - 1);
   // states |= !(GPIO.in1.val & (0x01 << (SP_EN35 - 32))) >> (SP_EN35 - 32 - 2);
   // states |= !(GPIO.in & (0x01 << SP_HDSEL)) >> (SP_HDSEL - 3);
 
   return states;
-  //return states;
 }
 
 void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()

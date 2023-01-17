@@ -441,17 +441,18 @@ void iwmBus::service()
     break;
   case iwm_enable_state_t::on:
 #ifdef DEBUG
-    // new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].get_track_pos();
-    // if (old_track != new_track)
-  // {
-    //   Debug_printf("\ntrack position %03d on disk %d", new_track, diskii_xface.iwm_enable_states());
-    //   old_track = new_track;
-  // }
+    new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].get_track_pos();
+    if (old_track != new_track)
+  {
+      Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());
+      old_track = new_track;
+  }
 #endif
     // smartport.iwm_ack_clr();  - need to deal with write protect
     diskii_xface.enable_output();
     if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].device_active)
     {
+      // Debug_printf("%d ", isrctr);
       diskii_xface.iwm_queue_track_spi();
     }
     return;
