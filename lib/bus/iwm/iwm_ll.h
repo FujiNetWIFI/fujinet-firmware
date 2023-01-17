@@ -19,6 +19,7 @@
 
 extern volatile uint8_t _phases;
 extern volatile bool sp_command_mode;
+extern volatile int isrctr;
 
 enum class iwm_packet_type_t
 {
