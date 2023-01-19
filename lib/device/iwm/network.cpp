@@ -764,6 +764,7 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
         switch (channelMode)
         {
         case PROTOCOL:
+            do_inquiry(control_code);
             if (inq_dstats == 0x00)
                 special_00();
             else if (inq_dstats == 0x40) // MOVE THIS TO STATUS!
@@ -788,7 +789,6 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
             Debug_printf("Unknown channel mode\n");
             break;
         }
-        do_inquiry(control_code);
     }
 
     if (statusByte.bits.client_error == true)
