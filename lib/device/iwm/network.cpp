@@ -700,7 +700,7 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
         iwm_return_ioerror();
     else
     {
-        *transmitBuffer += string((char *)response, num_bytes);
+        *transmitBuffer += string((char *)data_buffer, num_bytes);
         if (write_channel(num_bytes))
         {
             send_reply_packet(SP_ERR_IOERROR);
