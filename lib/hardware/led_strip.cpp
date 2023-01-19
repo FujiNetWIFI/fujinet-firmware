@@ -76,7 +76,7 @@ void ledStripTask(void *pvParameters)
 LedStrip::LedStrip()
 {
     sLedColor[stripLed::LED_STRIP_WIFI] = CRGB::White;
-    sLedColor[stripLed::LED_STRIP_BUS] = CRGB::DarkOrange;
+    sLedColor[stripLed::LED_STRIP_BUS] = CRGB::Orange;
     sLedColor[stripLed::LED_STRIP_BT] = CRGB::Blue;
 }
 
@@ -85,7 +85,7 @@ void LedStrip::setup()
 {
     FastLED.addLeds<LED_TYPE, LED_DATA_PIN, RGB_ORDER>(ledstrip, NUM_LEDS);
     FastLED.showColor(CRGB::Black);
-    FastLED.setMaxPowerInVoltsAndMilliamps(5,15);
+    FastLED.setMaxPowerInVoltsAndMilliamps(5,11);
 
     // Start the LED Task
     xTaskCreatePinnedToCore(&ledStripTask, "LEDStripTask", 4000, NULL, 5, NULL, 0);
