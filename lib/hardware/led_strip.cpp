@@ -85,7 +85,7 @@ void LedStrip::setup()
 {
     FastLED.addLeds<LED_TYPE, LED_DATA_PIN, RGB_ORDER>(ledstrip, NUM_LEDS);
     FastLED.showColor(CRGB::Black);
-    FastLED.setMaxPowerInVoltsAndMilliamps(5,11);
+    FastLED.setMaxPowerInVoltsAndMilliamps(5, LED_BRIGHTNESS);
 
     // Start the LED Task
     xTaskCreatePinnedToCore(&ledStripTask, "LEDStripTask", 4000, NULL, 5, NULL, 0);

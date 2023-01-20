@@ -20,7 +20,7 @@
 /* Buttons */
 #define PIN_BUTTON_A 0 // keys.cpp
 #define PIN_BUTTON_B -1 // No Button B
-#define PIN_BUTTON_C 14
+#define PIN_BUTTON_C -1
 
 /* LEDs */
 //#define PIN_LED_WIFI 2 // led.cpp
@@ -31,13 +31,13 @@
 /* LED Strip NEW */
 #define NUM_LEDS            3
 #define LED_DATA_PIN        2
-#define BRIGHTNESS          30
+#define LED_BRIGHTNESS      11 // max mA the LED can use determines brightness
 #define LED_TYPE            WS2812B
 #define RGB_ORDER           GRB
 // LED order on the strip starting with 0
 #define LED_WIFI_NUM        0
-#define LED_BUS_NUM         1
-#define LED_BT_NUM          2
+#define LED_BUS_NUM         2
+#define LED_BT_NUM          1
 
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
