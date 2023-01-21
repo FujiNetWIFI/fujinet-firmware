@@ -20,7 +20,7 @@
 /* Buttons */
 #define PIN_BUTTON_A 0 // keys.cpp
 #define PIN_BUTTON_B -1 // No Button B
-#define PIN_BUTTON_C -1
+#define PIN_BUTTON_C 14
 
 /* LEDs */
 //#define PIN_LED_WIFI 2 // led.cpp
