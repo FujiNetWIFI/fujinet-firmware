@@ -361,18 +361,17 @@ bool iwm_sp_ll::req_wait_for_rising_timeout(int t)
 
 void iwm_sp_ll::setup_spi()
 {
-
+  int spirx_mosi_pin = -1;
   esp_err_t ret; // used for calling SPI library functions below
 
   spi_buffer = (uint8_t *)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
 
+  if(fnSystem.check_spifix())
+    spirx_mosi_pin = SP_SPI_FIX_PIN;
+
   // SPI for receiving packets - sprirx
   spi_bus_config_t bus_cfg = {
-#ifdef SP_SPI_FIX
-    .mosi_io_num = SP_SPI_FIX_PIN,
-#else
-    .mosi_io_num = -1,
-#endif // SP_SPI_FIX
+    .mosi_io_num = spirx_mosi_pin,
     .miso_io_num = SP_WRDATA,
     .sclk_io_num = -1,
     .quadwp_io_num = -1,
@@ -411,15 +410,18 @@ void iwm_sp_ll::setup_spi()
     .queue_size = 2                    // We want to be able to queue 7 transactions at a time
   };
 
-#ifdef SP_SPI_FIX
-  // use different SPI than SDCARD
-  ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
-  assert(ret == ESP_OK);
-#else
-  // use same SPI as SDCARD
-  ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-  assert(ret == ESP_OK);
-#endif // SP_SPI_FIX
+  if(fnSystem.check_spifix())
+  {
+    // use different SPI than SDCARD
+    ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
+    assert(ret == ESP_OK);
+  }
+  else
+  {
+    // use same SPI as SDCARD
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+    assert(ret == ESP_OK);
+  }
 
   if (smartport.spiMutex == NULL)
   {
