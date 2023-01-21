@@ -70,7 +70,7 @@ void iwmDisk::send_status_reply_packet()
   if(!device_active) {data[0] &= ~(STATCODE_DEVICE_ONLINE);}
   if(device_active) {data[0] |= STATCODE_DEVICE_ONLINE;}
   if(readonly) {data[0] |= STATCODE_WRITE_PROTECT;}
-  Debug_printf("send_status_reply packet() status = %02X\r\n",data[0]);
+  Debug_printf("\r\nstatus = %02X\r\n",data[0]);
   data[1] = data[2] = data[3] = 0;
   if (_disk != nullptr)
   {
@@ -98,14 +98,14 @@ void iwmDisk::send_extended_status_reply_packet()
 {
   uint8_t data[5];
   data[0] = 0b11101000;
-  if(!device_active) {Debug_printf("Device not active!\r\n"); data[0] &= ~(STATCODE_DEVICE_ONLINE);}
+  if(!device_active) {data[0] &= ~(STATCODE_DEVICE_ONLINE);}
   if(device_active) {data[0] |= STATCODE_DEVICE_ONLINE;}
   if(switched) {
     data[0] |= STATCODE_DISK_SWITCHED;
     switched = false;
     }
   if(readonly) {data[0] |= STATCODE_WRITE_PROTECT;}
-  Debug_printf("send_extended_status_reply_packet() status = %02X\r\n",data[0]);
+  Debug_printf("\r\n status = %02X\r\n",data[0]);
   // Build the contents of the packet
   // Info byte
   // Bit 7: Block  device
@@ -160,10 +160,10 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
     data[0] |= STATCODE_DISK_SWITCHED;
     switched = false;
     }
-  if(!device_active) {Debug_printf("Device not active!\r\n"); data[0] &= ~(STATCODE_DEVICE_ONLINE);}
+  if(!device_active) {data[0] &= ~(STATCODE_DEVICE_ONLINE);}
   if(device_active) {data[0] |= STATCODE_DEVICE_ONLINE;}
   if(readonly) {data[0] |= STATCODE_WRITE_PROTECT;}
-  Debug_printf("send_status_dib_reply_packet() status = %02X\r\n",data[0]);
+  Debug_printf("\r\nstatus = %02X\r\n",data[0]);
   data[1] = 0;
   data[2] = 0;
   data[3] = 0;
@@ -233,10 +233,10 @@ void iwmDisk::send_extended_status_dib_reply_packet()
     data[0] |= STATCODE_DISK_SWITCHED;
     switched = false;
     }
-  if(!device_active) {Debug_printf("Device not active!\r\n"); data[0] &= ~(STATCODE_DEVICE_ONLINE);}
+  if(!device_active) {data[0] &= ~(STATCODE_DEVICE_ONLINE);}
   if(device_active) {data[0] |= STATCODE_DEVICE_ONLINE;}
   if(readonly) {data[0] |= STATCODE_WRITE_PROTECT;}
-  Debug_printf("send_extended_status_dib_reply_packet() status = %02X\r\n",data[0]);
+  Debug_printf("\r\nstatus = %02X\r\n",data[0]);
   data[1] = 0;
   data[2] = 0;
   data[3] = 0;
@@ -342,10 +342,10 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   // source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", id());
   if(switched){
-    /*Debug_printf("iwm_readblock() returning disk switched error\r\n");
-    send_reply_packet(SP_ERR_DISKSW);
+    Debug_printf("iwm_readblock() returning disk switched error\r\n");
+    send_reply_packet(SP_ERR_OFFLINE);
     switched = false;
-    return; */
+    return;
   }
   if (!(_disk != nullptr))
   {
@@ -391,9 +391,9 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
 {
   uint8_t status = 0;
   if(switched) {
-    /*send_reply_packet(SP_ERR_DISKSW);
+    send_reply_packet(SP_ERR_OFFLINE);
     switched = false;
-    return;*/
+    return;
   }
  if(!device_active) {
     Debug_printf("iwm_writeblock while device offline!\r\n");
