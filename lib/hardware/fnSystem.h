@@ -24,6 +24,7 @@ private:
     char _uptime_string[18];
     char _currenttime_string[40];
     int _hardware_version = 0; // unknown
+    bool a2spifix = false;
 
 public:
     SystemManager();
@@ -122,6 +123,8 @@ public:
     void check_hardware_ver();
     int get_hardware_ver() { return _hardware_version; };
     const char *get_hardware_ver_str();
+
+    bool check_spifix() { return a2spifix; };
 };
 
 extern SystemManager fnSystem;
