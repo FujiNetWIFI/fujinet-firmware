@@ -37,6 +37,7 @@
 #define STATCODE_WRITE_PROTECT 0x01 << 2  // block devices only
 #define STATCODE_INTERRUPTING 0x01 << 1   // apple IIc only
 #define STATCODE_DEVICE_OPEN 0x01 << 0    // char devices only
+#define STATCODE_DISK_SWITCHED 0x01 << 0 // disk switched status for block devices, same bit as device open for char devices
 
 // valid types and subtypes for block devices per smartport documentation
 #define SP_TYPE_BYTE_35DISK 0x01
@@ -260,6 +261,7 @@ protected:
   virtual void iwm_status(iwm_decoded_cmd_t cmd);
   virtual void iwm_readblock(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_writeblock(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_handle_eject(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_format(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_ctrl(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_open(iwm_decoded_cmd_t cmd) {};
@@ -277,6 +279,8 @@ protected:
 
 public:
   bool device_active;
+  bool switched = false; //indicate disk switched condition
+  bool readonly = true;  //write protected 
   bool is_config_device;
   /**
    * @brief get the IWM device Number (1-255)
