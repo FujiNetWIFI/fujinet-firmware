@@ -20,11 +20,7 @@
 /* Buttons */
 #define PIN_BUTTON_A 0 // keys.cpp
 #define PIN_BUTTON_B -1 // No Button B
-#ifdef SP_SPI_FIX
-#define PIN_BUTTON_C -1
-#else
 #define PIN_BUTTON_C 14
-#endif
 
 /* LEDs */
 #define PIN_LED_WIFI 2 // led.cpp
@@ -51,7 +47,7 @@
 #define SP_EN35     39
 #define SP_HDSEL    13
 
-#define SP_SPI_FIX_PIN  GPIO_NUM_14 // Pin to use for SmartPort SPI hardware mod
+#define SP_SPI_FIX_PIN  14 // Pin to use for SmartPort SPI hardware mod
 
 #define SP_EXTRA    SP_DRIVE2 // For extra debugging with logic analyzer
 #endif /* PINMAP_A2_REV0 */
