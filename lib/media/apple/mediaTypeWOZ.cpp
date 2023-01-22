@@ -11,8 +11,14 @@ mediatype_t MediaTypeWOZ::mount(FILE *f, uint32_t disksize)
     char hdr[12];
     fread(&hdr,sizeof(char),12,f);
     if (hdr[0] == 'W' && hdr[1] == 'O' && hdr[2] == 'Z' && hdr[3] == '2')
+    {
         Debug_printf("\nWOZ2 file confirmed!");
-    else return MEDIATYPE_UNKNOWN;
+    }
+    else
+    {
+        Debug_printf("\nNot a WOZ2 file!");
+        return MEDIATYPE_UNKNOWN;
+    }
     // check for file integrity
     if (hdr[4] == 0xFF && hdr[5] == 0x0A && hdr[6] == 0x0D && hdr[7] == 0x0A)
         Debug_printf("\n8-bit binary file verified");
