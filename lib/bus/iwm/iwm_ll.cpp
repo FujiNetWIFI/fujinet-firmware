@@ -682,7 +682,13 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 {
   uint8_t states = 0;
 
+  // Temporary while we debug Disk ][]
+#ifdef DISKII_DRIVE1
+  states |= !((GPIO.in & (0x01 << SP_DRIVE1)) >> SP_DRIVE1);
+#else
   states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
+#endif
+
   // for Thom's IIc+
   // states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32);
 
