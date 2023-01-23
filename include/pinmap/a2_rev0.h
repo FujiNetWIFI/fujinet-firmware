@@ -59,7 +59,11 @@
 #define SP_EN35     39
 #define SP_HDSEL    13
 
-#define SP_SPI_FIX_PIN  14 // Pin to use for SmartPort SPI hardware mod
+#ifdef MASTERIES_SPI_FIX
+#define SP_SPI_FIX_PIN  GPIO_NUM_23 // Pin to use for SmartPort SPI hardware mod Masteries edition
+#else
+#define SP_SPI_FIX_PIN  GPIO_NUM_14 // Pin to use for SmartPort SPI hardware mod FujiApple Rev0
+#endif // MASTERIES_SPI_FIX
 
 #define SP_EXTRA    SP_DRIVE2 // For extra debugging with logic analyzer
 #endif /* PINMAP_A2_REV0 */
