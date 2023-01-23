@@ -619,7 +619,15 @@ void SystemManager::check_hardware_ver()
     if(spifixdowncheck == spifixupcheck)
     {
         a2spifix = true;
+#ifdef MASTERIES_SPI_FIX
+        Debug_println("Masteries SPI fix ENABLED");
+    #ifdef PIN_SD_HOST_MOSI
+    #undef PIN_SD_HOST_MOSI
+    #endif
+    #define PIN_SD_HOST_MOSI GPIO_NUM_14
+#else
         Debug_println("FujiApple SPI fix ENABLED");
+#endif // MASTERIES_SPI_FIX
     }
     else
     {
