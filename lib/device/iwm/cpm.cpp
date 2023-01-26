@@ -29,6 +29,7 @@
 
 static void cpmTask(void *arg)
 {
+    Debug_printf("cpmTask()\n");
     while (1)
     {
         Status = Debug = 0;
@@ -238,7 +239,10 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
         case 'B': // Boot
             Debug_printf("!!! STARTING CP/M TASK!!!\n");
             if (cpmTaskHandle != NULL)
+            {
+                Debug_printf("Asking for CP/M task to be deleted\n");
                 vTaskDelete(cpmTaskHandle);
+            }
             xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle,1);
             break;
         }
