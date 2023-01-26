@@ -25,7 +25,7 @@
 #include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
 #endif
 
-#define CPM_TASK_PRIORITY 50
+#define CPM_TASK_PRIORITY 20
 
 static void cpmTask(void *arg)
 {
@@ -165,8 +165,17 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 {
     uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+    unsigned short mw = uxQueueMessagesWaiting(rxq);
 
     Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
+
+    memset(data_buffer, 0, sizeof(data_buffer));
+
+    if (numbytes > mw)
+    {
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_IOERROR, data_buffer, 0);
+        return;
+    }
 
     memset(data_buffer, 0, sizeof(data_buffer));
 
