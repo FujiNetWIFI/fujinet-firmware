@@ -682,20 +682,12 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 {
   uint8_t states = 0;
 
-  // Temporary while we debug Disk ][]
+  // Temporary while we debug Disk ][
 #ifdef DISKII_DRIVE1
-  states |= !((GPIO.in & (0x01 << SP_DRIVE1)) >> SP_DRIVE1);
+  states |= !((GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32));
 #else
   states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
 #endif
-
-  // for Thom's IIc+
-  // states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32);
-
-  // rest of the floppy enable lines:
-  // states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32 - 1);
-  // states |= !(GPIO.in1.val & (0x01 << (SP_EN35 - 32))) >> (SP_EN35 - 32 - 2);
-  // states |= !(GPIO.in & (0x01 << SP_HDSEL)) >> (SP_HDSEL - 3);
 
   return states;
 }
