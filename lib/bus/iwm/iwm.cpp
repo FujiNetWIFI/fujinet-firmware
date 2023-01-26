@@ -571,9 +571,18 @@ void iwmBus::service()
 
 iwm_enable_state_t iwmBus::iwm_drive_enabled()
 {
+  uint8_t phases = smartport.iwm_phase_vector();
   uint8_t newstate = diskii_xface.iwm_enable_states();
-  // Debug_printf("\ndisk ii enable states: %02x",newstate);
-  return (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::off;
+  
+  if (!(phases & 0b1000) && !(phases & 0b0010)) //SP bus not enabled
+  {
+    // Debug_printf("\ndisk ii enable states: %02x",newstate);
+    return (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::off;
+  }
+  else
+  {
+    return iwm_enable_state_t::off;
+  }
 }
 
 void iwmBus::handle_init()
