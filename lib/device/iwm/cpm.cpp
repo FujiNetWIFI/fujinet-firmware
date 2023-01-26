@@ -49,8 +49,8 @@ static void cpmTask(void *arg)
 
 iwmCPM::iwmCPM()
 {
-    rxq = xQueueCreate(2048,sizeof(char));
-    txq = xQueueCreate(2048,sizeof(char));
+    rxq = xQueueCreate(2048, sizeof(char));
+    txq = xQueueCreate(2048, sizeof(char));
 }
 
 void iwmCPM::send_status_reply_packet()
@@ -62,7 +62,7 @@ void iwmCPM::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    IWM.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmCPM::send_status_dib_reply_packet()
@@ -147,14 +147,14 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         break;
     case 'S': // Status
         unsigned short mw = uxQueueMessagesWaiting(rxq);
-        
+
         if (mw > 512)
             mw = 512;
 
         data_buffer[0] = mw & 0xFF;
         data_buffer[1] = mw >> 8;
         data_len = 2;
-        Debug_printf("%u bytes waiting\n",mw);
+        Debug_printf("%u bytes waiting\n", mw);
         break;
     }
 
@@ -243,18 +243,17 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
                 Debug_printf("Asking for CP/M task to be deleted\n");
                 vTaskDelete(cpmTaskHandle);
             }
-            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle,1);
+            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
             break;
         }
     else
         err_result = SP_ERR_IOERROR;
-    
+
     send_reply_packet(err_result);
 }
 
 void iwmCPM::process(iwm_decoded_cmd_t cmd)
 {
-    fnLedManager.set(LED_BUS, true);
     switch (cmd.command)
     {
     case 0x00: // status
@@ -266,18 +265,21 @@ void iwmCPM::process(iwm_decoded_cmd_t cmd)
         iwm_ctrl(cmd);
         break;
     case 0x08: // read
+        fnLedManager.set(LED_BUS, true);
         Debug_printf("\r\nhandling read command");
         iwm_read(cmd);
+        fnLedManager.set(LED_BUS, false);
         break;
     case 0x09: // write
+        fnLedManager.set(LED_BUS, true);
         Debug_printf("\r\nHandling write command");
         iwm_write(cmd);
+        fnLedManager.set(LED_BUS, false);
         break;
     default:
         iwm_return_badcmd(cmd);
         break;
     } // switch (cmd)
-    fnLedManager.set(LED_BUS, false);
 }
 
 void iwmCPM::shutdown()
