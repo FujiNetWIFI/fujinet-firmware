@@ -163,29 +163,20 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
 
 void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
-
     uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
+    uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
 
-    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
 
-    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
+    memset(data_buffer, 0, sizeof(data_buffer));
 
-    memset(data_buffer,0,sizeof(data_buffer));
-
-    for (int i=0;i<numbytes;i++)
+    for (int i = 0; i < numbytes; i++)
     {
         char b;
-        xQueueReceive(rxq,&b,portMAX_DELAY);
+        xQueueReceive(rxq, &b, portMAX_DELAY);
         data_buffer[i] = b;
         data_len++;
     }
-
-    Debug_printf("%s\n",data_buffer);
-
 
     Debug_printf("\r\nsending block packet ...");
     IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
@@ -195,33 +186,28 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 
 void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // packet_buffer[6];
-    // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
-    Debug_printf("\r\nCPM# %02x ", id());
-
     uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // num_bytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
 
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
-
-    Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
+    Debug_printf("\nWRITE %u bytes\n", num_bytes);
 
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
-    data_len = 512;
+
+    data_len = num_bytes;
+
     if (IWM.iwm_read_packet_timeout(100, data_buffer, data_len))
     {
         Debug_printf("\r\nTIMEOUT in read packet!");
         return;
     }
-    // partition number indicates which 32mb block we access
-    if (data_len == -1)
-        iwm_return_ioerror();
-    else
+
     {
         // DO write
+        for (int i = 0; i < num_bytes; i++)
+            xQueueSend(txq, &data_buffer[i], portMAX_DELAY);
     }
+
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -242,11 +228,9 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
         {
         case 'B': // Boot
             Debug_printf("!!! STARTING CP/M TASK!!!\n");
+            if (cpmTaskHandle != NULL)
+                vTaskDelete(cpmTaskHandle);
             xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle,1);
-            break;
-        case 'W': // Write
-            Debug_printf("Pushing character %c", data_buffer[0]);
-            xQueueSend(txq, &data_buffer[0], portMAX_DELAY);
             break;
         }
     else
@@ -271,6 +255,10 @@ void iwmCPM::process(iwm_decoded_cmd_t cmd)
     case 0x08: // read
         Debug_printf("\r\nhandling read command");
         iwm_read(cmd);
+        break;
+    case 0x09: // write
+        Debug_printf("\r\nHandling write command");
+        iwm_write(cmd);
         break;
     default:
         iwm_return_badcmd(cmd);
