@@ -737,12 +737,12 @@ void iwm_diskii_ll::spi_end()
   ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
   assert(ret == ESP_OK);
   trans.pop();
-  if (trans.empty())
-  {
-    disable_output();
-    smartport.iwm_ack_set(); 
-    // spi_device_release_bus(spi);
-  }
+  // if (trans.empty())
+  // {
+  //   disable_output();
+  //   smartport.iwm_ack_set(); 
+  //   // spi_device_release_bus(spi);
+  // }
 }
 
 iwm_sp_ll smartport;

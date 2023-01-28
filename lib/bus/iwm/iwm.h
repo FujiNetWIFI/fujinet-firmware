@@ -210,9 +210,9 @@ enum class iwm_fujinet_type_t
 enum class iwm_enable_state_t
 {
   off,
-  // off2on,
-  on
-  // on2off
+  off2on,
+  on,
+  on2off
 };
 
 struct iwm_device_info_block_t
@@ -332,7 +332,9 @@ private:
 #endif
 
   iwm_enable_state_t iwm_drive_enabled();
-  uint8_t enable_values;
+  iwm_enable_state_t _old_enable_state;
+  iwm_enable_state_t _new_enable_state;
+  // uint8_t enable_values;
 
   void iwm_ack_deassert();
   void iwm_ack_assert();

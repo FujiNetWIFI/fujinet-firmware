@@ -435,26 +435,31 @@ void iwmBus::service()
   switch (iwm_drive_enabled())
   {
   case iwm_enable_state_t::off:
-    // diskii_xface.disable_output();
     diskii_xface.spi_end();
-    // smartport.iwm_ack_set();
     break;
+  case iwm_enable_state_t::off2on:
+    diskii_xface.enable_output();
+    // no break because I want it to fall through to "on"
   case iwm_enable_state_t::on:
 #ifdef DEBUG
-    new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].get_track_pos();
+    new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
     if (old_track != new_track)
-  {
+    {
       Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());
       old_track = new_track;
-  }
+    }
 #endif
     // smartport.iwm_ack_clr();  - need to deal with write protect
-    diskii_xface.enable_output();
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states()-1].device_active)
+
+    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
     {
       // Debug_printf("%d ", isrctr);
       diskii_xface.iwm_queue_track_spi();
     }
+    return;
+  case iwm_enable_state_t::on2off:
+    diskii_xface.disable_output();
+    iwm_ack_deassert();
     return;
   }
 
@@ -572,8 +577,27 @@ void iwmBus::service()
 iwm_enable_state_t iwmBus::iwm_drive_enabled()
 {
   uint8_t newstate = diskii_xface.iwm_enable_states();
-  // Debug_printf("\ndisk ii enable states: %02x",newstate);
-  return (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::off;
+  switch (_old_enable_state)
+  {
+  case iwm_enable_state_t::off:
+    _new_enable_state = (newstate != 0) ? iwm_enable_state_t::off2on : iwm_enable_state_t::off;
+    break;
+  case iwm_enable_state_t::off2on:
+    _new_enable_state = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::on2off;
+    break;
+  case iwm_enable_state_t::on:
+    _new_enable_state = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::on2off;
+    break;
+  case iwm_enable_state_t::on2off:
+    _new_enable_state = (newstate != 0) ? iwm_enable_state_t::off2on : iwm_enable_state_t::off;
+    break;
+  }
+  if (_old_enable_state != _new_enable_state)
+    Debug_printf("\ndisk ii enable states: %02x", newstate);
+
+  _old_enable_state = _new_enable_state;
+  
+  return _new_enable_state;
 }
 
 void iwmBus::handle_init()
