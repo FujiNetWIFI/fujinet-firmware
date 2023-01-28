@@ -581,9 +581,6 @@ iwm_enable_state_t iwmBus::iwm_drive_enabled()
 
   if (!(phases & 0b1000) && !(phases & 0b0010)) // SP bus not enabled
   {
-    // Debug_printf("\ndisk ii enable states: %02x",newstate);
-    return (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::off;
-
     switch (_old_enable_state)
     {
     case iwm_enable_state_t::off:
