@@ -22,17 +22,8 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // put the right track in the SPI buffer
 
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
-
-  if (diskii_xface.iwm_enable_states() & 0b11)
-  {
-    
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
-    {
-      isrctr++;
-      theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(isrctr);
-    }
-  }
-  else if (!sp_command_mode && (_phases == 0b1011))
+  
+  if (!sp_command_mode && (_phases == 0b1011))
   {
     smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
     if (IWM.command_packet.command == 0x85)
@@ -52,6 +43,15 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
     }
     smartport.spi_end();
+  }
+  else if (diskii_xface.iwm_enable_states() & 0b11)
+  {
+    
+    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
+    {
+      isrctr++;
+      theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(isrctr);
+    }
   }
 }
 
@@ -682,20 +682,12 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 {
   uint8_t states = 0;
 
-  // Temporary while we debug Disk ][]
+  // Temporary while we debug Disk ][
 #ifdef DISKII_DRIVE1
-  states |= !((GPIO.in & (0x01 << SP_DRIVE1)) >> SP_DRIVE1);
+  states |= !((GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32));
 #else
   states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
 #endif
-
-  // for Thom's IIc+
-  // states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32);
-
-  // rest of the floppy enable lines:
-  // states |= !(GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32 - 1);
-  // states |= !(GPIO.in1.val & (0x01 << (SP_EN35 - 32))) >> (SP_EN35 - 32 - 2);
-  // states |= !(GPIO.in & (0x01 << SP_HDSEL)) >> (SP_HDSEL - 3);
 
   return states;
 }
