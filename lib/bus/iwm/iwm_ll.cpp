@@ -719,7 +719,7 @@ void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
   }
 }
 
-void iwm_diskii_ll::spi_end()
+void IRAM_ATTR iwm_diskii_ll::spi_end()
 {
   if (trans.empty())
     return;

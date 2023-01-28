@@ -429,7 +429,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
  * investigation.
  */
 //*****************************************************************************
-void iwmBus::service()
+void IRAM_ATTR iwmBus::service()
 {
   // check on the diskii status
   switch (iwm_drive_enabled())
@@ -574,7 +574,7 @@ void iwmBus::service()
   } // switch (phasestate)
 }
 
-iwm_enable_state_t iwmBus::iwm_drive_enabled()
+iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
 {
   uint8_t phases = smartport.iwm_phase_vector();
   uint8_t newstate = diskii_xface.iwm_enable_states();
