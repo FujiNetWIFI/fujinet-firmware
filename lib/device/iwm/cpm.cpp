@@ -237,13 +237,21 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
         switch (control_code)
         {
         case 'B': // Boot
-            Debug_printf("!!! STARTING CP/M TASK!!!\n");
-            if (cpmTaskHandle != NULL)
+            if (!fnSystem.check_spifix())
             {
-                Debug_printf("Asking for CP/M task to be deleted\n");
-                vTaskDelete(cpmTaskHandle);
+                err_result = SP_ERR_OFFLINE;
+                Debug_printf("FujiApple SPI Fix Missing, not starting CP/M\n");
             }
-            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
+            else
+            {
+                Debug_printf("!!! STARTING CP/M TASK!!!\n");
+                if (cpmTaskHandle != NULL)
+                {
+                    Debug_printf("Asking for CP/M task to be deleted\n");
+                    vTaskDelete(cpmTaskHandle);
+                }
+                xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
+            }
             break;
         }
     else
