@@ -576,28 +576,40 @@ void iwmBus::service()
 
 iwm_enable_state_t iwmBus::iwm_drive_enabled()
 {
+  uint8_t phases = smartport.iwm_phase_vector();
   uint8_t newstate = diskii_xface.iwm_enable_states();
-  switch (_old_enable_state)
-  {
-  case iwm_enable_state_t::off:
-    _new_enable_state = (newstate != 0) ? iwm_enable_state_t::off2on : iwm_enable_state_t::off;
-    break;
-  case iwm_enable_state_t::off2on:
-    _new_enable_state = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::on2off;
-    break;
-  case iwm_enable_state_t::on:
-    _new_enable_state = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::on2off;
-    break;
-  case iwm_enable_state_t::on2off:
-    _new_enable_state = (newstate != 0) ? iwm_enable_state_t::off2on : iwm_enable_state_t::off;
-    break;
-  }
-  if (_old_enable_state != _new_enable_state)
-    Debug_printf("\ndisk ii enable states: %02x", newstate);
 
-  _old_enable_state = _new_enable_state;
-  
-  return _new_enable_state;
+  if (!(phases & 0b1000) && !(phases & 0b0010)) // SP bus not enabled
+  {
+    // Debug_printf("\ndisk ii enable states: %02x",newstate);
+    return (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::off;
+
+    switch (_old_enable_state)
+    {
+    case iwm_enable_state_t::off:
+      _new_enable_state = (newstate != 0) ? iwm_enable_state_t::off2on : iwm_enable_state_t::off;
+      break;
+    case iwm_enable_state_t::off2on:
+      _new_enable_state = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::on2off;
+      break;
+    case iwm_enable_state_t::on:
+      _new_enable_state = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::on2off;
+      break;
+    case iwm_enable_state_t::on2off:
+      _new_enable_state = (newstate != 0) ? iwm_enable_state_t::off2on : iwm_enable_state_t::off;
+      break;
+    }
+    if (_old_enable_state != _new_enable_state)
+      Debug_printf("\ndisk ii enable states: %02x", newstate);
+
+    _old_enable_state = _new_enable_state;
+
+    return _new_enable_state;
+  }
+  else
+  {
+    return iwm_enable_state_t::off;
+  }
 }
 
 void iwmBus::handle_init()
