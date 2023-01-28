@@ -146,6 +146,10 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   if (old_pos == track_pos)
     return;
 
+  // should only copy track data over if it's changed
+  if ( ((MediaTypeWOZ *)_disk)->trackmap(old_pos) == ((MediaTypeWOZ *)_disk)->trackmap(track_pos) )
+    return;
+
   if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
     // need to tell diskii_xface the number of bits in the track
     // and where the track data is located so it can convert it
