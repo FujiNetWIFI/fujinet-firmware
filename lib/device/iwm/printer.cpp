@@ -164,6 +164,16 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
     send_reply_packet(SP_ERR_NOERROR);
 }
 
+/**
+ * Print from CP/M, which is one character...at...a...time...
+ */
+void iwmPrinter::print_from_cpm(uint8_t c)
+{
+    _last_ms = fnSystem.millis();
+    _pptr->provideBuffer()[0] = c;
+    _pptr->process(1, 0, 0);
+}
+
 void iwmPrinter::process(iwm_decoded_cmd_t cmd)
 {
     switch (cmd.command)
