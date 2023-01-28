@@ -579,7 +579,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
   uint8_t phases = smartport.iwm_phase_vector();
   uint8_t newstate = diskii_xface.iwm_enable_states();
 
-  if (!(phases & 0b1000) && !(phases & 0b0010)) // SP bus not enabled
+  if (!((phases & 0b1000) && (phases & 0b0010))) // SP bus not enabled
   {
     switch (_old_enable_state)
     {
