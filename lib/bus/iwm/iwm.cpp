@@ -438,8 +438,11 @@ void IRAM_ATTR iwmBus::service()
     diskii_xface.spi_end();
     break;
   case iwm_enable_state_t::off2on:
-    diskii_xface.enable_output();
-    // no break because I want it to fall through to "on"
+    // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
+    fnSystem.delay_microseconds(1000);
+    if (iwm_drive_enabled() == iwm_enable_state_t::on)
+      diskii_xface.enable_output();
+    return; // no break because I want it to fall through to "on"
   case iwm_enable_state_t::on:
 #ifdef DEBUG
     new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
