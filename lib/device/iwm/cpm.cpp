@@ -128,6 +128,7 @@ void iwmCPM::iwm_close(iwm_decoded_cmd_t cmd)
 
 void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
 {
+    unsigned short mw;
     // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
     uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     Debug_printf("\r\nDevice %02x Status Code %02x\n", id(), status_code);
@@ -146,7 +147,7 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         return;
         break;
     case 'S': // Status
-        unsigned short mw = uxQueueMessagesWaiting(rxq);
+        mw = uxQueueMessagesWaiting(rxq);
 
         if (mw > 512)
             mw = 512;
@@ -155,6 +156,11 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         data_buffer[1] = mw >> 8;
         data_len = 2;
         Debug_printf("%u bytes waiting\n", mw);
+        break;
+    case 'B':
+        data_buffer[0]=(cpmTaskHandle==NULL ? 0 : 1);
+        data_len = 0;
+        Debug_printf("CPM Task Running? %d",data_buffer[0]);
         break;
     }
 
@@ -247,8 +253,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
                 Debug_printf("!!! STARTING CP/M TASK!!!\n");
                 if (cpmTaskHandle != NULL)
                 {
-                    Debug_printf("Asking for CP/M task to be deleted\n");
-                    vTaskDelete(cpmTaskHandle);
+                    break;
                 }
                 xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
             }
