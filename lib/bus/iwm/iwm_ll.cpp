@@ -615,36 +615,62 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   return numdata;
 }
 
+
+bool IRAM_ATTR iwm_diskii_ll::fakebit()
+{
+  ++MC3470_bit_ctr %= 8;
+  if (MC3470_bit_ctr == 0)
+    ++MC3470_byte_ctr %= 32;
+  
+  return (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
+}
+
 void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator = 0)
 {
-  uint8_t temp;
-
   int i = 0, j = 0;
+  uint8_t window = 0;
+  uint8_t nextbit = 0;
+
   for (i = 0; i < (trackbits / 8); i++)
   {
-    // Debug_printf("\nByte %02X: ",packet_buffer[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
-    for (int k = 0; k < 4; k++)
+    uint8_t temp = 0;
+    for (int k = 7; k >= 0; k--)
     {
-      temp = 0;
-      if (track[i] & mask)
+      // MC34780 behavior for random bit insertion
+      // https://applesaucefdc.com/woz/reference2/
+      window <<= 1;
+      window |= ((track[i] & mask) != 0);
+      if ((window & 0x0f) != 0)
       {
-        temp |= 0x40;
+        nextbit = window & 0x02;
       }
-      mask >>= 1;
-      if (track[i] & mask)
+      else
       {
-        temp |= 0x04;
+        nextbit = fakebit();
       }
-      mask >>= 1;
-      // Debug_printf("%02x",spi_buffer[j]);
-      // if (indicator != isrctr)
-      //   return; // if there's a more recent interrupt, quit out of this one.
-      spi_buffer[j++] = temp;
-    }
+        if (nextbit)
+        {
+          if (k % 2 == 1)
+          {
+            temp |= 0x40;
+          }
+          else
+          {
+            temp |= 0x04;
+          }
+        }
+        mask >>= 1;
+
+        if (k % 2 == 0)
+        {
+          spi_buffer[j++] = temp;
+          temp = 0;
+        }
+      }
+    spi_len = trackbits / 2; // 2 bits per encoded byte
   }
-  spi_len = trackbits / 2; // 2 bits per encoded byte
 }
 
 void iwm_diskii_ll::setup_spi() // int bit_ns, int chiprate
