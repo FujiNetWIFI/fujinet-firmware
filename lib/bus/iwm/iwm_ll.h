@@ -139,23 +139,35 @@ private:
   void iwm_rddata_set() { GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); }; // make RDDATA go hi-z through the tri-state
   void iwm_rddata_clr() { GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); }; // enable the tri-state buffer activating RDDATA
 
+  // MC3470 random bit behavior https://applesaucefdc.com/woz/reference2/ 
+  /** Of course, coming up with random values like this can be a bit processor intensive, 
+   * so it is adequate to create a randomly-filled circular buffer of 32 bytes. 
+   * We then just pull bits from this whenever we are in “fake bit mode”. 
+   * This buffer should also be used for empty tracks as designated with an 0xFF value 
+   * in the TMAP Chunk (see below). You will want to have roughly 30% of the buffer be 1 bits.
+  **/
+  int MC3470_byte_ctr;
+  int MC3470_bit_ctr;
+  // generate PN bits using Octave/MATLAB with
+  // for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
+  const uint8_t MC3470[32] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
+
+
 public:
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
   uint8_t iwm_enable_states();
 
-
-
   void disable_output() { iwm_rddata_set(); };
   void enable_output()  { iwm_rddata_clr(); };
   
-    // Smartport Bus handling by SPI interface
+  // Disk II handling by SPI interface
   void setup_spi(); // int bit_ns, int chiprate
+  
+  bool fakebit();
   void encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator);
   void iwm_queue_track_spi();
   void spi_end();
-
-
 
 };
 
