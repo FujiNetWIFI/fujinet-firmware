@@ -527,6 +527,16 @@ void _putch(uint8_t ch)
 
 void _clrscr(void)
 {
+	_putch(0x1B);
+	_putch('[');
+	_putch('1');
+	_putch(';');
+	_putch('1');
+	_putch('H');
+	_putch(0x1B);
+	_putch('[');
+	_putch('2');
+	_putch('J');
 }
 
 uint8_t bdos_networkConfig(uint16_t addr)
