@@ -431,6 +431,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 //*****************************************************************************
 void IRAM_ATTR iwmBus::service()
 {
+  #if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
   // check on the diskii status
   switch (iwm_drive_enabled())
   {
@@ -465,6 +466,7 @@ void IRAM_ATTR iwmBus::service()
     iwm_ack_deassert();
     return;
   }
+#endif
 
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
@@ -579,8 +581,6 @@ void IRAM_ATTR iwmBus::service()
 
 iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
 {
-
-#if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
   uint8_t phases = smartport.iwm_phase_vector();
   uint8_t newstate = diskii_xface.iwm_enable_states();
 
@@ -609,7 +609,6 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
     return _new_enable_state;
   }
   else
-#endif
   {
     return iwm_enable_state_t::off;
   }
