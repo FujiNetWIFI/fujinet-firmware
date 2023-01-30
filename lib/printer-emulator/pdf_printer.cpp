@@ -369,8 +369,10 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     do
     {
         c = buffer[i++];
+#ifdef BUILD_APPLE
         if (textMode == true)
             c &= 0x7F;
+#endif // BUILD_APPLE
         cc = c;
         if (translate850 && c == ATASCII_EOL)
             c = ASCII_CR; // the 850 interface converts EOL to CR
