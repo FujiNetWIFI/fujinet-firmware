@@ -716,7 +716,9 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 #ifdef DISKII_DRIVE1
   states |= !((GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32));
 #else
+#ifdef DISKII_DRIVE2
   states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
+#endif
 #endif
 
   return states;

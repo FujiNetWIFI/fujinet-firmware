@@ -579,6 +579,8 @@ void IRAM_ATTR iwmBus::service()
 
 iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
 {
+
+#if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
   uint8_t phases = smartport.iwm_phase_vector();
   uint8_t newstate = diskii_xface.iwm_enable_states();
 
@@ -607,6 +609,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
     return _new_enable_state;
   }
   else
+#endif
   {
     return iwm_enable_state_t::off;
   }
