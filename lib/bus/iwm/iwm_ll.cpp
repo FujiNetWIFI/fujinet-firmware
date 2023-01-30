@@ -734,8 +734,11 @@ void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
   // }
 
   if (trans.size() > 1)
+  {
     spi_end();
-    
+    theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].refresh_track();
+  }
+
   while (trans.size() < 2)
   {
     spi_transaction_t mytrans;
