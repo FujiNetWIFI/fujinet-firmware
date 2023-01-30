@@ -10,6 +10,10 @@
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
 
+// generate PN bits using Octave/MATLAB with
+// for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
+const uint8_t MC3470[32] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
+
 volatile uint8_t _phases = 0;
 volatile bool sp_command_mode = false;
 volatile int isrctr = 0;
