@@ -113,7 +113,7 @@ union cmdFrame_t
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
-#define MAX_PACKET_LEN         891
+#define MAX_SP_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
 
 union cmdPacket_t
