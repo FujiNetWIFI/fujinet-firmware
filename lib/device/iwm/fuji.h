@@ -12,9 +12,9 @@
 #include "iwm/clock.h"
 #include "iwm/modem.h"
 
-#include "fujiHost.h"
-#include "fujiDisk.h"
-#include "fujiCmd.h"
+#include "../fuji/fujiHost.h"
+#include "../fuji/fujiDisk.h"
+#include "../fuji/fujiCmd.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 4 // to do for now

@@ -3,7 +3,7 @@
 #define DISK2_H
 
 #include "bus.h"
-#include "media.h"
+#include "../media/media.h"
 
 class iwmDisk2 : public iwmDevice
 {
