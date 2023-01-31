@@ -615,6 +615,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
   else
   {
     return iwm_enable_state_t::off;
+  }
 }
 
 void iwmBus::handle_init()
