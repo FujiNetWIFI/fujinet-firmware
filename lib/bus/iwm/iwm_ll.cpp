@@ -725,10 +725,18 @@ void iwm_diskii_ll::setup_spi() // int bit_ns, int chiprate
       .queue_size = 5     // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
   };
 
-  // use same SPI as SDCARD
-  ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-
-  assert(ret == ESP_OK);
+  if(fnSystem.check_spifix())
+  {
+    // use different SPI than SDCARD
+    ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
+    assert(ret == ESP_OK);
+  }
+  else
+  {
+    // use same SPI as SDCARD
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+    assert(ret == ESP_OK);
+  }
 }
 
 uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
