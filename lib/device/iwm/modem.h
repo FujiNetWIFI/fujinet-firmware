@@ -12,8 +12,8 @@
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
 #include "modem-sniffer.h"
-#include "libtelnet.h"
-#include "esp32sshclient.h"
+#include "../telnet/libtelnet.h"
+#include "../libssh2/esp32sshclient.h"
 
 /* Keep strings under 40 characters, for the benefit of 40-column users! */
 #define HELPL01 "       FujiNet Virtual apple Modem"

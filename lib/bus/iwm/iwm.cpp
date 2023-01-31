@@ -10,6 +10,7 @@
 #include "led.h"
 
 #include "../device/iwm/disk.h"
+#include "../device/iwm/disk2.h"
 #include "../device/iwm/fuji.h"
 #include "../device/iwm/cpm.h"
 #include "../device/iwm/clock.h"
@@ -248,6 +249,9 @@ void iwmBus::setup(void)
 
   smartport.setup_spi();
   Debug_printf("\r\nSPI configured for smartport I/O");
+  
+  diskii_xface.setup_spi();
+  Debug_printf("\r\nSPI configured for Disk ][ Output");
 
   smartport.setup_gpio();
   Debug_printf("\r\nIWM GPIO configured");
@@ -427,20 +431,44 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
  * investigation.
  */
 //*****************************************************************************
-void iwmBus::service()
+void IRAM_ATTR iwmBus::service()
 {
-  // iwm_ack_deassert(); // go hi-Z
+  #if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
+  // check on the diskii status
+  switch (iwm_drive_enabled())
+  {
+  case iwm_enable_state_t::off:
+    diskii_xface.spi_end();
+    break;
+  case iwm_enable_state_t::off2on:
+    // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
+    fnSystem.delay_microseconds(1000);
+    if (iwm_drive_enabled() == iwm_enable_state_t::on)
+      diskii_xface.enable_output();
+    return; // no break because I want it to fall through to "on"
+  case iwm_enable_state_t::on:
+#ifdef DEBUG
+    new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
+    if (old_track != new_track)
+    {
+      Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());
+      old_track = new_track;
+    }
+#endif
+    // smartport.iwm_ack_clr();  - need to deal with write protect
 
-  // if (iwm_drive_enables())
-  // {
-  //   //Debug_printf("\r\nFloppy Drive ENabled!");
-  //   iwm_rddata_clr();
-  // }
-  // else
-  // {
-  //   //Debug_printf("\r\nFloppy Drive DISabled!"); // debug msg latency here screws up SP timing.
-  //    iwm_rddata_set(); // make rddata hi-z
-  // }
+    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
+    {
+      // Debug_printf("%d ", isrctr);
+      diskii_xface.iwm_queue_track_spi();
+    }
+    return;
+  case iwm_enable_state_t::on2off:
+    diskii_xface.disable_output();
+    iwm_ack_deassert();
+    return;
+  }
+#endif
 
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
@@ -516,8 +544,10 @@ void iwmBus::service()
     {
       for (auto devicep : _daisyChain)
       {
+
         if (command_packet.dest == devicep->_devnum &&
             devicep->device_active == true)
+
         {
           // iwm_ack_assert(); // includes waiting for spi read transaction to finish
           // portENABLE_INTERRUPTS();
@@ -553,10 +583,39 @@ void iwmBus::service()
   }                     // switch (phasestate)
 }
 
-bool iwmBus::iwm_drive_enables()
+iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
 {
-  return false; // ignore floppy drives for now
-  // return !iwm_enable_val();
+  uint8_t phases = smartport.iwm_phase_vector();
+  uint8_t newstate = diskii_xface.iwm_enable_states();
+
+  if (!((phases & 0b1000) && (phases & 0b0010))) // SP bus not enabled
+  {
+    switch (_old_enable_state)
+    {
+    case iwm_enable_state_t::off:
+      _new_enable_state = (newstate != 0) ? iwm_enable_state_t::off2on : iwm_enable_state_t::off;
+      break;
+    case iwm_enable_state_t::off2on:
+      _new_enable_state = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::on2off;
+      break;
+    case iwm_enable_state_t::on:
+      _new_enable_state = (newstate != 0) ? iwm_enable_state_t::on : iwm_enable_state_t::on2off;
+      break;
+    case iwm_enable_state_t::on2off:
+      _new_enable_state = (newstate != 0) ? iwm_enable_state_t::off2on : iwm_enable_state_t::off;
+      break;
+    }
+    if (_old_enable_state != _new_enable_state)
+      Debug_printf("\ndisk ii enable states: %02x", newstate);
+
+    _old_enable_state = _new_enable_state;
+
+    return _new_enable_state;
+  }
+  else
+  {
+    return iwm_enable_state_t::off;
+  }
 }
 
 void iwmBus::handle_init()

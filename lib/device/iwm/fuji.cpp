@@ -209,9 +209,14 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
 
-    // And now mount it
+    // special handling for Disk ][ .woz images
+    // mediatype_t mt = MediaType::discover_mediatype(disk.filename);
+    // if (mt == mediatype_t::MEDIATYPE_PO)
+    // { // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+
     if(options == DISK_ACCESS_MODE_WRITE) {disk.disk_dev.readonly = false;}
+
 }
 
 

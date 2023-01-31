@@ -17,6 +17,7 @@ enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_PO,
+    MEDIATYPE_WOZ,
     MEDIATYPE_COUNT
 };
 
@@ -54,6 +55,7 @@ public:
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     // bool _allow_hsio = true;
+    bool diskiiemulation;
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
     virtual void unmount();
