@@ -4,20 +4,31 @@
 
 #include "iwm_ll.h"
 #include "iwm.h"
+#include "../device/iwm/disk2.h"
+#include "../device/iwm/fuji.h"
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
 
+// generate PN bits using Octave/MATLAB with
+// for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
+const uint8_t MC3470[32] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
+
 volatile uint8_t _phases = 0;
 volatile bool sp_command_mode = false;
+volatile int isrctr = 0;
 
 void IRAM_ATTR phi_isr_handler(void *arg)
 {
+  // handle SP Command Packet or Disk ][ track changes
+  // maintain the diskii process:
+  // update the head position based on phases
+  // put the right track in the SPI buffer
+
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+  
   if (!sp_command_mode && (_phases == 0b1011))
   {
-    // This go boom.
-    // xSemaphoreTakeFromISR(smartport.spiMutex,NULL);
     smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
     if (IWM.command_packet.command == 0x85)
     {
@@ -36,8 +47,15 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
     }
     smartport.spi_end();
-    // This go boom
-    // xSemaphoreGiveFromISR(smartport.spiMutex,NULL);
+  }
+  else if (diskii_xface.iwm_enable_states() & 0b11)
+  {
+    
+    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
+    {
+      isrctr++;
+      theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(isrctr);
+    }
   }
 }
 
@@ -55,20 +73,15 @@ inline void iwm_sp_ll::iwm_extra_clr()
 #endif
 }
 
-inline bool iwm_sp_ll::iwm_enable_val()
-{
-  return true;
-}
-
 void IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
-  memset(spi_buffer, 0, SPI_BUFFER_LEN);
+  memset(spi_buffer, 0, SPI_SP_LEN);
   // loop through "l" bytes of the buffer "packet_buffer"
   uint16_t i=0,j=0;
   while(packet_buffer[i])
   {
-    // Debug_printf("\r\nByte %02X: ",packet_buffer[i]);
+    // Debug_printf("\nByte %02X: ",packet_buffer[i]);
     // for each byte, loop through 4 x 2-bit pairs
     uint8_t mask = 0x80;
     for (int k = 0; k < 4; k++)
@@ -122,7 +135,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   if (req_wait_for_rising_timeout(300000))
     {
       // timeout!
-      Debug_printf("\r\nSendPacket timeout waiting for REQ");
+      Debug_printf("\nSendPacket timeout waiting for REQ");
       portENABLE_INTERRUPTS(); // takes 7 us to execute
       return 1;
     }
@@ -176,7 +189,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   nominal command length is 27 bytes * 8 * 8 = 1728 samples
   1798/1728 = 1.04
 
-  command packet on YS is 919 us
+  command packet on YellowStone (YS) is 919 us
   2.052 * 919 = 1886 samples
   1886 / 1728 = 1.0914    --    this one says we need 10% extra array length
 
@@ -190,8 +203,9 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   */
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
+  
+  memset(spi_buffer, 0xff, SPI_SP_LEN);
 
-  memset(spi_buffer, 0xff , SPI_BUFFER_LEN);
   memset(&rxtrans, 0, sizeof(spi_transaction_t));
   rxtrans.flags = 0;
   rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
@@ -265,8 +279,8 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
     {
       bit = false; // assume no edge in this next bit
 #ifdef VERBOSE_IWM
-      Debug_printf("\r\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
-      Debug_printf("\r\nspibyte spibit intctr sampval preval rxbit rxbyte");
+      Debug_printf("\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
+      Debug_printf("\nspibyte spibit intctr sampval preval rxbit rxbyte");
 #endif
       int i = 0;
       while (i < pulsewidth)
@@ -274,7 +288,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
         current_level = spirx_get_next_sample();
         current_level ? iwm_extra_clr() : iwm_extra_set();
 #ifdef VERBOSE_IWM
-        Debug_printf("\r\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
+        Debug_printf("\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
 #endif
         // sprix:
         // loop through 4 usec worth of samples looking for an edge
@@ -364,7 +378,7 @@ void iwm_sp_ll::setup_spi()
   int spirx_mosi_pin = -1;
   esp_err_t ret; // used for calling SPI library functions below
 
-  spi_buffer = (uint8_t *)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
+  spi_buffer = (uint8_t *)heap_caps_malloc(SPI_SP_LEN, MALLOC_CAP_DMA);
 
   if(fnSystem.check_spifix())
     spirx_mosi_pin = SP_SPI_FIX_PIN;
@@ -376,13 +390,14 @@ void iwm_sp_ll::setup_spi()
     .sclk_io_num = -1,
     .quadwp_io_num = -1,
     .quadhd_io_num = -1,
-    .max_transfer_sz = SPI_BUFFER_LEN,
+    .max_transfer_sz = SPI_II_LEN,
     .flags = SPICOMMON_BUSFLAG_MASTER,
     .intr_flags = 0
   };
 
   ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
   assert(ret == ESP_OK);
+
 
   spi_device_interface_config_t rxcfg = {
     .mode = 0,                      // SPI mode 0
@@ -398,6 +413,7 @@ void iwm_sp_ll::setup_spi()
 
   ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
   assert(ret == ESP_OK);
+
 
   spi_device_interface_config_t devcfg = {
     .mode = 0,                   // SPI mode 0
@@ -427,6 +443,7 @@ void iwm_sp_ll::setup_spi()
   {
     smartport.spiMutex = xSemaphoreCreateMutex();
   }
+
 }
 
 void iwm_sp_ll::setup_gpio()
@@ -434,18 +451,19 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT);
 
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+  
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
-  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);//, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
+  fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 
   // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
 
   fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
   fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
@@ -458,15 +476,15 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
-  Debug_printf("\r\nEXTRA signaling line configured");
+  Debug_printf("\nEXTRA signaling line configured");
 #endif
 
 
   // attach the interrupt service routine
   gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, NULL);
-  //gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
- //gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
-  //gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
 }
 
 void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num)
@@ -577,7 +595,7 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   numodd = input_data[11] & 0x7f;
   numgrps = input_data[12] & 0x7f;
   numdata = numodd + numgrps * 7;
-  Debug_printf("\r\nDecoding %d bytes",numdata);
+  Debug_printf("\nDecoding %d bytes",numdata);
   // if (numdata==512)
   // {
   //   // print out packets
@@ -613,17 +631,178 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   for (int count = 0; count < numdata; count++) // xor all the output_data bytes
     checksum = checksum ^ output_data[count];
 
-  Debug_printf("\r\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
+  Debug_printf("\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
 
   if (checksum != (oddbits | evenbits))
   {
-    Debug_printf("\r\nCHECKSUM ERROR!");
+    Debug_printf("\nCHECKSUM ERROR!");
     return -1; // error!
   }
 
   return numdata;
 }
 
+
+bool IRAM_ATTR iwm_diskii_ll::fakebit()
+{
+  ++MC3470_bit_ctr %= 8;
+  if (MC3470_bit_ctr == 0)
+    ++MC3470_byte_ctr %= 32;
+  
+  return (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
+}
+
+void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator = 0)
+{
+  int i = 0, j = 0;
+  uint8_t window = 0;
+  uint8_t nextbit = 0;
+
+  for (i = 0; i < (trackbits / 8); i++)
+  {
+    // for each byte, loop through 4 x 2-bit pairs
+    uint8_t mask = 0x80;
+    uint8_t temp = 0;
+    for (int k = 7; k >= 0; k--)
+    {
+      // MC34780 behavior for random bit insertion
+      // https://applesaucefdc.com/woz/reference2/
+      window <<= 1;
+      window |= ((track[i] & mask) != 0);
+      if ((window & 0x0f) != 0)
+      {
+        nextbit = window & 0x02;
+      }
+      else
+      {
+        nextbit = fakebit();
+      }
+        if (nextbit)
+        {
+          if (k % 2 == 1)
+          {
+            temp |= 0x40;
+          }
+          else
+          {
+            temp |= 0x04;
+          }
+        }
+        mask >>= 1;
+
+        if (k % 2 == 0)
+        {
+          spi_buffer[j++] = temp;
+          temp = 0;
+        }
+      }
+    spi_len = trackbits / 2; // 2 bits per encoded byte
+  }
+}
+
+void iwm_diskii_ll::setup_spi() // int bit_ns, int chiprate
+{
+  esp_err_t ret; // used for calling SPI library functions below
+  int spi_buffer_len;
+
+  // compute length of 1 track in chips
+  // 200 milleseconds
+  // 1 bit in nanoseconds (usually about 4000)
+  // number of chips per bit (usually 4)
+  spi_buffer_len = SPI_II_LEN;// 200 * 1000 * 1000 * chiprate / bit_ns / 8;
+  spi_len = 50304 / 2; // set to default standard DOS 3.3
+  spi_buffer = (uint8_t *)heap_caps_malloc(spi_buffer_len, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+  Debug_printf("\nspi_buffer located at %lu", spi_buffer);
+
+  spi_device_interface_config_t devcfg = {
+      .mode = 0,                                                // SPI mode 0
+      .duty_cycle_pos = 0,                                      ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+      .cs_ena_pretrans = 0,                                     ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
+      .cs_ena_posttrans = 0,                                    ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
+      .clock_speed_hz = 1000 * 1000, // chiprate * 1000 * 1000 * 1000 / bit_ns, // Clock out at 1 MHz
+      .input_delay_ns = 0,
+      .spics_io_num = -1, // CS pin
+      .queue_size = 5     // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
+  };
+
+  if(fnSystem.check_spifix())
+  {
+    // use different SPI than SDCARD
+    ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
+    assert(ret == ESP_OK);
+  }
+  else
+  {
+    // use same SPI as SDCARD
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+    assert(ret == ESP_OK);
+  }
+}
+
+uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
+{
+  uint8_t states = 0;
+
+  // Temporary while we debug Disk ][
+#ifdef DISKII_DRIVE1
+  states |= !((GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32));
+#endif
+#ifdef DISKII_DRIVE2
+  states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
+#endif
+
+  return states;
+}
+
+void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
+{
+  esp_err_t ret;
+
+  // if (trans.empty())
+  // {
+  //   // ret = spi_device_acquire_bus(spi, portMAX_DELAY);
+  //   // assert(ret == ESP_OK);
+  //   iwm_rddata_clr();
+  // }
+
+  if (trans.size() > 1)
+  {
+    spi_end();
+    theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].refresh_track();
+  }
+
+  while (trans.size() < 2)
+  {
+    spi_transaction_t mytrans;
+    memset(&mytrans, 0, sizeof(spi_transaction_t));
+    mytrans.tx_buffer = spi_buffer; // finally send the line data
+    mytrans.length = spi_len * 8;   // Data length, in bits
+    mytrans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
+    trans.push(mytrans);
+    ret = spi_device_queue_trans(spi, &trans.back(), portMAX_DELAY);
+    assert(ret == ESP_OK);
+  }
+}
+
+void IRAM_ATTR iwm_diskii_ll::spi_end()
+{
+  if (trans.empty())
+    return;
+
+  esp_err_t ret;
+  spi_transaction_t *t = &trans.front();
+  ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
+  assert(ret == ESP_OK);
+  trans.pop();
+  // if (trans.empty())
+  // {
+  //   disable_output();
+  //   smartport.iwm_ack_set(); 
+  //   // spi_device_release_bus(spi);
+  // }
+}
+
 iwm_sp_ll smartport;
+iwm_diskii_ll diskii_xface;
 
 #endif

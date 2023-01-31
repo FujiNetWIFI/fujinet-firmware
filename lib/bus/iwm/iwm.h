@@ -114,7 +114,7 @@ union cmdFrame_t
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
-#define MAX_PACKET_LEN         891
+#define MAX_SP_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
 
 union cmdPacket_t
@@ -208,6 +208,13 @@ enum class iwm_fujinet_type_t
   Other
 };
 
+enum class iwm_enable_state_t
+{
+  off,
+  off2on,
+  on,
+  on2off
+};
 
 struct iwm_device_info_block_t
 {
@@ -328,7 +335,10 @@ private:
   iwm_phases_t oldphase;
 #endif
 
-  bool iwm_drive_enables();
+  iwm_enable_state_t iwm_drive_enabled();
+  iwm_enable_state_t _old_enable_state;
+  iwm_enable_state_t _new_enable_state;
+  // uint8_t enable_values;
 
   void iwm_ack_deassert();
   void iwm_ack_assert();
@@ -340,6 +350,9 @@ private:
   iwm_decoded_cmd_t command;
 
   void handle_init(); 
+
+  int old_track = -1;
+  int new_track;
 
 public:
   std::forward_list<iwmDevice *> _daisyChain;
