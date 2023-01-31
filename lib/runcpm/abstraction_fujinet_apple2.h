@@ -225,6 +225,12 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
 	int seekErr;
 
 	f = fnSDFAT.file_open(full_path((char *)fn), "r");
+	if (!f)
+	{
+		result = 0x10;
+		return result;
+	}
+
 	seekErr = fseek(f, fpos, SEEK_SET);
 	if (f)
 	{
@@ -527,6 +533,16 @@ void _putch(uint8_t ch)
 
 void _clrscr(void)
 {
+	_putch(0x1B);
+	_putch('[');
+	_putch('1');
+	_putch(';');
+	_putch('1');
+	_putch('H');
+	_putch(0x1B);
+	_putch('[');
+	_putch('2');
+	_putch('J');
 }
 
 uint8_t bdos_networkConfig(uint16_t addr)

@@ -98,12 +98,8 @@ void main_setup()
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
-    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
-
-    if (Config.get_apetime_enabled() == false)
-        apeTime.device_active = false;
-    else
-        apeTime.device_active = true;
+    if (Config.get_apetime_enabled() == true)
+        SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
     SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 

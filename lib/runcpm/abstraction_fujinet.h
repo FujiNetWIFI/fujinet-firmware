@@ -219,6 +219,11 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
 	int seekErr;
 
 	f = fnSDFAT.file_open(full_path((char *)fn), "r");
+	if (!f)
+	{
+		result = 0x10;
+		return result;
+	}
 	seekErr = fseek(f, fpos, SEEK_SET);
 	if (f)
 	{
