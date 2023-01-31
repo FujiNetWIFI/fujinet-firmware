@@ -7,11 +7,11 @@
 
 #include "../../bus/bus.h"
 
-#include "EdUrlParser.h"
+#include "../EdUrlParser/EdUrlParser.h"
 
-#include "Protocol.h"
+#include "../network-protocol/Protocol.h"
 
-#include "fnjson.h"
+#include "../fnjson/fnjson.h"
 
 
 /**
