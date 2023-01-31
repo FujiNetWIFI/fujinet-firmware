@@ -11,7 +11,7 @@
 #include <cJSON.h>
 #include <cJSON_Utils.h>
 
-#include "Protocol.h"
+#include "../network-protocol/Protocol.h"
 
 class FNJSON
 {
