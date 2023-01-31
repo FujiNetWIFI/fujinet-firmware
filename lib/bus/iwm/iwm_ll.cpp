@@ -175,10 +175,10 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(int n)
   return iwm_read_packet_spi(packet_buffer, n);
 }
 
-int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n) 
+int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
 { // read data stream using SPI
   fnTimer.reset();
-   
+
   // signal the logic analyzer
   iwm_extra_set();
 
@@ -197,16 +197,17 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   2052kHz * 20.1ms =  41245 samples = 5156 bytes
   nominal 604 bytes for block packet = 38656 samples
   41245/38656 = 1.067
-  
+
   write block packet on YS is 18.95 ms so should fit within DIY
-  IIgs take 18.88 ms for a write block 
+  IIgs take 18.88 ms for a write block
   */
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
   
   memset(spi_buffer, 0xff, SPI_SP_LEN);
+
   memset(&rxtrans, 0, sizeof(spi_transaction_t));
-  rxtrans.flags = 0; 
+  rxtrans.flags = 0;
   rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
   rxtrans.rxlength = spi_len * 8;   // Data length, in bits
   rxtrans.tx_buffer = nullptr;
@@ -247,7 +248,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   int last_bit_pos = 0;
   int samples;
   bool start_packet = true;
-  
+
   fnTimer.latch();               // latch highspeed timer value
   fnTimer.read();                //  grab timer low word
   // sync byte is 10 * 8 * (10*1000*1000/2051282) = 39.0 us long
@@ -269,7 +270,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
       start_packet = false;
     }
     else
-    {      
+    {
       fnTimer.alarm_snooze( (samples * 10 * 1000 * 1000) / f_spirx); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
     }
 
@@ -304,7 +305,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
       rxbyte <<= 1;
       rxbyte |= bit;
       iwm_extra_set(); // signal to LA we're done with this bit
-    } while (--numbits > 0); 
+    } while (--numbits > 0);
     if ((rxbyte == 0xc3) && (!synced))
     {
       synced = true;
@@ -374,53 +375,74 @@ bool iwm_sp_ll::req_wait_for_rising_timeout(int t)
 
 void iwm_sp_ll::setup_spi()
 {
-
+  int spirx_mosi_pin = -1;
   esp_err_t ret; // used for calling SPI library functions below
 
-  spi_buffer = (uint8_t *)heap_caps_malloc(SPI_SP_LEN, MALLOC_CAP_DMA); //  use this buffer for SPI RX
+  spi_buffer = (uint8_t *)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
 
-  spi_device_interface_config_t devcfg = {
-      .mode = 0,                         // SPI mode 0
-      .duty_cycle_pos = 0,               ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-      .cs_ena_pretrans = 0,              ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
-      .cs_ena_posttrans = 0,             ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
-      .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
-      .input_delay_ns = 0,
-      .spics_io_num = -1, // CS pin
-      .queue_size = 2     // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
-  };
+  if(fnSystem.check_spifix())
+    spirx_mosi_pin = SP_SPI_FIX_PIN;
 
-    // use same SPI as SDCARD
-  ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-
-  assert(ret == ESP_OK);
-
-  // SPI for receiving SP packets - sprirx
-// use different SPI than SDCARD
+  // SPI for receiving packets - sprirx
   spi_bus_config_t bus_cfg = {
-      .mosi_io_num = -1,
-      .miso_io_num = SP_WRDATA,
-      .sclk_io_num = -1,
-      .quadwp_io_num = -1,
-      .quadhd_io_num = -1,
-      .max_transfer_sz = SPI_SP_LEN,
-      .flags = SPICOMMON_BUSFLAG_MASTER,
-      .intr_flags = 0};
-  spi_device_interface_config_t rxcfg = {
-      .mode = 0, // SPI mode 0
-      .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-      .cs_ena_pretrans = 0,
-      .cs_ena_posttrans = 0,
-      .clock_speed_hz = f_spirx, // f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
-      .input_delay_ns = 0,
-      .spics_io_num = -1,        // CS pin
-      .flags = SPI_DEVICE_HALFDUPLEX,
-      .queue_size = 1};          // We want to be able to queue 7 transactions at a time
+    .mosi_io_num = spirx_mosi_pin,
+    .miso_io_num = SP_WRDATA,
+    .sclk_io_num = -1,
+    .quadwp_io_num = -1,
+    .quadhd_io_num = -1,
+    .max_transfer_sz = SPI_BUFFER_LEN,
+    .flags = SPICOMMON_BUSFLAG_MASTER,
+    .intr_flags = 0
+  };
 
   ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
   assert(ret == ESP_OK);
+
+
+  spi_device_interface_config_t rxcfg = {
+    .mode = 0,                      // SPI mode 0
+    .duty_cycle_pos = 0,            ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+    .cs_ena_pretrans = 0,
+    .cs_ena_posttrans = 0,
+    .clock_speed_hz = f_spirx,      // f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
+    .input_delay_ns = 0,
+    .spics_io_num = -1,             // CS pin
+    .flags = SPI_DEVICE_HALFDUPLEX,
+    .queue_size = 1                 // We want to be able to queue 7 transactions at a time
+  };
+
   ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
   assert(ret == ESP_OK);
+
+
+  spi_device_interface_config_t devcfg = {
+    .mode = 0,                   // SPI mode 0
+    .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+    .cs_ena_pretrans = 0,        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
+    .cs_ena_posttrans = 0,       ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
+    .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
+    .input_delay_ns = 0,
+    .spics_io_num = -1,                // CS pin
+    .queue_size = 2                    // We want to be able to queue 7 transactions at a time
+  };
+
+  if(fnSystem.check_spifix())
+  {
+    // use different SPI than SDCARD
+    ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
+    assert(ret == ESP_OK);
+  }
+  else
+  {
+    // use same SPI as SDCARD
+    ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+    assert(ret == ESP_OK);
+  }
+
+  if (smartport.spiMutex == NULL)
+  {
+    smartport.spiMutex = xSemaphoreCreateMutex();
+  }
 
 }
 
@@ -429,6 +451,7 @@ void iwm_sp_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack to input to avoid clashing with other devices when sp bus is not enabled
+
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
@@ -456,7 +479,7 @@ void iwm_sp_ll::setup_gpio()
   Debug_printf("\nEXTRA signaling line configured");
 #endif
 
-  
+
   // attach the interrupt service routine
   gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, NULL);
   gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
@@ -464,7 +487,7 @@ void iwm_sp_ll::setup_gpio()
   gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
 }
 
-void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num) 
+void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num)
 {
   // generic version would need:
   // source id
@@ -478,7 +501,7 @@ void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
   int numodds = 0;
 
   if ((data != nullptr) && (num != 0))
-  {           
+  {
   int grpbyte, grpcount;
   uint8_t grpmsb;
   uint8_t group_buffer[7];
@@ -568,7 +591,7 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   uint8_t checksum = 0, bit0to6, bit7, oddbits, evenbits;
   uint8_t group_buffer[8];
 
-  //Handle arbitrary length packets :) 
+  //Handle arbitrary length packets :)
   numodd = input_data[11] & 0x7f;
   numgrps = input_data[12] & 0x7f;
   numdata = numodd + numgrps * 7;
@@ -615,7 +638,7 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
     Debug_printf("\nCHECKSUM ERROR!");
     return -1; // error!
   }
-  
+
   return numdata;
 }
 

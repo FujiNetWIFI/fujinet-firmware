@@ -25,10 +25,11 @@
 #include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
 #endif
 
-#define CPM_TASK_PRIORITY 50
+#define CPM_TASK_PRIORITY 20
 
 static void cpmTask(void *arg)
 {
+    Debug_printf("cpmTask()\n");
     while (1)
     {
         Status = Debug = 0;
@@ -48,8 +49,8 @@ static void cpmTask(void *arg)
 
 iwmCPM::iwmCPM()
 {
-    rxq = xQueueCreate(2048,sizeof(char));
-    txq = xQueueCreate(2048,sizeof(char));
+    rxq = xQueueCreate(2048, sizeof(char));
+    txq = xQueueCreate(2048, sizeof(char));
 }
 
 void iwmCPM::send_status_reply_packet()
@@ -61,7 +62,7 @@ void iwmCPM::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    IWM.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmCPM::send_status_dib_reply_packet()
@@ -127,6 +128,7 @@ void iwmCPM::iwm_close(iwm_decoded_cmd_t cmd)
 
 void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
 {
+    unsigned short mw;
     // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // packet_buffer[6];
     uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     Debug_printf("\r\nDevice %02x Status Code %02x\n", id(), status_code);
@@ -145,15 +147,20 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         return;
         break;
     case 'S': // Status
-        unsigned short mw = uxQueueMessagesWaiting(rxq);
-        
+        mw = uxQueueMessagesWaiting(rxq);
+
         if (mw > 512)
             mw = 512;
 
         data_buffer[0] = mw & 0xFF;
         data_buffer[1] = mw >> 8;
         data_len = 2;
-        Debug_printf("%u bytes waiting\n",mw);
+        Debug_printf("%u bytes waiting\n", mw);
+        break;
+    case 'B':
+        data_buffer[0]=(cpmTaskHandle==NULL ? 0 : 1);
+        data_len = 0;
+        Debug_printf("CPM Task Running? %d",data_buffer[0]);
         break;
     }
 
@@ -163,29 +170,29 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
 
 void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
-
     uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
+    uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+    unsigned short mw = uxQueueMessagesWaiting(rxq);
 
-    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
 
-    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
+    memset(data_buffer, 0, sizeof(data_buffer));
 
-    memset(data_buffer,0,sizeof(data_buffer));
+    if (numbytes > mw)
+    {
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_IOERROR, data_buffer, 0);
+        return;
+    }
 
-    for (int i=0;i<numbytes;i++)
+    memset(data_buffer, 0, sizeof(data_buffer));
+
+    for (int i = 0; i < numbytes; i++)
     {
         char b;
-        xQueueReceive(rxq,&b,portMAX_DELAY);
+        xQueueReceive(rxq, &b, portMAX_DELAY);
         data_buffer[i] = b;
         data_len++;
     }
-
-    Debug_printf("%s\n",data_buffer);
-
 
     Debug_printf("\r\nsending block packet ...");
     IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
@@ -195,33 +202,28 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 
 void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // packet_buffer[6];
-    // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
-    Debug_printf("\r\nCPM# %02x ", id());
-
     uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // num_bytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
 
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
-
-    Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
+    Debug_printf("\nWRITE %u bytes\n", num_bytes);
 
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
-    data_len = 512;
+
+    data_len = num_bytes;
+
     if (IWM.iwm_read_packet_timeout(100, data_buffer, data_len))
     {
         Debug_printf("\r\nTIMEOUT in read packet!");
         return;
     }
-    // partition number indicates which 32mb block we access
-    if (data_len == -1)
-        iwm_return_ioerror();
-    else
+
     {
         // DO write
+        for (int i = 0; i < num_bytes; i++)
+            xQueueSend(txq, &data_buffer[i], portMAX_DELAY);
     }
+
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -241,23 +243,30 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
         switch (control_code)
         {
         case 'B': // Boot
-            Debug_printf("!!! STARTING CP/M TASK!!!\n");
-            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle,1);
-            break;
-        case 'W': // Write
-            Debug_printf("Pushing character %c", data_buffer[0]);
-            xQueueSend(txq, &data_buffer[0], portMAX_DELAY);
+            if (!fnSystem.check_spifix())
+            {
+                err_result = SP_ERR_OFFLINE;
+                Debug_printf("FujiApple SPI Fix Missing, not starting CP/M\n");
+            }
+            else
+            {
+                Debug_printf("!!! STARTING CP/M TASK!!!\n");
+                if (cpmTaskHandle != NULL)
+                {
+                    break;
+                }
+                xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
+            }
             break;
         }
     else
         err_result = SP_ERR_IOERROR;
-    
+
     send_reply_packet(err_result);
 }
 
 void iwmCPM::process(iwm_decoded_cmd_t cmd)
 {
-    fnLedManager.set(LED_BUS, true);
     switch (cmd.command)
     {
     case 0x00: // status
@@ -269,14 +278,21 @@ void iwmCPM::process(iwm_decoded_cmd_t cmd)
         iwm_ctrl(cmd);
         break;
     case 0x08: // read
+        fnLedManager.set(LED_BUS, true);
         Debug_printf("\r\nhandling read command");
         iwm_read(cmd);
+        fnLedManager.set(LED_BUS, false);
+        break;
+    case 0x09: // write
+        fnLedManager.set(LED_BUS, true);
+        Debug_printf("\r\nHandling write command");
+        iwm_write(cmd);
+        fnLedManager.set(LED_BUS, false);
         break;
     default:
         iwm_return_badcmd(cmd);
         break;
     } // switch (cmd)
-    fnLedManager.set(LED_BUS, false);
 }
 
 void iwmCPM::shutdown()

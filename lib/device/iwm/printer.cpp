@@ -6,7 +6,7 @@
 #include "epson_80.h"
 #include "fnSystem.h"
 
-constexpr const char * const iwmPrinter::printer_model_str[PRINTER_INVALID];
+constexpr const char *const iwmPrinter::printer_model_str[PRINTER_INVALID];
 
 iwmPrinter::iwmPrinter(FileSystem *filesystem, printer_type printer_type)
 {
@@ -106,14 +106,14 @@ void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
     Debug_printf("\nPrinter: Status cmd %02X\n", cmd.command);
     switch (get_status_code(cmd))
     {
-        case IWM_STATUS_STATUS:
-            send_status_reply_packet();
-            return;
-            break;
-        case IWM_STATUS_DIB:
-            send_status_dib_reply_packet();
-            return;
-            break;
+    case IWM_STATUS_STATUS:
+        send_status_reply_packet();
+        return;
+        break;
+    case IWM_STATUS_DIB:
+        send_status_dib_reply_packet();
+        return;
+        break;
     }
 }
 
@@ -132,11 +132,11 @@ void iwmPrinter::iwm_close(iwm_decoded_cmd_t cmd)
 void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
 {
     uint16_t num_bytes = get_numbytes(cmd);
-    
+
     Debug_printf("\nPrinter: Write %u bytes to address %04x\n", num_bytes);
-    
+
     data_len = num_bytes;
-    
+
     if (IWM.iwm_read_packet_timeout(100, (unsigned char *)data_buffer, data_len))
     {
         Debug_printf("\r\nTIMEOUT in read packet!");
@@ -154,14 +154,29 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
     while (data_len > 0)
     {
         uint8_t l = (data_len > 80 ? 80 : data_len);
-        memcpy(_pptr->provideBuffer(),&data_buffer[offset],l);
-        _pptr->process(l,8,0);
+        memcpy(_pptr->provideBuffer(), &data_buffer[offset], l);
+        _pptr->process(l, 8, 0);
         data_len -= l;
         offset += l;
     }
 
     _last_ms = fnSystem.millis();
     send_reply_packet(SP_ERR_NOERROR);
+}
+
+/**
+ * Print from CP/M, which is one character...at...a...time...
+ */
+void iwmPrinter::print_from_cpm(uint8_t c)
+{
+    _pptr->provideBuffer()[_llen++]=c;
+
+    if (c == 0x0D || c == 0x0a || _llen == 80)
+    {
+        _last_ms = fnSystem.millis();
+        _pptr->process(_llen, 0, 0);
+        _llen = 0;
+    }
 }
 
 void iwmPrinter::process(iwm_decoded_cmd_t cmd)

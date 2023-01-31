@@ -67,9 +67,11 @@ public:
     // void print_from_cpm(uint8_t c); // left over from ATARI although could use it on APPLE maybe?
 
     printer_emu *getPrinterPtr() { return _pptr; };
+    void print_from_cpm(uint8_t c);
 
 private:
     printer_type _ptype;
+    int _llen = 0;
 };
 
 

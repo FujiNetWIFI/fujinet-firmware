@@ -214,12 +214,9 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
     // if (mt == mediatype_t::MEDIATYPE_PO)
     // { // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-// }
-//     else if (mt == mediatype_t::MEDIATYPE_WOZ)
-//     {
-//       _fnDisk2s[deviceSlot % 2].init();
-//       _fnDisk2s[deviceSlot % 2].mount(disk.fileh); // modulo to ensure device 0 or 1
-//     }
+
+    if(options == DISK_ACCESS_MODE_WRITE) {disk.disk_dev.readonly = false;}
+
 }
 
 
@@ -323,6 +320,7 @@ bool iwmFuji::mount_all()
 
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+            if(disk.access_mode == DISK_ACCESS_MODE_WRITE) {disk.disk_dev.readonly = false;}
         }
     }
 
