@@ -378,7 +378,7 @@ void iwm_sp_ll::setup_spi()
   int spirx_mosi_pin = -1;
   esp_err_t ret; // used for calling SPI library functions below
 
-  spi_buffer = (uint8_t *)heap_caps_malloc(SPI_BUFFER_LEN, MALLOC_CAP_DMA);
+  spi_buffer = (uint8_t *)heap_caps_malloc(SPI_SP_LEN, MALLOC_CAP_DMA);
 
   if(fnSystem.check_spifix())
     spirx_mosi_pin = SP_SPI_FIX_PIN;
@@ -390,7 +390,7 @@ void iwm_sp_ll::setup_spi()
     .sclk_io_num = -1,
     .quadwp_io_num = -1,
     .quadhd_io_num = -1,
-    .max_transfer_sz = SPI_BUFFER_LEN,
+    .max_transfer_sz = SPI_SP_LEN,
     .flags = SPICOMMON_BUSFLAG_MASTER,
     .intr_flags = 0
   };
