@@ -390,7 +390,7 @@ void iwm_sp_ll::setup_spi()
     .sclk_io_num = -1,
     .quadwp_io_num = -1,
     .quadhd_io_num = -1,
-    .max_transfer_sz = SPI_SP_LEN,
+    .max_transfer_sz = SPI_II_LEN,
     .flags = SPICOMMON_BUSFLAG_MASTER,
     .intr_flags = 0
   };
