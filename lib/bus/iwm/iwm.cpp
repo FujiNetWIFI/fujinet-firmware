@@ -8,11 +8,9 @@
 #include "utils.h"
 #include "led.h"
 
-
 #include "../device/iwm/disk.h"
 #include "../device/iwm/fuji.h"
-
-#define EXTRA 
+#include "../device/iwm/cpm.h"
 
 /******************************************************************************
 Based on:
@@ -31,42 +29,6 @@ IDC20 Disk II 20-pin pins based on
 https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 */
 
-//      SP BUS     GPIO       SIO               LA (with SIO-10IDC cable)
-//      ---------  ----     -----------------   -------------------------
-#define SP_WRPROT   27
-#define SP_ACK      27      //  CLKIN     1     D0
-#define SP_REQ      39
-#define SP_PHI0     39      //  CMD       7     D4
-#define SP_PHI1     22      //  PROC      9     D6
-#define SP_PHI2     36      //  MOTOR     8     D5
-#define SP_PHI3     26      //  INT       13    D7
-#define SP_RDDATA   21      //  DATAIN    3     D2
-#define SP_WRDATA   33      //  DATAOUT   5     D3
-#ifdef EXTRA
-  #define SP_EXTRA    32      //  CLKOUT
-#endif
-#define SP_ENABLE   32      //  CLKOUT    2     D1
-
-/*
-possible FujiNet Apple pinout independent of SIO assignments
-// PHI states are all inputs to FujiNet
-// contiguous assignments will allow to read the register, shift and mask to create a uint8_t that can map to the PHI states easily
-#define SP_PHI0     33      // IO
-#define SP_PHI1     34      // Input only
-#define SP_PHI2     35      // Input only
-#define SP_PHI3     36      // Input only
-// other inputs
-#define SP_WRDATA   26      // IO
-#define SP_REQ      39      // Input only
-#define SP_ENABLE   22      // IO - Disk II enable
-// only two ouputs for SP bus, although having an enable for an LS125 is probably necessary and would make it 3. ... maybe need a fourth to deal with the daisy chaining SENSE
-#define SP_RDDATA   27      // IO
-#define SP_WRPROT   32      // IO
-#define SP_ACK      SP_WRPORT
-// SAM
-// need pin 25 for DAC and speaker
-*/
-
 // hardware timer parameters for bit-banging I/O
 #define TIMER_DIVIDER         (2)  //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // convert counter value to seconds
@@ -78,14 +40,6 @@ possible FujiNet Apple pinout independent of SIO assignments
 //#define IWM_TX_PW             1 // microseconds - 1/2 us for fast mode
 
 #undef VERBOSE_IWM
-
-/* #define MACRO(num, str) {\
-            printf("%d", num);\
-            printf(" is");\
-            printf(" %s number", str);\
-            printf("\n");\
-           }
- */
 
 //------------------------------------------------------------------------------
 //#ifdef DEBUG
@@ -213,17 +167,25 @@ inline void iwmBus::iwm_rddata_clr()
 
 inline void iwmBus::iwm_rddata_enable()
 {
+#ifdef USE_BIT_BANG_TX
   GPIO.enable_w1ts = ((uint32_t)0x01 << SP_RDDATA);  
+#endif
 }
 
 inline void iwmBus::iwm_rddata_disable()
 {
+#ifdef USE_BIT_BANG_TX
   GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA);
+#endif
 }
 
 inline bool iwmBus::iwm_wrdata_val()
 {
+#ifdef PINMAP_A2_REV0
+  return (GPIO.in & ((uint32_t)0x01 << (SP_WRDATA)));
+#else
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_WRDATA - 32)));
+#endif
 }
 
 inline bool iwmBus::iwm_req_val()
@@ -234,20 +196,32 @@ inline bool iwmBus::iwm_req_val()
 inline void iwmBus::iwm_extra_set()
 {
 #ifdef EXTRA
+#ifdef PINMAP_A2_REV0
+  GPIO.out_w1ts = ((uint32_t)1 << SP_EXTRA);
+#else
   GPIO.out1_w1ts.data = ((uint32_t)0x01 << (SP_EXTRA - 32));
+#endif
 #endif
 }
 
 inline void iwmBus::iwm_extra_clr()
 {
 #ifdef EXTRA
+#ifdef PINMAP_A2_REV0
+  GPIO.out_w1tc = ((uint32_t)1 << SP_EXTRA);
+#else
   GPIO.out1_w1tc.data = ((uint32_t)0x01 << (SP_EXTRA - 32));  
+#endif
 #endif
 }
 
 inline bool iwmBus::iwm_enable_val()
 {
+#ifdef PINMAP_A2_REV0
+  return true;
+#else
   return (GPIO.in1.val & ((uint32_t)0x01 << (SP_ENABLE - 32)));
+#endif
 }
 
 //------------------------------------------------------
@@ -294,8 +268,13 @@ inline void iwmBus::iwm_ack_disable()
 
 //------------------------------------------------------
 
-bool iwmBus::iwm_phase_val(int p)
-{ 
+bool iwmBus::iwm_phase_val(uint8_t p)
+{
+#ifdef PINMAP_A2_REV0
+  uint8_t phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+  if (p < 4)
+    return (phases >> p) & 0x01;
+#else
   switch (p)
   {
   case 0:
@@ -309,6 +288,7 @@ bool iwmBus::iwm_phase_val(int p)
   default: 
     break; // drop out to error message
   }
+#endif
   Debug_printf("\r\nphase number out of range");
   return false;
 }
@@ -479,7 +459,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
       // this is an exclusive OR operation
       current_level = iwm_wrdata_val();       // nxtbit:   sbic _SFR_IO_ADDR(PIND),7           ;2   ;2    ;1  ;1      ;1/2 now read a bit, cycle time is 4us
       iwm_extra_set(); // signal to logic analyzer we just read the WR value
-      iwm_timer_alarm_set(39); // 4 usec
+      iwm_timer_alarm_set(38); // 4 usec
       bit = prev_level ^ current_level; // could be a != because we're looking for an edge
       rxbyte <<= 1;
       rxbyte |= bit;
@@ -497,7 +477,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
       a[idx++] = rxbyte; // havebyte: st   x+,r23                         ;17                    ;2   save byte in buffer
     else
     {
-      Debug_printf("\r\nRead Packet: too many bytes %d", idx);
+      //Debug_printf("\r\nRead Packet: too many bytes %d", idx); // This can make the guru meditate
       iwm_extra_clr();
       // portENABLE_INTERRUPTS();
       return 1;
@@ -535,7 +515,7 @@ int IRAM_ATTR iwmBus::iwm_read_packet(uint8_t *a, int n)
   {
     if (!idx)
     {
-      Debug_printf("\r\nRead Packet: no end of packet marker");
+      //Debug_printf("\r\nRead Packet: no end of packet marker"); // This can make the guru meditate
       a[0] = 0;
       // portENABLE_INTERRUPTS();
       iwm_extra_clr();
@@ -571,6 +551,37 @@ int iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *a, int n)
   print_packet(a);
 #endif
   return 1;
+}
+
+void iwmBus::encode_spi_packet(uint8_t *a)
+{
+  // clear out spi buffer
+  memset(spi_buffer, 0, sizeof(spi_buffer));
+  // loop through "l" bytes of the buffer "a"
+  uint16_t i=0,j=0;
+  while(a[i])
+  {
+    // Debug_printf("\r\nByte %02X: ",a[i]);
+    // for each byte, loop through 4 x 2-bit pairs
+    uint8_t mask = 0x80;
+    for (int k = 0; k < 4; k++)
+    {
+      if (a[i] & mask)
+      {
+        spi_buffer[j] |= 0x40;
+      }
+      mask >>= 1;
+      if (a[i] & mask)
+      {
+        spi_buffer[j] |= 0x04;
+      }
+      mask >>= 1;
+      // Debug_printf("%02x",spi_buffer[j]);
+      j++;
+    }
+    i++;
+  }
+  spi_len = --j;
 }
 
 int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
@@ -642,7 +653,7 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   // REQ received!
   Debug_print("R");
 #endif
-#else
+#else // TESTTX
   iwm_timer_latch();
   iwm_timer_read();
 #endif // TESTTX
@@ -711,16 +722,126 @@ int IRAM_ATTR iwmBus::iwm_send_packet(uint8_t *a)
   return 0;
 }
 
+int IRAM_ATTR iwmBus::iwm_send_packet_spi(uint8_t *a)
+{
+  //*****************************************************************************
+  // Function: iwm_send_packet_spi
+  // Parameters: packet_buffer pointer
+  // Returns: status (not used yet, always returns 0)
+  //
+  // Description: This handles the ACK and REQ lines and sends the packet from the
+  // pointer passed to it. (packet_buffer)
+  //
+  //*****************************************************************************
+
+  print_packet((uint8_t *)a);
+  encode_spi_packet((uint8_t *)a);
+
+  // send data stream using SPI
+  esp_err_t ret;
+  spi_transaction_t trans;
+  memset(&trans, 0, sizeof(spi_transaction_t));
+  trans.tx_buffer = spi_buffer; // finally send the line data
+  trans.length = spi_len * 8;   // Data length, in bits
+  trans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
+
+  iwm_ack_set(); // ack is already enabled by the response to the command read
+
+  // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
+  // setup a timeout counter to wait for REQ response
+  iwm_timer_reset();
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(300000); // increased to 30 millisecond per IIgs & gsos
+
+  // while (!fnSystem.digital_read(SP_REQ))
+  while ( !iwm_req_val() ) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  {
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
+    {
+      // timeout!
+      Debug_printf("\r\nSendPacket timeout waiting for REQ");
+      iwm_rddata_disable();
+      //iwm_ack_disable(); // need to release the bus if we're quitting
+      portENABLE_INTERRUPTS(); // takes 7 us to execute
+      return 1;
+    }
+  };
+// ;
+
+  iwm_rddata_enable();
+  iwm_rddata_clr();
+  ret = spi_device_polling_transmit(spi, &trans);
+  iwm_rddata_set();
+  iwm_ack_clr();
+  assert(ret == ESP_OK);
+
+  iwm_timer_reset();
+  iwm_timer_latch();        // latch highspeed timer value
+  iwm_timer_read();      //  grab timer low word
+  iwm_timer_alarm_set(10000); // 1/2 millisecond
+
+  // while (!fnSystem.digital_read(SP_REQ))
+  while (iwm_req_val()) //(GPIO.in1.val >> (pin - 32)) & 0x1
+  {
+    iwm_timer_latch();   // latch highspeed timer value
+    iwm_timer_read(); // grab timer low word
+    if (iwm_timer.t0 > iwm_timer.tn)                      // test for timeout
+    {
+      iwm_rddata_disable();
+      Debug_println("REQ timeout");
+     // iwm_ack_disable();       // need to release the bus
+      //portENABLE_INTERRUPTS(); // takes 7 us to execute
+      return 1;
+    }
+  };
+  iwm_rddata_disable();
+  return 0;
+}
+
 void iwmBus::setup(void)
 {
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
+
+  timer_config();
+  Debug_printf("\r\nIWM timer started");
+
+#ifdef PINMAP_A2_FN10
+  spi_bus_config_t bus_cfg = {
+      .mosi_io_num = SP_RDDATA,
+      .miso_io_num = -1,
+      .sclk_io_num = -1,
+      .quadwp_io_num = -1,
+      .quadhd_io_num = -1,
+      .max_transfer_sz = 4000};
+  spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+#endif
+
+  esp_err_t ret;
+  spi_device_interface_config_t devcfg = {
+      .mode = 0,                         // SPI mode 0
+      .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
+      .spics_io_num = -1,                // CS pin
+      .queue_size = 7                    // We want to be able to queue 7 transactions at a time
+  };
+
+#ifdef PINMAP_A2_REV0
+    // use same SPI as SDCARD
+    ret=spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
+#elif defined(PINMAP_A2_FN10)
+    // use different SPI than SDCARD
+    ret=spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
+#endif
+  assert(ret == ESP_OK);
 
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   fnSystem.digital_write(SP_ACK, DIGI_HIGH); // ID ACK for Logic Analyzer
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack (hv) to input to avoid clashing with other devices when sp bus is not enabled
-  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_UP ); // todo: test this - i think this makes sense to keep the ACK line high while not in use
+  fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT); //
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT);
@@ -729,25 +850,36 @@ void iwmBus::setup(void)
 
   fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT);
 
+#ifdef USE_BIT_BANG_TX
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // ID RD for logic analyzer
   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   // leave rd as input, pd6
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT); //, SystemManager::PULL_DOWN );  ot maybe pull up, too?
+#endif
 
+#ifdef PINMAP_A2_REV0
+  fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
+#else
   fnSystem.set_pin_mode(SP_ENABLE, gpio_mode_t::GPIO_MODE_INPUT);
+#endif
 #ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
+  fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
+  fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   fnSystem.digital_write(SP_EXTRA, DIGI_HIGH); // ID extra for logic analyzer
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   Debug_printf("\r\nEXTRA signaling line configured");
 #endif
   Debug_printf("\r\nIWM GPIO configured");
-
-  timer_config();
-  Debug_printf("\r\nIWM timer started");
 }
 
 //*****************************************************************************
@@ -1146,14 +1278,14 @@ void iwmDevice::iwm_return_badcmd(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   encode_error_reply_packet(SP_ERR_BADCMD);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 void iwmDevice::iwm_return_ioerror(cmdPacket_t cmd)
 {
   Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
   encode_error_reply_packet(SP_ERR_IOERROR);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 //*****************************************************************************
@@ -1229,7 +1361,7 @@ void iwmDevice::iwm_status(cmdPacket_t cmd) // override;
       encode_status_reply_packet();
     }
   print_packet(&packet_buffer[14]);
-  IWM.iwm_send_packet((unsigned char *)packet_buffer);
+  IWM.SEND_PACKET((unsigned char *)packet_buffer);
 }
 
 //*****************************************************************************
@@ -1419,6 +1551,15 @@ void iwmBus::service()
   } // switch (phasestate)
 }
 
+bool iwmBus::iwm_drive_enables()
+{
+#ifdef PINMAP_A2_REV0
+  return false; // ignore floppy drives for now
+#else
+  return !iwm_enable_val();
+#endif
+}
+
 void iwmBus::handle_init()
 {
   uint8_t status = 0;
@@ -1447,7 +1588,7 @@ void iwmBus::handle_init()
         status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
       pDevice->encode_init_reply_packet(command_packet.dest, status);
       Debug_printf("\r\nSending INIT Response Packet...");
-      iwm_send_packet((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
+      SEND_PACKET((uint8_t *)pDevice->packet_buffer); // timeout error return is not handled here (yet?)
 
       // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
@@ -1509,7 +1650,7 @@ void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
       //_netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (iwmNetwork *)pDevice;
       break;
     case iwm_fujinet_type_t::CPM:
-    //   _cpmDev = (iwmCPM *)pDevice;
+       _cpmDev = (iwmCPM *)pDevice;
        break;
     case iwm_fujinet_type_t::Printer:
       _printerdev = (iwmPrinter *)pDevice;
@@ -1603,7 +1744,7 @@ void iwmBus::test_send(iwmDevice* smort)
   while (true)
   {
     Debug_printf("\r\nSending INIT Response Packet...");
-    iwm_send_packet((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
+    SEND_PACKET((uint8_t *)smort->packet_buffer); // timeout error return is not handled here (yet?)
     fnSystem.delay(1000);
   }
 }

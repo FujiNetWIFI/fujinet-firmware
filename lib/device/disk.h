@@ -6,6 +6,11 @@
 # define DEVICE_TYPE sioDisk
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/disk.h"
+# define DEVICE_TYPE rs232Disk
+#endif
+
 #ifdef BUILD_APPLE
 #include "iwm/disk.h"
 #define DEVICE_TYPE iwmDisk
@@ -19,6 +24,11 @@
 #ifdef BUILD_ADAM
 # include "adamnet/disk.h"
 # define DEVICE_TYPE adamDisk
+#endif
+
+#ifdef BUILD_LYNX
+# include "comlynx/disk.h"
+# define DEVICE_TYPE lynxDisk
 #endif
 
 #ifdef BUILD_S100

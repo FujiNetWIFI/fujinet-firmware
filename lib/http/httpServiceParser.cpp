@@ -12,8 +12,6 @@
 #include "httpService.h"
 #include "fuji.h"
 
-#define ALL_THE_DEBUGS
-
 using namespace std;
 
 #define MAX_PRINTER_LIST_BUFFER (2048)
@@ -41,7 +39,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_CURRENTTIME,
         FN_TIMEZONE,
         FN_ROTATION_SOUNDS,
-        FN_MIDIMAZE_HOST,
+        FN_UDPSTREAM_HOST,
         FN_HEAPSIZE,
         FN_SYSSDK,
         FN_SYSCPUREV,
@@ -126,7 +124,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_CURRENTTIME",
         "FN_TIMEZONE",
         "FN_ROTATION_SOUNDS",
-        "FN_MIDIMAZE_HOST",
+        "FN_UDPSTREAM_HOST",
         "FN_HEAPSIZE",
         "FN_SYSSDK",
         "FN_SYSCPUREV",
@@ -191,8 +189,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 
     stringstream resultstream;
 
-#ifdef ALL_THE_DEBUGS
-    Debug_printf("Substituting tag '%s'\n", tag.c_str());
+#ifdef DEBUG
+    // Debug_printf("Substituting tag '%s'\n", tag.c_str());
 #endif
 
     int tagid;
@@ -267,8 +265,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_ROTATION_SOUNDS:
         resultstream << Config.get_general_rotation_sounds();
         break;
-    case FN_MIDIMAZE_HOST:
-        resultstream << Config.get_network_midimaze_host();
+    case FN_UDPSTREAM_HOST:
+        if (Config.get_network_udpstream_port() > 0)
+            resultstream << Config.get_network_udpstream_host() << ":" << Config.get_network_udpstream_port();
+        else
+            resultstream << Config.get_network_udpstream_host();
         break;
     case FN_HEAPSIZE:
         resultstream << fnSystem.get_free_heap_size();

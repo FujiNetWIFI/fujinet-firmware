@@ -28,9 +28,14 @@ fnConfig::fnConfig()
     strlcpy(_network.sntpserver, CONFIG_DEFAULT_SNTPSERVER, sizeof(_network.sntpserver));
 }
 
-void fnConfig::store_midimaze_host(const char host_ip[64])
+void fnConfig::store_udpstream_host(const char host_ip[64])
 {
-    strlcpy(_network.midimaze_host, host_ip, sizeof(_network.midimaze_host));
+    strlcpy(_network.udpstream_host, host_ip, sizeof(_network.udpstream_host));
+}
+
+void fnConfig::store_udpstream_port(int port)
+{
+    _network.udpstream_port = port;
 }
 
 void fnConfig::store_general_devicename(const char *devicename)
@@ -825,7 +830,9 @@ void fnConfig::load()
 {
     Debug_println("fnConfig::load");
 
-#ifndef NO_BUTTONS
+#if defined(NO_BUTTONS) || defined(BUILD_LYNX) || defined(BUILD_APPLE)
+    // Don't erase config if there are no buttons or on devices without Button B
+#else
     // Clear the config file if key is currently pressed
     if (fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {

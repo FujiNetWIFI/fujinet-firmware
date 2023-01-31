@@ -5,12 +5,20 @@
 # include "sio/fuji.h"
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/fuji.h"
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/fuji.h"
 #endif
 
 #ifdef BUILD_ADAM
 # include "adamnet/fuji.h"
+#endif
+
+#ifdef BUILD_LYNX
+# include "comlynx/fuji.h"
 #endif
 
 #ifdef BUILD_S100

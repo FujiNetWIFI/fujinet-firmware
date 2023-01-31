@@ -7,6 +7,12 @@
 # define PRINTER_CLASS sioPrinter
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/printer.h"
+# include "rs232/printerlist.h"
+# define PRINTER_CLASS rs232Printer
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/printer.h"
 # include "iec/printerlist.h"
@@ -17,6 +23,12 @@
 # include "adamnet/printer.h"
 # include "adamnet/printerlist.h"
 # define PRINTER_CLASS adamPrinter
+#endif
+
+#ifdef BUILD_LYNX
+# include "comlynx/printer.h"
+# include "comlynx/printerlist.h"
+# define PRINTER_CLASS lynxPrinter
 #endif
 
 #ifdef BUILD_S100

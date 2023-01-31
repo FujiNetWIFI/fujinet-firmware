@@ -5,12 +5,24 @@
 # include "sio/network.h"
 #endif
 
+#ifdef BUILD_RS232
+# include "rs232/network.h"
+#endif
+
 #ifdef BUILD_CBM
 # include "iec/network.h"
 #endif
 
 #ifdef BUILD_ADAM
 # include "adamnet/network.h"
+#endif
+
+#ifdef BUILD_LYNX
+# include "comlynx/network.h"
+#endif
+
+#ifdef BUILD_APPLE
+# include "iwm/network.h"
 #endif
 
 #ifdef BUILD_S100

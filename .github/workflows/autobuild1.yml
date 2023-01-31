@@ -40,12 +40,6 @@ jobs:
     - name: Show pio location
       run: pip show platformio
 
-#    - name: Create INI
-#      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/platformio-sample.ini /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
-
-#    - name: Set Target Platform for Build
-#      run: sed -i "s/build_platform.*=.*/build_platform = ${{ matrix.target-platform }}/" /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
-
     - name: Create INI ATARI for Build
       if: ${{ matrix.target-platform == 'ATARI' }}
       run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
@@ -72,34 +66,52 @@ jobs:
     - name: Verify dirent.h top
       run: head -n 30 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
 
-    - name: Run PlatformIO Build - winboat
-      run: pio run 
+    - name: ATARI Build
+      if: ${{ matrix.target-platform == 'ATARI' }}
+      run: pio run -e fujinet-atari-v1
+
+    - name: ADAM Build
+      if: ${{ matrix.target-platform == 'ADAM' }}
+      run: pio run -e fujinet-adam-v1
+
+    - name: APPLE Build
+      if: ${{ matrix.target-platform == 'APPLE' }}
+      run: pio run -e fujiapple-rev0
+
+    - name: ATARI Build Filesystem
+      if: ${{ matrix.target-platform == 'ATARI' }}
+      run: pio run -t buildfs -e fujinet-atari-v1
+
+    - name: ADAM Build Filesystem
+      if: ${{ matrix.target-platform == 'ADAM' }}
+      run: pio run -t buildfs -e fujinet-adam-v1
+
+    - name: APPLE Build Filesystem
+      if: ${{ matrix.target-platform == 'APPLE' }}
+      run: pio run -t buildfs -e fujiapple-rev0
 
     - name: Build Filesystem
       run: pio run -t buildfs -e fujinet-v1
 
-    - name: Show Build Artifacts
-      run: ls -la .pio/build/fujinet-v1/*.bin
+#    - name: Show Build Artifacts
+#      run: ls -la .pio/build/fujinet-v1/*.bin
 
-    - name: Get shasums and release.json ready
-      run: sh .github/workflows/release.sh ${{ matrix.target-platform }}
+# boot_app0.bin is no longer used
+#    - name: Grab boot_app0.bin from github
+#      run: curl -o /home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujinet-v1/boot_app0.bin https://github.com/espressif/arduino-esp32/blob/1.0.6/tools/partitions/boot_app0.bin
 
-    - name: Get FujiNet version Number
-      run: echo "::set-output name=version::$(grep "FN_VERSION_FULL" include/version.h | cut -d '"' -f 2)"
-      id: version
-
-    - name: Upload Build Artifacts
-      uses: actions/upload-artifact@v2.3.1
-      with:
-        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
-        path: |
-          .pio/build/fujinet-v1/release.json
-          .pio/build/fujinet-v1/sha256sums
-          .pio/build/fujinet-v1/bootloader.bin
-          .pio/build/fujinet-v1/firmware.bin
-          .pio/build/fujinet-v1/partitions.bin
-          .pio/build/fujinet-v1/spiffs.bin
-          .pio/build/fujinet-v1/boot_app0.bin
+# Disable artifacts for now. This will need to be different for each platform. Need to figure out how to do the JSON
+#    - name: Upload Build Artifacts
+#      uses: actions/upload-artifact@v2.3.1
+#      with:
+#        name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.version }}
+#        path: |
+#          .pio/build/fujinet-v1/release.json
+#          .pio/build/fujinet-v1/sha256sums
+#          .pio/build/fujinet-v1/bootloader.bin
+#          .pio/build/fujinet-v1/firmware.bin
+#          .pio/build/fujinet-v1/partitions.bin
+#          .pio/build/fujinet-v1/spiffs.bin
     
 #    - name: Get Release Zip
 #      uses: actions/download-artifact@v2

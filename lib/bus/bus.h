@@ -16,6 +16,11 @@
 #define SYSTEM_BUS AdamNet
 #endif
 
+#ifdef BUILD_LYNX
+#include "comlynx/comlynx.h"
+#define SYSTEM_BUS ComLynx
+#endif
+
 #ifdef NEW_TARGET
 #include "new/adamnet.h"
 #define SYSTEM_BUS AdamNet
@@ -29,6 +34,11 @@
 #ifdef BUILD_S100
 #include "s100spi/s100spi.h"
 #define SYSTEM_BUS s100Bus
+#endif
+
+#ifdef BUILD_RS232
+#include "rs232/rs232.h"
+#define SYSTEM_BUS RS232
 #endif
 
 #endif // BUS_H
