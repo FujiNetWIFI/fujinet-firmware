@@ -100,6 +100,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_ERRMSG,
         FN_HARDWARE_VER,
         FN_PRINTER_LIST,
+        FN_ENCRYPT_PASSPHRASE_ENABLED,
+        FN_APETIME_ENABLED,
         FN_LASTTAG
     };
 
@@ -184,7 +186,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOST8PREFIX",
         "FN_ERRMSG",
         "FN_HARDWARE_VER",
-        "FN_PRINTER_LIST"
+        "FN_PRINTER_LIST",
+        "FN_ENCRYPT_PASSPHRASE_ENABLED",
+        "FN_APETIME_ENABLED"
     };
 
     stringstream resultstream;
@@ -262,6 +266,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_TIMEZONE:
         resultstream << Config.get_general_timezone();
         break;
+#ifdef BUILD_ATARI
+    case FN_APETIME_ENABLED:
+        resultstream << Config.get_apetime_enabled();
+        break;
+#endif /* BUILD_ATARI */
+
     case FN_ROTATION_SOUNDS:
         resultstream << Config.get_general_rotation_sounds();
         break;
@@ -304,6 +314,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifdef BUILD_ATARI
             resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
 #endif /* BUILD_ATARI */
+#ifdef BUILD_APPLE
+            resultstream << fnPrinters.get_ptr(0)->getPrinterPtr()->modelname();
+#endif /* BUILD_APPLE */
         }
         break;
     case FN_PRINTER1_PORT:
@@ -319,6 +332,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifdef BUILD_ATARI
             resultstream << (fnPrinters.get_port(0) + 1);
 #endif /* BUILD_ATARI */
+#ifdef BUILD_APPLE
+            resultstream << (fnPrinters.get_port(0) + 1);
+#endif /* BUILD_APPLE */
         }
         break;
 #ifdef BUILD_ATARI        
@@ -418,7 +434,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         /* What Dx: drive (if any rotation has occurred) does each Drive Slot currently map to? */
         drive_slot = tagid - FN_DRIVE1DEVICE;
         disk_id = (char) theFuji.get_disk_id(drive_slot);
-        if (disk_id != (char) (0x31 + drive_slot)) {
+        if (disk_id > 0 && disk_id != (char) (0x31 + drive_slot)) {
             resultstream << " (D" << disk_id << ":)";
         }
         break;
@@ -454,19 +470,20 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 
                 for(int i=0; i<(int) PRINTER_CLASS::PRINTER_INVALID; i++)
                 {
-#ifndef BUILD_APPLE
                     strncat(result, "<option value=\"", MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "\">", MAX_PRINTER_LIST_BUFFER);
                     strncat(result, PRINTER_CLASS::printer_model_str[i], MAX_PRINTER_LIST_BUFFER-1);
                     strncat(result, "</option>\n", MAX_PRINTER_LIST_BUFFER-1);
-#endif /* BUILD_APPLE */
                 }
                 resultstream << result;
                 free(result);
             } else
                 resultstream << "Insufficent memory";
         }
+        break;
+    case FN_ENCRYPT_PASSPHRASE_ENABLED:
+        resultstream << Config.get_general_encrypt_passphrase();
         break;
     default:
         resultstream << tag;

@@ -7,6 +7,9 @@
 #include "bus.h"
 #include "iwm/network.h"
 #include "iwm/printer.h"
+#include "iwm/cpm.h"
+#include "iwm/clock.h"
+#include "iwm/modem.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -81,6 +84,10 @@ private:
 
     iwmNetwork *theNetwork;
 
+    iwmCPM *theCPM;
+
+    iwmClock *theClock;
+
     int _current_open_directory_slot = -1;
 
     iwmDisk *_bootDisk; // special disk drive just for configuration
@@ -151,19 +158,19 @@ protected:
     void iwm_ctrl_disable_device();         // 0xD4
 
     void shutdown() override;
-    void process(cmdPacket_t cmd) override;
+    void process(iwm_decoded_cmd_t cmd) override;
 
-    void iwm_ctrl(cmdPacket_t cmd) override;
-    void iwm_open(cmdPacket_t cmd) override;
-    void iwm_close(cmdPacket_t cmd) override;
-    void iwm_read(cmdPacket_t cmd) override;
-    void iwm_status(cmdPacket_t cmd) override; 
+    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
+    void iwm_open(iwm_decoded_cmd_t cmd) override;
+    void iwm_close(iwm_decoded_cmd_t cmd) override;
+    void iwm_read(iwm_decoded_cmd_t cmd) override;
+    void iwm_status(iwm_decoded_cmd_t cmd) override; 
 
-    void encode_status_reply_packet() override;
-    void encode_status_dib_reply_packet() override;
+    void send_status_reply_packet() override;
+    void send_status_dib_reply_packet() override;
 
-    void encode_extended_status_reply_packet() override{};
-    void encode_extended_status_dib_reply_packet() override{};
+    void send_extended_status_reply_packet() override{};
+    void send_extended_status_dib_reply_packet() override{};
 
 public:
     bool boot_config = true;
@@ -190,8 +197,8 @@ public:
 
     bool mount_all();              // 0xD7
 
-    void FujiStatus(cmdPacket_t cmd) { iwm_status(cmd); }
-    void FujiControl(cmdPacket_t cmd) { iwm_ctrl(cmd); }
+    void FujiStatus(iwm_decoded_cmd_t cmd) { iwm_status(cmd); }
+    void FujiControl(iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }
 
     iwmFuji();
 

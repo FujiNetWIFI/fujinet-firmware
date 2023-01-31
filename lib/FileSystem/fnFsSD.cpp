@@ -139,9 +139,12 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         // Ignore items marked hidden or system
         if(finfo.fattrib & AM_HID || finfo.fattrib & AM_SYS)
             continue;
+
         // Ignore some special files we create on SD
         if(strcmp(finfo.fname, "paper") == 0 
+        #ifndef FNCONFIG_DEBUG
         || strcmp(finfo.fname, "fnconfig.ini") == 0
+        #endif
         || strcmp(finfo.fname, "rs232dump") == 0)
             continue;
 
@@ -241,7 +244,7 @@ FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
     free(fpath);
     //Debug_printf("sdfileopen2: task hwm %u, %p\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
 #ifdef DEBUG
-    Debug_printf("fopen = %s\n", result == nullptr ? "err" : "ok");
+    Debug_printf("fopen = %s : %s\n", path, result == nullptr ? "err" : "ok");
 #endif    
     return result;
 }

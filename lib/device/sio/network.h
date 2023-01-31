@@ -241,7 +241,7 @@ private:
     /**
      * The fnJSON parser wrapper object
      */
-    FNJSON json;
+    FNJSON *json;
 
     /**
      * Bytes sent of current JSON query object.

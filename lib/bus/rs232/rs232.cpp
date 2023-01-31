@@ -151,6 +151,7 @@ void virtualDevice::rs232_high_speed()
 // Read and process a command frame from RS232
 void systemBus::_rs232_process_cmd()
 {
+    Debug_printf("rs232_process_cmd()\n");
     if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
         _modemDev->modemActive = false;
@@ -165,7 +166,7 @@ void systemBus::_rs232_process_cmd()
 
     if (fnUartSIO.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
-        // Debug_println("Timeout waiting for data after CMD pin asserted");
+        Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
     }
     // Turn on the RS232 indicator LED
@@ -175,7 +176,7 @@ void systemBus::_rs232_process_cmd()
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
     // Wait for CMD line to raise again
     while (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
-        fnSystem.yield();
+        vTaskDelay(1);
 
     uint8_t ck = rs232_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
     if (ck == tempFrame.checksum)
@@ -215,13 +216,14 @@ void systemBus::_rs232_process_cmd()
     } // valid checksum
     else
     {
-        Debug_print("CHECKSUM_ERROR\n");
+        Debug_printf("CHECKSUM_ERROR: Calc checksum: %02x\n",ck);
         // Switch to/from hispeed RS232 if we get enough failed frame checksums
     }
     fnLedManager.set(eLed::LED_BUS, false);
 }
 
 // Look to see if we have any waiting messages and process them accordingly
+/*
 void systemBus::_rs232_process_queue()
 {
     rs232_message_t msg;
@@ -240,6 +242,7 @@ void systemBus::_rs232_process_queue()
         }
     }
 }
+*/
 
 /*
  Primary RS232 serivce loop:
@@ -253,13 +256,13 @@ void systemBus::service()
 {
     // Check for any messages in our queue (this should always happen, even if any other special
     // modes disrupt normal RS232 handling - should probably make a separate task for this)
-    _rs232_process_queue();
+    /*_rs232_process_queue();*/
 
     if (_cpmDev != nullptr && _cpmDev->cpmActive)
     {
         _cpmDev->rs232_handle_cpm();
         return; // break!
-    }
+    }    
 
     // Go process a command frame if the RS232 CMD line is asserted
     if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
@@ -274,6 +277,7 @@ void systemBus::service()
     else
     // Neither CMD nor active modem, so throw out any stray input data
     {
+        //Debug_println("RS232 Srvc Flush");
         fnUartSIO.flush_input();
     }
 
@@ -299,9 +303,9 @@ void systemBus::setup()
     // PROC PIN
     fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
-    // MTR PIN
-    //fnSystem.set_pin_mode(PIN_MTR, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
-    // fnSystem.set_pin_mode(PIN_MTR, gpio_mode_t::GPIO_MODE_INPUT);
+    // INVALID PIN
+    //fnSystem.set_pin_mode(PIN_RS232_INVALID, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
+    fnSystem.set_pin_mode(PIN_RS232_INVALID, gpio_mode_t::GPIO_MODE_INPUT);
     // CMD PIN
     //fnSystem.set_pin_mode(PIN_RS232_DTR, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
     fnSystem.set_pin_mode(PIN_RS232_DTR, gpio_mode_t::GPIO_MODE_INPUT);
@@ -309,9 +313,16 @@ void systemBus::setup()
     //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
     // CKO PIN
 
+    fnSystem.set_pin_mode(PIN_RS232_CTS, gpio_mode_t::GPIO_MODE_OUTPUT);
+    fnSystem.digital_write(PIN_RS232_CTS,DIGI_LOW);
+
+    fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
+    fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
+    
     // Create a message queue
     qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
 
+    Debug_println("RS232 Setup Flush");
     fnUartSIO.flush_input();
 }
 
@@ -388,6 +399,8 @@ virtualDevice *systemBus::deviceById(int device_id)
 // Give devices an opportunity to clean up before a reboot
 void systemBus::shutdown()
 {
+    shuttingDown = true;
+
     for (auto devicep : _daisyChain)
     {
         Debug_printf("Shutting down device %02x\n",devicep->id());
@@ -451,4 +464,4 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 }
 
 systemBus RS232; // Global RS232 object
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */

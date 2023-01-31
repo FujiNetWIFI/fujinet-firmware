@@ -1,4 +1,3 @@
-[![Build Status](https://travis-ci.com/FujiNetWIFI/fujinet-platformio.svg?branch=master)](https://travis-ci.com/FujiNetWIFI/fujinet-platformio)
 #FujiNet   
 =========
 A multi-function peripheral built on ESP32 hardware being developed for the Atari 8-bit systems

@@ -1057,7 +1057,7 @@ void rs232Network::processCommaFromDevicespec()
  */
 void rs232Network::rs232_assert_interrupt()
 {
-    fnSystem.digital_write(PIN_RS232_DTR, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+    fnSystem.digital_write(PIN_RS232_RI, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
 }
 
 void rs232Network::rs232_set_translation()
@@ -1091,7 +1091,7 @@ void rs232Network::rs232_set_json_query()
 
     inp = strrchr((const char *)in, ':');
     inp++;
-    json.setReadQuery(string(inp));
+    json.setReadQuery(string(inp),cmdFrame.aux2);
     json_bytes_remaining = json.readValueLen();
     tmp = (uint8_t *)malloc(json.readValueLen());
     json.readValue(tmp,json_bytes_remaining);

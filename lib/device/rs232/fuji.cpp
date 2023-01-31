@@ -1448,6 +1448,13 @@ rs232Disk *rs232Fuji::bootdisk()
     return &_bootDisk;
 }
 
+void rs232Fuji::rs232_test()
+{
+    Debug_printf("rs232_test()\n");
+    vTaskDelay(1);
+    rs232_complete();
+}
+
 void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
 {
     cmdFrame.commanddata = commanddata;
@@ -1457,6 +1464,10 @@ void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
+    case FUJICMD_TEST:
+        rs232_ack();
+        rs232_test();
+        break;
     case FUJICMD_STATUS:
         rs232_ack();
         rs232_status();

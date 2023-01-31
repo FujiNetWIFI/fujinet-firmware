@@ -1,26 +1,26 @@
 #ifdef BUILD_CBM
 
+#include "fuji.h"
+
 #include <driver/ledc.h>
 
 #include <cstdint>
+#include <cstring>
 
-#include "fuji.h"
+#include "../../../include/debug.h"
+
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnFsSPIFFS.h"
 #include "fnWiFi.h"
+
 #include "led.h"
 #include "utils.h"
 
-#define ADDITIONAL_DETAILS_BYTES 12
+iecFuji theFuji; // global fuji device object
 
-iecFuji theFuji;        // global fuji device object
-//iecNetwork *theNetwork; // global network device object (temporary)
-iecPrinter *thePrinter; // global printer
-//iecSerial *theSerial;   // global serial
-
-// sioDisk sioDiskDevs[MAX_HOSTS];
-// sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
+//iecDisk iecDiskDevs[MAX_HOSTS];
+iecNetwork iecNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -59,6 +59,52 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
     return false;
 }
 
+/**
+ * Say the numbers 1-8 using phonetic tweaks.
+ * @param n The number to say.
+ */
+void say_number(unsigned char n)
+{
+    switch (n)
+    {
+    case 1:
+        util_sam_say("WAH7NQ", true);
+        break;
+    case 2:
+        util_sam_say("TUW7", true);
+        break;
+    case 3:
+        util_sam_say("THRIYY7Q", true);
+        break;
+    case 4:
+        util_sam_say("FOH7R", true);
+        break;
+    case 5:
+        util_sam_say("F7AYVQ", true);
+        break;
+    case 6:
+        util_sam_say("SIH7IHKSQ", true);
+        break;
+    case 7:
+        util_sam_say("SEHV7EHNQ", true);
+        break;
+    case 8:
+        util_sam_say("AEY74Q", true);
+        break;
+    default:
+        Debug_printf("say_number() - Uncaught number %d", n);
+    }
+}
+
+/**
+ * Say swap label
+ */
+void say_swap_label()
+{
+    // DISK
+    util_sam_say("DIHSK7Q ", true);
+}
+
 // Constructor
 iecFuji::iecFuji()
 {
@@ -68,18 +114,21 @@ iecFuji::iecFuji()
 }
 
 // Status
-void iecFuji::iec_control_status()
+void iecFuji::iec_status()
 {
-    uint8_t r[6] = {0x8F, 0x00, 0x04, 0x00, 0x00, 0x04};
-    iec_send_buffer(r, 6);
+    Debug_println("Fuji cmd: STATUS");
+
+    char ret[4] = {0};
+
+    bus_to_computer((uint8_t *)ret, sizeof(ret), false);
+    return;
 }
 
 // Reset FujiNet
 void iecFuji::iec_reset_fujinet()
 {
-    iec_recv(); // get ck
-    Debug_println("ADAMNET RESET FUJINET");
-    iec_response_ack();
+    Debug_println("Fuji cmd: REBOOT");
+    iec_complete();
     fnSystem.reboot();
 }
 
@@ -88,56 +137,37 @@ void iecFuji::iec_net_scan_networks()
 {
     Debug_println("Fuji cmd: SCAN NETWORKS");
 
-    iec_recv(); // get ck
+    char ret[4] = {0};
 
-    isReady = false;
+    _countScannedSSIDs = fnWiFi.scan_networks();
 
-    if (scanStarted == false)
-    {
-        _countScannedSSIDs = fnWiFi.scan_networks();
-        scanStarted = true;
-        setSSIDStarted = false;
-    }
+    ret[0] = _countScannedSSIDs;
 
-    isReady = true;
-
-    response[0] = _countScannedSSIDs;
-    response_len = 1;
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    bus_to_computer((uint8_t *)ret, 4, false);
 }
 
 // Return scanned network entry
 void iecFuji::iec_net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
-    scanStarted = false;
 
-    uint8_t n = iec_recv();
-
-    iec_recv(); // get CK
-
-    // Response to FUJICMD_GET_SCAN_RESULT
+    // Response to  FUJICMD_GET_SCAN_RESULT
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN+1];
         uint8_t rssi;
     } detail;
 
-    memset(&detail, 0, sizeof(detail));
+    bool err = false;
+    if (cmdFrame.aux1 < _countScannedSSIDs)
+        fnWiFi.get_scan_result(cmdFrame.aux1, detail.ssid, &detail.rssi);
+    else
+    {
+        memset(&detail, 0, sizeof(detail));
+        err = true;
+    }
 
-    if (n < _countScannedSSIDs)
-        fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
-
-    Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
-
-    memset(response, 0, sizeof(response));
-    memcpy(response, &detail, sizeof(detail));
-    response_len = 33;
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    bus_to_computer((uint8_t *)&detail, sizeof(detail), err);
 }
 
 //  Get SSID
@@ -145,12 +175,10 @@ void iecFuji::iec_net_get_ssid()
 {
     Debug_println("Fuji cmd: GET SSID");
 
-    iec_recv(); // get CK
-
-    // Response to FUJICMD_GET_SSID
+    // Response to  FUJICMD_GET_SSID
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN+1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
@@ -169,43 +197,33 @@ void iecFuji::iec_net_get_ssid()
     memcpy(cfg.password, s.c_str(),
            s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
 
-    // Move into response.
-    memcpy(response, &cfg, sizeof(cfg));
-    response_len = sizeof(cfg);
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
 }
 
 // Set SSID
-void iecFuji::iec_net_set_ssid(uint16_t s)
+void iecFuji::iec_net_set_ssid()
 {
-    if (!fnWiFi.connected() && setSSIDStarted == false)
+    Debug_println("Fuji cmd: SET SSID");
+
+    // Data for  FUJICMD_SET_SSID
+    struct
     {
-        Debug_println("Fuji cmd: SET SSID");
+        char ssid[MAX_SSID_LEN+1];
+        char password[MAX_WIFI_PASS_LEN];
+    } cfg;
 
-        s--;
+    uint8_t ck = bus_to_peripheral((uint8_t *)&cfg, sizeof(cfg));
 
-        // Data for FUJICMD_SET_SSID
-        struct
-        {
-            char ssid[MAX_SSID_LEN];
-            char password[MAX_WIFI_PASS_LEN];
-        } cfg;
-
-        iec_recv_buffer((uint8_t *)&cfg, s);
-
-        uint8_t ck = iec_recv();
-
-        AdamNet.start_time = esp_timer_get_time();
-        iec_response_ack();
-
-        bool save = true;
+    if (iec_checksum((uint8_t *)&cfg, sizeof(cfg)) != ck)
+        iec_error();
+    else
+    {
+        bool save = cmdFrame.aux1 != 0;
 
         Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
         fnWiFi.connect(cfg.ssid, cfg.password);
-        setSSIDStarted = true;
+
         // Only save these if we're asked to, otherwise assume it was a test for connectivity
         if (save)
         {
@@ -213,20 +231,26 @@ void iecFuji::iec_net_set_ssid(uint16_t s)
             Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
             Config.save();
         }
+
+        iec_complete();
     }
 }
+
 // Get WiFi Status
 void iecFuji::iec_net_get_wifi_status()
 {
-    iec_recv(); // Get CK
     Debug_println("Fuji cmd: GET WIFI STATUS");
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
-    response[0] = wifiStatus;
-    response_len = 1;
+    bus_to_computer(&wifiStatus, sizeof(wifiStatus), false);
+}
 
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+// Check if Wifi is enabled
+void iecFuji::iec_net_get_wifi_enabled()
+{
+    uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
+    Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n",e);
+    bus_to_computer(&e, sizeof(e), false);
 }
 
 // Mount Server
@@ -234,35 +258,53 @@ void iecFuji::iec_mount_host()
 {
     Debug_println("Fuji cmd: MOUNT HOST");
 
-    unsigned char hostSlot = iec_recv();
+    unsigned char hostSlot = cmdFrame.aux1;
 
-    iec_recv(); // Get CK
-
-    if (hostMounted[hostSlot] == false)
+    // Make sure we weren't given a bad hostSlot
+    if (!_validate_host_slot(hostSlot, "iec_tnfs_mount_hosts"))
     {
-        _fnHosts[hostSlot].mount();
-        hostMounted[hostSlot] = true;
+        iec_error();
+        return;
     }
 
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    if (!_fnHosts[hostSlot].mount())
+        iec_error();
+    else
+        iec_complete();
 }
 
 // Disk Image Mount
 void iecFuji::iec_disk_image_mount()
 {
+    // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
+    // to the C: device. Everything stays the same here and the mounting
+    // where all the magic happens is done in the iecDisk::mount() function.
+    // This function opens the file, so cassette does not need to open the file.
+    // Cassette needs the file pointer and file size.
+
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
-    uint8_t deviceSlot = iec_recv();
-    uint8_t options = iec_recv(); // DISK_ACCESS_MODE
-
-    iec_recv(); // CK
+    uint8_t deviceSlot = cmdFrame.aux1;
+    uint8_t options = cmdFrame.aux2; // DISK_ACCESS_MODE
 
     // TODO: Implement FETCH?
     char flag[3] = {'r', 0, 0};
     if (options == DISK_ACCESS_MODE_WRITE)
         flag[1] = '+';
 
+    // Make sure we weren't given a bad hostSlot
+    if (!_validate_device_slot(deviceSlot))
+    {
+        iec_error();
+        return;
+    }
+    
+    if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
+    {
+        iec_error();
+        return;
+    }
+    
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
@@ -270,39 +312,203 @@ void iecFuji::iec_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
-
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+    if (disk.fileh == nullptr)
+    {
+        iec_error();
+        return;
+    }
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
+    status_wait_count = 0;
 
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
 
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+
+    iec_complete();
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void iecFuji::iec_set_boot_config()
 {
-    boot_config = iec_recv();
-    iec_recv();
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    boot_config = cmdFrame.aux1;
+    iec_complete();
 }
 
 // Do SIO copy
 void iecFuji::iec_copy_file()
 {
+    uint8_t csBuf[256];
+    string copySpec;
+    string sourcePath;
+    string destPath;
+    uint8_t ck;
+    FILE *sourceFile;
+    FILE *destFile;
+    char *dataBuf;
+    unsigned char sourceSlot;
+    unsigned char destSlot;
+
+    dataBuf = (char *)malloc(532);
+
+    if (dataBuf == nullptr)
+    {
+        iec_error();
+        return;
+    }
+
+    memset(&csBuf, 0, sizeof(csBuf));
+
+    ck = bus_to_peripheral(csBuf, sizeof(csBuf));
+
+    if (ck != iec_checksum(csBuf, sizeof(csBuf)))
+    {
+        iec_error();
+        return;
+    }
+
+    copySpec = string((char *)csBuf);
+
+    Debug_printf("copySpec: %s\n", copySpec.c_str());
+
+    // Check for malformed copyspec.
+    if (copySpec.empty() || copySpec.find_first_of("|") == string::npos)
+    {
+        iec_error();
+        return;
+    }
+
+    if (cmdFrame.aux1 < 1 || cmdFrame.aux1 > 8)
+    {
+        iec_error();
+        return;
+    }
+
+    if (cmdFrame.aux2 < 1 || cmdFrame.aux2 > 8)
+    {
+        iec_error();
+        return;
+    }
+
+    sourceSlot = cmdFrame.aux1 - 1;
+    destSlot = cmdFrame.aux2 - 1;
+
+    // All good, after this point...
+
+    // Chop up copyspec.
+    sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
+    destPath = copySpec.substr(copySpec.find_first_of("|") + 1);
+
+    // At this point, if last part of dest path is / then copy filename from source.
+    if (destPath.back() == '/')
+    {
+        Debug_printf("append source file\n");
+        string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
+        destPath += sourceFilename;
+    }
+
+    // Mount hosts, if needed.
+    _fnHosts[sourceSlot].mount();
+    _fnHosts[destSlot].mount();
+
+    // Open files...
+    sourceFile = _fnHosts[sourceSlot].file_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
+
+    if (sourceFile == nullptr)
+    {
+        iec_error();
+        return;
+    }
+
+    destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
+
+    if (destFile == nullptr)
+    {
+        iec_error();
+        return;
+    }
+
+    size_t count = 0;
+    do
+    {
+        count = fread(dataBuf, 1, 532, sourceFile);
+        fwrite(dataBuf, 1, count, destFile);
+    } while (count > 0);
+
+    iec_complete();
+
+    // copyEnd:
+    fclose(sourceFile);
+    fclose(destFile);
+    free(dataBuf);
+}
+
+// Mount all
+void iecFuji::mount_all()
+{
+    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
+
+    for (int i = 0; i < 8; i++)
+    {
+        fujiDisk &disk = _fnDisks[i];
+        fujiHost &host = _fnHosts[disk.host_slot];
+        char flag[3] = {'r', 0, 0};
+
+        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            flag[1] = '+';
+
+        if (disk.host_slot != 0xFF)
+        {
+            nodisks = false; // We have a disk in a slot
+
+            if (host.mount() == false)
+            {
+                iec_error();
+                return;
+            }
+
+            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                         disk.filename, disk.host_slot, flag, i + 1);
+
+            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+            if (disk.fileh == nullptr)
+            {
+                iec_error();
+                return;
+            }
+
+            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+            boot_config = false;
+            status_wait_count = 0;
+
+            // We need the file size for loading XEX files and for CASSETTE, so get that too
+            disk.disk_size = host.file_size(disk.fileh);
+
+            // And now mount it
+            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+        }
+    }
+
+    if (nodisks){
+        // No disks in a slot, disable config
+        boot_config = false;
+    }
+
+    iec_complete();
 }
 
 // Set boot mode
 void iecFuji::iec_set_boot_mode()
 {
+    insert_boot_device(cmdFrame.aux1);
+    boot_config = true;
+    iec_complete();
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -322,6 +528,38 @@ char *_generate_appkey_filename(appkey *info)
 */
 void iecFuji::iec_open_app_key()
 {
+    Debug_print("Fuji cmd: OPEN APPKEY\n");
+
+    // The data expected for this command
+    uint8_t ck = bus_to_peripheral((uint8_t *)&_current_appkey, sizeof(_current_appkey));
+
+    if (iec_checksum((uint8_t *)&_current_appkey, sizeof(_current_appkey)) != ck)
+    {
+        iec_error();
+        return;
+    }
+
+    // We're only supporting writing to SD, so return an error if there's no SD mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - returning error");
+        iec_error();
+        return;
+    }
+
+    // Basic check for valid data
+    if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
+    {
+        Debug_println("Invalid app key data");
+        iec_error();
+        return;
+    }
+
+    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
+                 _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
+                 _generate_appkey_filename(&_current_appkey));
+
+    iec_complete();
 }
 
 /*
@@ -330,6 +568,10 @@ void iecFuji::iec_open_app_key()
 */
 void iecFuji::iec_close_app_key()
 {
+    Debug_print("Fuji cmd: CLOSE APPKEY\n");
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+    iec_complete();
 }
 
 /*
@@ -337,6 +579,67 @@ void iecFuji::iec_close_app_key()
 */
 void iecFuji::iec_write_app_key()
 {
+    uint16_t keylen = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+
+    Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
+
+    // Data for  FUJICMD_WRITE_APPKEY
+    uint8_t value[MAX_APPKEY_LEN];
+
+    uint8_t ck = bus_to_peripheral((uint8_t *)value, sizeof(value));
+
+    if (iec_checksum((uint8_t *)value, sizeof(value)) != ck)
+    {
+        iec_error();
+        return;
+    }
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        iec_error();
+        return;
+    }
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't write app key");
+        iec_error();
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    // Reset the app key data so we require calling APPKEY OPEN before another attempt
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+
+    Debug_printf("Writing appkey to \"%s\"\n", filename);
+
+    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+    fnSDFAT.create_path("/FujiNet");
+
+    FILE *fOut = fnSDFAT.file_open(filename, "w");
+    if (fOut == nullptr)
+    {
+        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
+        iec_error();
+        return;
+    }
+    size_t count = fwrite(value, 1, keylen, fOut);
+    int e = errno;
+
+    fclose(fOut);
+
+    if (count != keylen)
+    {
+        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
+        iec_error();
+    }
+
+    iec_complete();
 }
 
 /*
@@ -344,24 +647,113 @@ void iecFuji::iec_write_app_key()
 */
 void iecFuji::iec_read_app_key()
 {
+
+    Debug_println("Fuji cmd: READ APPKEY");
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't read app key");
+        iec_error();
+        return;
+    }
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        iec_error();
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    Debug_printf("Reading appkey from \"%s\"\n", filename);
+
+    FILE *fIn = fnSDFAT.file_open(filename, "r");
+    if (fIn == nullptr)
+    {
+        Debug_printf("Failed to open input file: errno=%d\n", errno);
+        iec_error();
+        return;
+    }
+
+    struct
+    {
+        uint16_t size;
+        uint8_t value[MAX_APPKEY_LEN];
+    } __attribute__((packed)) response;
+    memset(&response, 0, sizeof(response));
+
+    size_t count = fread(response.value, 1, sizeof(response.value), fIn);
+
+    fclose(fIn);
+    Debug_printf("Read %d bytes from input file\n", count);
+
+    response.size = count;
+
+    bus_to_computer((uint8_t *)&response, sizeof(response), false);
 }
 
 // DEBUG TAPE
 void iecFuji::debug_tape()
 {
+    // if not mounted then disable cassette and do nothing
+    // if mounted then activate cassette
+    // if mounted and active, then deactivate
+    // no longer need to handle file open/close
+    if (_cassetteDev.is_mounted() == true)
+    {
+        if (_cassetteDev.is_active() == false)
+        {
+            Debug_println("::debug_tape ENABLE");
+            _cassetteDev.iec_enable_cassette();
+        }
+        else
+        {
+            Debug_println("::debug_tape DISABLE");
+            _cassetteDev.iec_disable_cassette();
+        }
+    }
+    else
+    {
+        Debug_println("::debug_tape NO CAS FILE MOUNTED");
+        Debug_println("::debug_tape DISABLE");
+        _cassetteDev.iec_disable_cassette();
+    }
 }
 
 // Disk Image Unmount
 void iecFuji::iec_disk_image_umount()
 {
-    unsigned char ds = iec_recv();
-    iec_recv();
+    uint8_t deviceSlot = cmdFrame.aux1;
 
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
-    _fnDisks[ds].disk_dev.unmount();
-    _fnDisks[ds].reset();
+    // Handle disk slots
+    if (deviceSlot < MAX_DISK_DEVICES)
+    {
+        _fnDisks[deviceSlot].disk_dev.unmount();
+        if (_fnDisks[deviceSlot].disk_type == MEDIATYPE_CAS || _fnDisks[deviceSlot].disk_type == MEDIATYPE_WAV)
+        {
+            // tell cassette it unmount
+            _cassetteDev.umount_cassette_file();
+            _cassetteDev.iec_disable_cassette();
+        }
+        _fnDisks[deviceSlot].reset();
+    }
+    // Handle tape
+    // else if (deviceSlot == BASE_TAPE_SLOT)
+    // {
+    // }
+    // Invalid slot
+    else
+    {
+        iec_error();
+        return;
+    }
+
+    iec_complete();
 }
 
 // Disk Image Rotate
@@ -394,6 +786,19 @@ void iecFuji::image_rotate()
 
         // The first slot gets the device ID of the last slot
         _iec_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+
+        // Say whatever disk is in D1:
+        if (Config.get_general_rotation_sounds())
+        {
+            for (int i = 0; i <= count; i++)
+            {
+                if (_fnDisks[i].disk_dev.id() == 0x31)
+                {
+                    say_swap_label();
+                    say_number(i + 1); // because i starts from 0
+                }
+            }
+        }
     }
 }
 
@@ -404,54 +809,57 @@ void iecFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
-char dirpath[256];
-
-void iecFuji::iec_open_directory(uint16_t s)
+void iecFuji::iec_open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    uint8_t hostSlot = iec_recv();
+    char dirpath[256];
+    uint8_t hostSlot = cmdFrame.aux1;
+    uint8_t ck = bus_to_peripheral((uint8_t *)&dirpath, sizeof(dirpath));
 
-    s--;
-    s--;
-
-    iec_recv_buffer((uint8_t *)&dirpath, s);
-
-    iec_recv(); // Grab checksum
-
-    AdamNet.start_time = esp_timer_get_time();
-
-    if (_current_open_directory_slot == -1)
+    if (iec_checksum((uint8_t *)&dirpath, sizeof(dirpath)) != ck)
     {
-        // See if there's a search pattern after the directory path
-        const char *pattern = nullptr;
-        int pathlen = strnlen(dirpath, sizeof(dirpath));
-        if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
-        {
-            pattern = dirpath + pathlen + 1;
-            int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
-            if (patternlen < 1)
-                pattern = nullptr;
-        }
+        iec_error();
+        return;
+    }
+    if (!_validate_host_slot(hostSlot))
+    {
+        iec_error();
+        return;
+    }
 
-        // Remove trailing slash
-        if (pathlen > 1 && dirpath[pathlen - 1] == '/')
-            dirpath[pathlen - 1] = '\0';
+    // If we already have a directory open, close it first
+    if (_current_open_directory_slot != -1)
+    {
+        Debug_print("Directory was already open - closign it first\n");
+        _fnHosts[_current_open_directory_slot].dir_close();
+        _current_open_directory_slot = -1;
+    }
 
-        Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
+    // See if there's a search pattern after the directory path
+    const char *pattern = nullptr;
+    int pathlen = strnlen(dirpath, sizeof(dirpath));
+    if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+    {
+        pattern = dirpath + pathlen + 1;
+        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+        if (patternlen < 1)
+            pattern = nullptr;
+    }
 
-        if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-        {
-            _current_open_directory_slot = hostSlot;
-        }
+    // Remove trailing slash
+    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
+        dirpath[pathlen - 1] = '\0';
+
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
+
+    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
+    {
+        _current_open_directory_slot = hostSlot;
+        iec_complete();
     }
     else
-    {
-        AdamNet.start_time = esp_timer_get_time();
-        iec_response_ack();
-    }
-
-    response_len = 1;
+        iec_error();
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -459,7 +867,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     // File modified date-time
     struct tm *modtime = localtime(&f->modified_time);
     modtime->tm_mon++;
-    modtime->tm_year -= 100;
+    modtime->tm_year -= 70;
 
     dest[0] = modtime->tm_year;
     dest[1] = modtime->tm_mon;
@@ -469,143 +877,104 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[5] = modtime->tm_sec;
 
     // File size
-    uint32_t fsize = f->size;
-    dest[6] = fsize & 0xFF;
-    dest[7] = (fsize >> 8) & 0xFF;
-    dest[8] = (fsize >> 16) & 0xFF;
-    dest[9] = (fsize >> 24) & 0xFF;
+    uint16_t fsize = f->size;
+    dest[6] = LOBYTE_FROM_UINT16(fsize);
+    dest[7] = HIBYTE_FROM_UINT16(fsize);
 
     // File flags
 #define FF_DIR 0x01
 #define FF_TRUNC 0x02
 
-    dest[10] = f->isDir ? FF_DIR : 0;
+    dest[8] = f->isDir ? FF_DIR : 0;
 
-    maxlen -= ADDITIONAL_DETAILS_BYTES; // Adjust the max return value with the number of additional bytes we're copying
-    if (f->isDir)                       // Also subtract a byte for a terminating slash on directories
+    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
+    if (f->isDir) // Also subtract a byte for a terminating slash on directories
         maxlen--;
     if (strlen(f->filename) >= maxlen)
-        dest[11] |= FF_TRUNC;
+        dest[8] |= FF_TRUNC;
 
     // File type
-    dest[12] = MediaType::discover_mediatype(f->filename);
-
-    Debug_printf("Addtl: ");
-    for (int i = 0; i < ADDITIONAL_DETAILS_BYTES; i++)
-        Debug_printf("%02x ", dest[i]);
-    Debug_printf("\n");
+    dest[9] = MediaType::discover_disktype(f->filename);
 }
 
 void iecFuji::iec_read_directory_entry()
 {
-    uint8_t maxlen = iec_recv();
-    uint8_t addtl = iec_recv();
+    uint8_t maxlen = cmdFrame.aux1;
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
-    iec_recv(); // Checksum
-
-    if (response[0] == 0x00)
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
     {
-        Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
+        Debug_print("No currently open directory\n");
+        iec_error();
+        return;
+    }
 
-        fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+    char current_entry[256];
 
-        if (f == nullptr)
-        {
-            Debug_println("Reached end of of directory");
-            dirpath[0] = 0x7F;
-            dirpath[1] = 0x7F;
-        }
-        else
-        {
-            Debug_printf("::read_direntry \"%s\"\n", f->filename);
+    fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
-            int bufsize = sizeof(dirpath);
-            char *filenamedest = dirpath;
-
-            // If 0x80 is set on AUX2, send back additional information
-            if (addtl & 0x80)
-            {
-                _set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
-                // Adjust remaining size of buffer and file path destination
-                bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
-                filenamedest = dirpath + ADDITIONAL_DETAILS_BYTES;
-            }
-            else
-            {
-                bufsize = maxlen;
-            }
-
-            int filelen;
-            // int filelen = strlcpy(filenamedest, f->filename, bufsize);
-            if (maxlen < 128)
-            {
-                filelen = util_ellipsize(f->filename, filenamedest, bufsize - 1);
-            }
-            else
-            {
-                filelen = strlcpy(filenamedest, f->filename, bufsize);
-            }
-
-            // Add a slash at the end of directory entries
-            if (f->isDir && filelen < (bufsize - 2))
-            {
-                dirpath[filelen] = '/';
-                dirpath[filelen + 1] = '\0';
-            }
-        }
-
-        // Hack-o-rama to add file type character to beginning of path.
-        if (maxlen == 31)
-        {
-            memmove(&dirpath[2], dirpath, 254);
-            if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
-            {
-                dirpath[0] = 0x85;
-                dirpath[1] = 0x86;
-            }
-            else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
-            {
-                dirpath[0] = 0x87;
-                dirpath[1] = 0x88;
-            }
-            else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
-            {
-                dirpath[0] = 0x89;
-                dirpath[1] = 0x8a;
-            }
-            else if (strstr(dirpath, "/"))
-            {
-                dirpath[0] = 0x83;
-                dirpath[1] = 0x84;
-            }
-            else
-                dirpath[0] = dirpath[1] = 0x20;
-        }
-
-        memset(response, 0, sizeof(response));
-        memcpy(response, dirpath, maxlen);
-        response_len = maxlen;
+    if (f == nullptr)
+    {
+        Debug_println("Reached end of of directory");
+        current_entry[0] = 0x7F;
+        current_entry[1] = 0x7F;
     }
     else
     {
-        AdamNet.start_time = esp_timer_get_time();
-        iec_response_ack();
+        Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+        int bufsize = sizeof(current_entry);
+        char *filenamedest = current_entry;
+
+#define ADDITIONAL_DETAILS_BYTES 10
+        // If 0x80 is set on AUX2, send back additional information
+        if (cmdFrame.aux2 & 0x80)
+        {
+            _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+            // Adjust remaining size of buffer and file path destination
+            bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
+            filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
+        }
+        else
+        {
+            bufsize = maxlen;
+        }
+
+        //int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+
+        // Add a slash at the end of directory entries
+        if (f->isDir && filelen < (bufsize - 2))
+        {
+            current_entry[filelen] = '/';
+            current_entry[filelen + 1] = '\0';
+        }
     }
+
+    bus_to_computer((uint8_t *)current_entry, maxlen, false);
 }
 
 void iecFuji::iec_get_directory_position()
 {
     Debug_println("Fuji cmd: GET DIRECTORY POSITION");
 
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("No currently open directory\n");
+        iec_error();
+        return;
+    }
+
     uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
-
-    iec_recv(); // ck
-
-    response_len = sizeof(pos);
-    memcpy(response, &pos, sizeof(pos));
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    if (pos == FNFS_INVALID_DIRPOS)
+    {
+        iec_error();
+        return;
+    }
+    // Return the value we read
+    bus_to_computer((uint8_t *)&pos, sizeof(pos), false);
 }
 
 void iecFuji::iec_set_directory_position()
@@ -613,34 +982,34 @@ void iecFuji::iec_set_directory_position()
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    uint16_t pos = 0;
+    uint16_t pos = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
 
-    iec_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("No currently open directory\n");
+        iec_error();
+        return;
+    }
 
-    Debug_printf("pos is now %u", pos);
-
-    iec_recv(); // ck
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
-
-    _fnHosts[_current_open_directory_slot].dir_seek(pos);
+    bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
+    if (result == false)
+    {
+        iec_error();
+        return;
+    }
+    iec_complete();
 }
 
 void iecFuji::iec_close_directory()
 {
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
 
-    iec_recv(); // ck
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
-
     if (_current_open_directory_slot != -1)
         _fnHosts[_current_open_directory_slot].dir_close();
 
     _current_open_directory_slot = -1;
-    response_len = 1;
+    iec_complete();
 }
 
 // Get network adapter configuration
@@ -648,17 +1017,12 @@ void iecFuji::iec_get_adapter_config()
 {
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
-    iec_recv(); // ck
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
-
-    // Response to FUJICMD_GET_ADAPTERCONFIG
+    // Response to  FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
 
     memset(&cfg, 0, sizeof(cfg));
 
-    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
+    strlcpy(cfg.fn_veriecn, fnSystem.get_fujinet_veriecn(true), sizeof(cfg.fn_veriecn));
 
     if (!fnWiFi.connected())
     {
@@ -675,49 +1039,73 @@ void iecFuji::iec_get_adapter_config()
 
     fnWiFi.get_mac(cfg.macAddress);
 
-    memcpy(response, &cfg, sizeof(cfg));
-    response_len = sizeof(cfg);
+    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
 }
 
 //  Make new disk and shove into device slot
 void iecFuji::iec_new_disk()
 {
-    uint8_t hs = iec_recv();
-    uint8_t ds = iec_recv();
-    uint32_t numBlocks;
-    uint32_t *l = &numBlocks;
-    uint8_t *c = (uint8_t *)&numBlocks;
-    uint8_t p[256];
+    Debug_println("Fuji cmd: NEW DISK");
 
-    iec_recv_buffer(c, sizeof(uint32_t));
-    iec_recv_buffer(p, 256);
-
-    iec_recv(); // CK
-
-    fujiDisk &disk = _fnDisks[ds];
-    fujiHost &host = _fnHosts[hs];
-
-    if (host.file_exists((const char *)p))
+    struct
     {
-        AdamNet.start_time = esp_timer_get_time();
-        iec_response_ack();
+        unsigned short numSectors;
+        unsigned short sectorSize;
+        unsigned char hostSlot;
+        unsigned char deviceSlot;
+        char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
+    } newDisk;
+
+    // Ask for details on the new disk to create
+    uint8_t ck = bus_to_peripheral((uint8_t *)&newDisk, sizeof(newDisk));
+
+    if (ck != iec_checksum((uint8_t *)&newDisk, sizeof(newDisk)))
+    {
+        Debug_print("iec_new_disk Bad checksum\n");
+        iec_error();
+        return;
+    }
+    if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
+    {
+        Debug_print("iec_new_disk Bad disk or host slot parameter\n");
+        iec_error();
+        return;
+    }
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
+    fujiHost &host = _fnHosts[newDisk.hostSlot];
+
+    disk.host_slot = newDisk.hostSlot;
+    disk.access_mode = DISK_ACCESS_MODE_WRITE;
+    strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
+
+    if (host.file_exists(disk.filename))
+    {
+        Debug_printf("iec_new_disk File exists: \"%s\"\n", disk.filename);
+        iec_error();
         return;
     }
 
-    disk.host_slot = hs;
-    disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    strlcpy(disk.filename, (const char *)p, 256);
-
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+    if (disk.fileh == nullptr)
+    {
+        Debug_printf("iec_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
+        iec_error();
+        return;
+    }
 
-    Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
-
-    disk.disk_dev.write_blank(disk.fileh, numBlocks);
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
-
+    bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.sectorSize, newDisk.numSectors);
     fclose(disk.fileh);
+
+    if (ok == false)
+    {
+        Debug_print("iec_new_disk Data write failed\n");
+        iec_error();
+        return;
+    }
+
+    Debug_print("iec_new_disk succeeded\n");
+    iec_complete();
 }
 
 // Send host slot data to computer
@@ -725,19 +1113,13 @@ void iecFuji::iec_read_host_slots()
 {
     Debug_println("Fuji cmd: READ HOST SLOTS");
 
-    iec_recv(); // ck
-
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     memset(hostSlots, 0, sizeof(hostSlots));
 
     for (int i = 0; i < MAX_HOSTS; i++)
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
-    memcpy(response, hostSlots, sizeof(hostSlots));
-    response_len = sizeof(hostSlots);
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    bus_to_computer((uint8_t *)&hostSlots, sizeof(hostSlots), false);
 }
 
 // Read and save host slot data from computer
@@ -746,30 +1128,63 @@ void iecFuji::iec_write_host_slots()
     Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    iec_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&hostSlots, sizeof(hostSlots));
 
-    iec_recv(); // ck
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
-
-    for (int i = 0; i < MAX_HOSTS; i++)
+    if (iec_checksum((uint8_t *)hostSlots, sizeof(hostSlots)) == ck)
     {
-        hostMounted[i] = false;
-        _fnHosts[i].set_hostname(hostSlots[i]);
+        for (int i = 0; i < MAX_HOSTS; i++)
+            _fnHosts[i].set_hostname(hostSlots[i]);
+
+        _populate_config_from_slots();
+        Config.save();
+
+        iec_complete();
     }
-    _populate_config_from_slots();
-    Config.save();
+    else
+        iec_error();
 }
 
 // Store host path prefix
 void iecFuji::iec_set_host_prefix()
 {
+    char prefix[MAX_HOST_PREFIX_LEN];
+    uint8_t hostSlot = cmdFrame.aux1;
+
+    uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
+
+    Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
+
+    if (iec_checksum((uint8_t *)prefix, sizeof(prefix)) != ck)
+    {
+        iec_error();
+        return;
+    }
+
+    if (!_validate_host_slot(hostSlot))
+    {
+        iec_error();
+        return;
+    }
+
+    _fnHosts[hostSlot].set_prefix(prefix);
+    iec_complete();
 }
 
 // Retrieve host path prefix
 void iecFuji::iec_get_host_prefix()
 {
+    uint8_t hostSlot = cmdFrame.aux1;
+    Debug_printf("Fuji cmd: GET HOST PREFIX %uh\n", hostSlot);
+
+    if (!_validate_host_slot(hostSlot))
+    {
+        iec_error();
+        return;
+    }
+    char prefix[MAX_HOST_PREFIX_LEN];
+    _fnHosts[hostSlot].get_prefix(prefix, sizeof(prefix));
+
+    bus_to_computer((uint8_t *)prefix, sizeof(prefix), false);
 }
 
 // Send device slot data to computer
@@ -785,27 +1200,55 @@ void iecFuji::iec_read_device_slots()
     };
     disk_slot diskSlots[MAX_DISK_DEVICES];
 
-    memset(&diskSlots, 0, sizeof(diskSlots));
-
     int returnsize;
+    char *filename;
 
-    // Load the data from our current device array
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    // AUX1 specifies which slots to return
+    // Handle disk slots
+    if (cmdFrame.aux1 == READ_DEVICE_SLOTS_DISKS1)
     {
-        diskSlots[i].mode = _fnDisks[i].access_mode;
-        diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-        strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+        // Load the data from our current device array
+        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        {
+            diskSlots[i].mode = _fnDisks[i].access_mode;
+            diskSlots[i].hostSlot = _fnDisks[i].host_slot;
+            if ( _fnDisks[i].filename[0] == '\0' )
+            {
+                strlcpy(diskSlots[i].filename, "", MAX_DISPLAY_FILENAME_LEN);
+            }
+            else
+            {
+                // Just use the basename of the image, no path. The full path+filename is
+                // usually too long for the Atari to show anyway, so the image name is more important.
+                // Note: Basename can modify the input, so use a copy of the filename
+                filename = strdup(_fnDisks[i].filename);
+                strlcpy ( diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN );
+                free(filename);
+            }
+        }
+
+        returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
+    }
+    // Handle tape slot
+    // else if (cmdFrame.aux1 == READ_DEVICE_SLOTS_TAPE)
+    // {
+    //     // TODO: Populate this with real values
+    //     // TODO: allow read and write
+    //     // TODO: why [0] and not [8] (device 9)?
+    //     diskSlots[0].mode = 0; // Always READ
+    //     diskSlots[0].hostSlot = 0;
+    //     strlcpy(diskSlots[0].filename, "TAPETEST.CAS", MAX_DISPLAY_FILENAME_LEN);
+
+    //     returnsize = sizeof(disk_slot);
+    // }
+    // Bad AUX1 value
+    else
+    {
+        iec_error();
+        return;
     }
 
-    returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
-
-    iec_recv(); // ck
-
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
-
-    memcpy(response, &diskSlots, returnsize);
-    response_len = returnsize;
+    bus_to_computer((uint8_t *)&diskSlots, returnsize, false);
 }
 
 // Read and save disk slot data from computer
@@ -820,20 +1263,22 @@ void iecFuji::iec_write_device_slots()
         char filename[MAX_DISPLAY_FILENAME_LEN];
     } diskSlots[MAX_DISK_DEVICES];
 
-    iec_recv_buffer((uint8_t *)&diskSlots, sizeof(diskSlots));
+    uint8_t ck = bus_to_peripheral((uint8_t *)&diskSlots, sizeof(diskSlots));
 
-    iec_recv(); // ck
+    if (ck == iec_checksum((uint8_t *)&diskSlots, sizeof(diskSlots)))
+    {
+        // Load the data into our current device array
+        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+            _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
 
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+        // Save the data to disk
+        _populate_config_from_slots();
+        Config.save();
 
-    // Load the data into our current device array
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
-
-    // Save the data to disk
-    _populate_config_from_slots();
-    Config.save();
+        iec_complete();
+    }
+    else
+        iec_error();
 }
 
 // Temporary(?) function while we move from old config storage to new
@@ -896,301 +1341,367 @@ void iecFuji::_populate_config_from_slots()
     }
 }
 
-char f[MAX_FILENAME_LEN];
+// AUX1 is our index value (from 0 to SIO_HISPEED_LOWEST_INDEX)
+// AUX2 requests a save of the change if set to 1
+void iecFuji::iec_set_hiec_index()
+{
+    Debug_println("Fuji cmd: SET HSIO INDEX");
+
+    // DAUX1 holds the desired index value
+    uint8_t index = cmdFrame.aux1;
+
+    // Make sure it's a valid value
+    if (index > SIO_HISPEED_LOWEST_INDEX)
+    {
+        iec_error();
+        return;
+    }
+
+    SIO.setHighSpeedIndex(index);
+
+    // Go ahead and save it if AUX2 = 1
+    if (cmdFrame.aux2 & 1)
+    {
+        Config.store_general_hiecindex(index);
+        Config.save();
+    }
+
+    iec_complete();
+}
 
 // Write a 256 byte filename to the device slot
-void iecFuji::iec_set_device_filename(uint16_t s)
+void iecFuji::iec_set_device_filename()
 {
-    unsigned char ds = iec_recv();
-    s--;
-    s--;
+    char tmp[MAX_FILENAME_LEN];
 
-    Debug_printf("SET DEVICE SLOT %d filename\n", ds);
+    // AUX1 is the desired device slot
+    uint8_t slot = cmdFrame.aux1;
+    // AUX2 contains the host slot and the mount mode (READ/WRITE)
+    uint8_t host = cmdFrame.aux2 >> 4;
+    uint8_t mode = cmdFrame.aux2 & 0x0F;
 
-    iec_recv_buffer((uint8_t *)&f, s);
+    uint8_t ck = bus_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
 
-    Debug_printf("filename: %s\n", f);
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
-    iec_recv(); // CK
+    if (iec_checksum((uint8_t *)tmp, MAX_FILENAME_LEN) != ck)
+    {
+        iec_error();
+        return;
+    }
 
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    // Handle DISK slots
+    if (slot < MAX_DISK_DEVICES)
+    {
+        // TODO: Set HOST and MODE
+        memcpy(_fnDisks[cmdFrame.aux1].filename, tmp, MAX_FILENAME_LEN);
+        _populate_config_from_slots();
+    }
+    // Handle TAPE slots
+    // else if (slot == BASE_TAPE_SLOT) // TODO? currently do not use this option for CAS image filenames
+    // {
+    //     // Just save the filename until we need it mount the tape
+    //     // TODO: allow read and write options
+    //     Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
+    // }
+    // Bad slot
+    else
+    {
+        Debug_println("BAD DEVICE SLOT");
+        iec_error();
+        return;
+    }
 
-    memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
-    _populate_config_from_slots();
+    Config.save();
+    iec_complete();
 }
 
 // Get a 256 byte filename from device slot
 void iecFuji::iec_get_device_filename()
 {
-    unsigned char ds = iec_recv();
+    char tmp[MAX_FILENAME_LEN];
+    unsigned char err = false;
 
-    iec_recv();
+    // AUX1 is the desired device slot
+    uint8_t slot = cmdFrame.aux1;
 
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    if (slot > 7)
+    {
+        err = true;
+    }
 
-    memcpy(response, _fnDisks[ds].filename, 256);
-    response_len = 256;
+    memcpy(tmp, _fnDisks[cmdFrame.aux1].filename, MAX_FILENAME_LEN);
+    bus_to_computer((uint8_t *)tmp, MAX_FILENAME_LEN, err);
+}
+
+// Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
+void iecFuji::iec_set_iec_external_clock()
+{
+    unsigned short speed = iec_get_aux();
+    int baudRate = speed * 1000;
+
+    Debug_printf("iecFuji::iec_set_external_clock(%u)\n", baudRate);
+
+    if (speed == 0)
+    {
+        SIO.setUltraHigh(false, 0);
+    }
+    else
+    {
+        SIO.setUltraHigh(true, baudRate);
+    }
+
+    iec_complete();
 }
 
 // Mounts the desired boot disk number
 void iecFuji::insert_boot_device(uint8_t d)
 {
-    const char *config_atr = "/autorun.ddp";
-    const char *mount_all_atr = "/mount-and-boot.ddp";
+    const char *config_atr = "/autorun.atr";
+    const char *mount_all_atr = "/mount-and-boot.atr";
     FILE *fBoot;
+
+    _bootDisk.unmount();
 
     switch (d)
     {
     case 0:
         fBoot = fnSPIFFS.file_open(config_atr);
-        _bootDisk->mount(fBoot, config_atr, 0);
+        _bootDisk.mount(fBoot, config_atr, 0);
         break;
     case 1:
         fBoot = fnSPIFFS.file_open(mount_all_atr);
-        _bootDisk->mount(fBoot, mount_all_atr, 0);
+        _bootDisk.mount(fBoot, mount_all_atr, 0);
         break;
     }
 
-    _bootDisk->is_config_device = true;
-    _bootDisk->device_active = true;
-    Debug_printf("Media type is %d\n", _bootDisk->mediatype());
+    _bootDisk.is_config_device = true;
+    _bootDisk.device_active = false;
 }
 
-void iecFuji::iec_enable_device()
+// Set UDP Stream HOST & PORT and start it
+void iecFuji::iec_enable_udpstream()
 {
-    unsigned char d = iec_recv();
+    char host[64];
 
-    iec_recv();
+    uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
 
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
+    if (iec_checksum((uint8_t *)&host, sizeof(host)) != ck)
+        iec_error();
+    else
+    {
+        int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
 
-    AdamNet.enableDevice(d);
-}
+        Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
 
-void iecFuji::iec_disable_device()
-{
-    unsigned char d = iec_recv();
+        // Save the host and port
+        Config.store_udpstream_host(host);
+        Config.store_udpstream_port(port);
+        Config.save();
 
-    iec_recv();
+        iec_complete();
 
-    AdamNet.start_time = esp_timer_get_time();
-    iec_response_ack();
-
-    AdamNet.disableDevice(d);
+        // Start the UDP Stream
+        SIO.setUDPHost(host, port);
+    }
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void iecFuji::setup(iecBus *siobus)
+void iecFuji::setup(systemBus *iecbus)
 {
     // set up Fuji device
-    _iec_bus = siobus;
+    _iec_bus = iecbus;
 
     _populate_slots_from_config();
 
+    insert_boot_device(Config.get_general_boot_mode());
+
     // Disable booting from CONFIG if our settings say to turn it off
-    boot_config = false;
+    boot_config = Config.get_general_config_enabled();
+    
+    //Disable status_wait if our settings say to turn it off
+    status_wait_enabled = Config.get_general_status_wait_enabled();
 
-    // Disable status_wait if our settings say to turn it off
-    status_wait_enabled = false;
+    // Add our devices to the SIO bus
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        _iec_bus->addDevice(&_fnDisks[i].disk_dev, SIO_DEVICEID_DISK + i);
 
-    _iec_bus->addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    _iec_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
-    _iec_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
-    _iec_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
+    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+        _iec_bus->addDevice(&iecNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
 
-    FILE *f = fnSPIFFS.file_open("/autorun.ddp");
-    _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
-
-    theNetwork = new iecNetwork();
-    theSerial = new iecSerial();
-    _iec_bus->addDevice(theNetwork, 0x09); // temporary.
-    _iec_bus->addDevice(theSerial, 0x0e);  // Serial port
-    _iec_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
-
-    // Add our devices to the AdamNet bus
-    // for (int i = 0; i < 4; i++)
-    //    _iec_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
-
-    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    //     _iec_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
-}
-
-// Mount all
-void iecFuji::mount_all()
-{
-    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
-
-    for (int i = 0; i < 8; i++)
-    {
-        fujiDisk &disk = _fnDisks[i];
-        fujiHost &host = _fnHosts[disk.host_slot];
-        char flag[3] = {'r', 0, 0};
-
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-            flag[1] = '+';
-
-        if (disk.host_slot != 0xFF)
-        {
-            nodisks = false; // We have a disk in a slot
-
-            if (host.mount() == false)
-            {
-                return;
-            }
-
-            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-                         disk.filename, disk.host_slot, flag, i + 1);
-
-            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-            if (disk.fileh == nullptr)
-            {
-                return;
-            }
-
-            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-            boot_config = false;
-
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
-
-            // And now mount it
-            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-        }
-    }
-
-    if (nodisks)
-    {
-        // No disks in a slot, disable config
-        boot_config = false;
-    }
+    _iec_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
+    cassette()->set_buttons(Config.get_cassette_buttons());
+    cassette()->set_pulldown(Config.get_cassette_pulldown());
 }
 
 iecDisk *iecFuji::bootdisk()
 {
-    return _bootDisk;
+    return &_bootDisk;
 }
 
-void iecFuji::iec_control_send()
+void iecFuji::iec_process(uint32_t commanddata, uint8_t checksum)
 {
-    uint16_t s = iec_recv_length();
-    uint8_t c = iec_recv();
+    cmdFrame.commanddata = commanddata;
+    cmdFrame.checksum = checksum;
 
-    switch (c)
+    Debug_println("iecFuji::iec_process() called");
+
+    switch (cmdFrame.comnd)
     {
+    case FUJICMD_HSIO_INDEX:
+        iec_ack();
+        iec_high_speed();
+        break;
+    case FUJICMD_SET_HSIO_INDEX:
+        iec_ack();
+        iec_set_hiec_index();
+        break;
+    case FUJICMD_STATUS:
+        iec_ack();
+        iec_status();
+        break;
     case FUJICMD_RESET:
+        iec_ack();
         iec_reset_fujinet();
         break;
-    case FUJICMD_GET_SSID:
-        iec_net_get_ssid();
-        break;
     case FUJICMD_SCAN_NETWORKS:
+        iec_ack();
         iec_net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
+        iec_ack();
         iec_net_scan_result();
         break;
     case FUJICMD_SET_SSID:
-        iec_net_set_ssid(s);
+        iec_ack();
+        iec_net_set_ssid();
+        break;
+    case FUJICMD_GET_SSID:
+        iec_ack();
+        iec_net_get_ssid();
         break;
     case FUJICMD_GET_WIFISTATUS:
+        iec_ack();
         iec_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
+        iec_ack();
         iec_mount_host();
         break;
     case FUJICMD_MOUNT_IMAGE:
+        iec_ack();
         iec_disk_image_mount();
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        iec_open_directory(s);
+        iec_ack();
+        iec_open_directory();
         break;
     case FUJICMD_READ_DIR_ENTRY:
+        iec_ack();
         iec_read_directory_entry();
         break;
     case FUJICMD_CLOSE_DIRECTORY:
+        iec_ack();
         iec_close_directory();
         break;
-    case FUJICMD_READ_HOST_SLOTS:
-        iec_read_host_slots();
-        break;
-    case FUJICMD_WRITE_HOST_SLOTS:
-        iec_write_host_slots();
-        break;
-    case FUJICMD_READ_DEVICE_SLOTS:
-        iec_read_device_slots();
-        break;
-    case FUJICMD_WRITE_DEVICE_SLOTS:
-        iec_write_device_slots();
-        break;
-    case FUJICMD_UNMOUNT_IMAGE:
-        iec_disk_image_umount();
-        break;
-    case FUJICMD_GET_ADAPTERCONFIG:
-        iec_get_adapter_config();
-        break;
-    case FUJICMD_NEW_DISK:
-        iec_new_disk();
-        break;
     case FUJICMD_GET_DIRECTORY_POSITION:
+        iec_ack();
         iec_get_directory_position();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
+        iec_ack();
         iec_set_directory_position();
         break;
+    case FUJICMD_READ_HOST_SLOTS:
+        iec_ack();
+        iec_read_host_slots();
+        break;
+    case FUJICMD_WRITE_HOST_SLOTS:
+        iec_ack();
+        iec_write_host_slots();
+        break;
+    case FUJICMD_READ_DEVICE_SLOTS:
+        iec_ack();
+        iec_read_device_slots();
+        break;
+    case FUJICMD_WRITE_DEVICE_SLOTS:
+        iec_ack();
+        iec_write_device_slots();
+        break;
+    case FUJICMD_GET_WIFI_ENABLED:
+        iec_ack();
+        iec_net_get_wifi_enabled();
+        break;
+    case FUJICMD_UNMOUNT_IMAGE:
+        iec_ack();
+        iec_disk_image_umount();
+        break;
+    case FUJICMD_GET_ADAPTERCONFIG:
+        iec_ack();
+        iec_get_adapter_config();
+        break;
+    case FUJICMD_NEW_DISK:
+        iec_ack();
+        iec_new_disk();
+        break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        iec_set_device_filename(s);
+        iec_ack();
+        iec_set_device_filename();
+        break;
+    case FUJICMD_SET_HOST_PREFIX:
+        iec_ack();
+        iec_set_host_prefix();
+        break;
+    case FUJICMD_GET_HOST_PREFIX:
+        iec_ack();
+        iec_get_host_prefix();
+        break;
+    case FUJICMD_SET_SIO_EXTERNAL_CLOCK:
+        iec_ack();
+        iec_set_iec_external_clock();
+        break;
+    case FUJICMD_WRITE_APPKEY:
+        iec_ack();
+        iec_write_app_key();
+        break;
+    case FUJICMD_READ_APPKEY:
+        iec_ack();
+        iec_read_app_key();
+        break;
+    case FUJICMD_OPEN_APPKEY:
+        iec_ack();
+        iec_open_app_key();
+        break;
+    case FUJICMD_CLOSE_APPKEY:
+        iec_ack();
+        iec_close_app_key();
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
+        iec_ack();
         iec_get_device_filename();
         break;
     case FUJICMD_CONFIG_BOOT:
+        iec_ack();
         iec_set_boot_config();
         break;
-    case FUJICMD_ENABLE_DEVICE:
-        iec_enable_device();
+    case FUJICMD_COPY_FILE:
+        iec_ack();
+        iec_copy_file();
         break;
-    case FUJICMD_DISABLE_DEVICE:
-        iec_disable_device();
+    case FUJICMD_MOUNT_ALL:
+        iec_ack();
+        mount_all();
         break;
-    }
-}
-
-void iecFuji::iec_control_clr()
-{
-    iec_send(0xBF);
-    iec_send_length(response_len);
-    iec_send_buffer(response, response_len);
-    iec_send(iec_checksum(response, response_len));
-    iec_recv(); // get the ack.
-    memset(response, 0, sizeof(response));
-    response_len = 0;
-}
-
-void iecFuji::iec_process(uint8_t b)
-{
-    unsigned char c = b >> 4;
-
-    switch (c)
-    {
-    case MN_STATUS:
-        iec_control_status();
+    case FUJICMD_SET_BOOT_MODE:
+        iec_ack();
+        iec_set_boot_mode();
         break;
-    case MN_CLR:
-        iec_control_clr();
+    case FUJICMD_ENABLE_UDPSTREAM:
+        iec_ack();
+        iec_enable_udpstream();
         break;
-    case MN_RECEIVE:
-        iec_response_ack();
-        break;
-    case MN_SEND:
-        iec_control_send();
-        break;
-    case MN_READY:
-        iec_control_ready();
-        break;
+    default:
+        iec_nak();
     }
 }
 
@@ -1204,4 +1715,4 @@ std::string iecFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
-#endif // BUILD_CBM
+#endif /* BUILD_CBM */

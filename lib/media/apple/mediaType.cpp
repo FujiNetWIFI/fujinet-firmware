@@ -16,15 +16,15 @@ bool MediaType::format(uint16_t *respopnsesize)
     return true;
 }
 
-bool MediaType::read(uint32_t blockNum, uint16_t *readcount)
-{
-    return true;
-}
+// bool MediaType::read(uint32_t blockNum, uint16_t *readcount)
+// {
+//     return true;
+// }
 
-bool MediaType::write(uint32_t blockNum, bool verify)
-{
-    return true;
-}
+// bool MediaType::write(uint32_t blockNum, bool verify)
+// {
+//     return true;
+// }
 
 void MediaType::unmount()
 {
@@ -44,9 +44,9 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         // Check the last 3 characters of the string
         const char *ext = filename + l - 3;
         if (strcasecmp(ext, "HDV") == 0)
-        {
             return MEDIATYPE_PO;
-        }
+        else if (strcasecmp(ext,"2MG") == 0)
+            return MEDIATYPE_PO;
         // else if (strcasecmp(ext, "DSK") == 0)
         // {
         //     return MEDIATYPE_DSK;

@@ -58,11 +58,12 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
         sio_complete();
 
     // Write data frame
-    fnUartSIO.write(buf, len);
+    UARTManager *uart = sio_get_bus().get_modem()->get_uart();
+    uart->write(buf, len);
     // Write checksum
-    fnUartSIO.write(sio_checksum(buf, len));
+    uart->write(sio_checksum(buf, len));
 
-    fnUartSIO.flush();
+    uart->flush();
 }
 
 /*
@@ -76,14 +77,16 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
 
+    UARTManager *uart = sio_get_bus().get_modem()->get_uart();
+
     __BEGIN_IGNORE_UNUSEDVARS
-    size_t l = fnUartSIO.readBytes(buf, len);
+    size_t l = uart->readBytes(buf, len);
     __END_IGNORE_UNUSEDVARS
 
     // Wait for checksum
-    while (fnUartSIO.available() <= 0)
+    while (uart->available() <= 0)
         fnSystem.yield();
-    uint8_t ck_rcv = fnUartSIO.read();
+    uint8_t ck_rcv = uart->read();
 
     uint8_t ck_tst = sio_checksum(buf, len);
 
@@ -110,17 +113,19 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 // SIO NAK
 void virtualDevice::sio_nak()
 {
-    fnUartSIO.write('N');
-    fnUartSIO.flush();
+    UARTManager *uart = sio_get_bus().get_modem()->get_uart();
+    uart->write('N');
+    uart->flush();
     Debug_println("NAK!");
 }
 
 // SIO ACK
 void virtualDevice::sio_ack()
 {
-    fnUartSIO.write('A');
+    UARTManager *uart = sio_get_bus().get_modem()->get_uart();
+    uart->write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
-    fnUartSIO.flush();
+    uart->flush();
     Debug_println("ACK!");
 }
 
@@ -128,7 +133,7 @@ void virtualDevice::sio_ack()
 void virtualDevice::sio_complete()
 {
     fnSystem.delay_microseconds(DELAY_T5);
-    fnUartSIO.write('C');
+    sio_get_bus().get_modem()->get_uart()->write('C');
     Debug_println("COMPLETE!");
 }
 
@@ -136,7 +141,7 @@ void virtualDevice::sio_complete()
 void virtualDevice::sio_error()
 {
     fnSystem.delay_microseconds(DELAY_T5);
-    fnUartSIO.write('E');
+    sio_get_bus().get_modem()->get_uart()->write('E');
     Debug_println("ERROR!");
 }
 
@@ -148,6 +153,8 @@ void virtualDevice::sio_high_speed()
     bus_to_computer((uint8_t *)&hsd, 1, false);
 }
 
+systemBus virtualDevice::sio_get_bus() { return SIO; }
+
 // Read and process a command frame from SIO
 void systemBus::_sio_process_cmd()
 {
@@ -155,7 +162,7 @@ void systemBus::_sio_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting SIO baud");
-        fnUartSIO.set_baudrate(_sioBaud);
+        _modemDev->get_uart()->set_baudrate(_sioBaud);
     }
 
     // Read CMD frame
@@ -163,7 +170,7 @@ void systemBus::_sio_process_cmd()
     tempFrame.commanddata = 0;
     tempFrame.checksum = 0;
 
-    if (fnUartSIO.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
+    if (_modemDev->get_uart()->readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
         // Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
@@ -341,7 +348,7 @@ void systemBus::service()
     else
     // Neither CMD nor active modem, so throw out any stray input data
     {
-        fnUartSIO.flush_input();
+        _modemDev->get_uart()->flush_input();
     }
 
     // Handle interrupts from network protocols
@@ -358,7 +365,7 @@ void systemBus::setup()
     Debug_println("SIO SETUP");
 
     // Set up UART
-    fnUartSIO.begin(_sioBaud);
+    _modemDev->get_uart()->begin(_sioBaud);
 
     // INT PIN
     fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
@@ -390,7 +397,7 @@ void systemBus::setup()
     else
         setHighSpeedIndex(_sioHighSpeedIndex);
 
-    fnUartSIO.flush_input();
+    _modemDev->get_uart()->flush_input();
 }
 
 // Add device to SIO bus
@@ -402,7 +409,7 @@ void systemBus::addDevice(virtualDevice *pDevice, int device_id)
     }
     else if (device_id == SIO_DEVICEID_RS232)
     {
-        _modemDev = (sioModem *)pDevice;
+        _modemDev = (modem *)pDevice;
     }
     else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
     {
@@ -470,6 +477,8 @@ virtualDevice *systemBus::deviceById(int device_id)
 // Give devices an opportunity to clean up before a reboot
 void systemBus::shutdown()
 {
+    shuttingDown = true;
+
     for (auto devicep : _daisyChain)
     {
         Debug_printf("Shutting down device %02x\n",devicep->id());
@@ -487,7 +496,7 @@ void systemBus::toggleBaudrate()
 
     Debug_printf("Toggling baudrate from %d to %d\n", _sioBaud, baudrate);
     _sioBaud = baudrate;
-    fnUartSIO.set_baudrate(_sioBaud);
+    _modemDev->get_uart()->set_baudrate(_sioBaud);
 }
 
 int systemBus::getBaudrate()
@@ -505,7 +514,7 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _sioBaud, baud);
     _sioBaud = baud;
-    fnUartSIO.set_baudrate(baud);
+    _modemDev->get_uart()->set_baudrate(baud);
 }
 
 // Set HSIO index. Sets high speed SIO baud and also returns that value.
@@ -605,7 +614,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
         // Enable PWM on CLOCK IN
         ledc_channel_config(&ledc_channel_sio_ckin);
         ledc_timer_config(&ledc_timer);
-        fnUartSIO.set_baudrate(_sioBaudUltraHigh);
+        _modemDev->get_uart()->set_baudrate(_sioBaudUltraHigh);
     }
     else
     {
@@ -613,7 +622,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
         ledc_stop(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
 
         _sioBaudUltraHigh = 0;
-        fnUartSIO.set_baudrate(SIO_STANDARD_BAUDRATE);
+        _modemDev->get_uart()->set_baudrate(SIO_STANDARD_BAUDRATE);
     }
 }
 

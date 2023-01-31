@@ -52,8 +52,6 @@ sioNetwork::sioNetwork()
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
-
-    json.setLineEnding("\x9B"); // use ATASCII EOL for JSON records
 }
 
 /**
@@ -136,7 +134,9 @@ void sioNetwork::sio_open()
     sio_assert_interrupt();
 
     // TODO: Finally, go ahead and let the parsers know
-    json.setProtocol(protocol);
+    json = new FNJSON();
+    json->setLineEnding("\x9b");
+    json->setProtocol(protocol);
     channelMode = PROTOCOL;
 
     // And signal complete!
@@ -168,9 +168,15 @@ void sioNetwork::sio_close()
     else
         sio_complete();
 
+    Debug_printf("Before protocol delete %lu\n",esp_get_free_heap_size());
     // Delete the protocol object
     delete protocol;
     protocol = nullptr;
+
+    if (json != nullptr)
+        delete json;
+
+    Debug_printf("After protocol delete %lu\n",esp_get_free_heap_size());
 }
 
 /**
@@ -468,6 +474,28 @@ void sioNetwork::sio_set_prefix()
         // truncate to that location.
         prefix = prefix.substr(0, pathLocations.back() + 1);
     }
+    else if ((prefixSpec_str == "/") || (prefixSpec_str == ">")) // Go back to hostname.
+    {
+        // TNFS://foo.com/path
+        size_t pos = prefix.find("/");
+        
+        if (pos == string::npos)
+            prefix.clear();
+        
+        pos = prefix.find("/",++pos);
+
+        if (pos == string::npos)
+            prefix.clear();
+
+        pos = prefix.find("/",++pos);
+
+        if (pos == string::npos)
+            prefix += "/";
+
+        pos = prefix.find("/",++pos);
+
+        prefix = prefix.substr(0,pos);
+    }
     else if (prefixSpec_str[0] == '/') // N:/DIR
     {
         prefix = prefixSpec_str;
@@ -484,6 +512,8 @@ void sioNetwork::sio_set_prefix()
     {
         prefix += prefixSpec_str;
     }
+
+    prefix = util_get_canonical_path(prefix);
 
     Debug_printf("Prefix now: %s\n", prefix.c_str());
 
@@ -1068,7 +1098,7 @@ void sioNetwork::sio_set_translation()
 
 void sioNetwork::sio_parse_json()
 {
-    json.parse();
+    json->parse();
     sio_complete();
 }
 
@@ -1090,11 +1120,18 @@ void sioNetwork::sio_set_json_query()
     }
 
     inp = strrchr((const char *)in, ':');
+    
+    if (inp == NULL)
+    {
+        sio_error();
+        return;
+    }
+
     inp++;
-    json.setReadQuery(string(inp));
-    json_bytes_remaining = json.readValueLen();
-    tmp = (uint8_t *)malloc(json.readValueLen());
-    json.readValue(tmp,json_bytes_remaining);
+    json->setReadQuery(string(inp), cmdFrame.aux2);
+    json_bytes_remaining = json->readValueLen();
+    tmp = (uint8_t *)malloc(json->readValueLen());
+    json->readValue(tmp,json_bytes_remaining);
     *receiveBuffer += string((const char *)tmp,json_bytes_remaining);
     free(tmp);
     Debug_printf("Query set to %s\n",inp);

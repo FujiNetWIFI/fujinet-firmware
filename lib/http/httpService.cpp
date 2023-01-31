@@ -10,7 +10,7 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fnFsSPIFFS.h"
-#include "modem.h"
+#include "../device/modem.h"
 #include "printer.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
@@ -670,6 +670,9 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
                 strcpy(disk->filename,qp.query_parsed["filename"].c_str());
                 disk->disk_size = host->file_size(disk->fileh);
                 disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
+                #ifdef BUILD_APPLE
+                if(mode == fnConfig::mount_modes::MOUNTMODE_WRITE) {disk->disk_dev.readonly = false;}
+                #endif 
                 Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
                 Config.save();
                 theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
@@ -904,10 +907,12 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DISK TO MOUNT<span id=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) + qp.query_parsed["path"] + "</header>\n"
-                                                                                  "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-                                                                                  "               <div class=\"fileline\">\n"
-                                                                                  "                      <ul>\n";
+        string(theFuji.get_hosts(hs)->get_hostname()) + 
+        qp.query_parsed["path"] + 
+        "</header>\n"
+        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+        "               <div class=\"fileline\">\n"
+        "                   <ul>\n";
 
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();
@@ -1040,10 +1045,11 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DRIVE SLOT<span id=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + "</header>\n"
-                                                                                               "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
-                                                                                               "               <div class=\"fileline\">\n"
-                                                                                               "                      <ul>\n";
+        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + 
+        "</header>\n"
+        "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
+        "               <div class=\"fileline\">\n"
+        "                      <ul>\n";
 
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();

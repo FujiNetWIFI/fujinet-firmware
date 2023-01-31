@@ -873,6 +873,8 @@ mediatype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
         return MEDIATYPE_UNKNOWN;
     }
 
+    _disk_num_sectors = 720;
+    
     return _disktype = MEDIATYPE_ATX;
 }
 

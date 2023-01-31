@@ -104,14 +104,14 @@ union cmdFrame_t
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);
 
 // class def'ns
-class sioModem;    // declare here so can reference it, but define in modem.h
-class sioFuji;     // declare here so can reference it, but define in fuji.h
+class modem;          // declare here so can reference it, but define in modem.h
+class sioFuji;        // declare here so can reference it, but define in fuji.h
 class systemBus;      // declare early so can be friend
-class sioNetwork;  // declare here so can reference it, but define in network.h
-class sioUDPStream; // declare here so can reference it, but define in udpstream.h
-class sioCassette; // Cassette forward-declaration.
-class sioCPM;      // CPM device.
-class sioPrinter;  // Printer device
+class sioNetwork;     // declare here so can reference it, but define in network.h
+class sioUDPStream;   // declare here so can reference it, but define in udpstream.h
+class sioCassette;    // Cassette forward-declaration.
+class sioCPM;         // CPM device.
+class sioPrinter;     // Printer device
 
 class virtualDevice
 {
@@ -248,7 +248,7 @@ private:
     int _command_frame_counter = 0;
 
     virtualDevice *_activeDev = nullptr;
-    sioModem *_modemDev = nullptr;
+    modem *_modemDev = nullptr;
     sioFuji *_fujiDev = nullptr;
     sioNetwork *_netDev[8] = {nullptr};
     sioUDPStream *_udpDev = nullptr;
@@ -290,9 +290,15 @@ public:
     bool getUltraHighEnabled() { return useUltraHigh; }
     int getUltraHighBaudRate() { return _sioBaudUltraHigh; }
 
+    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
+
     sioCassette *getCassette() { return _cassetteDev; }
     sioPrinter *getPrinter() { return _printerdev; }
     sioCPM *getCPM() { return _cpmDev; }
+
+    // I wish this codebase would make up its mind to use camel or snake casing.
+    modem *get_modem() { return _modemDev; }
 
     QueueHandle_t qSioMessages = nullptr;
 };

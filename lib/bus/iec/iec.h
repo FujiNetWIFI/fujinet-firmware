@@ -136,7 +136,8 @@ protected:
 
     int _device_id;
 
-    virtual void _process(uint32_t commanddata, uint8_t checksum) = 0;
+    virtual void iec_status() = 0;
+    virtual void iec_process(uint32_t commanddata, uint8_t checksum) = 0;
 
 	// Reset device
 	virtual void reset(void);
@@ -304,6 +305,9 @@ public:
     void remDevice(virtualDevice *pDevice);
     virtualDevice *deviceById(int device_id);
     void changeDeviceId(virtualDevice *pDevice, int device_id);
+
+    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
 
 	//iecPrinter *getPrinter(void) { return _printerdev; }
 

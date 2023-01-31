@@ -78,4 +78,7 @@ void util_sam_say_swap_label();
 
 void util_replaceAll(std::string& str, const std::string& from, const std::string& to);
 
+//std::string util_get_canonical_path(char* path);
+std::string util_get_canonical_path(std::string path);
+
 #endif // _FN_UTILS_H

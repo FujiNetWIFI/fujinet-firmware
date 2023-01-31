@@ -4,22 +4,30 @@
 
 #include <string.h>
 
-#include "bus.h"
 #include "printer_emulator.h"
 #include "fnFS.h"
 
+#include "../../bus/bus.h"
+
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-class applePrinter : public iwmDevice
+class iwmPrinter : public iwmDevice
 {
 protected:
-    // TODO following are copied over from sio/printer.h
-    // SMARTPORT THINGS
-    // uint8_t _buffer[40];
-    // void smart_write(uint8_t aux1, uint8_t aux2);
-    // void smart_status() override;
-    // void smart_process(uint32_t commanddata, uint8_t checksum) override;
-    // void shutdown() override;
+
+    // IWM Status methods
+    void send_status_reply_packet() override;
+    void send_extended_status_reply_packet() override;
+    void send_status_dib_reply_packet() override;
+    void send_extended_status_dib_reply_packet() override;
+
+    // IWM methods
+    void iwm_status(iwm_decoded_cmd_t cmd) override;
+    void iwm_open(iwm_decoded_cmd_t cmd) override;
+    void iwm_close(iwm_decoded_cmd_t cmd) override;
+    void iwm_write(iwm_decoded_cmd_t cmd) override;
+    void process(iwm_decoded_cmd_t cmd) override;
+    void shutdown() {}
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
@@ -49,8 +57,8 @@ public:
         "HTML printer",
     };
 
-    applePrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
-    ~applePrinter();
+    iwmPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
+    ~iwmPrinter();
 
     static printer_type match_modelname(std::string model_name);
     void set_printer_type(printer_type printer_type);
@@ -59,9 +67,11 @@ public:
     // void print_from_cpm(uint8_t c); // left over from ATARI although could use it on APPLE maybe?
 
     printer_emu *getPrinterPtr() { return _pptr; };
+    void print_from_cpm(uint8_t c);
 
 private:
     printer_type _ptype;
+    int _llen = 0;
 };
 
 

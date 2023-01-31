@@ -234,7 +234,9 @@ void pdfPrinter::pdf_new_line()
     // position new line and start text string array
     if (pdf_dY != 0)
         fprintf(_file, "0 Ts ");
+#ifndef BUILD_APPLE
     pdf_dY -= lineHeight;
+#endif
     fprintf(_file, "0 %g Td [(", pdf_dY);
     pdf_Y += pdf_dY; // line feed
     pdf_dY = 0;
@@ -367,6 +369,10 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     do
     {
         c = buffer[i++];
+#ifdef BUILD_APPLE
+        if (textMode == true)
+            c &= 0x7F;
+#endif // BUILD_APPLE
         cc = c;
         if (translate850 && c == ATASCII_EOL)
             c = ASCII_CR; // the 850 interface converts EOL to CR

@@ -8,6 +8,7 @@
 #include "device.h"
 #include "keys.h"
 #include "led.h"
+#include "crypt.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -77,6 +78,9 @@ void main_setup()
     fnSPIFFS.start();
     fnSDFAT.start();
 
+    // setup crypto key - must be done before loading the config
+    crypto.setkey("FNK" + fnWiFi.get_mac_str());
+
     // Load our stored configuration
     Config.load();
 
@@ -86,7 +90,8 @@ void main_setup()
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
-    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
+    if (Config.get_apetime_enabled() == true)
+        SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
     SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 
@@ -103,7 +108,8 @@ void main_setup()
 
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
-    sioR = new sioModem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    sioR->set_uart(&fnUartSIO);
 
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
@@ -123,6 +129,12 @@ void main_setup()
 #ifdef BUILD_LYNX
     theFuji.setup(&ComLynx);
     ComLynx.setup();
+#endif
+
+#ifdef BUILD_RS232
+    theFuji.setup(&RS232);
+    RS232.setup();
+    RS232.addDevice(&theFuji,0x70);
 #endif
 
 #ifdef BUILD_ADAM
@@ -163,12 +175,15 @@ void main_setup()
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-    // spDevice spsd;
-    appleModem *sioR;
+    iwmModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
+    sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
+    IWM.addDevice(sioR,iwm_fujinet_type_t::Modem);    
+    iwmPrinter::printer_type ptype = Config.get_printer_type(0);
+    iwmPrinter *ptr = new iwmPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+    IWM.addDevice(ptr, iwm_fujinet_type_t::Printer);
 
-    // IWM.addDevice(&theFuji, iwm_fujinet_type_t::FujiNet);
     theFuji.setup(&IWM);
     IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
 

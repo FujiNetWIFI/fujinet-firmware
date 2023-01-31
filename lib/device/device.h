@@ -6,7 +6,7 @@
 # include "sio/cassette.h"
 # include "sio/disk.h"
 # include "sio/udpstream.h"
-# include "sio/modem.h"
+# include "../lib/modem/modem.h"
 # include "sio/network.h"
 # include "sio/printer.h"
 # include "sio/printerlist.h"
@@ -18,7 +18,7 @@
     sioVoice sioV;
     sioUDPStream udpDev;
     // sioCassette sioC; // now part of sioFuji theFuji object
-    sioModem *sioR;
+    modem *sioR;
     sioCPM sioZ;
 #endif
 
@@ -79,7 +79,7 @@
 # include "iwm/modem.h"
 # include "iwm/printer.h"
 # include "iwm/printerlist.h"
-    appleModem *sioR;
+    iwmModem *sioR;
 #endif
 
 #ifdef BUILD_S100

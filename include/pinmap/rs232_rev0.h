@@ -12,7 +12,7 @@
 /* UART - fnuart.cpp */
 #define PIN_UART0_RX 3  // USB Serial
 #define PIN_UART0_TX 1  // USB Serial
-#define PIN_UART1_RX 2  // RS232
+#define PIN_UART1_RX 13  // RS232
 #define PIN_UART1_TX 21 // RS232
 //#define PIN_UART2_RX 33
 //#define PIN_UART2_TX 21
@@ -23,8 +23,8 @@
 #define PIN_BUTTON_C 39 // Safe reset
 
 /* LEDs - leds.cpp */
-#define PIN_LED_WIFI    34
-#define PIN_LED_BUS     35
+#define PIN_LED_WIFI    14
+#define PIN_LED_BUS     12
 #define PIN_LED_BT      -1 // No BT LED
 
 /* Audio Output - samlib.h */

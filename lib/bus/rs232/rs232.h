@@ -6,7 +6,7 @@
 
 #include <forward_list>
 
-#define RS232_BAUDRATE 19200
+#define RS232_BAUDRATE 9600
 
 #define RS232_DEVICEID_DISK 0x31
 #define RS232_DEVICEID_DISK_LAST 0x3F
@@ -211,7 +211,7 @@ private:
     bool useUltraHigh = false; // Use fujinet derived clock.
 
     void _rs232_process_cmd();
-    void _rs232_process_queue();
+    /* void _rs232_process_queue(); */
 
 public:
     void setup();
@@ -241,6 +241,9 @@ public:
     rs232CPM *getCPM() { return _cpmDev; }
 
     QueueHandle_t qRs232Messages = nullptr;
+
+    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
 };
 
 extern systemBus RS232;

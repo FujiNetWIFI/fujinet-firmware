@@ -228,6 +228,7 @@ void sioFuji::sio_net_set_ssid()
         if (save)
         {
             Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+            // Clear text here, it will be encrypted internally
             Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
             Config.save();
         }
@@ -311,6 +312,9 @@ void sioFuji::sio_disk_image_mount()
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
+
+    // TODO: Refactor along with mount disk image.
+    disk.disk_dev.host = &host;
 
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
@@ -489,6 +493,10 @@ void sioFuji::mount_all()
 
             // We need the file size for loading XEX files and for CASSETTE, so get that too
             disk.disk_size = host.file_size(disk.fileh);
+
+            // Set the host slot for high score mode
+            // TODO: Refactor along with mount disk image.
+            disk.disk_dev.host = &host;
 
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
@@ -1532,6 +1540,8 @@ void sioFuji::setup(systemBus *siobus)
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
+
+    
 }
 
 sioDisk *sioFuji::bootdisk()

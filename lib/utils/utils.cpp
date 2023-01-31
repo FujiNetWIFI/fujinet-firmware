@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cstring>
 #include <sstream>
+#include <stack>
 
 #include "../../include/debug.h"
 
@@ -628,4 +629,109 @@ void util_replaceAll(std::string &str, const std::string &from, const std::strin
         str.replace(start_pos, from.length(), to);
         start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
     }
+}
+
+/**
+ * Resolve prefix containing relative references (../ or ./)
+ * to canonical path.
+ * @param prefix FujiNet path such as TNFS://myhost/path/to/here/
+ */
+std::string util_get_canonical_path(std::string prefix)
+{
+    std::size_t proto_host_len;
+
+    // stack to store the file's names.
+    std::stack<string> st;
+ 
+    // temporary string which stores the extracted
+    // directory name or commands("." / "..")
+    // Eg. "/a/b/../."
+    // dir will contain "a", "b", "..", ".";
+    std::string dir;
+ 
+    // contains resultant simplifies string.
+    std::string res;
+
+    // advance beyond protocol and hostname
+    proto_host_len = prefix.find("://");
+
+    if (proto_host_len > 0)
+    {
+        proto_host_len += 3;
+        proto_host_len = prefix.find("/", proto_host_len) + 1;
+    }
+
+    res.append (prefix.substr(0, proto_host_len));
+ 
+    int len_prefix = prefix.length();
+
+    //for (int i = proto_host_len-1; i < len_prefix; i++) 
+    for (int i = proto_host_len; i < len_prefix; i++) 
+    {
+        // we will clear the temporary string
+        // every time to accommodate new directory
+        // name or command.
+        dir.clear();
+ 
+        // skip all the multiple '/' Eg. "/////""
+        while (prefix[i] == '/')
+            i++;
+ 
+        // stores directory's name("a", "b" etc.)
+        // or commands("."/"..") into dir
+        while (i < len_prefix && prefix[i] != '/')
+        {
+            dir.push_back(prefix[i]);
+            i++;
+        }
+ 
+        // if dir has ".." just pop the topmost
+        // element if the stack is not empty
+        // otherwise ignore.
+        if (dir.compare("..") == 0)
+        {
+            if (!st.empty())
+                st.pop();           
+        }
+ 
+        // if dir has "." then simply continue
+        // with the process.
+        else if (dir.compare(".") == 0)
+            continue;
+         
+        // pushes if it encounters directory's
+        // name("a", "b").
+        else if (dir.length() != 0)
+            st.push(dir);       
+    }
+ 
+    // a temporary stack  (st1) which will contain
+    // the reverse of original stack(st).
+    std::stack<string> st1;
+    while (!st.empty()) 
+    {
+        st1.push(st.top());
+        st.pop();
+    }
+ 
+    // the st1 will contain the actual res.
+    while (!st1.empty()) 
+    {
+        std::string temp = st1.top();
+         
+        // if it's the last element no need
+        // to append "/"
+        if (st1.size() != 1)
+            res.append(temp + "/");
+        else
+            res.append(temp);
+ 
+        st1.pop();
+    }
+
+    // kludge
+    if (res[res.length()-1] != '/')
+        res.append("/"); 
+ 
+    return res;
 }

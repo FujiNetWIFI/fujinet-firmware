@@ -48,7 +48,7 @@
 */
 void MediaTypeXEX::_fake_directory_entry()
 {
-    // Calculate the number of sectors required
+    // Calculate the number of sectors required for XEX file
     uint16_t data_per_sector = _disk_sector_size - SECTOR_LINK_SIZE;
     uint16_t numsectors = _disk_image_size / data_per_sector;
     numsectors += _disk_image_size % data_per_sector > 0 ? 1 : 0;
@@ -204,7 +204,16 @@ mediatype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
     _disk_last_sector = INVALID_SECTOR_VALUE;
     _disktype = MEDIATYPE_XEX;
 
+    // Calculate the number of fake disk sectors
+    uint16_t data_per_sector = _disk_sector_size - SECTOR_LINK_SIZE;
+    _disk_num_sectors = FIRST_XEX_SECTOR + _disk_image_size / data_per_sector;
+    _disk_num_sectors += _disk_image_size % data_per_sector > 0 ? 1 : 0;
+
+    if (_disk_num_sectors < 720)
+        _disk_num_sectors = 720;
+
     Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%d\n", _xex_bootloadersize, _disk_image_size);
+    Debug_printf("disk sectors = %d\n", _disk_num_sectors);
 
     return _disktype;
 }

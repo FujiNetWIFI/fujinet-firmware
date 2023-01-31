@@ -5,24 +5,15 @@
 #include "../../include/debug.h"
 
 #include "bus.h"
+#include "iwm_ll.h"
 
 #include <cstdint>
 #include <forward_list>
 #include <string>
-#include "driver/spi_master.h"
 
 #include "fnFS.h"
 
-// activate for using SPI to transmit data from ESP to Apple II
-// required for ESP32 Rev C
-#define SEND_PACKET iwm_send_packet_spi
-
-// activate for old bit bang flag code that works on ESP32 Rev B
-#undef USE_BIT_BANG_TX
-//#define SEND_PACKET iwm_send_packet
-
-
-// todo - see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
+// see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
 #define SP_ERR_BADCMD 0x01     // invalid command
 #define SP_ERR_BUSERR 0x06     // communications error
@@ -46,6 +37,7 @@
 #define STATCODE_WRITE_PROTECT 0x01 << 2  // block devices only
 #define STATCODE_INTERRUPTING 0x01 << 1   // apple IIc only
 #define STATCODE_DEVICE_OPEN 0x01 << 0    // char devices only
+#define STATCODE_DISK_SWITCHED 0x01 << 0 // disk switched status for block devices, same bit as device open for char devices
 
 // valid types and subtypes for block devices per smartport documentation
 #define SP_TYPE_BYTE_35DISK 0x01
@@ -64,13 +56,17 @@
 
 #define SP_TYPE_BYTE_FUJINET 0x10
 #define SP_TYPE_BYTE_FUJINET_NETWORK 0x11
+#define SP_TYPE_BYTE_FUJINET_CPM 0x12
+#define SP_TYPE_BYTE_FUJINET_CLOCK 0x13
+#define SP_TYPE_BYTE_FUJINET_PRINTER 0x14
+#define SP_TYPE_BYTE_FUJINET_MODEM 0x15
 
 #define SP_SUBTYPE_BYTE_FUJINET 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
-
-#define PACKET_TYPE_CMD 0x80
-#define PACKET_TYPE_STATUS 0x81
-#define PACKET_TYPE_DATA 0x82
+#define SP_SUBTYPE_BYTE_FUJINET_CPM 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_CLOCK 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_PRINTER 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_MODEM 0x00
 
 #define IWM_CTRL_RESET 0x00
 #define IWM_CTRL_SET_DCB 0x01
@@ -87,9 +83,6 @@
 #define IWM_STATUS_DIB 0x03
 #define IWM_STATUS_UNI35 0x05
 
-#undef TESTTX
-//#define TESTTX
-
 // class def'ns
 class iwmFuji;     // declare here so can reference it, but define in fuji.h
 class iwmModem;    // declare here so can reference it, but define in modem.h
@@ -97,6 +90,7 @@ class iwmNetwork;  // declare here so can reference it, but define in network.h
 class iwmPrinter;  // Printer device
 class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for prototyping in iwmBus::service()
 class iwmCPM;      // CPM Virtual Device
+class iwmClock;    // Real Time Clock Device
 class iwmBus;      // forward declare bus so can be friend
 
 // Sorry, this  is the protocol adapter's fault. -Thom
@@ -117,8 +111,8 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
-#define COMMAND_PACKET_LEN  28
-#define BLOCK_PACKET_LEN    606
+#define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
+#define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
 #define MAX_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
@@ -148,6 +142,7 @@ C3 PBEGIN   MARKS BEGINNING OF PACKET 32 micro Sec.
 BB CHKSUM1  1ST BYTE OF CHECKSUM 32 micro Sec.
 EE CHKSUM2  2ND BYTE OF CHECKSUM 32 micro Sec.
 C8 PEND     PACKET END BYTE 32 micro Sec.
+00 CLEAR    zero after packet for FujiNet use
 */
 struct
 {
@@ -180,7 +175,18 @@ struct
   uint8_t pend;    // 26
   uint8_t clear;   // 27
   };
-  uint8_t data[COMMAND_PACKET_LEN];
+  uint8_t data[COMMAND_PACKET_LEN + 1];
+};
+
+union iwm_decoded_cmd_t
+{
+  struct
+  {
+    uint8_t command;
+    uint8_t count;
+    uint8_t params[7];
+  };
+  uint8_t decoded[9];
 };
 
 enum class iwm_smartport_type_t
@@ -198,6 +204,7 @@ enum class iwm_fujinet_type_t
   CPM,
   Printer,
   Voice,
+  Clock,
   Other
 };
 
@@ -228,45 +235,52 @@ protected:
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
+  // all this encoding/decoding should go to low level
+  // however, need to change robj's code to NOT decode/encode packet *in place* using packet_buffer[].
+  // so need an encoded packet buffer in the low level and a packet_data[] or whatever in the high level.
+  // the command packet might be an exception
   // iwm packet handling
-  static uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  static uint16_t packet_len;
+  static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
+  static int data_len; // how many bytes in the data buffer
 
-  bool decode_data_packet(void); //decode smartport 512 byte data packet
-  static uint16_t num_decoded;
+   // void send_data_packet(); //encode smartport 512 byte data packet
+  // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
+  void send_init_reply_packet(uint8_t source, uint8_t status);
+  virtual void send_status_reply_packet() = 0;
+  void send_reply_packet(uint8_t status);
+  // void send_reply_packet(uint8_t source, uint8_t status) { send_reply_packet(status); };
+  virtual void send_status_dib_reply_packet() = 0;
 
-  void encode_data_packet(); //encode smartport 512 byte data packet
-  void encode_data_packet(uint16_t num); //encode smartport "num" byte data packet
-  void encode_write_status_packet(uint8_t source, uint8_t status);
-  void encode_init_reply_packet(uint8_t source, uint8_t status);
-  virtual void encode_status_reply_packet() = 0;
-  void encode_error_reply_packet(uint8_t stat);
-  virtual void encode_status_dib_reply_packet() = 0;
-
-  void encode_extended_data_packet(uint8_t source);
-  virtual void encode_extended_status_reply_packet() = 0;
-  virtual void encode_extended_status_dib_reply_packet() = 0;
+  virtual void send_extended_status_reply_packet() = 0;
+  virtual void send_extended_status_dib_reply_packet() = 0;
   
-  int get_packet_length(void);
-
   virtual void shutdown() = 0;
-  virtual void process(cmdPacket_t cmd) = 0;
+  virtual void process(iwm_decoded_cmd_t cmd) = 0;
 
-  virtual void iwm_status(cmdPacket_t cmd);
-  virtual void iwm_readblock(cmdPacket_t cmd) {};
-  virtual void iwm_writeblock(cmdPacket_t cmd) {};
-  virtual void iwm_format(cmdPacket_t cmd) {};
-  virtual void iwm_ctrl(cmdPacket_t cmd) {};
-  virtual void iwm_open(cmdPacket_t cmd) {};
-  virtual void iwm_close(cmdPacket_t cmd) {};
-  virtual void iwm_read(cmdPacket_t cmd) {};
-  virtual void iwm_write(cmdPacket_t cmd) {};
+  // these are good for the high level device
+  virtual void iwm_status(iwm_decoded_cmd_t cmd);
+  virtual void iwm_readblock(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_writeblock(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_handle_eject(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_format(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_ctrl(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_open(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_close(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_read(iwm_decoded_cmd_t cmd) {};
+  virtual void iwm_write(iwm_decoded_cmd_t cmd) {};
 
-  void iwm_return_badcmd(cmdPacket_t cmd);
-  void iwm_return_ioerror(cmdPacket_t cmd);
+  uint8_t get_status_code(iwm_decoded_cmd_t cmd) {return cmd.params[2];}
+  uint16_t get_numbytes(iwm_decoded_cmd_t cmd) { return cmd.params[2] + (cmd.params[3] << 8); };
+  uint32_t get_address(iwm_decoded_cmd_t cmd) { return cmd.params[4] + (cmd.params[5] << 8) + (cmd.params[6] << 16); }
+
+  void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
+  void iwm_return_ioerror();
+  void iwm_return_noerror();
 
 public:
   bool device_active;
+  bool switched = false; //indicate disk switched condition
+  bool readonly = true;  //write protected 
   bool is_config_device;
   /**
    * @brief get the IWM device Number (1-255)
@@ -283,16 +297,12 @@ public:
    */
   iwmBus iwm_get_bus();
 
-  /**
-   * Startup hack for now
-   */
-  // virtual void startup_hack() = 0;
 };
 
 class iwmBus
 {
 private:
-  std::forward_list<iwmDevice *> _daisyChain;
+
 
   iwmDevice *_activeDev = nullptr;
 
@@ -303,40 +313,7 @@ private:
   //sioCassette *_cassetteDev = nullptr;
   iwmCPM *_cpmDev = nullptr;
   iwmPrinter *_printerdev = nullptr;
-
-  // iwm packet handling
-  uint8_t spi_buffer[4 * BLOCK_PACKET_LEN]; //smartport packet buffer
-  uint16_t spi_len;
-  spi_device_handle_t spi;
-
-  // low level bit-banging i/o functions
-  struct iwm_timer_t
-  {
-    uint32_t tn;
-    uint32_t t0;
-  } iwm_timer;
-
-  void timer_config();
-  void iwm_timer_latch();
-  void iwm_timer_read();
-  void iwm_timer_alarm_set(int s);
-  void iwm_timer_alarm_snooze(int s);
-  void iwm_timer_wait();
-  void iwm_timer_reset();
-
-  void iwm_rddata_set();
-  void iwm_rddata_clr();
-  void iwm_rddata_disable();
-  void iwm_rddata_enable();
-  bool iwm_wrdata_val();
-  bool iwm_req_val();
-  void iwm_ack_set();
-  void iwm_ack_clr();
-  void iwm_ack_enable();
-  void iwm_ack_disable();
-  void iwm_extra_set();
-  void iwm_extra_clr();
-  bool iwm_enable_val();
+  iwmClock *_clockDev = nullptr;
 
   bool iwm_phase_val(uint8_t p);
 
@@ -353,23 +330,28 @@ private:
 
   bool iwm_drive_enables();
 
-  cmdPacket_t command_packet;
+  void iwm_ack_deassert();
+  void iwm_ack_assert();
+  bool iwm_req_deassert_timeout(int t) { return smartport.req_wait_for_falling_timeout(t); };
+  bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
+
+
   bool verify_cmdpkt_checksum(void);
+  iwm_decoded_cmd_t command;
+
+  void handle_init(); 
 
 public:
-  int iwm_read_packet(uint8_t *a, int n);
-  int iwm_read_packet_timeout(int tout, uint8_t *a, int n);
-  void encode_spi_packet(uint8_t *a);
-  int iwm_send_packet(uint8_t *a);
-  int iwm_send_packet_spi(uint8_t *a);
-
-  void test_spi();
-
+  std::forward_list<iwmDevice *> _daisyChain;
+  
+  cmdPacket_t command_packet;
+  bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
+   int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
+ 
+  // these things stay for the most part
   void setup();
   void service();
   void shutdown();
-
-  void handle_init(); // todo: put this function in the right place
 
   int numDevices();
   void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
@@ -379,14 +361,9 @@ public:
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
-  // iwmDevice *smort;
-
-
-#ifdef TESTTX
-  void test_send(iwmDevice* smort);
-#endif
-
-  // void startup_hack();
+  iwmPrinter *getPrinter() { return _printerdev; }
+  bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+  bool getShuttingDown() { return shuttingDown; };
 
 };
 

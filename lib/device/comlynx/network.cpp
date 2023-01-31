@@ -475,7 +475,7 @@ void lynxNetwork::json_query(unsigned short s)
     ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
-    json.setReadQuery(std::string((char *)c, s));
+    json.setReadQuery(std::string((char *)c, s),cmdframe.aux2);
 
     Debug_printf("lynxNetwork::json_query(%s)\n", c);
 

@@ -26,19 +26,30 @@ void KeyManager::setup()
 #else
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NO_BUTTONS */
-#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE)
+#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232)
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NOT LYNX OR A2 */
     // Enable safe reset on Button C if available
     if (fnSystem.get_hardware_ver() >= 2)
     {
-        has_button_c = true;
 #if defined(PINMAP_A2_REV0)
-        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+        /* Check if hardware has SPI fix and thus no safe reset button (has_button_c = false) */
+        if (fnSystem.check_spifix())
+        {
+            has_button_c = false;
+            Debug_println("Safe Reset Button C: DISABLED due to SPI Fix");
+        }
+        else
+        {
+            has_button_c = true;
+            fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+            Debug_println("Safe Reset Button C: ENABLED");
+        }
 #else
+        has_button_c = true;
         fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+        Debug_println("Safe Reset Button C: ENABLED");
 #endif
-        Debug_println("Enabled Safe Reset Button C");
     }
 
     // Start a new task to check the status of the buttons
@@ -59,7 +70,7 @@ bool KeyManager::keyCurrentlyPressed(eKey key)
     return fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW;
 }
 
-/* 
+/*
 There are 3 types of actions we're looking for:
    * LONG_PRESS: User holds button for at least LONGPRESS_TIME
    * SHORT_PRESS: User presses button and releases in less than LONGPRESS_TIME,
@@ -98,7 +109,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
             }
 
         }
-        
+
     }
     // Button is NOT pressed when DIGI_HIGH
     else
@@ -115,7 +126,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
                 // If the last SHORT_PRESS was within DOUBLETAP_DETECT_TIME, immediately return a DOUBLETAP event
                 if(ms - _keys[key].last_tap_ms < DOUBLETAP_DETECT_TIME)
                 {
-                    _keys[key].last_tap_ms = 0; // Reset this so we don't keep counting it                    
+                    _keys[key].last_tap_ms = 0; // Reset this so we don't keep counting it
                     result = eKeyStatus::DOUBLE_TAP;
                 }
                 // Otherwise just store when this event happened so we can check for it later
@@ -134,7 +145,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
                 result = eKeyStatus::SHORT_PRESS;
             }
         }
-        
+
     }
 
     return result;
@@ -148,9 +159,14 @@ void KeyManager::_keystate_task(void *param)
     KeyManager *pKM = (KeyManager *)param;
 
 #if defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232)
+    // No button B onboard
     pKM->_keys[eKey::BUTTON_B].disabled = true;
 #endif
 
+#ifdef BUILD_RS232
+    // No button A onboard
+    pKM->_keys[eKey::BUTTON_A].disabled = true;
+#endif
     while (true)
     {
         vTaskDelay(100 / portTICK_PERIOD_MS);
