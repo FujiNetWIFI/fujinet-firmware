@@ -15,7 +15,7 @@ class iwmCPM : public iwmDevice
 {
 private:
 
-    TaskHandle_t cpmTaskHandle;    
+    TaskHandle_t cpmTaskHandle = NULL;    
 
     void boot();
 

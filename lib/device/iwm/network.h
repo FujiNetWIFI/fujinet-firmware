@@ -151,16 +151,6 @@ public:
 
 private:
     /**
-     * iwmNet Response Buffer
-     */
-    uint8_t response[1024];
-
-    /**
-     * iwmNet Response Length
-     */
-    uint16_t response_len=0;
-
-    /**
      * JSON Object
      */
     FNJSON json;

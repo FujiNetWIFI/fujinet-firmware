@@ -457,7 +457,7 @@ void IRAM_ATTR SystemManager::dac_write(uint8_t pin, uint8_t value)
 {
     if(pin != DAC_CHANNEL_1_GPIO_NUM && pin != DAC_CHANNEL_2_GPIO_NUM)
         return; // Not a DAC pin
-    
+
     dac_channel_t dac_chan = pin == DAC_CHANNEL_1_GPIO_NUM ? DAC_CHANNEL_1 : DAC_CHANNEL_2;
 
     ESP_ERROR_CHECK(dac_output_enable(dac_chan));
@@ -592,7 +592,7 @@ const char *SystemManager::get_hardware_ver_str()
 */
 void SystemManager::check_hardware_ver()
 {
-    int upcheck, downcheck, fixupcheck, fixdowncheck;
+    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck;
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
     fixdowncheck = fnSystem.digital_read(PIN_CARD_DETECT_FIX);
@@ -601,12 +601,42 @@ void SystemManager::check_hardware_ver()
     fixupcheck = fnSystem.digital_read(PIN_CARD_DETECT_FIX);
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-    downcheck = fnSystem.digital_read(12);
+    downcheck = fnSystem.digital_read(PIN_CARD_DETECT);
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-    upcheck = fnSystem.digital_read(12);
+    upcheck = fnSystem.digital_read(PIN_CARD_DETECT);
 
+#ifdef PINMAP_A2_REV0
+    /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset.
+       Apple 2 Rev00 with SPI fix has 10K hardware pullup on IO14.
+       Check for pullup and determine if safe reset button or SPI fix
+    */
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    spifixupcheck = fnSystem.digital_read(PIN_BUTTON_C);
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    spifixdowncheck = fnSystem.digital_read(PIN_BUTTON_C);
+
+    if(spifixdowncheck == spifixupcheck)
+    {
+        a2spifix = true;
+#ifdef MASTERIES_SPI_FIX
+        Debug_println("Masteries SPI fix ENABLED");
+    #ifdef PIN_SD_HOST_MOSI
+    #undef PIN_SD_HOST_MOSI
+    #endif
+    #define PIN_SD_HOST_MOSI GPIO_NUM_14
+#else
+        Debug_println("FujiApple SPI fix ENABLED");
+#endif // MASTERIES_SPI_FIX
+    }
+    else
+    {
+        a2spifix = false;
+        Debug_println("FujiApple SPI fix NOT DETECTED");
+    }
+#else
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+#endif
 
     if(fixupcheck == fixdowncheck)
     {

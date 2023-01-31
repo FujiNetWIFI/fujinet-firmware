@@ -645,6 +645,9 @@ void _Bdos(void) {
 				SIO.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
 			}
 #endif /* BUILD_ATARI */
+#ifdef BUILD_APPLE
+			IWM.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
+#endif /* BUILD_APPLE */
 #ifdef USE_LST
 			if (!lst_open) {
 				lst_dev = _sys_fopen_w((uint8 *)lst_file);
