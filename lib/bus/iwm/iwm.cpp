@@ -545,8 +545,7 @@ void IRAM_ATTR iwmBus::service()
       for (auto devicep : _daisyChain)
       {
 
-        if (command_packet.dest == devicep->_devnum &&
-            devicep->device_active == true)
+        if (command_packet.dest == devicep->_devnum)
 
         {
           // iwm_ack_assert(); // includes waiting for spi read transaction to finish
@@ -637,9 +636,6 @@ void iwmBus::handle_init()
     }
     // assign dev numbers
     pDevice = (*it);
-
-    if (pDevice->device_active == false)
-      continue;
     
     if (pDevice->id() == 0)
     {

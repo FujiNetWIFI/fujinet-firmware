@@ -474,6 +474,8 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
   // Destroy any existing MediaType
   if (_disk != nullptr)
   {
+    device_active = false;
+    _disk->unmount();
     delete _disk;
     _disk = nullptr;
   }
@@ -490,6 +492,8 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         switched = true;
         _disk = new MediaTypePO();
         mt = _disk->mount(f, disksize);
+        device_active = true; //change status only after we are mounted
+        switched = true;
         //_disk->fileptr() = f;
         // mt = MEDIATYPE_PO;
         break;
