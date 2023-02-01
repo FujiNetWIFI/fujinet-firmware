@@ -468,7 +468,7 @@ void _Bios(void) {
 			SET_HIGH_REGISTER(AF, _getch());
 #ifdef DEBUG
 			if (HIGH_REGISTER(AF) == 4) {
-				Debug = 1;
+				Debug = 0;
 			}
 #endif // ifdef DEBUG
 			break;
