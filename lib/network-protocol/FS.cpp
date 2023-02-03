@@ -86,6 +86,9 @@ bool NetworkProtocolFS::open_dir()
         if (aux2_open & 0x80)
         {
             // Long entry
+            if (aux2_open == 0x81) // Apple2 80 col format.
+                dirBuffer += util_long_entry_apple2_80col(string(entryBuffer), fileSize, is_directory) + "\n";
+            else
             dirBuffer += util_long_entry(string(entryBuffer), fileSize, is_directory) + "\x9b";
         }
         else
