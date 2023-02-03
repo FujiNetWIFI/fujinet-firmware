@@ -275,6 +275,48 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
     return returned_entry;
 }
 
+const char *apple2_folder_icon(bool is_folder)
+{
+    if (is_folder)
+        return "\xD7\xD8";
+    else
+        return "  ";
+}
+
+char apple2_fn[73];
+
+const char *apple2_filename(std::string filename)
+{
+    util_ellipsize(filename.c_str(),apple2_fn,70);
+    return apple2_fn;
+}
+
+char apple2_fs[6];
+
+const char *apple2_filesize(size_t fileSize)
+{
+    unsigned short fs = fileSize / 512;
+    itoa(fs,apple2_fs,10);
+    return apple2_fs;
+}
+
+std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, bool is_dir)
+{
+    std::string returned_entry;
+    std::string stylized_filesize;
+
+    char tmp[80];
+    memset(tmp,0,sizeof(tmp));
+
+    sprintf(tmp,"%s %-70s %s\n",
+    apple2_folder_icon(is_dir),
+    apple2_filename(filename),
+    apple2_filesize(fileSize));
+
+    returned_entry = string(tmp,80);
+    return returned_entry;
+}
+
 /* Shortens the source string by splitting it in to shorter halves connected by "..." if it won't fit in the destination buffer.
    Returns number of bytes copied into buffer.
 */
