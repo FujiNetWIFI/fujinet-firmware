@@ -278,7 +278,7 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 const char *apple2_folder_icon(bool is_folder)
 {
     if (is_folder)
-        return "\xD7\xD8";
+        return "\xD8\xD9";
     else
         return "  ";
 }
@@ -287,7 +287,7 @@ char apple2_fn[73];
 
 const char *apple2_filename(std::string filename)
 {
-    util_ellipsize(filename.c_str(),apple2_fn,70);
+    util_ellipsize(filename.c_str(),apple2_fn,68);
     return apple2_fn;
 }
 
@@ -300,15 +300,16 @@ const char *apple2_filesize(size_t fileSize)
     return apple2_fs;
 }
 
+char tmp[81];
+
 std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, bool is_dir)
 {
     std::string returned_entry;
     std::string stylized_filesize;
 
-    char tmp[80];
     memset(tmp,0,sizeof(tmp));
 
-    sprintf(tmp,"%s %-70s %s\n",
+    sprintf(tmp,"%s %-70s %5s",
     apple2_folder_icon(is_dir),
     apple2_filename(filename),
     apple2_filesize(fileSize));
