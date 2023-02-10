@@ -30,13 +30,13 @@
 // External ref to fuji object.
 extern cx16Fuji theFuji;
 
-sioDisk::sioDisk()
+cx16Disk::cx16Disk()
 {
     device_active = false;
 }
 
 // Read disk data and send to computer
-void sioDisk::sio_read()
+void cx16Disk::sio_read()
 {
     // Debug_print("disk READ\n");
 
@@ -55,19 +55,19 @@ void sioDisk::sio_read()
 }
 
 // Write disk data from computer
-void sioDisk::sio_write(bool verify)
+void cx16Disk::sio_write(bool verify)
 {
     // TODO IMPLEMENT
 }
 
 // Status
-void sioDisk::status()
+void cx16Disk::status()
 {
     // TODO IMPLEMENT
 }
 
 // Disk format
-void sioDisk::sio_format()
+void cx16Disk::sio_format()
 {
     // TODO IMPLEMENT
 }
@@ -79,20 +79,20 @@ void sioDisk::sio_format()
    then we assume it's MEDIATYPE_ATR.
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t cx16Disk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     return MEDIATYPE_UNKNOWN;
 }
 
 // Destructor
-sioDisk::~sioDisk()
+cx16Disk::~cx16Disk()
 {
     if (_disk != nullptr)
         delete _disk;
 }
 
 // Unmount disk file
-void sioDisk::unmount()
+void cx16Disk::unmount()
 {
     Debug_print("disk UNMOUNT\n");
 
@@ -104,13 +104,13 @@ void sioDisk::unmount()
 }
 
 // Create blank disk
-bool sioDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
+bool cx16Disk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
     return true;
 }
 
 // Process command
-void sioDisk::process(uint32_t commanddata, uint8_t checksum)
+void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
 {
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;

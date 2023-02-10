@@ -5,7 +5,7 @@
 #include "bus.h"
 #include "media.h"
 
-class sioDisk : public virtualDevice
+class cx16Disk : public virtualDevice
 {
 private:
     MediaType *_disk = nullptr;
@@ -17,7 +17,7 @@ private:
     void process(uint32_t commanddata, uint8_t checksum) override;
 
 public:
-    sioDisk();
+    cx16Disk();
     fujiHost *host;
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
@@ -25,7 +25,7 @@ public:
 
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
-    ~sioDisk();
+    ~cx16Disk();
 };
 
 #endif
