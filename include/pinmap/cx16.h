@@ -44,4 +44,8 @@
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
 
+/* CX16 I²C */
+#define PIN_SDA 21
+#define PIN_SCL 22
+
 #endif /* PINMAP_ATARIV1 */
