@@ -37,6 +37,10 @@
 
 #define CX16_DEVICEID_CPM 0x5A
 
+#define I2C_SLAVE_TX_BUF_LEN 255 
+#define I2C_SLAVE_RX_BUF_LEN 255 
+#define I2C_DEVICE_ID 0x70
+
 /**
  * @var The command frame
  */
@@ -213,6 +217,11 @@ private:
      * @var is device shutting down?
     */
     bool shuttingDown = false;
+
+    /**
+     * @var i2c slave port
+     */
+    int i2c_slave_port = 0;
 
     /**
      * @brief called to process the next command
