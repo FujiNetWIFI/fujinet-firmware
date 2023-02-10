@@ -6,6 +6,37 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
+#define CX16_DEVICEID_DISK 0x31
+#define CX16_DEVICEID_DISK_LAST 0x3F
+
+#define CX16_DEVICEID_PRINTER 0x40
+#define CX16_DEVICEID_PRINTER_LAST 0x43
+
+#define CX16_DEVICEID_FN_VOICE 0x43
+
+#define CX16_DEVICEID_APETIME 0x45
+
+#define CX16_DEVICEID_TYPE3POLL 0x4F
+
+#define CX16_DEVICEID_RS232 0x50
+#define CX16_DEVICEID_RS2323_LAST 0x53
+
+#define CX16_DEVICEID_CASSETTE 0x5F
+
+#define CX16_DEVICEID_FUJINET 0x70
+#define CX16_DEVICEID_FN_NETWORK 0x71
+#define CX16_DEVICEID_FN_NETWORK_LAST 0x78
+
+#define CX16_DEVICEID_MIDI 0x99
+
+#define CX16_DEVICEID_SIO2BT_NET 0x4E
+#define CX16_DEVICEID_SIO2BT_SMART 0x45 // Doubles as APETime and "High Score Submission" to URL
+#define CX16_DEVICEID_APE 0x45
+#define CX16_DEVICEID_ASPEQT 0x46
+#define CX16_DEVICEID_PCLINK 0x6F
+
+#define CX16_DEVICEID_CPM 0x5A
+
 /**
  * @var The command frame
  */
@@ -33,6 +64,11 @@ union cmdFrame_t
  * @return the 8-bit checksum value
  */
 uint8_t cx16_checksum(uint8_t *buf, unsigned short len);
+
+/**
+ * @class Forward declaration of System Bus
+ */
+class systemBus;
 
 /**
  * @class virtualDevice
@@ -147,7 +183,7 @@ public:
     /**
      * @brief Get the systemBus object that this virtualDevice is attached to.
      */
-    systemBus get_bus() { return CX16; };
+    systemBus get_bus();
 };
 
 /**

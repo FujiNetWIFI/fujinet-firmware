@@ -47,6 +47,12 @@ void virtualDevice::cx16_error()
     // TODO IMPLEMENT
 }
 
+systemBus virtualDevice::get_bus()
+{
+    return CX16;
+}
+
+
 void systemBus::process_cmd()
 {
     // TODO IMPLEMENT
@@ -128,5 +134,7 @@ void systemBus::shutdown()
     }
     Debug_printf("All devices shut down.\n");
 }
+
+systemBus CX16;
 
 #endif /* BUILD_CX16 */
