@@ -47,4 +47,8 @@
 # include "new/mediaTypeROM.h"
 #endif
 
+#ifdef BUILD_CX16
+#include "cx16/mediaType.h"
+#endif
+
 #endif // MEDIA_H

@@ -107,4 +107,15 @@
     bool exists = false;
 #endif
 
+#ifdef BUILD_CX16
+# include "cx16_i2c/disk.h"
+# include "cx16_i2c/modem.h"
+//# include "cx16_i2c/network.h"
+# include "cx16_i2c/printer.h"
+# include "cx16_i2c/printerlist.h"
+# include "cx16_i2c/fuji.h"
+
+    cx16Modem *sioR;
+#endif
+
 #endif // DEVICE_H
