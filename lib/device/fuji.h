@@ -33,5 +33,8 @@
 # include "iwm/fuji.h"
 #endif
 
+#ifdef BUILD_CX16
+#include "cx16_i2c/fuji.h"
+#endif
 
 #endif // DEVICE_FUJI_H
