@@ -1,9 +1,11 @@
 #ifdef BUILD_CX16
 
+#include <cstring>
 #include "cx16_i2c.h"
 #include "../../include/debug.h"
 #include "driver/i2c.h"
 #include "../../include/pinmap.h"
+#include "led.h"
 
 uint8_t cx16_checksum(uint8_t *buf, unsigned short len)
 {
@@ -54,10 +56,47 @@ systemBus virtualDevice::get_bus()
     return CX16;
 }
 
+uint8_t systemBus::get_byte()
+{
+    i2c_reset_rx_fifo(i2c_slave_port);
+    i2c_reset_tx_fifo(i2c_slave_port);
+    while (!(i2c_slave_read_buffer(i2c_slave_port,i2c_buffer,I2C_SLAVE_RX_BUF_LEN,400/portTICK_PERIOD_MS)));
+    i2c_reset_rx_fifo(i2c_slave_port);
+    i2c_reset_tx_fifo(i2c_slave_port);
+    return i2c_buffer[0];
+}
 
 void systemBus::process_cmd()
 {
-    // TODO IMPLEMENT
+    cmdFrame_t tempFrame;
+
+    fnLedManager.set(eLed::LED_BUS, true);
+    
+    tempFrame.device = i2c_buffer[0];
+    tempFrame.comnd = get_byte();
+    tempFrame.aux1 = get_byte();
+    tempFrame.aux2 = get_byte();
+    tempFrame.cksum = get_byte();
+
+    Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
+                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+
+    uint8_t ck = cx16_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
+
+    if (ck != tempFrame.checksum)
+    {
+        Debug_print("CHECKSUM ERROR.");
+        fnLedManager.set(eLed::LED_BUS, false);
+        return;
+    }
+
+    // Find device, and pass control to it, otherwise do nothing.
+    virtualDevice *d = deviceById(tempFrame.device);
+
+    if (d)
+        d->process(tempFrame.commanddata,tempFrame.checksum);
+
+    fnLedManager.set(eLed::LED_BUS, false);
 }
 
 void systemBus::process_queue()
@@ -67,7 +106,17 @@ void systemBus::process_queue()
 
 void systemBus::service()
 {
-    // TODO IMPLEMENT
+    int command_available=false;
+
+    // TESTING
+    memset(i2c_buffer,0,sizeof(i2c_buffer));
+    command_available=i2c_slave_read_buffer(i2c_slave_port,i2c_buffer,I2C_SLAVE_RX_BUF_LEN,400/portTICK_PERIOD_MS);
+    
+    if (command_available)
+        process_cmd();
+
+    i2c_reset_rx_fifo(i2c_slave_port);
+    i2c_reset_tx_fifo(i2c_slave_port);
 }
 
 void systemBus::setup()
