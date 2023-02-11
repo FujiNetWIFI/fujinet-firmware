@@ -743,14 +743,17 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 {
   uint8_t states = 0;
 
-  // Temporary while we debug Disk ][
+  // only enable diskII if we are either not on an en35 capable host, or we are on an en35host and /EN35=high
+  if (!IWM.en35Host || (IWM.en35Host && (GPIO.in1.val & (0x01 << (SP_EN35 - 32)))))
+  {
+    // Temporary while we debug Disk ][
 #ifdef DISKII_DRIVE1
-  states |= !((GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32));
+    states |= !((GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32));
 #endif
 #ifdef DISKII_DRIVE2
-  states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
+    states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
 #endif
-
+  }
   return states;
 }
 
