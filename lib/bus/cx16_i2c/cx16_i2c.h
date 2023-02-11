@@ -219,9 +219,20 @@ private:
     bool shuttingDown = false;
 
     /**
-     * @var i2c slave port
+     * @var I²C slave port
      */
     int i2c_slave_port = 0;
+
+    /**
+     * @var I²C receive buffer
+     */
+    uint8_t i2c_buffer[I2C_SLAVE_RX_BUF_LEN];
+
+    /**
+     * @brief Get a byte from I²C
+     * @return byte from I²C
+     */
+    uint8_t get_byte();
 
     /**
      * @brief called to process the next command
