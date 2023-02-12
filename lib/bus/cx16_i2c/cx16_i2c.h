@@ -5,6 +5,7 @@
 #include <forward_list>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <utility>
 
 #define CX16_DEVICEID_DISK 0x31
 #define CX16_DEVICEID_DISK_LAST 0x3F
@@ -40,6 +41,41 @@
 #define I2C_SLAVE_TX_BUF_LEN 255 
 #define I2C_SLAVE_RX_BUF_LEN 255 
 #define I2C_DEVICE_ID 0x70
+
+/**
+ * | Address | R/W | Description
+ * |---      |---  |---
+ * | 0       | W   | Device ID
+ * | 1       | W   | Command 
+ * | 2       | W   | Aux1 
+ * | 3       | W   | Aux2 
+ * | 4       | W   | Checksum of addresses 0-3
+ * | 5       | R   | (A)CK/(N)ACK
+ * | 6       | R   | (C)OMPLETE/(E)RROR
+ * | 7       | R/W | Payload Length (LO)
+ * | 8       | R/W | Payload Length (HI)
+ * | 9       | R/W | Payload Data (auto-increment) 
+ * 
+ * Any write to address 0 will zero out all other addresses.
+ * Read to address 0 to perform command
+ * 
+ * So the sequence to perform a command to the fujinet:
+ * 
+ * 1. Write addresses 0-4 for command frame.
+ * 2. if a write payload is needed, write length lo/hi, then write payload data for # of bytes in length
+ * 3. READ from address 0 to perform command.
+ * 4. Check ACK/NAK
+ * 5. Check COMPLETE/ERROR
+ * 
+ * Alternatively, to perform a command from fujinet to the CX16:
+ * 
+ * 1. Write addresses 0-4 for the command frame.
+ * 2. If a read payload is expected, write length lo/hi.
+ * 3. READ from address 0 to perform command.
+ * 4. Check ACK/NAK
+ * 5. Check COMPLETE/ERROR
+ * 6. If payload expected, read Payload Data for as many expected bytes.
+ */
 
 /**
  * @var The command frame
@@ -229,10 +265,27 @@ private:
     uint8_t i2c_buffer[I2C_SLAVE_RX_BUF_LEN];
 
     /**
-     * @brief Get a byte from I²C
-     * @return byte from I²C
+     * @var I²C receive buffer length
      */
-    uint8_t get_byte();
+    int i2c_buffer_len=0;
+
+    /**
+     * @var I²C receive buffer offset
+     */
+    uint8_t i2c_buffer_off=0;
+
+    /**
+     * @var I²C register storage
+     */
+    uint8_t i2c_register[16];
+
+    /**
+     * @brief Get next address and byte from I²C
+     * @param addr Pointer to address variable
+     * @param val Pointer to value variable
+     * @return true if we got an address/val, false otherwise.
+     */
+    bool get_i2c(uint8_t *addr, uint8_t *val);
 
     /**
      * @brief called to process the next command
@@ -249,6 +302,16 @@ public:
      * @brief called in main.cpp to set up the bus.
      */
     void setup();
+
+    /**
+     * @brief called to handle read from address
+     */
+    void address_read(uint8_t addr);
+
+    /**
+     * @brief called to handle write to address
+     */
+    void address_write(uint8_t addr, uint8_t val);
 
     /**
      * @brief Run one iteration of the bus service loop
