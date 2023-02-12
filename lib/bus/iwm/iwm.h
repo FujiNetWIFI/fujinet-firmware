@@ -363,6 +363,9 @@ public:
  
   // these things stay for the most part
   void setup();
+  #ifdef RMTTEST
+  void rmttest();
+  #endif
   void service();
   void shutdown();
 

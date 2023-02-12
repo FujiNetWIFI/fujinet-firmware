@@ -15,6 +15,10 @@
 #include "../device/iwm/cpm.h"
 #include "../device/iwm/clock.h"
 
+#ifdef RMTTEST
+#include "driver/rmt.h"
+#endif
+
 /******************************************************************************
 Based on:
 Apple //c Smartport Compact Flash adapter
@@ -240,6 +244,124 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
   portENABLE_INTERRUPTS();
   return true;
 }
+
+
+#ifdef RMTTEST
+
+#define RMT_TX_CHANNEL RMT_CHANNEL_0
+#define RMT_TX_GPIO 18
+#define SAMPLE_CNT  (10)
+
+//Convert uint8_t type of data to rmt format data.
+static void IRAM_ATTR u8_to_rmt(const void* src, rmt_item32_t* dest, size_t src_size, 
+                         size_t wanted_num, size_t* translated_size, size_t* item_num)
+{
+    if(src == NULL || dest == NULL) {
+        *translated_size = 0;
+        *item_num = 0;
+        return;
+    }
+    const rmt_item32_t bit0 = {{{ 120, 0, 40, 1}}}; //Logical 0
+    const rmt_item32_t bit1 = {{{ 120, 0, 40, 0 }}}; //Logical 1
+    size_t size = 0;
+    size_t num = 0;
+    uint8_t *psrc = (uint8_t *)src;
+    rmt_item32_t* pdest = dest;
+    while (size < src_size && num < wanted_num) {
+        for(int i = 0; i < 8; i++) {
+            if(*psrc & (0x1 << i)) {
+                pdest->val =  bit1.val; 
+            } else {
+                pdest->val =  bit0.val;
+            }
+            num++;
+            pdest++;
+        }
+        size++;
+        psrc++;
+    }
+    *translated_size = size;
+    *item_num = num;
+}
+
+/*
+ * Initialize the RMT Tx channel
+ */
+static void rmt_tx_int()
+{
+    rmt_config_t config;
+    config.rmt_mode = RMT_MODE_TX;
+    config.channel = RMT_TX_CHANNEL;
+    config.gpio_num = gpio_num_t::GPIO_NUM_21; // SP_EXTRA was RMT_TX_GPIO;
+    config.mem_block_num = 2;
+    config.tx_config.loop_en = 0;
+    // enable the carrier to be able to hear the Morse sound
+    // if the RMT_TX_GPIO is connected to a speaker
+    config.tx_config.carrier_en = 0;
+    config.tx_config.idle_output_en = 1;
+    config.tx_config.idle_level = rmt_idle_level_t::RMT_IDLE_LEVEL_LOW ;
+    //config.tx_config.carrier_duty_percent = 50;
+    // set audible career frequency of 611 Hz
+    // actually 611 Hz is the minimum, that can be set
+    // with current implementation of the RMT API
+    // config.tx_config.carrier_freq_hz = 1000*1000;
+    // config.tx_config.carrier_level = rmt_carrier_level_t::RMT_CARRIER_LEVEL_HIGH;
+    // set the maximum clock divider to be able to output
+    // RMT pulses in range of about one hundred milliseconds
+
+    // https://github.com/espressif/esp-idf/issues/10462 - doesn't seem to matter what clock and period i choose
+    config.clk_div = 2;
+
+    ESP_ERROR_CHECK(rmt_config(&config));
+    // ESP_ERROR_CHECK(rmt_set_source_clk(config.channel, rmt_source_clk_t::RMT_BASECLK_REF));
+    ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, 0));
+    ESP_ERROR_CHECK(rmt_translator_init(config.channel, u8_to_rmt));
+}
+
+void IRAM_ATTR iwmBus::rmttest(void)
+{
+// static const char *RMT_TX_TAG = "RMT Tx";
+
+/*
+ * Prepare a raw table with a message in the Morse code
+ *
+ * The message is "ESP" : . ... .--.
+ *
+ * The table structure represents the RMT item structure:
+ * {duration, level, duration, level}
+ *
+ */
+const uint16_t N = 100;
+rmt_item32_t items[N];
+for (int i=1; i<(N-2); i+=2)
+{
+  items[i] = {{{120, 0, 40, 0}}};
+  items[i+1] = {{{120, 0, 40, 1}}};
+}
+items[0] = {{{ 80, 0, 80, 1}}};
+items[N-1] = {{{0, 0, 0, 0}}};
+
+    Debug_println("Configuring transmitter");
+    rmt_tx_int();
+    int number_of_items = sizeof(items) / sizeof(items[0]);
+    // const uint8_t sample[SAMPLE_CNT] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    Debug_printf("\nSending %d items", number_of_items);
+
+    while (1) {
+        ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, items, number_of_items-1, false));
+        ESP_ERROR_CHECK(rmt_set_tx_intr_en(RMT_TX_CHANNEL, false)); // https://github.com/espressif/esp-idf/issues/4664#issuecomment-586707777
+        ESP_ERROR_CHECK(rmt_set_tx_loop_mode(RMT_TX_CHANNEL, true));
+        while (1)
+            ;
+        Debug_println("Transmission complete");
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+        // ESP_ERROR_CHECK(rmt_write_sample(RMT_TX_CHANNEL, sample, SAMPLE_CNT, true));
+        // Debug_println("Sample transmission complete");
+        // vTaskDelay(2000 / portTICK_PERIOD_MS);
+    }
+}
+
+#endif
 
 void iwmBus::setup(void)
 {
