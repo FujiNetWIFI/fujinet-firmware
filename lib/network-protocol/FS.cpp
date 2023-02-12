@@ -86,6 +86,9 @@ bool NetworkProtocolFS::open_dir()
         if (aux2_open & 0x80)
         {
             // Long entry
+            if (aux2_open == 0x81) // Apple2 80 col format.
+                dirBuffer += util_long_entry_apple2_80col(string(entryBuffer), fileSize, is_directory) + "\x9b";
+            else
             dirBuffer += util_long_entry(string(entryBuffer), fileSize, is_directory) + "\x9b";
         }
         else
@@ -96,8 +99,10 @@ bool NetworkProtocolFS::open_dir()
         fserror_to_error();
     }
 
+#ifdef BUILD_ATARI
     // Finally, drop a FREE SECTORS trailer.
     dirBuffer += "999+FREE SECTORS\x9b";
+#endif /* BUILD_ATARI */
 
     if (error == NETWORK_ERROR_END_OF_FILE)
         error = NETWORK_ERROR_SUCCESS;
