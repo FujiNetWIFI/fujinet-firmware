@@ -286,6 +286,8 @@ protected:
 
 public:
   bool device_active;
+  //eject_latch allows simulation of an empty drive momentarily on disk mounts
+  bool eject_latch = false; 
   bool switched = false; //indicate disk switched condition
   bool readonly = true;  //write protected 
   bool is_config_device;
