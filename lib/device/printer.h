@@ -49,4 +49,10 @@
 # define PRINTER_CLASS iwmPrinter
 #endif
 
+#ifdef BUILD_CX16
+#include "cx16_i2c/printer.h"
+#include "cx16_i2c/printerlist.h"
+#define PRINTER_CLASS cx16Printer
+#endif
+
 #endif // DEVICE_PRINTER_H

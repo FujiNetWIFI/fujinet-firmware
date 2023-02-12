@@ -47,6 +47,7 @@ unsigned char util_checksum(const char *chunk, int length);
 std::string util_crunch(std::string filename);
 std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked);
 std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir);
+std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, bool is_dir);
 int util_ellipsize(const char* src, char *dst, int dstsize);
 //std::string util_ellipsize(std::string longString, int maxLength);
 bool util_wildcard_match(const char *str, const char *pattern);
