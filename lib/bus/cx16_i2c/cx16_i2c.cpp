@@ -33,22 +33,22 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 
 void virtualDevice::cx16_nak()
 {
-    // TODO IMPLEMENT
+    CX16.address_write(5,'N');
 }
 
 void virtualDevice::cx16_ack()
 {
-    // TODO IMPLEMENT
+    CX16.address_write(5,'A');
 }
 
 void virtualDevice::cx16_complete()
 {
-    // TODO IMPLEMENT
+    CX16.address_write(6,'C');
 }
 
 void virtualDevice::cx16_error()
 {
-    // TODO IMPLEMENT
+    CX16.address_write(5,'E');
 }
 
 systemBus virtualDevice::get_bus()
