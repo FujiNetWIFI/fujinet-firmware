@@ -215,6 +215,7 @@ int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8
 
 bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 {
+  memset(data, 0, n);
   int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
   Debug_printf("\r\nAttempting to receive %d length packet", nn);
   portDISABLE_INTERRUPTS();
