@@ -643,10 +643,10 @@ void iwmBus::handle_init()
     }
     // assign dev numbers
     pDevice = (*it);
-    
+    pDevice->switched = false; //reset switched condition on init
+    pDevice->eject_latch = false; //reset eject latch on init
     if (pDevice->id() == 0)
     {
-      pDevice->switched = false; //reset switched condition on init
       pDevice->_devnum = command_packet.dest; // assign address
       if (++it == _daisyChain.end())
         status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
