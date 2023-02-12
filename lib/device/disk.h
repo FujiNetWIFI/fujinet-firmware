@@ -41,6 +41,9 @@
 # define DEVICE_TYPE adamDisk
 #endif
 
-
+#ifdef BUILD_CX16
+#include "cx16_i2c/disk.h"
+#define DEVICE_TYPE cx16Disk
+#endif
 
 #endif // DEVICE_DISK_H
