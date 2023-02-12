@@ -81,13 +81,6 @@ public:
     IPAddress& operator=(uint32_t address);
 
     std::string toString() const;
-
-    friend class EthernetClass;
-    friend class UDP;
-    friend class Client;
-    friend class Server;
-    friend class DhcpClass;
-    friend class DNSClient;
 };
 
 // changed to extern because const declaration creates copies in BSS of INADDR_NONE for each CPP unit that includes it

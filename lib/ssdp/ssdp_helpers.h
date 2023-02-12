@@ -24,24 +24,22 @@ bool compare_char_insensitive(char &c1, char &c2)
     return false;
 }
 
-
-
-    bool equals(const char* a, const char *b, bool case_sensitive = true)
+bool equals(const char* a, const char *b, bool case_sensitive = true)
+{
+    int la = strlen(a);
+    int lb = strlen(b);
+    if(la != lb) return false;
+    for(lb = 0; lb < la; lb++)
     {
-        int la = strlen(a);
-        int lb = strlen(b);
-        if(la != lb) return false;
-        for(lb = 0; lb < la; lb++)
-        {
-            char aa = a[lb];
-            char bb = b[lb];
+        char aa = a[lb];
+        char bb = b[lb];
 
-            if(case_sensitive && !compare_char(aa, bb))
-                return false;
-            else if(!case_sensitive && !compare_char_insensitive(aa, bb))
-                return false;
-        }
-        return true;
+        if(case_sensitive && !compare_char(aa, bb))
+            return false;
+        else if(!case_sensitive && !compare_char_insensitive(aa, bb))
+            return false;
     }
+    return true;
+}
 
 #endif // SSDP_HELPERS_H
