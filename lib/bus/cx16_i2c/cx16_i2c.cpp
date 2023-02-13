@@ -33,21 +33,25 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 
 void virtualDevice::cx16_nak()
 {
+    Debug_println("NAK!");
     CX16.address_write(5,'N');
 }
 
 void virtualDevice::cx16_ack()
 {
+    Debug_println("ACK!");
     CX16.address_write(5,'A');
 }
 
 void virtualDevice::cx16_complete()
 {
+    Debug_println("COMPLETE!");
     CX16.address_write(6,'C');
 }
 
 void virtualDevice::cx16_error()
 {
+    Debug_println("ERROR!");
     CX16.address_write(5,'E');
 }
 
@@ -56,9 +60,35 @@ systemBus virtualDevice::get_bus()
     return CX16;
 }
 
-bool systemBus::get_i2c(uint8_t *addr, uint8_t *val)
+void systemBus::address_read(uint8_t addr)
 {
-    return false;
+    if (addr < sizeof(i2c_register))
+    {
+        Debug_printf("address_read(%u) = '%02X'\n", addr, i2c_register[addr]);
+        i2c_buffer[0] = i2c_register[addr];
+        i2c_slave_write_buffer(i2c_slave_port, i2c_buffer, 1, 1 / portTICK_PERIOD_MS);
+
+        if (addr == 0x00)
+            process_cmd();
+    }
+}
+
+void systemBus::address_write(uint8_t addr, uint8_t val)
+{
+    if (addr < sizeof(i2c_register))
+    {
+        Debug_printf("address_write(%u) = '%02X'\n", addr, val);
+        i2c_register[addr] = val;
+
+        if (addr == 0x00)
+            memset(&i2c_register[1],0,15); // Clear all other registers
+    }
+}
+
+void systemBus::payload_add(uint8_t *buf, uint16_t len)
+{
+    std::string newPayload = std::string((const char*)buf,len);
+    i2c_payload += newPayload;
 }
 
 void systemBus::process_cmd()
@@ -106,28 +136,6 @@ void systemBus::process_cmd()
 void systemBus::process_queue()
 {
     // TODO IMPLEMENT
-}
-
-void systemBus::address_read(uint8_t addr)
-{
-    if (addr < sizeof(i2c_register))
-    {
-        Debug_printf("address_read(%u) = '%02X'\n", addr, i2c_register[addr]);
-        i2c_buffer[0] = i2c_register[addr];
-        i2c_slave_write_buffer(i2c_slave_port, i2c_buffer, 1, 1 / portTICK_PERIOD_MS);
-
-        if (addr == 0x00)
-            process_cmd();
-    }
-}
-
-void systemBus::address_write(uint8_t addr, uint8_t val)
-{
-    if (addr < sizeof(i2c_register))
-    {
-        Debug_printf("address_write(%u) = '%02X'\n", addr, val);
-        i2c_register[addr] = val;
-    }
 }
 
 void systemBus::service()
