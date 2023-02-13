@@ -6,6 +6,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <utility>
+#include <string>
 
 #define CX16_DEVICEID_DISK 0x31
 #define CX16_DEVICEID_DISK_LAST 0x3F
@@ -78,7 +79,7 @@
  */
 
 /**
- * @var The command frame
+ * @brief The command frame
  */
 union cmdFrame_t
 {
@@ -120,17 +121,17 @@ protected:
     friend systemBus; /* Because we connect to it. */
 
     /**
-     * @var The device number (ID)
+     * @brief The device number (ID)
      */
     int _devnum;
 
     /**
-     * @var The passed in command frame, copied.
+     * @brief The passed in command frame, copied.
      */
     cmdFrame_t cmdFrame;     
 
     /**
-     * @var Message queue
+     * @brief Message queue
      */
     QueueHandle_t qMessages = nullptr;
 
@@ -234,58 +235,59 @@ class systemBus
 {
 private:
     /**
-     * @var The chain of devices on the bus.
+     * @brief The chain of devices on the bus.
      */
     std::forward_list<virtualDevice *> _daisyChain;
 
     /**
-     * @var Number of devices on bus
+     * @brief Number of devices on bus
      */
     int _num_devices = 0;
 
     /**
-     * @var the active device being process()'ed
+     * @brief the active device being process()'ed
      */
     virtualDevice *_activeDev = nullptr;
 
 
     /**
-     * @var is device shutting down?
+     * @brief is device shutting down?
     */
     bool shuttingDown = false;
 
     /**
-     * @var I²C slave port
+     * @brief I²C slave port
      */
     int i2c_slave_port = 0;
 
     /**
-     * @var I²C receive buffer
+     * @brief I²C receive buffer
      */
     uint8_t i2c_buffer[I2C_SLAVE_RX_BUF_LEN];
 
     /**
-     * @var I²C receive buffer length
+     * @brief I²C receive buffer length
      */
     int i2c_buffer_len=0;
 
     /**
-     * @var I²C receive buffer offset
+     * @brief I²C receive buffer offset
      */
     uint8_t i2c_buffer_off=0;
 
     /**
-     * @var I²C register storage
+     * @brief I²C register storage
      */
     uint8_t i2c_register[16];
 
     /**
-     * @brief Get next address and byte from I²C
-     * @param addr Pointer to address variable
-     * @param val Pointer to value variable
-     * @return true if we got an address/val, false otherwise.
+     * @brief I²C payload storage
      */
-    bool get_i2c(uint8_t *addr, uint8_t *val);
+    std::string i2c_payload;
+
+    /**
+     * @brief I²C payload auto-increment counter.
+     */
 
     /**
      * @brief called to process the next command
@@ -312,6 +314,11 @@ public:
      * @brief called to handle write to address
      */
     void address_write(uint8_t addr, uint8_t val);
+
+    /**
+     * @brief called to add to payload
+     */
+    void payload_add(uint8_t *buf, uint16_t len);
 
     /**
      * @brief Run one iteration of the bus service loop
@@ -364,7 +371,7 @@ public:
 };
 
 /**
- * @var Return
+ * @brief Return
  */
 extern systemBus CX16;
 
