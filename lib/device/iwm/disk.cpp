@@ -492,10 +492,9 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
     {
     case MEDIATYPE_PO:
         Debug_printf("\r\nMedia Type PO");
-        device_active = true;
-        //switched = true;
         _disk = new MediaTypePO();
         mt = _disk->mount(f, disksize);
+        switched = true;
         device_active = true; //change status only after we are mounted
         //_disk->fileptr() = f;
         // mt = MEDIATYPE_PO;
