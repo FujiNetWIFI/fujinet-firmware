@@ -310,7 +310,7 @@ static void rmt_tx_int()
     // RMT pulses in range of about one hundred milliseconds
 
     // https://github.com/espressif/esp-idf/issues/10462 - doesn't seem to matter what clock and period i choose
-    config.clk_div = 2;
+    config.clk_div = 1;
 
     ESP_ERROR_CHECK(rmt_config(&config));
     // ESP_ERROR_CHECK(rmt_set_source_clk(config.channel, rmt_source_clk_t::RMT_BASECLK_REF));
@@ -335,10 +335,10 @@ const uint16_t N = 100;
 rmt_item32_t items[N];
 for (int i=1; i<(N-2); i+=2)
 {
-  items[i] = {{{120, 0, 40, 0}}};
-  items[i+1] = {{{120, 0, 40, 1}}};
+  items[i] = {{{240, 0, 80, 0}}};
+  items[i+1] = {{{240, 0, 80, 1}}};
 }
-items[0] = {{{ 80, 0, 80, 1}}};
+items[0] = {{{ 160, 0, 160, 1}}};
 items[N-1] = {{{0, 0, 0, 0}}};
 
     Debug_println("Configuring transmitter");
