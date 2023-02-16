@@ -17,6 +17,10 @@
 
 #ifdef RMTTEST
 #include "driver/rmt.h"
+
+#define MHZ (1000*1000)
+#define RMT_USEC (APB_CLK_FREQ / MHZ)
+
 #endif
 
 /******************************************************************************
@@ -335,10 +339,10 @@ const uint16_t N = 100;
 rmt_item32_t items[N];
 for (int i=1; i<(N-2); i+=2)
 {
-  items[i] = {{{240, 0, 80, 0}}};
-  items[i+1] = {{{240, 0, 80, 1}}};
+  items[i] = {{{3 * RMT_USEC, 0, RMT_USEC, 0}}};
+  items[i+1] = {{{3 * RMT_USEC, 0, RMT_USEC, 1}}};
 }
-items[0] = {{{ 160, 0, 160, 1}}};
+items[0] = {{{ 2 * RMT_USEC, 0, 2 * RMT_USEC, 1}}};
 items[N-1] = {{{0, 0, 0, 0}}};
 
     Debug_println("Configuring transmitter");
