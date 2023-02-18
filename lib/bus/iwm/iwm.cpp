@@ -254,10 +254,21 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 
 #define RMT_TX_CHANNEL RMT_CHANNEL_0
 #define RMT_TX_GPIO 18
-#define SAMPLE_CNT  (10)
+#define SAMPLE_CNT  (11)
+
+volatile int ctr = 0;
+
+void IRAM_ATTR rmt_isr_handler(void *arg)
+{
+  //read RMT interrupt status.
+  uint32_t intr_st = RMT.int_st.val;
+  ctr += 50;
+  //clear RMT interrupt status.
+  RMT.int_clr.val = intr_st;
+}
 
 //Convert uint8_t type of data to rmt format data.
-static void IRAM_ATTR u8_to_rmt(const void* src, rmt_item32_t* dest, size_t src_size, 
+static void IRAM_ATTR u8_to_gcr(const void* src, rmt_item32_t* dest, size_t src_size, 
                          size_t wanted_num, size_t* translated_size, size_t* item_num)
 {
     if(src == NULL || dest == NULL) {
@@ -265,8 +276,8 @@ static void IRAM_ATTR u8_to_rmt(const void* src, rmt_item32_t* dest, size_t src_
         *item_num = 0;
         return;
     }
-    const rmt_item32_t bit0 = {{{ 120, 0, 40, 1}}}; //Logical 0
-    const rmt_item32_t bit1 = {{{ 120, 0, 40, 0 }}}; //Logical 1
+    const rmt_item32_t bit0 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 0 }}}; //Logical 0
+    const rmt_item32_t bit1 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 1 }}}; //Logical 1
     size_t size = 0;
     size_t num = 0;
     uint8_t *psrc = (uint8_t *)src;
@@ -297,7 +308,7 @@ static void rmt_tx_int()
     config.rmt_mode = RMT_MODE_TX;
     config.channel = RMT_TX_CHANNEL;
     config.gpio_num = gpio_num_t::GPIO_NUM_21; // SP_EXTRA was RMT_TX_GPIO;
-    config.mem_block_num = 2;
+    config.mem_block_num = 8;
     config.tx_config.loop_en = 0;
     // enable the carrier to be able to hear the Morse sound
     // if the RMT_TX_GPIO is connected to a speaker
@@ -319,7 +330,7 @@ static void rmt_tx_int()
     ESP_ERROR_CHECK(rmt_config(&config));
     // ESP_ERROR_CHECK(rmt_set_source_clk(config.channel, rmt_source_clk_t::RMT_BASECLK_REF));
     ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, 0));
-    ESP_ERROR_CHECK(rmt_translator_init(config.channel, u8_to_rmt));
+    ESP_ERROR_CHECK(rmt_translator_init(config.channel, u8_to_gcr));
 }
 
 void IRAM_ATTR iwmBus::rmttest(void)
@@ -345,24 +356,32 @@ for (int i=1; i<(N-2); i+=2)
 items[0] = {{{ 2 * RMT_USEC, 0, 2 * RMT_USEC, 1}}};
 items[N-1] = {{{0, 0, 0, 0}}};
 
-    Debug_println("Configuring transmitter");
-    rmt_tx_int();
-    int number_of_items = sizeof(items) / sizeof(items[0]);
-    // const uint8_t sample[SAMPLE_CNT] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    Debug_printf("\nSending %d items", number_of_items);
+Debug_printf("\nConfiguring transmitter");
+rmt_tx_int();
+int number_of_items = sizeof(items) / sizeof(items[0]);
+const uint8_t sample[SAMPLE_CNT] = {0x3f,0xcf,0xf3,0xfc,0xff,0,0x3f,0xcf,0xf3,0xfc,0xff};
 
-    while (1) {
-        ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, items, number_of_items-1, false));
-        ESP_ERROR_CHECK(rmt_set_tx_intr_en(RMT_TX_CHANNEL, false)); // https://github.com/espressif/esp-idf/issues/4664#issuecomment-586707777
-        ESP_ERROR_CHECK(rmt_set_tx_loop_mode(RMT_TX_CHANNEL, true));
-        while (1)
-            ;
-        Debug_println("Transmission complete");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
+Debug_printf("\nSending %d items", SAMPLE_CNT);//number_of_items);
+ESP_ERROR_CHECK(rmt_write_sample(RMT_TX_CHANNEL, sample, SAMPLE_CNT, true));
+Debug_printf ("\nSample transmission complete");
+vTaskDelay(2000 / portTICK_PERIOD_MS);
+while (1)
+  ;
+
+ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, items, number_of_items - 1, false));
+ESP_ERROR_CHECK(rmt_set_tx_intr_en(RMT_TX_CHANNEL, false)); // https://github.com/espressif/esp-idf/issues/4664#issuecomment-586707777
+ctr = 0;
+// ESP_ERROR_CHECK(rmt_set_tx_thr_intr_en(RMT_TX_CHANNEL, true, N / 2));
+ESP_ERROR_CHECK(rmt_set_tx_loop_mode(RMT_TX_CHANNEL, true)); //
+while (1)
+{
+  Debug_printf("\n%d", ctr);
+  fnSystem.delay(1000);
+};
+
         // ESP_ERROR_CHECK(rmt_write_sample(RMT_TX_CHANNEL, sample, SAMPLE_CNT, true));
         // Debug_println("Sample transmission complete");
         // vTaskDelay(2000 / portTICK_PERIOD_MS);
-    }
 }
 
 #endif
