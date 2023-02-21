@@ -40,7 +40,7 @@
 #define CX16_DEVICEID_CPM 0x5A
 
 #define I2C_SLAVE_TX_BUF_LEN 255 
-#define I2C_SLAVE_RX_BUF_LEN 255 
+#define I2C_SLAVE_RX_BUF_LEN 32
 #define I2C_DEVICE_ID 0x70
 
 /**
@@ -278,7 +278,7 @@ private:
     /**
      * @brief I²C register storage
      */
-    uint8_t i2c_register[16];
+    uint8_t i2c_register[256];
 
     /**
      * @brief I²C payload storage

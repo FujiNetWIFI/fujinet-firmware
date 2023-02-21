@@ -34,25 +34,25 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 void virtualDevice::cx16_nak()
 {
     Debug_println("NAK!");
-    CX16.address_write(5,'N');
+    CX16.address_write(5, 'N');
 }
 
 void virtualDevice::cx16_ack()
 {
     Debug_println("ACK!");
-    CX16.address_write(5,'A');
+    CX16.address_write(5, 'A');
 }
 
 void virtualDevice::cx16_complete()
 {
     Debug_println("COMPLETE!");
-    CX16.address_write(6,'C');
+    CX16.address_write(6, 'C');
 }
 
 void virtualDevice::cx16_error()
 {
     Debug_println("ERROR!");
-    CX16.address_write(5,'E');
+    CX16.address_write(5, 'E');
 }
 
 systemBus virtualDevice::get_bus()
@@ -81,13 +81,13 @@ void systemBus::address_write(uint8_t addr, uint8_t val)
         i2c_register[addr] = val;
 
         if (addr == 0x00)
-            memset(&i2c_register[1],0,15); // Clear all other registers
+            memset(&i2c_register[1], 0, 15); // Clear all other registers
     }
 }
 
 void systemBus::payload_add(uint8_t *buf, uint16_t len)
 {
-    std::string newPayload = std::string((const char*)buf,len);
+    std::string newPayload = std::string((const char *)buf, len);
     i2c_payload += newPayload;
 }
 
@@ -141,19 +141,26 @@ void systemBus::process_queue()
 void systemBus::service()
 {
     // Get packet
-    int l = i2c_slave_read_buffer(i2c_slave_port, i2c_buffer, 2, 1 / portTICK_PERIOD_MS);
+    int l = i2c_slave_read_buffer(i2c_slave_port, i2c_buffer, sizeof(i2c_buffer), 1 / portTICK_PERIOD_MS);
 
-    // 1 byte packet = READ
-    if (l == 1)
+    if (l)
     {
-        address_read(i2c_buffer[0]);
-    }
-    else if (l == 2) // WRITE
-    {
-        address_write(i2c_buffer[0], i2c_buffer[1]);
+        for (int i = 0; i < l; i++)
+            Debug_printf("%02x ",i);
+
+        Debug_printf("\n\n");
     }
 
-    i2c_reset_rx_fifo(i2c_slave_port);
+    // // 1 byte packet = READ
+    // if (l == 1)
+    // {
+    //     address_read(i2c_buffer[0]);
+    // }
+    // else if (l == 2) // WRITE
+    // {
+    //     address_write(i2c_buffer[0], i2c_buffer[1]);
+    // }
+
 }
 
 void systemBus::setup()
