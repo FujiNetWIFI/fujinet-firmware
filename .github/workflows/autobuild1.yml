@@ -32,9 +32,6 @@ jobs:
         pip install --upgrade platformio
         pip install Jinja2
         pip install pyyaml
-    - name: Install espressif32 platform
-      run: pio pkg install -p "platformio/espressif32@3.4.0"
-
     - name: Show python version
       run: python --version
     - name: Show pio system info
@@ -56,7 +53,10 @@ jobs:
 
     - name: Show platformio.ini
       run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
-    
+
+    - name: Install espressif32 platform
+      run: pio pkg install -p "platformio/espressif32@3.4.0"
+
     - name: Fix up dirent.h top
       run: gawk -i inplace '1;/#include\ <stdint.h>/{print "\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"}' /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
 
