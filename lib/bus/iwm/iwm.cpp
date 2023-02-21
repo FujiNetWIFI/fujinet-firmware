@@ -208,8 +208,16 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 
 int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num)
 {
+  int r;
+  int retry = 5; // host seems to control the retries, this is here so we don't get stuck
+
   smartport.encode_packet(source, packet_type, status, data, num);
-  int r = smartport.iwm_send_packet_spi();
+  do
+  {
+    r = smartport.iwm_send_packet_spi();
+    retry--;
+  } while (r && retry); // retry if we get an error and haven't tried to many times
+
   return r;
 }
 
@@ -555,12 +563,20 @@ void IRAM_ATTR iwmBus::service()
         if (command_packet.dest == devicep->_devnum)
 
         {
-          // iwm_ack_assert(); // includes waiting for spi read transaction to finish
-          // portENABLE_INTERRUPTS();
+          if (verify_cmdpkt_checksum())
+          {
+            Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            Debug_printf("\r\nDon't raise ACK to signal host to retry cmdpkt");
+            sp_command_mode = false; //try again to receive the packet
+            return;
+          }
+
+          smartport.iwm_ack_clr();  // Checksum is ok, we can lower ACK
+
           // wait for REQ to go low
           if (iwm_req_deassert_timeout(50000))
           {
-            // iwm_ack_deassert(); // go hi-Z
+            iwm_ack_deassert(); // go hi-Z
             return;
           }
           // need to take time here to service other ESP processes so they can catch up
@@ -569,18 +585,10 @@ void IRAM_ATTR iwmBus::service()
 
           _activeDev = devicep;
           // handle command
-          if (verify_cmdpkt_checksum())
-          {
-            Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            _activeDev->iwm_return_ioerror();
-          }
-          else
-          {
-            memset(command.decoded, 0, sizeof(command.decoded));
-            smartport.decode_data_packet(command_packet.data, command.decoded);
-            print_packet(command.decoded, 9);
-            _activeDev->process(command);
-          }
+          memset(command.decoded, 0, sizeof(command.decoded));
+          smartport.decode_data_packet(command_packet.data, command.decoded);
+          print_packet(command.decoded, 9);
+          _activeDev->process(command);
         }
       }
     }
