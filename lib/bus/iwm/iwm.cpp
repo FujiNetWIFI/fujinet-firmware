@@ -566,7 +566,7 @@ void IRAM_ATTR iwmBus::service()
           if (verify_cmdpkt_checksum())
           {
             Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            Debug_printf("\r\nDon't raise ACK to signal host to retry cmdpkt");
+            Debug_printf("\r\nDon't lower ACK to signal host to retry cmdpkt");
             sp_command_mode = false; //try again to receive the packet
             return;
           }
