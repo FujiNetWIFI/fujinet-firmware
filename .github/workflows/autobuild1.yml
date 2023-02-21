@@ -33,7 +33,7 @@ jobs:
         pip install Jinja2
         pip install pyyaml
     - name: Install espressif32 platform
-      run: pio platform install espressif32 --with-package=framework-espidf
+      run: pio pkg install -p "platformio/espressif32@3.4.0"
 
     - name: Show python version
       run: python --version
