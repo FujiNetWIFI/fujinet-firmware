@@ -5,11 +5,13 @@
 #include <queue>
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
+#include <driver/rmt.h>
 #include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
 
-#define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
+// #define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
+#define TRACK_LEN 6646          // https://applesaucefdc.com/woz/reference2/
 #define SPI_SP_LEN 6000         // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define BLOCK_PACKET_LEN    604 //606
 
@@ -130,12 +132,17 @@ class iwm_diskii_ll
 {
 private:
   // SPI data handling
-  uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
-  int spi_len;
-  spi_device_handle_t spi;
-  int fspi;
-  std::queue<spi_transaction_t> trans;
+  // uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
+  // int spi_len;
+  // spi_device_handle_t spi;
+  // int fspi;
+  // std::queue<spi_transaction_t> trans;
 
+  // RMT data handling
+  rmt_config_t config;
+  // where to put the track buffer for translation?
+
+  // tri-state buffer control - copied from sp_ll - probably should make one version only but alas
   void iwm_rddata_set() { GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); }; // make RDDATA go hi-z through the tri-state
   void iwm_rddata_clr() { GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); }; // enable the tri-state buffer activating RDDATA
 
@@ -157,14 +164,19 @@ public:
   void disable_output() { iwm_rddata_set(); };
   void enable_output()  { iwm_rddata_clr(); };
   
-  // Disk II handling by SPI interface
-  void setup_spi(); // int bit_ns, int chiprate
-  
-  bool fakebit();
-  void encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator);
-  void iwm_queue_track_spi();
-  void spi_end();
+  // Disk II handling by RMT peripheral
+  void setup_rmt(); // install the RMT device
+  void rmttest();
+  // need a function to start the RMT stream
+  // need a function to stop the RMT stream
+  // need a function to remove the RMT device?
 
+  bool fakebit();
+  void copy_track(uint8_t *track, size_t tracklen, size_t trackbits);
+//  void encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator);
+//  void iwm_queue_track_spi();
+
+//  void spi_end();
 };
 
 extern iwm_sp_ll smartport;
