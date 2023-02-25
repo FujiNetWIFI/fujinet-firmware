@@ -145,31 +145,30 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
     // need to tell diskii_xface the number of bits in the track
     // and where the track data is located so it can convert it
-    diskii_xface.encode_spi_packet(
+    diskii_xface.copy_track(
         ((MediaTypeWOZ *)_disk)->get_track(track_pos),
         ((MediaTypeWOZ *)_disk)->track_len(track_pos),
-        ((MediaTypeWOZ *)_disk)->num_bits(track_pos),
-        indicator);
+        ((MediaTypeWOZ *)_disk)->num_bits(track_pos));
 }
 
-void IRAM_ATTR iwmDisk2::refresh_track()
-{
-  // rewrite the track data to update the MC3470 random bits
+// void IRAM_ATTR iwmDisk2::refresh_track()
+// {
+//   // rewrite the track data to update the MC3470 random bits
 
-  if (!device_active)
-    return;
+//   if (!device_active)
+//     return;
 
-  if (old_pos != track_pos)
-    return;
+//   if (old_pos != track_pos)
+//     return;
 
-  if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
-    // need to tell diskii_xface the number of bits in the track
-    // and where the track data is located so it can convert it
-    diskii_xface.encode_spi_packet(
-        ((MediaTypeWOZ *)_disk)->get_track(track_pos),
-        ((MediaTypeWOZ *)_disk)->track_len(track_pos),
-        ((MediaTypeWOZ *)_disk)->num_bits(track_pos),
-        0);
-}
+//   if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
+//     // need to tell diskii_xface the number of bits in the track
+//     // and where the track data is located so it can convert it
+//     diskii_xface.encode_spi_packet(
+//         ((MediaTypeWOZ *)_disk)->get_track(track_pos),
+//         ((MediaTypeWOZ *)_disk)->track_len(track_pos),
+//         ((MediaTypeWOZ *)_disk)->num_bits(track_pos),
+//         0);
+// }
 
 #endif /* BUILD_APPLE */

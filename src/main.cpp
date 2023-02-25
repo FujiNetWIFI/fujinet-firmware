@@ -175,9 +175,6 @@ void main_setup()
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-#ifdef RMTTEST
-    IWM.rmttest();
-#endif
 
     iwmModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;

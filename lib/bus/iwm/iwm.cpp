@@ -15,14 +15,6 @@
 #include "../device/iwm/cpm.h"
 #include "../device/iwm/clock.h"
 
-#ifdef RMTTEST
-#include "driver/rmt.h"
-
-#define MHZ (1000*1000)
-#define RMT_USEC (APB_CLK_FREQ / MHZ)
-
-#endif
-
 /******************************************************************************
 Based on:
 Apple //c Smartport Compact Flash adapter
@@ -251,138 +243,8 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 
 
 #ifdef RMTTEST
-// https://docs.espressif.com/projects/esp-idf/en/v3.3.5/api-reference/peripherals/rmt.html
 
-#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
-#define RMT_TX_GPIO 18
-#define SAMPLE_CNT  (11)
 
-//Convert uint8_t type of data to rmt format data.
-static void IRAM_ATTR u8_to_gcr(const void* src, rmt_item32_t* dest, size_t src_size, 
-                         size_t wanted_num, size_t* translated_size, size_t* item_num)
-{
-    if(src == NULL || dest == NULL) {
-        *translated_size = 0;
-        *item_num = 0;
-        return;
-    }
-    const rmt_item32_t bit0 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 0 }}}; //Logical 0
-    const rmt_item32_t bit1 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 1 }}}; //Logical 1
-    size_t size = 0;
-    size_t num = 0;
-    uint8_t *psrc = (uint8_t *)src;
-    rmt_item32_t* pdest = dest;
-    while (size < src_size && num < wanted_num) {
-        for(int i = 0; i < 8; i++) {
-            if(*psrc & (0x1 << i)) {
-                pdest->val =  bit1.val; 
-            } else {
-                pdest->val =  bit0.val;
-            }
-            num++;
-            pdest++;
-        }
-        size++;
-        psrc++;
-    }
-    *translated_size = size;
-    *item_num = num;
-}
-
-/*
- * Initialize the RMT Tx channel
- */
-static void rmt_tx_int()
-{
-    rmt_config_t config;
-    config.rmt_mode = rmt_mode_t::RMT_MODE_TX;
-    config.channel = RMT_TX_CHANNEL;
-    config.gpio_num = gpio_num_t::GPIO_NUM_21; // SP_EXTRA was RMT_TX_GPIO;
-    config.mem_block_num = 8;
-    config.tx_config.loop_en = false;
-    // enable the carrier to be able to hear the Morse sound
-    // if the RMT_TX_GPIO is connected to a speaker
-    config.tx_config.carrier_en = false;
-    config.tx_config.idle_output_en = true;
-    config.tx_config.idle_level = rmt_idle_level_t::RMT_IDLE_LEVEL_LOW ;
-    //config.tx_config.carrier_duty_percent = 50;
-    // set audible career frequency of 611 Hz
-    // actually 611 Hz is the minimum, that can be set
-    // with current implementation of the RMT API
-    // config.tx_config.carrier_freq_hz = 1000*1000;
-    // config.tx_config.carrier_level = rmt_carrier_level_t::RMT_CARRIER_LEVEL_HIGH;
-    // set the maximum clock divider to be able to output
-    // RMT pulses in range of about one hundred milliseconds
-
-    // https://github.com/espressif/esp-idf/issues/10462 - doesn't seem to matter what clock and period i choose
-    config.clk_div = 1;
-
-    ESP_ERROR_CHECK(rmt_config(&config));
-    // ESP_ERROR_CHECK(rmt_set_source_clk(config.channel, rmt_source_clk_t::RMT_BASECLK_REF));
-    ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, ESP_INTR_FLAG_IRAM));
-    ESP_ERROR_CHECK(rmt_translator_init(config.channel, u8_to_gcr));
-}
-
-void IRAM_ATTR iwmBus::rmttest(void)
-{
-// static const char *RMT_TX_TAG = "RMT Tx";
-
-/*
- * Prepare a raw table with a message in the Morse code
- *
- * The message is "ESP" : . ... .--.
- *
- * The table structure represents the RMT item structure:
- * {duration, level, duration, level}
- *
- */
-const uint16_t N = 100;
-rmt_item32_t items[N];
-for (int i=1; i<(N-2); i+=2)
-{
-  items[i] = {{{3 * RMT_USEC, 0, RMT_USEC, 0}}};
-  items[i+1] = {{{3 * RMT_USEC, 0, RMT_USEC, 1}}};
-}
-items[0] = {{{ 2 * RMT_USEC, 0, 2 * RMT_USEC, 1}}};
-items[N-1] = {{{0, 0, 0, 0}}};
-
-Debug_printf("\nConfiguring transmitter");
-rmt_tx_int();
-
-int number_of_items = sizeof(items) / sizeof(items[0]);
-//const uint8_t sample[SAMPLE_CNT] = {0x3f,0xcf,0xf3,0xfc,0xff,0,0x3f,0xcf,0xf3,0xfc,0xff};
-size_t num_samples = 512*12;
-uint8_t* sample = (uint8_t*)heap_caps_malloc(num_samples, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-memset(sample, 0xff, num_samples);
-sample[1]=0;
-sample[num_samples-2]=0;
-Debug_printf("\nSending %d items", num_samples);//number_of_items);
-  ESP_ERROR_CHECK(rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
-  fnSystem.delay(100);
-  rmt_tx_stop(RMT_TX_CHANNEL);
-  fnSystem.delay(50);
-  ESP_ERROR_CHECK(rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
-  // ESP_ERROR_CHECK(rmt_set_tx_intr_en(RMT_TX_CHANNEL, false)); // https://github.com/espressif/esp-idf/issues/4664#issuecomment-586707777
-//ESP_ERROR_CHECK(rmt_set_tx_intr_en(RMT_TX_CHANNEL, false)); // https://github.com/espressif/esp-idf/issues/4664#issuecomment-586707777
-Debug_printf ("\nSample transmission complete");
-while (1)
-  ;
-
-ESP_ERROR_CHECK(rmt_write_items(RMT_TX_CHANNEL, items, number_of_items - 1, false));
-ESP_ERROR_CHECK(rmt_set_tx_intr_en(RMT_TX_CHANNEL, false)); // https://github.com/espressif/esp-idf/issues/4664#issuecomment-586707777
-
-// ESP_ERROR_CHECK(rmt_set_tx_thr_intr_en(RMT_TX_CHANNEL, true, N / 2));
-ESP_ERROR_CHECK(rmt_set_tx_loop_mode(RMT_TX_CHANNEL, true)); //
-while (1)
-{
-  // Debug_printf("\n%d", ctr);
-  fnSystem.delay(1000);
-};
-
-        // ESP_ERROR_CHECK(rmt_write_sample(RMT_TX_CHANNEL, sample, SAMPLE_CNT, true));
-        // Debug_println("Sample transmission complete");
-        // vTaskDelay(2000 / portTICK_PERIOD_MS);
-}
 
 #endif
 
@@ -396,11 +258,16 @@ void iwmBus::setup(void)
   smartport.setup_spi();
   Debug_printf("\r\nSPI configured for smartport I/O");
   
-  diskii_xface.setup_spi();
-  Debug_printf("\r\nSPI configured for Disk ][ Output");
+  diskii_xface.setup_rmt();
+  Debug_printf("\r\nRMT configured for Disk ][ Output");
+
+#ifdef RMTTEST
+  diskii_xface.rmttest();
+#endif
 
   smartport.setup_gpio();
   Debug_printf("\r\nIWM GPIO configured");
+
 }
 
 //*****************************************************************************
@@ -584,14 +451,16 @@ void IRAM_ATTR iwmBus::service()
   switch (iwm_drive_enabled())
   {
   case iwm_enable_state_t::off:
-    diskii_xface.spi_end();
+    // diskii_xface.spi_end();
     break;
   case iwm_enable_state_t::off2on:
     // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
-    fnSystem.delay_microseconds(1000);
+    fnSystem.delay_microseconds(1000); // need a better way to figure out persistence
     if (iwm_drive_enabled() == iwm_enable_state_t::on)
       diskii_xface.enable_output();
-    return; // no break because I want it to fall through to "on"
+    // make a call to start the RMT stream
+    // make sure the state machine moves on to iwm_enable_state_t::on
+    return; // return so the SP code doesn't get checked
   case iwm_enable_state_t::on:
 #ifdef DEBUG
     new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
@@ -606,12 +475,14 @@ void IRAM_ATTR iwmBus::service()
     if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
     {
       // Debug_printf("%d ", isrctr);
-      diskii_xface.iwm_queue_track_spi();
+      // diskii_xface.iwm_queue_track_spi();
     }
     return;
   case iwm_enable_state_t::on2off:
+    // add a call to RMT stop tx
     diskii_xface.disable_output();
     iwm_ack_deassert();
+    // make sure the state machine moves on to iwm_enable_state_t::off
     return;
   }
 #endif
