@@ -25,6 +25,9 @@
 #include <freertos/queue.h>
 #include <utility>
 #include <string>
+#include <driver/gpio.h>
+#include "fnSystem.h"
+#include "iecdefines.h"
 
 /**
  * @brief The command frame
@@ -68,7 +71,7 @@ protected:
     /**
      * @brief The passed in command frame, copied.
      */
-    cmdFrame_t cmdFrame;     
+    cmdFrame_t cmdFrame;
 
     /**
      * @brief Message queue
@@ -160,10 +163,9 @@ private:
      */
     virtualDevice *_activeDev = nullptr;
 
-
     /**
      * @brief is device shutting down?
-    */
+     */
     bool shuttingDown = false;
 
     /**
@@ -177,6 +179,16 @@ private:
     void process_queue();
 
 public:
+    /**
+     * @brief bus flags
+     */
+    uint16_t flags = CLEAR;
+
+    /**
+     * @brief Enabled device bits
+     */
+    uint32_t enabledDevices;
+    
     /**
      * @brief called in main.cpp to set up the bus.
      */
@@ -209,7 +221,7 @@ public:
      * @brief Remove device from bus
      * @param pDevice pointer to virtualDevice
      */
-   void remDevice(virtualDevice *pDevice);
+    void remDevice(virtualDevice *pDevice);
 
     /**
      * @brief Return pointer to device given ID
@@ -221,7 +233,7 @@ public:
     /**
      * @brief Change ID of a particular virtualDevice
      * @param pDevice pointer to virtualDevice
-     * @param device_id new device ID 
+     * @param device_id new device ID
      */
     void changeDeviceId(virtualDevice *pDevice, int device_id);
 
@@ -230,6 +242,58 @@ public:
      * @return value of shuttingDown
      */
     bool getShuttingDown() { return shuttingDown; }
+
+    // true => PULL => LOW
+    inline void IRAM_ATTR pull(uint8_t pin)
+    {
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
+#endif
+        fnSystem.digital_write(pin, 0);
+    }
+
+    // false => RELEASE => HIGH
+    inline void IRAM_ATTR release(uint8_t pin)
+    {
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
+#endif
+        fnSystem.digital_write(pin, 1);
+    }
+
+    inline bool IRAM_ATTR status(uint8_t pin)
+    {
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
+#endif
+        return gpio_get_level((gpio_num_t)pin) ? 0 : 1;
+    }
+
+    inline void IRAM_ATTR set_pin_mode(uint8_t pin, gpio_mode_t mode)
+    {
+        static uint64_t gpio_pin_modes;
+        uint8_t b_mode = (mode == 1) ? 1 : 0;
+
+        // is this pin mode already set the way we want?
+#ifndef IEC_SPLIT_LINES
+        if (((gpio_pin_modes >> pin) & 1ULL) != b_mode)
+#endif
+        {
+            // toggle bit so we don't change mode unnecessarily
+            gpio_pin_modes ^= (-b_mode ^ gpio_pin_modes) & (1ULL << pin);
+
+            gpio_config_t io_conf =
+                {
+                    .pin_bit_mask = (1ULL << pin),         // bit mask of the pins that you want to set
+                    .mode = mode,                          // set as input mode
+                    .pull_up_en = GPIO_PULLUP_DISABLE,     // disable pull-up mode
+                    .pull_down_en = GPIO_PULLDOWN_DISABLE, // disable pull-down mode
+                    .intr_type = GPIO_INTR_DISABLE         // interrupt of falling edge
+                };
+            // configure GPIO with the given settings
+            gpio_config(&io_conf);
+        }
+    }
 };
 
 /**

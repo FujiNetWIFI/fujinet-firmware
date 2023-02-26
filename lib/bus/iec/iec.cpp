@@ -113,4 +113,4 @@ void systemBus::shutdown()
 
 systemBus IEC;
 
-#endif /* BUILD_CBM */
+#endif /* BUILD_IEC */
