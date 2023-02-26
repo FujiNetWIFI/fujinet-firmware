@@ -28,11 +28,11 @@
 #include "esp_err.h"
 #include "esp_intr_alloc.h"
 #include "soc/gpio_sig_map.h"
-//#include "soc/rmt_struct.h"
-//#include "hal/rmt_types.h"
+#include "soc/rmt_struct.h"
+#include "hal/rmt_types.h"
 #include "driver/periph_ctrl.h"
-//#include "driver/rmt.h"
-#include "fnRMT.h"
+#include "driver/rmt.h"
+#include "fnRMTstream.h"
 
 #include <sys/lock.h>
 
@@ -57,9 +57,9 @@
 #define RMT_TRANSLATOR_UNINIT_STR  "RMT translator not init"
 #define RMT_PARAM_ERR_STR          "RMT param error"
 
-static const char* RMT_TAG = "rmt";
-static uint8_t s_rmt_driver_channels; // Bitmask (bits 0-7) of installed drivers' channels
-static rmt_isr_handle_t s_rmt_driver_intr_handle;
+ const char* RMT_TAG = "rmt";
+ uint8_t s_rmt_driver_channels; // Bitmask (bits 0-7) of installed drivers' channels
+ rmt_isr_handle_t s_rmt_driver_intr_handle;
 
 #define RMT_CHECK(a, str, ret_val) \
     if (!(a)) { \
@@ -68,12 +68,13 @@ static rmt_isr_handle_t s_rmt_driver_intr_handle;
     }
 
 // Spinlock for protecting concurrent register-level access only
-static portMUX_TYPE rmt_spinlock = portMUX_INITIALIZER_UNLOCKED;
+ portMUX_TYPE rmt_spinlock = portMUX_INITIALIZER_UNLOCKED;
 
 // Mutex lock for protecting concurrent register/unregister of RMT channels' ISR
-static _lock_t rmt_driver_isr_lock;
+ _lock_t rmt_driver_isr_lock;
 
-typedef struct {
+ struct  rmt_obj_t 
+ {
     size_t tx_offset;
     size_t tx_len_rem;
     size_t tx_sub_len;
@@ -93,35 +94,35 @@ typedef struct {
     const uint8_t *sample_cur;
     size_t sample_size_total;
     const uint8_t *sample_orig;
-} rmt_obj_t;
+} ;
 
 rmt_obj_t* p_rmt_obj[RMT_CHANNEL_MAX] = {0};
 
 // Event called when transmission is ended
-static rmt_tx_end_callback_t rmt_tx_end_callback;
+ fn_rmt_tx_end_callback_t rmt_tx_end_callback;
 
-static void rmt_set_tx_wrap_en(bool en)
+ void rmtStream::rmt_set_tx_wrap_en(bool en)
 {
     portENTER_CRITICAL(&rmt_spinlock);
     RMT.apb_conf.mem_tx_wrap_en = en;
     portEXIT_CRITICAL(&rmt_spinlock);
 }
 
-static void rmt_set_data_mode(rmt_data_mode_t data_mode)
+ void rmtStream::rmt_set_data_mode(rmt_data_mode_t data_mode)
 {
     portENTER_CRITICAL(&rmt_spinlock);
     RMT.apb_conf.fifo_mask = data_mode;
     portEXIT_CRITICAL(&rmt_spinlock);
 }
 
-esp_err_t rmt_set_clk_div(rmt_channel_t channel, uint8_t div_cnt)
+esp_err_t rmtStream::rmt_set_clk_div(rmt_channel_t channel, uint8_t div_cnt)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT.conf_ch[channel].conf0.div_cnt = div_cnt;
     return ESP_OK;
 }
 
-esp_err_t rmt_get_clk_div(rmt_channel_t channel, uint8_t* div_cnt)
+esp_err_t rmtStream::rmt_get_clk_div(rmt_channel_t channel, uint8_t* div_cnt)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(div_cnt != NULL, RMT_ADDR_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -129,14 +130,14 @@ esp_err_t rmt_get_clk_div(rmt_channel_t channel, uint8_t* div_cnt)
     return ESP_OK;
 }
 
-esp_err_t rmt_set_rx_idle_thresh(rmt_channel_t channel, uint16_t thresh)
+esp_err_t rmtStream::rmt_set_rx_idle_thresh(rmt_channel_t channel, uint16_t thresh)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT.conf_ch[channel].conf0.idle_thres = thresh;
     return ESP_OK;
 }
 
-esp_err_t rmt_get_rx_idle_thresh(rmt_channel_t channel, uint16_t *thresh)
+esp_err_t rmtStream::rmt_get_rx_idle_thresh(rmt_channel_t channel, uint16_t *thresh)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(thresh != NULL, RMT_ADDR_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -144,7 +145,7 @@ esp_err_t rmt_get_rx_idle_thresh(rmt_channel_t channel, uint16_t *thresh)
     return ESP_OK;
 }
 
-esp_err_t rmt_set_mem_block_num(rmt_channel_t channel, uint8_t rmt_mem_num)
+esp_err_t rmtStream::rmt_set_mem_block_num(rmt_channel_t channel, uint8_t rmt_mem_num)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(rmt_mem_num <= RMT_CHANNEL_MAX - channel, RMT_MEM_CNT_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -152,7 +153,7 @@ esp_err_t rmt_set_mem_block_num(rmt_channel_t channel, uint8_t rmt_mem_num)
     return ESP_OK;
 }
 
-esp_err_t rmt_get_mem_block_num(rmt_channel_t channel, uint8_t* rmt_mem_num)
+esp_err_t rmtStream::rmt_get_mem_block_num(rmt_channel_t channel, uint8_t* rmt_mem_num)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(rmt_mem_num != NULL, RMT_ADDR_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -160,7 +161,7 @@ esp_err_t rmt_get_mem_block_num(rmt_channel_t channel, uint8_t* rmt_mem_num)
     return ESP_OK;
 }
 
-esp_err_t rmt_set_tx_carrier(rmt_channel_t channel, bool carrier_en, uint16_t high_level, uint16_t low_level,
+esp_err_t rmtStream::rmt_set_tx_carrier(rmt_channel_t channel, bool carrier_en, uint16_t high_level, uint16_t low_level,
     rmt_carrier_level_t carrier_level)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -172,21 +173,21 @@ esp_err_t rmt_set_tx_carrier(rmt_channel_t channel, bool carrier_en, uint16_t hi
     return ESP_OK;
 }
 
-esp_err_t rmt_set_mem_pd(rmt_channel_t channel, bool pd_en)
+esp_err_t rmtStream::rmt_set_mem_pd(rmt_channel_t channel, bool pd_en)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT.conf_ch[channel].conf0.mem_pd = pd_en;
     return ESP_OK;
 }
 
-esp_err_t rmt_get_mem_pd(rmt_channel_t channel, bool* pd_en)
+esp_err_t rmtStream::rmt_get_mem_pd(rmt_channel_t channel, bool* pd_en)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     *pd_en = (bool) RMT.conf_ch[channel].conf0.mem_pd;
     return ESP_OK;
 }
 
-esp_err_t rmt_tx_start(rmt_channel_t channel, bool tx_idx_rst)
+esp_err_t rmtStream::rmt_tx_start(rmt_channel_t channel, bool tx_idx_rst)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     portENTER_CRITICAL(&rmt_spinlock);
@@ -199,7 +200,7 @@ esp_err_t rmt_tx_start(rmt_channel_t channel, bool tx_idx_rst)
     return ESP_OK;
 }
 
-esp_err_t rmt_tx_stop(rmt_channel_t channel)
+esp_err_t rmtStream::rmt_tx_stop(rmt_channel_t channel)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     portENTER_CRITICAL(&rmt_spinlock);
@@ -211,7 +212,7 @@ esp_err_t rmt_tx_stop(rmt_channel_t channel)
     return ESP_OK;
 }
 
-esp_err_t rmt_rx_start(rmt_channel_t channel, bool rx_idx_rst)
+esp_err_t rmtStream::rmt_rx_start(rmt_channel_t channel, bool rx_idx_rst)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     portENTER_CRITICAL(&rmt_spinlock);
@@ -225,7 +226,7 @@ esp_err_t rmt_rx_start(rmt_channel_t channel, bool rx_idx_rst)
     return ESP_OK;
 }
 
-esp_err_t rmt_rx_stop(rmt_channel_t channel)
+esp_err_t rmtStream::rmt_rx_stop(rmt_channel_t channel)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     portENTER_CRITICAL(&rmt_spinlock);
@@ -234,7 +235,7 @@ esp_err_t rmt_rx_stop(rmt_channel_t channel)
     return ESP_OK;
 }
 
-esp_err_t rmt_memory_rw_rst(rmt_channel_t channel)
+esp_err_t rmtStream::rmt_memory_rw_rst(rmt_channel_t channel)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     portENTER_CRITICAL(&rmt_spinlock);
@@ -244,7 +245,7 @@ esp_err_t rmt_memory_rw_rst(rmt_channel_t channel)
     return ESP_OK;
 }
 
-esp_err_t rmt_set_memory_owner(rmt_channel_t channel, rmt_mem_owner_t owner)
+esp_err_t rmtStream::rmt_set_memory_owner(rmt_channel_t channel, rmt_mem_owner_t owner)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(owner < RMT_MEM_OWNER_MAX, RMT_MEM_OWNER_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -254,7 +255,7 @@ esp_err_t rmt_set_memory_owner(rmt_channel_t channel, rmt_mem_owner_t owner)
     return ESP_OK;
 }
 
-esp_err_t rmt_get_memory_owner(rmt_channel_t channel, rmt_mem_owner_t* owner)
+esp_err_t rmtStream::rmt_get_memory_owner(rmt_channel_t channel, rmt_mem_owner_t* owner)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(owner != NULL, RMT_MEM_OWNER_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -262,7 +263,7 @@ esp_err_t rmt_get_memory_owner(rmt_channel_t channel, rmt_mem_owner_t* owner)
     return ESP_OK;
 }
 
-esp_err_t rmt_set_tx_loop_mode(rmt_channel_t channel, bool loop_en)
+esp_err_t rmtStream::rmt_set_tx_loop_mode(rmt_channel_t channel, bool loop_en)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     portENTER_CRITICAL(&rmt_spinlock);
@@ -271,14 +272,14 @@ esp_err_t rmt_set_tx_loop_mode(rmt_channel_t channel, bool loop_en)
     return ESP_OK;
 }
 
-esp_err_t rmt_get_tx_loop_mode(rmt_channel_t channel, bool* loop_en)
+esp_err_t rmtStream::rmt_get_tx_loop_mode(rmt_channel_t channel, bool* loop_en)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     *loop_en = (bool) RMT.conf_ch[channel].conf1.tx_conti_mode;
     return ESP_OK;
 }
 
-esp_err_t rmt_set_rx_filter(rmt_channel_t channel, bool rx_filter_en, uint8_t thresh)
+esp_err_t rmtStream::rmt_set_rx_filter(rmt_channel_t channel, bool rx_filter_en, uint8_t thresh)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     portENTER_CRITICAL(&rmt_spinlock);
@@ -288,7 +289,7 @@ esp_err_t rmt_set_rx_filter(rmt_channel_t channel, bool rx_filter_en, uint8_t th
     return ESP_OK;
 }
 
-esp_err_t rmt_set_source_clk(rmt_channel_t channel, rmt_source_clk_t base_clk)
+esp_err_t rmtStream::rmt_set_source_clk(rmt_channel_t channel, rmt_source_clk_t base_clk)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(base_clk < RMT_BASECLK_MAX, RMT_BASECLK_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -298,14 +299,14 @@ esp_err_t rmt_set_source_clk(rmt_channel_t channel, rmt_source_clk_t base_clk)
     return ESP_OK;
 }
 
-esp_err_t rmt_get_source_clk(rmt_channel_t channel, rmt_source_clk_t* src_clk)
+esp_err_t rmtStream::rmt_get_source_clk(rmt_channel_t channel, rmt_source_clk_t* src_clk)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     *src_clk = (rmt_source_clk_t) (RMT.conf_ch[channel].conf1.ref_always_on);
     return ESP_OK;
 }
 
-esp_err_t rmt_set_idle_level(rmt_channel_t channel, bool idle_out_en, rmt_idle_level_t level)
+esp_err_t rmtStream::rmt_set_idle_level(rmt_channel_t channel, bool idle_out_en, rmt_idle_level_t level)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(level < RMT_IDLE_LEVEL_MAX, "RMT IDLE LEVEL ERR", ESP_ERR_INVALID_ARG);
@@ -316,7 +317,7 @@ esp_err_t rmt_set_idle_level(rmt_channel_t channel, bool idle_out_en, rmt_idle_l
     return ESP_OK;
 }
 
-esp_err_t rmt_get_idle_level(rmt_channel_t channel, bool* idle_out_en, rmt_idle_level_t* level)
+esp_err_t rmtStream::rmt_get_idle_level(rmt_channel_t channel, bool* idle_out_en, rmt_idle_level_t* level)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     *idle_out_en = (bool) (RMT.conf_ch[channel].conf1.idle_out_en);
@@ -324,33 +325,33 @@ esp_err_t rmt_get_idle_level(rmt_channel_t channel, bool* idle_out_en, rmt_idle_
     return ESP_OK;
 }
 
-esp_err_t rmt_get_status(rmt_channel_t channel, uint32_t* status)
+esp_err_t rmtStream::rmt_get_status(rmt_channel_t channel, uint32_t* status)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     *status = RMT.status_ch[channel];
     return ESP_OK;
 }
 
-rmt_data_mode_t rmt_get_data_mode()
+rmt_data_mode_t rmtStream::rmt_get_data_mode()
 {
     return (rmt_data_mode_t) (RMT.apb_conf.fifo_mask);
 }
 
-void rmt_set_intr_enable_mask(uint32_t mask)
+void rmtStream::rmt_set_intr_enable_mask(uint32_t mask)
 {
     portENTER_CRITICAL(&rmt_spinlock);
     RMT.int_ena.val |= mask;
     portEXIT_CRITICAL(&rmt_spinlock);
 }
 
-void rmt_clr_intr_enable_mask(uint32_t mask)
+void rmtStream::rmt_clr_intr_enable_mask(uint32_t mask)
 {
     portENTER_CRITICAL(&rmt_spinlock);
     RMT.int_ena.val &= (~mask);
     portEXIT_CRITICAL(&rmt_spinlock);
 }
 
-esp_err_t rmt_set_rx_intr_en(rmt_channel_t channel, bool en)
+esp_err_t rmtStream::rmt_set_rx_intr_en(rmt_channel_t channel, bool en)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     if(en) {
@@ -361,7 +362,7 @@ esp_err_t rmt_set_rx_intr_en(rmt_channel_t channel, bool en)
     return ESP_OK;
 }
 
-esp_err_t rmt_set_err_intr_en(rmt_channel_t channel, bool en)
+esp_err_t rmtStream::rmt_set_err_intr_en(rmt_channel_t channel, bool en)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     if(en) {
@@ -372,7 +373,7 @@ esp_err_t rmt_set_err_intr_en(rmt_channel_t channel, bool en)
     return ESP_OK;
 }
 
-esp_err_t rmt_set_tx_intr_en(rmt_channel_t channel, bool en)
+esp_err_t rmtStream::rmt_set_tx_intr_en(rmt_channel_t channel, bool en)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     if(en) {
@@ -383,7 +384,7 @@ esp_err_t rmt_set_tx_intr_en(rmt_channel_t channel, bool en)
     return ESP_OK;
 }
 
-esp_err_t rmt_set_tx_thr_intr_en(rmt_channel_t channel, bool en, uint16_t evt_thresh)
+esp_err_t rmtStream::rmt_set_tx_thr_intr_en(rmt_channel_t channel, bool en, uint16_t evt_thresh)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     if(en) {
@@ -399,7 +400,7 @@ esp_err_t rmt_set_tx_thr_intr_en(rmt_channel_t channel, bool en, uint16_t evt_th
     return ESP_OK;
 }
 
-esp_err_t rmt_set_pin(rmt_channel_t channel, rmt_mode_t mode, gpio_num_t gpio_num)
+esp_err_t rmtStream::rmt_set_pin(rmt_channel_t channel, rmt_mode_t mode, gpio_num_t gpio_num)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(mode < RMT_MODE_MAX, RMT_MODE_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -417,7 +418,7 @@ esp_err_t rmt_set_pin(rmt_channel_t channel, rmt_mode_t mode, gpio_num_t gpio_nu
     return ESP_OK;
 }
 
-esp_err_t rmt_config(const rmt_config_t* rmt_param)
+esp_err_t rmtStream::rmt_config(const fn_rmt_config_t* rmt_param)
 {
     uint8_t mode = rmt_param->rmt_mode;
     uint8_t channel = rmt_param->channel;
@@ -434,7 +435,7 @@ esp_err_t rmt_config(const rmt_config_t* rmt_param)
         RMT_CHECK((!carrier_en || carrier_freq_hz > 0), "RMT carrier frequency can't be zero", ESP_ERR_INVALID_ARG);
     }
 
-    static bool rmt_enable = false;
+     bool rmt_enable = false;
     if (rmt_enable == false) {
         periph_module_reset(PERIPH_RMT_MODULE);
         rmt_enable = true;
@@ -513,7 +514,7 @@ esp_err_t rmt_config(const rmt_config_t* rmt_param)
     return ESP_OK;
 }
 
-static void IRAM_ATTR rmt_fill_memory(rmt_channel_t channel, const rmt_item32_t* item, uint16_t item_num, uint16_t mem_offset)
+ void IRAM_ATTR rmtStream::rmt_fill_memory(rmt_channel_t channel, const rmt_item32_t* item, uint16_t item_num, uint16_t mem_offset)
 {
     portENTER_CRITICAL_SAFE(&rmt_spinlock);
     RMT.apb_conf.fifo_mask = RMT_DATA_MODE_MEM;
@@ -524,7 +525,7 @@ static void IRAM_ATTR rmt_fill_memory(rmt_channel_t channel, const rmt_item32_t*
     }
 }
 
-esp_err_t rmt_fill_tx_items(rmt_channel_t channel, const rmt_item32_t* item, uint16_t item_num, uint16_t mem_offset)
+esp_err_t rmtStream::rmt_fill_tx_items(rmt_channel_t channel, const rmt_item32_t* item, uint16_t item_num, uint16_t mem_offset)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, (0));
     RMT_CHECK((item != NULL), RMT_ADDR_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -537,7 +538,7 @@ esp_err_t rmt_fill_tx_items(rmt_channel_t channel, const rmt_item32_t* item, uin
     return ESP_OK;
 }
 
-esp_err_t rmt_isr_register(void (*fn)(void*), void * arg, int intr_alloc_flags, rmt_isr_handle_t *handle)
+esp_err_t rmtStream::rmt_isr_register(void (*fn)(void*), void * arg, int intr_alloc_flags, rmt_isr_handle_t *handle)
 {
     RMT_CHECK((fn != NULL), RMT_ADDR_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(s_rmt_driver_channels == 0, "RMT driver installed, can not install generic ISR handler", ESP_FAIL);
@@ -546,12 +547,12 @@ esp_err_t rmt_isr_register(void (*fn)(void*), void * arg, int intr_alloc_flags, 
 }
 
 
-esp_err_t rmt_isr_deregister(rmt_isr_handle_t handle)
+esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
 {
     return esp_intr_free(handle);
 }
 
-static int IRAM_ATTR rmt_get_mem_len(rmt_channel_t channel)
+ int IRAM_ATTR rmt_get_mem_len(rmt_channel_t channel)
 {
     int block_num = RMT.conf_ch[channel].conf0.mem_size;
     int item_block_len = block_num * RMT_MEM_ITEM_NUM;
@@ -567,7 +568,7 @@ static int IRAM_ATTR rmt_get_mem_len(rmt_channel_t channel)
     return idx;
 }
 
-static void IRAM_ATTR rmt_driver_isr_default(void* arg)
+ void IRAM_ATTR rmt_driver_isr_default(void* arg)
 {
     uint32_t intr_st = RMT.int_st.val;
     uint32_t i = 0;
@@ -666,7 +667,7 @@ static void IRAM_ATTR rmt_driver_isr_default(void* arg)
                             // so ... if we're at the end of the source, there's some things to do:
                             // 1. reset the source pointer and counter(s) back to the beginning
                             // 2. if we only filled a partial buffer (tx_len_rem < tx_sub_len), then start back at the beginning and fill up the rest
-                            if (p_rmt->sample_size_remain == 0)
+                            if (p_rmt->sample_size_remain == 0 && !p_rmt->wait_done)
                             {
                                 // reset p_rmt->sample_cur to the beginning of the source buffer
                                 p_rmt->sample_cur = p_rmt->sample_orig;
@@ -705,7 +706,7 @@ static void IRAM_ATTR rmt_driver_isr_default(void* arg)
                     if (len_rem >= p_rmt->tx_sub_len)
                     {
                         // fill half a buffer
-                        rmt_fill_memory((rmt_channel_t)channel, pdata, p_rmt->tx_sub_len, p_rmt->tx_offset);
+                        fnRMT.rmt_fill_memory((rmt_channel_t)channel, pdata, p_rmt->tx_sub_len, p_rmt->tx_offset);
                         // move the output data pointer 
                         p_rmt->tx_data += p_rmt->tx_sub_len;
                         // adjust how much data is left to send
@@ -719,7 +720,7 @@ static void IRAM_ATTR rmt_driver_isr_default(void* arg)
                     else
                     {
                         // otherwise fill up a partial buffer with the last of the data
-                        rmt_fill_memory((rmt_channel_t)channel, pdata, len_rem, p_rmt->tx_offset);
+                        fnRMT.rmt_fill_memory((rmt_channel_t)channel, pdata, len_rem, p_rmt->tx_offset);
                         RMTMEM.chan[channel].data32[p_rmt->tx_offset + len_rem].val = 0;
                         p_rmt->tx_data += len_rem;
                         p_rmt->tx_len_rem -= len_rem;
@@ -742,7 +743,7 @@ static void IRAM_ATTR rmt_driver_isr_default(void* arg)
     }
 }
 
-esp_err_t rmt_driver_uninstall(rmt_channel_t channel)
+esp_err_t rmtStream::rmt_driver_uninstall(rmt_channel_t channel)
 {
     esp_err_t err = ESP_OK;
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -794,7 +795,7 @@ esp_err_t rmt_driver_uninstall(rmt_channel_t channel)
     return ESP_OK;
 }
 
-esp_err_t rmt_driver_install(rmt_channel_t channel, size_t rx_buf_size, int intr_alloc_flags)
+esp_err_t rmtStream::rmt_driver_install(rmt_channel_t channel, size_t rx_buf_size, int intr_alloc_flags)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK((s_rmt_driver_channels & BIT(channel)) == 0, "RMT driver already installed for channel", ESP_ERR_INVALID_STATE);
@@ -806,15 +807,15 @@ esp_err_t rmt_driver_install(rmt_channel_t channel, size_t rx_buf_size, int intr
         return ESP_ERR_INVALID_STATE;
     }
 
-#if !CONFIG_SPIRAM_USE_MALLOC
-    p_rmt_obj[channel] = (rmt_obj_t*) malloc(sizeof(rmt_obj_t));
-#else
-    if( !(intr_alloc_flags & ESP_INTR_FLAG_IRAM) ) {
-        p_rmt_obj[channel] = (rmt_obj_t*) malloc(sizeof(rmt_obj_t));
-    } else {
+// #if !CONFIG_SPIRAM_USE_MALLOC
+//     p_rmt_obj[channel] = (rmt_obj_t*) malloc(sizeof(rmt_obj_t));
+// #else
+//     if( !(intr_alloc_flags & ESP_INTR_FLAG_IRAM) ) {
+//         p_rmt_obj[channel] = (rmt_obj_t*) malloc(sizeof(rmt_obj_t));
+//     } else {
         p_rmt_obj[channel] = (rmt_obj_t*) heap_caps_calloc(1, sizeof(rmt_obj_t), MALLOC_CAP_INTERNAL|MALLOC_CAP_8BIT);
-    }
-#endif
+//     }
+// #endif
 
     if(p_rmt_obj[channel] == NULL) {
         ESP_LOGE(RMT_TAG, "RMT driver malloc error");
@@ -831,16 +832,17 @@ esp_err_t rmt_driver_install(rmt_channel_t channel, size_t rx_buf_size, int intr
     p_rmt_obj[channel]->translator = false;
     p_rmt_obj[channel]->sample_to_rmt = NULL;
     if(p_rmt_obj[channel]->tx_sem == NULL) {
-#if !CONFIG_SPIRAM_USE_MALLOC
+// #if !CONFIG_SPIRAM_USE_MALLOC
         p_rmt_obj[channel]->tx_sem = xSemaphoreCreateBinary();
-#else
-        p_rmt_obj[channel]->intr_alloc_flags = intr_alloc_flags;
-        if( !(intr_alloc_flags & ESP_INTR_FLAG_IRAM) ) {
-            p_rmt_obj[channel]->tx_sem = xSemaphoreCreateBinary();
-        } else {
-            p_rmt_obj[channel]->tx_sem = xSemaphoreCreateBinaryStatic(&p_rmt_obj[channel]->tx_sem_buffer);
-        }
-#endif
+// #else
+//         p_rmt_obj[channel]->intr_alloc_flags = intr_alloc_flags;
+//         if( !(intr_alloc_flags & ESP_INTR_FLAG_IRAM) ) {
+//             p_rmt_obj[channel]->tx_sem = xSemaphoreCreateBinary();
+//         } 
+//         else {
+//             p_rmt_obj[channel]->tx_sem = xSemaphoreCreateBinary(&p_rmt_obj[channel]->tx_sem_buffer);
+//         }
+// #endif
         xSemaphoreGive(p_rmt_obj[channel]->tx_sem);
     }
     if(p_rmt_obj[channel]->rx_buf == NULL && rx_buf_size > 0) {
@@ -864,7 +866,7 @@ esp_err_t rmt_driver_install(rmt_channel_t channel, size_t rx_buf_size, int intr
     return err;
 }
 
-esp_err_t rmt_write_items(rmt_channel_t channel, const rmt_item32_t* rmt_item, int item_num, bool wait_tx_done)
+esp_err_t rmtStream::rmt_write_items(rmt_channel_t channel, const rmt_item32_t* rmt_item, int item_num, bool wait_tx_done)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
@@ -908,7 +910,7 @@ esp_err_t rmt_write_items(rmt_channel_t channel, const rmt_item32_t* rmt_item, i
     return ESP_OK;
 }
 
-esp_err_t rmt_wait_tx_done(rmt_channel_t channel, TickType_t wait_time)
+esp_err_t rmtStream::rmt_wait_tx_done(rmt_channel_t channel, TickType_t wait_time)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
@@ -925,7 +927,7 @@ esp_err_t rmt_wait_tx_done(rmt_channel_t channel, TickType_t wait_time)
     }
 }
 
-esp_err_t rmt_get_ringbuf_handle(rmt_channel_t channel, RingbufHandle_t* buf_handle)
+esp_err_t rmtStream::rmt_get_ringbuf_handle(rmt_channel_t channel, RingbufHandle_t* buf_handle)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
@@ -934,15 +936,15 @@ esp_err_t rmt_get_ringbuf_handle(rmt_channel_t channel, RingbufHandle_t* buf_han
     return ESP_OK;
 }
 
-rmt_tx_end_callback_t rmt_register_tx_end_callback(rmt_tx_end_fn_t function, void *arg)
+fn_rmt_tx_end_callback_t rmtStream::rmt_register_tx_end_callback(fn_rmt_tx_end_fn_t function, void *arg)
 {
-    rmt_tx_end_callback_t previous = rmt_tx_end_callback;
+    fn_rmt_tx_end_callback_t previous = rmt_tx_end_callback;
     rmt_tx_end_callback.function = function;
     rmt_tx_end_callback.arg = arg;
     return previous;
 }
 
-esp_err_t rmt_translator_init(rmt_channel_t channel, sample_to_rmt_t fn)
+esp_err_t rmtStream::rmt_translator_init(rmt_channel_t channel, sample_to_rmt_t fn)
 {
     RMT_CHECK(fn != NULL, RMT_TRANSLATOR_NULL_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -970,7 +972,7 @@ esp_err_t rmt_translator_init(rmt_channel_t channel, sample_to_rmt_t fn)
     return ESP_OK;
 }
 
-esp_err_t rmt_write_sample(rmt_channel_t channel, const uint8_t *src, size_t src_size, bool wait_tx_done)
+esp_err_t rmtStream::rmt_write_sample(rmt_channel_t channel, const uint8_t *src, size_t src_size, bool wait_tx_done)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
@@ -1018,7 +1020,7 @@ esp_err_t rmt_write_sample(rmt_channel_t channel, const uint8_t *src, size_t src
     return ESP_OK;
 }
 
-esp_err_t rmt_get_channel_status(rmt_channel_status_result_t *channel_status)
+esp_err_t rmtStream::rmt_get_channel_status(rmt_channel_status_result_t *channel_status)
 {
     RMT_CHECK(channel_status != NULL, RMT_PARAM_ERR_STR, ESP_ERR_INVALID_ARG);
     for(int i = 0; i < RMT_CHANNEL_MAX; i++) {
@@ -1036,3 +1038,5 @@ esp_err_t rmt_get_channel_status(rmt_channel_status_result_t *channel_status)
     }
     return ESP_OK;
 }
+
+rmtStream fnRMT;

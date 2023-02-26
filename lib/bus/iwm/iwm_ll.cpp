@@ -664,11 +664,11 @@ memset(sample, 0xff, num_samples);
 sample[1]=0;
 sample[num_samples-2]=0;
 Debug_printf("\nSending %d items", num_samples);//number_of_items);
-  ESP_ERROR_CHECK(rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
+  ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
   fnSystem.delay(100);
-  rmt_tx_stop(RMT_TX_CHANNEL);
+  fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
   fnSystem.delay(50);
-  ESP_ERROR_CHECK(rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
+  ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
 Debug_printf ("\nSample transmission complete");
 while (1)
   ;
@@ -750,9 +750,9 @@ void iwm_diskii_ll::setup_rmt()
     config.tx_config.idle_level = rmt_idle_level_t::RMT_IDLE_LEVEL_LOW ;
     config.clk_div = 1; // use full 80 MHz resolution of APB clock
 
-    ESP_ERROR_CHECK(rmt_config(&config));
-    ESP_ERROR_CHECK(rmt_driver_install(config.channel, 0, ESP_INTR_FLAG_IRAM));
-    ESP_ERROR_CHECK(rmt_translator_init(config.channel, encode_rmt_stream));
+    ESP_ERROR_CHECK(fnRMT.rmt_config(&config));
+    ESP_ERROR_CHECK(fnRMT.rmt_driver_install(config.channel, 0, ESP_INTR_FLAG_IRAM));
+    ESP_ERROR_CHECK(fnRMT.rmt_translator_init(config.channel, encode_rmt_stream));
 }
 
 bool IRAM_ATTR iwm_diskii_ll::fakebit()
