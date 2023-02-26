@@ -5,10 +5,12 @@
 #include <queue>
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
-#include <driver/rmt.h>
+//#include <driver/rmt.h>
 #include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
+
+#include "fnRMTstream.h"
 
 // #define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
 #define TRACK_LEN 6646          // https://applesaucefdc.com/woz/reference2/
@@ -139,7 +141,7 @@ private:
   // std::queue<spi_transaction_t> trans;
 
   // RMT data handling
-  rmt_config_t config;
+  fn_rmt_config_t config;
   // where to put the track buffer for translation?
 
   // tri-state buffer control - copied from sp_ll - probably should make one version only but alas
