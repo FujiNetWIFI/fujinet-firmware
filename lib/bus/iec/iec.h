@@ -26,41 +26,6 @@
 #include <utility>
 #include <string>
 
-#define IEC_DEVICEID_DISK 0x31
-#define IEC_DEVICEID_DISK_LAST 0x3F
-
-#define IEC_DEVICEID_PRINTER 0x40
-#define IEC_DEVICEID_PRINTER_LAST 0x43
-
-#define IEC_DEVICEID_FN_VOICE 0x43
-
-#define IEC_DEVICEID_APETIME 0x45
-
-#define IEC_DEVICEID_TYPE3POLL 0x4F
-
-#define IEC_DEVICEID_RS232 0x50
-#define IEC_DEVICEID_RS2323_LAST 0x53
-
-#define IEC_DEVICEID_CASSETTE 0x5F
-
-#define IEC_DEVICEID_FUJINET 0x70
-#define IEC_DEVICEID_FN_NETWORK 0x71
-#define IEC_DEVICEID_FN_NETWORK_LAST 0x78
-
-#define IEC_DEVICEID_MIDI 0x99
-
-#define IEC_DEVICEID_SIO2BT_NET 0x4E
-#define IEC_DEVICEID_SIO2BT_SMART 0x45 // Doubles as APETime and "High Score Submission" to URL
-#define IEC_DEVICEID_APE 0x45
-#define IEC_DEVICEID_ASPEQT 0x46
-#define IEC_DEVICEID_PCLINK 0x6F
-
-#define IEC_DEVICEID_CPM 0x5A
-
-#define I2C_SLAVE_TX_BUF_LEN 255 
-#define I2C_SLAVE_RX_BUF_LEN 32
-#define I2C_DEVICE_ID 0x70
-
 /**
  * @brief The command frame
  */
@@ -80,14 +45,6 @@ union cmdFrame_t
         uint8_t checksum;
     } __attribute__((packed));
 };
-
-/**
- * @brief calculate a simple 8-bit wrap-around checksum.
- * @param buf Pointer to buffer
- * @param len Length of buffer
- * @return the 8-bit checksum value
- */
-uint8_t iec_checksum(uint8_t *buf, unsigned short len);
 
 /**
  * @class Forward declaration of System Bus

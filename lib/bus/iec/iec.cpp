@@ -6,16 +6,6 @@
 #include "../../include/pinmap.h"
 #include "led.h"
 
-uint8_t cx16_checksum(uint8_t *buf, unsigned short len)
-{
-    unsigned int chk = 0;
-
-    for (int i = 0; i < len; i++)
-        chk = ((chk + buf[i]) >> 8) + ((chk + buf[i]) & 0xff);
-
-    return chk;
-}
-
 void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // TODO IMPLEMENT
