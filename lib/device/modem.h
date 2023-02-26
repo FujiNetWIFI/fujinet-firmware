@@ -11,7 +11,7 @@
   extern rs232Modem *sioR;
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/modem.h"
   extern iecModem *sioR;
 #endif

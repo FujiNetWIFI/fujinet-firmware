@@ -1,5 +1,5 @@
 /* FujiNet Hardware Pin Mapping */
-#ifdef PINMAP_CBM
+#ifdef PINMAP_IEC
 
 /* SD Card */
 #define PIN_CARD_DETECT 12 // fnSystem.h

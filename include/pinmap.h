@@ -6,7 +6,7 @@
 #include "pinmap/a2_rev0.h"
 #include "pinmap/atariv1.h"
 #include "pinmap/adamv1.h"
-#include "pinmap/cbm.h"
+#include "pinmap/iec.h"
 #include "pinmap/esp32s3.h"
 #include "pinmap/lynx.h"
 #include "pinmap/rs232_rev0.h"

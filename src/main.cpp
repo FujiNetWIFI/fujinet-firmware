@@ -121,9 +121,11 @@ void main_setup()
     SIO.setup();
 #endif // BUILD_ATARI
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
     // Setup IEC Bus
     theFuji.setup(&IEC);
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
 #endif // BUILD_CBM
 
 #ifdef BUILD_LYNX

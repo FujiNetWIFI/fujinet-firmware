@@ -1,4 +1,4 @@
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 
 #include "printerlist.h"
 
@@ -7,9 +7,6 @@ printerlist fnPrinters;
 
 void printerlist::set_entry(int index, iecPrinter *ptr, iecPrinter::printer_type ptype, int pport)
 {
-    if (ptr == NULL)
-        return;
-
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return;
 
@@ -19,9 +16,6 @@ void printerlist::set_entry(int index, iecPrinter *ptr, iecPrinter::printer_type
 }
 void printerlist::set_ptr(int index, iecPrinter *ptr)
 {
-    if (ptr == NULL)
-        return;
-        
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return;
     _printers[index].pPrinter = ptr;
@@ -57,4 +51,4 @@ int printerlist::get_port(int index)
     return _printers[index].port;
 }
 
-#endif /* BUILD_CBM */
+#endif /* BUILD_IEC */

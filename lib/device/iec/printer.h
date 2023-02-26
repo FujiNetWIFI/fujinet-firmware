@@ -1,11 +1,11 @@
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 #ifndef IEC_PRINTER_H
 #define IEC_PRINTER_H
 
-#include <string.h>
+#include <string>
 
 #include "bus.h"
-#include "../printer-emulator/printer_emulator.h"
+#include "printer_emulator.h"
 #include "fnFS.h"
 
 #define PRINTER_UNSUPPORTED "Unsupported"
@@ -15,6 +15,10 @@ class iecPrinter : public virtualDevice
 protected:
     // SIO THINGS
     uint8_t _buffer[40];
+    void write(uint8_t aux1, uint8_t aux2);
+    void status();
+    void process(uint32_t commanddata, uint8_t checksum);
+    void shutdown();
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
@@ -48,6 +52,30 @@ public:
         PRINTER_INVALID
     };
 
+public:
+    constexpr static const char * const printer_model_str[PRINTER_INVALID]
+    {
+        "file printer (RAW)",
+        "file printer (TRIM)",
+        "file printer (ASCII)",
+        "Atari 820",
+        "Atari 822",
+        "Atari 825",
+        "Atari 1020",
+        "Atari 1025",
+        "Atari 1027",
+        "Atari 1029",
+        "Atari XMM801",
+        "Atari XDM121",
+        "Epson 80",
+        "Epson PrintShop",
+        "Okimate 10",
+        "GRANTIC",
+        "HTML printer",
+        "HTML ATASCII printer"
+    };
+    
+
     iecPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~iecPrinter();
 
@@ -55,6 +83,7 @@ public:
     void set_printer_type(printer_type printer_type);
     void reset_printer() { set_printer_type(_ptype); };
     time_t lastPrintTime() { return _last_ms; };
+    void print_from_cpm(uint8_t c);
 
     printer_emu *getPrinterPtr() { return _pptr; };
 
@@ -63,5 +92,6 @@ private:
     printer_type _ptype;
 };
 
-#endif // IEC_PRINTER_H
-#endif // BUILD_CBM
+
+#endif // guard
+#endif

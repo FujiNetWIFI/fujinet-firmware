@@ -1,4 +1,4 @@
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 
 #include "mediaType.h"
 

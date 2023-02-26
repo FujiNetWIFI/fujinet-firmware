@@ -6,7 +6,7 @@
 #define SYSTEM_BUS SIO
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 #include "iec/iec.h"
 #define SYSTEM_BUS IEC
 #endif
