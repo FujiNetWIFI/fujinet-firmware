@@ -37,10 +37,13 @@
     rs232CPM sioZ;
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 # include "iec/fuji.h"
+# include "iec/modem.h"
+
+    iecModem *sioR;
 #endif
 
 #ifdef BUILD_ADAM

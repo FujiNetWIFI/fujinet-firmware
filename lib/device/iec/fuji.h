@@ -5,8 +5,8 @@
 #include <cstring>
 
 #include "bus.h"
-//#include "network.h"
-//#include "cassette.h"
+#include "network.h"
+#include "cassette.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -15,13 +15,6 @@
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 8
-
-#define MAX_WIFI_PASS_LEN 64
-
-#define MAX_APPKEY_LEN 64
-
-#define READ_DEVICE_SLOTS_DISKS1 0x00
-#define READ_DEVICE_SLOTS_TAPE 0x10
 
 typedef struct
 {
@@ -33,7 +26,7 @@ typedef struct
     unsigned char dnsIP[4];
     unsigned char macAddress[6];
     unsigned char bssid[6];
-    char fn_veriecn[15];
+    char fn_version[15];
 } AdapterConfig;
 
 enum appkey_mode : uint8_t
@@ -55,13 +48,11 @@ struct appkey
 class iecFuji : public virtualDevice
 {
 private:
-    systemBus *_iec_bus;
+    systemBus *_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
-
-    iecCassette _cassetteDev;
 
     int _current_open_directory_slot = -1;
 
@@ -74,45 +65,45 @@ private:
     appkey _current_appkey;
 
 protected:
-    void iec_reset_fujinet();          // 0xFF
-    void iec_net_get_ssid();           // 0xFE
-    void iec_net_scan_networks();      // 0xFD
-    void iec_net_scan_result();        // 0xFC
-    void iec_net_set_ssid();           // 0xFB
-    void iec_net_get_wifi_status();    // 0xFA
-    void iec_mount_host();             // 0xF9
-    void iec_disk_image_mount();       // 0xF8
-    void iec_open_directory();         // 0xF7
-    void iec_read_directory_entry();   // 0xF6
-    void iec_close_directory();        // 0xF5
-    void iec_read_host_slots();        // 0xF4
-    void iec_write_host_slots();       // 0xF3
-    void iec_read_device_slots();      // 0xF2
-    void iec_write_device_slots();     // 0xF1
-    void iec_enable_udpstream();       // 0xF0
-    void iec_net_get_wifi_enabled();   // 0xEA
-    void iec_disk_image_umount();      // 0xE9
-    void iec_get_adapter_config();     // 0xE8
-    void iec_new_disk();               // 0xE7
-    void iec_unmount_host();           // 0xE6
-    void iec_get_directory_position(); // 0xE5
-    void iec_set_directory_position(); // 0xE4
-    void iec_set_hiec_index();         // 0xE3
-    void iec_set_device_filename();    // 0xE2
-    void iec_set_host_prefix();        // 0xE1
-    void iec_get_host_prefix();        // 0xE0
-    void iec_set_iec_external_clock(); // 0xDF
-    void iec_write_app_key();          // 0xDE
-    void iec_read_app_key();           // 0xDD
-    void iec_open_app_key();           // 0xDC
-    void iec_close_app_key();          // 0xDB
-    void iec_get_device_filename();    // 0xDA
-    void iec_set_boot_config();        // 0xD9
-    void iec_copy_file();              // 0xD8
-    void iec_set_boot_mode();          // 0xD6
+    void reset_fujinet();          // 0xFF
+    void net_get_ssid();           // 0xFE
+    void net_scan_networks();      // 0xFD
+    void net_scan_result();        // 0xFC
+    void net_set_ssid();           // 0xFB
+    void net_get_wifi_status();    // 0xFA
+    void mount_host();             // 0xF9
+    void disk_image_mount();       // 0xF8
+    void open_directory();         // 0xF7
+    void read_directory_entry();   // 0xF6
+    void close_directory();        // 0xF5
+    void read_host_slots();        // 0xF4
+    void write_host_slots();       // 0xF3
+    void read_device_slots();      // 0xF2
+    void write_device_slots();     // 0xF1
+    void enable_udpstream();       // 0xF0
+    void net_get_wifi_enabled();   // 0xEA
+    void disk_image_umount();      // 0xE9
+    void get_adapter_config();     // 0xE8
+    void new_disk();               // 0xE7
+    void unmount_host();           // 0xE6
+    void get_directory_position(); // 0xE5
+    void set_directory_position(); // 0xE4
+    void set_hindex();         // 0xE3
+    void set_device_filename();    // 0xE2
+    void set_host_prefix();        // 0xE1
+    void get_host_prefix();        // 0xE0
+    void set_external_clock(); // 0xDF
+    void write_app_key();          // 0xDE
+    void read_app_key();           // 0xDD
+    void open_app_key();           // 0xDC
+    void close_app_key();          // 0xDB
+    void get_device_filename();    // 0xDA
+    void set_boot_config();        // 0xD9
+    void copy_file();              // 0xD8
+    void set_boot_mode();          // 0xD6
 
-    void iec_status() override;
-    void iec_process(uint32_t commanddata, uint8_t checksum) override;
+    void status() override;
+    void process(uint32_t commanddata, uint8_t checksum) override;
 
     void shutdown() override;
 
@@ -121,16 +112,13 @@ public:
 
     bool status_wait_enabled = true;
     
+    //iecNetwork *network();
+
     iecDisk *bootdisk();
-
-    iecNetwork *network();
-
-    iecCassette *cassette() { return &_cassetteDev; };
-    void debug_tape();
 
     void insert_boot_device(uint8_t d);
 
-    void setup(systemBus *iecbus);
+    void setup(systemBus *siobus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);
