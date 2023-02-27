@@ -49,6 +49,59 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
+// Return values for service:
+typedef enum
+{
+    BUS_OFFLINE = -3, // Bus is empty
+    BUS_RESET = -2,   // The bus is in a reset state (RESET line).    
+    BUS_ERROR = -1,   // A problem occoured, reset communication
+    BUS_IDLE = 0,     // Nothing recieved of our concern
+    BUS_ACTIVE = 1,   // ATN is pulled and a command byte is expected
+    BUS_PROCESS = 2,  // A command is ready to be processed
+} bus_state_t;
+
+// IEC commands:
+typedef enum
+{
+    IEC_GLOBAL = 0x00,     // 0x00 + cmd (global command)
+    IEC_LISTEN = 0x20,     // 0x20 + device_id (LISTEN) (0-30)
+    IEC_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
+    IEC_TALK = 0x40,       // 0x40 + device_id (TALK) (0-30)
+    IEC_UNTALK = 0x5F,     // 0x5F (UNTALK)
+    IEC_REOPEN = 0x60,     // 0x60 + channel (OPEN CHANNEL) (0-15)
+    IEC_REOPEN_JD = 0x61,  // 0x61 + channel (OPEN CHANNEL) (0-15) - JIFFYDOS LOAD
+    IEC_CLOSE = 0xE0,      // 0xE0 + channel (CLOSE NAMED CHANNEL) (0-15)
+    IEC_OPEN = 0xF0        // 0xF0 + channel (OPEN NAMED CHANNEL) (0-15)
+} bus_command_t;
+
+typedef enum
+{
+    DEVICE_ERROR = -1,
+    DEVICE_IDLE = 0,       // Ready and waiting
+    DEVICE_ACTIVE = 1,
+    DEVICE_LISTEN = 2,     // A command is recieved and data is coming to us
+    DEVICE_TALK = 3,       // A command is recieved and we must talk now
+    DEVICE_PROCESS = 4,    // Execute device command
+} device_state_t;
+
+class IECData
+{
+    public:
+        uint8_t primary = 0;
+        uint8_t device = 0;
+        uint8_t secondary = 0;
+        uint8_t channel = 0;
+        std::string device_command = "";
+
+		void init ( void ) {
+			primary = 0;
+			device = 0;
+			secondary = 0;
+			channel = 0;
+			device_command = "";
+		}
+};
+
 /**
  * @class Forward declaration of System Bus
  */
@@ -74,9 +127,22 @@ protected:
     cmdFrame_t cmdFrame;
 
     /**
-     * @brief Message queue
+     * @brief current device state.
      */
-    QueueHandle_t qMessages = nullptr;
+    device_state_t device_state;
+
+    /**
+     * @brief Get device ready to handle next phase of command.
+     */
+    device_state_t queue_command(IECData *data)
+    {
+        if (data->primary == IEC_LISTEN)
+            device_state = DEVICE_LISTEN;
+        else if (data->primary == IEC_TALK)
+            device_state = DEVICE_TALK;
+        
+        return device_state;
+    }
 
     /**
      * @brief Send the desired buffer to the IEC.
@@ -111,9 +177,11 @@ protected:
 
     /**
      * @brief All IEC devices repeatedly call this routine to fan out to other methods for each command.
-     * This is typcially implemented as a switch() statement.
+     *        This is typcially implemented as a switch() statement.
+     * @param commanddata The command data structure to pass
+     * @return new device state.
      */
-    virtual void process(uint32_t commanddata, uint8_t checksum) = 0;
+    virtual device_state_t process(IECData *commanddata) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
@@ -174,6 +242,26 @@ private:
     IecProtocolBase *protocol = NULL;
 
     /**
+     * IEC LISTEN received
+     */
+    bus_state_t deviceListen();
+
+    /**
+     * IEC TALK requested
+     */
+    bus_state_t deviceTalk();
+
+    /**
+     * BUS TURNAROUND (act like listener)
+     */
+    bool turnAround ();
+
+    /**
+     * Done with turnaround, go back to being talker.
+     */
+    bool undoTurnAround ();
+
+    /**
      * @brief called to process the next command
      */
     void process_cmd();
@@ -183,11 +271,26 @@ private:
      */
     void process_queue();
 
+    /**
+     * @brief Release the bus lines, we're done.
+     */
+    void releaseLines ( bool wait = false );
+
 public:
     /**
      * @brief bus flags
      */
     uint16_t flags = CLEAR;
+
+    /**
+     * @brief current bus state
+     */
+    bus_state_t bus_state;
+
+    /**
+     * @brief data about current bus transaction
+     */
+    IECData data;
 
     /**
      * @brief Enabled device bits
@@ -203,6 +306,11 @@ public:
      * @brief Run one iteration of the bus service loop
      */
     void service();
+
+    /**
+     * @brief called in response to RESET pin being asserted.
+     */
+    void reset_all_our_devices();
 
     /**
      * @brief called from main shutdown to clean up the device.

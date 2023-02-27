@@ -336,9 +336,10 @@ iecDisk *iecFuji::bootdisk()
     return &_bootDisk;
 }
 
-void iecFuji::process(uint32_t commanddata, uint8_t checksum)
+device_state_t iecFuji::process(IECData *commanddata)
 {
     // TODO IMPLEMENT
+    return DEVICE_IDLE;
 }
 
 int iecFuji::get_disk_id(int drive_slot)

@@ -17,7 +17,7 @@ protected:
     uint8_t _buffer[40];
     void write(uint8_t aux1, uint8_t aux2);
     void status();
-    void process(uint32_t commanddata, uint8_t checksum);
+    device_state_t process(IECData *commanddata);
     void shutdown();
 
     printer_emu *_pptr = nullptr;

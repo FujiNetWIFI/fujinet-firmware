@@ -21,9 +21,10 @@ void iecModem::status()
     // TODO IMPLEMENT
 }
 
-void iecModem::process(uint32_t commanddata, uint8_t checksum)
+device_state_t iecModem::process(IECData *commanddata)
 {
     // TODO IMPLEMENT
+    return DEVICE_IDLE;
 }
 
 #endif /* BUILD_IEC */
