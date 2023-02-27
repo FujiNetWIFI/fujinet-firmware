@@ -123,6 +123,7 @@ void main_setup()
 
 #ifdef BUILD_IEC
     // Setup IEC Bus
+    IEC.setup();
     theFuji.setup(&IEC);
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());

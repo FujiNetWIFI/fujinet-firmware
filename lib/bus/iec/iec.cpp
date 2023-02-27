@@ -8,6 +8,18 @@
 #include "protocol/iecProtocolSerial.h"
 #include "string_utils.h"
 
+static void IRAM_ATTR cbm_on_attention_isr_handler(void* arg)
+{
+    systemBus *b = (systemBus *)arg;
+
+    // Go to listener mode and get command
+    b->release ( PIN_IEC_CLK_OUT );
+    b->pull ( PIN_IEC_DATA_OUT );
+
+    b->flags |= ATN_PULLED;
+    b->bus_state = BUS_ACTIVE;
+}
+
 bus_state_t systemBus::deviceListen()
 {
     // If the command is SECONDARY and it is not to expect just a small command on the command channel, then
@@ -167,7 +179,7 @@ void systemBus::service()
         // Check for error
         if ( c == 0xFFFFFFFF || flags & ERROR )
         {
-            //Debug_printv ( "Error reading command" );            
+            Debug_printv ( "Error reading command" );            
             if ( c == 0xFFFFFFFF )
                 bus_state = BUS_OFFLINE;
             else
@@ -441,6 +453,8 @@ void systemBus::setup()
     set_pin_mode ( PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT );
 
     flags = CLEAR;
+    gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, this);
+
 }
 
 void systemBus::addDevice(virtualDevice *pDevice, int device_id)
