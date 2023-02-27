@@ -170,9 +170,10 @@ iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
 }
 
 // Process command
-void iecPrinter::process(uint32_t commanddata, uint8_t checksum)
+device_state_t iecPrinter::process(IECData *commanddata)
 {
     // TODO IMPLEMENT
+    return DEVICE_IDLE;
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_IEC */

@@ -103,7 +103,7 @@ protected:
     void set_boot_mode();          // 0xD6
 
     void status() override;
-    void process(uint32_t commanddata, uint8_t checksum) override;
+    device_state_t process(IECData *commanddata) override;
 
     void shutdown() override;
 

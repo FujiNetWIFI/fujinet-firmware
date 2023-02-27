@@ -81,9 +81,9 @@ bool iecDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 }
 
 // Process command
-void iecDisk::process(uint32_t commanddata, uint8_t checksum)
+device_state_t iecDisk::process(IECData *commanddata)
 {
-    // TODO IMPLEMENT
+    return DEVICE_IDLE;
 }
 
 #endif /* BUILD_ATARI */

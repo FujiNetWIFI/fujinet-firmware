@@ -18,7 +18,7 @@ public:
     iecModem(FileSystem *_fs, bool snifferEnable);
     virtual ~iecModem();
     void status() override;
-    void process(uint32_t commanddata, uint8_t checksum) override;
+    device_state_t process(IECData *commanddata) override;
 
     ModemSniffer *get_modem_sniffer() { return modemSniffer; }
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
