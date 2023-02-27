@@ -329,6 +329,8 @@ void iecFuji::insert_boot_device(uint8_t d)
 void iecFuji::setup(systemBus *siobus)
 {
     // TODO IMPLEMENT
+    Debug_printf("iecFuji::setup()\n");
+    IEC.addDevice(this,0x0F);
 }
 
 iecDisk *iecFuji::bootdisk()
@@ -338,7 +340,11 @@ iecDisk *iecFuji::bootdisk()
 
 device_state_t iecFuji::process(IECData *commanddata)
 {
-    // TODO IMPLEMENT
+    Debug_printf("Channel: %u\n",commanddata->channel);
+    Debug_printf("Device: %u\n",commanddata->device);
+    Debug_printf("Device Command: %s\n",commanddata->device_command.c_str());
+    Debug_printf("Primary: %u\n",commanddata->primary);
+    Debug_printf("Secondary: %u\n",commanddata->secondary);
     return DEVICE_IDLE;
 }
 
