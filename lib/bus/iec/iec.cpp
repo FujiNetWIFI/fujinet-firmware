@@ -5,6 +5,7 @@
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 #include "led.h"
+#include "protocol/iecProtocolSerial.h"
 
 void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
@@ -46,6 +47,7 @@ void systemBus::service()
 
 void systemBus::setup()
 {
+    protocol = new IecProtocolSerial();
     // TODO IMPLEMENT
 }
 

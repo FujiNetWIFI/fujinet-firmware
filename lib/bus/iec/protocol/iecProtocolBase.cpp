@@ -1,8 +1,7 @@
 #ifdef BUILD_IEC
 
 #include "iecProtocolBase.h"
-#include "iecdefines.h"
-#include "pinmap.h"
+#include "../../../include/pinmap.h"
 #include "bus.h"
 
 int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wait, bool watch_atn)
@@ -61,7 +60,7 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
 
 }
 
-bool IecProtocolBase::wait(size_t wait, uint64_t start = 0)
+bool IecProtocolBase::wait(size_t wait, uint64_t start)
 {
     uint64_t current, elapsed;
     elapsed = 0;

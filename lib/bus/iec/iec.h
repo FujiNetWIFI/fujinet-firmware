@@ -27,7 +27,7 @@
 #include <string>
 #include <driver/gpio.h>
 #include "fnSystem.h"
-#include "iecdefines.h"
+#include "protocol/iecProtocolBase.h"
 
 /**
  * @brief The command frame
@@ -167,6 +167,11 @@ private:
      * @brief is device shutting down?
      */
     bool shuttingDown = false;
+
+    /**
+     * @brief the active bus protocol
+     */
+    IecProtocolBase *protocol = NULL;
 
     /**
      * @brief called to process the next command
