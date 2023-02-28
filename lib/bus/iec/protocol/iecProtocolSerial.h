@@ -27,7 +27,7 @@ class IecProtocolSerial : public IecProtocolBase
 {
     private:
     int16_t receiveBits();
-
+    bool sendBits(uint8_t data);
 
 
     public:

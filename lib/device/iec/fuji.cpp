@@ -338,14 +338,42 @@ iecDisk *iecFuji::bootdisk()
     return &_bootDisk;
 }
 
-device_state_t iecFuji::process(IECData *commanddata)
+void iecFuji::test()
 {
-    Debug_printf("Channel: %u\n",commanddata->channel);
-    Debug_printf("Device: %u\n",commanddata->device);
-    Debug_printf("Device Command: %s\n",commanddata->device_command.c_str());
-    Debug_printf("Primary: %u\n",commanddata->primary);
-    Debug_printf("Secondary: %u\n",commanddata->secondary);
-    return DEVICE_IDLE;
+    if (commanddata->channel != 15)
+    {
+        IEC.senderTimeout();
+        device_state=DEVICE_ERROR;
+        return;
+    }
+    if (commanddata->primary == IEC_LISTEN && commanddata->secondary == IEC_OPEN)
+    {
+  
+    }
+    else if (commanddata->primary == IEC_LISTEN && commanddata->secondary == IEC_REOPEN)
+    {
+        // ???
+    }
+    else if (commanddata->primary == IEC_TALK)
+    {
+        Debug_printf("Sending data!");
+        IEC.sendBytes("TEST FROM PC.\r");
+    }
+}
+
+device_state_t iecFuji::process(IECData *_commanddata)
+{
+    virtualDevice::process(_commanddata);
+
+    if (device_command == "TEST")
+        test();
+    else
+    {
+        IEC.senderTimeout();
+        device_state=DEVICE_ERROR;
+    }
+
+    return device_state;
 }
 
 int iecFuji::get_disk_id(int drive_slot)
