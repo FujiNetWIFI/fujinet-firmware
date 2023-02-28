@@ -102,8 +102,9 @@ protected:
     void copy_file();              // 0xD8
     void set_boot_mode();          // 0xD6
 
-    void test(); // dummy command
-    
+    void tin(); // dummy command 
+    void tout(); // dummy command
+
     void status() override;
     device_state_t process(IECData *commanddata) override;
 

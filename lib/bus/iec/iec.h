@@ -25,6 +25,7 @@
 #include <freertos/queue.h>
 #include <utility>
 #include <string>
+#include <map>
 #include <driver/gpio.h>
 #include "fnSystem.h"
 #include "protocol/iecProtocolBase.h"

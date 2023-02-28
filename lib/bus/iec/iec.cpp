@@ -477,16 +477,11 @@ void systemBus::releaseLines(bool wait)
 
 bool systemBus::senderTimeout()
 {
-    // protocol->pull( PIN_IEC_SRQ );
-    //  Message file not found by just releasing lines
     releaseLines();
-    // Debug_printv("release lines");
     this->bus_state = BUS_ERROR;
 
-    // Signal an empty stream
     fnSystem.delay_microseconds(TIMING_EMPTY);
 
-    // protocol->release( PIN_IEC_SRQ );
     return true;
 } // senderTimeout
 
