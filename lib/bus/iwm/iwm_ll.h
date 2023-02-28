@@ -158,6 +158,15 @@ private:
   int MC3470_byte_ctr;
   int MC3470_bit_ctr;
 
+  // track bit information
+  uint8_t* track_buffer; // 
+  int track_byte_ctr;
+  int track_bit_ctr;
+  size_t track_numbits;
+  size_t track_numbytes;
+  size_t track_location() { return track_bit_ctr + 8 * track_byte_ctr; };
+ 
+
 public:
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
@@ -173,6 +182,7 @@ public:
   // need a function to stop the RMT stream
   // need a function to remove the RMT device?
 
+  bool nextbit();
   bool fakebit();
   void copy_track(uint8_t *track, size_t tracklen, size_t trackbits);
 //  void encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator);

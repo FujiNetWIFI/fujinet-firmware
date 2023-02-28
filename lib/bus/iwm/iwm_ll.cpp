@@ -20,7 +20,8 @@
 
 // generate PN bits using Octave/MATLAB with
 // for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
-const uint8_t MC3470[32] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
+#define PNLEN 32
+const uint8_t MC3470[PNLEN] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
 
 volatile uint8_t _phases = 0;
 volatile bool sp_command_mode = false;
@@ -663,12 +664,15 @@ uint8_t* sample = (uint8_t*)heap_caps_malloc(num_samples, MALLOC_CAP_8BIT | MALL
 memset(sample, 0xff, num_samples);
 sample[1]=0;
 sample[num_samples-2]=0;
+sample[num_samples-1]=0b01111111;
+copy_track(sample, num_samples, num_samples * 8 - 2);
 Debug_printf("\nSending %d items", num_samples);//number_of_items);
-  ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
-  fnSystem.delay(100);
-  fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
-  fnSystem.delay(50);
-  ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
+  //ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
+  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, num_samples * 8 - 2));
+  // fnSystem.delay(100);
+  // fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+  // fnSystem.delay(50);
+  // ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
 Debug_printf ("\nSample transmission complete");
 while (1)
   ;
@@ -683,10 +687,15 @@ void IRAM_ATTR encode_rmt_stream(const void* src, rmt_item32_t* dest, size_t src
         *item_num = 0;
         return;
     }
+    // *src is equal to *track_buffer
+    // src_size is equal to numbits
+    // translated_size is not used
+    // item_num will equal wanted_num at end
+
+    // call diskii_xface.nextbit() to get the next bit out of the track buffer
+
     const rmt_item32_t bit0 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 0 }}}; //Logical 0
     const rmt_item32_t bit1 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 1 }}}; //Logical 1
-    uint8_t window = 0;
-    uint8_t nextbit = 0;
     size_t size = 0;
     size_t num = 0;
     uint8_t *psrc = (uint8_t *)src;
@@ -695,22 +704,6 @@ void IRAM_ATTR encode_rmt_stream(const void* src, rmt_item32_t* dest, size_t src
     {
       for (int i = 0; i < 8; i++)
       {
-        // MC34780 behavior for random bit insertion
-      // https://applesaucefdc.com/woz/reference2/
-      // window <<= 1;
-      // window |= ((track[i] & mask) != 0);
-      // if ((window & 0x0f) != 0)
-      // {
-      //   nextbit = window & 0x02;
-      // }
-      // else
-      // {
-      //   nextbit = fakebit();
-      // }
-      //
-      // put the windowing-fakebit logic in here. I think (*psrc & (0x1 << i)) replaces ((track[i] & mask)
-      // the old i index is no longer needed. the new i index is the old k index
-      //
         if (*psrc & (0x1 << i))
         {
           pdest->val = bit1.val;
@@ -729,6 +722,60 @@ void IRAM_ATTR encode_rmt_stream(const void* src, rmt_item32_t* dest, size_t src
     *item_num = num;
 }
 
+//Convert track data to rmt format data.
+void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t src_size, 
+                         size_t wanted_num, size_t* translated_size, size_t* item_num)
+{
+    if (src == NULL || dest == NULL)
+    {
+      *translated_size = 0;
+      *item_num = 0;
+      return;
+    }
+    // *src is equal to *track_buffer
+    // src_size is equal to numbits
+    // translated_size is not used
+    // item_num will equal wanted_num at end
+
+    // call diskii_xface.nextbit() to get the next bit out of the track buffer
+
+    const rmt_item32_t bit0 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 0 }}}; //Logical 0
+    const rmt_item32_t bit1 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 1 }}}; //Logical 1
+    static uint8_t window = 0;
+    uint8_t outbit = 0;
+    size_t num = 0;
+    rmt_item32_t* pdest = dest;
+    while (num < wanted_num)
+    {
+        // move this to nextbit()
+        // MC34780 behavior for random bit insertion
+      // https://applesaucefdc.com/woz/reference2/
+      window <<= 1;
+      window |= (uint8_t)diskii_xface.nextbit();
+      window &= 0x0f;
+      if (window != 0)
+      {
+        outbit = window & 0x02;
+      }
+      else
+      {
+        outbit = diskii_xface.fakebit();
+      }
+
+      if (outbit != 0)
+      {
+        pdest->val = bit1.val;
+      }
+      else
+      {
+        pdest->val = bit0.val;
+      }
+        num++;
+        pdest++;
+    }
+    *translated_size = wanted_num;
+    *item_num = wanted_num;
+}
 
 
 /*
@@ -736,38 +783,66 @@ void IRAM_ATTR encode_rmt_stream(const void* src, rmt_item32_t* dest, size_t src
  */
 void iwm_diskii_ll::setup_rmt()
 {
-    config.rmt_mode = rmt_mode_t::RMT_MODE_TX;
-    config.channel = RMT_TX_CHANNEL;
+#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
+  track_buffer = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+
+  config.rmt_mode = rmt_mode_t::RMT_MODE_TX;
+  config.channel = RMT_TX_CHANNEL;
 #ifdef RMTTEST
-    config.gpio_num = (gpio_num_t)SP_EXTRA; 
+  config.gpio_num = (gpio_num_t)SP_EXTRA; 
 #else
+  if(fnSystem.check_spifix())
+    config.gpio_num = SP_SPI_FIX_PIN;
+  else
     config.gpio_num = (gpio_num_t)SP_WRDATA;// gpio_num_t::GPIO_NUM_21; // SP_EXTRA was RMT_TX_GPIO;
 #endif
-    config.mem_block_num = 8;
-    config.tx_config.loop_en = false;
-    config.tx_config.carrier_en = false;
-    config.tx_config.idle_output_en = true;
-    config.tx_config.idle_level = rmt_idle_level_t::RMT_IDLE_LEVEL_LOW ;
-    config.clk_div = 1; // use full 80 MHz resolution of APB clock
+  config.mem_block_num = 8;
+  config.tx_config.loop_en = false;
+  config.tx_config.carrier_en = false;
+  config.tx_config.idle_output_en = true;
+  config.tx_config.idle_level = rmt_idle_level_t::RMT_IDLE_LEVEL_LOW;
+  config.clk_div = 1; // use full 80 MHz resolution of APB clock
 
-    ESP_ERROR_CHECK(fnRMT.rmt_config(&config));
-    ESP_ERROR_CHECK(fnRMT.rmt_driver_install(config.channel, 0, ESP_INTR_FLAG_IRAM));
-    ESP_ERROR_CHECK(fnRMT.rmt_translator_init(config.channel, encode_rmt_stream));
+  ESP_ERROR_CHECK(fnRMT.rmt_config(&config));
+  ESP_ERROR_CHECK(fnRMT.rmt_driver_install(config.channel, 0, ESP_INTR_FLAG_IRAM));
+  ESP_ERROR_CHECK(fnRMT.rmt_translator_init(config.channel, encode_rmt_bitstream));
+}
+
+bool IRAM_ATTR iwm_diskii_ll::nextbit()
+{
+  bool outbit;
+  outbit = (track_buffer[track_byte_ctr] & (0x01 << track_bit_ctr)) != 0;
+
+  ++track_bit_ctr %= 8;
+  if (track_bit_ctr == 0)
+    ++track_byte_ctr %= track_numbytes;
+  
+  if (track_location() >= track_numbits)
+  {
+    track_bit_ctr = 0;
+    track_byte_ctr = 0;
+  }
+
+  return outbit;
 }
 
 bool IRAM_ATTR iwm_diskii_ll::fakebit()
 {
   ++MC3470_bit_ctr %= 8;
   if (MC3470_bit_ctr == 0)
-    ++MC3470_byte_ctr %= 32;
+    ++MC3470_byte_ctr %= PNLEN;
   
   return (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
 }
 
 void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t trackbits)
 {
-  // so something
+  // copy track from SPIRAM to INTERNAL RAM
+  memcpy(track_buffer, track, tracklen);
+  track_numbytes = tracklen;
+  track_numbits = trackbits;
 }
+
 // void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator = 0)
 // {
 //   int i = 0, j = 0;
@@ -813,45 +888,6 @@ void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t
 //         }
 //       }
 //     spi_len = trackbits / 2; // 2 bits per encoded byte
-//   }
-// }
-
-// void iwm_diskii_ll::setup_spi() // int bit_ns, int chiprate
-// {
-//   esp_err_t ret; // used for calling SPI library functions below
-//   int spi_buffer_len;
-
-//   // compute length of 1 track in chips
-//   // 200 milleseconds
-//   // 1 bit in nanoseconds (usually about 4000)
-//   // number of chips per bit (usually 4)
-//   spi_buffer_len = SPI_II_LEN;// 200 * 1000 * 1000 * chiprate / bit_ns / 8;
-//   spi_len = 50304 / 2; // set to default standard DOS 3.3
-//   spi_buffer = (uint8_t *)heap_caps_malloc(spi_buffer_len, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
-//   Debug_printf("\nspi_buffer located at %lu", spi_buffer);
-
-//   spi_device_interface_config_t devcfg = {
-//       .mode = 0,                                                // SPI mode 0
-//       .duty_cycle_pos = 0,                                      ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-//       .cs_ena_pretrans = 0,                                     ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
-//       .cs_ena_posttrans = 0,                                    ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
-//       .clock_speed_hz = MHZ, // chiprate * 1000 * 1000 * 1000 / bit_ns, // Clock out at 1 MHz
-//       .input_delay_ns = 0,
-//       .spics_io_num = -1, // CS pin
-//       .queue_size = 5     // We want to be able to queue 5 transactions for the 1 second disable delay on the diskii
-//   };
-
-//   if(fnSystem.check_spifix())
-//   {
-//     // use different SPI than SDCARD
-//     ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
-//     assert(ret == ESP_OK);
-//   }
-//   else
-//   {
-//     // use same SPI as SDCARD
-//     ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
-//     assert(ret == ESP_OK);
 //   }
 // }
 
