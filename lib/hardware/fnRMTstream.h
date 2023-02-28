@@ -144,7 +144,7 @@ struct fn_rmt_tx_end_callback_t
  *       When we convert each byte of uint8_t type data to rmt format data,
  *       the relation between item_num and translated_size should be `item_num = translated_size*8`.
  */
-typedef void (*sample_to_rmt_t)(const void *src, rmt_item32_t *dest, size_t src_size, size_t wanted_num, size_t *translated_size, size_t *item_num);
+typedef void (*fn_sample_to_rmt_t)(const void *src, rmt_item32_t *dest, size_t src_size, size_t wanted_num, size_t *translated_size, size_t *item_num);
 
 class rmtStream
 {
@@ -748,7 +748,7 @@ public:
      *     - ESP_FAIL Init fail.
      *     - ESP_OK Init success.
      */
-    esp_err_t rmt_translator_init(rmt_channel_t channel, sample_to_rmt_t fn);
+    esp_err_t rmt_translator_init(rmt_channel_t channel, fn_sample_to_rmt_t fn);
 
     /**
      * @brief Set user context for the translator of specific channel
@@ -791,6 +791,7 @@ public:
      *     - ESP_OK Send success
      */
     esp_err_t rmt_write_sample(rmt_channel_t channel, const uint8_t *src, size_t src_size, bool wait_tx_done);
+    esp_err_t rmt_write_bitstream(rmt_channel_t channel, const uint8_t *src, size_t num_bits);
 
     /**
      * @brief Registers a callback that will be called when transmission ends.

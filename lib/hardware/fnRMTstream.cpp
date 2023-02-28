@@ -79,6 +79,7 @@
     size_t tx_len_rem;
     size_t tx_sub_len;
     bool translator;
+    bool fn_bitstream;
     bool wait_done; //Mark whether wait tx done.
     rmt_channel_t channel;
     const rmt_item32_t* tx_data;
@@ -89,7 +90,7 @@
 #endif
     rmt_item32_t* tx_buf;
     RingbufHandle_t rx_buf;
-    sample_to_rmt_t sample_to_rmt;
+    fn_sample_to_rmt_t sample_to_rmt;
     size_t sample_size_remain;
     const uint8_t *sample_cur;
     size_t sample_size_total;
@@ -568,7 +569,7 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
     return idx;
 }
 
- void IRAM_ATTR rmt_driver_isr_default(void* arg)
+ void IRAM_ATTR fn_rmt_driver_isr_default(void* arg)
 {
     uint32_t intr_st = RMT.int_st.val;
     uint32_t i = 0;
@@ -698,6 +699,27 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
                             p_rmt->sample_cur = NULL;
                             p_rmt->translator = false;
                         }
+                    }
+                    else if (p_rmt->fn_bitstream)
+                    {
+                        // set p_rmt->sample_cur to the beginning of the source buffer
+                        p_rmt->sample_cur = p_rmt->sample_orig;
+                        // set p_rmt->sample_size_remain to the size of the source buffer
+                        p_rmt->sample_size_remain = p_rmt->sample_size_total;
+                        size_t translated_size = 0;
+                        // send data to be fed:
+                        // in bit stream mode, the buffer will always be filled because
+                        // the sample_to_rmt function must keep track of where it's at
+                        // instead of the RMT driver knowing. sample_to_rmt will always
+                        // return tx_len_rem == tx_sub_len. 
+                        p_rmt->sample_to_rmt((void *)p_rmt->sample_cur,
+                                             p_rmt->tx_buf,
+                                             p_rmt->sample_size_remain,
+                                             p_rmt->tx_sub_len,
+                                             &translated_size,
+                                             &p_rmt->tx_len_rem);
+                        // say where the translated items are
+                        p_rmt->tx_data = p_rmt->tx_buf;
                     }
                     // point to the data
                     const rmt_item32_t* pdata = p_rmt->tx_data;
@@ -854,7 +876,7 @@ esp_err_t rmtStream::rmt_driver_install(rmt_channel_t channel, size_t rx_buf_siz
     _lock_acquire_recursive(&rmt_driver_isr_lock);
 
     if(s_rmt_driver_channels == 0) { // first RMT channel using driver
-        err = rmt_isr_register(rmt_driver_isr_default, NULL, intr_alloc_flags, &s_rmt_driver_intr_handle);
+        err = rmt_isr_register(fn_rmt_driver_isr_default, NULL, intr_alloc_flags, &s_rmt_driver_intr_handle);
     }
     if (err == ESP_OK) {
         s_rmt_driver_channels |= BIT(channel);
@@ -944,7 +966,7 @@ fn_rmt_tx_end_callback_t rmtStream::rmt_register_tx_end_callback(fn_rmt_tx_end_f
     return previous;
 }
 
-esp_err_t rmtStream::rmt_translator_init(rmt_channel_t channel, sample_to_rmt_t fn)
+esp_err_t rmtStream::rmt_translator_init(rmt_channel_t channel, fn_sample_to_rmt_t fn)
 {
     RMT_CHECK(fn != NULL, RMT_TRANSLATOR_NULL_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
@@ -977,14 +999,14 @@ esp_err_t rmtStream::rmt_write_sample(rmt_channel_t channel, const uint8_t *src,
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
     RMT_CHECK(p_rmt_obj[channel]->sample_to_rmt != NULL,RMT_TRANSLATOR_UNINIT_STR, ESP_FAIL);
-#if CONFIG_SPIRAM_USE_MALLOC
-    if( p_rmt_obj[channel]->intr_alloc_flags & ESP_INTR_FLAG_IRAM ) {
-        if( !esp_ptr_internal(src) ) {
-            ESP_LOGE(RMT_TAG, RMT_PSRAM_BUFFER_WARN_STR);
-            return ESP_ERR_INVALID_ARG;
-        }
-    }
-#endif
+// #if CONFIG_SPIRAM_USE_MALLOC
+//     if( p_rmt_obj[channel]->intr_alloc_flags & ESP_INTR_FLAG_IRAM ) {
+//         if( !esp_ptr_internal(src) ) {
+//             ESP_LOGE(RMT_TAG, RMT_PSRAM_BUFFER_WARN_STR);
+//             return ESP_ERR_INVALID_ARG;
+//         }
+//     }
+// #endif
     size_t item_num = 0;
     size_t translated_size = 0;
     rmt_obj_t* p_rmt = p_rmt_obj[channel];
@@ -1019,6 +1041,46 @@ esp_err_t rmtStream::rmt_write_sample(rmt_channel_t channel, const uint8_t *src,
     }
     return ESP_OK;
 }
+
+esp_err_t rmtStream::rmt_write_bitstream(rmt_channel_t channel, const uint8_t *src, size_t num_bits)
+{
+    RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
+    RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
+    RMT_CHECK(p_rmt_obj[channel]->sample_to_rmt != NULL,RMT_TRANSLATOR_UNINIT_STR, ESP_FAIL);
+// #if CONFIG_SPIRAM_USE_MALLOC
+//     if( p_rmt_obj[channel]->intr_alloc_flags & ESP_INTR_FLAG_IRAM ) {
+//         if( !esp_ptr_internal(src) ) {
+//             ESP_LOGE(RMT_TAG, RMT_PSRAM_BUFFER_WARN_STR);
+//             return ESP_ERR_INVALID_ARG;
+//         }
+//     }
+// #endif
+    size_t item_num = 0;
+    size_t translated_size = 0;
+    rmt_obj_t* p_rmt = p_rmt_obj[channel];
+    const uint32_t item_block_len = RMT.conf_ch[channel].conf0.mem_size * RMT_MEM_ITEM_NUM;
+    const uint32_t item_sub_len = item_block_len / 2;
+    xSemaphoreTake(p_rmt->tx_sem, portMAX_DELAY);
+    // adding in the initial values
+    p_rmt->sample_orig = src;
+    p_rmt->sample_size_total = num_bits;
+    // driver continues here 
+    p_rmt->sample_to_rmt((void *)src, p_rmt->tx_buf, num_bits, item_block_len, &translated_size, &item_num);
+    p_rmt->sample_size_remain = 0; //num_bits - translated_size;
+    p_rmt->sample_cur = 0; //src + translated_size;
+    rmt_fill_memory(channel, p_rmt->tx_buf, item_num, 0);
+    p_rmt->fn_bitstream = true;
+    rmt_set_tx_thr_intr_en(channel, 1, item_sub_len);
+    p_rmt->tx_data = p_rmt->tx_buf;
+    p_rmt->tx_offset = 0;
+    p_rmt->tx_sub_len = item_sub_len;
+    p_rmt->translator = false;
+    rmt_tx_start(channel, true);
+    p_rmt->wait_done = false;
+    return ESP_OK;
+}
+
+
 
 esp_err_t rmtStream::rmt_get_channel_status(rmt_channel_status_result_t *channel_status)
 {
