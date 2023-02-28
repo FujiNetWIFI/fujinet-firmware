@@ -53,53 +53,78 @@ union cmdFrame_t
 typedef enum
 {
     BUS_OFFLINE = -3, // Bus is empty
-    BUS_RESET = -2,   // The bus is in a reset state (RESET line).    
+    BUS_RESET = -2,   // The bus is in a reset state (RESET line).
     BUS_ERROR = -1,   // A problem occoured, reset communication
     BUS_IDLE = 0,     // Nothing recieved of our concern
     BUS_ACTIVE = 1,   // ATN is pulled and a command byte is expected
     BUS_PROCESS = 2,  // A command is ready to be processed
 } bus_state_t;
 
-// IEC commands:
+/**
+ * @enum bus command
+ */
 typedef enum
 {
-    IEC_GLOBAL = 0x00,     // 0x00 + cmd (global command)
-    IEC_LISTEN = 0x20,     // 0x20 + device_id (LISTEN) (0-30)
-    IEC_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
-    IEC_TALK = 0x40,       // 0x40 + device_id (TALK) (0-30)
-    IEC_UNTALK = 0x5F,     // 0x5F (UNTALK)
-    IEC_REOPEN = 0x60,     // 0x60 + channel (OPEN CHANNEL) (0-15)
-    IEC_REOPEN_JD = 0x61,  // 0x61 + channel (OPEN CHANNEL) (0-15) - JIFFYDOS LOAD
-    IEC_CLOSE = 0xE0,      // 0xE0 + channel (CLOSE NAMED CHANNEL) (0-15)
-    IEC_OPEN = 0xF0        // 0xF0 + channel (OPEN NAMED CHANNEL) (0-15)
+    IEC_GLOBAL = 0x00,    // 0x00 + cmd (global command)
+    IEC_LISTEN = 0x20,    // 0x20 + device_id (LISTEN) (0-30)
+    IEC_UNLISTEN = 0x3F,  // 0x3F (UNLISTEN)
+    IEC_TALK = 0x40,      // 0x40 + device_id (TALK) (0-30)
+    IEC_UNTALK = 0x5F,    // 0x5F (UNTALK)
+    IEC_REOPEN = 0x60,    // 0x60 + channel (OPEN CHANNEL) (0-15)
+    IEC_REOPEN_JD = 0x61, // 0x61 + channel (OPEN CHANNEL) (0-15) - JIFFYDOS LOAD
+    IEC_CLOSE = 0xE0,     // 0xE0 + channel (CLOSE NAMED CHANNEL) (0-15)
+    IEC_OPEN = 0xF0       // 0xF0 + channel (OPEN NAMED CHANNEL) (0-15)
 } bus_command_t;
 
 typedef enum
 {
     DEVICE_ERROR = -1,
-    DEVICE_IDLE = 0,       // Ready and waiting
+    DEVICE_IDLE = 0, // Ready and waiting
     DEVICE_ACTIVE = 1,
-    DEVICE_LISTEN = 2,     // A command is recieved and data is coming to us
-    DEVICE_TALK = 3,       // A command is recieved and we must talk now
-    DEVICE_PROCESS = 4,    // Execute device command
+    DEVICE_LISTEN = 2,  // A command is recieved and data is coming to us
+    DEVICE_TALK = 3,    // A command is recieved and we must talk now
+    DEVICE_PROCESS = 4, // Execute device command
 } device_state_t;
 
+/**
+ * @class IECData
+ * @brief the IEC command data passed to devices
+ */
 class IECData
 {
-    public:
-        uint8_t primary = 0;
-        uint8_t device = 0;
-        uint8_t secondary = 0;
-        uint8_t channel = 0;
-        std::string device_command = "";
+public:
+    /**
+     * @brief the primary command byte
+     */
+    uint8_t primary = 0;
+    /**
+     * @brief the primary device number
+     */
+    uint8_t device = 0;
+    /**
+     * @brief the secondary command byte
+     */
+    uint8_t secondary = 0;
+    /**
+     * @brief the secondary command channel
+     */
+    uint8_t channel = 0;
+    /**
+     * @brief the device command
+     */
+    std::string device_command = "";
 
-		void init ( void ) {
-			primary = 0;
-			device = 0;
-			secondary = 0;
-			channel = 0;
-			device_command = "";
-		}
+    /**
+     * @brief clear and initialize IEC command data
+     */
+    void init(void)
+    {
+        primary = 0;
+        device = 0;
+        secondary = 0;
+        channel = 0;
+        device_command = "";
+    }
 };
 
 /**
@@ -127,6 +152,16 @@ protected:
     cmdFrame_t cmdFrame;
 
     /**
+     * @brief The current device command
+     */
+    std::string device_command;
+
+    /**
+     * @brief pointer to the current command data
+     */
+    IECData *commanddata;
+
+    /**
      * @brief current device state.
      */
     device_state_t device_state;
@@ -140,34 +175,9 @@ protected:
             device_state = DEVICE_LISTEN;
         else if (data->primary == IEC_TALK)
             device_state = DEVICE_TALK;
-        
+
         return device_state;
     }
-
-    /**
-     * @brief Send the desired buffer to the IEC.
-     * @param buff The byte buffer to send to the IEC.
-     * @param len The length of the buffer to send to the IEC.
-     * @return TRUE if the IEC processed the data in error, FALSE if the Iec successfully processed
-     * the data.
-     */
-    void bus_to_computer(uint8_t *buff, uint16_t len, bool err);
-
-    /**
-     * @brief Receive data from the IEC.
-     * @param buff The byte buffer provided for data from the IEC.
-     * @param len The length of the amount of data to receive from the IEC.
-     * @return An 8-bit wrap-around checksum calculated by the IEC, which should be checked with iec_checksum()
-     */
-    uint8_t bus_to_peripheral(uint8_t *buff, uint16_t len);
-
-    /**
-     * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
-     * a sector number, for disk, or a number of bytes waiting for the iecNetwork device.
-     *
-     * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
-     */
-    unsigned short iec_get_aux() { return cmdFrame.aux1 | (cmdFrame.aux2 << 8); };
 
     /**
      * @brief All IEC commands by convention should return a status command, using bus_to_computer() to return
@@ -181,7 +191,7 @@ protected:
      * @param commanddata The command data structure to pass
      * @return new device state.
      */
-    virtual device_state_t process(IECData *commanddata) = 0;
+    virtual device_state_t process(IECData *commanddata);
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
@@ -254,12 +264,12 @@ private:
     /**
      * BUS TURNAROUND (act like listener)
      */
-    bool turnAround ();
+    bool turnAround();
 
     /**
      * Done with turnaround, go back to being talker.
      */
-    bool undoTurnAround ();
+    bool undoTurnAround();
 
     /**
      * @brief called to process the next command
@@ -274,7 +284,7 @@ private:
     /**
      * @brief Release the bus lines, we're done.
      */
-    void releaseLines ( bool wait = false );
+    void releaseLines(bool wait = false);
 
 public:
     /**
@@ -296,7 +306,7 @@ public:
      * @brief Enabled device bits
      */
     uint32_t enabledDevices;
-    
+
     /**
      * @brief called in main.cpp to set up the bus.
      */
@@ -306,6 +316,19 @@ public:
      * @brief Run one iteration of the bus service loop
      */
     void service();
+
+    /**
+     * @brief Send bytes to bus
+     * @param buf buffer to send
+     * @param len length of buffer
+     */
+    void sendBytes(const char *buf, size_t len);
+
+    /**
+     * @brief Send string to bus
+     * @param s std::string to send
+     */
+    void sendBytes(std::string s);
 
     /**
      * @brief called in response to RESET pin being asserted.
@@ -355,6 +378,12 @@ public:
      * @return value of shuttingDown
      */
     bool getShuttingDown() { return shuttingDown; }
+
+    /**
+     * @brief signal to bus that we timed out.
+     * @return true if timed out.
+     */
+    bool senderTimeout();
 
     // true => PULL => LOW
     inline void IRAM_ATTR pull(uint8_t pin)
