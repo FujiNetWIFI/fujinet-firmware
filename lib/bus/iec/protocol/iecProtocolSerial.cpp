@@ -257,7 +257,6 @@ int16_t IecProtocolSerial::receiveByte()
 
 bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
 {
-//    flags = CLEAR;
     IEC.flags &= CLEAR_LOW;
 
     // // Sometimes the C64 doesn't release ATN right away

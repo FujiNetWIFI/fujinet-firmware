@@ -63,9 +63,9 @@ void systemBus::sendBytes(const char *buf, size_t len)
 {
     for (size_t i=0;i<len;i++)
         if (i==len-1)
-            protocol->sendByte(buf[i],false);
-        else
             protocol->sendByte(buf[i],true);
+        else
+            protocol->sendByte(buf[i],false);
 }
 
 void systemBus::sendBytes(std::string s)
