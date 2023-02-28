@@ -47,10 +47,10 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     switch ((bus_command_t)commanddata->secondary)
     {
         case bus_command_t::IEC_OPEN:
-            device_command = commanddata->device_command;
+            payload = commanddata->payload;
             break;
         case bus_command_t::IEC_CLOSE:
-            device_command.clear();
+            payload.clear();
             break;
         default:
             break;
@@ -343,14 +343,14 @@ bus_state_t systemBus::deviceListen()
             if (listen_command[0] == '0' && listen_command[1] == ':')
                 listen_command = mstr::drop(listen_command, 2);
 
-            data.device_command = listen_command;
-            mstr::rtrimA0(data.device_command);
-            Debug_printf(" {%s}\r\n", data.device_command.c_str());
+            data.payload = listen_command;
+            mstr::rtrimA0(data.payload);
+            Debug_printf(" {%s}\r\n", data.payload.c_str());
             // return BUS_PROCESS;
         }
         else
         {
-            data.device_command = "";
+            data.payload = "";
             Debug_printf("\r\n");
         }
 

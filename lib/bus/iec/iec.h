@@ -112,7 +112,7 @@ public:
     /**
      * @brief the device command
      */
-    std::string device_command = "";
+    std::string payload = "";
 
     /**
      * @brief clear and initialize IEC command data
@@ -123,7 +123,7 @@ public:
         device = 0;
         secondary = 0;
         channel = 0;
-        device_command = "";
+        payload = "";
     }
 };
 
@@ -154,7 +154,7 @@ protected:
     /**
      * @brief The current device command
      */
-    std::string device_command;
+    std::string payload;
 
     /**
      * @brief pointer to the current command data
