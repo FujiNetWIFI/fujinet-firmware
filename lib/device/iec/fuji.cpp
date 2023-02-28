@@ -356,8 +356,8 @@ void iecFuji::test()
     }
     else if (commanddata->primary == IEC_TALK)
     {
-        Debug_printf("Sending data!");
-        IEC.sendBytes("TEST FROM PC.\r");
+        Debug_printf("Sending data!\r");
+        IEC.sendBytes("DATA FROM FUJINET.\r");
     }
 }
 
