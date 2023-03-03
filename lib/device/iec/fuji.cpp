@@ -340,10 +340,10 @@ iecDisk *iecFuji::bootdisk()
 
 void iecFuji::tin()
 {
+    Debug_printf("tin()\n");
     if (commanddata->secondary == IEC_REOPEN)
-    {
-        IEC.sendBytes("TESTING FROM FUJINET\r");
-    }
+        IEC.sendBytes("TESTING FROM OPEN\n");
+
 }
 
 void iecFuji::tout()
@@ -354,6 +354,8 @@ device_state_t iecFuji::process(IECData *id)
 {
     virtualDevice::process(id);
 
+    dumpData();
+
     if (commanddata->channel != 15)
     {
         Debug_printf("Fuji device only accepts on channel 15. Sending NOTFOUND.\n");
@@ -361,9 +363,9 @@ device_state_t iecFuji::process(IECData *id)
         IEC.senderTimeout();
     }
 
-    if (commanddata->payload == "TIN")
+    if (payload == "TIN")
         tin();
-    else if (commanddata->payload == "TOUT")
+    else if (payload == "TOUT")
         tout();
 
     return device_state;

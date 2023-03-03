@@ -61,6 +61,15 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     return device_state;
 }
 
+void virtualDevice::dumpData()
+{
+    Debug_printf("%9s: %02X\n","Primary",commanddata->primary);
+    Debug_printf("%9s: %02u\n","Device",commanddata->device);
+    Debug_printf("%9s: %02X\n","Secondary",commanddata->secondary);
+    Debug_printf("%9s: %02u\n","Channel",commanddata->channel);
+    Debug_printf("%9s: %s\n","Payload",commanddata->payload.c_str());
+}
+
 void systemBus::sendBytes(const char *buf, size_t len)
 {
     for (size_t i=0;i<len;i++)
@@ -227,6 +236,7 @@ void systemBus::service()
             // Is this command for us?
             if (!deviceById(data.device) || !deviceById(data.device)->device_active)
             {
+                Debug_printf("Command not for us, ignoring.\n");
                 bus_state = BUS_IDLE;
                 process_command = false;
             }
@@ -235,7 +245,7 @@ void systemBus::service()
         // If the bus is idle then release the lines
         if (bus_state < BUS_ACTIVE)
         {
-            // Debug_printv("release lines");
+            Debug_printf("Bus idle. Release lines.\n");
             data.init();
             releaseLines();
         }
@@ -245,6 +255,7 @@ void systemBus::service()
         // If no secondary was set, process primary with defaults
         if (data.primary > IEC_GLOBAL)
         {
+            Debug_printf("No secondary set.\n");
             process_command = true;
         }
     }
@@ -259,10 +270,12 @@ void systemBus::service()
         // Data Mode - Get Command or Data
         if (data.primary == IEC_LISTEN)
         {
+            Debug_printf("calling deviceListen()\n");
             bus_state = deviceListen();
         }
         else if (data.primary == IEC_TALK)
         {
+            Debug_printf("calling deviceTalk()\n");
             bus_state = deviceTalk();
         }
 
@@ -278,7 +291,7 @@ void systemBus::service()
 
         if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
         {
-            // Debug_printv("device idle");
+            Debug_printf("Device idle\n");
             data.init();
         }
 
@@ -287,13 +300,7 @@ void systemBus::service()
         bus_state = BUS_IDLE;
 
         flags = CLEAR;
-
-        // Debug_printf( "primary[%.2X] secondary[%.2X] bus_state[%d]", data.primary, data.secondary, bus_state );
-        // Debug_printf( "atn[%d] clk[%d] data[%d] srq[%d]", IEC.protocol->status(PIN_IEC_ATN), IEC.protocol->status(PIN_IEC_CLK_IN), IEC.protocol->status(PIN_IEC_DATA_IN), IEC.protocol->status(PIN_IEC_SRQ));
-        // protocol->release ( PIN_IEC_SRQ );
     }
-
-    // Debug_printf("command[%.2X] device[%.2d] secondary[%.2d] channel[%.2d]", data.primary, data.device, data.secondary, data.channel);
 }
 
 bus_state_t systemBus::deviceListen()
@@ -377,9 +384,6 @@ bus_state_t systemBus::deviceListen()
 
 bus_state_t systemBus::deviceTalk(void)
 {
-    // Okay, we will talk soon
-    // Debug_printf(" (%.2X SECONDARY) (%.2X CHANNEL)\r\n", data.primary, data.channel);
-
     // Now do bus turnaround
     if (!turnAround())
         return BUS_ERROR;

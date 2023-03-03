@@ -194,6 +194,11 @@ protected:
      */
     virtual device_state_t process(IECData *commanddata);
 
+    /**
+     * @brief Dump the current IEC frame to terminal.
+     */
+    void dumpData();
+
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
 
