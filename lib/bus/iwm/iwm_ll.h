@@ -5,11 +5,14 @@
 #include <queue>
 #include <driver/gpio.h>
 #include <driver/spi_master.h>
-//#include <driver/rmt.h>
+// #include <driver/spi_common.h>
+#include "soc/spi_periph.h"
+#include "soc/io_mux_reg.h"
+#include "esp_rom_gpio.h"
+#include "hal/gpio_hal.h"
 #include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
-
 #include "fnRMTstream.h"
 
 // #define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
@@ -128,6 +131,8 @@ public:
   // hardware configuration setup
   void setup_spi();
   void setup_gpio();
+
+  void set_output_to_spi();
 };
 
 class iwm_diskii_ll
@@ -189,6 +194,7 @@ public:
 //  void iwm_queue_track_spi();
 
 //  void spi_end();
+void set_output_to_rmt();
 };
 
 extern iwm_sp_ll smartport;
