@@ -241,13 +241,6 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
   return true;
 }
 
-
-#ifdef RMTTEST
-
-
-
-#endif
-
 void iwmBus::setup(void)
 {
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
@@ -257,10 +250,10 @@ void iwmBus::setup(void)
 
   smartport.setup_spi();
   Debug_printf("\r\nSPI configured for smartport I/O");
-  
+
   diskii_xface.setup_rmt();
   Debug_printf("\r\nRMT configured for Disk ][ Output");
-
+  
 #ifdef RMTTEST
   diskii_xface.rmttest();
 #endif
@@ -457,7 +450,10 @@ void IRAM_ATTR iwmBus::service()
     // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
     fnSystem.delay_microseconds(1000); // need a better way to figure out persistence
     if (iwm_drive_enabled() == iwm_enable_state_t::on)
+    {
+      diskii_xface.set_output_to_rmt();
       diskii_xface.enable_output();
+    }
     // make a call to start the RMT stream
     // make sure the state machine moves on to iwm_enable_state_t::on
     return; // return so the SP code doesn't get checked

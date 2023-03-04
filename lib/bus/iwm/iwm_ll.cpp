@@ -12,12 +12,6 @@
 
 #define MHZ (1000*1000)
 
-#ifdef RMTTEST
-#define RMT_USEC (APB_CLK_FREQ / MHZ)
-// https://docs.espressif.com/projects/esp-idf/en/v3.3.5/api-reference/peripherals/rmt.html
-#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
-#endif
-
 // generate PN bits using Octave/MATLAB with
 // for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
 #define PNLEN 32
@@ -429,7 +423,7 @@ void iwm_sp_ll::setup_spi()
     .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
     .cs_ena_pretrans = 0,        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
     .cs_ena_posttrans = 0,       ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
-    .clock_speed_hz = 1 * 1000 * 1000, // Clock out at 1 MHz
+    .clock_speed_hz = 1 * MHZ, // Clock out at 1 MHz
     .input_delay_ns = 0,
     .spics_io_num = -1,                // CS pin
     .queue_size = 2                    // We want to be able to queue 7 transactions at a time
@@ -651,10 +645,41 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   return numdata;
 }
 
+void iwm_sp_ll::set_output_to_spi()
+{
+  int host;
+  // copied from spi_common.c
+  gpio_set_direction(SP_SPI_FIX_PIN, GPIO_MODE_OUTPUT);
+  if(fnSystem.check_spifix())
+  host = fnSystem.check_spifix() ? VSPI_HOST : HSPI_HOST;
+
+  esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[host].spid_out, false, false);
+  gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[SP_SPI_FIX_PIN], PIN_FUNC_GPIO);
+}
+
 // =========================================================================================
 // ========================== DISK II below ======== SP above ==============================
 // =========================================================================================
 
+// https://docs.espressif.com/projects/esp-idf/en/v3.3.5/api-reference/peripherals/rmt.html
+#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
+#define RMT_USEC (APB_CLK_FREQ / MHZ)
+
+void iwm_diskii_ll::set_output_to_rmt()
+{
+gpio_num_t n;
+
+#ifdef RMTTEST
+  n = (gpio_num_t)SP_EXTRA; 
+#else
+  // if(fnSystem.check_spifix())
+    n = SP_SPI_FIX_PIN;
+  // else
+  //   n = (gpio_num_t)SP_WRDATA;// gpio_num_t::GPIO_NUM_21; // SP_EXTRA was RMT_TX_GPIO;
+#endif
+
+  fnRMT.rmt_set_pin(RMT_TX_CHANNEL, rmt_mode_t::RMT_MODE_TX, n);
+}
 
 void IRAM_ATTR iwm_diskii_ll::rmttest(void)
 {
@@ -674,6 +699,9 @@ Debug_printf("\nSending %d items", num_samples);//number_of_items);
   // fnSystem.delay(50);
   // ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
 Debug_printf ("\nSample transmission complete");
+fnSystem.delay(1000);
+diskii_xface.set_output_to_rmt();
+Debug_printf("\r\nRMT configured for Disk ][ Output");
 while (1)
   ;
 }
