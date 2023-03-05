@@ -3,13 +3,13 @@
 #define IWM_LL_H
 
 #include <queue>
-#include <driver/gpio.h>
+// #include <driver/gpio.h>
 #include <driver/spi_master.h>
 // #include <driver/spi_common.h>
-#include "soc/spi_periph.h"
-#include "soc/io_mux_reg.h"
-#include "esp_rom_gpio.h"
-#include "hal/gpio_hal.h"
+// #include "soc/spi_periph.h"
+// #include "soc/io_mux_reg.h"
+// #include "esp_rom_gpio.h"
+// #include "hal/gpio_hal.h"
 #include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
