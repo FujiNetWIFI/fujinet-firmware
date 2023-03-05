@@ -647,14 +647,14 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 
 void iwm_sp_ll::set_output_to_spi()
 {
-  int host;
-  // copied from spi_common.c
-  gpio_set_direction(SP_SPI_FIX_PIN, GPIO_MODE_OUTPUT);
-  if(fnSystem.check_spifix())
-  host = fnSystem.check_spifix() ? VSPI_HOST : HSPI_HOST;
+  // int host;
+  // // copied from spi_common.c
+  // gpio_set_direction(SP_SPI_FIX_PIN, GPIO_MODE_OUTPUT);
+  // if(fnSystem.check_spifix())
+  // host = fnSystem.check_spifix() ? VSPI_HOST : HSPI_HOST;
 
-  esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[host].spid_out, false, false);
-  gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[SP_SPI_FIX_PIN], PIN_FUNC_GPIO);
+  // esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[host].spid_out, false, false);
+  // gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[SP_SPI_FIX_PIN], PIN_FUNC_GPIO);
 }
 
 // =========================================================================================
