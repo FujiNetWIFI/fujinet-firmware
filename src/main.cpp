@@ -197,6 +197,27 @@ void main_setup()
 
 #endif /* BUILD_APPLE */
 
+#ifdef BUILD_CX16
+    theFuji.setup(&CX16);
+    CX16.addDevice(&theFuji, CX16_DEVICEID_FUJINET); // the FUJINET!
+
+    // Create a new printer object, setting its output depending on whether we have SD or not
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    cx16Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == cx16Printer::printer_type::PRINTER_INVALID)
+        ptype = cx16Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+
+    cx16Printer *ptr = new cx16Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    CX16.addDevice(ptr, CX16_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    // Go setup SIO
+    CX16.setup();
+#endif
+
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
