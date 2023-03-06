@@ -10,5 +10,6 @@
 #include "pinmap/esp32s3.h"
 #include "pinmap/lynx.h"
 #include "pinmap/rs232_rev0.h"
+#include "pinmap/cx16.h"
 
 #endif /* PINMAP_H */

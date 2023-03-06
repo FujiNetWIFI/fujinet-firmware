@@ -41,7 +41,6 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       {
         if (IWM.command_packet.dest == devicep->id())
         {
-          smartport.iwm_ack_clr();
           sp_command_mode = true;
         }
       }
@@ -135,8 +134,8 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   if (req_wait_for_rising_timeout(300000))
     {
       // timeout!
-      Debug_printf("\nSendPacket timeout waiting for REQ");
       portENABLE_INTERRUPTS(); // takes 7 us to execute
+      Debug_printf("\nSendPacket timeout waiting for REQ");
       return 1;
     }
 
@@ -148,11 +147,11 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   assert(ret == ESP_OK);
 
   // wait for REQ to go low
-  if (req_wait_for_falling_timeout(15000))
+  if (req_wait_for_falling_timeout(5000)) // if we don't get REQ low within 500us, then the host didn't like the packet
   {
-    Debug_println("Send REQ timeout");
-    // iwm_ack_disable();       // need to release the bus
     portENABLE_INTERRUPTS(); // takes 7 us to execute
+    Debug_println("Send REQ timeout");
+    req_wait_for_falling_timeout(100000); //wait until host eventually sets REQ low (~1ms), then we can retry send
     return 1;
   }
   portENABLE_INTERRUPTS();
@@ -743,14 +742,17 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 {
   uint8_t states = 0;
 
-  // Temporary while we debug Disk ][
+  // only enable diskII if we are either not on an en35 capable host, or we are on an en35host and /EN35=high
+  if (!IWM.en35Host || (IWM.en35Host && (GPIO.in1.val & (0x01 << (SP_EN35 - 32)))))
+  {
+    // Temporary while we debug Disk ][
 #ifdef DISKII_DRIVE1
-  states |= !((GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32));
+    states |= !((GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32));
 #endif
 #ifdef DISKII_DRIVE2
-  states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
+    states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
 #endif
-
+  }
   return states;
 }
 

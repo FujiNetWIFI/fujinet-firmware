@@ -567,6 +567,8 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     Debug_printf("\r\nStatus code complete, sending response");
     //send_data_packet(data_len);
     IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    data_len = 0;
+    memset(data_buffer,0,sizeof(data_buffer));
 }
 
 void iwmNetwork::net_read()
@@ -654,6 +656,9 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 
     Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
 
+    data_len = 0;
+    memset(data_buffer,0,sizeof(data_buffer));
+
     switch (channelMode)
     {
     case PROTOCOL:
@@ -710,6 +715,9 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
             send_reply_packet(SP_ERR_NOERROR);
         }
     }
+
+    data_len = 0;
+    memset(data_buffer,0,sizeof(data_buffer));
 }
 
 void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -795,6 +803,9 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
         err_result = SP_ERR_IOERROR;
 
     send_reply_packet(err_result);
+
+    data_len = 0;
+    memset(data_buffer,0,sizeof(data_buffer));
 }
 
 void iwmNetwork::process(iwm_decoded_cmd_t cmd)

@@ -208,13 +208,22 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 
 int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num)
 {
+  int r;
+  int retry = 5; // host seems to control the retries, this is here so we don't get stuck
+
   smartport.encode_packet(source, packet_type, status, data, num);
-  int r = smartport.iwm_send_packet_spi();
+  do
+  {
+    r = smartport.iwm_send_packet_spi();
+    retry--;
+  } while (r && retry); // retry if we get an error and haven't tried to many times
+
   return r;
 }
 
 bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 {
+  memset(data, 0, n);
   int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
   Debug_printf("\r\nAttempting to receive %d length packet", nn);
   portDISABLE_INTERRUPTS();
@@ -488,6 +497,12 @@ void IRAM_ATTR iwmBus::service()
     // well wait until reset clears.
 
     Debug_printf(("\r\nReset Cleared"));
+
+    // if /EN35 is high, we must be on a host that supports 3.5 dumb drives
+    // lets sample it here in case the host is not on when the FN is powered on/reset
+    (GPIO.in1.val & (0x01 << (SP_EN35 - 32))) ? en35Host = true : en35Host = false;
+    Debug_printf("\r\nen35Host = %d",en35Host);
+
     break;
   case iwm_phases_t::enable:
     // expect a command packet
@@ -545,16 +560,23 @@ void IRAM_ATTR iwmBus::service()
       for (auto devicep : _daisyChain)
       {
 
-        if (command_packet.dest == devicep->_devnum &&
-            devicep->device_active == true)
+        if (command_packet.dest == devicep->_devnum)
 
         {
-          // iwm_ack_assert(); // includes waiting for spi read transaction to finish
-          // portENABLE_INTERRUPTS();
+          if (verify_cmdpkt_checksum())
+          {
+            Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+            Debug_printf("\r\nDon't lower ACK to signal host to retry cmdpkt");
+            sp_command_mode = false; //try again to receive the packet
+            return;
+          }
+
+          smartport.iwm_ack_clr();  // Checksum is ok, we can lower ACK
+
           // wait for REQ to go low
           if (iwm_req_deassert_timeout(50000))
           {
-            // iwm_ack_deassert(); // go hi-Z
+            iwm_ack_deassert(); // go hi-Z
             return;
           }
           // need to take time here to service other ESP processes so they can catch up
@@ -563,18 +585,10 @@ void IRAM_ATTR iwmBus::service()
 
           _activeDev = devicep;
           // handle command
-          if (verify_cmdpkt_checksum())
-          {
-            Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            _activeDev->iwm_return_ioerror();
-          }
-          else
-          {
-            memset(command.decoded, 0, sizeof(command.decoded));
-            smartport.decode_data_packet(command_packet.data, command.decoded);
-            print_packet(command.decoded, 9);
-            _activeDev->process(command);
-          }
+          memset(command.decoded, 0, sizeof(command.decoded));
+          smartport.decode_data_packet(command_packet.data, command.decoded);
+          print_packet(command.decoded, 9);
+          _activeDev->process(command);
         }
       }
     }
@@ -637,13 +651,10 @@ void iwmBus::handle_init()
     }
     // assign dev numbers
     pDevice = (*it);
-
-    if (pDevice->device_active == false)
-      continue;
-    
+    pDevice->switched = false; //reset switched condition on init
+    pDevice->eject_latch = false; //reset eject latch on init
     if (pDevice->id() == 0)
     {
-      pDevice->switched = false; //reset switched condition on init
       pDevice->_devnum = command_packet.dest; // assign address
       if (++it == _daisyChain.end())
         status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain
