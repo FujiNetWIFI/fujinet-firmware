@@ -41,4 +41,9 @@
 #define SYSTEM_BUS RS232
 #endif
 
+#ifdef BUILD_CX16
+#include "cx16_i2c/cx16_i2c.h"
+#define SYSTEM_BUS CX16
+#endif
+
 #endif // BUS_H

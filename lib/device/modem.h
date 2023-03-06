@@ -41,5 +41,9 @@ extern adamModem *sioR;
   extern iwmModem *sioR;
 #endif
 
+#ifdef BUILD_CX16
+#include "cx16_i2c/modem.h"
+extern cx16Modem *sioR;
+#endif
 
 #endif // DEVICE_MODEM_H

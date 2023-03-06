@@ -286,6 +286,8 @@ protected:
 
 public:
   bool device_active;
+  //eject_latch allows simulation of an empty drive momentarily on disk mounts
+  bool eject_latch = false; 
   bool switched = false; //indicate disk switched condition
   bool readonly = true;  //write protected 
   bool is_config_device;
@@ -377,7 +379,8 @@ public:
   iwmPrinter *getPrinter() { return _printerdev; }
   bool shuttingDown = false;                                  // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
-
+  bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
+  
 };
 
 extern iwmBus IWM;
