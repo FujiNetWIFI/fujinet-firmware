@@ -387,7 +387,7 @@ void iwm_sp_ll::setup_spi()
     spirx_mosi_pin = SP_SPI_FIX_PIN;
 
   // SPI for receiving packets - sprirx
-  spi_bus_config_t bus_cfg = {
+  bus_cfg = {
     .mosi_io_num = spirx_mosi_pin,
     .miso_io_num = SP_WRDATA,
     .sclk_io_num = -1,
@@ -400,7 +400,6 @@ void iwm_sp_ll::setup_spi()
 
   ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
   assert(ret == ESP_OK);
-
 
   spi_device_interface_config_t rxcfg = {
     .mode = 0,                      // SPI mode 0
@@ -647,6 +646,8 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 
 void iwm_sp_ll::set_output_to_spi()
 {
+  //ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+ // esp_err_t err = spicommon_bus_initialize_io(VSPI_HOST, bus_cfg, SPICOMMON_BUSFLAG_MASTER | bus_config->flags, &bus_attr->flags);
   // int host;
   // // copied from spi_common.c
   // gpio_set_direction(SP_SPI_FIX_PIN, GPIO_MODE_OUTPUT);
@@ -675,7 +676,7 @@ gpio_num_t n;
   // if(fnSystem.check_spifix())
     n = SP_SPI_FIX_PIN;
   // else
-  //   n = (gpio_num_t)SP_WRDATA;// gpio_num_t::GPIO_NUM_21; // SP_EXTRA was RMT_TX_GPIO;
+    // n = (gpio_num_t)SP_RDDATA;// gpio_num_t::GPIO_NUM_21; // SP_EXTRA was RMT_TX_GPIO;
 #endif
 
   fnRMT.rmt_set_pin(RMT_TX_CHANNEL, rmt_mode_t::RMT_MODE_TX, n);
@@ -683,6 +684,7 @@ gpio_num_t n;
 
 void IRAM_ATTR iwm_diskii_ll::rmttest(void)
 {
+ iwm_rddata_clr(); // enable the tri-state buffer
   #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 size_t num_samples = 512*12;
 uint8_t* sample = (uint8_t*)heap_caps_malloc(num_samples, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
@@ -698,10 +700,21 @@ Debug_printf("\nSending %d items", num_samples);//number_of_items);
   // fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
   // fnSystem.delay(50);
   // ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
+fnSystem.delay(2000);
 Debug_printf ("\nSample transmission complete");
+//gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT);
+Debug_printf("\r\ngpio set to input");
+GPIO.func_out_sel_cfg[SP_WRDATA].oen_sel = 1;
+GPIO.enable_w1tc = ((uint32_t)0x01 << SP_WRDATA);
+    // Ensure no other output signal is routed via GPIO matrix to this pin
+// REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (SP_WRDATA * 4),SIG_GPIO_OUT_IDX);
 fnSystem.delay(1000);
-diskii_xface.set_output_to_rmt();
-Debug_printf("\r\nRMT configured for Disk ][ Output");
+// gpio_matrix_out(gpio_num_t(SP_WRDATA), RMT_SIG_OUT0_IDX + RMT_TX_CHANNEL, 0, 0);
+//gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+//fnRMT.rmt_set_pin(RMT_TX_CHANNEL,RMT_MODE_TX, (gpio_num_t)SP_WRDATA );
+GPIO.enable_w1ts = ((uint32_t)0x01 << SP_WRDATA);
+Debug_printf("\r\ngpio back to out");
+
 while (1)
   ;
 }
@@ -819,10 +832,7 @@ void iwm_diskii_ll::setup_rmt()
 #ifdef RMTTEST
   config.gpio_num = (gpio_num_t)SP_EXTRA; 
 #else
-  if(fnSystem.check_spifix())
-    config.gpio_num = SP_SPI_FIX_PIN;
-  else
-    config.gpio_num = (gpio_num_t)SP_WRDATA;// gpio_num_t::GPIO_NUM_21; // SP_EXTRA was RMT_TX_GPIO;
+  config.gpio_num = (gpio_num_t)SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
 #endif
   config.mem_block_num = 8;
   config.tx_config.loop_en = false;

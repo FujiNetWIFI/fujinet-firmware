@@ -5,7 +5,7 @@
 #include <queue>
 // #include <driver/gpio.h>
 #include <driver/spi_master.h>
-// #include <driver/spi_common.h>
+//#include <driver/spi_common.h>
 // #include "soc/spi_periph.h"
 // #include "soc/io_mux_reg.h"
 // #include "esp_rom_gpio.h"
@@ -85,6 +85,7 @@ private:
   // SPI data handling
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
+  spi_bus_config_t bus_cfg;
   spi_device_handle_t spi;
   // SPI receiver
   spi_transaction_t rxtrans;
