@@ -408,7 +408,7 @@ esp_err_t rmtStream::rmt_set_pin(rmt_channel_t channel, rmt_mode_t mode, gpio_nu
     RMT_CHECK(((GPIO_IS_VALID_GPIO(gpio_num) && (mode == RMT_MODE_RX)) || (GPIO_IS_VALID_OUTPUT_GPIO(gpio_num) && (mode == RMT_MODE_TX))),
         RMT_GPIO_ERROR_STR, ESP_ERR_INVALID_ARG);
 
-    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[gpio_num], 2);
+    PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[gpio_num], 2); // configures the pad as GPIO???
     if(mode == RMT_MODE_TX) {
         gpio_set_direction(gpio_num, GPIO_MODE_OUTPUT);
         gpio_matrix_out(gpio_num, RMT_SIG_OUT0_IDX + channel, 0, 0);
