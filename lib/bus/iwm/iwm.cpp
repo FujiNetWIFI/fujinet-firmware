@@ -212,6 +212,7 @@ int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8
   int retry = 5; // host seems to control the retries, this is here so we don't get stuck
 
   smartport.encode_packet(source, packet_type, status, data, num);
+  //print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN); // print raw packet contents to be sent
   do
   {
     r = smartport.iwm_send_packet_spi();
@@ -230,15 +231,28 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
   iwm_ack_deassert();
   for (int i = 0; i < attempts; i++)
   {
-    if (!smartport.iwm_read_packet_spi(nn))
+    int error = smartport.iwm_read_packet_spi(nn);
+    if (!error)
     {
       iwm_ack_assert();
       portENABLE_INTERRUPTS();
 #ifdef DEBUG
-      print_packet(data);
+      //if (smartport.packet_buffer[8] == 0x82) // packet type    // limit debug packet print if needed to data packets
+      //  print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN); // print raw received packet contents
 #endif
       n = smartport.decode_data_packet(data);
       return false;
+    }
+    else if (error == 2) // checksum nok
+    {
+      smartport.spi_end(); // when this ends, we might be in the middle of receiving the next resent packet
+      portENABLE_INTERRUPTS();
+      Debug_printf("\r\nChksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
+#ifdef DEBUG
+      //print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN);  // print raw received packet contents
+#endif
+      portDISABLE_INTERRUPTS();
+      smartport.req_wait_for_falling_timeout(1000000); // wait up to 100ms to catch REQ going low and line up with end of the resent packet
     } // if
   }
 #ifdef DEBUG
@@ -314,62 +328,6 @@ void iwmDevice::iwm_return_noerror()
   send_reply_packet(SP_ERR_NOERROR);
 }
 
-//*****************************************************************************
-// Function: verify_cmdpkt_checksum
-// Parameters: none
-// Returns: 0 = ok, 1 = error
-//
-// Description: verify the checksum for command packets
-//
-// &&&&&&&&not used at the moment, no error checking for checksum for cmd packet
-//*****************************************************************************
-bool iwmBus::verify_cmdpkt_checksum(void)
-{
-  // int length;
-  uint8_t evenbits, oddbits, bit7, bit0to6, grpbyte;
-  uint8_t calc_checksum = 0; // initial value is 0
-  uint8_t pkt_checksum;
-
-  // length = get_packet_length();
-  // Debug_printf("\r\npacket length = %d", length);
-  // 2 oddbytes in cmd packet
-  //  calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
-  //  calc_checksum ^= ((packet_buffer[13] << 2) & 0x80) | (packet_buffer[15] & 0x7f);
-  calc_checksum ^= ((command_packet.oddmsb << 1) & 0x80) | (command_packet.command & 0x7f);
-  calc_checksum ^= ((command_packet.oddmsb << 2) & 0x80) | (command_packet.parmcnt & 0x7f);
-
-  // 1 group of 7 in a cmd packet
-  for (grpbyte = 0; grpbyte < 7; grpbyte++)
-  {
-    bit7 = (command_packet.grp7msb << (grpbyte + 1)) & 0x80;
-    bit0to6 = (command_packet.data[17 + grpbyte]) & 0x7f;
-    calc_checksum ^= bit7 | bit0to6;
-  }
-
-  // calculate checksum for overhead bytes
-  for (int count = 6; count < 13; count++) // start from first id byte
-    calc_checksum ^= command_packet.data[count];
-
-  // int chkidx = 13 + numodd + (numodd != 0) + numgrps * 8;
-  // evenbits = packet_buffer[chkidx] & 0x55;
-  // oddbits = (packet_buffer[chkidx + 1] & 0x55) << 1;
-  oddbits = (command_packet.chksum2 << 1) | 0x01;
-  evenbits = command_packet.chksum1;
-  pkt_checksum = oddbits & evenbits; // oddbits | evenbits;
-  // every other bit is ==1 in checksum, so need to AND to get data back
-
-  //  Debug_print(("Pkt Chksum Byte:\r\n"));
-  //  Debug_print(pkt_checksum,DEC);
-  //  Debug_print(("Calc Chksum Byte:\r\n"));
-  //  Debug_print(calc_checksum,DEC);
-  //  Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
-  // if ( pkt_checksum == calc_checksum )
-  //   return false;
-  // else
-  //   return true;
-  return (pkt_checksum != calc_checksum);
-}
-
 void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 {
   uint8_t status_code = cmd.params[2]; // cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
@@ -442,43 +400,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 //*****************************************************************************
 void IRAM_ATTR iwmBus::service()
 {
-  #if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
-  // check on the diskii status
-  switch (iwm_drive_enabled())
-  {
-  case iwm_enable_state_t::off:
-    diskii_xface.spi_end();
-    break;
-  case iwm_enable_state_t::off2on:
-    // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
-    fnSystem.delay_microseconds(1000);
-    if (iwm_drive_enabled() == iwm_enable_state_t::on)
-      diskii_xface.enable_output();
-    return; // no break because I want it to fall through to "on"
-  case iwm_enable_state_t::on:
-#ifdef DEBUG
-    new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
-    if (old_track != new_track)
-    {
-      Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());
-      old_track = new_track;
-    }
-#endif
-    // smartport.iwm_ack_clr();  - need to deal with write protect
-
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
-    {
-      // Debug_printf("%d ", isrctr);
-      diskii_xface.iwm_queue_track_spi();
-    }
-    return;
-  case iwm_enable_state_t::on2off:
-    diskii_xface.disable_output();
-    iwm_ack_deassert();
-    return;
-  }
-#endif
-
+  // process smartport before diskII
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
   {
@@ -548,31 +470,14 @@ void IRAM_ATTR iwmBus::service()
       print_packet(command_packet.data);
       Debug_printf("\r\nhandling init command");
 #endif
-      if (verify_cmdpkt_checksum())
-      {
-        Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        Debug_printf("\r\ndo init anyway");
-      } // to do - checksum verification? How to respond?
       handle_init();
     }
     else
     {
       for (auto devicep : _daisyChain)
       {
-
         if (command_packet.dest == devicep->_devnum)
-
         {
-          if (verify_cmdpkt_checksum())
-          {
-            Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            Debug_printf("\r\nDon't lower ACK to signal host to retry cmdpkt");
-            sp_command_mode = false; //try again to receive the packet
-            return;
-          }
-
-          smartport.iwm_ack_clr();  // Checksum is ok, we can lower ACK
-
           // wait for REQ to go low
           if (iwm_req_deassert_timeout(50000))
           {
@@ -595,6 +500,44 @@ void IRAM_ATTR iwmBus::service()
     sp_command_mode = false;
     iwm_ack_deassert(); // go hi-Z
   }                     // switch (phasestate)
+
+    #if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
+  // check on the diskii status
+  switch (iwm_drive_enabled())
+  {
+  case iwm_enable_state_t::off:
+    diskii_xface.spi_end();
+    break;
+  case iwm_enable_state_t::off2on:
+    // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
+    fnSystem.delay_microseconds(1000);
+    if (iwm_drive_enabled() == iwm_enable_state_t::on)
+      diskii_xface.enable_output();
+    return; // no break because I want it to fall through to "on"
+  case iwm_enable_state_t::on:
+#ifdef DEBUG
+    new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
+    if (old_track != new_track)
+    {
+      Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());
+      old_track = new_track;
+    }
+#endif
+    // smartport.iwm_ack_clr();  - need to deal with write protect
+
+    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
+    {
+      // Debug_printf("%d ", isrctr);
+      diskii_xface.iwm_queue_track_spi();
+    }
+    return;
+  case iwm_enable_state_t::on2off:
+    diskii_xface.disable_output();
+    iwm_ack_deassert();
+    return;
+  }
+#endif
+
 }
 
 iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
