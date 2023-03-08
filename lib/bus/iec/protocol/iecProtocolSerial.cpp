@@ -329,7 +329,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
 
     // STEP 3: SENDING THE BITS
     if ( !sendBits( data ) ) {
-        Debug_printv ( "Error sending bits" );
+        Debug_printv ( "Error sending bits - byte '%c'",data );
         return false;
     }
 
