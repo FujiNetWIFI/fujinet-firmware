@@ -35,7 +35,7 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         device_state = DEVICE_LISTEN;
         break;
     case bus_command_t::IEC_UNLISTEN:
-        device_state = DEVICE_IDLE;
+        device_state = DEVICE_PROCESS;
         break;
     case bus_command_t::IEC_TALK:
         device_state = DEVICE_TALK;
@@ -197,7 +197,8 @@ void systemBus::service()
             case IEC_UNLISTEN:
                 data.primary = IEC_UNLISTEN;
                 data.secondary = 0x00;
-                bus_state = BUS_IDLE;
+                bus_state = BUS_PROCESS;
+                process_command = true;
                 Debug_printf(" (3F UNLISTEN)\r\n");
                 break;
 
