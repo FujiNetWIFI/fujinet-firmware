@@ -26,6 +26,7 @@
 #include <utility>
 #include <string>
 #include <map>
+#include <queue>
 #include <driver/gpio.h>
 #include "fnSystem.h"
 #include "protocol/iecProtocolBase.h"
@@ -166,6 +167,11 @@ protected:
      * @brief current device state.
      */
     device_state_t device_state;
+
+    /**
+     * @brief response queue (e.g. INPUT)
+     */
+    std::queue<std::string> response_queue;
 
     /**
      * @brief Get device ready to handle next phase of command.
