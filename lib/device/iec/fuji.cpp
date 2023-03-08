@@ -19,7 +19,7 @@
 
 iecFuji theFuji; // global fuji device object
 
-//iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
+// iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -93,7 +93,7 @@ void iecFuji::net_scan_result()
 //  Get SSID
 void iecFuji::net_get_ssid()
 {
-    // TODO IMPLEMENT    
+    // TODO IMPLEMENT
 }
 
 // Set SSID
@@ -250,7 +250,89 @@ void iecFuji::close_directory()
 // Get network adapter configuration
 void iecFuji::get_adapter_config()
 {
-    // TODO IMPLEMENT
+    Debug_printf("get_adapter_config()\n");
+
+    memset(&cfg, 0, sizeof(cfg));
+
+    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
+
+    if (!fnWiFi.connected())
+    {
+        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
+        strlcpy(cfg.hostname, "NOT CONNECTED", sizeof(cfg.hostname));
+    }
+    else
+    {
+        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
+        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
+        fnWiFi.get_current_bssid(cfg.bssid);
+        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
+    }
+
+    fnWiFi.get_mac(cfg.macAddress);
+
+    if (payload == "ADAPTERCONFIG:RAW")
+    {
+        std::string reply = std::string((const char *)&cfg, sizeof(AdapterConfig));
+        response_queue.push(reply);
+    }
+    else if (payload == "ADAPTERCONFIG")
+    {
+        char reply[128];
+
+        sprintf(reply, "%s\r", cfg.ssid);
+        response_queue.push(std::string(reply));
+
+        sprintf(reply, "%s\r", cfg.hostname);
+        response_queue.push(std::string(reply));
+
+        sprintf(reply, "%u.%u.%u.%u\r",
+                cfg.localIP[0],
+                cfg.localIP[1],
+                cfg.localIP[2],
+                cfg.localIP[3]);
+        response_queue.push(std::string(reply));
+
+        sprintf(reply, "%u.%u.%u.%u\r",
+                cfg.netmask[0],
+                cfg.netmask[1],
+                cfg.netmask[2],
+                cfg.netmask[3]);
+        response_queue.push(std::string(reply));
+
+        sprintf(reply, "%u.%u.%u.%u\r",
+                cfg.gateway[0],
+                cfg.gateway[1],
+                cfg.gateway[2],
+                cfg.gateway[3]);
+        response_queue.push(std::string(reply));
+
+        sprintf(reply, "%u.%u.%u.%u\r",
+                cfg.dnsIP[0],
+                cfg.dnsIP[1],
+                cfg.dnsIP[2],
+                cfg.dnsIP[3]);
+        response_queue.push(std::string(reply));
+
+        sprintf(reply,"%02X:%02X:%02X:%02X:%02X:%02X\r",
+                cfg.macAddress[0],
+                cfg.macAddress[1],
+                cfg.macAddress[2],
+                cfg.macAddress[3],
+                cfg.macAddress[4],
+                cfg.macAddress[5]);
+        response_queue.push(std::string(reply));
+
+        sprintf(reply,"%02X:%02X:%02X:%02X:%02X:%02X\r",
+                cfg.bssid[0],
+                cfg.bssid[1],
+                cfg.bssid[2],
+                cfg.bssid[3],
+                cfg.bssid[4],
+                cfg.bssid[5]);
+        response_queue.push(std::string(reply));
+    }
 }
 
 //  Make new disk and shove into device slot
@@ -330,7 +412,7 @@ void iecFuji::setup(systemBus *siobus)
 {
     // TODO IMPLEMENT
     Debug_printf("iecFuji::setup()\n");
-    IEC.addDevice(this,0x0F);
+    IEC.addDevice(this, 0x0F);
 }
 
 iecDisk *iecFuji::bootdisk()
@@ -340,10 +422,10 @@ iecDisk *iecFuji::bootdisk()
 
 void iecFuji::tin()
 {
-    Debug_printf("tin()\n");
     if (commanddata->secondary == IEC_REOPEN)
-        IEC.sendBytes("TESTING FROM OPEN\n");
-
+    {
+        IEC.sendBytes("TESTING FROM OPEN.\r");
+    }
 }
 
 void iecFuji::tout()
@@ -359,14 +441,20 @@ device_state_t iecFuji::process(IECData *id)
     if (commanddata->channel != 15)
     {
         Debug_printf("Fuji device only accepts on channel 15. Sending NOTFOUND.\n");
-        device_state=DEVICE_ERROR;
+        device_state = DEVICE_ERROR;
         IEC.senderTimeout();
     }
+    else if (commanddata->primary != IEC_UNLISTEN)
+        return device_state;
 
-    if (payload == "TIN")
+    Debug_printf("HELLO? ARE YOU LISTENING?\n");
+
+    if (commanddata->payload == "TIN" || payload == "TIN")
         tin();
     else if (payload == "TOUT")
         tout();
+    else if (payload.find("ADAPTERCONFIG") != std::string::npos)
+        get_adapter_config();
 
     return device_state;
 }

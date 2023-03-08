@@ -64,6 +64,8 @@ private:
 
     appkey _current_appkey;
 
+    AdapterConfig cfg;
+
 protected:
     void reset_fujinet();          // 0xFF
     void net_get_ssid();           // 0xFE
