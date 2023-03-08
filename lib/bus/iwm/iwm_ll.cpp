@@ -2,6 +2,8 @@
 
 #include <string.h>
 
+#include "esp_rom_gpio.h"
+
 #include "iwm_ll.h"
 #include "iwm.h"
 #include "../device/iwm/disk2.h"
@@ -688,6 +690,9 @@ void IRAM_ATTR iwm_diskii_ll::rmttest(void)
   #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 size_t num_samples = 512*12;
 uint8_t* sample = (uint8_t*)heap_caps_malloc(num_samples, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+if (sample == NULL)
+    Debug_println("could not allocate sample buffer");
+
 memset(sample, 0xff, num_samples);
 sample[1]=0;
 sample[num_samples-2]=0;
@@ -704,19 +709,29 @@ fnSystem.delay(2000);
 Debug_printf ("\nSample transmission complete");
 //gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT);
 Debug_printf("\r\ngpio set to input");
-GPIO.func_out_sel_cfg[SP_WRDATA].oen_sel = 1;
-GPIO.enable_w1tc = ((uint32_t)0x01 << SP_WRDATA);
+GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].oen_sel = 1; // let me control the enable register
+GPIO.enable_w1tc = ((uint32_t)0x01 << PIN_SD_HOST_MOSI);
+
     // Ensure no other output signal is routed via GPIO matrix to this pin
 // REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (SP_WRDATA * 4),SIG_GPIO_OUT_IDX);
+
+// GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].func_sel = .....;
+
 fnSystem.delay(1000);
 // gpio_matrix_out(gpio_num_t(SP_WRDATA), RMT_SIG_OUT0_IDX + RMT_TX_CHANNEL, 0, 0);
 //gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
 //fnRMT.rmt_set_pin(RMT_TX_CHANNEL,RMT_MODE_TX, (gpio_num_t)SP_WRDATA );
-GPIO.enable_w1ts = ((uint32_t)0x01 << SP_WRDATA);
+GPIO.enable_w1ts = ((uint32_t)0x01 << PIN_SD_HOST_MOSI);
 Debug_printf("\r\ngpio back to out");
 
-while (1)
-  ;
+fnSystem.delay(1000);
+fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+
+//GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].func_sel = 0;
+esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
+
+Debug_printf("\r\nconnect to SPI");
+
 }
 
 //Convert uint8_t type of data to rmt format data.
@@ -826,13 +841,15 @@ void iwm_diskii_ll::setup_rmt()
 {
 #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
   track_buffer = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-
+  if (track_buffer == NULL)
+    Debug_println("could not allocate track buffer");
+    
   config.rmt_mode = rmt_mode_t::RMT_MODE_TX;
   config.channel = RMT_TX_CHANNEL;
 #ifdef RMTTEST
   config.gpio_num = (gpio_num_t)SP_EXTRA; 
 #else
-  config.gpio_num = (gpio_num_t)SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
+  config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; //SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
 #endif
   config.mem_block_num = 8;
   config.tx_config.loop_en = false;
