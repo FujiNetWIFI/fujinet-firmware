@@ -12,8 +12,6 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
 {
     systemBus *b = (systemBus *)arg;
 
-    Debug_printf("ATN\n");
-
     // Go to listener mode and get command
     b->release(PIN_IEC_CLK_OUT);
     b->pull(PIN_IEC_DATA_OUT);
@@ -53,6 +51,17 @@ device_state_t virtualDevice::process(IECData *_commanddata)
             break;
         case bus_command_t::IEC_CLOSE:
             payload.clear();
+            while (!response_queue.empty())
+                response_queue.pop();
+            break;
+        case bus_command_t::IEC_REOPEN:
+            if (response_queue.empty())
+                break;
+            else
+            {
+                IEC.sendBytes(response_queue.front());
+                response_queue.pop();
+            }
             break;
         default:
             break;
@@ -138,6 +147,8 @@ void systemBus::service()
     {
         release(PIN_IEC_CLK_OUT);
         pull(PIN_IEC_DATA_OUT);
+
+        Debug_printf("ATN PULLED.\n");
 
         // ATN was pulled read control code from the bus
         int16_t c = (bus_command_t)protocol->receiveByte();
@@ -311,7 +322,7 @@ bus_state_t systemBus::deviceListen()
     {
         // A heapload of data might come now, too big for this context to handle so the caller handles this, we're done here.
         // Debug_printf(" (%.2X SECONDARY) (%.2X CHANNEL)\r\n", data.primary, data.channel);
-        Debug_printf("\r\n");
+        Debug_printf("REOPEN on non-command channel.\r\n");
         return BUS_ACTIVE;
     }
 
