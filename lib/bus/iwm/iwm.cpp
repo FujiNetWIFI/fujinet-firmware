@@ -212,7 +212,9 @@ int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8
   int retry = 5; // host seems to control the retries, this is here so we don't get stuck
 
   smartport.encode_packet(source, packet_type, status, data, num);
+#ifdef DEBUG
   //print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN); // print raw packet contents to be sent
+#endif
   do
   {
     r = smartport.iwm_send_packet_spi();
