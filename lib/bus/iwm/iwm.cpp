@@ -254,8 +254,8 @@ void iwmBus::setup(void)
   diskii_xface.setup_rmt();
   Debug_printf("\r\nRMT configured for Disk ][ Output");
 
-//  smartport.setup_spi();
-//   Debug_printf("\r\nSPI configured for smartport I/O");
+  smartport.setup_spi();
+  Debug_printf("\r\nSPI configured for smartport I/O");
   
 // #ifdef RMTTEST
   diskii_xface.rmttest();
