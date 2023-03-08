@@ -23,6 +23,7 @@ void fnConfig::load()
 #else
     // Clear the config file if key is currently pressed
     // This is the "Turn on while holding B button to reset Config" option.
+#ifndef BUILD_IEC
     if (fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {
         Debug_println("fnConfig deleting configuration file and skipping SD check");
@@ -39,6 +40,8 @@ void fnConfig::load()
         _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }
+#endif
+
 #endif /* NO_BUTTONS */
 
     /*
