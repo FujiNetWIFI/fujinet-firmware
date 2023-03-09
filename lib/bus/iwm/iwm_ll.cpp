@@ -435,12 +435,16 @@ void iwm_sp_ll::setup_spi()
     // use different SPI than SDCARD
     ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
     assert(ret == ESP_OK);
+    // connect peripheral to GPIO because RMT screwed it up
+    esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[VSPI_HOST].spid_out, false, false);
   }
   else
   {
     // use same SPI as SDCARD
     ret = spi_bus_add_device(HSPI_HOST, &devcfg, &spi);
     assert(ret == ESP_OK);
+    // connect peripheral to GPIO because RMT screwed it up
+    esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
   }
 
   if (smartport.spiMutex == NULL)
@@ -700,6 +704,7 @@ sample[num_samples-1]=0b01111111;
 copy_track(sample, num_samples, num_samples * 8 - 2);
 Debug_printf("\nSending %d items", num_samples);//number_of_items);
   //ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
+  esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
   ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, num_samples * 8 - 2));
   // fnSystem.delay(100);
   // fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);

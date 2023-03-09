@@ -22,6 +22,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
 #include "soc/rmt_struct.h"
+#include "soc/rmt_periph.h"
 #include "hal/rmt_types.h"
 
 #define RMT_CHANNEL_FLAGS_AWARE_DFS (1 << 0) /*!< Channel can work during APB clock scaling */
