@@ -436,8 +436,6 @@ device_state_t iecFuji::process(IECData *id)
 {
     virtualDevice::process(id);
 
-    dumpData();
-
     if (commanddata->channel != 15)
     {
         Debug_printf("Fuji device only accepts on channel 15. Sending NOTFOUND.\n");
@@ -447,13 +445,7 @@ device_state_t iecFuji::process(IECData *id)
     else if (commanddata->primary != IEC_UNLISTEN)
         return device_state;
 
-    Debug_printf("HELLO? ARE YOU LISTENING?\n");
-
-    if (commanddata->payload == "TIN" || payload == "TIN")
-        tin();
-    else if (payload == "TOUT")
-        tout();
-    else if (payload.find("ADAPTERCONFIG") != std::string::npos)
+    if (payload.find("ADAPTERCONFIG") != std::string::npos)
         get_adapter_config();
 
     return device_state;
