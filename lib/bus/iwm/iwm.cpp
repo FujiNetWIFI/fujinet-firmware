@@ -258,7 +258,7 @@ void iwmBus::setup(void)
   Debug_printf("\r\nSPI configured for smartport I/O");
   
 // #ifdef RMTTEST
-  diskii_xface.rmttest();
+diskii_xface.rmttest();
 // #endif
 
 }
