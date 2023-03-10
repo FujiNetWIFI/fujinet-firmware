@@ -51,14 +51,14 @@ device_state_t virtualDevice::process(IECData *_commanddata)
             break;
         case bus_command_t::IEC_CLOSE:
             payload.clear();
-            while (!response_queue.empty())
-                response_queue.pop();
+            std::queue<std::string>().swap(response_queue);
             break;
         case bus_command_t::IEC_REOPEN:
             if (response_queue.empty())
                 break;
             else
             {
+                Debug_printf("---Sending response %s\n",response_queue.front().c_str());
                 IEC.sendBytes(response_queue.front());
                 response_queue.pop();
             }
