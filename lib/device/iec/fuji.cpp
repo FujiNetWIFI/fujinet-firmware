@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <sstream>
 #include "string_utils.h"
 
 #include "../../../include/debug.h"
@@ -77,18 +78,62 @@ void iecFuji::status()
 void iecFuji::reset_fujinet()
 {
     // TODO IMPLEMENT
+    fnSystem.reboot();
 }
 
 // Scan for networks
 void iecFuji::net_scan_networks()
 {
-    // TODO IMPLEMENT
+    std::string r;
+    char c[8];
+
+    _countScannedSSIDs = fnWiFi.scan_networks();
+    snprintf(c,sizeof(c),"%u\r",_countScannedSSIDs);
+    response_queue.push(std::string(c));
 }
 
 // Return scanned network entry
 void iecFuji::net_scan_result()
 {
-    // TODO IMPLEMENT
+    std::vector<std::string> t = util_tokenize(payload, ':');
+
+    // t[0] = SCANRESULT
+    // t[1] = scan result # (0-numresults)
+    // t[2] = RAW (optional)
+    struct
+    {
+        char ssid[33];
+        uint8_t rssi;
+    } detail;
+
+    if (t.size()>1)
+    {
+        int i = atoi(t[1].c_str());
+        Debug_printf("Getting scan result %u\n",i);
+        fnWiFi.get_scan_result(i,detail.ssid,&detail.rssi);
+    }
+    else
+    {
+        strcpy(detail.ssid,"INVALID SSID");
+        detail.rssi = 0;
+    }
+
+    if (t.size() == 3) // SCANRESULT:0:RAW
+    {
+        std::string r = std::string((const char *)&detail,sizeof(detail));
+        response_queue.push(r);
+    }
+    else // SCANRESULT:0
+    {
+        char c[40];
+        std::string s = std::string(detail.ssid);
+        mstr::toPETSCII(s);
+
+        memset(c,0,sizeof(c));
+
+        snprintf(c,40,"\"%s\",%d\r",s.c_str(),detail.rssi);
+        response_queue.push(std::string(c,sizeof(c)));
+    }
 }
 
 //  Get SSID
@@ -100,7 +145,7 @@ void iecFuji::net_get_ssid()
         char password[64];
     } cfg;
 
-    memset(&cfg,0,sizeof(cfg));
+    memset(&cfg, 0, sizeof(cfg));
 
     std::string s = Config.get_wifi_ssid();
     memcpy(cfg.ssid, s.c_str(),
@@ -112,7 +157,7 @@ void iecFuji::net_get_ssid()
 
     if (payload.find(":RAW") != std::string::npos)
     {
-        std::string r = std::string((const char *)&cfg,sizeof(cfg));
+        std::string r = std::string((const char *)&cfg, sizeof(cfg));
         response_queue.push(r);
     }
     else // BASIC mode.
@@ -158,7 +203,7 @@ void iecFuji::net_set_ssid()
     Config.save();
 
     Debug_printf("Connecting to net %s\n", cfg.ssid);
-    fnWiFi.connect(cfg.ssid,cfg.password);
+    fnWiFi.connect(cfg.ssid, cfg.password);
 }
 
 // Get WiFi Status
@@ -510,6 +555,12 @@ device_state_t iecFuji::process(IECData *id)
         net_set_ssid();
     else if (payload.find("GETSSID") != std::string::npos)
         net_get_ssid();
+    else if (payload.find("RESET") != std::string::npos)
+        reset_fujinet();
+    else if (payload.find("SCANRESULT") != std::string::npos)
+        net_scan_result();
+    else if (payload.find("SCAN") != std::string::npos)
+        net_scan_networks();
 
     return device_state;
 }
