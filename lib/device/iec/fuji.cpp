@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include "string_utils.h"
 
 #include "../../../include/debug.h"
 
@@ -93,13 +94,71 @@ void iecFuji::net_scan_result()
 //  Get SSID
 void iecFuji::net_get_ssid()
 {
-    // TODO IMPLEMENT
+    struct
+    {
+        char ssid[MAX_SSID_LEN + 1];
+        char password[64];
+    } cfg;
+
+    memset(&cfg,0,sizeof(cfg));
+
+    std::string s = Config.get_wifi_ssid();
+    memcpy(cfg.ssid, s.c_str(),
+           s.length() > sizeof(cfg.ssid) ? sizeof(cfg.ssid) : s.length());
+
+    s = Config.get_wifi_passphrase();
+    memcpy(cfg.password, s.c_str(),
+           s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
+
+    if (payload.find(":RAW") != std::string::npos)
+    {
+        std::string r = std::string((const char *)&cfg,sizeof(cfg));
+        response_queue.push(r);
+    }
+    else // BASIC mode.
+    {
+        std::string r = std::string(cfg.ssid);
+        mstr::toPETSCII(r);
+        response_queue.push(r);
+    }
 }
 
 // Set SSID
 void iecFuji::net_set_ssid()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji cmd: SET SSID");
+
+    // Data for  FUJICMD_SET_SSID
+    struct
+    {
+        char ssid[MAX_SSID_LEN + 1];
+        char password[64];
+    } cfg;
+
+    if (payload.find("RAW:") != std::string::npos)
+    {
+        strncpy((char *)&cfg, payload.substr(12, std::string::npos).c_str(), sizeof(cfg));
+    }
+    else // easy BASIC form
+    {
+        mstr::toASCII(payload);
+        std::string s = payload.substr(8, std::string::npos);
+        std::vector<std::string> t = util_tokenize(s, ',');
+
+        if (t.size() == 2)
+        {
+            strncpy(cfg.ssid, t[0].c_str(), 33);
+            strncpy(cfg.password, t[1].c_str(), 64);
+        }
+    }
+
+    Debug_printf("Storing WiFi SSID and Password.\n");
+    Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+    Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+    Config.save();
+
+    Debug_printf("Connecting to net %s\n", cfg.ssid);
+    fnWiFi.connect(cfg.ssid,cfg.password);
 }
 
 // Get WiFi Status
@@ -315,7 +374,7 @@ void iecFuji::get_adapter_config()
                 cfg.dnsIP[3]);
         response_queue.push(std::string(reply));
 
-        sprintf(reply,"%02X:%02X:%02X:%02X:%02X:%02X\r",
+        sprintf(reply, "%02X:%02X:%02X:%02X:%02X:%02X\r",
                 cfg.macAddress[0],
                 cfg.macAddress[1],
                 cfg.macAddress[2],
@@ -324,7 +383,7 @@ void iecFuji::get_adapter_config()
                 cfg.macAddress[5]);
         response_queue.push(std::string(reply));
 
-        sprintf(reply,"%02X:%02X:%02X:%02X:%02X:%02X\r",
+        sprintf(reply, "%02X:%02X:%02X:%02X:%02X:%02X\r",
                 cfg.bssid[0],
                 cfg.bssid[1],
                 cfg.bssid[2],
@@ -447,6 +506,10 @@ device_state_t iecFuji::process(IECData *id)
 
     if (payload.find("ADAPTERCONFIG") != std::string::npos)
         get_adapter_config();
+    else if (payload.find("SETSSID") != std::string::npos)
+        net_set_ssid();
+    else if (payload.find("GETSSID") != std::string::npos)
+        net_get_ssid();
 
     return device_state;
 }
