@@ -516,7 +516,7 @@ vector<string> util_tokenize(string s, char c)
     stringstream ss(s);
     string token;
 
-    while (getline(ss, token, ' '))
+    while (getline(ss, token, c))
     {
         tokens.push_back(token);
     }
