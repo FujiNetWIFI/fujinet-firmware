@@ -1,6 +1,5 @@
 /* FujiLoaf REV0 */
-#ifndef PINMAP_IEC_H
-#define PINMAP_IEC_H
+#ifdef PINMAP_IEC
 
 /* SD Card */
 #define PIN_CARD_DETECT 35 // fnSystem.h
