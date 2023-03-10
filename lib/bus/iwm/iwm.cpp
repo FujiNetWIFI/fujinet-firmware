@@ -256,11 +256,6 @@ void iwmBus::setup(void)
 
   smartport.setup_spi();
   Debug_printf("\r\nSPI configured for smartport I/O");
-  
-// #ifdef RMTTEST
-diskii_xface.rmttest();
-// #endif
-
 }
 
 //*****************************************************************************
@@ -448,13 +443,16 @@ void IRAM_ATTR iwmBus::service()
     break;
   case iwm_enable_state_t::off2on:
     // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
-    fnSystem.delay_microseconds(1000); // need a better way to figure out persistence
-    if (iwm_drive_enabled() == iwm_enable_state_t::on)
+    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
     {
-      // diskii_xface.set_output_to_rmt();
-      diskii_xface.enable_output();
-    }
-    // make a call to start the RMT stream
+      fnSystem.delay_microseconds(1000); // need a better way to figure out persistence
+      if (iwm_drive_enabled() == iwm_enable_state_t::on)
+      {
+        diskii_xface.set_output_to_rmt();
+        diskii_xface.enable_output();
+        diskii_xface.rmttest(); // start it up
+      }
+    } // make a call to start the RMT stream
     // make sure the state machine moves on to iwm_enable_state_t::on
     return; // return so the SP code doesn't get checked
   case iwm_enable_state_t::on:
@@ -468,12 +466,12 @@ void IRAM_ATTR iwmBus::service()
     }
 #endif
     // smartport.iwm_ack_clr();  - need to deal with write protect
-  diskii_xface.rmttest();
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
-    {
-      // Debug_printf("%d ", isrctr);
-      // diskii_xface.iwm_queue_track_spi();
-    }
+    // diskii_xface.rmttest();
+    // if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
+    // {
+    //   // Debug_printf("%d ", isrctr);
+    //   // diskii_xface.iwm_queue_track_spi();
+    // }
     return;
   case iwm_enable_state_t::on2off:
     // add a call to RMT stop tx

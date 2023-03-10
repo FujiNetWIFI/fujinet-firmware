@@ -652,16 +652,7 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 
 void iwm_sp_ll::set_output_to_spi()
 {
-  //ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
- // esp_err_t err = spicommon_bus_initialize_io(VSPI_HOST, bus_cfg, SPICOMMON_BUSFLAG_MASTER | bus_config->flags, &bus_attr->flags);
-  // int host;
-  // // copied from spi_common.c
-  // gpio_set_direction(SP_SPI_FIX_PIN, GPIO_MODE_OUTPUT);
-  // if(fnSystem.check_spifix())
-  // host = fnSystem.check_spifix() ? VSPI_HOST : HSPI_HOST;
-
-  // esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[host].spid_out, false, false);
-  // gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[SP_SPI_FIX_PIN], PIN_FUNC_GPIO);
+ esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
 }
 
 // =========================================================================================
@@ -674,68 +665,57 @@ void iwm_sp_ll::set_output_to_spi()
 
 void iwm_diskii_ll::set_output_to_rmt()
 {
-gpio_num_t n;
-
-#ifdef RMTTEST
-  n = (gpio_num_t)SP_EXTRA; 
-#else
-  // if(fnSystem.check_spifix())
-    n = SP_SPI_FIX_PIN;
-  // else
-    // n = (gpio_num_t)SP_RDDATA;// gpio_num_t::GPIO_NUM_21; // SP_EXTRA was RMT_TX_GPIO;
-#endif
-
-  fnRMT.rmt_set_pin(RMT_TX_CHANNEL, rmt_mode_t::RMT_MODE_TX, n);
+  esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
 }
 
 void IRAM_ATTR iwm_diskii_ll::rmttest(void)
 {
- iwm_rddata_clr(); // enable the tri-state buffer
+//  iwm_rddata_clr(); // enable the tri-state buffer
   #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
-size_t num_samples = 512*12;
-uint8_t* sample = (uint8_t*)heap_caps_malloc(num_samples, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-if (sample == NULL)
-    Debug_println("could not allocate sample buffer");
+// size_t num_samples = 512*12;
+// uint8_t* sample = (uint8_t*)heap_caps_malloc(num_samples, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+// if (sample == NULL)
+//     Debug_println("could not allocate sample buffer");
 
-memset(sample, 0xff, num_samples);
-sample[1]=0;
-sample[num_samples-2]=0;
-sample[num_samples-1]=0b01111111;
-copy_track(sample, num_samples, num_samples * 8 - 2);
-Debug_printf("\nSending %d items", num_samples);//number_of_items);
-  //ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
-  esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
-  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, num_samples * 8 - 2));
-  // fnSystem.delay(100);
-  // fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
-  // fnSystem.delay(50);
-  // ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
-fnSystem.delay(2000);
-Debug_printf ("\nSample transmission complete");
-//gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT);
-Debug_printf("\r\ngpio set to input");
-GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].oen_sel = 1; // let me control the enable register
-GPIO.enable_w1tc = ((uint32_t)0x01 << PIN_SD_HOST_MOSI);
+// memset(sample, 0xff, num_samples);
+// sample[1]=0;
+// sample[num_samples-2]=0;
+// sample[num_samples-1]=0b01111111;
+// copy_track(sample, num_samples, num_samples * 8 - 2);
+// Debug_printf("\nSending %d items", num_samples);//number_of_items);
+//   //ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
+//   esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
+  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits));
+//   // fnSystem.delay(100);
+//   // fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+//   // fnSystem.delay(50);
+//   // ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
+// fnSystem.delay(2000);
+// Debug_printf ("\nSample transmission complete");
+// //gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT);
+// Debug_printf("\r\ngpio set to input");
+// GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].oen_sel = 1; // let me control the enable register
+// GPIO.enable_w1tc = ((uint32_t)0x01 << PIN_SD_HOST_MOSI);
 
-    // Ensure no other output signal is routed via GPIO matrix to this pin
-// REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (SP_WRDATA * 4),SIG_GPIO_OUT_IDX);
+//     // Ensure no other output signal is routed via GPIO matrix to this pin
+// // REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (SP_WRDATA * 4),SIG_GPIO_OUT_IDX);
 
-// GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].func_sel = .....;
+// // GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].func_sel = .....;
 
-fnSystem.delay(1000);
-// gpio_matrix_out(gpio_num_t(SP_WRDATA), RMT_SIG_OUT0_IDX + RMT_TX_CHANNEL, 0, 0);
-//gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-//fnRMT.rmt_set_pin(RMT_TX_CHANNEL,RMT_MODE_TX, (gpio_num_t)SP_WRDATA );
-GPIO.enable_w1ts = ((uint32_t)0x01 << PIN_SD_HOST_MOSI);
-Debug_printf("\r\ngpio back to out");
+// fnSystem.delay(1000);
+// // gpio_matrix_out(gpio_num_t(SP_WRDATA), RMT_SIG_OUT0_IDX + RMT_TX_CHANNEL, 0, 0);
+// //gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+// //fnRMT.rmt_set_pin(RMT_TX_CHANNEL,RMT_MODE_TX, (gpio_num_t)SP_WRDATA );
+// GPIO.enable_w1ts = ((uint32_t)0x01 << PIN_SD_HOST_MOSI);
+// Debug_printf("\r\ngpio back to out");
 
-fnSystem.delay(1000);
-fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+// fnSystem.delay(1000);
+// fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
 
-//GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].func_sel = 0;
-esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
+// //GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].func_sel = 0;
+// esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
 
-Debug_printf("\r\nconnect to SPI");
+// Debug_printf("\r\nconnect to SPI");
 
 }
 
@@ -870,8 +850,10 @@ void iwm_diskii_ll::setup_rmt()
 
 bool IRAM_ATTR iwm_diskii_ll::nextbit()
 {
+  // bits go MSB first
   bool outbit;
-  outbit = (track_buffer[track_byte_ctr] & (0x01 << track_bit_ctr)) != 0;
+  // outbit = (track_buffer[track_byte_ctr] & (0x01 << track_bit_ctr)) != 0;
+  outbit = (track_buffer[track_byte_ctr] & (0x80 >> track_bit_ctr)) != 0; // bits go MSB first
 
   ++track_bit_ctr %= 8;
   if (track_bit_ctr == 0)
