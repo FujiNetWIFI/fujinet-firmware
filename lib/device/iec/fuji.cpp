@@ -209,7 +209,12 @@ void iecFuji::net_set_ssid()
 // Get WiFi Status
 void iecFuji::net_get_wifi_status()
 {
-    // TODO IMPLEMENT
+    uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
+    char r[4];
+
+    snprintf(r,sizeof(r),"%u\r",wifiStatus);
+
+    response_queue.push(std::string(r));
 }
 
 // Check if Wifi is enabled
@@ -561,6 +566,8 @@ device_state_t iecFuji::process(IECData *id)
         net_scan_result();
     else if (payload.find("SCAN") != std::string::npos)
         net_scan_networks();
+    else if (payload.find("WIFISTATUS") != std::string::npos)
+        net_get_wifi_status();
 
     return device_state;
 }
