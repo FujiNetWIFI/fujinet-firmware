@@ -82,4 +82,9 @@ void util_replaceAll(std::string& str, const std::string& from, const std::strin
 //std::string util_get_canonical_path(char* path);
 std::string util_get_canonical_path(std::string path);
 
+char util_petscii_to_ascii(char c);
+char util_ascii_to_petscii(char c);
+void util_petscii_to_ascii_str(std::string &s);
+void util_ascii_to_petscii_str(std::string &s);
+
 #endif // _FN_UTILS_H
