@@ -249,7 +249,52 @@ void iecFuji::mount_host()
 // Disk Image Mount
 void iecFuji::disk_image_mount()
 {
-    // TODO IMPLEMENT
+    std::vector<std::string> t = util_tokenize(payload,':');
+    if (t.size()<3)
+    {
+        // Error out, and return
+        return;
+    }
+
+    uint8_t ds = atoi(t[1].c_str());
+    uint8_t mode = atoi(t[2].c_str());
+
+    char flag[3] = {'r',0,0};
+
+    if (mode == DISK_ACCESS_MODE_WRITE)
+        flag[1] = '+';
+
+    if (!_validate_device_slot(ds))
+    {
+        return; // error.
+    }
+
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[ds];
+    fujiHost &host = _fnHosts[disk.host_slot];
+
+    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                 disk.filename, disk.host_slot, flag, ds + 1);
+
+    // TODO: Refactor along with mount disk image.
+    disk.disk_dev.host = &host;
+
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+    if (disk.fileh == nullptr)
+    {
+        // Send error
+        return;
+    }
+
+    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+    boot_config = false;
+
+    // We need the file size for loading XEX files and for CASSETTE, so get that too
+    disk.disk_size = host.file_size(disk.fileh);
+
+    // And now mount it
+    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -638,6 +683,8 @@ device_state_t iecFuji::process(IECData *id)
         net_get_wifi_status();
     else if (payload.find("MOUNTHOST") != std::string::npos)
         mount_host();
+    else if (payload.find("MOUNTDRIVE") != std::string::npos)
+        disk_image_mount();
 
     return device_state;
 }
