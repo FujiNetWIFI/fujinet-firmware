@@ -726,6 +726,7 @@ void iwm_diskii_ll::set_output_to_rmt()
 // }
 
 //Convert uint8_t type of data to rmt format data.
+//NOT IN USE
 void IRAM_ATTR encode_rmt_stream(const void* src, rmt_item32_t* dest, size_t src_size, 
                          size_t wanted_num, size_t* translated_size, size_t* item_num)
 {
@@ -751,14 +752,7 @@ void IRAM_ATTR encode_rmt_stream(const void* src, rmt_item32_t* dest, size_t src
     {
       for (int i = 0; i < 8; i++)
       {
-        if (*psrc & (0x1 << i))
-        {
-          pdest->val = bit1.val;
-        }
-        else
-        {
-          pdest->val = bit0.val;
-        }
+        pdest->val = (*psrc & (0x1 << i)) ? bit1.val : bit0.val;
         num++;
         pdest++;
       }
@@ -785,6 +779,7 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
       return;
     }
 
+    // TODO: allow adjustment of bit timing per WOZ optimal bit timing
     const rmt_item32_t bit0 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 0 }}}; //Logical 0
     const rmt_item32_t bit1 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 1 }}}; //Logical 1
     static uint8_t window = 0;
@@ -799,25 +794,11 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
       window <<= 1;
       window |= (uint8_t)diskii_xface.nextbit();
       window &= 0x0f;
-      if (window != 0)
-      {
-        outbit = window & 0x02;
-      }
-      else
-      {
-        outbit = diskii_xface.fakebit();
-      }
+      outbit = (window != 0) ? window & 0x02 : diskii_xface.fakebit();
+      pdest->val = (outbit != 0) ? bit1.val : bit0.val;
 
-      if (outbit != 0)
-      {
-        pdest->val = bit1.val;
-      }
-      else
-      {
-        pdest->val = bit0.val;
-      }
-        num++;
-        pdest++;
+      num++;
+      pdest++;
     }
     *translated_size = wanted_num;
     *item_num = wanted_num;
