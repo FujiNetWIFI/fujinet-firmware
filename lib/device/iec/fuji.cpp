@@ -453,7 +453,37 @@ void iecFuji::open_directory()
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-    
+    // File modified date-time
+    struct tm *modtime = localtime(&f->modified_time);
+    modtime->tm_mon++;
+    modtime->tm_year -= 70;
+
+    dest[0] = modtime->tm_year;
+    dest[1] = modtime->tm_mon;
+    dest[2] = modtime->tm_mday;
+    dest[3] = modtime->tm_hour;
+    dest[4] = modtime->tm_min;
+    dest[5] = modtime->tm_sec;
+
+    // File size
+    uint16_t fsize = f->size;
+    dest[6] = LOBYTE_FROM_UINT16(fsize);
+    dest[7] = HIBYTE_FROM_UINT16(fsize);
+
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
+
+    dest[8] = f->isDir ? FF_DIR : 0;
+
+    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
+    if (f->isDir) // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    if (strlen(f->filename) >= maxlen)
+        dest[8] |= FF_TRUNC;
+
+    // File type
+    dest[9] = MediaType::discover_mediatype(f->filename);   
 }
 
 void iecFuji::read_directory_entry()
