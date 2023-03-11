@@ -773,6 +773,8 @@ device_state_t iecFuji::process(IECData *id)
         mount_host();
     else if (payload.find("MOUNTDRIVE") != std::string::npos)
         disk_image_mount();
+    else if (payload.find("OPENDDIR") != std::string::npos)
+        open_directory();
 
     return device_state;
 }
