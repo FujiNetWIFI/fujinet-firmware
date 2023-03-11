@@ -445,12 +445,12 @@ void IRAM_ATTR iwmBus::service()
     // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
     if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
     {
-      fnSystem.delay_microseconds(1000); // need a better way to figure out persistence
+      fnSystem.delay(1); // need a better way to figure out persistence
       if (iwm_drive_enabled() == iwm_enable_state_t::on)
       {
         diskii_xface.set_output_to_rmt();
         diskii_xface.enable_output();
-        diskii_xface.rmttest(); // start it up
+        diskii_xface.start(); // start it up
       }
     } // make a call to start the RMT stream
     // make sure the state machine moves on to iwm_enable_state_t::on
@@ -475,6 +475,8 @@ void IRAM_ATTR iwmBus::service()
     return;
   case iwm_enable_state_t::on2off:
     // add a call to RMT stop tx
+    fnSystem.delay(1); // need a better way to figure out persistence
+    diskii_xface.stop();
     diskii_xface.disable_output();
     iwm_ack_deassert();
     // make sure the state machine moves on to iwm_enable_state_t::off
