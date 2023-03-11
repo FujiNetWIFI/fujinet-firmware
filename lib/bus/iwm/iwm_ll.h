@@ -156,16 +156,6 @@ private:
   void iwm_rddata_set() { GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); }; // make RDDATA go hi-z through the tri-state
   void iwm_rddata_clr() { GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); }; // enable the tri-state buffer activating RDDATA
 
-  // MC3470 random bit behavior https://applesaucefdc.com/woz/reference2/ 
-  /** Of course, coming up with random values like this can be a bit processor intensive, 
-   * so it is adequate to create a randomly-filled circular buffer of 32 bytes. 
-   * We then just pull bits from this whenever we are in “fake bit mode”. 
-   * This buffer should also be used for empty tracks as designated with an 0xFF value 
-   * in the TMAP Chunk (see below). You will want to have roughly 30% of the buffer be 1 bits.
-  **/
-  int MC3470_byte_ctr;
-  int MC3470_bit_ctr;
-
   // track bit information
   uint8_t* track_buffer; // 
   int track_byte_ctr;
