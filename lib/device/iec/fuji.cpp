@@ -390,12 +390,70 @@ void iecFuji::shutdown()
 
 void iecFuji::open_directory()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji cmd: OPEN DIRECTORY");
+
+    std::vector<std::string> t = util_tokenize(payload,':');
+
+    if (t.size()<3)
+    {
+        return; // send error
+    }
+
+    char dirpath[256];
+    uint8_t hostSlot = atoi(t[1].c_str());
+    strncpy(dirpath,t[2].c_str(),sizeof(dirpath));
+
+    if (!_validate_host_slot(hostSlot))
+    {
+        // send error
+        return;
+    }
+
+    // If we already have a directory open, close it first
+    if (_current_open_directory_slot != -1)
+    {
+        Debug_print("Directory was already open - closign it first\n");
+        _fnHosts[_current_open_directory_slot].dir_close();
+        _current_open_directory_slot = -1;
+    }
+
+    // Preprocess ~ (pi!) into filter
+    for (int i=0;i<sizeof(dirpath);i++)
+    {
+        if (dirpath[i]=='~')
+            dirpath[i]=0; // turn into null
+    }
+
+    // See if there's a search pattern after the directory path
+    const char *pattern = nullptr;
+    int pathlen = strnlen(dirpath, sizeof(dirpath));
+    if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+    {
+        pattern = dirpath + pathlen + 1;
+        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+        if (patternlen < 1)
+            pattern = nullptr;
+    }
+
+    // Remove trailing slash
+    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
+        dirpath[pathlen - 1] = '\0';
+
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
+
+    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
+    {
+        _current_open_directory_slot = hostSlot;
+    }
+    else
+    {
+        // send error
+    }
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-    // TODO IMPLEMENT
+    
 }
 
 void iecFuji::read_directory_entry()
