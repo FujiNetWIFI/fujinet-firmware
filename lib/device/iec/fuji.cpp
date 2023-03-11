@@ -220,13 +220,30 @@ void iecFuji::net_get_wifi_status()
 // Check if Wifi is enabled
 void iecFuji::net_get_wifi_enabled()
 {
-    // TODO IMPLEMENT
+    // Not needed, will remove.
 }
 
 // Mount Server
 void iecFuji::mount_host()
 {
-    // TODO IMPLEMENT
+    std::vector<std::string> t = util_tokenize(payload,':');
+
+    if (t.size()<2) // send error.
+        return;
+    
+    int hs = atoi(t[1].c_str());
+
+    if (!_validate_device_slot(hs,"mount_host"))
+    {
+        return; // send error.
+    }
+
+    if (!_fnHosts[hs].mount())
+    {
+        return; // send error.
+    }
+
+    // Otherwise, mount was successful.
 }
 
 // Disk Image Mount
@@ -489,13 +506,61 @@ void iecFuji::write_device_slots()
 // Temporary(?) function while we move from old config storage to new
 void iecFuji::_populate_slots_from_config()
 {
-    // TODO IMPLEMENT
+    for (int i = 0; i < MAX_HOSTS; i++)
+    {
+        if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
+            _fnHosts[i].set_hostname("");
+        else
+            _fnHosts[i].set_hostname(Config.get_host_name(i).c_str());
+    }
+
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        _fnDisks[i].reset();
+
+        if (Config.get_mount_host_slot(i) != HOST_SLOT_INVALID)
+        {
+            if (Config.get_mount_host_slot(i) >= 0 && Config.get_mount_host_slot(i) <= MAX_HOSTS)
+            {
+                strlcpy(_fnDisks[i].filename,
+                        Config.get_mount_path(i).c_str(), sizeof(fujiDisk::filename));
+                _fnDisks[i].host_slot = Config.get_mount_host_slot(i);
+                if (Config.get_mount_mode(i) == fnConfig::mount_modes::MOUNTMODE_WRITE)
+                    _fnDisks[i].access_mode = DISK_ACCESS_MODE_WRITE;
+                else
+                    _fnDisks[i].access_mode = DISK_ACCESS_MODE_READ;
+            }
+        }
+    }
 }
 
 // Temporary(?) function while we move from old config storage to new
 void iecFuji::_populate_config_from_slots()
 {
-    // TODO IMPLEMENT
+    for (int i = 0; i < MAX_HOSTS; i++)
+    {
+        fujiHostType htype = _fnHosts[i].get_type();
+        const char *hname = _fnHosts[i].get_hostname();
+
+        if (hname[0] == '\0')
+        {
+            Config.clear_host(i);
+        }
+        else
+        {
+            Config.store_host(i, hname,
+                              htype == HOSTTYPE_TNFS ? fnConfig::host_types::HOSTTYPE_TNFS : fnConfig::host_types::HOSTTYPE_SD);
+        }
+    }
+
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        if (_fnDisks[i].host_slot >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
+            Config.clear_mount(i);
+        else
+            Config.store_mount(i, _fnDisks[i].host_slot, _fnDisks[i].filename,
+                               _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
+    }
 }
 
 // Write a 256 byte filename to the device slot
@@ -521,6 +586,9 @@ void iecFuji::setup(systemBus *siobus)
 {
     // TODO IMPLEMENT
     Debug_printf("iecFuji::setup()\n");
+    
+    _populate_slots_from_config();
+
     IEC.addDevice(this, 0x0F);
 }
 
@@ -568,6 +636,8 @@ device_state_t iecFuji::process(IECData *id)
         net_scan_networks();
     else if (payload.find("WIFISTATUS") != std::string::npos)
         net_get_wifi_status();
+    else if (payload.find("MOUNTHOST") != std::string::npos)
+        mount_host();
 
     return device_state;
 }
