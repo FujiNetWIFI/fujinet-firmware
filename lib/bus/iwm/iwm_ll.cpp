@@ -14,11 +14,6 @@
 
 #define MHZ (1000*1000)
 
-// generate PN bits using Octave/MATLAB with
-// for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
-#define PNLEN 32
-const uint8_t MC3470[PNLEN] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
-
 volatile uint8_t _phases = 0;
 volatile bool sp_command_mode = false;
 volatile int isrctr = 0;
@@ -881,15 +876,38 @@ bool IRAM_ATTR iwm_diskii_ll::nextbit()
 
 bool IRAM_ATTR iwm_diskii_ll::fakebit()
 {
+  // MC3470 random bit behavior https://applesaucefdc.com/woz/reference2/ 
+  /** Of course, coming up with random values like this can be a bit processor intensive, 
+   * so it is adequate to create a randomly-filled circular buffer of 32 bytes. 
+   * We then just pull bits from this whenever we are in “fake bit mode”. 
+   * This buffer should also be used for empty tracks as designated with an 0xFF value 
+   * in the TMAP Chunk (see below). You will want to have roughly 30% of the buffer be 1 bits.
+   * 
+   * For testing the MC3470 generation of fake bits, you can turn to "The Print Shop Companion". 
+   * If you have control at the main menu, then you are passing this test.
+   * 
+  **/
+  // generate PN bits using Octave/MATLAB with
+  // for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
+  const uint8_t MC3470[] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
+ 
+  static int MC3470_byte_ctr;
+  static int MC3470_bit_ctr;
+
   ++MC3470_bit_ctr %= 8;
   if (MC3470_bit_ctr == 0)
-    ++MC3470_byte_ctr %= PNLEN;
+    ++MC3470_byte_ctr %= sizeof(MC3470);
   
   return (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
 }
 
 void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t trackbits)
 {
+// new_position = current_position * new_track_length / current_track_length
+// memset 0's when track == nullptr
+// Remember to maintain the bit position even when on an empty track (TMAP value of 0xFF). 
+// Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
+
   // copy track from SPIRAM to INTERNAL RAM
   memcpy(track_buffer, track, tracklen);
   track_numbytes = tracklen;
