@@ -478,6 +478,7 @@ void IRAM_ATTR iwmBus::service()
     fnSystem.delay(1); // need a better way to figure out persistence
     diskii_xface.stop();
     diskii_xface.disable_output();
+    smartport.set_output_to_spi();
     iwm_ack_deassert();
     // make sure the state machine moves on to iwm_enable_state_t::off
     return;
