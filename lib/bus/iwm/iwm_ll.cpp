@@ -906,10 +906,12 @@ void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t
 // new_position = current_position * new_track_length / current_track_length
 // memset 0's when track == nullptr
 // Remember to maintain the bit position even when on an empty track (TMAP value of 0xFF). 
-// Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 
   // copy track from SPIRAM to INTERNAL RAM
-  memcpy(track_buffer, track, tracklen);
+  if (track != nullptr)
+    memcpy(track_buffer, track, tracklen);
+  else
+    memset(track_buffer, 0, tracklen);
   track_numbytes = tracklen;
   track_numbits = trackbits;
 }
