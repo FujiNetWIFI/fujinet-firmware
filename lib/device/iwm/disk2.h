@@ -37,12 +37,11 @@ public:
     bool phases_valid(uint8_t phases);
     bool move_head();
     void change_track(int indicator);
-    // void refresh_track();
     
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
-    // void init();
+
     ~iwmDisk2();
 };
 

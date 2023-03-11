@@ -5,11 +5,6 @@
 #include <queue>
 // #include <driver/gpio.h>
 #include <driver/spi_master.h>
-//#include <driver/spi_common.h>
-// #include "soc/spi_periph.h"
-// #include "soc/io_mux_reg.h"
-// #include "esp_rom_gpio.h"
-// #include "hal/gpio_hal.h"
 #include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
@@ -141,16 +136,8 @@ public:
 class iwm_diskii_ll
 {
 private:
-  // SPI data handling
-  // uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
-  // int spi_len;
-  // spi_device_handle_t spi;
-  // int fspi;
-  // std::queue<spi_transaction_t> trans;
-
   // RMT data handling
   fn_rmt_config_t config;
-  // where to put the track buffer for translation?
 
   // tri-state buffer control - copied from sp_ll - probably should make one version only but alas
   void iwm_rddata_set() { GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); }; // make RDDATA go hi-z through the tri-state
@@ -176,19 +163,14 @@ public:
   
   // Disk II handling by RMT peripheral
   void setup_rmt(); // install the RMT device
-  // need a function to start the RMT stream
-  // need a function to stop the RMT stream
-  // need a function to remove the RMT device?
   void start();
   void stop();
+  // need a function to remove the RMT device?
 
   bool nextbit();
   bool fakebit();
   void copy_track(uint8_t *track, size_t tracklen, size_t trackbits);
-//  void encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator);
-//  void iwm_queue_track_spi();
 
-//  void spi_end();
   void set_output_to_rmt();
 };
 
