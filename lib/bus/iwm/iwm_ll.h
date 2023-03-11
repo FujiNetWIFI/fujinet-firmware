@@ -145,13 +145,10 @@ private:
 
   // track bit information
   uint8_t* track_buffer; // 
-  int track_byte_ctr;
-  int track_bit_ctr;
-  size_t track_numbits;
-  size_t track_numbytes;
-  size_t track_location() { return track_bit_ctr + 8 * track_byte_ctr; };
+  size_t track_numbits = 6400 * 8;
+  size_t track_numbytes = 6400;
+  size_t track_location = 0;
  
-
 public:
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
