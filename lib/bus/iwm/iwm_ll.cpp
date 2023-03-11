@@ -29,22 +29,31 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   
   if (!sp_command_mode && (_phases == 0b1011))
   {
-    smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
-    if (IWM.command_packet.command == 0x85)
+    int error = smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
+    if (!error) // packet received ok and checksum good 
     {
-      smartport.iwm_ack_clr();
-      sp_command_mode = true;
-    }
-    else
-    {
-      for (auto devicep : IWM._daisyChain)
+      if (IWM.command_packet.command == 0x85)
       {
-        if (IWM.command_packet.dest == devicep->id())
+        smartport.iwm_ack_clr();
+        sp_command_mode = true;
+      }
+      else
+      {
+        for (auto devicep : IWM._daisyChain)
         {
-          sp_command_mode = true;
+          if (IWM.command_packet.dest == devicep->id())
+          {
+            smartport.iwm_ack_clr();
+            sp_command_mode = true;
+          }
         }
       }
     }
+    else if (error == 2) // checksum error
+    {
+      Debug_printf("\r\nChksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
+    }
+    // initial Req timeout (error==1) and checksum (error==2) just fall through here and we try again next time
     smartport.spi_end();
   }
   else if (diskii_xface.iwm_enable_states() & 0b11)
@@ -130,7 +139,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
 
   iwm_ack_set(); // go hi-z - signal ready to send data
 
-  // 1:        sbic _SFR_IO_ADDR(PIND),2   ;wait for req line to go high
+  // wait for req line to go high
   if (req_wait_for_rising_timeout(300000))
     {
       // timeout!
@@ -150,7 +159,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   if (req_wait_for_falling_timeout(5000)) // if we don't get REQ low within 500us, then the host didn't like the packet
   {
     portENABLE_INTERRUPTS(); // takes 7 us to execute
-    Debug_println("Send REQ timeout");
+    Debug_printf("\nSend REQ timeout");
     req_wait_for_falling_timeout(100000); //wait until host eventually sets REQ low (~1ms), then we can retry send
     return 1;
   }
@@ -176,6 +185,15 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(int n)
 
 int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
 { // read data stream using SPI
+
+  // these are for the on the fly checksum decode
+  uint8_t checksum = 0;
+  uint8_t numodd = 0;
+  uint8_t numgrps = 0;
+  uint8_t oddbits = 0, evenbits = 0;
+  uint16_t grpstart = 14;
+  uint16_t group = 0;
+
   fnTimer.reset();
 
   // signal the logic analyzer
@@ -203,7 +221,9 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
   
-  memset(spi_buffer, 0xff, SPI_SP_LEN);
+  // comment this out, trying to minimise the time from REQ interrupt to start the SPI polling
+  // helps the IIgs get in sync to the bitstream quicker 
+  //memset(spi_buffer, 0xff, SPI_SP_LEN);
 
   memset(&rxtrans, 0, sizeof(spi_transaction_t));
   rxtrans.flags = 0;
@@ -213,14 +233,14 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   rxtrans.rx_buffer = spi_buffer; // finally send the line data
 
   // setup a timeout counter to wait for REQ response
-  if (req_wait_for_rising_timeout(1000))
+  if (req_wait_for_rising_timeout(10000))
   { // timeout!
 #ifdef VERBOSE_IWM
     // timeout
     Debug_print("t");
 #endif
     iwm_extra_clr();
-    return 1;
+    return 1; // timeout waiting for REQ
   }
 
   esp_err_t ret = spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
@@ -260,6 +280,47 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
     bit_position = spirx_byte_ctr * 8 + spirx_bit_ctr; // current bit positon
     samples = bit_position - last_bit_pos; // difference since last time
     last_bit_pos = bit_position;
+
+    // calc checksum as we go
+    // note: idx is pointing to the next byte to be read at this point
+    if(idx > 6 && idx < 12) // first part of header
+    {
+      checksum ^= buffer[idx-1];
+    }
+    else if (idx == 12) // odd byte count
+    {
+      numodd = buffer[idx-1] & 0x7f;
+      checksum ^= buffer[idx-1];
+    }
+    else if (idx == 13) //group of 7 bytes count
+    {
+      numgrps = buffer[idx-1] & 0x7f;
+      checksum ^= buffer[idx-1];
+    }
+    else if ((numodd != 0) && (idx == 14 + numodd)) // calc checksum for odd bytes
+    {
+      for(int i = 0; i < numodd; i++)
+      {
+        checksum ^= (((buffer[idx - 1 - numodd]<< (i + 1)) & 0x80) | (buffer[idx - numodd + i] & 0x7f));
+      }
+      grpstart = 14 + numodd + 1; // update grpstart
+    }
+    else if ((numgrps != 0) && (group < numgrps) && (idx == grpstart + group * 8 + 7)) // calc checksum for group of 7 bytes
+    {
+      checksum ^= ((buffer[idx - 8] << (1)) & 0x80) | ((buffer[idx - 7]) & 0x7f);
+      checksum ^= ((buffer[idx - 8] << (2)) & 0x80) | ((buffer[idx - 6]) & 0x7f);
+      checksum ^= ((buffer[idx - 8] << (3)) & 0x80) | ((buffer[idx - 5]) & 0x7f);
+      checksum ^= ((buffer[idx - 8] << (4)) & 0x80) | ((buffer[idx - 4]) & 0x7f);
+      checksum ^= ((buffer[idx - 8] << (5)) & 0x80) | ((buffer[idx - 3]) & 0x7f);
+      checksum ^= ((buffer[idx - 8] << (6)) & 0x80) | ((buffer[idx - 2]) & 0x7f);
+      checksum ^= ((buffer[idx - 8] << (7)) & 0x80) | ((buffer[idx - 1]) & 0x7f);
+      group++;
+    }
+    else if (idx == 14 + numodd + (numodd != 0) + numgrps * 8 + 1) // decode checksum sent in packet
+    {
+      evenbits = buffer[idx-2] & 0x55;
+      oddbits = (buffer[idx-1] & 0x55) << 1;
+    }
 
     fnTimer.wait();
 
@@ -331,7 +392,24 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
       } while (spirx_get_next_sample() == prev_level);
     numbits = 8;
   } while (have_data); // while have_data
-  return 0;
+
+  // keep this so we can print them later for debug
+  smartport.calc_checksum = checksum;
+  smartport.pkt_checksum = (oddbits | evenbits);
+  
+  if (checksum == (oddbits | evenbits))
+  {
+    return 0; // all good
+  } 
+  else if (((numodd + numgrps * 7) > 0xff && (numodd + numgrps * 7) < 0x200) && (checksum == smartport.last_checksum)) // Liron bug workaround
+  {
+    return 0; // just assume its ok due to last checksum being the same as this one for the Liron affected size data packets
+  } 
+  else
+  {
+    smartport.last_checksum = checksum;
+    return 2; // checksum error
+  }
 }
 
 void IRAM_ATTR iwm_sp_ll::spi_end() { spi_device_polling_end(spirx, portMAX_DELAY); };
@@ -574,8 +652,8 @@ void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
 // Parameters: none
 // Returns: error code, >0 = error encountered
 //
-// Description: decode 512 (arbitrary now) byte data packet for write block command from host
-// decodes the data from the packet_buffer IN-PLACE!
+// Description: decode arbitrary sized data packet for ctrl/write/write block command from host
+// Note: checksum has already been calculated/verified in read packet
 //*****************************************************************************
 int iwm_sp_ll::decode_data_packet(uint8_t* output_data)
 {
@@ -587,7 +665,7 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   int grpbyte, grpcount;
   uint8_t numgrps, numodd;
   uint16_t numdata;
-  uint8_t checksum = 0, bit0to6, bit7, oddbits, evenbits;
+  uint8_t bit0to6, bit7;
   uint8_t group_buffer[8];
 
   //Handle arbitrary length packets :)
@@ -595,25 +673,13 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   numgrps = input_data[12] & 0x7f;
   numdata = numodd + numgrps * 7;
   Debug_printf("\nDecoding %d bytes",numdata);
-  // if (numdata==512)
-  // {
-  //   // print out packets
-  //   print_packet(input_data,BLOCK_PACKET_LEN);
-  // }
-  // First, checksum  packet header, because we're about to destroy it
-  for (int count = 6; count < 13; count++) // now xor the packet header bytes
-    checksum = checksum ^ input_data[count];
 
-  int chkidx = 13 + numodd + (numodd != 0) + numgrps * 8;
-  evenbits = input_data[chkidx] & 0x55;
-  oddbits = (input_data[chkidx + 1] & 0x55) << 1;
-
-  //add oddbyte(s), 1 in a 512 data packet
+  // decode oddbyte(s), 1 in a 512 data packet
   for(int i = 0; i < numodd; i++){
     output_data[i] = ((input_data[13] << (i+1)) & 0x80) | (input_data[14+i] & 0x7f);
   }
 
-  // 73 grps of 7 in a 512 byte packet
+  // decode groups of 7, 73 grps of 7 in a 512 byte packet
   int grpstart = 12 + numodd + (numodd != 0) + 1;
   for (grpcount = 0; grpcount < numgrps; grpcount++)
   {
@@ -624,18 +690,6 @@ int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
       bit0to6 = (group_buffer[grpbyte + 1]) & 0x7f;
       output_data[numodd + (grpcount * 7) + grpbyte] = bit7 | bit0to6;
     }
-  }
-
-  //verify checksum
-  for (int count = 0; count < numdata; count++) // xor all the output_data bytes
-    checksum = checksum ^ output_data[count];
-
-  Debug_printf("\ndecode data checksum calc %02x, packet %02x", checksum, (oddbits | evenbits));
-
-  if (checksum != (oddbits | evenbits))
-  {
-    Debug_printf("\nCHECKSUM ERROR!");
-    return -1; // error!
   }
 
   return numdata;
