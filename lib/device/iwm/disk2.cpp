@@ -6,25 +6,6 @@
 #include "fuji.h"
 #include "fnHardwareTimer.h"
 
-// const int8_t phases_lut [16][16] = {
-// { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 0, 2, 1, 0, 0, 0, 0,-2,-1, 0, 0, 0, 0, 0, 0},
-// { 0,-2, 0,-1, 2, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// { 0,-1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0 ,0, 0, 0, 0},
-// { 0, 0,-2, 0, 0, 0,-1, 0, 2, 0, 0, 0, 1, 0, 0, 0},
-// { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 0,-1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 2, 0, 0,-2, 0, 0, 0, 0, 1, 0, 0,-1, 0, 0, 0},
-// { 0, 1, 0, 0, 0, 0, 0, 0,-1, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 0, 0, 0,-1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
-// { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-// };
-
 const int8_t phase2seq[16] = {-1, 0, 2, 1, 4, -1, 3, -1, 6, 7, -1, -1, 5, -1, -1, -1};
 const int8_t seq2steps[8] = {0, 1, 2, 3, 0, -3, -2, -1};
 
@@ -67,10 +48,6 @@ mediatype_t iwmDisk2::mount(FILE *f)//, const char *filename), uint32_t disksize
     delete _disk;
     _disk = nullptr;
   }
-
-    // Determine MediaType based on filename extension
-    // if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
-    //     disk_type = MediaType::discover_mediatype(filename);
 
     switch (disk_type)
     {
@@ -153,25 +130,5 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
     diskii_xface.copy_track(nullptr, 6400, 6400 * 8);
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
-
-// void IRAM_ATTR iwmDisk2::refresh_track()
-// {
-//   // rewrite the track data to update the MC3470 random bits
-
-//   if (!device_active)
-//     return;
-
-//   if (old_pos != track_pos)
-//     return;
-
-//   if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
-//     // need to tell diskii_xface the number of bits in the track
-//     // and where the track data is located so it can convert it
-//     diskii_xface.encode_spi_packet(
-//         ((MediaTypeWOZ *)_disk)->get_track(track_pos),
-//         ((MediaTypeWOZ *)_disk)->track_len(track_pos),
-//         ((MediaTypeWOZ *)_disk)->num_bits(track_pos),
-//         0);
-// }
 
 #endif /* BUILD_APPLE */

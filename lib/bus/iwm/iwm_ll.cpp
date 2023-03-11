@@ -773,18 +773,17 @@ void IRAM_ATTR encode_rmt_stream(const void* src, rmt_item32_t* dest, size_t src
 void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t src_size, 
                          size_t wanted_num, size_t* translated_size, size_t* item_num)
 {
+    // *src is equal to *track_buffer
+    // src_size is equal to numbits
+    // translated_size is not used
+    // item_num will equal wanted_num at end
+
     if (src == NULL || dest == NULL)
     {
       *translated_size = 0;
       *item_num = 0;
       return;
     }
-    // *src is equal to *track_buffer
-    // src_size is equal to numbits
-    // translated_size is not used
-    // item_num will equal wanted_num at end
-
-    // call diskii_xface.nextbit() to get the next bit out of the track buffer
 
     const rmt_item32_t bit0 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 0 }}}; //Logical 0
     const rmt_item32_t bit1 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 1 }}}; //Logical 1
@@ -916,54 +915,6 @@ void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t
   track_numbits = trackbits;
 }
 
-// void IRAM_ATTR iwm_diskii_ll::encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator = 0)
-// {
-//   int i = 0, j = 0;
-//   uint8_t window = 0;
-//   uint8_t nextbit = 0;
-
-//   for (i = 0; i < (trackbits / 8); i++)
-//   {
-//     // for each byte, loop through 4 x 2-bit pairs
-//     uint8_t mask = 0x80;
-//     uint8_t temp = 0;
-//     for (int k = 7; k >= 0; k--)
-//     {
-//       // MC34780 behavior for random bit insertion
-//       // https://applesaucefdc.com/woz/reference2/
-//       window <<= 1;
-//       window |= ((track[i] & mask) != 0);
-//       if ((window & 0x0f) != 0)
-//       {
-//         nextbit = window & 0x02;
-//       }
-//       else
-//       {
-//         nextbit = fakebit();
-//       }
-//         if (nextbit)
-//         {
-//           if (k % 2 == 1)
-//           {
-//             temp |= 0x40;
-//           }
-//           else
-//           {
-//             temp |= 0x04;
-//           }
-//         }
-//         mask >>= 1;
-
-//         if (k % 2 == 0)
-//         {
-//           spi_buffer[j++] = temp;
-//           temp = 0;
-//         }
-//       }
-//     spi_len = trackbits / 2; // 2 bits per encoded byte
-//   }
-// }
-
 uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 {
   uint8_t states = 0;
@@ -981,54 +932,6 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
   }
   return states;
 }
-
-// void IRAM_ATTR iwm_diskii_ll::iwm_queue_track_spi()
-// {
-//   esp_err_t ret;
-
-//   // if (trans.empty())
-//   // {
-//   //   // ret = spi_device_acquire_bus(spi, portMAX_DELAY);
-//   //   // assert(ret == ESP_OK);
-//   //   iwm_rddata_clr();
-//   // }
-
-//   if (trans.size() > 1)
-//   {
-//     spi_end();
-//     theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].refresh_track();
-//   }
-
-//   while (trans.size() < 2)
-//   {
-//     spi_transaction_t mytrans;
-//     memset(&mytrans, 0, sizeof(spi_transaction_t));
-//     mytrans.tx_buffer = spi_buffer; // finally send the line data
-//     mytrans.length = spi_len * 8;   // Data length, in bits
-//     mytrans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
-//     trans.push(mytrans);
-//     ret = spi_device_queue_trans(spi, &trans.back(), portMAX_DELAY);
-//     assert(ret == ESP_OK);
-//   }
-// }
-
-// void IRAM_ATTR iwm_diskii_ll::spi_end()
-// {
-//   if (trans.empty())
-//     return;
-
-//   esp_err_t ret;
-//   spi_transaction_t *t = &trans.front();
-//   ret = spi_device_get_trans_result(spi, &t, portMAX_DELAY);
-//   assert(ret == ESP_OK);
-//   trans.pop();
-//   // if (trans.empty())
-//   // {
-//   //   disable_output();
-//   //   smartport.iwm_ack_set(); 
-//   //   // spi_device_release_bus(spi);
-//   // }
-// }
 
 iwm_sp_ll smartport;
 iwm_diskii_ll diskii_xface;
