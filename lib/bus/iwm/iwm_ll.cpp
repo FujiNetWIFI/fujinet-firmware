@@ -798,19 +798,16 @@ void iwm_diskii_ll::setup_rmt()
 
 bool IRAM_ATTR iwm_diskii_ll::nextbit()
 {
-  // bits go MSB first
+  int track_byte_ctr = track_location / 8;
+  int track_bit_ctr = track_location % 8;
+
   bool outbit;
-  // outbit = (track_buffer[track_byte_ctr] & (0x01 << track_bit_ctr)) != 0;
   outbit = (track_buffer[track_byte_ctr] & (0x80 >> track_bit_ctr)) != 0; // bits go MSB first
 
-  ++track_bit_ctr %= 8;
-  if (track_bit_ctr == 0)
-    ++track_byte_ctr %= track_numbytes;
-  
-  if (track_location() >= track_numbits)
+  track_location++;
+  if (track_location >= track_numbits)
   {
-    track_bit_ctr = 0;
-    track_byte_ctr = 0;
+    track_location = 0;
   }
 
   return outbit;
@@ -845,15 +842,16 @@ bool IRAM_ATTR iwm_diskii_ll::fakebit()
 
 void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t trackbits)
 {
-// new_position = current_position * new_track_length / current_track_length
-// memset 0's when track == nullptr
-// Remember to maintain the bit position even when on an empty track (TMAP value of 0xFF). 
-
   // copy track from SPIRAM to INTERNAL RAM
   if (track != nullptr)
     memcpy(track_buffer, track, tracklen);
   else
     memset(track_buffer, 0, tracklen);
+
+  // new_position = current_position * new_track_length / current_track_length
+  track_location *= trackbits;
+  track_location /= track_numbits;
+  // update track info
   track_numbytes = tracklen;
   track_numbits = trackbits;
 }
