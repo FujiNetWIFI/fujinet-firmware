@@ -725,44 +725,6 @@ void iwm_diskii_ll::set_output_to_rmt()
 
 // }
 
-//Convert uint8_t type of data to rmt format data.
-//NOT IN USE
-void IRAM_ATTR encode_rmt_stream(const void* src, rmt_item32_t* dest, size_t src_size, 
-                         size_t wanted_num, size_t* translated_size, size_t* item_num)
-{
-    if(src == NULL || dest == NULL) {
-        *translated_size = 0;
-        *item_num = 0;
-        return;
-    }
-    // *src is equal to *track_buffer
-    // src_size is equal to numbits
-    // translated_size is not used
-    // item_num will equal wanted_num at end
-
-    // call diskii_xface.nextbit() to get the next bit out of the track buffer
-
-    const rmt_item32_t bit0 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 0 }}}; //Logical 0
-    const rmt_item32_t bit1 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 1 }}}; //Logical 1
-    size_t size = 0;
-    size_t num = 0;
-    uint8_t *psrc = (uint8_t *)src;
-    rmt_item32_t* pdest = dest;
-    while (size < src_size && num < wanted_num)
-    {
-      for (int i = 0; i < 8; i++)
-      {
-        pdest->val = (*psrc & (0x1 << i)) ? bit1.val : bit0.val;
-        num++;
-        pdest++;
-      }
-      size++;
-      psrc++;
-    }
-    *translated_size = size;
-    *item_num = num;
-}
-
 //Convert track data to rmt format data.
 void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t src_size, 
                          size_t wanted_num, size_t* translated_size, size_t* item_num)
