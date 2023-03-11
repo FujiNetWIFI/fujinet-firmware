@@ -24,6 +24,8 @@
 #define PACKET_TYPE_STATUS 0x81
 #define PACKET_TYPE_DATA 0x82
 
+#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
+
 extern volatile uint8_t _phases;
 extern volatile bool sp_command_mode;
 extern volatile int isrctr;
@@ -180,13 +182,15 @@ public:
 
   void disable_output() { iwm_rddata_set(); };
   void enable_output()  { iwm_rddata_clr(); };
+
   
   // Disk II handling by RMT peripheral
   void setup_rmt(); // install the RMT device
-  void rmttest();
   // need a function to start the RMT stream
   // need a function to stop the RMT stream
   // need a function to remove the RMT device?
+  void start();
+  void stop();
 
   bool nextbit();
   bool fakebit();
@@ -195,7 +199,7 @@ public:
 //  void iwm_queue_track_spi();
 
 //  void spi_end();
-void set_output_to_rmt();
+  void set_output_to_rmt();
 };
 
 extern iwm_sp_ll smartport;

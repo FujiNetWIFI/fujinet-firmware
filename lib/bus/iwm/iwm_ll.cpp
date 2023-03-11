@@ -663,15 +663,26 @@ void iwm_sp_ll::set_output_to_spi()
 #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 #define RMT_USEC (APB_CLK_FREQ / MHZ)
 
+void iwm_diskii_ll::start()
+{
+ ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits));
+}
+
+void iwm_diskii_ll::stop()
+{
+  fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+}
+
 void iwm_diskii_ll::set_output_to_rmt()
 {
   esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
 }
 
-void IRAM_ATTR iwm_diskii_ll::rmttest(void)
-{
+// KEEEEEEEEEEEEEEEEEEP FOR A WHILE UNTIL ALL TECHNIQUES LEARNED ARE USED OR NO LONGER NEEDED
+// void IRAM_ATTR iwm_diskii_ll::rmttest(void)
+// {
 //  iwm_rddata_clr(); // enable the tri-state buffer
-  #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
+  
 // size_t num_samples = 512*12;
 // uint8_t* sample = (uint8_t*)heap_caps_malloc(num_samples, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
 // if (sample == NULL)
@@ -685,7 +696,7 @@ void IRAM_ATTR iwm_diskii_ll::rmttest(void)
 // Debug_printf("\nSending %d items", num_samples);//number_of_items);
 //   //ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
 //   esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
-  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits));
+  // ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits));
 //   // fnSystem.delay(100);
 //   // fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
 //   // fnSystem.delay(50);
@@ -717,7 +728,7 @@ void IRAM_ATTR iwm_diskii_ll::rmttest(void)
 
 // Debug_printf("\r\nconnect to SPI");
 
-}
+// }
 
 //Convert uint8_t type of data to rmt format data.
 void IRAM_ATTR encode_rmt_stream(const void* src, rmt_item32_t* dest, size_t src_size, 

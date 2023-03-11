@@ -142,13 +142,19 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   if ( ((MediaTypeWOZ *)_disk)->trackmap(old_pos) == ((MediaTypeWOZ *)_disk)->trackmap(track_pos) )
     return;
 
-  if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
-    // need to tell diskii_xface the number of bits in the track
-    // and where the track data is located so it can convert it
-    diskii_xface.copy_track(
-        ((MediaTypeWOZ *)_disk)->get_track(track_pos),
-        ((MediaTypeWOZ *)_disk)->track_len(track_pos),
-        ((MediaTypeWOZ *)_disk)->num_bits(track_pos));
+
+  // don't change tracks - cheat - should point to buffer of zeros
+  if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) == 255)
+    return;
+  // TODO: change copy_track to pass a nullptr so then it'll just do a memset of 0's into the trackbuffer.
+  // pass it typical length per the woz doc's
+
+  // need to tell diskii_xface the number of bits in the track
+  // and where the track data is located so it can convert it
+  diskii_xface.copy_track(
+      ((MediaTypeWOZ *)_disk)->get_track(track_pos),
+      ((MediaTypeWOZ *)_disk)->track_len(track_pos),
+      ((MediaTypeWOZ *)_disk)->num_bits(track_pos));
 }
 
 // void IRAM_ATTR iwmDisk2::refresh_track()
