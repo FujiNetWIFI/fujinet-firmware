@@ -305,6 +305,7 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
     iwm_return_noerror();
     break;
   case 0x04: // control
+    Debug_printf("\r\nhandling control command");
     status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     if (disk_num == '0' && status_code > 0x0A) // max regular control code is 0x0A to 3.5" disk
       theFuji.FujiControl(cmd);

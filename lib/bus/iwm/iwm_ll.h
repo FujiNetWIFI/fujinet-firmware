@@ -18,7 +18,6 @@
 #define PACKET_TYPE_DATA 0x82
 
 extern volatile uint8_t _phases;
-extern volatile bool sp_command_mode;
 extern volatile int isrctr;
 
 enum class iwm_packet_type_t
@@ -30,6 +29,14 @@ enum class iwm_packet_type_t
   ext_status = PACKET_TYPE_STATUS | 0x40,
   ext_data = PACKET_TYPE_DATA | 0x40
 };
+
+enum class sp_cmd_state_t
+{
+  standby = 0,
+  rxdata,
+  command
+};
+extern volatile sp_cmd_state_t sp_command_mode;
 
 /** ACK and REQ
  * 
