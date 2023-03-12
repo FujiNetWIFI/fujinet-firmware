@@ -546,8 +546,6 @@ void iecFuji::read_directory_entry()
             current_entry[filelen + 1] = '\0';
         }
     }
-
-    bus_to_computer((uint8_t *)current_entry, maxlen, false);
 }
 
 void iecFuji::get_directory_position()
