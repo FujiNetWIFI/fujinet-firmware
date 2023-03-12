@@ -255,6 +255,24 @@ void adamFuji::adamnet_mount_host()
     adamnet_response_ack();
 }
 
+void adamFuji::adamnet_unmount_host()
+{
+    Debug_println("Fuji cmd: UNMOUNT HOST");
+
+    unsigned char hostSlot = adamnet_recv();
+
+    adamnet_recv(); // get ck
+
+    if (hostMounted[hostSlot] == true)
+    {
+        _fnHosts[hostSlot].umount();
+        hostMounted[hostSlot] = false;
+    }
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+}
+
 // Disk Image Mount
 void adamFuji::adamnet_disk_image_mount()
 {
