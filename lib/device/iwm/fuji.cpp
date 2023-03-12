@@ -1258,7 +1258,8 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
   Debug_printf("\r\nDevice %02x Control Code %02x", id(), control_code);
   // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
   data_len = 512;
-  IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+  // already called by ISR
+  // IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
   // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", data_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
   // print_packet((uint8_t *)data_buffer, 512);
 

@@ -438,7 +438,7 @@ void IRAM_ATTR iwmBus::service()
     // }
     // should not ACK unless we know this is our Command
 
-    if (!sp_command_mode)
+    if (sp_command_mode != sp_cmd_state_t::command)
     {
       // iwm_ack_deassert(); // go hi-Z
       return;
@@ -483,6 +483,7 @@ void IRAM_ATTR iwmBus::service()
           // wait for REQ to go low
           if (iwm_req_deassert_timeout(50000))
           {
+            Debug_printf("\nREQ timeout in command processing");
             iwm_ack_deassert(); // go hi-Z
             return;
           }
@@ -499,7 +500,7 @@ void IRAM_ATTR iwmBus::service()
         }
       }
     }
-    sp_command_mode = false;
+    sp_command_mode = sp_cmd_state_t::standby;
     iwm_ack_deassert(); // go hi-Z
   }                     // switch (phasestate)
 

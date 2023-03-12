@@ -300,7 +300,7 @@ public:
   //void assign_id(uint8_t n) { _devnum = n; };
 
   void assign_name(std::string name) {dib.device_name = name;}
-
+  
   /**
    * @brief Get the iwmBus object that this iwmDevice is attached to.
    */
@@ -371,6 +371,7 @@ public:
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
   iwmDevice *firstDev() {return _daisyChain.front();}
+  uint8_t* devBuffer() {return iwmDevice::data_buffer;}
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);

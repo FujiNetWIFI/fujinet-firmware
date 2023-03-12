@@ -15,7 +15,7 @@
 const uint8_t MC3470[32] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
 
 volatile uint8_t _phases = 0;
-volatile bool sp_command_mode = false;
+volatile sp_cmd_state_t sp_command_mode = sp_cmd_state_t::standby;
 volatile int isrctr = 0;
 
 void IRAM_ATTR phi_isr_handler(void *arg)
@@ -25,40 +25,82 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // update the head position based on phases
   // put the right track in the SPI buffer
 
+  int error; // checksum error return
+
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
   
-  if (!sp_command_mode && (_phases == 0b1011))
+  
+
+  //if ((sp_command_mode == sp_cmd_state_t::standby) && (_phases == 0b1011))
+  if (_phases == 0b1011)
   {
-    int error = smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
-    if (!error) // packet received ok and checksum good 
+    switch (sp_command_mode)
     {
-      if (IWM.command_packet.command == 0x85)
+    case sp_cmd_state_t::standby:
+      error = smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
+      if (!error) // packet received ok and checksum good
       {
-        smartport.iwm_ack_clr();
-        sp_command_mode = true;
-      }
-      else
-      {
-        for (auto devicep : IWM._daisyChain)
+        if (IWM.command_packet.command == 0x85)
         {
-          if (IWM.command_packet.dest == devicep->id())
+          smartport.iwm_ack_clr();
+          sp_command_mode = sp_cmd_state_t::command;
+        }
+        else
+        {
+          for (auto devicep : IWM._daisyChain)
           {
-            smartport.iwm_ack_clr();
-            sp_command_mode = true;
+            if (IWM.command_packet.dest == devicep->id())
+            {
+              smartport.iwm_ack_clr();
+              // look for CTRL command
+              //  Debug_printf("\nhello from ISR - looking for control command!");
+              if (IWM.command_packet.command == 0x84)
+              {
+                // Debug_printf("\nhello from ISR - control command!");
+                if (smartport.req_wait_for_falling_timeout(5500))
+                {
+                  Debug_printf("\nREQ timeout in ISR");
+                  return;
+                }
+                smartport.iwm_ack_set();
+                sp_command_mode = sp_cmd_state_t::rxdata;
+              }
+              else
+              {
+                sp_command_mode = sp_cmd_state_t::command;
+              }
+            }
           }
         }
       }
+      else if (error == 2) // checksum error
+      {
+        Debug_printf("\r\nChksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
+      }
+      // initial Req timeout (error==1) and checksum (error==2) just fall through here and we try again next time
+      smartport.spi_end();
+      break;
+    case sp_cmd_state_t::rxdata:
+      error = smartport.iwm_read_packet_spi(IWM.devBuffer(), BLOCK_PACKET_LEN);
+      if (!error) // packet received ok and checksum good
+      {
+          smartport.iwm_ack_clr();
+          sp_command_mode = sp_cmd_state_t::command;
+      }
+      else if (error == 2) // checksum error
+      {
+        Debug_printf("\r\nChksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
+        // reset sp_command_mode to standy or leave to retry?
+      }
+      // initial Req timeout (error==1) and checksum (error==2) just fall through here and we try again next time
+      smartport.spi_end();
+      break;
+    case sp_cmd_state_t::command:
+      break;
     }
-    else if (error == 2) // checksum error
-    {
-      Debug_printf("\r\nChksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
-    }
-    // initial Req timeout (error==1) and checksum (error==2) just fall through here and we try again next time
-    smartport.spi_end();
   }
   else if (diskii_xface.iwm_enable_states() & 0b11)
   {
-    
     if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
     {
       isrctr++;
