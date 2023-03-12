@@ -181,6 +181,19 @@ void iwmFuji::iwm_ctrl_mount_host() // SP CTRL command
     }
 }
 
+// UnMount Server
+void iwmFuji::iwm_ctrl_unmount_host() // SP CTRL command
+{
+    unsigned char hostSlot = data_buffer[0]; // adamnet_recv();
+    Debug_printf("\r\nFuji cmd: UNMOUNT HOST no. %d", hostSlot);
+
+    if ((hostSlot < 8) && (hostMounted[hostSlot] == false))
+    {
+        _fnHosts[hostSlot].unmount();
+        hostMounted[hostSlot] = true;
+    }
+}
+
 // Disk Image Mount
 void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 {
@@ -1315,7 +1328,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
       iwm_ctrl_new_disk();
       break;
     case FUJICMD_UNMOUNT_HOST:           // 0xE6
-      // to do
+      iwm_ctrl_unmount_host();
       break;
     // case FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
     case FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
