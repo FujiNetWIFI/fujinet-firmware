@@ -488,7 +488,66 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
 void iecFuji::read_directory_entry()
 {
-    // TODO IMPLEMENT
+    std::vector<std::string> t = util_tokenize(payload,':');
+
+    if (t.size()<2)
+        return;
+
+    uint8_t maxlen = atoi(t[1].c_str());
+
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
+
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        // Return error.
+        Debug_print("No currently open directory\n");
+        return;
+    }
+
+    char current_entry[256];
+
+    fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+
+    if (f == nullptr)
+    {
+        Debug_println("Reached end of of directory");
+        current_entry[0] = 0x7F;
+        current_entry[1] = 0x7F;
+    }
+    else
+    {
+        Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+        int bufsize = sizeof(current_entry);
+        char *filenamedest = current_entry;
+
+#define ADDITIONAL_DETAILS_BYTES 10
+        // If 0x80 is set on AUX2, send back additional information
+        if (cmdFrame.aux2 & 0x80)
+        {
+            _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+            // Adjust remaining size of buffer and file path destination
+            bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
+            filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
+        }
+        else
+        {
+            bufsize = maxlen;
+        }
+
+        //int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+
+        // Add a slash at the end of directory entries
+        if (f->isDir && filelen < (bufsize - 2))
+        {
+            current_entry[filelen] = '/';
+            current_entry[filelen + 1] = '\0';
+        }
+    }
+
+    bus_to_computer((uint8_t *)current_entry, maxlen, false);
 }
 
 void iecFuji::get_directory_position()
@@ -775,6 +834,8 @@ device_state_t iecFuji::process(IECData *id)
         disk_image_mount();
     else if (payload.find("OPENDDIR") != std::string::npos)
         open_directory();
+    else if (payload.find("READDIR") != std::string::npos)
+        read_directory_entry();
 
     return device_state;
 }
