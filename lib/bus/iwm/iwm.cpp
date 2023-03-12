@@ -439,7 +439,6 @@ void IRAM_ATTR iwmBus::service()
   switch (iwm_drive_enabled())
   {
   case iwm_enable_state_t::off:
-    // diskii_xface.spi_end();
     break;
   case iwm_enable_state_t::off2on:
     // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
@@ -456,7 +455,6 @@ void IRAM_ATTR iwmBus::service()
     // make sure the state machine moves on to iwm_enable_state_t::on
     return; // return so the SP code doesn't get checked
   case iwm_enable_state_t::on:
-  
 #ifdef DEBUG
     new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
     if (old_track != new_track)
@@ -465,22 +463,13 @@ void IRAM_ATTR iwmBus::service()
       old_track = new_track;
     }
 #endif
-    // smartport.iwm_ack_clr();  - need to deal with write protect
-    // diskii_xface.rmttest();
-    // if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
-    // {
-    //   // Debug_printf("%d ", isrctr);
-    //   // diskii_xface.iwm_queue_track_spi();
-    // }
     return;
   case iwm_enable_state_t::on2off:
-    // add a call to RMT stop tx
     fnSystem.delay(1); // need a better way to figure out persistence
     diskii_xface.stop();
     diskii_xface.disable_output();
     smartport.set_output_to_spi();
     iwm_ack_deassert();
-    // make sure the state machine moves on to iwm_enable_state_t::off
     return;
   }
 #endif
