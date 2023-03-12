@@ -1384,6 +1384,9 @@ void adamFuji::adamnet_control_send()
     case FUJICMD_MOUNT_HOST:
         adamnet_mount_host();
         break;
+    case FUJICMD_UNMOUNT_HOST:
+        adamnet_unmount_host();
+        break;
     case FUJICMD_MOUNT_IMAGE:
         adamnet_disk_image_mount();
         break;
