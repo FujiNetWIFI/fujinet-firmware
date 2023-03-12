@@ -189,7 +189,7 @@ void iwmFuji::iwm_ctrl_unmount_host() // SP CTRL command
 
     if ((hostSlot < 8) && (hostMounted[hostSlot] == false))
     {
-        _fnHosts[hostSlot].unmount();
+        _fnHosts[hostSlot].umount();
         hostMounted[hostSlot] = true;
     }
 }
