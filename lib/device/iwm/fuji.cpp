@@ -1414,6 +1414,9 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
   case 0x09: // write
     iwm_return_badcmd(cmd);
     break;
+  default:
+    iwm_return_badcmd(cmd);
+    break;
   } // switch (cmd)
   fnLedManager.set(LED_BUS, false);
 }
