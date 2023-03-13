@@ -682,7 +682,7 @@ void iwmFuji::iwm_stat_get_directory_position()
 
 void iwmFuji::iwm_ctrl_set_directory_position()
 {
-    Debug_printf("\r\nFuji cmd: SET DIRECTORY POSITION");
+    Debug_printf("\nFuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
     uint16_t pos = 0;
@@ -690,14 +690,14 @@ void iwmFuji::iwm_ctrl_set_directory_position()
     // adamnet_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
     memcpy((uint8_t *)&pos, (uint8_t *)&data_buffer, sizeof(uint16_t));
 
-    Debug_printf("pos is now %u", pos);
+    Debug_printf("\npos is now %u", pos);
 
     _fnHosts[_current_open_directory_slot].dir_seek(pos);
 }
 
 void iwmFuji::iwm_ctrl_close_directory()
 {
-    Debug_printf("\r\nFuji cmd: CLOSE DIRECTORY");
+    Debug_printf("\nFuji cmd: CLOSE DIRECTORY");
 
     if (_current_open_directory_slot != -1)
         _fnHosts[_current_open_directory_slot].dir_close();
@@ -708,7 +708,7 @@ void iwmFuji::iwm_ctrl_close_directory()
 // Get network adapter configuration
 void iwmFuji::iwm_stat_get_adapter_config()
 {
-    Debug_printf("\r\nFuji cmd: GET ADAPTER CONFIG");
+    Debug_printf("\nFuji cmd: GET ADAPTER CONFIG");
 
     // Response to FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
@@ -780,7 +780,7 @@ void iwmFuji::iwm_ctrl_new_disk()
 // Send host slot data to computer
 void iwmFuji::iwm_stat_read_host_slots()
 {
-    Debug_printf("\r\nFuji cmd: READ HOST SLOTS");
+    Debug_printf("\nFuji cmd: READ HOST SLOTS");
 
     //adamnet_recv(); // ck
 
@@ -797,7 +797,7 @@ void iwmFuji::iwm_stat_read_host_slots()
 // Read and save host slot data from computer
 void iwmFuji::iwm_ctrl_write_host_slots()
 {
-    Debug_printf("\r\nFuji cmd: WRITE HOST SLOTS");
+    Debug_printf("\nFuji cmd: WRITE HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     //adamnet_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
@@ -815,19 +815,19 @@ void iwmFuji::iwm_ctrl_write_host_slots()
 // Store host path prefix
 void iwmFuji::iwm_ctrl_set_host_prefix()
 {
-  Debug_printf("\r\nFuji cmd: SET HOST PREFIX - NOT IMPLEMENTED");
+  Debug_printf("\nFuji cmd: SET HOST PREFIX - NOT IMPLEMENTED");
 }
 
 // Retrieve host path prefix
 void iwmFuji::iwm_stat_get_host_prefix()
 {
-  Debug_printf("\r\nFuji cmd: GET HOST PREFIX - NOT IMPLEMENTED");
+  Debug_printf("\nFuji cmd: GET HOST PREFIX - NOT IMPLEMENTED");
 }
 
 // Send device slot data to computer
 void iwmFuji::iwm_stat_read_device_slots()
 {
-    Debug_printf("\r\nFuji cmd: READ DEVICE SLOTS");
+    Debug_printf("\nFuji cmd: READ DEVICE SLOTS");
 
     struct disk_slot
     {
@@ -858,7 +858,7 @@ void iwmFuji::iwm_stat_read_device_slots()
 // Read and save disk slot data from computer
 void iwmFuji::iwm_ctrl_write_device_slots()
 {
-    Debug_printf("\r\nFuji cmd: WRITE DEVICE SLOTS");
+    Debug_printf("\nFuji cmd: WRITE DEVICE SLOTS");
 
     struct
     {
@@ -949,11 +949,11 @@ void iwmFuji::iwm_ctrl_set_device_filename()
     s--;
    
 
-    Debug_printf("\r\nSET DEVICE SLOT %d", ds);
+    Debug_printf("\nSET DEVICE SLOT %d", ds);
 
     // adamnet_recv_buffer((uint8_t *)&f, s);
     memcpy((uint8_t *)&f, &data_buffer[idx], s);
-    Debug_printf("\r\nfilename: %s", f);
+    Debug_printf("\nfilename: %s", f);
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
     _populate_config_from_slots();  // this one maybe unnecessary?
@@ -970,7 +970,7 @@ void iwmFuji::iwm_ctrl_get_device_filename()
 
 void iwmFuji::iwm_stat_get_device_filename()
 {
-  Debug_printf("\r\nFuji cmd: GET DEVICE FILENAME");
+  Debug_printf("\nFuji cmd: GET DEVICE FILENAME");
   memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
   data_len = 256;
 }
@@ -1003,7 +1003,7 @@ void iwmFuji::iwm_ctrl_enable_device()
 {
     unsigned char d = data_buffer[0]; // adamnet_recv();
 
-    Debug_printf("\r\nFuji cmd: ENABLE DEVICE");
+    Debug_printf("\nFuji cmd: ENABLE DEVICE");
     IWM.enableDevice(d);
 }
 
@@ -1011,7 +1011,7 @@ void iwmFuji::iwm_ctrl_disable_device()
 {
     unsigned char d = data_buffer[0]; // adamnet_recv();
 
-    Debug_printf("\r\nFuji cmd: DISABLE DEVICE");
+    Debug_printf("\nFuji cmd: DISABLE DEVICE");
     IWM.disableDevice(d);
 }
 
@@ -1049,7 +1049,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
      _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
    }
 
-    Debug_printf("Config General Boot Mode: %u\n",Config.get_general_boot_mode());
+    Debug_printf("\nConfig General Boot Mode: %u\n",Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
         FILE *f = fnSPIFFS.file_open("/autorun.po");
@@ -1159,7 +1159,7 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 {
   // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
   uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-  Debug_printf("\r\nDevice %02x Status Code %02x", id(), status_code);
+  Debug_printf("\ntheFuji Device %02x Status Code %02x", id(), status_code);
   // Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 
   switch (status_code)
@@ -1167,6 +1167,7 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
     case 0xAA:
       iwm_hello_world();
       break;
+    case FUJICMD_DEVICE_ENABLE_STATUS:      // 0xD1
     case IWM_STATUS_STATUS:                  // 0x00
       send_status_reply_packet();
       return;
@@ -1240,12 +1241,12 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
       // to do? parallel to SP status?
       break;
     default:
-      Debug_printf("\r\nBad Status Code, sending error response");
+      Debug_printf("\nBad Status Code, sending error response");
       send_reply_packet(SP_ERR_BADCTL);
       return;
       break;
   }
-  Debug_printf("\r\nStatus code complete, sending response");
+  Debug_printf("\nStatus code complete, sending response");
   IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
  }
 
@@ -1255,10 +1256,11 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
   
   // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
   uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
-  Debug_printf("\r\nFuji Device %02x Control Code %02x", id(), control_code);
+  Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), control_code);
   // already called by ISR
   // data_len = 512;
   // IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+  Debug_printf("\nDecoding Control Data Packet:");
   data_len = decode_packet((uint8_t *)data_buffer);
   print_packet((uint8_t *)data_buffer, data_len);
 
@@ -1370,7 +1372,7 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
   switch (cmd.command)
   {
   case 0x00: // status
-    Debug_printf("\r\nhandling status command");
+    Debug_printf("\ntheFuji handling status command");
     iwm_status(cmd);
     break;
   case 0x01: // read block
@@ -1383,19 +1385,19 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
     iwm_return_badcmd(cmd);
     break;
   case 0x04: // control
-    Debug_printf("\r\nhandling control command");
+    Debug_printf("\ntheFuji handling control command");
     iwm_ctrl(cmd);
     break;
   case 0x06: // open
-    Debug_printf("\r\nhandling open command");
+    Debug_printf("\ntheFuji handling open command");
     iwm_open(cmd);
     break;
   case 0x07: // close
-    Debug_printf("\r\nhandling close command");
+    Debug_printf("\ntheFuji handling close command");
     iwm_close(cmd);
     break;
   case 0x08: // read
-    Debug_printf("\r\nhandling read command");
+    Debug_printf("\ntheFuji handling read command");
     iwm_read(cmd);
     break;
   case 0x09: // write
