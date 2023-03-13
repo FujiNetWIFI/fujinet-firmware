@@ -51,7 +51,7 @@ void print_packet(uint8_t *data, int bytes)
   char tbs[8];
   char xx;
 
-  Debug_printf(("\r\n"));
+  Debug_printf(("\n"));
   for (int count = 0; count < bytes; count = count + 16)
   {
     sprintf(tbs, ("%04X: "), count);
@@ -78,13 +78,13 @@ void print_packet(uint8_t *data, int bytes)
         Debug_print(("."));
       }
     }
-    Debug_printf(("\r\n"));
+    Debug_printf(("\n"));
   }
 }
 
 void print_packet(uint8_t *data)
 {
-  Debug_printf("\r\n");
+  Debug_printf("\n");
   for (int i = 0; i < 40; i++)
   {
     if (data[i] != 0 || i == 0)
@@ -100,7 +100,7 @@ void print_packet_wave(uint8_t *data, int bytes)
   int row;
   char tbs[8];
 
-  Debug_printf(("\r\n"));
+  Debug_printf(("\n"));
   for (int count = 0; count < bytes; count = count + 12)
   {
     sprintf(tbs, ("%04X: "), count);
@@ -489,6 +489,7 @@ void IRAM_ATTR iwmBus::service()
           }
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
+          Debug_printf("\nCommand Packet:");
           print_packet(command_packet.data);
 
           _activeDev = devicep;

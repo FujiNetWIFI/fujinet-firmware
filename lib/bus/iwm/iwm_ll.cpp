@@ -29,8 +29,6 @@ void IRAM_ATTR phi_isr_handler(void *arg)
 
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
   
-  
-
   //if ((sp_command_mode == sp_cmd_state_t::standby) && (_phases == 0b1011))
   if (_phases == 0b1011)
   {
@@ -59,12 +57,13 @@ void IRAM_ATTR phi_isr_handler(void *arg)
                 // Debug_printf("\nhello from ISR - control command!");
                 if (smartport.req_wait_for_falling_timeout(5500))
                 {
-                  Debug_printf("\nREQ timeout in ISR");
+                  Debug_printf("\nCTRL received\nREQ timeout in ISR");
                   return;
                 }
+                memset(smartport.packet_buffer, 0, sizeof(smartport.packet_buffer));
                 smartport.iwm_ack_set();
                 sp_command_mode = sp_cmd_state_t::rxdata;
-                Debug_printf("\nack set in ISR!");
+                Debug_printf("\nCTRL received\nACK set in ISR!");
               }
               else
               {
@@ -76,7 +75,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
       else if (error == 2) // checksum error
       {
-        Debug_printf("\r\nChksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
+        Debug_printf("\r\nISR Cmd Chksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
       }
       // initial Req timeout (error==1) and checksum (error==2) just fall through here and we try again next time
       smartport.spi_end();
@@ -90,7 +89,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
       else if (error == 2) // checksum error
       {
-        Debug_printf("\r\nChksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
+        Debug_printf("\r\nISR Data Packet Chksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
         // reset sp_command_mode to standy or leave to retry?
       }
       // initial Req timeout (error==1) and checksum (error==2) just fall through here and we try again next time
