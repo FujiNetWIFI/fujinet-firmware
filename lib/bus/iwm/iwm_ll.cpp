@@ -64,6 +64,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
                 }
                 smartport.iwm_ack_set();
                 sp_command_mode = sp_cmd_state_t::rxdata;
+                Debug_printf("\nack set in ISR!");
               }
               else
               {
@@ -81,7 +82,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       smartport.spi_end();
       break;
     case sp_cmd_state_t::rxdata:
-      error = smartport.iwm_read_packet_spi(IWM.devBuffer(), BLOCK_PACKET_LEN);
+      error = smartport.iwm_read_packet_spi(smartport.packet_buffer, BLOCK_PACKET_LEN);
       if (!error) // packet received ok and checksum good
       {
           smartport.iwm_ack_clr();
@@ -697,16 +698,16 @@ void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
 // Description: decode arbitrary sized data packet for ctrl/write/write block command from host
 // Note: checksum has already been calculated/verified in read packet
 //*****************************************************************************
-int iwm_sp_ll::decode_data_packet(uint8_t* output_data)
+size_t iwm_sp_ll::decode_data_packet(uint8_t* output_data)
 {
   return decode_data_packet(packet_buffer, output_data);
 }
 
-int iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
+size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 {
   int grpbyte, grpcount;
   uint8_t numgrps, numodd;
-  uint16_t numdata;
+  size_t numdata;
   uint8_t bit0to6, bit7;
   uint8_t group_buffer[8];
 
