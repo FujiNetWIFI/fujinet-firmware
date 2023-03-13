@@ -226,6 +226,11 @@ int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8
 
 bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 {
+  n = smartport.decode_data_packet(data);
+  return false;
+}
+/*
+ {
   memset(data, 0, n);
   int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
   Debug_printf("\r\nAttempting to receive %d length packet", nn);
@@ -263,7 +268,8 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 #endif
   portENABLE_INTERRUPTS();
   return true;
-}
+} 
+*/
 
 void iwmBus::setup(void)
 {
