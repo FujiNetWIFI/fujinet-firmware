@@ -596,40 +596,53 @@ void iecFuji::get_adapter_config()
     else if (payload == "ADAPTERCONFIG")
     {
         char reply[128];
+        std::string s;
 
         sprintf(reply, "%s\r", cfg.ssid);
-        response_queue.push(std::string(reply));
+        s=std::string(reply);
+        mstr::toPETSCII(s);
+        response_queue.push(s);
 
         sprintf(reply, "%s\r", cfg.hostname);
-        response_queue.push(std::string(reply));
+        s=std::string(reply);
+        mstr::toPETSCII(s);
+        response_queue.push(s);
 
         sprintf(reply, "%u.%u.%u.%u\r",
                 cfg.localIP[0],
                 cfg.localIP[1],
                 cfg.localIP[2],
                 cfg.localIP[3]);
-        response_queue.push(std::string(reply));
+        s=std::string(reply);
+        mstr::toPETSCII(s);
+        response_queue.push(s);
 
         sprintf(reply, "%u.%u.%u.%u\r",
                 cfg.netmask[0],
                 cfg.netmask[1],
                 cfg.netmask[2],
                 cfg.netmask[3]);
-        response_queue.push(std::string(reply));
+        s=std::string(reply);
+        mstr::toPETSCII(s);
+        response_queue.push(s);
 
         sprintf(reply, "%u.%u.%u.%u\r",
                 cfg.gateway[0],
                 cfg.gateway[1],
                 cfg.gateway[2],
                 cfg.gateway[3]);
-        response_queue.push(std::string(reply));
+        s=std::string(reply);
+        mstr::toPETSCII(s);
+        response_queue.push(s);
 
         sprintf(reply, "%u.%u.%u.%u\r",
                 cfg.dnsIP[0],
                 cfg.dnsIP[1],
                 cfg.dnsIP[2],
                 cfg.dnsIP[3]);
-        response_queue.push(std::string(reply));
+        s=std::string(reply);
+        mstr::toPETSCII(s);
+        response_queue.push(s);
 
         sprintf(reply, "%02X:%02X:%02X:%02X:%02X:%02X\r",
                 cfg.macAddress[0],
@@ -638,7 +651,9 @@ void iecFuji::get_adapter_config()
                 cfg.macAddress[3],
                 cfg.macAddress[4],
                 cfg.macAddress[5]);
-        response_queue.push(std::string(reply));
+        s=std::string(reply);
+        mstr::toPETSCII(s);
+        response_queue.push(s);
 
         sprintf(reply, "%02X:%02X:%02X:%02X:%02X:%02X\r",
                 cfg.bssid[0],
@@ -647,7 +662,9 @@ void iecFuji::get_adapter_config()
                 cfg.bssid[3],
                 cfg.bssid[4],
                 cfg.bssid[5]);
-        response_queue.push(std::string(reply));
+        s=std::string(reply);
+        mstr::toPETSCII(s);
+        response_queue.push(s);
     }
 }
 
