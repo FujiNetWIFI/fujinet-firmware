@@ -242,14 +242,6 @@ protected:
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
-  // all this encoding/decoding should go to low level
-  // however, need to change robj's code to NOT decode/encode packet *in place* using packet_buffer[].
-  // so need an encoded packet buffer in the low level and a packet_data[] or whatever in the high level.
-  // the command packet might be an exception
-  // iwm packet handling
-  static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
-  static int data_len; // how many bytes in the data buffer
-
    // void send_data_packet(); //encode smartport 512 byte data packet
   // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
   void send_init_reply_packet(uint8_t source, uint8_t status);
@@ -284,6 +276,10 @@ protected:
   void iwm_return_ioerror();
   void iwm_return_noerror();
 
+  // iwm packet handling
+  static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
+  static int data_len; // how many bytes in the data buffer
+
 public:
   bool device_active;
   //eject_latch allows simulation of an empty drive momentarily on disk mounts
@@ -306,6 +302,7 @@ public:
    */
   iwmBus iwm_get_bus();
 
+  size_t decode_packet(uint8_t *data) { return smartport.decode_data_packet(data); }
 };
 
 class iwmBus
@@ -371,7 +368,7 @@ public:
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
   iwmDevice *firstDev() {return _daisyChain.front();}
-  uint8_t* devBuffer() {return iwmDevice::data_buffer;}
+  uint8_t* devBuffer() {return (uint8_t *)iwmDevice::data_buffer;}
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
