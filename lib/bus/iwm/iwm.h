@@ -302,7 +302,7 @@ public:
    */
   iwmBus iwm_get_bus();
 
-  size_t decode_packet(uint8_t *data) { return smartport.decode_data_packet(data); }
+  // size_t decode_packet(uint8_t *data) { return smartport.decode_data_packet(data); }
 };
 
 class iwmBus

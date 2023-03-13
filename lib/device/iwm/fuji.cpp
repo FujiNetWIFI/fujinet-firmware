@@ -1272,10 +1272,10 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
   uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
   Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), control_code);
   // already called by ISR
-  // data_len = 512;
-  // IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+  data_len = 512;
   Debug_printf("\nDecoding Control Data Packet:");
-  data_len = decode_packet((uint8_t *)data_buffer);
+  IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+  // data_len = decode_packet((uint8_t *)data_buffer);
   print_packet((uint8_t *)data_buffer, data_len);
 
   switch (control_code)
