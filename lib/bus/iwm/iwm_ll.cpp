@@ -26,6 +26,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // put the right track in the SPI buffer
 
   int error; // checksum error return
+  uint8_t c;
 
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
   
@@ -36,9 +37,10 @@ void IRAM_ATTR phi_isr_handler(void *arg)
     {
     case sp_cmd_state_t::standby:
       error = smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
+      c = IWM.command_packet.command & 0x0f;
       if (!error) // packet received ok and checksum good
       {
-        if (IWM.command_packet.command == 0x85)
+        if (c == 0x05)
         {
           smartport.iwm_ack_clr();
           sp_command_mode = sp_cmd_state_t::command;
@@ -52,18 +54,23 @@ void IRAM_ATTR phi_isr_handler(void *arg)
               smartport.iwm_ack_clr();
               // look for CTRL command
               //  Debug_printf("\nhello from ISR - looking for control command!");
-              if (IWM.command_packet.command == 0x84)
+
+              if ((c == 0x02) ||
+                  (c == 0x04) ||
+                  (c == 0x09) ||
+                  (c == 0x0a) ||
+                  (c == 0x0b))
               {
                 // Debug_printf("\nhello from ISR - control command!");
                 if (smartport.req_wait_for_falling_timeout(5500))
                 {
-                  Debug_printf("\nCTRL received\nREQ timeout in ISR");
+                  Debug_printf("\nWRITE/CTRL received\nREQ timeout in ISR");
                   return;
                 }
                 memset(smartport.packet_buffer, 0, sizeof(smartport.packet_buffer));
                 smartport.iwm_ack_set();
                 sp_command_mode = sp_cmd_state_t::rxdata;
-                Debug_printf("\nCTRL received\nACK set in ISR!");
+                // Debug_printf("\nWRITE/CTRL received\nACK set in ISR!");
               }
               else
               {
