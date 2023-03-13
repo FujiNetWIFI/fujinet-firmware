@@ -202,6 +202,7 @@ void FileSystemSDFAT::dir_close()
 {
     // Throw out any existing directory entry data
     _dir_entries.clear();
+    _dir_entries.shrink_to_fit();
     _dir_entry_current = 0;
 }
 
