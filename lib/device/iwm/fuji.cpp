@@ -703,6 +703,7 @@ void iwmFuji::iwm_ctrl_close_directory()
         _fnHosts[_current_open_directory_slot].dir_close();
 
     _current_open_directory_slot = -1;
+    fnSystem.delay(100); // add delay because bad traces
 }
 
 // Get network adapter configuration
