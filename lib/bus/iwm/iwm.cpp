@@ -224,7 +224,7 @@ int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8
   return r;
 }
 
-bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
+bool iwmBus::iwm_decode_data_packet(uint8_t *data, int &n)
 {
   n = smartport.decode_data_packet(data);
   return false;
@@ -334,7 +334,7 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
     case 0x0a:
     case 0x0b:
     data_len = 512;
-    IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
     Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
     print_packet((uint8_t *)data_buffer, data_len);
     break;

@@ -282,7 +282,7 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
   // already called by ISR
   data_len = 512;
   Debug_printf("\nDecoding Control Data Packet:");
-  IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+  IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
   // data_len = decode_packet((uint8_t *)data_buffer);
   print_packet((uint8_t *)data_buffer, data_len);
 
@@ -424,7 +424,7 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
   //get write data packet, keep trying until no timeout
   // to do - this blows up - check handshaking
   data_len = BLOCK_DATA_LEN;
-  if (IWM.iwm_read_packet_timeout(100, (unsigned char *)data_buffer, data_len))
+  if (IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len))
   {
     Debug_printf("\r\nTIMEOUT in read packet!");
     return;

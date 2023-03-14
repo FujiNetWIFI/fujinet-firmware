@@ -1411,12 +1411,12 @@ void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
     //  to do - this blows up - check handshaking
 
     data_len = num_bytes;
-
-    if (IWM.iwm_read_packet_timeout(100, data_buffer, data_len))
-    {
-        Debug_printf("\r\nTIMEOUT in read packet!");
-        return;
-    }
+    IWM.iwm_decode_data_packet(data_buffer, data_len);
+    // if (IWM.iwm_decode_data_packet(100, data_buffer, data_len)) // write data packet now read in ISR
+    // {
+    //     Debug_printf("\r\nTIMEOUT in read packet!");
+    //     return;
+    // }
 
     {
         // DO write
@@ -1432,9 +1432,9 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
     uint8_t err_result = SP_ERR_NOERROR;
 
     uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
-    Debug_printf("\r\nDevice %02x Control Code %02x", id(), control_code);
+    Debug_printf("\r\nModem Device %02x Control Code %02x", id(), control_code);
     data_len = 512;
-    IWM.iwm_read_packet_timeout(100, data_buffer, data_len);
+    IWM.iwm_decode_data_packet(data_buffer, data_len);
     print_packet(data_buffer);
 
     if (data_len > 0)
