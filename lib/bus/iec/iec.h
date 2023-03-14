@@ -417,9 +417,6 @@ public:
 
     inline bool IRAM_ATTR status(uint8_t pin)
     {
-#ifndef IEC_SPLIT_LINES
-        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
-#endif
         return gpio_get_level((gpio_num_t)pin) ? 0 : 1;
     }
 
