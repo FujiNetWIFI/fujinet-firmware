@@ -321,8 +321,39 @@ void iwmDevice::send_reply_packet(uint8_t status)
 
 void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 {
-  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
-  send_reply_packet(SP_ERR_BADCMD);
+  //Handle possible data packet to avoid crash extended and non-extended
+  switch(cmd.command) {
+    case 0x42:
+    case 0x44:
+    case 0x49:
+    case 0x4a:
+    case 0x4b:
+    case 0x02:
+    case 0x04:
+    case 0x09:
+    case 0x0a:
+    case 0x0b:
+    data_len = 512;
+    IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+    Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
+    print_packet((uint8_t *)data_buffer, data_len);
+    break;
+    default://just send the response and return like before
+      send_reply_packet(SP_ERR_BADCMD);
+      Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+      return;
+  }
+  if(cmd.command == 0x04) //Decode command control code
+  {
+    send_reply_packet(SP_ERR_BADCTL); //we may be required to accept some control commands
+                                      // but for now just report bad control if it's a control
+                                      // command
+    uint8_t control_code = get_status_code(cmd);
+    Debug_printf("\r\nbad command was a control command with control code %02x",control_code);
+  }
+  else{
+    send_reply_packet(SP_ERR_BADCMD); //response for Any other command with a data packet
+  }
 }
 
 void iwmDevice::iwm_return_ioerror()
