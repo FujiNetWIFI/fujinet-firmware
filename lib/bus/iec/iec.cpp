@@ -148,8 +148,6 @@ void systemBus::service()
         release(PIN_IEC_CLK_OUT);
         pull(PIN_IEC_DATA_OUT);
 
-        Debug_printf("ATN PULLED.\n");
-
         // ATN was pulled read control code from the bus
         int16_t c = (bus_command_t)protocol->receiveByte();
 
@@ -512,7 +510,7 @@ void systemBus::setup()
     release(PIN_IEC_SRQ);
 
     // initial pin modes in GPIO
-    fnSystem.set_pin_mode ( PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN, GPIO_INTR_NEGEDGE );
+    fnSystem.set_pin_mode ( PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_NEGEDGE );
     fnSystem.set_pin_mode ( PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT );
     fnSystem.set_pin_mode ( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT );
     fnSystem.set_pin_mode ( PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT );
