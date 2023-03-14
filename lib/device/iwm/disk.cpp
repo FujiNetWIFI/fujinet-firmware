@@ -275,7 +275,7 @@ void iwmDisk::send_extended_status_dib_reply_packet() //XXX! currently unused
 
 void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd) 
 {
-    err_result = SP_ERR_NOERROR;
+  err_result = SP_ERR_NOERROR;
   
   uint8_t control_code = get_status_code(cmd); 
   Debug_printf("\nDisk Device %02x Control Code %02x", id(), control_code);
@@ -289,13 +289,13 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
   switch (control_code)
   {
   case IWM_CTRL_EJECT_DISK:
-    Debug_printf("Hanlding Eject command\r\n");
+    Debug_printf("Handling Eject command\r\n");
     unmount();
     // switched = false; //force switched = false when ejected from host.
     break;
-    default: 
-      err_result = SP_ERR_BADCTL;
-      break;
+  default:
+    err_result = SP_ERR_BADCTL;
+    break;
   }
   send_reply_packet(err_result); 
 }
