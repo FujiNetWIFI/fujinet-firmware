@@ -260,7 +260,7 @@ protected:
   virtual void iwm_status(iwm_decoded_cmd_t cmd);
   virtual void iwm_readblock(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_writeblock(iwm_decoded_cmd_t cmd) {};
-  virtual void iwm_handle_eject(iwm_decoded_cmd_t cmd) {};
+  // virtual void iwm_handle_eject(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_format(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_ctrl(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_open(iwm_decoded_cmd_t cmd) {};
