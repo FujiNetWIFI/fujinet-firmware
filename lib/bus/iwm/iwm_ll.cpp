@@ -266,6 +266,10 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
 
   write block packet on YS is 18.95 ms so should fit within DIY
   IIgs take 18.88 ms for a write block
+
+  IIgs GSOS 4 during shutdown sequence is sending something with 20.8 ms duration
+  2052 kHz * 20.8 ms = 42681 samples = 5335 bytes
+
   */
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
