@@ -695,11 +695,12 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
     data_len = BLOCK_DATA_LEN;
-    if (IWM.iwm_read_packet_timeout(100, (unsigned char *)data_buffer, data_len))
-    {
-        Debug_printf("\r\nTIMEOUT in read packet!");
-        return;
-    }
+    IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
+    // if (IWM.iwm_decode_data_packet(100, (unsigned char *)data_buffer, data_len)) // write data packet now read in ISR
+    // {
+    //     Debug_printf("\r\nTIMEOUT in read packet!");
+    //     return;
+    // }
     // partition number indicates which 32mb block we access
     if (data_len == -1)
         iwm_return_ioerror();
@@ -726,10 +727,10 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     // uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
     uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
-    Debug_printf("\r\nDevice %02x Control Code %02x", id(), control_code);
+    Debug_printf("\r\nNet Device %02x Control Code %02x", id(), control_code);
     // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
     data_len = BLOCK_DATA_LEN;
-    IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
     // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", data_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
     print_packet((uint8_t *)data_buffer);
 

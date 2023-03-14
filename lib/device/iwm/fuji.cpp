@@ -1277,7 +1277,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
   // already called by ISR
   data_len = 512;
   Debug_printf("\nDecoding Control Data Packet:");
-  IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+  IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
   // data_len = decode_packet((uint8_t *)data_buffer);
   print_packet((uint8_t *)data_buffer, data_len);
 

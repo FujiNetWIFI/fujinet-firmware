@@ -302,7 +302,6 @@ public:
    */
   iwmBus iwm_get_bus();
 
-  // size_t decode_packet(uint8_t *data) { return smartport.decode_data_packet(data); }
 };
 
 class iwmBus
@@ -355,7 +354,7 @@ public:
   std::forward_list<iwmDevice *> _daisyChain;
   
   cmdPacket_t command_packet;
-  bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
+  bool iwm_decode_data_packet(uint8_t *a, int &n);
    int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
  
   // these things stay for the most part
