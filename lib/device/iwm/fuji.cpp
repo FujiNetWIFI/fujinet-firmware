@@ -18,6 +18,9 @@ iwmFuji theFuji; // Global fuji object.
 iwmFuji::iwmFuji()
 {
   Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
+  // Helpful for debugging
+  for (int i = 0; i < MAX_HOSTS; i++)
+    _fnHosts[i].slotid = i;
 }
 
 void iwmFuji::iwm_dummy_command() // SP CTRL command
@@ -1415,6 +1418,9 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
     iwm_read(cmd);
     break;
   case 0x09: // write
+    iwm_return_badcmd(cmd);
+    break;
+  default:
     iwm_return_badcmd(cmd);
     break;
   } // switch (cmd)
