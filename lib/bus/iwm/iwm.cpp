@@ -500,6 +500,7 @@ void IRAM_ATTR iwmBus::service()
       }
     }
     sp_command_mode = false;
+    memset(command_packet.data, 0, sizeof(command_packet));
     iwm_ack_deassert(); // go hi-Z
   }                     // switch (phasestate)
 
