@@ -18,6 +18,9 @@ iwmFuji theFuji; // Global fuji object.
 iwmFuji::iwmFuji()
 {
   Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
+  // Helpful for debugging
+  for (int i = 0; i < MAX_HOSTS; i++)
+    _fnHosts[i].slotid = i;
 }
 
 void iwmFuji::iwm_dummy_command() // SP CTRL command
