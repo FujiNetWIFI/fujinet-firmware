@@ -88,7 +88,7 @@ void iecFuji::net_scan_networks()
     char c[8];
 
     _countScannedSSIDs = fnWiFi.scan_networks();
-    snprintf(c,sizeof(c),"%u\r",_countScannedSSIDs);
+    snprintf(c, sizeof(c), "%u\r", _countScannedSSIDs);
     response_queue.push(std::string(c));
 }
 
@@ -106,21 +106,21 @@ void iecFuji::net_scan_result()
         uint8_t rssi;
     } detail;
 
-    if (t.size()>1)
+    if (t.size() > 1)
     {
         int i = atoi(t[1].c_str());
-        Debug_printf("Getting scan result %u\n",i);
-        fnWiFi.get_scan_result(i,detail.ssid,&detail.rssi);
+        Debug_printf("Getting scan result %u\n", i);
+        fnWiFi.get_scan_result(i, detail.ssid, &detail.rssi);
     }
     else
     {
-        strcpy(detail.ssid,"INVALID SSID");
+        strcpy(detail.ssid, "INVALID SSID");
         detail.rssi = 0;
     }
 
     if (t.size() == 3) // SCANRESULT:0:RAW
     {
-        std::string r = std::string((const char *)&detail,sizeof(detail));
+        std::string r = std::string((const char *)&detail, sizeof(detail));
         response_queue.push(r);
     }
     else // SCANRESULT:0
@@ -129,10 +129,10 @@ void iecFuji::net_scan_result()
         std::string s = std::string(detail.ssid);
         mstr::toPETSCII(s);
 
-        memset(c,0,sizeof(c));
+        memset(c, 0, sizeof(c));
 
-        snprintf(c,40,"\"%s\",%d\r",s.c_str(),detail.rssi);
-        response_queue.push(std::string(c,sizeof(c)));
+        snprintf(c, 40, "\"%s\",%d\r", s.c_str(), detail.rssi);
+        response_queue.push(std::string(c, sizeof(c)));
     }
 }
 
@@ -212,7 +212,7 @@ void iecFuji::net_get_wifi_status()
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     char r[4];
 
-    snprintf(r,sizeof(r),"%u\r",wifiStatus);
+    snprintf(r, sizeof(r), "%u\r", wifiStatus);
 
     response_queue.push(std::string(r));
 }
@@ -226,14 +226,14 @@ void iecFuji::net_get_wifi_enabled()
 // Mount Server
 void iecFuji::mount_host()
 {
-    std::vector<std::string> t = util_tokenize(payload,':');
+    std::vector<std::string> t = util_tokenize(payload, ':');
 
-    if (t.size()<2) // send error.
+    if (t.size() < 2) // send error.
         return;
-    
+
     int hs = atoi(t[1].c_str());
 
-    if (!_validate_device_slot(hs,"mount_host"))
+    if (!_validate_device_slot(hs, "mount_host"))
     {
         return; // send error.
     }
@@ -249,8 +249,8 @@ void iecFuji::mount_host()
 // Disk Image Mount
 void iecFuji::disk_image_mount()
 {
-    std::vector<std::string> t = util_tokenize(payload,':');
-    if (t.size()<3)
+    std::vector<std::string> t = util_tokenize(payload, ':');
+    if (t.size() < 3)
     {
         // Error out, and return
         return;
@@ -259,7 +259,7 @@ void iecFuji::disk_image_mount()
     uint8_t ds = atoi(t[1].c_str());
     uint8_t mode = atoi(t[2].c_str());
 
-    char flag[3] = {'r',0,0};
+    char flag[3] = {'r', 0, 0};
 
     if (mode == DISK_ACCESS_MODE_WRITE)
         flag[1] = '+';
@@ -392,16 +392,16 @@ void iecFuji::open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    std::vector<std::string> t = util_tokenize(payload,':');
+    std::vector<std::string> t = util_tokenize(payload, ':');
 
-    if (t.size()<3)
+    if (t.size() < 3)
     {
         return; // send error
     }
 
     char dirpath[256];
     uint8_t hostSlot = atoi(t[1].c_str());
-    strncpy(dirpath,t[2].c_str(),sizeof(dirpath));
+    strncpy(dirpath, t[2].c_str(), sizeof(dirpath));
 
     if (!_validate_host_slot(hostSlot))
     {
@@ -418,10 +418,10 @@ void iecFuji::open_directory()
     }
 
     // Preprocess ~ (pi!) into filter
-    for (int i=0;i<sizeof(dirpath);i++)
+    for (int i = 0; i < sizeof(dirpath); i++)
     {
-        if (dirpath[i]=='~')
-            dirpath[i]=0; // turn into null
+        if (dirpath[i] == '~')
+            dirpath[i] = 0; // turn into null
     }
 
     // See if there's a search pattern after the directory path
@@ -483,14 +483,14 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
         dest[8] |= FF_TRUNC;
 
     // File type
-    dest[9] = MediaType::discover_mediatype(f->filename);   
+    dest[9] = MediaType::discover_mediatype(f->filename);
 }
 
 void iecFuji::read_directory_entry()
 {
-    std::vector<std::string> t = util_tokenize(payload,':');
+    std::vector<std::string> t = util_tokenize(payload, ':');
 
-    if (t.size()<2)
+    if (t.size() < 2)
         return;
 
     uint8_t maxlen = atoi(t[1].c_str());
@@ -537,7 +537,7 @@ void iecFuji::read_directory_entry()
             bufsize = maxlen;
         }
 
-        //int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        // int filelen = strlcpy(filenamedest, f->filename, bufsize);
         int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
 
         // Add a slash at the end of directory entries
@@ -550,12 +550,12 @@ void iecFuji::read_directory_entry()
 
     // Output RAW vs non-raw
     if (payload.find(":RAW") != std::string::npos)
-        response_queue.push(std::string((const char *)current_entry,maxlen));
+        response_queue.push(std::string((const char *)current_entry, maxlen));
     else
     {
         char reply[258];
-        memset(reply,0,sizeof(reply));
-        sprintf(reply,"%s\r",current_entry);
+        memset(reply, 0, sizeof(reply));
+        sprintf(reply, "%s\r", current_entry);
         std::string s(reply);
         mstr::toPETSCII(s);
         response_queue.push(s);
@@ -618,12 +618,12 @@ void iecFuji::get_adapter_config()
         std::string s;
 
         sprintf(reply, "%s\r", cfg.ssid);
-        s=std::string(reply);
+        s = std::string(reply);
         mstr::toPETSCII(s);
         response_queue.push(s);
 
         sprintf(reply, "%s\r", cfg.hostname);
-        s=std::string(reply);
+        s = std::string(reply);
         mstr::toPETSCII(s);
         response_queue.push(s);
 
@@ -632,7 +632,7 @@ void iecFuji::get_adapter_config()
                 cfg.localIP[1],
                 cfg.localIP[2],
                 cfg.localIP[3]);
-        s=std::string(reply);
+        s = std::string(reply);
         mstr::toPETSCII(s);
         response_queue.push(s);
 
@@ -641,7 +641,7 @@ void iecFuji::get_adapter_config()
                 cfg.netmask[1],
                 cfg.netmask[2],
                 cfg.netmask[3]);
-        s=std::string(reply);
+        s = std::string(reply);
         mstr::toPETSCII(s);
         response_queue.push(s);
 
@@ -650,7 +650,7 @@ void iecFuji::get_adapter_config()
                 cfg.gateway[1],
                 cfg.gateway[2],
                 cfg.gateway[3]);
-        s=std::string(reply);
+        s = std::string(reply);
         mstr::toPETSCII(s);
         response_queue.push(s);
 
@@ -659,7 +659,7 @@ void iecFuji::get_adapter_config()
                 cfg.dnsIP[1],
                 cfg.dnsIP[2],
                 cfg.dnsIP[3]);
-        s=std::string(reply);
+        s = std::string(reply);
         mstr::toPETSCII(s);
         response_queue.push(s);
 
@@ -670,7 +670,7 @@ void iecFuji::get_adapter_config()
                 cfg.macAddress[3],
                 cfg.macAddress[4],
                 cfg.macAddress[5]);
-        s=std::string(reply);
+        s = std::string(reply);
         mstr::toPETSCII(s);
         response_queue.push(s);
 
@@ -681,7 +681,7 @@ void iecFuji::get_adapter_config()
                 cfg.bssid[3],
                 cfg.bssid[4],
                 cfg.bssid[5]);
-        s=std::string(reply);
+        s = std::string(reply);
         mstr::toPETSCII(s);
         response_queue.push(s);
     }
@@ -705,13 +705,13 @@ void iecFuji::read_host_slots()
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
     if (payload[0] == FUJICMD_READ_HOST_SLOTS)
-        response_queue.push(std::string((const char *)hostSlots,256));
+        response_queue.push(std::string((const char *)hostSlots, 256));
     else
     {
-        for (int i=0;i<MAX_HOSTS;i++)
+        for (int i = 0; i < MAX_HOSTS; i++)
         {
-            char reply[MAX_HOSTNAME_LEN+16];
-            sprintf(reply,"%u,\"%s\"\r",i,&hostSlots[i][0]);
+            char reply[MAX_HOSTNAME_LEN + 16];
+            sprintf(reply, "%u,\"%s\"\r", i, &hostSlots[i][0]);
             response_queue.push(std::string(reply));
         }
     }
@@ -720,7 +720,55 @@ void iecFuji::read_host_slots()
 // Read and save host slot data from computer
 void iecFuji::write_host_slots()
 {
-    // TODO IMPLEMENT
+    int hostSlot = -1;
+    std::string hostname;
+
+    Debug_println("FUJI CMD: WRITE HOST SLOTS");
+
+    // RAW command
+    if (payload[0] == FUJICMD_WRITE_HOST_SLOTS)
+    {
+        char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
+        strncpy(&hostSlots[0][0], &payload.c_str()[1], 256);
+        
+        for (int i = 0; i < MAX_HOSTS; i++)
+        {
+            _fnHosts[i].set_hostname(hostSlots[i]);
+
+            _populate_config_from_slots();
+            Config.save();
+        }
+    }
+    else
+    {
+        // PUTHOST:<slot>:<hostname>
+        std::vector<std::string> t = util_tokenize(payload, ':');
+
+        if (t.size() < 2)
+        {
+            Debug_println("No Host slot #, ignoring.");
+            return;
+        }
+        else
+            hostSlot = atoi(t[1].c_str());
+
+        if (!_validate_host_slot(hostSlot))
+        {
+            // Send error.
+            return;
+        }
+
+        if (t.size() == 3)
+        {
+            hostname = t[2];
+        }
+
+        Debug_printf("Setting host slot %u to %s\n", hostSlot, hostname.c_str());
+        _fnHosts[hostSlot].set_hostname(hostname.c_str());
+    }
+
+    _populate_config_from_slots();
+    Config.save();
 }
 
 // Store host path prefix
@@ -830,7 +878,7 @@ void iecFuji::setup(systemBus *siobus)
 {
     // TODO IMPLEMENT
     Debug_printf("iecFuji::setup()\n");
-    
+
     _populate_slots_from_config();
 
     IEC.addDevice(this, 0x0F);
@@ -866,7 +914,7 @@ device_state_t iecFuji::process(IECData *id)
     else if (commanddata->primary != IEC_UNLISTEN)
         return device_state;
 
-    if (payload[0]>0x7F)
+    if (payload[0] > 0x7F)
         process_raw_commands();
     else
         process_basic_commands();
@@ -900,53 +948,55 @@ void iecFuji::process_basic_commands()
         read_directory_entry();
     else if (payload.find("CLOSEDIR") != std::string::npos)
         close_directory();
-    else if (payload.find("READHOSTSLOTS") != std::string::npos)
+    else if (payload.find("GETHOST") != std::string::npos)
         read_host_slots();
+    else if (payload.find("PUTHOST") != std::string::npos)
+        write_host_slots();
 }
 
 void iecFuji::process_raw_commands()
 {
-    switch(payload[0])
+    switch (payload[0])
     {
-        case FUJICMD_RESET:
-            reset_fujinet();
-            break;
-        case FUJICMD_GET_SSID:
-            net_get_ssid();
-            break;
-        case FUJICMD_SCAN_NETWORKS:
-            net_scan_networks();
-            break;
-        case FUJICMD_GET_SCAN_RESULT:
-            net_scan_result();
-            break;
-        case FUJICMD_SET_SSID:
-            net_set_ssid();
-            break;
-        case FUJICMD_GET_WIFISTATUS:
-            net_get_wifi_status();
-            break;
-        case FUJICMD_MOUNT_HOST:
-            mount_host();
-            break;
-        case FUJICMD_MOUNT_IMAGE:
-            disk_image_mount();
-            break;
-        case FUJICMD_OPEN_DIRECTORY:
-            open_directory();
-            break;
-        case FUJICMD_READ_DIR_ENTRY:
-            read_directory_entry();
-            break;
-        case FUJICMD_CLOSE_DIRECTORY:
-            close_directory();
-            break;
-        case FUJICMD_READ_HOST_SLOTS:
-            read_host_slots();
-            break;
-        case FUJICMD_WRITE_HOST_SLOTS:
-            write_host_slots();
-            break;
+    case FUJICMD_RESET:
+        reset_fujinet();
+        break;
+    case FUJICMD_GET_SSID:
+        net_get_ssid();
+        break;
+    case FUJICMD_SCAN_NETWORKS:
+        net_scan_networks();
+        break;
+    case FUJICMD_GET_SCAN_RESULT:
+        net_scan_result();
+        break;
+    case FUJICMD_SET_SSID:
+        net_set_ssid();
+        break;
+    case FUJICMD_GET_WIFISTATUS:
+        net_get_wifi_status();
+        break;
+    case FUJICMD_MOUNT_HOST:
+        mount_host();
+        break;
+    case FUJICMD_MOUNT_IMAGE:
+        disk_image_mount();
+        break;
+    case FUJICMD_OPEN_DIRECTORY:
+        open_directory();
+        break;
+    case FUJICMD_READ_DIR_ENTRY:
+        read_directory_entry();
+        break;
+    case FUJICMD_CLOSE_DIRECTORY:
+        close_directory();
+        break;
+    case FUJICMD_READ_HOST_SLOTS:
+        read_host_slots();
+        break;
+    case FUJICMD_WRITE_HOST_SLOTS:
+        write_host_slots();
+        break;
     }
 }
 
