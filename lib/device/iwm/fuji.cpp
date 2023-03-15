@@ -1184,7 +1184,6 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
     case 0xAA:
       iwm_hello_world();
       break;
-    case FUJICMD_DEVICE_ENABLE_STATUS:      // 0xD1
     case IWM_STATUS_STATUS:                  // 0x00
       send_status_reply_packet();
       return;
