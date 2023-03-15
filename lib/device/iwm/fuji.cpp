@@ -1155,6 +1155,13 @@ void iwmFuji::send_status_dib_reply_packet()
   IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
+void iwmFuji::send_stat_get_enable()
+{
+    data_len = 1;
+    data_buffer[0] = 1;
+}
+
+
 void iwmFuji::iwm_open(iwm_decoded_cmd_t cmd)
 {
   // Debug_printf("\r\nOpen FujiNet Unit # %02x",cmd.g7byte1);
@@ -1252,6 +1259,8 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
     // case FUJICMD_SET_BOOT_MODE:          // 0xD6
     // case FUJICMD_ENABLE_DEVICE:          // 0xD5
     // case FUJICMD_DISABLE_DEVICE:         // 0xD4
+    case FUJICMD_DEVICE_ENABLE_STATUS:      // 0xD1
+      send_stat_get_enable();
     case FUJICMD_STATUS:                    // 0x53
       // to do? parallel to SP status?
       break;
