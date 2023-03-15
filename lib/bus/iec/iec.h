@@ -400,18 +400,12 @@ public:
     // true => PULL => LOW
     inline void IRAM_ATTR pull(uint8_t pin)
     {
-#ifndef IEC_SPLIT_LINES
-        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
-#endif
         fnSystem.digital_write(pin, 0);
     }
 
     // false => RELEASE => HIGH
     inline void IRAM_ATTR release(uint8_t pin)
     {
-#ifndef IEC_SPLIT_LINES
-        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
-#endif
         fnSystem.digital_write(pin, 1);
     }
 
