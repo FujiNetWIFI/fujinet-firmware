@@ -494,6 +494,7 @@ void iecFuji::read_directory_entry()
         return;
 
     uint8_t maxlen = atoi(t[1].c_str());
+    uint8_t addtlopts = atoi(t[2].c_str());
 
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
@@ -524,7 +525,7 @@ void iecFuji::read_directory_entry()
 
 #define ADDITIONAL_DETAILS_BYTES 10
         // If 0x80 is set on AUX2, send back additional information
-        if (cmdFrame.aux2 & 0x80)
+        if (addtlopts & 0x80)
         {
             _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
             // Adjust remaining size of buffer and file path destination
@@ -546,6 +547,19 @@ void iecFuji::read_directory_entry()
             current_entry[filelen + 1] = '\0';
         }
     }
+
+    // Output RAW vs non-raw
+    if (payload.find(":RAW") != std::string::npos)
+        response_queue.push(std::string((const char *)current_entry,maxlen));
+    else
+    {
+        char reply[258];
+        memset(reply,0,sizeof(reply));
+        sprintf(reply,"%s\r",current_entry);
+        std::string s(reply);
+        mstr::toPETSCII(s);
+        response_queue.push(s);
+    }
 }
 
 void iecFuji::get_directory_position()
@@ -560,7 +574,12 @@ void iecFuji::set_directory_position()
 
 void iecFuji::close_directory()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji cmd: CLOSE DIRECTORY");
+
+    if (_current_open_directory_slot != -1)
+        _fnHosts[_current_open_directory_slot].dir_close();
+
+    _current_open_directory_slot = -1;
 }
 
 // Get network adapter configuration
@@ -677,7 +696,25 @@ void iecFuji::new_disk()
 // Send host slot data to computer
 void iecFuji::read_host_slots()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji cmd: READ HOST SLOTS");
+
+    char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
+    memset(hostSlots, 0, sizeof(hostSlots));
+
+    for (int i = 0; i < MAX_HOSTS; i++)
+        strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
+
+    if (payload.find(":RAW") != std::string::npos)
+        response_queue.push(std::string((const char *)hostSlots,256));
+    else
+    {
+        for (int i=0;i<MAX_HOSTS;i++)
+        {
+            char reply[MAX_HOSTNAME_LEN+16];
+            sprintf(reply,"%u,\"%s\"\r",i,&hostSlots[i][0]);
+            response_queue.push(std::string(reply));
+        }
+    }
 }
 
 // Read and save host slot data from computer
@@ -847,10 +884,14 @@ device_state_t iecFuji::process(IECData *id)
         mount_host();
     else if (payload.find("MOUNTDRIVE") != std::string::npos)
         disk_image_mount();
-    else if (payload.find("OPENDDIR") != std::string::npos)
+    else if (payload.find("OPENDIR") != std::string::npos)
         open_directory();
     else if (payload.find("READDIR") != std::string::npos)
         read_directory_entry();
+    else if (payload.find("CLOSEDIR") != std::string::npos)
+        close_directory();
+    else if (payload.find("READHOSTSLOTS") != std::string::npos)
+        read_host_slots();
 
     return device_state;
 }
