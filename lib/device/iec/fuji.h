@@ -66,6 +66,9 @@ private:
 
     AdapterConfig cfg;
 
+    void process_raw_commands();
+    void process_basic_commands();
+
 protected:
     void reset_fujinet();          // 0xFF
     void net_get_ssid();           // 0xFE
