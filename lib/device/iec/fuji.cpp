@@ -704,7 +704,7 @@ void iecFuji::read_host_slots()
     for (int i = 0; i < MAX_HOSTS; i++)
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
-    if (payload.find(":RAW") != std::string::npos)
+    if (payload[0] == FUJICMD_READ_HOST_SLOTS)
         response_queue.push(std::string((const char *)hostSlots,256));
     else
     {
@@ -866,6 +866,16 @@ device_state_t iecFuji::process(IECData *id)
     else if (commanddata->primary != IEC_UNLISTEN)
         return device_state;
 
+    if (payload[0]>0x7F)
+        process_raw_commands();
+    else
+        process_basic_commands();
+
+    return device_state;
+}
+
+void iecFuji::process_basic_commands()
+{
     if (payload.find("ADAPTERCONFIG") != std::string::npos)
         get_adapter_config();
     else if (payload.find("SETSSID") != std::string::npos)
@@ -892,8 +902,52 @@ device_state_t iecFuji::process(IECData *id)
         close_directory();
     else if (payload.find("READHOSTSLOTS") != std::string::npos)
         read_host_slots();
+}
 
-    return device_state;
+void iecFuji::process_raw_commands()
+{
+    switch(payload[0])
+    {
+        case FUJICMD_RESET:
+            reset_fujinet();
+            break;
+        case FUJICMD_GET_SSID:
+            net_get_ssid();
+            break;
+        case FUJICMD_SCAN_NETWORKS:
+            net_scan_networks();
+            break;
+        case FUJICMD_GET_SCAN_RESULT:
+            net_scan_result();
+            break;
+        case FUJICMD_SET_SSID:
+            net_set_ssid();
+            break;
+        case FUJICMD_GET_WIFISTATUS:
+            net_get_wifi_status();
+            break;
+        case FUJICMD_MOUNT_HOST:
+            mount_host();
+            break;
+        case FUJICMD_MOUNT_IMAGE:
+            disk_image_mount();
+            break;
+        case FUJICMD_OPEN_DIRECTORY:
+            open_directory();
+            break;
+        case FUJICMD_READ_DIR_ENTRY:
+            read_directory_entry();
+            break;
+        case FUJICMD_CLOSE_DIRECTORY:
+            close_directory();
+            break;
+        case FUJICMD_READ_HOST_SLOTS:
+            read_host_slots();
+            break;
+        case FUJICMD_WRITE_HOST_SLOTS:
+            write_host_slots();
+            break;
+    }
 }
 
 int iecFuji::get_disk_id(int drive_slot)
