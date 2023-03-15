@@ -107,7 +107,7 @@ void systemBus::process_queue()
     // TODO IMPLEMENT
 }
 
-void systemBus::service()
+void IRAM_ATTR systemBus::service()
 {
     // TODO IMPLEMENT
     bool process_command = false;
@@ -313,7 +313,7 @@ void systemBus::service()
     }
 }
 
-bus_state_t systemBus::deviceListen()
+bus_state_t IRAM_ATTR systemBus::deviceListen()
 {
     // If the command is SECONDARY and it is not to expect just a small command on the command channel, then
     // we're into something more heavy. Otherwise read it all out right here until UNLISTEN is received.
@@ -392,7 +392,7 @@ bus_state_t systemBus::deviceListen()
     }
 }
 
-bus_state_t systemBus::deviceTalk(void)
+bus_state_t IRAM_ATTR systemBus::deviceTalk(void)
 {
     // Now do bus turnaround
     if (!turnAround())
@@ -402,7 +402,7 @@ bus_state_t systemBus::deviceTalk(void)
     return BUS_PROCESS;
 }
 
-bool systemBus::turnAround()
+bool IRAM_ATTR systemBus::turnAround()
 {
     /*
     TURNAROUND
@@ -453,7 +453,7 @@ bool systemBus::turnAround()
 
 // this routine will set the direction on the bus back to normal
 // (the way it was when the computer was switched on)
-bool systemBus::undoTurnAround()
+bool IRAM_ATTR systemBus::undoTurnAround()
 {
     pull(PIN_IEC_DATA_OUT);
     release(PIN_IEC_CLK_OUT);
@@ -477,7 +477,7 @@ void systemBus::reset_all_our_devices()
     // TODO iterate through our bus and send reset to each device.
 }
 
-void systemBus::releaseLines(bool wait)
+void IRAM_ATTR systemBus::releaseLines(bool wait)
 {
     // Wait for ATN to release and quit
     if (wait)
@@ -491,7 +491,7 @@ void systemBus::releaseLines(bool wait)
     release(PIN_IEC_DATA_OUT);
 }
 
-bool systemBus::senderTimeout()
+bool IRAM_ATTR systemBus::senderTimeout()
 {
     releaseLines();
     this->bus_state = BUS_ERROR;
