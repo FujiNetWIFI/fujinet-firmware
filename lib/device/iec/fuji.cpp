@@ -465,7 +465,59 @@ void iecFuji::write_app_key()
 */
 void iecFuji::read_app_key()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji cmd: READ APPKEY");
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't read app key");
+        // Send error
+        return;
+    }
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        // Send error
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    Debug_printf("Reading appkey from \"%s\"\n", filename);
+
+    FILE *fIn = fnSDFAT.file_open(filename, "r");
+    if (fIn == nullptr)
+    {
+        Debug_printf("Failed to open input file: errno=%d\n", errno);
+        // Send error
+        return;
+    }
+
+    struct
+    {
+        uint16_t size;
+        uint8_t value[MAX_APPKEY_LEN];
+    } __attribute__((packed)) response;
+    memset(&response, 0, sizeof(response));
+
+    size_t count = fread(response.value, 1, sizeof(response.value), fIn);
+
+    fclose(fIn);
+    Debug_printf("Read %d bytes from input file\n", count);
+
+    response.size = count;
+
+    if (payload[0]==FUJICMD_READ_APPKEY)
+        response_queue.push(std::string((char *)&response,MAX_APPKEY_LEN));
+    else
+    {
+        char reply[128];
+        memset(reply,0,sizeof(reply));
+        snprintf(reply,sizeof(reply),"\"%04x\",\"%s\"",response.size,response.value);
+        response_queue.push(std::string(reply));
+    }
 }
 
 // Disk Image Unmount
