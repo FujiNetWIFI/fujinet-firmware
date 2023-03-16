@@ -432,7 +432,9 @@ void iecFuji::open_app_key()
 */
 void iecFuji::close_app_key()
 {
-    // TODO IMPLEMENT
+    Debug_print("Fuji cmd: CLOSE APPKEY\n");
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
 }
 
 /*
