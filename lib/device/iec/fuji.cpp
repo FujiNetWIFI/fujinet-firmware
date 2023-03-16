@@ -627,12 +627,74 @@ void iecFuji::read_directory_entry()
 
 void iecFuji::get_directory_position()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji cmd: GET DIRECTORY POSITION");
+
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("No currently open directory\n");
+        // Send error
+        return;
+    }
+
+    uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
+    if (pos == FNFS_INVALID_DIRPOS)
+    {
+        Debug_println("Invalid directory position");
+        // Send error.
+        return;
+    }
+    
+    // Return the value we read
+    
+    if (payload[0] == FUJICMD_GET_DIRECTORY_POSITION)
+        response_queue.push(std::string((const char *)&pos,sizeof(pos)));
+    else
+    {
+        char reply[8];
+        itoa(pos,reply,10);
+        response_queue.push(std::string(reply));
+    }
 }
 
 void iecFuji::set_directory_position()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
+
+    uint16_t pos=0;
+
+    if (payload[0]==FUJICMD_SET_DIRECTORY_POSITION)
+    {
+        pos  = payload[1]&0xFF;
+        pos |= payload[2] << 8;
+    }
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload,':');
+        if (t.size()<2)
+        {
+            Debug_println("Invalid directory position");
+            // Send error
+            return;
+        }
+
+        pos = atoi(t[1].c_str());
+    }
+
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("No currently open directory\n");
+        // Send error
+        return;
+    }
+
+    bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
+    if (result == false)
+    {
+        // Send error
+        return;
+    }
 }
 
 void iecFuji::close_directory()
@@ -1096,6 +1158,10 @@ void iecFuji::process_basic_commands()
         read_device_slots();
     else if (payload.find("UNMOUNTHOST") != std::string::npos)
         unmount_host();
+    else if (payload.find("GETDIRPOS") != std::string::npos)
+        get_directory_position();
+    else if (payload.find("SETDIRPOS") != std::string::npos)
+        set_directory_position();
 }
 
 void iecFuji::process_raw_commands()
@@ -1158,6 +1224,12 @@ void iecFuji::process_raw_commands()
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
         get_adapter_config();
+        break;
+    case FUJICMD_GET_DIRECTORY_POSITION:
+        get_directory_position();
+        break;
+    case FUJICMD_SET_DIRECTORY_POSITION:
+        set_directory_position();
         break;
     }
 }
