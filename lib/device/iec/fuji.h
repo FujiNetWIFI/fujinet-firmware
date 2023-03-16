@@ -13,7 +13,7 @@
 #include "fujiCmd.h"
 
 #define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 8
+#define MAX_DISK_DEVICES 4
 #define MAX_NETWORK_DEVICES 8
 
 typedef struct
