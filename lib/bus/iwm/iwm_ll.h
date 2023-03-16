@@ -97,7 +97,7 @@ private:
   int spirx_byte_ctr;
   int spirx_bit_ctr;
 
-  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  //uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   uint16_t packet_len;
 
 public:
@@ -120,6 +120,16 @@ public:
   int decode_data_packet(uint8_t* input_data, uint8_t* output_data); //decode smartport data packet
   int decode_data_packet(uint8_t* output_data); //decode smartport data packet
   void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
+
+  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+
+  // For debug printing the checksum
+  uint8_t calc_checksum;
+  uint8_t pkt_checksum;
+
+  // for tracking last checksum received for Liron bug
+  uint8_t last_checksum;
+
 
   // hardware configuration setup
   void setup_spi();

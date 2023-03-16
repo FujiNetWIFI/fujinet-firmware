@@ -347,8 +347,6 @@ private:
   bool iwm_req_deassert_timeout(int t) { return smartport.req_wait_for_falling_timeout(t); };
   bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
 
-
-  bool verify_cmdpkt_checksum(void);
   iwm_decoded_cmd_t command;
 
   void handle_init(); 

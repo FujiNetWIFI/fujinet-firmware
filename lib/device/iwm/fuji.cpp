@@ -18,6 +18,9 @@ iwmFuji theFuji; // Global fuji object.
 iwmFuji::iwmFuji()
 {
   Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
+  // Helpful for debugging
+  for (int i = 0; i < MAX_HOSTS; i++)
+    _fnHosts[i].slotid = i;
 }
 
 void iwmFuji::iwm_dummy_command() // SP CTRL command
@@ -177,6 +180,19 @@ void iwmFuji::iwm_ctrl_mount_host() // SP CTRL command
     if ((hostSlot < 8) && (hostMounted[hostSlot] == false))
     {
         _fnHosts[hostSlot].mount();
+        hostMounted[hostSlot] = true;
+    }
+}
+
+// UnMount Server
+void iwmFuji::iwm_ctrl_unmount_host() // SP CTRL command
+{
+    unsigned char hostSlot = data_buffer[0]; // adamnet_recv();
+    Debug_printf("\r\nFuji cmd: UNMOUNT HOST no. %d", hostSlot);
+
+    if ((hostSlot < 8) && (hostMounted[hostSlot] == false))
+    {
+        _fnHosts[hostSlot].umount();
         hostMounted[hostSlot] = true;
     }
 }
@@ -1139,6 +1155,13 @@ void iwmFuji::send_status_dib_reply_packet()
   IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
+void iwmFuji::send_stat_get_enable()
+{
+    data_len = 1;
+    data_buffer[0] = 1;
+}
+
+
 void iwmFuji::iwm_open(iwm_decoded_cmd_t cmd)
 {
   // Debug_printf("\r\nOpen FujiNet Unit # %02x",cmd.g7byte1);
@@ -1236,6 +1259,8 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
     // case FUJICMD_SET_BOOT_MODE:          // 0xD6
     // case FUJICMD_ENABLE_DEVICE:          // 0xD5
     // case FUJICMD_DISABLE_DEVICE:         // 0xD4
+    case FUJICMD_DEVICE_ENABLE_STATUS:      // 0xD1
+      send_stat_get_enable();
     case FUJICMD_STATUS:                    // 0x53
       // to do? parallel to SP status?
       break;
@@ -1315,7 +1340,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
       iwm_ctrl_new_disk();
       break;
     case FUJICMD_UNMOUNT_HOST:           // 0xE6
-      // to do
+      iwm_ctrl_unmount_host();
       break;
     // case FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
     case FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
@@ -1399,6 +1424,9 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
     iwm_read(cmd);
     break;
   case 0x09: // write
+    iwm_return_badcmd(cmd);
+    break;
+  default:
     iwm_return_badcmd(cmd);
     break;
   } // switch (cmd)
