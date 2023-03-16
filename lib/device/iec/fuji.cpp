@@ -1057,7 +1057,46 @@ void iecFuji::_populate_config_from_slots()
 // Write a 256 byte filename to the device slot
 void iecFuji::set_device_filename()
 {
-    // TODO IMPLEMENT
+    char tmp[MAX_FILENAME_LEN];
+
+    uint8_t slot;
+    uint8_t host;
+    uint8_t mode;
+
+    if (payload[0]==FUJICMD_SET_DEVICE_FULLPATH)
+    {
+        slot=payload[1];
+        host=payload[2];
+        mode=payload[3];
+        strncpy(tmp,&payload[4],256);
+    }
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload,':');
+        if (t.size()<4)
+        {
+            Debug_printf("not enough parameters.\n");
+            return; // send error
+        }
+    }
+
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
+
+    // Handle DISK slots
+    if (slot < MAX_DISK_DEVICES)
+    {
+        // TODO: Set HOST and MODE
+        memcpy(_fnDisks[slot].filename, tmp, MAX_FILENAME_LEN);
+        _populate_config_from_slots();
+    }
+    else
+    {
+        Debug_println("BAD DEVICE SLOT");
+        // Send error
+        return;
+    }
+
+    Config.save();
 }
 
 // Get a 256 byte filename from device slot
@@ -1162,6 +1201,8 @@ void iecFuji::process_basic_commands()
         get_directory_position();
     else if (payload.find("SETDIRPOS") != std::string::npos)
         set_directory_position();
+    else if (payload.find("SETDRIVEFILENAME") != std::string::npos)
+        set_device_filename();
 }
 
 void iecFuji::process_raw_commands()
@@ -1230,6 +1271,9 @@ void iecFuji::process_raw_commands()
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
         set_directory_position();
+        break;
+    case FUJICMD_SET_DEVICE_FULLPATH:
+        set_device_filename();
         break;
     }
 }
