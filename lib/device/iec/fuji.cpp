@@ -376,7 +376,54 @@ char *_generate_appkey_filename(appkey *info)
 */
 void iecFuji::open_app_key()
 {
-    // TODO IMPLEMENT
+    Debug_print("Fuji cmd: OPEN APPKEY\n");
+
+    // The data expected for this command
+    if (payload[0]==FUJICMD_OPEN_APPKEY)
+        memcpy(&_current_appkey,&payload.c_str()[1],sizeof(_current_appkey));
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload,':');
+        unsigned int val;
+
+        if (t.size()<5)
+        {
+            Debug_printf("Incorrect number of parameters.\n");
+            // send error.
+        }
+
+        sscanf(t[1].c_str(),"%x",&val);
+        _current_appkey.creator = (uint16_t)val;
+        sscanf(t[2].c_str(),"%x",&val);
+        _current_appkey.app = (uint8_t)val;
+        sscanf(t[3].c_str(),"%x",&val);
+        _current_appkey.key = (uint8_t)val;
+        sscanf(t[4].c_str(),"%x",&val);
+        _current_appkey.mode = (appkey_mode)val;
+        _current_appkey.reserved = 0;
+    }
+
+    // We're only supporting writing to SD, so return an error if there's no SD mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - returning error");
+        // Send error
+        return;
+    }
+
+    // Basic check for valid data
+    if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
+    {
+        Debug_println("Invalid app key data");
+        // Send error.
+        return;
+    }
+
+    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
+                 _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
+                 _generate_appkey_filename(&_current_appkey));
+
+    // Send complete
 }
 
 /*
