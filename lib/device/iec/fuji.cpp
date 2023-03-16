@@ -728,12 +728,17 @@ void iecFuji::write_host_slots()
     // RAW command
     if (payload[0] == FUJICMD_WRITE_HOST_SLOTS)
     {
-        char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-        strncpy(&hostSlots[0][0], &payload.c_str()[1], 256);
-        
+        union _hostSlots
+        {
+            char hostSlots[8][32];
+            char rawdata[256];
+        } hostSlots;
+
+        strncpy(hostSlots.rawdata, &payload.c_str()[1], sizeof(hostSlots.rawdata));
+
         for (int i = 0; i < MAX_HOSTS; i++)
         {
-            _fnHosts[i].set_hostname(hostSlots[i]);
+            _fnHosts[i].set_hostname(hostSlots.hostSlots[i]);
 
             _populate_config_from_slots();
             Config.save();
@@ -786,7 +791,54 @@ void iecFuji::get_host_prefix()
 // Send device slot data to computer
 void iecFuji::read_device_slots()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji cmd: READ DEVICE SLOTS");
+
+    struct disk_slot
+    {
+        uint8_t hostSlot;
+        uint8_t mode;
+        char filename[MAX_DISPLAY_FILENAME_LEN];
+    };
+    disk_slot diskSlots[MAX_DISK_DEVICES];
+
+    int returnsize;
+    char *filename;
+
+    // Load the data from our current device array
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        diskSlots[i].mode = _fnDisks[i].access_mode;
+        diskSlots[i].hostSlot = _fnDisks[i].host_slot;
+        if (_fnDisks[i].filename[0] == '\0')
+        {
+            strlcpy(diskSlots[i].filename, "", MAX_DISPLAY_FILENAME_LEN);
+        }
+        else
+        {
+            // Just use the basename of the image, no path. The full path+filename is
+            // usually too long for the Atari to show anyway, so the image name is more important.
+            // Note: Basename can modify the input, so use a copy of the filename
+            filename = strdup(_fnDisks[i].filename);
+            strlcpy(diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN);
+            free(filename);
+        }
+    }
+
+    returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
+
+    if (payload[0]==FUJICMD_READ_DEVICE_SLOTS)
+        response_queue.push(std::string((const char *)&diskSlots,returnsize));
+    else
+    {
+        for (int i=0;i<MAX_DISK_DEVICES;i++)
+        {
+            char reply[64];
+            snprintf(reply,64,"%u,%u,\"%s\"\r",diskSlots->hostSlot,diskSlots->mode,diskSlots->filename);
+            std::string s(reply);
+            mstr::toPETSCII(s);
+            response_queue.push(s);
+        }
+    }
 }
 
 // Read and save disk slot data from computer
@@ -952,6 +1004,8 @@ void iecFuji::process_basic_commands()
         read_host_slots();
     else if (payload.find("PUTHOST") != std::string::npos)
         write_host_slots();
+    else if (payload.find("GETDRIVE") != std::string::npos)
+        read_device_slots();
 }
 
 void iecFuji::process_raw_commands()
@@ -996,6 +1050,9 @@ void iecFuji::process_raw_commands()
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
         write_host_slots();
+        break;
+    case FUJICMD_READ_DEVICE_SLOTS:
+        read_device_slots();
         break;
     }
 }
