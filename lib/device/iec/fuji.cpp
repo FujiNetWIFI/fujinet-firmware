@@ -826,14 +826,14 @@ void iecFuji::read_device_slots()
 
     returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
 
-    if (payload[0]==FUJICMD_READ_DEVICE_SLOTS)
-        response_queue.push(std::string((const char *)&diskSlots,returnsize));
+    if (payload[0] == FUJICMD_READ_DEVICE_SLOTS)
+        response_queue.push(std::string((const char *)&diskSlots, returnsize));
     else
     {
-        for (int i=0;i<MAX_DISK_DEVICES;i++)
+        for (int i = 0; i < MAX_DISK_DEVICES; i++)
         {
             char reply[64];
-            snprintf(reply,64,"%u,%u,\"%s\"\r",diskSlots->hostSlot,diskSlots->mode,diskSlots->filename);
+            snprintf(reply, 64, "%u,%u,\"%s\"\r", diskSlots->hostSlot, diskSlots->mode, diskSlots->filename);
             std::string s(reply);
             mstr::toPETSCII(s);
             response_queue.push(s);
@@ -844,7 +844,28 @@ void iecFuji::read_device_slots()
 // Read and save disk slot data from computer
 void iecFuji::write_device_slots()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
+
+    union _diskSlots
+    {
+        struct
+        {
+            uint8_t hostSlot;
+            uint8_t mode;
+            char filename[MAX_DISPLAY_FILENAME_LEN];
+        } diskSlots[MAX_DISK_DEVICES];
+        char rawData[152];
+    } diskSlots;
+
+    strncpy(diskSlots.rawData, &payload.c_str()[1], 152);
+
+    // Load the data into our current device array
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        _fnDisks[i].reset(diskSlots.diskSlots[i].filename, diskSlots.diskSlots[i].hostSlot, diskSlots.diskSlots[i].mode);
+
+    // Save the data to disk
+    _populate_config_from_slots();
+    Config.save();
 }
 
 // Temporary(?) function while we move from old config storage to new
@@ -1000,11 +1021,14 @@ void iecFuji::process_basic_commands()
         read_directory_entry();
     else if (payload.find("CLOSEDIR") != std::string::npos)
         close_directory();
-    else if (payload.find("GETHOST") != std::string::npos)
+    else if (payload.find("GETHOST") != std::string::npos ||
+             payload.find("FLH") != std::string::npos)
         read_host_slots();
-    else if (payload.find("PUTHOST") != std::string::npos)
+    else if (payload.find("PUTHOST") != std::string::npos ||
+             payload.find("FHOST") != std::string::npos)
         write_host_slots();
-    else if (payload.find("GETDRIVE") != std::string::npos)
+    else if (payload.find("GETDRIVE") != std::string::npos ||
+             payload.find("FLD") != std::string::npos)
         read_device_slots();
 }
 
@@ -1053,6 +1077,9 @@ void iecFuji::process_raw_commands()
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
         read_device_slots();
+        break;
+    case FUJICMD_WRITE_DEVICE_SLOTS:
+        write_device_slots();
         break;
     }
 }
