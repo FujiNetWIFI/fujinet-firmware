@@ -158,6 +158,7 @@ protected:
     void iwm_ctrl_set_boot_mode();              // 0xD6
     void iwm_ctrl_enable_device();          // 0xD5
     void iwm_ctrl_disable_device();         // 0xD4
+    void send_stat_get_enable();        // 0xD1
 
     void shutdown() override;
     void process(iwm_decoded_cmd_t cmd) override;

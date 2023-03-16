@@ -8,10 +8,6 @@
 #ifdef BUILD_RS232
 #endif
 
-#ifdef BUILD_CBM
-# include "iec/udpstream.h"
-#endif
-
 #ifdef BUILD_LYNX
 # include "comlynx/udpstream.h"
 #endif

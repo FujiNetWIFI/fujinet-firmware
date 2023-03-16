@@ -9,7 +9,7 @@
 # include "rs232/fuji.h"
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/fuji.h"
 #endif
 
