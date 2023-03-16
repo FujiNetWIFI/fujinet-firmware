@@ -223,16 +223,30 @@ void iecFuji::net_get_wifi_enabled()
     // Not needed, will remove.
 }
 
+void iecFuji::unmount_host()
+{
+}
+
 // Mount Server
 void iecFuji::mount_host()
 {
-    std::vector<std::string> t = util_tokenize(payload, ':');
+    int hs = -1;
 
-    if (t.size() < 2) // send error.
+    if (payload[0] == FUJICMD_MOUNT_HOST)
+    {
+        hs = payload[1];
         return;
+    }
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload, ':');
 
-    int hs = atoi(t[1].c_str());
+        if (t.size() < 2) // send error.
+            return;
 
+        hs = atoi(t[1].c_str());
+    }
+    
     if (!_validate_device_slot(hs, "mount_host"))
     {
         return; // send error.
@@ -369,15 +383,15 @@ void iecFuji::read_app_key()
 // Disk Image Unmount
 void iecFuji::disk_image_umount()
 {
-    uint8_t deviceSlot=-1;
+    uint8_t deviceSlot = -1;
 
     if (payload[0] == FUJICMD_UNMOUNT_IMAGE)
     {
-        deviceSlot=payload[1];
+        deviceSlot = payload[1];
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload,':');
+        std::vector<std::string> t = util_tokenize(payload, ':');
         deviceSlot = atoi(t[1].c_str());
     }
 
@@ -395,7 +409,6 @@ void iecFuji::disk_image_umount()
         // Send error
         return;
     }
-
 }
 
 // Disk Image Rotate
@@ -633,7 +646,7 @@ void iecFuji::get_adapter_config()
 
     fnWiFi.get_mac(cfg.macAddress);
 
-    if (payload == "ADAPTERCONFIG:RAW")
+    if (payload[0] == FUJICMD_GET_ADAPTERCONFIG)
     {
         std::string reply = std::string((const char *)&cfg, sizeof(AdapterConfig));
         response_queue.push(reply);
@@ -716,7 +729,8 @@ void iecFuji::get_adapter_config()
 //  Make new disk and shove into device slot
 void iecFuji::new_disk()
 {
-    // TODO IMPLEMENT
+    // TODO: Implement when we actually have a good idea of
+    // media types.
 }
 
 // Send host slot data to computer
@@ -1112,6 +1126,12 @@ void iecFuji::process_raw_commands()
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         disk_image_umount();
+        break;
+    case FUJICMD_UNMOUNT_HOST:
+        unmount_host();
+        break;
+    case FUJICMD_GET_ADAPTERCONFIG:
+        get_adapter_config();
         break;
     }
 }
