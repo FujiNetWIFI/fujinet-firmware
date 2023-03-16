@@ -338,7 +338,23 @@ void iecFuji::disk_image_mount()
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void iecFuji::set_boot_config()
 {
-    // TODO IMPLEMENT
+    if (payload[0]==FUJICMD_CONFIG_BOOT)
+    {
+        boot_config=payload[1];
+    }
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload,':');
+        
+        if (t.size()<2)
+        {
+            Debug_printf("Invalid # of parameters.\n");
+            // send error
+            return;
+        }
+
+        boot_config = atoi(t[1].c_str());
+    }
 }
 
 // Do SIO copy
