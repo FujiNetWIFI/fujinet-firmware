@@ -424,7 +424,24 @@ void iecFuji::mount_all()
 // Set boot mode
 void iecFuji::set_boot_mode()
 {
-    // TODO IMPLEMENT
+    if (payload[0]==FUJICMD_CONFIG_BOOT)
+    {
+        boot_config=payload[1];
+    }
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload,':');
+        
+        if (t.size()<2)
+        {
+            Debug_printf("Invalid # of parameters.\n");
+            // send error
+            return;
+        }
+
+        boot_config = true;
+        insert_boot_device(atoi(t[1].c_str()));
+    }
 }
 
 char *_generate_appkey_filename(appkey *info)
