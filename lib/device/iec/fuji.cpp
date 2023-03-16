@@ -225,6 +225,30 @@ void iecFuji::net_get_wifi_enabled()
 
 void iecFuji::unmount_host()
 {
+    int hs = -1;
+
+    if (payload[0] == FUJICMD_UNMOUNT_HOST)
+    {
+        hs = payload[1];
+    }
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload,':');
+        if (t.size() < 2) // send error.
+            return;
+
+        hs = atoi(t[1].c_str());
+    }
+
+    if (!_validate_device_slot(hs, "unmount_host"))
+    {
+        return; // send error.
+    }
+
+    if (!_fnHosts[hs].umount())
+    {
+        return; // send error;
+    }
 }
 
 // Mount Server
@@ -246,7 +270,7 @@ void iecFuji::mount_host()
 
         hs = atoi(t[1].c_str());
     }
-    
+
     if (!_validate_device_slot(hs, "mount_host"))
     {
         return; // send error.
@@ -1070,6 +1094,8 @@ void iecFuji::process_basic_commands()
     else if (payload.find("GETDRIVE") != std::string::npos ||
              payload.find("FLD") != std::string::npos)
         read_device_slots();
+    else if (payload.find("UNMOUNTHOST") != std::string::npos)
+        unmount_host();
 }
 
 void iecFuji::process_raw_commands()
