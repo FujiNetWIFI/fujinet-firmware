@@ -748,6 +748,7 @@ void sioFuji::sio_disk_image_umount()
             _cassetteDev.umount_cassette_file();
             _cassetteDev.sio_disable_cassette();
         }
+        _fnDisks[deviceSlot].disk_dev.device_active = false;
         _fnDisks[deviceSlot].reset();
     }
     // Handle tape

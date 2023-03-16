@@ -16,7 +16,7 @@
 #define DEVICE_TYPE iwmDisk
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/disk.h"
 # define DEVICE_TYPE iecDisk
 #endif
