@@ -233,7 +233,7 @@ void iecFuji::unmount_host()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload,':');
+        std::vector<std::string> t = util_tokenize(payload, ':');
         if (t.size() < 2) // send error.
             return;
 
@@ -379,26 +379,26 @@ void iecFuji::open_app_key()
     Debug_print("Fuji cmd: OPEN APPKEY\n");
 
     // The data expected for this command
-    if (payload[0]==FUJICMD_OPEN_APPKEY)
-        memcpy(&_current_appkey,&payload.c_str()[1],sizeof(_current_appkey));
+    if (payload[0] == FUJICMD_OPEN_APPKEY)
+        memcpy(&_current_appkey, &payload.c_str()[1], sizeof(_current_appkey));
     else
     {
-        std::vector<std::string> t = util_tokenize(payload,':');
+        std::vector<std::string> t = util_tokenize(payload, ':');
         unsigned int val;
 
-        if (t.size()<5)
+        if (t.size() < 5)
         {
             Debug_printf("Incorrect number of parameters.\n");
             // send error.
         }
 
-        sscanf(t[1].c_str(),"%x",&val);
+        sscanf(t[1].c_str(), "%x", &val);
         _current_appkey.creator = (uint16_t)val;
-        sscanf(t[2].c_str(),"%x",&val);
+        sscanf(t[2].c_str(), "%x", &val);
         _current_appkey.app = (uint8_t)val;
-        sscanf(t[3].c_str(),"%x",&val);
+        sscanf(t[3].c_str(), "%x", &val);
         _current_appkey.key = (uint8_t)val;
-        sscanf(t[4].c_str(),"%x",&val);
+        sscanf(t[4].c_str(), "%x", &val);
         _current_appkey.mode = (appkey_mode)val;
         _current_appkey.reserved = 0;
     }
@@ -442,22 +442,22 @@ void iecFuji::close_app_key()
 */
 void iecFuji::write_app_key()
 {
-    uint16_t keylen=-1;
+    uint16_t keylen = -1;
     char value[MAX_APPKEY_LEN];
 
-    if (payload[0]==FUJICMD_WRITE_APPKEY)
+    if (payload[0] == FUJICMD_WRITE_APPKEY)
     {
-        keylen=payload[1]&0xFF;
-        keylen|=payload[2]<<8;
-        strncpy(value,&payload.c_str()[3],MAX_APPKEY_LEN);
+        keylen = payload[1] & 0xFF;
+        keylen |= payload[2] << 8;
+        strncpy(value, &payload.c_str()[3], MAX_APPKEY_LEN);
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload,':');
-        if (t.size()<3)
+        std::vector<std::string> t = util_tokenize(payload, ':');
+        if (t.size() < 3)
         {
-            keylen=atoi(t[1].c_str());
-            strncpy(value,t[2].c_str(),MAX_APPKEY_LEN);
+            keylen = atoi(t[1].c_str());
+            strncpy(value, t[2].c_str(), MAX_APPKEY_LEN);
         }
     }
 
@@ -558,13 +558,13 @@ void iecFuji::read_app_key()
 
     response.size = count;
 
-    if (payload[0]==FUJICMD_READ_APPKEY)
-        response_queue.push(std::string((char *)&response,MAX_APPKEY_LEN));
+    if (payload[0] == FUJICMD_READ_APPKEY)
+        response_queue.push(std::string((char *)&response, MAX_APPKEY_LEN));
     else
     {
         char reply[128];
-        memset(reply,0,sizeof(reply));
-        snprintf(reply,sizeof(reply),"\"%04x\",\"%s\"",response.size,response.value);
+        memset(reply, 0, sizeof(reply));
+        snprintf(reply, sizeof(reply), "\"%04x\",\"%s\"", response.size, response.value);
         response_queue.push(std::string(reply));
     }
 }
@@ -809,15 +809,15 @@ void iecFuji::get_directory_position()
         // Send error.
         return;
     }
-    
+
     // Return the value we read
-    
+
     if (payload[0] == FUJICMD_GET_DIRECTORY_POSITION)
-        response_queue.push(std::string((const char *)&pos,sizeof(pos)));
+        response_queue.push(std::string((const char *)&pos, sizeof(pos)));
     else
     {
         char reply[8];
-        itoa(pos,reply,10);
+        itoa(pos, reply, 10);
         response_queue.push(std::string(reply));
     }
 }
@@ -826,17 +826,17 @@ void iecFuji::set_directory_position()
 {
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
-    uint16_t pos=0;
+    uint16_t pos = 0;
 
-    if (payload[0]==FUJICMD_SET_DIRECTORY_POSITION)
+    if (payload[0] == FUJICMD_SET_DIRECTORY_POSITION)
     {
-        pos  = payload[1]&0xFF;
+        pos = payload[1] & 0xFF;
         pos |= payload[2] << 8;
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload,':');
-        if (t.size()<2)
+        std::vector<std::string> t = util_tokenize(payload, ':');
+        if (t.size() < 2)
         {
             Debug_println("Invalid directory position");
             // Send error
@@ -1224,21 +1224,21 @@ void iecFuji::set_device_filename()
 {
     char tmp[MAX_FILENAME_LEN];
 
-    uint8_t slot=0;
-    uint8_t host=0;
-    uint8_t mode=0;
+    uint8_t slot = 0;
+    uint8_t host = 0;
+    uint8_t mode = 0;
 
-    if (payload[0]==FUJICMD_SET_DEVICE_FULLPATH)
+    if (payload[0] == FUJICMD_SET_DEVICE_FULLPATH)
     {
-        slot=payload[1];
-        host=payload[2];
-        mode=payload[3];
-        strncpy(tmp,&payload[4],256);
+        slot = payload[1];
+        host = payload[2];
+        mode = payload[3];
+        strncpy(tmp, &payload[4], 256);
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload,':');
-        if (t.size()<4)
+        std::vector<std::string> t = util_tokenize(payload, ':');
+        if (t.size() < 4)
         {
             Debug_printf("not enough parameters.\n");
             return; // send error
@@ -1271,13 +1271,13 @@ void iecFuji::get_device_filename()
 
     uint8_t ds = 0xFF;
 
-    if (payload[0]==FUJICMD_GET_DEVICE_FULLPATH)
+    if (payload[0] == FUJICMD_GET_DEVICE_FULLPATH)
         ds = payload[1];
     else
     {
-        std::vector<std::string> t = util_tokenize(payload,':');
-        
-        if (t.size()<2)
+        std::vector<std::string> t = util_tokenize(payload, ':');
+
+        if (t.size() < 2)
         {
             Debug_printf("Incorrect # of parameters.\n");
             // Send error
@@ -1287,9 +1287,9 @@ void iecFuji::get_device_filename()
         ds = atoi(t[1].c_str());
     }
 
-    if (!_validate_device_slot(ds,"get_device_filename"))
+    if (!_validate_device_slot(ds, "get_device_filename"))
     {
-        Debug_printf("Invalid device slot: %u\n",ds);
+        Debug_printf("Invalid device slot: %u\n", ds);
         // send error
         return;
     }
@@ -1297,9 +1297,9 @@ void iecFuji::get_device_filename()
     std::string reply = std::string(_fnDisks[ds].filename);
 
     // Add CR if calling from BASIC call.
-    if (payload[0]!=FUJICMD_GET_DEVICE_FULLPATH)
+    if (payload[0] != FUJICMD_GET_DEVICE_FULLPATH)
         reply += '\r';
-    
+
     response_queue.push(reply);
 }
 
