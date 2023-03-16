@@ -51,7 +51,7 @@ void print_packet(uint8_t *data, int bytes)
   char tbs[8];
   char xx;
 
-  Debug_printf(("\r\n"));
+  Debug_printf(("\n"));
   for (int count = 0; count < bytes; count = count + 16)
   {
     sprintf(tbs, ("%04X: "), count);
@@ -78,13 +78,13 @@ void print_packet(uint8_t *data, int bytes)
         Debug_print(("."));
       }
     }
-    Debug_printf(("\r\n"));
+    Debug_printf(("\n"));
   }
 }
 
 void print_packet(uint8_t *data)
 {
-  Debug_printf("\r\n");
+  Debug_printf("\n");
   for (int i = 0; i < 40; i++)
   {
     if (data[i] != 0 || i == 0)
@@ -100,7 +100,7 @@ void print_packet_wave(uint8_t *data, int bytes)
   int row;
   char tbs[8];
 
-  Debug_printf(("\r\n"));
+  Debug_printf(("\n"));
   for (int count = 0; count < bytes; count = count + 12)
   {
     sprintf(tbs, ("%04X: "), count);
@@ -224,8 +224,13 @@ int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8
   return r;
 }
 
-bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
+bool iwmBus::iwm_decode_data_packet(uint8_t *data, int &n)
 {
+  n = smartport.decode_data_packet(data);
+  return false;
+}
+/*
+ {
   memset(data, 0, n);
   int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
   Debug_printf("\r\nAttempting to receive %d length packet", nn);
@@ -263,7 +268,8 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 #endif
   portENABLE_INTERRUPTS();
   return true;
-}
+} 
+*/
 
 void iwmBus::setup(void)
 {
@@ -315,8 +321,39 @@ void iwmDevice::send_reply_packet(uint8_t status)
 
 void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 {
-  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
-  send_reply_packet(SP_ERR_BADCMD);
+  //Handle possible data packet to avoid crash extended and non-extended
+  switch(cmd.command) {
+    case 0x42:
+    case 0x44:
+    case 0x49:
+    case 0x4a:
+    case 0x4b:
+    case 0x02:
+    case 0x04:
+    case 0x09:
+    case 0x0a:
+    case 0x0b:
+    data_len = 512;
+    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+    Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
+    print_packet((uint8_t *)data_buffer, data_len);
+    break;
+    default://just send the response and return like before
+      send_reply_packet(SP_ERR_BADCMD);
+      Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+      return;
+  }
+  if(cmd.command == 0x04) //Decode command control code
+  {
+    send_reply_packet(SP_ERR_BADCTL); //we may be required to accept some control commands
+                                      // but for now just report bad control if it's a control
+                                      // command
+    uint8_t control_code = get_status_code(cmd);
+    Debug_printf("\r\nbad command was a control command with control code %02x",control_code);
+  }
+  else{
+    send_reply_packet(SP_ERR_BADCMD); //response for Any other command with a data packet
+  }
 }
 
 void iwmDevice::iwm_return_ioerror()
@@ -438,7 +475,7 @@ void IRAM_ATTR iwmBus::service()
     // }
     // should not ACK unless we know this is our Command
 
-    if (!sp_command_mode)
+    if (sp_command_mode != sp_cmd_state_t::command)
     {
       // iwm_ack_deassert(); // go hi-Z
       return;
@@ -483,11 +520,13 @@ void IRAM_ATTR iwmBus::service()
           // wait for REQ to go low
           if (iwm_req_deassert_timeout(50000))
           {
+            Debug_printf("\nREQ timeout in command processing");
             iwm_ack_deassert(); // go hi-Z
             return;
           }
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
+          Debug_printf("\nCommand Packet:");
           print_packet(command_packet.data);
 
           _activeDev = devicep;
@@ -499,8 +538,10 @@ void IRAM_ATTR iwmBus::service()
         }
       }
     }
-    sp_command_mode = false;
+
+    sp_command_mode = sp_cmd_state_t::standby;
     memset(command_packet.data, 0, sizeof(command_packet));
+
     iwm_ack_deassert(); // go hi-Z
   }                     // switch (phasestate)
 
