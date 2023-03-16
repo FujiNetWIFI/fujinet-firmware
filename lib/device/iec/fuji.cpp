@@ -366,7 +366,59 @@ void iecFuji::copy_file()
 // Mount all
 void iecFuji::mount_all()
 {
-    // TODO IMPLEMENT
+    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
+
+    for (int i = 0; i < 8; i++)
+    {
+        fujiDisk &disk = _fnDisks[i];
+        fujiHost &host = _fnHosts[disk.host_slot];
+        char flag[3] = {'r', 0, 0};
+
+        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            flag[1] = '+';
+
+        if (disk.host_slot != 0xFF)
+        {
+            nodisks = false; // We have a disk in a slot
+
+            if (host.mount() == false)
+            {
+                // Send error.
+                return;
+            }
+
+            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                         disk.filename, disk.host_slot, flag, i + 1);
+
+            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+            if (disk.fileh == nullptr)
+            {
+                // Send error.
+                return;
+            }
+
+            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+            boot_config = false;
+
+            // We need the file size for loading XEX files and for CASSETTE, so get that too
+            disk.disk_size = host.file_size(disk.fileh);
+
+            // Set the host slot for high score mode
+            // TODO: Refactor along with mount disk image.
+            disk.disk_dev.host = &host;
+
+            // And now mount it
+            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+        }
+    }
+
+    if (nodisks){
+        // No disks in a slot, disable config
+        boot_config = false;
+    }
+
+    // Send successful.
 }
 
 // Set boot mode
@@ -1431,6 +1483,8 @@ void iecFuji::process_basic_commands()
         set_boot_config();
     else if (payload.find("BOOTMODE") != std::string::npos)
         set_boot_mode();
+    else if (payload.find("MOUNTALL") != std::string::npos)
+        mount_all();
 }
 
 void iecFuji::process_raw_commands()
@@ -1523,6 +1577,9 @@ void iecFuji::process_raw_commands()
         break;
     case FUJICMD_SET_BOOT_MODE:
         set_boot_mode();
+        break;
+    case FUJICMD_MOUNT_ALL:
+        mount_all();
         break;
     }
 }
