@@ -1401,6 +1401,20 @@ void iecFuji::process_basic_commands()
         set_directory_position();
     else if (payload.find("SETDRIVEFILENAME") != std::string::npos)
         set_device_filename();
+    else if (payload.find("WRITEAPPKEY") != std::string::npos)
+        write_app_key();
+    else if (payload.find("READAPPKEY") != std::string::npos)
+        read_app_key();
+    else if (payload.find("OPENAPPKEY") != std::string::npos)
+        open_app_key();
+    else if (payload.find("CLOSEAPPKEY") != std::string::npos)
+        close_app_key();
+    else if (payload.find("DRIVEFILENAME") != std::string::npos)
+        get_device_filename();
+    else if (payload.find("BOOTCONFIG") != std::string::npos)
+        set_boot_config();
+    else if (payload.find("BOOTMODE") != std::string::npos)
+        set_boot_mode();
 }
 
 void iecFuji::process_raw_commands()
@@ -1472,6 +1486,27 @@ void iecFuji::process_raw_commands()
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
         set_device_filename();
+        break;
+    case FUJICMD_WRITE_APPKEY:
+        write_app_key();
+        break;
+    case FUJICMD_READ_APPKEY:
+        read_app_key();
+        break;
+    case FUJICMD_OPEN_APPKEY:
+        open_app_key();
+        break;
+    case FUJICMD_CLOSE_APPKEY:
+        close_app_key();
+        break;
+    case FUJICMD_GET_DEVICE_FULLPATH:
+        get_device_filename();
+        break;
+    case 0xD9:
+        set_boot_config();
+        break;
+    case FUJICMD_SET_BOOT_MODE:
+        set_boot_mode();
         break;
     }
 }
