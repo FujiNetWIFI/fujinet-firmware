@@ -1267,7 +1267,40 @@ void iecFuji::set_device_filename()
 // Get a 256 byte filename from device slot
 void iecFuji::get_device_filename()
 {
-    // TODO IMPLEMENT
+    Debug_println("Fuji CMD: get device filename");
+
+    uint8_t ds = 0xFF;
+
+    if (payload[0]==FUJICMD_GET_DEVICE_FULLPATH)
+        ds = payload[1];
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload,':');
+        
+        if (t.size()<2)
+        {
+            Debug_printf("Incorrect # of parameters.\n");
+            // Send error
+            return;
+        }
+
+        ds = atoi(t[1].c_str());
+    }
+
+    if (!_validate_device_slot(ds,"get_device_filename"))
+    {
+        Debug_printf("Invalid device slot: %u\n",ds);
+        // send error
+        return;
+    }
+
+    std::string reply = std::string(_fnDisks[ds].filename);
+
+    // Add CR if calling from BASIC call.
+    if (payload[0]!=FUJICMD_GET_DEVICE_FULLPATH)
+        reply += '\r';
+    
+    response_queue.push(reply);
 }
 
 // Mounts the desired boot disk number
