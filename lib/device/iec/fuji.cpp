@@ -393,7 +393,71 @@ void iecFuji::close_app_key()
 */
 void iecFuji::write_app_key()
 {
-    // TODO IMPLEMENT
+    uint16_t keylen=-1;
+    char value[MAX_APPKEY_LEN];
+
+    if (payload[0]==FUJICMD_WRITE_APPKEY)
+    {
+        keylen=payload[1]&0xFF;
+        keylen|=payload[2]<<8;
+        strncpy(value,&payload.c_str()[3],MAX_APPKEY_LEN);
+    }
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload,':');
+        if (t.size()<3)
+        {
+            keylen=atoi(t[1].c_str());
+            strncpy(value,t[2].c_str(),MAX_APPKEY_LEN);
+        }
+    }
+
+    Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        // Send error
+        return;
+    }
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't write app key");
+        // Send error
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    // Reset the app key data so we require calling APPKEY OPEN before another attempt
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+
+    Debug_printf("Writing appkey to \"%s\"\n", filename);
+
+    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+    fnSDFAT.create_path("/FujiNet");
+
+    FILE *fOut = fnSDFAT.file_open(filename, "w");
+    if (fOut == nullptr)
+    {
+        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
+        // Send error
+        return;
+    }
+    size_t count = fwrite(value, 1, keylen, fOut);
+    int e = errno;
+
+    fclose(fOut);
+
+    if (count != keylen)
+    {
+        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
+        // Send error
+    }
 }
 
 /*
@@ -1059,9 +1123,9 @@ void iecFuji::set_device_filename()
 {
     char tmp[MAX_FILENAME_LEN];
 
-    uint8_t slot;
-    uint8_t host;
-    uint8_t mode;
+    uint8_t slot=0;
+    uint8_t host=0;
+    uint8_t mode=0;
 
     if (payload[0]==FUJICMD_SET_DEVICE_FULLPATH)
     {
