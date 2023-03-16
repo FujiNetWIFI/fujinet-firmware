@@ -369,7 +369,33 @@ void iecFuji::read_app_key()
 // Disk Image Unmount
 void iecFuji::disk_image_umount()
 {
-    // TODO IMPLEMENT
+    uint8_t deviceSlot=-1;
+
+    if (payload[0] == FUJICMD_UNMOUNT_IMAGE)
+    {
+        deviceSlot=payload[1];
+    }
+    else
+    {
+        std::vector<std::string> t = util_tokenize(payload,':');
+        deviceSlot = atoi(t[1].c_str());
+    }
+
+    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
+
+    // Handle disk slots
+    if (deviceSlot < MAX_DISK_DEVICES)
+    {
+        _fnDisks[deviceSlot].disk_dev.unmount();
+        _fnDisks[deviceSlot].disk_dev.device_active = false;
+        _fnDisks[deviceSlot].reset();
+    }
+    else
+    {
+        // Send error
+        return;
+    }
+
 }
 
 // Disk Image Rotate
@@ -1080,6 +1106,12 @@ void iecFuji::process_raw_commands()
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
         write_device_slots();
+        break;
+    case FUJICMD_ENABLE_UDPSTREAM:
+        // Not implemented.
+        break;
+    case FUJICMD_UNMOUNT_IMAGE:
+        disk_image_umount();
         break;
     }
 }
