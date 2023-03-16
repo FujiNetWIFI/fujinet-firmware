@@ -16,6 +16,8 @@
 #define MAX_DISK_DEVICES 4
 #define MAX_NETWORK_DEVICES 8
 
+#define MAX_APPKEY_LEN 64
+
 typedef struct
 {
     char ssid[33];
