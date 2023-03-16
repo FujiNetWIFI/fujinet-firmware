@@ -1435,15 +1435,16 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
     Debug_printf("\r\nModem Device %02x Control Code %02x", id(), control_code);
     data_len = 512;
     IWM.iwm_decode_data_packet(data_buffer, data_len);
-    print_packet(data_buffer);
+    print_packet(data_buffer,data_len);
 
-    if (data_len > 0)
-        switch (control_code)
-        {
-        }
-    else
-        err_result = SP_ERR_IOERROR;
+    // if (data_len > 0)
+    //     switch (control_code)
+    //     {
+    //     }
+    // else
+    //     err_result = SP_ERR_IOERROR;
 
+    Debug_printf("\nSending Status Reply");
     send_reply_packet(err_result);
 }
 
@@ -1497,6 +1498,7 @@ void iwmModem::process(iwm_decoded_cmd_t cmd)
     case 0x04: // control
         Debug_printf("\r\nhandling control command");
         iwm_ctrl(cmd);
+        Debug_printf("\r\ncontrol command done");
         break;
     case 0x08: // read
         Debug_printf("\r\nhandling read command");
