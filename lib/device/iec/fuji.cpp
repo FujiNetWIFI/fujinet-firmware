@@ -15,6 +15,7 @@
 #include "fnConfig.h"
 #include "fnFsSPIFFS.h"
 #include "fnWiFi.h"
+#include "network.h"
 
 #include "led.h"
 #include "utils.h"
@@ -1483,6 +1484,7 @@ void iecFuji::setup(systemBus *siobus)
     _populate_slots_from_config();
 
     IEC.addDevice(this, 0x0F);
+    IEC.addDevice(new iecNetwork(), 12);
 }
 
 iecDisk *iecFuji::bootdisk()
