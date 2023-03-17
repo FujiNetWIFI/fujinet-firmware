@@ -614,7 +614,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
     ns.rxBytesWaiting = (ns.rxBytesWaiting > 512) ? 512 : ns.rxBytesWaiting;
     data_len = ns.rxBytesWaiting;
 
-    if (protocol->read(data_len)) // protocol adapter returned error
+    if (protocol->read(num_bytes)) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
@@ -625,8 +625,8 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
     {
         statusByte.bits.client_error = 0;
         statusByte.bits.client_data_available = data_len > 0;
-        memcpy(data_buffer, receiveBuffer->data(), data_len);
-        receiveBuffer->erase(0, data_len);
+        memcpy(data_buffer, receiveBuffer->data(), num_bytes);
+        receiveBuffer->erase(0, num_bytes);
     }
     return false;
 }
@@ -670,8 +670,8 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
     }
 
     //send_data_packet(data_len);
-    Debug_printf("\r\nsending block packet ...");
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    Debug_printf("\r\nsending block packet (%04x bytes)...", numbytes);
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, numbytes);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
 }
