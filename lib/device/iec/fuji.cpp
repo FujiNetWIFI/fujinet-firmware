@@ -118,7 +118,7 @@ void iecFuji::net_scan_result()
         detail.rssi = 0;
     }
 
-    if (payload[0]==FUJICMD_GET_SCAN_RESULT) // raw
+    if (payload[0] == FUJICMD_GET_SCAN_RESULT) // raw
     {
         std::string r = std::string((const char *)&detail, sizeof(detail));
         response_queue.push(r);
@@ -155,7 +155,7 @@ void iecFuji::net_get_ssid()
     memcpy(cfg.password, s.c_str(),
            s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
 
-    if (payload[0]==FUJICMD_GET_SSID)
+    if (payload[0] == FUJICMD_GET_SSID)
     {
         std::string r = std::string((const char *)&cfg, sizeof(cfg));
         response_queue.push(r);
@@ -180,7 +180,7 @@ void iecFuji::net_set_ssid()
         char password[64];
     } cfg;
 
-    if (payload[0]==FUJICMD_SET_SSID)
+    if (payload[0] == FUJICMD_SET_SSID)
     {
         strncpy((char *)&cfg, payload.substr(12, std::string::npos).c_str(), sizeof(cfg));
     }
@@ -353,15 +353,15 @@ void iecFuji::disk_image_mount()
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void iecFuji::set_boot_config()
 {
-    if (payload[0]==FUJICMD_CONFIG_BOOT)
+    if (payload[0] == FUJICMD_CONFIG_BOOT)
     {
-        boot_config=payload[1];
+        boot_config = payload[1];
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload,':');
-        
-        if (t.size()<2)
+        std::vector<std::string> t = util_tokenize(payload, ':');
+
+        if (t.size() < 2)
         {
             Debug_printf("Invalid # of parameters.\n");
             response_queue.push("error: invalid # of parameters\r");
@@ -401,8 +401,8 @@ void iecFuji::mount_all()
             {
                 // Send error.
                 char slotno[3];
-                itoa(i,slotno,10);
-                response_queue.push("error: unable to mount slot "+std::string(slotno)+"\r");
+                itoa(i, slotno, 10);
+                response_queue.push("error: unable to mount slot " + std::string(slotno) + "\r");
                 return;
             }
 
@@ -415,8 +415,8 @@ void iecFuji::mount_all()
             {
                 // Send error.
                 char slotno[3];
-                itoa(i,slotno,10);
-                response_queue.push("error: invalid file handle for slot "+std::string(slotno)+"\r");
+                itoa(i, slotno, 10);
+                response_queue.push("error: invalid file handle for slot " + std::string(slotno) + "\r");
                 return;
             }
 
@@ -435,7 +435,8 @@ void iecFuji::mount_all()
         }
     }
 
-    if (nodisks){
+    if (nodisks)
+    {
         // No disks in a slot, disable config
         boot_config = false;
     }
@@ -447,15 +448,15 @@ void iecFuji::mount_all()
 // Set boot mode
 void iecFuji::set_boot_mode()
 {
-    if (payload[0]==FUJICMD_CONFIG_BOOT)
+    if (payload[0] == FUJICMD_CONFIG_BOOT)
     {
-        boot_config=payload[1];
+        boot_config = payload[1];
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload,':');
-        
-        if (t.size()<2)
+        std::vector<std::string> t = util_tokenize(payload, ':');
+
+        if (t.size() < 2)
         {
             Debug_printf("Invalid # of parameters.\n");
             // send error
@@ -619,8 +620,8 @@ void iecFuji::write_app_key()
         Debug_printf("Failed to open/create output file: errno=%d\n", errno);
         // Send error
         char e[8];
-        itoa(errno,e,10);
-        response_queue.push("error: failed to create appkey file "+std::string(e)+"\r");
+        itoa(errno, e, 10);
+        response_queue.push("error: failed to create appkey file " + std::string(e) + "\r");
         return;
     }
     size_t count = fwrite(value, 1, keylen, fOut);
@@ -630,7 +631,7 @@ void iecFuji::write_app_key()
     if (count != keylen)
     {
         char e[128];
-        sprintf(e,"error: only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, errno);
+        sprintf(e, "error: only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, errno);
         response_queue.push(std::string(e));
         // Send error
     }
@@ -671,7 +672,7 @@ void iecFuji::read_app_key()
     if (fIn == nullptr)
     {
         char e[128];
-        sprintf(e,"Failed to open input file: errno=%d\n", errno);
+        sprintf(e, "Failed to open input file: errno=%d\n", errno);
         // Send error
         response_queue.push(std::string(e));
         return;
