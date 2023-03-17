@@ -10,7 +10,7 @@
 #endif
 
 #ifdef BUILD_IEC
-//# include "iec/network.h"
+# include "iec/network.h"
 #endif
 
 #ifdef BUILD_ADAM
