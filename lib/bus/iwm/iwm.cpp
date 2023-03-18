@@ -278,14 +278,14 @@ void iwmBus::setup(void)
   fnTimer.config();
   Debug_printf("\r\nFujiNet Hardware timer started");
 
-  smartport.setup_spi();
-  Debug_printf("\r\nSPI configured for smartport I/O");
-  
-  diskii_xface.setup_spi();
-  Debug_printf("\r\nSPI configured for Disk ][ Output");
-
   smartport.setup_gpio();
   Debug_printf("\r\nIWM GPIO configured");
+
+  diskii_xface.setup_rmt();
+  Debug_printf("\r\nRMT configured for Disk ][ Output");
+
+  smartport.setup_spi();
+  Debug_printf("\r\nSPI configured for smartport I/O");
 }
 
 //*****************************************************************************
@@ -550,14 +550,21 @@ void IRAM_ATTR iwmBus::service()
   switch (iwm_drive_enabled())
   {
   case iwm_enable_state_t::off:
-    diskii_xface.spi_end();
     break;
   case iwm_enable_state_t::off2on:
     // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
-    fnSystem.delay_microseconds(1000);
-    if (iwm_drive_enabled() == iwm_enable_state_t::on)
-      diskii_xface.enable_output();
-    return; // no break because I want it to fall through to "on"
+    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
+    {
+      fnSystem.delay(1); // need a better way to figure out persistence
+      if (iwm_drive_enabled() == iwm_enable_state_t::on)
+      {
+        diskii_xface.set_output_to_rmt();
+        diskii_xface.enable_output();
+        diskii_xface.start(); // start it up
+      }
+    } // make a call to start the RMT stream
+    // make sure the state machine moves on to iwm_enable_state_t::on
+    return; // return so the SP code doesn't get checked
   case iwm_enable_state_t::on:
 #ifdef DEBUG
     new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
@@ -567,16 +574,12 @@ void IRAM_ATTR iwmBus::service()
       old_track = new_track;
     }
 #endif
-    // smartport.iwm_ack_clr();  - need to deal with write protect
-
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
-    {
-      // Debug_printf("%d ", isrctr);
-      diskii_xface.iwm_queue_track_spi();
-    }
     return;
   case iwm_enable_state_t::on2off:
+    fnSystem.delay(1); // need a better way to figure out persistence
+    diskii_xface.stop();
     diskii_xface.disable_output();
+    smartport.set_output_to_spi();
     iwm_ack_deassert();
     return;
   }

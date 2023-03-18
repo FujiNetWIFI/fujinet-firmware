@@ -199,6 +199,7 @@ void main_setup()
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
+
     iwmModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
