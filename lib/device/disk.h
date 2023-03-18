@@ -46,4 +46,10 @@
 #define DEVICE_TYPE cx16Disk
 #endif
 
+#ifdef BUILD_RC2014
+# include "rc2014/disk.h"
+# define DEVICE_TYPE rc2014Disk
+#endif 
+
+
 #endif // DEVICE_DISK_H

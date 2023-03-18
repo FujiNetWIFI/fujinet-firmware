@@ -122,4 +122,14 @@
     cx16Modem *sioR;
 #endif
 
+#ifdef BUILD_RC2014
+# include "rc2014/disk.h"
+# include "rc2014/network.h"
+# include "rc2014/modem.h"
+# include "rc2014/printer.h"
+# include "rc2014/printerlist.h"
+# include "rc2014/fuji.h"
+    rc2014Modem *sioR;
+#endif
+
 #endif // DEVICE_H
