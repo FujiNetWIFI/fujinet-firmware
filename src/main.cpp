@@ -140,6 +140,27 @@ void main_setup()
     RS232.addDevice(&theFuji,0x70);
 #endif
 
+#ifdef BUILD_RC2014
+    theFuji.setup(&rc2014Bus);
+    rc2014Bus.setup();
+    
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    rc2014Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == rc2014Printer::printer_type::PRINTER_INVALID)
+        ptype = rc2014Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+
+    rc2014Printer *ptr = new rc2014Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    rc2014Bus.addDevice(ptr, RC2014_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    sioR = new rc2014Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    rc2014Bus.addDevice(sioR, RC2014_DEVICEID_MODEM); // R:
+
+#endif
+
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();

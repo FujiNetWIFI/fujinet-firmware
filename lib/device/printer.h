@@ -37,6 +37,12 @@
 # define PRINTER_CLASS s100spiPrinter
 #endif
 
+#ifdef BUILD_RC2014
+# include "rc2014/printer.h"
+# include "rc2014/printerlist.h"
+# define PRINTER_CLASS rc2014Printer
+#endif
+
 #ifdef NEW_TARGET
 # include "new/printer.h"
 # include "new/printerlist.h"

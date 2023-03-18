@@ -37,4 +37,9 @@
 #include "cx16_i2c/fuji.h"
 #endif
 
+#ifdef BUILD_RC2014
+# include "rc2014/fuji.h"
+#endif
+
+
 #endif // DEVICE_FUJI_H
