@@ -13,6 +13,8 @@
 
 #include "../fnjson/fnjson.h"
 
+#include "string_utils.h"
+
 /**
  * # of devices to expose via IEC
  */
@@ -28,7 +30,6 @@
 class iecNetwork : public virtualDevice
 {
 public:
-    
     /**
      * Command frame for protocol adapters
      */
@@ -44,11 +45,10 @@ public:
      */
     virtual ~iecNetwork();
 
-
     // Status
     void status()
     {
-    // TODO IMPLEMENT
+        // TODO IMPLEMENT
     }
 
 protected:
@@ -105,7 +105,76 @@ private:
     /**
      * Error number, if status.bits.client_error is set.
      */
-    uint8_t err; 
+    uint8_t err;
+
+    /**
+     * @brief the Device spec currently open (N:TCP://192.168.1.1:1234/)
+     */
+    string deviceSpec;
+
+    /**
+     * The channel mode for a given IEC subdevice. By default, it is PROTOCOL, which passes
+     * read/write/status commands to the protocol. Otherwise, it's a special mode, e.g. to pass to
+     * the JSON or XML parsers.
+     *
+     * @enum PROTOCOL Send to protocol
+     * @enum JSON Send to JSON parser.
+     */
+    enum _channel_mode
+    {
+        PROTOCOL,
+        JSON
+    } channelMode[15] =
+        {
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL,
+            PROTOCOL
+        };
+
+    /**
+     * @brief the current translation mode for given channel.
+     */
+    uint8_t translationMode[15] = 
+    {
+        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+    };
+
+    /**
+     * The login to use for a protocol action
+     */
+    std::string login;
+
+    /**
+     * The password to use for a protocol action
+     */
+    std::string password;
+
+    /**
+     * @brief respond to OPEN command ($F0)
+     */
+    void iec_open();
+
+    /**
+     * @brief response to CLOSE command ($E0)
+     */
+    void iec_close();
+
+    /**
+     * @brief response to DATA command on LOAD channel ($60)
+     */
+    void iec_reopen_load();
 
     /**
      * @brief Deal with commands sent to command channel

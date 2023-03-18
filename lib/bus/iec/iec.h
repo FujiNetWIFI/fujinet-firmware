@@ -343,6 +343,13 @@ public:
     void sendBytes(std::string s);
 
     /**
+     * @brief send single byte
+     * @param c byte to send
+     * @param eoi Send EOI?
+    */
+   void sendByte(const char c, bool eoi);
+
+    /**
      * @brief called in response to RESET pin being asserted.
      */
     void reset_all_our_devices();
