@@ -46,4 +46,9 @@ extern adamModem *sioR;
 extern cx16Modem *sioR;
 #endif
 
+#ifdef BUILD_RC2014
+# include "rc2014/modem.h"
+  extern rc2014Modem *sioR;
+#endif
+
 #endif // DEVICE_MODEM_H
