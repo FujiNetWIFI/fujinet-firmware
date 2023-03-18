@@ -22,6 +22,11 @@ private:
     TRK_t trks[MAX_TRACKS];
     uint8_t *trk_ptrs[MAX_TRACKS] = { };
 
+    bool check_woz_header();
+    bool read_woz_info();
+    bool read_tmap();
+    bool read_tracks();
+
 public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
     virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
