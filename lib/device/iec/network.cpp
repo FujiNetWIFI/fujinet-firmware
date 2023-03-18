@@ -184,13 +184,7 @@ void iecNetwork::iec_close()
 void iecNetwork::iec_reopen_load()
 {
     NetworkStatus ns;
-    char *data_buffer;
     bool eoi = false;
-
-    data_buffer = (char *)malloc(65535);
-
-    if (!data_buffer)
-        return; // punch out
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr))
         return; // Punch out.
@@ -198,10 +192,18 @@ void iecNetwork::iec_reopen_load()
     // Get status
     protocol->status(&ns);
 
+    if (!ns.rxBytesWaiting)
+    {
+        IEC.senderTimeout();
+        return;
+    }
+
     while (!eoi)
     {
         // Truncate bytes waiting to response size
-        ns.rxBytesWaiting = (ns.rxBytesWaiting > 16384) ? 16384 : ns.rxBytesWaiting;
+        ns.rxBytesWaiting = (ns.rxBytesWaiting > 65534) ? 65534 : ns.rxBytesWaiting;
+
+        Debug_printf("bytes waiting: %u connected: %u error %u \n",ns.rxBytesWaiting,ns.connected,ns.error);
 
         int blockSize = ns.rxBytesWaiting;
 
@@ -209,20 +211,17 @@ void iecNetwork::iec_reopen_load()
 
         if (protocol->read(blockSize)) // protocol adapter returned error
         {
+            Debug_printf("WE GOT YOINKED\n");
+            IEC.senderTimeout();
             statusByte.bits.client_error = true;
             err = protocol->error;
             return;
-        }
-        else // everything ok
-        {
-            memcpy(data_buffer, receiveBuffer->data(), blockSize);
-            receiveBuffer->erase(0, blockSize);
         }
 
         // Do another status
         protocol->status(&ns);
 
-        if (!ns.connected) // EOF
+        if ((!ns.connected) || ns.error == 136) // EOF
             eoi = true;
 
         // Now send the resulting block of data through the bus
@@ -231,15 +230,15 @@ void iecNetwork::iec_reopen_load()
             int lastbyte = blockSize-2;
             if ((i == lastbyte) && (eoi == true))
             {
-                IEC.sendByte(data_buffer[i],true);
+                IEC.sendByte(receiveBuffer->at(i),true);
                 break;
             }
             else
-                IEC.sendByte(data_buffer[i],false);
+                IEC.sendByte(receiveBuffer->at(i),false);
         }
-    }
 
-    free(data_buffer);
+        receiveBuffer->erase(0,blockSize);
+    }
 }
 
 void iecNetwork::process_load()
