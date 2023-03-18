@@ -24,6 +24,22 @@ using namespace std;
 #define ATASCII_TAB 0x7F
 #define ATASCII_BUZZER 0xFD
 
+/**
+ * NWD
+ * We only have 2 bits for translations (see NetworkProtocol::open)
+ * but we need to translate LF to CR or CRLF to just CR
+ * The only solution is to change the behaviour of the Apple2
+ * version.  It may make more sense to have the Atari be the odd
+ * one in the future rather than the Apple2
+ */
+
+#ifdef Apple2
+#define EOL 0x0D
+#else
+#define EOL 0x9B
+#endif
+
+
 #define TRANSLATION_MODE_NONE 0
 #define TRANSLATION_MODE_CR 1
 #define TRANSLATION_MODE_LF 2
@@ -69,7 +85,7 @@ NetworkProtocol::~NetworkProtocol()
  */
 bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
-    // Set translation mode, Bits 0-2 of aux2
+    // Set translation mode, Bits 0-1 of aux2
     translation_mode = cmdFrame->aux2 & 0x03;
 
     // Persist aux1/aux2 values for later.
@@ -153,13 +169,16 @@ void NetworkProtocol::translate_receive_buffer()
     switch (translation_mode)
     {
     case TRANSLATION_MODE_CR:
-        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, ATASCII_EOL);
+        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, EOL);
         break;
     case TRANSLATION_MODE_LF:
-        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_LF, ATASCII_EOL);
+        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_LF, EOL);
         break;
     case TRANSLATION_MODE_CRLF:
-        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, ATASCII_EOL);
+    #ifndef Apple2
+        // With Apple2, we would be translating CR to CR; a waste of CPU
+        replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, EOL);
+    #endif
         break;
     }
 
@@ -183,10 +202,10 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
     switch (translation_mode)
     {
     case TRANSLATION_MODE_CR:
-        replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_EOL, ASCII_CR);
+        replace(transmitBuffer->begin(), transmitBuffer->end(), EOL, ASCII_CR);
         break;
     case TRANSLATION_MODE_LF:
-        replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_EOL, ASCII_LF);
+        replace(transmitBuffer->begin(), transmitBuffer->end(), EOL, ASCII_LF);
         break;
     case TRANSLATION_MODE_CRLF:
         util_replaceAll(*transmitBuffer, "\x9b", "\x0d\x0a");
