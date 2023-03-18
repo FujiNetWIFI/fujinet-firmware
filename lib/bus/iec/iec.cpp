@@ -79,6 +79,11 @@ void virtualDevice::dumpData()
     Debug_printf("%9s: %s\n","Payload",commanddata->payload.c_str());
 }
 
+void systemBus::sendByte(const char c, bool eoi)
+{
+    protocol->sendByte(c,eoi);
+}
+
 void systemBus::sendBytes(const char *buf, size_t len)
 {
     for (size_t i=0;i<len;i++)
@@ -447,7 +452,7 @@ bool IRAM_ATTR systemBus::turnAround()
     pull(PIN_IEC_CLK_OUT);
     fnSystem.delay_microseconds(TIMING_Tv);
 
-    // Debug_println("turnaround complete");
+    Debug_println("turnaround complete");
     return true;
 } // turnAround
 
