@@ -22,7 +22,6 @@
 #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 
 extern volatile uint8_t _phases;
-extern volatile bool sp_command_mode;
 extern volatile int isrctr;
 
 enum class iwm_packet_type_t
@@ -34,6 +33,14 @@ enum class iwm_packet_type_t
   ext_status = PACKET_TYPE_STATUS | 0x40,
   ext_data = PACKET_TYPE_DATA | 0x40
 };
+
+enum class sp_cmd_state_t
+{
+  standby = 0,
+  rxdata,
+  command
+};
+extern volatile sp_cmd_state_t sp_command_mode;
 
 /** ACK and REQ
  * 
@@ -102,7 +109,7 @@ private:
   int spirx_byte_ctr;
   int spirx_bit_ctr;
 
-  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  //uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   uint16_t packet_len;
 
 public:
@@ -122,9 +129,19 @@ public:
   int iwm_read_packet_spi(int n);
   void spi_end();
 
-  int decode_data_packet(uint8_t* input_data, uint8_t* output_data); //decode smartport data packet
-  int decode_data_packet(uint8_t* output_data); //decode smartport data packet
+  size_t decode_data_packet(uint8_t* input_data, uint8_t* output_data); //decode smartport data packet
+  size_t decode_data_packet(uint8_t* output_data); //decode smartport data packet
   void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
+
+  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+
+  // For debug printing the checksum
+  uint8_t calc_checksum;
+  uint8_t pkt_checksum;
+
+  // for tracking last checksum received for Liron bug
+  uint8_t last_checksum;
+
 
   // hardware configuration setup
   void setup_spi();

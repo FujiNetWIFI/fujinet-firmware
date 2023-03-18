@@ -1516,9 +1516,10 @@ void cx16Fuji::process(uint32_t commanddata, uint8_t checksum)
         cx16_ack();
         set_boot_mode();
         break;
-    case FUJICMD_ENABLE_UDPSTREAM:
+    case 0x00: // Temporary test command
+        Debug_printf("TEST COMMAND!\n");
         cx16_ack();
-        enable_udpstream();
+        cx16_complete();
         break;
     default:
         cx16_nak();

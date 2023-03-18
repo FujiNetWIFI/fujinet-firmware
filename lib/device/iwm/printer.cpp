@@ -136,12 +136,12 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
     Debug_printf("\nPrinter: Write %u bytes to address %04x\n", num_bytes);
 
     data_len = num_bytes;
-
-    if (IWM.iwm_read_packet_timeout(100, (unsigned char *)data_buffer, data_len))
-    {
-        Debug_printf("\r\nTIMEOUT in read packet!");
-        return;
-    }
+    IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
+    // if (IWM.iwm_decode_data_packet(100, (unsigned char *)data_buffer, data_len)) // write data packet now read in ISR
+    // {
+    //     Debug_printf("\r\nTIMEOUT in read packet!");
+    //     return;
+    // }
 
     if (data_len == -1)
     {

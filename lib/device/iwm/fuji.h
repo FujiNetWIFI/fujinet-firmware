@@ -129,8 +129,8 @@ protected:
     void iwm_ctrl_disk_image_umount();      // 0xE9
     void iwm_stat_get_adapter_config();     // 0xE8
     void iwm_ctrl_new_disk();               // 0xE7
-  /*  void adamnet_unmount_host();           // 0xE6
- */
+    void iwm_ctrl_unmount_host();           // 0xE6
+ 
    void iwm_stat_get_directory_position(); // 0xE5
    void iwm_ctrl_set_directory_position(); // 0xE4
 /*
@@ -158,6 +158,7 @@ protected:
     void iwm_ctrl_set_boot_mode();              // 0xD6
     void iwm_ctrl_enable_device();          // 0xD5
     void iwm_ctrl_disable_device();         // 0xD4
+    void send_stat_get_enable();        // 0xD1
 
     void shutdown() override;
     void process(iwm_decoded_cmd_t cmd) override;

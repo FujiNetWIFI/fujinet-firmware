@@ -18,6 +18,7 @@
 // Sector 0x168 (360) contains the sector table
 // Sector 0x169 (361) is the start of the file table of contents
 // Normally the table of contents continues to sector 0x182 (368)
+#define VTOC_SECTOR 0x168
 #define DIRECTORY_START 0x0169
 #define DIRECTORY_END 0x0170
 
@@ -46,6 +47,42 @@
     05-12: Filename
     13-15: Extension
 */
+
+void MediaTypeXEX::_fake_vtoc()
+{
+    uint16_t data_per_sector = _disk_sector_size - SECTOR_LINK_SIZE;
+    uint16_t numsectors = _disk_image_size / data_per_sector;
+    numsectors += _disk_image_size % data_per_sector > 0 ? 1 : 0;
+
+    uint16_t freesectors = 0x2D0 - numsectors;
+
+    Debug_printf("num XEX sectors = %d\n", numsectors);
+
+    memset(_disk_sectorbuff,0,sizeof(_disk_sectorbuff));
+
+    _disk_sectorbuff[0] = 0x02;
+    _disk_sectorbuff[1] = 0xd0;
+    _disk_sectorbuff[2] = 0x02;
+    _disk_sectorbuff[3] = freesectors & 0xFF;
+    _disk_sectorbuff[4] = freesectors << 8;
+
+    // Fill VTOC
+    for (int i=10; i<100; i++)
+    {
+        unsigned char b=0;
+
+        for (int j=0; j<8; j++)
+        {
+            if (numsectors--)
+                b |= 1;
+            else
+                b |= 0;
+            b <<= 1;
+        }
+        _disk_sectorbuff[i] = b;
+    }
+}
+
 void MediaTypeXEX::_fake_directory_entry()
 {
     // Calculate the number of sectors required for XEX file
@@ -114,7 +151,14 @@ bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     *readcount = _disk_sector_size;
 
     // We're going to fake a DOS2.0 directory if we're seeking to the directory area
-    if (sectornum >= DIRECTORY_START && sectornum <= DIRECTORY_END)
+    if (sectornum == VTOC_SECTOR)
+    {
+        Debug_printf("faking DOS 2 VTOC\n");
+        _fake_vtoc();
+        _disk_last_sector = INVALID_SECTOR_VALUE;
+        return false;
+    }
+    else if (sectornum >= DIRECTORY_START && sectornum <= DIRECTORY_END)
     {
         Debug_print("faking DOS 2 directory\n");
         _fake_directory_entry();
@@ -167,7 +211,7 @@ bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
 
 void MediaTypeXEX::status(uint8_t statusbuff[4])
 {
-    // TODO: Set double density, etc. if needed
+    statusbuff[0] |= DISK_DRIVE_STATUS_DOUBLE_DENSITY;
 }
 
 void MediaTypeXEX::unmount()

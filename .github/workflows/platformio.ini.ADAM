@@ -42,6 +42,14 @@ build_board    = fujinet-adam-v1       ; FujiNet for Coleco ADAM v1.0
 ;build_bus      = s100Bus
 ;build_board    = fujinet-v1-8mb         ; ESP32-DEVKITC-VE
 
+;build_platform = BUILD_RS232
+;build_bus      = rs232
+;build_board    = fujinet-rs232-rev0      ; RS232 Rev0 Prototype Carrier
+
+;build_platform   = BUILD_CX16
+;build_bus        = cx16
+;build_board      = fujinet-cx16
+
 [platformio]
 description = FujiNet retro computer to ESP32 WiFi Multifunction Firmware
 default_envs = ${fujinet.build_board}
@@ -50,25 +58,26 @@ data_dir = $PROJECT_DIR/data/${fujinet.build_platform}
 [env]
 ; Common settings for all enivornments
 framework = espidf
-extra_scripts = 
+extra_scripts =
     pre:build_packages.py
     pre:build_version.py
     pre:build_webui.py
 lib_ldf_mode = deep+
-upload_speed = 921600
+upload_speed = 460800 ;921600
 ;upload_port = COM1 ; Windows
-upload_port = /dev/ttyUSB0 ; Linux
+upload_port = /dev/ttyUSB0 ; Linux/WSL
 ;upload_port = /dev/tty.SLAB_USBtoUART ; Mac
-monitor_speed = 921600
+monitor_speed = 460800 ;921600
 ;monitor_port = COM1 ; Windows
-monitor_port = /dev/ttyUSB0 ; Linux
+monitor_port = /dev/ttyUSB0 ; Linux/WSL
 ;monitor_port = /dev/tty.SLAB_USBtoUART ; Mac
-monitor_filters = time, esp32_exception_decoder
+monitor_filters = time, esp32_exception_decoder ;,log2file
+check_skip_packages = yes ; so that check will work.
 
 build_flags =
     -D ${fujinet.build_platform}
     -D CMAKE_EXPORT_COMPILE_COMMANDS=ON
-    -D DEBUG_SPEED=921600
+    -D DEBUG_SPEED=${env.monitor_speed}
     ;-D NO_BUTTONS          ; if your hardware has no physical buttons
     ;-D JTAG                ; enable use with JTAG debugger
     ;-D BLUETOOTH_SUPPORT   ; enable BlueTooth support
@@ -109,21 +118,16 @@ build_flags =
     ${env.build_flags}
     -D PINMAP_A2_REV0
     -D DBUG2 ; enable monitor messages for a release build
+    ;-D EXTRA ; enable DRIVE2 pin as extra debugging signal for logic analyzer
+    ;-D DISKII_DRIVE1 ; Disk ][ Emulation should trigger on DRIVE1
+    ;-D DISKII_DRIVE2 ; Disk ][ emulation should trigger on DRIVE2
 
-; FujiApple using Atari FujiNet 1.0 Hardware (ESP32 WROVER 16MB Flash, 8MB PSRAM)
-[env:fujiapple-fujinetv1]
-platform = espressif32@${fujinet.esp32_platform_version}
-board = fujinet-v1
-build_type = release
-build_flags =
-    ${env.build_flags}
-    -D PINMAP_A2_FN10
-    -D DBUG2 ; enable monitor messages for a release build
+    ;-D MASTERIES_SPI_FIX ; Hardware mod for Masteries Rev0
 
 ; FujiNet for Atari Lynx (ESP32-WROVER 16MB Flash, 8MB PSRAM)
 [env:fujinet-lynx-prototype]
 platform = espressif32@${fujinet.esp32_platform_version}
-board = fujinet-v1-16mb
+board = fujinet-v1
 build_type = debug
 build_flags =
     ${env.build_flags}
@@ -153,6 +157,15 @@ build_flags =
     -D PINMAP_CBM
     ;-D DEBUG_TIMING        ; IEC Timing
     ;-D DATA_STREAM
+
+; FujiNet RS232 Rev 0 Prototype (ESP32-DEVKITC-VE 8MB Flash, 8MB PSRAM)
+[env:fujinet-rs232-rev0]
+platform = espressif32@${fujinet.esp32_platform_version}
+board = fujinet-v1-8mb
+build_type = debug
+build_flags =
+    ${env.build_flags}
+    -D PINMAP_RS232_REV0
 
 ; ESP32 WROVER (16MB Flash, 8MB PSRAM) based FujiNet
 [env:fujinet-v1]
@@ -193,3 +206,12 @@ build_type = debug
 build_flags =
     ${env.build_flags}
     -D PINMAP_ESP32S3
+
+; Commander CX16 board
+[env:fujinet-cx16]
+platform = espressif32@${fujinet.esp32_platform_version}
+board = fujinet-cx16
+build_type = debug
+build_flags =
+    ${env.build_flags}
+    -D PINMAP_CX16
