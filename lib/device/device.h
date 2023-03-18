@@ -42,6 +42,7 @@
 # include "iec/printerlist.h"
 # include "iec/fuji.h"
 # include "iec/modem.h"
+# include "iec/network.h"
 
     iecModem *sioR;
 #endif
