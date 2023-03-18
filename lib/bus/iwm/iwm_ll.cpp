@@ -663,13 +663,17 @@ void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uin
       for (grpbyte = 0; grpbyte < 7; grpbyte++)
         packet_buffer[grpstart + 1 + (grpcount * 8) + grpbyte] = group_buffer[grpbyte] | 0x80;
     }
-  }
-  // oddbytes
-  packet_buffer[14] = 0x80; // init the oddmsb
-  for (int oddcnt = 0; oddcnt < numodds; oddcnt++)
-  {
-    packet_buffer[14] |= (data[oddcnt] & 0x80) >> (1 + oddcnt);
-    packet_buffer[15 + oddcnt] = data[oddcnt] | 0x80;
+
+    // oddbytes
+    if(numodds)
+    {
+      packet_buffer[14] = 0x80; // init the oddmsb
+      for (int oddcnt = 0; oddcnt < numodds; oddcnt++)
+      {
+        packet_buffer[14] |= (data[oddcnt] & 0x80) >> (1 + oddcnt);
+        packet_buffer[15 + oddcnt] = data[oddcnt] | 0x80;
+      }
+    }
   }
 
   // header
