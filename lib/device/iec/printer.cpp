@@ -12,20 +12,10 @@
 
 #include "file_printer.h"
 #include "html_printer.h"
-#include "atari_820.h"
-#include "atari_822.h"
-#include "atari_825.h"
-#include "svg_plotter.h"
-#include "atari_1020.h"
-#include "atari_1025.h"
-#include "atari_1027.h"
-#include "atari_1029.h"
 #include "epson_80.h"
 #include "epson_tps.h"
-#include "atari_xmm801.h"
-#include "atari_xdm121.h"
 #include "okimate_10.h"
-#include "png_printer.h"
+#include "commodoremps803.h"
 
 constexpr const char * const iecPrinter::printer_model_str[PRINTER_INVALID];
 
@@ -71,32 +61,8 @@ void iecPrinter::set_printer_type(iecPrinter::printer_type printer_type)
     case PRINTER_FILE_ASCII:
         _pptr = new filePrinter(ASCII);
         break;
-    case PRINTER_ATARI_820:
-        _pptr = new atari820;
-        break;
-    case PRINTER_ATARI_822:
-        _pptr = new atari822;
-        break;
-    case PRINTER_ATARI_825:
-        _pptr = new atari825;
-        break;
-    case PRINTER_ATARI_1020:
-        _pptr = new atari1020;
-        break;
-    case PRINTER_ATARI_1025:
-        _pptr = new atari1025;
-        break;
-    case PRINTER_ATARI_1027:
-        _pptr = new atari1027;
-        break;
-    case PRINTER_ATARI_1029:
-        _pptr = new atari1029;
-        break;
-    case PRINTER_ATARI_XMM801:
-        _pptr = new xmm801;
-        break;
-    case PRINTER_ATARI_XDM121:
-        _pptr = new xdm121;
+    case PRINTER_COMMODORE_MPS803:
+        _pptr = new commodoremps803;
         break;
     case PRINTER_EPSON:
         _pptr = new epson80;
@@ -106,9 +72,6 @@ void iecPrinter::set_printer_type(iecPrinter::printer_type printer_type)
         break;
     case PRINTER_OKIMATE10:
         _pptr = new okimate10;
-        break;
-    case PRINTER_PNG:
-        _pptr = new pngPrinter;
         break;
     case PRINTER_HTML:
         _pptr = new htmlPrinter;
@@ -143,22 +106,13 @@ iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
 {
     const char *models[PRINTER_INVALID] =
         {
+            "Commodore MPS-803",
             "file printer (RAW)",
             "file printer (TRIM)",
             "file printer (ASCII)",
-            "Atari 820",
-            "Atari 822",
-            "Atari 825",
-            "Atari 1020",
-            "Atari 1025",
-            "Atari 1027",
-            "Atari 1029",
-            "Atari XMM801",
-            "Atari XDM121",
             "Epson 80",
             "Epson PrintShop",
             "Okimate 10",
-            "GRANTIC",
             "HTML printer",
             "HTML ATASCII printer"};
     int i;

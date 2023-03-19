@@ -31,22 +31,13 @@ public:
     // todo: reconcile printer_type with paper_t
     enum printer_type
     {
-        PRINTER_FILE_RAW = 0,
+        PRINTER_COMMODORE_MPS803 = 0,
+        PRINTER_FILE_RAW,
         PRINTER_FILE_TRIM,
         PRINTER_FILE_ASCII,
-        PRINTER_ATARI_820,
-        PRINTER_ATARI_822,
-        PRINTER_ATARI_825,
-        PRINTER_ATARI_1020,
-        PRINTER_ATARI_1025,
-        PRINTER_ATARI_1027,
-        PRINTER_ATARI_1029,
-        PRINTER_ATARI_XMM801,
-        PRINTER_ATARI_XDM121,
         PRINTER_EPSON,
         PRINTER_EPSON_PRINTSHOP,
         PRINTER_OKIMATE10,
-        PRINTER_PNG,
         PRINTER_HTML,
         PRINTER_HTML_ATASCII,
         PRINTER_INVALID
@@ -55,22 +46,13 @@ public:
 public:
     constexpr static const char * const printer_model_str[PRINTER_INVALID]
     {
+        "Commodore MPS-803",
         "file printer (RAW)",
         "file printer (TRIM)",
         "file printer (ASCII)",
-        "Atari 820",
-        "Atari 822",
-        "Atari 825",
-        "Atari 1020",
-        "Atari 1025",
-        "Atari 1027",
-        "Atari 1029",
-        "Atari XMM801",
-        "Atari XDM121",
         "Epson 80",
         "Epson PrintShop",
         "Okimate 10",
-        "GRANTIC",
         "HTML printer",
         "HTML ATASCII printer"
     };
