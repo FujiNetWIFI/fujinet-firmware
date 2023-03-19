@@ -17,7 +17,7 @@
 #include "okimate_10.h"
 #include "commodoremps803.h"
 
-constexpr const char * const iecPrinter::printer_model_str[PRINTER_INVALID];
+constexpr const char *const iecPrinter::printer_model_str[PRINTER_INVALID];
 
 iecPrinter::~iecPrinter()
 {
@@ -27,8 +27,6 @@ iecPrinter::~iecPrinter()
 // write for W commands
 void iecPrinter::write(uint8_t channel)
 {
-    int bo = 0; // Printer buffer offset
-
     // Receive data from computer
     while (!(IEC.flags & EOI_RECVD))
     {
@@ -42,18 +40,19 @@ void iecPrinter::write(uint8_t channel)
     }
 
     // Send data to printer
-    while (buffer.length()>0)
+    while (buffer.length() > 0)
     {
-        if (bo>79)
-        {
-            _pptr->process(bo,channel,0);
-            bo=0;
-        }
+        int s = 0;
+
+        if (buffer.size() > 80)
+            s = 80;
         else
-        {
-            _pptr->provideBuffer()[bo++] = buffer.at(0);
-            buffer.erase(0,1);
-        }
+            s = buffer.size();
+
+        memcpy(&_pptr->provideBuffer()[0], buffer.data(), s);
+        _pptr->process(s, commanddata->channel, 0);
+        _last_ms=fnSystem.millis();
+        buffer.erase(0, s);
     }
 }
 
@@ -120,6 +119,7 @@ iecPrinter::iecPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
     set_printer_type(print_type);
+    device_active = true;
 }
 
 void iecPrinter::shutdown()
@@ -128,7 +128,7 @@ void iecPrinter::shutdown()
         _pptr->closeOutput();
 }
 /* Returns a printer type given a string model name
-*/
+ */
 iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
 {
     const char *models[PRINTER_INVALID] =
@@ -151,11 +151,14 @@ iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
 }
 
 // Process command
-device_state_t iecPrinter::process(IECData *commanddata)
+device_state_t iecPrinter::process(IECData *id)
 {
-    if (commanddata->primary == IEC_TALK)
+    // Call base class
+    virtualDevice::process(id);
+
+    if (commanddata->primary == IEC_LISTEN)
         write(commanddata->channel);
-    
+
     return device_state;
 }
 

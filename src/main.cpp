@@ -122,17 +122,19 @@ void main_setup()
 #endif // BUILD_ATARI
 
 #ifdef BUILD_IEC
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+
     // Setup IEC Bus
     IEC.setup();
-    theFuji.setup(&IEC);
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
 //    iecPrinter::printer_type ptype = Config.get_printer_type(0);
-    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_COMMODORE_MPS803; // temporary
+    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_EPSON; // temporary
     Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
     iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
-    IEC.addDevice(ptr, 0x04); // add as device #4 for now.
+    IEC.addDevice(ptr, 0x04); // add as device #4 for now
+    theFuji.setup(&IEC);
+    sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
+
 #endif // BUILD_IEC
 
 #ifdef BUILD_LYNX
