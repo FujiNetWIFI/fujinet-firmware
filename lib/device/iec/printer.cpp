@@ -155,6 +155,8 @@ device_state_t iecPrinter::process(IECData *commanddata)
 {
     if (commanddata->primary == IEC_TALK)
         write(commanddata->channel);
+    
+    return device_state;
 }
 
 #endif /* BUILD_IEC */
