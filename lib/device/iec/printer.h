@@ -14,8 +14,8 @@ class iecPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS
-    uint8_t _buffer[40];
-    void write(uint8_t aux1, uint8_t aux2);
+    std::string buffer;
+    void write(uint8_t channel);
     void status();
     device_state_t process(IECData *commanddata);
     void shutdown();

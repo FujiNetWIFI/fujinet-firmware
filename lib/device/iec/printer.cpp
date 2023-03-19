@@ -25,9 +25,36 @@ iecPrinter::~iecPrinter()
 }
 
 // write for W commands
-void iecPrinter::write(uint8_t aux1, uint8_t aux2)
+void iecPrinter::write(uint8_t channel)
 {
-    // TODO IMPLEMENT
+    int bo = 0; // Printer buffer offset
+
+    // Receive data from computer
+    while (!(IEC.flags & EOI_RECVD))
+    {
+        uint16_t b = IEC.receiveByte();
+        if (b == -1)
+        {
+            return;
+        }
+
+        buffer.push_back(b);
+    }
+
+    // Send data to printer
+    while (buffer.length()>0)
+    {
+        if (bo>79)
+        {
+            _pptr->process(bo,channel,0);
+            bo=0;
+        }
+        else
+        {
+            _pptr->provideBuffer()[bo++] = buffer.at(0);
+            buffer.erase(0,1);
+        }
+    }
 }
 
 /**
@@ -126,8 +153,8 @@ iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
 // Process command
 device_state_t iecPrinter::process(IECData *commanddata)
 {
-    // TODO IMPLEMENT
-    return DEVICE_IDLE;
+    if (commanddata->primary == IEC_TALK)
+        write(commanddata->channel);
 }
 
 #endif /* BUILD_IEC */
