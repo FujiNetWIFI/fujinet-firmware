@@ -208,11 +208,11 @@ void iecNetwork::iec_reopen_save()
             Debug_printf("error on receive.\n");
             return;
         }
-        
-        *transmitBuffer += (char)IEC.receiveByte();
+
+        transmitBuffer->push_back(b); 
     }
 
-    Debug_printf("Received %u bytes. Transmitting.\n");
+    Debug_printf("Received %u bytes. Transmitting.\n",transmitBuffer->length());
 
     protocol->write(transmitBuffer->length());
     transmitBuffer->clear();
