@@ -1107,7 +1107,7 @@ void iecFuji::get_adapter_config()
         mstr::toPETSCII(s);
         response_queue.push(s);
 
-        sprintf(reply, "%02X.%02X.%02X.%02X.%02X.%02X\r",
+        sprintf(reply, "%02x.%02x.%02x.%02x.%02x.%02x\r",
                 cfg.macAddress[0],
                 cfg.macAddress[1],
                 cfg.macAddress[2],
@@ -1118,7 +1118,7 @@ void iecFuji::get_adapter_config()
         mstr::toPETSCII(s);
         response_queue.push(s);
 
-        sprintf(reply, "%02X.%02X.%02X.%02X.%02X.%02X\r",
+        sprintf(reply, "%02x.%02x.%02x.%02x.%02x.%02x\r",
                 cfg.bssid[0],
                 cfg.bssid[1],
                 cfg.bssid[2],
