@@ -46,25 +46,30 @@ device_state_t virtualDevice::process(IECData *_commanddata)
 
     switch ((bus_command_t)commanddata->secondary)
     {
-        case bus_command_t::IEC_OPEN:
-            payload = commanddata->payload;
-            break;
-        case bus_command_t::IEC_CLOSE:
-            payload.clear();
-            std::queue<std::string>().swap(response_queue);
-            break;
-        case bus_command_t::IEC_REOPEN:
+    case bus_command_t::IEC_OPEN:
+        payload = commanddata->payload;
+        break;
+    case bus_command_t::IEC_CLOSE:
+        payload.clear();
+        std::queue<std::string>().swap(response_queue);
+        break;
+    case bus_command_t::IEC_REOPEN:
+        if (device_state == DEVICE_TALK)
+        {
             if (response_queue.empty())
                 break;
             else
             {
-                Debug_printf("---Sending response %s\n",response_queue.front().c_str());
+                Debug_printf("---Sending response %s\n", response_queue.front().c_str());
                 IEC.sendBytes(response_queue.front());
                 response_queue.pop();
             }
-            break;
-        default:
-            break;
+        }
+        else if (device_state == DEVICE_LISTEN)
+            payload = commanddata->payload;
+        break;
+    default:
+        break;
     }
 
     return device_state;
@@ -72,11 +77,11 @@ device_state_t virtualDevice::process(IECData *_commanddata)
 
 void virtualDevice::dumpData()
 {
-    Debug_printf("%9s: %02X\n","Primary",commanddata->primary);
-    Debug_printf("%9s: %02u\n","Device",commanddata->device);
-    Debug_printf("%9s: %02X\n","Secondary",commanddata->secondary);
-    Debug_printf("%9s: %02u\n","Channel",commanddata->channel);
-    Debug_printf("%9s: %s\n","Payload",commanddata->payload.c_str());
+    Debug_printf("%9s: %02X\n", "Primary", commanddata->primary);
+    Debug_printf("%9s: %02u\n", "Device", commanddata->device);
+    Debug_printf("%9s: %02X\n", "Secondary", commanddata->secondary);
+    Debug_printf("%9s: %02u\n", "Channel", commanddata->channel);
+    Debug_printf("%9s: %s\n", "Payload", commanddata->payload.c_str());
 }
 
 int16_t systemBus::receiveByte()
@@ -86,21 +91,21 @@ int16_t systemBus::receiveByte()
 
 void systemBus::sendByte(const char c, bool eoi)
 {
-    protocol->sendByte(c,eoi);
+    protocol->sendByte(c, eoi);
 }
 
 void systemBus::sendBytes(const char *buf, size_t len)
 {
-    for (size_t i=0;i<len;i++)
-        if (i==len-1)
-            protocol->sendByte(buf[i],true);
+    for (size_t i = 0; i < len; i++)
+        if (i == len - 1)
+            protocol->sendByte(buf[i], true);
         else
-            protocol->sendByte(buf[i],false);
+            protocol->sendByte(buf[i], false);
 }
 
 void systemBus::sendBytes(std::string s)
 {
-    sendBytes(s.c_str(),s.size());
+    sendBytes(s.c_str(), s.size());
 }
 
 void systemBus::process_cmd()
@@ -520,11 +525,11 @@ void systemBus::setup()
     release(PIN_IEC_SRQ);
 
     // initial pin modes in GPIO
-    fnSystem.set_pin_mode ( PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_NEGEDGE );
-    fnSystem.set_pin_mode ( PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT );
-    fnSystem.set_pin_mode ( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT );
-    fnSystem.set_pin_mode ( PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT );
-    fnSystem.set_pin_mode ( PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT );
+    fnSystem.set_pin_mode(PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_NEGEDGE);
+    fnSystem.set_pin_mode(PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+    fnSystem.set_pin_mode(PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+    fnSystem.set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+    fnSystem.set_pin_mode(PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT);
 
     flags = CLEAR;
     gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, this);
