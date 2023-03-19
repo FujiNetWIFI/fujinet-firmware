@@ -30,7 +30,7 @@ void iecPrinter::write(uint8_t channel)
     // Receive data from computer
     while (!(IEC.flags & EOI_RECVD))
     {
-        uint16_t b = IEC.receiveByte();
+        int16_t b = IEC.receiveByte();
         if (b == -1)
         {
             return;
