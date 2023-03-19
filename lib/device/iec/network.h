@@ -84,7 +84,7 @@ private:
     /**
      * Instance of currently open network protocol
      */
-    NetworkProtocol *protocol = nullptr;
+    NetworkProtocol *protocol[16] = {nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr};
 
     /**
      * Network Status object
@@ -185,6 +185,30 @@ private:
      * @brief response to DATA command on SAVE channel ($60)
      */
     void iec_reopen_save();
+
+    /**
+     * @brief response to DATA command on any other channel ($60)
+     */
+    void iec_reopen_channel();
+
+    /**
+     * @brief Computer->FujiNet write
+     */
+    void iec_write();
+
+    /**
+     * @brief FujiNet->Com puter read
+     */
+    void iec_read();
+
+    /**
+     * @brief return data waiting.
+     */
+    void data_waiting();
+
+    /**
+     * @brief handle 
+    */
 
     /**
      * @brief set network prefix on desired device.
