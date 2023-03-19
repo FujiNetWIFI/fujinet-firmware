@@ -79,6 +79,11 @@ void virtualDevice::dumpData()
     Debug_printf("%9s: %s\n","Payload",commanddata->payload.c_str());
 }
 
+int16_t systemBus::receiveByte()
+{
+    return protocol->receiveByte();
+}
+
 void systemBus::sendByte(const char c, bool eoi)
 {
     protocol->sendByte(c,eoi);
