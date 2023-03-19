@@ -343,6 +343,12 @@ public:
     void sendBytes(std::string s);
 
     /**
+     * @brief Receive Byte from bus
+     * @return Byte received from bus, or -1 for error.
+     */
+    int16_t receiveByte();
+
+    /**
      * @brief send single byte
      * @param c byte to send
      * @param eoi Send EOI?
