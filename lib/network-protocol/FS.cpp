@@ -254,7 +254,7 @@ bool NetworkProtocolFS::status_file(NetworkStatus *status)
     if (aux1_open == 8)
         status->rxBytesWaiting = 0;
     else
-        status->rxBytesWaiting = fileSize;
+        status->rxBytesWaiting = fileSize > 65534 ? 65534 : fileSize;
     status->connected = fileSize > 0 ? 1 : 0;
     status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
 
