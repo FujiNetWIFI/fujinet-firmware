@@ -22,10 +22,13 @@ private:
     TRK_t trks[MAX_TRACKS];
     uint8_t *trk_ptrs[MAX_TRACKS] = { };
 
-    bool check_woz_header();
-    bool read_woz_info();
-    bool read_tmap();
-    bool read_tracks();
+    char woz_version;
+
+    bool wozX_check_header();
+    bool wozX_read_info();
+    bool wozX_read_tmap();
+    bool woz1_read_tracks();
+    bool woz2_read_tracks();
 
 public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
@@ -35,6 +38,7 @@ public:
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
     mediatype_t mount(FILE *f) {return mount(f, 0);};
+    virtual void unmount() override;
 
     virtual bool status() override {return (_media_fileh != nullptr);}
 
