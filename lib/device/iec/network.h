@@ -162,6 +162,11 @@ private:
     std::string password;
 
     /**
+     * @brief The currently set path prefix.
+     */
+    std::string prefix[16];
+
+    /**
      * @brief respond to OPEN command ($F0)
      */
     void iec_open();
@@ -175,6 +180,16 @@ private:
      * @brief response to DATA command on LOAD channel ($60)
      */
     void iec_reopen_load();
+
+    /**
+     * @brief response to DATA command on SAVE channel ($60)
+     */
+    void iec_reopen_save();
+
+    /**
+     * @brief set network prefix on desired device.
+     */
+    void set_prefix();
 
     /**
      * @brief Deal with commands sent to command channel
