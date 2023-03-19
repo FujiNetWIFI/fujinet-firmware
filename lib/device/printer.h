@@ -13,7 +13,7 @@
 # define PRINTER_CLASS rs232Printer
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 # define PRINTER_CLASS iecPrinter
@@ -35,6 +35,12 @@
 # include "s100spi/printer.h"
 # include "s100spi/printerlist.h"
 # define PRINTER_CLASS s100spiPrinter
+#endif
+
+#ifdef BUILD_RC2014
+# include "rc2014/printer.h"
+# include "rc2014/printerlist.h"
+# define PRINTER_CLASS rc2014Printer
 #endif
 
 #ifdef NEW_TARGET
