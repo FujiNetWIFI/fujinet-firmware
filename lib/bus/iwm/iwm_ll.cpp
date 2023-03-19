@@ -561,7 +561,7 @@ void iwm_sp_ll::setup_spi()
     ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
     assert(ret == ESP_OK);
     // connect peripheral to GPIO because RMT screwed it up
-    esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[VSPI_HOST].spid_out, false, false);
+    esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[VSPI_HOST].spid_out, false, false);
   }
   else
   {
@@ -757,7 +757,10 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 
 void iwm_sp_ll::set_output_to_spi()
 {
- esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
+  if(fnSystem.check_spifix())
+    esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[VSPI_HOST].spid_out, false, false);
+  else
+    esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
 }
 
 // =========================================================================================
@@ -780,7 +783,10 @@ void iwm_diskii_ll::stop()
 
 void iwm_diskii_ll::set_output_to_rmt()
 {
-  esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
+  if(fnSystem.check_spifix())
+    esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, rmt_periph_signals.channels[0].tx_sig, false, false);
+  else
+    esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
 }
 
 // KEEEEEEEEEEEEEEEEEEP FOR A WHILE UNTIL ALL TECHNIQUES LEARNED ARE USED OR NO LONGER NEEDED
@@ -892,7 +898,10 @@ void iwm_diskii_ll::setup_rmt()
 #ifdef RMTTEST
   config.gpio_num = (gpio_num_t)SP_EXTRA; 
 #else
-  config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; //SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
+  if(fnSystem.check_spifix())
+    config.gpio_num = (gpio_num_t)SP_SPI_FIX_PIN; //SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
+  else
+    config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; //SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
 #endif
   config.mem_block_num = 8;
   config.tx_config.loop_en = false;
