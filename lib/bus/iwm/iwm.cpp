@@ -51,7 +51,7 @@ void print_packet(uint8_t *data, int bytes)
   char tbs[8];
   char xx;
 
-  Debug_printf(("\r\n"));
+  Debug_printf(("\n"));
   for (int count = 0; count < bytes; count = count + 16)
   {
     sprintf(tbs, ("%04X: "), count);
@@ -78,13 +78,13 @@ void print_packet(uint8_t *data, int bytes)
         Debug_print(("."));
       }
     }
-    Debug_printf(("\r\n"));
+    Debug_printf(("\n"));
   }
 }
 
 void print_packet(uint8_t *data)
 {
-  Debug_printf("\r\n");
+  Debug_printf("\n");
   for (int i = 0; i < 40; i++)
   {
     if (data[i] != 0 || i == 0)
@@ -100,7 +100,7 @@ void print_packet_wave(uint8_t *data, int bytes)
   int row;
   char tbs[8];
 
-  Debug_printf(("\r\n"));
+  Debug_printf(("\n"));
   for (int count = 0; count < bytes; count = count + 12)
   {
     sprintf(tbs, ("%04X: "), count);
@@ -208,13 +208,29 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 
 int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num)
 {
+  int r;
+  int retry = 5; // host seems to control the retries, this is here so we don't get stuck
+
   smartport.encode_packet(source, packet_type, status, data, num);
-  int r = smartport.iwm_send_packet_spi();
+#ifdef DEBUG
+  //print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN); // print raw packet contents to be sent
+#endif
+  do
+  {
+    r = smartport.iwm_send_packet_spi();
+    retry--;
+  } while (r && retry); // retry if we get an error and haven't tried to many times
+
   return r;
 }
 
-bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
+bool iwmBus::iwm_decode_data_packet(uint8_t *data, int &n)
 {
+  n = smartport.decode_data_packet(data);
+  return false;
+}
+/*
+ {
   memset(data, 0, n);
   int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
   Debug_printf("\r\nAttempting to receive %d length packet", nn);
@@ -222,15 +238,28 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
   iwm_ack_deassert();
   for (int i = 0; i < attempts; i++)
   {
-    if (!smartport.iwm_read_packet_spi(nn))
+    int error = smartport.iwm_read_packet_spi(nn);
+    if (!error)
     {
       iwm_ack_assert();
       portENABLE_INTERRUPTS();
 #ifdef DEBUG
-      print_packet(data);
+      //if (smartport.packet_buffer[8] == 0x82) // packet type    // limit debug packet print if needed to data packets
+      //  print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN); // print raw received packet contents
 #endif
       n = smartport.decode_data_packet(data);
       return false;
+    }
+    else if (error == 2) // checksum nok
+    {
+      smartport.spi_end(); // when this ends, we might be in the middle of receiving the next resent packet
+      portENABLE_INTERRUPTS();
+      Debug_printf("\r\nChksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
+#ifdef DEBUG
+      //print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN);  // print raw received packet contents
+#endif
+      portDISABLE_INTERRUPTS();
+      smartport.req_wait_for_falling_timeout(1000000); // wait up to 100ms to catch REQ going low and line up with end of the resent packet
     } // if
   }
 #ifdef DEBUG
@@ -239,7 +268,8 @@ bool iwmBus::iwm_read_packet_timeout(int attempts, uint8_t *data, int &n)
 #endif
   portENABLE_INTERRUPTS();
   return true;
-}
+} 
+*/
 
 void iwmBus::setup(void)
 {
@@ -291,8 +321,39 @@ void iwmDevice::send_reply_packet(uint8_t status)
 
 void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 {
-  Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
-  send_reply_packet(SP_ERR_BADCMD);
+  //Handle possible data packet to avoid crash extended and non-extended
+  switch(cmd.command) {
+    case 0x42:
+    case 0x44:
+    case 0x49:
+    case 0x4a:
+    case 0x4b:
+    case 0x02:
+    case 0x04:
+    case 0x09:
+    case 0x0a:
+    case 0x0b:
+    data_len = 512;
+    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+    Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
+    print_packet((uint8_t *)data_buffer, data_len);
+    break;
+    default://just send the response and return like before
+      send_reply_packet(SP_ERR_BADCMD);
+      Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
+      return;
+  }
+  if(cmd.command == 0x04) //Decode command control code
+  {
+    send_reply_packet(SP_ERR_BADCTL); //we may be required to accept some control commands
+                                      // but for now just report bad control if it's a control
+                                      // command
+    uint8_t control_code = get_status_code(cmd);
+    Debug_printf("\r\nbad command was a control command with control code %02x",control_code);
+  }
+  else{
+    send_reply_packet(SP_ERR_BADCMD); //response for Any other command with a data packet
+  }
 }
 
 void iwmDevice::iwm_return_ioerror()
@@ -304,62 +365,6 @@ void iwmDevice::iwm_return_ioerror()
 void iwmDevice::iwm_return_noerror()
 {
   send_reply_packet(SP_ERR_NOERROR);
-}
-
-//*****************************************************************************
-// Function: verify_cmdpkt_checksum
-// Parameters: none
-// Returns: 0 = ok, 1 = error
-//
-// Description: verify the checksum for command packets
-//
-// &&&&&&&&not used at the moment, no error checking for checksum for cmd packet
-//*****************************************************************************
-bool iwmBus::verify_cmdpkt_checksum(void)
-{
-  // int length;
-  uint8_t evenbits, oddbits, bit7, bit0to6, grpbyte;
-  uint8_t calc_checksum = 0; // initial value is 0
-  uint8_t pkt_checksum;
-
-  // length = get_packet_length();
-  // Debug_printf("\r\npacket length = %d", length);
-  // 2 oddbytes in cmd packet
-  //  calc_checksum ^= ((packet_buffer[13] << 1) & 0x80) | (packet_buffer[14] & 0x7f);
-  //  calc_checksum ^= ((packet_buffer[13] << 2) & 0x80) | (packet_buffer[15] & 0x7f);
-  calc_checksum ^= ((command_packet.oddmsb << 1) & 0x80) | (command_packet.command & 0x7f);
-  calc_checksum ^= ((command_packet.oddmsb << 2) & 0x80) | (command_packet.parmcnt & 0x7f);
-
-  // 1 group of 7 in a cmd packet
-  for (grpbyte = 0; grpbyte < 7; grpbyte++)
-  {
-    bit7 = (command_packet.grp7msb << (grpbyte + 1)) & 0x80;
-    bit0to6 = (command_packet.data[17 + grpbyte]) & 0x7f;
-    calc_checksum ^= bit7 | bit0to6;
-  }
-
-  // calculate checksum for overhead bytes
-  for (int count = 6; count < 13; count++) // start from first id byte
-    calc_checksum ^= command_packet.data[count];
-
-  // int chkidx = 13 + numodd + (numodd != 0) + numgrps * 8;
-  // evenbits = packet_buffer[chkidx] & 0x55;
-  // oddbits = (packet_buffer[chkidx + 1] & 0x55) << 1;
-  oddbits = (command_packet.chksum2 << 1) | 0x01;
-  evenbits = command_packet.chksum1;
-  pkt_checksum = oddbits & evenbits; // oddbits | evenbits;
-  // every other bit is ==1 in checksum, so need to AND to get data back
-
-  //  Debug_print(("Pkt Chksum Byte:\r\n"));
-  //  Debug_print(pkt_checksum,DEC);
-  //  Debug_print(("Calc Chksum Byte:\r\n"));
-  //  Debug_print(calc_checksum,DEC);
-  //  Debug_printf("\r\nChecksum - pkt,calc: %02x %02x", pkt_checksum, calc_checksum);
-  // if ( pkt_checksum == calc_checksum )
-  //   return false;
-  // else
-  //   return true;
-  return (pkt_checksum != calc_checksum);
 }
 
 void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
@@ -434,7 +439,113 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 //*****************************************************************************
 void IRAM_ATTR iwmBus::service()
 {
-  #if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
+  // process smartport before diskII
+  // read phase lines to check for smartport reset or enable
+  switch (iwm_phases())
+  {
+  case iwm_phases_t::idle:
+    break;
+  case iwm_phases_t::reset:
+    Debug_printf(("\r\nReset"));
+
+    // clear all the device addresses
+    for (auto devicep : _daisyChain)
+      devicep->_devnum = 0;
+
+    while (iwm_phases() == iwm_phases_t::reset)
+      portYIELD(); // no timeout needed because the IWM must eventually clear reset.
+    // even if it doesn't, we would just come back to here, so might as
+    // well wait until reset clears.
+
+    Debug_printf(("\r\nReset Cleared"));
+
+    // if /EN35 is high, we must be on a host that supports 3.5 dumb drives
+    // lets sample it here in case the host is not on when the FN is powered on/reset
+    (GPIO.in1.val & (0x01 << (SP_EN35 - 32))) ? en35Host = true : en35Host = false;
+    Debug_printf("\r\nen35Host = %d",en35Host);
+
+    break;
+  case iwm_phases_t::enable:
+    // expect a command packet
+    // portDISABLE_INTERRUPTS();
+    // if(smartport.iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
+    // {
+    //   portENABLE_INTERRUPTS();
+    //   return;
+    // }
+    // should not ACK unless we know this is our Command
+
+    if (sp_command_mode != sp_cmd_state_t::command)
+    {
+      // iwm_ack_deassert(); // go hi-Z
+      return;
+    }
+    /** instead of iwm_phases, create an iwm_state() and switch on that. States would be:
+     * IDLE
+     * RESET
+     * RESET CLEARED
+     * ENABLED
+     * REQ ASSERTED
+     * REQ DEASSERTED
+     * pretty much what i'm doing above - in fact don't need to change the function calls here,
+     * just need to change what's in the functions
+     * */
+
+    if (command_packet.command == 0x85)
+    {
+      // iwm_ack_assert(); // includes waiting for spi read transaction to finish
+      // portENABLE_INTERRUPTS();
+
+      // wait for REQ to go low
+      if (iwm_req_deassert_timeout(50000))
+      {
+        // iwm_ack_deassert(); // go hi-Z
+        return;
+      }
+      // if (smartport.req_wait_for_falling_timeout(50000))
+      //   return;
+
+#ifdef DEBUG
+      print_packet(command_packet.data);
+      Debug_printf("\r\nhandling init command");
+#endif
+      handle_init();
+    }
+    else
+    {
+      for (auto devicep : _daisyChain)
+      {
+        if (command_packet.dest == devicep->_devnum)
+        {
+          // wait for REQ to go low
+          if (iwm_req_deassert_timeout(50000))
+          {
+            Debug_printf("\nREQ timeout in command processing");
+            iwm_ack_deassert(); // go hi-Z
+            return;
+          }
+          // need to take time here to service other ESP processes so they can catch up
+          taskYIELD(); // Allow other tasks to run
+          Debug_printf("\nCommand Packet:");
+          print_packet(command_packet.data);
+
+          _activeDev = devicep;
+          // handle command
+          memset(command.decoded, 0, sizeof(command.decoded));
+          smartport.decode_data_packet(command_packet.data, command.decoded);
+          print_packet(command.decoded, 9);
+          _activeDev->process(command);
+        }
+      }
+    }
+
+    sp_command_mode = sp_cmd_state_t::standby;
+    memset(command_packet.data, 0, sizeof(command_packet));
+
+    iwm_ack_deassert(); // go hi-Z
+  }                     // switch (phasestate)
+
+    #if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
   // check on the diskii status
   switch (iwm_drive_enabled())
   {
@@ -474,122 +585,6 @@ void IRAM_ATTR iwmBus::service()
   }
 #endif
 
-  // read phase lines to check for smartport reset or enable
-  switch (iwm_phases())
-  {
-  case iwm_phases_t::idle:
-    break;
-  case iwm_phases_t::reset:
-    Debug_printf(("\r\nReset"));
-
-    // clear all the device addresses
-    for (auto devicep : _daisyChain)
-      devicep->_devnum = 0;
-
-    while (iwm_phases() == iwm_phases_t::reset)
-      portYIELD(); // no timeout needed because the IWM must eventually clear reset.
-    // even if it doesn't, we would just come back to here, so might as
-    // well wait until reset clears.
-
-    Debug_printf(("\r\nReset Cleared"));
-
-    // if /EN35 is high, we must be on a host that supports 3.5 dumb drives
-    // lets sample it here in case the host is not on when the FN is powered on/reset
-    (GPIO.in1.val & (0x01 << (SP_EN35 - 32))) ? en35Host = true : en35Host = false;
-    Debug_printf("\r\nen35Host = %d",en35Host);
-
-    break;
-  case iwm_phases_t::enable:
-    // expect a command packet
-    // portDISABLE_INTERRUPTS();
-    // if(smartport.iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
-    // {
-    //   portENABLE_INTERRUPTS();
-    //   return;
-    // }
-    // should not ACK unless we know this is our Command
-
-    if (!sp_command_mode)
-    {
-      // iwm_ack_deassert(); // go hi-Z
-      return;
-    }
-    /** instead of iwm_phases, create an iwm_state() and switch on that. States would be:
-     * IDLE
-     * RESET
-     * RESET CLEARED
-     * ENABLED
-     * REQ ASSERTED
-     * REQ DEASSERTED
-     * pretty much what i'm doing above - in fact don't need to change the function calls here,
-     * just need to change what's in the functions
-     * */
-
-    if (command_packet.command == 0x85)
-    {
-      // iwm_ack_assert(); // includes waiting for spi read transaction to finish
-      // portENABLE_INTERRUPTS();
-
-      // wait for REQ to go low
-      if (iwm_req_deassert_timeout(50000))
-      {
-        // iwm_ack_deassert(); // go hi-Z
-        return;
-      }
-      // if (smartport.req_wait_for_falling_timeout(50000))
-      //   return;
-
-#ifdef DEBUG
-      print_packet(command_packet.data);
-      Debug_printf("\r\nhandling init command");
-#endif
-      if (verify_cmdpkt_checksum())
-      {
-        Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-        Debug_printf("\r\ndo init anyway");
-      } // to do - checksum verification? How to respond?
-      handle_init();
-    }
-    else
-    {
-      for (auto devicep : _daisyChain)
-      {
-
-        if (command_packet.dest == devicep->_devnum)
-
-        {
-          // iwm_ack_assert(); // includes waiting for spi read transaction to finish
-          // portENABLE_INTERRUPTS();
-          // wait for REQ to go low
-          if (iwm_req_deassert_timeout(50000))
-          {
-            // iwm_ack_deassert(); // go hi-Z
-            return;
-          }
-          // need to take time here to service other ESP processes so they can catch up
-          taskYIELD(); // Allow other tasks to run
-          print_packet(command_packet.data);
-
-          _activeDev = devicep;
-          // handle command
-          if (verify_cmdpkt_checksum())
-          {
-            Debug_printf("\r\nBAD CHECKSUM!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
-            _activeDev->iwm_return_ioerror();
-          }
-          else
-          {
-            memset(command.decoded, 0, sizeof(command.decoded));
-            smartport.decode_data_packet(command_packet.data, command.decoded);
-            print_packet(command.decoded, 9);
-            _activeDev->process(command);
-          }
-        }
-      }
-    }
-    sp_command_mode = false;
-    iwm_ack_deassert(); // go hi-Z
-  }                     // switch (phasestate)
 }
 
 iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
@@ -646,10 +641,10 @@ void iwmBus::handle_init()
     }
     // assign dev numbers
     pDevice = (*it);
-    
+    pDevice->switched = false; //reset switched condition on init
+    pDevice->eject_latch = false; //reset eject latch on init
     if (pDevice->id() == 0)
     {
-      pDevice->switched = false; //reset switched condition on init
       pDevice->_devnum = command_packet.dest; // assign address
       if (++it == _daisyChain.end())
         status = 0xff; // end of the line, so status=non zero - to do: check GPIO for another device in the physical daisy chain

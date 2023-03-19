@@ -26,29 +26,33 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 {
     uint8_t ck = 0;
 
-    // TODO IMPLEMENT 
+    // TODO IMPLEMENT
 
     return ck;
 }
 
 void virtualDevice::cx16_nak()
 {
-    // TODO IMPLEMENT
+    Debug_println("NAK!");
+    CX16.address_write(5, 'N');
 }
 
 void virtualDevice::cx16_ack()
 {
-    // TODO IMPLEMENT
+    Debug_println("ACK!");
+    CX16.address_write(5, 'A');
 }
 
 void virtualDevice::cx16_complete()
 {
-    // TODO IMPLEMENT
+    Debug_println("COMPLETE!");
+    CX16.address_write(6, 'C');
 }
 
 void virtualDevice::cx16_error()
 {
-    // TODO IMPLEMENT
+    Debug_println("ERROR!");
+    CX16.address_write(5, 'E');
 }
 
 systemBus virtualDevice::get_bus()
@@ -56,45 +60,75 @@ systemBus virtualDevice::get_bus()
     return CX16;
 }
 
-uint8_t systemBus::get_byte()
+void systemBus::address_read(uint8_t addr)
 {
-    i2c_reset_rx_fifo(i2c_slave_port);
-    i2c_reset_tx_fifo(i2c_slave_port);
-    while (!(i2c_slave_read_buffer(i2c_slave_port,i2c_buffer,I2C_SLAVE_RX_BUF_LEN,400/portTICK_PERIOD_MS)));
-    i2c_reset_rx_fifo(i2c_slave_port);
-    i2c_reset_tx_fifo(i2c_slave_port);
-    return i2c_buffer[0];
+    if (addr < sizeof(i2c_register))
+    {
+        Debug_printf("address_read(%u) = '%02X'\n", addr, i2c_register[addr]);
+        i2c_buffer[0] = i2c_register[addr];
+        i2c_slave_write_buffer(i2c_slave_port, i2c_buffer, 1, 1 / portTICK_PERIOD_MS);
+
+        if (addr == 0x00)
+            process_cmd();
+    }
+}
+
+void systemBus::address_write(uint8_t addr, uint8_t val)
+{
+    if (addr < sizeof(i2c_register))
+    {
+        Debug_printf("address_write(%u) = '%02X'\n", addr, val);
+        i2c_register[addr] = val;
+
+        if (addr == 0x00)
+            memset(&i2c_register[1], 0, 15); // Clear all other registers
+    }
+}
+
+void systemBus::payload_add(uint8_t *buf, uint16_t len)
+{
+    std::string newPayload = std::string((const char *)buf, len);
+    i2c_payload += newPayload;
 }
 
 void systemBus::process_cmd()
 {
     cmdFrame_t tempFrame;
+    uint8_t ck;
 
     fnLedManager.set(eLed::LED_BUS, true);
-    
-    tempFrame.device = i2c_buffer[0];
-    tempFrame.comnd = get_byte();
-    tempFrame.aux1 = get_byte();
-    tempFrame.aux2 = get_byte();
-    tempFrame.cksum = get_byte();
+
+    tempFrame.device = i2c_register[0];
+    tempFrame.comnd = i2c_register[1];
+    tempFrame.aux1 = i2c_register[2];
+    tempFrame.aux2 = i2c_register[3];
+    tempFrame.cksum = i2c_register[4];
 
     Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
 
-    uint8_t ck = cx16_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
+    ck = cx16_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata));
 
-    if (ck != tempFrame.checksum)
+    if (ck != tempFrame.cksum)
     {
-        Debug_print("CHECKSUM ERROR.");
-        fnLedManager.set(eLed::LED_BUS, false);
+        Debug_printf("INVALID CHECKSUM! Got %02X expected %02X", ck, tempFrame.cksum);
+        i2c_register[5] = 'N'; // NAK
         return;
     }
+    else
+    {
+        i2c_register[5] = 'A'; // ACK
+    }
 
-    // Find device, and pass control to it, otherwise do nothing.
-    virtualDevice *d = deviceById(tempFrame.device);
-
-    if (d)
-        d->process(tempFrame.commanddata,tempFrame.checksum);
+    for (auto devicep : _daisyChain)
+    {
+        if (tempFrame.device == devicep->_devnum)
+        {
+            _activeDev = devicep;
+            // handle command
+            _activeDev->process(tempFrame.commanddata, tempFrame.checksum);
+        }
+    }
 
     fnLedManager.set(eLed::LED_BUS, false);
 }
@@ -106,17 +140,27 @@ void systemBus::process_queue()
 
 void systemBus::service()
 {
-    int command_available=false;
+    // Get packet
+    int l = i2c_slave_read_buffer(i2c_slave_port, i2c_buffer, sizeof(i2c_buffer), 1 / portTICK_PERIOD_MS);
 
-    // TESTING
-    memset(i2c_buffer,0,sizeof(i2c_buffer));
-    command_available=i2c_slave_read_buffer(i2c_slave_port,i2c_buffer,I2C_SLAVE_RX_BUF_LEN,400/portTICK_PERIOD_MS);
-    
-    if (command_available)
-        process_cmd();
+    if (l)
+    {
+        for (int i = 0; i < l; i++)
+            Debug_printf("%02x ",i);
 
-    i2c_reset_rx_fifo(i2c_slave_port);
-    i2c_reset_tx_fifo(i2c_slave_port);
+        Debug_printf("\n\n");
+    }
+
+    // // 1 byte packet = READ
+    // if (l == 1)
+    // {
+    //     address_read(i2c_buffer[0]);
+    // }
+    // else if (l == 2) // WRITE
+    // {
+    //     address_write(i2c_buffer[0], i2c_buffer[1]);
+    // }
+
 }
 
 void systemBus::setup()
@@ -133,13 +177,14 @@ void systemBus::setup()
     conf_slave.clk_flags = 0;
 
     esp_err_t err = i2c_param_config(i2c_slave_port, &conf_slave);
-    
-    if (err != ESP_OK) {
+
+    if (err != ESP_OK)
+    {
         return;
     }
 
-    i2c_driver_install(i2c_slave_port,conf_slave.mode,I2C_SLAVE_RX_BUF_LEN,I2C_SLAVE_TX_BUF_LEN, 0);
-    Debug_printf("I²C installed on port %d as device 0x%02X\n",i2c_slave_port,I2C_DEVICE_ID);
+    i2c_driver_install(i2c_slave_port, conf_slave.mode, I2C_SLAVE_RX_BUF_LEN, I2C_SLAVE_TX_BUF_LEN, 0);
+    Debug_printf("I²C installed on port %d as device 0x%02X\n", i2c_slave_port, I2C_DEVICE_ID);
 }
 
 void systemBus::addDevice(virtualDevice *pDevice, int device_id)
@@ -153,7 +198,7 @@ void systemBus::addDevice(virtualDevice *pDevice, int device_id)
     // TODO, add device shortcut pointer logic like others
 
     pDevice->_devnum = device_id;
-    _daisyChain.push_front(pDevice);    
+    _daisyChain.push_front(pDevice);
 }
 
 void systemBus::remDevice(virtualDevice *pDevice)
@@ -198,7 +243,7 @@ void systemBus::shutdown()
 
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n",devicep->id());
+        Debug_printf("Shutting down device %02x\n", devicep->id());
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\n");
