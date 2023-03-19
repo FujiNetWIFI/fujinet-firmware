@@ -511,19 +511,25 @@ void iecNetwork::data_waiting()
 
     if (t.size()<2)
     {
+        Debug_printf("No channel #, sending 0\n");
         response_queue.push(data_waiting_no);
         return;
     }
 
     int channel = atoi(t[1].c_str());
 
-    if (!protocol[channel])
-    {
-        response_queue.push(data_waiting_no);
-        return;
-    }
+    Debug_printf("Channel: %u\n",channel);
 
-    if (protocol[channel]->receiveBuffer->length())
+    // if (protocol[channel]==nullptr)
+    // {
+    //     Debug_printf("No protocol for channel #%u, sending 0\n",channel);
+    //     response_queue.push(data_waiting_no);
+    //     return;
+    // }
+
+    Debug_printf("%u bytes waiting.\r",protocol[channel]->receiveBuffer->length());
+    
+    if (protocol[channel]->receiveBuffer->length()>0)
         response_queue.push(data_waiting_yes);
     else
         response_queue.push(data_waiting_no);
@@ -564,9 +570,9 @@ device_state_t iecNetwork::process(IECData *id)
     virtualDevice::process(id);
 
     // only process command channel on unlisten
-    if (commanddata->channel == 15)
-        if (commanddata->primary != 0x3F)
-            return device_state;
+    // if (commanddata->channel == 15)
+    //     if (commanddata->primary != 0x3F)
+    //         return device_state;
 
     // fan out to appropriate process routine
     switch (commanddata->channel)
