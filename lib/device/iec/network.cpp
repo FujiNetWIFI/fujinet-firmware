@@ -159,7 +159,7 @@ void iecNetwork::iec_open()
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
-        delete protocol;
+        delete protocol[commanddata->channel];
         protocol[commanddata->channel] = nullptr;
         return;
     }
@@ -184,7 +184,7 @@ void iecNetwork::iec_close()
     protocol[commanddata->channel]->close();
 
     // Delete the protocol object
-    delete protocol;
+    delete protocol[commanddata->channel];
     protocol[commanddata->channel] = nullptr;
 }
 
