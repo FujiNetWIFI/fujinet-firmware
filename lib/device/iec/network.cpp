@@ -170,8 +170,12 @@ void iecNetwork::iec_close()
 {
     Debug_printf("iwmNetwork::close()\n");
 
-    delete json[commanddata->channel];
-
+    if (json[commanddata->channel] != nullptr)
+    {
+        delete json[commanddata->channel];
+        json[commanddata->channel] = nullptr;
+    }
+    
     statusByte.byte = 0x00;
 
     // If no protocol enabled, we just signal complete, and return.
