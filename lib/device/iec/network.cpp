@@ -175,7 +175,7 @@ void iecNetwork::iec_close()
         delete json[commanddata->channel];
         json[commanddata->channel] = nullptr;
     }
-    
+
     statusByte.byte = 0x00;
 
     // If no protocol enabled, we just signal complete, and return.
@@ -512,6 +512,7 @@ void iecNetwork::data_waiting()
     vector<string> t = util_tokenize(payload,',');
     string data_waiting_yes = "1\r";
     string data_waiting_no = "0\r";
+    NetworkStatus ns;
 
     if (t.size()<2)
     {
@@ -531,9 +532,9 @@ void iecNetwork::data_waiting()
         return;
     }
 
-    Debug_printf("\n\n%u bytes waiting.\n",protocol[channel]->receiveBuffer->length());
-    
-    if (protocol[channel]->receiveBuffer->length()>0)
+    protocol[channel]->status(&ns);
+
+    if (ns.rxBytesWaiting)
         response_queue.push(data_waiting_yes);
     else
         response_queue.push(data_waiting_no);
