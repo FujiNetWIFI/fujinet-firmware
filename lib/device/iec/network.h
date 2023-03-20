@@ -59,27 +59,27 @@ private:
     /**
      * JSON Object
      */
-    FNJSON json;
+    FNJSON *json[16];
 
     /**
-     * The Receive buffer for this N: device
+     * The Receive buffers for this N: device
      */
-    std::string *receiveBuffer = nullptr;
+    std::string *receiveBuffer[16] = {nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr};
 
     /**
-     * The transmit buffer for this N: device
+     * The transmit buffers for this N: device
      */
-    std::string *transmitBuffer = nullptr;
+    std::string *transmitBuffer[16] = {nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr};
 
     /**
-     * The special buffer for this N: device
+     * The special buffers for this N: device
      */
-    std::string *specialBuffer = nullptr;
+    std::string *specialBuffer[16] = {nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr};
 
     /**
      * The EdUrlParser object used to hold/process a URL
      */
-    EdUrlParser *urlParser = nullptr;
+    EdUrlParser *urlParser[16] = {nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr,nullptr};
 
     /**
      * Instance of currently open network protocol
@@ -110,7 +110,7 @@ private:
     /**
      * @brief the Device spec currently open (N:TCP://192.168.1.1:1234/)
      */
-    string deviceSpec;
+    string deviceSpec[16];
 
     /**
      * The channel mode for a given IEC subdevice. By default, it is PROTOCOL, which passes
@@ -146,7 +146,7 @@ private:
     /**
      * @brief the current translation mode for given channel.
      */
-    uint8_t translationMode[15] = 
+    uint8_t translationMode[16] = 
     {
         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
     };
