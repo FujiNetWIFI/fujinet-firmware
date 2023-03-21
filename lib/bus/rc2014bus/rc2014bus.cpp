@@ -25,11 +25,6 @@
 // - "new disk" in disk.cpp needs rewriting for recv
 // - decide on whether we should include checksum on disk sector read/write
 
-static std::array<uint8_t, 1024> L_rx_buffer;
-static std::array<uint8_t, 1024> L_tx_buffer;
-static unsigned int L_tx_buffer_index;
-
-
 uint8_t rc2014_checksum(uint8_t *buf, unsigned short len)
 {
     uint8_t checksum = 0x00;
@@ -119,6 +114,10 @@ void virtualDevice::rc2014_flush()
 
 size_t virtualDevice::rc2014_send_buffer(const uint8_t *buf, unsigned short len)
 {
+    unsigned short buf_len = rc2014Bus.busTxAvail();
+    if (len > buf_len)
+        len = buf_len;
+
     for (int i = 0; i < len; i++) {
         //Debug_printf("[0x%02x] ", buf[i]);
         rc2014_send(buf[i]);
@@ -126,6 +125,11 @@ size_t virtualDevice::rc2014_send_buffer(const uint8_t *buf, unsigned short len)
     //Debug_printf("\n");
 
     return len;
+}
+
+size_t virtualDevice::rc2014_send_available()
+{
+    return rc2014Bus.busTxAvail();
 }
 
 uint8_t virtualDevice::rc2014_recv()
@@ -238,6 +242,11 @@ void virtualDevice::rc2014_handle_stream()
     //fnUartSIO.flush_input();
 }
 
+bool virtualDevice::rc2014_poll_interrupt()
+{
+    return false;
+}
+
 void virtualDevice::rc2014_idle()
 {
     // Not implemented in base class
@@ -258,9 +267,9 @@ void systemBus::_rc2014_process_cmd()
     tempFrame.checksum = 0;
 
 
-    size_t bytes_read = busRxBuffer(L_rx_buffer.data(), sizeof(cmdFrame_t));
+    size_t bytes_read = busRxBuffer(_rx_buffer.data(), sizeof(cmdFrame_t));
     Debug_printf("(bytes_read = %d)\n", (int)bytes_read);
-    memcpy(&tempFrame, L_rx_buffer.data(), sizeof(cmdFrame_t));
+    memcpy(&tempFrame, _rx_buffer.data(), sizeof(cmdFrame_t));
 
     if (bytes_read != sizeof(tempFrame))
     {
@@ -328,10 +337,10 @@ void systemBus::_rc2014_process_data()
     uint8_t data_cmd;
 
     // read data command
-    size_t bytes_read = busRxBuffer(L_rx_buffer.data(), 1);
-    data_cmd = L_rx_buffer[0];
+    size_t bytes_read = busRxBuffer(_rx_buffer.data(), 1);
+    data_cmd = _rx_buffer[0];
 
-    // TODO: copy data to and from RX and TX buffers (L_stream_buffer)
+    // TODO: copy data to and from RX and TX buffers (_stream_buffer)
     if (bytes_read != sizeof(data_cmd))
     {
         Debug_printf("Timeout waiting for data after DATA pin asserted (bytes_read = %d)\n", (int)bytes_read);
@@ -345,7 +354,7 @@ void systemBus::_rc2014_process_data()
     else
     // Neither CMD nor active streaming device, so throw out any stray input data
     {
-        //L_stream_buffer.flush_input();
+        //_stream_buffer.flush_input();
     };
 }
 
@@ -353,6 +362,21 @@ void systemBus::_rc2014_process_data()
 void systemBus::_rc2014_process_queue()
 {
 }
+
+bool systemBus::_rc2014_poll_interrupts()
+{
+    bool result = false;
+
+    for (auto& devicep : _daisyChain) {
+        if (devicep.second->device_active) {
+            if (devicep.second->rc2014_poll_interrupt())
+                result = true;
+        }
+    }
+
+    return result;
+}
+
 
 void systemBus::service()
 {
@@ -372,14 +396,8 @@ void systemBus::service()
         Debug_println("RC2014 DATA low");
         //_rc2014_process_data();
     }
-#if 0
-    // Handle interrupts from network protocols
-    for (int i = 0; i < 8; i++)
-    {
-        if (_netDev[i] != nullptr)
-            _netDev[i]->rs232_poll_interrupt();
-    }
-#endif
+
+    fnSystem.digital_write(PIN_PROCEED, _rc2014_poll_interrupts() ? DIGI_LOW : DIGI_HIGH);
 }
 
 //Called after a transaction is queued and ready for pickup by master.
@@ -404,6 +422,8 @@ void systemBus::setup()
     fnSystem.set_pin_mode(PIN_CMD_RDY, gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_CMD_RDY, DIGI_HIGH);
 
+    fnSystem.set_pin_mode(PIN_PROCEED, gpio_mode_t::GPIO_MODE_OUTPUT);
+    fnSystem.digital_write(PIN_PROCEED, DIGI_HIGH);
 
     // Set up SPI bus
     spi_bus_config_t bus_cfg = 
@@ -544,17 +564,22 @@ void systemBus::streamDeactivate()
 size_t systemBus::busTxBuffer(const uint8_t *buf, unsigned short len)
 {
     for (unsigned short i = 0; i < len; i++) {
-        L_tx_buffer[L_tx_buffer_index] = buf[i];
-        L_tx_buffer_index++;
+        _tx_buffer[_tx_buffer_index] = buf[i];
+        _tx_buffer_index++;
     }
 
     return len;
 }
 
+size_t systemBus::busTxAvail()
+{
+    return RC2014_TX_BUFFER_SIZE - _tx_buffer_index;
+}
+
 size_t systemBus::busTxByte(const uint8_t byte)
 {
-    L_tx_buffer[L_tx_buffer_index] = byte;
-    L_tx_buffer_index++;
+    _tx_buffer[_tx_buffer_index] = byte;
+    _tx_buffer_index++;
 
     return 1;
 }
@@ -563,37 +588,31 @@ size_t systemBus::busTxTransfer()
 {
     spi_slave_transaction_t t = {};
 
-    Debug_printf("systemBus::busTxTransfer = %d bytes\n", L_tx_buffer_index);
-    //for (int i = 0; i < L_tx_buffer_index; i++)
-    //    Debug_printf("[0x%02x] ", L_tx_buffer[i]);
-    //Debug_printf("\n");
-
     unsigned int i = 0;
     esp_err_t rc = ESP_OK;
 
     do {
-        t.tx_buffer = &L_tx_buffer[i];
-        t.rx_buffer = &L_rx_buffer[i];
+        t.tx_buffer = &_tx_buffer[i];
+        t.rx_buffer = &_rx_buffer[i];
 
-        if ((L_tx_buffer_index - i) > 64) {
+        if ((_tx_buffer_index - i) > 64) {
             t.length = 64 * 8;   // bits
-            Debug_printf("systemBus::busTxTransfer[%u] = %d bits\n", i, t.length);
             i += 64;
         } else {
-            unsigned int len = L_tx_buffer_index - i;
+            unsigned int len = _tx_buffer_index - i;
             t.length = len * 8;   // bits
-            Debug_printf("systemBus::busTxTransfer[%u] = %d bits\n", i, t.length);
             i += len;
         }
 
         rc = spi_slave_transmit(RC2014_SPI_HOST, &t, portMAX_DELAY);
-        Debug_printf("systemBus::busTxTransfer trans length = %d\n", t.trans_len);
-    } while ((rc == ESP_OK) && (i < L_tx_buffer_index));
+    } while ((rc == ESP_OK) && (i < _tx_buffer_index));
 
-    L_tx_buffer_index = 0;
+    _tx_buffer_index = 0;
 
-    if (rc != ESP_OK)
+    if (rc != ESP_OK) {
+        Debug_printf("systemBus::busTxBuffer rc = %d\n", rc);
         return 0;
+    }
 
     return t.trans_len / 8;
 }
@@ -605,24 +624,20 @@ size_t systemBus::busRxBuffer(uint8_t *buf, unsigned short len)
     unsigned int i = 0;
     esp_err_t rc = ESP_OK;
 
-
     do {
-        t.tx_buffer = &L_tx_buffer[i];
+        t.tx_buffer = &_tx_buffer[i];
         t.rx_buffer = &buf[i];
 
         if ((len - i) > 64) {
             t.length = 64 * 8;   // bits
-            Debug_printf("systemBus::busRxTransfer[%u] = %d bits\n", i, t.length);
             i += 64;
         } else {
             unsigned int rlen = len - i;
             t.length = rlen * 8;   // bits
-            Debug_printf("systemBus::busRxTransfer[%u] = %d bits\n", i, t.length);
             i += rlen;
         }
 
         rc = spi_slave_transmit(RC2014_SPI_HOST, &t, portMAX_DELAY);
-        Debug_printf("systemBus::busRxTransfer trans length = %d\n", t.trans_len);
     } while ((rc == ESP_OK) && (i < len));
 
     if (rc != ESP_OK) {
@@ -631,7 +646,6 @@ size_t systemBus::busRxBuffer(uint8_t *buf, unsigned short len)
     }
 
     return t.trans_len / 8;
-
 }
 
 systemBus rc2014Bus;
