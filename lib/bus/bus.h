@@ -46,4 +46,9 @@
 #define SYSTEM_BUS CX16
 #endif
 
+#ifdef BUILD_RC2014
+#include "rc2014bus/rc2014bus.h"
+#define SYSTEM_BUS rc2014Bus
+#endif
+
 #endif // BUS_H

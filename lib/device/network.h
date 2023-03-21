@@ -10,7 +10,7 @@
 #endif
 
 #ifdef BUILD_IEC
-//# include "iec/network.h"
+# include "iec/network.h"
 #endif
 
 #ifdef BUILD_ADAM
@@ -27,6 +27,10 @@
 
 #ifdef BUILD_S100
 # include "s100spi/network.h"
+#endif
+
+#ifdef BUILD_RC2014
+# include "rc2014/network.h"
 #endif
 
 #ifdef NEW_TARGET

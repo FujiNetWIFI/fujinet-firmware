@@ -122,12 +122,20 @@ void main_setup()
 #endif // BUILD_ATARI
 
 #ifdef BUILD_IEC
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+
     // Setup IEC Bus
     IEC.setup();
+//    iecPrinter::printer_type ptype = Config.get_printer_type(0);
+    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_EPSON; // temporary
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+    iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+    IEC.addDevice(ptr, 0x04); // add as device #4 for now
     theFuji.setup(&IEC);
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
-#endif // BUILD_CBM
+
+#endif // BUILD_IEC
 
 #ifdef BUILD_LYNX
     theFuji.setup(&ComLynx);
@@ -138,6 +146,27 @@ void main_setup()
     theFuji.setup(&RS232);
     RS232.setup();
     RS232.addDevice(&theFuji,0x70);
+#endif
+
+#ifdef BUILD_RC2014
+    theFuji.setup(&rc2014Bus);
+    rc2014Bus.setup();
+    
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    rc2014Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == rc2014Printer::printer_type::PRINTER_INVALID)
+        ptype = rc2014Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+
+    rc2014Printer *ptr = new rc2014Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    rc2014Bus.addDevice(ptr, RC2014_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    sioR = new rc2014Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    rc2014Bus.addDevice(sioR, RC2014_DEVICEID_MODEM); // R:
+
 #endif
 
 #ifdef BUILD_ADAM
@@ -178,6 +207,7 @@ void main_setup()
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
+
     iwmModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());

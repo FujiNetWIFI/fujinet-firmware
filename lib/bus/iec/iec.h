@@ -343,6 +343,19 @@ public:
     void sendBytes(std::string s);
 
     /**
+     * @brief Receive Byte from bus
+     * @return Byte received from bus, or -1 for error.
+     */
+    int16_t receiveByte();
+
+    /**
+     * @brief send single byte
+     * @param c byte to send
+     * @param eoi Send EOI?
+    */
+   void sendByte(const char c, bool eoi);
+
+    /**
      * @brief called in response to RESET pin being asserted.
      */
     void reset_all_our_devices();
@@ -400,26 +413,17 @@ public:
     // true => PULL => LOW
     inline void IRAM_ATTR pull(uint8_t pin)
     {
-#ifndef IEC_SPLIT_LINES
-        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
-#endif
         fnSystem.digital_write(pin, 0);
     }
 
     // false => RELEASE => HIGH
     inline void IRAM_ATTR release(uint8_t pin)
     {
-#ifndef IEC_SPLIT_LINES
-        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
-#endif
         fnSystem.digital_write(pin, 1);
     }
 
     inline bool IRAM_ATTR status(uint8_t pin)
     {
-#ifndef IEC_SPLIT_LINES
-        set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
-#endif
         return gpio_get_level((gpio_num_t)pin) ? 0 : 1;
     }
 

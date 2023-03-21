@@ -134,6 +134,8 @@ bool NetworkProtocolTNFS::read_file_handle(uint8_t *buf, unsigned short len)
         else
             block_len = total_len;
 
+        Debug_printf("NetworkProtocolTNFS::read_file_handle - read block size %u\n",block_len);
+
         tnfs_error = tnfs_read(&mountInfo, fd, buf, block_len, &actual_len);
         if (tnfs_error != 0)
         {

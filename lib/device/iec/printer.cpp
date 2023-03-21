@@ -12,22 +12,12 @@
 
 #include "file_printer.h"
 #include "html_printer.h"
-#include "atari_820.h"
-#include "atari_822.h"
-#include "atari_825.h"
-#include "svg_plotter.h"
-#include "atari_1020.h"
-#include "atari_1025.h"
-#include "atari_1027.h"
-#include "atari_1029.h"
 #include "epson_80.h"
 #include "epson_tps.h"
-#include "atari_xmm801.h"
-#include "atari_xdm121.h"
 #include "okimate_10.h"
-#include "png_printer.h"
+#include "commodoremps803.h"
 
-constexpr const char * const iecPrinter::printer_model_str[PRINTER_INVALID];
+constexpr const char *const iecPrinter::printer_model_str[PRINTER_INVALID];
 
 iecPrinter::~iecPrinter()
 {
@@ -35,9 +25,35 @@ iecPrinter::~iecPrinter()
 }
 
 // write for W commands
-void iecPrinter::write(uint8_t aux1, uint8_t aux2)
+void iecPrinter::write(uint8_t channel)
 {
-    // TODO IMPLEMENT
+    // Receive data from computer
+    while (!(IEC.flags & EOI_RECVD))
+    {
+        int16_t b = IEC.receiveByte();
+        if (b == -1)
+        {
+            return;
+        }
+
+        buffer.push_back(b);
+    }
+
+    // Send data to printer
+    while (buffer.length() > 0)
+    {
+        int s = 0;
+
+        if (buffer.size() > 80)
+            s = 80;
+        else
+            s = buffer.size();
+
+        memcpy(&_pptr->provideBuffer()[0], buffer.data(), s);
+        _pptr->process(s, commanddata->channel, 0);
+        _last_ms=fnSystem.millis();
+        buffer.erase(0, s);
+    }
 }
 
 /**
@@ -71,32 +87,8 @@ void iecPrinter::set_printer_type(iecPrinter::printer_type printer_type)
     case PRINTER_FILE_ASCII:
         _pptr = new filePrinter(ASCII);
         break;
-    case PRINTER_ATARI_820:
-        _pptr = new atari820;
-        break;
-    case PRINTER_ATARI_822:
-        _pptr = new atari822;
-        break;
-    case PRINTER_ATARI_825:
-        _pptr = new atari825;
-        break;
-    case PRINTER_ATARI_1020:
-        _pptr = new atari1020;
-        break;
-    case PRINTER_ATARI_1025:
-        _pptr = new atari1025;
-        break;
-    case PRINTER_ATARI_1027:
-        _pptr = new atari1027;
-        break;
-    case PRINTER_ATARI_1029:
-        _pptr = new atari1029;
-        break;
-    case PRINTER_ATARI_XMM801:
-        _pptr = new xmm801;
-        break;
-    case PRINTER_ATARI_XDM121:
-        _pptr = new xdm121;
+    case PRINTER_COMMODORE_MPS803:
+        _pptr = new commodoremps803;
         break;
     case PRINTER_EPSON:
         _pptr = new epson80;
@@ -106,9 +98,6 @@ void iecPrinter::set_printer_type(iecPrinter::printer_type printer_type)
         break;
     case PRINTER_OKIMATE10:
         _pptr = new okimate10;
-        break;
-    case PRINTER_PNG:
-        _pptr = new pngPrinter;
         break;
     case PRINTER_HTML:
         _pptr = new htmlPrinter;
@@ -130,6 +119,7 @@ iecPrinter::iecPrinter(FileSystem *filesystem, printer_type print_type)
 {
     _storage = filesystem;
     set_printer_type(print_type);
+    device_active = true;
 }
 
 void iecPrinter::shutdown()
@@ -138,27 +128,18 @@ void iecPrinter::shutdown()
         _pptr->closeOutput();
 }
 /* Returns a printer type given a string model name
-*/
+ */
 iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
 {
     const char *models[PRINTER_INVALID] =
         {
+            "Commodore MPS-803",
             "file printer (RAW)",
             "file printer (TRIM)",
             "file printer (ASCII)",
-            "Atari 820",
-            "Atari 822",
-            "Atari 825",
-            "Atari 1020",
-            "Atari 1025",
-            "Atari 1027",
-            "Atari 1029",
-            "Atari XMM801",
-            "Atari XDM121",
             "Epson 80",
             "Epson PrintShop",
             "Okimate 10",
-            "GRANTIC",
             "HTML printer",
             "HTML ATASCII printer"};
     int i;
@@ -170,10 +151,15 @@ iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
 }
 
 // Process command
-device_state_t iecPrinter::process(IECData *commanddata)
+device_state_t iecPrinter::process(IECData *id)
 {
-    // TODO IMPLEMENT
-    return DEVICE_IDLE;
+    // Call base class
+    virtualDevice::process(id);
+
+    if (commanddata->primary == IEC_LISTEN)
+        write(commanddata->channel);
+
+    return device_state;
 }
 
 #endif /* BUILD_IEC */
