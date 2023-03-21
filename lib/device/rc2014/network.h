@@ -102,7 +102,7 @@ public:
     /**
      * Check to see if PROCEED needs to be asserted.
      */
-    void rc2014net_poll_interrupt();
+    virtual bool rc2014_poll_interrupt() override;
 
     /**
      * Process incoming rc2014 command for device 0x7X
@@ -322,23 +322,23 @@ private:
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit rc2014net_error or rc2014net_complete().
      */
-    bool rc2014Network_write_channel(unsigned short num_bytes);
+    bool write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
      * value.
      */
-    void rc2014Network_status_local();
+    void status_local();
 
     /**
      * @brief perform channel status commands, if there is a protocol bound.
      */
-    void rc2014Network_status_channel();
+    void status_channel();
 
     /**
      * @brief get JSON status (# of bytes in receive channel)
      */
-    bool rc2014Network_status_channel_json(NetworkStatus *ns);
+    bool status_channel_json(NetworkStatus *ns);
 
     /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)
@@ -355,12 +355,10 @@ private:
      */
     virtual void rc2014_set_channel_mode();
 
-
-
     /**
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
      */
-    void rc2014Network_assert_interrupt();
+    void assert_interrupt();
 
     /**
      * @brief Perform the inquiry, handle both local and protocol commands.
@@ -371,12 +369,12 @@ private:
     /**
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
-    void rc2014Network_set_translation();
+    void set_translation();
 
     /**
      * @brief Set timer rate for PROCEED timer in ms
      */
-    void rc2014Network_set_timer_rate();
+    void set_timer_rate();
 
 
     /**
