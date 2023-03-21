@@ -213,15 +213,10 @@ void iecNetwork::iec_read()
         return;
     }
 
-    while (ns.rxBytesWaiting > 1)
-    {
-        protocol[commanddata->channel]->read(1);
-        IEC.sendByte(receiveBuffer[commanddata->channel]->at(0), false);
-        receiveBuffer[commanddata->channel]->erase(0, 1);
-    }
+    while (ns.rxBytesWaiting)
+        protocol[commanddata->channel]->read(ns.rxBytesWaiting);
 
-    IEC.sendByte(receiveBuffer[commanddata->channel]->at(0), true);
-    receiveBuffer[commanddata->channel]->erase(0, 1);
+    response_queue.push(*receiveBuffer[commanddata->channel]);
 }
 
 void iecNetwork::iec_write()
