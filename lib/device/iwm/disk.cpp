@@ -272,13 +272,34 @@ void iwmDisk::send_extended_status_dib_reply_packet() //XXX! currently unused
   data[24] = 0x0f; //
   IWM.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 25);
 }
-void iwmDisk::iwm_handle_eject(iwm_decoded_cmd_t cmd) {
-  Debug_printf("Hanlding Eject command\r\n");
-  unmount();
-  //switched = false; //force switched = false when ejected from host. 
-  iwm_return_noerror();
-  return;
+
+void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd) 
+{
+  err_result = SP_ERR_NOERROR;
+  
+  uint8_t control_code = get_status_code(cmd); 
+  Debug_printf("\nDisk Device %02x Control Code %02x", id(), control_code);
+  // already called by ISR
+  data_len = 512;
+  Debug_printf("\nDecoding Control Data Packet:");
+  IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+  // data_len = decode_packet((uint8_t *)data_buffer);
+  print_packet((uint8_t *)data_buffer, data_len);
+
+  switch (control_code)
+  {
+  case IWM_CTRL_EJECT_DISK:
+    Debug_printf("Handling Eject command\r\n");
+    unmount();
+    // switched = false; //force switched = false when ejected from host.
+    break;
+  default:
+    err_result = SP_ERR_BADCTL;
+    break;
+  }
+  send_reply_packet(err_result); 
 }
+
 void iwmDisk::process(iwm_decoded_cmd_t cmd)
 {
   uint8_t status_code;
@@ -307,9 +328,9 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
   case 0x04: // control
     status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     if (disk_num == '0' && status_code > 0x0A) // max regular control code is 0x0A to 3.5" disk
-      theFuji.FujiControl(cmd);
-    else  
-      iwm_handle_eject(cmd);
+      theFuji.FujiControl(cmd); // NEED TO FIX THIS IN CONFIG
+   else
+      iwm_ctrl(cmd);
     break;
   case 0x06: // open
     iwm_return_badcmd(cmd);
@@ -403,7 +424,7 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
   //get write data packet, keep trying until no timeout
   // to do - this blows up - check handshaking
   data_len = BLOCK_DATA_LEN;
-  if (IWM.iwm_read_packet_timeout(100, (unsigned char *)data_buffer, data_len))
+  if (IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len))
   {
     Debug_printf("\r\nTIMEOUT in read packet!");
     return;
@@ -514,7 +535,6 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
 }
 
 void iwmDisk::unmount()
-  
 {
       if (_disk != nullptr)
     {

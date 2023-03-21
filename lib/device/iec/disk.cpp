@@ -14,7 +14,8 @@ extern iecFuji theFuji;
 
 iecDisk::iecDisk()
 {
-    device_active = false;
+    // device_active = false;
+    device_active = true; // temporary during bring-up
 }
 
 // Read disk data and send to computer
@@ -32,7 +33,21 @@ void iecDisk::write(bool verify)
 // Status
 void iecDisk::status()
 {
-    // TODO IMPLEMENT
+    char reply[58];
+
+    Debug_println("status");
+
+    snprintf(reply,
+             sizeof(reply),
+             "%u,\"%s\",%u,%u\r",
+             error_response.errnum,
+             error_response.msg.c_str(),
+             error_response.track,
+             error_response.sector);
+    
+    Debug_printf("queueing reply: %s\n",reply);
+
+    response_queue.push(string(reply,sizeof(reply)));
 }
 
 // Disk format
@@ -80,10 +95,45 @@ bool iecDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
     return false;
 }
 
-// Process command
-device_state_t iecDisk::process(IECData *commanddata)
+void iecDisk::process_load()
 {
-    return DEVICE_IDLE;
+}
+
+void iecDisk::process_save()
+{
+}
+
+void iecDisk::process_command()
+{
+    if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
+        status();
+}
+
+void iecDisk::process_file()
+{
+}
+
+// Process command
+device_state_t iecDisk::process(IECData *id)
+{
+    virtualDevice::process(id);
+
+    switch (commanddata->channel)
+    {
+    case 0: // LOAD
+        process_load();
+        break;
+    case 1: // SAVE
+        process_save();
+        break;
+    case 15: // COMMAND
+        process_command();
+        break;
+    default: // Open files (2-14)
+        process_file();
+        break;
+    }
+    return device_state;
 }
 
 #endif /* BUILD_ATARI */

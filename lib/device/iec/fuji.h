@@ -13,8 +13,10 @@
 #include "fujiCmd.h"
 
 #define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 8
+#define MAX_DISK_DEVICES 4
 #define MAX_NETWORK_DEVICES 8
+
+#define MAX_APPKEY_LEN 64
 
 typedef struct
 {
@@ -65,6 +67,9 @@ private:
     appkey _current_appkey;
 
     AdapterConfig cfg;
+
+    void process_raw_commands();
+    void process_basic_commands();
 
 protected:
     void reset_fujinet();          // 0xFF
