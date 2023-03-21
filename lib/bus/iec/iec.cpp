@@ -58,7 +58,8 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         {
             if (response_queue.empty())
                 {
-                    IEC.senderTimeout();
+                    // Debug_println("Nothing in buffer, sending empty.\n");
+                    // IEC.senderTimeout();
                     break;
                 }
             else
