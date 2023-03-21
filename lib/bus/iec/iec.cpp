@@ -57,7 +57,10 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         if (device_state == DEVICE_TALK)
         {
             if (response_queue.empty())
-                break;
+                {
+                    IEC.senderTimeout();
+                    break;
+                }
             else
             {
                 Debug_printf("---Sending response %s\n", response_queue.front().c_str());
