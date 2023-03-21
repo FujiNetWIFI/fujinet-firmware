@@ -31,6 +31,9 @@
 
 #define rc2014_RESET_DEBOUNCE_PERIOD 100 // in ms
 
+constexpr int RC2014_TX_BUFFER_SIZE = 1024;
+constexpr int RC2014_RX_BUFFER_SIZE = 1024;
+
 union cmdFrame_t
 {
     struct
@@ -123,6 +126,12 @@ protected:
      * @return number of bytes sent.
      */
     size_t rc2014_send_buffer(const uint8_t *buf, unsigned short len);
+
+    /**
+     * @brief transmit buffer availability before a flush is needed
+     * @return number of bytes available.
+    */
+    size_t rc2014_send_available();
 
     /**
      * @brief Receive byte from rc2014
@@ -233,7 +242,13 @@ protected:
      * @brief handle the uart stream when not used for command
     */
     virtual void rc2014_handle_stream();
+
+    /**
+     * @brief poll device to see if an interrupt needs to be raised
+    */
+    virtual bool rc2014_poll_interrupt();
     
+
     /**
      * @brief command frame, used by network protocol, ultimately
      */
@@ -275,6 +290,11 @@ private:
     void _rc2014_process_cmd();
     void _rc2014_process_data();
     void _rc2014_process_queue();
+    bool _rc2014_poll_interrupts();
+
+    std::array<uint8_t, RC2014_RX_BUFFER_SIZE> _rx_buffer;
+    std::array<uint8_t, RC2014_TX_BUFFER_SIZE> _tx_buffer;
+    unsigned int _tx_buffer_index;
 
 public:
     void setup();
@@ -317,6 +337,7 @@ public:
      */
     size_t busTxBuffer(const uint8_t *buf, unsigned short len);
     size_t busTxByte(const uint8_t byte);
+    size_t busTxAvail();
     size_t busTxTransfer();
 
     size_t busRxBuffer(uint8_t *buf, unsigned short len);
