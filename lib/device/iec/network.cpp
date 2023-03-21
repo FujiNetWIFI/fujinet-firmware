@@ -214,7 +214,10 @@ void iecNetwork::iec_read()
     }
 
     while (ns.rxBytesWaiting)
+    {
         protocol[commanddata->channel]->read(ns.rxBytesWaiting);
+        protocol[commanddata->channel]->status(&ns);
+    }
 
     response_queue.push(*receiveBuffer[commanddata->channel]);
 }
