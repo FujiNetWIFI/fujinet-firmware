@@ -572,11 +572,6 @@ device_state_t iecNetwork::process(IECData *id)
     // Call base class
     virtualDevice::process(id);
 
-    // only process command channel on unlisten
-    // if (commanddata->channel == 15)
-    //     if (commanddata->primary != 0x3F)
-    //         return device_state;
-
     // fan out to appropriate process routine
     switch (commanddata->channel)
     {
