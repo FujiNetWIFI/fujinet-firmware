@@ -116,6 +116,7 @@ void iecDisk::process_file()
 // Process command
 device_state_t iecDisk::process(IECData *id)
 {
+    Debug_printf("iecDisk::process()\n");
     virtualDevice::process(id);
 
     switch (commanddata->channel)
