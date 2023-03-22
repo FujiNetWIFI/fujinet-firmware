@@ -938,27 +938,49 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
             if (f->isDir == true)
             {
                 chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "&parent_path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "\">";
-                chunk += "&#128448; ";
+                chunk += "&#128193; "; // file folder
             }
             else
             {
                 chunk += "<a href=\"/dslot?hostslot=" + qp.query_parsed["hostslot"] + "&filename=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "\">";
 
-                if ((string(f->filename).find(".atr") != string::npos) ||
+                if ( // Atari
+                    (string(f->filename).find(".atr") != string::npos) ||
                     (string(f->filename).find(".ATR") != string::npos) ||
                     (string(f->filename).find(".atx") != string::npos) ||
-                    (string(f->filename).find(".ATX") != string::npos))
+                    (string(f->filename).find(".ATX") != string::npos) ||
+                    // Apple II
+                    (string(f->filename).find(".po") != string::npos) ||
+                    (string(f->filename).find(".PO") != string::npos) ||
+                    (string(f->filename).find(".woz") != string::npos) ||
+                    (string(f->filename).find(".WOZ") != string::npos) ||
+                    (string(f->filename).find(".hdv") != string::npos) || // Hard Disk emoji not implemented
+                    (string(f->filename).find(".HDV") != string::npos) || // Hard Disk emoji not implemented
+                    // ADAM
+                    (string(f->filename).find(".dsk") != string::npos) ||
+                    (string(f->filename).find(".DSK") != string::npos) ||
+                    // Commodore
+                    (string(f->filename).find(".prg") != string::npos) ||
+                    (string(f->filename).find(".PRG") != string::npos) ||
+                    (string(f->filename).find(".d64") != string::npos) ||
+                    (string(f->filename).find(".D64") != string::npos)
+                    )
                 {
                     chunk += "&#128190; "; // floppy disk
                 }
-                else if ((string(f->filename).find(".cas") != string::npos) ||
-                         (string(f->filename).find(".CAS") != string::npos))
+                else if ( // ATARI
+                    (string(f->filename).find(".cas") != string::npos) ||
+                    (string(f->filename).find(".CAS") != string::npos) ||
+                    // ADAM
+                    (string(f->filename).find(".ddp") != string::npos) ||
+                    (string(f->filename).find(".DDP") != string::npos)
+                    )
                 {
-                    chunk += "&#128429; "; // cassette tape
+                    chunk += "&#10175; "; // cassette tape (double curly loop)
                 }
                 else
                 {
-                    chunk += "&#128462; "; // std document
+                    chunk += "&#128196; "; // std document (page facing up)
                 }
             }
 

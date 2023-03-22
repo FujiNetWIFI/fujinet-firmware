@@ -6,7 +6,7 @@
 #define SYSTEM_BUS SIO
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 #include "iec/iec.h"
 #define SYSTEM_BUS IEC
 #endif
@@ -44,6 +44,11 @@
 #ifdef BUILD_CX16
 #include "cx16_i2c/cx16_i2c.h"
 #define SYSTEM_BUS CX16
+#endif
+
+#ifdef BUILD_RC2014
+#include "rc2014bus/rc2014bus.h"
+#define SYSTEM_BUS rc2014Bus
 #endif
 
 #endif // BUS_H

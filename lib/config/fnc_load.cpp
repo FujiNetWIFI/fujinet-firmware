@@ -18,11 +18,12 @@ void fnConfig::load()
 {
     Debug_println("fnConfig::load");
 
-#if defined(NO_BUTTONS) || defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232)
+#if defined(NO_BUTTONS) || defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232) || defined(BUILD_RC2014)
     // Don't erase config if there are no buttons or on devices without Button B
 #else
     // Clear the config file if key is currently pressed
     // This is the "Turn on while holding B button to reset Config" option.
+#ifndef BUILD_IEC
     if (fnKeyManager.keyCurrentlyPressed(BUTTON_B))
     {
         Debug_println("fnConfig deleting configuration file and skipping SD check");
@@ -39,6 +40,8 @@ void fnConfig::load()
         _dirty = true; // We have a new config, so we treat it as needing to be saved
         return;
     }
+#endif
+
 #endif /* NO_BUTTONS */
 
     /*
