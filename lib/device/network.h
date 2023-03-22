@@ -9,7 +9,7 @@
 # include "rs232/network.h"
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/network.h"
 #endif
 
@@ -27,6 +27,10 @@
 
 #ifdef BUILD_S100
 # include "s100spi/network.h"
+#endif
+
+#ifdef BUILD_RC2014
+# include "rc2014/network.h"
 #endif
 
 #ifdef NEW_TARGET

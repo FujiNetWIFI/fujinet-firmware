@@ -43,7 +43,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HEAPSIZE,
         FN_SYSSDK,
         FN_SYSCPUREV,
-        FN_SIOVOLTS,
+        FN_BUSVOLTS,
         FN_SIO_HSINDEX,
         FN_SIO_HSBAUD,
         FN_PRINTER1_MODEL,
@@ -130,7 +130,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HEAPSIZE",
         "FN_SYSSDK",
         "FN_SYSCPUREV",
-        "FN_SIOVOLTS",
+        "FN_BUSVOLTS",
         "FN_SIO_HSINDEX",
         "FN_SIO_HSBAUD",
         "FN_PRINTER1_MODEL",
@@ -290,7 +290,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_SYSCPUREV:
         resultstream << fnSystem.get_cpu_rev();
         break;
-    case FN_SIOVOLTS:
+    case FN_BUSVOLTS:
         resultstream << ((float)fnSystem.get_sio_voltage()) / 1000.00 << "V";
         break;
 #ifdef BUILD_ATARI
