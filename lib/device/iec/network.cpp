@@ -585,31 +585,39 @@ void iecNetwork::fsop(unsigned char _comnd)
 
 void iecNetwork::set_json_query()
 {
+    mstr::toPETSCII(payload);
     vector<string> t = util_tokenize(payload, ',');
     uint8_t *tmp;
+    int channel = 0;
 
-    if (t.size() < 2)
-        return;
-
-    Debug_printf("set_json_query(%s)",t[1].c_str());
-
-    json[commanddata->channel]->setReadQuery(t[1],0);
-    
-    tmp = (uint8_t *)malloc(json[commanddata->channel]->readValueLen());
-    
-    if (!tmp)
+    if (t.size() < 3)
     {
-        Debug_printf("Could not allocate %u bytes for JSON return value.\n",json[commanddata->channel]->readValueLen());
+        Debug_printf("Invalid # of parameters to set_json_query()\n");
+        response_queue.push("error: invalid # of parameters\r");
         return;
     }
 
-    json_bytes_remaining[commanddata->channel] = json[commanddata->channel]->readValueLen();
-    json[commanddata->channel]->readValue(tmp,json_bytes_remaining[commanddata->channel]);
-    *receiveBuffer[commanddata->channel] += string((const char *)tmp,json_bytes_remaining[commanddata->channel]);
+    channel = atoi(t[1].c_str());
+    
+    Debug_printf("set_json_query(%s)\n",t[2].c_str());
+
+    json[channel]->setReadQuery(t[2],0);
+    
+    tmp = (uint8_t *)malloc(json[channel]->readValueLen());
+    
+    if (!tmp)
+    {
+        Debug_printf("Could not allocate %u bytes for JSON return value.\n",json[channel]->readValueLen());
+        return;
+    }
+
+    json_bytes_remaining[channel] = json[channel]->readValueLen();
+    json[channel]->readValue(tmp,json_bytes_remaining[channel]);
+    *receiveBuffer[channel] += string((const char *)tmp,json_bytes_remaining[channel]);
 
     free(tmp);
     
-    Debug_printf("Query set to %s\n",t[1].c_str());    
+    Debug_printf("Query set to %s\n",t[2].c_str());    
 }
 
 void iecNetwork::process_load()
@@ -686,6 +694,10 @@ void iecNetwork::data_waiting()
 void iecNetwork::process_command()
 {
     vector<string> t = util_tokenize(payload, ',');
+
+    if (payload.empty())
+        return;
+
     string s = t[0];
 
     if (commanddata->primary != 0x3F) // only react on UNLISTEN.
