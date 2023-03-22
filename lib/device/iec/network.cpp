@@ -388,14 +388,16 @@ void iecNetwork::set_prefix()
     string prefixSpec_str;
     int channel = 0;
 
+    Debug_printf("set_prefix(%s)", payload.c_str());
+
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
     // Are we asking? if so, return in queue.
-    if (t[0].find("PREFIX?"))
+    if (t[0] == "PREFIX?")
     {
         if (t.size() >= 2)
-            channel=atoi(t[1].c_str());
-        
+            channel = atoi(t[1].c_str());
+
         response_queue.push(prefix[channel]);
         return;
     }
@@ -501,7 +503,19 @@ void iecNetwork::set_prefix()
 
 void iecNetwork::parse_json()
 {
-    json[commanddata->channel]->parse();
+    int channel;
+    vector<string> t = util_tokenize(payload,',');
+
+    if (t.size()<2)
+    {
+        Debug_printf("parse_json() - No channel # specified.\n");
+        response_queue.push("error: invalid # of parameters\r");
+        return;
+    }
+
+    channel = atoi(t[1].c_str());
+
+    json[channel]->parse();
     response_queue.push("parsed.\n");
 }
 
@@ -516,23 +530,25 @@ void iecNetwork::set_channel_mode()
 
     // If no channel mode specified, default to PROTOCOL.
     if (t.size() < 2)
-        channelMode[commanddata->channel]=PROTOCOL;
-    
+        channelMode[commanddata->channel] = PROTOCOL;
+
     if (t[1].find("JSON") != string::npos)
-        channelMode[commanddata->channel]=JSON;
+        channelMode[commanddata->channel] = JSON;
     else
-        channelMode[commanddata->channel]=PROTOCOL;
+        channelMode[commanddata->channel] = PROTOCOL;
 
     response_queue.push("ok\n");
 }
 
 void iecNetwork::set_login()
 {
-    vector<string> t = util_tokenize(payload,',');
+    vector<string> t = util_tokenize(payload, ',');
 
-    if (t.size()<3)
+    Debug_printf("set_login()\n");
+
+    if (t.size() < 3)
     {
-        response_queue.push("must specify login,password\r");
+        response_queue.push("error: must specify login,password\r");
         return;
     }
 
@@ -544,14 +560,56 @@ void iecNetwork::set_login()
 
 void iecNetwork::fsop(unsigned char _comnd)
 {
+    vector<string> t = util_tokenize(payload, ',');
+
+    Debug_printf("fsop(%u)\n", _comnd);
+
+    if (t.size() < 2)
+    {
+        response_queue.push("error: invalid # of parameters\r");
+        return;
+    }
+
+    // Overwrite payload, we no longer need command
+    payload = t[1];
+
     iec_open();
 
     cmdFrame.comnd = _comnd;
 
     if (protocol[commanddata->channel] != nullptr)
-        protocol[commanddata->channel]->perform_idempotent_80(urlParser[commanddata->channel],&cmdFrame);
+        protocol[commanddata->channel]->perform_idempotent_80(urlParser[commanddata->channel], &cmdFrame);
 
     iec_close();
+}
+
+void iecNetwork::set_json_query()
+{
+    vector<string> t = util_tokenize(payload, ',');
+    uint8_t *tmp;
+
+    if (t.size() < 2)
+        return;
+
+    Debug_printf("set_json_query(%s)",t[1].c_str());
+
+    json[commanddata->channel]->setReadQuery(t[1],0);
+    
+    tmp = (uint8_t *)malloc(json[commanddata->channel]->readValueLen());
+    
+    if (!tmp)
+    {
+        Debug_printf("Could not allocate %u bytes for JSON return value.\n",json[commanddata->channel]->readValueLen());
+        return;
+    }
+
+    json_bytes_remaining[commanddata->channel] = json[commanddata->channel]->readValueLen();
+    json[commanddata->channel]->readValue(tmp,json_bytes_remaining[commanddata->channel]);
+    *receiveBuffer[commanddata->channel] += string((const char *)tmp,json_bytes_remaining[commanddata->channel]);
+
+    free(tmp);
+    
+    Debug_printf("Query set to %s\n",t[1].c_str());    
 }
 
 void iecNetwork::process_load()
@@ -627,26 +685,52 @@ void iecNetwork::data_waiting()
 
 void iecNetwork::process_command()
 {
-    Debug_printf("process_command()\n");
+    vector<string> t = util_tokenize(payload, ',');
+    string s = t[0];
 
-    if (payload.find("PREFIX") != string::npos)
+    if (commanddata->primary != 0x3F) // only react on UNLISTEN.
+        return;
+
+    Debug_printf("process_command(%s)\n", s.c_str());
+
+    if (s == "PREFIX")
         set_prefix();
-    else if (payload.find("S") != string::npos)
+    else if (s == "TRANS")
+        set_translation();
+    else if (s == "S")
         status();
-    else
-        process_command_special();
+    else if (s == "PARSE")
+        parse_json();
+    else if (s == "CHANNELMODE")
+        set_channel_mode();
+    else if (s == "LOGIN")
+        set_login();
+    else if (s == "RENAME")
+        fsop(0x20);
+    else if (s == "SCRATCH")
+        fsop(0x21);
+    else if (s == "LOCK")
+        fsop(0x23);
+    else if (s == "UNLOCK")
+        fsop(0x24);
+    else if (s == "MKDIR")
+        fsop(0x2A);
+    else if (s == "RMDIR")
+        fsop(0x2B);
+    else if (s == "Q")
+        set_json_query();
 }
 
 void iecNetwork::process_command_special_protocol()
 {
     bool err = false;
-    vector<string> t = util_tokenize(payload,',');
+    vector<string> t = util_tokenize(payload, ',');
 
     // Put together protocol command frame.
-    if (t.size()>2)
+    if (t.size() > 2)
         cmdFrame.aux2 = atoi(t[2].c_str());
 
-    if (t.size()>1)
+    if (t.size() > 1)
         cmdFrame.aux1 = atoi(t[1].c_str());
 
     cmdFrame.comnd = t[0][0]; // first byte
@@ -665,32 +749,9 @@ void iecNetwork::process_command_special_protocol()
 
 void iecNetwork::process_command_special()
 {
-    if ((payload.find("PARSE") != string::npos) && channelMode[commanddata->channel] == JSON)
-        parse_json();
-    else if (payload.find("TRANS") != string::npos)
-        set_translation();
-    else if (payload.find("CHANNELMODE") != string::npos)
-        set_channel_mode();
-    else if (payload.find("LOGIN") != string::npos)
-        set_login();
-    else if (payload.find("RENAME") != string::npos)
-        fsop(0x20);
-    else if (payload.find("SCRATCH") != string::npos)
-        fsop(0x21);
-    else if (payload.find("LOCK") != string::npos)
-        fsop(0x23);
-    else if (payload.find("UNLOCK") != string::npos)
-        fsop(0x24);
-    else if (payload.find("MKDIR") != string::npos)
-        fsop(0x2A);
-    else if (payload.find("RMDIR") != string::npos)
-        fsop(0x2B);
-    else if (payload.find("Q") != string::npos)
-        set_json_query();
-    else
-    {
-        process_command_special_protocol();
-    }
+    Debug_printf("process_command_special()\n");
+
+    process_command_special_protocol();
 }
 
 void iecNetwork::process_channel()
