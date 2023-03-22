@@ -28,7 +28,7 @@ iecNetwork::iecNetwork()
 {
     Debug_printf("iwmNetwork::iwmNetwork()\n");
 
-    for (int i=0;i<16;i++)
+    for (int i = 0; i < 16; i++)
     {
         receiveBuffer[i] = new string();
         transmitBuffer[i] = new string();
@@ -40,7 +40,7 @@ iecNetwork::~iecNetwork()
 {
     Debug_printf("iwmNetwork::~iwmNetwork()\n");
 
-    for (int i=0;i<16;i++)
+    for (int i = 0; i < 16; i++)
     {
         delete receiveBuffer[i];
         delete transmitBuffer[i];
@@ -215,11 +215,33 @@ void iecNetwork::iec_read()
 
     while (ns.rxBytesWaiting)
     {
-        protocol[commanddata->channel]->read(ns.rxBytesWaiting);
+        read_channel(ns.rxBytesWaiting);
         protocol[commanddata->channel]->status(&ns);
     }
 
     response_queue.push(*receiveBuffer[commanddata->channel]);
+}
+
+void iecNetwork::read_channel(uint16_t l)
+{
+    switch (channelMode[commanddata->channel])
+    {
+    case PROTOCOL:
+        protocol[commanddata->channel]->read(l);
+        break;
+    case JSON:
+        read_channel_json(l);
+        break;
+    }
+}
+
+void iecNetwork::read_channel_json(uint16_t l)
+{
+    // FIXME
+    if (l > json_bytes_remaining[commanddata->channel])
+        json_bytes_remaining[commanddata->channel] = 0;
+    else
+        json_bytes_remaining[commanddata->channel] -= l;
 }
 
 void iecNetwork::iec_write()
@@ -368,6 +390,16 @@ void iecNetwork::set_prefix()
 
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
+    // Are we asking? if so, return in queue.
+    if (t[0].find("PREFIX?"))
+    {
+        if (t.size() >= 2)
+            channel=atoi(t[1].c_str());
+        
+        response_queue.push(prefix[channel]);
+        return;
+    }
+
     if (t.size() < 2)
     {
         Debug_printf("Channel # required\n");
@@ -467,6 +499,61 @@ void iecNetwork::set_prefix()
     response_queue.push("ok\r");
 }
 
+void iecNetwork::parse_json()
+{
+    json[commanddata->channel]->parse();
+    response_queue.push("parsed.\n");
+}
+
+void iecNetwork::set_translation()
+{
+    response_queue.push("ok\n");
+}
+
+void iecNetwork::set_channel_mode()
+{
+    vector<string> t = util_tokenize(payload);
+
+    // If no channel mode specified, default to PROTOCOL.
+    if (t.size() < 2)
+        channelMode[commanddata->channel]=PROTOCOL;
+    
+    if (t[1].find("JSON") != string::npos)
+        channelMode[commanddata->channel]=JSON;
+    else
+        channelMode[commanddata->channel]=PROTOCOL;
+
+    response_queue.push("ok\n");
+}
+
+void iecNetwork::set_login()
+{
+    vector<string> t = util_tokenize(payload,',');
+
+    if (t.size()<3)
+    {
+        response_queue.push("must specify login,password\r");
+        return;
+    }
+
+    login = t[1];
+    password = t[2];
+
+    response_queue.push("ok.\n");
+}
+
+void iecNetwork::fsop(unsigned char _comnd)
+{
+    iec_open();
+
+    cmdFrame.comnd = _comnd;
+
+    if (protocol[commanddata->channel] != nullptr)
+        protocol[commanddata->channel]->perform_idempotent_80(urlParser[commanddata->channel],&cmdFrame);
+
+    iec_close();
+}
+
 void iecNetwork::process_load()
 {
     switch (commanddata->secondary)
@@ -507,12 +594,12 @@ void iecNetwork::process_save()
 
 void iecNetwork::data_waiting()
 {
-    vector<string> t = util_tokenize(payload,',');
+    vector<string> t = util_tokenize(payload, ',');
     string data_waiting_yes = "1\r";
     string data_waiting_no = "0\r";
     NetworkStatus ns;
 
-    if (t.size()<2)
+    if (t.size() < 2)
     {
         Debug_printf("No channel #, sending 0\n");
         response_queue.push(data_waiting_no);
@@ -521,11 +608,11 @@ void iecNetwork::data_waiting()
 
     int channel = atoi(t[1].c_str());
 
-    Debug_printf("Channel: %u\n",channel);
+    Debug_printf("Channel: %u\n", channel);
 
-    if (protocol[channel]==nullptr)
+    if (protocol[channel] == nullptr)
     {
-        Debug_printf("No protocol for channel #%u, sending 0\n",channel);
+        Debug_printf("No protocol for channel #%u, sending 0\n", channel);
         response_queue.push(data_waiting_no);
         return;
     }
@@ -544,8 +631,66 @@ void iecNetwork::process_command()
 
     if (payload.find("PREFIX") != string::npos)
         set_prefix();
-    else if (payload.find("!") != string::npos)
-        data_waiting();
+    else if (payload.find("S") != string::npos)
+        status();
+    else
+        process_command_special();
+}
+
+void iecNetwork::process_command_special_protocol()
+{
+    bool err = false;
+    vector<string> t = util_tokenize(payload,',');
+
+    // Put together protocol command frame.
+    if (t.size()>2)
+        cmdFrame.aux2 = atoi(t[2].c_str());
+
+    if (t.size()>1)
+        cmdFrame.aux1 = atoi(t[1].c_str());
+
+    cmdFrame.comnd = t[0][0]; // first byte
+
+    // Iterate through each special
+    err = protocol[commanddata->channel]->special_00(&cmdFrame);
+
+    if (!err)
+    {
+        response_queue.push("ok.\r");
+        return;
+    }
+
+    // TODO: Implement 40 and 80
+}
+
+void iecNetwork::process_command_special()
+{
+    if ((payload.find("PARSE") != string::npos) && channelMode[commanddata->channel] == JSON)
+        parse_json();
+    else if (payload.find("TRANS") != string::npos)
+        set_translation();
+    else if (payload.find("CHANNELMODE") != string::npos)
+        set_channel_mode();
+    else if (payload.find("LOGIN") != string::npos)
+        set_login();
+    else if (payload.find("RENAME") != string::npos)
+        fsop(0x20);
+    else if (payload.find("SCRATCH") != string::npos)
+        fsop(0x21);
+    else if (payload.find("LOCK") != string::npos)
+        fsop(0x23);
+    else if (payload.find("UNLOCK") != string::npos)
+        fsop(0x24);
+    else if (payload.find("MKDIR") != string::npos)
+        fsop(0x2A);
+    else if (payload.find("RMDIR") != string::npos)
+        fsop(0x2B);
+    else if (payload.find("Q") != string::npos)
+        set_json_query();
+    else
+    {
+        process_command_special_protocol();
+    }
 }
 
 void iecNetwork::process_channel()
