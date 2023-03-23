@@ -174,6 +174,11 @@ protected:
     std::queue<std::string> response_queue;
 
     /**
+     * @brief tokenized payload
+     */
+    std::vector<std::string> pt;
+
+    /**
      * @brief Get device ready to handle next phase of command.
      */
     device_state_t queue_command(IECData *data)
@@ -185,12 +190,6 @@ protected:
 
         return device_state;
     }
-
-    /**
-     * @brief All IEC commands by convention should return a status command, using bus_to_computer() to return
-     * four bytes of status information to be put into DVSTAT ($02EA)
-     */
-    virtual void status() = 0;
 
     /**
      * @brief All IEC devices repeatedly call this routine to fan out to other methods for each command.
