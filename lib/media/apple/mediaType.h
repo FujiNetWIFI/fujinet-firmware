@@ -18,6 +18,7 @@ enum mediatype_t
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_PO,
     MEDIATYPE_WOZ,
+    MEDIATYPE_DSK,
     MEDIATYPE_COUNT
 };
 
