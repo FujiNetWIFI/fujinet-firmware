@@ -4,11 +4,18 @@
 #include "../../include/debug.h"
 #include <string.h>
 
+// #include <assert.h>
+// #include <stdbool.h>
+// #include <stdio.h>
+// #include <stdint.h>
+// #include <string.h>
+
+
 // routines to convert DSK to WOZ stolen from DSK2WOZ by Tom Harte 
 // https://github.com/TomHarte/dsk2woz
 
-
-
+// forward reference
+static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
 
 mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 {
@@ -25,7 +32,7 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 
     dsk2woz_info();
     dsk2woz_tmap();
-
+	dsk2woz_tracks(dsk);
 
     free(dsk);
     return MEDIATYPE_WOZ;
@@ -59,9 +66,8 @@ void MediaTypeDSK::dsk2woz_tmap()
 	}
 }
 
-bool MediaTypeWOZ::woz1_read_tracks()
+bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
 {    // depend upon little endian-ness
-    fseek(_media_fileh, 256, SEEK_SET);
 
     // woz1 track data organized as:
     // Offset	Size	    Name	        Usage
@@ -75,208 +81,190 @@ bool MediaTypeWOZ::woz1_read_tracks()
 
     Debug_printf("\nStart Block, Block Count, Bit Count");
     
-    uint8_t *temp_ptr = (uint8_t *)heap_caps_malloc(WOZ1_NUM_BLKS * 512, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
     uint16_t bytes_used;
     uint16_t bit_count;
 
-    for (int i = 0; i < MAX_TRACKS; i++)
-    {
-        memset(temp_ptr, 0, WOZ1_NUM_BLKS * 512);
-        fread(temp_ptr, 1, WOZ1_TRACK_LEN, _media_fileh);
-        fread(&bytes_used, sizeof(bytes_used), 1, _media_fileh);
-        fread(&bit_count, sizeof(bit_count), 1, _media_fileh);
-        trks[i].block_count = bytes_used / 512;
-        if (bytes_used % 512)
-            trks[i].block_count++;
-        trks[i].bit_count = bit_count;
-        if (bit_count > 0)
-        {
-            size_t s = trks[i].block_count * 512;
-            trk_ptrs[i] = (uint8_t *)heap_caps_malloc(s, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
-            if (trk_ptrs[i] != nullptr)
-            {
-                Debug_printf("\nStoring %d bytes of track %d into location %lu", bytes_used, i, trk_ptrs[i]);
-                memset(trk_ptrs[i],0,s);
-                memcpy(trk_ptrs[i], temp_ptr, bytes_used);
-            }
-            else
-            {
+	// TODO: adapt this to that
+	// Write out all 35 tracks.
+	for(size_t c = 0; c < 35; ++c) {
+		uint8_t* temp_ptr = (uint8_t *)heap_caps_malloc(WOZ1_NUM_BLKS * 512, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+		if (temp_ptr != nullptr)
+		{
+			trk_ptrs[c] = temp_ptr;
+			// memset(trk_ptrs[i],0,s);
+			serialise_track(trk_ptrs[c], &dsk[c * 16 * 256], c, false);
+			temp_ptr += WOZ1_TRACK_LEN;
+			bytes_used = temp_ptr[0] + (temp_ptr[1] << 8);
+			temp_ptr += sizeof(uint16_t);
+			bit_count = temp_ptr[0] + (temp_ptr[1] << 8);
+			trks[c].block_count = bytes_used / 512;
+			if (bytes_used % 512)
+				trks[c].block_count++;
+			trks[c].bit_count = bit_count;
+			Debug_printf("\nStored %d bytes of track %d into location %lu", bytes_used, c, trk_ptrs[c]);
+			}
+			else
+			{
                 Debug_printf("\nNo RAM allocated!");
                 free(temp_ptr);
                 return true;
             }
-        }
-        else
-        {
-            trk_ptrs[i] = nullptr;
-            Debug_printf("\nTrack %d is blank!",i);
-        }
-        fread(temp_ptr, 1, 6, _media_fileh); // read through rest of bytes in track
-    }
-    free(temp_ptr);
+	}
     return false;
 }
 
-#endif // BUILD_APPLE
-
-#include <assert.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include <stdint.h>
-#include <string.h>
-
-static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
-
-int main(int argc, char *argv[]) {
-	// Announce failure if there are anything other than three arguments.
-	if(argc != 3) {
-		printf("USAGE: dsk2woz input.dsk output.woz\n");
-		return -1;
-	}
-
-	// Attempt to read the standard DSK number of bytes into a buffer.
-	FILE *const dsk_file = fopen(argv[1], "rb");
-	if(!dsk_file) {
-		printf("ERROR: could not open %s for reading\n", argv[1]);
-		return -2;
-	}
-	const size_t dsk_image_size = 35 * 16 * 256;
-	uint8_t dsk[dsk_image_size];
-	const size_t bytes_read = fread(dsk, 1, dsk_image_size, dsk_file);
-	fclose(dsk_file);
-
-	// Determine from the filename whether to use Pro-DOS sector order.
-	bool has_p = false;
-	bool has_dot = false;
-	const char *extension = argv[1] + strlen(argv[1]);
-	do {
-		has_p = *extension == 'p';
-		has_dot = *extension == '.';
-		--extension;
-	} while(extension > argv[1] && *extension != '/' && *extension != '.');
-	const bool is_prodos = has_p && has_dot;
-
-	// If the DSK image was too short, announce failure. Some DSK files
-	// seem empirically to be too long, but it's unclear that the extra
-	// bytes actually mean anything — they're usually not many.
-	if(bytes_read != dsk_image_size) {
-		printf("ERROR: DSK image too small\n");
-		return -3;
-	}
-
-	// Create a buffer for the portion of the WOZ image that comes after
-	// the 12-byte header. The header will house the CRC, which will be
-	// calculated later.
-	const size_t woz_image_size = 256 - 12 + 35*6656;
-	uint8_t woz[woz_image_size];
-	memset(woz, 0, sizeof(woz));
-
-#define set_int32(location, value)	\
-	woz[location] = (value) & 0xff;	\
-	woz[location+1] = ((value) >> 8) & 0xff;	\
-	woz[location+2] = ((value) >> 16) & 0xff;	\
-	woz[location+3] = (value) >> 24;
 
 
+// static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
 
-	/*
-		WOZ image item 1: an INFO chunk.
-	*/
-	strcpy((char *)&woz[0], "INFO");	// Chunk ID.
-	set_int32(4, 60);					// Chunk size.
-	woz[8] = 1;							// INFO version: 1.
-	woz[9] = 1;							// Disk type: 5.25".
-	woz[10] = 0;						// Write protection: disabled.
-	woz[11] = 0;						// Cross-track synchronised image: no.
-	woz[12] = 1;						// MC3470 fake bits have been removed: yes.
-										// (or, rather, were never inserted)
+// int main(int argc, char *argv[]) {
+// 	// Announce failure if there are anything other than three arguments.
+// 	if(argc != 3) {
+// 		printf("USAGE: dsk2woz input.dsk output.woz\n");
+// 		return -1;
+// 	}
+
+// 	// Attempt to read the standard DSK number of bytes into a buffer.
+// 	FILE *const dsk_file = fopen(argv[1], "rb");
+// 	if(!dsk_file) {
+// 		printf("ERROR: could not open %s for reading\n", argv[1]);
+// 		return -2;
+// 	}
+// 	const size_t dsk_image_size = 35 * 16 * 256;
+// 	uint8_t dsk[dsk_image_size];
+// 	const size_t bytes_read = fread(dsk, 1, dsk_image_size, dsk_file);
+// 	fclose(dsk_file);
+
+// 	// Determine from the filename whether to use Pro-DOS sector order.
+// 	bool has_p = false;
+// 	bool has_dot = false;
+// 	const char *extension = argv[1] + strlen(argv[1]);
+// 	do {
+// 		has_p = *extension == 'p';
+// 		has_dot = *extension == '.';
+// 		--extension;
+// 	} while(extension > argv[1] && *extension != '/' && *extension != '.');
+// 	const bool is_prodos = has_p && has_dot;
+
+// 	// If the DSK image was too short, announce failure. Some DSK files
+// 	// seem empirically to be too long, but it's unclear that the extra
+// 	// bytes actually mean anything — they're usually not many.
+// 	if(bytes_read != dsk_image_size) {
+// 		printf("ERROR: DSK image too small\n");
+// 		return -3;
+// 	}
+
+// 	// Create a buffer for the portion of the WOZ image that comes after
+// 	// the 12-byte header. The header will house the CRC, which will be
+// 	// calculated later.
+// 	const size_t woz_image_size = 256 - 12 + 35*6656;
+// 	uint8_t woz[woz_image_size];
+// 	memset(woz, 0, sizeof(woz));
+
+#define set_int32(location, value)              \
+	woz[location] = (value)&0xff;               \
+	woz[location + 1] = ((value) >> 8) & 0xff;  \
+	woz[location + 2] = ((value) >> 16) & 0xff; \
+	woz[location + 3] = (value) >> 24;
+
+// 	/*
+// 		WOZ image item 1: an INFO chunk.
+// 	*/
+// 	strcpy((char *)&woz[0], "INFO");	// Chunk ID.
+// 	set_int32(4, 60);					// Chunk size.
+// 	woz[8] = 1;							// INFO version: 1.
+// 	woz[9] = 1;							// Disk type: 5.25".
+// 	woz[10] = 0;						// Write protection: disabled.
+// 	woz[11] = 0;						// Cross-track synchronised image: no.
+// 	woz[12] = 1;						// MC3470 fake bits have been removed: yes.
+// 										// (or, rather, were never inserted)
 															
-	// Append creator, which needs to be padded out to 32
-	// bytes with space characters.
-	const char creator[] = "dsk2woz 1.0";
-	const size_t creator_length = strlen(creator);
-	assert(creator_length < 32);
+// 	// Append creator, which needs to be padded out to 32
+// 	// bytes with space characters.
+// 	const char creator[] = "dsk2woz 1.0";
+// 	const size_t creator_length = strlen(creator);
+// 	assert(creator_length < 32);
 
-	strcpy((char *)&woz[13], creator);
-	memset(&woz[13 + strlen(creator)], 32 - strlen(creator), ' ');
+// 	strcpy((char *)&woz[13], creator);
+// 	memset(&woz[13 + strlen(creator)], 32 - strlen(creator), ' ');
 
-	// Chunk should be padded with 0s to reach 60 bytes in length;
-	// the buffer was memset to 0 at initialisation so that's implicit.
-
-
-
-	/*
-		WOZ image item 2: a TMAP chunk.
-	*/
-	strcpy((char *)&woz[68], "TMAP");		// Chunk ID.
-	set_int32(72, 160);						// Chunk size.
-
-	// This is a DSK conversion, so the TMAP table simply maps every
-	// track that exists to:
-	// (i) its integral position;
-	// (ii) the quarter-track position before its integral position; and
-	// (iii) the quarter-track position after its integral position.
-	//
-	// The remaining quarter-track position maps to nothing, which in
-	// WOZ is indicated with a value of 255.
-
-	// Let's start by filling the entire TMAP with empty tracks.
-	memset(&woz[76], 0xff, 160);
-	// Then we will add in the mappings.
-	for(size_t c = 0; c < 35; ++c) {
-		const size_t track_position = 76 + (c << 2);
-		if(c > 0) woz[track_position - 1] = c;
-		woz[track_position] = woz[track_position + 1] = c;
-	}
+// 	// Chunk should be padded with 0s to reach 60 bytes in length;
+// 	// the buffer was memset to 0 at initialisation so that's implicit.
 
 
 
-	/*
-		WOZ image item 3: a TRKS chunk.
-	*/
-	strcpy((char *)&woz[236], "TRKS");	// Chunk ID.
-	set_int32(240, 35*6656);			// Chunk size.
+// 	/*
+// 		WOZ image item 2: a TMAP chunk.
+// 	*/
+// 	strcpy((char *)&woz[68], "TMAP");		// Chunk ID.
+// 	set_int32(72, 160);						// Chunk size.
 
-	// The output pointer holds a byte position into the WOZ buffer.
-	size_t output_pointer = 244;
+// 	// This is a DSK conversion, so the TMAP table simply maps every
+// 	// track that exists to:
+// 	// (i) its integral position;
+// 	// (ii) the quarter-track position before its integral position; and
+// 	// (iii) the quarter-track position after its integral position.
+// 	//
+// 	// The remaining quarter-track position maps to nothing, which in
+// 	// WOZ is indicated with a value of 255.
 
-	// Write out all 35 tracks.
-	for(size_t c = 0; c < 35; ++c) {
-		serialise_track(&woz[output_pointer], &dsk[c * 16 * 256], c, is_prodos);
-		output_pointer += 6656;
-	}
-#undef set_int32
+// 	// Let's start by filling the entire TMAP with empty tracks.
+// 	memset(&woz[76], 0xff, 160);
+// 	// Then we will add in the mappings.
+// 	for(size_t c = 0; c < 35; ++c) {
+// 		const size_t track_position = 76 + (c << 2);
+// 		if(c > 0) woz[track_position - 1] = c;
+// 		woz[track_position] = woz[track_position + 1] = c;
+// 	}
 
 
 
-	/*
-		WOZ image output.
-	*/
-	FILE *const woz_file = fopen(argv[2], "wb");
-	if(!woz_file) {
-		printf("ERROR: Could not open %s for writing\n", argv[2]);
-		return -5;
-	}
-	fputs("WOZ1", woz_file);
-	fputc(0xff, woz_file);
-	fputs("\n\r\n", woz_file);
+// 	/*
+// 		WOZ image item 3: a TRKS chunk.
+// 	*/
+// 	strcpy((char *)&woz[236], "TRKS");	// Chunk ID.
+// 	set_int32(240, 35*6656);			// Chunk size.
 
-	const uint32_t crc = crc32(woz, sizeof(woz));
-	fputc(crc & 0xff, woz_file);
-	fputc((crc >> 8) & 0xff, woz_file);
-	fputc((crc >> 16) & 0xff, woz_file);
-	fputc(crc >> 24, woz_file);
+// 	// The output pointer holds a byte position into the WOZ buffer.
+// 	size_t output_pointer = 244;
 
-	const size_t length_written = fwrite(woz, 1, sizeof(woz), woz_file);
-	fclose(woz_file);
+// 	// Write out all 35 tracks.
+// 	for(size_t c = 0; c < 35; ++c) {
+// 		serialise_track(&woz[output_pointer], &dsk[c * 16 * 256], c, is_prodos);
+// 		output_pointer += 6656;
+// 	}
+// #undef set_int32
 
-	if(length_written != sizeof(woz)) {
-		printf("ERROR: Could not write full WOZ image\n");
-		return -6;
-	}
 
-	return 0;
-}
+
+// 	/*
+// 		WOZ image output.
+// 	*/
+// 	FILE *const woz_file = fopen(argv[2], "wb");
+// 	if(!woz_file) {
+// 		printf("ERROR: Could not open %s for writing\n", argv[2]);
+// 		return -5;
+// 	}
+// 	fputs("WOZ1", woz_file);
+// 	fputc(0xff, woz_file);
+// 	fputs("\n\r\n", woz_file);
+
+// 	const uint32_t crc = crc32(woz, sizeof(woz));
+// 	fputc(crc & 0xff, woz_file);
+// 	fputc((crc >> 8) & 0xff, woz_file);
+// 	fputc((crc >> 16) & 0xff, woz_file);
+// 	fputc(crc >> 24, woz_file);
+
+// 	const size_t length_written = fwrite(woz, 1, sizeof(woz), woz_file);
+// 	fclose(woz_file);
+
+// 	if(length_written != sizeof(woz)) {
+// 		printf("ERROR: Could not write full WOZ image\n");
+// 		return -6;
+// 	}
+
+// 	return 0;
+// }
 
 
 
@@ -489,3 +477,5 @@ static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_num
 	dest[6652] = 0xff;
 	dest[6653] = 10;
 }
+
+#endif // BUILD_APPLE
