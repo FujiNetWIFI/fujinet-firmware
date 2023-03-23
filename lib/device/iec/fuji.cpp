@@ -69,12 +69,6 @@ iecFuji::iecFuji()
         _fnHosts[i].slotid = i;
 }
 
-// Status
-void iecFuji::status()
-{
-    // TODO IMPLEMENT
-}
-
 // Reset FujiNet
 void iecFuji::reset_fujinet()
 {
@@ -1484,7 +1478,6 @@ void iecFuji::setup(systemBus *siobus)
     _populate_slots_from_config();
 
     IEC.addDevice(this, 0x0F);
-    IEC.addDevice(new iecDisk(), 8);
     IEC.addDevice(new iecNetwork(), 12);
 }
 

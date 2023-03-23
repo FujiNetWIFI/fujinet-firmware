@@ -7,6 +7,7 @@
 #include "led.h"
 #include "protocol/iecProtocolSerial.h"
 #include "string_utils.h"
+#include "utils.h"
 
 static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
 {
@@ -48,6 +49,8 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     {
     case bus_command_t::IEC_OPEN:
         payload = commanddata->payload;
+        mstr::toASCII(payload);
+        pt = util_tokenize(payload, ',');
         break;
     case bus_command_t::IEC_CLOSE:
         payload.clear();
@@ -70,7 +73,11 @@ device_state_t virtualDevice::process(IECData *_commanddata)
             }
         }
         else if (device_state == DEVICE_LISTEN)
+        {
             payload = commanddata->payload;
+            mstr::toASCII(payload);
+            pt = util_tokenize(payload, ',');
+        }
         break;
     default:
         break;
@@ -152,7 +159,6 @@ void IRAM_ATTR systemBus::service()
 
         // Reset virtual devices
         reset_all_our_devices();
-
         return;
     }
 

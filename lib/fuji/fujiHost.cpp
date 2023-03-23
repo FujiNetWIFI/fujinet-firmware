@@ -374,11 +374,11 @@ bool fujiHost::mount()
 */
 bool fujiHost::umount()
 {
-    Debug_printf("::unmount {%d} \"%s\"\n", slotid, _hostname);
+    Debug_printf("::unmount {%d} \"%s\"\n", slotid+1, _hostname);
 
     // Try mounting locally first
-    if (0 == unmount_local())
-        return true;
+    //if (0 == unmount_local())
+    //    return true;
 
     // Try mounting TNFS last
     return 0 == unmount_tnfs();

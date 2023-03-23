@@ -1122,7 +1122,7 @@ void sioFuji::sio_unmount_host()
 {
     Debug_println("Fuji cmd: UNMOUNT HOST");
 
-    unsigned char hostSlot = cmdFrame.aux1;
+    unsigned char hostSlot = cmdFrame.aux1 - 1;
 
     // Make sure we weren't given a bad hostSlot
     if (!_validate_host_slot(hostSlot, "sio_tnfs_mount_hosts"))

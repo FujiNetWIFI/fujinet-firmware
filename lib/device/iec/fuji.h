@@ -112,7 +112,6 @@ protected:
     void tin(); // dummy command 
     void tout(); // dummy command
 
-    void status() override;
     device_state_t process(IECData *commanddata) override;
 
     void shutdown() override;
