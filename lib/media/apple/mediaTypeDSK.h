@@ -22,10 +22,10 @@ private:
     void dsk2woz_tmap();
     bool dsk2woz_tracks(uint8_t *dsk); 
 
-protected:
-    uint8_t tmap[MAX_TRACKS];
-    TRK_t trks[MAX_TRACKS];
-    uint8_t *trk_ptrs[MAX_TRACKS] = { };
+// protected:
+//     uint8_t tmap[MAX_TRACKS];
+//     TRK_t trks[MAX_TRACKS];
+//     uint8_t *trk_ptrs[MAX_TRACKS] = { };
 
 public:
     // virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };

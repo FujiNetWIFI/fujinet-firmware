@@ -66,7 +66,7 @@ mediatype_t iwmDisk2::mount(FILE *f, mediatype_t disk_type)//, const char *filen
         change_track(0); // initialize spi buffer
         break;
     default:
-        Debug_printf("\nMedia Type UNKNOWN - no mount");
+        Debug_printf("\nMedia Type UNKNOWN - no mount in disk2.cpp");
         device_active = false;
         break;
     }

@@ -64,6 +64,11 @@ void MediaTypeDSK::dsk2woz_tmap()
             tmap[track_position - 1] = c;
         tmap[track_position] = tmap[track_position + 1] = c;
 	}
+#ifdef DEBUG
+    Debug_printf("\nTrack, Index");
+    for (int i = 0; i < MAX_TRACKS; i++)
+        Debug_printf("\n%d/4, %d", i, tmap[i]);
+#endif
 }
 
 bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
@@ -79,38 +84,40 @@ bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
     // +6653	uint8	    Splice Bit Count	Bit count of splice nibble (write hint).
     // +6654	uint16		Reserved for future use.
 
-    Debug_printf("\nStart Block, Block Count, Bit Count");
+    // Debug_printf("\nStart Block, Block Count, Bit Count");
     
-    uint16_t bytes_used;
-    uint16_t bit_count;
 
 	// TODO: adapt this to that
 	// Write out all 35 tracks.
-	for(size_t c = 0; c < 35; ++c) {
+	for (size_t c = 0; c < 35; c++)
+	{
+		uint16_t bytes_used;
+		uint16_t bit_count;
 		uint8_t* temp_ptr = (uint8_t *)heap_caps_malloc(WOZ1_NUM_BLKS * 512, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
 		if (temp_ptr != nullptr)
 		{
 			trk_ptrs[c] = temp_ptr;
-			// memset(trk_ptrs[i],0,s);
+			memset(trk_ptrs[c], 0, WOZ1_NUM_BLKS * 512);
 			serialise_track(trk_ptrs[c], &dsk[c * 16 * 256], c, false);
 			temp_ptr += WOZ1_TRACK_LEN;
 			bytes_used = temp_ptr[0] + (temp_ptr[1] << 8);
 			temp_ptr += sizeof(uint16_t);
 			bit_count = temp_ptr[0] + (temp_ptr[1] << 8);
-			trks[c].block_count = bytes_used / 512;
-			if (bytes_used % 512)
-				trks[c].block_count++;
+			trks[c].block_count = WOZ1_NUM_BLKS; //bytes_used / 512;
+			// if (bytes_used % 512)
+			// 	trks[c].block_count++;
 			trks[c].bit_count = bit_count;
-			Debug_printf("\nStored %d bytes of track %d into location %lu", bytes_used, c, trk_ptrs[c]);
-			}
-			else
-			{
-                Debug_printf("\nNo RAM allocated!");
-                free(temp_ptr);
-                return true;
+			Debug_printf("\nStored %d bytes containing %d bits of track %d into location %lu", bytes_used, bit_count, c, trk_ptrs[c]);
+			Debug_printf(" -- %02x %02x %02x %02x %02x", trk_ptrs[c][0], trk_ptrs[c][1], trk_ptrs[c][2], trk_ptrs[c][3], trk_ptrs[c][4] );
+		}
+		else
+		{
+			Debug_printf("\nNo RAM allocated!");
+			free(temp_ptr);
+			return true;
             }
 	}
-    return false;
+	return false;
 }
 
 
