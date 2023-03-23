@@ -120,54 +120,29 @@ bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
 	return false;
 }
 
+// ================ code below from TomHarte dsk2woz program ===============
+/* MIT License
 
+Copyright (c) 2018 Thomas Harte
 
-// static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-// int main(int argc, char *argv[]) {
-// 	// Announce failure if there are anything other than three arguments.
-// 	if(argc != 3) {
-// 		printf("USAGE: dsk2woz input.dsk output.woz\n");
-// 		return -1;
-// 	}
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-// 	// Attempt to read the standard DSK number of bytes into a buffer.
-// 	FILE *const dsk_file = fopen(argv[1], "rb");
-// 	if(!dsk_file) {
-// 		printf("ERROR: could not open %s for reading\n", argv[1]);
-// 		return -2;
-// 	}
-// 	const size_t dsk_image_size = 35 * 16 * 256;
-// 	uint8_t dsk[dsk_image_size];
-// 	const size_t bytes_read = fread(dsk, 1, dsk_image_size, dsk_file);
-// 	fclose(dsk_file);
-
-// 	// Determine from the filename whether to use Pro-DOS sector order.
-// 	bool has_p = false;
-// 	bool has_dot = false;
-// 	const char *extension = argv[1] + strlen(argv[1]);
-// 	do {
-// 		has_p = *extension == 'p';
-// 		has_dot = *extension == '.';
-// 		--extension;
-// 	} while(extension > argv[1] && *extension != '/' && *extension != '.');
-// 	const bool is_prodos = has_p && has_dot;
-
-// 	// If the DSK image was too short, announce failure. Some DSK files
-// 	// seem empirically to be too long, but it's unclear that the extra
-// 	// bytes actually mean anything — they're usually not many.
-// 	if(bytes_read != dsk_image_size) {
-// 		printf("ERROR: DSK image too small\n");
-// 		return -3;
-// 	}
-
-// 	// Create a buffer for the portion of the WOZ image that comes after
-// 	// the 12-byte header. The header will house the CRC, which will be
-// 	// calculated later.
-// 	const size_t woz_image_size = 256 - 12 + 35*6656;
-// 	uint8_t woz[woz_image_size];
-// 	memset(woz, 0, sizeof(woz));
-
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+ */
 #define set_int32(location, value)              \
 	woz[location] = (value)&0xff;               \
 	woz[location + 1] = ((value) >> 8) & 0xff;  \
