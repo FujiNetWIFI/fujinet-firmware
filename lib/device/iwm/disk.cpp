@@ -520,6 +520,7 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         //_disk->fileptr() = f;
         // mt = MEDIATYPE_PO;
         break;
+      case MEDIATYPE_DSK:
       case MEDIATYPE_WOZ:
           theFuji._fnDisk2s[disk_num % 2].init();
           theFuji._fnDisk2s[disk_num % 2].mount(f); // modulo to ensure device 0 or 1
