@@ -167,6 +167,12 @@ private:
     std::string prefix[16];
 
     /**
+     * @brief # of bytes remaining in JSON stream
+     */
+    uint16_t json_bytes_remaining[16] = 
+        {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+    /**
      * @brief respond to OPEN command ($F0)
      */
     void iec_open();
@@ -216,9 +222,50 @@ private:
     void set_prefix();
 
     /**
+     * @brief Parse JSON in currently open channel
+     */
+    void parse_json();
+
+    /**
+     * @brief set desired translation mode
+     */
+    void set_translation();
+
+    /**
+     * @brief Set channel mode
+     */
+    void set_channel_mode();
+
+    /**
+     * @brief Set Login/password
+     */
+    void set_login();
+
+    /**
+     * @brief perform idempotent filesystem op via protocol
+     * @param _comnd the command to send to protocol
+     */
+    void fsop(unsigned char _comnd);
+
+    /**
+     * @brief perform JSON Query 
+     */
+    void set_json_query();
+
+    /**
      * @brief Deal with commands sent to command channel
      */
     void process_command();
+
+    /**
+     * @brief Called to process a special command
+     */
+    void process_command_special();
+
+    /**
+     * @brief Call protocol to process special command
+     */
+    void process_command_special_protocol();
 
     /**
      * @brief Deal with URLs passed to load channel
@@ -234,6 +281,18 @@ private:
      * @brief Deal with URLs passed to data channels (3-14)
      */
     void process_channel();
+
+    /**
+     * @brief read from desired channel
+     * @param l Number of bytes to read
+     */
+    void read_channel(uint16_t l);
+
+    /**
+     * @brief read channel, protocol mode JSON
+     * @param l Number of bytes to read
+     */
+    void read_channel_json(uint16_t l);
 };
 
 #endif /* NETWORK_H */

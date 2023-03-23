@@ -114,7 +114,7 @@ void rc2014Network::open()
     if (protocol->open(urlParser, &cmdFrame) == true)
     {
         network_status.error = protocol->error;
-        Debug_printf("Protocol unable to make connection. Error: %d\n", err);
+        Debug_printf("Protocol unable to make connection. Error: %d\n", protocol->error);
         delete protocol;
         protocol = nullptr;
         return;
@@ -206,7 +206,7 @@ void rc2014Network::write()
     rc2014_send_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
-    err = rc2014Network_write_channel(num_bytes);
+    err = write_channel(num_bytes);
 
     rc2014_send_complete();
 }
@@ -241,7 +241,6 @@ void rc2014Network::read()
     err = read_channel(num_bytes);
 
     rc2014_send_buffer((uint8_t *)receiveBuffer->data(), num_bytes);
-    // rc2014_send(rc2014_checksum((uint8_t *)receiveBuffer->data(), num_bytes));
     rc2014_flush();
     receiveBuffer->erase(0, num_bytes);
 
@@ -255,7 +254,7 @@ void rc2014Network::read()
  * @param num_bytes Number of bytes to write.
  * @return TRUE on error, FALSE on success. Used to emit rc2014_error or rc2014_complete().
  */
-bool rc2014Network::rc2014Network_write_channel(unsigned short num_bytes)
+bool rc2014Network::write_channel(unsigned short num_bytes)
 {
     bool err = false;
 
@@ -272,7 +271,7 @@ bool rc2014Network::rc2014Network_write_channel(unsigned short num_bytes)
     return err;
 }
 
-bool rc2014Network::rc2014Network_status_channel_json(NetworkStatus *ns)
+bool rc2014Network::status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? 1 : 136;
@@ -299,19 +298,21 @@ void rc2014Network::status()
         err = protocol->status(&s);
         break;
     case JSON:
-        err = rc2014Network_status_channel_json(&s);
+        err = status_channel_json(&s);
         break;
     }
 
-    response[0] = s.rxBytesWaiting & 0xFF;
-    response[1] = s.rxBytesWaiting >> 8;
+    uint16_t bytes_waiting = (s.rxBytesWaiting > RC2014_TX_BUFFER_SIZE) ?
+            RC2014_TX_BUFFER_SIZE : s.rxBytesWaiting;
+
+    response[0] = bytes_waiting & 0xFF;
+    response[1] = bytes_waiting >> 8;
     response[2] = s.connected;
     response[3] = s.error;
     response_len = 4;
     //receiveMode = STATUS;
 
     rc2014_send_buffer(response, response_len);
-    // rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
     
     rc2014_send_complete();
@@ -540,6 +541,38 @@ void rc2014Network::rc2014_process(uint32_t commanddata, uint8_t checksum)
     }
 }
 
+bool rc2014Network::rc2014_poll_interrupt()
+{
+    NetworkStatus s;
+    bool result = false;
+
+    if (protocol != nullptr)
+    {
+        if (protocol->interruptEnable == false)
+            return false;
+
+        protocol->fromInterrupt = true;
+
+        switch (channelMode)
+        {
+        case PROTOCOL:
+            err = protocol->status(&s);
+            break;
+        case JSON:
+            err = status_channel_json(&s);
+            break;
+        }
+
+        protocol->fromInterrupt = false;
+
+        if (s.rxBytesWaiting > 0 || s.connected == 0)
+            result = true;
+    }
+
+    return result;
+}
+
+
 /** PRIVATE METHODS ************************************************************/
 
 /**
@@ -707,13 +740,13 @@ bool rc2014Network::parseURL()
     return isValidURL(urlParser);
 }
 
-void rc2014Network::rc2014Network_set_translation()
+void rc2014Network::set_translation()
 {
     // trans_aux2 = cmdFrame.aux2;
     // rc2014_complete();
 }
 
-void rc2014Network::rc2014Network_set_timer_rate()
+void rc2014Network::set_timer_rate()
 {
     // timerRate = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
 

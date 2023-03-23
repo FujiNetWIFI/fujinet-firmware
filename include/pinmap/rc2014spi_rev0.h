@@ -40,5 +40,6 @@
 #define PIN_CMD_RDY    GPIO_NUM_27
 #define PIN_CMD        32
 #define PIN_DATA       34                 // input only
+#define PIN_PROCEED    4
 
 #endif /* PINMAP_RC2014SPI_REV0 */
