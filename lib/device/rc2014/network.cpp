@@ -114,7 +114,7 @@ void rc2014Network::open()
     if (protocol->open(urlParser, &cmdFrame) == true)
     {
         network_status.error = protocol->error;
-        Debug_printf("Protocol unable to make connection. Error: %d\n", err);
+        Debug_printf("Protocol unable to make connection. Error: %d\n", protocol->error);
         delete protocol;
         protocol = nullptr;
         return;
