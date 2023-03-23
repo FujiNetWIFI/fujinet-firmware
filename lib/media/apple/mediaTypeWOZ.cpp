@@ -6,8 +6,6 @@
 
 #define WOZ1 '1'
 #define WOZ2 '2'
-#define WOZ1_TRACK_LEN 6646
-#define WOZ1_NUM_BLKS 13
 
 mediatype_t MediaTypeWOZ::mount(FILE *f, uint32_t disksize)
 {
