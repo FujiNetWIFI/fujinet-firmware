@@ -17,7 +17,6 @@ private:
 public:
     iecModem(FileSystem *_fs, bool snifferEnable);
     virtual ~iecModem();
-    void status() override;
     device_state_t process(IECData *commanddata) override;
 
     ModemSniffer *get_modem_sniffer() { return modemSniffer; }

@@ -22,7 +22,6 @@ private:
     void read();
     void write(bool verify);
     void format();
-    void status() override;
 
 protected:
     device_state_t process(IECData *commanddata) override;
