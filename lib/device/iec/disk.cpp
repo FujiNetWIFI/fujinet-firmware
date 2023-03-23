@@ -30,26 +30,6 @@ void iecDisk::write(bool verify)
     // TODO: IMPLEMENT
 }
 
-// Status
-void iecDisk::status()
-{
-    char reply[58];
-
-    Debug_println("status");
-
-    snprintf(reply,
-             sizeof(reply),
-             "%u,\"%s\",%u,%u\r",
-             error_response.errnum,
-             error_response.msg.c_str(),
-             error_response.track,
-             error_response.sector);
-    
-    Debug_printf("queueing reply: %s\n",reply);
-
-    response_queue.push(string(reply,sizeof(reply)));
-}
-
 // Disk format
 void iecDisk::format()
 {
@@ -105,8 +85,6 @@ void iecDisk::process_save()
 
 void iecDisk::process_command()
 {
-    if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
-        status();
 }
 
 void iecDisk::process_file()

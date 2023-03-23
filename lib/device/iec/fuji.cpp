@@ -69,12 +69,6 @@ iecFuji::iecFuji()
         _fnHosts[i].slotid = i;
 }
 
-// Status
-void iecFuji::status()
-{
-    // TODO IMPLEMENT
-}
-
 // Reset FujiNet
 void iecFuji::reset_fujinet()
 {
