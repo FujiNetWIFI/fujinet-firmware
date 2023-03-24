@@ -144,6 +144,11 @@ class iecNetwork : public virtualDevice
     void set_prefix();
 
     /**
+     * @brief Set login/password
+     */
+    void set_login_password();
+
+    /**
      * @brief called to open a connection to a protocol
      */
     void iec_open();
