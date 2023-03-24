@@ -134,6 +134,11 @@ class iecNetwork : public virtualDevice
     FNJSON *json[NUM_CHANNELS];
 
     /**
+     * @brief signal file not found
+     */
+    bool file_not_found = false;
+
+    /**
      * @brief Set desired prefix for channel
      */
     void set_prefix();
