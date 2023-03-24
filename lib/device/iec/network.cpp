@@ -129,11 +129,15 @@ void iecNetwork::iec_open()
     else
     {
         Debug_printf("Invalid protocol: %s\n", urlParser[commanddata->channel]->scheme.c_str());
+        file_not_found = true;
+        return;
     }
 
     if (protocol[commanddata->channel] == nullptr)
     {
         Debug_printf("iwmNetwork::open_protocol() - Could not open protocol.\n");
+        file_not_found = true;
+        return;
     }
 
     if (!login[commanddata->channel].empty())
@@ -186,7 +190,16 @@ void iecNetwork::iec_reopen_load()
     bool eoi = false;
 
     if ((protocol[commanddata->channel] == nullptr) || (receiveBuffer[commanddata->channel] == nullptr))
+    {
+        IEC.senderTimeout();
         return; // Punch out.
+    }
+
+    if (file_not_found)
+    {
+        IEC.senderTimeout();
+        return;
+    }
 
     // Get status
     protocol[commanddata->channel]->status(&ns);
