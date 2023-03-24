@@ -9,6 +9,9 @@
 #include "fuji.h"
 #include "utils.h"
 
+#include "meat_io.h"
+#include "meat_buffer.h"
+
 // External ref to fuji object.
 extern iecFuji theFuji;
 
