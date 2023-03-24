@@ -282,6 +282,32 @@ void iecNetwork::iec_reopen_save()
     transmitBuffer[commanddata->channel]->shrink_to_fit();
 }
 
+void iecNetwork::set_login_password()
+{
+    int channel = 0;
+
+    if (pt.size() == 1)
+    {
+        // Invalid # of parameters
+        return;
+    }
+    else if (pt.size() == 2)
+    {
+        // Clear login for channel X
+        channel = atoi(pt[1].c_str());
+
+        login[channel].clear();
+        login[channel].shrink_to_fit();
+    }
+    else
+    {
+        channel = atoi(pt[1].c_str());
+
+        login[channel] = pt[2];
+        password[channel] = pt[3];
+    }
+}
+
 void iecNetwork::iec_listen_command()
 {
 }
@@ -297,19 +323,21 @@ void iecNetwork::iec_talk_command_buffer_status()
     bool dataWaiting = false;
     string reply;
 
-    for (int i=0;i<NUM_CHANNELS;i++)
+    for (int i = 0; i < NUM_CHANNELS; i++)
     {
         if (receiveBuffer[i]->length())
-            dataWaiting=true;
+            dataWaiting = true;
     }
 
-    IEC.sendBytes(dataWaiting ? "1\r" : "0\r");
+    IEC.sendBytes("0,BLAH,0,0\r");
 }
 
 void iecNetwork::iec_command()
 {
     if (pt[0] == "prefix")
         set_prefix();
+    else if (pt[0] == "login")
+        set_login_password();
 }
 
 void iecNetwork::set_prefix()
@@ -498,12 +526,12 @@ void iecNetwork::process_channel()
 
 void iecNetwork::process_command()
 {
-    if (commanddata->primary == IEC_TALK)
+    if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
     {
         iec_talk_command();
         return;
     }
-    else if (commanddata->primary == IEC_UNLISTEN)
+    else if (commanddata->primary == IEC_LISTEN && commanddata->secondary == IEC_REOPEN)
         iec_command();
 }
 
