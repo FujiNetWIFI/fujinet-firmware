@@ -181,7 +181,6 @@ void iecFuji::net_set_ssid()
     }
     else // easy BASIC form
     {
-        mstr::toASCII(payload);
         std::string s = payload.substr(8, std::string::npos);
         std::vector<std::string> t = util_tokenize(s, ',');
 
