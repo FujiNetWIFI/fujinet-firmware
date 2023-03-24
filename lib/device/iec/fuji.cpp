@@ -1521,62 +1521,62 @@ device_state_t iecFuji::process(IECData *id)
 
 void iecFuji::process_basic_commands()
 {
-    if (payload.find("ADAPTERCONFIG") != std::string::npos)
+    if (payload.find("adapterconfig") != std::string::npos)
         get_adapter_config();
-    else if (payload.find("SETSSID") != std::string::npos)
+    else if (payload.find("setssid") != std::string::npos)
         net_set_ssid();
-    else if (payload.find("GETSSID") != std::string::npos)
+    else if (payload.find("getssid") != std::string::npos)
         net_get_ssid();
-    else if (payload.find("RESET") != std::string::npos)
+    else if (payload.find("reset") != std::string::npos)
         reset_fujinet();
-    else if (payload.find("SCANRESULT") != std::string::npos)
+    else if (payload.find("scanresult") != std::string::npos)
         net_scan_result();
-    else if (payload.find("SCAN") != std::string::npos)
+    else if (payload.find("scan") != std::string::npos)
         net_scan_networks();
-    else if (payload.find("WIFISTATUS") != std::string::npos)
+    else if (payload.find("wifistatus") != std::string::npos)
         net_get_wifi_status();
-    else if (payload.find("MOUNTHOST") != std::string::npos)
+    else if (payload.find("mounthost") != std::string::npos)
         mount_host();
-    else if (payload.find("MOUNTDRIVE") != std::string::npos)
+    else if (payload.find("mountdrive") != std::string::npos)
         disk_image_mount();
-    else if (payload.find("OPENDIR") != std::string::npos)
+    else if (payload.find("opendir") != std::string::npos)
         open_directory();
-    else if (payload.find("READDIR") != std::string::npos)
+    else if (payload.find("readdir") != std::string::npos)
         read_directory_entry();
-    else if (payload.find("CLOSEDIR") != std::string::npos)
+    else if (payload.find("closedir") != std::string::npos)
         close_directory();
-    else if (payload.find("GETHOST") != std::string::npos ||
-             payload.find("FLH") != std::string::npos)
+    else if (payload.find("gethost") != std::string::npos ||
+             payload.find("flh") != std::string::npos)
         read_host_slots();
-    else if (payload.find("PUTHOST") != std::string::npos ||
-             payload.find("FHOST") != std::string::npos)
+    else if (payload.find("puthost") != std::string::npos ||
+             payload.find("fhost") != std::string::npos)
         write_host_slots();
-    else if (payload.find("GETDRIVE") != std::string::npos ||
-             payload.find("FLD") != std::string::npos)
+    else if (payload.find("getdrive") != std::string::npos ||
+             payload.find("fld") != std::string::npos)
         read_device_slots();
-    else if (payload.find("UNMOUNTHOST") != std::string::npos)
+    else if (payload.find("unmounthost") != std::string::npos)
         unmount_host();
-    else if (payload.find("GETDIRPOS") != std::string::npos)
+    else if (payload.find("getdirpos") != std::string::npos)
         get_directory_position();
-    else if (payload.find("SETDIRPOS") != std::string::npos)
+    else if (payload.find("setdirpos") != std::string::npos)
         set_directory_position();
-    else if (payload.find("SETDRIVEFILENAME") != std::string::npos)
+    else if (payload.find("setdrivefilename") != std::string::npos)
         set_device_filename();
-    else if (payload.find("WRITEAPPKEY") != std::string::npos)
+    else if (payload.find("writeappkey") != std::string::npos)
         write_app_key();
-    else if (payload.find("READAPPKEY") != std::string::npos)
+    else if (payload.find("readappkey") != std::string::npos)
         read_app_key();
-    else if (payload.find("OPENAPPKEY") != std::string::npos)
+    else if (payload.find("openappkey") != std::string::npos)
         open_app_key();
-    else if (payload.find("CLOSEAPPKEY") != std::string::npos)
+    else if (payload.find("closeappkey") != std::string::npos)
         close_app_key();
-    else if (payload.find("DRIVEFILENAME") != std::string::npos)
+    else if (payload.find("drivefilename") != std::string::npos)
         get_device_filename();
-    else if (payload.find("BOOTCONFIG") != std::string::npos)
+    else if (payload.find("bootconfig") != std::string::npos)
         set_boot_config();
-    else if (payload.find("BOOTMODE") != std::string::npos)
+    else if (payload.find("bootmode") != std::string::npos)
         set_boot_mode();
-    else if (payload.find("MOUNTALL") != std::string::npos)
+    else if (payload.find("mountall") != std::string::npos)
         mount_all();
 }
 
