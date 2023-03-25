@@ -212,6 +212,12 @@ void iecNetwork::iec_close()
     // Delete the protocol object
     delete protocol[commanddata->channel];
     protocol[commanddata->channel] = nullptr;
+    receiveBuffer[commanddata->channel]->clear();
+    receiveBuffer[commanddata->channel]->shrink_to_fit();
+    transmitBuffer[commanddata->channel]->clear();
+    transmitBuffer[commanddata->channel]->shrink_to_fit();
+    specialBuffer[commanddata->channel]->clear();
+    specialBuffer[commanddata->channel]->shrink_to_fit();
 }
 
 void iecNetwork::iec_reopen_load()
@@ -274,22 +280,7 @@ void iecNetwork::iec_reopen_load()
         if ((!ns.connected) || ns.error == 136) // EOF
             eoi = true;
 
-        // Now send the resulting block of data through the bus
-        for (int i = 0; i < blockSize; i++)
-        {
-            int lastbyte = blockSize - 2;
-            if ((i == lastbyte) && (eoi == true))
-            {
-                // We're done.
-                IEC.sendByte(receiveBuffer[commanddata->channel]->at(i), true);
-                break;
-            }
-            else
-            {
-                IEC.sendByte(receiveBuffer[commanddata->channel]->at(i), false);
-            }
-        }
-
+        IEC.sendBytes(*receiveBuffer[commanddata->channel]);        
         receiveBuffer[commanddata->channel]->erase(0, blockSize);
     }
 
@@ -340,6 +331,85 @@ void iecNetwork::iec_reopen_save()
 
     transmitBuffer[commanddata->channel]->clear();
     transmitBuffer[commanddata->channel]->shrink_to_fit();
+}
+
+void iecNetwork::iec_reopen_channel()
+{
+    switch (commanddata->primary)
+    {
+    case IEC_TALK:
+        iec_reopen_channel_talk();
+        break;
+    case IEC_LISTEN:
+        iec_reopen_channel_listen();
+        break;
+    }
+}
+
+void iecNetwork::iec_reopen_channel_listen()
+{
+    // If protocol isn't connected, then return not connected.
+    if (protocol[commanddata->channel] == nullptr)
+    {
+        Debug_printf("iec_reopen_channel_listen() - Not connected\n");
+        return;
+    }
+
+    Debug_printf("Receiving data from computer...\n");
+
+    while (!(IEC.flags & EOI_RECVD))
+    {
+        int16_t b = IEC.receiveByte();
+
+        if (b < 0)
+        {
+            Debug_printf("error on receive.\n");
+            return;
+        }
+
+        transmitBuffer[commanddata->channel]->push_back(b);
+    }
+
+    Debug_printf("Received %u bytes. Transmitting.\n", transmitBuffer[commanddata->channel]->length());
+
+    protocol[commanddata->channel]->write(transmitBuffer[commanddata->channel]->length());
+    transmitBuffer[commanddata->channel]->clear();
+    transmitBuffer[commanddata->channel]->shrink_to_fit();
+}
+
+void iecNetwork::iec_reopen_channel_talk()
+{
+    bool set_eoi = false;
+    NetworkStatus ns;
+
+    // If protocol isn't connected, then return not connected.
+    if (protocol[commanddata->channel] == nullptr)
+    {
+        Debug_printf("iec_reopen_channel_listen() - Not connected\n");
+        return;
+    }
+
+    if (receiveBuffer[commanddata->channel]->empty())
+    {
+        protocol[commanddata->channel]->status(&ns);
+
+        if (ns.rxBytesWaiting)
+            protocol[commanddata->channel]->read(ns.rxBytesWaiting);
+        
+    }
+
+    if (receiveBuffer[commanddata->channel]->empty())
+    {
+        IEC.senderTimeout();
+        return;
+    }
+    else if (receiveBuffer[commanddata->channel]->length() == 1)
+        set_eoi = true;
+
+    char b = receiveBuffer[commanddata->channel]->front();
+    receiveBuffer[commanddata->channel]->erase(0, 1);
+
+    IEC.sendByte(b, set_eoi);
 }
 
 void iecNetwork::set_login_password()
@@ -394,14 +464,14 @@ void iecNetwork::parse_json()
     int channel;
     NetworkStatus ns;
 
-    if (pt.size()<2)
+    if (pt.size() < 2)
     {
         Debug_printf("parse_json - no channel specified\n");
         iecStatus.bw = 0;
         iecStatus.msg = "no channel specified";
         iecStatus.channel = 0;
         iecStatus.connected = 0;
-        return;        
+        return;
     }
 
     channel = atoi(pt[1].c_str());
@@ -451,7 +521,7 @@ void iecNetwork::query_json()
 
     if (!tmp)
     {
-        snprintf(reply,80,"could not allocate %u bytes for json return value",json[channel]->readValueLen());
+        snprintf(reply, 80, "could not allocate %u bytes for json return value", json[channel]->readValueLen());
         iecStatus.bw = 0;
         iecStatus.channel = channel;
         iecStatus.connected = 0;
@@ -465,7 +535,7 @@ void iecNetwork::query_json()
     *receiveBuffer[channel] += string((const char *)tmp, json_bytes_remaining[channel]);
 
     free(tmp);
-    snprintf(reply,80,"query set to %s",pt[2].c_str());
+    snprintf(reply, 80, "query set to %s", pt[2].c_str());
     iecStatus.bw = json_bytes_remaining[channel];
     iecStatus.channel = channel;
     iecStatus.connected = true;
@@ -600,9 +670,9 @@ void iecNetwork::set_channel_mode()
     }
     else if (pt.size() < 3)
     {
-        Debug_printf("set_channel_mode no mode specified for channel %u\n",atoi(pt[1].c_str()));
+        Debug_printf("set_channel_mode no mode specified for channel %u\n", atoi(pt[1].c_str()));
         iecStatus.bw = ns.rxBytesWaiting;
-        iecStatus.msg = "no mode specified for channel "+pt[1];
+        iecStatus.msg = "no mode specified for channel " + pt[1];
         iecStatus.connected = ns.connected;
         iecStatus.channel = commanddata->channel;
     }
@@ -615,12 +685,12 @@ void iecNetwork::set_channel_mode()
             channelMode[channel] = JSON;
         else if (newMode == "protocol")
             channelMode[channel] = PROTOCOL;
-        
-        Debug_printf("Channel mode set to %s\n",newMode);
+
+        Debug_printf("Channel mode set to %s\n", newMode);
         iecStatus.bw = ns.rxBytesWaiting;
         iecStatus.channel = channel;
         iecStatus.connected = ns.connected;
-        iecStatus.msg = "channel mode set to "+newMode;
+        iecStatus.msg = "channel mode set to " + newMode;
     }
 }
 
@@ -860,6 +930,7 @@ void iecNetwork::process_channel()
         iec_close();
         break;
     case IEC_REOPEN:
+        iec_reopen_channel();
         break;
     default:
         break;
