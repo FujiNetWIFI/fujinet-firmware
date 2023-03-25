@@ -137,7 +137,7 @@ class iecNetwork : public virtualDevice
      * @brief # of bytes remaining in json query/channel
      */
     int json_bytes_remaining[NUM_CHANNELS];
-    
+
     /**
      * @brief signal file not found
      */
@@ -213,6 +213,21 @@ class iecNetwork : public virtualDevice
      * @brief called when TALK, then REOPEN happens on channel 1
      */
     void iec_reopen_save();
+
+    /**
+     * @brief called when REOPEN (to send/receive data)
+     */
+    void iec_reopen_channel();
+
+    /**
+     * @brief called when channel needs to listen for data from c=
+     */
+    void iec_reopen_channel_listen();
+
+    /**
+     * @brief called when channel needs to talk data to c=
+     */
+    void iec_reopen_channel_talk();
 
     /**
      * @brief called when LISTEN happens on command channel (15).
