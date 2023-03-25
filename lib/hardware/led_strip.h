@@ -8,6 +8,7 @@
 
 #define LED_BLINK_TIME 100
 
+
 enum stripLed
 {
   LED_STRIP_WIFI = LED_WIFI_NUM,
@@ -26,13 +27,16 @@ enum ledState
 // Task that always runs to control led strip
 void ledStripTask(void *pvParameters);
 
+// Taste the Rainbow
+void rainbow_wave(uint8_t thisSpeed, uint8_t deltaHue);
+
 class LedStrip
 {
 public:
   int sLedState[NUM_LEDS] = { LED_OFF }; // default off
   CRGB sLedColor[NUM_LEDS] = { CRGB::Black }; // default black (off)
   int sLedBlinkCount[NUM_LEDS] = { 0 }; // default no blinky
-  CRGB ledstrip[NUM_LEDS];
+  int rainbowTimer = 0; // run the rainbow animation for this many seconds
 
   LedStrip();
   void setup();
@@ -40,6 +44,7 @@ public:
   void setColor(int led, CRGB color);
   void toggle(stripLed led);
   void blink(stripLed led, int count=1);
+  void startRainbow(int seconds);
 
 private:
 };
