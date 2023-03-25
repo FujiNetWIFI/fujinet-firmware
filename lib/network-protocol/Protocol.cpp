@@ -10,6 +10,7 @@
 
 #include "status_error_codes.h"
 #include "utils.h"
+#include "string_utils.h"
 
 
 using namespace std;
@@ -44,6 +45,7 @@ using namespace std;
 #define TRANSLATION_MODE_CR 1
 #define TRANSLATION_MODE_LF 2
 #define TRANSLATION_MODE_CRLF 3
+#define TRANSLATION_MODE_PETSCII 4
 
 /**
  * ctor - Initialize network protocol object.
@@ -180,6 +182,9 @@ void NetworkProtocol::translate_receive_buffer()
         replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, EOL);
     #endif
         break;
+    case TRANSLATION_MODE_PETSCII:
+        mstr::toPETSCII(*receiveBuffer);
+        break;
     }
 
     if (translation_mode == TRANSLATION_MODE_CRLF)
@@ -209,6 +214,9 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
         break;
     case TRANSLATION_MODE_CRLF:
         util_replaceAll(*transmitBuffer, "\x9b", "\x0d\x0a");
+        break;
+    case TRANSLATION_MODE_PETSCII:
+        mstr::toASCII(*transmitBuffer);
         break;
     }
 
