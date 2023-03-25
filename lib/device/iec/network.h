@@ -189,6 +189,11 @@ class iecNetwork : public virtualDevice
     void set_login_password();
 
     /**
+     * @brief Set translation mode
+     */
+    void set_translation_mode();
+
+    /**
      * @brief ask protocol to perform idempotent filesystem operation
      * @param comnd the command to pass in cmdFrame
      */
