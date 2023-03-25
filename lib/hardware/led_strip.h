@@ -37,6 +37,7 @@ public:
   CRGB sLedColor[NUM_LEDS] = { CRGB::Black }; // default black (off)
   int sLedBlinkCount[NUM_LEDS] = { 0 }; // default no blinky
   int rainbowTimer = 0; // run the rainbow animation for this many seconds
+  bool rainbowStopper = false; // flag the loop to stop if true
 
   LedStrip();
   void setup();
@@ -45,6 +46,7 @@ public:
   void toggle(stripLed led);
   void blink(stripLed led, int count=1);
   void startRainbow(int seconds);
+  void stopRainbow();
 
 private:
 };

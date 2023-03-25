@@ -60,11 +60,12 @@ void ledStripTask(void *pvParameters)
         }
         else if(rainbowRun)
         {
-            if (fnSystem.millis() - rainbowMillis > (fnLedStrip.rainbowTimer * 1000)) // Times Up!
+            if ((fnSystem.millis() - rainbowMillis) > (fnLedStrip.rainbowTimer * 1000) || fnLedStrip.rainbowStopper) // Times Up!
             {
                 rainbowRun = false;
                 rainbowMillis = 0;
                 fnLedStrip.rainbowTimer = 0;
+                fnLedStrip.rainbowStopper = false;
 
                 for (int i=0;i<LED_STRIP_COUNT;i++)
                 {
@@ -173,6 +174,12 @@ void LedStrip::blink(stripLed led, int count)
 void LedStrip::startRainbow(int seconds)
 {
     fnLedStrip.rainbowTimer = seconds;
+}
+
+// Stop rainbow mode
+void LedStrip::stopRainbow()
+{
+    fnLedStrip.rainbowStopper = true;
 }
 
 #endif // LED_STRIP
