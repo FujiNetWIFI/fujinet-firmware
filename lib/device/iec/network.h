@@ -134,6 +134,11 @@ class iecNetwork : public virtualDevice
     FNJSON *json[NUM_CHANNELS];
 
     /**
+     * @brief # of bytes remaining in json query/channel
+     */
+    int json_bytes_remaining[NUM_CHANNELS];
+    
+    /**
      * @brief signal file not found
      */
     bool file_not_found = false;
@@ -152,6 +157,16 @@ class iecNetwork : public virtualDevice
         bool connected;
         int channel;
     } iecStatus;
+
+    /**
+     * @brief parse JSON
+     */
+    void parse_json();
+
+    /**
+     * @brief query JSON
+     */
+    void query_json();
 
     /**
      * @brief Set desired prefix for channel

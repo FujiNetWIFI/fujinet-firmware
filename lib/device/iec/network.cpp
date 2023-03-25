@@ -389,6 +389,90 @@ void iecNetwork::set_login_password()
     }
 }
 
+void iecNetwork::parse_json()
+{
+    int channel;
+    NetworkStatus ns;
+
+    if (pt.size()<2)
+    {
+        Debug_printf("parse_json - no channel specified\n");
+        iecStatus.bw = 0;
+        iecStatus.msg = "no channel specified";
+        iecStatus.channel = 0;
+        iecStatus.connected = 0;
+        return;        
+    }
+
+    channel = atoi(pt[1].c_str());
+    protocol[channel]->status(&ns);
+
+    if (!json[channel]->parse())
+    {
+        Debug_printf("could not parse json\n");
+        iecStatus.bw = ns.rxBytesWaiting;
+        iecStatus.channel = channel;
+        iecStatus.connected = ns.connected;
+        iecStatus.msg = "could not parse json";
+    }
+    else
+    {
+        Debug_printf("json parsed\n");
+        iecStatus.bw = ns.rxBytesWaiting;
+        iecStatus.channel = channel;
+        iecStatus.connected = ns.connected;
+        iecStatus.msg = "json parsed";
+    }
+}
+
+void iecNetwork::query_json()
+{
+    uint8_t *tmp;
+    int channel = 0;
+    char reply[80];
+
+    if (pt.size() < 3)
+    {
+        iecStatus.bw = 0;
+        iecStatus.msg = "invalid # of parameters";
+        iecStatus.channel = channel;
+        iecStatus.connected = 0;
+        Debug_printf("Invalid # of parameters to set_json_query()\n");
+        return;
+    }
+
+    channel = atoi(pt[1].c_str());
+
+    Debug_printf("set_json_query(%s)\n", pt[2].c_str());
+
+    json[channel]->setReadQuery(pt[2], 0);
+
+    tmp = (uint8_t *)malloc(json[channel]->readValueLen());
+
+    if (!tmp)
+    {
+        snprintf(reply,80,"could not allocate %u bytes for json return value",json[channel]->readValueLen());
+        iecStatus.bw = 0;
+        iecStatus.channel = channel;
+        iecStatus.connected = 0;
+        iecStatus.msg = string(reply);
+        Debug_printf("Could not allocate %u bytes for JSON return value.\n", json[channel]->readValueLen());
+        return;
+    }
+
+    json_bytes_remaining[channel] = json[channel]->readValueLen();
+    json[channel]->readValue(tmp, json_bytes_remaining[channel]);
+    *receiveBuffer[channel] += string((const char *)tmp, json_bytes_remaining[channel]);
+
+    free(tmp);
+    snprintf(reply,80,"query set to %s",pt[2].c_str());
+    iecStatus.bw = json_bytes_remaining[channel];
+    iecStatus.channel = channel;
+    iecStatus.connected = true;
+    iecStatus.msg = string(reply);
+    Debug_printf("Query set to %s\n", pt[2].c_str());
+}
+
 void iecNetwork::iec_listen_command()
 {
 }
@@ -443,6 +527,13 @@ void iecNetwork::iec_command()
         else if (protocol[commanddata->channel] != nullptr &&
                  protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x80)
             perform_special_80();
+    }
+    else if (channelMode[commanddata->channel] == JSON)
+    {
+        if (pt[0] == "parse")
+            parse_json();
+        else if (pt[0] == "q")
+            query_json();
     }
 }
 
