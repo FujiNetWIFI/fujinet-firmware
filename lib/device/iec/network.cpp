@@ -30,7 +30,9 @@ iecNetwork::iecNetwork()
 
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
+        channelMode[i] = PROTOCOL;
         protocol[i] = nullptr;
+        json[i] = nullptr;
         receiveBuffer[i] = new string();
         transmitBuffer[i] = new string();
         specialBuffer[i] = new string();
@@ -46,6 +48,8 @@ iecNetwork::~iecNetwork()
 {
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
+        delete protocol[i];
+        delete json[i];
         delete receiveBuffer[i];
         delete transmitBuffer[i];
         delete specialBuffer[i];
@@ -78,7 +82,7 @@ void iecNetwork::iec_open()
         break;
     default:
         cmdFrame.aux1 = 12; // default read/write
-        cmdFrame.aux2 = translationMode[commanddata->channel];
+        cmdFrame.aux2 = translationMode[commanddata->channel]; // now used
         break;
     }
 
@@ -202,7 +206,7 @@ void iecNetwork::iec_close()
     }
 
     // If no protocol enabled, we just signal complete, and return.
-    if (protocol == nullptr)
+    if (protocol[commanddata->channel] == nullptr)
     {
         return;
     }
@@ -280,7 +284,7 @@ void iecNetwork::iec_reopen_load()
         if ((!ns.connected) || ns.error == 136) // EOF
             eoi = true;
 
-        IEC.sendBytes(*receiveBuffer[commanddata->channel]);        
+        IEC.sendBytes(*receiveBuffer[commanddata->channel]);
         receiveBuffer[commanddata->channel]->erase(0, blockSize);
     }
 
@@ -381,6 +385,8 @@ void iecNetwork::iec_reopen_channel_talk()
 {
     bool set_eoi = false;
     NetworkStatus ns;
+    bool atn = true;
+    int c=0;
 
     // If protocol isn't connected, then return not connected.
     if (protocol[commanddata->channel] == nullptr)
@@ -395,21 +401,34 @@ void iecNetwork::iec_reopen_channel_talk()
 
         if (ns.rxBytesWaiting)
             protocol[commanddata->channel]->read(ns.rxBytesWaiting);
-        
     }
 
-    if (receiveBuffer[commanddata->channel]->empty())
+    while (atn)
     {
-        IEC.senderTimeout();
-        return;
+        if (receiveBuffer[commanddata->channel]->empty())
+        {
+            IEC.senderTimeout();
+            return;
+        }
+        else if (receiveBuffer[commanddata->channel]->length() == 1)
+            set_eoi = true;
+
+        char b = receiveBuffer[commanddata->channel]->front();
+        receiveBuffer[commanddata->channel]->erase(0, 1);
+
+        IEC.sendByte(b, set_eoi);
+        
+        c++;
+
+        if (set_eoi)
+        {
+            Debug_printf("eoi\n");
+            break;
+        }
+
+        atn = fnSystem.digital_read(PIN_IEC_ATN);
     }
-    else if (receiveBuffer[commanddata->channel]->length() == 1)
-        set_eoi = true;
-
-    char b = receiveBuffer[commanddata->channel]->front();
-    receiveBuffer[commanddata->channel]->erase(0, 1);
-
-    IEC.sendByte(b, set_eoi);
+    Debug_printf("atn pull stop. c=%u\n",c);
 }
 
 void iecNetwork::set_login_password()
@@ -543,6 +562,55 @@ void iecNetwork::query_json()
     Debug_printf("Query set to %s\n", pt[2].c_str());
 }
 
+void iecNetwork::set_translation_mode()
+{
+    if (pt.size()<2)
+    {
+        iecStatus.bw=0;
+        iecStatus.channel=commanddata->channel;
+        iecStatus.connected=0;
+        iecStatus.msg = "no channel specified";
+        return;
+    }
+    else if (pt.size()<3)
+    {
+        iecStatus.bw=0;
+        iecStatus.channel=commanddata->channel;
+        iecStatus.connected=0;
+        iecStatus.msg = "no mode specified";
+    }
+
+    int channel=atoi(pt[1].c_str());
+
+    translationMode[channel] = atoi(pt[2].c_str());
+    
+    if (protocol[channel] == nullptr)
+    {
+        iecStatus.bw = iecStatus.connected = 0;
+    }
+
+    iecStatus.channel = channel;
+    
+    switch(translationMode[channel])
+    {
+        case 0:
+            iecStatus.msg="no translation";
+            break;
+        case 1:
+            iecStatus.msg="atascii<->ascii CR";
+            break;
+        case 2:
+            iecStatus.msg="atascii<->ascii LF";
+            break;
+        case 3:
+            iecStatus.msg="atascii<->ascii CRLF";
+            break;
+        case 4:
+            iecStatus.msg="petscii<->ascii";
+            break;
+    }
+}
+
 void iecNetwork::iec_listen_command()
 {
 }
@@ -572,6 +640,8 @@ void iecNetwork::iec_command()
             set_prefix();
         else if (pt[0] == "channelmode")
             set_channel_mode();
+        else if (pt[0] == "settrans")
+            set_translation_mode();
         else if (pt[0] == "pwd")
             get_prefix();
         else if (pt[0] == "login")
