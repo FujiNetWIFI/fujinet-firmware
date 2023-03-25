@@ -139,9 +139,29 @@ class iecNetwork : public virtualDevice
     bool file_not_found = false;
 
     /**
+     * @brief The status information to send back on cmd input
+     * @param bw = # of bytes waiting
+     * @param msg = most recent status message
+     * @param connected = is most recent channel connected?
+     * @param channel = channel of most recent status msg.
+     */
+    struct _iecStatus
+    {
+        uint16_t bw;
+        string msg;
+        bool connected;
+        int channel;
+    } iecStatus;
+
+    /**
      * @brief Set desired prefix for channel
      */
     void set_prefix();
+
+    /**
+     * @brief Get prefix for channel
+     */
+    void get_prefix();
 
     /**
      * @brief Set login/password
