@@ -164,9 +164,20 @@ class iecNetwork : public virtualDevice
     void get_prefix();
 
     /**
+     * @brief Set channel mode (e.g. protocol, or json)
+     */
+    void set_channel_mode();
+
+    /**
      * @brief Set login/password
      */
     void set_login_password();
+
+    /**
+     * @brief ask protocol to perform idempotent filesystem operation
+     * @param comnd the command to pass in cmdFrame
+     */
+    void fsop(unsigned char comnd);
 
     /**
      * @brief called to open a connection to a protocol
@@ -202,6 +213,21 @@ class iecNetwork : public virtualDevice
      * @brief called to process command either at open or listen
      */
     void iec_command();
+
+    /**
+     * @brief called to ask protocol to perform an operation with no payload
+     */
+    void perform_special_00();
+
+    /**
+     * @brief called to ask protocol to perform an operation with payload to computer (status)
+     */
+    void perform_special_40();
+
+    /**
+     * @brief called to ask protocol to perform an operation with no payload
+     */
+    void perform_special_80();
 
     /**
      * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
