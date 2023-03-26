@@ -152,7 +152,7 @@ class iecNetwork : public virtualDevice
      */
     struct _iecStatus
     {
-        uint16_t bw;
+        uint8_t error;
         string msg;
         bool connected;
         int channel;
