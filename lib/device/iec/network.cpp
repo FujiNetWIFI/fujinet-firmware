@@ -673,22 +673,27 @@ void iecNetwork::iec_command()
 
 void iecNetwork::perform_special_00()
 {
+    int channel = 0;
+
     if (pt.size() > 0)
         cmdFrame.comnd = pt[0][0];
 
     if (pt.size() > 1)
-        cmdFrame.aux1 = atoi(pt[1].c_str());
+        channel = atoi(pt[1].c_str());
 
     if (pt.size() > 2)
+        cmdFrame.aux1 = atoi(pt[1].c_str());
+
+    if (pt.size() > 3)
         cmdFrame.aux2 = atoi(pt[2].c_str());
 
-    if (protocol[commanddata->channel]->special_00(&cmdFrame))
+    if (protocol[channel]->special_00(&cmdFrame))
     {
         NetworkStatus ns;
         char reply[80];
         string s;
 
-        protocol[commanddata->channel]->status(&ns);
+        protocol[channel]->status(&ns);
         snprintf(reply, 80, "protocol error #%u", ns.error);
         iecStatus.bw = ns.rxBytesWaiting;
         iecStatus.channel = commanddata->channel;
@@ -716,6 +721,26 @@ void iecNetwork::perform_special_40()
 
     channel = atoi(pt[1].c_str());
     cmdFrame.comnd = pt[0][0];
+
+    if (pt.size()<3)
+    {
+        iecStatus.bw = 0;
+        iecStatus.channel = channel;
+        iecStatus.connected = 0;
+        iecStatus.msg = "no aux1";
+    }
+
+    cmdFrame.aux1 = atoi(pt[2].c_str());
+
+    if (pt.size()<4)
+    {
+        iecStatus.bw = 0;
+        iecStatus.channel = channel;
+        iecStatus.connected = 0;
+        iecStatus.msg = "no aux2";
+    }
+
+    cmdFrame.aux2 = atoi(pt[3].c_str());
 
     if (protocol[channel] != nullptr)
     {
@@ -764,6 +789,28 @@ void iecNetwork::perform_special_80()
 
     if (pt.size()<3)
     {
+        iecStatus.bw = 0;
+        iecStatus.channel = 15;
+        iecStatus.connected = 0;
+        iecStatus.msg = "no aux1";
+        return;        
+    }
+
+    cmdFrame.aux1 = atoi(pt[2].c_str());
+
+    if (pt.size()<4)
+    {
+        iecStatus.bw = 0;
+        iecStatus.channel = 15;
+        iecStatus.connected = 0;
+        iecStatus.msg = "no aux2";
+        return;        
+    }
+
+    cmdFrame.aux2 = atoi(pt[3].c_str());
+
+    if (pt.size()<5)
+    {
         if (protocol[channel] != nullptr)
         {
             protocol[channel]->status(&ns);
@@ -778,7 +825,7 @@ void iecNetwork::perform_special_80()
     }
 
     cmdFrame.comnd = pt[0][0];
-    sp_buf += pt[2];
+    sp_buf += pt[4];
 
     if (protocol[channel]->special_80((uint8_t *)sp_buf.c_str(),sp_buf.length(),&cmdFrame))
     {
