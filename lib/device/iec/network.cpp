@@ -83,6 +83,7 @@ void iecNetwork::iec_open()
     default:
         cmdFrame.aux1 = 12;                                    // default read/write
         cmdFrame.aux2 = translationMode[commanddata->channel]; // now used
+        Debug_printf("translation mode: %u\n",cmdFrame.aux2);
         break;
     }
 
@@ -555,6 +556,7 @@ void iecNetwork::set_translation_mode()
 {
     if (pt.size() < 2)
     {
+        Debug_printf("no channel\n");
         iecStatus.bw = 0;
         iecStatus.channel = commanddata->channel;
         iecStatus.connected = 0;
@@ -563,6 +565,7 @@ void iecNetwork::set_translation_mode()
     }
     else if (pt.size() < 3)
     {
+        Debug_printf("no mode\n");
         iecStatus.bw = 0;
         iecStatus.channel = commanddata->channel;
         iecStatus.connected = 0;
@@ -598,6 +601,8 @@ void iecNetwork::set_translation_mode()
         iecStatus.msg = "petscii<->ascii";
         break;
     }
+
+    Debug_printf("Translation mode for channel %u is now %u\n",channel,translationMode[channel]);
 }
 
 void iecNetwork::iec_listen_command()
@@ -998,13 +1003,17 @@ void iecNetwork::process_channel()
 
 void iecNetwork::process_command()
 {
+    Debug_printf("process_command()\n");
     if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
     {
         iec_talk_command();
         return;
     }
-    else if (commanddata->primary == IEC_LISTEN && commanddata->secondary == IEC_REOPEN)
+    else 
+    {
+        Debug_printf("LISTEN COMMAND!");
         iec_command();
+    }
 }
 
 #endif /* BUILD_IEC */
