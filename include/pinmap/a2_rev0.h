@@ -33,7 +33,7 @@
 #define PIN_LED_BT -1 // No BT LED
 
 /* LED Strip NEW */
-#define NUM_LEDS            3
+#define NUM_LEDS            4
 #define LED_DATA_PIN        2
 #define LED_BRIGHTNESS      11 // max mA the LED can use determines brightness
 #define LED_TYPE            WS2812B
