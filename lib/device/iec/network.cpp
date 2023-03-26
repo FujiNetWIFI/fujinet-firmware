@@ -701,10 +701,101 @@ void iecNetwork::perform_special_00()
 
 void iecNetwork::perform_special_40()
 {
+    char sp_buf[256];
+    int channel = 0;
+    NetworkStatus ns;
+
+    if (pt.size()<2)
+    {
+        iecStatus.bw = 0;
+        iecStatus.channel = 15;
+        iecStatus.connected = 0;
+        iecStatus.msg = "no channel #";
+        return;
+    }
+
+    channel = atoi(pt[1].c_str());
+    cmdFrame.comnd = pt[0][0];
+
+    if (protocol[channel] != nullptr)
+    {
+        iecStatus.bw = 0;
+        iecStatus.channel = 15;
+        iecStatus.connected = 0;
+        iecStatus.msg = "no active protocol";
+        return;
+    }
+
+    if (protocol[channel]->special_40((uint8_t *)&sp_buf,sizeof(sp_buf),&cmdFrame))
+    {
+        protocol[channel]->status(&ns);
+        iecStatus.bw = ns.rxBytesWaiting;
+        iecStatus.connected = ns.connected;
+        iecStatus.channel = channel;
+        iecStatus.msg = "protocol read error";
+        return;
+    }
+    else
+    {
+        protocol[channel]->status(&ns);
+        iecStatus.bw = ns.rxBytesWaiting;
+        iecStatus.channel = channel;
+        iecStatus.connected = ns.connected;
+        iecStatus.msg = string(sp_buf);
+    }
 }
 
 void iecNetwork::perform_special_80()
 {
+    string sp_buf = "N:";
+    int channel = 0;
+    NetworkStatus ns;
+
+    if (pt.size()<2)
+    {
+        iecStatus.bw = 0;
+        iecStatus.channel = 15;
+        iecStatus.connected = 0;
+        iecStatus.msg = "no channel #";
+        return;        
+    }
+
+    channel = atoi(pt[1].c_str());
+
+    if (pt.size()<3)
+    {
+        if (protocol[channel] != nullptr)
+        {
+            protocol[channel]->status(&ns);
+            iecStatus.bw = ns.rxBytesWaiting;
+            iecStatus.connected = ns.connected;
+        }
+        else
+            iecStatus.bw = iecStatus.connected = 0;
+
+        iecStatus.channel = channel;
+        iecStatus.msg = "parameter missing";
+    }
+
+    cmdFrame.comnd = pt[0][0];
+    sp_buf += pt[2];
+
+    if (protocol[channel]->special_80((uint8_t *)sp_buf.c_str(),sp_buf.length(),&cmdFrame))
+    {
+        protocol[channel]->status(&ns);
+        iecStatus.bw = ns.rxBytesWaiting;
+        iecStatus.channel = channel;
+        iecStatus.connected = ns.connected;
+        iecStatus.msg = "error";
+    }
+    else
+    {
+        protocol[channel]->status(&ns);
+        iecStatus.bw = ns.rxBytesWaiting;
+        iecStatus.channel = channel;
+        iecStatus.connected = ns.connected;
+        iecStatus.msg = "ok";
+    }
 }
 
 void iecNetwork::set_channel_mode()
@@ -1003,7 +1094,6 @@ void iecNetwork::process_channel()
 
 void iecNetwork::process_command()
 {
-    Debug_printf("process_command()\n");
     if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
     {
         iec_talk_command();
@@ -1011,7 +1101,6 @@ void iecNetwork::process_command()
     }
     else 
     {
-        Debug_printf("LISTEN COMMAND!");
         iec_command();
     }
 }
