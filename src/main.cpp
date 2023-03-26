@@ -259,6 +259,23 @@ void main_setup()
 // Main high-priority service loop
 void fn_service_loop(void *param)
 {
+       main_setup();
+       // Now that our main service is running, try connecting to WiFi or BlueTooth
+        if (Config.get_bt_status())
+        {
+#ifdef BLUETOOTH_SUPPORT
+            // Start SIO2BT mode if we were in it last shutdown
+            fnLedManager.set(eLed::LED_BT, true); // BT LED ON
+            fnBtManager.start();
+#endif
+        }
+        else if (Config.get_wifi_enabled())
+        {
+            // Set up the WiFi adapter if enabled in config
+            fnWiFi.start();
+            // Go ahead and try reconnecting to WiFi
+            fnWiFi.connect();
+        }
     while (true)
     {
         // We don't have any delays in this loop, so IDLE threads will be starved
@@ -286,7 +303,7 @@ extern "C"
     {
         // cppcheck-suppress "unusedFunction"
         // Call our setup routine
-        main_setup();
+        //main_setup();
 
 // Create a new high-priority task to handle the main loop
 // This is assigned to CPU1; the WiFi task ends up on CPU0
@@ -296,22 +313,6 @@ extern "C"
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
 
-        // Now that our main service is running, try connecting to WiFi or BlueTooth
-        if (Config.get_bt_status())
-        {
-#ifdef BLUETOOTH_SUPPORT
-            // Start SIO2BT mode if we were in it last shutdown
-            fnLedManager.set(eLed::LED_BT, true); // BT LED ON
-            fnBtManager.start();
-#endif
-        }
-        else if (Config.get_wifi_enabled())
-        {
-            // Set up the WiFi adapter if enabled in config
-            fnWiFi.start();
-            // Go ahead and try reconnecting to WiFi
-            fnWiFi.connect();
-        }
 
         // Sit here twiddling our thumbs
         while (true)
