@@ -633,8 +633,10 @@ void iecNetwork::iec_command()
     {
         if (pt[0] == "cd")
             set_prefix();
-        else if (pt[0] == "channelmode")
-            set_channel_mode();
+        else if (pt[0] == "jsonparse")
+            parse_json();
+        else if (pt[0] == "jq")
+            query_json();        
         else if (pt[0] == "settrans")
             set_translation_mode();
         else if (pt[0] == "pwd")
@@ -665,10 +667,8 @@ void iecNetwork::iec_command()
     }
     else if (channelMode[commanddata->channel] == JSON)
     {
-        if (pt[0] == "parse")
-            parse_json();
-        else if (pt[0] == "q")
-            query_json();
+        Debug_printf("JSON channelmode command %s\n",pt[0].c_str());
+
     }
 }
 
@@ -853,19 +853,7 @@ void iecNetwork::set_channel_mode()
 {
     NetworkStatus ns;
 
-    if (protocol[commanddata->channel] == nullptr)
-    {
-        Debug_printf("no active protocol. ignoring set channel mode command.\n");
-        iecStatus.error = NETWORK_ERROR_NOT_CONNECTED;
-        iecStatus.channel = commanddata->channel;
-        iecStatus.connected = 0;
-        iecStatus.msg = "no active protocol";
-        return;
-    }
-    else
-        protocol[commanddata->channel]->status(&ns);
-
-    if (pt.size() < 2)
+    if (pt.size() < 3)
     {
         Debug_printf("set_channel_mode no channel or mode specified");
         iecStatus.error = ns.error;
@@ -892,7 +880,7 @@ void iecNetwork::set_channel_mode()
         else if (newMode == "protocol")
             channelMode[channel] = PROTOCOL;
 
-        Debug_printf("Channel mode set to %s\n", newMode);
+        Debug_printf("Channel mode set to %s %u\n", newMode.c_str(), channelMode[channel]);
         iecStatus.error = ns.error;
         iecStatus.channel = channel;
         iecStatus.connected = ns.connected;
@@ -1150,7 +1138,7 @@ void iecNetwork::process_command()
         iec_talk_command();
         return;
     }
-    else 
+    else if (commanddata->primary == IEC_UNLISTEN)
     {
         iec_command();
     }
