@@ -170,6 +170,7 @@ void iecNetwork::iec_open()
 
     // Associate channel mode
     json[commanddata->channel] = new FNJSON();
+    json[commanddata->channel]->setLineEnding("\r");
     json[commanddata->channel]->setProtocol(protocol[commanddata->channel]);
 
     if (file_not_found)
@@ -416,7 +417,7 @@ void iecNetwork::iec_reopen_channel_talk()
         b = receiveBuffer[commanddata->channel]->front();
         receiveBuffer[commanddata->channel]->erase(0, 1);
         IEC.sendByte(b, set_eoi);
-        Debug_printf(".");
+        Debug_printf("%c",b);
         atn = fnSystem.digital_read(PIN_IEC_ATN);
     }
 }
@@ -522,6 +523,7 @@ void iecNetwork::query_json()
 
     channel = atoi(pt[1].c_str());
 
+    Debug_printf("Channel: %u\n",channel);
     Debug_printf("set_json_query(%s)\n", pt[2].c_str());
 
     json[channel]->setReadQuery(pt[2], 0);
@@ -542,6 +544,7 @@ void iecNetwork::query_json()
     json_bytes_remaining[channel] = json[channel]->readValueLen();
     json[channel]->readValue(tmp, json_bytes_remaining[channel]);
     *receiveBuffer[channel] += string((const char *)tmp, json_bytes_remaining[channel]);
+    *receiveBuffer[channel] += "\r";
 
     free(tmp);
     snprintf(reply, 80, "query set to %s", pt[2].c_str());
