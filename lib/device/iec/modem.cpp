@@ -16,11 +16,6 @@ iecModem::~iecModem()
     }
 }
 
-void iecModem::status()
-{
-    // TODO IMPLEMENT
-}
-
 device_state_t iecModem::process(IECData *commanddata)
 {
     // TODO IMPLEMENT
