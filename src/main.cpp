@@ -121,10 +121,21 @@ void main_setup()
     SIO.setup();
 #endif // BUILD_ATARI
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+
     // Setup IEC Bus
+    IEC.setup();
+//    iecPrinter::printer_type ptype = Config.get_printer_type(0);
+    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_EPSON; // temporary
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+    iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+    IEC.addDevice(ptr, 0x04); // add as device #4 for now
     theFuji.setup(&IEC);
-#endif // BUILD_CBM
+    sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
+
+#endif // BUILD_IEC
 
 #ifdef BUILD_LYNX
     theFuji.setup(&ComLynx);
@@ -135,6 +146,27 @@ void main_setup()
     theFuji.setup(&RS232);
     RS232.setup();
     RS232.addDevice(&theFuji,0x70);
+#endif
+
+#ifdef BUILD_RC2014
+    theFuji.setup(&rc2014Bus);
+    rc2014Bus.setup();
+    
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    rc2014Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == rc2014Printer::printer_type::PRINTER_INVALID)
+        ptype = rc2014Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+
+    rc2014Printer *ptr = new rc2014Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    rc2014Bus.addDevice(ptr, RC2014_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    sioR = new rc2014Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    rc2014Bus.addDevice(sioR, RC2014_DEVICEID_MODEM); // R:
+
 #endif
 
 #ifdef BUILD_ADAM
@@ -175,6 +207,7 @@ void main_setup()
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
+
     iwmModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
     sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
@@ -226,6 +259,23 @@ void main_setup()
 // Main high-priority service loop
 void fn_service_loop(void *param)
 {
+       main_setup();
+       // Now that our main service is running, try connecting to WiFi or BlueTooth
+        if (Config.get_bt_status())
+        {
+#ifdef BLUETOOTH_SUPPORT
+            // Start SIO2BT mode if we were in it last shutdown
+            fnLedManager.set(eLed::LED_BT, true); // BT LED ON
+            fnBtManager.start();
+#endif
+        }
+        else if (Config.get_wifi_enabled())
+        {
+            // Set up the WiFi adapter if enabled in config
+            fnWiFi.start();
+            // Go ahead and try reconnecting to WiFi
+            fnWiFi.connect();
+        }
     while (true)
     {
         // We don't have any delays in this loop, so IDLE threads will be starved
@@ -253,7 +303,7 @@ extern "C"
     {
         // cppcheck-suppress "unusedFunction"
         // Call our setup routine
-        main_setup();
+        //main_setup();
 
 // Create a new high-priority task to handle the main loop
 // This is assigned to CPU1; the WiFi task ends up on CPU0
@@ -263,22 +313,6 @@ extern "C"
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
 
-        // Now that our main service is running, try connecting to WiFi or BlueTooth
-        if (Config.get_bt_status())
-        {
-#ifdef BLUETOOTH_SUPPORT
-            // Start SIO2BT mode if we were in it last shutdown
-            fnLedManager.set(eLed::LED_BT, true); // BT LED ON
-            fnBtManager.start();
-#endif
-        }
-        else if (Config.get_wifi_enabled())
-        {
-            // Set up the WiFi adapter if enabled in config
-            fnWiFi.start();
-            // Go ahead and try reconnecting to WiFi
-            fnWiFi.connect();
-        }
 
         // Sit here twiddling our thumbs
         while (true)

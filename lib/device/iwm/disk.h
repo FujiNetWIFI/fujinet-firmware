@@ -8,19 +8,7 @@
 class iwmDisk : public iwmDevice
 {
 private:
-    // temp device for disk image
-    // todo: turn into FujiNet practice
-    // // get rid of this stuff by moving to correct locations after the prototype works
-    // struct device
-    // {
-    //     FILE *sdf;
-    //     //uint8_t device_id;          //to hold assigned device id's for the partitions
-    //     unsigned long blocks;       //how many 512-byte blocks this image has
-    //     unsigned int header_offset; //Some image files have headers, skip this many bytes to avoid them
-    //     bool writeable;
-    // } d; // temporary device until have a disk device
-    // bool open_tnfs_image();
-    // bool open_image(std::string filename);
+    uint8_t err_result = SP_ERR_NOERROR;
 
 protected:
     void send_status_reply_packet() override;
@@ -35,7 +23,8 @@ protected:
     // void iwm_format();
     //void iwm_status(cmdPacket_t cmd); // override;
     void process(iwm_decoded_cmd_t cmd) override; // uint32_t commanddata, uint8_t checksum); // override;
-    void iwm_handle_eject(iwm_decoded_cmd_t cmd) override;
+    // void iwm_handle_eject(iwm_decoded_cmd_t cmd) override;
+    void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     void iwm_readblock(iwm_decoded_cmd_t cmd) override;
     void iwm_writeblock(iwm_decoded_cmd_t cmd) override;
     uint32_t get_block_number(iwm_decoded_cmd_t cmd) {return cmd.params[2] + (cmd.params[3] << 8) + (cmd.params[4] << 16); };

@@ -748,6 +748,7 @@ void sioFuji::sio_disk_image_umount()
             _cassetteDev.umount_cassette_file();
             _cassetteDev.sio_disable_cassette();
         }
+        _fnDisks[deviceSlot].disk_dev.device_active = false;
         _fnDisks[deviceSlot].reset();
     }
     // Handle tape
@@ -1114,6 +1115,26 @@ void sioFuji::sio_new_disk()
 
     Debug_print("sio_new_disk succeeded\n");
     sio_complete();
+}
+
+// Unmount specified host
+void sioFuji::sio_unmount_host()
+{
+    Debug_println("Fuji cmd: UNMOUNT HOST");
+
+    unsigned char hostSlot = cmdFrame.aux1 - 1;
+
+    // Make sure we weren't given a bad hostSlot
+    if (!_validate_host_slot(hostSlot, "sio_tnfs_mount_hosts"))
+    {
+        sio_error();
+        return;
+    }
+
+    if (!_fnHosts[hostSlot].umount())
+        sio_error();
+    else
+        sio_complete();
 }
 
 // Send host slot data to computer
@@ -1653,6 +1674,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_NEW_DISK:
         sio_ack();
         sio_new_disk();
+        break;
+    case FUJICMD_UNMOUNT_HOST:
+        sio_ack();
+        sio_unmount_host();
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
         sio_ack();

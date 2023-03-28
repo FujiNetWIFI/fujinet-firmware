@@ -3,13 +3,15 @@
 #define IWM_LL_H
 
 #include <queue>
-#include <driver/gpio.h>
+// #include <driver/gpio.h>
 #include <driver/spi_master.h>
 #include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
+#include "fnRMTstream.h"
 
-#define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
+// #define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
+#define TRACK_LEN 6646          // https://applesaucefdc.com/woz/reference2/
 #define SPI_SP_LEN 6000         // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 #define BLOCK_PACKET_LEN    604 //606
 
@@ -17,8 +19,9 @@
 #define PACKET_TYPE_STATUS 0x81
 #define PACKET_TYPE_DATA 0x82
 
+#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
+
 extern volatile uint8_t _phases;
-extern volatile bool sp_command_mode;
 extern volatile int isrctr;
 
 enum class iwm_packet_type_t
@@ -30,6 +33,14 @@ enum class iwm_packet_type_t
   ext_status = PACKET_TYPE_STATUS | 0x40,
   ext_data = PACKET_TYPE_DATA | 0x40
 };
+
+enum class sp_cmd_state_t
+{
+  standby = 0,
+  rxdata,
+  command
+};
+extern volatile sp_cmd_state_t sp_command_mode;
 
 /** ACK and REQ
  * 
@@ -78,6 +89,7 @@ private:
   // SPI data handling
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
   uint16_t spi_len;
+  spi_bus_config_t bus_cfg;
   spi_device_handle_t spi;
   // SPI receiver
   spi_transaction_t rxtrans;
@@ -97,7 +109,7 @@ private:
   int spirx_byte_ctr;
   int spirx_bit_ctr;
 
-  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+  //uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   uint16_t packet_len;
 
 public:
@@ -117,38 +129,43 @@ public:
   int iwm_read_packet_spi(int n);
   void spi_end();
 
-  int decode_data_packet(uint8_t* input_data, uint8_t* output_data); //decode smartport data packet
-  int decode_data_packet(uint8_t* output_data); //decode smartport data packet
+  size_t decode_data_packet(uint8_t* input_data, uint8_t* output_data); //decode smartport data packet
+  size_t decode_data_packet(uint8_t* output_data); //decode smartport data packet
   void encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num);
+
+  uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
+
+  // For debug printing the checksum
+  uint8_t calc_checksum;
+  uint8_t pkt_checksum;
+
+  // for tracking last checksum received for Liron bug
+  uint8_t last_checksum;
+
 
   // hardware configuration setup
   void setup_spi();
   void setup_gpio();
+
+  void set_output_to_spi();
 };
 
 class iwm_diskii_ll
 {
 private:
-  // SPI data handling
-  uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
-  int spi_len;
-  spi_device_handle_t spi;
-  int fspi;
-  std::queue<spi_transaction_t> trans;
+  // RMT data handling
+  fn_rmt_config_t config;
 
+  // tri-state buffer control - copied from sp_ll - probably should make one version only but alas
   void iwm_rddata_set() { GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); }; // make RDDATA go hi-z through the tri-state
   void iwm_rddata_clr() { GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); }; // enable the tri-state buffer activating RDDATA
 
-  // MC3470 random bit behavior https://applesaucefdc.com/woz/reference2/ 
-  /** Of course, coming up with random values like this can be a bit processor intensive, 
-   * so it is adequate to create a randomly-filled circular buffer of 32 bytes. 
-   * We then just pull bits from this whenever we are in “fake bit mode”. 
-   * This buffer should also be used for empty tracks as designated with an 0xFF value 
-   * in the TMAP Chunk (see below). You will want to have roughly 30% of the buffer be 1 bits.
-  **/
-  int MC3470_byte_ctr;
-  int MC3470_bit_ctr;
-
+  // track bit information
+  uint8_t* track_buffer; // 
+  size_t track_numbits = 6400 * 8;
+  size_t track_numbytes = 6400;
+  size_t track_location = 0;
+ 
 public:
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
@@ -156,15 +173,19 @@ public:
 
   void disable_output() { iwm_rddata_set(); };
   void enable_output()  { iwm_rddata_clr(); };
-  
-  // Disk II handling by SPI interface
-  void setup_spi(); // int bit_ns, int chiprate
-  
-  bool fakebit();
-  void encode_spi_packet(uint8_t *track, int tracklen, int trackbits, int indicator);
-  void iwm_queue_track_spi();
-  void spi_end();
 
+  
+  // Disk II handling by RMT peripheral
+  void setup_rmt(); // install the RMT device
+  void start();
+  void stop();
+  // need a function to remove the RMT device?
+
+  bool nextbit();
+  bool fakebit();
+  void copy_track(uint8_t *track, size_t tracklen, size_t trackbits);
+
+  void set_output_to_rmt();
 };
 
 extern iwm_sp_ll smartport;
