@@ -10,6 +10,7 @@
 
 #include "status_error_codes.h"
 #include "utils.h"
+#include "string_utils.h"
 
 
 using namespace std;
@@ -44,6 +45,7 @@ using namespace std;
 #define TRANSLATION_MODE_CR 1
 #define TRANSLATION_MODE_LF 2
 #define TRANSLATION_MODE_CRLF 3
+#define TRANSLATION_MODE_PETSCII 4
 
 /**
  * ctor - Initialize network protocol object.
@@ -86,7 +88,9 @@ NetworkProtocol::~NetworkProtocol()
 bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     // Set translation mode, Bits 0-1 of aux2
-    translation_mode = cmdFrame->aux2 & 0x03;
+    translation_mode = cmdFrame->aux2 & 0x7F; // we now have more xlation modes.
+
+    Debug_printf("translation mode = %u",translation_mode);
 
     // Persist aux1/aux2 values for later.
     aux1_open = cmdFrame->aux1;
@@ -180,6 +184,10 @@ void NetworkProtocol::translate_receive_buffer()
         replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, EOL);
     #endif
         break;
+    case TRANSLATION_MODE_PETSCII:
+        Debug_printf("!!! PETSCII !!!\n");
+        mstr::toPETSCII(*receiveBuffer);
+        break;
     }
 
     if (translation_mode == TRANSLATION_MODE_CRLF)
@@ -209,6 +217,9 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
         break;
     case TRANSLATION_MODE_CRLF:
         util_replaceAll(*transmitBuffer, "\x9b", "\x0d\x0a");
+        break;
+    case TRANSLATION_MODE_PETSCII:
+        mstr::toASCII(*transmitBuffer);
         break;
     }
 
