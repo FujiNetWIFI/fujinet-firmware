@@ -2,7 +2,7 @@
 #define _FN_CONFIG_H
 
 #include "printer.h"
-#include "crypt.h"
+#include "../encrypt/crypt.h"
 #include "../../include/debug.h"
 
 #define MAX_HOST_SLOTS 8
