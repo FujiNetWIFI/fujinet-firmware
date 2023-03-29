@@ -25,47 +25,45 @@ void commodoremps803::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
     //      enhanced mode
     //      reverse mode
     //      bitmap graphics mode
+    //      local char set switch mode - see page 34 or chr$(17) and chr$(145)
     // there's also case for repeated bit image printing so need ESC-mode type processing
 
 /**
- * TABLE 1 Page 26 of Users Manual
+TABLE 1 Page 26 of Users Manual
 Special Control Character Summary
-CHRSCode
-CHRSI14)
-CHRSM5)
-CHR$|8)
-CHRSCI8
-CHRSM46)
-CHRS(13)
-CHRS(IO)
-CHRS<17)
-Printer function
-Enhance ON
-Enhance OF F
-Bit Image Printing
-Reverse ON
-Reverse OFF
-Carriage Return
-Line Feed
+
+Printer function        CHR$ Code                
+----------------        ---------
+Enhance ON              CHR$(14)
+Enhance OFF             CHR$(15)
+Bit Image Printing      CHR$(8)
+Reverse ON              CHR$(18)
+Reverse OFF             CHR$(146)
+Carriage Return         CHR$(13)
+Line Feed               CHR$(10)
 Print in
-Business Mode
+    Business Mode       CHR$(17)
 Print in
-Graphic Mode
-Quote
+    Graphic Mode        CHR$(145) 
+Quote                   CHR$(34)
 Tab Setting
-the Print Head
+    the Print Head      CHR$(16); "nHnL"
 Repeat Graphic
-Selected
-Specify Dot Address
-CHRSIH5)
-CHRS(34>
-CHRS[16); "nHnL"
-CHR$(26J; CHRS|btt image data)
-CHRS(27);CHRS(16);CHRS(nH)CHRS{nL)
-'
-i
+    Selected            CHR$(26); CHR$(bit image data)
+Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
+
 */
 
+// font numbers:
+// 1 - graphic regular (10 CPI)
+// 2 - graphic enhanced (doublewide - 5 CPI)
+// 3 - business regular (10 CPI)
+// 4 - business enhanced (doublwide - 5 CPI)
+// 5 - bit graphics
+
+// determine comm's channel to set font family - "graphics" or "business"
+// TODO: need special handling for when there's "local" change to business/graphic mode
+// using special char's 17 or 145 then CR clears back to "global" aux1 setting
     if (aux1 == 0)
     {
         if (fontNumber == 3 || fontNumber == 4)
@@ -86,22 +84,29 @@ i
             fontUsed[fontNumber - 1] = true;
         }
     }
-    
-    // maybe printable character
-    if (c > 31 && c < 127)
-    {
-        if (!sideFlag || c > 47)
-        {
-            if (c == ('\\') || c == '(' || c == ')')
-                fwrite("\\", 1, 1, _file);
-            fwrite(&c, 1, 1, _file);
-        }
-        else
-        {
-            if (c < 48)
-                fwrite(" ", 1, 1, _file);
-        }
 
+    // process the incoming character
+
+    /* page 27 in user's manual -  enhanced (doublewide) mode:
+    An ASCII CHRSI15) character cancels the character enhancement specified by
+    preceding CHR3{14) character or ASCII CHRS(15) is Standard Character Mode.
+    CHRS114) and CHRS{15) cancel later mentioned bit image graphic printing code
+    [CHRS(8|]. And these control codes give a 1/6 inch line feed.
+     */
+
+    /* page 34 - switching graphic/business char sets inline
+    CHRSC17} functions until CHR$(145) or carriage return is detected.
+    CHRS(145) functions until CHRSU7] or carriage return is detected.
+    */
+
+
+    // maybe printable character
+    if ((c >= 0x20 && c <= 0x7f) || (c >= 0xa0 && c <= 0xff))
+    {
+        // handle rendering pdf char's that need esc'ing: "\", ")", "("
+        if (c == ('\\') || c == '(' || c == ')')
+            fwrite("\\", 1, 1, _file);
+        fwrite(&c, 1, 1, _file);
         pdf_X += charWidth; // update x position
     }
 }
