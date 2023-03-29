@@ -1,6 +1,6 @@
 /* -*-  mode:c; tab-width:8; c-basic-offset:8; indent-tabs-mode:nil;  -*- */
 /*
-   Copyright (C) 2016 by Ronnie Sahlberg <ronniesahlberg@gmail.com>
+   Copyright (C) 2022 by Ronnie Sahlberg <ronniesahlberg@gmail.com>
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
 
@@ -13,8 +13,8 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 #define _GNU_SOURCE
 
-#include <errno.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <poll.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -22,22 +22,18 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
+#include <time.h>
 
 #include "smb2.h"
 #include "libsmb2.h"
 #include "libsmb2-raw.h"
 
-#define MAXBUF 16 * 1024 * 1024
-uint8_t buf[MAXBUF];
-uint32_t pos;
-
 int usage(void)
 {
         fprintf(stderr, "Usage:\n"
-                "smb2-cat-sync <smb2-url>\n\n"
+                "smb2-rename-sync <smb2-share-usr> <src-file> <dst-file>\n\n"
                 "URL format: "
-                "smb://[<domain;][<username>@]<host>[:<port>]/<share>/<path>\n");
+                "smb://[<domain;][<username>@]<host>>[:<port>]/<share>/\n");
         exit(1);
 }
 
@@ -45,10 +41,8 @@ int main(int argc, char *argv[])
 {
         struct smb2_context *smb2;
         struct smb2_url *url;
-        struct smb2fh *fh;
-        int count, rc = 0;
 
-        if (argc < 2) {
+        if (argc < 4) {
                 usage();
         }
 
@@ -72,30 +66,15 @@ int main(int argc, char *argv[])
 		exit(10);
 	}
 
-        fh = smb2_open(smb2, url->path, O_RDONLY);
-        if (fh == NULL) {
-		printf("smb2_open failed. %s\n", smb2_get_error(smb2));
+        printf("Renaming %s -> %s\n", argv[2], argv[3]);
+        if (smb2_rename(smb2, argv[2], argv[3]) < 0) {
+		printf("smb2_rename failed. %s\n", smb2_get_error(smb2));
 		exit(10);
         }
 
-        while ((count = smb2_pread(smb2, fh, buf, MAXBUF, pos)) != 0) {
-                if (count == -EAGAIN) {
-                        continue;
-                }
-                if (count < 0) {
-                        fprintf(stderr, "Failed to read file. %s\n",
-                                smb2_get_error(smb2));
-                        rc = 1;
-                        break;
-                }
-                write(STDOUT_FILENO, buf, count);
-                pos += count;
-        };
-                
-        smb2_close(smb2, fh);
         smb2_disconnect_share(smb2);
         smb2_destroy_url(url);
         smb2_destroy_context(smb2);
-        
-	return rc;
+
+	return 0;
 }
