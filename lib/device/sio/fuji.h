@@ -120,7 +120,7 @@ public:
     bool boot_config = true;
 
     bool status_wait_enabled = true;
-    
+
     sioDisk *bootdisk();
 
     sioNetwork *network();

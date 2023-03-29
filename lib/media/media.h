@@ -13,8 +13,8 @@
 # include "rs232/diskTypeImg.h"
 #endif
 
-#ifdef BUILD_CBM
-# include "cbm/mediaType.h"
+#ifdef BUILD_IEC
+# include "iec/mediaType.h"
 #endif
 
 #ifdef BUILD_ADAM
@@ -33,11 +33,17 @@
 # include "apple/mediaType.h"
 # include "apple/mediaTypePO.h"
 # include "apple/mediaTypeWOZ.h"
+# include "apple/mediaTypeDSK.h"
 #endif 
 
 #ifdef BUILD_S100
 # include "adam/mediaType.h"
 # include "adam/mediaTypeDSK.h"
+#endif
+
+#ifdef BUILD_RC2014
+# include "rc2014/mediaType.h"
+# include "rc2014/mediaTypeIMG.h"
 #endif
 
 #ifdef NEW_TARGET
