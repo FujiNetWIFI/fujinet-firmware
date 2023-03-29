@@ -81,6 +81,8 @@ public:
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_EPSON];
         #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_EPSON];
+        #elif BUILD_RC2014
+            return rc2014Printer::printer_model_str[rc2014Printer::PRINTER_EPSON];
         #else
             return PRINTER_UNSUPPORTED;
         #endif

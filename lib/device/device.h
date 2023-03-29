@@ -37,10 +37,14 @@
     rs232CPM sioZ;
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 # include "iec/fuji.h"
+# include "iec/modem.h"
+# include "iec/network.h"
+
+    iecModem *sioR;
 #endif
 
 #ifdef BUILD_ADAM
@@ -116,6 +120,16 @@
 # include "cx16_i2c/fuji.h"
 
     cx16Modem *sioR;
+#endif
+
+#ifdef BUILD_RC2014
+# include "rc2014/disk.h"
+# include "rc2014/network.h"
+# include "rc2014/modem.h"
+# include "rc2014/printer.h"
+# include "rc2014/printerlist.h"
+# include "rc2014/fuji.h"
+    rc2014Modem *sioR;
 #endif
 
 #endif // DEVICE_H

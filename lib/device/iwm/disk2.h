@@ -30,19 +30,18 @@ protected:
 public:
     iwmDisk2();
     void init();
-    mediatype_t mount(FILE *f);//, const char *filename), uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(FILE *f, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
     int get_track_pos() { return track_pos; };
     bool phases_valid(uint8_t phases);
     bool move_head();
     void change_track(int indicator);
-    void refresh_track();
     
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
-    // void init();
+
     ~iwmDisk2();
 };
 

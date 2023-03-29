@@ -6,7 +6,8 @@
 #include "mediaType.h"
 
 #define MAX_TRACKS 160
-
+#define WOZ1_TRACK_LEN 6646
+#define WOZ1_NUM_BLKS 13
 struct TRK_t
 {
     uint16_t start_block;
@@ -18,6 +19,15 @@ struct TRK_t
 class MediaTypeWOZ : public MediaType
 {
 private:
+    char woz_version;
+
+    bool wozX_check_header();
+    bool wozX_read_info();
+    bool wozX_read_tmap();
+    bool woz1_read_tracks();
+    bool woz2_read_tracks();
+
+protected:
     uint8_t tmap[MAX_TRACKS];
     TRK_t trks[MAX_TRACKS];
     uint8_t *trk_ptrs[MAX_TRACKS] = { };
@@ -30,6 +40,7 @@ public:
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
     mediatype_t mount(FILE *f) {return mount(f, 0);};
+    virtual void unmount() override;
 
     virtual bool status() override {return (_media_fileh != nullptr);}
 
