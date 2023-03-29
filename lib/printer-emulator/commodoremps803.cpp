@@ -20,6 +20,13 @@ void commodoremps803::post_new_file()
 
 void commodoremps803::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
 {
+    // watch aux1 to change font from 1/2 to 3/4
+    // need some state variables
+    //      enhanced mode
+    //      reverse mode
+    //      bitmap graphics mode
+    // there's also case for repeated bit image printing so need ESC-mode type processing
+
     // maybe printable character
     if (c > 31 && c < 127)
     {
