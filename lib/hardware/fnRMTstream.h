@@ -21,6 +21,7 @@
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/ringbuf.h"
+#include "soc/rmt_periph.h"
 #include "soc/rmt_struct.h"
 #include "hal/rmt_types.h"
 

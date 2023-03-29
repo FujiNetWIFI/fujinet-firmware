@@ -873,7 +873,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
     unsigned char hs;
     string pattern;
     string chunk;
-
+    char *free_me; //return string from url_encode which must be freed.
     parse_query(req, &qp);
 
     if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
@@ -928,7 +928,9 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         if (!qp.query_parsed["path"].empty())
         {
             parent = qp.query_parsed["path"].substr(0, qp.query_parsed["path"].find_last_of("/"));
-            chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)parent.c_str())) + "\"><li>&#8617; Parent</li></a>";
+            free_me = url_encode((char *)parent.c_str());
+            chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(free_me) + "\"><li>&#8617; Parent</li></a>";
+            free(free_me);
         }
 
         while ((f = theFuji.get_hosts(hs)->dir_nextfile()) != nullptr)
@@ -937,28 +939,63 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 
             if (f->isDir == true)
             {
-                chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "&parent_path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "\">";
-                chunk += "&#128448; ";
+                free_me = url_encode((char *)qp.query_parsed["path"].c_str());
+                chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(free_me);
+                free(free_me);
+                free_me = url_encode(f->filename);
+                chunk += "%2F" + string(free_me) + "&parent_path=";
+                free(free_me);
+                free_me = url_encode((char *)qp.query_parsed["path"].c_str());
+                chunk += string(free_me) + "\">";
+                chunk += "&#128193; "; // file folder
+                free(free_me);
             }
             else
             {
-                chunk += "<a href=\"/dslot?hostslot=" + qp.query_parsed["hostslot"] + "&filename=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "\">";
+                free_me = url_encode((char *)qp.query_parsed["path"].c_str());
+                chunk += "<a href=\"/dslot?hostslot=" + qp.query_parsed["hostslot"] + "&filename=" + string(free_me);
+                free(free_me);
+                free_me = url_encode(f->filename);
+                chunk += "%2F" + string(free_me) + "\">";
+                free(free_me);
 
-                if ((string(f->filename).find(".atr") != string::npos) ||
+                if ( // Atari
+                    (string(f->filename).find(".atr") != string::npos) ||
                     (string(f->filename).find(".ATR") != string::npos) ||
                     (string(f->filename).find(".atx") != string::npos) ||
-                    (string(f->filename).find(".ATX") != string::npos))
+                    (string(f->filename).find(".ATX") != string::npos) ||
+                    // Apple II
+                    (string(f->filename).find(".po") != string::npos) ||
+                    (string(f->filename).find(".PO") != string::npos) ||
+                    (string(f->filename).find(".woz") != string::npos) ||
+                    (string(f->filename).find(".WOZ") != string::npos) ||
+                    (string(f->filename).find(".hdv") != string::npos) || // Hard Disk emoji not implemented
+                    (string(f->filename).find(".HDV") != string::npos) || // Hard Disk emoji not implemented
+                    // ADAM
+                    (string(f->filename).find(".dsk") != string::npos) ||
+                    (string(f->filename).find(".DSK") != string::npos) ||
+                    // Commodore
+                    (string(f->filename).find(".prg") != string::npos) ||
+                    (string(f->filename).find(".PRG") != string::npos) ||
+                    (string(f->filename).find(".d64") != string::npos) ||
+                    (string(f->filename).find(".D64") != string::npos)
+                    )
                 {
                     chunk += "&#128190; "; // floppy disk
                 }
-                else if ((string(f->filename).find(".cas") != string::npos) ||
-                         (string(f->filename).find(".CAS") != string::npos))
+                else if ( // ATARI
+                    (string(f->filename).find(".cas") != string::npos) ||
+                    (string(f->filename).find(".CAS") != string::npos) ||
+                    // ADAM
+                    (string(f->filename).find(".ddp") != string::npos) ||
+                    (string(f->filename).find(".DDP") != string::npos)
+                    )
                 {
-                    chunk += "&#128429; "; // cassette tape
+                    chunk += "&#10175; "; // cassette tape (double curly loop)
                 }
                 else
                 {
-                    chunk += "&#128462; "; // std document
+                    chunk += "&#128196; "; // std document (page facing up)
                 }
             }
 
@@ -1002,7 +1039,7 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
     queryparts qp;
     string chunk;
     unsigned char hs;
-
+    char *free_me; // return string from url_encode that must be freed.
     chunk.clear();
     parse_query(req, &qp);
 
@@ -1026,7 +1063,9 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
         chunk += " <head>\r\n";
         chunk += "  <title>Redirecting to cassette mount</title>";
-        chunk += "  <meta http-equiv=\"refresh\" content=\"0; url=/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=7&mode=1&filename=" + string(url_encode((char *)qp.query_parsed["filename"].c_str())) + "\" />";
+        free_me = url_encode((char *)qp.query_parsed["filename"].c_str());
+        chunk += "  <meta http-equiv=\"refresh\" content=\"0; url=/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=7&mode=1&filename=" + string(free_me) + "\" />";
+        free(free_me);
         chunk += " </head>\r\n";
         chunk += " <body>\r\n";
         chunk += "  <h1>Cassette detected. Mounting in slot 8.</h1>\r\n";
