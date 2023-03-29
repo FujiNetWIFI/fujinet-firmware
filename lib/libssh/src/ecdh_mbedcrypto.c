@@ -34,6 +34,7 @@
 
 #include <mbedtls/ecdh.h>
 #include <mbedtls/ecp.h>
+#include "mbedcrypto-compat.h"
 
 #ifdef HAVE_ECDH
 
@@ -80,8 +81,8 @@ int ssh_client_ecdh_init(ssh_session session)
     }
 
     rc = mbedtls_ecp_gen_keypair(&grp,
-                                 &session->next_crypto->ecdh_privkey->d,
-                                 &session->next_crypto->ecdh_privkey->Q,
+                                 &session->next_crypto->ecdh_privkey->MBEDTLS_PRIVATE(d),
+                                 &session->next_crypto->ecdh_privkey->MBEDTLS_PRIVATE(Q),
                                  mbedtls_ctr_drbg_random,
                                  ssh_get_mbedtls_ctr_drbg_context());
 
@@ -91,7 +92,7 @@ int ssh_client_ecdh_init(ssh_session session)
     }
 
     client_pubkey = make_ecpoint_string(&grp,
-            &session->next_crypto->ecdh_privkey->Q);
+            &session->next_crypto->ecdh_privkey->MBEDTLS_PRIVATE(Q));
     if (client_pubkey == NULL) {
         rc = SSH_ERROR;
         goto out;
@@ -165,7 +166,7 @@ int ecdh_build_k(ssh_session session)
     rc = mbedtls_ecdh_compute_shared(&grp,
                                      session->next_crypto->shared_secret,
                                      &pubkey,
-                                     &session->next_crypto->ecdh_privkey->d,
+                                     &session->next_crypto->ecdh_privkey->MBEDTLS_PRIVATE(d),
                                      mbedtls_ctr_drbg_random,
                                      ssh_get_mbedtls_ctr_drbg_context());
     if (rc != 0) {
@@ -226,8 +227,8 @@ SSH_PACKET_CALLBACK(ssh_packet_server_ecdh_init){
     }
 
     rc = mbedtls_ecp_gen_keypair(&grp,
-                                 &session->next_crypto->ecdh_privkey->d,
-                                 &session->next_crypto->ecdh_privkey->Q,
+                                 &session->next_crypto->ecdh_privkey->MBEDTLS_PRIVATE(d),
+                                 &session->next_crypto->ecdh_privkey->MBEDTLS_PRIVATE(Q),
                                  mbedtls_ctr_drbg_random,
                                  ssh_get_mbedtls_ctr_drbg_context());
     if (rc != 0) {
@@ -235,7 +236,7 @@ SSH_PACKET_CALLBACK(ssh_packet_server_ecdh_init){
         goto out;
     }
 
-    q_s_string = make_ecpoint_string(&grp, &session->next_crypto->ecdh_privkey->Q);
+    q_s_string = make_ecpoint_string(&grp, &session->next_crypto->ecdh_privkey->MBEDTLS_PRIVATE(Q));
     if (q_s_string == NULL) {
         rc = SSH_ERROR;
         goto out;
