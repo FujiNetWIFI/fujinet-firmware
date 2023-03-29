@@ -89,7 +89,7 @@ void fujiHost::set_prefix(const char *prefix)
     {
         util_concat_paths(_prefix, _prefix, prefix, sizeof(_prefix));
     }
-    
+
     Debug_printf("fujiHost::set_prefix new prefix = \"%s\"\n", _prefix);
 }
 
@@ -144,7 +144,7 @@ bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
     char realpath[MAX_PATHLEN];
     if( false == util_concat_paths(realpath, _prefix, path, sizeof(realpath)) )
         return false;
-    
+
     Debug_printf("::dir_open actual path = \"%s\"\n", realpath);
 
     int result = false;
@@ -191,7 +191,7 @@ bool fujiHost::file_exists(const char *path)
     char realpath[MAX_PATHLEN];
     if( false == util_concat_paths(realpath, _prefix, path, sizeof(realpath)) )
         return false;
-    
+
     Debug_printf("::file_exists actual path = \"%s\"\n", realpath);
 
     return _fs->exists(realpath);
@@ -294,6 +294,12 @@ int fujiHost::mount_local()
     return 0;
 }
 
+int fujiHost::unmount_local()
+{
+    // Silently ignore. We can't unregister the SD card.
+    return 0;
+}
+
 /* Returns:
     0 on success
    -1 on failure
@@ -332,6 +338,18 @@ int fujiHost::mount_tnfs()
     return -1;
 }
 
+int fujiHost::unmount_tnfs()
+{
+    Debug_printf("TNFS filesystem unmounted.\n");
+
+    if (_fs != nullptr)
+    {
+        delete _fs;
+    }
+
+    return 0;
+}
+
 /* Returns true if successful
 *  We expect a valid devicename, currently:
 *  "SD" = local
@@ -347,4 +365,23 @@ bool fujiHost::mount()
 
     // Try mounting TNFS last
     return 0 == mount_tnfs();
+}
+
+/* Returns true if successful
+*  We expect a valid devicename, currently:
+*  "SD" = local
+*  anything else = TNFS
+*/
+bool fujiHost::umount()
+{
+    Debug_printf("::unmount {%d} \"%s\"\n", slotid+1, _hostname);
+
+    if (_type == HOSTTYPE_LOCAL)
+    {
+        Debug_println("::skip unmounting SD");
+        return 0;
+    }
+
+    // Try unmounting TNFS
+    return 0 == unmount_tnfs();
 }

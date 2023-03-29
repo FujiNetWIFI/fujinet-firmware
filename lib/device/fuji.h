@@ -9,7 +9,7 @@
 # include "rs232/fuji.h"
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/fuji.h"
 #endif
 
@@ -36,5 +36,10 @@
 #ifdef BUILD_CX16
 #include "cx16_i2c/fuji.h"
 #endif
+
+#ifdef BUILD_RC2014
+# include "rc2014/fuji.h"
+#endif
+
 
 #endif // DEVICE_FUJI_H

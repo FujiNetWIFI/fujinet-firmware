@@ -16,7 +16,7 @@
 #define DEVICE_TYPE iwmDisk
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/disk.h"
 # define DEVICE_TYPE iecDisk
 #endif
@@ -45,5 +45,11 @@
 #include "cx16_i2c/disk.h"
 #define DEVICE_TYPE cx16Disk
 #endif
+
+#ifdef BUILD_RC2014
+# include "rc2014/disk.h"
+# define DEVICE_TYPE rc2014Disk
+#endif 
+
 
 #endif // DEVICE_DISK_H
