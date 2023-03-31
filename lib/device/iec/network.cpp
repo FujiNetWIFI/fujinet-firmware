@@ -170,7 +170,6 @@ void iecNetwork::iec_open()
 
     // Associate channel mode
     json[commanddata->channel] = new FNJSON();
-    json[commanddata->channel]->setLineEnding("\r");
     json[commanddata->channel]->setProtocol(protocol[commanddata->channel]);
 
     if (file_not_found)
@@ -510,6 +509,7 @@ void iecNetwork::query_json()
     uint8_t *tmp;
     int channel = 0;
     char reply[80];
+    string s;
 
     if (pt.size() < 3)
     {
@@ -523,10 +523,23 @@ void iecNetwork::query_json()
 
     channel = atoi(pt[1].c_str());
 
-    Debug_printf("Channel: %u\n",channel);
-    Debug_printf("set_json_query(%s)\n", pt[2].c_str());
+    s = pt[2];
 
-    json[channel]->setReadQuery(pt[2], 0);
+    Debug_printf("Channel: %u\n",channel);
+    for (int i=0;i<s.length();i++)
+        if (s[i] == 0xA4)
+            s[i] = 0x5F; // wtf?
+
+    json[channel]->setReadQuery(s, 0);
+
+    if (!json[channel]->readValueLen())
+    {
+        iecStatus.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        iecStatus.channel = channel;
+        iecStatus.connected = 0;
+        iecStatus.msg = "query not found";
+        return;
+    }
 
     tmp = (uint8_t *)malloc(json[channel]->readValueLen());
 
@@ -544,15 +557,14 @@ void iecNetwork::query_json()
     json_bytes_remaining[channel] = json[channel]->readValueLen();
     json[channel]->readValue(tmp, json_bytes_remaining[channel]);
     *receiveBuffer[channel] += string((const char *)tmp, json_bytes_remaining[channel]);
-    *receiveBuffer[channel] += "\r";
 
     free(tmp);
-    snprintf(reply, 80, "query set to %s", pt[2].c_str());
+    snprintf(reply, 80, "query set to %s", s.c_str());
     iecStatus.error = NETWORK_ERROR_SUCCESS;
     iecStatus.channel = channel;
     iecStatus.connected = true;
     iecStatus.msg = string(reply);
-    Debug_printf("Query set to %s\n", pt[2].c_str());
+    Debug_printf("Query set to %s\n", s);
 }
 
 void iecNetwork::set_translation_mode()
@@ -1136,6 +1148,7 @@ void iecNetwork::process_channel()
 
 void iecNetwork::process_command()
 {
+    dumpData();
     if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
     {
         iec_talk_command();
