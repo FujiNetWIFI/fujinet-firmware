@@ -335,7 +335,6 @@ void IRAM_ATTR systemBus::service()
         fnLedManager.set(eLed::LED_BUS, false);
 
         bus_state = BUS_IDLE;
-        releaseLines();
 
         flags = CLEAR;
     }
