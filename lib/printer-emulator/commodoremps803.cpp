@@ -34,7 +34,7 @@ void commodoremps803::pdf_clear_modes()
 
 void commodoremps803::mps_set_font(uint8_t F)
 {
-    fprintf(_file, ")]TJ /F%u 9 Tf 120 Tz [(", F);
+    fprintf(_file, ")]TJ /F%u 12 Tf 100 Tz [(", F);
     switch (F)
     {
     case 1:
