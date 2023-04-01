@@ -4,7 +4,7 @@
 
 #include "bus.h"
 
-#include "modem-sniffer.h"
+#include "../modem-sniffer/modem-sniffer.h"
 #include <cstdint>
 
 class iecModem : public virtualDevice
