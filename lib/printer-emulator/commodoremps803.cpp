@@ -122,7 +122,7 @@ Quote                   CHR$(34)
 Tab Setting
     the Print Head      CHR$(16); "nHnL"
 Repeat Graphic
-    Selected            CHR$(26); CHR$(bit image data) - error? - CHRS(26);CHR$(n);CHR$(Bit Image Data) from page 37
+    Selected            CHR$(8);CHR$(26);CHR$(n);CHR$(Bit Image Data) from page 37
 Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
 
 */
@@ -135,7 +135,6 @@ Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
 // 5 - bit graphics
 
 // determine comm's channel to set font family - "graphics" or "business"
-// TODO: need special handling for when there's "local" change to business/graphic mode
 // using special char's 17 or 145 then CR clears back to "global" aux1 setting
     if (!mps_modes.local_char_set)
     {
@@ -149,24 +148,31 @@ Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
         CHRS114) and CHRS{15) cancel later mentioned bit image graphic printing code
         [CHRS(8|]. And these control codes give a 1/6 inch line feed.
         */
-        if (c == 14)
-        { // Enhance ON              CHR$(14)
-            // TODO cancel graphics
+        switch (c)
+        {
+        case 14:
+            // Enhance ON              CHR$(14)
             mps_modes.enhanced = true;
             mps_modes.bitmap = false;
             lineHeight = 12; // 6 LPI
-        }
-        else if (c == 15)
-        { // Enhance OFF             CHR$(15)
+            break;
+        case 15:
+            // Enhance OFF             CHR$(15)
             mps_modes.enhanced = false;
             mps_modes.bitmap = false;
             lineHeight = 12; // 6 LPI
-        }
-        else
-        {
+            break;
+        case 26:
+            // repeated bitmap mode
+            mps_modes.bitmap = false;
+            ctrlMode = true;
+            mps_cmd.cmd = 26;
+            break;
+        default:
             // update font if needed
             mps_update_font();
             mps_print_bitmap(c);
+            break;
         }
     }
     else if (ctrlMode)
@@ -209,6 +215,7 @@ Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
             times the operator needs to use this code twice.
             */
             case 26:
+            // FIX TODO - 26 must be called after 08, but 08 puts us into bitmap mode above.
                 // Repeat Graphic
                 // CHRS(26);CHR$(n);CHR$(Bit Image Data) from page 37
                 mps_modes.bitmap = true;
@@ -299,7 +306,7 @@ Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
         mps_modes.business_char_set = false;
         break;
     case 16:
-    case 26:
+    // case 26: // should not need case 26 because now handled in bitmap routine
     case 27:
         ctrlMode = true;
         mps_cmd.cmd = c; // assign command char
