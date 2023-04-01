@@ -55,6 +55,8 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     case bus_command_t::IEC_CLOSE:
         payload.clear();
         std::queue<std::string>().swap(response_queue);
+        pt.clear();
+        pt.shrink_to_fit();
         break;
     case bus_command_t::IEC_REOPEN:
         if (device_state == DEVICE_TALK)

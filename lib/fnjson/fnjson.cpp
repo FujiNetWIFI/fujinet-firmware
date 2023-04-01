@@ -12,7 +12,7 @@
 #include <math.h>
 #include <iomanip>
 #include <ostream>
-
+#include "string_utils.h"
 #include "../../include/debug.h"
 
 /**
@@ -92,6 +92,11 @@ string FNJSON::processString(string in)
         }
 
     }
+
+#ifdef BUILD_IEC
+    mstr::toPETSCII(in);
+#endif
+
     return in;
 }
 
@@ -107,6 +112,7 @@ string FNJSON::getValue(cJSON *item)
         Debug_printf("S: [cJSON_IsString] %s\n",cJSON_GetStringValue(item));
 
         ss << cJSON_GetStringValue(item);
+        
         #ifdef BUILD_ATARI
 
         // SIO AUX bits 0+1 control the mapping
