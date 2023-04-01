@@ -335,6 +335,7 @@ void IRAM_ATTR systemBus::service()
         fnLedManager.set(eLed::LED_BUS, false);
 
         bus_state = BUS_IDLE;
+        releaseLines();
 
         flags = CLEAR;
     }
@@ -451,12 +452,12 @@ bool IRAM_ATTR systemBus::turnAround()
     // Debug_printf("IEC turnAround: ");
 
     // Wait until the computer releases the ATN line
-    if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
-    {
-        Debug_printf("Wait until the computer releases the ATN line");
-        flags |= ERROR;
-        return -1; // return error because timeout
-    }
+    // if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
+    // {
+    //     Debug_printf("Wait until the computer releases the ATN line");
+    //     flags |= ERROR;
+    //     return -1; // return error because timeout
+    // }
 
     // Delay after ATN is RELEASED
     fnSystem.delay_microseconds(TIMING_Ttk);
@@ -477,27 +478,6 @@ bool IRAM_ATTR systemBus::turnAround()
     Debug_println("turnaround complete");
     return true;
 } // turnAround
-
-// this routine will set the direction on the bus back to normal
-// (the way it was when the computer was switched on)
-bool IRAM_ATTR systemBus::undoTurnAround()
-{
-    pull(PIN_IEC_DATA_OUT);
-    release(PIN_IEC_CLK_OUT);
-
-    // Debug_printf("IEC undoTurnAround: ");
-
-    // Wait until the computer releases the clock line
-    if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)
-    {
-        Debug_printf("Wait until the computer releases the clock line");
-        flags |= ERROR;
-        return -1; // return error because timeout
-    }
-
-    // Debug_println("complete");
-    return true;
-} // undoTurnAround
 
 void systemBus::reset_all_our_devices()
 {
