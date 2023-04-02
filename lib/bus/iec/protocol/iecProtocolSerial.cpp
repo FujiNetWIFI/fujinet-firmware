@@ -168,12 +168,13 @@ int16_t IecProtocolSerial::receiveByte()
     // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
     // to  accept  data.  What  happens  next  is  variable.
+    if ( !wait ( TIMING_Th ) ) return -1;
     IEC.release ( PIN_IEC_DATA_OUT );
 
     // Wait for all other devices to release the data line
     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
-        Debug_printv ( "Wait for all other devices to release the data line" );
+        // Debug_printv ( "Wait for all other devices to release the data line" );
         IEC.flags |= ERROR;
         return -1; // return error because timeout
     }
@@ -227,7 +228,7 @@ int16_t IecProtocolSerial::receiveByte()
     uint8_t data = receiveBits();
     //release ( PIN_IEC_SRQ );
     if ( IEC.flags & ERROR)
-        return -1;
+       return -1;
 
     // STEP 4: FRAME HANDSHAKE
     // After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true
@@ -250,6 +251,10 @@ int16_t IecProtocolSerial::receiveByte()
         // EOI Received
         fnSystem.delay_microseconds ( TIMING_Tfr );
         IEC.release ( PIN_IEC_DATA_OUT );
+    }
+    else
+    {
+         wait ( TIMING_Tbb );
     }
 
     return data;
@@ -368,10 +373,10 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
         }
         IEC.release ( PIN_IEC_CLK_OUT );
     }
-    // else
-    // {
-         wait ( 254 );
-    // }
+    else
+    {
+         wait ( TIMING_Tbb );
+    }
 
     return true;
 }
