@@ -81,7 +81,7 @@ typedef enum
 typedef enum
 {
     DEVICE_ERROR = -1,
-    DEVICE_IDLE = 0, // Ready and waiting
+    DEVICE_IDLE = 0,    // Ready and waiting
     DEVICE_ACTIVE = 1,
     DEVICE_LISTEN = 2,  // A command is recieved and data is coming to us
     DEVICE_TALK = 3,    // A command is recieved and we must talk now
@@ -458,4 +458,4 @@ public:
  */
 extern systemBus IEC;
 
-#endif /* I2C_H */
+#endif /* IEC_H */

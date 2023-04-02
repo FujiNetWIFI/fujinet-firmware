@@ -56,7 +56,7 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
         IEC.release ( PIN_IEC_DATA_OUT );
     }
     // Release data line after bit sent
-    // release ( PIN_IEC_DATA_OUT );
+    // IEC.release ( PIN_IEC_DATA_OUT );
 
     IEC.pull ( PIN_IEC_CLK_OUT );
 
@@ -149,7 +149,7 @@ int16_t IecProtocolSerial::receiveByte()
 // a printer chugging out a line of print, or a disk drive with a formatting job in progress,
 // it might holdback for quite a while; there's no time limit.
 
-    IEC.flags &= CLEAR_LOW;
+    IEC.flags |= CLEAR_LOW;
 
     // Sometimes the C64 pulls ATN but doesn't pull CLOCK right away
     if ( !wait ( 60 ) ) return -1;
@@ -257,7 +257,7 @@ int16_t IecProtocolSerial::receiveByte()
 
 bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
 {
-    IEC.flags &= CLEAR_LOW;
+    IEC.flags |= CLEAR_LOW;
 
     // // Sometimes the C64 doesn't release ATN right away
     // if ( !wait ( 200 ) ) return -1;
