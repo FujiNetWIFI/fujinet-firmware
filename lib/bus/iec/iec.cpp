@@ -172,8 +172,6 @@ void IRAM_ATTR systemBus::service()
     // Command or Data Mode
     if (bus_state == BUS_ACTIVE || pin_atn == PULLED)
     {
-        release(PIN_IEC_CLK_OUT);
-        pull(PIN_IEC_DATA_OUT);
 
         // ATN was pulled read control code from the bus
         int16_t c = (bus_command_t)protocol->receiveByte();
@@ -224,6 +222,7 @@ void IRAM_ATTR systemBus::service()
                 data.secondary = 0x00;
                 bus_state = BUS_PROCESS;
                 process_command = true;
+                releaseLines();
                 Debug_printf(" (3F UNLISTEN)\r\n");
                 break;
 
@@ -240,6 +239,7 @@ void IRAM_ATTR systemBus::service()
                 data.primary = IEC_UNTALK;
                 data.secondary = 0x00;
                 bus_state = BUS_IDLE;
+                releaseLines();
                 Debug_printf(" (5F UNTALK)\r\n");
                 break;
 
@@ -459,7 +459,7 @@ bool IRAM_ATTR systemBus::turnAround()
     // }
 
     // Delay after ATN is RELEASED
-    fnSystem.delay_microseconds(TIMING_Ttk);
+    fnSystem.delay_microseconds(TIMING_Tv);
 
     // Wait until the computer releases the clock line
     if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)
