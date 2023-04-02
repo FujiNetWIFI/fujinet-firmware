@@ -451,15 +451,15 @@ bool IRAM_ATTR systemBus::turnAround()
     // Debug_printf("IEC turnAround: ");
 
     // Wait until the computer releases the ATN line
-    // if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
-    // {
-    //     Debug_printf("Wait until the computer releases the ATN line");
-    //     flags |= ERROR;
-    //     return -1; // return error because timeout
-    // }
+    if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
+    {
+        Debug_printf("Wait until the computer releases the ATN line");
+        flags |= ERROR;
+        return -1; // return error because timeout
+    }
 
     // Delay after ATN is RELEASED
-    fnSystem.delay_microseconds(TIMING_Tv);
+    fnSystem.delay_microseconds(TIMING_Ttk);
 
     // Wait until the computer releases the clock line
     if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)

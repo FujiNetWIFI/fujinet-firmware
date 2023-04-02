@@ -24,7 +24,7 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
 
     start = current = 0;
 
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     while ( IEC.status ( pin ) != target_status )
     {
         fnSystem.delay_microseconds(1);
@@ -32,7 +32,7 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
 
         if ( elapsed > wait && wait != FOREVER )
         {
-            IEC.release ( PIN_IEC_SRQ );
+            //IEC.release ( PIN_IEC_SRQ );
             if ( wait == TIMEOUT_DEFAULT )
                 return -1;
             
@@ -53,7 +53,7 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
             }            
         }
     }
-    IEC.release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
 
     // Debug_printv("pin[%d] state[%d] wait[%d] step[%d] t[%d]", pin, target_status, wait, elapsed);
     return elapsed;
