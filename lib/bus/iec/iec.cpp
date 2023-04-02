@@ -179,7 +179,7 @@ void IRAM_ATTR systemBus::service()
         // Check for error
         if (c == 0xFFFFFFFF || flags & ERROR)
         {
-            Debug_printv("Error reading command");
+            Debug_printv("Error reading command. flags[%d]", flags);
             if (c == 0xFFFFFFFF)
                 bus_state = BUS_OFFLINE;
             else
