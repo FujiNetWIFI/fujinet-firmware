@@ -151,7 +151,7 @@ typedef enum
 // IEC protocol timing consts in microseconds (us)
 // IEC-Disected p10-11         // Description              // min    typical    max      // Notes
 #define TIMEOUT_Tat    1000    // ATN RESPONSE (REQUIRED)     -      -          1000us      (If maximum time exceeded, device not present error.)
-#define TIMING_Th      0       // LISTENER HOLD-OFF           0      -          infinte
+#define TIMING_Th      60      // LISTENER HOLD-OFF           0      -          infinte
 #define TIMING_Tne     40      // NON-EOI RESPONSE TO RFD     -      40us       200us       (If maximum time exceeded, EOI response required.)
 #define TIMEOUT_Tne    250
 #define TIMING_Ts      70      // BIT SET-UP TALKER           20us   70us       -           
