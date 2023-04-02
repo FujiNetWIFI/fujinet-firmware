@@ -64,6 +64,8 @@ bool IecProtocolBase::wait(size_t wait, uint64_t start)
 {
     uint64_t current, elapsed;
     elapsed = 0;
+
+    if ( wait == 0 ) return true;
     wait--; // Shave 1us for overhead
 
     if ( start == 0 )
