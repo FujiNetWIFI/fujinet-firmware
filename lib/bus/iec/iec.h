@@ -278,11 +278,6 @@ private:
     bool turnAround();
 
     /**
-     * Done with turnaround, go back to being talker.
-     */
-    bool undoTurnAround();
-
-    /**
      * @brief called to process the next command
      */
     void process_cmd();
