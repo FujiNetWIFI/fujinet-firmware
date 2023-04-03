@@ -151,7 +151,7 @@ int match_pattern_list(const char *string, const char *pattern,
     for (subi = 0;
         i < len && subi < sizeof(sub) - 1 && pattern[i] != ',';
         subi++, i++) {
-      sub[subi] = dolower && isupper(pattern[i]) ?
+      sub[subi] = dolower && isupper((unsigned char)pattern[i]) ?
         (char)tolower(pattern[i]) : pattern[i];
     }
 
