@@ -32,6 +32,7 @@ If a file has an extention pre-determined to support parsing (see/update
 #include <esp_http_server.h>
 
 #include <map>
+#include <string>
 
 #include "fnFS.h"
 
