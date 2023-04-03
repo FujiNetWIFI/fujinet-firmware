@@ -1,6 +1,5 @@
 #include <esp_system.h>
 #include <nvs_flash.h>
-#include <esp32/spiram.h>
 #include <esp32/himem.h>
 
 #include "debug.h"
