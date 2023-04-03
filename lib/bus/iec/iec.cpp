@@ -423,7 +423,11 @@ bus_state_t IRAM_ATTR systemBus::deviceTalk(void)
 {
     // Now do bus turnaround
     if (!turnAround())
+    {
+        Debug_printv("error flags[%d]", flags);
         return BUS_ERROR;
+    }
+
 
     // We have recieved a CMD and we should talk now:
     return BUS_PROCESS;
@@ -469,10 +473,12 @@ bool IRAM_ATTR systemBus::turnAround()
         return -1; // return error because timeout
     }
 
-    release(PIN_IEC_DATA_OUT);
-    fnSystem.delay_microseconds(TIMING_Tv);
+    // Signal that we are now the talker
+    fnSystem.delay_microseconds(TIMING_Tda);
     pull(PIN_IEC_CLK_OUT);
-    fnSystem.delay_microseconds(TIMING_Tv);
+
+    // Release DATA because the computer is pulling it now
+    release(PIN_IEC_DATA_OUT);
 
     Debug_println("turnaround complete");
     return true;

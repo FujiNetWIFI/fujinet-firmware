@@ -41,16 +41,16 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
         // tell listner to wait
         // we control both CLOCK & DATA now
         IEC.pull ( PIN_IEC_CLK_OUT );
-        if ( !wait ( 57 ) ) return false; // 57us 
+        if ( !wait ( TIMING_Ts1 ) ) return false; // 57us 
 
         // set bit
         ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
         data >>= 1; // get next bit
-        if ( !wait ( 28 ) ) return false; // 28us
+        if ( !wait ( TIMING_Ts2 ) ) return false; // 28us
 
         // tell listener bit is ready to read
         IEC.release ( PIN_IEC_CLK_OUT );
-        if ( !wait ( 76 ) ) return false; // 76us 
+        if ( !wait ( TIMING_Tv ) ) return false; // 76us 
 
         // Release data line after bit sent
         IEC.release ( PIN_IEC_DATA_OUT );
@@ -219,6 +219,10 @@ int16_t IecProtocolSerial::receiveByte()
             IEC.flags |= EMPTY_STREAM;
             return -1; // return error because empty stream
         }
+    }
+    else
+    {
+        if ( !wait ( TIMING_Tne ) ) return -1;
     }
     // release ( PIN_IEC_SRQ );
 
