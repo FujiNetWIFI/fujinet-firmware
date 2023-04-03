@@ -23,15 +23,16 @@
 #include "freertos/semphr.h"
 #include "freertos/xtensa_api.h"
 #include "freertos/ringbuf.h"
-#include "esp_intr.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_intr_alloc.h"
+#include "soc/gpio_periph.h"
 #include "soc/gpio_sig_map.h"
 #include "soc/rmt_struct.h"
 #include "hal/rmt_types.h"
 #include "driver/periph_ctrl.h"
 #include "driver/rmt.h"
+#include "rom/gpio.h"
 #include "fnRMTstream.h"
 
 #include <sys/lock.h>
@@ -56,6 +57,10 @@
 #define RMT_TRANSLATOR_NULL_STR    "RMT translator is null"
 #define RMT_TRANSLATOR_UNINIT_STR  "RMT translator not init"
 #define RMT_PARAM_ERR_STR          "RMT param error"
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+extern rmt_mem_t RMTMEM;
+#endif
 
  const char* RMT_TAG = "rmt";
  uint8_t s_rmt_driver_channels; // Bitmask (bits 0-7) of installed drivers' channels
@@ -83,7 +88,7 @@
     bool wait_done; //Mark whether wait tx done.
     rmt_channel_t channel;
     const rmt_item32_t* tx_data;
-    xSemaphoreHandle tx_sem;
+    SemaphoreHandle_t tx_sem;
 #if CONFIG_SPIRAM_USE_MALLOC
     int intr_alloc_flags;
     StaticSemaphore_t tx_sem_buffer;
@@ -293,7 +298,9 @@ esp_err_t rmtStream::rmt_set_rx_filter(rmt_channel_t channel, bool rx_filter_en,
 esp_err_t rmtStream::rmt_set_source_clk(rmt_channel_t channel, rmt_source_clk_t base_clk)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
     RMT_CHECK(base_clk < RMT_BASECLK_MAX, RMT_BASECLK_ERROR_STR, ESP_ERR_INVALID_ARG);
+#endif
     portENTER_CRITICAL(&rmt_spinlock);
     RMT.conf_ch[channel].conf1.ref_always_on = base_clk;
     portEXIT_CRITICAL(&rmt_spinlock);
@@ -487,7 +494,7 @@ esp_err_t rmtStream::rmt_config(const fn_rmt_config_t* rmt_param)
         portEXIT_CRITICAL(&rmt_spinlock);
 
         ESP_LOGD(RMT_TAG, "Rmt Tx Channel %u|Gpio %u|Sclk_Hz %u|Div %u|Carrier_Hz %u|Duty %u",
-                 channel, gpio_num, rmt_source_clk_hz, clk_div, carrier_freq_hz, carrier_duty_percent);
+                 channel, gpio_num, (unsigned)rmt_source_clk_hz, clk_div, (unsigned)carrier_freq_hz, carrier_duty_percent);
 
     }
     else if(RMT_MODE_RX == mode) {
@@ -509,7 +516,7 @@ esp_err_t rmtStream::rmt_config(const fn_rmt_config_t* rmt_param)
         portEXIT_CRITICAL(&rmt_spinlock);
 
         ESP_LOGD(RMT_TAG, "Rmt Rx Channel %u|Gpio %u|Sclk_Hz %u|Div %u|Thresold %u|Filter %u",
-            channel, gpio_num, rmt_source_clk_hz, clk_div, threshold, filter_cnt);
+            channel, gpio_num, (unsigned)rmt_source_clk_hz, clk_div, threshold, filter_cnt);
     }
     rmt_set_pin((rmt_channel_t)channel, (rmt_mode_t)mode, (gpio_num_t)gpio_num);
     return ESP_OK;

@@ -8,7 +8,10 @@
 #ifndef CONFIG_IDF_TARGET_ESP32S3
 # include <driver/dac.h>
 #endif
-
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include <esp_chip_info.h>
+#endif
 #include <soc/rtc.h>
 #include <esp_adc_cal.h>
 #include <time.h>
@@ -30,7 +33,7 @@
 #endif
 
 
-static xQueueHandle card_detect_evt_queue = NULL;
+static QueueHandle_t card_detect_evt_queue = NULL;
 static uint32_t card_detect_status = 1; // 1 is no sd card
 
 int _pin_card_detect = 0;
@@ -369,7 +372,7 @@ FILE *SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
     else
         fname = buff;
 
-    sprintf(fname, "%08u", ms);
+    sprintf(fname, "%08u", (unsigned)ms);
     return fs->file_open(fname, "w+");
 }
 
