@@ -1573,11 +1573,11 @@ SSH_PACKET_CALLBACK(ssh_packet_userauth_info_request) {
     }
 
     SSH_LOG(SSH_LOG_DEBUG,
-            "%d keyboard-interactive prompts", nprompts);
+            "%d keyboard-interactive prompts", (int) nprompts);
     if (nprompts > KBDINT_MAX_PROMPT) {
         ssh_set_error(session, SSH_FATAL,
                 "Too much prompts requested by the server: %u (0x%.4x)",
-                nprompts, nprompts);
+                (unsigned) nprompts, (unsigned) nprompts);
         ssh_kbdint_free(session->kbdint);
         session->kbdint = NULL;
 
