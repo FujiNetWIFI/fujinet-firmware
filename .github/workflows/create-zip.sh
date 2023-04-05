@@ -15,6 +15,10 @@ if [ "$PLATFORM" == "APPLE" ]; then
     BUILDPATH="$WORKINGDIR/.pio/build/fujiapple-rev0"
 elif [ "$PLATFORM" == "ADAM" ]; then
     BUILDPATH="$WORKINGDIR/.pio/build/fujinet-adam-v1"
+elif [ "$PLATFORM" == "ATARI" ]; then
+    BUILDPATH="$WORKINGDIR/.pio/build/fujinet-atari-v1"
+elif [ "$PLATFORM" == "IEC" ]; then
+    BUILDPATH="$WORKINGDIR/.pio/build/fujinet-iec"
 else
     BUILDPATH="$WORKINGDIR/.pio/build/fujinet-v1"
 fi
@@ -48,11 +52,9 @@ JSON="{
 		}
 	]
 }"
-touch $BUILDPATH/release.json
 echo $JSON > $BUILDPATH/release.json
-echo $JSON > release.json
 
-# Create ZIP file for assets
+# Create ZIP file
 zip -qq -j "$FILENAME.zip" $BUILDPATH/bootloader.bin $BUILDPATH/firmware.bin $BUILDPATH/partitions.bin $BUILDPATH/spiffs.bin $BUILDPATH/release.json
 
 # Get shasum for ZIP file
