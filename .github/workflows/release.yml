@@ -1,4 +1,4 @@
-name: "tagged-release"
+name: "FujiNet Tagged Version Release"
 
 on:
   push:
