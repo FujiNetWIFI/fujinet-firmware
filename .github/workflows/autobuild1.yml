@@ -3,7 +3,7 @@ name: FujiNet PlatformIO CI
 on:
   push:
     tags-ignore:
-      - '**'
+      - 'v*'
 
 jobs:
   build:
@@ -94,9 +94,6 @@ jobs:
     - name: APPLE Build Filesystem
       if: ${{ matrix.target-platform == 'APPLE' }}
       run: pio run -t buildfs -e fujiapple-rev0
-
-    - name: Build Filesystem
-      run: pio run -t buildfs -e fujinet-v1
 
 #    - name: Show Build Artifacts
 #      run: ls -la .pio/build/fujinet-v1/*.bin
