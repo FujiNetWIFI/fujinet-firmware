@@ -99,6 +99,8 @@ jobs:
     - name: Get Commits since last Release
       id: changes
       uses: simbo/changes-since-last-release-action@v1
+        with:
+          include-hashes: false
 
     - name: Save Commits since last Release
       run: |

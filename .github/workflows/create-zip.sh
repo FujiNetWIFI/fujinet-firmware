@@ -10,21 +10,16 @@ GIT_COMMIT=`git rev-parse HEAD`
 GIT_SHORT_COMMIT=`git rev-parse --short HEAD`
 GIT_LOG=`cat commit.log`
 FILENAME="fujinet-$PLATFORM-$VERSION"
+WORKINGDIR=`pwd`
 if [ "$PLATFORM" == "APPLE" ]; then
-    BUILDPATH="fujiapple-rev0"
+    BUILDPATH="/home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujiapple-rev0"
 elif [ "$PLATFORM" == "ADAM" ]; then
-    BUILDPATH="fujinet-adam-v1"
+    BUILDPATH="/home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujinet-adam-v1"
 else
-    BUILDPATH="fujinet-v1"
+    BUILDPATH="/home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujinet-v1"
 fi
 
-# Create sha256sums
-#sha256sum .pio/build/fujinet-v1/bootloader.bin > .pio/build/fujinet-v1/sha256sums.base
-#sha256sum .pio/build/fujinet-v1/firmware.bin >> .pio/build/fujinet-v1/sha256sums.base
-#sha256sum .pio/build/fujinet-v1/partitions.bin >> .pio/build/fujinet-v1/sha256sums.base
-#sha256sum .pio/build/fujinet-v1/spiffs.bin >> .pio/build/fujinet-v1/sha256sums.base
-#sha256sum .pio/build/fujinet-v1/boot_app0.bin >> .pio/build/fujinet-v1/sha256sums.base
-#sed 's#\.pio/build/fujinet-v1/##' .pio/build/fujinet-v1/sha256sums.base > .pio/build/fujinet-v1/sha256sums
+echo "Working Dir: $WORKINGDIR"
 
 # Create release JSON
 JSON="{
@@ -53,10 +48,10 @@ JSON="{
 		}
 	]
 }"
-echo $JSON > .pio/build/$BUILDPATH/release.json
+echo $JSON > $BUILDPATH/release.json
 
 # Create ZIP file for assets
-zip -qq -j "$FILENAME.zip" .pio/build/$BUILDPATH/bootloader.bin .pio/build/$BUILDPATH/firmware.bin .pio/build/$BUILDPATH/partitions.bin .pio/build/$BUILDPATH/spiffs.bin .pio/build/$BUILDPATH/release.json
+zip -qq -j "$FILENAME.zip" $BUILDPATH/bootloader.bin $BUILDPATH/firmware.bin $BUILDPATH/partitions.bin $BUILDPATH/spiffs.bin $BUILDPATH/release.json
 
 # Get shasum for ZIP file
 ZIPSHASUM=`sha256sum $FILENAME.zip | cut -d ' ' -f 1`
@@ -68,7 +63,7 @@ JSON="{
     \"build_date\": \"$BUILD_DATE\",
     \"description\": \"$GIT_LOG\",
     \"git_commit\": \"$GIT_COMMIT\",
-    \"url\": \"https://github.com/FujiNetWIFI/fujinet-platformio/releases/download/$FILENAME/$FILENAME.zip\",
+    \"url\": \"https://github.com/FujiNetWIFI/fujinet-platformio/releases/download/$VERSION/$FILENAME.zip\",
     \"sha256\": \"$ZIPSHASUM\"
 }"
 echo $JSON > releases.json
