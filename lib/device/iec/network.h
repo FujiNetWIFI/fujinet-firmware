@@ -169,6 +169,11 @@ class iecNetwork : public virtualDevice
     void query_json();
 
     /**
+     * @brief Set device ID from dos command
+     */
+    void set_device_id();
+
+    /**
      * @brief Set desired prefix for channel
      */
     void set_prefix();

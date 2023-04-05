@@ -19,6 +19,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
+//
+// http://unusedino.de/ec64/technical/misc/c1541/romlisting.html#E85B
+// https://eden.mose.org.uk/gitweb/?p=rom-reverse.git;a=blob;f=src/vic-1541-sfd.asm;hb=HEAD
+//
+
 #include <cstdint>
 #include <forward_list>
 #include <freertos/FreeRTOS.h>
@@ -81,7 +86,7 @@ typedef enum
 typedef enum
 {
     DEVICE_ERROR = -1,
-    DEVICE_IDLE = 0, // Ready and waiting
+    DEVICE_IDLE = 0,    // Ready and waiting
     DEVICE_ACTIVE = 1,
     DEVICE_LISTEN = 2,  // A command is recieved and data is coming to us
     DEVICE_TALK = 3,    // A command is recieved and we must talk now
@@ -278,11 +283,6 @@ private:
     bool turnAround();
 
     /**
-     * Done with turnaround, go back to being talker.
-     */
-    bool undoTurnAround();
-
-    /**
      * @brief called to process the next command
      */
     void process_cmd();
@@ -458,4 +458,4 @@ public:
  */
 extern systemBus IEC;
 
-#endif /* I2C_H */
+#endif /* IEC_H */

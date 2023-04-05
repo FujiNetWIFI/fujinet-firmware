@@ -149,30 +149,32 @@ typedef enum
 #define WIC64_ACTIVE     (1 << 11)
 
 // IEC protocol timing consts in microseconds (us)
-// IEC-Disected p10-11         // Description              // min    typical    max      // Notes
-#define TIMEOUT_Tat    1000    // ATN RESPONSE (REQUIRED)     -      -          1000us      (If maximum time exceeded, device not present error.)
-#define TIMING_Th      0       // LISTENER HOLD-OFF           0      -          infinte
-#define TIMING_Tne     40      // NON-EOI RESPONSE TO RFD     -      40us       200us       (If maximum time exceeded, EOI response required.)
+// IEC-Disected p10-11         // Description              //   1541    C64     min     typical     max         // Notes
+#define TIMEOUT_Tat    1000    // ATN RESPONSE (REQUIRED)                       -       -           1000us      (If maximum time exceeded, device not present error.)
+#define TIMING_Th      60      // LISTENER HOLD-OFF             65us    39us    0       -           infinte
+#define TIMING_Tne     40      // NON-EOI RESPONSE TO RFD                       -       40us        200us       (If maximum time exceeded, EOI response required.)
 #define TIMEOUT_Tne    250
-#define TIMING_Ts      70      // BIT SET-UP TALKER           20us   70us       -           
-#define TIMING_Tv      80      // DATA VALID                  20us   20us       -           (Tv and Tpr minimum must be 60μ s for external device to be a talker. )
-#define TIMING_Tf      20      // FRAME HANDSHAKE             0      20us       1000us      (If maximum time exceeded, frame error.)
+#define TIMING_Ts      70      // BIT SET-UP TALKER                     71us    20us    70us        -           
+#define TIMING_Ts1     57      // BIT SET-UP LISTENER PRE       57us    47us
+#define TIMING_Ts2     28      // BIT SET-UP LISTENER POST      28us    24us
+#define TIMING_Tv      76      // DATA VALID                    76us    26us    20us    20us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker. )
+#define TIMING_Tf      45      // FRAME HANDSHAKE                               0       20us        1000us      (If maximum time exceeded, frame error.)
 #define TIMEOUT_Tf     1000
-#define TIMING_Tr      20      // FRAME TO RELEASE OF ATN     20us   -          -
-#define TIMING_Tbb     100     // BETWEEN BYTES TIME          100us  -          -
-#define TIMING_Tye     250     // EOI RESPONSE TIME           200us  250us      -
-#define TIMING_Tei     80      // EOI RESPONSE HOLD TIME      60us   -          -           (Tei minimum must be 80μ s for external device to be a listener.)
-#define TIMING_Try     30      // TALKER RESPONSE LIMIT       0      30us       60us
+#define TIMING_Tr      20      // FRAME TO RELEASE OF ATN                       20us    -           -
+#define TIMING_Tbb     100     // BETWEEN BYTES TIME                            100us   -           -
+#define TIMING_Tye     250     // EOI RESPONSE TIME                             200us   250us       -
+#define TIMING_Tei     80      // EOI RESPONSE HOLD TIME                        60us    -           -           (Tei minimum must be 80μ s for external device to be a listener.)
+#define TIMING_Try     30      // TALKER RESPONSE LIMIT                         0       30us        60us
 #define TIMEOUT_Try    60
-#define TIMING_Tpr     60      // BYTE-ACKNOWLEDGE            20us   30us       -           (Tv and Tpr minimum must be 60μ s for external device to be a talker.)
-#define TIMING_Ttk     30      // TALK-ATTENTION RELEASE      20us   30us       100us
+#define TIMING_Tpr     60      // BYTE-ACKNOWLEDGE                              20us    30us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker.)
+#define TIMING_Ttk     30      // TALK-ATTENTION RELEASE        20us            20us    30us        100us
 #define TIMEOUT_Ttk    100
-#define TIMING_Tdc     0       // TALK-ATTENTION ACKNOWLEDGE  0      -          -
-#define TIMING_Tda     80      // TALK-ATTENTION ACK. HOLD    80us   -          -
-#define TIMING_Tfr     60      // EOI ACKNOWLEDGE             60us   -          -
+#define TIMING_Tdc     20      // TALK-ATTENTION ACKNOWLEDGE    20us            0       -           -
+#define TIMING_Tda     81      // TALK-ATTENTION ACK. HOLD                      80us    -           -
+#define TIMING_Tfr     60      // EOI ACKNOWLEDGE                               60us    -           -
 
 #define TIMING_EMPTY   512     // SIGNAL EMPTY STREAM
-#define TIMING_STABLE  60      // WAIT FOR BUS TO BE STABLE
+#define TIMING_STABLE  70      // WAIT FOR BUS TO BE STABLE
 
 #define TIMING_JIFFY_DETECT   218  // JIFFYDOS ENABLED DELAY ON LAST BIT
 #define TIMING_JIFFY_ACK      101  // JIFFYDOS ACK RESPONSE

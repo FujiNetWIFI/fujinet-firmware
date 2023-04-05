@@ -18,7 +18,6 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
     b->pull(PIN_IEC_DATA_OUT);
 
     b->flags |= ATN_PULLED;
-    b->bus_state = BUS_ACTIVE;
 }
 
 systemBus virtualDevice::get_bus()
@@ -55,6 +54,9 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     case bus_command_t::IEC_CLOSE:
         payload.clear();
         std::queue<std::string>().swap(response_queue);
+        pt.clear();
+        pt.shrink_to_fit();
+        device_state = DEVICE_IDLE;
         break;
     case bus_command_t::IEC_REOPEN:
         if (device_state == DEVICE_TALK)
@@ -97,21 +99,54 @@ void virtualDevice::dumpData()
 
 int16_t systemBus::receiveByte()
 {
-    return protocol->receiveByte();
+    int16_t b;
+    b = protocol->receiveByte();
+    if ( b == -1 )
+    {
+        if ( !(IEC.flags & ATN_PULLED) )
+        {
+            IEC.flags |= ERROR;
+            releaseLines();
+            Debug_printv("error");
+        }
+    }
+    return b;
 }
 
 void systemBus::sendByte(const char c, bool eoi)
 {
-    protocol->sendByte(c, eoi);
+    if ( !protocol->sendByte(c, eoi) )
+    {
+        if ( !(IEC.flags & ATN_PULLED) )
+        {
+            IEC.flags |= ERROR;
+            releaseLines();
+            Debug_printv("error");
+        }
+    }
 }
 
 void systemBus::sendBytes(const char *buf, size_t len)
 {
+    bool success = false;
     for (size_t i = 0; i < len; i++)
+    {
         if (i == len - 1)
-            protocol->sendByte(buf[i], true);
+            success = protocol->sendByte(buf[i], true);
         else
-            protocol->sendByte(buf[i], false);
+            success = protocol->sendByte(buf[i], false);
+
+        if ( !success )
+        {
+            if ( !(IEC.flags & ATN_PULLED) )
+            {
+                IEC.flags |= ERROR;
+                releaseLines();
+                Debug_printv("error");
+            }
+            return;
+        }
+    }
 }
 
 void systemBus::sendBytes(std::string s)
@@ -136,7 +171,6 @@ void systemBus::process_queue()
 void IRAM_ATTR systemBus::service()
 {
     // TODO IMPLEMENT
-    bool process_command = false;
     bool pin_atn = status(PIN_IEC_ATN);
 
 #ifdef IEC_HAS_RESET
@@ -170,20 +204,21 @@ void IRAM_ATTR systemBus::service()
     // Command or Data Mode
     if (bus_state == BUS_ACTIVE || pin_atn == PULLED)
     {
-        release(PIN_IEC_CLK_OUT);
-        pull(PIN_IEC_DATA_OUT);
+        // Sometimes the C64 pulls ATN but doesn't pull CLOCK right away
+        protocol->wait(TIMING_STABLE);
 
         // ATN was pulled read control code from the bus
-        int16_t c = (bus_command_t)protocol->receiveByte();
+        pull( PIN_IEC_SRQ );
+        int16_t c = receiveByte();
+        //release( PIN_IEC_SRQ );
 
         // Check for error
         if (c == 0xFFFFFFFF || flags & ERROR)
         {
-            Debug_printv("Error reading command");
+            //Debug_printv("Error reading command. flags[%d]", flags);
             if (c == 0xFFFFFFFF)
                 bus_state = BUS_OFFLINE;
             else
-
                 bus_state = BUS_ERROR;
         }
         else
@@ -211,32 +246,31 @@ void IRAM_ATTR systemBus::service()
             case IEC_LISTEN:
                 data.primary = IEC_LISTEN;
                 data.device = c ^ IEC_LISTEN;
-                data.secondary = IEC_REOPEN; // Default secondary command
-                data.channel = CMD_CHANNEL;  // Default channel
+                // data.secondary = IEC_REOPEN; // Default secondary command
+                // data.channel = CMD_CHANNEL;  // Default channel
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (20 LISTEN %.2d DEVICE)\r\n", data.device);
                 break;
 
             case IEC_UNLISTEN:
                 data.primary = IEC_UNLISTEN;
-                data.secondary = 0x00;
+                // data.secondary = 0x00;
                 bus_state = BUS_PROCESS;
-                process_command = true;
                 Debug_printf(" (3F UNLISTEN)\r\n");
                 break;
 
             case IEC_TALK:
                 data.primary = IEC_TALK;
                 data.device = c ^ IEC_TALK;
-                data.secondary = IEC_REOPEN; // Default secondary command
-                data.channel = CMD_CHANNEL;  // Default channel
+                // data.secondary = IEC_REOPEN; // Default secondary command
+                // data.channel = CMD_CHANNEL;  // Default channel
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (40 TALK   %.2d DEVICE)\r\n", data.device);
                 break;
 
             case IEC_UNTALK:
                 data.primary = IEC_UNTALK;
-                data.secondary = 0x00;
+                // data.secondary = 0x00;
                 bus_state = BUS_IDLE;
                 Debug_printf(" (5F UNTALK)\r\n");
                 break;
@@ -245,7 +279,6 @@ void IRAM_ATTR systemBus::service()
                 data.secondary = IEC_OPEN;
                 data.channel = c ^ IEC_OPEN;
                 bus_state = BUS_PROCESS;
-                process_command = true;
                 Debug_printf(" (F0 OPEN   %.2d CHANNEL)\r\n", data.channel);
                 break;
 
@@ -253,7 +286,6 @@ void IRAM_ATTR systemBus::service()
                 data.secondary = IEC_REOPEN;
                 data.channel = c ^ IEC_REOPEN;
                 bus_state = BUS_PROCESS;
-                process_command = true;
                 Debug_printf(" (60 DATA   %.2d CHANNEL)\r\n", data.channel);
                 break;
 
@@ -261,26 +293,29 @@ void IRAM_ATTR systemBus::service()
                 data.secondary = IEC_CLOSE;
                 data.channel = c ^ IEC_CLOSE;
                 bus_state = BUS_PROCESS;
-                process_command = true;
                 Debug_printf(" (E0 CLOSE  %.2d CHANNEL)\r\n", data.channel);
                 break;
             }
 
-            // Debug_printf ( "code[%.2X] primary[%.2X] secondary[%.2X] bus[%d]", command, data.primary, data.secondary, bus_state );
+            //Debug_printv ( "code[%.2X] primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", c, data.primary, data.secondary, bus_state, flags );
+
+            release( PIN_IEC_SRQ );
+
+            // Delay to sync bus
+            protocol->wait( 150 );
 
             // Is this command for us?
             if (!deviceById(data.device) || !deviceById(data.device)->device_active)
             {
-                Debug_printf("Command not for us, ignoring.\n");
+                //Debug_printf("Command not for us, ignoring.\n");
                 bus_state = BUS_IDLE;
-                process_command = false;
             }
         }
 
         // If the bus is idle then release the lines
         if (bus_state < BUS_ACTIVE)
         {
-            Debug_printf("Bus idle. Release lines.\n");
+            //Debug_printf("Bus idle. Release lines.\n");
             data.init();
             releaseLines();
         }
@@ -291,12 +326,12 @@ void IRAM_ATTR systemBus::service()
         if (data.primary > IEC_GLOBAL)
         {
             Debug_printf("No secondary set.\n");
-            process_command = true;
         }
     }
 
-    if (process_command)
+    if (bus_state == BUS_PROCESS)
     {
+
         if (data.secondary == IEC_OPEN || data.secondary == IEC_REOPEN)
         {
             // TODO: switch protocol subclass as needed.
@@ -305,12 +340,12 @@ void IRAM_ATTR systemBus::service()
         // Data Mode - Get Command or Data
         if (data.primary == IEC_LISTEN)
         {
-            Debug_printf("calling deviceListen()\n");
+            // Debug_printf("calling deviceListen()\n");
             bus_state = deviceListen();
         }
         else if (data.primary == IEC_TALK)
         {
-            Debug_printf("calling deviceTalk()\n");
+            // Debug_printf("calling deviceTalk()\n");
             bus_state = deviceTalk();
         }
 
@@ -324,15 +359,26 @@ void IRAM_ATTR systemBus::service()
 
         fnLedManager.set(eLed::LED_BUS, true);
 
+        // Debug_printv("bus[%d] device[%d]", bus_state, device_state);
+
         if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
         {
-            Debug_printf("Device idle\n");
+            //Debug_printf("Device idle\n");
             data.init();
         }
 
-        fnLedManager.set(eLed::LED_BUS, false);
+        // If ATN is pulled the bus is still active
+        if ( status( PIN_IEC_ATN )  )
+        {
+            bus_state = BUS_ACTIVE;
+        }
+        else
+        {
+            fnLedManager.set(eLed::LED_BUS, false);
+            bus_state = BUS_IDLE;
+        }
 
-        bus_state = BUS_IDLE;
+        //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
 
         flags = CLEAR;
     }
@@ -405,7 +451,7 @@ bus_state_t IRAM_ATTR systemBus::deviceListen()
     // CLOSE Named Channel
     else if (data.secondary == IEC_CLOSE)
     {
-        // Debug_printf(" (E0 CLOSE) (%d CHANNEL)\r\n", data.channel);
+        //Debug_printf(" (E0 CLOSE) (%d CHANNEL)\r\n", data.channel);
         return BUS_PROCESS;
     }
 
@@ -421,7 +467,11 @@ bus_state_t IRAM_ATTR systemBus::deviceTalk(void)
 {
     // Now do bus turnaround
     if (!turnAround())
+    {
+        Debug_printv("error flags[%d]", flags);
         return BUS_ERROR;
+    }
+
 
     // We have recieved a CMD and we should talk now:
     return BUS_PROCESS;
@@ -453,49 +503,31 @@ bool IRAM_ATTR systemBus::turnAround()
     {
         Debug_printf("Wait until the computer releases the ATN line");
         flags |= ERROR;
-        return -1; // return error because timeout
+        return false; // return error because timeout
     }
 
     // Delay after ATN is RELEASED
-    fnSystem.delay_microseconds(TIMING_Ttk);
+    protocol->wait( TIMING_Ttk, 0, false );
 
     // Wait until the computer releases the clock line
     if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)
     {
         Debug_printf("Wait until the computer releases the clock line");
         flags |= ERROR;
-        return -1; // return error because timeout
+        return false; // return error because timeout
     }
-
-    release(PIN_IEC_DATA_OUT);
-    fnSystem.delay_microseconds(TIMING_Tv);
     pull(PIN_IEC_CLK_OUT);
-    fnSystem.delay_microseconds(TIMING_Tv);
 
-    Debug_println("turnaround complete");
-    return true;
-} // turnAround
-
-// this routine will set the direction on the bus back to normal
-// (the way it was when the computer was switched on)
-bool IRAM_ATTR systemBus::undoTurnAround()
-{
-    pull(PIN_IEC_DATA_OUT);
+    // Signal that we are now the talker
+    protocol->wait( TIMING_Tda, 0, false );
     release(PIN_IEC_CLK_OUT);
 
-    // Debug_printf("IEC undoTurnAround: ");
+    // Release DATA because the computer is pulling it now
+    release(PIN_IEC_DATA_OUT);
 
-    // Wait until the computer releases the clock line
-    if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)
-    {
-        Debug_printf("Wait until the computer releases the clock line");
-        flags |= ERROR;
-        return -1; // return error because timeout
-    }
-
-    // Debug_println("complete");
+    // Debug_println("turnaround complete");
     return true;
-} // undoTurnAround
+} // turnAround
 
 void systemBus::reset_all_our_devices()
 {
@@ -521,7 +553,7 @@ bool IRAM_ATTR systemBus::senderTimeout()
     releaseLines();
     this->bus_state = BUS_ERROR;
 
-    fnSystem.delay_microseconds(TIMING_EMPTY);
+    protocol->wait(TIMING_EMPTY);
 
     return true;
 } // senderTimeout
@@ -538,7 +570,7 @@ void systemBus::setup()
     fnSystem.set_pin_mode(PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_NEGEDGE);
     fnSystem.set_pin_mode(PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.set_pin_mode(PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-    fnSystem.set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+    fnSystem.set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.set_pin_mode(PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT);
 
     flags = CLEAR;

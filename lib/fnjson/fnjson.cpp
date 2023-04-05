@@ -111,15 +111,7 @@ string FNJSON::getValue(cJSON *item)
 
         Debug_printf("S: [cJSON_IsString] %s\n",cJSON_GetStringValue(item));
 
-        #ifdef BUILD_IEC
-        ss << "\"";
-        #endif 
-
         ss << cJSON_GetStringValue(item);
-        
-        #ifdef BUILD_IEC
-        ss << "\"";
-        #endif
         
         #ifdef BUILD_ATARI
 
