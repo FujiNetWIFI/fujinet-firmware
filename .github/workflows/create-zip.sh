@@ -9,7 +9,6 @@ VERSION_DATE=`grep "FN_VERSION_DATE" include/version.h | cut -d '"' -f 2`
 BUILD_DATE=`date +'%Y-%m-%d %H:%M:%S'`
 GIT_COMMIT=`git rev-parse HEAD`
 GIT_SHORT_COMMIT=`git rev-parse --short HEAD`
-GIT_LOG=`cat change.log`
 FILENAME="fujinet-$PLATFORM-$VERSION"
 WORKINGDIR=`pwd`
 if [ "$PLATFORM" == "APPLE" ]; then
@@ -24,7 +23,18 @@ else
     BUILDPATH="$WORKINGDIR/.pio/build/fujinet-v1"
 fi
 
-#echo "Working Dir: $WORKINGDIR"
+# Split git log into array for JSON
+UNO=1
+while read -r line
+do
+    if [ $UNO -eq 1 ]; then
+        GIT_LOG="["$'\n'"          \"$line\""
+    else
+        GIT_LOG="          ${GIT_LOG},"$'\n'"          \"$line\""
+    fi
+    UNO=0
+done < change.log
+GIT_LOG="${GIT_LOG}"$'\n'"    ]"
 
 # Create release JSON
 cat <<EOF > $BUILDPATH/release.json
@@ -32,7 +42,7 @@ cat <<EOF > $BUILDPATH/release.json
 	"version": "$VERSION",
 	"version_date": "$VERSION_DATE",
 	"build_date": "$BUILD_DATE",
-	"description": "$GIT_LOG",
+	"description": $GIT_LOG,
 	"git_commit": "$GIT_SHORT_COMMIT",
 	"files":
 	[
@@ -68,7 +78,7 @@ cat <<EOF > releases.json
     "version": "$VERSION",
     "version_date": "$VERSION_DATE",
     "build_date": "$BUILD_DATE",
-    "description": "$GIT_LOG",
+    "description": $GIT_LOG,
     "git_commit": "$GIT_COMMIT",
     "url": "https://github.com/$REPO_OWNER/fujinet-platformio/releases/download/$VERSION/$FILENAME.zip",
     "sha256": "$ZIPSHASUM"
