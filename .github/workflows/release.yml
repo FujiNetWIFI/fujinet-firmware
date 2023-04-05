@@ -134,7 +134,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-#        tag_name: ${{ steps.shortsha.outputs.shortsha }}
+        tag_name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}
         release_name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}
         body: "FujiNet build for ${{ matrix.target-platform }} - ${{ github.ref_name }}"
 
