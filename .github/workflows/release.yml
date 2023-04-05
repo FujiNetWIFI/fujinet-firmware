@@ -11,7 +11,7 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI]
+        target-platform: [ATARI, APPLE]
 #        target-platform: [ATARI, ADAM, APPLE]
 
     steps:
@@ -105,17 +105,12 @@ jobs:
 
     - name: Save Commits since last Release
       run: |
-        echo "${{ steps.changes.outputs.log }}" > commit.log
-        cat commit.log
+        echo "${{ steps.changes.outputs.log }}" > change.log
+        cat change.log
 
     - name: Create Release ZIP
       run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }}
       shell: bash
-
-#    - name: Create release ZIP 2
-#      uses: montudor/action-zip@v1
-#      with:
-#        args: zip -qq -j fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip release.json .pio/build/fujinet-v1/bootloader.bin .pio/build/fujinet-v1/firmware.bin .pio/build/fujinet-v1/partitions.bin .pio/build/fujinet-v1/spiffs.bin
 
     - name: Upload Release ZIP
       uses: actions/upload-artifact@v2.3.1
@@ -129,6 +124,12 @@ jobs:
         name: releases.json
         path: releases.json
 
+    - name: Upload Change Log
+      uses: actions/upload-artifact@v2.3.1
+      with:
+        name: change.log
+        path: change.log
+
     - name: Create Release
       uses: actions/create-release@v1
       env:
@@ -140,12 +141,10 @@ jobs:
 
     - name: Push ZIP to release
       uses: softprops/action-gh-release@v1
-#      if: startsWith(${{ steps.shortsha.outputs.shortsha }}, 'refs/tags/')
       with:
         files: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
 
     - name: Push JSON to release
       uses: softprops/action-gh-release@v1
-#      if: startsWith(${{ steps.shortsha.outputs.shortsha }}, 'refs/tags/')
       with:
         files: releases.json
