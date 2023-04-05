@@ -8,6 +8,7 @@ VERSION_DATE=`grep "FN_VERSION_DATE" include/version.h | cut -d '"' -f 2`
 BUILD_DATE=`date +'%Y-%m-%d %H:%M:%S'`
 GIT_COMMIT=`git rev-parse HEAD`
 GIT_SHORT_COMMIT=`git rev-parse --short HEAD`
+GIT_LOG=`cat commit.log`
 FILENAME="fujinet-$PLATFORM-$VERSION"
 if [ "$PLATFORM" == "APPLE" ]; then
     BUILDPATH="fujiapple-rev0"
@@ -30,7 +31,7 @@ JSON="{
 	\"version\": \"$VERSION\",
 	\"version_date\": \"$VERSION_DATE\",
 	\"build_date\": \"$BUILD_DATE\",
-	\"description\": \"NEED INFO HERE\",
+	\"description\": \"$GIT_LOG\",
 	\"git_commit\": \"$GIT_SHORT_COMMIT\",
 	\"files\":
 	[
@@ -65,8 +66,9 @@ JSON="{
     \"version\": \"$VERSION\",
     \"version_date\": \"$VERSION_DATE\",
     \"build_date\": \"$BUILD_DATE\",
-    \"description\": \"\",
+    \"description\": \"$GIT_LOG\",
     \"git_commit\": \"$GIT_COMMIT\",
-    \"url\": \"https://github.com/FujiNetWIFI/fujinet-platformio/releases/download/$GIT_SHORT_COMMIT/$FILENAME.zip\",
+    \"url\": \"https://github.com/FujiNetWIFI/fujinet-platformio/releases/download/$FILENAME/$FILENAME.zip\",
     \"sha256\": \"$ZIPSHASUM\"
 }"
+echo $JSON > releases.json
