@@ -8,7 +8,7 @@ VERSION_DATE=`grep "FN_VERSION_DATE" include/version.h | cut -d '"' -f 2`
 BUILD_DATE=`date +'%Y-%m-%d %H:%M:%S'`
 GIT_COMMIT=`git rev-parse HEAD`
 GIT_SHORT_COMMIT=`git rev-parse --short HEAD`
-GIT_LOG=`cat commit.log`
+GIT_LOG=`cat change.log`
 FILENAME="fujinet-$PLATFORM-$VERSION"
 WORKINGDIR=`pwd`
 if [ "$PLATFORM" == "APPLE" ]; then
@@ -23,36 +23,37 @@ else
     BUILDPATH="$WORKINGDIR/.pio/build/fujinet-v1"
 fi
 
-echo "Working Dir: $WORKINGDIR"
+#echo "Working Dir: $WORKINGDIR"
 
 # Create release JSON
-JSON="{
-	\"version\": \"$VERSION\",
-	\"version_date\": \"$VERSION_DATE\",
-	\"build_date\": \"$BUILD_DATE\",
-	\"description\": \"$GIT_LOG\",
-	\"git_commit\": \"$GIT_SHORT_COMMIT\",
-	\"files\":
+cat <<EOF > $BUILDPATH/release.json
+{
+	"version": "$VERSION",
+	"version_date": "$VERSION_DATE",
+	"build_date": "$BUILD_DATE",
+	"description": "$GIT_LOG",
+	"git_commit": "$GIT_SHORT_COMMIT",
+	"files":
 	[
 		{
-			\"filename\": \"bootloader.bin\",
-			\"offset\": \"0x1000\"
+			"filename": "bootloader.bin",
+			"offset": "0x1000"
 		},
 		{
-			\"filename\": \"partitions.bin\",
-			\"offset\": \"0x8000\"
+			"filename": "partitions.bin",
+			"offset": "0x8000"
 		},
 		{
-			\"filename\": \"firmware.bin\",
-			\"offset\": \"0x10000\"
+			"filename": "firmware.bin",
+			"offset": "0x10000"
 		},
 		{
-			\"filename\": \"spiffs.bin\",
-			\"offset\": \"0x910000\"
+			"filename": "spiffs.bin",
+			"offset": "0x910000"
 		}
 	]
-}"
-echo $JSON > $BUILDPATH/release.json
+}
+EOF
 
 # Create ZIP file
 zip -qq -j "$FILENAME.zip" $BUILDPATH/bootloader.bin $BUILDPATH/firmware.bin $BUILDPATH/partitions.bin $BUILDPATH/spiffs.bin $BUILDPATH/release.json
@@ -61,13 +62,14 @@ zip -qq -j "$FILENAME.zip" $BUILDPATH/bootloader.bin $BUILDPATH/firmware.bin $BU
 ZIPSHASUM=`sha256sum $FILENAME.zip | cut -d ' ' -f 1`
 
 # Create flasher release JSON
-JSON="{
-    \"version\": \"$VERSION\",
-    \"version_date\": \"$VERSION_DATE\",
-    \"build_date\": \"$BUILD_DATE\",
-    \"description\": \"$GIT_LOG\",
-    \"git_commit\": \"$GIT_COMMIT\",
-    \"url\": \"https://github.com/FujiNetWIFI/fujinet-platformio/releases/download/$VERSION/$FILENAME.zip\",
-    \"sha256\": \"$ZIPSHASUM\"
-}"
-echo $JSON > releases.json
+cat <<EOF > releases.json
+{
+    "version": "$VERSION",
+    "version_date": "$VERSION_DATE",
+    "build_date": "$BUILD_DATE",
+    "description": "$GIT_LOG",
+    "git_commit": "$GIT_COMMIT",
+    "url": "https://github.com/FujiNetWIFI/fujinet-platformio/releases/download/$VERSION/$FILENAME.zip",
+    "sha256": "$ZIPSHASUM"
+}
+EOF
