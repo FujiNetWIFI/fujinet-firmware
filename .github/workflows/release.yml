@@ -109,7 +109,7 @@ jobs:
         cat change.log
 
     - name: Create Release ZIP
-      run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }}
+      run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }} ${{ github.repository_owner }}
       shell: bash
 
     - name: Upload Release ZIP
@@ -148,3 +148,8 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: releases.json
+
+    - name: Push Change Log to release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: change.log

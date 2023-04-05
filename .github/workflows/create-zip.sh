@@ -4,6 +4,7 @@
 # Get arguments into named variables
 PLATFORM=$1
 VERSION=$2
+REPO_OWNER=$3
 VERSION_DATE=`grep "FN_VERSION_DATE" include/version.h | cut -d '"' -f 2`
 BUILD_DATE=`date +'%Y-%m-%d %H:%M:%S'`
 GIT_COMMIT=`git rev-parse HEAD`
@@ -69,7 +70,7 @@ cat <<EOF > releases.json
     "build_date": "$BUILD_DATE",
     "description": "$GIT_LOG",
     "git_commit": "$GIT_COMMIT",
-    "url": "https://github.com/FujiNetWIFI/fujinet-platformio/releases/download/$VERSION/$FILENAME.zip",
+    "url": "https://github.com/$REPO_OWNER/fujinet-platformio/releases/download/$VERSION/$FILENAME.zip",
     "sha256": "$ZIPSHASUM"
 }
 EOF
