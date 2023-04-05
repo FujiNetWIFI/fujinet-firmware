@@ -99,12 +99,31 @@ void virtualDevice::dumpData()
 
 int16_t systemBus::receiveByte()
 {
-    return protocol->receiveByte();
+    int16_t b;
+    b = protocol->receiveByte();
+    if ( b == -1 )
+    {
+        if ( !(IEC.flags & ATN_PULLED) )
+        {
+            IEC.flags |= ERROR;
+            releaseLines();
+            Debug_printv("error");
+        }
+    }
+    return b;
 }
 
 void systemBus::sendByte(const char c, bool eoi)
 {
-    protocol->sendByte(c, eoi);
+    if ( !protocol->sendByte(c, eoi) )
+    {
+        if ( !(IEC.flags & ATN_PULLED) )
+        {
+            IEC.flags |= ERROR;
+            releaseLines();
+            Debug_printv("error");
+        }
+    }
 }
 
 void systemBus::sendBytes(const char *buf, size_t len)
@@ -117,8 +136,16 @@ void systemBus::sendBytes(const char *buf, size_t len)
         else
             success = protocol->sendByte(buf[i], false);
 
-        if (!success)
+        if ( !success )
+        {
+            if ( !(IEC.flags & ATN_PULLED) )
+            {
+                IEC.flags |= ERROR;
+                releaseLines();
+                Debug_printv("error");
+            }
             return;
+        }
     }
 }
 
@@ -270,7 +297,7 @@ void IRAM_ATTR systemBus::service()
                 break;
             }
 
-            // Debug_printv ( "code[%.2X] primary[%.2X] secondary[%.2X] bus[%d]", c, data.primary, data.secondary, bus_state );
+            //Debug_printv ( "code[%.2X] primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", c, data.primary, data.secondary, bus_state, flags );
 
             // Is this command for us?
             if (!deviceById(data.device) || !deviceById(data.device)->device_active)
@@ -345,6 +372,9 @@ void IRAM_ATTR systemBus::service()
             fnLedManager.set(eLed::LED_BUS, false);
             bus_state = BUS_IDLE;
         }
+
+        //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
+
         flags = CLEAR;
     }
 }
@@ -468,23 +498,24 @@ bool IRAM_ATTR systemBus::turnAround()
     {
         Debug_printf("Wait until the computer releases the ATN line");
         flags |= ERROR;
-        return -1; // return error because timeout
+        return false; // return error because timeout
     }
 
     // Delay after ATN is RELEASED
-    fnSystem.delay_microseconds(TIMING_Ttk);
+    protocol->wait( TIMING_Ttk, 0, false );
 
     // Wait until the computer releases the clock line
     if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)
     {
         Debug_printf("Wait until the computer releases the clock line");
         flags |= ERROR;
-        return -1; // return error because timeout
+        return false; // return error because timeout
     }
+    pull(PIN_IEC_CLK_OUT);
 
     // Signal that we are now the talker
-    fnSystem.delay_microseconds(TIMING_Tda);
-    pull(PIN_IEC_CLK_OUT);
+    protocol->wait( TIMING_Tda, 0, false );
+    release(PIN_IEC_CLK_OUT);
 
     // Release DATA because the computer is pulling it now
     release(PIN_IEC_DATA_OUT);
@@ -517,7 +548,7 @@ bool IRAM_ATTR systemBus::senderTimeout()
     releaseLines();
     this->bus_state = BUS_ERROR;
 
-    fnSystem.delay_microseconds(TIMING_EMPTY);
+    protocol->wait(TIMING_EMPTY);
 
     return true;
 } // senderTimeout
