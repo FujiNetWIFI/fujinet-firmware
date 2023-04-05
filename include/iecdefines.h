@@ -167,14 +167,14 @@ typedef enum
 #define TIMING_Try     30      // TALKER RESPONSE LIMIT                         0       30us        60us
 #define TIMEOUT_Try    60
 #define TIMING_Tpr     60      // BYTE-ACKNOWLEDGE                              20us    30us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker.)
-#define TIMING_Ttk     30      // TALK-ATTENTION RELEASE                        20us    30us        100us
+#define TIMING_Ttk     30      // TALK-ATTENTION RELEASE        20us            20us    30us        100us
 #define TIMEOUT_Ttk    100
-#define TIMING_Tdc     0       // TALK-ATTENTION ACKNOWLEDGE                    0       -           -
-#define TIMING_Tda     80      // TALK-ATTENTION ACK. HOLD                      80us    -           -
+#define TIMING_Tdc     20      // TALK-ATTENTION ACKNOWLEDGE    20us            0       -           -
+#define TIMING_Tda     81      // TALK-ATTENTION ACK. HOLD                      80us    -           -
 #define TIMING_Tfr     60      // EOI ACKNOWLEDGE                               60us    -           -
 
 #define TIMING_EMPTY   512     // SIGNAL EMPTY STREAM
-#define TIMING_STABLE  60      // WAIT FOR BUS TO BE STABLE
+#define TIMING_STABLE  70      // WAIT FOR BUS TO BE STABLE
 
 #define TIMING_JIFFY_DETECT   218  // JIFFYDOS ENABLED DELAY ON LAST BIT
 #define TIMING_JIFFY_ACK      101  // JIFFYDOS ACK RESPONSE

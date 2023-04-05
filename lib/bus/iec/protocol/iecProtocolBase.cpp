@@ -2,6 +2,7 @@
 
 #include "iecProtocolBase.h"
 #include "../../../include/pinmap.h"
+#include "../../../include/debug.h"
 #include "bus.h"
 
 int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wait, bool watch_atn)
@@ -60,9 +61,10 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
 
 }
 
-bool IecProtocolBase::wait(size_t wait, uint64_t start)
+bool IecProtocolBase::wait(size_t wait, uint64_t start, bool watch_atn)
 {
     uint64_t current, elapsed;
+    bool atn_status = false;
     elapsed = 0;
 
     if ( wait == 0 ) return true;
@@ -78,30 +80,36 @@ bool IecProtocolBase::wait(size_t wait, uint64_t start)
         current = esp_timer_get_time();
     }
 
-    // Sample ATN and set flag to indicate SELECT or DATA mode
-    bool atn_status = IEC.status ( PIN_IEC_ATN );
-    if ( atn_status == PULLED)
-        IEC.flags |= ATN_PULLED;
+    if ( watch_atn )
+    {
+        // Sample ATN and set flag to indicate SELECT or DATA mode
+        atn_status = IEC.status ( PIN_IEC_ATN );
+        if ( atn_status == PULLED)
+            IEC.flags |= ATN_PULLED;
+    }
 
-    // pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     while ( elapsed < wait )
     {
         current = esp_timer_get_time();
         elapsed = current - start;
 
-        bool atn_check = IEC.status ( PIN_IEC_ATN );
-        if ( atn_check == PULLED)
-            IEC.flags |= ATN_PULLED;
-
-        if ( atn_check != atn_status )
+        if ( watch_atn )
         {
-            // release ( PIN_IEC_SRQ );
-            // Debug_printv("wait[%d] elapsed[%d]", wait, elapsed);
-            return false;
+            bool atn_check = IEC.status ( PIN_IEC_ATN );
+            if ( atn_check == PULLED)
+                IEC.flags |= ATN_PULLED;
+
+            if ( atn_check != atn_status )
+            {
+                //IEC.release( PIN_IEC_SRQ );
+                //Debug_printv("watch_atn[%d] wait[%d] elapsed[%d]", watch_atn, wait, elapsed);
+                return false;
+            }            
         }
     }
 
-    // release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
     return true;
 }
 
