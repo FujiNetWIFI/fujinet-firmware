@@ -112,13 +112,10 @@ jobs:
       run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }}
       shell: bash
 
-#    - uses: "marvinpinto/action-automatic-releases@latest"
-#      with:
-#        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-#        prerelease: false
-#        files: |
-#          LICENSE.txt
-#          fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+    - name: Create release ZIP 2
+      uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -j fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip release.json .pio/build/fujinet-v1/bootloader.bin .pio/build/fujinet-v1/firmware.bin .pio/build/fujinet-v1/partitions.bin .pio/build/fujinet-v1/spiffs.bin
 
     - name: Upload Release ZIP
       uses: actions/upload-artifact@v2.3.1
