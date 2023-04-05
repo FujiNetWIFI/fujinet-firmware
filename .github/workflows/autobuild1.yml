@@ -1,6 +1,9 @@
 name: FujiNet PlatformIO CI
 
-on: [push]
+on:
+  push:
+    tags-ignore:
+      - '**'
 
 jobs:
   build:
