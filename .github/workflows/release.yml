@@ -100,6 +100,7 @@ jobs:
       id: changes
       uses: simbo/changes-since-last-release-action@v1
         with:
+          line-prefix: "* "
           include-hashes: false
 
     - name: Save Commits since last Release
