@@ -2,8 +2,10 @@ name: FujiNet PlatformIO CI
 
 on:
   push:
-    tags-ignore:
-      - 'v*'
+    branches:
+      - "**"
+    tags:
+      - "!**"
 
 jobs:
   build:
