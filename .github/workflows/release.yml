@@ -96,9 +96,6 @@ jobs:
       if: ${{ matrix.target-platform == 'APPLE' }}
       run: pio run -t buildfs -e fujiapple-rev0
 
-    - name: Build Filesystem
-      run: pio run -t buildfs -e fujinet-v1
-
     - name: Create Release ZIP
       run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }}
       shell: bash
