@@ -299,13 +299,13 @@ void sioFuji::sio_disk_image_mount()
         sio_error();
         return;
     }
-    
+
     if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
     {
         sio_error();
         return;
     }
-    
+
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
@@ -1131,7 +1131,25 @@ void sioFuji::sio_unmount_host()
         return;
     }
 
-    if (!_fnHosts[hostSlot].umount())
+    // Unmount any disks associated with host slot
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        if (_fnDisks[i].host_slot == hostSlot)
+        {
+            _fnDisks[i].disk_dev.unmount();
+            if (_fnDisks[i].disk_type == MEDIATYPE_CAS || _fnDisks[i].disk_type == MEDIATYPE_WAV)
+            {
+                // tell cassette it unmount
+                _cassetteDev.umount_cassette_file();
+                _cassetteDev.sio_disable_cassette();
+            }
+            _fnDisks[i].disk_dev.device_active = false;
+            _fnDisks[i].reset();
+        }
+    }
+
+    // Unmount the host
+    if (_fnHosts[hostSlot].umount())
         sio_error();
     else
         sio_complete();
@@ -1547,7 +1565,7 @@ void sioFuji::setup(systemBus *siobus)
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
-    
+
     //Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
 
@@ -1562,7 +1580,7 @@ void sioFuji::setup(systemBus *siobus)
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
 
-    
+
 }
 
 sioDisk *sioFuji::bootdisk()

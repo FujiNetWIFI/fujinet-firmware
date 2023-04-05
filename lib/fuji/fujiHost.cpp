@@ -89,7 +89,7 @@ void fujiHost::set_prefix(const char *prefix)
     {
         util_concat_paths(_prefix, _prefix, prefix, sizeof(_prefix));
     }
-    
+
     Debug_printf("fujiHost::set_prefix new prefix = \"%s\"\n", _prefix);
 }
 
@@ -144,7 +144,7 @@ bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
     char realpath[MAX_PATHLEN];
     if( false == util_concat_paths(realpath, _prefix, path, sizeof(realpath)) )
         return false;
-    
+
     Debug_printf("::dir_open actual path = \"%s\"\n", realpath);
 
     int result = false;
@@ -191,7 +191,7 @@ bool fujiHost::file_exists(const char *path)
     char realpath[MAX_PATHLEN];
     if( false == util_concat_paths(realpath, _prefix, path, sizeof(realpath)) )
         return false;
-    
+
     Debug_printf("::file_exists actual path = \"%s\"\n", realpath);
 
     return _fs->exists(realpath);
@@ -376,10 +376,12 @@ bool fujiHost::umount()
 {
     Debug_printf("::unmount {%d} \"%s\"\n", slotid+1, _hostname);
 
-    // Try mounting locally first
-    //if (0 == unmount_local())
-    //    return true;
+    if (_type == HOSTTYPE_LOCAL)
+    {
+        Debug_println("::skip unmounting SD");
+        return 0;
+    }
 
-    // Try mounting TNFS last
+    // Try unmounting TNFS
     return 0 == unmount_tnfs();
 }

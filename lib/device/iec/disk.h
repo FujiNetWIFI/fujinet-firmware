@@ -1,10 +1,10 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include <fujiHost.h>
+#include "../fuji/fujiHost.h"
 #include <string>
 #include "bus.h"
-#include "media.h"
+#include "../media/media.h"
 
 class iecDisk : public virtualDevice
 {
