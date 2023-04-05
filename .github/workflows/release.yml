@@ -96,14 +96,56 @@ jobs:
       if: ${{ matrix.target-platform == 'APPLE' }}
       run: pio run -t buildfs -e fujiapple-rev0
 
+    - name: Get Commits since last Release
+      id: changes
+      uses: simbo/changes-since-last-release-action@v1
+
+    - name: Save Commits since last Release
+      run: |
+        echo "${{ steps.changes.outputs.log }}" > commit.log
+        cat commit.log
+
     - name: Create Release ZIP
       run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }}
       shell: bash
 
-    - uses: "marvinpinto/action-automatic-releases@latest"
+#    - uses: "marvinpinto/action-automatic-releases@latest"
+#      with:
+#        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+#        prerelease: false
+#        files: |
+#          LICENSE.txt
+#          fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+
+    - name: Upload Release ZIP
+      uses: actions/upload-artifact@v2.3.1
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        prerelease: false
-        files: |
-          LICENSE.txt
-          fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        path: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+
+    - name: Upload Releases JSON
+      uses: actions/upload-artifact@v2.3.1
+      with:
+        name: releases.json
+        path: releases.json
+
+    - name: Create Release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+#        tag_name: ${{ steps.shortsha.outputs.shortsha }}
+        release_name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}
+        body: "FujiNet build for ${{ matrix.target-platform }} - ${{ github.ref_name }}"
+
+    - name: Push ZIP to release
+      uses: softprops/action-gh-release@v1
+#      if: startsWith(${{ steps.shortsha.outputs.shortsha }}, 'refs/tags/')
+      with:
+        files: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+
+    - name: Push JSON to release
+      uses: softprops/action-gh-release@v1
+#      if: startsWith(${{ steps.shortsha.outputs.shortsha }}, 'refs/tags/')
+      with:
+        files: releases.json
