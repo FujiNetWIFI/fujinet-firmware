@@ -12,11 +12,11 @@ GIT_LOG=`cat commit.log`
 FILENAME="fujinet-$PLATFORM-$VERSION"
 WORKINGDIR=`pwd`
 if [ "$PLATFORM" == "APPLE" ]; then
-    BUILDPATH="/home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujiapple-rev0"
+    BUILDPATH="$WORKINGDIR/.pio/build/fujiapple-rev0"
 elif [ "$PLATFORM" == "ADAM" ]; then
-    BUILDPATH="/home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujinet-adam-v1"
+    BUILDPATH="$WORKINGDIR/.pio/build/fujinet-adam-v1"
 else
-    BUILDPATH="/home/runner/work/fujinet-platformio/fujinet-platformio/.pio/build/fujinet-v1"
+    BUILDPATH="$WORKINGDIR/.pio/build/fujinet-v1"
 fi
 
 echo "Working Dir: $WORKINGDIR"
