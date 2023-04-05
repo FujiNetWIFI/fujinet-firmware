@@ -11,7 +11,7 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, APPLE]
+        target-platform: [ATARI]
 #        target-platform: [ATARI, ADAM, APPLE]
 
     steps:
