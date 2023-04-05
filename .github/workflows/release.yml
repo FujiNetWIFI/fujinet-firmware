@@ -15,7 +15,10 @@ jobs:
 #        target-platform: [ATARI, ADAM, APPLE]
 
     steps:
-    - uses: actions/checkout@v2
+    - name: Checkout Source
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
     - name: Cache pip
       uses: actions/cache@v2
       with:
