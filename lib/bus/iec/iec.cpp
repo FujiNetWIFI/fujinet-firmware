@@ -208,12 +208,14 @@ void IRAM_ATTR systemBus::service()
         protocol->wait(TIMING_STABLE);
 
         // ATN was pulled read control code from the bus
-        int16_t c = (bus_command_t)protocol->receiveByte();
+        pull( PIN_IEC_SRQ );
+        int16_t c = receiveByte();
+        //release( PIN_IEC_SRQ );
 
         // Check for error
         if (c == 0xFFFFFFFF || flags & ERROR)
         {
-            Debug_printv("Error reading command. flags[%d]", flags);
+            //Debug_printv("Error reading command. flags[%d]", flags);
             if (c == 0xFFFFFFFF)
                 bus_state = BUS_OFFLINE;
             else
@@ -244,34 +246,32 @@ void IRAM_ATTR systemBus::service()
             case IEC_LISTEN:
                 data.primary = IEC_LISTEN;
                 data.device = c ^ IEC_LISTEN;
-                data.secondary = IEC_REOPEN; // Default secondary command
-                data.channel = CMD_CHANNEL;  // Default channel
+                // data.secondary = IEC_REOPEN; // Default secondary command
+                // data.channel = CMD_CHANNEL;  // Default channel
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (20 LISTEN %.2d DEVICE)\r\n", data.device);
                 break;
 
             case IEC_UNLISTEN:
                 data.primary = IEC_UNLISTEN;
-                data.secondary = 0x00;
+                // data.secondary = 0x00;
                 bus_state = BUS_PROCESS;
-                releaseLines();
                 Debug_printf(" (3F UNLISTEN)\r\n");
                 break;
 
             case IEC_TALK:
                 data.primary = IEC_TALK;
                 data.device = c ^ IEC_TALK;
-                data.secondary = IEC_REOPEN; // Default secondary command
-                data.channel = CMD_CHANNEL;  // Default channel
+                // data.secondary = IEC_REOPEN; // Default secondary command
+                // data.channel = CMD_CHANNEL;  // Default channel
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (40 TALK   %.2d DEVICE)\r\n", data.device);
                 break;
 
             case IEC_UNTALK:
                 data.primary = IEC_UNTALK;
-                data.secondary = 0x00;
+                // data.secondary = 0x00;
                 bus_state = BUS_IDLE;
-                releaseLines();
                 Debug_printf(" (5F UNTALK)\r\n");
                 break;
 
@@ -299,10 +299,15 @@ void IRAM_ATTR systemBus::service()
 
             //Debug_printv ( "code[%.2X] primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", c, data.primary, data.secondary, bus_state, flags );
 
+            release( PIN_IEC_SRQ );
+
+            // Delay to sync bus
+            protocol->wait( 150 );
+
             // Is this command for us?
             if (!deviceById(data.device) || !deviceById(data.device)->device_active)
             {
-                Debug_printf("Command not for us, ignoring.\n");
+                //Debug_printf("Command not for us, ignoring.\n");
                 bus_state = BUS_IDLE;
             }
         }
@@ -310,7 +315,7 @@ void IRAM_ATTR systemBus::service()
         // If the bus is idle then release the lines
         if (bus_state < BUS_ACTIVE)
         {
-            Debug_printf("Bus idle. Release lines.\n");
+            //Debug_printf("Bus idle. Release lines.\n");
             data.init();
             releaseLines();
         }
@@ -358,7 +363,7 @@ void IRAM_ATTR systemBus::service()
 
         if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
         {
-            Debug_printf("Device idle\n");
+            //Debug_printf("Device idle\n");
             data.init();
         }
 
@@ -446,7 +451,7 @@ bus_state_t IRAM_ATTR systemBus::deviceListen()
     // CLOSE Named Channel
     else if (data.secondary == IEC_CLOSE)
     {
-        Debug_printf(" (E0 CLOSE) (%d CHANNEL)\r\n", data.channel);
+        //Debug_printf(" (E0 CLOSE) (%d CHANNEL)\r\n", data.channel);
         return BUS_PROCESS;
     }
 
@@ -565,7 +570,7 @@ void systemBus::setup()
     fnSystem.set_pin_mode(PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_NEGEDGE);
     fnSystem.set_pin_mode(PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.set_pin_mode(PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-    fnSystem.set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+    fnSystem.set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.set_pin_mode(PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT);
 
     flags = CLEAR;

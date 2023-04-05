@@ -48,7 +48,7 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
 
             if ( atn_check != atn_status )
             {
-                IEC.release ( PIN_IEC_SRQ );
+                //IEC.release ( PIN_IEC_SRQ );
                 //Debug_printv("pin[%d] state[%d] wait[%d] elapsed[%d]", pin, target_status, wait, elapsed);
                 return -1;
             }            

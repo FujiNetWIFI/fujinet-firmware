@@ -109,7 +109,7 @@ int16_t IecProtocolSerial::receiveBits ()
                     {
                         /* If it's for us, notify controller that we support Jiffy too */
                         IEC.pull(PIN_IEC_DATA_OUT);
-                        fnSystem.delay_microseconds(TIMING_JIFFY_ACK);
+                        wait( TIMING_JIFFY_ACK, 0, false );
                         IEC.release(PIN_IEC_DATA_OUT);
                         IEC.flags |= JIFFY_ACTIVE;
                     }
@@ -171,7 +171,7 @@ int16_t IecProtocolSerial::receiveByte()
     // Wait for all other devices to release the data line
     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
-        // Debug_printv ( "Wait for all other devices to release the data line" );
+        Debug_printv ( "Wait for all other devices to release the data line" );
         return -1; // return error because timeout
     }
 
@@ -249,7 +249,7 @@ int16_t IecProtocolSerial::receiveByte()
     if ( IEC.flags & EOI_RECVD )
     {
         // EOI Received
-        fnSystem.delay_microseconds ( TIMING_Tfr );
+        if ( !wait ( TIMING_Tfr ) ) return -1;
         IEC.release ( PIN_IEC_DATA_OUT );
     }
     else
@@ -299,8 +299,6 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
         // it will pull the Clock line  true,  and  transmission  will  continue.  At  this point,  the  Clock
         // line  is  true  whether  or  not  we have gone through the EOI sequence; we're back to a common
         // transmission sequence.
-
-        //flags or_eq EOI_RECVD;
 
         // Signal eoi by waiting 200 us
         if ( !wait ( TIMING_Tye ) ) return false;
