@@ -1,0 +1,112 @@
+name: "tagged-release"
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  tagged-release:
+    name: "Tagged Release"
+    runs-on: "ubuntu-latest"
+    strategy:
+      matrix:
+        target-platform: [ATARI]
+#        target-platform: [ATARI, ADAM, APPLE]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+    - name: Set up Python
+      uses: actions/setup-python@v2
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+        pip install Jinja2
+        pip install pyyaml
+    - name: Show python version
+      run: python --version
+    - name: Show pio system info
+      run: pio system info
+    - name: Show pio location
+      run: pip show platformio
+
+    - name: Create INI ATARI for Build
+      if: ${{ matrix.target-platform == 'ATARI' }}
+      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Create INI ADAM for Build
+      if: ${{ matrix.target-platform == 'ADAM' }}
+      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Create INI APPLE for Build
+      if: ${{ matrix.target-platform == 'APPLE' }}
+      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Show platformio.ini
+      run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Install espressif32 platform
+      run: pio pkg install -p "platformio/espressif32@3.4.0"
+
+    - name: Fix up dirent.h top
+      run: gawk -i inplace '1;/#include\ <stdint.h>/{print "\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"}' /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+
+    - name: Fix up dirent.h bottom
+      run: printf "\n\n\n#ifdef __cplusplus\n}\n#endif\n\n" >> /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+
+    - name: Verify dirent.h bottom
+      run: tail -n 10 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+    - name: Verify dirent.h top
+      run: head -n 30 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+
+    - name: ATARI Build
+      if: ${{ matrix.target-platform == 'ATARI' }}
+      run: pio run -e fujinet-atari-v1
+
+    - name: ADAM Build
+      if: ${{ matrix.target-platform == 'ADAM' }}
+      run: pio run -e fujinet-adam-v1
+
+    - name: APPLE Build
+      if: ${{ matrix.target-platform == 'APPLE' }}
+      run: pio run -e fujiapple-rev0
+
+    - name: ATARI Build Filesystem
+      if: ${{ matrix.target-platform == 'ATARI' }}
+      run: pio run -t buildfs -e fujinet-atari-v1
+
+    - name: ADAM Build Filesystem
+      if: ${{ matrix.target-platform == 'ADAM' }}
+      run: pio run -t buildfs -e fujinet-adam-v1
+
+    - name: APPLE Build Filesystem
+      if: ${{ matrix.target-platform == 'APPLE' }}
+      run: pio run -t buildfs -e fujiapple-rev0
+
+    - name: Build Filesystem
+      run: pio run -t buildfs -e fujinet-v1
+
+    - name: Create Release ZIP
+      run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }}
+      shell: bash
+
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        prerelease: false
+        files: |
+          LICENSE.txt
+          fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
