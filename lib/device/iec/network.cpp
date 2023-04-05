@@ -1171,11 +1171,9 @@ void iecNetwork::process_channel()
 
 void iecNetwork::process_command()
 {
-    dumpData();
     if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
     {
         iec_talk_command();
-        return;
     }
     else if (commanddata->primary == IEC_UNLISTEN)
     {

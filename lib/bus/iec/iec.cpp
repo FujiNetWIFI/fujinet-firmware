@@ -18,7 +18,6 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
     b->pull(PIN_IEC_DATA_OUT);
 
     b->flags |= ATN_PULLED;
-    b->bus_state = BUS_ACTIVE;
 }
 
 systemBus virtualDevice::get_bus()
@@ -57,6 +56,7 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         std::queue<std::string>().swap(response_queue);
         pt.clear();
         pt.shrink_to_fit();
+        device_state = DEVICE_IDLE;
         break;
     case bus_command_t::IEC_REOPEN:
         if (device_state == DEVICE_TALK)
@@ -109,11 +109,17 @@ void systemBus::sendByte(const char c, bool eoi)
 
 void systemBus::sendBytes(const char *buf, size_t len)
 {
+    bool success = false;
     for (size_t i = 0; i < len; i++)
+    {
         if (i == len - 1)
-            protocol->sendByte(buf[i], true);
+            success = protocol->sendByte(buf[i], true);
         else
-            protocol->sendByte(buf[i], false);
+            success = protocol->sendByte(buf[i], false);
+
+        if (!success)
+            return;
+    }
 }
 
 void systemBus::sendBytes(std::string s)
@@ -138,7 +144,6 @@ void systemBus::process_queue()
 void IRAM_ATTR systemBus::service()
 {
     // TODO IMPLEMENT
-    bool process_command = false;
     bool pin_atn = status(PIN_IEC_ATN);
 
 #ifdef IEC_HAS_RESET
@@ -172,6 +177,8 @@ void IRAM_ATTR systemBus::service()
     // Command or Data Mode
     if (bus_state == BUS_ACTIVE || pin_atn == PULLED)
     {
+        // Sometimes the C64 pulls ATN but doesn't pull CLOCK right away
+        protocol->wait(TIMING_STABLE);
 
         // ATN was pulled read control code from the bus
         int16_t c = (bus_command_t)protocol->receiveByte();
@@ -183,7 +190,6 @@ void IRAM_ATTR systemBus::service()
             if (c == 0xFFFFFFFF)
                 bus_state = BUS_OFFLINE;
             else
-
                 bus_state = BUS_ERROR;
         }
         else
@@ -221,7 +227,6 @@ void IRAM_ATTR systemBus::service()
                 data.primary = IEC_UNLISTEN;
                 data.secondary = 0x00;
                 bus_state = BUS_PROCESS;
-                process_command = true;
                 releaseLines();
                 Debug_printf(" (3F UNLISTEN)\r\n");
                 break;
@@ -247,7 +252,6 @@ void IRAM_ATTR systemBus::service()
                 data.secondary = IEC_OPEN;
                 data.channel = c ^ IEC_OPEN;
                 bus_state = BUS_PROCESS;
-                process_command = true;
                 Debug_printf(" (F0 OPEN   %.2d CHANNEL)\r\n", data.channel);
                 break;
 
@@ -255,7 +259,6 @@ void IRAM_ATTR systemBus::service()
                 data.secondary = IEC_REOPEN;
                 data.channel = c ^ IEC_REOPEN;
                 bus_state = BUS_PROCESS;
-                process_command = true;
                 Debug_printf(" (60 DATA   %.2d CHANNEL)\r\n", data.channel);
                 break;
 
@@ -263,19 +266,17 @@ void IRAM_ATTR systemBus::service()
                 data.secondary = IEC_CLOSE;
                 data.channel = c ^ IEC_CLOSE;
                 bus_state = BUS_PROCESS;
-                process_command = true;
                 Debug_printf(" (E0 CLOSE  %.2d CHANNEL)\r\n", data.channel);
                 break;
             }
 
-            // Debug_printf ( "code[%.2X] primary[%.2X] secondary[%.2X] bus[%d]", command, data.primary, data.secondary, bus_state );
+            // Debug_printv ( "code[%.2X] primary[%.2X] secondary[%.2X] bus[%d]", c, data.primary, data.secondary, bus_state );
 
             // Is this command for us?
             if (!deviceById(data.device) || !deviceById(data.device)->device_active)
             {
                 Debug_printf("Command not for us, ignoring.\n");
                 bus_state = BUS_IDLE;
-                process_command = false;
             }
         }
 
@@ -293,12 +294,12 @@ void IRAM_ATTR systemBus::service()
         if (data.primary > IEC_GLOBAL)
         {
             Debug_printf("No secondary set.\n");
-            process_command = true;
         }
     }
 
-    if (process_command)
+    if (bus_state == BUS_PROCESS)
     {
+
         if (data.secondary == IEC_OPEN || data.secondary == IEC_REOPEN)
         {
             // TODO: switch protocol subclass as needed.
@@ -307,12 +308,12 @@ void IRAM_ATTR systemBus::service()
         // Data Mode - Get Command or Data
         if (data.primary == IEC_LISTEN)
         {
-            Debug_printf("calling deviceListen()\n");
+            // Debug_printf("calling deviceListen()\n");
             bus_state = deviceListen();
         }
         else if (data.primary == IEC_TALK)
         {
-            Debug_printf("calling deviceTalk()\n");
+            // Debug_printf("calling deviceTalk()\n");
             bus_state = deviceTalk();
         }
 
@@ -326,16 +327,24 @@ void IRAM_ATTR systemBus::service()
 
         fnLedManager.set(eLed::LED_BUS, true);
 
+        // Debug_printv("bus[%d] device[%d]", bus_state, device_state);
+
         if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
         {
             Debug_printf("Device idle\n");
             data.init();
         }
 
-        fnLedManager.set(eLed::LED_BUS, false);
-
-        bus_state = BUS_IDLE;
-
+        // If ATN is pulled the bus is still active
+        if ( status( PIN_IEC_ATN )  )
+        {
+            bus_state = BUS_ACTIVE;
+        }
+        else
+        {
+            fnLedManager.set(eLed::LED_BUS, false);
+            bus_state = BUS_IDLE;
+        }
         flags = CLEAR;
     }
 }
@@ -407,7 +416,7 @@ bus_state_t IRAM_ATTR systemBus::deviceListen()
     // CLOSE Named Channel
     else if (data.secondary == IEC_CLOSE)
     {
-        // Debug_printf(" (E0 CLOSE) (%d CHANNEL)\r\n", data.channel);
+        Debug_printf(" (E0 CLOSE) (%d CHANNEL)\r\n", data.channel);
         return BUS_PROCESS;
     }
 
@@ -480,7 +489,7 @@ bool IRAM_ATTR systemBus::turnAround()
     // Release DATA because the computer is pulling it now
     release(PIN_IEC_DATA_OUT);
 
-    Debug_println("turnaround complete");
+    // Debug_println("turnaround complete");
     return true;
 } // turnAround
 

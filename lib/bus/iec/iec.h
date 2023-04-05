@@ -19,6 +19,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
+//
+// http://unusedino.de/ec64/technical/misc/c1541/romlisting.html#E85B
+//
+
 #include <cstdint>
 #include <forward_list>
 #include <freertos/FreeRTOS.h>

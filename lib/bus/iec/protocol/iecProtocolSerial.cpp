@@ -111,7 +111,7 @@ int16_t IecProtocolSerial::receiveBits ()
                         IEC.pull(PIN_IEC_DATA_OUT);
                         fnSystem.delay_microseconds(TIMING_JIFFY_ACK);
                         IEC.release(PIN_IEC_DATA_OUT);
-                        IEC.flags ^= JIFFY_ACTIVE;
+                        IEC.flags |= JIFFY_ACTIVE;
                     }
                 }
             }
@@ -150,9 +150,6 @@ int16_t IecProtocolSerial::receiveByte()
 // it might holdback for quite a while; there's no time limit.
 
     IEC.flags &= CLEAR_LOW;
-
-    // Sometimes the C64 pulls ATN but doesn't pull CLOCK right away
-    if ( !wait ( 60 ) ) return -1;
 
     // Wait for talker ready
     if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
@@ -268,9 +265,6 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
 {
     IEC.flags &= CLEAR_LOW;
 
-    // // Sometimes the C64 doesn't release ATN right away
-    // if ( !wait ( 200 ) ) return -1;
-
     // Say we're ready
     IEC.release ( PIN_IEC_CLK_OUT );
 
@@ -284,7 +278,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
     {
         Debug_printv ( "Wait for listener to be ready" );
         IEC.flags |= ERROR;
-        return false; // return error because timeout
+        return false; // return error because of ATN or timeout
     }
 
     // Either  the  talker  will pull the
