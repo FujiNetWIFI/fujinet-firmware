@@ -48,7 +48,9 @@ JSON="{
 		}
 	]
 }"
+touch $BUILDPATH/release.json
 echo $JSON > $BUILDPATH/release.json
+echo $JSON > release.json
 
 # Create ZIP file for assets
 zip -qq -j "$FILENAME.zip" $BUILDPATH/bootloader.bin $BUILDPATH/firmware.bin $BUILDPATH/partitions.bin $BUILDPATH/spiffs.bin $BUILDPATH/release.json
