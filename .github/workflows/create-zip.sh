@@ -73,7 +73,7 @@ zip -qq -j "$FILENAME.zip" $BUILDPATH/bootloader.bin $BUILDPATH/firmware.bin $BU
 ZIPSHASUM=`sha256sum $FILENAME.zip | cut -d ' ' -f 1`
 
 # Create flasher release JSON
-cat <<EOF > releases.json
+cat <<EOF > releases-$PLATFORM.json
 {
     "version": "$VERSION",
     "version_date": "$VERSION_DATE",
