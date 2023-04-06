@@ -41,9 +41,8 @@ class IecProtocolBase
      * @brief Wait for specified milliseconds, or until ATN status changes
      * @param wait # of milliseconds to wait
      * @param start The previously set start millisecond time.
-     * @param watch_atn also abort if ATN is asserted? (default is true)
      */
-    virtual bool wait(size_t wait, uint64_t start = 0, bool watch_atn = true);
+    virtual bool wait(size_t wait, uint64_t start = 0);
 };
 
 #endif /* IECPROTOCOLBASE_H */
