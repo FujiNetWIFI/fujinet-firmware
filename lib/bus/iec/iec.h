@@ -36,6 +36,8 @@
 #include "fnSystem.h"
 #include "protocol/iecProtocolBase.h"
 
+#include "../../../include/debug.h"
+
 /**
  * @brief The command frame
  */
@@ -457,4 +459,4 @@ public:
  */
 extern systemBus IEC;
 
-#endif /* I2C_H */
+#endif /* IEC_H */

@@ -264,9 +264,6 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
 {
     IEC.flags &= CLEAR_LOW;
 
-    // // Sometimes the C64 doesn't release ATN right away
-    // if ( !wait ( 200 ) ) return -1;
-
     // Say we're ready
     IEC.release ( PIN_IEC_CLK_OUT );
 

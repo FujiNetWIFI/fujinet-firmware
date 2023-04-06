@@ -99,21 +99,54 @@ void virtualDevice::dumpData()
 
 int16_t systemBus::receiveByte()
 {
-    return protocol->receiveByte();
+    int16_t b;
+    b = protocol->receiveByte();
+    if ( b == -1 )
+    {
+        if ( !(IEC.flags & ATN_PULLED) )
+        {
+            IEC.flags |= ERROR;
+            releaseLines();
+            Debug_printv("error");
+        }
+    }
+    return b;
 }
 
 void systemBus::sendByte(const char c, bool eoi)
 {
-    protocol->sendByte(c, eoi);
+    if ( !protocol->sendByte(c, eoi) )
+    {
+        if ( !(IEC.flags & ATN_PULLED) )
+        {
+            IEC.flags |= ERROR;
+            releaseLines();
+            Debug_printv("error");
+        }
+    }
 }
 
 void systemBus::sendBytes(const char *buf, size_t len)
 {
+    bool success = false;
     for (size_t i = 0; i < len; i++)
+    {
         if (i == len - 1)
-            protocol->sendByte(buf[i], true);
+            success = protocol->sendByte(buf[i], true);
         else
-            protocol->sendByte(buf[i], false);
+            success = protocol->sendByte(buf[i], false);
+
+        if ( !success )
+        {
+            if ( !(IEC.flags & ATN_PULLED) )
+            {
+                IEC.flags |= ERROR;
+                releaseLines();
+                Debug_printv("error");
+            }
+            return;
+        }
+    }
 }
 
 void systemBus::sendBytes(std::string s)
@@ -137,6 +170,11 @@ void systemBus::process_queue()
 
 void IRAM_ATTR systemBus::service()
 {
+    //pull( PIN_IEC_SRQ );
+
+    // Disable Interrupt
+    //gpio_intr_disable((gpio_num_t)PIN_IEC_ATN);
+
     // TODO IMPLEMENT
     bool process_command = false;
     bool pin_atn = status(PIN_IEC_ATN);
@@ -155,7 +193,7 @@ void IRAM_ATTR systemBus::service()
             return;
         }
 
-        Debug_printf("IEC Reset! reset[%d] atn[%d]\r\n", pin_reset, pin_atn);
+        Debug_printf("IEC Reset! reset[%d]\r\n", pin_reset);
         data.init(); // Clear bus data
         bus_state = BUS_IDLE;
 
@@ -181,12 +219,15 @@ void IRAM_ATTR systemBus::service()
         // Check for error
         if (c == 0xFFFFFFFF || flags & ERROR)
         {
-            Debug_printv("Error reading command");
+            //Debug_printv("Error reading command. flags[%d]", flags);
             if (c == 0xFFFFFFFF)
                 bus_state = BUS_OFFLINE;
             else
-
                 bus_state = BUS_ERROR;
+        }
+        else if ( flags & EMPTY_STREAM)
+        {
+            bus_state = BUS_IDLE;
         }
         else
         {
@@ -200,6 +241,9 @@ void IRAM_ATTR systemBus::service()
                 command = IEC_UNLISTEN;
             if (c == IEC_UNTALK)
                 command = IEC_UNTALK;
+
+            //Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
+            //Debug_printv ("command[%.2X]", command);
 
             switch (command)
             {
@@ -299,6 +343,7 @@ void IRAM_ATTR systemBus::service()
 
     if (process_command)
     {
+        //Debug_printv("data mode");
         if (data.secondary == IEC_OPEN || data.secondary == IEC_REOPEN)
         {
             // TODO: switch protocol subclass as needed.
@@ -307,12 +352,12 @@ void IRAM_ATTR systemBus::service()
         // Data Mode - Get Command or Data
         if (data.primary == IEC_LISTEN)
         {
-            Debug_printf("calling deviceListen()\n");
+            // Debug_printf("calling deviceListen()\n");
             bus_state = deviceListen();
         }
         else if (data.primary == IEC_TALK)
         {
-            Debug_printf("calling deviceTalk()\n");
+            // Debug_printf("calling deviceTalk()\n");
             bus_state = deviceTalk();
         }
 
@@ -325,6 +370,8 @@ void IRAM_ATTR systemBus::service()
         // Debug_printv( "deviceProcess" );
 
         fnLedManager.set(eLed::LED_BUS, true);
+
+        // Debug_printv("bus[%d] device[%d]", bus_state, device_state);
 
         if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
         {
@@ -339,6 +386,8 @@ void IRAM_ATTR systemBus::service()
 
         flags = CLEAR;
     }
+    
+    //gpio_intr_enable((gpio_num_t)PIN_IEC_ATN);
 }
 
 bus_state_t IRAM_ATTR systemBus::deviceListen()
@@ -524,7 +573,7 @@ void systemBus::setup()
     fnSystem.set_pin_mode(PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_NEGEDGE);
     fnSystem.set_pin_mode(PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.set_pin_mode(PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-    fnSystem.set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+    fnSystem.set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
     fnSystem.set_pin_mode(PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT);
 
     flags = CLEAR;
