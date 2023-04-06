@@ -103,7 +103,7 @@ jobs:
       id: changes
       uses: simbo/changes-since-last-release-action@v1
       with:
-        line-prefix: "* "
+        line-prefix: "*"
         include-hashes: false
 
     - name: Save Commits since last Release
@@ -124,8 +124,8 @@ jobs:
     - name: Upload Releases JSON
       uses: actions/upload-artifact@v2.3.1
       with:
-        name: releases.json
-        path: releases.json
+        name: releases-${{ matrix.target-platform }}.json
+        path: releases-${{ matrix.target-platform }}.json
 
     - name: Upload Change Log
       uses: actions/upload-artifact@v2.3.1
@@ -150,7 +150,7 @@ jobs:
     - name: Push JSON to release
       uses: softprops/action-gh-release@v1
       with:
-        files: releases.json
+        files: releases-${{ matrix.target-platform }}.json
 
     - name: Push Change Log to release
       uses: softprops/action-gh-release@v1
