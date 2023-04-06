@@ -250,7 +250,7 @@ int16_t IecProtocolSerial::receiveByte()
     {
         // EOI Received
         if ( !wait ( TIMING_Tfr ) ) return -1;
-        IEC.release ( PIN_IEC_DATA_OUT );
+        //IEC.release ( PIN_IEC_DATA_OUT );
     }
     else
     {
@@ -363,7 +363,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
             Debug_printv ( "ATN pulled" );
             return false;
         }
-        IEC.release ( PIN_IEC_CLK_OUT );
+        //IEC.release ( PIN_IEC_CLK_OUT );
     }
     //else
     //{
