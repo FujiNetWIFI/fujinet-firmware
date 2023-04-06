@@ -27,7 +27,7 @@ static void cbm_on_attention_intr_task(void *arg)
 
             //if ( IEC.bus_state < BUS_ACTIVE )
             //{
-                Debug_printv("ATN idle");
+                Debug_printv("ATN pulled!");
 
                 // Go to listener mode and get command
                 IEC.release(PIN_IEC_CLK_OUT);
@@ -443,13 +443,13 @@ void IRAM_ATTR systemBus::service()
             if ( status( PIN_IEC_ATN )  )
             {
                 bus_state = BUS_ACTIVE;
-                Debug_printv("active");
+                Debug_printv("bus active");
             }
             else
             {
                 fnLedManager.set(eLed::LED_BUS, false);
                 bus_state = BUS_IDLE;
-                Debug_printv("inactive");
+                Debug_printv("bus idle");
             }
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
