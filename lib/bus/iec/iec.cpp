@@ -408,7 +408,7 @@ bus_state_t IRAM_ATTR systemBus::deviceListen()
     // CLOSE Named Channel
     else if (data.secondary == IEC_CLOSE)
     {
-        // Debug_printf(" (E0 CLOSE) (%d CHANNEL)\r\n", data.channel);
+        //Debug_printf(" (E0 CLOSE) (%d CHANNEL)\r\n", data.channel);
         return BUS_PROCESS;
     }
 
@@ -423,8 +423,14 @@ bus_state_t IRAM_ATTR systemBus::deviceListen()
 bus_state_t IRAM_ATTR systemBus::deviceTalk(void)
 {
     // Now do bus turnaround
+    //pull( PIN_IEC_SRQ );
     if (!turnAround())
+    {
+        Debug_printv("error flags[%d]", flags);
         return BUS_ERROR;
+    }
+    //release( PIN_IEC_SRQ );
+
 
     // We have recieved a CMD and we should talk now:
     return BUS_PROCESS;
@@ -498,14 +504,12 @@ void IRAM_ATTR systemBus::releaseLines(bool wait)
     release(PIN_IEC_DATA_OUT);
 }
 
-bool IRAM_ATTR systemBus::senderTimeout()
+void IRAM_ATTR systemBus::senderTimeout()
 {
     releaseLines();
     this->bus_state = BUS_ERROR;
 
-    fnSystem.delay_microseconds(TIMING_EMPTY);
-
-    return true;
+    protocol->wait(TIMING_EMPTY);
 } // senderTimeout
 
 void systemBus::setup()
