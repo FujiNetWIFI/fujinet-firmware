@@ -259,6 +259,7 @@ void main_setup()
 // Main high-priority service loop
 void fn_service_loop(void *param)
 {
+       main_setup();
        // Now that our main service is running, try connecting to WiFi or BlueTooth
         if (Config.get_bt_status())
         {
@@ -302,9 +303,8 @@ extern "C"
     {
         // cppcheck-suppress "unusedFunction"
         // Call our setup routine
-        main_setup();
+        //main_setup();
 
-#ifndef BUILD_IEC
 // Create a new high-priority task to handle the main loop
 // This is assigned to CPU1; the WiFi task ends up on CPU0
 #define MAIN_STACKSIZE 32768
@@ -312,7 +312,7 @@ extern "C"
 #define MAIN_CPUAFFINITY 1
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
-#endif
+
 
         // Sit here twiddling our thumbs
         while (true)
