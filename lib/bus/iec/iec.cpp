@@ -25,8 +25,10 @@ static void cbm_on_attention_intr_task(void *arg)
     {
         if(xQueueReceive(cbm_on_attention_evt_queue, &gpio_num, portMAX_DELAY)) {
 
-            if ( IEC.bus_state < BUS_ACTIVE )
-            {
+            //if ( IEC.bus_state < BUS_ACTIVE )
+            //{
+                Debug_printv("ATN idle");
+
                 // Go to listener mode and get command
                 IEC.release(PIN_IEC_CLK_OUT);
                 IEC.pull(PIN_IEC_DATA_OUT);
@@ -34,7 +36,11 @@ static void cbm_on_attention_intr_task(void *arg)
                 IEC.flags |= ATN_PULLED;
 
                 IEC.service();
-            }
+            //}
+            //else
+            //{
+            //    Debug_printv("ATN active");
+            //}
         }
         taskYIELD(); // Allow other tasks to run
     }
@@ -225,6 +231,9 @@ void IRAM_ATTR systemBus::service()
 {
     //pull( PIN_IEC_SRQ );
 
+    // Disable Interrupt
+    gpio_intr_disable((gpio_num_t)PIN_IEC_ATN);
+
     // TODO IMPLEMENT
     bus_state = BUS_ACTIVE;
 
@@ -262,13 +271,15 @@ void IRAM_ATTR systemBus::service()
         // Command or Data Mode
         if (bus_state == BUS_ACTIVE)
         {
+            //Debug_printv("command mode");
+
             // Sometimes the C64 pulls ATN but doesn't pull CLOCK right away
             protocol->wait(TIMING_STABLE);
 
             // ATN was pulled read control code from the bus
             pull( PIN_IEC_SRQ );
             int16_t c = receiveByte();
-            //release( PIN_IEC_SRQ );
+            release( PIN_IEC_SRQ );
 
             // Check for error
             if (c == 0xFFFFFFFF || flags & ERROR)
@@ -279,11 +290,13 @@ void IRAM_ATTR systemBus::service()
                 else
                     bus_state = BUS_ERROR;
             }
+            else if ( flags & EMPTY_STREAM)
+            {
+                bus_state = BUS_IDLE;
+            }
             else
             {
-                // Debug_println ( "COMMAND MODE" );
-
-                // Debug_printf("   IEC: [%.2X]", c);
+                Debug_printf("   IEC: [%.2X]", c);
 
                 // Decode command byte
                 uint8_t command = c & 0xF0;
@@ -292,82 +305,83 @@ void IRAM_ATTR systemBus::service()
                 if (c == IEC_UNTALK)
                     command = IEC_UNTALK;
 
-                if ( !data.primary )
+                //Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
+                //Debug_printv ("command[%.2X]", command);
+
+                switch (command)
                 {
-                    switch (command)
-                    {
-                    case IEC_GLOBAL:
-                        data.primary = IEC_GLOBAL;
-                        data.device = c ^ IEC_GLOBAL;
-                        bus_state = BUS_IDLE;
-                        Debug_printf("   IEC: [%.2X] (00 GLOBAL %.2d COMMAND)\r\n", c, data.device);
-                        break;
+                case IEC_GLOBAL:
+                    data.primary = IEC_GLOBAL;
+                    data.device = c ^ IEC_GLOBAL;
+                    bus_state = BUS_IDLE;
+                    Debug_printf(" (00 GLOBAL %.2d COMMAND)\r\n", data.device);
+                    break;
 
-                    case IEC_LISTEN:
-                        data.primary = IEC_LISTEN;
-                        data.device = c ^ IEC_LISTEN;
-                        bus_state = BUS_ACTIVE;
-                        Debug_printf("   IEC: [%.2X] (20 LISTEN %.2d DEVICE)\r\n", c, data.device);
-                        break;
+                case IEC_LISTEN:
+                    data.primary = IEC_LISTEN;
+                    data.device = c ^ IEC_LISTEN;
+                    data.secondary = IEC_REOPEN; // Default secondary command
+                    data.channel = CMD_CHANNEL;  // Default channel
+                    bus_state = BUS_ACTIVE;
+                    Debug_printf(" (20 LISTEN %.2d DEVICE)\r\n", data.device);
+                    break;
 
-                    case IEC_UNLISTEN:
-                        data.primary = IEC_UNLISTEN;
-                        bus_state = BUS_PROCESS;
-                        Debug_printf("   IEC: [%.2X] (3F UNLISTEN)\r\n", c);
-                        break;
+                case IEC_UNLISTEN:
+                    data.primary = IEC_UNLISTEN;
+                    data.secondary = 0x00;
+                    bus_state = BUS_PROCESS;
+                    Debug_printf(" (3F UNLISTEN)\r\n", c);
+                    break;
 
-                    case IEC_TALK:
-                        data.primary = IEC_TALK;
-                        data.device = c ^ IEC_TALK;
-                        bus_state = BUS_ACTIVE;
-                        Debug_printf("   IEC: [%.2X] (40 TALK   %.2d DEVICE)\r\n", c, data.device);
-                        break;
+                case IEC_TALK:
+                    data.primary = IEC_TALK;
+                    data.device = c ^ IEC_TALK;
+                    data.secondary = IEC_REOPEN; // Default secondary command
+                    data.channel = CMD_CHANNEL;  // Default channel
+                    bus_state = BUS_ACTIVE;
+                    Debug_printf(" (40 TALK   %.2d DEVICE)\r\n", data.device);
+                    break;
 
-                    case IEC_UNTALK:
-                        data.primary = IEC_UNTALK;
-                        bus_state = BUS_IDLE;
-                        Debug_printf("   IEC: [%.2X] (5F UNTALK)\r\n", c);
-                        break;
-                    }
-                }
-                else
-                {
-                    switch (command)
-                    {
-                    case IEC_OPEN:
-                        data.secondary = IEC_OPEN;
-                        data.channel = c ^ IEC_OPEN;
-                        bus_state = BUS_PROCESS;
-                        Debug_printf("   IEC: [%.2X] (F0 OPEN   %.2d CHANNEL)\r\n", c, data.channel);
-                        break;
+                case IEC_UNTALK:
+                    data.primary = IEC_UNTALK;
+                    data.secondary = 0x00;
+                    bus_state = BUS_IDLE;
+                    Debug_printf(" (5F UNTALK)\r\n", c);
+                    break;
 
-                    case IEC_REOPEN:
-                        data.secondary = IEC_REOPEN;
-                        data.channel = c ^ IEC_REOPEN;
-                        bus_state = BUS_PROCESS;
-                        Debug_printf("   IEC: [%.2X] (60 DATA   %.2d CHANNEL)\r\n", c, data.channel);
-                        break;
+                case IEC_OPEN:
+                    data.secondary = IEC_OPEN;
+                    data.channel = c ^ IEC_OPEN;
+                    bus_state = BUS_PROCESS;
+                    Debug_printf(" (F0 OPEN   %.2d CHANNEL)\r\n", data.channel);
+                    break;
 
-                    case IEC_CLOSE:
-                        data.secondary = IEC_CLOSE;
-                        data.channel = c ^ IEC_CLOSE;
-                        bus_state = BUS_PROCESS;
-                        Debug_printf("   IEC: [%.2X] (E0 CLOSE  %.2d CHANNEL)\r\n", c, data.channel);
-                        break;
-                    }
+                case IEC_REOPEN:
+                    data.secondary = IEC_REOPEN;
+                    data.channel = c ^ IEC_REOPEN;
+                    bus_state = BUS_PROCESS;
+                    Debug_printf(" (60 DATA   %.2d CHANNEL)\r\n", data.channel);
+                    break;
+
+                case IEC_CLOSE:
+                    data.secondary = IEC_CLOSE;
+                    data.channel = c ^ IEC_CLOSE;
+                    bus_state = BUS_PROCESS;
+                    Debug_printf(" (E0 CLOSE  %.2d CHANNEL)\r\n", data.channel);
+                    break;
                 }
 
                 //Debug_printv ( "code[%.2X] primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", c, data.primary, data.secondary, bus_state, flags );
-
-                if ( bus_state < BUS_ACTIVE )
-                    break;
+                //Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
 
                 // Is this command for us?
-                //Debug_printv ( "device[%d]", data.device);
-                if (!deviceById(data.device) || !deviceById(data.device)->device_active)
+                if ( command == IEC_LISTEN || command == IEC_TALK )
                 {
-                    Debug_printf("Command not for us, ignoring.\n");
-                    bus_state = BUS_IDLE;
+                    if (!deviceById(data.device) || !deviceById(data.device)->device_active)
+                    {
+                        Debug_printf("Command not for us, ignoring.\n");
+                        bus_state = BUS_IDLE;
+                    }
                 }
             }
 
@@ -376,7 +390,6 @@ void IRAM_ATTR systemBus::service()
             {
                 Debug_printf("Bus idle. Release lines.\n");
                 data.init();
-                releaseLines();
             }
         }
         else if (bus_state > BUS_IDLE)
@@ -390,7 +403,7 @@ void IRAM_ATTR systemBus::service()
 
         if (bus_state == BUS_PROCESS)
         {
-
+            //Debug_printv("data mode");
             if (data.secondary == IEC_OPEN || data.secondary == IEC_REOPEN)
             {
                 // TODO: switch protocol subclass as needed.
@@ -426,20 +439,17 @@ void IRAM_ATTR systemBus::service()
                 data.init();
             }
 
-            // Delay to sync bus
-            //pull( PIN_IEC_SRQ );
-            //protocol->wait( 250 );
-            //release( PIN_IEC_SRQ );
-
             // If ATN is pulled the bus is still active
             if ( status( PIN_IEC_ATN )  )
             {
                 bus_state = BUS_ACTIVE;
+                Debug_printv("active");
             }
             else
             {
                 fnLedManager.set(eLed::LED_BUS, false);
                 bus_state = BUS_IDLE;
+                Debug_printv("inactive");
             }
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
@@ -447,10 +457,14 @@ void IRAM_ATTR systemBus::service()
             flags = CLEAR;
         }
 
-        release( PIN_IEC_SRQ );
+        //release( PIN_IEC_SRQ );
 
     } while( bus_state > BUS_IDLE );
 
+    // Cleanup and Re-enable Interrupt
+    data.init();
+    releaseLines();
+    gpio_intr_enable((gpio_num_t)PIN_IEC_ATN);
 }
 
 bus_state_t IRAM_ATTR systemBus::deviceListen()
@@ -620,14 +634,12 @@ void IRAM_ATTR systemBus::releaseLines(bool wait)
     release(PIN_IEC_DATA_OUT);
 }
 
-bool IRAM_ATTR systemBus::senderTimeout()
+void IRAM_ATTR systemBus::senderTimeout()
 {
     releaseLines();
     this->bus_state = BUS_ERROR;
 
     protocol->wait(TIMING_EMPTY);
-
-    return true;
 } // senderTimeout
 
 

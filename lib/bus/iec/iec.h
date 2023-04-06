@@ -36,6 +36,8 @@
 #include "fnSystem.h"
 #include "protocol/iecProtocolBase.h"
 
+#include "../../../include/debug.h"
+
 /**
  * @brief The command frame
  */
@@ -405,9 +407,8 @@ public:
 
     /**
      * @brief signal to bus that we timed out.
-     * @return true if timed out.
      */
-    bool senderTimeout();
+    void senderTimeout();
 
     // true => PULL => LOW
     inline void IRAM_ATTR pull(uint8_t pin)
