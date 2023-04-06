@@ -648,6 +648,8 @@ void iecNetwork::iec_command()
     {
         if (pt[0] == "cd")
             set_prefix();
+        else if (pt[0] == "id")
+            set_device_id();
         else if (pt[0] == "jsonparse")
             parse_json();
         else if (pt[0] == "jq")
@@ -1041,6 +1043,27 @@ void iecNetwork::set_prefix()
     Debug_printf("Prefix now: %s\n", prefix[channel].c_str());
 }
 
+void iecNetwork::set_device_id()
+{
+    if (pt.size()<2)
+    {
+        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.channel = commanddata->channel;
+        iecStatus.connected = 0;
+        iecStatus.msg = "device id required";
+        return;
+    }
+
+    int new_id = atoi(pt[1].c_str());
+
+    IEC.changeDeviceId(this,new_id);
+
+    iecStatus.error = 0;
+    iecStatus.msg = "ok";
+    iecStatus.connected = 0;
+    iecStatus.channel = commanddata->channel;
+}
+
 void iecNetwork::fsop(unsigned char comnd)
 {
     Debug_printf("fsop(%u)\n", comnd);
@@ -1148,11 +1171,9 @@ void iecNetwork::process_channel()
 
 void iecNetwork::process_command()
 {
-    dumpData();
     if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
     {
         iec_talk_command();
-        return;
     }
     else if (commanddata->primary == IEC_UNLISTEN)
     {
