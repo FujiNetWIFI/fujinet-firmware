@@ -13,30 +13,36 @@ static xQueueHandle cbm_on_attention_evt_queue = NULL;
 
 static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
 {
-    uint32_t gpio_num = (uint32_t) arg;
-    xQueueSendFromISR(cbm_on_attention_evt_queue, &gpio_num, NULL);
+    //uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(cbm_on_attention_evt_queue, &arg, NULL);
+
+    // systemBus *b = (systemBus *)arg;
+    // if ( b->bus_state < BUS_IDLE )
+    // {
+    //     b->bus_state = BUS_ACTIVE;
+    // }
 }
 
 static void cbm_on_attention_intr_task(void *arg)
 {
-    uint32_t gpio_num;
+    //uint32_t gpio_num;
+    systemBus *b = (systemBus *)arg;
 
     while ( true ) 
     {
-        if(xQueueReceive(cbm_on_attention_evt_queue, &gpio_num, portMAX_DELAY)) {
-
-            //if ( IEC.bus_state < BUS_ACTIVE )
-            //{
-                Debug_printv("ATN pulled!");
-
+        if(xQueueReceive(cbm_on_attention_evt_queue, &b, 0)) 
+        {
+            Debug_printv("ATN pulled!");
+            if ( b->bus_state < BUS_ACTIVE )
+            {
                 // Go to listener mode and get command
-                IEC.release(PIN_IEC_CLK_OUT);
-                IEC.pull(PIN_IEC_DATA_OUT);
+                b->release(PIN_IEC_CLK_OUT);
+                b->pull(PIN_IEC_DATA_OUT);
 
-                IEC.flags |= ATN_PULLED;
+                b->flags |= ATN_PULLED;
 
-                IEC.service();
-            //}
+                b->service();
+            }
             //else
             //{
             //    Debug_printv("ATN active");
@@ -44,6 +50,18 @@ static void cbm_on_attention_intr_task(void *arg)
         }
         taskYIELD(); // Allow other tasks to run
     }
+
+    // while ( true ) 
+    // {
+    //     if ( IEC.bus_state > BUS_IDLE )
+    //     {
+    //         IEC.service();
+    //     }
+    //     else
+    //     {
+    //         taskYIELD();
+    //     }
+    // }
 }
 
 void systemBus::setup()
@@ -75,7 +93,7 @@ void systemBus::setup()
         xTaskCreatePinnedToCore(cbm_on_attention_intr_task, "cbm_on_attention_intr_task",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
 
-    gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, NULL);
+    gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, this);
 }
 
 
