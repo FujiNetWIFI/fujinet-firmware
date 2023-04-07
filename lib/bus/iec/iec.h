@@ -272,12 +272,12 @@ private:
     /**
      * IEC LISTEN received
      */
-    bus_state_t deviceListen();
+    void deviceListen();
 
     /**
      * IEC TALK requested
      */
-    bus_state_t deviceTalk();
+    void deviceTalk();
 
     /**
      * BUS TURNAROUND (act like listener)
@@ -293,6 +293,16 @@ private:
      * @brief called to process a queue item (such as disk swap)
      */
     void process_queue();
+
+    /**
+     * @brief called to read bus command bytes
+    */
+    void read_command();
+
+    /**
+     * @brief called to read bus payload bytes
+    */
+    void read_payload();
 
     /**
      * @brief Release the bus lines, we're done.
