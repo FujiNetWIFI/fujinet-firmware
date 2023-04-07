@@ -828,6 +828,7 @@ void iwm_ll::enable_output()
 void iwm_ll::disable_output()
 {
 #ifdef NO3STATE
+    GPIO.func_out_sel_cfg[SP_SPI_FIX_PIN].oen_sel = 1;     // let me control the enable register
     GPIO.enable_w1tc = ((uint32_t)0x01 << SP_SPI_FIX_PIN); // go hi-z with disabled output
 #else
     GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); // make RDDATA go hi-z through the tri-state
