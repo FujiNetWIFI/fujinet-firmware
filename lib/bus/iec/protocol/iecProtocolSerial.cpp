@@ -16,6 +16,7 @@ IecProtocolSerial::~IecProtocolSerial()
 
 }
 
+
 // STEP 3: SENDING THE BITS
 // The talker has eight bits to send.  They will go out without handshake; in other words,
 // the listener had better be there to catch them, since the talker won't wait to hear from the listener.  At this
@@ -35,6 +36,10 @@ IecProtocolSerial::~IecProtocolSerial()
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
 bool IecProtocolSerial::sendBits ( uint8_t data )
 {
+    // Prepare IO Lines
+    IEC.set_pin_mode( PIN_IEC_CLK_IN,  gpio_mode_t::GPIO_MODE_OUTPUT );
+    IEC.set_pin_mode( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_OUTPUT );
+
     // Send bits
     for ( uint8_t n = 0; n < 8; n++ )
     {
@@ -88,6 +93,10 @@ int16_t IecProtocolSerial::receiveBits ()
 
     uint8_t n = 0;
 
+    // Prepare IO Lines
+    IEC.status( PIN_IEC_CLK_IN );
+    IEC.status( PIN_IEC_DATA_IN );
+
     for ( n = 0; n < 8; n++ )
     {
         data >>= 1;
@@ -95,6 +104,7 @@ int16_t IecProtocolSerial::receiveBits ()
         do
         {
             // wait for bit to be ready to read
+            IEC.pull ( PIN_IEC_SRQ );
             bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMEOUT_DEFAULT, false );
 
             /* If there is a delay before the last bit, the controller uses JiffyDOS */
@@ -124,6 +134,7 @@ int16_t IecProtocolSerial::receiveBits ()
         
         // get bit
         data |= ( IEC.status ( PIN_IEC_DATA_IN ) == RELEASED ? ( 1 << 7 ) : 0 );
+        IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
         if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
