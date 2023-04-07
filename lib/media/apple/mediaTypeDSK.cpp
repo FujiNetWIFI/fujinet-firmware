@@ -40,6 +40,7 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 
 void MediaTypeDSK::dsk2woz_info()
 {
+	optimal_bit_timing = WOZ1_BIT_TIME; // 1 us
     num_blocks = WOZ1_NUM_BLKS; //WOZ1_TRACK_LEN / 512;
 }
 
