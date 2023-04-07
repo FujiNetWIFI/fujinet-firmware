@@ -467,12 +467,6 @@ void IRAM_ATTR iwmBus::service()
     break;
   case iwm_phases_t::enable:
     // expect a command packet
-    // portDISABLE_INTERRUPTS();
-    // if(smartport.iwm_read_packet_spi(command_packet.data, COMMAND_PACKET_LEN))
-    // {
-    //   portENABLE_INTERRUPTS();
-    //   return;
-    // }
     // should not ACK unless we know this is our Command
 
     if (sp_command_mode != sp_cmd_state_t::command)
@@ -480,30 +474,15 @@ void IRAM_ATTR iwmBus::service()
       // iwm_ack_deassert(); // go hi-Z
       return;
     }
-    /** instead of iwm_phases, create an iwm_state() and switch on that. States would be:
-     * IDLE
-     * RESET
-     * RESET CLEARED
-     * ENABLED
-     * REQ ASSERTED
-     * REQ DEASSERTED
-     * pretty much what i'm doing above - in fact don't need to change the function calls here,
-     * just need to change what's in the functions
-     * */
 
     if (command_packet.command == 0x85)
     {
-      // iwm_ack_assert(); // includes waiting for spi read transaction to finish
-      // portENABLE_INTERRUPTS();
-
       // wait for REQ to go low
       if (iwm_req_deassert_timeout(50000))
       {
         // iwm_ack_deassert(); // go hi-Z
         return;
       }
-      // if (smartport.req_wait_for_falling_timeout(50000))
-      //   return;
 
 #ifdef DEBUG
       print_packet(command_packet.data);
@@ -564,7 +543,6 @@ void IRAM_ATTR iwmBus::service()
     else
     {
       diskii_xface.set_output_to_low(); // not sure if best way to trick IIc into booting SP
-      // method doesn't work with bypassed hct125 tri-state.
       // alternative approach is to enable RMT to spit out PRN bits
     }
     // make sure the state machine moves on to iwm_enable_state_t::on
