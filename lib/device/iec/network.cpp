@@ -141,14 +141,32 @@ void iecNetwork::iec_open()
     {
         Debug_printf("Invalid protocol: %s\n", urlParser[commanddata->channel]->scheme.c_str());
         file_not_found = true;
-        return;
     }
 
     if (protocol[commanddata->channel] == nullptr)
     {
         Debug_printf("iwmNetwork::open_protocol() - Could not open protocol.\n");
         file_not_found = true;
+    }
+
+    if (file_not_found)
+    {
+        iecStatus.channel = commanddata->channel;
+        iecStatus.error = NETWORK_ERROR_FILE_NOT_FOUND;
+        iecStatus.connected = false;
+        iecStatus.msg = "not found";
+        IEC.senderTimeout();
         return;
+    }
+    else
+    {
+        NetworkStatus ns;
+
+        protocol[commanddata->channel]->status(&ns);
+        iecStatus.channel = commanddata->channel;
+        iecStatus.error = NETWORK_ERROR_SUCCESS;
+        iecStatus.connected = true;
+        iecStatus.msg = "opened";
     }
 
     if (!login[commanddata->channel].empty())
@@ -165,30 +183,13 @@ void iecNetwork::iec_open()
         Debug_printf("Protocol unable to make connection.\n");
         delete protocol[commanddata->channel];
         protocol[commanddata->channel] = nullptr;
+        IEC.senderTimeout();
         return;
     }
 
     // Associate channel mode
     json[commanddata->channel] = new FNJSON();
     json[commanddata->channel]->setProtocol(protocol[commanddata->channel]);
-
-    if (file_not_found)
-    {
-        iecStatus.channel = commanddata->channel;
-        iecStatus.error = NETWORK_ERROR_FILE_NOT_FOUND;
-        iecStatus.connected = false;
-        iecStatus.msg = "not found";
-    }
-    else
-    {
-        NetworkStatus ns;
-
-        protocol[commanddata->channel]->status(&ns);
-        iecStatus.channel = commanddata->channel;
-        iecStatus.error = NETWORK_ERROR_SUCCESS;
-        iecStatus.connected = true;
-        iecStatus.msg = "opened";
-    }
 }
 
 void iecNetwork::iec_close()
