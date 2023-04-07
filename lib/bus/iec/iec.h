@@ -19,6 +19,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
+//
+// http://unusedino.de/ec64/technical/misc/c1541/romlisting.html#E85B
+// https://eden.mose.org.uk/gitweb/?p=rom-reverse.git;a=blob;f=src/vic-1541-sfd.asm;hb=HEAD
+//
+
 #include <cstdint>
 #include <forward_list>
 #include <freertos/FreeRTOS.h>
@@ -30,6 +35,8 @@
 #include <driver/gpio.h>
 #include "fnSystem.h"
 #include "protocol/iecProtocolBase.h"
+
+#include "../../../include/debug.h"
 
 /**
  * @brief The command frame
@@ -400,9 +407,8 @@ public:
 
     /**
      * @brief signal to bus that we timed out.
-     * @return true if timed out.
      */
-    bool senderTimeout();
+    void senderTimeout();
 
     // true => PULL => LOW
     inline void IRAM_ATTR pull(uint8_t pin)
