@@ -95,11 +95,18 @@ bool MediaTypeWOZ::wozX_read_info()
     {
     case WOZ1:
         num_blocks = WOZ1_NUM_BLKS; //WOZ1_TRACK_LEN / 512;
+        optimal_bit_timing = WOZ1_BIT_TIME; // 8 x 125 ns = 1 us
         break;
     case WOZ2:
-        // but jump to offset 44 to get the track size
+        
         {
-            fseek(_media_fileh, 44, SEEK_CUR);
+            // jump to offset 39 to get bit timing
+            fseek(_media_fileh, 39, SEEK_CUR);
+            uint8_t bit_timing;
+            fread(&bit_timing, sizeof(uint8_t), 1, _media_fileh);
+            optimal_bit_timing = bit_timing;
+            // and jump to offset 44 to get the track size
+            fseek(_media_fileh, 5, SEEK_CUR);
             uint16_t largest_track;
             fread(&largest_track, sizeof(uint16_t), 1, _media_fileh);
             num_blocks = largest_track;
