@@ -116,14 +116,14 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   }
 }
 
-inline void iwm_sp_ll::iwm_extra_set()
+inline void iwm_ll::iwm_extra_set()
 {
 #ifdef EXTRA
   GPIO.out_w1ts = ((uint32_t)1 << SP_EXTRA);
 #endif
 }
 
-inline void iwm_sp_ll::iwm_extra_clr()
+inline void iwm_ll::iwm_extra_clr()
 {
 #ifdef EXTRA
   GPIO.out_w1tc = ((uint32_t)1 << SP_EXTRA);
@@ -175,7 +175,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   //*****************************************************************************
 
   portDISABLE_INTERRUPTS();
-
+  set_output_to_spi();
   encode_spi_packet();
 
   // send data stream using SPI
@@ -198,9 +198,10 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
     }
 
   // send the data
-  iwm_rddata_clr(); // enable the tri-state buffer
+  // TODO - enable / disable output using spi fix - no external tristate
+  enable_output(); // enable the tri-state buffer
   ret = spi_device_polling_transmit(spi, &trans);
-  iwm_rddata_set(); // make rddata hi-z
+  disable_output(); // make rddata hi-z
   iwm_ack_clr();
   assert(ret == ESP_OK);
 
@@ -579,20 +580,24 @@ void iwm_sp_ll::setup_spi()
 
 }
 
-void iwm_sp_ll::setup_gpio()
+void iwm_ll::setup_gpio()
 {
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_OUTPUT);
   fnSystem.digital_write(SP_ACK, DIGI_LOW); // set up ACK ahead of time to go LOW when enabled
   //set ack to input to avoid clashing with other devices when sp bus is not enabled
-
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+
+#ifdef NO3STATE
+  // set up the output pin as IO (like SPI does) and set to low, then to hi-z
+  fnSystem.set_pin_mode(SP_SPI_FIX_PIN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+  fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
+  disable_output();
+#endif
   
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
   fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
   fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
-
-  // fnSystem.set_pin_mode(SP_WRDATA, gpio_mode_t::GPIO_MODE_INPUT); // not needed cause set in SPI?
 
   fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
@@ -758,10 +763,25 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 void iwm_sp_ll::set_output_to_spi()
 {
   if(fnSystem.check_spifix())
+  {
     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[VSPI_HOST].spid_out, false, false);
+  }
   else
+  {
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
+  }
 }
+
+void iwm_diskii_ll::set_output_to_low()
+{
+  if(fnSystem.check_spifix())
+  {
+    fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
+    esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, SIG_GPIO_OUT_IDX, false, false);
+    enable_output();
+  }
+}
+
 
 // =========================================================================================
 // ========================== DISK II below ======== SP above ==============================
@@ -773,20 +793,46 @@ void iwm_sp_ll::set_output_to_spi()
 
 void iwm_diskii_ll::start()
 {
- ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits));
+  diskii_xface.set_output_to_rmt();
+  diskii_xface.enable_output();
+  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits));
 }
 
 void iwm_diskii_ll::stop()
 {
   fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+  diskii_xface.disable_output();
 }
 
 void iwm_diskii_ll::set_output_to_rmt()
 {
-  if(fnSystem.check_spifix())
+  if (fnSystem.check_spifix())
+  {
     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, rmt_periph_signals.channels[0].tx_sig, false, false);
+  }
   else
+  {
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
+  }
+}
+
+void iwm_ll::enable_output()
+{
+#ifdef NO3STATE
+    GPIO.enable_w1ts = ((uint32_t)0x01 << SP_SPI_FIX_PIN); // enable output
+#else
+    GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); //  enable the tri-state buffer activating RDDATA
+#endif
+}
+
+void iwm_ll::disable_output()
+{
+#ifdef NO3STATE
+    GPIO.func_out_sel_cfg[SP_SPI_FIX_PIN].oen_sel = 1;     // let me control the enable register
+    GPIO.enable_w1tc = ((uint32_t)0x01 << SP_SPI_FIX_PIN); // go hi-z with disabled output
+#else
+    GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); // make RDDATA go hi-z through the tri-state
+#endif
 }
 
 // KEEEEEEEEEEEEEEEEEEP FOR A WHILE UNTIL ALL TECHNIQUES LEARNED ARE USED OR NO LONGER NEEDED
