@@ -257,8 +257,9 @@ void IRAM_ATTR systemBus::service()
 
             if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
             {
-                //Debug_printf("Device idle\n");
+                Debug_printf("Device idle\n");
                 data.init();
+                releaseLines();
             }
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
@@ -297,8 +298,8 @@ void systemBus::read_command()
     do 
     {
         // ATN was pulled read bus command bytes
-        pull( PIN_IEC_SRQ );
-        int16_t c = (bus_command_t)protocol->receiveByte();
+        //pull( PIN_IEC_SRQ );
+        int16_t c = receiveByte();
         //release( PIN_IEC_SRQ );
 
         // Check for error
@@ -409,7 +410,7 @@ void systemBus::read_command()
     // Delay to stabalize bus
     // protocol->wait( TIMING_STABLE, 0, false );
 
-    release( PIN_IEC_SRQ );
+    //release( PIN_IEC_SRQ );
 }
 
 void systemBus::read_payload()
@@ -521,30 +522,34 @@ bool IRAM_ATTR systemBus::turnAround()
     // Debug_printf("IEC turnAround: ");
 
     // Wait until the computer releases the ATN line
-    // if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
-    // {
-    //     Debug_printf("Wait until the computer releases the ATN line");
-    //     flags |= ERROR;
-    //     return -1; // return error because timeout
-    // }
+    if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
+    {
+        Debug_printf("Wait until the computer releases the ATN line");
+        flags |= ERROR;
+        return false; // return error because timeout
+    }
 
     // Delay after ATN is RELEASED
-    fnSystem.delay_microseconds(TIMING_Ttk);
+    protocol->wait( TIMING_Ttk, 0, false );
 
     // Wait until the computer releases the clock line
     if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)
     {
         Debug_printf("Wait until the computer releases the clock line");
         flags |= ERROR;
-        return -1; // return error because timeout
+        return false; // return error because timeout
     }
-
-    release(PIN_IEC_DATA_OUT);
-    fnSystem.delay_microseconds(TIMING_Tv);
+    protocol->wait( TIMING_Tdc, 0, false );
     pull(PIN_IEC_CLK_OUT);
-    fnSystem.delay_microseconds(TIMING_Tv);
 
-    Debug_println("turnaround complete");
+    // Signal that we are now the talker
+    protocol->wait( TIMING_Tda, 0, false );
+    release(PIN_IEC_CLK_OUT);
+
+    // Release DATA because the computer is pulling it now
+    release(PIN_IEC_DATA_OUT);
+
+    // Debug_println("turnaround complete");
     return true;
 } // turnAround
 
@@ -585,10 +590,14 @@ void systemBus::setup()
 
     // initial pin modes in GPIO
     fnSystem.set_pin_mode(PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_NEGEDGE);
-    fnSystem.set_pin_mode(PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-    fnSystem.set_pin_mode(PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-    fnSystem.set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-    fnSystem.set_pin_mode(PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT);
+    //fnSystem.set_pin_mode(PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+    //fnSystem.set_pin_mode(PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+    //fnSystem.set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+    //fnSystem.set_pin_mode(PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT);
+    set_pin_mode ( PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT );
+    set_pin_mode ( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT );
+    set_pin_mode ( PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT );
+    set_pin_mode ( PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT );
 
     flags = CLEAR;
     gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, this);

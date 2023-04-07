@@ -421,45 +421,54 @@ public:
     void senderTimeout();
 
     // true => PULL => LOW
-    inline void IRAM_ATTR pull(uint8_t pin)
+    inline void IRAM_ATTR pull ( uint8_t pin )
     {
-        fnSystem.digital_write(pin, 0);
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
+#endif
+        fnSystem.digital_write ( pin, LOW );
     }
 
     // false => RELEASE => HIGH
-    inline void IRAM_ATTR release(uint8_t pin)
+    inline void IRAM_ATTR release ( uint8_t pin )
     {
-        fnSystem.digital_write(pin, 1);
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
+#endif
+        fnSystem.digital_write ( pin, HIGH );
     }
 
-    inline bool IRAM_ATTR status(uint8_t pin)
+    inline bool IRAM_ATTR status ( uint8_t pin )
     {
-        return gpio_get_level((gpio_num_t)pin) ? 0 : 1;
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_INPUT );
+#endif
+        return gpio_get_level ( ( gpio_num_t ) pin ) ? RELEASED : PULLED;
     }
 
-    inline void IRAM_ATTR set_pin_mode(uint8_t pin, gpio_mode_t mode)
+    inline void IRAM_ATTR set_pin_mode ( uint8_t pin, gpio_mode_t mode )
     {
         static uint64_t gpio_pin_modes;
-        uint8_t b_mode = (mode == 1) ? 1 : 0;
+        uint8_t b_mode = ( mode == 1 ) ? 1 : 0;
 
         // is this pin mode already set the way we want?
 #ifndef IEC_SPLIT_LINES
-        if (((gpio_pin_modes >> pin) & 1ULL) != b_mode)
+        if ( ( ( gpio_pin_modes >> pin ) & 1ULL ) != b_mode )
 #endif
         {
             // toggle bit so we don't change mode unnecessarily
-            gpio_pin_modes ^= (-b_mode ^ gpio_pin_modes) & (1ULL << pin);
+            gpio_pin_modes ^= ( -b_mode ^ gpio_pin_modes ) & ( 1ULL << pin );
 
             gpio_config_t io_conf =
-                {
-                    .pin_bit_mask = (1ULL << pin),         // bit mask of the pins that you want to set
-                    .mode = mode,                          // set as input mode
-                    .pull_up_en = GPIO_PULLUP_DISABLE,     // disable pull-up mode
-                    .pull_down_en = GPIO_PULLDOWN_DISABLE, // disable pull-down mode
-                    .intr_type = GPIO_INTR_DISABLE         // interrupt of falling edge
-                };
-            // configure GPIO with the given settings
-            gpio_config(&io_conf);
+            {
+                .pin_bit_mask = ( 1ULL << pin ),            // bit mask of the pins that you want to set
+                .mode = mode,                               // set as input mode
+                .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
+                .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
+                .intr_type = GPIO_INTR_DISABLE              // interrupt of falling edge
+            };
+            //configure GPIO with the given settings
+            gpio_config ( &io_conf );
         }
     }
 };
