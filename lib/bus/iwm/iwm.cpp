@@ -564,6 +564,7 @@ void IRAM_ATTR iwmBus::service()
     else
     {
       diskii_xface.set_output_to_low(); // not sure if best way to trick IIc into booting SP
+      // method doesn't work with bypassed hct125 tri-state.
       // alternative approach is to enable RMT to spit out PRN bits
     }
     // make sure the state machine moves on to iwm_enable_state_t::on
