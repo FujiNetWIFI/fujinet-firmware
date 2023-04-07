@@ -6,6 +6,9 @@
 #include "fuji.h"
 #include "fnHardwareTimer.h"
 
+#define NS_PER_BIT_TIME 125
+#define BLANK_TRACK_LEN 6400
+
 const int8_t phase2seq[16] = {-1, 0, 2, 1, 4, -1, 3, -1, 6, 7, -1, -1, 5, -1, -1, -1};
 const int8_t seq2steps[8] = {0, 1, 2, 3, 0, -3, -2, -1};
 
@@ -132,9 +135,14 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
     diskii_xface.copy_track(
         ((MediaTypeWOZ *)_disk)->get_track(track_pos),
         ((MediaTypeWOZ *)_disk)->track_len(track_pos),
-        ((MediaTypeWOZ *)_disk)->num_bits(track_pos));
+        ((MediaTypeWOZ *)_disk)->num_bits(track_pos),
+        NS_PER_BIT_TIME * ((MediaTypeWOZ *)_disk)->optimal_bit_timing);
   else
-    diskii_xface.copy_track(nullptr, 6400, 6400 * 8);
+    diskii_xface.copy_track(
+        nullptr, 
+        BLANK_TRACK_LEN, 
+        BLANK_TRACK_LEN * 8, 
+        NS_PER_BIT_TIME * ((MediaTypeWOZ *)_disk)->optimal_bit_timing);
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
 

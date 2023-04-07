@@ -8,7 +8,7 @@
 #define MAX_TRACKS 160
 #define WOZ1_TRACK_LEN 6646
 #define WOZ1_NUM_BLKS 13
-#define WOZ1_BIT_TIME 8
+#define WOZ1_BIT_TIME 32
 struct TRK_t
 {
     uint16_t start_block;
@@ -33,8 +33,6 @@ protected:
     TRK_t trks[MAX_TRACKS];
     uint8_t *trk_ptrs[MAX_TRACKS] = { };
 
-    uint8_t optimal_bit_timing;
-
 public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
     virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
@@ -51,6 +49,7 @@ public:
     uint8_t *get_track(int t) { return trk_ptrs[tmap[t]]; };
     int track_len(int t) { return trks[tmap[t]].block_count * 512; };
     int num_bits(int t) { return trks[tmap[t]].bit_count; };
+    uint8_t optimal_bit_timing;
     // static bool create(FILE *f, uint32_t numBlock);
 };
 
