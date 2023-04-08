@@ -2,13 +2,12 @@
 
 #include <cstring>
 #include "iec.h"
+#include "../../include/debug.h"
+#include "../../include/pinmap.h"
 #include "led.h"
 #include "protocol/iecProtocolSerial.h"
 #include "string_utils.h"
 #include "utils.h"
-
-#include "../../../include/debug.h"
-#include "../../../include/pinmap.h"
 
 static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
 {
@@ -260,6 +259,7 @@ void IRAM_ATTR systemBus::service()
             {
                 Debug_printf("Device idle\n");
                 data.init();
+                releaseLines();
             }
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
