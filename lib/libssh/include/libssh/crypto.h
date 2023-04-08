@@ -40,7 +40,12 @@
 #ifdef HAVE_LIBGCRYPT
 #include <gcrypt.h>
 #elif defined(HAVE_LIBMBEDCRYPTO)
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#define MBEDTLS_GCM_ALT
+#include <gcm_alt.h>
+#else
 #include <mbedtls/gcm.h>
+#endif
 #endif
 #include "libssh/wrapper.h"
 

@@ -48,7 +48,7 @@
 #include <time.h>
 #endif
 
-#if !defined(PS2_EE_PLATFORM) && !defined(PS2_IOP_PLATFORM)
+#if !defined(PS2_EE_PLATFORM) && !defined(PS2_IOP_PLATFORM) && !defined(PICO_PLATFORM)
 #include <sys/socket.h>
 #endif
 
@@ -113,9 +113,9 @@ smb2_parse_args(struct smb2_context *smb2, const char *args)
                 } else if (!strcmp(args, "ndr64")) {
                         smb2->ndr = 2;
                 } else if (!strcmp(args, "le")) {
-                        smb2->endianess = 0;
+                        smb2->endianness = 0;
                 } else if (!strcmp(args, "be")) {
-                        smb2->endianess = 1;
+                        smb2->endianness = 1;
                 } else if (!strcmp(args, "sec")) {
                         if(!strcmp(value, "krb5")) {
                                 smb2->sec = SMB2_SEC_KRB5;
@@ -210,14 +210,21 @@ struct smb2_url *smb2_parse_url(struct smb2_context *smb2, const char *url)
 
         ptr = str;
 
+        char *shared_folder = strchr(ptr, '/');
+        if (!shared_folder) {
+                smb2_set_error(smb2, "Wrong URL format");
+                return NULL;
+        }
+        int len_shared_folder = strlen(shared_folder);
+
         /* domain */
-        if ((tmp = strchr(ptr, ';')) != NULL) {
+        if ((tmp = strchr(ptr, ';')) != NULL && strlen(tmp) > len_shared_folder) {
                 *(tmp++) = '\0';
                 u->domain = strdup(ptr);
                 ptr = tmp;
         }
         /* user */
-        if ((tmp = strchr(ptr, '@')) != NULL) {
+        if ((tmp = strchr(ptr, '@')) != NULL && strlen(tmp) > len_shared_folder) {
                 *(tmp++) = '\0';
                 u->user = strdup(ptr);
                 ptr = tmp;
@@ -388,29 +395,60 @@ struct smb2_iovec *smb2_add_iovector(struct smb2_context *smb2,
         return iov;
 }
 
-void smb2_set_error(struct smb2_context *smb2, const char *error_string, ...)
+static void smb2_set_error_string(struct smb2_context *smb2, const char * error_string, va_list args)
 {
 #ifndef PS2_IOP_PLATFORM
-        va_list ap;
         char errstr[MAX_ERROR_SIZE] = {0};
 
-        va_start(ap, error_string);
-        if (vsnprintf(errstr, MAX_ERROR_SIZE, error_string, ap) < 0) {
+        if (vsnprintf(errstr, MAX_ERROR_SIZE, error_string, args) < 0) {
                 strncpy(errstr, "could not format error string!",
                         MAX_ERROR_SIZE);
         }
-        va_end(ap);
-        if (smb2 != NULL) {
-                strncpy(smb2->error_string, errstr, MAX_ERROR_SIZE);
-        }
+        strncpy(smb2->error_string, errstr, MAX_ERROR_SIZE);
 #else /* PS2_IOP_PLATFORM */
         /* Dont have vs[n]printf on PS2 IOP. */
 #endif /* PS2_IOP_PLATFORM */
 }
 
+void smb2_set_error(struct smb2_context *smb2, const char *error_string, ...)
+{
+#ifndef PS2_IOP_PLATFORM
+        va_list ap;
+
+        if (!smb2)
+                return;
+        if (!error_string || !*error_string)
+                smb2->nterror = 0;
+        va_start(ap, error_string);
+        smb2_set_error_string(smb2, error_string, ap);
+        va_end(ap);
+#endif
+}
+
+void smb2_set_nterror(struct smb2_context *smb2, int nterror, const char *error_string, ...)
+{
+        if (!smb2)
+                return;
+#ifndef PS2_IOP_PLATFORM
+        {
+                va_list ap;
+
+                va_start(ap, error_string);
+                smb2_set_error_string(smb2, error_string, ap);
+                va_end(ap);
+        }
+#endif
+        smb2->nterror = nterror;
+}
+
 const char *smb2_get_error(struct smb2_context *smb2)
 {
         return smb2 ? smb2->error_string : "";
+}
+
+int smb2_get_nterror(struct smb2_context *smb2)
+{
+        return smb2 ? smb2->nterror : 0;
 }
 
 const char *smb2_get_client_guid(struct smb2_context *smb2)
@@ -545,6 +583,16 @@ void smb2_set_workstation(struct smb2_context *smb2, const char *workstation)
                 free(discard_const(smb2->workstation));
         }
         smb2->workstation = strdup(workstation);
+}
+
+void smb2_set_opaque(struct smb2_context *smb2, void *opaque)
+{
+        smb2->opaque = opaque;
+}
+
+void *smb2_get_opaque(struct smb2_context *smb2)
+{
+        return smb2->opaque;
 }
 
 void smb2_set_seal(struct smb2_context *smb2, int val)

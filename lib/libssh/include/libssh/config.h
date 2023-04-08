@@ -24,6 +24,7 @@
 #ifndef LIBSSH_CONFIG_H_
 #define LIBSSH_CONFIG_H_
 
+#include <esp_idf_version.h>
 
 enum ssh_config_opcode_e {
     /* Unknown opcode */
@@ -339,7 +340,9 @@ enum ssh_config_opcode_e {
 
 /* Define to 1 if you want to enable blowfish cipher support */
 /* #undef WITH_BLOWFISH_CIPHER */
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
 #define WITH_BLOWFISH_CIPHER 1
+#endif
 
 /* Define to 1 if you want to enable debug output for crypto functions */
 /* #undef DEBUG_CRYPTO */

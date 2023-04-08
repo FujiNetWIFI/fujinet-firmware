@@ -112,7 +112,7 @@ iwmModem::~iwmModem()
         telnet_free(telnet);
     }
 
-    vTaskDelete(&modemTask);
+    vTaskDelete(modemTask);
     vQueueDelete(mrxq);
     vQueueDelete(mtxq);
 }
