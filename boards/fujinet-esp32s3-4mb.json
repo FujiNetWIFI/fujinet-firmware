@@ -9,7 +9,7 @@
     "flash_mode": "dio",
     "mcu": "esp32s3",
     "variant": "esp32s3",
-    "partitions": "fujinet_partitions_16MB.csv"
+    "partitions": "fujinet_partitions_4MB.csv"
   },
   "connectivity": [
     "wifi"
@@ -20,11 +20,11 @@
   "frameworks": [
     "espidf"
   ],
-  "name": "FujiNet esp32-s3",
+  "name": "FujiNet esp32-s3 4MB",
   "upload": {
-    "flash_size": "16MB",
+    "flash_size": "4MB",
     "maximum_ram_size": 524288,
-    "maximum_size": 16777216,
+    "maximum_size": 4194304,
     "require_upload_port": true,
     "speed": 460800
   },
