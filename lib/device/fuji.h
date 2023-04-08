@@ -41,5 +41,8 @@
 # include "rc2014/fuji.h"
 #endif
 
+#ifdef BUILD_CDC
+# include "cdc_acm/fuji.h"
+#endif
 
 #endif // DEVICE_FUJI_H

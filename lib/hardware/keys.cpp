@@ -26,7 +26,7 @@ void KeyManager::setup()
 #else
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NO_BUTTONS */
-#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232) && !defined(BUILD_RC2014)
+#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232) && !defined(BUILD_RC2014) && !defined(BUILD_CDC)
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NOT LYNX OR A2 */
     // Enable safe reset on Button C if available
@@ -158,7 +158,7 @@ void KeyManager::_keystate_task(void *param)
 
     KeyManager *pKM = (KeyManager *)param;
 
-#if defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232)
+#if defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232) || defined(BUILD_CDC)
     // No button B onboard
     pKM->_keys[eKey::BUTTON_B].disabled = true;
 #endif

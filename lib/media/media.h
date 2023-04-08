@@ -57,4 +57,8 @@
 #include "cx16/mediaType.h"
 #endif
 
+#ifdef BUILD_CDC
+#include "cdc_acm/mediaType.h"
+#endif
+
 #endif // MEDIA_H

@@ -61,4 +61,10 @@
 #define PRINTER_CLASS cx16Printer
 #endif
 
+#ifdef BUILD_CDC
+#include "cdc_acm/printer.h"
+#include "cdc_acm/printerlist.h"
+#define PRINTER_CLASS cdcPrinter
+#endif
+
 #endif // DEVICE_PRINTER_H

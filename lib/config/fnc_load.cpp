@@ -18,7 +18,7 @@ void fnConfig::load()
 {
     Debug_println("fnConfig::load");
 
-#if defined(NO_BUTTONS) || defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232) || defined(BUILD_RC2014)
+#if defined(NO_BUTTONS) || defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232) || defined(BUILD_RC2014) || defined(BUILD_CDC)
     // Don't erase config if there are no buttons or on devices without Button B
 #else
     // Clear the config file if key is currently pressed
@@ -137,9 +137,11 @@ New behavior: copy from SD first if available, then read SPIFFS.
         case SECTION_MOUNT:
             _read_section_mount(ss, index);
             break;
+#ifdef PRINTER_CLASS
         case SECTION_PRINTER:
             _read_section_printer(ss, index);
             break;
+#endif
         case SECTION_TAPE: // Oscar put this here to handle server/path to CAS files
             _read_section_tape(ss, index);
             break;

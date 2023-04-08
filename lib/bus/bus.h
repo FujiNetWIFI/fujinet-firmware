@@ -51,4 +51,9 @@
 #define SYSTEM_BUS rc2014Bus
 #endif
 
+#ifdef BUILD_CDC
+#include "cdc_acm/cdc_acm.h"
+#define SYSTEM_BUS CDC_ACM
+#endif
+
 #endif // BUS_H

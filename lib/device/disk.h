@@ -51,5 +51,9 @@
 # define DEVICE_TYPE rc2014Disk
 #endif 
 
+#ifdef BUILD_CDC
+# include "cdc_acm/disk.h"
+# define DEVICE_TYPE cdcDisk
+#endif 
 
 #endif // DEVICE_DISK_H

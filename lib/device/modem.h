@@ -51,4 +51,9 @@ extern cx16Modem *sioR;
   extern rc2014Modem *sioR;
 #endif
 
+#ifdef BUILD_CDC
+#include "cdc_acm/modem.h"
+extern cdcModem *sioR;
+#endif
+
 #endif // DEVICE_MODEM_H

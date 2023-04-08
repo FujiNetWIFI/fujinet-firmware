@@ -132,4 +132,13 @@
     rc2014Modem *sioR;
 #endif
 
+#ifdef BUILD_CDC
+# include "cdc_acm/disk.h"
+# include "cdc_acm/modem.h"
+# include "cdc_acm/printer.h"
+# include "cdc_acm/printerlist.h"
+# include "cdc_acm/fuji.h"
+    cdcModem *sioR;
+#endif
+
 #endif // DEVICE_H
