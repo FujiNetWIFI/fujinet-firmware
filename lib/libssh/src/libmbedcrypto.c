@@ -27,6 +27,7 @@
 #include "libssh/crypto.h"
 #include "libssh/priv.h"
 #include "libssh/misc.h"
+#include "mbedcrypto-compat.h"
 
 #ifdef HAVE_LIBMBEDCRYPTO
 #include <mbedtls/md.h>
@@ -171,7 +172,7 @@ void evp_update(EVPCTX ctx, const void *data, unsigned long len)
 
 void evp_final(EVPCTX ctx, unsigned char *md, unsigned int *mdlen)
 {
-    *mdlen = mbedtls_md_get_size(ctx->md_info);
+    *mdlen = mbedtls_md_get_size(ctx->MBEDTLS_PRIVATE(md_info));
     mbedtls_md_finish(ctx, md);
     mbedtls_md_free(ctx);
     SAFE_FREE(ctx);
@@ -447,7 +448,7 @@ void hmac_update(HMACCTX c, const void *data, unsigned long len)
 
 void hmac_final(HMACCTX c, unsigned char *hashmacbuf, unsigned int *len)
 {
-    *len = mbedtls_md_get_size(c->md_info);
+    *len = mbedtls_md_get_size(c->MBEDTLS_PRIVATE(md_info));
     mbedtls_md_hmac_finish(c, hashmacbuf);
     mbedtls_md_free(c);
     SAFE_FREE(c);
@@ -461,6 +462,8 @@ cipher_init(struct ssh_cipher_struct *cipher,
 {
     const mbedtls_cipher_info_t *cipher_info = NULL;
     mbedtls_cipher_context_t *ctx;
+    size_t key_bitlen = 0;
+    size_t iv_size = 0;
     int rc;
 
     if (operation == MBEDTLS_ENCRYPT) {
@@ -481,15 +484,15 @@ cipher_init(struct ssh_cipher_struct *cipher,
         goto error;
     }
 
-    rc = mbedtls_cipher_setkey(ctx, key,
-                               cipher_info->key_bitlen,
-                               operation);
+    key_bitlen = mbedtls_cipher_info_get_key_bitlen(cipher_info);
+    rc = mbedtls_cipher_setkey(ctx, key, key_bitlen, operation);
     if (rc != 0) {
         SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_setkey failed");
         goto error;
     }
 
-    rc = mbedtls_cipher_set_iv(ctx, IV, cipher_info->iv_size);
+    iv_size = mbedtls_cipher_info_get_iv_size(cipher_info);
+    rc = mbedtls_cipher_set_iv(ctx, IV, iv_size);
     if (rc != 0) {
         SSH_LOG(SSH_LOG_WARNING, "mbedtls_cipher_set_iv failed");
         goto error;
@@ -567,15 +570,16 @@ cipher_set_key_gcm(struct ssh_cipher_struct *cipher,
                    void *IV)
 {
     const mbedtls_cipher_info_t *cipher_info = NULL;
+    size_t key_bitlen = 0;
     int rc;
 
     mbedtls_gcm_init(&cipher->gcm_ctx);
     cipher_info = mbedtls_cipher_info_from_type(cipher->type);
 
-    rc = mbedtls_gcm_setkey(&cipher->gcm_ctx,
-                            MBEDTLS_CIPHER_ID_AES,
-                            key,
-                            cipher_info->key_bitlen);
+    key_bitlen = mbedtls_cipher_info_get_key_bitlen(cipher_info);
+    rc = mbedtls_gcm_setkey(&cipher->gcm_ctx, MBEDTLS_CIPHER_ID_AES,
+                            key, key_bitlen);
+
     if (rc != 0) {
         SSH_LOG(SSH_LOG_WARNING, "mbedtls_gcm_setkey failed");
         goto error;

@@ -77,8 +77,8 @@ static void get_hram(unsigned char *hram,
 }
 
 
-int crypto_sign_ed25519_keypair(unsigned char *pk,
-                                unsigned char *sk)
+int crypto_sign_ed25519_keypair(ed25519_pubkey pk,
+                                ed25519_privkey sk)
 {
     sc25519 scsk;
     ge25519 gepk;
@@ -114,7 +114,7 @@ int crypto_sign_ed25519(unsigned char *sm,
                         uint64_t *smlen,
                         const unsigned char *m,
                         uint64_t mlen,
-                        const unsigned char *sk)
+                        const ed25519_privkey sk)
 {
     sc25519 sck, scs, scsk;
     ge25519 ger;
@@ -177,7 +177,7 @@ int crypto_sign_ed25519_open(unsigned char *m,
                              uint64_t *mlen,
                              const unsigned char *sm,
                              uint64_t smlen,
-                             const unsigned char *pk)
+                             const ed25519_pubkey pk)
 {
     unsigned int i;
     int ret;
