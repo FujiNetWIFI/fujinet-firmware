@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "esp_err.h"
+#include "esp_idf_version.h"
 #include "soc/soc_caps.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
@@ -24,6 +25,9 @@
 #include "soc/rmt_periph.h"
 #include "soc/rmt_struct.h"
 #include "hal/rmt_types.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include "driver/rmt_types_legacy.h"
+#endif
 
 #define RMT_CHANNEL_FLAGS_AWARE_DFS (1 << 0) /*!< Channel can work during APB clock scaling */
 
@@ -31,7 +35,9 @@
  * @brief Define memory space of each RMT channel (in words = 4 bytes)
  *
  */
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
 #define RMT_MEM_ITEM_NUM SOC_RMT_CHANNEL_MEM_WORDS
+#endif
 
 /**
  * @brief Data struct of RMT TX configure parameters

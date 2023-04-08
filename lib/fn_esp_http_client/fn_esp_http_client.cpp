@@ -267,7 +267,7 @@ static int http_on_headers_complete(http_parser *parser)
     client->response->data_offset = parser->nread;
     client->response->content_length = parser->content_length;
     client->response->data_process = 0;
-    ESP_LOGD(TAG, "http_on_headers_complete, status=%d, offset=%d, nread=%d", parser->status_code, client->response->data_offset, parser->nread);
+    ESP_LOGD(TAG, "http_on_headers_complete, status=%d, offset=%d, nread=%d", parser->status_code, client->response->data_offset, (int)parser->nread);
     client->state = HTTP_STATE_RES_COMPLETE_HEADER;
     return 0;
 }

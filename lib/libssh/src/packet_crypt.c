@@ -130,7 +130,7 @@ int ssh_packet_decrypt(ssh_session session,
     return 0;
 }
 
-unsigned char *ssh_packet_encrypt(ssh_session session, void *data, uint32_t len)
+unsigned char *ssh_packet_encrypt(ssh_session session, void *data, size_t len)
 {
   struct ssh_crypto_struct *crypto = NULL;
   struct ssh_cipher_struct *cipher = NULL;

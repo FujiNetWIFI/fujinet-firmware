@@ -39,6 +39,14 @@
 
 #ifdef LIBSSH2_MBEDTLS /* compile only if we build with mbedtls */
 
+#if MBEDTLS_VERSION_NUMBER < 0x03000000
+#define mbedtls_cipher_info_get_key_bitlen(c) (c->key_bitlen)
+#define mbedtls_cipher_info_get_iv_size(c)    (c->iv_size)
+#define mbedtls_rsa_get_len(rsa)              (rsa->len)
+
+#define MBEDTLS_PRIVATE(m) m
+#endif
+
 /*******************************************************************/
 /*
  * mbedTLS backend: Global context handles
@@ -122,10 +130,14 @@ _libssh2_mbedtls_cipher_init(_libssh2_cipher_ctx *ctx,
     mbedtls_cipher_init(ctx);
     ret = mbedtls_cipher_setup(ctx, cipher_info);
     if(!ret)
-        ret = mbedtls_cipher_setkey(ctx, secret, cipher_info->key_bitlen, op);
+        ret = mbedtls_cipher_setkey(ctx,
+                  secret,
+                  mbedtls_cipher_info_get_key_bitlen(cipher_info),
+                  op);
 
     if(!ret)
-        ret = mbedtls_cipher_set_iv(ctx, iv, cipher_info->iv_size);
+        ret = mbedtls_cipher_set_iv(ctx, iv,
+                  mbedtls_cipher_info_get_iv_size(cipher_info));
 
     return ret == 0 ? 0 : -1;
 }
@@ -331,29 +343,42 @@ _libssh2_mbedtls_rsa_new(libssh2_rsa_ctx **rsa,
 
     ctx = (libssh2_rsa_ctx *) mbedtls_calloc(1, sizeof(libssh2_rsa_ctx));
     if(ctx != NULL) {
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+        mbedtls_rsa_init(ctx);
+#else
         mbedtls_rsa_init(ctx, MBEDTLS_RSA_PKCS_V15, 0);
+#endif
     }
     else
         return -1;
 
     /* !checksrc! disable ASSIGNWITHINCONDITION 1 */
-    if((ret = mbedtls_mpi_read_binary(&(ctx->E), edata, elen) ) != 0 ||
-       (ret = mbedtls_mpi_read_binary(&(ctx->N), ndata, nlen) ) != 0) {
+    if((ret = mbedtls_mpi_read_binary(&(ctx->MBEDTLS_PRIVATE(E)),
+                                      edata, elen) ) != 0 ||
+       (ret = mbedtls_mpi_read_binary(&(ctx->MBEDTLS_PRIVATE(N)),
+                                      ndata, nlen) ) != 0) {
         ret = -1;
     }
 
     if(!ret) {
-        ctx->len = mbedtls_mpi_size(&(ctx->N));
+        ctx->MBEDTLS_PRIVATE(len) =
+            mbedtls_mpi_size(&(ctx->MBEDTLS_PRIVATE(N)));
     }
 
     if(!ret && ddata) {
         /* !checksrc! disable ASSIGNWITHINCONDITION 1 */
-        if((ret = mbedtls_mpi_read_binary(&(ctx->D), ddata, dlen) ) != 0 ||
-           (ret = mbedtls_mpi_read_binary(&(ctx->P), pdata, plen) ) != 0 ||
-           (ret = mbedtls_mpi_read_binary(&(ctx->Q), qdata, qlen) ) != 0 ||
-           (ret = mbedtls_mpi_read_binary(&(ctx->DP), e1data, e1len) ) != 0 ||
-           (ret = mbedtls_mpi_read_binary(&(ctx->DQ), e2data, e2len) ) != 0 ||
-           (ret = mbedtls_mpi_read_binary(&(ctx->QP), coeffdata, coefflen) )
+        if((ret = mbedtls_mpi_read_binary(&(ctx->MBEDTLS_PRIVATE(D)),
+                                          ddata, dlen) ) != 0 ||
+           (ret = mbedtls_mpi_read_binary(&(ctx->MBEDTLS_PRIVATE(P)),
+                                          pdata, plen) ) != 0 ||
+           (ret = mbedtls_mpi_read_binary(&(ctx->MBEDTLS_PRIVATE(Q)),
+                                          qdata, qlen) ) != 0 ||
+           (ret = mbedtls_mpi_read_binary(&(ctx->MBEDTLS_PRIVATE(DP)),
+                                          e1data, e1len) ) != 0 ||
+           (ret = mbedtls_mpi_read_binary(&(ctx->MBEDTLS_PRIVATE(DQ)),
+                                          e2data, e2len) ) != 0 ||
+           (ret = mbedtls_mpi_read_binary(&(ctx->MBEDTLS_PRIVATE(QP)),
+                                          coeffdata, coefflen) )
            != 0) {
             ret = -1;
         }
@@ -385,10 +410,20 @@ _libssh2_mbedtls_rsa_new_private(libssh2_rsa_ctx **rsa,
     if(*rsa == NULL)
         return -1;
 
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+    mbedtls_rsa_init(*rsa);
+#else
     mbedtls_rsa_init(*rsa, MBEDTLS_RSA_PKCS_V15, 0);
+#endif
     mbedtls_pk_init(&pkey);
 
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+    ret = mbedtls_pk_parse_keyfile(&pkey, filename, (char *)passphrase,
+                                   mbedtls_ctr_drbg_random,
+                                   &_libssh2_mbedtls_ctr_drbg);
+#else
     ret = mbedtls_pk_parse_keyfile(&pkey, filename, (char *)passphrase);
+#endif
     if(ret != 0 || mbedtls_pk_get_type(&pkey) != MBEDTLS_PK_RSA) {
         mbedtls_pk_free(&pkey);
         mbedtls_rsa_free(*rsa);
@@ -434,9 +469,17 @@ _libssh2_mbedtls_rsa_new_private_frommemory(libssh2_rsa_ctx **rsa,
     mbedtls_pk_init(&pkey);
 
     pwd_len = passphrase != NULL ? strlen((const char *)passphrase) : 0;
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+    ret = mbedtls_pk_parse_key(&pkey, (unsigned char *)filedata_nullterm,
+                               filedata_len + 1,
+                               passphrase, pwd_len,
+                               mbedtls_ctr_drbg_random,
+                               &_libssh2_mbedtls_ctr_drbg);
+#else
     ret = mbedtls_pk_parse_key(&pkey, (unsigned char *)filedata_nullterm,
                                filedata_len + 1,
                                passphrase, pwd_len);
+#endif
     _libssh2_mbedtls_safe_free(filedata_nullterm, filedata_len);
 
     if(ret != 0 || mbedtls_pk_get_type(&pkey) != MBEDTLS_PK_RSA) {
@@ -468,9 +511,15 @@ _libssh2_mbedtls_rsa_sha1_verify(libssh2_rsa_ctx *rsa,
     if(ret)
         return -1; /* failure */
 
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+    ret = mbedtls_rsa_pkcs1_verify(rsa,
+                                   MBEDTLS_MD_SHA1, SHA_DIGEST_LENGTH,
+                                   hash, sig);
+#else
     ret = mbedtls_rsa_pkcs1_verify(rsa, NULL, NULL, MBEDTLS_RSA_PUBLIC,
                                    MBEDTLS_MD_SHA1, SHA_DIGEST_LENGTH,
                                    hash, sig);
+#endif
 
     return (ret == 0) ? 0 : -1;
 }
@@ -489,15 +538,23 @@ _libssh2_mbedtls_rsa_sha1_sign(LIBSSH2_SESSION *session,
 
     (void)hash_len;
 
-    sig_len = rsa->len;
+    sig_len = mbedtls_rsa_get_len(rsa);
     sig = LIBSSH2_ALLOC(session, sig_len);
     if(!sig) {
         return -1;
     }
 
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+    ret = mbedtls_rsa_pkcs1_sign(rsa,
+                                 mbedtls_ctr_drbg_random,
+                                 &_libssh2_mbedtls_ctr_drbg,
+                                 MBEDTLS_MD_SHA1, SHA_DIGEST_LENGTH,
+                                 hash, sig);
+#else
     ret = mbedtls_rsa_pkcs1_sign(rsa, NULL, NULL, MBEDTLS_RSA_PRIVATE,
                                  MBEDTLS_MD_SHA1, SHA_DIGEST_LENGTH,
                                  hash, sig);
+#endif
     if(ret) {
         LIBSSH2_FREE(session, sig);
         return -1;
@@ -526,8 +583,8 @@ gen_publickey_from_rsa(LIBSSH2_SESSION *session,
     unsigned char *key;
     unsigned char *p;
 
-    e_bytes = mbedtls_mpi_size(&rsa->E);
-    n_bytes = mbedtls_mpi_size(&rsa->N);
+    e_bytes = mbedtls_mpi_size(&rsa->MBEDTLS_PRIVATE(E));
+    n_bytes = mbedtls_mpi_size(&rsa->MBEDTLS_PRIVATE(N));
 
     /* Key form is "ssh-rsa" + e + n. */
     len = 4 + 7 + 4 + e_bytes + 4 + n_bytes;
@@ -547,11 +604,11 @@ gen_publickey_from_rsa(LIBSSH2_SESSION *session,
 
     _libssh2_htonu32(p, e_bytes);
     p += 4;
-    mbedtls_mpi_write_binary(&rsa->E, p, e_bytes);
+    mbedtls_mpi_write_binary(&rsa->MBEDTLS_PRIVATE(E), p, e_bytes);
 
     _libssh2_htonu32(p, n_bytes);
     p += 4;
-    mbedtls_mpi_write_binary(&rsa->N, p, n_bytes);
+    mbedtls_mpi_write_binary(&rsa->MBEDTLS_PRIVATE(N), p, n_bytes);
 
     *keylen = (size_t)(p - key);
     return key;
@@ -623,7 +680,13 @@ _libssh2_mbedtls_pub_priv_keyfile(LIBSSH2_SESSION *session,
     int ret;
 
     mbedtls_pk_init(&pkey);
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+    ret = mbedtls_pk_parse_keyfile(&pkey, privatekey, passphrase,
+                                   mbedtls_ctr_drbg_random,
+                                   &_libssh2_mbedtls_ctr_drbg);
+#else
     ret = mbedtls_pk_parse_keyfile(&pkey, privatekey, passphrase);
+#endif
     if(ret != 0) {
         mbedtls_strerror(ret, (char *)buf, sizeof(buf));
         mbedtls_pk_free(&pkey);
@@ -667,10 +730,19 @@ _libssh2_mbedtls_pub_priv_keyfilememory(LIBSSH2_SESSION *session,
     mbedtls_pk_init(&pkey);
 
     pwd_len = passphrase != NULL ? strlen((const char *)passphrase) : 0;
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+    ret = mbedtls_pk_parse_key(&pkey,
+                               (unsigned char *)privatekeydata_nullterm,
+                               privatekeydata_len + 1,
+                               (const unsigned char *)passphrase, pwd_len,
+                               mbedtls_ctr_drbg_random,
+                               &_libssh2_mbedtls_ctr_drbg);
+#else
     ret = mbedtls_pk_parse_key(&pkey,
                                (unsigned char *)privatekeydata_nullterm,
                                privatekeydata_len + 1,
                                (const unsigned char *)passphrase, pwd_len);
+#endif
     _libssh2_mbedtls_safe_free(privatekeydata_nullterm, privatekeydata_len);
 
     if(ret != 0) {

@@ -48,7 +48,7 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 void print_packet(uint8_t *data, int bytes)
 {
   int row;
-  char tbs[8];
+  char tbs[12];
   char xx;
 
   Debug_printf(("\n"));
@@ -98,7 +98,7 @@ void print_packet(uint8_t *data)
 void print_packet_wave(uint8_t *data, int bytes)
 {
   int row;
-  char tbs[8];
+  char tbs[12];
 
   Debug_printf(("\n"));
   for (int count = 0; count < bytes; count = count + 12)
@@ -769,7 +769,7 @@ void iwmBus::shutdown()
 
   for (auto devicep : _daisyChain)
   {
-    Debug_printf("Shutting down device %02x\n", devicep->id());
+    Debug_printf("Shutting down device %02x\n", (unsigned)devicep->id());
     devicep->shutdown();
   }
   Debug_printf("All devices shut down.\n");
