@@ -36,6 +36,7 @@
 #include "fnSystem.h"
 #include "protocol/iecProtocolBase.h"
 
+#include "../../../include/pinmap.h"
 #include "../../../include/debug.h"
 
 /**
@@ -444,6 +445,15 @@ public:
         set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_INPUT );
 #endif
         return gpio_get_level ( ( gpio_num_t ) pin ) ? RELEASED : PULLED;
+    }
+
+    inline uint8_t IRAM_ATTR status ()
+    {
+        uint8_t b = 0;
+        b &= BUS_STATUS_ATN & gpio_get_level ( ( gpio_num_t ) PIN_IEC_ATN ) ? RELEASED : PULLED;
+        b &= BUS_STATUS_CLK & gpio_get_level ( ( gpio_num_t ) PIN_IEC_CLK_IN ) ? RELEASED : PULLED;
+        b &= BUS_STATUS_DATA & gpio_get_level ( ( gpio_num_t ) PIN_IEC_DATA_IN ) ? RELEASED : PULLED;
+        return b;
     }
 
     inline void IRAM_ATTR set_pin_mode ( uint8_t pin, gpio_mode_t mode )
