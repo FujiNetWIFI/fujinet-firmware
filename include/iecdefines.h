@@ -148,6 +148,10 @@ typedef enum
 #define DOLPHIN_ACTIVE   (1 << 10)
 #define WIC64_ACTIVE     (1 << 11)
 
+#define BUS_STATUS_ATN   (1 << 0)
+#define BUS_STATUS_CLK   (1 << 1)
+#define BUS_STATUS_DATA  (1 << 1)
+
 // IEC protocol timing consts in microseconds (us)
 // IEC-Disected p10-11         // Description              //   1541    C64     min     typical     max         // Notes
 #define TIMEOUT_Tat    1000    // ATN RESPONSE (REQUIRED)                       -       -           1000us      (If maximum time exceeded, device not present error.)

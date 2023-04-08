@@ -18,6 +18,10 @@
 
 #include "httpService.h"
 
+#ifdef LED_STRIP
+#include "display.h"
+#endif
+
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
 #endif
@@ -241,6 +245,11 @@ void main_setup()
 
     // Go setup SIO
     CX16.setup();
+#endif
+
+#ifdef LED_STRIP
+        // Start LED Strip
+        display_app_main(); // fastled lib
 #endif
 
 #ifdef DEBUG

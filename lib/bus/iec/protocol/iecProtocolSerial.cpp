@@ -101,10 +101,10 @@ int16_t IecProtocolSerial::receiveBits ()
     {
         data >>= 1;
 
+        IEC.pull ( PIN_IEC_SRQ );
         do
         {
             // wait for bit to be ready to read
-            IEC.pull ( PIN_IEC_SRQ );
             bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMEOUT_DEFAULT, false );
 
             /* If there is a delay before the last bit, the controller uses JiffyDOS */
