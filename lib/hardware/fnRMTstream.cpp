@@ -37,6 +37,8 @@
 
 #include <sys/lock.h>
 
+#if CONFIG_IDF_TARGET_ESP32
+
 #define RMT_SOUCCE_CLK_APB (APB_CLK_FREQ) /*!< RMT source clock is APB_CLK */
 #define RMT_SOURCE_CLK_REF (1 * 1000000)  /*!< not used yet */
 #define RMT_SOURCE_CLK(select) ((select == RMT_BASECLK_REF) ? (RMT_SOURCE_CLK_REF) : (RMT_SOUCCE_CLK_APB)) /*! RMT source clock frequency */
@@ -1109,3 +1111,5 @@ esp_err_t rmtStream::rmt_get_channel_status(rmt_channel_status_result_t *channel
 }
 
 rmtStream fnRMT;
+
+#endif /* CONFIG_IDF_TARGET_ESP32 */

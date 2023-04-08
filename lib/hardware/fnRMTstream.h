@@ -29,6 +29,8 @@
 #include "driver/rmt_types_legacy.h"
 #endif
 
+#if CONFIG_IDF_TARGET_ESP32
+
 #define RMT_CHANNEL_FLAGS_AWARE_DFS (1 << 0) /*!< Channel can work during APB clock scaling */
 
 /**
@@ -870,3 +872,5 @@ public:
 };
 
 extern rmtStream fnRMT;
+
+#endif /* CONFIG_IDF_TARGET_ESP32 */
