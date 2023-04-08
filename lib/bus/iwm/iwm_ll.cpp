@@ -30,7 +30,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   uint8_t c;
 
   _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
-  
+
   //if ((sp_command_mode == sp_cmd_state_t::standby) && (_phases == 0b1011))
   if (_phases == 0b1011)
   {
@@ -275,9 +275,9 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   */
 
   spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
-  
+
   // comment this out, trying to minimise the time from REQ interrupt to start the SPI polling
-  // helps the IIgs get in sync to the bitstream quicker 
+  // helps the IIgs get in sync to the bitstream quicker
   //memset(spi_buffer, 0xff, SPI_SP_LEN);
 
   memset(&rxtrans, 0, sizeof(spi_transaction_t));
@@ -451,15 +451,15 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   // keep this so we can print them later for debug
   smartport.calc_checksum = checksum;
   smartport.pkt_checksum = (oddbits | evenbits);
-  
+
   if (checksum == (oddbits | evenbits))
   {
     return 0; // all good
-  } 
+  }
   else if (((numodd + numgrps * 7) > 0xff && (numodd + numgrps * 7) < 0x200) && (checksum == smartport.last_checksum)) // Liron bug workaround
   {
     return 0; // just assume its ok due to last checksum being the same as this one for the Liron affected size data packets
-  } 
+  }
   else
   {
     smartport.last_checksum = checksum;
@@ -594,7 +594,7 @@ void iwm_ll::setup_gpio()
   fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
   disable_output();
 #endif
-  
+
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
   fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
@@ -605,8 +605,10 @@ void iwm_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
   fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
+#if !defined(NO3STATE)
   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
   fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
+#endif
 
 #ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
@@ -843,7 +845,7 @@ void iwm_ll::disable_output()
 // void IRAM_ATTR iwm_diskii_ll::rmttest(void)
 // {
 //  iwm_rddata_clr(); // enable the tri-state buffer
-  
+
 // size_t num_samples = 512*12;
 // uint8_t* sample = (uint8_t*)heap_caps_malloc(num_samples, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
 // if (sample == NULL)
@@ -892,7 +894,7 @@ void iwm_ll::disable_output()
 // }
 
 //Convert track data to rmt format data.
-void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t src_size, 
+void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t src_size,
                          size_t wanted_num, size_t* translated_size, size_t* item_num)
 {
     // *src is equal to *track_buffer
@@ -942,11 +944,11 @@ void iwm_diskii_ll::setup_rmt()
   track_buffer = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (track_buffer == NULL)
     Debug_println("could not allocate track buffer");
-    
+
   config.rmt_mode = rmt_mode_t::RMT_MODE_TX;
   config.channel = RMT_TX_CHANNEL;
 #ifdef RMTTEST
-  config.gpio_num = (gpio_num_t)SP_EXTRA; 
+  config.gpio_num = (gpio_num_t)SP_EXTRA;
 #else
   if(fnSystem.check_spifix())
     config.gpio_num = (gpio_num_t)SP_SPI_FIX_PIN; //SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
@@ -984,28 +986,28 @@ bool IRAM_ATTR iwm_diskii_ll::nextbit()
 
 bool IRAM_ATTR iwm_diskii_ll::fakebit()
 {
-  // MC3470 random bit behavior https://applesaucefdc.com/woz/reference2/ 
-  /** Of course, coming up with random values like this can be a bit processor intensive, 
-   * so it is adequate to create a randomly-filled circular buffer of 32 bytes. 
-   * We then just pull bits from this whenever we are in “fake bit mode”. 
-   * This buffer should also be used for empty tracks as designated with an 0xFF value 
+  // MC3470 random bit behavior https://applesaucefdc.com/woz/reference2/
+  /** Of course, coming up with random values like this can be a bit processor intensive,
+   * so it is adequate to create a randomly-filled circular buffer of 32 bytes.
+   * We then just pull bits from this whenever we are in “fake bit mode”.
+   * This buffer should also be used for empty tracks as designated with an 0xFF value
    * in the TMAP Chunk (see below). You will want to have roughly 30% of the buffer be 1 bits.
-   * 
-   * For testing the MC3470 generation of fake bits, you can turn to "The Print Shop Companion". 
+   *
+   * For testing the MC3470 generation of fake bits, you can turn to "The Print Shop Companion".
    * If you have control at the main menu, then you are passing this test.
-   * 
+   *
   **/
   // generate PN bits using Octave/MATLAB with
   // for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
   const uint8_t MC3470[] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
- 
+
   static int MC3470_byte_ctr;
   static int MC3470_bit_ctr;
 
   ++MC3470_bit_ctr %= 8;
   if (MC3470_bit_ctr == 0)
     ++MC3470_byte_ctr %= sizeof(MC3470);
-  
+
   return (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
 }
 
