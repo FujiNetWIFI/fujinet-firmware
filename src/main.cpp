@@ -1,6 +1,8 @@
 #include <esp_system.h>
 #include <nvs_flash.h>
+#ifdef ATARI
 #include <esp32/himem.h>
+#endif
 
 #include "debug.h"
 #include "bus.h"
@@ -241,6 +243,13 @@ void main_setup()
     // Go setup SIO
     CX16.setup();
 #endif
+
+#ifdef BUILD_CDC
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    sioR = new cdcModem(ptrfs, Config.get_modem_sniffer_enabled());
+    theFuji.setup(&CDC_ACM);    
+    CDC_ACM.setup();
+#endif /* BUILD_CDC */
 
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
