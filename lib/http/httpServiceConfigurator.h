@@ -6,7 +6,7 @@ Broke out system configuration functions to make things easier to read.
 #define HTTPSERVICECONFIGURATOR_H
 
 #include <map>
-
+#include <string>
 
 class fnHttpServiceConfigurator
 {
