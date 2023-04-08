@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "esp_rom_gpio.h"
+#include "soc/spi_periph.h"
 
 #include "iwm_ll.h"
 #include "iwm.h"
@@ -806,14 +807,17 @@ void iwm_diskii_ll::stop()
 
 void iwm_diskii_ll::set_output_to_rmt()
 {
-  if (fnSystem.check_spifix())
-  {
-    esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, rmt_periph_signals.channels[0].tx_sig, false, false);
-  }
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  if(fnSystem.check_spifix())
+    esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
   else
-  {
+    esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
+#else
+  if(fnSystem.check_spifix())
+    esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, rmt_periph_signals.channels[0].tx_sig, false, false);
+  else
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
-  }
+#endif
 }
 
 void iwm_ll::enable_output()

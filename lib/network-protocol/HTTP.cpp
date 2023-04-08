@@ -2,6 +2,8 @@
  * HTTP implementation
  */
 
+#include <cstring>
+
 #include "HTTP.h"
 
 #include "../../include/debug.h"

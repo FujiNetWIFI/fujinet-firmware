@@ -2,6 +2,10 @@
 #include "fnWiFi.h"
 
 #include <esp_wifi.h>
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include <esp_mac.h>
+#endif
 #include <esp_event.h>
 #include <mdns.h>
 

@@ -1418,7 +1418,9 @@ out:
 }
 
 int ssh_options_apply(ssh_session session) {
+    #ifndef LIBSSH_FUJINET
     struct ssh_iterator *it;
+    #endif
     char *tmp;
     int rc;
 

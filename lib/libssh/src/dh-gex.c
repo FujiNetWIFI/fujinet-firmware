@@ -468,9 +468,9 @@ static int ssh_retrieve_dhgroup_file(FILE *moduli,
     } else {
         SSH_LOG(SSH_LOG_WARNING,
                 "No moduli found for [%u:%u:%u]",
-                pmin,
-                pn,
-                pmax);
+                (unsigned) pmin,
+                (unsigned) pn,
+                (unsigned) pmax);
     }
 
     return SSH_OK;
@@ -602,15 +602,15 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_dhgex_request)
         ssh_set_error_invalid(session);
         goto error;
     }
-    SSH_LOG(SSH_LOG_INFO, "dh-gex: DHGEX_REQUEST[%u:%u:%u]", pmin, pn, pmax);
+    SSH_LOG(SSH_LOG_INFO, "dh-gex: DHGEX_REQUEST[%u:%u:%u]", (unsigned) pmin, (unsigned) pn, (unsigned) pmax);
 
     if (pmin > pn || pn > pmax || pn > DH_PMAX || pmax < DH_PMIN) {
         ssh_set_error(session,
                       SSH_FATAL,
                       "Invalid dh-gex arguments [%u:%u:%u]",
-                      pmin,
-                      pn,
-                      pmax);
+                      (unsigned) pmin,
+                      (unsigned) pn,
+                      (unsigned) pmax);
         goto error;
     }
     session->next_crypto->dh_pmin = pmin;
@@ -634,9 +634,9 @@ static SSH_PACKET_CALLBACK(ssh_packet_server_dhgex_request)
         ssh_set_error(session,
                       SSH_FATAL,
                       "Couldn't find DH group for [%u:%u:%u]",
-                      pmin,
-                      pn,
-                      pmax);
+                      (unsigned) pmin,
+                      (unsigned) pn,
+                      (unsigned) pmax);
         goto error;
     }
     rc = ssh_dh_set_parameters(session->next_crypto->dh_ctx,

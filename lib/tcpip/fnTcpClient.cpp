@@ -317,7 +317,7 @@ int fnTcpClient::setOption(int option, int *value)
 // Get TCP option
 int fnTcpClient::getOption(int option, int *value)
 {
-    size_t size = sizeof(int);
+    socklen_t size = sizeof(int);
     int res = getsockopt(fd(), IPPROTO_TCP, option, (char *)value, &size);
     if (res < 0)
     {
