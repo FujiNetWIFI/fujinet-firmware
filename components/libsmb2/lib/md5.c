@@ -11,8 +11,8 @@
  * with every copy.
  *
  * To compute the message digest of a chunk of bytes, declare an
- * MD5Context structure, pass it to esp_rom_md5_init, call esp_rom_md5_update as
- * needed on buffers full of bytes, and then call esp_rom_md5_final, which
+ * MD5Context structure, pass it to MD5Init, call MD5Update as
+ * needed on buffers full of bytes, and then call MD5Final, which
  * will fill a supplied 16-byte array with the digest.
  *
  * Changed so as no longer to depend on Colin Plumb's `usual.h' header
@@ -20,8 +20,6 @@
  *  - Ian Jackson <ijackson@nyx.cs.du.edu>.
  * Still in the public domain.
  */
-
-#ifndef ESP_PLATFORM
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -56,7 +54,7 @@ byteSwap(UWORD32 *buf, unsigned words)
  * initialization constants.
  */
 void
-esp_rom_md5_init(md5_context_t *ctx)
+MD5Init(struct MD5Context *ctx)
 {
 	ctx->buf[0] = 0x67452301;
 	ctx->buf[1] = 0xefcdab89;
@@ -72,7 +70,7 @@ esp_rom_md5_init(md5_context_t *ctx)
  * of bytes.
  */
 void
-esp_rom_md5_update(md5_context_t *ctx, md5byte const *buf, unsigned len)
+MD5Update(struct MD5Context *ctx, md5byte const *buf, unsigned len)
 {
 	UWORD32 t;
 
@@ -112,7 +110,7 @@ esp_rom_md5_update(md5_context_t *ctx, md5byte const *buf, unsigned len)
  * 1 0* (64-bit count of bits processed, MSB-first)
  */
 void
-esp_rom_md5_final(md5byte digest[16], md5_context_t *ctx)
+MD5Final(md5byte digest[16], struct MD5Context *ctx)
 {
 	int count = ctx->bytes[0] & 0x3f;	/* Number of bytes in ctx->in */
 	md5byte *p = (md5byte *)ctx->in + count;
@@ -159,7 +157,7 @@ esp_rom_md5_final(md5byte digest[16], md5_context_t *ctx)
 
 /*
  * The core of the MD5 algorithm, this alters an existing MD5 hash to
- * reflect the addition of 16 longwords of new data.  esp_rom_md5_update blocks
+ * reflect the addition of 16 longwords of new data.  MD5Update blocks
  * the data and converts bytes into longwords for this routine.
  */
 void
@@ -247,6 +245,3 @@ MD5Transform(UWORD32 buf[4], UWORD32 const in[16])
 }
 
 #endif
-
-#endif
-

@@ -1,6 +1,9 @@
 #ifndef _FN_HTTPCLIENT_H_
 #define _FN_HTTPCLIENT_H_
 
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+
 #include <string>
 #include <map>
 

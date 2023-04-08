@@ -4,6 +4,11 @@
 
 #include <queue>
 // #include <driver/gpio.h>
+#include <driver/gpio.h>
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include <hal/gpio_ll.h>
+#endif
 #include <driver/spi_master.h>
 #include <freertos/semphr.h>
 
