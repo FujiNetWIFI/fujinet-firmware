@@ -81,15 +81,24 @@ extern volatile sp_cmd_state_t sp_command_mode;
  * reset the ls125.  
  */
 
-class iwm_sp_ll
+class iwm_ll
 {
-private:
+protected:
   // low level bit-banging i/o functions
-  void iwm_rddata_set() { GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); }; // make RDDATA go hi-z through the tri-state
-  void iwm_rddata_clr() { GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); }; // enable the tri-state buffer activating RDDATA
   bool iwm_req_val() { return (GPIO.in1.val & (0x01 << (SP_REQ-32))); };
   void iwm_extra_set();
   void iwm_extra_clr();
+  void disable_output();
+  void enable_output();
+  
+public:
+  void setup_gpio();
+};
+
+class iwm_sp_ll : public iwm_ll
+{
+private:  
+  void set_output_to_spi();
 
   // SPI data handling
   uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
@@ -147,39 +156,36 @@ public:
   // for tracking last checksum received for Liron bug
   uint8_t last_checksum;
 
-
   // hardware configuration setup
   void setup_spi();
-  void setup_gpio();
-
-  void set_output_to_spi();
+  
 };
 
-class iwm_diskii_ll
+// TO DO - enable/disable output
+// done - create enable/disable that do either RDDATA for old or disable/enable GPIO for new
+// done - move all enable/disables into the "switch output to SPI/RMT routines"
+// move "swithc to SPI" into send data spi routine (enable / disable output using spi fix - no external tristate)
+// done - move disable output into disk ii stop
+// figure out how to make it all work for three cases: (1) original, (2) spi fix, (3) bypassed buffer
+class iwm_diskii_ll : public iwm_ll
 {
 private:
   // RMT data handling
   fn_rmt_config_t config;
-
-  // tri-state buffer control - copied from sp_ll - probably should make one version only but alas
-  void iwm_rddata_set() { GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); }; // make RDDATA go hi-z through the tri-state
-  void iwm_rddata_clr() { GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); }; // enable the tri-state buffer activating RDDATA
 
   // track bit information
   uint8_t* track_buffer; // 
   size_t track_numbits = 6400 * 8;
   size_t track_numbytes = 6400;
   size_t track_location = 0;
- 
+
+  void set_output_to_rmt();
+
 public:
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
   uint8_t iwm_enable_states();
 
-  void disable_output() { iwm_rddata_set(); };
-  void enable_output()  { iwm_rddata_clr(); };
-
-  
   // Disk II handling by RMT peripheral
   void setup_rmt(); // install the RMT device
   void start();
@@ -190,7 +196,7 @@ public:
   bool fakebit();
   void copy_track(uint8_t *track, size_t tracklen, size_t trackbits);
 
-  void set_output_to_rmt();
+  void set_output_to_low();
 };
 
 extern iwm_sp_ll smartport;
