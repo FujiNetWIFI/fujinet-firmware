@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM, APPLE]
+        target-platform: [ATARI, ADAM, APPLE, CDC]
 
     steps:
     - uses: actions/checkout@v2
@@ -51,6 +51,10 @@ jobs:
       if: ${{ matrix.target-platform == 'APPLE' }}
       run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
+    - name: Create INI CDC for Build
+      if: ${{ matrix.target-platform == 'CDC' }}
+      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
     - name: Show platformio.ini
       run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
@@ -80,6 +84,10 @@ jobs:
       if: ${{ matrix.target-platform == 'APPLE' }}
       run: pio run -e fujiapple-rev0
 
+    - name: CDC Build
+      if: ${{ matrix.target-platform == 'CDC' }}
+      run: pio run -e esp32-s3
+
     - name: ATARI Build Filesystem
       if: ${{ matrix.target-platform == 'ATARI' }}
       run: pio run -t buildfs -e fujinet-atari-v1
@@ -91,6 +99,10 @@ jobs:
     - name: APPLE Build Filesystem
       if: ${{ matrix.target-platform == 'APPLE' }}
       run: pio run -t buildfs -e fujiapple-rev0
+
+    - name: CDC Build Filesystem
+      if: ${{ matrix.target-platform == 'CDC' }}
+      run: pio run -t buildfs -e esp32-s3
 
     - name: Build Filesystem
       run: pio run -t buildfs -e fujinet-v1

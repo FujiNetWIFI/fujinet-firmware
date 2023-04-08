@@ -27,9 +27,9 @@ esp32s3_platform_version = 6.1.0
 ;build_bus      = ADAMNET
 ;build_board    = fujinet-adam-v1       ; FujiNet for Coleco ADAM v1.0
 
-build_platform = BUILD_APPLE
-build_bus      = IWM
-build_board    = fujiapple-rev0         ; FujiApple Rev 0 Prototype
+;build_platform = BUILD_APPLE
+;build_bus      = IWM
+;build_board    = fujiapple-rev0         ; FujiApple Rev 0 Prototype
 ;build_board    = fujiapple-fujinetv1   ; FujiApple using Atari FujiNet v1.0
 
 ;build_platform = BUILD_IEC
@@ -58,9 +58,9 @@ build_board    = fujiapple-rev0         ; FujiApple Rev 0 Prototype
 ;build_bus      = rc2014spi
 ;build_board    = fujinet-rc2014spi-rev0   ; RC2014 prototype based on ESP32-DEVKITC-VE
 
-;build_platform = BUILD_CDC
-;build_bus      = CDC-ACM
-;build_board    = esp32s3
+build_platform = BUILD_CDC
+build_bus      = CDC-ACM
+build_board    = esp32s3
 ;build_board    = esp32s3-8mb
 ;build_board    = esp32s3-4mb
 
