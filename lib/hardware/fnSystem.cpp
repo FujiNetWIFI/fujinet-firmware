@@ -5,7 +5,9 @@
 #include <freertos/queue.h>
 #include <esp_system.h>
 #include <driver/gpio.h>
-#ifndef CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
+# include <hal/gpio_ll.h>
+#else
 # include <driver/dac.h>
 #endif
 #include <esp_idf_version.h>
