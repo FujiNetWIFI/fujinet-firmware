@@ -798,7 +798,7 @@ void iwm_diskii_ll::start()
 {
   diskii_xface.set_output_to_rmt();
   diskii_xface.enable_output();
-  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits));
+  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
 }
 
 void iwm_diskii_ll::stop()
@@ -895,7 +895,7 @@ void iwm_ll::disable_output()
 
 //Convert track data to rmt format data.
 void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t src_size,
-                         size_t wanted_num, size_t* translated_size, size_t* item_num)
+                         size_t wanted_num, size_t* translated_size, size_t* item_num, int bit_period)
 {
     // *src is equal to *track_buffer
     // src_size is equal to numbits
@@ -910,8 +910,13 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
     }
 
     // TODO: allow adjustment of bit timing per WOZ optimal bit timing
-    const rmt_item32_t bit0 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 0 }}}; //Logical 0
-    const rmt_item32_t bit1 = {{{ 3 * RMT_USEC, 0, RMT_USEC, 1 }}}; //Logical 1
+    // 
+    uint32_t bit_ticks = RMT_USEC; // ticks per microsecond (1000 ns)
+    bit_ticks *= bit_period; // now units are ticks * ns /us
+    bit_ticks /= 1000; // now units are ticks
+
+    const rmt_item32_t bit0 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 0 }}}; //Logical 0
+    const rmt_item32_t bit1 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 1 }}}; //Logical 1
     static uint8_t window = 0;
     uint8_t outbit = 0;
     size_t num = 0;
@@ -1011,7 +1016,7 @@ bool IRAM_ATTR iwm_diskii_ll::fakebit()
   return (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
 }
 
-void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t trackbits)
+void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t trackbits, int bitperiod)
 {
   // copy track from SPIRAM to INTERNAL RAM
   if (track != nullptr)
@@ -1025,6 +1030,7 @@ void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t
   // update track info
   track_numbytes = tracklen;
   track_numbits = trackbits;
+  track_bit_period = bitperiod;
 }
 
 uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
