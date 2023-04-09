@@ -2,7 +2,6 @@
 #include "disk2.h"
 
 #include "fnSystem.h"
-#include "led.h"
 #include "fuji.h"
 #include "fnHardwareTimer.h"
 
@@ -14,8 +13,8 @@ iwmDisk2::~iwmDisk2()
 }
 
 void iwmDisk2::shutdown()
-      {
-      }
+{
+}
 
 iwmDisk2::iwmDisk2()
 {
