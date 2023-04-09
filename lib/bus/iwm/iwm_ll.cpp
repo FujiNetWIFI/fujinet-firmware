@@ -12,6 +12,7 @@
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
+#include "led.h"
 
 #define MHZ (1000*1000)
 
@@ -799,12 +800,14 @@ void iwm_diskii_ll::start()
   diskii_xface.set_output_to_rmt();
   diskii_xface.enable_output();
   ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits));
+  fnLedManager.set(LED_BUS, true);
 }
 
 void iwm_diskii_ll::stop()
 {
   fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
   diskii_xface.disable_output();
+  fnLedManager.set(LED_BUS, false);
 }
 
 void iwm_diskii_ll::set_output_to_rmt()
