@@ -1,6 +1,6 @@
-#ifdef LED_STRIP
-
 #include "led_strip.h"
+
+#include "../../include/debug.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -129,15 +129,20 @@ LedStrip::LedStrip()
 // Setup the LED Strip
 void LedStrip::setup()
 {
-    FastLED.addLeds<LED_TYPE, LED_DATA_PIN, RGB_ORDER>(ledstrip, NUM_LEDS);
-    FastLED.showColor(CRGB::Black);
-    FastLED.setMaxPowerInVoltsAndMilliamps(5, LED_BRIGHTNESS);
+    // Only start the strip if we found it during check_hardware_ver()
+    if (fnSystem.check_ledstrip())
+    {
+        Debug_printf("Starting LED Strip\n");
+        FastLED.addLeds<LED_TYPE, LED_DATA_PIN, RGB_ORDER>(ledstrip, NUM_LEDS);
+        FastLED.showColor(CRGB::Black);
+        FastLED.setMaxPowerInVoltsAndMilliamps(5, LED_BRIGHTNESS);
 
-    // Start the LED Task
-    xTaskCreatePinnedToCore(&ledStripTask, "LEDStripTask", 4000, NULL, 5, NULL, 0);
+        // Start the LED Task
+        xTaskCreatePinnedToCore(&ledStripTask, "LEDStripTask", 4000, NULL, 5, NULL, 0);
 
-    // Taste the Rainbow at startup
-    fnLedStrip.startRainbow(5);
+        // Taste the Rainbow at startup
+        fnLedStrip.startRainbow(3);
+    }
 }
 
 // Set the LED State
@@ -181,5 +186,3 @@ void LedStrip::stopRainbow()
 {
     fnLedStrip.rainbowStopper = true;
 }
-
-#endif // LED_STRIP

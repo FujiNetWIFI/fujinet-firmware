@@ -10,10 +10,7 @@
 #include "fnBluetooth.h"
 
 #include "led.h"
-
-#ifdef LED_STRIP
 #include "led_strip.h"
-#endif
 
 // Global KeyManager object
 KeyManager fnKeyManager;
@@ -216,14 +213,17 @@ void KeyManager::_keystate_task(void *param)
             Debug_println("BUTTON_A: SHORT PRESS");
 
 #ifdef PINMAP_A2_REV0
-#ifdef LED_STRIP
-            if (fnLedStrip.rainbowTimer > 0)
-                fnLedStrip.stopRainbow();
+            if(fnSystem.check_ledstrip())
+            {
+                if (fnLedStrip.rainbowTimer > 0)
+                    fnLedStrip.stopRainbow();
+                else
+                    fnLedStrip.startRainbow(10);
+            }
             else
-                fnLedStrip.startRainbow(10);
-#else
-            fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
-#endif // LED_STRIP
+            {
+                fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
+            }
 #else
             fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
 #endif // PINMAP_A2_REV0
