@@ -178,6 +178,7 @@ private:
   size_t track_numbits = 6400 * 8;
   size_t track_numbytes = 6400;
   size_t track_location = 0;
+  int track_bit_period = 4000;
 
   void set_output_to_rmt();
 
@@ -194,7 +195,7 @@ public:
 
   bool nextbit();
   bool fakebit();
-  void copy_track(uint8_t *track, size_t tracklen, size_t trackbits);
+  void copy_track(uint8_t *track, size_t tracklen, size_t trackbits, int bitperiod);
 
   void set_output_to_low();
 };
