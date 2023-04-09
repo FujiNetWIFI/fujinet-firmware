@@ -595,7 +595,7 @@ const char *SystemManager::get_hardware_ver_str()
 */
 void SystemManager::check_hardware_ver()
 {
-    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck;
+    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck, ledstripupcheck, ledstripdowncheck;
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
     fixdowncheck = fnSystem.digital_read(PIN_CARD_DETECT_FIX);
@@ -610,8 +610,20 @@ void SystemManager::check_hardware_ver()
     upcheck = fnSystem.digital_read(PIN_CARD_DETECT);
 
 #ifdef PINMAP_A2_REV0
-    /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset.
-       Apple 2 Rev00 with SPI fix has 10K hardware pullup on IO14.
+    /* Check for LED Strip pullup and enable it if found */
+    fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    ledstripupcheck = fnSystem.digital_read(LED_DATA_PIN);
+    fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    ledstripdowncheck = fnSystem.digital_read(LED_DATA_PIN);
+
+    if(ledstripdowncheck == ledstripupcheck)
+    {
+        ledstrip = true;
+        Debug_printf("Enabling LED Strip\n");
+    }
+
+    /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset (IO14)
+       Apple 2 Rev00 with SPI fix has 10K hardware pullup on IO14
        Check for pullup and determine if safe reset button or SPI fix
     */
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
