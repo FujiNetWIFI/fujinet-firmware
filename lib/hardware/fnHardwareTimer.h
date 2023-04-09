@@ -25,6 +25,8 @@ private:
     uint32_t t0;
   } fn_timer;
 
+timer_config_t fn_config;
+
 public:
   void config();
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)

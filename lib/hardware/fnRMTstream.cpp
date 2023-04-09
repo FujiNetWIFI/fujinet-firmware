@@ -37,9 +37,9 @@
 
 #include <sys/lock.h>
 
-#define RMT_SOUCCE_CLK_APB (APB_CLK_FREQ) /*!< RMT source clock is APB_CLK */
+#define RMT_SOURCE_CLK_APB (APB_CLK_FREQ) /*!< RMT source clock is APB_CLK */
 #define RMT_SOURCE_CLK_REF (1 * 1000000)  /*!< not used yet */
-#define RMT_SOURCE_CLK(select) ((select == RMT_BASECLK_REF) ? (RMT_SOURCE_CLK_REF) : (RMT_SOUCCE_CLK_APB)) /*! RMT source clock frequency */
+#define RMT_SOURCE_CLK(select) ((select == RMT_BASECLK_REF) ? (RMT_SOURCE_CLK_REF) : (RMT_SOURCE_CLK_APB)) /*! RMT source clock frequency */
 
 #define RMT_CHANNEL_ERROR_STR  "RMT CHANNEL ERR"
 #define RMT_ADDR_ERROR_STR     "RMT ADDRESS ERR"
@@ -471,7 +471,11 @@ esp_err_t rmtStream::rmt_config(const fn_rmt_config_t* rmt_param)
         RMT.conf_ch[channel].conf0.mem_size = mem_cnt;
         RMT.conf_ch[channel].conf1.mem_owner = RMT_MEM_OWNER_TX;
         /*We use APB clock in this version, which is 80Mhz, later we will release system reference clock*/
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        RMT.conf_ch[channel].conf1.ref_always_on = true;    // RMT_BASECLK_APB
+#else
         RMT.conf_ch[channel].conf1.ref_always_on = RMT_BASECLK_APB;
+#endif    
         rmt_source_clk_hz = RMT_SOURCE_CLK(RMT_BASECLK_APB);
         /*Set idle level */
         RMT.conf_ch[channel].conf1.idle_out_en = rmt_param->tx_config.idle_output_en;
@@ -503,7 +507,11 @@ esp_err_t rmtStream::rmt_config(const fn_rmt_config_t* rmt_param)
 
         portENTER_CRITICAL(&rmt_spinlock);
         /*clock init*/
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        RMT.conf_ch[channel].conf1.ref_always_on = true;
+#else
         RMT.conf_ch[channel].conf1.ref_always_on = RMT_BASECLK_APB;
+#endif        
         uint32_t rmt_source_clk_hz = RMT_SOURCE_CLK(RMT_BASECLK_APB);
         /*memory set block number and owner*/
         RMT.conf_ch[channel].conf0.mem_size = mem_cnt;
