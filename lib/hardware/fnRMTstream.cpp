@@ -100,6 +100,7 @@ extern rmt_mem_t RMTMEM;
     const uint8_t *sample_cur;
     size_t sample_size_total;
     const uint8_t *sample_orig;
+    int bit_period; // in nanoseconds (ns)
 } ;
 
 rmt_obj_t* p_rmt_obj[RMT_CHANNEL_MAX] = {0};
@@ -673,7 +674,8 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
                                                     p_rmt->sample_size_remain,
                                                     p_rmt->tx_sub_len,
                                                     &translated_size,
-                                                    &p_rmt->tx_len_rem);
+                                                    &p_rmt->tx_len_rem,
+                                                    p_rmt->bit_period);
                             // update how much is left
                             p_rmt->sample_size_remain -= translated_size;
                             // move the pointer over
@@ -699,7 +701,8 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
                                                          p_rmt->sample_size_remain,             // this is the whole shebang again
                                                          p_rmt->tx_sub_len - p_rmt->tx_len_rem, // but should only translate what's left
                                                          &translated_size,
-                                                         &p_rmt->tx_len_rem);
+                                                         &p_rmt->tx_len_rem,
+                                                         p_rmt->bit_period);
                                     // again, update how much is left
                                     p_rmt->sample_size_remain -= translated_size;
                                     // move the pointer over
@@ -732,7 +735,8 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
                                              p_rmt->sample_size_remain,
                                              p_rmt->tx_sub_len,
                                              &translated_size,
-                                             &p_rmt->tx_len_rem);
+                                             &p_rmt->tx_len_rem,
+                                             p_rmt->bit_period);
                         // say where the translated items are
                         p_rmt->tx_data = p_rmt->tx_buf;
                     }
@@ -1011,6 +1015,8 @@ esp_err_t rmtStream::rmt_translator_init(rmt_channel_t channel, fn_sample_to_rmt
 
 esp_err_t rmtStream::rmt_write_sample(rmt_channel_t channel, const uint8_t *src, size_t src_size, bool wait_tx_done)
 {
+    // need to set bit_period outside in p_rmt_obj[channel]
+    
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
     RMT_CHECK(p_rmt_obj[channel]->sample_to_rmt != NULL,RMT_TRANSLATOR_UNINIT_STR, ESP_FAIL);
@@ -1032,7 +1038,7 @@ esp_err_t rmtStream::rmt_write_sample(rmt_channel_t channel, const uint8_t *src,
     p_rmt->sample_orig = src;
     p_rmt->sample_size_total = src_size;
     // driver continues here 
-    p_rmt->sample_to_rmt((void *)src, p_rmt->tx_buf, src_size, item_block_len, &translated_size, &item_num);
+    p_rmt->sample_to_rmt((void *)src, p_rmt->tx_buf, src_size, item_block_len, &translated_size, &item_num, p_rmt->bit_period); 
     p_rmt->sample_size_remain = src_size - translated_size;
     p_rmt->sample_cur = src + translated_size;
     rmt_fill_memory(channel, p_rmt->tx_buf, item_num, 0);
@@ -1057,7 +1063,7 @@ esp_err_t rmtStream::rmt_write_sample(rmt_channel_t channel, const uint8_t *src,
     return ESP_OK;
 }
 
-esp_err_t rmtStream::rmt_write_bitstream(rmt_channel_t channel, const uint8_t *src, size_t num_bits)
+esp_err_t rmtStream::rmt_write_bitstream(rmt_channel_t channel, const uint8_t *src, size_t num_bits, int bit_period)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
@@ -1080,7 +1086,8 @@ esp_err_t rmtStream::rmt_write_bitstream(rmt_channel_t channel, const uint8_t *s
     p_rmt->sample_orig = src;
     p_rmt->sample_size_total = num_bits;
     // driver continues here 
-    p_rmt->sample_to_rmt((void *)src, p_rmt->tx_buf, num_bits, item_block_len, &translated_size, &item_num);
+    p_rmt->bit_period = bit_period;
+    p_rmt->sample_to_rmt((void *)src, p_rmt->tx_buf, num_bits, item_block_len, &translated_size, &item_num, p_rmt->bit_period);
     p_rmt->sample_size_remain = 0; //num_bits - translated_size;
     p_rmt->sample_cur = 0; //src + translated_size;
     rmt_fill_memory(channel, p_rmt->tx_buf, item_num, 0);
