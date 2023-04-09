@@ -268,7 +268,7 @@ bool iwmBus::iwm_decode_data_packet(uint8_t *data, int &n)
 #endif
   portENABLE_INTERRUPTS();
   return true;
-} 
+}
 */
 
 void iwmBus::setup(void)
@@ -524,7 +524,7 @@ void IRAM_ATTR iwmBus::service()
     iwm_ack_deassert(); // go hi-Z
   }                     // switch (phasestate)
 
-    #if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
+#if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
   // check on the diskii status
   switch (iwm_drive_enabled())
   {
