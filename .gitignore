@@ -29,3 +29,4 @@ include/version.h
 test/rmt_copy.cpp
 test/rmt_nec_example.cpp
 test/rmt_tx_example.cpp
+dependencies.lock
