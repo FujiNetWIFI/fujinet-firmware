@@ -41,18 +41,18 @@ jobs:
 
     - name: Create INI ATARI for Build
       if: ${{ matrix.target-platform == 'ATARI' }}
-      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+      run: cp .github/workflows/platformio.ini.${{ matrix.target-platform }} platformio.ini
 
     - name: Create INI ADAM for Build
       if: ${{ matrix.target-platform == 'ADAM' }}
-      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+      run: cp .github/workflows/platformio.ini.${{ matrix.target-platform }} platformio.ini
 
     - name: Create INI APPLE for Build
       if: ${{ matrix.target-platform == 'APPLE' }}
-      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+      run: cp .github/workflows/platformio.ini.${{ matrix.target-platform }} platformio.ini
 
     - name: Show platformio.ini
-      run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+      run: cat platformio.ini
 
     - name: Install espressif32 platform
       run: pio pkg install -p "platformio/espressif32@3.4.0"
