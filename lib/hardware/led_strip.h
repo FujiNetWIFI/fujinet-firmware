@@ -9,10 +9,15 @@
 #define LED_BLINK_TIME 100
 
 #ifndef NUM_LEDS
-#define LED_WIFI_NUM  1
-#define LED_BUS_NUM   2
-#define LED_BT_NUM    3
-#define NUM_LEDS      4
+// Must be defined for compile even if not used
+#define NUM_LEDS            4
+#define LED_DATA_PIN        4
+#define LED_BRIGHTNESS      11
+#define LED_TYPE            WS2812B
+#define RGB_ORDER           GRB
+#define LED_WIFI_NUM        0
+#define LED_BT_NUM          1
+#define LED_BUS_NUM         2
 #endif
 
 enum stripLed
