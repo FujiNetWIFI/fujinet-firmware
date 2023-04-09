@@ -8,6 +8,12 @@
 
 #define LED_BLINK_TIME 100
 
+#ifndef NUM_LEDS
+#define LED_WIFI_NUM  1
+#define LED_BUS_NUM   2
+#define LED_BT_NUM    3
+#define NUM_LEDS      4
+#endif
 
 enum stripLed
 {
