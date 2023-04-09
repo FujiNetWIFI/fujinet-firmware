@@ -17,9 +17,7 @@
 
 #include "httpService.h"
 
-#ifdef LED_STRIP
 #include "led_strip.h"
-#endif
 
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
@@ -76,10 +74,8 @@ void main_setup()
     Debug_printf("Detected Hardware Version: %s\n", fnSystem.get_hardware_ver_str());
 
     fnKeyManager.setup();
-#ifdef LED_STRIP
-    // Start LED Strip before LedManager
-    fnLedStrip.setup();
-#endif
+
+    fnLedStrip.setup(); // start LED Strip before fnLedManager and after check_hardware_ver()
     fnLedManager.setup();
 
     fnSPIFFS.start();
