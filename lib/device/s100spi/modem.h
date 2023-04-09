@@ -12,7 +12,6 @@
 #include "fnTcpClient.h"
 #include "modem-sniffer.h"
 #include "libtelnet.h"
-#include "esp32sshclient.h"
 
 /* Keep strings under 40 characters, for the benefit of 40-column users! */
 #define HELPL01 "       FujiNet Virtual s100spi Modem"
@@ -180,7 +179,6 @@ private:
     bool use_telnet=false;          // Use telnet mode?
     bool do_echo;                   // telnet echo toggle.
     std::string term_type;               // telnet terminal type.
-    ESP32SSHCLIENT ssh;             // ssh instance.
     long answerTimer;
     bool answered=false;
 
