@@ -6,7 +6,12 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/xtensa_api.h"
-#include "driver/gpio.h"
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include <hal/gpio_ll.h>
+#else
+#include <driver/gpio.h>
+#endif
 #include "soc/gpio_periph.h"
 
 FASTLED_NAMESPACE_BEGIN
