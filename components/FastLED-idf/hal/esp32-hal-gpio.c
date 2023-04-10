@@ -23,13 +23,14 @@
 #include "soc/io_mux_reg.h"
 #include "soc/gpio_struct.h"
 #include "soc/rtc_io_reg.h"
+#include "soc/rtc_io_periph.h"
 
 #include "driver/rtc_io.h"
 
-// 
+//
 // NOTE. There was a structure rtc_gpio_desc which described the rtc
 // pins in terms of GPIO pin numbers. In 4.1 this was depricated - although it
-// could be included through menuconfig - in favor of rtc_io_desc, which is 
+// could be included through menuconfig - in favor of rtc_io_desc, which is
 // indexed by the RTC_IO_PIN, which is looked up from gpio pin through rtc_io_num_map.
 // as of 9/2020, have recoded for the new API . This is touched really only in pinMode.
 // The obvious way to cover both 4.0 and 4.1++ is to have two versions of that function,
@@ -103,7 +104,7 @@ static InterruptHandle_t __pinInterruptHandlers[GPIO_PIN_COUNT] = {0,};
 // between 4.0 and 4.1++. You can get the depricated API through a menuconfig
 // setting, or you just code it like this.
 
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,1,0) 
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(4,1,0)
 
 static bool IRAM_ATTR __pinModeLockRTC(uint8_t pin, uint8_t mode) {
 

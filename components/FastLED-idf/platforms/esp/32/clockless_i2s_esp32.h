@@ -18,7 +18,7 @@
  * peripheral to send up to 24 bits in parallel to 24 different pins.
  * Unlike the RMT peripheral the I2S system cannot send bits of
  * different lengths. Instead, we set the I2S data clock fairly high
- * and then encode a signal as a series of bits. 
+ * and then encode a signal as a series of bits.
  *
  * For example, with a clock divider of 10 the data clock will be
  * 8MHz, so each bit is 125ns. The WS2812 expects a "1" bit to be
@@ -94,7 +94,7 @@ FASTLED_NAMESPACE_BEGIN
 #ifdef __cplusplus
 extern "C" {
 #endif
-    
+
 #include "esp_heap_caps.h"
 #include "esp_intr_alloc.h"
 #include "freertos/task.h"
@@ -106,11 +106,19 @@ extern "C" {
 #include "soc/i2s_struct.h"
 #include "soc/io_mux_reg.h"
 #include "driver/gpio.h"
-#include "driver/periph_ctrl.h"
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include <hal/gpio_ll.h>
+#include <rom/gpio.h>
+#include <esp_private/periph_ctrl.h>
+#include "../hal/esp32-hal-gpio.h"
+#else
+#include <driver/periph_ctrl.h>
+#endif
 #include "esp32/rom/lldesc.h"
 
 #include "esp_log.h"
-    
+
 #ifdef __cplusplus
 }
 #endif
@@ -148,7 +156,7 @@ static int gNumStarted = 0;
 
 // -- Global semaphore for the whole show process
 //    Semaphore is not given until all data has been sent
-static xSemaphoreHandle gTX_sem = NULL;
+static SemaphoreHandle_t gTX_sem = NULL;
 
 // -- One-time I2S initialization
 static bool gInitialized = false;
@@ -197,13 +205,13 @@ class ClocklessController : public CPixelLEDController<RGB_ORDER>
 {
     // -- Store the GPIO pin
     gpio_num_t     mPin;
-    
+
     // -- This instantiation forces a check on the pin choice
     FastPin<DATA_PIN> mFastPin;
-    
+
     // -- Save the pixel controller
     PixelController<RGB_ORDER> * mPixels;
-    
+
     // -- Make sure we can't call show() too quickly
     CMinWait<55>   mWait;
 
@@ -212,15 +220,15 @@ class ClocklessController : public CPixelLEDController<RGB_ORDER>
     void init()
     {
         i2sInit();
-        
+
         // -- Allocate space to save the pixel controller
         //    during parallel output
         mPixels = (PixelController<RGB_ORDER> *) malloc(sizeof(PixelController<RGB_ORDER>));
-        
+
         gControllers[gNumControllers] = this;
         int my_index = gNumControllers;
         gNumControllers++;
-        
+
         // -- Set up the pin We have to do two things: configure the
         //    actual GPIO pin, and route the output from the default
         //    pin (determined by the I2S device) to the pin we
@@ -228,23 +236,23 @@ class ClocklessController : public CPixelLEDController<RGB_ORDER>
         //    controller in the array. This order is crucial because
         //    the bits must go into the DMA buffer in the same order.
         mPin = gpio_num_t(DATA_PIN);
-        
+
         PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[DATA_PIN], PIN_FUNC_GPIO);
         gpio_set_direction(mPin, (gpio_mode_t)GPIO_MODE_DEF_OUTPUT);
         pinMode(mPin,OUTPUT);
         gpio_matrix_out(mPin, i2s_base_pin_index + my_index, false, false);
     }
-    
+
     virtual uint16_t getMaxRefreshRate() const { return 400; }
-    
+
 protected:
-   
+
    static int pgcd(int smallest,int precision,int a,int b,int c)
     {
         int pgc_=1;
         for( int i=smallest;i>0;i--)
         {
-            
+
             if( a%i<=precision && b%i<=precision && c%i<=precision)
             {
                 pgc_=i;
@@ -253,7 +261,7 @@ protected:
         }
         return pgc_;
     }
-    
+
     /** Compute pules/bit patterns
      *
      *  This is Yves Bazin's mad code for computing the pulse pattern
@@ -273,11 +281,11 @@ protected:
         uint32_t T1ns = ESPCLKS_TO_NS(T1);
         uint32_t T2ns = ESPCLKS_TO_NS(T2);
         uint32_t T3ns = ESPCLKS_TO_NS(T3);
-        
+
         // print("T1 = "); print(T1); print(" ns "); println(T1ns);
         // print("T2 = "); print(T2); print(" ns "); println(T2ns);
         // print("T3 = "); print(T3); print(" ns "); println(T3ns);
-        
+
         /*
          We calculate the best pcgd to the timing
          ie
@@ -313,19 +321,19 @@ protected:
          ie WS2812B F=1/(250+625+375)=800kHz or 1250ns
          as we need 10 pulses each pulse is 125ns => frequency 800Khz*10=8MHz
          WS2811 T=320+320+641=1281ns qnd we need 4 pulses => pulse duration 320.25ns =>frequency 3.1225605Mhz
-         
+
          */
 
         freq=1000000000L*freq*gPulsesPerBit;
         // printf("needed frequency (nbpiulse per bit)*(chispset frequency):%f Mhz\n",freq/1000000);
-        
+
         /*
          we do calculate the needed N a and b
          as f=basefred/(N+b/a);
          as a is max 63 the precision for the decimal is 1/63
-         
+
          */
-        
+
         CLOCK_DIVIDER_N=(int)((double)I2S_BASE_CLK/freq);
         double v=I2S_BASE_CLK/freq-CLOCK_DIVIDER_N;
 
@@ -355,7 +363,7 @@ protected:
                     CLOCK_DIVIDER_A=a;
                     CLOCK_DIVIDER_B=b;
                 }
-                
+
             }
         }
         //top take care of an issue with double 0.9999999999
@@ -365,7 +373,7 @@ protected:
             CLOCK_DIVIDER_B=0;
             CLOCK_DIVIDER_N++;
         }
-        
+
         //printf("%d %d %f %f %d\n",CLOCK_DIVIDER_B,CLOCK_DIVIDER_A,(double)CLOCK_DIVIDER_B/CLOCK_DIVIDER_A,v,CLOCK_DIVIDER_N);
         //printf("freq %f %f\n",freq,I2S_BASE_CLK/(CLOCK_DIVIDER_N+(double)CLOCK_DIVIDER_B/CLOCK_DIVIDER_A));
         freq=1/(CLOCK_DIVIDER_N+(double)CLOCK_DIVIDER_B/CLOCK_DIVIDER_A);
@@ -374,9 +382,9 @@ protected:
         // double pulseduration=1000000000/freq;
         // printf("Pulse duration: %f ns\n",pulseduration);
         // gPulsesPerBit = (T1ns + T2ns + T3ns)/FASTLED_I2S_NS_PER_PULSE;
-        
+
         //print("Pulses per bit: "); println(gPulsesPerBit);
-        
+
         //int ones_for_one  = ((T1ns + T2ns - 1)/FASTLED_I2S_NS_PER_PULSE) + 1;
         ones_for_one  = T1/pgc_ +T2/pgc_;
         //print("One bit:  target ");
@@ -384,8 +392,8 @@ protected:
         //print(ones_for_one); print(" 1 bits");
         //print(" = "); print(ones_for_one * FASTLED_I2S_NS_PER_PULSE); println("ns");
         // printf("one bit : target %d  ns --- %d  pulses 1 bit = %f ns\n",T1ns+T2ns,ones_for_one ,ones_for_one*pulseduration);
-        
-        
+
+
         int i = 0;
         while ( i < ones_for_one ) {
             gOneBit[i] = 0xFFFFFF00;
@@ -395,7 +403,7 @@ protected:
             gOneBit[i] = 0x00000000;
             i++;
         }
-        
+
         //int ones_for_zero = ((T1ns - 1)/FASTLED_I2S_NS_PER_PULSE) + 1;
         ones_for_zero =T1/pgc_  ;
        // print("Zero bit:  target ");
@@ -412,18 +420,18 @@ protected:
             gZeroBit[i] = 0x00000000;
             i++;
         }
-        
+
         memset(gPixelRow, 0, NUM_COLOR_CHANNELS * 32);
         memset(gPixelBits, 0, NUM_COLOR_CHANNELS * 32);
     }
-    
+
     static DMABuffer * allocateDMABuffer(int bytes)
     {
         DMABuffer * b = (DMABuffer *)heap_caps_malloc(sizeof(DMABuffer), MALLOC_CAP_DMA);
-        
+
         b->buffer = (uint8_t *)heap_caps_malloc(bytes, MALLOC_CAP_DMA);
         memset(b->buffer, 0, bytes);
-        
+
         b->descriptor.length = bytes;
         b->descriptor.size = bytes;
         b->descriptor.owner = 1;
@@ -433,18 +441,18 @@ protected:
         b->descriptor.empty = 0;
         b->descriptor.eof = 1;
         b->descriptor.qe.stqe_next = 0;
-        
+
         return b;
     }
-    
+
     static void i2sInit()
     {
         // -- Only need to do this once
         if (gInitialized) return;
-        
+
         // -- Construct the bit patterns for ones and zeros
         initBitPatterns();
-        
+
         // -- Choose whether to use I2S device 0 or device 1
         //    Set up the various device-specific parameters
         int interruptSource;
@@ -459,12 +467,12 @@ protected:
             interruptSource = ETS_I2S1_INTR_SOURCE;
             i2s_base_pin_index = I2S1O_DATA_OUT0_IDX;
         }
-        
+
         // -- Reset everything
         i2sReset();
         i2sReset_DMA();
         i2sReset_FIFO();
-        
+
         // -- Main configuration
         i2s->conf.tx_msb_right = 1;
         i2s->conf.tx_mono = 0;
@@ -472,50 +480,50 @@ protected:
         i2s->conf.tx_msb_shift = 0;
         i2s->conf.tx_right_first = 1; // 0;//1;
         i2s->conf.tx_slave_mod = 0;
-        
+
         // -- Set parallel mode
         i2s->conf2.val = 0;
         i2s->conf2.lcd_en = 1;
         i2s->conf2.lcd_tx_wrx2_en = 0; // 0 for 16 or 32 parallel output
         i2s->conf2.lcd_tx_sdx2_en = 0; // HN
-        
+
         // -- Set up the clock rate and sampling
         i2s->sample_rate_conf.val = 0;
         i2s->sample_rate_conf.tx_bits_mod = 32; // Number of parallel bits/pins
         i2s->sample_rate_conf.tx_bck_div_num = 1;
         i2s->clkm_conf.val = 0;
         i2s->clkm_conf.clka_en = 0;
-        
+
         // -- Data clock is computed as Base/(div_num + (div_b/div_a))
         //    Base is 80Mhz, so 80/(10 + 0/1) = 8Mhz
         //    One cycle is 125ns
         i2s->clkm_conf.clkm_div_a = CLOCK_DIVIDER_A;
         i2s->clkm_conf.clkm_div_b = CLOCK_DIVIDER_B;
         i2s->clkm_conf.clkm_div_num = CLOCK_DIVIDER_N;
-        
+
         i2s->fifo_conf.val = 0;
         i2s->fifo_conf.tx_fifo_mod_force_en = 1;
         i2s->fifo_conf.tx_fifo_mod = 3;  // 32-bit single channel data
         i2s->fifo_conf.tx_data_num = 32; // fifo length
         i2s->fifo_conf.dscr_en = 1;      // fifo will use dma
-        
+
         i2s->conf1.val = 0;
         i2s->conf1.tx_stop_en = 0;
         i2s->conf1.tx_pcm_bypass = 1;
-        
+
         i2s->conf_chan.val = 0;
         i2s->conf_chan.tx_chan_mod = 1; // Mono mode, with tx_msb_right = 1, everything goes to right-channel
-        
+
         i2s->timing.val = 0;
-        
+
         // -- Allocate two DMA buffers
         dmaBuffers[0] = allocateDMABuffer(32 * NUM_COLOR_CHANNELS * gPulsesPerBit);
         dmaBuffers[1] = allocateDMABuffer(32 * NUM_COLOR_CHANNELS * gPulsesPerBit);
-        
+
         // -- Arrange them as a circularly linked list
         dmaBuffers[0]->descriptor.qe.stqe_next = &(dmaBuffers[1]->descriptor);
         dmaBuffers[1]->descriptor.qe.stqe_next = &(dmaBuffers[0]->descriptor);
-       
+
         // -- Allocate i2s interrupt
         SET_PERI_REG_BITS(I2S_INT_ENA_REG(I2S_DEVICE), I2S_OUT_EOF_INT_ENA_V, 1, I2S_OUT_EOF_INT_ENA_S);
         ESP_ERROR_CHECK(
@@ -524,17 +532,17 @@ protected:
             esp_intr_alloc(interruptSource, 0 /* ESP_INTR_FLAG_IRAM | ESP_INTR_FLAG_LEVEL2 */,
                            &interruptHandler, 0, &gI2S_intr_handle)
         );
-        
+
         // -- Create a semaphore to block execution until all the controllers are done
         if (gTX_sem == NULL) {
             gTX_sem = xSemaphoreCreateBinary();
             xSemaphoreGive(gTX_sem);
         }
-        
+
         // println("Init I2S");
         gInitialized = true;
     }
-    
+
     /** Clear DMA buffer
      *
      *  Yves' clever trick: initialize the bits that we know must be 0
@@ -547,12 +555,12 @@ protected:
             int offset=gPulsesPerBit*i;
             for(int j=0;j<ones_for_zero;j++)
                 buf[offset+j]=0xffffffff;
-            
+
             for(int j=ones_for_one;j<gPulsesPerBit;j++)
                 buf[offset+j]=0;
         }
     }
-    
+
     // -- Show pixels
     //    This is the main entry point for the controller.
     virtual void showPixels(PixelController<RGB_ORDER> & pixels)
@@ -561,19 +569,19 @@ protected:
             // -- First controller: make sure everything is set up
             xSemaphoreTake(gTX_sem, portMAX_DELAY);
         }
-        
+
         // -- Initialize the local state, save a pointer to the pixel
         //    data. We need to make a copy because pixels is a local
         //    variable in the calling function, and this data structure
         //    needs to outlive this call to showPixels.
         (*mPixels) = pixels;
-        
+
         // -- Keep track of the number of strips we've seen
         gNumStarted++;
 
         // print("Show pixels ");
         // println(gNumStarted);
-        
+
         // -- The last call to showPixels is the one responsible for doing
         //    all of the actual work
         if (gNumStarted == gNumControllers) {
@@ -581,37 +589,37 @@ protected:
             empty((uint32_t*)dmaBuffers[1]->buffer);
             gCurBuffer = 0;
             gDoneFilling = false;
-            
+
             // -- Prefill both buffers
             fillBuffer();
             fillBuffer();
-            
+
             // -- Make sure it's been at least 50ms since last show
             mWait.wait();
 
             i2sStart();
-            
+
             // -- Wait here while the rest of the data is sent. The interrupt handler
             //    will keep refilling the DMA buffers until it is all sent; then it
             //    gives the semaphore back.
             xSemaphoreTake(gTX_sem, portMAX_DELAY);
             xSemaphoreGive(gTX_sem);
-            
+
             i2sStop();
-            
+
             mWait.mark();
 
             // -- Reset the counters
             gNumStarted = 0;
         }
     }
-    
+
     // -- Custom interrupt handler
     static IRAM_ATTR void interruptHandler(void *arg)
     {
         if (i2s->int_st.out_eof) {
             i2s->int_clr.val = i2s->int_raw.val;
-            
+
             if ( ! gDoneFilling) {
                 fillBuffer();
             } else {
@@ -621,7 +629,7 @@ protected:
             }
         }
     }
-    
+
     /** Fill DMA buffer
      *
      *  This is where the real work happens: take a row of pixels (one
@@ -633,7 +641,7 @@ protected:
         // -- Alternate between buffers
         volatile uint32_t * buf = (uint32_t *) dmaBuffers[gCurBuffer]->buffer;
         gCurBuffer = (gCurBuffer + 1) % NUM_DMA_BUFFERS;
-        
+
         // -- Get the requested pixel from each controller. Store the
         //    data for each color channel in a separate array.
         uint32_t has_data_mask = 0;
@@ -649,30 +657,30 @@ protected:
                 gPixelRow[2][bit_index] = pController->mPixels->loadAndScale2();
                 pController->mPixels->advanceData();
                 pController->mPixels->stepDithering();
-                
+
                 // -- Record that this controller still has data to send
                 has_data_mask |= (1 << (i+8));
             }
         }
-        
+
         // -- None of the strips has data? We are done.
         if (has_data_mask == 0) {
             gDoneFilling = true;
             return;
         }
-        
+
         // -- Transpose and encode the pixel data for the DMA buffer
         // int buf_index = 0;
         for (int channel = 0; channel < NUM_COLOR_CHANNELS; channel++) {
-            
+
             // -- Tranpose each array: all the bit 7's, then all the bit 6's, ...
             transpose32(gPixelRow[channel], gPixelBits[channel][0] );
-            
+
             //print("Channel: "); print(channel); print(" ");
             for (int bitnum = 0; bitnum < 8; bitnum++) {
                 uint8_t * row = (uint8_t *) (gPixelBits[channel][bitnum]);
                 uint32_t bit = (row[0] << 24) | (row[1] << 16) | (row[2] << 8) | row[3];
-                
+
                /* SZG: More general, but too slow:
                     for (int pulse_num = 0; pulse_num < gPulsesPerBit; pulse_num++) {
                         buf[buf_index++] = has_data_mask & ( (bit & gOneBit[pulse_num]) | (~bit & gZeroBit[pulse_num]) );
@@ -686,7 +694,7 @@ protected:
             }
         }
     }
-    
+
     static void transpose32(uint8_t * pixels, uint8_t * bits)
     {
         transpose8rS32(& pixels[0],  1, 4, & bits[0]);
@@ -694,33 +702,33 @@ protected:
         transpose8rS32(& pixels[16], 1, 4, & bits[2]);
         //transpose8rS32(& pixels[24], 1, 4, & bits[3]);  Can only use 24 bits
     }
-    
+
     /** Transpose 8x8 bit matrix
      *  From Hacker's Delight
      */
     static void transpose8rS32(uint8_t * A, int m, int n, uint8_t * B)
     {
         uint32_t x, y, t;
-        
+
         // Load the array and pack it into x and y.
-        
+
         x = (A[0]<<24)   | (A[m]<<16)   | (A[2*m]<<8) | A[3*m];
         y = (A[4*m]<<24) | (A[5*m]<<16) | (A[6*m]<<8) | A[7*m];
-        
+
         t = (x ^ (x >> 7)) & 0x00AA00AA;  x = x ^ t ^ (t << 7);
         t = (y ^ (y >> 7)) & 0x00AA00AA;  y = y ^ t ^ (t << 7);
-        
+
         t = (x ^ (x >>14)) & 0x0000CCCC;  x = x ^ t ^ (t <<14);
         t = (y ^ (y >>14)) & 0x0000CCCC;  y = y ^ t ^ (t <<14);
-        
+
         t = (x & 0xF0F0F0F0) | ((y >> 4) & 0x0F0F0F0F);
         y = ((x << 4) & 0xF0F0F0F0) | (y & 0x0F0F0F0F);
         x = t;
-        
+
         B[0]=x>>24;    B[n]=x>>16;    B[2*n]=x>>8;  B[3*n]=x;
         B[4*n]=y>>24;  B[5*n]=y>>16;  B[6*n]=y>>8;  B[7*n]=y;
     }
-    
+
     /** Start I2S transmission
      */
     static void i2sStart()
@@ -742,35 +750,35 @@ protected:
         // //vTaskDelay(5);
         i2s->int_ena.val = 0;
         i2s->int_ena.out_eof = 1;
-        
+
         //start transmission
         i2s->conf.tx_start = 1;
     }
-    
+
     static void i2sReset()
     {
         // println("I2S reset");
         const unsigned long lc_conf_reset_flags = I2S_IN_RST_M | I2S_OUT_RST_M | I2S_AHBM_RST_M | I2S_AHBM_FIFO_RST_M;
         i2s->lc_conf.val |= lc_conf_reset_flags;
         i2s->lc_conf.val &= ~lc_conf_reset_flags;
-        
+
         const uint32_t conf_reset_flags = I2S_RX_RESET_M | I2S_RX_FIFO_RESET_M | I2S_TX_RESET_M | I2S_TX_FIFO_RESET_M;
         i2s->conf.val |= conf_reset_flags;
         i2s->conf.val &= ~conf_reset_flags;
     }
-    
+
     static void i2sReset_DMA()
     {
         i2s->lc_conf.in_rst=1; i2s->lc_conf.in_rst=0;
         i2s->lc_conf.out_rst=1; i2s->lc_conf.out_rst=0;
     }
-    
+
     static void i2sReset_FIFO()
     {
         i2s->conf.rx_fifo_reset=1; i2s->conf.rx_fifo_reset=0;
         i2s->conf.tx_fifo_reset=1; i2s->conf.tx_fifo_reset=0;
     }
-    
+
     static void i2sStop()
     {
         // println("I2S stop");

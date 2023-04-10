@@ -829,22 +829,55 @@ LIB8STATIC uint8_t squarewave8( uint8_t in, uint8_t pulsewidth=128)
 
 
 /// Template class for represneting fractional ints.
-template<class T, int F, int I> class q {
-  T i:I;
-  T f:F;
+template<class T, int F, int I>
+class q {
+private:
+    T i:I;
+    T f:F;
+    T data;
+
 public:
-  q(float fx) { i = fx; f = (fx-i) * (1<<F); }
-  q(uint8_t _i, uint8_t _f) {i=_i; f=_f; }
-  uint32_t operator*(uint32_t v) { return (v*i) + ((v*f)>>F); }
-  uint16_t operator*(uint16_t v) { return (v*i) + ((v*f)>>F); }
-  int32_t operator*(int32_t v) { return (v*i) + ((v*f)>>F); }
-  int16_t operator*(int16_t v) { return (v*i) + ((v*f)>>F); }
+    q(float fx) {
+        i = fx;
+        f = (fx - i) * (1 << F);
+    }
+
+    q(uint8_t _i, uint8_t _f) {
+        i = _i;
+        f = _f;
+    }
+
+    uint32_t operator*(uint32_t v) {
+        return (v * i) + ((v * f) >> F);
+    }
+
+    uint16_t operator*(uint16_t v) {
+        return (v * i) + ((v * f) >> F);
+    }
+
+    int32_t operator*(int32_t v) {
+        return (v * i) + ((v * f) >> F);
+    }
+
+    int16_t operator*(int16_t v) {
+        return (v * i) + ((v * f) >> F);
+    }
+
 #ifdef FASTLED_ARM
-  int operator*(int v) { return (v*i) + ((v*f)>>F); }
+    int operator*(int v) {
+        return (v * i) + ((v * f) >> F);
+    }
 #endif
+
 #ifdef FASTLED_APOLLO3
-  int operator*(int v) { return (v*i) + ((v*f)>>F); }
+    int operator*(int v) {
+        return (v * i) + ((v * f) >> F);
+    }
 #endif
+
+    int toInt() {
+        return (int)i + (int)(f >= (1 << (F-1)));
+    }
 };
 
 template<class T, int F, int I> static uint32_t operator*(uint32_t v, q<T,F,I> & q) { return q * v; }
