@@ -212,7 +212,7 @@ void KeyManager::_keystate_task(void *param)
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_A: SHORT PRESS");
 
-#ifdef PINMAP_A2_REV0
+#if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
             if(fnSystem.check_ledstrip())
             {
                 if (fnLedStrip.rainbowTimer > 0)
