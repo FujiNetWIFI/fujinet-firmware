@@ -609,6 +609,26 @@ void SystemManager::check_hardware_ver()
     fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     upcheck = fnSystem.digital_read(PIN_CARD_DETECT);
 
+#ifdef PINMAP_FUJILOAF_REV0
+    /* FujiLoaf has pullup on PIN_GPIOX_INT for GPIO Expander */
+    /*
+    fnSystem.set_pin_mode(PIN_GPIOX_INT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    ledstripupcheck = fnSystem.digital_read(PIN_GPIOX_INT);
+    fnSystem.set_pin_mode(PIN_GPIOX_INT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    ledstripdowncheck = fnSystem.digital_read(PIN_GPIOX_INT);
+
+    if(ledstripdowncheck == ledstripupcheck)
+    {
+        ledstrip = true;
+        Debug_printf("Enabling LED Strip\n");
+    }
+    */
+
+    /* For now, just enable ledstrip for FujiLoaf */
+    ledstrip = true;
+    Debug_printf("Enabling LED Strip\n");
+#endif
+
 #ifdef PINMAP_A2_REV0
     /* Check for LED Strip pullup and enable it if found */
     fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
