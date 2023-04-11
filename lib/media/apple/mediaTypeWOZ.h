@@ -16,6 +16,11 @@ struct TRK_t
     uint32_t bit_count;
 };
 
+enum class disk_diameter_t {
+    WOZ_525,
+    WOZ_35,
+    WOZ_UNKNOWN
+};
 
 class MediaTypeWOZ : public MediaType
 {
@@ -51,6 +56,7 @@ public:
     int num_bits(int t) { return trks[tmap[t]].bit_count; };
     uint8_t optimal_bit_timing;
     // static bool create(FILE *f, uint32_t numBlock);
+    static disk_diameter_t woz_diameter(FILE *f);
 };
 
 

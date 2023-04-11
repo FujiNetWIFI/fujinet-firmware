@@ -76,8 +76,36 @@ bool MediaTypeWOZ::wozX_check_header()
     return false;  
 }
 
+// TODO: move to another place
+disk_diameter_t MediaTypeWOZ::woz_diameter(FILE *f)
+{
+    disk_diameter_t ret = disk_diameter_t::WOZ_UNKNOWN;;
+    fseek(f, 21, SEEK_SET);
+    uint8_t t = fgetc(f);
+    if (t == 1)
+        ret = disk_diameter_t::WOZ_525;
+    else if (t == 2)
+        ret = disk_diameter_t::WOZ_35;
+
+#ifdef DEBUG
+    if (ret == disk_diameter_t::WOZ_UNKNOWN)
+        Debug_printf("\rUNKNOWN disk diameter in WOZ file");
+#endif
+
+    fseek(f, 0, SEEK_SET);
+
+    return ret;
+}
+
 bool MediaTypeWOZ::wozX_read_info()
 {
+    /*
+     Byte	Offset	Type	Vers	Name	Usage
+     12		        uint32		    ‘INFO’ Chunk ID	0x4F464E49
+     16		        uint32		    Chunk Size	Size is always 60.
+     20	    +0	    uint8	  1	    INFO Version	Version number of the INFO chunk. Current version is 3.
+     21	    +1	    uint8	  1	    Disk Type   1 = 5.25, 2 = 3.5
+    */
     if (fseek(_media_fileh, 12, SEEK_SET))
     {
         Debug_printf("\nError seeking INFO chunk");
@@ -90,6 +118,8 @@ bool MediaTypeWOZ::wozX_read_info()
     Debug_printf("\nINFO Chunk size: %d", chunk_size);
     Debug_printf("\nNow at byte %d", ftell(_media_fileh));
     // could read a whole bunch of other stuff  ...
+
+    // todo: disk diameter (5.25" or 3.5"), number of sides (for 3.5" WOZ-2 info chunk)
 
     switch (woz_version)
     {

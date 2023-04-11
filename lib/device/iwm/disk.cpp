@@ -522,10 +522,24 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         break;
       case MEDIATYPE_DSK:
       case MEDIATYPE_WOZ:
+        // figure out if 5.25 or 3.5 image
+        switch (MediaTypeWOZ::woz_diameter(f))
+        {
+        case disk_diameter_t::WOZ_525:
           theFuji._fnDisk2s[disk_num % 2].init();
-          theFuji._fnDisk2s[disk_num % 2].mount(f, disk_type); // modulo to ensure device 0 or 1
-      break;
-    default:
+          mt = theFuji._fnDisk2s[disk_num % 2].mount(f, disk_type); // modulo to ensure device 0 or 1
+          break;
+        case disk_diameter_t::WOZ_35:
+          theFuji._fnDisk35s[disk_num % 2].init();
+          mt = theFuji._fnDisk35s[disk_num % 2].mount(f, disk_type); // modulo to ensure device 0 or 1
+          break;
+        case disk_diameter_t::WOZ_UNKNOWN:
+        default:
+          break;
+        }
+
+        break;
+      default:
         Debug_printf("\r\nMedia Type UNKNOWN - no mount in disk.cpp");
         device_active = false;
         break;
