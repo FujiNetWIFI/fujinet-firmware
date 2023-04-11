@@ -523,7 +523,7 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
       case MEDIATYPE_DSK:
       case MEDIATYPE_WOZ:
         // figure out if 5.25 or 3.5 image
-        switch (MediaTypeWOZ::woz_diameter(f))
+        switch (MediaTypeWOZ::read_woz_diameter(f))
         {
         case disk_diameter_t::WOZ_525:
           theFuji._fnDisk2s[disk_num % 2].init();

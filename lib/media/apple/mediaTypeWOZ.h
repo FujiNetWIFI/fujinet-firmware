@@ -38,6 +38,10 @@ protected:
     TRK_t trks[MAX_TRACKS];
     uint8_t *trk_ptrs[MAX_TRACKS] = { };
 
+    uint8_t number_of_sides;
+    disk_diameter_t disk_type;
+    uint8_t optimal_bit_timing;
+    
 public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
     virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
@@ -54,9 +58,11 @@ public:
     uint8_t *get_track(int t) { return trk_ptrs[tmap[t]]; };
     int track_len(int t) { return trks[tmap[t]].block_count * 512; };
     int num_bits(int t) { return trks[tmap[t]].bit_count; };
-    uint8_t optimal_bit_timing;
+    
     // static bool create(FILE *f, uint32_t numBlock);
-    static disk_diameter_t woz_diameter(FILE *f);
+    static disk_diameter_t read_woz_diameter(FILE *f);
+    disk_diameter_t get_woz_diameter() { return disk_type; };
+    uint8_t get_bit_timing() { return optimal_bit_timing; };
 };
 
 

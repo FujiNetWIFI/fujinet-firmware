@@ -77,7 +77,7 @@ bool MediaTypeWOZ::wozX_check_header()
 }
 
 // TODO: move to another place
-disk_diameter_t MediaTypeWOZ::woz_diameter(FILE *f)
+disk_diameter_t MediaTypeWOZ::read_woz_diameter(FILE *f)
 {
     disk_diameter_t ret = disk_diameter_t::WOZ_UNKNOWN;;
     fseek(f, 21, SEEK_SET);
@@ -111,31 +111,51 @@ bool MediaTypeWOZ::wozX_read_info()
         Debug_printf("\nError seeking INFO chunk");
         return true;
     }
-    uint32_t chunk_id, chunk_size;
-    fread(&chunk_id, sizeof(chunk_id), 1, _media_fileh);
-    Debug_printf("\nINFO Chunk ID: %08x", chunk_id);
-    fread(&chunk_size, sizeof(chunk_size), 1, _media_fileh);
-    Debug_printf("\nINFO Chunk size: %d", chunk_size);
+    uint32_t _chunk_id, _chunk_size;
+    // byte 12
+    fread(&_chunk_id, sizeof(_chunk_id), 1, _media_fileh);
+    Debug_printf("\nINFO Chunk ID: %08x", _chunk_id);
+    // byte 16
+    fread(&_chunk_size, sizeof(_chunk_size), 1, _media_fileh);
+    Debug_printf("\nINFO Chunk size: %d", _chunk_size);
+
+    uint8_t _infoversion, _disktype;
+    // byte 20
+    fread(&_infoversion, sizeof(_infoversion), 1, _media_fileh);
+    // byte 21
+    fread(&_disktype, sizeof(_disktype), 1, _media_fileh);
+    if (_disktype == 1)
+        disk_type = disk_diameter_t::WOZ_525;
+    else if (_disktype == 2)
+        disk_type = disk_diameter_t::WOZ_35;
+    else
+    {    
+        disk_type = disk_diameter_t::WOZ_UNKNOWN;
+        Debug_printf("\rdisk type unknown: %d", disk_type);
+        return true;
+    }
     Debug_printf("\nNow at byte %d", ftell(_media_fileh));
     // could read a whole bunch of other stuff  ...
-
-    // todo: disk diameter (5.25" or 3.5"), number of sides (for 3.5" WOZ-2 info chunk)
 
     switch (woz_version)
     {
     case WOZ1:
         num_blocks = WOZ1_NUM_BLKS; //WOZ1_TRACK_LEN / 512;
         optimal_bit_timing = WOZ1_BIT_TIME; // 4 x 8 x 125 ns = 4 us
+        number_of_sides = 1;
+        if (disk_type == disk_diameter_t::WOZ_35)
+            number_of_sides = 2;
         break;
     case WOZ2:
-        // but jump to offset 44 to get the track size
+        // jump to read number of sides (offset 37 but jumping from offset 2)
+        fseek(_media_fileh, 35, SEEK_CUR);
+        number_of_sides = fgetc(_media_fileh);
+        Debug_printf("\nNumber of sides: %d", number_of_sides);
+        // jump to offset 39 to get bit timing (from offset 37)
+        fgetc(_media_fileh);
+        optimal_bit_timing = fgetc(_media_fileh);
+        Debug_printf("\nWOZ2 Optimal Bit Timing = 125 ns X %d = %d ns",optimal_bit_timing, (int)optimal_bit_timing * 125);
         {
-            // jump to offset 39 to get bit timing
-            fseek(_media_fileh, 39, SEEK_CUR);
-            uint8_t bit_timing;
-            fread(&bit_timing, sizeof(uint8_t), 1, _media_fileh);
-            optimal_bit_timing = bit_timing;
-            Debug_printf("\nWOZ2 Optimal Bit Timing = 125 ns X %d = %d ns",optimal_bit_timing, (int)optimal_bit_timing * 125);
             // and jump to offset 44 to get the track size
             fseek(_media_fileh, 4, SEEK_CUR);
             uint16_t largest_track;
@@ -152,7 +172,7 @@ bool MediaTypeWOZ::wozX_read_info()
 }
 
 bool MediaTypeWOZ::wozX_read_tmap()
-{ // read TMAP
+{ // read TMAP, no change for 3.5" disk
     if (fseek(_media_fileh, 80, SEEK_SET))
     {
         Debug_printf("\nError seeking TMAP chunk");
@@ -177,7 +197,7 @@ bool MediaTypeWOZ::wozX_read_tmap()
 }
 
 bool MediaTypeWOZ::woz1_read_tracks()
-{    // depend upon little endian-ness
+{    // depend upon little endian-ness, seems like no change for 3.5"
     fseek(_media_fileh, 256, SEEK_SET);
 
     // woz1 track data organized as:
@@ -235,7 +255,7 @@ bool MediaTypeWOZ::woz1_read_tracks()
 }
 
 bool MediaTypeWOZ::woz2_read_tracks()
-{    // depend upon little endian-ness
+{    // depend upon little endian-ness, looks like no change for 3.5" disk
     fseek(_media_fileh, 256, SEEK_SET);
     fread(&trks, sizeof(TRK_t), MAX_TRACKS, _media_fileh);
 #ifdef DEBUG
