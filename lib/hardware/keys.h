@@ -41,8 +41,6 @@ public:
     bool keyCurrentlyPressed(eKey key);
     void ignoreKeyPress(eKey key);
 
-    bool has_button_c = false;
-
 private:
     _key_t _keys[eKey::KEY_COUNT];
 
