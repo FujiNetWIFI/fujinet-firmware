@@ -45,6 +45,12 @@ void sioUDPStream::sio_enable_udpstream()
 #ifdef DEBUG
     Debug_println("UDPSTREAM mode ENABLED");
 #endif
+    // Register with the server
+    const char* str = "REGISTER";
+    memcpy(buf_stream, str, strlen(str));
+    udpStream.beginPacket(udpstream_host_ip, udpstream_port); // remote IP and port
+    udpStream.write(buf_stream, strlen(str));
+    udpStream.endPacket();
 }
 
 void sioUDPStream::sio_disable_udpstream()
