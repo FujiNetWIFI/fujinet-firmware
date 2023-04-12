@@ -34,43 +34,52 @@
 
 
 static QueueHandle_t card_detect_evt_queue = NULL;
-static uint32_t card_detect_status = 1; // 1 is no sd card
-
-int _pin_card_detect = 0;
 
 static void IRAM_ATTR card_detect_isr_handler(void *arg)
 {
     // Generic default interrupt handler
-    uint32_t gpio_num = (uint32_t) arg;
+    gpio_num_t gpio_num = (gpio_num_t)(int)arg;
     xQueueSendFromISR(card_detect_evt_queue, &gpio_num, NULL);
-    //Debug_printf("INTERRUPT ON GPIO: %d", arg);
+    //Debug_printf("INTERRUPT ON GPIO: %d", gpio_num);
 }
 
-static void card_detect_intr_task(void* arg)
+static void card_detect_intr_task(void *arg)
 {
-    uint32_t io_num, level;
-
+    // Assert valid initial card status
+    vTaskDelay(1);
     // Set card status before we enter the infinite loop
-    card_detect_status = gpio_get_level((gpio_num_t)_pin_card_detect);
+    int card_detect_status = gpio_get_level((gpio_num_t)(int)arg);
 
-    for(;;) {
-        if(xQueueReceive(card_detect_evt_queue, &io_num, portMAX_DELAY)) {
-            level = gpio_get_level((gpio_num_t)io_num);
-            if (card_detect_status == level)
-            {
+    for (;;) {
+        gpio_num_t gpio_num;
+        if(xQueueReceive(card_detect_evt_queue, &gpio_num, portMAX_DELAY)) {
+            int level = gpio_get_level(gpio_num);
+            if (card_detect_status == level) {
                 printf("SD Card detect ignored (debounce)\n");
             }
-            else if (level == 1){
+            else if (level == 1) {
                 printf("SD Card Ejected, REBOOT!\n");
                 fnSystem.reboot();
             }
-            else{
+            else {
                 printf("SD Card Inserted\n");
                 fnSDFAT.start();
             }
             card_detect_status = level;
         }
     }
+}
+
+static void setup_card_detect(gpio_num_t pin, SystemManager::pull_updown_t pull)
+{
+    // Create a queue to handle card detect event from ISR
+    card_detect_evt_queue = xQueueCreate(10, sizeof(gpio_num_t));
+    // Start card detect task
+    xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, (void *)pin, 10, NULL);
+    // Enable interrupt for card detection
+    fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT, pull, GPIO_INTR_ANYEDGE);
+    // Add the card detect handler
+    gpio_isr_handler_add(pin, card_detect_isr_handler, (void *)pin);
 }
 
 // Global object to manage System
@@ -645,29 +654,13 @@ void SystemManager::check_hardware_ver()
     {
         // v1.6.1 fixed/changed card detect pin
         _hardware_version = 4;
-        _pin_card_detect = PIN_CARD_DETECT_FIX;
-        // Create a queue to handle card detect event from ISR
-        card_detect_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-        // Start card detect task
-        xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, NULL, 10, NULL);
-        // Enable interrupt for card detection
-        fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
-        // Add the card detect handler
-        gpio_isr_handler_add((gpio_num_t)PIN_CARD_DETECT_FIX, card_detect_isr_handler, (void *)PIN_CARD_DETECT_FIX);
+        setup_card_detect(PIN_CARD_DETECT_FIX, SystemManager::pull_updown_t::PULL_NONE);
     }
     else if (upcheck == downcheck)
     {
         // v1.6
         _hardware_version = 3;
-        _pin_card_detect = PIN_CARD_DETECT;
-        // Create a queue to handle card detect event from ISR
-        card_detect_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-        // Start card detect task
-        xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, NULL, 10, NULL);
-        // Enable interrupt for card detection
-        fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
-        // Add the card detect handler
-        gpio_isr_handler_add((gpio_num_t)PIN_CARD_DETECT, card_detect_isr_handler, (void *)PIN_CARD_DETECT);
+        setup_card_detect(PIN_CARD_DETECT, SystemManager::pull_updown_t::PULL_NONE);
     }
     else if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
     {
