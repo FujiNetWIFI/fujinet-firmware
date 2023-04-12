@@ -654,13 +654,13 @@ void SystemManager::check_hardware_ver()
     {
         // v1.6.1 fixed/changed card detect pin
         _hardware_version = 4;
-        setup_card_detect(PIN_CARD_DETECT_FIX, SystemManager::pull_updown_t::PULL_NONE);
+        setup_card_detect((gpio_num_t)PIN_CARD_DETECT_FIX, SystemManager::pull_updown_t::PULL_NONE);
     }
     else if (upcheck == downcheck)
     {
         // v1.6
         _hardware_version = 3;
-        setup_card_detect(PIN_CARD_DETECT, SystemManager::pull_updown_t::PULL_NONE);
+        setup_card_detect((gpio_num_t)PIN_CARD_DETECT, SystemManager::pull_updown_t::PULL_NONE);
     }
     else if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
     {
