@@ -300,23 +300,6 @@ void IRAM_ATTR systemBus::service()
             flags = CLEAR;
         }
 
-        // // Delay to stablelize bus
-        // // If ATN is pulled the bus is still active
-        // protocol->wait( TIMING_STABLE );
-        // if ( flags & ATN_PULLED )
-        // {
-        //     bus_state = BUS_ACTIVE;
-        //     //Debug_printv("bus active");
-        // }
-        // else
-        // {
-        //     fnLedManager.set(eLed::LED_BUS, false);
-        //     bus_state = BUS_IDLE;
-        //     Debug_printv("bus idle");
-        // }
-
-        //release( PIN_IEC_SRQ );
-
         if ( status ( PIN_IEC_ATN ) )
             bus_state = BUS_ACTIVE;
 
@@ -325,8 +308,8 @@ void IRAM_ATTR systemBus::service()
     // Cleanup and Re-enable Interrupt
     //gpio_intr_enable((gpio_num_t)PIN_IEC_ATN);
 
-    Debug_printv ( "primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", data.primary, data.secondary, bus_state, flags );
-    Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
+    //Debug_printv ( "primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", data.primary, data.secondary, bus_state, flags );
+    //Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
 
     Debug_printv("exit");
     release( PIN_IEC_SRQ );
