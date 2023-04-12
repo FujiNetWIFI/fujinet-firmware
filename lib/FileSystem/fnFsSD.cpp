@@ -15,9 +15,9 @@
 
 #include "utils.h"
 
-
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-#define HSPI_HOST SPI3_HOST
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
+#define SDSPI_DEFAULT_DMA 1
 #endif
 
 // Our global SD interface
@@ -414,7 +414,7 @@ bool FileSystemSDFAT::start()
 #endif
     };
 
-    spi_bus_initialize(HSPI_HOST,&bus_cfg,1);
+    spi_bus_initialize(SDSPI_DEFAULT_HOST ,&bus_cfg, SDSPI_DEFAULT_DMA);
 
     // sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
     // slot_config.gpio_cs = SD_HOST_CS;
@@ -424,7 +424,7 @@ bool FileSystemSDFAT::start()
 
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_SD_HOST_CS;
-    slot_config.host_id = SPI2_HOST;
+    slot_config.host_id = SDSPI_DEFAULT_HOST;
 
     // Fat FS configuration options
     esp_vfs_fat_mount_config_t mount_config;
