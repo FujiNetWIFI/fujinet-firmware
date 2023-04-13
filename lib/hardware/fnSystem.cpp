@@ -5,7 +5,9 @@
 #include <freertos/queue.h>
 #include <esp_system.h>
 #include <driver/gpio.h>
-#ifndef CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
+# include <hal/gpio_ll.h>
+#else
 # include <driver/dac.h>
 #endif
 #include <esp_idf_version.h>
@@ -604,6 +606,14 @@ const char *SystemManager::get_hardware_ver_str()
 */
 void SystemManager::check_hardware_ver()
 {
+#ifdef PINMAP_ESP32S3
+
+    if (PIN_CARD_DETECT != GPIO_NUM_NC)
+        setup_card_detect(PIN_CARD_DETECT, SystemManager::pull_updown_t::PULL_UP);
+    _hardware_version = 4;
+
+#else /* PINMAP_ESP32S3 */
+
     int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck;
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
@@ -674,6 +684,8 @@ void SystemManager::check_hardware_ver()
     }
 
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+
+#endif /* PINMAP_ESP32S3 */
 }
 
 // Dumps list of current tasks

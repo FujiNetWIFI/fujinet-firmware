@@ -1,6 +1,8 @@
 #include <esp_system.h>
 #include <nvs_flash.h>
+#ifdef ATARI
 #include <esp32/himem.h>
+#endif
 
 #include "debug.h"
 #include "bus.h"
