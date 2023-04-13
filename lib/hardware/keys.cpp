@@ -18,6 +18,25 @@ static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_
 
 void KeyManager::setup()
 {
+#ifdef PINMAP_ESP32S3
+
+    if (PIN_BUTTON_A != GPIO_NUM_NC)
+    	fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    else
+        _keys[eKey::BUTTON_A].disabled = true;
+
+    if (PIN_BUTTON_B != GPIO_NUM_NC)
+        fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    else
+        _keys[eKey::BUTTON_B].disabled = true;
+
+    if (PIN_BUTTON_C != GPIO_NUM_NC)
+        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    else
+        _keys[eKey::BUTTON_C].disabled = true;
+
+#else /* PINMAP_ESP32S3 */
+
 #ifdef NO_BUTTONS
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
@@ -49,6 +68,8 @@ void KeyManager::setup()
         Debug_println("Safe Reset Button C: ENABLED");
 #endif
     }
+
+#endif /* PINMAP_ESP32S3 */
 
     // Start a new task to check the status of the buttons
     #define KEYS_STACKSIZE 4096
