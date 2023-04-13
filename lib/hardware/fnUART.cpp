@@ -2,6 +2,7 @@
 #include "fnUART.h"
 
 #include <soc/uart_reg.h>
+#include <hal/gpio_types.h>
 
 #include <cstring>
 

@@ -66,7 +66,8 @@ void iecNetwork::iec_open()
     if (!prefix[commanddata->channel].empty())
         deviceSpec[commanddata->channel] += prefix[commanddata->channel];
 
-    deviceSpec[commanddata->channel] += payload;
+    if ( payload != "$" )
+        deviceSpec[commanddata->channel] += payload;
 
     channelMode[commanddata->channel] = PROTOCOL;
 
