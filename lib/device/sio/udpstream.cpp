@@ -8,6 +8,8 @@
 #include "fnSystem.h"
 #include "utils.h"
 
+uint16_t packet_seq = 0;
+
 void sioUDPStream::sio_enable_udpstream()
 {
     if (udpstream_port == MIDI_PORT)
@@ -51,6 +53,12 @@ void sioUDPStream::sio_enable_udpstream()
     udpStream.beginPacket(udpstream_host_ip, udpstream_port); // remote IP and port
     udpStream.write(buf_stream, strlen(str));
     udpStream.endPacket();
+    // number the outgoing packet for the server to handle sequencing
+    packet_seq = 0;
+    buf_stream_index = 0;
+    packet_seq += 1;
+    *(uint16_t *)buf_stream = packet_seq;
+    buf_stream_index += 2;
 }
 
 void sioUDPStream::sio_disable_udpstream()
@@ -111,7 +119,7 @@ void sioUDPStream::sio_handle_udpstream()
             }
         }
 
-        // Send what we've collected over WiFi
+        // Send what we've collected
         udpStream.beginPacket(udpstream_host_ip, udpstream_port); // remote IP and port
         udpStream.write(buf_stream, buf_stream_index);
         udpStream.endPacket();
@@ -120,7 +128,11 @@ void sioUDPStream::sio_handle_udpstream()
         Debug_print("UDP-OUT: ");
         util_dump_bytes(buf_stream, buf_stream_index);
 #endif
+        // number the outgoing packet for the server to handle sequencing
         buf_stream_index = 0;
+        packet_seq += 1;
+        *(uint16_t *)buf_stream = packet_seq;
+        buf_stream_index += 2;
     }
 }
 
