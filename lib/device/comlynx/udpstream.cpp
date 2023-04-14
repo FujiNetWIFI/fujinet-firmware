@@ -8,6 +8,8 @@
 #include "fnSystem.h"
 #include "utils.h"
 
+uint16_t packet_seq = 0;
+
 void lynxUDPStream::comlynx_enable_udpstream()
 {
     // Open the UDP connection
@@ -17,6 +19,18 @@ void lynxUDPStream::comlynx_enable_udpstream()
 #ifdef DEBUG
     Debug_println("UDPSTREAM mode ENABLED");
 #endif
+    // Register with the server
+    const char* str = "REGISTER";
+    memcpy(buf_stream, str, strlen(str));
+    udpStream.beginPacket(udpstream_host_ip, udpstream_port); // remote IP and port
+    udpStream.write(buf_stream, strlen(str));
+    udpStream.endPacket();
+    // number the outgoing packet for the server to handle sequencing
+    packet_seq = 0;
+    buf_stream_index = 0;
+    packet_seq += 1;
+    *(uint16_t *)buf_stream = packet_seq;
+    buf_stream_index += 2;
 }
 
 void lynxUDPStream::comlynx_disable_udpstream()
@@ -74,7 +88,11 @@ void lynxUDPStream::comlynx_handle_udpstream()
         Debug_print("UDP-OUT: ");
         util_dump_bytes(buf_stream, buf_stream_index);
 #endif
+        // number the outgoing packet for the server to handle sequencing
         buf_stream_index = 0;
+        packet_seq += 1;
+        *(uint16_t *)buf_stream = packet_seq;
+        buf_stream_index += 2;
     }
 }
 
