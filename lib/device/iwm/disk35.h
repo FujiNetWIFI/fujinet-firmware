@@ -20,7 +20,7 @@ protected:
     void iwm_readblock(iwm_decoded_cmd_t cmd) override {};
     void iwm_writeblock(iwm_decoded_cmd_t cmd) override {};
    
-    void shutdown() override;
+    void shutdown() override { unmount(); };
     char disk_num;
     bool enabled;
     int track_pos;
@@ -28,21 +28,21 @@ protected:
     uint8_t oldphases;
 
 public:
-    iwmDisk35();
-    void init();
+    iwmDisk35() {};
+    void init(); // modify for disk35
     mediatype_t mount(FILE *f, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
-    void unmount();
+    void unmount() { _disk->unmount(); };
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
-    int get_track_pos() { return track_pos; };
-    bool phases_valid(uint8_t phases);
-    bool move_head();
-    void change_track(int indicator);
+    int get_track_pos() { return track_pos; }; 
+    bool phases_valid(uint8_t phases); // not sure we need this
+    bool move_head(); // very different for disk35
+    void change_track(int indicator); // i think this is the same for disk2 and disk35
     
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
-    ~iwmDisk35();
+    ~iwmDisk35() { shutdown(); };
 };
 
 #endif

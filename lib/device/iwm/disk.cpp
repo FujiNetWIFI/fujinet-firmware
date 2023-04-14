@@ -530,11 +530,14 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
           mt = theFuji._fnDisk2s[disk_num % 2].mount(f, disk_type); // modulo to ensure device 0 or 1
           break;
         case disk_diameter_t::WOZ_35:
-          theFuji._fnDisk35s[disk_num % 2].init();
-          mt = theFuji._fnDisk35s[disk_num % 2].mount(f, disk_type); // modulo to ensure device 0 or 1
+          Debug_printf("\n3.5\" Disk not supported");
+          //theFuji._fnDisk35s[disk_num % 2].init();
+          //mt = theFuji._fnDisk35s[disk_num % 2].mount(f, disk_type); // modulo to ensure device 0 or 1
+          device_active = false;
           break;
         case disk_diameter_t::WOZ_UNKNOWN:
         default:
+          device_active = false;
           break;
         }
 

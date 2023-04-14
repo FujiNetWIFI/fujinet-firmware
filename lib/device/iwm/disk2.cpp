@@ -13,10 +13,13 @@ const int8_t seq2steps[8] = {0, 1, 2, 3, 0, -3, -2, -1};
 
 iwmDisk2::~iwmDisk2()
 {
+  // not sure if ever called
+  shutdown();
 }
 
 void iwmDisk2::shutdown()
 {
+  unmount();
 }
 
 iwmDisk2::iwmDisk2()
@@ -78,7 +81,7 @@ mediatype_t iwmDisk2::mount(FILE *f, mediatype_t disk_type)//, const char *filen
 
 void iwmDisk2::unmount()
 {
-
+  _disk->unmount();
 }
 
 bool iwmDisk2::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)

@@ -197,7 +197,7 @@ public:
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
     iwmDisk2 _fnDisk2s[MAX_DISK2_DEVICES];
-    iwmDisk35 _fnDisk35s[MAX_DISK35_DEVICES];
+    // iwmDisk35 _fnDisk35s[MAX_DISK35_DEVICES];
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();
