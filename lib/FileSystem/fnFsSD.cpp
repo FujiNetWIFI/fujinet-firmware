@@ -5,6 +5,9 @@
 
 #include <esp_vfs.h>
 #include <esp_vfs_fat.h>
+#include <driver/sdmmc_host.h>
+#include <esp_rom_gpio.h>
+#include <soc/sdmmc_periph.h>
 
 #include <algorithm>
 #include <memory>
@@ -396,6 +399,38 @@ bool FileSystemSDFAT::start()
     // Set our basepath
     strlcpy(_basepath, "/sd", sizeof(_basepath));
 
+    // Fat FS configuration options
+    esp_vfs_fat_mount_config_t mount_config;
+    mount_config.format_if_mount_failed = false;
+    mount_config.max_files = 16;
+
+    // This is the information we'll be given in return
+    sdmmc_card_t *sdcard_info;
+
+#ifdef SDMMC_HOST_WIDTH
+
+    sdmmc_host_t host_config = SDMMC_HOST_DEFAULT();
+
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+    slot_config.width = SDMMC_HOST_WIDTH;
+    slot_config.clk = PIN_SD_HOST_CLK;
+    slot_config.cmd = PIN_SD_HOST_CMD;
+    slot_config.d0  = PIN_SD_HOST_D0;
+    slot_config.d1  = PIN_SD_HOST_D1;
+    slot_config.d2  = PIN_SD_HOST_D2;
+    slot_config.d3  = PIN_SD_HOST_D3;
+    slot_config.wp  = PIN_SD_HOST_WP;
+
+    esp_err_t e = esp_vfs_fat_sdmmc_mount(_basepath, &host_config, &slot_config, &mount_config, &sdcard_info);
+
+#if SDMMC_HOST_WP_LEVEL
+    // Override WP routing of GPIO to SDMMC peripheral in order to omit inversion - the original routing is located at
+    // https://github.com/espressif/esp-idf/blob/51772f4fb5c2bbe25b60b4a51d707fa2afd3ac75/components/driver/sdmmc/sdmmc_host.c#L508-L510
+    esp_rom_gpio_connect_in_signal(PIN_SD_HOST_WP, sdmmc_slot_info[host_config.slot].write_protect, false);
+#endif
+
+#else /* SDMMC_HOST_WIDTH */
+
     // Set up a configuration to the SD host interface
     sdmmc_host_t host_config = SDSPI_HOST_DEFAULT(); 
 
@@ -416,33 +451,13 @@ bool FileSystemSDFAT::start()
 
     spi_bus_initialize(SDSPI_DEFAULT_HOST ,&bus_cfg, SDSPI_DEFAULT_DMA);
 
-    // sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
-    // slot_config.gpio_cs = SD_HOST_CS;
-    // slot_config.gpio_miso = SD_HOST_MISO;
-    // slot_config.gpio_mosi = SD_HOST_MOSI;
-    // slot_config.gpio_sck = SD_HOST_SCK;
-
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_SD_HOST_CS;
     slot_config.host_id = SDSPI_DEFAULT_HOST;
 
-    // Fat FS configuration options
-    esp_vfs_fat_mount_config_t mount_config;
-    mount_config.format_if_mount_failed = false;
-    mount_config.max_files = 16;
-
-    // This is the information we'll be given in return
-    sdmmc_card_t *sdcard_info;
-
-    // esp_err_t e = esp_vfs_fat_sdmmc_mount(
-    //     _basepath,
-    //     &host_config,
-    //     &slot_config,
-    //     &mount_config,
-    //     &sdcard_info
-    // );
-
     esp_err_t e = esp_vfs_fat_sdspi_mount(_basepath, &host_config, &slot_config, &mount_config, &sdcard_info);
+
+#endif /* SDMMC_HOST_WIDTH */
 
     if(e == ESP_OK)
     {
