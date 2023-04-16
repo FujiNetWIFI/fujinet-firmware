@@ -72,14 +72,14 @@ static void card_detect_intr_task(void *arg)
     }
 }
 
-static void setup_card_detect(gpio_num_t pin, SystemManager::pull_updown_t pull)
+static void setup_card_detect(gpio_num_t pin)
 {
     // Create a queue to handle card detect event from ISR
     card_detect_evt_queue = xQueueCreate(10, sizeof(gpio_num_t));
     // Start card detect task
     xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, (void *)pin, 10, NULL);
     // Enable interrupt for card detection
-    fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT, pull, GPIO_INTR_ANYEDGE);
+    fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
     // Add the card detect handler
     gpio_isr_handler_add(pin, card_detect_isr_handler, (void *)pin);
 }
@@ -609,7 +609,7 @@ void SystemManager::check_hardware_ver()
 #ifdef PINMAP_ESP32S3
 
     if (PIN_CARD_DETECT != GPIO_NUM_NC)
-        setup_card_detect(PIN_CARD_DETECT, SystemManager::pull_updown_t::PULL_UP);
+        setup_card_detect(PIN_CARD_DETECT);
     _hardware_version = 4;
 
 #else /* PINMAP_ESP32S3 */
@@ -664,13 +664,13 @@ void SystemManager::check_hardware_ver()
     {
         // v1.6.1 fixed/changed card detect pin
         _hardware_version = 4;
-        setup_card_detect((gpio_num_t)PIN_CARD_DETECT_FIX, SystemManager::pull_updown_t::PULL_NONE);
+        setup_card_detect((gpio_num_t)PIN_CARD_DETECT_FIX);
     }
     else if (upcheck == downcheck)
     {
         // v1.6
         _hardware_version = 3;
-        setup_card_detect((gpio_num_t)PIN_CARD_DETECT, SystemManager::pull_updown_t::PULL_NONE);
+        setup_card_detect((gpio_num_t)PIN_CARD_DETECT);
     }
     else if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
     {
