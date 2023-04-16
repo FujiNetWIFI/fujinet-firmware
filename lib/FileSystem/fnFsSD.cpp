@@ -6,6 +6,8 @@
 #include <esp_vfs.h>
 #include <esp_vfs_fat.h>
 #include <driver/sdmmc_host.h>
+#include <esp_rom_gpio.h>
+#include <soc/sdmmc_periph.h>
 
 #include <algorithm>
 #include <memory>
@@ -420,6 +422,12 @@ bool FileSystemSDFAT::start()
     slot_config.wp  = PIN_SD_HOST_WP;
 
     esp_err_t e = esp_vfs_fat_sdmmc_mount(_basepath, &host_config, &slot_config, &mount_config, &sdcard_info);
+
+#if SDMMC_HOST_WP_LEVEL
+    // Override WP routing of GPIO to SDMMC peripheral in order to omit inversion - the original routing is located at
+    // https://github.com/espressif/esp-idf/blob/51772f4fb5c2bbe25b60b4a51d707fa2afd3ac75/components/driver/sdmmc/sdmmc_host.c#L508-L510
+    esp_rom_gpio_connect_in_signal(PIN_SD_HOST_WP, sdmmc_slot_info[host_config.slot].write_protect, false);
+#endif
 
 #else /* SDMMC_HOST_WIDTH */
 
