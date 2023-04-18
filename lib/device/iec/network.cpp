@@ -161,13 +161,7 @@ void iecNetwork::iec_open()
     }
     else
     {
-        NetworkStatus ns;
-
-        protocol[commanddata->channel]->status(&ns);
-        iecStatus.channel = commanddata->channel;
-        iecStatus.error = NETWORK_ERROR_SUCCESS;
-        iecStatus.connected = true;
-        iecStatus.msg = "opened";
+        // removed.
     }
 
     if (!login[commanddata->channel].empty())
