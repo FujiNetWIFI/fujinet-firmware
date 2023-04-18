@@ -467,32 +467,52 @@ void rc2014Network::set_prefix(unsigned short s)
 /**
  * Set login
  */
-void rc2014Network::set_login(uint16_t s)
+void rc2014Network::set_login()
 {
-    uint8_t loginspec[256];
+    uint8_t loginspec[USERNAME_BUFFER_SIZE];
+    uint16_t num_bytes = cmdFrame.aux1;
 
+    Debug_printf("rc2014Network::set_login()\n");
+
+    rc2014_send_ack();
     memset(loginspec, 0, sizeof(loginspec));
 
-    rc2014_recv_buffer(loginspec, s);
-    rc2014_send_ack();
+    if (num_bytes > 0) {
+        auto rlen = rc2014_recv_buffer(loginspec, num_bytes);
+        Debug_printf("rc2014Network::set_login read %d (of %d)\n", rlen, num_bytes);
+        rc2014_send_ack();
 
-    login = string((char *)loginspec, s);
+        login = string((char *)loginspec, num_bytes);
+        Debug_printf("rc2014Network::set_login %s\n", login.c_str());
+    } else {
+        login = "";
+        Debug_printf("rc2014Network::set_login emptied\n");
+    }
     rc2014_send_complete();
 }
 
 /**
  * Set password
  */
-void rc2014Network::set_password(uint16_t s)
+void rc2014Network::set_password()
 {
-    uint8_t passwordspec[256];
+    uint8_t passwordspec[PASSWORD_BUFFER_SIZE];
+    uint16_t num_bytes = cmdFrame.aux1;
 
+    Debug_printf("rc2014Network::set_password()\n");
+    rc2014_send_ack();
     memset(passwordspec, 0, sizeof(passwordspec));
 
-    rc2014_recv_buffer(passwordspec, s);
-    rc2014_send_ack();
+    if (num_bytes > 0) {
+        rc2014_recv_buffer(passwordspec, num_bytes);
+        rc2014_send_ack();
 
-    password = string((char *)passwordspec, s);
+        password = string((char *)passwordspec, num_bytes);
+        Debug_printf("rc2014Network::set_password %s\n", password.c_str());
+    } else {
+        password = "";
+        Debug_printf("rc2014Network::set_login emptied\n");
+    }
     rc2014_send_complete();
 }
 
@@ -534,6 +554,12 @@ void rc2014Network::rc2014_process(uint32_t commanddata, uint8_t checksum)
         break;
     case 0xFC:
         rc2014_set_channel_mode();
+        break;
+    case 0xFD:
+        set_login();
+        break;
+    case 0xFE:
+        set_password();
         break;
     default:
         Debug_printf("rc2014 network: unimplemented command: 0x%02x", cmdFrame.comnd);
