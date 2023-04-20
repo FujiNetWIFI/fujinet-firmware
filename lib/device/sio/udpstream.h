@@ -11,6 +11,7 @@
 
 #define UDPSTREAM_BUFFER_SIZE 8192
 #define UDPSTREAM_PACKET_TIMEOUT 5000
+#define UDPSTREAM_KEEPALIVE_TIMEOUT 250000      // MIDI Keep Alive is 300ms
 #define MIDI_PORT 5004
 #define MIDI_BAUD 31250
 
@@ -23,6 +24,8 @@ private:
     uint8_t buf_stream[UDPSTREAM_BUFFER_SIZE];
 
     uint8_t buf_stream_index=0;
+
+    uint32_t start = (uint32_t)esp_timer_get_time(); // Keep alive timer
 
     void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
