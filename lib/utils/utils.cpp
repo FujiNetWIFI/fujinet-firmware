@@ -498,7 +498,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
     return true;
 }
 
-void util_dump_bytes(uint8_t *buff, uint32_t buff_size)
+void util_dump_bytes(const uint8_t *buff, uint32_t buff_size)
 {
     int bytes_per_line = 16;
     for (int j = 0; j < buff_size; j += bytes_per_line)

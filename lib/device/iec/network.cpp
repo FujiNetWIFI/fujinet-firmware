@@ -66,7 +66,8 @@ void iecNetwork::iec_open()
     if (!prefix[commanddata->channel].empty())
         deviceSpec[commanddata->channel] += prefix[commanddata->channel];
 
-    deviceSpec[commanddata->channel] += payload;
+    if ( payload != "$" )
+        deviceSpec[commanddata->channel] += payload;
 
     channelMode[commanddata->channel] = PROTOCOL;
 
@@ -160,13 +161,7 @@ void iecNetwork::iec_open()
     }
     else
     {
-        NetworkStatus ns;
-
-        protocol[commanddata->channel]->status(&ns);
-        iecStatus.channel = commanddata->channel;
-        iecStatus.error = NETWORK_ERROR_SUCCESS;
-        iecStatus.connected = true;
-        iecStatus.msg = "opened";
+        // removed.
     }
 
     if (!login[commanddata->channel].empty())
