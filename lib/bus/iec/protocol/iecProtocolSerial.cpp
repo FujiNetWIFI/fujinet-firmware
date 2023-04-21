@@ -36,10 +36,6 @@ IecProtocolSerial::~IecProtocolSerial()
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
 bool IecProtocolSerial::sendBits ( uint8_t data )
 {
-    // Prepare IO Lines
-    IEC.set_pin_mode( PIN_IEC_CLK_IN,  gpio_mode_t::GPIO_MODE_OUTPUT );
-    IEC.set_pin_mode( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_OUTPUT );
-
     // Send bits
     for ( uint8_t n = 0; n < 8; n++ )
     {
@@ -93,10 +89,6 @@ int16_t IecProtocolSerial::receiveBits ()
 
     uint8_t n = 0;
 
-    // Prepare IO Lines
-    IEC.status( PIN_IEC_CLK_IN );
-    IEC.status( PIN_IEC_DATA_IN );
-
     for ( n = 0; n < 8; n++ )
     {
         data >>= 1;
@@ -110,7 +102,7 @@ int16_t IecProtocolSerial::receiveBits ()
             /* If there is a delay before the last bit, the controller uses JiffyDOS */
             if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
             {
-                if ( IEC.status( PIN_IEC_ATN ) == PULLED && data < 0x60 )
+                if ( IEC.status ( PIN_IEC_ATN ) == PULLED && data < 0x60 )
                 {
                     IEC.flags |= ATN_PULLED;
 
@@ -378,7 +370,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
     }
     //else
     //{
-        wait ( TIMING_Tbb, 0, false );
+        wait ( TIMING_Tbb );
     //}
 
     // Let bus stabalize
