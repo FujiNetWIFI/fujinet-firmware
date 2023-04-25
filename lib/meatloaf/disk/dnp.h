@@ -19,14 +19,33 @@ class DNPIStream : public D64IStream {
 public:
     DNPIStream(std::shared_ptr<MStream> is) : D64IStream(is) 
     {
-        // DNP Offsets
-        directory_header_offset = {1, 0, 0x04};
-        directory_list_offset = {1, 0, 0x20}; // Read this offset to get t/s link to start of directory
-        block_allocation_map = { {1, 2, 0x10, 1, 255, 8} };
+        // DNP Partition Info
+        std::vector<BlockAllocationMap> b = { 
+            {
+                1,      // track
+                2,      // sector
+                0x10,   // offset
+                1,      // start_track
+                255,    // end_track
+                8       // byte_count
+            } 
+        };
+
+        Partition p = {
+            1,     // track
+            0,     // sector
+            0x04,  // header_offset
+            1,     // directory_track
+            0,     // directory_sector
+            0x20,  // directory_offset
+            b      // block_allocation_map
+        };
+        partitions.clear();
+        partitions.push_back(p);
         sectorsPerTrack = { 255 };
+        block_size = 256;
     };
 
-    //virtual uint16_t blocksFree() override;
 	virtual uint8_t speedZone( uint8_t track) override { return 0; };
 
 protected:

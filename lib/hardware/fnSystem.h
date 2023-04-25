@@ -25,6 +25,7 @@ private:
     char _currenttime_string[40];
     int _hardware_version = 0; // unknown
     bool a2spifix = false;
+    bool ledstrip = false;
 
 public:
     SystemManager();
@@ -125,6 +126,7 @@ public:
     const char *get_hardware_ver_str();
 
     bool check_spifix() { return a2spifix; };
+    bool check_ledstrip() { return ledstrip; };
 };
 
 extern SystemManager fnSystem;

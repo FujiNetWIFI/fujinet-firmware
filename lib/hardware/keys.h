@@ -16,7 +16,7 @@ enum eKey
 
 enum eKeyStatus
 {
-    DISABLED,
+    DISABLE,
     INACTIVE,
     DOUBLE_TAP,
     SHORT_PRESS,

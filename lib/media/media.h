@@ -14,7 +14,7 @@
 #endif
 
 #ifdef BUILD_IEC
-# include "iec/mediaType.h"
+# include "cbm/mediaType.h"
 #endif
 
 #ifdef BUILD_ADAM
