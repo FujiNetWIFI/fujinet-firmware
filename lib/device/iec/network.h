@@ -73,6 +73,11 @@ class iecNetwork : public virtualDevice
     private:
 
     /**
+     * @brief the SRQ interrupt task handle
+     */
+    TaskHandle_t srqTaskHandle;
+    
+    /**
      * @brief the active URL for each channel
      */
     string deviceSpec[NUM_CHANNELS];
