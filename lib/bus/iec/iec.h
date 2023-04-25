@@ -344,14 +344,16 @@ public:
      * @brief Send bytes to bus
      * @param buf buffer to send
      * @param len length of buffer
+     * @return true on success, false on error
      */
-    void sendBytes(const char *buf, size_t len);
+    bool sendBytes(const char *buf, size_t len);
 
     /**
      * @brief Send string to bus
      * @param s std::string to send
+     * @return true on success, false on error
      */
-    void sendBytes(std::string s);
+    bool sendBytes(std::string s);
 
     /**
      * @brief Receive Byte from bus
@@ -363,8 +365,9 @@ public:
      * @brief send single byte
      * @param c byte to send
      * @param eoi Send EOI?
+     * @return true on success, false on error
     */
-   void sendByte(const char c, bool eoi);
+   bool sendByte(const char c, bool eoi = false);
 
     /**
      * @brief called in response to RESET pin being asserted.
