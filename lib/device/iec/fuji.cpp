@@ -1476,9 +1476,10 @@ void iecFuji::setup(systemBus *siobus)
 
     _populate_slots_from_config();
 
-    IEC.addDevice(this, 0x0F);
+    IEC.addDevice(new iecDisk(), 8);
     IEC.addDevice(new iecNetwork(), 12);
     IEC.addDevice(new iecCpm(), 14);
+    IEC.addDevice(this, 0x0F);
 }
 
 iecDisk *iecFuji::bootdisk()

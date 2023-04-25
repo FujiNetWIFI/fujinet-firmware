@@ -144,7 +144,7 @@ int16_t systemBus::receiveByte()
     return b;
 }
 
-void systemBus::sendByte(const char c, bool eoi)
+bool systemBus::sendByte(const char c, bool eoi)
 {
     if ( !protocol->sendByte(c, eoi) )
     {
@@ -153,11 +153,13 @@ void systemBus::sendByte(const char c, bool eoi)
             IEC.flags |= ERROR;
             releaseLines();
             Debug_printv("error");
+            return false;
         }
     }
+    return true;
 }
 
-void systemBus::sendBytes(const char *buf, size_t len)
+bool systemBus::sendBytes(const char *buf, size_t len)
 {
     bool success = false;
     for (size_t i = 0; i < len; i++)
@@ -175,14 +177,15 @@ void systemBus::sendBytes(const char *buf, size_t len)
                 releaseLines();
                 Debug_printv("error");
             }
-            return;
+            return false;
         }
     }
+    return true;
 }
 
-void systemBus::sendBytes(std::string s)
+bool systemBus::sendBytes(std::string s)
 {
-    sendBytes(s.c_str(), s.size());
+    return sendBytes(s.c_str(), s.size());
 }
 
 void systemBus::process_cmd()

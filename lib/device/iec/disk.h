@@ -11,10 +11,15 @@
 #include "meat_io.h"
 #include "meat_buffer.h"
 
+#define PRODUCT_ID "MEATLOAF CBM"
+
 class iecDisk : public virtualDevice
 {
 private:
-    MediaType *_disk = nullptr;
+    //MediaType *_disk = nullptr;
+
+    std::unique_ptr<MFile> _disk; // Always points to current directory/image
+    std::string _file;         // Always points to current or last loaded file
 
     // Named Channel functions
     std::shared_ptr<MStream> currentStream;
@@ -22,11 +27,16 @@ private:
     std::shared_ptr<MStream> retrieveStream ( void );
     bool closeStream ( bool close_all = false );
 
-    // This is set after an open command and determines what to send next
-    uint8_t m_openState;
+    // Directory
+	uint16_t sendHeader(std::string header, std::string id);
+	uint16_t sendLine(uint16_t blocks, char *text);
+	uint16_t sendLine(uint16_t blocks, const char *format, ...);
+	uint16_t sendFooter();
+	void sendListing();
 
-    std::unique_ptr<MFile> m_mfile; // Always points to current directory
-    std::string m_filename; // Always points to current or last loaded file
+    // File
+	bool sendFile();
+	bool saveFile();
 
     struct _error_response
     {
@@ -54,7 +64,7 @@ public:
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
-    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+    //mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
     std::unordered_map<uint16_t, std::shared_ptr<MStream>> streams;
 
