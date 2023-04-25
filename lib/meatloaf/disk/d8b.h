@@ -1,5 +1,5 @@
 // .D8B - Backbit D8B disk format
-// https://www.backbit.io/downloads/Docs/BackBit%20Cartridge%20Documentation.pdf#page=9
+// https://www.backbit.io/downloads/Docs/BackBit%20Cartridge%20Documentation.pdf#page=20
 // https://github.com/evietron/BackBit-Tool
 //
 
@@ -20,14 +20,33 @@ class D8BIStream : public D64IStream {
 public:
     D8BIStream(std::shared_ptr<MStream> is) : D64IStream(is)
     {
-        // D8B Offsets
-        directory_header_offset = {1, 0, 0x04};
-        directory_list_offset = {1, 4, 0x00};
-        block_allocation_map = { {1, 1, 0x00, 1, 40, 18} };
+        // D8B Partition Info
+        std::vector<BlockAllocationMap> b = { 
+            {
+                1,      // track
+                1,      // sector
+                0x00,   // offset
+                1,      // start_track
+                40,     // end_track
+                18      // byte_count
+            } 
+        };
+
+        Partition p = {
+            1,     // track
+            0,     // sector
+            0x04,  // header_offset
+            1,     // directory_track
+            4,     // directory_sector
+            0x00,  // directory_offset
+            b      // block_allocation_map
+        };
+        partitions.clear();
+        partitions.push_back(p);
         sectorsPerTrack = { 136 };
+        block_size = 256;
     };
 
-    //virtual uint16_t blocksFree() override;
 	virtual uint8_t speedZone( uint8_t track) override { return 0; };
 
 protected:

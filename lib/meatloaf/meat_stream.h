@@ -51,6 +51,7 @@ public:
     virtual uint32_t read(uint8_t* buf, uint32_t size) = 0;
 
     uint8_t secondaryAddress = 0;
+    std::string url = "";
 
     virtual bool seek(uint32_t pos, int mode) {
         if(mode == SEEK_SET) {

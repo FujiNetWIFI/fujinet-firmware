@@ -9,6 +9,8 @@
 
 #include "make_unique.h"
 
+#include "device_db.h"
+
 #include <dirent.h>
 #include <string.h>
 
@@ -41,7 +43,7 @@ public:
     std::string basepath = "";
     
     FlashFile(std::string path) {
-        //basepath = device_config.basepath();
+        basepath = device_config.basepath();
 
         parseUrl( path );
 
@@ -125,6 +127,7 @@ public:
     FlashIStream(std::string& path) {
         localPath = path;
         handle = std::make_unique<FlashHandle>();
+        url = path;
     }
     ~FlashIStream() override {
         close();

@@ -37,6 +37,7 @@ MStream* HttpFile::meatStream() {
     //Debug_printv("Input stream requested: [%s]", url.c_str());
     MStream* istream = new HttpIStream(url);
     istream->open();
+
     return istream;
 }
 
@@ -120,14 +121,15 @@ bool HttpFile::isText() {
  * Istream impls
  ********************************************************/
 bool HttpIStream::open() {
+    bool r = false;
     if(secondaryAddress == 0)
-        return m_http.GET(url);
+        r = m_http.GET(url);
     else if(secondaryAddress == 1)
-        return m_http.PUT(url);
+        r = m_http.PUT(url);
     else if(secondaryAddress == 2)
-        return m_http.POST(url);
+        r = m_http.POST(url);
 
-    return false;
+    return r;
 }
 
 void HttpIStream::close() {
@@ -356,7 +358,7 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
         .keep_alive_interval = 1
     };
 
-    Debug_printv("HTTP Init [%s]", url.c_str());
+    //Debug_printv("HTTP Init url[%s]", url.c_str());
     m_http = esp_http_client_init(&config);
 
     if(resume > 0) {

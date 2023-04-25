@@ -21,14 +21,41 @@ class D81IStream : public D64IStream {
 public:
     D81IStream(std::shared_ptr<MStream> is) : D64IStream(is) 
     {
-        // D81 Offsets
-        directory_header_offset = {40, 0, 0x04};
-        directory_list_offset = {40, 3, 0x00};
-        block_allocation_map = { {40, 1, 0x10, 1, 40, 6}, {40, 2, 0x10, 41, 80, 6} };
+        // D81 Partition Info
+        std::vector<BlockAllocationMap> b = { 
+            {
+                40,     // track
+                1,      // sector
+                0x10,   // offset
+                1,      // start_track
+                40,     // end_track
+                6       // byte_count
+            },
+            {
+                40,     // track
+                0,      // sector
+                0x10,   // offset
+                41,     // start_track
+                80,     // end_track
+                6       // byte_count
+            } 
+        };
+
+        Partition p = {
+            40,    // track
+            0,     // sector
+            0x04,  // header_offset
+            40,    // directory_track
+            3,     // directory_sector
+            0x00,  // directory_offset
+            b      // block_allocation_map
+        };
+        partitions.clear();
+        partitions.push_back(p);
         sectorsPerTrack = { 40 };
+        block_size = 256;
     };
 
-    //virtual uint16_t blocksFree() override;
 	virtual uint8_t speedZone( uint8_t track) override { return 0; };
 
 protected:
