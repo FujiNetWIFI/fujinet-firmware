@@ -618,7 +618,7 @@ void SystemManager::check_hardware_ver()
 
 #else /* PINMAP_ESP32S3 */
 
-    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck;
+    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck, ledstripupcheck, ledstripdowncheck;
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
     fixdowncheck = fnSystem.digital_read(PIN_CARD_DETECT_FIX);
