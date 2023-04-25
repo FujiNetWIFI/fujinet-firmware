@@ -794,7 +794,8 @@ void sioFuji::image_rotate()
         }
 
         // The first slot gets the device ID of the last slot
-        _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+        Debug_printf("setting slot %d to ID %hx\n", 0, last_id);
+       _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
         if (Config.get_general_rotation_sounds())
