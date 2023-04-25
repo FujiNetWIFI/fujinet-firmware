@@ -5,6 +5,9 @@
 #include <memory.h>
 #include <string.h>
 #include <esp_timer.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include <esp_random.h>
+#endif
 
 #include "../../include/debug.h"
 
