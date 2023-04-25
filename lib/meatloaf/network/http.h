@@ -4,14 +4,10 @@
 #define MEATLOAF_SCHEME_HTTP
 
 #include "meat_io.h"
-
-#include "../../../include/version.h"
-
+#include "../../include/global_defines.h"
 #include <esp_http_client.h>
 #include <functional>
 
-#define PLATFORM_DETAILS "C64; 6510; 2; NTSC; EN;" // Make configurable. This will help server side to select appropriate content.
-#define USER_AGENT "MEATLOAF/" FN_VERSION_FULL " (" PLATFORM_DETAILS ")"
 #define HTTP_BLOCK_SIZE 256
 
 class MeatHttpClient {
@@ -128,11 +124,10 @@ public:
     uint32_t read(uint8_t* buf, uint32_t size) override;
     uint32_t write(const uint8_t *buf, uint32_t size) override;
 
-    bool isOpen();
+    bool isOpen() override;
 
 protected:
     MeatHttpClient m_http;
-    std::string url;
 
 };
 
