@@ -16,8 +16,8 @@
 #include "fnFsSPIFFS.h"
 #include "fnWiFi.h"
 #include "network.h"
-
 #include "led.h"
+#include "siocpm.h"
 #include "utils.h"
 
 iecFuji theFuji; // global fuji device object
@@ -1478,6 +1478,7 @@ void iecFuji::setup(systemBus *siobus)
 
     IEC.addDevice(this, 0x0F);
     IEC.addDevice(new iecNetwork(), 12);
+    IEC.addDevice(new iecCpm(), 14);
 }
 
 iecDisk *iecFuji::bootdisk()
