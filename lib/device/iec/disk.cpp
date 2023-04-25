@@ -19,6 +19,8 @@ iecDisk::iecDisk()
 {
     // device_active = false;
     device_active = true; // temporary during bring-up
+
+    _disk.reset(MFSOwner::File("/"));
 }
 
 // Read disk data and send to computer
@@ -81,6 +83,7 @@ bool iecDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 void iecDisk::process_load()
 {
     Debug_printv("file[%s]", IEC.data.payload.c_str());
+    sendListing();
 }
 
 void iecDisk::process_save()
