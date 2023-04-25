@@ -1,5 +1,6 @@
 #include "meat_io.h"
 
+#include <sys/stat.h>
 #include <algorithm>
 #include <vector>
 #include <sstream>
@@ -37,11 +38,11 @@
 // Network
 #include "network/http.h"
 #include "network/ml.h"
-#include "network/ipfs.h"
-#include "network/tnfs.h"
-#include "network/smb.h"
-#include "network/cs.h"
-//#include "network/ws.h"
+// #include "network/ipfs.h"
+// #include "network/tnfs.h"
+// #include "network/smb.h"
+// #include "network/cs.h"
+// #include "network/ws.h"
 
 // Tape
 #include "tape/t64.h"
@@ -55,15 +56,15 @@
 FlashFileSystem defaultFS;
 #ifdef SD_CARD
 SDFileSystem sdFS;
-#endif
+#endif          
 
 // Scheme
 HttpFileSystem httpFS;
 MLFileSystem mlFS;
-IPFSFileSystem ipfsFS;
-TNFSFileSystem tnfsFS;
-CServerFileSystem csFS;
-TcpFileSystem tcpFS;
+// IPFSFileSystem ipfsFS;
+// TNFSFileSystem tnfsFS;
+// CServerFileSystem csFS;
+// TcpFileSystem tcpFS;
 
 //WSFileSystem wsFS;
 
@@ -97,13 +98,14 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
     &p00FS,
     &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &d8bFS, &dnpFS,
     &t64FS, &tcrtFS,
-    &httpFS, &mlFS, &ipfsFS, &tcpFS,
-    &tnfsFS
+    &httpFS, &mlFS
+//    &ipfsFS, &tcpFS,
+//    &tnfsFS
 };
 
 bool MFSOwner::mount(std::string name) {
-    Serial.print("MFSOwner::mount fs:");
-    Serial.print(name.c_str());
+    Debug_print("MFSOwner::mount fs:");
+    Debug_println(name.c_str());
 
     for(auto i = availableFS.begin() + 1; i < availableFS.end() ; i ++) {
         auto fs = (*i);
@@ -114,11 +116,11 @@ bool MFSOwner::mount(std::string name) {
             bool ok = fs->mount();
 
             if(ok)
-                Serial.print("Mounted fs:");
+                Debug_print("Mounted fs: ");
             else
-                Serial.print("Couldn't mount fs:");
+                Debug_print("Couldn't mount fs: ");
 
-            Serial.print(name.c_str());
+            Debug_println(name.c_str());
 
             return ok;
         }
@@ -149,14 +151,14 @@ MFile* MFSOwner::File(std::shared_ptr<MFile> file) {
 MFile* MFSOwner::File(std::string path) {
     //Debug_printv("in File\n");
 
-    if(mstr::startsWith(path,"cs:", false)) {
-        //Serial.printf("CServer path found!\n");
-        return csFS.getFile(path);
-    }
+    // if(mstr::startsWith(path,"cs:", false)) {
+    //     //Serial.printf("CServer path found!\n");
+    //     return csFS.getFile(path);
+    // }
 
-    // If it's a local file wildcard match and return full path
-    if ( device_config.image().empty() )
-        path = existsLocal(path);
+    // // If it's a local file wildcard match and return full path
+    // if ( device_config.image().empty() )
+    //     path = existsLocal(path);
 
     std::vector<std::string> paths = mstr::split(path,'/');
 

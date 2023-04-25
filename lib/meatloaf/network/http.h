@@ -4,11 +4,17 @@
 #define MEATLOAF_SCHEME_HTTP
 
 #include "meat_io.h"
-#include "../../include/global_defines.h"
+
 #include <esp_http_client.h>
 #include <functional>
 
+#include "../../include/version.h"
+
 #define HTTP_BLOCK_SIZE 256
+#define PRODUCT_ID "MEATLOAF CBM"
+//#define FW_VERSION "20220422.1" // Dynamically set at compile time in "platformio.ini"
+#define PLATFORM_DETAILS "C64; 6510; 2; NTSC; EN;" // Make configurable. This will help server side to select appropriate content.
+#define USER_AGENT "MEATLOAF/" FN_VERSION_FULL " (" PLATFORM_DETAILS ")"
 
 class MeatHttpClient {
     esp_http_client_handle_t m_http = nullptr;

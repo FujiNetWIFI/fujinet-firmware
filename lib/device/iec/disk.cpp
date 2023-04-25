@@ -4,13 +4,12 @@
 
 #include <cstring>
 
+#include <unordered_map>
+
 #include "../../include/debug.h"
 
 #include "fuji.h"
 #include "utils.h"
-
-#include "meat_io.h"
-#include "meat_buffer.h"
 
 // External ref to fuji object.
 extern iecFuji theFuji;
@@ -118,4 +117,105 @@ device_state_t iecDisk::process(IECData *id)
     return device_state;
 }
 
-#endif /* BUILD_ATARI */
+
+
+std::shared_ptr<MStream> iecDisk::retrieveStream ( void )
+{
+    size_t key = ( IEC.data.device * 100 ) + IEC.data.channel;
+    Debug_printv("Stream key[%d]", key);
+
+    if ( streams.find ( key ) != streams.end() )
+    {
+        //Debug_printv("Stream retrieved. key[%d]", key);
+        return streams.at ( key );
+    }
+    else
+    {
+		//Debug_printv("Error! Trying to recall not-registered stream!");
+        return nullptr;
+    }
+}
+
+// used to start working with a stream, registering it as underlying stream of some
+// IEC channel on some IEC device
+bool iecDisk::registerStream (std::ios_base::open_mode mode)
+{
+    // Debug_printv("dc_basepath[%s]",  device_config.basepath().c_str());
+    Debug_printv("m_filename[%s]", m_filename.c_str());
+    // //auto file = Meat::New<MFile>( device_config.basepath() + "/" + m_filename );
+    // auto file = Meat::New<MFile>( m_mfile->url + m_filename );
+    auto file = Meat::New<MFile>( m_filename );
+    if ( !file->exists() )
+        return false;
+    
+    Debug_printv("file[%s]", file->url.c_str());
+
+    std::shared_ptr<MStream> new_stream;
+
+    // LOAD / GET / INPUT
+    if ( mode == std::ios_base::in )
+    {
+        Debug_printv("LOAD m_mfile[%s] m_filename[%s]", m_mfile->url.c_str(), m_filename.c_str());
+        new_stream = std::shared_ptr<MStream>(file->meatStream());
+
+        if ( new_stream == nullptr )
+        {
+            return false;
+        }
+
+        if( !new_stream->isOpen() )
+        {
+            Debug_printv("Error creating stream");
+            return false;
+        }
+        else
+        {
+            // Close the stream if it is already open
+            closeStream();
+        }
+    }
+
+    // SAVE / PUT / PRINT / WRITE
+    else
+    {
+        Debug_printv("SAVE m_filename[%s]", m_filename.c_str());
+        // CREATE STREAM HERE FOR OUTPUT
+        return false;
+    }
+
+
+    size_t key = ( IEC.data.device * 100 ) + IEC.data.channel;
+
+    // // Check to see if a stream is open on this device/channel already
+    // auto found = streams.find(key);
+    // if ( found != streams.end() )
+    // {
+    //     Debug_printv( "Stream already registered on this device/channel!" );
+    //     return false;
+    // }
+
+    // Add stream to streams 
+    auto newPair = std::make_pair ( key, new_stream );
+    streams.insert ( newPair );
+
+    //Debug_printv("Stream created. key[%d]", key);
+    return true;
+}
+
+bool iecDisk::closeStream ( bool close_all )
+{
+    size_t key = ( IEC.data.device * 100 ) + IEC.data.channel;
+    auto found = streams.find(key);
+
+    if ( found != streams.end() )
+    {
+        //Debug_printv("Stream closed. key[%d]", key);
+        auto closingStream = (*found).second;
+        closingStream->close();
+        return streams.erase ( key );
+    }
+
+    return false;
+}
+
+#endif /* BUILD_IEC */
