@@ -10,6 +10,7 @@
 #include "fnBluetooth.h"
 
 #include "led.h"
+#include "led_strip.h"
 
 // Global KeyManager object
 KeyManager fnKeyManager;
@@ -107,7 +108,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 
     // Ignore disabled buttons
     if(_keys[key].disabled)
-        return eKeyStatus::DISABLED;
+        return eKeyStatus::DISABLE;
 
     unsigned long ms = fnSystem.millis();
 
@@ -234,11 +235,21 @@ void KeyManager::_keystate_task(void *param)
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_A: SHORT PRESS");
 
-#ifdef PINMAP_A2_REV0
-            fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
+#if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
+            if(fnSystem.check_ledstrip())
+            {
+                if (fnLedStrip.rainbowTimer > 0)
+                    fnLedStrip.stopRainbow();
+                else
+                    fnLedStrip.startRainbow(10);
+            }
+            else
+            {
+                fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
+            }
 #else
             fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
-#endif
+#endif // PINMAP_A2_REV0
 
 // Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
 #ifdef BLUETOOTH_SUPPORT
