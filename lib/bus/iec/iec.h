@@ -280,7 +280,7 @@ private:
     void deviceTalk();
 
     /**
-     * BUS TURNAROUND (act like listener)
+     * BUS TURNAROUND (switch from listener to talker)
      */
     bool turnAround();
 
