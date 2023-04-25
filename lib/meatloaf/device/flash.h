@@ -9,8 +9,6 @@
 
 #include "make_unique.h"
 
-#include "device_db.h"
-
 #include <dirent.h>
 #include <string.h>
 
@@ -43,7 +41,6 @@ public:
     std::string basepath = "";
     
     FlashFile(std::string path) {
-        basepath = device_config.basepath();
 
         parseUrl( path );
 

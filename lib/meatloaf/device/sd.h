@@ -11,7 +11,6 @@
 #include "../device/flash.h"
 #include "fnFsSD.h"
 
-#include "device_db.h"
 #include "peoples_url_parser.h"
 
 #include <dirent.h>
@@ -34,8 +33,6 @@ private:
 
         std::string basepath = fnSDFAT.basepath();
         basepath += std::string("/");
-        device_config.url("/");
-        device_config.basepath( basepath );
         //Debug_printv("basepath[%s] url.path[%s]", basepath.c_str(), url.path.c_str());
 
         return new FlashFile( url.path );
