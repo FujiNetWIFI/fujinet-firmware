@@ -8,7 +8,7 @@ A multi-function peripheral built on ESP32 hardware being developed for the mult
 
 MAJOR ANNOUNCEMENT FOR ANYONE WORKING ON FIRMWARE CODE:
 
-Fujinet-platformio has been ported forward to the new PlatformIO Esp32 3.0. The changes made mean that it no longer builds under 1.12.x or 2.0, so you must upgrade in order to hack on this firmware.
+Fujinet-platformio has been ported forward to the new PlatformIO Esp32 3.0. The changes made mean that it no longer builds under 1.12.x or 2.0, so you must upgrade in order to work on this firmware.
 
 To upgrade:
 
@@ -21,7 +21,7 @@ To upgrade:
 -------------------------------------------------
 
 ## ATARI
-FujiNet currently provides the following devices for the Atari 8-bit system.  Variations of these features are available on other platforms:
+FujiNet currently provides the following devices for the Atari 8-bit system:
 
 * D: for disk emulation, allowing disk images to be read or written to on SD cards or TNFS servers over the local network or Internet.
 * P: for printing emulation, providing printer emulation for various types of popular printers, including Atari-branded, Epson, and other alternatives.
@@ -35,7 +35,23 @@ This is the primary ESP32 firmware project. In addition, there are several relat
 * fujinet-config-tools: Additional Atari 8bit programs to directly control FujiNet
 * fujinet-hardware: Schematics and design files for FujiNet hardware
 
-How to contact us outside of GitHub:
+## Coleco ADAM
+
+* Disk and Tape emulation, allowing disk images to be read or written to on SD cards or TNFS servers over the local network or Internet.
+* Printing emulation, providing printer emulation for various types of popular printers, including Atari-branded, Epson, and other alternatives.
+* A network adapter that can talk TCP, HTTP, UDP, and other protocols to other TCP/IP hosts.
+
+## Apple
+
+* Floppy and Hard drive emulation
+* Printing emulation
+* An N device that allows Applesoft to use a network adapter that can talk TCP, HTTP, UDP, and other protocols to other TCP/IP hosts.
+
+## Other works in progress
+
+Atari Lynx, IEC devices (Commodore 64, Commander X16), RC2014, S100 and more are coming all the time
+
+###How to contact us outside of GitHub:
 
 There is active discussion and work on Discord: https://discord.gg/7MfFTvD
 
