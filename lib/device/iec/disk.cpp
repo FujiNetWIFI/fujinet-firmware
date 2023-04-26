@@ -182,6 +182,16 @@ void iecDisk::iec_open()
 {
     std::string s = commanddata->payload;
     mstr::toPETSCII(s);
+
+    if ( mstr::startsWith(s, "0:") )
+    {
+        // Remove media ID from command string
+        s = mstr::drop(s, 2);
+    }
+    else if ( mstr::equals(_file, "$") ) 
+    {
+        s.clear();
+    }
     _file = s;
 
     Debug_printv("_file[%s]", _file.c_str());
@@ -193,6 +203,11 @@ void iecDisk::iec_open()
 
 void iecDisk::iec_close()
 {
+    if (currentStream == nullptr)
+    {
+        IEC.senderTimeout();
+        return; // Punch out.
+    }
     Debug_printv("url[%s]", currentStream->url.c_str());
 
     closeStream();
@@ -205,20 +220,26 @@ void iecDisk::iec_reopen_load()
         IEC.senderTimeout();
         return; // Punch out.
     }
-
     Debug_printv("url[%s]", currentStream->url.c_str());
 
-    sendFile();
+    if ( mstr::startsWith(_file, "$") ) 
+    {
+        sendListing();
+    }
+    else
+    {
+        sendFile();
+    }
 }
 
 void iecDisk::iec_reopen_save()
 {
-    Debug_printv("url[%s]", currentStream->url.c_str());
     if (currentStream == nullptr)
     {
         IEC.senderTimeout();
         return; // Punch out.
     }
+    Debug_printv("url[%s]", currentStream->url.c_str());
 
     saveFile();
 }
