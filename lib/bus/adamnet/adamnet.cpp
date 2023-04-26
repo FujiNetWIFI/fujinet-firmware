@@ -13,7 +13,7 @@
 
 #define IDLE_TIME 180 // Idle tolerance in microseconds
 
-static xQueueHandle reset_evt_queue = NULL;
+static QueueHandle_t reset_evt_queue = NULL;
 
 static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
 {
