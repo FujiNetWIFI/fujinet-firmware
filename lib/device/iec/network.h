@@ -149,21 +149,6 @@ class iecNetwork : public virtualDevice
     bool file_not_found = false;
 
     /**
-     * @brief The status information to send back on cmd input
-     * @param bw = # of bytes waiting
-     * @param msg = most recent status message
-     * @param connected = is most recent channel connected?
-     * @param channel = channel of most recent status msg.
-     */
-    struct _iecStatus
-    {
-        uint8_t error;
-        string msg;
-        bool connected;
-        int channel;
-    } iecStatus;
-
-    /**
      * @brief parse JSON
      */
     void parse_json();
@@ -273,11 +258,6 @@ class iecNetwork : public virtualDevice
      * @brief called to ask protocol to perform an operation with no payload
      */
     void perform_special_80();
-
-    /**
-     * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
-     */
-    void iec_talk_command_buffer_status();
 
     /**
      * @brief process command for channel 0 (load)
