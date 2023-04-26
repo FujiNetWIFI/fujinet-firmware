@@ -245,7 +245,7 @@ void _tnfs_cache_dump(const char *title, uint8_t *cache, uint32_t cache_size)
     }
     Debug_println();
 }
-#endif    
+#endif
 
 /*
  Fills destination buffer with data available in internal cache, if any
@@ -261,7 +261,7 @@ int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest
     // Report if we've reached the end of the file
     if (pFHI->cached_pos >= pFHI->file_size)
     {
-        #ifdef VERBOSE_TNFS        
+        #ifdef VERBOSE_TNFS
         Debug_print("_tnfs_read_from_cache - attempting to read past EOF\n");
         #endif
         return TNFS_RESULT_END_OF_FILE;
@@ -269,7 +269,7 @@ int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest
     // Reject if we have nothing in the cache
     if (pFHI->cache_available == 0)
     {
-        #ifdef VERBOSE_TNFS        
+        #ifdef VERBOSE_TNFS
         Debug_print("_tnfs_read_from_cache - nothing in cache\n");
         #endif
         return -1;
@@ -320,7 +320,7 @@ int _tnfs_read_from_cache(tnfsFileHandleInfo *pFHI, uint8_t *dest, uint16_t dest
         return 0;
 }
 
-/* 
+/*
  Executes as many READ calls as needed to populate our internal cache
  Returns: 0: success; -1: failed to deliver/receive packet; other: TNFS error result code
 */
@@ -461,7 +461,7 @@ int tnfs_read(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint1
  */
 int tnfs_write(tnfsMountInfo *m_info, int16_t file_handle, uint8_t *buffer, uint16_t bufflen, uint16_t *resultlen)
 {
-    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) || 
+    if (m_info == nullptr || false == TNFS_VALID_AS_UINT8(file_handle) ||
         buffer == nullptr || bufflen > (TNFS_PAYLOAD_SIZE - 3) || resultlen == nullptr)
         return -1;
 
@@ -594,7 +594,7 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
 
             if(new_position != nullptr)
                 *new_position = pFileInf->file_position;
-            uint32_t response_pos = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);    
+            uint32_t response_pos = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);
             Debug_printf("tnfs_lseek success, new pos=%u, response pos=%u\n", pFileInf->file_position, response_pos);
 
             // TODO: This is temporary while we confirm that the recently-changed TNFSD code matches what we've been doing prior
@@ -651,7 +651,7 @@ int tnfs_opendirx(tnfsMountInfo *m_info, const char *directory, uint8_t sortopts
     int pathoffset = strlen((char *)(packet.payload + OFFSET_OPENDIRX_PATTERN)) + OPENDIRX_HEADERBYTES + 1;
 
     // Copy the directory into the right spot in the packet and get its string len
-    int pathlen = _tnfs_adjust_with_full_path(m_info, 
+    int pathlen = _tnfs_adjust_with_full_path(m_info,
         (char *)(packet.payload + pathoffset), directory, sizeof(packet.payload) - pathoffset);
 
     Debug_printf("TNFS open directory: sortopts=0x%02x diropts=0x%02x maxresults=0x%04x pattern=\"%s\" path=\"%s\"\n",
@@ -689,7 +689,7 @@ void _readdirx_fill_response(tnfsDirCacheEntry *pCached, tnfsStat *filestat, cha
         strftime(t_m, sizeof(t_m), tfmt, localtime(&tt));
         tt = filestat->c_time;
         strftime(t_c, sizeof(t_c), tfmt, localtime(&tt));
-        Debug_printf("\t_readdirx_fill_response: dir: %s, size: %u, mtime: %s, ctime: %s \"%s\"\n", 
+        Debug_printf("\t_readdirx_fill_response: dir: %s, size: %u, mtime: %s, ctime: %s \"%s\"\n",
             filestat->isDir ? "Yes" : "no",
             filestat->filesize, t_m, t_c, dir_entry );
     }
@@ -716,7 +716,7 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
         _readdirx_fill_response(pCached, filestat, dir_entry, dir_entry_len);
         return 0;
     }
-    
+
     // If the cache was empty and the EOF flag was set, just respond with an EOF error
     if(m_info->get_dircache_eof() == true)
     {
@@ -761,22 +761,22 @@ int tnfs_readdirx(tnfsMountInfo *m_info, tnfsStat *filestat, char *dir_entry, in
                 if(pEntry != nullptr)
                 {
                     pEntry->dirpos = dirpos + i;
-                    pEntry->flags = 
+                    pEntry->flags =
                         packet.payload[current_offset + OFFSET_READDIRX_FLAGS];
-                    pEntry->filesize = 
+                    pEntry->filesize =
                         TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + current_offset + OFFSET_READDIRX_SIZE);
-                    pEntry->m_time = 
+                    pEntry->m_time =
                         TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + current_offset + OFFSET_READDIRX_MTIME);
-                    pEntry->c_time = 
+                    pEntry->c_time =
                         TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + current_offset + OFFSET_READDIRX_CTIME);
 
-                    int name_len = strlcpy(pEntry->entryname, 
+                    int name_len = strlcpy(pEntry->entryname,
                         (char *)packet.payload + current_offset + OFFSET_READDIRX_PATH, sizeof(pEntry->entryname));
 
                     /*
                      Adjust our offset to point to the next entry within the packet
                      flags (1) + size (4) + mtime (4) + ctime (4) + null (1) = 14
-                    */ 
+                    */
                     current_offset += 14 + name_len;
                 }
                 else
@@ -971,7 +971,7 @@ int tnfs_stat(tnfsMountInfo *m_info, tnfsStat *filestat, const char *filepath)
             filestat->c_time = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + OFFSET_STAT_CTIME);
 
             /*
-            Debug_printf("\ttnfs_stat: mode: %ho, uid: %hu, gid: %hu, dir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n", 
+            Debug_printf("\ttnfs_stat: mode: %ho, uid: %hu, gid: %hu, dir: %d, size: %u, atime: 0x%04x, mtime: 0x%04x, ctime: 0x%04x\n",
                 filemode, uid, gid,
                 filestat->isDir ? 1 : 0, filestat->filesize, filestat->a_time, filestat->m_time, filestat->c_time );
             */
@@ -1180,9 +1180,9 @@ const char *tnfs_getcwd(tnfsMountInfo *m_info)
 
   Only the command (tnfsPacket.command) and payload contents need to be set on the packet.
   Current session ID will be copied from tnfsMountInfo and retryCount is always reset to zero.
-  
+
   If successful, server's response code will be the first byte of of tnfsPacket.data
-  
+
   returns - true if response packet was received
             false if no response received during retries/timeout period
  */
@@ -1194,13 +1194,13 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
     pkt.session_idl = TNFS_LOBYTE_FROM_UINT16(m_info->session);
     pkt.session_idh = TNFS_HIBYTE_FROM_UINT16(m_info->session);
 
+    // Set sequence number before the transaction loop
+    pkt.sequence_num = m_info->current_sequence_num++;
+
     // Start a new retry sequence
     int retry = 0;
     while (retry < m_info->max_retries)
     {
-        // Set the sequence number
-        pkt.sequence_num = m_info->current_sequence_num++;
-
 #ifdef DEBUG
         _tnfs_debug_packet(pkt, payload_size);
 #endif
@@ -1247,7 +1247,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
                     // Out of order packet received.
                     if (pkt.sequence_num != current_sequence_num)
                     {
-                        Debug_println("TNFS OUT OF ORDER SEQUENCE! RETRYING");
+                        Debug_printf("TNFS OUT OF ORDER SEQUENCE! Rcvd: %x, Expected: %x\n", pkt.sequence_num, current_sequence_num);
                         // Fall through and let retry logic handle it.
                     }
                     else
