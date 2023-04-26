@@ -94,6 +94,7 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         {
             if (response_queue.empty())
             {
+                Debug_printf("ZOIKS!\n");
                 // Debug_println("Nothing in buffer, sending empty.\n");
                 // IEC.senderTimeout();
                 break;
@@ -117,6 +118,17 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     }
 
     return device_state;
+}
+
+void virtualDevice::iec_talk_command_buffer_status()
+{
+    char reply[80];
+    std::string s;
+
+    snprintf(reply, 80, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
+    s = std::string(reply);
+    mstr::toPETSCII(s);
+    IEC.sendBytes(s);
 }
 
 void virtualDevice::dumpData()
