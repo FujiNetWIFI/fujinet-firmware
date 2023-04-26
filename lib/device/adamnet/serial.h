@@ -46,7 +46,7 @@ class adamSerial : public virtualDevice
     /**
      * Queue Handle
      */
-    xQueueHandle serial_out_queue;
+    QueueHandle_t serial_out_queue;
 
 private:
 

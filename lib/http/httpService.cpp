@@ -1301,7 +1301,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     config.max_resp_headers = 16;
     config.max_uri_handlers = 16;
     config.task_priority = 12; // Bump this higher than fnService loop
-    //config.core_id = 0; // Pin to CPU core 0
+    config.core_id = 0; // Pin to CPU core 0
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed
