@@ -148,7 +148,11 @@ bool FileSystemSPIFFS::start()
         return true;
 
     // Set our basepath
+#ifndef BUILD_IEC
     strlcpy(_basepath, "/spiffs", sizeof(_basepath));
+#else
+    strlcpy(_basepath, "", sizeof(_basepath));
+#endif
 
     esp_vfs_spiffs_conf_t conf = {
       .base_path = _basepath,
