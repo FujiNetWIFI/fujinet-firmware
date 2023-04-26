@@ -370,7 +370,7 @@ void systemBus::read_command()
                 data.primary = IEC_LISTEN;
                 data.device = c ^ IEC_LISTEN;
                 data.secondary = IEC_REOPEN; // Default secondary command
-                data.channel = CMD_CHANNEL;  // Default channel
+                data.channel = CHANNEL_COMMAND;  // Default channel
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (20 LISTEN %.2d DEVICE)\r\n", data.device);
                 break;
@@ -386,7 +386,7 @@ void systemBus::read_command()
                 data.primary = IEC_TALK;
                 data.device = c ^ IEC_TALK;
                 data.secondary = IEC_REOPEN; // Default secondary command
-                data.channel = CMD_CHANNEL;  // Default channel
+                data.channel = CHANNEL_COMMAND;  // Default channel
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (40 TALK   %.2d DEVICE)\r\n", data.device);
                 break;
@@ -489,7 +489,7 @@ void IRAM_ATTR systemBus::deviceListen()
 {
     // If the command is SECONDARY and it is not to expect just a small command on the command channel, then
     // we're into something more heavy. Otherwise read it all out right here until UNLISTEN is received.
-    if (data.secondary == IEC_REOPEN && data.channel != CMD_CHANNEL)
+    if (data.secondary == IEC_REOPEN && data.channel != CHANNEL_COMMAND)
     {
         // A heapload of data might come now, too big for this context to handle so the caller handles this, we're done here.
         // Debug_printf(" (%.2X SECONDARY) (%.2X CHANNEL)\r\n", data.primary, data.channel);
