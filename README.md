@@ -1,6 +1,6 @@
 #FujiNet   
 =========
-A multi-function peripheral built on ESP32 hardware being developed for the Atari 8-bit systems
+A multi-function peripheral built on ESP32 hardware being developed for the multiple 8-bit systems
 
 ### Please see the [GitHub wiki](https://github.com/FujiNetWIFI/fujinet-platformio/wiki) for documenation and additional details.
 
@@ -20,7 +20,8 @@ To upgrade:
 
 -------------------------------------------------
 
-FujiNet currently provides the following devices:
+## ATARI
+FujiNet currently provides the following devices for the Atari 8-bit system.  Variations of these features are available on other platforms:
 
 * D: for disk emulation, allowing disk images to be read or written to on SD cards or TNFS servers over the local network or Internet.
 * P: for printing emulation, providing printer emulation for various types of popular printers, including Atari-branded, Epson, and other alternatives.
