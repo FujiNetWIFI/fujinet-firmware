@@ -667,17 +667,6 @@ void iecNetwork::iec_talk_command()
         iec_talk_command_buffer_status();
 }
 
-void iecNetwork::iec_talk_command_buffer_status()
-{
-    char reply[80];
-    string s;
-
-    snprintf(reply, 80, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
-    s = string(reply);
-    mstr::toPETSCII(s);
-    IEC.sendBytes(s);
-}
-
 void iecNetwork::iec_command()
 {
     if (channelMode[commanddata->channel] == PROTOCOL)
