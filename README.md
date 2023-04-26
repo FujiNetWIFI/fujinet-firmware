@@ -51,7 +51,7 @@ This is the primary ESP32 firmware project. In addition, there are several relat
 
 Atari Lynx, IEC devices (Commodore 64, Commander X16), RC2014, S100 and more are coming all the time
 
-###How to contact us outside of GitHub:
+### How to contact us outside of GitHub:
 
 There is active discussion and work on Discord: https://discord.gg/7MfFTvD
 
