@@ -13,6 +13,10 @@
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include <esp_chip_info.h>
+#include <driver/adc.h>
+#include <hal/gpio_ll.h>
+#define ADC_WIDTH_12Bit ADC_WIDTH_BIT_12
+#define ADC_ATTEN_11db ADC_ATTEN_DB_11
 #endif
 #include <soc/rtc.h>
 #include <esp_adc_cal.h>
@@ -614,7 +618,7 @@ void SystemManager::check_hardware_ver()
 
 #else /* PINMAP_ESP32S3 */
 
-    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck;
+    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck, ledstripupcheck, ledstripdowncheck;
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
     fixdowncheck = fnSystem.digital_read(PIN_CARD_DETECT_FIX);
