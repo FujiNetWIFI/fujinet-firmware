@@ -21,6 +21,7 @@ iecDisk::iecDisk()
     device_active = true; // temporary during bring-up
 
     _disk.reset(MFSOwner::File("/"));
+    _file = "/";
 }
 
 // Read disk data and send to computer
@@ -80,49 +81,244 @@ bool iecDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
     return false;
 }
 
-void iecDisk::process_load()
-{
-    Debug_printv("file[%s]", IEC.data.payload.c_str());
-    sendListing();
-}
-
-void iecDisk::process_save()
-{
-    Debug_printv("file[%s]", IEC.data.payload.c_str());
-}
-
-void iecDisk::process_command()
-{
-    Debug_printv("command[%s]", IEC.data.payload.c_str());
-}
-
-void iecDisk::process_file()
-{
-    Debug_printv("channel[%d] file[%s]", IEC.data.channel, IEC.data.payload.c_str());
-}
 
 // Process command
 device_state_t iecDisk::process(IECData *id)
 {
-    Debug_printf("iecDisk::process()\n");
     virtualDevice::process(id);
+
+    Debug_printv("channel[%d]", commanddata->channel);
 
     switch (commanddata->channel)
     {
-    case 0: // LOAD
+    case CHANNEL_LOAD: // LOAD
         process_load();
         break;
-    case 1: // SAVE
+    case CHANNEL_SAVE: // SAVE
         process_save();
         break;
-    case 15: // COMMAND
+    case CHANNEL_COMMAND: // COMMAND
         process_command();
         break;
     default: // Open files (2-14)
-        process_file();
+        process_channel();
         break;
     }
     return device_state;
+}
+
+void iecDisk::process_load()
+{
+    Debug_printv("secondary[%.2X]", commanddata->secondary);
+    switch (commanddata->secondary)
+    {
+    case IEC_OPEN:
+        iec_open();
+        break;
+    case IEC_CLOSE:
+        iec_close();
+        break;
+    case IEC_REOPEN:
+        iec_reopen_load();
+        break;
+    default:
+        break;
+    }
+}
+
+void iecDisk::process_save()
+{
+    Debug_printv("secondary[%.2X]", commanddata->secondary);
+    switch (commanddata->secondary)
+    {
+    case IEC_OPEN:
+        iec_open();
+        break;
+    case IEC_CLOSE:
+        iec_close();
+        break;
+    case IEC_REOPEN:
+        iec_reopen_save();
+        break;
+    default:
+        break;
+    }
+}
+
+void iecDisk::process_command()
+{
+    Debug_printv("primary[%.2X] secondary[%.2X]", commanddata->primary, commanddata->secondary);
+    if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
+    {
+        iec_talk_command();
+    }
+    else if (commanddata->primary == IEC_UNLISTEN)
+    {
+        iec_command();
+    }
+}
+
+void iecDisk::process_channel()
+{
+    Debug_printv("secondary[%.2X]", commanddata->secondary);
+    switch (commanddata->secondary)
+    {
+    case IEC_OPEN:
+        iec_open();
+        break;
+    case IEC_CLOSE:
+        iec_close();
+        break;
+    case IEC_REOPEN:
+        iec_reopen_channel();
+        break;
+    default:
+        break;
+    }
+}
+
+
+void iecDisk::iec_open()
+{
+    std::string s = commanddata->payload;
+    mstr::toPETSCII(s);
+    _file = s;
+
+    Debug_printv("_file[%s]", _file.c_str());
+    if ( registerStream(std::ios_base::in) )
+    {
+        currentStream = retrieveStream();
+    }
+}
+
+void iecDisk::iec_close()
+{
+    Debug_printv("url[%s]", currentStream->url.c_str());
+
+    closeStream();
+}
+
+void iecDisk::iec_reopen_load()
+{
+    if (currentStream == nullptr)
+    {
+        IEC.senderTimeout();
+        return; // Punch out.
+    }
+
+    Debug_printv("url[%s]", currentStream->url.c_str());
+
+    sendFile();
+}
+
+void iecDisk::iec_reopen_save()
+{
+    Debug_printv("url[%s]", currentStream->url.c_str());
+    if (currentStream == nullptr)
+    {
+        IEC.senderTimeout();
+        return; // Punch out.
+    }
+
+    saveFile();
+}
+
+void iecDisk::iec_reopen_channel()
+{
+    Debug_printv("primary[%.2X]", commanddata->primary);
+    switch (commanddata->primary)
+    {
+    case IEC_LISTEN:
+        iec_reopen_channel_listen();
+        break;
+    case IEC_TALK:
+        iec_reopen_channel_talk();
+        break;
+    }
+}
+
+
+void iecDisk::iec_reopen_channel_listen()
+{
+    Debug_printv("here");
+}
+
+void iecDisk::iec_reopen_channel_talk()
+{
+    Debug_printv("here");
+}
+
+
+void iecDisk::iec_listen_command()
+{
+    Debug_printv("here");
+}
+
+void iecDisk::iec_talk_command()
+{
+    Debug_printv("here");
+    if (response_queue.empty())
+        iec_talk_command_buffer_status();
+}
+
+void iecDisk::iec_talk_command_buffer_status()
+{
+    Debug_printv("here");
+
+    char reply[80];
+    string s = "0, OK, 0, 0";
+
+    // snprintf(reply, 80, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
+    // s = string(reply);
+    mstr::toPETSCII(s);
+    IEC.sendBytes(s);
+}
+
+void iecDisk::iec_command()
+{
+    Debug_printv("here");
+    // if (channelMode[commanddata->channel] == PROTOCOL)
+    // {
+    //     if (pt[0] == "cd")
+    //         set_prefix();
+    //     else if (pt[0] == "id")
+    //         set_device_id();
+    //     else if (pt[0] == "jsonparse")
+    //         parse_json();
+    //     else if (pt[0] == "jq")
+    //         query_json();
+    //     else if (pt[0] == "settrans")
+    //         set_translation_mode();
+    //     else if (pt[0] == "pwd")
+    //         get_prefix();
+    //     else if (pt[0] == "login")
+    //         set_login_password();
+    //     else if (pt[0] == "rename" || pt[0] == "ren")
+    //         fsop(0x20);
+    //     else if (pt[0] == "delete" || pt[0] == "del" || pt[0] == "rm")
+    //         fsop(0x21);
+    //     else if (pt[0] == "lock")
+    //         fsop(0x23);
+    //     else if (pt[0] == "unlock")
+    //         fsop(0x24);
+    //     else if (pt[0] == "mkdir")
+    //         fsop(0x2A);
+    //     else if (pt[0] == "rmdir")
+    //         fsop(0x2B);
+    //     else if (protocol[commanddata->channel] != nullptr &&
+    //              protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x00)
+    //         perform_special_00();
+    //     else if (protocol[commanddata->channel] != nullptr &&
+    //              protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x40)
+    //         perform_special_40();
+    //     else if (protocol[commanddata->channel] != nullptr &&
+    //              protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x80)
+    //         perform_special_80();
+    // }
+    // else if (channelMode[commanddata->channel] == JSON)
+    // {
+    //     Debug_printf("JSON channelmode command %s\n", pt[0].c_str());
+    // }
 }
 
 
@@ -206,7 +402,7 @@ bool iecDisk::registerStream (std::ios_base::open_mode mode)
     auto newPair = std::make_pair ( key, new_stream );
     streams.insert ( newPair );
 
-    //Debug_printv("Stream created. key[%d]", key);
+    Debug_printv("Stream created. key[%d]", key);
     return true;
 }
 
@@ -401,7 +597,6 @@ void iecDisk::sendListing()
 	std::unique_ptr<MFile> entry(_disk->getNextFileInDir());
 
 	if(entry == nullptr) {
-		Debug_printv("fnf");
 		closeStream();
 
 		bool isOpen = registerStream(std::ios_base::in);
@@ -417,8 +612,6 @@ void iecDisk::sendListing()
 		return;
 	}
 
-	// Reset basic memory pointer:
-	uint16_t basicPtr = CBM_BASIC_START;
 
 	// Send load address
 	IEC.sendByte(CBM_BASIC_START & 0xff);
@@ -527,8 +720,8 @@ bool iecDisk::sendFile()
 	bool success_rx = true;
 	bool success_tx = true;
 
-	uint8_t b;
-	uint8_t bl;
+	uint8_t b;  // byte
+	uint8_t nb; // next byte
 	size_t bi = 0;
 	size_t load_address = 0;
 	size_t sys_address = 0;
@@ -538,8 +731,6 @@ bool iecDisk::sendFile()
 	ba[8] = '\0';
 #endif
 
-
-	// TODO!!!! you should check istream for nullptr here and return error immediately if null
 	// std::shared_ptr<MStream> istream = std::static_pointer_cast<MStream>(currentStream);
 	auto istream = retrieveStream();
 	if ( istream == nullptr )
@@ -550,7 +741,7 @@ bool iecDisk::sendFile()
 		return false;
 	}
 
-	if ( IEC.data.channel == LOAD_CHANNEL )
+	if ( IEC.data.channel == CHANNEL_LOAD )
 	{
 		PeoplesUrlParser u;
 		u.parseUrl(istream->url);
@@ -561,43 +752,8 @@ bool iecDisk::sendFile()
 	uint32_t len = istream->size();
 	uint32_t avail = istream->available();
 
-	// if ( istream.isText() )
-	// {
-	// 	// convert UTF8 files on the fly
-
-	// 	Debug_printv("Sending a text file to C64 [%s]", file->url.c_str());
-
-	// 	//we can skip the BOM here, EF BB BF for UTF8
-	// 	auto b = (char)istream.get();
-	// 	if(b != 0xef)
-	// 		ostream.put(b);
-	// 	else {
-	// 		b = istream.get();
-	// 		if(b != 0xbb)
-	// 			ostream.put(b);
-	// 		else {
-	// 			b = istream.get();
-	// 			if(b != 0xbf)
-	// 				ostream.put(b); // not BOM
-	// 		}
-	// 	}
-
-	// 	while(!istream.eof()) {
-	// 		auto cp = istream.getUtf8();
-
-	// 		ostream.putUtf8(&cp);
-
-	// 		if(ostream.bad() || istream.bad()) {
-	// 			Debug_printv("Error sending");
-    //             setDeviceStatus(60); // write error
-	// 			break;
-    //         }
-	// 	}
-	// }
-	// else
 	{
-
-		if( IEC.data.channel == LOAD_CHANNEL )
+		if( IEC.data.channel == CHANNEL_LOAD )
 		{
 			// Get/Send file load address
 			i = 2;
@@ -614,22 +770,17 @@ bool iecDisk::sendFile()
 			// Get SYSLINE
 		}
 
-		// Get next byte
-		success_rx = istream->read(&bl, 1);
+		// Read byte
+		success_rx = istream->read(&b, 1);
+        Debug_printv("b[%02X] success[%d]", b, success_rx);
 
 		Debug_printf("sendFile: [$%.4X]\r\n=================================\r\n", load_address);
-		while( avail > 0 && success_rx && !istream->error() )
+		while( success_rx && !istream->error() )
 		{
-            // Read Byte
-            success_rx = istream->read(&b, 1);
-			if ( !success_rx )
-			{
-				Debug_printv("rx fail");
-				IEC.sendByte(0, true);
-				break;
-			}
+            // Read next byte
+            success_rx = istream->read(&nb, 1);
 
-			// Debug_printv("b[%02X] success[%d]", b, success);
+			//Debug_printv("b[%02X] nb[%02X] success_rx[%d] error[%d]", b, nb, success_rx, istream->error());
 #ifdef DATA_STREAM
 			if (bi == 0)
 			{
@@ -639,9 +790,10 @@ bool iecDisk::sendFile()
 #endif
 			// Send Byte
 			avail = istream->available();
-			if ( avail == 0 )
+			if ( !success_rx )
 			{
-				success_tx = IEC.sendByte(bl, true); // indicate end of file.
+                //Debug_printv("b[%02X] EOI", b);
+				success_tx = IEC.sendByte(b, true); // indicate end of file.
 				if ( !success_tx )
 					Debug_printv("tx fail");
 				
@@ -649,11 +801,11 @@ bool iecDisk::sendFile()
 			}
 			else
 			{
-				success_tx = IEC.sendByte(bl);
+				success_tx = IEC.sendByte(b);
 				if ( !success_tx )
 					Debug_printv("tx fail");
 			}
-			bl = b;
+			b = nb; // byte = next byte
 
 #ifdef DATA_STREAM
 			// Show ASCII Data
