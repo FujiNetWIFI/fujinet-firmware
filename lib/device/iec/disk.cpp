@@ -52,6 +52,8 @@ void iecDisk::format()
 mediatype_t iecDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     // TODO IMPLEMENT
+    auto _disk = Meat::New<MFile>( filename );
+
     return MEDIATYPE_UNKNOWN; // MEDIATYPE_UNKNOWN
 }
 
@@ -188,11 +190,12 @@ void iecDisk::iec_open()
         // Remove media ID from command string
         s = mstr::drop(s, 2);
     }
-    else if ( mstr::equals(_file, "$") ) 
+    else if ( mstr::equals(s, "$") ) 
     {
-        s.clear();
+        s = "/";
     }
-    _file = s;
+    _disk.reset(MFSOwner::File( s ));
+    _file = _disk->name;
 
     Debug_printv("_file[%s]", _file.c_str());
     if ( registerStream(std::ios_base::in) )
@@ -203,26 +206,19 @@ void iecDisk::iec_open()
 
 void iecDisk::iec_close()
 {
-    if (currentStream == nullptr)
+    if (_disk == nullptr)
     {
         IEC.senderTimeout();
         return; // Punch out.
     }
-    Debug_printv("url[%s]", currentStream->url.c_str());
+    Debug_printv("url[%s]", _disk->url.c_str());
 
     closeStream();
 }
 
 void iecDisk::iec_reopen_load()
 {
-    if (currentStream == nullptr)
-    {
-        IEC.senderTimeout();
-        return; // Punch out.
-    }
-    Debug_printv("url[%s]", currentStream->url.c_str());
-
-    if ( mstr::startsWith(_file, "$") ) 
+    if ( _disk->isDirectory() ) 
     {
         sendListing();
     }
@@ -234,12 +230,12 @@ void iecDisk::iec_reopen_load()
 
 void iecDisk::iec_reopen_save()
 {
-    if (currentStream == nullptr)
+    if (_disk == nullptr)
     {
         IEC.senderTimeout();
         return; // Punch out.
     }
-    Debug_printv("url[%s]", currentStream->url.c_str());
+    Debug_printv("url[%s]", _disk->url.c_str());
 
     saveFile();
 }
@@ -366,14 +362,16 @@ std::shared_ptr<MStream> iecDisk::retrieveStream ( void )
 bool iecDisk::registerStream (std::ios_base::open_mode mode)
 {
     // Debug_printv("dc_basepath[%s]",  device_config.basepath().c_str());
-    Debug_printv("_file[%s]", _file.c_str());
+    // Debug_printv("_file[%s]", _file.c_str());
     // //auto file = Meat::New<MFile>( device_config.basepath() + "/" + _file );
     // auto file = Meat::New<MFile>( _disk->url + _file );
-    auto file = Meat::New<MFile>( _file );
-    if ( !file->exists() )
+    // auto file = Meat::New<MFile>( _file );
+    // if ( !file->exists() )
+    //     return false;
+    if ( !_disk->exists() )
         return false;
     
-    Debug_printv("file[%s]", file->url.c_str());
+    Debug_printv("_disk[%s]", _disk->url.c_str());
 
     std::shared_ptr<MStream> new_stream;
 
@@ -381,7 +379,7 @@ bool iecDisk::registerStream (std::ios_base::open_mode mode)
     if ( mode == std::ios_base::in )
     {
         Debug_printv("LOAD _disk[%s] _file[%s]", _disk->url.c_str(), _file.c_str());
-        new_stream = std::shared_ptr<MStream>(file->meatStream());
+        new_stream = std::shared_ptr<MStream>(_disk->meatStream());
 
         if ( new_stream == nullptr )
         {
@@ -510,10 +508,8 @@ uint16_t iecDisk::sendHeader(std::string header, std::string id)
 	uint16_t byte_count = 0;
 	bool sent_info = false;
 
-    auto istream = retrieveStream();
-
 	PeoplesUrlParser p;
-	std::string url = istream->url;
+	std::string url = _disk->url;
 
 	mstr::toPETSCII(url);
 	p.parseUrl(url);
