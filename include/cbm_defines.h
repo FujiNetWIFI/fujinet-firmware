@@ -86,9 +86,9 @@
 // Special channels.
 enum IECChannels
 {
-    LOAD_CHANNEL = 0,
-    SAVE_CHANNEL = 1,
-    CMD_CHANNEL = 15
+    CHANNEL_LOAD = 0,
+    CHANNEL_SAVE = 1,
+    CHANNEL_COMMAND = 15
 };
 
 typedef enum
