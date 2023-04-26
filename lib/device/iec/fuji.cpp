@@ -1054,6 +1054,7 @@ void iecFuji::get_adapter_config()
         char reply[128];
         std::string s;
 
+        Debug_printf("Returning Adapterconfig.\n");
         sprintf(reply, "%s\r", cfg.ssid);
         s = std::string(reply);
         mstr::toPETSCII(s);
@@ -1487,18 +1488,6 @@ iecDisk *iecFuji::bootdisk()
     return &_bootDisk;
 }
 
-void iecFuji::tin()
-{
-    if (commanddata->secondary == IEC_REOPEN)
-    {
-        IEC.sendBytes("TESTING FROM OPEN.\r");
-    }
-}
-
-void iecFuji::tout()
-{
-}
-
 device_state_t iecFuji::process(IECData *id)
 {
     virtualDevice::process(id);
@@ -1518,6 +1507,24 @@ device_state_t iecFuji::process(IECData *id)
         process_basic_commands();
 
     return device_state;
+}
+
+// COMMODORE SPECIFIC CONVENIENCE COMMANDS /////////////////////
+
+void iecFuji::local_ip()
+{
+    char msg[17];
+    
+    fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+
+    sprintf(msg,"%u.%u.%u.%u",cfg.localIP[0],cfg.localIP[1],cfg.localIP[2],cfg.localIP[3]);
+    
+    iecStatus.channel = 15;
+    iecStatus.error = 0;
+    iecStatus.msg = "";
+    iecStatus.connected = 0;
+
+
 }
 
 void iecFuji::process_basic_commands()
@@ -1579,6 +1586,8 @@ void iecFuji::process_basic_commands()
         set_boot_mode();
     else if (payload.find("mountall") != std::string::npos)
         mount_all();
+    else if (payload.find("localip") != std::string::npos)
+        local_ip();
 }
 
 void iecFuji::process_raw_commands()

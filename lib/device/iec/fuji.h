@@ -109,8 +109,8 @@ protected:
     void copy_file();              // 0xD8
     void set_boot_mode();          // 0xD6
 
-    void tin(); // dummy command 
-    void tout(); // dummy command
+    // Commodore specific
+    void local_ip();
 
     device_state_t process(IECData *commanddata) override;
 
