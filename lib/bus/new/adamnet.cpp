@@ -11,7 +11,7 @@
 #include "led.h"
 
 
-static xQueueHandle reset_evt_queue = NULL;
+static QueueHandle_t reset_evt_queue = NULL;
 // static uint32_t reset_detect_status = 0;
 
 static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
@@ -28,7 +28,7 @@ static void adamnet_reset_intr_task(void *arg)
     bool was_reset = false;
     bool reset_debounced = false;
     uint64_t start, current, elapsed;
-    
+
 
     // reset_detect_status = gpio_get_level((gpio_num_t)PIN_ADAMNET_RESET);
     start = current = esp_timer_get_time();
@@ -39,14 +39,14 @@ static void adamnet_reset_intr_task(void *arg)
             start = esp_timer_get_time();
             printf("ADAMNet RESET Asserted\n");
             was_reset = true;
-        } 
+        }
         current = esp_timer_get_time();
 
         elapsed = current - start;
 
         if (was_reset)
         {
-            if (elapsed >= ADAMNET_RESET_DEBOUNCE_PERIOD) 
+            if (elapsed >= ADAMNET_RESET_DEBOUNCE_PERIOD)
             {
                 reset_debounced = true;
             }
@@ -225,7 +225,7 @@ void virtualDevice::adamnet_control_status()
 void virtualDevice::adamnet_response_status()
 {
     status_response[0] |= _devnum;
-    
+
     status_response[5] = adamnet_checksum(&status_response[1],4);
     adamnet_send_buffer(status_response, sizeof(status_response));
 }
@@ -261,7 +261,7 @@ void systemBus::_adamnet_process_cmd()
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
-    
+
     wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
     fnUartSIO.flush();
 }
