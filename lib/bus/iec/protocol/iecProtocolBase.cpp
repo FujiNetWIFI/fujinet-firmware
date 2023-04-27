@@ -28,7 +28,7 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
     //IEC.pull ( PIN_IEC_SRQ );
     while ( IEC.status ( pin ) != target_status )
     {
-        fnSystem.delay_microseconds(1);
+        //fnSystem.delay_microseconds(1);
         elapsed = current++ - start;
 
         if ( elapsed > wait && wait != FOREVER )
@@ -64,48 +64,38 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
 bool IecProtocolBase::wait(size_t wait, uint64_t start, bool watch_atn)
 {
     uint64_t current, elapsed;
-    bool atn_status = false;
     elapsed = 0;
 
     if ( wait == 0 ) return true;
     wait--; // Shave 1us for overhead
 
+    esp_timer_init();
     if ( start == 0 )
-    {
-        esp_timer_init();
         start = current = esp_timer_get_time();
-    }
     else
-    {
         current = esp_timer_get_time();
-    }
 
-    if ( watch_atn )
-    {
-        // Sample ATN and set flag to indicate SELECT or DATA mode
-        atn_status = IEC.status ( PIN_IEC_ATN );
-        if ( atn_status == PULLED)
-            IEC.flags |= ATN_PULLED;
-    }
+    // Sample ATN and set flag to indicate SELECT or DATA mode
+    bool atn_status = IEC.status ( PIN_IEC_ATN );
+    if ( atn_status == PULLED)
+        IEC.flags |= ATN_PULLED;
 
     //IEC.pull ( PIN_IEC_SRQ );
     while ( elapsed < wait )
     {
+        //fnSystem.delay_microseconds(1);
         current = esp_timer_get_time();
         elapsed = current - start;
 
-        if ( watch_atn )
-        {
-            bool atn_check = IEC.status ( PIN_IEC_ATN );
-            if ( atn_check == PULLED)
-                IEC.flags |= ATN_PULLED;
+        bool atn_check = IEC.status ( PIN_IEC_ATN );
+        if ( atn_check == PULLED)
+            IEC.flags |= ATN_PULLED;
 
-            if ( atn_check != atn_status )
-            {
-                //IEC.release( PIN_IEC_SRQ );
-                //Debug_printv("watch_atn[%d] wait[%d] elapsed[%d]", watch_atn, wait, elapsed);
-                return false;
-            }            
+        if ( atn_check != atn_status )
+        {
+            //IEC.release ( PIN_IEC_SRQ );
+            //Debug_printv("wait[%d] elapsed[%d] start[%d] current[%d]", wait, elapsed, start, current);
+            return false;
         }
     }
 

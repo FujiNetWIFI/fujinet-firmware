@@ -28,6 +28,25 @@ class D64IStream : public CBMImageStream {
 
 protected:
 
+    struct BlockAllocationMap {
+        uint8_t track;
+        uint8_t sector;
+        uint8_t offset;
+        uint8_t start_track;
+        uint8_t end_track;
+        uint8_t byte_count;
+    };
+
+    struct Partition {
+        uint8_t header_track;
+        uint8_t header_sector;
+        uint8_t header_offset;
+        uint8_t directory_track;
+        uint8_t directory_sector;
+        uint8_t directory_offset;
+        std::vector<BlockAllocationMap> block_allocation_map;
+    };
+
     struct Header {
         char disk_name[16];
         char unused[2];
@@ -53,65 +72,130 @@ protected:
         uint16_t blocks;
     };
 
-    struct BAMInfo {
-        uint8_t track;
-        uint8_t sector;
-        uint8_t offset;
-        uint8_t start_track;
-        uint8_t end_track;
-        uint8_t byte_count;
-    };
-
-    struct Partition {
-        uint8_t track;
-        uint8_t sector;
-        uint8_t header_offset;
-        uint8_t directory_track;
-        uint8_t directory_sector;
-        uint8_t directory_offset;
-        std::vector<BAMInfo> block_allocation_map;
-    };
-
     std::vector<Partition> partitions;
-
-    // D64 Offsets
-    std::vector<uint8_t> directory_header_offset = {18, 0, 0x90};
-    std::vector<uint8_t> directory_list_offset = {18, 1, 0x00};
-    std::vector<BAMInfo> block_allocation_map = { {18, 0, 0x04, 1, 35, 4} };
     std::vector<uint8_t> sectorsPerTrack = { 17, 18, 19, 21 };
 
 public:
     D64IStream(std::shared_ptr<MStream> is) : CBMImageStream(is) 
     {
-        // D64 Offsets
-        directory_header_offset = {18, 0, 0x90};
-        directory_list_offset = {18, 1, 0x00};
-        block_allocation_map = { {18, 0, 0x04, 1, 35, 4} };
-        sectorsPerTrack = { 17, 18, 19, 21 };
+        // D64 Partition Info
+        std::vector<BlockAllocationMap> b = { 
+            {
+                18,     // track
+                0,      // sector
+                0x04,   // offset
+                1,      // start_track
+                35,     // end_track
+                4       // byte_count
+            } 
+        };
 
-        // Partition p;
-        // std::vector<BAMInfo> b = { {18, 0, 0x04, 1, 35, 4} };
-        // p = {
-        //     18,    // track
-        //     0,     // sector
-        //     0x90,  // header_offset
-        //     18,    // directory_track
-        //     1,     // directory_sector
-        //     0x00,  // directory_offset
-        //     b      // block_allocation_map
-        // };
-        // partitions.push_back(p);
+        Partition p = {
+            18,    // track
+            0,     // sector
+            0x90,  // header_offset
+            18,    // directory_track
+            1,     // directory_sector
+            0x00,  // directory_offset
+            b      // block_allocation_map
+        };
+        partitions.clear();
+        partitions.push_back(p);
+        sectorsPerTrack = { 17, 18, 19, 21 };
+        block_size = 256;
+
+
+        uint32_t size = containerStream->size();
+        switch (size + media_header_size) 
+        {
+            case 174848: // 35 tracks no errors
+                break;
+
+            case 175531: // 35 w/ errors
+                error_info = true;
+                break;
+
+            case 196608: // 40 tracks no errors
+                partitions[partition].block_allocation_map[0].end_track = 40;
+                break;
+
+            case 197376: // 40 w/ errors
+                partitions[partition].block_allocation_map[0].end_track = 40;
+                error_info = true;
+                break;
+
+            case 205312: // 42 tracks no errors
+                partitions[partition].block_allocation_map[0].end_track = 42;
+                break;
+
+            case 206114: // 42 w/ errors
+                partitions[partition].block_allocation_map[0].end_track = 42;
+                error_info = true;
+                break;
+        }
+
+        // Get DOS Version
+
+        // Extend BAM Info for DOLPHIN, SPEED, and ProLogic DOS
+        // The location of the extra BAM information in sector 18/0, for 40 track images, 
+        // will be different depending on what standard the disks have been formatted with. 
+        // SPEED DOS stores them from $C0 to $D3, DOLPHIN DOS stores them from $AC to $BF 
+        // and PrologicDOS stored them right after the existing BAM entries from $90-A3. 
+        // PrologicDOS also moves the disk label and ID forward from the standard location 
+        // of $90 to $A4. 64COPY and Star Commander let you select from several different 
+        // types of extended disk formats you want to create/work with. 
+
+        // // DOLPHIN DOS
+        // block_allocation_map += [{
+        //     "track": 18,
+        //     "sector": 0,
+        //     "offset": 0xAC,
+        //     "start_track": 36,
+        //     "end_track": 40,
+        //     "byte_count": 4
+        // }];
+
+        // // SPEED DOS
+        // block_allocation_map += [{
+        //     "track": 18,
+        //     "sector": 0,
+        //     "offset": 0xC0,
+        //     "start_track": 36,
+        //     "end_track": 40,
+        //     "byte_count": 4
+        // }];
+
+        // // PrologicDOS
+        // block_allocation_map += [{
+        //     "track": 18,
+        //     "sector": 0,
+        //     "offset": 0xC0,
+        //     "start_track": 36,
+        //     "end_track": 40,
+        //     "byte_count": 4
+        // }];
+
+        //getBAMMessage();
+
     };
 
 
+    virtual uint16_t blocksFree();
 
-    //uint8_t sector_buffer[256] = { 0 };
+	virtual uint8_t speedZone( uint8_t track)
+	{
+		return (track < 18) + (track < 25) + (track < 31);
+	};
 
     bool seekSector( uint8_t track, uint8_t sector, size_t offset = 0 );
-    bool seekSector( std::vector<uint8_t> trackSectorOffset = { 0 } );
+    bool seekSector( std::vector<uint8_t> trackSectorOffset );
 
     void seekHeader() override {
-        seekSector(directory_header_offset);
+        seekSector( 
+            partitions[partition].header_track, 
+            partitions[partition].header_sector, 
+            partitions[partition].header_offset 
+        );
         containerStream->read((uint8_t*)&header, sizeof(header));
     }
 
@@ -119,12 +203,7 @@ public:
         return seekEntry(entry_index + 1);
     }
 
-    virtual uint16_t blocksFree();
 
-	virtual uint8_t speedZone( uint8_t track)
-	{
-		return (track < 17) + (track < 24) + (track < 30);
-	};
 
     virtual bool seekPath(std::string path) override;
     size_t readFile(uint8_t* buf, size_t size) override;
@@ -132,8 +211,11 @@ public:
     Header header;      // Directory header data
     Entry entry;        // Directory entry data
 
-    uint8_t dos_version;
+    uint8_t dos_version = 0x41;
+    bool error_info = false;
+    std::string bam_message = "";
 
+    uint8_t partition = 0;
     uint8_t track = 0;
     uint8_t sector = 0;
     uint16_t offset = 0;

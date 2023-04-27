@@ -34,13 +34,13 @@ SMB URL Format
 The SMB URL format is currently a small subset of the URL format that is
 defined/used by the Samba project.
 The goal is to eventually support the full URL format, thus making URLs
-interchangable between Samba utilities and Libsmb2 but we are not there yet.
+interchangeable between Samba utilities and Libsmb2 but we are not there yet.
 
 smb://[<domain>;][<user>@]<server>[:<port>]/<share>[/path][?arg=val[&arg=val]*]
 
 <server> is either a hostname, an IPv4 or an IPv6 address.
 
-Aruments supported by libsmb2 are :
+Arguments supported by libsmb2 are :
  sec=<mech>    : Mechanism to use to authenticate to the server. Default
 	         is any available mech, but can be overridden by :
 		 krb5: Use Kerberos using credentials from kinit.
@@ -196,6 +196,19 @@ toolchain (Arduino is not supported). Simply clone this project in the
 'components' directory of the ESP32 project and it will automatically be
 included in the build process.
 
+Raspberry Pi Pico W (RP2040)
+----------------------------
+libsmb2 will compile on the RP2040 using gcc-arm-none-eabi, the pico-sdk
+and FreeRTOS-Kernel. In examples/picow is a CMakeLists.txt that can be
+edited to point at the pico-sdk and FreeRTOS-Kernel, and will then build
+libsmb2 and a sample - this can be used as a starting point.  Inside
+include/picow are some configuration files for lwip, FreeRTOS and any
+applications built with libsmb2.  These can also be used as a starting 
+point and adjusted as needed for your applications.
+
+The only define needed for libsmb2 on the RP2040, other than the RP2040
+defines such as PICO_BOARD=pico_w, is PICO_PLATFORM.
+
 Playstation2
 ------------
 EE, Emotion-Engine, is the main CPU for the PS2.
@@ -229,3 +242,16 @@ Then to build libsmb2, run
 
 The process will copy the resulting libsmb2.a and the include/smb2 headers to your
 PSL1GHT SDK portlibs folder.
+
+PlayStation 4
+-------------
+x86_64 is the main CPU for the PS4.
+To compile libsmb2 for the PS4 PPU, first install the PS4 toolchain and
+OpenOrbis SDK and set it up.
+
+Then to build libsmb2, run
+  $ cd lib
+  $ make -f Makefile.PS4 install
+
+The process will copy the resulting libsmb2.a and the include/smb2 headers to your
+OpenOrbis SDK include folder.

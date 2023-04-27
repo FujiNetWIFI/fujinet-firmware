@@ -7,6 +7,7 @@
 #include <sstream>
 #include "utils.h"
 #include "string_utils.h"
+//#include "../../include/global_defines.h"
 
 class PeoplesUrlParser {
 public:
@@ -107,6 +108,14 @@ private:
 
 public:
 
+    std::string pathToFile(void)
+    {
+        if (name.size() > 0)
+            return path.substr(0, path.size() - name.size() - 1);
+        else
+            return path;
+    }
+
     std::string root(void)
     {
         // set root URL
@@ -143,21 +152,18 @@ public:
 
         cleanPath();
 
-        return root() + path ;
-    }
-
-    std::string pathToFile(void)
-    {
-        if (name.size() > 0)
-            return path.substr(0, path.size() - name.size() - 1);
-        else
-            return path;
+        return root() + pathToFile() ;
     }
 
     std::string rebuildUrl(void)
     {
         // set full URL
-        url = base();
+        if ( !mstr::startsWith(path, "/") )
+            path = "/" + path;
+
+        cleanPath();
+
+        url = root() + path;
         //Debug_printv("url[%s]", url.c_str());
         // url += name;
         // Debug_printv("url[%s]", url.c_str());
@@ -226,9 +232,14 @@ public:
 
     // void dump() {
     //     printf("scheme: %s\n", scheme.c_str());
+    //     printf("user pass: %s -- %s\n", user.c_str(), pass.c_str());
     //     printf("host port: %s -- %s\n", host.c_str(), port.c_str());
     //     printf("path: %s\n", path.c_str());
-    //     printf("user pass: %s -- %s\n", user.c_str(), pass.c_str());
+    //     printf("name: %s\n", name.c_str());
+    //     printf("extension: %s\n", extension.c_str());
+    //     printf("root: %s\n", root().c_str());
+    //     printf("base: %s\n", base().c_str());
+    //     printf("pathToFile: %s\n", pathToFile().c_str());
     // }
 
 };

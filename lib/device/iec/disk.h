@@ -1,15 +1,42 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include "../fuji/fujiHost.h"
+#include "fujiHost.h"
+
 #include <string>
+#include <unordered_map>
+
 #include "bus.h"
-#include "../media/media.h"
+#include "media.h"
+#include "meat_io.h"
+#include "meat_buffer.h"
+
+#define PRODUCT_ID "MEATLOAF CBM"
 
 class iecDisk : public virtualDevice
 {
 private:
-    MediaType *_disk = nullptr;
+    //MediaType *_disk = nullptr;
+
+    std::unique_ptr<MFile> _disk; // Always points to current directory/image
+    std::string _file;         // Always points to current or last loaded file
+
+    // Named Channel functions
+    std::shared_ptr<MStream> currentStream;
+    bool registerStream (int mode);
+    std::shared_ptr<MStream> retrieveStream ( void );
+    bool closeStream ( bool close_all = false );
+
+    // Directory
+	uint16_t sendHeader(std::string header, std::string id);
+	uint16_t sendLine(uint16_t blocks, char *text);
+	uint16_t sendLine(uint16_t blocks, const char *format, ...);
+	uint16_t sendFooter();
+	void sendListing();
+
+    // File
+	bool sendFile();
+	bool saveFile();
 
     struct _error_response
     {
@@ -24,11 +51,87 @@ private:
     void format();
 
 protected:
+    /**
+     * @brief Process command fanned out from bus
+     * @param _commanddata the passed in commanddata
+     * @return new device state
+     */
     device_state_t process(IECData *commanddata) override;
+
+    /**
+     * @brief process command for channel 0 (load)
+     */
     void process_load();
+
+    /**
+     * @brief process command for channel 1 (save)
+     */
     void process_save();
+
+    /**
+     * @brief process command channel
+     */
     void process_command();
-    void process_file();
+
+    /**
+     * @brief process every other channel (2-14)
+     */
+    void process_channel();
+
+    /**
+     * @brief called to open a connection to a protocol
+     */
+    void iec_open();
+
+    /**
+     * @brief called to close a connection.
+     */
+    void iec_close();
+    
+    /**
+     * @brief called when a TALK, then REOPEN happens on channel 0
+     */
+    void iec_reopen_load();
+
+    /**
+     * @brief called when TALK, then REOPEN happens on channel 1
+     */
+    void iec_reopen_save();
+
+    /**
+     * @brief called when REOPEN (to send/receive data)
+     */
+    void iec_reopen_channel();
+
+    /**
+     * @brief called when channel needs to listen for data from c=
+     */
+    void iec_reopen_channel_listen();
+
+    /**
+     * @brief called when channel needs to talk data to c=
+     */
+    void iec_reopen_channel_talk();
+
+    /**
+     * @brief called when LISTEN happens on command channel (15).
+     */
+    void iec_listen_command();
+
+    /**
+     * @brief called when TALK happens on command channel (15).
+     */
+    void iec_talk_command();
+
+    /**
+     * @brief called to process command either at open or listen
+     */
+    void iec_command();
+
+    /**
+     * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
+     */
+    void iec_talk_command_buffer_status();
 
 public:
     iecDisk();
@@ -37,7 +140,9 @@ public:
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
-    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+    //mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+
+    std::unordered_map<uint16_t, std::shared_ptr<MStream>> streams;
 
     ~iecDisk();
 };

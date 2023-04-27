@@ -5,10 +5,19 @@
 #include <freertos/queue.h>
 #include <esp_system.h>
 #include <driver/gpio.h>
-#ifndef CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32S3
+# include <hal/gpio_ll.h>
+#else
 # include <driver/dac.h>
 #endif
-
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include <esp_chip_info.h>
+#include <driver/adc.h>
+#include <hal/gpio_ll.h>
+#define ADC_WIDTH_12Bit ADC_WIDTH_BIT_12
+#define ADC_ATTEN_11db ADC_ATTEN_DB_11
+#endif
 #include <soc/rtc.h>
 #include <esp_adc_cal.h>
 #include <time.h>
@@ -30,44 +39,53 @@
 #endif
 
 
-static xQueueHandle card_detect_evt_queue = NULL;
-static uint32_t card_detect_status = 1; // 1 is no sd card
-
-int _pin_card_detect = 0;
+static QueueHandle_t card_detect_evt_queue = NULL;
 
 static void IRAM_ATTR card_detect_isr_handler(void *arg)
 {
     // Generic default interrupt handler
-    uint32_t gpio_num = (uint32_t) arg;
+    gpio_num_t gpio_num = (gpio_num_t)(int)arg;
     xQueueSendFromISR(card_detect_evt_queue, &gpio_num, NULL);
-    //Debug_printf("INTERRUPT ON GPIO: %d", arg);
+    //Debug_printf("INTERRUPT ON GPIO: %d", gpio_num);
 }
 
-static void card_detect_intr_task(void* arg)
+static void card_detect_intr_task(void *arg)
 {
-    uint32_t io_num, level;
-
+    // Assert valid initial card status
+    vTaskDelay(1);
     // Set card status before we enter the infinite loop
-    card_detect_status = gpio_get_level((gpio_num_t)_pin_card_detect);
+    int card_detect_status = gpio_get_level((gpio_num_t)(int)arg);
 
-    for(;;) {
-        if(xQueueReceive(card_detect_evt_queue, &io_num, portMAX_DELAY)) {
-            level = gpio_get_level((gpio_num_t)io_num);
-            if (card_detect_status == level)
-            {
+    for (;;) {
+        gpio_num_t gpio_num;
+        if(xQueueReceive(card_detect_evt_queue, &gpio_num, portMAX_DELAY)) {
+            int level = gpio_get_level(gpio_num);
+            if (card_detect_status == level) {
                 printf("SD Card detect ignored (debounce)\n");
             }
-            else if (level == 1){
+            else if (level == 1) {
                 printf("SD Card Ejected, REBOOT!\n");
                 fnSystem.reboot();
             }
-            else{
+            else {
                 printf("SD Card Inserted\n");
                 fnSDFAT.start();
             }
             card_detect_status = level;
         }
     }
+}
+
+static void setup_card_detect(gpio_num_t pin)
+{
+    // Create a queue to handle card detect event from ISR
+    card_detect_evt_queue = xQueueCreate(10, sizeof(gpio_num_t));
+    // Start card detect task
+    xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, (void *)pin, 10, NULL);
+    // Enable interrupt for card detection
+    fnSystem.set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
+    // Add the card detect handler
+    gpio_isr_handler_add(pin, card_detect_isr_handler, (void *)pin);
 }
 
 // Global object to manage System
@@ -369,7 +387,7 @@ FILE *SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
     else
         fname = buff;
 
-    sprintf(fname, "%08u", ms);
+    sprintf(fname, "%08u", (unsigned)ms);
     return fs->file_open(fname, "w+");
 }
 
@@ -592,7 +610,15 @@ const char *SystemManager::get_hardware_ver_str()
 */
 void SystemManager::check_hardware_ver()
 {
-    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck;
+#ifdef PINMAP_ESP32S3
+
+    if (PIN_CARD_DETECT != GPIO_NUM_NC)
+        setup_card_detect(PIN_CARD_DETECT);
+    _hardware_version = 4;
+
+#else /* PINMAP_ESP32S3 */
+
+    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck, ledstripupcheck, ledstripdowncheck;
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
     fixdowncheck = fnSystem.digital_read(PIN_CARD_DETECT_FIX);
@@ -606,9 +632,41 @@ void SystemManager::check_hardware_ver()
     fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     upcheck = fnSystem.digital_read(PIN_CARD_DETECT);
 
+#ifdef PINMAP_FUJILOAF_REV0
+    /* FujiLoaf has pullup on PIN_GPIOX_INT for GPIO Expander */
+    /*
+    fnSystem.set_pin_mode(PIN_GPIOX_INT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    ledstripupcheck = fnSystem.digital_read(PIN_GPIOX_INT);
+    fnSystem.set_pin_mode(PIN_GPIOX_INT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    ledstripdowncheck = fnSystem.digital_read(PIN_GPIOX_INT);
+
+    if(ledstripdowncheck == ledstripupcheck)
+    {
+        ledstrip = true;
+        Debug_printf("Enabling LED Strip\n");
+    }
+    */
+
+    /* For now, just enable ledstrip for FujiLoaf */
+    ledstrip = true;
+    Debug_printf("Enabling LED Strip\n");
+#endif
+
 #ifdef PINMAP_A2_REV0
-    /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset.
-       Apple 2 Rev00 with SPI fix has 10K hardware pullup on IO14.
+    /* Check for LED Strip pullup and enable it if found */
+    fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    ledstripupcheck = fnSystem.digital_read(LED_DATA_PIN);
+    fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    ledstripdowncheck = fnSystem.digital_read(LED_DATA_PIN);
+
+    if(ledstripdowncheck == ledstripupcheck)
+    {
+        ledstrip = true;
+        Debug_printf("Enabling LED Strip\n");
+    }
+
+    /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset (IO14)
+       Apple 2 Rev00 with SPI fix has 10K hardware pullup on IO14
        Check for pullup and determine if safe reset button or SPI fix
     */
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
@@ -642,29 +700,13 @@ void SystemManager::check_hardware_ver()
     {
         // v1.6.1 fixed/changed card detect pin
         _hardware_version = 4;
-        _pin_card_detect = PIN_CARD_DETECT_FIX;
-        // Create a queue to handle card detect event from ISR
-        card_detect_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-        // Start card detect task
-        xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, NULL, 10, NULL);
-        // Enable interrupt for card detection
-        fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
-        // Add the card detect handler
-        gpio_isr_handler_add((gpio_num_t)PIN_CARD_DETECT_FIX, card_detect_isr_handler, (void *)PIN_CARD_DETECT_FIX);
+        setup_card_detect((gpio_num_t)PIN_CARD_DETECT_FIX);
     }
     else if (upcheck == downcheck)
     {
         // v1.6
         _hardware_version = 3;
-        _pin_card_detect = PIN_CARD_DETECT;
-        // Create a queue to handle card detect event from ISR
-        card_detect_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-        // Start card detect task
-        xTaskCreate(card_detect_intr_task, "card_detect_intr_task", 2048, NULL, 10, NULL);
-        // Enable interrupt for card detection
-        fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
-        // Add the card detect handler
-        gpio_isr_handler_add((gpio_num_t)PIN_CARD_DETECT, card_detect_isr_handler, (void *)PIN_CARD_DETECT);
+        setup_card_detect((gpio_num_t)PIN_CARD_DETECT);
     }
     else if (fnSystem.digital_read(PIN_BUTTON_C) == DIGI_HIGH)
     {
@@ -678,6 +720,8 @@ void SystemManager::check_hardware_ver()
     }
 
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+
+#endif /* PINMAP_ESP32S3 */
 }
 
 // Dumps list of current tasks

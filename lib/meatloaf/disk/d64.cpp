@@ -16,7 +16,7 @@ bool D64IStream::seekSector( uint8_t track, uint8_t sector, size_t offset )
     track--;
 	for (uint8_t index = 0; index < track; ++index)
 	{
-		sectorOffset += sectorsPerTrack[speedZone(index)];
+		sectorOffset += sectorsPerTrack[speedZone(index + 1)];
         // Debug_printv("track[%d] speedZone[%d] secotorsPerTrack[%d] sectorOffset[%d]", (index + 1), speedZone(index), sectorsPerTrack[speedZone(index)], sectorOffset);
 	}
 	sectorOffset += sector;
@@ -55,7 +55,7 @@ bool D64IStream::deallocateBlock( uint8_t track, uint8_t sector)
 
 bool D64IStream::seekEntry( std::string filename )
 {
-    uint8_t index = 1;
+    uint32_t index = 1;
     mstr::rtrimA0(filename);
     mstr::replaceAll(filename, "\\", "/");
 
@@ -68,7 +68,7 @@ bool D64IStream::seekEntry( std::string filename )
             mstr::rtrimA0(entryFilename);
             mstr::replaceAll(filename, "\\", "/");
             mstr::toASCII(entryFilename);
-            Debug_printv("track[%d] sector[%d] filename[%s] entry.filename[%.16s]", track, sector, filename.c_str(), entryFilename.c_str());
+            Debug_printv("index[%d] track[%d] sector[%d] filename[%s] entry.filename[%.16s]", index, track, sector, filename.c_str(), entryFilename.c_str());
 
             //Debug_printv("filename[%s] entry[%s]", filename.c_str(), entryFilename.c_str());
 
@@ -100,7 +100,7 @@ bool D64IStream::seekEntry( std::string filename )
     return false;
 }
 
-bool D64IStream::seekEntry( size_t index )
+bool D64IStream::seekEntry( uint32_t index )
 {
     bool r = false;
 
@@ -118,7 +118,11 @@ bool D64IStream::seekEntry( size_t index )
     {
         // Start at first sector of directory
         next_track = 0;
-        r = seekSector( directory_list_offset );
+        r = seekSector( 
+            partitions[partition].directory_track,
+            partitions[partition].directory_sector,
+            partitions[partition].directory_offset
+        );
 
         // Find sector with requested entry
         do
@@ -173,18 +177,22 @@ uint16_t D64IStream::blocksFree()
 {
     uint16_t free_count = 0;
 
-    for(uint8_t x = 0; x < block_allocation_map.size(); x++)
+    for(uint8_t x = 0; x < partitions[partition].block_allocation_map.size(); x++)
     {
-        uint8_t bam[block_allocation_map[x].byte_count] = { 0 };
+        uint8_t bam[partitions[partition].block_allocation_map[x].byte_count] = { 0 };
         //Debug_printv("start_track[%d] end_track[%d]", block_allocation_map[x].start_track, block_allocation_map[x].end_track);
 
-        seekSector(block_allocation_map[x].track, block_allocation_map[x].sector, block_allocation_map[x].offset);
-        for(uint8_t i = block_allocation_map[x].start_track; i <= block_allocation_map[x].end_track; i++)
+        seekSector(
+            partitions[partition].block_allocation_map[x].track, 
+            partitions[partition].block_allocation_map[x].sector, 
+            partitions[partition].block_allocation_map[x].offset
+        );
+        for(uint8_t i = partitions[partition].block_allocation_map[x].start_track; i <= partitions[partition].block_allocation_map[x].end_track; i++)
         {
             containerStream->read((uint8_t *)&bam, sizeof(bam));
             if ( sizeof(bam) > 3 )
             {
-                if ( i != directory_list_offset[0] )
+                if ( i != partitions[partition].directory_track )
                 {
                     //Debug_printv("x[%d] track[%d] count[%d] size[%d]", x, i, bam[0], sizeof(bam));
                     free_count += bam[0];
@@ -265,8 +273,8 @@ bool D64IStream::seekPath(std::string path) {
         seekSector(entry.start_track, entry.start_sector);
 
         // Calculate file size
-        uint8_t t = 0;
-        uint8_t s = 0;
+        uint8_t t = entry.start_track;
+        uint8_t s = entry.start_sector;
         size_t blocks = 0; 
         do
         {

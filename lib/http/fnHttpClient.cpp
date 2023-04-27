@@ -1,6 +1,8 @@
 // TODO: Figure out why time-outs against bad addresses seem to take about 18s no matter
 // what we set the timeout value to.
 
+#include <cstring>
+
 #include "fnHttpClient.h"
 
 #include "../../include/debug.h"

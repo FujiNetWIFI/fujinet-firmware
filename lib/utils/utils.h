@@ -55,7 +55,7 @@ bool util_starts_with(std::string s, const char *pattern);
 
 bool util_concat_paths(char *dest, const char *parent, const char *child, int dest_size);
 
-void util_dump_bytes(uint8_t *buff, uint32_t buff_size);
+void util_dump_bytes(const uint8_t *buff, uint32_t buff_size);
 
 std::vector<std::string> util_tokenize(std::string s, char c = ' ');
 std::string util_remove_spaces(const std::string &s);
