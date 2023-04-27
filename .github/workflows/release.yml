@@ -19,6 +19,14 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
+
+    - name: Fetch Tag Info
+      run: git fetch --tags --force
+
+    - name: Get Tag Info
+      uses: ericcornelissen/git-tag-annotation-action@v2
+      id: tag-data
+
     - name: Cache pip
       uses: actions/cache@v2
       with:
@@ -26,23 +34,29 @@ jobs:
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
+
     - name: Cache PlatformIO
       uses: actions/cache@v2
       with:
         path: ~/.platformio
         key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
     - name: Set up Python
       uses: actions/setup-python@v2
+
     - name: Install PlatformIO
       run: |
         python -m pip install --upgrade pip
         pip install --upgrade platformio
         pip install Jinja2
         pip install pyyaml
+
     - name: Show python version
       run: python --version
+
     - name: Show pio system info
       run: pio system info
+
     - name: Show pio location
       run: pip show platformio
 
@@ -62,18 +76,7 @@ jobs:
       run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
     - name: Install espressif32 platform
-      run: pio pkg install -p "platformio/espressif32@3.4.0"
-
-    - name: Fix up dirent.h top
-      run: gawk -i inplace '1;/#include\ <stdint.h>/{print "\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"}' /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
-
-    - name: Fix up dirent.h bottom
-      run: printf "\n\n\n#ifdef __cplusplus\n}\n#endif\n\n" >> /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
-
-    - name: Verify dirent.h bottom
-      run: tail -n 10 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
-    - name: Verify dirent.h top
-      run: head -n 30 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+      run: pio pkg install -p "platformio/espressif32@6.1.0"
 
     - name: ATARI Build
       if: ${{ matrix.target-platform == 'ATARI' }}
@@ -110,6 +113,10 @@ jobs:
       run: |
         echo "${{ steps.changes.outputs.log }}" > change.log
         cat change.log
+
+    - name: Create JSON Description from Tag Annotation if Available
+      if: { steps.tag-data.outputs.git-tag-annotation != "" }
+      run: echo ${{ steps.tag-data.outputs.git-tag-annotation }} > annotation.txt
 
     - name: Create Release ZIP
       run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }} ${{ github.repository_owner }}
@@ -156,3 +163,10 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: change.log
+
+    - name: Get Git Short SHA
+      id: shortsha
+      run: echo "::set-output name=shortsha::$(git rev-parse --short HEAD)"
+
+#    - name: Notify FujiNet server
+#      run: sh -c 'echo "wget https://fujinet.online/?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.shortsha }}"'

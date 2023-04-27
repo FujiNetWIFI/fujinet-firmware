@@ -23,20 +23,27 @@ else
     BUILDPATH="$WORKINGDIR/.pio/build/fujinet-v1"
 fi
 
-# Split git log into array for JSON
-UNO=1
-while read -r line
-do
-    if [ $UNO -eq 1 ]; then
-        GIT_LOG="["$'\n'"          \"$line\""
-    else
-        GIT_LOG="          ${GIT_LOG},"$'\n'"          \"$line\""
-    fi
-    UNO=0
-done < change.log
-GIT_LOG="${GIT_LOG}"$'\n'"    ]"
+if [ -f "annotation.txt" ]; then
+	NOTE=`cat annotation.txt`
+	GIT_LOG="\"${NOTE}\""
+else
+	# Split git log into array for JSON
+	UNO=1
+	while read -r line
+	do
+		if [ $UNO -eq 1 ]; then
+			GIT_LOG="["$'\n'"          \"$line\""
+		else
+			GIT_LOG="          ${GIT_LOG},"$'\n'"          \"$line\""
+		fi
+		UNO=0
+	done < change.log
+	GIT_LOG="${GIT_LOG}"$'\n'"    ]"
+fi
 
 # Create release JSON
+if [ "$PLATFORM" == "ATARI" ]; then
+# For 16MB Flash
 cat <<EOF > $BUILDPATH/release.json
 {
 	"version": "$VERSION",
@@ -65,9 +72,40 @@ cat <<EOF > $BUILDPATH/release.json
 	]
 }
 EOF
+else
+# For 8MB Flash
+cat <<EOF > $BUILDPATH/release.json
+{
+	"version": "$VERSION",
+	"version_date": "$VERSION_DATE",
+	"build_date": "$BUILD_DATE",
+	"description": $GIT_LOG,
+	"git_commit": "$GIT_SHORT_COMMIT",
+	"files":
+	[
+		{
+			"filename": "bootloader.bin",
+			"offset": "0x1000"
+		},
+		{
+			"filename": "partitions.bin",
+			"offset": "0x8000"
+		},
+		{
+			"filename": "firmware.bin",
+			"offset": "0x10000"
+		},
+		{
+			"filename": "spiffs.bin",
+			"offset": "0x600000"
+		}
+	]
+}
+EOF
+fi
 
 # Create ZIP file
-zip -qq -j "$FILENAME.zip" $BUILDPATH/bootloader.bin $BUILDPATH/firmware.bin $BUILDPATH/partitions.bin $BUILDPATH/spiffs.bin $BUILDPATH/release.json
+zip -qq -j "$FILENAME.zip" $BUILDPATH/bootloader.bin $BUILDPATH/firmware.bin $BUILDPATH/partitions.bin $BUILDPATH/spiffs.bin $BUILDPATH/release.json change.log
 
 # Get shasum for ZIP file
 ZIPSHASUM=`sha256sum $FILENAME.zip | cut -d ' ' -f 1`
