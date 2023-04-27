@@ -40,13 +40,13 @@ class lynxSerial : public virtualDevice
     virtual void comlynx_idle();
     virtual void comlynx_response_status();
     virtual void comlynx_control_ready();
-    
+
     void comlynx_control_send();
 
     /**
      * Queue Handle
      */
-    xQueueHandle serial_out_queue;
+    QueueHandle_t serial_out_queue;
 
 private:
 
