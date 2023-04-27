@@ -15,7 +15,7 @@
 
 #define IDLE_TIME 1000 // Idle tolerance in microseconds
 
-static xQueueHandle reset_evt_queue = NULL;
+static QueueHandle_t reset_evt_queue = NULL;
 
 static void IRAM_ATTR comlynx_reset_isr_handler(void *arg)
 {
@@ -312,7 +312,7 @@ void systemBus::setup()
 
     // Set up UDP device
     _udpDev = new lynxUDPStream();
-    
+
     // Set up UART
     fnUartSIO.begin(COMLYNX_BAUD);
 }

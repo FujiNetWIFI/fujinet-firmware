@@ -37,8 +37,8 @@ const char *_spp_server_name = "ESP32SPP";
 #define SPP_DISCONNECTED 0x08
 
 static uint32_t _spp_client = 0;
-static xQueueHandle _spp_rx_queue = nullptr;
-static xQueueHandle _spp_tx_queue = nullptr;
+static QueueHandle_t _spp_rx_queue = nullptr;
+static QueueHandle_t _spp_tx_queue = nullptr;
 static SemaphoreHandle_t _spp_tx_done = nullptr;
 static TaskHandle_t _spp_task_handle = nullptr;
 static EventGroupHandle_t _spp_event_group = nullptr;
