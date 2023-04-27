@@ -27,6 +27,9 @@ jobs:
       uses: ericcornelissen/git-tag-annotation-action@v2
       id: tag-data
 
+    - name: Show Tag Info
+      run: echo ${{ steps.tag-data.outputs.git-tag-annotation }}
+
     - name: Cache pip
       uses: actions/cache@v2
       with:
@@ -116,7 +119,7 @@ jobs:
 
     - name: Create JSON Description from Tag Annotation if Available
       if: ${{ steps.tag-data.outputs.git-tag-annotation != '' }}
-      run: echo ${{ steps.tag-data.outputs.git-tag-annotation }} > annotation.txt
+      run: echo "${{ steps.tag-data.outputs.git-tag-annotation }}" > annotation.txt
 
     - name: Create Release ZIP
       run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }} ${{ github.repository_owner }}
@@ -140,15 +143,6 @@ jobs:
         name: change.log
         path: change.log
 
-#    - name: Create Release
-#      uses: actions/create-release@v1
-#      env:
-#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-#      with:
-#        tag_name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}
-#        release_name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}
-#        body: "FujiNet build for ${{ matrix.target-platform }} - ${{ github.ref_name }}"
-
     - name: Push ZIP to release
       uses: softprops/action-gh-release@v1
       with:
@@ -168,5 +162,5 @@ jobs:
       id: shortsha
       run: echo "::set-output name=shortsha::$(git rev-parse --short HEAD)"
 
-#    - name: Notify FujiNet server
-#      run: sh -c 'echo "wget https://fujinet.online/?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.shortsha }}"'
+    - name: Notify FujiNet server
+      run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.shortsha }}"'
