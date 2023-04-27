@@ -79,7 +79,7 @@ cat <<EOF > releases-$PLATFORM.json
     "version_date": "$VERSION_DATE",
     "build_date": "$BUILD_DATE",
     "description": $GIT_LOG,
-    "git_commit": "$GIT_COMMIT",
+    "git_commit": "$GIT_SHORT_COMMIT",
     "url": "https://github.com/$REPO_OWNER/fujinet-platformio/releases/download/$VERSION/$FILENAME.zip",
     "sha256": "$ZIPSHASUM"
 }
