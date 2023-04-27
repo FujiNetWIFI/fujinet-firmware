@@ -1521,10 +1521,8 @@ void iecFuji::local_ip()
     
     iecStatus.channel = 15;
     iecStatus.error = 0;
-    iecStatus.msg = "";
+    iecStatus.msg = string(msg);
     iecStatus.connected = 0;
-
-
 }
 
 void iecFuji::process_basic_commands()
