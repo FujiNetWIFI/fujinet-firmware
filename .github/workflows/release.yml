@@ -140,14 +140,14 @@ jobs:
         name: change.log
         path: change.log
 
-    - name: Create Release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}
-        release_name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}
-        body: "FujiNet build for ${{ matrix.target-platform }} - ${{ github.ref_name }}"
+#    - name: Create Release
+#      uses: actions/create-release@v1
+#      env:
+#        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      with:
+#        tag_name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}
+#        release_name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}
+#        body: "FujiNet build for ${{ matrix.target-platform }} - ${{ github.ref_name }}"
 
     - name: Push ZIP to release
       uses: softprops/action-gh-release@v1
