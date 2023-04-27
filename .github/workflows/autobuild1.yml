@@ -61,18 +61,19 @@ jobs:
       run: cat platformio.ini
 
     - name: Install espressif32 platform
-      run: pio pkg install -p "platformio/espressif32@3.4.0"
+      run: pio pkg install -p "platformio/espressif32"
+#      run: pio pkg install -p "platformio/espressif32@3.4.0"
 
-    - name: Fix up dirent.h top
-      run: gawk -i inplace '1;/#include\ <stdint.h>/{print "\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"}' /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+#    - name: Fix up dirent.h top
+#      run: gawk -i inplace '1;/#include\ <stdint.h>/{print "\n\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n"}' /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
 
-    - name: Fix up dirent.h bottom
-      run: printf "\n\n\n#ifdef __cplusplus\n}\n#endif\n\n" >> /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+#    - name: Fix up dirent.h bottom
+#      run: printf "\n\n\n#ifdef __cplusplus\n}\n#endif\n\n" >> /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
 
-    - name: Verify dirent.h bottom
-      run: tail -n 10 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
-    - name: Verify dirent.h top
-      run: head -n 30 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+#    - name: Verify dirent.h bottom
+#      run: tail -n 10 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
+#    - name: Verify dirent.h top
+#      run: head -n 30 /home/runner/.platformio/packages/framework-espidf/components/newlib/platform_include/sys/dirent.h
 
     - name: ATARI Build
       if: ${{ matrix.target-platform == 'ATARI' }}
