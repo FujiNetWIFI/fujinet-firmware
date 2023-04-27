@@ -115,7 +115,7 @@ jobs:
         cat change.log
 
     - name: Create JSON Description from Tag Annotation if Available
-      if: { steps.tag-data.outputs.git-tag-annotation != "" }
+      if: ${{ steps.tag-data.outputs.git-tag-annotation != "" }}
       run: echo ${{ steps.tag-data.outputs.git-tag-annotation }} > annotation.txt
 
     - name: Create Release ZIP
