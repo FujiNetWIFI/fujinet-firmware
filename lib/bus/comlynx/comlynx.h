@@ -268,6 +268,9 @@ public:
     bool deviceEnabled(uint8_t device_id);
     QueueHandle_t qComlynxMessages = nullptr;
     void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
+
+    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
 };
 
 extern systemBus ComLynx;

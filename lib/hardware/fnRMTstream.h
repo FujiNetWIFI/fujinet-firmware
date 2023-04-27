@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "esp_err.h"
+#include "esp_idf_version.h"
 #include "soc/soc_caps.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
@@ -24,6 +25,9 @@
 #include "soc/rmt_periph.h"
 #include "soc/rmt_struct.h"
 #include "hal/rmt_types.h"
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+#include "driver/rmt_types_legacy.h"
+#endif
 
 #define RMT_CHANNEL_FLAGS_AWARE_DFS (1 << 0) /*!< Channel can work during APB clock scaling */
 
@@ -31,7 +35,9 @@
  * @brief Define memory space of each RMT channel (in words = 4 bytes)
  *
  */
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
 #define RMT_MEM_ITEM_NUM SOC_RMT_CHANNEL_MEM_WORDS
+#endif
 
 /**
  * @brief Data struct of RMT TX configure parameters
@@ -145,7 +151,7 @@ struct fn_rmt_tx_end_callback_t
  *       When we convert each byte of uint8_t type data to rmt format data,
  *       the relation between item_num and translated_size should be `item_num = translated_size*8`.
  */
-typedef void (*fn_sample_to_rmt_t)(const void *src, rmt_item32_t *dest, size_t src_size, size_t wanted_num, size_t *translated_size, size_t *item_num);
+typedef void (*fn_sample_to_rmt_t)(const void *src, rmt_item32_t *dest, size_t src_size, size_t wanted_num, size_t *translated_size, size_t *item_num, int bit_period);
 
 class rmtStream
 {
@@ -792,7 +798,7 @@ public:
      *     - ESP_OK Send success
      */
     esp_err_t rmt_write_sample(rmt_channel_t channel, const uint8_t *src, size_t src_size, bool wait_tx_done);
-    esp_err_t rmt_write_bitstream(rmt_channel_t channel, const uint8_t *src, size_t num_bits);
+    esp_err_t rmt_write_bitstream(rmt_channel_t channel, const uint8_t *src, size_t num_bits, int bit_period);
 
     /**
      * @brief Registers a callback that will be called when transmission ends.

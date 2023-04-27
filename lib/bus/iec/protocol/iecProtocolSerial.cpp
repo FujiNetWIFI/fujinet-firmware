@@ -16,6 +16,7 @@ IecProtocolSerial::~IecProtocolSerial()
 
 }
 
+
 // STEP 3: SENDING THE BITS
 // The talker has eight bits to send.  They will go out without handshake; in other words,
 // the listener had better be there to catch them, since the talker won't wait to hear from the listener.  At this
@@ -95,12 +96,13 @@ int16_t IecProtocolSerial::receiveBits ()
         do
         {
             // wait for bit to be ready to read
+            IEC.pull ( PIN_IEC_SRQ );
             bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMEOUT_DEFAULT, false );
 
             /* If there is a delay before the last bit, the controller uses JiffyDOS */
             if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
             {
-                if ( IEC.status( PIN_IEC_ATN ) == PULLED && data < 0x60 )
+                if ( IEC.status ( PIN_IEC_ATN ) == PULLED && data < 0x60 )
                 {
                     IEC.flags |= ATN_PULLED;
 
@@ -124,6 +126,7 @@ int16_t IecProtocolSerial::receiveBits ()
         
         // get bit
         data |= ( IEC.status ( PIN_IEC_DATA_IN ) == RELEASED ? ( 1 << 7 ) : 0 );
+        IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
         if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
@@ -228,7 +231,7 @@ int16_t IecProtocolSerial::receiveByte()
     uint8_t data = receiveBits();
     //release ( PIN_IEC_SRQ );
     if ( IEC.flags & ERROR)
-       return -1;
+        return -1;
 
     // STEP 4: FRAME HANDSHAKE
     // After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true
@@ -250,7 +253,7 @@ int16_t IecProtocolSerial::receiveByte()
     {
         // EOI Received
         if ( !wait ( TIMING_Tfr ) ) return -1;
-        IEC.release ( PIN_IEC_DATA_OUT );
+        //IEC.release ( PIN_IEC_DATA_OUT );
     }
     else
     {
@@ -363,12 +366,12 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
             Debug_printv ( "ATN pulled" );
             return false;
         }
-        IEC.release ( PIN_IEC_CLK_OUT );
+        //IEC.release ( PIN_IEC_CLK_OUT );
     }
-    else
-    {
-        wait ( TIMING_Tbb, 0, false );
-    }
+    //else
+    //{
+        wait ( TIMING_Tbb );
+    //}
 
     // Let bus stabalize
     // wait ( TIMING_STABLE );

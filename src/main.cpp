@@ -1,7 +1,8 @@
 #include <esp_system.h>
 #include <nvs_flash.h>
-#include <esp32/spiram.h>
+#ifdef ATARI
 #include <esp32/himem.h>
+#endif
 
 #include "debug.h"
 #include "bus.h"
@@ -17,6 +18,8 @@
 #include "fnFsSPIFFS.h"
 
 #include "httpService.h"
+
+#include "led_strip.h"
 
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
@@ -73,6 +76,8 @@ void main_setup()
     Debug_printf("Detected Hardware Version: %s\n", fnSystem.get_hardware_ver_str());
 
     fnKeyManager.setup();
+
+    fnLedStrip.setup(); // start LED Strip before fnLedManager and after check_hardware_ver()
     fnLedManager.setup();
 
     fnSPIFFS.start();

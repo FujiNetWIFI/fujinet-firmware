@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include <cstddef>
-#include "../../include/iecdefines.h"
+#include "../../include/cbm_defines.h"
 
 /**
  * @brief The IEC bus protocol base class

@@ -21,14 +21,76 @@ class D90IStream : public D64IStream {
 public:
     D90IStream(std::shared_ptr<MStream> is) : D64IStream(is)
     {
-        // D90 Offsets
-        directory_header_offset = {39, 0, 0x06};
-        directory_list_offset = {39, 1, 0x00};
-        block_allocation_map = { {38, 0, 0x06, 1, 50, 5}, {38, 3, 0x06, 51, 100, 5}, {38, 3, 0x06, 101, 150, 5}, {38, 3, 0x06, 151, 154, 5} };
-        sectorsPerTrack = { 23, 25, 27, 29 };
+        // D90 Partition Info
+        std::vector<BlockAllocationMap> b = { 
+            {
+                38,     // track
+                0,      // sector
+                0x06,   // offset
+                1,      // start_track
+                50,     // end_track
+                5       // byte_count
+            },
+            {
+                38,     // track
+                3,      // sector
+                0x06,   // offset
+                51,     // start_track
+                100,    // end_track
+                5       // byte_count
+            },
+            {
+                38,     // track
+                6,      // sector
+                0x06,   // offset
+                101,    // start_track
+                150,    // end_track
+                5       // byte_count
+            },
+            {
+                38,     // track
+                9,      // sector
+                0x06,   // offset
+                151,    // start_track
+                154,    // end_track
+                5       // byte_count
+            }
+        };
+
+        Partition p = {
+            39,    // track
+            0,     // sector
+            0x06,  // header_offset
+            39,    // directory_track
+            1,     // directory_sector
+            0x00,  // directory_offset
+            b      // block_allocation_map
+        };
+        partitions.clear();
+        partitions.push_back(p);
+        block_size = 256;
+
+        // this.size = data.media_data.length;
+        // switch (this.size + this.media_header_size) {
+
+        //     case 5013504:  // D9060
+        //         this.sectorsPerTrack[0] = 4 * 32; // Heads * Sectors
+        //         break;
+
+        //     case 7520256:  // D9090
+        //     this.sectorsPerTrack[0] = 6 * 32; // Heads * Sectors
+        //         break;
+        // }
+
+        // this.seek(0x04);
+        // this.partitions[0].directory_track = this.read();
+        // this.partitions[0].directory_sector = this.read();       
+        // this.partitions[0].track = this.read();
+        // this.partitions[0].sector = this.read();
+        // this.partitions[0].block_allocation_map[0].track = this.read();
+        // this.partitions[0].block_allocation_map[0].sector = this.read();
     };
 
-    //virtual uint16_t blocksFree() override;
 	virtual uint8_t speedZone( uint8_t track) override
 	{
         if ( track < 78 )

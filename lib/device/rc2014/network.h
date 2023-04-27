@@ -25,6 +25,10 @@
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
 
+#define USERNAME_BUFFER_SIZE 256
+#define PASSWORD_BUFFER_SIZE 256
+
+
 class rc2014Network : public virtualDevice
 {
 
@@ -92,12 +96,12 @@ public:
     /**
      * @brief called to set login
      */
-    virtual void set_login(uint16_t s);
+    virtual void set_login();
 
     /**
      * @brief called to set password
      */
-    virtual void set_password(uint16_t s);
+    virtual void set_password();
 
     /**
      * Check to see if PROCEED needs to be asserted.

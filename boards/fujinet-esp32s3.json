@@ -9,7 +9,7 @@
     "flash_mode": "dio",
     "mcu": "esp32s3",
     "variant": "esp32s3",
-    "partitions": "fujinet_partitions_8MB.csv"
+    "partitions": "fujinet_partitions_16MB.csv"
   },
   "connectivity": [
     "wifi"
@@ -22,12 +22,12 @@
   ],
   "name": "FujiNet esp32-s3",
   "upload": {
-    "flash_size": "8MB",
+    "flash_size": "16MB",
     "maximum_ram_size": 524288,
-    "maximum_size": 8388608,
+    "maximum_size": 16777216,
     "require_upload_port": true,
     "speed": 460800
   },
-  "url": "https://github.com/fujinetwifi",
+  "url": "https://github.com/FujiNetWIFI/fujinet-platformio",
   "vendor": "FujiNet Project"
 }

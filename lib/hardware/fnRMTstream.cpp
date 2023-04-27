@@ -23,22 +23,23 @@
 #include "freertos/semphr.h"
 #include "freertos/xtensa_api.h"
 #include "freertos/ringbuf.h"
-#include "esp_intr.h"
 #include "esp_log.h"
 #include "esp_err.h"
 #include "esp_intr_alloc.h"
+#include "soc/gpio_periph.h"
 #include "soc/gpio_sig_map.h"
 #include "soc/rmt_struct.h"
 #include "hal/rmt_types.h"
 #include "driver/periph_ctrl.h"
 #include "driver/rmt.h"
+#include "rom/gpio.h"
 #include "fnRMTstream.h"
 
 #include <sys/lock.h>
 
-#define RMT_SOUCCE_CLK_APB (APB_CLK_FREQ) /*!< RMT source clock is APB_CLK */
+#define RMT_SOURCE_CLK_APB (APB_CLK_FREQ) /*!< RMT source clock is APB_CLK */
 #define RMT_SOURCE_CLK_REF (1 * 1000000)  /*!< not used yet */
-#define RMT_SOURCE_CLK(select) ((select == RMT_BASECLK_REF) ? (RMT_SOURCE_CLK_REF) : (RMT_SOUCCE_CLK_APB)) /*! RMT source clock frequency */
+#define RMT_SOURCE_CLK(select) ((select == RMT_BASECLK_REF) ? (RMT_SOURCE_CLK_REF) : (RMT_SOURCE_CLK_APB)) /*! RMT source clock frequency */
 
 #define RMT_CHANNEL_ERROR_STR  "RMT CHANNEL ERR"
 #define RMT_ADDR_ERROR_STR     "RMT ADDRESS ERR"
@@ -56,6 +57,10 @@
 #define RMT_TRANSLATOR_NULL_STR    "RMT translator is null"
 #define RMT_TRANSLATOR_UNINIT_STR  "RMT translator not init"
 #define RMT_PARAM_ERR_STR          "RMT param error"
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+extern rmt_mem_t RMTMEM;
+#endif
 
  const char* RMT_TAG = "rmt";
  uint8_t s_rmt_driver_channels; // Bitmask (bits 0-7) of installed drivers' channels
@@ -83,7 +88,7 @@
     bool wait_done; //Mark whether wait tx done.
     rmt_channel_t channel;
     const rmt_item32_t* tx_data;
-    xSemaphoreHandle tx_sem;
+    SemaphoreHandle_t tx_sem;
 #if CONFIG_SPIRAM_USE_MALLOC
     int intr_alloc_flags;
     StaticSemaphore_t tx_sem_buffer;
@@ -95,6 +100,7 @@
     const uint8_t *sample_cur;
     size_t sample_size_total;
     const uint8_t *sample_orig;
+    int bit_period; // in nanoseconds (ns)
 } ;
 
 rmt_obj_t* p_rmt_obj[RMT_CHANNEL_MAX] = {0};
@@ -293,7 +299,9 @@ esp_err_t rmtStream::rmt_set_rx_filter(rmt_channel_t channel, bool rx_filter_en,
 esp_err_t rmtStream::rmt_set_source_clk(rmt_channel_t channel, rmt_source_clk_t base_clk)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
     RMT_CHECK(base_clk < RMT_BASECLK_MAX, RMT_BASECLK_ERROR_STR, ESP_ERR_INVALID_ARG);
+#endif
     portENTER_CRITICAL(&rmt_spinlock);
     RMT.conf_ch[channel].conf1.ref_always_on = base_clk;
     portEXIT_CRITICAL(&rmt_spinlock);
@@ -464,7 +472,11 @@ esp_err_t rmtStream::rmt_config(const fn_rmt_config_t* rmt_param)
         RMT.conf_ch[channel].conf0.mem_size = mem_cnt;
         RMT.conf_ch[channel].conf1.mem_owner = RMT_MEM_OWNER_TX;
         /*We use APB clock in this version, which is 80Mhz, later we will release system reference clock*/
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        RMT.conf_ch[channel].conf1.ref_always_on = true;    // RMT_BASECLK_APB
+#else
         RMT.conf_ch[channel].conf1.ref_always_on = RMT_BASECLK_APB;
+#endif    
         rmt_source_clk_hz = RMT_SOURCE_CLK(RMT_BASECLK_APB);
         /*Set idle level */
         RMT.conf_ch[channel].conf1.idle_out_en = rmt_param->tx_config.idle_output_en;
@@ -487,7 +499,7 @@ esp_err_t rmtStream::rmt_config(const fn_rmt_config_t* rmt_param)
         portEXIT_CRITICAL(&rmt_spinlock);
 
         ESP_LOGD(RMT_TAG, "Rmt Tx Channel %u|Gpio %u|Sclk_Hz %u|Div %u|Carrier_Hz %u|Duty %u",
-                 channel, gpio_num, rmt_source_clk_hz, clk_div, carrier_freq_hz, carrier_duty_percent);
+                 channel, gpio_num, (unsigned)rmt_source_clk_hz, clk_div, (unsigned)carrier_freq_hz, carrier_duty_percent);
 
     }
     else if(RMT_MODE_RX == mode) {
@@ -496,7 +508,11 @@ esp_err_t rmtStream::rmt_config(const fn_rmt_config_t* rmt_param)
 
         portENTER_CRITICAL(&rmt_spinlock);
         /*clock init*/
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+        RMT.conf_ch[channel].conf1.ref_always_on = true;
+#else
         RMT.conf_ch[channel].conf1.ref_always_on = RMT_BASECLK_APB;
+#endif        
         uint32_t rmt_source_clk_hz = RMT_SOURCE_CLK(RMT_BASECLK_APB);
         /*memory set block number and owner*/
         RMT.conf_ch[channel].conf0.mem_size = mem_cnt;
@@ -509,7 +525,7 @@ esp_err_t rmtStream::rmt_config(const fn_rmt_config_t* rmt_param)
         portEXIT_CRITICAL(&rmt_spinlock);
 
         ESP_LOGD(RMT_TAG, "Rmt Rx Channel %u|Gpio %u|Sclk_Hz %u|Div %u|Thresold %u|Filter %u",
-            channel, gpio_num, rmt_source_clk_hz, clk_div, threshold, filter_cnt);
+            channel, gpio_num, (unsigned)rmt_source_clk_hz, clk_div, threshold, filter_cnt);
     }
     rmt_set_pin((rmt_channel_t)channel, (rmt_mode_t)mode, (gpio_num_t)gpio_num);
     return ESP_OK;
@@ -658,7 +674,8 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
                                                     p_rmt->sample_size_remain,
                                                     p_rmt->tx_sub_len,
                                                     &translated_size,
-                                                    &p_rmt->tx_len_rem);
+                                                    &p_rmt->tx_len_rem,
+                                                    p_rmt->bit_period);
                             // update how much is left
                             p_rmt->sample_size_remain -= translated_size;
                             // move the pointer over
@@ -684,7 +701,8 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
                                                          p_rmt->sample_size_remain,             // this is the whole shebang again
                                                          p_rmt->tx_sub_len - p_rmt->tx_len_rem, // but should only translate what's left
                                                          &translated_size,
-                                                         &p_rmt->tx_len_rem);
+                                                         &p_rmt->tx_len_rem,
+                                                         p_rmt->bit_period);
                                     // again, update how much is left
                                     p_rmt->sample_size_remain -= translated_size;
                                     // move the pointer over
@@ -717,7 +735,8 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
                                              p_rmt->sample_size_remain,
                                              p_rmt->tx_sub_len,
                                              &translated_size,
-                                             &p_rmt->tx_len_rem);
+                                             &p_rmt->tx_len_rem,
+                                             p_rmt->bit_period);
                         // say where the translated items are
                         p_rmt->tx_data = p_rmt->tx_buf;
                     }
@@ -996,6 +1015,8 @@ esp_err_t rmtStream::rmt_translator_init(rmt_channel_t channel, fn_sample_to_rmt
 
 esp_err_t rmtStream::rmt_write_sample(rmt_channel_t channel, const uint8_t *src, size_t src_size, bool wait_tx_done)
 {
+    // need to set bit_period outside in p_rmt_obj[channel]
+    
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
     RMT_CHECK(p_rmt_obj[channel]->sample_to_rmt != NULL,RMT_TRANSLATOR_UNINIT_STR, ESP_FAIL);
@@ -1017,7 +1038,7 @@ esp_err_t rmtStream::rmt_write_sample(rmt_channel_t channel, const uint8_t *src,
     p_rmt->sample_orig = src;
     p_rmt->sample_size_total = src_size;
     // driver continues here 
-    p_rmt->sample_to_rmt((void *)src, p_rmt->tx_buf, src_size, item_block_len, &translated_size, &item_num);
+    p_rmt->sample_to_rmt((void *)src, p_rmt->tx_buf, src_size, item_block_len, &translated_size, &item_num, p_rmt->bit_period); 
     p_rmt->sample_size_remain = src_size - translated_size;
     p_rmt->sample_cur = src + translated_size;
     rmt_fill_memory(channel, p_rmt->tx_buf, item_num, 0);
@@ -1042,7 +1063,7 @@ esp_err_t rmtStream::rmt_write_sample(rmt_channel_t channel, const uint8_t *src,
     return ESP_OK;
 }
 
-esp_err_t rmtStream::rmt_write_bitstream(rmt_channel_t channel, const uint8_t *src, size_t num_bits)
+esp_err_t rmtStream::rmt_write_bitstream(rmt_channel_t channel, const uint8_t *src, size_t num_bits, int bit_period)
 {
     RMT_CHECK(channel < RMT_CHANNEL_MAX, RMT_CHANNEL_ERROR_STR, ESP_ERR_INVALID_ARG);
     RMT_CHECK(p_rmt_obj[channel] != NULL, RMT_DRIVER_ERROR_STR, ESP_FAIL);
@@ -1065,7 +1086,8 @@ esp_err_t rmtStream::rmt_write_bitstream(rmt_channel_t channel, const uint8_t *s
     p_rmt->sample_orig = src;
     p_rmt->sample_size_total = num_bits;
     // driver continues here 
-    p_rmt->sample_to_rmt((void *)src, p_rmt->tx_buf, num_bits, item_block_len, &translated_size, &item_num);
+    p_rmt->bit_period = bit_period;
+    p_rmt->sample_to_rmt((void *)src, p_rmt->tx_buf, num_bits, item_block_len, &translated_size, &item_num, p_rmt->bit_period);
     p_rmt->sample_size_remain = 0; //num_bits - translated_size;
     p_rmt->sample_cur = 0; //src + translated_size;
     rmt_fill_memory(channel, p_rmt->tx_buf, item_num, 0);

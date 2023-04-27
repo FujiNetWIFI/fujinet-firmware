@@ -36,6 +36,8 @@
 #include "fnSystem.h"
 #include "protocol/iecProtocolBase.h"
 
+#include "../../../include/debug.h"
+
 /**
  * @brief The command frame
  */
@@ -86,7 +88,7 @@ typedef enum
 typedef enum
 {
     DEVICE_ERROR = -1,
-    DEVICE_IDLE = 0,    // Ready and waiting
+    DEVICE_IDLE = 0, // Ready and waiting
     DEVICE_ACTIVE = 1,
     DEVICE_LISTEN = 2,  // A command is recieved and data is coming to us
     DEVICE_TALK = 3,    // A command is recieved and we must talk now
@@ -184,6 +186,21 @@ protected:
     std::vector<std::string> pt;
 
     /**
+     * @brief The status information to send back on cmd input
+     * @param bw = # of bytes waiting
+     * @param msg = most recent status message
+     * @param connected = is most recent channel connected?
+     * @param channel = channel of most recent status msg.
+     */
+    struct _iecStatus
+    {
+        uint8_t error;
+        std::string msg;
+        bool connected;
+        int channel;
+    } iecStatus;
+
+    /**
      * @brief Get device ready to handle next phase of command.
      */
     device_state_t queue_command(IECData *data)
@@ -208,6 +225,11 @@ protected:
      * @brief Dump the current IEC frame to terminal.
      */
     void dumpData();
+
+    /**
+     * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
+     */
+    virtual void iec_talk_command_buffer_status();
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
@@ -270,15 +292,15 @@ private:
     /**
      * IEC LISTEN received
      */
-    bus_state_t deviceListen();
+    void deviceListen();
 
     /**
      * IEC TALK requested
      */
-    bus_state_t deviceTalk();
+    void deviceTalk();
 
     /**
-     * BUS TURNAROUND (act like listener)
+     * BUS TURNAROUND (switch from listener to talker)
      */
     bool turnAround();
 
@@ -291,6 +313,16 @@ private:
      * @brief called to process a queue item (such as disk swap)
      */
     void process_queue();
+
+    /**
+     * @brief called to read bus command bytes
+    */
+    void read_command();
+
+    /**
+     * @brief called to read bus payload bytes
+    */
+    void read_payload();
 
     /**
      * @brief Release the bus lines, we're done.
@@ -332,14 +364,16 @@ public:
      * @brief Send bytes to bus
      * @param buf buffer to send
      * @param len length of buffer
+     * @return true on success, false on error
      */
-    void sendBytes(const char *buf, size_t len);
+    bool sendBytes(const char *buf, size_t len);
 
     /**
      * @brief Send string to bus
      * @param s std::string to send
+     * @return true on success, false on error
      */
-    void sendBytes(std::string s);
+    bool sendBytes(std::string s);
 
     /**
      * @brief Receive Byte from bus
@@ -351,8 +385,9 @@ public:
      * @brief send single byte
      * @param c byte to send
      * @param eoi Send EOI?
+     * @return true on success, false on error
     */
-   void sendByte(const char c, bool eoi);
+   bool sendByte(const char c, bool eoi = false);
 
     /**
      * @brief called in response to RESET pin being asserted.
@@ -405,50 +440,58 @@ public:
 
     /**
      * @brief signal to bus that we timed out.
-     * @return true if timed out.
      */
-    bool senderTimeout();
+    void senderTimeout();
 
     // true => PULL => LOW
-    inline void IRAM_ATTR pull(uint8_t pin)
+    inline void IRAM_ATTR pull ( uint8_t pin )
     {
-        fnSystem.digital_write(pin, 0);
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
+#endif
+        fnSystem.digital_write ( pin, LOW );
     }
 
     // false => RELEASE => HIGH
-    inline void IRAM_ATTR release(uint8_t pin)
+    inline void IRAM_ATTR release ( uint8_t pin )
     {
-        fnSystem.digital_write(pin, 1);
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
+#endif
+        fnSystem.digital_write ( pin, HIGH );
     }
 
-    inline bool IRAM_ATTR status(uint8_t pin)
+    inline bool IRAM_ATTR status ( uint8_t pin )
     {
-        return gpio_get_level((gpio_num_t)pin) ? 0 : 1;
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_INPUT );
+#endif
+        return gpio_get_level ( ( gpio_num_t ) pin ) ? RELEASED : PULLED;
     }
 
-    inline void IRAM_ATTR set_pin_mode(uint8_t pin, gpio_mode_t mode)
+    inline void IRAM_ATTR set_pin_mode ( uint8_t pin, gpio_mode_t mode )
     {
         static uint64_t gpio_pin_modes;
-        uint8_t b_mode = (mode == 1) ? 1 : 0;
+        uint8_t b_mode = ( mode == 1 ) ? 1 : 0;
 
         // is this pin mode already set the way we want?
 #ifndef IEC_SPLIT_LINES
-        if (((gpio_pin_modes >> pin) & 1ULL) != b_mode)
+        if ( ( ( gpio_pin_modes >> pin ) & 1ULL ) != b_mode )
 #endif
         {
             // toggle bit so we don't change mode unnecessarily
-            gpio_pin_modes ^= (-b_mode ^ gpio_pin_modes) & (1ULL << pin);
+            gpio_pin_modes ^= ( -b_mode ^ gpio_pin_modes ) & ( 1ULL << pin );
 
             gpio_config_t io_conf =
-                {
-                    .pin_bit_mask = (1ULL << pin),         // bit mask of the pins that you want to set
-                    .mode = mode,                          // set as input mode
-                    .pull_up_en = GPIO_PULLUP_DISABLE,     // disable pull-up mode
-                    .pull_down_en = GPIO_PULLDOWN_DISABLE, // disable pull-down mode
-                    .intr_type = GPIO_INTR_DISABLE         // interrupt of falling edge
-                };
-            // configure GPIO with the given settings
-            gpio_config(&io_conf);
+            {
+                .pin_bit_mask = ( 1ULL << pin ),            // bit mask of the pins that you want to set
+                .mode = mode,                               // set as input mode
+                .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
+                .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
+                .intr_type = GPIO_INTR_DISABLE              // interrupt of falling edge
+            };
+            //configure GPIO with the given settings
+            gpio_config ( &io_conf );
         }
     }
 };

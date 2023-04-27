@@ -24,6 +24,40 @@
 #include "SSH.h"
 #include "SMB.h"
 
+void srqTask(void *arg)
+{
+    iecNetwork *net = (iecNetwork *)arg;
+
+    while (1)
+    {
+        bool trip = false;
+        NetworkStatus ns;
+
+        for (unsigned char i = 0; i < NUM_CHANNELS; i++)
+        {
+            if (net->protocol[i] == nullptr)
+                continue;
+            
+            if (net->receiveBuffer[i]->empty())
+                net->protocol[i]->status(&ns);
+
+            if (ns.rxBytesWaiting)
+                trip = true;
+        }
+
+        if (trip)
+        {
+            Debug_printf(".");
+            vTaskDelay(50 / portTICK_PERIOD_MS);
+            IEC.pull(PIN_IEC_SRQ);
+            vTaskDelay(50 / portTICK_PERIOD_MS);
+            IEC.release(PIN_IEC_SRQ);
+        }
+
+        vTaskDelay(10 / portTICK_PERIOD_MS);
+    }
+}
+
 iecNetwork::iecNetwork()
 {
     Debug_printf("iwmNetwork::iwmNetwork()\n");
@@ -38,6 +72,9 @@ iecNetwork::iecNetwork()
         specialBuffer[i] = new string();
     }
 
+    // Set up SRQ interrupt task
+    // xTaskCreate(srqTask, "srqtask", 4096, this, 10, &srqTaskHandle);
+
     iecStatus.channel = 15;
     iecStatus.connected = 0;
     iecStatus.msg = "fujinet network device";
@@ -46,6 +83,9 @@ iecNetwork::iecNetwork()
 
 iecNetwork::~iecNetwork()
 {
+
+    vTaskDelete(srqTaskHandle);
+
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
         delete protocol[i];
@@ -66,7 +106,8 @@ void iecNetwork::iec_open()
     if (!prefix[commanddata->channel].empty())
         deviceSpec[commanddata->channel] += prefix[commanddata->channel];
 
-    deviceSpec[commanddata->channel] += payload;
+    if (payload != "$")
+        deviceSpec[commanddata->channel] += payload;
 
     channelMode[commanddata->channel] = PROTOCOL;
 
@@ -83,7 +124,7 @@ void iecNetwork::iec_open()
     default:
         cmdFrame.aux1 = 12;                                    // default read/write
         cmdFrame.aux2 = translationMode[commanddata->channel]; // now used
-        Debug_printf("translation mode: %u\n",cmdFrame.aux2);
+        Debug_printf("translation mode: %u\n", cmdFrame.aux2);
         break;
     }
 
@@ -141,14 +182,26 @@ void iecNetwork::iec_open()
     {
         Debug_printf("Invalid protocol: %s\n", urlParser[commanddata->channel]->scheme.c_str());
         file_not_found = true;
-        return;
     }
 
     if (protocol[commanddata->channel] == nullptr)
     {
         Debug_printf("iwmNetwork::open_protocol() - Could not open protocol.\n");
         file_not_found = true;
+    }
+
+    if (file_not_found)
+    {
+        iecStatus.channel = commanddata->channel;
+        iecStatus.error = NETWORK_ERROR_FILE_NOT_FOUND;
+        iecStatus.connected = false;
+        iecStatus.msg = "not found";
+        IEC.senderTimeout();
         return;
+    }
+    else
+    {
+        // removed.
     }
 
     if (!login[commanddata->channel].empty())
@@ -165,30 +218,13 @@ void iecNetwork::iec_open()
         Debug_printf("Protocol unable to make connection.\n");
         delete protocol[commanddata->channel];
         protocol[commanddata->channel] = nullptr;
+        IEC.senderTimeout();
         return;
     }
 
     // Associate channel mode
     json[commanddata->channel] = new FNJSON();
     json[commanddata->channel]->setProtocol(protocol[commanddata->channel]);
-
-    if (file_not_found)
-    {
-        iecStatus.channel = commanddata->channel;
-        iecStatus.error = NETWORK_ERROR_FILE_NOT_FOUND;
-        iecStatus.connected = false;
-        iecStatus.msg = "not found";
-    }
-    else
-    {
-        NetworkStatus ns;
-
-        protocol[commanddata->channel]->status(&ns);
-        iecStatus.channel = commanddata->channel;
-        iecStatus.error = NETWORK_ERROR_SUCCESS;
-        iecStatus.connected = true;
-        iecStatus.msg = "opened";
-    }
 }
 
 void iecNetwork::iec_close()
@@ -416,7 +452,7 @@ void iecNetwork::iec_reopen_channel_talk()
         b = receiveBuffer[commanddata->channel]->front();
         receiveBuffer[commanddata->channel]->erase(0, 1);
         IEC.sendByte(b, set_eoi);
-        Debug_printf("%c",b);
+        Debug_printf("%c", b);
         atn = fnSystem.digital_read(PIN_IEC_ATN);
     }
 }
@@ -525,8 +561,8 @@ void iecNetwork::query_json()
 
     s = pt[2];
 
-    Debug_printf("Channel: %u\n",channel);
-    for (int i=0;i<s.length();i++)
+    Debug_printf("Channel: %u\n", channel);
+    for (int i = 0; i < s.length(); i++)
         if (s[i] == 0xA4)
             s[i] = 0x5F; // wtf?
 
@@ -618,28 +654,11 @@ void iecNetwork::set_translation_mode()
         break;
     }
 
-    Debug_printf("Translation mode for channel %u is now %u\n",channel,translationMode[channel]);
+    Debug_printf("Translation mode for channel %u is now %u\n", channel, translationMode[channel]);
 }
 
 void iecNetwork::iec_listen_command()
 {
-}
-
-void iecNetwork::iec_talk_command()
-{
-    if (response_queue.empty())
-        iec_talk_command_buffer_status();
-}
-
-void iecNetwork::iec_talk_command_buffer_status()
-{
-    char reply[80];
-    string s;
-
-    snprintf(reply, 80, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
-    s = string(reply);
-    mstr::toPETSCII(s);
-    IEC.sendBytes(s);
 }
 
 void iecNetwork::iec_command()
@@ -653,7 +672,7 @@ void iecNetwork::iec_command()
         else if (pt[0] == "jsonparse")
             parse_json();
         else if (pt[0] == "jq")
-            query_json();        
+            query_json();
         else if (pt[0] == "settrans")
             set_translation_mode();
         else if (pt[0] == "pwd")
@@ -684,8 +703,7 @@ void iecNetwork::iec_command()
     }
     else if (channelMode[commanddata->channel] == JSON)
     {
-        Debug_printf("JSON channelmode command %s\n",pt[0].c_str());
-
+        Debug_printf("JSON channelmode command %s\n", pt[0].c_str());
     }
 }
 
@@ -728,7 +746,7 @@ void iecNetwork::perform_special_40()
     int channel = 0;
     NetworkStatus ns;
 
-    if (pt.size()<2)
+    if (pt.size() < 2)
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.channel = 15;
@@ -740,7 +758,7 @@ void iecNetwork::perform_special_40()
     channel = atoi(pt[1].c_str());
     cmdFrame.comnd = pt[0][0];
 
-    if (pt.size()<3)
+    if (pt.size() < 3)
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.channel = channel;
@@ -750,7 +768,7 @@ void iecNetwork::perform_special_40()
 
     cmdFrame.aux1 = atoi(pt[2].c_str());
 
-    if (pt.size()<4)
+    if (pt.size() < 4)
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.channel = channel;
@@ -769,7 +787,7 @@ void iecNetwork::perform_special_40()
         return;
     }
 
-    if (protocol[channel]->special_40((uint8_t *)&sp_buf,sizeof(sp_buf),&cmdFrame))
+    if (protocol[channel]->special_40((uint8_t *)&sp_buf, sizeof(sp_buf), &cmdFrame))
     {
         protocol[channel]->status(&ns);
         iecStatus.error = ns.error;
@@ -794,40 +812,40 @@ void iecNetwork::perform_special_80()
     int channel = 0;
     NetworkStatus ns;
 
-    if (pt.size()<2)
+    if (pt.size() < 2)
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.channel = 15;
         iecStatus.connected = 0;
         iecStatus.msg = "no channel #";
-        return;        
+        return;
     }
 
     channel = atoi(pt[1].c_str());
 
-    if (pt.size()<3)
+    if (pt.size() < 3)
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.channel = 15;
         iecStatus.connected = 0;
         iecStatus.msg = "no aux1";
-        return;        
+        return;
     }
 
     cmdFrame.aux1 = atoi(pt[2].c_str());
 
-    if (pt.size()<4)
+    if (pt.size() < 4)
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.channel = 15;
         iecStatus.connected = 0;
         iecStatus.msg = "no aux2";
-        return;        
+        return;
     }
 
     cmdFrame.aux2 = atoi(pt[3].c_str());
 
-    if (pt.size()<5)
+    if (pt.size() < 5)
     {
         if (protocol[channel] != nullptr)
         {
@@ -848,7 +866,7 @@ void iecNetwork::perform_special_80()
     cmdFrame.comnd = pt[0][0];
     sp_buf += pt[4];
 
-    if (protocol[channel]->special_80((uint8_t *)sp_buf.c_str(),sp_buf.length(),&cmdFrame))
+    if (protocol[channel]->special_80((uint8_t *)sp_buf.c_str(), sp_buf.length(), &cmdFrame))
     {
         protocol[channel]->status(&ns);
         iecStatus.error = ns.error;
@@ -1045,7 +1063,7 @@ void iecNetwork::set_prefix()
 
 void iecNetwork::set_device_id()
 {
-    if (pt.size()<2)
+    if (pt.size() < 2)
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.channel = commanddata->channel;
@@ -1056,7 +1074,7 @@ void iecNetwork::set_device_id()
 
     int new_id = atoi(pt[1].c_str());
 
-    IEC.changeDeviceId(this,new_id);
+    IEC.changeDeviceId(this, new_id);
 
     iecStatus.error = 0;
     iecStatus.msg = "ok";
@@ -1171,11 +1189,7 @@ void iecNetwork::process_channel()
 
 void iecNetwork::process_command()
 {
-    if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
-    {
-        iec_talk_command();
-    }
-    else if (commanddata->primary == IEC_UNLISTEN)
+    if (commanddata->primary == IEC_UNLISTEN)
     {
         iec_command();
     }
