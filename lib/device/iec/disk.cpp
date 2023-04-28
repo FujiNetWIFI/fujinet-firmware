@@ -10,6 +10,7 @@
 #include "../../include/cbm_defines.h"
 
 #include "fuji.h"
+#include "fnFsSD.h"
 #include "utils.h"
 
 // External ref to fuji object.
@@ -495,11 +496,20 @@ uint16_t iecDisk::sendLine(uint16_t blocks, char *text)
 	IEC.sendByte(blocks >> 8);
 
 	// Send line contents
-    IEC.sendBytes(text);
+	for (uint8_t i = 0; i < len; i++)
+	{
+		if ( !IEC.sendByte(text[i]) )
+		{
+			IEC.bus_state = BUS_ERROR;
+			return 0;
+		}
+	}
 
 	// Finish line
-	IEC.sendByte(0, true);
+	IEC.sendByte(0);
 
+	Debug_println("");
+    
 	return len + 5;
 } // sendLine
 
@@ -570,15 +580,15 @@ uint16_t iecDisk::sendHeader(std::string header, std::string id)
 		if ( byte_count == 0 ) return 0;
 	}
 	
-#ifdef SD_CARD
+//#ifdef SD_CARD
 	if (fnSDFAT.running() && _disk->url.size() < 2)
 	{
-		byte_count += sendLine(basicPtr, 0, "%*s\"SD\"                  DIR", 0, "");
+		byte_count += sendLine(0, "%*s\"SD\"                  DIR", 0, "");
 		if ( byte_count == 0 ) return 0;
-		byte_count += sendLine(basicPtr, 0, "%*s\"-------------------\" NFO", 0, "");
+		byte_count += sendLine(0, "%*s\"-------------------\" NFO", 0, "");
 		if ( byte_count == 0 ) return 0;
 	}
-#endif
+//#endif
 
 	return byte_count;
 }
