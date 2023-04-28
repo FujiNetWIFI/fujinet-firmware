@@ -837,9 +837,9 @@ bool iecDisk::sendFile()
 #ifdef DATA_STREAM
 			// Show ASCII Data
 			if (b < 32 || b >= 127)
-			b = 46;
-
-			ba[bi++] = b;
+				ba[bi++] = 46;
+			else
+				ba[bi++] = b;
 
 			if(bi == 8)
 			{
