@@ -92,19 +92,7 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     case bus_command_t::IEC_REOPEN:
         if (device_state == DEVICE_TALK)
         {
-            if (response_queue.empty())
-            {
-                Debug_printf("ZOIKS!\n");
-                // Debug_println("Nothing in buffer, sending empty.\n");
-                // IEC.senderTimeout();
-                break;
-            }
-            else
-            {
-                Debug_printf("---Sending response %s\n", response_queue.front().c_str());
-                IEC.sendBytes(response_queue.front());
-                response_queue.pop();
-            }
+            
         }
         else if (device_state == DEVICE_LISTEN)
         {
@@ -117,6 +105,13 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         break;
     }
 
+    if (commanddata->channel == 15 &&
+        commanddata->primary == IEC_TALK &&
+        commanddata->secondary == IEC_REOPEN)
+    {
+        iec_talk_command_buffer_status();
+    }
+
     return device_state;
 }
 
@@ -125,9 +120,12 @@ void virtualDevice::iec_talk_command_buffer_status()
     char reply[80];
     std::string s;
 
-    snprintf(reply, 80, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
+    fnSystem.delay_microseconds(100);
+
+    snprintf(reply, 80, "%u,%s,%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
     s = std::string(reply);
     mstr::toPETSCII(s);
+    Debug_printv("sending status: %s\n",reply);
     IEC.sendBytes(s);
 }
 
