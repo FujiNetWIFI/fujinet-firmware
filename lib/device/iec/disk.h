@@ -22,7 +22,7 @@ private:
     std::string _file;         // Always points to current or last loaded file
 
     // Named Channel functions
-    std::shared_ptr<MStream> currentStream;
+    //std::shared_ptr<MStream> currentStream;
     bool registerStream (int mode);
     std::shared_ptr<MStream> retrieveStream ( void );
     bool closeStream ( bool close_all = false );

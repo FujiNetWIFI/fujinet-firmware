@@ -52,7 +52,7 @@ void iecDisk::format()
 mediatype_t iecDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     // TODO IMPLEMENT
-    auto _disk = Meat::New<MFile>( filename );
+    _disk.reset( MFSOwner::File(filename) );
 
     return MEDIATYPE_UNKNOWN; // MEDIATYPE_UNKNOWN
 }
@@ -194,13 +194,13 @@ void iecDisk::iec_open()
     {
         s = "/";
     }
-    _disk.reset(MFSOwner::File( s ));
+    _disk.reset( MFSOwner::File( s ) );
     _file = _disk->name;
 
     Debug_printv("_file[%s]", _file.c_str());
-    if ( registerStream(std::ios_base::in) )
+    if ( !registerStream(std::ios_base::in) )
     {
-        currentStream = retrieveStream();
+        Debug_printv("File Doesn't Exist [%s]", s.c_str());
     }
 }
 
