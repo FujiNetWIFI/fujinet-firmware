@@ -372,10 +372,10 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
         }
         IEC.release ( PIN_IEC_CLK_OUT );
     }
-    //else
-    //{
+    else
+    {
         wait ( TIMING_Tbb );
-    //}
+    }
 
     // Let bus stabalize
     // wait ( TIMING_STABLE );
