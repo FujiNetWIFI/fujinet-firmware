@@ -28,13 +28,6 @@
 #define PIN_LED_BUS 12 // 4 FN
 #define PIN_LED_BT -1 // No BT LED
 
-/* LED Strip NEW */
-#define NUM_LEDS            5
-#define DATA_PIN_1          4
-#define BRIGHTNESS          125
-#define LED_TYPE            WS2812B
-#define COLOR_ORDER         RGB
-
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
 
