@@ -1,15 +1,15 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include "fujiHost.h"
+#include "../fuji/fujiHost.h"
 
 #include <string>
 #include <unordered_map>
 
 #include "bus.h"
-#include "media.h"
-#include "meat_io.h"
-#include "meat_buffer.h"
+#include "../media/media.h"
+#include "../meatloaf/meat_io.h"
+#include "../meatloaf/meat_buffer.h"
 
 #define PRODUCT_ID "MEATLOAF CBM"
 
