@@ -661,12 +661,6 @@ void iecNetwork::iec_listen_command()
 {
 }
 
-void iecNetwork::iec_talk_command()
-{
-    if (response_queue.empty())
-        iec_talk_command_buffer_status();
-}
-
 void iecNetwork::iec_command()
 {
     if (channelMode[commanddata->channel] == PROTOCOL)
@@ -1195,11 +1189,7 @@ void iecNetwork::process_channel()
 
 void iecNetwork::process_command()
 {
-    if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
-    {
-        iec_talk_command();
-    }
-    else if (commanddata->primary == IEC_UNLISTEN)
+    if (commanddata->primary == IEC_UNLISTEN)
     {
         iec_command();
     }

@@ -9,7 +9,7 @@
 
 #define SERIAL_BUF_SIZE 16
 
-static xQueueHandle serial_out_queue = NULL;
+static QueueHandle_t serial_out_queue = NULL;
 
 void serial_task(void *param)
 {
@@ -21,7 +21,7 @@ void serial_task(void *param)
         if (xQueueReceive(serial_out_queue,&c,portMAX_DELAY))
         {
             sp->client.write(c);
-        }        
+        }
     }
 }
 
