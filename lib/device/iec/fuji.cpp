@@ -159,7 +159,7 @@ void iecFuji::net_get_ssid()
     {
         std::string r = std::string(cfg.ssid);
         mstr::toPETSCII(r);
-        response_queue.push(r);
+        status_override = r;
     }
 }
 
@@ -206,10 +206,34 @@ void iecFuji::net_get_wifi_status()
 {
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     char r[4];
+    
+    Debug_printv("payload[0]==%02x\n",payload[0]);
 
-    snprintf(r, sizeof(r), "%u\r", wifiStatus);
+    if (payload[0] == FUJICMD_GET_WIFISTATUS)
+    {
+        r[0] = wifiStatus;
+        r[1] = 0;
+        status_override = string(r);
 
-    response_queue.push(std::string(r));
+        return;
+    }
+    else
+    {
+        iecStatus.error = wifiStatus;
+
+        if (wifiStatus)
+        {
+            iecStatus.msg = "CONNECTED";
+            iecStatus.connected = true;
+        }
+        else
+        {
+            iecStatus.msg = "DISCONNECTED";
+            iecStatus.connected = false;
+        }
+
+        iecStatus.channel = 15;
+    }
 }
 
 // Check if Wifi is enabled
@@ -1514,11 +1538,11 @@ device_state_t iecFuji::process(IECData *id)
 void iecFuji::local_ip()
 {
     char msg[17];
-    
+
     fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
 
-    sprintf(msg,"%u.%u.%u.%u",cfg.localIP[0],cfg.localIP[1],cfg.localIP[2],cfg.localIP[3]);
-    
+    sprintf(msg, "%u.%u.%u.%u", cfg.localIP[0], cfg.localIP[1], cfg.localIP[2], cfg.localIP[3]);
+
     iecStatus.channel = 15;
     iecStatus.error = 0;
     iecStatus.msg = string(msg);
