@@ -27,8 +27,7 @@
 #define PIN_BUTTON_C 14
 
 /* LEDs */
-//#define PIN_LED_WIFI 2 // led.cpp
-#define PIN_LED_WIFI -1 // led.cpp
+#define PIN_LED_WIFI 2 // led.cpp
 #define PIN_LED_BUS 12
 #define PIN_LED_BT -1 // No BT LED
 
