@@ -42,7 +42,10 @@ void sioDisk::sio_read()
 
     if (_disk == nullptr)
     {
-        sio_error();
+        // Send error but dummy sector.
+        uint8_t dummySector[128];
+        memset(dummySector,0,sizeof(dummySector));
+        bus_to_computer(dummySector,128,true);
         return;
     }
 
