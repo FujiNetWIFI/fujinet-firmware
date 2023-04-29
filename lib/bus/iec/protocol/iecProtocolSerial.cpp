@@ -99,7 +99,11 @@ int16_t IecProtocolSerial::receiveBits ()
             IEC.pull ( PIN_IEC_SRQ );
             bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMEOUT_DEFAULT, false );
 
-            /* If there is a delay before the last bit, the controller uses JiffyDOS */
+            // // If the bit time is less than 40us we are talking with a VIC20
+            // if ( bit_time < TIMING_VIC20_DETECT )
+            //     IEC.flags |= VIC20_MODE;
+
+            // If there is a delay before the last bit, the controller uses JiffyDOS
             if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
             {
                 if ( IEC.status ( PIN_IEC_ATN ) == PULLED && data < 0x60 )
@@ -321,11 +325,11 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
         // ready to send last byte
         if ( !wait ( TIMING_Try ) ) return false;
     }
-    // else
-    // {
-    //     // ready to send next byte
-    //     if ( !wait ( TIMING_Tne ) ) return false;
-    // }
+    else
+    {
+        // ready to send next byte
+        if ( !wait ( TIMING_Tne ) ) return false;
+    }
 
     // STEP 3: SENDING THE BITS
     if ( !sendBits( data ) ) {
@@ -366,12 +370,12 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
             Debug_printv ( "ATN pulled" );
             return false;
         }
-        //IEC.release ( PIN_IEC_CLK_OUT );
+        IEC.release ( PIN_IEC_CLK_OUT );
     }
-    //else
-    //{
+    else
+    {
         wait ( TIMING_Tbb );
-    //}
+    }
 
     // Let bus stabalize
     // wait ( TIMING_STABLE );

@@ -9,7 +9,12 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
 {
     uint64_t start, current, elapsed;
     bool atn_status = false;
+    start = 0;
+    current = 0;
     elapsed = 0;
+
+    esp_timer_init();
+    start = current = esp_timer_get_time();
 
     if ( pin == PIN_IEC_ATN )
     {
@@ -23,12 +28,11 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
             IEC.flags |= ATN_PULLED;
     }
 
-    start = current = 0;
-
     //IEC.pull ( PIN_IEC_SRQ );
     while ( IEC.status ( pin ) != target_status )
     {
         //fnSystem.delay_microseconds(1);
+        current = esp_timer_get_time();
         elapsed = current++ - start;
 
         if ( elapsed > wait && wait != FOREVER )
@@ -64,6 +68,7 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
 bool IecProtocolBase::wait(size_t wait, uint64_t start, bool watch_atn)
 {
     uint64_t current, elapsed;
+    current = 0;
     elapsed = 0;
 
     if ( wait == 0 ) return true;

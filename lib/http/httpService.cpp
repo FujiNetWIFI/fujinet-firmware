@@ -677,7 +677,6 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
                 Config.save();
                 theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
                 disk->disk_dev.device_active = true;
-                theFuji.mount_all(); // Mount all the things so the disk is active
             }
         }
         else

@@ -142,6 +142,9 @@ int16_t systemBus::receiveByte()
 {
     int16_t b;
     b = protocol->receiveByte();
+#ifdef DATA_STREAM
+        Debug_printf ( "%.2X ", b );
+#endif
     if ( b == -1 )
     {
         if ( !(IEC.flags & ATN_PULLED) )
@@ -156,6 +159,9 @@ int16_t systemBus::receiveByte()
 
 bool systemBus::sendByte(const char c, bool eoi)
 {
+#ifdef DATA_STREAM
+        Debug_printf ( "%.2X ", c );
+#endif
     if ( !protocol->sendByte(c, eoi) )
     {
         if ( !(IEC.flags & ATN_PULLED) )
@@ -166,15 +172,16 @@ bool systemBus::sendByte(const char c, bool eoi)
             return false;
         }
     }
+
     return true;
 }
 
-bool systemBus::sendBytes(const char *buf, size_t len)
+bool systemBus::sendBytes(const char *buf, size_t len, bool eoi)
 {
     bool success = false;
     for (size_t i = 0; i < len; i++)
     {
-        if (i == len - 1)
+        if (i == len - 1 && eoi)
             success = protocol->sendByte(buf[i], true);
         else
             success = protocol->sendByte(buf[i], false);
@@ -193,9 +200,9 @@ bool systemBus::sendBytes(const char *buf, size_t len)
     return true;
 }
 
-bool systemBus::sendBytes(std::string s)
+bool systemBus::sendBytes(std::string s, bool eoi)
 {
-    return sendBytes(s.c_str(), s.size());
+    return sendBytes(s.c_str(), s.size(), eoi);
 }
 
 void systemBus::process_cmd()
