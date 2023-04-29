@@ -803,7 +803,7 @@ bool iecDisk::sendFile()
 		return false;
 	}
 
-	if ( IEC.data.channel == CHANNEL_LOAD )
+	if ( IEC.data.channel == CHANNEL_LOAD && !_base->isDirectory() )
 	{
 		PeoplesUrlParser u;
 		u.parseUrl( istream->url );
