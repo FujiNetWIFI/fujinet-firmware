@@ -143,10 +143,11 @@ typedef enum
 #define EMPTY_STREAM     (1 << 3)
 #define COMMAND_RECVD    (1 << 4)
 
-#define JIFFY_ACTIVE     (1 << 8)
-#define JIFFY_LOAD       (1 << 9)
-#define DOLPHIN_ACTIVE   (1 << 10)
-#define WIC64_ACTIVE     (1 << 11)
+#define VIC20_MODE      (1 << 8)
+#define JIFFY_ACTIVE    (1 << 9)
+#define JIFFY_LOAD      (1 << 10)
+#define DOLPHIN_ACTIVE  (1 << 11)
+#define WIC64_ACTIVE    (1 << 12)
 
 // IEC protocol timing consts in microseconds (us)
 // IEC-Disected p10-11         // Description              //   1541    C64     min     typical     max         // Notes
@@ -176,6 +177,7 @@ typedef enum
 #define TIMING_EMPTY   512     // SIGNAL EMPTY STREAM
 #define TIMING_STABLE  70      // WAIT FOR BUS TO BE STABLE
 
+#define TIMING_VIC20_DETECT   40   // VIC20 DETECTED WHEN HOST BIT TIME IS LESS THAN 40us
 #define TIMING_JIFFY_DETECT   218  // JIFFYDOS ENABLED DELAY ON LAST BIT
 #define TIMING_JIFFY_ACK      101  // JIFFYDOS ACK RESPONSE
 

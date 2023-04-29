@@ -1,15 +1,15 @@
 #ifndef DISK_H
 #define DISK_H
 
-#include "fujiHost.h"
+#include "../fuji/fujiHost.h"
 
 #include <string>
 #include <unordered_map>
 
 #include "bus.h"
-#include "media.h"
-#include "meat_io.h"
-#include "meat_buffer.h"
+#include "../media/media.h"
+#include "../meatloaf/meat_io.h"
+#include "../meatloaf/meat_buffer.h"
 
 #define PRODUCT_ID "MEATLOAF CBM"
 
@@ -22,7 +22,7 @@ private:
     std::string _file;         // Always points to current or last loaded file
 
     // Named Channel functions
-    std::shared_ptr<MStream> currentStream;
+    //std::shared_ptr<MStream> currentStream;
     bool registerStream (int mode);
     std::shared_ptr<MStream> retrieveStream ( void );
     bool closeStream ( bool close_all = false );

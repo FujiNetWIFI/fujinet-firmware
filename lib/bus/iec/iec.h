@@ -361,33 +361,35 @@ public:
     void service();
 
     /**
+     * @brief send single byte
+     * @param c byte to send
+     * @param eoi Send EOI?
+     * @return true on success, false on error
+    */
+    bool sendByte(const char c, bool eoi = false);
+
+    /**
      * @brief Send bytes to bus
      * @param buf buffer to send
      * @param len length of buffer
+     * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(const char *buf, size_t len);
+    bool sendBytes(const char *buf, size_t len, bool eoi = true);
 
     /**
      * @brief Send string to bus
      * @param s std::string to send
+     * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(std::string s);
+    bool sendBytes(std::string s, bool eoi = true);
 
     /**
      * @brief Receive Byte from bus
      * @return Byte received from bus, or -1 for error.
      */
     int16_t receiveByte();
-
-    /**
-     * @brief send single byte
-     * @param c byte to send
-     * @param eoi Send EOI?
-     * @return true on success, false on error
-    */
-   bool sendByte(const char c, bool eoi = false);
 
     /**
      * @brief called in response to RESET pin being asserted.
