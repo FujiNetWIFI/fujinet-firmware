@@ -124,7 +124,6 @@ public:
     FlashIStream(std::string& path) {
         localPath = path;
         handle = std::make_unique<FlashHandle>();
-        url = path;
     }
     ~FlashIStream() override {
         close();
