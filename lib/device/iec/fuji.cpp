@@ -83,18 +83,29 @@ void iecFuji::net_scan_networks()
     char c[8];
 
     _countScannedSSIDs = fnWiFi.scan_networks();
-    snprintf(c, sizeof(c), "%u\r", _countScannedSSIDs);
-    response_queue.push(std::string(c));
+
+    if (payload[0]==FUJICMD_SCAN_NETWORKS)
+    {
+        c[0] = _countScannedSSIDs;
+        c[1] = 0;
+        status_override = string(c);
+    }
+    else
+    {
+        iecStatus.error = _countScannedSSIDs;
+        iecStatus.msg = "networks found";
+        iecStatus.connected = 0;
+        iecStatus.channel = 15;
+    }
 }
 
 // Return scanned network entry
 void iecFuji::net_scan_result()
 {
-    std::vector<std::string> t = util_tokenize(payload, ':');
+    std::vector<std::string> t = util_tokenize(payload, ',');
 
     // t[0] = SCANRESULT
     // t[1] = scan result # (0-numresults)
-    // t[2] = RAW (optional)
     struct
     {
         char ssid[33];
@@ -104,7 +115,6 @@ void iecFuji::net_scan_result()
     if (t.size() > 1)
     {
         int i = atoi(t[1].c_str());
-        Debug_printf("Getting scan result %u\n", i);
         fnWiFi.get_scan_result(i, detail.ssid, &detail.rssi);
     }
     else
@@ -116,9 +126,9 @@ void iecFuji::net_scan_result()
     if (payload[0] == FUJICMD_GET_SCAN_RESULT) // raw
     {
         std::string r = std::string((const char *)&detail, sizeof(detail));
-        response_queue.push(r);
+        status_override = r;
     }
-    else // SCANRESULT:0
+    else // SCANRESULT,n
     {
         char c[40];
         std::string s = std::string(detail.ssid);
@@ -126,8 +136,10 @@ void iecFuji::net_scan_result()
 
         memset(c, 0, sizeof(c));
 
-        snprintf(c, 40, "\"%s\",%d\r", s.c_str(), detail.rssi);
-        response_queue.push(std::string(c, sizeof(c)));
+        iecStatus.error = detail.rssi;
+        iecStatus.channel = 15;
+        iecStatus.connected = false;
+        iecStatus.msg = string(detail.ssid);
     }
 }
 
@@ -1071,81 +1083,14 @@ void iecFuji::get_adapter_config()
     if (payload[0] == FUJICMD_GET_ADAPTERCONFIG)
     {
         std::string reply = std::string((const char *)&cfg, sizeof(AdapterConfig));
-        response_queue.push(reply);
+        status_override = reply;
     }
     else if (payload == "ADAPTERCONFIG")
     {
-        char reply[128];
-        std::string s;
-
-        Debug_printf("Returning Adapterconfig.\n");
-        sprintf(reply, "%s\r", cfg.ssid);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%s\r", cfg.hostname);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%u.%u.%u.%u\r",
-                cfg.localIP[0],
-                cfg.localIP[1],
-                cfg.localIP[2],
-                cfg.localIP[3]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%u.%u.%u.%u\r",
-                cfg.netmask[0],
-                cfg.netmask[1],
-                cfg.netmask[2],
-                cfg.netmask[3]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%u.%u.%u.%u\r",
-                cfg.gateway[0],
-                cfg.gateway[1],
-                cfg.gateway[2],
-                cfg.gateway[3]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%u.%u.%u.%u\r",
-                cfg.dnsIP[0],
-                cfg.dnsIP[1],
-                cfg.dnsIP[2],
-                cfg.dnsIP[3]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%02x.%02x.%02x.%02x.%02x.%02x\r",
-                cfg.macAddress[0],
-                cfg.macAddress[1],
-                cfg.macAddress[2],
-                cfg.macAddress[3],
-                cfg.macAddress[4],
-                cfg.macAddress[5]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%02x.%02x.%02x.%02x.%02x.%02x\r",
-                cfg.bssid[0],
-                cfg.bssid[1],
-                cfg.bssid[2],
-                cfg.bssid[3],
-                cfg.bssid[4],
-                cfg.bssid[5]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
+        iecStatus.channel = 15;
+        iecStatus.connected = fnWiFi.connected();
+        iecStatus.error = 0;
+        iecStatus.msg = "use localip, netmask, gateway, dns, mac, bssid, or version";
     }
 }
 
