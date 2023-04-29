@@ -50,8 +50,10 @@ void sioDisk::sio_read()
 
     bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
 
-    // Send result to Atari
-    bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
+    if (err == true)
+        sio_error();
+    else
+        bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
