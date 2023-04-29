@@ -84,7 +84,7 @@ void iecFuji::net_scan_networks()
 
     _countScannedSSIDs = fnWiFi.scan_networks();
 
-    if (payload[0]==FUJICMD_SCAN_NETWORKS)
+    if (payload[0] == FUJICMD_SCAN_NETWORKS)
     {
         c[0] = _countScannedSSIDs;
         c[1] = 0;
@@ -210,7 +210,11 @@ void iecFuji::net_set_ssid()
 
     Debug_printf("Connecting to net %s\n", cfg.ssid);
     fnWiFi.connect(cfg.ssid, cfg.password);
-    response_queue.push("ok\r");
+
+    iecStatus.channel = 15;
+    iecStatus.error = 0;
+    iecStatus.msg = "ssid set";
+    iecStatus.connected = fnWiFi.connected();
 }
 
 // Get WiFi Status
@@ -218,15 +222,14 @@ void iecFuji::net_get_wifi_status()
 {
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     char r[4];
-    
-    Debug_printv("payload[0]==%02x\n",payload[0]);
+
+    Debug_printv("payload[0]==%02x\n", payload[0]);
 
     if (payload[0] == FUJICMD_GET_WIFISTATUS)
     {
         r[0] = wifiStatus;
         r[1] = 0;
         status_override = string(r);
-
         return;
     }
     else
@@ -1113,15 +1116,23 @@ void iecFuji::read_host_slots()
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
     if (payload[0] == FUJICMD_READ_HOST_SLOTS)
-        response_queue.push(std::string((const char *)hostSlots, 256));
+        status_override = std::string((const char *)hostSlots, 256);
     else
     {
-        for (int i = 0; i < MAX_HOSTS; i++)
+        std::vector<std::string> t = util_tokenize(payload, ',');
+
+        if (t.size()<2)
         {
-            char reply[MAX_HOSTNAME_LEN + 16];
-            sprintf(reply, "%u,\"%s\"\r", i, &hostSlots[i][0]);
-            response_queue.push(std::string(reply));
+            iecStatus.error = 0;
+            iecStatus.msg = "host slot # required";
+            iecStatus.connected = 0;
+            iecStatus.channel = 15;
         }
+
+        int selected_hs = atoi(t[1].c_str());
+        char reply[MAX_HOSTNAME_LEN];
+
+        status_override = std::string(hostSlots[selected_hs]);
     }
 }
 
@@ -1214,6 +1225,7 @@ void iecFuji::read_device_slots()
         uint8_t mode;
         char filename[MAX_DISPLAY_FILENAME_LEN];
     };
+    
     disk_slot diskSlots[MAX_DISK_DEVICES];
 
     int returnsize;
@@ -1242,17 +1254,26 @@ void iecFuji::read_device_slots()
     returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
 
     if (payload[0] == FUJICMD_READ_DEVICE_SLOTS)
-        response_queue.push(std::string((const char *)&diskSlots, returnsize));
+        status_override = std::string((const char *)&diskSlots, returnsize);
     else
     {
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        std::vector<std::string> t = util_tokenize(payload, ',');
+
+        if (t.size()<2)
         {
-            char reply[64];
-            snprintf(reply, 64, "%u,%u,\"%s\"\r", diskSlots->hostSlot, diskSlots->mode, diskSlots->filename);
-            std::string s(reply);
-            mstr::toPETSCII(s);
-            response_queue.push(s);
+            iecStatus.error = 0;
+            iecStatus.msg = "host slot required";
+            iecStatus.connected = 0;
+            iecStatus.channel = 15;
+            return;
         }
+
+        int selected_ds = atoi(t[1].c_str());
+
+        iecStatus.error = selected_ds;
+        iecStatus.connected = diskSlots[selected_ds].hostSlot;
+        iecStatus.msg = diskSlots[selected_ds].filename;
+        iecStatus.channel = diskSlots[selected_ds].mode;
     }
 }
 
@@ -1425,11 +1446,17 @@ void iecFuji::get_device_filename()
 
     std::string reply = std::string(_fnDisks[ds].filename);
 
-    // Add CR if calling from BASIC call.
-    if (payload[0] != FUJICMD_GET_DEVICE_FULLPATH)
-        reply += '\r';
-
-    response_queue.push(reply);
+    if (payload[0] == FUJICMD_GET_DEVICE_FULLPATH)
+    {
+        status_override = reply;
+    }
+    else
+    {
+        iecStatus.channel = 15;
+        iecStatus.error = ds;
+        iecStatus.connected = 1;
+        iecStatus.msg = reply;
+    }
 }
 
 // Mounts the desired boot disk number
@@ -1526,8 +1553,7 @@ void iecFuji::process_basic_commands()
     else if (payload.find("puthost") != std::string::npos ||
              payload.find("fhost") != std::string::npos)
         write_host_slots();
-    else if (payload.find("getdrive") != std::string::npos ||
-             payload.find("fld") != std::string::npos)
+    else if (payload.find("getdrive") != std::string::npos)
         read_device_slots();
     else if (payload.find("unmounthost") != std::string::npos)
         unmount_host();
