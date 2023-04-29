@@ -202,11 +202,14 @@ void iecDisk::iec_open()
 		_base.reset( MFSOwner::File( _base->url + "/" + s) );
 
 		Debug_printv("_base[%s]", _base->url.c_str());
-		if ( !registerStream(commanddata->channel, std::ios_base::in) )
-		{
-			Debug_printv("File Doesn't Exist [%s]", s.c_str());
-            _base.reset( MFSOwner::File( _base->base() ) );
-		}
+        if ( !_base->isDirectory() )
+        {
+            if ( !registerStream(commanddata->channel, std::ios_base::in) )
+            {
+                Debug_printv("File Doesn't Exist [%s]", s.c_str());
+                _base.reset( MFSOwner::File( _base->base() ) );
+            }
+        }
 	}
 }
 
