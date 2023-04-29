@@ -199,7 +199,7 @@ void iecDisk::iec_open()
 
 	if ( s.length() )
 	{
-		_base.reset( MFSOwner::File( _base->url + "/" + s) );
+		_base.reset( _base->cd( s ) );
 
 		Debug_printv("_base[%s]", _base->url.c_str());
         if ( !_base->isDirectory() )
