@@ -101,15 +101,13 @@ class iecNetwork : public virtualDevice
 
     /**
      * @brief Start the Interrupt rate limiting timer
-     * @param c secondary channel # (0-15)
      */
-    void timer_start(unsigned char c);
+    void timer_start();
 
     /**
      * @brief Stop the Interrupt rate limiting timer
-     * @param c secondary channel # (0-15)
      */
-    void timer_stop(unsigned char c);
+    void timer_stop();
 
     /**
      * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
