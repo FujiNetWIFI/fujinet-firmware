@@ -56,6 +56,23 @@ iecNetwork::~iecNetwork()
     }
 }
 
+void iecNetwork::poll_interrupt(unsigned char c)
+{
+    NetworkStatus ns;
+    if (protocol[c] != nullptr)
+    {
+        if (protocol[c]->interruptEnable == false)
+            return;
+
+        protocol[c]->fromInterrupt = true;
+        protocol[c]->status(&ns);
+        protocol[c]->fromInterrupt = false;
+
+        if (ns.rxBytesWaiting > 0 || ns.connected == 0)
+            assert_interrupt(c);
+    }
+}
+
 void iecNetwork::iec_open()
 {
     file_not_found = false;
