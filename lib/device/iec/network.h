@@ -74,7 +74,7 @@ class iecNetwork : public virtualDevice
      * @brief Check to see if SRQ needs to be asserted.
      * @param c Secondary channel # (0-15)
      */
-    void poll_interrupt(unsigned char c);
+    virtual void poll_interrupt(unsigned char c);
 
     /**
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
