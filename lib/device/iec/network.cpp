@@ -24,6 +24,18 @@
 #include "SSH.h"
 #include "SMB.h"
 
+/**
+ * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
+ * flag to true. This is set to false when the interrupt is serviced.
+ */
+void onTimer(void *info)
+{
+    iecNetwork *parent = (iecNetwork *)info;
+    portENTER_CRITICAL_ISR(&parent->timerMux);
+    parent->interruptSRQ = !parent->interruptSRQ;
+    portEXIT_CRITICAL_ISR(&parent->timerMux);
+}
+
 iecNetwork::iecNetwork()
 {
     Debug_printf("iwmNetwork::iwmNetwork()\n");
@@ -79,6 +91,35 @@ void iecNetwork::assert_interrupt()
         IEC.pull(PIN_IEC_SRQ);
     else
         IEC.release(PIN_IEC_SRQ);
+}
+
+/**
+ * Start the Interrupt rate limiting timer
+ */
+void iecNetwork::timer_start()
+{
+    esp_timer_create_args_t tcfg;
+    tcfg.arg = this;
+    tcfg.callback = onTimer;
+    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
+    tcfg.name = nullptr;
+    esp_timer_create(&tcfg, &rateTimerHandle);
+    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
+}
+
+/**
+ * Stop the Interrupt rate limiting timer
+ */
+void iecNetwork::timer_stop()
+{
+    // Delete existing timer
+    if (rateTimerHandle != nullptr)
+    {
+        Debug_println("Deleting existing rateTimer\n");
+        esp_timer_stop(rateTimerHandle);
+        esp_timer_delete(rateTimerHandle);
+        rateTimerHandle = nullptr;
+    }
 }
 
 void iecNetwork::iec_open()
