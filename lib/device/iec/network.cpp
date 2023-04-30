@@ -46,9 +46,6 @@ iecNetwork::iecNetwork()
 
 iecNetwork::~iecNetwork()
 {
-
-    vTaskDelete(srqTaskHandle);
-
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
         delete protocol[i];
