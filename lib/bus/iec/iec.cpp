@@ -6,6 +6,7 @@
 #include "../../include/pinmap.h"
 #include "led.h"
 #include "protocol/iecProtocolSerial.h"
+#include "network.h"
 #include "string_utils.h"
 #include "utils.h"
 
@@ -230,10 +231,18 @@ void systemBus::process_queue()
 
 void IRAM_ATTR systemBus::service()
 {
+    // Handle SRQ for network.
+
+    virtualDevice *d = deviceById(12);
+
+    if (d)
+        for (int i=0;i<16;i++)
+        {
+            d->poll_interrupt(i);
+        }
+
     if (bus_state < BUS_ACTIVE)
         return;
-
-    pull(PIN_IEC_SRQ);
 
     // Disable Interrupt
     // gpio_intr_disable((gpio_num_t)PIN_IEC_ATN);
@@ -340,7 +349,6 @@ void IRAM_ATTR systemBus::service()
     // Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
 
     Debug_printv("exit");
-    release(PIN_IEC_SRQ);
 }
 
 void systemBus::read_command()
