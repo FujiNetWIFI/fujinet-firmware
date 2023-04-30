@@ -113,9 +113,8 @@ class iecNetwork : public virtualDevice
 
     /**
      * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
-     * @param c secondary channel # (0-15)
      */
-    void assert_interrupt(unsigned char c);
+    void assert_interrupt();
 
     /**
      * @brief the active URL for each channel

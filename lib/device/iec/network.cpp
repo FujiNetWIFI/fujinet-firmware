@@ -69,8 +69,16 @@ void iecNetwork::poll_interrupt(unsigned char c)
         protocol[c]->fromInterrupt = false;
 
         if (ns.rxBytesWaiting > 0 || ns.connected == 0)
-            assert_interrupt(c);
+            assert_interrupt();
     }
+}
+
+void iecNetwork::assert_interrupt()
+{
+    if (interruptSRQ)
+        IEC.pull(PIN_IEC_SRQ);
+    else
+        IEC.release(PIN_IEC_SRQ);
 }
 
 void iecNetwork::iec_open()
