@@ -298,8 +298,7 @@ void iecFuji::mount_host()
 
     if (payload[0] == FUJICMD_MOUNT_HOST)
     {
-        hs = payload[1];
-        return;
+        hs = payload[1];        
     }
     else
     {
@@ -307,7 +306,10 @@ void iecFuji::mount_host()
 
         if (t.size() < 2) // send error.
         {
-            response_queue.push("error: invalid # of parameters\r");
+            iecStatus.error = 0;
+            iecStatus.msg = "invalid # of parameters";
+            iecStatus.channel = 15;
+            iecStatus.connected = 0;
             return;
         }
 
@@ -316,18 +318,27 @@ void iecFuji::mount_host()
 
     if (!_validate_device_slot(hs, "mount_host"))
     {
-        response_queue.push("error: invalid host slot\r");
+        iecStatus.error = hs;
+        iecStatus.msg = "invalid host slot #";
+        iecStatus.channel = 15;
+        iecStatus.connected = 0;
         return; // send error.
     }
 
     if (!_fnHosts[hs].mount())
     {
-        response_queue.push("error: unable to mount host slot\r");
+        iecStatus.error = hs;
+        iecStatus.msg = "unable to mount host slot";
+        iecStatus.channel = 15;
+        iecStatus.connected = 0;
         return; // send error.
     }
 
     // Otherwise, mount was successful.
-    response_queue.push("ok\r");
+    iecStatus.error = hs;
+    iecStatus.msg = "host slot mounted";
+    iecStatus.channel = 15;
+    iecStatus.connected = 0;
 }
 
 // Disk Image Mount
@@ -1121,7 +1132,7 @@ void iecFuji::read_host_slots()
     {
         std::vector<std::string> t = util_tokenize(payload, ',');
 
-        if (t.size()<2)
+        if (t.size() < 2)
         {
             iecStatus.error = 0;
             iecStatus.msg = "host slot # required";
@@ -1235,7 +1246,7 @@ void iecFuji::read_device_slots()
         uint8_t mode;
         char filename[MAX_DISPLAY_FILENAME_LEN];
     };
-    
+
     disk_slot diskSlots[MAX_DISK_DEVICES];
 
     int returnsize;
@@ -1269,7 +1280,7 @@ void iecFuji::read_device_slots()
     {
         std::vector<std::string> t = util_tokenize(payload, ',');
 
-        if (t.size()<2)
+        if (t.size() < 2)
         {
             iecStatus.error = 0;
             iecStatus.msg = "host slot required";
