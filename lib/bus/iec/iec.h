@@ -177,8 +177,14 @@ protected:
 
     /**
      * @brief response queue (e.g. INPUT)
+     * @deprecated remove as soon as it's out of fuji.
      */
     std::queue<std::string> response_queue;
+
+    /**
+     * @brief status override (for binary commands)
+     */
+    std::string status_override;
 
     /**
      * @brief tokenized payload
