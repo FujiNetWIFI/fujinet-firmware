@@ -1166,12 +1166,15 @@ void iecFuji::write_host_slots()
     else
     {
         // PUTHOST:<slot>:<hostname>
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        std::vector<std::string> t = util_tokenize(payload, ',');
 
         if (t.size() < 2)
         {
             Debug_println("No Host slot #, ignoring.");
-            response_queue.push("error: no host slot #\r");
+            iecStatus.error = 0;
+            iecStatus.msg = "error: no host slot #";
+            iecStatus.connected = 0;
+            iecStatus.channel = 15;
             return;
         }
         else
@@ -1180,7 +1183,10 @@ void iecFuji::write_host_slots()
         if (!_validate_host_slot(hostSlot))
         {
             // Send error.
-            response_queue.push("error: invalid host slot #\r");
+            iecStatus.error = 0;
+            iecStatus.msg = "error: invalid host slot #";
+            iecStatus.connected = 0;
+            iecStatus.channel = 15;
             return;
         }
 
@@ -1199,7 +1205,11 @@ void iecFuji::write_host_slots()
 
     _populate_config_from_slots();
     Config.save();
-    response_queue.push("ok\r");
+
+    iecStatus.error = hostSlot;
+    iecStatus.msg = string(hostname);
+    iecStatus.channel = 15;
+    iecStatus.connected = 0;
 }
 
 // Store host path prefix
