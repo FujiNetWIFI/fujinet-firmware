@@ -263,7 +263,13 @@ bool D64IStream::seekPath(std::string path) {
 
     // call image method to obtain file bytes here, return true on success:
     // return D64Image.seekFile(containerIStream, path);
-    if ( seekEntry(path) )
+    if ( mstr::endsWith(path,"#") ) // Direct Access Mode
+    {
+        Debug_printv("Direct Access Mode track[0] sector[0] path[%s]", path.c_str());
+        seekSector(0, 0);
+        return true;
+    }
+    else if ( seekEntry(path) )
     {
         //auto entry = containerImage->entry;
         auto type = decodeType(entry.file_type).c_str();
