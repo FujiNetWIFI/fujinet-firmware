@@ -105,17 +105,20 @@ jobs:
       if: ${{ matrix.target-platform == 'APPLE' }}
       run: pio run -t buildfs -e fujiapple-rev0
 
-    - name: Get Commits since last Release
-      id: changes
-      uses: simbo/changes-since-last-release-action@v1
-      with:
-        line-prefix: "*"
-        include-hashes: false
+#    - name: Get Commits since last Release
+#      id: changes
+#      uses: simbo/changes-since-last-release-action@v1
+#      with:
+#        line-prefix: "*"
+#        include-hashes: false
 
-    - name: Save Commits since last Release
-      run: |
-        echo "${{ steps.changes.outputs.log }}" > change.log
-        cat change.log
+#    - name: Save Commits since last Release
+#      run: |
+#        echo "${{ steps.changes.outputs.log }}" > change.log
+#        cat change.log
+
+    - name: Save commits to change log
+      run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > change.log
 
     - name: Create JSON Description from Tag Annotation if Available
       if: ${{ steps.tag-data.outputs.git-tag-annotation != '' }}
