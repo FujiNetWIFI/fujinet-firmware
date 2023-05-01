@@ -232,6 +232,17 @@ FILE * fujiHost::file_open(const char *path, char *fullpath, int fullpathlen, co
     return _fs->file_open(fullpath, mode);
 }
 
+/* Remove a file from the host
+ * Returns true on error, false on success
+*/
+bool fujiHost::file_remove(char *fullpath)
+{
+    if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
+        return true;
+
+    return _fs->remove(fullpath);
+}
+
 /* Returns pointer to current hostname and, if provided, fills buffer with that string
 */
 const char *fujiHost::get_hostname(char *buffer, size_t buffersize)
