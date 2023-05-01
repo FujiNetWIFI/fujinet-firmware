@@ -437,14 +437,42 @@ void sioFuji::sio_copy_file()
         return;
     }
 
-    size_t count = 0;
+    size_t readCount = 0;
+    size_t readTotal = 0;
+    size_t writeCount = 0;
+    size_t expected = _fnHosts[sourceSlot].file_size(sourceFile); // get the filesize
+    bool err = false;
     do
     {
-        count = fread(dataBuf, 1, 532, sourceFile);
-        fwrite(dataBuf, 1, count, destFile);
-    } while (count > 0);
+        readCount = fread(dataBuf, 1, 532, sourceFile);
+        readTotal += readCount;
+        // Check if we got enough bytes on the read
+        if(readCount < 532 && readTotal != expected)
+        {
+            err = true;
+            break;
+        }
+        writeCount = fwrite(dataBuf, 1, readCount, destFile);
+        // Check if we sent enough bytes on the write
+        if (writeCount != readCount)
+        {
+            err = true;
+            break;
+        }
+        Debug_printf("Copy File: %d bytes of %d\n", readTotal, expected);
+    } while (readTotal < expected);
 
-    sio_complete();
+    if (err == true)
+    {
+        // Remove the destination file and error
+        _fnHosts[destSlot].file_remove((char *)destPath.c_str());
+        sio_error();
+        Debug_printf("Copy File Error! wCount: %d, rCount: %d, rTotal: %d, Expect: %d\n", writeCount, readCount, readTotal, expected);
+    }
+    else
+    {
+        sio_complete();
+    }
 
     // copyEnd:
     fclose(sourceFile);
