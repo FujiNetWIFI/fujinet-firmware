@@ -228,6 +228,12 @@ protected:
     virtual device_state_t process(IECData *commanddata);
 
     /**
+     * @brief poll whether interrupt should be wiggled
+     * @param c secondary channel (0-15)
+     */
+    virtual void poll_interrupt(unsigned char c) {}
+    
+    /**
      * @brief Dump the current IEC frame to terminal.
      */
     void dumpData();

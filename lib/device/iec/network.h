@@ -70,13 +70,50 @@ class iecNetwork : public virtualDevice
      */
     device_state_t process(IECData *_commanddata);
 
+    /**
+     * @brief Check to see if SRQ needs to be asserted.
+     * @param c Secondary channel # (0-15)
+     */
+    virtual void poll_interrupt(unsigned char c);
+
+    /**
+     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
+     */
+    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
+    /**
+     * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
+     * be pulsed.
+     */
+    bool interruptSRQ = false;
+
     private:
 
     /**
-     * @brief the SRQ interrupt task handle
+     * ESP timer handle for the Interrupt rate limiting timer
      */
-    TaskHandle_t srqTaskHandle;
-    
+    esp_timer_handle_t rateTimerHandle = nullptr;
+
+    /**
+     * Timer Rate for interrupt timer
+     */
+    int timerRate = 100;
+
+    /**
+     * @brief Start the Interrupt rate limiting timer
+     */
+    void timer_start();
+
+    /**
+     * @brief Stop the Interrupt rate limiting timer
+     */
+    void timer_stop();
+
+    /**
+     * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
+     */
+    void assert_interrupt();
+
     /**
      * @brief the active URL for each channel
      */
