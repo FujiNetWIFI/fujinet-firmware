@@ -21,8 +21,8 @@ iecDisk::iecDisk()
     // device_active = false;
     device_active = true; // temporary during bring-up
 
-    _disk.reset(MFSOwner::File("/"));
-    _file = "/";
+    _base.reset( MFSOwner::File("/") );
+    _last_file = "";
 }
 
 // Read disk data and send to computer
@@ -53,7 +53,7 @@ void iecDisk::format()
 mediatype_t iecDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     // TODO IMPLEMENT
-    _disk.reset( MFSOwner::File(filename) );
+    _base.reset( MFSOwner::File(filename) );
 
     return MEDIATYPE_UNKNOWN; // MEDIATYPE_UNKNOWN
 }
@@ -61,8 +61,8 @@ mediatype_t iecDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
 // Destructor
 iecDisk::~iecDisk()
 {
-    // if (_disk != nullptr)
-    //     delete _disk;
+    // if (_base != nullptr)
+    //     delete _base;
 }
 
 // Unmount disk file
@@ -70,9 +70,9 @@ void iecDisk::unmount()
 {
     Debug_print("disk UNMOUNT\n");
 
-    if (_disk != nullptr)
+    if (_base != nullptr)
     {
-        //_disk->unmount();
+        //_base->unmount();
         device_active = false;
     }
 }
@@ -107,6 +107,8 @@ device_state_t iecDisk::process(IECData *id)
         process_channel();
         break;
     }
+
+	Debug_printv("url[%s]", _base->url.c_str());
     return device_state;
 }
 
@@ -183,8 +185,7 @@ void iecDisk::process_channel()
 
 void iecDisk::iec_open()
 {
-    std::string s = commanddata->payload;
-    mstr::toPETSCII(s);
+    std::string s = payload;
 
     if ( mstr::startsWith(s, "0:") )
     {
@@ -193,33 +194,41 @@ void iecDisk::iec_open()
     }
     else if ( mstr::equals(s, "$") ) 
     {
-        s = "/";
+        s.clear();
     }
-    _disk.reset( MFSOwner::File( s ) );
-    _file = _disk->name;
 
-    Debug_printv("_file[%s]", _file.c_str());
-    if ( !registerStream(std::ios_base::in) )
-    {
-        Debug_printv("File Doesn't Exist [%s]", s.c_str());
-    }
+	if ( s.length() )
+	{
+		_base.reset( _base->cd( s ) );
+
+		Debug_printv("_base[%s]", _base->url.c_str());
+        if ( !_base->isDirectory() )
+        {
+            if ( !registerStream(commanddata->channel, std::ios_base::in) )
+            {
+                Debug_printv("File Doesn't Exist [%s]", s.c_str());
+                _base.reset( MFSOwner::File( _base->base() ) );
+            }
+        }
+	}
 }
 
 void iecDisk::iec_close()
 {
-    if (_disk == nullptr)
+    if (_base == nullptr)
     {
         IEC.senderTimeout();
         return; // Punch out.
     }
-    Debug_printv("url[%s]", _disk->url.c_str());
+    Debug_printv("url[%s]", _base->url.c_str());
 
-    closeStream();
+    closeStream( commanddata->channel );
 }
 
 void iecDisk::iec_reopen_load()
 {
-    if ( _disk->isDirectory() ) 
+	Debug_printv( "_base[%s] _last_file[%s]", _base->url.c_str(), _last_file.c_str() );
+    if ( _base->isDirectory() ) 
     {
         sendListing();
     }
@@ -231,12 +240,12 @@ void iecDisk::iec_reopen_load()
 
 void iecDisk::iec_reopen_save()
 {
-    if (_disk == nullptr)
+    if (_base == nullptr)
     {
         IEC.senderTimeout();
         return; // Punch out.
     }
-    Debug_printv("url[%s]", _disk->url.c_str());
+    Debug_printv("url[%s]", _base->url.c_str());
 
     saveFile();
 }
@@ -283,8 +292,8 @@ void iecDisk::iec_talk_command_buffer_status()
 {
     Debug_printv("here");
 
-    char reply[80];
-    string s = "0, OK, 0, 0";
+    //char reply[80];
+    string s = "00, OK,00,00\r";
 
     // snprintf(reply, 80, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
     // s = string(reply);
@@ -294,62 +303,89 @@ void iecDisk::iec_talk_command_buffer_status()
 
 void iecDisk::iec_command()
 {
-    Debug_printv("here");
-    // if (channelMode[commanddata->channel] == PROTOCOL)
-    // {
-    //     if (pt[0] == "cd")
-    //         set_prefix();
-    //     else if (pt[0] == "id")
-    //         set_device_id();
-    //     else if (pt[0] == "jsonparse")
-    //         parse_json();
-    //     else if (pt[0] == "jq")
-    //         query_json();
-    //     else if (pt[0] == "settrans")
-    //         set_translation_mode();
-    //     else if (pt[0] == "pwd")
-    //         get_prefix();
-    //     else if (pt[0] == "login")
-    //         set_login_password();
-    //     else if (pt[0] == "rename" || pt[0] == "ren")
-    //         fsop(0x20);
-    //     else if (pt[0] == "delete" || pt[0] == "del" || pt[0] == "rm")
-    //         fsop(0x21);
-    //     else if (pt[0] == "lock")
-    //         fsop(0x23);
-    //     else if (pt[0] == "unlock")
-    //         fsop(0x24);
-    //     else if (pt[0] == "mkdir")
-    //         fsop(0x2A);
-    //     else if (pt[0] == "rmdir")
-    //         fsop(0x2B);
-    //     else if (protocol[commanddata->channel] != nullptr &&
-    //              protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x00)
-    //         perform_special_00();
-    //     else if (protocol[commanddata->channel] != nullptr &&
-    //              protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x40)
-    //         perform_special_40();
-    //     else if (protocol[commanddata->channel] != nullptr &&
-    //              protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x80)
-    //         perform_special_80();
-    // }
-    // else if (channelMode[commanddata->channel] == JSON)
-    // {
-    //     Debug_printf("JSON channelmode command %s\n", pt[0].c_str());
-    // }
+	Debug_printv("command[%s]", payload.c_str());
+	if (mstr::startsWith(payload, "cd"))
+		set_prefix();
+	else if (pt[0] == "pwd")
+		get_prefix();
+	else if (pt[0] == "id")
+		set_device_id();
 }
 
 
-
-std::shared_ptr<MStream> iecDisk::retrieveStream ( void )
+void iecDisk::set_device_id()
 {
-    size_t key = ( IEC.data.device * 100 ) + IEC.data.channel;
-    Debug_printv("Stream key[%d]", key);
-
-    if ( streams.find ( key ) != streams.end() )
+    if (pt.size() < 2)
     {
-        //Debug_printv("Stream retrieved. key[%d]", key);
-        return streams.at ( key );
+        iecStatus.error = 0; // TODO: Add error number for this
+		iecStatus.msg = "device id required";
+        iecStatus.channel = commanddata->channel;
+        iecStatus.connected = 0;
+        return;
+    }
+
+    int new_id = atoi(pt[1].c_str());
+
+    IEC.changeDeviceId(this, new_id);
+
+    iecStatus.error = 0;
+    iecStatus.msg = "ok";
+    iecStatus.connected = 0;
+    iecStatus.channel = commanddata->channel;
+}
+
+void iecDisk::get_prefix()
+{
+    int channel = -1;
+
+    if (pt.size() < 2)
+    {
+        iecStatus.error = 255; // TODO: Add error number for this
+        iecStatus.connected = 0;
+        iecStatus.channel = channel;
+        iecStatus.msg = "need channel #";
+        return;
+    }
+
+    channel = atoi(pt[1].c_str());
+	auto stream = retrieveStream( channel );
+
+    iecStatus.error = 0;
+    iecStatus.msg = stream->url;
+    iecStatus.connected = 0;
+    iecStatus.channel = channel;
+}
+
+void iecDisk::set_prefix()
+{
+	std::string path = payload;
+
+	// Isolate path
+	path = mstr::drop(path, 2);
+	if ( mstr::startsWith(path, ":") || mstr::startsWith(path, " " ) )
+		path = mstr::drop(path, 1);
+
+	Debug_printv("path[%s]", path.c_str());
+	_base.reset( _base->cd( path ) );
+
+    if ( !_base->isDirectory() )
+    {
+        if ( !registerStream(0, std::ios_base::in) )
+        {
+            Debug_printv("File Doesn't Exist [%s]", _base->url.c_str());
+        }
+    }
+}
+
+
+std::shared_ptr<MStream> iecDisk::retrieveStream ( uint8_t channel )
+{
+    Debug_printv("Stream key[%d]", channel);
+
+    if ( streams.find ( channel ) != streams.end() )
+    {
+        //Debug_printv("Stream retrieved. key[%d]", channel);
+        return streams.at ( channel );
     }
     else
     {
@@ -360,27 +396,27 @@ std::shared_ptr<MStream> iecDisk::retrieveStream ( void )
 
 // used to start working with a stream, registering it as underlying stream of some
 // IEC channel on some IEC device
-bool iecDisk::registerStream (std::ios_base::open_mode mode)
+bool iecDisk::registerStream (uint8_t channel, std::ios_base::open_mode mode)
 {
     // Debug_printv("dc_basepath[%s]",  device_config.basepath().c_str());
     // Debug_printv("_file[%s]", _file.c_str());
     // //auto file = Meat::New<MFile>( device_config.basepath() + "/" + _file );
-    // auto file = Meat::New<MFile>( _disk->url + _file );
+    //auto file = Meat::New<MFile>( _base->url + _file );
     // auto file = Meat::New<MFile>( _file );
-    // if ( !file->exists() )
+    //if ( !file->exists() )
     //     return false;
-    if ( !_disk->exists() )
+    if ( !_base->exists() )
         return false;
     
-    Debug_printv("_disk[%s]", _disk->url.c_str());
+    Debug_printv("_base[%s]", _base->url.c_str());
 
     std::shared_ptr<MStream> new_stream;
 
     // LOAD / GET / INPUT
     if ( mode == std::ios_base::in )
     {
-        Debug_printv("LOAD _disk[%s] _file[%s]", _disk->url.c_str(), _file.c_str());
-        new_stream = std::shared_ptr<MStream>(_disk->meatStream());
+        Debug_printv("LOAD \"%s\"", _base->url.c_str());
+        new_stream = std::shared_ptr<MStream>(_base->meatStream());
 
         if ( new_stream == nullptr )
         {
@@ -395,20 +431,20 @@ bool iecDisk::registerStream (std::ios_base::open_mode mode)
         else
         {
             // Close the stream if it is already open
-            closeStream();
+            closeStream( channel );
         }
     }
 
     // SAVE / PUT / PRINT / WRITE
     else
     {
-        Debug_printv("SAVE _file[%s]", _file.c_str());
+        Debug_printv("SAVE \"%s\"", _base->url.c_str());
         // CREATE STREAM HERE FOR OUTPUT
         return false;
     }
 
 
-    size_t key = ( IEC.data.device * 100 ) + IEC.data.channel;
+    //size_t key = ( IEC.data.device * 100 ) + IEC.data.channel;
 
     // // Check to see if a stream is open on this device/channel already
     // auto found = streams.find(key);
@@ -419,24 +455,23 @@ bool iecDisk::registerStream (std::ios_base::open_mode mode)
     // }
 
     // Add stream to streams 
-    auto newPair = std::make_pair ( key, new_stream );
+    auto newPair = std::make_pair ( channel, new_stream );
     streams.insert ( newPair );
 
-    Debug_printv("Stream created. key[%d]", key);
+    Debug_printv("Stream created. key[%d]", channel);
     return true;
 }
 
-bool iecDisk::closeStream ( bool close_all )
+bool iecDisk::closeStream ( uint8_t channel, bool close_all )
 {
-    size_t key = ( IEC.data.device * 100 ) + IEC.data.channel;
-    auto found = streams.find(key);
+    auto found = streams.find(channel);
 
     if ( found != streams.end() )
     {
         //Debug_printv("Stream closed. key[%d]", key);
         auto closingStream = (*found).second;
         closingStream->close();
-        return streams.erase ( key );
+        return streams.erase ( channel );
     }
 
     return false;
@@ -519,7 +554,7 @@ uint16_t iecDisk::sendHeader(std::string header, std::string id)
 	bool sent_info = false;
 
 	PeoplesUrlParser p;
-	std::string url = _disk->url;
+	std::string url = _base->url;
 
 	mstr::toPETSCII(url);
 	p.parseUrl(url);
@@ -580,15 +615,13 @@ uint16_t iecDisk::sendHeader(std::string header, std::string id)
 		if ( byte_count == 0 ) return 0;
 	}
 	
-//#ifdef SD_CARD
-	if (fnSDFAT.running() && _disk->url.size() < 2)
+	if (fnSDFAT.running() && _base->url.size() < 2)
 	{
 		byte_count += sendLine(0, "%*s\"SD\"                  DIR", 0, "");
 		if ( byte_count == 0 ) return 0;
 		byte_count += sendLine(0, "%*s\"-------------------\" NFO", 0, "");
 		if ( byte_count == 0 ) return 0;
 	}
-//#endif
 
 	return byte_count;
 }
@@ -597,11 +630,11 @@ uint16_t iecDisk::sendFooter()
 {
 	uint16_t blocks_free;
 	uint16_t byte_count = 0;
-	uint64_t bytes_free = _disk->getAvailableSpace();
+	uint64_t bytes_free = _base->getAvailableSpace();
 
-	if ( _disk->size() )
+	if ( _base->size() )
 	{
-		blocks_free = _disk->media_blocks_free;
+		blocks_free = _base->media_blocks_free;
 		byte_count = sendLine(blocks_free, "BLOCKS FREE.");
 	}
 	else
@@ -616,17 +649,17 @@ uint16_t iecDisk::sendFooter()
 
 void iecDisk::sendListing()
 {
-	Debug_printf("sendListing: [%s]\r\n=================================\r\n", _disk->url.c_str());
+	Debug_printf("sendListing: [%s]\r\n=================================\r\n", _base->url.c_str());
 
 	uint16_t byte_count = 0;
 	std::string extension = "dir";
 
-	std::unique_ptr<MFile> entry(_disk->getNextFileInDir());
+	std::unique_ptr<MFile> entry(_base->getNextFileInDir());
 
 	if(entry == nullptr) {
-		closeStream();
+		closeStream( commanddata->channel );
 
-		bool isOpen = registerStream(std::ios_base::in);
+		bool isOpen = registerStream(commanddata->channel, std::ios_base::in);
 		if(isOpen) 
 		{
             sendFile();
@@ -647,9 +680,9 @@ void iecDisk::sendListing()
 	Debug_println("");
 
 	// Send Listing Header
-	if (_disk->media_header.size() == 0)
+	if (_base->media_header.size() == 0)
 	{
-		// Set device default Listing Header
+		// Send device default listing header
 		char buf[7] = { '\0' };
 		sprintf(buf, "%.02d 2A", IEC.data.device);
 		byte_count += sendHeader(PRODUCT_ID, buf);
@@ -657,16 +690,18 @@ void iecDisk::sendListing()
 	}
 	else
 	{
-		byte_count += sendHeader(_disk->media_header.c_str(), _disk->media_id.c_str());
+		// Send listing header from media file
+		byte_count += sendHeader(_base->media_header.c_str(), _base->media_id.c_str());
+		if ( byte_count == 0 ) return;
 	}
 
 	// Send Directory Items
 	while(entry != nullptr)
 	{
 		uint32_t s = entry->size();
-		uint32_t block_cnt = s / _disk->media_block_size;
-		// Debug_printv( "size[%d] blocks[%d] blocksz[%d]", s, block_cnt, _disk->media_block_size );
-		if ( s > 0 && s < _disk->media_block_size )
+		uint32_t block_cnt = s / _base->media_block_size;
+		// Debug_printv( "size[%d] blocks[%d] blocksz[%d]", s, block_cnt, _base->media_block_size );
+		if ( s > 0 && s < _base->media_block_size )
 			block_cnt = 1;
 
 		uint8_t block_spc = 3;
@@ -721,7 +756,7 @@ void iecDisk::sendListing()
 			if ( byte_count == 0 ) return;
 		}
 
-		entry.reset(_disk->getNextFileInDir());
+		entry.reset(_base->getNextFileInDir());
 
 		//fnLedManager.toggle(eLed::LED_BUS);
 	}
@@ -759,21 +794,22 @@ bool iecDisk::sendFile()
 #endif
 
 	// std::shared_ptr<MStream> istream = std::static_pointer_cast<MStream>(currentStream);
-	auto istream = retrieveStream();
+	auto istream = retrieveStream(commanddata->channel);
 	if ( istream == nullptr )
 	{
 		//Debug_printv("Stream not found!");
 		IEC.senderTimeout(); // File Not Found
-		closeStream();
+		closeStream(commanddata->channel);
 		return false;
 	}
 
-	if ( IEC.data.channel == CHANNEL_LOAD )
+	if ( IEC.data.channel == CHANNEL_LOAD && !_base->isDirectory() )
 	{
 		PeoplesUrlParser u;
-		u.parseUrl(istream->url);
-		//Debug_printv( "Change Directory Here! [%s]", u.base().c_str() );
-		//changeDir(u.base());
+		u.parseUrl( istream->url );
+		Debug_printv( "Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u.base().c_str() );
+        _last_file = u.name;
+		_base.reset( MFSOwner::File( u.base() ) );
 	}
 
 	uint32_t len = istream->size();
@@ -817,7 +853,7 @@ bool iecDisk::sendFile()
 #endif
 			// Send Byte
 			avail = istream->available();
-			if ( !success_rx )
+			if ( !avail || !success_rx )
 			{
                 //Debug_printv("b[%02X] EOI", b);
 				success_tx = IEC.sendByte(b, true); // indicate end of file.
@@ -883,7 +919,7 @@ bool iecDisk::sendFile()
 	{
 		Debug_println("sendFile: Transfer aborted!");
 		IEC.senderTimeout();
-		closeStream();
+		closeStream(commanddata->channel);
 	}
 
 	return success_rx;
@@ -908,7 +944,7 @@ bool iecDisk::saveFile()
 	ba[8] = '\0';
 #endif
 
-	auto ostream = retrieveStream();
+	auto ostream = retrieveStream(commanddata->channel);
 
     if ( ostream == nullptr ) {
         Debug_printv("couldn't open a stream for writing");
@@ -980,9 +1016,9 @@ bool iecDisk::saveFile()
 #ifdef DATA_STREAM
 			// Show ASCII Data
 			if (b[0] < 32 || b[0] >= 127)
-			b[0] = 46;
-
-			ba[bi++] = b[0];
+				ba[bi++] = 46;
+			else
+				ba[bi++] = b[0];
 
 			if(bi == 8)
 			{

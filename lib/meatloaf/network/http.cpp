@@ -138,6 +138,12 @@ void HttpIStream::close() {
 }
 
 bool HttpIStream::seek(uint32_t pos) {
+    if ( !m_http.m_isOpen )
+    {
+        Debug_printv("error");
+        return false;
+    }
+
     return m_http.seek(pos);
 }
 

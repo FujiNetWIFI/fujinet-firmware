@@ -17,6 +17,8 @@ bool T64IStream::seekEntry( std::string filename )
         {
             std::string entryFilename = entry.filename;
             mstr::rtrimA0(entryFilename);
+            mstr::replaceAll(filename, "\\", "/");
+            mstr::toASCII(entryFilename);
             Debug_printv("filename[%s] entry.filename[%.16s]", filename.c_str(), entryFilename.c_str());
 
             // Read Entry From Stream

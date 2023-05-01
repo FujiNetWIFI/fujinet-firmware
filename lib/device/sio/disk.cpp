@@ -42,7 +42,10 @@ void sioDisk::sio_read()
 
     if (_disk == nullptr)
     {
-        sio_error();
+        // Send error but dummy sector.
+        uint8_t dummySector[128];
+        memset(dummySector,0,sizeof(dummySector));
+        bus_to_computer(dummySector,128,true);
         return;
     }
 
@@ -50,10 +53,8 @@ void sioDisk::sio_read()
 
     bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
 
-    if (err == true)
-        sio_error();
-    else
-        bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
+    // Send result to Atari
+    bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer

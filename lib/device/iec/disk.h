@@ -18,14 +18,14 @@ class iecDisk : public virtualDevice
 private:
     //MediaType *_disk = nullptr;
 
-    std::unique_ptr<MFile> _disk; // Always points to current directory/image
-    std::string _file;         // Always points to current or last loaded file
+    std::unique_ptr<MFile> _base;   // Always points to current directory/image
+    std::string _last_file;         // Always points to last loaded file
 
     // Named Channel functions
     //std::shared_ptr<MStream> currentStream;
-    bool registerStream (int mode);
-    std::shared_ptr<MStream> retrieveStream ( void );
-    bool closeStream ( bool close_all = false );
+    bool registerStream (uint8_t channel, int mode);
+    std::shared_ptr<MStream> retrieveStream ( uint8_t channel );
+    bool closeStream ( uint8_t channel, bool close_all = false );
 
     // Directory
 	uint16_t sendHeader(std::string header, std::string id);
@@ -127,6 +127,21 @@ protected:
      * @brief called to process command either at open or listen
      */
     void iec_command();
+
+    /**
+     * @brief Set device ID from dos command
+     */
+    void set_device_id();
+
+    /**
+     * @brief Set desired prefix for channel
+     */
+    void set_prefix();
+
+    /**
+     * @brief Get prefix for channel
+     */
+    void get_prefix();
 
     /**
      * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
