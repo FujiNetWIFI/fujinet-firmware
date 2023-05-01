@@ -303,6 +303,9 @@ void iecDisk::iec_talk_command_buffer_status()
 
 void iecDisk::iec_command()
 {
+	if ( pt.empty() )
+		return;
+
 	Debug_printv("command[%s]", payload.c_str());
 	if (mstr::startsWith(payload, "cd"))
 		set_prefix();
