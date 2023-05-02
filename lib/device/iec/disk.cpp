@@ -188,6 +188,7 @@ void iecDisk::process_channel()
 void iecDisk::iec_open()
 {
     std::string s = payload;
+	mstr::toASCII(s);
 
     if ( mstr::startsWith(s, "0:") )
     {
@@ -304,9 +305,6 @@ void iecDisk::iec_talk_command_buffer_status()
 
 void iecDisk::iec_command()
 {
-	if ( pt.empty() )
-		return;
-
 	Debug_printv("command[%s]", payload.c_str());
 
 	// if (mstr::startsWith(payload, "cd"))
@@ -318,7 +316,7 @@ void iecDisk::iec_command()
 
 	// Drive level commands
 	// CBM DOS 2.5
-	switch ( toupper( payload[0] ) )
+	switch ( payload[0] )
 	{
 		case 'B':
 			// B-P buffer pointer
@@ -391,15 +389,15 @@ void iecDisk::iec_command()
 
 	// SD2IEC Commands
 	// http://www.n2dvm.com/UIEC.pdf
-	switch ( toupper( payload[0] ) )
+	switch ( payload[0] )
 	{
 		case 'C':
-			if ( toupper( payload[1] ) == 'P') // Change Partition
+			if ( payload[1] == 'P') // Change Partition
 			{
 				Debug_printv( "change partition");
 				//ChangeDevice();
 			}
-			else if ( toupper( payload[1] ) == 'D') // Change Directory
+			else if ( payload[1] == 'D') // Change Directory
 			{
 				Debug_printv( "change directory");
 				set_prefix();
@@ -416,7 +414,7 @@ void iecDisk::iec_command()
 			//Error(ERROR_31_SYNTAX_ERROR);	// G-P not implemented yet
 		break;
 		case 'M':
-			if ( toupper( payload[1] ) == 'D') // Make Directory
+			if ( payload[1] == 'D') // Make Directory
 			{
 				Debug_printv( "make directory");
 			}
@@ -426,7 +424,7 @@ void iecDisk::iec_command()
 			//Error(ERROR_31_SYNTAX_ERROR);	// P not implemented yet
 		break;
 		case 'R':
-			if ( toupper( payload[1] ) == 'D') // Remove Directory
+			if ( payload[1] == 'D') // Remove Directory
 			{
 				Debug_printv( "remove directory");
 			}
@@ -453,7 +451,7 @@ void iecDisk::iec_command()
 			Debug_printv( "user 1a2b");
 		break;
 		case 'X':
-			Debug_printv( "extended commands");
+			Debug_printv( "xtended commands");
 			// X{0-4}
 			// XE+ / XE-
 			// XB+ / XB-
@@ -522,6 +520,7 @@ void iecDisk::get_prefix()
 void iecDisk::set_prefix()
 {
 	std::string path = payload;
+	mstr::toASCII(path);
 
 	// Isolate path
 	path = mstr::drop(path, 2);
