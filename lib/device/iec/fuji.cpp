@@ -83,18 +83,29 @@ void iecFuji::net_scan_networks()
     char c[8];
 
     _countScannedSSIDs = fnWiFi.scan_networks();
-    snprintf(c, sizeof(c), "%u\r", _countScannedSSIDs);
-    response_queue.push(std::string(c));
+
+    if (payload[0] == FUJICMD_SCAN_NETWORKS)
+    {
+        c[0] = _countScannedSSIDs;
+        c[1] = 0;
+        status_override = string(c);
+    }
+    else
+    {
+        iecStatus.error = _countScannedSSIDs;
+        iecStatus.msg = "networks found";
+        iecStatus.connected = 0;
+        iecStatus.channel = 15;
+    }
 }
 
 // Return scanned network entry
 void iecFuji::net_scan_result()
 {
-    std::vector<std::string> t = util_tokenize(payload, ':');
+    std::vector<std::string> t = util_tokenize(payload, ',');
 
     // t[0] = SCANRESULT
     // t[1] = scan result # (0-numresults)
-    // t[2] = RAW (optional)
     struct
     {
         char ssid[33];
@@ -104,7 +115,6 @@ void iecFuji::net_scan_result()
     if (t.size() > 1)
     {
         int i = atoi(t[1].c_str());
-        Debug_printf("Getting scan result %u\n", i);
         fnWiFi.get_scan_result(i, detail.ssid, &detail.rssi);
     }
     else
@@ -116,9 +126,9 @@ void iecFuji::net_scan_result()
     if (payload[0] == FUJICMD_GET_SCAN_RESULT) // raw
     {
         std::string r = std::string((const char *)&detail, sizeof(detail));
-        response_queue.push(r);
+        status_override = r;
     }
-    else // SCANRESULT:0
+    else // SCANRESULT,n
     {
         char c[40];
         std::string s = std::string(detail.ssid);
@@ -126,8 +136,10 @@ void iecFuji::net_scan_result()
 
         memset(c, 0, sizeof(c));
 
-        snprintf(c, 40, "\"%s\",%d\r", s.c_str(), detail.rssi);
-        response_queue.push(std::string(c, sizeof(c)));
+        iecStatus.error = detail.rssi;
+        iecStatus.channel = 15;
+        iecStatus.connected = false;
+        iecStatus.msg = string(detail.ssid);
     }
 }
 
@@ -159,7 +171,7 @@ void iecFuji::net_get_ssid()
     {
         std::string r = std::string(cfg.ssid);
         mstr::toPETSCII(r);
-        response_queue.push(r);
+        status_override = r;
     }
 }
 
@@ -198,7 +210,11 @@ void iecFuji::net_set_ssid()
 
     Debug_printf("Connecting to net %s\n", cfg.ssid);
     fnWiFi.connect(cfg.ssid, cfg.password);
-    response_queue.push("ok\r");
+
+    iecStatus.channel = 15;
+    iecStatus.error = 0;
+    iecStatus.msg = "ssid set";
+    iecStatus.connected = fnWiFi.connected();
 }
 
 // Get WiFi Status
@@ -207,9 +223,32 @@ void iecFuji::net_get_wifi_status()
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     char r[4];
 
-    snprintf(r, sizeof(r), "%u\r", wifiStatus);
+    Debug_printv("payload[0]==%02x\n", payload[0]);
 
-    response_queue.push(std::string(r));
+    if (payload[0] == FUJICMD_GET_WIFISTATUS)
+    {
+        r[0] = wifiStatus;
+        r[1] = 0;
+        status_override = string(r);
+        return;
+    }
+    else
+    {
+        iecStatus.error = wifiStatus;
+
+        if (wifiStatus)
+        {
+            iecStatus.msg = "CONNECTED";
+            iecStatus.connected = true;
+        }
+        else
+        {
+            iecStatus.msg = "DISCONNECTED";
+            iecStatus.connected = false;
+        }
+
+        iecStatus.channel = 15;
+    }
 }
 
 // Check if Wifi is enabled
@@ -259,8 +298,7 @@ void iecFuji::mount_host()
 
     if (payload[0] == FUJICMD_MOUNT_HOST)
     {
-        hs = payload[1];
-        return;
+        hs = payload[1];        
     }
     else
     {
@@ -268,7 +306,10 @@ void iecFuji::mount_host()
 
         if (t.size() < 2) // send error.
         {
-            response_queue.push("error: invalid # of parameters\r");
+            iecStatus.error = 0;
+            iecStatus.msg = "invalid # of parameters";
+            iecStatus.channel = 15;
+            iecStatus.connected = 0;
             return;
         }
 
@@ -277,18 +318,27 @@ void iecFuji::mount_host()
 
     if (!_validate_device_slot(hs, "mount_host"))
     {
-        response_queue.push("error: invalid host slot\r");
+        iecStatus.error = hs;
+        iecStatus.msg = "invalid host slot #";
+        iecStatus.channel = 15;
+        iecStatus.connected = 0;
         return; // send error.
     }
 
     if (!_fnHosts[hs].mount())
     {
-        response_queue.push("error: unable to mount host slot\r");
+        iecStatus.error = hs;
+        iecStatus.msg = "unable to mount host slot";
+        iecStatus.channel = 15;
+        iecStatus.connected = 0;
         return; // send error.
     }
 
     // Otherwise, mount was successful.
-    response_queue.push("ok\r");
+    iecStatus.error = hs;
+    iecStatus.msg = "host slot mounted";
+    iecStatus.channel = 15;
+    iecStatus.connected = 0;
 }
 
 // Disk Image Mount
@@ -1047,81 +1097,14 @@ void iecFuji::get_adapter_config()
     if (payload[0] == FUJICMD_GET_ADAPTERCONFIG)
     {
         std::string reply = std::string((const char *)&cfg, sizeof(AdapterConfig));
-        response_queue.push(reply);
+        status_override = reply;
     }
     else if (payload == "ADAPTERCONFIG")
     {
-        char reply[128];
-        std::string s;
-
-        Debug_printf("Returning Adapterconfig.\n");
-        sprintf(reply, "%s\r", cfg.ssid);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%s\r", cfg.hostname);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%u.%u.%u.%u\r",
-                cfg.localIP[0],
-                cfg.localIP[1],
-                cfg.localIP[2],
-                cfg.localIP[3]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%u.%u.%u.%u\r",
-                cfg.netmask[0],
-                cfg.netmask[1],
-                cfg.netmask[2],
-                cfg.netmask[3]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%u.%u.%u.%u\r",
-                cfg.gateway[0],
-                cfg.gateway[1],
-                cfg.gateway[2],
-                cfg.gateway[3]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%u.%u.%u.%u\r",
-                cfg.dnsIP[0],
-                cfg.dnsIP[1],
-                cfg.dnsIP[2],
-                cfg.dnsIP[3]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%02x.%02x.%02x.%02x.%02x.%02x\r",
-                cfg.macAddress[0],
-                cfg.macAddress[1],
-                cfg.macAddress[2],
-                cfg.macAddress[3],
-                cfg.macAddress[4],
-                cfg.macAddress[5]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
-
-        sprintf(reply, "%02x.%02x.%02x.%02x.%02x.%02x\r",
-                cfg.bssid[0],
-                cfg.bssid[1],
-                cfg.bssid[2],
-                cfg.bssid[3],
-                cfg.bssid[4],
-                cfg.bssid[5]);
-        s = std::string(reply);
-        mstr::toPETSCII(s);
-        response_queue.push(s);
+        iecStatus.channel = 15;
+        iecStatus.connected = fnWiFi.connected();
+        iecStatus.error = 0;
+        iecStatus.msg = "use localip, netmask, gateway, dns, mac, bssid, or version";
     }
 }
 
@@ -1144,15 +1127,23 @@ void iecFuji::read_host_slots()
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
     if (payload[0] == FUJICMD_READ_HOST_SLOTS)
-        response_queue.push(std::string((const char *)hostSlots, 256));
+        status_override = std::string((const char *)hostSlots, 256);
     else
     {
-        for (int i = 0; i < MAX_HOSTS; i++)
+        std::vector<std::string> t = util_tokenize(payload, ',');
+
+        if (t.size() < 2)
         {
-            char reply[MAX_HOSTNAME_LEN + 16];
-            sprintf(reply, "%u,\"%s\"\r", i, &hostSlots[i][0]);
-            response_queue.push(std::string(reply));
+            iecStatus.error = 0;
+            iecStatus.msg = "host slot # required";
+            iecStatus.connected = 0;
+            iecStatus.channel = 15;
         }
+
+        int selected_hs = atoi(t[1].c_str());
+        char reply[MAX_HOSTNAME_LEN];
+
+        status_override = std::string(hostSlots[selected_hs]);
     }
 }
 
@@ -1186,12 +1177,15 @@ void iecFuji::write_host_slots()
     else
     {
         // PUTHOST:<slot>:<hostname>
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        std::vector<std::string> t = util_tokenize(payload, ',');
 
         if (t.size() < 2)
         {
             Debug_println("No Host slot #, ignoring.");
-            response_queue.push("error: no host slot #\r");
+            iecStatus.error = 0;
+            iecStatus.msg = "error: no host slot #";
+            iecStatus.connected = 0;
+            iecStatus.channel = 15;
             return;
         }
         else
@@ -1200,7 +1194,10 @@ void iecFuji::write_host_slots()
         if (!_validate_host_slot(hostSlot))
         {
             // Send error.
-            response_queue.push("error: invalid host slot #\r");
+            iecStatus.error = 0;
+            iecStatus.msg = "error: invalid host slot #";
+            iecStatus.connected = 0;
+            iecStatus.channel = 15;
             return;
         }
 
@@ -1219,7 +1216,11 @@ void iecFuji::write_host_slots()
 
     _populate_config_from_slots();
     Config.save();
-    response_queue.push("ok\r");
+
+    iecStatus.error = hostSlot;
+    iecStatus.msg = string(hostname);
+    iecStatus.channel = 15;
+    iecStatus.connected = 0;
 }
 
 // Store host path prefix
@@ -1245,6 +1246,7 @@ void iecFuji::read_device_slots()
         uint8_t mode;
         char filename[MAX_DISPLAY_FILENAME_LEN];
     };
+
     disk_slot diskSlots[MAX_DISK_DEVICES];
 
     int returnsize;
@@ -1273,17 +1275,26 @@ void iecFuji::read_device_slots()
     returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
 
     if (payload[0] == FUJICMD_READ_DEVICE_SLOTS)
-        response_queue.push(std::string((const char *)&diskSlots, returnsize));
+        status_override = std::string((const char *)&diskSlots, returnsize);
     else
     {
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        std::vector<std::string> t = util_tokenize(payload, ',');
+
+        if (t.size() < 2)
         {
-            char reply[64];
-            snprintf(reply, 64, "%u,%u,\"%s\"\r", diskSlots->hostSlot, diskSlots->mode, diskSlots->filename);
-            std::string s(reply);
-            mstr::toPETSCII(s);
-            response_queue.push(s);
+            iecStatus.error = 0;
+            iecStatus.msg = "host slot required";
+            iecStatus.connected = 0;
+            iecStatus.channel = 15;
+            return;
         }
+
+        int selected_ds = atoi(t[1].c_str());
+
+        iecStatus.error = selected_ds;
+        iecStatus.connected = diskSlots[selected_ds].hostSlot;
+        iecStatus.msg = diskSlots[selected_ds].filename;
+        iecStatus.channel = diskSlots[selected_ds].mode;
     }
 }
 
@@ -1456,11 +1467,17 @@ void iecFuji::get_device_filename()
 
     std::string reply = std::string(_fnDisks[ds].filename);
 
-    // Add CR if calling from BASIC call.
-    if (payload[0] != FUJICMD_GET_DEVICE_FULLPATH)
-        reply += '\r';
-
-    response_queue.push(reply);
+    if (payload[0] == FUJICMD_GET_DEVICE_FULLPATH)
+    {
+        status_override = reply;
+    }
+    else
+    {
+        iecStatus.channel = 15;
+        iecStatus.error = ds;
+        iecStatus.connected = 1;
+        iecStatus.msg = reply;
+    }
 }
 
 // Mounts the desired boot disk number
@@ -1514,11 +1531,11 @@ device_state_t iecFuji::process(IECData *id)
 void iecFuji::local_ip()
 {
     char msg[17];
-    
+
     fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
 
-    sprintf(msg,"%u.%u.%u.%u",cfg.localIP[0],cfg.localIP[1],cfg.localIP[2],cfg.localIP[3]);
-    
+    sprintf(msg, "%u.%u.%u.%u", cfg.localIP[0], cfg.localIP[1], cfg.localIP[2], cfg.localIP[3]);
+
     iecStatus.channel = 15;
     iecStatus.error = 0;
     iecStatus.msg = string(msg);
@@ -1557,8 +1574,7 @@ void iecFuji::process_basic_commands()
     else if (payload.find("puthost") != std::string::npos ||
              payload.find("fhost") != std::string::npos)
         write_host_slots();
-    else if (payload.find("getdrive") != std::string::npos ||
-             payload.find("fld") != std::string::npos)
+    else if (payload.find("getdrive") != std::string::npos)
         read_device_slots();
     else if (payload.find("unmounthost") != std::string::npos)
         unmount_host();

@@ -178,8 +178,14 @@ protected:
 
     /**
      * @brief response queue (e.g. INPUT)
+     * @deprecated remove as soon as it's out of fuji.
      */
     std::queue<std::string> response_queue;
+
+    /**
+     * @brief status override (for binary commands)
+     */
+    std::string status_override;
 
     /**
      * @brief tokenized payload
@@ -223,6 +229,12 @@ protected:
      */
     virtual device_state_t process(IECData *commanddata);
 
+    /**
+     * @brief poll whether interrupt should be wiggled
+     * @param c secondary channel (0-15)
+     */
+    virtual void poll_interrupt(unsigned char c) {}
+    
     /**
      * @brief Dump the current IEC frame to terminal.
      */
