@@ -524,6 +524,20 @@ vector<string> util_tokenize(string s, char c)
     return tokens;
 }
 
+vector<uint8_t> util_tokenize_uint8(string s, char c)
+{
+    vector<uint8_t> tokens;
+    stringstream ss(s);
+    string token;
+
+    while (getline(ss, token, c))
+    {
+        tokens.push_back( atoi(token.c_str()) );
+    }
+
+    return tokens;
+}
+
 string util_remove_spaces(const string &s)
 {
     int last = s.size() - 1;

@@ -4,6 +4,11 @@
 
 // D64 Utility Functions
 
+// bool D64IStream::seekBlock( uint16_t index )
+// {
+
+// }
+
 bool D64IStream::seekSector( uint8_t track, uint8_t sector, size_t offset )
 {
 	uint16_t sectorOffset = 0;

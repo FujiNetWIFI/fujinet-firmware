@@ -300,11 +300,9 @@ void IRAM_ATTR systemBus::service()
             }
 
             // Queue control codes and command in specified device
-            // At the moment there is only the multi-drive device
             device_state_t device_state = deviceById(data.device)->queue_command(&data);
 
             // Process commands in devices
-            // At the moment there is only the multi-drive device
             // Debug_printv( "deviceProcess" );
 
             fnLedManager.set(eLed::LED_BUS, true);
@@ -493,7 +491,8 @@ void systemBus::read_payload()
             return;
         }
 
-        if (c != 0x0D && c != 0xFFFFFFFF)
+        //if (c != 0x0D && c != 0xFFFFFFFF) // Remove CR from end of command
+        if (c != 0xFFFFFFFF)
         {
             listen_command += (uint8_t)c;
         }
@@ -579,7 +578,13 @@ bool IRAM_ATTR systemBus::turnAround()
     */
     // Debug_printf("IEC turnAround: ");
 
+    // Release control of data line
+    // ATN100
+    release ( PIN_IEC_DATA_OUT ); // $E8F1
+    release ( PIN_IEC_CLK_OUT );  // $E8F4
+
     // Wait until the computer releases the ATN line
+    // TLK05 $E906
     if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
     {
         Debug_printf("Wait until the computer releases the ATN line");
@@ -591,6 +596,7 @@ bool IRAM_ATTR systemBus::turnAround()
     protocol->wait( TIMING_Ttk, 0, false );
 
     // Wait until the computer releases the clock line
+    // TLK05 $E919
     if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)
     {
         Debug_printf("Wait until the computer releases the clock line");
@@ -598,12 +604,10 @@ bool IRAM_ATTR systemBus::turnAround()
         return false; // return error because timeout
     }
 
-    release ( PIN_IEC_DATA_OUT );
-    fnSystem.delay_microseconds ( TIMING_Tv );
-    pull ( PIN_IEC_CLK_OUT );
-    fnSystem.delay_microseconds ( TIMING_Tv );
+    // We control clock line now
+    pull ( PIN_IEC_CLK_OUT ); // $E91F
+    protocol->wait( TIMING_Tda, 0, false );
 
-    // Debug_println("turnaround complete");
     return true;
 } // turnAround
 
