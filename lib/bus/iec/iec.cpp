@@ -105,13 +105,6 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         break;
     }
 
-    if (commanddata->channel == 15 &&
-        commanddata->primary == IEC_TALK &&
-        commanddata->secondary == IEC_REOPEN)
-    {
-        iec_talk_command_buffer_status();
-    }
-
     return device_state;
 }
 
@@ -160,6 +153,9 @@ int16_t systemBus::receiveByte()
 bool systemBus::sendByte(const char c, bool eoi)
 {
 #ifdef DATA_STREAM
+    if ( eoi )
+        Debug_printf ( "%.2X[eoi] ", c );
+    else
         Debug_printf ( "%.2X ", c );
 #endif
     if ( !protocol->sendByte(c, eoi) )
@@ -179,12 +175,15 @@ bool systemBus::sendByte(const char c, bool eoi)
 bool systemBus::sendBytes(const char *buf, size_t len, bool eoi)
 {
     bool success = false;
+#ifdef DATA_STREAM
+        Debug_print ( "{ " );
+#endif
     for (size_t i = 0; i < len; i++)
     {
-        if (i == len - 1 && eoi)
-            success = protocol->sendByte(buf[i], true);
+        if (i == (len - 1) && eoi)
+            success = sendByte(buf[i], true);
         else
-            success = protocol->sendByte(buf[i], false);
+            success = sendByte(buf[i], false);
 
         if ( !success )
         {
@@ -197,6 +196,9 @@ bool systemBus::sendBytes(const char *buf, size_t len, bool eoi)
             return false;
         }
     }
+#ifdef DATA_STREAM
+        Debug_println ( "}" );
+#endif
     return true;
 }
 
@@ -224,7 +226,7 @@ void IRAM_ATTR systemBus::service()
     if ( bus_state < BUS_ACTIVE )
         return;
 
-    pull( PIN_IEC_SRQ );
+    //pull( PIN_IEC_SRQ );
 
     // Disable Interrupt
     //gpio_intr_disable((gpio_num_t)PIN_IEC_ATN);
@@ -307,7 +309,7 @@ void IRAM_ATTR systemBus::service()
 
             fnLedManager.set(eLed::LED_BUS, true);
 
-            // Debug_printv("bus[%d] device[%d]", bus_state, device_state);
+            //Debug_printv("bus[%d] device[%d]", bus_state, device_state);
 
             if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
             {
@@ -319,6 +321,9 @@ void IRAM_ATTR systemBus::service()
             bus_state = BUS_IDLE;
             flags = CLEAR;
         }
+
+        // Let bus stabalize
+        protocol->wait ( TIMING_STABLE, 0, false );
 
         if ( status ( PIN_IEC_ATN ) )
             bus_state = BUS_ACTIVE;
@@ -333,7 +338,7 @@ void IRAM_ATTR systemBus::service()
     //Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
 
     Debug_printv("exit");
-    release( PIN_IEC_SRQ );
+    //release( PIN_IEC_SRQ );
 }
 
 void systemBus::read_command()

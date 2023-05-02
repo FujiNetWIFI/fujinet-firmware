@@ -96,7 +96,7 @@ int16_t IecProtocolSerial::receiveBits ()
         do
         {
             // wait for bit to be ready to read
-            IEC.pull ( PIN_IEC_SRQ );
+            //IEC.pull ( PIN_IEC_SRQ );
             bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMEOUT_DEFAULT, false );
 
             // // If the bit time is less than 40us we are talking with a VIC20
@@ -130,7 +130,7 @@ int16_t IecProtocolSerial::receiveBits ()
         
         // get bit
         data |= ( IEC.status ( PIN_IEC_DATA_IN ) == RELEASED ? ( 1 << 7 ) : 0 );
-        IEC.release ( PIN_IEC_SRQ );
+        //IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
         if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
@@ -269,6 +269,8 @@ int16_t IecProtocolSerial::receiveByte()
 
 bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
 {
+    //IEC.pull ( PIN_IEC_SRQ );
+
     IEC.flags &= CLEAR_LOW;
 
     // Say we're ready
@@ -332,10 +334,12 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
     }
 
     // STEP 3: SENDING THE BITS
+    //IEC.pull ( PIN_IEC_SRQ );
     if ( !sendBits( data ) ) {
         Debug_printv ( "Error sending bits - byte '%02X'", data );
         return false;
     }
+    //IEC.release ( PIN_IEC_SRQ );
 
     // STEP 4: FRAME HANDSHAKE
     // After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true
@@ -344,11 +348,13 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
     // one  millisecond  -  one  thousand  microseconds  -  it  will  know  that something's wrong and may alarm appropriately.
 
     // Wait for listener to accept data
+    IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
     {
-        Debug_printv ( "Wait for listener to acknowledge byte received" );
+        Debug_printv ( "Wait for listener to acknowledge byte received (pull data)" );
         return false; // return error because timeout
     }
+    IEC.release ( PIN_IEC_SRQ );
 
     // STEP 5: START OVER
     // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
@@ -356,29 +362,24 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
     // happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause,
     // the Clock and Data lines are RELEASED to false and transmission stops.
 
-    if ( signalEOI )
-    {
-        // Wait for listener to accept data
-        if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
-        {
-            Debug_printv ( "Wait for listener to acknowledge byte received" );
-            return false; // return error because timeout
-        }
+    // if ( signalEOI )
+    // {
+    //     // Wait for listener to acknowledge EOI
+    //     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, TIMING_Tfr ) >= TIMING_Tfr )
+    //     {
+    //         Debug_printv ( "Wait for listener to acknowledge EOI" );
+    //         return false; // return error because timeout
+    //     }
+    //     //IEC.release ( PIN_IEC_CLK_OUT );
+    // }
+    // else
+    // {
+    //     wait ( TIMING_Tbb );
+    // }
 
-        // EOI Received
-        if ( !wait ( TIMING_Tfr ) ) {
-            Debug_printv ( "ATN pulled" );
-            return false;
-        }
-        IEC.release ( PIN_IEC_CLK_OUT );
-    }
-    else
-    {
-        wait ( TIMING_Tbb );
-    }
+    wait ( TIMING_Tbb );
 
-    // Let bus stabalize
-    // wait ( TIMING_STABLE );
+    //IEC.release ( PIN_IEC_SRQ );
 
     return true;
 }
