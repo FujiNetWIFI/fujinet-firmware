@@ -153,7 +153,7 @@ void iecDisk::process_save()
 void iecDisk::process_command()
 {
     Debug_printv("primary[%.2X] secondary[%.2X]", commanddata->primary, commanddata->secondary);
-    if (commanddata->primary == IEC_TALK && commanddata->secondary == IEC_REOPEN)
+    if (commanddata->primary == IEC_TALK) // && commanddata->secondary == IEC_REOPEN)
     {
         iec_talk_command();
     }
@@ -297,7 +297,6 @@ void iecDisk::iec_talk_command_buffer_status()
 
     // snprintf(reply, 80, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
     // s = string(reply);
-    mstr::toPETSCII(s);
     IEC.sendBytes(s);
 }
 
@@ -307,12 +306,169 @@ void iecDisk::iec_command()
 		return;
 
 	Debug_printv("command[%s]", payload.c_str());
-	if (mstr::startsWith(payload, "cd"))
-		set_prefix();
-	else if (pt[0] == "pwd")
-		get_prefix();
-	else if (pt[0] == "id")
-		set_device_id();
+
+	// if (mstr::startsWith(payload, "cd"))
+	// 	set_prefix();
+	// else if (pt[0] == "pwd")
+	// 	get_prefix();
+	// else if (pt[0] == "id")
+	// 	set_device_id();
+
+	// Drive level commands
+	// CBM DOS 2.5
+	switch ( toupper( payload[0] ) )
+	{
+		case 'B':
+			// B-P buffer pointer
+			// B-A allocate bit in BAM not implemented
+			// B-F free bit in BAM not implemented
+			// B-E block execute impossible at this level of emulation!
+			//Error(ERROR_31_SYNTAX_ERROR);
+			Debug_printv( "block/buffer");
+		break;
+		case 'C':
+			if ( toupper( payload[1] ) == 'P') // Change Partition
+			{
+				Debug_printv( "change partition");
+				//ChangeDevice();
+			}
+			else if ( toupper( payload[1] ) == 'D') // Change Directory
+			{
+				Debug_printv( "change directory");
+				set_prefix();
+			}
+			else
+			{
+				//Copy(); // Copy File
+				Debug_printv( "copy file");
+			}
+		break;
+		case 'D':
+			Debug_printv( "duplicate disk");
+			//Error(ERROR_31_SYNTAX_ERROR);	// DI, DR, DW not implemented yet
+		break;
+		case 'I':
+			// Initialise
+			Debug_printv( "initialize");
+		break;
+		case 'M':
+			if ( payload[1] == '-' ) // Memory
+			{
+				Debug_printv( "memory");
+				//Memory();
+			}
+		break;
+		case 'N':
+			//New();
+			Debug_printv( "new (format)");
+		break;
+		case 'R':
+			if (payload[1] == '-') // Rename
+			{
+				Debug_printv( "rename file");
+				// Rename();
+			}
+		break;
+		case 'S':
+			Debug_printv( "scratch");
+			//Scratch();
+		break;
+		case 'U':
+			Debug_printv( "user 01a2b");
+			//User();
+		break;
+		case 'V':
+			Debug_printv( "validate bam");
+		break;
+		default:
+			//Error(ERROR_31_SYNTAX_ERROR);
+		break;
+	}
+
+	// SD2IEC Commands
+	// http://www.n2dvm.com/UIEC.pdf
+	switch ( toupper( payload[0] ) )
+	{
+		case 'C':
+			if ( toupper( payload[1] ) == 'P') // Change Partition
+			{
+				Debug_printv( "change partition");
+				//ChangeDevice();
+			}
+			else if ( toupper( payload[1] ) == 'D') // Change Directory
+			{
+				Debug_printv( "change directory");
+				set_prefix();
+			}
+		break;
+		case 'E':
+			if (payload[1] == '-')
+			{
+				Debug_printv( "eeprom");
+			}
+		break;
+		case 'G':
+			Debug_printv( "get partition info");
+			//Error(ERROR_31_SYNTAX_ERROR);	// G-P not implemented yet
+		break;
+		case 'M':
+			if ( toupper( payload[1] ) == 'D') // Make Directory
+			{
+				Debug_printv( "make directory");
+			}
+		break;
+		case 'P':
+			Debug_printv( "position");
+			//Error(ERROR_31_SYNTAX_ERROR);	// P not implemented yet
+		break;
+		case 'R':
+			if ( toupper( payload[1] ) == 'D') // Remove Directory
+			{
+				Debug_printv( "remove directory");
+			}
+		break;
+		case 'S':
+			if (payload[1] == '-')
+			{
+				// Swap drive number 
+				Debug_printv( "swap drive number");
+				//Error(ERROR_31_SYNTAX_ERROR);
+				break;
+			}
+		break;
+		case 'T':
+			if (payload[1] == '-')
+			{
+				Debug_printv( "time"); // RTC support
+				//Error(ERROR_31_SYNTAX_ERROR);	// T-R and T-W not implemented yet
+			}
+		break;
+		case 'W':
+			// Save out current options?
+			//OPEN1, 9, 15, "XW":CLOSE1
+			Debug_printv( "user 1a2b");
+		break;
+		case 'X':
+			Debug_printv( "extended commands");
+			// X{0-4}
+			// XE+ / XE-
+			// XB+ / XB-
+			// X{0-7}={0-15}
+			// XD?
+			// XJ+ / XJ-
+			// X
+			// XS:{name} / XS
+			// XW
+			// X?
+			//Extended();
+		break;
+		case '/':
+
+		break;
+		default:
+			//Error(ERROR_31_SYNTAX_ERROR);
+		break;
+	}
 }
 
 
