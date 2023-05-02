@@ -13,6 +13,8 @@
 #include "fnFsSD.h"
 #include "utils.h"
 
+#include "cbm_media.h"
+
 // External ref to fuji object.
 extern iecFuji theFuji;
 
@@ -376,6 +378,15 @@ void iecDisk::iec_command()
 		case 'U':
 			Debug_printv( "user 01a2b");
 			//User();
+			if (payload[1] == '1') // User 1
+			{
+				payload = mstr::drop(payload, 3);
+				pti = util_tokenize_uint8(payload);
+				Debug_printv("payload[%s] channel[%d] media[%d] track[%d] sector[%d]", payload.c_str(), pti[0], pti[1], pti[2], pti[3]);
+
+				//CBMImageStream stream = retrieveStream( pti[0] );
+				//stream.seekBlock( );
+			}
 		break;
 		case 'V':
 			Debug_printv( "validate bam");

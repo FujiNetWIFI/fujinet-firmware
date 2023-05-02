@@ -187,6 +187,7 @@ public:
 		return (track < 18) + (track < 25) + (track < 31);
 	};
 
+    //bool seekBlock( uint16_t index ) override;
     bool seekSector( uint8_t track, uint8_t sector, size_t offset = 0 );
     bool seekSector( std::vector<uint8_t> trackSectorOffset );
 

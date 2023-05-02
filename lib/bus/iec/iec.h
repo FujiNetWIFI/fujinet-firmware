@@ -22,6 +22,7 @@
 //
 // http://unusedino.de/ec64/technical/misc/c1541/romlisting.html#E85B
 // https://eden.mose.org.uk/gitweb/?p=rom-reverse.git;a=blob;f=src/vic-1541-sfd.asm;hb=HEAD
+// https://www.pagetable.com/docs/Inside%20Commodore%20DOS.pdf
 //
 
 #include <cstdint>
@@ -184,6 +185,7 @@ protected:
      * @brief tokenized payload
      */
     std::vector<std::string> pt;
+    std::vector<uint8_t> pti;
 
     /**
      * @brief The status information to send back on cmd input

@@ -36,30 +36,36 @@ IecProtocolSerial::~IecProtocolSerial()
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
 bool IecProtocolSerial::sendBits ( uint8_t data )
 {
+    uint8_t n = 8; // $E958
+
     // Send bits
-    for ( uint8_t n = 0; n < 8; n++ )
+    // ISR01 $E95C
+    IEC.pull ( PIN_IEC_CLK_OUT );  // tell listner to wait
+    do
     {
-        // tell listner to wait
-        // we control both CLOCK & DATA now
-        IEC.pull ( PIN_IEC_CLK_OUT );
-        if ( !wait ( TIMING_Ts1 ) ) return false; // 57us 
-
         // set bit
+        // ISR02 $E963-$E973
+        if ( !wait ( TIMING_Ts1 ) ) return false;
         ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
+        if ( !wait ( TIMING_Ts2 ) ) return false;
         data >>= 1; // get next bit
-        if ( !wait ( TIMING_Ts2 ) ) return false; // 28us
 
-        // tell listener bit is ready to read
-        IEC.release ( PIN_IEC_CLK_OUT );
-        if ( !wait ( TIMING_Tv ) ) return false; // 76us 
+        // ISRCLK $E976-$E97B
+        IEC.release ( PIN_IEC_CLK_OUT ); // tell listener bit is ready to read
+        if ( IEC.flags & VIC20_MODE )
+        {
+            if ( !wait ( TIMING_Tv ) ) return false; // VIC-20 Data Valid
+        }
+        else
+        {
+            if ( !wait ( TIMING_Tv64 ) ) return false; // C64 Data Valid
+        }
 
-        // Release data line after bit sent
-        IEC.release ( PIN_IEC_DATA_OUT );
+        // ISR03 $E980
+        IEC.pull ( PIN_IEC_CLK_OUT );  // tell listner to wait
+        IEC.release ( PIN_IEC_DATA_OUT ); // release data line after bit sent
     }
-    // Release data line after bit sent
-    // IEC.release ( PIN_IEC_DATA_OUT );
-
-    IEC.pull ( PIN_IEC_CLK_OUT );
+    while ( n-- ); // $E983
 
     return true;
 } // sendBits
@@ -269,12 +275,12 @@ int16_t IecProtocolSerial::receiveByte()
 
 bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
 {
-    //IEC.pull ( PIN_IEC_SRQ );
+    IEC.pull ( PIN_IEC_SRQ );
 
     IEC.flags &= CLEAR_LOW;
 
     // Say we're ready
-    IEC.release ( PIN_IEC_CLK_OUT );
+    IEC.release ( PIN_IEC_CLK_OUT ); // $E94B/
 
     // Wait for listener to be ready
     // STEP 2: READY FOR DATA
@@ -282,11 +288,15 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
     // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
     // to  accept  data.  What  happens  next  is  variable.
+    //IEC.pull ( PIN_IEC_SRQ );
+    // $E94E-$E954
     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
         //Debug_printv ( "Wait for listener to be ready" );
         return false; // return error because of ATN or timeout
     }
+    IEC.release ( PIN_IEC_SRQ );
+
 
     // Either  the  talker  will pull the
     // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
@@ -324,14 +334,16 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
             return false; // return error because timeout
         }
 
-        // ready to send last byte
-        if ( !wait ( TIMING_Try ) ) return false;
+        // // ready to send last byte
+        // IEC.pull ( PIN_IEC_CLK_OUT );
+        // if ( !wait ( TIMING_Try ) ) return false;
     }
-    else
-    {
-        // ready to send next byte
-        if ( !wait ( TIMING_Tne ) ) return false;
-    }
+    // else
+    // {
+    //     // ready to send next byte
+    //     // IEC.pull ( PIN_IEC_CLK_OUT );
+    //     if ( !wait ( TIMING_Tne ) ) return false;
+    // }
 
     // STEP 3: SENDING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
@@ -348,13 +360,14 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
     // one  millisecond  -  one  thousand  microseconds  -  it  will  know  that something's wrong and may alarm appropriately.
 
     // Wait for listener to accept data
-    IEC.pull ( PIN_IEC_SRQ );
+    // ISR04 $E987-$E98A
+    //IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
     {
         Debug_printv ( "Wait for listener to acknowledge byte received (pull data)" );
         return false; // return error because timeout
     }
-    IEC.release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
 
     // STEP 5: START OVER
     // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
@@ -377,9 +390,9 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
     //     wait ( TIMING_Tbb );
     // }
 
-    wait ( TIMING_Tbb );
-
-    //IEC.release ( PIN_IEC_SRQ );
+    // IEC.pull ( PIN_IEC_SRQ );
+    // wait ( TIMING_STABLE );
+    // IEC.release ( PIN_IEC_SRQ );
 
     return true;
 }
