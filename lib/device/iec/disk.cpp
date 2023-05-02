@@ -329,17 +329,7 @@ void iecDisk::iec_command()
 			Debug_printv( "block/buffer");
 		break;
 		case 'C':
-			if ( toupper( payload[1] ) == 'P') // Change Partition
-			{
-				Debug_printv( "change partition");
-				//ChangeDevice();
-			}
-			else if ( toupper( payload[1] ) == 'D') // Change Directory
-			{
-				Debug_printv( "change directory");
-				set_prefix();
-			}
-			else
+			if ( payload[2] == ':')
 			{
 				//Copy(); // Copy File
 				Debug_printv( "copy file");
@@ -365,15 +355,18 @@ void iecDisk::iec_command()
 			Debug_printv( "new (format)");
 		break;
 		case 'R':
-			if (payload[1] == '-') // Rename
+			if (payload[2] == ':') // Rename
 			{
 				Debug_printv( "rename file");
 				// Rename();
 			}
 		break;
 		case 'S':
-			Debug_printv( "scratch");
-			//Scratch();
+			if (payload[2] == ':') // Scratch
+			{
+				Debug_printv( "scratch");
+				//Scratch();
+			}
 		break;
 		case 'U':
 			Debug_printv( "user 01a2b");
