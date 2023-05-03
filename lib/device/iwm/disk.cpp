@@ -18,12 +18,16 @@ iwmDisk::~iwmDisk()
 uint8_t iwmDisk::smartport_device_type()
 {
   if (_disk == nullptr)
-    return SP_TYPE_BYTE_HARDDISK;
+    return prevtype; //report the last assigned type when offline.
 
-  if (_disk->num_blocks < 1601)
+  if (_disk->num_blocks < 1601) {
+    prevtype = SP_TYPE_BYTE_35DISK;
     return SP_TYPE_BYTE_35DISK; // Floppy disk
-  else
+  }
+  else {
+    prevtype = SP_TYPE_BYTE_HARDDISK;
     return SP_TYPE_BYTE_HARDDISK; // Hard disk
+  }
 }
 
 uint8_t iwmDisk::smartport_device_subtype()
@@ -63,14 +67,13 @@ void iwmDisk::send_status_reply_packet()
   // Bit 1: Currently interrupting (//c only)
   // Bit 0: Disk Switched 
   data[0] = 0b11101000;
-  if((switched) && (!eject_latch)) {
+  if((switched) && (device_active)) {
     data[0] |= STATCODE_DISK_SWITCHED;
     switched = false;
     }
-  if((!device_active) || (eject_latch)) {data[0] &= ~(STATCODE_DEVICE_ONLINE);}
+  if((!device_active)) {data[0] &= ~(STATCODE_DEVICE_ONLINE);}
   if(device_active) {data[0] |= STATCODE_DEVICE_ONLINE;}
   if(readonly) {data[0] |= STATCODE_WRITE_PROTECT;}
-  if((_disk != nullptr) && (eject_latch)) {eject_latch = false;}
   Debug_printf("\r\nsend_status_reply_packet status = %02X\r\n",data[0]);
   data[1] = data[2] = data[3] = 0;
   if (_disk != nullptr)
@@ -157,7 +160,7 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
   // Bit 1: Currently interrupting (//c only)
   // Bit 0: Disk switched
   data[0] = 0b11101000;
-  if((!device_active)|| (eject_latch)) {data[0] &= ~(STATCODE_DEVICE_ONLINE);}
+  if((!device_active)) {data[0] &= ~(STATCODE_DEVICE_ONLINE);}
   if(device_active) {data[0] |= STATCODE_DEVICE_ONLINE;}
   if(readonly) {data[0] |= STATCODE_WRITE_PROTECT;}
   Debug_printf("\r\nsend_status_dib_reply_packet status = %02X\r\n",data[0]);
@@ -276,7 +279,6 @@ void iwmDisk::send_extended_status_dib_reply_packet() //XXX! currently unused
 void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd) 
 {
   err_result = SP_ERR_NOERROR;
-  
   uint8_t control_code = get_status_code(cmd); 
   Debug_printf("\nDisk Device %02x Control Code %02x", id(), control_code);
   // already called by ISR
@@ -291,7 +293,8 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
   case IWM_CTRL_EJECT_DISK:
     Debug_printf("Handling Eject command\r\n");
     unmount();
-    // switched = false; //force switched = false when ejected from host.
+    switched = false; //force switched = false when ejected from host.
+    theFuji.handle_ctl_eject(_devnum);
     break;
   default:
     err_result = SP_ERR_BADCTL;
@@ -359,25 +362,7 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
 
   // source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", id());
-  if((switched) && (!eject_latch)){
-    Debug_printf("iwm_readblock() returning disk switched error\r\n");
-    send_reply_packet(SP_ERR_OFFLINE);
-    switched = false;
-    return;
-  }
-  if (!(_disk != nullptr))
-  {
-    Debug_printf(" - ERROR - No image mounted");
-    send_reply_packet(SP_ERR_OFFLINE);
-    return;
-  }
-  if((!device_active) || (eject_latch)) {
-    Debug_printf("iwm_readblock while device offline!\r\n");
-    send_reply_packet(SP_ERR_OFFLINE);
-    if((_disk != nullptr) && (eject_latch))
-      eject_latch = false;
-    return;
-  }
+  
 
   
   // LBH = cmd.grp7msb; //packet_buffer[16]; // high order bits
@@ -391,7 +376,26 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   // block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
   // block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
   block_num = get_block_number(cmd);
-  Debug_printf(" Read block %06x", block_num);
+  Debug_printf(" Read block %06x\r\n", block_num);
+  if (!(_disk != nullptr))
+  {
+    Debug_printf(" - ERROR - No image mounted");
+    send_reply_packet(SP_ERR_OFFLINE);
+    return;
+  }
+  if((!device_active)) {
+    Debug_printf("iwm_readblock while device offline!\r\n");
+    send_reply_packet(SP_ERR_OFFLINE);
+    return;
+  }
+  if((switched) && (block_num > 2)){
+    Debug_printf("iwm_readblock() returning disk switched error\r\n");
+    send_reply_packet(SP_ERR_OFFLINE);
+    switched = false;
+    return;
+  }
+  Debug_printf("iwm_readblock NORMAL READ\r\n");
+  switched = false; //if we made it here it's ok to reset switched
 
   sdstato = BLOCK_DATA_LEN;
   if (_disk->read(block_num, &sdstato, data_buffer))
@@ -434,18 +438,24 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
     iwm_return_ioerror();
   else
     { // We have to return the error after ingesting the block to write or ProDOS doesn't correctly see the status. 
-      if((switched) && (!eject_latch)) {
+      
+      if((!device_active)) {
+        Debug_printf("iwm_writeblock while device offline!\r\n");
+        send_reply_packet(SP_ERR_OFFLINE);
+        return;
+      }
+      if(switched && readonly) {
+        Debug_printf("iwm_writeblock while readonly and disk switched\r\n");
+        send_reply_packet(SP_ERR_NOWRITE);
+        switched = false;
+        return;
+      } 
+      if(switched) {
+        Debug_printf("iwm_writeblock while disk switched = true\r\nn");
         send_reply_packet(SP_ERR_OFFLINE);
         switched = false;
         return;
       }
-      if((!device_active) || (eject_latch)) {
-        Debug_printf("iwm_writeblock while device offline!\r\n");
-        send_reply_packet(SP_ERR_OFFLINE);
-        if((_disk != nullptr) && (eject_latch))
-          eject_latch = false;
-        return;
-      } 
       if(readonly) {
         Debug_printf("\r\niwm_writeblock tried to write while readonly = true!");
         send_reply_packet(SP_ERR_NOWRITE);
@@ -501,8 +511,7 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
   {
     /* We need  first eject the current disk image */
     unmount(); 
-    eject_latch = true; //simulate the disk ejected for at least one status cycle.
-                        //but only in the case we are mounting over an existing image.
+   switched = true; //set disk switched only if we are mounting over an existing image.  
   }
 
     // Determine MediaType based on filename extension
@@ -515,7 +524,6 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         Debug_printf("\r\nMedia Type PO");
         _disk = new MediaTypePO();
         mt = _disk->mount(f, disksize);
-        switched = true;
         device_active = true; //change status only after we are mounted
         //_disk->fileptr() = f;
         // mt = MEDIATYPE_PO;
@@ -543,7 +551,6 @@ void iwmDisk::unmount()
         delete _disk;
         _disk = nullptr;
         device_active = false;
-        switched = true;
         readonly = true;
         Debug_printf("Disk UNMOUNTED!!!!\r\n");
     }
