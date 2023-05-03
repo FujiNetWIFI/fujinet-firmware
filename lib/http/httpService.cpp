@@ -722,6 +722,9 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     }
 
     theFuji.get_disks(ds)->disk_dev.unmount();
+    #ifdef BUILD_APPLE
+    theFuji.get_disks(ds)->disk_dev.switched = true;
+    #endif
 #ifdef BUILD_ATARI
     if (theFuji.get_disks(ds)->disk_type == MEDIATYPE_CAS || theFuji.get_disks(ds)->disk_type == MEDIATYPE_WAV)
     {

@@ -276,7 +276,6 @@ void iwmDisk::send_extended_status_dib_reply_packet() //XXX! currently unused
 void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd) 
 {
   err_result = SP_ERR_NOERROR;
-  
   uint8_t control_code = get_status_code(cmd); 
   Debug_printf("\nDisk Device %02x Control Code %02x", id(), control_code);
   // already called by ISR
@@ -291,7 +290,8 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
   case IWM_CTRL_EJECT_DISK:
     Debug_printf("Handling Eject command\r\n");
     unmount();
-    // switched = false; //force switched = false when ejected from host.
+    switched = false; //force switched = false when ejected from host.
+    theFuji.handle_ctl_eject(_devnum);
     break;
   default:
     err_result = SP_ERR_BADCTL;
@@ -501,7 +501,8 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
   {
     /* We need  first eject the current disk image */
     unmount(); 
-    eject_latch = true; //simulate the disk ejected for at least one status cycle.
+    switched = true;
+    eject_latch = false; //simulate the disk ejected for at least one status cycle.
                         //but only in the case we are mounting over an existing image.
   }
 
@@ -515,7 +516,6 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         Debug_printf("\r\nMedia Type PO");
         _disk = new MediaTypePO();
         mt = _disk->mount(f, disksize);
-        switched = true;
         device_active = true; //change status only after we are mounted
         //_disk->fileptr() = f;
         // mt = MEDIATYPE_PO;
@@ -543,7 +543,6 @@ void iwmDisk::unmount()
         delete _disk;
         _disk = nullptr;
         device_active = false;
-        switched = true;
         readonly = true;
         Debug_printf("Disk UNMOUNTED!!!!\r\n");
     }
