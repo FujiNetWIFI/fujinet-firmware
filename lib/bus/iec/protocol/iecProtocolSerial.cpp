@@ -90,15 +90,21 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 
     IEC.flags &= CLEAR_LOW; // $E85E
 
+    wait ( 60 );
+
     // Say we're ready to talk
     // E91F   20 B7 E9   JSR $E9B7     CLOCK OUT lo (RELEASED)
-    IEC.release ( PIN_IEC_CLK_OUT ); // $E94B/
+    IEC.release ( PIN_IEC_CLK_OUT );
 
     // Wait for listeners to be ready
     // When  the  listener  is  ready  to  listen,  it  releases  the  Data
     // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
     // to  accept  data.
+    // E925   20 59 EA   JSR $EA59     check EOI
+    // E928   20 C0 E9   JSR $E9C0     read IEEE port
+    // E92B   29 01      AND #$01      isolate data bit
+    // E92D   D0 F6      BNE $E925
     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
         //Debug_printv ( "Wait for listener to be ready" );
@@ -127,28 +133,28 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         // transmission sequence.
 
         // Signal eoi by waiting 200 us
-        // if ( !wait ( TIMING_Tye ) ) return false;
+        if ( !wait ( TIMING_Tye ) ) return false;
 
         // Get eoi acknowledge from listeners
-        // E941   20 59 EA   JSR $EA59     check EOI
-        // E944   20 C0 E9   JSR $E9C0     read IEEE port
-        // E947   29 01      AND #$01      isolate data bit
-        // E949   F0 F6      BEQ $E941
+        // E937   20 59 EA   JSR $EA59     check EOI
+        // E93A   20 C0 E9   JSR $E9C0     read IEEE port
+        // E93D   29 01      AND #$01      isolate data bit
+        // E93F   D0 F6      BNE $E937
         if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED ) == TIMED_OUT )
         {
             Debug_printv ( "EOI ACK: Listener didn't PULL DATA" );
             return false;
         }
+    }
 
-        // E94E   20 59 EA   JSR $EA59     check EOI
-        // E951   20 C0 E9   JSR $E9C0     read IEEE port
-        // E954   29 01      AND #$01      isolate data bit
-        // E956   D0 F3      BNE $E94B
-        if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED ) == TIMED_OUT )
-        {
-            Debug_printv ( "EOI ACK: Listener didn't RELEASE DATA" );
-            return false;
-        }
+    // E941   20 59 EA   JSR $EA59     check EOI
+    // E944   20 C0 E9   JSR $E9C0     read IEEE port
+    // E947   29 01      AND #$01      isolate data bit
+    // E949   F0 F6      BEQ $E941
+    if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED ) == TIMED_OUT )
+    {
+        Debug_printv ( "EOI ACK: Listener didn't RELEASE DATA" );
+        return false;
     }
 
     // E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
@@ -173,19 +179,22 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // E98A   20 C0 E9   JSR $E9C0     read IEEE port
     // E98D   29 01      AND #$01      isolate data bit
     // E98F   F0 F6      BEQ $E987
-    //IEC.pull ( PIN_IEC_SRQ );
+    IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
     {
         Debug_printv ( "Wait for listener to acknowledge byte received (pull data)" );
         return false; // return error because timeout
     }
-    //IEC.release ( PIN_IEC_SRQ );
+    IEC.release ( PIN_IEC_SRQ );
 
     // STEP 5: START OVER
     // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
     // and  the listener is holding the Data line true. We're ready for step 1; we may send another character - unless EOI has
     // happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause,
     // the Clock and Data lines are RELEASED to false and transmission stops.
+
+    // Wait until data is released, ATN is pulled, or 250us
+    timeoutWait ( PIN_IEC_DATA_IN, RELEASED, 250 );
 
     return true;
 }
@@ -194,49 +203,19 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 // The talker has eight bits to send.  They will go out without handshake; in other words,
 // the listener had better be there to catch them, since the talker won't wait to hear from the listener.  At this
 // point, the talker controls both lines, Clock and Data.  At the beginning of the sequence, it is holding the
-// Clock true, while the Data line is RELEASED to false.  the Data line will change soon, since we'll sendthe data
+// Clock true, while the Data line is RELEASED to false.  the Data line will change soon, since we'll send the data
 // over it. The eights bits will go out from the character one at a time, with the least significant bit going first.
 // For example, if the character is the ASCII question mark, which is  written  in  binary  as  00011111,  the  ones
 // will  go out  first,  followed  by  the  zeros.  Now,  for  each bit, we set the Data line true or false according
-// to whether the bit is one or zero.  As soon as that'sset, the Clock line is RELEASED to false, signalling "data ready."
+// to whether the bit is one or zero.  As soon as that's set, the Clock line is RELEASED to false, signalling "data ready."
 // The talker will typically have a bit in  place  and  be  signalling  ready  in  70  microseconds  or  less.  Once
-// the  talker  has  signalled  "data ready," it will hold the two lines steady for at least 20 microseconds timing needs
+// the  talker  has  signalled  "data ready," it will hold the two lines steady for at least 20 microseconds, timing needs
 // to be increased to 60  microseconds  if  the  Commodore  64  is  listening,  since  the  64's  video  chip  may
 // interrupt  the processor for 42 microseconds at a time, and without the extra wait the 64 might completely miss a
 // bit. The listener plays a passive role here; it sends nothing, and just watches.  As soon as it sees the Clock line
 // false, it grabs the bit from the Data line and puts it away.  It then waits for the clock line to go true, in order
 // to prepare for the next bit. When the talker figures the data has been held for a sufficient  length  of  time,  it
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
-
-// bool IecProtocolSerial::sendBits ( uint8_t data )
-// {
-//     // Send bits
-//     for ( uint8_t n = 0; n < 8; n++ )
-//     {
-//         // tell listner to wait
-//         // we control both CLOCK & DATA now
-//         IEC.pull ( PIN_IEC_CLK_OUT );
-//         if ( !wait ( TIMING_Ts1 ) ) return false; // 57us 
-
-//         // set bit
-//         ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
-//         data >>= 1; // get next bit
-//         if ( !wait ( TIMING_Ts2 ) ) return false; // 28us
-
-//         // tell listener bit is ready to read
-//         IEC.release ( PIN_IEC_CLK_OUT );
-//         if ( !wait ( TIMING_Tv ) ) return false; // 76us 
-
-//         // Release data line after bit sent
-//         IEC.release ( PIN_IEC_DATA_OUT );
-//     }
-//     // Release data line after bit sent
-//     // IEC.release ( PIN_IEC_DATA_OUT );
-
-//     IEC.pull ( PIN_IEC_CLK_OUT );
-
-//     return true;
-// } // sendBits
 
 bool IecProtocolSerial::sendBits ( uint8_t data )
 {
@@ -253,17 +232,23 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
     // E95A   85 98      STA $98       transmission
     uint8_t n = 8; // $E958
 
-    // If data is not released exit
-    // E95C   20 C0 E9   JSR $E9C0     read IEEE port
-    // E95F   29 01      AND #$01      isolate data bit
-    // E961   D0 36      BNE $E999
-
     // Send bits
     // ISR01 $E95C
     do
     {
+#ifdef SPLIT_LINES
+        // If data is pulled exit
+        // E95C   20 C0 E9   JSR $E9C0     read IEEE port
+        // E95F   29 01      AND #$01      isolate data bit
+        // E961   D0 36      BNE $E999
+        // if ( IEC.status ( PIN_IEC_DATA_IN ) == PULLED )
+        // {
+        //     Debug_printv ( "bits: Listener PULLED DATA" );
+        //     return false;
+        // }
+#endif
         if ( !wait ( TIMING_Ts1 ) ) return false; // before bit timing
-        
+
         // set bit
         // ISR02 $E963-$E973
         // E963   A6 82      LDX $82
@@ -287,6 +272,7 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
         if ( !wait ( tv ) ) return false;
 
         // ISR03 $E980
+        // E980   20 FB FE   JSR $FEFB     set DATA OUT and CLOCK OUT
         IEC.pull ( PIN_IEC_CLK_OUT ); // pull clock line after bit sent
         IEC.release ( PIN_IEC_DATA_OUT ); // release data line after bit sent
     }
@@ -296,8 +282,6 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
 
     return true;
 } // sendBit
-
-
 
 
 // ******************************  DATA OUT lo (RELEASED)
@@ -480,12 +464,21 @@ int16_t IecProtocolSerial::receiveByte()
         IEC.flags |= EOI_RECVD;
 
         // Acknowledge by pull down data more than 60us
+        // E9F2   20 A5 E9   JSR $E9A5     DATA OUT bit '0' hi
+        // E9F5   A2 0A      LDX #$0A      10
+        // E9F7   CA         DEX           delay loop, approx 50 micro sec.
+        // E9F8   D0 FD      BNE $E9F7
+        // E9FA   20 9C E9   JSR $E99C     DATA OUT, bit '1', lo
         IEC.pull ( PIN_IEC_DATA_OUT );
         if ( !wait ( TIMING_Tei ) ) return -1;
         IEC.release ( PIN_IEC_DATA_OUT );
 
         // but still wait for CLK to be PULLED
         // Is this an empty stream?
+        // E9FD   20 59 EA   JSR $EA59     check EOI
+        // EA00   20 C0 E9   JSR $E9C0     read IEEE
+        // EA03   29 04      AND #$04      CLOCK IN?
+        // EA05   F0 F6      BEQ $E9FD     no, wait
         if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMING_EMPTY ) >= TIMING_EMPTY )
         {
             Debug_printv ( "empty stream signaled" );
@@ -514,6 +507,7 @@ int16_t IecProtocolSerial::receiveByte()
     // one  millisecond  -  one  thousand  microseconds  -  it  will  know  that something's wrong and may alarm appropriately.
 
     // Acknowledge byte received
+    // EA28   20 A5 E9   JSR $E9A5     DATA OUT, bit '0', hi
     if ( !wait ( TIMING_Tf ) ) return -1;
     IEC.pull ( PIN_IEC_DATA_OUT );
 
@@ -523,16 +517,16 @@ int16_t IecProtocolSerial::receiveByte()
     // happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause,
     // the Clock and Data lines are RELEASED to false and transmission stops.
 
-    if ( IEC.flags & EOI_RECVD )
-    {
-        // EOI Received
-        if ( !wait ( TIMING_Tfr ) ) return -1;
-        //IEC.release ( PIN_IEC_DATA_OUT );
-    }
-    else
-    {
-         wait ( TIMING_Tbb );
-    }
+    // if ( IEC.flags & EOI_RECVD )
+    // {
+    //     // EOI Received
+    //     if ( !wait ( TIMING_Tfr ) ) return -1;
+    //     //IEC.release ( PIN_IEC_DATA_OUT );
+    // }
+    // else
+    // {
+    //      wait ( TIMING_Tbb );
+    // }
 
     return data;
 }
@@ -563,6 +557,8 @@ int16_t IecProtocolSerial::receiveBits ()
 
     uint8_t n = 0;
 
+    // E9C9   A9 08      LDA #$08
+    // E9CB   85 98      STA $98       bit counter for serial output
     for ( n = 0; n < 8; n++ )
     {
         data >>= 1;
@@ -571,6 +567,11 @@ int16_t IecProtocolSerial::receiveBits ()
         {
             // wait for bit to be ready to read
             //IEC.pull ( PIN_IEC_SRQ );
+            // EA0B   AD 00 18   LDA $1800     IEEE port
+            // EA0E   49 01      EOR #$01      invert data byte
+            // EA10   4A         LSR A
+            // EA11   29 02      AND #$02
+            // EA13   D0 F6      BNE $EA0B     CLOCK IN?
             bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMEOUT_DEFAULT, false );
 
             // // If the bit time is less than 40us we are talking with a VIC20
@@ -603,15 +604,23 @@ int16_t IecProtocolSerial::receiveBits ()
         } while ( bit_time >= TIMING_JIFFY_DETECT );
         
         // get bit
+        // EA18   66 85      ROR $85       prepare next bit
         data |= ( IEC.status ( PIN_IEC_DATA_IN ) == RELEASED ? ( 1 << 7 ) : 0 );
         //IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
+        // EA1A   20 59 EA   JSR $EA59     check EOI
+        // EA1D   20 C0 E9   JSR $E9C0     read IEEE port
+        // EA20   29 04      AND #$04      CLOCK IN?
+        // EA22   F0 F6      BEQ $EA1A     no
         if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
         {
             Debug_printv ( "wait for talker to finish sending bit n[%d]", n );
             return -1; // return error because timeout
         }
+
+    // EA24   C6 98      DEC $98       decrement bit counter
+    // EA26   D0 E3      BNE $EA0B     all bits output?
     }
 
     return data;
