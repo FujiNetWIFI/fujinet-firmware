@@ -90,13 +90,10 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 
     IEC.flags &= CLEAR_LOW; // $E85E
 
-    // Say we're ready
-    // E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (RELEASED)
+    // E91F   20 B7 E9   JSR $E9B7     CLOCK OUT lo (RELEASED)
     IEC.release ( PIN_IEC_CLK_OUT ); // $E94B/
 
     // Wait for listener to be ready
-    // STEP 2: READY FOR DATA
-
     // Either  the  talker  will pull the
     // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
     // will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass
@@ -133,24 +130,25 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         }
     }
 
+    // Say we're ready
     // E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
     IEC.pull ( PIN_IEC_CLK_OUT );  // tell listner to wait
 
     // When  the  listener  is  ready  to  listen,  it  releases  the  Data
     // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
-    // to  accept  data.  What  happens  next  is  variable.
+    // to  accept  data.
     // E94E   20 59 EA   JSR $EA59     check EOI
     // E951   20 C0 E9   JSR $E9C0     read IEEE port
     // E954   29 01      AND #$01      isolate data bit
     // E956   D0 F3      BNE $E94B
-    //IEC.pull ( PIN_IEC_SRQ );
+    IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
         //Debug_printv ( "Wait for listener to be ready" );
         return false; // return error because of ATN or timeout
     }
-    //IEC.release ( PIN_IEC_SRQ );
+    IEC.release ( PIN_IEC_SRQ );
 
     // STEP 3: SENDING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
