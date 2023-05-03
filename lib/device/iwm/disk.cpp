@@ -440,11 +440,13 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
         return;
       }
       if(switched && readonly) {
+        Debug_printf("iwm_writeblock while readonly and disk switched\r\n");
         send_reply_packet(SP_ERR_NOWRITE);
         switched = false;
         return;
       } 
       if(switched) {
+        Debug_printf("iwm_writeblock while disk switched = true\r\nn");
         send_reply_packet(SP_ERR_OFFLINE);
         switched = false;
         return;
@@ -504,9 +506,7 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
   {
     /* We need  first eject the current disk image */
     unmount(); 
-    switched = true;
-    eject_latch = false; //simulate the disk ejected for at least one status cycle.
-                        //but only in the case we are mounting over an existing image.
+   switched = true; //set disk switched only if we are mounting over an existing image.  
   }
 
     // Determine MediaType based on filename extension

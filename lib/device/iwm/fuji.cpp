@@ -446,9 +446,9 @@ void iwmFuji::debug_tape()
 void iwmFuji::iwm_ctrl_disk_image_umount()
 {
     unsigned char ds = data_buffer[0];//adamnet_recv();
-    
+    if(_fnDisks[ds].disk_dev.device_active)
+      _fnDisks[ds].disk_dev.switched = true;
     _fnDisks[ds].disk_dev.unmount();
-    _fnDisks[ds].disk_dev.switched = true;
     _fnDisks[ds].reset();
 }
 

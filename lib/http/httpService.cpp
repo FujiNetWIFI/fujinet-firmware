@@ -720,11 +720,11 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     {
         fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
     }
-
-    theFuji.get_disks(ds)->disk_dev.unmount();
     #ifdef BUILD_APPLE
-    theFuji.get_disks(ds)->disk_dev.switched = true;
+    if(theFuji.get_disks(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted. 
+        theFuji.get_disks(ds)->disk_dev.switched = true;
     #endif
+    theFuji.get_disks(ds)->disk_dev.unmount();
 #ifdef BUILD_ATARI
     if (theFuji.get_disks(ds)->disk_type == MEDIATYPE_CAS || theFuji.get_disks(ds)->disk_type == MEDIATYPE_WAV)
     {
