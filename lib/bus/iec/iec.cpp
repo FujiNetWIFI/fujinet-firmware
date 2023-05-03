@@ -81,7 +81,7 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     {
     case bus_command_t::IEC_OPEN:
         payload = commanddata->payload;
-        mstr::toASCII(payload);
+        // mstr::toASCII(payload);
         pt = util_tokenize(payload, ',');
         break;
     case bus_command_t::IEC_CLOSE:
@@ -97,19 +97,12 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         else if (device_state == DEVICE_LISTEN)
         {
             payload = commanddata->payload;
-            mstr::toASCII(payload);
+            // mstr::toASCII(payload);
             pt = util_tokenize(payload, ',');
         }
         break;
     default:
         break;
-    }
-
-    if (commanddata->channel == 15 &&
-        commanddata->primary == IEC_TALK &&
-        commanddata->secondary == IEC_REOPEN)
-    {
-        iec_talk_command_buffer_status();
     }
 
     return device_state;
@@ -170,7 +163,10 @@ int16_t systemBus::receiveByte()
 bool systemBus::sendByte(const char c, bool eoi)
 {
 #ifdef DATA_STREAM
-    Debug_printf("%.2X ", c);
+    if ( eoi )
+        Debug_printf ( "%.2X[eoi] ", c );
+    else
+        Debug_printf ( "%.2X ", c );
 #endif
     if (!protocol->sendByte(c, eoi))
     {
@@ -189,12 +185,15 @@ bool systemBus::sendByte(const char c, bool eoi)
 bool systemBus::sendBytes(const char *buf, size_t len, bool eoi)
 {
     bool success = false;
+#ifdef DATA_STREAM
+        Debug_print ( "{ " );
+#endif
     for (size_t i = 0; i < len; i++)
     {
-        if (i == len - 1 && eoi)
-            success = protocol->sendByte(buf[i], true);
+        if (i == (len - 1) && eoi)
+            success = sendByte(buf[i], true);
         else
-            success = protocol->sendByte(buf[i], false);
+            success = sendByte(buf[i], false);
 
         if (!success)
         {
@@ -207,6 +206,9 @@ bool systemBus::sendBytes(const char *buf, size_t len, bool eoi)
             return false;
         }
     }
+#ifdef DATA_STREAM
+        Debug_println ( "}" );
+#endif
     return true;
 }
 
@@ -243,6 +245,8 @@ void IRAM_ATTR systemBus::service()
 
     if (bus_state < BUS_ACTIVE)
         return;
+
+    //pull( PIN_IEC_SRQ );
 
     // Disable Interrupt
     // gpio_intr_disable((gpio_num_t)PIN_IEC_ATN);
@@ -314,16 +318,14 @@ void IRAM_ATTR systemBus::service()
             }
 
             // Queue control codes and command in specified device
-            // At the moment there is only the multi-drive device
             device_state_t device_state = deviceById(data.device)->queue_command(&data);
 
             // Process commands in devices
-            // At the moment there is only the multi-drive device
             // Debug_printv( "deviceProcess" );
 
             fnLedManager.set(eLed::LED_BUS, true);
 
-            // Debug_printv("bus[%d] device[%d]", bus_state, device_state);
+            //Debug_printv("bus[%d] device[%d]", bus_state, device_state);
 
             if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
             {
@@ -335,6 +337,9 @@ void IRAM_ATTR systemBus::service()
             bus_state = BUS_IDLE;
             flags = CLEAR;
         }
+
+        // Let bus stabalize
+        protocol->wait ( TIMING_STABLE, 0, false );
 
         if (status(PIN_IEC_ATN))
             bus_state = BUS_ACTIVE;
@@ -349,6 +354,7 @@ void IRAM_ATTR systemBus::service()
     // Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
 
     Debug_printv("exit");
+    //release( PIN_IEC_SRQ );
 }
 
 void systemBus::read_command()
@@ -503,7 +509,8 @@ void systemBus::read_payload()
             return;
         }
 
-        if (c != 0x0D && c != 0xFFFFFFFF)
+        //if (c != 0x0D && c != 0xFFFFFFFF) // Remove CR from end of command
+        if (c != 0xFFFFFFFF)
         {
             listen_command += (uint8_t)c;
         }
@@ -588,7 +595,13 @@ bool IRAM_ATTR systemBus::turnAround()
     */
     // Debug_printf("IEC turnAround: ");
 
+    // Release control of data line
+    // ATN100
+    release ( PIN_IEC_DATA_OUT ); // $E8F1
+    release ( PIN_IEC_CLK_OUT );  // $E8F4
+
     // Wait until the computer releases the ATN line
+    // TLK05 $E906
     if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
     {
         Debug_printf("Wait until the computer releases the ATN line");
@@ -600,6 +613,7 @@ bool IRAM_ATTR systemBus::turnAround()
     protocol->wait(TIMING_Ttk, 0, false);
 
     // Wait until the computer releases the clock line
+    // TLK05 $E919
     if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)
     {
         Debug_printf("Wait until the computer releases the clock line");
@@ -607,12 +621,10 @@ bool IRAM_ATTR systemBus::turnAround()
         return false; // return error because timeout
     }
 
-    release(PIN_IEC_DATA_OUT);
-    fnSystem.delay_microseconds(TIMING_Tv);
-    pull(PIN_IEC_CLK_OUT);
-    fnSystem.delay_microseconds(TIMING_Tv);
+    // We control clock line now
+    pull ( PIN_IEC_CLK_OUT ); // $E91F
+    protocol->wait( TIMING_Tda, 0, false );
 
-    // Debug_println("turnaround complete");
     return true;
 } // turnAround
 
