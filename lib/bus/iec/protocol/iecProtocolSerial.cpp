@@ -581,7 +581,7 @@ int16_t IecProtocolSerial::receiveBits ()
                 return -1; // return error because timeout
             }
         } while ( bit_time >= TIMING_JIFFY_DETECT );
-        
+
         // get bit
         // EA18   66 85      ROR $85       prepare next bit
         data |= ( IEC.status ( PIN_IEC_DATA_IN ) == RELEASED ? ( 1 << 7 ) : 0 );
