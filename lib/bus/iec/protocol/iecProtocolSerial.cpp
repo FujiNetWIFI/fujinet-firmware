@@ -158,7 +158,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         Debug_printv ( "EOI ACK: Listener didn't RELEASE DATA" );
         return false;
     }
-    if ( wait ( TIMING_Tne ) ) return false;
+    //if ( wait ( TIMING_Tne ) ) return false;
 
     // E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
     IEC.pull ( PIN_IEC_CLK_OUT );  // tell listner to wait
@@ -169,7 +169,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         Debug_printv ( "Error sending bits - byte '%02X'", data );
         return false;
     }
-    if ( wait ( TIMING_Tf ) ) return false;
+    //if ( wait ( TIMING_Tf ) ) return false;
     IEC.release ( PIN_IEC_SRQ );
 
     // STEP 4: FRAME HANDSHAKE
