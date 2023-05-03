@@ -201,7 +201,7 @@ public:
     }
 
     bool seekNextImageEntry() override {
-        return seekEntry(entry_index + 1);
+        return seekEntry( entry_index + 1 );
     }
 
 
@@ -230,7 +230,7 @@ private:
     void sendListing();
 
     bool seekEntry( std::string filename );
-    bool seekEntry( size_t index = 0 );
+    bool seekEntry( uint32_t index = 0 );
 
 
     std::string readBlock( uint8_t track, uint8_t sector );
