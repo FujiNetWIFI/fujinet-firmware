@@ -17,7 +17,9 @@ IecProtocolSerial::~IecProtocolSerial()
 }
 
 
-// ******************************  send data
+// http://www.ffd2.com/fridge/docs/1541dis.html#E909
+
+// ******************************  send byte
 // E909   78         SEI
 // E90A   20 EB D0   JSR $D0EB     open channel for read
 // E90D   B0 06      BCS $E915     channel active
@@ -156,17 +158,19 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         Debug_printv ( "EOI ACK: Listener didn't RELEASE DATA" );
         return false;
     }
+    if ( wait ( TIMING_Tne ) ) return false;
 
     // E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
     IEC.pull ( PIN_IEC_CLK_OUT );  // tell listner to wait
 
     // STEP 3: SENDING THE BITS
-    //IEC.pull ( PIN_IEC_SRQ );
+    IEC.pull ( PIN_IEC_SRQ );
     if ( !sendBits( data ) ) {
         Debug_printv ( "Error sending bits - byte '%02X'", data );
         return false;
     }
-    //IEC.release ( PIN_IEC_SRQ );
+    if ( wait ( TIMING_Tf ) ) return false;
+    IEC.release ( PIN_IEC_SRQ );
 
     // STEP 4: FRAME HANDSHAKE
     // After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true
@@ -179,13 +183,13 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // E98A   20 C0 E9   JSR $E9C0     read IEEE port
     // E98D   29 01      AND #$01      isolate data bit
     // E98F   F0 F6      BEQ $E987
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
     {
         Debug_printv ( "Wait for listener to acknowledge byte received (pull data)" );
         return false; // return error because timeout
     }
-    IEC.release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
 
     // STEP 5: START OVER
     // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
@@ -193,8 +197,15 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause,
     // the Clock and Data lines are RELEASED to false and transmission stops.
 
-    // Wait until data is released, ATN is pulled, or 250us
-    timeoutWait ( PIN_IEC_DATA_IN, RELEASED, 250 );
+    // if ( wait ( TIMING_Tbb ) ) return false;
+
+    // // Wait until data is released, ATN is pulled, or 250us
+    // //timeoutWait ( PIN_IEC_DATA_IN, RELEASED, 250 );
+    // if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
+    // {
+    //     Debug_printv ( "Wait for listener to acknowledge byte received (pull data)" );
+    //     return false; // return error because timeout
+    // }
 
     return true;
 }
@@ -278,7 +289,7 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
     }
     // E983   C6 98      DEC $98       all bits output?
     // E985   D0 D5      BNE $E95C     no
-    while ( n-- ); // $E985
+    while ( --n ); // $E985
 
     return true;
 } // sendBit
@@ -314,6 +325,10 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
 // E9C6   D0 F8      BNE $E9C0
 // E9C8   60         RTS
 
+
+// http://www.ffd2.com/fridge/docs/1541dis.html#E9C9
+
+// ******************************  read byte
 // E9C9   A9 08      LDA #$08
 // E9CB   85 98      STA $98       bit counter for serial output
 // E9CD   20 59 EA   JSR $EA59     check EOI
@@ -360,42 +375,6 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
 // EA28   20 A5 E9   JSR $E9A5     DATA OUT, bit '0', hi
 // EA2B   A5 85      LDA $85       load data byte again
 // EA2D   60         RTS
-
-// ******************************  accept data from serial bus
-// EA2E   78         SEI
-// EA2F   20 07 D1   JSR $D107     open channel for writing
-// EA32   B0 05      BCS $EA39     channel not active?
-// EA34   B5 F2      LDA $F2,X     WRITE flag
-// EA36   6A         ROR
-// EA37   B0 0B      BCS $EA44     not set?
-// EA39   A5 84      LDA $84       secondary address
-// EA3B   29 F0      AND #$F0
-// EA3D   C9 F0      CMP #$F0      OPEN command?
-// EA3F   F0 03      BEQ $EA44     yes
-// EA41   4C 4E EA   JMP $EA4E     to wait loop
-
-// EA44   20 C9 E9   JSR $E9C9     get data byte from bus
-// EA47   58         CLI
-// EA48   20 B7 CF   JSR $CFB7     and write in buffer
-// EA4B   4C 2E EA   JMP $EA2E     to loop beginning
-
-// EA4E   A9 00      LDA #$00
-// EA50   8D 00 18   STA $1800     reset IEEE port
-// EA53   4C E7 EB   JMP $EBE7     to wait loop
-
-// EA56   4C 5B E8   JMP $E85B     to serial bus main loop
-
-// ******************************
-// EA59   A5 7D      LDA $7D       EOI received?
-// EA5B   F0 06      BEQ $EA63     yes
-// EA5D   AD 00 18   LDA $1800     IEEE port
-// EA60   10 09      BPL $EA6B
-// EA62   60         RTS
-
-// EA63   AD 00 18   LDA $1800     IEEE port
-// EA66   10 FA      BPL $EA62
-// EA68   4C 5B E8   JMP $E85B     to serial bus main loop
-// EA6B   4C D7 E8   JMP $E8D7     set EOI, serial bus
 
 int16_t IecProtocolSerial::receiveByte()
 {
@@ -626,6 +605,42 @@ int16_t IecProtocolSerial::receiveBits ()
     return data;
 }
 
+
+// ******************************  accept data from serial bus
+// EA2E   78         SEI
+// EA2F   20 07 D1   JSR $D107     open channel for writing
+// EA32   B0 05      BCS $EA39     channel not active?
+// EA34   B5 F2      LDA $F2,X     WRITE flag
+// EA36   6A         ROR
+// EA37   B0 0B      BCS $EA44     not set?
+// EA39   A5 84      LDA $84       secondary address
+// EA3B   29 F0      AND #$F0
+// EA3D   C9 F0      CMP #$F0      OPEN command?
+// EA3F   F0 03      BEQ $EA44     yes
+// EA41   4C 4E EA   JMP $EA4E     to wait loop
+
+// EA44   20 C9 E9   JSR $E9C9     get data byte from bus
+// EA47   58         CLI
+// EA48   20 B7 CF   JSR $CFB7     and write in buffer
+// EA4B   4C 2E EA   JMP $EA2E     to loop beginning
+
+// EA4E   A9 00      LDA #$00
+// EA50   8D 00 18   STA $1800     reset IEEE port
+// EA53   4C E7 EB   JMP $EBE7     to wait loop
+
+// EA56   4C 5B E8   JMP $E85B     to serial bus main loop
+
+// ******************************
+// EA59   A5 7D      LDA $7D       EOI received?
+// EA5B   F0 06      BEQ $EA63     yes
+// EA5D   AD 00 18   LDA $1800     IEEE port
+// EA60   10 09      BPL $EA6B
+// EA62   60         RTS
+
+// EA63   AD 00 18   LDA $1800     IEEE port
+// EA66   10 FA      BPL $EA62
+// EA68   4C 5B E8   JMP $E85B     to serial bus main loop
+// EA6B   4C D7 E8   JMP $E8D7     set EOI, serial bus
 
 
 #endif
