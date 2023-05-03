@@ -652,14 +652,14 @@ void IRAM_ATTR systemBus::deviceListen()
 void IRAM_ATTR systemBus::deviceTalk(void)
 {
     // Now do bus turnaround
-    // pull( PIN_IEC_SRQ );
+    pull( PIN_IEC_SRQ );
     if (!turnAround())
     {
         Debug_printv("error flags[%d]", flags);
         bus_state = BUS_ERROR;
         return;
     }
-    // release( PIN_IEC_SRQ );
+    release( PIN_IEC_SRQ );
 
     // We have recieved a CMD and we should talk now:
     bus_state = BUS_PROCESS;
@@ -688,8 +688,9 @@ bool IRAM_ATTR systemBus::turnAround()
 
     // Release control of data line
     // ATN100
-    release ( PIN_IEC_DATA_OUT ); // $E8F1
-    release ( PIN_IEC_CLK_OUT );  // $E8F4
+    // E8F1   20 9C E9   JSR $E99C     DATA OUT, bit '1', lo (RELEASED)
+    // E8F4   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
+    pull ( PIN_IEC_CLK_OUT ); // $E91F
 
     // Wait until the computer releases the ATN line
     if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
@@ -699,21 +700,15 @@ bool IRAM_ATTR systemBus::turnAround()
         return false; // return error because timeout
     }
 
-    // Delay after ATN is RELEASED
+    // // Delay after ATN is RELEASED
     protocol->wait(TIMING_Ttk, 0, false);
 
-    // Wait until the computer releases the clock line
-    // TLK05 $E919
-    if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, FOREVER) == TIMED_OUT)
-    {
-        Debug_printf("Wait until the computer releases the clock line");
-        flags |= ERROR;
-        return false; // return error because timeout
-    }
+    // // We control clock line now
+    // release ( PIN_IEC_CLK_OUT );
+    // protocol->wait( TIMING_Tda, 0, false );
+    // pull ( PIN_IEC_CLK_OUT );
 
-    // We control clock line now
-    pull ( PIN_IEC_CLK_OUT ); // $E91F
-    protocol->wait( TIMING_Tda, 0, false );
+    release ( PIN_IEC_DATA_OUT ); // $E8F1
 
     return true;
 } // turnAround

@@ -29,7 +29,7 @@ IecProtocolSerial::~IecProtocolSerial()
 // E919   20 C0 E9   JSR $E9C0     read IEEE port
 // E91C   29 01      AND #$01      isolate data bit
 // E91E   08         PHP           and save
-// E91F   20 B7 E9   JSR $E9B7     CLOCK OUT lo (PULLED)
+// E91F   20 B7 E9   JSR $E9B7     CLOCK OUT lo (RELEASED)
 // E922   28         PLP
 // E923   F0 12      BEQ $E937
 // E925   20 59 EA   JSR $EA59     check EOI
@@ -48,7 +48,7 @@ IecProtocolSerial::~IecProtocolSerial()
 // E944   20 C0 E9   JSR $E9C0     read IEEE port
 // E947   29 01      AND #$01      isolate data bit
 // E949   F0 F6      BEQ $E941
-// E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (RELEASED)
+// E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
 // E94E   20 59 EA   JSR $EA59     check EOI
 // E951   20 C0 E9   JSR $E9C0     read IEEE port
 // E954   29 01      AND #$01      isolate data bit
@@ -86,16 +86,27 @@ IecProtocolSerial::~IecProtocolSerial()
 
 bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 {
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
 
     IEC.flags &= CLEAR_LOW; // $E85E
 
+    // Say we're ready to talk
     // E91F   20 B7 E9   JSR $E9B7     CLOCK OUT lo (RELEASED)
     IEC.release ( PIN_IEC_CLK_OUT ); // $E94B/
 
-    // Wait for listener to be ready
+    // Wait for listeners to be ready
+    // When  the  listener  is  ready  to  listen,  it  releases  the  Data
+    // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
+    // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
+    // to  accept  data.
+    if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
+    {
+        //Debug_printv ( "Wait for listener to be ready" );
+        return false; // return error because of ATN or timeout
+    }
+
     // Either  the  talker  will pull the
-    // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
+    // Clock line pulled back to true in less than 200 microseconds - usually within 60 microseconds - or it
     // will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass
     // without  the Clock line going to true, it has a special task to perform: note EOI.
     if ( eoi )
@@ -118,7 +129,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         // Signal eoi by waiting 200 us
         // if ( !wait ( TIMING_Tye ) ) return false;
 
-        // get eoi acknowledge:
+        // Get eoi acknowledge from listeners
         // E941   20 59 EA   JSR $EA59     check EOI
         // E944   20 C0 E9   JSR $E9C0     read IEEE port
         // E947   29 01      AND #$01      isolate data bit
@@ -126,29 +137,22 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED ) == TIMED_OUT )
         {
             Debug_printv ( "EOI ACK: Listener didn't PULL DATA" );
-            return false; // return error because timeout
+            return false;
+        }
+
+        // E94E   20 59 EA   JSR $EA59     check EOI
+        // E951   20 C0 E9   JSR $E9C0     read IEEE port
+        // E954   29 01      AND #$01      isolate data bit
+        // E956   D0 F3      BNE $E94B
+        if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED ) == TIMED_OUT )
+        {
+            Debug_printv ( "EOI ACK: Listener didn't RELEASE DATA" );
+            return false;
         }
     }
 
-    // Say we're ready
     // E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
     IEC.pull ( PIN_IEC_CLK_OUT );  // tell listner to wait
-
-    // When  the  listener  is  ready  to  listen,  it  releases  the  Data
-    // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
-    // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
-    // to  accept  data.
-    // E94E   20 59 EA   JSR $EA59     check EOI
-    // E951   20 C0 E9   JSR $E9C0     read IEEE port
-    // E954   29 01      AND #$01      isolate data bit
-    // E956   D0 F3      BNE $E94B
-    IEC.pull ( PIN_IEC_SRQ );
-    if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
-    {
-        //Debug_printv ( "Wait for listener to be ready" );
-        return false; // return error because of ATN or timeout
-    }
-    IEC.release ( PIN_IEC_SRQ );
 
     // STEP 3: SENDING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
@@ -258,6 +262,8 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
     // ISR01 $E95C
     do
     {
+        if ( !wait ( TIMING_Ts1 ) ) return false; // before bit timing
+        
         // set bit
         // ISR02 $E963-$E973
         // E963   A6 82      LDX $82
@@ -269,8 +275,8 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
         // E971   D0 03      BNE $E976     absolute jump
         // E973   20 9C E9   JSR $E99C     DATA OUT, output bit '1'
         ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
-        if ( !wait ( TIMING_Ts2 ) ) return false;
         data >>= 1; // get next bit
+        if ( !wait ( TIMING_Ts2 ) ) return false; // after bit timing
 
         // ISRCLK $E976-$E97D
         // E976   20 B7 E9   JSR $E9B7     set CLOCK OUT
@@ -281,7 +287,7 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
         if ( !wait ( tv ) ) return false;
 
         // ISR03 $E980
-        IEC.pull ( PIN_IEC_DATA_OUT ); // pull clock line after bit sent
+        IEC.pull ( PIN_IEC_CLK_OUT ); // pull clock line after bit sent
         IEC.release ( PIN_IEC_DATA_OUT ); // release data line after bit sent
     }
     // E983   C6 98      DEC $98       all bits output?
@@ -294,25 +300,25 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
 
 
 
-// ******************************  DATA OUT lo (PULLED)
+// ******************************  DATA OUT lo (RELEASED)
 // E99C   AD 00 18   LDA $1800
 // E99F   29 FD      AND #$FD      output bit '1'
 // E9A1   8D 00 18   STA $1800
 // E9A4   60         RTS
 
-// ******************************  DATA OUT hi (RELEASED)
+// ******************************  DATA OUT hi (PULLED)
 // E9A5   AD 00 18   LDA $1800
 // E9A8   09 02      ORA #$02      output bit '0'
 // E9AA   8D 00 18   STA $1800
 // E9AD   60         RTS
 
-// ******************************  CLOCK OUT hi (RELEASED)
+// ******************************  CLOCK OUT hi (PULLED)
 // E9AE   AD 00 18   LDA $1800
 // E9B1   09 08      ORA #$08      set bit 3
 // E9B3   8D 00 18   STA $1800
 // E9B6   60         RTS
 
-// ******************************  CLOCK OUT lo (PULLED)
+// ******************************  CLOCK OUT lo (RELEASED)
 // E9B7   AD 00 18   LDA $1800
 // E9BA   29 F7      AND #$F7      erase bit 3
 // E9BC   8D 00 18   STA $1800
