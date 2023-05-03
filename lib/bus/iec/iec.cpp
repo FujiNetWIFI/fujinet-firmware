@@ -10,6 +10,12 @@
 #include "string_utils.h"
 #include "utils.h"
 
+// ******************************  IRQ routine for serial bus
+// E853   AD 01 18   LDA $1801     read port A, erase IRQ flag
+// E856   A9 01      LDA #$01
+// E858   85 7C      STA $7C       set flag for 'ATN received'
+// E85A   60         RTS
+
 static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
 {
     systemBus *b = (systemBus *)arg;
@@ -230,6 +236,91 @@ void systemBus::process_queue()
 {
     // TODO IMPLEMENT
 }
+
+
+// ******************************  servicing the serial bus
+// E85B   78         SEI
+// E85C   A9 00      LDA #$00
+// E85E   85 7C      STA $7C       erase flag for 'ATN received'
+// E860   85 79      STA $79       erase flag for LISTEN
+// E862   85 7A      STA $7A       erase flag for TALK
+// E864   A2 45      LDX #$45
+// E866   9A         TXS           initialize stack pointer
+// E867   A9 80      LDA #$80
+// E869   85 F8      STA $F8       erase end flag
+// E86B   85 7D      STA $7D       erase EOI flag
+// E86D   20 B7 E9   JSR $E9B7     CLOCK OUT lo (PULLED)
+// E870   20 A5 E9   JSR $E9A5     DATA OUT, bit '0', hi (RELEASED)
+// E873   AD 00 18   LDA $1800
+// E876   09 10      ORA #$10      switch data lines to input
+// E878   8D 00 18   STA $1800
+// E87B   AD 00 18   LDA $1800     read IEEE port
+// E87E   10 57      BPL $E8D7     EOI?
+// E880   29 04      AND #$04      CLOCK IN?
+// E882   D0 F7      BNE $E87B     no
+// E884   20 C9 E9   JSR $E9C9     get byte from bus
+// E887   C9 3F      CMP #$3F      unlisten?
+// E889   D0 06      BNE $E891     no
+// E88B   A9 00      LDA #$00
+// E88D   85 79      STA $79       reset flag for LISTEN
+// E88F   F0 71      BEQ $E902
+// E891   C9 5F      CMP #$5F      untalk?
+// E893   D0 06      BNE $E89B     no
+// E895   A9 00      LDA #$00
+// E897   85 7A      STA $7A       reset flag for TALK
+// E899   F0 67      BEQ $E902
+// E89B   C5 78      CMP $78       TALK address?
+// E89D   D0 0A      BNE $E8A9     no
+// E89F   A9 01      LDA #$01
+// E8A1   85 7A      STA $7A       set flag for TALK
+// E8A3   A9 00      LDA #$00
+// E8A5   85 79      STA $79       reset flag for LISTEN
+// E8A7   F0 29      BEQ $E8D2
+// E8A9   C5 77      CMP $77       LISTEN address?
+// E8AB   D0 0A      BNE $E8B7     no
+// E8AD   A9 01      LDA #$01
+// E8AF   85 79      STA $79       set flag for LISTEN
+// E8B1   A9 00      LDA #$00
+// E8B3   85 7A      STA $7A       reset flag for TALK
+// E8B5   F0 1B      BEQ $E8D2
+// E8B7   AA         TAX
+// E8B8   29 60      AND #$60
+// E8BA   C9 60      CMP #$60      set bit 5 and 6
+// E8BC   D0 3F      BNE $E8FD     no
+// E8BE   8A         TXA
+// E8BF   85 84      STA $84       byte is secondary address
+// E8C1   29 0F      AND #$0F
+// E8C3   85 83      STA $83       channel number
+// E8C5   A5 84      LDA $84
+// E8C7   29 F0      AND #$F0
+// E8C9   C9 E0      CMP #$E0      CLOSE?
+// E8CB   D0 35      BNE $E902
+// E8CD   58         CLI
+// E8CE   20 C0 DA   JSR $DAC0     CLOSE routine
+// E8D1   78         SEI
+// E8D2   2C 00 18   BIT $1800
+// E8D5   30 AD      BMI $E884
+// E8D7   A9 00      LDA #$00
+// E8D9   85 7D      STA $7D       set EOI
+// E8DB   AD 00 18   LDA $1800     IEEE port
+// E8DE   29 EF      AND #$EF      switch data lines to output
+// E8E0   8D 00 18   STA $1800
+// E8E3   A5 79      LDA $79       LISTEN active?
+// E8E5   F0 06      BEQ $E8ED     no
+// E8E7   20 2E EA   JSR $EA2E     receive data
+// E8EA   4C E7 EB   JMP $EBE7     to delay loop
+
+// E8ED   A5 7A      LDA $7A       TALK active?
+// E8EF   F0 09      BEQ $E8FA     no
+// E8F1   20 9C E9   JSR $E99C     DATA OUT, bit '1', lo (PULLED)
+// E8F4   20 AE E9   JSR $E9AE     CLOCK OUT hi (RELEASED)
+// E8F7   20 09 E9   JSR $E909     send data
+// E8FA   4C 4E EA   JMP $EA4E     to delay loop
+// E8FD   A9 10      LDA #$10      either TALK or LISTEN, ignore byte
+// E8FF   8D 00 18   STA $1800     switch data lines to input
+// E902   2C 00 18   BIT $1800
+// E905   10 D0      BPL $E8D7
+// E907   30 F9      BMI $E902     wait for handshake
 
 void IRAM_ATTR systemBus::service()
 {
@@ -605,7 +696,6 @@ bool IRAM_ATTR systemBus::turnAround()
     release ( PIN_IEC_CLK_OUT );  // $E8F4
 
     // Wait until the computer releases the ATN line
-    // TLK05 $E906
     if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
     {
         Debug_printf("Wait until the computer releases the ATN line");
