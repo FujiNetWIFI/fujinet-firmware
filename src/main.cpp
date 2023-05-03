@@ -21,6 +21,8 @@
 
 #include "led_strip.h"
 
+#include "../lib/esp32-audioi2s/Audio.h"
+
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
 #endif
