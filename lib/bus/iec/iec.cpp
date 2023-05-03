@@ -225,11 +225,11 @@ bool systemBus::sendBytes(std::string s, bool eoi)
 
 void systemBus::process_cmd()
 {
-    fnLedManager.set(eLed::LED_BUS, true);
+    //fnLedManager.set(eLed::LED_BUS, true);
 
     // TODO implement
 
-    fnLedManager.set(eLed::LED_BUS, false);
+    //fnLedManager.set(eLed::LED_BUS, false);
 }
 
 void systemBus::process_queue()
@@ -378,6 +378,9 @@ void IRAM_ATTR systemBus::service()
         if (bus_state == BUS_OFFLINE)
             break;
 
+        // Turn on the lights
+        fnLedManager.set(eLed::LED_BUS, true);
+
         if (bus_state == BUS_ACTIVE)
         {
             release(PIN_IEC_CLK_OUT);
@@ -414,8 +417,6 @@ void IRAM_ATTR systemBus::service()
             // Process commands in devices
             // Debug_printv( "deviceProcess" );
 
-            fnLedManager.set(eLed::LED_BUS, true);
-
             //Debug_printv("bus[%d] device[%d]", bus_state, device_state);
 
             if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
@@ -436,6 +437,9 @@ void IRAM_ATTR systemBus::service()
             bus_state = BUS_ACTIVE;
 
     } while (bus_state > BUS_IDLE);
+
+    // Turn off the lights
+    fnLedManager.set(eLed::LED_BUS, false);
 
     // Cleanup and Re-enable Interrupt
     releaseLines();
