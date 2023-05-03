@@ -18,12 +18,16 @@ iwmDisk::~iwmDisk()
 uint8_t iwmDisk::smartport_device_type()
 {
   if (_disk == nullptr)
-    return SP_TYPE_BYTE_HARDDISK;
+    return prevtype; //report the last assigned type when offline.
 
-  if (_disk->num_blocks < 1601)
+  if (_disk->num_blocks < 1601) {
+    prevtype = SP_TYPE_BYTE_35DISK;
     return SP_TYPE_BYTE_35DISK; // Floppy disk
-  else
+  }
+  else {
+    prevtype = SP_TYPE_BYTE_HARDDISK;
     return SP_TYPE_BYTE_HARDDISK; // Hard disk
+  }
 }
 
 uint8_t iwmDisk::smartport_device_subtype()
@@ -359,17 +363,7 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   // source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", id());
   
-  if (!(_disk != nullptr))
-  {
-    Debug_printf(" - ERROR - No image mounted");
-    send_reply_packet(SP_ERR_OFFLINE);
-    return;
-  }
-  if((!device_active)) {
-    Debug_printf("iwm_readblock while device offline!\r\n");
-    send_reply_packet(SP_ERR_OFFLINE);
-    return;
-  }
+
   
   // LBH = cmd.grp7msb; //packet_buffer[16]; // high order bits
   // LBT = cmd.g7byte5; //packet_buffer[21]; // block number high
@@ -382,14 +376,25 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   // block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
   // block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
   block_num = get_block_number(cmd);
-  Debug_printf(" Read block %06x", block_num);
+  Debug_printf(" Read block %06x\r\n", block_num);
+  if (!(_disk != nullptr))
+  {
+    Debug_printf(" - ERROR - No image mounted");
+    send_reply_packet(SP_ERR_OFFLINE);
+    return;
+  }
+  if((!device_active)) {
+    Debug_printf("iwm_readblock while device offline!\r\n");
+    send_reply_packet(SP_ERR_OFFLINE);
+    return;
+  }
   if((switched) && (block_num > 2)){
     Debug_printf("iwm_readblock() returning disk switched error\r\n");
     send_reply_packet(SP_ERR_OFFLINE);
     switched = false;
     return;
   }
-
+  Debug_printf("iwm_readblock NORMAL READ\r\n");
   switched = false; //if we made it here it's ok to reset switched
 
   sdstato = BLOCK_DATA_LEN;
