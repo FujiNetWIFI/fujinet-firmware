@@ -200,6 +200,8 @@ void IRAM_ATTR systemBus::service()
 
         if (bus_state == BUS_PROCESS)
         {
+            flags &= CLEAR_LOW;
+
             Debug_printv("data");
             if (data.secondary == IEC_OPEN || data.secondary == IEC_REOPEN)
             {

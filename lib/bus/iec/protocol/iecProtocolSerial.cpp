@@ -86,6 +86,14 @@ IecProtocolSerial::~IecProtocolSerial()
 
 // E999   4C 4E EA   JMP $EA4E     to delay loop
 
+// STEP 1: READY TO SEND
+// Sooner or later, the talker will want to talk, and send a character.
+// When it's ready to go, it releases the Clock line to false.  This signal change might be
+// translated as "I'm ready to send a character." The listener must detect this and respond,
+// but it doesn't have to do so immediately. The listener will respond  to  the  talker's
+// "ready  to  send"  signal  whenever  it  likes;  it  can  wait  a  long  time.    If  it's
+// a printer chugging out a line of print, or a disk drive with a formatting job in progress,
+// it might holdback for quite a while; there's no time limit.
 bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 {
     //IEC.pull ( PIN_IEC_SRQ );
@@ -408,8 +416,6 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
 // EA68   4C 5B E8   JMP $E85B     to serial bus main loop
 // EA6B   4C D7 E8   JMP $E8D7     set EOI, serial bus
 
-int16_t IecProtocolSerial::receiveByte()
-{
 // STEP 1: READY TO RECEIVE
 // Sooner or later, the talker will want to talk, and send a character.
 // When it's ready to go, it releases the Clock line to false.  This signal change might be
@@ -418,6 +424,8 @@ int16_t IecProtocolSerial::receiveByte()
 // "ready  to  send"  signal  whenever  it  likes;  it  can  wait  a  long  time.    If  it's
 // a printer chugging out a line of print, or a disk drive with a formatting job in progress,
 // it might holdback for quite a while; there's no time limit.
+int16_t IecProtocolSerial::receiveByte()
+{
 
     // Wait for talker ready
     // E9CD   20 59 EA   JSR $EA59     check EOI
