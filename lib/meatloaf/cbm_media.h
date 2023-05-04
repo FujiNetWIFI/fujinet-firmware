@@ -56,7 +56,10 @@ public:
     // seekCurrent = (offset) => this.containerStream.seekCurrent(offset);
     bool seekCurrent(uint32_t offset) { return containerStream->seek(offset); }
 
-
+    // virtual bool seekBlock( uint16_t index ) { 
+    //     containerStream->seek( offset + (index * block_size) );
+    //     return true;
+    // };
     bool seekPath(std::string path) override { return false; };
     std::string seekNextEntry() override { return ""; };
 

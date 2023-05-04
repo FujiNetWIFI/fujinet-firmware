@@ -190,6 +190,7 @@ public:
 
     void image_rotate();
     int get_disk_id(int drive_slot);
+    void handle_ctl_eject(uint8_t spid);
     std::string get_host_prefix(int host_slot);
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }

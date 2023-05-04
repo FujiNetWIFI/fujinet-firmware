@@ -4,6 +4,11 @@
 
 // D64 Utility Functions
 
+// bool D64IStream::seekBlock( uint16_t index )
+// {
+
+// }
+
 bool D64IStream::seekSector( uint8_t track, uint8_t sector, size_t offset )
 {
 	uint16_t sectorOffset = 0;
@@ -263,7 +268,13 @@ bool D64IStream::seekPath(std::string path) {
 
     // call image method to obtain file bytes here, return true on success:
     // return D64Image.seekFile(containerIStream, path);
-    if ( seekEntry(path) )
+    if ( mstr::endsWith(path,"#") ) // Direct Access Mode
+    {
+        Debug_printv("Direct Access Mode track[0] sector[0] path[%s]", path.c_str());
+        seekSector(0, 0);
+        return true;
+    }
+    else if ( seekEntry(path) )
     {
         //auto entry = containerImage->entry;
         auto type = decodeType(entry.file_type).c_str();
@@ -272,29 +283,32 @@ bool D64IStream::seekPath(std::string path) {
         Debug_printv("filename [%.16s] type[%s] start_track[%d] start_sector[%d]", entry.filename, type, entry.start_track, entry.start_sector);
         seekSector(entry.start_track, entry.start_sector);
 
-        // Calculate file size
-        uint8_t t = entry.start_track;
-        uint8_t s = entry.start_sector;
-        size_t blocks = 0; 
-        do
-        {
-            Debug_printv("t[%d] s[%d]", t, s);
+        // // Calculate file size
+        // uint8_t t = entry.start_track;
+        // uint8_t s = entry.start_sector;
+        // size_t blocks = 0; 
+        // do
+        // {
+        //     Debug_printv("t[%d] s[%d]", t, s);
 
-            containerStream->read(&t, 1);
-            containerStream->read(&s, 1);
-            blocks++;
-            if ( t > 0 )
-                seekSector( t, s );
-        } while ( t > 0 );
-        blocks--;
-        m_length = (blocks * 254) + s;
-        m_bytesAvailable = m_length;
+        //     containerStream->read(&t, 1);
+        //     containerStream->read(&s, 1);
+        //     blocks++;
+        //     if ( t > 0 )
+        //         seekSector( t, s );
+        // } while ( t > 0 );
+        // blocks--;
+        // m_length = (blocks * 254) + s;
+        // m_bytesAvailable = m_length;
         
         // Set position to beginning of file
         seekSector( entry.start_track, entry.start_sector );
+        m_length = (entry.blocks * 254);
+        m_bytesAvailable = m_length;
 
-        Debug_printv("File Size: blocks[%d] size[%d] available[%d]", (blocks + 1), m_length, m_bytesAvailable);
-        
+        // Debug_printv("File Size: blocks[%d] size[%d] available[%d]", (blocks + 1), m_length, m_bytesAvailable);
+        Debug_printv("File Size: blocks[%d] size[%d] available[%d]", entry.blocks, m_length, m_bytesAvailable);
+
         return true;
     }
     else
