@@ -326,13 +326,13 @@ void IRAM_ATTR systemBus::service()
 {
     // Handle SRQ for network.
 
-    virtualDevice *d = deviceById(12);
+    // virtualDevice *d = deviceById(12);
 
-    if (d)
-        for (int i=0;i<16;i++)
-        {
-            d->poll_interrupt(i);
-        }
+    // if (d)
+    //     for (int i=0;i<16;i++)
+    //     {
+    //         d->poll_interrupt(i);
+    //     }
 
     if (bus_state < BUS_ACTIVE)
         return;
@@ -379,7 +379,7 @@ void IRAM_ATTR systemBus::service()
             break;
 
         // Turn on the lights
-        fnLedManager.set(eLed::LED_BUS, true);
+        //fnLedManager.set(eLed::LED_BUS, true);
 
         if (bus_state == BUS_ACTIVE)
         {
@@ -439,7 +439,7 @@ void IRAM_ATTR systemBus::service()
     } while (bus_state > BUS_IDLE);
 
     // Turn off the lights
-    fnLedManager.set(eLed::LED_BUS, false);
+    //fnLedManager.set(eLed::LED_BUS, false);
 
     // Cleanup and Re-enable Interrupt
     releaseLines();

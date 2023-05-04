@@ -176,7 +176,7 @@ typedef enum
 #define TIMING_Tfr     60      // EOI ACKNOWLEDGE                               60us    -           -
 
 #define TIMING_EMPTY   512     // SIGNAL EMPTY STREAM
-#define TIMING_STABLE  200     // WAIT FOR BUS TO BE STABLE
+#define TIMING_STABLE  70      // WAIT FOR BUS TO BE STABLE
 
 #define TIMING_VIC20_DETECT   40   // VIC20 DETECTED WHEN HOST BIT TIME IS LESS THAN 40us
 #define TIMING_JIFFY_DETECT   218  // JIFFYDOS ENABLED DELAY ON LAST BIT

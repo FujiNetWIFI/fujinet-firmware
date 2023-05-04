@@ -164,13 +164,13 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     IEC.pull ( PIN_IEC_CLK_OUT );  // tell listner to wait
 
     // STEP 3: SENDING THE BITS
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     if ( !sendBits( data ) ) {
         Debug_printv ( "Error sending bits - byte '%02X'", data );
         return false;
     }
     //if ( wait ( TIMING_Tf ) ) return false;
-    IEC.release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
 
     // STEP 4: FRAME HANDSHAKE
     // After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true
@@ -183,13 +183,13 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // E98A   20 C0 E9   JSR $E9C0     read IEEE port
     // E98D   29 01      AND #$01      isolate data bit
     // E98F   F0 F6      BEQ $E987
-    //IEC.pull ( PIN_IEC_SRQ );
+    IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
     {
         Debug_printv ( "Wait for listener to acknowledge byte received (pull data)" );
         return false; // return error because timeout
     }
-    //IEC.release ( PIN_IEC_SRQ );
+    IEC.release ( PIN_IEC_SRQ );
 
     // STEP 5: START OVER
     // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
