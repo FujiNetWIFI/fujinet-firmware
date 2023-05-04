@@ -282,8 +282,7 @@ protected:
 
 public:
   bool device_active;
-  //eject_latch allows simulation of an empty drive momentarily on disk mounts
-  bool eject_latch = false; 
+  uint8_t prevtype = SP_TYPE_BYTE_HARDDISK; //preserve previous device type when offline
   bool switched = false; //indicate disk switched condition
   bool readonly = true;  //write protected 
   bool is_config_device;

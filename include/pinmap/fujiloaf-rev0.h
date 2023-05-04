@@ -38,8 +38,8 @@
 #define RGB_ORDER           GRB
 // LED order on the strip starting with 0
 #define LED_WIFI_NUM        0
-#define LED_BUS_NUM         5
-#define LED_BT_NUM          3
+#define LED_BUS_NUM         4
+#define LED_BT_NUM          2
 
 /* Audio Output */
 #define PIN_DAC1 25 // samlib.h
