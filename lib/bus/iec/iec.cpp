@@ -321,7 +321,7 @@ void systemBus::read_command()
             case IEC_UNLISTEN:
                 data.primary = IEC_UNLISTEN;
                 data.secondary = 0x00;
-                bus_state = BUS_PROCESS;
+                bus_state = BUS_IDLE;
                 Debug_printf(" (3F UNLISTEN)\r\n");
                 break;
 
