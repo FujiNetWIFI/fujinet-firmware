@@ -267,9 +267,9 @@ void systemBus::read_command()
     {
         // ATN was pulled read bus command bytes
         // E884   20 C9 E9   JSR $E9C9     get byte from bus
-        pull( PIN_IEC_SRQ );
+        //pull( PIN_IEC_SRQ );
         c = receiveByte();
-        release( PIN_IEC_SRQ );
+        //release( PIN_IEC_SRQ );
 
         // Check for error
         if (c == 0xFFFFFFFF || flags & ERROR)

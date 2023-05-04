@@ -424,7 +424,8 @@ int16_t IecProtocolSerial::receiveByte()
     // E9D0   20 C0 E9   JSR $E9C0     read IEEE port
     // E9D3   29 04      AND #$04      CLOCK IN?
     // E9D5   D0 F6      BNE $E9CD     no, wait
-    if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_SYNC ) == TIMED_OUT )
+    IEC.pull ( PIN_IEC_SRQ );
+    if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
         Debug_printv ( "Wait for talker ready" );
         return -1; // return error because timeout
@@ -446,7 +447,7 @@ int16_t IecProtocolSerial::receiveByte()
         Debug_printv ( "Wait for all other devices to release the data line" );
         return -1; // return error because timeout
     }
-
+    IEC.release ( PIN_IEC_SRQ );
 
     // Either  the  talker  will pull the
     // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
