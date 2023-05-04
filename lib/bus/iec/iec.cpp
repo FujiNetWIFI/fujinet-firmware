@@ -121,23 +121,23 @@ void IRAM_ATTR systemBus::service()
 {
     // Handle SRQ for network.
 
-    // virtualDevice *d = deviceById(12);
+    virtualDevice *d = deviceById(12);
 
-    // if (d)
-    //     for (int i=0;i<16;i++)
-    //     {
-    //         d->poll_interrupt(i);
-    //     }
-
+    if (d)
+        for (int i = 0; i < 16; i++)
+        {
+            d->poll_interrupt(i);
+        }
+        
     if (bus_state < BUS_ACTIVE)
         return;
 
-    //pull( PIN_IEC_SRQ );
+        // pull( PIN_IEC_SRQ );
 
-    // Disable Interrupt
-    // gpio_intr_disable((gpio_num_t)PIN_IEC_ATN);
+        // Disable Interrupt
+        // gpio_intr_disable((gpio_num_t)PIN_IEC_ATN);
 
-    // TODO IMPLEMENT
+        // TODO IMPLEMENT
 
 #ifdef IEC_HAS_RESET
 
@@ -174,7 +174,7 @@ void IRAM_ATTR systemBus::service()
             break;
 
         // Turn on the lights
-        //fnLedManager.set(eLed::LED_BUS, true);
+        // fnLedManager.set(eLed::LED_BUS, true);
 
         if (bus_state == BUS_ACTIVE)
         {
@@ -193,9 +193,9 @@ void IRAM_ATTR systemBus::service()
             // Read bus command bytes
             Debug_printv("command");
             // E884   20 C9 E9   JSR $E9C9     get byte from bus
-            //pull ( PIN_IEC_SRQ );
+            // pull ( PIN_IEC_SRQ );
             read_command();
-            //release ( PIN_IEC_SRQ );
+            // release ( PIN_IEC_SRQ );
         }
 
         if (bus_state == BUS_PROCESS)
@@ -226,7 +226,7 @@ void IRAM_ATTR systemBus::service()
             // Process commands in devices
             // Debug_printv( "deviceProcess" );
 
-            //Debug_printv("bus[%d] device[%d]", bus_state, device_state);
+            // Debug_printv("bus[%d] device[%d]", bus_state, device_state);
 
             if (deviceById(data.device)->process(&data) < DEVICE_ACTIVE || device_state < DEVICE_ACTIVE)
             {
@@ -240,7 +240,7 @@ void IRAM_ATTR systemBus::service()
         }
 
         // Let bus stabalize
-        protocol->wait ( TIMING_STABLE, 0, false );
+        protocol->wait(TIMING_STABLE, 0, false);
 
         if (status(PIN_IEC_ATN))
             bus_state = BUS_ACTIVE;
@@ -248,7 +248,7 @@ void IRAM_ATTR systemBus::service()
     } while (bus_state > BUS_IDLE);
 
     // Turn off the lights
-    //fnLedManager.set(eLed::LED_BUS, false);
+    // fnLedManager.set(eLed::LED_BUS, false);
 
     // Cleanup and Re-enable Interrupt
     releaseLines();
@@ -258,7 +258,7 @@ void IRAM_ATTR systemBus::service()
     // Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
 
     Debug_printv("exit");
-    //release( PIN_IEC_SRQ );
+    // release( PIN_IEC_SRQ );
 }
 
 void systemBus::read_command()
@@ -269,9 +269,9 @@ void systemBus::read_command()
     {
         // ATN was pulled read bus command bytes
         // E884   20 C9 E9   JSR $E9C9     get byte from bus
-        //pull( PIN_IEC_SRQ );
+        // pull( PIN_IEC_SRQ );
         c = receiveByte();
-        //release( PIN_IEC_SRQ );
+        // release( PIN_IEC_SRQ );
 
         // Check for error
         if (c == 0xFFFFFFFF || flags & ERROR)
@@ -414,7 +414,7 @@ void systemBus::read_payload()
             return;
         }
 
-        //if (c != 0x0D && c != 0xFFFFFFFF) // Remove CR from end of command
+        // if (c != 0x0D && c != 0xFFFFFFFF) // Remove CR from end of command
         if (c != 0xFFFFFFFF)
         {
             listen_command += (uint8_t)c;
@@ -428,7 +428,6 @@ void systemBus::read_payload()
 
     bus_state = BUS_IDLE;
 }
-
 
 void systemBus::setup()
 {
@@ -570,10 +569,10 @@ int16_t systemBus::receiveByte()
 bool systemBus::sendByte(const char c, bool eoi)
 {
 #ifdef DATA_STREAM
-    if ( eoi )
-        Debug_printf ( "%.2X[eoi] ", c );
+    if (eoi)
+        Debug_printf("%.2X[eoi] ", c);
     else
-        Debug_printf ( "%.2X ", c );
+        Debug_printf("%.2X ", c);
 #endif
     if (!protocol->sendByte(c, eoi))
     {
@@ -593,7 +592,7 @@ bool systemBus::sendBytes(const char *buf, size_t len, bool eoi)
 {
     bool success = false;
 #ifdef DATA_STREAM
-        Debug_print ( "{ " );
+    Debug_print("{ ");
 #endif
     for (size_t i = 0; i < len; i++)
     {
@@ -614,7 +613,7 @@ bool systemBus::sendBytes(const char *buf, size_t len, bool eoi)
         }
     }
 #ifdef DATA_STREAM
-        Debug_println ( "}" );
+    Debug_println("}");
 #endif
     return true;
 }
@@ -626,18 +625,17 @@ bool systemBus::sendBytes(std::string s, bool eoi)
 
 void systemBus::process_cmd()
 {
-    //fnLedManager.set(eLed::LED_BUS, true);
+    // fnLedManager.set(eLed::LED_BUS, true);
 
     // TODO implement
 
-    //fnLedManager.set(eLed::LED_BUS, false);
+    // fnLedManager.set(eLed::LED_BUS, false);
 }
 
 void systemBus::process_queue()
 {
     // TODO IMPLEMENT
 }
-
 
 void IRAM_ATTR systemBus::deviceListen()
 {
@@ -676,14 +674,14 @@ void IRAM_ATTR systemBus::deviceListen()
 void IRAM_ATTR systemBus::deviceTalk(void)
 {
     // Now do bus turnaround
-    pull( PIN_IEC_SRQ );
+    pull(PIN_IEC_SRQ);
     if (!turnAround())
     {
         Debug_printv("error flags[%d]", flags);
         bus_state = BUS_ERROR;
         return;
     }
-    release( PIN_IEC_SRQ );
+    release(PIN_IEC_SRQ);
 
     // We have recieved a CMD and we should talk now:
     bus_state = BUS_PROCESS;
@@ -714,7 +712,7 @@ bool IRAM_ATTR systemBus::turnAround()
     // ATN100
     // E8F1   20 9C E9   JSR $E99C     DATA OUT, bit '1', lo (RELEASED)
     // E8F4   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
-    pull ( PIN_IEC_CLK_OUT ); // $E91F
+    pull(PIN_IEC_CLK_OUT); // $E91F
 
     // Wait until the computer releases the ATN line
     if (protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER) == TIMED_OUT)
@@ -732,7 +730,7 @@ bool IRAM_ATTR systemBus::turnAround()
     // protocol->wait( TIMING_Tda, 0, false );
     // pull ( PIN_IEC_CLK_OUT );
 
-    release ( PIN_IEC_DATA_OUT ); // $E8F1
+    release(PIN_IEC_DATA_OUT); // $E8F1
 
     return true;
 } // turnAround
