@@ -90,10 +90,6 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 {
     //IEC.pull ( PIN_IEC_SRQ );
 
-    IEC.flags &= CLEAR_LOW; // $E85E
-
-    wait ( 60 );
-
     // Say we're ready to talk
     // E91F   20 B7 E9   JSR $E9B7     CLOCK OUT lo (RELEASED)
     IEC.release ( PIN_IEC_CLK_OUT );
@@ -376,6 +372,42 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
 // EA2B   A5 85      LDA $85       load data byte again
 // EA2D   60         RTS
 
+// ******************************  accept data from serial bus
+// EA2E   78         SEI
+// EA2F   20 07 D1   JSR $D107     open channel for writing
+// EA32   B0 05      BCS $EA39     channel not active?
+// EA34   B5 F2      LDA $F2,X     WRITE flag
+// EA36   6A         ROR
+// EA37   B0 0B      BCS $EA44     not set?
+// EA39   A5 84      LDA $84       secondary address
+// EA3B   29 F0      AND #$F0
+// EA3D   C9 F0      CMP #$F0      OPEN command?
+// EA3F   F0 03      BEQ $EA44     yes
+// EA41   4C 4E EA   JMP $EA4E     to wait loop
+
+// EA44   20 C9 E9   JSR $E9C9     get data byte from bus
+// EA47   58         CLI
+// EA48   20 B7 CF   JSR $CFB7     and write in buffer
+// EA4B   4C 2E EA   JMP $EA2E     to loop beginning
+
+// EA4E   A9 00      LDA #$00
+// EA50   8D 00 18   STA $1800     reset IEEE port
+// EA53   4C E7 EB   JMP $EBE7     to wait loop
+
+// EA56   4C 5B E8   JMP $E85B     to serial bus main loop
+
+// ******************************
+// EA59   A5 7D      LDA $7D       EOI received?
+// EA5B   F0 06      BEQ $EA63     yes
+// EA5D   AD 00 18   LDA $1800     IEEE port
+// EA60   10 09      BPL $EA6B
+// EA62   60         RTS
+
+// EA63   AD 00 18   LDA $1800     IEEE port
+// EA66   10 FA      BPL $EA62
+// EA68   4C 5B E8   JMP $E85B     to serial bus main loop
+// EA6B   4C D7 E8   JMP $E8D7     set EOI, serial bus
+
 int16_t IecProtocolSerial::receiveByte()
 {
 // STEP 1: READY TO RECEIVE
@@ -387,13 +419,12 @@ int16_t IecProtocolSerial::receiveByte()
 // a printer chugging out a line of print, or a disk drive with a formatting job in progress,
 // it might holdback for quite a while; there's no time limit.
 
-    IEC.flags &= CLEAR_LOW;
-
-    // Sometimes the C64 pulls ATN but doesn't pull CLOCK right away
-    if ( !wait ( TIMING_STABLE ) ) return -1;
-
     // Wait for talker ready
-    if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
+    // E9CD   20 59 EA   JSR $EA59     check EOI
+    // E9D0   20 C0 E9   JSR $E9C0     read IEEE port
+    // E9D3   29 04      AND #$04      CLOCK IN?
+    // E9D5   D0 F6      BNE $E9CD     no, wait
+    if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_SYNC ) == TIMED_OUT )
     {
         Debug_printv ( "Wait for talker ready" );
         return -1; // return error because timeout
@@ -405,6 +436,7 @@ int16_t IecProtocolSerial::receiveByte()
     // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
     // to  accept  data.  What  happens  next  is  variable.
+    // E9D7   20 9C E9   JSR $E99C     DATA OUT, bit '1'
     if ( !wait ( TIMING_Th ) ) return -1;
     IEC.release ( PIN_IEC_DATA_OUT );
 
@@ -422,6 +454,12 @@ int16_t IecProtocolSerial::receiveByte()
     // without  the Clock line going to true, it has a special task to perform: note EOI.
 
     // pull ( PIN_IEC_SRQ );
+    // E9DA   A9 01      LDA #$01
+    // E9DC   8D 05 18   STA $1805     set timer
+    // E9DF   20 59 EA   JSR $EA59     check EOI
+    // E9E2   AD 0D 18   LDA $180D
+    // E9E5   29 40      AND #$40      timer run down?
+    // E9E7   D0 09      BNE $E9F2     yes, EOI
     if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMEOUT_Tne, false ) >= TIMEOUT_Tne )
     {
         // INTERMISSION: EOI
@@ -439,8 +477,6 @@ int16_t IecProtocolSerial::receiveByte()
         // transmission sequence.
 
         // Debug_printv("EOI!");
-
-        IEC.flags |= EOI_RECVD;
 
         // Acknowledge by pull down data more than 60us
         // E9F2   20 A5 E9   JSR $E9A5     DATA OUT bit '0' hi
@@ -464,11 +500,15 @@ int16_t IecProtocolSerial::receiveByte()
             IEC.flags |= EMPTY_STREAM;
             return -1; // return error because empty stream
         }
+
+        // EA07   A9 00      LDA #$00
+        // EA09   85 F8      STA $F8       set EOI flag
+        IEC.flags |= EOI_RECVD;
     }
-    else
-    {
-        if ( !wait ( TIMING_Tne ) ) return -1;
-    }
+    // else
+    // {
+    //     if ( !wait ( TIMING_Tne ) ) return -1;
+    // }
     // release ( PIN_IEC_SRQ );
 
 
@@ -487,7 +527,7 @@ int16_t IecProtocolSerial::receiveByte()
 
     // Acknowledge byte received
     // EA28   20 A5 E9   JSR $E9A5     DATA OUT, bit '0', hi
-    if ( !wait ( TIMING_Tf ) ) return -1;
+    //if ( !wait ( TIMING_Tf ) ) return -1;
     IEC.pull ( PIN_IEC_DATA_OUT );
 
     // STEP 5: START OVER
@@ -542,8 +582,8 @@ int16_t IecProtocolSerial::receiveBits ()
     {
         data >>= 1;
 
-        do
-        {
+        // do
+        // {
             // wait for bit to be ready to read
             //IEC.pull ( PIN_IEC_SRQ );
             // EA0B   AD 00 18   LDA $1800     IEEE port
@@ -557,30 +597,31 @@ int16_t IecProtocolSerial::receiveBits ()
             // if ( bit_time < TIMING_VIC20_DETECT )
             //     IEC.flags |= VIC20_MODE;
 
-            // If there is a delay before the last bit, the controller uses JiffyDOS
-            if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
-            {
-                if ( IEC.status ( PIN_IEC_ATN ) == PULLED && data < 0x60 )
-                {
-                    IEC.flags |= ATN_PULLED;
+            // // If there is a delay before the last bit, the controller uses JiffyDOS
+            // if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
+            // {
+            //     if ( IEC.status ( PIN_IEC_ATN ) == PULLED && data < 0x60 )
+            //     {
+            //         IEC.flags |= ATN_PULLED;
 
-                    uint8_t device = data & 0x1F;
-                    if ( IEC.enabledDevices & ( 1 << device ) )
-                    {
-                        /* If it's for us, notify controller that we support Jiffy too */
-                        IEC.pull(PIN_IEC_DATA_OUT);
-                        wait( TIMING_JIFFY_ACK, 0, false );
-                        IEC.release(PIN_IEC_DATA_OUT);
-                        IEC.flags |= JIFFY_ACTIVE;
-                    }
-                }
-            }
-            else if ( bit_time == TIMED_OUT )
+            //         uint8_t device = data & 0x1F;
+            //         if ( IEC.enabledDevices & ( 1 << device ) )
+            //         {
+            //             /* If it's for us, notify controller that we support Jiffy too */
+            //             IEC.pull(PIN_IEC_DATA_OUT);
+            //             wait( TIMING_JIFFY_ACK, 0, false );
+            //             IEC.release(PIN_IEC_DATA_OUT);
+            //             IEC.flags |= JIFFY_ACTIVE;
+            //         }
+            //     }
+            // }
+            // else 
+            if ( bit_time == TIMED_OUT )
             {
                 Debug_printv ( "wait for bit to be ready to read, bit_time[%d] n[%d]", bit_time, n );
                 return -1; // return error because timeout
             }
-        } while ( bit_time >= TIMING_JIFFY_DETECT );
+        // } while ( bit_time >= TIMING_JIFFY_DETECT );
 
         // get bit
         // EA18   66 85      ROR $85       prepare next bit
@@ -604,43 +645,6 @@ int16_t IecProtocolSerial::receiveBits ()
 
     return data;
 }
-
-
-// ******************************  accept data from serial bus
-// EA2E   78         SEI
-// EA2F   20 07 D1   JSR $D107     open channel for writing
-// EA32   B0 05      BCS $EA39     channel not active?
-// EA34   B5 F2      LDA $F2,X     WRITE flag
-// EA36   6A         ROR
-// EA37   B0 0B      BCS $EA44     not set?
-// EA39   A5 84      LDA $84       secondary address
-// EA3B   29 F0      AND #$F0
-// EA3D   C9 F0      CMP #$F0      OPEN command?
-// EA3F   F0 03      BEQ $EA44     yes
-// EA41   4C 4E EA   JMP $EA4E     to wait loop
-
-// EA44   20 C9 E9   JSR $E9C9     get data byte from bus
-// EA47   58         CLI
-// EA48   20 B7 CF   JSR $CFB7     and write in buffer
-// EA4B   4C 2E EA   JMP $EA2E     to loop beginning
-
-// EA4E   A9 00      LDA #$00
-// EA50   8D 00 18   STA $1800     reset IEEE port
-// EA53   4C E7 EB   JMP $EBE7     to wait loop
-
-// EA56   4C 5B E8   JMP $E85B     to serial bus main loop
-
-// ******************************
-// EA59   A5 7D      LDA $7D       EOI received?
-// EA5B   F0 06      BEQ $EA63     yes
-// EA5D   AD 00 18   LDA $1800     IEEE port
-// EA60   10 09      BPL $EA6B
-// EA62   60         RTS
-
-// EA63   AD 00 18   LDA $1800     IEEE port
-// EA66   10 FA      BPL $EA62
-// EA68   4C 5B E8   JMP $E85B     to serial bus main loop
-// EA6B   4C D7 E8   JMP $E8D7     set EOI, serial bus
 
 
 #endif
