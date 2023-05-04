@@ -446,7 +446,8 @@ void iwmFuji::debug_tape()
 void iwmFuji::iwm_ctrl_disk_image_umount()
 {
     unsigned char ds = data_buffer[0];//adamnet_recv();
-    
+    if(_fnDisks[ds].disk_dev.device_active)
+      _fnDisks[ds].disk_dev.switched = true;
     _fnDisks[ds].disk_dev.unmount();
     _fnDisks[ds].reset();
 }
@@ -1435,5 +1436,18 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
   fnLedManager.set(LED_BUS, false);
 }
 
-
+void iwmFuji::handle_ctl_eject(uint8_t spid) {
+  int ds = 255;
+  for(int i = 0; i < MAX_DISK_DEVICES; i++) {
+    if(theFuji.get_disks(i)->disk_dev.id() == spid) {
+      ds = i;
+    }
+  }
+  if(ds != 255 ) {
+    theFuji.get_disks(ds)->reset();
+    Config.clear_mount(ds);
+    Config.save();
+    theFuji._populate_slots_from_config();    
+  }
+}
 #endif /* BUILD_APPLE */
