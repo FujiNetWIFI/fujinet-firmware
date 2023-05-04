@@ -86,6 +86,7 @@ void ledStripTask(void *pvParameters)
         }
         else if (stateChange)
         {
+            FastLED.clear(); // Clear the led data first
             // Prep the led states
             for (int i=0;i<LED_STRIP_COUNT;i++)
             {
@@ -102,8 +103,7 @@ void ledStripTask(void *pvParameters)
                     // TODO: figure out how to handle this
                 }
             }
-
-            FastLED.showColor(CRGB::Black); // Blank it first otherwise the last LED color is always wrong, WHY?
+            //FastLED.showColor(CRGB::Black); // Blank it first otherwise the last LED color is always wrong, WHY?
             FastLED.show(); // make it so
             stateChange = false;
         }
@@ -122,7 +122,7 @@ void rainbow_wave(uint8_t thisSpeed, uint8_t deltaHue) {
 LedStrip::LedStrip()
 {
     sLedColor[stripLed::LED_STRIP_WIFI] = CRGB::White;
-    sLedColor[stripLed::LED_STRIP_BUS] = CRGB::Orange;
+    sLedColor[stripLed::LED_STRIP_BUS] = CRGB::OrangeRed;
     sLedColor[stripLed::LED_STRIP_BT] = CRGB::Blue;
 }
 
