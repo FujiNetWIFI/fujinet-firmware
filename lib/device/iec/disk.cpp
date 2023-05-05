@@ -159,7 +159,7 @@ void iecDisk::process_command()
     {
         iec_talk_command();
     }
-    else if (commanddata->primary == IEC_UNLISTEN)
+    else if (commanddata->primary == IEC_LISTEN)
     {
         iec_command();
     }
@@ -195,7 +195,13 @@ void iecDisk::iec_open()
         // Remove media ID from command string
         s = mstr::drop(s, 2);
     }
-    else if ( mstr::equals(s, "$") ) 
+    if ( mstr::startsWith(s, "cd") )
+    {
+        s = mstr::drop(s, 2);
+		if ( s[0] == ':' || s[0] == ' ' )
+			s = mstr::drop(s, 1);
+    }
+    else if ( s[0] == '$' ) 
     {
         s.clear();
     }

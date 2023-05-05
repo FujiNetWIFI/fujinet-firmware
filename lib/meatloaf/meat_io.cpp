@@ -403,7 +403,11 @@ MFile* MFile::cd(std::string newDir) {
     // if you want to support LOAD"CDxxxxxx" just parse/drop the CD BEFORE calling this function
     // and call it ONLY with the path you want to change into!
 
-    if(newDir[0]=='/' && newDir[1]=='/') {
+    if(newDir.find(':') != std::string::npos) {
+        // I can only guess we're CDing into another url scheme, this means we're changing whole path
+        return MFSOwner::File(newDir);
+    }
+    else if(newDir[0]=='/' && newDir[1]=='/') {
         if(newDir.size()==2) {
             // user entered: CD:// or CD//
             // means: change to the root of roots
@@ -412,7 +416,7 @@ MFile* MFile::cd(std::string newDir) {
         else {
             // user entered: CD://DIR or CD//DIR
             // means: change to a dir in root of roots
-            return root(mstr::drop(newDir,2));
+            return localRoot(mstr::drop(newDir,2));
         }
     }
     else if(newDir[0]=='/' || newDir[0]=='^') {
@@ -426,7 +430,7 @@ MFile* MFile::cd(std::string newDir) {
         else {
             // user entered: CD:/DIR or CD/DIR
             // means: change to a dir in container root
-            return localRoot(mstr::drop(newDir,1));
+            return root(mstr::drop(newDir,1));
         }
     }
     else if(newDir[0]=='_') {
@@ -441,8 +445,7 @@ MFile* MFile::cd(std::string newDir) {
             return parent(mstr::drop(newDir,1));
         }
     }
-
-    if(newDir[0]=='.' && newDir[1]=='.') {
+    else if(newDir[0]=='.' && newDir[1]=='.') {
         if(newDir.size()==2) {
             // user entered: CD:.. or CD..
             // means: go up one directory
@@ -455,23 +458,19 @@ MFile* MFile::cd(std::string newDir) {
         }
     }
 
-    if(newDir[0]=='@' /*&& newDir[1]=='/' let's be consistent!*/) {
-        if(newDir.size() == 1) {
-            // user entered: CD:@ or CD@
-            // meaning: go to the .sys folder
-            return MFSOwner::File("/.sys");
-        }
-        else {
-            // user entered: CD:@FOLDER or CD@FOLDER
-            // meaning: go to a folder in .sys folder
-            return MFSOwner::File("/.sys/" + mstr::drop(newDir,1));
-        }
-    }
+    // if(newDir[0]=='@' /*&& newDir[1]=='/' let's be consistent!*/) {
+    //     if(newDir.size() == 1) {
+    //         // user entered: CD:@ or CD@
+    //         // meaning: go to the .sys folder
+    //         return MFSOwner::File("/.sys");
+    //     }
+    //     else {
+    //         // user entered: CD:@FOLDER or CD@FOLDER
+    //         // meaning: go to a folder in .sys folder
+    //         return MFSOwner::File("/.sys/" + mstr::drop(newDir,1));
+    //     }
+    // }
 
-    if(newDir.find(':') != std::string::npos) {
-        // I can only guess we're CDing into another url scheme, this means we're changing whole path
-        return MFSOwner::File(newDir);
-    }
     else {
 
         // Add new directory to path
