@@ -38,6 +38,7 @@
 // Network
 #include "network/http.h"
 #include "network/ml.h"
+#include "network/tnfs.h"
 // #include "network/ipfs.h"
 // #include "network/tnfs.h"
 // #include "network/smb.h"
@@ -61,6 +62,7 @@ SDFileSystem sdFS;
 // Scheme
 HttpFileSystem httpFS;
 MLFileSystem mlFS;
+TNFSFileSystem tnfsFS;
 // IPFSFileSystem ipfsFS;
 // TNFSFileSystem tnfsFS;
 // CServerFileSystem csFS;
@@ -98,7 +100,7 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
     &p00FS,
     &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &d8bFS, &dnpFS,
     &t64FS, &tcrtFS,
-    &httpFS, &mlFS
+    &httpFS, &mlFS, &tnfsFS
 //    &ipfsFS, &tcpFS,
 //    &tnfsFS
 };

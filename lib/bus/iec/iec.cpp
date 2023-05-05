@@ -119,25 +119,26 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
 
 void IRAM_ATTR systemBus::service()
 {
-    // Handle SRQ for network.
+    // pull( PIN_IEC_SRQ );
 
-    virtualDevice *d = deviceById(12);
+    // Disable Interrupt
+    // gpio_intr_disable((gpio_num_t)PIN_IEC_ATN);
 
-    if (d)
-        for (int i = 0; i < 16; i++)
-        {
-            d->poll_interrupt(i);
-        }
-        
+    // TODO IMPLEMENT
+
     if (bus_state < BUS_ACTIVE)
+    {
+        // Handle SRQ for network.
+        virtualDevice *d = deviceById(12);
+        if (d)
+        {
+            for (int i = 0; i < 16; i++)
+            {
+                d->poll_interrupt(i);
+            }
+        }
         return;
-
-        // pull( PIN_IEC_SRQ );
-
-        // Disable Interrupt
-        // gpio_intr_disable((gpio_num_t)PIN_IEC_ATN);
-
-        // TODO IMPLEMENT
+    }
 
 #ifdef IEC_HAS_RESET
 
@@ -173,9 +174,6 @@ void IRAM_ATTR systemBus::service()
         if (bus_state == BUS_OFFLINE)
             break;
 
-        // Turn on the lights
-        // fnLedManager.set(eLed::LED_BUS, true);
-
         if (bus_state == BUS_ACTIVE)
         {
             // E85C   A9 00      LDA #$00
@@ -196,6 +194,9 @@ void IRAM_ATTR systemBus::service()
             // pull ( PIN_IEC_SRQ );
             read_command();
             // release ( PIN_IEC_SRQ );
+
+            // Turn on the lights
+            fnLedManager.set(eLed::LED_BUS, true);
         }
 
         if (bus_state == BUS_PROCESS)
@@ -247,15 +248,15 @@ void IRAM_ATTR systemBus::service()
 
     } while (bus_state > BUS_IDLE);
 
-    // Turn off the lights
-    // fnLedManager.set(eLed::LED_BUS, false);
-
     // Cleanup and Re-enable Interrupt
     releaseLines();
     // gpio_intr_enable((gpio_num_t)PIN_IEC_ATN);
 
     // Debug_printv ( "primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", data.primary, data.secondary, bus_state, flags );
     // Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
+
+    // Turn off the lights
+    fnLedManager.set(eLed::LED_BUS, false);
 
     Debug_printv("exit");
     // release( PIN_IEC_SRQ );
@@ -674,14 +675,14 @@ void IRAM_ATTR systemBus::deviceListen()
 void IRAM_ATTR systemBus::deviceTalk(void)
 {
     // Now do bus turnaround
-    pull(PIN_IEC_SRQ);
+    //pull(PIN_IEC_SRQ);
     if (!turnAround())
     {
         Debug_printv("error flags[%d]", flags);
         bus_state = BUS_ERROR;
         return;
     }
-    release(PIN_IEC_SRQ);
+    //release(PIN_IEC_SRQ);
 
     // We have recieved a CMD and we should talk now:
     bus_state = BUS_PROCESS;
