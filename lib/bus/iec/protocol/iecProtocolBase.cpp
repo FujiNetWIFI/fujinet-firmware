@@ -35,7 +35,7 @@ int16_t IecProtocolBase::timeoutWait(uint8_t pin, bool target_status, size_t wai
         current = esp_timer_get_time();
         elapsed = current++ - start;
 
-        if ( elapsed > wait && wait != FOREVER )
+        if ( elapsed > wait ) // && wait != FOREVER )
         {
             //IEC.release ( PIN_IEC_SRQ );
             if ( wait == TIMEOUT_DEFAULT )

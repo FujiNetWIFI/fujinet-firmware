@@ -186,7 +186,7 @@ typedef enum
 // See timeoutWait
 #define TIMEOUT_DEFAULT 1000 // 1ms
 #define TIMED_OUT -1
-#define FOREVER 0
+#define FOREVER 3000 // 0
 
 #ifndef IEC_INVERTED_LINES
 // Not Inverted
