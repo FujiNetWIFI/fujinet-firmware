@@ -159,7 +159,7 @@ void iecDisk::process_command()
     {
         iec_talk_command();
     }
-    else if (commanddata->primary == IEC_UNLISTEN)
+    else if (commanddata->primary == IEC_LISTEN)
     {
         iec_command();
     }
