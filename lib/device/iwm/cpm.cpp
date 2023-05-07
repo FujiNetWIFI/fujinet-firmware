@@ -243,7 +243,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
         switch (control_code)
         {
         case 'B': // Boot
-            if (!fnSystem.check_spifix())
+            if (!fnSystem.spifix())
             {
                 err_result = SP_ERR_OFFLINE;
                 Debug_printf("FujiApple SPI Fix Missing, not starting CP/M\n");

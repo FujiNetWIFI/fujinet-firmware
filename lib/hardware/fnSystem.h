@@ -26,7 +26,7 @@ private:
     int _hardware_version = 0; // unknown
     bool a2spifix = false;
     bool a2no3state = false;
-    bool ledstrip = false;
+    bool ledstrip_found = false;
 
 public:
     SystemManager();
@@ -126,9 +126,9 @@ public:
     int get_hardware_ver() { return _hardware_version; };
     const char *get_hardware_ver_str();
 
-    bool check_spifix() { return a2spifix; };
-    bool check_no3state() { return a2no3state; };
-    bool check_ledstrip() { return ledstrip; };
+    bool spifix() { return a2spifix; };
+    bool no3state() { return a2no3state; };
+    bool ledstrip() { return ledstrip_found; };
 };
 
 extern SystemManager fnSystem;
