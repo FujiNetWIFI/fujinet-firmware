@@ -79,26 +79,6 @@ class iecNetwork : public virtualDevice
     private:
 
     /**
-     * ESP timer handle for the Interrupt rate limiting timer
-     */
-    esp_timer_handle_t rateTimerHandle = nullptr;
-
-    /**
-     * Timer Rate for interrupt timer
-     */
-    int timerRate = 100;
-
-    /**
-     * @brief Start the Interrupt rate limiting timer
-     */
-    void timer_start();
-
-    /**
-     * @brief Stop the Interrupt rate limiting timer
-     */
-    void timer_stop();
-
-    /**
      * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
      */
     void assert_interrupt();
