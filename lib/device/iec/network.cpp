@@ -38,8 +38,6 @@ iecNetwork::iecNetwork()
         specialBuffer[i] = new string();
     }
 
-    timer_start();
-
     iecStatus.channel = 15;
     iecStatus.connected = 0;
     iecStatus.msg = "fujinet network device";
