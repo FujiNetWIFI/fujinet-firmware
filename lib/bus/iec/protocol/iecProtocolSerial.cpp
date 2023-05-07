@@ -150,7 +150,6 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
             Debug_printv ( "EOI ACK: Listener didn't PULL DATA" );
             return false;
         }
-    }
 
     // E941   20 59 EA   JSR $EA59     check EOI
     // E944   20 C0 E9   JSR $E9C0     read IEEE port
@@ -161,7 +160,8 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         Debug_printv ( "EOI ACK: Listener didn't RELEASE DATA" );
         return false;
     }
-    if ( wait ( TIMING_Try ) ) return false;
+        wait ( TIMING_Try );
+    }
 
     // E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
     IEC.pull ( PIN_IEC_CLK_OUT );  // tell listner to wait
@@ -554,7 +554,7 @@ int16_t IecProtocolSerial::receiveByte()
     //      wait ( TIMING_Tbb );
     // }
 
-    Debug_printv("data[%02X][%c] flags[%d]", data, data, IEC.flags);
+    //Debug_printv("data[%02X][%c] flags[%d]", data, data, IEC.flags);
 
     wait ( TIMING_Tbb );
 
@@ -648,8 +648,8 @@ int16_t IecProtocolSerial::receiveBits ()
 
         // get bit
         // EA18   66 85      ROR $85       prepare next bit
-        data = ( data >> 1 ) | ( gpio_get_level ( PIN_IEC_DATA_IN ) << 7 );
-        IEC.release ( PIN_IEC_SRQ );
+        data = ( data >> 1 ) | ( IEC.status ( PIN_IEC_DATA_IN ) == RELEASED ? ( 1 << 7 ) : 0 );
+        //IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
         // EA1A   20 59 EA   JSR $EA59     check EOI
