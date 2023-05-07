@@ -74,11 +74,10 @@ void iecCpm::iec_close()
         vTaskDelete(cpmTaskHandle);
 }
 
-void iecCpm::poll_interrupt()
-{
-    Debug_printf(".");
+void iecCpm::poll_interrupt(unsigned char c)
+{    
     if (uxQueueMessagesWaiting(rxq))
-        assert_interrupt();
+        IEC.assert_interrupt();
 }
 
 void iecCpm::iec_reopen_talk()

@@ -28,10 +28,10 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
  */
 static void onTimer(void *info)
 {
-    virtualDevice *parent = (virtualDevice *)info;
-    portENTER_CRITICAL_ISR(&parent->timerMux);
+    systemBus *parent = (systemBus *)info;
+    //portENTER_CRITICAL_ISR(&parent->timerMux);
     parent->interruptSRQ = !parent->interruptSRQ;
-    portEXIT_CRITICAL_ISR(&parent->timerMux);
+    //portEXIT_CRITICAL_ISR(&parent->timerMux);
 }
 
 void systemBus::setup()
@@ -77,16 +77,14 @@ void IRAM_ATTR systemBus::service()
 
     // TODO IMPLEMENT
 
-    Debug_printf("%u\n",bus_state);
-
     if (bus_state < BUS_ACTIVE)
     {
         // Handle SRQ for devices
-        for (auto devicep : _daisyChain)
-        {
-            for (unsigned char i=0;i<16;i++)
-                devicep->poll_interrupt(i);
-        }
+        // for (auto devicep : _daisyChain)
+        // {
+        //     for (unsigned char i=0;i<16;i++)
+        //         devicep->poll_interrupt(i);
+        // }
 
         return;
     }
@@ -483,7 +481,7 @@ void virtualDevice::dumpData()
     Debug_printf("%9s: %s\n", "Payload", commanddata->payload.c_str());
 }
 
-void virtualDevice::assert_interrupt()
+void systemBus::assert_interrupt()
 {
     if (interruptSRQ)
         IEC.pull(PIN_IEC_SRQ);

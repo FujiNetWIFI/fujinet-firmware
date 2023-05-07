@@ -69,7 +69,7 @@ void iecNetwork::poll_interrupt(unsigned char c)
         protocol[c]->fromInterrupt = false;
 
         if (ns.rxBytesWaiting > 0 || ns.connected == 0)
-            assert_interrupt();
+            IEC.assert_interrupt();
     }
 }
 
@@ -200,7 +200,7 @@ void iecNetwork::iec_open()
     }
 
     // assert SRQ
-    assert_interrupt();
+    IEC.assert_interrupt();
 
     // Associate channel mode
     json[commanddata->channel] = new FNJSON();
