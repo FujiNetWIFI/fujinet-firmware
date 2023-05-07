@@ -418,6 +418,35 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     return device_state;
 }
 
+/**
+ * Start the Interrupt rate limiting timer
+ */
+void virtualDevice::timer_start()
+{
+    esp_timer_create_args_t tcfg;
+    tcfg.arg = this;
+    tcfg.callback = onTimer;
+    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
+    tcfg.name = nullptr;
+    esp_timer_create(&tcfg, &rateTimerHandle);
+    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
+}
+
+/**
+ * Stop the Interrupt rate limiting timer
+ */
+void virtualDevice::timer_stop()
+{
+    // Delete existing timer
+    if (rateTimerHandle != nullptr)
+    {
+        Debug_println("Deleting existing rateTimer\n");
+        esp_timer_stop(rateTimerHandle);
+        esp_timer_delete(rateTimerHandle);
+        rateTimerHandle = nullptr;
+    }
+}
+
 void virtualDevice::iec_talk_command_buffer_status()
 {
     char reply[80];

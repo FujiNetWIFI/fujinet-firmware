@@ -85,35 +85,6 @@ void iecNetwork::assert_interrupt()
         IEC.release(PIN_IEC_SRQ);
 }
 
-/**
- * Start the Interrupt rate limiting timer
- */
-void iecNetwork::timer_start()
-{
-    esp_timer_create_args_t tcfg;
-    tcfg.arg = this;
-    tcfg.callback = onTimer;
-    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
-    tcfg.name = nullptr;
-    esp_timer_create(&tcfg, &rateTimerHandle);
-    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
-}
-
-/**
- * Stop the Interrupt rate limiting timer
- */
-void iecNetwork::timer_stop()
-{
-    // Delete existing timer
-    if (rateTimerHandle != nullptr)
-    {
-        Debug_println("Deleting existing rateTimer\n");
-        esp_timer_stop(rateTimerHandle);
-        esp_timer_delete(rateTimerHandle);
-        rateTimerHandle = nullptr;
-    }
-}
-
 void iecNetwork::iec_open()
 {
     file_not_found = false;

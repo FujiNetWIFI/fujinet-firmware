@@ -150,6 +150,28 @@ class systemBus;
  */
 class virtualDevice
 {
+private:
+
+    /**
+     * ESP timer handle for the Interrupt rate limiting timer
+     */
+    esp_timer_handle_t rateTimerHandle = nullptr;
+
+    /**
+     * Timer Rate for interrupt timer
+     */
+    int timerRate = 100;
+
+    /**
+     * @brief Start the Interrupt rate limiting timer
+     */
+    void timer_start();
+
+    /**
+     * @brief Stop the Interrupt rate limiting timer
+     */
+    void timer_stop();
+
 protected:
     friend systemBus; /* Because we connect to it. */
 
