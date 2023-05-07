@@ -644,13 +644,13 @@ void SystemManager::check_hardware_ver()
 
     if(ledstripdowncheck == ledstripupcheck)
     {
-        ledstrip = true;
+        ledstrip_found = true;
         Debug_printf("Enabling LED Strip\n");
     }
     */
 
     /* For now, just enable ledstrip for FujiLoaf */
-    ledstrip = true;
+    ledstrip_found = true;
     Debug_printf("Enabling LED Strip\n");
 #endif
 
@@ -663,14 +663,15 @@ void SystemManager::check_hardware_ver()
     fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
     ledstripdowncheck = fnSystem.digital_read(LED_DATA_PIN);
 
+    // DISABLED LED Strip for A2
     if(ledstripdowncheck == ledstripupcheck)
     {
-        ledstrip = true;
-        Debug_printf("Enabling LED Strip\n");
+        //ledstrip_found = true;
+        //Debug_printf("Enabling LED Strip\n");
     }
 
     /* Apple 2 Rev 1 has pulldown on IO21 for optocoupler
-       If found, enable spifix and no tristate
+       If found, enable spifix, no tristate and Safe Reset on GPIO4
     */
     fnSystem.set_pin_mode(GPIO_NUM_21, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     optoupcheck = fnSystem.digital_read(GPIO_NUM_21);
@@ -682,6 +683,7 @@ void SystemManager::check_hardware_ver()
         a2spifix = true;
         a2no3state = true;
         Debug_printf("FujiApple NO3STATE & SPIFIX ENABLED\n");
+
     }
 
     /* For those who have modified their FujiApple to remove the tristate buffer but

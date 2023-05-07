@@ -54,7 +54,7 @@ void KeyManager::setup()
     {
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC)
         /* Check if hardware has SPI fix and thus no safe reset button (_keys[eKey::BUTTON_C].disabled = true) */
-        if (fnSystem.check_spifix())
+        if (fnSystem.spifix())
         {
             _keys[eKey::BUTTON_C].disabled = true;
             Debug_println("Safe Reset Button C: DISABLED due to SPI Fix");
@@ -236,7 +236,7 @@ void KeyManager::_keystate_task(void *param)
             Debug_println("BUTTON_A: SHORT PRESS");
 
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
-            if(fnSystem.check_ledstrip())
+            if(fnSystem.ledstrip())
             {
                 if (fnLedStrip.rainbowTimer > 0)
                     fnLedStrip.stopRainbow();
@@ -247,6 +247,8 @@ void KeyManager::_keystate_task(void *param)
             {
                 fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
             }
+            Debug_println("ACTION: Reboot");
+            fnSystem.reboot();
 #else
             fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
 #endif // PINMAP_A2_REV0
