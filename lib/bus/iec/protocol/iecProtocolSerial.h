@@ -53,7 +53,7 @@ class IecProtocolSerial : public IecProtocolBase
      * @param eoi Signal EOI (end of Information)
      * @return true if send was successful.
      */
-    virtual bool sendByte(uint8_t data, bool eoi);
+    virtual bool sendByte(uint8_t data, bool signalEOI);
 };
 
 #endif /* IECPROTOCOLSERIAL_H */
