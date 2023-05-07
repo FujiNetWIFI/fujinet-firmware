@@ -48,7 +48,7 @@ void LedManager::setup()
 
 void LedManager::set(eLed led, bool on)
 {
-    if(fnSystem.check_ledstrip())
+    if(fnSystem.ledstrip())
     {
         switch (led)
         {
@@ -82,7 +82,7 @@ void LedManager::set(eLed led, bool on)
 
 void LedManager::toggle(eLed led)
 {
-    if(fnSystem.check_ledstrip())
+    if(fnSystem.ledstrip())
     {
         switch (led)
         {
@@ -107,7 +107,7 @@ void LedManager::toggle(eLed led)
 
 void LedManager::blink(eLed led, int count)
 {
-    if(fnSystem.check_ledstrip())
+    if(fnSystem.ledstrip())
     {
         switch (led)
         {
