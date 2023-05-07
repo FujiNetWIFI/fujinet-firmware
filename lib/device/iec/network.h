@@ -76,17 +76,6 @@ class iecNetwork : public virtualDevice
      */
     virtual void poll_interrupt(unsigned char c);
 
-    /**
-     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
-     */
-    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-
-    /**
-     * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
-     * be pulsed.
-     */
-    bool interruptSRQ = false;
-
     private:
 
     /**

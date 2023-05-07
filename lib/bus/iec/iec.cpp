@@ -22,6 +22,18 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
         b->bus_state = BUS_ACTIVE;
 }
 
+/**
+ * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
+ * flag to true. This is set to false when the interrupt is serviced.
+ */
+static void onTimer(void *info)
+{
+    virtualDevice *parent = (virtualDevice *)info;
+    portENTER_CRITICAL_ISR(&parent->timerMux);
+    parent->interruptSRQ = !parent->interruptSRQ;
+    portEXIT_CRITICAL_ISR(&parent->timerMux);
+}
+
 void systemBus::setup()
 {
     Debug_printf("IEC systemBus::setup()\n");
