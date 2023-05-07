@@ -240,11 +240,6 @@ protected:
     virtual void poll_interrupt(unsigned char c) {}
 
     /**
-     * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
-     */
-    void assert_interrupt();
-
-    /**
      * @brief Dump the current IEC frame to terminal.
      */
     void dumpData();
@@ -278,12 +273,6 @@ public:
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
      */
     portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-
-    /**
-     * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
-     * be pulsed.
-     */
-    bool interruptSRQ = false;
 
     /**
      * @brief Get the systemBus object that this virtualDevice is attached to.
@@ -395,6 +384,12 @@ public:
     bus_state_t bus_state;
 
     /**
+     * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
+     * be pulsed.
+     */
+    bool interruptSRQ = false;    
+
+    /**
      * @brief data about current bus transaction
      */
     IECData data;
@@ -414,6 +409,11 @@ public:
      */
     void service();
 
+    /**
+     * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
+     */
+    void assert_interrupt();
+    
     /**
      * @brief send single byte
      * @param c byte to send
