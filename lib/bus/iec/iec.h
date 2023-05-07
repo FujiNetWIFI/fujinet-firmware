@@ -152,26 +152,6 @@ class virtualDevice
 {
 private:
 
-    /**
-     * ESP timer handle for the Interrupt rate limiting timer
-     */
-    esp_timer_handle_t rateTimerHandle = nullptr;
-
-    /**
-     * Timer Rate for interrupt timer
-     */
-    int timerRate = 100;
-
-    /**
-     * @brief Start the Interrupt rate limiting timer
-     */
-    void timer_start();
-
-    /**
-     * @brief Stop the Interrupt rate limiting timer
-     */
-    void timer_stop();
-
 protected:
     friend systemBus; /* Because we connect to it. */
 
@@ -258,7 +238,12 @@ protected:
      * @param c secondary channel (0-15)
      */
     virtual void poll_interrupt(unsigned char c) {}
-    
+
+    /**
+     * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
+     */
+    void assert_interrupt();
+
     /**
      * @brief Dump the current IEC frame to terminal.
      */
@@ -377,6 +362,26 @@ private:
      * @brief Release the bus lines, we're done.
      */
     void releaseLines(bool wait = false);
+
+    /**
+     * ESP timer handle for the Interrupt rate limiting timer
+     */
+    esp_timer_handle_t rateTimerHandle = nullptr;
+
+    /**
+     * Timer Rate for interrupt timer
+     */
+    int timerRate = 100;
+
+    /**
+     * @brief Start the Interrupt rate limiting timer
+     */
+    void timer_start();
+
+    /**
+     * @brief Stop the Interrupt rate limiting timer
+     */
+    void timer_stop();
 
 public:
     /**

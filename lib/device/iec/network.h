@@ -79,11 +79,6 @@ class iecNetwork : public virtualDevice
     private:
 
     /**
-     * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
-     */
-    void assert_interrupt();
-
-    /**
      * @brief the active URL for each channel
      */
     string deviceSpec[NUM_CHANNELS];

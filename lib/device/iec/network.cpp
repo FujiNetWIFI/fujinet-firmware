@@ -48,8 +48,6 @@ iecNetwork::iecNetwork()
 
 iecNetwork::~iecNetwork()
 {
-    timer_stop();
-
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
         delete protocol[i];
@@ -75,14 +73,6 @@ void iecNetwork::poll_interrupt(unsigned char c)
         if (ns.rxBytesWaiting > 0 || ns.connected == 0)
             assert_interrupt();
     }
-}
-
-void iecNetwork::assert_interrupt()
-{
-    if (interruptSRQ)
-        IEC.pull(PIN_IEC_SRQ);
-    else
-        IEC.release(PIN_IEC_SRQ);
 }
 
 void iecNetwork::iec_open()
