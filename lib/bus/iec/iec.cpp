@@ -77,6 +77,8 @@ void IRAM_ATTR systemBus::service()
 
     // TODO IMPLEMENT
 
+    Debug_printf("%u\n",bus_state);
+
     if (bus_state < BUS_ACTIVE)
     {
         // Handle SRQ for devices

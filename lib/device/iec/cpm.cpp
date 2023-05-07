@@ -74,6 +74,13 @@ void iecCpm::iec_close()
         vTaskDelete(cpmTaskHandle);
 }
 
+void iecCpm::poll_interrupt()
+{
+    Debug_printf(".");
+    if (uxQueueMessagesWaiting(rxq))
+        assert_interrupt();
+}
+
 void iecCpm::iec_reopen_talk()
 {
     bool set_eoi = false;
