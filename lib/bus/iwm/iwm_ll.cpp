@@ -513,7 +513,7 @@ void iwm_sp_ll::setup_spi()
 
   spi_buffer = (uint8_t *)heap_caps_malloc(SPI_SP_LEN, MALLOC_CAP_DMA);
 
-  if(fnSystem.check_spifix())
+  if(fnSystem.spifix())
     spirx_mosi_pin = SP_SPI_FIX_PIN;
 
   // SPI for receiving packets - sprirx
@@ -558,7 +558,7 @@ void iwm_sp_ll::setup_spi()
     .queue_size = 2                    // We want to be able to queue 7 transactions at a time
   };
 
-  if(fnSystem.check_spifix())
+  if(fnSystem.spifix())
   {
     // use different SPI than SDCARD
     ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
@@ -589,12 +589,14 @@ void iwm_ll::setup_gpio()
   //set ack to input to avoid clashing with other devices when sp bus is not enabled
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
 
-#ifdef NO3STATE
-  // set up the output pin as IO (like SPI does) and set to low, then to hi-z
-  fnSystem.set_pin_mode(SP_SPI_FIX_PIN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-  fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
-  disable_output();
-#endif
+  if (fnSystem.no3state())
+  {
+    // set up the output pin as IO (like SPI does) and set to low, then to hi-z
+    fnSystem.set_pin_mode(SP_SPI_FIX_PIN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+    fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
+    disable_output();
+  }
+
 
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
@@ -606,10 +608,12 @@ void iwm_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
   fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
-#if !defined(NO3STATE)
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
-  fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
-#endif
+
+  if (!fnSystem.no3state())
+  {
+    fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
+    fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
+  }
 
 #ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
@@ -766,7 +770,7 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 
 void iwm_sp_ll::set_output_to_spi()
 {
-  if(fnSystem.check_spifix())
+  if(fnSystem.spifix())
   {
     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[VSPI_HOST].spid_out, false, false);
   }
@@ -778,7 +782,7 @@ void iwm_sp_ll::set_output_to_spi()
 
 void iwm_diskii_ll::set_output_to_low()
 {
-  if(fnSystem.check_spifix())
+  if(fnSystem.spifix())
   {
     fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, SIG_GPIO_OUT_IDX, false, false);
@@ -813,7 +817,7 @@ void iwm_diskii_ll::stop()
 void iwm_diskii_ll::set_output_to_rmt()
 {
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-  if(fnSystem.check_spifix())
+  if(fnSystem.spifix())
     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
   else
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
@@ -827,21 +831,21 @@ void iwm_diskii_ll::set_output_to_rmt()
 
 void iwm_ll::enable_output()
 {
-#ifdef NO3STATE
+  if(fnSystem.no3state())
     GPIO.enable_w1ts = ((uint32_t)0x01 << SP_SPI_FIX_PIN); // enable output
-#else
+  else
     GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); //  enable the tri-state buffer activating RDDATA
-#endif
 }
 
 void iwm_ll::disable_output()
 {
-#ifdef NO3STATE
+  if(fnSystem.no3state())
+  {
     GPIO.func_out_sel_cfg[SP_SPI_FIX_PIN].oen_sel = 1;     // let me control the enable register
     GPIO.enable_w1tc = ((uint32_t)0x01 << SP_SPI_FIX_PIN); // go hi-z with disabled output
-#else
+  }
+  else
     GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); // make RDDATA go hi-z through the tri-state
-#endif
 }
 
 // KEEEEEEEEEEEEEEEEEEP FOR A WHILE UNTIL ALL TECHNIQUES LEARNED ARE USED OR NO LONGER NEEDED
@@ -913,7 +917,7 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
     }
 
     // TODO: allow adjustment of bit timing per WOZ optimal bit timing
-    // 
+    //
     uint32_t bit_ticks = RMT_USEC; // ticks per microsecond (1000 ns)
     bit_ticks *= bit_period; // now units are ticks * ns /us
     bit_ticks /= 1000; // now units are ticks
@@ -958,7 +962,7 @@ void iwm_diskii_ll::setup_rmt()
 #ifdef RMTTEST
   config.gpio_num = (gpio_num_t)SP_EXTRA;
 #else
-  if(fnSystem.check_spifix())
+  if(fnSystem.spifix())
     config.gpio_num = (gpio_num_t)SP_SPI_FIX_PIN; //SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
   else
     config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; //SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
