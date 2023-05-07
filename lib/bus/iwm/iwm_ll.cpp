@@ -589,12 +589,14 @@ void iwm_ll::setup_gpio()
   //set ack to input to avoid clashing with other devices when sp bus is not enabled
   fnSystem.set_pin_mode(SP_ACK, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
 
-#ifdef NO3STATE
-  // set up the output pin as IO (like SPI does) and set to low, then to hi-z
-  fnSystem.set_pin_mode(SP_SPI_FIX_PIN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-  fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
-  disable_output();
-#endif
+  if (fnSystem.check_no3state())
+  {
+    // set up the output pin as IO (like SPI does) and set to low, then to hi-z
+    fnSystem.set_pin_mode(SP_SPI_FIX_PIN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+    fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
+    disable_output();
+  }
+
 
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
@@ -606,10 +608,12 @@ void iwm_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
   fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
-#if !defined(NO3STATE)
-  fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
-  fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
-#endif
+
+  if (!fnSystem.check_no3state())
+  {
+    fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
+    fnSystem.digital_write(SP_RDDATA, DIGI_HIGH); // Turn tristate buffer off by default
+  }
 
 #ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
@@ -827,21 +831,21 @@ void iwm_diskii_ll::set_output_to_rmt()
 
 void iwm_ll::enable_output()
 {
-#ifdef NO3STATE
+  if(fnSystem.check_no3state())
     GPIO.enable_w1ts = ((uint32_t)0x01 << SP_SPI_FIX_PIN); // enable output
-#else
+  else
     GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); //  enable the tri-state buffer activating RDDATA
-#endif
 }
 
 void iwm_ll::disable_output()
 {
-#ifdef NO3STATE
+  if(fnSystem.check_no3state())
+  {
     GPIO.func_out_sel_cfg[SP_SPI_FIX_PIN].oen_sel = 1;     // let me control the enable register
     GPIO.enable_w1tc = ((uint32_t)0x01 << SP_SPI_FIX_PIN); // go hi-z with disabled output
-#else
+  }
+  else
     GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); // make RDDATA go hi-z through the tri-state
-#endif
 }
 
 // KEEEEEEEEEEEEEEEEEEP FOR A WHILE UNTIL ALL TECHNIQUES LEARNED ARE USED OR NO LONGER NEEDED
@@ -913,7 +917,7 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
     }
 
     // TODO: allow adjustment of bit timing per WOZ optimal bit timing
-    // 
+    //
     uint32_t bit_ticks = RMT_USEC; // ticks per microsecond (1000 ns)
     bit_ticks *= bit_period; // now units are ticks * ns /us
     bit_ticks /= 1000; // now units are ticks
