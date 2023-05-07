@@ -62,6 +62,9 @@ void systemBus::setup()
     //configure GPIO with the given settings
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, this);
+
+    // Start SRQ timer service
+    timer_start();
 }
 
 
@@ -76,15 +79,13 @@ void IRAM_ATTR systemBus::service()
 
     if (bus_state < BUS_ACTIVE)
     {
-        // Handle SRQ for network.
-        virtualDevice *d = deviceById(12);
-        if (d)
+        // Handle SRQ for devices
+        for (auto devicep : _daisyChain)
         {
-            for (int i = 0; i < 16; i++)
-            {
-                d->poll_interrupt(i);
-            }
+            for (unsigned char i=0;i<16;i++)
+                devicep->poll_interrupt(i);
         }
+
         return;
     }
 
@@ -363,6 +364,35 @@ void systemBus::read_payload()
     bus_state = BUS_IDLE;
 }
 
+/**
+ * Start the Interrupt rate limiting timer
+ */
+void systemBus::timer_start()
+{
+    esp_timer_create_args_t tcfg;
+    tcfg.arg = this;
+    tcfg.callback = onTimer;
+    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
+    tcfg.name = nullptr;
+    esp_timer_create(&tcfg, &rateTimerHandle);
+    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
+}
+
+/**
+ * Stop the Interrupt rate limiting timer
+ */
+void systemBus::timer_stop()
+{
+    // Delete existing timer
+    if (rateTimerHandle != nullptr)
+    {
+        Debug_println("Deleting existing rateTimer\n");
+        esp_timer_stop(rateTimerHandle);
+        esp_timer_delete(rateTimerHandle);
+        rateTimerHandle = nullptr;
+    }
+}
+
 systemBus virtualDevice::get_bus()
 {
     return IEC;
@@ -418,35 +448,6 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     return device_state;
 }
 
-/**
- * Start the Interrupt rate limiting timer
- */
-void virtualDevice::timer_start()
-{
-    esp_timer_create_args_t tcfg;
-    tcfg.arg = this;
-    tcfg.callback = onTimer;
-    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
-    tcfg.name = nullptr;
-    esp_timer_create(&tcfg, &rateTimerHandle);
-    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
-}
-
-/**
- * Stop the Interrupt rate limiting timer
- */
-void virtualDevice::timer_stop()
-{
-    // Delete existing timer
-    if (rateTimerHandle != nullptr)
-    {
-        Debug_println("Deleting existing rateTimer\n");
-        esp_timer_stop(rateTimerHandle);
-        esp_timer_delete(rateTimerHandle);
-        rateTimerHandle = nullptr;
-    }
-}
-
 void virtualDevice::iec_talk_command_buffer_status()
 {
     char reply[80];
@@ -478,6 +479,14 @@ void virtualDevice::dumpData()
     Debug_printf("%9s: %02X\n", "Secondary", commanddata->secondary);
     Debug_printf("%9s: %02u\n", "Channel", commanddata->channel);
     Debug_printf("%9s: %s\n", "Payload", commanddata->payload.c_str());
+}
+
+void virtualDevice::assert_interrupt()
+{
+    if (interruptSRQ)
+        IEC.pull(PIN_IEC_SRQ);
+    else
+        IEC.release(PIN_IEC_SRQ);
 }
 
 int16_t systemBus::receiveByte()
