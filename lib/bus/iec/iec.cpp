@@ -117,6 +117,36 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
         b->bus_state = BUS_ACTIVE;
 }
 
+void systemBus::setup()
+{
+    Debug_printf("IEC systemBus::setup()\n");
+
+    flags = CLEAR;
+    protocol = new IecProtocolSerial();
+    release(PIN_IEC_CLK_OUT);
+    release(PIN_IEC_DATA_OUT);
+    release(PIN_IEC_SRQ);
+
+    // initial pin modes in GPIO
+    set_pin_mode(PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT);
+    set_pin_mode(PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT);
+    set_pin_mode(PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT);
+    set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
+    set_pin_mode(PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT);
+
+    // Setup interrupt for ATN
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << PIN_IEC_ATN), // bit mask of the pins that you want to set
+        .mode = GPIO_MODE_INPUT,               // set as input mode
+        .pull_up_en = GPIO_PULLUP_DISABLE,     // disable pull-up mode
+        .pull_down_en = GPIO_PULLDOWN_DISABLE, // disable pull-down mode
+        .intr_type = GPIO_INTR_NEGEDGE         // interrupt of falling edge
+    };
+    // configure GPIO with the given settings
+    gpio_config(&io_conf);
+    gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, this);
+}
+
 void IRAM_ATTR systemBus::service()
 {
     // pull( PIN_IEC_SRQ );
@@ -401,7 +431,9 @@ void systemBus::read_payload()
 
     while (IEC.status(PIN_IEC_ATN) != PULLED)
     {
+        //pull ( PIN_IEC_SRQ );
         int16_t c = protocol->receiveByte();
+        //release ( PIN_IEC_SRQ );
 
         if (flags & EMPTY_STREAM)
         {
@@ -419,6 +451,7 @@ void systemBus::read_payload()
         if (c != 0xFFFFFFFF)
         {
             listen_command += (uint8_t)c;
+            Debug_printv( "listen_command[%s] c[%d]", listen_command.c_str(), c);
         }
 
         if (flags & EOI_RECVD)
@@ -427,37 +460,9 @@ void systemBus::read_payload()
         }
     }
 
+    data.payload = listen_command;
+
     bus_state = BUS_IDLE;
-}
-
-void systemBus::setup()
-{
-    Debug_printf("IEC systemBus::setup()\n");
-
-    flags = CLEAR;
-    protocol = new IecProtocolSerial();
-    release(PIN_IEC_CLK_OUT);
-    release(PIN_IEC_DATA_OUT);
-    release(PIN_IEC_SRQ);
-
-    // initial pin modes in GPIO
-    set_pin_mode(PIN_IEC_ATN, gpio_mode_t::GPIO_MODE_INPUT);
-    set_pin_mode(PIN_IEC_CLK_IN, gpio_mode_t::GPIO_MODE_INPUT);
-    set_pin_mode(PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT);
-    set_pin_mode(PIN_IEC_SRQ, gpio_mode_t::GPIO_MODE_INPUT);
-    set_pin_mode(PIN_IEC_RESET, gpio_mode_t::GPIO_MODE_INPUT);
-
-    // Setup interrupt for ATN
-    gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << PIN_IEC_ATN), // bit mask of the pins that you want to set
-        .mode = GPIO_MODE_INPUT,               // set as input mode
-        .pull_up_en = GPIO_PULLUP_DISABLE,     // disable pull-up mode
-        .pull_down_en = GPIO_PULLDOWN_DISABLE, // disable pull-down mode
-        .intr_type = GPIO_INTR_NEGEDGE         // interrupt of falling edge
-    };
-    // configure GPIO with the given settings
-    gpio_config(&io_conf);
-    gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, this);
 }
 
 systemBus virtualDevice::get_bus()

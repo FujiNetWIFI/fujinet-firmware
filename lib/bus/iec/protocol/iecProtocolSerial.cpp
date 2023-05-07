@@ -123,7 +123,6 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // without  the Clock line going to true, it has a special task to perform: note EOI.
     if ( eoi )
     {
-
         // INTERMISSION: EOI
         // If the Ready for Data signal isn't acknowledged by the talker within 200 microseconds, the
         // listener knows  that  the  talker  is  trying  to  signal  EOI.    EOI,  which  formally
@@ -138,8 +137,8 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         // line  is  true  whether  or  not  we have gone through the EOI sequence; we're back to a common
         // transmission sequence.
 
-        // Signal eoi by waiting 200 us
-        if ( !wait ( TIMING_Tye ) ) return false;
+        // // Signal eoi by waiting 200 us
+        // if ( !wait ( TIMING_Tye ) ) return false;
 
         // Get eoi acknowledge from listeners
         // E937   20 59 EA   JSR $EA59     check EOI
@@ -162,7 +161,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
         Debug_printv ( "EOI ACK: Listener didn't RELEASE DATA" );
         return false;
     }
-    //if ( wait ( TIMING_Tne ) ) return false;
+    if ( wait ( TIMING_Try ) ) return false;
 
     // E94B   20 AE E9   JSR $E9AE     CLOCK OUT hi (PULLED)
     IEC.pull ( PIN_IEC_CLK_OUT );  // tell listner to wait
@@ -426,7 +425,6 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
 // it might holdback for quite a while; there's no time limit.
 int16_t IecProtocolSerial::receiveByte()
 {
-
     // Wait for talker ready
     // E9CD   20 59 EA   JSR $EA59     check EOI
     // E9D0   20 C0 E9   JSR $E9C0     read IEEE port
@@ -468,6 +466,10 @@ int16_t IecProtocolSerial::receiveByte()
     // E9E2   AD 0D 18   LDA $180D
     // E9E5   29 40      AND #$40      timer run down?
     // E9E7   D0 09      BNE $E9F2     yes, EOI
+    // E9E9   20 C0 E9   JSR $E9C0     read IEEE port
+    // E9EC   29 04      AND #$04      CLOCK IN?
+    // E9EE   F0 EF      BEQ $E9DF     no, wait
+    // E9F0   D0 19      BNE $EA0B
     if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMEOUT_Tne, false ) >= TIMEOUT_Tne )
     {
         // INTERMISSION: EOI
@@ -484,8 +486,6 @@ int16_t IecProtocolSerial::receiveByte()
         // line  is  true  whether  or  not  we have gone through the EOI sequence; we're back to a common
         // transmission sequence.
 
-        // Debug_printv("EOI!");
-
         // Acknowledge by pull down data more than 60us
         // E9F2   20 A5 E9   JSR $E9A5     DATA OUT bit '0' hi
         // E9F5   A2 0A      LDX #$0A      10
@@ -496,36 +496,35 @@ int16_t IecProtocolSerial::receiveByte()
         if ( !wait ( TIMING_Tei ) ) return -1;
         IEC.release ( PIN_IEC_DATA_OUT );
 
-        // but still wait for CLK to be PULLED
-        // Is this an empty stream?
-        // E9FD   20 59 EA   JSR $EA59     check EOI
-        // EA00   20 C0 E9   JSR $E9C0     read IEEE
-        // EA03   29 04      AND #$04      CLOCK IN?
-        // EA05   F0 F6      BEQ $E9FD     no, wait
-        if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMING_EMPTY ) >= TIMING_EMPTY )
-        {
-            Debug_printv ( "empty stream signaled" );
-            IEC.flags |= EMPTY_STREAM;
-            return -1; // return error because empty stream
-        }
+        // // but still wait for CLK to be PULLED
+        // // Is this an empty stream?
+        // // E9FD   20 59 EA   JSR $EA59     check EOI
+        // // EA00   20 C0 E9   JSR $E9C0     read IEEE
+        // // EA03   29 04      AND #$04      CLOCK IN?
+        // // EA05   F0 F6      BEQ $E9FD     no, wait
+        IEC.pull ( PIN_IEC_SRQ );
+        while ( IEC.status ( PIN_IEC_CLK_IN ) != PULLED );
+        // if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMING_EMPTY ) >= TIMING_EMPTY )
+        // {
+        //     Debug_printv ( "empty stream signaled" );
+        //     IEC.flags |= EMPTY_STREAM;
+        //     return -1; // return error because empty stream
+        // }
+        IEC.release ( PIN_IEC_SRQ );
 
         // EA07   A9 00      LDA #$00
         // EA09   85 F8      STA $F8       set EOI flag
         IEC.flags |= EOI_RECVD;
     }
-    // else
-    // {
-    //     if ( !wait ( TIMING_Tne ) ) return -1;
-    // }
-    // release ( PIN_IEC_SRQ );
 
 
     // STEP 3: RECEIVING THE BITS
-    //pull ( PIN_IEC_SRQ );
-    uint8_t data = receiveBits();
-    //release ( PIN_IEC_SRQ );
-    if ( IEC.flags & ERROR)
+    //IEC.pull ( PIN_IEC_SRQ );
+    int16_t data = receiveBits();
+    //IEC.release ( PIN_IEC_SRQ );
+    if ( data < 0 )
         return -1;
+
 
     // STEP 4: FRAME HANDSHAKE
     // After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true
@@ -535,7 +534,7 @@ int16_t IecProtocolSerial::receiveByte()
 
     // Acknowledge byte received
     // EA28   20 A5 E9   JSR $E9A5     DATA OUT, bit '0', hi
-    //if ( !wait ( TIMING_Tf ) ) return -1;
+    if ( !wait ( TIMING_Tf ) ) return -1;
     IEC.pull ( PIN_IEC_DATA_OUT );
 
     // STEP 5: START OVER
@@ -554,6 +553,10 @@ int16_t IecProtocolSerial::receiveByte()
     // {
     //      wait ( TIMING_Tbb );
     // }
+
+    Debug_printv("data[%02X][%c] flags[%d]", data, data, IEC.flags);
+
+    wait ( TIMING_Tbb );
 
     return data;
 }
@@ -580,7 +583,7 @@ int16_t IecProtocolSerial::receiveBits ()
 {
     // Listening for bits
     uint8_t data = 0;
-    int16_t bit_time;  // Used to detect JiffyDOS
+    int16_t bit_time = 0;  // Used to detect JiffyDOS
 
     uint8_t n = 0;
 
@@ -588,68 +591,84 @@ int16_t IecProtocolSerial::receiveBits ()
     // E9CB   85 98      STA $98       bit counter for serial output
     for ( n = 0; n < 8; n++ )
     {
-        data >>= 1;
-
         // do
         // {
-            // wait for bit to be ready to read
-            //IEC.pull ( PIN_IEC_SRQ );
-            // EA0B   AD 00 18   LDA $1800     IEEE port
-            // EA0E   49 01      EOR #$01      invert data byte
-            // EA10   4A         LSR A
-            // EA11   29 02      AND #$02
-            // EA13   D0 F6      BNE $EA0B     CLOCK IN?
-            bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMEOUT_DEFAULT, false );
+        //     // wait for bit to be ready to read
+        //     //IEC.pull ( PIN_IEC_SRQ );
+        //     // EA0B   AD 00 18   LDA $1800     IEEE port
+        //     // EA0E   49 01      EOR #$01      invert data byte
+        //     // EA10   4A         LSR A
+        //     // EA11   29 02      AND #$02
+        //     // EA13   D0 F6      BNE $EA0B     CLOCK IN?
+        //     bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMEOUT_DEFAULT, false );
 
-            // // If the bit time is less than 40us we are talking with a VIC20
-            // if ( bit_time < TIMING_VIC20_DETECT )
-            //     IEC.flags |= VIC20_MODE;
+        //     // // If the bit time is less than 40us we are talking with a VIC20
+        //     // if ( bit_time < TIMING_VIC20_DETECT )
+        //     //     IEC.flags |= VIC20_MODE;
 
-            // // If there is a delay before the last bit, the controller uses JiffyDOS
-            // if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
-            // {
-            //     if ( IEC.status ( PIN_IEC_ATN ) == PULLED && data < 0x60 )
-            //     {
-            //         IEC.flags |= ATN_PULLED;
+        //     // If there is a delay before the last bit, the controller uses JiffyDOS
+        //     if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
+        //     {
+        //         if ( IEC.status ( PIN_IEC_ATN ) == PULLED && data < 0x60 )
+        //         {
+        //             IEC.flags |= ATN_PULLED;
 
-            //         uint8_t device = data & 0x1F;
-            //         if ( IEC.enabledDevices & ( 1 << device ) )
-            //         {
-            //             /* If it's for us, notify controller that we support Jiffy too */
-            //             IEC.pull(PIN_IEC_DATA_OUT);
-            //             wait( TIMING_JIFFY_ACK, 0, false );
-            //             IEC.release(PIN_IEC_DATA_OUT);
-            //             IEC.flags |= JIFFY_ACTIVE;
-            //         }
-            //     }
-            // }
-            // else 
-            if ( bit_time == TIMED_OUT )
-            {
-                Debug_printv ( "wait for bit to be ready to read, bit_time[%d] n[%d]", bit_time, n );
-                return -1; // return error because timeout
-            }
+        //             uint8_t device = data & 0x1F;
+        //             if ( IEC.enabledDevices & ( 1 << device ) )
+        //             {
+        //                 /* If it's for us, notify controller that we support Jiffy too */
+        //                 IEC.pull(PIN_IEC_DATA_OUT);
+        //                 wait( TIMING_JIFFY_ACK, 0, false );
+        //                 IEC.release(PIN_IEC_DATA_OUT);
+        //                 IEC.flags |= JIFFY_ACTIVE;
+        //             }
+        //         }
+        //     }
+        //     else 
+        //     if ( bit_time == TIMED_OUT )
+        //     {
+        //         Debug_printv ( "wait for bit to be ready to read, bit_time[%d] n[%d]", bit_time, n );
+        //         return -1; // return error because timeout
+        //     }
         // } while ( bit_time >= TIMING_JIFFY_DETECT );
+
+        // wait for bit to be ready to read
+        // EA0B   AD 00 18   LDA $1800     IEEE port
+        // EA0E   49 01      EOR #$01      invert data byte
+        // EA10   4A         LSR A
+        // EA11   29 02      AND #$02
+        // EA13   D0 F6      BNE $EA0B     CLOCK IN?
+        IEC.pull ( PIN_IEC_SRQ );
+        while ( IEC.status ( PIN_IEC_CLK_IN ) != RELEASED );
+        // if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
+        // {
+        //     Debug_printv ( "wait for bit to be ready to read bit n[%d]", bit_time, n );
+        //     return -1; // return error because timeout
+        // }
 
         // get bit
         // EA18   66 85      ROR $85       prepare next bit
-        data |= ( IEC.status ( PIN_IEC_DATA_IN ) == RELEASED ? ( 1 << 7 ) : 0 );
-        //IEC.release ( PIN_IEC_SRQ );
+        data = ( data >> 1 ) | ( gpio_get_level ( PIN_IEC_DATA_IN ) << 7 );
+        IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
         // EA1A   20 59 EA   JSR $EA59     check EOI
         // EA1D   20 C0 E9   JSR $E9C0     read IEEE port
         // EA20   29 04      AND #$04      CLOCK IN?
         // EA22   F0 F6      BEQ $EA1A     no
-        if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
-        {
-            Debug_printv ( "wait for talker to finish sending bit n[%d]", n );
-            return -1; // return error because timeout
-        }
+        while ( IEC.status ( PIN_IEC_CLK_IN ) != PULLED );
+        // if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, FOREVER ) == TIMED_OUT )
+        // {
+        //     Debug_printv ( "wait for talker to finish sending bit n[%d]", n );
+        //     return -1; // return error because timeout
+        // }
 
     // EA24   C6 98      DEC $98       decrement bit counter
     // EA26   D0 E3      BNE $EA0B     all bits output?
     }
+
+    if ( IEC.flags & EOI_RECVD )
+        Debug_printv( "data[%02X]", data );
 
     return data;
 }
