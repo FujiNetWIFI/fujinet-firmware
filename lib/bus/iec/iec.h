@@ -268,6 +268,17 @@ public:
     bool device_active = true;
 
     /**
+     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
+     */
+    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
+    /**
+     * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
+     * be pulsed.
+     */
+    bool interruptSRQ = false;
+
+    /**
      * @brief Get the systemBus object that this virtualDevice is attached to.
      */
     systemBus get_bus();

@@ -24,18 +24,6 @@
 #include "SSH.h"
 #include "SMB.h"
 
-/**
- * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
- * flag to true. This is set to false when the interrupt is serviced.
- */
-void onTimer(void *info)
-{
-    iecNetwork *parent = (iecNetwork *)info;
-    portENTER_CRITICAL_ISR(&parent->timerMux);
-    parent->interruptSRQ = !parent->interruptSRQ;
-    portEXIT_CRITICAL_ISR(&parent->timerMux);
-}
-
 iecNetwork::iecNetwork()
 {
     Debug_printf("iwmNetwork::iwmNetwork()\n");
