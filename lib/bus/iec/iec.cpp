@@ -451,7 +451,6 @@ void systemBus::read_payload()
         if (c != 0xFFFFFFFF)
         {
             listen_command += (uint8_t)c;
-            Debug_printv( "listen_command[%s] c[%d]", listen_command.c_str(), c);
         }
 
         if (flags & EOI_RECVD)

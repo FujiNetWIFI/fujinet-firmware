@@ -667,9 +667,6 @@ int16_t IecProtocolSerial::receiveBits ()
     // EA26   D0 E3      BNE $EA0B     all bits output?
     }
 
-    if ( IEC.flags & EOI_RECVD )
-        Debug_printv( "data[%02X]", data );
-
     return data;
 }
 
