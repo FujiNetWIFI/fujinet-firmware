@@ -12,6 +12,7 @@
 #include "fuji.h"
 #include "fnFsSD.h"
 #include "led.h"
+#include "led_strip.h"
 #include "utils.h"
 
 #include "cbm_media.h"
@@ -841,6 +842,7 @@ void iecDisk::sendListing()
 		return;
 	}
 
+	fnLedStrip.startRainbow(300);
 
 	// Send load address
 	IEC.sendByte(CBM_BASIC_START & 0xff);
@@ -927,7 +929,7 @@ void iecDisk::sendListing()
 
 		entry.reset(_base->getNextFileInDir());
 
-		fnLedManager.toggle(eLed::LED_BUS);
+		//fnLedManager.toggle(eLed::LED_BUS);
 	}
 
 	// Send Listing Footer
@@ -941,7 +943,8 @@ void iecDisk::sendListing()
 
 	Debug_printf("\r\n=================================\r\n%d bytes sent\r\n", byte_count);
 
-	fnLedManager.set(eLed::LED_BUS, false);
+	//fnLedManager.set(eLed::LED_BUS, false);
+	fnLedStrip.stopRainbow();
 } // sendListing
 
 
@@ -985,6 +988,8 @@ bool iecDisk::sendFile()
 	uint32_t avail = istream->available();
 
 	{
+		fnLedStrip.startRainbow(300);
+
 		if( IEC.data.channel == CHANNEL_LOAD )
 		{
 			// Get/Send file load address
@@ -1069,11 +1074,11 @@ bool iecDisk::sendFile()
 				break;
 			}
 
-			// Toggle LED
-			if (i % 50 == 0)
-			{
-				fnLedManager.toggle(eLed::LED_BUS);
-			}
+			// // Toggle LED
+			// if (i % 50 == 0)
+			// {
+			// 	fnLedManager.toggle(eLed::LED_BUS);
+			// }
 		}
 		Debug_printf("\r\n=================================\r\n%d bytes sent of %d [SYS%d]\r\n", i, avail, sys_address);
 
@@ -1081,7 +1086,8 @@ bool iecDisk::sendFile()
 	}
 
 
-	fnLedManager.set(eLed::LED_BUS, false);
+	//fnLedManager.set(eLed::LED_BUS, false);
+	fnLedStrip.stopRainbow();
 
 	if ( istream->error() )
 	{
@@ -1130,6 +1136,7 @@ bool iecDisk::saveFile()
 		// 	// ostream->seek(currentStream.cursor);
 		// }
 		// else
+		fnLedStrip.startRainbow(300);
 		{
 			// Get file load address
 			ll[0] = IEC.receiveByte();
@@ -1194,17 +1201,18 @@ bool iecDisk::saveFile()
 				bi = 0;
 			}
 #endif
-			// Toggle LED
-			if (0 == i % 50)
-			{
-				fnLedManager.toggle(eLed::LED_BUS);
-			}
+			// // Toggle LED
+			// if (0 == i % 50)
+			// {
+			// 	fnLedManager.toggle(eLed::LED_BUS);
+			// }
 		} while (not done);
     }
     // ostream->close(); // nor required, closes automagically
 
 	Debug_printf("=================================\r\n%d bytes saved\r\n", i);
-	fnLedManager.set(eLed::LED_BUS, false);
+	//fnLedManager.set(eLed::LED_BUS, false);
+	fnLedStrip.stopRainbow();
 
 	// TODO: Handle errorFlag
 

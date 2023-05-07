@@ -34,6 +34,7 @@ IecProtocolSerial::~IecProtocolSerial()
 // false, it grabs the bit from the Data line and puts it away.  It then waits for the clock line to go true, in order
 // to prepare for the next bit. When the talker figures the data has been held for a sufficient  length  of  time,  it
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
+
 bool IecProtocolSerial::sendBits ( uint8_t data )
 {
     // Send bits
@@ -267,7 +268,7 @@ int16_t IecProtocolSerial::receiveByte()
     return data;
 }
 
-bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
+bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 {
     //IEC.pull ( PIN_IEC_SRQ );
 
@@ -292,7 +293,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool signalEOI)
     // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
     // will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass
     // without  the Clock line going to true, it has a special task to perform: note EOI.
-    if ( signalEOI )
+    if ( eoi )
     {
 
         // INTERMISSION: EOI
