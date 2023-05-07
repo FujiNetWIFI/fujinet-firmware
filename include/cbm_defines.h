@@ -165,7 +165,7 @@ typedef enum
 #define TIMING_Tr      20      // FRAME TO RELEASE OF ATN                       20us    -           -
 #define TIMING_Tbb     100     // BETWEEN BYTES TIME                            100us   -           -
 #define TIMING_Tye     250     // EOI RESPONSE TIME                             200us   250us       -
-#define TIMING_Tei     80      // EOI RESPONSE HOLD TIME                        60us    -           -           (Tei minimum must be 80μ s for external device to be a listener.)
+#define TIMING_Tei     73      // EOI RESPONSE HOLD TIME                        60us    -           -           (Tei minimum must be 80μ s for external device to be a listener.)
 #define TIMING_Try     30      // TALKER RESPONSE LIMIT                         0       30us        60us
 #define TIMEOUT_Try    60
 #define TIMING_Tpr     60      // BYTE-ACKNOWLEDGE                              20us    30us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker.)
@@ -176,6 +176,7 @@ typedef enum
 #define TIMING_Tfr     60      // EOI ACKNOWLEDGE                               60us    -           -
 
 #define TIMING_EMPTY   512     // SIGNAL EMPTY STREAM
+#define TIMING_SYNC    250     // SYNC WITH ATN
 #define TIMING_STABLE  70      // WAIT FOR BUS TO BE STABLE
 
 #define TIMING_VIC20_DETECT   40   // VIC20 DETECTED WHEN HOST BIT TIME IS LESS THAN 40us
@@ -185,7 +186,7 @@ typedef enum
 // See timeoutWait
 #define TIMEOUT_DEFAULT 1000 // 1ms
 #define TIMED_OUT -1
-#define FOREVER 0
+#define FOREVER 3000 // 0
 
 #ifndef IEC_INVERTED_LINES
 // Not Inverted
