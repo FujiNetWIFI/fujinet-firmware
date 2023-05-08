@@ -38,7 +38,7 @@ protected:
     void epson_set_font(uint8_t F, double w);
 
     virtual void pdf_clear_modes() override;
-    void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
+    void pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
 
 public:
