@@ -652,6 +652,9 @@ void SystemManager::check_hardware_ver()
     /* For now, just enable ledstrip for FujiLoaf */
     ledstrip_found = true;
     Debug_printf("Enabling LED Strip\n");
+
+    /* Change Safe Reset GPIO */
+    safe_reset_gpio = (gpio_num_t)PIN_BUTTON_C;
 #endif
 
 #ifdef PINMAP_A2_REV0
@@ -684,6 +687,8 @@ void SystemManager::check_hardware_ver()
         a2no3state = true;
         Debug_printf("FujiApple NO3STATE & SPIFIX ENABLED\n");
 
+        /* Change Safe Reset GPIO for Rev 1 */
+        safe_reset_gpio = GPIO_NUM_4;
     }
 
     /* For those who have modified their FujiApple to remove the tristate buffer but
