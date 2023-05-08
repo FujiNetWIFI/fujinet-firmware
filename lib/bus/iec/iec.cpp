@@ -496,6 +496,10 @@ void systemBus::assert_interrupt()
 
 int16_t systemBus::receiveByte()
 {
+    // If there has been a error don't try to receive any more bytes
+    if ( IEC.flags & ERROR )
+        return false;
+
     int16_t b;
     b = protocol->receiveByte();
 #ifdef DATA_STREAM
@@ -515,6 +519,10 @@ int16_t systemBus::receiveByte()
 
 bool systemBus::sendByte(const char c, bool eoi)
 {
+    // If there has been a error don't try to send any more bytes
+    if ( IEC.flags & ERROR )
+        return false;
+
 #ifdef DATA_STREAM
     if (eoi)
         Debug_printf("%.2X[eoi] ", c);
