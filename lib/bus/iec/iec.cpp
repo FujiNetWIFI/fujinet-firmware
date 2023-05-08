@@ -81,11 +81,11 @@ void IRAM_ATTR systemBus::service()
     if (bus_state < BUS_ACTIVE)
     {
         // Handle SRQ for devices
-        // for (auto devicep : _daisyChain)
-        // {
-        //     for (unsigned char i=0;i<16;i++)
-        //         devicep->poll_interrupt(i);
-        // }
+        for (auto devicep : _daisyChain)
+        {
+            for (unsigned char i=0;i<16;i++)
+                devicep->poll_interrupt(i);
+        }
 
         return;
     }
