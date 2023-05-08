@@ -15,10 +15,11 @@
 // Global KeyManager object
 KeyManager fnKeyManager;
 
-static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
+static int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
 
 void KeyManager::setup()
 {
+    mButtonPin[eKey::BUTTON_C] = fnSystem.get_safe_reset_gpio();
 #ifdef PINMAP_ESP32S3
 
     if (PIN_BUTTON_A != GPIO_NUM_NC)
@@ -54,19 +55,19 @@ void KeyManager::setup()
     {
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC)
         /* Check if hardware has SPI fix and thus no safe reset button (_keys[eKey::BUTTON_C].disabled = true) */
-        if (fnSystem.check_spifix())
+        if (fnSystem.spifix() && fnSystem.get_safe_reset_gpio() == 14)
         {
             _keys[eKey::BUTTON_C].disabled = true;
             Debug_println("Safe Reset Button C: DISABLED due to SPI Fix");
         }
         else
         {
-            fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-            Debug_println("Safe Reset Button C: ENABLED");
+            fnSystem.set_pin_mode(fnSystem.get_safe_reset_gpio(), gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+            Debug_printf("Safe Reset button ENABLED on GPIO %d\n", fnSystem.get_safe_reset_gpio());
         }
 #else
-        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
-        Debug_println("Safe Reset Button C: ENABLED");
+        fnSystem.set_pin_mode(fnSystem.get_safe_reset_gpio(), gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+        Debug_printf("Safe Reset button ENABLED on GPIO %d\n", fnSystem.get_safe_reset_gpio());
 #endif
     }
 
@@ -236,7 +237,7 @@ void KeyManager::_keystate_task(void *param)
             Debug_println("BUTTON_A: SHORT PRESS");
 
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
-            if(fnSystem.check_ledstrip())
+            if(fnSystem.ledstrip())
             {
                 if (fnLedStrip.rainbowTimer > 0)
                     fnLedStrip.stopRainbow();
@@ -247,6 +248,8 @@ void KeyManager::_keystate_task(void *param)
             {
                 fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
             }
+            Debug_println("ACTION: Reboot");
+            fnSystem.reboot();
 #else
             fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
 #endif // PINMAP_A2_REV0

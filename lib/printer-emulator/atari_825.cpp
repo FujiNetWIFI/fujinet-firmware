@@ -38,7 +38,7 @@ void atari825::clear_mode(uint16_t m)
     epson_font_mask &= ~m;
 }
 
-void atari825::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
+void atari825::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
 {
     if (escMode)
     {

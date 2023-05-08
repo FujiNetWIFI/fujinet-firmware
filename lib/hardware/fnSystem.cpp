@@ -226,6 +226,7 @@ void SystemManager::yield()
 void SystemManager::reboot()
 {
     SYSTEM_BUS.shutdown();
+    fnWiFi.stop();
     esp_restart();
 }
 
@@ -618,7 +619,7 @@ void SystemManager::check_hardware_ver()
 
 #else /* PINMAP_ESP32S3 */
 
-    int upcheck, downcheck, fixupcheck, fixdowncheck, spifixupcheck, spifixdowncheck, ledstripupcheck, ledstripdowncheck;
+    int upcheck, downcheck, fixupcheck, fixdowncheck;
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
     fixdowncheck = fnSystem.digital_read(PIN_CARD_DETECT_FIX);
@@ -635,6 +636,7 @@ void SystemManager::check_hardware_ver()
 #ifdef PINMAP_FUJILOAF_REV0
     /* FujiLoaf has pullup on PIN_GPIOX_INT for GPIO Expander */
     /*
+    int ledstripupcheck, ledstripdowncheck;
     fnSystem.set_pin_mode(PIN_GPIOX_INT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     ledstripupcheck = fnSystem.digital_read(PIN_GPIOX_INT);
     fnSystem.set_pin_mode(PIN_GPIOX_INT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
@@ -642,28 +644,60 @@ void SystemManager::check_hardware_ver()
 
     if(ledstripdowncheck == ledstripupcheck)
     {
-        ledstrip = true;
+        ledstrip_found = true;
         Debug_printf("Enabling LED Strip\n");
     }
     */
 
     /* For now, just enable ledstrip for FujiLoaf */
-    ledstrip = true;
+    ledstrip_found = true;
     Debug_printf("Enabling LED Strip\n");
+
+    /* Change Safe Reset GPIO */
+    safe_reset_gpio = (gpio_num_t)PIN_BUTTON_C;
 #endif
 
 #ifdef PINMAP_A2_REV0
+    int spifixupcheck, spifixdowncheck, ledstripupcheck, ledstripdowncheck, optoupcheck, optodowncheck;
+
     /* Check for LED Strip pullup and enable it if found */
     fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     ledstripupcheck = fnSystem.digital_read(LED_DATA_PIN);
     fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
     ledstripdowncheck = fnSystem.digital_read(LED_DATA_PIN);
 
+    // DISABLED LED Strip for A2
     if(ledstripdowncheck == ledstripupcheck)
     {
-        ledstrip = true;
-        Debug_printf("Enabling LED Strip\n");
+        //ledstrip_found = true;
+        //Debug_printf("Enabling LED Strip\n");
     }
+
+    /* Apple 2 Rev 1 has pulldown on IO21 for optocoupler
+       If found, enable spifix, no tristate and Safe Reset on GPIO4
+    */
+    fnSystem.set_pin_mode(GPIO_NUM_21, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    optoupcheck = fnSystem.digital_read(GPIO_NUM_21);
+    fnSystem.set_pin_mode(GPIO_NUM_21, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    optodowncheck = fnSystem.digital_read(GPIO_NUM_21);
+
+    if (optoupcheck == optodowncheck)
+    {
+        a2spifix = true;
+        a2no3state = true;
+        Debug_printf("FujiApple NO3STATE & SPIFIX ENABLED\n");
+
+        /* Change Safe Reset GPIO for Rev 1 */
+        safe_reset_gpio = GPIO_NUM_4;
+    }
+
+    /* For those who have modified their FujiApple to remove the tristate buffer but
+       do not have the pull down on IO21 can use the NO3STATE define
+    */
+#ifdef NO3STATE
+    a2no3state = true;
+    Debug_printf("FujiApple NO3STATE ENABLED\n");
+#endif
 
     /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset (IO14)
        Apple 2 Rev00 with SPI fix has 10K hardware pullup on IO14

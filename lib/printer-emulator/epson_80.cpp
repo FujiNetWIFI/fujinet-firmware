@@ -51,7 +51,7 @@ void epson80::print_8bit_gfx(uint8_t c)
     }
 }
 
-void epson80::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
+void epson80::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
 {
     if (escMode)
     {
