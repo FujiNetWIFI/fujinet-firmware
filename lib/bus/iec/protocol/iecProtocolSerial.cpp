@@ -333,62 +333,70 @@ int16_t IecProtocolSerial::receiveBits ()
 
     uint8_t n = 0;
 
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
+#ifndef IEC_SPLIT_LINES
+    IEC.set_pin_mode ( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT ); // Set DATA IN back to input
+#endif
+
     for ( n = 0; n < 8; n++ )
     {
-        // do
-        // {
-        //     // wait for bit to be ready to read
-        //     IEC.pull ( PIN_IEC_SRQ );
-        //     bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_EMPTY, false );
-
-        //     // // If the bit time is less than 40us we are talking with a VIC20
-        //     // if ( bit_time < TIMING_VIC20_DETECT )
-        //     //     IEC.flags |= VIC20_MODE;
-
-        //     // If there is a delay before the last bit, the controller uses JiffyDOS
-        //     if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
-        //     {
-        //         if ( (IEC.flags & ATN_PULLED) && data < 0x60 )
-        //         {
-        //             uint8_t device = data & 0x1F;
-        //             if ( IEC.enabledDevices & ( 1 << device ) )
-        //             {
-        //                 /* If it's for us, notify controller that we support Jiffy too */
-        //                 IEC.pull(PIN_IEC_DATA_OUT);
-        //                 wait( TIMING_JIFFY_ACK, 0, false );
-        //                 IEC.release(PIN_IEC_DATA_OUT);
-        //                 IEC.flags |= JIFFY_ACTIVE;
-        //             }
-        //         }
-        //     }
-        //     else if ( bit_time > TIMING_EMPTY )
-        //     {
-        //         if ( n == 0 )
-        //         {
-        //             Debug_printv ( "empty stream signaled" );
-        //             IEC.flags |= EMPTY_STREAM;
-        //         }
-        //         else
-        //         {
-        //             Debug_printv ( "bit timeout" );
-        //         }
-
-        //         return -1;
-        //     }
-        // } while ( bit_time >= TIMING_JIFFY_DETECT );
-        
-        // wait for bit to be ready to read
-        if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED ) == TIMED_OUT )
+        do
         {
-            Debug_printv ( "wait for talker to start sending bit n[%d]", n );
-            return -1; // return error because timeout
-        }
+            // wait for bit to be ready to read
+            IEC.pull ( PIN_IEC_SRQ );
+            bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_EMPTY, false );
+
+            // // If the bit time is less than 40us we are talking with a VIC20
+            // if ( bit_time < TIMING_VIC20_DETECT )
+            //     IEC.flags |= VIC20_MODE;
+
+            // If there is a delay before the last bit, the controller uses JiffyDOS
+            if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
+            {
+                if ( (IEC.flags & ATN_PULLED) && data < 0x60 )
+                {
+                    uint8_t device = data & 0x1F;
+                    if ( IEC.enabledDevices & ( 1 << device ) )
+                    {
+                        /* If it's for us, notify controller that we support Jiffy too */
+                        IEC.pull(PIN_IEC_DATA_OUT);
+                        wait( TIMING_JIFFY_ACK, 0, false );
+                        IEC.release(PIN_IEC_DATA_OUT);
+#ifndef IEC_SPLIT_LINES
+                        IEC.set_pin_mode ( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT ); // Set DATA IN back to input
+#endif
+                        IEC.flags |= JIFFY_ACTIVE;
+                    }
+                }
+            }
+            else if ( bit_time > TIMING_EMPTY )
+            {
+                if ( n == 0 )
+                {
+                    Debug_printv ( "empty stream signaled" );
+                    IEC.flags |= EMPTY_STREAM;
+                }
+                else
+                {
+                    Debug_printv ( "bit timeout" );
+                }
+
+                return -1;
+            }
+        } while ( bit_time >= TIMING_JIFFY_DETECT );
+        
+        // // wait for bit to be ready to read
+        // IEC.pull ( PIN_IEC_SRQ );
+        // if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED ) == TIMED_OUT )
+        // {
+        //     Debug_printv ( "wait for talker to start sending bit n[%d]", n );
+        //     return -1; // return error because timeout
+        // }
 
         // get bit
         data >>= 1;
         if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0x80;
-        //IEC.release ( PIN_IEC_SRQ );
+        IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
         if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
