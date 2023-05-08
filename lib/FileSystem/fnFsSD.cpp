@@ -6,7 +6,11 @@
 #include <esp_vfs.h>
 #include <esp_vfs_fat.h>
 #include <driver/sdmmc_host.h>
-#include <esp_rom_gpio.h>
+#if CONFIG_IDF_TARGET_ESP32
+#include "esp32/rom/uart.h"
+#elif CONFIG_IDF_TARGET_ESP32S2
+#include "esp32s2/rom/uart.h"
+#endif
 #include <soc/sdmmc_periph.h>
 
 #include <algorithm>
@@ -449,11 +453,21 @@ bool FileSystemSDFAT::start()
 #endif
     };
 
+#ifdef HSPI_HOST
+    // ESP-IDF 4.2
+    spi_bus_initialize(HSPI_HOST,&bus_cfg,1);
+#else
     spi_bus_initialize(SDSPI_DEFAULT_HOST ,&bus_cfg, SDSPI_DEFAULT_DMA);
+#endif
 
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_SD_HOST_CS;
+#ifdef HSPI_HOST
+    // ESP-IDF 4.2
+    slot_config.host_id = SPI2_HOST;
+#else
     slot_config.host_id = SDSPI_DEFAULT_HOST;
+#endif
 
     esp_err_t e = esp_vfs_fat_sdspi_mount(_basepath, &host_config, &slot_config, &mount_config, &sdcard_info);
 
