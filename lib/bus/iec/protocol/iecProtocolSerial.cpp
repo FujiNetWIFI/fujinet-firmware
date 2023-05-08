@@ -227,7 +227,6 @@ int16_t IecProtocolSerial::receiveByte()
     // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
     // to  accept  data.  What  happens  next  is  variable.
-    if ( !wait ( TIMING_Th ) ) return -1;
     IEC.release ( PIN_IEC_DATA_OUT );
 
     // Wait for all other devices to release the data line
@@ -243,7 +242,7 @@ int16_t IecProtocolSerial::receiveByte()
     // will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass
     // without  the Clock line going to true, it has a special task to perform: note EOI.
 
-    // pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMEOUT_Tne, false ) == TIMEOUT_Tne )
     {
         // INTERMISSION: EOI
@@ -266,18 +265,17 @@ int16_t IecProtocolSerial::receiveByte()
         IEC.release ( PIN_IEC_DATA_OUT );
 
         IEC.flags |= EOI_RECVD;
+
+        // wait for talker to pull clock line
+        while ( IEC.status ( PIN_IEC_CLK_IN ) != PULLED );
     }
-    else
-    {
-        if ( !wait ( TIMING_Tne ) ) return -1;
-    }
-    // release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
 
 
     // STEP 3: RECEIVING THE BITS
-    //pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     int16_t data = receiveBits();
-    //release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
     if ( data < 0 )
         return -1;
 
@@ -288,8 +286,10 @@ int16_t IecProtocolSerial::receiveByte()
     // one  millisecond  -  one  thousand  microseconds  -  it  will  know  that something's wrong and may alarm appropriately.
 
     // Acknowledge byte received
+    IEC.pull ( PIN_IEC_SRQ );
     if ( !wait ( TIMING_Tf ) ) return -1;
     IEC.pull ( PIN_IEC_DATA_OUT );
+    IEC.release ( PIN_IEC_SRQ );
 
     // STEP 5: START OVER
     // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
@@ -333,52 +333,58 @@ int16_t IecProtocolSerial::receiveBits ()
 
     uint8_t n = 0;
 
+    IEC.pull ( PIN_IEC_SRQ );
     for ( n = 0; n < 8; n++ )
     {
-        do
-        {
-            // wait for bit to be ready to read
-            //IEC.pull ( PIN_IEC_SRQ );
-            bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_EMPTY, false );
+        // do
+        // {
+        //     // wait for bit to be ready to read
+        //     IEC.pull ( PIN_IEC_SRQ );
+        //     bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_EMPTY, false );
 
-            // // If the bit time is less than 40us we are talking with a VIC20
-            // if ( bit_time < TIMING_VIC20_DETECT )
-            //     IEC.flags |= VIC20_MODE;
+        //     // // If the bit time is less than 40us we are talking with a VIC20
+        //     // if ( bit_time < TIMING_VIC20_DETECT )
+        //     //     IEC.flags |= VIC20_MODE;
 
-            // If there is a delay before the last bit, the controller uses JiffyDOS
-            if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
-            {
-                if ( IEC.status ( PIN_IEC_ATN ) == PULLED && data < 0x60 )
-                {
-                    IEC.flags |= ATN_PULLED;
+        //     // If there is a delay before the last bit, the controller uses JiffyDOS
+        //     if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
+        //     {
+        //         if ( (IEC.flags & ATN_PULLED) && data < 0x60 )
+        //         {
+        //             uint8_t device = data & 0x1F;
+        //             if ( IEC.enabledDevices & ( 1 << device ) )
+        //             {
+        //                 /* If it's for us, notify controller that we support Jiffy too */
+        //                 IEC.pull(PIN_IEC_DATA_OUT);
+        //                 wait( TIMING_JIFFY_ACK, 0, false );
+        //                 IEC.release(PIN_IEC_DATA_OUT);
+        //                 IEC.flags |= JIFFY_ACTIVE;
+        //             }
+        //         }
+        //     }
+        //     else if ( bit_time > TIMING_EMPTY )
+        //     {
+        //         if ( n == 0 )
+        //         {
+        //             Debug_printv ( "empty stream signaled" );
+        //             IEC.flags |= EMPTY_STREAM;
+        //         }
+        //         else
+        //         {
+        //             Debug_printv ( "bit timeout" );
+        //         }
 
-                    uint8_t device = data & 0x1F;
-                    if ( IEC.enabledDevices & ( 1 << device ) )
-                    {
-                        /* If it's for us, notify controller that we support Jiffy too */
-                        IEC.pull(PIN_IEC_DATA_OUT);
-                        wait( TIMING_JIFFY_ACK, 0, false );
-                        IEC.release(PIN_IEC_DATA_OUT);
-                        IEC.flags |= JIFFY_ACTIVE;
-                    }
-                }
-            }
-            else if ( bit_time > TIMING_EMPTY )
-            {
-                if ( n == 0 )
-                {
-                    Debug_printv ( "empty stream signaled" );
-                    IEC.flags |= EMPTY_STREAM;
-                }
-                else
-                {
-                    Debug_printv ( "bit timeout" );
-                }
-
-                return -1;
-            }
-        } while ( bit_time >= TIMING_JIFFY_DETECT );
+        //         return -1;
+        //     }
+        // } while ( bit_time >= TIMING_JIFFY_DETECT );
         
+        // wait for bit to be ready to read
+        if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED ) == TIMED_OUT )
+        {
+            Debug_printv ( "wait for talker to start sending bit n[%d]", n );
+            return -1; // return error because timeout
+        }
+
         // get bit
         data >>= 1;
         if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0x80;
@@ -391,8 +397,12 @@ int16_t IecProtocolSerial::receiveBits ()
             return -1; // return error because timeout
         }
     }
+    IEC.release ( PIN_IEC_SRQ );
 
-    return (int16_t)data;
+    if ( IEC.flags & EOI_RECVD )
+        Debug_printv( "data[%02X]", data );
+
+    return data;
 }
 
 
