@@ -122,7 +122,7 @@ static void send_task(void *param)
 
 static inline void start_task(const test_task_param_t *test_task_param)
 {
-    xTaskCreate(send_task, "send_task", 8*1024, (void *) test_task_param, 5, NULL);
+    xTaskCreate(send_task, "send_task", 4*1024, (void *) test_task_param, 5, NULL);
 }
 
 static void init(int *uart_fd, int *socket_fd)

@@ -1,3 +1,5 @@
-ifndef CONFIG_ESP_CONSOLE_USB_CDC
-    COMPONENT_OBJEXCLUDE := vfs_cdcacm.o
-endif
+#
+# Component Makefile
+#
+# (Uses default behaviour of compiling all source files in directory, adding 'include' to include path.)
+

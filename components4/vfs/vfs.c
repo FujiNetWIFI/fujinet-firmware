@@ -18,7 +18,6 @@
 #include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/ioctl.h>
-#include <sys/reent.h>
 #include <sys/unistd.h>
 #include <sys/lock.h>
 #include <sys/param.h>
@@ -35,7 +34,7 @@
 
 static const char *TAG = "vfs";
 
-#define VFS_MAX_COUNT   10   /* max number of VFS entries (registered filesystems) */
+#define VFS_MAX_COUNT   8   /* max number of VFS entries (registered filesystems) */
 #define LEN_PATH_PREFIX_IGNORED SIZE_MAX /* special length value for VFS which is never recognised by open() */
 #define FD_TABLE_ENTRY_UNUSED   (fd_table_t) { .permanent = false, .vfs_index = -1, .local_fd = -1 }
 
@@ -76,12 +75,10 @@ static _lock_t s_fd_table_lock;
 static esp_err_t esp_vfs_register_common(const char* base_path, size_t len, const esp_vfs_t* vfs, void* ctx, int *vfs_index)
 {
     if (len != LEN_PATH_PREFIX_IGNORED) {
-        /* empty prefix is allowed, "/" is not allowed */
-        if ((len == 1) || (len > ESP_VFS_PATH_MAX)) {
+        if ((len != 0 && len < 2) || (len > ESP_VFS_PATH_MAX)) {
             return ESP_ERR_INVALID_ARG;
         }
-        /* prefix has to start with "/" and not end with "/" */
-        if (len >= 2 && ((base_path[0] != '/') || (base_path[len - 1] == '/'))) {
+        if ((len > 0 && base_path[0] != '/') || base_path[len - 1] == '/') {
             return ESP_ERR_INVALID_ARG;
         }
     }
@@ -950,7 +947,7 @@ int esp_vfs_select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *errorfds
         return -1;
     }
 
-    for (size_t i = 0; i < vfs_count; ++i) {
+    for (int i = 0; i < vfs_count; ++i) {
         const vfs_entry_t *vfs = get_vfs_for_index(i);
         fds_triple_t *item = &vfs_fds_triple[i];
 
