@@ -527,6 +527,8 @@ void iecNetwork::query_json()
     char reply[80];
     string s;
 
+    Debug_printf("query_json(%s)\n",payload.c_str());
+
     if (pt.size() < 3)
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
@@ -1092,6 +1094,7 @@ device_state_t iecNetwork::process(IECData *_commanddata)
 {
     // Call base class
     virtualDevice::process(_commanddata); // commanddata set here.
+    mstr::toASCII(payload); // @idolpx? What should I do instead?
 
     // fan out to appropriate process routine
     switch (commanddata->channel)
