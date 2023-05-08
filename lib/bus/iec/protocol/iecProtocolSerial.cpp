@@ -407,9 +407,6 @@ int16_t IecProtocolSerial::receiveBits ()
     }
     IEC.release ( PIN_IEC_SRQ );
 
-    if ( IEC.flags & EOI_RECVD )
-        Debug_printv( "data[%02X]", data );
-
     return data;
 }
 
