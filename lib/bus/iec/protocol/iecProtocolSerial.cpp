@@ -159,6 +159,14 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 
 bool IecProtocolSerial::sendBits ( uint8_t data )
 {
+    uint8_t tv = TIMING_Tv64; // C64 data valid timing
+
+    // We can send faster if in VIC20 Mode
+    if ( IEC.flags & VIC20_MODE )
+    {
+        tv = TIMING_Tv; // VIC-20 data valid timing
+    }
+
     // Send bits
     for ( uint8_t n = 0; n < 8; n++ )
     {
@@ -174,7 +182,7 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
 
         // tell listener bit is ready to read
         IEC.release ( PIN_IEC_CLK_OUT );
-        if ( !wait ( TIMING_Tv ) ) return false; // 76us 
+        if ( !wait ( tv ) ) return false; // 76us 
 
         // Release data line after bit sent
         IEC.release ( PIN_IEC_DATA_OUT );
@@ -293,11 +301,7 @@ int16_t IecProtocolSerial::receiveByte()
     {
         // EOI Received
         if ( !wait ( TIMING_Tfr ) ) return -1;
-        //IEC.release ( PIN_IEC_DATA_OUT );
-    }
-    else
-    {
-         wait ( TIMING_Tbb );
+        IEC.release ( PIN_IEC_DATA_OUT );
     }
 
     return data;
@@ -331,13 +335,11 @@ int16_t IecProtocolSerial::receiveBits ()
 
     for ( n = 0; n < 8; n++ )
     {
-        data >>= 1;
-
         do
         {
             // wait for bit to be ready to read
             //IEC.pull ( PIN_IEC_SRQ );
-            bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMEOUT_DEFAULT, false );
+            bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_EMPTY, false );
 
             // // If the bit time is less than 40us we are talking with a VIC20
             // if ( bit_time < TIMING_VIC20_DETECT )
@@ -361,16 +363,25 @@ int16_t IecProtocolSerial::receiveBits ()
                     }
                 }
             }
-            else if ( n == 0 && bit_time > EMPTY_STREAM )
+            else if ( bit_time > TIMING_EMPTY )
             {
-                Debug_printv ( "empty stream signaled" );
-                IEC.flags |= EMPTY_STREAM;
-                return -1; // return error because empty stream
+                if ( n == 0 )
+                {
+                    Debug_printv ( "empty stream signaled" );
+                    IEC.flags |= EMPTY_STREAM;
+                }
+                else
+                {
+                    Debug_printv ( "bit timeout" );
+                }
+
+                return -1;
             }
         } while ( bit_time >= TIMING_JIFFY_DETECT );
         
         // get bit
-        data |= ( IEC.status ( PIN_IEC_DATA_IN ) == RELEASED ? ( 1 << 7 ) : 0 );
+        data >>= 1;
+        if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0x80;
         //IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
@@ -381,7 +392,7 @@ int16_t IecProtocolSerial::receiveBits ()
         }
     }
 
-    return data;
+    return (int16_t)data;
 }
 
 
