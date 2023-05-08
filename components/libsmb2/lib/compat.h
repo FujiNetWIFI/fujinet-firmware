@@ -19,6 +19,17 @@
 #ifndef _COMPAT_H_
 #define _COMPAT_H_
 
+#ifdef PICO_PLATFORM
+
+#include "lwip/netdb.h"
+#include "lwip/sockets.h"
+
+long long int be64toh(long long int x);
+#define getlogin_r(x,y) 1
+#define EAI_AGAIN EAGAIN
+
+#endif /* PICO_PLATFORM */
+
 #ifdef PS2_EE_PLATFORM
 
 #include <errno.h>
@@ -31,8 +42,6 @@
 #define close(a) lwip_close(a)
 
 #define getlogin_r(a,b) ENXIO
-#define srandom srand
-#define random rand
 
 #define POLLIN      0x0001    /* There is data to read */
 #define POLLPRI     0x0002    /* There is urgent data to read */
@@ -79,22 +88,11 @@ long long int be64toh(long long int x);
 #include <types.h>
 #include <sys/time.h>
 #include <sys/fcntl.h>
+#include <stdint.h>
 #include <ps2ip.h>
 #include <loadcore.h>
 
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef unsigned int uint32_t;
-typedef unsigned long long uint64_t;
 typedef uint32_t UWORD32;
-
-typedef char int8_t;
-typedef short int16_t;
-typedef short int_least16_t;
-typedef int int32_t;
-typedef long long int64_t;
-typedef int intptr_t;
-
 typedef size_t ssize_t;
 
 long long int be64toh(long long int x);
@@ -132,7 +130,7 @@ struct iovec {
 
 #undef connect
 #define connect(a,b,c) iop_connect(a,b,c)
-int iop_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
+int iop_connect(int sockfd, struct sockaddr *addr, socklen_t addrlen);
 
 #define write(a,b,c) lwip_send(a,b,c,MSG_DONTWAIT)
 #define read(a,b,c) lwip_recv(a,b,c,MSG_DONTWAIT)
@@ -150,6 +148,15 @@ ssize_t readv(int fd, const struct iovec *iov, int iovcnt);
 
 #endif /* PS2_IOP_PLATFORM */
 
+#ifdef PS4_PLATFORM
+
+#include <netdb.h>
+#include <poll.h>
+#include <sys/uio.h>
+
+#define TCP_NODELAY     1  /* Don't delay send to coalesce packets  */
+
+#endif /* PS4_PLATFORM */
 
 #ifdef PS3_PPU_PLATFORM
 

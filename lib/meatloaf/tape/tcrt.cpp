@@ -19,6 +19,8 @@ bool TCRTIStream::seekEntry( std::string filename )
         {
             std::string entryFilename = entry.filename;
             mstr::rtrimA0(entryFilename);
+            mstr::replaceAll(filename, "\\", "/");
+            mstr::toASCII(entryFilename);
             Debug_printv("filename[%s] entry.filename[%.16s]", filename.c_str(), entryFilename.c_str());
 
             // Read Entry From Stream
@@ -47,13 +49,13 @@ bool TCRTIStream::seekEntry( size_t index )
     index--;
     size_t entryOffset = 0xE7 + (index * 32);
 
-    Debug_printv("----------");
-    Debug_printv("index[%d] entryOffset[%d] entry_index[%d]", (index + 1), entryOffset, entry_index);
+    //Debug_printv("----------");
+    //Debug_printv("index[%d] entryOffset[%d] entry_index[%d]", (index + 1), entryOffset, entry_index);
 
     containerStream->seek(entryOffset);
     containerStream->read((uint8_t *)&entry, sizeof(entry));
 
-    Debug_printv("file_type[%02X] file_name[%.16s]", entry.file_type, entry.filename);
+    //Debug_printv("file_type[%02X] file_name[%.16s]", entry.file_type, entry.filename);
 
     entry_index = index + 1;    
     if ( entry.file_type == 0xFF )

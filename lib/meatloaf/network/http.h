@@ -5,14 +5,16 @@
 
 #include "meat_io.h"
 
-#include "../../../include/version.h"
-
 #include <esp_http_client.h>
 #include <functional>
 
+#include "../../include/version.h"
+
+#define HTTP_BLOCK_SIZE 256
+#define PRODUCT_ID "MEATLOAF CBM"
+//#define FW_VERSION "20220422.1" // Dynamically set at compile time in "platformio.ini"
 #define PLATFORM_DETAILS "C64; 6510; 2; NTSC; EN;" // Make configurable. This will help server side to select appropriate content.
 #define USER_AGENT "MEATLOAF/" FN_VERSION_FULL " (" PLATFORM_DETAILS ")"
-#define HTTP_BLOCK_SIZE 256
 
 class MeatHttpClient {
     esp_http_client_handle_t m_http = nullptr;
@@ -128,11 +130,10 @@ public:
     uint32_t read(uint8_t* buf, uint32_t size) override;
     uint32_t write(const uint8_t *buf, uint32_t size) override;
 
-    bool isOpen();
+    bool isOpen() override;
 
 protected:
     MeatHttpClient m_http;
-    std::string url;
 
 };
 

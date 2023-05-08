@@ -19,6 +19,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
+//
+// https://www.pagetable.com/?p=1135
+// http://unusedino.de/ec64/technical/misc/c1541/romlisting.html#E85B
+// https://eden.mose.org.uk/gitweb/?p=rom-reverse.git;a=blob;f=src/vic-1541-sfd.asm;hb=HEAD
+// https://www.pagetable.com/docs/Inside%20Commodore%20DOS.pdf
+// http://www.ffd2.com/fridge/docs/1541dis.html#E853
+//
+
 #include <cstdint>
 #include <forward_list>
 #include <freertos/FreeRTOS.h>
@@ -30,6 +38,8 @@
 #include <driver/gpio.h>
 #include "fnSystem.h"
 #include "protocol/iecProtocolBase.h"
+
+#include "../../../include/debug.h"
 
 /**
  * @brief The command frame
@@ -170,13 +180,35 @@ protected:
 
     /**
      * @brief response queue (e.g. INPUT)
+     * @deprecated remove as soon as it's out of fuji.
      */
     std::queue<std::string> response_queue;
+
+    /**
+     * @brief status override (for binary commands)
+     */
+    std::string status_override;
 
     /**
      * @brief tokenized payload
      */
     std::vector<std::string> pt;
+    std::vector<uint8_t> pti;
+
+    /**
+     * @brief The status information to send back on cmd input
+     * @param bw = # of bytes waiting
+     * @param msg = most recent status message
+     * @param connected = is most recent channel connected?
+     * @param channel = channel of most recent status msg.
+     */
+    struct _iecStatus
+    {
+        uint8_t error;
+        std::string msg;
+        bool connected;
+        int channel;
+    } iecStatus;
 
     /**
      * @brief Get device ready to handle next phase of command.
@@ -200,9 +232,20 @@ protected:
     virtual device_state_t process(IECData *commanddata);
 
     /**
+     * @brief poll whether interrupt should be wiggled
+     * @param c secondary channel (0-15)
+     */
+    virtual void poll_interrupt(unsigned char c) {}
+    
+    /**
      * @brief Dump the current IEC frame to terminal.
      */
     void dumpData();
+
+    /**
+     * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
+     */
+    virtual void iec_talk_command_buffer_status();
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
@@ -265,22 +308,17 @@ private:
     /**
      * IEC LISTEN received
      */
-    bus_state_t deviceListen();
+    void deviceListen();
 
     /**
      * IEC TALK requested
      */
-    bus_state_t deviceTalk();
+    void deviceTalk();
 
     /**
-     * BUS TURNAROUND (act like listener)
+     * BUS TURNAROUND (switch from listener to talker)
      */
     bool turnAround();
-
-    /**
-     * Done with turnaround, go back to being talker.
-     */
-    bool undoTurnAround();
 
     /**
      * @brief called to process the next command
@@ -291,6 +329,16 @@ private:
      * @brief called to process a queue item (such as disk swap)
      */
     void process_queue();
+
+    /**
+     * @brief called to read bus command bytes
+    */
+    void read_command();
+
+    /**
+     * @brief called to read bus payload bytes
+    */
+    void read_payload();
 
     /**
      * @brief Release the bus lines, we're done.
@@ -329,30 +377,35 @@ public:
     void service();
 
     /**
+     * @brief send single byte
+     * @param c byte to send
+     * @param eoi Send EOI?
+     * @return true on success, false on error
+    */
+    bool sendByte(const char c, bool eoi = false);
+
+    /**
      * @brief Send bytes to bus
      * @param buf buffer to send
      * @param len length of buffer
+     * @param eoi Send EOI?
+     * @return true on success, false on error
      */
-    void sendBytes(const char *buf, size_t len);
+    bool sendBytes(const char *buf, size_t len, bool eoi = true);
 
     /**
      * @brief Send string to bus
      * @param s std::string to send
+     * @param eoi Send EOI?
+     * @return true on success, false on error
      */
-    void sendBytes(std::string s);
+    bool sendBytes(std::string s, bool eoi = true);
 
     /**
      * @brief Receive Byte from bus
      * @return Byte received from bus, or -1 for error.
      */
     int16_t receiveByte();
-
-    /**
-     * @brief send single byte
-     * @param c byte to send
-     * @param eoi Send EOI?
-    */
-   void sendByte(const char c, bool eoi);
 
     /**
      * @brief called in response to RESET pin being asserted.
@@ -405,50 +458,58 @@ public:
 
     /**
      * @brief signal to bus that we timed out.
-     * @return true if timed out.
      */
-    bool senderTimeout();
+    void senderTimeout();
 
     // true => PULL => LOW
-    inline void IRAM_ATTR pull(uint8_t pin)
+    inline void IRAM_ATTR pull ( uint8_t pin )
     {
-        fnSystem.digital_write(pin, 0);
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
+#endif
+        fnSystem.digital_write ( pin, LOW );
     }
 
     // false => RELEASE => HIGH
-    inline void IRAM_ATTR release(uint8_t pin)
+    inline void IRAM_ATTR release ( uint8_t pin )
     {
-        fnSystem.digital_write(pin, 1);
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
+#endif
+        fnSystem.digital_write ( pin, HIGH );
     }
 
-    inline bool IRAM_ATTR status(uint8_t pin)
+    inline bool IRAM_ATTR status ( uint8_t pin )
     {
-        return gpio_get_level((gpio_num_t)pin) ? 0 : 1;
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_INPUT );
+#endif
+        return gpio_get_level ( ( gpio_num_t ) pin ) ? RELEASED : PULLED;
     }
 
-    inline void IRAM_ATTR set_pin_mode(uint8_t pin, gpio_mode_t mode)
+    inline void IRAM_ATTR set_pin_mode ( uint8_t pin, gpio_mode_t mode )
     {
         static uint64_t gpio_pin_modes;
-        uint8_t b_mode = (mode == 1) ? 1 : 0;
+        uint8_t b_mode = ( mode == 1 ) ? 1 : 0;
 
         // is this pin mode already set the way we want?
 #ifndef IEC_SPLIT_LINES
-        if (((gpio_pin_modes >> pin) & 1ULL) != b_mode)
+        if ( ( ( gpio_pin_modes >> pin ) & 1ULL ) != b_mode )
 #endif
         {
             // toggle bit so we don't change mode unnecessarily
-            gpio_pin_modes ^= (-b_mode ^ gpio_pin_modes) & (1ULL << pin);
+            gpio_pin_modes ^= ( -b_mode ^ gpio_pin_modes ) & ( 1ULL << pin );
 
             gpio_config_t io_conf =
-                {
-                    .pin_bit_mask = (1ULL << pin),         // bit mask of the pins that you want to set
-                    .mode = mode,                          // set as input mode
-                    .pull_up_en = GPIO_PULLUP_DISABLE,     // disable pull-up mode
-                    .pull_down_en = GPIO_PULLDOWN_DISABLE, // disable pull-down mode
-                    .intr_type = GPIO_INTR_DISABLE         // interrupt of falling edge
-                };
-            // configure GPIO with the given settings
-            gpio_config(&io_conf);
+            {
+                .pin_bit_mask = ( 1ULL << pin ),            // bit mask of the pins that you want to set
+                .mode = mode,                               // set as input mode
+                .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
+                .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
+                .intr_type = GPIO_INTR_DISABLE              // interrupt of falling edge
+            };
+            //configure GPIO with the given settings
+            gpio_config ( &io_conf );
         }
     }
 };
@@ -458,4 +519,4 @@ public:
  */
 extern systemBus IEC;
 
-#endif /* I2C_H */
+#endif /* IEC_H */

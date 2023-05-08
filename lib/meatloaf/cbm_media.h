@@ -1,6 +1,4 @@
 
-
-
 #ifndef MEATLOAF_CBM_MEDIA
 #define MEATLOAF_CBM_MEDIA
 
@@ -42,13 +40,26 @@ public:
     bool isBrowsable() override { return false; };
     bool isRandomAccess() override { return true; };
 
-    bool seek(uint32_t pos) override {
-        return true;
-    };
-     bool seek(uint32_t pos, int mode) override {
-        return true;
-    };   
+    // read = (size) => this.containerStream.read(size);
+    virtual uint8_t read(uint8_t size) {
+        uint8_t b = 0;
+        if (!containerStream->read((uint8_t *)&b, 1))
+            return -1;
 
+        return b;
+    }
+    // readUntil = (delimiter = 0x00) => this.containerStream.readUntil(delimiter);
+    // readString = (size) => this.containerStream.readString(size);
+    // readStringUntil = (delimiter = 0x00) => this.containerStream.readStringUntil(delimiter);
+    // seek = (offset) => this.containerStream.seek(offset + this.media_header_size);
+    bool seek(uint32_t offset) override { return containerStream->seek(offset + media_header_size); }
+    // seekCurrent = (offset) => this.containerStream.seekCurrent(offset);
+    bool seekCurrent(uint32_t offset) { return containerStream->seek(offset); }
+
+    // virtual bool seekBlock( uint16_t index ) { 
+    //     containerStream->seek( offset + (index * block_size) );
+    //     return true;
+    // };
     bool seekPath(std::string path) override { return false; };
     std::string seekNextEntry() override { return ""; };
 
@@ -58,6 +69,7 @@ public:
     uint32_t write(const uint8_t *buf, uint32_t size);
 
     bool isOpen();
+    std::string url;
 
 protected:
 
@@ -75,6 +87,7 @@ protected:
     bool show_hidden = false;
 
     size_t block_size = 256;
+    size_t media_header_size = 0x00;
     size_t entry_index = 0;  // Currently selected directory entry
     size_t entry_count = -1; // Directory list entry count (-1 unknown)
 
@@ -99,24 +112,31 @@ protected:
 
 private:
 
-    // File
+    // Commodore Media
+    // FILE
     friend class P00File;
 
-    // Disk
+    // FLOPPY DISK
     friend class D64File;
     friend class D71File;
     friend class D80File;
     friend class D81File;
     friend class D82File;
-    friend class D8BFile;
-    friend class DNPFile;
 
-    // Tape
+    // HARD DRIVE
+    friend class DNPFile;
+    friend class D90File;
+
+    // MEDIA ARCHIVE
+    friend class D8BFile;
+    friend class DFIFile;
+
+    // CASSETTE TAPE
     friend class T64File;
     friend class TCRTFile;
 
-    // Cartridge
-
+    // CARTRIDGE
+    friend class CRTFile;
 };
 
 

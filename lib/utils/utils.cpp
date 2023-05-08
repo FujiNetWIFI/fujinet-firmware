@@ -498,7 +498,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
     return true;
 }
 
-void util_dump_bytes(uint8_t *buff, uint32_t buff_size)
+void util_dump_bytes(const uint8_t *buff, uint32_t buff_size)
 {
     int bytes_per_line = 16;
     for (int j = 0; j < buff_size; j += bytes_per_line)
@@ -519,6 +519,20 @@ vector<string> util_tokenize(string s, char c)
     while (getline(ss, token, c))
     {
         tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+vector<uint8_t> util_tokenize_uint8(string s, char c)
+{
+    vector<uint8_t> tokens;
+    stringstream ss(s);
+    string token;
+
+    while (getline(ss, token, c))
+    {
+        tokens.push_back( atoi(token.c_str()) );
     }
 
     return tokens;

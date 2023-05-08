@@ -67,13 +67,27 @@ void HardwareTimer::config()
   // use the idf library to get it set up
   // have own helper functions that do direct register read/write for speed
 
-  timer_config_t config;
-  config.divider = TIMER_DIVIDER; // default clock source is APB
-  config.counter_dir = TIMER_COUNT_UP;
-  config.counter_en = TIMER_PAUSE;
-  config.alarm_en = TIMER_ALARM_DIS;
+  //  typedef struct {
+  //     timer_alarm_t alarm_en;         /*!< Timer alarm enable */
+  //     timer_start_t counter_en;       /*!< Counter enable */
+  //     timer_intr_mode_t intr_type;    /*!< Interrupt mode */
+  //     timer_count_dir_t counter_dir;  /*!< Counter direction  */
+  //     timer_autoreload_t auto_reload; /*!< Timer auto-reload */
+  //     timer_src_clk_t clk_src;        /*!< Selects source clock. */
+  //     uint32_t divider;               /*!< Counter clock divider */
+  // } timer_config_t;
 
-  timer_init(TIMER_GROUP_1, TIMER_1, &config);
+  fn_config.alarm_en = TIMER_ALARM_DIS;
+  fn_config.counter_en = TIMER_PAUSE;
+  fn_config.intr_type = TIMER_INTR_LEVEL;
+  fn_config.counter_dir = TIMER_COUNT_UP;
+  fn_config.auto_reload = TIMER_AUTORELOAD_DIS;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  fn_config.clk_src = TIMER_SRC_CLK_APB;
+#endif
+  fn_config.divider = TIMER_DIVIDER; // default clock source is APB
+  
+  timer_init(TIMER_GROUP_1, TIMER_1, &fn_config);
   timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
   timer_start(TIMER_GROUP_1, TIMER_1);
 }

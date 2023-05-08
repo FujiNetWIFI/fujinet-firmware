@@ -2,6 +2,7 @@
 #include "fnUART.h"
 
 #include <soc/uart_reg.h>
+#include <hal/gpio_types.h>
 
 #include <cstdarg>
 #include <cstring>
@@ -56,7 +57,11 @@ void UARTManager::begin(int baud)
             .stop_bits = UART_STOP_BITS_1,
             .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
             .rx_flow_ctrl_thresh = 122, // No idea what this is for, but shouldn't matter if flow ctrl is disabled?
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+            .source_clk = UART_SCLK_DEFAULT
+#else
             .use_ref_tick = false       // ?
+#endif
         };
 
     // This works around an obscure hardware bug where resetting UART2 causes the TX to become corrupted

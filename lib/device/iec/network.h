@@ -70,7 +70,49 @@ class iecNetwork : public virtualDevice
      */
     device_state_t process(IECData *_commanddata);
 
+    /**
+     * @brief Check to see if SRQ needs to be asserted.
+     * @param c Secondary channel # (0-15)
+     */
+    virtual void poll_interrupt(unsigned char c);
+
+    /**
+     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
+     */
+    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+
+    /**
+     * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
+     * be pulsed.
+     */
+    bool interruptSRQ = false;
+
     private:
+
+    /**
+     * ESP timer handle for the Interrupt rate limiting timer
+     */
+    esp_timer_handle_t rateTimerHandle = nullptr;
+
+    /**
+     * Timer Rate for interrupt timer
+     */
+    int timerRate = 100;
+
+    /**
+     * @brief Start the Interrupt rate limiting timer
+     */
+    void timer_start();
+
+    /**
+     * @brief Stop the Interrupt rate limiting timer
+     */
+    void timer_stop();
+
+    /**
+     * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
+     */
+    void assert_interrupt();
 
     /**
      * @brief the active URL for each channel
@@ -144,21 +186,6 @@ class iecNetwork : public virtualDevice
     bool file_not_found = false;
 
     /**
-     * @brief The status information to send back on cmd input
-     * @param bw = # of bytes waiting
-     * @param msg = most recent status message
-     * @param connected = is most recent channel connected?
-     * @param channel = channel of most recent status msg.
-     */
-    struct _iecStatus
-    {
-        uint8_t error;
-        string msg;
-        bool connected;
-        int channel;
-    } iecStatus;
-
-    /**
      * @brief parse JSON
      */
     void parse_json();
@@ -167,6 +194,11 @@ class iecNetwork : public virtualDevice
      * @brief query JSON
      */
     void query_json();
+
+    /**
+     * @brief Set device ID from dos command
+     */
+    void set_device_id();
 
     /**
      * @brief Set desired prefix for channel
@@ -263,11 +295,6 @@ class iecNetwork : public virtualDevice
      * @brief called to ask protocol to perform an operation with no payload
      */
     void perform_special_80();
-
-    /**
-     * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
-     */
-    void iec_talk_command_buffer_status();
 
     /**
      * @brief process command for channel 0 (load)

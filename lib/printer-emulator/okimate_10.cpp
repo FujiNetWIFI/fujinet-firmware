@@ -358,7 +358,7 @@ void okimate10::okimate_output_color_line()
     //pdf_new_line();
 }
 
-void okimate10::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
+void okimate10::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
 {
     // Okimate 10 extras codes:
     // ESC CTRL-T ESC CTRL-N - 8.25 char/inch (0x14, 0x0E)

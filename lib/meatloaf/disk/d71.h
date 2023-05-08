@@ -21,20 +21,47 @@ class D71IStream : public D64IStream {
 public:
     D71IStream(std::shared_ptr<MStream> is) : D64IStream(is) 
     {
-        // D71 Offsets
-        //directory_header_offset = {18, 0, 0x90};
-        //directory_list_offset = {18, 1, 0x00};
-        block_allocation_map = { {18, 0, 0x04, 1, 35, 4}, {53, 0, 0x00, 36, 70, 3} };
-        //sectorsPerTrack = { 17, 18, 19, 21 };
+        // D71 Partition Info
+        std::vector<BlockAllocationMap> b = { 
+            {
+                18,     // track
+                0,      // sector
+                0x04,   // offset
+                1,      // start_track
+                35,     // end_track
+                4       // byte_count
+            },
+            {
+                53,     // track
+                0,      // sector
+                0x00,   // offset
+                36,     // start_track
+                70,     // end_track
+                3       // byte_count
+            } 
+        };
+
+        Partition p = {
+            1,     // track
+            0,     // sector
+            0x04,  // header_offset
+            1,     // directory_track
+            4,     // directory_sector
+            0x00,  // directory_offset
+            b      // block_allocation_map
+        };
+        partitions.clear();
+        partitions.push_back(p);
+        sectorsPerTrack = { 17, 18, 19, 21 };
+        block_size = 256;
     };
 
-    //virtual uint16_t blocksFree() override;
 	virtual uint8_t speedZone( uint8_t track) override
 	{
         if ( track < 35 )
-		    return (track < 17) + (track < 24) + (track < 30);
+		    return (track < 18) + (track < 25) + (track < 31);
         else
-            return (track < 52) + (track < 59) + (track < 65);
+            return (track < 53) + (track < 60) + (track < 66);
 	};
 
 protected:

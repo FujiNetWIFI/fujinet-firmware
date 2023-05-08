@@ -299,13 +299,13 @@ void sioFuji::sio_disk_image_mount()
         sio_error();
         return;
     }
-    
+
     if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
     {
         sio_error();
         return;
     }
-    
+
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
@@ -437,14 +437,42 @@ void sioFuji::sio_copy_file()
         return;
     }
 
-    size_t count = 0;
+    size_t readCount = 0;
+    size_t readTotal = 0;
+    size_t writeCount = 0;
+    size_t expected = _fnHosts[sourceSlot].file_size(sourceFile); // get the filesize
+    bool err = false;
     do
     {
-        count = fread(dataBuf, 1, 532, sourceFile);
-        fwrite(dataBuf, 1, count, destFile);
-    } while (count > 0);
+        readCount = fread(dataBuf, 1, 532, sourceFile);
+        readTotal += readCount;
+        // Check if we got enough bytes on the read
+        if(readCount < 532 && readTotal != expected)
+        {
+            err = true;
+            break;
+        }
+        writeCount = fwrite(dataBuf, 1, readCount, destFile);
+        // Check if we sent enough bytes on the write
+        if (writeCount != readCount)
+        {
+            err = true;
+            break;
+        }
+        Debug_printf("Copy File: %d bytes of %d\n", readTotal, expected);
+    } while (readTotal < expected);
 
-    sio_complete();
+    if (err == true)
+    {
+        // Remove the destination file and error
+        _fnHosts[destSlot].file_remove((char *)destPath.c_str());
+        sio_error();
+        Debug_printf("Copy File Error! wCount: %d, rCount: %d, rTotal: %d, Expect: %d\n", writeCount, readCount, readTotal, expected);
+    }
+    else
+    {
+        sio_complete();
+    }
 
     // copyEnd:
     fclose(sourceFile);
@@ -794,7 +822,8 @@ void sioFuji::image_rotate()
         }
 
         // The first slot gets the device ID of the last slot
-        _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+        Debug_printf("setting slot %d to ID %hx\n", 0, last_id);
+       _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
         if (Config.get_general_rotation_sounds())
@@ -1131,7 +1160,25 @@ void sioFuji::sio_unmount_host()
         return;
     }
 
-    if (!_fnHosts[hostSlot].umount())
+    // Unmount any disks associated with host slot
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        if (_fnDisks[i].host_slot == hostSlot)
+        {
+            _fnDisks[i].disk_dev.unmount();
+            if (_fnDisks[i].disk_type == MEDIATYPE_CAS || _fnDisks[i].disk_type == MEDIATYPE_WAV)
+            {
+                // tell cassette it unmount
+                _cassetteDev.umount_cassette_file();
+                _cassetteDev.sio_disable_cassette();
+            }
+            _fnDisks[i].disk_dev.device_active = false;
+            _fnDisks[i].reset();
+        }
+    }
+
+    // Unmount the host
+    if (_fnHosts[hostSlot].umount())
         sio_error();
     else
         sio_complete();
@@ -1547,7 +1594,7 @@ void sioFuji::setup(systemBus *siobus)
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
-    
+
     //Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
 
@@ -1562,7 +1609,7 @@ void sioFuji::setup(systemBus *siobus)
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
 
-    
+
 }
 
 sioDisk *sioFuji::bootdisk()

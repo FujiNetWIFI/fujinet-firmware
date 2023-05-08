@@ -197,11 +197,11 @@ void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
         {
             fread(buf, 1, sz, fInput);
             string contents(buf);
-            free(buf);
             contents = fnHttpServiceParser::parse_contents(contents);
 
             httpd_resp_sendstr_chunk(req, contents.c_str());
         }
+        free(buf);
     }
 
     if (fInput != nullptr)
@@ -242,11 +242,11 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
         {
             fread(buf, 1, sz, fInput);
             string contents(buf);
-            free(buf);
             contents = fnHttpServiceParser::parse_contents(contents);
 
             httpd_resp_send(req, contents.c_str(), contents.length());
         }
+        free(buf);
     }
 
     if (fInput != nullptr)
@@ -672,7 +672,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
                 disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
                 #ifdef BUILD_APPLE
                 if(mode == fnConfig::mount_modes::MOUNTMODE_WRITE) {disk->disk_dev.readonly = false;}
-                #endif 
+                #endif
                 Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
                 Config.save();
                 theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
@@ -720,7 +720,10 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     {
         fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
     }
-
+    #ifdef BUILD_APPLE
+    if(theFuji.get_disks(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted. 
+        theFuji.get_disks(ds)->disk_dev.switched = true;
+    #endif
     theFuji.get_disks(ds)->disk_dev.unmount();
 #ifdef BUILD_ATARI
     if (theFuji.get_disks(ds)->disk_type == MEDIATYPE_CAS || theFuji.get_disks(ds)->disk_type == MEDIATYPE_WAV)
@@ -810,8 +813,7 @@ esp_err_t fnHttpService::get_handler_term(httpd_req_t *req)
         }
     }
 
-    if (buf != NULL)
-        free(buf);
+    free(buf);
 
     // Now see if we need to send anything back
 
@@ -860,8 +862,7 @@ esp_err_t fnHttpService::get_handler_kybd(httpd_req_t *req)
         }
     }
 
-    if (buf != NULL)
-        free(buf);
+    free(buf);
 
     return ret;
 }
@@ -907,8 +908,8 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DISK TO MOUNT<span id=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) + 
-        qp.query_parsed["path"] + 
+        string(theFuji.get_hosts(hs)->get_hostname()) +
+        qp.query_parsed["path"] +
         "</header>\n"
         "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
         "               <div class=\"fileline\">\n"
@@ -1084,7 +1085,7 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DRIVE SLOT<span id=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + 
+        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] +
         "</header>\n"
         "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
         "               <div class=\"fileline\">\n"
@@ -1176,8 +1177,9 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
             // Go handle what we just read...
             ret = fnHttpServiceConfigurator::process_config_post(buf, recv_size);
         }
-        free(buf);
     }
+
+    free(buf);
 
     if (err != fnwserr_noerrr)
     {
@@ -1292,6 +1294,8 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         .handler = get_handler_term,
         .user_ctx = NULL,
         .is_websocket = true,
+        .handle_ws_control_frames = false,
+        .supported_subprotocol = nullptr,
     };
 #endif
     httpd_uri_t config_uri =
@@ -1317,7 +1321,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     config.max_resp_headers = 16;
     config.max_uri_handlers = 16;
     config.task_priority = 12; // Bump this higher than fnService loop
-    //config.core_id = 0; // Pin to CPU core 0
+    config.core_id = 0; // Pin to CPU core 0
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed
