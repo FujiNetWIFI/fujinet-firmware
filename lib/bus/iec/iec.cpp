@@ -5,6 +5,7 @@
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 #include "led.h"
+#include "led_strip.h"
 #include "protocol/iecProtocolSerial.h"
 #include "string_utils.h"
 #include "utils.h"
@@ -115,6 +116,8 @@ void IRAM_ATTR systemBus::service()
             release ( PIN_IEC_CLK_OUT );
             pull ( PIN_IEC_DATA_OUT );
 
+            flags = CLEAR;
+
             // Read bus command bytes
             Debug_printv("command");
             read_command();
@@ -160,7 +163,6 @@ void IRAM_ATTR systemBus::service()
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
             bus_state = BUS_IDLE;
-            flags = CLEAR;
         }
 
         // Let bus stabalize
@@ -180,6 +182,9 @@ void IRAM_ATTR systemBus::service()
 
     Debug_printv("exit");
     //release( PIN_IEC_SRQ );
+
+    //fnLedStrip.stopRainbow();
+    //fnLedManager.set(eLed::LED_BUS, false);
 }
 
 void systemBus::read_command()

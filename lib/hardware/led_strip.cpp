@@ -185,4 +185,5 @@ void LedStrip::startRainbow(int seconds)
 void LedStrip::stopRainbow()
 {
     fnLedStrip.rainbowStopper = true;
+    fnLedStrip.rainbowTimer = 0;
 }
