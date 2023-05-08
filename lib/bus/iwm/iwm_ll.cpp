@@ -822,7 +822,7 @@ void iwm_diskii_ll::set_output_to_rmt()
   else
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
 #else
-  if(fnSystem.check_spifix())
+  if(fnSystem.spifix())
     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, rmt_periph_signals.channels[0].tx_sig, false, false);
   else
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
