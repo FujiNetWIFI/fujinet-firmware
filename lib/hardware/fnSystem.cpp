@@ -654,7 +654,7 @@ void SystemManager::check_hardware_ver()
     Debug_printf("Enabling LED Strip\n");
 
     /* Change Safe Reset GPIO */
-    safe_reset_gpio = PIN_BUTTON_C;
+    safe_reset_gpio = (gpio_num_t)PIN_BUTTON_C;
 #endif
 
 #ifdef PINMAP_A2_REV0
