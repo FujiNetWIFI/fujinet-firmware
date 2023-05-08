@@ -426,7 +426,7 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     {
     case bus_command_t::IEC_OPEN:
         payload = commanddata->payload;
-        // mstr::toASCII(payload);
+        // mstr::toASCII(payload); // AAARRRGHHHH, WHYYY?!?!?!?!
         pt = util_tokenize(payload, ',');
         break;
     case bus_command_t::IEC_CLOSE:
