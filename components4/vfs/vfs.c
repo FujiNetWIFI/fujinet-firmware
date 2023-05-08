@@ -34,7 +34,7 @@
 
 static const char *TAG = "vfs";
 
-#define VFS_MAX_COUNT   8   /* max number of VFS entries (registered filesystems) */
+#define VFS_MAX_COUNT   10   /* max number of VFS entries (registered filesystems) */
 #define LEN_PATH_PREFIX_IGNORED SIZE_MAX /* special length value for VFS which is never recognised by open() */
 #define FD_TABLE_ENTRY_UNUSED   (fd_table_t) { .permanent = false, .vfs_index = -1, .local_fd = -1 }
 
