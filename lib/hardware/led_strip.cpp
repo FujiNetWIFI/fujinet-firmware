@@ -130,7 +130,7 @@ LedStrip::LedStrip()
 void LedStrip::setup()
 {
     // Only start the strip if we found it during check_hardware_ver()
-    if (fnSystem.check_ledstrip())
+    if (fnSystem.ledstrip())
     {
         Debug_printf("Starting LED Strip\n");
         FastLED.addLeds<LED_TYPE, LED_DATA_PIN, RGB_ORDER>(ledstrip, NUM_LEDS);
@@ -185,4 +185,5 @@ void LedStrip::startRainbow(int seconds)
 void LedStrip::stopRainbow()
 {
     fnLedStrip.rainbowStopper = true;
+    fnLedStrip.rainbowTimer = 0;
 }

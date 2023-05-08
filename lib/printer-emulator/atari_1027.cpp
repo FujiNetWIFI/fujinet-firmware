@@ -3,7 +3,7 @@
 #include "../../include/debug.h"
 
 
-void atari1027::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
+void atari1027::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
 {
     if (escMode)
     {

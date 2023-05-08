@@ -842,7 +842,7 @@ void iecDisk::sendListing()
 		return;
 	}
 
-	fnLedStrip.startRainbow(300);
+	//fnLedStrip.startRainbow(300);
 
 	// Send load address
 	IEC.sendByte(CBM_BASIC_START & 0xff);
@@ -944,7 +944,7 @@ void iecDisk::sendListing()
 	Debug_printf("\r\n=================================\r\n%d bytes sent\r\n", byte_count);
 
 	//fnLedManager.set(eLed::LED_BUS, false);
-	fnLedStrip.stopRainbow();
+	//fnLedStrip.stopRainbow();
 } // sendListing
 
 
@@ -988,7 +988,7 @@ bool iecDisk::sendFile()
 	uint32_t avail = istream->available();
 
 	{
-		fnLedStrip.startRainbow(300);
+		//fnLedStrip.startRainbow(300);
 
 		if( IEC.data.channel == CHANNEL_LOAD )
 		{
@@ -1087,7 +1087,7 @@ bool iecDisk::sendFile()
 
 
 	//fnLedManager.set(eLed::LED_BUS, false);
-	fnLedStrip.stopRainbow();
+	//fnLedStrip.stopRainbow();
 
 	if ( istream->error() )
 	{
@@ -1136,7 +1136,7 @@ bool iecDisk::saveFile()
 		// 	// ostream->seek(currentStream.cursor);
 		// }
 		// else
-		fnLedStrip.startRainbow(300);
+		//fnLedStrip.startRainbow(300);
 		{
 			// Get file load address
 			ll[0] = IEC.receiveByte();
@@ -1212,7 +1212,7 @@ bool iecDisk::saveFile()
 
 	Debug_printf("=================================\r\n%d bytes saved\r\n", i);
 	//fnLedManager.set(eLed::LED_BUS, false);
-	fnLedStrip.stopRainbow();
+	//fnLedStrip.stopRainbow();
 
 	// TODO: Handle errorFlag
 

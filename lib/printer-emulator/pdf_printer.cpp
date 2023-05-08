@@ -347,8 +347,8 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
      *
      */
     int i = 0;
-    uint8_t c;
-    uint8_t cc;
+    uint16_t c;
+    uint16_t cc;
 
 #ifdef DEBUG
     // Debug_printf("Processing %d chars\n", n);
