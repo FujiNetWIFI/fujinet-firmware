@@ -39,20 +39,21 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // When  the  listener  is  ready  to  listen,  it  releases  the  Data
     // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
-    // to  accept  data.  What  happens  next  is  variable.
+    // to  accept  data.
+    IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
         //Debug_printv ( "Wait for listener to be ready" );
         return false; // return error because of ATN or timeout
     }
+    IEC.release ( PIN_IEC_SRQ );
 
-    // Either  the  talker  will pull the
+    // What  happens  next  is  variable. Either  the  talker  will pull the
     // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
     // will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass
     // without  the Clock line going to true, it has a special task to perform: note EOI.
     if ( eoi )
     {
-
         // INTERMISSION: EOI
         // If the Ready for Data signal isn't acknowledged by the talker within 200 microseconds, the
         // listener knows  that  the  talker  is  trying  to  signal  EOI.    EOI,  which  formally
@@ -79,14 +80,24 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
             return false; // return error because timeout
         }
 
-        // ready to send last byte
-        if ( !wait ( TIMING_Try ) ) return false;
+        // Ok... let's start over and say we're ready
+        IEC.release ( PIN_IEC_CLK_OUT );
+
+        // Wait for listener to be ready
+        // STEP 2: READY FOR DATA
+        // When  the  listener  is  ready  to  listen,  it  releases  the  Data
+        // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
+        // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
+        // to  accept  data.
+        if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
+        {
+            //Debug_printv ( "Wait for listener to be ready" );
+            return false; // return error because of ATN or timeout
+        }
     }
-    else
-    {
-        // ready to send next byte
-        if ( !wait ( TIMING_Tne ) ) return false;
-    }
+
+    // delay before byte
+    if ( !wait ( TIMING_Tne ) ) return false;
 
     // STEP 3: SENDING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
@@ -103,13 +114,13 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // one  millisecond  -  one  thousand  microseconds  -  it  will  know  that something's wrong and may alarm appropriately.
 
     // Wait for listener to accept data
-    //IEC.pull ( PIN_IEC_SRQ );
+    IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
     {
         Debug_printv ( "Wait for listener to acknowledge byte received (pull data)" );
         return false; // return error because timeout
     }
-    //IEC.release ( PIN_IEC_SRQ );
+    IEC.release ( PIN_IEC_SRQ );
 
     // STEP 5: START OVER
     // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
@@ -125,12 +136,15 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     //         Debug_printv ( "Wait for listener to acknowledge EOI" );
     //         return false; // return error because timeout
     //     }
-    //     //IEC.release ( PIN_IEC_CLK_OUT );
+    //     IEC.release ( PIN_IEC_CLK_OUT );
     // }
     // else
     // {
     //     wait ( TIMING_Tbb );
     // }
+
+    if ( eoi )
+        IEC.release ( PIN_IEC_CLK_OUT );
 
     wait ( TIMING_Tbb );
 
@@ -188,7 +202,9 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
         IEC.release ( PIN_IEC_DATA_OUT );
     }
     // Release data line after bit sent
-    // IEC.release ( PIN_IEC_DATA_OUT );
+#ifndef IEC_SPLIT_LINES
+    IEC.set_pin_mode ( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT ); // Set DATA IN back to input
+#endif
 
     IEC.pull ( PIN_IEC_CLK_OUT );
 
@@ -406,9 +422,6 @@ int16_t IecProtocolSerial::receiveBits ()
         }
     }
     IEC.release ( PIN_IEC_SRQ );
-
-    if ( IEC.flags & EOI_RECVD )
-        Debug_printv( "data[%02X]", data );
 
     return data;
 }
