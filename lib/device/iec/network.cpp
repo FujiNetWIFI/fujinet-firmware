@@ -645,6 +645,9 @@ void iecNetwork::iec_listen_command()
 
 void iecNetwork::iec_command()
 {
+    if (payload.empty())
+        return;
+        
     if (channelMode[commanddata->channel] == PROTOCOL)
     {
         if (pt[0] == "cd")
@@ -1172,7 +1175,11 @@ void iecNetwork::process_channel()
 
 void iecNetwork::process_command()
 {
-    if (commanddata->primary == IEC_UNLISTEN)
+    if (commanddata->primary == IEC_LISTEN)
+    {
+        pt = util_tokenize(payload, ',');
+    }
+    else if (commanddata->primary == IEC_UNLISTEN)
     {
         iec_command();
     }
