@@ -673,6 +673,7 @@ void SystemManager::check_hardware_ver()
         //Debug_printf("Enabling LED Strip\n");
     }
 
+#ifndef MASTERIES_SPI_FIX
     /* Apple 2 Rev 1 has pulldown on IO21 for optocoupler
        If found, enable spifix, no tristate and Safe Reset on GPIO4
     */
@@ -690,13 +691,14 @@ void SystemManager::check_hardware_ver()
         /* Change Safe Reset GPIO for Rev 1 */
         safe_reset_gpio = GPIO_NUM_4;
     }
+#endif
 
+#ifdef NO3STATE
     /* For those who have modified their FujiApple to remove the tristate buffer but
        do not have the pull down on IO21 can use the NO3STATE define
     */
-#ifdef NO3STATE
     a2no3state = true;
-    Debug_printf("FujiApple NO3STATE ENABLED\n");
+    Debug_printf("FujiApple NO3STATE define ENABLED\n");
 #endif
 
     /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset (IO14)
