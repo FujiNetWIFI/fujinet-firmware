@@ -442,8 +442,6 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         else if (device_state == DEVICE_LISTEN)
         {
             payload = commanddata->payload;
-            // mstr::toASCII(payload);
-            pt = util_tokenize(payload, ',');
         }
         break;
     default:
