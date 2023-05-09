@@ -37,6 +37,8 @@ class iecCpm : public virtualDevice
 
     TaskHandle_t cpmTaskHandle = NULL;    
 
+    virtual void poll_interrupt(unsigned char c);
+    
     void iec_open();
     void iec_close();
     void iec_reopen();
