@@ -20,6 +20,7 @@
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
 //
+// https://www.pagetable.com/?p=1135
 // http://unusedino.de/ec64/technical/misc/c1541/romlisting.html#E85B
 // https://eden.mose.org.uk/gitweb/?p=rom-reverse.git;a=blob;f=src/vic-1541-sfd.asm;hb=HEAD
 // https://www.pagetable.com/docs/Inside%20Commodore%20DOS.pdf
@@ -149,6 +150,8 @@ class systemBus;
  */
 class virtualDevice
 {
+private:
+
 protected:
     friend systemBus; /* Because we connect to it. */
 
@@ -235,7 +238,7 @@ protected:
      * @param c secondary channel (0-15)
      */
     virtual void poll_interrupt(unsigned char c) {}
-    
+
     /**
      * @brief Dump the current IEC frame to terminal.
      */
@@ -265,6 +268,11 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
+
+    /**
+     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
+     */
+    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
     /**
      * @brief Get the systemBus object that this virtualDevice is attached to.
@@ -344,6 +352,26 @@ private:
      */
     void releaseLines(bool wait = false);
 
+    /**
+     * ESP timer handle for the Interrupt rate limiting timer
+     */
+    esp_timer_handle_t rateTimerHandle = nullptr;
+
+    /**
+     * Timer Rate for interrupt timer
+     */
+    int timerRate = 100;
+
+    /**
+     * @brief Start the Interrupt rate limiting timer
+     */
+    void timer_start();
+
+    /**
+     * @brief Stop the Interrupt rate limiting timer
+     */
+    void timer_stop();
+
 public:
     /**
      * @brief bus flags
@@ -354,6 +382,12 @@ public:
      * @brief current bus state
      */
     bus_state_t bus_state;
+
+    /**
+     * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
+     * be pulsed.
+     */
+    bool interruptSRQ = false;    
 
     /**
      * @brief data about current bus transaction
@@ -375,6 +409,11 @@ public:
      */
     void service();
 
+    /**
+     * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
+     */
+    void assert_interrupt();
+    
     /**
      * @brief send single byte
      * @param c byte to send

@@ -15,7 +15,7 @@ protected:
     //sioPrinter *my_sioP; // added variable to point back to sioPrinter parent
     virtual void pdf_clear_modes() override {};
     virtual void post_new_file() override;
-    void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override; // need a custom one to handle sideways printing
+    void pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2) override; // need a custom one to handle sideways printing
 
 public:
     //atari820(sioPrinter *P) { my_sioP = P; }

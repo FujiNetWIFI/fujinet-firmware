@@ -1544,6 +1544,9 @@ void iecFuji::local_ip()
 
 void iecFuji::process_basic_commands()
 {
+    mstr::toASCII(payload);
+    pt = util_tokenize(payload, ',');
+
     if (payload.find("adapterconfig") != std::string::npos)
         get_adapter_config();
     else if (payload.find("setssid") != std::string::npos)
