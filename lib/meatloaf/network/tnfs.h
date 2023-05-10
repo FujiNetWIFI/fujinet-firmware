@@ -25,6 +25,7 @@ public:
     TNFSFile(std::string path) {
 
         parseUrl( path );
+        
 
         // Find full filename for wildcard
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
