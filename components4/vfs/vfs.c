@@ -35,7 +35,7 @@
 
 static const char *TAG = "vfs";
 
-#define VFS_MAX_COUNT   10   /* max number of VFS entries (registered filesystems) */
+#define VFS_MAX_COUNT   12   /* max number of VFS entries (registered filesystems) */
 #define LEN_PATH_PREFIX_IGNORED SIZE_MAX /* special length value for VFS which is never recognised by open() */
 #define FD_TABLE_ENTRY_UNUSED   (fd_table_t) { .permanent = false, .vfs_index = -1, .local_fd = -1 }
 
@@ -97,6 +97,7 @@ static esp_err_t esp_vfs_register_common(const char* base_path, size_t len, cons
     }
     if (index == s_vfs_count) {
         if (s_vfs_count >= VFS_MAX_COUNT) {
+            printf("VFS_MAX_COUNT: %d\n", VFS_MAX_COUNT);
             free(entry);
             return ESP_ERR_NO_MEM;
         }
