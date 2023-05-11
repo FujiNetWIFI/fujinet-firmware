@@ -161,7 +161,7 @@ void iecDisk::process_command()
     {
         iec_talk_command();
     }
-    else if (commanddata->primary == IEC_LISTEN)
+    else if (commanddata->primary == IEC_UNLISTEN)
     {
         iec_command();
     }
@@ -1020,7 +1020,7 @@ bool iecDisk::sendFile()
             }
 #endif
             // Send Byte
-            avail = istream->available();
+            avail = istream->available() + 1;
             if ( !avail || !success_rx )
             {
                 //Debug_printv("b[%02X] EOI", b);
@@ -1038,7 +1038,6 @@ bool iecDisk::sendFile()
             }
             b = nb; // byte = next byte
             i++;
-			avail++;
 
 #ifdef DATA_STREAM
             // Show ASCII Data
