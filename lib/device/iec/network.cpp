@@ -159,26 +159,13 @@ void iecNetwork::iec_open()
     {
         Debug_printf("Invalid protocol: %s\n", urlParser[commanddata->channel]->scheme.c_str());
         file_not_found = true;
+        return;
     }
 
     if (protocol[commanddata->channel] == nullptr)
     {
         Debug_printf("iwmNetwork::open_protocol() - Could not open protocol.\n");
         file_not_found = true;
-    }
-
-    if (file_not_found)
-    {
-        iecStatus.channel = commanddata->channel;
-        iecStatus.error = NETWORK_ERROR_FILE_NOT_FOUND;
-        iecStatus.connected = false;
-        iecStatus.msg = "not found";
-        IEC.senderTimeout();
-        return;
-    }
-    else
-    {
-        // removed.
     }
 
     if (!login[commanddata->channel].empty())
@@ -192,10 +179,10 @@ void iecNetwork::iec_open()
     // Attempt protocol open
     if (protocol[commanddata->channel]->open(urlParser[commanddata->channel], &cmdFrame) == true)
     {
-        Debug_printf("Protocol unable to make connection.\n");
+        Debug_printv("Protocol unable to make connection.\n");
         delete protocol[commanddata->channel];
         protocol[commanddata->channel] = nullptr;
-        IEC.senderTimeout();
+        file_not_found = true;
         return;
     }
 
@@ -248,12 +235,14 @@ void iecNetwork::iec_reopen_load()
 
     if ((protocol[commanddata->channel] == nullptr) || (receiveBuffer[commanddata->channel] == nullptr))
     {
+        Debug_printv("nullptr");
         IEC.senderTimeout();
         return; // Punch out.
     }
 
     if (file_not_found)
     {
+        Debug_printv("file not found");
         IEC.senderTimeout();
         return;
     }
@@ -263,7 +252,7 @@ void iecNetwork::iec_reopen_load()
 
     if (!ns.rxBytesWaiting)
     {
-        Debug_printf("What happened?\n");
+        Debug_printv("What happened?\n");
         IEC.senderTimeout();
 
         iecStatus.error = NETWORK_ERROR_GENERAL_TIMEOUT;
@@ -290,7 +279,7 @@ void iecNetwork::iec_reopen_load()
             iecStatus.msg = "read error";
             iecStatus.connected = ns.connected;
             iecStatus.channel = commanddata->channel;
-
+            Debug_printv("Read Error");
             IEC.senderTimeout();
             return;
         }
@@ -425,6 +414,7 @@ void iecNetwork::iec_reopen_channel_talk()
         atn = fnSystem.digital_read(PIN_IEC_ATN);
         if (receiveBuffer[commanddata->channel]->empty())
         {
+            Debug_printv("Receive Buffer Empty.");
             IEC.senderTimeout();
             break;
         }
