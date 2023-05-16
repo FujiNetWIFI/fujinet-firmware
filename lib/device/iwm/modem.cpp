@@ -1378,24 +1378,49 @@ void iwmModem::send_status_dib_reply_packet()
     IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
 }
 
+void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
+{
+    Debug_printf("\nModem: Open\n");
+    send_reply_packet(SP_ERR_NOERROR);
+}
+
+void iwmModem::iwm_close(iwm_decoded_cmd_t cmd)
+{
+    Debug_printf("\nModem: Close\n");
+    send_reply_packet(SP_ERR_NOERROR);
+}
+
 void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
 {
     uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+    unsigned short mw = uxQueueMessagesWaiting(mrxq);
 
     Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
 
     memset(data_buffer, 0, sizeof(data_buffer));
 
-    for (int i = 0; i < numbytes; i++)
+    if (mw) // check if we really have some bytes waiting
     {
-        char b;
-        xQueueReceive(mrxq, &b, portMAX_DELAY);
-        data_buffer[i] = b;
-        data_len++;
+        if (mw < numbytes) //if there are less than requested, just send what we have
+        {
+            numbytes = mw;  
+        }
+
+        for (int i = 0; i < numbytes; i++)
+        {
+            char b;
+            xQueueReceive(mrxq, &b, portMAX_DELAY);
+            data_buffer[i] = b;
+            data_len++;
+        }
+    }
+    else // no bytes waiting, just reply back with no data
+    {
+        data_len = 0;
     }
 
-    Debug_printf("\r\nsending block packet ...");
+    Debug_printf("\r\nsending Modem read data packet ...");
     IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
@@ -1499,6 +1524,14 @@ void iwmModem::process(iwm_decoded_cmd_t cmd)
         Debug_printf("\r\nhandling control command");
         iwm_ctrl(cmd);
         Debug_printf("\r\ncontrol command done");
+        break;
+    case 0x06: // open
+        Debug_printf("\r\nhandling open command");
+        iwm_open(cmd);
+        break;
+    case 0x07: // close
+        Debug_printf("\r\nhandling close command");
+        iwm_close(cmd);
         break;
     case 0x08: // read
         Debug_printf("\r\nhandling read command");

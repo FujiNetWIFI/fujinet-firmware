@@ -115,15 +115,30 @@ void iwmCPM::sio_status()
 
 void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
 {
-    // Debug_printf("\r\nOpen CP/M Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    uint8_t err_result = SP_ERR_NOERROR;
+    
+    Debug_printf("\r\nCP/M: Open\n");
+    if (!fnSystem.spifix())
+    {
+        err_result = SP_ERR_OFFLINE;
+        Debug_printf("FujiApple SPI Fix Missing, not starting CP/M\n");
+    }
+    else
+    {
+        if (cpmTaskHandle == NULL)
+        {
+            Debug_printf("!!! STARTING CP/M TASK!!!\n");
+            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
+        }
+    }
+
+    send_reply_packet(err_result);
 }
 
 void iwmCPM::iwm_close(iwm_decoded_cmd_t cmd)
 {
-    // Probably need to send close command here.
-    // Debug_printf("\r\nClose CP/M Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    Debug_printf("\r\nCP/M: Close\n");
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
@@ -178,23 +193,27 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 
     memset(data_buffer, 0, sizeof(data_buffer));
 
-    if (numbytes > mw)
+    if (mw) // check if we really have some bytes waiting
     {
-        IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_IOERROR, data_buffer, 0);
-        return;
+        if (mw < numbytes) //if there are less than requested, just send what we have
+        {
+            numbytes = mw;  
+        }       
+
+        for (int i = 0; i < numbytes; i++)
+        {
+            char b;
+            xQueueReceive(rxq, &b, portMAX_DELAY);
+            data_buffer[i] = b;
+            data_len++;
+        }
+    }
+    else // no bytes waiting, just reply back with no data
+    {
+        data_len = 0;
     }
 
-    memset(data_buffer, 0, sizeof(data_buffer));
-
-    for (int i = 0; i < numbytes; i++)
-    {
-        char b;
-        xQueueReceive(rxq, &b, portMAX_DELAY);
-        data_buffer[i] = b;
-        data_len++;
-    }
-
-    Debug_printf("\r\nsending block packet ...");
+    Debug_printf("\r\nsending CPM read data packet ...");
     IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
@@ -276,6 +295,14 @@ void iwmCPM::process(iwm_decoded_cmd_t cmd)
     case 0x04: // control
         Debug_printf("\r\nhandling control command");
         iwm_ctrl(cmd);
+        break;
+    case 0x06: // open
+        Debug_printf("\r\nhandling open command");
+        iwm_open(cmd);
+        break;
+    case 0x07: // close
+        Debug_printf("\r\nhandling close command");
+        iwm_close(cmd);
         break;
     case 0x08: // read
         fnLedManager.set(LED_BUS, true);
