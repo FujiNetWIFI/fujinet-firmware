@@ -147,12 +147,12 @@ void IRAM_ATTR systemBus::service()
             // Data Mode - Get Command or Data
             if (data.primary == IEC_LISTEN)
             {
-                // Debug_printf("calling deviceListen()\n");
+                //Debug_printv("calling deviceListen()\n");
                 deviceListen();
             }
             else if (data.primary == IEC_TALK)
             {
-                // Debug_printf("calling deviceTalk()\n");
+                //Debug_printv("calling deviceTalk()\n");
                 deviceTalk();
             }
 
@@ -162,7 +162,7 @@ void IRAM_ATTR systemBus::service()
 
             // Process commands in devices
             // At the moment there is only the multi-drive device
-            // Debug_printv( "deviceProcess" );
+            //Debug_printv( "deviceProcess" );
 
             fnLedManager.set(eLed::LED_BUS, true);
 
@@ -176,6 +176,7 @@ void IRAM_ATTR systemBus::service()
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
             bus_state = BUS_IDLE;
+            flags = CLEAR;
         }
 
         // Let bus stabalize
@@ -334,7 +335,8 @@ void systemBus::read_payload()
     std::string listen_command = "";
 
     // ATN might get pulled right away if there is no command string to send
-    protocol->wait(TIMING_STABLE);
+    //pull ( PIN_IEC_SRQ );
+    //protocol->wait( TIMING_STABLE );
 
     while (IEC.status(PIN_IEC_ATN) != PULLED)
     {
@@ -342,19 +344,13 @@ void systemBus::read_payload()
         int16_t c = protocol->receiveByte();
         //release ( PIN_IEC_SRQ );
 
-        if (flags & EMPTY_STREAM)
+        if (flags & EMPTY_STREAM || flags & ERROR)
         {
+            //Debug_printv("error");
             bus_state = BUS_ERROR;
             return;
         }
 
-        if (flags & ERROR)
-        {
-            bus_state = BUS_ERROR;
-            return;
-        }
-
-        // if (c != 0x0D && c != 0xFFFFFFFF) // Remove CR from end of command
         if (c != 0xFFFFFFFF)
         {
             listen_command += (uint8_t)c;
@@ -363,8 +359,10 @@ void systemBus::read_payload()
         if (flags & EOI_RECVD)
         {
             data.payload = listen_command;
+            break;
         }
     }
+    //release ( PIN_IEC_SRQ );
 
     bus_state = BUS_IDLE;
 }
@@ -426,8 +424,6 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     {
     case bus_command_t::IEC_OPEN:
         payload = commanddata->payload;
-        // mstr::toASCII(payload); // AAARRRGHHHH, WHYYY?!?!?!?!
-        pt = util_tokenize(payload, ',');
         break;
     case bus_command_t::IEC_CLOSE:
         payload.clear();
