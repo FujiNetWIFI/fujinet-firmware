@@ -40,13 +40,13 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
     // to  accept  data.
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
         //Debug_printv ( "Wait for listener to be ready" );
         return false; // return error because of ATN or timeout
     }
-    IEC.release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
 
     // What  happens  next  is  variable. Either  the  talker  will pull the
     // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
@@ -114,13 +114,13 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // one  millisecond  -  one  thousand  microseconds  -  it  will  know  that something's wrong and may alarm appropriately.
 
     // Wait for listener to accept data
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
     {
         Debug_printv ( "Wait for listener to acknowledge byte received (pull data)" );
         return false; // return error because timeout
     }
-    IEC.release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
 
     // STEP 5: START OVER
     // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
@@ -302,10 +302,10 @@ int16_t IecProtocolSerial::receiveByte()
     // one  millisecond  -  one  thousand  microseconds  -  it  will  know  that something's wrong and may alarm appropriately.
 
     // Acknowledge byte received
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     if ( !wait ( TIMING_Tf ) ) return -1;
     IEC.pull ( PIN_IEC_DATA_OUT );
-    IEC.release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
 
     // STEP 5: START OVER
     // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
@@ -359,7 +359,7 @@ int16_t IecProtocolSerial::receiveBits ()
         do
         {
             // wait for bit to be ready to read
-            IEC.pull ( PIN_IEC_SRQ );
+            //IEC.pull ( PIN_IEC_SRQ );
             bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_EMPTY, false );
 
             // // If the bit time is less than 40us we are talking with a VIC20
@@ -412,7 +412,7 @@ int16_t IecProtocolSerial::receiveBits ()
         // get bit
         data >>= 1;
         if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0x80;
-        IEC.release ( PIN_IEC_SRQ );
+        //IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
         if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
@@ -421,7 +421,7 @@ int16_t IecProtocolSerial::receiveBits ()
             return -1; // return error because timeout
         }
     }
-    IEC.release ( PIN_IEC_SRQ );
+    //IEC.release ( PIN_IEC_SRQ );
 
     return data;
 }

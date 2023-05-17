@@ -235,6 +235,14 @@ void KeyManager::_keystate_task(void *param)
 
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_A: SHORT PRESS");
+#ifdef PARALLEL_BUS
+            // Reset the Commodore via Userport, GPIO 13
+            fnSystem.set_pin_mode(GPIO_NUM_13, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_UP);
+            fnSystem.digital_write(GPIO_NUM_13, DIGI_LOW);
+            fnSystem.delay(1);
+            fnSystem.digital_write(GPIO_NUM_13, DIGI_HIGH);
+            Debug_println("Sent RESET signal to Commodore");
+#endif
 
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
             if(fnSystem.ledstrip())
