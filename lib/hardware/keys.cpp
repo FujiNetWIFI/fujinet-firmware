@@ -10,7 +10,6 @@
 #include "fnBluetooth.h"
 
 #include "led.h"
-#include "led_strip.h"
 
 // Global KeyManager object
 KeyManager fnKeyManager;
@@ -249,10 +248,10 @@ void KeyManager::_keystate_task(void *param)
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
             if(fnSystem.ledstrip())
             {
-                if (fnLedStrip.rainbowTimer > 0)
-                    fnLedStrip.stopRainbow();
-                else
-                    fnLedStrip.startRainbow(10);
+                // if (fnLedStrip.rainbowTimer > 0)
+                //     fnLedStrip.stopRainbow();
+                // else
+                //     fnLedStrip.startRainbow(10);
             }
             else
             {
