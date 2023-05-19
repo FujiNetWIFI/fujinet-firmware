@@ -520,20 +520,36 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
 
     switch (disk_type)
     {
-    case MEDIATYPE_PO:
+      case MEDIATYPE_PO:
         Debug_printf("\r\nMedia Type PO");
-        _disk = new MediaTypePO();
-        mt = _disk->mount(f, disksize);
-        device_active = true; //change status only after we are mounted
-        //_disk->fileptr() = f;
-        // mt = MEDIATYPE_PO;
+        if ((disk_num - '0') < 4)
+        {
+          _disk = new MediaTypePO();
+          mt = _disk->mount(f, disksize);
+          device_active = true; //change status only after we are mounted
+          //_disk->fileptr() = f;
+          // mt = MEDIATYPE_PO;
+        }
+        else
+        {
+          Debug_printf("\r\nMedia Type UNKNOWN for SP drive - no mount in disk.cpp");
+          device_active = false; 
+        }
         break;
       case MEDIATYPE_DSK:
       case MEDIATYPE_WOZ:
+        if ((disk_num - '0') > 3)
+        {
           theFuji._fnDisk2s[disk_num % 2].init();
           theFuji._fnDisk2s[disk_num % 2].mount(f, disk_type); // modulo to ensure device 0 or 1
-      break;
-    default:
+        }
+        else
+        {
+          Debug_printf("\r\nMedia Type UNKNOWN for diskII - no mount in disk.cpp");
+          device_active = false; 
+        }
+        break;
+      default:
         Debug_printf("\r\nMedia Type UNKNOWN - no mount in disk.cpp");
         device_active = false;
         break;

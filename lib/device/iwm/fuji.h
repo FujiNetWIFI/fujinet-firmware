@@ -17,7 +17,7 @@
 #include "../fuji/fujiCmd.h"
 
 #define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 4 // to do for now
+#define MAX_DISK_DEVICES 6 // 4 SP + 2 DiskII's
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
 #define MAX_NETWORK_DEVICES 4
 
