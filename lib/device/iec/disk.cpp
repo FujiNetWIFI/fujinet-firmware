@@ -12,7 +12,6 @@
 #include "fuji.h"
 #include "fnFsSD.h"
 #include "led.h"
-#include "led_strip.h"
 #include "utils.h"
 
 #include "cbm_media.h"
