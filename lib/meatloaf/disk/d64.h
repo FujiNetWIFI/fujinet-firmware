@@ -102,7 +102,6 @@ public:
         partitions.clear();
         partitions.push_back(p);
         sectorsPerTrack = { 17, 18, 19, 21 };
-        block_size = 256;
 
 
         uint32_t size = containerStream->size();
@@ -187,9 +186,9 @@ public:
 		return (track < 18) + (track < 25) + (track < 31);
 	};
 
-    //bool seekSector( uint16_t index ) override;
-    bool seekSector( uint8_t track, uint8_t sector, size_t offset = 0 );
-    bool seekSector( std::vector<uint8_t> trackSectorOffset );
+    bool seekBlock( uint64_t index, uint8_t offset ) override;
+    bool seekSector( uint8_t track, uint8_t sector, uint8_t offset ) override;
+    bool seekSector( std::vector<uint8_t> trackSectorOffset ) override;
 
     void seekHeader() override {
         seekSector( 
@@ -217,6 +216,7 @@ public:
     std::string bam_message = "";
 
     uint8_t partition = 0;
+    uint64_t block = 0;
     uint8_t track = 0;
     uint8_t sector = 0;
     uint16_t offset = 0;

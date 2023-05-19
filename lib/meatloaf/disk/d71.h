@@ -53,7 +53,6 @@ public:
         partitions.clear();
         partitions.push_back(p);
         sectorsPerTrack = { 17, 18, 19, 21 };
-        block_size = 256;
     };
 
 	virtual uint8_t speedZone( uint8_t track) override

@@ -26,8 +26,6 @@
 
 iecNetwork::iecNetwork()
 {
-    Debug_printf("iwmNetwork::iwmNetwork()\n");
-
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
         channelMode[i] = PROTOCOL;
@@ -164,7 +162,7 @@ void iecNetwork::iec_open()
 
     if (protocol[commanddata->channel] == nullptr)
     {
-        Debug_printf("iwmNetwork::open_protocol() - Could not open protocol.\n");
+        Debug_printf("iecNetwork::open_protocol() - Could not open protocol.\n");
         file_not_found = true;
     }
 
@@ -174,7 +172,7 @@ void iecNetwork::iec_open()
         protocol[commanddata->channel]->password = &password[commanddata->channel];
     }
 
-    Debug_printf("iwmNetwork::open_protocol() - Protocol %s opened.\n", urlParser[commanddata->channel]->scheme.c_str());
+    Debug_printf("iecNetwork::open_protocol() - Protocol %s opened.\n", urlParser[commanddata->channel]->scheme.c_str());
 
     // Attempt protocol open
     if (protocol[commanddata->channel]->open(urlParser[commanddata->channel], &cmdFrame) == true)

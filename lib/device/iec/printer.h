@@ -78,5 +78,5 @@ private:
 };
 
 
-#endif // guard
-#endif
+#endif // IEC_PRINTER_H
+#endif // BUILD_IEC

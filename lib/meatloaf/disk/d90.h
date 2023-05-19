@@ -68,7 +68,6 @@ public:
         };
         partitions.clear();
         partitions.push_back(p);
-        block_size = 256;
 
         // this.size = data.media_data.length;
         // switch (this.size + this.media_header_size) {

@@ -67,6 +67,12 @@ public:
     uint32_t size() override;
     uint32_t read(uint8_t* buf, uint32_t size) override;
     uint32_t write(const uint8_t *buf, uint32_t size);
+    void reset() {
+        seekCalled = false;
+        m_position = 0;
+        m_length = block_size;
+        m_bytesAvailable = block_size;
+    }
 
     bool isOpen();
     std::string url;
