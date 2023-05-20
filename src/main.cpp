@@ -19,8 +19,6 @@
 
 #include "httpService.h"
 
-#include "led_strip.h"
-
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
 #endif
@@ -77,7 +75,6 @@ void main_setup()
 
     fnKeyManager.setup();
 
-    fnLedStrip.setup(); // start LED Strip before fnLedManager and after check_hardware_ver()
     fnLedManager.setup();
 
     fnSPIFFS.start();

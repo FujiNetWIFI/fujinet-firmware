@@ -5,7 +5,6 @@
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 #include "led.h"
-#include "led_strip.h"
 #include "protocol/iecProtocolSerial.h"
 #include "string_utils.h"
 #include "utils.h"
