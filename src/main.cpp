@@ -130,7 +130,7 @@ void main_setup()
     // Setup IEC Bus
     IEC.setup();
 //    iecPrinter::printer_type ptype = Config.get_printer_type(0);
-    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_EPSON; // temporary
+    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_COMMODORE_MPS803; // temporary
     Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
     iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
