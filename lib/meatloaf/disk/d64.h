@@ -103,7 +103,6 @@ public:
         partitions.push_back(p);
         sectorsPerTrack = { 17, 18, 19, 21 };
 
-
         uint32_t size = containerStream->size();
         switch (size + media_header_size) 
         {
@@ -186,8 +185,8 @@ public:
 		return (track < 18) + (track < 25) + (track < 31);
 	};
 
-    bool seekBlock( uint64_t index, uint8_t offset ) override;
-    bool seekSector( uint8_t track, uint8_t sector, uint8_t offset ) override;
+    bool seekBlock( uint64_t index, uint8_t offset = 0 ) override;
+    bool seekSector( uint8_t track, uint8_t sector, uint8_t offset = 0 ) override;
     bool seekSector( std::vector<uint8_t> trackSectorOffset ) override;
 
     void seekHeader() override {
@@ -202,8 +201,6 @@ public:
     bool seekNextImageEntry() override {
         return seekEntry( entry_index + 1 );
     }
-
-
 
     virtual bool seekPath(std::string path) override;
     size_t readFile(uint8_t* buf, size_t size) override;

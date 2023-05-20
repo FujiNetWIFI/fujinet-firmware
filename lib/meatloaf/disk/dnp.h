@@ -43,6 +43,7 @@ public:
         partitions.clear();
         partitions.push_back(p);
         sectorsPerTrack = { 255 };
+        has_subdirs = true;
     };
 
 	virtual uint8_t speedZone( uint8_t track) override { return 0; };

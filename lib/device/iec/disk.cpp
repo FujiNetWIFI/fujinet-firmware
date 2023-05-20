@@ -385,7 +385,7 @@ void iecDisk::iec_command()
                 Debug_printv("payload[%s] channel[%d] media[%d] track[%d] sector[%d]", payload.c_str(), pti[0], pti[1], pti[2], pti[3]);
 
                 auto stream = retrieveStream( pti[0] );
-                stream->seekSector( pti[2], pti[3], 0 );
+                stream->seekSector( pti[2], pti[3] );
                 stream->reset();
             }
         break;
@@ -838,7 +838,7 @@ void iecDisk::sendListing()
         return;
     }
 
-    //fnLedStrip.startRainbow(300);
+    fnLedStrip.startRainbow(300);
 
     // Send load address
     IEC.sendByte(CBM_BASIC_START & 0xff);
@@ -944,7 +944,7 @@ void iecDisk::sendListing()
     Debug_printf("\r\n=================================\r\n%d bytes sent\r\n", byte_count);
 
     //fnLedManager.set(eLed::LED_BUS, false);
-    //fnLedStrip.stopRainbow();
+    fnLedStrip.stopRainbow();
 } // sendListing
 
 
@@ -977,18 +977,30 @@ bool iecDisk::sendFile()
 
     if ( !_base->isDirectory() )
     {
+        if ( istream->has_subdirs )
+        {
         PeoplesUrlParser u;
         u.parseUrl( istream->url );
-        Debug_printv( "Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u.base().c_str() );
+            Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u.base().c_str() );
         _last_file = u.name;
         _base.reset( MFSOwner::File( u.base() ) );
+    }
+        else
+        {
+            auto f = MFSOwner::File( istream->url );
+            Debug_printv( "Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), f->streamFile->url.c_str() );
+            _base.reset( f->streamFile );
+        }
+
     }
 
     uint32_t len = istream->size();
     uint32_t avail = istream->available();
+    if ( !len )
+        len = -1;
 
     {
-        //fnLedStrip.startRainbow(300);
+        fnLedStrip.startRainbow(300);
 
         if( IEC.data.channel == CHANNEL_LOAD )
         {
@@ -1060,7 +1072,7 @@ bool iecDisk::sendFile()
             }
 #else
             uint32_t t = (i * 100) / len;
-            Debug_printf("\rTransferring %d%% [%d, %d]", t, i, avail);
+            Debug_printf("\rTransferring %d%% [%d, %d]      ", t, i, avail);
 #endif
 
             // Exit if ATN is PULLED while sending
@@ -1087,7 +1099,7 @@ bool iecDisk::sendFile()
 
 
     //fnLedManager.set(eLed::LED_BUS, false);
-    //fnLedStrip.stopRainbow();
+    fnLedStrip.stopRainbow();
 
     if ( istream->error() )
     {
