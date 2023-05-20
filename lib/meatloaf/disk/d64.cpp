@@ -40,13 +40,23 @@ bool D64IStream::seekSector( uint8_t track, uint8_t sector, uint8_t offset )
 
     //Debug_printv("track[%d] sector[%d] offset[%d]", track, sector, offset);
 
-    // Is this a valid track?
-    if ( track < partitions[partition].block_allocation_map[partition].start_track || track > partitions[partition].block_allocation_map[partition].end_track )
-        return false;
+    // // Is this a valid track?
+    // auto c = partitions[partition].block_allocation_map.size();
+    // auto start_track = partitions[partition].block_allocation_map[0].start_track;
+    // auto end_track = partitions[partition].block_allocation_map[c].end_track;
+    // if ( track < start_track || track > end_track )
+    // {
+    //     Debug_printv("track[%d] start_track[%d] end_track[%d]", track, start_track, end_track);
+    //     return false;
+    // }
 
-    // Is this a valid sector?
-    if ( sector > sectorsPerTrack[speedZone(track)] )
-        return false;
+    // // Is this a valid sector?
+    // c = sectorsPerTrack[speedZone(track)];
+    // if ( sector > c )
+    // {
+    //     Debug_printv("sector[%d] track[%d] sectorsPerTrack[%d]", sector, track, c);
+    //     return false;
+    // }
 
     track--;
 	for (uint8_t index = 0; index < track; ++index)
@@ -107,7 +117,7 @@ bool D64IStream::seekEntry( std::string filename )
             mstr::rtrimA0(entryFilename);
             mstr::replaceAll(filename, "\\", "/");
             mstr::toASCII(entryFilename);
-            //Debug_printv("index[%d] track[%d] sector[%d] filename[%s] entry.filename[%.16s]", index, track, sector, filename.c_str(), entryFilename.c_str());
+            Debug_printv("index[%d] track[%d] sector[%d] filename[%s] entry.filename[%.16s]", index, track, sector, filename.c_str(), entryFilename.c_str());
 
             //Debug_printv("filename[%s] entry[%s]", filename.c_str(), entryFilename.c_str());
 
@@ -310,18 +320,20 @@ bool D64IStream::seekPath(std::string path) {
     {
         //auto entry = containerImage->entry;
         auto type = decodeType(entry.file_type).c_str();
-        //Debug_printv("filename[%.16s] type[%s] start_track[%d] start_sector[%d]", entry.filename, type, entry.start_track, entry.start_sector);
+        Debug_printv("filename[%.16s] type[%s] start_track[%d] start_sector[%d]", entry.filename, type, entry.start_track, entry.start_sector);
 
         // Calculate file size
         uint8_t t = entry.start_track;
         uint8_t s = entry.start_sector;
         m_length = seekFileSize( t, s );
         m_bytesAvailable = m_length;
-        
-        Debug_printv("File Size: blocks[%d] size[%d] available[%d]", entry.blocks, m_length, m_bytesAvailable);
 
         // Set position to beginning of file
-        return seekSector( t, s );
+        bool r = seekSector( t, s );
+
+        Debug_printv("File Size: blocks[%d] size[%d] available[%d] r[%d]", entry.blocks, m_length, m_bytesAvailable, r);
+
+        return r;
     }
     else
     {
