@@ -49,13 +49,25 @@ void CBMImageStream::close() {
 
 };
 
-// bool CBMImageStream::seek(uint32_t pos) {
-//     // seek only within current "active" ("seeked") file within the image (see above)
-//     if(pos==m_position)
-//         return true;
+uint16_t CBMImageStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
+{
+    // Calculate file size
+    seekSector(start_track, start_sector);
 
-//     return false;
-// };
+    size_t blocks = 0; 
+    do
+    {
+        //Debug_printv("t[%d] s[%d]", t, s);
+        containerStream->read(&start_track, 1);
+        containerStream->read(&start_sector, 1);
+        blocks++;
+        if ( start_track > 0 )
+            seekSector( start_track, start_sector );
+    } while ( start_track > 0 );
+    blocks--;
+    return (blocks * (block_size - 2)) + start_sector;
+};
+
 
 uint32_t CBMImageStream::position() {
     return m_position; // return position within "seeked" file, not the D64 image!

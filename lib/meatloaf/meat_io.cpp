@@ -412,13 +412,14 @@ MFile* MFile::cd(std::string newDir) {
     else if(newDir[0]=='/' && newDir[1]=='/') {
         if(newDir.size()==2) {
             // user entered: CD:// or CD//
-            // means: change to the root of roots
-            return MFSOwner::File("/"); // chedked, works ad flash root!
+            // means: change to the root of stream
+            return streamFile;
         }
         else {
             // user entered: CD://DIR or CD//DIR
-            // means: change to a dir in root of roots
-            return localRoot(mstr::drop(newDir,2));
+            // means: change to a dir in root of stream
+            //return localRoot(mstr::drop(newDir,2));
+            return streamFile->cd( mstr::drop(newDir, 2));
         }
     }
     else if(newDir[0]=='/' || newDir[0]=='^') {

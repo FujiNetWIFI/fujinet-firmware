@@ -349,7 +349,6 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
     if ( url.size() < 5)
         return 0;
 
-    //mstr::replaceAll(url, "HTTP:", "http:");
     mstr::replaceAll(url, " ", "%20");
     esp_http_client_config_t config = {
         .url = url.c_str(),

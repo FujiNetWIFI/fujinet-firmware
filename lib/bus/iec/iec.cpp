@@ -230,7 +230,7 @@ void systemBus::read_command()
             Debug_printf("   IEC: [%.2X]", c);
 
             // Decode command byte
-            uint8_t command = c & 0xF0;
+            uint8_t command = c & 0x60;
             if (c == IEC_UNLISTEN)
                 command = IEC_UNLISTEN;
             if (c == IEC_UNTALK)
@@ -239,67 +239,66 @@ void systemBus::read_command()
             //Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
             //Debug_printv ("command[%.2X]", command);
 
-            switch (command)
+            // if (command == IEC_GLOBAL)
+            // {
+            //     data.primary = IEC_GLOBAL;
+            //     data.device = c ^ IEC_GLOBAL;
+            //     bus_state = BUS_IDLE;
+            //     Debug_printf(" (00 GLOBAL %.2d COMMAND)\r\n", data.device);
+            // }
+            // else 
+            if ( command == IEC_LISTEN )
             {
-            case IEC_GLOBAL:
-                data.primary = IEC_GLOBAL;
-                data.device = c ^ IEC_GLOBAL;
-                bus_state = BUS_IDLE;
-                Debug_printf(" (00 GLOBAL %.2d COMMAND)\r\n", data.device);
-                break;
-
-            case IEC_LISTEN:
                 data.primary = IEC_LISTEN;
                 data.device = c ^ IEC_LISTEN;
                 data.secondary = IEC_REOPEN; // Default secondary command
                 data.channel = CHANNEL_COMMAND;  // Default channel
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (20 LISTEN %.2d DEVICE)\r\n", data.device);
-                break;
-
-            case IEC_UNLISTEN:
+            }
+            else if ( command == IEC_UNLISTEN )
+            {
                 data.primary = IEC_UNLISTEN;
                 data.secondary = 0x00;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (3F UNLISTEN)\r\n");
-                break;
-
-            case IEC_TALK:
+            }
+            else if ( command == IEC_TALK )
+            {
                 data.primary = IEC_TALK;
                 data.device = c ^ IEC_TALK;
                 data.secondary = IEC_REOPEN; // Default secondary command
                 data.channel = CHANNEL_COMMAND;  // Default channel
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (40 TALK   %.2d DEVICE)\r\n", data.device);
-                break;
-
-            case IEC_UNTALK:
+            }
+            else if ( command == IEC_UNTALK )
+            {
                 data.primary = IEC_UNTALK;
                 data.secondary = 0x00;
                 bus_state = BUS_IDLE;
                 Debug_printf(" (5F UNTALK)\r\n");
-                break;
-
-            case IEC_OPEN:
+            }
+            else if ( c == IEC_OPEN )
+            {
                 data.secondary = IEC_OPEN;
                 data.channel = c ^ IEC_OPEN;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (F0 OPEN   %.2d CHANNEL)\r\n", data.channel);
-                break;
-
-            case IEC_REOPEN:
+            }
+            else if ( c == IEC_REOPEN )
+            {
                 data.secondary = IEC_REOPEN;
                 data.channel = c ^ IEC_REOPEN;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (60 DATA   %.2d CHANNEL)\r\n", data.channel);
-                break;
-
-            case IEC_CLOSE:
+            }
+            else if ( c == IEC_CLOSE )
+            {
                 data.secondary = IEC_CLOSE;
                 data.channel = c ^ IEC_CLOSE;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (E0 CLOSE  %.2d CHANNEL)\r\n", data.channel);
-                break;
             }
         }
 
