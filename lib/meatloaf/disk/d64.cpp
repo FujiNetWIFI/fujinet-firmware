@@ -40,23 +40,23 @@ bool D64IStream::seekSector( uint8_t track, uint8_t sector, uint8_t offset )
 
     //Debug_printv("track[%d] sector[%d] offset[%d]", track, sector, offset);
 
-    // // Is this a valid track?
-    // auto c = partitions[partition].block_allocation_map.size();
-    // auto start_track = partitions[partition].block_allocation_map[0].start_track;
-    // auto end_track = partitions[partition].block_allocation_map[c].end_track;
-    // if ( track < start_track || track > end_track )
-    // {
-    //     Debug_printv("track[%d] start_track[%d] end_track[%d]", track, start_track, end_track);
-    //     return false;
-    // }
+    // Is this a valid track?
+    auto c = partitions[partition].block_allocation_map.size() - 1;
+    auto start_track = partitions[partition].block_allocation_map[0].start_track;
+    auto end_track = partitions[partition].block_allocation_map[c].end_track;
+    if ( track < start_track || track > end_track )
+    {
+        Debug_printv("track[%d] start_track[%d] end_track[%d]", track, start_track, end_track);
+        return false;
+    }
 
-    // // Is this a valid sector?
-    // c = sectorsPerTrack[speedZone(track)];
-    // if ( sector > c )
-    // {
-    //     Debug_printv("sector[%d] track[%d] sectorsPerTrack[%d]", sector, track, c);
-    //     return false;
-    // }
+    // Is this a valid sector?
+    c = sectorsPerTrack[speedZone(track)];
+    if ( sector > c )
+    {
+        Debug_printv("sector[%d] track[%d] sectorsPerTrack[%d]", sector, track, c);
+        return false;
+    }
 
     track--;
 	for (uint8_t index = 0; index < track; ++index)
@@ -314,7 +314,7 @@ bool D64IStream::seekPath(std::string path) {
     {
         Debug_printv("Direct Access Mode track[0] sector[0] path[%s]", path.c_str());
         seekCalled = false;
-        return seekSector(0, 0);
+        return seekSector(1, 0);
     }
     else if ( seekEntry(path) )
     {

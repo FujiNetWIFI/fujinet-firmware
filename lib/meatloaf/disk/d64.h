@@ -74,6 +74,7 @@ protected:
 
     std::vector<Partition> partitions;
     std::vector<uint8_t> sectorsPerTrack = { 17, 18, 19, 21 };
+    std::string rom = "dos1541";
 
 public:
     D64IStream(std::shared_ptr<MStream> is) : CBMImageStream(is) 
@@ -144,34 +145,46 @@ public:
         // types of extended disk formats you want to create/work with. 
 
         // // DOLPHIN DOS
-        // block_allocation_map += [{
-        //     "track": 18,
-        //     "sector": 0,
-        //     "offset": 0xAC,
-        //     "start_track": 36,
-        //     "end_track": 40,
-        //     "byte_count": 4
-        // }];
+        // partitions[0].block_allocation_map.push_back(
+        //     { 
+        //         {
+        //             18,     // track
+        //             0,      // sector
+        //             0xAC,   // offset
+        //             36,      // start_track
+        //             40,     // end_track
+        //             4       // byte_count
+        //         } 
+        //     } 
+        // );
 
         // // SPEED DOS
-        // block_allocation_map += [{
-        //     "track": 18,
-        //     "sector": 0,
-        //     "offset": 0xC0,
-        //     "start_track": 36,
-        //     "end_track": 40,
-        //     "byte_count": 4
-        // }];
+        // partitions[0].block_allocation_map.push_back(
+        //     { 
+        //         {
+        //             18,     // track
+        //             0,      // sector
+        //             0xC0,   // offset
+        //             36,     // start_track
+        //             40,     // end_track
+        //             4       // byte_count
+        //         } 
+        //     } 
+        // );
 
         // // PrologicDOS
-        // block_allocation_map += [{
-        //     "track": 18,
-        //     "sector": 0,
-        //     "offset": 0xC0,
-        //     "start_track": 36,
-        //     "end_track": 40,
-        //     "byte_count": 4
-        // }];
+        // partitions[0].block_allocation_map.push_back(
+        //     { 
+        //         {
+        //             18,     // track
+        //             0,      // sector
+        //             0xC0,   // offset
+        //             36,     // start_track
+        //             40,     // end_track
+        //             4       // byte_count
+        //         } 
+        //     } 
+        // );
 
         //getBAMMessage();
 
@@ -234,34 +247,6 @@ private:
     bool writeBlock( uint8_t track, uint8_t sector, std::string data );    
     bool allocateBlock( uint8_t track, uint8_t sector );
     bool deallocateBlock( uint8_t track, uint8_t sector );
-
-
-    // uint8_t d64_get_type(uint16_t imgsize)
-    // {
-    //     switch (imgsize)
-    //     {
-    //         // D64
-    //         case 174848:  // 35 tracks no errors
-    //         case 175531:  // 35 w/ errors
-    //         case 196608:  // 40 tracks no errors
-    //         case 197376:  // 40 w/ errors
-    //         case 205312:  // 42 tracks no errors
-    //         case 206114:  // 42 w/ errors
-    //             return D64_TYPE_D64;
-
-    //         // D71
-    //         case 349696:  // 70 tracks no errors
-    //         case 351062:  // 70 w/ errors
-    //             return D64_TYPE_D71;
-
-    //         // D81
-    //         case 819200:  // 80 tracks no errors
-    //         case 822400:  // 80 w/ errors
-    //             return D64_TYPE_D81;
-    //     }
-
-    //     return D64_TYPE_UNKNOWN;
-    // }
 
     // Disk
     friend class D64File;
