@@ -29,8 +29,10 @@
 #include "disk/d80.h"
 #include "disk/d81.h"
 #include "disk/d82.h"
-#include "disk/d8b.h"
 #include "disk/dnp.h"
+
+#include "disk/d8b.h"
+#include "disk/dfi.h"
 
 // File
 #include "file/p00.h"
@@ -79,8 +81,10 @@ D71FileSystem d71FS;
 D80FileSystem d80FS;
 D81FileSystem d81FS;
 D82FileSystem d82FS;
-D8BFileSystem d8bFS;
 DNPFileSystem dnpFS;
+
+D8BFileSystem d8bFS;
+DFIFileSystem dfiFS;
 
 // Tape
 T64FileSystem t64FS;
@@ -98,7 +102,8 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
     &sdFS,
 #endif
     &p00FS,
-    &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &d8bFS, &dnpFS,
+    &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &dnpFS,
+    &d8bFS, &dfiFS,
     &t64FS, &tcrtFS,
     &httpFS, &mlFS, &tnfsFS
 //    &ipfsFS, &tcpFS,
@@ -349,29 +354,35 @@ MStream* MFile::meatStream() {
 };
 
 
-MFile* MFile::parent(std::string plus) {
-    //Debug_printv("url[%s] path[%s]", url.c_str(), path.c_str());
+MFile* MFile::parent(std::string plus) 
+{
+    Debug_printv("url[%s] path[%s] plus[%s]", url.c_str(), path.c_str(), plus.c_str());
 
     // drop last dir
     // add plus
-    if(path.empty()) {
+    if(path.empty()) 
+    {
         // from here we can go only to flash root!
         return MFSOwner::File("/");
     }
-    else {
+    else 
+    {
         int lastSlash = url.find_last_of('/');
-        if ( lastSlash == url.size() - 1 ) {
+        if ( lastSlash == url.size() - 1 ) 
+        {
             lastSlash = url.find_last_of('/', url.size() - 2);
         }
         std::string newDir = mstr::dropLast(url, url.size() - lastSlash);
         if(!plus.empty())
             newDir+= ("/" + plus);
+
         return MFSOwner::File(newDir);
     }
 };
 
-MFile* MFile::localParent(std::string plus) {
-    //Debug_printv("url[%s] path[%s]", url.c_str(), path.c_str());
+MFile* MFile::localParent(std::string plus) 
+{
+    Debug_printv("url[%s] path[%s] plus[%s]", url.c_str(), path.c_str(), plus.c_str());
     // drop last dir
     // check if it isn't shorter than streamFile
     // add plus
@@ -382,22 +393,32 @@ MFile* MFile::localParent(std::string plus) {
     std::string parent = mstr::dropLast(url, url.size() - lastSlash);
     if(parent.length()-streamFile->url.length()>1)
         parent = streamFile->url;
-    return MFSOwner::File(parent+"/"+plus);
+    return MFSOwner::File( parent + "/" + plus );
 };
 
-MFile* MFile::root(std::string plus) {
-    Debug_printv("url[%s] path[%s]", url.c_str(), path.c_str());
-    return new FlashFile("/"+plus);
+MFile* MFile::root(std::string plus) 
+{
+    Debug_printv("url[%s] path[%s] plus[%s]", url.c_str(), path.c_str(), plus.c_str());
+    return MFSOwner::File( "/" + plus );
 };
 
-MFile* MFile::localRoot(std::string plus) {
-    Debug_printv("url[%s] path[%s]", url.c_str(), path.c_str());
-    return MFSOwner::File(streamFile->url+"/"+plus);
+MFile* MFile::localRoot(std::string plus) 
+{
+    Debug_printv("url[%s] path[%s] plus[%s]", url.c_str(), path.c_str(), plus.c_str());
+
+    if ( path.empty() || streamFile == nullptr ) {
+        // from here we can go only to flash root!
+        return MFSOwner::File( "/" + plus );
+    }
+    return MFSOwner::File( streamFile->url + "/" + plus );
 };
 
-MFile* MFile::cd(std::string newDir) {
+MFile* MFile::cd(std::string newDir) 
+{
 
     Debug_printv("cd requested: [%s]", newDir.c_str());
+    if ( streamFile != nullptr)
+            Debug_printv("streamFile[%s]", streamFile->url.c_str());
 
     // OK to clarify - coming here there should be ONLY path or magicSymbol-path combo!
     // NO "cd:xxxxx", no "/cd:xxxxx" ALLOWED here! ******************
@@ -405,61 +426,57 @@ MFile* MFile::cd(std::string newDir) {
     // if you want to support LOAD"CDxxxxxx" just parse/drop the CD BEFORE calling this function
     // and call it ONLY with the path you want to change into!
 
-    if(newDir.find(':') != std::string::npos) {
+    if(newDir.find(':') != std::string::npos) 
+    {
         // I can only guess we're CDing into another url scheme, this means we're changing whole path
         return MFSOwner::File(newDir);
     }
-    else if(newDir[0]=='/' && newDir[1]=='/') {
-        if(newDir.size()==2) {
-            // user entered: CD:// or CD//
-            // means: change to the root of stream
-            return streamFile;
-        }
-        else {
-            // user entered: CD://DIR or CD//DIR
-            // means: change to a dir in root of stream
-            //return localRoot(mstr::drop(newDir,2));
-            return streamFile->cd( mstr::drop(newDir, 2));
-        }
+    else if(newDir[0]=='_') // {CBM LEFT ARROW}
+    {
+        // user entered: CD:_ or CD_ 
+        // means: go up one directory
+
+        // user entered: CD:_DIR or CD_DIR
+        // means: go to a directory in the same directory as this one
+        return parent(mstr::drop(newDir,1));
     }
-    else if(newDir[0]=='/' || newDir[0]=='^') {
-        if(newDir.size()==1) {
-            // user entered: CD:/ or CD/
-            // means: change to container root
-            // *** might require a fix for flash fs!
-            //return MFSOwner::File(streamPath);
-            return MFSOwner::File("/");
-        }
-        else {
-            // user entered: CD:/DIR or CD/DIR
-            // means: change to a dir in container root
-            return root(mstr::drop(newDir,1));
-        }
-    }
-    else if(newDir[0]=='_') {
-        if(newDir.size()==1) {
-            // user entered: CD:_ or CD_
-            // means: go up one directory
-            return parent();
-        }
-        else {
-            // user entered: CD:_DIR or CD_DIR
-            // means: go to a directory in the same directory as this one
-            return parent(mstr::drop(newDir,1));
-        }
-    }
-    else if(newDir[0]=='.' && newDir[1]=='.') {
-        if(newDir.size()==2) {
+    else if(newDir[0]=='.' && newDir[1]=='.')
+    {
+        if(newDir.size()==2) 
+        {
             // user entered: CD:.. or CD..
             // means: go up one directory
             return parent();
         }
-        else {
+        else 
+        {
             // user entered: CD:..DIR or CD..DIR
             // meaning: Go back one directory
             return localParent(mstr::drop(newDir,2));
         }
     }
+    else if(newDir[0]=='/' && newDir[1]=='/') 
+    {
+        // user entered: CD:// or CD//
+        // means: change to the root of stream
+
+        // user entered: CD://DIR or CD//DIR
+        // means: change to a dir in root of stream
+        return localRoot(mstr::drop(newDir,2));
+    }
+    else if(newDir[0]=='/') 
+    {
+        // user entered: CD:/DIR or CD/DIR
+        // means: go to a directory in the same directory as this one
+        return parent(mstr::drop(newDir,1));
+    }
+    else if(newDir[0]=='^') // {CBM UP ARROW}
+    {
+        // user entered: CD:^ or CD^ 
+        // means: change to flash root
+        return MFSOwner::File("/");
+    }
+
 
     // if(newDir[0]=='@' /*&& newDir[1]=='/' let's be consistent!*/) {
     //     if(newDir.size() == 1) {
@@ -474,8 +491,8 @@ MFile* MFile::cd(std::string newDir) {
     //     }
     // }
 
-    else {
-
+    else 
+    {
         // Add new directory to path
         if ( !mstr::endsWith(url, "/") && newDir.size() )
             url.push_back('/');

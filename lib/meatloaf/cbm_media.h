@@ -42,16 +42,36 @@ public:
     bool isRandomAccess() override { return true; };
 
     // read = (size) => this.containerStream.read(size);
-    virtual uint8_t read(uint8_t size) {
+    virtual uint8_t read() {
         uint8_t b = 0;
-        if (!containerStream->read((uint8_t *)&b, 1))
-            return -1;
-
+        containerStream->read( &b, 1 );
         return b;
     }
     // readUntil = (delimiter = 0x00) => this.containerStream.readUntil(delimiter);
+    virtual std::string readUntil( uint8_t delimiter = 0x00 )
+    {
+        uint8_t b = 0, r = 0;
+        std::string bytes = "";
+        do
+        {
+            r = containerStream->read( &b, 1 );
+            if ( b != delimiter )
+                bytes += b;
+            else
+                break;
+        } while ( r );
+
+        return bytes;
+    }
     // readString = (size) => this.containerStream.readString(size);
+    virtual std::string readString( uint8_t size )
+    {
+        uint8_t b[size] = { 0x00 };
+        uint8_t r = containerStream->read( b, size );
+        return std::string((char *)b);
+    }
     // readStringUntil = (delimiter = 0x00) => this.containerStream.readStringUntil(delimiter);
+
     // seek = (offset) => this.containerStream.seek(offset + this.media_header_size);
     bool seek(uint32_t offset) override { return containerStream->seek(offset + media_header_size); }
     // seekCurrent = (offset) => this.containerStream.seekCurrent(offset);

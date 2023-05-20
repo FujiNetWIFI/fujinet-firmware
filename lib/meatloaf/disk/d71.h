@@ -53,6 +53,18 @@ public:
         partitions.clear();
         partitions.push_back(p);
         sectorsPerTrack = { 17, 18, 19, 21 };
+        rom = "dos1571";
+
+        uint32_t size = containerStream->size();
+        switch (size + media_header_size) 
+        {
+            case 349696: // 70 tracks no errors
+                break;
+
+            case 351062: // 70 w/ errors
+                error_info = true;
+                break;
+        }
     };
 
 	virtual uint8_t speedZone( uint8_t track) override

@@ -68,26 +68,36 @@ public:
         };
         partitions.clear();
         partitions.push_back(p);
+        sectorsPerTrack = { 17, 18, 19, 21 };
 
         // this.size = data.media_data.length;
         // switch (this.size + this.media_header_size) {
+        uint32_t size = containerStream->size();
+        switch (size + media_header_size) 
+        {
+             case 5013504:  // D9060
+                 sectorsPerTrack = { (4 * 32) }; // Heads * Sectors
+                 break;
 
-        //     case 5013504:  // D9060
-        //         this.sectorsPerTrack[0] = 4 * 32; // Heads * Sectors
-        //         break;
-
-        //     case 7520256:  // D9090
-        //     this.sectorsPerTrack[0] = 6 * 32; // Heads * Sectors
-        //         break;
-        // }
+             case 7520256:  // D9090
+                sectorsPerTrack = { (6 * 32) }; // Heads * Sectors
+                 break;
+        }
 
         // this.seek(0x04);
+        seek( 0x04 );
         // this.partitions[0].directory_track = this.read();
-        // this.partitions[0].directory_sector = this.read();       
+        partitions[0].directory_track = read();
+        // this.partitions[0].directory_sector = this.read();
+        partitions[0].directory_sector = read();
         // this.partitions[0].track = this.read();
+        partitions[0].header_track = read();
         // this.partitions[0].sector = this.read();
+        partitions[0].header_sector = read();
         // this.partitions[0].block_allocation_map[0].track = this.read();
+        partitions[0].block_allocation_map[0].track = read();
         // this.partitions[0].block_allocation_map[0].sector = this.read();
+        partitions[0].block_allocation_map[0].sector = read();
     };
 
 	virtual uint8_t speedZone( uint8_t track) override
