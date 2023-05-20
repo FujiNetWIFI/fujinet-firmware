@@ -47,6 +47,7 @@ void main_setup()
     unsigned long startms = fnSystem.millis();
     Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
+    Debug_printv("Heap: %lu\n",esp_get_free_internal_heap_size());
 #ifdef ATARI
     Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
     Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
@@ -249,6 +250,7 @@ void main_setup()
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
 #endif // DEBUG
+    Debug_printv("Low Heap: %lu\n",esp_get_free_internal_heap_size());
 }
 
 #ifdef BUILD_S100
@@ -290,6 +292,9 @@ void fn_service_loop(void *param)
         else
 #endif // BLUETOOTH_SUPPORT
 
+#ifdef LEAK_DEBUG
+        Debug_printv("Low Heap: %lu\n",esp_get_free_internal_heap_size());
+#endif 
         SYSTEM_BUS.service();
 
         taskYIELD(); // Allow other tasks to run
