@@ -376,11 +376,11 @@ size_t FlashIStream::error() {
 
 bool FlashIStream::seek(uint32_t pos) {
     // Debug_printv("pos[%d]", pos);
-        if (!isOpen()) {
+    if (!isOpen()) {
         Debug_printv("Not open");
         return false;
     }
-    return ( fseek( handle->file_h, pos, SEEK_SET ) ) ? true : false;
+    return ( fseek( handle->file_h, pos, SEEK_SET ) ) ? false : true;
 };
 
 bool FlashIStream::seek(uint32_t pos, int mode) {
@@ -389,7 +389,7 @@ bool FlashIStream::seek(uint32_t pos, int mode) {
         Debug_printv("Not open");
         return false;
     }
-    return ( fseek( handle->file_h, pos, mode ) ) ? true: false;
+    return ( fseek( handle->file_h, pos, mode ) ) ? false : true;
 }
 
 bool FlashIStream::isOpen() {
