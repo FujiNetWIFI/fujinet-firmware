@@ -53,6 +53,16 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                 //Debug_printf("Found PRINTER %d\n", index);
                 return SECTION_PRINTER;
             }
+            if (strncasecmp("WiFiStored", s1.c_str(), 10) == 0)
+            {
+                index = atoi((const char *)(s1.c_str() + 10)) - 1;
+                if (index < 0 || index >= MAX_WIFI_STORED)
+                {
+                    Debug_println("Invalid index value - discarding");
+                    return SECTION_UNKNOWN;
+                }
+                return SECTION_WIFI_STORED;
+            }
             else if (strncasecmp("WiFi", s1.c_str(), 4) == 0)
             {
                 //Debug_printf("Found WIFI\n");
