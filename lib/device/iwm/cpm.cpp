@@ -200,6 +200,7 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
             numbytes = mw;  
         }       
 
+        data_len = 0;
         for (int i = 0; i < numbytes; i++)
         {
             char b;

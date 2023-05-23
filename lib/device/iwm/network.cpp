@@ -497,14 +497,14 @@ void iwmNetwork::special_80()
 void iwmNetwork::iwm_open(iwm_decoded_cmd_t cmd)
 {
     //Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmNetwork::iwm_close(iwm_decoded_cmd_t cmd)
 {
     // Probably need to send close command here.
     //Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    send_reply_packet(SP_ERR_NOERROR);
     close();
 }
 
