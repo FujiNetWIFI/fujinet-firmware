@@ -1407,6 +1407,7 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
             numbytes = mw;  
         }
 
+        data_len = 0;
         for (int i = 0; i < numbytes; i++)
         {
             char b;
@@ -1469,7 +1470,7 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
     // else
     //     err_result = SP_ERR_IOERROR;
 
-    Debug_printf("\nSending Status Reply");
+    Debug_printf("\nSending Control Reply");
     send_reply_packet(err_result);
 }
 
