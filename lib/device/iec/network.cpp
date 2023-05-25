@@ -570,7 +570,7 @@ void iecNetwork::query_json()
     iecStatus.channel = channel;
     iecStatus.connected = true;
     iecStatus.msg = string(reply);
-    Debug_printf("Query set to %s\n", s);
+    Debug_printf("Query set to %s\n", s.c_str());
 }
 
 void iecNetwork::set_translation_mode()
