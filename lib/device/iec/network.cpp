@@ -24,6 +24,8 @@
 #include "SSH.h"
 #include "SMB.h"
 
+#include "esp_heap_trace.h"
+
 iecNetwork::iecNetwork()
 {
     for (int i = 0; i < NUM_CHANNELS; i++)
@@ -52,6 +54,7 @@ iecNetwork::~iecNetwork()
         delete transmitBuffer[i];
         delete specialBuffer[i];
     }
+
 }
 
 void iecNetwork::poll_interrupt(unsigned char c)
@@ -112,6 +115,15 @@ void iecNetwork::iec_open()
     }
 
     urlParser[commanddata->channel] = EdUrlParser::parseUrl(deviceSpec[commanddata->channel]);
+
+    // This is unbelievably stupid, but here we are.
+    for (int i=0;i<urlParser[commanddata->channel]->query.size();i++)
+        if (urlParser[commanddata->channel]->query[i]==0xa4) // underscore
+            urlParser[commanddata->channel]->query[i]=0x5F;
+
+    for (int i=0;i<urlParser[commanddata->channel]->path.size();i++)
+        if (urlParser[commanddata->channel]->path[i]==0xa4) // underscore
+            urlParser[commanddata->channel]->path[i]=0x5F;
 
     // Convert scheme to uppercase
     std::transform(urlParser[commanddata->channel]->scheme.begin(), urlParser[commanddata->channel]->scheme.end(), urlParser[commanddata->channel]->scheme.begin(), ::toupper);
