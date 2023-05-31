@@ -51,4 +51,9 @@ extern cx16Modem *sioR;
   extern rc2014Modem *sioR;
 #endif
 
+#ifdef BUILD_H89
+# include "h89/modem.h"
+  extern H89Modem *sioR;
+#endif
+
 #endif // DEVICE_MODEM_H

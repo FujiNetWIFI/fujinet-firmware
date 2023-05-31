@@ -43,6 +43,12 @@
 # define PRINTER_CLASS rc2014Printer
 #endif
 
+#ifdef BUILD_H89
+# include "h89/printer.h"
+# include "h89/printerlist.h"
+# define PRINTER_CLASS H89Printer
+#endif
+
 #ifdef NEW_TARGET
 # include "new/printer.h"
 # include "new/printerlist.h"

@@ -51,4 +51,9 @@
 #define SYSTEM_BUS rc2014Bus
 #endif
 
+#ifdef BUILD_H89
+#include "h89/h89.h"
+#define SYSTEM_BUS H89Bus
+#endif
+
 #endif // BUS_H
