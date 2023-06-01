@@ -6,6 +6,7 @@
 
 #include "meat_io.h"
 
+using namespace std;
 
 namespace Meat
 {
