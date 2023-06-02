@@ -226,7 +226,7 @@ void sioFuji::sio_net_set_ssid()
         fnWiFi.connect(cfg.ssid, cfg.password);
 
         // Only save these if we're asked to, otherwise assume it was a test for connectivity
-        if (save)
+        if (save && fnWiFi.connected() )
         {
             // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
             // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
