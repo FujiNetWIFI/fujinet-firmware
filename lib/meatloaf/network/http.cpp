@@ -1,5 +1,7 @@
 #include "http.h"
 
+#include <esp_idf_version.h>
+
 /********************************************************
  * File impls
  ********************************************************/
@@ -476,6 +478,8 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
 
             break;
 
+#if __cplusplus > 201703L
+//#if ESP_IDF_VERSION > ESP_IDF_VERSION_VAL(5, 3, 0)
         case HTTP_EVENT_REDIRECT:
 
             Debug_printv("* This page redirects from '%s' to '%s'", meatClient->url.c_str(), evt->header_value);
@@ -490,6 +494,7 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
                 meatClient->url += evt->header_value;                    
             }
             break;
+#endif
 
         case HTTP_EVENT_ON_DATA: // Occurs multiple times when receiving body data from the server. MAY BE SKIPPED IF BODY IS EMPTY!
             //Debug_printv("HTTP_EVENT_ON_DATA, len=%d", evt->data_len);

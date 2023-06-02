@@ -178,9 +178,6 @@ void IRAM_ATTR systemBus::service()
             flags = CLEAR;
         }
 
-        // Let bus stabalize
-        protocol->wait ( TIMING_STABLE, 0, false );
-
         if ( status ( PIN_IEC_ATN ) )
             bus_state = BUS_ACTIVE;
 
@@ -252,13 +249,13 @@ void systemBus::read_command()
                 data.device = c ^ IEC_LISTEN;
                 data.secondary = IEC_REOPEN; // Default secondary command
                 data.channel = CHANNEL_COMMAND;  // Default channel
+                data.payload = "";
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (20 LISTEN %.2d DEVICE)\r\n", data.device);
                 break;
 
             case IEC_UNLISTEN:
                 data.primary = IEC_UNLISTEN;
-                data.secondary = 0x00;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (3F UNLISTEN)\r\n");
                 break;
@@ -303,12 +300,19 @@ void systemBus::read_command()
                 data.channel = c ^ IEC_CLOSE;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (E0 CLOSE  %.2d CHANNEL)\r\n", data.channel);
-                    break;                    
+                    break;
+
+                default:
+                    bus_state = BUS_IDLE;
                 }
             }
         }
 
-    } while ( status( PIN_IEC_ATN ) == PULLED );
+        // Let bus stabalize
+        //Debug_printv("stabalize!");
+        protocol->wait ( TIMING_STABLE );
+
+    } while ( IEC.flags & ATN_PULLED );
 
     // Is this command for us?
     if (!deviceById(data.device) || !deviceById(data.device)->device_active)
