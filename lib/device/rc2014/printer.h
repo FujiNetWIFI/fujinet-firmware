@@ -14,8 +14,6 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-void printerTask(void * param);
-
 class rc2014Printer : public virtualDevice
 {
 protected:
@@ -98,16 +96,11 @@ public:
     void set_printer_type(printer_type printer_type);
     void reset_printer() { set_printer_type(_ptype); };
     time_t lastPrintTime() { return _last_ms; };
-    virtual void idle();
 
     printer_emu *getPrinterPtr() { return _pptr; };
 
-
 private:
     printer_type _ptype;
-    TaskHandle_t ioTask = NULL;
-    bool _backwards = false;
-
 };
 
 #endif /* rc2014_PRINTER_H */
