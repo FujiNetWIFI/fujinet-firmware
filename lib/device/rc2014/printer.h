@@ -20,7 +20,7 @@ class rc2014Printer : public virtualDevice
 {
 protected:
     // SIO THINGS
-    TaskHandle_t *thPrinter;
+    TaskHandle_t thPrinter;
 
     static constexpr int TX_BUF_SIZE = 256;
 
