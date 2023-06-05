@@ -21,33 +21,13 @@
 #include "coleco_printer.h"
 
 /* TODO
-   - what is bpos used for?
-   - set stream mode
-   - handle stream
+   - handle streaming mode
 */
 
 std::string buf;
 bool taskActive=false;
 
 constexpr const char * const rc2014Printer::printer_model_str[PRINTER_INVALID];
-
-void printerTask(void *param)
-{
-    rc2014Printer *ptr = (rc2014Printer *)param;
-
-    while(1)
-    {
-        if ((ptr != nullptr) && (ptr->bpos>0))
-        {
-            taskActive=true;
-            ptr->getPrinterPtr()->process(ptr->bpos,0,0);
-            ptr->bpos=0;
-            taskActive=false;
-        }
-
-        vPortYield();
-    }
-}
 
 // Constructor just sets a default printer type
 rc2014Printer::rc2014Printer(FileSystem *filesystem, printer_type print_type)
@@ -58,16 +38,17 @@ rc2014Printer::rc2014Printer(FileSystem *filesystem, printer_type print_type)
 
 rc2014Printer::~rc2014Printer()
 {
-    vTaskDelete(thPrinter);
     delete _pptr;
 }
 
 rc2014Printer::printer_type rc2014Printer::match_modelname(std::string model_name)
 {
     int i;
-    for (i = 0; i < PRINTER_INVALID; i++)
+
+    for (i = 0; i < PRINTER_INVALID; i++) {
         if (model_name.compare(rc2014Printer::printer_model_str[i]) == 0)
             break;
+    }
 
     return (printer_type)i;
 }
@@ -91,25 +72,6 @@ void rc2014Printer::status()
     rc2014_send(rc2014_checksum((uint8_t *)c, 4));
 
     rc2014_send_complete();
-
-}
-
-void rc2014Printer::idle()
-{
-    Debug_printf("rc2014Printer::idle()\n");
-    if (buf.empty())
-        return;
-
-    uint8_t c = buf.length() > 40 ? 40 : buf.length();
-
-    fnLedManager.set(LED_BT,true);
-    _last_ms=fnSystem.millis();
-
-    memcpy(_pptr->provideBuffer(),buf.data(),c);
-    _pptr->process(c,0,0);
-
-    buf.erase(0,c);
-    fnLedManager.set(LED_BT,false);
 }
 
 /**
@@ -130,23 +92,18 @@ void rc2014Printer::write()
 
     memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
     rc2014_recv_buffer(_buffer, num_bytes);
-    // uint8_t ck = rc2014_recv(); // ck
 
-    
     // Copy the data to the printer emulator's buffer
     memcpy(_pptr->provideBuffer(), _buffer, num_bytes);
     rc2014_send_ack();
 
     _last_ms = fnSystem.millis();
-    bpos=num_bytes;
 
-    if (_pptr->process(num_bytes, _lastaux1, _lastaux2))
+    if (_pptr->process(num_bytes, _lastaux1, _lastaux2)) {
         rc2014_send_complete();
-    else
-    {
+    } else {
         rc2014_send_error();
     }
-
 }
 
 void rc2014Printer::ready()
@@ -197,7 +154,6 @@ void rc2014Printer::rc2014_handle_stream()
         memcpy(_pptr->provideBuffer(), _buffer, sioBytesRead);
 
         _last_ms = fnSystem.millis();
-        bpos=sioBytesRead;
 
         Debug_printf("rc2014Printer::rc2014_handle_stream(): bytes processing %d\n", num_bytes);
         _pptr->process(num_bytes, _lastaux1, _lastaux2);
@@ -257,8 +213,7 @@ void rc2014Printer::set_printer_type(printer_type printer_type)
     }
 
     _pptr->initPrinter(_storage);
-    //_pptr->setEOLBypass(true);
-    _pptr->setEOL(0x0d);
+    //_pptr->setEOL(0x0d);
 }
 
 #endif /* NEW_TARGET */
