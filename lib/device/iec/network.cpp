@@ -430,10 +430,13 @@ void iecNetwork::iec_reopen_channel_talk()
         }
 
         b = receiveBuffer[commanddata->channel]->front();
-        receiveBuffer[commanddata->channel]->erase(0, 1);
+
         IEC.sendByte(b, set_eoi);
-        Debug_printf("%c", b);
-        atn = fnSystem.digital_read(PIN_IEC_ATN);
+
+        if (!(IEC.flags & ERROR))
+            receiveBuffer[commanddata->channel]->erase(0, 1);            
+
+        atn = IEC.status(PIN_IEC_ATN);
     }
 }
 
