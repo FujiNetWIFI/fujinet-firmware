@@ -4,16 +4,16 @@
 /* SD Card - fnFsSD.cpp */
 #define PIN_CARD_DETECT -1 // fnSystem.h
 #define PIN_CARD_DETECT_FIX -1 // fnSystem.h
-#define PIN_SD_HOST_CS GPIO_NUM_5 //fnFsSD.cpp
-#define PIN_SD_HOST_MISO GPIO_NUM_19
-#define PIN_SD_HOST_MOSI GPIO_NUM_23
-#define PIN_SD_HOST_SCK GPIO_NUM_18
+#define PIN_SD_HOST_CS GPIO_NUM_15 //fnFsSD.cpp
+#define PIN_SD_HOST_MISO GPIO_NUM_12
+#define PIN_SD_HOST_MOSI GPIO_NUM_13
+#define PIN_SD_HOST_SCK GPIO_NUM_14
 
 /* UART - fnuart.cpp */
 #define PIN_UART0_RX 3  // USB Serial
 #define PIN_UART0_TX 1  // USB Serial
-#define PIN_UART1_RX -1 // RS232
-#define PIN_UART1_TX -1 // RS232
+#define PIN_UART1_RX 26 // Debug Pico
+#define PIN_UART1_TX 25 // Debug Pico
 //#define PIN_UART2_RX 33
 //#define PIN_UART2_TX 21
 
@@ -30,21 +30,9 @@
 /* Audio Output - samlib.h */
 #define PIN_DAC1 -1 // not connected
 
-/* ACSI data Pins */
-#define PIN_ACSI_DO     13
-#define PIN_ACSI_D1     14
-#define PIN_ACSI_D2     15
-#define PIN_ACSI_D3     12
-#define PIN_ACSI_D4     32
-#define PIN_ACSI_D5     18
-#define PIN_ACSI_D6     19
-#define PIN_ACSI_D7     21
-/* ACSI control pins */
-#define PIN_ACSI_RESET  22    
-#define PIN_ACSI_IRQ    5
-#define PIN_ACSI_RW     25
-#define PIN_ACSI_ACK    27
-#define PIN_ACSI_DRQ    33
-#define PIN_ACSI_A1     26
-#define PIN_ACSI_CS     34
+/* ACSI SPI Pins */
+#define PIN_ACSI_SPI_CS 5
+#define PIN_ACSI_SPI_MISO 19
+#define PIN_ACSI_SPI_MOSI 23
+#define PIN_ACSI_SPI_CLK 18
 #endif /* PINMAP_ATARI16BIT_REV0 */
