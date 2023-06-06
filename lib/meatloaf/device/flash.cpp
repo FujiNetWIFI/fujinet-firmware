@@ -256,18 +256,14 @@ bool FlashFile::seekEntry( std::string filename )
             Debug_printv("path[%s] filename[%s] entry.filename[%.16s]", apath.c_str(), filename.c_str(), entryFilename.c_str());
 
             // Read Entry From Stream
-            if (filename == "*")
+            if ( dirent->d_type != DT_DIR ) // Only want to match files not directories
             {
-                filename = entryFilename;
-                closedir( d );
-                return true;
-            }
-            else if ( filename == entryFilename )
+                if ( filename == entryFilename )
             {
                 closedir( d );
                 return true;
             }
-            else if ( mstr::compare(filename, entryFilename) )
+                else if ( filename == "*" || mstr::compare(filename, entryFilename) )
             {
                 // Set filename to this filename
                 Debug_printv( "Found! file[%s] -> entry[%s]", filename.c_str(), entryFilename.c_str() );
@@ -275,6 +271,8 @@ bool FlashFile::seekEntry( std::string filename )
                 closedir( d );
                 return true;
             }
+          }
+
         }
 
         Debug_printv( "Not Found! file[%s]", filename.c_str() );
@@ -378,11 +376,11 @@ size_t FlashIStream::error() {
 
 bool FlashIStream::seek(uint32_t pos) {
     // Debug_printv("pos[%d]", pos);
-        if (!isOpen()) {
+    if (!isOpen()) {
         Debug_printv("Not open");
         return false;
     }
-    return ( fseek( handle->file_h, pos, SEEK_SET ) ) ? true : false;
+    return ( fseek( handle->file_h, pos, SEEK_SET ) ) ? false : true;
 };
 
 bool FlashIStream::seek(uint32_t pos, int mode) {
@@ -391,7 +389,7 @@ bool FlashIStream::seek(uint32_t pos, int mode) {
         Debug_printv("Not open");
         return false;
     }
-    return ( fseek( handle->file_h, pos, mode ) ) ? true: false;
+    return ( fseek( handle->file_h, pos, mode ) ) ? false : true;
 }
 
 bool FlashIStream::isOpen() {

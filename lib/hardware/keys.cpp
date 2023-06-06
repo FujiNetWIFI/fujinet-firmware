@@ -10,7 +10,6 @@
 #include "fnBluetooth.h"
 
 #include "led.h"
-#include "led_strip.h"
 
 // Global KeyManager object
 KeyManager fnKeyManager;
@@ -47,9 +46,11 @@ void KeyManager::setup()
 #else
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NO_BUTTONS */
+
 #if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232) && !defined(BUILD_RC2014) && !defined(BUILD_IEC)
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NOT LYNX OR A2 */
+
     // Enable safe reset on Button C if available
     if (fnSystem.get_hardware_ver() >= 2)
     {
@@ -235,14 +236,22 @@ void KeyManager::_keystate_task(void *param)
 
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_A: SHORT PRESS");
+#ifdef PARALLEL_BUS
+            // Reset the Commodore via Userport, GPIO 13
+            fnSystem.set_pin_mode(GPIO_NUM_13, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_UP);
+            fnSystem.digital_write(GPIO_NUM_13, DIGI_LOW);
+            fnSystem.delay(1);
+            fnSystem.digital_write(GPIO_NUM_13, DIGI_HIGH);
+            Debug_println("Sent RESET signal to Commodore");
+#endif
 
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
             if(fnSystem.ledstrip())
             {
-                if (fnLedStrip.rainbowTimer > 0)
-                    fnLedStrip.stopRainbow();
-                else
-                    fnLedStrip.startRainbow(10);
+                // if (fnLedStrip.rainbowTimer > 0)
+                //     fnLedStrip.stopRainbow();
+                // else
+                //     fnLedStrip.startRainbow(10);
             }
             else
             {
@@ -306,6 +315,7 @@ void KeyManager::_keystate_task(void *param)
             sio_message_t msg;
             msg.message_id = SIOMSG_DEBUG_TAPE;
             xQueueSend(SIO.qSioMessages, &msg, 0);
+
 #endif /* BUILD_ATARI */
             break;
         case eKeyStatus::DOUBLE_TAP:

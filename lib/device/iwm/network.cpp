@@ -497,14 +497,14 @@ void iwmNetwork::special_80()
 void iwmNetwork::iwm_open(iwm_decoded_cmd_t cmd)
 {
     //Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmNetwork::iwm_close(iwm_decoded_cmd_t cmd)
 {
     // Probably need to send close command here.
     //Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    send_reply_packet(SP_ERR_NOERROR);
     close();
 }
 
@@ -580,7 +580,6 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
     if (num_bytes > json.json_bytes_remaining)
     {
         json.json_bytes_remaining = 0;
-        iwm_return_ioerror();
         return true;
     }
     else
@@ -606,7 +605,6 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 
     if (ns.rxBytesWaiting == 0)
     {
-        iwm_return_ioerror();
         return true;
     }
 
@@ -618,7 +616,6 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
-        iwm_return_ioerror();
         return true;
     }
     else // everything ok
@@ -645,14 +642,10 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
 
 void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
+    bool error = false;
 
     uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
-
     uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
     Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
 
@@ -662,18 +655,24 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
     switch (channelMode)
     {
     case PROTOCOL:
-        read_channel(numbytes, cmd);
+        error = read_channel(numbytes, cmd);
         break;
     case JSON:
-        read_channel_json(numbytes, cmd);
+        error = read_channel_json(numbytes, cmd);
         break;
     }
 
-    //send_data_packet(data_len);
-    Debug_printf("\r\nsending block packet (%04x bytes)...", numbytes);
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, numbytes);
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
+    if (error)
+    {
+        iwm_return_ioerror();
+    }
+    else
+    {
+        Debug_printf("\r\nsending Netwok read data packet (%04x bytes)...", numbytes);
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, numbytes);
+        data_len = 0;
+        memset(data_buffer, 0, sizeof(data_buffer));
+    }
 }
 
 void iwmNetwork::net_write()

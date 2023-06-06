@@ -24,10 +24,10 @@
 #include "SSH.h"
 #include "SMB.h"
 
+#include "esp_heap_trace.h"
+
 iecNetwork::iecNetwork()
 {
-    Debug_printf("iwmNetwork::iwmNetwork()\n");
-
     for (int i = 0; i < NUM_CHANNELS; i++)
     {
         channelMode[i] = PROTOCOL;
@@ -54,6 +54,7 @@ iecNetwork::~iecNetwork()
         delete transmitBuffer[i];
         delete specialBuffer[i];
     }
+
 }
 
 void iecNetwork::poll_interrupt(unsigned char c)
@@ -115,6 +116,15 @@ void iecNetwork::iec_open()
 
     urlParser[commanddata->channel] = EdUrlParser::parseUrl(deviceSpec[commanddata->channel]);
 
+    // This is unbelievably stupid, but here we are.
+    for (int i=0;i<urlParser[commanddata->channel]->query.size();i++)
+        if (urlParser[commanddata->channel]->query[i]==0xa4) // underscore
+            urlParser[commanddata->channel]->query[i]=0x5F;
+
+    for (int i=0;i<urlParser[commanddata->channel]->path.size();i++)
+        if (urlParser[commanddata->channel]->path[i]==0xa4) // underscore
+            urlParser[commanddata->channel]->path[i]=0x5F;
+
     // Convert scheme to uppercase
     std::transform(urlParser[commanddata->channel]->scheme.begin(), urlParser[commanddata->channel]->scheme.end(), urlParser[commanddata->channel]->scheme.begin(), ::toupper);
 
@@ -164,7 +174,7 @@ void iecNetwork::iec_open()
 
     if (protocol[commanddata->channel] == nullptr)
     {
-        Debug_printf("iwmNetwork::open_protocol() - Could not open protocol.\n");
+        Debug_printf("iecNetwork::open_protocol() - Could not open protocol.\n");
         file_not_found = true;
     }
 
@@ -174,7 +184,7 @@ void iecNetwork::iec_open()
         protocol[commanddata->channel]->password = &password[commanddata->channel];
     }
 
-    Debug_printf("iwmNetwork::open_protocol() - Protocol %s opened.\n", urlParser[commanddata->channel]->scheme.c_str());
+    Debug_printf("iecNetwork::open_protocol() - Protocol %s opened.\n", urlParser[commanddata->channel]->scheme.c_str());
 
     // Attempt protocol open
     if (protocol[commanddata->channel]->open(urlParser[commanddata->channel], &cmdFrame) == true)
@@ -572,7 +582,7 @@ void iecNetwork::query_json()
     iecStatus.channel = channel;
     iecStatus.connected = true;
     iecStatus.msg = string(reply);
-    Debug_printf("Query set to %s\n", s);
+    Debug_printf("Query set to %s\n", s.c_str());
 }
 
 void iecNetwork::set_translation_mode()

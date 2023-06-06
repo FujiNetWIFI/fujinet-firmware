@@ -125,6 +125,9 @@ New behavior: copy from SD first if available, then read SPIFFS.
         case SECTION_WIFI:
             _read_section_wifi(ss);
             break;
+        case SECTION_WIFI_STORED:
+            _read_section_wifi_stored(ss, index);
+            break;
         case SECTION_BT:
             _read_section_bt(ss);
             break;

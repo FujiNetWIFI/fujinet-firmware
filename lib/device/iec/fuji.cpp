@@ -18,6 +18,7 @@
 #include "network.h"
 #include "led.h"
 #include "siocpm.h"
+#include "clock.h"
 #include "utils.h"
 
 iecFuji theFuji; // global fuji device object
@@ -1497,6 +1498,7 @@ void iecFuji::setup(systemBus *siobus)
     IEC.addDevice(new iecDisk(), 8);
     IEC.addDevice(new iecNetwork(), 12);
     IEC.addDevice(new iecCpm(), 14);
+    IEC.addDevice(new iecClock(), 29);
     IEC.addDevice(this, 0x0F);
 }
 

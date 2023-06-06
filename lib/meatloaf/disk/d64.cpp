@@ -4,19 +4,59 @@
 
 // D64 Utility Functions
 
-// bool D64IStream::seekSector( uint16_t index )
-// {
-
-// }
-
-bool D64IStream::seekSector( uint8_t track, uint8_t sector, size_t offset )
+bool D64IStream::seekBlock( uint64_t index, uint8_t offset )
 {
 	uint16_t sectorOffset = 0;
+    uint8_t track = 0;
 
     // Debug_printv("track[%d] sector[%d] offset[%d]", track, sector, offset);
 
-    if ( track == 0 )
+    // Determine actual track & sector from index
+    do
+	{
+        track++;
+		uint8_t count = sectorsPerTrack[speedZone(track)];
+        if ( sectorOffset + count < index )
+            sectorOffset += count;
+        else
+            break;
+        
+        //Debug_printv("track[%d] speedZone[%d] secotorsPerTrack[%d] sectorOffset[%d]", track, speedZone(track), count, sectorOffset);
+	} while ( true );
+	uint8_t sector = index - sectorOffset;
+
+    this->block = index;
+    this->track = track;
+    this->sector = sector;
+
+    //Debug_printv("track[%d] sector[%d] speedZone[%d] sectorOffset[%d]", track, sector, speedZone(track), sectorOffset);
+
+    return containerStream->seek( (index * block_size) + offset );
+}
+
+bool D64IStream::seekSector( uint8_t track, uint8_t sector, uint8_t offset )
+{
+	uint16_t sectorOffset = 0;
+
+    //Debug_printv("track[%d] sector[%d] offset[%d]", track, sector, offset);
+
+    // Is this a valid track?
+    auto c = partitions[partition].block_allocation_map.size() - 1;
+    auto start_track = partitions[partition].block_allocation_map[0].start_track;
+    auto end_track = partitions[partition].block_allocation_map[c].end_track;
+    if ( track < start_track || track > end_track )
+    {
+        Debug_printv("track[%d] start_track[%d] end_track[%d]", track, start_track, end_track);
         return false;
+    }
+
+    // Is this a valid sector?
+    c = sectorsPerTrack[speedZone(track)];
+    if ( sector > c )
+    {
+        Debug_printv("sector[%d] track[%d] sectorsPerTrack[%d]", sector, track, c);
+        return false;
+    }
 
     track--;
 	for (uint8_t index = 0; index < track; ++index)
@@ -24,10 +64,14 @@ bool D64IStream::seekSector( uint8_t track, uint8_t sector, size_t offset )
 		sectorOffset += sectorsPerTrack[speedZone(index + 1)];
         // Debug_printv("track[%d] speedZone[%d] secotorsPerTrack[%d] sectorOffset[%d]", (index + 1), speedZone(index), sectorsPerTrack[speedZone(index)], sectorOffset);
 	}
+    track++;
 	sectorOffset += sector;
 
-    this->track = track + 1;
+    this->block = sectorOffset;
+    this->track = track;
     this->sector = sector;
+
+    //Debug_printv("track[%d] sector[%d] speedZone[%d] sectorOffset[%d]", track, sector, speedZone(track), sectorOffset);
 
     return containerStream->seek( (sectorOffset * block_size) + offset );
 }
@@ -135,7 +179,7 @@ bool D64IStream::seekEntry( uint32_t index )
             if ( next_track )
             {
                 // Debug_printv("next_track[%d] next_sector[%d]", entry.next_track, entry.next_sector);
-                r = seekSector( entry.next_track, entry.next_sector, 0x00 );
+                r = seekSector( entry.next_track, entry.next_sector );
             }
 
             containerStream->read((uint8_t *)&entry, sizeof(entry));
@@ -171,10 +215,8 @@ bool D64IStream::seekEntry( uint32_t index )
 
     //if ( next_track == 0 && next_sector == 0xFF )
     entry_index = index + 1;
-    if ( entry.file_type == 0x00 )
-        return false;
-    else
-        return true;
+
+    return true;
 }
 
 
@@ -271,42 +313,27 @@ bool D64IStream::seekPath(std::string path) {
     if ( mstr::endsWith(path,"#") ) // Direct Access Mode
     {
         Debug_printv("Direct Access Mode track[0] sector[0] path[%s]", path.c_str());
-        seekSector(0, 0);
-        return true;
+        seekCalled = false;
+        return seekSector(1, 0);
     }
     else if ( seekEntry(path) )
     {
         //auto entry = containerImage->entry;
         auto type = decodeType(entry.file_type).c_str();
-        //auto blocks = (entry.blocks[0] << 8 | entry.blocks[1] >> 8);
-        //auto blocks = (entry.blocks[0] * 256) + entry.blocks[1];
-        Debug_printv("filename [%.16s] type[%s] start_track[%d] start_sector[%d]", entry.filename, type, entry.start_track, entry.start_sector);
-        seekSector(entry.start_track, entry.start_sector);
+        Debug_printv("filename[%.16s] type[%s] start_track[%d] start_sector[%d]", entry.filename, type, entry.start_track, entry.start_sector);
 
         // Calculate file size
         uint8_t t = entry.start_track;
         uint8_t s = entry.start_sector;
-        size_t blocks = 0; 
-        do
-        {
-            Debug_printv("t[%d] s[%d]", t, s);
-
-            containerStream->read(&t, 1);
-            containerStream->read(&s, 1);
-            blocks++;
-            if ( t > 0 )
-                seekSector( t, s );
-        } while ( t > 0 );
-        blocks--;
-        m_length = (blocks * 254) + s;
+        m_length = seekFileSize( t, s );
         m_bytesAvailable = m_length;
-        
-        // Set position to beginning of file
-        seekSector( entry.start_track, entry.start_sector );
 
-        Debug_printv("File Size: blocks[%d] size[%d] available[%d]", (blocks + 1), m_length, m_bytesAvailable);
-        
-        return true;
+        // Set position to beginning of file
+        bool r = seekSector( t, s );
+
+        Debug_printv("File Size: blocks[%d] size[%d] available[%d] r[%d]", entry.blocks, m_length, m_bytesAvailable, r);
+
+        return r;
     }
     else
     {
@@ -368,7 +395,13 @@ MFile* D64File::getNextFileInDir() {
     // Get entry pointed to by containerStream
     auto image = ImageBroker::obtain<D64IStream>(streamFile->url);
 
-    if ( image->seekNextImageEntry() )
+    bool r = false;
+    do
+    {
+        r = image->seekNextImageEntry();
+    } while ( r && image->entry.file_type == 0x00 ); // Skip hidden files
+    
+    if ( r )
     {
         std::string fileName = image->entry.filename;
         mstr::rtrimA0(fileName);
@@ -409,10 +442,10 @@ bool D64File::exists() {
 } 
 
 uint32_t D64File::size() {
-    // Debug_printv("[%s]", streamFile->url.c_str());
+    //Debug_printv("[%s]", streamFile->url.c_str());
     // use D64 to get size of the file in image
     auto entry = ImageBroker::obtain<D64IStream>(streamFile->url)->entry;
-    size_t bytes = UINT16_FROM_LE_UINT16(entry.blocks);
+    uint32_t bytes = UINT16_FROM_LE_UINT16(entry.blocks);
     
     return bytes;
 }

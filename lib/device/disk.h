@@ -51,5 +51,9 @@
 # define DEVICE_TYPE rc2014Disk
 #endif 
 
+#ifdef BUILD_H89
+# include "h89/disk.h"
+# define DEVICE_TYPE H89Disk
+#endif 
 
 #endif // DEVICE_DISK_H

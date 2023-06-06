@@ -39,6 +39,7 @@ public:
     virtual uint32_t size() = 0;
     virtual uint32_t position() = 0;
     virtual size_t error() = 0;
+    virtual void reset() {};
     
     virtual bool isOpen() = 0;
     virtual bool isBrowsable() { return false; };
@@ -52,6 +53,8 @@ public:
 
     uint8_t secondaryAddress = 0;
     std::string url = "";
+
+    bool has_subdirs = true;
 
     virtual bool seek(uint32_t pos, int mode) {
         if(mode == SEEK_SET) {
@@ -77,6 +80,10 @@ public:
     virtual std::string seekNextEntry() {
         return "";
     };
+
+    virtual bool seekBlock( uint64_t index, uint8_t offset = 0 ) { return false; };
+    virtual bool seekSector( uint8_t track, uint8_t sector, uint8_t offset = 0 ) { return false; };
+    virtual bool seekSector( std::vector<uint8_t> trackSectorOffset ) { return false; };
 };
 
 

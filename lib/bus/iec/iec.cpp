@@ -5,7 +5,6 @@
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 #include "led.h"
-#include "led_strip.h"
 #include "protocol/iecProtocolSerial.h"
 #include "string_utils.h"
 #include "utils.h"
@@ -147,12 +146,12 @@ void IRAM_ATTR systemBus::service()
             // Data Mode - Get Command or Data
             if (data.primary == IEC_LISTEN)
             {
-                // Debug_printf("calling deviceListen()\n");
+                //Debug_printv("calling deviceListen()\n");
                 deviceListen();
             }
             else if (data.primary == IEC_TALK)
             {
-                // Debug_printf("calling deviceTalk()\n");
+                //Debug_printv("calling deviceTalk()\n");
                 deviceTalk();
             }
 
@@ -162,7 +161,7 @@ void IRAM_ATTR systemBus::service()
 
             // Process commands in devices
             // At the moment there is only the multi-drive device
-            // Debug_printv( "deviceProcess" );
+            //Debug_printv( "deviceProcess" );
 
             fnLedManager.set(eLed::LED_BUS, true);
 
@@ -176,10 +175,8 @@ void IRAM_ATTR systemBus::service()
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
             bus_state = BUS_IDLE;
+            flags = CLEAR;
         }
-
-        // Let bus stabalize
-        protocol->wait ( TIMING_STABLE, 0, false );
 
         if ( status ( PIN_IEC_ATN ) )
             bus_state = BUS_ACTIVE;
@@ -229,7 +226,7 @@ void systemBus::read_command()
             Debug_printf("   IEC: [%.2X]", c);
 
             // Decode command byte
-            uint8_t command = c & 0xF0;
+            uint8_t command = c & 0x60;
             if (c == IEC_UNLISTEN)
                 command = IEC_UNLISTEN;
             if (c == IEC_UNTALK)
@@ -240,25 +237,25 @@ void systemBus::read_command()
 
             switch (command)
             {
-            case IEC_GLOBAL:
-                data.primary = IEC_GLOBAL;
-                data.device = c ^ IEC_GLOBAL;
-                bus_state = BUS_IDLE;
-                Debug_printf(" (00 GLOBAL %.2d COMMAND)\r\n", data.device);
-                break;
+            // case IEC_GLOBAL:
+            //     data.primary = IEC_GLOBAL;
+            //     data.device = c ^ IEC_GLOBAL;
+            //     bus_state = BUS_IDLE;
+            //     Debug_printf(" (00 GLOBAL %.2d COMMAND)\r\n", data.device);
+            //     break;
 
             case IEC_LISTEN:
                 data.primary = IEC_LISTEN;
                 data.device = c ^ IEC_LISTEN;
                 data.secondary = IEC_REOPEN; // Default secondary command
                 data.channel = CHANNEL_COMMAND;  // Default channel
+                data.payload = "";
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (20 LISTEN %.2d DEVICE)\r\n", data.device);
                 break;
 
             case IEC_UNLISTEN:
                 data.primary = IEC_UNLISTEN;
-                data.secondary = 0x00;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (3F UNLISTEN)\r\n");
                 break;
@@ -279,30 +276,43 @@ void systemBus::read_command()
                 Debug_printf(" (5F UNTALK)\r\n");
                 break;
 
-            case IEC_OPEN:
+            default:
+
+                command = c & 0xF0;
+                switch ( command )
+                {
+                case IEC_OPEN:
                 data.secondary = IEC_OPEN;
                 data.channel = c ^ IEC_OPEN;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (F0 OPEN   %.2d CHANNEL)\r\n", data.channel);
-                break;
+                    break;
 
-            case IEC_REOPEN:
+                case IEC_REOPEN:
                 data.secondary = IEC_REOPEN;
                 data.channel = c ^ IEC_REOPEN;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (60 DATA   %.2d CHANNEL)\r\n", data.channel);
-                break;
+                    break;
 
-            case IEC_CLOSE:
+                case IEC_CLOSE:
                 data.secondary = IEC_CLOSE;
                 data.channel = c ^ IEC_CLOSE;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (E0 CLOSE  %.2d CHANNEL)\r\n", data.channel);
-                break;
+                    break;
+
+                default:
+                    bus_state = BUS_IDLE;
+                }
             }
         }
 
-    } while ( bus_state == BUS_ACTIVE );
+        // Let bus stabalize
+        //Debug_printv("stabalize!");
+        protocol->wait ( TIMING_STABLE );
+
+    } while ( IEC.flags & ATN_PULLED );
 
     // Is this command for us?
     if (!deviceById(data.device) || !deviceById(data.device)->device_active)
@@ -334,7 +344,8 @@ void systemBus::read_payload()
     std::string listen_command = "";
 
     // ATN might get pulled right away if there is no command string to send
-    protocol->wait(TIMING_STABLE);
+    //pull ( PIN_IEC_SRQ );
+    //protocol->wait( TIMING_STABLE );
 
     while (IEC.status(PIN_IEC_ATN) != PULLED)
     {
@@ -342,20 +353,14 @@ void systemBus::read_payload()
         int16_t c = protocol->receiveByte();
         //release ( PIN_IEC_SRQ );
 
-        if (flags & EMPTY_STREAM)
+        if (flags & EMPTY_STREAM || flags & ERROR)
         {
+            //Debug_printv("error");
             bus_state = BUS_ERROR;
             return;
         }
 
-        if (flags & ERROR)
-        {
-            bus_state = BUS_ERROR;
-            return;
-        }
-
-        // if (c != 0x0D && c != 0xFFFFFFFF) // Remove CR from end of command
-        if (c != 0xFFFFFFFF)
+        if (c != 0xFFFFFFFF && c != 0x0D)
         {
             listen_command += (uint8_t)c;
         }
@@ -363,8 +368,10 @@ void systemBus::read_payload()
         if (flags & EOI_RECVD)
         {
             data.payload = listen_command;
+            break;
         }
     }
+    //release ( PIN_IEC_SRQ );
 
     bus_state = BUS_IDLE;
 }
@@ -426,8 +433,6 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     {
     case bus_command_t::IEC_OPEN:
         payload = commanddata->payload;
-        // mstr::toASCII(payload); // AAARRRGHHHH, WHYYY?!?!?!?!
-        pt = util_tokenize(payload, ',');
         break;
     case bus_command_t::IEC_CLOSE:
         payload.clear();
@@ -725,6 +730,7 @@ void systemBus::addDevice(virtualDevice *pDevice, int device_id)
     }
 
     // TODO, add device shortcut pointer logic like others
+    Debug_printf("Device #%02d Ready!\n", device_id);
 
     pDevice->_devnum = device_id;
     _daisyChain.push_front(pDevice);

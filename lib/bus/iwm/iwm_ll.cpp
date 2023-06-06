@@ -98,7 +98,13 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
       else if (error == 2) // checksum error
       {
-        Debug_printf("\r\nISR Data Packet Chksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
+        Debug_printf("\r\nISR Data Packet Chksum error, calc %02x, pkt %02x command = %02x", smartport.calc_checksum, smartport.pkt_checksum,IWM.command_packet.command & 0x0f);
+        /*We sometimes get garbage data packets with control code 0 commands, accept them as-is and go on*/
+        if((IWM.command_packet.command == 0x84) && (IWM.command_packet.data[19] == 0x80)) {
+          Debug_printf("\r\nIgnoring bad data packet");
+          smartport.iwm_ack_clr();
+          sp_command_mode = sp_cmd_state_t::command;
+        }
         // reset sp_command_mode to standy or leave to retry?
       }
       // initial Req timeout (error==1) and checksum (error==2) just fall through here and we try again next time
