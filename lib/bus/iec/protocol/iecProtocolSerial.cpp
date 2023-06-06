@@ -8,7 +8,7 @@
 #include "../../../include/debug.h"
 #include "../../../include/pinmap.h"
 
-using namespace Protocol;
+
 
 IecProtocolSerial::IecProtocolSerial()
 {
