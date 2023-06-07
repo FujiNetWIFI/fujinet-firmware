@@ -401,7 +401,7 @@ void iecNetwork::iec_reopen_channel_talk()
 {
     bool set_eoi = false;
     NetworkStatus ns;
-    bool atn = true; // inverted
+    bool atn = false; // inverted
 
     // If protocol isn't connected, then return not connected.
     if (protocol[commanddata->channel] == nullptr)
@@ -418,10 +418,16 @@ void iecNetwork::iec_reopen_channel_talk()
             protocol[commanddata->channel]->read(ns.rxBytesWaiting);
     }
 
-    while (atn)
+    while (!atn)
     {
         char b;
-        atn = fnSystem.digital_read(PIN_IEC_ATN);
+        atn = IEC.status(PIN_IEC_ATN);
+
+        Debug_printf("atn: %u\n",atn);
+
+        if (atn)
+            break;
+        
         if (receiveBuffer[commanddata->channel]->empty())
         {
             Debug_printv("Receive Buffer Empty.");
@@ -430,11 +436,13 @@ void iecNetwork::iec_reopen_channel_talk()
         }
 
         b = receiveBuffer[commanddata->channel]->front();
-
+        
         IEC.sendByte(b, set_eoi);
 
         if (!(IEC.flags & ERROR))
-            receiveBuffer[commanddata->channel]->erase(0, 1);            
+            receiveBuffer[commanddata->channel]->erase(0, 1);
+        else
+            Debug_printv("TALK ERROR!\n");           
 
         atn = IEC.status(PIN_IEC_ATN);
     }
