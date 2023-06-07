@@ -240,7 +240,16 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 void iwmFuji::iwm_ctrl_set_boot_config() // SP CTRL command
 {
     boot_config = data_buffer[0]; // adamnet_recv();
-    //adamnet_recv();
+
+    if (!boot_config) 
+    {
+        fujiDisk &disk = _fnDisks[0];
+        if (disk.host_slot == 0xFF)
+        {
+            _fnDisks[0].disk_dev.unmount();
+            _fnDisks[0].reset();
+        }  
+    }
 }
 
 
