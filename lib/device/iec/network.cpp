@@ -652,6 +652,37 @@ void iecNetwork::set_translation_mode()
 
 void iecNetwork::iec_listen_command()
 {
+
+}
+
+void iecNetwork::iec_talk_command()
+{
+    char tmp[32];
+    NetworkStatus ns;
+
+    while (IEC.status(PIN_IEC_ATN));
+
+    if (!active_status_channel)
+    {
+        Debug_printf("No active status channel\n");
+        IEC.senderTimeout();
+        return;
+    }
+    else if (protocol[active_status_channel] == nullptr)
+    {
+        Debug_printf("No active protocol\n");
+        IEC.senderTimeout();
+        return;
+    }
+
+    protocol[active_status_channel]->status(&ns);
+
+    memset(tmp,0,sizeof(tmp));
+    sprintf(tmp,"%u,%u,%u",ns.rxBytesWaiting,ns.connected,ns.error);
+
+    Debug_printf("Sending status %s\n",tmp);
+
+    IEC.sendBytes(tmp,strlen(tmp),true);
 }
 
 void iecNetwork::iec_command()
@@ -663,6 +694,8 @@ void iecNetwork::iec_command()
     {
         if (pt[0] == "cd")
             set_prefix();
+        else if (pt[0] == "status")
+            set_status();
         else if (pt[0] == "id")
             set_device_id();
         else if (pt[0] == "jsonparse")
@@ -940,6 +973,39 @@ void iecNetwork::get_prefix()
     iecStatus.channel = channel;
 }
 
+void iecNetwork::set_status()
+{
+    if (pt.size()<2)
+    {
+        Debug_printf("Channel # Required\n");
+        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.msg = "channel # required.\n";
+        iecStatus.connected = 0;
+        iecStatus.channel = 15;
+        return;
+    }
+
+    active_status_channel = atoi(pt[1].c_str());
+
+    Debug_printf("Active status channel now: %u\n",active_status_channel);
+    iecStatus.error = NETWORK_ERROR_SUCCESS;
+    iecStatus.msg = "Active status channel set.";
+    
+    if (protocol[commanddata->channel] == nullptr)
+    {
+        iecStatus.connected = 0;
+    }
+    else
+    {
+        NetworkStatus ns;
+
+        protocol[commanddata->channel]->status(&ns);
+        iecStatus.connected = ns.connected;
+    }
+
+    iecStatus.channel = atoi(pt[1].c_str());
+}
+
 void iecNetwork::set_prefix()
 {
     uint8_t prefixSpec[256];
@@ -1189,6 +1255,10 @@ void iecNetwork::process_command()
     if (commanddata->primary == IEC_LISTEN)
     {
         pt = util_tokenize(payload, ',');
+    }
+    else if (commanddata->primary == IEC_TALK)
+    {
+        iec_talk_command();
     }
     else if (commanddata->primary == IEC_UNLISTEN)
     {
