@@ -54,7 +54,6 @@ iecNetwork::~iecNetwork()
         delete transmitBuffer[i];
         delete specialBuffer[i];
     }
-
 }
 
 void iecNetwork::poll_interrupt(unsigned char c)
@@ -117,13 +116,13 @@ void iecNetwork::iec_open()
     urlParser[commanddata->channel] = EdUrlParser::parseUrl(deviceSpec[commanddata->channel]);
 
     // This is unbelievably stupid, but here we are.
-    for (int i=0;i<urlParser[commanddata->channel]->query.size();i++)
-        if (urlParser[commanddata->channel]->query[i]==0xa4) // underscore
-            urlParser[commanddata->channel]->query[i]=0x5F;
+    for (int i = 0; i < urlParser[commanddata->channel]->query.size(); i++)
+        if (urlParser[commanddata->channel]->query[i] == 0xa4) // underscore
+            urlParser[commanddata->channel]->query[i] = 0x5F;
 
-    for (int i=0;i<urlParser[commanddata->channel]->path.size();i++)
-        if (urlParser[commanddata->channel]->path[i]==0xa4) // underscore
-            urlParser[commanddata->channel]->path[i]=0x5F;
+    for (int i = 0; i < urlParser[commanddata->channel]->path.size(); i++)
+        if (urlParser[commanddata->channel]->path[i] == 0xa4) // underscore
+            urlParser[commanddata->channel]->path[i] = 0x5F;
 
     // Convert scheme to uppercase
     std::transform(urlParser[commanddata->channel]->scheme.begin(), urlParser[commanddata->channel]->scheme.end(), urlParser[commanddata->channel]->scheme.begin(), ::toupper);
@@ -423,11 +422,11 @@ void iecNetwork::iec_reopen_channel_talk()
         char b;
         atn = IEC.status(PIN_IEC_ATN);
 
-        Debug_printf("atn: %u\n",atn);
+        Debug_printf("atn: %u\n", atn);
 
         if (atn)
             break;
-        
+
         if (receiveBuffer[commanddata->channel]->empty())
         {
             Debug_printv("Receive Buffer Empty.");
@@ -436,13 +435,13 @@ void iecNetwork::iec_reopen_channel_talk()
         }
 
         b = receiveBuffer[commanddata->channel]->front();
-        
+
         IEC.sendByte(b, set_eoi);
 
         if (!(IEC.flags & ERROR))
             receiveBuffer[commanddata->channel]->erase(0, 1);
         else
-            Debug_printv("TALK ERROR!\n");           
+            Debug_printv("TALK ERROR!\n");
 
         atn = IEC.status(PIN_IEC_ATN);
     }
@@ -538,7 +537,7 @@ void iecNetwork::query_json()
     char reply[80];
     string s;
 
-    Debug_printf("query_json(%s)\n",payload.c_str());
+    Debug_printf("query_json(%s)\n", payload.c_str());
 
     if (pt.size() < 3)
     {
@@ -652,7 +651,6 @@ void iecNetwork::set_translation_mode()
 
 void iecNetwork::iec_listen_command()
 {
-
 }
 
 void iecNetwork::iec_talk_command()
@@ -660,7 +658,8 @@ void iecNetwork::iec_talk_command()
     char tmp[32];
     NetworkStatus ns;
 
-    while (IEC.status(PIN_IEC_ATN));
+    while (IEC.status(PIN_IEC_ATN))
+        ;
 
     if (!active_status_channel)
     {
@@ -677,19 +676,19 @@ void iecNetwork::iec_talk_command()
 
     protocol[active_status_channel]->status(&ns);
 
-    memset(tmp,0,sizeof(tmp));
-    sprintf(tmp,"%u,%u,%u",ns.rxBytesWaiting,ns.connected,ns.error);
+    memset(tmp, 0, sizeof(tmp));
+    sprintf(tmp, "%u,%u,%u", ns.rxBytesWaiting, ns.connected, ns.error);
 
-    Debug_printf("Sending status %s\n",tmp);
+    Debug_printf("Sending status %s\n", tmp);
 
-    IEC.sendBytes(tmp,strlen(tmp),true);
+    IEC.sendBytes(tmp, strlen(tmp), true);
 }
 
 void iecNetwork::iec_command()
 {
     if (payload.empty())
         return;
-        
+
     if (channelMode[commanddata->channel] == PROTOCOL)
     {
         if (pt[0] == "cd")
@@ -720,15 +719,25 @@ void iecNetwork::iec_command()
             fsop(0x2A);
         else if (pt[0] == "rmdir")
             fsop(0x2B);
-        else if (protocol[commanddata->channel] != nullptr &&
-                 protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x00)
-            perform_special_00();
-        else if (protocol[commanddata->channel] != nullptr &&
-                 protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x40)
-            perform_special_40();
-        else if (protocol[commanddata->channel] != nullptr &&
-                 protocol[commanddata->channel]->special_inquiry(pt[0][0]) == 0x80)
-            perform_special_80();
+        else // Protocol command processing here.
+        {
+            if (pt.size() > 1)
+            {
+                uint8_t channel = atoi(pt[1].c_str());
+
+                // This assumption is safe, because no special commands should ever
+                // be done on channel 0 (or 1 for that matter.) -tschak
+                if (!channel)
+                    return;
+
+                if (protocol[channel]->special_inquiry(pt[0][0]) == 0x00)
+                    perform_special_00();
+                else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x40)
+                    perform_special_40();
+                else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x80)
+                    perform_special_80();
+            }
+        }
     }
     else if (channelMode[commanddata->channel] == JSON)
     {
@@ -840,6 +849,8 @@ void iecNetwork::perform_special_80()
     string sp_buf = "N:";
     int channel = 0;
     NetworkStatus ns;
+
+    Debug_printf("perform_special_80()\n");
 
     if (pt.size() < 2)
     {
@@ -975,7 +986,7 @@ void iecNetwork::get_prefix()
 
 void iecNetwork::set_status()
 {
-    if (pt.size()<2)
+    if (pt.size() < 2)
     {
         Debug_printf("Channel # Required\n");
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
@@ -987,10 +998,10 @@ void iecNetwork::set_status()
 
     active_status_channel = atoi(pt[1].c_str());
 
-    Debug_printf("Active status channel now: %u\n",active_status_channel);
+    Debug_printf("Active status channel now: %u\n", active_status_channel);
     iecStatus.error = NETWORK_ERROR_SUCCESS;
     iecStatus.msg = "Active status channel set.";
-    
+
     if (protocol[commanddata->channel] == nullptr)
     {
         iecStatus.connected = 0;
@@ -1174,7 +1185,7 @@ device_state_t iecNetwork::process(IECData *_commanddata)
 {
     // Call base class
     virtualDevice::process(_commanddata); // commanddata set here.
-    mstr::toASCII(payload); // @idolpx? What should I do instead?
+    mstr::toASCII(payload);               // @idolpx? What should I do instead?
 
     // fan out to appropriate process routine
     switch (commanddata->channel)
