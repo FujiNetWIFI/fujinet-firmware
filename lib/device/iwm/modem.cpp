@@ -1387,6 +1387,13 @@ void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
 void iwmModem::iwm_close(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nModem: Close\n");
+    
+    if (tcpClient.connected() == true)
+    {
+        tcpClient.flush();
+        tcpClient.stop();
+    }
+    
     send_reply_packet(SP_ERR_NOERROR);
 }
 

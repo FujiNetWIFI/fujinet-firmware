@@ -133,7 +133,7 @@ void iwmNetwork::open()
     uint8_t _aux2 = data_buffer[idx++];
     string d = string((char *)&data_buffer[idx], 256);
 
-    Debug_printf("aux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
+    Debug_printf("\naux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
     channelMode = PROTOCOL;
 
@@ -155,7 +155,7 @@ void iwmNetwork::open()
     // Reset status buffer
     statusByte.byte = 0x00;
 
-    Debug_printf("open()\n");
+    Debug_printf("\nopen()\n");
 
     // Parse and instantiate protocol
     parse_and_instantiate_protocol(d);
@@ -577,10 +577,15 @@ void iwmNetwork::net_read()
 
 bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
-    if (num_bytes > json.json_bytes_remaining)
+    if (json.json_bytes_remaining == 0) // if no bytes, we just return with no data
     {
-        json.json_bytes_remaining = 0;
-        return true;
+        data_len = 0;
+    }
+    else if (num_bytes > json.json_bytes_remaining)
+    {
+        data_len = json.readValueLen();
+        json.readValue(data_buffer, data_len);
+        json.json_bytes_remaining -= data_len;
     }
     else
     {
@@ -597,22 +602,32 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     NetworkStatus ns;
 
-    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+    if ((protocol == nullptr))
         return true; // Punch out.
 
     // Get status
     protocol->status(&ns);
 
-    if (ns.rxBytesWaiting == 0)
+    if (ns.rxBytesWaiting == 0) // if no bytes, we just return with no data
     {
-        return true;
+        data_len = 0;
+    }
+    else if (num_bytes < ns.rxBytesWaiting && num_bytes <= 512)
+    {
+        data_len = num_bytes;
+    }
+    else if (num_bytes > 512)
+    {
+        data_len = 512;
+    }
+    else
+    {
+        data_len = ns.rxBytesWaiting;
     }
 
-    // Truncate bytes waiting to response size
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > 512) ? 512 : ns.rxBytesWaiting;
-    data_len = ns.rxBytesWaiting;
+    //Debug_printf("\r\nAvailable bytes %04x\n", data_len);
 
-    if (protocol->read(num_bytes)) // protocol adapter returned error
+    if (protocol->read(data_len)) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
@@ -622,8 +637,8 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
     {
         statusByte.bits.client_error = 0;
         statusByte.bits.client_data_available = data_len > 0;
-        memcpy(data_buffer, receiveBuffer->data(), num_bytes);
-        receiveBuffer->erase(0, num_bytes);
+        memcpy(data_buffer, receiveBuffer->data(), data_len);
+        receiveBuffer->erase(0, data_len);
     }
     return false;
 }
@@ -668,8 +683,8 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
     }
     else
     {
-        Debug_printf("\r\nsending Netwok read data packet (%04x bytes)...", numbytes);
-        IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, numbytes);
+        Debug_printf("\r\nsending Network read data packet (%04x bytes)...", data_len);
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
         data_len = 0;
         memset(data_buffer, 0, sizeof(data_buffer));
     }
