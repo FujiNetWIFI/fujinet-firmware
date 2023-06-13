@@ -18,6 +18,7 @@
 #include "network.h"
 #include "led.h"
 #include "siocpm.h"
+#include "clock.h"
 #include "utils.h"
 
 iecFuji theFuji; // global fuji device object
@@ -1497,6 +1498,7 @@ void iecFuji::setup(systemBus *siobus)
     IEC.addDevice(new iecDisk(), 8);
     IEC.addDevice(new iecNetwork(), 12);
     IEC.addDevice(new iecCpm(), 14);
+    IEC.addDevice(new iecClock(), 29);
     IEC.addDevice(this, 0x0F);
 }
 
@@ -1544,6 +1546,9 @@ void iecFuji::local_ip()
 
 void iecFuji::process_basic_commands()
 {
+    mstr::toASCII(payload);
+    pt = util_tokenize(payload, ',');
+
     if (payload.find("adapterconfig") != std::string::npos)
         get_adapter_config();
     else if (payload.find("setssid") != std::string::npos)

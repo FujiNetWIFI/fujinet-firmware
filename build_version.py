@@ -4,10 +4,11 @@ import subprocess
 import sys
 
 # Disable automatic versioning
-exit()
+if 1:
+    print("Automatic versioning disabled")
 
 # Don't do anything if this is an 'uploadfs' or 'erase' target
-if sys.argv[9] == 'uploadfs' or sys.argv[9] == 'erase':
+elif sys.argv[9] == 'uploadfs' or sys.argv[9] == 'erase':
     print("This isn't a build target")
 
 # Don't do anything if nothing has changed

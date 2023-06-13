@@ -19,8 +19,6 @@
 
 #include "httpService.h"
 
-#include "led_strip.h"
-
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
 #endif
@@ -49,6 +47,7 @@ void main_setup()
     unsigned long startms = fnSystem.millis();
     Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
     Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
+    Debug_printv("Heap: %lu\n",esp_get_free_internal_heap_size());
 #ifdef ATARI
     Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
     Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
@@ -77,7 +76,6 @@ void main_setup()
 
     fnKeyManager.setup();
 
-    fnLedStrip.setup(); // start LED Strip before fnLedManager and after check_hardware_ver()
     fnLedManager.setup();
 
     fnSPIFFS.start();
@@ -132,7 +130,7 @@ void main_setup()
     // Setup IEC Bus
     IEC.setup();
 //    iecPrinter::printer_type ptype = Config.get_printer_type(0);
-    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_EPSON; // temporary
+    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_COMMODORE_MPS803; // temporary
     Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
     iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
@@ -171,6 +169,27 @@ void main_setup()
 
     sioR = new rc2014Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
     rc2014Bus.addDevice(sioR, RC2014_DEVICEID_MODEM); // R:
+
+#endif
+
+#ifdef BUILD_H89
+    theFuji.setup(&H89Bus);
+    H89Bus.setup();
+
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    H89Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == H89Printer::printer_type::PRINTER_INVALID)
+        ptype = H89Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+
+    H89Printer *ptr = new H89Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    // H89Bus.addDevice(ptr, H89_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    // H89R = new H89Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    // H89Bus.addDevice(H89R, H89_DEVICEID_MODEM); // R:
 
 #endif
 
@@ -252,6 +271,7 @@ void main_setup()
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
 #endif // DEBUG
+    Debug_printv("Low Heap: %lu\n",esp_get_free_internal_heap_size());
 }
 
 #ifdef BUILD_S100
@@ -293,6 +313,9 @@ void fn_service_loop(void *param)
         else
 #endif // BLUETOOTH_SUPPORT
 
+#ifdef LEAK_DEBUG
+        Debug_printv("Low Heap: %lu\n",esp_get_free_internal_heap_size());
+#endif 
         SYSTEM_BUS.service();
 
         taskYIELD(); // Allow other tasks to run

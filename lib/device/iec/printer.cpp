@@ -36,23 +36,9 @@ void iecPrinter::write(uint8_t channel)
             return;
         }
 
-        buffer.push_back(b);
-    }
-
-    // Send data to printer
-    while (buffer.length() > 0)
-    {
-        int s = 0;
-
-        if (buffer.size() > 80)
-            s = 80;
-        else
-            s = buffer.size();
-
-        memcpy(&_pptr->provideBuffer()[0], buffer.data(), s);
-        _pptr->process(s, commanddata->channel, 0);
+        _pptr->provideBuffer()[0]=(uint8_t)b;
+        _pptr->process(1, commanddata->channel, 0);
         _last_ms=fnSystem.millis();
-        buffer.erase(0, s);
     }
 }
 

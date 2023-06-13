@@ -61,4 +61,4 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
     return MEDIATYPE_UNKNOWN;
 }
 
-#endif /* BUILD_CBM */
+#endif /* BUILD_IEC */

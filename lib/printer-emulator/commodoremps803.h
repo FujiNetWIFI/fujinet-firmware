@@ -40,7 +40,7 @@ protected:
     virtual void post_new_file() override;
     void mps_set_font(uint8_t F);
     void mps_update_font();
-    void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override; // need a custom one to handle sideways printing
+    void pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2) override; // need a custom one to handle sideways printing
     void reset_cmd();
     void mps_print_bitmap(uint8_t c);
 public:

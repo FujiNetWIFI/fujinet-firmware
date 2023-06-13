@@ -10,15 +10,15 @@
 #include "fnBluetooth.h"
 
 #include "led.h"
-#include "led_strip.h"
 
 // Global KeyManager object
 KeyManager fnKeyManager;
 
-static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
+static int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
 
 void KeyManager::setup()
 {
+    mButtonPin[eKey::BUTTON_C] = fnSystem.get_safe_reset_gpio();
 #ifdef PINMAP_ESP32S3
 
     if (PIN_BUTTON_A != GPIO_NUM_NC)
@@ -46,27 +46,29 @@ void KeyManager::setup()
 #else
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NO_BUTTONS */
+
 #if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232) && !defined(BUILD_RC2014) && !defined(BUILD_IEC)
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NOT LYNX OR A2 */
+
     // Enable safe reset on Button C if available
     if (fnSystem.get_hardware_ver() >= 2)
     {
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC)
         /* Check if hardware has SPI fix and thus no safe reset button (_keys[eKey::BUTTON_C].disabled = true) */
-        if (fnSystem.check_spifix())
+        if (fnSystem.spifix() && fnSystem.get_safe_reset_gpio() == 14)
         {
             _keys[eKey::BUTTON_C].disabled = true;
             Debug_println("Safe Reset Button C: DISABLED due to SPI Fix");
         }
         else
         {
-            fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-            Debug_println("Safe Reset Button C: ENABLED");
+            fnSystem.set_pin_mode(fnSystem.get_safe_reset_gpio(), gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+            Debug_printf("Safe Reset button ENABLED on GPIO %d\n", fnSystem.get_safe_reset_gpio());
         }
 #else
-        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
-        Debug_println("Safe Reset Button C: ENABLED");
+        fnSystem.set_pin_mode(fnSystem.get_safe_reset_gpio(), gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+        Debug_printf("Safe Reset button ENABLED on GPIO %d\n", fnSystem.get_safe_reset_gpio());
 #endif
     }
 
@@ -234,19 +236,29 @@ void KeyManager::_keystate_task(void *param)
 
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_A: SHORT PRESS");
+#ifdef PARALLEL_BUS
+            // Reset the Commodore via Userport, GPIO 13
+            fnSystem.set_pin_mode(GPIO_NUM_13, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_UP);
+            fnSystem.digital_write(GPIO_NUM_13, DIGI_LOW);
+            fnSystem.delay(1);
+            fnSystem.digital_write(GPIO_NUM_13, DIGI_HIGH);
+            Debug_println("Sent RESET signal to Commodore");
+#endif
 
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
-            if(fnSystem.check_ledstrip())
+            if(fnSystem.ledstrip())
             {
-                if (fnLedStrip.rainbowTimer > 0)
-                    fnLedStrip.stopRainbow();
-                else
-                    fnLedStrip.startRainbow(10);
+                // if (fnLedStrip.rainbowTimer > 0)
+                //     fnLedStrip.stopRainbow();
+                // else
+                //     fnLedStrip.startRainbow(10);
             }
             else
             {
                 fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
             }
+            Debug_println("ACTION: Reboot");
+            fnSystem.reboot();
 #else
             fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
 #endif // PINMAP_A2_REV0
@@ -303,6 +315,7 @@ void KeyManager::_keystate_task(void *param)
             sio_message_t msg;
             msg.message_id = SIOMSG_DEBUG_TAPE;
             xQueueSend(SIO.qSioMessages, &msg, 0);
+
 #endif /* BUILD_ATARI */
             break;
         case eKeyStatus::DOUBLE_TAP:

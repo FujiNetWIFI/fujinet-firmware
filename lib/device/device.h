@@ -132,4 +132,14 @@
     rc2014Modem *sioR;
 #endif
 
+#ifdef BUILD_H89
+# include "h89/disk.h"
+# include "h89/network.h"
+# include "h89/modem.h"
+# include "h89/printer.h"
+# include "h89/printerlist.h"
+# include "h89/fuji.h"
+    H89Modem *sioR;
+#endif
+
 #endif // DEVICE_H

@@ -6,6 +6,7 @@
 
 #include "meat_io.h"
 
+using namespace std;
 
 namespace Meat
 {
@@ -463,8 +464,7 @@ namespace Meat
         basic_fstream(const _Path &__s,
                       ios_base::openmode __mode = ios_base::in | ios_base::out)
             : basic_fstream(__s.c_str(), __mode)
-        {
-        }
+        { }
 #endif // C++17
 
         basic_fstream(const basic_fstream &) = delete;

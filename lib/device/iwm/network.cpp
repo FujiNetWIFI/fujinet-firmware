@@ -133,7 +133,7 @@ void iwmNetwork::open()
     uint8_t _aux2 = data_buffer[idx++];
     string d = string((char *)&data_buffer[idx], 256);
 
-    Debug_printf("aux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
+    Debug_printf("\naux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
     channelMode = PROTOCOL;
 
@@ -155,7 +155,7 @@ void iwmNetwork::open()
     // Reset status buffer
     statusByte.byte = 0x00;
 
-    Debug_printf("open()\n");
+    Debug_printf("\nopen()\n");
 
     // Parse and instantiate protocol
     parse_and_instantiate_protocol(d);
@@ -497,14 +497,14 @@ void iwmNetwork::special_80()
 void iwmNetwork::iwm_open(iwm_decoded_cmd_t cmd)
 {
     //Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmNetwork::iwm_close(iwm_decoded_cmd_t cmd)
 {
     // Probably need to send close command here.
     //Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    send_reply_packet(SP_ERR_NOERROR);
     close();
 }
 
@@ -577,11 +577,15 @@ void iwmNetwork::net_read()
 
 bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
-    if (num_bytes > json.json_bytes_remaining)
+    if (json.json_bytes_remaining == 0) // if no bytes, we just return with no data
     {
-        json.json_bytes_remaining = 0;
-        iwm_return_ioerror();
-        return true;
+        data_len = 0;
+    }
+    else if (num_bytes > json.json_bytes_remaining)
+    {
+        data_len = json.readValueLen();
+        json.readValue(data_buffer, data_len);
+        json.json_bytes_remaining -= data_len;
     }
     else
     {
@@ -598,35 +602,43 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     NetworkStatus ns;
 
-    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+    if ((protocol == nullptr))
         return true; // Punch out.
 
     // Get status
     protocol->status(&ns);
 
-    if (ns.rxBytesWaiting == 0)
+    if (ns.rxBytesWaiting == 0) // if no bytes, we just return with no data
     {
-        iwm_return_ioerror();
-        return true;
+        data_len = 0;
+    }
+    else if (num_bytes < ns.rxBytesWaiting && num_bytes <= 512)
+    {
+        data_len = num_bytes;
+    }
+    else if (num_bytes > 512)
+    {
+        data_len = 512;
+    }
+    else
+    {
+        data_len = ns.rxBytesWaiting;
     }
 
-    // Truncate bytes waiting to response size
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > 512) ? 512 : ns.rxBytesWaiting;
-    data_len = ns.rxBytesWaiting;
+    //Debug_printf("\r\nAvailable bytes %04x\n", data_len);
 
-    if (protocol->read(num_bytes)) // protocol adapter returned error
+    if (protocol->read(data_len)) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
-        iwm_return_ioerror();
         return true;
     }
     else // everything ok
     {
         statusByte.bits.client_error = 0;
         statusByte.bits.client_data_available = data_len > 0;
-        memcpy(data_buffer, receiveBuffer->data(), num_bytes);
-        receiveBuffer->erase(0, num_bytes);
+        memcpy(data_buffer, receiveBuffer->data(), data_len);
+        receiveBuffer->erase(0, data_len);
     }
     return false;
 }
@@ -645,14 +657,10 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
 
 void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
+    bool error = false;
 
     uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
-
     uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
     Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
 
@@ -662,18 +670,24 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
     switch (channelMode)
     {
     case PROTOCOL:
-        read_channel(numbytes, cmd);
+        error = read_channel(numbytes, cmd);
         break;
     case JSON:
-        read_channel_json(numbytes, cmd);
+        error = read_channel_json(numbytes, cmd);
         break;
     }
 
-    //send_data_packet(data_len);
-    Debug_printf("\r\nsending block packet (%04x bytes)...", numbytes);
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, numbytes);
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
+    if (error)
+    {
+        iwm_return_ioerror();
+    }
+    else
+    {
+        Debug_printf("\r\nsending Network read data packet (%04x bytes)...", data_len);
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+        data_len = 0;
+        memset(data_buffer, 0, sizeof(data_buffer));
+    }
 }
 
 void iwmNetwork::net_write()

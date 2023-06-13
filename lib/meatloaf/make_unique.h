@@ -1,5 +1,6 @@
 #ifndef MEATLOAF_DEFINES_MKUNIQUE_H
 #define MEATLOAF_DEFINES_MKUNIQUE_H
+#if __cplusplus < 201703L
 
 #include <cstddef>
 #include <memory>
@@ -37,5 +38,5 @@ namespace std {
         make_unique(Args&&...) = delete;
 }
 
-
+#endif
 #endif

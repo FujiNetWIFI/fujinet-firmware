@@ -23,13 +23,13 @@
 
 /* Buttons */
 #define PIN_BUTTON_A 0 // keys.cpp
-#define PIN_BUTTON_B -1 // No Button B
+#define PIN_BUTTON_B GPIO_NUM_NC // No Button B
 #define PIN_BUTTON_C 14
 
 /* LEDs */
 #define PIN_LED_WIFI 2 // led.cpp
 #define PIN_LED_BUS 12
-#define PIN_LED_BT -1 // No BT LED
+#define PIN_LED_BT GPIO_NUM_NC // No BT LED
 
 /* LED Strip NEW */
 #define NUM_LEDS            4
