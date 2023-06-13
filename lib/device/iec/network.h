@@ -76,43 +76,7 @@ class iecNetwork : public virtualDevice
      */
     virtual void poll_interrupt(unsigned char c);
 
-    /**
-     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
-     */
-    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
-
-    /**
-     * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
-     * be pulsed.
-     */
-    bool interruptSRQ = false;
-
     private:
-
-    /**
-     * ESP timer handle for the Interrupt rate limiting timer
-     */
-    esp_timer_handle_t rateTimerHandle = nullptr;
-
-    /**
-     * Timer Rate for interrupt timer
-     */
-    int timerRate = 100;
-
-    /**
-     * @brief Start the Interrupt rate limiting timer
-     */
-    void timer_start();
-
-    /**
-     * @brief Stop the Interrupt rate limiting timer
-     */
-    void timer_stop();
-
-    /**
-     * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
-     */
-    void assert_interrupt();
 
     /**
      * @brief the active URL for each channel
@@ -186,6 +150,11 @@ class iecNetwork : public virtualDevice
     bool file_not_found = false;
 
     /**
+     * @brief active status channel
+     */
+    uint8_t active_status_channel=0;
+
+    /**
      * @brief parse JSON
      */
     void parse_json();
@@ -199,6 +168,11 @@ class iecNetwork : public virtualDevice
      * @brief Set device ID from dos command
      */
     void set_device_id();
+
+    /**
+     * @brief Set channel to retrieve status from.
+     */
+    void set_status();
 
     /**
      * @brief Set desired prefix for channel

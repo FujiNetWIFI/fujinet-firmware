@@ -234,7 +234,7 @@ void pdfPrinter::pdf_new_line()
     // position new line and start text string array
     if (pdf_dY != 0)
         fprintf(_file, "0 Ts ");
-#ifndef BUILD_APPLE
+#if !defined(BUILD_APPLE) && !defined(BUILD_RC2014)
     pdf_dY -= lineHeight;
 #endif
     fprintf(_file, "0 %g Td [(", pdf_dY);
@@ -347,8 +347,8 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
      *
      */
     int i = 0;
-    uint8_t c;
-    uint8_t cc;
+    uint16_t c;
+    uint16_t cc;
 
 #ifdef DEBUG
     // Debug_printf("Processing %d chars\n", n);

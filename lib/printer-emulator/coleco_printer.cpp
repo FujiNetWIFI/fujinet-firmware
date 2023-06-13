@@ -3,7 +3,7 @@
 #include "../../include/debug.h"
 
 
-void colecoprinter::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
+void colecoprinter::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
 {
     switch (c)
     {

@@ -47,6 +47,7 @@ void commodoremps803::mps_set_font(uint8_t F)
         break;
     case 5:
         charWidth = 1.2;
+        break;
     default:
         charWidth = 7.2;
         break;
@@ -91,7 +92,7 @@ void commodoremps803::mps_print_bitmap(uint8_t c)
     }
 }
 
-void commodoremps803::pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2)
+void commodoremps803::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
 {
     // watch aux1 to change font from 1/2 to 3/4
     // need some state variables

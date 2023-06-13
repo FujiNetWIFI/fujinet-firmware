@@ -110,10 +110,49 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         data_buffer[3] = now->tm_hour;
         data_len = 4;
         break;
+    case 'S': // Date and time, ASCII string in SOS set_time format YYYYMMDDxHHMMSSxxx
+        tt = time(nullptr);
+        setenv("TZ",Config.get_general_timezone().c_str(),1);
+        tzset();
+        now = localtime(&tt);
+
+        data_buffer[0] = (((now->tm_year)/100 + 19) / 10) + 0x30;
+        data_buffer[1] = (((now->tm_year)/100 + 19) % 10) + 0x30;
+        data_buffer[2] = ((now->tm_year%100) / 10) + 0x30;
+        data_buffer[3] = ((now->tm_year%100) % 10) + 0x30;
+        data_buffer[4] = ((now->tm_mon + 1)  / 10) + 0x30;
+        data_buffer[5] = ((now->tm_mon + 1) % 10) + 0x30;
+        data_buffer[6] = (now->tm_mday / 10) + 0x30;
+        data_buffer[7] = (now->tm_mday % 10) + 0x30;
+        data_buffer[8] = '0';
+        data_buffer[9] = (now->tm_hour / 10) + 0x30;
+        data_buffer[10] = (now->tm_hour % 10) + 0x30;
+        data_buffer[11] = (now->tm_min / 10) + 0x30;
+        data_buffer[12] = (now->tm_min %10) + 0x30;
+        data_buffer[13] = (now->tm_sec / 10) + 0x30;
+        data_buffer[14] = (now->tm_sec % 10) + 0x30;
+        data_buffer[15] = '0';
+        data_buffer[16] = '0';
+        data_buffer[17] = '0';
+        
+        data_len = 18;
+        break;
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
     IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+}
+
+void iwmClock::iwm_open(iwm_decoded_cmd_t cmd)
+{
+    Debug_printf("\r\nClock: Open\n");
+    send_reply_packet(SP_ERR_NOERROR);
+}
+
+void iwmClock::iwm_close(iwm_decoded_cmd_t cmd)
+{
+    Debug_printf("\r\nClock: Close\n");
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 
@@ -125,6 +164,14 @@ void iwmClock::process(iwm_decoded_cmd_t cmd)
     case 0x00: // status
         Debug_printf("\r\nhandling status command");
         iwm_status(cmd);
+        break;
+    case 0x06: // open
+        Debug_printf("\r\nhandling open command");
+        iwm_open(cmd);
+        break;
+    case 0x07: // close
+        Debug_printf("\r\nhandling close command");
+        iwm_close(cmd);
         break;
     default:
         iwm_return_badcmd(cmd);

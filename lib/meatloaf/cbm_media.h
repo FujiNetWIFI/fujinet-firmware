@@ -21,8 +21,9 @@ class CBMImageStream: public MStream {
 
 public:
     CBMImageStream(std::shared_ptr<MStream> is) {
-        this->containerStream = is;
-        this->m_isOpen = true;
+        containerStream = is;
+        m_isOpen = true;
+        has_subdirs = false;
     }
 
     // MStream methods
@@ -41,32 +42,56 @@ public:
     bool isRandomAccess() override { return true; };
 
     // read = (size) => this.containerStream.read(size);
-    virtual uint8_t read(uint8_t size) {
+    virtual uint8_t read() {
         uint8_t b = 0;
-        if (!containerStream->read((uint8_t *)&b, 1))
-            return -1;
-
+        containerStream->read( &b, 1 );
         return b;
     }
     // readUntil = (delimiter = 0x00) => this.containerStream.readUntil(delimiter);
+    virtual std::string readUntil( uint8_t delimiter = 0x00 )
+    {
+        uint8_t b = 0, r = 0;
+        std::string bytes = "";
+        do
+        {
+            r = containerStream->read( &b, 1 );
+            if ( b != delimiter )
+                bytes += b;
+            else
+                break;
+        } while ( r );
+
+        return bytes;
+    }
     // readString = (size) => this.containerStream.readString(size);
+    virtual std::string readString( uint8_t size )
+    {
+        uint8_t b[size] = { 0x00 };
+        uint8_t r = containerStream->read( b, size );
+        return std::string((char *)b);
+    }
     // readStringUntil = (delimiter = 0x00) => this.containerStream.readStringUntil(delimiter);
+
     // seek = (offset) => this.containerStream.seek(offset + this.media_header_size);
     bool seek(uint32_t offset) override { return containerStream->seek(offset + media_header_size); }
     // seekCurrent = (offset) => this.containerStream.seekCurrent(offset);
     bool seekCurrent(uint32_t offset) { return containerStream->seek(offset); }
 
-    // virtual bool seekBlock( uint16_t index ) { 
-    //     containerStream->seek( offset + (index * block_size) );
-    //     return true;
-    // };
     bool seekPath(std::string path) override { return false; };
     std::string seekNextEntry() override { return ""; };
+
+    virtual uint16_t seekFileSize( uint8_t start_track, uint8_t start_sector );
 
     uint32_t available() override;
     uint32_t size() override;
     uint32_t read(uint8_t* buf, uint32_t size) override;
     uint32_t write(const uint8_t *buf, uint32_t size);
+    void reset() {
+        seekCalled = false;
+        m_position = 0;
+        m_length = block_size;
+        m_bytesAvailable = block_size;
+    }
 
     bool isOpen();
     std::string url;

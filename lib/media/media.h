@@ -46,6 +46,11 @@
 # include "rc2014/mediaTypeIMG.h"
 #endif
 
+#ifdef BUILD_H89
+# include "h89/mediaType.h"
+# include "h89/mediaTypeIMG.h"
+#endif
+
 #ifdef NEW_TARGET
 # include "new/mediaType.h"
 # include "new/mediaTypeDDP.h"

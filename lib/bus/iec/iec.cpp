@@ -22,6 +22,18 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
         b->bus_state = BUS_ACTIVE;
 }
 
+/**
+ * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
+ * flag to true. This is set to false when the interrupt is serviced.
+ */
+static void onTimer(void *info)
+{
+    systemBus *parent = (systemBus *)info;
+    //portENTER_CRITICAL_ISR(&parent->timerMux);
+    parent->interruptSRQ = !parent->interruptSRQ;
+    //portEXIT_CRITICAL_ISR(&parent->timerMux);
+}
+
 void systemBus::setup()
 {
     Debug_printf("IEC systemBus::setup()\n");
@@ -50,6 +62,9 @@ void systemBus::setup()
     //configure GPIO with the given settings
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, this);
+
+    // Start SRQ timer service
+    timer_start();
 }
 
 
@@ -64,15 +79,13 @@ void IRAM_ATTR systemBus::service()
 
     if (bus_state < BUS_ACTIVE)
     {
-        // Handle SRQ for network.
-        virtualDevice *d = deviceById(12);
-        if (d)
+        // Handle SRQ for devices
+        for (auto devicep : _daisyChain)
         {
-            for (int i = 0; i < 16; i++)
-            {
-                d->poll_interrupt(i);
-            }
+            for (unsigned char i=0;i<16;i++)
+                devicep->poll_interrupt(i);
         }
+
         return;
     }
 
@@ -115,6 +128,8 @@ void IRAM_ATTR systemBus::service()
             release ( PIN_IEC_CLK_OUT );
             pull ( PIN_IEC_DATA_OUT );
 
+            flags = CLEAR;
+
             // Read bus command bytes
             Debug_printv("command");
             read_command();
@@ -131,12 +146,12 @@ void IRAM_ATTR systemBus::service()
             // Data Mode - Get Command or Data
             if (data.primary == IEC_LISTEN)
             {
-                // Debug_printf("calling deviceListen()\n");
+                //Debug_printv("calling deviceListen()\n");
                 deviceListen();
             }
             else if (data.primary == IEC_TALK)
             {
-                // Debug_printf("calling deviceTalk()\n");
+                //Debug_printv("calling deviceTalk()\n");
                 deviceTalk();
             }
 
@@ -146,7 +161,7 @@ void IRAM_ATTR systemBus::service()
 
             // Process commands in devices
             // At the moment there is only the multi-drive device
-            // Debug_printv( "deviceProcess" );
+            //Debug_printv( "deviceProcess" );
 
             fnLedManager.set(eLed::LED_BUS, true);
 
@@ -163,9 +178,6 @@ void IRAM_ATTR systemBus::service()
             flags = CLEAR;
         }
 
-        // Let bus stabalize
-        protocol->wait ( TIMING_STABLE, 0, false );
-
         if ( status ( PIN_IEC_ATN ) )
             bus_state = BUS_ACTIVE;
 
@@ -180,6 +192,9 @@ void IRAM_ATTR systemBus::service()
 
     Debug_printv("exit");
     //release( PIN_IEC_SRQ );
+
+    //fnLedStrip.stopRainbow();
+    //fnLedManager.set(eLed::LED_BUS, false);
 }
 
 void systemBus::read_command()
@@ -211,7 +226,7 @@ void systemBus::read_command()
             Debug_printf("   IEC: [%.2X]", c);
 
             // Decode command byte
-            uint8_t command = c & 0xF0;
+            uint8_t command = c & 0x60;
             if (c == IEC_UNLISTEN)
                 command = IEC_UNLISTEN;
             if (c == IEC_UNTALK)
@@ -222,25 +237,25 @@ void systemBus::read_command()
 
             switch (command)
             {
-            case IEC_GLOBAL:
-                data.primary = IEC_GLOBAL;
-                data.device = c ^ IEC_GLOBAL;
-                bus_state = BUS_IDLE;
-                Debug_printf(" (00 GLOBAL %.2d COMMAND)\r\n", data.device);
-                break;
+            // case IEC_GLOBAL:
+            //     data.primary = IEC_GLOBAL;
+            //     data.device = c ^ IEC_GLOBAL;
+            //     bus_state = BUS_IDLE;
+            //     Debug_printf(" (00 GLOBAL %.2d COMMAND)\r\n", data.device);
+            //     break;
 
             case IEC_LISTEN:
                 data.primary = IEC_LISTEN;
                 data.device = c ^ IEC_LISTEN;
                 data.secondary = IEC_REOPEN; // Default secondary command
                 data.channel = CHANNEL_COMMAND;  // Default channel
+                data.payload = "";
                 bus_state = BUS_ACTIVE;
                 Debug_printf(" (20 LISTEN %.2d DEVICE)\r\n", data.device);
                 break;
 
             case IEC_UNLISTEN:
                 data.primary = IEC_UNLISTEN;
-                data.secondary = 0x00;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (3F UNLISTEN)\r\n");
                 break;
@@ -261,30 +276,43 @@ void systemBus::read_command()
                 Debug_printf(" (5F UNTALK)\r\n");
                 break;
 
-            case IEC_OPEN:
+            default:
+
+                command = c & 0xF0;
+                switch ( command )
+                {
+                case IEC_OPEN:
                 data.secondary = IEC_OPEN;
                 data.channel = c ^ IEC_OPEN;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (F0 OPEN   %.2d CHANNEL)\r\n", data.channel);
-                break;
+                    break;
 
-            case IEC_REOPEN:
+                case IEC_REOPEN:
                 data.secondary = IEC_REOPEN;
                 data.channel = c ^ IEC_REOPEN;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (60 DATA   %.2d CHANNEL)\r\n", data.channel);
-                break;
+                    break;
 
-            case IEC_CLOSE:
+                case IEC_CLOSE:
                 data.secondary = IEC_CLOSE;
                 data.channel = c ^ IEC_CLOSE;
                 bus_state = BUS_PROCESS;
                 Debug_printf(" (E0 CLOSE  %.2d CHANNEL)\r\n", data.channel);
-                break;
+                    break;
+
+                default:
+                    bus_state = BUS_IDLE;
+                }
             }
         }
 
-    } while ( bus_state == BUS_ACTIVE );
+        // Let bus stabalize
+        //Debug_printv("stabalize!");
+        protocol->wait ( TIMING_STABLE );
+
+    } while ( IEC.flags & ATN_PULLED );
 
     // Is this command for us?
     if (!deviceById(data.device) || !deviceById(data.device)->device_active)
@@ -316,7 +344,8 @@ void systemBus::read_payload()
     std::string listen_command = "";
 
     // ATN might get pulled right away if there is no command string to send
-    protocol->wait(TIMING_STABLE);
+    //pull ( PIN_IEC_SRQ );
+    //protocol->wait( TIMING_STABLE );
 
     while (IEC.status(PIN_IEC_ATN) != PULLED)
     {
@@ -324,20 +353,14 @@ void systemBus::read_payload()
         int16_t c = protocol->receiveByte();
         //release ( PIN_IEC_SRQ );
 
-        if (flags & EMPTY_STREAM)
+        if (flags & EMPTY_STREAM || flags & ERROR)
         {
+            //Debug_printv("error");
             bus_state = BUS_ERROR;
             return;
         }
 
-        if (flags & ERROR)
-        {
-            bus_state = BUS_ERROR;
-            return;
-        }
-
-        // if (c != 0x0D && c != 0xFFFFFFFF) // Remove CR from end of command
-        if (c != 0xFFFFFFFF)
+        if (c != 0xFFFFFFFF && c != 0x0D)
         {
             listen_command += (uint8_t)c;
         }
@@ -345,10 +368,41 @@ void systemBus::read_payload()
         if (flags & EOI_RECVD)
         {
             data.payload = listen_command;
+            break;
         }
     }
+    //release ( PIN_IEC_SRQ );
 
     bus_state = BUS_IDLE;
+}
+
+/**
+ * Start the Interrupt rate limiting timer
+ */
+void systemBus::timer_start()
+{
+    esp_timer_create_args_t tcfg;
+    tcfg.arg = this;
+    tcfg.callback = onTimer;
+    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
+    tcfg.name = nullptr;
+    esp_timer_create(&tcfg, &rateTimerHandle);
+    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
+}
+
+/**
+ * Stop the Interrupt rate limiting timer
+ */
+void systemBus::timer_stop()
+{
+    // Delete existing timer
+    if (rateTimerHandle != nullptr)
+    {
+        Debug_println("Deleting existing rateTimer\n");
+        esp_timer_stop(rateTimerHandle);
+        esp_timer_delete(rateTimerHandle);
+        rateTimerHandle = nullptr;
+    }
 }
 
 systemBus virtualDevice::get_bus()
@@ -379,8 +433,6 @@ device_state_t virtualDevice::process(IECData *_commanddata)
     {
     case bus_command_t::IEC_OPEN:
         payload = commanddata->payload;
-        // mstr::toASCII(payload);
-        pt = util_tokenize(payload, ',');
         break;
     case bus_command_t::IEC_CLOSE:
         payload.clear();
@@ -395,8 +447,6 @@ device_state_t virtualDevice::process(IECData *_commanddata)
         else if (device_state == DEVICE_LISTEN)
         {
             payload = commanddata->payload;
-            // mstr::toASCII(payload);
-            pt = util_tokenize(payload, ',');
         }
         break;
     default:
@@ -439,8 +489,20 @@ void virtualDevice::dumpData()
     Debug_printf("%9s: %s\n", "Payload", commanddata->payload.c_str());
 }
 
+void systemBus::assert_interrupt()
+{
+    if (interruptSRQ)
+        IEC.pull(PIN_IEC_SRQ);
+    else
+        IEC.release(PIN_IEC_SRQ);
+}
+
 int16_t systemBus::receiveByte()
 {
+    // If there has been a error don't try to receive any more bytes
+    if ( IEC.flags & ERROR )
+        return false;
+
     int16_t b;
     b = protocol->receiveByte();
 #ifdef DATA_STREAM
@@ -460,6 +522,10 @@ int16_t systemBus::receiveByte()
 
 bool systemBus::sendByte(const char c, bool eoi)
 {
+    // If there has been a error don't try to send any more bytes
+    if ( IEC.flags & ERROR )
+        return false;
+
 #ifdef DATA_STREAM
     if (eoi)
         Debug_printf("%.2X[eoi] ", c);
@@ -664,6 +730,7 @@ void systemBus::addDevice(virtualDevice *pDevice, int device_id)
     }
 
     // TODO, add device shortcut pointer logic like others
+    Debug_printf("Device #%02d Ready!\n", device_id);
 
     pDevice->_devnum = device_id;
     _daisyChain.push_front(pDevice);

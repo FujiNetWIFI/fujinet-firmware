@@ -38,7 +38,7 @@ protected:
     void check_font();
 
     virtual void pdf_clear_modes() override{};
-    void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
+    void pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
 
 public:
@@ -46,8 +46,6 @@ public:
     { 
         #ifdef BUILD_ATARI
             return sioPrinter::printer_model_str[sioPrinter::PRINTER_ATARI_825];
-        #elif BUILD_CBM
-            return iecPrinter::printer_model_str[iecPrinter::PRINTER_ATARI_825];
         #elif BUILD_ADAM
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_ATARI_825];
         #elif NEW_TARGET

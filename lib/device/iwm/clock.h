@@ -12,6 +12,8 @@ public:
     void process(iwm_decoded_cmd_t cmd) override;
 
     void iwm_status(iwm_decoded_cmd_t cmd) override;
+    void iwm_open(iwm_decoded_cmd_t cmd) override;
+    void iwm_close(iwm_decoded_cmd_t cmd) override;
 
     void shutdown() override;
     void send_status_reply_packet() override;

@@ -240,7 +240,16 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 void iwmFuji::iwm_ctrl_set_boot_config() // SP CTRL command
 {
     boot_config = data_buffer[0]; // adamnet_recv();
-    //adamnet_recv();
+
+    if (!boot_config) 
+    {
+        fujiDisk &disk = _fnDisks[0];
+        if (disk.host_slot == 0xFF)
+        {
+            _fnDisks[0].disk_dev.unmount();
+            _fnDisks[0].reset();
+        }  
+    }
 }
 
 
@@ -1061,7 +1070,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
     theCPM = new iwmCPM();
     _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);    
 
-   for (int i = MAX_DISK_DEVICES - 1; i >= 0; i--)
+   for (int i = MAX_DISK_DEVICES - MAX_DISK2_DEVICES -1; i >= 0; i--)
    {
      _fnDisks[i].disk_dev.set_disk_number('0' + i);
      _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);

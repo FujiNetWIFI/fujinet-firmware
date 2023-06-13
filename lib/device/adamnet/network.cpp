@@ -236,6 +236,16 @@ void adamNetwork::status()
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
+    if (protocol == nullptr)
+    {
+            response[0] = 0;
+            response[1] = 0;
+            response[2] = 0;
+            response[3] = 165; // invalid spec.
+            response_len = 4;
+            return;
+    }
+
     switch (channelMode)
     {
     case PROTOCOL:

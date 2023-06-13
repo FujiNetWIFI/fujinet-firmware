@@ -3,8 +3,6 @@
 
 #include "fnSystem.h"
 
-#include "led_strip.h"
-
 #define BLINKING_TIME 100 // 200 ms
 
 
@@ -48,18 +46,18 @@ void LedManager::setup()
 
 void LedManager::set(eLed led, bool on)
 {
-    if(fnSystem.check_ledstrip())
+    if(fnSystem.ledstrip())
     {
         switch (led)
         {
         case eLed::LED_BUS:
-            fnLedStrip.set(stripLed::LED_STRIP_BUS, on);
+            //fnLedStrip.set(stripLed::LED_STRIP_BUS, on);
             break;
         case eLed::LED_BT:
-            fnLedStrip.set(stripLed::LED_STRIP_BT, on);
+            //fnLedStrip.set(stripLed::LED_STRIP_BT, on);
             break;
         case eLed::LED_WIFI:
-            fnLedStrip.set(stripLed::LED_STRIP_WIFI, on);
+            //fnLedStrip.set(stripLed::LED_STRIP_WIFI, on);
             break;
         default:
             break;
@@ -82,18 +80,18 @@ void LedManager::set(eLed led, bool on)
 
 void LedManager::toggle(eLed led)
 {
-    if(fnSystem.check_ledstrip())
+    if(fnSystem.ledstrip())
     {
         switch (led)
         {
         case eLed::LED_BUS:
-            fnLedStrip.toggle(stripLed::LED_STRIP_BUS);
+            //fnLedStrip.toggle(stripLed::LED_STRIP_BUS);
             break;
         case eLed::LED_BT:
-            fnLedStrip.toggle(stripLed::LED_STRIP_BT);
+            //fnLedStrip.toggle(stripLed::LED_STRIP_BT);
             break;
         case eLed::LED_WIFI:
-            fnLedStrip.toggle(stripLed::LED_STRIP_WIFI);
+            //fnLedStrip.toggle(stripLed::LED_STRIP_WIFI);
             break;
         default:
             break;
@@ -107,18 +105,18 @@ void LedManager::toggle(eLed led)
 
 void LedManager::blink(eLed led, int count)
 {
-    if(fnSystem.check_ledstrip())
+    if(fnSystem.ledstrip())
     {
         switch (led)
         {
         case eLed::LED_BUS:
-            fnLedStrip.blink(stripLed::LED_STRIP_BUS, count);
+            //fnLedStrip.blink(stripLed::LED_STRIP_BUS, count);
             break;
         case eLed::LED_BT:
-            fnLedStrip.blink(stripLed::LED_STRIP_BT, count);
+            //fnLedStrip.blink(stripLed::LED_STRIP_BT, count);
             break;
         case eLed::LED_WIFI:
-            fnLedStrip.blink(stripLed::LED_STRIP_WIFI, count);
+            //fnLedStrip.blink(stripLed::LED_STRIP_WIFI, count);
             break;
         default:
             break;
