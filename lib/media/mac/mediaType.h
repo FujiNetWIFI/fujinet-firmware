@@ -56,7 +56,7 @@ public:
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     // bool _allow_hsio = true;
-    // bool floppyemulation;
+    bool floppy_emulation;
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
     virtual void unmount();

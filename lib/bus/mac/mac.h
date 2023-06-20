@@ -31,6 +31,10 @@ union cmdFrame_t
 class macDevice
 {
   friend macBus;
+
+public:
+  virtual void shutdown() = 0;
+  virtual void process() = 0;
 };
 
 class macBus
