@@ -16,10 +16,18 @@ struct TRK_t
     uint32_t bit_count;
 };
 
+enum class moof_disk_type_t
+{
+    UNKNOWN,
+    SSDD_GCR,
+    DSDD_GCR,
+    DSDD_MFM
+};
+
 class MediaTypeMOOF : public MediaType
 {
 private:
-    char moof_version;
+    moof_disk_type_t moof_disktype;
 
     bool moof_check_header();
     bool moof_read_info();

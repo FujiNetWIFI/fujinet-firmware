@@ -84,12 +84,18 @@ bool MediaTypeMOOF::moof_read_info()
     {
     case 1:
         num_sides = 1;
+        moof_disktype = moof_disk_type_t::SSDD_GCR;
         break;
     case 2:
+        num_sides = 2;
+        moof_disktype = moof_disk_type_t::DSDD_GCR;
+        break;
     case 3:
         num_sides = 2;
+        moof_disktype = moof_disk_type_t::DSDD_MFM;
         break;
     default:
+        moof_disktype = moof_disk_type_t::UNKNOWN;
         Debug_printf("\nUnknown Disk Type: %d", disk_type);
         return true;
     }
