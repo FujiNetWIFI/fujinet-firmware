@@ -2,6 +2,32 @@
 #ifndef MAC_H
 #define MAC_H
 
+#include "bus.h"
+#include <cstdint>
+#include <forward_list>
+#include <string>
+
+#include "../../include/debug.h"
+#include "fnFS.h"
+
+// Sorry, this  is the protocol adapter's fault. -Thom
+union cmdFrame_t
+{
+  struct
+  {
+    uint8_t device;
+    uint8_t comnd;
+    uint8_t aux1;
+    uint8_t aux2;
+    uint8_t cksum;
+  };
+  struct
+  {
+    uint32_t commanddata;
+    uint8_t checksum;
+  } __attribute__((packed));
+};
+
 class macDevice
 {
   friend macBus;
@@ -9,6 +35,24 @@ class macDevice
 
 class macBus
 {
+private:
+  macDevice *_activeDev = nullptr;
+
+  macFuji *_fujiDev = nullptr;
+
+  // iwmModem *_modemDev = nullptr;
+  // iwmNetwork *_netDev[4] = {nullptr};
+  // // sioMIDIMaze *_midiDev = nullptr;
+  // // sioCassette *_cassetteDev = nullptr;
+  // iwmCPM *_cpmDev = nullptr;
+  // iwmPrinter *_printerdev = nullptr;
+  // iwmClock *_clockDev = nullptr;
+
+public:
+  void setup();
+  void service();
+  void shutdown();
+
 };
 
 extern macBus MAC;
