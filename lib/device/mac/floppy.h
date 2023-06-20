@@ -21,6 +21,7 @@ protected:
     // void iwm_writeblock(iwm_decoded_cmd_t cmd) override {};
 
     void shutdown() override;
+    void process(mac_cmd_t cmd) override;
     char disk_num;
     bool enabled;
     int track_pos;
@@ -48,7 +49,7 @@ public:
 #endif // guard
 #endif // BUILD_MAC
 
-#ifdef 0
+#if 0
 #ifndef DISK2_H
 #define DISK2_H
 

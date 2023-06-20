@@ -10,6 +10,12 @@
 #include "../../include/debug.h"
 #include "fnFS.h"
 
+// class def'ns
+class macBus;     // forward declare for macDevice
+class macFuji;    // declare here so can reference it, but define in fuji.h
+
+typedef char mac_cmd_t;
+
 // Sorry, this  is the protocol adapter's fault. -Thom
 union cmdFrame_t
 {
@@ -28,13 +34,33 @@ union cmdFrame_t
   } __attribute__((packed));
 };
 
+enum class mac_fujinet_type_t
+{
+  FujiNet,
+  Floppy,
+  HardDisk,
+  Modem,
+  Network,
+  CPM,
+  Printer,
+  Voice,
+  Clock,
+  Other
+};
+
 class macDevice
 {
   friend macBus;
 
+protected:
+  uint8_t _devnum;             // assigned by Apple II during INIT
+  bool _initialized;
+
 public:
   virtual void shutdown() = 0;
-  virtual void process() = 0;
+  virtual void process(mac_cmd_t cmd) = 0;
+
+  uint8_t id() { return _devnum; };
 };
 
 class macBus
@@ -53,10 +79,25 @@ private:
   // iwmClock *_clockDev = nullptr;
 
 public:
+  std::forward_list<macDevice *> _daisyChain;
+
   void setup();
   void service();
   void shutdown();
 
+  int numDevices();
+  void addDevice(macDevice *pDevice, mac_fujinet_type_t deviceType); // todo: probably get called by handle_init()
+  void remDevice(macDevice *pDevice);
+  macDevice *deviceById(int device_id);
+  macDevice *firstDev() { return _daisyChain.front(); }
+  // uint8_t *devBuffer() { return (uint8_t *)iwmDevice::data_buffer; }
+  void enableDevice(uint8_t device_id);
+  void disableDevice(uint8_t device_id);
+  void changeDeviceId(macDevice *p, int device_id);
+  // iwmPrinter *getPrinter() { return _printerdev; }
+  bool shuttingDown = false; // TRUE if we are in shutdown process
+  bool getShuttingDown() { return shuttingDown; };
+  // bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
 };
 
 extern macBus MAC;
@@ -64,7 +105,7 @@ extern macBus MAC;
 #endif // guard
 #endif // BUILD_MAC
 
-#ifdef 0
+#if 0
 #ifndef IWM_H
 #define IWM_H
 

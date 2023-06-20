@@ -2,6 +2,27 @@
 #include "mac.h"
 #include "../../include/debug.h"
 
+void macBus::setup(void)
+{
+  Debug_printf(("\r\nMAC FujiNet based on FujiApple\r\n"));
+}
+
+void macBus::service(void)
+{
+
+}
+
+void macBus::shutdown(void)
+{
+  shuttingDown = true;
+
+  for (auto devicep : _daisyChain)
+  {
+    Debug_printf("Shutting down device %02x\n", devicep.second->id());
+    devicep.second->shutdown();
+  }
+  Debug_printf("All devices shut down.\n");
+}
 
 #endif // BUILD_MAC
 

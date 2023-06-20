@@ -156,7 +156,7 @@ protected:
     // void send_stat_get_enable();        // 0xD1
 
     void shutdown() override;
-    void process(iwm_decoded_cmd_t cmd) override;
+    void process(mac_cmd_t cmd) override;
 
     // void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     // void iwm_open(iwm_decoded_cmd_t cmd) override;
@@ -182,7 +182,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(iwmBus *iwmbus);
+    void setup(macBus *macbus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);
@@ -213,7 +213,7 @@ extern macFuji theFuji;
 #endif // guard
 #endif // BUILD_MAC
 
-#ifdef 0
+#if 0
 #ifndef FUJI_H
 #define FUJI_H
 #include <cstdint>
