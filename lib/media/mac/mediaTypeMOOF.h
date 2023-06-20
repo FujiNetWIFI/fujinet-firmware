@@ -1,23 +1,14 @@
 #ifndef _MEDIATYPE_MOOF_
 #define _MEDIATYPE_MOOF_
-#include <stdio.h>
+//  https://applesaucefdc.com/moof-reference/
 
 #include "mediaType.h"
-
-#endif // guard
-
-#ifdef 0
-#ifndef _MEDIATYPE_WOZ_
-#define _MEDIATYPE_WOZ_
-
 #include <stdio.h>
 
-#include "mediaType.h"
+#define MAX_CYLINDERS 80
+#define MAX_SIDES 2
+#define MAX_TRACKS (MAX_SIDES * MAX_CYLINDERS)
 
-#define MAX_TRACKS 160
-#define WOZ1_TRACK_LEN 6646
-#define WOZ1_NUM_BLKS 13
-#define WOZ1_BIT_TIME 32
 struct TRK_t
 {
     uint16_t start_block;
@@ -25,16 +16,15 @@ struct TRK_t
     uint32_t bit_count;
 };
 
-class MediaTypeWOZ : public MediaType
+class MediaTypeMOOF : public MediaType
 {
 private:
-    char woz_version;
+    char moof_version;
 
-    bool wozX_check_header();
-    bool wozX_read_info();
-    bool wozX_read_tmap();
-    bool woz1_read_tracks();
-    bool woz2_read_tracks();
+    bool moof_check_header();
+    bool moof_read_info();
+    bool moof_read_tmap();
+    bool moof_read_tracks();
 
 protected:
     uint8_t tmap[MAX_TRACKS];
@@ -61,5 +51,4 @@ public:
     // static bool create(FILE *f, uint32_t numBlock);
 };
 
-#endif // _MEDIATYPE_WOZ_
-#endif // BUILD_APPLE
+#endif // guard
