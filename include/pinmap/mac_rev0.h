@@ -55,7 +55,6 @@
 #define SP_ACK 27
 #define SP_RDDATA 4 // tri-state gate enable line
 #define SP_WRDATA 22
-// TODO: go through each line and make sure the code is OK for each one before moving to next
 #define SP_WREQ 26
 #define SP_DRIVE1 36
 #define SP_DRIVE2 21
@@ -69,4 +68,5 @@
 #endif                             // MASTERIES_SPI_FIX
 
 #define SP_EXTRA SP_DRIVE2 // For extra debugging with logic analyzer
-#endif                     /* PINMAP_A2_REV0 */
+
+#endif                     /* PINMAP_MAC_REV0 */
