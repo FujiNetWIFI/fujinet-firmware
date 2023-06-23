@@ -6,6 +6,13 @@
 #include "../../include/debug.h"
 #include "bus.h"
 
+#include "mac/floppy.h"
+// #include "mac/network.h"
+#include "mac/printer.h"
+// #include "iwm/cpm.h"
+// #include "iwm/clock.h"
+#include "mac/modem.h"
+
 #include "../fuji/fujiHost.h"
 #include "../fuji/fujiDisk.h"
 #include "../fuji/fujiCmd.h"
