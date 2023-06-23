@@ -19,8 +19,8 @@ public:
     ModemSniffer *get_modem_sniffer() { return modemSniffer; };
     time_t get_last_activity_time() { return fnSystem.millis(); };
 
-    void shutdown(){};
-    void process(mac_cmd_t cmd){};
+    void shutdown()override {};
+    void process(mac_cmd_t cmd) override {};
 };
 
 #endif // guard

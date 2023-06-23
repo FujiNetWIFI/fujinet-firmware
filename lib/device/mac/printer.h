@@ -26,8 +26,7 @@ protected:
     // void iwm_open(iwm_decoded_cmd_t cmd) override;
     // void iwm_close(iwm_decoded_cmd_t cmd) override;
     // void iwm_write(iwm_decoded_cmd_t cmd) override;
-    void process(mac_cmd_t cmd) override;
-    void shutdown() {}
+
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
@@ -68,6 +67,9 @@ public:
 
     printer_emu *getPrinterPtr() { return _pptr; };
     void print_from_cpm(uint8_t c);
+
+    void process(mac_cmd_t cmd) override;
+    void shutdown() override {}
 
 private:
     printer_type _ptype;

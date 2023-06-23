@@ -162,8 +162,7 @@ protected:
     // void iwm_ctrl_disable_device();         // 0xD4
     // void send_stat_get_enable();        // 0xD1
 
-    void shutdown() override;
-    void process(mac_cmd_t cmd) override;
+
 
     // void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     // void iwm_open(iwm_decoded_cmd_t cmd) override;
@@ -212,6 +211,9 @@ public:
     ~macFuji(){};
 
     // virtual void startup_hack() override { Debug_printf("\n Fuji startup hack"); }
+    void shutdown() override {};
+    void process(mac_cmd_t cmd) override {};
+
 };
 
 
