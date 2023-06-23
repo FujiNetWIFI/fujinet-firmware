@@ -35,7 +35,7 @@ void macFuji::setup(macBus *macbus)
   // set up Fuji device
   _mac_bus = macbus;
 
-  // _populate_slots_from_config();
+  _populate_slots_from_config();
 
   // Disable booting from CONFIG if our settings say to turn it off
   boot_config = false; // to do - understand?

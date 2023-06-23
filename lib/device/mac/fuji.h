@@ -184,25 +184,25 @@ public:
     // iwmDisk *bootdisk();
     macFloppy *bootdisk();
 
-    void debug_tape();
+    void debug_tape() {};
 
-    void insert_boot_device(uint8_t d);
+    void insert_boot_device(uint8_t d) {};
 
     void setup(macBus *macbus);
 
-    void image_rotate();
-    int get_disk_id(int drive_slot);
-    void handle_ctl_eject(uint8_t spid);
-    std::string get_host_prefix(int host_slot);
+    void image_rotate() {};
+    int get_disk_id(int drive_slot) { return -1; };
+    void handle_ctl_eject(uint8_t spid) {};
+    std::string get_host_prefix(int host_slot) { return std::string(); };
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
     // iwmDisk2 _fnDisk2s[MAX_DISK2_DEVICES];
 
-    void _populate_slots_from_config();
-    void _populate_config_from_slots();
+    void _populate_slots_from_config() {};
+    void _populate_config_from_slots() {};
 
-    bool mount_all();              // 0xD7
+    bool mount_all() { return false; };              // 0xD7
 
     // void FujiStatus(iwm_decoded_cmd_t cmd) { iwm_status(cmd); }
     // void FujiControl(iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }
