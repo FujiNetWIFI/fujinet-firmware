@@ -40,6 +40,8 @@ protected:
     uint8_t *trk_ptrs[MAX_TRACKS] = {};
 
 public:
+    MediaTypeMOOF() {};
+    
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t *buffer) override { return false; };
     virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t *buffer) override { return false; };
 

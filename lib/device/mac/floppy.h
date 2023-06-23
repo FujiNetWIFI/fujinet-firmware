@@ -28,18 +28,18 @@ protected:
     uint8_t oldphases;
 
 public:
-    macFloppy();
-    ~macFloppy(){};
+    macFloppy() {};
+    ~macFloppy() {};
 
-    void init();
+    void init() {};
     mediatype_t mount(FILE *f, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN) { return mount(f, disk_type); };
     void unmount();
-    bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
+    bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors) { return false; };
     int get_track_pos() { return track_pos; };
-    bool phases_valid(uint8_t phases);
-    bool move_head();
-    void change_track(int indicator);
+    // bool phases_valid(uint8_t phases);
+    bool move_head() { return false; };
+    void change_track(int indicator) {};
 
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
