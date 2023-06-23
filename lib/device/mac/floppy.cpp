@@ -48,7 +48,7 @@ void macFloppy::unmount()
 
 #endif // BUILD_MAC
 
-#ifdef 0
+#if 0
 #include "disk2.h"
 
 #include "fnSystem.h"

@@ -59,7 +59,7 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
 
 #endif // BUILD_MAC
 
-#ifdef 0
+#if 0
 
 #include "mediaType.h"
 
