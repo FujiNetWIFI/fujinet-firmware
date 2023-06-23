@@ -30,6 +30,8 @@ protected:
 
 public:
     macFloppy();
+    ~macFloppy(){};
+
     void init();
     mediatype_t mount(FILE *f, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN) { return mount(f, disk_type); };
@@ -43,8 +45,6 @@ public:
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
-
-    ~macFloppy();
 };
 
 #endif // guard

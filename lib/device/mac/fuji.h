@@ -209,6 +209,7 @@ public:
     // void FujiControl(iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }
 
     macFuji();
+    ~macFuji(){};
 
     // virtual void startup_hack() override { Debug_printf("\n Fuji startup hack"); }
 };
