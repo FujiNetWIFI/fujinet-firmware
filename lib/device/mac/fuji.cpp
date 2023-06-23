@@ -1,4 +1,92 @@
-#ifdef BUILD_APPLE
+#ifdef BUILD_MAC
+
+#include "fuji.h"
+
+#include "fnSystem.h"
+#include "fnConfig.h"
+#include "led.h"
+#include "fnWiFi.h"
+#include "fnFsSPIFFS.h"
+#include "utils.h"
+
+#include <string>
+
+#define ADDITIONAL_DETAILS_BYTES 12
+#define DIR_MAX_LEN 40
+
+macFuji theFuji; // Global fuji object.
+
+macFuji::macFuji()
+{
+  Debug_printf("Announcing the MacFuji!!!\n");
+  // Helpful for debugging
+  for (int i = 0; i < MAX_HOSTS; i++)
+    _fnHosts[i].slotid = i;
+}
+
+macFloppy *macFuji::bootdisk()
+{
+  return _bootDisk;
+}
+
+// Initializes base settings and adds our devices to the SIO bus
+void macFuji::setup(macBus *macbus)
+{
+  // set up Fuji device
+  _mac_bus = macbus;
+
+  _populate_slots_from_config();
+
+  // Disable booting from CONFIG if our settings say to turn it off
+  boot_config = false; // to do - understand?
+
+  // Disable status_wait if our settings say to turn it off
+  status_wait_enabled = false; // to do - understand?
+
+  //   theNetwork = new iwmNetwork();
+  //   _iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network);
+
+  //   theClock = new iwmClock();
+  //   _iwm_bus->addDevice(theClock, iwm_fujinet_type_t::Clock);
+
+  //   theCPM = new iwmCPM();
+  //   _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
+
+  //  for (int i = MAX_DISK_DEVICES - MAX_DISK2_DEVICES -1; i >= 0; i--)
+  //  {
+  //    _fnDisks[i].disk_dev.set_disk_number('0' + i);
+  //    _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
+  //  }
+
+  //   Debug_printf("\nConfig General Boot Mode: %u\n",Config.get_general_boot_mode());
+  //   if (Config.get_general_boot_mode() == 0)
+  //   {
+  //       FILE *f = fnSPIFFS.file_open("/autorun.po");
+  //        _fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
+  //   }
+  //   else
+  //   {
+  //       FILE *f = fnSPIFFS.file_open("/mount-and-boot.po");
+  //        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);
+  //   }
+
+  // theNetwork = new adamNetwork();
+  // theSerial = new adamSerial();
+  // _iwm_bus->addDevice(theNetwork, 0x09); // temporary.
+  // _iwm_bus->addDevice(theSerial, 0x0e);  // Serial port
+  // _iwm_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
+
+  // Add our devices to the AdamNet bus
+  // for (int i = 0; i < 4; i++)
+  //    _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
+
+  // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+  //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
+}
+
+#endif // BUILD_MAC
+
+#if 0
 #include "fuji.h"
 
 #include "fnSystem.h"
