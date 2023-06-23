@@ -18,8 +18,10 @@ void macBus::shutdown(void)
 
   for (auto devicep : _daisyChain)
   {
-    Debug_printf("Shutting down device %02x\n", devicep.second->id());
-    devicep.second->shutdown();
+    // Debug_printf("Shutting down device %02x\n", devicep.second->id());
+    // devicep.second->shutdown();
+    Debug_printf("Shutting down device %02x\n", devicep->id());
+    devicep->shutdown();
   }
   Debug_printf("All devices shut down.\n");
 }
