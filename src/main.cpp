@@ -248,6 +248,10 @@ void main_setup()
 
 #ifdef BUILD_MAC
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+
+    sioR = new macModem(ptrfs, Config.get_modem_sniffer_enabled());
+
+
     theFuji.setup(&MAC);
     MAC.setup();
 #endif // BUILD_MAC

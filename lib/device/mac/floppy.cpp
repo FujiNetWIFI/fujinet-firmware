@@ -1,6 +1,51 @@
 #ifdef BUILD_MAC
 #include "floppy.h"
 
+mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *filename), uint32_t disksize, mediatype_t disk_type)
+{
+
+  mediatype_t mt = MEDIATYPE_UNKNOWN;
+  // mediatype_t disk_type = MEDIATYPE_WOZ;
+
+  // Debug_printf("disk MOUNT %s\n", filename);
+
+  // Destroy any existing MediaType
+  if (_disk != nullptr)
+  {
+    delete _disk;
+    _disk = nullptr;
+  }
+
+  switch (disk_type)
+  {
+  case MEDIATYPE_MOOF:
+    Debug_printf("\nMounting Media Type WOZ");
+    device_active = true;
+    _disk = new MediaTypeMOOF();
+    mt = ((MediaTypeMOOF *)_disk)->mount(f);
+    change_track(0); // initialize spi buffer
+    break;
+  // case MEDIATYPE_DSK:
+  //   Debug_printf("\nMounting Media Type DSK");
+  //   device_active = true;
+  //   _disk = new MediaTypeDSK();
+  //   mt = ((MediaTypeDSK *)_disk)->mount(f);
+  //   change_track(0); // initialize spi buffer
+  //   break;
+  default:
+    Debug_printf("\nMedia Type UNKNOWN - no mount in disk2.cpp");
+    device_active = false;
+    break;
+  }
+
+  return mt;
+}
+
+void macFloppy::unmount()
+{
+}
+
+
 #endif // BUILD_MAC
 
 #ifdef 0

@@ -57,6 +57,8 @@ protected:
   bool _initialized;
 
 public:
+  bool device_active;
+
   virtual void shutdown() = 0;
   virtual void process(mac_cmd_t cmd) = 0;
 

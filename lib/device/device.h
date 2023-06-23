@@ -89,10 +89,10 @@
 #ifdef BUILD_MAC
 #include "mac/floppy.h"
 #include "mac/fuji.h"
-    // # include "iwm/modem.h"
-    // # include "iwm/printer.h"
-    // # include "iwm/printerlist.h"
-    //     iwmModem *sioR;
+#include "mac/modem.h"
+#include "mac/printer.h"
+#include "mac/printerlist.h"
+    macModem *sioR;
 #endif
 
 #ifdef BUILD_S100
