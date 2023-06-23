@@ -26,6 +26,8 @@ void macBus::shutdown(void)
   Debug_printf("All devices shut down.\n");
 }
 
+macBus MAC; // global smartport bus variable
+
 #endif // BUILD_MAC
 
 #if 0
