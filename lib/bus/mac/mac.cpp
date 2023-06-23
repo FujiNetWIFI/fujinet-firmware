@@ -28,7 +28,7 @@ void macBus::shutdown(void)
 
 #endif // BUILD_MAC
 
-#ifdef 0
+#if 0
 #include "iwm.h"
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
