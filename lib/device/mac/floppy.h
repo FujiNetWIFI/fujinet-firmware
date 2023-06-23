@@ -20,8 +20,7 @@ protected:
     // void iwm_readblock(iwm_decoded_cmd_t cmd) override {};
     // void iwm_writeblock(iwm_decoded_cmd_t cmd) override {};
 
-    void shutdown() override;
-    void process(mac_cmd_t cmd) override;
+
     char disk_num;
     bool enabled;
     int track_pos;
@@ -45,6 +44,9 @@ public:
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+
+    void shutdown() override {};
+    void process(mac_cmd_t cmd) override {};
 };
 
 #endif // guard
