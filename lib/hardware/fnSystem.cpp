@@ -674,7 +674,18 @@ void SystemManager::check_hardware_ver()
     }
 
 #ifndef MASTERIES_SPI_FIX
-    /* Apple 2 Rev 1 (will have) has pullup on IO4 for Safe Reset
+#   ifdef REV1DETECT
+    /* For the 3 people on earth who got Rev1 hardware before the proper pullup
+       used for hardware detection was added.
+    */
+    a2spifix = true;
+    a2no3state = true;
+    Debug_printf("Rev1 Hardware Defined\nFujiApple NO3STATE & SPIFIX ENABLED\n");
+
+    safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
+
+#   else
+    /* Apple 2 Rev 1 has pullup on IO4 for Safe Reset
        If found, enable spifix, no tristate and Safe Reset on GPIO4
     */
     fnSystem.set_pin_mode(GPIO_NUM_4, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
@@ -688,10 +699,10 @@ void SystemManager::check_hardware_ver()
         a2no3state = true;
         Debug_printf("FujiApple NO3STATE & SPIFIX ENABLED\n");
 
-        /* Change Safe Reset GPIO for Rev 1 */
-        safe_reset_gpio = GPIO_NUM_4;
+        safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
     }
-#endif
+#   endif /* REV1DETECT */
+#endif /* MASTERIES_SPI_FIX*/
 
 #ifdef NO3STATE
     /* For those who have modified their FujiApple to remove the tristate buffer but
