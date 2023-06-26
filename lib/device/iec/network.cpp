@@ -686,62 +686,54 @@ void iecNetwork::iec_talk_command()
 
 void iecNetwork::iec_command()
 {
-    if (payload.empty())
-        return;
 
-    if (channelMode[commanddata->channel] == PROTOCOL)
+    Debug_printf("pt[0]=='%s'\n", pt[0].c_str());
+    if (pt[0] == "cd")
+        set_prefix();
+    else if (pt[0] == "status")
+        set_status();
+    else if (pt[0] == "id")
+        set_device_id();
+    else if (pt[0] == "jsonparse")
+        parse_json();
+    else if (pt[0] == "jq")
+        query_json();
+    else if (pt[0] == "settrans")
+        set_translation_mode();
+    else if (pt[0] == "pwd")
+        get_prefix();
+    else if (pt[0] == "login")
+        set_login_password();
+    else if (pt[0] == "rename" || pt[0] == "ren")
+        fsop(0x20);
+    else if (pt[0] == "delete" || pt[0] == "del" || pt[0] == "rm")
+        fsop(0x21);
+    else if (pt[0] == "lock")
+        fsop(0x23);
+    else if (pt[0] == "unlock")
+        fsop(0x24);
+    else if (pt[0] == "mkdir")
+        fsop(0x2A);
+    else if (pt[0] == "rmdir")
+        fsop(0x2B);
+    else // Protocol command processing here.
     {
-        if (pt[0] == "cd")
-            set_prefix();
-        else if (pt[0] == "status")
-            set_status();
-        else if (pt[0] == "id")
-            set_device_id();
-        else if (pt[0] == "jsonparse")
-            parse_json();
-        else if (pt[0] == "jq")
-            query_json();
-        else if (pt[0] == "settrans")
-            set_translation_mode();
-        else if (pt[0] == "pwd")
-            get_prefix();
-        else if (pt[0] == "login")
-            set_login_password();
-        else if (pt[0] == "rename" || pt[0] == "ren")
-            fsop(0x20);
-        else if (pt[0] == "delete" || pt[0] == "del" || pt[0] == "rm")
-            fsop(0x21);
-        else if (pt[0] == "lock")
-            fsop(0x23);
-        else if (pt[0] == "unlock")
-            fsop(0x24);
-        else if (pt[0] == "mkdir")
-            fsop(0x2A);
-        else if (pt[0] == "rmdir")
-            fsop(0x2B);
-        else // Protocol command processing here.
+        if (pt.size() > 1)
         {
-            if (pt.size() > 1)
-            {
-                uint8_t channel = atoi(pt[1].c_str());
+            uint8_t channel = atoi(pt[1].c_str());
 
-                // This assumption is safe, because no special commands should ever
-                // be done on channel 0 (or 1 for that matter.) -tschak
-                if (!channel)
-                    return;
+            // This assumption is safe, because no special commands should ever
+            // be done on channel 0 (or 1 for that matter.) -tschak
+            if (!channel)
+                return;
 
-                if (protocol[channel]->special_inquiry(pt[0][0]) == 0x00)
-                    perform_special_00();
-                else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x40)
-                    perform_special_40();
-                else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x80)
-                    perform_special_80();
-            }
+            if (protocol[channel]->special_inquiry(pt[0][0]) == 0x00)
+                perform_special_00();
+            else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x40)
+                perform_special_40();
+            else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x80)
+                perform_special_80();
         }
-    }
-    else if (channelMode[commanddata->channel] == JSON)
-    {
-        Debug_printf("JSON channelmode command %s\n", pt[0].c_str());
     }
 }
 
@@ -1273,6 +1265,7 @@ void iecNetwork::process_command()
     }
     else if (commanddata->primary == IEC_UNLISTEN)
     {
+        Debug_printf("Yonkinating to command with: %s\n", payload.c_str());
         iec_command();
     }
 }
