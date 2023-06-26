@@ -658,7 +658,7 @@ void SystemManager::check_hardware_ver()
 #endif
 
 #ifdef PINMAP_A2_REV0
-    int spifixupcheck, spifixdowncheck, ledstripupcheck, ledstripdowncheck, optoupcheck, optodowncheck;
+    int spifixupcheck, spifixdowncheck, ledstripupcheck, ledstripdowncheck, rev1upcheck, rev1downcheck;
 
     /* Check for LED Strip pullup and enable it if found */
     fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
@@ -674,15 +674,15 @@ void SystemManager::check_hardware_ver()
     }
 
 #ifndef MASTERIES_SPI_FIX
-    /* Apple 2 Rev 1 has pulldown on IO21 for optocoupler
+    /* Apple 2 Rev 1 (will have) has pullup on IO4 for Safe Reset
        If found, enable spifix, no tristate and Safe Reset on GPIO4
     */
-    fnSystem.set_pin_mode(GPIO_NUM_21, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-    optoupcheck = fnSystem.digital_read(GPIO_NUM_21);
-    fnSystem.set_pin_mode(GPIO_NUM_21, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-    optodowncheck = fnSystem.digital_read(GPIO_NUM_21);
+    fnSystem.set_pin_mode(GPIO_NUM_4, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    rev1upcheck = fnSystem.digital_read(GPIO_NUM_4);
+    fnSystem.set_pin_mode(GPIO_NUM_4, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    rev1downcheck = fnSystem.digital_read(GPIO_NUM_4);
 
-    if (optoupcheck == optodowncheck)
+    if (rev1upcheck == rev1downcheck && rev1downcheck == DIGI_HIGH)
     {
         a2spifix = true;
         a2no3state = true;
