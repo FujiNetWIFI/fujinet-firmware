@@ -524,7 +524,6 @@ void IRAM_ATTR iwmBus::service()
     iwm_ack_deassert(); // go hi-Z
   }                     // switch (phasestate)
 
-#if (defined(DISKII_DRIVE1) || defined(DISKII_DRIVE2))
   // check on the diskii status
   switch (iwm_drive_enabled())
   {
@@ -537,7 +536,8 @@ void IRAM_ATTR iwmBus::service()
       fnSystem.delay(1); // need a better way to figure out persistence
       if (iwm_drive_enabled() == iwm_enable_state_t::on)
       {
-        diskii_xface.start(); // start it up
+        theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(0); // copy current track in for this drive
+        diskii_xface.start(diskii_xface.iwm_enable_states() - 1); // start it up
       }
     } // make a call to start the RMT stream
     else
@@ -563,7 +563,6 @@ void IRAM_ATTR iwmBus::service()
     iwm_ack_deassert();
     return;
   }
-#endif
 
 }
 
