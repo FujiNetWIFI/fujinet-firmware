@@ -502,7 +502,7 @@ iwmDisk::iwmDisk()
 
 mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
-
+  uint8_t deviceSlot = data_buffer[0]; // from mount ctrl cmd
   mediatype_t mt = MEDIATYPE_UNKNOWN;
   Debug_printf("disk MOUNT %s\n", filename);
    
@@ -514,10 +514,12 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
    switched = true; //set disk switched only if we are mounting over an existing image.  
   }
 
-    // Determine MediaType based on filename extension
-    if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
-        disk_type = MediaType::discover_mediatype(filename);
+  // Determine MediaType based on filename extension
+  if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
+    disk_type = MediaType::discover_mediatype(filename);
 
+  if (deviceSlot < 4) // SP drive
+  {    
     switch (disk_type)
     {
     case MEDIATYPE_PO:
@@ -528,18 +530,29 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         //_disk->fileptr() = f;
         // mt = MEDIATYPE_PO;
         break;
-      case MEDIATYPE_DSK:
-      case MEDIATYPE_WOZ:
-          theFuji._fnDisk2s[disk_num % 2].init();
-          theFuji._fnDisk2s[disk_num % 2].mount(f, disk_type); // modulo to ensure device 0 or 1
-      break;
     default:
-        Debug_printf("\r\nMedia Type UNKNOWN - no mount in disk.cpp");
+        Debug_printf("\r\nMedia Type UNKNOWN for SP Drive - no mount in disk.cpp");
         device_active = false;
         break;
     }
+  }
+  else // DiskII drive
+  {
+    switch (disk_type)
+    {
+      case MEDIATYPE_DSK:
+      case MEDIATYPE_WOZ:
+          theFuji._fnDisk2s[deviceSlot - 4].init();
+          theFuji._fnDisk2s[deviceSlot - 4].mount(f, disk_type); // modulo to ensure device 0 or 1
+      break;
+    default:
+        Debug_printf("\r\nMedia Type UNKNOWN for DiskII - no mount in disk.cpp");
+        device_active = false;
+        break;
+    }
+  }
 
-    return mt;
+  return mt;
 
 }
 
