@@ -121,21 +121,24 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   if (!device_active)
     return;
 
-  if (old_pos == track_pos)
+  if ((old_pos == track_pos) && indicator) // indicator=0 - always copy track, used for swapping drives
     return;
 
   // should only copy track data over if it's changed
-  if ( ((MediaTypeWOZ *)_disk)->trackmap(old_pos) == ((MediaTypeWOZ *)_disk)->trackmap(track_pos) )
+  if ((((MediaTypeWOZ *)_disk)->trackmap(old_pos) == ((MediaTypeWOZ *)_disk)->trackmap(track_pos)) && indicator)
     return;
 
   // need to tell diskii_xface the number of bits in the track
   // and where the track data is located so it can convert it
   if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
+  {
     diskii_xface.copy_track(
         ((MediaTypeWOZ *)_disk)->get_track(track_pos),
         ((MediaTypeWOZ *)_disk)->track_len(track_pos),
         ((MediaTypeWOZ *)_disk)->num_bits(track_pos),
         NS_PER_BIT_TIME * ((MediaTypeWOZ *)_disk)->optimal_bit_timing);
+    Debug_printf("\nCopy track: %d", track_pos);
+  }
   else
     diskii_xface.copy_track(
         nullptr, 
