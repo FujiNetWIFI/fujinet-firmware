@@ -9,21 +9,21 @@ class printerlist
 private:
     struct printerlist_entry
     {
-        sioPrinter::printer_type type = sioPrinter::printer_type::PRINTER_INVALID;
-        sioPrinter *pPrinter = nullptr;
+        drivewirePrinter::printer_type type = drivewirePrinter::printer_type::PRINTER_INVALID;
+        drivewirePrinter *pPrinter = nullptr;
         int port = 0;
     };
     printerlist_entry _printers[PRINTERLIST_SIZE];
 
 public:
-    void set_entry(int index, sioPrinter *ptr, sioPrinter::printer_type ptype, int pport);
+    void set_entry(int index, drivewirePrinter *ptr, drivewirePrinter::printer_type ptype, int pport);
 
-    void set_ptr(int index, sioPrinter *ptr);
-    void set_type(int index, sioPrinter::printer_type ptype);
+    void set_ptr(int index, drivewirePrinter *ptr);
+    void set_type(int index, drivewirePrinter::printer_type ptype);
     void set_port(int index, int pport);
 
-    sioPrinter * get_ptr(int index);
-    sioPrinter::printer_type get_type(int index);
+    drivewirePrinter * get_ptr(int index);
+    drivewirePrinter::printer_type get_type(int index);
     int get_port(int index);
 };
 
