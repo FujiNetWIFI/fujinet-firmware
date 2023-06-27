@@ -11,6 +11,7 @@
 
 #include "Protocol.h"
 
+#include "ProtocolParser.h"
 
 /**
  * Number of devices to expose via ADAM, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -166,6 +167,11 @@ private:
     NetworkProtocol *protocol = nullptr;
 
     /**
+     * @brief Factory that creates protocol from urls
+    */
+    ProtocolParser *protocolParser = nullptr;
+
+    /**
      * Network Status object
      */
     union _status
@@ -273,6 +279,16 @@ private:
     bool instantiate_protocol();
 
     /**
+     * Create the deviceSpec and fix it for parsing
+     */
+    void create_devicespec(string d);
+
+    /**
+     * Create a urlParser from deviceSpec
+    */
+   void create_url_parser();
+
+    /**
      * Start the Interrupt rate limiting timer
      */
     void timer_start();
@@ -281,22 +297,6 @@ private:
      * Stop the Interrupt rate limiting timer
      */
     void timer_stop();
-
-    /**
-     * Is this a valid URL? (used to generate ERROR 165)
-     */
-    bool isValidURL(EdUrlParser *url);
-
-    /**
-     * Preprocess a URL given aux1 open mode. This is used to work around various assumptions that different
-     * disk utility packages do when opening a device, such as adding wildcards for directory opens.
-     *
-     * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
-     * of adamNetwork.
-     *
-     * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
-     */
-    bool parseURL();
 
     /**
      * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
