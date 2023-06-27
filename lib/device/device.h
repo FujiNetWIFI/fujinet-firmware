@@ -22,6 +22,21 @@
     sioCPM sioZ;
 #endif
 
+#ifdef BUILD_COCO
+# include "drivewire/clock.h"
+# include "drivewire/disk.h"
+# include "drivewire/modem.h"
+# include "drivewire/network.h"
+# include "drivewire/printer.h"
+# include "drivewire/printerlist.h"
+# include "drivewire/cpm.h"
+# include "drivewire/fuji.h"
+
+    drivewireClock dwClock;
+    drivewireModem *sioR;
+    drivewireCPM drivewireZ;
+#endif
+
 #ifdef BUILD_RS232
 # include "rs232/apetime.h"
 # include "rs232/disk.h"

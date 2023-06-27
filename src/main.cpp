@@ -124,6 +124,11 @@ void main_setup()
     SIO.setup();
 #endif // BUILD_ATARI
 
+#ifdef BUILD_COCO
+    theFuji.setup(&DRIVEWIRE);
+    DRIVEWIRE.setup();
+#endif
+
 #ifdef BUILD_IEC
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
 

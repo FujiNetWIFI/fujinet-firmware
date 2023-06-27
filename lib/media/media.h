@@ -51,6 +51,13 @@
 # include "h89/mediaTypeIMG.h"
 #endif
 
+#ifdef BUILD_COCO
+# include "new/mediaType.h"
+# include "new/mediaTypeDDP.h"
+# include "new/mediaTypeDSK.h"
+# include "new/mediaTypeROM.h"
+#endif
+
 #ifdef NEW_TARGET
 # include "new/mediaType.h"
 # include "new/mediaTypeDDP.h"
