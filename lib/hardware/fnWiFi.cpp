@@ -601,9 +601,9 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                 // as it's pointless trying to connect to anything not seen by network, as it clearly won't connect.
                 // TODO: will this stop us connecting to hidden wifis? is that even possible?
 
-                vector<string> network_names = pFnWiFi->get_network_names();
-                vector<WiFiManager::stored_wifi> stored_wifis = pFnWiFi->get_stored_wifis();
-                vector<stored_wifi> common_names = pFnWiFi->match_stored_with_network_wifis(network_names, stored_wifis);
+                std::vector<std::string> network_names = pFnWiFi->get_network_names();
+                std::vector<WiFiManager::stored_wifi> stored_wifis = pFnWiFi->get_stored_wifis();
+                std::vector<stored_wifi> common_names = pFnWiFi->match_stored_with_network_wifis(network_names, stored_wifis);
 
                 // copy the common names to our manager to iterate over
                 std::copy(common_names.begin(), common_names.end(), std::back_inserter(pFnWiFi->_matched_wifis));
@@ -670,7 +670,7 @@ std::vector<std::string> WiFiManager::get_network_names()
 
 std::vector<WiFiManager::stored_wifi> WiFiManager::get_stored_wifis()
 {
-    vector<WiFiManager::stored_wifi> stored_wifis;
+    std::vector<WiFiManager::stored_wifi> stored_wifis;
     int i;
     for ( i = 0; i < MAX_WIFI_STORED; i++)
     {
@@ -688,7 +688,7 @@ std::vector<WiFiManager::stored_wifi> WiFiManager::get_stored_wifis()
 std::vector<WiFiManager::stored_wifi> WiFiManager::match_stored_with_network_wifis(std::vector<std::string> network_names, std::vector<WiFiManager::stored_wifi> stored_wifis)
 {
     Debug_printf("Found following networks:\n");
-    for (string _network_name: network_names)
+    for (std::string _network_name: network_names)
     {
         Debug_printf(" - %s\n", _network_name.c_str());
     }
@@ -699,7 +699,7 @@ std::vector<WiFiManager::stored_wifi> WiFiManager::match_stored_with_network_wif
         Debug_printf(" - %s, index: %d\n", d.ssid, d.index);
     }
 
-    vector<stored_wifi> common_names;
+    std::vector<stored_wifi> common_names;
     // We are not using set_intersect() as it requires the lists to be sorted but we want to preserve the stored names order
 
     for (stored_wifi d: stored_wifis)
