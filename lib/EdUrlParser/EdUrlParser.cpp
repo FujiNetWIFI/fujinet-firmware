@@ -286,3 +286,8 @@ int __kv_callback_vec(void* list, string k, string v) {
 	vec->push_back(t);
 	return vec->size();
 }
+
+bool EdUrlParser::isValidUrl()
+{
+	return !scheme.empty() && !(path.empty() && port.empty());
+}
