@@ -1046,7 +1046,7 @@ void iecNetwork::set_prefix()
         strncpy((char *)prefixSpec, pt[2].c_str(), 256);
     }
 
-    util_clean_devicespec(prefixSpec, sizeof(prefixSpec));
+    util_devicespec_fix_9b(prefixSpec, sizeof(prefixSpec));
 
     prefixSpec_str = string((const char *)prefixSpec);
     Debug_printf("iecNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
