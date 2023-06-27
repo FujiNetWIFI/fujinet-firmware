@@ -6,7 +6,6 @@
 
 #include "bus.h"
 #include "network.h"
-#include "cassette.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -52,20 +51,18 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class sioFuji : public virtualDevice
+class drivewireFuji : public virtualDevice
 {
 private:
-    systemBus *_sio_bus;
+    systemBus *_drivewire_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
-    sioCassette _cassetteDev;
-
     int _current_open_directory_slot = -1;
 
-    sioDisk _bootDisk; // special disk drive just for configuration
+    drivewireDisk _bootDisk; // special disk drive just for configuration
 
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
 
@@ -74,45 +71,44 @@ private:
     appkey _current_appkey;
 
 protected:
-    void sio_reset_fujinet();          // 0xFF
-    void sio_net_get_ssid();           // 0xFE
-    void sio_net_scan_networks();      // 0xFD
-    void sio_net_scan_result();        // 0xFC
-    void sio_net_set_ssid();           // 0xFB
-    void sio_net_get_wifi_status();    // 0xFA
-    void sio_mount_host();             // 0xF9
-    void sio_disk_image_mount();       // 0xF8
-    void sio_open_directory();         // 0xF7
-    void sio_read_directory_entry();   // 0xF6
-    void sio_close_directory();        // 0xF5
-    void sio_read_host_slots();        // 0xF4
-    void sio_write_host_slots();       // 0xF3
-    void sio_read_device_slots();      // 0xF2
-    void sio_write_device_slots();     // 0xF1
-    void sio_enable_udpstream();       // 0xF0
-    void sio_net_get_wifi_enabled();   // 0xEA
-    void sio_disk_image_umount();      // 0xE9
-    void sio_get_adapter_config();     // 0xE8
-    void sio_new_disk();               // 0xE7
-    void sio_unmount_host();           // 0xE6
-    void sio_get_directory_position(); // 0xE5
-    void sio_set_directory_position(); // 0xE4
-    void sio_set_hsio_index();         // 0xE3
-    void sio_set_device_filename();    // 0xE2
-    void sio_set_host_prefix();        // 0xE1
-    void sio_get_host_prefix();        // 0xE0
-    void sio_set_sio_external_clock(); // 0xDF
-    void sio_write_app_key();          // 0xDE
-    void sio_read_app_key();           // 0xDD
-    void sio_open_app_key();           // 0xDC
-    void sio_close_app_key();          // 0xDB
-    void sio_get_device_filename();    // 0xDA
-    void sio_set_boot_config();        // 0xD9
-    void sio_copy_file();              // 0xD8
-    void sio_set_boot_mode();          // 0xD6
+    void drivewire_reset_fujinet();          // 0xFF
+    void drivewire_net_get_ssid();           // 0xFE
+    void drivewire_net_scan_networks();      // 0xFD
+    void drivewire_net_scan_result();        // 0xFC
+    void drivewire_net_set_ssid();           // 0xFB
+    void drivewire_net_get_wifi_status();    // 0xFA
+    void drivewire_mount_host();             // 0xF9
+    void drivewire_disk_image_mount();       // 0xF8
+    void drivewire_open_directory();         // 0xF7
+    void drivewire_read_directory_entry();   // 0xF6
+    void drivewire_close_directory();        // 0xF5
+    void drivewire_read_host_slots();        // 0xF4
+    void drivewire_write_host_slots();       // 0xF3
+    void drivewire_read_device_slots();      // 0xF2
+    void drivewire_write_device_slots();     // 0xF1
+    void drivewire_enable_udpstream();       // 0xF0
+    void drivewire_net_get_wifi_enabled();   // 0xEA
+    void drivewire_disk_image_umount();      // 0xE9
+    void drivewire_get_adapter_config();     // 0xE8
+    void drivewire_new_disk();               // 0xE7
+    void drivewire_unmount_host();           // 0xE6
+    void drivewire_get_directory_position(); // 0xE5
+    void drivewire_set_directory_position(); // 0xE4
+    void drivewire_set_hdrivewire_index();         // 0xE3
+    void drivewire_set_device_filename();    // 0xE2
+    void drivewire_set_host_prefix();        // 0xE1
+    void drivewire_get_host_prefix();        // 0xE0
+    void drivewire_set_drivewire_external_clock(); // 0xDF
+    void drivewire_write_app_key();          // 0xDE
+    void drivewire_read_app_key();           // 0xDD
+    void drivewire_open_app_key();           // 0xDC
+    void drivewire_close_app_key();          // 0xDB
+    void drivewire_get_device_filename();    // 0xDA
+    void drivewire_set_boot_config();        // 0xD9
+    void drivewire_copy_file();              // 0xD8
+    void drivewire_set_boot_mode();          // 0xD6
 
-    void sio_status() override;
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    void drivewire_process(uint32_t commanddata, uint8_t checksum);
 
     void shutdown() override;
 
@@ -121,16 +117,15 @@ public:
 
     bool status_wait_enabled = true;
 
-    sioDisk *bootdisk();
+    drivewireDisk *bootdisk();
 
-    sioNetwork *network();
+    drivewireNetwork *network();
 
-    sioCassette *cassette() { return &_cassetteDev; };
     void debug_tape();
 
     void insert_boot_device(uint8_t d);
 
-    void setup(systemBus *siobus);
+    void setup(systemBus *drivewirebus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);
@@ -144,9 +139,9 @@ public:
 
     void mount_all();              // 0xD7
 
-    sioFuji();
+    drivewireFuji();
 };
 
-extern sioFuji theFuji;
+extern drivewireFuji theFuji;
 
 #endif // FUJI_H

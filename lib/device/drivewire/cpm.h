@@ -1,6 +1,6 @@
 
-#ifndef SIOCPM_H
-#define SIOCPM_H
+#ifndef DRIVEWIRECPM_H
+#define DRIVEWIRECPM_H
 
 #include "bus.h"
 
@@ -12,18 +12,17 @@ typedef unsigned char   uint8;
 typedef unsigned short  uint16;
 typedef unsigned int    uint32;
 
-class sioCPM : public virtualDevice
+class drivewireCPM : public virtualDevice
 {
 private:
 
-    void sio_status() override;
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    void drivewire_process(uint32_t commanddata, uint8_t checksum);
 
 public:
     bool cpmActive = false; 
     void init_cpm(int baud);
-    void sio_handle_cpm();
+    void drivewire_handle_cpm();
     
 };
 
-#endif /* SIOCPM_H */
+#endif /* DRIVEWIRECPM_H */

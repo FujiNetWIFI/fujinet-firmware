@@ -49,6 +49,12 @@
 # define PRINTER_CLASS H89Printer
 #endif
 
+#ifdef BUILD_COCO
+# include "drivewire/printer.h"
+# include "drivewire/printerlist.h"
+# define PRINTER_CLASS drivewirePrinter
+#endif
+
 #ifdef NEW_TARGET
 # include "new/printer.h"
 # include "new/printerlist.h"

@@ -1,6 +1,6 @@
-#ifdef BUILD_ATARI
-#ifndef ATARI_PRINTER_H
-#define ATARI_PRINTER_H
+#ifdef BUILD_COCO
+#ifndef COCO_PRINTER_H
+#define COCO_PRINTER_H
 
 #include <string>
 
@@ -10,14 +10,14 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-class sioPrinter : public virtualDevice
+class drivewirePrinter : public virtualDevice
 {
 protected:
-    // SIO THINGS
+    // DRIVEWIRE THINGS
     uint8_t _buffer[40];
-    void sio_write(uint8_t aux1, uint8_t aux2);
-    void sio_status() override;
-    void sio_process(uint32_t commanddata, uint8_t checksum) override;
+    void drivewire_write(uint8_t aux1, uint8_t aux2);
+    void drivewire_status();
+    void drivewire_process(uint32_t commanddata, uint8_t checksum) override;
     void shutdown() override;
 
     printer_emu *_pptr = nullptr;
@@ -76,8 +76,8 @@ public:
     };
     
 
-    sioPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
-    ~sioPrinter();
+    drivewirePrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
+    ~drivewirePrinter();
 
     static printer_type match_modelname(std::string model_name);
     void set_printer_type(printer_type printer_type);
