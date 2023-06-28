@@ -328,4 +328,4 @@ void iwmCPM::shutdown()
     // TODO: clean shutdown.
 }
 
-#endif /* BUILD_APPLE2 */
+#endif /* BUILD_APPLE */
