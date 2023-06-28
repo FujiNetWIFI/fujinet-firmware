@@ -1061,4 +1061,4 @@ void rs232Network::rs232_do_idempotent_command_80()
         rs232_complete();
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */

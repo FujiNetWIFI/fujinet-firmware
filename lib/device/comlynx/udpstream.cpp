@@ -84,4 +84,4 @@ void lynxUDPStream::comlynx_process(uint8_t b)
     return;
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_LYNX */

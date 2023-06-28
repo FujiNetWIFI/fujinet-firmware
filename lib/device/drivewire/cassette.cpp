@@ -1,4 +1,4 @@
-#ifdef BUILD_ATARI
+#ifdef BUILD_COCO
 
 #include "cassette.h"
 
@@ -656,4 +656,4 @@ uint8_t sioCassette::decode_fsk()
     // #endif
     return out;
 }
-#endif /* BUILD_ATARI */
+#endif /* BUILD_COCO */
