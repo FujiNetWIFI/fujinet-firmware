@@ -303,4 +303,4 @@ void rs232Printer::rs232_process(uint32_t commanddata, uint8_t checksum)
     }
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */

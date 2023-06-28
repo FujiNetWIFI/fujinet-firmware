@@ -977,4 +977,4 @@ void iwmNetwork::iwmnet_set_timer_rate()
     // iwmnet_complete();
 }
 
-#endif /* BUILD_iwm */
+#endif /* BUILD_APPLE */
