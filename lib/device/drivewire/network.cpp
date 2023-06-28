@@ -477,4 +477,4 @@ void drivewireNetwork::drivewire_do_idempotent_command_80()
 {
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_COCO */
