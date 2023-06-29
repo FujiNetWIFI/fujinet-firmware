@@ -18,6 +18,7 @@
 
 #include <forward_list>
 
+#define DRIVEWIRE_BAUDRATE 62500
 
 // /* Operation Codes */
 // #define		OP_NOP		0

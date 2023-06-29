@@ -215,7 +215,7 @@ void sioCassette::sio_enable_cassette()
     cassetteActive = true;
 
     if (cassetteMode == cassette_mode_t::playback)
-        fnUartBUS.set_baudrate(CASSETTE_BAUD);
+        fnUartBUS.set_baudrate(CASSETTE_BAUDRATE);
 
     if (cassetteMode == cassette_mode_t::record && tape_offset == 0)
     {
@@ -266,12 +266,12 @@ void sioCassette::sio_disable_cassette()
     {
         cassetteActive = false;
         if (cassetteMode == cassette_mode_t::playback)
-            fnUartBUS.set_baudrate(SIO_STANDARD_BAUDRATE);
+            fnUartBUS.set_baudrate(DRIVEWIRE_BAUDRATE);
         else
         {
             close_cassette_file();
             //TODO: gpio_isr_handler_remove((gpio_num_t)UART2_RX);
-            fnUartBUS.begin(SIO_STANDARD_BAUDRATE);
+            fnUartBUS.begin(DRIVEWIRE_BAUDRATE);
         }
 #ifdef DEBUG
         Debug_println("Cassette Mode disabled");

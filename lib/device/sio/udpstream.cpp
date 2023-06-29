@@ -28,14 +28,14 @@ void sioUDPStream::sio_enable_udpstream()
         ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
         ledc_timer.duty_resolution = LEDC_TIMER_RESOLUTION;
         ledc_timer.timer_num = LEDC_TIMER_1;
-        ledc_timer.freq_hz = MIDI_BAUD;
+        ledc_timer.freq_hz = MIDI_BAUDRATE;
 
         // Enable PWM on CLOCK IN
         ledc_channel_config(&ledc_channel_sio_ckin);
         ledc_timer_config(&ledc_timer);
 
         // Change baud rate
-        fnUartBUS.set_baudrate(MIDI_BAUD);
+        fnUartBUS.set_baudrate(MIDI_BAUDRATE);
     }
 
     // Open the UDP connection

@@ -22,7 +22,7 @@
 #define SIO_MODEMCMD_SET_DUMP 0x44
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
-#define SIO_MODEMCMD_BAUDLOCK 0x4E
+#define SIO_MODEMCMD_BAUDRATELOCK 0x4E
 #define SIO_MODEMCMD_AUTOANSWER 0x4F
 #define SIO_MODEMCMD_STATUS 0x53
 #define SIO_MODEMCMD_WRITE 0x57
@@ -1864,7 +1864,7 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
         case SIO_MODEMCMD_UNLISTEN:
             sio_unlisten();
             break;
-        case SIO_MODEMCMD_BAUDLOCK:
+        case SIO_MODEMCMD_BAUDRATELOCK:
             sio_baudlock();
             break;
         case SIO_MODEMCMD_AUTOANSWER:

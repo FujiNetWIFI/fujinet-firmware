@@ -314,7 +314,7 @@ void systemBus::setup()
     _udpDev = new lynxUDPStream();
 
     // Set up UART
-    fnUartBUS.begin(COMLYNX_BAUD);
+    fnUartBUS.begin(COMLYNX_BAUDRATE);
 }
 
 void systemBus::shutdown()
