@@ -116,11 +116,11 @@ void iecNetwork::iec_open()
     urlParser[commanddata.channel] = EdUrlParser::parseUrl(deviceSpec[commanddata.channel]);
 
     // This is unbelievably stupid, but here we are.
-    for (int i=0;i<urlParser[commanddata.channel]->query.size();i++)
+    for (int i = 0; i < urlParser[commanddata.channel]->query.size(); i++)
         if (urlParser[commanddata.channel]->query[i]==0xa4) // underscore
             urlParser[commanddata.channel]->query[i]=0x5F;
 
-    for (int i=0;i<urlParser[commanddata.channel]->path.size();i++)
+    for (int i = 0; i < urlParser[commanddata.channel]->path.size(); i++)
         if (urlParser[commanddata.channel]->path[i]==0xa4) // underscore
             urlParser[commanddata.channel]->path[i]=0x5F;
 
@@ -404,7 +404,7 @@ void iecNetwork::iec_reopen_channel_talk()
 {
     bool set_eoi = false;
     NetworkStatus ns;
-    bool atn = true; // inverted
+    bool atn = false; // inverted
 
     // If protocol isn't connected, then return not connected.
     if (protocol[commanddata.channel] == nullptr)
@@ -421,10 +421,16 @@ void iecNetwork::iec_reopen_channel_talk()
             protocol[commanddata.channel]->read(ns.rxBytesWaiting);
     }
 
-    while (atn)
+    while (!atn)
     {
         char b;
-        atn = fnSystem.digital_read(PIN_IEC_ATN);
+        atn = IEC.status(PIN_IEC_ATN);
+
+        Debug_printf("atn: %u\n", atn);
+
+        if (atn)
+            break;
+
         if (receiveBuffer[commanddata.channel]->empty())
         {
             Debug_printv("Receive Buffer Empty.");
@@ -433,10 +439,15 @@ void iecNetwork::iec_reopen_channel_talk()
         }
 
         b = receiveBuffer[commanddata.channel]->front();
-        receiveBuffer[commanddata.channel]->erase(0, 1);
+
         IEC.sendByte(b, set_eoi);
-        Debug_printf("%c", b);
-        atn = fnSystem.digital_read(PIN_IEC_ATN);
+
+        if (!(IEC.flags & ERROR))
+            receiveBuffer[commanddata.channel]->erase(0, 1);
+        else
+            Debug_printv("TALK ERROR!\n");
+
+        atn = IEC.status(PIN_IEC_ATN);
     }
 }
 
@@ -530,7 +541,7 @@ void iecNetwork::query_json()
     char reply[80];
     string s;
 
-    Debug_printf("query_json(%s)\r\n",payload.c_str());
+    Debug_printf("query_json(%s)\r\n", payload.c_str());
 
     if (pt.size() < 3)
     {
@@ -646,52 +657,87 @@ void iecNetwork::iec_listen_command()
 {
 }
 
+void iecNetwork::iec_talk_command()
+{
+    char tmp[32];
+    NetworkStatus ns;
+
+    while (IEC.status(PIN_IEC_ATN))
+        ;
+
+    if (!active_status_channel)
+    {
+        Debug_printf("No active status channel\n");
+        IEC.senderTimeout();
+        return;
+    }
+    else if (protocol[active_status_channel] == nullptr)
+    {
+        Debug_printf("No active protocol\n");
+        IEC.senderTimeout();
+        return;
+    }
+
+    protocol[active_status_channel]->status(&ns);
+
+    memset(tmp, 0, sizeof(tmp));
+    sprintf(tmp, "%u,%u,%u", ns.rxBytesWaiting, ns.connected, ns.error);
+
+    Debug_printf("Sending status %s\n", tmp);
+
+    IEC.sendBytes(tmp, strlen(tmp), true);
+}
+
 void iecNetwork::iec_command()
 {
-    if (payload.empty())
-        return;
-        
-    if (channelMode[commanddata.channel] == PROTOCOL)
+
+    Debug_printf("pt[0]=='%s'\n", pt[0].c_str());
+    if (pt[0] == "cd")
+        set_prefix();
+    else if (pt[0] == "status")
+        set_status();
+    else if (pt[0] == "id")
+        set_device_id();
+    else if (pt[0] == "jsonparse")
+        parse_json();
+    else if (pt[0] == "jq")
+        query_json();
+    else if (pt[0] == "settrans")
+        set_translation_mode();
+    else if (pt[0] == "pwd")
+        get_prefix();
+    else if (pt[0] == "login")
+        set_login_password();
+    else if (pt[0] == "rename" || pt[0] == "ren")
+        fsop(0x20);
+    else if (pt[0] == "delete" || pt[0] == "del" || pt[0] == "rm")
+        fsop(0x21);
+    else if (pt[0] == "lock")
+        fsop(0x23);
+    else if (pt[0] == "unlock")
+        fsop(0x24);
+    else if (pt[0] == "mkdir")
+        fsop(0x2A);
+    else if (pt[0] == "rmdir")
+        fsop(0x2B);
+    else // Protocol command processing here.
     {
-        if (pt[0] == "cd")
-            set_prefix();
-        else if (pt[0] == "id")
-            set_device_id();
-        else if (pt[0] == "jsonparse")
-            parse_json();
-        else if (pt[0] == "jq")
-            query_json();
-        else if (pt[0] == "settrans")
-            set_translation_mode();
-        else if (pt[0] == "pwd")
-            get_prefix();
-        else if (pt[0] == "login")
-            set_login_password();
-        else if (pt[0] == "rename" || pt[0] == "ren")
-            fsop(0x20);
-        else if (pt[0] == "delete" || pt[0] == "del" || pt[0] == "rm")
-            fsop(0x21);
-        else if (pt[0] == "lock")
-            fsop(0x23);
-        else if (pt[0] == "unlock")
-            fsop(0x24);
-        else if (pt[0] == "mkdir")
-            fsop(0x2A);
-        else if (pt[0] == "rmdir")
-            fsop(0x2B);
-        else if (protocol[commanddata.channel] != nullptr &&
-                 protocol[commanddata.channel]->special_inquiry(pt[0][0]) == 0x00)
-            perform_special_00();
-        else if (protocol[commanddata.channel] != nullptr &&
-                 protocol[commanddata.channel]->special_inquiry(pt[0][0]) == 0x40)
-            perform_special_40();
-        else if (protocol[commanddata.channel] != nullptr &&
-                 protocol[commanddata.channel]->special_inquiry(pt[0][0]) == 0x80)
-            perform_special_80();
-    }
-    else if (channelMode[commanddata.channel] == JSON)
-    {
-        Debug_printf("JSON channelmode command %s\r\n", pt[0].c_str());
+        if (pt.size() > 1)
+        {
+            uint8_t channel = atoi(pt[1].c_str());
+
+            // This assumption is safe, because no special commands should ever
+            // be done on channel 0 (or 1 for that matter.) -tschak
+            if (!channel)
+                return;
+
+            if (protocol[channel]->special_inquiry(pt[0][0]) == 0x00)
+                perform_special_00();
+            else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x40)
+                perform_special_40();
+            else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x80)
+                perform_special_80();
+        }
     }
 }
 
@@ -799,6 +845,8 @@ void iecNetwork::perform_special_80()
     string sp_buf = "N:";
     int channel = 0;
     NetworkStatus ns;
+
+    Debug_printf("perform_special_80()\n");
 
     if (pt.size() < 2)
     {
@@ -932,6 +980,39 @@ void iecNetwork::get_prefix()
     iecStatus.channel = channel;
 }
 
+void iecNetwork::set_status()
+{
+    if (pt.size() < 2)
+    {
+        Debug_printf("Channel # Required\n");
+        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.msg = "channel # required.\n";
+        iecStatus.connected = 0;
+        iecStatus.channel = 15;
+        return;
+    }
+
+    active_status_channel = atoi(pt[1].c_str());
+
+    Debug_printf("Active status channel now: %u\n", active_status_channel);
+    iecStatus.error = NETWORK_ERROR_SUCCESS;
+    iecStatus.msg = "Active status channel set.";
+
+    if (protocol[commanddata.channel] == nullptr)
+    {
+        iecStatus.connected = 0;
+    }
+    else
+    {
+        NetworkStatus ns;
+
+        protocol[commanddata.channel]->status(&ns);
+        iecStatus.connected = ns.connected;
+    }
+
+    iecStatus.channel = atoi(pt[1].c_str());
+}
+
 void iecNetwork::set_prefix()
 {
     uint8_t prefixSpec[256];
@@ -969,7 +1050,7 @@ void iecNetwork::set_prefix()
         strncpy((char *)prefixSpec, pt[2].c_str(), 256);
     }
 
-    util_clean_devicespec(prefixSpec, sizeof(prefixSpec));
+    util_devicespec_fix_9b(prefixSpec, sizeof(prefixSpec));
 
     prefixSpec_str = string((const char *)prefixSpec);
     Debug_printf("iecNetwork::set_prefix(%s)\r\n", prefixSpec_str.c_str());
@@ -1182,8 +1263,13 @@ void iecNetwork::process_command()
     {
         pt = util_tokenize(payload, ',');
     }
+    else if (commanddata.primary == IEC_TALK)
+    {
+        iec_talk_command();
+    }
     else if (commanddata.primary == IEC_UNLISTEN)
     {
+        Debug_printf("Yonkinating to command with: %s\n", payload.c_str());
         iec_command();
     }
 }

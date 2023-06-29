@@ -355,14 +355,16 @@ void systemBus::read_payload()
 {
     // Record the command string until ATN is PULLED
     std::string listen_command = "";
+    uint64_t last_atn = IEC.status(PIN_IEC_ATN);
 
     // ATN might get pulled right away if there is no command string to send
     //pull ( PIN_IEC_SRQ );
     protocol->wait( TIMING_STABLE );
 
-    while (IEC.status(PIN_IEC_ATN) != PULLED)
+    while (last_atn != RELEASED || IEC.status(PIN_IEC_ATN) != PULLED)
     {
         //pull ( PIN_IEC_SRQ );
+        last_atn = IEC.status(PIN_IEC_ATN);
         int16_t c = protocol->receiveByte();
         //release ( PIN_IEC_SRQ );
 

@@ -555,21 +555,54 @@ void util_strip_nonascii(string &s)
     }
 }
 
-void util_clean_devicespec(uint8_t *buf, unsigned short len)
+void util_devicespec_fix_9b(uint8_t *buf, unsigned short len)
 {
     for (int i = 0; i < len; i++)
         if (buf[i] == 0x9b)
             buf[i] = 0x00;
 }
 
+// Non-mutating
+std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string prefix, bool is_directory_read, bool process_fs_dot)
+{
+    string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
+    // if prefix is empty, the concatenation is still valid
+    deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
+
+    Debug_printf("util_devicespec_fix_for_parsing(%s, %s, %s, %s)\n", deviceSpec.c_str(), prefix.c_str(), is_directory_read ? "true" : "false", process_fs_dot ? "true" : "false");
+
+    util_strip_nonascii(deviceSpec);
+
+    if (!is_directory_read) // Anything but a directory read...
+    {
+        replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
+    }
+
+    // Some FMSes add a dot at the end, remove it if required to. Only seems to be SIO that uses this code, but we'll control its use through a default parameter
+    if (process_fs_dot && deviceSpec.substr(deviceSpec.length() - 1) == ".")
+    {
+        deviceSpec.erase(deviceSpec.length() - 1, string::npos);
+    }
+
+    // Remove any spurious spaces
+    deviceSpec = util_remove_spaces(deviceSpec);
+
+    return deviceSpec;
+}
+
 bool util_string_value_is_true(const char *value)
 {
-    if (value != nullptr)
+    switch (value ? value[0] : '\0')
     {
-        if (value[0] == '1' || value[0] == 'T' || value[0] == 't' || value[0] == 'Y' || value[0] == 'y')
+        case '1':
+        case 'T':
+        case 't':
+        case 'Y':
+        case 'y':
             return true;
+        default:
+            return false;
     }
-    return false;
 }
 
 bool util_string_value_is_true(std::string value)
