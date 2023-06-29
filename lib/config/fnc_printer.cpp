@@ -23,7 +23,7 @@ int fnConfig::get_printer_port(uint8_t num)
 // Saves printer type stored in configuration for printer slot
 void fnConfig::store_printer_type(uint8_t num, PRINTER_CLASS::printer_type ptype)
 {
-    Debug_printf("store_printer_type %d, %d\n", num, ptype);
+    Debug_printf("store_printer_type %d, %d\r\n", num, ptype);
     if (num < MAX_PRINTER_SLOTS)
     {
         if (_printer_slots[num].type != ptype)
@@ -37,7 +37,7 @@ void fnConfig::store_printer_type(uint8_t num, PRINTER_CLASS::printer_type ptype
 // Saves printer port stored in configuration for printer slot
 void fnConfig::store_printer_port(uint8_t num, int port)
 {
-    Debug_printf("store_printer_port %d, %d\n", num, port);
+    Debug_printf("store_printer_port %d, %d\r\n", num, port);
     if (num < MAX_PRINTER_SLOTS)
     {
         if (_printer_slots[num].port != port)
@@ -68,7 +68,7 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
                     type = PRINTER_CLASS::printer_type::PRINTER_INVALID;
 
                 _printer_slots[index].type = (PRINTER_CLASS::printer_type)type;
-                //Debug_printf("config printer %d type=%d\n", index, type);
+                //Debug_printf("config printer %d type=%d\r\n", index, type);
             }
             else if (strcasecmp(name.c_str(), "port") == 0)
             {
@@ -77,7 +77,7 @@ void fnConfig::_read_section_printer(std::stringstream &ss, int index)
                     port = 0;
 
                 _printer_slots[index].port = port;
-                //Debug_printf("config printer %d port=%d\n", index, port + 1);
+                //Debug_printf("config printer %d port=%d\r\n", index, port + 1);
             }
         }
     }

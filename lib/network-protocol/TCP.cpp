@@ -23,7 +23,7 @@
 NetworkProtocolTCP::NetworkProtocolTCP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
-    Debug_printf("NetworkProtocolTCP::ctor\n");
+    Debug_printf("NetworkProtocolTCP::ctor\r\n");
     server = nullptr;
 }
 
@@ -32,7 +32,7 @@ NetworkProtocolTCP::NetworkProtocolTCP(string *rx_buf, string *tx_buf, string *s
  */
 NetworkProtocolTCP::~NetworkProtocolTCP()
 {
-    Debug_printf("NetworkProtocolTCP::dtor\n");
+    Debug_printf("NetworkProtocolTCP::dtor\r\n");
 
     if (server != nullptr)
     {
@@ -60,7 +60,7 @@ bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
             ret = open_server(atoi(urlParser->port.c_str()));
         else
         {
-            Debug_printf("Empty socket enabled.\n");
+            Debug_printf("Empty socket enabled.\r\n");
             ret = false; // No error.
         }
     }
@@ -84,19 +84,19 @@ bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
  */
 bool NetworkProtocolTCP::close()
 {
-    Debug_printf("NetworkProtocolTCP::close()\n");
+    Debug_printf("NetworkProtocolTCP::close()\r\n");
 
     NetworkProtocol::close();
 
     if (client.connected())
     {
-        Debug_printf("Closing client socket.\n");
+        Debug_printf("Closing client socket.\r\n");
         client.stop();
     }
 
     if (server != nullptr)
     {
-        Debug_printf("Closing server socket.\n");
+        Debug_printf("Closing server socket.\r\n");
         server->stop();
     }
 
@@ -114,11 +114,11 @@ bool NetworkProtocolTCP::read(unsigned short len)
     uint8_t *newData = (uint8_t *)malloc(len);
     string newString;
 
-    Debug_printf("NetworkProtocolTCP::read(%u)\n", len);
+    Debug_printf("NetworkProtocolTCP::read(%u)\r\n", len);
 
     if (newData == nullptr)
     {
-        Debug_printf("Could not allocate %u bytes! Aborting!\n",len);
+        Debug_printf("Could not allocate %u bytes! Aborting!\r\n",len);
         return true; // error.
     }
 
@@ -144,7 +144,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
         }
         else if (actual_len != len) // Read was short and timed out.
         {
-            Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\n", actual_len, len);
+            Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\r\n", actual_len, len);
             error = NETWORK_ERROR_SOCKET_TIMEOUT;
             free(newData);
             return true;
@@ -170,7 +170,7 @@ bool NetworkProtocolTCP::write(unsigned short len)
 {
     int actual_len = 0;
 
-    Debug_printf("NetworkProtocolTCP::write(%u)\n", len);
+    Debug_printf("NetworkProtocolTCP::write(%u)\r\n", len);
 
     // Check for client connection
     if (!client.connected())
@@ -193,7 +193,7 @@ bool NetworkProtocolTCP::write(unsigned short len)
     }
     else if (actual_len != len) // write was short.
     {
-        Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\n", actual_len, len);
+        Debug_printf("Short send. We sent %u bytes, but asked to send %u bytes.\r\n", actual_len, len);
         error = NETWORK_ERROR_SOCKET_TIMEOUT;
         return true;
     }
@@ -247,7 +247,7 @@ void NetworkProtocolTCP::status_server(NetworkStatus *status)
  */
 uint8_t NetworkProtocolTCP::special_inquiry(uint8_t cmd)
 {
-    Debug_printf("NetworkProtocolTCP::special_inquiry(%02x)\n", cmd);
+    Debug_printf("NetworkProtocolTCP::special_inquiry(%02x)\r\n", cmd);
 
     switch (cmd)
     {
@@ -307,13 +307,13 @@ bool NetworkProtocolTCP::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
  */
 bool NetworkProtocolTCP::open_server(unsigned short port)
 {
-    Debug_printf("Binding to port %d\n", port);
+    Debug_printf("Binding to port %d\r\n", port);
 
     server = new fnTcpServer(port);
     server->begin(port);
     connectionIsServer = true;
 
-    Debug_printf("errno = %u\n", errno);
+    Debug_printf("errno = %u\r\n", errno);
 
     if (errno == 0)
         error = 1;
@@ -335,7 +335,7 @@ bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
 
     connectionIsServer = false;
 
-    Debug_printf("Connecting to host %s port %d\n", hostname.c_str(), port);
+    Debug_printf("Connecting to host %s port %d\r\n", hostname.c_str(), port);
 
     res = client.connect(hostname.c_str(), port);
 
@@ -355,7 +355,7 @@ bool NetworkProtocolTCP::special_accept_connection()
 {
     if (server == nullptr)
     {
-        Debug_printf("Attempted accept connection on NULL server socket. Aborting.\n");
+        Debug_printf("Attempted accept connection on NULL server socket. Aborting.\r\n");
         error = NETWORK_ERROR_SERVER_NOT_RUNNING;
         return true; // Error
     }
@@ -379,7 +379,7 @@ bool NetworkProtocolTCP::special_accept_connection()
         else
         {
             error = NETWORK_ERROR_CONNECTION_RESET;
-            Debug_printf("Client immediately disconnected.\n");
+            Debug_printf("Client immediately disconnected.\r\n");
             return true;
         }
     }
@@ -400,14 +400,14 @@ bool NetworkProtocolTCP::special_close_client_connection()
 
     if (server == nullptr)
     {
-        Debug_printf("Attempted close client connection on NULL server socket. Aborting.\n");
+        Debug_printf("Attempted close client connection on NULL server socket. Aborting.\r\n");
         error = NETWORK_ERROR_SERVER_NOT_RUNNING;
         return true; // Error
     }
 
     if (!client.connected())
     {
-        Debug_printf("Attempted close client with no client connected.\n");
+        Debug_printf("Attempted close client with no client connected.\r\n");
         error = NETWORK_ERROR_NOT_CONNECTED;
         return true;
     }
@@ -416,7 +416,7 @@ bool NetworkProtocolTCP::special_close_client_connection()
     remotePort = client.remotePort();
     remoteIPString = inet_ntoa(remoteIP);
 
-    Debug_printf("Disconnecting client %s:%u\n", remoteIPString, remotePort);
+    Debug_printf("Disconnecting client %s:%u\r\n", remoteIPString, remotePort);
 
     client.stop();
 

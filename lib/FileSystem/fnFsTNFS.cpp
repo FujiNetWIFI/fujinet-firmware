@@ -34,7 +34,7 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     _mountinfo.host_ip = get_ip4_addr_by_name(host);
     if(_mountinfo.host_ip == IPADDR_NONE)
     {
-        Debug_printf("Failed to resolve hostname \"%s\"\n", host);
+        Debug_printf("Failed to resolve hostname \"%s\"\r\n", host);
         return false;
     }
     // TODO: Refresh the DNS name we resolved after X amount of time
@@ -58,17 +58,17 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     else
         _mountinfo.password[0] = '\0';
 
-    Debug_printf("TNFS mount %s[%s]:%hu\n", _mountinfo.hostname, inet_ntoa(_mountinfo.host_ip), _mountinfo.port);
+    Debug_printf("TNFS mount %s[%s]:%hu\r\n", _mountinfo.hostname, inet_ntoa(_mountinfo.host_ip), _mountinfo.port);
 
     int r = tnfs_mount(&_mountinfo);
     if (r != TNFS_RESULT_SUCCESS)
     {
-        Debug_printf("TNFS mount failed with code %d\n", r);
+        Debug_printf("TNFS mount failed with code %d\r\n", r);
         _mountinfo.mountpath[0] = '\0';
         _started = false;
         return false;
     }
-    Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%04hx, min_retry: %hums\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
+    Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%04hx, min_retry: %hums\r\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
 
     // Register a new VFS driver to handle this connection
     if(vfs_tnfs_register(_mountinfo, _basepath, sizeof(_basepath)) != 0)

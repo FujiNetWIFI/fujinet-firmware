@@ -56,7 +56,7 @@ void MediaTypeXEX::_fake_vtoc()
 
     uint16_t freesectors = 0x2D0 - numsectors;
 
-    Debug_printf("num XEX sectors = %d\n", numsectors);
+    Debug_printf("num XEX sectors = %d\r\n", numsectors);
 
     memset(_disk_sectorbuff,0,sizeof(_disk_sectorbuff));
 
@@ -90,7 +90,7 @@ void MediaTypeXEX::_fake_directory_entry()
     uint16_t numsectors = _disk_image_size / data_per_sector;
     numsectors += _disk_image_size % data_per_sector > 0 ? 1 : 0;
 
-    Debug_printf("num XEX sectors = %d\n", numsectors);
+    Debug_printf("num XEX sectors = %d\r\n", numsectors);
 
     _disk_sectorbuff[0] = 0x46; // Entry in use; 16-bit sector links; created by DOS 2
 
@@ -116,7 +116,7 @@ void MediaTypeXEX::_fake_directory_entry()
 // Returns TRUE if an error condition occurred
 bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
 {
-    Debug_printf("XEX READ (%d)\n", sectornum);
+    Debug_printf("XEX READ (%d)\r\n", sectornum);
 
 
     memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
@@ -132,14 +132,14 @@ bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
 
         *readcount = BOOT_SECTOR_SIZE;
 
-        Debug_printf("copying %d bytes from bootloader\n", bootcopy);
+        Debug_printf("copying %d bytes from bootloader\r\n", bootcopy);
         memcpy(_disk_sectorbuff, _xex_bootloader + offset, bootcopy);
 
         // PicoBoot uses the first byte as a flag for whether it should read double or single density sectors
         // Single = 0x80, Double = 0x00
         if(SECTOR_SIZE == 256 && sectornum == 1 && _disk_sectorbuff[0] == 0x80)
         {
-            Debug_print("setting PicoBoot double density flag\n");
+            Debug_print("setting PicoBoot double density flag\r\n");
             _disk_sectorbuff[0] = 0x00;
         }
 
@@ -153,14 +153,14 @@ bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     // We're going to fake a DOS2.0 directory if we're seeking to the directory area
     if (sectornum == VTOC_SECTOR)
     {
-        Debug_printf("faking DOS 2 VTOC\n");
+        Debug_printf("faking DOS 2 VTOC\r\n");
         _fake_vtoc();
         _disk_last_sector = INVALID_SECTOR_VALUE;
         return false;
     }
     else if (sectornum >= DIRECTORY_START && sectornum <= DIRECTORY_END)
     {
-        Debug_print("faking DOS 2 directory\n");
+        Debug_print("faking DOS 2 directory\r\n");
         _fake_directory_entry();
         _disk_last_sector = INVALID_SECTOR_VALUE; // Reset this so we're forced to seek        
         return false;
@@ -173,15 +173,15 @@ bool MediaTypeXEX::read(uint16_t sectornum, uint16_t *readcount)
     // Perform a seek if we're not reading the sector after the last one we read
     if (sectornum != _disk_last_sector + 1)
     {
-        Debug_printf("seeking to offset %d in XEX\n", xex_offset);
+        Debug_printf("seeking to offset %d in XEX\r\n", xex_offset);
         err = fseek(_disk_fileh, xex_offset, SEEK_SET) != 0;
     }
 
     if (err == false)
     {
-        Debug_printf("requesting %d bytes from XEX\n", data_bytes);
+        Debug_printf("requesting %d bytes from XEX\r\n", data_bytes);
         int read = fread(_disk_sectorbuff, 1, data_bytes, _disk_fileh);
-        Debug_printf("received %d bytes\n", read);
+        Debug_printf("received %d bytes\r\n", read);
 
         // Fill in the sector link data pointing to the next sector
         if(read >= 0)
@@ -230,7 +230,7 @@ MediaTypeXEX::~MediaTypeXEX()
 
 mediatype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
 {
-    Debug_print("XEX MOUNT\n");
+    Debug_print("XEX MOUNT\r\n");
 
     _disktype = MEDIATYPE_UNKNOWN;
 
@@ -238,7 +238,7 @@ mediatype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
     _xex_bootloadersize = fnSystem.load_firmware(BOOTLOADER, &_xex_bootloader);
     if (_xex_bootloadersize < 0)
     {
-        Debug_printf("failed to load bootloader \"%s\"\n", BOOTLOADER);
+        Debug_printf("failed to load bootloader \"%s\"\r\n", BOOTLOADER);
         return _disktype;
     }
 
@@ -256,8 +256,8 @@ mediatype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
     if (_disk_num_sectors < 720)
         _disk_num_sectors = 720;
 
-    Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%d\n", _xex_bootloadersize, _disk_image_size);
-    Debug_printf("disk sectors = %d\n", _disk_num_sectors);
+    Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%d\r\n", _xex_bootloadersize, _disk_image_size);
+    Debug_printf("disk sectors = %d\r\n", _disk_num_sectors);
 
     return _disktype;
 }

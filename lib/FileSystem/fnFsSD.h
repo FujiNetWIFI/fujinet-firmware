@@ -27,7 +27,7 @@ public:
 
     bool rename(const char* pathFrom, const char* pathTo) override;
 
-    bool is_dir(const char *path);
+    bool is_dir(const char *path) override;
     bool mkdir(const char* path) override { return true; };
     bool rmdir(const char* path) override { return true; };
     bool dir_exists(const char* path) override { return true; };

@@ -24,9 +24,6 @@ public:
     
     TNFSFile(std::string path) {
 
-        parseUrl( path );
-        
-
         // Find full filename for wildcard
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
             seekEntry( name );
@@ -39,7 +36,7 @@ public:
         //Debug_printv("basepath[%s] path[%s] valid[%d]", basepath.c_str(), this->path.c_str(), m_isNull);
     };
     ~TNFSFile() {
-        //Serial.printf("*** Destroying flashfile %s\n", url.c_str());
+        //Serial.printf("*** Destroying flashfile %s\r\n", url.c_str());
         closeDir();
     }
 

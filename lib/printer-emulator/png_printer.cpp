@@ -271,7 +271,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         crc_value = rc_crc32(crc_value, c);
         fputc(c, _file);
 
-        //printf("new image\n");
+        //printf("new image\r\n");
     }
 
     uint32_t idx = 0;
@@ -309,7 +309,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
             crc_value = rc_crc32(crc_value, c);
             fputc(c, _file);
 
-            //printf("new block\n");
+            //printf("new block\r\n");
         }
 
         //at beginning of a line?
@@ -408,7 +408,7 @@ bool pngPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 {
 // copy buffer[] into linebuffer[]
 #ifdef DEBUG
-    Debug_printf("%d bytes rx'd by PNG printer\n", n);
+    Debug_printf("%d bytes rx'd by PNG printer\r\n", n);
 #endif
     uint16_t i = 0;
     while (i < n && img_pos < imgSize)
@@ -431,7 +431,7 @@ bool pngPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
             while (rep_code-- > 0)
             {
 #ifdef DEBUG
-                Debug_printf("Adding line %d\n", rep_code);
+                Debug_printf("Adding line %d\r\n", rep_code);
 #endif
                 png_add_data(&line_buffer[0], 320);
             }

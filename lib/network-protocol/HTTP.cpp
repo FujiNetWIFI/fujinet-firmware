@@ -75,7 +75,7 @@ bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
 {
     bool err = false;
 
-    Debug_printf("NetworkProtocolHTTP::special_set_channel_mode(%u)\n", httpChannelMode);
+    Debug_printf("NetworkProtocolHTTP::special_set_channel_mode(%u)\r\n", httpChannelMode);
 
     receiveBuffer->clear();
     transmitBuffer->clear();
@@ -109,7 +109,7 @@ bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolHTTP::open_file_handle()
 {
-    Debug_printf("NetworkProtocolHTTP::open_file_handle()\n");
+    Debug_printf("NetworkProtocolHTTP::open_file_handle()\r\n");
 
     error = NETWORK_ERROR_SUCCESS;
 
@@ -146,7 +146,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
     char *buf;
     unsigned short len, actual_len;
 
-    Debug_printf("NetworkProtocolHTTP::open_dir_handle()\n");
+    Debug_printf("NetworkProtocolHTTP::open_dir_handle()\r\n");
 
     if (client != nullptr)
     {
@@ -160,7 +160,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
 
     if (resultCode > 399)
     {
-        Debug_printf("Could not do PROPFIND. Result code %u\n", resultCode);
+        Debug_printf("Could not do PROPFIND. Result code %u\r\n", resultCode);
         fserror_to_error();
         return true;
     }
@@ -170,7 +170,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
 
     if (buf == nullptr)
     {
-        Debug_printf("Could not allocate %u bytes for PROPFIND data. Aborting\n", len);
+        Debug_printf("Could not allocate %u bytes for PROPFIND data. Aborting\r\n", len);
         error = NETWORK_ERROR_GENERAL;
         return true;
     }
@@ -180,7 +180,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
 
     if (actual_len != len)
     {
-        Debug_printf("Expected %u bytes, actually got %u bytes.\n", len, actual_len);
+        Debug_printf("Expected %u bytes, actually got %u bytes.\r\n", len, actual_len);
         error = NETWORK_ERROR_GENERAL;
         return true;
     }
@@ -188,7 +188,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
     // Parse the buffer
     if (parseDir(buf, len))
     {
-        Debug_printf("Could not parse buffer, returning 144\n");
+        Debug_printf("Could not parse buffer, returning 144\r\n");
         error = NETWORK_ERROR_GENERAL;
         return true;
     }
@@ -209,7 +209,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
 
 bool NetworkProtocolHTTP::mount(EdUrlParser *url)
 {
-    Debug_printf("NetworkProtocolHTTP::mount(%s)\n", url->toString().c_str());
+    Debug_printf("NetworkProtocolHTTP::mount(%s)\r\n", url->toString().c_str());
 
     // fix scheme because esp-idf hates uppercase for some #()$@ reason.
     if (url->scheme == "HTTP")
@@ -229,7 +229,7 @@ bool NetworkProtocolHTTP::mount(EdUrlParser *url)
 
 bool NetworkProtocolHTTP::umount()
 {
-    Debug_printf("NetworkProtocolHTTP::umount()\n");
+    Debug_printf("NetworkProtocolHTTP::umount()\r\n");
 
     if (client == nullptr)
         return false;
@@ -317,7 +317,7 @@ void NetworkProtocolHTTP::fserror_to_error()
 bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
 {
     // if (fromInterrupt == false)
-    //     Debug_printf("Channel mode is %u\n", httpChannelMode);
+    //     Debug_printf("Channel mode is %u\r\n", httpChannelMode);
 
     switch (httpChannelMode)
     {
@@ -348,7 +348,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
 
 bool NetworkProtocolHTTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
-    Debug_printf("NetworkProtocolHTTP::read_file_handle(%p,%u)\n", buf, len);
+    Debug_printf("NetworkProtocolHTTP::read_file_handle(%p,%u)\r\n", buf, len);
     switch (httpChannelMode)
     {
     case DATA:
@@ -375,7 +375,7 @@ bool NetworkProtocolHTTP::read_file_handle_data(uint8_t *buf, unsigned short len
 {
     int actual_len;
 
-    Debug_printf("NetworkProtocolHTTP::read_file_handle_data()\n");
+    Debug_printf("NetworkProtocolHTTP::read_file_handle_data()\r\n");
 
     if (resultCode == 0)
         http_transaction();
@@ -389,7 +389,7 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 {
     bool err = false;
 
-    Debug_printf("NetworkProtocolHTTP::read_dir_entry(%p,%u)\n", buf, len);
+    Debug_printf("NetworkProtocolHTTP::read_dir_entry(%p,%u)\r\n", buf, len);
 
     // TODO: Get directory attribute.
 
@@ -406,14 +406,14 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
         err = true;
     }
 
-    Debug_printf("Returning: %s, %u\n", buf, fileSize);
+    Debug_printf("Returning: %s, %u\r\n", buf, fileSize);
 
     return err;
 }
 
 bool NetworkProtocolHTTP::close_file_handle()
 {
-    Debug_printf("NetworkProtocolHTTP::close_file_Handle()\n");
+    Debug_printf("NetworkProtocolHTTP::close_file_Handle()\r\n");
 
     if (client != nullptr)
     {
@@ -428,13 +428,13 @@ bool NetworkProtocolHTTP::close_file_handle()
 
 bool NetworkProtocolHTTP::close_dir_handle()
 {
-    Debug_printf("NetworkProtocolHTTP::close_dir_handle()\n");
+    Debug_printf("NetworkProtocolHTTP::close_dir_handle()\r\n");
     return false;
 }
 
 bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
 {
-    Debug_printf("NetworkProtocolHTTP::write_file_handle(%p,%u)\n", buf, len);
+    Debug_printf("NetworkProtocolHTTP::write_file_handle(%p,%u)\r\n", buf, len);
 
     switch (httpChannelMode)
     {
@@ -464,7 +464,7 @@ bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned sh
 
         if (requestedHeader == nullptr)
         {
-            Debug_printf("Could not allocate %u bytes for header\n", len);
+            Debug_printf("Could not allocate %u bytes for header\r\n", len);
             return true;
         }
 
@@ -480,7 +480,7 @@ bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned sh
             else if (requestedHeader[i] == 0x0a)
                 requestedHeader[i] = 0x00;
 
-        Debug_printf("collect_headers[%u,%u] = \"%s\"\n", collect_headers_count, len, requestedHeader);
+        Debug_printf("collect_headers[%u,%u] = \"%s\"\r\n", collect_headers_count, len, requestedHeader);
 
         // Add result to header array.
         collect_headers[collect_headers_count++] = requestedHeader;
@@ -543,7 +543,7 @@ bool NetworkProtocolHTTP::stat()
     bool ret = false;
     return ret; // short circuit it for now.
 
-    Debug_printf("NetworkProtocolHTTP::stat(%s)\n", opened_url->toString().c_str());
+    Debug_printf("NetworkProtocolHTTP::stat(%s)\r\n", opened_url->toString().c_str());
 
     if (aux1_open != 4) // only for READ FILE
         return false;   // We don't care.
@@ -580,7 +580,7 @@ void NetworkProtocolHTTP::http_transaction()
 {
     if ((aux1_open != 4) && (aux1_open != 8) && (collect_headers_count > 0))
     {
-        Debug_printf("CALLING COLLECT HEADERS!\n");
+        Debug_printf("CALLING COLLECT HEADERS!\r\n");
         client->collect_headers((const char **)collect_headers, collect_headers_count);
     }
 
@@ -602,7 +602,7 @@ void NetworkProtocolHTTP::http_transaction()
 
     if ((aux1_open != 4) && (aux1_open != 8) && (collect_headers_count > 0))
     {
-        Debug_printf("Header count %u\n", client->get_header_count());
+        Debug_printf("Header count %u\r\n", client->get_header_count());
 
         for (int i = 0; i < client->get_header_count(); i++)
         {
@@ -623,12 +623,12 @@ bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
 
     if (p == nullptr)
     {
-        Debug_printf("NetworkProtocolHTTP::parseDir(%p,%u) - could not create expat parser. Aborting.\n");
+        Debug_printf("NetworkProtocolHTTP::parseDir(%p,%u) - could not create expat parser. Aborting.\r\n");
         return true;
     }
 
     // Put PROPFIND data to debug console
-    Debug_printf("PROPFIND DATA:\n\n%s\n", buf);
+    Debug_printf("PROPFIND DATA:\n\n%s\r\n", buf);
 
     // Set everything up
     XML_SetUserData(p, &webDAV);
@@ -640,7 +640,7 @@ bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
 
     if (xs == XML_STATUS_ERROR)
     {
-        Debug_printf("DAV response XML Parse Error! msg: %s line: %lu\n", XML_ErrorString(XML_GetErrorCode(p)), XML_GetCurrentLineNumber(p));
+        Debug_printf("DAV response XML Parse Error! msg: %s line: %lu\r\n", XML_ErrorString(XML_GetErrorCode(p)), XML_GetCurrentLineNumber(p));
     }
 
     if (p != nullptr)

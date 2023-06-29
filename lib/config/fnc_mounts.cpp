@@ -117,17 +117,17 @@ void fnConfig::_read_section_mount(std::stringstream &ss, int index)
                 if (slot < 0 || slot >= MAX_HOST_SLOTS)
                     slot = HOST_SLOT_INVALID;
                 _mount_slots[index].host_slot = slot;
-                //Debug_printf("config mount %d hostslot=%d\n", index, slot);
+                //Debug_printf("config mount %d hostslot=%d\r\n", index, slot);
             }
             else if (strcasecmp(name.c_str(), "mode") == 0)
             {
                 _mount_slots[index].mode = mount_mode_from_string(value.c_str());
-                //Debug_printf("config mount %d mode=%d (\"%s\")\n", index, _mount_slots[index].mode, value.c_str());
+                //Debug_printf("config mount %d mode=%d (\"%s\")\r\n", index, _mount_slots[index].mode, value.c_str());
             }
             else if (strcasecmp(name.c_str(), "path") == 0)
             {
                 _mount_slots[index].path = value;
-                //Debug_printf("config mount %d path=\"%s\"\n", index, value.c_str());
+                //Debug_printf("config mount %d path=\"%s\"\r\n", index, value.c_str());
             }
         }
     }
@@ -154,17 +154,17 @@ void fnConfig::_read_section_tape(std::stringstream &ss, int index)
                 if (slot < 0 || slot >= MAX_HOST_SLOTS)
                     slot = HOST_SLOT_INVALID;
                 _mount_slots[index].host_slot = slot;
-                //Debug_printf("config mount %d hostslot=%d\n", index, slot);
+                //Debug_printf("config mount %d hostslot=%d\r\n", index, slot);
             }
             else if (strcasecmp(name.c_str(), "mode") == 0)
             {
                 _mount_slots[index].mode = mount_mode_from_string(value.c_str());
-                //Debug_printf("config mount %d mode=%d (\"%s\")\n", index, _mount_slots[index].mode, value.c_str());
+                //Debug_printf("config mount %d mode=%d (\"%s\")\r\n", index, _mount_slots[index].mode, value.c_str());
             }
             else if (strcasecmp(name.c_str(), "path") == 0)
             {
                 _mount_slots[index].path = value;
-                //Debug_printf("config mount %d path=\"%s\"\n", index, value.c_str());
+                //Debug_printf("config mount %d path=\"%s\"\r\n", index, value.c_str());
             }
         }
     }

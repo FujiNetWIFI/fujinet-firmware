@@ -37,7 +37,7 @@ void iecPrinter::write(uint8_t channel)
         }
 
         _pptr->provideBuffer()[0]=(uint8_t)b;
-        _pptr->process(1, commanddata->channel, 0);
+        _pptr->process(1, commanddata.channel, 0);
         _last_ms=fnSystem.millis();
     }
 }
@@ -137,13 +137,13 @@ iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
 }
 
 // Process command
-device_state_t iecPrinter::process(IECData *id)
+device_state_t iecPrinter::process()
 {
     // Call base class
-    virtualDevice::process(id);
+    virtualDevice::process();
 
-    if (commanddata->primary == IEC_LISTEN)
-        write(commanddata->channel);
+    if (commanddata.primary == IEC_LISTEN)
+        write(commanddata.channel);
 
     return device_state;
 }

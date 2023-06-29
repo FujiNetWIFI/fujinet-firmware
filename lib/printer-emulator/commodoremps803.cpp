@@ -286,7 +286,7 @@ Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
     case 10:
         // Line Feed               CHR$(10)
         // DO A CR without reseting modes:
-        fprintf(_file, ")]TJ\n"); // close the line
+        fprintf(_file, ")]TJ\r\n"); // close the line
         pdf_X = 0; // CR
         BOLflag = true;
         pdf_new_line();

@@ -246,7 +246,7 @@ static int ssh_known_hosts_read_entries(const char *match,
         char *p = NULL;
 
         if (line[len] != '\n') {
-            len = strcspn(line, "\n");
+            len = strcspn(line, "\r\n");
         }
         line[len] = '\0';
 
@@ -935,7 +935,7 @@ int ssh_session_export_known_hosts_entry(ssh_session session,
     }
 
     snprintf(entry_buf, sizeof(entry_buf),
-                "%s %s %s\n",
+                "%s %s %s\r\n",
                 host,
                 server_pubkey->type_c,
                 b64_key);

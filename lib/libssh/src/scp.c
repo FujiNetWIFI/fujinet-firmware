@@ -370,7 +370,7 @@ int ssh_scp_push_directory(ssh_scp scp, const char *dirname, int mode)
 
     /* Use vis encoded directory name */
     snprintf(buffer, sizeof(buffer),
-             "D%s 0 %s\n",
+             "D%s 0 %s\r\n",
              perms, vis_encoded);
 
     SAFE_FREE(dir);
@@ -408,7 +408,7 @@ error:
  */
 int ssh_scp_leave_directory(ssh_scp scp)
 {
-    char buffer[] = "E\n";
+    char buffer[] = "E\r\n";
     int rc;
 
     if (scp == NULL) {
@@ -507,7 +507,7 @@ int ssh_scp_push_file64(ssh_scp scp, const char *filename, uint64_t size,
 
     /* Use vis encoded file name */
     snprintf(buffer, sizeof(buffer),
-             "C%s %" PRIu64 " %s\n",
+             "C%s %" PRIu64 " %s\r\n",
              perms, size, vis_encoded);
 
     SAFE_FREE(file);
@@ -894,7 +894,7 @@ int ssh_scp_deny_request(ssh_scp scp, const char *reason)
         return SSH_ERROR;
     }
 
-    snprintf(buffer, sizeof(buffer), "%c%s\n", 2, reason);
+    snprintf(buffer, sizeof(buffer), "%c%s\r\n", 2, reason);
     rc = ssh_channel_write(scp->channel, buffer, strlen(buffer));
     if (rc == SSH_ERROR) {
         return SSH_ERROR;

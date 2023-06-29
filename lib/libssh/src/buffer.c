@@ -83,21 +83,21 @@ static void buffer_verify(ssh_buffer buf)
 
     if (buf->used > buf->allocated) {
         fprintf(stderr,
-                "BUFFER ERROR: allocated %zu, used %zu\n",
+                "BUFFER ERROR: allocated %zu, used %zu\r\n",
                 buf->allocated,
                 buf->used);
         do_abort = true;
     }
     if (buf->pos > buf->used) {
         fprintf(stderr,
-                "BUFFER ERROR: position %zu, used %zu\n",
+                "BUFFER ERROR: position %zu, used %zu\r\n",
                 buf->pos,
                 buf->used);
         do_abort = true;
     }
     if (buf->pos > buf->allocated) {
         fprintf(stderr,
-                "BUFFER ERROR: position %zu, allocated %zu\n",
+                "BUFFER ERROR: position %zu, allocated %zu\r\n",
                 buf->pos,
                 buf->allocated);
         do_abort = true;

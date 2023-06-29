@@ -25,6 +25,8 @@
 // https://eden.mose.org.uk/gitweb/?p=rom-reverse.git;a=blob;f=src/vic-1541-sfd.asm;hb=HEAD
 // https://www.pagetable.com/docs/Inside%20Commodore%20DOS.pdf
 // http://www.ffd2.com/fridge/docs/1541dis.html#E853
+// http://unusedino.de/ec64/technical/aay/c1541/
+// http://unusedino.de/ec64/technical/aay/c1581/
 //
 
 #include <cstdint>
@@ -35,6 +37,7 @@
 #include <string>
 #include <map>
 #include <queue>
+#include <memory>
 #include <driver/gpio.h>
 #include "fnSystem.h"
 #include "protocol/iecProtocolBase.h"
@@ -173,7 +176,7 @@ protected:
     /**
      * @brief pointer to the current command data
      */
-    IECData *commanddata;
+    IECData commanddata;
 
     /**
      * @brief current device state.
@@ -215,11 +218,13 @@ protected:
     /**
      * @brief Get device ready to handle next phase of command.
      */
-    device_state_t queue_command(IECData *data)
+    device_state_t queue_command(IECData data)
     {
-        if (data->primary == IEC_LISTEN)
+        commanddata = data;
+
+        if (commanddata.primary == IEC_LISTEN)
             device_state = DEVICE_LISTEN;
-        else if (data->primary == IEC_TALK)
+        else if (commanddata.primary == IEC_TALK)
             device_state = DEVICE_TALK;
 
         return device_state;
@@ -228,10 +233,9 @@ protected:
     /**
      * @brief All IEC devices repeatedly call this routine to fan out to other methods for each command.
      *        This is typcially implemented as a switch() statement.
-     * @param commanddata The command data structure to pass
      * @return new device state.
      */
-    virtual device_state_t process(IECData *commanddata);
+    virtual device_state_t process();
 
     /**
      * @brief poll whether interrupt should be wiggled
@@ -310,7 +314,7 @@ private:
     /**
      * @brief the active bus protocol
      */
-    IecProtocolBase *protocol = NULL;
+    std::shared_ptr<IecProtocolBase> protocol = nullptr;
 
     /**
      * IEC LISTEN received
@@ -346,11 +350,6 @@ private:
      * @brief called to read bus payload bytes
     */
     void read_payload();
-
-    /**
-     * @brief Release the bus lines, we're done.
-     */
-    void releaseLines(bool wait = false);
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer
@@ -413,7 +412,12 @@ public:
      * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
      */
     void assert_interrupt();
-    
+
+    /**
+     * @brief Release the bus lines, we're done.
+     */
+    void releaseLines(bool wait = false);
+
     /**
      * @brief send single byte
      * @param c byte to send
@@ -473,6 +477,12 @@ public:
      * @param pDevice pointer to virtualDevice
      */
     void remDevice(virtualDevice *pDevice);
+
+    /**
+     * @brief Check if device is enabled
+     * @param deviceNumber The device ID to check
+     */
+    bool isDeviceEnabled ( const uint8_t device_id );
 
     /**
      * @brief Return pointer to device given ID

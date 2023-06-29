@@ -31,8 +31,8 @@ fnHttpClient::~fnHttpClient()
 
     if (_handle != nullptr)
     {
-        Debug_printf("esp_http_client_cleanup(%p)\n",_handle);
-        Debug_printf("free heap: %lu\n",esp_get_free_heap_size());
+        Debug_printf("esp_http_client_cleanup(%p)\r\n",_handle);
+        Debug_printf("free heap: %lu\r\n",esp_get_free_heap_size());
         esp_http_client_cleanup(_handle);
     }
 
@@ -42,7 +42,7 @@ fnHttpClient::~fnHttpClient()
 // Start an HTTP client session to the given URL
 bool fnHttpClient::begin(std::string url)
 {
-    Debug_printf("fnHttpClient::begin \"%s\"\n", url.c_str());
+    Debug_printf("fnHttpClient::begin \"%s\"\r\n", url.c_str());
 
     esp_http_client_config_t cfg;
     memset(&cfg, 0, sizeof(cfg));
@@ -104,7 +104,7 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         bytes_left = _buffer_len - _buffer_pos;
         bytes_to_copy = dest_bufflen > bytes_left ? bytes_left : dest_bufflen;
 
-        //Debug_printf("::read from buffer %d\n", bytes_to_copy);
+        //Debug_printf("::read from buffer %d\r\n", bytes_to_copy);
         memcpy(dest_buffer, _buffer + _buffer_pos, bytes_to_copy);
         _buffer_pos += bytes_to_copy;
         _buffer_total_read += bytes_to_copy;
@@ -156,7 +156,7 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         int dest_size = dest_bufflen - bytes_copied;
         bytes_to_copy = dest_size > _buffer_len ? _buffer_len : dest_size;
 
-        //Debug_printf("dest_size=%d, dest_bufflen=%d, bytes_copied=%d, bytes_to_copy=%d\n",
+        //Debug_printf("dest_size=%d, dest_bufflen=%d, bytes_copied=%d, bytes_to_copy=%d\r\n",
                      //dest_size, dest_bufflen, bytes_copied, bytes_to_copy);
 
         memcpy(dest_buffer + bytes_copied, _buffer, bytes_to_copy);
@@ -234,25 +234,25 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     {
     case HTTP_EVENT_ERROR: // This event occurs when there are any errors during execution
 #ifdef VERBOSE_HTTP
-        Debug_printf("HTTP_EVENT_ERROR %u\n", uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_ERROR %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
 #endif
         break;
     case HTTP_EVENT_ON_CONNECTED: // Once the HTTP has been connected to the server, no data exchange has been performed
 #ifdef VERBOSE_HTTP
-        Debug_printf("HTTP_EVENT_ON_CONNECTED %u\n", uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_ON_CONNECTED %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
 #endif
         client->connected = true;
         break;
     case HTTP_EVENT_HEADER_SENT: // After sending all the headers to the server
 #ifdef VERBOSE_HTTP
-        Debug_printf("HTTP_EVENT_HEADER_SENT %u\n", uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_HEADER_SENT %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
 #endif
         break;
 
     case HTTP_EVENT_ON_HEADER: // Occurs when receiving each header sent from the server
     {
 #ifdef VERBOSE_HTTP
-        Debug_printf("HTTP_EVENT_ON_HEADER %u\n", uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_ON_HEADER %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
 #endif
         // Check to see if we should store this response header
         if (client->_stored_headers.size() <= 0)
@@ -270,7 +270,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     case HTTP_EVENT_ON_DATA: // Occurs multiple times when receiving body data from the server. MAY BE SKIPPED IF BODY IS EMPTY!
     {
 #ifdef VERBOSE_HTTP
-        Debug_printf("HTTP_EVENT_ON_DATA %u\n", uxTaskGetStackHighWaterMark(nullptr));
+        Debug_printf("HTTP_EVENT_ON_DATA %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
 #endif
         // Don't do any of this if we're told to ignore the response
         if (client->_ignore_response_body == true)
@@ -319,7 +319,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
         ulTaskNotifyTake(1, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_CONSUMER_TASK));
 
 #ifdef VERBOSE_HTTP
-       Debug_printf("HTTP_EVENT_ON_DATA: Data: %p, Datalen: %d\n", evt->data, evt->data_len);
+       Debug_printf("HTTP_EVENT_ON_DATA: Data: %p, Datalen: %d\r\n", evt->data, evt->data_len);
 #endif
 
         client->_buffer_pos = 0;
@@ -334,7 +334,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     case HTTP_EVENT_ON_FINISH: // Occurs when finish a HTTP session
     {
         // This may get called more than once if esp_http_client decides to retry in order to handle a redirect or auth response
-        //Debug_printf("HTTP_EVENT_ON_FINISH %u\n", uxTaskGetStackHighWaterMark(nullptr));
+        //Debug_printf("HTTP_EVENT_ON_FINISH %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
         // Keep track of how many times we "finish" reading a response from the server
         client->_redirect_count++;
         break;
@@ -342,7 +342,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
 
     case HTTP_EVENT_DISCONNECTED: // The connection has been disconnected
         client->connected = false;
-        //Debug_printf("HTTP_EVENT_DISCONNECTED %p:\"%s\":%u\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
+        //Debug_printf("HTTP_EVENT_DISCONNECTED %p:\"%s\":%u\r\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
         break;
     }
     return ESP_OK;
@@ -358,10 +358,10 @@ void fnHttpClient::_perform_subtask(void *param)
     parent->_redirect_count = 0;
     parent->_buffer_len = 0;
 
-    //Debug_printf("esp_http_client_perform start\n");
+    //Debug_printf("esp_http_client_perform start\r\n");
 
     esp_err_t e = esp_http_client_perform(parent->_handle);
-    Debug_printf("esp_http_client_perform returned %d, stack HWM %u\n", e, uxTaskGetStackHighWaterMark(nullptr));
+    Debug_printf("esp_http_client_perform returned %d, stack HWM %u\r\n", e, uxTaskGetStackHighWaterMark(nullptr));
 
     // Save error
     parent->_client_err = e;
@@ -410,7 +410,7 @@ void fnHttpClient::_delete_subtask_if_running()
 */
 int fnHttpClient::_perform()
 {
-    Debug_printf("%08lx _perform\n", fnSystem.millis());
+    Debug_printf("%08lx _perform\r\n", fnSystem.millis());
 
     _buffer_total_read = 0;
 
@@ -423,17 +423,17 @@ int fnHttpClient::_perform()
     // Start a new task to perform the http client work
     _delete_subtask_if_running();
     xTaskCreate(_perform_subtask, "perform_subtask", 4096, this, 5, &_taskh_subtask);
-    //Debug_printf("%08lx _perform subtask created\n", fnSystem.millis());
+    //Debug_printf("%08lx _perform subtask created\r\n", fnSystem.millis());
 
     // Wait until we have headers returned
     if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) == 0)
     {
-        Debug_printf("Timed-out waiting for headers to load\n");
+        Debug_printf("Timed-out waiting for headers to load\r\n");
         //_delete_subtask_if_running();
         return -1;
     }
-    //Debug_printf("%08lx _perform notified\n", fnSystem.millis());
-    //Debug_printf("Notification of headers loaded\n");
+    //Debug_printf("%08lx _perform notified\r\n", fnSystem.millis());
+    //Debug_printf("Notification of headers loaded\r\n");
 
     bool chunked = esp_http_client_is_chunked_response(_handle);
     int length = esp_http_client_get_content_length(_handle);
@@ -452,12 +452,12 @@ int fnHttpClient::_perform()
         break;
     default:
         status = esp_http_client_get_status_code(_handle);
-        Debug_printf("esp_http_client_get_status_code = %u\n",status);
+        Debug_printf("esp_http_client_get_status_code = %u\r\n",status);
         // Other error, use fake HTTP status code 900
         // it will be translated to NETWORK_ERROR_GENERAL (144) in NetworkProtocolHTTP::fserror_to_error()
         if (status < 0) status = 900;
     }
-    Debug_printf("%08lx _perform status = %d, length = %d, chunked = %d\n", fnSystem.millis(), status, length, chunked ? 1 : 0);
+    Debug_printf("%08lx _perform status = %d, length = %d, chunked = %d\r\n", fnSystem.millis(), status, length, chunked ? 1 : 0);
     return status;
 }
 
@@ -469,7 +469,7 @@ int fnHttpClient::_perform()
 */
 int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size)
 {
-    Debug_printf("%08lx _perform_stream\n", fnSystem.millis());
+    Debug_printf("%08lx _perform_stream\r\n", fnSystem.millis());
 
     if (_handle == nullptr)
         return -1;
@@ -494,25 +494,25 @@ int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *writ
         set_header("Content-Length", buff);
     }
 
-    Debug_printf("%08lx _perform_write open+write\n", fnSystem.millis());
+    Debug_printf("%08lx _perform_write open+write\r\n", fnSystem.millis());
     e = esp_http_client_open(_handle, write_size);
     if (e != ESP_OK)
     {
-        Debug_printf("_perform_write error %d during open\n", e);
+        Debug_printf("_perform_write error %d during open\r\n", e);
         return -1;
     }
 
     e = esp_http_client_write(_handle, (char *)write_data, write_size);
     if (e < 0)
     {
-        Debug_printf("_perform_write error during write\n");
+        Debug_printf("_perform_write error during write\r\n");
         return -1;
     }
 
     e = esp_http_client_fetch_headers(_handle);
     if (e < 0)
     {
-        Debug_printf("_perform_write error during fetch headers\n");
+        Debug_printf("_perform_write error during fetch headers\r\n");
         return -1;
     }
 
@@ -520,14 +520,14 @@ int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *writ
     bool chunked = esp_http_client_is_chunked_response(_handle);
     int status = esp_http_client_get_status_code(_handle);
     int length = esp_http_client_get_content_length(_handle);
-    Debug_printf("status = %d, length = %d, chunked = %d\n", status, length, chunked ? 1 : 0);
+    Debug_printf("status = %d, length = %d, chunked = %d\r\n", status, length, chunked ? 1 : 0);
 
     // Read any returned data
     int r = esp_http_client_read(_handle, _buffer, DEFAULT_HTTP_BUF_SIZE);
     if (r > 0)
     {
         _buffer_len = r;
-        Debug_printf("_perform_write read %d bytes\n", r);
+        Debug_printf("_perform_write read %d bytes\r\n", r);
     }
 
     return status;
@@ -713,7 +713,7 @@ bool fnHttpClient::set_header(const char *header_key, const char *header_value)
     esp_err_t e = esp_http_client_set_header(_handle, header_key, header_value);
     if (e != ESP_OK)
     {
-        Debug_printf("fnHttpClient::set_header error %d\n", e);
+        Debug_printf("fnHttpClient::set_header error %d\r\n", e);
         return false;
     }
     return true;
