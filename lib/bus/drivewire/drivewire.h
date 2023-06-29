@@ -1,3 +1,15 @@
+//
+// https://sourceforge.net/projects/drivewireserver/
+// https://github.com/qbancoffee/drivewire4
+// https://github.com/n6il/toolshed/tree/master/hdbdos
+//
+// https://github.com/MyTDT-Mysoft/COCO-FastLoader
+//
+// https://www.cocopedia.com/wiki/index.php/Main_Page
+// https://github.com/qbancoffee/coco_motherboards
+// https://archive.worldofdragon.org/index.php?title=Main_Page
+//
+
 #ifndef COCO_H
 #define COCO_H
 

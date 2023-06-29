@@ -51,7 +51,7 @@ void drivewireCPM::drivewire_handle_cpm()
 
 void drivewireCPM::init_cpm(int baud)
 {
-    // fnUartSIO.set_baudrate(baud);
+    // fnUartBUS.set_baudrate(baud);
     // Status = Debug = 0;
     // Break = Step = -1;
     // RAM = (uint8_t *)malloc(MEMSIZE);

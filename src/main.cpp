@@ -112,7 +112,7 @@ void main_setup()
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
     sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-    sioR->set_uart(&fnUartSIO);
+    sioR->set_uart(&fnUartBUS);
 
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 

@@ -32,8 +32,8 @@ void virtualDevice::rc2014_send(uint8_t b)
         fnSystem.yield();
     }
 
-    fnUartSIO.write(b);
-    fnUartSIO.flush();
+    fnUartBUS.write(b);
+    fnUartBUS.flush();
 }
 
 void virtualDevice::rc2014_send_string(const std::string& str)
@@ -50,7 +50,7 @@ void virtualDevice::rc2014_send_int(const int i)
 
 void virtualDevice::rc2014_flush()
 {
-    fnUartSIO.flush();
+    fnUartBUS.flush();
 }
 
 
@@ -68,15 +68,15 @@ size_t virtualDevice::rc2014_send_buffer(const uint8_t *buf, unsigned short len)
 
 uint8_t virtualDevice::rc2014_recv()
 {
-    while (fnUartSIO.available() <= 0)
+    while (fnUartBUS.available() <= 0)
         fnSystem.yield();
 
-    return fnUartSIO.read();
+    return fnUartBUS.read();
 }
 
 int virtualDevice::rc2014_recv_available()
 {
-    return fnUartSIO.available();
+    return fnUartBUS.available();
 }
 
 bool virtualDevice::rc2014_recv_timeout(uint8_t *b, uint64_t dur)
@@ -101,10 +101,10 @@ void virtualDevice::rc2014_send_length(uint16_t l)
 
 unsigned short virtualDevice::rc2014_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    while (fnUartSIO.available() <= 0)
+    while (fnUartBUS.available() <= 0)
         fnSystem.yield();
 
-    return fnUartSIO.readBytes(buf, len);
+    return fnUartBUS.readBytes(buf, len);
 }
 
 uint32_t virtualDevice::rc2014_recv_blockno()
@@ -177,7 +177,7 @@ void virtualDevice::rc2014_response_status()
 
 void virtualDevice::rc2014_handle_stream()
 {
-    fnUartSIO.flush_input();
+    fnUartBUS.flush_input();
 }
 
 void virtualDevice::rc2014_idle()
@@ -199,7 +199,7 @@ void systemBus::_rc2014_process_cmd()
     tempFrame.commanddata = 0;
     tempFrame.checksum = 0;
 
-    size_t bytes_read = fnUartSIO.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame));
+    size_t bytes_read = fnUartBUS.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame));
 
     if (bytes_read != sizeof(tempFrame))
     {
@@ -286,7 +286,7 @@ void systemBus::service()
     // Neither CMD nor active streaming device, so throw out any stray input data
     {
         //Debug_println("RS232 Srvc Flush");
-        fnUartSIO.flush_input();
+        fnUartBUS.flush_input();
     }
 
 #if 0
@@ -303,7 +303,7 @@ void systemBus::setup()
 {
     Debug_println("RC2014 SETUP");
 // Set up UART
-    fnUartSIO.begin(RC2014SIO_BAUDRATE);
+    fnUartBUS.begin(RC2014SIO_BAUDRATE);
 
     // CMD PIN
     fnSystem.set_pin_mode(PIN_CMD, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
@@ -315,7 +315,7 @@ void systemBus::setup()
     //qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
 
     Debug_println("RC2014 Setup Flush");
-    fnUartSIO.flush_input();
+    fnUartBUS.flush_input();
 }
 
 void systemBus::shutdown()

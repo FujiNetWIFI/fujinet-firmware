@@ -58,7 +58,7 @@ void rc2014CPM::rc2014_handle_cpm()
 
 void rc2014CPM::init_cpm(int baud)
 {
-    fnUartSIO.set_baudrate(baud);
+    fnUartBUS.set_baudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);
