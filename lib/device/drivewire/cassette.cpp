@@ -133,7 +133,7 @@ int8_t softUART::service(uint8_t b)
 //************************************************************************************************************
 // ***** nerd at work! ******
 
-void sioCassette::close_cassette_file()
+void drivewireCassette::close_cassette_file()
 {
     // for closing files used for writing
     if (_file != nullptr)
@@ -145,7 +145,7 @@ void sioCassette::close_cassette_file()
     }
 }
 
-void sioCassette::open_cassette_file(FileSystem *_FS)
+void drivewireCassette::open_cassette_file(FileSystem *_FS)
 {
     // to open files for writing
     char fn[32];
@@ -177,7 +177,7 @@ void sioCassette::open_cassette_file(FileSystem *_FS)
 //************************************************************************************************************
 
 
-void sioCassette::umount_cassette_file()
+void drivewireCassette::umount_cassette_file()
 {
 #ifdef DEBUG
         Debug_println("CAS file closed.");
@@ -185,7 +185,7 @@ void sioCassette::umount_cassette_file()
         _mounted = false;
 }
 
-void sioCassette::mount_cassette_file(FILE *f, size_t fz)
+void drivewireCassette::mount_cassette_file(FILE *f, size_t fz)
 {
 
     tape_offset = 0;
@@ -194,12 +194,12 @@ void sioCassette::mount_cassette_file(FILE *f, size_t fz)
         Debug_printf("Cassette image filesize = %u\n", fz);
         _file = f;
         filesize = fz;
-        check_for_FUJI_file();
+        check_for_file();
     }
     else
     {
         // CONFIG does not mount a CAS file for writing - only read only.
-        // disk mount (mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type))
+        // disk mount (mediatype_t drivewireDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type))
         // mounts a CAS file by calling this function.
         // There is no facility to specify an output file for writing to C: or CSAVE
         // so instead of using the file mounted in slot 8 by CONFIG, create an output file with some serial number
@@ -210,7 +210,7 @@ void sioCassette::mount_cassette_file(FILE *f, size_t fz)
     _mounted = true;
 }
 
-void sioCassette::sio_enable_cassette()
+void drivewireCassette::drivewire_enable_cassette()
 {
     cassetteActive = true;
 
@@ -260,7 +260,7 @@ void sioCassette::sio_enable_cassette()
 #endif
 }
 
-void sioCassette::sio_disable_cassette()
+void drivewireCassette::drivewire_disable_cassette()
 {
     if (cassetteActive)
     {
@@ -279,34 +279,34 @@ void sioCassette::sio_disable_cassette()
     }
 }
 
-void sioCassette::sio_handle_cassette()
+void drivewireCassette::drivewire_handle_cassette()
 {
     if (cassetteMode == cassette_mode_t::playback)
     {
         if (tape_flags.FUJI)
-            tape_offset = send_FUJI_tape_block(tape_offset);
+            tape_offset = send_tape_block(tape_offset);
         else
             tape_offset = send_tape_block(tape_offset);
 
         // if after trying to send data, still at the start, then turn off tape
         if (tape_offset == 0 || !cassetteActive)
         {
-            sio_disable_cassette();
+            drivewire_disable_cassette();
         }
     }
     else if (cassetteMode == cassette_mode_t::record)
     {
-        tape_offset = receive_FUJI_tape_block(tape_offset);
+        tape_offset = receive_tape_block(tape_offset);
     }
 }
 
-void sioCassette::rewind()
+void drivewireCassette::rewind()
 {
     // Is this all that's needed? -tschak
     tape_offset = 0;
 }
 
-void sioCassette::set_buttons(bool play_record)
+void drivewireCassette::set_buttons(bool play_record)
 {
     if (!play_record)
         cassetteMode = cassette_mode_t::playback;
@@ -314,17 +314,17 @@ void sioCassette::set_buttons(bool play_record)
         cassetteMode = cassette_mode_t::record;
 }
 
-bool sioCassette::get_buttons()
+bool drivewireCassette::get_buttons()
 {
     return (cassetteMode == cassette_mode_t::playback);
 }
 
-void sioCassette::set_pulldown(bool resistor)
+void drivewireCassette::set_pulldown(bool resistor)
 {
             pulldown = resistor;
 }
 
-void sioCassette::Clear_atari_sector_buffer(uint16_t len)
+void drivewireCassette::Clear_atari_sector_buffer(uint16_t len)
 {
     //Maze atari_sector_buffer
     unsigned char *ptr;
@@ -336,7 +336,7 @@ void sioCassette::Clear_atari_sector_buffer(uint16_t len)
     } while (len);
 }
 
-size_t sioCassette::send_tape_block(size_t offset)
+size_t drivewireCassette::send_tape_block(size_t offset)
 {
     unsigned char *p = atari_sector_buffer + BLOCK_LEN - 1;
     unsigned char i, r;
@@ -385,21 +385,21 @@ size_t sioCassette::send_tape_block(size_t offset)
     // USART_Send_Buffer(atari_sector_buffer, BLOCK_LEN + 3);
     fnUartBUS.write(atari_sector_buffer, BLOCK_LEN + 3);
     //USART_Transmit_Byte(get_checksum(atari_sector_buffer, BLOCK_LEN + 3));
-    fnUartBUS.write(sio_checksum(atari_sector_buffer, BLOCK_LEN + 3));
+    fnUartBUS.write(drivewire_checksum(atari_sector_buffer, BLOCK_LEN + 3));
     fnUartBUS.flush(); // wait for all data to be sent just like a tape
     // _delay_ms(300); //PRG(0-N) + PRWT(0.25s) delay
     fnSystem.delay(300);
     return (offset);
 }
 
-void sioCassette::check_for_FUJI_file()
+void drivewireCassette::check_for_file()
 {
-    struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
+    struct tape_hdr *hdr = (struct tape_hdr *)atari_sector_buffer;
     uint8_t *p = hdr->chunk_type;
 
-    // faccess_offset(FILE_ACCESS_READ, 0, sizeof(struct tape_FUJI_hdr));
+    // faccess_offset(FILE_ACCESS_READ, 0, sizeof(struct tape_hdr));
     fseek(_file, 0, SEEK_SET);
-    fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+    fread(atari_sector_buffer, 1, sizeof(struct tape_hdr), _file);
     if (p[0] == 'F' && //search for FUJI header
         p[1] == 'U' &&
         p[2] == 'J' &&
@@ -425,13 +425,13 @@ void sioCassette::check_for_FUJI_file()
     return;
 }
 
-size_t sioCassette::send_FUJI_tape_block(size_t offset)
+size_t drivewireCassette::send_tape_block(size_t offset)
 {
     size_t r;
     uint16_t gap, len;
     uint16_t buflen = 256;
     unsigned char first = 1;
-    struct tape_FUJI_hdr *hdr = (struct tape_FUJI_hdr *)atari_sector_buffer;
+    struct tape_hdr *hdr = (struct tape_hdr *)atari_sector_buffer;
     uint8_t *p = hdr->chunk_type;
 
     size_t starting_offset = offset;
@@ -443,7 +443,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
         Debug_printf("Offset: %u\r\n", offset);
 #endif
         fseek(_file, offset, SEEK_SET);
-        fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
+        fread(atari_sector_buffer, 1, sizeof(struct tape_hdr), _file);
         len = hdr->chunk_length;
 
         if (p[0] == 'd' && //is a data header?
@@ -464,7 +464,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             baud = hdr->irg_length;
             fnUartBUS.set_baudrate(baud);
         }
-        offset += sizeof(struct tape_FUJI_hdr) + len;
+        offset += sizeof(struct tape_hdr) + len;
     }
 
     // TO DO : check that "data" record was actually found - not done by SDrive until after IRG by checking offset<filesize
@@ -500,7 +500,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
         Debug_printf("Block %u\r\n", block);
 #endif
         // read block in 256 byte (or fewer) chunks
-        offset += sizeof(struct tape_FUJI_hdr); //skip chunk hdr
+        offset += sizeof(struct tape_hdr); //skip chunk hdr
         while (len)
         {
             if (len > 256)
@@ -551,7 +551,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
     return (offset);
 }
 
-size_t sioCassette::receive_FUJI_tape_block(size_t offset)
+size_t drivewireCassette::receive_tape_block(size_t offset)
 {
     Debug_println("Start listening for tape block from Atari");
     Clear_atari_sector_buffer(BLOCK_LEN + 4);
@@ -633,7 +633,7 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     return offset;
 }
 
-uint8_t sioCassette::decode_fsk()
+uint8_t drivewireCassette::decode_fsk()
 {
     // take "delta" set in the IRQ and set the demodulator output
 

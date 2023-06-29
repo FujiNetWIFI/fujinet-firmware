@@ -5,7 +5,9 @@
 #include <cstring>
 
 #include "bus.h"
+#include "disk.h"
 #include "network.h"
+#include "cassette.h"
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
@@ -59,6 +61,8 @@ private:
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
+
+    drivewireCassette _cassetteDev;
 
     int _current_open_directory_slot = -1;
 
@@ -121,6 +125,7 @@ public:
 
     drivewireNetwork *network();
 
+    drivewireCassette *cassette() { return &_cassetteDev; };
     void debug_tape();
 
     void insert_boot_device(uint8_t d);
