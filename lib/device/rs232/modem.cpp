@@ -24,7 +24,7 @@
 #define RS232_MODEMCMD_SET_DUMP 0x44
 #define RS232_MODEMCMD_LISTEN 0x4C
 #define RS232_MODEMCMD_UNLISTEN 0x4D
-#define RS232_MODEMCMD_BAUDLOCK 0x4E
+#define RS232_MODEMCMD_BAUDRATELOCK 0x4E
 #define RS232_MODEMCMD_AUTOANSWER 0x4F
 #define RS232_MODEMCMD_STATUS 0x53
 #define RS232_MODEMCMD_WRITE 0x57
@@ -1849,7 +1849,7 @@ void rs232Modem::rs232_process(uint32_t commanddata, uint8_t checksum)
         case RS232_MODEMCMD_UNLISTEN:
             rs232_unlisten();
             break;
-        case RS232_MODEMCMD_BAUDLOCK:
+        case RS232_MODEMCMD_BAUDRATELOCK:
             rs232_baudlock();
             break;
         case RS232_MODEMCMD_AUTOANSWER:
