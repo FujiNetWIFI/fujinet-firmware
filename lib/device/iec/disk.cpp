@@ -9,6 +9,8 @@
 #include "../../include/debug.h"
 #include "../../include/cbm_defines.h"
 
+#include "make_unique.h"
+
 #include "fuji.h"
 #include "fnFsSD.h"
 #include "led.h"
@@ -56,7 +58,7 @@ void iecDisk::format()
 mediatype_t iecDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     // TODO IMPLEMENT
-    _base.reset( MFSOwner::File(filename) );
+    // _base.reset( MFSOwner::File(filename) );
 
     return MEDIATYPE_UNKNOWN; // MEDIATYPE_UNKNOWN
 }
@@ -71,7 +73,7 @@ iecDisk::~iecDisk()
 // Unmount disk file
 void iecDisk::unmount()
 {
-    Debug_print("disk UNMOUNT\n");
+    Debug_print("disk UNMOUNT\r\n");
 
     if (_base != nullptr)
     {
@@ -89,13 +91,14 @@ bool iecDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 
 
 // Process command
-device_state_t iecDisk::process(IECData *id)
+device_state_t iecDisk::process()
 {
-    virtualDevice::process(id);
+    virtualDevice::process();
 
-    Debug_printv("channel[%d]", commanddata->channel);
+    Debug_printv("channel[%d]", commanddata.channel);
 
-    switch (commanddata->channel)
+
+    switch (commanddata.channel)
     {
     case CHANNEL_LOAD: // LOAD
         process_load();
@@ -111,14 +114,14 @@ device_state_t iecDisk::process(IECData *id)
         break;
     }
 
-    Debug_printv("url[%s]", _base->url.c_str());
+    Debug_printv("url[%s] device_state[%d]", _base->url.c_str(), device_state);
     return device_state;
 }
 
 void iecDisk::process_load()
 {
-    Debug_printv("secondary[%.2X]", commanddata->secondary);
-    switch (commanddata->secondary)
+    Debug_printv("secondary[%.2X]", commanddata.secondary);
+    switch (commanddata.secondary)
     {
     case IEC_OPEN:
         iec_open();
@@ -136,8 +139,8 @@ void iecDisk::process_load()
 
 void iecDisk::process_save()
 {
-    Debug_printv("secondary[%.2X]", commanddata->secondary);
-    switch (commanddata->secondary)
+    Debug_printv("secondary[%.2X]", commanddata.secondary);
+    switch (commanddata.secondary)
     {
     case IEC_OPEN:
         iec_open();
@@ -155,21 +158,24 @@ void iecDisk::process_save()
 
 void iecDisk::process_command()
 {
-    Debug_printv("primary[%.2X] secondary[%.2X]", commanddata->primary, commanddata->secondary);
-    if (commanddata->primary == IEC_TALK) // && commanddata->secondary == IEC_REOPEN)
+    Debug_printv("primary[%.2X] secondary[%.2X]", commanddata.primary, commanddata.secondary);
+    if (commanddata.primary == IEC_TALK) // && commanddata.secondary == IEC_REOPEN)
     {
         iec_talk_command();
     }
-    else if (commanddata->primary == IEC_LISTEN)
+    else if (commanddata.primary == IEC_UNLISTEN)
     {
+        if (commanddata.secondary == IEC_CLOSE)
+            iec_close();
+        else
         iec_command();
     }
 }
 
 void iecDisk::process_channel()
 {
-    Debug_printv("secondary[%.2X]", commanddata->secondary);
-    switch (commanddata->secondary)
+    //Debug_printv("secondary[%.2X]", commanddata.secondary);
+    switch (commanddata.secondary)
     {
     case IEC_OPEN:
         iec_open();
@@ -191,6 +197,8 @@ void iecDisk::iec_open()
     std::string s = payload;
     mstr::toASCII(s);
 
+    Debug_printv("s[%s]", s.c_str());
+
     if ( mstr::startsWith(s, "0:") )
     {
         // Remove media ID from command string
@@ -202,22 +210,23 @@ void iecDisk::iec_open()
         if ( s[0] == ':' || s[0] == ' ' )
             s = mstr::drop(s, 1);
     }
-    else if ( s[0] == '$' ) 
-    {
-        s.clear();
-    }
 
     if ( s.length() )
     {
-        _base.reset( _base->cd( s ) );
+        if ( s[0] == '$' ) 
+            s.clear();
+
+        auto n = _base->cd( s );
+        if ( n != nullptr )
+            _base.reset( n );
 
         Debug_printv("_base[%s]", _base->url.c_str());
         if ( !_base->isDirectory() )
         {
-            if ( !registerStream(commanddata->channel) )
+            if ( !registerStream(commanddata.channel) )
             {
                 Debug_printv("File Doesn't Exist [%s]", s.c_str());
-                _base.reset( MFSOwner::File( _base->base() ) );
+                //_base.reset( MFSOwner::File( _base->base() ) );
             }
         }
     }
@@ -232,7 +241,10 @@ void iecDisk::iec_close()
     }
     Debug_printv("url[%s]", _base->url.c_str());
 
-    closeStream( commanddata->channel );
+    closeStream( commanddata.channel );
+    commanddata.init();
+    device_state = DEVICE_IDLE;
+    Debug_printv("device init");
 }
 
 void iecDisk::iec_reopen_load()
@@ -262,8 +274,8 @@ void iecDisk::iec_reopen_save()
 
 void iecDisk::iec_reopen_channel()
 {
-    Debug_printv("primary[%.2X]", commanddata->primary);
-    switch (commanddata->primary)
+    //Debug_printv("primary[%.2X]", commanddata.primary);
+    switch (commanddata.primary)
     {
     case IEC_LISTEN:
         iec_reopen_channel_listen();
@@ -282,7 +294,7 @@ void iecDisk::iec_reopen_channel_listen()
 
 void iecDisk::iec_reopen_channel_talk()
 {
-    Debug_printv("here");
+    //Debug_printv("here");
     sendFile();
 }
 
@@ -294,14 +306,14 @@ void iecDisk::iec_listen_command()
 
 void iecDisk::iec_talk_command()
 {
-    Debug_printv("here");
+    //Debug_printv("here");
     if (response_queue.empty())
         iec_talk_command_buffer_status();
 }
 
 void iecDisk::iec_talk_command_buffer_status()
 {
-    Debug_printv("here");
+    //Debug_printv("here");
 
     //char reply[80];
     std::string s = "00, OK,00,00\r";
@@ -335,7 +347,7 @@ void iecDisk::iec_command()
             Debug_printv( "block/buffer");
         break;
         case 'C':
-            if ( payload[2] == ':')
+            if ( payload[1] != 'D' && payload[2] == ':')
             {
                 //Copy(); // Copy File
                 Debug_printv( "copy file");
@@ -361,7 +373,7 @@ void iecDisk::iec_command()
             Debug_printv( "new (format)");
         break;
         case 'R':
-            if (payload[2] == ':') // Rename
+            if ( payload[1] != 'D' && payload[2] == ':' ) // Rename
             {
                 Debug_printv( "rename file");
                 // Rename();
@@ -489,7 +501,7 @@ void iecDisk::set_device_id()
     {
         iecStatus.error = 0; // TODO: Add error number for this
         iecStatus.msg = "device id required";
-        iecStatus.channel = commanddata->channel;
+        iecStatus.channel = commanddata.channel;
         iecStatus.connected = 0;
         return;
     }
@@ -501,7 +513,7 @@ void iecDisk::set_device_id()
     iecStatus.error = 0;
     iecStatus.msg = "ok";
     iecStatus.connected = 0;
-    iecStatus.channel = commanddata->channel;
+    iecStatus.channel = commanddata.channel;
 }
 
 void iecDisk::get_prefix()
@@ -537,7 +549,9 @@ void iecDisk::set_prefix()
         path = mstr::drop(path, 1);
 
     Debug_printv("path[%s]", path.c_str());
-    _base.reset( _base->cd( path ) );
+    auto n = _base->cd( path );
+    if ( n != nullptr )
+        _base.reset( n );
 
     if ( !_base->isDirectory() )
     {
@@ -555,12 +569,12 @@ std::shared_ptr<MStream> iecDisk::retrieveStream ( uint8_t channel )
 
     if ( streams.find ( channel ) != streams.end() )
     {
-        //Debug_printv("Stream retrieved. key[%d]", channel);
+        Debug_printv("Stream retrieved. key[%d]", channel);
         return streams.at ( channel );
     }
     else
     {
-        //Debug_printv("Error! Trying to recall not-registered stream!");
+        Debug_printv("Error! Trying to recall not-registered stream!");
         return nullptr;
     }
 }
@@ -573,7 +587,7 @@ bool iecDisk::registerStream (uint8_t channel)
     // Debug_printv("_file[%s]", _file.c_str());
 
     Debug_printv("_base[%s]", _base->url.c_str());
-    //_base.reset( MFSOwner::File( _base->url ) );
+    _base.reset( MFSOwner::File( _base->url ) );
 
     std::shared_ptr<MStream> new_stream;
 
@@ -819,12 +833,12 @@ void iecDisk::sendListing()
     uint16_t byte_count = 0;
     std::string extension = "dir";
 
-    std::unique_ptr<MFile> entry(_base->getNextFileInDir());
+    std::unique_ptr<MFile> entry = std::unique_ptr<MFile>( _base->getNextFileInDir() );
 
     if(entry == nullptr) {
-        closeStream( commanddata->channel );
+        closeStream( commanddata.channel );
 
-        bool isOpen = registerStream(commanddata->channel);
+        bool isOpen = registerStream(commanddata.channel);
         if(isOpen) 
         {
             sendFile();
@@ -965,12 +979,13 @@ bool iecDisk::sendFile()
 #endif
 
     // std::shared_ptr<MStream> istream = std::static_pointer_cast<MStream>(currentStream);
-    auto istream = retrieveStream(commanddata->channel);
+    auto istream = retrieveStream(commanddata.channel);
     if ( istream == nullptr )
     {
-        //Debug_printv("Stream not found!");
+        Debug_printv("Stream not found!");
         IEC.senderTimeout(); // File Not Found
-        closeStream(commanddata->channel);
+        //closeStream(commanddata.channel);
+        _base.reset( MFSOwner::File( _base->base() ) );
         return false;
     }
 
@@ -1106,7 +1121,7 @@ bool iecDisk::sendFile()
     {
         Debug_println("sendFile: Transfer aborted!");
         IEC.senderTimeout();
-        closeStream(commanddata->channel);
+        closeStream(commanddata.channel);
     }
 
     return success_rx;
@@ -1131,7 +1146,7 @@ bool iecDisk::saveFile()
     ba[8] = '\0';
 #endif
 
-    auto ostream = retrieveStream(commanddata->channel);
+    auto ostream = retrieveStream(commanddata.channel);
 
     if ( ostream == nullptr ) {
         Debug_printv("couldn't open a stream for writing");

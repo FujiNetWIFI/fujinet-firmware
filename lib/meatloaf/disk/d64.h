@@ -72,11 +72,18 @@ protected:
         uint16_t blocks;
     };
 
+public:
     std::vector<Partition> partitions;
     std::vector<uint8_t> sectorsPerTrack = { 17, 18, 19, 21 };
-    std::string rom = "dos1541";
+    std::vector<uint8_t> interleave = { 3, 10 }; // Directory, File
 
-public:
+    uint8_t dos_version = 0x41;
+    std::string dos_rom = "dos1541";
+    std::string dos_name = "";
+
+    bool error_info = false;
+    std::string bam_message = "";
+
     D64IStream(std::shared_ptr<MStream> is) : CBMImageStream(is) 
     {
         // D64 Partition Info
@@ -145,8 +152,7 @@ public:
         // types of extended disk formats you want to create/work with. 
 
         // // DOLPHIN DOS
-        // partitions[0].block_allocation_map.push_back(
-        //     { 
+        // partitions[0].block_allocation_map.push_back( 
         //         {
         //             18,     // track
         //             0,      // sector
@@ -155,12 +161,10 @@ public:
         //             40,     // end_track
         //             4       // byte_count
         //         } 
-        //     } 
         // );
 
         // // SPEED DOS
-        // partitions[0].block_allocation_map.push_back(
-        //     { 
+        // partitions[0].block_allocation_map.push_back( 
         //         {
         //             18,     // track
         //             0,      // sector
@@ -169,22 +173,20 @@ public:
         //             40,     // end_track
         //             4       // byte_count
         //         } 
-        //     } 
         // );
 
         // // PrologicDOS
-        // partitions[0].block_allocation_map.push_back(
-        //     { 
+        // partitions[0].block_allocation_map.push_back( 
         //         {
         //             18,     // track
         //             0,      // sector
-        //             0xC0,   // offset
+        //         0x90,   // offset
         //             36,     // start_track
         //             40,     // end_track
         //             4       // byte_count
         //         } 
-        //     } 
         // );
+        // partitions[0].header_offset = 0xA4;
 
         //getBAMMessage();
 
@@ -220,10 +222,6 @@ public:
 
     Header header;      // Directory header data
     Entry entry;        // Directory entry data
-
-    uint8_t dos_version = 0x41;
-    bool error_info = false;
-    std::string bam_message = "";
 
     uint8_t partition = 0;
     uint64_t block = 0;
@@ -311,11 +309,12 @@ class D64FileSystem: public MFileSystem
 {
 public:
     MFile* getFile(std::string path) override {
+        //Debug_printv("path[%s]", path.c_str());
         return new D64File(path);
     }
 
     bool handles(std::string fileName) {
-        //Serial.printf("handles w dnp %s %d\n", fileName.rfind(".dnp"), fileName.length()-4);
+        //Serial.printf("handles w dnp %s %d\r\n", fileName.rfind(".dnp"), fileName.length()-4);
         return byExtension(".d64", fileName);
     }
 

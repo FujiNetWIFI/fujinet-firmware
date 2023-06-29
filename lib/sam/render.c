@@ -62,14 +62,14 @@ int timetable[5][5] =
 static unsigned oldtimetableindex = 0;
 void Output8BitAry(int index, unsigned char ary[5])
 {
-    // printf("Output8BitAry\n");
+    // printf("Output8BitAry\r\n");
     int k;
     bufferpos += timetable[oldtimetableindex][index];
     oldtimetableindex = index;
     // write a little bit in advance
     for (k = 0; k < 5; k++)
     {
-        // printf("%d %d\n", bufferpos,k);
+        // printf("%d %d\r\n", bufferpos,k);
         buffer[bufferpos / 50 + k] = ary[k];
     }
 }
@@ -138,7 +138,7 @@ void Write(unsigned char p, unsigned char Y, unsigned char value)
         amplitude3[Y] = value;
         return;
     }
-    printf("Error writing to tables\n");
+    printf("Error writing to tables\r\n");
 }
 
 // -------------------------------------------------------------------------
@@ -384,7 +384,7 @@ void Render()
     X = 0;
     mem44 = 0;
 
-    // printf("Render 1\n");
+    // printf("Render 1\r\n");
 
     // CREATE FRAMES
     //
@@ -397,7 +397,7 @@ void Render()
     // pos47587:
     do
     {
-        // printf("Render 2\n");
+        // printf("Render 2\r\n");
 
         // get the index
         Y = mem44;
@@ -413,7 +413,7 @@ void Render()
         if (A == 1)
         {
 
-            // printf("Render 3\n");
+            // printf("Render 3\r\n");
 
             // add rising inflection
             A = 1;
@@ -428,14 +428,14 @@ void Render()
         // question mark phoneme?
         if (A == 2)
         {
-            // printf("Render 4\n");
+            // printf("Render 4\r\n");
             // create falling inflection
             mem48 = 255;
             AddInflection(mem48, phase1);
         }
         //  pos47615:
 
-        // printf("Render 5\n");
+        // printf("Render 5\r\n");
 
         // get the stress amount (more stress = higher pitch)
         phase1 = tab47492[stressOutput[Y] + 1];
@@ -447,7 +447,7 @@ void Render()
         // copy from the source to the frames list
         do
         {
-            // printf("Render 6\n");
+            // printf("Render 6\r\n");
             frequency1[X] = freq1data[Y];                       // F1 frequency
             frequency2[X] = freq2data[Y];                       // F2 frequency
             frequency3[X] = freq3data[Y];                       // F3 frequency
@@ -803,14 +803,14 @@ void Render()
     X = A;
     mem38 = A - (A >> 2); // 3/4*A ???
 
-    // printf("Render 7\n");
+    // printf("Render 7\r\n");
 
     if (debug)
     {
         PrintOutput(sampledConsonantFlag, frequency1, frequency2, frequency3, amplitude1, amplitude2, amplitude3, pitches);
     }
 
-    // printf("Render 8\n");
+    // printf("Render 8\r\n");
 
     // PROCESS THE FRAMES
     //
@@ -825,7 +825,7 @@ void Render()
     //pos48078:
     while (1)
     {
-        // printf("Render 9\n");
+        // printf("Render 9\r\n");
 
         // get the sampled information on the phoneme
         A = sampledConsonantFlag[Y];
@@ -835,7 +835,7 @@ void Render()
         A = A & 248;
         if (A != 0)
         {
-            // printf("Render 10\n");
+            // printf("Render 10\r\n");
 
             // render the sample for the phoneme
             RenderSample(&mem66);
@@ -846,7 +846,7 @@ void Render()
         }
         else
         {
-            // printf("Render 11\n");
+            // printf("Render 11\r\n");
 
             // simulate the glottal pulse and formants
             unsigned char ary[5];
@@ -871,12 +871,12 @@ void Render()
                 p3 += frequency3[Y] * 256 / 4;
             }
 
-            // printf("Render 12\n");
+            // printf("Render 12\r\n");
 
             // output the accumulated value
             Output8BitAry(0, ary);
 
-            // printf("Render 13\n");
+            // printf("Render 13\r\n");
 
             speedcounter--;
             if (speedcounter != 0)
@@ -893,7 +893,7 @@ void Render()
         speedcounter = speed;
     pos48155:
 
-        // printf("Render 14\n");
+        // printf("Render 14\r\n");
 
         // decrement the remaining length of the glottal pulse
         mem44--;
@@ -902,7 +902,7 @@ void Render()
         if (mem44 == 0)
         {
 
-            // printf("Render 15\n");
+            // printf("Render 15\r\n");
 
         pos48159:
             // fetch the next glottal pulse length
@@ -922,13 +922,13 @@ void Render()
         // decrement the count
         mem38--;
 
-        // printf("Render 16\n");
+        // printf("Render 16\r\n");
 
         // is the count non-zero and the sampled flag is zero?
         if ((mem38 != 0) || (mem39 == 0))
         {
 
-            // printf("Render 17\n");
+            // printf("Render 17\r\n");
 
             // reset the phase of the formants to match the pulse
             phase1 += frequency1[Y];
@@ -941,11 +941,11 @@ void Render()
         // glottal pulse. The sample flag is non-zero, so render
         // the sample for the phoneme.
 
-        // printf("Render 18\n");
+        // printf("Render 18\r\n");
 
         RenderSample(&mem66);
 
-        // printf("Render 19\n");
+        // printf("Render 19\r\n");
 
         goto pos48159;
     } //while

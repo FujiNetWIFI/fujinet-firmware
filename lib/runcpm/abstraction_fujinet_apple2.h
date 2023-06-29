@@ -86,7 +86,7 @@ bool _RamLoad(char *fn, uint16_t address)
 		}
 		fclose(f);
 	}
-	Debug_printf("CCP last address: %04x\n",address);
+	Debug_printf("CCP last address: %04x\r\n",address);
 	return (result);
 }
 
@@ -627,7 +627,7 @@ uint8_t bdos_readDeviceSlots(uint16_t addr)
 
 uint8_t bios_tcpListen(uint16_t port)
 {
-	Debug_printf("Do we get here?\n");
+	Debug_printf("Do we get here?\r\n");
 
 	if (client.connected())
 		client.stop();
@@ -641,7 +641,7 @@ uint8_t bios_tcpListen(uint16_t port)
 	server = new fnTcpServer(port,1);
 	server->begin(port);
 
-	Debug_printf("bios_tcpListen - Now listening on port %u\n", port);
+	Debug_printf("bios_tcpListen - Now listening on port %u\r\n", port);
 	return server != nullptr;
 }
 

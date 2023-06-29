@@ -1102,7 +1102,7 @@ void iecFuji::get_adapter_config()
     }
     else if (payload == "ADAPTERCONFIG")
     {
-        iecStatus.channel = 15;
+        iecStatus.channel = CHANNEL_COMMAND;
         iecStatus.connected = fnWiFi.connected();
         iecStatus.error = 0;
         iecStatus.msg = "use localip, netmask, gateway, dns, mac, bssid, or version";
@@ -1138,7 +1138,7 @@ void iecFuji::read_host_slots()
             iecStatus.error = 0;
             iecStatus.msg = "host slot # required";
             iecStatus.connected = 0;
-            iecStatus.channel = 15;
+            iecStatus.channel = CHANNEL_COMMAND;
         }
 
         int selected_hs = atoi(t[1].c_str());
@@ -1186,7 +1186,7 @@ void iecFuji::write_host_slots()
             iecStatus.error = 0;
             iecStatus.msg = "error: no host slot #";
             iecStatus.connected = 0;
-            iecStatus.channel = 15;
+            iecStatus.channel = CHANNEL_COMMAND;
             return;
         }
         else
@@ -1198,7 +1198,7 @@ void iecFuji::write_host_slots()
             iecStatus.error = 0;
             iecStatus.msg = "error: invalid host slot #";
             iecStatus.connected = 0;
-            iecStatus.channel = 15;
+            iecStatus.channel = CHANNEL_COMMAND;
             return;
         }
 
@@ -1220,7 +1220,7 @@ void iecFuji::write_host_slots()
 
     iecStatus.error = hostSlot;
     iecStatus.msg = string(hostname);
-    iecStatus.channel = 15;
+    iecStatus.channel = CHANNEL_COMMAND;
     iecStatus.connected = 0;
 }
 
@@ -1286,7 +1286,7 @@ void iecFuji::read_device_slots()
             iecStatus.error = 0;
             iecStatus.msg = "host slot required";
             iecStatus.connected = 0;
-            iecStatus.channel = 15;
+            iecStatus.channel = CHANNEL_COMMAND;
             return;
         }
 
@@ -1474,7 +1474,7 @@ void iecFuji::get_device_filename()
     }
     else
     {
-        iecStatus.channel = 15;
+        iecStatus.channel = CHANNEL_COMMAND;
         iecStatus.error = ds;
         iecStatus.connected = 1;
         iecStatus.msg = reply;
@@ -1507,17 +1507,17 @@ iecDisk *iecFuji::bootdisk()
     return &_bootDisk;
 }
 
-device_state_t iecFuji::process(IECData *id)
+device_state_t iecFuji::process()
 {
-    virtualDevice::process(id);
+    virtualDevice::process();
 
-    if (commanddata->channel != 15)
+    if (commanddata.channel != CHANNEL_COMMAND)
     {
         Debug_printf("Fuji device only accepts on channel 15. Sending NOTFOUND.\n");
         device_state = DEVICE_ERROR;
         IEC.senderTimeout();
     }
-    else if (commanddata->primary != IEC_UNLISTEN)
+    else if (commanddata.primary != IEC_UNLISTEN)
         return device_state;
 
     if (payload[0] > 0x7F)

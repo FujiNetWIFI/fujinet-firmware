@@ -20,12 +20,12 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     if (blockNum == _media_last_block)
         return false; // We already have block.
 
-    Debug_print("DDP READ\n");
+    Debug_print("DDP READ\r\n");
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
     {
-        Debug_printf("::read block %d > %d\n", blockNum, _media_num_blocks);
+        Debug_printf("::read block %d > %d\r\n", blockNum, _media_num_blocks);
         _media_controller_status=2;
         return true;
     }
@@ -56,7 +56,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 {
-    Debug_printf("ATR WRITE\n", blockNum, _media_num_blocks);
+    Debug_printf("ATR WRITE\r\n", blockNum, _media_num_blocks);
 
     uint32_t offset = _block_to_offset(blockNum);
 
@@ -69,7 +69,7 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
         e = fseek(_media_fileh, offset, SEEK_SET);
         if (e != 0)
         {
-            Debug_printf("::write seek error %d\n", e);
+            Debug_printf("::write seek error %d\r\n", e);
             _media_controller_status=2;
             return true;
         }
@@ -82,13 +82,13 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
     
     if (e != 1024)
     {
-        Debug_printf("::write error %d, %d\n", e, errno);
+        Debug_printf("::write error %d, %d\r\n", e, errno);
         return true;
     }
 
     int ret = fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
     ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
-    Debug_printf("DDP::write fsync:%d\n", ret);
+    Debug_printf("DDP::write fsync:%d\r\n", ret);
 
     _media_last_block = INVALID_SECTOR_VALUE;
     _media_controller_status=0;
@@ -108,7 +108,7 @@ bool MediaTypeDDP::format(uint16_t *responsesize)
 
 mediatype_t MediaTypeDDP::mount(FILE *f, uint32_t disksize)
 {
-    Debug_print("DDP MOUNT\n");
+    Debug_print("DDP MOUNT\r\n");
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_DDP;
@@ -120,7 +120,7 @@ mediatype_t MediaTypeDDP::mount(FILE *f, uint32_t disksize)
 // Returns FALSE on error
 bool MediaTypeDDP::create(FILE *f, uint32_t numBlocks)
 {
-    Debug_print("DDP CREATE\n");
+    Debug_print("DDP CREATE\r\n");
 
     return true;
 }

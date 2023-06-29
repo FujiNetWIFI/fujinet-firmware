@@ -19,7 +19,7 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
         if (b2 != std::string::npos)
         {
             std::string s1 = line.substr(b1, b2 - b1);
-            //Debug_printf("examining \"%s\"\n", s1.c_str());
+            //Debug_printf("examining \"%s\"\r\n", s1.c_str());
             if (strncasecmp("Host", s1.c_str(), 4) == 0)
             {
                 index = atoi((const char *)(s1.c_str() + 4)) - 1;
@@ -28,7 +28,7 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                     Debug_println("Invalid index value - discarding");
                     return SECTION_UNKNOWN;
                 }
-                //Debug_printf("Found HOST %d\n", index);
+                //Debug_printf("Found HOST %d\r\n", index);
                 return SECTION_HOST;
             }
             else if (strncasecmp("Mount", s1.c_str(), 5) == 0)
@@ -39,7 +39,7 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                     Debug_println("Invalid index value - discarding");
                     return SECTION_UNKNOWN;
                 }
-                //Debug_printf("Found MOUNT %d\n", index);
+                //Debug_printf("Found MOUNT %d\r\n", index);
                 return SECTION_MOUNT;
             }
             else if (strncasecmp("Printer", s1.c_str(), 7) == 0)
@@ -50,7 +50,7 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                     Debug_println("Invalid index value - discarding");
                     return SECTION_UNKNOWN;
                 }
-                //Debug_printf("Found PRINTER %d\n", index);
+                //Debug_printf("Found PRINTER %d\r\n", index);
                 return SECTION_PRINTER;
             }
             if (strncasecmp("WiFiStored", s1.c_str(), 10) == 0)
@@ -65,22 +65,22 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             }
             else if (strncasecmp("WiFi", s1.c_str(), 4) == 0)
             {
-                //Debug_printf("Found WIFI\n");
+                //Debug_printf("Found WIFI\r\n");
                 return SECTION_WIFI;
             }
             else if (strncasecmp("Bluetooth", s1.c_str(), 9) == 0)
             {
-                //Debug_printf("Found Bluetooth\n");
+                //Debug_printf("Found Bluetooth\r\n");
                 return SECTION_BT;
             }
             else if (strncasecmp("General", s1.c_str(), 7) == 0)
             {
-                // Debug_printf("Found General\n");
+                // Debug_printf("Found General\r\n");
                 return SECTION_GENERAL;
             }
             else if (strncasecmp("Network", s1.c_str(), 7) == 0)
             {
-                // Debug_printf("Found Network\n");
+                // Debug_printf("Found Network\r\n");
                 return SECTION_NETWORK;
             }
             else if (strncasecmp("Tape", s1.c_str(), 4) == 0)
@@ -91,7 +91,7 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                     Debug_println("Invalid index value - discarding");
                     return SECTION_UNKNOWN;
                 }
-                // Debug_printf("Found Cassette\n");
+                // Debug_printf("Found Cassette\r\n");
                 return SECTION_TAPE;
             }
             else if (strncasecmp("Cassette", s1.c_str(), 8) == 0)
@@ -106,7 +106,7 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
                     Debug_println("Invalid index value - discarding");
                     return SECTION_UNKNOWN;
                 }
-                //Debug_printf("Found Phonebook Entry %d\n", index);
+                //Debug_printf("Found Phonebook Entry %d\r\n", index);
                 return SECTION_PHONEBOOK;
             }
             else if (strncasecmp("Modem", s1.c_str(), 8) == 0)

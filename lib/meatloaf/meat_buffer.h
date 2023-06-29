@@ -85,7 +85,7 @@ namespace Meat
         {
             if (is_open())
             {
-                // Debug_printv("closing in filebuf\n");
+                // Debug_printv("closing in filebuf\r\n");
                 sync();
                 mstream->close();
                 return true;

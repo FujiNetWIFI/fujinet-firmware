@@ -54,6 +54,7 @@
 #define PIN_IEC_DATA_IN    	GPIO_NUM_26
 #define PIN_IEC_DATA_OUT   	GPIO_NUM_26
 #define PIN_IEC_SRQ			GPIO_NUM_27 // FujiLoaf
+// GND - Be sure to connect GND of the IEC cable to GND on the ESP module
 
 /* Modem/Parallel Switch */
 #define PIN_MDMPAR_SW1       2  // High = Modem enabled
@@ -68,5 +69,5 @@
 //#define GPIOX_SPEED       400   // PCF8575 - 400Khz
 #define GPIOX_SPEED       1000  // PCA9673 - 1000Khz / 1Mhz
 
-#endif // PINMAP_FL_REV0
+#endif // PINMAP_FUJILOAF_REV0
 #endif // PINMAP_FUJILOAF_REV0_H

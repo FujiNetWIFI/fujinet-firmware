@@ -64,13 +64,13 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
     // Read lines until one starts with '[' which indicates a new section
     while (_read_line(ss, line, '[') >= 0)
     {
-        // Debug_printf("wifi line: >%s<\n", line.c_str());
+        // Debug_printf("wifi line: >%s<\r\n", line.c_str());
         std::string name;
         std::string value;
         if (_split_name_value(line, name, value))
         {
-            // Debug_printf(" name: >%s<\n", name.c_str());
-            // Debug_printf("value: >%s<\n", value.c_str());
+            // Debug_printf(" name: >%s<\r\n", name.c_str());
+            // Debug_printf("value: >%s<\r\n", value.c_str());
 
             if (strcasecmp(name.c_str(), "SSID") == 0)
             {
@@ -93,7 +93,7 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
 
 void fnConfig::_read_section_wifi_stored(std::stringstream &ss, int index)
 {
-    Debug_printf("Reading stored wifi section for index: %d\n", index);
+    Debug_printf("Reading stored wifi section for index: %d\r\n", index);
 
     _wifi_stored[index].ssid.clear();
     _wifi_stored[index].passphrase.clear();

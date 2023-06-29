@@ -468,7 +468,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
     // Make sure we have room left after copying the parent
     if (plen >= dest_size - 3) // Allow for a minimum of a slash, one char, and NULL
     {
-        Debug_printf("_concat_paths parent takes up entire destination buffer: \"%s\"\n", parent);
+        Debug_printf("_concat_paths parent takes up entire destination buffer: \"%s\"\r\n", parent);
         return false;
     }
 
@@ -490,7 +490,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
         // Verify we were able to copy the whole thing
         if (clen != strlen(child))
         {
-            Debug_printf("_concat_paths parent + child larger than dest buffer: \"%s\", \"%s\"\n", parent, child);
+            Debug_printf("_concat_paths parent + child larger than dest buffer: \"%s\", \"%s\"\r\n", parent, child);
             return false;
         }
     }

@@ -351,7 +351,7 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     uint16_t cc;
 
 #ifdef DEBUG
-    // Debug_printf("Processing %d chars\n", n);
+    // Debug_printf("Processing %d chars\r\n", n);
 #endif
 
     // algorithm for graphics:
@@ -408,7 +408,7 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 
 #ifdef DEBUG
             // Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y + pdf_dY);
-            // Debug_printf("\n");
+            // Debug_printf("\r\n");
 #endif
         }
 

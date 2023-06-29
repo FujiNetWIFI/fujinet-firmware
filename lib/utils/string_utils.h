@@ -27,11 +27,12 @@ namespace mstr {
     void replaceAll(std::string &s, const std::string &search, const std::string &replace);
     std::string joinToString(std::vector<std::string>::iterator* start, std::vector<std::string>::iterator* end, std::string separator);
     std::string joinToString(std::vector<std::string>, std::string separator);
-    std::string urlEncode(std::string s);
+    std::string urlEncode(const std::string &s);
     std::string urlDecode(std::string s);
     void toASCII(std::string &s);
     void toPETSCII(std::string &s);
     bool isText(std::string &s);
+    bool isNumeric(std::string &s);
     bool isA0Space(int ch);
     void A02Space(std::string &s);
     std::string format(const char *format, ...);

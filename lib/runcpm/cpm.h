@@ -194,7 +194,7 @@ void _logRegs(void) {
 	for (J = 0, I = LOW_REGISTER(AF); J < 8; ++J, I <<= 1) {
 		Flags[J] = I & 0x80 ? Flags[J] : '.';
 	}
-	sprintf((char *)LogBuffer, "  BC:%04x DE:%04x HL:%04x AF:%02x(%c)|%s| IX:%04x IY:%04x SP:%04x PC:%04x\n",
+	sprintf((char *)LogBuffer, "  BC:%04x DE:%04x HL:%04x AF:%02x(%c)|%s| IX:%04x IY:%04x SP:%04x PC:%04x\r\n",
 			WORD16(BC), WORD16(DE), WORD16(HL), HIGH_REGISTER(AF), c, Flags, WORD16(IX), WORD16(IY), WORD16(SP), WORD16(PC));
 	_sys_logbuffer(LogBuffer);
 } // _logRegs
@@ -231,7 +231,7 @@ void _logChar(char *txt, uint8 c) {
 
 	asc[0] = c > 31 && c < 127 ? c : '.';
 	asc[1] = 0;
-	sprintf((char *)LogBuffer, "        %s = %02xh:%3d (%s)\n", txt, c, c, asc);
+	sprintf((char *)LogBuffer, "        %s = %02xh:%3d (%s)\r\n", txt, c, c, asc);
 	_sys_logbuffer(LogBuffer);
 } // _logChar
 
@@ -254,10 +254,10 @@ void _logBiosIn(uint8 ch) {
 	int index = ch / 3;
 
 	if (index < 18) {
-		sprintf((char *)LogBuffer, "\nBios call: %3d/%02xh (%s) IN:\n", ch, ch, BIOSCalls[index]);
+		sprintf((char *)LogBuffer, "\nBios call: %3d/%02xh (%s) IN:\r\n", ch, ch, BIOSCalls[index]);
 		_sys_logbuffer(LogBuffer);
 	} else {
-		sprintf((char *)LogBuffer, "\nBios call: %3d/%02xh IN:\n", ch, ch);
+		sprintf((char *)LogBuffer, "\nBios call: %3d/%02xh IN:\r\n", ch, ch);
 		_sys_logbuffer(LogBuffer);
 	}
 	_logRegs();
@@ -274,7 +274,7 @@ void _logBiosOut(uint8 ch) {
 		return;
 	}
 #endif // ifdef LOGBIOS_ONLY
-	sprintf((char *)LogBuffer, "               OUT:\n");
+	sprintf((char *)LogBuffer, "               OUT:\r\n");
 	_sys_logbuffer(LogBuffer);
 	_logRegs();
 } // _logBiosOut
@@ -307,10 +307,10 @@ void _logBdosIn(uint8 ch) {
 	};
 
 	if (ch < 41) {
-		sprintf((char *)LogBuffer, "\nBdos call: %3d/%02xh (%s) IN from 0x%04x:\n", ch, ch, CPMCalls[ch], _RamRead16(SP) - 3);
+		sprintf((char *)LogBuffer, "\nBdos call: %3d/%02xh (%s) IN from 0x%04x:\r\n", ch, ch, CPMCalls[ch], _RamRead16(SP) - 3);
 		_sys_logbuffer(LogBuffer);
 	} else {
-		sprintf((char *)LogBuffer, "\nBdos call: %3d/%02xh IN from 0x%04x:\n", ch, ch, _RamRead16(SP) - 3);
+		sprintf((char *)LogBuffer, "\nBdos call: %3d/%02xh IN from 0x%04x:\r\n", ch, ch, _RamRead16(SP) - 3);
 		_sys_logbuffer(LogBuffer);
 	}
 	_logRegs();
@@ -354,7 +354,7 @@ void _logBdosIn(uint8 ch) {
 			address = DE;
 			size = 3;
 			_logMem(address, size);
-			sprintf((char *)LogBuffer, "\n");
+			sprintf((char *)LogBuffer, "\r\n");
 			_sys_logbuffer(LogBuffer);
 			address = dmaAddr;
 			size = 8;
@@ -384,7 +384,7 @@ void _logBdosOut(uint8 ch) {
 	uint16 address = 0;
 	uint8 size = 0;
 
-	sprintf((char *)LogBuffer, "              OUT:\n");
+	sprintf((char *)LogBuffer, "              OUT:\r\n");
 	_sys_logbuffer(LogBuffer);
 	_logRegs();
 
@@ -410,7 +410,7 @@ void _logBdosOut(uint8 ch) {
 			address = DE;
 			size = 3;
 			_logMem(address, size);
-			sprintf((char *)LogBuffer, "\n");
+			sprintf((char *)LogBuffer, "\r\n");
 			_sys_logbuffer(LogBuffer);
 			address = dmaAddr;
 			size = 8;
@@ -733,7 +733,7 @@ void _Bdos(void) {
 #ifdef PROFILE
 			if (time_start != 0) {
 				time_now = millis();
-				printf(": %ld\n", time_now - time_start);
+				printf(": %ld\r\n", time_now - time_start);
 				time_start = 0;
 			}
 #endif // ifdef PROFILE
@@ -781,7 +781,7 @@ void _Bdos(void) {
 #endif // ifdef DEBUG
 
                 if (chr == 5) {                             // ^E - goto beginning of next line
-                    _puts("\n");
+                    _puts("\r\n");
                     preBS = curCol;
                     reType = postBS = chrsCnt;
                 }
@@ -845,14 +845,14 @@ void _Bdos(void) {
                 }
 
                 if (chr == 18) {                        // ^R - Retype the command line
-                    _puts("#\b\n");
+                    _puts("#\b\r\n");
                     preBS = curCol;             //backspace to BOL
                     reType = chrsCnt;           //retype everything
                     postBS = chrsCnt - curCol;  //backspace to cursor column
                 }
 
                 if (chr == 21) {                        // ^U - delete all characters
-                    _puts("#\b\n");
+                    _puts("#\b\r\n");
                     preBS = curCol; //backspace to BOL
                     chrsCnt = 0;
                 }

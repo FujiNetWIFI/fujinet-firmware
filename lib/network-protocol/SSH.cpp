@@ -14,13 +14,13 @@
 NetworkProtocolSSH::NetworkProtocolSSH(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
-    Debug_printf("NetworkProtocolSSH::NetworkProtocolSSH(%p,%p,%p)\n", rx_buf, tx_buf, sp_buf);
+    Debug_printf("NetworkProtocolSSH::NetworkProtocolSSH(%p,%p,%p)\r\n", rx_buf, tx_buf, sp_buf);
     rxbuf = (char *)heap_caps_malloc(RXBUF_SIZE, MALLOC_CAP_SPIRAM);
 }
 
 NetworkProtocolSSH::~NetworkProtocolSSH()
 {
-    Debug_printf("NetworkProtocolSSH::~NetworkProtocolSSH()\n");
+    Debug_printf("NetworkProtocolSSH::~NetworkProtocolSSH()\r\n");
     heap_caps_free(rxbuf);
 }
 
@@ -43,16 +43,16 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     if ((ret = ssh_init()) != 0)
     {
-        Debug_printf("NetworkProtocolSSH::open() - ssh_init not successful. Value returned: %d\n", ret);
+        Debug_printf("NetworkProtocolSSH::open() - ssh_init not successful. Value returned: %d\r\n", ret);
         error = NETWORK_ERROR_GENERAL;
         return true;
     }
 
-    Debug_printf("NetworkProtocolSSH::open() - Opening session.\n");
+    Debug_printf("NetworkProtocolSSH::open() - Opening session.\r\n");
     session = ssh_new();
     if (session == NULL)
     {
-        Debug_printf("Could not create session. aborting.\n");
+        Debug_printf("Could not create session. aborting.\r\n");
         error = NETWORK_ERROR_NOT_CONNECTED;
         return true;
     }
@@ -70,7 +70,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     {
         error = NETWORK_ERROR_NOT_CONNECTED;
         const char *message = ssh_get_error(session);
-        Debug_printf("NetworkProtocolSSH::open() - Could not connect, error: %s.\n", message);
+        Debug_printf("NetworkProtocolSSH::open() - Could not connect, error: %s.\r\n", message);
         return true;
     }
 
@@ -79,7 +79,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (ret < 0) {
         error = NETWORK_ERROR_GENERAL;
         const char *message = ssh_get_error(session);
-        Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key, error: %s.\n", message);
+        Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key, error: %s.\r\n", message);
         return true;
     }
 
@@ -91,7 +91,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (ret == -1) {
         error = NETWORK_ERROR_GENERAL;
         const char *message = ssh_get_error(session);
-        Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key hash, error: %s.\n", message);
+        Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key hash, error: %s.\r\n", message);
         return true;
     }
     
@@ -107,7 +107,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
         if (i < (hlen - 1))
             Debug_printf(":");
     }
-    Debug_printf("\n");
+    Debug_printf("\r\n");
     ssh_clean_pubkey_hash(&fingerprint);
 
 
@@ -116,7 +116,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (ret == SSH_AUTH_ERROR) {
         error = NETWORK_ERROR_GENERAL;
         const char *message = ssh_get_error(session);
-        Debug_printf("NetworkProtocolSSH::open() - Could not issue 'none' userauth method to server, error: %s.\n", message);
+        Debug_printf("NetworkProtocolSSH::open() - Could not issue 'none' userauth method to server, error: %s.\r\n", message);
         return true;
     }
 
@@ -125,11 +125,11 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     bool allowsPublicKey = ret & SSH_AUTH_METHOD_PUBLICKEY;
     bool allowsHostBased = ret & SSH_AUTH_METHOD_HOSTBASED;
     bool allowsInteractive = ret & SSH_AUTH_METHOD_INTERACTIVE;
-    Debug_printf("Authentication methods:\n"
-                 "Password:    %s\n"
-                 "Public Key:  %s\n"
-                 "Host Based:  %s\n"
-                 "Interactive: %s\n", 
+    Debug_printf("Authentication methods:\r\n"
+                 "Password:    %s\r\n"
+                 "Public Key:  %s\r\n"
+                 "Host Based:  %s\r\n"
+                 "Interactive: %s\r\n", 
         allowsPassword ? "true":"false",
         allowsPublicKey ? "true":"false",
         allowsHostBased ? "true":"false",
@@ -139,7 +139,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (!allowsPassword) {
         // May as well stop here, as our only ability (password) isn't allowed
         error = NETWORK_ERROR_GENERAL;
-        Debug_printf("NetworkProtocolSSH::open() - Could not login to server as it does not allow password auth.\n");
+        Debug_printf("NetworkProtocolSSH::open() - Could not login to server as it does not allow password auth.\r\n");
         return true;
     }
 
@@ -149,7 +149,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (ret != SSH_AUTH_SUCCESS) {
         error = NETWORK_ERROR_ACCESS_DENIED;
         const char *message = ssh_get_error(session);
-        Debug_printf("NetworkProtocolSSH::open() - Unable to authorise with given password, error: %s.\n", message);
+        Debug_printf("NetworkProtocolSSH::open() - Unable to authorise with given password, error: %s.\r\n", message);
         ssh_disconnect(session);
         ssh_free(session);
     }
@@ -158,14 +158,14 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (channel == NULL) {
         error = NETWORK_ERROR_GENERAL;
         const char *message = ssh_get_error(session);
-        Debug_printf("NetworkProtocolSSH::open() - Could not open new channel, error: %s.\n", message);
+        Debug_printf("NetworkProtocolSSH::open() - Could not open new channel, error: %s.\r\n", message);
         return true;
     }
     ret = ssh_channel_open_session(channel);
     if (ret != SSH_OK) {
         error = NETWORK_ERROR_GENERAL;
         const char *message = ssh_get_error(session);
-        Debug_printf("NetworkProtocolSSH::open() - Could not open session, error: %s.\n", message);
+        Debug_printf("NetworkProtocolSSH::open() - Could not open session, error: %s.\r\n", message);
         return true;
     }
 
@@ -174,7 +174,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (ret != SSH_OK)
     {
         error = NETWORK_ERROR_GENERAL;
-        Debug_printf("Could not request pty\n");
+        Debug_printf("Could not request pty\r\n");
         return true;
     }
 
@@ -182,14 +182,14 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     if (ret != SSH_OK)
     {
         error = NETWORK_ERROR_GENERAL;
-        Debug_printf("Could not open shell on channel\n");
+        Debug_printf("Could not open shell on channel\r\n");
         return true;
     }
 
     ssh_channel_set_blocking(channel, 0);
 
     // At this point, we should be able to talk to the shell.
-    Debug_printf("Shell opened.\n");
+    Debug_printf("Shell opened.\r\n");
 
     return false;
 }

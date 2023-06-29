@@ -20,7 +20,7 @@ void fnTcpServer::begin(uint16_t port)
     _sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (_sockfd < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to allocate socket, err %d\n", errno);
+        Debug_printf("fnTcpServer::begin failed to allocate socket, err %d\r\n", errno);
         return;
     }
 
@@ -31,7 +31,7 @@ void fnTcpServer::begin(uint16_t port)
     server.sin_port = htons(_port);
     if (bind(_sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to bind socket, err %d\n", errno);
+        Debug_printf("fnTcpServer::begin failed to bind socket, err %d\r\n", errno);
         return;
     }
 
@@ -41,12 +41,12 @@ void fnTcpServer::begin(uint16_t port)
         Debug_printf("fnTcpServer::begin failed to set SO_REUSEADDR, err %d", errno);
     }
 
-    Debug_printf("Max clients is currently %u\n",_max_clients);
+    Debug_printf("Max clients is currently %u\r\n",_max_clients);
 
     // Now listen in on this socket
     if (listen(_sockfd, _max_clients) < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to listen on socket, err %d\n", errno);
+        Debug_printf("fnTcpServer::begin failed to listen on socket, err %d\r\n", errno);
         return;
     }
 
@@ -70,7 +70,7 @@ bool fnTcpServer::hasClient()
 
     if (_accepted_sockfd >= 0)
     {
-        Debug_printf("TcpServer accepted connection from %s\n", inet_ntoa(_client.sin_addr.s_addr));
+        Debug_printf("TcpServer accepted connection from %s\r\n", inet_ntoa(_client.sin_addr.s_addr));
         return true;
     }
 
@@ -132,9 +132,9 @@ void fnTcpServer::stop()
 {
     if (_sockfd > 0)
     {
-        Debug_printf("fnTcpServer::stop(%d)\n", _sockfd);
+        Debug_printf("fnTcpServer::stop(%d)\r\n", _sockfd);
         lwip_close(_sockfd);
-        Debug_printf("close errno %d\n",errno);
+        Debug_printf("close errno %d\r\n",errno);
         _sockfd = -1;
         _listening = false;
     }

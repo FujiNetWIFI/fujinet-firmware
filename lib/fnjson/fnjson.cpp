@@ -20,7 +20,7 @@
  */
 FNJSON::FNJSON()
 {
-    Debug_printf("FNJSON::ctor()\n");
+    Debug_printf("FNJSON::ctor()\r\n");
     _protocol = nullptr;
     _json = nullptr;
 }
@@ -30,7 +30,7 @@ FNJSON::FNJSON()
  */
 FNJSON::~FNJSON()
 {
-    Debug_printf("FNJSON::dtor()\n");
+    Debug_printf("FNJSON::dtor()\r\n");
     _protocol = nullptr;
     if (_json != nullptr)
         cJSON_Delete(_json);
@@ -50,7 +50,7 @@ void FNJSON::setLineEnding(string _lineEnding)
  */
 void FNJSON::setProtocol(NetworkProtocol *newProtocol)
 {
-    Debug_printf("FNJSON::setProtocol()\n");
+    Debug_printf("FNJSON::setProtocol()\r\n");
     _protocol = newProtocol;
 }
 
@@ -109,7 +109,7 @@ string FNJSON::getValue(cJSON *item)
     {
         stringstream ss;
 
-        Debug_printf("S: [cJSON_IsString] %s\n",cJSON_GetStringValue(item));
+        Debug_printf("S: [cJSON_IsString] %s\r\n",cJSON_GetStringValue(item));
 
         ss << cJSON_GetStringValue(item);
         
@@ -126,7 +126,7 @@ string FNJSON::getValue(cJSON *item)
         {
             // yes, map special characters
             string str_utf8mapping = ss.str(); 
-            Debug_printf("S: [Mapping->ATARI]\n");
+            Debug_printf("S: [Mapping->ATARI]\r\n");
 
             // SIO AUX2 Bit 2 set?
             if ((_queryParam & 2) != 0)
@@ -151,7 +151,7 @@ string FNJSON::getValue(cJSON *item)
             }
 
             ss.str(str_utf8mapping);
-            Debug_printf("S: [Mapping->ATARI] %s\n",ss.str().c_str());
+            Debug_printf("S: [Mapping->ATARI] %s\r\n",ss.str().c_str());
         }
         #endif
 
@@ -159,7 +159,7 @@ string FNJSON::getValue(cJSON *item)
     }
     else if (cJSON_IsBool(item))
     {
-        Debug_printf("S: [cJSON_IsBool] %s\n",cJSON_IsTrue(item) ? "true" : "false");
+        Debug_printf("S: [cJSON_IsBool] %s\r\n",cJSON_IsTrue(item) ? "true" : "false");
 
         if (cJSON_IsTrue(item))
             return "TRUE" + lineEnding;
@@ -168,7 +168,7 @@ string FNJSON::getValue(cJSON *item)
     }
     else if (cJSON_IsNull(item))
     {
-        Debug_printf("S: [cJSON_IsNull]\n");
+        Debug_printf("S: [cJSON_IsNull]\r\n");
 
         return "NULL" + lineEnding;
     }
@@ -176,7 +176,7 @@ string FNJSON::getValue(cJSON *item)
     {
         stringstream ss;
 
-        Debug_printf("S: [cJSON_IsNumber] %f\n",cJSON_GetNumberValue(item));
+        Debug_printf("S: [cJSON_IsNumber] %f\r\n",cJSON_GetNumberValue(item));
 
         // Is the number an integer?
         if (floor(cJSON_GetNumberValue(item)) == cJSON_GetNumberValue(item))
@@ -260,7 +260,7 @@ bool FNJSON::parse()
 
     if (_protocol == nullptr)
     {
-        Debug_printf("FNJSON::parse() - NULL protocol.\n");
+        Debug_printf("FNJSON::parse() - NULL protocol.\r\n");
         return false;
     }
 
@@ -275,23 +275,23 @@ bool FNJSON::parse()
         vTaskDelay(10);
     }
 
-    Debug_printf("S: %s\n",_parseBuffer.c_str());
+    Debug_printf("S: %s\r\n",_parseBuffer.c_str());
     _json = cJSON_Parse(_parseBuffer.c_str());
 
     if (_json == nullptr)
     {
-        Debug_printf("FNJSON::parse() - Could not parse JSON\n");
+        Debug_printf("FNJSON::parse() - Could not parse JSON\r\n");
         return false;
     }
 
-    Debug_printf("Parsed JSON: %s\n", cJSON_Print(_json));
+    Debug_printf("Parsed JSON: %s\r\n", cJSON_Print(_json));
 
     return true;
 }
 
 bool FNJSON::status(NetworkStatus *s)
 {
-    Debug_printf("FNJSON::status(%u) %s\n",json_bytes_remaining,getValue(_item).c_str());
+    Debug_printf("FNJSON::status(%u) %s\r\n",json_bytes_remaining,getValue(_item).c_str());
     s->connected = true;
     s->rxBytesWaiting = json_bytes_remaining;
     s->error = json_bytes_remaining == 0 ? 136 : 0;

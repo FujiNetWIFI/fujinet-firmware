@@ -22,14 +22,14 @@ uint32_t MediaTypeImg::_sector_to_offset(uint16_t sectorNum)
 // Returns TRUE if an error condition occurred
 bool MediaTypeImg::read(uint16_t sectornum, uint16_t *readcount)
 {
-    Debug_print("IMG READ\n");
+    Debug_print("IMG READ\r\n");
 
     *readcount = 0;
 
     // Return an error if we're trying to read beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::read sector %d > %d\n", sectornum, _disk_num_sectors);
+        Debug_printf("::read sector %d > %d\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 
@@ -61,12 +61,12 @@ bool MediaTypeImg::read(uint16_t sectornum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool MediaTypeImg::write(uint16_t sectornum, bool verify)
 {
-    Debug_printf("IMG WRITE\n", sectornum, _disk_num_sectors);
+    Debug_printf("IMG WRITE\r\n", sectornum, _disk_num_sectors);
 
     // Return an error if we're trying to write beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::write sector %d > %d\n", sectornum, _disk_num_sectors);
+        Debug_printf("::write sector %d > %d\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 
@@ -82,7 +82,7 @@ bool MediaTypeImg::write(uint16_t sectornum, bool verify)
         e = fseek(_disk_fileh, offset, SEEK_SET);
         if (e != 0)
         {
-            Debug_printf("::write seek error %d\n", e);
+            Debug_printf("::write seek error %d\r\n", e);
             return true;
         }
     }
@@ -90,13 +90,13 @@ bool MediaTypeImg::write(uint16_t sectornum, bool verify)
     e = fwrite(_disk_sectorbuff, 1, sectorSize, _disk_fileh);
     if (e != sectorSize)
     {
-        Debug_printf("::write error %d, %d\n", e, errno);
+        Debug_printf("::write error %d, %d\r\n", e, errno);
         return true;
     }
 
     int ret = fflush(_disk_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
     ret = fsync(fileno(_disk_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
-    Debug_printf("IMG::write fsync:%d\n", ret);
+    Debug_printf("IMG::write fsync:%d\r\n", ret);
 
     _disk_last_sector = sectornum;
 
@@ -128,7 +128,7 @@ void MediaTypeImg::status(uint8_t statusbuff[4])
 // Returns TRUE if an error condition occurred
 bool MediaTypeImg::format(uint16_t *responsesize)
 {
-    Debug_print("IMG FORMAT\n");
+    Debug_print("IMG FORMAT\r\n");
 
     // Populate an empty bad sector map
     memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
@@ -155,7 +155,7 @@ bool MediaTypeImg::format(uint16_t *responsesize)
 */
 mediatype_t MediaTypeImg::mount(FILE *f, uint32_t disksize)
 {
-    Debug_print("IMG MOUNT\n");
+    Debug_print("IMG MOUNT\r\n");
 
     _disk_fileh = f;
     _disk_num_sectors = disksize / 512;

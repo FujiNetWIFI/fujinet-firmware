@@ -631,7 +631,7 @@ uint8_t bdos_readDeviceSlots(uint16_t addr)
 
 uint8_t bios_tcpListen(uint16_t port)
 {
-	Debug_printf("Do we get here?\n");
+	Debug_printf("Do we get here?\r\n");
 
 	if (client.connected())
 		client.stop();
@@ -645,7 +645,7 @@ uint8_t bios_tcpListen(uint16_t port)
 	server = new fnTcpServer(port,1);
 	server->begin(port);
 
-	Debug_printf("bios_tcpListen - Now listening on port %u\n", port);
+	Debug_printf("bios_tcpListen - Now listening on port %u\r\n", port);
 	return server != nullptr;
 }
 
