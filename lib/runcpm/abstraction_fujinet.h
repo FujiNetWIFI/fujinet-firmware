@@ -502,14 +502,14 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-	return fnUartSIO.available();
+	return fnUartBUS.available();
 }
 
 uint8_t _getch(void)
 {
 	if (teeMode == true)
 	{
-		while (fnUartSIO.available() > 0)
+		while (fnUartBUS.available() > 0)
 		{
 			if (client.available())
 			{
@@ -518,21 +518,21 @@ uint8_t _getch(void)
 				return ch & 0x7F;
 			}
 		}
-		return fnUartSIO.read() & 0x7F;
+		return fnUartBUS.read() & 0x7F;
 	}
 	else
 	{
-		while (fnUartSIO.available() <= 0)
+		while (fnUartBUS.available() <= 0)
 		{
 		}
-		return fnUartSIO.read() & 0x7f;
+		return fnUartBUS.read() & 0x7f;
 	}
 }
 
 uint8_t _getche(void)
 {
 	uint8_t ch = _getch() & 0x7f;
-	fnUartSIO.write(ch);
+	fnUartBUS.write(ch);
 	if (teeMode == true)
 		client.write(ch);
 	return ch;
@@ -540,7 +540,7 @@ uint8_t _getche(void)
 
 void _putch(uint8_t ch)
 {
-	fnUartSIO.write(ch & 0x7f);
+	fnUartBUS.write(ch & 0x7f);
 	if (teeMode == true)
 		client.write(ch);
 }

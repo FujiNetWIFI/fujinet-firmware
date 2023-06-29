@@ -239,7 +239,7 @@ void virtualDevice::rc2014_response_status()
 
 void virtualDevice::rc2014_handle_stream()
 {
-    //fnUartSIO.flush_input();
+    //fnUartBUS.flush_input();
 }
 
 bool virtualDevice::rc2014_poll_interrupt()

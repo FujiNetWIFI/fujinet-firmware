@@ -61,6 +61,6 @@ public:
 };
 
 extern UARTManager fnUartDebug;
-extern UARTManager fnUartSIO;
+extern UARTManager fnUartBUS;
 
 #endif //FNUART_H
