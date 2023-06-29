@@ -124,6 +124,11 @@ void main_setup()
     SIO.setup();
 #endif // BUILD_ATARI
 
+#ifdef BUILD_COCO
+    theFuji.setup(&DRIVEWIRE);
+    DRIVEWIRE.setup();
+#endif
+
 #ifdef BUILD_IEC
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
 
@@ -139,6 +144,11 @@ void main_setup()
     sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
 
 #endif // BUILD_IEC
+
+#ifdef BUILD_MAC
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+
+#endif // BUILD_MAC
 
 #ifdef BUILD_LYNX
     theFuji.setup(&ComLynx);

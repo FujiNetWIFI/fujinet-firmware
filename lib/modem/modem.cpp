@@ -936,14 +936,14 @@ void modem::at_handle_help()
     {
         at_cmd_println(HELPPORT1, false);
         at_cmd_println(listenPort);
-        at_cmd_println(HELPPORT2);
-        at_cmd_println(HELPPORT3);
+        //at_cmd_println(HELPPORT2);
+        //at_cmd_println(HELPPORT3);
     }
     else
     {
         at_cmd_println(HELPPORT4);
     }
-    at_cmd_println();
+    //at_cmd_println();
 
     if (numericResultCode == true)
         at_cmd_resultCode(RESULT_CODE_OK);
@@ -1166,6 +1166,7 @@ void modem::at_handle_pb()
     else
     {
         std::string phnumber = cmd.substr(4);
+        // Check here if no number and skip delete? https://forums.atariage.com/topic/309560-fujinet-testing-and-bug-reporting-thread/?do=findComment&comment=5252703
         if (Config.del_pb_number(phnumber.c_str()))
         {
             if (numericResultCode == true)
@@ -1544,16 +1545,32 @@ void modem::sio_handle_modem()
             }
             else
             {
-                // Print RING every now and then while the new incoming connection exists
                 if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
                 {
-                    if (numericResultCode == true)
-                        at_cmd_resultCode(RESULT_CODE_RING);
+                    if (ringCount < RING_TIMEOUT)
+                    {
+                        // Print RING every now and then while the new incoming connection exists
+                        if (numericResultCode == true)
+                            at_cmd_resultCode(RESULT_CODE_RING);
+                        else
+                            at_cmd_println("RING");
+                        lastRingMs = fnSystem.millis();
+                        ringCount++;
+                    }
                     else
-                        at_cmd_println("RING");
-                    lastRingMs = fnSystem.millis();
+                    {
+                        // Answer and hangup since host system did not pickup
+                        fnTcpClient c = tcpServer.accept();
+                        c.write("The host system did not answer. Please try again later.\x0d\x0a\x9b");
+                        c.stop();
+                        ringCount = 0;
+                    }
                 }
             }
+        }
+        else
+        {
+            ringCount = 0; // Keep the counter reset
         }
 
         // In command mode - don't exchange with TCP but gather characters to a string

@@ -149,6 +149,11 @@ class iecNetwork : public virtualDevice
     bool file_not_found = false;
 
     /**
+     * @brief active status channel
+     */
+    uint8_t active_status_channel=0;
+
+    /**
      * @brief parse JSON
      */
     void parse_json();
@@ -162,6 +167,11 @@ class iecNetwork : public virtualDevice
      * @brief Set device ID from dos command
      */
     void set_device_id();
+
+    /**
+     * @brief Set channel to retrieve status from.
+     */
+    void set_status();
 
     /**
      * @brief Set desired prefix for channel
