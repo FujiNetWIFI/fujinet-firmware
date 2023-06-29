@@ -23,6 +23,7 @@
 #endif
 
 #ifdef BUILD_COCO
+# include "drivewire/cassette.h"
 # include "drivewire/clock.h"
 # include "drivewire/disk.h"
 # include "drivewire/modem.h"

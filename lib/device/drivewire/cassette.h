@@ -60,7 +60,7 @@ public:
     int8_t service(uint8_t b);
 };
 
-class sioCassette : public virtualDevice
+class drivewireCassette : public virtualDevice
 {
 protected:
     // FileSystem *_FS = nullptr;
@@ -85,8 +85,8 @@ protected:
     bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
 
     // have to populate virtual functions to complete class
-    void sio_status() override{}; // $53, 'S', Status
-    void sio_process(uint32_t commanddata, uint8_t checksum) override{};
+    void drivewire_status() override{}; // $53, 'S', Status
+    void drivewire_process(uint32_t commanddata, uint8_t checksum) override{};
 
     void open_cassette_file(FileSystem *filesystem);
     void close_cassette_file();
@@ -95,9 +95,9 @@ public:
     void umount_cassette_file();
     void mount_cassette_file(FILE *f, size_t fz);
 
-    void sio_enable_cassette();  // setup cassette
-    void sio_disable_cassette(); // stop cassette
-    void sio_handle_cassette();  // Handle incoming & outgoing data for cassette
+    void drivewire_enable_cassette();  // setup cassette
+    void drivewire_disable_cassette(); // stop cassette
+    void drivewire_handle_cassette();  // Handle incoming & outgoing data for cassette
 
     void rewind(); // rewind cassette
 
@@ -111,7 +111,7 @@ public:
 private:
     // stuff from SDrive Arduino sketch
     size_t tape_offset = 0;
-    struct tape_FUJI_hdr
+    struct tape_hdr
     {
         uint8_t chunk_type[4];
         uint16_t chunk_length;
@@ -133,9 +133,9 @@ private:
     unsigned short baud;
 
     size_t send_tape_block(size_t offset);
-    void check_for_FUJI_file();
-    size_t send_FUJI_tape_block(size_t offset);
-    size_t receive_FUJI_tape_block(size_t offset);
+    void check_for_file();
+    size_t send_tape_block(size_t offset);
+    size_t receive_tape_block(size_t offset);
 };
 
 #endif
