@@ -781,11 +781,11 @@ void iecFuji::open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    std::vector<std::string> t = util_tokenize(payload, ':');
+    std::vector<std::string> t = util_tokenize(payload, ',');
 
     if (t.size() < 3)
     {
-        response_queue.push("error: invalid # of parameters\r");
+        response = "invalid # of parameters.";
         return; // send error
     }
 
@@ -796,7 +796,7 @@ void iecFuji::open_directory()
     if (!_validate_host_slot(hostSlot))
     {
         // send error
-        response_queue.push("error: invalid host slot #\r");
+        response = "invalid host slot #";
         return;
     }
 
@@ -841,7 +841,8 @@ void iecFuji::open_directory()
         // send error
         response_queue.push("error: unable to open directory\r");
     }
-    response_queue.push("ok\r");
+
+    response = "ok";
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
