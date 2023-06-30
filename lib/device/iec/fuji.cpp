@@ -80,23 +80,18 @@ void iecFuji::reset_fujinet()
 // Scan for networks
 void iecFuji::net_scan_networks()
 {
-    std::string r;
     char c[8];
 
     _countScannedSSIDs = fnWiFi.scan_networks();
 
     if (payload[0] == FUJICMD_SCAN_NETWORKS)
     {
-        c[0] = _countScannedSSIDs;
-        c[1] = 0;
-        status_override = string(c);
+        response[0] = _countScannedSSIDs;
     }
     else
     {
-        iecStatus.error = _countScannedSSIDs;
-        iecStatus.msg = "networks found";
-        iecStatus.connected = 0;
-        iecStatus.channel = 15;
+        itoa(_countScannedSSIDs,c,10);
+        response = string(c);
     }
 }
 
@@ -115,8 +110,10 @@ void iecFuji::net_scan_result()
 
     if (t.size() > 1)
     {
+        util_remove_spaces(t[1]);
         int i = atoi(t[1].c_str());
         fnWiFi.get_scan_result(i, detail.ssid, &detail.rssi);
+        Debug_printf("SSID: %s RSSI: %u\r\n",detail.ssid,detail.rssi);
     }
     else
     {
@@ -131,16 +128,13 @@ void iecFuji::net_scan_result()
     }
     else // SCANRESULT,n
     {
-        char c[40];
+        char t[8];
+
         std::string s = std::string(detail.ssid);
         mstr::toPETSCII(s);
+        itoa(detail.rssi,t,10);
 
-        memset(c, 0, sizeof(c));
-
-        iecStatus.error = detail.rssi;
-        iecStatus.channel = 15;
-        iecStatus.connected = false;
-        iecStatus.msg = string(detail.ssid);
+        response = std::string(t) + ",\"" + s + "\"";
     }
 }
 
@@ -165,14 +159,12 @@ void iecFuji::net_get_ssid()
 
     if (payload[0] == FUJICMD_GET_SSID)
     {
-        std::string r = std::string((const char *)&cfg, sizeof(cfg));
-        response_queue.push(r);
+        response = std::string((const char *)&cfg, sizeof(cfg));
     }
     else // BASIC mode.
     {
-        std::string r = std::string(cfg.ssid);
-        mstr::toPETSCII(r);
-        status_override = r;
+        response = std::string(cfg.ssid);
+        mstr::toPETSCII(response);
     }
 }
 
@@ -228,27 +220,19 @@ void iecFuji::net_get_wifi_status()
 
     if (payload[0] == FUJICMD_GET_WIFISTATUS)
     {
-        r[0] = wifiStatus;
-        r[1] = 0;
-        status_override = string(r);
+        response.clear();
+        response[0] = wifiStatus;
         return;
     }
     else
     {
-        iecStatus.error = wifiStatus;
-
+        response.clear();
         if (wifiStatus)
-        {
-            iecStatus.msg = "CONNECTED";
-            iecStatus.connected = true;
-        }
+            response = "connected";
         else
-        {
-            iecStatus.msg = "DISCONNECTED";
-            iecStatus.connected = false;
-        }
-
-        iecStatus.channel = 15;
+            response = "disconnected";
+        
+        mstr::toPETSCII(response);
     }
 }
 
@@ -297,20 +281,18 @@ void iecFuji::mount_host()
 {
     int hs = -1;
 
+    _populate_slots_from_config();
     if (payload[0] == FUJICMD_MOUNT_HOST)
     {
-        hs = payload[1];        
+        hs = payload[1];
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        std::vector<std::string> t = util_tokenize(payload, ',');
 
         if (t.size() < 2) // send error.
         {
-            iecStatus.error = 0;
-            iecStatus.msg = "invalid # of parameters";
-            iecStatus.channel = 15;
-            iecStatus.connected = 0;
+            response = "INVALID # OF PARAMETERS.";
             return;
         }
 
@@ -319,33 +301,30 @@ void iecFuji::mount_host()
 
     if (!_validate_device_slot(hs, "mount_host"))
     {
-        iecStatus.error = hs;
-        iecStatus.msg = "invalid host slot #";
-        iecStatus.channel = 15;
-        iecStatus.connected = 0;
+        response = "INVALID HOST HOST #";
         return; // send error.
     }
 
     if (!_fnHosts[hs].mount())
     {
-        iecStatus.error = hs;
-        iecStatus.msg = "unable to mount host slot";
-        iecStatus.channel = 15;
-        iecStatus.connected = 0;
+        response = "UNABLE TO MOUNT HOST SLOT #";
         return; // send error.
     }
 
     // Otherwise, mount was successful.
-    iecStatus.error = hs;
-    iecStatus.msg = "host slot mounted";
-    iecStatus.channel = 15;
-    iecStatus.connected = 0;
+    char hn[64];
+    string hns;
+    _fnHosts[hs].get_hostname(hn,64);
+    hns = string(hn);
+    mstr::toPETSCII(hns);
+    response = hns + " MOUNTED."; 
 }
 
 // Disk Image Mount
 void iecFuji::disk_image_mount()
 {
-    std::vector<std::string> t = util_tokenize(payload, ':');
+    _populate_slots_from_config();
+    std::vector<std::string> t = util_tokenize(payload, ',');
     if (t.size() < 3)
     {
         response_queue.push("error: invalid # of parameters\r");
@@ -362,7 +341,7 @@ void iecFuji::disk_image_mount()
 
     if (!_validate_device_slot(ds))
     {
-        response_queue.push("error: invalid device slot\r");
+        response = "invalid device slot.";
         return; // error.
     }
 
@@ -380,7 +359,7 @@ void iecFuji::disk_image_mount()
 
     if (disk.fileh == nullptr)
     {
-        response_queue.push("error: no file handle\r");
+        response = "no file handle";
         return;
     }
 
@@ -392,7 +371,7 @@ void iecFuji::disk_image_mount()
 
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-    response_queue.push("ok\r");
+    response = "mounted";
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -1329,6 +1308,7 @@ void iecFuji::write_device_slots()
 // Temporary(?) function while we move from old config storage to new
 void iecFuji::_populate_slots_from_config()
 {
+    Debug_printf("_populate_slots_from_config()\n");
     for (int i = 0; i < MAX_HOSTS; i++)
     {
         if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
@@ -1517,13 +1497,18 @@ device_state_t iecFuji::process()
         device_state = DEVICE_ERROR;
         IEC.senderTimeout();
     }
-    else if (commanddata.primary != IEC_UNLISTEN)
-        return device_state;
 
-    if (payload[0] > 0x7F)
-        process_raw_commands();
-    else
-        process_basic_commands();
+    if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
+    {
+        while (!IEC.sendBytes(response));
+    }
+    else if (commanddata.primary == IEC_UNLISTEN)
+    {
+        if (payload[0] > 0x7F)
+            process_raw_commands();
+        else
+            process_basic_commands();
+    }
 
     return device_state;
 }

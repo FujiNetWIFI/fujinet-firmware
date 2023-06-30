@@ -68,6 +68,8 @@ private:
 
     AdapterConfig cfg;
 
+    std::string response;
+
     void process_raw_commands();
     void process_basic_commands();
 

@@ -583,9 +583,15 @@ void modem::sio_listen()
         sio_ack();
 
     tcpServer.setMaxClients(1);
-    tcpServer.begin(listenPort);
-
-    sio_complete();
+    int res = tcpServer.begin(listenPort);
+    if (res == 0)
+    {
+        sio_error();
+    }
+    else
+    {
+        sio_complete();
+    }
 }
 
 /**
@@ -827,11 +833,20 @@ void modem::at_handle_port()
 
         listenPort = port;
         tcpServer.setMaxClients(1);
-        tcpServer.begin(listenPort);
-        if (numericResultCode == true)
-            at_cmd_resultCode(RESULT_CODE_OK);
-        else
-            at_cmd_println("OK");
+        int res = tcpServer.begin(listenPort);
+        if (res == 0)
+        {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_ERROR);
+            else
+                at_cmd_println("ERROR");
+        }
+        else {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_OK);
+            else
+                at_cmd_println("OK");
+        }
     }
 }
 
