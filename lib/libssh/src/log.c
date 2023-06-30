@@ -91,7 +91,7 @@ static void ssh_log_stderr(int verbosity,
         fprintf(stderr, "[%d] %s", verbosity, function);
     }
 
-    fprintf(stderr, "  %s\n", buffer);
+    fprintf(stderr, "  %s\r\n", buffer);
 }
 
 void ssh_log_function(int verbosity,

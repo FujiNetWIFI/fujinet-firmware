@@ -35,9 +35,9 @@
  * @brief Define memory space of each RMT channel (in words = 4 bytes)
  *
  */
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
-#define RMT_MEM_ITEM_NUM SOC_RMT_CHANNEL_MEM_WORDS
-#endif
+// #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
+// #define RMT_MEM_ITEM_NUM SOC_RMT_CHANNEL_MEM_WORDS
+// #endif
 
 /**
  * @brief Data struct of RMT TX configure parameters

@@ -28,13 +28,13 @@ NetworkProtocolSMB::NetworkProtocolSMB(string *rx_buf, string *tx_buf, string *s
     delete_implemented = true;
     mkdir_implemented = true;
     rmdir_implemented = true;
-    Debug_printf("NetworkProtocolSMB::ctor\n");
+    Debug_printf("NetworkProtocolSMB::ctor\r\n");
     smb = smb2_init_context();
 }
 
 NetworkProtocolSMB::~NetworkProtocolSMB()
 {
-    Debug_printf("NetworkProtocolSMB::dtor\n");
+    Debug_printf("NetworkProtocolSMB::dtor\r\n");
     smb2_destroy_context(smb);
 }
 
@@ -42,7 +42,7 @@ bool NetworkProtocolSMB::open_file_handle()
 {
     if (smb == nullptr)
     {
-        Debug_printf("NetworkProtocolSMB::open_file_handle() - no smb context. aborting.\n");
+        Debug_printf("NetworkProtocolSMB::open_file_handle() - no smb context. aborting.\r\n");
         return true;
     }
 
@@ -71,14 +71,14 @@ bool NetworkProtocolSMB::open_file_handle()
 
     if (fh == nullptr)
     {
-        Debug_printf("NetworkProtocolSMB::open_file_handle() - SMB Error %s\n", smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::open_file_handle() - SMB Error %s\r\n", smb2_get_error(smb));
         fserror_to_error();
         return true;
     }
 
     offset = 0;
 
-    Debug_printf("DO WE FUCKING GET HERE?!\n");
+    Debug_printf("DO WE FUCKING GET HERE?!\r\n");
 
     return false;
 }
@@ -87,7 +87,7 @@ bool NetworkProtocolSMB::open_dir_handle()
 {
     if ((smb_dir = smb2_opendir(smb, smb_url->path)) == nullptr)
     {
-        Debug_printf("NetworkProtocolSMB::open_dir_handle() - ERROR: %s\n", smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::open_dir_handle() - ERROR: %s\r\n", smb2_get_error(smb));
         fserror_to_error();
         return true;
     }
@@ -110,7 +110,7 @@ bool NetworkProtocolSMB::mount(EdUrlParser *url)
     if (aux1_open == 6) // temporary
         openURL = openURL.substr(0, openURL.find_last_of("/"));
 
-    Debug_printf("NetworkProtocolSMB::mount() - openURL: %s\n", openURL.c_str());
+    Debug_printf("NetworkProtocolSMB::mount() - openURL: %s\r\n", openURL.c_str());
     smb_url = smb2_parse_url(smb, openURL.c_str());
 
     smb2_set_security_mode(smb, SMB2_NEGOTIATE_SIGNING_ENABLED);
@@ -122,7 +122,7 @@ bool NetworkProtocolSMB::mount(EdUrlParser *url)
 
         if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, login->c_str())) != 0)
         {
-            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
+            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
             return true;
         }
@@ -131,7 +131,7 @@ bool NetworkProtocolSMB::mount(EdUrlParser *url)
     {
         if ((smb_error = smb2_connect_share(smb, smb_url->server, smb_url->share, smb_url->user)) != 0)
         {
-            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
+            Debug_printf("aNetworkProtocolSMB::mount(%s) - could not mount, SMB2 error: %s\r\n", openURL.c_str(), smb2_get_error(smb));
             fserror_to_error();
             return true;
         }
@@ -263,7 +263,7 @@ bool NetworkProtocolSMB::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
     if (smb2_mkdir(smb, smb_url->path) != 0)
     {
         fserror_to_error();
-        Debug_printf("NetworkProtocolSMB::mkdir(%s) SMB error: %s\n",url->mRawUrl.c_str(), smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::mkdir(%s) SMB error: %s\r\n",url->mRawUrl.c_str(), smb2_get_error(smb));
     }
 
     umount();
@@ -278,7 +278,7 @@ bool NetworkProtocolSMB::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
     if (smb2_rmdir(smb, smb_url->path) != 0)
     {
         fserror_to_error();
-        Debug_printf("NetworkProtocolSMB::rmdir(%s) SMB error: %s\n",url->mRawUrl.c_str(), smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::rmdir(%s) SMB error: %s\r\n",url->mRawUrl.c_str(), smb2_get_error(smb));
     }
 
     umount();

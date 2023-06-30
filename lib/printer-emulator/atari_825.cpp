@@ -9,14 +9,14 @@ void atari825::not_implemented()
 {
     uint8_t c = epson_cmd.cmd;
     __IGNORE_UNUSED_VAR(c);
-    Debug_printf("Command not implemented: %u %x %c\n", c, c, c);
+    Debug_printf("Command not implemented: %u %x %c\r\n", c, c, c);
 }
 
 void atari825::esc_not_implemented()
 {
     uint8_t c = epson_cmd.cmd;
     __IGNORE_UNUSED_VAR(c);
-    Debug_printf("Command not implemented: ESC %u %x %c\n", c, c, c);
+    Debug_printf("Command not implemented: ESC %u %x %c\r\n", c, c, c);
 }
 
 void atari825::reset_cmd()
@@ -50,14 +50,14 @@ void atari825::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
             // epson_cmd.N2 = 0;
             epson_cmd.cmd = c; // assign command char
 #ifdef DEBUG
-            Debug_printf("Command: %c\n", c);
+            Debug_printf("Command: %c\r\n", c);
 #endif
         }
         else
         {
             epson_cmd.ctr++; // increment counter to keep track of the byte in the command
 #ifdef DEBUG
-            Debug_printf("Command counter: %d\n", epson_cmd.ctr);
+            Debug_printf("Command counter: %d\r\n", epson_cmd.ctr);
 #endif
         }
 
@@ -65,21 +65,21 @@ void atari825::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
         {
             epson_cmd.N1 = c;
 #ifdef DEBUG
-            Debug_printf("N1: %d\n", c);
+            Debug_printf("N1: %d\r\n", c);
 #endif
         }
         else if (epson_cmd.ctr == 2)
         {
             epson_cmd.N2 = c;
 #ifdef DEBUG
-            Debug_printf("N2: %d\n", c);
+            Debug_printf("N2: %d\r\n", c);
 #endif
         }
         else if (epson_cmd.ctr == 3)
         {
             epson_cmd.N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & (uint8_t)0x07));
 #ifdef DEBUG
-            Debug_printf("N: %d\n", epson_cmd.N);
+            Debug_printf("N: %d\r\n", epson_cmd.N);
 #endif
         }
         // state machine actions
@@ -160,7 +160,7 @@ void atari825::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
     else if (backMode)
     {
 #ifdef DEBUG
-        Debug_printf("backspace mode: %u\n", c);
+        Debug_printf("backspace mode: %u\r\n", c);
 #endif
         // Backspace. Empties printer buffer, then backspaces N dot spaces
         c &= 0x7F;        // ignore MSB

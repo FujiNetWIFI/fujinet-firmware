@@ -6,7 +6,7 @@
 #include "FS.h"
 
 #include "fnHttpClient.h"
-#include "WebDAV.h"
+#include "WEBDAV.h"
 
 class NetworkProtocolHTTP : public NetworkProtocolFS
 {

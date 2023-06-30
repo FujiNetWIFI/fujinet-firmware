@@ -1623,4 +1623,4 @@ std::string rs232Fuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */

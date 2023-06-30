@@ -88,7 +88,7 @@ public:
         if (_general.encrypt_passphrase) {
             // crypt is a isomorphic operation, calling it when passphrase is encrypted will decrypt it.
             std::string cleartext = crypto.crypt(_wifi.passphrase);
-            // Debug_printf("Decrypting passphrase >%s< for ssid >%s< with key >%s<, cleartext: >%s<\n", _wifi.passphrase.c_str(), _wifi.ssid.c_str(), crypto.getkey().c_str(), cleartext.c_str());
+            // Debug_printf("Decrypting passphrase >%s< for ssid >%s< with key >%s<, cleartext: >%s<\r\n", _wifi.passphrase.c_str(), _wifi.ssid.c_str(), crypto.getkey().c_str(), cleartext.c_str());
             return cleartext;
         } else {
             return _wifi.passphrase;

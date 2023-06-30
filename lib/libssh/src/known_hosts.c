@@ -481,7 +481,7 @@ char * ssh_dump_knownhost(ssh_session session) {
     }
 
     snprintf(buffer, len,
-            "%s %s %s\n",
+            "%s %s %s\r\n",
             host,
             server_pubkey->type_c,
             b64_key);

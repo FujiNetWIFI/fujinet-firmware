@@ -40,9 +40,8 @@ friend class FlashIStream;
 public:
     std::string basepath = "";
     
-    FlashFile(std::string path) {
-
-        parseUrl( path );
+    FlashFile(std::string path): MFile(path) {
+        // parseUrl( path );
 
         // Find full filename for wildcard
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
@@ -56,7 +55,7 @@ public:
         //Debug_printv("basepath[%s] path[%s] valid[%d]", basepath.c_str(), this->path.c_str(), m_isNull);
     };
     ~FlashFile() {
-        //Serial.printf("*** Destroying flashfile %s\n", url.c_str());
+        //Serial.printf("*** Destroying flashfile %s\r\n", url.c_str());
         closeDir();
     }
 

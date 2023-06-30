@@ -805,12 +805,13 @@ void iwm_diskii_ll::set_output_to_low()
 #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 #define RMT_USEC (APB_CLK_FREQ / MHZ)
 
-void iwm_diskii_ll::start()
+void iwm_diskii_ll::start(uint8_t drive)
 {
   diskii_xface.set_output_to_rmt();
   diskii_xface.enable_output();
   ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
   fnLedManager.set(LED_BUS, true);
+  Debug_printf("\nstart diskII d%d",drive+1);
 }
 
 void iwm_diskii_ll::stop()
@@ -818,6 +819,7 @@ void iwm_diskii_ll::stop()
   fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
   diskii_xface.disable_output();
   fnLedManager.set(LED_BUS, false);
+  Debug_printf("\nstop diskII");
 }
 
 void iwm_diskii_ll::set_output_to_rmt()
@@ -1053,13 +1055,8 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
   // only enable diskII if we are either not on an en35 capable host, or we are on an en35host and /EN35=high
   if (!IWM.en35Host || (IWM.en35Host && (GPIO.in1.val & (0x01 << (SP_EN35 - 32)))))
   {
-    // Temporary while we debug Disk ][
-#ifdef DISKII_DRIVE1
-    states |= !((GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) >> (SP_DRIVE1 - 32));
-#endif
-#ifdef DISKII_DRIVE2
-    states |= !((GPIO.in & (0x01 << SP_DRIVE2)) >> SP_DRIVE2);
-#endif
+    states |= (GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) ? 0b00 : 0b01;
+    states |= (GPIO.in & (0x01 << SP_DRIVE2)) ? 0b00 : 0b10;
   }
   return states;
 }

@@ -24,7 +24,7 @@ char * FileSystem::_make_fullpath(const char *path)
         }
         strlcat(fullpath, path, MAX_PATHLEN);
         #ifdef DEBUG
-        //Debug_printf("_make_fullpath \"%s\" -> \"%s\"\n", path, fullpath);
+        //Debug_printf("_make_fullpath \"%s\" -> \"%s\"\r\n", path, fullpath);
         #endif
 
         return fullpath;

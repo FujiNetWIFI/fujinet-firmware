@@ -13,7 +13,7 @@ void atari1025::set_line_long()
     {
         if (!BOLflag)
             pdf_end_line();     // close out string array
-        fprintf(_file, "ET\n"); // close out text object
+        fprintf(_file, "ET\r\n"); // close out text object
         // set new margins
         leftMargin = 18.0;  // (8.5-8.0)/2*72
         printWidth = 576.0; // 8 inches
@@ -31,7 +31,7 @@ void atari1025::set_line_short()
     {
         if (!BOLflag)
             pdf_end_line();     // close out string array
-        fprintf(_file, "ET\n"); // close out text object
+        fprintf(_file, "ET\r\n"); // close out text object
         // set new margins
         leftMargin = 75.6;  // (8.5-6.4)/2.0*72.0;
         printWidth = 460.8; //6.4*72.0; // 6.4 inches

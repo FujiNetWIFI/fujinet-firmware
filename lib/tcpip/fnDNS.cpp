@@ -11,7 +11,7 @@ in_addr_t get_ip4_addr_by_name(const char *hostname)
     in_addr_t result = IPADDR_NONE;
 
     #ifdef DEBUG
-    Debug_printf("Resolving hostname \"%s\"\n", hostname);
+    Debug_printf("Resolving hostname \"%s\"\r\n", hostname);
     #endif
     struct hostent *info = gethostbyname(hostname);
 
@@ -27,7 +27,7 @@ in_addr_t get_ip4_addr_by_name(const char *hostname)
         {
             result = *((in_addr_t*)(info->h_addr_list[0]));
             #ifdef DEBUG
-            Debug_printf("Resolved to address %s\n", inet_ntoa(result));
+            Debug_printf("Resolved to address %s\r\n", inet_ntoa(result));
             #endif
         }
     }
