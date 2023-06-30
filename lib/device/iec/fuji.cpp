@@ -1108,23 +1108,30 @@ void iecFuji::read_host_slots()
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
     if (payload[0] == FUJICMD_READ_HOST_SLOTS)
-        status_override = std::string((const char *)hostSlots, 256);
+        response = std::string((const char *)hostSlots, 256);
     else
     {
         std::vector<std::string> t = util_tokenize(payload, ',');
 
         if (t.size() < 2)
         {
-            iecStatus.error = 0;
-            iecStatus.msg = "host slot # required";
-            iecStatus.connected = 0;
-            iecStatus.channel = CHANNEL_COMMAND;
+            response = "host slot # required";
+            return;
         }
 
-        int selected_hs = atoi(t[1].c_str());
-        char reply[MAX_HOSTNAME_LEN];
+        util_remove_spaces(t[1]);
 
-        status_override = std::string(hostSlots[selected_hs]);
+        int selected_hs = atoi(t[1].c_str());
+        std::string hn = std::string(hostSlots[selected_hs]);
+
+        if (hn.empty())
+        {
+            response = "<empty>";
+        }
+        else
+            response = std::string(hostSlots[selected_hs]);
+
+        mstr::toPETSCII(response);
     }
 }
 
@@ -1157,16 +1164,12 @@ void iecFuji::write_host_slots()
     }
     else
     {
-        // PUTHOST:<slot>:<hostname>
+        // PUTHOST,<slot>,<hostname>
         std::vector<std::string> t = util_tokenize(payload, ',');
 
         if (t.size() < 2)
         {
-            Debug_println("No Host slot #, ignoring.");
-            iecStatus.error = 0;
-            iecStatus.msg = "error: no host slot #";
-            iecStatus.connected = 0;
-            iecStatus.channel = CHANNEL_COMMAND;
+            response = "no host slot #";
             return;
         }
         else
@@ -1175,10 +1178,7 @@ void iecFuji::write_host_slots()
         if (!_validate_host_slot(hostSlot))
         {
             // Send error.
-            iecStatus.error = 0;
-            iecStatus.msg = "error: invalid host slot #";
-            iecStatus.connected = 0;
-            iecStatus.channel = CHANNEL_COMMAND;
+            response = "invalid host slot #";
             return;
         }
 
@@ -1198,10 +1198,7 @@ void iecFuji::write_host_slots()
     _populate_config_from_slots();
     Config.save();
 
-    iecStatus.error = hostSlot;
-    iecStatus.msg = string(hostname);
-    iecStatus.channel = CHANNEL_COMMAND;
-    iecStatus.connected = 0;
+    response = "ok";
 }
 
 // Store host path prefix
