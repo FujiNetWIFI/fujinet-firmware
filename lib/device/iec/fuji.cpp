@@ -281,20 +281,18 @@ void iecFuji::mount_host()
 {
     int hs = -1;
 
+    _populate_slots_from_config();
     if (payload[0] == FUJICMD_MOUNT_HOST)
     {
         hs = payload[1];
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        std::vector<std::string> t = util_tokenize(payload, ',');
 
         if (t.size() < 2) // send error.
         {
-            iecStatus.error = 0;
-            iecStatus.msg = "invalid # of parameters";
-            iecStatus.channel = 15;
-            iecStatus.connected = 0;
+            response = "INVALID # OF PARAMETERS.";
             return;
         }
 
@@ -303,27 +301,23 @@ void iecFuji::mount_host()
 
     if (!_validate_device_slot(hs, "mount_host"))
     {
-        iecStatus.error = hs;
-        iecStatus.msg = "invalid host slot #";
-        iecStatus.channel = 15;
-        iecStatus.connected = 0;
+        response = "INVALID HOST HOST #";
         return; // send error.
     }
 
     if (!_fnHosts[hs].mount())
     {
-        iecStatus.error = hs;
-        iecStatus.msg = "unable to mount host slot";
-        iecStatus.channel = 15;
-        iecStatus.connected = 0;
+        response = "UNABLE TO MOUNT HOST SLOT #";
         return; // send error.
     }
 
     // Otherwise, mount was successful.
-    iecStatus.error = hs;
-    iecStatus.msg = "host slot mounted";
-    iecStatus.channel = 15;
-    iecStatus.connected = 0;
+    char hn[64];
+    string hns;
+    _fnHosts[hs].get_hostname(hn,64);
+    hns = string(hn);
+    mstr::toPETSCII(hns);
+    response = hns + " MOUNTED."; 
 }
 
 // Disk Image Mount
@@ -1313,6 +1307,7 @@ void iecFuji::write_device_slots()
 // Temporary(?) function while we move from old config storage to new
 void iecFuji::_populate_slots_from_config()
 {
+    Debug_printf("_populate_slots_from_config()\n");
     for (int i = 0; i < MAX_HOSTS; i++)
     {
         if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
