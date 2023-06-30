@@ -1260,19 +1260,13 @@ void iecFuji::read_device_slots()
 
         if (t.size() < 2)
         {
-            iecStatus.error = 0;
-            iecStatus.msg = "host slot required";
-            iecStatus.connected = 0;
-            iecStatus.channel = CHANNEL_COMMAND;
+            response="host slot required";
             return;
         }
 
         int selected_ds = atoi(t[1].c_str());
 
-        iecStatus.error = selected_ds;
-        iecStatus.connected = diskSlots[selected_ds].hostSlot;
-        iecStatus.msg = diskSlots[selected_ds].filename;
-        iecStatus.channel = diskSlots[selected_ds].mode;
+        response = "ok";
     }
 }
 
