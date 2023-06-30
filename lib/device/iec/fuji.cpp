@@ -80,23 +80,18 @@ void iecFuji::reset_fujinet()
 // Scan for networks
 void iecFuji::net_scan_networks()
 {
-    std::string r;
     char c[8];
 
     _countScannedSSIDs = fnWiFi.scan_networks();
 
     if (payload[0] == FUJICMD_SCAN_NETWORKS)
     {
-        c[0] = _countScannedSSIDs;
-        c[1] = 0;
-        status_override = string(c);
+        response[0] = _countScannedSSIDs;
     }
     else
     {
-        iecStatus.error = _countScannedSSIDs;
-        iecStatus.msg = "networks found";
-        iecStatus.connected = 0;
-        iecStatus.channel = 15;
+        itoa(_countScannedSSIDs,c,10);
+        response = string(c);
     }
 }
 
@@ -1520,9 +1515,7 @@ device_state_t iecFuji::process()
 
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
-        char tmp[79];
-        sprintf(tmp, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
-        IEC.sendBytes(string(tmp), true);
+        IEC.sendBytes(response);
     }
     else if (commanddata.primary == IEC_UNLISTEN)
     {
