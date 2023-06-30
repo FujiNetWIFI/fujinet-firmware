@@ -310,17 +310,16 @@ bool NetworkProtocolTCP::open_server(unsigned short port)
     Debug_printf("Binding to port %d\r\n", port);
 
     server = new fnTcpServer(port);
-    server->begin(port);
-    connectionIsServer = true;
-
-    Debug_printf("errno = %u\r\n", errno);
-
-    if (errno == 0)
-        error = 1;
-    else
+    int res = server->begin(port);
+    connectionIsServer = true;      // set even if we're in error
+    if (res == 0)
+    {
+        Debug_printf("errno = %u\r\n", errno);
         errno_to_error();
+        return true;
+    }
 
-    return errno != 0;
+    return false;
 }
 
 /**
@@ -373,7 +372,7 @@ bool NetworkProtocolTCP::special_accept_connection()
             remoteIP = client.remoteIP();
             remotePort = client.remotePort();
             remoteIPString = inet_ntoa(remoteIP);
-            Debug_printf("Accepted connection from %s:%u", remoteIPString, remotePort);
+            Debug_printf("Accepted connection from %s:%u\r\n", remoteIPString, remotePort);
             return false;
         }
         else

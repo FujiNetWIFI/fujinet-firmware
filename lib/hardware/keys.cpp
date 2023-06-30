@@ -262,7 +262,9 @@ void KeyManager::_keystate_task(void *param)
             Debug_println("ACTION: Reboot");
             //fnSystem.reboot();
             // IEC.releaseLines();
+#ifdef BUILD_IEC
             Debug_printf("bus_state[%d]\r\n", IEC.bus_state);
+#endif
             Debug_printf("Heap: %lu\r\n",esp_get_free_internal_heap_size());
             // Debug_printf("PsramSize: %u\r\n", fnSystem.get_psram_size());
             // Debug_printf("himem phys: %u\r\n", esp_himem_get_phys_size());
