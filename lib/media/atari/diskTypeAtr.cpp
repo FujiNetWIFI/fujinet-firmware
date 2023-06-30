@@ -52,14 +52,14 @@ uint32_t MediaTypeATR::_sector_to_offset(uint16_t sectorNum)
 // Returns TRUE if an error condition occurred
 bool MediaTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 {
-    Debug_print("ATR READ\n");
+    Debug_print("ATR READ\r\n");
 
     *readcount = 0;
 
     // Return an error if we're trying to read beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::read sector %d > %d\n", sectornum, _disk_num_sectors);
+        Debug_printf("::read sector %d > %d\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 
@@ -101,21 +101,21 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
     oldFileh = nullptr;
     hsFileh = nullptr;
 
-    Debug_printf("ATR WRITE\n", sectornum, _disk_num_sectors);
+    Debug_printf("ATR WRITE\r\n", sectornum, _disk_num_sectors);
 
     // Return an error if we're trying to write beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::write sector %d > %d\n", sectornum, _disk_num_sectors);
+        Debug_printf("::write sector %d > %d\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 
     if (_high_score_sector != 0)
     {
-        Debug_printf("High score mode activated, attempting write open\n");
+        Debug_printf("High score mode activated, attempting write open\r\n");
         if (_disk_host == nullptr)
         {
-            Debug_printf("!!! Why is host slot null?\n");
+            Debug_printf("!!! Why is host slot null?\r\n");
         }
         else
         {
@@ -136,7 +136,7 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
         e = fseek(_disk_fileh, offset, SEEK_SET);
         if (e != 0)
         {
-            Debug_printf("::write seek error %d\n", e);
+            Debug_printf("::write seek error %d\r\n", e);
             return true;
         }
     }
@@ -144,17 +144,17 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
     e = fwrite(_disk_sectorbuff, 1, sectorSize, _disk_fileh);
     if (e != sectorSize)
     {
-        Debug_printf("::write error %d, %d\n", e, errno);
+        Debug_printf("::write error %d, %d\r\n", e, errno);
         return true;
     }
 
     int ret = fflush(_disk_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
     ret = fsync(fileno(_disk_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
-    Debug_printf("ATR::write fsync:%d\n", ret);
+    Debug_printf("ATR::write fsync:%d\r\n", ret);
 
     if (_high_score_sector != 0)
     {
-        Debug_printf("Closing high score sector.\n");
+        Debug_printf("Closing high score sector.\r\n");
 
         if (hsFileh != nullptr)
             fclose(hsFileh);
@@ -193,7 +193,7 @@ void MediaTypeATR::status(uint8_t statusbuff[4])
 // Returns TRUE if an error condition occurred
 bool MediaTypeATR::format(uint16_t *responsesize)
 {
-    Debug_print("ATR FORMAT\n");
+    Debug_print("ATR FORMAT\r\n");
 
     // Populate an empty bad sector map
     memset(_disk_sectorbuff, 0, sizeof(_disk_sectorbuff));
@@ -220,7 +220,7 @@ bool MediaTypeATR::format(uint16_t *responsesize)
 */
 mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
 {
-    Debug_print("ATR MOUNT\n");
+    Debug_print("ATR MOUNT\r\n");
 
     _disktype = MEDIATYPE_UNKNOWN;
 
@@ -232,12 +232,12 @@ mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
     int i;
     if ((i = fseek(f, 0, SEEK_SET)) < 0)
     {
-        Debug_printf("failed seeking to header on disk image (%d, %d)\n", i, errno);
+        Debug_printf("failed seeking to header on disk image (%d, %d)\r\n", i, errno);
         return _disktype;
     }
     if ((i = fread(buf, 1, sizeof(buf), f)) != sizeof(buf))
     {
-        Debug_printf("failed reading header bytes (%d, %d)\n", i, errno);
+        Debug_printf("failed reading header bytes (%d, %d)\r\n", i, errno);
         return _disktype;
     }
     // Check the magic number
@@ -269,9 +269,9 @@ mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
     _high_score_num_sectors = buf[12] - 1;
 
     if (_high_score_sector > 0)
-        Debug_printf("High Score Sector Specified: %u\n", _high_score_sector);
+        Debug_printf("High Score Sector Specified: %u\r\n", _high_score_sector);
 
-    Debug_printf("mounted ATR: paragraphs=%d, sect_size=%d, sect_count=%d, disk_size=%d\n",
+    Debug_printf("mounted ATR: paragraphs=%d, sect_size=%d, sect_count=%d, disk_size=%d\r\n",
                  num_paragraphs, num_bytes_sector, _disk_num_sectors, disksize);
 
     _disktype = MEDIATYPE_ATR;
@@ -282,7 +282,7 @@ mediatype_t MediaTypeATR::mount(FILE *f, uint32_t disksize)
 // Returns FALSE on error
 bool MediaTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
-    Debug_print("ATR CREATE\n");
+    Debug_print("ATR CREATE\r\n");
 
     struct
     {
@@ -325,7 +325,7 @@ bool MediaTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
     atrHeader.secsizeL = LOBYTE_FROM_UINT16(sectorSize);
     atrHeader.secsizeH = HIBYTE_FROM_UINT16(sectorSize);
 
-    Debug_printf("Write header to ATR: sec_size=%d, sectors=%d, paragraphs=%d, bytes=%d\n",
+    Debug_printf("Write header to ATR: sec_size=%d, sectors=%d, paragraphs=%d, bytes=%d\r\n",
                  sectorSize, numSectors, num_paragraphs, total_size);
 
     uint32_t offset = fwrite(&atrHeader, 1, sizeof(atrHeader), f);
@@ -340,7 +340,7 @@ bool MediaTypeATR::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
             size_t out = fwrite(blank, 1, 128, f);
             if (out != 128)
             {
-                Debug_printf("Error writing sector %hhu\n", i);
+                Debug_printf("Error writing sector %hhu\r\n", i);
                 return false;
             }
             offset += 128;

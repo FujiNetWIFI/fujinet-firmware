@@ -156,10 +156,10 @@ MFile* MFSOwner::File(std::shared_ptr<MFile> file) {
 
 
 MFile* MFSOwner::File(std::string path) {
-    //Debug_printv("in File\n");
+    //Debug_printv("in File\r\n");
 
     // if(mstr::startsWith(path,"cs:", false)) {
-    //     //Serial.printf("CServer path found!\n");
+    //     //Serial.printf("CServer path found!\r\n");
     //     return csFS.getFile(path);
     // }
 
@@ -245,7 +245,7 @@ std::string MFSOwner::existsLocal( std::string path )
                 /* print all the files and directories within directory */
                 std::string e;
                 while ((ent = readdir (dir)) != NULL) {
-                    // Debug_printv( "%s\n", ent->d_name );
+                    // Debug_printv( "%s\r\n", ent->d_name );
                     e = ent->d_name;
                     if ( mstr::compare( name, e ) )
                     {
@@ -276,7 +276,7 @@ MFileSystem* MFSOwner::testScan(std::vector<std::string>::iterator &begin, std::
         } );
 
         if(foundIter != availableFS.end()) {
-            //Debug_printv("matched part '%s'\n", part.c_str());
+            //Debug_printv("matched part '%s'\r\n", part.c_str());
             return (*foundIter);
         }
     };
@@ -302,6 +302,15 @@ MFileSystem::~MFileSystem() {}
  ********************************************************/
 
 MFile::MFile(std::string path) {
+    // Debug_printv("path[%s]", path.c_str());
+
+    // if ( mstr::contains(path, "$") )
+    // {
+    //     // Create directory stream here
+    //     Debug_printv("Create directory stream here!");
+    //     path = "";
+    // }
+
     parseUrl(path);
 }
 
@@ -505,18 +514,18 @@ MFile* MFile::cd(std::string newDir)
 };
 
 // bool MFile::copyTo(MFile* dst) {
-//     Debug_printv("in copyTo\n");
+//     Debug_printv("in copyTo\r\n");
 //     Meat::iostream istream(this);
 //     Meat::iostream ostream(dst);
 
 //     int rc;
 
-//     Debug_printv("in copyTo, iopen=%d oopen=%d\n", istream.is_open(), ostream.is_open());
+//     Debug_printv("in copyTo, iopen=%d oopen=%d\r\n", istream.is_open(), ostream.is_open());
 
 //     if(!istream.is_open() || !ostream.is_open())
 //         return false;
 
-//     Debug_printv("commencing copy\n");
+//     Debug_printv("commencing copy\r\n");
 
 //     while((rc = istream.get())!= EOF) {     
 //         ostream.put(rc);
@@ -524,7 +533,7 @@ MFile* MFile::cd(std::string newDir)
 //             return false;
 //     }
 
-//     Debug_printv("copying finished, rc=%d\n", rc);
+//     Debug_printv("copying finished, rc=%d\r\n", rc);
 
 //     return true;
 // };

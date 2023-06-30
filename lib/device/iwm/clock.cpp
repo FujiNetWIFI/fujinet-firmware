@@ -186,4 +186,4 @@ void iwmClock::shutdown()
 
 
 
-#endif /* BUILD_APPLE2 */
+#endif /* BUILD_APPLE */

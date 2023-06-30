@@ -51,4 +51,4 @@ int printerlist::get_port(int index)
     return _printers[index].port;
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */

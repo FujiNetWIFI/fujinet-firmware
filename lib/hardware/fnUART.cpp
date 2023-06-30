@@ -24,7 +24,7 @@
 #define MAX_WRITE_BUFFER_TICKS 1000
 
 UARTManager fnUartDebug(UART_DEBUG);
-UARTManager fnUartSIO(UART_SIO);
+UARTManager fnUartBUS(UART_SIO);
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
@@ -183,7 +183,7 @@ void UARTManager::set_baudrate(uint32_t baud)
 #endif
     uart_set_baudrate(_uart_num, baud);
 #ifdef DEBUG
-    Debug_printf("set_baudrate change from %d to %d\n", before, baud);
+    Debug_printf("set_baudrate change from %d to %d\r\n", before, baud);
 #endif
 }
 
@@ -199,7 +199,7 @@ int UARTManager::read(void)
         if (result == 0)
             Debug_println("### UART read() TIMEOUT ###");
         else
-            Debug_printf("### UART read() ERROR %d ###\n", result);
+            Debug_printf("### UART read() ERROR %d ###\r\n", result);
 #endif
         return -1;
     }
@@ -218,7 +218,7 @@ size_t UARTManager::readBytes(uint8_t *buffer, size_t length)
     {
         if (result < 0)
         {
-            Debug_printf("### UART readBytes() ERROR %d ###\n", result);
+            Debug_printf("### UART readBytes() ERROR %d ###\r\n", result);
         }
         else
         {

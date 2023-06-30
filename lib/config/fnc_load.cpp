@@ -93,13 +93,13 @@ New behavior: copy from SD first if available, then read SPIFFS.
     char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
     if (inibuffer == nullptr)
     {
-        Debug_printf("Failed to allocate %d bytes to read config file\n", CONFIG_FILEBUFFSIZE);
+        Debug_printf("Failed to allocate %d bytes to read config file\r\n", CONFIG_FILEBUFFSIZE);
         return;
     }
     int i = fread(inibuffer, 1, CONFIG_FILEBUFFSIZE - 1, fin);
     fclose(fin);
 
-    Debug_printf("fnConfig::load read %d bytes from config file\n", i);
+    Debug_printf("fnConfig::load read %d bytes from config file\r\n", i);
 
     if (i < 0)
     {
@@ -177,12 +177,12 @@ New behavior: copy from SD first if available, then read SPIFFS.
             char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
             if (inibuffer == nullptr)
             {
-                Debug_printf("Failed to allocate %d bytes to read config file from SPIFFS\n", CONFIG_FILEBUFFSIZE);
+                Debug_printf("Failed to allocate %d bytes to read config file from SPIFFS\r\n", CONFIG_FILEBUFFSIZE);
                 return;
             }
             int i = fread(inibuffer, 1, CONFIG_FILEBUFFSIZE - 1, fin);
             fclose(fin);
-            Debug_printf("fnConfig::load read %d bytes from SPIFFS config file\n", i);
+            Debug_printf("fnConfig::load read %d bytes from SPIFFS config file\r\n", i);
             if (i < 0)
             {
                 Debug_println("Failed to read data from SPIFFS configuration file");

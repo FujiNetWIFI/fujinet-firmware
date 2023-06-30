@@ -56,7 +56,7 @@ bool MediaTypeROM::format(uint16_t *responsesize)
 
 mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
 {
-    Debug_print("ROM MOUNT\n");
+    Debug_print("ROM MOUNT\r\n");
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_ROM;

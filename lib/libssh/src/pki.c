@@ -1971,7 +1971,7 @@ int ssh_pki_export_pubkey_file(const ssh_key key,
     }
 
     rc = snprintf(key_buf, sizeof(key_buf),
-                  "%s %s %s@%s\n",
+                  "%s %s %s@%s\r\n",
                   key->type_c,
                   b64_key,
                   user,

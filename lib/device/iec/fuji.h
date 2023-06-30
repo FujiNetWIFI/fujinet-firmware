@@ -68,6 +68,8 @@ private:
 
     AdapterConfig cfg;
 
+    std::string response;
+
     void process_raw_commands();
     void process_basic_commands();
 
@@ -112,7 +114,7 @@ protected:
     // Commodore specific
     void local_ip();
 
-    device_state_t process(IECData *commanddata) override;
+    device_state_t process() override;
 
     void shutdown() override;
 

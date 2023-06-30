@@ -57,7 +57,7 @@ NetworkProtocol::NetworkProtocol(string *rx_buf,
                                  string *tx_buf,
                                  string *sp_buf)
 {
-    Debug_printf("NetworkProtocol::ctor()\n");
+    Debug_printf("NetworkProtocol::ctor()\r\n");
 
     receiveBuffer = rx_buf;
     transmitBuffer = tx_buf;
@@ -71,7 +71,7 @@ NetworkProtocol::NetworkProtocol(string *rx_buf,
  */
 NetworkProtocol::~NetworkProtocol()
 {
-    Debug_printf("NetworkProtocol::dtor()\n");
+    Debug_printf("NetworkProtocol::dtor()\r\n");
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
@@ -123,7 +123,7 @@ bool NetworkProtocol::close()
  */
 bool NetworkProtocol::read(unsigned short len)
 {
-    Debug_printf("NetworkProtocol::read(%u)\n", len);
+    Debug_printf("NetworkProtocol::read(%u)\r\n", len);
     translate_receive_buffer();
     error = 1;
     return false;
@@ -185,7 +185,7 @@ void NetworkProtocol::translate_receive_buffer()
     #endif
         break;
     case TRANSLATION_MODE_PETSCII:
-        Debug_printf("!!! PETSCII !!!\n");
+        Debug_printf("!!! PETSCII !!!\r\n");
         mstr::toPETSCII(*receiveBuffer);
         break;
     }
@@ -259,7 +259,7 @@ void NetworkProtocol::errno_to_error()
         error = NETWORK_ERROR_NETWORK_DOWN;
         break;
     default:
-        Debug_printf("errno_to_error() - Uncaught errno = %u, returning 144.\n", errno);
+        Debug_printf("errno_to_error() - Uncaught errno = %u, returning 144.\r\n", errno);
         error = NETWORK_ERROR_GENERAL;
         break;
     }

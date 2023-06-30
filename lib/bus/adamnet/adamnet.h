@@ -11,7 +11,7 @@
 #include <map>
 
 
-#define ADAMNET_BAUD 62500
+#define ADAMNET_BAUDRATE 62500
 
 #define MN_RESET 0x00   // command.control (reset)
 #define MN_STATUS 0x01  // command.control (status)

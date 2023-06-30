@@ -148,7 +148,7 @@ void SystemManager::_net::set_sntp_lastsync()
 void SystemManager::_net::_sntp_time_sync_notification(struct timeval *tv)
 {
     fnSystem.Net.set_sntp_lastsync();
-    Debug_printf("SNTP time sync event: %s\n", fnSystem.get_current_time_str());
+    Debug_printf("SNTP time sync event: %s\r\n", fnSystem.get_current_time_str());
 }
 
 
@@ -164,7 +164,7 @@ void SystemManager::_net::start_sntp_client()
     if (_sntp_initialized == true)
         return;
 
-    Debug_print("SNTP client start\n");
+    Debug_print("SNTP client start\r\n");
 
     // Update system timezone data
     fnSystem.update_timezone(Config.get_general_timezone().c_str());
@@ -178,7 +178,7 @@ void SystemManager::_net::start_sntp_client()
         sntp_setservername(0, sntpserver); 
     else
     {
-        Debug_print("No SNTP server defined - attempting DHCP setting\n");
+        Debug_print("No SNTP server defined - attempting DHCP setting\r\n");
         // This will only do something if SNTP_GET_SERVERS_FROM_DHCP is set in the LWIP library
         sntp_servermode_dhcp(1);
     }

@@ -112,7 +112,7 @@ void main_setup()
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
     sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-    sioR->set_uart(&fnUartSIO);
+    sioR->set_uart(&fnUartBUS);
 
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
@@ -123,6 +123,11 @@ void main_setup()
     // Go setup SIO
     SIO.setup();
 #endif // BUILD_ATARI
+
+#ifdef BUILD_COCO
+    theFuji.setup(&DRIVEWIRE);
+    DRIVEWIRE.setup();
+#endif
 
 #ifdef BUILD_IEC
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;

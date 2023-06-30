@@ -115,7 +115,7 @@ void libssh_constructor(void)
     rc = _ssh_init(1);
 
     if (rc < 0) {
-        fprintf(stderr, "Error in auto_init()\n");
+        fprintf(stderr, "Error in auto_init()\r\n");
     }
 
     return;
@@ -201,7 +201,7 @@ void libssh_destructor(void)
     rc = _ssh_finalize(1);
 
     if (rc < 0) {
-        fprintf(stderr, "Error in libssh_destructor()\n");
+        fprintf(stderr, "Error in libssh_destructor()\r\n");
     }
 }
 

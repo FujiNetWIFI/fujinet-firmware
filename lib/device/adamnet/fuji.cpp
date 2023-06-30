@@ -358,8 +358,8 @@ void adamFuji::adamnet_copy_file()
     ck = adamnet_recv();
 
     AdamNet.wait_for_idle();
-    fnUartSIO.write(0x9f); // ACK.
-    fnUartSIO.flush();
+    fnUartBUS.write(0x9f); // ACK.
+    fnUartBUS.flush();
 
     dataBuf = (char *)malloc(COPY_SIZE);
 

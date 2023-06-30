@@ -22,7 +22,7 @@
 #define SIO_MODEMCMD_SET_DUMP 0x44
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
-#define SIO_MODEMCMD_BAUDLOCK 0x4E
+#define SIO_MODEMCMD_BAUDRATELOCK 0x4E
 #define SIO_MODEMCMD_AUTOANSWER 0x4F
 #define SIO_MODEMCMD_STATUS 0x53
 #define SIO_MODEMCMD_WRITE 0x57
@@ -583,9 +583,15 @@ void modem::sio_listen()
         sio_ack();
 
     tcpServer.setMaxClients(1);
-    tcpServer.begin(listenPort);
-
-    sio_complete();
+    int res = tcpServer.begin(listenPort);
+    if (res == 0)
+    {
+        sio_error();
+    }
+    else
+    {
+        sio_complete();
+    }
 }
 
 /**
@@ -827,11 +833,20 @@ void modem::at_handle_port()
 
         listenPort = port;
         tcpServer.setMaxClients(1);
-        tcpServer.begin(listenPort);
-        if (numericResultCode == true)
-            at_cmd_resultCode(RESULT_CODE_OK);
-        else
-            at_cmd_println("OK");
+        int res = tcpServer.begin(listenPort);
+        if (res == 0)
+        {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_ERROR);
+            else
+                at_cmd_println("ERROR");
+        }
+        else {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_OK);
+            else
+                at_cmd_println("OK");
+        }
     }
 }
 
@@ -1864,7 +1879,7 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
         case SIO_MODEMCMD_UNLISTEN:
             sio_unlisten();
             break;
-        case SIO_MODEMCMD_BAUDLOCK:
+        case SIO_MODEMCMD_BAUDRATELOCK:
             sio_baudlock();
             break;
         case SIO_MODEMCMD_AUTOANSWER:

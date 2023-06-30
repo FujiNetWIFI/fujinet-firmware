@@ -55,13 +55,13 @@ void atari822::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
         textMode = false;
         if (!BOLflag)
             pdf_end_line();   // close out string array
-        fprintf(_file, "ET\n"); // close out text object
+        fprintf(_file, "ET\r\n"); // close out text object
     }
 
     if (!textMode && BOLflag)
     {
-        fprintf(_file, "q\n %g 0 0 %g %g %g cm\n", printWidth, lineHeight / 10.0, leftMargin, pdf_Y);
-        fprintf(_file, "BI\n /W 240\n /H 1\n /CS /G\n /BPC 1\n /D [1 0]\n /F /AHx\nID\n");
+        fprintf(_file, "q\n %g 0 0 %g %g %g cm\r\n", printWidth, lineHeight / 10.0, leftMargin, pdf_Y);
+        fprintf(_file, "BI\n /W 240\n /H 1\n /CS /G\n /BPC 1\n /D [1 0]\n /F /AHx\nID\r\n");
         BOLflag = false;
     }
     if (!textMode)
@@ -73,7 +73,7 @@ void atari822::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
 
         if (gfxNumber == 40)
         {
-            fprintf(_file, "\n >\nEI\nQ\n");
+            fprintf(_file, "\n >\nEI\nQ\r\n");
             pdf_Y -= lineHeight / 10.0;
             BOLflag = true;
             gfxNumber = 0;

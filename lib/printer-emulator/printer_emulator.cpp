@@ -40,7 +40,7 @@ size_t printer_emu::copy_file_to_output(const char *filename)
     if (fInput == nullptr)
     {
 #ifdef DEBUG
-        Debug_printf("Failed to open printer concatenation file: '%s'\n", filename);
+        Debug_printf("Failed to open printer concatenation file: '%s'\r\n", filename);
 #endif
         return 0;
     }

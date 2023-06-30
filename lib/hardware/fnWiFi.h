@@ -30,7 +30,7 @@ private:
     std::string _ssid;
     std::string _password;
 
-    esp_netif_t *_wifi_if = nullptr;
+    esp_netif_t *_wifi_sta = nullptr;
 
     wifi_ap_record_t * _scan_records = nullptr;
     uint16_t _scan_record_count = 0;
@@ -68,7 +68,7 @@ public:
     int connect();
 
     bool connected();
-    esp_netif_t * get_adapter_handle() { return _wifi_if; };
+    esp_netif_t * get_adapter_handle() { return _wifi_sta; };
 
     void handle_station_stop();
 
@@ -83,6 +83,7 @@ public:
     uint8_t scan_networks(uint8_t maxresults = FNWIFI_SCAN_RESULTS_MAX);
     int get_scan_result(uint8_t index, char ssid[32], uint8_t *rssi = NULL,
                         uint8_t *channel = NULL, char bssid[18] = NULL, uint8_t *encryption = NULL);
+    std::string get_network_name_by_crc8(uint8_t crc8);
 
     int32_t localIP();
 };

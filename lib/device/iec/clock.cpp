@@ -31,11 +31,11 @@ bool is_number(const std::string& s)
         s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
 }
 
-device_state_t iecClock::process(IECData *id)
+device_state_t iecClock::process()
 {
-    virtualDevice::process(id);
+    virtualDevice::process();
 
-    switch (commanddata->secondary)
+    switch (commanddata.secondary)
     {
     case IEC_OPEN:
         iec_open();
@@ -68,7 +68,7 @@ void iecClock::iec_close()
 
 void iecClock::iec_reopen()
 {
-    switch (commanddata->primary)
+    switch (commanddata.primary)
     {
     case IEC_TALK:
         iec_reopen_talk();

@@ -179,7 +179,7 @@ void fnConfig::save()
         std::string result = ss.str();
         size_t z = fwrite(result.c_str(), 1, result.length(), fout);
         (void)z; // Get around unused var
-        Debug_printf("fnConfig::save wrote %d bytes\n", z);
+        Debug_printf("fnConfig::save wrote %d bytes\r\n", z);
         fclose(fout);
     
     _dirty = false;

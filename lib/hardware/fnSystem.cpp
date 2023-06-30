@@ -33,7 +33,6 @@
 #include "fnFsSPIFFS.h"
 #include "fnWiFi.h"
 
-
 #ifdef BUILD_APPLE
 #define BUS_CLASS IWM
 #endif
@@ -61,14 +60,14 @@ static void card_detect_intr_task(void *arg)
         if(xQueueReceive(card_detect_evt_queue, &gpio_num, portMAX_DELAY)) {
             int level = gpio_get_level(gpio_num);
             if (card_detect_status == level) {
-                printf("SD Card detect ignored (debounce)\n");
+                printf("SD Card detect ignored (debounce)\r\n");
             }
             else if (level == 1) {
-                printf("SD Card Ejected, REBOOT!\n");
+                printf("SD Card Ejected, REBOOT!\r\n");
                 fnSystem.reboot();
             }
             else {
-                printf("SD Card Inserted\n");
+                printf("SD Card Inserted\r\n");
                 fnSDFAT.start();
             }
             card_detect_status = level;
@@ -256,7 +255,7 @@ void SystemManager::update_hostname(const char *hostname)
 {
     if (hostname != nullptr && hostname[0] != '\0')
     {
-        Debug_printf("SystemManager::update_hostname(%s)\n", hostname);
+        Debug_printf("SystemManager::update_hostname(%s)\r\n", hostname);
         fnWiFi.set_hostname(hostname);
     }
 }
@@ -428,7 +427,7 @@ FILE *SystemManager::make_tempfile(char *result_filename)
 // Copy file from source filesystem/filename to destination filesystem/name using optional buffer_hint for buffer size
 size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filename, FileSystem *dest_fs, const char *dest_filename, size_t buffer_hint)
 {
-    Debug_printf("copy_file \"%s\" -> \"%s\"\n", source_filename, dest_filename);
+    Debug_printf("copy_file \"%s\" -> \"%s\"\r\n", source_filename, dest_filename);
 
     FILE *fin = source_fs->file_open(source_filename);
     if (fin == nullptr)
@@ -465,7 +464,7 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
     fclose(fin);
     free(buffer);
 
-    Debug_printf("copy_file copied %d bytes\n", result);
+    Debug_printf("copy_file copied %d bytes\r\n", result);
 
     return result;
 }
@@ -532,7 +531,7 @@ uint32_t SystemManager::get_psram_size()
 */
 int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
 {
-    Debug_printf("load_firmware '%s'\n", filename);
+    Debug_printf("load_firmware '%s'\r\n", filename);
 
     if (fnSPIFFS.exists(filename) == false)
     {
@@ -543,7 +542,7 @@ int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
     FILE *f = fnSPIFFS.file_open(filename);
     size_t file_size = FileSystem::filesize(f);
 
-    Debug_printf("load_firmware file size = %u\n", file_size);
+    Debug_printf("load_firmware file size = %u\r\n", file_size);
 
     if (buffer == NULL)
     {
@@ -569,7 +568,7 @@ int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
             free(result);
             bytes_read = -1;
 
-            Debug_printf("load_firmware only read %u bytes out of %u - failing\n", bytes_read, file_size);
+            Debug_printf("load_firmware only read %u bytes out of %u - failing\r\n", bytes_read, file_size);
         }
     }
 
@@ -645,13 +644,13 @@ void SystemManager::check_hardware_ver()
     if(ledstripdowncheck == ledstripupcheck)
     {
         ledstrip_found = true;
-        Debug_printf("Enabling LED Strip\n");
+        Debug_printf("Enabling LED Strip\r\n");
     }
     */
 
     /* For now, just enable ledstrip for FujiLoaf */
     ledstrip_found = true;
-    Debug_printf("Enabling LED Strip\n");
+    Debug_printf("Enabling LED Strip\r\n");
 
     /* Change Safe Reset GPIO */
     safe_reset_gpio = (gpio_num_t)PIN_BUTTON_C;
@@ -670,11 +669,22 @@ void SystemManager::check_hardware_ver()
     if(ledstripdowncheck == ledstripupcheck)
     {
         //ledstrip_found = true;
-        //Debug_printf("Enabling LED Strip\n");
+        //Debug_printf("Enabling LED Strip\r\n");
     }
 
 #ifndef MASTERIES_SPI_FIX
-    /* Apple 2 Rev 1 (will have) has pullup on IO4 for Safe Reset
+#   ifdef REV1DETECT
+    /* For the 3 people on earth who got Rev1 hardware before the proper pullup
+       used for hardware detection was added.
+    */
+    a2spifix = true;
+    a2no3state = true;
+    Debug_printf("Rev1 Hardware Defined\nFujiApple NO3STATE & SPIFIX ENABLED\n");
+
+    safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
+
+#   else
+    /* Apple 2 Rev 1 has pullup on IO4 for Safe Reset
        If found, enable spifix, no tristate and Safe Reset on GPIO4
     */
     fnSystem.set_pin_mode(GPIO_NUM_4, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
@@ -686,19 +696,19 @@ void SystemManager::check_hardware_ver()
     {
         a2spifix = true;
         a2no3state = true;
-        Debug_printf("FujiApple NO3STATE & SPIFIX ENABLED\n");
+        Debug_printf("FujiApple NO3STATE & SPIFIX ENABLED\r\n");
 
-        /* Change Safe Reset GPIO for Rev 1 */
-        safe_reset_gpio = GPIO_NUM_4;
+        safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
     }
-#endif
+#   endif /* REV1DETECT */
+#endif /* MASTERIES_SPI_FIX*/
 
 #ifdef NO3STATE
     /* For those who have modified their FujiApple to remove the tristate buffer but
        do not have the pull down on IO21 can use the NO3STATE define
     */
     a2no3state = true;
-    Debug_printf("FujiApple NO3STATE define ENABLED\n");
+    Debug_printf("FujiApple NO3STATE define ENABLED\r\n");
 #endif
 
     /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset (IO14)
@@ -773,8 +783,8 @@ void SystemManager::debug_print_tasks()
 
     for (int i = 0; i < n; i++)
     {
-        // Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\n",
-        Debug_printf("T%02d %p (%2d,%2d) %4dh %10dr %8s: %s\n",
+        // Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\r\n",
+        Debug_printf("T%02d %p (%2d,%2d) %4dh %10dr %8s: %s\r\n",
                      i + 1,
                      pTasks[i].xHandle,
                      //pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
@@ -784,6 +794,6 @@ void SystemManager::debug_print_tasks()
                      status[pTasks[i].eCurrentState],
                      pTasks[i].pcTaskName);
     }
-    Debug_printf("\nCPU MHz: %d\n", fnSystem.get_cpu_frequency());
+    Debug_printf("\nCPU MHz: %d\r\n", fnSystem.get_cpu_frequency());
 #endif
 }

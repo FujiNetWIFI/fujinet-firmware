@@ -122,7 +122,7 @@ bool TNFSFile::remove() {
 
     int rc = ::remove( std::string(basepath + path).c_str() );
     if (rc != 0) {
-        Debug_printv("remove: rc=%d path=`%s`\n", rc, path);
+        Debug_printv("remove: rc=%d path=`%s`\r\n", rc, path);
         return false;
     }
 
@@ -280,7 +280,7 @@ uint32_t TNFSIStream::write(const uint8_t *buf, uint32_t size) {
         return 0;
     }
 
-    //Debug_printv("in byteWrite '%c', handle->file_h is null=[%d]\n", buf[0], handle->file_h == nullptr);
+    //Debug_printv("in byteWrite '%c', handle->file_h is null=[%d]\r\n", buf[0], handle->file_h == nullptr);
 
     // buffer, element size, count, handle
     int result = fwrite((void*) buf, 1, size, handle->file_h );
@@ -288,7 +288,7 @@ uint32_t TNFSIStream::write(const uint8_t *buf, uint32_t size) {
     //Debug_printv("after lfs_file_write");
 
     if (result < 0) {
-        Debug_printv("write rc=%d\n", result);
+        Debug_printv("write rc=%d\r\n", result);
     }
     return result;
 };
@@ -335,7 +335,7 @@ uint32_t TNFSIStream::read(uint8_t* buf, uint32_t size) {
     int bytesRead = fread((void*) buf, 1, size, handle->file_h );
 
     if (bytesRead < 0) {
-        Debug_printv("read rc=%d\n", bytesRead);
+        Debug_printv("read rc=%d\r\n", bytesRead);
         return 0;
     }
 
@@ -408,7 +408,7 @@ void TNFSHandle::dispose() {
 
 void TNFSHandle::obtain(std::string m_path, std::string mode) {
 
-    //Serial.printf("*** Atempting opening flash  handle'%s'\n", m_path.c_str());
+    //Serial.printf("*** Atempting opening flash  handle'%s'\r\n", m_path.c_str());
 
     if ((mode[0] == 'w') && strchr(m_path.c_str(), '/')) {
         // For file creation, silently make subdirs as needed.  If any fail,
@@ -434,7 +434,7 @@ void TNFSHandle::obtain(std::string m_path, std::string mode) {
     file_h = fopen( m_path.c_str(), mode.c_str());
     // rc = 1;
 
-    //Serial.printf("FSTEST: lfs_file_open file rc:%d\n",rc);
+    //Serial.printf("FSTEST: lfs_file_open file rc:%d\r\n",rc);
 
 //     if (rc == LFS_ERR_ISDIR) {
 //         // To support the SD.openNextFile, a null FD indicates to the FlashFSFile this is just
@@ -442,7 +442,7 @@ void TNFSHandle::obtain(std::string m_path, std::string mode) {
 //     } else if (rc == 0) {
 // //        lfs_file_sync(&TNFSFileSystem::lfsStruct, &file_h);
 //     } else {
-//         Debug_printv("TNFSFile::open: unknown return code rc=%d path=`%s`\n",
+//         Debug_printv("TNFSFile::open: unknown return code rc=%d path=`%s`\r\n",
 //                rc, m_path.c_str());
 //     }
 }

@@ -8,10 +8,13 @@
 
 
 // Configures a listening TCP socket on given port
-void fnTcpServer::begin(uint16_t port)
+// Returns 0 for error, 1 for success.
+int fnTcpServer::begin(uint16_t port)
 {
-    if (_listening)
-        return;
+    if (_listening) {
+        Debug_println("TCP Server already listening. Aborting.");
+        return 0;
+    }
 
     if (port)
         _port = port;
@@ -20,8 +23,8 @@ void fnTcpServer::begin(uint16_t port)
     _sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (_sockfd < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to allocate socket, err %d\n", errno);
-        return;
+        Debug_printf("fnTcpServer::begin failed to allocate socket, err %d\r\n", errno);
+        return 0;
     }
 
     // Bind socket to our interface
@@ -31,31 +34,39 @@ void fnTcpServer::begin(uint16_t port)
     server.sin_port = htons(_port);
     if (bind(_sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to bind socket, err %d\n", errno);
-        return;
+        Debug_printf("fnTcpServer::begin failed to bind socket, err %d\r\n", errno);
+        return 0;
     }
 
     int enable = 1;
     if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to set SO_REUSEADDR, err %d", errno);
+        Debug_printf("fnTcpServer::begin failed to set SO_REUSEADDR, err %d\r\n", errno);
+        return 0;
     }
 
-    Debug_printf("Max clients is currently %u\n",_max_clients);
+    Debug_printf("Max clients is currently %u\r\n",_max_clients);
 
     // Now listen in on this socket
     if (listen(_sockfd, _max_clients) < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to listen on socket, err %d\n", errno);
-        return;
+        Debug_printf("fnTcpServer::begin failed to listen on socket, err %d\r\n", errno);
+        return 0;
     }
 
     // Switch to non-blocking mode
-    fcntl(_sockfd, F_SETFL, O_NONBLOCK);
+    if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
+    {
+        Debug_printf("fnTcpServer::begin failed to set non-blocking mode. Closing down server. err %d\n", errno);
+        stop();
+        return 0;
+    }
 
     _listening = true;
     _noDelay = false;
     _accepted_sockfd = -1;
+    Debug_printf("TCP Server now listening on port %d.\n", _port);
+    return 1;
 }
 
 // Returns true if a client has connected to the socket
@@ -70,7 +81,7 @@ bool fnTcpServer::hasClient()
 
     if (_accepted_sockfd >= 0)
     {
-        Debug_printf("TcpServer accepted connection from %s\n", inet_ntoa(_client.sin_addr.s_addr));
+        Debug_printf("TcpServer accepted connection from %s\r\n", inet_ntoa(_client.sin_addr.s_addr));
         return true;
     }
 
@@ -132,9 +143,9 @@ void fnTcpServer::stop()
 {
     if (_sockfd > 0)
     {
-        Debug_printf("fnTcpServer::stop(%d)\n", _sockfd);
+        Debug_printf("fnTcpServer::stop(%d)\r\n", _sockfd);
         lwip_close(_sockfd);
-        Debug_printf("close errno %d\n",errno);
+        Debug_printf("close errno %d\r\n",errno);
         _sockfd = -1;
         _listening = false;
     }

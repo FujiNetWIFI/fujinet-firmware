@@ -298,4 +298,4 @@ void rs232Disk::rs232_process(uint32_t commanddata, uint8_t checksum)
     rs232_nak();
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */
