@@ -882,12 +882,12 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
 void iecFuji::read_directory_entry()
 {
-    std::vector<std::string> t = util_tokenize(payload, ':');
+    std::vector<std::string> t = util_tokenize(payload, ',');
 
     if (t.size() < 2)
     {
         // send error
-        response_queue.push("error: invalid # of parameters\r");
+        response = "invalid # of parameters";
         return;
     }
 
@@ -900,7 +900,7 @@ void iecFuji::read_directory_entry()
     if (_current_open_directory_slot == -1)
     {
         // Return error.
-        response_queue.push("error: no currently open directory\r");
+        response = "no currently open directory";
         Debug_print("No currently open directory\n");
         return;
     }
@@ -957,7 +957,7 @@ void iecFuji::read_directory_entry()
         sprintf(reply, "%s\r", current_entry);
         std::string s(reply);
         mstr::toPETSCII(s);
-        response_queue.push(s);
+        response = s;
     }
 }
 
