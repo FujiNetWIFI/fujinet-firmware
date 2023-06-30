@@ -220,27 +220,19 @@ void iecFuji::net_get_wifi_status()
 
     if (payload[0] == FUJICMD_GET_WIFISTATUS)
     {
-        r[0] = wifiStatus;
-        r[1] = 0;
-        status_override = string(r);
+        response.clear();
+        response[0] = wifiStatus;
         return;
     }
     else
     {
-        iecStatus.error = wifiStatus;
-
+        response.clear();
         if (wifiStatus)
-        {
-            iecStatus.msg = "CONNECTED";
-            iecStatus.connected = true;
-        }
+            response = "connected";
         else
-        {
-            iecStatus.msg = "DISCONNECTED";
-            iecStatus.connected = false;
-        }
-
-        iecStatus.channel = 15;
+            response = "disconnected";
+        
+        mstr::toPETSCII(response);
     }
 }
 
