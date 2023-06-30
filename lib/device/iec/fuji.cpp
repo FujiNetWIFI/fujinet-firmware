@@ -299,7 +299,7 @@ void iecFuji::mount_host()
 
     if (payload[0] == FUJICMD_MOUNT_HOST)
     {
-        hs = payload[1];        
+        hs = payload[1];
     }
     else
     {
@@ -1517,13 +1517,20 @@ device_state_t iecFuji::process()
         device_state = DEVICE_ERROR;
         IEC.senderTimeout();
     }
-    else if (commanddata.primary != IEC_UNLISTEN)
-        return device_state;
 
-    if (payload[0] > 0x7F)
-        process_raw_commands();
-    else
-        process_basic_commands();
+    if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
+    {
+        char tmp[79];
+        sprintf(tmp, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
+        IEC.sendBytes(string(tmp), true);
+    }
+    else if (commanddata.primary == IEC_UNLISTEN)
+    {
+        if (payload[0] > 0x7F)
+            process_raw_commands();
+        else
+            process_basic_commands();
+    }
 
     return device_state;
 }
