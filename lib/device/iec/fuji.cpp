@@ -110,8 +110,10 @@ void iecFuji::net_scan_result()
 
     if (t.size() > 1)
     {
+        util_remove_spaces(t[1]);
         int i = atoi(t[1].c_str());
         fnWiFi.get_scan_result(i, detail.ssid, &detail.rssi);
+        Debug_printf("SSID: %s RSSI: %u\r\n",detail.ssid,detail.rssi);
     }
     else
     {
@@ -126,16 +128,13 @@ void iecFuji::net_scan_result()
     }
     else // SCANRESULT,n
     {
-        char c[40];
+        char t[8];
+
         std::string s = std::string(detail.ssid);
         mstr::toPETSCII(s);
+        itoa(detail.rssi,t,10);
 
-        memset(c, 0, sizeof(c));
-
-        iecStatus.error = detail.rssi;
-        iecStatus.channel = 15;
-        iecStatus.connected = false;
-        iecStatus.msg = string(detail.ssid);
+        response = std::string(t) + ",\"" + s + "\"";
     }
 }
 
@@ -1515,7 +1514,7 @@ device_state_t iecFuji::process()
 
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
-        IEC.sendBytes(response);
+        while (!IEC.sendBytes(response));
     }
     else if (commanddata.primary == IEC_UNLISTEN)
     {
