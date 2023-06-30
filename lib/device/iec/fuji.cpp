@@ -323,7 +323,8 @@ void iecFuji::mount_host()
 // Disk Image Mount
 void iecFuji::disk_image_mount()
 {
-    std::vector<std::string> t = util_tokenize(payload, ':');
+    _populate_slots_from_config();
+    std::vector<std::string> t = util_tokenize(payload, ',');
     if (t.size() < 3)
     {
         response_queue.push("error: invalid # of parameters\r");
@@ -340,7 +341,7 @@ void iecFuji::disk_image_mount()
 
     if (!_validate_device_slot(ds))
     {
-        response_queue.push("error: invalid device slot\r");
+        response = "invalid device slot.";
         return; // error.
     }
 
@@ -358,7 +359,7 @@ void iecFuji::disk_image_mount()
 
     if (disk.fileh == nullptr)
     {
-        response_queue.push("error: no file handle\r");
+        response = "no file handle";
         return;
     }
 
@@ -370,7 +371,7 @@ void iecFuji::disk_image_mount()
 
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-    response_queue.push("ok\r");
+    response = "mounted";
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
