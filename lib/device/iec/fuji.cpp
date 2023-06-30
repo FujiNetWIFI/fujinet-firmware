@@ -159,14 +159,12 @@ void iecFuji::net_get_ssid()
 
     if (payload[0] == FUJICMD_GET_SSID)
     {
-        std::string r = std::string((const char *)&cfg, sizeof(cfg));
-        response_queue.push(r);
+        response = std::string((const char *)&cfg, sizeof(cfg));
     }
     else // BASIC mode.
     {
-        std::string r = std::string(cfg.ssid);
-        mstr::toPETSCII(r);
-        status_override = r;
+        response = std::string(cfg.ssid);
+        mstr::toPETSCII(response);
     }
 }
 
