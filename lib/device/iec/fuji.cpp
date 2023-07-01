@@ -221,7 +221,7 @@ void iecFuji::net_get_wifi_status()
     if (payload[0] == FUJICMD_GET_WIFISTATUS)
     {
         response.clear();
-        response[0] = wifiStatus;
+        response = string((const char *)&wifiStatus,1);
         return;
     }
     else
@@ -1520,6 +1520,13 @@ device_state_t iecFuji::process()
 
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
+        for (int i=0;i<response.size();i++)
+        {
+            Debug_printf("%02X ",response[i]);
+        }
+        
+        Debug_printf("\n");
+
         while (!IEC.sendBytes(response))
             ;
     }
