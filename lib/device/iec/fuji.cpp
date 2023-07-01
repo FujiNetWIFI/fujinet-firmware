@@ -603,7 +603,7 @@ void iecFuji::write_app_key()
         else
         {
             // send error
-            response_queue.push("error: invalid # of parameters\r");
+            response = "invalid # of parameters";
             return;
         }
     }
@@ -615,7 +615,7 @@ void iecFuji::write_app_key()
     {
         Debug_println("Invalid app key metadata - aborting");
         // Send error
-        response_queue.push("error: malformed appkey data\r");
+        response = "malformed appkey data.";
         return;
     }
 
@@ -624,7 +624,7 @@ void iecFuji::write_app_key()
     {
         Debug_println("No SD mounted - can't write app key");
         // Send error
-        response_queue.push("error: no sd card mounted\r");
+        response = "no sd card mounted";
         return;
     }
 
@@ -646,7 +646,7 @@ void iecFuji::write_app_key()
         // Send error
         char e[8];
         itoa(errno, e, 10);
-        response_queue.push("error: failed to create appkey file " + std::string(e) + "\r");
+        response = "failed to write appkey file " + std::string(e);
         return;
     }
     size_t count = fwrite(value, 1, keylen, fOut);
@@ -657,11 +657,12 @@ void iecFuji::write_app_key()
     {
         char e[128];
         sprintf(e, "error: only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, errno);
-        response_queue.push(std::string(e));
+        response = std::string(e);
         // Send error
     }
+
     // Send ok
-    response_queue.push("ok\r");
+    response = "ok";
 }
 
 /*
