@@ -485,7 +485,7 @@ void iecFuji::set_boot_mode()
         {
             Debug_printf("Invalid # of parameters.\n");
             // send error
-            response_queue.push("error: invalid # of parameters\r");
+            response = "invalid # of parameters";
             return;
         }
 
@@ -842,7 +842,7 @@ void iecFuji::open_directory()
     else
     {
         // send error
-        response_queue.push("error: unable to open directory\r");
+        response = "unable to open directory";
     }
 
     response = "ok";
@@ -952,12 +952,12 @@ void iecFuji::read_directory_entry()
 
     // Output RAW vs non-raw
     if (payload[0] == FUJICMD_READ_DIR_ENTRY)
-        response_queue.push(std::string((const char *)current_entry, maxlen));
+        response = std::string((const char *)current_entry, maxlen);
     else
     {
         char reply[258];
         memset(reply, 0, sizeof(reply));
-        sprintf(reply, "%s\r", current_entry);
+        sprintf(reply, "%s", current_entry);
         std::string s(reply);
         mstr::toPETSCII(s);
         response = s;
