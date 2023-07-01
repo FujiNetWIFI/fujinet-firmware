@@ -389,13 +389,13 @@ void iecFuji::set_boot_config()
         if (t.size() < 2)
         {
             Debug_printf("Invalid # of parameters.\n");
-            response_queue.push("error: invalid # of parameters\r");
+            response = "invalid # of parameters";
             return;
         }
 
         boot_config = atoi(t[1].c_str());
     }
-    response_queue.push("ok\r");
+    response = "ok";
 }
 
 // Do SIO copy
@@ -427,7 +427,7 @@ void iecFuji::mount_all()
                 // Send error.
                 char slotno[3];
                 itoa(i, slotno, 10);
-                response_queue.push("error: unable to mount slot " + std::string(slotno) + "\r");
+                response = "error: unable to mount slot " + std::string(slotno) + "\r";
                 return;
             }
 
@@ -441,7 +441,7 @@ void iecFuji::mount_all()
                 // Send error.
                 char slotno[3];
                 itoa(i, slotno, 10);
-                response_queue.push("error: invalid file handle for slot " + std::string(slotno) + "\r");
+                response = "error: invalid file handle for slot " + std::string(slotno) + "\r";
                 return;
             }
 
@@ -467,7 +467,7 @@ void iecFuji::mount_all()
     }
 
     // Send successful.
-    response_queue.push("ok\r");
+    response = "ok";
 }
 
 // Set boot mode
