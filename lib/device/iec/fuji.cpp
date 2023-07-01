@@ -575,7 +575,7 @@ void iecFuji::close_app_key()
     Debug_print("Fuji cmd: CLOSE APPKEY\n");
     _current_appkey.creator = 0;
     _current_appkey.mode = APPKEYMODE_INVALID;
-    response_queue.push("ok\r");
+    response = "ok";
 }
 
 /*
