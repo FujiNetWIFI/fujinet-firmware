@@ -758,10 +758,10 @@ void iecFuji::disk_image_umount()
     else
     {
         // Send error
-        response_queue.push("error: invalid device slot\r");
+        response = "invalid device slot";
         return;
     }
-    response_queue.push("ok\r");
+    response = "ok";
 }
 
 // Disk Image Rotate
