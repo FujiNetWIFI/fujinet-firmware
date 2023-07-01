@@ -90,7 +90,7 @@ void iecFuji::net_scan_networks()
     }
     else
     {
-        itoa(_countScannedSSIDs,c,10);
+        itoa(_countScannedSSIDs, c, 10);
         response = string(c);
     }
 }
@@ -113,7 +113,7 @@ void iecFuji::net_scan_result()
         util_remove_spaces(t[1]);
         int i = atoi(t[1].c_str());
         fnWiFi.get_scan_result(i, detail.ssid, &detail.rssi);
-        Debug_printf("SSID: %s RSSI: %u\r\n",detail.ssid,detail.rssi);
+        Debug_printf("SSID: %s RSSI: %u\r\n", detail.ssid, detail.rssi);
     }
     else
     {
@@ -132,7 +132,7 @@ void iecFuji::net_scan_result()
 
         std::string s = std::string(detail.ssid);
         mstr::toPETSCII(s);
-        itoa(detail.rssi,t,10);
+        itoa(detail.rssi, t, 10);
 
         response = std::string(t) + ",\"" + s + "\"";
     }
@@ -231,7 +231,7 @@ void iecFuji::net_get_wifi_status()
             response = "connected";
         else
             response = "disconnected";
-        
+
         mstr::toPETSCII(response);
     }
 }
@@ -273,7 +273,8 @@ void iecFuji::unmount_host()
         response_queue.push("error: unable to mount host slot\r");
         return; // send error;
     }
-    response_queue.push("ok\r");
+
+    response="ok";
 }
 
 // Mount Server
@@ -314,10 +315,10 @@ void iecFuji::mount_host()
     // Otherwise, mount was successful.
     char hn[64];
     string hns;
-    _fnHosts[hs].get_hostname(hn,64);
+    _fnHosts[hs].get_hostname(hn, 64);
     hns = string(hn);
     mstr::toPETSCII(hns);
-    response = hns + " MOUNTED."; 
+    response = hns + " MOUNTED.";
 }
 
 // Disk Image Mount
@@ -1260,13 +1261,15 @@ void iecFuji::read_device_slots()
 
         if (t.size() < 2)
         {
-            response="host slot required";
+            response = "host slot required";
             return;
         }
 
+        util_remove_spaces(t[1]);
+
         int selected_ds = atoi(t[1].c_str());
 
-        response = "ok";
+        response = diskSlots[selected_ds].filename;
     }
 }
 
@@ -1275,22 +1278,59 @@ void iecFuji::write_device_slots()
 {
     Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
 
-    union _diskSlots
+    if (payload[0] == FUJICMD_WRITE_DEVICE_SLOTS)
     {
-        struct
+        union _diskSlots
         {
-            uint8_t hostSlot;
-            uint8_t mode;
-            char filename[MAX_DISPLAY_FILENAME_LEN];
-        } diskSlots[MAX_DISK_DEVICES];
-        char rawData[152];
-    } diskSlots;
+            struct
+            {
+                uint8_t hostSlot;
+                uint8_t mode;
+                char filename[MAX_DISPLAY_FILENAME_LEN];
+            } diskSlots[MAX_DISK_DEVICES];
+            char rawData[152];
+        } diskSlots;
 
-    strncpy(diskSlots.rawData, &payload.c_str()[1], 152);
+        strncpy(diskSlots.rawData, &payload.c_str()[1], 152);
 
-    // Load the data into our current device array
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _fnDisks[i].reset(diskSlots.diskSlots[i].filename, diskSlots.diskSlots[i].hostSlot, diskSlots.diskSlots[i].mode);
+        // Load the data into our current device array
+        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+            _fnDisks[i].reset(diskSlots.diskSlots[i].filename, diskSlots.diskSlots[i].hostSlot, diskSlots.diskSlots[i].mode);
+    }
+    else
+    {
+        // from BASIC
+        std::vector<std::string> t = util_tokenize(payload, ',');
+
+        if (t.size() < 4)
+        {
+            response = "need file mode";
+            return;
+        }
+        else if (t.size() < 3)
+        {
+            response = "need filename";
+            return;
+        }
+        else if (t.size() < 2)
+        {
+            response = "need host slot";
+            return;
+        }
+        else if (t.size() < 1)
+        {
+            response = "need device slot";
+            return;
+        }
+
+        unsigned char ds = atoi(t[1].c_str());
+        unsigned char hs = atoi(t[2].c_str());
+        string filename = t[3];
+        unsigned char m = atoi(t[4].c_str());
+
+        _fnDisks[ds].reset(filename.c_str(),hs,m);
+        strncpy(_fnDisks[ds].filename,filename.c_str(),256);
+    }
 
     // Save the data to disk
     _populate_config_from_slots();
@@ -1492,7 +1532,8 @@ device_state_t iecFuji::process()
 
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
-        while (!IEC.sendBytes(response));
+        while (!IEC.sendBytes(response))
+            ;
     }
     else if (commanddata.primary == IEC_UNLISTEN)
     {
