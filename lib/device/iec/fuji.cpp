@@ -1080,14 +1080,12 @@ void iecFuji::get_adapter_config()
     if (payload[0] == FUJICMD_GET_ADAPTERCONFIG)
     {
         std::string reply = std::string((const char *)&cfg, sizeof(AdapterConfig));
-        status_override = reply;
+        response = reply;
     }
     else if (payload == "ADAPTERCONFIG")
     {
-        iecStatus.channel = CHANNEL_COMMAND;
-        iecStatus.connected = fnWiFi.connected();
-        iecStatus.error = 0;
-        iecStatus.msg = "use localip, netmask, gateway, dns, mac, bssid, or version";
+        response = "use localip netmask gateway dnsip bssid hostname version";
+        return;
     }
 }
 
