@@ -989,7 +989,7 @@ void iecFuji::get_directory_position()
     // Return the value we read
 
     if (payload[0] == FUJICMD_GET_DIRECTORY_POSITION)
-        response_queue.push(std::string((const char *)&pos, sizeof(pos)));
+        response = std::string((const char *)&pos, sizeof(pos));
     else
     {
         char reply[8];
