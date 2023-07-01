@@ -255,7 +255,7 @@ void iecFuji::unmount_host()
         std::vector<std::string> t = util_tokenize(payload, ':');
         if (t.size() < 2) // send error.
         {
-            response_queue.push("error: invalid # of parameters\r");
+            response = "invalid # of parameters";
             return;
         }
 
@@ -264,13 +264,13 @@ void iecFuji::unmount_host()
 
     if (!_validate_device_slot(hs, "unmount_host"))
     {
-        response_queue.push("error: invalid device slot\r");
+        response = "invalid device slot";
         return; // send error.
     }
 
     if (!_fnHosts[hs].umount())
     {
-        response_queue.push("error: unable to mount host slot\r");
+        response = "unable to unmount host slot";
         return; // send error;
     }
 
