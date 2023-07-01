@@ -479,7 +479,7 @@ void iecFuji::set_boot_mode()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        std::vector<std::string> t = util_tokenize(payload, ',');
 
         if (t.size() < 2)
         {
@@ -492,7 +492,7 @@ void iecFuji::set_boot_mode()
         boot_config = true;
         insert_boot_device(atoi(t[1].c_str()));
     }
-    response_queue.push("ok\r");
+    response = "ok";
 }
 
 char *_generate_appkey_filename(appkey *info)
