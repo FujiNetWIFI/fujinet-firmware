@@ -1415,11 +1415,11 @@ void iecFuji::set_device_filename()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        std::vector<std::string> t = util_tokenize(payload, ',');
         if (t.size() < 4)
         {
             Debug_printf("not enough parameters.\n");
-            response_queue.push("error: invalid # of parameters\r");
+            response = "error: invalid # of parameters";
             return; // send error
         }
     }
@@ -1437,12 +1437,12 @@ void iecFuji::set_device_filename()
     {
         Debug_println("BAD DEVICE SLOT");
         // Send error
-        response_queue.push("error: invalid device slot\r");
+        response = "error: invalid device slot\r";
         return;
     }
 
     Config.save();
-    response_queue.push("ok\r");
+    response = "ok";
 }
 
 // Get a 256 byte filename from device slot
