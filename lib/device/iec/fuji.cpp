@@ -328,7 +328,7 @@ void iecFuji::disk_image_mount()
     std::vector<std::string> t = util_tokenize(payload, ',');
     if (t.size() < 3)
     {
-        response_queue.push("error: invalid # of parameters\r");
+        response = "invalid # of parameters";
         return;
     }
 
