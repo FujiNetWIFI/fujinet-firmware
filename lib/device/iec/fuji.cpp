@@ -1015,7 +1015,7 @@ void iecFuji::set_directory_position()
         if (t.size() < 2)
         {
             Debug_println("Invalid directory position");
-            response_queue.push("error: invalid directory position\r");
+            response = "error: invalid directory position\r";
             return;
         }
 
@@ -1027,7 +1027,7 @@ void iecFuji::set_directory_position()
     {
         Debug_print("No currently open directory\n");
         // Send error
-        response_queue.push("error: no currently open directory\r");
+        response = "error: no currently open directory";
         return;
     }
 
@@ -1035,10 +1035,10 @@ void iecFuji::set_directory_position()
     if (result == false)
     {
         // Send error
-        response_queue.push("error: unable to perform directory seek\r");
+        response = "error: unable to perform directory seek\r";
         return;
     }
-    response_queue.push("ok\r");
+    response = "ok\r";
 }
 
 void iecFuji::close_directory()
