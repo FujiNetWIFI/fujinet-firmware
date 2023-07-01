@@ -519,13 +519,13 @@ void iecFuji::open_app_key()
         memcpy(&_current_appkey, &payload.c_str()[1], sizeof(_current_appkey));
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        std::vector<std::string> t = util_tokenize(payload, ',');
         unsigned int val;
 
         if (t.size() < 5)
         {
             Debug_printf("Incorrect number of parameters.\n");
-            response_queue.push("error: invalid # of parameters\r");
+            response = "invalid # of parameters";
             // send error.
         }
 
@@ -545,7 +545,7 @@ void iecFuji::open_app_key()
     {
         Debug_println("No SD mounted - returning error");
         // Send error
-        response_queue.push("error: no sd card mounted\r");
+        response = "no sd card mounted";
         return;
     }
 
@@ -554,7 +554,7 @@ void iecFuji::open_app_key()
     {
         Debug_println("Invalid app key data");
         // Send error.
-        response_queue.push("error: invalid app key data\r");
+        response = "invalid app key data";
         return;
     }
 
@@ -563,7 +563,7 @@ void iecFuji::open_app_key()
                  _generate_appkey_filename(&_current_appkey));
 
     // Send complete
-    response_queue.push("ok\r");
+    response = "ok";
 }
 
 /*
