@@ -972,7 +972,7 @@ void iecFuji::get_directory_position()
     if (_current_open_directory_slot == -1)
     {
         Debug_print("No currently open directory\n");
-        response_queue.push("error: no currently open directory\r");
+        response = "no currently open directory";
         // Send error
         return;
     }
@@ -982,7 +982,7 @@ void iecFuji::get_directory_position()
     {
         Debug_println("Invalid directory position");
         // Send error.
-        response_queue.push("error: invalid directory position\r");
+        response = "invalid directory position";
         return;
     }
 
@@ -994,9 +994,8 @@ void iecFuji::get_directory_position()
     {
         char reply[8];
         itoa(pos, reply, 10);
-        response_queue.push(std::string(reply));
+        response = std::string(reply);
     }
-    // no need for ok
 }
 
 void iecFuji::set_directory_position()
