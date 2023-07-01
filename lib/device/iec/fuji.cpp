@@ -1461,7 +1461,7 @@ void iecFuji::get_device_filename()
         if (t.size() < 2)
         {
             Debug_printf("Incorrect # of parameters.\n");
-            response_queue.push("error: invalid # of parameters\r");
+            response = "invalid # of parameters";
             // Send error
             return;
         }
@@ -1472,24 +1472,13 @@ void iecFuji::get_device_filename()
     if (!_validate_device_slot(ds, "get_device_filename"))
     {
         Debug_printf("Invalid device slot: %u\n", ds);
-        response_queue.push("error: invalid device slot\r");
+        response = "invalid device slot";
         // send error
         return;
     }
 
     std::string reply = std::string(_fnDisks[ds].filename);
-
-    if (payload[0] == FUJICMD_GET_DEVICE_FULLPATH)
-    {
-        status_override = reply;
-    }
-    else
-    {
-        iecStatus.channel = CHANNEL_COMMAND;
-        iecStatus.error = ds;
-        iecStatus.connected = 1;
-        iecStatus.msg = reply;
-    }
+    response = reply;
 }
 
 // Mounts the desired boot disk number
