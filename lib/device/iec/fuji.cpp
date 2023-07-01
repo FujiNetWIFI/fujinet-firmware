@@ -676,7 +676,7 @@ void iecFuji::read_app_key()
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - can't read app key");
-        response_queue.push("error: no sd mounted\n");
+        response = "no sd mounted";
         // Send error
         return;
     }
@@ -685,7 +685,7 @@ void iecFuji::read_app_key()
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
     {
         Debug_println("Invalid app key metadata - aborting");
-        response_queue.push("error: invalid app key metadata\r");
+        response = "invalid appkey metadata";
         // Send error
         return;
     }
@@ -698,9 +698,9 @@ void iecFuji::read_app_key()
     if (fIn == nullptr)
     {
         char e[128];
-        sprintf(e, "Failed to open input file: errno=%d\n", errno);
+        sprintf(e, "failed to open input file: errno=%d\n", errno);
         // Send error
-        response_queue.push(std::string(e));
+        response = std::string(e);
         return;
     }
 
@@ -708,26 +708,27 @@ void iecFuji::read_app_key()
     {
         uint16_t size;
         uint8_t value[MAX_APPKEY_LEN];
-    } __attribute__((packed)) response;
-    memset(&response, 0, sizeof(response));
+    } __attribute__((packed)) _r;
+    memset(&_r, 0, sizeof(_r));
 
-    size_t count = fread(response.value, 1, sizeof(response.value), fIn);
+    size_t count = fread(_r.value, 1, sizeof(_r.value), fIn);
 
     fclose(fIn);
     Debug_printf("Read %d bytes from input file\n", count);
 
-    response.size = count;
+    _r.size = count;
 
     if (payload[0] == FUJICMD_READ_APPKEY)
-        response_queue.push(std::string((char *)&response, MAX_APPKEY_LEN));
+        response = std::string((char *)&_r, MAX_APPKEY_LEN);
     else
     {
         char reply[128];
         memset(reply, 0, sizeof(reply));
-        snprintf(reply, sizeof(reply), "\"%04x\",\"%s\"", response.size, response.value);
-        response_queue.push(std::string(reply));
+        snprintf(reply, sizeof(reply), "\"%04x\",\"%s\"", _r.size, _r.value);
+        response = std::string(reply);
     }
-    response_queue.push("ok\r");
+
+    response = "ok\r";
 }
 
 // Disk Image Unmount
