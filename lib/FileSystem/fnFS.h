@@ -19,6 +19,7 @@
 enum fsType
 {
     FSTYPE_SPIFFS = 0,
+    FSTYPE_LITTLEFS,
     FSTYPE_SDFAT,
     FSTYPE_TNFS,
     FSTYPE_COUNT
@@ -48,7 +49,7 @@ protected:
 public:
     virtual ~FileSystem() {};
 
-    // The global (fnSDFAT and fnSPIFFS) will return true so we can check before attempting to free/delete
+    // The global (fnSDFAT and fsFlash) will return true so we can check before attempting to free/delete
     virtual bool is_global() { return false; };
 
     virtual bool running() { return _started; };

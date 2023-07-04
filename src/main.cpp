@@ -78,7 +78,7 @@ void main_setup()
 
     fnLedManager.setup();
 
-    fnSPIFFS.start();
+    fsFlash.start();
     fnSDFAT.start();
 
     // setup crypto key - must be done before loading the config
@@ -99,7 +99,7 @@ void main_setup()
     SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 
     // Create a new printer object, setting its output depending on whether we have SD or not
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     sioPrinter::printer_type ptype = Config.get_printer_type(0);
     if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
         ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
@@ -130,7 +130,7 @@ void main_setup()
 #endif
 
 #ifdef BUILD_IEC
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
 
     // Setup IEC Bus
     IEC.setup();
@@ -146,7 +146,7 @@ void main_setup()
 #endif // BUILD_IEC
 
 #ifdef BUILD_MAC
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
 
 #endif // BUILD_MAC
 
@@ -165,7 +165,7 @@ void main_setup()
     theFuji.setup(&rc2014Bus);
     rc2014Bus.setup();
 
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     rc2014Printer::printer_type ptype = Config.get_printer_type(0);
     if (ptype == rc2014Printer::printer_type::PRINTER_INVALID)
         ptype = rc2014Printer::printer_type::PRINTER_FILE_TRIM;
@@ -186,7 +186,7 @@ void main_setup()
     theFuji.setup(&H89Bus);
     H89Bus.setup();
 
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     H89Printer::printer_type ptype = Config.get_printer_type(0);
     if (ptype == H89Printer::printer_type::PRINTER_INVALID)
         ptype = H89Printer::printer_type::PRINTER_FILE_TRIM;
@@ -209,7 +209,7 @@ void main_setup()
     fnSDFAT.create_path("/FujiNet");
 
     Debug_printf("Adding virtual printer\n");
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     adamPrinter::printer_type printer = Config.get_printer_type(0);
     adamPrinter *ptr = new adamPrinter(ptrfs, printer);
     fnPrinters.set_entry(0, ptr, printer, 0);
@@ -243,7 +243,7 @@ void main_setup()
 #ifdef BUILD_APPLE
 
     iwmModem *sioR;
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
     IWM.addDevice(sioR,iwm_fujinet_type_t::Modem);
     iwmPrinter::printer_type ptype = Config.get_printer_type(0);
@@ -261,7 +261,7 @@ void main_setup()
     CX16.addDevice(&theFuji, CX16_DEVICEID_FUJINET); // the FUJINET!
 
     // Create a new printer object, setting its output depending on whether we have SD or not
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     cx16Printer::printer_type ptype = Config.get_printer_type(0);
     if (ptype == cx16Printer::printer_type::PRINTER_INVALID)
         ptype = cx16Printer::printer_type::PRINTER_FILE_TRIM;

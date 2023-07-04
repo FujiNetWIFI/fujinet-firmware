@@ -2,8 +2,7 @@
 
 #include "../../include/debug.h"
 
-#include "fnFsSPIFFS.h"
-
+#include "fsFlash.h"
 
 #define PRINTER_OUTFILE "/paper"
 
@@ -35,7 +34,7 @@ size_t printer_emu::copy_file_to_output(const char *filename)
 {
 #define PRINTER_FILE_COPY_BUFLEN 2048
 
-    FILE * fInput = fnSPIFFS.file_open(filename);
+    FILE * fInput = fsFlash.file_open(filename);
 
     if (fInput == nullptr)
     {
