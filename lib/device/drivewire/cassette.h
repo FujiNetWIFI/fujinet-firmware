@@ -82,7 +82,7 @@ protected:
     uint8_t decode_fsk();
 
     // helper function to read motor pin
-    bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
+    bool motor_line() { return (bool)fnSystem.digital_read(PIN_CASS_MOTOR); }
 
     // have to populate virtual functions to complete class
     void drivewire_status() override{}; // $53, 'S', Status
