@@ -296,11 +296,11 @@ int16_t IecProtocolSerial::receiveByte()
     // happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause,
     // the Clock and Data lines are RELEASED to false and transmission stops.
 
-    if ( IEC.flags & EOI_RECVD )
+    if ( IEC.flags & EOI_RECVD
+	 && wait ( TIMING_Tfr )
+	 && (IEC.status( PIN_IEC_ATN ) == RELEASED) )
     {
-        // EOI Received
-        if ( !wait ( TIMING_Tfr ) ) return -1;
-        IEC.release ( PIN_IEC_DATA_OUT );
+	IEC.release ( PIN_IEC_DATA_OUT );
     }
 
     timeoutWait( PIN_IEC_CLK_IN, RELEASED, TIMING_Tbb);
