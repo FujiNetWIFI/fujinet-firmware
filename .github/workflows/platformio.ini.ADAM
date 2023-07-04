@@ -74,6 +74,7 @@ extra_scripts =
     pre:build_packages.py
     pre:build_version.py
     pre:build_webui.py
+    post:build_firmwarezip.py ; Optional, build firmware ZIP file for flash tool
 lib_ldf_mode = deep+
 upload_speed = 460800 ;921600
 ;upload_port = COM1 ; Windows
