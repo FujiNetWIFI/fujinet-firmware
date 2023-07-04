@@ -23,6 +23,7 @@ platform = env.PioPlatform()
 import sys, os, configparser, shutil, re, subprocess
 from os.path import join
 from datetime import datetime
+from zipfile import ZipFile
 
 sys.path.append(join(platform.get_package_dir("tool-esptoolpy")))
 import esptool
@@ -40,6 +41,21 @@ firmware += "." + config['fujinet']['build_board'].split()[0]
 firmware += ".bin"
 environment = "env:"+config['fujinet']['build_board'].split()[0]
 print(f"FujiNet ESP32 Board: {config[environment]['board']}")
+
+# Make sure all the files are built
+zipit = True
+if not os.path.exists(".pio/build/"+config['fujinet']['build_board'].split()[0]+"/bootloader.bin"):
+    print("BOOTLOADER not available to pack in firmware zip")
+    zipit = False
+if not os.path.exists(".pio/build/"+config['fujinet']['build_board'].split()[0]+"/partitions.bin"):
+    print("PARTITIONS not available to pack in firmware zip")
+    zipit = False
+if not os.path.exists(".pio/build/"+config['fujinet']['build_board'].split()[0]+"/firmware.bin"):
+    print("FIRMWARE not available to pack in firmware zip")
+    zipit = False
+if not os.path.exists(".pio/build/"+config['fujinet']['build_board'].split()[0]+"/spiffs.bin"):
+    print("SPIFFS not available to pack in firmware zip")
+    zipit = False
 
 # {'FN_VERSION_MAJOR': '0', 'FN_VERSION_MINOR': '5', 'FN_VERSION_BUILD': '63d992c8', 'FN_VERSION_DATE': '2023-05-07 08:00:00', 'FN_VERSION_FULL': 'v1.0'}
 with open("include/version.h", "r") as file:
@@ -117,25 +133,43 @@ elif "8mb" in config[environment]['board']:
         }"""
 elif "4mb" in config[environment]['board']:
     json_contents += """		{
-                    "filename": "bootloader.bin",
-                    "offset": "0x1000"
-                },
-                {
-                    "filename": "partitions.bin",
-                    "offset": "0x8000"
-                },
-                {
-                    "filename": "firmware.bin",
-                    "offset": "0x10000"
-                },
-                {
-                    "filename": "spiffs.bin",
-                    "offset": "0x250000"
-                }
-            ]
-        }"""
+            "filename": "bootloader.bin",
+            "offset": "0x1000"
+        },
+        {
+            "filename": "partitions.bin",
+            "offset": "0x8000"
+        },
+        {
+            "filename": "firmware.bin",
+            "offset": "0x10000"
+        },
+        {
+            "filename": "spiffs.bin",
+            "offset": "0x250000"
+        }
+    ]
+}"""
 
-print(json_contents)
+# Save Release JSON
+# print(json_contents)
+with open('firmware/release.json', 'w') as f:
+    f.write(json_contents)
+
+
+# Create a ZipFile Object
+if zipit == True:
+    firmwarezip = "firmware/fujinet-"+config['fujinet']['build_platform'].split("_")[1]+"-"+version['FN_VERSION_FULL']+".zip"
+    with ZipFile(firmwarezip, 'w') as zip_object:
+        # Adding files that need to be zipped
+        zip_object.write(".pio/build/"+config['fujinet']['build_board'].split()[0]+"/bootloader.bin", "bootloader.bin")
+        zip_object.write(".pio/build/"+config['fujinet']['build_board'].split()[0]+"/partitions.bin", "partitions.bin")
+        zip_object.write(".pio/build/"+config['fujinet']['build_board'].split()[0]+"/firmware.bin", "firmware.bin")
+        zip_object.write(".pio/build/"+config['fujinet']['build_board'].split()[0]+"/spiffs.bin", "spiffs.bin")
+        zip_object.write("firmware/release.json", "release.json")
+        #zip_object.write('E:/Folder to be zipped/Introduction.txt')
+else:
+    print("Skipping ZIP file creation")
 
 def esp32_create_combined_bin(source, target, env):
     print("Generating combined binary for serial flashing")
