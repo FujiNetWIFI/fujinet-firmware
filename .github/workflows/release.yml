@@ -111,7 +111,7 @@ jobs:
 
     - name: Get version number from release.json
       id: release-ver
-      run: cat "firmware/${{ matrix.target-platform }}" | grep "\"version\"" | cut -d "\"" -f 4
+      run: cat "firmware/release.json" | grep "\"version\"" | cut -d "\"" -f 4
       shell: bash
 
     - name: Show Release Version
