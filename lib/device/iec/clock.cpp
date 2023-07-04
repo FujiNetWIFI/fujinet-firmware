@@ -25,12 +25,6 @@ void iecClock::set_timestamp_format(std::string s)
     tf = s;
 }
 
-bool is_number(const std::string& s)
-{
-    return !s.empty() && std::find_if(s.begin(), 
-        s.end(), [](unsigned char c) { return !std::isdigit(c); }) == s.end();
-}
-
 device_state_t iecClock::process()
 {
     virtualDevice::process();
@@ -55,7 +49,7 @@ device_state_t iecClock::process()
 
 void iecClock::iec_open()
 {
-    if (is_number(payload))
+    if (mstr::isNumeric(payload))
         set_timestamp(payload);
     else
         set_timestamp_format(payload);
@@ -87,7 +81,7 @@ void iecClock::iec_reopen_listen()
 
     Debug_printf("Sending over %s\n",payload.c_str());
 
-    if (is_number(payload))
+    if (mstr::isNumeric(payload))
         set_timestamp(payload);
     else
         set_timestamp_format(payload);
