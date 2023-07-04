@@ -221,7 +221,7 @@ void iecFuji::net_get_wifi_status()
     if (payload[0] == FUJICMD_GET_WIFISTATUS)
     {
         response.clear();
-        response[0] = wifiStatus;
+        response = string((const char *)&wifiStatus,1);
         return;
     }
     else
@@ -255,7 +255,7 @@ void iecFuji::unmount_host()
         std::vector<std::string> t = util_tokenize(payload, ':');
         if (t.size() < 2) // send error.
         {
-            response_queue.push("error: invalid # of parameters\r");
+            response = "invalid # of parameters";
             return;
         }
 
@@ -264,13 +264,13 @@ void iecFuji::unmount_host()
 
     if (!_validate_device_slot(hs, "unmount_host"))
     {
-        response_queue.push("error: invalid device slot\r");
+        response = "invalid device slot";
         return; // send error.
     }
 
     if (!_fnHosts[hs].umount())
     {
-        response_queue.push("error: unable to mount host slot\r");
+        response = "unable to unmount host slot";
         return; // send error;
     }
 
@@ -485,7 +485,7 @@ void iecFuji::set_boot_mode()
         {
             Debug_printf("Invalid # of parameters.\n");
             // send error
-            response_queue.push("error: invalid # of parameters\r");
+            response = "invalid # of parameters";
             return;
         }
 
@@ -842,7 +842,7 @@ void iecFuji::open_directory()
     else
     {
         // send error
-        response_queue.push("error: unable to open directory\r");
+        response = "unable to open directory";
     }
 
     response = "ok";
@@ -952,12 +952,12 @@ void iecFuji::read_directory_entry()
 
     // Output RAW vs non-raw
     if (payload[0] == FUJICMD_READ_DIR_ENTRY)
-        response_queue.push(std::string((const char *)current_entry, maxlen));
+        response = std::string((const char *)current_entry, maxlen);
     else
     {
         char reply[258];
         memset(reply, 0, sizeof(reply));
-        sprintf(reply, "%s\r", current_entry);
+        sprintf(reply, "%s", current_entry);
         std::string s(reply);
         mstr::toPETSCII(s);
         response = s;
@@ -1415,11 +1415,11 @@ void iecFuji::set_device_filename()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        std::vector<std::string> t = util_tokenize(payload, ',');
         if (t.size() < 4)
         {
             Debug_printf("not enough parameters.\n");
-            response_queue.push("error: invalid # of parameters\r");
+            response = "error: invalid # of parameters";
             return; // send error
         }
     }
@@ -1437,12 +1437,12 @@ void iecFuji::set_device_filename()
     {
         Debug_println("BAD DEVICE SLOT");
         // Send error
-        response_queue.push("error: invalid device slot\r");
+        response = "error: invalid device slot\r";
         return;
     }
 
     Config.save();
-    response_queue.push("ok\r");
+    response = "ok";
 }
 
 // Get a 256 byte filename from device slot
@@ -1461,7 +1461,7 @@ void iecFuji::get_device_filename()
         if (t.size() < 2)
         {
             Debug_printf("Incorrect # of parameters.\n");
-            response_queue.push("error: invalid # of parameters\r");
+            response = "invalid # of parameters";
             // Send error
             return;
         }
@@ -1472,24 +1472,13 @@ void iecFuji::get_device_filename()
     if (!_validate_device_slot(ds, "get_device_filename"))
     {
         Debug_printf("Invalid device slot: %u\n", ds);
-        response_queue.push("error: invalid device slot\r");
+        response = "invalid device slot";
         // send error
         return;
     }
 
     std::string reply = std::string(_fnDisks[ds].filename);
-
-    if (payload[0] == FUJICMD_GET_DEVICE_FULLPATH)
-    {
-        status_override = reply;
-    }
-    else
-    {
-        iecStatus.channel = CHANNEL_COMMAND;
-        iecStatus.error = ds;
-        iecStatus.connected = 1;
-        iecStatus.msg = reply;
-    }
+    response = reply;
 }
 
 // Mounts the desired boot disk number
@@ -1531,6 +1520,13 @@ device_state_t iecFuji::process()
 
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
+        for (int i=0;i<response.size();i++)
+        {
+            Debug_printf("%02X ",response[i]);
+        }
+        
+        Debug_printf("\n");
+
         while (!IEC.sendBytes(response))
             ;
     }
