@@ -1012,12 +1012,12 @@ void iwmFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_atr);
+        fBoot = fsFlash.file_open(config_atr);
         _fnDisks[0].disk_dev.mount(fBoot, config_atr, 143360, MEDIATYPE_PO);        
         break;
     case 1:
 
-        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        fBoot = fsFlash.file_open(mount_all_atr);
         _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 143360, MEDIATYPE_PO);        
         break;
     }
@@ -1079,12 +1079,12 @@ void iwmFuji::setup(iwmBus *iwmbus)
     Debug_printf("\nConfig General Boot Mode: %u\n",Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
-        FILE *f = fnSPIFFS.file_open("/autorun.po");
+        FILE *f = fsFlash.file_open("/autorun.po");
          _fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
     }
     else
     {
-        FILE *f = fnSPIFFS.file_open("/mount-and-boot.po");
+        FILE *f = fsFlash.file_open("/mount-and-boot.po");
          _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);      
     }
 
