@@ -321,13 +321,6 @@ void systemBus::read_command()
     //} while ( IEC.flags & ATN_PULLED );
     } while ( status( PIN_IEC_ATN ) == PULLED );
 
-    // // Is this command for us?
-    // if (!deviceById(data.device) || !deviceById(data.device)->device_active)
-    // {
-    //     //Debug_printf("Command not for us, ignoring.\r\n");
-    //     bus_state = BUS_IDLE;
-    // }
-
     // Is this command for us?
     if ( !isDeviceEnabled( data.device ) )
     // if (!deviceById(data.device) || !deviceById(data.device)->device_active)
@@ -355,16 +348,14 @@ void systemBus::read_payload()
 {
     // Record the command string until ATN is PULLED
     std::string listen_command = "";
-    uint64_t last_atn = IEC.status(PIN_IEC_ATN);
 
     // ATN might get pulled right away if there is no command string to send
     //pull ( PIN_IEC_SRQ );
     protocol->wait( TIMING_STABLE );
 
-    while (last_atn != RELEASED || IEC.status(PIN_IEC_ATN) != PULLED)
+    while (IEC.status(PIN_IEC_ATN) != PULLED)
     {
         //pull ( PIN_IEC_SRQ );
-        last_atn = IEC.status(PIN_IEC_ATN);
         int16_t c = protocol->receiveByte();
         //release ( PIN_IEC_SRQ );
 
