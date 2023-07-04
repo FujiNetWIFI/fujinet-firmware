@@ -2,8 +2,8 @@ name: "FujiNet Tagged Version Release"
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - release
 
 jobs:
   tagged-release:
@@ -12,7 +12,6 @@ jobs:
     strategy:
       matrix:
         target-platform: [ATARI, ADAM, APPLE]
-#        target-platform: [ATARI, ADAM, APPLE]
 
     steps:
     - name: Checkout Source
@@ -81,18 +80,7 @@ jobs:
     - name: Install espressif32 platform
       run: pio pkg install -p "platformio/espressif32@6.1.0"
 
-    - name: ATARI Build
-      if: ${{ matrix.target-platform == 'ATARI' }}
-      run: pio run -e fujinet-atari-v1
-
-    - name: ADAM Build
-      if: ${{ matrix.target-platform == 'ADAM' }}
-      run: pio run -e fujinet-adam-v1
-
-    - name: APPLE Build
-      if: ${{ matrix.target-platform == 'APPLE' }}
-      run: pio run -e fujiapple-rev0
-
+    # Build filesystem first so spiffs.bin is available during firmware build
     - name: ATARI Build Filesystem
       if: ${{ matrix.target-platform == 'ATARI' }}
       run: pio run -t buildfs -e fujinet-atari-v1
@@ -105,51 +93,57 @@ jobs:
       if: ${{ matrix.target-platform == 'APPLE' }}
       run: pio run -t buildfs -e fujiapple-rev0
 
-#    - name: Get Commits since last Release
-#      id: changes
-#      uses: simbo/changes-since-last-release-action@v1
-#      with:
-#        line-prefix: "*"
-#        include-hashes: false
+    # Build the firmware
+    - name: ATARI Build
+      if: ${{ matrix.target-platform == 'ATARI' }}
+      run: pio run -e fujinet-atari-v1
 
-#    - name: Save Commits since last Release
-#      run: |
-#        echo "${{ steps.changes.outputs.log }}" > change.log
-#        cat change.log
+    - name: ADAM Build
+      if: ${{ matrix.target-platform == 'ADAM' }}
+      run: pio run -e fujinet-adam-v1
+
+    - name: APPLE Build
+      if: ${{ matrix.target-platform == 'APPLE' }}
+      run: pio run -e fujiapple-rev0
 
     - name: Save commits to change log
-      run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > change.log
+      run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > firmware/change.log
 
-    - name: Create JSON Description from Tag Annotation if Available
-      if: ${{ steps.tag-data.outputs.git-tag-annotation != '' }}
-      run: echo "${{ steps.tag-data.outputs.git-tag-annotation }}" > annotation.txt
+    - name: Get version number from release.json
+      id: release-ver
+      run: cat "firmware/${{ matrix.target-platform }}" | grep "\"version\"" | cut -d "\"" -f 4
+      shell: bash
 
-    - name: Create Release ZIP
-      run: .github/workflows/create-zip.sh ${{ matrix.target-platform }} ${{ github.ref_name }} ${{ github.repository_owner }}
+    - name: Show Release Version
+      run: echo "Release version from JSON - ${{ steps.release-ver.outputs }}"
+      shell: bash
+
+    - name: Prepare platform release JSON
+      run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ steps.release-ver.outputs }} ${{ github.repository_owner }}
       shell: bash
 
     - name: Upload Release ZIP
       uses: actions/upload-artifact@v2.3.1
       with:
-        name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
-        path: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        name: fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs }}.zip
+        path: firmware/fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs }}.zip
 
     - name: Upload Releases JSON
       uses: actions/upload-artifact@v2.3.1
       with:
         name: releases-${{ matrix.target-platform }}.json
-        path: releases-${{ matrix.target-platform }}.json
+        path: firmware/releases-${{ matrix.target-platform }}.json
 
     - name: Upload Change Log
       uses: actions/upload-artifact@v2.3.1
       with:
         name: change.log
-        path: change.log
+        path: firmware/change.log
 
     - name: Push ZIP to release
       uses: softprops/action-gh-release@v1
       with:
-        files: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        files: fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs }}.zip
 
     - name: Push JSON to release
       uses: softprops/action-gh-release@v1
@@ -166,4 +160,4 @@ jobs:
       run: echo "::set-output name=shortsha::$(git rev-parse --short HEAD)"
 
     - name: Notify FujiNet server
-      run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.shortsha }}"'
+      run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ steps.release-ver.outputs }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.shortsha }}"'
