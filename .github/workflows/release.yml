@@ -111,12 +111,18 @@ jobs:
 
     - name: Get version number from release.json
       id: release-ver
-      run: cat "firmware/release.json" | grep "\"version\"" | cut -d "\"" -f 4
       shell: bash
+      run: |
+        cat "firmware/release.json" | grep "\"version\"" | cut -d "\"" -f 4 >> $GITHUB_OUTPUT
 
     - name: Show Release Version
       run: echo "Release version from JSON - ${{ steps.release-ver.outputs }}"
       shell: bash
+
+    - name: Generate release tag
+      id: tag
+      run: |
+        echo "::set-output name=release_tag::${{ steps.release-ver.outputs }}"
 
     - name: Prepare platform release JSON
       run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ steps.release-ver.outputs }} ${{ github.repository_owner }}
@@ -143,16 +149,19 @@ jobs:
     - name: Push ZIP to release
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
         files: fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs }}.zip
 
     - name: Push JSON to release
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
         files: releases-${{ matrix.target-platform }}.json
 
     - name: Push Change Log to release
       uses: softprops/action-gh-release@v1
       with:
+        tag_name: ${{ steps.tag.outputs.release_tag }}
         files: change.log
 
     - name: Get Git Short SHA
