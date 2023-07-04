@@ -1,6 +1,7 @@
 #include "fnConfig.h"
-#include "fnFsSPIFFS.h"
 #include "fnSystem.h"
+
+#include "fsFlash.h"
 
 #include <cstring>
 #include <sstream>
@@ -161,7 +162,7 @@ void fnConfig::save()
     if (fnConfig::get_general_fnconfig_spifs() == true) //only if spiffs is enabled
     {
         Debug_println("SPIFFS Config Storage: Enabled. Saving config to SPIFFS");
-        if ( !(fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w")))
+        if ( !(fout = fsFlash.file_open(CONFIG_FILENAME, "w")))
         {
             Debug_println("Failed to Open config on SPIFFS");
             return;
@@ -188,7 +189,7 @@ void fnConfig::save()
     if (fnSDFAT.running() && fnConfig::get_general_fnconfig_spifs() == true)
     {
         Debug_println("Attempting config copy to SD");
-        if (0 == fnSystem.copy_file(&fnSPIFFS, CONFIG_FILENAME, &fnSDFAT, CONFIG_FILENAME))
+        if (0 == fnSystem.copy_file(&fsFlash, CONFIG_FILENAME, &fnSDFAT, CONFIG_FILENAME))
         {
             Debug_println("Failed to copy config to SD");
             return;

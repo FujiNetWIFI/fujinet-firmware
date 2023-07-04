@@ -35,7 +35,7 @@
 #define LEDSTRIP_COUNT          5
 #define LEDSTRIP_BRIGHTNESS     15 // max mA the LED can use determines brightness
 #define LEDSTRIP_TYPE           WS2812B
-#define LEDSTRIP_RGB_ORDER               GRB
+#define LEDSTRIP_RGB_ORDER      GRB
 // LED order on the strip starting with 0
 #define LEDSTRIP_WIFI_NUM       0
 #define LEDSTRIP_BUS_NUM        4

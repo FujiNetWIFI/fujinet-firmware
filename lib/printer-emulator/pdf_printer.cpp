@@ -2,11 +2,9 @@
 
 #include "../../include/debug.h"
 
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
+
 #include "utils.h"
-
-
-#define DEBUG
 
 void pdfPrinter::pdf_header()
 {
@@ -68,7 +66,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
     // OPEN LUT FILE
     char fname[30]; // filename: /f/shortname/Fi
     sprintf(fname, "/f/%s/LUT", shortname.c_str());
-    FILE *lut = fnSPIFFS.file_open(fname);
+    FILE *lut = fsFlash.file_open(fname);
     int maxFonts = util_parseInt(lut);
 
     // font dictionary
@@ -88,7 +86,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             size_t fp = 0;
             char fname[30];                                        // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
-            FILE *fff = fnSPIFFS.file_open(fname);                 // Font File File - fff
+            FILE *fff = fsFlash.file_open(fname);                 // Font File File - fff
 
             fgetc(fff); // '%'
             fp++;

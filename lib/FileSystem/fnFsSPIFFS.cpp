@@ -11,7 +11,7 @@
 #define SPIFFS_MAXPATH 512
 
 // Our global SPIFFS interface
-FileSystemSPIFFS fnSPIFFS;
+FileSystemSPIFFS fsFlash;
 
 FileSystemSPIFFS::FileSystemSPIFFS()
 {
@@ -156,8 +156,7 @@ bool FileSystemSPIFFS::start()
 
     esp_vfs_spiffs_conf_t conf = {
       .base_path = _basepath,
-      // .partition_label = "flash", // Changing to "flash" causes my FN to cycle error.
-      .partition_label = NULL,
+      .partition_label = "flash",
       .max_files = 10, // from SPIFFS.h
       .format_if_mount_failed = false
     };

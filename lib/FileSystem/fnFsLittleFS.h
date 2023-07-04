@@ -1,21 +1,22 @@
-#ifndef _FN_FSSPIFFS_
-#define _FN_FSSPIFFS_
+#ifndef _FN_FSLITTLEFS_
+#define _FN_FSLITTLEFS_
+#ifdef FLASH_LITTLEFS
 
 #include <dirent.h>
 
 #include "fnFS.h"
 
 
-class FileSystemSPIFFS : public FileSystem
+class FileSystemLittleFS : public FileSystem
 {
 private:
     DIR * _dir;
 public:
-    FileSystemSPIFFS();
+    FileSystemLittleFS();
     bool start();
     
-    fsType type() override { return FSTYPE_SPIFFS; };
-    const char * typestring() override { return type_to_string(FSTYPE_SPIFFS); };
+    fsType type() override { return FSTYPE_LITTLEFS; };
+    const char * typestring() override { return type_to_string(FSTYPE_LITTLEFS); };
 
     virtual bool is_global() override { return true; };    
 
@@ -27,7 +28,7 @@ public:
 
     bool rename(const char* pathFrom, const char* pathTo) override;
 
-    bool is_dir(const char *path) override;
+    bool is_dir(const char *path);
     bool mkdir(const char* path) override { return true; };
     bool rmdir(const char* path) override { return true; };
     bool dir_exists(const char* path) override { return true; };
@@ -38,10 +39,13 @@ public:
     uint16_t dir_tell() override;
     bool dir_seek(uint16_t) override;
 
+    bool create_path(const char *fullpath);
+
     uint64_t total_bytes();
     uint64_t used_bytes();
 };
 
-extern FileSystemSPIFFS fsFlash;
+extern FileSystemLittleFS fsFlash;
 
-#endif // _FN_FSSPIFFS_
+#endif // FLASH_LITTLEFS
+#endif // _FN_FSLITTLEFS_
