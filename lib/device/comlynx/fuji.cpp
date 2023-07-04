@@ -1112,12 +1112,12 @@ void lynxFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_atr);
+        fBoot = fsFlash.file_open(config_atr);
         _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);
         break;
     case 1:
 
-        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        fBoot = fsFlash.file_open(mount_all_atr);
         _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);
         break;
     }

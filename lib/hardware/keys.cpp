@@ -326,7 +326,6 @@ void KeyManager::_keystate_task(void *param)
             sio_message_t msg;
             msg.message_id = SIOMSG_DEBUG_TAPE;
             xQueueSend(SIO.qSioMessages, &msg, 0);
-
 #endif /* BUILD_ATARI */
             break;
         case eKeyStatus::DOUBLE_TAP:

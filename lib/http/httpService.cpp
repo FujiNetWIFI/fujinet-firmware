@@ -1296,7 +1296,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     }
 
     // Set filesystem where we expect to find our static files
-    state._FS = &fnSPIFFS;
+    state._FS = &fsFlash;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;
