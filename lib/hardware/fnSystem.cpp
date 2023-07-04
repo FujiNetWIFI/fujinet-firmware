@@ -657,20 +657,7 @@ void SystemManager::check_hardware_ver()
 #endif
 
 #ifdef PINMAP_A2_REV0
-    int spifixupcheck, spifixdowncheck, ledstripupcheck, ledstripdowncheck, rev1upcheck, rev1downcheck;
-
-    /* Check for LED Strip pullup and enable it if found */
-    fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-    ledstripupcheck = fnSystem.digital_read(LED_DATA_PIN);
-    fnSystem.set_pin_mode(LED_DATA_PIN, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-    ledstripdowncheck = fnSystem.digital_read(LED_DATA_PIN);
-
-    // DISABLED LED Strip for A2
-    if(ledstripdowncheck == ledstripupcheck)
-    {
-        //ledstrip_found = true;
-        //Debug_printf("Enabling LED Strip\r\n");
-    }
+    int spifixupcheck, spifixdowncheck, rev1upcheck, rev1downcheck;
 
 #ifndef MASTERIES_SPI_FIX
 #   ifdef REV1DETECT
