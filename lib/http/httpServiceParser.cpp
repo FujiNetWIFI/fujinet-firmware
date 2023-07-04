@@ -243,10 +243,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnWiFi.get_current_detail_str();
         break;
     case FN_SPIFFS_SIZE:
-        resultstream << fnSPIFFS.total_bytes();
+        resultstream << fsFlash.total_bytes();
         break;
     case FN_SPIFFS_USED:
-        resultstream << fnSPIFFS.used_bytes();
+        resultstream << fsFlash.used_bytes();
         break;
     case FN_SD_SIZE:
         resultstream << fnSDFAT.total_bytes();

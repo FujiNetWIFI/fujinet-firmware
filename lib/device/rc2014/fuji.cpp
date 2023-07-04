@@ -975,7 +975,7 @@ void rc2014Fuji::setup(systemBus *siobus)
     _rc2014_bus->addDevice(&_fnDisks[2].disk_dev, RC2014_DEVICEID_DISK + 2);
     _rc2014_bus->addDevice(&_fnDisks[3].disk_dev, RC2014_DEVICEID_DISK + 3);
 
-    //FILE *f = fnSPIFFS.file_open("/autorun.ddp");
+    //FILE *f = fsFlash.file_open("/autorun.ddp");
     //_fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
 
     theNetwork = new rc2014Network();

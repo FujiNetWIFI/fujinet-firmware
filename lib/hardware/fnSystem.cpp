@@ -29,8 +29,8 @@
 
 #include "bus.h"
 
+#include "fsFlash.h"
 #include "fnFsSD.h"
-#include "fnFsSPIFFS.h"
 #include "fnWiFi.h"
 
 #ifdef BUILD_APPLE
@@ -408,11 +408,11 @@ void SystemManager::delete_tempfile(const char *filename)
     if (fnSDFAT.running())
         delete_tempfile(&fnSDFAT, filename);
     else
-        delete_tempfile(&fnSPIFFS, filename);
+        delete_tempfile(&fsFlash, filename);
 }
 
 /*
- Create temporary file. fnSDFAT will be used if available, otherwise fnSPIFFS.
+ Create temporary file. fnSDFAT will be used if available, otherwise fsFlash.
  Filename will be 8 characters long. If provided, generated filename will be placed in result_filename
  File opened in "w+" mode.
 */
@@ -421,7 +421,7 @@ FILE *SystemManager::make_tempfile(char *result_filename)
     if (fnSDFAT.running())
         return make_tempfile(&fnSDFAT, result_filename);
     else
-        return make_tempfile(&fnSPIFFS, result_filename);
+        return make_tempfile(&fsFlash, result_filename);
 }
 
 // Copy file from source filesystem/filename to destination filesystem/name using optional buffer_hint for buffer size
@@ -533,13 +533,13 @@ int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
 {
     Debug_printf("load_firmware '%s'\r\n", filename);
 
-    if (fnSPIFFS.exists(filename) == false)
+    if (fsFlash.exists(filename) == false)
     {
         Debug_println("load_firmware FILE NOT FOUND");
         return -1;
     }
 
-    FILE *f = fnSPIFFS.file_open(filename);
+    FILE *f = fsFlash.file_open(filename);
     size_t file_size = FileSystem::filesize(f);
 
     Debug_printf("load_firmware file size = %u\r\n", file_size);
