@@ -194,6 +194,9 @@ void iecDisk::process_channel()
 
 void iecDisk::iec_open()
 {
+    if ( commanddata.primary == IEC_UNLISTEN )
+        return;
+
     std::string s = payload;
     mstr::toASCII(s);
 
