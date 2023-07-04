@@ -1,6 +1,7 @@
 #include "fnConfig.h"
-#include "fnFsSPIFFS.h"
 #include "fnSystem.h"
+
+#include "fsFlash.h"
 
 #include <cstring>
 #include <sstream>
@@ -31,8 +32,8 @@ void fnConfig::load()
         // Tell the keymanager to ignore this keypress
         fnKeyManager.ignoreKeyPress(BUTTON_B);
 
-        if (fnSPIFFS.exists(CONFIG_FILENAME))
-            fnSPIFFS.remove(CONFIG_FILENAME);
+        if (fsFlash.exists(CONFIG_FILENAME))
+            fsFlash.remove(CONFIG_FILENAME);
 
         // full reset, so set us as not encrypting
         _general.encrypt_passphrase = false;
@@ -48,13 +49,13 @@ void fnConfig::load()
 Original behavior: read from SPIFFS first and only read from SD if nothing found on SPIFFS.
 
     // See if we have a file in SPIFFS
-    if(false == fnSPIFFS.exists(CONFIG_FILENAME))
+    if(false == fsFlash.exists(CONFIG_FILENAME))
     {
         // See if we have a copy on SD (only copy from SD if we don't have a local copy)
         if(fnSDFAT.running() && fnSDFAT.exists(CONFIG_FILENAME))
         {
             Debug_println("Found copy of config file on SD - copying that to SPIFFS");
-            if(0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
+            if(0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fsFlash, CONFIG_FILENAME))
             {
                 Debug_println("Failed to copy config from SD");
                 return; // No local copy and couldn't copy from SD - ABORT
@@ -79,14 +80,14 @@ New behavior: copy from SD first if available, then read SPIFFS.
     }
     else
     {
-        if (false == fnSPIFFS.exists(CONFIG_FILENAME))
+        if (false == fsFlash.exists(CONFIG_FILENAME))
         {
             _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
             Debug_println("No config found - starting fresh!");
             return; // No local copy - ABORT
         }
         Debug_println("Load fnconfig.ini from spiffs");
-        fin = fnSPIFFS.file_open(CONFIG_FILENAME);
+        fin = fsFlash.file_open(CONFIG_FILENAME);
     }
     // Read INI file into buffer (for speed)
     // Then look for sections and handle each
@@ -170,10 +171,10 @@ New behavior: copy from SD first if available, then read SPIFFS.
 
     if (fnConfig::get_general_fnconfig_spifs() == true) // Only if spiffs is enabled
     {
-        if (true == fnSPIFFS.exists(CONFIG_FILENAME))
+        if (true == fsFlash.exists(CONFIG_FILENAME))
         {
             Debug_println("SPIFFS Config Storage: Enabled");
-            FILE *fin = fnSPIFFS.file_open(CONFIG_FILENAME);
+            FILE *fin = fsFlash.file_open(CONFIG_FILENAME);
             char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
             if (inibuffer == nullptr)
             {
@@ -196,7 +197,7 @@ New behavior: copy from SD first if available, then read SPIFFS.
             free(inibuffer);
             if (ss.str() != ss_ffs.str()) {
                 Debug_println("Copying SD config file to SPIFFS");
-                if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
+                if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fsFlash, CONFIG_FILENAME))
                 {
                     Debug_println("Failed to copy config from SD");
                 }
@@ -208,7 +209,7 @@ New behavior: copy from SD first if available, then read SPIFFS.
         {
             Debug_println("Config file dosn't exist on SPIFFS");
             Debug_println("Copying SD config file to SPIFFS");
-            if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fnSPIFFS, CONFIG_FILENAME))
+            if (0 == fnSystem.copy_file(&fnSDFAT, CONFIG_FILENAME, &fsFlash, CONFIG_FILENAME))
             {
                     Debug_println("Failed to copy config from SD");
             } 

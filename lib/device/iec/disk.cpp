@@ -963,7 +963,7 @@ void iecDisk::sendListing()
 
 bool iecDisk::sendFile()
 {
-    size_t i = 0;
+    size_t count = 0;
     bool success_rx = true;
     bool success_tx = true;
 
@@ -1018,15 +1018,14 @@ bool iecDisk::sendFile()
     if( IEC.data.channel == CHANNEL_LOAD )
     {
         // Get/Send file load address
-        i = 2;
+        count = 2;
         istream->read(&b, 1);
         success_tx = IEC.sendByte(b);
         load_address = b & 0x00FF; // low byte
-        sys_address = b;
         istream->read(&b, 1);
         success_tx = IEC.sendByte(b);
         load_address = load_address | b << 8;  // high byte
-        sys_address += b * 256;
+        sys_address = load_address;
         Debug_printv( "load_address[$%.4X] sys_address[%d]", load_address, sys_address );
 
         // Get SYSLINE
@@ -1051,14 +1050,13 @@ bool iecDisk::sendFile()
         }
 #endif
         // Send Byte
-        avail = istream->available();
-        if ( !avail || !success_rx )
+        if ( count + 1 == avail || !success_rx )
         {
-            //Debug_printv("b[%02X] EOI", b);
+	  //Debug_printv("b[%02X] EOI %i", b, count);
             success_tx = IEC.sendByte(b, true); // indicate end of file.
             if ( !success_tx )
                 Debug_printv("tx fail");
-            
+
             break;
         }
         else
@@ -1069,10 +1067,10 @@ bool iecDisk::sendFile()
                 Debug_printv("tx fail");
                 //break;
             }
-                
+
         }
         b = nb; // byte = next byte
-        i++;
+        count++;
 
 #ifdef DATA_STREAM
         // Show ASCII Data
@@ -1083,13 +1081,13 @@ bool iecDisk::sendFile()
 
         if(bi == 8)
         {
-            uint32_t t = (i * 100) / len;
-            Debug_printf(" %s (%d %d%%) [%d]\r\n", ba, i, t, avail);
+            uint32_t t = (count * 100) / len;
+            Debug_printf(" %s (%d %d%%) [%d]\r\n", ba, count, t, avail);
             bi = 0;
         }
 #else
-        uint32_t t = (i * 100) / len;
-        Debug_printf("\rTransferring %d%% [%d, %d]      ", t, i, avail);
+        uint32_t t = (count * 100) / len;
+        Debug_printf("\rTransferring %d%% [%d, %d]      ", t, count, avail);
 #endif
 
         // Exit if ATN is PULLED while sending
@@ -1110,7 +1108,18 @@ bool iecDisk::sendFile()
         // 	fnLedManager.toggle(eLed::LED_BUS);
         // }
     }
-    Debug_printf("\r\n=================================\r\n%d bytes sent of %d [SYS%d]\r\n", i, avail, sys_address);
+
+#ifdef DATA_STREAM
+    if (bi)
+    {
+      uint32_t t = (count * 100) / len;
+      ba[bi] = 0;
+      Debug_printf(" %s (%d %d%%) [%d]\r\n", ba, count, t, avail);
+      bi = 0;
+    }
+#endif
+
+    Debug_printf("\r\n=================================\r\n%d bytes sent of %d [SYS%d]\r\n", count, avail, sys_address);
 
     //Debug_printv("len[%d] avail[%d] success_rx[%d]", len, avail, success_rx);
 
