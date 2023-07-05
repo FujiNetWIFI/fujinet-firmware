@@ -2,9 +2,10 @@ name: FujiNet PlatformIO CI
 
 on:
   push:
-# Do not build tags, only commits. Don't need to build releases twice
+    # Do not build tags. Do not build release branch
     branches:
       - "**"
+      - "!release"
     tags:
       - "!**"
 

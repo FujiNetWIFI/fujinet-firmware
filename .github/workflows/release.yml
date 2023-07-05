@@ -122,7 +122,7 @@ jobs:
     - name: Generate release tag
       id: tag
       run: |
-        echo "release_tag=$(${{ steps.release-ver.outputs.VERSION }})" >> $GITHUB_OUTPUT
+        echo "release_tag=$(echo ${{ steps.release-ver.outputs.VERSION }})" >> $GITHUB_OUTPUT
 
 #    - uses: rickstaa/action-create-tag@v1
 #      id: "tag_create"
