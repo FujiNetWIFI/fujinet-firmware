@@ -13,6 +13,14 @@
 ;esp32_platform_version = 3.2.0 ; For Bluetooth support
 ;esp32_platform_version = 3.4.0 ; old stable
 esp32_platform_version = 6.3.2 ; latest
+esp32_platform_packages = 
+;    toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 ; required for platform version < 5.3.0, remove this line when upgrading to the >=5.3.0
+
+esp32s3_platform_version = 6.1.0
+
+; Choose SPIFFS or LITTLEFS for the filesystem used on internal flash
+flash_filesystem = FLASH_SPIFFS 
+;flash_filesystem = FLASH_LITTLEFS
 
 esp32_platform_packages = 
 ;    toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 ; required for platform version < 5.3.0, remove this line when upgrading to the >=5.3.0
@@ -89,6 +97,7 @@ check_skip_packages = yes ; so that check will work.
 
 build_flags =
     -D ${fujinet.build_platform}
+    -D ${fujinet.flash_filesystem}
     -D CMAKE_EXPORT_COMPILE_COMMANDS=ON
     -D DEBUG_SPEED=${env.monitor_speed}
     ;-D NO_BUTTONS          ; if your hardware has no physical buttons
