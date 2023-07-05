@@ -165,9 +165,9 @@ jobs:
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         files: |
-          fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
-          releases-${{ matrix.target-platform }}.json
-          change.log
+          firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+          firmware/releases-${{ matrix.target-platform }}.json
+          firmware/change.log
 
     - name: Get Git Short SHA
       id: shortsha
