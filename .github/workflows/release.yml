@@ -111,10 +111,10 @@ jobs:
       run: echo "Release version from JSON - ${{ steps.release-ver.outputs.VERSION }}"
       shell: bash
 
-    - name: Generate release tag
-      id: tag
-      run: |
-        echo "release_tag=$(echo ${{ steps.release-ver.outputs.VERSION }})" >> $GITHUB_OUTPUT
+#    - name: Generate release tag
+#      id: tag
+#      run: |
+#        echo "release_tag=$(echo ${{ steps.release-ver.outputs.VERSION }})" >> $GITHUB_OUTPUT
 
     - name: Fetch Tag Info
       run: git fetch --tags --force
