@@ -113,7 +113,7 @@ jobs:
       id: release-ver
       shell: bash
       run: |
-        echo "VERSION=$(cat firmware/release.json | grep '\"version\"' | cut -d '\"' -f 4)" >> $GITHUB_OUTPUT
+        echo "VERSION=$(cat firmware/release.json | grep '\"version\"' | cut -d '"' -f 4)" >> $GITHUB_OUTPUT
 
     - name: Show Release Version
       run: echo "Release version from JSON - ${{ steps.release-ver.outputs.VERSION }}"
