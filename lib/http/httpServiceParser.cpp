@@ -8,7 +8,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 #include "httpService.h"
 #include "fuji.h"
 

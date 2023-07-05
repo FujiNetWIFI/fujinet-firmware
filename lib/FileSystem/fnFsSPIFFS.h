@@ -1,5 +1,6 @@
 #ifndef _FN_FSSPIFFS_
 #define _FN_FSSPIFFS_
+#ifdef FLASH_SPIFFS
 
 #include <dirent.h>
 
@@ -44,4 +45,5 @@ public:
 
 extern FileSystemSPIFFS fsFlash;
 
+#endif // FLASH_SPIFFS
 #endif // _FN_FSSPIFFS_
