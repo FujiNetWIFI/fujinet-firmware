@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - release
+#    tags:
+#      - "v*"
 
 jobs:
   tagged-release:
@@ -18,16 +20,6 @@ jobs:
       uses: actions/checkout@v2
       with:
         fetch-depth: 0
-
-    - name: Fetch Tag Info
-      run: git fetch --tags --force
-
-    - name: Get Tag Info
-      uses: ericcornelissen/git-tag-annotation-action@v2
-      id: tag-data
-
-    - name: Show Tag Info
-      run: echo ${{ steps.tag-data.outputs.git-tag-annotation }}
 
     - name: Cache pip
       uses: actions/cache@v2
@@ -124,12 +116,24 @@ jobs:
       run: |
         echo "release_tag=$(echo ${{ steps.release-ver.outputs.VERSION }})" >> $GITHUB_OUTPUT
 
+    - name: Fetch Tag Info
+      run: git fetch --tags --force
+
+    - name: Get Tag Info
+      uses: ericcornelissen/git-tag-annotation-action@v2
+      id: tag-data
+
+    - name: Show Tag Info
+      run: echo ${{ steps.tag-data.outputs.git-tag-annotation }}
+  
 #    - uses: rickstaa/action-create-tag@v1
 #      id: "tag_create"
 #      with:
 #        tag: "${{ steps.release-ver.outputs.VERSION }}"
 #        tag_exists_error: false
 #        message: "Latest release ${{ steps.release-ver.outputs.VERSION }}"
+
+# TODO: grab tag message here to use for platform release json description
 
     - name: Prepare platform release JSON
       run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ steps.release-ver.outputs.VERSION }} ${{ github.repository_owner }}
