@@ -4,8 +4,8 @@ on:
   push:
     branches:
       - release
-#    tags:
-#      - "v*"
+    tags:
+      - "v*"
 
 jobs:
   tagged-release:
@@ -133,7 +133,10 @@ jobs:
 #        tag_exists_error: false
 #        message: "Latest release ${{ steps.release-ver.outputs.VERSION }}"
 
-# TODO: grab tag message here to use for platform release json description
+    # Grab tag message to use for platform release json description if available
+    - name: Create JSON Description from Tag Annotation if Available
+      if: ${{ steps.tag-data.outputs.git-tag-annotation != '' }}
+      run: echo "${{ steps.tag-data.outputs.git-tag-annotation }}" > firmware/annotation.txt
 
     - name: Prepare platform release JSON
       run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ steps.release-ver.outputs.VERSION }} ${{ github.repository_owner }}

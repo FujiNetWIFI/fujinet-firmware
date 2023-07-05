@@ -11,7 +11,13 @@ GIT_COMMIT=`git rev-parse HEAD`
 GIT_SHORT_COMMIT=`git rev-parse --short HEAD`
 FILENAME="firmware/fujinet-$PLATFORM-$VERSION"
 WORKINGDIR=`pwd`
-DESC=`cat firmware/release.json | grep "\"description\"" | cut -d "\"" -f 4`
+
+# Get tag annotation if available for description
+if [ -f "annotation.txt" ]; then
+	DESC=`cat firmware/annotation.txt`
+else
+    DESC=`cat firmware/release.json | grep "\"description\"" | cut -d "\"" -f 4`
+fi
 
 # Get shasum for ZIP file
 ZIPSHASUM=`sha256sum $FILENAME.zip | cut -d ' ' -f 1`
@@ -22,7 +28,7 @@ cat <<EOF > firmware/releases-$PLATFORM.json
     "version": "$VERSION",
     "version_date": "$VERSION_DATE",
     "build_date": "$BUILD_DATE",
-    "description": $DESC,
+    "description": "$DESC",
     "git_commit": "$GIT_SHORT_COMMIT",
     "url": "https://github.com/$REPO_OWNER/fujinet-platformio/releases/download/$VERSION/$FILENAME.zip",
     "sha256": "$ZIPSHASUM"
