@@ -1,3 +1,4 @@
+#ifdef FLASH_SPIFFS
 
 #include "fnFsSPIFFS.h"
 
@@ -185,3 +186,4 @@ bool FileSystemSPIFFS::start()
 
     return _started;
 }
+#endif // FLASH_SPIFFS
