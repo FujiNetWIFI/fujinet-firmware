@@ -139,14 +139,14 @@ jobs:
       run: echo "${{ steps.tag-data.outputs.git-tag-annotation }}" > firmware/annotation.txt
 
     - name: Prepare platform release JSON
-      run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ steps.release-ver.outputs.VERSION }} ${{ github.repository_owner }}
+      run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ github.ref_name }} ${{ github.repository_owner }}
       shell: bash
 
     - name: Upload Release ZIP
       uses: actions/upload-artifact@v2.3.1
       with:
-        name: fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip
-        path: firmware/fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip
+        name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        path: firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
 
     - name: Upload Releases JSON
       uses: actions/upload-artifact@v2.3.1
@@ -165,7 +165,7 @@ jobs:
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
         files: |
-          fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip
+          fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
           releases-${{ matrix.target-platform }}.json
           change.log
 
@@ -175,4 +175,4 @@ jobs:
         echo "SHORTSHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
     - name: Notify FujiNet server
-      run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ steps.release-ver.outputs.VERSION }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.SHORTSHA }}"'
+      run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.SHORTSHA }}"'
