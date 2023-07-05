@@ -119,17 +119,17 @@ jobs:
       run: echo "Release version from JSON - ${{ steps.release-ver.outputs.VERSION }}"
       shell: bash
 
-#    - name: Generate release tag
-#      id: tag
-#      run: |
-#        echo "::set-output name=release_tag::${{ steps.release-ver.outputs.VERSION }}"
-#        echo "VERSION=$(cat firmware/release.json | grep '\"version\"' | cut -d '"' -f 4)" >> $GITHUB_OUTPUT
-    - uses: rickstaa/action-create-tag@v1
-      id: "tag_create"
-      with:
-        tag: "${{ steps.release-ver.outputs.VERSION }}"
-        tag_exists_error: false
-        message: "Latest release ${{ steps.release-ver.outputs.VERSION }}"
+    - name: Generate release tag
+      id: tag
+      run: |
+        echo "release_tag=$(${{ steps.release-ver.outputs.VERSION }})" >> $GITHUB_OUTPUT
+
+#    - uses: rickstaa/action-create-tag@v1
+#      id: "tag_create"
+#      with:
+#        tag: "${{ steps.release-ver.outputs.VERSION }}"
+#        tag_exists_error: false
+#        message: "Latest release ${{ steps.release-ver.outputs.VERSION }}"
 
     - name: Prepare platform release JSON
       run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ steps.release-ver.outputs.VERSION }} ${{ github.repository_owner }}
