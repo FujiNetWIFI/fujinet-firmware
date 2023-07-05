@@ -2,8 +2,8 @@ name: "FujiNet Tagged Version Release"
 
 on:
   push:
-    branches:
-      - release
+#    branches:
+#      - release
     tags:
       - "v*"
 
@@ -146,7 +146,7 @@ jobs:
       uses: actions/upload-artifact@v2.3.1
       with:
         name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
-        path: firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        path: firmware/fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip
 
     - name: Upload Releases JSON
       uses: actions/upload-artifact@v2.3.1
