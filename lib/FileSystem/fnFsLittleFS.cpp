@@ -4,11 +4,11 @@
 
 #include <esp_vfs.h>
 #include <errno.h>
+#include <filesystem>
 
 #include "esp_littlefs.h"
 
 #include "../../include/debug.h"
-#include "../../include/global_defines.h"
 
 #define LITTLEFS_MAXPATH 512
 
@@ -131,7 +131,7 @@ bool FileSystemLittleFS::create_path(const char *fullpath)
             Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
             if ( !exists(segment) )
             {
-                if(0 != f_mkdir(segment))
+                if( !std::filesystem::create_directory(segment) )
                 {
                     Debug_printf("FAILED errno=%d\r\n", errno);
                 }
@@ -239,7 +239,7 @@ bool FileSystemLittleFS::start()
     #endif
 
         // Create SYSTEM DIR if it doesn't exist
-        create_path( SYSTEM_DIR );
+        //create_path( SYSTEM_DIR );
     }
 
     return _started;
