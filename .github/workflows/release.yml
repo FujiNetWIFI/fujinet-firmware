@@ -113,26 +113,26 @@ jobs:
       id: release-ver
       shell: bash
       run: |
-        echo "cat firmware/release.json | grep '\"version\"' | cut -d '\"' -f 4" >> $GITHUB_OUTPUT
+        echo "VERSION=$(cat firmware/release.json | grep '\"version\"' | cut -d '\"' -f 4)" >> $GITHUB_OUTPUT
 
     - name: Show Release Version
-      run: echo "Release version from JSON - ${{ steps.release-ver.outputs }}"
+      run: echo "Release version from JSON - ${{ steps.release-ver.outputs.VERSION }}"
       shell: bash
 
     - name: Generate release tag
       id: tag
       run: |
-        echo "::set-output name=release_tag::${{ steps.release-ver.outputs }}"
+        echo "::set-output name=release_tag::${{ steps.release-ver.outputs.VERSION }}"
 
     - name: Prepare platform release JSON
-      run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ steps.release-ver.outputs }} ${{ github.repository_owner }}
+      run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ steps.release-ver.outputs.VERSION }} ${{ github.repository_owner }}
       shell: bash
 
     - name: Upload Release ZIP
       uses: actions/upload-artifact@v2.3.1
       with:
-        name: fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs }}.zip
-        path: firmware/fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs }}.zip
+        name: fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip
+        path: firmware/fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip
 
     - name: Upload Releases JSON
       uses: actions/upload-artifact@v2.3.1
@@ -150,7 +150,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
-        files: fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs }}.zip
+        files: fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip
 
     - name: Push JSON to release
       uses: softprops/action-gh-release@v1
@@ -169,4 +169,4 @@ jobs:
       run: echo "::set-output name=shortsha::$(git rev-parse --short HEAD)"
 
     - name: Notify FujiNet server
-      run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ steps.release-ver.outputs }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.shortsha }}"'
+      run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ steps.release-ver.outputs.VERSION }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.shortsha }}"'
