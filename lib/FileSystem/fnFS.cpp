@@ -58,6 +58,8 @@ const char * FileSystem::type_to_string(fsType type)
     {
         case FSTYPE_SPIFFS:
             return "FS_SPIFFS";
+        case FSTYPE_LITTLEFS:
+            return "FS_LITTLEFS";
         case FSTYPE_SDFAT:
             return "FS_SDFAT";
         case FSTYPE_TNFS:

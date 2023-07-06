@@ -8,7 +8,7 @@
 
 #include "../../include/debug.h"
 
-/* Save configuration data to SPIFFS. If SD is mounted, save a backup copy there.
+/* Save configuration data to FLASH. If SD is mounted, save a backup copy there.
 */
 void fnConfig::save()
 {
@@ -161,16 +161,16 @@ void fnConfig::save()
     FILE *fout = NULL;
     if (fnConfig::get_general_fnconfig_spifs() == true) //only if spiffs is enabled
     {
-        Debug_println("SPIFFS Config Storage: Enabled. Saving config to SPIFFS");
+        Debug_println("FLASH Config Storage: Enabled. Saving config to FLASH");
         if ( !(fout = fsFlash.file_open(CONFIG_FILENAME, "w")))
         {
-            Debug_println("Failed to Open config on SPIFFS");
+            Debug_println("Failed to Open config on FLASH");
             return;
         }
     }
     else
     {
-        Debug_println("SPIFFS Config Storage: Disabled. Saving config to SD");
+        Debug_println("FLASH Config Storage: Disabled. Saving config to SD");
         if ( !(fout = fnSDFAT.file_open(CONFIG_FILENAME, "w")))
         {
             Debug_println("Failed to Open config on SD");
@@ -185,7 +185,7 @@ void fnConfig::save()
     
     _dirty = false;
 
-    // Copy to SD if possible, only when wrote SPIFFS first 
+    // Copy to SD if possible, only when wrote FLASH first 
     if (fnSDFAT.running() && fnConfig::get_general_fnconfig_spifs() == true)
     {
         Debug_println("Attempting config copy to SD");
