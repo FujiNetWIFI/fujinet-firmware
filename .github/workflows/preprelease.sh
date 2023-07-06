@@ -13,7 +13,7 @@ FILENAME="firmware/fujinet-$PLATFORM-$VERSION"
 WORKINGDIR=`pwd`
 
 # Get tag annotation if available for description
-if [ -f "annotation.txt" ]; then
+if [ -f "firmware/annotation.txt" ]; then
 	DESC=`cat firmware/annotation.txt`
 else
     DESC=`cat firmware/release.json | grep "\"description\"" | cut -d "\"" -f 4`
