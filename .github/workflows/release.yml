@@ -128,7 +128,7 @@ jobs:
       uses: ericcornelissen/git-tag-annotation-action@v2
       id: tag-data
 
-    - name: Show Tag Info
+    - name: Show Tag Annotation
       run: echo ${{ steps.tag-data.outputs.git-tag-annotation }}
   
 #    - uses: rickstaa/action-create-tag@v1
@@ -168,7 +168,7 @@ jobs:
     - name: Push Files to Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ steps.tag.outputs.release_tag }}
+        tag_name: ${{ github.ref_name }}
         files: |
           firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
           firmware/releases-${{ matrix.target-platform }}.json
