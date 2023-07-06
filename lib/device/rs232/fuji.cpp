@@ -11,7 +11,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 #include "fnWiFi.h"
 
 #include "led.h"
