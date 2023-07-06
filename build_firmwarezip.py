@@ -122,7 +122,7 @@ def makezip(source, target, env):
                         },
                         {
                             "filename": "spiffs.bin",
-                            "offset": "0x60000"
+                            "offset": "0x600000"
                         }
                     ]
                 }"""
