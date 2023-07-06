@@ -2,4 +2,4 @@
 nvs,      data, nvs,     0x9000,   0x5000,
 phy_init, data, phy,     0xf000,   0x1000,
 fujinet,  app,  factory, 0x10000,  9M,
-spiffs,   data, spiffs,  0x910000, 5M,
+flash,    data, spiffs,  0x910000, 5M,
