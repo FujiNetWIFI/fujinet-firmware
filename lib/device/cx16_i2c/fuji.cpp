@@ -12,7 +12,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 #include "fnFsSD.h"
 #include "fnWiFi.h"
 
