@@ -401,7 +401,7 @@ void SystemManager::delete_tempfile(FileSystem *fs, const char *filename)
 
 /*
  Remove specified temporary file, if fnSDFAT available, then file is deleted there,
- otherwise deleted from SPIFFS
+ otherwise deleted from FLASH
 */
 void SystemManager::delete_tempfile(const char *filename)
 {
