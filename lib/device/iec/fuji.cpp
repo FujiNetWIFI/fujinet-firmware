@@ -191,6 +191,11 @@ void iecFuji::net_set_ssid()
 
         if (t.size() == 2)
         {
+            if ( mstr::isNumeric( t[0] ) ) {
+                // Find SSID by CRC8 Number
+                t[0] = fnWiFi.get_network_name_by_crc8( std::stoi(t[0]) );
+            }
+
             strncpy(cfg.ssid, t[0].c_str(), 33);
             strncpy(cfg.password, t[1].c_str(), 64);
         }
