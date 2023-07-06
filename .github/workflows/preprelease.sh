@@ -9,7 +9,7 @@ VERSION_DATE=`grep "FN_VERSION_DATE" include/version.h | cut -d '"' -f 2`
 BUILD_DATE=`date +'%Y-%m-%d %H:%M:%S'`
 GIT_COMMIT=`git rev-parse HEAD`
 GIT_SHORT_COMMIT=`git rev-parse --short HEAD`
-FILENAME="firmware/fujinet-$PLATFORM-$VERSION"
+FILENAME="fujinet-$PLATFORM-$VERSION.zip"
 WORKINGDIR=`pwd`
 
 # Get tag annotation if available for description
@@ -20,7 +20,7 @@ else
 fi
 
 # Get shasum for ZIP file
-ZIPSHASUM=`sha256sum $FILENAME.zip | cut -d ' ' -f 1`
+ZIPSHASUM=`sha256sum firmware/$FILENAME | cut -d ' ' -f 1`
 
 # Create flasher release JSON
 cat <<EOF > firmware/releases-$PLATFORM.json
@@ -30,7 +30,7 @@ cat <<EOF > firmware/releases-$PLATFORM.json
     "build_date": "$BUILD_DATE",
     "description": "$DESC",
     "git_commit": "$GIT_SHORT_COMMIT",
-    "url": "https://github.com/$REPO_OWNER/fujinet-platformio/releases/download/$VERSION/$FILENAME.zip",
+    "url": "https://github.com/$REPO_OWNER/fujinet-platformio/releases/download/$VERSION/$FILENAME",
     "sha256": "$ZIPSHASUM"
 }
 EOF
