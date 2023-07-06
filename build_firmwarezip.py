@@ -88,7 +88,7 @@ def makezip(source, target, env):
             [
             """ % (version['FN_VERSION_FULL'], version['FN_VERSION_DATE'], version['BUILD_DATE'], version['FN_VERSION_DESC'], version['FN_VERSION_BUILD'])
 
-        if "16mb" in config[environment]['board']:
+        if config[environment]['board'] == "fujinet-v1":
             json_contents += """		{
                             "filename": "bootloader.bin",
                             "offset": "0x1000"
@@ -107,7 +107,7 @@ def makezip(source, target, env):
                         }
                     ]
                 }"""
-        elif "8mb" in config[environment]['board']:
+        elif config[environment]['board'] == "fujinet-v1-8mb":
             json_contents += """		{
                             "filename": "bootloader.bin",
                             "offset": "0x1000"
@@ -126,7 +126,7 @@ def makezip(source, target, env):
                         }
                     ]
                 }"""
-        elif "4mb" in config[environment]['board']:
+        elif config[environment]['board'] == "fujinet-v1-4mb":
             json_contents += """		{
                     "filename": "bootloader.bin",
                     "offset": "0x1000"
