@@ -13,7 +13,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 #include "fnWiFi.h"
 #include "network.h"
 #include "led.h"
