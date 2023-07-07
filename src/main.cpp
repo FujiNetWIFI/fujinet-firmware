@@ -14,8 +14,9 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
+
+#include "fsFlash.h"
 #include "fnFsSD.h"
-#include "fnFsSPIFFS.h"
 
 #include "httpService.h"
 
@@ -45,14 +46,14 @@ void main_setup()
 #ifdef DEBUG
     fnUartDebug.begin(DEBUG_SPEED);
     unsigned long startms = fnSystem.millis();
-    Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
-    Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
-    Debug_printv("Heap: %lu\n",esp_get_free_internal_heap_size());
+    Debug_printf("\r\n\r\n--~--~--~--\nFujiNet %s Started @ %lu\r\n", fnSystem.get_fujinet_version(), startms);
+    Debug_printf("Starting heap: %u\r\n", fnSystem.get_free_heap_size());
+    Debug_printv("Heap: %lu\r\n",esp_get_free_internal_heap_size());
 #ifdef ATARI
-    Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
-    Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
-    Debug_printf("himem free %u\n", esp_himem_get_free_size());
-    Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
+    Debug_printf("PsramSize %u\r\n", fnSystem.get_psram_size());
+    Debug_printf("himem phys %u\r\n", esp_himem_get_phys_size());
+    Debug_printf("himem free %u\r\n", esp_himem_get_free_size());
+    Debug_printf("himem reserved %u\r\n", esp_himem_reserved_area_size());
 #endif // ATARI
 #endif // DEBUG
 
@@ -72,7 +73,7 @@ void main_setup()
     gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
 
     fnSystem.check_hardware_ver(); // Run early to determine correct FujiNet hardware
-    Debug_printf("Detected Hardware Version: %s\n", fnSystem.get_hardware_ver_str());
+    Debug_printf("Detected Hardware Version: %s\r\n", fnSystem.get_hardware_ver_str());
 
     fnKeyManager.setup();
 
@@ -104,7 +105,7 @@ void main_setup()
     if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
         ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
 
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
 
     sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
@@ -136,7 +137,7 @@ void main_setup()
     IEC.setup();
 //    iecPrinter::printer_type ptype = Config.get_printer_type(0);
     iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_COMMODORE_MPS803; // temporary
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
     iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
     IEC.addDevice(ptr, 0x04); // add as device #4 for now
@@ -170,7 +171,7 @@ void main_setup()
     if (ptype == rc2014Printer::printer_type::PRINTER_INVALID)
         ptype = rc2014Printer::printer_type::PRINTER_FILE_TRIM;
 
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
 
     rc2014Printer *ptr = new rc2014Printer(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
@@ -191,7 +192,7 @@ void main_setup()
     if (ptype == H89Printer::printer_type::PRINTER_INVALID)
         ptype = H89Printer::printer_type::PRINTER_FILE_TRIM;
 
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
 
     H89Printer *ptr = new H89Printer(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
@@ -208,7 +209,7 @@ void main_setup()
     AdamNet.setup();
     fnSDFAT.create_path("/FujiNet");
 
-    Debug_printf("Adding virtual printer\n");
+    Debug_printf("Adding virtual printer\r\n");
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     adamPrinter::printer_type printer = Config.get_printer_type(0);
     adamPrinter *ptr = new adamPrinter(ptrfs, printer);
@@ -221,19 +222,19 @@ void main_setup()
         AdamNet.disableDevice(ADAMNET_DEVICE_ID_PRINTER);
 
 #ifdef VIRTUAL_ADAM_DEVICES
-    Debug_printf("Physical Device Scanning...\n");
+    Debug_printf("Physical Device Scanning...\r\n");
     sioQ = new adamQueryDevice();
 
 #ifndef NO_VIRTUAL_KEYBOARD
     exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
     if (!exists)
     {
-        Debug_printf("Adding virtual keyboard\n");
+        Debug_printf("Adding virtual keyboard\r\n");
         sioK = new adamKeyboard();
         AdamNet.addDevice(sioK, ADAMNET_DEVICE_ID_KEYBOARD);
     }
     else
-        Debug_printf("Physical keyboard found\n");
+        Debug_printf("Physical keyboard found\r\n");
 #endif // NO_VIRTUAL_KEYBOARD
 
 #endif // VIRTUAL_ADAM_DEVICES
@@ -266,7 +267,7 @@ void main_setup()
     if (ptype == cx16Printer::printer_type::PRINTER_INVALID)
         ptype = cx16Printer::printer_type::PRINTER_FILE_TRIM;
 
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
 
     cx16Printer *ptr = new cx16Printer(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
@@ -279,7 +280,7 @@ void main_setup()
 
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
-    Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
+    Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\r\n", fnSystem.get_free_heap_size(), endms, endms - startms);
 #endif // DEBUG
     Debug_printv("Low Heap: %lu\n",esp_get_free_internal_heap_size());
 }
@@ -324,7 +325,7 @@ void fn_service_loop(void *param)
 #endif // BLUETOOTH_SUPPORT
 
 #ifdef LEAK_DEBUG
-        Debug_printv("Low Heap: %lu\n",esp_get_free_internal_heap_size());
+        Debug_printv("Low Heap: %lu\r\n",esp_get_free_internal_heap_size());
 #endif 
         SYSTEM_BUS.service();
 
