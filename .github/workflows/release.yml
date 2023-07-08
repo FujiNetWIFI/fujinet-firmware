@@ -143,6 +143,10 @@ jobs:
     needs: tagged-release
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Save commits to change log
         run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > CHANGE.log
       - name: Upload Change Log
