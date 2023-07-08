@@ -1,0 +1,161 @@
+name: "FujiNet Tagged Version Release"
+
+on:
+  push:
+#    branches:
+#      - release
+    tags:
+      - "v*"
+
+jobs:
+  tagged-release:
+    name: "Tagged Release"
+    runs-on: "ubuntu-latest"
+    strategy:
+      matrix:
+        target-platform: [ATARI, ADAM, APPLE, ATARI-8mb, IEC-LOLIN-D32, IEC-FUJIAPL]
+
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+        pip install Jinja2
+        pip install pyyaml
+
+    - name: Show python version
+      run: python --version
+
+    - name: Show pio system info
+      run: pio system info
+
+    - name: Show pio location
+      run: pip show platformio
+
+    - name: Create PlatformIO INI for Build
+      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Show platformio.ini
+      run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Get PIO build_board from INI
+      id: build_board
+      shell: bash
+      run: |
+        echo "NAME=$(grep '^[^;]*build_board ' /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} | sed s'/ //'g | cut -d "=" -f 2 | cut -d ";" -f 1)" >> $GITHUB_OUTPUT
+
+    # Build filesystem first so spiffs.bin is available during firmware build
+    - name: Build Filesystem
+      run: pio run -t buildfs -e ${{ steps.build_board.outputs.NAME }}
+
+    # Build the firmware
+    - name: Build Firimware
+      run: pio run -e ${{ steps.build_board.outputs.NAME }}
+
+    - name: Get version number from release.json
+      id: release-ver
+      shell: bash
+      run: |
+        echo "VERSION=$(cat firmware/release.json | grep '\"version\"' | cut -d '"' -f 4)" >> $GITHUB_OUTPUT
+
+    - name: Show Release Version
+      run: echo "Release version from JSON - ${{ steps.release-ver.outputs.VERSION }}"
+      shell: bash
+
+    - name: Rename firmware file if needed
+      shell: bash
+      run: |
+        mv firmware/fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+
+    - name: Fetch Tag Info
+      run: git fetch --tags --force
+
+    - name: Get Tag Info
+      uses: ericcornelissen/git-tag-annotation-action@v2
+      id: tag-data
+
+    - name: Show Tag Annotation
+      run: echo ${{ steps.tag-data.outputs.git-tag-annotation }}
+
+    # Grab tag message to use for platform release json description if available
+    - name: Create JSON Description from Tag Annotation if Available
+      if: ${{ steps.tag-data.outputs.git-tag-annotation != '' }}
+      run: echo "${{ steps.tag-data.outputs.git-tag-annotation }}" > firmware/annotation.txt
+
+    - name: Prepare platform release JSON
+      run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ github.ref_name }} ${{ github.repository_owner }}
+      shell: bash
+
+    - name: Upload Release ZIP
+      uses: actions/upload-artifact@v2.3.1
+      with:
+        name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        path: firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+
+    - name: Upload Releases JSON
+      uses: actions/upload-artifact@v2.3.1
+      with:
+        name: releases-${{ matrix.target-platform }}.json
+        path: firmware/releases-${{ matrix.target-platform }}.json
+
+    - name: Push Files to Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ github.ref_name }}
+        files: |
+          firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+          firmware/releases-${{ matrix.target-platform }}.json
+
+    - name: Get Git Short SHA
+      id: shortsha
+      run: |
+        echo "SHORTSHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+    # Selectively notify fujinet.online to add the new firmware to FujiNet-flasher
+    - name: Notify FujiNet server
+      if: ${{ matrix.target-platform == 'ATARI' }} || ${{ matrix.target-platform == 'ADAM' }} || ${{ matrix.target-platform == 'APPLE' }}
+      run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.SHORTSHA }}"'
+
+  push-changelog:
+    name: "Push Change Log"
+    needs: tagged-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Save commits to change log
+        run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > CHANGE.log
+      - name: Upload Change Log
+        uses: actions/upload-artifact@v2.3.1
+        with:
+          name: CHANGE.log
+          path: CHANGE.log
+      - name: Push Change log to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: CHANGE.log
