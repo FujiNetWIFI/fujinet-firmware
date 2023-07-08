@@ -65,9 +65,14 @@ def makezip(source, target, env):
         if not os.path.exists(firmdir):
             os.makedirs(firmdir)
 
-        # Clean the firmware output dir
+        # Filename variables
         releasefile = firmdir+"/release.json"
-        firmwarezip = firmdir+"/fujinet-"+config['fujinet']['build_platform'].split("_")[1]+"-"+version['FN_VERSION_FULL']+".zip"
+        if not config['fujinet']['build_platform']:
+            firmwarezip = firmdir+"/fujinet-"+config['fujinet']['build_platform'].split("_")[1]+"-"+version['FN_VERSION_FULL']+".zip"
+        else:
+            firmwarezip = firmdir+"/fujinet-"+config['fujinet']['platform_name']+"-"+version['FN_VERSION_FULL']+".zip"
+
+        # Clean the firmware output dir
         try:
             if os.path.isfile(releasefile):
                 os.unlink(releasefile)
