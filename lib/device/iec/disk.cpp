@@ -797,11 +797,17 @@ uint16_t iecDisk::sendHeader(std::string header, std::string id)
         if ( IEC.flags & ERROR ) return 0;
     }
     
+
+    // if (path.size() > 2)
+    // {
+    //     byte_count += sendLine(0, "%*s\"_\"                DIR", 3, "");
+    //     if ( IEC.flags & ERROR ) return 0;
+    //     byte_count += sendLine(0, "%*s\"\\\"               DIR", 3, "");
+    //     if ( IEC.flags & ERROR ) return 0;
+    // }
     if (fnSDFAT.running() && _base->url.size() < 2)
     {
-        byte_count += sendLine(0, "%*s\"SD\"                  DIR", 0, "");
-        if ( IEC.flags & ERROR ) return 0;
-        byte_count += sendLine(0, "%*s\"-------------------\" NFO", 0, "");
+        byte_count += sendLine(0, "%*s\"SD\"               DIR", 3, "");
         if ( IEC.flags & ERROR ) return 0;
     }
 
