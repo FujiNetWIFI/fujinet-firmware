@@ -318,8 +318,8 @@ void systemBus::read_command()
         //Debug_printv("stabalize!");
         //protocol->wait ( TIMING_STABLE );
 
-    //} while ( IEC.flags & ATN_PULLED );
-    } while ( status( PIN_IEC_ATN ) == PULLED );
+    } while ( IEC.flags & ATN_PULLED );
+    //} while ( status( PIN_IEC_ATN ) == PULLED );
 
     // Is this command for us?
     if ( !isDeviceEnabled( data.device ) )
@@ -351,7 +351,11 @@ void systemBus::read_payload()
 
     // ATN might get pulled right away if there is no command string to send
     //pull ( PIN_IEC_SRQ );
-    protocol->wait( TIMING_STABLE );
+
+    /* Sometimes ATN isn't released immediately. Wait for ATN to be
+       released before trying to read payload. Long ATN delay (>1.5ms)
+       seems to occur more frequently with VIC-20. */
+    protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER);
 
     while (IEC.status(PIN_IEC_ATN) != PULLED)
     {
