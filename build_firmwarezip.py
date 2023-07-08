@@ -10,6 +10,8 @@ from os.path import join
 from datetime import datetime
 from zipfile import ZipFile
 
+print("Build firmware ZIP enabled")
+
 def makezip(source, target, env):
     # Make sure all the files are built and ready to zip
     zipit = True
@@ -67,10 +69,10 @@ def makezip(source, target, env):
 
         # Filename variables
         releasefile = firmdir+"/release.json"
-        if not config['fujinet']['build_platform']:
-            firmwarezip = firmdir+"/fujinet-"+config['fujinet']['build_platform'].split("_")[1]+"-"+version['FN_VERSION_FULL']+".zip"
-        else:
+        if 'platform_name' in config['fujinet']:
             firmwarezip = firmdir+"/fujinet-"+config['fujinet']['platform_name']+"-"+version['FN_VERSION_FULL']+".zip"
+        else:
+            firmwarezip = firmdir+"/fujinet-"+config['fujinet']['build_platform'].split("_")[1]+"-"+version['FN_VERSION_FULL']+".zip"
 
         # Clean the firmware output dir
         try:
