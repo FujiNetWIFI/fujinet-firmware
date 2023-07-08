@@ -54,16 +54,7 @@ jobs:
     - name: Show pio location
       run: pip show platformio
 
-    - name: Create INI ATARI for Build
-      if: ${{ matrix.target-platform == 'ATARI' }}
-      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
-
-    - name: Create INI ADAM for Build
-      if: ${{ matrix.target-platform == 'ADAM' }}
-      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
-
-    - name: Create INI APPLE for Build
-      if: ${{ matrix.target-platform == 'APPLE' }}
+    - name: Create PlatformIO INI for Build
       run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
     - name: Show platformio.ini
