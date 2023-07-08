@@ -22,6 +22,10 @@ esp32s3_platform_version = 6.1.0
 flash_filesystem = FLASH_SPIFFS 
 ;flash_filesystem = FLASH_LITTLEFS
 
+; Override platform name when creating firmware ZIP file
+; ex: fujinet-CUSTOMNAME-v1.0.zip
+;platform_name = CUSTOMNAME
+
 ; Uncomment the platform, bus and board type you are building for below
 ;build_platform = BUILD_ATARI
 ;build_bus      = SIO

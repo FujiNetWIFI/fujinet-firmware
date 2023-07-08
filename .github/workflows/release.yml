@@ -13,8 +13,7 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM, APPLE, ATARI-8mb]
-#        target-platform: [ATARI, ADAM, APPLE, ATARI-8mb, IEC-LOLIN-D32, IEC-FUJIAPL]
+        target-platform: [ATARI, ADAM, APPLE, ATARI-8mb, IEC-LOLIN-D32, IEC-FUJIAPL]
 
     steps:
     - name: Checkout Source
@@ -69,41 +68,11 @@ jobs:
 
     # Build filesystem first so spiffs.bin is available during firmware build
     - name: Build Filesystem
-      #if: ${{ matrix.target-platform == 'ATARI' }}
       run: pio run -t buildfs -e ${{ steps.build_board.outputs.NAME }}
 
-#    - name: ATARI Build Filesystem
-#      if: ${{ matrix.target-platform == 'ATARI' }}
-#      run: pio run -t buildfs -e fujinet-atari-v1
-
-#    - name: ADAM Build Filesystem
-#      if: ${{ matrix.target-platform == 'ADAM' }}
-#      run: pio run -t buildfs -e fujinet-adam-v1
-
-#    - name: APPLE Build Filesystem
-#      if: ${{ matrix.target-platform == 'APPLE' }}
-#      run: pio run -t buildfs -e fujiapple-rev0
-
-#    - name: ATARI 8mb Build Filesystem
-#      if: ${{ matrix.target-platform == 'ATARI-8mb' }}
-#      run: pio run -t buildfs -e fujinet-v1-8mb
-
     # Build the firmware
-    - name: ATARI Build
-      if: ${{ matrix.target-platform == 'ATARI' }}
-      run: pio run -e fujinet-atari-v1
-
-    - name: ADAM Build
-      if: ${{ matrix.target-platform == 'ADAM' }}
-      run: pio run -e fujinet-adam-v1
-
-    - name: APPLE Build
-      if: ${{ matrix.target-platform == 'APPLE' }}
-      run: pio run -e fujiapple-rev0
-
-    - name: ATARI 8mb Build
-      if: ${{ matrix.target-platform == 'ATARI-8mb' }}
-      run: pio run -e fujinet-v1-8mb
+    - name: Build Firimware
+      run: pio run -e ${{ steps.build_board.outputs.NAME }}
 
     - name: Save commits to change log
       run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > firmware/change.log
@@ -123,11 +92,6 @@ jobs:
       run: |
         mv firmware/fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
 
-#    - name: Generate release tag
-#      id: tag
-#      run: |
-#        echo "release_tag=$(echo ${{ steps.release-ver.outputs.VERSION }})" >> $GITHUB_OUTPUT
-
     - name: Fetch Tag Info
       run: git fetch --tags --force
 
@@ -137,13 +101,6 @@ jobs:
 
     - name: Show Tag Annotation
       run: echo ${{ steps.tag-data.outputs.git-tag-annotation }}
-  
-#    - uses: rickstaa/action-create-tag@v1
-#      id: "tag_create"
-#      with:
-#        tag: "${{ steps.release-ver.outputs.VERSION }}"
-#        tag_exists_error: false
-#        message: "Latest release ${{ steps.release-ver.outputs.VERSION }}"
 
     # Grab tag message to use for platform release json description if available
     - name: Create JSON Description from Tag Annotation if Available
