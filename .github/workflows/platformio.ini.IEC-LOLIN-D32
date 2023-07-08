@@ -24,12 +24,12 @@ flash_filesystem = FLASH_SPIFFS
 
 ; Override platform name when creating firmware ZIP file
 ; ex: fujinet-CUSTOMNAME-v1.0.zip
-;platform_name = CUSTOMNAME
+platform_name = IEC-LOLIN-D32
 
 ; Uncomment the platform, bus and board type you are building for below
-build_platform = BUILD_ATARI
-build_bus      = SIO
-build_board    = fujinet-atari-v1       ; FujiNet for Atari v1.0 and up
+;build_platform = BUILD_ATARI
+;build_bus      = SIO
+;build_board    = fujinet-atari-v1       ; FujiNet for Atari v1.0 and up
 ;build_board    = fujinet-v1-8mb         ; Atari generic/custom with 8mb flash
 ;build_board    = fujinet-v1-4mb         ; Atari generic/custom with 4mb flash
 
@@ -42,11 +42,12 @@ build_board    = fujinet-atari-v1       ; FujiNet for Atari v1.0 and up
 ;build_board    = fujiapple-rev0         ; FujiApple Rev 0 Prototype
 ;build_board    = fujiapple-fujinetv1   ; FujiApple using Atari FujiNet v1.0
 
-;build_platform = BUILD_IEC
-;build_bus      = IEC
+build_platform = BUILD_IEC
+build_bus      = IEC
 ;build_board    = fujinet-iec            ; Commodore IEC using Atari FujiNet
 ;build_board    = fujiloaf-rev0          ; Commodore IEC FujiLoaf Rev0 Prototype
 ;build_board    = fujiapple-iec          ; Commodore IEC using FujiApple Rev0
+build_board    = lolin-d32-iec          ; Commodore IEC using Lolin D32 Pro
 
 ;build_platform = BUILD_LYNX
 ;build_bus      = comlynx
