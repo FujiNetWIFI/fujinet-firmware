@@ -210,6 +210,18 @@ build_flags =
     ;-D DEBUG_TIMING        ; IEC Timing
     ;-D DATA_STREAM
 
+; Commodore IEC using Lolin D32 Pro (ESP32-WROVER 16MB Flash, 8MB PSRAM)
+[env:lolin-d32-iec]
+platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
+board = fujinet-v1
+build_type = debug
+build_flags =
+    ${env.build_flags}
+    -D PINMAP_IEC_D32PRO
+    ;-D DEBUG_TIMING        ; IEC Timing
+    ;-D DATA_STREAM
+
 ; FujiNet RS232 Rev 0 Prototype (ESP32-DEVKITC-VE 8MB Flash, 8MB PSRAM)
 [env:fujinet-rs232-rev0]
 platform = espressif32@${fujinet.esp32_platform_version}
