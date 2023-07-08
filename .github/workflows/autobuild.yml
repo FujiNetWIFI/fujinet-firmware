@@ -5,7 +5,7 @@ on:
     # Do not build tags. Do not build release branch
     branches:
       - "**"
-#      - "!release"
+      - "!release"
     tags:
       - "!**"
 
@@ -15,7 +15,7 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM, APPLE, ATARI-8mb, IEC-LOLIN-D32, IEC-FUJIAPL]
+        target-platform: [ATARI, ADAM, APPLE, IEC-LOLIN-D32]
 
     steps:
     - name: Checkout Source
