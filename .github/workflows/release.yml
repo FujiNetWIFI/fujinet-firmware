@@ -13,7 +13,7 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM, APPLE, ATARI-8mb]
+        target-platform: [ATARI, ADAM, APPLE, ATARI-8mb, IEC-LOLIN-D32, IEC-FUJIAPL]
 
     steps:
     - name: Checkout Source
@@ -60,25 +60,32 @@ jobs:
     - name: Show platformio.ini
       run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
 
-#    - name: Install espressif32 platform
-#      run: pio pkg install -p "platformio/espressif32@6.3.2"
+    - name: Get PIO build_board from INI
+      id: build_board
+      shell: bash
+      run: |
+        echo "NAME=$(grep '^[^;]*build_board ' /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} | sed s'/ //'g | cut -d "=" -f 2 | cut -d ";" -f 1)" >> $GITHUB_OUTPUT
 
     # Build filesystem first so spiffs.bin is available during firmware build
-    - name: ATARI Build Filesystem
-      if: ${{ matrix.target-platform == 'ATARI' }}
-      run: pio run -t buildfs -e fujinet-atari-v1
+    - name: Build Filesystem
+      #if: ${{ matrix.target-platform == 'ATARI' }}
+      run: pio run -t buildfs -e ${{ steps.build_board.outputs.NAME }}
 
-    - name: ADAM Build Filesystem
-      if: ${{ matrix.target-platform == 'ADAM' }}
-      run: pio run -t buildfs -e fujinet-adam-v1
+#    - name: ATARI Build Filesystem
+#      if: ${{ matrix.target-platform == 'ATARI' }}
+#      run: pio run -t buildfs -e fujinet-atari-v1
 
-    - name: APPLE Build Filesystem
-      if: ${{ matrix.target-platform == 'APPLE' }}
-      run: pio run -t buildfs -e fujiapple-rev0
+#    - name: ADAM Build Filesystem
+#      if: ${{ matrix.target-platform == 'ADAM' }}
+#      run: pio run -t buildfs -e fujinet-adam-v1
 
-    - name: ATARI 8mb Build Filesystem
-      if: ${{ matrix.target-platform == 'ATARI-8mb' }}
-      run: pio run -t buildfs -e fujinet-v1-8mb
+#    - name: APPLE Build Filesystem
+#      if: ${{ matrix.target-platform == 'APPLE' }}
+#      run: pio run -t buildfs -e fujiapple-rev0
+
+#    - name: ATARI 8mb Build Filesystem
+#      if: ${{ matrix.target-platform == 'ATARI-8mb' }}
+#      run: pio run -t buildfs -e fujinet-v1-8mb
 
     # Build the firmware
     - name: ATARI Build
