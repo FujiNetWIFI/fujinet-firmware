@@ -74,9 +74,6 @@ jobs:
     - name: Build Firimware
       run: pio run -e ${{ steps.build_board.outputs.NAME }}
 
-    - name: Save commits to change log
-      run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > firmware/change.log
-
     - name: Get version number from release.json
       id: release-ver
       shell: bash
@@ -123,12 +120,6 @@ jobs:
         name: releases-${{ matrix.target-platform }}.json
         path: firmware/releases-${{ matrix.target-platform }}.json
 
-    - name: Upload Change Log
-      uses: actions/upload-artifact@v2.3.1
-      with:
-        name: change.log
-        path: firmware/change.log
-
     - name: Push Files to Release
       uses: softprops/action-gh-release@v1
       with:
@@ -136,7 +127,6 @@ jobs:
         files: |
           firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
           firmware/releases-${{ matrix.target-platform }}.json
-          firmware/change.log
 
     - name: Get Git Short SHA
       id: shortsha
@@ -147,3 +137,21 @@ jobs:
     - name: Notify FujiNet server
       if: ${{ matrix.target-platform == 'ATARI' }} || ${{ matrix.target-platform == 'ADAM' }} || ${{ matrix.target-platform == 'APPLE' }}
       run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.SHORTSHA }}"'
+
+  push-changelog:
+    name: "Push Change Log"
+    needs: tagged-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Save commits to change log
+        run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > CHANGE.log
+      - name: Upload Change Log
+        uses: actions/upload-artifact@v2.3.1
+        with:
+          name: CHANGE.log
+          path: CHANGE.log
+      - name: Push Change log to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: CHANGE.log
