@@ -1,5 +1,7 @@
 #ifdef BUILD_RC2014
 
+#include <string>
+
 #include "bus.h"
 #include "modem.h"
 
@@ -12,6 +14,7 @@
 #include "fnWiFi.h"
 
 #include "utils.h"
+
 
 #define RECVBUFSIZE 1024
 
@@ -40,8 +43,7 @@ void rc2014Modem::telnet_event_handler(telnet_t *telnet, telnet_event_t *ev)
     switch (ev->type)
     {
     case TELNET_EV_DATA:
-        if (ev->data.size && rc2014_send_buffer((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
-            Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
+        streamFifoRx.push((uint8_t *)ev->data.buffer, ev->data.size);
         break;
     case TELNET_EV_SEND:
         get_tcp_client().write((uint8_t *)ev->data.buffer, ev->data.size);
@@ -103,6 +105,71 @@ rc2014Modem::~rc2014Modem()
     }
 }
 
+/**
+ * rc2014 Write command
+ * Write # of bytes specified by aux1/aux2 from tx_buffer out to rc2014. If protocol is unable to return requested
+ * number of bytes, return ERROR.
+ */
+void rc2014Modem::write()
+{
+    Debug_printf("rc2014Modem::write()\n");
+
+    memset(response, 0, sizeof(response));
+    rc2014_send_ack();
+
+    uint16_t num_bytes = (cmdFrame.aux2 << 8) + cmdFrame.aux1;
+
+    rc2014_recv_buffer(response, num_bytes);
+    rc2014_send_ack();
+
+    streamFifoTx.push(response, num_bytes);
+
+    rc2014_send_complete();
+}
+
+void rc2014Modem::read()
+{
+    Debug_printf("rc2014Modem::read()\n");
+
+    uint16_t num_bytes = (cmdFrame.aux2 << 8) + cmdFrame.aux1;
+    Debug_printf("rc2014Modem::read %u bytes\n", num_bytes);
+
+    rc2014_send_ack();
+
+    streamFifoRx.pop(response, num_bytes);
+
+    rc2014_send_buffer((uint8_t *)response, num_bytes);
+    rc2014_flush();
+
+    Debug_printf("rc2014Modem::read sent %u bytes\n", num_bytes);
+
+    rc2014_send_complete();
+}
+
+void rc2014Modem::status()
+{
+    Debug_printf("rc2014Modem::status()\n");
+    uint8_t response_len = 4;
+    size_t bytesWaiting = streamFifoRx.avail();
+
+    rc2014_send_ack();
+
+    uint16_t bytes_waiting = (bytesWaiting > RC2014_TX_BUFFER_SIZE) ?
+        RC2014_TX_BUFFER_SIZE : bytesWaiting;
+
+    response[0] = bytes_waiting & 0xFF;
+    response[1] = bytes_waiting >> 8;
+    response[2] = 0; // s.connected;
+    response[3] = 0; //s.error;
+    //receiveMode = STATUS;
+
+    rc2014_send_buffer(response, response_len);
+    rc2014_flush();
+
+    rc2014_send_complete();
+
+}
+
 void rc2014Modem::rc2014_control_status()
 {
 
@@ -135,8 +202,8 @@ void rc2014Modem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
-    rc2014_send_int(resultCode);
-    fnUartBUS.write(ASCII_CR);
+    streamFifoRx.push(resultCode);
+    streamFifoRx.push(ASCII_CR);
 }
 
 /**
@@ -145,9 +212,9 @@ void rc2014Modem::at_connect_resultCode(int modemBaud)
  */
 void rc2014Modem::at_cmd_resultCode(int resultCode)
 {
-    rc2014_send_int(resultCode);
-    rc2014_send(ASCII_CR);
-    rc2014_send(ASCII_LF);
+    streamFifoRx.push(std::to_string(resultCode));
+    streamFifoRx.push(ASCII_CR);
+    streamFifoRx.push(ASCII_LF);
 }
 
 /**
@@ -155,54 +222,50 @@ void rc2014Modem::at_cmd_resultCode(int resultCode)
 */
 void rc2014Modem::at_cmd_println()
 {
-    if (cmdOutput == false)
+    if (!cmdOutput)
         return;
 
-    rc2014_send(ASCII_CR);
-    rc2014_send(ASCII_LF);
-    rc2014_flush();
+    streamFifoRx.push(ASCII_CR);
+    streamFifoRx.push(ASCII_LF);
 }
 
 void rc2014Modem::at_cmd_println(const char *s, bool addEol)
 {
-    if (cmdOutput == false)
+    if (!cmdOutput)
         return;
 
-    rc2014_send_string(s);
+    streamFifoRx.push(std::string(s));
     if (addEol)
     {
-        rc2014_send(ASCII_CR);
-        rc2014_send(ASCII_LF);
+        streamFifoRx.push(ASCII_CR);
+        streamFifoRx.push(ASCII_LF);
     }
-    rc2014_flush();
 }
 
 void rc2014Modem::at_cmd_println(int i, bool addEol)
 {
-    if (cmdOutput == false)
+    if (!cmdOutput)
         return;
 
-    rc2014_send_int(i);
+    streamFifoRx.push(std::to_string(i));
     if (addEol)
     {
-        rc2014_send(ASCII_CR);
-        rc2014_send(ASCII_LF);
+        streamFifoRx.push(ASCII_CR);
+        streamFifoRx.push(ASCII_LF);
     }
-    rc2014_flush();
 }
 
 void rc2014Modem::at_cmd_println(std::string s, bool addEol)
 {
-    if (cmdOutput == false)
+    if (!cmdOutput)
         return;
 
-    rc2014_send_string(s);
+    streamFifoRx.push(s);
     if (addEol)
     {
-        rc2014_send(ASCII_CR);
-        rc2014_send(ASCII_LF);
+        streamFifoRx.push(ASCII_CR);
+        streamFifoRx.push(ASCII_LF);
     }
-    rc2014_flush();
 }
 
 void rc2014Modem::at_handle_wificonnect()
@@ -238,7 +301,7 @@ void rc2014Modem::at_handle_wificonnect()
     }
     if (retries >= 20)
     {
-        if (numericResultCode == true)
+        if (numericResultCode)
         {
             at_cmd_resultCode(RESULT_CODE_ERROR);
         }
@@ -249,7 +312,7 @@ void rc2014Modem::at_handle_wificonnect()
     }
     else
     {
-        if (numericResultCode == true)
+        if (numericResultCode)
         {
             at_cmd_resultCode(RESULT_CODE_OK);
         }
@@ -266,7 +329,7 @@ void rc2014Modem::at_handle_port()
     int port = std::stoi(cmd.substr(6));
     if (port > 65535 || port < 0)
     {
-        if (numericResultCode == true)
+        if (numericResultCode)
             at_cmd_resultCode(RESULT_CODE_ERROR);
         else
             at_cmd_println("ERROR");
@@ -282,7 +345,7 @@ void rc2014Modem::at_handle_port()
         listenPort = port;
         tcpServer.setMaxClients(1);
         tcpServer.begin(listenPort);
-        if (numericResultCode == true)
+        if (numericResultCode)
             at_cmd_resultCode(RESULT_CODE_OK);
         else
             at_cmd_println("OK");
@@ -321,7 +384,7 @@ void rc2014Modem::at_handle_get()
     // Establish connection
     if (!tcpClient.connect(host.c_str(), port))
     {
-        if (numericResultCode == true)
+        if (numericResultCode)
             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
         else
             at_cmd_println("NO CARRIER");
@@ -331,7 +394,7 @@ void rc2014Modem::at_handle_get()
     }
     else
     {
-        if (numericResultCode == true)
+        if (numericResultCode)
         {
             at_connect_resultCode(modemBaud);
             CRX = true;
@@ -468,7 +531,7 @@ void rc2014Modem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartBUS.flush();
+        streamFifoRx.clear();
         answerHack = false;
     }
 }
@@ -975,9 +1038,9 @@ void rc2014Modem::modemCommand()
 void rc2014Modem::rc2014_handle_stream()
 {
     /**** AT command mode ****/
-    if (cmdMode == true)
+    if (cmdMode)
     {
-        if (answerHack == true)
+        if (answerHack)
         {
             Debug_printf("XXX ANSWERHACK !!! SENDING ATA! ");
             cmd = "ATA";
@@ -989,7 +1052,7 @@ void rc2014Modem::rc2014_handle_stream()
         // In command mode but new unanswered incoming connection on server listen socket
         if ((listenPort > 0) && (tcpServer.hasClient()))
         {
-            if (autoAnswer == true)
+            if (autoAnswer)
             {
                 at_handle_answer();
             }
@@ -998,7 +1061,7 @@ void rc2014Modem::rc2014_handle_stream()
                 // Print RING every now and then while the new incoming connection exists
                 if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
                 {
-                    if (numericResultCode == true)
+                    if (numericResultCode)
                         at_cmd_resultCode(RESULT_CODE_RING);
                     else
                         at_cmd_println("RING");
@@ -1009,11 +1072,11 @@ void rc2014Modem::rc2014_handle_stream()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if (fnUartBUS.available() > 0)
+        if (streamFifoTx.avail() > 0)
         {
             // get char from Atari SIO
             //char chr = SIO_UART.read();
-            char chr = fnUartBUS.read();
+            uint8_t chr = streamFifoTx.pop();
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR))
@@ -1030,11 +1093,11 @@ void rc2014Modem::rc2014_handle_stream()
                     cmd.erase(len - 1);
                     // We don't assume that backspace is destructive
                     // Clear with a space
-                    if (commandEcho == true)
+                    if (commandEcho)
                     {
-                        rc2014_send(ASCII_BACKSPACE);
-                        rc2014_send(' ');
-                        rc2014_send(ASCII_BACKSPACE);
+                        streamFifoRx.push(ASCII_BACKSPACE);
+                        streamFifoRx.push(' ');
+                        streamFifoRx.push(ASCII_BACKSPACE);
                     }
                 }
             }
@@ -1042,8 +1105,8 @@ void rc2014Modem::rc2014_handle_stream()
             else if (chr == ATASCII_CLEAR_SCREEN ||
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
-                if (commandEcho == true)
-                    rc2014_send(chr);
+                if (commandEcho)
+                    streamFifoRx.push(chr);
             }
             else
             {
@@ -1052,8 +1115,8 @@ void rc2014Modem::rc2014_handle_stream()
                     //cmd.concat(chr);
                     cmd += chr;
                 }
-                if (commandEcho == true)
-                    rc2014_send(chr);
+                if (commandEcho)
+                    streamFifoRx.push(chr);
             }
         }
     }
@@ -1085,7 +1148,7 @@ void rc2014Modem::rc2014_handle_stream()
         }
 
         //int sioBytesAvail = SIO_UART.available();
-        int sioBytesAvail = rc2014_recv_available();
+        int sioBytesAvail = streamFifoTx.avail();
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
@@ -1100,8 +1163,8 @@ void rc2014Modem::rc2014_handle_stream()
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = rc2014_recv_buffer(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
-                                                   (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
+            int sioBytesRead = (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail;
+            streamFifoTx.pop(&txBuf[0], sioBytesRead);
 
             // Disconnect if going to AT mode with "+++" sequence
             for (int i = 0; i < (int)sioBytesRead; i++)
@@ -1150,8 +1213,7 @@ void rc2014Modem::rc2014_handle_stream()
             }
             else
             {
-                rc2014_send_buffer(buf, bytesRead);
-                rc2014_flush();
+                streamFifoRx.push(buf, bytesRead);
             }
 
             // And dump to sniffer, if enabled.
@@ -1213,6 +1275,17 @@ void rc2014Modem::rc2014_handle_stream()
             // tcpServer.begin(listenPort);
         }
     }
+
+}
+
+bool rc2014Modem::rc2014_poll_interrupt()
+{
+    rc2014_handle_stream();
+
+    if (streamFifoRx.avail() > 0)
+        return true;
+
+    return false;
 }
 
 void rc2014Modem::shutdown()
@@ -1230,7 +1303,20 @@ void rc2014Modem::rc2014_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    fnUartDebug.printf("rc2014_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
+    switch (cmdFrame.comnd)
+    {
+    case 'R':
+        read();
+        break;
+    case 'W':
+        write();
+        break;
+    case 'S':
+        status();
+        break;
+    default:
+        Debug_printf("rc2014 modem: unimplemented command: 0x%02x", cmdFrame.comnd);
+    }
 }
 
 #endif /* NEW_TARGET */
