@@ -48,7 +48,7 @@ def makezip(source, target, env):
 
         # Get and clean the current commit message
         try:
-            version_desc = subprocess.check_output(["git", "log", "-1", "--pretty=%B"], universal_newlines=True).strip().replace('"', '')
+            version_desc = subprocess.getoutput("git log -1 --pretty=%B | tr '\n' ' '")
         except subprocess.CalledProcessError as e:
             # Revert to full version if no commit msg or error
             version_desc = version['FN_VERSION_FULL']
