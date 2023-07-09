@@ -99,6 +99,14 @@ void main_setup()
 
     SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 
+    // TODO add Config.get_pclink_enabled() == true && ...
+    if (fnSDFAT.running())
+    {
+        // TODO how to get the folder SD is mounted on?
+        pcLink.mount(1, "/sd"); // mount SD card as PCL1:
+        SIO.addDevice(&pcLink, SIO_DEVICEID_PCLINK); // PCLink
+    }
+
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     sioPrinter::printer_type ptype = Config.get_printer_type(0);

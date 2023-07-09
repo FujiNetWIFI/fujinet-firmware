@@ -5,6 +5,7 @@
 # include "sio/apetime.h"
 # include "sio/cassette.h"
 # include "sio/disk.h"
+# include "sio/pclink.h"
 # include "sio/udpstream.h"
 # include "../lib/modem/modem.h"
 # include "sio/network.h"
@@ -17,6 +18,7 @@
     sioApeTime apeTime;
     sioVoice sioV;
     sioUDPStream udpDev;
+    sioPCLink pcLink;
     // sioCassette sioC; // now part of sioFuji theFuji object
     modem *sioR;
     sioCPM sioZ;
