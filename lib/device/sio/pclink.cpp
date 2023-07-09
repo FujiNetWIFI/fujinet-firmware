@@ -1406,12 +1406,6 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		if (mtime && (fpmode & 0x08))
 		{
-			// struct timeval tv[2];
-
-			// tv[0].tv_usec = 0;
-			// tv[0].tv_sec = mtime;
-			// tv[1].tv_usec = 0;
-			// tv[1].tv_sec = mtime;
             utimbuf ub;
             ub.actime = mtime;
             ub.modtime = mtime;
@@ -1420,7 +1414,6 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			Debug_printf("FCLOSE: setting timestamp in '%s'\n", pathname);
 # endif
 
-			// (void)utimes(pathname, tv);
             utime(pathname,&ub);
 		}
 		goto complete;
@@ -2033,7 +2026,7 @@ complete_fopen:
 					newmode |= S_IWUSR;
 				if (fatr2 & SA_PROTECT)
 					newmode &= ~S_IWUSR;
-				// TODO
+				// TODO - chmod is not available on platformio
 				// if (chmod(xpath, newmode))
 				// {
 				// 	Debug_printf("CHMOD: failed on '%s'\n", xpath);
@@ -2102,17 +2095,12 @@ complete_fopen:
 		}
 		else
 		{
-			// struct timeval tv[2];
 			time_t mtime = timestamp2mtime(dt);
 
 			device[cunit].status.err = 1;
 
 			if (mtime)
 			{
-				// tv[0].tv_usec = 0;
-				// tv[0].tv_sec = mtime;
-				// tv[1].tv_usec = 0;
-				// tv[1].tv_sec = mtime;
                 utimbuf ub;
                 ub.actime = mtime;
                 ub.modtime = mtime;
@@ -2121,7 +2109,6 @@ complete_fopen:
 				Debug_printf("MKDIR: setting timestamp in '%s'\n", newpath);
 # endif
 
-				// (void)utimes(newpath, tv);
                 utime(newpath, &ub);
 			}
 		}
@@ -2207,7 +2194,7 @@ complete_fopen:
 	if (fno == 0x10)	/* CHDIR */
 	{
 		ulong i;
-		char newpath[1024], newwd[1024], oldwd[1024];
+		char newpath[1024];
 
 		if (ccom == 'R')
 		{
@@ -2229,30 +2216,15 @@ complete_fopen:
 			goto complete;
 		}
 
-		// TODO chdir and getcwd is not implemented
-		// (void)getcwd(oldwd, sizeof(oldwd));
+		// chdir and getcwd not implemented on platformio (as of July 2023)
+		// https://github.com/espressif/esp-idf/issues/8540
 
-		// if (chdir(newpath))
-		// {
-		// 	Debug_printf("cannot access '%s', %s\n", newpath, strerror(errno));
-		// 	device[cunit].status.err = 150;
-		// 	goto complete;
-		// }
-
-		// (void)getcwd(newwd, sizeof(newwd));
-
-// # if 0
-// 		Debug_printf("newwd %s\n", newwd);
-// # endif
 		/* validate_user_path() guarantees that .dirname is part of newwd */
 		i = strlen(device[cunit].dirname);
-		//strcpy((char *)device[cunit].cwd, newwd + i);
 		strcpy((char *)device[cunit].cwd, newpath + i);
 		Debug_printf("new current dir '%s'\n", (char *)device[cunit].cwd);
 
 		device[cunit].status.err = 1;
-
-		// (void)chdir(oldwd);
 
 		goto complete;
 	}
