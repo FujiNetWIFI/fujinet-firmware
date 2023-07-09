@@ -4,7 +4,9 @@
 #include <time.h>
 
 #include <cstdint>
+#include <queue>
 #include <string>
+#include <vector>
 
 #include "bus.h"
 
@@ -182,7 +184,7 @@ private:
     long answerTimer;
     bool answered=false;
 
-    void rc2014_control_status() override;                 
+    void rc2014_control_status() override;
     void rc2014_process(uint32_t commanddata, uint8_t checksum) override;
     
     void crx_toggle(bool toggle);                // CRX active/inactive?
@@ -209,6 +211,8 @@ private:
     void at_handle_pb();
     void at_handle_pbclear();
 
+    uint8_t response[1024];
+
 protected:
     void shutdown() override;
 
@@ -218,6 +222,27 @@ public:
 
     rc2014Modem(FileSystem *_fs, bool snifferEnable);
     virtual ~rc2014Modem();
+
+    /**
+     * rc2014 Write command
+     * Write # of bytes specified by aux1/aux2 from tx_buffer out to rc2014. If protocol is unable to return requested
+     * number of bytes, return ERROR.
+     */
+    virtual void write();
+
+    /**
+     * rc2014 Read command
+     * Read # of bytes specified by aux1/aux2 from tx_buffer out to rc2014.
+     */
+    virtual void read();
+
+    /**
+     * rc2014 Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
+     * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
+     * with them locally. Then serialize resulting NetworkStatus object to rc2014.
+     */
+    virtual void status();
+
 
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.
     ModemSniffer *get_modem_sniffer() { return modemSniffer; }
@@ -229,6 +254,7 @@ public:
 
     void telnet_event_handler(telnet_t *telnet, telnet_event_t *ev);
 
+    bool rc2014_poll_interrupt();
 };
 
 #endif /* rc2014_MODEM_H */
