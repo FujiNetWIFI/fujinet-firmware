@@ -12,6 +12,8 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fsFlash.h"
+#include "fnFsSPIFFS.h"
+#include "fnFsTNFS.h"
 #include "fnWiFi.h"
 
 #include "led.h"
@@ -1601,6 +1603,15 @@ void sioFuji::insert_boot_device(uint8_t d)
     case 1:
         fBoot = fsFlash.file_open(mount_all_atr);
         _bootDisk.mount(fBoot, mount_all_atr, 0);
+        break;
+    case 2:
+        Debug_printf("Mounting lobby server\n");
+        if (fnTNFS.start("tnfs.fujinet.online"))
+        {
+            Debug_printf("opening lobby.\n");
+            fBoot = fnTNFS.file_open("/ATARI/_lobby.xex");
+            _bootDisk.mount(fBoot,"/ATARI/_lobby.xex",0);
+        }
         break;
     }
 
