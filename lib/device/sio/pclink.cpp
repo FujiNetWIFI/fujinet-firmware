@@ -21,6 +21,7 @@
 #include <utime.h>
 
 #include "modem.h"
+#include "utils.h"
 #include "pclink.h"
 
 #include "../../include/debug.h"
@@ -151,7 +152,7 @@ static struct
 //static ulong upper_dir = UPPER_DIR;
 static ulong upper_dir = 0;
 
-static DEVICE device[8][16];	/* 8 devices, 16 units each */
+static DEVICE device[16];	/* one PCLINK device with 16 units */
 
 #  define COM_COMD 0
 #  define COM_DATA 1
@@ -185,7 +186,7 @@ unix_time_2_sdx(time_t *todp, uchar *ob)
 	struct tm *t;
 	uchar yy;
 
-	bzero(ob, 6);
+	memset(ob, 0, 6);
 
 	if (*todp == 0)
 		return;
@@ -516,7 +517,7 @@ fps_close(int i)
 	iodesc[i].fpread = 0;
 	iodesc[i].eof = 0;
 	iodesc[i].pathname[0] = 0;
-	bzero(&iodesc[i].fpstat, sizeof(struct stat));
+	memset(&iodesc[i].fpstat, 0, sizeof(struct stat));
 }
 
 static ulong
@@ -566,7 +567,7 @@ cache_dir(uchar handle)
 	}
 
 	dir = dbuf = (DIRENTRY*)malloc(dirlen + sizeof(DIRENTRY));
-	bzero(dbuf, dirlen + sizeof(DIRENTRY));
+	memset(dbuf, 0, dirlen + sizeof(DIRENTRY));
 
 	dir->status = 0x28;
 	dir->map_l = 0x00;			/* low 11 bits: file number, high 5 bits: dir number */
@@ -577,7 +578,7 @@ cache_dir(uchar handle)
 
 	memset(dir->fname, 0x20, 11);
 
-	sl = strlen(device[iodesc[handle].devno][iodesc[handle].cunit].dirname);
+	sl = strlen(device[iodesc[handle].cunit].dirname);
 
 	cwd = iodesc[handle].pathname + sl;
 
@@ -688,7 +689,7 @@ do_pclink_init(int server_cold_start)
 		if (server_cold_start)
 			iodesc[handle].fps.file = NULL;
 		fps_close(handle);
-		bzero(&device[6][handle].parbuf, sizeof(PARBUF));
+		memset(&device[handle].parbuf, 0, sizeof(PARBUF));
 	}
 
 	if (server_cold_start)
@@ -697,10 +698,10 @@ do_pclink_init(int server_cold_start)
 
 		for (unit = 0; unit < 16; unit++)
 		{
-			device[6][unit].status.stat = 0;
-			device[6][unit].status.err = 1;
-			device[6][unit].status.tmot = 0;
-			device[6][unit].status.none = SIO_DEVICEID_PCLINK;
+			device[unit].status.stat = 0;
+			device[unit].status.err = 1;
+			device[unit].status.tmot = 0;
+			device[unit].status.none = SIO_DEVICEID_PCLINK;
 		}
 	}
 }
@@ -708,44 +709,28 @@ do_pclink_init(int server_cold_start)
 static void
 set_status_size(uchar devno, uchar cunit, ushort size)
 {
-	device[devno][cunit].status.tmot = (size & 0x00ff);
-	device[devno][cunit].status.none = (size & 0xff00) >> 8;
+	device[cunit].status.tmot = (size & 0x00ff);
+	device[cunit].status.none = (size & 0xff00) >> 8;
 }
 
 static int
 validate_user_path(char *defwd, char *newpath)
 {
-	char *d, oldwd[1024], newwd[1024];
+	char *d;
+	struct stat st;
 
-	(void)getcwd(oldwd, sizeof(oldwd));
-	if (chdir(newpath) < 0)
+	d = strstr(newpath, defwd);
+	if (d == NULL || d != newpath)
 		return 0;
-	(void)getcwd(newwd, sizeof(newwd));
-	(void)chdir(oldwd);
-
-	d = strstr(newwd, defwd);
-
-	if (d == NULL)
-		return 0;
-	if (d != newwd)
+	d = newpath + strlen(defwd);
+	if (*d != '\0' && *d != '/')
 		return 0;
 
-	return 1;
-}
-
-static int
-abs_path(const char *path, char *abspath, int size)
-{
-	char oldwd[1024];
-    char *cwd;
-
-	if (getcwd(oldwd, sizeof(oldwd)) == NULL)
-        return 0;
-	if (chdir(path) < 0)
+	if (stat(newpath, &st) < 0)
 		return 0;
-	cwd = getcwd(abspath, size);
-	if (chdir(oldwd) < 0 || cwd == NULL)
-        return 0;
+	if (!S_ISDIR(st.st_mode))
+		return 0;
+
 	return 1;
 }
 
@@ -810,10 +795,10 @@ create_user_path(uchar devno, uchar cunit, char *newpath)
 	long sl, cwdo = 0;
 	uchar lpath[128], upath[128];
 
-	strcpy(newpath, device[devno][cunit].dirname);
+	strcpy(newpath, device[cunit].dirname);
 
 	/* this is user-requested new path */
-	path_copy(lpath, device[devno][cunit].parbuf.path);
+	path_copy(lpath, device[cunit].parbuf.path);
 	path2unix(upath, lpath);
 
 	if (upath[0] != '/')
@@ -821,14 +806,17 @@ create_user_path(uchar devno, uchar cunit, char *newpath)
 		sl = strlen(newpath);
 		if (sl && (newpath[sl-1] != '/'))
 			strcat(newpath, "/");
-		if (device[devno][cunit].cwd[0] == '/')
+		if (device[cunit].cwd[0] == '/')
 			cwdo++;
-		strcat(newpath, (char *)device[devno][cunit].cwd + cwdo);
+		strcat(newpath, (char *)device[cunit].cwd + cwdo);
 		sl = strlen(newpath);
 		if (sl && (newpath[sl-1] != '/'))
 			strcat(newpath, "/");
 	}
 	strcat(newpath, (char *)upath);
+	sl = strlen(newpath);
+	// resolve ".." and "."
+	strcpy(newpath, util_get_canonical_path(std::string(newpath)).c_str());
 	sl = strlen(newpath);
 	if (sl && (newpath[sl-1] == '/'))
 		newpath[sl-1] = 0;
@@ -839,7 +827,7 @@ timestamp2mtime(uchar *stamp)
 {
 	struct tm sdx_tm;
 
-	bzero(&sdx_tm, sizeof(struct tm));
+	memset(&sdx_tm, 0, sizeof(struct tm));
 
 	sdx_tm.tm_sec = stamp[5];
 	sdx_tm.tm_min = stamp[4];
@@ -898,20 +886,20 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		pclink_ack(devno, cunit, 'A');	/* ack the command (late_ack) */ 
 
-		bzero(&pbuf, sizeof(PARBUF));
+		memset(&pbuf, 0, sizeof(PARBUF));
 
 		com_read((uchar *)&pbuf, (int)parsize, COM_DATA);
 		com_read(&sck, 1, COM_DATA);
 
 		ck = calc_checksum((uchar *)&pbuf, (int)parsize);
 
-		device[devno][cunit].status.stat &= ~0x02;
+		device[cunit].status.stat &= ~0x02;
 
 		pclink_ack(devno, cunit, 'A');	/* ack the received block */
 
 		if (ck != sck)
 		{
-			device[devno][cunit].status.stat |= 0x02;
+			device[cunit].status.stat |= 0x02;
 			Debug_printf("PARBLK CRC error, Atari: $%02x, PC: $%02x\n", sck, ck);
 
 # if 0
@@ -928,7 +916,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			}
 # endif
 
-			device[devno][cunit].status.err = 143;
+			device[cunit].status.err = 143;
 			goto complete;
 //			goto exit;
 		}
@@ -942,23 +930,23 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
             {
                 Debug_printf("%02x ", dumpp[dumpi]);
             }
-            //Debug_printf("\n");
+            Debug_printf("\n");
         }
 
-		device[devno][cunit].status.stat &= ~0x04;
+		device[cunit].status.stat &= ~0x04;
 
 # if 1
 		/* True if Atari didn't catch the ACK above and retried the command */
 		if (pbuf.fno > PCL_MAX_FNO)
 		{
-			device[devno][cunit].status.stat |= 0x04;
+			device[cunit].status.stat |= 0x04;
 			Debug_printf("PARBLK error, invalid fno $%02x\n", pbuf.fno);
-			device[devno][cunit].status.err = 144;
+			device[cunit].status.err = 144;
 			goto complete;
 		}
 # endif
 
-		if (memcmp(&pbuf, &device[devno][cunit].parbuf, sizeof(PARBUF)) == 0)
+		if (memcmp(&pbuf, &device[cunit].parbuf, sizeof(PARBUF)) == 0)
 		{
 			/* this is a retry of P-block. Most commands don't like that */
 			if ((pbuf.fno != 0x00) && (pbuf.fno != 0x01) && (pbuf.fno != 0x03) \
@@ -970,20 +958,20 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			}
 		}
 
-		memcpy(&device[devno][cunit].parbuf, &pbuf, sizeof(PARBUF));
+		memcpy(&device[cunit].parbuf, &pbuf, sizeof(PARBUF));
 	}
 
-//	device[devno][cunit].status.err = 1;
+//	device[cunit].status.err = 1;
 //	set_status_size(devno, cunit, 0);
 
-	fno = device[devno][cunit].parbuf.fno;
-	faux = device[devno][cunit].parbuf.f1 + device[devno][cunit].parbuf.f2 * 256 + \
-		device[devno][cunit].parbuf.f3 * 65536;
+	fno = device[cunit].parbuf.fno;
+	faux = device[cunit].parbuf.f1 + device[cunit].parbuf.f2 * 256 + \
+		device[cunit].parbuf.f3 * 65536;
 
 	if (fno < (PCL_MAX_FNO+1))
 		Debug_printf("%s (fno $%02x):\n", fun[fno], fno);
 
-	handle = device[devno][cunit].parbuf.handle;
+	handle = device[cunit].parbuf.handle;
 
 	if (fno == 0x00)	/* FREAD */
 	{
@@ -995,19 +983,19 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if ((handle > 15) || (iodesc[handle].fps.file == NULL))
 			{
 				Debug_printf("bad handle %d\n", handle);
-				device[devno][cunit].status.err = 134;	/* bad file handle */
+				device[cunit].status.err = 134;	/* bad file handle */
 				goto complete;
 			}
 
 			if (blk_size == 0)
 			{
 				Debug_printf("bad size $0000 (0)\n");
-				device[devno][cunit].status.err = 176;
+				device[cunit].status.err = 176;
 				set_status_size(devno, cunit, 0);
 				goto complete;
 			}
 
-			device[devno][cunit].status.err = 1;
+			device[cunit].status.err = 1;
 			iodesc[handle].eof = 0;
 
 			buffer = iodesc[handle].fpstat.st_size - iodesc[handle].fppos;
@@ -1015,11 +1003,11 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if (buffer < blk_size)
 			{
 				blk_size = buffer;
-				device[devno][cunit].parbuf.f1 = (buffer & 0x00ff);
-				device[devno][cunit].parbuf.f2 = (buffer & 0xff00) >> 8;
+				device[cunit].parbuf.f1 = (buffer & 0x00ff);
+				device[cunit].parbuf.f2 = (buffer & 0xff00) >> 8;
 				iodesc[handle].eof = 1;
 				if (blk_size == 0)
-					device[devno][cunit].status.err = 136;
+					device[cunit].status.err = 136;
 			}
 
 			Debug_printf("size $%04lx (%ld), buffer $%04lx (%ld)\n", blk_size, blk_size, buffer, buffer);
@@ -1042,7 +1030,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		mem = (uchar*)malloc(blk_size + 1);
 
-		if ((device[devno][cunit].status.err == 1))
+		if ((device[cunit].status.err == 1))
 		{
 			iodesc[handle].fpread = blk_size;
 
@@ -1059,12 +1047,12 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 					if (eof_sig)
 					{
 						iodesc[handle].fpread = rdata;
-						device[devno][cunit].status.err = 136;
+						device[cunit].status.err = 136;
 					}
 					else
 					{
 						iodesc[handle].fpread = 0;
-						device[devno][cunit].status.err = 255;
+						device[cunit].status.err = 255;
 					}
 				}
 			}
@@ -1073,7 +1061,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 				if (fseek(iodesc[handle].fps.file, iodesc[handle].fppos, SEEK_SET))
 				{
 					Debug_printf("FREAD: cannot seek to $%04lx (%ld)\n", iodesc[handle].fppos, iodesc[handle].fppos);
-					device[devno][cunit].status.err = 166;
+					device[cunit].status.err = 166;
 				}
 				else
 				{
@@ -1085,12 +1073,12 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 						if (feof(iodesc[handle].fps.file))
 						{
 							iodesc[handle].fpread = fdata;
-							device[devno][cunit].status.err = 136;
+							device[cunit].status.err = 136;
 						}
 						else
 						{
 							iodesc[handle].fpread = 0;
-							device[devno][cunit].status.err = 255;
+							device[cunit].status.err = 255;
 						}
 					}
 				}
@@ -1099,17 +1087,17 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		iodesc[handle].fppos += iodesc[handle].fpread;
 
-		if (device[devno][cunit].status.err == 1)
+		if (device[cunit].status.err == 1)
 		{
 			if (iodesc[handle].eof)
-				device[devno][cunit].status.err = 136;
+				device[cunit].status.err = 136;
 			else if (iodesc[handle].fppos == iodesc[handle].fpstat.st_size)
-				device[devno][cunit].status.err = 3;
+				device[cunit].status.err = 3;
 		}
 
 		set_status_size(devno, cunit, iodesc[handle].fpread);
 
-		Debug_printf("FREAD: send $%04lx (%ld), status $%02x\n", blk_size, blk_size, device[devno][cunit].status.err);
+		Debug_printf("FREAD: send $%04lx (%ld), status $%02x\n", blk_size, blk_size, device[cunit].status.err);
 
 		sck = calc_checksum(mem, blk_size);
 		mem[blk_size] = sck;
@@ -1131,19 +1119,19 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if ((handle > 15) || (iodesc[handle].fps.file == NULL))
 			{
 				Debug_printf("bad handle %d\n", handle);
-				device[devno][cunit].status.err = 134;	/* bad file handle */
+				device[cunit].status.err = 134;	/* bad file handle */
 				goto complete;
 			}
 
 			if (blk_size == 0)
 			{
 				Debug_printf("bad size $0000 (0)\n");
-				device[devno][cunit].status.err = 176;
+				device[cunit].status.err = 176;
 				set_status_size(devno, cunit, 0);
 				goto complete;
 			}
 
-			device[devno][cunit].status.err = 1;
+			device[cunit].status.err = 1;
 
 			Debug_printf("size $%04lx (%ld)\n", blk_size, blk_size);
 			set_status_size(devno, cunit, (ushort)blk_size);
@@ -1166,7 +1154,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if (fseek(iodesc[handle].fps.file, iodesc[handle].fppos, SEEK_SET))
 			{
 				Debug_printf("FWRITE: cannot seek to $%06lx (%ld)\n", iodesc[handle].fppos, iodesc[handle].fppos);
-				device[devno][cunit].status.err = 166;
+				device[cunit].status.err = 166;
 			}
 		}
 
@@ -1182,12 +1170,12 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		if (ck != sck)
 		{
 			Debug_printf("FWRITE: block CRC mismatch (sent $%02x, calculated $%02x)\n", sck, ck);
-			device[devno][cunit].status.err = 143;
+			device[cunit].status.err = 143;
 			free(mem);
 			goto complete;
 		}
 
-		if (device[devno][cunit].status.err == 1)
+		if (device[cunit].status.err == 1)
 		{
 			long rdata;
 
@@ -1205,7 +1193,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 				{
 					Debug_printf("FWRITE: cannot write %ld bytes to file\n", blk_size);
 					iodesc[handle].fpread = rdata;
-					device[devno][cunit].status.err = 255;
+					device[cunit].status.err = 255;
 				}
 			}
 		}
@@ -1214,7 +1202,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		set_status_size(devno, cunit, iodesc[handle].fpread);
 
-		Debug_printf("FWRITE: received $%04lx (%ld), status $%02x\n", blk_size, blk_size, device[devno][cunit].status.err);
+		Debug_printf("FWRITE: received $%04lx (%ld), status $%02x\n", blk_size, blk_size, device[cunit].status.err);
 
 		free(mem);
 		goto complete;
@@ -1227,7 +1215,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		if ((handle > 15) || (iodesc[handle].fps.file == NULL))
 		{
 			Debug_printf("bad handle %d\n", handle);
-			device[devno][cunit].status.err = 134;	/* bad file handle */
+			device[cunit].status.err = 134;	/* bad file handle */
 			goto complete;
 		}
 
@@ -1235,11 +1223,11 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
 			Debug_printf("bad exec\n");
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			goto complete;
 		}
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
 		Debug_printf("handle %d, newpos $%06lx (%ld)\n", handle, newpos, newpos);
 
@@ -1250,7 +1238,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if ((off_t)newpos <= iodesc[handle].fpstat.st_size)
 				iodesc[handle].fppos = newpos;
 			else
-				device[devno][cunit].status.err = 166;
+				device[cunit].status.err = 166;
 		}
 
 		goto complete;
@@ -1266,11 +1254,11 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if ((handle > 15) || (iodesc[handle].fps.file == NULL))
 			{
 				Debug_printf("bad handle %d\n", handle);
-				device[devno][cunit].status.err = 134;	/* bad file handle */
+				device[cunit].status.err = 134;	/* bad file handle */
 				goto complete;
 			}
 
-			device[devno][cunit].status.err = 1;
+			device[cunit].status.err = 1;
 
 			Debug_printf("device $%02x\n", cunit);
 			goto complete;
@@ -1300,7 +1288,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 	{
 		if (ccom == 'P')
 		{
-			device[devno][cunit].status.err = 1;
+			device[cunit].status.err = 1;
 
 			Debug_printf("device $%02x\n", cunit);
 			goto complete;
@@ -1315,12 +1303,12 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		pclink_ack(devno, cunit, 'A');	/* ack the command */
 
-		bzero(pcl_dbf.dirbuf, sizeof(pcl_dbf.dirbuf));
+		memset(pcl_dbf.dirbuf, 0, sizeof(pcl_dbf.dirbuf));
 
 		if ((handle > 15) || (iodesc[handle].fps.file == NULL))
 		{
 			Debug_printf("bad handle %d\n", handle);
-			device[devno][cunit].status.err = 134;	/* bad file handle */
+			device[cunit].status.err = 134;	/* bad file handle */
 		}
 		else
 		{
@@ -1332,8 +1320,8 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			{
 				struct stat ts;
 
-				bzero(&ts, sizeof(ts));
-				bzero(pcl_dbf.dirbuf, sizeof(pcl_dbf.dirbuf));
+				memset(&ts, 0, sizeof(ts));
+				memset(pcl_dbf.dirbuf, 0, sizeof(pcl_dbf.dirbuf));
 				iodesc[handle].fppos += dir_read(pcl_dbf.dirbuf, sizeof(pcl_dbf.dirbuf), handle, &eof_flg);
 
 				if (!eof_flg)
@@ -1354,14 +1342,14 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if (eof_flg)
 			{
 				Debug_printf("FNEXT: EOF\n");
-				device[devno][cunit].status.err = 136;
+				device[cunit].status.err = 136;
 			}
 			else if (iodesc[handle].fppos == iodesc[handle].fpstat.st_size)
-				device[devno][cunit].status.err = 3;
+				device[cunit].status.err = 3;
 		}
 
 		/* avoid the 4th execution stage */
-		pcl_dbf.handle = device[devno][cunit].status.err;
+		pcl_dbf.handle = device[cunit].status.err;
 
 		Debug_printf("FNEXT: status %d, send $%02x $%02x%02x $%02x%02x%02x %c%c%c%c%c%c%c%c%c%c%c %02d-%02d-%02d %02d:%02d:%02d\n", \
 			pcl_dbf.handle,
@@ -1391,7 +1379,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		if (ccom == 'R')
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			Debug_printf("bad exec\n");
 			goto complete;
 		}
@@ -1399,13 +1387,13 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		if ((handle > 15) || (iodesc[handle].fps.file == NULL))
 		{
 			Debug_printf("bad handle %d\n", handle);
-			device[devno][cunit].status.err = 134;	/* bad file handle */
+			device[cunit].status.err = 134;	/* bad file handle */
 			goto complete;
 		}
 
 		Debug_printf("handle %d\n", handle);
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
 		fpmode = iodesc[handle].fpmode;
 		mtime = iodesc[handle].fpstat.st_mtime;
@@ -1418,18 +1406,22 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		if (mtime && (fpmode & 0x08))
 		{
-			struct timeval tv[2];
+			// struct timeval tv[2];
 
-			tv[0].tv_usec = 0;
-			tv[0].tv_sec = mtime;
-			tv[1].tv_usec = 0;
-			tv[1].tv_sec = mtime;
+			// tv[0].tv_usec = 0;
+			// tv[0].tv_sec = mtime;
+			// tv[1].tv_usec = 0;
+			// tv[1].tv_sec = mtime;
+            utimbuf ub;
+            ub.actime = mtime;
+            ub.modtime = mtime;
 
 # if 0
 			Debug_printf("FCLOSE: setting timestamp in '%s'\n", pathname);
 # endif
 
-			(void)utimes(pathname, tv);
+			// (void)utimes(pathname, tv);
+            utime(pathname,&ub);
 		}
 		goto complete;
 	}
@@ -1439,16 +1431,16 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		if (ccom == 'R')
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			Debug_printf("INIT: bad exec\n");
 			goto complete;
 		}
 
 		do_pclink_init(0);
 
-		device[devno][cunit].parbuf.handle = 0xff;
-		device[devno][cunit].status.none = SIO_DEVICEID_PCLINK;
-		device[devno][cunit].status.err = 1;
+		device[cunit].parbuf.handle = 0xff;
+		device[cunit].status.none = SIO_DEVICEID_PCLINK;
+		device[cunit].status.err = 1;
 		goto complete;
 	}
 
@@ -1457,20 +1449,20 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		if (ccom == 'P')
 		{
 			Debug_printf("mode: $%02x, atr1: $%02x, atr2: $%02x, path: '%s', name: '%s'\n", \
-				device[devno][cunit].parbuf.fmode, device[devno][cunit].parbuf.fatr1, \
-				device[devno][cunit].parbuf.fatr2, device[devno][cunit].parbuf.path, \
-				device[devno][cunit].parbuf.name);
+				device[cunit].parbuf.fmode, device[cunit].parbuf.fatr1, \
+				device[cunit].parbuf.fatr2, device[cunit].parbuf.path, \
+				device[cunit].parbuf.name);
 # if 0
 			Debug_printf("date: %02d-%02d-%02d time: %02d:%02d:%02d\n", \
-				device[devno][cunit].parbuf.f1, device[devno][cunit].parbuf.f2, \
-				device[devno][cunit].parbuf.f3, device[devno][cunit].parbuf.f4, \
-				device[devno][cunit].parbuf.f5, device[devno][cunit].parbuf.f6);
+				device[cunit].parbuf.f1, device[cunit].parbuf.f2, \
+				device[cunit].parbuf.f3, device[cunit].parbuf.f4, \
+				device[cunit].parbuf.f5, device[cunit].parbuf.f6);
 # endif
 
-			device[devno][cunit].status.err = 1;
+			device[cunit].status.err = 1;
 
 			if (fno == 0x0a)
-				device[devno][cunit].parbuf.fmode |= 0x10;
+				device[cunit].parbuf.fmode |= 0x10;
 			goto complete;
 		}
 		else	/* ccom not 'P', execution stage */
@@ -1491,23 +1483,23 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
 
-			bzero(raw_name, sizeof(raw_name));
-			memcpy(raw_name, device[devno][cunit].parbuf.name, 8+3);
+			memset(raw_name, 0, sizeof(raw_name));
+			memcpy(raw_name, device[cunit].parbuf.name, 8+3);
 
-			if (((device[devno][cunit].parbuf.fmode & 0x0c) == 0) || \
-				((device[devno][cunit].parbuf.fmode & 0x18) == 0x18)) 
+			if (((device[cunit].parbuf.fmode & 0x0c) == 0) || \
+				((device[cunit].parbuf.fmode & 0x18) == 0x18)) 
 			{
-				Debug_printf("unsupported fmode ($%02x)\n", device[devno][cunit].parbuf.fmode);
-				device[devno][cunit].status.err = 146;
+				Debug_printf("unsupported fmode ($%02x)\n", device[cunit].parbuf.fmode);
+				device[cunit].status.err = 146;
 				goto complete_fopen;
 			}
 
 			create_user_path(devno, cunit, newpath);
 
-			if (!validate_user_path(device[devno][cunit].dirname, newpath))
+			if (!validate_user_path(device[cunit].dirname, newpath))
 			{
 				Debug_printf("invalid path '%s'\n", newpath);
-				device[devno][cunit].status.err = 150;
+				device[cunit].status.err = 150;
 				goto complete_fopen;
 			}
 
@@ -1531,20 +1523,20 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if (i > 15)
 			{
 				Debug_printf("FOPEN: too many channels open\n");
-				device[devno][cunit].status.err = 161;
+				device[cunit].status.err = 161;
 				goto complete_fopen;
 			}
 
 			if (stat(newpath, &tempstat) < 0)
 			{
 				Debug_printf("FOPEN: cannot stat '%s'\n", newpath);
-				device[devno][cunit].status.err = 150;
+				device[cunit].status.err = 150;
 				goto complete_fopen;
 			}
 
 			dh = opendir(newpath);
 
-			if (device[devno][cunit].parbuf.fmode & 0x10)
+			if (device[cunit].parbuf.fmode & 0x10)
 			{
 				iodesc[i].fps.dir = dh;
 				memcpy(&sb, &tempstat, sizeof(sb));
@@ -1561,8 +1553,8 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 					/* match */
 					if (match_dos_names(raw_name, \
-						(char *)device[devno][cunit].parbuf.name, \
-							device[devno][cunit].parbuf.fatr1, &sb) == 0)
+						(char *)device[cunit].parbuf.name, \
+							device[cunit].parbuf.fatr1, &sb) == 0)
 						break;
 				}
 
@@ -1574,15 +1566,15 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 				{
 					strcat(newpath, dp->d_name);
 					ugefina(dp->d_name, raw_name);
-					if ((device[devno][cunit].parbuf.fmode & 0x0c) == 0x08)
-						sb.st_mtime = timestamp2mtime(&device[devno][cunit].parbuf.f1);
+					if ((device[cunit].parbuf.fmode & 0x0c) == 0x08)
+						sb.st_mtime = timestamp2mtime(&device[cunit].parbuf.f1);
 				}
 				else
 				{
-					if ((device[devno][cunit].parbuf.fmode & 0x0c) == 0x04)
+					if ((device[cunit].parbuf.fmode & 0x0c) == 0x04)
 					{
 						Debug_printf("FOPEN: file not found\n");
-						device[devno][cunit].status.err = 170;
+						device[cunit].status.err = 170;
 						closedir(dh);
 						dp = NULL;
 						goto complete_fopen;
@@ -1593,22 +1585,22 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 						Debug_printf("FOPEN: creating file\n");
 
-						uexpand(device[devno][cunit].parbuf.name, name83);
+						uexpand(device[cunit].parbuf.name, name83);
 
 						if (validate_dos_name(name83))
 						{
 							Debug_printf("FOPEN: bad filename '%s'\n", name83);
-							device[devno][cunit].status.err = 165; /* bad filename */
+							device[cunit].status.err = 165; /* bad filename */
 							goto complete_fopen;
 						}
 
 						strcat(newpath, name83);
 						ugefina(name83, raw_name);
 
-						bzero(&sb, sizeof(struct stat));
+						memset(&sb, 0, sizeof(struct stat));
 						sb.st_mode = S_IFREG|S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP;
 
-						sb.st_mtime = timestamp2mtime(&device[devno][cunit].parbuf.f1);
+						sb.st_mtime = timestamp2mtime(&device[cunit].parbuf.f1);
 					}
 				}
 
@@ -1616,26 +1608,26 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 				if (stat(newpath, &tempstat) < 0)
 				{
-					if ((device[devno][cunit].parbuf.fmode & 0x0c) == 0x04)
+					if ((device[cunit].parbuf.fmode & 0x0c) == 0x04)
 					{
 						Debug_printf("FOPEN: cannot stat '%s'\n", newpath);
-						device[devno][cunit].status.err = 170;
+						device[cunit].status.err = 170;
 						goto complete_fopen;
 					}
 				}
 				else
 				{
-					if (device[devno][cunit].parbuf.fmode & 0x08)
+					if (device[cunit].parbuf.fmode & 0x08)
 					{
 						if ((tempstat.st_mode & (S_IWUSR|S_IWGRP)) == 0)
 						{
 							Debug_printf("FOPEN: '%s' is read-only\n", newpath);
-							device[devno][cunit].status.err = 151;
+							device[cunit].status.err = 151;
 							goto complete_fopen;
 						}
 					}
 # if 0
-					if ((device[devno][cunit].parbuf.fmode & 0x0d) == 0x08)
+					if ((device[cunit].parbuf.fmode & 0x0d) == 0x08)
 					{
 						if (!S_ISDIR(tempstat.st_mode))
 						{
@@ -1643,28 +1635,28 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 							if (unlink(newpath))
 							{
 								Debug_printf("FOPEN: cannot delete '%s'\n", newpath);
-								device[devno][cunit].status.err = 255;
+								device[cunit].status.err = 255;
 							}
 						}
 					}
 # endif
 				}
 
-				if ((device[devno][cunit].parbuf.fmode & 0x0d) == 0x04)
+				if ((device[cunit].parbuf.fmode & 0x0d) == 0x04)
 					iodesc[i].fps.file = fopen(newpath, "r");
-				else if ((device[devno][cunit].parbuf.fmode & 0x0d) == 0x08)
+				else if ((device[cunit].parbuf.fmode & 0x0d) == 0x08)
 				{
 					iodesc[i].fps.file = fopen(newpath, "w");
 					if (iodesc[i].fps.file)
 						sb.st_size = 0;
 				}
-				else if ((device[devno][cunit].parbuf.fmode & 0x0d) == 0x09)
+				else if ((device[cunit].parbuf.fmode & 0x0d) == 0x09)
 				{
 					iodesc[i].fps.file = fopen(newpath, "r+");
 					if (iodesc[i].fps.file)
 						fseek(iodesc[i].fps.file, sb.st_size, SEEK_SET);
 				}
-				else if ((device[devno][cunit].parbuf.fmode & 0x0d) == 0x0c)
+				else if ((device[cunit].parbuf.fmode & 0x0d) == 0x0c)
 					iodesc[i].fps.file = fopen(newpath, "r+");
 
 				closedir(dh);
@@ -1674,34 +1666,34 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if (iodesc[i].fps.file == NULL)
 			{
 				Debug_printf("FOPEN: cannot open '%s', %s (%d)\n", newpath, strerror(errno), errno);
-				if (device[devno][cunit].parbuf.fmode & 0x04)
-					device[devno][cunit].status.err = 170;
+				if (device[cunit].parbuf.fmode & 0x04)
+					device[cunit].status.err = 170;
 				else
-					device[devno][cunit].status.err = 151;
+					device[cunit].status.err = 151;
 				goto complete_fopen;
 			}
 
 # if 0
 			Debug_printf("FOPEN: handle %d is $%08lx\n", i, (ulong)iodesc[i].fps.file);
 # endif
-			handle = device[devno][cunit].parbuf.handle = i;
+			handle = device[cunit].parbuf.handle = i;
 
 			iodesc[handle].devno = devno;
 			iodesc[handle].cunit = cunit;
-			iodesc[handle].fpmode = device[devno][cunit].parbuf.fmode;
-			iodesc[handle].fatr1 = device[devno][cunit].parbuf.fatr1;
-			iodesc[handle].fatr2 = device[devno][cunit].parbuf.fatr2;
-			iodesc[handle].t1 = device[devno][cunit].parbuf.f1;
-			iodesc[handle].t2 = device[devno][cunit].parbuf.f2;
-			iodesc[handle].t3 = device[devno][cunit].parbuf.f3;
-			iodesc[handle].d1 = device[devno][cunit].parbuf.f4;
-			iodesc[handle].d2 = device[devno][cunit].parbuf.f5;
-			iodesc[handle].d3 = device[devno][cunit].parbuf.f6;
+			iodesc[handle].fpmode = device[cunit].parbuf.fmode;
+			iodesc[handle].fatr1 = device[cunit].parbuf.fatr1;
+			iodesc[handle].fatr2 = device[cunit].parbuf.fatr2;
+			iodesc[handle].t1 = device[cunit].parbuf.f1;
+			iodesc[handle].t2 = device[cunit].parbuf.f2;
+			iodesc[handle].t3 = device[cunit].parbuf.f3;
+			iodesc[handle].d1 = device[cunit].parbuf.f4;
+			iodesc[handle].d2 = device[cunit].parbuf.f5;
+			iodesc[handle].d3 = device[cunit].parbuf.f6;
 			iodesc[handle].fppos = 0L;
 			strcpy(iodesc[handle].pathname, newpath);
 			memcpy((void *)&iodesc[handle].fpstat, (void *)&sb, sizeof(struct stat));
 			if (iodesc[handle].fpmode & 0x10)
-				memcpy(iodesc[handle].fpname, device[devno][cunit].parbuf.name, sizeof(iodesc[i].fpname));
+				memcpy(iodesc[handle].fpname, device[cunit].parbuf.name, sizeof(iodesc[i].fpname));
 			else
 				memcpy(iodesc[handle].fpname, raw_name, sizeof(iodesc[handle].fpname));
 
@@ -1710,12 +1702,12 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			if ((iodesc[handle].fpmode & 0x1d) == 0x09)
 				iodesc[handle].fppos = iodesc[handle].fpstat.st_size;
 
-			bzero(pcl_dbf.dirbuf, sizeof(pcl_dbf.dirbuf));
+			memset(pcl_dbf.dirbuf, 0, sizeof(pcl_dbf.dirbuf));
 
 			if ((handle > 15) || (iodesc[handle].fps.file == NULL))
 			{
 				Debug_printf("FOPEN: bad handle %d\n", handle);
-				device[devno][cunit].status.err = 134;	/* bad file handle */
+				device[cunit].status.err = 134;	/* bad file handle */
 				pcl_dbf.handle = 134;
 			}
 			else
@@ -1730,7 +1722,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 				Debug_printf("FOPEN: %s handle %d\n", (iodesc[handle].fpmode & 0x08) ? "write" : "read", handle);
 
-				bzero(pcl_dbf.dirbuf, sizeof(pcl_dbf.dirbuf));
+				memset(pcl_dbf.dirbuf, 0, sizeof(pcl_dbf.dirbuf));
 
 				if (iodesc[handle].fpmode & 0x10)
 				{
@@ -1742,10 +1734,10 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 					if (eof_sig)
 					{
 						Debug_printf("FOPEN: dir EOF?\n");
-						device[devno][cunit].status.err = 136;
+						device[cunit].status.err = 136;
 					}
 					else if (iodesc[handle].fppos == iodesc[handle].fpstat.st_size)
-							device[devno][cunit].status.err = 3;
+							device[cunit].status.err = 3;
 				}
 				else
 				{
@@ -1803,17 +1795,17 @@ complete_fopen:
 		if (ccom == 'R')
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			Debug_printf("bad exec\n");
 			goto complete;
 		}
 
 		create_user_path(devno, cunit, newpath);
 
-		if (!validate_user_path(device[devno][cunit].dirname, newpath))
+		if (!validate_user_path(device[cunit].dirname, newpath))
 		{
 			Debug_printf("invalid path '%s'\n", newpath);
-			device[devno][cunit].status.err = 150;
+			device[cunit].status.err = 150;
 			goto complete;
 		}
 
@@ -1822,14 +1814,14 @@ complete_fopen:
 		if (renamedir == NULL)
 		{
 			Debug_printf("cannot open dir '%s'\n", newpath);
-			device[devno][cunit].status.err = 255;
+			device[cunit].status.err = 255;
 			goto complete;
 		}
 
 		Debug_printf("local path '%s', fatr1 $%02x\n", newpath, \
-			device[devno][cunit].parbuf.fatr1 | RA_NO_PROTECT);
+			device[cunit].parbuf.fatr1 | RA_NO_PROTECT);
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
 		while ((dp = readdir(renamedir)) != NULL)
 		{
@@ -1842,8 +1834,8 @@ complete_fopen:
 			ugefina(dp->d_name, raw_name);
 
 			/* match */
-			if (match_dos_names(raw_name, (char *)device[devno][cunit].parbuf.name, \
-				device[devno][cunit].parbuf.fatr1 | RA_NO_PROTECT, &sb) == 0)
+			if (match_dos_names(raw_name, (char *)device[cunit].parbuf.name, \
+				device[cunit].parbuf.fatr1 | RA_NO_PROTECT, &sb) == 0)
 			{
 				char xpath[1024], xpath2[1024], newname[16];
 				uchar names[12];
@@ -1856,7 +1848,7 @@ complete_fopen:
 				strcat(xpath, "/");
 				strcat(xpath, dp->d_name);
 
-				memcpy(names, device[devno][cunit].parbuf.names, 12);
+				memcpy(names, device[cunit].parbuf.names, 12);
 
 				for (x = 0; x < 12; x++)
 				{
@@ -1875,22 +1867,22 @@ complete_fopen:
 				if (stat(xpath2, &dummy) == 0)
 				{
 					Debug_printf("RENAME: '%s' already exists\n", xpath2);
-					device[devno][cunit].status.err = 151;
+					device[cunit].status.err = 151;
 					break;
 				}
 
 				if (rename(xpath, xpath2))
 				{
 					Debug_printf("RENAME: %s\n", strerror(errno));
-					device[devno][cunit].status.err = 255;
+					device[cunit].status.err = 255;
 				}
 			}
 		}
 
 		closedir(renamedir);
 
-		if ((fcnt == 0) && (device[devno][cunit].status.err == 1))
-			device[devno][cunit].status.err = 170;
+		if ((fcnt == 0) && (device[cunit].status.err == 1))
+			device[cunit].status.err = 170;
 		goto complete;
 	}
 
@@ -1903,17 +1895,17 @@ complete_fopen:
 		if (ccom == 'R')
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			Debug_printf("bad exec\n");
 			goto complete;
 		}
 
 		create_user_path(devno, cunit, newpath);
 
-		if (!validate_user_path(device[devno][cunit].dirname, newpath))
+		if (!validate_user_path(device[cunit].dirname, newpath))
 		{
 			Debug_printf("invalid path '%s'\n", newpath);
-			device[devno][cunit].status.err = 150;
+			device[cunit].status.err = 150;
 			goto complete;
 		}
 
@@ -1924,11 +1916,11 @@ complete_fopen:
 		if (deldir == NULL)
 		{
 			Debug_printf("cannot open dir '%s'\n", newpath);
-			device[devno][cunit].status.err = 255;
+			device[cunit].status.err = 255;
 			goto complete;
 		}
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
 		while ((dp = readdir(deldir)) != NULL)
 		{
@@ -1941,7 +1933,7 @@ complete_fopen:
 			ugefina(dp->d_name, raw_name);
 
 			/* match */
-			if (match_dos_names(raw_name, (char *)device[devno][cunit].parbuf.name, \
+			if (match_dos_names(raw_name, (char *)device[cunit].parbuf.name, \
 				RA_NO_PROTECT | RA_NO_SUBDIR | RA_NO_HIDDEN, &sb) == 0)
 			{
 				char xpath[1024];
@@ -1956,7 +1948,7 @@ complete_fopen:
 					if (unlink(xpath))
 					{
 						Debug_printf("REMOVE: cannot delete '%s'\n", xpath);
-						device[devno][cunit].status.err = 255;
+						device[cunit].status.err = 255;
 					}
 					delcnt++;
 				}
@@ -1964,7 +1956,7 @@ complete_fopen:
 		}
 		closedir(deldir);
 		if (delcnt == 0)
-			device[devno][cunit].status.err = 170;
+			device[cunit].status.err = 170;
 		goto complete;
 	}
 
@@ -1973,12 +1965,12 @@ complete_fopen:
 		char newpath[1024];
 		DIR *chmdir;
 		ulong fcnt = 0;
-		uchar fatr2 = device[devno][cunit].parbuf.fatr2;
+		uchar fatr2 = device[cunit].parbuf.fatr2;
 
 		if (ccom == 'R')
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			Debug_printf("bad exec\n");
 			goto complete;
 		}
@@ -1986,33 +1978,33 @@ complete_fopen:
 		if (fatr2 & (SA_SUBDIR | SA_UNSUBDIR))
 		{
 			Debug_printf("illegal fatr2 $%02x\n", fatr2);
-			device[devno][cunit].status.err = 146;
+			device[cunit].status.err = 146;
 			goto complete;
 		}
 
 		create_user_path(devno, cunit, newpath);
 
-		if (!validate_user_path(device[devno][cunit].dirname, newpath))
+		if (!validate_user_path(device[cunit].dirname, newpath))
 		{
 			Debug_printf("invalid path '%s'\n", newpath);
-			device[devno][cunit].status.err = 150;
+			device[cunit].status.err = 150;
 			goto complete;
 		}
 
 		Debug_printf("local path '%s', fatr1 $%02x fatr2 $%02x\n", newpath, \
-				device[devno][cunit].parbuf.fatr1, fatr2);
+				device[cunit].parbuf.fatr1, fatr2);
 
 		chmdir = opendir(newpath);
 
 		if (chmdir == NULL)
 		{
 			Debug_printf("CHMOD: cannot open dir '%s'\n", newpath);
-			device[devno][cunit].status.err = 255;
+			device[cunit].status.err = 255;
 			goto complete;
 		}
 
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
 		while ((dp = readdir(chmdir)) != NULL)
 		{
@@ -2025,8 +2017,8 @@ complete_fopen:
 			ugefina(dp->d_name, raw_name);
 
 			/* match */
-			if (match_dos_names(raw_name, (char *)device[devno][cunit].parbuf.name, \
-				device[devno][cunit].parbuf.fatr1, &sb) == 0)
+			if (match_dos_names(raw_name, (char *)device[cunit].parbuf.name, \
+				device[cunit].parbuf.fatr1, &sb) == 0)
 			{
 				char xpath[1024];
 				mode_t newmode = sb.st_mode;
@@ -2041,17 +2033,18 @@ complete_fopen:
 					newmode |= S_IWUSR;
 				if (fatr2 & SA_PROTECT)
 					newmode &= ~S_IWUSR;
-				if (chmod(xpath, newmode))
-				{
-					Debug_printf("CHMOD: failed on '%s'\n", xpath);
-					device[devno][cunit].status.err |= 255;
-				}
+				// TODO
+				// if (chmod(xpath, newmode))
+				// {
+				// 	Debug_printf("CHMOD: failed on '%s'\n", xpath);
+				// 	device[cunit].status.err |= 255;
+				// }
 				fcnt++;
 			}
 		}
 		closedir(chmdir);
 		if (fcnt == 0)
-			device[devno][cunit].status.err = 170;
+			device[cunit].status.err = 170;
 		goto complete;
 	}
 
@@ -2064,33 +2057,33 @@ complete_fopen:
 		if (ccom == 'R')
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			Debug_printf("bad exec\n");
 			goto complete;
 		}
 
 		create_user_path(devno, cunit, newpath);
 
-		if (!validate_user_path(device[devno][cunit].dirname, newpath))
+		if (!validate_user_path(device[cunit].dirname, newpath))
 		{
 			Debug_printf("invalid path '%s'\n", newpath);
-			device[devno][cunit].status.err = 150;
+			device[cunit].status.err = 150;
 			goto complete;
 		}
 
-		uexpand(device[devno][cunit].parbuf.name, fname);
+		uexpand(device[cunit].parbuf.name, fname);
 
 		if (validate_dos_name(fname))
 		{
 			Debug_printf("bad dir name '%s'\n", fname);
-			device[devno][cunit].status.err = 165;
+			device[cunit].status.err = 165;
 			goto complete;
 		}
 
 		strcat(newpath, "/");
 		strcat(newpath, fname);
 
-		memcpy(dt, &device[devno][cunit].parbuf.f1, sizeof(dt));
+		memcpy(dt, &device[cunit].parbuf.f1, sizeof(dt));
 
 		Debug_printf("making dir '%s', time %2d-%02d-%02d %2d:%02d:%02d\n", newpath, \
 			dt[0], dt[1], dt[2], dt[3], dt[4], dt[5]);
@@ -2098,34 +2091,38 @@ complete_fopen:
 		if (stat(newpath, &dummy) == 0)
 		{
 			Debug_printf("MKDIR: '%s' already exists\n", newpath);
-			device[devno][cunit].status.err = 151;
+			device[cunit].status.err = 151;
 			goto complete;
 		}
 
 		if (mkdir(newpath, S_IRWXU|S_IRWXG|S_IRWXO))
 		{
 			Debug_printf("MKDIR: cannot make dir '%s'\n", newpath);
-			device[devno][cunit].status.err = 255;
+			device[cunit].status.err = 255;
 		}
 		else
 		{
-			struct timeval tv[2];
+			// struct timeval tv[2];
 			time_t mtime = timestamp2mtime(dt);
 
-			device[devno][cunit].status.err = 1;
+			device[cunit].status.err = 1;
 
 			if (mtime)
 			{
-				tv[0].tv_usec = 0;
-				tv[0].tv_sec = mtime;
-				tv[1].tv_usec = 0;
-				tv[1].tv_sec = mtime;
+				// tv[0].tv_usec = 0;
+				// tv[0].tv_sec = mtime;
+				// tv[1].tv_usec = 0;
+				// tv[1].tv_sec = mtime;
+                utimbuf ub;
+                ub.actime = mtime;
+                ub.modtime = mtime;
 
 # if 0
 				Debug_printf("MKDIR: setting timestamp in '%s'\n", newpath);
 # endif
 
-				(void)utimes(newpath, tv);
+				// (void)utimes(newpath, tv);
+                utime(newpath, &ub);
 			}
 		}
 		goto complete;
@@ -2138,26 +2135,26 @@ complete_fopen:
 		if (ccom == 'R')
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			Debug_printf("bad exec\n");
 			goto complete;
 		}
 
 		create_user_path(devno, cunit, newpath);
 
-		if (!validate_user_path(device[devno][cunit].dirname, newpath))
+		if (!validate_user_path(device[cunit].dirname, newpath))
 		{
 			Debug_printf("invalid path '%s'\n", newpath);
-			device[devno][cunit].status.err = 150;
+			device[cunit].status.err = 150;
 			goto complete;
 		}
 
-		uexpand(device[devno][cunit].parbuf.name, fname);
+		uexpand(device[cunit].parbuf.name, fname);
 
 		if (validate_dos_name(fname))
 		{
 			Debug_printf("bad dir name '%s'\n", fname);
-			device[devno][cunit].status.err = 165;
+			device[cunit].status.err = 165;
 			goto complete;
 		}
 
@@ -2167,42 +2164,42 @@ complete_fopen:
 		if (stat(newpath, &sb) < 0)
 		{
 			Debug_printf("cannot stat '%s'\n", newpath);
-			device[devno][cunit].status.err = 170;
+			device[cunit].status.err = 170;
 			goto complete;
 		}
 
 		/*if (sb.st_uid != our_uid)
 		{
 			Debug_printf("'%s' wrong uid\n", newpath);
-			device[devno][cunit].status.err = 170;
+			device[cunit].status.err = 170;
 			goto complete;
 		}*/
 
 		if (!S_ISDIR(sb.st_mode))
 		{
 			Debug_printf("'%s' is not a directory\n", newpath);
-			device[devno][cunit].status.err = 170;
+			device[cunit].status.err = 170;
 			goto complete;
 		}
 
 		if ((sb.st_mode & (S_IWUSR|S_IWGRP)) == 0)
 		{
 			Debug_printf("dir '%s' is write-protected\n", newpath);
-			device[devno][cunit].status.err = 170;
+			device[cunit].status.err = 170;
 			goto complete;
 		}
 
 		Debug_printf("delete dir '%s'\n", newpath);
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
 		if (rmdir(newpath))
 		{
 			Debug_printf("RMDIR: cannot del '%s', %s (%d)\n", newpath, strerror(errno), errno);
 			if (errno == ENOTEMPTY)
-				device[devno][cunit].status.err = 167;
+				device[cunit].status.err = 167;
 			else
-				device[devno][cunit].status.err = 255;
+				device[cunit].status.err = 255;
 		}
 		goto complete;
 	}
@@ -2215,44 +2212,47 @@ complete_fopen:
 		if (ccom == 'R')
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			Debug_printf("bad exec\n");
 			goto complete;
 		}
 
-//		Debug_printf("req. path '%s'\n", device[devno][cunit].parbuf.path);
+		Debug_printf("req. path '%s'\n", device[cunit].parbuf.path);
 
 		create_user_path(devno, cunit, newpath);
+		Debug_printf("newpath '%s'\n", newpath);
 
-		if (!validate_user_path(device[devno][cunit].dirname, newpath))
+		if (!validate_user_path(device[cunit].dirname, newpath))
 		{
 			Debug_printf("invalid path '%s'\n", newpath);
-			device[devno][cunit].status.err = 150;
+			device[cunit].status.err = 150;
 			goto complete;
 		}
 
-		(void)getcwd(oldwd, sizeof(oldwd));
+		// TODO chdir and getcwd is not implemented
+		// (void)getcwd(oldwd, sizeof(oldwd));
 
-		if (chdir(newpath))
-		{
-			Debug_printf("cannot access '%s', %s\n", newpath, strerror(errno));
-			device[devno][cunit].status.err = 150;
-			goto complete;
-		}
+		// if (chdir(newpath))
+		// {
+		// 	Debug_printf("cannot access '%s', %s\n", newpath, strerror(errno));
+		// 	device[cunit].status.err = 150;
+		// 	goto complete;
+		// }
 
-		(void)getcwd(newwd, sizeof(newwd));
+		// (void)getcwd(newwd, sizeof(newwd));
 
-# if 0
-		Debug_printf("newwd %s\n", newwd);
-# endif
+// # if 0
+// 		Debug_printf("newwd %s\n", newwd);
+// # endif
 		/* validate_user_path() guarantees that .dirname is part of newwd */
-		i = strlen(device[devno][cunit].dirname);
-		strcpy((char *)device[devno][cunit].cwd, newwd + i);
-		Debug_printf("new current dir '%s'\n", (char *)device[devno][cunit].cwd);
+		i = strlen(device[cunit].dirname);
+		//strcpy((char *)device[cunit].cwd, newwd + i);
+		strcpy((char *)device[cunit].cwd, newpath + i);
+		Debug_printf("new current dir '%s'\n", (char *)device[cunit].cwd);
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
-		(void)chdir(oldwd);
+		// (void)chdir(oldwd);
 
 		goto complete;
 	}
@@ -2262,7 +2262,7 @@ complete_fopen:
 		int i;
 		uchar tempcwd[65];
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
 		if (ccom == 'P')
 		{
@@ -2274,11 +2274,11 @@ complete_fopen:
 
 		tempcwd[0] = 0;
 
-		for (i = 0; device[devno][cunit].cwd[i] && (i < 64); i++)
+		for (i = 0; device[cunit].cwd[i] && (i < 64); i++)
 		{
 			uchar a;
 
-			a = toupper(device[devno][cunit].cwd[i]);
+			a = toupper(device[cunit].cwd[i]);
 			if (a == '/')
 				a = '>';
 			tempcwd[i] = a;
@@ -2330,7 +2330,7 @@ complete_fopen:
 			0		/* CRC */
 		};
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
 		if (ccom == 'P')
 		{
@@ -2342,7 +2342,7 @@ complete_fopen:
 
 		memset(dfree + 0x0e, 0x020, 8);
 
-		strcpy(lpath, (char *)device[devno][cunit].dirname);
+		strcpy(lpath, (char *)device[cunit].dirname);
 		strcat(lpath, "/");
 		strcat(lpath, DEVICE_LABEL);
 
@@ -2371,15 +2371,15 @@ complete_fopen:
 		{
 			uchar a;
 			int o;
-			for (o = strlen(device[devno][cunit].dirname); o > 0; o--)
+			for (o = strlen(device[cunit].dirname); o > 0; o--)
 			{
-				a = device[devno][cunit].dirname[o-1];
+				a = device[cunit].dirname[o-1];
 				if (a == '/')
 					break;
 			}
 			for (x = 0; x < 8; x++)
 			{
-				a = device[devno][cunit].dirname[o+x];
+				a = device[cunit].dirname[o+x];
 				if (a == '\0')
 					break;
 				dfree[14+x] = a;
@@ -2414,26 +2414,26 @@ complete_fopen:
 		ulong nl;
 		char lpath[1024];
 
-		device[devno][cunit].status.err = 1;
+		device[cunit].status.err = 1;
 
 		if (ccom == 'R')
 		{
 			pclink_ack(devno, cunit, 'A');	/* ack the command */
-			device[devno][cunit].status.err = 176;
+			device[cunit].status.err = 176;
 			Debug_printf("bad exec\n");
 			goto complete;
 		}
 
-		nl = strlen((char *)device[devno][cunit].parbuf.name);
+		nl = strlen((char *)device[cunit].parbuf.name);
 
 		if (nl == 0)
 		{
 			Debug_printf("invalid name\n");
-			device[devno][cunit].status.err = 156;
+			device[cunit].status.err = 156;
 			goto complete;
 		}
 
-		strcpy(lpath, device[devno][cunit].dirname);
+		strcpy(lpath, device[cunit].dirname);
 		strcat(lpath, "/");
 		strcat(lpath, DEVICE_LABEL);
 
@@ -2448,7 +2448,7 @@ complete_fopen:
 
 			for (x = 0; x < 8; x++)
 			{
-				a = device[devno][cunit].parbuf.name[x];
+				a = device[cunit].parbuf.name[x];
 				if (!a || (a == 0x9b))
 					a = 0x20;
 				(void)fwrite(&a, sizeof(uchar), 1, vf);
@@ -2458,13 +2458,13 @@ complete_fopen:
 		else
 		{
 			Debug_printf("CHVOL: %s\n", strerror(errno));
-			device[devno][cunit].status.err = 255;
+			device[cunit].status.err = 255;
 		}
 		goto complete;
 	}
 
 	Debug_printf("fno $%02x: not implemented\n", fno);
-	device[devno][cunit].status.err = 146;
+	device[cunit].status.err = 146;
 
 complete:
 	pclink_ack(devno, cunit, 'C');
@@ -2506,23 +2506,23 @@ static void
 get_device_status(ushort devno, ushort d, uchar *st)
 {
 	//setup_status(d);
-	st[0] = device[devno][d].status.stat;
-	st[1] = device[devno][d].status.err;
-	st[2] = device[devno][d].status.tmot;
-	st[3] = device[devno][d].status.none;
+	st[0] = device[d].status.stat;
+	st[1] = device[d].status.err;
+	st[2] = device[d].status.tmot;
+	st[3] = device[d].status.none;
 }
 
 static void
 pclink_ack(ushort devno, ushort d, uchar what)
 {
-	device[devno][d].status.stat &= ~(0x01|0x04);
+	device[d].status.stat &= ~(0x01|0x04);
 	switch (what)
 	{
     case 'E':
-        device[devno][d].status.stat |= 0x04;	/* last operation failed */
+        device[d].status.stat |= 0x04;	/* last operation failed */
         break;
     case 'N':
-        device[devno][d].status.stat |= 0x01;
+        device[d].status.stat |= 0x01;
         break;
 	}
 
@@ -2565,17 +2565,11 @@ void sioPCLink::mount(int no, const char* path)
     if(no<1 || no>15)return;
 
     fps_close(no);
-    memset(&device[6][no].parbuf, 0, sizeof(PARBUF));
-
-    if (!abs_path(path, device[6][no].dirname, 1024))
-    {
-        Debug_printf("PCLINK failed to get absolute path for \"%s\"\n", path);
-        return;
-    }
-    //strncpy(device[6][no].dirname,path,1023);
-    device[6][no].dirname[1023]=0;
-    device[6][no].cwd[0]=0;
-    device[6][no].on = 1;
+    memset(&device[no].parbuf, 0, sizeof(PARBUF));
+    strncpy(device[no].dirname,path,1023);
+    device[no].dirname[1023]=0;
+    device[no].cwd[0]=0;
+    device[no].on = 1;
 
     Debug_printf("PCLINK[%d] MOUNT \"%s\"\n", no, path);
 }
@@ -2585,11 +2579,11 @@ void sioPCLink::unmount(int no)
     if(no<1 || no>15)return;
 
     fps_close(no);
-    memset(&device[6][no].parbuf, 0, sizeof(PARBUF));
+    memset(&device[no].parbuf, 0, sizeof(PARBUF));
 
-    device[6][no].on = 0;
-    device[6][no].dirname[0]=0;
-    device[6][no].cwd[0]=0;
+    device[no].on = 0;
+    device[no].dirname[0]=0;
+    device[no].cwd[0]=0;
 
     Debug_printf("PCLINK[%d] UNMOUNT\n", no);
 }
@@ -2617,7 +2611,7 @@ void sioPCLink::sio_process(uint32_t commanddata, uint8_t checksum)
     Debug_print("PCLink sio_process()\n");
 
     /* cunit == 0 is init during warm reset */
-    if ((cunit == 0) || device[devno][cunit].on)
+    if ((cunit == 0) || device[cunit].on)
     {
         switch (cmdFrame.comnd)
         {
