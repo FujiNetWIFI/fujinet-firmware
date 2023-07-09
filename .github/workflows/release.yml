@@ -133,10 +133,9 @@ jobs:
       run: |
         echo "SHORTSHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-    # Selectively notify fujinet.online to add the new firmware to FujiNet-flasher
+    # Notify fujinet.online to add the new firmware to FujiNet-flasher
     - name: Notify FujiNet server
-      if: ${{ matrix.target-platform == 'ATARI' }} || ${{ matrix.target-platform == 'ADAM' }} || ${{ matrix.target-platform == 'APPLE' }}
-      run: sh -c 'echo "wget https://fujinet.online/newfirmware.php?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.SHORTSHA }}"'
+      run: wget "https://fujinet.online/newfirmware.php?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.SHORTSHA }}"
 
   push-changelog:
     name: "Push Change Log"
