@@ -531,7 +531,7 @@ void rc2014Modem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-	fnUartBUS.flush();
+        streamFifoRx.clear();
         answerHack = false;
     }
 }
