@@ -75,6 +75,10 @@ public:
      */
     virtual void write();
 
+    /**
+     * rc2014 Read command
+     * Read # of bytes specified by aux1/aux2 from tx_buffer out to rc2014.
+     */
     virtual void read();
 
     /**
