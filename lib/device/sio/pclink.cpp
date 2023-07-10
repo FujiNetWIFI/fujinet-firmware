@@ -10,7 +10,7 @@
  
 #include <cstdio>
 #include <cstring>
-#include <cstdlib>
+#include <stdlib.h>
 #include <ctime>
 #include <ctype.h>
 #include <dirent.h>
@@ -1030,7 +1030,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		mem = (uchar*)malloc(blk_size + 1);
 
-		if ((device[cunit].status.err == 1))
+		if (device[cunit].status.err == 1)
 		{
 			iodesc[handle].fpread = blk_size;
 
