@@ -1,7 +1,8 @@
 
-#include "SSDPDevice.h"
+#include "ssdp.h"
 
-#include "lwip/igmp.h"
+#include <esp_mac.h>
+#include <lwip/igmp.h>
 
 #include <string>
 
@@ -19,7 +20,7 @@ static void ssdp_service_task(void* arg)
     while ( true ) 
     {
         SSDPDevice.service();
-        taskYIELD();
+        vTaskDelay( (1200 * 1000) / portTICK_PERIOD_MS);
     }
 }
 
@@ -47,13 +48,13 @@ SSDPDeviceClass::SSDPDeviceClass() :
 	m_manufacturerURL[0] = '\0';
 	sprintf(m_schemaURL, "device.xml");
 
-    uint64_t chipId = 0LL;
-    esp_efuse_mac_get_default((uint8_t*) (&chipId));
+	// Get the base MAC address from different sources
+    uint8_t base_mac_addr[6] = {0};
+    // Get base MAC address from EFUSE BLK0(default option)
+    esp_base_mac_addr_get(base_mac_addr);
 
 	sprintf(m_uuid, "38323636-4558-4dda-9188-cda0e6%02x%02x%02x",
-		(uint16_t)((chipId >> 16) & 0xff),
-		(uint16_t)((chipId >> 8) & 0xff),
-		(uint16_t)chipId & 0xff);
+		base_mac_addr[3], base_mac_addr[4], base_mac_addr[5]);
 
 	for (int i = 0; i < SSDP_QUEUE_SIZE; i++) {
 		m_queue[i].time = 0;
@@ -285,7 +286,7 @@ void SSDPDeviceClass::service() {
 			m_queue[i].time = 0;
 		}
 
-		if (current != INADDR_NONE) {
+		if (current != (IPAddress)INADDR_NONE) {
 			if (!m_server) m_server = new fnUDP();
 
 			m_server->beginMulticast(SSDP_MULTICAST_ADDR, SSDP_PORT);
@@ -376,7 +377,7 @@ void SSDPDeviceClass::setSerialNumber(const char *serialNumber) {
 }
 
 void SSDPDeviceClass::setSerialNumber(const uint32_t serialNumber) {
-	snprintf(m_serialNumber, sizeof(uint32_t) * 2 + 1, "%08X", serialNumber);
+	//snprintf(m_serialNumber, sizeof(uint32_t) * 2 + 1, "%08X", serialNumber);
 }
 
 void SSDPDeviceClass::setModelName(const char *name) {

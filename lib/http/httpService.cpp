@@ -16,7 +16,7 @@
 #include "httpServiceParser.h"
 #include "fuji.h"
 
-#include "SSDPDevice.h"
+#include "ssdp.h"
 
 using namespace std;
 

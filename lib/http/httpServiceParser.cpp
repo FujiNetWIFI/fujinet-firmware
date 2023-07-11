@@ -12,7 +12,7 @@
 #include "httpService.h"
 #include "fuji.h"
 
-#include "SSDPDevice.h"
+#include "ssdp.h"
 
 using namespace std;
 
@@ -190,7 +190,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_ERRMSG",
         "FN_HARDWARE_VER",
         "FN_PRINTER_LIST",
-        "FN_UUID"
+        "FN_UUID",
         "FN_ENCRYPT_PASSPHRASE_ENABLED",
         "FN_APETIME_ENABLED"
     };
