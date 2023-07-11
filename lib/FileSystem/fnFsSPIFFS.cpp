@@ -186,4 +186,5 @@ bool FileSystemSPIFFS::start()
 
     return _started;
 }
+
 #endif // FLASH_SPIFFS

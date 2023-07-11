@@ -393,7 +393,7 @@ void iecFuji::set_boot_config()
 
         if (t.size() < 2)
         {
-            Debug_printf("Invalid # of parameters.\n");
+            Debug_printf("Invalid # of parameters.\r\n");
             response = "invalid # of parameters";
             return;
         }
@@ -488,7 +488,7 @@ void iecFuji::set_boot_mode()
 
         if (t.size() < 2)
         {
-            Debug_printf("Invalid # of parameters.\n");
+            Debug_printf("Invalid # of parameters.\r\n");
             // send error
             response = "invalid # of parameters";
             return;
@@ -517,7 +517,7 @@ char *_generate_appkey_filename(appkey *info)
 */
 void iecFuji::open_app_key()
 {
-    Debug_print("Fuji cmd: OPEN APPKEY\n");
+    Debug_print("Fuji cmd: OPEN APPKEY\r\n");
 
     // The data expected for this command
     if (payload[0] == FUJICMD_OPEN_APPKEY)
@@ -529,7 +529,7 @@ void iecFuji::open_app_key()
 
         if (t.size() < 5)
         {
-            Debug_printf("Incorrect number of parameters.\n");
+            Debug_printf("Incorrect number of parameters.\r\n");
             response = "invalid # of parameters";
             // send error.
         }
@@ -563,7 +563,7 @@ void iecFuji::open_app_key()
         return;
     }
 
-    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
+    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\r\n",
                  _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
                  _generate_appkey_filename(&_current_appkey));
 
@@ -577,7 +577,7 @@ void iecFuji::open_app_key()
 */
 void iecFuji::close_app_key()
 {
-    Debug_print("Fuji cmd: CLOSE APPKEY\n");
+    Debug_print("Fuji cmd: CLOSE APPKEY\r\n");
     _current_appkey.creator = 0;
     _current_appkey.mode = APPKEYMODE_INVALID;
     response = "ok";
@@ -613,7 +613,7 @@ void iecFuji::write_app_key()
         }
     }
 
-    Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
+    Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\r\n", keylen);
 
     // Make sure we have valid app key information
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
@@ -639,7 +639,7 @@ void iecFuji::write_app_key()
     _current_appkey.creator = 0;
     _current_appkey.mode = APPKEYMODE_INVALID;
 
-    Debug_printf("Writing appkey to \"%s\"\n", filename);
+    Debug_printf("Writing appkey to \"%s\"\r\n", filename);
 
     // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
     fnSDFAT.create_path("/FujiNet");
@@ -647,7 +647,7 @@ void iecFuji::write_app_key()
     FILE *fOut = fnSDFAT.file_open(filename, "w");
     if (fOut == nullptr)
     {
-        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
+        Debug_printf("Failed to open/create output file: errno=%d\r\n", errno);
         // Send error
         char e[8];
         itoa(errno, e, 10);
@@ -697,13 +697,13 @@ void iecFuji::read_app_key()
 
     char *filename = _generate_appkey_filename(&_current_appkey);
 
-    Debug_printf("Reading appkey from \"%s\"\n", filename);
+    Debug_printf("Reading appkey from \"%s\"\r\n", filename);
 
     FILE *fIn = fnSDFAT.file_open(filename, "r");
     if (fIn == nullptr)
     {
         char e[128];
-        sprintf(e, "failed to open input file: errno=%d\n", errno);
+        sprintf(e, "Failed to open input file: errno=%d\r\n", errno);
         // Send error
         response = std::string(e);
         return;
@@ -719,7 +719,7 @@ void iecFuji::read_app_key()
     size_t count = fread(_r.value, 1, sizeof(_r.value), fIn);
 
     fclose(fIn);
-    Debug_printf("Read %d bytes from input file\n", count);
+    Debug_printf("Read %d bytes from input file\r\n", count);
 
     _r.size = count;
 
@@ -1060,7 +1060,7 @@ void iecFuji::close_directory()
 // Get network adapter configuration
 void iecFuji::get_adapter_config()
 {
-    Debug_printf("get_adapter_config()\n");
+    Debug_printf("get_adapter_config()\r\n");
 
     memset(&cfg, 0, sizeof(cfg));
 
