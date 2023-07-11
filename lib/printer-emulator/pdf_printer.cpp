@@ -2,11 +2,9 @@
 
 #include "../../include/debug.h"
 
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
+
 #include "utils.h"
-
-
-#define DEBUG
 
 void pdfPrinter::pdf_header()
 {
@@ -68,7 +66,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
     // OPEN LUT FILE
     char fname[30]; // filename: /f/shortname/Fi
     sprintf(fname, "/f/%s/LUT", shortname.c_str());
-    FILE *lut = fnSPIFFS.file_open(fname);
+    FILE *lut = fsFlash.file_open(fname);
     int maxFonts = util_parseInt(lut);
 
     // font dictionary
@@ -88,7 +86,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             size_t fp = 0;
             char fname[30];                                        // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
-            FILE *fff = fnSPIFFS.file_open(fname);                 // Font File File - fff
+            FILE *fff = fsFlash.file_open(fname);                 // Font File File - fff
 
             fgetc(fff); // '%'
             fp++;
@@ -234,7 +232,7 @@ void pdfPrinter::pdf_new_line()
     // position new line and start text string array
     if (pdf_dY != 0)
         fprintf(_file, "0 Ts ");
-#ifndef BUILD_APPLE
+#if !defined(BUILD_APPLE) && !defined(BUILD_RC2014)
     pdf_dY -= lineHeight;
 #endif
     fprintf(_file, "0 %g Td [(", pdf_dY);
@@ -347,11 +345,11 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
      *
      */
     int i = 0;
-    uint8_t c;
-    uint8_t cc;
+    uint16_t c;
+    uint16_t cc;
 
 #ifdef DEBUG
-    // Debug_printf("Processing %d chars\n", n);
+    // Debug_printf("Processing %d chars\r\n", n);
 #endif
 
     // algorithm for graphics:
@@ -369,8 +367,10 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     do
     {
         c = buffer[i++];
+#ifdef BUILD_APPLE
         if (textMode == true)
             c &= 0x7F;
+#endif // BUILD_APPLE
         cc = c;
         if (translate850 && c == ATASCII_EOL)
             c = ASCII_CR; // the 850 interface converts EOL to CR
@@ -406,7 +406,7 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 
 #ifdef DEBUG
             // Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y + pdf_dY);
-            // Debug_printf("\n");
+            // Debug_printf("\r\n");
 #endif
         }
 

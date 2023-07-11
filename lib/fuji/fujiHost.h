@@ -28,6 +28,9 @@ private:
     int mount_local();
     int mount_tnfs();
 
+    int unmount_local();
+    int unmount_tnfs();
+
 public:
     int slotid = -1;
 
@@ -42,6 +45,7 @@ public:
     const char* get_hostname();
 
     bool mount();
+    bool umount();
 
     // Host prefixes are used for host file operations that take a path (file_exists, file_open, dir_open)
     void set_prefix(const char *prefix);
@@ -52,6 +56,7 @@ public:
     bool file_exists(const char *path);
     FILE * file_open(const char *path, char *fullpath, int fullpathlen, const char *mode);
     long file_size(FILE *filehandle);
+    bool file_remove(char *fullpath);
 
     // Directory functions
     bool dir_open(const char *path, const char *pattern, uint16_t options = 0);

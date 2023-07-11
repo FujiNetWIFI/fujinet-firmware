@@ -11,7 +11,9 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
+#include "fsFlash.h"
 #include "fnFsSPIFFS.h"
+#include "fnFsTNFS.h"
 #include "fnWiFi.h"
 
 #include "led.h"
@@ -204,6 +206,7 @@ void sioFuji::sio_net_get_ssid()
 void sioFuji::sio_net_set_ssid()
 {
     Debug_println("Fuji cmd: SET SSID");
+    int i;
 
     // Data for  FUJICMD_SET_SSID
     struct
@@ -227,8 +230,61 @@ void sioFuji::sio_net_set_ssid()
         // Only save these if we're asked to, otherwise assume it was a test for connectivity
         if (save)
         {
+            // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
+            // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
+            // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
+
+            int ssid_in_stored = -1;
+            for (i = 0; i < MAX_WIFI_STORED; i++)
+            {
+                if (Config.get_wifi_stored_ssid(i) == cfg.ssid)
+                {
+                    ssid_in_stored = i;
+                    break;
+                }
+            }
+
+            // case 1
+            if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+                Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
+                // Move enabled stored down one, last one will drop off
+                for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
+                {
+                    bool enabled = Config.get_wifi_stored_enabled(j - 1);
+                    if (!enabled) continue;
+
+                    Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
+                    Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
+                    Config.store_wifi_stored_enabled(j, true); // already confirmed this is enabled
+                }
+                // push the current to the top of stored
+                Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
+                Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
+                Config.store_wifi_stored_enabled(0, true);
+            }
+
+            // case 2
+            if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+                Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\n", ssid_in_stored);
+                // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
+                for (int j = ssid_in_stored; j > 0; j--)
+                {
+                    Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
+                    Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
+                    Config.store_wifi_stored_enabled(j, true);
+                }
+
+                // push the current to the top of stored
+                Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
+                Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
+                Config.store_wifi_stored_enabled(0, true);
+            }
+
+            // save the new SSID as current
             Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+            // Clear text here, it will be encrypted internally if enabled for encryption
             Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+
             Config.save();
         }
 
@@ -298,13 +354,13 @@ void sioFuji::sio_disk_image_mount()
         sio_error();
         return;
     }
-    
+
     if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
     {
         sio_error();
         return;
     }
-    
+
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
@@ -436,14 +492,42 @@ void sioFuji::sio_copy_file()
         return;
     }
 
-    size_t count = 0;
+    size_t readCount = 0;
+    size_t readTotal = 0;
+    size_t writeCount = 0;
+    size_t expected = _fnHosts[sourceSlot].file_size(sourceFile); // get the filesize
+    bool err = false;
     do
     {
-        count = fread(dataBuf, 1, 532, sourceFile);
-        fwrite(dataBuf, 1, count, destFile);
-    } while (count > 0);
+        readCount = fread(dataBuf, 1, 532, sourceFile);
+        readTotal += readCount;
+        // Check if we got enough bytes on the read
+        if(readCount < 532 && readTotal != expected)
+        {
+            err = true;
+            break;
+        }
+        writeCount = fwrite(dataBuf, 1, readCount, destFile);
+        // Check if we sent enough bytes on the write
+        if (writeCount != readCount)
+        {
+            err = true;
+            break;
+        }
+        Debug_printf("Copy File: %d bytes of %d\n", readTotal, expected);
+    } while (readTotal < expected);
 
-    sio_complete();
+    if (err == true)
+    {
+        // Remove the destination file and error
+        _fnHosts[destSlot].file_remove((char *)destPath.c_str());
+        sio_error();
+        Debug_printf("Copy File Error! wCount: %d, rCount: %d, rTotal: %d, Expect: %d\n", writeCount, readCount, readTotal, expected);
+    }
+    else
+    {
+        sio_complete();
+    }
 
     // copyEnd:
     fclose(sourceFile);
@@ -747,6 +831,7 @@ void sioFuji::sio_disk_image_umount()
             _cassetteDev.umount_cassette_file();
             _cassetteDev.sio_disable_cassette();
         }
+        _fnDisks[deviceSlot].disk_dev.device_active = false;
         _fnDisks[deviceSlot].reset();
     }
     // Handle tape
@@ -792,7 +877,8 @@ void sioFuji::image_rotate()
         }
 
         // The first slot gets the device ID of the last slot
-        _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+        Debug_printf("setting slot %d to ID %hx\n", 0, last_id);
+       _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
         if (Config.get_general_rotation_sounds())
@@ -1113,6 +1199,44 @@ void sioFuji::sio_new_disk()
 
     Debug_print("sio_new_disk succeeded\n");
     sio_complete();
+}
+
+// Unmount specified host
+void sioFuji::sio_unmount_host()
+{
+    Debug_println("Fuji cmd: UNMOUNT HOST");
+
+    unsigned char hostSlot = cmdFrame.aux1 - 1;
+
+    // Make sure we weren't given a bad hostSlot
+    if (!_validate_host_slot(hostSlot, "sio_tnfs_mount_hosts"))
+    {
+        sio_error();
+        return;
+    }
+
+    // Unmount any disks associated with host slot
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        if (_fnDisks[i].host_slot == hostSlot)
+        {
+            _fnDisks[i].disk_dev.unmount();
+            if (_fnDisks[i].disk_type == MEDIATYPE_CAS || _fnDisks[i].disk_type == MEDIATYPE_WAV)
+            {
+                // tell cassette it unmount
+                _cassetteDev.umount_cassette_file();
+                _cassetteDev.sio_disable_cassette();
+            }
+            _fnDisks[i].disk_dev.device_active = false;
+            _fnDisks[i].reset();
+        }
+    }
+
+    // Unmount the host
+    if (_fnHosts[hostSlot].umount())
+        sio_error();
+    else
+        sio_complete();
 }
 
 // Send host slot data to computer
@@ -1473,12 +1597,21 @@ void sioFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_atr);
+        fBoot = fsFlash.file_open(config_atr);
         _bootDisk.mount(fBoot, config_atr, 0);
         break;
     case 1:
-        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        fBoot = fsFlash.file_open(mount_all_atr);
         _bootDisk.mount(fBoot, mount_all_atr, 0);
+        break;
+    case 2:
+        Debug_printf("Mounting lobby server\n");
+        if (fnTNFS.start("tnfs.fujinet.online"))
+        {
+            Debug_printf("opening lobby.\n");
+            fBoot = fnTNFS.file_open("/ATARI/_lobby.xex");
+            _bootDisk.mount(fBoot,"/ATARI/_lobby.xex",0);
+        }
         break;
     }
 
@@ -1525,7 +1658,7 @@ void sioFuji::setup(systemBus *siobus)
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
-    
+
     //Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
 
@@ -1539,6 +1672,8 @@ void sioFuji::setup(systemBus *siobus)
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
+
+
 }
 
 sioDisk *sioFuji::bootdisk()
@@ -1650,6 +1785,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_NEW_DISK:
         sio_ack();
         sio_new_disk();
+        break;
+    case FUJICMD_UNMOUNT_HOST:
+        sio_ack();
+        sio_unmount_host();
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
         sio_ack();

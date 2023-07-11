@@ -25,6 +25,8 @@
 #include "SSH.h"
 #include "SMB.h"
 
+#include "ProtocolParser.h"
+
 // using namespace std;
 
 /**
@@ -133,7 +135,7 @@ void iwmNetwork::open()
     uint8_t _aux2 = data_buffer[idx++];
     string d = string((char *)&data_buffer[idx], 256);
 
-    Debug_printf("aux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
+    Debug_printf("\naux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
     channelMode = PROTOCOL;
 
@@ -152,10 +154,16 @@ void iwmNetwork::open()
         protocol = nullptr;
     }
 
+    if (protocolParser != nullptr)
+    {
+        delete protocolParser;
+        protocolParser = nullptr;
+    }
+
     // Reset status buffer
     statusByte.byte = 0x00;
 
-    Debug_printf("open()\n");
+    Debug_printf("\nopen()\n");
 
     // Parse and instantiate protocol
     parse_and_instantiate_protocol(d);
@@ -172,6 +180,11 @@ void iwmNetwork::open()
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
         delete protocol;
         protocol = nullptr;
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
         return;
     }
 
@@ -189,6 +202,11 @@ void iwmNetwork::close()
 
     statusByte.byte = 0x00;
 
+    if (protocolParser != nullptr)
+    {
+        delete protocolParser;
+        protocolParser = nullptr;
+    }
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
@@ -208,7 +226,10 @@ void iwmNetwork::close()
  */
 void iwmNetwork::get_prefix()
 {
-    // RE-implement
+    Debug_printf("iwmNetwork::get_prefix(%s)\n",prefix.c_str());
+    memset(data_buffer,0,sizeof(data_buffer));
+    memcpy(data_buffer,prefix.c_str(),prefix.length());
+    data_len = prefix.length();
 }
 
 /**
@@ -494,14 +515,14 @@ void iwmNetwork::special_80()
 void iwmNetwork::iwm_open(iwm_decoded_cmd_t cmd)
 {
     //Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmNetwork::iwm_close(iwm_decoded_cmd_t cmd)
 {
     // Probably need to send close command here.
     //Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
-    send_status_reply_packet();
+    send_reply_packet(SP_ERR_NOERROR);
     close();
 }
 
@@ -550,6 +571,9 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
         send_status_dib_reply_packet();
         return;
         break;
+    case '0':
+        get_prefix();
+        break;
     case 'R':
         net_read();
         break;
@@ -561,6 +585,8 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     Debug_printf("\r\nStatus code complete, sending response");
     //send_data_packet(data_len);
     IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    data_len = 0;
+    memset(data_buffer,0,sizeof(data_buffer));
 }
 
 void iwmNetwork::net_read()
@@ -569,11 +595,15 @@ void iwmNetwork::net_read()
 
 bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
-    if (num_bytes > json.json_bytes_remaining)
+    if (json.json_bytes_remaining == 0) // if no bytes, we just return with no data
     {
-        json.json_bytes_remaining = 0;
-        iwm_return_ioerror();
-        return true;
+        data_len = 0;
+    }
+    else if (num_bytes > json.json_bytes_remaining)
+    {
+        data_len = json.readValueLen();
+        json.readValue(data_buffer, data_len);
+        json.json_bytes_remaining -= data_len;
     }
     else
     {
@@ -590,27 +620,35 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     NetworkStatus ns;
 
-    if ((protocol == nullptr) || (receiveBuffer == nullptr))
+    if ((protocol == nullptr))
         return true; // Punch out.
 
     // Get status
     protocol->status(&ns);
 
-    if (ns.rxBytesWaiting == 0)
+    if (ns.rxBytesWaiting == 0) // if no bytes, we just return with no data
     {
-        iwm_return_ioerror();
-        return true;
+        data_len = 0;
+    }
+    else if (num_bytes < ns.rxBytesWaiting && num_bytes <= 512)
+    {
+        data_len = num_bytes;
+    }
+    else if (num_bytes > 512)
+    {
+        data_len = 512;
+    }
+    else
+    {
+        data_len = ns.rxBytesWaiting;
     }
 
-    // Truncate bytes waiting to response size
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > 512) ? 512 : ns.rxBytesWaiting;
-    data_len = ns.rxBytesWaiting;
+    //Debug_printf("\r\nAvailable bytes %04x\n", data_len);
 
     if (protocol->read(data_len)) // protocol adapter returned error
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
-        iwm_return_ioerror();
         return true;
     }
     else // everything ok
@@ -637,32 +675,37 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
 
 void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
+    bool error = false;
 
     uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
-
     uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
     Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
+
+    data_len = 0;
+    memset(data_buffer,0,sizeof(data_buffer));
 
     switch (channelMode)
     {
     case PROTOCOL:
-        read_channel(numbytes, cmd);
+        error = read_channel(numbytes, cmd);
         break;
     case JSON:
-        read_channel_json(numbytes, cmd);
+        error = read_channel_json(numbytes, cmd);
         break;
     }
 
-    //send_data_packet(data_len);
-    Debug_printf("\r\nsending block packet ...");
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
-    data_len = 0;
-    memset(data_buffer, 0, sizeof(data_buffer));
+    if (error)
+    {
+        iwm_return_ioerror();
+    }
+    else
+    {
+        Debug_printf("\r\nsending Network read data packet (%04x bytes)...", data_len);
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+        data_len = 0;
+        memset(data_buffer, 0, sizeof(data_buffer));
+    }
 }
 
 void iwmNetwork::net_write()
@@ -674,33 +717,28 @@ void iwmNetwork::net_write()
 
 void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // data_buffer[6];
-    // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
     Debug_printf("\r\nNet# %02x ", id());
 
     uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // num_bytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
-
     uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
     Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
 
     // get write data packet, keep trying until no timeout
     //  to do - this blows up - check handshaking
     data_len = BLOCK_DATA_LEN;
-    if (IWM.iwm_read_packet_timeout(100, (unsigned char *)data_buffer, data_len))
-    {
-        Debug_printf("\r\nTIMEOUT in read packet!");
-        return;
-    }
+    IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
+    // if (IWM.iwm_decode_data_packet(100, (unsigned char *)data_buffer, data_len)) // write data packet now read in ISR
+    // {
+    //     Debug_printf("\r\nTIMEOUT in read packet!");
+    //     return;
+    // }
     // partition number indicates which 32mb block we access
     if (data_len == -1)
         iwm_return_ioerror();
     else
     {
-        *transmitBuffer += string((char *)response, num_bytes);
+        *transmitBuffer += string((char *)data_buffer, num_bytes);
         if (write_channel(num_bytes))
         {
             send_reply_packet(SP_ERR_IOERROR);
@@ -710,6 +748,9 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
             send_reply_packet(SP_ERR_NOERROR);
         }
     }
+
+    data_len = 0;
+    memset(data_buffer,0,sizeof(data_buffer));
 }
 
 void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -718,10 +759,10 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     // uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
     uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
-    Debug_printf("\r\nDevice %02x Control Code %02x", id(), control_code);
+    Debug_printf("\r\nNet Device %02x Control Code %02x", id(), control_code);
     // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
     data_len = BLOCK_DATA_LEN;
-    IWM.iwm_read_packet_timeout(100, (uint8_t *)data_buffer, data_len);
+    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
     // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", data_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
     print_packet((uint8_t *)data_buffer);
 
@@ -764,6 +805,7 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
         switch (channelMode)
         {
         case PROTOCOL:
+            do_inquiry(control_code);
             if (inq_dstats == 0x00)
                 special_00();
             else if (inq_dstats == 0x40) // MOVE THIS TO STATUS!
@@ -788,13 +830,15 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
             Debug_printf("Unknown channel mode\n");
             break;
         }
-        do_inquiry(control_code);
     }
 
     if (statusByte.bits.client_error == true)
         err_result = SP_ERR_IOERROR;
 
     send_reply_packet(err_result);
+
+    data_len = 0;
+    memset(data_buffer,0,sizeof(data_buffer));
 }
 
 void iwmNetwork::process(iwm_decoded_cmd_t cmd)
@@ -849,79 +893,49 @@ void iwmNetwork::process(iwm_decoded_cmd_t cmd)
  */
 bool iwmNetwork::instantiate_protocol()
 {
-    if (urlParser == nullptr)
+    if (!protocolParser)
     {
-        Debug_printf("iwmNetwork::open_protocol() - urlParser is NULL. Aborting.\n");
-        return false; // error.
+        protocolParser = new ProtocolParser();
     }
-
-    // Convert to uppercase
-    std::transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
-
-    if (urlParser->scheme == "TCP")
-    {
-        protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "UDP")
-    {
-        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TEST")
-    {
-        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TELNET")
-    {
-        protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TNFS")
-    {
-        protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "FTP")
-    {
-        protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
-    {
-        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SSH")
-    {
-        protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SMB")
-    {
-        protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else
-    {
-        Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
-        return false; // invalid protocol.
-    }
+    
+    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
-        Debug_printf("iwmNetwork::open_protocol() - Could not open protocol.\n");
+        Debug_printf("iwmNetwork::instantiate_protocol() - Could not create protocol.\n");
         return false;
     }
 
-    if (!login.empty())
-    {
-        protocol->login = &login;
-        protocol->password = &password;
-    }
-
-    Debug_printf("iwmNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
+    Debug_printf("iwmNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
+}
+
+/**
+ * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
+ * disk utility packages do when opening a device, such as adding wildcards for directory opens.
+ */
+void iwmNetwork::create_devicespec(string d)
+{
+    deviceSpec = util_devicespec_fix_for_parsing(d, prefix, cmdFrame.aux1 == 6, false);
+}
+
+/*
+ * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * of Network.
+*/
+void iwmNetwork::create_url_parser()
+{
+    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
+    urlParser = EdUrlParser::parseUrl(url);
 }
 
 void iwmNetwork::parse_and_instantiate_protocol(string d)
 {
-    deviceSpec = d;
+    create_devicespec(d);
+    create_url_parser();
 
     // Invalid URL returns error 165 in status.
-    if (parseURL() == false)
+    if (!urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
@@ -930,10 +944,10 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
         return;
     }
 
-    Debug_printf("Parse and instantiate protocol: %s\n", deviceSpec.c_str());
+    Debug_printf("::parse_and_instantiate_protocol transformed to (%s, %s)\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
 
     // Instantiate protocol object.
-    if (instantiate_protocol() == false)
+    if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol.\n");
         statusByte.byte = 0x00;
@@ -941,71 +955,6 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
         err = NETWORK_ERROR_GENERAL;
         return;
     }
-}
-
-/**
- * Is this a valid URL? (Used to generate ERROR 165)
- */
-bool iwmNetwork::isValidURL(EdUrlParser *url)
-{
-    if (url->scheme == "")
-        return false;
-    else if ((url->path == "") && (url->port == ""))
-        return false;
-    else
-        return true;
-}
-
-/**
- * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
- * disk utility packages do when opening a device, such as adding wildcards for directory opens.
- *
- * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
- * of iwmNetwork.
- *
- * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
- */
-bool iwmNetwork::parseURL()
-{
-    string url;
-    string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
-
-    if (urlParser != nullptr)
-        delete urlParser;
-
-    // Prepend prefix, if set.
-    if (prefix.length() > 0)
-        deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
-    else
-        deviceSpec = unit + deviceSpec.substr(string(deviceSpec).find(":") + 1);
-
-    Debug_printf("iwmNetwork::parseURL(%s)\n", deviceSpec.c_str());
-
-    // Strip non-ascii characters.
-    util_strip_nonascii(deviceSpec);
-
-    // Process comma from devicespec (DOS 2 COPY command)
-    // processCommaFromDevicespec();
-
-    if (cmdFrame.aux1 != 6) // Anything but a directory read...
-    {
-        std::replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
-    }
-
-    // // Some FMSes add a dot at the end, remove it.
-    // if (deviceSpec.substr(deviceSpec.length() - 1) == ".")
-    //     deviceSpec.erase(deviceSpec.length() - 1, string::npos);
-
-    // Remove any spurious spaces
-    deviceSpec = util_remove_spaces(deviceSpec);
-
-    // chop off front of device name for URL, and parse it.
-    url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
-
-    Debug_printf("iwmNetwork::parseURL transformed to (%s, %s)\n", deviceSpec.c_str(), url.c_str());
-
-    return isValidURL(urlParser);
 }
 
 void iwmNetwork::iwmnet_set_translation()
@@ -1028,4 +977,4 @@ void iwmNetwork::iwmnet_set_timer_rate()
     // iwmnet_complete();
 }
 
-#endif /* BUILD_iwm */
+#endif /* BUILD_APPLE */

@@ -1,19 +1,22 @@
 #include <esp_system.h>
 #include <nvs_flash.h>
-#include <esp32/spiram.h>
+#ifdef ATARI
 #include <esp32/himem.h>
+#endif
 
 #include "debug.h"
 #include "bus.h"
 #include "device.h"
 #include "keys.h"
 #include "led.h"
+#include "crypt.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
+
+#include "fsFlash.h"
 #include "fnFsSD.h"
-#include "fnFsSPIFFS.h"
 
 #include "httpService.h"
 
@@ -43,13 +46,14 @@ void main_setup()
 #ifdef DEBUG
     fnUartDebug.begin(DEBUG_SPEED);
     unsigned long startms = fnSystem.millis();
-    Debug_printf("\n\n--~--~--~--\nFujiNet %s Started @ %lu\n", fnSystem.get_fujinet_version(), startms);
-    Debug_printf("Starting heap: %u\n", fnSystem.get_free_heap_size());
+    Debug_printf("\r\n\r\n--~--~--~--\nFujiNet %s Started @ %lu\r\n", fnSystem.get_fujinet_version(), startms);
+    Debug_printf("Starting heap: %u\r\n", fnSystem.get_free_heap_size());
+    Debug_printv("Heap: %lu\r\n",esp_get_free_internal_heap_size());
 #ifdef ATARI
-    Debug_printf("PsramSize %u\n", fnSystem.get_psram_size());
-    Debug_printf("himem phys %u\n", esp_himem_get_phys_size());
-    Debug_printf("himem free %u\n", esp_himem_get_free_size());
-    Debug_printf("himem reserved %u\n", esp_himem_reserved_area_size());
+    Debug_printf("PsramSize %u\r\n", fnSystem.get_psram_size());
+    Debug_printf("himem phys %u\r\n", esp_himem_get_phys_size());
+    Debug_printf("himem free %u\r\n", esp_himem_get_free_size());
+    Debug_printf("himem reserved %u\r\n", esp_himem_reserved_area_size());
 #endif // ATARI
 #endif // DEBUG
 
@@ -68,14 +72,18 @@ void main_setup()
     // Enable GPIO Interrupt Service Routine
     gpio_install_isr_service(ESP_INTR_FLAG_DEFAULT);
 
-    fnSystem.check_hardware_ver();
-    Debug_printf("Detected Hardware Version: %s\n", fnSystem.get_hardware_ver_str());
+    fnSystem.check_hardware_ver(); // Run early to determine correct FujiNet hardware
+    Debug_printf("Detected Hardware Version: %s\r\n", fnSystem.get_hardware_ver_str());
 
     fnKeyManager.setup();
+
     fnLedManager.setup();
 
-    fnSPIFFS.start();
+    fsFlash.start();
     fnSDFAT.start();
+
+    // setup crypto key - must be done before loading the config
+    crypto.setkey("FNK" + fnWiFi.get_mac_str());
 
     // Load our stored configuration
     Config.load();
@@ -86,17 +94,18 @@ void main_setup()
     theFuji.setup(&SIO);
     SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
-    SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
+    if (Config.get_apetime_enabled() == true)
+        SIO.addDevice(&apeTime, SIO_DEVICEID_APETIME); // APETime
 
     SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 
     // Create a new printer object, setting its output depending on whether we have SD or not
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     sioPrinter::printer_type ptype = Config.get_printer_type(0);
     if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
         ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
 
-    Debug_printf("Creating a default printer using %s storage and type %d\n", ptrfs->typestring(), ptype);
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
 
     sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
@@ -104,8 +113,7 @@ void main_setup()
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
     sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-    // uart needs setting. is this right?
-    sioR->set_uart(&fnUartSIO);
+    sioR->set_uart(&fnUartBUS);
 
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
@@ -117,10 +125,31 @@ void main_setup()
     SIO.setup();
 #endif // BUILD_ATARI
 
-#ifdef BUILD_CBM
+#ifdef BUILD_COCO
+    theFuji.setup(&DRIVEWIRE);
+    DRIVEWIRE.setup();
+#endif
+
+#ifdef BUILD_IEC
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+
     // Setup IEC Bus
+    IEC.setup();
+//    iecPrinter::printer_type ptype = Config.get_printer_type(0);
+    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_COMMODORE_MPS803; // temporary
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+    iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+    IEC.addDevice(ptr, 0x04); // add as device #4 for now
     theFuji.setup(&IEC);
-#endif // BUILD_CBM
+    sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
+
+#endif // BUILD_IEC
+
+#ifdef BUILD_MAC
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+
+#endif // BUILD_MAC
 
 #ifdef BUILD_LYNX
     theFuji.setup(&ComLynx);
@@ -133,13 +162,55 @@ void main_setup()
     RS232.addDevice(&theFuji,0x70);
 #endif
 
+#ifdef BUILD_RC2014
+    theFuji.setup(&rc2014Bus);
+    rc2014Bus.setup();
+
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    rc2014Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == rc2014Printer::printer_type::PRINTER_INVALID)
+        ptype = rc2014Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+
+    rc2014Printer *ptr = new rc2014Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    rc2014Bus.addDevice(ptr, RC2014_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    sioR = new rc2014Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    rc2014Bus.addDevice(sioR, RC2014_DEVICEID_MODEM); // R:
+
+#endif
+
+#ifdef BUILD_H89
+    theFuji.setup(&H89Bus);
+    H89Bus.setup();
+
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    H89Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == H89Printer::printer_type::PRINTER_INVALID)
+        ptype = H89Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+
+    H89Printer *ptr = new H89Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    // H89Bus.addDevice(ptr, H89_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    // H89R = new H89Modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    // H89Bus.addDevice(H89R, H89_DEVICEID_MODEM); // R:
+
+#endif
+
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
     fnSDFAT.create_path("/FujiNet");
 
-    Debug_printf("Adding virtual printer\n");
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    Debug_printf("Adding virtual printer\r\n");
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     adamPrinter::printer_type printer = Config.get_printer_type(0);
     adamPrinter *ptr = new adamPrinter(ptrfs, printer);
     fnPrinters.set_entry(0, ptr, printer, 0);
@@ -151,19 +222,19 @@ void main_setup()
         AdamNet.disableDevice(ADAMNET_DEVICE_ID_PRINTER);
 
 #ifdef VIRTUAL_ADAM_DEVICES
-    Debug_printf("Physical Device Scanning...\n");
+    Debug_printf("Physical Device Scanning...\r\n");
     sioQ = new adamQueryDevice();
 
 #ifndef NO_VIRTUAL_KEYBOARD
     exists = sioQ->adamDeviceExists(ADAMNET_DEVICE_ID_KEYBOARD);
     if (!exists)
     {
-        Debug_printf("Adding virtual keyboard\n");
+        Debug_printf("Adding virtual keyboard\r\n");
         sioK = new adamKeyboard();
         AdamNet.addDevice(sioK, ADAMNET_DEVICE_ID_KEYBOARD);
     }
     else
-        Debug_printf("Physical keyboard found\n");
+        Debug_printf("Physical keyboard found\r\n");
 #endif // NO_VIRTUAL_KEYBOARD
 
 #endif // VIRTUAL_ADAM_DEVICES
@@ -171,10 +242,11 @@ void main_setup()
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-    appleModem *sioR;
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
-    sioR = new appleModem(ptrfs, Config.get_modem_sniffer_enabled());
-    
+
+    iwmModem *sioR;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
+    IWM.addDevice(sioR,iwm_fujinet_type_t::Modem);
     iwmPrinter::printer_type ptype = Config.get_printer_type(0);
     iwmPrinter *ptr = new iwmPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
@@ -185,10 +257,32 @@ void main_setup()
 
 #endif /* BUILD_APPLE */
 
+#ifdef BUILD_CX16
+    theFuji.setup(&CX16);
+    CX16.addDevice(&theFuji, CX16_DEVICEID_FUJINET); // the FUJINET!
+
+    // Create a new printer object, setting its output depending on whether we have SD or not
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    cx16Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == cx16Printer::printer_type::PRINTER_INVALID)
+        ptype = cx16Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+
+    cx16Printer *ptr = new cx16Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    CX16.addDevice(ptr, CX16_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+
+    // Go setup SIO
+    CX16.setup();
+#endif
+
 #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
-    Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\n", fnSystem.get_free_heap_size(), endms, endms - startms);
+    Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\r\n", fnSystem.get_free_heap_size(), endms, endms - startms);
 #endif // DEBUG
+    Debug_printv("Low Heap: %lu\n",esp_get_free_internal_heap_size());
 }
 
 #ifdef BUILD_S100
@@ -201,44 +295,8 @@ void main_setup()
 // Main high-priority service loop
 void fn_service_loop(void *param)
 {
-    while (true)
-    {
-        // We don't have any delays in this loop, so IDLE threads will be starved
-        // Shouldn't be a problem, but something to keep in mind...
-
-        // Go service BT if it's active
-#ifdef BLUETOOTH_SUPPORT
-        if (fnBtManager.isActive())
-            fnBtManager.service();
-        else
-#endif // BLUETOOTH_SUPPORT
-
-            SYSTEM_BUS.service();
-
-        taskYIELD(); // Allow other tasks to run
-    }
-}
-
-/*
- * This is the start/entry point for an ESP-IDF program (must use "C" linkage)
- */
-extern "C"
-{
-    void app_main()
-    {
-        // cppcheck-suppress "unusedFunction"
-        // Call our setup routine
-        main_setup();
-
-// Create a new high-priority task to handle the main loop
-// This is assigned to CPU1; the WiFi task ends up on CPU0
-#define MAIN_STACKSIZE 32768
-#define MAIN_PRIORITY 20
-#define MAIN_CPUAFFINITY 1
-        xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
-                                MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
-
-        // Now that our main service is running, try connecting to WiFi or BlueTooth
+       main_setup();
+       // Now that our main service is running, try connecting to WiFi or BlueTooth
         if (Config.get_bt_status())
         {
 #ifdef BLUETOOTH_SUPPORT
@@ -254,6 +312,46 @@ extern "C"
             // Go ahead and try reconnecting to WiFi
             fnWiFi.connect();
         }
+    while (true)
+    {
+        // We don't have any delays in this loop, so IDLE threads will be starved
+        // Shouldn't be a problem, but something to keep in mind...
+
+        // Go service BT if it's active
+#ifdef BLUETOOTH_SUPPORT
+        if (fnBtManager.isActive())
+            fnBtManager.service();
+        else
+#endif // BLUETOOTH_SUPPORT
+
+#ifdef LEAK_DEBUG
+        Debug_printv("Low Heap: %lu\r\n",esp_get_free_internal_heap_size());
+#endif 
+        SYSTEM_BUS.service();
+
+        taskYIELD(); // Allow other tasks to run
+    }
+}
+
+/*
+ * This is the start/entry point for an ESP-IDF program (must use "C" linkage)
+ */
+extern "C"
+{
+    void app_main()
+    {
+        // cppcheck-suppress "unusedFunction"
+        // Call our setup routine
+        //main_setup();
+
+// Create a new high-priority task to handle the main loop
+// This is assigned to CPU1; the WiFi task ends up on CPU0
+#define MAIN_STACKSIZE 32768
+#define MAIN_PRIORITY 20
+#define MAIN_CPUAFFINITY 1
+        xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
+                                MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
+
 
         // Sit here twiddling our thumbs
         while (true)

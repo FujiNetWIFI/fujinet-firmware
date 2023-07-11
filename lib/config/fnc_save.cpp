@@ -1,16 +1,18 @@
 #include "fnConfig.h"
-#include "fnFsSPIFFS.h"
 #include "fnSystem.h"
+
+#include "fsFlash.h"
 
 #include <cstring>
 #include <sstream>
 
 #include "../../include/debug.h"
 
-/* Save configuration data to SPIFFS. If SD is mounted, save a backup copy there.
+/* Save configuration data to FLASH. If SD is mounted, save a backup copy there.
 */
 void fnConfig::save()
 {
+    int i;
 
     Debug_println("fnConfig::save");
 
@@ -37,15 +39,28 @@ void fnConfig::save()
     ss << "fnconfig_on_spifs=" << _general.fnconfig_spifs << LINETERM;
     ss << "status_wait_enabled=" << _general.status_wait_enabled << LINETERM;
     ss << "printer_enabled=" << _general.printer_enabled << LINETERM;
+    ss << "encrypt_passphrase=" << _general.encrypt_passphrase << LINETERM;
 
-    ss << LINETERM;
+    // ss << LINETERM;
 
     // WIFI
     ss << LINETERM << "[WiFi]" LINETERM;
     ss << "enabled=" << _wifi.enabled << LINETERM;
     ss << "SSID=" << _wifi.ssid << LINETERM;
-    // TODO: Encrypt passphrase!
     ss << "passphrase=" << _wifi.passphrase << LINETERM;
+
+    // WIFI STORED
+    for (i = 0; i < MAX_WIFI_STORED; i++)
+    {
+        if (_wifi_stored[i].enabled)
+        {
+            ss << LINETERM << "[WiFiStored" << (i + 1) << "]" LINETERM;
+            ss << "SSID=" << _wifi_stored[i].ssid << LINETERM;
+            ss << "passphrase=" << _wifi_stored[i].passphrase << LINETERM;
+        }
+        else
+            break;
+    }
 
     // BLUETOOTH
     ss << LINETERM << "[Bluetooth]" LINETERM;
@@ -58,7 +73,6 @@ void fnConfig::save()
     ss << "sntpserver=" << _network.sntpserver << LINETERM;
 
     // HOSTS
-    int i;
     for (i = 0; i < MAX_HOST_SLOTS; i++)
     {
         if (_host_slots[i].type != HOSTTYPE_INVALID)
@@ -141,21 +155,22 @@ void fnConfig::save()
     ss << "enable_device_slot_6=" << _denable.device_6_enabled << LINETERM;
     ss << "enable_device_slot_7=" << _denable.device_7_enabled << LINETERM;
     ss << "enable_device_slot_8=" << _denable.device_8_enabled << LINETERM;
+    ss << "enable_apetime=" << _denable.apetime << LINETERM;
 
     // Write the results out
     FILE *fout = NULL;
     if (fnConfig::get_general_fnconfig_spifs() == true) //only if spiffs is enabled
     {
-        Debug_println("SPIFFS Config Storage: Enabled. Saving config to SPIFFS");
-        if ( !(fout = fnSPIFFS.file_open(CONFIG_FILENAME, "w")))
+        Debug_println("FLASH Config Storage: Enabled. Saving config to FLASH");
+        if ( !(fout = fsFlash.file_open(CONFIG_FILENAME, "w")))
         {
-            Debug_println("Failed to Open config on SPIFFS");
+            Debug_println("Failed to Open config on FLASH");
             return;
         }
     }
     else
     {
-        Debug_println("SPIFFS Config Storage: Disabled. Saving config to SD");
+        Debug_println("FLASH Config Storage: Disabled. Saving config to SD");
         if ( !(fout = fnSDFAT.file_open(CONFIG_FILENAME, "w")))
         {
             Debug_println("Failed to Open config on SD");
@@ -165,16 +180,16 @@ void fnConfig::save()
         std::string result = ss.str();
         size_t z = fwrite(result.c_str(), 1, result.length(), fout);
         (void)z; // Get around unused var
-        Debug_printf("fnConfig::save wrote %d bytes\n", z);
+        Debug_printf("fnConfig::save wrote %d bytes\r\n", z);
         fclose(fout);
     
     _dirty = false;
 
-    // Copy to SD if possible, only when wrote SPIFFS first 
+    // Copy to SD if possible, only when wrote FLASH first 
     if (fnSDFAT.running() && fnConfig::get_general_fnconfig_spifs() == true)
     {
         Debug_println("Attempting config copy to SD");
-        if (0 == fnSystem.copy_file(&fnSPIFFS, CONFIG_FILENAME, &fnSDFAT, CONFIG_FILENAME))
+        if (0 == fnSystem.copy_file(&fsFlash, CONFIG_FILENAME, &fnSDFAT, CONFIG_FILENAME))
         {
             Debug_println("Failed to copy config to SD");
             return;

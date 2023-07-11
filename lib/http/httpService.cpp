@@ -9,7 +9,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 #include "../device/modem.h"
 #include "printer.h"
 #include "httpServiceConfigurator.h"
@@ -201,11 +201,11 @@ void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
         {
             fread(buf, 1, sz, fInput);
             string contents(buf);
-            free(buf);
             contents = fnHttpServiceParser::parse_contents(contents);
 
             httpd_resp_sendstr_chunk(req, contents.c_str());
         }
+        free(buf);
     }
 
     if (fInput != nullptr)
@@ -247,11 +247,11 @@ void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
         {
             fread(buf, 1, sz, fInput);
             string contents(buf);
-            free(buf);
             contents = fnHttpServiceParser::parse_contents(contents);
 
             httpd_resp_send(req, contents.c_str(), contents.length());
         }
+        free(buf);
     }
 
     if (fInput != nullptr)
@@ -675,6 +675,9 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
                 strcpy(disk->filename,qp.query_parsed["filename"].c_str());
                 disk->disk_size = host->file_size(disk->fileh);
                 disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
+                #ifdef BUILD_APPLE
+                if(mode == fnConfig::mount_modes::MOUNTMODE_WRITE) {disk->disk_dev.readonly = false;}
+                #endif
                 Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
                 Config.save();
                 theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
@@ -722,7 +725,10 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     {
         fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
     }
-
+    #ifdef BUILD_APPLE
+    if(theFuji.get_disks(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted. 
+        theFuji.get_disks(ds)->disk_dev.switched = true;
+    #endif
     theFuji.get_disks(ds)->disk_dev.unmount();
 #ifdef BUILD_ATARI
     if (theFuji.get_disks(ds)->disk_type == MEDIATYPE_CAS || theFuji.get_disks(ds)->disk_type == MEDIATYPE_WAV)
@@ -812,8 +818,7 @@ esp_err_t fnHttpService::get_handler_term(httpd_req_t *req)
         }
     }
 
-    if (buf != NULL)
-        free(buf);
+    free(buf);
 
     // Now see if we need to send anything back
 
@@ -862,8 +867,7 @@ esp_err_t fnHttpService::get_handler_kybd(httpd_req_t *req)
         }
     }
 
-    if (buf != NULL)
-        free(buf);
+    free(buf);
 
     return ret;
 }
@@ -875,7 +879,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
     unsigned char hs;
     string pattern;
     string chunk;
-
+    char *free_me; //return string from url_encode which must be freed.
     parse_query(req, &qp);
 
     if (qp.query_parsed.find("hostslot") == qp.query_parsed.end())
@@ -909,8 +913,8 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DISK TO MOUNT<span id=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) + 
-        qp.query_parsed["path"] + 
+        string(theFuji.get_hosts(hs)->get_hostname()) +
+        qp.query_parsed["path"] +
         "</header>\n"
         "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
         "               <div class=\"fileline\">\n"
@@ -930,7 +934,9 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         if (!qp.query_parsed["path"].empty())
         {
             parent = qp.query_parsed["path"].substr(0, qp.query_parsed["path"].find_last_of("/"));
-            chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)parent.c_str())) + "\"><li>&#8617; Parent</li></a>";
+            free_me = url_encode((char *)parent.c_str());
+            chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(free_me) + "\"><li>&#8617; Parent</li></a>";
+            free(free_me);
         }
 
         while ((f = theFuji.get_hosts(hs)->dir_nextfile()) != nullptr)
@@ -939,28 +945,63 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
 
             if (f->isDir == true)
             {
-                chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "&parent_path=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "\">";
-                chunk += "&#128448; ";
+                free_me = url_encode((char *)qp.query_parsed["path"].c_str());
+                chunk += "<a href=\"/hsdir?hostslot=" + qp.query_parsed["hostslot"] + "&path=" + string(free_me);
+                free(free_me);
+                free_me = url_encode(f->filename);
+                chunk += "%2F" + string(free_me) + "&parent_path=";
+                free(free_me);
+                free_me = url_encode((char *)qp.query_parsed["path"].c_str());
+                chunk += string(free_me) + "\">";
+                chunk += "&#128193; "; // file folder
+                free(free_me);
             }
             else
             {
-                chunk += "<a href=\"/dslot?hostslot=" + qp.query_parsed["hostslot"] + "&filename=" + string(url_encode((char *)qp.query_parsed["path"].c_str())) + "%2F" + string(url_encode(f->filename)) + "\">";
+                free_me = url_encode((char *)qp.query_parsed["path"].c_str());
+                chunk += "<a href=\"/dslot?hostslot=" + qp.query_parsed["hostslot"] + "&filename=" + string(free_me);
+                free(free_me);
+                free_me = url_encode(f->filename);
+                chunk += "%2F" + string(free_me) + "\">";
+                free(free_me);
 
-                if ((string(f->filename).find(".atr") != string::npos) ||
+                if ( // Atari
+                    (string(f->filename).find(".atr") != string::npos) ||
                     (string(f->filename).find(".ATR") != string::npos) ||
                     (string(f->filename).find(".atx") != string::npos) ||
-                    (string(f->filename).find(".ATX") != string::npos))
+                    (string(f->filename).find(".ATX") != string::npos) ||
+                    // Apple II
+                    (string(f->filename).find(".po") != string::npos) ||
+                    (string(f->filename).find(".PO") != string::npos) ||
+                    (string(f->filename).find(".woz") != string::npos) ||
+                    (string(f->filename).find(".WOZ") != string::npos) ||
+                    (string(f->filename).find(".hdv") != string::npos) || // Hard Disk emoji not implemented
+                    (string(f->filename).find(".HDV") != string::npos) || // Hard Disk emoji not implemented
+                    // ADAM
+                    (string(f->filename).find(".dsk") != string::npos) ||
+                    (string(f->filename).find(".DSK") != string::npos) ||
+                    // Commodore
+                    (string(f->filename).find(".prg") != string::npos) ||
+                    (string(f->filename).find(".PRG") != string::npos) ||
+                    (string(f->filename).find(".d64") != string::npos) ||
+                    (string(f->filename).find(".D64") != string::npos)
+                    )
                 {
                     chunk += "&#128190; "; // floppy disk
                 }
-                else if ((string(f->filename).find(".cas") != string::npos) ||
-                         (string(f->filename).find(".CAS") != string::npos))
+                else if ( // ATARI
+                    (string(f->filename).find(".cas") != string::npos) ||
+                    (string(f->filename).find(".CAS") != string::npos) ||
+                    // ADAM
+                    (string(f->filename).find(".ddp") != string::npos) ||
+                    (string(f->filename).find(".DDP") != string::npos)
+                    )
                 {
-                    chunk += "&#128429; "; // cassette tape
+                    chunk += "&#10175; "; // cassette tape (double curly loop)
                 }
                 else
                 {
-                    chunk += "&#128462; "; // std document
+                    chunk += "&#128196; "; // std document (page facing up)
                 }
             }
 
@@ -1004,7 +1045,7 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
     queryparts qp;
     string chunk;
     unsigned char hs;
-
+    char *free_me; // return string from url_encode that must be freed.
     chunk.clear();
     parse_query(req, &qp);
 
@@ -1028,7 +1069,9 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         chunk += "<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"en\" lang=\"en\">\r\n";
         chunk += " <head>\r\n";
         chunk += "  <title>Redirecting to cassette mount</title>";
-        chunk += "  <meta http-equiv=\"refresh\" content=\"0; url=/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=7&mode=1&filename=" + string(url_encode((char *)qp.query_parsed["filename"].c_str())) + "\" />";
+        free_me = url_encode((char *)qp.query_parsed["filename"].c_str());
+        chunk += "  <meta http-equiv=\"refresh\" content=\"0; url=/mount?hostslot=" + qp.query_parsed["hostslot"] + "&deviceslot=7&mode=1&filename=" + string(free_me) + "\" />";
+        free(free_me);
         chunk += " </head>\r\n";
         chunk += " <body>\r\n";
         chunk += "  <h1>Cassette detected. Mounting in slot 8.</h1>\r\n";
@@ -1047,7 +1090,7 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DRIVE SLOT<span id=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] + 
+        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] +
         "</header>\n"
         "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
         "               <div class=\"fileline\">\n"
@@ -1139,8 +1182,9 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
             // Go handle what we just read...
             ret = fnHttpServiceConfigurator::process_config_post(buf, recv_size);
         }
-        free(buf);
     }
+
+    free(buf);
 
     if (err != fnwserr_noerrr)
     {
@@ -1259,8 +1303,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
             .user_ctx = NULL,
             .is_websocket = true,
             .handle_ws_control_frames = false,
-            .supported_subprotocol = nullptr
-        },         
+            .supported_subprotocol = nullptr},
 #endif
         {
             .uri = "/device.xml",
@@ -1289,14 +1332,14 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     }
 
     // Set filesystem where we expect to find our static files
-    state._FS = &fnSPIFFS;
+    state._FS = &fsFlash;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;
     config.max_resp_headers = 16;
     config.max_uri_handlers = 16;
     config.task_priority = 12; // Bump this higher than fnService loop
-    //config.core_id = 0; // Pin to CPU core 0
+    config.core_id = 0; // Pin to CPU core 0
     // Keep a reference to our object
     config.global_user_ctx = (void *)&state;
     // Set our own global_user_ctx free function, otherwise the library will free an object we don't want freed

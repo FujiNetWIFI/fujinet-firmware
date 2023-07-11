@@ -13,7 +13,7 @@
 # define PRINTER_CLASS rs232Printer
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 # define PRINTER_CLASS iecPrinter
@@ -37,6 +37,24 @@
 # define PRINTER_CLASS s100spiPrinter
 #endif
 
+#ifdef BUILD_RC2014
+# include "rc2014/printer.h"
+# include "rc2014/printerlist.h"
+# define PRINTER_CLASS rc2014Printer
+#endif
+
+#ifdef BUILD_H89
+# include "h89/printer.h"
+# include "h89/printerlist.h"
+# define PRINTER_CLASS H89Printer
+#endif
+
+#ifdef BUILD_COCO
+# include "drivewire/printer.h"
+# include "drivewire/printerlist.h"
+# define PRINTER_CLASS drivewirePrinter
+#endif
+
 #ifdef NEW_TARGET
 # include "new/printer.h"
 # include "new/printerlist.h"
@@ -47,6 +65,12 @@
 # include "iwm/printer.h"
 # include "iwm/printerlist.h"
 # define PRINTER_CLASS iwmPrinter
+#endif
+
+#ifdef BUILD_CX16
+#include "cx16_i2c/printer.h"
+#include "cx16_i2c/printerlist.h"
+#define PRINTER_CLASS cx16Printer
 #endif
 
 #endif // DEVICE_PRINTER_H

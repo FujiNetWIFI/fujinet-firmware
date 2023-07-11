@@ -477,6 +477,8 @@ virtualDevice *systemBus::deviceById(int device_id)
 // Give devices an opportunity to clean up before a reboot
 void systemBus::shutdown()
 {
+    shuttingDown = true;
+
     for (auto devicep : _daisyChain)
     {
         Debug_printf("Shutting down device %02x\n",devicep->id());

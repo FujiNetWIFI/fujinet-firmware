@@ -22,7 +22,7 @@
 #define SIO_MODEMCMD_SET_DUMP 0x44
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
-#define SIO_MODEMCMD_BAUDLOCK 0x4E
+#define SIO_MODEMCMD_BAUDRATELOCK 0x4E
 #define SIO_MODEMCMD_AUTOANSWER 0x4F
 #define SIO_MODEMCMD_STATUS 0x53
 #define SIO_MODEMCMD_WRITE 0x57
@@ -583,9 +583,15 @@ void modem::sio_listen()
         sio_ack();
 
     tcpServer.setMaxClients(1);
-    tcpServer.begin(listenPort);
-
-    sio_complete();
+    int res = tcpServer.begin(listenPort);
+    if (res == 0)
+    {
+        sio_error();
+    }
+    else
+    {
+        sio_complete();
+    }
 }
 
 /**
@@ -827,11 +833,20 @@ void modem::at_handle_port()
 
         listenPort = port;
         tcpServer.setMaxClients(1);
-        tcpServer.begin(listenPort);
-        if (numericResultCode == true)
-            at_cmd_resultCode(RESULT_CODE_OK);
-        else
-            at_cmd_println("OK");
+        int res = tcpServer.begin(listenPort);
+        if (res == 0)
+        {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_ERROR);
+            else
+                at_cmd_println("ERROR");
+        }
+        else {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_OK);
+            else
+                at_cmd_println("OK");
+        }
     }
 }
 
@@ -936,14 +951,14 @@ void modem::at_handle_help()
     {
         at_cmd_println(HELPPORT1, false);
         at_cmd_println(listenPort);
-        at_cmd_println(HELPPORT2);
-        at_cmd_println(HELPPORT3);
+        //at_cmd_println(HELPPORT2);
+        //at_cmd_println(HELPPORT3);
     }
     else
     {
         at_cmd_println(HELPPORT4);
     }
-    at_cmd_println();
+    //at_cmd_println();
 
     if (numericResultCode == true)
         at_cmd_resultCode(RESULT_CODE_OK);
@@ -1166,6 +1181,7 @@ void modem::at_handle_pb()
     else
     {
         std::string phnumber = cmd.substr(4);
+        // Check here if no number and skip delete? https://forums.atariage.com/topic/309560-fujinet-testing-and-bug-reporting-thread/?do=findComment&comment=5252703
         if (Config.del_pb_number(phnumber.c_str()))
         {
             if (numericResultCode == true)
@@ -1544,16 +1560,32 @@ void modem::sio_handle_modem()
             }
             else
             {
-                // Print RING every now and then while the new incoming connection exists
                 if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
                 {
-                    if (numericResultCode == true)
-                        at_cmd_resultCode(RESULT_CODE_RING);
+                    if (ringCount < RING_TIMEOUT)
+                    {
+                        // Print RING every now and then while the new incoming connection exists
+                        if (numericResultCode == true)
+                            at_cmd_resultCode(RESULT_CODE_RING);
+                        else
+                            at_cmd_println("RING");
+                        lastRingMs = fnSystem.millis();
+                        ringCount++;
+                    }
                     else
-                        at_cmd_println("RING");
-                    lastRingMs = fnSystem.millis();
+                    {
+                        // Answer and hangup since host system did not pickup
+                        fnTcpClient c = tcpServer.accept();
+                        c.write("The host system did not answer. Please try again later.\x0d\x0a\x9b");
+                        c.stop();
+                        ringCount = 0;
+                    }
                 }
             }
+        }
+        else
+        {
+            ringCount = 0; // Keep the counter reset
         }
 
         // In command mode - don't exchange with TCP but gather characters to a string
@@ -1847,7 +1879,7 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
         case SIO_MODEMCMD_UNLISTEN:
             sio_unlisten();
             break;
-        case SIO_MODEMCMD_BAUDLOCK:
+        case SIO_MODEMCMD_BAUDRATELOCK:
             sio_baudlock();
             break;
         case SIO_MODEMCMD_AUTOANSWER:

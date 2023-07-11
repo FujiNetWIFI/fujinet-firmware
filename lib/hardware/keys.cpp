@@ -1,6 +1,8 @@
 
 #include "keys.h"
 
+#include <esp32/himem.h>
+
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 
@@ -14,32 +16,65 @@
 // Global KeyManager object
 KeyManager fnKeyManager;
 
-static const int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
+static int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON_C};
 
 void KeyManager::setup()
 {
+    mButtonPin[eKey::BUTTON_C] = fnSystem.get_safe_reset_gpio();
+#ifdef PINMAP_ESP32S3
+
+    if (PIN_BUTTON_A != GPIO_NUM_NC)
+    	fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    else
+        _keys[eKey::BUTTON_A].disabled = true;
+
+    if (PIN_BUTTON_B != GPIO_NUM_NC)
+        fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    else
+        _keys[eKey::BUTTON_B].disabled = true;
+
+    if (PIN_BUTTON_C != GPIO_NUM_NC)
+        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    else
+        _keys[eKey::BUTTON_C].disabled = true;
+
+#else /* PINMAP_ESP32S3 */
+
 #ifdef NO_BUTTONS
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-#elif defined(PINMAP_A2_REV0)
+#elif defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC)
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
 #else
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NO_BUTTONS */
-#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232)
+
+#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232) && !defined(BUILD_RC2014) && !defined(BUILD_IEC)
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NOT LYNX OR A2 */
+
     // Enable safe reset on Button C if available
     if (fnSystem.get_hardware_ver() >= 2)
     {
-        has_button_c = true;
-#if defined(PINMAP_A2_REV0)
-        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+#if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC)
+        /* Check if hardware has SPI fix and thus no safe reset button (_keys[eKey::BUTTON_C].disabled = true) */
+        if (fnSystem.spifix() && fnSystem.get_safe_reset_gpio() == 14)
+        {
+            _keys[eKey::BUTTON_C].disabled = true;
+            Debug_println("Safe Reset Button C: DISABLED due to SPI Fix");
+        }
+        else
+        {
+            fnSystem.set_pin_mode(fnSystem.get_safe_reset_gpio(), gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+            Debug_printf("Safe Reset button ENABLED on GPIO %d\r\n", fnSystem.get_safe_reset_gpio());
+        }
 #else
-        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+        fnSystem.set_pin_mode(fnSystem.get_safe_reset_gpio(), gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+        Debug_printf("Safe Reset button ENABLED on GPIO %d\r\n", fnSystem.get_safe_reset_gpio());
 #endif
-        Debug_println("Enabled Safe Reset Button C");
     }
+
+#endif /* PINMAP_ESP32S3 */
 
     // Start a new task to check the status of the buttons
     #define KEYS_STACKSIZE 4096
@@ -56,10 +91,14 @@ void KeyManager::ignoreKeyPress(eKey key)
 
 bool KeyManager::keyCurrentlyPressed(eKey key)
 {
+    // Ignore disabled buttons
+    if(_keys[key].disabled)
+        return false;
+
     return fnSystem.digital_read(mButtonPin[key]) == DIGI_LOW;
 }
 
-/* 
+/*
 There are 3 types of actions we're looking for:
    * LONG_PRESS: User holds button for at least LONGPRESS_TIME
    * SHORT_PRESS: User presses button and releases in less than LONGPRESS_TIME,
@@ -73,7 +112,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
 
     // Ignore disabled buttons
     if(_keys[key].disabled)
-        return eKeyStatus::DISABLED;
+        return eKeyStatus::DISABLE;
 
     unsigned long ms = fnSystem.millis();
 
@@ -98,7 +137,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
             }
 
         }
-        
+
     }
     // Button is NOT pressed when DIGI_HIGH
     else
@@ -115,7 +154,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
                 // If the last SHORT_PRESS was within DOUBLETAP_DETECT_TIME, immediately return a DOUBLETAP event
                 if(ms - _keys[key].last_tap_ms < DOUBLETAP_DETECT_TIME)
                 {
-                    _keys[key].last_tap_ms = 0; // Reset this so we don't keep counting it                    
+                    _keys[key].last_tap_ms = 0; // Reset this so we don't keep counting it
                     result = eKeyStatus::DOUBLE_TAP;
                 }
                 // Otherwise just store when this event happened so we can check for it later
@@ -134,7 +173,7 @@ eKeyStatus KeyManager::getKeyStatus(eKey key)
                 result = eKeyStatus::SHORT_PRESS;
             }
         }
-        
+
     }
 
     return result;
@@ -199,12 +238,41 @@ void KeyManager::_keystate_task(void *param)
 
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_A: SHORT PRESS");
+#ifdef PARALLEL_BUS
+            // Reset the Commodore via Userport, GPIO 13
+            fnSystem.set_pin_mode(GPIO_NUM_13, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_UP);
+            fnSystem.digital_write(GPIO_NUM_13, DIGI_LOW);
+            fnSystem.delay(1);
+            fnSystem.digital_write(GPIO_NUM_13, DIGI_HIGH);
+            Debug_println("Sent RESET signal to Commodore");
+#endif
 
-#ifdef PINMAP_A2_REV0
-            fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
+#if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
+            if(fnSystem.ledstrip())
+            {
+                // if (fnLedStrip.rainbowTimer > 0)
+                //     fnLedStrip.stopRainbow();
+                // else
+                //     fnLedStrip.startRainbow(10);
+            }
+            else
+            {
+                fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
+            }
+            Debug_println("ACTION: Reboot");
+            //fnSystem.reboot();
+            // IEC.releaseLines();
+#ifdef BUILD_IEC
+            Debug_printf("bus_state[%d]\r\n", IEC.bus_state);
+#endif
+            Debug_printf("Heap: %lu\r\n",esp_get_free_internal_heap_size());
+            // Debug_printf("PsramSize: %u\r\n", fnSystem.get_psram_size());
+            // Debug_printf("himem phys: %u\r\n", esp_himem_get_phys_size());
+            // Debug_printf("himem free: %u\r\n", esp_himem_get_free_size());
+            // Debug_printf("himem reserved: %u\r\n", esp_himem_reserved_area_size());
 #else
             fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
-#endif
+#endif // PINMAP_A2_REV0
 
 // Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
 #ifdef BLUETOOTH_SUPPORT
@@ -269,29 +337,26 @@ void KeyManager::_keystate_task(void *param)
             break;
         } // BUTTON_B
 
-        if (pKM->has_button_c)
+        // Check on the status of the BUTTON_C and do something useful
+        switch (pKM->getKeyStatus(eKey::BUTTON_C))
         {
-            // Check on the status of the BUTTON_C and do something useful
-            switch (pKM->getKeyStatus(eKey::BUTTON_C))
-            {
-            case eKeyStatus::LONG_PRESS:
-                Debug_println("BUTTON_C: LONG PRESS");
-                break;
+        case eKeyStatus::LONG_PRESS:
+            Debug_println("BUTTON_C: LONG PRESS");
+            break;
 
-            case eKeyStatus::SHORT_PRESS:
-                Debug_println("BUTTON_C: SHORT PRESS");
-                Debug_println("ACTION: Reboot");
-                fnSystem.reboot();
-                break;
+        case eKeyStatus::SHORT_PRESS:
+            Debug_println("BUTTON_C: SHORT PRESS");
+            Debug_println("ACTION: Reboot");
+            fnSystem.reboot();
+            break;
 
-            case eKeyStatus::DOUBLE_TAP:
-                Debug_println("BUTTON_C: DOUBLE-TAP");
-                break;
+        case eKeyStatus::DOUBLE_TAP:
+            Debug_println("BUTTON_C: DOUBLE-TAP");
+            break;
 
-            default:
-                break;
-            } // BUTTON_C
-        }
+        default:
+            break;
+        } // BUTTON_C
     }
 #else
     while (1) {vTaskDelay(1000);};

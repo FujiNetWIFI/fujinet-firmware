@@ -22,6 +22,22 @@
     sioCPM sioZ;
 #endif
 
+#ifdef BUILD_COCO
+# include "drivewire/cassette.h"
+# include "drivewire/clock.h"
+# include "drivewire/disk.h"
+# include "drivewire/modem.h"
+# include "drivewire/network.h"
+# include "drivewire/printer.h"
+# include "drivewire/printerlist.h"
+# include "drivewire/cpm.h"
+# include "drivewire/fuji.h"
+
+    drivewireClock dwClock;
+    drivewireModem *sioR;
+    drivewireCPM drivewireZ;
+#endif
+
 #ifdef BUILD_RS232
 # include "rs232/apetime.h"
 # include "rs232/disk.h"
@@ -37,10 +53,14 @@
     rs232CPM sioZ;
 #endif
 
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 # include "iec/fuji.h"
+# include "iec/modem.h"
+# include "iec/network.h"
+
+    iecModem *sioR;
 #endif
 
 #ifdef BUILD_ADAM
@@ -79,7 +99,7 @@
 # include "iwm/modem.h"
 # include "iwm/printer.h"
 # include "iwm/printerlist.h"
-    appleModem *sioR;
+    iwmModem *sioR;
 #endif
 
 #ifdef BUILD_S100
@@ -105,6 +125,37 @@
     adamKeyboard *sioK;
     adamQueryDevice *sioQ;
     bool exists = false;
+#endif
+
+#ifdef BUILD_CX16
+# include "cx16_i2c/disk.h"
+# include "cx16_i2c/modem.h"
+//# include "cx16_i2c/network.h"
+# include "cx16_i2c/printer.h"
+# include "cx16_i2c/printerlist.h"
+# include "cx16_i2c/fuji.h"
+
+    cx16Modem *sioR;
+#endif
+
+#ifdef BUILD_RC2014
+# include "rc2014/disk.h"
+# include "rc2014/network.h"
+# include "rc2014/modem.h"
+# include "rc2014/printer.h"
+# include "rc2014/printerlist.h"
+# include "rc2014/fuji.h"
+    rc2014Modem *sioR;
+#endif
+
+#ifdef BUILD_H89
+# include "h89/disk.h"
+# include "h89/network.h"
+# include "h89/modem.h"
+# include "h89/printer.h"
+# include "h89/printerlist.h"
+# include "h89/fuji.h"
+    H89Modem *sioR;
 #endif
 
 #endif // DEVICE_H

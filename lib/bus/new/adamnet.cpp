@@ -11,7 +11,7 @@
 #include "led.h"
 
 
-static xQueueHandle reset_evt_queue = NULL;
+static QueueHandle_t reset_evt_queue = NULL;
 // static uint32_t reset_detect_status = 0;
 
 static void IRAM_ATTR adamnet_reset_isr_handler(void *arg)
@@ -28,7 +28,7 @@ static void adamnet_reset_intr_task(void *arg)
     bool was_reset = false;
     bool reset_debounced = false;
     uint64_t start, current, elapsed;
-    
+
 
     // reset_detect_status = gpio_get_level((gpio_num_t)PIN_ADAMNET_RESET);
     start = current = esp_timer_get_time();
@@ -39,14 +39,14 @@ static void adamnet_reset_intr_task(void *arg)
             start = esp_timer_get_time();
             printf("ADAMNet RESET Asserted\n");
             was_reset = true;
-        } 
+        }
         current = esp_timer_get_time();
 
         elapsed = current - start;
 
         if (was_reset)
         {
-            if (elapsed >= ADAMNET_RESET_DEBOUNCE_PERIOD) 
+            if (elapsed >= ADAMNET_RESET_DEBOUNCE_PERIOD)
             {
                 reset_debounced = true;
             }
@@ -74,23 +74,23 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 void virtualDevice::adamnet_send(uint8_t b)
 {
     // Write the byte
-    fnUartSIO.write(b);
-    fnUartSIO.flush();
+    fnUartBUS.write(b);
+    fnUartBUS.flush();
 }
 
 void virtualDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 {
-    fnUartSIO.write(buf, len);
+    fnUartBUS.write(buf, len);
 }
 
 uint8_t virtualDevice::adamnet_recv()
 {
     uint8_t b;
 
-    while (fnUartSIO.available() <= 0)
+    while (fnUartBUS.available() <= 0)
         fnSystem.yield();
 
-    b = fnUartSIO.read();
+    b = fnUartBUS.read();
 
     return b;
 }
@@ -103,7 +103,7 @@ bool virtualDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
     start = current = esp_timer_get_time();
     elapsed = 0;
 
-    while (fnUartSIO.available() <= 0)
+    while (fnUartBUS.available() <= 0)
     {
         current = esp_timer_get_time();
         elapsed = current - start;
@@ -111,9 +111,9 @@ bool virtualDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
             break;
     }
 
-    if (fnUartSIO.available() > 0)
+    if (fnUartBUS.available() > 0)
     {
-        *b = (uint8_t)fnUartSIO.read();
+        *b = (uint8_t)fnUartBUS.read();
         timeout = false;
     } // else
       //   Debug_printf("duration: %llu\n", elapsed);
@@ -138,7 +138,7 @@ void virtualDevice::adamnet_send_length(uint16_t l)
 
 unsigned short virtualDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    return fnUartSIO.readBytes(buf, len);
+    return fnUartBUS.readBytes(buf, len);
 }
 
 uint32_t virtualDevice::adamnet_recv_blockno()
@@ -190,12 +190,12 @@ void systemBus::wait_for_idle()
     do
     {
         // Wait for serial line to quiet down.
-        while (fnUartSIO.available() > 0)
-            fnUartSIO.read();
+        while (fnUartBUS.available() > 0)
+            fnUartBUS.read();
 
         start = current = esp_timer_get_time();
 
-        while ((fnUartSIO.available() <= 0) && (isIdle == false))
+        while ((fnUartBUS.available() <= 0) && (isIdle == false))
         {
             current = esp_timer_get_time();
             dur = current - start;
@@ -225,7 +225,7 @@ void virtualDevice::adamnet_control_status()
 void virtualDevice::adamnet_response_status()
 {
     status_response[0] |= _devnum;
-    
+
     status_response[5] = adamnet_checksum(&status_response[1],4);
     adamnet_send_buffer(status_response, sizeof(status_response));
 }
@@ -244,7 +244,7 @@ void systemBus::_adamnet_process_cmd()
 {
     uint8_t b;
 
-    b = fnUartSIO.read();
+    b = fnUartBUS.read();
 
     uint8_t d = b & 0x0F;
 
@@ -261,9 +261,9 @@ void systemBus::_adamnet_process_cmd()
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
     }
-    
+
     wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
-    fnUartSIO.flush();
+    fnUartBUS.flush();
 }
 
 void systemBus::_adamnet_process_queue()
@@ -273,7 +273,7 @@ void systemBus::_adamnet_process_queue()
 void systemBus::service()
 {
     // Process anything waiting.
-    if (fnUartSIO.available() > 0)
+    if (fnUartBUS.available() > 0)
         _adamnet_process_cmd();
 }
 
@@ -291,7 +291,7 @@ void systemBus::setup()
     gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
 
     // Set up UART
-    fnUartSIO.begin(ADAMNET_BAUD);
+    fnUartBUS.begin(ADAMNET_BAUDRATE);
 }
 
 void systemBus::shutdown()

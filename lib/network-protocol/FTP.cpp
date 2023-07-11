@@ -16,7 +16,7 @@
 NetworkProtocolFTP::NetworkProtocolFTP(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
-    Debug_printf("NetworkProtocolFTP::ctor\n");
+    Debug_printf("NetworkProtocolFTP::ctor\r\n");
     rename_implemented = true;
     delete_implemented = true;
     mkdir_implemented = true;
@@ -26,7 +26,7 @@ NetworkProtocolFTP::NetworkProtocolFTP(string *rx_buf, string *tx_buf, string *s
 
 NetworkProtocolFTP::~NetworkProtocolFTP()
 {
-    Debug_printf("NetworkProtocolFTP::dtor\n");
+    Debug_printf("NetworkProtocolFTP::dtor\r\n");
     delete ftp;
 }
 

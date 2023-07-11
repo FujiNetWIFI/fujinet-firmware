@@ -15,27 +15,27 @@
 #define HELPL02 "======================================="
 #define HELPL03 ""
 #define HELPL04 "ATWIFILIST        | List avail networks"
-#define HELPL05 "ATWIFICONNECT<ssid>,<key>"
-#define HELPL06 "                  | Connect to WiFi net"
+#define HELPL05 "ATWIFICONNECT<ssid>,<key>   Set up WiFi"
+#define HELPL06 "ATH               | Hangup"
 #define HELPL07 "ATDT<host>:<port> | Connect by TCP"
 #define HELPL08 "ATIP              | See my IP address"
 #define HELPL09 "ATNET<0|1>        | Dis/enable TELNET"
 #define HELPL10 "                  | command handling"
 #define HELPL11 "ATPORT<port>      | Set listening port"
-#define HELPL12 "ATS0=<0|1>        | Auto-answer in-"
-#define HELPL13 "                  | coming connections"
+#define HELPL12 "ATE<0|1>          | Echo OFF/ON"
+#define HELPL13 "AT                | Returns OK"
 #define HELPL14 "ATGET<URL>        | HTTP GET"
 #define HELPL15 "AT+TERM=<termtype>| Set telnet term"
 #define HELPL16 "                  | type (DUMB, VT52,"
 #define HELPL17 "                  | VT100, ANSI)"
-#define HELPL18 "AT[UN]SNIFF       | Dis/enable sniffing"
-#define HELPL19 "ATTERMVT52        | Set TERM to VT52"
-#define HELPL20 "ATTERMVT100       | Set TERM to VT100"
-#define HELPL21 "ATTERMDUMB        | Set TERM to DUMB"
+#define HELPL18 "AT[+or-]SNIFF     | Dis/enable sniffer"
+#define HELPL19 "ATA               | Answer/ANSWER Mode"
+#define HELPL20 "ATO               | Answer/Originate"
+#define HELPL21 "ATS0=<0|1>        | AutoAnswer on/off"
 #define HELPL22 "ATTERMANSI        | Set TERM to ANSI"
 #define HELPL23 "ATCPM             | Go into CP/M"
-#define HELPL24 "ATPHONEBOOKLIST   | List Phonebook"
-#define HELPL25 "ATPHONEBOOKCLR    | Clear Phonebook"
+#define HELPL24 "ATPBLIST          | List Phonebook"
+#define HELPL25 "ATPBCLEAR         | Clear Phonebook"
 #define HELPL26 "ATPB<num>=<host>  | Add to Phonebook"
 
 /* Not explicitly mentioned at this time, since they are commonly known:
@@ -67,6 +67,7 @@
 #define TX_BUF_SIZE 256    // Buffer where to read from serial before writing to TCP (that direction is very blocking by the ESP TCP stack, so we can't do one byte a time.)
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
+#define RING_TIMEOUT 10 // How many times to allow rings before "hanging up"
 
 class modem : public virtualDevice
 {
@@ -179,6 +180,7 @@ private:
     long answerTimer;
     bool answered=false;
     UARTManager* uart;              // UART manager to use.
+    int ringCount;                  // Keep track of how many incoming RINGs
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
     void sio_poll_1();                           // $3F, '?', Type 1 Poll
@@ -194,7 +196,7 @@ private:
     void sio_write();                            // $57, 'W', Write
     void sio_stream();                           // $58, 'X', Concurrent/Stream
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
-    
+
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command

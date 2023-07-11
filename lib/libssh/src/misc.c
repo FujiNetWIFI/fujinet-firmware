@@ -434,7 +434,7 @@ void ssh_print_hexa(const char *descr, const unsigned char *what, size_t len) {
     if (hexa == NULL) {
       return;
     }
-    fprintf(stderr, "%s: %s\n", descr, hexa);
+    fprintf(stderr, "%s: %s\r\n", descr, hexa);
 
     free(hexa);
 }
@@ -640,12 +640,12 @@ error:
  *
  * @code
  *  if (ssh_version(SSH_VERSION_INT(0,2,1)) == NULL) {
- *    fprintf(stderr, "libssh version is too old!\n");
+ *    fprintf(stderr, "libssh version is too old!\r\n");
  *    exit(1);
  *  }
  *
  *  if (debug) {
- *    printf("libssh %s\n", ssh_version(0));
+ *    printf("libssh %s\r\n", ssh_version(0));
  *  }
  * @endcode
  */
@@ -1395,7 +1395,7 @@ int ssh_timeout_elapsed(struct ssh_timestamp *ts, int timeout) {
                   */
             SSH_LOG(SSH_LOG_WARN, "ssh_timeout_elapsed called with -2. this needs to "
                             "be fixed. please set a breakpoint on misc.c:%d and "
-                            "fix the caller\n", __LINE__);
+                            "fix the caller\r\n", __LINE__);
             return 0;
         case -1: /* -1 means infinite timeout */
             return 0;
@@ -1695,7 +1695,7 @@ error:
 /**
  * @internal
  *
- * @brief Given a string, encode existing newlines as the string "\\n"
+ * @brief Given a string, encode existing newlines as the string "\\r\n"
  *
  * @param[in]  string   Input string
  * @param[out] buf      Output buffer. This buffer must be at least (2 *

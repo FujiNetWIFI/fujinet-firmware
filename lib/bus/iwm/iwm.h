@@ -37,6 +37,7 @@
 #define STATCODE_WRITE_PROTECT 0x01 << 2  // block devices only
 #define STATCODE_INTERRUPTING 0x01 << 1   // apple IIc only
 #define STATCODE_DEVICE_OPEN 0x01 << 0    // char devices only
+#define STATCODE_DISK_SWITCHED 0x01 << 0 // disk switched status for block devices, same bit as device open for char devices
 
 // valid types and subtypes for block devices per smartport documentation
 #define SP_TYPE_BYTE_35DISK 0x01
@@ -58,12 +59,14 @@
 #define SP_TYPE_BYTE_FUJINET_CPM 0x12
 #define SP_TYPE_BYTE_FUJINET_CLOCK 0x13
 #define SP_TYPE_BYTE_FUJINET_PRINTER 0x14
+#define SP_TYPE_BYTE_FUJINET_MODEM 0x15
 
 #define SP_SUBTYPE_BYTE_FUJINET 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_NETWORK 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_CPM 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_CLOCK 0x00
 #define SP_SUBTYPE_BYTE_FUJINET_PRINTER 0x00
+#define SP_SUBTYPE_BYTE_FUJINET_MODEM 0x00
 
 #define IWM_CTRL_RESET 0x00
 #define IWM_CTRL_SET_DCB 0x01
@@ -111,7 +114,7 @@ union cmdFrame_t
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
-#define MAX_PACKET_LEN         891
+#define MAX_SP_PACKET_LEN         891
 // to do - make block packet compatible up to 767 data bytes?
 
 union cmdPacket_t
@@ -205,6 +208,13 @@ enum class iwm_fujinet_type_t
   Other
 };
 
+enum class iwm_enable_state_t
+{
+  off,
+  off2on,
+  on,
+  on2off
+};
 
 struct iwm_device_info_block_t
 {
@@ -232,14 +242,6 @@ protected:
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
-  // all this encoding/decoding should go to low level
-  // however, need to change robj's code to NOT decode/encode packet *in place* using packet_buffer[].
-  // so need an encoded packet buffer in the low level and a packet_data[] or whatever in the high level.
-  // the command packet might be an exception
-  // iwm packet handling
-  static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
-  static int data_len; // how many bytes in the data buffer
-
    // void send_data_packet(); //encode smartport 512 byte data packet
   // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
   void send_init_reply_packet(uint8_t source, uint8_t status);
@@ -258,6 +260,7 @@ protected:
   virtual void iwm_status(iwm_decoded_cmd_t cmd);
   virtual void iwm_readblock(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_writeblock(iwm_decoded_cmd_t cmd) {};
+  // virtual void iwm_handle_eject(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_format(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_ctrl(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_open(iwm_decoded_cmd_t cmd) {};
@@ -273,8 +276,15 @@ protected:
   void iwm_return_ioerror();
   void iwm_return_noerror();
 
+  // iwm packet handling
+  static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
+  static int data_len; // how many bytes in the data buffer
+
 public:
   bool device_active;
+  uint8_t prevtype = SP_TYPE_BYTE_HARDDISK; //preserve previous device type when offline
+  bool switched = false; //indicate disk switched condition
+  bool readonly = true;  //write protected 
   bool is_config_device;
   /**
    * @brief get the IWM device Number (1-255)
@@ -285,7 +295,7 @@ public:
   //void assign_id(uint8_t n) { _devnum = n; };
 
   void assign_name(std::string name) {dib.device_name = name;}
-
+  
   /**
    * @brief Get the iwmBus object that this iwmDevice is attached to.
    */
@@ -322,25 +332,28 @@ private:
   iwm_phases_t oldphase;
 #endif
 
-  bool iwm_drive_enables();
+  iwm_enable_state_t iwm_drive_enabled();
+  iwm_enable_state_t _old_enable_state;
+  iwm_enable_state_t _new_enable_state;
+  // uint8_t enable_values;
 
   void iwm_ack_deassert();
   void iwm_ack_assert();
   bool iwm_req_deassert_timeout(int t) { return smartport.req_wait_for_falling_timeout(t); };
   bool iwm_req_assert_timeout(int t) { return smartport.req_wait_for_rising_timeout(t); };
 
-
-  bool verify_cmdpkt_checksum(void);
   iwm_decoded_cmd_t command;
 
   void handle_init(); 
+
+  int old_track = -1;
+  int new_track;
 
 public:
   std::forward_list<iwmDevice *> _daisyChain;
   
   cmdPacket_t command_packet;
-  bool inCriticalSection = false;
-  bool iwm_read_packet_timeout(int tout, uint8_t *a, int &n);
+  bool iwm_decode_data_packet(uint8_t *a, int &n);
    int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
  
   // these things stay for the most part
@@ -353,9 +366,15 @@ public:
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
   iwmDevice *firstDev() {return _daisyChain.front();}
+  uint8_t* devBuffer() {return (uint8_t *)iwmDevice::data_buffer;}
   void enableDevice(uint8_t device_id);
   void disableDevice(uint8_t device_id);
   void changeDeviceId(iwmDevice *p, int device_id);
+  iwmPrinter *getPrinter() { return _printerdev; }
+  bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+  bool getShuttingDown() { return shuttingDown; };
+  bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
+  
 };
 
 extern iwmBus IWM;

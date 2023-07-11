@@ -29,11 +29,17 @@ public:
     bool rename(const char* pathFrom, const char* pathTo) override;
 
     bool is_dir(const char *path);
+    bool mkdir(const char* path) override { return true; };
+    bool rmdir(const char* path) override { return true; };
+    bool dir_exists(const char* path) override { return true; };
+
     bool dir_open(const char * path, const char *pattern, uint16_t diropts) override;
     fsdir_entry *dir_read() override;
-    void dir_close();
+    void dir_close() override;
     uint16_t dir_tell() override;
     bool dir_seek(uint16_t) override;
 };
+
+extern FileSystemTNFS fnTNFS;
 
 #endif // _FN_FSTNFS_

@@ -19,6 +19,7 @@
 enum fsType
 {
     FSTYPE_SPIFFS = 0,
+    FSTYPE_LITTLEFS,
     FSTYPE_SDFAT,
     FSTYPE_TNFS,
     FSTYPE_COUNT
@@ -48,7 +49,7 @@ protected:
 public:
     virtual ~FileSystem() {};
 
-    // The global (fnSDFAT and fnSPIFFS) will return true so we can check before attempting to free/delete
+    // The global (fnSDFAT and fsFlash) will return true so we can check before attempting to free/delete
     virtual bool is_global() { return false; };
 
     virtual bool running() { return _started; };
@@ -74,8 +75,12 @@ public:
 
     virtual bool rename(const char* pathFrom, const char* pathTo) = 0;
 
-    // By default, a directory should be sorted and special/hidden items should be filtered out
     virtual bool is_dir(const char *path) = 0;
+    virtual bool mkdir(const char* path) = 0;
+    virtual bool rmdir(const char* path) = 0;
+    virtual bool dir_exists(const char* path) = 0;
+
+    // By default, a directory should be sorted and special/hidden items should be filtered out
     virtual bool dir_open(const char *path, const char *pattern, uint16_t diroptions) = 0;
     virtual fsdir_entry_t *dir_read() = 0;
     virtual void dir_close() = 0;

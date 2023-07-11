@@ -5,17 +5,20 @@
 
 #include "../../include/debug.h"
 #include "bus.h"
+#include "iwm/disk2.h"
 #include "iwm/network.h"
 #include "iwm/printer.h"
 #include "iwm/cpm.h"
 #include "iwm/clock.h"
+#include "iwm/modem.h"
 
-#include "fujiHost.h"
-#include "fujiDisk.h"
-#include "fujiCmd.h"
+#include "../fuji/fujiHost.h"
+#include "../fuji/fujiDisk.h"
+#include "../fuji/fujiCmd.h"
 
 #define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 4 // to do for now
+#define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices
+#define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
 #define MAX_NETWORK_DEVICES 4
 
 #define MAX_SSID_LEN 32
@@ -126,8 +129,8 @@ protected:
     void iwm_ctrl_disk_image_umount();      // 0xE9
     void iwm_stat_get_adapter_config();     // 0xE8
     void iwm_ctrl_new_disk();               // 0xE7
-  /*  void adamnet_unmount_host();           // 0xE6
- */
+    void iwm_ctrl_unmount_host();           // 0xE6
+ 
    void iwm_stat_get_directory_position(); // 0xE5
    void iwm_ctrl_set_directory_position(); // 0xE4
 /*
@@ -155,6 +158,7 @@ protected:
     void iwm_ctrl_set_boot_mode();              // 0xD6
     void iwm_ctrl_enable_device();          // 0xD5
     void iwm_ctrl_disable_device();         // 0xD4
+    void send_stat_get_enable();        // 0xD1
 
     void shutdown() override;
     void process(iwm_decoded_cmd_t cmd) override;
@@ -186,10 +190,12 @@ public:
 
     void image_rotate();
     int get_disk_id(int drive_slot);
+    void handle_ctl_eject(uint8_t spid);
     std::string get_host_prefix(int host_slot);
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    iwmDisk2 _fnDisk2s[MAX_DISK2_DEVICES];
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();
@@ -201,7 +207,7 @@ public:
 
     iwmFuji();
 
-    // virtual void startup_hack() override { Debug_printf("\r\n Fuji startup hack"); }
+    // virtual void startup_hack() override { Debug_printf("\n Fuji startup hack"); }
 };
 
 extern iwmFuji theFuji;

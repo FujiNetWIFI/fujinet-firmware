@@ -11,7 +11,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 #include "fnWiFi.h"
 
 #include "led.h"
@@ -1378,11 +1378,11 @@ void rs232Fuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_atr);
+        fBoot = fsFlash.file_open(config_atr);
         _bootDisk.mount(fBoot, config_atr, 0);
         break;
     case 1:
-        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        fBoot = fsFlash.file_open(mount_all_atr);
         _bootDisk.mount(fBoot, mount_all_atr, 0);
         break;
     }
@@ -1623,4 +1623,4 @@ std::string rs232Fuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */

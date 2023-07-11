@@ -8,7 +8,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 #include "httpService.h"
 #include "fuji.h"
 
@@ -45,7 +45,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HEAPSIZE,
         FN_SYSSDK,
         FN_SYSCPUREV,
-        FN_SIOVOLTS,
+        FN_BUSVOLTS,
         FN_SIO_HSINDEX,
         FN_SIO_HSBAUD,
         FN_PRINTER1_MODEL,
@@ -103,6 +103,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HARDWARE_VER,
         FN_PRINTER_LIST,
         FN_UUID,
+        FN_ENCRYPT_PASSPHRASE_ENABLED,
+        FN_APETIME_ENABLED,
         FN_LASTTAG
     };
 
@@ -131,7 +133,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HEAPSIZE",
         "FN_SYSSDK",
         "FN_SYSCPUREV",
-        "FN_SIOVOLTS",
+        "FN_BUSVOLTS",
         "FN_SIO_HSINDEX",
         "FN_SIO_HSBAUD",
         "FN_PRINTER1_MODEL",
@@ -189,6 +191,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HARDWARE_VER",
         "FN_PRINTER_LIST",
         "FN_UUID"
+        "FN_ENCRYPT_PASSPHRASE_ENABLED",
+        "FN_APETIME_ENABLED"
     };
 
     stringstream resultstream;
@@ -246,10 +250,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << fnWiFi.get_current_detail_str();
         break;
     case FN_SPIFFS_SIZE:
-        resultstream << fnSPIFFS.total_bytes();
+        resultstream << fsFlash.total_bytes();
         break;
     case FN_SPIFFS_USED:
-        resultstream << fnSPIFFS.used_bytes();
+        resultstream << fsFlash.used_bytes();
         break;
     case FN_SD_SIZE:
         resultstream << fnSDFAT.total_bytes();
@@ -269,6 +273,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_TIMEZONE:
         resultstream << Config.get_general_timezone();
         break;
+#ifdef BUILD_ATARI
+    case FN_APETIME_ENABLED:
+        resultstream << Config.get_apetime_enabled();
+        break;
+#endif /* BUILD_ATARI */
+
     case FN_ROTATION_SOUNDS:
         resultstream << Config.get_general_rotation_sounds();
         break;
@@ -287,7 +297,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_SYSCPUREV:
         resultstream << fnSystem.get_cpu_rev();
         break;
-    case FN_SIOVOLTS:
+    case FN_BUSVOLTS:
         resultstream << ((float)fnSystem.get_sio_voltage()) / 1000.00 << "V";
         break;
 #ifdef BUILD_ATARI
@@ -478,6 +488,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
             } else
                 resultstream << "Insufficent memory";
         }
+        break;
+    case FN_ENCRYPT_PASSPHRASE_ENABLED:
+        resultstream << Config.get_general_encrypt_passphrase();
         break;
     default:
         resultstream << tag;

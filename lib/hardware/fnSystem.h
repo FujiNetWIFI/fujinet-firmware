@@ -24,6 +24,10 @@ private:
     char _uptime_string[18];
     char _currenttime_string[40];
     int _hardware_version = 0; // unknown
+    bool a2spifix = false;
+    bool a2no3state = false;
+    bool ledstrip_found = false;
+    gpio_num_t safe_reset_gpio = GPIO_NUM_14; // Default 14 for most boards, can be changed in fnSystem during hardware checks
 
 public:
     SystemManager();
@@ -122,6 +126,11 @@ public:
     void check_hardware_ver();
     int get_hardware_ver() { return _hardware_version; };
     const char *get_hardware_ver_str();
+
+    bool spifix() { return a2spifix; };
+    bool no3state() { return a2no3state; };
+    bool ledstrip() { return ledstrip_found; };
+    gpio_num_t get_safe_reset_gpio() { return safe_reset_gpio; };
 };
 
 extern SystemManager fnSystem;

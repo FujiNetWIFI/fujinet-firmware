@@ -1,5 +1,6 @@
 #ifndef _FN_FSSPIFFS_
 #define _FN_FSSPIFFS_
+#ifdef FLASH_SPIFFS
 
 #include <dirent.h>
 
@@ -27,7 +28,11 @@ public:
 
     bool rename(const char* pathFrom, const char* pathTo) override;
 
-    bool is_dir(const char *path);
+    bool is_dir(const char *path) override;
+    bool mkdir(const char* path) override { return true; };
+    bool rmdir(const char* path) override { return true; };
+    bool dir_exists(const char* path) override { return true; };
+
     bool dir_open(const char * path, const char *pattern, uint16_t diropts) override;
     fsdir_entry *dir_read() override;
     void dir_close() override;
@@ -38,6 +43,7 @@ public:
     uint64_t used_bytes();
 };
 
-extern FileSystemSPIFFS fnSPIFFS;
+extern FileSystemSPIFFS fsFlash;
 
+#endif // FLASH_SPIFFS
 #endif // _FN_FSSPIFFS_

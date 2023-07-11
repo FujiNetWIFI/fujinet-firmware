@@ -10,21 +10,22 @@
 
 #include "samlib.h"
 
-
 using namespace std;
 
 // convert to lowercase (in place)
 void util_string_tolower(std::string &s)
 {
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return std::tolower(c); });
+                   [](unsigned char c)
+                   { return std::tolower(c); });
 }
 
 // convert to uppercase (in place)
 void util_string_toupper(std::string &s)
 {
     std::transform(s.begin(), s.end(), s.begin(),
-                   [](unsigned char c) { return std::toupper(c); });
+                   [](unsigned char c)
+                   { return std::toupper(c); });
 }
 
 // trim from start (in place)
@@ -32,14 +33,18 @@ void util_string_ltrim(std::string &s)
 {
     s.erase(
         s.begin(),
-        std::find_if(s.begin(), s.end(), [](int ch) { return !std::isspace(ch); }));
+        std::find_if(s.begin(), s.end(), [](int ch)
+                     { return !std::isspace(ch); }));
 }
 
 // trim from end (in place)
 void util_string_rtrim(std::string &s)
 {
     s.erase(
-        std::find_if(s.rbegin(), s.rend(), [](int ch) { return !std::isspace(ch); }).base(), s.end());
+        std::find_if(s.rbegin(), s.rend(), [](int ch)
+                     { return !std::isspace(ch); })
+            .base(),
+        s.end());
 }
 
 // trim from both ends (in place)
@@ -141,7 +146,7 @@ std::string util_crunch(std::string filename)
     std::string ext;
     size_t base_pos = 8;
     size_t ext_pos;
-    std::string chars="0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.";
+    std::string chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.";
     unsigned char cksum;
     char cksum_txt[3];
 
@@ -149,9 +154,9 @@ std::string util_crunch(std::string filename)
     filename.erase(remove(filename.begin(), filename.end(), ' '), filename.end());
 
     // remove unwanted characters
-    filename.erase(remove_if(filename.begin(),filename.end(),[&chars](const char& c) {
-        return chars.find(c) == string::npos;
-    }),filename.end());
+    filename.erase(remove_if(filename.begin(), filename.end(), [&chars](const char &c)
+                             { return chars.find(c) == string::npos; }),
+                   filename.end());
 
     ext_pos = filename.find_last_of(".");
 
@@ -175,18 +180,16 @@ std::string util_crunch(std::string filename)
     basename = basename_long.substr(0, base_pos);
 
     // Convert to uppercase
-    std::for_each(basename.begin(), basename.end(), [](char &c) {
-        c = ::toupper(c);
-    });
+    std::for_each(basename.begin(), basename.end(), [](char &c)
+                  { c = ::toupper(c); });
 
     if (ext_pos != std::string::npos)
     {
         ext = "." + filename.substr(ext_pos + 1);
     }
 
-    std::for_each(ext.begin(), ext.end(), [](char &c) {
-        c = ::toupper(c);
-    });
+    std::for_each(ext.begin(), ext.end(), [](char &c)
+                  { c = ::toupper(c); });
 
     if (basename_long.length() > 8)
     {
@@ -217,7 +220,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
     if (is_dir == true)
     {
         returned_entry.replace(10, 3, "DIR");
-        returned_entry.replace (0,1,"/");
+        returned_entry.replace(0, 1, "/");
     }
 
     returned_entry.replace(2, (basename.size() < 8 ? basename.size() : 8), basename);
@@ -272,6 +275,49 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 
     returned_entry.replace(returned_entry.length() - stylized_filesize.length() - 1, stylized_filesize.length(), stylized_filesize);
 
+    return returned_entry;
+}
+
+const char *apple2_folder_icon(bool is_folder)
+{
+    if (is_folder)
+        return "\xD8\xD9";
+    else
+        return "  ";
+}
+
+char apple2_fn[73];
+
+const char *apple2_filename(std::string filename)
+{
+    util_ellipsize(filename.c_str(), apple2_fn, 68);
+    return apple2_fn;
+}
+
+char apple2_fs[6];
+
+const char *apple2_filesize(size_t fileSize)
+{
+    unsigned short fs = fileSize / 512;
+    itoa(fs, apple2_fs, 10);
+    return apple2_fs;
+}
+
+char tmp[81];
+
+std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, bool is_dir)
+{
+    std::string returned_entry;
+    std::string stylized_filesize;
+
+    memset(tmp, 0, sizeof(tmp));
+
+    sprintf(tmp, "%s %-70s %5s",
+            apple2_folder_icon(is_dir),
+            apple2_filename(filename),
+            apple2_filesize(fileSize));
+
+    returned_entry = string(tmp, 80);
     return returned_entry;
 }
 
@@ -422,7 +468,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
     // Make sure we have room left after copying the parent
     if (plen >= dest_size - 3) // Allow for a minimum of a slash, one char, and NULL
     {
-        Debug_printf("_concat_paths parent takes up entire destination buffer: \"%s\"\n", parent);
+        Debug_printf("_concat_paths parent takes up entire destination buffer: \"%s\"\r\n", parent);
         return false;
     }
 
@@ -444,7 +490,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
         // Verify we were able to copy the whole thing
         if (clen != strlen(child))
         {
-            Debug_printf("_concat_paths parent + child larger than dest buffer: \"%s\", \"%s\"\n", parent, child);
+            Debug_printf("_concat_paths parent + child larger than dest buffer: \"%s\", \"%s\"\r\n", parent, child);
             return false;
         }
     }
@@ -452,7 +498,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
     return true;
 }
 
-void util_dump_bytes(uint8_t *buff, uint32_t buff_size)
+void util_dump_bytes(const uint8_t *buff, uint32_t buff_size)
 {
     int bytes_per_line = 16;
     for (int j = 0; j < buff_size; j += bytes_per_line)
@@ -470,9 +516,23 @@ vector<string> util_tokenize(string s, char c)
     stringstream ss(s);
     string token;
 
-    while (getline(ss, token, ' '))
+    while (getline(ss, token, c))
     {
         tokens.push_back(token);
+    }
+
+    return tokens;
+}
+
+vector<uint8_t> util_tokenize_uint8(string s, char c)
+{
+    vector<uint8_t> tokens;
+    stringstream ss(s);
+    string token;
+
+    while (getline(ss, token, c))
+    {
+        tokens.push_back( atoi(token.c_str()) );
     }
 
     return tokens;
@@ -495,21 +555,54 @@ void util_strip_nonascii(string &s)
     }
 }
 
-void util_clean_devicespec(uint8_t *buf, unsigned short len)
+void util_devicespec_fix_9b(uint8_t *buf, unsigned short len)
 {
     for (int i = 0; i < len; i++)
         if (buf[i] == 0x9b)
             buf[i] = 0x00;
 }
 
+// Non-mutating
+std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string prefix, bool is_directory_read, bool process_fs_dot)
+{
+    string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
+    // if prefix is empty, the concatenation is still valid
+    deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
+
+    Debug_printf("util_devicespec_fix_for_parsing(%s, %s, %s, %s)\n", deviceSpec.c_str(), prefix.c_str(), is_directory_read ? "true" : "false", process_fs_dot ? "true" : "false");
+
+    util_strip_nonascii(deviceSpec);
+
+    if (!is_directory_read) // Anything but a directory read...
+    {
+        replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
+    }
+
+    // Some FMSes add a dot at the end, remove it if required to. Only seems to be SIO that uses this code, but we'll control its use through a default parameter
+    if (process_fs_dot && deviceSpec.substr(deviceSpec.length() - 1) == ".")
+    {
+        deviceSpec.erase(deviceSpec.length() - 1, string::npos);
+    }
+
+    // Remove any spurious spaces
+    deviceSpec = util_remove_spaces(deviceSpec);
+
+    return deviceSpec;
+}
+
 bool util_string_value_is_true(const char *value)
 {
-    if (value != nullptr)
+    switch (value ? value[0] : '\0')
     {
-        if (value[0] == '1' || value[0] == 'T' || value[0] == 't' || value[0] == 'Y' || value[0] == 'y')
+        case '1':
+        case 'T':
+        case 't':
+        case 'Y':
+        case 'y':
             return true;
+        default:
+            return false;
     }
-    return false;
 }
 
 bool util_string_value_is_true(std::string value)
@@ -519,7 +612,7 @@ bool util_string_value_is_true(std::string value)
 
 #ifdef BUILD_ATARI
 /**
- * Ask SAM to say something. see https://github.com/FujiNetWIFI/fujinet-platformio/wiki/Using-SAM-%28Voice-Synthesizer%29 
+ * Ask SAM to say something. see https://github.com/FujiNetWIFI/fujinet-platformio/wiki/Using-SAM-%28Voice-Synthesizer%29
  * @param p The phrase to say.
  * @param phonetic true = enable phonetic mode.
  * @param sing true = enable singing mode.
@@ -642,13 +735,13 @@ std::string util_get_canonical_path(std::string prefix)
 
     // stack to store the file's names.
     std::stack<string> st;
- 
+
     // temporary string which stores the extracted
     // directory name or commands("." / "..")
     // Eg. "/a/b/../."
     // dir will contain "a", "b", "..", ".";
     std::string dir;
- 
+
     // contains resultant simplifies string.
     std::string res;
 
@@ -661,22 +754,22 @@ std::string util_get_canonical_path(std::string prefix)
         proto_host_len = prefix.find("/", proto_host_len) + 1;
     }
 
-    res.append (prefix.substr(0, proto_host_len));
- 
+    res.append(prefix.substr(0, proto_host_len));
+
     int len_prefix = prefix.length();
 
-    //for (int i = proto_host_len-1; i < len_prefix; i++) 
-    for (int i = proto_host_len; i < len_prefix; i++) 
+    // for (int i = proto_host_len-1; i < len_prefix; i++)
+    for (int i = proto_host_len; i < len_prefix; i++)
     {
         // we will clear the temporary string
         // every time to accommodate new directory
         // name or command.
         dir.clear();
- 
+
         // skip all the multiple '/' Eg. "/////""
         while (prefix[i] == '/')
             i++;
- 
+
         // stores directory's name("a", "b" etc.)
         // or commands("."/"..") into dir
         while (i < len_prefix && prefix[i] != '/')
@@ -684,54 +777,88 @@ std::string util_get_canonical_path(std::string prefix)
             dir.push_back(prefix[i]);
             i++;
         }
- 
+
         // if dir has ".." just pop the topmost
         // element if the stack is not empty
         // otherwise ignore.
         if (dir.compare("..") == 0)
         {
             if (!st.empty())
-                st.pop();           
+                st.pop();
         }
- 
+
         // if dir has "." then simply continue
         // with the process.
         else if (dir.compare(".") == 0)
             continue;
-         
+
         // pushes if it encounters directory's
         // name("a", "b").
         else if (dir.length() != 0)
-            st.push(dir);       
+            st.push(dir);
     }
- 
+
     // a temporary stack  (st1) which will contain
     // the reverse of original stack(st).
     std::stack<string> st1;
-    while (!st.empty()) 
+    while (!st.empty())
     {
         st1.push(st.top());
         st.pop();
     }
- 
+
     // the st1 will contain the actual res.
-    while (!st1.empty()) 
+    while (!st1.empty())
     {
         std::string temp = st1.top();
-         
+
         // if it's the last element no need
         // to append "/"
         if (st1.size() != 1)
             res.append(temp + "/");
         else
             res.append(temp);
- 
+
         st1.pop();
     }
 
     // kludge
-    if (res[res.length()-1] != '/')
-        res.append("/"); 
- 
+    if (res[res.length() - 1] != '/')
+        res.append("/");
+
     return res;
+}
+
+char util_petscii_to_ascii(char c)
+{
+    if ((c > 0x40) && (c < 0x5B))
+        c += 0x20;
+    else if ((c > 0x60) && (c < 0x7B))
+        c -= 0x20;
+
+    return c;
+}
+
+char util_ascii_to_petscii(char c)
+{
+    if ((c > 0x40) && (c < 0x5B))
+        c -= 0x20;
+    else if ((c > 0x60) && (c < 0x7B))
+        c += 0x20;
+
+    return c;
+}
+
+void util_petscii_to_ascii_str(std::string &s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c)
+                   { return util_petscii_to_ascii(c); });
+}
+
+void util_ascii_to_petscii_str(std::string &s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c)
+                   { return util_ascii_to_petscii(c); });
 }

@@ -11,7 +11,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 
 #include "utils.h"
 
@@ -255,6 +255,24 @@ void adamFuji::adamnet_mount_host()
     adamnet_response_ack();
 }
 
+void adamFuji::adamnet_unmount_host()
+{
+    Debug_println("Fuji cmd: UNMOUNT HOST");
+
+    unsigned char hostSlot = adamnet_recv();
+
+    adamnet_recv(); // get ck
+
+    if (hostMounted[hostSlot] == true)
+    {
+        _fnHosts[hostSlot].umount();
+        hostMounted[hostSlot] = false;
+    }
+
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+}
+
 // Disk Image Mount
 void adamFuji::adamnet_disk_image_mount()
 {
@@ -340,8 +358,8 @@ void adamFuji::adamnet_copy_file()
     ck = adamnet_recv();
 
     AdamNet.wait_for_idle();
-    fnUartSIO.write(0x9f); // ACK.
-    fnUartSIO.flush();
+    fnUartBUS.write(0x9f); // ACK.
+    fnUartBUS.flush();
 
     dataBuf = (char *)malloc(COPY_SIZE);
 
@@ -1074,12 +1092,12 @@ void adamFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_atr);
+        fBoot = fsFlash.file_open(config_atr);
         _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);
         break;
     case 1:
 
-        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        fBoot = fsFlash.file_open(mount_all_atr);
         _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);
         break;
     }
@@ -1186,13 +1204,13 @@ void adamFuji::setup(systemBus *siobus)
     Debug_printf("Config General Boot Mode: %u\n", Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
-        FILE *f = fnSPIFFS.file_open("/autorun.ddp");
+        FILE *f = fsFlash.file_open("/autorun.ddp");
         _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
         _fnDisks[0].disk_dev.is_config_device = true;
     }
     else
     {
-        FILE *f = fnSPIFFS.file_open("/mount-and-boot.ddp");
+        FILE *f = fsFlash.file_open("/mount-and-boot.ddp");
         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, MEDIATYPE_DDP);
     }
 
@@ -1365,6 +1383,9 @@ void adamFuji::adamnet_control_send()
         break;
     case FUJICMD_MOUNT_HOST:
         adamnet_mount_host();
+        break;
+    case FUJICMD_UNMOUNT_HOST:
+        adamnet_unmount_host();
         break;
     case FUJICMD_MOUNT_IMAGE:
         adamnet_disk_image_mount();

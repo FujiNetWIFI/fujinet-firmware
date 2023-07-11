@@ -37,8 +37,8 @@ const char *_spp_server_name = "ESP32SPP";
 #define SPP_DISCONNECTED 0x08
 
 static uint32_t _spp_client = 0;
-static xQueueHandle _spp_rx_queue = nullptr;
-static xQueueHandle _spp_tx_queue = nullptr;
+static QueueHandle_t _spp_rx_queue = nullptr;
+static QueueHandle_t _spp_tx_queue = nullptr;
 static SemaphoreHandle_t _spp_tx_done = nullptr;
 static TaskHandle_t _spp_task_handle = nullptr;
 static EventGroupHandle_t _spp_event_group = nullptr;
@@ -87,7 +87,7 @@ bool _btStart()
         esp_bt_controller_config_t cfg = BT_CONTROLLER_INIT_CONFIG_DEFAULT();
         if ((e = esp_bt_controller_init(&cfg)) != ESP_OK)
         {
-            Debug_printf( "BT init failed (%d): %s\n", e, esp_err_to_name(e));
+            Debug_printf( "BT init failed (%d): %s\r\n", e, esp_err_to_name(e));
             return false;
         }
         // Wait until the controller switches to INITED state
@@ -103,7 +103,7 @@ bool _btStart()
     {
         if((e = esp_bt_controller_enable(esp_bt_mode_t::ESP_BT_MODE_CLASSIC_BT)) != ESP_OK)
         {
-            Debug_printf( "BT enable failed (%d): %s\n", e, esp_err_to_name(e));
+            Debug_printf( "BT enable failed (%d): %s\r\n", e, esp_err_to_name(e));
             return false;
         }
     }
@@ -126,7 +126,7 @@ bool _btStop()
     {
         if ((e = esp_bt_controller_disable()) != ESP_OK)
         {
-            Debug_printf( "BT disable failed (%d): %s\n", e, esp_err_to_name(e));
+            Debug_printf( "BT disable failed (%d): %s\r\n", e, esp_err_to_name(e));
             return false;
         }
         // Wait until the controller switches to INITED state
@@ -142,7 +142,7 @@ bool _btStop()
     {
         if ((e = esp_bt_controller_deinit()) != ESP_OK)
         {
-            Debug_printf( "BT deint failed (%d): %s\n", e, esp_err_to_name(e));
+            Debug_printf( "BT deint failed (%d): %s\r\n", e, esp_err_to_name(e));
             return false;
         }
 
@@ -252,7 +252,7 @@ static bool _spp_send_buffer()
         esp_err_t e = esp_spp_write(_spp_client, _spp_tx_buffer_len, _spp_tx_buffer);
         if (e != ESP_OK)
         {
-            Debug_printf( "SPP write failed (%d): %s\n", e, esp_err_to_name(e));
+            Debug_printf( "SPP write failed (%d): %s\r\n", e, esp_err_to_name(e));
             return false;
         }
 
@@ -383,7 +383,7 @@ static void _esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         else
             xEventGroupSetBits(_spp_event_group, SPP_CONGESTED);
 
-        Debug_printf( "ESP_SPP_CONG_EVT: %s\n", param->cong.cong ? "CONGESTED" : "FREE");
+        Debug_printf( "ESP_SPP_CONG_EVT: %s\r\n", param->cong.cong ? "CONGESTED" : "FREE");
         break;
 
     case ESP_SPP_WRITE_EVT: //write operation completed
@@ -391,13 +391,13 @@ static void _esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             xEventGroupClearBits(_spp_event_group, SPP_CONGESTED);
 
         xSemaphoreGive(_spp_tx_done); //we can try to send another packet
-        Debug_printf( "ESP_SPP_WRITE_EVT: %u %s\n", param->write.len, param->write.cong ? "CONGESTED" : "FREE");
+        Debug_printf( "ESP_SPP_WRITE_EVT: %u %s\r\n", param->write.len, param->write.cong ? "CONGESTED" : "FREE");
         break;
 
     case ESP_SPP_DATA_IND_EVT: //connection received data
-        Debug_printf( "ESP_SPP_DATA_IND_EVT len=%d handle=%d\n", param->data_ind.len, param->data_ind.handle);
+        Debug_printf( "ESP_SPP_DATA_IND_EVT len=%d handle=%d\r\n", param->data_ind.len, param->data_ind.handle);
         //esp_log_buffer_hex("",param->data_ind.data,param->data_ind.len); //for low level debug
-        //ets_printf("r:%u\n", param->data_ind.len);
+        //ets_printf("r:%u\r\n", param->data_ind.len);
 
         if (custom_data_callback)
         {
@@ -409,7 +409,7 @@ static void _esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             {
                 if (xQueueSend(_spp_rx_queue, param->data_ind.data + i, (TickType_t)0) != pdTRUE)
                 {
-                    Debug_printf( "RX Full! Discarding %u bytes\n", param->data_ind.len - i);
+                    Debug_printf( "RX Full! Discarding %u bytes\r\n", param->data_ind.len - i);
                     break;
                 }
             }
@@ -464,7 +464,7 @@ static void _esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *p
         Debug_println( "ESP_BT_GAP_DISC_RES_EVT");
 #ifdef DEBUG
         char bda_str[18];
-        Debug_printf( "Scanned device: %s\n", bda2str(param->disc_res.bda, bda_str, 18));
+        Debug_printf( "Scanned device: %s\r\n", bda2str(param->disc_res.bda, bda_str, 18));
 #endif
         for (int i = 0; i < param->disc_res.num_prop; i++)
         {

@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "bus.h"
+#include "disk.h"
 #include "network.h"
 #include "cassette.h"
 
@@ -120,7 +121,7 @@ public:
     bool boot_config = true;
 
     bool status_wait_enabled = true;
-    
+
     sioDisk *bootdisk();
 
     sioNetwork *network();

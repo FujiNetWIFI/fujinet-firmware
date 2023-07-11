@@ -28,14 +28,14 @@ uint16_t MediaType::sector_size(uint16_t sectornum)
 // Default WRITE is not implemented
 bool MediaType::write(uint16_t sectornum, bool verify)
 {
-    Debug_print("DISK WRITE NOT IMPLEMENTED\n");
+    Debug_print("DISK WRITE NOT IMPLEMENTED\r\n");
     return true;
 }
 
 // Default FORMAT is not implemented
 bool MediaType::format(uint16_t *responsesize)
 {
-    Debug_print("DISK FORMAT NOT IMPLEMENTED\n");
+    Debug_print("DISK FORMAT NOT IMPLEMENTED\r\n");
     return true;
 }
 

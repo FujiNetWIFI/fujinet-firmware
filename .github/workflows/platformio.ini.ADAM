@@ -10,8 +10,21 @@
 
 [fujinet]
 ; Espressif32 PlatformIO Version to use for building
-esp32_platform_version = 3.4.0
 ;esp32_platform_version = 3.2.0 ; For Bluetooth support
+;esp32_platform_version = 3.4.0 ; old stable
+esp32_platform_version = 6.3.2 ; latest
+esp32_platform_packages = 
+;    toolchain-riscv32-esp @ 8.4.0+2021r2-patch5 ; required for platform version < 5.3.0, remove this line when upgrading to the >=5.3.0
+
+esp32s3_platform_version = 6.1.0
+
+; Choose SPIFFS or LITTLEFS for the filesystem used on internal flash
+flash_filesystem = FLASH_SPIFFS 
+;flash_filesystem = FLASH_LITTLEFS
+
+; Override platform name when creating firmware ZIP file
+; ex: fujinet-CUSTOMNAME-v1.0.zip
+;platform_name = CUSTOMNAME
 
 ; Uncomment the platform, bus and board type you are building for below
 ;build_platform = BUILD_ATARI
@@ -29,9 +42,11 @@ build_board    = fujinet-adam-v1       ; FujiNet for Coleco ADAM v1.0
 ;build_board    = fujiapple-rev0         ; FujiApple Rev 0 Prototype
 ;build_board    = fujiapple-fujinetv1   ; FujiApple using Atari FujiNet v1.0
 
-;build_platform = BUILD_CBM
+;build_platform = BUILD_IEC
 ;build_bus      = IEC
-;build_board    = fujinet-cbm            ; Commodore IEC using Atari FujiNet
+;build_board    = fujinet-iec            ; Commodore IEC using Atari FujiNet
+;build_board    = fujiloaf-rev0          ; Commodore IEC FujiLoaf Rev0 Prototype
+;build_board    = fujiapple-iec          ; Commodore IEC using FujiApple Rev0
 
 ;build_platform = BUILD_LYNX
 ;build_bus      = comlynx
@@ -42,6 +57,18 @@ build_board    = fujinet-adam-v1       ; FujiNet for Coleco ADAM v1.0
 ;build_bus      = s100Bus
 ;build_board    = fujinet-v1-8mb         ; ESP32-DEVKITC-VE
 
+;build_platform = BUILD_RS232
+;build_bus      = rs232
+;build_board    = fujinet-rs232-rev0      ; RS232 Rev0 Prototype Carrier
+
+;build_platform   = BUILD_CX16
+;build_bus        = cx16
+;build_board      = fujinet-cx16
+
+;build_platform = BUILD_RC2014
+;build_bus      = rc2014spi
+;build_board    = fujinet-rc2014spi-rev0   ; RC2014 prototype based on ESP32-DEVKITC-VE
+
 [platformio]
 description = FujiNet retro computer to ESP32 WiFi Multifunction Firmware
 default_envs = ${fujinet.build_board}
@@ -50,25 +77,28 @@ data_dir = $PROJECT_DIR/data/${fujinet.build_platform}
 [env]
 ; Common settings for all enivornments
 framework = espidf
-extra_scripts = 
+extra_scripts =
     pre:build_packages.py
     pre:build_version.py
     pre:build_webui.py
+    post:build_firmwarezip.py ; Optional, build firmware ZIP file for flash tool
 lib_ldf_mode = deep+
-upload_speed = 921600
+upload_speed = 460800 ;921600
 ;upload_port = COM1 ; Windows
-upload_port = /dev/ttyUSB0 ; Linux
+upload_port = /dev/ttyUSB0 ; Linux/WSL
 ;upload_port = /dev/tty.SLAB_USBtoUART ; Mac
-monitor_speed = 921600
+monitor_speed = 460800 ;921600
 ;monitor_port = COM1 ; Windows
-monitor_port = /dev/ttyUSB0 ; Linux
+monitor_port = /dev/ttyUSB0 ; Linux/WSL
 ;monitor_port = /dev/tty.SLAB_USBtoUART ; Mac
-monitor_filters = time, esp32_exception_decoder
+monitor_filters = esp32_exception_decoder, time ;,log2file
+check_skip_packages = yes ; so that check will work.
 
 build_flags =
     -D ${fujinet.build_platform}
+    -D ${fujinet.flash_filesystem}
     -D CMAKE_EXPORT_COMPILE_COMMANDS=ON
-    -D DEBUG_SPEED=921600
+    -D DEBUG_SPEED=${env.monitor_speed}
     ;-D NO_BUTTONS          ; if your hardware has no physical buttons
     ;-D JTAG                ; enable use with JTAG debugger
     ;-D BLUETOOTH_SUPPORT   ; enable BlueTooth support
@@ -80,6 +110,7 @@ build_flags =
 ; FujiNet for Atari v1.0 and up (ESP32 WROVER 16MB Flash, 8MB PSRAM)
 [env:fujinet-atari-v1]
 platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
 board = fujinet-v1
 build_type = debug
 build_flags =
@@ -93,6 +124,7 @@ build_flags =
 ; FujiNet for Coleco ADAM v1.0 (ESP32-DEVKITC-VE 8MB Flash, 8MB PSRAM)
 [env:fujinet-adam-v1]
 platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
 board = fujinet-v1-8mb
 build_type = debug
 build_flags =
@@ -103,27 +135,24 @@ build_flags =
 ; FujiApple Rev 0 Prototype (ESP32-DEVKITC-VE 8MB Flash, 8MB PSRAM)
 [env:fujiapple-rev0]
 platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
 board = fujinet-v1-8mb
-build_type = release
+build_type = debug
 build_flags =
     ${env.build_flags}
     -D PINMAP_A2_REV0
-    -D DBUG2 ; enable monitor messages for a release build
-
-; FujiApple using Atari FujiNet 1.0 Hardware (ESP32 WROVER 16MB Flash, 8MB PSRAM)
-[env:fujiapple-fujinetv1]
-platform = espressif32@${fujinet.esp32_platform_version}
-board = fujinet-v1
-build_type = release
-build_flags =
-    ${env.build_flags}
-    -D PINMAP_A2_FN10
-    -D DBUG2 ; enable monitor messages for a release build
+    ;-D DBUG2 ; enable monitor messages for a release build
+    ;-D EXTRA ; enable DRIVE2 pin as extra debugging signal for logic analyzer
+    ;-D DISKII_DRIVE1 ; Disk ][ Emulation should trigger on DRIVE1
+    ;-D DISKII_DRIVE2 ; Disk ][ emulation should trigger on DRIVE2
+    ;-D MASTERIES_SPI_FIX ; Hardware mod for Masteries Rev0
+    ;-D NO3STATE ; no external tri-state on FN data out to A2, done internally
 
 ; FujiNet for Atari Lynx (ESP32-WROVER 16MB Flash, 8MB PSRAM)
 [env:fujinet-lynx-prototype]
 platform = espressif32@${fujinet.esp32_platform_version}
-board = fujinet-v1-16mb
+platform_packages = ${fujinet.esp32_platform_packages}
+board = fujinet-v1
 build_type = debug
 build_flags =
     ${env.build_flags}
@@ -134,6 +163,7 @@ build_flags =
 ; FujiNet for Atari Lynx (ESP32-DEVKITC-VE 8MB Flash, 8MB PSRAM)
 [env:fujinet-lynx-devkitc]
 platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
 board = fujinet-v1-8mb
 build_type = debug
 build_flags =
@@ -144,19 +174,55 @@ build_flags =
     ;-D DEBUG_8BITHUB ; debug messages for 8 Bit Hub emulation
 
 ; Commodore IEC using Atari FujiNet Hardware (ESP32 WROVER 16MB Flash, 8MB PSRAM)
-[env:fujinet-cbm]
+[env:fujinet-iec]
 platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
 board = fujinet-v1
 build_type = debug
 build_flags =
     ${env.build_flags}
-    -D PINMAP_CBM
+    -D PINMAP_IEC
     ;-D DEBUG_TIMING        ; IEC Timing
     ;-D DATA_STREAM
+
+; Commodore IEC using FujiLoaf Rev0 Prototype (ESP32 WROVER 16MB Flash, 8MB PSRAM, LED Strip)
+[env:fujiloaf-rev0]
+platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
+board = fujinet-v1
+build_type = debug
+build_flags =
+    ${env.build_flags}
+    -D PINMAP_FUJILOAF_REV0
+    ;-D DEBUG_TIMING        ; IEC Timing
+    ;-D DATA_STREAM
+
+; Commodore IEC using FujiApple Hardware (ESP32-DEVKITC-VE WROVER 8MB Flash, 8MB PSRAM)
+[env:fujiapple-iec]
+platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
+board = fujinet-v1-8mb
+build_type = debug
+build_flags =
+    ${env.build_flags}
+    -D PINMAP_FUJIAPPLE_IEC
+    ;-D DEBUG_TIMING        ; IEC Timing
+    ;-D DATA_STREAM
+
+; FujiNet RS232 Rev 0 Prototype (ESP32-DEVKITC-VE 8MB Flash, 8MB PSRAM)
+[env:fujinet-rs232-rev0]
+platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
+board = fujinet-v1-8mb
+build_type = debug
+build_flags =
+    ${env.build_flags}
+    -D PINMAP_RS232_REV0
 
 ; ESP32 WROVER (16MB Flash, 8MB PSRAM) based FujiNet
 [env:fujinet-v1]
 platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
 board = fujinet-v1
 build_type = debug
 build_flags =
@@ -167,6 +233,7 @@ build_flags =
 ; ESP32 WROVER (8MB Flash, 8MB PSRAM) based FujiNet
 [env:fujinet-v1-8mb]
 platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
 board = fujinet-v1-8mb
 build_type = debug
 build_flags =
@@ -176,6 +243,7 @@ build_flags =
 ; ESP32 WROVER (4MB Flash, 8MB PSRAM) based FujiNet
 [env:fujinet-v1-4mb]
 platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
 board = fujinet-v1-4mb
 build_type = debug
 build_flags =
@@ -183,13 +251,38 @@ build_flags =
     -D PINMAP_ATARIV1
 
 [env:esp32s3]
-platform = https://github.com/jonathandreyer/platform-espressif32.git#espidf-440
-platform_packages =
-    toolchain-esp32s2ulp
-    tool-esptoolpy @ https://github.com/jonathandreyer/esptool#release/v3.2
-    framework-espidf @ https://github.com/jonathandreyer/framework-espidf.git#espidf-440
+platform = espressif32@${fujinet.esp32s3_platform_version}
 board = fujinet-esp32s3
 build_type = debug
 build_flags =
     ${env.build_flags}
     -D PINMAP_ESP32S3
+
+[env:esp32s3-8mb]
+platform = espressif32@${fujinet.esp32s3_platform_version}
+board = fujinet-esp32s3-8mb
+build_type = debug
+build_flags =
+    ${env.build_flags}
+    -D PINMAP_ESP32S3
+
+; Commander CX16 board
+[env:fujinet-cx16]
+platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
+board = fujinet-cx16
+build_type = debug
+build_flags =
+    ${env.build_flags}
+    -D PINMAP_CX16
+
+; FujiNet RC2014 SPI Rev 0 Prototype (ESP32-DEVKITC-VE 8MB Flash, 8MB PSRAM)
+[env:fujinet-rc2014spi-rev0]
+platform = espressif32@${fujinet.esp32_platform_version}
+platform_packages = ${fujinet.esp32_platform_packages}
+board = fujinet-v1-8mb
+build_type = debug
+build_flags =
+    ${env.build_flags}
+    -D RC2014_BUS_SPI
+    -D PINMAP_RC2014SPI_REV0

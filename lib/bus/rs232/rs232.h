@@ -241,6 +241,9 @@ public:
     rs232CPM *getCPM() { return _cpmDev; }
 
     QueueHandle_t qRs232Messages = nullptr;
+
+    bool shuttingDown = false;                                  // TRUE if we are in shutdown process
+    bool getShuttingDown() { return shuttingDown; };
 };
 
 extern systemBus RS232;

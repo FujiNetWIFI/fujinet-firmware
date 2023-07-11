@@ -47,31 +47,17 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
             return MEDIATYPE_PO;
         else if (strcasecmp(ext,"2MG") == 0)
             return MEDIATYPE_PO;
-        // else if (strcasecmp(ext, "DSK") == 0)
-        // {
-        //     return MEDIATYPE_DSK;
-        // }
-        // else if (strcasecmp(ext, "ROM") == 0)
-        // {
-        //     return MEDIATYPE_ROM;
-        // }
+        else if (strcasecmp(ext, "WOZ") == 0)
+            return MEDIATYPE_WOZ;
+        else if (strcasecmp(ext, "DSK") == 0)
+            return MEDIATYPE_DSK;
     }
     else if (l > 3 && filename[l - 3] == '.')
     {
         // Check the last 3 characters of the string
         const char *ext = filename + l - 2;
         if (strcasecmp(ext, "PO") == 0)
-        {
             return MEDIATYPE_PO;
-        }
-        // else if (strcasecmp(ext, "DSK") == 0)
-        // {
-        //     return MEDIATYPE_DSK;
-        // }
-        // else if (strcasecmp(ext, "ROM") == 0)
-        // {
-        //     return MEDIATYPE_ROM;
-        // }
     }
     return MEDIATYPE_UNKNOWN;
 }

@@ -1,4 +1,7 @@
 #include "fnConfig.h"
+#include "fnWiFi.h"
+#include "crypt.h"
+#include "string_utils.h"
 #include <cstring>
 #include "../../include/debug.h"
 
@@ -37,6 +40,9 @@ void fnConfig::store_wifi_passphrase(const char *passphrase_octets, int num_octe
         else
             _wifi.passphrase += passphrase_octets[i];
     }
+    if (_general.encrypt_passphrase) {
+        _wifi.passphrase = crypto.crypt(_wifi.passphrase);
+    }
 }
 
 /* Stores whether Wifi is enabled or not */
@@ -48,6 +54,8 @@ void fnConfig::store_wifi_enabled(bool status)
 
 void fnConfig::_read_section_wifi(std::stringstream &ss)
 {
+    Debug_println("Reading wifi section");
+
     // Throw out any existing data
     _wifi.ssid.clear();
     _wifi.passphrase.clear();
@@ -56,10 +64,14 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
     // Read lines until one starts with '[' which indicates a new section
     while (_read_line(ss, line, '[') >= 0)
     {
+        // Debug_printf("wifi line: >%s<\r\n", line.c_str());
         std::string name;
         std::string value;
         if (_split_name_value(line, name, value))
         {
+            // Debug_printf(" name: >%s<\r\n", name.c_str());
+            // Debug_printf("value: >%s<\r\n", value.c_str());
+
             if (strcasecmp(name.c_str(), "SSID") == 0)
             {
                 _wifi.ssid = value;
@@ -75,7 +87,56 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
                 else
                     _wifi.enabled = false;
             }
-
         }
     }
+}
+
+void fnConfig::_read_section_wifi_stored(std::stringstream &ss, int index)
+{
+    Debug_printf("Reading stored wifi section for index: %d\r\n", index);
+
+    _wifi_stored[index].ssid.clear();
+    _wifi_stored[index].passphrase.clear();
+    _wifi_stored[index].enabled = false;
+
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        // If there's a section, it means it's 'enabled' - we're borrowing the wifi_info structure for alternate purpose
+        _wifi_stored[index].enabled = true;
+
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "SSID") == 0)
+            {
+                _wifi_stored[index].ssid = value;
+            }
+            else if (strcasecmp(name.c_str(), "passphrase") == 0)
+            {
+                _wifi_stored[index].passphrase = value;
+            }
+        }
+    }
+}
+
+void fnConfig::store_wifi_stored_ssid(int index, std::string ssid)
+{ 
+    _wifi_stored[index].ssid = ssid;
+    _dirty = true;
+}
+
+void fnConfig::store_wifi_stored_passphrase(int index, std::string passphrase)
+{
+    // TODO: check if encryption is an issue here. Should be coming from previous "current" config, which will already be encrypted if enabled.
+    _wifi_stored[index].passphrase = passphrase;
+    _dirty = true;
+}
+
+void fnConfig::store_wifi_stored_enabled(int index, bool enabled)
+{ 
+    _wifi_stored[index].enabled = enabled;
+    _dirty = true;
 }

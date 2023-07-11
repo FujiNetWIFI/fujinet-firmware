@@ -42,7 +42,7 @@ bool filePrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
                 fputs(ASCII_CRLF, _file);
                 break;
             }
-#endif /* BUILD_APPLE */ (edited)
+#endif /* BUILD_APPLE */
             if (buffer[i] == ATASCII_EOL)
             {
                 fputs(ASCII_CRLF, _file);

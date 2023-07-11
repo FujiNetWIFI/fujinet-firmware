@@ -608,7 +608,7 @@ int ssh_publickey_to_file(ssh_session session,
         return SSH_ERROR;
     }
 
-    snprintf(buffer, sizeof(buffer), "%s %s %s@%s\n",
+    snprintf(buffer, sizeof(buffer), "%s %s %s@%s\r\n",
             ssh_type_to_char(type),
             pubkey_64,
             user,

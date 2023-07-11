@@ -20,12 +20,12 @@ bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
     if (blockNum == _media_last_block)
         return false; // We already have block.
 
-    Debug_print("LNX READ\n");
+    Debug_print("LNX READ\r\n");
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks-1)
     {
-        Debug_printf("::read block %d > %d\n", blockNum, _media_num_blocks);
+        Debug_printf("::read block %d > %d\r\n", blockNum, _media_num_blocks);
         _media_controller_status=2;
         return true;
     }
@@ -79,7 +79,7 @@ bool MediaTypeROM::format(uint16_t *responsesize)
 
 mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
 {
-    Debug_print("ROM MOUNT\n");
+    Debug_print("ROM MOUNT\r\n");
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_ROM;
@@ -91,7 +91,7 @@ mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
 // Returns FALSE on error
 bool MediaTypeROM::create(FILE *f, uint32_t numBlocks)
 {
-    Debug_print("ROM CREATE\n");
+    Debug_print("ROM CREATE\r\n");
 
     return true;
 }

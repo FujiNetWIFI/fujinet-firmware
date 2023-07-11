@@ -5,7 +5,7 @@
 
 #include "bus.h"
 #include "networkStatus.h"
-#include "EdUrlParser.h"
+#include "../EdUrlParser/EdUrlParser.h"
 
 class NetworkProtocol
 {

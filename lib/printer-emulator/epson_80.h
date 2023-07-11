@@ -33,7 +33,7 @@ protected:
     void epson_set_font(uint8_t F, double w);
     virtual void pdf_clear_modes() override;
     void at_reset();
-    virtual void pdf_handle_char(uint8_t c, uint8_t aux1, uint8_t aux2) override;
+    virtual void pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2) override;
     virtual void post_new_file() override;
 
     // had to use "int" here because "uint16_t" gave a compile error
@@ -81,6 +81,8 @@ public:
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_EPSON];
         #elif NEW_TARGET
             return adamPrinter::printer_model_str[adamPrinter::PRINTER_EPSON];
+        #elif BUILD_RC2014
+            return rc2014Printer::printer_model_str[rc2014Printer::PRINTER_EPSON];
         #else
             return PRINTER_UNSUPPORTED;
         #endif

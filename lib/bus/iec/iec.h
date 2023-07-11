@@ -1,179 +1,267 @@
+#ifndef IEC_H
+#define IEC_H
+
+// This code uses code from the Meatloaf Project:
 // Meatloaf - A Commodore 64/128 multi-device emulator
 // https://github.com/idolpx/meatloaf
 // Copyright(C) 2020 James Johnston
 //
-// This file is part of Meatloaf but adapted for use in the FujiNet project
-// https://github.com/FujiNetWIFI/fujinet-platformio
-// 
 // Meatloaf is free software : you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
-// 
+//
 // Meatloaf is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
-// 
+//
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef IECBUS_H
-#define IECBUS_H
+//
+// https://www.pagetable.com/?p=1135
+// http://unusedino.de/ec64/technical/misc/c1541/romlisting.html#E85B
+// https://eden.mose.org.uk/gitweb/?p=rom-reverse.git;a=blob;f=src/vic-1541-sfd.asm;hb=HEAD
+// https://www.pagetable.com/docs/Inside%20Commodore%20DOS.pdf
+// http://www.ffd2.com/fridge/docs/1541dis.html#E853
+// http://unusedino.de/ec64/technical/aay/c1541/
+// http://unusedino.de/ec64/technical/aay/c1581/
+//
 
+#include <cstdint>
 #include <forward_list>
-
-#include "../../../include/pinmap.h"
-#include "../../../include/cbmdefines.h"
-
-#include "bus.h"
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#include <utility>
+#include <string>
+#include <map>
+#include <queue>
+#include <memory>
+#include <driver/gpio.h>
 #include "fnSystem.h"
+#include "protocol/iecProtocolBase.h"
 
-#define PRODUCT_ID "FUJINET/MEATLOAF"
+#include "../../../include/debug.h"
 
-// The base pointer of basic.
-#define PET_BASIC_START     0x0401
-
-#define	ATN_CMD_MAX_LENGTH 	40
-
-// IEC protocol timing consts:
-#define TIMING_BIT          75  // bit clock hi/lo time     (us)
-#define TIMING_NO_EOI       5   // delay before bits        (us)
-#define TIMING_EOI_WAIT     200 // delay to signal EOI      (us)
-#define TIMING_EOI_THRESH   20  // threshold for EOI detect (*10 us approx)
-#define TIMING_STABLE_WAIT  20  // line stabilization       (us)
-#define TIMING_ATN_PREDELAY 50  // delay required in atn    (us)
-#define TIMING_ATN_DELAY    100 // delay required after atn (us)
-#define TIMING_FNF_DELAY    100 // delay after fnf?         (us)
-
-// See timeoutWait
-#define TIMEOUT 65500
-
-#define DEVICEID_PRINTER 			0x04 // 4
-#define DEVICEID_PRINTER_LAST 		0x07 // 7
-
-#define DEVICEID_DISK 				0x08 // 8
-#define DEVICEID_DISK_LAST 			0x13 // 19
-
-#define DEVICEID_RS232 				0x14 // 20
-#define DEVICEID_RS232_LAST			0x18 // 24
-
-#define DEVICEID_FN_NETWORK 		0x19 // 25
-#define DEVICEID_FN_NETWORK_LAST 	0x1B // 29
-
-#define DEVICEID_FUJINET 			0x1E // 30
-
-enum IECline
+/**
+ * @brief The command frame
+ */
+union cmdFrame_t
 {
-	pulled = true,
-	released = false
+    struct
+    {
+        uint8_t device;
+        uint8_t comnd;
+        uint8_t aux1;
+        uint8_t aux2;
+        uint8_t cksum;
+    };
+    struct
+    {
+        uint32_t commanddata;
+        uint8_t checksum;
+    } __attribute__((packed));
 };
 
-enum IECState 
+// Return values for service:
+typedef enum
 {
-	noFlags   = 0,
-	eoiFlag   = (1 << 0),   // might be set by iec_receive
-	atnFlag   = (1 << 1),   // might be set by iec_receive
-	errorFlag = (1 << 2)    // If this flag is set, something went wrong and
+    BUS_OFFLINE = -3, // Bus is empty
+    BUS_RESET = -2,   // The bus is in a reset state (RESET line).
+    BUS_ERROR = -1,   // A problem occoured, reset communication
+    BUS_IDLE = 0,     // Nothing recieved of our concern
+    BUS_ACTIVE = 1,   // ATN is pulled and a command byte is expected
+    BUS_PROCESS = 2,  // A command is ready to be processed
+} bus_state_t;
+
+/**
+ * @enum bus command
+ */
+typedef enum
+{
+    IEC_GLOBAL = 0x00,    // 0x00 + cmd (global command)
+    IEC_LISTEN = 0x20,    // 0x20 + device_id (LISTEN) (0-30)
+    IEC_UNLISTEN = 0x3F,  // 0x3F (UNLISTEN)
+    IEC_TALK = 0x40,      // 0x40 + device_id (TALK) (0-30)
+    IEC_UNTALK = 0x5F,    // 0x5F (UNTALK)
+    IEC_REOPEN = 0x60,    // 0x60 + channel (OPEN CHANNEL) (0-15)
+    IEC_REOPEN_JD = 0x61, // 0x61 + channel (OPEN CHANNEL) (0-15) - JIFFYDOS LOAD
+    IEC_CLOSE = 0xE0,     // 0xE0 + channel (CLOSE NAMED CHANNEL) (0-15)
+    IEC_OPEN = 0xF0       // 0xF0 + channel (OPEN NAMED CHANNEL) (0-15)
+} bus_command_t;
+
+typedef enum
+{
+    DEVICE_ERROR = -1,
+    DEVICE_IDLE = 0, // Ready and waiting
+    DEVICE_ACTIVE = 1,
+    DEVICE_LISTEN = 2,  // A command is recieved and data is coming to us
+    DEVICE_TALK = 3,    // A command is recieved and we must talk now
+    DEVICE_PROCESS = 4, // Execute device command
+} device_state_t;
+
+/**
+ * @class IECData
+ * @brief the IEC command data passed to devices
+ */
+class IECData
+{
+public:
+    /**
+     * @brief the primary command byte
+     */
+    uint8_t primary = 0;
+    /**
+     * @brief the primary device number
+     */
+    uint8_t device = 0;
+    /**
+     * @brief the secondary command byte
+     */
+    uint8_t secondary = 0;
+    /**
+     * @brief the secondary command channel
+     */
+    uint8_t channel = 0;
+    /**
+     * @brief the device command
+     */
+    std::string payload = "";
+
+    /**
+     * @brief clear and initialize IEC command data
+     */
+    void init(void)
+    {
+        primary = 0;
+        device = 0;
+        secondary = 0;
+        channel = 0;
+        payload = "";
+    }
 };
 
-// Return values for checkATN:
-enum ATNMode 
-{
-	ATN_IDLE = 0,           // Nothing recieved of our concern
-	ATN_CMD = 1,            // A command is recieved
-	ATN_LISTEN = 2,         // A command is recieved and data is coming to us
-	ATN_TALK = 3,           // A command is recieved and we must talk now
-	ATN_ERROR = 4,          // A problem occoured, reset communication
-	ATN_RESET = 5		    // The IEC bus is in a reset state (RESET line).
-};
+/**
+ * @class Forward declaration of System Bus
+ */
+class systemBus;
 
-// IEC ATN commands:
-enum ATNCommand 
-{
-	ATN_COMMAND_GLOBAL = 0x00,     // 0x00 + cmd (global command)
-	ATN_COMMAND_LISTEN = 0x20,     // 0x20 + device_id (LISTEN)
-	ATN_COMMAND_UNLISTEN = 0x3F,   // 0x3F (UNLISTEN)
-	ATN_COMMAND_TALK = 0x40,       // 0x40 + device_id (TALK)
-	ATN_COMMAND_UNTALK = 0x5F,     // 0x5F (UNTALK)
-	ATN_COMMAND_DATA = 0x60,       // 0x60 + channel (SECOND)
-	ATN_COMMAND_CLOSE = 0xE0,  	   // 0xE0 + channel (CLOSE)
-	ATN_COMMAND_OPEN = 0xF0	       // 0xF0 + channel (OPEN)
-};
-
-struct ATNData
-{
-	ATNMode mode;
-	int code;
-	int command;
-	int channel;
-	int device_id;
-	char data[ATN_CMD_MAX_LENGTH];
-};
-
-
-enum OpenState 
-{
-	O_NOTHING,			// Nothing to send / File not found error
-	O_INFO,				// User issued a reload sd card
-	O_FILE,				// A program file is opened
-	O_DIR,				// A listing is requested
-	O_FILE_ERR,			// Incorrect file format opened
-	O_SAVE_REPLACE,		// Save-with-replace is requested
-	O_SYSTEM_INFO,
-	O_DEVICE_STATUS
-};
-
-// class def'ns
-class iecBus;      // declare early so can be friend
-class iecFuji;     // declare here so can reference it, but define in iecFuji.h
-class iecPrinter;  // Printer device
-
+/**
+ * @class virtualDevice
+ * @brief All #FujiNet devices derive from this.
+ */
 class virtualDevice
 {
+private:
+
 protected:
-	friend iecBus;
+    friend systemBus; /* Because we connect to it. */
 
-    int _device_id;
+    /**
+     * @brief The device number (ID)
+     */
+    int _devnum;
 
-    virtual void iec_status() = 0;
-    virtual void iec_process(uint32_t commanddata, uint8_t checksum) = 0;
+    /**
+     * @brief The passed in command frame, copied.
+     */
+    cmdFrame_t cmdFrame;
 
-	// Reset device
-	virtual void reset(void);
+    /**
+     * @brief The current device command
+     */
+    std::string payload;
+
+    /**
+     * @brief pointer to the current command data
+     */
+    IECData commanddata;
+
+    /**
+     * @brief current device state.
+     */
+    device_state_t device_state;
+
+    /**
+     * @brief response queue (e.g. INPUT)
+     * @deprecated remove as soon as it's out of fuji.
+     */
+    std::queue<std::string> response_queue;
+
+    /**
+     * @brief status override (for binary commands)
+     */
+    std::string status_override;
+
+    /**
+     * @brief tokenized payload
+     */
+    std::vector<std::string> pt;
+    std::vector<uint8_t> pti;
+
+    /**
+     * @brief The status information to send back on cmd input
+     * @param bw = # of bytes waiting
+     * @param msg = most recent status message
+     * @param connected = is most recent channel connected?
+     * @param channel = channel of most recent status msg.
+     */
+    struct _iecStatus
+    {
+        uint8_t error;
+        std::string msg;
+        bool connected;
+        int channel;
+    } iecStatus;
+
+    /**
+     * @brief Get device ready to handle next phase of command.
+     */
+    device_state_t queue_command(IECData data)
+    {
+        commanddata = data;
+
+        if (commanddata.primary == IEC_LISTEN)
+            device_state = DEVICE_LISTEN;
+        else if (commanddata.primary == IEC_TALK)
+            device_state = DEVICE_TALK;
+
+        return device_state;
+    }
+
+    /**
+     * @brief All IEC devices repeatedly call this routine to fan out to other methods for each command.
+     *        This is typcially implemented as a switch() statement.
+     * @return new device state.
+     */
+    virtual device_state_t process();
+
+    /**
+     * @brief poll whether interrupt should be wiggled
+     * @param c secondary channel (0-15)
+     */
+    virtual void poll_interrupt(unsigned char c) {}
+
+    /**
+     * @brief Dump the current IEC frame to terminal.
+     */
+    void dumpData();
+
+    /**
+     * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
+     */
+    virtual void iec_talk_command_buffer_status();
 
     // Optional shutdown/reboot cleanup routine
-    virtual void shutdown(void);
-
-	// our iec low level driver:
-//	iecBus& _iec;
-
-	// This var is set after an open command and determines what to send next
-	int _openState; // see OpenState
-	int _queuedError;
-
-	void sendStatus(void);
-	void sendSystemInfo(void);
-	void sendDeviceStatus(void);
-
-	uint16_t sendHeader(uint16_t &basicPtr);
-	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, char* text);
-	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...);
-
-	// handler helpers.
-	void _open(void) {};
-	void _listen_data(void) {};
-	void _talk_data(int chan) {};
-	void _close(void) {};
+    virtual void shutdown(){};
 
 public:
     /**
-     * @brief get the SIO device Number (1-255)
+     * @brief get the IEC device Number (1-31)
      * @return The device number registered for this device
      */
-    int device_id(void) { return _device_id; };
-
-    virtual void sio_high_speed(void) {};
+    int id() { return _devnum; };
 
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
@@ -186,160 +274,297 @@ public:
     bool device_active = true;
 
     /**
-     * @brief status wait counter
+     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
      */
-    uint8_t status_wait_count = 5;
+    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
 
-	virtualDevice(void);
-	virtual ~virtualDevice(void) {}
+    /**
+     * @brief Get the systemBus object that this virtualDevice is attached to.
+     */
+    systemBus get_bus();
 };
 
-
-class iecBus
+/**
+ * @class systemBus
+ * @brief the system bus that all virtualDevices attach to.
+ */
+class systemBus
 {
 private:
-	std::forward_list<virtualDevice *> _daisyChain;
+    /**
+     * @brief The chain of devices on the bus.
+     */
+    std::forward_list<virtualDevice *> _daisyChain;
 
-    int _command_frame_counter = 0;
+    /**
+     * @brief Number of devices on bus
+     */
+    int _num_devices = 0;
 
+    /**
+     * @brief the active device being process()'ed
+     */
     virtualDevice *_activeDev = nullptr;
-//    iecFuji *_fujiDev = nullptr;
-//    iecPrinter *_printerdev = nullptr;
 
-    void _bus_process_cmd(void);
-    void _bus_process_queue(void);
+    /**
+     * @brief is device shutting down?
+     */
+    bool shuttingDown = false;
 
-	int _iec_state;
+    /**
+     * @brief the active bus protocol
+     */
+    std::shared_ptr<IecProtocolBase> protocol = nullptr;
 
-	// IEC Bus Commands
-//	void global(void) {};            // 0x00 + cmd          Global command to all devices, Not supported on CBM
-	void listen(void);               // 0x20 + device_id 	Listen, device (0–30), Devices 0-3 are reserved
-	void unlisten(void) {};          // 0x3F				Unlisten, all devices
-	void talk(void);                 // 0x40 + device_id 	Talk, device (0-30)
-	void untalk(void) {};            // 0x5F				Untalk, all devices 
-	void data(void) {};              // 0x60 + channel		Open Channel/Data, Secondary Address / Channel (0–15)
-	void close(void) {};             // 0xE0 + channel		Close, Secondary Address / Channel (0–15)
-	void open(void) {};              // 0xF0 + channel		Open, Secondary Address / Channel (0–15)
+    /**
+     * IEC LISTEN received
+     */
+    void deviceListen();
 
-	void receiveCommand(void);
-	
-	int receiveByte(void);
-	bool sendByte(int data, bool signalEOI);
-	bool turnAround(void);
-	bool undoTurnAround(void);
-	bool timeoutWait(int iecPIN, IECline lineStatus);	
+    /**
+     * IEC TALK requested
+     */
+    void deviceTalk();
 
-	// true => PULL => DIGI_LOW
-	inline void pull(int pin)
-	{
-		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
-		fnSystem.digital_write(pin, DIGI_LOW);
-	}
+    /**
+     * BUS TURNAROUND (switch from listener to talker)
+     */
+    bool turnAround();
 
-	// false => RELEASE => DIGI_HIGH
-	inline void release(int pin)
-	{
-		set_pin_mode(pin, gpio_mode_t::GPIO_MODE_OUTPUT);
-		fnSystem.digital_write(pin, DIGI_HIGH);
-	}
+    /**
+     * @brief called to process the next command
+     */
+    void process_cmd();
 
-	inline IECline status(int pin)
-	{
-		#ifndef SPLIT_LINES
-			// To be able to read line we must be set to input, not driving.
-			set_pin_mode(pin, gpio_mode_t::GPIO_MODE_INPUT);
-		#endif
+    /**
+     * @brief called to process a queue item (such as disk swap)
+     */
+    void process_queue();
 
-		return fnSystem.digital_read(pin) ? released : pulled;
-	}
+    /**
+     * @brief called to read bus command bytes
+    */
+    void read_command();
 
-	inline int get_bit(int pin)
-       {
-		return fnSystem.digital_read(pin);
-	}
+    /**
+     * @brief called to read bus payload bytes
+    */
+    void read_payload();
 
-	inline void set_bit(int pin, int bit)
-	{
-		return fnSystem.digital_write(pin, bit);
-	}
+    /**
+     * ESP timer handle for the Interrupt rate limiting timer
+     */
+    esp_timer_handle_t rateTimerHandle = nullptr;
 
-	inline void set_pin_mode(int pin, gpio_mode_t mode)
-	{
-		static uint64_t gpio_pin_modes;
-		int b_mode = (mode == 1) ? 1 : 0;
+    /**
+     * Timer Rate for interrupt timer
+     */
+    int timerRate = 100;
 
-		// is this pin mode already set the way we want?
-		if ( ((gpio_pin_modes >> pin) & 1ULL) != b_mode )
-		{
-			// toggle bit so we don't change mode unnecessarily 
-			gpio_pin_modes ^= (-b_mode ^ gpio_pin_modes) & (1ULL << pin);
+    /**
+     * @brief Start the Interrupt rate limiting timer
+     */
+    void timer_start();
 
-			gpio_config_t io_conf;
-
-			// disable interrupt
-			io_conf.intr_type = GPIO_INTR_DISABLE;
-
-			// set mode
-			io_conf.mode = mode;
-
-			io_conf.pull_up_en = gpio_pullup_t::GPIO_PULLUP_DISABLE;
-			io_conf.pull_down_en = gpio_pulldown_t::GPIO_PULLDOWN_DISABLE;
-
-			// bit mask of the pin to set
-			io_conf.pin_bit_mask = 1ULL << pin;
-
-			// configure GPIO with the given settings
-			gpio_config(&io_conf);
-		}
-	}
-
+    /**
+     * @brief Stop the Interrupt rate limiting timer
+     */
+    void timer_stop();
 
 public:
-    void setup(void);
-    void service(void);
-	void reset(void);
-    void shutdown(void);
+    /**
+     * @brief bus flags
+     */
+    uint16_t flags = CLEAR;
 
-    int numDevices(void);
+    /**
+     * @brief current bus state
+     */
+    bus_state_t bus_state;
+
+    /**
+     * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
+     * be pulsed.
+     */
+    bool interruptSRQ = false;    
+
+    /**
+     * @brief data about current bus transaction
+     */
+    IECData data;
+
+    /**
+     * @brief Enabled device bits
+     */
+    uint32_t enabledDevices;
+
+    /**
+     * @brief called in main.cpp to set up the bus.
+     */
+    void setup();
+
+    /**
+     * @brief Run one iteration of the bus service loop
+     */
+    void service();
+
+    /**
+     * @brief Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
+     */
+    void assert_interrupt();
+
+    /**
+     * @brief Release the bus lines, we're done.
+     */
+    void releaseLines(bool wait = false);
+
+    /**
+     * @brief send single byte
+     * @param c byte to send
+     * @param eoi Send EOI?
+     * @return true on success, false on error
+    */
+    bool sendByte(const char c, bool eoi = false);
+
+    /**
+     * @brief Send bytes to bus
+     * @param buf buffer to send
+     * @param len length of buffer
+     * @param eoi Send EOI?
+     * @return true on success, false on error
+     */
+    bool sendBytes(const char *buf, size_t len, bool eoi = true);
+
+    /**
+     * @brief Send string to bus
+     * @param s std::string to send
+     * @param eoi Send EOI?
+     * @return true on success, false on error
+     */
+    bool sendBytes(std::string s, bool eoi = true);
+
+    /**
+     * @brief Receive Byte from bus
+     * @return Byte received from bus, or -1 for error.
+     */
+    int16_t receiveByte();
+
+    /**
+     * @brief called in response to RESET pin being asserted.
+     */
+    void reset_all_our_devices();
+
+    /**
+     * @brief called from main shutdown to clean up the device.
+     */
+    void shutdown();
+
+    /**
+     * @brief Return number of devices on bus.
+     * @return # of devices on bus.
+     */
+    int numDevices() { return _num_devices; };
+
+    /**
+     * @brief Add device to bus.
+     * @param pDevice Pointer to virtualDevice
+     * @param device_id The ID to assign to virtualDevice
+     */
     void addDevice(virtualDevice *pDevice, int device_id);
+
+    /**
+     * @brief Remove device from bus
+     * @param pDevice pointer to virtualDevice
+     */
     void remDevice(virtualDevice *pDevice);
+
+    /**
+     * @brief Check if device is enabled
+     * @param deviceNumber The device ID to check
+     */
+    bool isDeviceEnabled ( const uint8_t device_id );
+
+    /**
+     * @brief Return pointer to device given ID
+     * @param device_id ID of device to return.
+     * @return pointer to virtualDevice
+     */
     virtualDevice *deviceById(int device_id);
+
+    /**
+     * @brief Change ID of a particular virtualDevice
+     * @param pDevice pointer to virtualDevice
+     * @param device_id new device ID
+     */
     void changeDeviceId(virtualDevice *pDevice, int device_id);
 
-	//iecPrinter *getPrinter(void) { return _printerdev; }
+    /**
+     * @brief Are we shutting down?
+     * @return value of shuttingDown
+     */
+    bool getShuttingDown() { return shuttingDown; }
 
-	QueueHandle_t qBusMessages = nullptr;
+    /**
+     * @brief signal to bus that we timed out.
+     */
+    void senderTimeout();
 
-	ATNData ATN;
+    // true => PULL => LOW
+    inline void IRAM_ATTR pull ( uint8_t pin )
+    {
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
+#endif
+        fnSystem.digital_write ( pin, LOW );
+    }
 
-	// Sends a byte. The communication must be in the correct state: a load command
-	// must just have been recieved. If something is not OK, FALSE is returned.
-	bool send(uint8_t data);
+    // false => RELEASE => HIGH
+    inline void IRAM_ATTR release ( uint8_t pin )
+    {
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
+#endif
+        fnSystem.digital_write ( pin, HIGH );
+    }
 
-	// Sends a string.
-	bool send(uint8_t *data, uint16_t len);
+    inline bool IRAM_ATTR status ( uint8_t pin )
+    {
+#ifndef IEC_SPLIT_LINES
+        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_INPUT );
+#endif
+        return gpio_get_level ( ( gpio_num_t ) pin ) ? RELEASED : PULLED;
+    }
 
-	// Same as IEC_send, but indicating that this is the last byte.
-	bool sendEOI(uint8_t data);
+    inline void IRAM_ATTR set_pin_mode ( uint8_t pin, gpio_mode_t mode )
+    {
+        static uint64_t gpio_pin_modes;
+        uint8_t b_mode = ( mode == 1 ) ? 1 : 0;
 
-	// A special send command that informs file not found condition
-	bool sendFNF(void);
+        // is this pin mode already set the way we want?
+#ifndef IEC_SPLIT_LINES
+        if ( ( ( gpio_pin_modes >> pin ) & 1ULL ) != b_mode )
+#endif
+        {
+            // toggle bit so we don't change mode unnecessarily
+            gpio_pin_modes ^= ( -b_mode ^ gpio_pin_modes ) & ( 1ULL << pin );
 
-	// Recieve a byte
-	int receive(void);
-
-	// Receive a string.
-	bool receive(uint8_t *data, uint16_t len);
-
-	// Enabled Device Bit Mask
-	uint32_t enabledDevices;
-	bool isDeviceEnabled(const int deviceNumber);
-	void enableDevice(const int deviceNumber);
-	void disableDevice(const int deviceNumber);
-
-	IECState state(void) const;
+            gpio_config_t io_conf =
+            {
+                .pin_bit_mask = ( 1ULL << pin ),            // bit mask of the pins that you want to set
+                .mode = mode,                               // set as input mode
+                .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
+                .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
+                .intr_type = GPIO_INTR_DISABLE              // interrupt of falling edge
+            };
+            //configure GPIO with the given settings
+            gpio_config ( &io_conf );
+        }
+    }
 };
 
-extern iecBus IEC;
+/**
+ * @brief Return
+ */
+extern systemBus IEC;
 
-#endif // IECBUS_H
+#endif /* IEC_H */

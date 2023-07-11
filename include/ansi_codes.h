@@ -128,4 +128,4 @@
 
 //Reset
 #define ANSI_RESET "\e[0m"
-#define ANSI_RESET_NL "\e[0m\n"
+#define ANSI_RESET_NL "\e[0m\r\n"

@@ -36,6 +36,7 @@ public:
 	static size_t parseKeyValueMap(unordered_map<string, string> *kvmap, string str, bool strict=true);
 	static size_t parseKeyValueList(vector< query_kv_t > *kvmap, string rawstr, bool strict=true);
 	static size_t parseKeyValue(string rawstr, __kv_callback kvcb, void* obj, bool strict);
+	bool isValidUrl();
 
 private:
 	void parse();

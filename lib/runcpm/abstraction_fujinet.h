@@ -219,6 +219,11 @@ uint8_t _sys_readseq(uint8_t *fn, long fpos)
 	int seekErr;
 
 	f = fnSDFAT.file_open(full_path((char *)fn), "r");
+	if (!f)
+	{
+		result = 0x10;
+		return result;
+	}
 	seekErr = fseek(f, fpos, SEEK_SET);
 	if (f)
 	{
@@ -497,14 +502,14 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-	return fnUartSIO.available();
+	return fnUartBUS.available();
 }
 
 uint8_t _getch(void)
 {
 	if (teeMode == true)
 	{
-		while (fnUartSIO.available() > 0)
+		while (fnUartBUS.available() > 0)
 		{
 			if (client.available())
 			{
@@ -513,21 +518,21 @@ uint8_t _getch(void)
 				return ch & 0x7F;
 			}
 		}
-		return fnUartSIO.read() & 0x7F;
+		return fnUartBUS.read() & 0x7F;
 	}
 	else
 	{
-		while (fnUartSIO.available() <= 0)
+		while (fnUartBUS.available() <= 0)
 		{
 		}
-		return fnUartSIO.read() & 0x7f;
+		return fnUartBUS.read() & 0x7f;
 	}
 }
 
 uint8_t _getche(void)
 {
 	uint8_t ch = _getch() & 0x7f;
-	fnUartSIO.write(ch);
+	fnUartBUS.write(ch);
 	if (teeMode == true)
 		client.write(ch);
 	return ch;
@@ -535,7 +540,7 @@ uint8_t _getche(void)
 
 void _putch(uint8_t ch)
 {
-	fnUartSIO.write(ch & 0x7f);
+	fnUartBUS.write(ch & 0x7f);
 	if (teeMode == true)
 		client.write(ch);
 }
@@ -626,7 +631,7 @@ uint8_t bdos_readDeviceSlots(uint16_t addr)
 
 uint8_t bios_tcpListen(uint16_t port)
 {
-	Debug_printf("Do we get here?\n");
+	Debug_printf("Do we get here?\r\n");
 
 	if (client.connected())
 		client.stop();
@@ -638,10 +643,18 @@ uint8_t bios_tcpListen(uint16_t port)
 	}
 
 	server = new fnTcpServer(port,1);
-	server->begin(port);
 
-	Debug_printf("bios_tcpListen - Now listening on port %u\n", port);
-	return server != nullptr;
+	int res = server->begin(port);
+	if (res == 0)
+	{
+		Debug_printf("bios_tcpListen - failed to open port %u\nError (%d): %s\r\n", port, errno, strerror(errno));
+		return true;
+	}
+	else
+	{
+		Debug_printf("bios_tcpListen - Now listening on port %u\r\n", port);
+		return false;
+	}
 }
 
 uint8_t bios_tcpAvailable(void)

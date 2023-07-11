@@ -1,12 +1,15 @@
-#ifdef BUILD_CBM
+#ifdef BUILD_IEC
 #ifndef IEC_PRINTER_H
 #define IEC_PRINTER_H
 
-#include <string.h>
+#include <string>
 
 #include "bus.h"
+//#include "../../bus/bus.h"
 #include "../printer-emulator/printer_emulator.h"
+//#include "printer_emulator.h"
 #include "fnFS.h"
+
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
@@ -14,7 +17,11 @@ class iecPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS
-    uint8_t _buffer[40];
+    std::string buffer;
+    void write(uint8_t channel);
+    void status();
+    device_state_t process() override;
+    void shutdown() override;
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
@@ -27,7 +34,8 @@ public:
     // todo: reconcile printer_type with paper_t
     enum printer_type
     {
-        PRINTER_FILE_RAW = 0,
+        PRINTER_COMMODORE_MPS803 = 0,
+        PRINTER_FILE_RAW,
         PRINTER_FILE_TRIM,
         PRINTER_FILE_ASCII,
         PRINTER_ATARI_820,
@@ -48,6 +56,31 @@ public:
         PRINTER_INVALID
     };
 
+public:
+    constexpr static const char * const printer_model_str[PRINTER_INVALID]
+    {
+        "Commodore MPS-803",
+        "file printer (RAW)",
+        "file printer (TRIM)",
+        "file printer (ASCII)",
+        "Atari 820",
+        "Atari 822",
+        "Atari 825",
+        "Atari 1020",
+        "Atari 1025",
+        "Atari 1027",
+        "Atari 1029",
+        "Atari XMM801",
+        "Atari XDM121",
+        "Epson 80",
+        "Epson PrintShop",
+        "Okimate 10",
+        "GRANTIC",
+        "HTML printer",
+        "HTML ATASCII printer"
+    };
+    
+
     iecPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~iecPrinter();
 
@@ -55,6 +88,7 @@ public:
     void set_printer_type(printer_type printer_type);
     void reset_printer() { set_printer_type(_ptype); };
     time_t lastPrintTime() { return _last_ms; };
+    void print_from_cpm(uint8_t c);
 
     printer_emu *getPrinterPtr() { return _pptr; };
 
@@ -63,5 +97,6 @@ private:
     printer_type _ptype;
 };
 
+
 #endif // IEC_PRINTER_H
-#endif // BUILD_CBM
+#endif // BUILD_IEC

@@ -1,3 +1,4 @@
+#ifdef FLASH_SPIFFS
 
 #include "fnFsSPIFFS.h"
 
@@ -11,7 +12,7 @@
 #define SPIFFS_MAXPATH 512
 
 // Our global SPIFFS interface
-FileSystemSPIFFS fnSPIFFS;
+FileSystemSPIFFS fsFlash;
 
 FileSystemSPIFFS::FileSystemSPIFFS()
 {
@@ -61,7 +62,7 @@ fsdir_entry * FileSystemSPIFFS::dir_read()
             _direntry.modified_time = s.st_mtime;
         }
         #ifdef DEBUG
-            // Debug_printf("stat \"%s\" errno %d\n", fpath, errno);
+            // Debug_printf("stat \"%s\" errno %d\r\n", fpath, errno);
         #endif
         return &_direntry;
     }
@@ -98,7 +99,7 @@ bool FileSystemSPIFFS::exists(const char* path)
     struct stat st;
     int i = stat(fpath, &st);
 #ifdef DEBUG
-    //Debug_printf("FileSystemSPIFFS::exists returned %d on \"%s\" (%s)\n", i, path, fpath);
+    //Debug_printf("FileSystemSPIFFS::exists returned %d on \"%s\" (%s)\r\n", i, path, fpath);
 #endif
     free(fpath);
     return (i == 0);
@@ -109,7 +110,7 @@ bool FileSystemSPIFFS::remove(const char* path)
     char * fpath = _make_fullpath(path);
     int i = ::remove(fpath);
 #ifdef DEBUG
-    Debug_printf("FileSystemSPIFFS::remove returned %d on \"%s\" (%s)\n", i, path, fpath);
+    Debug_printf("FileSystemSPIFFS::remove returned %d on \"%s\" (%s)\r\n", i, path, fpath);
 #endif
     free(fpath);
     return (i == 0);
@@ -121,7 +122,7 @@ bool FileSystemSPIFFS::rename(const char* pathFrom, const char* pathTo)
     char * dpath = _make_fullpath(pathTo);
     int i = ::rename(spath, dpath);
 #ifdef DEBUG
-    Debug_printf("FileSystemSPIFFS::rename returned %d on \"%s\" -> \"%s\" (%s -> %s)\n", i, pathFrom, pathTo, spath, dpath);
+    Debug_printf("FileSystemSPIFFS::rename returned %d on \"%s\" -> \"%s\" (%s -> %s)\r\n", i, pathFrom, pathTo, spath, dpath);
 #endif
     free(spath);
     free(dpath);
@@ -148,11 +149,15 @@ bool FileSystemSPIFFS::start()
         return true;
 
     // Set our basepath
+#ifndef BUILD_IEC
     strlcpy(_basepath, "/spiffs", sizeof(_basepath));
+#else
+    strlcpy(_basepath, "", sizeof(_basepath));
+#endif
 
     esp_vfs_spiffs_conf_t conf = {
       .base_path = _basepath,
-      .partition_label = NULL,
+      .partition_label = "flash",
       .max_files = 10, // from SPIFFS.h
       .format_if_mount_failed = false
     };
@@ -162,7 +167,7 @@ bool FileSystemSPIFFS::start()
     if (e != ESP_OK)
     {
         #ifdef DEBUG
-        Debug_printf("Failed to mount SPIFFS partition, err = %d\n", e);
+        Debug_printf("Failed to mount SPIFFS partition, err = %d\r\n", e);
         #endif
         _started = false;
     }
@@ -174,10 +179,12 @@ bool FileSystemSPIFFS::start()
         /*
         size_t total = 0, used = 0;
         esp_spiffs_info(NULL, &total, &used);
-        Debug_printf("  partition size: %u, used: %u, free: %u\n", total, used, total-used);
+        Debug_printf("  partition size: %u, used: %u, free: %u\r\n", total, used, total-used);
         */
     #endif
     }
 
     return _started;
 }
+
+#endif // FLASH_SPIFFS

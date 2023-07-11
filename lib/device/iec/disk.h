@@ -1,98 +1,164 @@
-// Meatloaf - A Commodore 64/128 multi-device emulator
-// https://github.com/idolpx/meatloaf
-// Copyright(C) 2020 James Johnston
-//
-// This file is part of Meatloaf but adapted for use in the FujiNet project
-// https://github.com/FujiNetWIFI/fujinet-platformio
-// 
-// Meatloaf is free software : you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-// 
-// Meatloaf is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU General Public License for more details.
-// 
-// You should have received a copy of the GNU General Public License
-// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
+#ifndef DISK_H
+#define DISK_H
 
-#ifndef IECDISK_H
-#define IECDISK_H
-
-#include <esp_vfs.h>
+#include "../fuji/fujiHost.h"
 
 #include <string>
-
-#include "../../../include/cbmdefines.h"
-#include "../../../include/petscii.h"
+#include <unordered_map>
 
 #include "bus.h"
-#include "fnFsSPIFFS.h"
-#include "media.h"
+#include "../media/media.h"
+#include "../meatloaf/meat_io.h"
+#include "../meatloaf/meat_buffer.h"
 
-#define ARCHIVE_TYPES "ZIP|7Z|RAR"
-#define IMAGE_TYPES "D64|D71|D80|D81|D82|D8B|G64|X64|Z64|TAP|T64|TCRT|CRT|D1M|D2M|D4M|DHD|HDD|DNP|DFI|M2I|NIB"
-#define FILE_TYPES "C64|PRG|P00|SEQ|S00|USR|U00|REL|R00"
+#define PRODUCT_ID "MEATLOAF CBM"
 
 class iecDisk : public virtualDevice
 {
 private:
-    MediaType *_media = nullptr;
+    //MediaType *_disk = nullptr;
 
-    void _read();
-    void _write(bool verify);
-    void _format();
+    std::unique_ptr<MFile> _base;   // Always points to current directory/image
+    std::string _last_file;         // Always points to last loaded file
 
-    void _status();
-    void _process();
+    // Named Channel functions
+    //std::shared_ptr<MStream> currentStream;
+    bool registerStream (uint8_t channel);
+    std::shared_ptr<MStream> retrieveStream ( uint8_t channel );
+    bool closeStream ( uint8_t channel, bool close_all = false );
 
-    void shutdown() {};
+    // Directory
+	uint16_t sendHeader(std::string header, std::string id);
+	uint16_t sendLine(uint16_t blocks, char *text);
+	uint16_t sendLine(uint16_t blocks, const char *format, ...);
+	uint16_t sendFooter();
+	void sendListing();
 
-	// handler helpers.
-	void _open(void);
-	void _listen_data(void);
-	void _talk_data(int chan);
-	void _close(void);
+    // File
+	bool sendFile();
+	bool saveFile();
 
-	void sendStatus(void);
-	void sendSystemInfo(void);
-	void sendDeviceStatus(void);
+    struct _error_response
+    {
+        unsigned char errnum = 73;
+        std::string msg = "CBM DOS V2.6 1541";
+        unsigned char track = 0;
+        unsigned char sector = 0;
+    } error_response;
 
-	void sendListing(void);
-	// void sendListingHTTP(void);
-	uint16_t sendHeader(uint16_t &basicPtr);
-	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, char* text);
-	uint16_t sendLine(uint16_t &basicPtr, uint16_t blocks, const char* format, ...);
-	uint16_t sendFooter(uint16_t &basicPtr);
-	void sendFile(void);
-	// void sendFileHTTP(void);
+    void read();
+    void write(bool verify);
+    void format();
 
-	void saveFile(void);
+protected:
+    /**
+     * @brief Process command fanned out from bus
+     * @return new device state
+     */
+    device_state_t process() override;
 
+    /**
+     * @brief process command for channel 0 (load)
+     */
+    void process_load();
 
-	std::string _command;
-	int _drive;
-	int _partition;
-    std::string _url;
-    std::string _path;
-	std::string _archive; // Future streaming of images/files in archives .zip/.7z/.rar
-    std::string _image;
-	std::string _filename;
-	std::string _extension;
-	std::string _type;
-	std::string _mode;
+    /**
+     * @brief process command for channel 1 (save)
+     */
+    void process_save();
+
+    /**
+     * @brief process command channel
+     */
+    void process_command();
+
+    /**
+     * @brief process every other channel (2-14)
+     */
+    void process_channel();
+
+    /**
+     * @brief called to open a connection to a protocol
+     */
+    void iec_open();
+
+    /**
+     * @brief called to close a connection.
+     */
+    void iec_close();
+    
+    /**
+     * @brief called when a TALK, then REOPEN happens on channel 0
+     */
+    void iec_reopen_load();
+
+    /**
+     * @brief called when TALK, then REOPEN happens on channel 1
+     */
+    void iec_reopen_save();
+
+    /**
+     * @brief called when REOPEN (to send/receive data)
+     */
+    void iec_reopen_channel();
+
+    /**
+     * @brief called when channel needs to listen for data from c=
+     */
+    void iec_reopen_channel_listen();
+
+    /**
+     * @brief called when channel needs to talk data to c=
+     */
+    void iec_reopen_channel_talk();
+
+    /**
+     * @brief called when LISTEN happens on command channel (15).
+     */
+    void iec_listen_command();
+
+    /**
+     * @brief called when TALK happens on command channel (15).
+     */
+    void iec_talk_command();
+
+    /**
+     * @brief called to process command either at open or listen
+     */
+    void iec_command();
+
+    /**
+     * @brief Set device ID from dos command
+     */
+    void set_device_id();
+
+    /**
+     * @brief Set desired prefix for channel
+     */
+    void set_prefix();
+
+    /**
+     * @brief Get prefix for channel
+     */
+    void get_prefix();
+
+    /**
+     * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
+     */
+    void iec_talk_command_buffer_status() override;
 
 public:
     iecDisk();
+    fujiHost *host;
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
-    mediatype_t disktype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
+    //mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
-	~iecDisk();
+    std::unordered_map<uint16_t, std::shared_ptr<MStream>> streams;
+
+    ~iecDisk();
 };
 
-#endif // IECDISK_H
+#endif

@@ -7,15 +7,15 @@
 #define FOLDERCHAR '/'
 
 // Silly typedefs that runcpm uses
-typedef uint8_t uint8;
-typedef uint16_t uint16;
-typedef uint32_t uint32;
+typedef unsigned char   uint8;
+typedef unsigned short  uint16;
+typedef unsigned int    uint32;
 
 class iwmCPM : public iwmDevice
 {
 private:
 
-    TaskHandle_t cpmTaskHandle;    
+    TaskHandle_t cpmTaskHandle = NULL;    
 
     void boot();
 

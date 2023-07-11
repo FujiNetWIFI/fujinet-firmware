@@ -7,6 +7,8 @@
 
 #include "fnFsTNFSvfs.h"
 
+FileSystemTNFS fnTNFS;
+
 FileSystemTNFS::FileSystemTNFS()
 {
     // TODO: Maybe allocate space for our TNFS packet so it doesn't have to get put on the stack?
@@ -27,14 +29,14 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
 
     if(host == nullptr || host[0] == '\0')
         return false;
-    
+
     strlcpy(_mountinfo.hostname, host, sizeof(_mountinfo.hostname));
 
     // Try to resolve the hostname and store that so we don't have to keep looking it up
     _mountinfo.host_ip = get_ip4_addr_by_name(host);
     if(_mountinfo.host_ip == IPADDR_NONE)
     {
-        Debug_printf("Failed to resolve hostname \"%s\"\n", host);
+        Debug_printf("Failed to resolve hostname \"%s\"\r\n", host);
         return false;
     }
     // TODO: Refresh the DNS name we resolved after X amount of time
@@ -58,17 +60,17 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     else
         _mountinfo.password[0] = '\0';
 
-    Debug_printf("TNFS mount %s[%s]:%hu\n", _mountinfo.hostname, inet_ntoa(_mountinfo.host_ip), _mountinfo.port);
+    Debug_printf("TNFS mount %s[%s]:%hu\r\n", _mountinfo.hostname, inet_ntoa(_mountinfo.host_ip), _mountinfo.port);
 
     int r = tnfs_mount(&_mountinfo);
     if (r != TNFS_RESULT_SUCCESS)
     {
-        Debug_printf("TNFS mount failed with code %d\n", r);
+        Debug_printf("TNFS mount failed with code %d\r\n", r);
         _mountinfo.mountpath[0] = '\0';
         _started = false;
         return false;
     }
-    Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%04hx, min_retry: %hums\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
+    Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%04hx, min_retry: %hums\r\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
 
     // Register a new VFS driver to handle this connection
     if(vfs_tnfs_register(_mountinfo, _basepath, sizeof(_basepath)) != 0)
@@ -113,7 +115,7 @@ bool FileSystemTNFS::remove(const char* path)
 bool FileSystemTNFS::rename(const char* pathFrom, const char* pathTo)
 {
     int result = tnfs_rename(&_mountinfo, pathFrom, pathTo);
-    return result == TNFS_RESULT_SUCCESS;    
+    return result == TNFS_RESULT_SUCCESS;
 }
 
 FILE * FileSystemTNFS::file_open(const char* path, const char* mode)
@@ -139,7 +141,7 @@ bool FileSystemTNFS::dir_open(const char * path, const char *pattern, uint16_t d
 {
     if(!_started)
         return false;
-    
+
     uint8_t d_opt = 0;
     uint8_t s_opt = 0;
 
@@ -155,7 +157,7 @@ bool FileSystemTNFS::dir_open(const char * path, const char *pattern, uint16_t d
         {
             _current_dirpath[0] = '/';
             strlcpy(_current_dirpath + 1, path, sizeof(_current_dirpath)-1);
-        } 
+        }
         else
         {
             strlcpy(_current_dirpath, path, sizeof(_current_dirpath));

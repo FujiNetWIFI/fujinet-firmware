@@ -659,26 +659,26 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
     hostname = _hostname;
     control_port = _port;
 
-    Debug_printf("fnFTP::login(%s,%u)\n", hostname.c_str(), control_port);
+    Debug_printf("fnFTP::login(%s,%u)\r\n", hostname.c_str(), control_port);
 
     // Attempt to open control socket.
     if (!control->connect(hostname.c_str(), control_port, FTP_TIMEOUT))
     {
-        Debug_printf("Could not log in, errno = %u\n", errno);
+        Debug_printf("Could not log in, errno = %u\r\n", errno);
         _statusCode = 421; // service not available
         return true;
     }
 
-    Debug_printf("Connected, waiting for 220.\n");
+    Debug_printf("Connected, waiting for 220.\r\n");
 
     // Wait for banner.
     if (parse_response())
     {
-        Debug_printf("Timed out waiting for 220 banner.\n");
+        Debug_printf("Timed out waiting for 220 banner.\r\n");
         return true;
     }
 
-    Debug_printf("Sending USER.\n");
+    Debug_printf("Sending USER.\r\n");
 
     if (is_positive_completion_reply() && is_connection())
     {
@@ -687,17 +687,17 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
     }
     else
     {
-        Debug_printf("Could not send username. Response was: %s\n", controlResponse.c_str());
+        Debug_printf("Could not send username. Response was: %s\r\n", controlResponse.c_str());
         return true;
     }
 
     if (parse_response())
     {
-        Debug_printf("Timed out waiting for 331.\n");
+        Debug_printf("Timed out waiting for 331.\r\n");
         return true;
     }
 
-    Debug_printf("Sending PASS.\n");
+    Debug_printf("Sending PASS.\r\n");
 
     if (is_positive_intermediate_reply() && is_authentication())
     {
@@ -706,39 +706,39 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
     }
     else
     {
-        Debug_printf("Could not send password. Response was: %s\n", controlResponse.c_str());
+        Debug_printf("Could not send password. Response was: %s\r\n", controlResponse.c_str());
     }
 
     if (parse_response())
     {
-        Debug_printf("Timed out waiting for 230.\n");
+        Debug_printf("Timed out waiting for 230.\r\n");
         return true;
     }
 
     if (is_positive_completion_reply() && is_authentication())
     {
-        Debug_printf("Logged in successfully. Setting type.\n");
+        Debug_printf("Logged in successfully. Setting type.\r\n");
         TYPE();
     }
     else
     {
-        Debug_printf("Could not finish log in. Response was: %s\n", controlResponse.c_str());
+        Debug_printf("Could not finish log in. Response was: %s\r\n", controlResponse.c_str());
         return true;
     }
 
     if (parse_response())
     {
-        Debug_printf("Timed out waiting for 200.\n");
+        Debug_printf("Timed out waiting for 200.\r\n");
         return true;
     }
 
     if (is_positive_completion_reply() && is_syntax())
     {
-        Debug_printf("Logged in\n");
+        Debug_printf("Logged in\r\n");
     }
     else
     {
-        Debug_printf("Could not set image type. Ignoring.\n");
+        Debug_printf("Could not set image type. Ignoring.\r\n");
     }
 
     return false;
@@ -746,10 +746,10 @@ bool fnFTP::login(string _username, string _password, string _hostname, unsigned
 
 bool fnFTP::logout()
 {
-    Debug_printf("fnFTP::logout()\n");
+    Debug_printf("fnFTP::logout()\r\n");
     if (!control->connected())
     {
-        Debug_printf("Logout called when not connected.\n");
+        Debug_printf("Logout called when not connected.\r\n");
         return false;
     }
 
@@ -764,7 +764,7 @@ bool fnFTP::logout()
 
     if (parse_response())
     {
-        Debug_printf("Timed out waiting for 221.\n");
+        Debug_printf("Timed out waiting for 221.\r\n");
     }
 
     control->stop();
@@ -776,13 +776,13 @@ bool fnFTP::open_file(string path, bool stor)
 {
     if (!control->connected())
     {
-        Debug_printf("fnFTP::open_file(%s) attempted while not logged in. Aborting.\n", path.c_str());
+        Debug_printf("fnFTP::open_file(%s) attempted while not logged in. Aborting.\r\n", path.c_str());
         return true;
     }
 
     if (get_data_port())
     {
-        Debug_printf("fnFTP::get_data_port() - could not get data port. Aborting.\n");
+        Debug_printf("fnFTP::get_data_port() - could not get data port. Aborting.\r\n");
         return true;
     }
 
@@ -798,7 +798,7 @@ bool fnFTP::open_file(string path, bool stor)
 
     if (parse_response())
     {
-        Debug_printf("Timed out waiting for 150 response.\n");
+        Debug_printf("Timed out waiting for 150 response.\r\n");
         return true;
     }
 
@@ -806,12 +806,12 @@ bool fnFTP::open_file(string path, bool stor)
     {
         _stor = stor;
         _expect_control_response = !stor;
-        Debug_printf("Server began transfer.\n");
+        Debug_printf("Server began transfer.\r\n");
         return false;
     }
     else
     {
-        Debug_printf("Server could not begin transfer. Response was: %s\n", controlResponse.c_str());
+        Debug_printf("Server could not begin transfer. Response was: %s\r\n", controlResponse.c_str());
         return true;
     }
 }
@@ -820,13 +820,13 @@ bool fnFTP::open_directory(string path, string pattern)
 {
     if (!control->connected())
     {
-        Debug_printf("fnFTP::open_directory(%s%s) attempted while not logged in. Aborting.\n", path.c_str(), pattern.c_str());
+        Debug_printf("fnFTP::open_directory(%s%s) attempted while not logged in. Aborting.\r\n", path.c_str(), pattern.c_str());
         return true;
     }
 
     if (get_data_port())
     {
-        Debug_printf("fnFTP::open_directory(%s%s) could not get data port, aborting.\n", path.c_str(), pattern.c_str());
+        Debug_printf("fnFTP::open_directory(%s%s) could not get data port, aborting.\r\n", path.c_str(), pattern.c_str());
         return true;
     }
 
@@ -835,20 +835,20 @@ bool fnFTP::open_directory(string path, string pattern)
 
     if (parse_response())
     {
-        Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 150 response.\n", path.c_str(), pattern.c_str());
+        Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 150 response.\r\n", path.c_str(), pattern.c_str());
         return true;
     }
 
-    Debug_printf("fnFTP::open_directory(%s%s) - %s\n", path.c_str(), pattern.c_str(), controlResponse.c_str());
+    Debug_printf("fnFTP::open_directory(%s%s) - %s\r\n", path.c_str(), pattern.c_str(), controlResponse.c_str());
 
     if (is_positive_preliminary_reply() && is_filesystem_related())
     {
         // Do nothing.
-        Debug_printf("Got our 150\n");
+        Debug_printf("Got our 150\r\n");
     }
     else
     {
-        Debug_printf("Didn't get our 150\n");
+        Debug_printf("Didn't get our 150\r\n");
         return true;
     }
 
@@ -856,7 +856,7 @@ bool fnFTP::open_directory(string path, string pattern)
 
     // if (buf == nullptr)
     // {
-    //     Debug_printf("fnFTP::open_directory() - Could not allocate 2048 bytes.\n");
+    //     Debug_printf("fnFTP::open_directory() - Could not allocate 2048 bytes.\r\n");
     //     return true;
     // }
 
@@ -870,14 +870,14 @@ bool fnFTP::open_directory(string path, string pattern)
             if (--tmout_counter == 0)
             {
                 // no data & no control message
-                Debug_printf("fnFTP::open_directory - Timeout\n");
+                Debug_printf("fnFTP::open_directory - Timeout\r\n");
                 break;
             }
             fnSystem.delay(50); // wait for more data or control message
         }
         if (data->available())
         {
-            Debug_printf("Retrieving directory list\n");
+            Debug_printf("Retrieving directory list\r\n");
             while (data->available())
             {
                 int len = data->available();
@@ -898,7 +898,7 @@ bool fnFTP::open_directory(string path, string pattern)
 
     if (tmout_counter == 0 || (got_response == false && parse_response()))
     {
-        Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 226 response.\n", path.c_str(), pattern.c_str());
+        Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 226 response.\r\n", path.c_str(), pattern.c_str());
         return true;
     }
 
@@ -915,22 +915,22 @@ bool fnFTP::read_directory(string &name, long &filesize, bool &is_dir)
     if (line.empty())
         return true;
 
-    Debug_printf("fnFTP::read_directory - %s\n",line.c_str());
+    Debug_printf("fnFTP::read_directory - %s\r\n",line.c_str());
     line = line.substr(0, line.size() - 1);
     ftpparse(&parse, (char *)line.c_str(), line.length());
     name = string(parse.name ? parse.name : "???");
     filesize = parse.size;
     is_dir = (parse.flagtrycwd == 1);
-    Debug_printf("Name: %s filesize: %lu\n", name.c_str(), filesize);
+    Debug_printf("Name: %s filesize: %lu\r\n", name.c_str(), filesize);
     return dirBuffer.eof();
 }
 
 bool fnFTP::read_file(uint8_t *buf, unsigned short len)
 {
-    Debug_printf("fnFTP::read_file(%p, %u)\n", buf, len);
+    Debug_printf("fnFTP::read_file(%p, %u)\r\n", buf, len);
     if (!data->connected() && data->available() == 0)
     {
-        Debug_printf("fnFTP::read_file(%p,%u) - data socket not connected, aborting.\n", buf, len);
+        Debug_printf("fnFTP::read_file(%p,%u) - data socket not connected, aborting.\r\n", buf, len);
         return true;
     }
     return len != data->read(buf, len);
@@ -938,10 +938,10 @@ bool fnFTP::read_file(uint8_t *buf, unsigned short len)
 
 bool fnFTP::write_file(uint8_t *buf, unsigned short len)
 {
-    Debug_printf("fnFTP::write_file(%p,%u)\n", buf, len);
+    Debug_printf("fnFTP::write_file(%p,%u)\r\n", buf, len);
     if (!data->connected())
     {
-        Debug_printf("fnFTP::write_file(%p,%u) - data socket not connected, aborting.\n", buf, len);
+        Debug_printf("fnFTP::write_file(%p,%u) - data socket not connected, aborting.\r\n", buf, len);
         return true;
     }
 
@@ -951,7 +951,7 @@ bool fnFTP::write_file(uint8_t *buf, unsigned short len)
 bool fnFTP::close()
 {
     bool res = false;
-    Debug_printf("fnFTP::close()\n");
+    Debug_printf("fnFTP::close()\r\n");
     if (_stor)
     {
         if (data->connected())
@@ -960,7 +960,7 @@ bool fnFTP::close()
         }
         if (parse_response())
         {
-            Debug_printf("Timed out waiting for 226.\n");
+            Debug_printf("Timed out waiting for 226.\r\n");
             res = true;
         }
     }
@@ -1029,7 +1029,7 @@ bool fnFTP::parse_response()
     // update control response and status code
     controlResponse = string((char *)respBuf, num_read);
     _statusCode = atoi(controlResponse.substr(0, 3).c_str());
-    Debug_printf("fnFTP::parse_response() - %d, \"%s\"\n", _statusCode, controlResponse.c_str());
+    Debug_printf("fnFTP::parse_response() - %d, \"%s\"\r\n", _statusCode, controlResponse.c_str());
 
     return false; // ok
 }
@@ -1046,7 +1046,7 @@ int fnFTP::read_response_line(char *buf, int buflen)
         {
             if (--tmout_counter == 0)
             {
-                Debug_printf("fnFTP::read_response_line() - Timeout waiting response\n");
+                Debug_printf("fnFTP::read_response_line() - Timeout waiting response\r\n");
                 return -1;
             }
             fnSystem.delay(50);
@@ -1081,21 +1081,21 @@ bool fnFTP::get_data_port()
 {
     size_t port_pos_beg, port_pos_end;
 
-    Debug_printf("fnFTP::get_data_port()\n");
+    Debug_printf("fnFTP::get_data_port()\r\n");
 
     EPSV();
 
-    Debug_printf("Did EPSV, getting response.\n");
+    Debug_printf("Did EPSV, getting response.\r\n");
 
     if (parse_response())
     {
-        Debug_printf("Timed out waiting for response.\n");
+        Debug_printf("Timed out waiting for response.\r\n");
         return true;
     }
 
     if (is_negative_permanent_reply())
     {
-        Debug_printf("Server unable to reserve port. Response was: %s\n", controlResponse.c_str());
+        Debug_printf("Server unable to reserve port. Response was: %s\r\n", controlResponse.c_str());
         return true;
     }
 
@@ -1104,17 +1104,17 @@ bool fnFTP::get_data_port()
     port_pos_end = controlResponse.find_last_of("|");
     data_port = atoi(controlResponse.substr(port_pos_beg, port_pos_end).c_str());
 
-    Debug_printf("Server gave us data port: %u\n", data_port);
+    Debug_printf("Server gave us data port: %u\r\n", data_port);
 
     // Go ahead and connect to data port, so that control port is unblocked, if it's blocked.
     if (!data->connect(hostname.c_str(), data_port, FTP_TIMEOUT))
     {
-        Debug_printf("Could not open data port %u, errno = %u\n", data_port, errno);
+        Debug_printf("Could not open data port %u, errno = %u\r\n", data_port, errno);
         return true;
     }
     else
     {
-        Debug_printf("Data port %u opened.\n", data_port);
+        Debug_printf("Data port %u opened.\r\n", data_port);
     }
 
     return false;
@@ -1134,48 +1134,48 @@ void fnFTP::PASS()
 
 void fnFTP::TYPE()
 {
-    Debug_printf("fnFTP::TYPE()\n");
+    Debug_printf("fnFTP::TYPE()\r\n");
     control->write("TYPE I\r\n");
 }
 
 void fnFTP::QUIT()
 {
-    Debug_printf("fnFTP::QUIT()\n");
+    Debug_printf("fnFTP::QUIT()\r\n");
     control->write("QUIT\r\n");
 }
 
 void fnFTP::EPSV()
 {
-    Debug_printf("fnFTP::EPSV()\n");
+    Debug_printf("fnFTP::EPSV()\r\n");
     control->write("EPSV\r\n");
 }
 
 void fnFTP::RETR(string path)
 {
-    Debug_printf("fnFTP::RETR(%s)\n",path.c_str());
+    Debug_printf("fnFTP::RETR(%s)\r\n",path.c_str());
     control->write("RETR " + path + "\r\n");
 }
 
 void fnFTP::CWD(string path)
 {
-    Debug_printf("fnFTP::CWD(%s)\n",path.c_str());
+    Debug_printf("fnFTP::CWD(%s)\r\n",path.c_str());
     control->write("CWD " + path + "\r\n");
 }
 
 void fnFTP::LIST(string path, string pattern)
 {
-    Debug_printf("fnFTP::LIST(%s,%s)\n",path.c_str(),pattern.c_str());
+    Debug_printf("fnFTP::LIST(%s,%s)\r\n",path.c_str(),pattern.c_str());
     control->write("LIST " + path + pattern + "\r\n");
 }
 
 void fnFTP::ABOR()
 {
-    Debug_printf("fnFTP::ABOR()\n");
+    Debug_printf("fnFTP::ABOR()\r\n");
     control->write("ABOR\r\n");
 }
 
 void fnFTP::STOR(string path)
 {
-    Debug_printf("fnFTP::STOR(%s)\n",path.c_str());
+    Debug_printf("fnFTP::STOR(%s)\r\n",path.c_str());
     control->write("STOR " + path + "\r\n");
 }

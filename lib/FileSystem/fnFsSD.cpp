@@ -5,6 +5,9 @@
 
 #include <esp_vfs.h>
 #include <esp_vfs_fat.h>
+#include <driver/sdmmc_host.h>
+#include <esp_rom_gpio.h>
+#include <soc/sdmmc_periph.h>
 
 #include <algorithm>
 #include <memory>
@@ -15,9 +18,9 @@
 
 #include "utils.h"
 
-
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-#define HSPI_HOST SPI3_HOST
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
+#define SDSPI_DEFAULT_DMA 1
 #endif
 
 // Our global SD interface
@@ -87,8 +90,8 @@ time_t _fssd_fatdatetime_to_epoch(WORD ftime, WORD fdate)
 
     #ifdef DEBUG
     /*
-        Debug_printf("FileSystemSDFAT direntry: \"%s\"\n", _direntry.filename);
-        Debug_printf("FileSystemSDFAT date (0x%04x): yr=%d, mn=%d, da=%d; time (0x%04x) hr=%d, mi=%d, se=%d\n", 
+        Debug_printf("FileSystemSDFAT direntry: \"%s\"\r\n", _direntry.filename);
+        Debug_printf("FileSystemSDFAT date (0x%04x): yr=%d, mn=%d, da=%d; time (0x%04x) hr=%d, mi=%d, se=%d\r\n", 
             finfo.fdate,
             tmtime.tm_year, tmtime.tm_mon, tmtime.tm_mday,
             finfo.ftime,
@@ -97,7 +100,6 @@ time_t _fssd_fatdatetime_to_epoch(WORD ftime, WORD fdate)
     #endif
 
     return mktime(&tmtime);
-
 }
 
 bool FileSystemSDFAT::is_dir(const char *path)
@@ -139,9 +141,12 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         // Ignore items marked hidden or system
         if(finfo.fattrib & AM_HID || finfo.fattrib & AM_SYS)
             continue;
+
         // Ignore some special files we create on SD
         if(strcmp(finfo.fname, "paper") == 0 
+        #ifndef FNCONFIG_DEBUG
         || strcmp(finfo.fname, "fnconfig.ini") == 0
+        #endif
         || strcmp(finfo.fname, "rs232dump") == 0)
             continue;
 
@@ -199,6 +204,7 @@ void FileSystemSDFAT::dir_close()
 {
     // Throw out any existing directory entry data
     _dir_entries.clear();
+    _dir_entries.shrink_to_fit();
     _dir_entry_current = 0;
 }
 
@@ -206,7 +212,7 @@ fsdir_entry * FileSystemSDFAT::dir_read()
 {
     if(_dir_entry_current < _dir_entries.size())
     {
-        //Debug_printf("#%d = \"%s\"\n", _dir_entry_current, _dir_entries[_dir_entry_current].filename);
+        //Debug_printf("#%d = \"%s\"\r\n", _dir_entry_current, _dir_entries[_dir_entry_current].filename);
         return &_dir_entries[_dir_entry_current++];
     }
     else
@@ -235,13 +241,13 @@ bool FileSystemSDFAT::dir_seek(uint16_t pos)
 
 FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
 {
-    //Debug_printf("sdfileopen1: task hwm %u, %p\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
+    //Debug_printf("sdfileopen1: task hwm %u, %p\r\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
     char * fpath = _make_fullpath(path);
     FILE * result = fopen(fpath, mode);
     free(fpath);
-    //Debug_printf("sdfileopen2: task hwm %u, %p\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
+    //Debug_printf("sdfileopen2: task hwm %u, %p\r\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
 #ifdef DEBUG
-    Debug_printf("fopen = %s : %s\n", path, result == nullptr ? "err" : "ok");
+    Debug_printf("fopen = %s : %s\r\n", path, result == nullptr ? "err" : "ok");
 #endif    
     return result;
 }
@@ -250,7 +256,7 @@ bool FileSystemSDFAT::exists(const char* path)
 {
     FRESULT result = f_stat(path, NULL);
 #ifdef DEBUG
-    //Debug_printf("sdFileSystem::exists returned %d on \"%s\"\n", result, path);
+    //Debug_printf("sdFileSystem::exists returned %d on \"%s\"\r\n", result, path);
 #endif
     return (result == FR_OK);
 }
@@ -259,7 +265,7 @@ bool FileSystemSDFAT::remove(const char* path)
 {
     FRESULT result = f_unlink(path);
 #ifdef DEBUG
-    //Debug_printf("sdFileSystem::remove returned %d on \"%s\"\n", result, path);
+    //Debug_printf("sdFileSystem::remove returned %d on \"%s\"\r\n", result, path);
 #endif
     return (result == FR_OK);
 }
@@ -306,10 +312,13 @@ bool FileSystemSDFAT::create_path(const char *fullpath)
                is (end - fullpath) + 2
             */
             strlcpy(segment, fullpath, end - fullpath + (done ? 2 : 1));
-            Debug_printf("Checking/creating directory: \"%s\"\n", segment);
+            Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
+            if ( !exists(segment) )
+            {
             if(0 != f_mkdir(segment))
             {
-                Debug_printf("FAILED errno=%d\n", errno);
+                    Debug_printf("FAILED errno=%d\r\n", errno);
+                }
             }
         }
 
@@ -323,7 +332,7 @@ bool FileSystemSDFAT::rename(const char* pathFrom, const char* pathTo)
 {
     FRESULT result = f_rename(pathFrom, pathTo);
 #ifdef DEBUG
-    Debug_printf("sdFileSystem::rename returned %d on \"%s\" -> \"%s\"\n", result, pathFrom, pathTo);
+    Debug_printf("sdFileSystem::rename returned %d on \"%s\" -> \"%s\"\r\n", result, pathFrom, pathTo);
 #endif
     return (result == FR_OK);
 }
@@ -392,6 +401,38 @@ bool FileSystemSDFAT::start()
     // Set our basepath
     strlcpy(_basepath, "/sd", sizeof(_basepath));
 
+    // Fat FS configuration options
+    esp_vfs_fat_mount_config_t mount_config;
+    mount_config.format_if_mount_failed = false;
+    mount_config.max_files = 16;
+
+    // This is the information we'll be given in return
+    sdmmc_card_t *sdcard_info;
+
+#ifdef SDMMC_HOST_WIDTH
+
+    sdmmc_host_t host_config = SDMMC_HOST_DEFAULT();
+
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+    slot_config.width = SDMMC_HOST_WIDTH;
+    slot_config.clk = PIN_SD_HOST_CLK;
+    slot_config.cmd = PIN_SD_HOST_CMD;
+    slot_config.d0  = PIN_SD_HOST_D0;
+    slot_config.d1  = PIN_SD_HOST_D1;
+    slot_config.d2  = PIN_SD_HOST_D2;
+    slot_config.d3  = PIN_SD_HOST_D3;
+    slot_config.wp  = PIN_SD_HOST_WP;
+
+    esp_err_t e = esp_vfs_fat_sdmmc_mount(_basepath, &host_config, &slot_config, &mount_config, &sdcard_info);
+
+#if SDMMC_HOST_WP_LEVEL
+    // Override WP routing of GPIO to SDMMC peripheral in order to omit inversion - the original routing is located at
+    // https://github.com/espressif/esp-idf/blob/51772f4fb5c2bbe25b60b4a51d707fa2afd3ac75/components/driver/sdmmc/sdmmc_host.c#L508-L510
+    esp_rom_gpio_connect_in_signal(PIN_SD_HOST_WP, sdmmc_slot_info[host_config.slot].write_protect, false);
+#endif
+
+#else /* SDMMC_HOST_WIDTH */
+
     // Set up a configuration to the SD host interface
     sdmmc_host_t host_config = SDSPI_HOST_DEFAULT(); 
 
@@ -403,38 +444,22 @@ bool FileSystemSDFAT::start()
         .sclk_io_num = PIN_SD_HOST_SCK,
         .quadwp_io_num = -1,
         .quadhd_io_num = -1,
+#ifdef BUILD_APPLE
+        .max_transfer_sz = 27000
+#else
         .max_transfer_sz = 4000
+#endif
     };
 
-    spi_bus_initialize(HSPI_HOST,&bus_cfg,1);
-
-    // sdspi_slot_config_t slot_config = SDSPI_SLOT_CONFIG_DEFAULT();
-    // slot_config.gpio_cs = SD_HOST_CS;
-    // slot_config.gpio_miso = SD_HOST_MISO;
-    // slot_config.gpio_mosi = SD_HOST_MOSI;
-    // slot_config.gpio_sck = SD_HOST_SCK;
+    spi_bus_initialize(SDSPI_DEFAULT_HOST ,&bus_cfg, SDSPI_DEFAULT_DMA);
 
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_SD_HOST_CS;
-    slot_config.host_id = SPI2_HOST;
-
-    // Fat FS configuration options
-    esp_vfs_fat_mount_config_t mount_config;
-    mount_config.format_if_mount_failed = false;
-    mount_config.max_files = 16;
-
-    // This is the information we'll be given in return
-    sdmmc_card_t *sdcard_info;
-
-    // esp_err_t e = esp_vfs_fat_sdmmc_mount(
-    //     _basepath,
-    //     &host_config,
-    //     &slot_config,
-    //     &mount_config,
-    //     &sdcard_info
-    // );
+    slot_config.host_id = SDSPI_DEFAULT_HOST;
 
     esp_err_t e = esp_vfs_fat_sdspi_mount(_basepath, &host_config, &slot_config, &mount_config, &sdcard_info);
+
+#endif /* SDMMC_HOST_WIDTH */
 
     if(e == ESP_OK)
     {
@@ -442,15 +467,16 @@ bool FileSystemSDFAT::start()
         _card_capacity = (uint64_t)sdcard_info->csd.capacity * sdcard_info->csd.sector_size;
     #ifdef DEBUG
         Debug_println("SD mounted.");
+
     /*
-        Debug_printf("  manufacturer: %d, oem: 0x%x \"%c%c\"\n", sdcard_info->cid.mfg_id, sdcard_info->cid.oem_id,
+        Debug_printf("  manufacturer: %d, oem: 0x%x \"%c%c\"\r\n", sdcard_info->cid.mfg_id, sdcard_info->cid.oem_id,
             (char)(sdcard_info->cid.oem_id >> 8 & 0xFF),(char)(sdcard_info->cid.oem_id & 0xFF));
-        Debug_printf("  product: %s\n", sdcard_info->cid.name);
-        Debug_printf("  sector size: %d, sectors: %d, capacity: %llu\n", sdcard_info->csd.sector_size, sdcard_info->csd.capacity, _card_capacity);
-        Debug_printf("  transfer speed: %d\n", sdcard_info->csd.tr_speed);
-        Debug_printf("  max frequency: %ukHz\n", sdcard_info->max_freq_khz);
-        Debug_printf("  partition type: %s\n", partition_type());
-        Debug_printf("  partition size: %llu, used: %llu\n", total_bytes(), used_bytes());
+        Debug_printf("  product: %s\r\n", sdcard_info->cid.name);
+        Debug_printf("  sector size: %d, sectors: %d, capacity: %llu\r\n", sdcard_info->csd.sector_size, sdcard_info->csd.capacity, _card_capacity);
+        Debug_printf("  transfer speed: %d\r\n", sdcard_info->csd.tr_speed);
+        Debug_printf("  max frequency: %ukHz\r\n", sdcard_info->max_freq_khz);
+        Debug_printf("  partition type: %s\r\n", partition_type());
+        Debug_printf("  partition size: %llu, used: %llu\r\n", total_bytes(), used_bytes());
     */
     #endif
     }
@@ -459,7 +485,7 @@ bool FileSystemSDFAT::start()
         _started = false;
         _card_capacity = 0;
     #ifdef DEBUG
-        Debug_printf("SD mount failed with code #%d, \"%s\"\n", e, esp_err_to_name(e));
+        Debug_printf("SD mount failed with code #%d, \"%s\"\r\n", e, esp_err_to_name(e));
     #endif
     }
 

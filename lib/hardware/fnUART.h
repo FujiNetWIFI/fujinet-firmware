@@ -47,7 +47,7 @@ public:
 
     //size_t println(const char *format, ...);
     size_t println(const char *str);
-    size_t println() { return print("\n"); };
+    size_t println() { return print("\r\n"); };
     size_t println(std::string str);
     size_t println(int num, int base = 10);
 
@@ -61,6 +61,6 @@ public:
 };
 
 extern UARTManager fnUartDebug;
-extern UARTManager fnUartSIO;
+extern UARTManager fnUartBUS;
 
 #endif //FNUART_H

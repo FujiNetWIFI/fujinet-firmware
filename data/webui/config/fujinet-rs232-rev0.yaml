@@ -15,3 +15,4 @@ components:
   program_recorder: true
   disk_swap: true
   boot_settings: true
+  apetime: false

@@ -2,12 +2,15 @@
 #define _FN_CONFIG_H
 
 #include "printer.h"
+#include "../encrypt/crypt.h"
+#include "../../include/debug.h"
 
 #define MAX_HOST_SLOTS 8
 #define MAX_MOUNT_SLOTS 8
 #define MAX_PRINTER_SLOTS 4
 #define MAX_TAPE_SLOTS 1
 #define MAX_PB_SLOTS 16
+#define MAX_WIFI_STORED 8
 
 #define BASE_TAPE_SLOT 0x1A
 
@@ -73,18 +76,37 @@ public:
     void store_general_fnconfig_spifs(bool fnconfig_spifs);
     bool get_general_status_wait_enabled() { return _general.status_wait_enabled; }
     void store_general_status_wait_enabled(bool status_wait_enabled);
+    void store_general_encrypt_passphrase(bool encrypt_passphrase);
+    bool get_general_encrypt_passphrase();
 
     const char * get_network_sntpserver() { return _network.sntpserver; };
 
     // WIFI
     bool have_wifi_info() { return _wifi.ssid.empty() == false; };
     std::string get_wifi_ssid() { return _wifi.ssid; };
-    std::string get_wifi_passphrase() { return _wifi.passphrase; };
+    std::string get_wifi_passphrase() {
+        if (_general.encrypt_passphrase) {
+            // crypt is a isomorphic operation, calling it when passphrase is encrypted will decrypt it.
+            std::string cleartext = crypto.crypt(_wifi.passphrase);
+            // Debug_printf("Decrypting passphrase >%s< for ssid >%s< with key >%s<, cleartext: >%s<\r\n", _wifi.passphrase.c_str(), _wifi.ssid.c_str(), crypto.getkey().c_str(), cleartext.c_str());
+            return cleartext;
+        } else {
+            return _wifi.passphrase;
+        }
+    }
     void store_wifi_ssid(const char *ssid_octets, int num_octets);
     void store_wifi_passphrase(const char *passphrase_octets, int num_octets);
     void reset_wifi() { _wifi.ssid.clear(); _wifi.passphrase.clear(); };
     void store_wifi_enabled(bool status);
     bool get_wifi_enabled() { return _wifi.enabled; };
+
+    std::string get_wifi_stored_ssid(int index) { return _wifi_stored[index].ssid; }
+    std::string get_wifi_stored_passphrase(int index) { return _wifi_stored[index].passphrase; }
+    bool get_wifi_stored_enabled(int index) { return _wifi_stored[index].enabled; }
+
+    void store_wifi_stored_ssid(int index, std::string ssid); // { _wifi_stored[index].ssid = ssid; }
+    void store_wifi_stored_passphrase(int index, std::string passphrase);
+    void store_wifi_stored_enabled(int index, bool enabled); // { _wifi_stored[index].enabled = enabled; }
 
     // BLUETOOTH
     void store_bt_status(bool status);
@@ -161,6 +183,8 @@ public:
     void store_device_slot_enable_7(bool enabled);
     void store_device_slot_enable_8(bool enabled);
 
+    bool get_apetime_enabled();
+    void store_apetime_enabled(bool enabled);
 
     void load();
     void save();
@@ -176,6 +200,7 @@ private:
 
     void _read_section_general(std::stringstream &ss);
     void _read_section_wifi(std::stringstream &ss);
+    void _read_section_wifi_stored(std::stringstream &ss, int index);
     void _read_section_bt(std::stringstream &ss);
     void _read_section_network(std::stringstream &ss);
     void _read_section_host(std::stringstream &ss, int index);
@@ -192,6 +217,7 @@ private:
     {
         SECTION_GENERAL,
         SECTION_WIFI,
+        SECTION_WIFI_STORED,
         SECTION_BT,
         SECTION_HOST,
         SECTION_MOUNT,
@@ -283,6 +309,7 @@ private:
         int boot_mode = 0;
         bool fnconfig_spifs = true;
         bool status_wait_enabled = true;
+        bool encrypt_passphrase = false;
     #ifdef BUILD_ADAM
         bool printer_enabled = false; // Not by default.
     #else
@@ -318,6 +345,7 @@ private:
         bool device_6_enabled = true;
         bool device_7_enabled = true;
         bool device_8_enabled = true;
+        bool apetime = true;
     };
 
     struct phbook_info
@@ -331,6 +359,7 @@ private:
     mount_info _mount_slots[MAX_MOUNT_SLOTS];
     printer_info _printer_slots[MAX_PRINTER_SLOTS];
     mount_info _tape_slots[MAX_TAPE_SLOTS];
+    wifi_info _wifi_stored[MAX_WIFI_STORED];
 
     wifi_info _wifi;
     bt_info _bt;

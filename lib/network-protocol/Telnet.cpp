@@ -30,7 +30,7 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
 
     if (protocol == nullptr)
     {
-        Debug_printf("_event_handler() - NULL TELNET Protocol handler!\n");
+        Debug_printf("_event_handler() - NULL TELNET Protocol handler!\r\n");
         return;
     }
 
@@ -70,7 +70,7 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
 NetworkProtocolTELNET::NetworkProtocolTELNET(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocolTCP(rx_buf, tx_buf, sp_buf)
 {
-    Debug_printf("NetworkProtocolTELNET::ctor\n");
+    Debug_printf("NetworkProtocolTELNET::ctor\r\n");
     server = nullptr;
     telnet = telnet_init(telopts, _event_handler, 0, this);
     newRxLen = 0;
@@ -81,7 +81,7 @@ NetworkProtocolTELNET::NetworkProtocolTELNET(string *rx_buf, string *tx_buf, str
  */
 NetworkProtocolTELNET::~NetworkProtocolTELNET()
 {
-    Debug_printf("NetworkProtocolTELNET::dtor\n");
+    Debug_printf("NetworkProtocolTELNET::dtor\r\n");
 
     if (telnet != nullptr)
     {
@@ -100,11 +100,11 @@ bool NetworkProtocolTELNET::read(unsigned short len)
 {
     char *newData = (char *)malloc(len);
 
-    Debug_printf("NetworkProtocolTELNET::read(%u)\n", len);
+    Debug_printf("NetworkProtocolTELNET::read(%u)\r\n", len);
 
     if (newData == nullptr)
     {
-        Debug_printf("Could not allocate %u bytes! Aborting!\n");
+        Debug_printf("Could not allocate %u bytes! Aborting!\r\n");
         return true; // error.
     }
 
@@ -134,7 +134,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
     // Return success
     error = 1;
 
-    Debug_printf("NetworkProtocolTelnet::read(%d) - %s\n", newRxLen, receiveBuffer->c_str());
+    Debug_printf("NetworkProtocolTelnet::read(%d) - %s\r\n", newRxLen, receiveBuffer->c_str());
 
     return NetworkProtocol::read(newRxLen); // Set by calls into telnet_recv()
 }
@@ -146,7 +146,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
  */
 bool NetworkProtocolTELNET::write(unsigned short len)
 {
-    Debug_printf("NetworkProtocolTELNET::write(%u)\n", len);
+    Debug_printf("NetworkProtocolTELNET::write(%u)\r\n", len);
 
     // Check for client connection
     if (!client.connected())

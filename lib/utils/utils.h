@@ -47,6 +47,7 @@ unsigned char util_checksum(const char *chunk, int length);
 std::string util_crunch(std::string filename);
 std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked);
 std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir);
+std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, bool is_dir);
 int util_ellipsize(const char* src, char *dst, int dstsize);
 //std::string util_ellipsize(std::string longString, int maxLength);
 bool util_wildcard_match(const char *str, const char *pattern);
@@ -54,13 +55,15 @@ bool util_starts_with(std::string s, const char *pattern);
 
 bool util_concat_paths(char *dest, const char *parent, const char *child, int dest_size);
 
-void util_dump_bytes(uint8_t *buff, uint32_t buff_size);
+void util_dump_bytes(const uint8_t *buff, uint32_t buff_size);
 
 std::vector<std::string> util_tokenize(std::string s, char c = ' ');
+std::vector<uint8_t> util_tokenize_uint8(std::string s, char c = ' ');
 std::string util_remove_spaces(const std::string &s);
 
 void util_strip_nonascii(std::string &s);
-void util_clean_devicespec(uint8_t* buf, unsigned short len);
+void util_devicespec_fix_9b(uint8_t* buf, unsigned short len);
+std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string prefix, bool is_directory_read, bool process_fs_dot);
 
 bool util_string_value_is_true(std::string value);
 bool util_string_value_is_true(const char *value);
@@ -80,5 +83,10 @@ void util_replaceAll(std::string& str, const std::string& from, const std::strin
 
 //std::string util_get_canonical_path(char* path);
 std::string util_get_canonical_path(std::string path);
+
+char util_petscii_to_ascii(char c);
+char util_ascii_to_petscii(char c);
+void util_petscii_to_ascii_str(std::string &s);
+void util_ascii_to_petscii_str(std::string &s);
 
 #endif // _FN_UTILS_H
