@@ -16,6 +16,8 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
 {
     systemBus *b = (systemBus *)arg;
 
+    //b->pull(PIN_IEC_SRQ);
+
     // Go to listener mode and get command
     b->release(PIN_IEC_CLK_OUT);
     b->pull(PIN_IEC_DATA_OUT);
@@ -23,6 +25,9 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
     b->flags |= ATN_PULLED;
     //if ( b->bus_state < BUS_ACTIVE )
         b->bus_state = BUS_ACTIVE;
+
+    //fnSystem.delay_microseconds(4);
+    //b->release(PIN_IEC_SRQ);
 }
 
 /**
@@ -355,7 +360,7 @@ void systemBus::read_payload()
     /* Sometimes ATN isn't released immediately. Wait for ATN to be
        released before trying to read payload. Long ATN delay (>1.5ms)
        seems to occur more frequently with VIC-20. */
-    protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER);
+    protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER, false);
 
     while (IEC.status(PIN_IEC_ATN) != PULLED)
     {
