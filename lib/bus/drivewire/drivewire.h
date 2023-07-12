@@ -8,6 +8,8 @@
 // https://www.cocopedia.com/wiki/index.php/Main_Page
 // https://github.com/qbancoffee/coco_motherboards
 // https://archive.worldofdragon.org/index.php?title=Main_Page
+// https://sites.google.com/site/dabarnstudio/drivewire-4-3-4e
+// https://sites.google.com/site/dabarnstudio/coco-midi-drivewire
 //
 
 #ifndef COCO_H

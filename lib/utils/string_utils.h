@@ -2,6 +2,8 @@
 #define STRING_UTILS_H
 
 #include <string>
+#include <string_view>
+
 #include <vector>
 
 void copyString(const std::string& input, char *dst, size_t dst_size);

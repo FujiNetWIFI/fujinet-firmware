@@ -745,6 +745,7 @@ uint16_t iecDisk::sendHeader(std::string header, std::string id)
     std::string path = p.pathToFile();
     std::string archive = "";
     std::string image = p.name;
+    Debug_printv("path[%s] size[%d]", path.c_str(), path.size());
 
     // Send List HEADER
     uint8_t space_cnt = 0;
