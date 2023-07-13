@@ -99,10 +99,10 @@ void main_setup()
 
     SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
 
-    // TODO add Config.get_pclink_enabled() == true && ...
+    // add PCLink device only if we have SD card
     if (fnSDFAT.running())
     {
-        // TODO how to get the folder SD is mounted on?
+        // how to get the folder SD card is mounted on?
         pcLink.mount(1, "/sd"); // mount SD card as PCL1:
         SIO.addDevice(&pcLink, SIO_DEVICEID_PCLINK); // PCLink
     }

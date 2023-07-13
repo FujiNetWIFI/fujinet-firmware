@@ -94,3 +94,7 @@ setInputValue(current_encrypt_passphrase_enabled == 1, "encrypt-passphrase-yes",
 {% if components.apetime %}
 setInputValue(current_apetime == 1, "tz-apetime-yes", "tz-apetime-no");
 {% endif %}
+
+{% if components.pclink %}
+setInputValue(current_pclink == 1, "pclink-yes", "pclink-no");
+{% endif %}

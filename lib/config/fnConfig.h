@@ -185,6 +185,8 @@ public:
 
     bool get_apetime_enabled();
     void store_apetime_enabled(bool enabled);
+    bool get_pclink_enabled();
+    void store_pclink_enabled(bool enabled);
 
     void load();
     void save();
@@ -346,6 +348,7 @@ private:
         bool device_7_enabled = true;
         bool device_8_enabled = true;
         bool apetime = true;
+        bool pclink = true;
     };
 
     struct phbook_info

@@ -102,6 +102,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PRINTER_LIST,
         FN_ENCRYPT_PASSPHRASE_ENABLED,
         FN_APETIME_ENABLED,
+        FN_PCLINK_ENABLED,
         FN_LASTTAG
     };
 
@@ -188,7 +189,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HARDWARE_VER",
         "FN_PRINTER_LIST",
         "FN_ENCRYPT_PASSPHRASE_ENABLED",
-        "FN_APETIME_ENABLED"
+        "FN_APETIME_ENABLED",
+        "FN_PCLINK_ENABLED",
     };
 
     stringstream resultstream;
@@ -269,6 +271,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifdef BUILD_ATARI
     case FN_APETIME_ENABLED:
         resultstream << Config.get_apetime_enabled();
+        break;
+    case FN_PCLINK_ENABLED:
+        resultstream << Config.get_pclink_enabled();
         break;
 #endif /* BUILD_ATARI */
 

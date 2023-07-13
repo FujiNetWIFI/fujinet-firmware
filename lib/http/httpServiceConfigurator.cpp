@@ -415,6 +415,13 @@ void fnHttpServiceConfigurator::config_apetime_enabled(std::string enabled)
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_pclink_enabled(std::string enabled)
+{
+    Debug_printf("New PCLink Enable Value: %s\n", enabled.c_str());
+    Config.store_pclink_enabled(atoi(enabled.c_str()));
+    Config.save();
+}
+
 int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t postlen)
 {
 #ifdef DEBUG
@@ -505,6 +512,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("apetime_enabled") == 0)
         {
             config_apetime_enabled(i->second);
+        }
+        else if (i->first.compare("pclink_enabled") == 0)
+        {
+            config_pclink_enabled(i->second);
         }
     }
 

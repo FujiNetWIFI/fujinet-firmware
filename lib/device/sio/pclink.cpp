@@ -22,6 +22,7 @@
 
 #include "modem.h"
 #include "utils.h"
+#include "fnConfig.h"
 #include "pclink.h"
 
 #include "../../include/debug.h"
@@ -2580,7 +2581,13 @@ void sioPCLink::sio_process(uint32_t commanddata, uint8_t checksum)
     uchar cdev = SIO_DEVICEID_PCLINK;
     uchar devno = cdev >> 4; // ??? magical 6
 
-    Debug_print("PCLink sio_process()\n");
+    if (!Config.get_pclink_enabled())
+	{
+        Debug_println("PCLink disabled, ignoring");
+		return;
+	}
+
+    Debug_println("PCLink sio_process()");
 
     /* cunit == 0 is init during warm reset */
     if ((cunit == 0) || device[cunit].on)
