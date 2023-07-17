@@ -613,6 +613,8 @@ void NetworkProtocolHTTP::http_transaction()
     fserror_to_error();
     
     fileSize = bodySize = client->available();
+    Debug_printv("After http_transaction() Heap: %lu\r\n",esp_get_free_internal_heap_size());
+
 }
 
 bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
