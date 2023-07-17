@@ -4,6 +4,8 @@
 #include <esp32/himem.h>
 #endif
 
+#include <esp_heap_trace.h>
+
 #include "debug.h"
 #include "bus.h"
 #include "device.h"
@@ -23,6 +25,9 @@
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
 #endif
+
+#define NUM_RECORDS 100
+static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in internal RAM
 
 // fnSystem is declared and defined in fnSystem.h/cpp
 // fnBtManager is declared and defined in fnBluetooth.h/cpp
@@ -346,9 +351,17 @@ extern "C"
 
 // Create a new high-priority task to handle the main loop
 // This is assigned to CPU1; the WiFi task ends up on CPU0
+#ifdef BUILD_ATARI
+#define MAIN_STACKSIZE 8192
+#define MAIN_PRIORITY 10
+#else
 #define MAIN_STACKSIZE 32768
-#define MAIN_PRIORITY 20
+#define MAIN_PRIORITY 10
+#endif
 #define MAIN_CPUAFFINITY 1
+
+        ESP_ERROR_CHECK( heap_trace_init_standalone(trace_record, NUM_RECORDS) );
+
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
 
