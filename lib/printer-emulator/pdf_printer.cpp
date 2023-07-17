@@ -362,12 +362,21 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     // textMode is set inside of pdf_handle_char at first character, so...
     // need to test for textMode inside the loop
 
+#ifndef BUILD_APPLE
     if (TOPflag)
         pdf_new_page();
+#endif // BUILD_APPLE
 
     // loop through string
     do
     {
+
+// 
+#ifdef BUILD_APPLE // move this inside the loop incase the buffer has more than one line (SP packet buffering)
+        if (TOPflag)
+        pdf_new_page();
+#endif // BUILD_APPLE
+
         c = buffer[i++];
 #ifdef BUILD_APPLE
         if (textMode == true)
@@ -411,12 +420,19 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
             // Debug_printf("\n");
 #endif
         }
-
-    } while (i < n && (cc != ATASCII_EOL));
-
+#ifdef BUILD_APPLE // move this inside the loop incase the buffer has more than one line (SP packet buffering)
     // if wrote last line, then close the page
     if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
         pdf_end_page();
+#endif // BUILD_APPLE
+
+    } while (i < n && (cc != ATASCII_EOL));
+
+#ifndef BUILD_APPLE
+    // if wrote last line, then close the page
+    if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
+        pdf_end_page();
+#endif // BUILD_APPLE
 
     return true;
 }
