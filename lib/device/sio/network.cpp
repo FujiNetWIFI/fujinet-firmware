@@ -248,6 +248,7 @@ void sioNetwork::sio_read()
     // And send off to the computer
     bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
     receiveBuffer->erase(0, num_bytes);
+    receiveBuffer->shrink_to_fit();
 }
 
 /**
