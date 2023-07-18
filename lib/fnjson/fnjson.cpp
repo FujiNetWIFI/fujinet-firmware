@@ -23,6 +23,7 @@ FNJSON::FNJSON()
     Debug_printf("FNJSON::ctor()\r\n");
     _protocol = nullptr;
     _json = nullptr;
+    _parseBuffer = nullptr;
 }
 
 /**
@@ -35,6 +36,9 @@ FNJSON::~FNJSON()
     if (_json != nullptr)
         cJSON_Delete(_json);
     _json = nullptr;
+
+    if (_parseBuffer != nullptr)
+        delete(_parseBuffer);
 }
 
 /**
@@ -253,7 +257,12 @@ int FNJSON::readValueLen()
 bool FNJSON::parse()
 {
     NetworkStatus ns;
-    _parseBuffer.clear();
+    if (_parseBuffer != nullptr)
+    {
+        delete _parseBuffer;
+    }
+
+    _parseBuffer = new string();
 
     if (_json != nullptr)
         cJSON_Delete(_json);
@@ -269,14 +278,14 @@ bool FNJSON::parse()
     while (ns.connected)
     {
         _protocol->read(ns.rxBytesWaiting);
-        _parseBuffer += *_protocol->receiveBuffer;
+        *_parseBuffer += *_protocol->receiveBuffer;
         _protocol->receiveBuffer->clear();
         _protocol->status(&ns);
         vTaskDelay(10);
     }
 
-    Debug_printf("S: %s\r\n",_parseBuffer.c_str());
-    _json = cJSON_Parse(_parseBuffer.c_str());
+    Debug_printf("S: %s\r\n",_parseBuffer->c_str());
+    _json = cJSON_Parse(_parseBuffer->c_str());
 
     if (_json == nullptr)
     {

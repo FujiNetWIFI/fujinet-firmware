@@ -39,7 +39,7 @@ private:
     uint8_t _queryParam;
     string lineEnding;
     string getValue(cJSON *item);
-    string _parseBuffer;
+    string *_parseBuffer;
 };
 
 #endif /* JSON_H */
