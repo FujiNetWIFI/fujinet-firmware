@@ -352,7 +352,7 @@ extern "C"
 // Create a new high-priority task to handle the main loop
 // This is assigned to CPU1; the WiFi task ends up on CPU0
 #ifdef BUILD_ATARI
-#define MAIN_STACKSIZE 8192
+#define MAIN_STACKSIZE 32768
 #define MAIN_PRIORITY 10
 #else
 #define MAIN_STACKSIZE 32768
