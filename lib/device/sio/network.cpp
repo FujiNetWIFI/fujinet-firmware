@@ -28,6 +28,8 @@
 
 #include "ProtocolParser.h"
 
+#include <esp_heap_trace.h>
+
 using namespace std;
 
 /**
@@ -1042,8 +1044,12 @@ void sioNetwork::sio_set_translation()
 
 void sioNetwork::sio_parse_json()
 {
+    heap_trace_start(HEAP_TRACE_LEAKS);
     json->parse();
     sio_complete();
+    heap_trace_stop();
+    Debug_printv("heap trace follows\r\n");
+    heap_trace_dump();
 }
 
 void sioNetwork::sio_set_json_query()
