@@ -12,6 +12,7 @@
 #include "utils.h"
 
 #include <esp_heap_trace.h>
+#include <cstring>
 
 NetworkProtocolFS::NetworkProtocolFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
@@ -63,9 +64,9 @@ bool NetworkProtocolFS::open_file()
 
 bool NetworkProtocolFS::open_dir()
 {
-    char *entryBuffer = (char *)malloc(256);
     openMode = DIR;
     dirBuffer.clear();
+    dirBuffer.shrink_to_fit();
     update_dir_filename(opened_url);
 
     // assume everything if no filename.
@@ -83,6 +84,9 @@ bool NetworkProtocolFS::open_dir()
         return true;
     }
 
+    char entryBuffer[256];
+    memset(entryBuffer,0,sizeof(entryBuffer));
+
     while (read_dir_entry(entryBuffer, 255) == false)
     {
         if (aux2_open & 0x80)
@@ -99,6 +103,8 @@ bool NetworkProtocolFS::open_dir()
             dirBuffer += util_entry(util_crunch(string(entryBuffer)), fileSize, is_directory, is_locked) + "\x9b";
         }
         fserror_to_error();
+
+        memset(entryBuffer,0,sizeof(entryBuffer));
     }
 
 #ifdef BUILD_ATARI
@@ -108,8 +114,6 @@ bool NetworkProtocolFS::open_dir()
 
     if (error == NETWORK_ERROR_END_OF_FILE)
         error = NETWORK_ERROR_SUCCESS;
-
-    free(entryBuffer);
 
     return error != NETWORK_ERROR_SUCCESS;
 }
@@ -198,7 +202,10 @@ bool NetworkProtocolFS::read_file(unsigned short len)
     {
         // Do block read.
         if (read_file_handle(buf, len) == true)
+        {
+            free(buf);
             return true;
+        }
 
         // Append to receive buffer.
         *receiveBuffer += string((char *)buf, len);
@@ -216,13 +223,20 @@ bool NetworkProtocolFS::read_file(unsigned short len)
 
 bool NetworkProtocolFS::read_dir(unsigned short len)
 {
+    bool ret;
+
+    heap_trace_start(HEAP_TRACE_LEAKS);
+
     if (receiveBuffer->length() == 0)
     {
         *receiveBuffer = dirBuffer.substr(0, len);
         dirBuffer.erase(0, len);
+        dirBuffer.shrink_to_fit();
     }
 
-    return NetworkProtocol::read(len);
+    ret = NetworkProtocol::read(len);
+
+    return ret;
 }
 
 bool NetworkProtocolFS::write(unsigned short len)
