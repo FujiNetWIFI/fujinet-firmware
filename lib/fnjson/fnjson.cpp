@@ -108,15 +108,12 @@ string FNJSON::processString(string in)
  */
 string FNJSON::getValue(cJSON *item)
 {
-    string ret = "";
+    stringstream ss;
 
     if (cJSON_IsString(item))
     {
-        stringstream ss;
 
         Debug_printf("S: [cJSON_IsString] %s\r\n", cJSON_GetStringValue(item));
-
-        ss << cJSON_GetStringValue(item);
 
 #ifdef BUILD_ATARI
 
@@ -159,28 +156,25 @@ string FNJSON::getValue(cJSON *item)
             Debug_printf("S: [Mapping->ATARI] %s\r\n", ss.str().c_str());
         }
 #endif
-
-        ret = processString(ss.str() + lineEnding);
+        ss << processString(cJSON_GetStringValue(item) + lineEnding);
     }
     else if (cJSON_IsBool(item))
     {
         Debug_printf("S: [cJSON_IsBool] %s\r\n", cJSON_IsTrue(item) ? "true" : "false");
 
         if (cJSON_IsTrue(item))
-            ret = "TRUE" + lineEnding;
+            ss << "TRUE" + lineEnding;
         else if (cJSON_IsFalse(item))
-            ret = "FALSE" + lineEnding;
+            ss << "FALSE" + lineEnding;
     }
     else if (cJSON_IsNull(item))
     {
         Debug_printf("S: [cJSON_IsNull]\r\n");
 
-        ret = "NULL" + lineEnding;
+        ss << "NULL" + lineEnding;
     }
     else if (cJSON_IsNumber(item))
     {
-        stringstream ss;
-
         Debug_printf("S: [cJSON_IsNumber] %f\r\n", cJSON_GetNumberValue(item));
 
         // Is the number an integer?
@@ -195,7 +189,7 @@ string FNJSON::getValue(cJSON *item)
             ss << setprecision(10) << cJSON_GetNumberValue(item);
         }
 
-        ret = ss.str() + lineEnding;
+        ss << lineEnding;
     }
     else if (cJSON_IsObject(item))
     {
@@ -203,7 +197,7 @@ string FNJSON::getValue(cJSON *item)
 
         do
         {
-            ret += string(item->string) + lineEnding + getValue(item);
+            ss << item->string + lineEnding + getValue(item);
         } while ((item = item->next) != NULL);
     }
     else if (cJSON_IsArray(item))
@@ -211,13 +205,13 @@ string FNJSON::getValue(cJSON *item)
         cJSON *child = item->child;
         do
         {
-            ret += getValue(child);
+            ss << getValue(child);
         } while ((child = child->next) != NULL);
     }
     else
-        ret = "UNKNOWN" + lineEnding;
+        ss << "UNKNOWN" + lineEnding;
     
-    return ret;
+    return ss.str();
 }
 
 /**
