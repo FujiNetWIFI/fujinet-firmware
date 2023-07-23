@@ -15,6 +15,8 @@
 #include "string_utils.h"
 #include "../../include/debug.h"
 
+#include <esp_heap_trace.h>
+
 /**
  * ctor
  */
@@ -210,7 +212,7 @@ string FNJSON::getValue(cJSON *item)
     }
     else
         ss << "UNKNOWN" + lineEnding;
-    
+  
     return ss.str();
 }
 
@@ -218,13 +220,11 @@ string FNJSON::getValue(cJSON *item)
  * Return requested value
  */
 bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
-{
+{    
     if (_item == nullptr)
         return true; // error
 
-    string ret = getValue(_item);
-
-    memcpy(rx_buf, ret.data(), len);
+    memcpy(rx_buf, getValue(_item).data(), len);
 
     return false; // no error.
 }
