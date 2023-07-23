@@ -11,6 +11,8 @@
 #include "status_error_codes.h"
 #include "utils.h"
 
+#include <esp_heap_trace.h>
+
 NetworkProtocolFS::NetworkProtocolFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
@@ -163,17 +165,21 @@ bool NetworkProtocolFS::close_dir()
 
 bool NetworkProtocolFS::read(unsigned short len)
 {
+    bool ret;
+
     switch (openMode)
     {
     case FILE:
-        return read_file(len);
+        ret =  read_file(len);
         break;
     case DIR:
-        return read_dir(len);
+        ret = read_dir(len);
         break;
     default:
-        return true;
+        ret = true;
     }
+
+    return ret;
 }
 
 bool NetworkProtocolFS::read_file(unsigned short len)
