@@ -17,7 +17,7 @@ private:
     typedef std::map<std::string,std::string> header_map_t;
     typedef std::pair<std::string,std::string> header_entry_t;
 
-    char *_buffer; // Will be allocated to DEFAULT_HTTP_BUF_SIZE
+    char _buffer[DEFAULT_HTTP_BUF_SIZE]; // Will be allocated to DEFAULT_HTTP_BUF_SIZE
     int _buffer_pos;
     int _buffer_len;
     int _buffer_total_read;
