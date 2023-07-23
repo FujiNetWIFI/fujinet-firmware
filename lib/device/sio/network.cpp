@@ -195,7 +195,7 @@ void sioNetwork::sio_close()
     else
         sio_complete();
 
-    Debug_printf("Before protocol delete %lu\n",esp_get_free_heap_size());
+    Debug_printv("Before protocol delete %lu\n",esp_get_free_internal_heap_size());
     // Delete the protocol object
     delete protocol;
     protocol = nullptr;
@@ -203,7 +203,7 @@ void sioNetwork::sio_close()
     if (json != nullptr)
         delete json;
 
-    Debug_printf("After protocol delete %lu\n",esp_get_free_heap_size());
+    Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 }
 
 /**
