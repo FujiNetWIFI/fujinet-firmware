@@ -1026,7 +1026,7 @@ void sioFuji::sio_read_directory_entry()
         {
             _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
             // Adjust remaining size of buffer and file path destination
-            bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
+            bufsize = maxlen - ADDITIONAL_DETAILS_BYTES;
             filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
         }
         else
