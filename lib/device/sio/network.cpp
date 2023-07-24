@@ -319,6 +319,7 @@ void sioNetwork::sio_write()
         }
         status.error = NETWORK_ERROR_NOT_CONNECTED;
         sio_error();
+        free(newData);
         return;
     }
 

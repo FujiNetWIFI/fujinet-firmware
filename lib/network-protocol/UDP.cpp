@@ -94,6 +94,7 @@ bool NetworkProtocolUDP::read(unsigned short len)
         if (udp.available() == 0)
         {
             errno_to_error();
+            free(newData);
             return true;
         }
 

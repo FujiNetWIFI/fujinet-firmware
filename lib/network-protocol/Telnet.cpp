@@ -114,6 +114,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
         if (!client.connected())
         {
             error = NETWORK_ERROR_NOT_CONNECTED;
+            free(newData);
             return true; // error
         }
 
