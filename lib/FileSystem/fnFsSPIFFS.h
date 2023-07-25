@@ -10,7 +10,7 @@
 class FileSystemSPIFFS : public FileSystem
 {
 private:
-    DIR * _dir;
+    DIR * _dir = nullptr;
 public:
     FileSystemSPIFFS();
     bool start();
