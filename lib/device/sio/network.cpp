@@ -293,15 +293,16 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
 void sioNetwork::sio_write()
 {
     unsigned short num_bytes = sio_get_aux();
-    uint8_t *newData;
     bool err = false;
 
-    newData = (uint8_t *)malloc(num_bytes);
+    uint8_t *newData = (uint8_t *)malloc(num_bytes);
     Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
 
     if (newData == nullptr)
     {
         Debug_printf("Could not allocate %u bytes.\n", num_bytes);
+        sio_error();
+        return;
     }
 
     sio_ack();
@@ -316,6 +317,7 @@ void sioNetwork::sio_write()
         }
         status.error = NETWORK_ERROR_NOT_CONNECTED;
         sio_error();
+        free(newData);
         return;
     }
 
@@ -333,7 +335,9 @@ void sioNetwork::sio_write()
         sio_complete();
     }
     else
+    {
         sio_error();
+    }
 }
 
 /**

@@ -282,6 +282,8 @@ void rs232Network::rs232_write()
     if (newData == nullptr)
     {
         Debug_printf("Could not allocate %u bytes.\n", num_bytes);
+        rs232_error();
+        return;
     }
 
     rs232_ack();
@@ -291,6 +293,7 @@ void rs232Network::rs232_write()
     {
         status.error = NETWORK_ERROR_NOT_CONNECTED;
         rs232_error();
+        free(newData);
         return;
     }
 

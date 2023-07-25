@@ -329,6 +329,7 @@ void cx16Fuji::copy_file()
     if (ck != cx16_checksum(csBuf, sizeof(csBuf)))
     {
         cx16_error();
+        free(dataBuf);
         return;
     }
 
@@ -340,18 +341,21 @@ void cx16Fuji::copy_file()
     if (copySpec.empty() || copySpec.find_first_of("|") == string::npos)
     {
         cx16_error();
+        free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux1 < 1 || cmdFrame.aux1 > 8)
     {
         cx16_error();
+        free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux2 < 1 || cmdFrame.aux2 > 8)
     {
         cx16_error();
+        free(dataBuf);
         return;
     }
 
@@ -382,6 +386,7 @@ void cx16Fuji::copy_file()
     if (sourceFile == nullptr)
     {
         cx16_error();
+        free(dataBuf);
         return;
     }
 
@@ -390,6 +395,8 @@ void cx16Fuji::copy_file()
     if (destFile == nullptr)
     {
         cx16_error();
+        free(dataBuf);
+        fclose(sourceFile);
         return;
     }
 

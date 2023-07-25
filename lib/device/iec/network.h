@@ -99,8 +99,9 @@ class iecNetwork : public virtualDevice
     {
         PROTOCOL,
         JSON
-    } channelMode[15] =
+    } channelMode[NUM_CHANNELS] =
         {
+            PROTOCOL,
             PROTOCOL,
             PROTOCOL,
             PROTOCOL,
