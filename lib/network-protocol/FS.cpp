@@ -72,11 +72,15 @@ bool NetworkProtocolFS::open_dir()
     Debug_printf("NetworkProtocolFS::open_dir(%s)\r\n", opened_url->toString().c_str());
 
     if (opened_url->path.empty())
+    {
+        free(entryBuffer);
         return true;
+    }
 
     if (open_dir_handle() == true)
     {
         fserror_to_error();
+        free(entryBuffer);
         return true;
     }
 
