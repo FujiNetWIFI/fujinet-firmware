@@ -397,7 +397,7 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
     {
         fileSize = atoi(dirEntryCursor->fileSize.c_str());
         strcpy(buf, dirEntryCursor->filename.c_str());
-        dirEntryCursor++;
+        ++dirEntryCursor;
     }
     else
     {
