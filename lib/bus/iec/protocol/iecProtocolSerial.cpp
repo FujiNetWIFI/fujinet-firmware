@@ -35,7 +35,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 
     IEC.flags &= CLEAR_LOW;
 
-    if ( IEC.status ( PIN_IEC_ATN ) ) return -1;
+    if ( IEC.status ( PIN_IEC_ATN ) ) return false;
 
     // Say we're ready
     //wait( TIMING_STABLE );
