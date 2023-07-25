@@ -127,6 +127,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
         if (errno == ECONNRESET)
         {
             error = NETWORK_ERROR_CONNECTION_RESET;
+            free(newData);
             return true;
         }
 

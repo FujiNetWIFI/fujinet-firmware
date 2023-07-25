@@ -494,6 +494,7 @@ void sioFuji::sio_copy_file()
     if (destFile == nullptr)
     {
         sio_error();
+        fclose(sourceFile);
         free(dataBuf);
         return;
     }
