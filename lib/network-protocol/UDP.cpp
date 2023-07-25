@@ -104,8 +104,6 @@ bool NetworkProtocolUDP::read(unsigned short len)
         // Add new data to buffer.
         newString = string((char *)newData, len);
         *receiveBuffer += newString;
-
-        free(newData);
     }
 
     // Return success

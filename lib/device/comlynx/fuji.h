@@ -61,9 +61,9 @@ private:
     bool setSSIDStarted = false;
 
     uint8_t response[1024];
-    uint16_t response_len;
+    uint16_t response_len = 0;
 
-    systemBus *_comlynx_bus;
+    systemBus *_comlynx_bus = nullptr;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -71,7 +71,7 @@ private:
 
     int _current_open_directory_slot = -1;
 
-    lynxDisk *_bootDisk; // special disk drive just for configuration
+    lynxDisk *_bootDisk = nullptr; // special disk drive just for configuration
 
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
 

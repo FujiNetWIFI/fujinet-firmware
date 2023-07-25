@@ -543,7 +543,7 @@ int systemBus::getHighSpeedBaud()
 void systemBus::setUDPHost(const char *hostname, int port)
 {
     // Turn off if hostname is STOP
-    if (!strcmp(hostname, "STOP"))
+    if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {
         if (_udpDev->udpstreamActive)
             _udpDev->sio_disable_udpstream();
