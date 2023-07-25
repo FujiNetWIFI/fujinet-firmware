@@ -120,8 +120,8 @@ private:
   const int halfwidth = pulsewidth / 2;
 
   // SPI receiver data stream counters
-  int spirx_byte_ctr;
-  int spirx_bit_ctr;
+  int spirx_byte_ctr = 0;
+  int spirx_bit_ctr = 0;
 
   //uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   uint16_t packet_len = 0;
@@ -174,7 +174,7 @@ private:
   fn_rmt_config_t config;
 
   // track bit information
-  uint8_t* track_buffer; // 
+  uint8_t* track_buffer = nullptr; // 
   size_t track_numbits = 6400 * 8;
   size_t track_numbytes = 6400;
   size_t track_location = 0;
