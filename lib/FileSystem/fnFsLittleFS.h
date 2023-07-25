@@ -10,7 +10,7 @@
 class FileSystemLittleFS : public FileSystem
 {
 private:
-    DIR * _dir;
+    DIR * _dir = nullptr;
 public:
     FileSystemLittleFS();
     bool start();
