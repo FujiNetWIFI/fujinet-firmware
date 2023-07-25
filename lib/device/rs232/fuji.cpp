@@ -338,6 +338,7 @@ void rs232Fuji::rs232_copy_file()
     if (ck != rs232_checksum(csBuf, sizeof(csBuf)))
     {
         rs232_error();
+        free(dataBuf);
         return;
     }
 
@@ -349,18 +350,21 @@ void rs232Fuji::rs232_copy_file()
     if (copySpec.empty() || copySpec.find_first_of("|") == string::npos)
     {
         rs232_error();
+        free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux1 < 1 || cmdFrame.aux1 > 8)
     {
         rs232_error();
+        free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux2 < 1 || cmdFrame.aux2 > 8)
     {
         rs232_error();
+        free(dataBuf);
         return;
     }
 
@@ -391,6 +395,7 @@ void rs232Fuji::rs232_copy_file()
     if (sourceFile == nullptr)
     {
         rs232_error();
+        free(dataBuf);
         return;
     }
 
@@ -399,6 +404,8 @@ void rs232Fuji::rs232_copy_file()
     if (destFile == nullptr)
     {
         rs232_error();
+        fclose(sourceFile);
+        free(dataBuf);
         return;
     }
 

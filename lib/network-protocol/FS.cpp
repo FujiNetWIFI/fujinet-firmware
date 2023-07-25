@@ -61,7 +61,6 @@ bool NetworkProtocolFS::open_file()
 
 bool NetworkProtocolFS::open_dir()
 {
-    char *entryBuffer = (char *)malloc(256);
     openMode = DIR;
     dirBuffer.clear();
     update_dir_filename(opened_url);
@@ -80,6 +79,8 @@ bool NetworkProtocolFS::open_dir()
         fserror_to_error();
         return true;
     }
+
+    char *entryBuffer = (char *)malloc(256);
 
     while (read_dir_entry(entryBuffer, 255) == false)
     {

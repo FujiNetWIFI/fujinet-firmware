@@ -428,6 +428,7 @@ void sioFuji::sio_copy_file()
     if (ck != sio_checksum(csBuf, sizeof(csBuf)))
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
@@ -439,18 +440,21 @@ void sioFuji::sio_copy_file()
     if (copySpec.empty() || copySpec.find_first_of("|") == string::npos)
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux1 < 1 || cmdFrame.aux1 > 8)
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux2 < 1 || cmdFrame.aux2 > 8)
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
@@ -481,6 +485,7 @@ void sioFuji::sio_copy_file()
     if (sourceFile == nullptr)
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
@@ -489,6 +494,8 @@ void sioFuji::sio_copy_file()
     if (destFile == nullptr)
     {
         sio_error();
+        fclose(sourceFile);
+        free(dataBuf);
         return;
     }
 
