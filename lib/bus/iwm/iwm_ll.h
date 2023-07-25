@@ -101,8 +101,8 @@ private:
   void set_output_to_spi();
 
   // SPI data handling
-  uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
-  uint16_t spi_len;
+  uint8_t *spi_buffer = nullptr; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
+  uint16_t spi_len = 0;
   spi_bus_config_t bus_cfg;
   spi_device_handle_t spi;
   // SPI receiver
@@ -124,7 +124,7 @@ private:
   int spirx_bit_ctr;
 
   //uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  uint16_t packet_len;
+  uint16_t packet_len = 0;
 
 public:
   SemaphoreHandle_t spiMutex;

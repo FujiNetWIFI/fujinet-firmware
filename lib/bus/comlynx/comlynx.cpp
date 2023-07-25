@@ -418,7 +418,7 @@ void systemBus::disableDevice(uint8_t device_id)
 void systemBus::setUDPHost(const char *hostname, int port)
 {
     // Turn off if hostname is STOP
-    if (!strcmp(hostname, "STOP"))
+    if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {
         if (_udpDev->udpstreamActive)
             _udpDev->comlynx_disable_udpstream();

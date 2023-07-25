@@ -73,14 +73,12 @@ bool NetworkProtocolFS::open_dir()
 
     if (opened_url->path.empty())
     {
-        free(entryBuffer);
         return true;
     }
 
     if (open_dir_handle() == true)
     {
         fserror_to_error();
-        free(entryBuffer);
         return true;
     }
 

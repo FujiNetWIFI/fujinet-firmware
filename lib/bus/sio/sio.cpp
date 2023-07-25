@@ -345,7 +345,7 @@ void systemBus::service()
     {
         _modemDev->sio_handle_modem();
     }
-    else
+    else if (_modemDev != nullptr)
     // Neither CMD nor active modem, so throw out any stray input data
     {
         _modemDev->get_uart()->flush_input();
