@@ -460,8 +460,6 @@ bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned sh
     {
         char *requestedHeader = (char *)malloc(len);
 
-        memset(requestedHeader, 0, len);
-
         if (requestedHeader == nullptr)
         {
             Debug_printf("Could not allocate %u bytes for header\r\n", len);

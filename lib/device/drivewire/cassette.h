@@ -129,8 +129,8 @@ private:
 
     void Clear_atari_sector_buffer(uint16_t len);
 
-    unsigned short block;
-    unsigned short baud;
+    unsigned short block = 0;
+    unsigned short baud = 0;
 
     size_t send_tape_block(size_t offset);
     void check_for_file();

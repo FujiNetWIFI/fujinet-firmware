@@ -12,7 +12,7 @@ class cx16Modem : public virtualDevice
 private:
     ModemSniffer* modemSniffer;
     FileSystem *activeFS;
-    time_t _lasttime;
+    time_t _lasttime = 0;
     
 public:
     cx16Modem(FileSystem *_fs, bool snifferEnable);
