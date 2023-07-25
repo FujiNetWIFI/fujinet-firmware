@@ -8,7 +8,7 @@ class FileSystemTNFS : public FileSystem
 {
 private:
     tnfsMountInfo _mountinfo;
-    unsigned long _last_dns_refresh;
+    unsigned long _last_dns_refresh  = 0;
     char _current_dirpath[TNFS_MAX_FILELEN];
 
 public:

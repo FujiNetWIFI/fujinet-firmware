@@ -375,7 +375,7 @@ private:
 
     std::array<uint8_t, RC2014_RX_BUFFER_SIZE> _rx_buffer;
     std::array<uint8_t, RC2014_TX_BUFFER_SIZE> _tx_buffer;
-    unsigned int _tx_buffer_index;
+    unsigned int _tx_buffer_index = 0;
 
 public:
     void setup();
