@@ -258,8 +258,8 @@ private:
 
     int _sioBaud = SIO_STANDARD_BAUDRATE;
     int _sioHighSpeedIndex = SIO_HISPEED_INDEX;
-    int _sioBaudHigh;
-    int _sioBaudUltraHigh;
+    int _sioBaudHigh = SIO_STANDARD_BAUDRATE;
+    int _sioBaudUltraHigh = SIO_STANDARD_BAUDRATE;
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
