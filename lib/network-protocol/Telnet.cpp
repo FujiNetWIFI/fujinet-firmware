@@ -26,13 +26,13 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
 {
     NetworkProtocolTELNET *protocol = (NetworkProtocolTELNET *)user_data;
 
-    string *receiveBuffer = protocol->getReceiveBuffer();
-
     if (protocol == nullptr)
     {
         Debug_printf("_event_handler() - NULL TELNET Protocol handler!\r\n");
         return;
     }
+
+    string *receiveBuffer = protocol->getReceiveBuffer();
 
     switch (ev->type)
     {
