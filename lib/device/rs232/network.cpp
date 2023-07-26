@@ -465,7 +465,11 @@ void rs232Network::rs232_set_prefix()
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("rs232Network::rs232_set_prefix(%s)\n", prefixSpec_str.c_str());
 
-    if (prefixSpec_str == "..") // Devance path N:..
+    if (prefixSpec_str.empty())
+    {
+        prefix.clear();
+    }
+    else if (prefixSpec_str == "..") // Devance path N:..
     {
         vector<int> pathLocations;
         for (int i = 0; i < prefix.size(); i++)
@@ -488,10 +492,6 @@ void rs232Network::rs232_set_prefix()
     else if (prefixSpec_str[0] == '/') // N:/DIR
     {
         prefix = prefixSpec_str;
-    }
-    else if (prefixSpec_str.empty())
-    {
-        prefix.clear();
     }
     else if (prefixSpec_str.find_first_of(":") != string::npos)
     {
