@@ -4,8 +4,8 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
-#include <forward_list>
-
+// #include <forward_list>
+#include <map>
 
 #define DELAY_T4 850
 #define DELAY_T5 250
@@ -243,7 +243,8 @@ struct sio_message_t
 class systemBus
 {
 private:
-    std::forward_list<virtualDevice *> _daisyChain;
+    //std::forward_list<virtualDevice *> _daisyChain;
+    std::map<unsigned char, virtualDevice *> _daisyChain;
 
     int _command_frame_counter = 0;
 
