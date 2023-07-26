@@ -221,16 +221,12 @@ void systemBus::_sio_process_cmd()
             }
             else
             {
-                // find device, ack and pass control
-                // or go back to WAIT
-                for (auto devicep : _daisyChain)
+                std::map<unsigned char, virtualDevice *>::iterator it = _daisyChain.find(tempFrame.device);
+
+                if (it != _daisyChain.end())
                 {
-                    if (tempFrame.device == devicep.second->_devnum)
-                    {
-                        _activeDev = devicep.second;
-                        // handle command
-                        _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
-                    }
+                    _activeDev = it->second;
+                    it->second->sio_process(tempFrame.commanddata, tempFrame.checksum);
                 }
             }
         }
