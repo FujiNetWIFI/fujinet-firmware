@@ -484,7 +484,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
         }
 
         // Skip a slash in the child if it starts with one so we don't have two slashes
-        if (child[0] == '/' && child[0] == '\\')
+        if (child[0] == '/' || child[0] == '\\')
             child++;
 
         int clen = strlcpy(dest + plen, child, dest_size - plen);

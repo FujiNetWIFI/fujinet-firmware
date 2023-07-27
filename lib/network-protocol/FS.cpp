@@ -86,8 +86,7 @@ bool NetworkProtocolFS::open_dir()
         return true;
     }
 
-    char entryBuffer[256];
-    memset(entryBuffer,0,sizeof(entryBuffer));
+    char *entryBuffer = (char *)malloc(256);
 
     while (read_dir_entry(entryBuffer, 255) == false)
     {

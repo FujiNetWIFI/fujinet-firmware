@@ -12,7 +12,7 @@ void PrintPhonemes(unsigned char *phonemeindex, unsigned char *phonemeLength, un
     printf(" idx    phoneme  length  stress\r\n");
     printf("------------------------------\r\n");
 
-    while ((phonemeindex[i] != 255) && (i < 255))
+    while ((i < 255) && (phonemeindex[i] != 255))
     {
         if (phonemeindex[i] < 81)
         {

@@ -27,15 +27,15 @@ private:
 	EdUrlParser();
 public:
 	virtual ~EdUrlParser();
-	static EdUrlParser* parseUrl(string urlstr);
+	static EdUrlParser* parseUrl(const string &urlstr);
 	static int parsePath(vector<string> *pdirlist, string pathstr);
-	static string urlDecode(string str);
+	static string urlDecode(const string &str);
 	static bool toChar(const char* hex, char *result);
-	static string urlEncode(string s);
+	static string urlEncode(const string &s);
 	static void toHex(char *desthex, char c);
-	static size_t parseKeyValueMap(unordered_map<string, string> *kvmap, string str, bool strict=true);
-	static size_t parseKeyValueList(vector< query_kv_t > *kvmap, string rawstr, bool strict=true);
-	static size_t parseKeyValue(string rawstr, __kv_callback kvcb, void* obj, bool strict);
+	static size_t parseKeyValueMap(unordered_map<string, string> *kvmap, const string &str, bool strict=true);
+	static size_t parseKeyValueList(vector< query_kv_t > *kvmap, const string &rawstr, bool strict=true);
+	static size_t parseKeyValue(const string &rawstr, __kv_callback kvcb, void* obj, bool strict);
 	bool isValidUrl();
 
 private:

@@ -244,7 +244,7 @@ void iwmFuji::iwm_ctrl_set_boot_config() // SP CTRL command
     if (!boot_config) 
     {
         fujiDisk &disk = _fnDisks[0];
-        if (disk.host_slot == 0xFF)
+        if (disk.host_slot == INVALID_HOST_SLOT)
         {
             _fnDisks[0].disk_dev.unmount();
             _fnDisks[0].reset();
@@ -309,7 +309,7 @@ bool iwmFuji::mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
@@ -318,7 +318,7 @@ bool iwmFuji::mount_all()
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
 
-        if (disk.host_slot != 0xFF)
+        if (disk.host_slot != INVALID_HOST_SLOT)
         {
             nodisks = false; // We have a disk in a slot
 
