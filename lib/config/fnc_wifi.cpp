@@ -122,13 +122,13 @@ void fnConfig::_read_section_wifi_stored(std::stringstream &ss, int index)
     }
 }
 
-void fnConfig::store_wifi_stored_ssid(int index, std::string ssid)
+void fnConfig::store_wifi_stored_ssid(int index, const std::string &ssid)
 { 
     _wifi_stored[index].ssid = ssid;
     _dirty = true;
 }
 
-void fnConfig::store_wifi_stored_passphrase(int index, std::string passphrase)
+void fnConfig::store_wifi_stored_passphrase(int index, const std::string &passphrase)
 {
     // TODO: check if encryption is an issue here. Should be coming from previous "current" config, which will already be encrypted if enabled.
     _wifi_stored[index].passphrase = passphrase;

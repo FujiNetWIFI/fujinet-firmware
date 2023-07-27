@@ -32,7 +32,7 @@ EdUrlParser::~EdUrlParser() {
 
 
 
-string EdUrlParser::urlDecode(string str) {
+string EdUrlParser::urlDecode(const string &str) {
 	int _url_errorno = 0;
 	size_t pos = 0, per = 0;
 	size_t len = str.size();
@@ -72,7 +72,7 @@ string EdUrlParser::urlDecode(string str) {
 
 }
 
-string EdUrlParser::urlEncode(string s) {
+string EdUrlParser::urlEncode(const string &s) {
 	const char *ptr = s.c_str();
 	string enc;
 	char c;
@@ -189,7 +189,7 @@ void EdUrlParser::parse() {
 }
 __END_IGNORE_UNUSEDVARS
 
-EdUrlParser* EdUrlParser::parseUrl(string urlstr) {
+EdUrlParser* EdUrlParser::parseUrl(const string &urlstr) {
 	EdUrlParser *url = new EdUrlParser;
 	url->mRawUrl = urlstr;
 	url->parse();
@@ -216,15 +216,15 @@ bool EdUrlParser::toChar(const char* hex, char *result) {
 	return true;
 }
 
-size_t EdUrlParser::parseKeyValueMap(unordered_map<string, string> *kvmap, string rawstr, bool strict) {
+size_t EdUrlParser::parseKeyValueMap(unordered_map<string, string> *kvmap, const string &rawstr, bool strict) {
 	return parseKeyValue(rawstr, __kv_callback_map, kvmap, strict);
 }
 
-size_t EdUrlParser::parseKeyValueList(vector< query_kv_t > *kvvec, string rawstr, bool strict) {
+size_t EdUrlParser::parseKeyValueList(vector< query_kv_t > *kvvec, const string &rawstr, bool strict) {
 	return parseKeyValue(rawstr, __kv_callback_vec, kvvec, strict);
 }
 
-size_t EdUrlParser::parseKeyValue(string rawstr, __kv_callback kvcb, void* obj, bool strict) {
+size_t EdUrlParser::parseKeyValue(const string &rawstr, __kv_callback kvcb, void* obj, bool strict) {
 
 	int _url_errorno = 0;
 	const char *str = rawstr.c_str();
