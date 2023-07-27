@@ -290,13 +290,13 @@ void pdfPrinter::pdf_xref()
     size_t xref = ftell(_file);
     pdf_objCtr++;
     fprintf(_file, "xref\n");
-    fprintf(_file, "0 %u\n", pdf_objCtr);
+    fprintf(_file, "0 %d\n", pdf_objCtr);
     fprintf(_file, "0000000000 65535 f\n");
     for (int i = 1; i < pdf_objCtr; i++)
     {
         fprintf(_file, "%010u 00000 n\n", objLocations[i]);
     }
-    fprintf(_file, "trailer <</Size %u/Root 1 0 R>>\n", pdf_objCtr);
+    fprintf(_file, "trailer <</Size %d/Root 1 0 R>>\n", pdf_objCtr);
     fprintf(_file, "startxref\n");
     fprintf(_file, "%u\n", xref);
     fprintf(_file, "%%%%EOF\n");
