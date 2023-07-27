@@ -228,8 +228,6 @@ bool NetworkProtocolFS::read_dir(unsigned short len)
 {
     bool ret;
 
-    heap_trace_start(HEAP_TRACE_LEAKS);
-
     if (receiveBuffer->length() == 0)
     {
         *receiveBuffer = dirBuffer.substr(0, len);
