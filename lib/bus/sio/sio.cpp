@@ -228,11 +228,11 @@ void systemBus::_sio_process_cmd()
                 if (it != _daisyChain.end())
                 {
                     _activeDev = it->second;
-                    heap_trace_start(HEAP_TRACE_LEAKS);
+                    // heap_trace_start(HEAP_TRACE_LEAKS);
                     it->second->sio_process(tempFrame.commanddata, tempFrame.checksum);
-                    heap_trace_stop();
-                    Debug_printv("heap trace follows.");
-                    heap_trace_dump();
+                    // heap_trace_stop();
+                    // Debug_printv("heap trace follows.");
+                    // heap_trace_dump();
                 }
             }
         }
