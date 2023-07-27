@@ -121,10 +121,10 @@ private:
     string hostname;
 
     /* do STOR - file opened for write */
-    bool _stor;
+    bool _stor = false;
     
     /* if to check control channel too while dealing with data channel */
-    bool _expect_control_response;
+    bool _expect_control_response = false;
 
     /* FTP status code, taken from FTP server response */
     int _statusCode;
@@ -137,12 +137,12 @@ private:
     /**
      * The fnTCP client used for control connection
      */
-    fnTcpClient *control;
+    fnTcpClient *control = nullptr;
 
     /**
      * The fnTCP client used for data connection
      */
-    fnTcpClient *data;
+    fnTcpClient *data = nullptr;
 
     /**
      * last response from control connection.
@@ -167,7 +167,7 @@ private:
     /**
      * The data port returned by EPSV
      */
-    unsigned short data_port;
+    unsigned short data_port = 0;
 
     /**
      * read and parse control response
