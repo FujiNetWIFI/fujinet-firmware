@@ -14,6 +14,8 @@
 #include <esp_heap_trace.h>
 #include <cstring>
 
+#define ENTRY_BUFFER_SIZE 256
+
 NetworkProtocolFS::NetworkProtocolFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
@@ -86,9 +88,9 @@ bool NetworkProtocolFS::open_dir()
         return true;
     }
 
-    char *entryBuffer = (char *)malloc(256);
+    char *entryBuffer = (char *)malloc(ENTRY_BUFFER_SIZE);
 
-    while (read_dir_entry(entryBuffer, 255) == false)
+    while (read_dir_entry(entryBuffer, ENTRY_BUFFER_SIZE-1) == false)
     {
         if (aux2_open & 0x80)
         {
@@ -105,7 +107,7 @@ bool NetworkProtocolFS::open_dir()
         }
         fserror_to_error();
 
-        memset(entryBuffer,0,sizeof(entryBuffer));
+        memset(entryBuffer,0,ENTRY_BUFFER_SIZE);
     }
 
 #ifdef BUILD_ATARI
