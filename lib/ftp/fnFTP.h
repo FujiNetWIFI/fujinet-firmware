@@ -127,7 +127,7 @@ private:
     bool _expect_control_response = false;
 
     /* FTP status code, taken from FTP server response */
-    int _statusCode;
+    int _statusCode = 0;
 
     /**
      * The port number. (21 by default)

@@ -107,7 +107,7 @@ protected:
     uint32_t m_position = 0;
     size_t m_error = 0;
 
-    CBMImageStream* decodedStream;
+    CBMImageStream* decodedStream = nullptr;
 
     bool show_hidden = false;
 

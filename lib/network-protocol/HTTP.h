@@ -160,7 +160,7 @@ private:
         PUT
     } HTTPOpenMode;
 
-    HTTPOpenMode httpOpenMode;
+    HTTPOpenMode httpOpenMode = HTTPOpenMode::GET;
 
     /**
      * The HTTP channel mode, used to distinguish between headers and data
@@ -179,7 +179,7 @@ private:
     /**
      * The fnHTTPClient object used by the adaptor for HTTP calls
      */
-    fnHttpClient *client;
+    fnHttpClient *client = nullptr;
 
     /**
      * result code returned by an HTTP verb
@@ -204,7 +204,7 @@ private:
     /**
      * Returned header cursor
      */
-    size_t returned_header_cursor;
+    size_t returned_header_cursor = 0;
 
     /**
      * Body size (fileSize is reset with this when DATA is engaged)

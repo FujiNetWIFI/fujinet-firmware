@@ -128,7 +128,7 @@ protected:
     /**
      * Open mode
      */
-    OpenMode openMode;
+    OpenMode openMode = OpenMode::FILE;
 
     /**
      * Directory of currently open file
