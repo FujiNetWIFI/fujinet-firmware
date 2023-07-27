@@ -29,14 +29,14 @@ public:
     int readValueLen();
     bool readValue(uint8_t *buf, unsigned short len);
     string processString(string in);
-    int json_bytes_remaining;
+    int json_bytes_remaining = 0;
     
 private:
-    cJSON *_json;
-    cJSON *_item;
-    NetworkProtocol *_protocol;
+    cJSON *_json = nullptr;
+    cJSON *_item = nullptr;
+    NetworkProtocol *_protocol = nullptr;
     string _queryString;
-    uint8_t _queryParam;
+    uint8_t _queryParam = 0;
     string lineEnding;
     string getValue(cJSON *item);
     string _parseBuffer;
