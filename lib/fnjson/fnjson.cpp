@@ -40,7 +40,7 @@ FNJSON::~FNJSON()
 /**
  * Specify line ending
  */
-void FNJSON::setLineEnding(string _lineEnding)
+void FNJSON::setLineEnding(const string &_lineEnding)
 {
     lineEnding = _lineEnding;
 }
@@ -57,7 +57,7 @@ void FNJSON::setProtocol(NetworkProtocol *newProtocol)
 /**
  * Set read query string
  */
-void FNJSON::setReadQuery(string queryString, uint8_t queryParam)
+void FNJSON::setReadQuery(const string &queryString, uint8_t queryParam)
 {
     _queryString = queryString;
     _queryParam = queryParam;
