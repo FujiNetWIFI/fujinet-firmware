@@ -103,7 +103,7 @@ protected:
     /**
      * Do multicast write?
      */
-    bool multicast_writ = false;
+    bool multicast_write = false;
 
     /**
      * @brief Set destination address
