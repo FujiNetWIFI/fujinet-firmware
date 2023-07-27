@@ -15,8 +15,6 @@
 #include "string_utils.h"
 #include "../../include/debug.h"
 
-#include <esp_heap_trace.h>
-
 /**
  * ctor
  */

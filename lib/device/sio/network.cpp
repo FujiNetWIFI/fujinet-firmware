@@ -28,8 +28,6 @@
 
 #include "ProtocolParser.h"
 
-#include <esp_heap_trace.h>
-
 using namespace std;
 
 /**
