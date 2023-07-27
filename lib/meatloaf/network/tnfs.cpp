@@ -415,9 +415,10 @@ void TNFSHandle::obtain(std::string m_path, std::string mode) {
         // it will be caught by the real file open later on
 
         char *pathStr = new char[m_path.length()];
-        strncpy(pathStr, m_path.data(), m_path.length());
 
         if (pathStr) {
+            strncpy(pathStr, m_path.data(), m_path.length());
+
             // Make dirs up to the final fnamepart
             char *ptr = strchr(pathStr, '/');
             while (ptr) {

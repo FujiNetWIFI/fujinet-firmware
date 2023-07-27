@@ -28,6 +28,13 @@ public:
     virtual ~fnFTP();
 
     /**
+     *  Class 'fnFTP' does not have a copy constructor which is recommended since it has dynamic memory/resource allocation(s).
+     * Unless these two functions are implemented, they are being deleted so they cannot be used
+     */
+    fnFTP (const fnFTP&) = delete;
+    fnFTP& operator= (const fnFTP&) = delete;
+
+    /**
      * Log into FTP server.
      * @param username username for login
      * @param password password for login
