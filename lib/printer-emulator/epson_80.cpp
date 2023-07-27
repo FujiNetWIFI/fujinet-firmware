@@ -44,7 +44,7 @@ void epson80::print_8bit_gfx(uint8_t c)
     // lead with '0' to enter a space
     // then shift back with 133 and print each pin
     fprintf(_file, "0");
-    for (int i = 0; i < 8; i++)
+    for (unsigned i = 0; i < 8; i++)
     {
         if ((c >> i) & 0x01)
             fprintf(_file, ")133(%u", i + 1);
@@ -596,7 +596,11 @@ void epson80::pdf_clear_modes()
 void epson80::at_reset()
 {
     leftMargin = 18.0;
+#ifndef BUILD_APPLE
     bottomMargin = 0;
+#else
+    bottomMargin = 13; // line height + 1
+#endif /* APPLE2 */
     printWidth = 576.0; // 8 inches
     lineHeight = 12.0;
     charWidth = 7.2;
@@ -616,10 +620,10 @@ void epson80::post_new_file()
 
     pageWidth = 612.0;
     pageHeight = 792.0;
-#ifndef BUILD_APPLE2
+#ifndef BUILD_APPLE
     topMargin = 16.0;
 #else
-    topMargin = -1.5;
+    topMargin = 12;
 #endif /* APPLE2 */
     // leftMargin = 18.0;
     // bottomMargin = 0;

@@ -85,7 +85,7 @@ void commodoremps803::mps_print_bitmap(uint8_t c)
     // lead with '0' to enter a space
     // then shift back with 100 and print each pin
     fprintf(_file, " ");
-    for (int i = 0; i < 8; i++)
+    for (unsigned i = 0; i < 8; i++)
     {
         if ((c >> i) & 0x01)
             fprintf(_file, ")100(%u", i + 1);
