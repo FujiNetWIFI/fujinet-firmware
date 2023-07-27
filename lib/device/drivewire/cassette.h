@@ -125,9 +125,9 @@ private:
         unsigned char turbo : 1;
     } tape_flags;
 
-    uint8_t atari_sector_buffer[256];
+    uint8_t sector_buffer[256];
 
-    void Clear_atari_sector_buffer(uint16_t len);
+    void clear_sector_buffer(uint16_t len);
 
     unsigned short block = 0;
     unsigned short baud = 0;
