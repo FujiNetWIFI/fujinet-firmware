@@ -4,8 +4,6 @@
 #include <esp32/himem.h>
 #endif
 
-#include <esp_heap_trace.h>
-
 #include "debug.h"
 #include "bus.h"
 #include "device.h"
@@ -359,8 +357,6 @@ extern "C"
 #define MAIN_PRIORITY 10
 #endif
 #define MAIN_CPUAFFINITY 1
-
-        ESP_ERROR_CHECK( heap_trace_init_standalone(trace_record, NUM_RECORDS) );
 
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);

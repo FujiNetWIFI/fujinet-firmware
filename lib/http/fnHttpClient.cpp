@@ -11,8 +11,6 @@
 
 #include "utils.h"
 
-#include <esp_heap_trace.h>
-
 using namespace fujinet;
 
 #define HTTPCLIENT_WAIT_FOR_CONSUMER_TASK 20000 // 20s

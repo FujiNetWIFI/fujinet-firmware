@@ -15,8 +15,6 @@
 #include "led.h"
 #include "utils.h"
 
-#include <esp_heap_trace.h>
-
 // Helper functions outside the class defintions
 
 // Get requested buffer length from command frame
