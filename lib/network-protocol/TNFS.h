@@ -195,17 +195,17 @@ private:
     /**
      * Last TNFS error
      */
-    int tnfs_error;
+    int tnfs_error = 0;
 
     /**
      * The create permissions of the open file
      */
-    uint16_t perms;
+    uint16_t perms = 0;
 
     /**
      * The resulting file handle of open file.
      */
-    int16_t fd;
+    int16_t fd = 0;
 
     /**
      * The TNFS filestat of the currently open file.
