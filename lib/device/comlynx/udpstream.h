@@ -18,7 +18,7 @@ class lynxUDPStream : public virtualDevice
 {
 private:
     fnUDP udpStream;
-    systemBus *_comlynx_bus;
+    systemBus *_comlynx_bus = nullptr;
 
     uint8_t buf_net[UDPSTREAM_BUFFER_SIZE];
     uint8_t buf_stream[UDPSTREAM_BUFFER_SIZE];

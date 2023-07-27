@@ -171,7 +171,7 @@ void okimate10::print_7bit_gfx(uint8_t c)
     // lead with '0' to enter a space
     // then shift back with 100 and print each pin
     fprintf(_file, "0");
-    for (int i = 0; i < 7; i++)
+    for (unsigned i = 0; i < 7; i++)
     {
         if ((c >> (6 - i)) & 0x01) // have the gfx font points backwards or Okimate dot-graphics are upside down
             fprintf(_file, ")99(%u", i + 1);

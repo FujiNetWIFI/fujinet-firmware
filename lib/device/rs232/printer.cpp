@@ -242,7 +242,7 @@ void rs232Printer::shutdown()
 }
 /* Returns a printer type given a string model name
 */
-rs232Printer::printer_type rs232Printer::match_modelname(std::string model_name)
+rs232Printer::printer_type rs232Printer::match_modelname(const std::string &model_name)
 {
     const char *models[PRINTER_INVALID] =
         {

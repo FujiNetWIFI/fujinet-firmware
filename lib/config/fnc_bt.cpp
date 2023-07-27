@@ -13,7 +13,7 @@ void fnConfig::store_bt_baud(int baud)
     _dirty = true;
 }
 
-void fnConfig::store_bt_devname(std::string devname)
+void fnConfig::store_bt_devname(const std::string &devname)
 {
     _bt.bt_devname = devname;
     _dirty = true;

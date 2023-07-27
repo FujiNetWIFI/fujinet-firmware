@@ -98,12 +98,12 @@ protected:
     /**
      * UDP destination port
      */
-    unsigned short port;
+    unsigned short port = 0;
 
     /**
      * Do multicast write?
      */
-    bool multicast_write;
+    bool multicast_write = false;
 
     /**
      * @brief Set destination address

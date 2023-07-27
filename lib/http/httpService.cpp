@@ -316,6 +316,7 @@ void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
         return;
     }
 
+    /// @todo Error if path_end == 0, the index to substr becomes -1
     results->path += results->full_uri.substr(0, path_end - 1);
     results->query += results->full_uri.substr(path_end + 1);
 

@@ -56,7 +56,7 @@ struct appkey
 class drivewireFuji : public virtualDevice
 {
 private:
-    systemBus *_drivewire_bus;
+    systemBus *_drivewire_bus = nullptr;
 
     fujiHost _fnHosts[MAX_HOSTS];
 

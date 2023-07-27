@@ -494,6 +494,7 @@ void sioFuji::sio_copy_file()
     if (destFile == nullptr)
     {
         sio_error();
+        fclose(sourceFile);
         free(dataBuf);
         return;
     }
@@ -555,7 +556,7 @@ void sioFuji::mount_all()
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
 
-        if (disk.host_slot != 0xFF)
+        if (disk.host_slot != INVALID_HOST_SLOT)
         {
             nodisks = false; // We have a disk in a slot
 

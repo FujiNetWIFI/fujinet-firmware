@@ -209,29 +209,24 @@ void systemBus::_sio_process_cmd()
             if (tempFrame.device == SIO_DEVICEID_TYPE3POLL)
             {
                 Debug_println("SIO TYPE3 POLL");
-                for (auto devicep : _daisyChain)
+                for (map<unsigned char, virtualDevice *>::iterator it=_daisyChain.begin(); it != _daisyChain.end(); ++it)
                 {
-                    if (devicep->listen_to_type3_polls)
+                    if (it->second->listen_to_type3_polls)
                     {
-                        Debug_printf("Sending TYPE3 poll to dev %x\n", devicep->_devnum);
-                        _activeDev = devicep;
-                        // handle command
+                        Debug_printf("Sending TYPE3 poll to dev %x\n",it->second->_devnum);
+                        _activeDev = it->second;
                         _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
                     }
                 }
             }
             else
             {
-                // find device, ack and pass control
-                // or go back to WAIT
-                for (auto devicep : _daisyChain)
+                std::map<unsigned char, virtualDevice *>::iterator it = _daisyChain.find(tempFrame.device);
+
+                if (it != _daisyChain.end())
                 {
-                    if (tempFrame.device == devicep->_devnum)
-                    {
-                        _activeDev = devicep;
-                        // handle command
-                        _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
-                    }
+                    _activeDev = it->second;
+                    it->second->sio_process(tempFrame.commanddata, tempFrame.checksum);
                 }
             }
         }
@@ -345,7 +340,7 @@ void systemBus::service()
     {
         _modemDev->sio_handle_modem();
     }
-    else
+    else if (_modemDev != nullptr)
     // Neither CMD nor active modem, so throw out any stray input data
     {
         _modemDev->get_uart()->flush_input();
@@ -434,44 +429,56 @@ void systemBus::addDevice(virtualDevice *pDevice, int device_id)
 
     pDevice->_devnum = device_id;
 
-    _daisyChain.push_front(pDevice);
+    _daisyChain[device_id] = pDevice;
 }
 
 // Removes device from the SIO bus.
 // Note that the destructor is called on the device!
 void systemBus::remDevice(virtualDevice *p)
 {
-    _daisyChain.remove(p);
+    std::map<unsigned char, virtualDevice *>::iterator it = _daisyChain.find(p->_devnum);
+
+    if (it == _daisyChain.end())
+    {
+        Debug_printv("Device not found in daisy chain.");
+        return;
+    }
+    else
+    {
+        int d = it->second->_devnum;
+
+        _daisyChain.erase(it);
+        Debug_printv("Device %u removed from daisy chain.",d);
+    }
 }
 
 // Should avoid using this as it requires counting through the list
 int systemBus::numDevices()
 {
-    int i = 0;
-    __BEGIN_IGNORE_UNUSEDVARS
-    for (auto devicep : _daisyChain)
-        i++;
-    return i;
-    __END_IGNORE_UNUSEDVARS
+    Debug_printv("# of devices in chain: %lu\n",_daisyChain.size());
+    return _daisyChain.size();
 }
 
 void systemBus::changeDeviceId(virtualDevice *p, int device_id)
 {
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep == p)
-            devicep->_devnum = device_id;
-    }
+    unsigned char old_id=0;
+
+    // This uses c++17's std::map.extract() to change the device key
+    // without re-allocation.
+    auto nh = _daisyChain.extract(p->_devnum);
+    old_id=p->_devnum;
+    p->_devnum = device_id;
+    nh.key() = device_id;
+    _daisyChain.insert(std::move(nh));
+    Debug_printv("Device id %u changed to %u",old_id,p->_devnum);
 }
 
 virtualDevice *systemBus::deviceById(int device_id)
 {
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep->_devnum == device_id)
-            return devicep;
-    }
-    return nullptr;
+    if (_daisyChain.find(device_id) == _daisyChain.end())
+        return nullptr;
+    else
+        return _daisyChain[device_id];
 }
 
 // Give devices an opportunity to clean up before a reboot
@@ -481,8 +488,8 @@ void systemBus::shutdown()
 
     for (auto devicep : _daisyChain)
     {
-        Debug_printf("Shutting down device %02x\n",devicep->id());
-        devicep->shutdown();
+        Debug_printf("Shutting down device %02x\n",devicep.second->id());
+        devicep.second->shutdown();
     }
     Debug_printf("All devices shut down.\n");
 }
@@ -543,7 +550,7 @@ int systemBus::getHighSpeedBaud()
 void systemBus::setUDPHost(const char *hostname, int port)
 {
     // Turn off if hostname is STOP
-    if (!strcmp(hostname, "STOP"))
+    if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {
         if (_udpDev->udpstreamActive)
             _udpDev->sio_disable_udpstream();

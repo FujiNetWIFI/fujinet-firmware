@@ -205,8 +205,8 @@ private:
     rs232Printer *_printerdev = nullptr;
 
     int _rs232Baud = RS232_BAUDRATE;
-    int _rs232BaudHigh;
-    int _rs232BaudUltraHigh;
+    int _rs232BaudHigh = RS232_BAUDRATE;
+    int _rs232BaudUltraHigh = RS232_BAUDRATE;
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 

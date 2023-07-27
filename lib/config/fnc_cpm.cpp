@@ -2,7 +2,7 @@
 #include <cstring>
 
 // Saves CPM Command Control Processor Filename
-void fnConfig::store_ccp_filename(std::string filename)
+void fnConfig::store_ccp_filename(const std::string &filename)
 {
     if (_cpm.ccp == filename)
         return;

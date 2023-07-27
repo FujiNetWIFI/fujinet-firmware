@@ -44,7 +44,7 @@ void epson80::print_8bit_gfx(uint8_t c)
     // lead with '0' to enter a space
     // then shift back with 133 and print each pin
     fprintf(_file, "0");
-    for (int i = 0; i < 8; i++)
+    for (unsigned i = 0; i < 8; i++)
     {
         if ((c >> i) & 0x01)
             fprintf(_file, ")133(%u", i + 1);
