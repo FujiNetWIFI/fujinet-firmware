@@ -15,6 +15,41 @@
 #include "led.h"
 #include "utils.h"
 
+#include <freertos/queue.h>
+#include <freertos/task.h>
+
+#include "../../include/pinmap.h"
+#include "../../include/debug.h"
+
+
+static QueueHandle_t drivewire_evt_queue = NULL;
+
+static void IRAM_ATTR drivewire_isr_handler(void* arg)
+{
+    // Generic default interrupt handler
+    uint32_t gpio_num = (uint32_t) arg;
+    xQueueSendFromISR(drivewire_evt_queue, &gpio_num, NULL);
+}
+
+static void drivewire_intr_task(void* arg)
+{
+    uint32_t gpio_num;
+
+    while ( true ) 
+    {
+        if(xQueueReceive(drivewire_evt_queue, &gpio_num, portMAX_DELAY)) 
+        {
+            if ( gpio_num == PIN_CASS_MOTOR )
+            {
+                Debug_printv( "Cassette motor enalbed! Send boot loader!" );
+                
+            }
+        }
+
+        taskYIELD();
+    }
+}
+
 // Helper functions outside the class defintions
 
 systemBus virtualDevice::get_bus() { return DRIVEWIRE; }
@@ -44,6 +79,25 @@ void systemBus::service()
 // Setup DRIVEWIRE bus
 void systemBus::setup()
 {
+    // Create a queue to handle parallel event from ISR
+    drivewire_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+
+    // Start task
+    //xTaskCreate(drivewire_intr_task, "drivewire_intr_task", 2048, NULL, 10, NULL);
+    xTaskCreatePinnedToCore(drivewire_intr_task, "drivewire_intr_task", 4096, NULL, 10, NULL, 0);
+
+    // Setup interrupt for paralellel port
+    gpio_config_t io_conf = {
+        .pin_bit_mask = ( 1ULL << PIN_CASS_MOTOR ),    // bit mask of the pins that you want to set
+        .mode = GPIO_MODE_INPUT,                      // set as input mode
+        .pull_up_en = GPIO_PULLUP_DISABLE,            // disable pull-up mode
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,        // disable pull-down mode
+        .intr_type = GPIO_INTR_NEGEDGE                // interrupt of falling edge
+    };
+
+    //configure GPIO with the given settings
+    gpio_config(&io_conf);
+    gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, NULL);
 }
 
 // Add device to DRIVEWIRE bus
