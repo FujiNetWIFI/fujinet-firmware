@@ -9,9 +9,9 @@ tnfsMountInfo::tnfsMountInfo(const char *host_name, uint16_t host_port)
 }
 
 tnfsMountInfo::tnfsMountInfo(in_addr_t host_address, uint16_t host_port)
+    : host_ip(host_address)
+    , port(host_port)
 {
-    host_ip = host_address;
-    port = host_port;
 }
 
 // Make sure to clean up any memory we allocated

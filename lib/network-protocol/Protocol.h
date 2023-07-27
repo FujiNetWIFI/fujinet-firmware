@@ -162,12 +162,12 @@ protected:
     /**
      * AUX1 value from open
      */
-    unsigned char aux1_open;
+    unsigned char aux1_open = 0;
 
     /**
      * AUX2 value from open
      */
-    unsigned char aux2_open;
+    unsigned char aux2_open = 0;
 
     /**
      * Perform end of line translation on receive buffer.
