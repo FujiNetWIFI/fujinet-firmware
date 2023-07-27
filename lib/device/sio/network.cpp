@@ -65,12 +65,9 @@ sioNetwork::~sioNetwork()
     transmitBuffer->clear();
     specialBuffer->clear();
 
-    if (receiveBuffer != nullptr)
-        delete receiveBuffer;
-    if (transmitBuffer != nullptr)
-        delete transmitBuffer;
-    if (specialBuffer != nullptr)
-        delete specialBuffer;
+    delete receiveBuffer;
+    delete transmitBuffer;
+    delete specialBuffer;
 }
 
 /** SIO COMMANDS ***************************************************************/
@@ -293,15 +290,16 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
 void sioNetwork::sio_write()
 {
     unsigned short num_bytes = sio_get_aux();
-    uint8_t *newData;
     bool err = false;
 
-    newData = (uint8_t *)malloc(num_bytes);
+    uint8_t *newData = (uint8_t *)malloc(num_bytes);
     Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
 
     if (newData == nullptr)
     {
         Debug_printf("Could not allocate %u bytes.\n", num_bytes);
+        sio_error();
+        return;
     }
 
     sio_ack();
@@ -316,6 +314,7 @@ void sioNetwork::sio_write()
         }
         status.error = NETWORK_ERROR_NOT_CONNECTED;
         sio_error();
+        free(newData);
         return;
     }
 
@@ -333,7 +332,9 @@ void sioNetwork::sio_write()
         sio_complete();
     }
     else
+    {
         sio_error();
+    }
 }
 
 /**
@@ -490,7 +491,11 @@ void sioNetwork::sio_set_prefix()
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
 
-    if (prefixSpec_str == "..") // Devance path N:..
+    if (prefixSpec_str.empty())
+    {
+        prefix.clear();
+    }
+    else if (prefixSpec_str == "..") // Devance path N:..
     {
         vector<int> pathLocations;
         for (int i = 0; i < prefix.size(); i++)
@@ -535,10 +540,6 @@ void sioNetwork::sio_set_prefix()
     else if (prefixSpec_str[0] == '/') // N:/DIR
     {
         prefix = prefixSpec_str;
-    }
-    else if (prefixSpec_str.empty())
-    {
-        prefix.clear();
     }
     else if (prefixSpec_str.find_first_of(":") != string::npos)
     {

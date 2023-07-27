@@ -428,6 +428,7 @@ void sioFuji::sio_copy_file()
     if (ck != sio_checksum(csBuf, sizeof(csBuf)))
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
@@ -439,18 +440,21 @@ void sioFuji::sio_copy_file()
     if (copySpec.empty() || copySpec.find_first_of("|") == string::npos)
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux1 < 1 || cmdFrame.aux1 > 8)
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
     if (cmdFrame.aux2 < 1 || cmdFrame.aux2 > 8)
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
@@ -481,6 +485,7 @@ void sioFuji::sio_copy_file()
     if (sourceFile == nullptr)
     {
         sio_error();
+        free(dataBuf);
         return;
     }
 
@@ -489,6 +494,8 @@ void sioFuji::sio_copy_file()
     if (destFile == nullptr)
     {
         sio_error();
+        fclose(sourceFile);
+        free(dataBuf);
         return;
     }
 
@@ -549,7 +556,7 @@ void sioFuji::mount_all()
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
 
-        if (disk.host_slot != 0xFF)
+        if (disk.host_slot != INVALID_HOST_SLOT)
         {
             nodisks = false; // We have a disk in a slot
 
@@ -1026,7 +1033,7 @@ void sioFuji::sio_read_directory_entry()
         {
             _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
             // Adjust remaining size of buffer and file path destination
-            bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
+            bufsize = maxlen - ADDITIONAL_DETAILS_BYTES;
             filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
         }
         else

@@ -1275,6 +1275,7 @@ void AdjustLengths()
                 mem56 = flags[index];
 
             // not a consonant
+            /// @todo code above check if index == 255, if it is, then flags[index] is out of bounds
             if ((flags[index] & 64) == 0)
             {
                 // RX or LX?

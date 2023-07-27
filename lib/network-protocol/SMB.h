@@ -189,37 +189,37 @@ private:
     /**
      * SMB2 context
      */
-    struct smb2_context *smb;
+    struct smb2_context *smb = nullptr;
 
     /**
      * SMB2 URL
      */
-    struct smb2_url *smb_url;
+    struct smb2_url *smb_url = nullptr;
 
     /**
      * SMB2 directory handle
      */
-    struct smb2dir *smb_dir;
+    struct smb2dir *smb_dir = nullptr;
 
     /**
      * SMB2 directory entry
      */
-    struct smb2dirent *ent;
+    struct smb2dirent *ent = nullptr;
 
     /**
      * Last SMB error
      */
-    int smb_error;
+    int smb_error = 0;
 
     /**
      * The resulting file handle of open file.
      */
-    struct smb2fh *fh;
+    struct smb2fh *fh = nullptr;
 
     /**
      * Offset through file
      */
-    uint64_t offset;
+    uint64_t offset = 0;
 
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.

@@ -188,7 +188,7 @@ private:
     /**
      * @brief Current Baud Rate
      */
-    int _drivewireBaud;
+    int _drivewireBaud = 0;
 
 
     // int readSector(struct dwTransferData *dp);

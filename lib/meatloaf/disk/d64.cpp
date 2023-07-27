@@ -424,15 +424,15 @@ time_t D64File::getLastWrite() {
 }
 
 time_t D64File::getCreationTime() {
-    tm *entry_time = 0;
+    tm entry_time;
     auto entry = ImageBroker::obtain<D64IStream>(streamFile->url)->entry;
-    entry_time->tm_year = entry.year + 1900;
-    entry_time->tm_mon = entry.month;
-    entry_time->tm_mday = entry.day;
-    entry_time->tm_hour = entry.hour;
-    entry_time->tm_min = entry.minute;
+    entry_time.tm_year = entry.year + 1900;
+    entry_time.tm_mon = entry.month;
+    entry_time.tm_mday = entry.day;
+    entry_time.tm_hour = entry.hour;
+    entry_time.tm_min = entry.minute;
 
-    return mktime(entry_time);
+    return mktime(&entry_time);
 }
 
 bool D64File::exists() {

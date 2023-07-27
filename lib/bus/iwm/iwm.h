@@ -347,7 +347,7 @@ private:
   void handle_init(); 
 
   int old_track = -1;
-  int new_track;
+  int new_track = -1;
 
 public:
   std::forward_list<iwmDevice *> _daisyChain;

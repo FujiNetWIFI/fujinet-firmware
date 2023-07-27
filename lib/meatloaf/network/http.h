@@ -60,7 +60,7 @@ public:
     bool wasRedirected = false;
     std::string url;
     //char response[HTTP_BLOCK_SIZE + 1] = { 0 };
-    int lastRC;
+    int lastRC = 0;
 };
 
 /********************************************************

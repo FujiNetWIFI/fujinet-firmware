@@ -94,6 +94,7 @@ bool NetworkProtocolUDP::read(unsigned short len)
         if (udp.available() == 0)
         {
             errno_to_error();
+            free(newData);
             return true;
         }
 
@@ -103,13 +104,12 @@ bool NetworkProtocolUDP::read(unsigned short len)
         // Add new data to buffer.
         newString = string((char *)newData, len);
         *receiveBuffer += newString;
-
-        free(newData);
     }
 
     // Return success
     Debug_printf("errno = %u\r\n", errno);
     error = 1;
+    free(newData);
     return NetworkProtocol::read(len);
 }
 

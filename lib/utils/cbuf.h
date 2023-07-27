@@ -29,6 +29,11 @@ public:
     cbuf(size_t size);
     ~cbuf();
 
+    // Class 'cbuf' does not have a copy constructor which is recommended since it has dynamic memory/resource allocation(s).
+    // Unless these two functions are implemented, they are being deleted so they cannot be used
+    cbuf (const cbuf&) = delete;
+    cbuf& operator= (const cbuf&) = delete;
+
     size_t resizeAdd(size_t addSize);
     size_t resize(size_t newSize);
     size_t available() const;

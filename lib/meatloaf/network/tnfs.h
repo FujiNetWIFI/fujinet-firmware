@@ -28,7 +28,7 @@ public:
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
             seekEntry( name );
 
-        if (!pathValid(path.c_str()))
+        if (!pathValid(path))
             m_isNull = true;
         else
             m_isNull = false;
@@ -81,7 +81,7 @@ private:
 class TNFSHandle {
 public:
     //int rc;
-    FILE* file_h;
+    FILE* file_h = nullptr;
 
     TNFSHandle() 
     {
@@ -93,7 +93,7 @@ public:
     void dispose();
 
 private:
-    int flags;
+    int flags = 0;
 };
 
 
@@ -146,7 +146,7 @@ protected:
     std::unique_ptr<TNFSHandle> handle;
 
 private:
-    size_t _size;
+    size_t _size = 0;
 };
 
 

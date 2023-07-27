@@ -21,8 +21,8 @@ private:
 public:
     // crypt/decrypt are isomorphic, and just reverse the process
     std::string crypt(std::string t);
-    void setkey(std::string key) { _key = key; }
-    std::string getkey() { return _key; }
+    void setkey(const std::string &key) { _key = key; }
+    std::string getkey() const { return _key; }
 };
 
 extern Crypto crypto;

@@ -290,13 +290,13 @@ void pdfPrinter::pdf_xref()
     size_t xref = ftell(_file);
     pdf_objCtr++;
     fprintf(_file, "xref\n");
-    fprintf(_file, "0 %u\n", pdf_objCtr);
+    fprintf(_file, "0 %d\n", pdf_objCtr);
     fprintf(_file, "0000000000 65535 f\n");
     for (int i = 1; i < pdf_objCtr; i++)
     {
         fprintf(_file, "%010u 00000 n\n", objLocations[i]);
     }
-    fprintf(_file, "trailer <</Size %u/Root 1 0 R>>\n", pdf_objCtr);
+    fprintf(_file, "trailer <</Size %d/Root 1 0 R>>\n", pdf_objCtr);
     fprintf(_file, "startxref\n");
     fprintf(_file, "%u\n", xref);
     fprintf(_file, "%%%%EOF\n");
@@ -360,12 +360,21 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     // textMode is set inside of pdf_handle_char at first character, so...
     // need to test for textMode inside the loop
 
+#ifndef BUILD_APPLE
     if (TOPflag)
         pdf_new_page();
+#endif // BUILD_APPLE
 
     // loop through string
     do
     {
+
+// 
+#ifdef BUILD_APPLE // move this inside the loop incase the buffer has more than one line (SP packet buffering)
+        if (TOPflag)
+        pdf_new_page();
+#endif // BUILD_APPLE
+
         c = buffer[i++];
 #ifdef BUILD_APPLE
         if (textMode == true)
@@ -409,12 +418,19 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
             // Debug_printf("\r\n");
 #endif
         }
-
-    } while (i < n && (cc != ATASCII_EOL));
-
+#ifdef BUILD_APPLE // move this inside the loop incase the buffer has more than one line (SP packet buffering)
     // if wrote last line, then close the page
     if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
         pdf_end_page();
+#endif // BUILD_APPLE
+
+    } while (i < n && (cc != ATASCII_EOL));
+
+#ifndef BUILD_APPLE
+    // if wrote last line, then close the page
+    if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
+        pdf_end_page();
+#endif // BUILD_APPLE
 
     return true;
 }

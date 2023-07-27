@@ -112,17 +112,17 @@ private:
     /**
      * Host Key Fingerprint
      */
-    unsigned char *fingerprint;
+    unsigned char *fingerprint = nullptr;
 
     /**
      * User Auth list
      */
-    const char *userauthlist;
+    const char *userauthlist = nullptr;
 
     /**
      * Intermediate RX buffer
      */
-    char *rxbuf;
+    char *rxbuf = nullptr;
 
     /**
      * Return if bytes available by injecting into RX buffer.
