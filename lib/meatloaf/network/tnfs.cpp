@@ -13,7 +13,8 @@
 
 bool TNFSFile::pathValid(std::string path) 
 {
-    auto apath = std::string(basepath + path).c_str();
+    std::string s = std::string(basepath + path);
+    auto apath = s.c_str();
     while (*apath) {
         const char *slash = strchr(apath, '/');
         if (!slash) {
