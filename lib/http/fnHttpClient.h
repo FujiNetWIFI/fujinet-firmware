@@ -61,7 +61,7 @@ public:
         DEPTH_INFINITY
     };
 
-    bool begin(std::string url);
+    bool begin(const std::string &url);
     void close();
 
     int GET();

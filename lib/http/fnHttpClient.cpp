@@ -37,7 +37,7 @@ fnHttpClient::~fnHttpClient()
 }
 
 // Start an HTTP client session to the given URL
-bool fnHttpClient::begin(std::string url)
+bool fnHttpClient::begin(const std::string &url)
 {
     Debug_printf("fnHttpClient::begin \"%s\"\r\n", url.c_str());
 
