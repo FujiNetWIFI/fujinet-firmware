@@ -159,7 +159,8 @@ void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
         return;
 
     // Get size of handler
-    int filesize = fnSystem.load_firmware(FIRMWARE_850HANDLER, NULL);
+    int filesize = 1282;
+    // int filesize = fnSystem.load_firmware(FIRMWARE_850HANDLER, NULL);
 
     // Simply return (without ACK) if we failed to get this
     if (filesize < 0)
@@ -202,7 +203,8 @@ void modem::sio_poll_1()
     */
 
     // Get size of relocator
-    int filesize = fnSystem.load_firmware(FIRMWARE_850RELOCATOR, NULL);
+    // int filesize = fnSystem.load_firmware(FIRMWARE_850RELOCATOR, NULL);
+    int filesize = 333;
     // Simply return (without ACK) if we failed to get this
     if (filesize < 0)
         return;
@@ -240,23 +242,27 @@ void modem::sio_poll_1()
 void modem::sio_send_firmware(uint8_t loadcommand)
 {
     const char *firmware;
+    int firmware_size = 0;
+
     if (loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR)
     {
         firmware = FIRMWARE_850RELOCATOR;
+        firmware_size = 333;
     }
     else
     {
         if (loadcommand == SIO_MODEMCMD_LOAD_HANDLER)
         {
             firmware = FIRMWARE_850HANDLER;
+            firmware_size = 1282;
         }
         else
             return;
     }
 
     // Load firmware from file
-    uint8_t *code;
-    int codesize = fnSystem.load_firmware(firmware, &code);
+    uint8_t *code = (uint8_t *)malloc(firmware_size);
+    int codesize = fnSystem.load_firmware(firmware, code);
     // NAK if we failed to get this
     if (codesize < 0 || code == NULL)
     {
