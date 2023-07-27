@@ -42,7 +42,7 @@ public:
      * @param port port to login (default 21)
      * @return TRUE on error, FALSE on success
      */
-    bool login(string _username, string _password, string _hostname, unsigned short _port = 21);
+    bool login(const string &_username, const string &_password, const string &_hostname, unsigned short _port = 21);
 
     /**
      * Log out of FTP server, closes control connection.
