@@ -24,9 +24,6 @@
 #include "fnBluetooth.h"
 #endif
 
-#define NUM_RECORDS 100
-static heap_trace_record_t trace_record[NUM_RECORDS]; // This buffer must be in internal RAM
-
 // fnSystem is declared and defined in fnSystem.h/cpp
 // fnBtManager is declared and defined in fnBluetooth.h/cpp
 // fnLedManager is declared and defined in led.h/cpp
