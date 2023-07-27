@@ -1355,6 +1355,15 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
             httpd_register_uri_handler(state.hServer, &uridef);
 
         // Start SSDP Service
+        SSDPDevice.setName( "FujiNet v1.6 (Commodore)" );
+        SSDPDevice.setDeviceType("urn:schemas-upnp-org:device:ManageableDevice:1");
+        SSDPDevice.setSchemaURL("device.xml");
+        SSDPDevice.setSerialNumber("1231231234ABCXYZ");
+        SSDPDevice.setURL("http://fujinet.local");
+        SSDPDevice.setModelName( "FujiNet" );
+        SSDPDevice.setModelNumber("1.6");
+        SSDPDevice.setManufacturer("FujiNet");
+        SSDPDevice.setManufacturerURL("https://fujinet.online/");
         SSDPDevice.start();
     }
     else

@@ -71,7 +71,7 @@ static const char* SSDP_NOTIFY_UPDATE_TEMPLATE =
 static const char* SSDP_PACKET_TEMPLATE =
 	"%s" // _ssdp_response_template / _ssdp_notify_template
 	"CACHE-CONTROL: max-age=%u\r\n" // SSDP_INTERVAL
-	"SERVER: UPNP/1.1 %s/%s\r\n" // m_modelName, m_modelNumber
+	"SERVER: %s/%s UPnP/1.1\r\n" // m_modelName, m_modelNumber
 	"USN: %s%s%s\r\n" // m_uuid
 	"%s: %s\r\n"  // "NT" or "ST", m_deviceType
 	"LOCATION: http://%u.%u.%u.%u:%u/%s\r\n" // WiFi.localIP(), m_port, m_schemaURL
