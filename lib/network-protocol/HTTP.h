@@ -184,7 +184,7 @@ private:
     /**
      * result code returned by an HTTP verb
      */
-    int resultCode;
+    int resultCode = 0;
 
     /**
      * Array of up to 32 headers
@@ -194,7 +194,7 @@ private:
     /**
      * Collected headers count
      */
-    size_t collect_headers_count;
+    size_t collect_headers_count = 0;
 
     /**
      * Returned headers
@@ -209,7 +209,7 @@ private:
     /**
      * Body size (fileSize is reset with this when DATA is engaged)
      */
-    int bodySize;
+    int bodySize = 0;
 
     /**
      * POST or PUT Data to send.
