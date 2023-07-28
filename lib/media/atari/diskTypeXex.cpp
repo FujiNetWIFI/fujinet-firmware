@@ -216,9 +216,6 @@ void MediaTypeXEX::status(uint8_t statusbuff[4])
 
 void MediaTypeXEX::unmount()
 {
-    if (_xex_bootloader != nullptr)
-        free(_xex_bootloader);
-
     // Call the parent unmount
     this->MediaType::unmount();
 }
@@ -235,7 +232,7 @@ mediatype_t MediaTypeXEX::mount(FILE *f, uint32_t disksize)
     _disktype = MEDIATYPE_UNKNOWN;
 
     // Load our bootloader
-    _xex_bootloadersize = fnSystem.load_firmware(BOOTLOADER, &_xex_bootloader);
+    _xex_bootloadersize = fnSystem.load_firmware(BOOTLOADER, &_xex_bootloader[0]);
     if (_xex_bootloadersize < 0)
     {
         Debug_printf("failed to load bootloader \"%s\"\r\n", BOOTLOADER);

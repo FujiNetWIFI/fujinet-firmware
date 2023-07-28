@@ -310,7 +310,7 @@ size_t UARTManager::print(const char *str)
     ;
 }
 
-size_t UARTManager::print(std::string str)
+size_t UARTManager::print(const std::string &str)
 {
     if (!_initialized)
         return -1;

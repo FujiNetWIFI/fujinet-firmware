@@ -275,6 +275,8 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 
     returned_entry.replace(returned_entry.length() - stylized_filesize.length() - 1, stylized_filesize.length(), stylized_filesize);
 
+    returned_entry.shrink_to_fit();
+    
     return returned_entry;
 }
 
