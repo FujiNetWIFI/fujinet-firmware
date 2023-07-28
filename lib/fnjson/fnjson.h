@@ -19,9 +19,9 @@ public:
     FNJSON();
     virtual ~FNJSON();
 
-    void setLineEnding(string _lineEnding);
+    void setLineEnding(const string &_lineEnding);
     void setProtocol(NetworkProtocol *newProtocol);
-    void setReadQuery(string queryString, uint8_t queryParam);
+    void setReadQuery(const string &queryString, uint8_t queryParam);
     cJSON *resolveQuery();
     bool status(NetworkStatus *status);
     

@@ -11,7 +11,6 @@
 
 #include "utils.h"
 
-
 using namespace fujinet;
 
 #define HTTPCLIENT_WAIT_FOR_CONSUMER_TASK 20000 // 20s
@@ -31,8 +30,9 @@ fnHttpClient::~fnHttpClient()
 
     if (_handle != nullptr)
     {
-        Debug_printf("esp_http_client_cleanup(%p)\r\n",_handle);
-        Debug_printf("free heap: %lu\r\n",esp_get_free_heap_size());
+        Debug_printf("esp_http_client_cleanup(%p)\r\n", _handle);
+        Debug_printf("free heap: %lu\r\n", esp_get_free_heap_size());
+        Debug_printv("free low heap: %lu\r\n",esp_get_free_internal_heap_size());
         esp_http_client_cleanup(_handle);
     }
 
@@ -40,7 +40,7 @@ fnHttpClient::~fnHttpClient()
 }
 
 // Start an HTTP client session to the given URL
-bool fnHttpClient::begin(std::string url)
+bool fnHttpClient::begin(const std::string &url)
 {
     Debug_printf("fnHttpClient::begin \"%s\"\r\n", url.c_str());
 
@@ -70,7 +70,7 @@ int fnHttpClient::available()
     int result = 0;
     int len = -1;
 
-    if(esp_http_client_is_chunked_response(_handle))
+    if (esp_http_client_is_chunked_response(_handle))
         len = esp_http_client_get_chunk_length(_handle);
     else
         len = esp_http_client_get_content_length(_handle);
@@ -89,7 +89,7 @@ int fnHttpClient::available()
 */
 int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
 {
-    //Debug_println("::read");
+    // Debug_println("::read");
     if (_handle == nullptr || dest_buffer == nullptr)
         return -1;
 
@@ -104,7 +104,7 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         bytes_left = _buffer_len - _buffer_pos;
         bytes_to_copy = dest_bufflen > bytes_left ? bytes_left : dest_bufflen;
 
-        //Debug_printf("::read from buffer %d\r\n", bytes_to_copy);
+        // Debug_printf("::read from buffer %d\r\n", bytes_to_copy);
         memcpy(dest_buffer, _buffer + _buffer_pos, bytes_to_copy);
         _buffer_pos += bytes_to_copy;
         _buffer_total_read += bytes_to_copy;
@@ -119,7 +119,7 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
     // Nothing left to read - later ESP-IDF versions provide esp_http_client_is_complete_data_received()
     if (_transaction_done)
     {
-        //Debug_println("::read download done");
+        // Debug_println("::read download done");
         return bytes_copied;
     }
 
@@ -136,28 +136,28 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
     while (bytes_copied < dest_bufflen)
     {
         // Let the HTTP process task know to fill the buffer
-        //Debug_println("::read notifyGive");
+        // Debug_println("::read notifyGive");
         xTaskNotifyGive(_taskh_subtask);
         // Wait till the HTTP task lets us know it's filled the buffer
-        //Debug_println("::read notifyTake...");
-        if(ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) != 1)
+        // Debug_println("::read notifyTake...");
+        if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) != 1)
         {
             // Abort if we timed-out receiving the data
             Debug_println("::read time-out");
             return -1;
         }
-        //Debug_println("::read got notification");
+        // Debug_println("::read got notification");
         if (_buffer_len <= 0)
         {
-            //Debug_println("::read download done");
+            // Debug_println("::read download done");
             return bytes_copied;
         }
 
         int dest_size = dest_bufflen - bytes_copied;
         bytes_to_copy = dest_size > _buffer_len ? _buffer_len : dest_size;
 
-        //Debug_printf("dest_size=%d, dest_bufflen=%d, bytes_copied=%d, bytes_to_copy=%d\r\n",
-                     //dest_size, dest_bufflen, bytes_copied, bytes_to_copy);
+        // Debug_printf("dest_size=%d, dest_bufflen=%d, bytes_copied=%d, bytes_to_copy=%d\r\n",
+        // dest_size, dest_bufflen, bytes_copied, bytes_to_copy);
 
         memcpy(dest_buffer + bytes_copied, _buffer, bytes_to_copy);
         _buffer_pos += bytes_to_copy;
@@ -171,7 +171,7 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
 // Thorws out any waiting response body without closing the connection
 void fnHttpClient::_flush_response()
 {
-    //Debug_println("fnHttpClient::flush_response");
+    // Debug_println("fnHttpClient::flush_response");
     if (_handle == nullptr)
         return;
 
@@ -191,20 +191,20 @@ void fnHttpClient::_flush_response()
     do
     {
         // Let the HTTP process task know to fill the buffer
-        //Debug_println("::flush_response notifyGive");
+        // Debug_println("::flush_response notifyGive");
         xTaskNotifyGive(_taskh_subtask);
         // Wait till the HTTP task lets us know it's filled the buffer
-        //Debug_println("::flush_response notifyTake...");
+        // Debug_println("::flush_response notifyTake...");
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK));
 
     } while (!_transaction_done);
-    //Debug_println("fnHttpClient::flush_response done");
+    // Debug_println("fnHttpClient::flush_response done");
 }
 
 // Close connection, but keep request resources
 void fnHttpClient::close()
 {
-    //Debug_println("::close");
+    // Debug_println("::close");
     _delete_subtask_if_running();
 
     if (_handle != nullptr)
@@ -215,7 +215,7 @@ void fnHttpClient::close()
 
 /*
  Typical event order:
- 
+
  HTTP_EVENT_HANDLER_ON_CONNECTED
  HTTP_EVENT_HEADERS_SENT
  HTTP_EVENT_ON_HEADER - once for each header received with header_key and header_value set
@@ -319,7 +319,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
         ulTaskNotifyTake(1, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_CONSUMER_TASK));
 
 #ifdef VERBOSE_HTTP
-       Debug_printf("HTTP_EVENT_ON_DATA: Data: %p, Datalen: %d\r\n", evt->data, evt->data_len);
+        Debug_printf("HTTP_EVENT_ON_DATA: Data: %p, Datalen: %d\r\n", evt->data, evt->data_len);
 #endif
 
         client->_buffer_pos = 0;
@@ -334,7 +334,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     case HTTP_EVENT_ON_FINISH: // Occurs when finish a HTTP session
     {
         // This may get called more than once if esp_http_client decides to retry in order to handle a redirect or auth response
-        //Debug_printf("HTTP_EVENT_ON_FINISH %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
+        // Debug_printf("HTTP_EVENT_ON_FINISH %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
         // Keep track of how many times we "finish" reading a response from the server
         client->_redirect_count++;
         break;
@@ -342,7 +342,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
 
     case HTTP_EVENT_DISCONNECTED: // The connection has been disconnected
         client->connected = false;
-        //Debug_printf("HTTP_EVENT_DISCONNECTED %p:\"%s\":%u\r\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
+        // Debug_printf("HTTP_EVENT_DISCONNECTED %p:\"%s\":%u\r\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
         break;
     }
     return ESP_OK;
@@ -358,7 +358,7 @@ void fnHttpClient::_perform_subtask(void *param)
     parent->_redirect_count = 0;
     parent->_buffer_len = 0;
 
-    //Debug_printf("esp_http_client_perform start\r\n");
+    // Debug_printf("esp_http_client_perform start\r\n");
 
     esp_err_t e = esp_http_client_perform(parent->_handle);
     Debug_printf("esp_http_client_perform returned %d, stack HWM %u\r\n", e, uxTaskGetStackHighWaterMark(nullptr));
@@ -373,7 +373,7 @@ void fnHttpClient::_perform_subtask(void *param)
     if (false == parent->_ignore_response_body)
     {
         /*
-         If _transaction_begin is false, then we handled the HTTP_EVENT_ON_DATA event, and 
+         If _transaction_begin is false, then we handled the HTTP_EVENT_ON_DATA event, and
          read() has sent us a notification we need to accept before continuing.
         */
         if (false == parent->_transaction_begin)
@@ -387,7 +387,7 @@ void fnHttpClient::_perform_subtask(void *param)
         xTaskNotifyGive(parent->_taskh_consumer);
     }
 
-    //Debug_println("_perform_subtask_exiting");
+    Debug_printv("_perform_subtask_exiting");
     TaskHandle_t tmp = parent->_taskh_subtask;
     parent->_taskh_subtask = nullptr;
     vTaskDelete(tmp);
@@ -423,7 +423,7 @@ int fnHttpClient::_perform()
     // Start a new task to perform the http client work
     _delete_subtask_if_running();
     xTaskCreate(_perform_subtask, "perform_subtask", 4096, this, 5, &_taskh_subtask);
-    //Debug_printf("%08lx _perform subtask created\r\n", fnSystem.millis());
+    // Debug_printf("%08lx _perform subtask created\r\n", fnSystem.millis());
 
     // Wait until we have headers returned
     if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) == 0)
@@ -432,8 +432,8 @@ int fnHttpClient::_perform()
         //_delete_subtask_if_running();
         return -1;
     }
-    //Debug_printf("%08lx _perform notified\r\n", fnSystem.millis());
-    //Debug_printf("Notification of headers loaded\r\n");
+    // Debug_printf("%08lx _perform notified\r\n", fnSystem.millis());
+    // Debug_printf("Notification of headers loaded\r\n");
 
     bool chunked = esp_http_client_is_chunked_response(_handle);
     int length = esp_http_client_get_content_length(_handle);
@@ -452,10 +452,11 @@ int fnHttpClient::_perform()
         break;
     default:
         status = esp_http_client_get_status_code(_handle);
-        Debug_printf("esp_http_client_get_status_code = %u\r\n",status);
+        Debug_printf("esp_http_client_get_status_code = %u\r\n", status);
         // Other error, use fake HTTP status code 900
         // it will be translated to NETWORK_ERROR_GENERAL (144) in NetworkProtocolHTTP::fserror_to_error()
-        if (status < 0) status = 900;
+        if (status < 0)
+            status = 900;
     }
     Debug_printf("%08lx _perform status = %d, length = %d, chunked = %d\r\n", fnSystem.millis(), status, length, chunked ? 1 : 0);
     return status;

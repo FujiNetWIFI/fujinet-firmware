@@ -527,9 +527,9 @@ uint32_t SystemManager::get_psram_size()
 
 /*
     If buffer is NULL, simply returns size of file. Otherwise
-    allocates buffer for reading file contents. Buffer must be freed by caller.
+    allocates buffer for reading file contents. Buffer must be managed by caller.
 */
-int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
+int SystemManager::load_firmware(const char *filename, uint8_t *buffer)
 {
     Debug_printf("load_firmware '%s'\r\n", filename);
 
@@ -551,25 +551,13 @@ int SystemManager::load_firmware(const char *filename, uint8_t **buffer)
     }
 
     int bytes_read = -1;
-    uint8_t *result = (uint8_t *)malloc(file_size);
-    if (result == NULL)
+    if (buffer == NULL)
     {
-        Debug_println("load_firmware failed to malloc");
+        Debug_println("load_firmware passed in buffer was NULL");
     }
     else
     {
-        bytes_read = fread(result, 1, file_size, f);
-        if (bytes_read == file_size)
-        {
-            *buffer = result;
-        }
-        else
-        {
-            free(result);
-            bytes_read = -1;
-
-            Debug_printf("load_firmware only read %u bytes out of %u - failing\r\n", bytes_read, file_size);
-        }
+        bytes_read = fread(buffer, 1, file_size, f);
     }
 
     fclose(f);

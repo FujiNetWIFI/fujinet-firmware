@@ -346,9 +346,15 @@ extern "C"
 
 // Create a new high-priority task to handle the main loop
 // This is assigned to CPU1; the WiFi task ends up on CPU0
+#ifdef BUILD_ATARI
 #define MAIN_STACKSIZE 32768
 #define MAIN_PRIORITY 10
+#else
+#define MAIN_STACKSIZE 32768
+#define MAIN_PRIORITY 10
+#endif
 #define MAIN_CPUAFFINITY 1
+
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
 
