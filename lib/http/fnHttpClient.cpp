@@ -20,6 +20,7 @@ const char *webdav_depths[] = {"0", "1", "infinity"};
 
 fnHttpClient::fnHttpClient()
 {
+    _buffer = (char *)malloc(DEFAULT_HTTP_BUF_SIZE);
 }
 
 // Close connection, destroy any resoruces
@@ -34,6 +35,8 @@ fnHttpClient::~fnHttpClient()
         Debug_printv("free low heap: %lu\r\n",esp_get_free_internal_heap_size());
         esp_http_client_cleanup(_handle);
     }
+
+    free(_buffer);
 }
 
 // Start an HTTP client session to the given URL
