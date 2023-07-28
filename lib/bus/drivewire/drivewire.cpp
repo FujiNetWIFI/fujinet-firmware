@@ -39,14 +39,19 @@ static void drivewire_intr_task(void* arg)
     {
         if(xQueueReceive(drivewire_evt_queue, &gpio_num, portMAX_DELAY)) 
         {
-            if ( gpio_num == PIN_CASS_MOTOR )
+            if ( gpio_num == PIN_CASS_MOTOR &&  gpio_get_level( (gpio_num_t)gpio_num) )
             {
                 Debug_printv( "Cassette motor enalbed! Send boot loader!" );
                 
+                // auto cassette = theFuji.cassette();
+                // FILE *fp = fopen("/dw3doscc1.bin", "r");
+                // fseek(fp, 0L, SEEK_END);
+                // auto sz = ftell(fp);
+                // rewind(fp);
+                // cassette->mount_cassette_file(fp, sz);
+                // cassette->drivewire_enable_cassette();
             }
         }
-
-        taskYIELD();
     }
 }
 
@@ -86,18 +91,18 @@ void systemBus::setup()
     //xTaskCreate(drivewire_intr_task, "drivewire_intr_task", 2048, NULL, 10, NULL);
     xTaskCreatePinnedToCore(drivewire_intr_task, "drivewire_intr_task", 4096, NULL, 10, NULL, 0);
 
-    // Setup interrupt for paralellel port
+    // Setup interrupt for cassette motor pin
     gpio_config_t io_conf = {
         .pin_bit_mask = ( 1ULL << PIN_CASS_MOTOR ),    // bit mask of the pins that you want to set
         .mode = GPIO_MODE_INPUT,                      // set as input mode
         .pull_up_en = GPIO_PULLUP_DISABLE,            // disable pull-up mode
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,        // disable pull-down mode
-        .intr_type = GPIO_INTR_NEGEDGE                // interrupt of falling edge
+        .pull_down_en = GPIO_PULLDOWN_ENABLE,         // enable pull-down mode
+        .intr_type = GPIO_INTR_POSEDGE                // interrupt on positive edge
     };
 
     //configure GPIO with the given settings
     gpio_config(&io_conf);
-    gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, NULL);
+    gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, (void*) PIN_CASS_MOTOR);
 }
 
 // Add device to DRIVEWIRE bus
