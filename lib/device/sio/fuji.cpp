@@ -1693,7 +1693,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    Debug_println("sioFuji::sio_process() called");
+    Debug_printf("sioFuji::sio_process() called, baud: %d\n", SIO.getBaudrate());
 
     switch (cmdFrame.comnd)
     {
