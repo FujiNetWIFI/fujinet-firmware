@@ -64,17 +64,22 @@ do
 done
 shift $((OPTIND - 1))
 
-# remove any AUTOADD option left from previous run
-sed -i '/# AUTOADD/d' platformio.ini
+# remove any AUTOADD option left from previous run, and delete the generated backup file
+sed -i.bu '/# AUTOADD/d' platformio.ini
+rm 2>/dev/null platformio.ini.bu
 
 if [ ${ZIP_MODE} -eq 1 ] ; then
   # find line with post:build_firmwarezip.py and add before it the option uncommented
-  sed -i '/^;[ ]*post:build_firmwarezip.py/i \    \post:build_firmwarezip.py # AUTOADD' platformio.ini
+  sed -i.bu '/^;[ ]*post:build_firmwarezip.py/i\
+    post:build_firmwarezip.py # AUTOADD
+' platformio.ini
   pio run -t clean -t buildfs
   pio run --disable-auto-clean
-  sed -i '/# AUTOADD/d' platformio.ini
+  sed -i.bu '/# AUTOADD/d' platformio.ini
+  rm 2>/dev/null platformio.ini.bu
   exit 0
 fi
+
 
 ENV_ARG=""
 if [ -n "${ENV_NAME}" ] ; then
