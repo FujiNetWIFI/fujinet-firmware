@@ -71,13 +71,51 @@ int fnHttpClient::available()
     int len = -1;
 
     if (esp_http_client_is_chunked_response(_handle))
+    {
         len = esp_http_client_get_chunk_length(_handle);
+#if 1
+        // if (len == 0)
+        //     Debug_println("::available last chunk reached");
+        if (len <= _buffer_total_read && len > 0)
+        {
+            // We need to collect next chunk header, i.e. chunk size
+            // ... part of following chunk data will be read too (and stored into _buffer)
+
+            // Make sure store our current task handle to respond to
+            _taskh_consumer = xTaskGetCurrentTaskHandle();
+
+            // Our HTTP subtask is gone - say there's nothing left to read...
+            if (_taskh_subtask == nullptr)
+            {
+                Debug_println("::available subtask gone");
+                return 0;
+            }
+
+            // Let the HTTP process task know to fill the buffer
+            // Debug_println("::available notifyGive");
+            xTaskNotifyGive(_taskh_subtask);
+            // Wait till the HTTP task lets us know it's filled the buffer
+            // Debug_println("::available notifyTake...");
+            if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) != 1)
+            {
+                // Abort if we timed-out receiving the data
+                Debug_println("::available time-out");
+                return 0;
+            }
+
+            _buffer_total_read = 0; // well, reset this with new chunk
+            len = esp_http_client_get_chunk_length(_handle);
+            Debug_printf("::available next chunk len: %d\r\n", len);
+        }
+#endif
+    }
     else
         len = esp_http_client_get_content_length(_handle);
 
     if (len - _buffer_total_read >= 0)
         result = len - _buffer_total_read;
 
+    // Debug_printf("::available result: %d\r\n", result);
     return result;
 }
 
@@ -98,13 +136,13 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
 
     int bytes_copied = 0;
 
-    // Start by using our own buffer if there's still data there
-    if (_buffer_pos > 0 && _buffer_pos < _buffer_len)
+    // Start by using our own buffer if there's data there
+    if (_buffer_len > 0 && _buffer_pos < _buffer_len)
     {
         bytes_left = _buffer_len - _buffer_pos;
         bytes_to_copy = dest_bufflen > bytes_left ? bytes_left : dest_bufflen;
 
-        // Debug_printf("::read from buffer %d\r\n", bytes_to_copy);
+        Debug_printf("::read from buffer %d\r\n", bytes_to_copy);
         memcpy(dest_buffer, _buffer + _buffer_pos, bytes_to_copy);
         _buffer_pos += bytes_to_copy;
         _buffer_total_read += bytes_to_copy;
@@ -156,8 +194,8 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         int dest_size = dest_bufflen - bytes_copied;
         bytes_to_copy = dest_size > _buffer_len ? _buffer_len : dest_size;
 
-        // Debug_printf("dest_size=%d, dest_bufflen=%d, bytes_copied=%d, bytes_to_copy=%d\r\n",
-        // dest_size, dest_bufflen, bytes_copied, bytes_to_copy);
+        Debug_printf("dest_size=%d, dest_bufflen=%d, bytes_copied=%d, bytes_to_copy=%d\r\n",
+        dest_size, dest_bufflen, bytes_copied, bytes_to_copy);
 
         memcpy(dest_buffer + bytes_copied, _buffer, bytes_to_copy);
         _buffer_pos += bytes_to_copy;
