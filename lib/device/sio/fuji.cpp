@@ -94,7 +94,7 @@ void say_number(unsigned char n)
         util_sam_say("AEY74Q", true);
         break;
     default:
-        Debug_printf("say_number() - Uncaught number %d", n);
+        Debug_printf("say_number() - Uncaught number %d\n", n);
     }
 }
 
@@ -865,8 +865,8 @@ void sioFuji::image_rotate()
     Debug_println("Fuji cmd: IMAGE ROTATE");
 
     int count = 0;
-    // Find the first empty slot
-    while (_fnDisks[count].fileh != nullptr)
+    // Find the first empty slot, stop at 8 so we don't catch the cassette
+    while (_fnDisks[count].fileh != nullptr && count < 8)
         count++;
 
     if (count > 1)
