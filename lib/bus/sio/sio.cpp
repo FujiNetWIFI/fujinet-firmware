@@ -221,16 +221,16 @@ void systemBus::_sio_process_cmd()
             }
             else
             {
-                std::map<unsigned char, virtualDevice *>::iterator it = _daisyChain.find(tempFrame.device);
-
-                if (it != _daisyChain.end())
+                // find device, ack and pass control
+                // or go back to WAIT
+                for (auto devicep : _daisyChain)
                 {
-                    _activeDev = it->second;
-                    // heap_trace_start(HEAP_TRACE_LEAKS);
-                    it->second->sio_process(tempFrame.commanddata, tempFrame.checksum);
-                    // heap_trace_stop();
-                    // Debug_printv("heap trace follows.");
-                    // heap_trace_dump();
+                    if (tempFrame.device == devicep.second->_devnum)
+                    {
+                        _activeDev = devicep.second;
+                        // handle command
+                        _activeDev->sio_process(tempFrame.commanddata, tempFrame.checksum);
+                    }
                 }
             }
         }
