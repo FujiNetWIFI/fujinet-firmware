@@ -61,7 +61,7 @@ void macFuji::setup(macBus *macbus)
   //   Debug_printf("\nConfig General Boot Mode: %u\n",Config.get_general_boot_mode());
   //   if (Config.get_general_boot_mode() == 0)
   //   {
-         FILE *f = fnSPIFFS.file_open("/autorun.moof");
+         FILE *f = fsFlash.file_open("/autorun.moof");
           _fnDisks[0].disk_dev.mount(f, "/autorun.moof", MEDIATYPE_MOOF);
   //   }
   //   else
