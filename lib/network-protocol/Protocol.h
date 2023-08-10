@@ -74,6 +74,12 @@ public:
     bool interruptEnable = true;
 
     /**
+     * Do we need to force Status call?
+     * (e.g. to start http_transaction in http protocol adapter after open)
+     */
+    bool forceStatus = false;
+
+    /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
