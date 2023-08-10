@@ -164,6 +164,7 @@ int http_header_set_format(http_header_handle_t header, const char *key, const c
     char *buf = NULL;
     va_start(argptr, format);
     len = vasprintf(&buf, format, argptr);
+    /// @todo (error) va_list 'argptr' was opened but not closed by va_end(). [va_end_missing]
     HTTP_MEM_CHECK(TAG, buf, return 0);
     va_end(argptr);
     if (buf == NULL) {

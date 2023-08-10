@@ -48,7 +48,7 @@ void svgPlotter::svg_new_line()
 void svgPlotter::svg_end_line()
 {
     // <text x="0" y="15" fill="red">I love SVG!</text>
-    fprintf(_file, "</text>\n"); // close the line
+    fprintf(_file, "</text>\r\n"); // close the line
     svg_X = 0.;                  // CR
     BOLflag = true;
 }
@@ -61,7 +61,7 @@ void svgPlotter::svg_plot_line(double x1, double x2, double y1, double y2)
     fprintf(_file, "stroke-width=\"1.5\" stroke-linecap=\"round\" ");
     fprintf(_file, "stroke-dasharray=\"%g,%g\" ", dash, dash);
     fprintf(_file, "x1=\"%g\" x2=\"%g\" y1=\"%g\" y2=\"%g\" ", x1, x2, y1, y2);
-    fprintf(_file, "/>\n");
+    fprintf(_file, "/>\r\n");
 }
 
 void svgPlotter::svg_abs_plot_line()
@@ -78,7 +78,7 @@ void svgPlotter::svg_abs_plot_line()
     svg_X = x2;
     svg_Y = y2;
 #ifdef DEBUG
-    Debug_printf("abs line: x1=\"%g\" x2=\"%g\" y1=\"%g\" y2=\"%g\" \n", x1, x2, y1, y2);
+    Debug_printf("abs line: x1=\"%g\" x2=\"%g\" y1=\"%g\" y2=\"%g\" \r\n", x1, x2, y1, y2);
 #endif
     svg_update_bounds();
     svg_plot_line(x1, x2, y1, y2);
@@ -141,7 +141,7 @@ void svgPlotter::svg_handle_char(unsigned char c)
             textMode = false;
             escMode = false;
 #ifdef DEBUG
-            Debug_printf("\nentering GRAPHICS mode!\n");
+            Debug_printf("\nentering GRAPHICS mode!\r\n");
 #endif
             return; // short circuit text mode logic
         case 14:
@@ -249,7 +249,7 @@ void svgPlotter::svg_put_text(std::string S)
     {
         svg_handle_char((unsigned char)S[i]);
     }
-    fprintf(_file, "</text>\n"); // close the line
+    fprintf(_file, "</text>\r\n"); // close the line
 }
 
 void svgPlotter::svg_plot_axis()
@@ -260,7 +260,7 @@ void svgPlotter::svg_get_arg(std::string S, int n)
 {
     svg_arg[n] = atoi(S.c_str());
 #ifdef DEBUG
-    Debug_printf(" (arg %d : %d)\n", n, svg_arg[n]);
+    Debug_printf(" (arg %d : %d)\r\n", n, svg_arg[n]);
 #endif
 }
 
@@ -293,9 +293,9 @@ void svgPlotter::svg_header()
     //  width="300" height="200"
     //  xmlns="http://www.w3.org/2000/svg">
 
-    //fprintf(_file,"<!DOCTYPE html>\n");
-    //fprintf(_file,"<html>\n");
-    //fprintf(_file,"<body>\n\n");
+    //fprintf(_file,"<!DOCTYPE html>\r\n");
+    //fprintf(_file,"<html>\r\n");
+    //fprintf(_file,"<body>\r\n\r\n");
     fprintf(_file, "<svg version=\"1.1\" height=\"");
     svg_filepos[0] = ftell(_file);
     fprintf(_file, " 400.0mm\" width=\"114mm\" style=\"background-color:white\" ");
@@ -303,7 +303,7 @@ void svgPlotter::svg_header()
     svg_filepos[1] = ftell(_file);
     fprintf(_file, " -1000 480 ");
     svg_filepos[2] = ftell(_file);
-    fprintf(_file, "  2000\" xmlns=\"http://www.w3.org/2000/svg\">\n");
+    fprintf(_file, "  2000\" xmlns=\"http://www.w3.org/2000/svg\">\r\n");
     svg_home_flag = true;
 }
 
@@ -325,9 +325,9 @@ void svgPlotter::svg_footer()
     // </html>
     if (!BOLflag)
         svg_end_line();
-    fprintf(_file, "</svg>\n\n");
-    //fprintf(_file,"</body>\n");
-    //fprintf(_file,"</html>\n");
+    fprintf(_file, "</svg>\r\n\r\n");
+    //fprintf(_file,"</body>\r\n");
+    //fprintf(_file,"</html>\r\n");
 }
 
 void svgPlotter::graphics_command(int n)
@@ -444,7 +444,7 @@ bool svgPlotter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     }
     //new_n++;
 #ifdef DEBUG
-    Debug_printf(" : End of buffer, char %x at %d\n", buffer[new_n - 1], new_n - 1);
+    Debug_printf(" : End of buffer, char %x at %d\r\n", buffer[new_n - 1], new_n - 1);
 #endif
 
     // looks like escape codes take you out of GRAPHICS MODE
@@ -453,7 +453,7 @@ bool svgPlotter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
         textMode = true;
         svg_X = 0.;
 #ifdef DEBUG
-        Debug_printf("Text Mode!\n");
+        Debug_printf("Text Mode!\r\n");
 #endif
     }
     if (!textMode)

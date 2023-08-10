@@ -410,7 +410,7 @@ static int ssh_retrieve_dhgroup_file(FILE *moduli,
         }
         ungetc(firstbyte, moduli);
         rc = fscanf(moduli,
-                    "%31s %zu %zu %zu %zu %31s %4095s\n",
+                    "%31s %zu %zu %zu %zu %31s %4095s\r\n",
                     timestamp,
                     &type,
                     &tests,

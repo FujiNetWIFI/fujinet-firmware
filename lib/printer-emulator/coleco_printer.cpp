@@ -51,7 +51,7 @@ void colecoprinter::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
                 pdf_X += charWidth; // update x position
         } else
         {
-            Debug_printf("ignore %02x\n", c);
+            Debug_printf("ignore %02x\r\n", c);
         }
     }
 }

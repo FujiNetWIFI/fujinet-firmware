@@ -5,7 +5,7 @@
 #include <string>
 
 #include "bus.h"
-#include "printer_emulator.h"
+#include "../printer-emulator/printer_emulator.h"
 #include "fnFS.h"
 
 #define PRINTER_UNSUPPORTED "Unsupported"
@@ -79,7 +79,7 @@ public:
     rs232Printer(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~rs232Printer();
 
-    static printer_type match_modelname(std::string model_name);
+    static printer_type match_modelname(const std::string &model_name);
     void set_printer_type(printer_type printer_type);
     void reset_printer() { set_printer_type(_ptype); };
     time_t lastPrintTime() { return _last_ms; };

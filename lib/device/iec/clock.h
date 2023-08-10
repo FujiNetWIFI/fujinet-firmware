@@ -17,7 +17,7 @@ class iecClock : public virtualDevice
     iecClock();
     ~iecClock();
 
-    device_state_t process(IECData *_commandData);
+    device_state_t process();
 
     void iec_open();
     void iec_close();

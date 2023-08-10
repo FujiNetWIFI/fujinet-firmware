@@ -53,7 +53,7 @@ public:
         partitions.clear();
         partitions.push_back(p);
         sectorsPerTrack = { 40 };
-        rom = "dos1581";
+        dos_rom = "dos1581";
         has_subdirs = true;
 
         uint32_t size = containerStream->size();

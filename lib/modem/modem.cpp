@@ -22,7 +22,7 @@
 #define SIO_MODEMCMD_SET_DUMP 0x44
 #define SIO_MODEMCMD_LISTEN 0x4C
 #define SIO_MODEMCMD_UNLISTEN 0x4D
-#define SIO_MODEMCMD_BAUDLOCK 0x4E
+#define SIO_MODEMCMD_BAUDRATELOCK 0x4E
 #define SIO_MODEMCMD_AUTOANSWER 0x4F
 #define SIO_MODEMCMD_STATUS 0x53
 #define SIO_MODEMCMD_WRITE 0x57
@@ -159,7 +159,8 @@ void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
         return;
 
     // Get size of handler
-    int filesize = fnSystem.load_firmware(FIRMWARE_850HANDLER, NULL);
+    int filesize = 1282;
+    // int filesize = fnSystem.load_firmware(FIRMWARE_850HANDLER, NULL);
 
     // Simply return (without ACK) if we failed to get this
     if (filesize < 0)
@@ -202,7 +203,8 @@ void modem::sio_poll_1()
     */
 
     // Get size of relocator
-    int filesize = fnSystem.load_firmware(FIRMWARE_850RELOCATOR, NULL);
+    // int filesize = fnSystem.load_firmware(FIRMWARE_850RELOCATOR, NULL);
+    int filesize = 333;
     // Simply return (without ACK) if we failed to get this
     if (filesize < 0)
         return;
@@ -240,23 +242,27 @@ void modem::sio_poll_1()
 void modem::sio_send_firmware(uint8_t loadcommand)
 {
     const char *firmware;
+    int firmware_size = 0;
+
     if (loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR)
     {
         firmware = FIRMWARE_850RELOCATOR;
+        firmware_size = 333;
     }
     else
     {
         if (loadcommand == SIO_MODEMCMD_LOAD_HANDLER)
         {
             firmware = FIRMWARE_850HANDLER;
+            firmware_size = 1282;
         }
         else
             return;
     }
 
     // Load firmware from file
-    uint8_t *code;
-    int codesize = fnSystem.load_firmware(firmware, &code);
+    uint8_t *code = (uint8_t *)malloc(firmware_size);
+    int codesize = fnSystem.load_firmware(firmware, code);
     // NAK if we failed to get this
     if (codesize < 0 || code == NULL)
     {
@@ -583,9 +589,15 @@ void modem::sio_listen()
         sio_ack();
 
     tcpServer.setMaxClients(1);
-    tcpServer.begin(listenPort);
-
-    sio_complete();
+    int res = tcpServer.begin(listenPort);
+    if (res == 0)
+    {
+        sio_error();
+    }
+    else
+    {
+        sio_complete();
+    }
 }
 
 /**
@@ -827,11 +839,20 @@ void modem::at_handle_port()
 
         listenPort = port;
         tcpServer.setMaxClients(1);
-        tcpServer.begin(listenPort);
-        if (numericResultCode == true)
-            at_cmd_resultCode(RESULT_CODE_OK);
-        else
-            at_cmd_println("OK");
+        int res = tcpServer.begin(listenPort);
+        if (res == 0)
+        {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_ERROR);
+            else
+                at_cmd_println("ERROR");
+        }
+        else {
+            if (numericResultCode == true)
+                at_cmd_resultCode(RESULT_CODE_OK);
+            else
+                at_cmd_println("OK");
+        }
     }
 }
 
@@ -1864,7 +1885,7 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
         case SIO_MODEMCMD_UNLISTEN:
             sio_unlisten();
             break;
-        case SIO_MODEMCMD_BAUDLOCK:
+        case SIO_MODEMCMD_BAUDRATELOCK:
             sio_baudlock();
             break;
         case SIO_MODEMCMD_AUTOANSWER:

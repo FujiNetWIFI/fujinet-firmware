@@ -2,11 +2,9 @@
 
 #include "../../include/debug.h"
 
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
+
 #include "utils.h"
-
-
-#define DEBUG
 
 void pdfPrinter::pdf_header()
 {
@@ -68,7 +66,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
     // OPEN LUT FILE
     char fname[30]; // filename: /f/shortname/Fi
     sprintf(fname, "/f/%s/LUT", shortname.c_str());
-    FILE *lut = fnSPIFFS.file_open(fname);
+    FILE *lut = fsFlash.file_open(fname);
     int maxFonts = util_parseInt(lut);
 
     // font dictionary
@@ -88,7 +86,7 @@ void pdfPrinter::pdf_add_fonts() // pdfFont_t *fonts[],
             size_t fp = 0;
             char fname[30];                                        // filename: /f/shortname/Fi
             sprintf(fname, "/f/%s/F%d", shortname.c_str(), i + 1); // e.g. /f/a820/F2
-            FILE *fff = fnSPIFFS.file_open(fname);                 // Font File File - fff
+            FILE *fff = fsFlash.file_open(fname);                 // Font File File - fff
 
             fgetc(fff); // '%'
             fp++;
@@ -292,13 +290,13 @@ void pdfPrinter::pdf_xref()
     size_t xref = ftell(_file);
     pdf_objCtr++;
     fprintf(_file, "xref\n");
-    fprintf(_file, "0 %u\n", pdf_objCtr);
+    fprintf(_file, "0 %d\n", pdf_objCtr);
     fprintf(_file, "0000000000 65535 f\n");
     for (int i = 1; i < pdf_objCtr; i++)
     {
         fprintf(_file, "%010u 00000 n\n", objLocations[i]);
     }
-    fprintf(_file, "trailer <</Size %u/Root 1 0 R>>\n", pdf_objCtr);
+    fprintf(_file, "trailer <</Size %d/Root 1 0 R>>\n", pdf_objCtr);
     fprintf(_file, "startxref\n");
     fprintf(_file, "%u\n", xref);
     fprintf(_file, "%%%%EOF\n");
@@ -351,7 +349,7 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     uint16_t cc;
 
 #ifdef DEBUG
-    // Debug_printf("Processing %d chars\n", n);
+    // Debug_printf("Processing %d chars\r\n", n);
 #endif
 
     // algorithm for graphics:
@@ -362,12 +360,21 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     // textMode is set inside of pdf_handle_char at first character, so...
     // need to test for textMode inside the loop
 
+#ifndef BUILD_APPLE
     if (TOPflag)
         pdf_new_page();
+#endif // BUILD_APPLE
 
     // loop through string
     do
     {
+
+// 
+#ifdef BUILD_APPLE // move this inside the loop incase the buffer has more than one line (SP packet buffering)
+        if (TOPflag)
+        pdf_new_page();
+#endif // BUILD_APPLE
+
         c = buffer[i++];
 #ifdef BUILD_APPLE
         if (textMode == true)
@@ -408,15 +415,22 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 
 #ifdef DEBUG
             // Debug_printf("c: %3d  x: %6.2f  y: %6.2f  ", c, pdf_X, pdf_Y + pdf_dY);
-            // Debug_printf("\n");
+            // Debug_printf("\r\n");
 #endif
         }
-
-    } while (i < n && (cc != ATASCII_EOL));
-
+#ifdef BUILD_APPLE // move this inside the loop incase the buffer has more than one line (SP packet buffering)
     // if wrote last line, then close the page
     if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
         pdf_end_page();
+#endif // BUILD_APPLE
+
+    } while (i < n && (cc != ATASCII_EOL));
+
+#ifndef BUILD_APPLE
+    // if wrote last line, then close the page
+    if (pdf_Y < bottomMargin) // lineHeight + bottomMargin
+        pdf_end_page();
+#endif // BUILD_APPLE
 
     return true;
 }

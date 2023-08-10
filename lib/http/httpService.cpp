@@ -9,7 +9,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 #include "../device/modem.h"
 #include "printer.h"
 #include "httpServiceConfigurator.h"
@@ -316,6 +316,7 @@ void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
         return;
     }
 
+    /// @todo Error if path_end == 0, the index to substr becomes -1
     results->path += results->full_uri.substr(0, path_end - 1);
     results->query += results->full_uri.substr(path_end + 1);
 
@@ -1296,7 +1297,7 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
     }
 
     // Set filesystem where we expect to find our static files
-    state._FS = &fnSPIFFS;
+    state._FS = &fsFlash;
 
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.stack_size = 8192;

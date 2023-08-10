@@ -35,64 +35,10 @@ uint8_t rc2014_checksum(uint8_t *buf, unsigned short len)
     return checksum;
 }
 
-rc2014Buffer::rc2014Buffer(unsigned size) :
-        size_(size),
-        dirty_(true)
-{
-    buffer_.reserve(size + 1);
-    buffer_.push_back(0); // set the first checksum
-}
-
-bool rc2014Buffer::validate()
-{
-    if (buffer_.size() == 0)
-        return true;
-
-    if (buffer_.size() == 1) {
-        if (buffer_.back() == 0) {
-            return true;
-        }
-        return false;
-    } 
-
-    uint8_t ck = rc2014_checksum(buffer_.data(), buffer_.size() - 1);
-
-    return ck == buffer_.back();
-}
-
-uint8_t* rc2014Buffer::data()
-{
-    return buffer_.data();
-}
-
-size_t rc2014Buffer::max_size()
-{
-    return size_;
-}
-
-size_t rc2014Buffer::data_size()
-{
-    return buffer_.size();
-}
-
-void rc2014Buffer::append(uint8_t val)
-{
-    buffer_.back() = val;
-    buffer_.push_back(rc2014_checksum(buffer_.data(), buffer_.size() - 1));
-}
-
 void virtualDevice::rc2014_send(uint8_t b)
 {
     rc2014Bus.busTxByte(b);
 }
-
-void virtualDevice::rc2014_send(rc2014Buffer& buffer)
-{
-    for (int i = 0; i < buffer.data_size(); i++) {
-        rc2014Bus.busTxByte(buffer.data()[i]);
-    }
-}
-
 
 void virtualDevice::rc2014_send_string(const std::string& str)
 {
@@ -239,7 +185,8 @@ void virtualDevice::rc2014_response_status()
 
 void virtualDevice::rc2014_handle_stream()
 {
-    //fnUartSIO.flush_input();
+    // flush fifo
+    streamFifoRx.clear();
 }
 
 bool virtualDevice::rc2014_poll_interrupt()

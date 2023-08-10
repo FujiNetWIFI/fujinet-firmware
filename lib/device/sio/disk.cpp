@@ -296,7 +296,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         (cmdFrame.comnd != SIO_DISKCMD_STATUS && cmdFrame.comnd != SIO_DISKCMD_HSIO_INDEX))
         return;
 
-    Debug_print("disk sio_process()\n");
+    Debug_printf("disk sio_process(), baud: %d\n", SIO.getBaudrate());
 
     switch (cmdFrame.comnd)
     {
@@ -454,6 +454,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             sio_ack();
             sio_high_speed();
+            SIO.toggleBaudrate();
             return;
         }
         break;

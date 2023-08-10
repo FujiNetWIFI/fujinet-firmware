@@ -1,0 +1,77 @@
+name: "FujiNet CI"
+
+on:
+  push:
+    # Do not build tags. Do not build release branch
+    branches:
+      - "**"
+      - "!release"
+    tags:
+      - "!**"
+
+jobs:
+  tagged-release:
+    name: "PlatformIO CI"
+    runs-on: "ubuntu-latest"
+    strategy:
+      matrix:
+        target-platform: [ATARI, ADAM, APPLE, IEC-LOLIN-D32]
+
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Cache pip
+      uses: actions/cache@v2
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Cache PlatformIO
+      uses: actions/cache@v2
+      with:
+        path: ~/.platformio
+        key: ${{ runner.os }}-${{ hashFiles('**/lockfiles') }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+
+    - name: Install PlatformIO
+      run: |
+        python -m pip install --upgrade pip
+        pip install --upgrade platformio
+        pip install Jinja2
+        pip install pyyaml
+
+    - name: Show python version
+      run: python --version
+
+    - name: Show pio system info
+      run: pio system info
+
+    - name: Show pio location
+      run: pip show platformio
+
+    - name: Create PlatformIO INI for Build
+      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Show platformio.ini
+      run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+
+    - name: Get PIO build_board from INI
+      id: build_board
+      shell: bash
+      run: |
+        echo "NAME=$(grep '^[^;]*build_board ' /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} | sed s'/ //'g | cut -d "=" -f 2 | cut -d ";" -f 1)" >> $GITHUB_OUTPUT
+
+    # Build filesystem first so spiffs.bin is available during firmware build
+    - name: Build Filesystem
+      run: pio run -t buildfs -e ${{ steps.build_board.outputs.NAME }}
+
+    # Build the firmware
+    - name: Build Firimware
+      run: pio run -e ${{ steps.build_board.outputs.NAME }}

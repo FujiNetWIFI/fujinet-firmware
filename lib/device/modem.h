@@ -61,4 +61,9 @@ extern adamModem *sioR;
   extern H89Modem *sioR;
 #endif
 
+#ifdef BUILD_COCO
+# include "drivewire/modem.h"
+  extern drivewireModem *sioR;
+#endif
+
 #endif // DEVICE_MODEM_H

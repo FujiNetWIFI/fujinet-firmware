@@ -80,26 +80,26 @@ void virtualDevice::comlynx_send(uint8_t b)
 {
     // Write the byte
     ComLynx.wait_for_idle();
-    fnUartSIO.write(b);
-    fnUartSIO.flush();
-    fnUartSIO.read();
+    fnUartBUS.write(b);
+    fnUartBUS.flush();
+    fnUartBUS.read();
 }
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
     ComLynx.wait_for_idle();
-    fnUartSIO.write(buf,len);
-    fnUartSIO.readBytes(buf,len);
+    fnUartBUS.write(buf,len);
+    fnUartBUS.readBytes(buf,len);
 }
 
 uint8_t virtualDevice::comlynx_recv()
 {
     uint8_t b;
 
-    while (fnUartSIO.available() <= 0)
+    while (fnUartBUS.available() <= 0)
         fnSystem.yield();
 
-    b = fnUartSIO.read();
+    b = fnUartBUS.read();
 
     return b;
 }
@@ -112,7 +112,7 @@ bool virtualDevice::comlynx_recv_timeout(uint8_t *b, uint64_t dur)
     start = current = esp_timer_get_time();
     elapsed = 0;
 
-    while (fnUartSIO.available() <= 0)
+    while (fnUartBUS.available() <= 0)
     {
         current = esp_timer_get_time();
         elapsed = current - start;
@@ -120,9 +120,9 @@ bool virtualDevice::comlynx_recv_timeout(uint8_t *b, uint64_t dur)
             break;
     }
 
-    if (fnUartSIO.available() > 0)
+    if (fnUartBUS.available() > 0)
     {
-        *b = (uint8_t)fnUartSIO.read();
+        *b = (uint8_t)fnUartBUS.read();
         timeout = false;
     } // else
       //   Debug_printf("duration: %llu\n", elapsed);
@@ -148,7 +148,7 @@ void virtualDevice::comlynx_send_length(uint16_t l)
 
 unsigned short virtualDevice::comlynx_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    return fnUartSIO.readBytes(buf, len);
+    return fnUartBUS.readBytes(buf, len);
 }
 
 uint32_t virtualDevice::comlynx_recv_blockno()
@@ -189,9 +189,9 @@ void systemBus::wait_for_idle()
     do
     {
         // Wait for serial line to quiet down.
-        while (fnUartSIO.available() > 0)
+        while (fnUartBUS.available() > 0)
         {
-            fnUartSIO.read();
+            fnUartBUS.read();
             trashCount++;
         }
 
@@ -200,7 +200,7 @@ void systemBus::wait_for_idle()
 
         start = current = esp_timer_get_time();
 
-        while ((fnUartSIO.available() <= 0) && (isIdle == false))
+        while ((fnUartBUS.available() <= 0) && (isIdle == false))
         {
             current = esp_timer_get_time();
             dur = current - start;
@@ -261,7 +261,7 @@ void systemBus::_comlynx_process_cmd()
 {
     uint8_t b;
 
-    b = fnUartSIO.read();
+    b = fnUartBUS.read();
     start_time = esp_timer_get_time();
 
     uint8_t d = b & 0x0F;
@@ -280,7 +280,7 @@ void systemBus::_comlynx_process_cmd()
     }
 
     //wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
-    fnUartSIO.flush_input();
+    fnUartBUS.flush_input();
 }
 
 void systemBus::_comlynx_process_queue()
@@ -293,7 +293,7 @@ void systemBus::service()
     if (_udpDev != nullptr && _udpDev->udpstreamActive)
         _udpDev->comlynx_handle_udpstream();
     // Process anything waiting
-    else if (fnUartSIO.available() > 0)
+    else if (fnUartBUS.available() > 0)
         _comlynx_process_cmd();
 }
 
@@ -314,7 +314,7 @@ void systemBus::setup()
     _udpDev = new lynxUDPStream();
 
     // Set up UART
-    fnUartSIO.begin(COMLYNX_BAUD);
+    fnUartBUS.begin(COMLYNX_BAUDRATE);
 }
 
 void systemBus::shutdown()
@@ -418,7 +418,7 @@ void systemBus::disableDevice(uint8_t device_id)
 void systemBus::setUDPHost(const char *hostname, int port)
 {
     // Turn off if hostname is STOP
-    if (!strcmp(hostname, "STOP"))
+    if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {
         if (_udpDev->udpstreamActive)
             _udpDev->comlynx_disable_udpstream();

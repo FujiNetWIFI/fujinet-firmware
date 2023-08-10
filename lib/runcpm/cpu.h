@@ -1502,7 +1502,7 @@ static inline void Z80run(void) {
 			}
 		default: iLogTxt = Mnemonics[RAM[PCX & 0xffff]];
 		}
-		sprintf(iLogBuffer, "0x%04x : 0x%02x = %s\n", PCX, RAM[PCX & 0xffff], iLogTxt);
+		sprintf(iLogBuffer, "0x%04x : 0x%02x = %s\r\n", PCX, RAM[PCX & 0xffff], iLogTxt);
 		fputs(iLogBuffer, iLogFile);
 		fclose(iLogFile);
 #endif

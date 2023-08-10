@@ -1,11 +1,24 @@
 #ifndef STRING_UTILS_H
 #define STRING_UTILS_H
 
-#include <cstring>
 #include <string>
+#include <string_view>
+
 #include <vector>
 
 void copyString(const std::string& input, char *dst, size_t dst_size);
+
+inline constexpr auto hash_djb2a(const std::string_view sv) {
+    unsigned long hash{ 5381 };
+    for (unsigned char c : sv) {
+        hash = ((hash << 5) + hash) ^ c;
+    }
+    return hash;
+}
+
+inline constexpr auto operator"" _sh(const char *str, size_t len) {
+    return hash_djb2a(std::string_view{ str, len });
+}
 
 namespace mstr {
     std::string drop(std::string str, size_t count);
@@ -27,11 +40,12 @@ namespace mstr {
     void replaceAll(std::string &s, const std::string &search, const std::string &replace);
     std::string joinToString(std::vector<std::string>::iterator* start, std::vector<std::string>::iterator* end, std::string separator);
     std::string joinToString(std::vector<std::string>, std::string separator);
-    std::string urlEncode(std::string s);
+    std::string urlEncode(const std::string &s);
     std::string urlDecode(std::string s);
     void toASCII(std::string &s);
     void toPETSCII(std::string &s);
     bool isText(std::string &s);
+    bool isNumeric(std::string &s);
     bool isA0Space(int ch);
     void A02Space(std::string &s);
     std::string format(const char *format, ...);

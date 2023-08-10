@@ -26,16 +26,16 @@ class pdfPrinter : public printer_emu
 {
 protected:
     // PDF THINGS
-    double pageWidth;
-    double pageHeight;
-    double leftMargin;
+    double pageWidth = 0.0;
+    double pageHeight = 0.0;
+    double leftMargin = 0.0;
     double topMargin = 0.0;
-    double bottomMargin;
-    double printWidth;
-    double lineHeight;
-    double charWidth;
-    uint8_t fontNumber;
-    double fontSize;
+    double bottomMargin = 0.0;
+    double printWidth = 0.0;
+    double lineHeight = 0.0;
+    double charWidth = 0.0;
+    uint8_t fontNumber = 0;
+    double fontSize = 0.0;
     uint8_t fontHorizScale = 100;
     std::string shortname;
     bool fontUsed[MAXFONTS] = {true}; // initialize first one to true, always use default font
@@ -64,9 +64,9 @@ protected:
     void pdf_font_resource();
     void pdf_xref();
 
-    size_t idx_stream_length; // file location of stream length indictor
-    size_t idx_stream_start;  // file location of start of stream
-    size_t idx_stream_stop;   // file location of end of stream
+    size_t idx_stream_length = 0; // file location of stream length indictor
+    size_t idx_stream_start = 0;  // file location of start of stream
+    size_t idx_stream_stop = 0;   // file location of end of stream
 
     virtual void pdf_clear_modes() = 0;
     virtual void pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2) = 0;

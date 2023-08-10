@@ -681,11 +681,11 @@ ssh_string ssh_pki_openssh_privkey_export(const ssh_key privkey,
     rc = ssh_buffer_pack(buffer,
                          "tttttt",
                          OPENSSH_HEADER_BEGIN,
-                         "\n",
+                         "\r\n",
                          b64,
-                         "\n",
+                         "\r\n",
                          OPENSSH_HEADER_END,
-                         "\n");
+                         "\r\n");
     explicit_bzero(b64, strlen((char *)b64));
     SAFE_FREE(b64);
 

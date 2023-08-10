@@ -632,7 +632,7 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
 
                             }
                         } else {
-                            ESP_EARLY_LOGE(RMT_TAG, "RMT RX BUFFER ERROR\n");
+                            ESP_EARLY_LOGE(RMT_TAG, "RMT RX BUFFER ERROR\r\n");
                         }
                         RMT.conf_ch[channel].conf1.mem_wr_rst = 1;
                         RMT.conf_ch[channel].conf1.mem_owner = RMT_MEM_OWNER_RX;

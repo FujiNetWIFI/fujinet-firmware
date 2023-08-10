@@ -7,8 +7,10 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
-#include <vector>
+#include <deque>
+#include <mutex>
 #include <string>
+#include <vector>
 
 #include <map>
 
@@ -55,20 +57,95 @@ union cmdFrame_t
 
 // buffer with inbuilt checksum
 // -- instantiate with desired buffer size + 1 for checksum
-class rc2014Buffer {
+template <size_t BUFFER_SIZE>
+class rc2014Fifo {
 public:
-    explicit rc2014Buffer(size_t size);
+    rc2014Fifo() { clear(); };
 
-    bool validate();
-    uint8_t* data();
-    size_t max_size();
-    size_t data_size();
-    void append(uint8_t val);
 
-protected:
-    std::vector<uint8_t> buffer_;
-    size_t size_;
-    bool dirty_;
+    bool is_empty() {
+        std::scoped_lock<std::mutex> lock(_m);
+        return (_i_head == _i_tail);
+    };
+
+    bool is_full() {
+        std::scoped_lock<std::mutex> lock(_m);
+        return ((_i_head + 1) % BUFFER_SIZE) == _i_tail;
+    };
+
+    bool is_overrun() {
+        std::scoped_lock<std::mutex> lock(_m);
+        return _overrun;
+    };
+
+    bool is_underrun() {
+        std::scoped_lock<std::mutex> lock(_m);
+        return _underrun;
+    };
+
+    void push(uint8_t val) {
+        if (is_full()) {
+            _overrun = true;
+            return;
+        }
+
+        std::scoped_lock<std::mutex> lock(_m);
+        _fifo[_i_head] = val;
+        _i_head = (_i_head + 1) % BUFFER_SIZE;
+    };
+
+    void push(uint8_t* buffer, size_t len) {
+        for (size_t i = 0; i < len; i++)
+            push(buffer[i]);
+    }
+
+    void push(const char* str) {
+        push(std::string(str));
+    }
+
+    void push(const std::string& str) {
+        for (auto &ch : str)
+            push(ch);
+    }
+
+    uint8_t pop() {
+        if (is_empty()) {
+            _overrun = true;
+            return 0xff;
+        }
+
+        std::scoped_lock<std::mutex> lock(_m);
+        uint8_t val = _fifo[_i_tail];
+        _i_tail = (_i_tail + 1) % BUFFER_SIZE;
+        return val;
+    };
+
+    void pop(uint8_t* buffer, size_t len) {
+        for (size_t i = 0; i < len; i++)
+            buffer[i] = pop();
+    }
+
+    void clear() {
+        std::scoped_lock<std::mutex> lock(_m);
+        _i_tail = _i_head = 0;
+        _overrun = _underrun = false;
+    };
+
+    size_t avail() {
+        std::scoped_lock<std::mutex> lock(_m);
+        if (_i_head == _i_tail)
+            return 0; // Empty buffer
+
+        return (_i_head - _i_tail + BUFFER_SIZE) % BUFFER_SIZE;
+    }
+
+private:
+    std::mutex _m;
+    std::array<uint8_t, BUFFER_SIZE> _fifo;
+    unsigned _i_tail;
+    unsigned _i_head;
+    bool _overrun;
+    bool _underrun;
 };
 
 class systemBus;
@@ -99,7 +176,6 @@ protected:
      * @return none
      */
     void rc2014_send(uint8_t b);
-    void rc2014_send(rc2014Buffer& buffer);
 
     /**
      * @brief Send string buffer to rc2014
@@ -277,6 +353,10 @@ public:
      * @return the device # (0-15) of this device
      */
     uint8_t id() { return _devnum; }
+
+protected:
+    rc2014Fifo<1024> streamFifoTx; // streamed data from rc2014
+    rc2014Fifo<1024> streamFifoRx; // streamed data destined for rc2014
 };
 
 /**
@@ -295,7 +375,7 @@ private:
 
     std::array<uint8_t, RC2014_RX_BUFFER_SIZE> _rx_buffer;
     std::array<uint8_t, RC2014_TX_BUFFER_SIZE> _tx_buffer;
-    unsigned int _tx_buffer_index;
+    unsigned int _tx_buffer_index = 0;
 
 public:
     void setup();

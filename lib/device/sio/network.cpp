@@ -26,6 +26,8 @@
 #include "SSH.h"
 #include "SMB.h"
 
+#include "ProtocolParser.h"
+
 using namespace std;
 
 /**
@@ -63,12 +65,9 @@ sioNetwork::~sioNetwork()
     transmitBuffer->clear();
     specialBuffer->clear();
 
-    if (receiveBuffer != nullptr)
-        delete receiveBuffer;
-    if (transmitBuffer != nullptr)
-        delete transmitBuffer;
-    if (specialBuffer != nullptr)
-        delete specialBuffer;
+    delete receiveBuffer;
+    delete transmitBuffer;
+    delete specialBuffer;
 }
 
 /** SIO COMMANDS ***************************************************************/
@@ -103,6 +102,12 @@ void sioNetwork::sio_open()
         protocol = nullptr;
     }
 
+    if (protocolParser != nullptr)
+    {
+        delete protocolParser;
+        protocolParser = nullptr;
+    }
+
     // Reset status buffer
     status.reset();
 
@@ -112,6 +117,12 @@ void sioNetwork::sio_open()
     if (protocol == nullptr)
     {
         // invalid devicespec error already passed in.
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
+
         sio_error();
         return;
     }
@@ -123,6 +134,11 @@ void sioNetwork::sio_open()
         Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
         delete protocol;
         protocol = nullptr;
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
         sio_error();
         return;
     }
@@ -155,6 +171,12 @@ void sioNetwork::sio_close()
 
     status.reset();
 
+    if (protocolParser != nullptr)
+    {
+        delete protocolParser;
+        protocolParser = nullptr;
+    }
+
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
@@ -168,7 +190,7 @@ void sioNetwork::sio_close()
     else
         sio_complete();
 
-    Debug_printf("Before protocol delete %lu\n",esp_get_free_heap_size());
+    Debug_printv("Before protocol delete %lu\n",esp_get_free_internal_heap_size());
     // Delete the protocol object
     delete protocol;
     protocol = nullptr;
@@ -176,7 +198,7 @@ void sioNetwork::sio_close()
     if (json != nullptr)
         delete json;
 
-    Debug_printf("After protocol delete %lu\n",esp_get_free_heap_size());
+    Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 }
 
 /**
@@ -206,6 +228,12 @@ void sioNetwork::sio_read()
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
+
         status.error = NETWORK_ERROR_NOT_CONNECTED;
         sio_error();
         return;
@@ -217,6 +245,7 @@ void sioNetwork::sio_read()
     // And send off to the computer
     bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
     receiveBuffer->erase(0, num_bytes);
+    receiveBuffer->shrink_to_fit();
 }
 
 /**
@@ -262,15 +291,16 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
 void sioNetwork::sio_write()
 {
     unsigned short num_bytes = sio_get_aux();
-    uint8_t *newData;
     bool err = false;
 
-    newData = (uint8_t *)malloc(num_bytes);
+    uint8_t *newData = (uint8_t *)malloc(num_bytes);
     Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
 
     if (newData == nullptr)
     {
         Debug_printf("Could not allocate %u bytes.\n", num_bytes);
+        sio_error();
+        return;
     }
 
     sio_ack();
@@ -278,8 +308,14 @@ void sioNetwork::sio_write()
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
         status.error = NETWORK_ERROR_NOT_CONNECTED;
         sio_error();
+        free(newData);
         return;
     }
 
@@ -297,7 +333,9 @@ void sioNetwork::sio_write()
         sio_complete();
     }
     else
+    {
         sio_error();
+    }
 }
 
 /**
@@ -448,13 +486,17 @@ void sioNetwork::sio_set_prefix()
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
     bus_to_peripheral(prefixSpec, sizeof(prefixSpec));
-    util_clean_devicespec(prefixSpec, sizeof(prefixSpec));
+    util_devicespec_fix_9b(prefixSpec, sizeof(prefixSpec));
 
     prefixSpec_str = string((const char *)prefixSpec);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
 
-    if (prefixSpec_str == "..") // Devance path N:..
+    if (prefixSpec_str.empty())
+    {
+        prefix.clear();
+    }
+    else if (prefixSpec_str == "..") // Devance path N:..
     {
         vector<int> pathLocations;
         for (int i = 0; i < prefix.size(); i++)
@@ -499,10 +541,6 @@ void sioNetwork::sio_set_prefix()
     else if (prefixSpec_str[0] == '/') // N:/DIR
     {
         prefix = prefixSpec_str;
-    }
-    else if (prefixSpec_str.empty())
-    {
-        prefix.clear();
     }
     else if (prefixSpec_str.find_first_of(":") != string::npos)
     {
@@ -550,7 +588,7 @@ void sioNetwork::sio_set_login()
 
     memset(loginSpec, 0, sizeof(loginSpec));
     bus_to_peripheral(loginSpec, sizeof(loginSpec));
-    util_clean_devicespec(loginSpec, sizeof(loginSpec));
+    util_devicespec_fix_9b(loginSpec, sizeof(loginSpec));
 
     login = string((char *)loginSpec);
     sio_complete();
@@ -565,7 +603,7 @@ void sioNetwork::sio_set_password()
 
     memset(passwordSpec, 0, sizeof(passwordSpec));
     bus_to_peripheral(passwordSpec, sizeof(passwordSpec));
-    util_clean_devicespec(passwordSpec, sizeof(passwordSpec));
+    util_devicespec_fix_9b(passwordSpec, sizeof(passwordSpec));
 
     password = string((char *)passwordSpec);
     sio_complete();
@@ -849,85 +887,57 @@ void sioNetwork::sio_poll_interrupt()
  */
 bool sioNetwork::instantiate_protocol()
 {
-    if (urlParser == nullptr)
+    if (!protocolParser)
     {
-        Debug_printf("sioNetwork::open_protocol() - urlParser is NULL. Aborting.\n");
-        return false; // error.
+        protocolParser = new ProtocolParser();
     }
-
-    // Convert to uppercase
-    transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
-
-    if (urlParser->scheme == "TCP")
-    {
-        protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "UDP")
-    {
-        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TEST")
-    {
-        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TELNET")
-    {
-        protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TNFS")
-    {
-        protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "FTP")
-    {
-        protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
-    {
-        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SSH")
-    {
-        protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SMB")
-    {
-        protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else
-    {
-        Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
-        return false; // invalid protocol.
-    }
+    
+    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
-        Debug_printf("sioNetwork::open_protocol() - Could not open protocol.\n");
+        Debug_printf("sioNetwork::instantiate_protocol() - Could not create protocol.\n");
         return false;
     }
 
-    if (!login.empty())
-    {
-        protocol->login = &login;
-        protocol->password = &password;
-    }
-
-    Debug_printf("sioNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
+    Debug_printf("sioNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
 }
 
-void sioNetwork::parse_and_instantiate_protocol()
+/**
+ * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
+ * disk utility packages do when opening a device, such as adding wildcards for directory opens.
+ */
+void sioNetwork::create_devicespec()
 {
     // Clean up devicespec buffer.
     memset(devicespecBuf, 0, sizeof(devicespecBuf));
 
     // Get Devicespec from buffer, and put into primary devicespec string
     bus_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
-    util_clean_devicespec(devicespecBuf, sizeof(devicespecBuf));
+    util_devicespec_fix_9b(devicespecBuf, sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
 
+    deviceSpec = util_devicespec_fix_for_parsing(deviceSpec, prefix, cmdFrame.aux1 == 6, true);
+}
+
+/*
+ * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * of Network.
+*/
+void sioNetwork::create_url_parser()
+{
+    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
+    urlParser = EdUrlParser::parseUrl(url);
+}
+
+void sioNetwork::parse_and_instantiate_protocol()
+{
+    create_devicespec();
+    create_url_parser();
+
     // Invalid URL returns error 165 in status.
-    if (parseURL() == false)
+    if (!urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
@@ -935,10 +945,10 @@ void sioNetwork::parse_and_instantiate_protocol()
         return;
     }
 
-    Debug_printf("Parse and instantiate protocol: %s\n", deviceSpec.c_str());
+    Debug_printf("::parse_and_instantiate_protocol transformed to (%s, %s)\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
 
     // Instantiate protocol object.
-    if (instantiate_protocol() == false)
+    if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol.\n");
         status.error = NETWORK_ERROR_GENERAL;
@@ -974,71 +984,6 @@ void sioNetwork::timer_stop()
         esp_timer_delete(rateTimerHandle);
         rateTimerHandle = nullptr;
     }
-}
-
-/**
- * Is this a valid URL? (Used to generate ERROR 165)
- */
-bool sioNetwork::isValidURL(EdUrlParser *url)
-{
-    if (url->scheme == "")
-        return false;
-    else if ((url->path == "") && (url->port == ""))
-        return false;
-    else
-        return true;
-}
-
-/**
- * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
- * disk utility packages do when opening a device, such as adding wildcards for directory opens.
- *
- * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
- * of sioNetwork.
- *
- * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
- */
-bool sioNetwork::parseURL()
-{
-    string url;
-    string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
-
-    if (urlParser != nullptr)
-        delete urlParser;
-
-    // Prepend prefix, if set.
-    if (prefix.length() > 0)
-        deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
-    else
-        deviceSpec = unit + deviceSpec.substr(string(deviceSpec).find(":") + 1);
-
-    Debug_printf("sioNetwork::parseURL(%s)\n", deviceSpec.c_str());
-
-    // Strip non-ascii characters.
-    util_strip_nonascii(deviceSpec);
-
-    // Process comma from devicespec (DOS 2 COPY command)
-    // processCommaFromDevicespec();
-
-    if (cmdFrame.aux1 != 6) // Anything but a directory read...
-    {
-        replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
-    }
-
-    // Some FMSes add a dot at the end, remove it.
-    if (deviceSpec.substr(deviceSpec.length() - 1) == ".")
-        deviceSpec.erase(deviceSpec.length() - 1, string::npos);
-
-    // Remove any spurious spaces
-    deviceSpec = util_remove_spaces(deviceSpec);
-
-    // chop off front of device name for URL, and parse it.
-    url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
-
-    Debug_printf("sioNetwork::parseURL transformed to (%s, %s)\n", deviceSpec.c_str(), url.c_str());
-
-    return isValidURL(urlParser);
 }
 
 /**

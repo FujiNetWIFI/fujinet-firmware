@@ -21,7 +21,7 @@ class fnTcpServer
     fnTcpServer(uint16_t port=80, uint8_t max_clients=4): _port(port), _max_clients(max_clients){}
     ~fnTcpServer(){ stop(); }
 
-    void begin(uint16_t port=0);
+    int begin(uint16_t port=0);
 
     fnTcpClient accept(){ return available(); }
     void setNoDelay(bool nodelay) { _noDelay = nodelay; };

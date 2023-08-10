@@ -225,12 +225,12 @@ SOFTWARE.
 // 	*/
 // 	FILE *const woz_file = fopen(argv[2], "wb");
 // 	if(!woz_file) {
-// 		printf("ERROR: Could not open %s for writing\n", argv[2]);
+// 		printf("ERROR: Could not open %s for writing\r\n", argv[2]);
 // 		return -5;
 // 	}
 // 	fputs("WOZ1", woz_file);
 // 	fputc(0xff, woz_file);
-// 	fputs("\n\r\n", woz_file);
+// 	fputs("\r\n\r\n", woz_file);
 
 // 	const uint32_t crc = crc32(woz, sizeof(woz));
 // 	fputc(crc & 0xff, woz_file);
@@ -242,7 +242,7 @@ SOFTWARE.
 // 	fclose(woz_file);
 
 // 	if(length_written != sizeof(woz)) {
-// 		printf("ERROR: Could not write full WOZ image\n");
+// 		printf("ERROR: Could not write full WOZ image\r\n");
 // 		return -6;
 // 	}
 

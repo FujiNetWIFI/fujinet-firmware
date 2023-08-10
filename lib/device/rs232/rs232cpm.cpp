@@ -58,7 +58,7 @@ void rs232CPM::rs232_handle_cpm()
 
 void rs232CPM::init_cpm(int baud)
 {
-    fnUartSIO.set_baudrate(baud);
+    fnUartBUS.set_baudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);
@@ -90,4 +90,4 @@ void rs232CPM::rs232_process(uint32_t commanddata, uint8_t checksum)
     }
 }
 
-#endif /* BUILD_ATARI */
+#endif /* BUILD_RS232 */

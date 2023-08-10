@@ -25,6 +25,8 @@
 #include "SSH.h"
 #include "SMB.h"
 
+#include "ProtocolParser.h"
+
 // using namespace std;
 
 /**
@@ -52,12 +54,9 @@ iwmNetwork::~iwmNetwork()
     transmitBuffer->clear();
     specialBuffer->clear();
 
-    if (receiveBuffer != nullptr)
-        delete receiveBuffer;
-    if (transmitBuffer != nullptr)
-        delete transmitBuffer;
-    if (specialBuffer != nullptr)
-        delete specialBuffer;
+    delete receiveBuffer;
+    delete transmitBuffer;
+    delete specialBuffer;
 }
 
 /** iwm COMMANDS ***************************************************************/
@@ -152,6 +151,12 @@ void iwmNetwork::open()
         protocol = nullptr;
     }
 
+    if (protocolParser != nullptr)
+    {
+        delete protocolParser;
+        protocolParser = nullptr;
+    }
+
     // Reset status buffer
     statusByte.byte = 0x00;
 
@@ -172,6 +177,11 @@ void iwmNetwork::open()
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
         delete protocol;
         protocol = nullptr;
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
         return;
     }
 
@@ -189,6 +199,11 @@ void iwmNetwork::close()
 
     statusByte.byte = 0x00;
 
+    if (protocolParser != nullptr)
+    {
+        delete protocolParser;
+        protocolParser = nullptr;
+    }
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
@@ -875,79 +890,49 @@ void iwmNetwork::process(iwm_decoded_cmd_t cmd)
  */
 bool iwmNetwork::instantiate_protocol()
 {
-    if (urlParser == nullptr)
+    if (!protocolParser)
     {
-        Debug_printf("iwmNetwork::open_protocol() - urlParser is NULL. Aborting.\n");
-        return false; // error.
+        protocolParser = new ProtocolParser();
     }
-
-    // Convert to uppercase
-    std::transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
-
-    if (urlParser->scheme == "TCP")
-    {
-        protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "UDP")
-    {
-        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TEST")
-    {
-        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TELNET")
-    {
-        protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TNFS")
-    {
-        protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "FTP")
-    {
-        protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
-    {
-        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SSH")
-    {
-        protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SMB")
-    {
-        protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else
-    {
-        Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
-        return false; // invalid protocol.
-    }
+    
+    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
-        Debug_printf("iwmNetwork::open_protocol() - Could not open protocol.\n");
+        Debug_printf("iwmNetwork::instantiate_protocol() - Could not create protocol.\n");
         return false;
     }
 
-    if (!login.empty())
-    {
-        protocol->login = &login;
-        protocol->password = &password;
-    }
-
-    Debug_printf("iwmNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
+    Debug_printf("iwmNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
+}
+
+/**
+ * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
+ * disk utility packages do when opening a device, such as adding wildcards for directory opens.
+ */
+void iwmNetwork::create_devicespec(string d)
+{
+    deviceSpec = util_devicespec_fix_for_parsing(d, prefix, cmdFrame.aux1 == 6, false);
+}
+
+/*
+ * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * of Network.
+*/
+void iwmNetwork::create_url_parser()
+{
+    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
+    urlParser = EdUrlParser::parseUrl(url);
 }
 
 void iwmNetwork::parse_and_instantiate_protocol(string d)
 {
-    deviceSpec = d;
+    create_devicespec(d);
+    create_url_parser();
 
     // Invalid URL returns error 165 in status.
-    if (parseURL() == false)
+    if (!urlParser->isValidUrl())
     {
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         statusByte.byte = 0x00;
@@ -956,10 +941,10 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
         return;
     }
 
-    Debug_printf("Parse and instantiate protocol: %s\n", deviceSpec.c_str());
+    Debug_printf("::parse_and_instantiate_protocol transformed to (%s, %s)\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
 
     // Instantiate protocol object.
-    if (instantiate_protocol() == false)
+    if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol.\n");
         statusByte.byte = 0x00;
@@ -967,71 +952,6 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
         err = NETWORK_ERROR_GENERAL;
         return;
     }
-}
-
-/**
- * Is this a valid URL? (Used to generate ERROR 165)
- */
-bool iwmNetwork::isValidURL(EdUrlParser *url)
-{
-    if (url->scheme == "")
-        return false;
-    else if ((url->path == "") && (url->port == ""))
-        return false;
-    else
-        return true;
-}
-
-/**
- * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
- * disk utility packages do when opening a device, such as adding wildcards for directory opens.
- *
- * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
- * of iwmNetwork.
- *
- * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
- */
-bool iwmNetwork::parseURL()
-{
-    string url;
-    string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
-
-    if (urlParser != nullptr)
-        delete urlParser;
-
-    // Prepend prefix, if set.
-    if (prefix.length() > 0)
-        deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
-    else
-        deviceSpec = unit + deviceSpec.substr(string(deviceSpec).find(":") + 1);
-
-    Debug_printf("iwmNetwork::parseURL(%s)\n", deviceSpec.c_str());
-
-    // Strip non-ascii characters.
-    util_strip_nonascii(deviceSpec);
-
-    // Process comma from devicespec (DOS 2 COPY command)
-    // processCommaFromDevicespec();
-
-    if (cmdFrame.aux1 != 6) // Anything but a directory read...
-    {
-        std::replace(deviceSpec.begin(), deviceSpec.end(), '*', '\0'); // FIXME: Come back here and deal with WC's
-    }
-
-    // // Some FMSes add a dot at the end, remove it.
-    // if (deviceSpec.substr(deviceSpec.length() - 1) == ".")
-    //     deviceSpec.erase(deviceSpec.length() - 1, string::npos);
-
-    // Remove any spurious spaces
-    deviceSpec = util_remove_spaces(deviceSpec);
-
-    // chop off front of device name for URL, and parse it.
-    url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
-
-    Debug_printf("iwmNetwork::parseURL transformed to (%s, %s)\n", deviceSpec.c_str(), url.c_str());
-
-    return isValidURL(urlParser);
 }
 
 void iwmNetwork::iwmnet_set_translation()
@@ -1054,4 +974,4 @@ void iwmNetwork::iwmnet_set_timer_rate()
     // iwmnet_complete();
 }
 
-#endif /* BUILD_iwm */
+#endif /* BUILD_APPLE */

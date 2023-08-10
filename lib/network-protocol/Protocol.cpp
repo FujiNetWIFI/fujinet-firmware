@@ -25,6 +25,17 @@ using namespace std;
 #define ATASCII_TAB 0x7F
 #define ATASCII_BUZZER 0xFD
 
+#define STR_ASCII_BELL "\x07"
+#define STR_ASCII_BACKSPACE "\x08"
+#define STR_ASCII_TAB "\x09"
+#define STR_ASCII_LF "\x0a"
+#define STR_ASCII_CR "\x0d"
+#define STR_ASCII_CRLF "\x0d\x0a"
+#define STR_ATASCII_EOL "\x9b"
+#define STR_ATASCII_DEL "\x7e"
+#define STR_ATASCII_TAB "\x7f"
+#define STR_ATASCII_BUZZER "\xfd"
+
 /**
  * NWD
  * We only have 2 bits for translations (see NetworkProtocol::open)
@@ -34,10 +45,12 @@ using namespace std;
  * one in the future rather than the Apple2
  */
 
-#ifdef Apple2
+#ifdef BUILD_APPLE
 #define EOL 0x0D
+#define STR_EOL "\x0d"
 #else
 #define EOL 0x9B
+#define STR_EOL "\x9b"
 #endif
 
 
@@ -57,7 +70,7 @@ NetworkProtocol::NetworkProtocol(string *rx_buf,
                                  string *tx_buf,
                                  string *sp_buf)
 {
-    Debug_printf("NetworkProtocol::ctor()\n");
+    Debug_printf("NetworkProtocol::ctor()\r\n");
 
     receiveBuffer = rx_buf;
     transmitBuffer = tx_buf;
@@ -71,7 +84,7 @@ NetworkProtocol::NetworkProtocol(string *rx_buf,
  */
 NetworkProtocol::~NetworkProtocol()
 {
-    Debug_printf("NetworkProtocol::dtor()\n");
+    Debug_printf("NetworkProtocol::dtor()\r\n");
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
@@ -123,7 +136,7 @@ bool NetworkProtocol::close()
  */
 bool NetworkProtocol::read(unsigned short len)
 {
-    Debug_printf("NetworkProtocol::read(%u)\n", len);
+    Debug_printf("NetworkProtocol::read(%u)\r\n", len);
     translate_receive_buffer();
     error = 1;
     return false;
@@ -166,9 +179,11 @@ void NetworkProtocol::translate_receive_buffer()
     if (translation_mode == 0)
         return;
 
+    #ifdef BUILD_ATARI
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BELL, ATASCII_BUZZER);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BACKSPACE, ATASCII_DEL);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_TAB, ATASCII_TAB);
+    #endif   
 
     switch (translation_mode)
     {
@@ -179,13 +194,13 @@ void NetworkProtocol::translate_receive_buffer()
         replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_LF, EOL);
         break;
     case TRANSLATION_MODE_CRLF:
-    #ifndef Apple2
+    #ifndef BUILD_APPLE
         // With Apple2, we would be translating CR to CR; a waste of CPU
         replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_CR, EOL);
     #endif
         break;
     case TRANSLATION_MODE_PETSCII:
-        Debug_printf("!!! PETSCII !!!\n");
+        Debug_printf("!!! PETSCII !!!\r\n");
         mstr::toPETSCII(*receiveBuffer);
         break;
     }
@@ -203,20 +218,22 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
     if (translation_mode == 0)
         return transmitBuffer->length();
 
-    replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_BUZZER, ASCII_BELL);
-    replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_DEL, ASCII_BACKSPACE);
-    replace(transmitBuffer->begin(), transmitBuffer->end(), ATASCII_TAB, ASCII_TAB);
+    #ifdef BUILD_ATARI
+    util_replaceAll(*transmitBuffer, STR_ATASCII_BUZZER, STR_ASCII_BELL);
+    util_replaceAll(*transmitBuffer, STR_ATASCII_DEL, STR_ASCII_BACKSPACE);
+    util_replaceAll(*transmitBuffer, STR_ATASCII_TAB, STR_ASCII_TAB);
+    #endif
 
     switch (translation_mode)
     {
     case TRANSLATION_MODE_CR:
-        replace(transmitBuffer->begin(), transmitBuffer->end(), EOL, ASCII_CR);
+        util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_CR);
         break;
     case TRANSLATION_MODE_LF:
-        replace(transmitBuffer->begin(), transmitBuffer->end(), EOL, ASCII_LF);
+        util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_LF);
         break;
     case TRANSLATION_MODE_CRLF:
-        util_replaceAll(*transmitBuffer, "\x9b", "\x0d\x0a");
+        util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_CRLF);
         break;
     case TRANSLATION_MODE_PETSCII:
         mstr::toASCII(*transmitBuffer);
@@ -259,7 +276,7 @@ void NetworkProtocol::errno_to_error()
         error = NETWORK_ERROR_NETWORK_DOWN;
         break;
     default:
-        Debug_printf("errno_to_error() - Uncaught errno = %u, returning 144.\n", errno);
+        Debug_printf("errno_to_error() - Uncaught errno = %u, returning 144.\r\n", errno);
         error = NETWORK_ERROR_GENERAL;
         break;
     }

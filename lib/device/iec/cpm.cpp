@@ -30,7 +30,7 @@
 
 static void cpmTask(void *arg)
 {
-    Debug_printf("cpmTask()\n");
+    Debug_printf("cpmTask()\r\n");
     while (1)
     {
         Status = Debug = 0;
@@ -72,6 +72,10 @@ void iecCpm::iec_close()
 {
     if (cpmTaskHandle != NULL)
         vTaskDelete(cpmTaskHandle);
+
+    commanddata.init();
+    device_state = DEVICE_IDLE;
+    Debug_printv("device init");
 }
 
 void iecCpm::poll_interrupt(unsigned char c)
@@ -87,7 +91,7 @@ void iecCpm::iec_reopen_talk()
 
     if (cpmTaskHandle == NULL)
     {
-        Debug_printf("iecCpm::iec_reopen_talk() - No CP/M task, ignoring.\n");
+        Debug_printf("iecCpm::iec_reopen_talk() - No CP/M task, ignoring.\r\n");
         return;
     }
 
@@ -112,7 +116,7 @@ void iecCpm::iec_reopen_listen()
 {
     if (cpmTaskHandle == NULL)
     {
-        Debug_printf("iecCpm::iec_reopen_talk() - No CP/M task, ignoring.\n");
+        Debug_printf("iecCpm::iec_reopen_talk() - No CP/M task, ignoring.\r\n");
         return;
     }
 
@@ -122,7 +126,7 @@ void iecCpm::iec_reopen_listen()
 
         if (b<0)
         {
-            Debug_printf("Error on receive.\n");
+            Debug_printf("Error on receive.\r\n");
             return;
         }
 
@@ -132,7 +136,7 @@ void iecCpm::iec_reopen_listen()
 
 void iecCpm::iec_reopen()
 {
-    switch (commanddata->primary)
+    switch (commanddata.primary)
     {
     case IEC_TALK:
         iec_reopen_talk();
@@ -143,12 +147,12 @@ void iecCpm::iec_reopen()
     }
 }
 
-device_state_t iecCpm::process(IECData *_commanddata)
+device_state_t iecCpm::process()
 {
     // Call base class
-    virtualDevice::process(_commanddata); // commanddata set here.
+    virtualDevice::process(); // commanddata set here.
 
-    switch (commanddata->secondary)
+    switch (commanddata.secondary)
     {
     case IEC_OPEN:
         iec_open();
