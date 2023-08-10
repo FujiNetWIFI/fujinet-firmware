@@ -33,6 +33,10 @@
 # include "iwm/fuji.h"
 #endif
 
+#ifdef BUILD_MAC
+# include "mac/fuji.h"
+#endif
+
 #ifdef BUILD_CX16
 #include "cx16_i2c/fuji.h"
 #endif

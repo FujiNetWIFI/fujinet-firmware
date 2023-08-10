@@ -34,7 +34,12 @@
 # include "apple/mediaTypePO.h"
 # include "apple/mediaTypeWOZ.h"
 # include "apple/mediaTypeDSK.h"
-#endif 
+#endif
+
+#ifdef BUILD_MAC
+#include "mac/mediaType.h"
+#include "mac/mediaTypeMOOF.h"
+#endif
 
 #ifdef BUILD_S100
 # include "adam/mediaType.h"
