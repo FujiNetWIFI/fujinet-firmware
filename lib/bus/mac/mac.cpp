@@ -2,14 +2,20 @@
 #include "mac.h"
 #include "../../include/debug.h"
 
+
+
 void macBus::setup(void)
 {
   Debug_printf(("\r\nMAC FujiNet based on FujiApple\r\n"));
+  fnUartSIO.begin(_mac_baud_rate);
 }
 
 void macBus::service(void)
 {
-
+  if (fnUartSIO.available())
+  {
+    
+  }
 }
 
 void macBus::shutdown(void)
