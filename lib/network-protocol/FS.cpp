@@ -11,6 +11,10 @@
 #include "status_error_codes.h"
 #include "utils.h"
 
+#include <cstring>
+
+#define ENTRY_BUFFER_SIZE 256
+
 NetworkProtocolFS::NetworkProtocolFS(string *rx_buf, string *tx_buf, string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
@@ -61,19 +65,21 @@ bool NetworkProtocolFS::open_file()
 
 bool NetworkProtocolFS::open_dir()
 {
-    char *entryBuffer = (char *)malloc(256);
     openMode = DIR;
     dirBuffer.clear();
+    dirBuffer.shrink_to_fit();
     update_dir_filename(opened_url);
 
     // assume everything if no filename.
     if (filename.empty())
         filename = "*";
 
-    Debug_printf("NetworkProtocolFS::open_dir(%s)\n", opened_url->toString().c_str());
+    Debug_printf("NetworkProtocolFS::open_dir(%s)\r\n", opened_url->toString().c_str());
 
     if (opened_url->path.empty())
+    {
         return true;
+    }
 
     if (open_dir_handle() == true)
     {
@@ -81,7 +87,9 @@ bool NetworkProtocolFS::open_dir()
         return true;
     }
 
-    while (read_dir_entry(entryBuffer, 255) == false)
+    char *entryBuffer = (char *)malloc(ENTRY_BUFFER_SIZE);
+
+    while (read_dir_entry(entryBuffer, ENTRY_BUFFER_SIZE-1) == false)
     {
         if (aux2_open & 0x80)
         {
@@ -97,6 +105,8 @@ bool NetworkProtocolFS::open_dir()
             dirBuffer += util_entry(util_crunch(string(entryBuffer)), fileSize, is_directory, is_locked) + "\x9b";
         }
         fserror_to_error();
+
+        memset(entryBuffer,0,ENTRY_BUFFER_SIZE);
     }
 
 #ifdef BUILD_ATARI
@@ -106,8 +116,6 @@ bool NetworkProtocolFS::open_dir()
 
     if (error == NETWORK_ERROR_END_OF_FILE)
         error = NETWORK_ERROR_SUCCESS;
-
-    free(entryBuffer);
 
     return error != NETWORK_ERROR_SUCCESS;
 }
@@ -163,28 +171,32 @@ bool NetworkProtocolFS::close_dir()
 
 bool NetworkProtocolFS::read(unsigned short len)
 {
+    bool ret;
+
     switch (openMode)
     {
     case FILE:
-        return read_file(len);
+        ret =  read_file(len);
         break;
     case DIR:
-        return read_dir(len);
+        ret = read_dir(len);
         break;
     default:
-        return true;
+        ret = true;
     }
+
+    return ret;
 }
 
 bool NetworkProtocolFS::read_file(unsigned short len)
 {
     uint8_t *buf = (uint8_t *)malloc(len);
 
-    Debug_printf("NetworkProtocolFS::read_file(%u)\n", len);
+    Debug_printf("NetworkProtocolFS::read_file(%u)\r\n", len);
 
     if (buf == nullptr)
     {
-        Debug_printf("NetworkProtocolTNFS:read_file(%u) could not allocate.\n", len);
+        Debug_printf("NetworkProtocolTNFS:read_file(%u) could not allocate.\r\n", len);
         return true; // error
     }
 
@@ -192,7 +204,10 @@ bool NetworkProtocolFS::read_file(unsigned short len)
     {
         // Do block read.
         if (read_file_handle(buf, len) == true)
+        {
+            free(buf);
             return true;
+        }
 
         // Append to receive buffer.
         *receiveBuffer += string((char *)buf, len);
@@ -210,13 +225,18 @@ bool NetworkProtocolFS::read_file(unsigned short len)
 
 bool NetworkProtocolFS::read_dir(unsigned short len)
 {
+    bool ret;
+
     if (receiveBuffer->length() == 0)
     {
         *receiveBuffer = dirBuffer.substr(0, len);
         dirBuffer.erase(0, len);
+        dirBuffer.shrink_to_fit();
     }
 
-    return NetworkProtocol::read(len);
+    ret = NetworkProtocol::read(len);
+
+    return ret;
 }
 
 bool NetworkProtocolFS::write(unsigned short len)
@@ -324,7 +344,7 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
 
 void NetworkProtocolFS::resolve()
 {
-    Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\n", opened_url->path.c_str(), dir.c_str(), filename.c_str());
+    Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\r\n", opened_url->path.c_str(), dir.c_str(), filename.c_str());
 
     if (stat() == true) // true = error.
     {
@@ -346,7 +366,7 @@ void NetworkProtocolFS::resolve()
             string current_entry = string(e);
             string crunched_entry = util_crunch(current_entry);
 
-            Debug_printf("current entry \"%s\" crunched entry \"%s\"\n", current_entry.c_str(), crunched_entry.c_str());
+            Debug_printf("current entry \"%s\" crunched entry \"%s\"\r\n", current_entry.c_str(), crunched_entry.c_str());
 
             if (crunched_filename == crunched_entry)
             {
@@ -359,7 +379,7 @@ void NetworkProtocolFS::resolve()
         close_dir_handle();
     }
 
-    Debug_printf("Resolved to %s\n", opened_url->toString().c_str());
+    Debug_printf("Resolved to %s\r\n", opened_url->toString().c_str());
 
     // Clear file size, if resolved to write and not append.
     if (aux1_open == 8)
@@ -384,7 +404,7 @@ bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdF
     case 0x2B:
         return rmdir(url, cmdFrame);
     default:
-        Debug_printf("Uncaught idempotent command: %u\n", cmdFrame->comnd);
+        Debug_printf("Uncaught idempotent command: %u\r\n", cmdFrame->comnd);
         return true;
     }
 }
@@ -407,7 +427,7 @@ bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
     destFilename = dir + filename.substr(comma_pos + 1);
     filename = dir + filename.substr(0, comma_pos);
 
-    Debug_printf("RENAME destfilename, %s, filename, %s\n", destFilename.c_str(), filename.c_str());
+    Debug_printf("RENAME destfilename, %s, filename, %s\r\n", destFilename.c_str(), filename.c_str());
 
     return false;
 }

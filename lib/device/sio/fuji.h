@@ -5,6 +5,7 @@
 #include <cstring>
 
 #include "bus.h"
+#include "disk.h"
 #include "network.h"
 #include "cassette.h"
 

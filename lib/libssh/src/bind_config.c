@@ -521,13 +521,13 @@ ssh_bind_config_parse_line(ssh_bind bind,
                 p = ssh_config_get_str_tok(&s, NULL);
                 if (p == NULL || p[0] == '\0') {
                     SSH_LOG(SSH_LOG_WARN, "line %d: Match keyword "
-                            "'%s' requires argument\n", count, p2);
+                            "'%s' requires argument\r\n", count, p2);
                     SAFE_FREE(x);
                     return -1;
                 }
                 args++;
                 SSH_LOG(SSH_LOG_WARN,
-                        "line %d: Unsupported Match keyword '%s', ignoring\n",
+                        "line %d: Unsupported Match keyword '%s', ignoring\r\n",
                         count,
                         p2);
                 result = 0;

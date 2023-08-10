@@ -49,4 +49,8 @@
 # include "h89/fuji.h"
 #endif
 
+#ifdef BUILD_COCO
+# include "drivewire/fuji.h"
+#endif 
+
 #endif // DEVICE_FUJI_H

@@ -70,7 +70,7 @@ static int ssh_gets(const char *prompt, char *buf, size_t len, int verify) {
         if ((ptr = strchr(tmp, '\n'))) {
             *ptr = '\0';
         }
-        fprintf(stdout, "\n");
+        fprintf(stdout, "\r\n");
 
         if (*tmp) {
             strncpy(buf, tmp, len);
@@ -95,9 +95,9 @@ static int ssh_gets(const char *prompt, char *buf, size_t len, int verify) {
             if ((ptr = strchr(key_string, '\n'))) {
                 *ptr = '\0';
             }
-            fprintf(stdout, "\n");
+            fprintf(stdout, "\r\n");
             if (strcmp(buf, key_string)) {
-                printf("\n\07\07Mismatch - try again\n");
+                printf("\n\07\07Mismatch - try again\r\n");
                 explicit_bzero(key_string, len);
                 SAFE_FREE(key_string);
                 fflush(stdout);

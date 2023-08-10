@@ -345,7 +345,7 @@ void systemBus::service()
     {
         _modemDev->sio_handle_modem();
     }
-    else
+    else if (_modemDev != nullptr)
     // Neither CMD nor active modem, so throw out any stray input data
     {
         _modemDev->get_uart()->flush_input();
@@ -543,7 +543,7 @@ int systemBus::getHighSpeedBaud()
 void systemBus::setUDPHost(const char *hostname, int port)
 {
     // Turn off if hostname is STOP
-    if (!strcmp(hostname, "STOP"))
+    if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {
         if (_udpDev->udpstreamActive)
             _udpDev->sio_disable_udpstream();

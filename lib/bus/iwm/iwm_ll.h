@@ -101,8 +101,8 @@ private:
   void set_output_to_spi();
 
   // SPI data handling
-  uint8_t *spi_buffer; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
-  uint16_t spi_len;
+  uint8_t *spi_buffer = nullptr; //[8 * (BLOCK_PACKET_LEN+2)]; //smartport packet buffer
+  uint16_t spi_len = 0;
   spi_bus_config_t bus_cfg;
   spi_device_handle_t spi;
   // SPI receiver
@@ -120,11 +120,11 @@ private:
   const int halfwidth = pulsewidth / 2;
 
   // SPI receiver data stream counters
-  int spirx_byte_ctr;
-  int spirx_bit_ctr;
+  int spirx_byte_ctr = 0;
+  int spirx_bit_ctr = 0;
 
   //uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
-  uint16_t packet_len;
+  uint16_t packet_len = 0;
 
 public:
   SemaphoreHandle_t spiMutex;
@@ -174,7 +174,7 @@ private:
   fn_rmt_config_t config;
 
   // track bit information
-  uint8_t* track_buffer; // 
+  uint8_t* track_buffer = nullptr; // 
   size_t track_numbits = 6400 * 8;
   size_t track_numbytes = 6400;
   size_t track_location = 0;
@@ -189,7 +189,7 @@ public:
 
   // Disk II handling by RMT peripheral
   void setup_rmt(); // install the RMT device
-  void start();
+  void start(uint8_t drive);
   void stop();
   // need a function to remove the RMT device?
 

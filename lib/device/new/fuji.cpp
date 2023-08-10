@@ -11,7 +11,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 
 #include "utils.h"
 
@@ -947,11 +947,11 @@ void adamFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_atr);
+        fBoot = fsFlash.file_open(config_atr);
         _bootDisk->mount(fBoot, config_atr, 0);
         break;
     case 1:
-        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        fBoot = fsFlash.file_open(mount_all_atr);
         _bootDisk->mount(fBoot, mount_all_atr, 0);
         break;
     }
@@ -1004,7 +1004,7 @@ void adamFuji::setup(systemBus *siobus)
     _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
     _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
 
-    FILE *f = fnSPIFFS.file_open("/autorun.ddp");
+    FILE *f = fsFlash.file_open("/autorun.ddp");
     _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
 
     theNetwork = new adamNetwork();
@@ -1035,7 +1035,7 @@ void adamFuji::mount_all()
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
 
-        if (disk.host_slot != 0xFF)
+        if (disk.host_slot != INVALID_HOST_SLOT)
         {
             nodisks = false; // We have a disk in a slot
 

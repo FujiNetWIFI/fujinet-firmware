@@ -85,7 +85,7 @@ void commodoremps803::mps_print_bitmap(uint8_t c)
     // lead with '0' to enter a space
     // then shift back with 100 and print each pin
     fprintf(_file, " ");
-    for (int i = 0; i < 8; i++)
+    for (unsigned i = 0; i < 8; i++)
     {
         if ((c >> i) & 0x01)
             fprintf(_file, ")100(%u", i + 1);
@@ -286,7 +286,7 @@ Specify Dot Address     CHRS(27);CHR$(16);CHR$(nH)CHR$(nL)
     case 10:
         // Line Feed               CHR$(10)
         // DO A CR without reseting modes:
-        fprintf(_file, ")]TJ\n"); // close the line
+        fprintf(_file, ")]TJ\r\n"); // close the line
         pdf_X = 0; // CR
         BOLflag = true;
         pdf_new_line();

@@ -28,14 +28,14 @@ uint16_t MediaType::sector_size(uint16_t sectornum)
 // Default WRITE is not implemented
 bool MediaType::write(uint16_t sectornum, bool verify)
 {
-    Debug_print("DISK WRITE NOT IMPLEMENTED\n");
+    Debug_print("DISK WRITE NOT IMPLEMENTED\r\n");
     return true;
 }
 
 // Default FORMAT is not implemented
 bool MediaType::format(uint16_t *responsesize)
 {
-    Debug_print("DISK FORMAT NOT IMPLEMENTED\n");
+    Debug_print("DISK FORMAT NOT IMPLEMENTED\r\n");
     return true;
 }
 
@@ -119,18 +119,18 @@ void MediaType::derive_percom_block(uint16_t numSectors)
 void MediaType::dump_percom_block()
 {
 #ifdef VERBOSE_DISK
-    Debug_printf("Percom Block Dump\n");
-    Debug_printf("-----------------\n");
-    Debug_printf("Num Tracks: %d\n", _percomBlock.num_tracks);
-    Debug_printf("Step Rate: %d\n", _percomBlock.step_rate);
-    Debug_printf("Sectors per Track: %d\n", (_percomBlock.sectors_per_trackH * 256 + _percomBlock.sectors_per_trackL));
-    Debug_printf("Num Sides: %d\n", _percomBlock.num_sides);
-    Debug_printf("Density: %d\n", _percomBlock.density);
-    Debug_printf("Sector Size: %d\n", (_percomBlock.sector_sizeH * 256 + _percomBlock.sector_sizeL));
-    Debug_printf("Drive Present: %d\n", _percomBlock.drive_present);
-    Debug_printf("Reserved1: %d\n", _percomBlock.reserved1);
-    Debug_printf("Reserved2: %d\n", _percomBlock.reserved2);
-    Debug_printf("Reserved3: %d\n", _percomBlock.reserved3);
+    Debug_printf("Percom Block Dump\r\n");
+    Debug_printf("-----------------\r\n");
+    Debug_printf("Num Tracks: %d\r\n", _percomBlock.num_tracks);
+    Debug_printf("Step Rate: %d\r\n", _percomBlock.step_rate);
+    Debug_printf("Sectors per Track: %d\r\n", (_percomBlock.sectors_per_trackH * 256 + _percomBlock.sectors_per_trackL));
+    Debug_printf("Num Sides: %d\r\n", _percomBlock.num_sides);
+    Debug_printf("Density: %d\r\n", _percomBlock.density);
+    Debug_printf("Sector Size: %d\r\n", (_percomBlock.sector_sizeH * 256 + _percomBlock.sector_sizeL));
+    Debug_printf("Drive Present: %d\r\n", _percomBlock.drive_present);
+    Debug_printf("Reserved1: %d\r\n", _percomBlock.reserved1);
+    Debug_printf("Reserved2: %d\r\n", _percomBlock.reserved2);
+    Debug_printf("Reserved3: %d\r\n", _percomBlock.reserved3);
 #endif
 }
 

@@ -16,7 +16,7 @@ iecModem::~iecModem()
     }
 }
 
-device_state_t iecModem::process(IECData *commanddata)
+device_state_t iecModem::process()
 {
     // TODO IMPLEMENT
     return DEVICE_IDLE;

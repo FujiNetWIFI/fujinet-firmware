@@ -130,7 +130,7 @@ void H89Modem::at_connect_resultCode(int modemBaud)
         break;
     }
     // H89_send_int(resultCode);
-    // fnUartSIO.write(ASCII_CR);
+    // fnUartBUS.write(ASCII_CR);
 }
 
 /**
@@ -462,7 +462,7 @@ void H89Modem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartSIO.flush();
+        fnUartBUS.flush();
         answerHack = false;
     }
 }
@@ -1003,11 +1003,11 @@ void H89Modem::modemCommand()
 
 //         // In command mode - don't exchange with TCP but gather characters to a string
 //         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-//         if (fnUartSIO.available() > 0)
+//         if (fnUartBUS.available() > 0)
 //         {
 //             // get char from Atari SIO
 //             //char chr = SIO_UART.read();
-//             char chr = fnUartSIO.read();
+//             char chr = fnUartBUS.read();
 
 //             // Return, enter, new line, carriage return.. anything goes to end the command
 //             if ((chr == ASCII_LF) || (chr == ASCII_CR))

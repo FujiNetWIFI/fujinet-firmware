@@ -11,7 +11,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fnWiFi.h"
-#include "fnFsSPIFFS.h"
+#include "fsFlash.h"
 
 #include "utils.h"
 
@@ -358,8 +358,8 @@ void adamFuji::adamnet_copy_file()
     ck = adamnet_recv();
 
     AdamNet.wait_for_idle();
-    fnUartSIO.write(0x9f); // ACK.
-    fnUartSIO.flush();
+    fnUartBUS.write(0x9f); // ACK.
+    fnUartBUS.flush();
 
     dataBuf = (char *)malloc(COPY_SIZE);
 
@@ -1092,12 +1092,12 @@ void adamFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fnSPIFFS.file_open(config_atr);
+        fBoot = fsFlash.file_open(config_atr);
         _fnDisks[0].disk_dev.mount(fBoot, config_atr, 262144, MEDIATYPE_DDP);
         break;
     case 1:
 
-        fBoot = fnSPIFFS.file_open(mount_all_atr);
+        fBoot = fsFlash.file_open(mount_all_atr);
         _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 262144, MEDIATYPE_DDP);
         break;
     }
@@ -1204,13 +1204,13 @@ void adamFuji::setup(systemBus *siobus)
     Debug_printf("Config General Boot Mode: %u\n", Config.get_general_boot_mode());
     if (Config.get_general_boot_mode() == 0)
     {
-        FILE *f = fnSPIFFS.file_open("/autorun.ddp");
+        FILE *f = fsFlash.file_open("/autorun.ddp");
         _fnDisks[0].disk_dev.mount(f, "/autorun.ddp", 262144, MEDIATYPE_DDP);
         _fnDisks[0].disk_dev.is_config_device = true;
     }
     else
     {
-        FILE *f = fnSPIFFS.file_open("/mount-and-boot.ddp");
+        FILE *f = fsFlash.file_open("/mount-and-boot.ddp");
         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.ddp", 262144, MEDIATYPE_DDP);
     }
 
@@ -1253,7 +1253,7 @@ void adamFuji::mount_all()
             if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
                 flag[1] = '+';
 
-            if (disk.host_slot != 0xFF)
+            if (disk.host_slot != INVALID_HOST_SLOT)
             {
                 nodisks = false; // We have a disk in a slot
 

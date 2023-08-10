@@ -20,8 +20,8 @@ protected:
     std::string buffer;
     void write(uint8_t channel);
     void status();
-    device_state_t process(IECData *commanddata);
-    void shutdown();
+    device_state_t process() override;
+    void shutdown() override;
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;

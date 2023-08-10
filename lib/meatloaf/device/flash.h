@@ -40,15 +40,14 @@ friend class FlashIStream;
 public:
     std::string basepath = "";
     
-    FlashFile(std::string path) {
-
-        parseUrl( path );
+    FlashFile(std::string path): MFile(path) {
+        // parseUrl( path );
 
         // Find full filename for wildcard
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
             seekEntry( name );
 
-        if (!pathValid(path.c_str()))
+        if (!pathValid(path))
             m_isNull = true;
         else
             m_isNull = false;
@@ -56,7 +55,7 @@ public:
         //Debug_printv("basepath[%s] path[%s] valid[%d]", basepath.c_str(), this->path.c_str(), m_isNull);
     };
     ~FlashFile() {
-        //Serial.printf("*** Destroying flashfile %s\n", url.c_str());
+        //Serial.printf("*** Destroying flashfile %s\r\n", url.c_str());
         closeDir();
     }
 
@@ -99,7 +98,7 @@ private:
 class FlashHandle {
 public:
     //int rc;
-    FILE* file_h;
+    FILE* file_h = nullptr;
 
     FlashHandle() 
     {
@@ -111,7 +110,7 @@ public:
     void dispose();
 
 private:
-    int flags;
+    int flags = 0;
 };
 
 
@@ -164,7 +163,7 @@ protected:
     std::unique_ptr<FlashHandle> handle;
 
 private:
-    size_t _size;
+    size_t _size = 0;
 };
 
 

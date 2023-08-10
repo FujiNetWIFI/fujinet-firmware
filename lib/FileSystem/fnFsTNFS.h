@@ -8,7 +8,7 @@ class FileSystemTNFS : public FileSystem
 {
 private:
     tnfsMountInfo _mountinfo;
-    unsigned long _last_dns_refresh;
+    unsigned long _last_dns_refresh  = 0;
     char _current_dirpath[TNFS_MAX_FILELEN];
 
 public:
@@ -39,5 +39,7 @@ public:
     uint16_t dir_tell() override;
     bool dir_seek(uint16_t) override;
 };
+
+extern FileSystemTNFS fnTNFS;
 
 #endif // _FN_FSTNFS_

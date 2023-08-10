@@ -24,14 +24,11 @@ public:
     
     TNFSFile(std::string path) {
 
-        parseUrl( path );
-        
-
         // Find full filename for wildcard
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
             seekEntry( name );
 
-        if (!pathValid(path.c_str()))
+        if (!pathValid(path))
             m_isNull = true;
         else
             m_isNull = false;
@@ -39,7 +36,7 @@ public:
         //Debug_printv("basepath[%s] path[%s] valid[%d]", basepath.c_str(), this->path.c_str(), m_isNull);
     };
     ~TNFSFile() {
-        //Serial.printf("*** Destroying flashfile %s\n", url.c_str());
+        //Serial.printf("*** Destroying flashfile %s\r\n", url.c_str());
         closeDir();
     }
 
@@ -84,7 +81,7 @@ private:
 class TNFSHandle {
 public:
     //int rc;
-    FILE* file_h;
+    FILE* file_h = nullptr;
 
     TNFSHandle() 
     {
@@ -96,7 +93,7 @@ public:
     void dispose();
 
 private:
-    int flags;
+    int flags = 0;
 };
 
 
@@ -149,7 +146,7 @@ protected:
     std::unique_ptr<TNFSHandle> handle;
 
 private:
-    size_t _size;
+    size_t _size = 0;
 };
 
 

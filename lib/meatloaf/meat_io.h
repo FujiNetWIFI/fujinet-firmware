@@ -114,8 +114,8 @@ public:
     }
 
 protected:
-    const char* symbol;
-    bool m_isMounted;
+    const char* symbol = nullptr;
+    bool m_isMounted = false;
 
     friend class MFSOwner;
 };

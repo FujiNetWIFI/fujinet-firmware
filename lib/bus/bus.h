@@ -61,4 +61,9 @@
 #define SYSTEM_BUS H89Bus
 #endif
 
+#ifdef BUILD_COCO
+#include "drivewire/drivewire.h"
+#define SYSTEM_BUS DRIVEWIRE
+#endif
+
 #endif // BUS_H

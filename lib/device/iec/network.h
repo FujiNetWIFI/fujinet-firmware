@@ -65,16 +65,15 @@ class iecNetwork : public virtualDevice
 
     /**
      * @brief Process command fanned out from bus
-     * @param _commanddata the passed in commanddata
      * @return new device state
      */
-    device_state_t process(IECData *_commanddata);
+    device_state_t process() override;
 
     /**
      * @brief Check to see if SRQ needs to be asserted.
      * @param c Secondary channel # (0-15)
      */
-    virtual void poll_interrupt(unsigned char c);
+    virtual void poll_interrupt(unsigned char c) override;
 
     private:
 
@@ -100,8 +99,9 @@ class iecNetwork : public virtualDevice
     {
         PROTOCOL,
         JSON
-    } channelMode[15] =
+    } channelMode[NUM_CHANNELS] =
         {
+            PROTOCOL,
             PROTOCOL,
             PROTOCOL,
             PROTOCOL,

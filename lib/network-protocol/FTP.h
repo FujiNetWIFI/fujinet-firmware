@@ -23,6 +23,13 @@ public:
     virtual ~NetworkProtocolFTP();
 
     /**
+     *  Class 'NetworkProtocolFTP' does not have a copy constructor which is recommended since it has dynamic memory/resource allocation(s).
+     * Unless these two functions are implemented, they are being deleted so they cannot be used
+     */
+    NetworkProtocolFTP (const NetworkProtocolFTP&) = delete;
+    NetworkProtocolFTP& operator= (const NetworkProtocolFTP&) = delete;
+
+    /**
      * @brief Return a DSTATS byte for a requested COMMAND byte.
      * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
      * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
