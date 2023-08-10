@@ -148,7 +148,6 @@ void main_setup()
 
 #ifdef BUILD_MAC
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
-
 #endif // BUILD_MAC
 
 #ifdef BUILD_LYNX
@@ -256,6 +255,16 @@ void main_setup()
     IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
 
 #endif /* BUILD_APPLE */
+
+#ifdef BUILD_MAC
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+
+    sioR = new macModem(ptrfs, Config.get_modem_sniffer_enabled());
+
+
+    theFuji.setup(&MAC);
+    MAC.setup();
+#endif // BUILD_MAC
 
 #ifdef BUILD_CX16
     theFuji.setup(&CX16);
