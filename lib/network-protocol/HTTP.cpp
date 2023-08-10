@@ -328,8 +328,8 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
         if (fromInterrupt == false && resultCode == 0)
             http_transaction();
         status->rxBytesWaiting = client->available() > 65535 ? 65535 : client->available();
-        status->connected = client->available()>0;
-        status->error = client->available() == 0 && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
+        status->connected = client->is_transaction_done() ? 0 : 1;
+        status->error = client->available() == 0 && client->is_transaction_done() && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
         return false;
     case SET_HEADERS:
     case COLLECT_HEADERS:
