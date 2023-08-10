@@ -146,10 +146,6 @@ void main_setup()
 
 #endif // BUILD_IEC
 
-#ifdef BUILD_MAC
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
-#endif // BUILD_MAC
-
 #ifdef BUILD_LYNX
     theFuji.setup(&ComLynx);
     ComLynx.setup();
@@ -257,10 +253,9 @@ void main_setup()
 #endif /* BUILD_APPLE */
 
 #ifdef BUILD_MAC
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fnSPIFFS;
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
 
     sioR = new macModem(ptrfs, Config.get_modem_sniffer_enabled());
-
 
     theFuji.setup(&MAC);
     MAC.setup();

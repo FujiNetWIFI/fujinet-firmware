@@ -7,12 +7,12 @@
 void macBus::setup(void)
 {
   Debug_printf(("\r\nMAC FujiNet based on FujiApple\r\n"));
-  fnUartSIO.begin(_mac_baud_rate);
+  fnUartBUS.begin(_mac_baud_rate);
 }
 
 void macBus::service(void)
 {
-  if (fnUartSIO.available())
+  if (fnUartBUS.available())
   {
     
   }
