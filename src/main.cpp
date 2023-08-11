@@ -146,11 +146,6 @@ void main_setup()
 
 #endif // BUILD_IEC
 
-#ifdef BUILD_MAC
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
-
-#endif // BUILD_MAC
-
 #ifdef BUILD_LYNX
     theFuji.setup(&ComLynx);
     ComLynx.setup();
@@ -257,6 +252,15 @@ void main_setup()
 
 #endif /* BUILD_APPLE */
 
+#ifdef BUILD_MAC
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+
+    sioR = new macModem(ptrfs, Config.get_modem_sniffer_enabled());
+
+    theFuji.setup(&MAC);
+    MAC.setup();
+#endif // BUILD_MAC
+
 #ifdef BUILD_CX16
     theFuji.setup(&CX16);
     CX16.addDevice(&theFuji, CX16_DEVICEID_FUJINET); // the FUJINET!
@@ -348,7 +352,7 @@ extern "C"
 // This is assigned to CPU1; the WiFi task ends up on CPU0
 #ifdef BUILD_ATARI
 #define MAIN_STACKSIZE 32768
-#define MAIN_PRIORITY 10
+#define MAIN_PRIORITY 17
 #else
 #define MAIN_STACKSIZE 32768
 #define MAIN_PRIORITY 10

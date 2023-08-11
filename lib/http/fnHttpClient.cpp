@@ -71,44 +71,7 @@ int fnHttpClient::available()
     int len = -1;
 
     if (esp_http_client_is_chunked_response(_handle))
-    {
-        len = esp_http_client_get_chunk_length(_handle);
-#if 1
-        // if (len == 0)
-        //     Debug_println("::available last chunk reached");
-        if (len <= _buffer_total_read && len > 0)
-        {
-            // We need to collect next chunk header, i.e. chunk size
-            // ... part of following chunk data will be read too (and stored into _buffer)
-
-            // Make sure store our current task handle to respond to
-            _taskh_consumer = xTaskGetCurrentTaskHandle();
-
-            // Our HTTP subtask is gone - say there's nothing left to read...
-            if (_taskh_subtask == nullptr)
-            {
-                Debug_println("::available subtask gone");
-                return 0;
-            }
-
-            // Let the HTTP process task know to fill the buffer
-            // Debug_println("::available notifyGive");
-            xTaskNotifyGive(_taskh_subtask);
-            // Wait till the HTTP task lets us know it's filled the buffer
-            // Debug_println("::available notifyTake...");
-            if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) != 1)
-            {
-                // Abort if we timed-out receiving the data
-                Debug_println("::available time-out");
-                return 0;
-            }
-
-            _buffer_total_read = 0; // well, reset this with new chunk
-            len = esp_http_client_get_chunk_length(_handle);
-            Debug_printf("::available next chunk len: %d\r\n", len);
-        }
-#endif
-    }
+        len = esp_http_client_get_total_chunk_length(_handle);
     else
         len = esp_http_client_get_content_length(_handle);
 
@@ -117,6 +80,11 @@ int fnHttpClient::available()
 
     // Debug_printf("::available result: %d\r\n", result);
     return result;
+}
+
+bool fnHttpClient::is_transaction_done()
+{
+    return _transaction_done;
 }
 
 /*
