@@ -386,13 +386,22 @@ int esp_http_client_fetch_headers(esp_http_client_handle_t client);
 bool esp_http_client_is_chunked_response(esp_http_client_handle_t client);
 
 /**
- * @brief      Get chunked content length
+ * @brief      Get chunked content length, returns length from last processed chunk header
  *
  * @param[in]  client  The esp_http_client handle
  *
  * @return     -1 on error, chunk length
  */
 int esp_http_client_get_chunk_length(esp_http_client_handle_t client);
+
+/**
+ * @brief      Get chunked content length, returns total length from all processed chunk headers
+ *
+ * @param[in]  client  The esp_http_client handle
+ *
+ * @return     -1 on error, chunk length
+ */
+int esp_http_client_get_total_chunk_length(esp_http_client_handle_t client);
 
 /**
  * @brief      Read data from http stream

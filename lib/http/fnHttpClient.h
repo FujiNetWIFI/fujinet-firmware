@@ -75,6 +75,7 @@ public:
     int MOVE(const char *destination, bool overwrite);
 
     int available();
+    bool is_transaction_done();
 
     int read(uint8_t *dest_buffer, int dest_bufflen);
 

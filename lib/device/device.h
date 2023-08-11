@@ -102,13 +102,22 @@
     iwmModem *sioR;
 #endif
 
+#ifdef BUILD_MAC
+#include "mac/floppy.h"
+#include "mac/fuji.h"
+#include "mac/modem.h"
+#include "mac/printer.h"
+#include "mac/printerlist.h"
+    macModem *sioR;
+#endif
+
 #ifdef BUILD_S100
-# include "s100spi/disk.h"
-# include "s100spi/network.h"
-# include "s100spi/modem.h"
-# include "s100spi/printer.h"
-# include "s100spi/printerlist.h"
-# include "s100spi/fuji.h"
+#include "s100spi/disk.h"
+#include "s100spi/network.h"
+#include "s100spi/modem.h"
+#include "s100spi/printer.h"
+#include "s100spi/printerlist.h"
+#include "s100spi/fuji.h"
     s100spiModem *sioR;
 #endif
 

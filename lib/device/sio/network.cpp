@@ -147,7 +147,7 @@ void sioNetwork::sio_open()
     timer_start();
 
     // Go ahead and send an interrupt, so Atari knows to get status.
-    sio_assert_interrupt();
+    protocol->forceStatus = true;
 
     // TODO: Finally, go ahead and let the parsers know
     json = new FNJSON();
@@ -445,6 +445,8 @@ void sioNetwork::sio_status_channel()
         sio_status_channel_json(&status);
         break;
     }
+    // clear forced flag (first status after open)
+    protocol->forceStatus = false;
 
     // Serialize status into status bytes
     serialized_status[0] = status.rxBytesWaiting & 0xFF;
@@ -858,7 +860,7 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 }
 
 /**
- * Check to see if PROCEED needs to be asserted, and assert if needed.
+ * Check to see if PROCEED needs to be asserted, and assert if needed (continue toggling PROCEED).
  */
 void sioNetwork::sio_poll_interrupt()
 {
@@ -866,6 +868,13 @@ void sioNetwork::sio_poll_interrupt()
     {
         if (protocol->interruptEnable == false)
             return;
+
+        /* assert interrupt if we need Status call from host to arrive */
+        if (protocol->forceStatus == true)
+        {
+            sio_assert_interrupt();
+            return;
+        }
 
         protocol->fromInterrupt = true;
         protocol->status(&status);
@@ -1033,6 +1042,7 @@ void sioNetwork::processCommaFromDevicespec()
 void sioNetwork::sio_assert_interrupt()
 {
     fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+    // Debug_print(interruptProceed ? "+" : "-");
 }
 
 void sioNetwork::sio_set_translation()
