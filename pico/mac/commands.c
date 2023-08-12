@@ -12,8 +12,6 @@
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin);
 
-// Program to write MIDI protocol out UART1 of Pico
-
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
@@ -51,8 +49,10 @@ int main()
     pio_commands(pio, 0, offset, 10);
     while (true)
     {
-        uint32_t a = pio_sm_get_blocking(pio0, 0);
+        uint32_t a = pio_sm_get_blocking(pio, 0);
         uart_putc_raw(uart0, (char)(a +'0'));
+        // to do: get response from ESP32 and update latch values (like READY, TACH), push LATCH value to PIO
+        // to do: do we need to make non-blocking so can update latch values? or are latch values only updated after commands?
     }
 }
 
