@@ -14,7 +14,9 @@ void macBus::service(void)
 {
   if (fnUartBUS.available())
   {
-    
+    int c=fnUartBUS.read();
+    if (c>0) 
+      Debug_printf("%c",c);
   }
 }
 
