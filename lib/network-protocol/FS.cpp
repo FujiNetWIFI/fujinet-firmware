@@ -190,7 +190,7 @@ bool NetworkProtocolFS::read(unsigned short len)
 
 bool NetworkProtocolFS::read_file(unsigned short len)
 {
-    uint8_t *buf = (uint8_t *)malloc(len);
+    buf = (uint8_t *)malloc(len);
 
     Debug_printf("NetworkProtocolFS::read_file(%u)\r\n", len);
 
