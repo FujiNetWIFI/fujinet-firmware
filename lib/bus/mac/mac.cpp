@@ -1,13 +1,22 @@
 #ifdef BUILD_MAC
 #include "mac.h"
 #include "../../include/debug.h"
+#include "../device/mac/fuji.h"
 
+#include "mac_ll.h"
 
 
 void macBus::setup(void)
 {
   Debug_printf(("\r\nMAC FujiNet based on FujiApple\r\n"));
   fnUartBUS.begin(_mac_baud_rate);
+
+  // GPIO needs to read Head Select (SEL)
+  floppy_ll.setup_gpio();
+  Debug_printf("\r\nGPIO configured");
+  
+  floppy_ll.setup_rmt();
+  Debug_printf("\r\nRMT configured for Floppy Output");
 }
 
 /**
@@ -42,22 +51,27 @@ void macBus::service(void)
     case 0:
       // set direction to increase track number
       Debug_printf("%c",'I');
+      theFuji.get_disks(0)->disk_dev.set_dir(+1);
       break;
     case 4:
       // set direction to decrease track number
       Debug_printf("%c",'D');
+      theFuji.get_disks(0)->disk_dev.set_dir(-1);
       break;
     case 1:
       // step the head 
       Debug_printf("%c",'S');
+      theFuji.get_disks(0)->disk_dev.move_head();
       break;
     case 2:
       // turn motor ons
       Debug_printf("\nMOTOR ON\n");
+      floppy_ll.start(0);
       break;
     case 6:
       // turn motor off
       Debug_printf("\nMOTOR OFF\n");
+      floppy_ll.stop();
       break;
     case 7:
       // eject
