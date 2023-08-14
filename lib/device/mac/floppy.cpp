@@ -1,5 +1,9 @@
 #ifdef BUILD_MAC
 #include "floppy.h"
+#include "../bus/mac/mac_ll.h"
+
+#define NS_PER_BIT_TIME 125
+#define BLANK_TRACK_LEN 6400
 
 mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *filename), uint32_t disksize, mediatype_t disk_type)
 {
@@ -19,11 +23,12 @@ mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *fil
   switch (disk_type)
   {
   case MEDIATYPE_MOOF:
-    Debug_printf("\nMounting Media Type WOZ");
+    Debug_printf("\nMounting Media Type MOOF");
+    // init();
     device_active = true;
     _disk = new MediaTypeMOOF();
     mt = ((MediaTypeMOOF *)_disk)->mount(f);
-    change_track(0); // initialize spi buffer
+    change_track(); // initialize rmt buffer
     break;
   // case MEDIATYPE_DSK:
   //   Debug_printf("\nMounting Media Type DSK");
@@ -33,7 +38,7 @@ mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *fil
   //   change_track(0); // initialize spi buffer
   //   break;
   default:
-    Debug_printf("\nMedia Type UNKNOWN - no mount in disk2.cpp");
+    Debug_printf("\nMedia Type UNKNOWN - no mount in floppy.cpp");
     device_active = false;
     break;
   }
@@ -41,8 +46,59 @@ mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *fil
   return mt;
 }
 
+void macFloppy::init()
+{
+  track_pos = 80;
+  old_pos = 0;
+  device_active = false;
+}
+
 void macFloppy::unmount()
 {
+}
+
+void IRAM_ATTR macFloppy::move_head()
+{
+    old_pos = track_pos;
+    track_pos += head_dir;
+    if (track_pos < 0)
+    {
+      track_pos = 0;
+    }
+    else if (track_pos > MAX_TRACKS - 1)
+    {
+      track_pos = MAX_TRACKS - 1;
+    }
+    change_track();
+}
+
+void IRAM_ATTR macFloppy::change_track()
+{
+  if (!device_active)
+    return;
+
+  if (old_pos == track_pos)
+    return;
+
+  // should only copy track data over if it's changed
+  if (((MediaTypeMOOF *)_disk)->trackmap(old_pos) == ((MediaTypeMOOF *)_disk)->trackmap(track_pos))
+    return;
+
+  // need to tell diskii_xface the number of bits in the track
+  // and where the track data is located so it can convert it
+  if (((MediaTypeMOOF *)_disk)->trackmap(track_pos) != 255)
+    floppy_ll.copy_track(
+        ((MediaTypeMOOF *)_disk)->get_track(track_pos),
+        ((MediaTypeMOOF *)_disk)->track_len(track_pos),
+        ((MediaTypeMOOF *)_disk)->num_bits(track_pos),
+        NS_PER_BIT_TIME * ((MediaTypeMOOF *)_disk)->optimal_bit_timing);
+  else
+    floppy_ll.copy_track(
+        nullptr,
+        BLANK_TRACK_LEN,
+        BLANK_TRACK_LEN * 8,
+        NS_PER_BIT_TIME * ((MediaTypeMOOF *)_disk)->optimal_bit_timing);
+  // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
 
 

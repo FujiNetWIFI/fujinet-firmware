@@ -46,6 +46,8 @@ int main()
     uint offset = pio_add_program(pio, &commands_program);
     printf("Loaded program at %d\n", offset);
 
+    // todo: add other PIO SM's here (latch, mux, buffer)
+    // todo: make a buffer SM for the RDDATA from the ESP32
     pio_commands(pio, 0, offset, 10);
     while (true)
     {
