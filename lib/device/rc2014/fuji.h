@@ -24,7 +24,7 @@
 
 typedef struct
 {
-    char ssid[32];
+    char ssid[MAX_SSID_LEN+1];
     char hostname[64];
     unsigned char localIP[4];
     unsigned char gateway[4];
@@ -33,7 +33,7 @@ typedef struct
     unsigned char macAddress[6];
     unsigned char bssid[6];
     char fn_version[15];
-} AdapterConfig;
+} __attribute__((packed)) AdapterConfig;
 
 enum appkey_mode : uint8_t
 {
