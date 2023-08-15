@@ -127,7 +127,7 @@ void rc2014Fuji::rc2014_net_scan_result()
     // Response to FUJICMD_GET_SCAN_RESULT
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN+1];
         uint8_t rssi;
     } detail;
 
@@ -159,7 +159,7 @@ void rc2014Fuji::rc2014_net_get_ssid()
     // Response to FUJICMD_GET_SSID
     struct
     {
-        char ssid[MAX_SSID_LEN];
+        char ssid[MAX_SSID_LEN+1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
@@ -201,7 +201,7 @@ void rc2014Fuji::rc2014_net_set_ssid()
         // Data for FUJICMD_SET_SSID
         struct
         {
-            char ssid[MAX_SSID_LEN];
+            char ssid[MAX_SSID_LEN+1];
             char password[MAX_WIFI_PASS_LEN];
         } cfg;
 
