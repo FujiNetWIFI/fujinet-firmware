@@ -42,6 +42,7 @@ void macBus::setup(void)
 
 void macBus::service(void)
 {
+  // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines.
   if (fnUartBUS.available())
   {
     int c=fnUartBUS.read();
@@ -52,33 +53,45 @@ void macBus::service(void)
       // set direction to increase track number
       Debug_printf("%c",'I');
       theFuji.get_disks(0)->disk_dev.set_dir(+1);
+      fnUartBUS.write('A');
       break;
     case 4:
       // set direction to decrease track number
       Debug_printf("%c",'D');
       theFuji.get_disks(0)->disk_dev.set_dir(-1);
+      fnUartBUS.write('A');
       break;
     case 1:
       // step the head 
       Debug_printf("%c",'S');
-      theFuji.get_disks(0)->disk_dev.move_head();
+      {
+        int tp = theFuji.get_disks(0)->disk_dev.move_head();
+        if (tp < 0)
+          fnUartBUS.write('N');
+        else
+          fnUartBUS.write(tp | 128); // send the track position(/2) back
+      }
       break;
     case 2:
       // turn motor ons
       Debug_printf("\nMOTOR ON\n");
       floppy_ll.start(0);
+      fnUartBUS.write('A');
       break;
     case 6:
       // turn motor off
       Debug_printf("\nMOTOR OFF\n");
       floppy_ll.stop();
+      fnUartBUS.write('A');
       break;
     case 7:
       // eject
       Debug_printf("\nEJECT!!!\n");
+      fnUartBUS.write('A');
       break;
     default:
-      Debug_printf("%c",c);
+      Debug_printf("%c", c);
+      fnUartBUS.write('N');
       break;
     }
   }

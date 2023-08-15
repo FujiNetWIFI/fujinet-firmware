@@ -137,7 +137,7 @@ bool MediaTypeMOOF::moof_read_tmap()
 #ifdef DEBUG
     Debug_printf("\nTrack, Index");
     for (int i = 0; i < MAX_TRACKS; i++)
-        Debug_printf("\n%d/4, %d", i, tmap[i]);
+        Debug_printf("\n%d - %d/%d, %d", i, i/2, i%2, tmap[i]);
 #endif
 
     return false;
