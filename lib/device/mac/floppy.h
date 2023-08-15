@@ -30,7 +30,7 @@ public:
     macFloppy() {};
     ~macFloppy() {};
 
-    void init();
+    // void init();
     mediatype_t mount(FILE *f, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN) { return mount(f, disk_type); };
     void unmount();
@@ -38,8 +38,8 @@ public:
     int get_track_pos() { return track_pos; };
     // bool phases_valid(uint8_t phases);
     void set_dir(int d) { head_dir = d; }
-    void move_head();
-    void change_track();
+    int move_head();
+    void change_track(int side);
 
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };

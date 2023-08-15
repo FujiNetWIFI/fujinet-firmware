@@ -808,7 +808,7 @@ void mac_floppy_ll::start(uint8_t drive)
 {
   // floppy_ll.set_output_to_rmt();
   // floppy_ll.enable_output();
-  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
+  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer[0], track_numbits[0], track_bit_period));
   fnLedManager.set(LED_BUS, true);
   Debug_printf("\nstart floppy d%d",drive+1);
 }
@@ -879,8 +879,8 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
 
     const rmt_item32_t bit0 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 0 }}}; //Logical 0
     const rmt_item32_t bit1 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 1 }}}; //Logical 1
-    static uint8_t window = 0;
-    uint8_t outbit = 0;
+    // static uint8_t window = 0;
+    // uint8_t outbit = 0;
     size_t num = 0;
     rmt_item32_t* pdest = dest;
     while (num < wanted_num)
@@ -910,9 +910,12 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
 void mac_floppy_ll::setup_rmt()
 {
 #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
-  track_buffer = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  if (track_buffer == NULL)
-    Debug_println("could not allocate track buffer");
+  track_buffer[0] = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  if (track_buffer[0] == NULL)
+    Debug_println("could not allocate track buffer 0");
+  track_buffer[1] = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  if (track_buffer[1] == NULL)
+    Debug_println("could not allocate track buffer 1");
 
   config.rmt_mode = rmt_mode_t::RMT_MODE_TX;
   config.channel = RMT_TX_CHANNEL;
@@ -938,19 +941,27 @@ void mac_floppy_ll::setup_rmt()
 
 bool IRAM_ATTR mac_floppy_ll::nextbit()
 {
-  int track_byte_ctr = track_location / 8;
-  int track_bit_ctr = track_location % 8;
+ 
+  bool outbit[2];
+  int track_byte_ctr[2];
+  int track_bit_ctr[2];
 
-  bool outbit;
-  outbit = (track_buffer[track_byte_ctr] & (0x80 >> track_bit_ctr)) != 0; // bits go MSB first
-
-  track_location++;
-  if (track_location >= track_numbits)
+  for (int side = 0; side < 2; side++)
   {
-    track_location = 0;
-  }
+    track_byte_ctr[side] = track_location[side] / 8;
+    track_bit_ctr[side] = track_location[side] % 8;
 
-  return outbit;
+    outbit[side] = (track_buffer[side][track_byte_ctr[side]] & (0x80 >> track_bit_ctr[side])) != 0; // bits go MSB first
+
+    track_location[side]++;
+    if (track_location[side] >= track_numbits[side])
+    {
+      track_location[side] = 0;
+    }
+  }
+  // choose side based on HDSEL!
+  bool side = mac_headsel_val();
+  return outbit[(int)side];
 }
 
 // bool IRAM_ATTR iwm_diskii_ll::fakebit()
@@ -981,20 +992,35 @@ bool IRAM_ATTR mac_floppy_ll::nextbit()
 // }
 
 // todo: copy both top and bottom tracks on 800k disk
-void IRAM_ATTR mac_floppy_ll::copy_track(uint8_t *track, size_t tracklen, size_t trackbits, int bitperiod)
+void IRAM_ATTR mac_floppy_ll::copy_track(uint8_t *track, int side, size_t tracklen, size_t trackbits, int bitperiod)
 {
+  if (track_buffer[side] == nullptr)
+  {
+    Debug_printf("\nerror track buffer not allocated");
+    return;
+  }
+  Debug_printf("\ncopying track:");
+  Debug_printf("\nside %d, length %d", side, tracklen);
+  // side is 0 or 1
   // copy track from SPIRAM to INTERNAL RAM
-  if (track != nullptr)
-    memcpy(track_buffer, track, tracklen);
+  if (side == 0 || side == 1)
+  {
+    if (track != nullptr)
+      memcpy(track_buffer[side], track, tracklen);
+    else
+      memset(track_buffer[side], 0, tracklen);
+  }
   else
-    memset(track_buffer, 0, tracklen);
-
+  {
+    Debug_printf("\nSide out of range in copy_track()");
+    return;
+  }
   // new_position = current_position * new_track_length / current_track_length
-  track_location *= trackbits;
-  track_location /= track_numbits;
+  track_location[side] *= trackbits;
+  track_location[side] /= track_numbits[side];
   // update track info
-  track_numbytes = tracklen;
-  track_numbits = trackbits;
+  track_numbytes[side] = tracklen;
+  track_numbits[side] = trackbits;
   track_bit_period = bitperiod;
 }
 

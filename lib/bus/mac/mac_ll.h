@@ -3,11 +3,11 @@
 #define MAC_LL_H
 
 // #include <queue> 
-// #include <driver/gpio.h> 
-// #include <esp_idf_version.h>
-// #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-// // #include <hal/gpio_ll.h>
-// #endif
+#include <driver/gpio.h> 
+#include <esp_idf_version.h>
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  #include <hal/gpio_ll.h>
+#endif
 // #include <driver/spi_master.h>
 // #include <freertos/semphr.h> 
 
@@ -89,7 +89,7 @@ protected:
   // void iwm_extra_clr();
   // void disable_output();
   // void enable_output();
-  
+  bool mac_headsel_val() { return ((GPIO.in) & (0x01 << SP_HDSEL)); }
 public:
   void setup_gpio();
 };
@@ -173,10 +173,10 @@ private:
   fn_rmt_config_t config;
 
   // track bit information
-  uint8_t* track_buffer = nullptr; // 
-  size_t track_numbits = 8192 * 8;
-  size_t track_numbytes = 8192;
-  size_t track_location = 0;
+  uint8_t *track_buffer[2] = {nullptr, nullptr}; //
+  size_t track_numbits[2] = {TRACK_LEN * 8, TRACK_LEN * 8};
+  size_t track_numbytes[2] = {TRACK_LEN, TRACK_LEN};
+  size_t track_location[2] = {0, 0};
   int track_bit_period = 2000;
 
   // void set_output_to_rmt();
@@ -194,7 +194,7 @@ public:
 
   bool nextbit();
   // bool fakebit();
-  void copy_track(uint8_t *track, size_t tracklen, size_t trackbits, int bitperiod);
+  void copy_track(uint8_t *track, int side, size_t tracklen, size_t trackbits, int bitperiod);
 
   // void set_output_to_low();
 };

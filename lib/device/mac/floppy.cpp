@@ -28,7 +28,10 @@ mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *fil
     device_active = true;
     _disk = new MediaTypeMOOF();
     mt = ((MediaTypeMOOF *)_disk)->mount(f);
-    change_track(); // initialize rmt buffer
+    track_pos = 0;
+    old_pos = 2; // makde different to force change_track buffer copy
+    change_track(0); // initialize rmt buffer
+    change_track(1); // initialize rmt buffer
     break;
   // case MEDIATYPE_DSK:
   //   Debug_printf("\nMounting Media Type DSK");
@@ -46,55 +49,69 @@ mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *fil
   return mt;
 }
 
-void macFloppy::init()
-{
-  track_pos = 80;
-  old_pos = 0;
-  device_active = false;
-}
+// void macFloppy::init()
+// {
+//   track_pos = 80;
+//   old_pos = 0;
+//   device_active = false;
+// }
 
 void macFloppy::unmount()
 {
 }
 
-void IRAM_ATTR macFloppy::move_head()
+int IRAM_ATTR macFloppy::move_head()
 {
-    old_pos = track_pos;
-    track_pos += head_dir;
-    if (track_pos < 0)
-    {
-      track_pos = 0;
-    }
-    else if (track_pos > MAX_TRACKS - 1)
-    {
-      track_pos = MAX_TRACKS - 1;
-    }
-    change_track();
+  // done - todo: move head by 2 steps (keep on even track numbers) for side 0 of disk
+  // done - todo: change_track() should copy both even and odd tracks from SPRAM to DRAM
+  // todo: the next_bit() should pick from even or odd track buffer based on HDSEL
+
+  if (!device_active)
+    return -1;
+
+  old_pos = track_pos;
+  track_pos += 2 * head_dir;
+  if (track_pos < 0)
+  {
+    track_pos = 0;
+  }
+  else if (track_pos > MAX_TRACKS - 2)
+  {
+    track_pos = MAX_TRACKS - 2;
+  }
+  change_track(0);
+  change_track(1);
+  return (track_pos / 2);
 }
 
-void IRAM_ATTR macFloppy::change_track()
+void IRAM_ATTR macFloppy::change_track(int side)
 {
+  int tp = track_pos + side;
+  int op = old_pos + side;
+
   if (!device_active)
     return;
 
-  if (old_pos == track_pos)
+  if (op == tp)
     return;
 
   // should only copy track data over if it's changed
-  if (((MediaTypeMOOF *)_disk)->trackmap(old_pos) == ((MediaTypeMOOF *)_disk)->trackmap(track_pos))
+  if (((MediaTypeMOOF *)_disk)->trackmap(op) == ((MediaTypeMOOF *)_disk)->trackmap(tp))
     return;
 
   // need to tell diskii_xface the number of bits in the track
   // and where the track data is located so it can convert it
-  if (((MediaTypeMOOF *)_disk)->trackmap(track_pos) != 255)
+  if (((MediaTypeMOOF *)_disk)->trackmap(tp) != 255)
     floppy_ll.copy_track(
-        ((MediaTypeMOOF *)_disk)->get_track(track_pos),
-        ((MediaTypeMOOF *)_disk)->track_len(track_pos),
-        ((MediaTypeMOOF *)_disk)->num_bits(track_pos),
+        ((MediaTypeMOOF *)_disk)->get_track(tp), 
+        side,
+        ((MediaTypeMOOF *)_disk)->track_len(tp),
+        ((MediaTypeMOOF *)_disk)->num_bits(tp),
         NS_PER_BIT_TIME * ((MediaTypeMOOF *)_disk)->optimal_bit_timing);
   else
     floppy_ll.copy_track(
         nullptr,
+        side,
         BLANK_TRACK_LEN,
         BLANK_TRACK_LEN * 8,
         NS_PER_BIT_TIME * ((MediaTypeMOOF *)_disk)->optimal_bit_timing);
