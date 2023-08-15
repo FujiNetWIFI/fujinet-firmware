@@ -25,8 +25,6 @@
 #include "SSH.h"
 #include "SMB.h"
 
-#include "ProtocolParser.h"
-
 // using namespace std;
 
 /**

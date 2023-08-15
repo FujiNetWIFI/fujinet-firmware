@@ -13,7 +13,7 @@
 
 #include "../fnjson/fnjson.h"
 
-#include "ProtocolParser.h"
+#include "../network-protocol/ProtocolParser.h"
 
 /**
  * Number of devices to expose via APPLE2, becomes 0x71 to 0x70 + NUM_DEVICES - 1
