@@ -255,6 +255,12 @@ private:
     unsigned short json_bytes_remaining=0;
 
     /**
+     * @brief the write buffer
+     */
+    uint8_t *newData;
+#define NEWDATA_SIZE 65535
+
+    /**
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */

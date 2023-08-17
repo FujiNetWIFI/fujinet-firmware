@@ -83,6 +83,14 @@ void sioNetwork::sio_open()
 
     sio_ack();
 
+    newData = (uint8_t *)malloc(NEWDATA_SIZE);
+
+    if (!newData)
+    {
+        Debug_printv("Could not allocate write buffer\n");
+        sio_error();
+    }
+
     channelMode = PROTOCOL;
 
     // Delete timer if already extant.
@@ -123,6 +131,9 @@ void sioNetwork::sio_open()
             protocolParser = nullptr;
         }
 
+        if (newData)
+            free(newData);
+
         sio_error();
         return;
     }
@@ -139,6 +150,10 @@ void sioNetwork::sio_open()
             delete protocolParser;
             protocolParser = nullptr;
         }
+
+        if (newData)
+            free(newData);
+
         sio_error();
         return;
     }
@@ -197,6 +212,9 @@ void sioNetwork::sio_close()
 
     if (json != nullptr)
         delete json;
+
+    if (newData)
+        free(newData);
 
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 }
@@ -293,7 +311,6 @@ void sioNetwork::sio_write()
     unsigned short num_bytes = sio_get_aux();
     bool err = false;
 
-    uint8_t *newData = (uint8_t *)malloc(num_bytes);
     Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
 
     if (newData == nullptr)
@@ -315,14 +332,12 @@ void sioNetwork::sio_write()
         }
         status.error = NETWORK_ERROR_NOT_CONNECTED;
         sio_error();
-        free(newData);
         return;
     }
 
     // Get the data from the Atari
     bus_to_peripheral(newData, num_bytes);
     *transmitBuffer += string((char *)newData, num_bytes);
-    free(newData);
 
     // Do the channel write
     err = sio_write_channel(num_bytes);
