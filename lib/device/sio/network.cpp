@@ -513,7 +513,7 @@ void sioNetwork::sio_set_prefix()
     {
         prefix.clear();
     }
-    else if (prefixSpec_str == "..") // Devance path N:..
+    else if (prefixSpec_str == ".." || prefixSpec_str == "<") // Devance path N:..
     {
         vector<int> pathLocations;
         for (int i = 0; i < prefix.size(); i++)
