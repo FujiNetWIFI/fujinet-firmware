@@ -74,6 +74,8 @@ private:
 
     appkey _current_appkey;
 
+    std::string base64_buffer;
+
 protected:
     void sio_reset_fujinet();          // 0xFF
     void sio_net_get_ssid();           // 0xFE
@@ -111,6 +113,14 @@ protected:
     void sio_set_boot_config();        // 0xD9
     void sio_copy_file();              // 0xD8
     void sio_set_boot_mode();          // 0xD6
+    void sio_base64_encode_input();    // 0xD0
+    void sio_base64_encode_compute();  // 0xCF
+    void sio_base64_encode_length();   // 0xCE
+    void sio_base64_encode_output();   // 0xCD
+    void sio_base64_decode_input();    // 0xCC
+    void sio_base64_decode_compute();  // 0xCB
+    void sio_base64_decode_length();   // 0xCA
+    void sio_base64_decode_output();   // 0xC9
 
     void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;

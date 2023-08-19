@@ -19,6 +19,8 @@
 #include "led.h"
 #include "utils.h"
 
+#include "base64.h"
+
 sioFuji theFuji; // global fuji device object
 
 //sioDisk sioDiskDevs[MAX_HOSTS];
@@ -1689,6 +1691,224 @@ sioDisk *sioFuji::bootdisk()
     return &_bootDisk;
 }
 
+void sioFuji::sio_base64_encode_input()
+{
+    uint16_t len = sio_get_aux();
+
+    Debug_printf("FUJI: BASE64 ENCODE INPUT\n");
+
+    if (!len)
+    {
+        Debug_printf("Invalid length. Aborting");
+        sio_error();
+        return;        
+    }
+
+    unsigned char *p = (unsigned char *)malloc(len);
+
+    if (!p)
+    {
+        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n");
+        sio_error();
+        return;
+    }
+
+    bus_to_peripheral(p,len);
+
+    base64_buffer += string((const char *)p,len);
+
+    free(p);
+
+    sio_complete();
+}
+
+void sioFuji::sio_base64_encode_compute()
+{
+    size_t out_len;
+
+    Debug_printf("FUJI: BASE64 ENCODE COMPUTE\n");
+
+    char *p = base64_encode(base64_buffer.c_str(),base64_buffer.size(),&out_len);
+
+    if (!p)
+    {
+        Debug_printf("base64_encode compute failed\n");
+        sio_error();
+        return;
+    }
+
+    base64_buffer.clear();
+    base64_buffer = string(p,out_len);
+    free(p);
+
+    Debug_printf("Resulting BASE64 encoded data is: %u bytes\n",out_len);
+    sio_complete();
+}
+
+void sioFuji::sio_base64_encode_length()
+{
+    Debug_printf("FUJI: BASE64 ENCODE LENGTH\n");
+
+    size_t l = base64_buffer.length();
+    
+    if (!l)
+    {
+        Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
+        bus_to_computer((uint8_t *)l, sizeof(size_t), true);
+    }
+
+    Debug_printf("base64 buffer length: %u bytes\n",l);
+
+    bus_to_computer((uint8_t *)&l, sizeof(size_t), false);
+}
+
+void sioFuji::sio_base64_encode_output()
+{
+    Debug_printf("FUJI: BASE64 ENCODE OUTPUT\n");
+
+    size_t l = sio_get_aux();
+
+    if (!l)
+    {
+        Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
+        return;
+    }
+    else if (l>base64_buffer.length())
+    {
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n",l,base64_buffer.length());
+        return;
+    }
+    else
+    {
+        Debug_printf("Requested %u bytes\n",l);
+    }
+
+    unsigned char *p = (unsigned char *)malloc(l);
+
+    if (!p)
+    {
+        Debug_printf("Could not allocate %u bytes from heap, aborting.\n");
+        return;
+    }
+
+    memcpy(p,base64_buffer.data(),l);
+    base64_buffer.erase(0,l);
+    base64_buffer.shrink_to_fit();
+
+    bus_to_computer(p, l, false);
+}
+
+void sioFuji::sio_base64_decode_input()
+{
+    uint16_t len = sio_get_aux();
+
+    Debug_printf("FUJI: BASE64 DECODE INPUT\n");
+
+    if (!len)
+    {
+        Debug_printf("Invalid length. Aborting");
+        sio_error();
+        return;        
+    }
+
+    unsigned char *p = (unsigned char *)malloc(len);
+
+    if (!p)
+    {
+        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n");
+        sio_error();
+        return;
+    }
+
+    bus_to_peripheral(p,len);
+
+    base64_buffer += string((const char *)p,len);
+
+    free(p);
+
+    sio_complete();
+}
+
+void sioFuji::sio_base64_decode_compute()
+{
+    size_t out_len;
+
+    Debug_printf("FUJI: BASE64 DECODE COMPUTE\n");
+
+    unsigned char *p = base64_decode(base64_buffer.c_str(),base64_buffer.size(),&out_len);
+
+    if (!p)
+    {
+        Debug_printf("base64_encode compute failed\n");
+        sio_error();
+        return;
+    }
+
+    base64_buffer.clear();
+    base64_buffer = string((const char *)p,out_len);
+    free(p);
+
+    Debug_printf("Resulting BASE64 encoded data is: %u bytes\n",out_len);
+    sio_complete();
+}
+
+void sioFuji::sio_base64_decode_length()
+{
+    Debug_printf("FUJI: BASE64 DECODE LENGTH\n");
+
+    size_t l = base64_buffer.length();
+
+    if (!l)
+    {
+        Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
+        sio_error();
+        return;
+    }
+
+    Debug_printf("base64 buffer length: %u bytes\n",l);
+
+    bus_to_computer((uint8_t *)&l, sizeof(size_t), false);
+}
+
+void sioFuji::sio_base64_decode_output()
+{
+    Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
+
+    size_t l = sio_get_aux();
+
+    if (!l)
+    {
+        Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
+        sio_error();
+        return;
+    }
+    else if (l>base64_buffer.length())
+    {
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n",l,base64_buffer.length());
+        sio_error();
+        return;
+    }
+    else
+    {
+        Debug_printf("Requested %u bytes\n",l);
+    }
+
+    unsigned char *p = (unsigned char *)malloc(l);
+
+    if (!p)
+    {
+        Debug_printf("Could not allocate %u bytes from heap, aborting.\n");
+        sio_error();
+        return;
+    }
+
+    memcpy(p,base64_buffer.data(),l);
+    base64_buffer.erase(0,l);
+    base64_buffer.shrink_to_fit();    
+    bus_to_computer(p, l, false);
+}
+
+
 void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
 {
     cmdFrame.commanddata = commanddata;
@@ -1853,6 +2073,38 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_ENABLE_UDPSTREAM:
         sio_ack();
         sio_enable_udpstream();
+        break;
+    case FUJICMD_BASE64_ENCODE_INPUT:
+        sio_ack();
+        sio_base64_encode_input();
+        break;
+    case FUJICMD_BASE64_ENCODE_COMPUTE:
+        sio_ack();
+        sio_base64_encode_compute();
+        break;
+    case FUJICMD_BASE64_ENCODE_LENGTH:
+        sio_ack();
+        sio_base64_encode_length();
+        break;
+    case FUJICMD_BASE64_ENCODE_OUTPUT:
+        sio_ack();
+        sio_base64_encode_output();
+        break;
+    case FUJICMD_BASE64_DECODE_INPUT:
+        sio_ack();
+        sio_base64_decode_input();
+        break;
+    case FUJICMD_BASE64_DECODE_COMPUTE:
+        sio_ack();
+        sio_base64_decode_compute();
+        break;
+    case FUJICMD_BASE64_DECODE_LENGTH:
+        sio_ack();
+        sio_base64_decode_length();
+        break;
+    case FUJICMD_BASE64_DECODE_OUTPUT:
+        sio_ack();
+        sio_base64_decode_output();
         break;
     default:
         sio_nak();
