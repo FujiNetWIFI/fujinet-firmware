@@ -23,7 +23,7 @@
 
 sioFuji theFuji; // global fuji device object
 
-//sioDisk sioDiskDevs[MAX_HOSTS];
+// sioDisk sioDiskDevs[MAX_HOSTS];
 sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -158,7 +158,7 @@ void sioFuji::sio_net_scan_result()
     // Response to  FUJICMD_GET_SCAN_RESULT
     struct
     {
-        char ssid[MAX_SSID_LEN+1];
+        char ssid[MAX_SSID_LEN + 1];
         uint8_t rssi;
     } detail;
 
@@ -182,7 +182,7 @@ void sioFuji::sio_net_get_ssid()
     // Response to  FUJICMD_GET_SSID
     struct
     {
-        char ssid[MAX_SSID_LEN+1];
+        char ssid[MAX_SSID_LEN + 1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
@@ -213,7 +213,7 @@ void sioFuji::sio_net_set_ssid()
     // Data for  FUJICMD_SET_SSID
     struct
     {
-        char ssid[MAX_SSID_LEN+1];
+        char ssid[MAX_SSID_LEN + 1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
@@ -247,13 +247,15 @@ void sioFuji::sio_net_set_ssid()
             }
 
             // case 1
-            if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+            if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
+            {
                 Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
                 // Move enabled stored down one, last one will drop off
                 for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
                 {
                     bool enabled = Config.get_wifi_stored_enabled(j - 1);
-                    if (!enabled) continue;
+                    if (!enabled)
+                        continue;
 
                     Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
                     Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
@@ -266,7 +268,8 @@ void sioFuji::sio_net_set_ssid()
             }
 
             // case 2
-            if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+            if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
+            {
                 Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\n", ssid_in_stored);
                 // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
                 for (int j = ssid_in_stored; j > 0; j--)
@@ -307,7 +310,7 @@ void sioFuji::sio_net_get_wifi_status()
 void sioFuji::sio_net_get_wifi_enabled()
 {
     uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
-    Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n",e);
+    Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n", e);
     bus_to_computer(&e, sizeof(e), false);
 }
 
@@ -511,7 +514,7 @@ void sioFuji::sio_copy_file()
         readCount = fread(dataBuf, 1, 532, sourceFile);
         readTotal += readCount;
         // Check if we got enough bytes on the read
-        if(readCount < 532 && readTotal != expected)
+        if (readCount < 532 && readTotal != expected)
         {
             err = true;
             break;
@@ -595,7 +598,8 @@ void sioFuji::mount_all()
         }
     }
 
-    if (nodisks){
+    if (nodisks)
+    {
         // No disks in a slot, disable config
         boot_config = false;
     }
@@ -887,7 +891,7 @@ void sioFuji::image_rotate()
 
         // The first slot gets the device ID of the last slot
         Debug_printf("setting slot %d to ID %hx\n", 0, last_id);
-       _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+        _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
         if (Config.get_general_rotation_sounds())
@@ -1043,7 +1047,7 @@ void sioFuji::sio_read_directory_entry()
             bufsize = maxlen;
         }
 
-        //int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        // int filelen = strlcpy(filenamedest, f->filename, bufsize);
         int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
 
         // Add a slash at the end of directory entries
@@ -1352,7 +1356,7 @@ void sioFuji::sio_read_device_slots()
         {
             diskSlots[i].mode = _fnDisks[i].access_mode;
             diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-            if ( _fnDisks[i].filename[0] == '\0' )
+            if (_fnDisks[i].filename[0] == '\0')
             {
                 strlcpy(diskSlots[i].filename, "", MAX_DISPLAY_FILENAME_LEN);
             }
@@ -1362,7 +1366,7 @@ void sioFuji::sio_read_device_slots()
                 // usually too long for the Atari to show anyway, so the image name is more important.
                 // Note: Basename can modify the input, so use a copy of the filename
                 filename = strdup(_fnDisks[i].filename);
-                strlcpy ( diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN );
+                strlcpy(diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN);
                 free(filename);
             }
         }
@@ -1620,7 +1624,7 @@ void sioFuji::insert_boot_device(uint8_t d)
         {
             Debug_printf("opening lobby.\n");
             fBoot = fnTNFS.file_open("/ATARI/_lobby.xex");
-            _bootDisk.mount(fBoot,"/ATARI/_lobby.xex",0);
+            _bootDisk.mount(fBoot, "/ATARI/_lobby.xex", 0);
         }
         break;
     }
@@ -1669,7 +1673,7 @@ void sioFuji::setup(systemBus *siobus)
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
 
-    //Disable status_wait if our settings say to turn it off
+    // Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
 
     // Add our devices to the SIO bus
@@ -1682,8 +1686,6 @@ void sioFuji::setup(systemBus *siobus)
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
-
-
 }
 
 sioDisk *sioFuji::bootdisk()
@@ -1701,7 +1703,7 @@ void sioFuji::sio_base64_encode_input()
     {
         Debug_printf("Invalid length. Aborting");
         sio_error();
-        return;        
+        return;
     }
 
     unsigned char *p = (unsigned char *)malloc(len);
@@ -1713,9 +1715,9 @@ void sioFuji::sio_base64_encode_input()
         return;
     }
 
-    bus_to_peripheral(p,len);
+    bus_to_peripheral(p, len);
 
-    base64_buffer += string((const char *)p,len);
+    base64_buffer += string((const char *)p, len);
 
     free(p);
 
@@ -1728,7 +1730,7 @@ void sioFuji::sio_base64_encode_compute()
 
     Debug_printf("FUJI: BASE64 ENCODE COMPUTE\n");
 
-    char *p = base64_encode(base64_buffer.c_str(),base64_buffer.size(),&out_len);
+    char *p = base64_encode(base64_buffer.c_str(), base64_buffer.size(), &out_len);
 
     if (!p)
     {
@@ -1738,10 +1740,10 @@ void sioFuji::sio_base64_encode_compute()
     }
 
     base64_buffer.clear();
-    base64_buffer = string(p,out_len);
+    base64_buffer = string(p, out_len);
     free(p);
 
-    Debug_printf("Resulting BASE64 encoded data is: %u bytes\n",out_len);
+    Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
     sio_complete();
 }
 
@@ -1750,14 +1752,14 @@ void sioFuji::sio_base64_encode_length()
     Debug_printf("FUJI: BASE64 ENCODE LENGTH\n");
 
     size_t l = base64_buffer.length();
-    
+
     if (!l)
     {
         Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
         bus_to_computer((uint8_t *)l, sizeof(size_t), true);
     }
 
-    Debug_printf("base64 buffer length: %u bytes\n",l);
+    Debug_printf("base64 buffer length: %u bytes\n", l);
 
     bus_to_computer((uint8_t *)&l, sizeof(size_t), false);
 }
@@ -1773,14 +1775,14 @@ void sioFuji::sio_base64_encode_output()
         Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
         return;
     }
-    else if (l>base64_buffer.length())
+    else if (l > base64_buffer.length())
     {
-        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n",l,base64_buffer.length());
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", l, base64_buffer.length());
         return;
     }
     else
     {
-        Debug_printf("Requested %u bytes\n",l);
+        Debug_printf("Requested %u bytes\n", l);
     }
 
     unsigned char *p = (unsigned char *)malloc(l);
@@ -1791,8 +1793,8 @@ void sioFuji::sio_base64_encode_output()
         return;
     }
 
-    memcpy(p,base64_buffer.data(),l);
-    base64_buffer.erase(0,l);
+    memcpy(p, base64_buffer.data(), l);
+    base64_buffer.erase(0, l);
     base64_buffer.shrink_to_fit();
 
     bus_to_computer(p, l, false);
@@ -1808,7 +1810,7 @@ void sioFuji::sio_base64_decode_input()
     {
         Debug_printf("Invalid length. Aborting");
         sio_error();
-        return;        
+        return;
     }
 
     unsigned char *p = (unsigned char *)malloc(len);
@@ -1820,9 +1822,9 @@ void sioFuji::sio_base64_decode_input()
         return;
     }
 
-    bus_to_peripheral(p,len);
+    bus_to_peripheral(p, len);
 
-    base64_buffer += string((const char *)p,len);
+    base64_buffer += string((const char *)p, len);
 
     free(p);
 
@@ -1835,7 +1837,7 @@ void sioFuji::sio_base64_decode_compute()
 
     Debug_printf("FUJI: BASE64 DECODE COMPUTE\n");
 
-    unsigned char *p = base64_decode(base64_buffer.c_str(),base64_buffer.size(),&out_len);
+    unsigned char *p = base64_decode(base64_buffer.c_str(), base64_buffer.size(), &out_len);
 
     if (!p)
     {
@@ -1845,10 +1847,10 @@ void sioFuji::sio_base64_decode_compute()
     }
 
     base64_buffer.clear();
-    base64_buffer = string((const char *)p,out_len);
+    base64_buffer = string((const char *)p, out_len);
     free(p);
 
-    Debug_printf("Resulting BASE64 encoded data is: %u bytes\n",out_len);
+    Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
     sio_complete();
 }
 
@@ -1865,7 +1867,7 @@ void sioFuji::sio_base64_decode_length()
         return;
     }
 
-    Debug_printf("base64 buffer length: %u bytes\n",l);
+    Debug_printf("base64 buffer length: %u bytes\n", l);
 
     bus_to_computer((uint8_t *)&l, sizeof(size_t), false);
 }
@@ -1882,15 +1884,15 @@ void sioFuji::sio_base64_decode_output()
         sio_error();
         return;
     }
-    else if (l>base64_buffer.length())
+    else if (l > base64_buffer.length())
     {
-        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n",l,base64_buffer.length());
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", l, base64_buffer.length());
         sio_error();
         return;
     }
     else
     {
-        Debug_printf("Requested %u bytes\n",l);
+        Debug_printf("Requested %u bytes\n", l);
     }
 
     unsigned char *p = (unsigned char *)malloc(l);
@@ -1902,12 +1904,327 @@ void sioFuji::sio_base64_decode_output()
         return;
     }
 
-    memcpy(p,base64_buffer.data(),l);
-    base64_buffer.erase(0,l);
-    base64_buffer.shrink_to_fit();    
+    memcpy(p, base64_buffer.data(), l);
+    base64_buffer.erase(0, l);
+    base64_buffer.shrink_to_fit();
     bus_to_computer(p, l, false);
 }
 
+void sioFuji::sio_hash_input()
+{
+    uint16_t len = sio_get_aux();
+
+    Debug_printf("FUJI: HASH INPUT\n");
+
+    if (!len)
+    {
+        Debug_printf("Invalid length. Aborting");
+        sio_error();
+        return;
+    }
+
+    unsigned char *p = (unsigned char *)malloc(len);
+
+    if (!p)
+    {
+        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n");
+        sio_error();
+        return;
+    }
+
+    bus_to_peripheral(p, len);
+
+    base64_buffer += string((const char *)p, len);
+
+    free(p);
+
+    sio_complete();
+}
+
+void sioFuji::sio_hash_compute()
+{
+    uint16_t m = hash_mode = sio_get_aux();
+
+    // Initialize hash context
+    switch (m)
+    {
+    case 0: // md5
+        // Not implemented
+        break;
+    case 1: // sha1
+        mbedtls_sha1_init(&_sha1);
+        mbedtls_sha1_starts(&_sha1);
+        break;
+    case 2: // sha256
+        mbedtls_sha256_init(&_sha256);
+        mbedtls_sha256_starts(&_sha256,0);
+        break;
+    case 3: // sha512
+        mbedtls_sha512_init(&_sha512);
+        mbedtls_sha512_starts(&_sha512,0);
+        break;
+    }
+
+    // Update
+    switch (m)
+    {
+    case 0: // MD5
+        // Not implemented
+        break;
+    case 1: // SHA1
+        mbedtls_sha1_update(&_sha1, (const unsigned char *)base64_buffer.data(), base64_buffer.size());
+        break;
+    case 2: // SHA256
+        mbedtls_sha256_update(&_sha256, (const unsigned char *)base64_buffer.data(), base64_buffer.size());
+        break;
+    case 3: // SHA512
+        mbedtls_sha512_update(&_sha512, (const unsigned char *)base64_buffer.data(), base64_buffer.size());
+        break;
+    }
+
+    // Clean up
+    switch (m)
+    {
+    case 0: // MD5
+        // Not implemented
+        break;
+    case 1: // SHA1
+        mbedtls_sha1_finish(&_sha1, _sha1_output);
+        mbedtls_sha1_free(&_sha1);
+        break;
+    case 2: // SHA256
+        mbedtls_sha256_finish(&_sha256, _sha256_output);
+        mbedtls_sha256_free(&_sha256);
+        break;
+    case 3: // SHA512
+        mbedtls_sha512_finish(&_sha512, _sha512_output);
+        mbedtls_sha512_free(&_sha512);
+        break;
+    }
+
+    base64_buffer.clear();
+    base64_buffer.shrink_to_fit();
+
+    sio_complete();
+}
+
+void sioFuji::sio_hash_length()
+{
+    unsigned char r = 0;
+    uint16_t m = sio_get_aux();
+
+    switch (hash_mode)
+    {
+    case 0: // MD5
+        r = 16;
+        break;
+    case 1: // SHA1
+        r = 20;
+        break;
+    case 2: // SHA256
+        r = 32;
+        break;
+    case 3: // SHA512
+        r = 64;
+        break;
+    }
+
+    if (m == 1)  // Hex output
+        m <<= 1; // double it.
+
+    bus_to_computer((uint8_t *)r, 1, false);
+}
+
+void sioFuji::sio_hash_output()
+{
+    uint8_t o[129];
+    uint16_t olen=0;
+    uint16_t m = sio_get_aux();
+
+    memset(o, 0x00, sizeof(o));
+
+    switch (hash_mode)
+    {
+    case 0: // MD5
+        olen = 16;
+
+        if (m == 0)
+            memcpy(o, _md5_output, 16);
+        else if (m == 1)
+        {
+            olen <<= 1;
+            sprintf((char *)o, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                    _md5_output[0],
+                    _md5_output[1],
+                    _md5_output[2],
+                    _md5_output[3],
+                    _md5_output[4],
+                    _md5_output[5],
+                    _md5_output[6],
+                    _md5_output[7],
+                    _md5_output[8],
+                    _md5_output[9],
+                    _md5_output[10],
+                    _md5_output[11],
+                    _md5_output[12],
+                    _md5_output[13],
+                    _md5_output[14],
+                    _md5_output[15]);
+        }
+        break;
+    case 1: // SHA1
+        olen = 20;
+
+        if (m == 0)
+            memcpy(o, _sha1_output, 20);
+        else if (m == 1)
+        {
+            olen <<= 1;
+            sprintf((char *)o, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                    _sha1_output[0],
+                    _sha1_output[1],
+                    _sha1_output[2],
+                    _sha1_output[3],
+                    _sha1_output[4],
+                    _sha1_output[5],
+                    _sha1_output[6],
+                    _sha1_output[7],
+                    _sha1_output[8],
+                    _sha1_output[9],
+                    _sha1_output[10],
+                    _sha1_output[11],
+                    _sha1_output[12],
+                    _sha1_output[13],
+                    _sha1_output[14],
+                    _sha1_output[15],
+                    _sha1_output[16],
+                    _sha1_output[17],
+                    _sha1_output[18],
+                    _sha1_output[19]);
+        }
+        break;
+    case 2: // SHA256
+        olen = 32;
+
+        if (m == 0)
+            memcpy(o, _sha256_output, 32);
+        else if (m == 1)
+        {
+            olen <<= 1;
+            sprintf((char *)o, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                    _sha256_output[0],
+                    _sha256_output[1],
+                    _sha256_output[2],
+                    _sha256_output[3],
+                    _sha256_output[4],
+                    _sha256_output[5],
+                    _sha256_output[6],
+                    _sha256_output[7],
+                    _sha256_output[8],
+                    _sha256_output[9],
+                    _sha256_output[10],
+                    _sha256_output[11],
+                    _sha256_output[12],
+                    _sha256_output[13],
+                    _sha256_output[14],
+                    _sha256_output[15],
+                    _sha256_output[16],
+                    _sha256_output[17],
+                    _sha256_output[18],
+                    _sha256_output[19],
+                    _sha256_output[20],
+                    _sha256_output[21],
+                    _sha256_output[22],
+                    _sha256_output[23],
+                    _sha256_output[24],
+                    _sha256_output[25],
+                    _sha256_output[26],
+                    _sha256_output[27],
+                    _sha256_output[28],
+                    _sha256_output[29],
+                    _sha256_output[30],
+                    _sha256_output[31]);
+        }
+        break;
+    case 3: // SHA512
+        olen = 64;
+
+        if (m == 0)
+            memcpy(o, _sha512_output, 64);
+        else if (m == 1)
+        {
+            olen <<= 1;
+            sprintf((char *)o, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
+                    _sha256_output[0],
+                    _sha256_output[1],
+                    _sha256_output[2],
+                    _sha256_output[3],
+                    _sha256_output[4],
+                    _sha256_output[5],
+                    _sha256_output[6],
+                    _sha256_output[7],
+                    _sha256_output[8],
+                    _sha256_output[9],
+                    _sha256_output[10],
+                    _sha256_output[11],
+                    _sha256_output[12],
+                    _sha256_output[13],
+                    _sha256_output[14],
+                    _sha256_output[15],
+                    _sha256_output[16],
+                    _sha256_output[17],
+                    _sha256_output[18],
+                    _sha256_output[19],
+                    _sha256_output[20],
+                    _sha256_output[21],
+                    _sha256_output[22],
+                    _sha256_output[23],
+                    _sha256_output[24],
+                    _sha256_output[25],
+                    _sha256_output[26],
+                    _sha256_output[27],
+                    _sha256_output[28],
+                    _sha256_output[29],
+                    _sha256_output[30],
+                    _sha256_output[31],
+                    _sha256_output[32],
+                    _sha256_output[33],
+                    _sha256_output[34],
+                    _sha256_output[35],
+                    _sha256_output[36],
+                    _sha256_output[37],
+                    _sha256_output[38],
+                    _sha256_output[39],
+                    _sha256_output[40],
+                    _sha256_output[41],
+                    _sha256_output[42],
+                    _sha256_output[43],
+                    _sha256_output[44],
+                    _sha256_output[45],
+                    _sha256_output[46],
+                    _sha256_output[47],
+                    _sha256_output[48],
+                    _sha256_output[49],
+                    _sha256_output[50],
+                    _sha256_output[51],
+                    _sha256_output[52],
+                    _sha256_output[53],
+                    _sha256_output[54],
+                    _sha256_output[55],
+                    _sha256_output[56],
+                    _sha256_output[57],
+                    _sha256_output[58],
+                    _sha256_output[59],
+                    _sha256_output[60],
+                    _sha256_output[61],
+                    _sha256_output[62],
+                    _sha256_output[63]);
+        }
+        break;
+    }
+
+    bus_to_computer(o,olen,false);
+}
 
 void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
 {
@@ -2105,6 +2422,22 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_BASE64_DECODE_OUTPUT:
         sio_ack();
         sio_base64_decode_output();
+        break;
+    case FUJICMD_HASH_INPUT:
+        sio_ack();
+        sio_hash_input();
+        break;
+    case FUJICMD_HASH_COMPUTE:
+        sio_ack();
+        sio_hash_compute();
+        break;
+    case FUJICMD_HASH_LENGTH:
+        sio_ack();
+        sio_hash_length();
+        break;
+    case FUJICMD_HASH_OUTPUT:
+        sio_ack();
+        sio_hash_output();
         break;
     default:
         sio_nak();
