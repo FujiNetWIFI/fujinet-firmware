@@ -80,7 +80,7 @@ private:
   // iwmPrinter *_printerdev = nullptr;
   // iwmClock *_clockDev = nullptr;
 
-  const int _mac_baud_rate = 230400; //was 115200;
+  const int _mac_baud_rate = 1000000; //230400; //was 115200;
 
 public:
   std::forward_list<macDevice *> _daisyChain;
