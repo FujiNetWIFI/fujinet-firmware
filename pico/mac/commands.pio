@@ -4,14 +4,14 @@
 ; SPDX-License-Identifier: BSD-3-Clause
 ;
 
-; SET pin 0 should be mapped to your LED GPIO
+.define LSTRB 12
 
 .program commands
 start:
 .wrap_target
-    wait 1 gpio 6  ; latch strobe
-    in pins, 4      ; get the phases
-    wait 0 gpio 6  ; wait for the strobe to deassert
+    wait 1 gpio LSTRB   ; latch strobe
+    in pins, 4          ; get the phases
+    wait 0 gpio LSTRB   ; wait for the strobe to deassert
 .wrap
 
 % c-sdk {
@@ -21,9 +21,9 @@ void commands_program_init(PIO pio, uint sm, uint offset, uint pin) {
    // configure a SM
    pio_sm_config c = commands_program_get_default_config(offset);
    // set the out pin to pin
-   sm_config_set_out_pins(&c, pin, 1);
+//    sm_config_set_out_pins(&c, pin, 1);
    // start at GPIO2 to read in the commands
-   sm_config_set_in_pins(&c, 2); // start at GPIO 2 for the commands
+   sm_config_set_in_pins(&c, pin); // start at GPIO 2 for the commands
    // there are 4 wires to read for latch mux, shift to the left, autopush
    sm_config_set_in_shift(&c, false, true, 4);
    // sm_config_set_out_shift(&c, true, false, 1); // shift to the right

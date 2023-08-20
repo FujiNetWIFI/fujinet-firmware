@@ -609,10 +609,10 @@ void mac_ll::setup_gpio()
   // fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 
   // fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+  //fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
+  //fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
   // fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
-  fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(MCI_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
 
   if (!fnSystem.no3state())
   {
@@ -810,7 +810,7 @@ void mac_floppy_ll::start(uint8_t drive)
   // floppy_ll.enable_output();
   ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer[0], track_numbits[0], track_bit_period));
   fnLedManager.set(LED_BUS, true);
-  Debug_printf("\nstart floppy d%d",drive+1);
+  Debug_printf("\nstart floppy %d : ",drive+1);
 }
 
 void mac_floppy_ll::stop()
@@ -999,8 +999,8 @@ void IRAM_ATTR mac_floppy_ll::copy_track(uint8_t *track, int side, size_t trackl
     Debug_printf("\nerror track buffer not allocated");
     return;
   }
-  Debug_printf("\ncopying track:");
-  Debug_printf("\nside %d, length %d", side, tracklen);
+  // Debug_printf("\ncopying track:");
+  // Debug_printf("\nside %d, length %d", side, tracklen);
   // side is 0 or 1
   // copy track from SPIRAM to INTERNAL RAM
   if (side == 0 || side == 1)
