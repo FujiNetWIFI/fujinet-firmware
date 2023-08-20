@@ -4,8 +4,6 @@
 ; SPDX-License-Identifier: BSD-3-Clause
 ;
 
-; SET pin 0 should be mapped to your LED GPIO
-
 .program latch
 start:
     mov osr, pins   ; read the GPIO's into the output shift register
@@ -24,20 +22,19 @@ loop:
 % c-sdk {
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
 
-void latch_program_init(PIO pio, uint sm, uint offset, uint pin) {
+void latch_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin) {
    // configure a SM
    pio_sm_config c = latch_program_get_default_config(offset);
-   // set the out pin to pin
-   sm_config_set_out_pins(&c, pin, 1);
-   // start at GPIO2 to read in the phases
-   sm_config_set_in_pins(&c, 2); // start at GPIO 2 for the phases
-   // there are 4 wires to read for latch mux, shift to the right, no autopull
-   // sm_config_set_in_shift(&c, true, false, 4);
+   // set the out pin to out_pin
+   sm_config_set_out_pins(&c, out_pin, 1);
+   // start at in_pin to read in the phases
+   sm_config_set_in_pins(&c, in_pin); 
+   // get 16 bit latch values through the OSR from the main program
    sm_config_set_out_shift(&c, true, false, 16);
-   // set pin as a GPIO output connected to this SM
-   pio_gpio_init(pio, pin);
-   pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
-   sm_config_set_set_pins(&c, pin, 1);
+   // set out_pin as a GPIO output connected to this SM
+   pio_gpio_init(pio, out_pin);
+   pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
+   // sm_config_set_set_pins(&c, pin, 1);
    // initialize
    pio_sm_init(pio, sm, offset, &c);
 }

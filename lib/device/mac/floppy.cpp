@@ -60,7 +60,7 @@ void macFloppy::unmount()
 {
 }
 
-int IRAM_ATTR macFloppy::move_head()
+int IRAM_ATTR macFloppy::step()
 {
   // done - todo: move head by 2 steps (keep on even track numbers) for side 0 of disk
   // done - todo: change_track() should copy both even and odd tracks from SPRAM to DRAM
@@ -79,9 +79,15 @@ int IRAM_ATTR macFloppy::move_head()
   {
     track_pos = MAX_TRACKS - 2;
   }
+  // change_track(0);
+  // change_track(1);
+  return (track_pos / 2);
+}
+
+void macFloppy::update_track_buffers()
+{
   change_track(0);
   change_track(1);
-  return (track_pos / 2);
 }
 
 void IRAM_ATTR macFloppy::change_track(int side)

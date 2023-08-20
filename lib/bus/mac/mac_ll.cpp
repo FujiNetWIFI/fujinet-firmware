@@ -116,7 +116,7 @@
 //   }
 //   else if (diskii_xface.iwm_enable_states() & 0b11)
 //   {
-//     if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
+//     if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].step())
 //     {
 //       isrctr++;
 //       theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(isrctr);
@@ -797,7 +797,7 @@ void mac_ll::setup_gpio()
 
 
 // =========================================================================================
-// ========================== DISK II below ======== SP above ==============================
+// ===== MAC Microfloppy Control Interface (MCI) below ================ DCD above ==========
 // =========================================================================================
 
 // https://docs.espressif.com/projects/esp-idf/en/v3.3.5/api-reference/peripherals/rmt.html
@@ -879,8 +879,8 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
 
     const rmt_item32_t bit0 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 0 }}}; //Logical 0
     const rmt_item32_t bit1 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 1 }}}; //Logical 1
-    // static uint8_t window = 0;
-    // uint8_t outbit = 0;
+    static uint8_t window = 0;
+    uint8_t outbit = 0;
     size_t num = 0;
     rmt_item32_t* pdest = dest;
     while (num < wanted_num)
@@ -888,13 +888,13 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
         // move this to nextbit()
         // MC34780 behavior for random bit insertion
       // https://applesaucefdc.com/woz/reference2/
-      // window <<= 1;
-      // window |= (uint8_t)floppy_ll.nextbit();
-      // window &= 0x0f;
-      // outbit = (window != 0) ? window & 0x02 : floppy_ll.fakebit();
-      // pdest->val = (outbit != 0) ? bit1.val : bit0.val;
+      window <<= 1;
+      window |= (uint8_t)floppy_ll.nextbit();
+      window &= 0x0f;
+      outbit = (window != 0) ? window & 0x02 : floppy_ll.fakebit();
+      pdest->val = (outbit != 0) ? bit1.val : bit0.val;
 
-      pdest->val = floppy_ll.nextbit() ? bit1.val : bit0.val;
+      // pdest->val = floppy_ll.nextbit() ? bit1.val : bit0.val;
 
       num++;
       pdest++;
@@ -964,32 +964,35 @@ bool IRAM_ATTR mac_floppy_ll::nextbit()
   return outbit[(int)side];
 }
 
-// bool IRAM_ATTR iwm_diskii_ll::fakebit()
-// {
-//   // MC3470 random bit behavior https://applesaucefdc.com/woz/reference2/
-//   /** Of course, coming up with random values like this can be a bit processor intensive,
-//    * so it is adequate to create a randomly-filled circular buffer of 32 bytes.
-//    * We then just pull bits from this whenever we are in “fake bit mode”.
-//    * This buffer should also be used for empty tracks as designated with an 0xFF value
-//    * in the TMAP Chunk (see below). You will want to have roughly 30% of the buffer be 1 bits.
-//    *
-//    * For testing the MC3470 generation of fake bits, you can turn to "The Print Shop Companion".
-//    * If you have control at the main menu, then you are passing this test.
-//    *
-//   **/
-//   // generate PN bits using Octave/MATLAB with
-//   // for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
-//   const uint8_t MC3470[] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
+bool IRAM_ATTR mac_floppy_ll::fakebit()
+{
+  // just a straight copy from Apple Disk II emulator. Have no idea if this 
+  // behavior is close enough to the MCI floppy or not.
+  //
+  // MC3470 random bit behavior https://applesaucefdc.com/woz/reference2/
+  /** Of course, coming up with random values like this can be a bit processor intensive,
+   * so it is adequate to create a randomly-filled circular buffer of 32 bytes.
+   * We then just pull bits from this whenever we are in “fake bit mode”.
+   * This buffer should also be used for empty tracks as designated with an 0xFF value
+   * in the TMAP Chunk (see below). You will want to have roughly 30% of the buffer be 1 bits.
+   *
+   * For testing the MC3470 generation of fake bits, you can turn to "The Print Shop Companion".
+   * If you have control at the main menu, then you are passing this test.
+   *
+  **/
+  // generate PN bits using Octave/MATLAB with
+  // for i=1:32, printf("0b"),printf("%d",rand(8,1)<0.3),printf(","),end
+  const uint8_t MC3470[] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
 
-//   static int MC3470_byte_ctr;
-//   static int MC3470_bit_ctr;
+  static int MC3470_byte_ctr;
+  static int MC3470_bit_ctr;
 
-//   ++MC3470_bit_ctr %= 8;
-//   if (MC3470_bit_ctr == 0)
-//     ++MC3470_byte_ctr %= sizeof(MC3470);
+  ++MC3470_bit_ctr %= 8;
+  if (MC3470_bit_ctr == 0)
+    ++MC3470_byte_ctr %= sizeof(MC3470);
 
-//   return (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
-// }
+  return (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
+}
 
 // todo: copy both top and bottom tracks on 800k disk
 void IRAM_ATTR mac_floppy_ll::copy_track(uint8_t *track, int side, size_t tracklen, size_t trackbits, int bitperiod)

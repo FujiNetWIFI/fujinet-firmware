@@ -38,9 +38,9 @@ public:
     int get_track_pos() { return track_pos; };
     // bool phases_valid(uint8_t phases);
     void set_dir(int d) { head_dir = d; }
-    int move_head();
+    int step();
     void change_track(int side);
-
+    void update_track_buffers();
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
