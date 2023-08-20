@@ -29,7 +29,7 @@ void pio_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 
 #define UART_ID uart1
-#define BAUD_RATE 230400 //115200
+#define BAUD_RATE 1000000 //230400 //115200
 #define DATA_BITS 8
 #define STOP_BITS 1
 #define PARITY UART_PARITY_NONE
@@ -58,10 +58,15 @@ void setup_esp_uart() {
 
 void set_tach_freq(char c)
 {
-    for (int i=0; i<5; i++)
-    {
-        if ((c>=tach_lut[i][0])&&(c<=tach_lut[i][1]))
-            clock_gpio_init_int_frac(21, CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_VALUE_CLK_SYS, 125*1000*1000/tach_lut[0][2], 0); 
+  // To configure a clock, we need to know the following pieces of information:
+  // The frequency of the clock source
+  // The mux / aux mux position of the clock source
+  // The desired output frequency
+  // use 125 MHZ PLL as a source
+  for (int i = 0; i < 5; i++)
+  {
+      if ((c >= tach_lut[i][0]) && (c <= tach_lut[i][1]))
+          clock_gpio_init_int_frac(21, CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_VALUE_CLK_SYS, 125 * 1000 * 1000 / tach_lut[i][2], 0);
     }
 }
 
@@ -69,14 +74,8 @@ int main()
 {
     // start TACH clock
     stdio_init_all();
-    /* To configure a clock, we need to know the following pieces of information:
-    The frequency of the clock source
-    The mux / aux mux position of the clock source
-    The desired output frequency
-    */
-    // make a 400 Hz ish GPIO clock
-    // use the 12 MHz crystal or the 125 MHZ PLL as a source
-    clock_gpio_init_int_frac(21, CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_VALUE_CLK_SYS, 125*1000*1000/394, 0); // tach_lut[0][2]
+
+    set_tach_freq(0); 
 
     
     setup_default_uart();
@@ -101,9 +100,9 @@ int main()
         if (uart_is_readable(uart1))
         {
             c = uart_getc(UART_ID);
-            if (!c & 128)
+            if (!(c & 128))
                 printf("%c", c);
-                else
+            else
                 set_tach_freq(c & 127);
         }
         // to do: get response from ESP32 and update latch values (like READY, TACH), push LATCH value to PIO
