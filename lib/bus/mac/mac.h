@@ -102,6 +102,10 @@ public:
   bool shuttingDown = false; // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
   // bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
+
+  bool stepper_timeout();
+  unsigned long t0;
+  bool track_not_copied;
 };
 
 extern macBus MAC;

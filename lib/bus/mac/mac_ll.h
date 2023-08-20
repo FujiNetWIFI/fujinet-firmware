@@ -193,7 +193,7 @@ public:
   // need a function to remove the RMT device?
 
   bool nextbit();
-  // bool fakebit();
+  bool fakebit();
   void copy_track(uint8_t *track, int side, size_t tracklen, size_t trackbits, int bitperiod);
 
   // void set_output_to_low();

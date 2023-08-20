@@ -67,7 +67,9 @@ void macBus::service(void)
       // step the head 
       Debug_printf("%c",'S');
       {
-        int tp = theFuji.get_disks(0)->disk_dev.move_head();
+        t0 = fnSystem.micros();
+        track_not_copied = true;
+        int tp = theFuji.get_disks(0)->disk_dev.step();
         if (tp < 0)
         {
           fnUartBUS.write('N');
@@ -106,6 +108,17 @@ void macBus::service(void)
       break;
     }
   }
+  if (track_not_copied && stepper_timeout())
+  {
+    theFuji.get_disks(0)->disk_dev.update_track_buffers();
+    track_not_copied = false;
+  }
+}
+
+bool macBus::stepper_timeout()
+{
+  unsigned long tn = fnSystem.micros();
+  return ((tn - t0) > 2000);
 }
 
 void macBus::shutdown(void)

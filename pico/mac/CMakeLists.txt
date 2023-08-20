@@ -29,6 +29,7 @@ add_executable(commands commands.c)
 # by default the header is generated into the build dir
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/commands.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/echo.pio)
+pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/latch.pio)
 # however, alternatively you can choose to generate it somewhere else (in this case in the source tree for check in)
 #pico_generate_pio_header(pio_and ${CMAKE_CURRENT_LIST_DIR}/blink.pio OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR})
 
