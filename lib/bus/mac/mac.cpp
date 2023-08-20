@@ -42,7 +42,7 @@ void macBus::setup(void)
 
 void macBus::service(void)
 {
-  // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines.
+  // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines - get_disks(0 or 1)
   if (fnUartBUS.available())
   {
     int c=fnUartBUS.read();
@@ -53,13 +53,15 @@ void macBus::service(void)
       // set direction to increase track number
       Debug_printf("%c",'I');
       theFuji.get_disks(0)->disk_dev.set_dir(+1);
-      fnUartBUS.write('A');
+      // fnUartBUS.write('I');
+      // fnUartBUS.flush();
       break;
     case 4:
       // set direction to decrease track number
       Debug_printf("%c",'D');
       theFuji.get_disks(0)->disk_dev.set_dir(-1);
-      fnUartBUS.write('A');
+      // fnUartBUS.write('D');
+      // fnUartBUS.flush();
       break;
     case 1:
       // step the head 
@@ -67,31 +69,40 @@ void macBus::service(void)
       {
         int tp = theFuji.get_disks(0)->disk_dev.move_head();
         if (tp < 0)
+        {
           fnUartBUS.write('N');
+        }
         else
+        {
           fnUartBUS.write(tp | 128); // send the track position(/2) back
+          // fnUartBUS.flush();
+        }
       }
       break;
     case 2:
       // turn motor ons
-      Debug_printf("\nMOTOR ON\n");
+      Debug_printf("\nMOTOR ON");
       floppy_ll.start(0);
-      fnUartBUS.write('A');
+      fnUartBUS.write('M');
+      // fnUartBUS.flush();
       break;
     case 6:
       // turn motor off
-      Debug_printf("\nMOTOR OFF\n");
+      Debug_printf("\nMOTOR OFF");
       floppy_ll.stop();
-      fnUartBUS.write('A');
+      fnUartBUS.write('F');
+      // fnUartBUS.flush();
       break;
     case 7:
       // eject
-      Debug_printf("\nEJECT!!!\n");
-      fnUartBUS.write('A');
+      Debug_printf("\nEJECT!!!");
+      fnUartBUS.write('E');
+      // fnUartBUS.flush();
       break;
     default:
-      Debug_printf("%c", c);
-      fnUartBUS.write('N');
+      Debug_printf("%03d");
+      fnUartBUS.write('X');
+      // fnUartBUS.flush();
       break;
     }
   }
