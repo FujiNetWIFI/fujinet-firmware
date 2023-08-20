@@ -1,0 +1,33 @@
+;
+; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+;
+; SPDX-License-Identifier: BSD-3-Clause
+;
+
+.program echo
+start:
+.wrap_target
+    mov pins, pins
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+
+void echo_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin) {
+   // configure a SM
+   pio_sm_config c = echo_program_get_default_config(offset);
+   // set the out pin to out_pin
+   sm_config_set_out_pins(&c, out_pin, 1);
+   // set the in pin to in_pin
+   sm_config_set_in_pins(&c, in_pin); 
+   // there are 1 wires to read, shift to the left, no autopush
+   // sm_config_set_in_shift(&c, false, true, 4);
+   // sm_config_set_out_shift(&c, true, false, 1); // shift to the right
+   // set pin as a GPIO output connected to this SM
+   pio_gpio_init(pio, out_pin);
+   pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
+   // sm_config_set_set_pins(&c, pin, 1);
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}

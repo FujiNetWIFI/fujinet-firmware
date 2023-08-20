@@ -644,7 +644,7 @@ void SystemManager::check_hardware_ver()
     safe_reset_gpio = (gpio_num_t)PIN_BUTTON_C;
 #endif
 
-#ifdef PINMAP_A2_REV0
+#if defined(PINMAP_A2_REV0) || defined(PINMAP_MAC_REV0)
     int spifixupcheck, spifixdowncheck, rev1upcheck, rev1downcheck;
 
 #ifndef MASTERIES_SPI_FIX

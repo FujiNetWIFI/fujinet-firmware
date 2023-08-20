@@ -20,27 +20,27 @@ protected:
     // void iwm_readblock(iwm_decoded_cmd_t cmd) override {};
     // void iwm_writeblock(iwm_decoded_cmd_t cmd) override {};
 
-
     char disk_num;
     bool enabled;
     int track_pos;
     int old_pos;
-    uint8_t oldphases;
+    int head_dir;
 
 public:
     macFloppy() {};
     ~macFloppy() {};
 
-    void init() {};
+    // void init();
     mediatype_t mount(FILE *f, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN) { return mount(f, disk_type); };
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors) { return false; };
     int get_track_pos() { return track_pos; };
     // bool phases_valid(uint8_t phases);
-    bool move_head() { return false; };
-    void change_track(int indicator) {};
-
+    void set_dir(int d) { head_dir = d; }
+    int step();
+    void change_track(int side);
+    void update_track_buffers();
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
