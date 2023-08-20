@@ -89,7 +89,7 @@ protected:
   // void iwm_extra_clr();
   // void disable_output();
   // void enable_output();
-  bool mac_headsel_val() { return ((GPIO.in) & (0x01 << SP_HDSEL)); }
+  bool mac_headsel_val() { return ((GPIO.in) & (0x01 << MCI_HDSEL)); }
 public:
   void setup_gpio();
 };
