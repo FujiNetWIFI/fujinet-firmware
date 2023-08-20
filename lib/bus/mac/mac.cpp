@@ -1,21 +1,124 @@
 #ifdef BUILD_MAC
 #include "mac.h"
 #include "../../include/debug.h"
+#include "../device/mac/fuji.h"
 
+#include "mac_ll.h"
 
 
 void macBus::setup(void)
 {
   Debug_printf(("\r\nMAC FujiNet based on FujiApple\r\n"));
   fnUartBUS.begin(_mac_baud_rate);
+
+  // GPIO needs to read Head Select (SEL)
+  floppy_ll.setup_gpio();
+  Debug_printf("\r\nGPIO configured");
+  
+  floppy_ll.setup_rmt();
+  Debug_printf("\r\nRMT configured for Floppy Output");
 }
+
+/**
+ * 699-0452-A Double Sided floppy requirement document
+ * 
+ * The host system can send four commands: /DIRTN,/STEP,
+ * /MOTORON and EJECT. To send one of the control commands to the
+ * drive, set CA2 to the value (a zero or a one) to which the host
+ * system wishes the command to be set, and then set CAO, CA 1, and
+ * SEL to the value which selects the desired command. Finally, bring
+ * LSTRB first high and then low.
+ * 
+ *               SEL CA2 CA1 CA0   value
+ * /DIRTN         0   0   0   0     0     increase track number
+ * /DIRTN         0   1   0   0     4     decrease track number
+ * /STEP          0   0   0   1     1     step the head in the direction
+ * /STEP          0   1   0   1     5     probably not used
+ * /MOTORON       0   0   1   0     2     turn motor on    
+ * /MOTORON       0   1   1   0     6     turn motor off
+ * EJECT          0   0   1   1     3     probably not used
+ * EJECT          0   1   1   1     7     eject the disk
+ */
 
 void macBus::service(void)
 {
+  // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines - get_disks(0 or 1)
   if (fnUartBUS.available())
   {
-    
+    int c=fnUartBUS.read();
+    if (c==0) return;
+    switch (c-'0')
+    {
+    case 0:
+      // set direction to increase track number
+      Debug_printf("%c",'I');
+      theFuji.get_disks(0)->disk_dev.set_dir(+1);
+      // fnUartBUS.write('I');
+      // fnUartBUS.flush();
+      break;
+    case 4:
+      // set direction to decrease track number
+      Debug_printf("%c",'D');
+      theFuji.get_disks(0)->disk_dev.set_dir(-1);
+      // fnUartBUS.write('D');
+      // fnUartBUS.flush();
+      break;
+    case 1:
+      // step the head 
+      Debug_printf("%c",'S');
+      {
+        t0 = fnSystem.micros();
+        track_not_copied = true;
+        int tp = theFuji.get_disks(0)->disk_dev.step();
+        if (tp < 0)
+        {
+          fnUartBUS.write('N');
+        }
+        else
+        {
+          fnUartBUS.write(tp | 128); // send the track position(/2) back
+          // fnUartBUS.flush();
+        }
+      }
+      break;
+    case 2:
+      // turn motor ons
+      Debug_printf("\nMOTOR ON");
+      floppy_ll.start(0);
+      fnUartBUS.write('M');
+      // fnUartBUS.flush();
+      break;
+    case 6:
+      // turn motor off
+      Debug_printf("\nMOTOR OFF");
+      floppy_ll.stop();
+      fnUartBUS.write('F');
+      // fnUartBUS.flush();
+      break;
+    case 7:
+      // eject
+      Debug_printf("\nEJECT!!!");
+      fnUartBUS.write('E');
+      // fnUartBUS.flush();
+      break;
+    default:
+      Debug_printf("%03d");
+      fnUartBUS.write('X');
+      // fnUartBUS.flush();
+      break;
+    }
   }
+  if (track_not_copied && stepper_timeout())
+  {
+    theFuji.get_disks(0)->disk_dev.update_track_buffers();
+    track_not_copied = false;
+  }
+}
+
+bool macBus::stepper_timeout()
+{
+  unsigned long tn = fnSystem.micros();
+  return ((tn - t0) > 2000);
 }
 
 void macBus::shutdown(void)

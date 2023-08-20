@@ -256,9 +256,9 @@ void main_setup()
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
 
     sioR = new macModem(ptrfs, Config.get_modem_sniffer_enabled());
-
-    theFuji.setup(&MAC);
     MAC.setup();
+    theFuji.setup(&MAC);
+
 #endif // BUILD_MAC
 
 #ifdef BUILD_CX16

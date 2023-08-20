@@ -39,9 +39,9 @@ bool MediaTypeMOOF::moof_check_header()
 {
     char hdr[12];
     fread(&hdr, sizeof(char), 12, _media_fileh);
-    if (hdr[0] == 'M' && hdr[1] == 'O' && hdr[2] == 'O' && hdr[2] == 'F')
+    if (hdr[0] == 'M' && hdr[1] == 'O' && hdr[2] == 'O' && hdr[3] == 'F')
     {
-        Debug_printf("\nMOOF-%c file confirmed!");
+        Debug_printf("\nMOOF file confirmed!");
     }
     else
     {
@@ -137,7 +137,7 @@ bool MediaTypeMOOF::moof_read_tmap()
 #ifdef DEBUG
     Debug_printf("\nTrack, Index");
     for (int i = 0; i < MAX_TRACKS; i++)
-        Debug_printf("\n%d/4, %d", i, tmap[i]);
+        Debug_printf("\n%d - %d/%d, %d", i, i/2, i%2, tmap[i]);
 #endif
 
     return false;
