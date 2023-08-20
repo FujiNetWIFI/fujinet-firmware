@@ -1708,7 +1708,7 @@ void sioFuji::sio_base64_encode_input()
 
     if (!p)
     {
-        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n");
+        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n", len);
         sio_error();
         return;
     }
@@ -1787,7 +1787,7 @@ void sioFuji::sio_base64_encode_output()
 
     if (!p)
     {
-        Debug_printf("Could not allocate %u bytes from heap, aborting.\n");
+        Debug_printf("Could not allocate %u bytes from heap, aborting.\n", l);
         return;
     }
 
@@ -1815,7 +1815,7 @@ void sioFuji::sio_base64_decode_input()
 
     if (!p)
     {
-        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n");
+        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n", len);
         sio_error();
         return;
     }
@@ -1897,7 +1897,7 @@ void sioFuji::sio_base64_decode_output()
 
     if (!p)
     {
-        Debug_printf("Could not allocate %u bytes from heap, aborting.\n");
+        Debug_printf("Could not allocate %u bytes from heap, aborting.\n", l);
         sio_error();
         return;
     }
