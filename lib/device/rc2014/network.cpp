@@ -653,7 +653,7 @@ void rc2014Network::create_devicespec(string d)
 */
 void rc2014Network::create_url_parser()
 {
-    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
+    std::string url = deviceSpec;
     urlParser = EdUrlParser::parseUrl(url);
 }
 
