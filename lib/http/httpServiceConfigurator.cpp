@@ -435,7 +435,7 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
 
     free(decoded_buf);
 
-    for (std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); i++)
+    for (std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); ++i)
     {
         if (i->first.compare("printermodel1") == 0)
         {

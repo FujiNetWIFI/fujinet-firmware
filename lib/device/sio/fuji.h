@@ -4,6 +4,11 @@
 #include <cstdint>
 #include <cstring>
 
+#include "mbedtls/sha1.h"
+#include "mbedtls/sha256.h"
+#include "mbedtls/sha512.h"
+#include "mbedtls/md5.h"
+
 #include "bus.h"
 #include "disk.h"
 #include "network.h"
@@ -74,6 +79,19 @@ private:
 
     appkey _current_appkey;
 
+    std::string base64_buffer;
+
+    mbedtls_md5_context _md5;
+    mbedtls_sha1_context _sha1;
+    mbedtls_sha256_context _sha256;
+    mbedtls_sha512_context _sha512;
+
+    char hash_mode = 0;
+    unsigned char _md5_output[16];
+    unsigned char _sha1_output[20];
+    unsigned char _sha256_output[32];
+    unsigned char _sha512_output[64];
+
 protected:
     void sio_reset_fujinet();          // 0xFF
     void sio_net_get_ssid();           // 0xFE
@@ -111,6 +129,18 @@ protected:
     void sio_set_boot_config();        // 0xD9
     void sio_copy_file();              // 0xD8
     void sio_set_boot_mode();          // 0xD6
+    void sio_base64_encode_input();    // 0xD0
+    void sio_base64_encode_compute();  // 0xCF
+    void sio_base64_encode_length();   // 0xCE
+    void sio_base64_encode_output();   // 0xCD
+    void sio_base64_decode_input();    // 0xCC
+    void sio_base64_decode_compute();  // 0xCB
+    void sio_base64_decode_length();   // 0xCA
+    void sio_base64_decode_output();   // 0xC9
+    void sio_hash_input();             // 0xC8
+    void sio_hash_compute();           // 0xC7
+    void sio_hash_length();            // 0xC6
+    void sio_hash_output();            // 0xC5
 
     void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;

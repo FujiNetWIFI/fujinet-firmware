@@ -85,8 +85,8 @@ protected:
     bool motor_line() { return (bool)fnSystem.digital_read(PIN_CASS_MOTOR); }
 
     // have to populate virtual functions to complete class
-    void drivewire_status() override{}; // $53, 'S', Status
-    void drivewire_process(uint32_t commanddata, uint8_t checksum) override{};
+    // void drivewire_status() override{}; // $53, 'S', Status
+    void drivewire_process(uint32_t commanddata, uint8_t checksum) {};
 
     void open_cassette_file(FileSystem *filesystem);
     void close_cassette_file();
@@ -125,14 +125,13 @@ private:
         unsigned char turbo : 1;
     } tape_flags;
 
-    uint8_t atari_sector_buffer[256];
+    uint8_t sector_buffer[256];
 
-    void Clear_atari_sector_buffer(uint16_t len);
+    void clear_sector_buffer(uint16_t len);
 
-    unsigned short block;
-    unsigned short baud;
+    unsigned short block = 0;
+    unsigned short baud = 0;
 
-    size_t send_tape_block(size_t offset);
     void check_for_file();
     size_t send_tape_block(size_t offset);
     size_t receive_tape_block(size_t offset);

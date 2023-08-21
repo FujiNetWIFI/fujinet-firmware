@@ -13,7 +13,7 @@ class UARTManager
 private:
     uart_port_t _uart_num;
     QueueHandle_t _uart_q;
-    bool _initialized; // is UART ready?
+    bool _initialized = false; // is UART ready?
 
     size_t _print_number(unsigned long n, uint8_t base);
 
@@ -53,7 +53,7 @@ public:
 
     //size_t print(const char *format, ...);
     size_t print(const char *str);
-    size_t print(std::string str);
+    size_t print(const std::string &str);
     size_t print(int n, int base = 10);
     size_t print(unsigned int n, int base = 10);
     size_t print(long n, int base = 10);

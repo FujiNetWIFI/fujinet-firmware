@@ -324,11 +324,11 @@ void drivewireCassette::set_pulldown(bool resistor)
             pulldown = resistor;
 }
 
-void drivewireCassette::Clear_atari_sector_buffer(uint16_t len)
+void drivewireCassette::clear_sector_buffer(uint16_t len)
 {
-    //Maze atari_sector_buffer
+    //Maze sector_buffer
     unsigned char *ptr;
-    ptr = atari_sector_buffer;
+    ptr = sector_buffer;
     do
     {
         *ptr++ = 0;
@@ -338,21 +338,21 @@ void drivewireCassette::Clear_atari_sector_buffer(uint16_t len)
 
 size_t drivewireCassette::send_tape_block(size_t offset)
 {
-    unsigned char *p = atari_sector_buffer + BLOCK_LEN - 1;
+    unsigned char *p = sector_buffer + BLOCK_LEN - 1;
     unsigned char i, r;
 
     // if (offset < FileInfo.vDisk->size) {	//data record
     if (offset < filesize)
     { //data record
 #ifdef DEBUG
-        //print_str(35,132,2,Yellow,window_bg, (char*) atari_sector_buffer);
-        //sprintf_P((char*)atari_sector_buffer,PSTR("Block %u / %u "),offset/BLOCK_LEN+1,(FileInfo.vDisk->size-1)/BLOCK_LEN+1);
+        //print_str(35,132,2,Yellow,window_bg, (char*) sector_buffer);
+        //sprintf_P((char*)sector_buffer,PSTR("Block %u / %u "),offset/BLOCK_LEN+1,(FileInfo.vDisk->size-1)/BLOCK_LEN+1);
         Debug_printf("Block %u of %u \r\n", offset / BLOCK_LEN + 1, filesize / BLOCK_LEN + 1);
 #endif
         //read block
         //r = faccess_offset(FILE_ACCESS_READ, offset, BLOCK_LEN);
         fseek(_file, offset, SEEK_SET);
-        r = fread(atari_sector_buffer, 1, BLOCK_LEN, _file);
+        r = fread(sector_buffer, 1, BLOCK_LEN, _file);
 
         //shift buffer 3 bytes right
         for (i = 0; i < BLOCK_LEN; i++)
@@ -362,11 +362,11 @@ size_t drivewireCassette::send_tape_block(size_t offset)
         }
         if (r < BLOCK_LEN)
         {                                  //no full record?
-            atari_sector_buffer[2] = 0xfa; //mark partial record
-            atari_sector_buffer[130] = r;  //set size in last byte
+            sector_buffer[2] = 0xfa; //mark partial record
+            sector_buffer[130] = r;  //set size in last byte
         }
         else
-            atari_sector_buffer[2] = 0xfc; //mark full record
+            sector_buffer[2] = 0xfc; //mark full record
 
         offset += r;
     }
@@ -376,16 +376,16 @@ size_t drivewireCassette::send_tape_block(size_t offset)
         //print_str_P(35, 132, 2, Yellow, window_bg, PSTR("End  "));
         Debug_println("CASSETTE END");
 #endif
-        Clear_atari_sector_buffer(BLOCK_LEN + 3);
-        atari_sector_buffer[2] = 0xfe; //mark end record
+        clear_sector_buffer(BLOCK_LEN + 3);
+        sector_buffer[2] = 0xfe; //mark end record
         offset = 0;
     }
-    atari_sector_buffer[0] = 0x55; //sync marker
-    atari_sector_buffer[1] = 0x55;
-    // USART_Send_Buffer(atari_sector_buffer, BLOCK_LEN + 3);
-    fnUartBUS.write(atari_sector_buffer, BLOCK_LEN + 3);
-    //USART_Transmit_Byte(get_checksum(atari_sector_buffer, BLOCK_LEN + 3));
-    fnUartBUS.write(drivewire_checksum(atari_sector_buffer, BLOCK_LEN + 3));
+    sector_buffer[0] = 0x55; //sync marker
+    sector_buffer[1] = 0x55;
+    // USART_Send_Buffer(sector_buffer, BLOCK_LEN + 3);
+    fnUartBUS.write(sector_buffer, BLOCK_LEN + 3);
+    //USART_Transmit_Byte(get_checksum(sector_buffer, BLOCK_LEN + 3));
+    //fnUartBUS.write(drivewire_checksum(sector_buffer, BLOCK_LEN + 3));
     fnUartBUS.flush(); // wait for all data to be sent just like a tape
     // _delay_ms(300); //PRG(0-N) + PRWT(0.25s) delay
     fnSystem.delay(300);
@@ -394,12 +394,12 @@ size_t drivewireCassette::send_tape_block(size_t offset)
 
 void drivewireCassette::check_for_file()
 {
-    struct tape_hdr *hdr = (struct tape_hdr *)atari_sector_buffer;
+    struct tape_hdr *hdr = (struct tape_hdr *)sector_buffer;
     uint8_t *p = hdr->chunk_type;
 
     // faccess_offset(FILE_ACCESS_READ, 0, sizeof(struct tape_hdr));
     fseek(_file, 0, SEEK_SET);
-    fread(atari_sector_buffer, 1, sizeof(struct tape_hdr), _file);
+    fread(sector_buffer, 1, sizeof(struct tape_hdr), _file);
     if (p[0] == 'F' && //search for FUJI header
         p[1] == 'U' &&
         p[2] == 'J' &&
@@ -425,136 +425,11 @@ void drivewireCassette::check_for_file()
     return;
 }
 
-size_t drivewireCassette::send_tape_block(size_t offset)
-{
-    size_t r;
-    uint16_t gap, len;
-    uint16_t buflen = 256;
-    unsigned char first = 1;
-    struct tape_hdr *hdr = (struct tape_hdr *)atari_sector_buffer;
-    uint8_t *p = hdr->chunk_type;
-
-    size_t starting_offset = offset;
-
-    while (offset < filesize) // FileInfo.vDisk->size)
-    {
-        // looking for a data header while handling baud changes along the way
-#ifdef DEBUG
-        Debug_printf("Offset: %u\r\n", offset);
-#endif
-        fseek(_file, offset, SEEK_SET);
-        fread(atari_sector_buffer, 1, sizeof(struct tape_hdr), _file);
-        len = hdr->chunk_length;
-
-        if (p[0] == 'd' && //is a data header?
-            p[1] == 'a' &&
-            p[2] == 't' &&
-            p[3] == 'a')
-        {
-            block++;
-            break;
-        }
-        else if (p[0] == 'b' && //is a baud header?
-                 p[1] == 'a' &&
-                 p[2] == 'u' &&
-                 p[3] == 'd')
-        {
-            if (tape_flags.turbo) //ignore baud hdr
-                continue;
-            baud = hdr->irg_length;
-            fnUartBUS.set_baudrate(baud);
-        }
-        offset += sizeof(struct tape_hdr) + len;
-    }
-
-    // TO DO : check that "data" record was actually found - not done by SDrive until after IRG by checking offset<filesize
-
-    gap = hdr->irg_length; //save GAP
-    len = hdr->chunk_length;
-#ifdef DEBUG
-    Debug_printf("Baud: %u Length: %u Gap: %u ", baud, len, gap);
-#endif
-
-    // TO DO : turn on LED
-    fnLedManager.set(eLed::LED_BUS, true);
-    while (gap--)
-    {
-        fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
-        if (has_pulldown() && !motor_line() && gap > 1000)
-        {
-            fnLedManager.set(eLed::LED_BUS, false);
-            return starting_offset;
-        }
-    }
-    fnLedManager.set(eLed::LED_BUS, false);
-
-#ifdef DEBUG
-    // wait until after delay for new line so can see it in timestamp
-    Debug_printf("\r\n");
-#endif
-
-    if (offset < filesize)
-    {
-        // data record
-#ifdef DEBUG
-        Debug_printf("Block %u\r\n", block);
-#endif
-        // read block in 256 byte (or fewer) chunks
-        offset += sizeof(struct tape_hdr); //skip chunk hdr
-        while (len)
-        {
-            if (len > 256)
-            {
-                buflen = 256;
-                len -= 256;
-            }
-            else
-            {
-                buflen = len;
-                len = 0;
-            }
-
-            fseek(_file, offset, SEEK_SET);
-            r = fread(atari_sector_buffer, 1, buflen, _file);
-            offset += r;
-
-#ifdef DEBUG
-            Debug_printf("Sending %u bytes\r\n", buflen);
-            for (int i = 0; i < buflen; i++)
-                Debug_printf("%02x ", atari_sector_buffer[i]);
-#endif
-            fnUartBUS.write(atari_sector_buffer, buflen);
-            fnUartBUS.flush(); // wait for all data to be sent just like a tape
-#ifdef DEBUG
-            Debug_printf("\r\n");
-#endif
-
-            if (first && atari_sector_buffer[2] == 0xfe)
-            {
-                // resets block counter for next section
-                block = 0;
-            }
-            first = 0;
-        }
-        /*         if (block == 0)
-        {
-            // TO DO : why does Sdrive do this?
-            //_delay_ms(200); //add an end gap to be sure
-            fnSystem.delay(200);
-        } */
-    }
-    else
-    {
-        //block = 0;
-        offset = 0;
-    }
-    return (offset);
-}
 
 size_t drivewireCassette::receive_tape_block(size_t offset)
 {
     Debug_println("Start listening for tape block from Atari");
-    Clear_atari_sector_buffer(BLOCK_LEN + 4);
+    clear_sector_buffer(BLOCK_LEN + 4);
     uint8_t idx = 0;
 
     // start counting the IRG
@@ -573,7 +448,7 @@ size_t drivewireCassette::receive_tape_block(size_t offset)
 #endif
     offset += fwrite(&irg, 2, 1, _file);
     uint8_t b = casUART.read(); // should be 0x55
-    atari_sector_buffer[idx++] = b;
+    sector_buffer[idx++] = b;
 #ifdef DEBUG
     Debug_printf("marker 1: %02x\n", b);
 #endif
@@ -581,7 +456,7 @@ size_t drivewireCassette::receive_tape_block(size_t offset)
     while (!casUART.available()) // && motor_line()
         casUART.service(decode_fsk());
     b = casUART.read(); // should be 0x55
-    atari_sector_buffer[idx++] = b;
+    sector_buffer[idx++] = b;
 #ifdef DEBUG
     Debug_printf("marker 2: %02x\n", b);
 #endif
@@ -589,7 +464,7 @@ size_t drivewireCassette::receive_tape_block(size_t offset)
     while (!casUART.available()) // && motor_line()
         casUART.service(decode_fsk());
     b = casUART.read(); // control byte
-    atari_sector_buffer[idx++] = b;
+    sector_buffer[idx++] = b;
 #ifdef DEBUG
     Debug_printf("control byte: %02x\n", b);
 #endif
@@ -600,7 +475,7 @@ size_t drivewireCassette::receive_tape_block(size_t offset)
         while (!casUART.available()) // && motor_line()
             casUART.service(decode_fsk());
         b = casUART.read(); // data
-        atari_sector_buffer[idx++] = b;
+        sector_buffer[idx++] = b;
 #ifdef DEBUG
 //        Debug_printf(" %02x", b);
 #endif
@@ -613,7 +488,7 @@ size_t drivewireCassette::receive_tape_block(size_t offset)
     while (!casUART.available()) // && motor_line()
         casUART.service(decode_fsk());
     b = casUART.read(); // checksum
-    atari_sector_buffer[idx++] = b;
+    sector_buffer[idx++] = b;
 #ifdef DEBUG
     Debug_printf("checksum: %02x\n", b);
 #endif
@@ -621,11 +496,11 @@ size_t drivewireCassette::receive_tape_block(size_t offset)
 #ifdef DEBUG
     Debug_print("data: ");
     for (int i = 0; i < BLOCK_LEN + 4; i++)
-        Debug_printf("%02x ", atari_sector_buffer[i]);
+        Debug_printf("%02x ", sector_buffer[i]);
     Debug_printf("\n");
 #endif
 
-    offset += fwrite(atari_sector_buffer, 1, BLOCK_LEN + 4, _file);
+    offset += fwrite(sector_buffer, 1, BLOCK_LEN + 4, _file);
 
 #ifdef DEBUG
     Debug_printf("file offset: %d\n", offset);

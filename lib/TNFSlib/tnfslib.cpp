@@ -1118,7 +1118,7 @@ const char *tnfs_filepath(tnfsMountInfo *m_info, int16_t file_handle)
         return nullptr;
 
     // Find info on this handle
-    tnfsFileHandleInfo *pFileInf = m_info->get_filehandleinfo(file_handle);
+    const tnfsFileHandleInfo *pFileInf = m_info->get_filehandleinfo(file_handle);
     if (pFileInf == nullptr)
         return nullptr;
 

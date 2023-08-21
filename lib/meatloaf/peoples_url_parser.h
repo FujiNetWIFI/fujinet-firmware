@@ -179,7 +179,7 @@ public:
         return std::stoi(port);
     }
 
-    void parseUrl(std::string u) {
+    void parseUrl(const std::string &u) {
         url = u;
 
         //Debug_printv("Before [%s]", url.c_str());

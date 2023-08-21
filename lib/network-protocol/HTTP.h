@@ -160,7 +160,7 @@ private:
         PUT
     } HTTPOpenMode;
 
-    HTTPOpenMode httpOpenMode;
+    HTTPOpenMode httpOpenMode = HTTPOpenMode::GET;
 
     /**
      * The HTTP channel mode, used to distinguish between headers and data
@@ -179,12 +179,12 @@ private:
     /**
      * The fnHTTPClient object used by the adaptor for HTTP calls
      */
-    fnHttpClient *client;
+    fnHttpClient *client = nullptr;
 
     /**
      * result code returned by an HTTP verb
      */
-    int resultCode;
+    int resultCode = 0;
 
     /**
      * Array of up to 32 headers
@@ -194,7 +194,7 @@ private:
     /**
      * Collected headers count
      */
-    size_t collect_headers_count;
+    size_t collect_headers_count = 0;
 
     /**
      * Returned headers
@@ -204,12 +204,12 @@ private:
     /**
      * Returned header cursor
      */
-    size_t returned_header_cursor;
+    size_t returned_header_cursor = 0;
 
     /**
      * Body size (fileSize is reset with this when DATA is engaged)
      */
-    int bodySize;
+    int bodySize = 0;
 
     /**
      * POST or PUT Data to send.

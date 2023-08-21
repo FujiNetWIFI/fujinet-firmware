@@ -16,6 +16,11 @@
 #define DEVICE_TYPE iwmDisk
 #endif
 
+#ifdef BUILD_MAC
+#include "mac/floppy.h"
+#define DEVICE_TYPE macFloppy
+#endif
+
 #ifdef BUILD_IEC
 # include "iec/disk.h"
 # define DEVICE_TYPE iecDisk

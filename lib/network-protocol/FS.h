@@ -31,6 +31,11 @@ public:
     bool rmdir_implemented = false;
 
     /**
+     * Internal temporary buffer for read
+     */
+    uint8_t *buf;
+
+    /**
      * @brief ctor
      * @param rx_buf pointer to receive buffer
      * @param tx_buf pointer to transmit buffer
@@ -128,7 +133,7 @@ protected:
     /**
      * Open mode
      */
-    OpenMode openMode;
+    OpenMode openMode = OpenMode::FILE;
 
     /**
      * Directory of currently open file
@@ -148,7 +153,7 @@ protected:
     /**
      * File size
      */
-    int fileSize;
+    int fileSize = 0;
 
     /**
      * Directory buffer
@@ -158,17 +163,17 @@ protected:
     /**
      * Is open file a directory?
      */
-    bool is_directory;
+    bool is_directory = false;
 
     /**
      * The mode of the open file
      */
-    uint16_t mode;
+    uint16_t mode = 0;
 
     /**
      * Is open file locked?
      */
-    bool is_locked;
+    bool is_locked = false;
 
     /**
      * @brief Open a file via path.

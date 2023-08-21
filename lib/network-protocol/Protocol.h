@@ -28,7 +28,7 @@ public:
     /**
      * Pointer to passed in URL
      */
-    EdUrlParser *opened_url;
+    EdUrlParser *opened_url = nullptr;
 
     /**
      * ctor - Initialize network protocol object.
@@ -51,17 +51,17 @@ public:
     /**
      * @brief number of bytes waiting
      */
-    unsigned short bytesWaiting;
+    unsigned short bytesWaiting = 0;
 
     /**
      * @brief Error code to return in status
      */
-    unsigned char error;
+    unsigned char error = 0;
 
     /**
      * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF
      */
-    unsigned char translation_mode;
+    unsigned char translation_mode = 0;
 
     /**
      * Is this being called from inside an interrupt?
@@ -72,6 +72,12 @@ public:
      * Enable interrupts?
      */
     bool interruptEnable = true;
+
+    /**
+     * Do we need to force Status call?
+     * (e.g. to start http_transaction in http protocol adapter after open)
+     */
+    bool forceStatus = false;
 
     /**
      * @brief Open connection to the protocol using URL
@@ -162,12 +168,12 @@ protected:
     /**
      * AUX1 value from open
      */
-    unsigned char aux1_open;
+    unsigned char aux1_open = 0;
 
     /**
      * AUX2 value from open
      */
-    unsigned char aux2_open;
+    unsigned char aux2_open = 0;
 
     /**
      * Perform end of line translation on receive buffer.

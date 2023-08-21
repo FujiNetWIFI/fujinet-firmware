@@ -17,19 +17,19 @@ private:
     typedef std::map<std::string,std::string> header_map_t;
     typedef std::pair<std::string,std::string> header_entry_t;
 
-    char *_buffer; // Will be allocated to DEFAULT_HTTP_BUF_SIZE
-    int _buffer_pos;
-    int _buffer_len;
-    int _buffer_total_read;
+    char *_buffer = nullptr; // Will be allocated to DEFAULT_HTTP_BUF_SIZE
+    int _buffer_pos = 0;
+    int _buffer_len = 0;
+    int _buffer_total_read = 0;
 
     TaskHandle_t _taskh_consumer = nullptr;
     TaskHandle_t _taskh_subtask = nullptr;
 
     bool _ignore_response_body = false;
-    bool _transaction_begin;
-    bool _transaction_done;
-    int _redirect_count;
-    int _max_redirects;
+    bool _transaction_begin = false;
+    bool _transaction_done = false;
+    int _redirect_count = 0;
+    int _max_redirects = 0;
     bool connected = false;
     esp_http_client_auth_type_t _auth_type;
     esp_err_t _client_err;
@@ -61,7 +61,7 @@ public:
         DEPTH_INFINITY
     };
 
-    bool begin(std::string url);
+    bool begin(const std::string &url);
     void close();
 
     int GET();
@@ -75,6 +75,7 @@ public:
     int MOVE(const char *destination, bool overwrite);
 
     int available();
+    bool is_transaction_done();
 
     int read(uint8_t *dest_buffer, int dest_bufflen);
 

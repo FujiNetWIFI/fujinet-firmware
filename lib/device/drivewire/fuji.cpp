@@ -536,7 +536,7 @@ void drivewireFuji::mount_all()
     //     if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
     //         flag[1] = '+';
 
-    //     if (disk.host_slot != 0xFF)
+    //     if (disk.host_slot != INVALID_HOST_SLOT)
     //     {
     //         nodisks = false; // We have a disk in a slot
 
@@ -1510,8 +1510,9 @@ void drivewireFuji::drivewire_set_device_filename()
     // // Handle DISK slots
     // if (slot < MAX_DISK_DEVICES)
     // {
-    //     // TODO: Set HOST and MODE
     //     memcpy(_fnDisks[cmdFrame.aux1].filename, tmp, MAX_FILENAME_LEN);
+    //     _fnDisks[cmdFrame.aux1].host_slot = host;
+    //     _fnDisks[cmdFrame.aux1].access_mode = mode;
     //     _populate_config_from_slots();
     // }
     // // Handle TAPE slots

@@ -275,6 +275,8 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 
     returned_entry.replace(returned_entry.length() - stylized_filesize.length() - 1, stylized_filesize.length(), stylized_filesize);
 
+    returned_entry.shrink_to_fit();
+    
     return returned_entry;
 }
 
@@ -482,7 +484,7 @@ bool util_concat_paths(char *dest, const char *parent, const char *child, int de
         }
 
         // Skip a slash in the child if it starts with one so we don't have two slashes
-        if (child[0] == '/' && child[0] == '\\')
+        if (child[0] == '/' || child[0] == '\\')
             child++;
 
         int clen = strlcpy(dest + plen, child, dest_size - plen);

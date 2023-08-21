@@ -122,7 +122,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
         (cmdFrame.comnd != SIO_DISKCMD_STATUS && cmdFrame.comnd != SIO_DISKCMD_HSIO_INDEX))
         return;
 
-    Debug_print("disk sio_process()\n");
+    Debug_print("disk cx16Disk::process()\n");
 
     switch (cmdFrame.comnd)
     {

@@ -160,9 +160,6 @@ void rs232Modem::rs232_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
     if (respond == false)
         return;
 
-    // Get size of handler
-    int filesize = fnSystem.load_firmware(FIRMWARE_850HANDLER, NULL);
-
     // Simply return (without ACK) if we failed to get this
     if (filesize < 0)
         return;
@@ -258,7 +255,6 @@ void rs232Modem::rs232_send_firmware(uint8_t loadcommand)
 
     // Load firmware from file
     uint8_t *code;
-    int codesize = fnSystem.load_firmware(firmware, &code);
     // NAK if we failed to get this
     if (codesize < 0 || code == NULL)
     {

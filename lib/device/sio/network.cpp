@@ -65,12 +65,9 @@ sioNetwork::~sioNetwork()
     transmitBuffer->clear();
     specialBuffer->clear();
 
-    if (receiveBuffer != nullptr)
-        delete receiveBuffer;
-    if (transmitBuffer != nullptr)
-        delete transmitBuffer;
-    if (specialBuffer != nullptr)
-        delete specialBuffer;
+    delete receiveBuffer;
+    delete transmitBuffer;
+    delete specialBuffer;
 }
 
 /** SIO COMMANDS ***************************************************************/
@@ -85,6 +82,14 @@ void sioNetwork::sio_open()
     Debug_println("sioNetwork::sio_open()\n");
 
     sio_ack();
+
+    newData = (uint8_t *)malloc(NEWDATA_SIZE);
+
+    if (!newData)
+    {
+        Debug_printv("Could not allocate write buffer\n");
+        sio_error();
+    }
 
     channelMode = PROTOCOL;
 
@@ -126,6 +131,9 @@ void sioNetwork::sio_open()
             protocolParser = nullptr;
         }
 
+        if (newData)
+            free(newData);
+
         sio_error();
         return;
     }
@@ -142,6 +150,10 @@ void sioNetwork::sio_open()
             delete protocolParser;
             protocolParser = nullptr;
         }
+
+        if (newData)
+            free(newData);
+
         sio_error();
         return;
     }
@@ -150,7 +162,7 @@ void sioNetwork::sio_open()
     timer_start();
 
     // Go ahead and send an interrupt, so Atari knows to get status.
-    sio_assert_interrupt();
+    protocol->forceStatus = true;
 
     // TODO: Finally, go ahead and let the parsers know
     json = new FNJSON();
@@ -193,7 +205,7 @@ void sioNetwork::sio_close()
     else
         sio_complete();
 
-    Debug_printf("Before protocol delete %lu\n",esp_get_free_heap_size());
+    Debug_printv("Before protocol delete %lu\n",esp_get_free_internal_heap_size());
     // Delete the protocol object
     delete protocol;
     protocol = nullptr;
@@ -201,7 +213,10 @@ void sioNetwork::sio_close()
     if (json != nullptr)
         delete json;
 
-    Debug_printf("After protocol delete %lu\n",esp_get_free_heap_size());
+    if (newData)
+        free(newData);
+
+    Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 }
 
 /**
@@ -248,6 +263,7 @@ void sioNetwork::sio_read()
     // And send off to the computer
     bus_to_computer((uint8_t *)receiveBuffer->data(), num_bytes, err);
     receiveBuffer->erase(0, num_bytes);
+    receiveBuffer->shrink_to_fit();
 }
 
 /**
@@ -293,15 +309,15 @@ bool sioNetwork::sio_read_channel(unsigned short num_bytes)
 void sioNetwork::sio_write()
 {
     unsigned short num_bytes = sio_get_aux();
-    uint8_t *newData;
     bool err = false;
 
-    newData = (uint8_t *)malloc(num_bytes);
     Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
 
     if (newData == nullptr)
     {
         Debug_printf("Could not allocate %u bytes.\n", num_bytes);
+        sio_error();
+        return;
     }
 
     sio_ack();
@@ -322,7 +338,6 @@ void sioNetwork::sio_write()
     // Get the data from the Atari
     bus_to_peripheral(newData, num_bytes);
     *transmitBuffer += string((char *)newData, num_bytes);
-    free(newData);
 
     // Do the channel write
     err = sio_write_channel(num_bytes);
@@ -333,7 +348,9 @@ void sioNetwork::sio_write()
         sio_complete();
     }
     else
+    {
         sio_error();
+    }
 }
 
 /**
@@ -443,6 +460,8 @@ void sioNetwork::sio_status_channel()
         sio_status_channel_json(&status);
         break;
     }
+    // clear forced flag (first status after open)
+    protocol->forceStatus = false;
 
     // Serialize status into status bytes
     serialized_status[0] = status.rxBytesWaiting & 0xFF;
@@ -490,7 +509,11 @@ void sioNetwork::sio_set_prefix()
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
 
-    if (prefixSpec_str == "..") // Devance path N:..
+    if (prefixSpec_str.empty())
+    {
+        prefix.clear();
+    }
+    else if (prefixSpec_str == ".." || prefixSpec_str == "<") // Devance path N:..
     {
         vector<int> pathLocations;
         for (int i = 0; i < prefix.size(); i++)
@@ -535,10 +558,6 @@ void sioNetwork::sio_set_prefix()
     else if (prefixSpec_str[0] == '/') // N:/DIR
     {
         prefix = prefixSpec_str;
-    }
-    else if (prefixSpec_str.empty())
-    {
-        prefix.clear();
     }
     else if (prefixSpec_str.find_first_of(":") != string::npos)
     {
@@ -856,7 +875,7 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
 }
 
 /**
- * Check to see if PROCEED needs to be asserted, and assert if needed.
+ * Check to see if PROCEED needs to be asserted, and assert if needed (continue toggling PROCEED).
  */
 void sioNetwork::sio_poll_interrupt()
 {
@@ -864,6 +883,13 @@ void sioNetwork::sio_poll_interrupt()
     {
         if (protocol->interruptEnable == false)
             return;
+
+        /* assert interrupt if we need Status call from host to arrive */
+        if (protocol->forceStatus == true)
+        {
+            sio_assert_interrupt();
+            return;
+        }
 
         protocol->fromInterrupt = true;
         protocol->status(&status);
@@ -1031,6 +1057,7 @@ void sioNetwork::processCommaFromDevicespec()
 void sioNetwork::sio_assert_interrupt()
 {
     fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+    // Debug_print(interruptProceed ? "+" : "-");
 }
 
 void sioNetwork::sio_set_translation()

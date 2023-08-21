@@ -25,8 +25,6 @@
 #include "SSH.h"
 #include "SMB.h"
 
-#include "ProtocolParser.h"
-
 // using namespace std;
 
 /**
@@ -54,12 +52,9 @@ iwmNetwork::~iwmNetwork()
     transmitBuffer->clear();
     specialBuffer->clear();
 
-    if (receiveBuffer != nullptr)
-        delete receiveBuffer;
-    if (transmitBuffer != nullptr)
-        delete transmitBuffer;
-    if (specialBuffer != nullptr)
-        delete specialBuffer;
+    delete receiveBuffer;
+    delete transmitBuffer;
+    delete specialBuffer;
 }
 
 /** iwm COMMANDS ***************************************************************/

@@ -28,7 +28,8 @@ MFile* FlashFileSystem::getFile(std::string path)
 
 bool FlashFile::pathValid(std::string path) 
 {
-    auto apath = std::string(basepath + path).c_str();
+    std::string s = std::string(basepath + path);
+    auto apath = s.c_str();
     while (*apath) {
         const char *slash = strchr(apath, '/');
         if (!slash) {
@@ -433,9 +434,10 @@ void FlashHandle::obtain(std::string m_path, std::string mode) {
         // it will be caught by the real file open later on
 
         char *pathStr = new char[m_path.length()];
-        strncpy(pathStr, m_path.data(), m_path.length());
 
         if (pathStr) {
+            strncpy(pathStr, m_path.data(), m_path.length());
+            
             // Make dirs up to the final fnamepart
             char *ptr = strchr(pathStr, '/');
             while (ptr) {
