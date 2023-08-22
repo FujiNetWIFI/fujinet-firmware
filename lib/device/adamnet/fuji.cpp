@@ -21,6 +21,7 @@
 
 adamFuji theFuji;        // global fuji device object
 adamNetwork *theNetwork; // global network device object (temporary)
+adamNetwork *theNetwork2; // another network device
 adamPrinter *thePrinter; // global printer
 adamSerial *theSerial;   // global serial
 
@@ -1215,8 +1216,10 @@ void adamFuji::setup(systemBus *siobus)
     }
 
     theNetwork = new adamNetwork();
+    theNetwork2 = new adamNetwork();
     theSerial = new adamSerial();
     _adamnet_bus->addDevice(theNetwork, 0x09); // temporary.
+    _adamnet_bus->addDevice(theNetwork2,0x0A); // temporary
     _adamnet_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
 }
 
