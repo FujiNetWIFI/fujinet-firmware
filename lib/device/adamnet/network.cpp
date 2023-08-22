@@ -49,7 +49,6 @@ adamNetwork::adamNetwork()
 }
 
 /**
- * Destructor
  */
 adamNetwork::~adamNetwork()
 {
@@ -259,12 +258,12 @@ void adamNetwork::status()
 
     if (protocol == nullptr)
     {
-            response[0] = 0;
-            response[1] = 0;
-            response[2] = 0;
-            response[3] = 165; // invalid spec.
-            response_len = 4;
-            return;
+        response[0] = 0;
+        response[1] = 0;
+        response[2] = 0;
+        response[3] = 165; // invalid spec.
+        response_len = 4;
+        return;
     }
 
     switch (channelMode)
@@ -506,9 +505,9 @@ void adamNetwork::json_query(unsigned short s)
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    json.setReadQuery(std::string((char *)c, s),cmdFrame.aux2);
+    json.setReadQuery(std::string((char *)c, s), cmdFrame.aux2);
 
-    Debug_printf("adamNetwork::json_query(%s)\n", c);
+    Debug_printv("adamNetwork::json_query(%s)\n", c);
 
     free(c);
 }
@@ -777,8 +776,8 @@ void adamNetwork::adamnet_control_receive_channel_json()
     if (jsonRecvd == false)
     {
         response_len = json.readValueLen();
-        json.readValue(response,response_len);
-        jsonRecvd=true;
+        json.readValue(response, response_len);
+        jsonRecvd = true;
         adamnet_response_ack();
     }
     else
@@ -801,7 +800,7 @@ void adamNetwork::adamnet_control_receive_channel_protocol()
     // Get status
     protocol->status(&ns);
     if (ns.rxBytesWaiting > 0)
-        Debug_printf("!!! rxBytesWaiting: %d\n",ns.rxBytesWaiting);
+        Debug_printf("!!! rxBytesWaiting: %d\n", ns.rxBytesWaiting);
     if (ns.rxBytesWaiting > 0)
         adamnet_response_ack();
     else
@@ -854,12 +853,16 @@ void adamNetwork::adamnet_response_send()
 {
     uint8_t c = adamnet_checksum(response, response_len);
 
-    adamnet_send(0xB0 | _devnum);
-    adamnet_send_length(response_len);
-    adamnet_send_buffer(response, response_len);
-    adamnet_send(c);
-
-    Debug_printf("adamnet_response_send: %s\n",response);
+    if (response_len)
+    {
+        adamnet_send(0xB0 | _devnum);
+        adamnet_send_length(response_len);
+        adamnet_send_buffer(response, response_len);
+        adamnet_send(c);
+    }
+    else
+        adamnet_send(0xC0 | _devnum); // NAK!
+        
     memset(response, 0, response_len);
     response_len = 0;
 }
@@ -908,7 +911,7 @@ bool adamNetwork::instantiate_protocol()
     {
         protocolParser = new ProtocolParser();
     }
-    
+
     protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
@@ -933,7 +936,7 @@ void adamNetwork::create_devicespec(string d)
 /*
  * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
  * of Network.
-*/
+ */
 void adamNetwork::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
