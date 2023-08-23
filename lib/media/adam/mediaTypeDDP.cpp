@@ -63,11 +63,20 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 {
-    Debug_printf("ATR WRITE\r\n", blockNum, _media_num_blocks);
+    Debug_printf("DDP WRITE\r\n", blockNum, _media_num_blocks);
 
     uint32_t offset = _block_to_offset(blockNum);
 
     _media_last_block = INVALID_SECTOR_VALUE;
+
+    if (_media_fileh->_flags == 0x1484) // mounted R/O, attempt HS R/W
+    {
+        Debug_printf("High score mode activated, attempting write open\r\n");
+        
+        oldFileh = _media_fileh;
+        hsFileh = _media_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename) + 1, "r+");
+        _media_fileh = hsFileh;   
+    }
 
     // Perform a seek if we're writing to the sector after the last one
     int e;
@@ -97,6 +106,21 @@ bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
     ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DDP::write fsync:%d\r\n", ret);
 
+    Debug_printv("media flags %x\n",_media_fileh->_flags);
+    
+    if (_media_fileh->_flags == 0x1484)
+    {
+        Debug_printf("Closing high score sector.\r\n");
+
+        if (hsFileh != nullptr)
+            fclose(hsFileh);
+
+        _media_fileh = oldFileh;
+        _media_last_block = INVALID_SECTOR_VALUE; // force a cache invalidate.
+    }
+    else
+        _media_last_block = blockNum;
+
     _media_last_block = INVALID_SECTOR_VALUE;
     _media_controller_status=0;
     return false;
@@ -121,6 +145,7 @@ mediatype_t MediaTypeDDP::mount(FILE *f, uint32_t disksize)
     _mediatype = MEDIATYPE_DDP;
     _media_num_blocks = disksize / 1024;
 
+    Debug_printv("FLAGS: %x\n",_media_fileh->_flags);
     return _mediatype;
 }
 

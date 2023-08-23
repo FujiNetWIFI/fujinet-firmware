@@ -84,6 +84,15 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
 
     std::pair <uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
 
+    if (_media_fileh->_flags == 0x1484) // mounted R/O, attempt HS R/W
+    {
+        Debug_printf("High score mode activated, attempting write open\r\n");
+        
+        oldFileh = _media_fileh;
+        hsFileh = _media_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename) + 1, "r+");
+        _media_fileh = hsFileh;   
+    }
+
     // Write lower part of block
     err = fseek(_media_fileh, offsets.first, SEEK_SET) != 0;
     if (err == false)
@@ -98,6 +107,19 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
     int ret = fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
     ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DSK::write fsync:%d\r\n", ret);
+
+    if (_media_fileh->_flags == 0x1484)
+    {
+        Debug_printf("Closing high score sector.\r\n");
+
+        if (hsFileh != nullptr)
+            fclose(hsFileh);
+
+        _media_fileh = oldFileh;
+        _media_last_block = INVALID_SECTOR_VALUE; // force a cache invalidate.
+    }
+    else
+        _media_last_block = blockNum;
 
     _media_controller_status=0;
 

@@ -296,6 +296,8 @@ void adamFuji::adamnet_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
+    disk.disk_dev.host = &host;
+
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
