@@ -4,6 +4,26 @@
 
 #include "bus.h"
 #include "../media/media.h"
+/* 
+// drive state bits
+#define STAT_DIRTN   0b0000
+#define STAT_STEP    0b0001
+#define STAT_MOTORON 0b0010
+#define STAT_EJECT   0b0011
+#define STAT_DATAHD0 0b0100
+        not assigned 0b0101
+#define STAT_SS      0b0110 
+#define STAT_DRVIN   0b0111
+#define STAT_CSTIN   0b1000
+#define STAT_WRTPRT  0b1001
+#define STAT_TKO     0b1010
+#define STAT_TACH    0b1011
+#define STAT_DATAHD1 0b1100
+        not assigned 0b1101
+#define STAT_READY   0b1110
+#define STAT_REVISED 0b1111
+ */
+
 
 class macFloppy : public macDevice
 {
