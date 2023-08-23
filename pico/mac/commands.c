@@ -189,6 +189,20 @@ void setup()
 int main()
 {
     setup();
+    
+    // latch setup
+    latch = 0;
+    clr_latch(DIRTN);
+    set_latch(STEP);
+    set_latch(MOTORON);
+    clr_latch(EJECT);
+    clr_latch(SINGLESIDE);
+    clr_latch(DRVIN);
+    set_latch(CSTIN);
+    clr_latch(WRTPRT);
+    set_latch(TKO);
+    set_latch(READY);
+    set_latch(REVISED);
 
     while (true)
     {
@@ -271,16 +285,26 @@ int main()
             // to do: figure out when to clear !READY
             if (c & 128)
             {
+                if (c==0)
+                    clr_latch(TKO); // at track zero
                 set_tach_freq(c & 127);
                 clr_latch(READY);
             }
             else
                 switch (c)
                 {
-                case /* constant-expression */:
-                    /* code */
+                case 's':
+                    // single sided disk is in the slot
+                    set_latch(SINGLESIDE);
+                    clr_latch(CSTIN);
+                    clr_latch(WRTPRT); // everythign is write protected for now
                     break;
-
+                case 'd':
+                    // double sided disk
+                    clr_latch(SINGLESIDE);
+                    clr_latch(CSTIN);
+                    clr_latch(WRTPRT); // everythign is write protected for now
+                    break;
                 default:
                     break;
                 }
@@ -289,7 +313,6 @@ int main()
         }
         // to do: get response from ESP32 and update latch values (like READY, TACH), push LATCH value to PIO
         // to do: read both enable lines and indicate which drive is active when sending single char to esp32
-        // to do: do we need to make non-blocking so can update latch values? or are latch values only updated after commands?
     }
 }
 
