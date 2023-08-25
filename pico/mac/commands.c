@@ -13,14 +13,15 @@
 #include "commands.pio.h"
 #include "echo.pio.h"
 #include "latch.pio.h"
+#include "mux.pio.h"
 
 // #include "../../include/pinmap/mac_rev0.h"
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
 #define MCI_CA0 8
-#define ECHO_IN 15
+#define ECHO_IN 21
 #define TACH_OUT 21
-#define ECHO_OUT 22
+#define ECHO_OUT 18
 #define LATCH_OUT 20
 
 #define SM_CMD 0
@@ -29,8 +30,9 @@
 #define SM_ECHO 3
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin);
-void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
+void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins);
 void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
+void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin);
 
 #define UART_ID uart1
 #define BAUD_RATE 1000000 //230400 //115200
@@ -175,21 +177,23 @@ void setup()
     uint offset = pio_add_program(pio, &commands_program);
     printf("\nLoaded cmd program at %d\n", offset);
     pio_commands(pio, SM_CMD, offset, MCI_CA0); // read phases starting on pin 8
+    
     offset = pio_add_program(pio, &echo_program);
     printf("Loaded echo program at %d\n", offset);
-    pio_echo(pio, SM_ECHO, offset, ECHO_IN, ECHO_OUT);
+    pio_echo(pio, SM_ECHO, offset, ECHO_IN, ECHO_OUT, 2);
+    
     offset = pio_add_program(pio, &latch_program);
     printf("Loaded latch program at %d\n", offset);
     pio_latch(pio, SM_LATCH, offset, MCI_CA0, LATCH_OUT);
     pio_sm_put_blocking(pio, SM_LATCH, 0xffff); // send the register word to the PIO        
-    // todo: add other PIO SM's here (mux)
+    
+    offset = pio_add_program(pio, &mux_program);
+    pio_mux(pio, SM_MUX, offset, MCI_CA0, ECHO_OUT);
 }
-
 
 int main()
 {
     setup();
-    
     // latch setup
     clr_latch(DIRTN);
     set_latch(STEP);
@@ -295,7 +299,7 @@ int main()
             {
                 if (c==128)
                     clr_latch(TKO); // at track zero
-                set_tach_freq(c & 127);
+                // set_tach_freq(c & 127);
             }
             else
                 switch (c)
@@ -331,14 +335,20 @@ void pio_commands(PIO pio, uint sm, uint offset, uint pin) {
     pio_sm_set_enabled(pio, sm, true);
 }
 
-void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
+void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins)
 {
-    echo_program_init(pio, sm, offset, in_pin, out_pin);
+    echo_program_init(pio, sm, offset, in_pin, out_pin, num_pins);
     pio_sm_set_enabled(pio, sm, true);
 }
 
 void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
 {
     latch_program_init(pio, sm, offset, in_pin, out_pin);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
+{
+    mux_program_init(pio, sm, offset, in_pin, mux_pin);
     pio_sm_set_enabled(pio, sm, true);
 }
