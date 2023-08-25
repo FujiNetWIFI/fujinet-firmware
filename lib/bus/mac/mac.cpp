@@ -112,6 +112,7 @@ void macBus::service(void)
   {
     theFuji.get_disks(0)->disk_dev.update_track_buffers();
     track_not_copied = false;
+    fnUartBUS.write('S');
   }
 }
 

@@ -63,23 +63,23 @@ void setup_esp_uart()
 
 /**
  * 800 KB GCR Drive
-CA2	    CA1	    CA0	    SEL	    RD Output       PIO
-Low	    Low	    Low	    Low	    !DIRTN          latch
-Low	    Low	    Low	    High	!CSTIN          latch
-Low	    Low	    High	Low	    !STEP           latch
-Low	    Low	    High	High	!WRPROT         latch
-Low	    High	Low	    Low	    !MOTORON        latch
-Low	    High    Low     High    !TK0            latch
-Low	    High	High	Low	    SWITCHED        latch
-Low	    High	High	High	!TACH           tach
-High	Low	    Low	    Low	    RDDATA0         echo
-High	Low	    Low	    High	RDDATA1         echo
-High	Low	    High	Low	    SUPERDRIVE      latch
-High	Low	    High	High	+               latch
-High	High	Low	    Low	    SIDES           latch
-High	High	Low	    High	!READY          latch
-High	High	High	Low	    !DRVIN          latch
-High	High	High	High	REVISED         latch
+CA2	    CA1	    CA0	    SEL	    RD Output       PIO             addr
+Low	    Low	    Low	    Low	    !DIRTN          latch           0
+Low	    Low	    Low	    High	!CSTIN          latch           1
+Low	    Low	    High	Low	    !STEP           latch           2
+Low	    Low	    High	High	!WRPROT         latch           3
+Low	    High	Low	    Low	    !MOTORON        latch           4
+Low	    High    Low     High    !TK0            latch           5
+Low	    High	High	Low	    SWITCHED        latch           6
+Low	    High	High	High	!TACH           tach            7
+High	Low	    Low	    Low	    RDDATA0         echo            8
+High	Low	    Low	    High	RDDATA1         echo            9
+High	Low	    High	Low	    SUPERDRIVE      latch           a
+High	Low	    High	High	+               latch           b
+High	High	Low	    Low	    SIDES           latch           c
+High	High	Low	    High	!READY          latch           d
+High	High	High	Low	    !DRVIN          latch           e
+High	High	High	High	REVISED         latch           f
 + TODO
 
 Signal Descriptions
@@ -127,7 +127,7 @@ enum latch_bits {
     REVISED         // REVISED      This status line is used to indicate that the interface definition of the connected external drive. When REVISED is a one, the drive Part No. will be 699-0326 or when REVISED is a zero, the drive Part No. will be 699-0285.
 };
 
-uint16_t latch;
+uint16_t latch = 0;
 
 uint16_t get_latch() { return latch; }
 
@@ -191,7 +191,6 @@ int main()
     setup();
     
     // latch setup
-    latch = 0;
     clr_latch(DIRTN);
     set_latch(STEP);
     set_latch(MOTORON);
@@ -202,7 +201,12 @@ int main()
     clr_latch(WRTPRT);
     set_latch(TKO);
     set_latch(READY);
-    set_latch(REVISED);
+    set_latch(REVISED);   // my mac plus revised looks set
+    // 11xx x101 00xx 0110
+
+    pio_sm_put_blocking(pio, SM_LATCH, get_latch()); // send the register word to the PIO  
+
+    bool step_state = false;
 
     while (true)
     {
@@ -236,6 +240,7 @@ int main()
                 // step the head
                 clr_latch(STEP);
                 set_latch(READY);
+                step_state = true;
                 break;
             case 2:
                 // !MOTORON
@@ -243,7 +248,7 @@ int main()
                 // When !ENBL is high, /MOTORON is set to high.
                 // turn motor on
                 clr_latch(MOTORON);
-                set_latch(READY);
+                set_latch(READY);     
                 break;
             case 6:
                 // turn motor off
@@ -256,8 +261,8 @@ int main()
                 // EJECT is set to low at rising edge of !CSTIN or 2 sec maximum after rising edge of EJECT. 
                 // When power is turned on, EJECT is set to low.
                 // eject
-                set_latch(EJECT);
-                set_latch(READY);
+                // set_latch(EJECT); // to do - need to clr eject when a disk is inserted - so cheat for now
+                // set_latch(READY);
                 break;
             default:
                 printf("\nUNKNOWN PHASE COMMAND");
@@ -270,8 +275,11 @@ int main()
         // !STEP
         // At the falling edge of this signal the destination track counter is counted up or down depending on the !DIRTN level. 
         // After the destination counter in the drive received the falling edge of !STEP, the drive sets !STEP to high.
-        if (latch_val(STEP))
+        if (step_state)
+        {
             set_latch(STEP);
+            step_state = false;
+        }
 
         if (uart_is_readable(uart1))
         {
@@ -285,10 +293,9 @@ int main()
             // to do: figure out when to clear !READY
             if (c & 128)
             {
-                if (c==0)
+                if (c==128)
                     clr_latch(TKO); // at track zero
                 set_tach_freq(c & 127);
-                clr_latch(READY);
             }
             else
                 switch (c)
@@ -305,6 +312,9 @@ int main()
                     clr_latch(CSTIN);
                     clr_latch(WRTPRT); // everythign is write protected for now
                     break;
+                case 'S': // step complete (data copied to RMT buffer on ESP32)
+                case 'M': // motor on
+                    clr_latch(READY); // hack - really should not set READY low until the 3 criteria are met
                 default:
                     break;
                 }
