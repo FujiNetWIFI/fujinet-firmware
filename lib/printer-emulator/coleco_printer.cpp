@@ -42,13 +42,7 @@ void colecoprinter::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
                 fputc('\\', _file);
             fputc(c, _file);
 
-            if (backwards == true)
-            {
-                fprintf(_file, ")%d(", (int)(1200.));
-                pdf_X -= charWidth*2; // update x position
-            }
-            else
-                pdf_X += charWidth; // update x position
+            pdf_X += charWidth; // update x position
         } else
         {
             Debug_printf("ignore %02x\r\n", c);
