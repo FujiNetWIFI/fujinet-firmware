@@ -1,7 +1,8 @@
 ;
-; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+; FujiNet Project
 ;
-; SPDX-License-Identifier: BSD-3-Clause
+; Vintage Macintosh Microfloppy Controller Interface
+; sends the phases to the PICO when the strobe sets
 ;
 
 .define LSTRB 12
