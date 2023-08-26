@@ -131,7 +131,6 @@ string FNJSON::processString(string in)
                     in.replace(in.find(mapFrom[elementIndex]), string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
         }
 
-        Debug_printf("S: [Mapping->ATARI] %s\r\n", ss.str().c_str());
     }
 #endif
 
