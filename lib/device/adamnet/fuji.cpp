@@ -526,28 +526,28 @@ void adamFuji::image_rotate()
 {
     Debug_println("Fuji cmd: IMAGE ROTATE");
 
-    int count = 0;
-    // Find the first empty slot
-    while (_fnDisks[count].fileh != nullptr)
-        count++;
+    // int count = 0;
+    // // Find the first empty slot
+    // while (_fnDisks[count].fileh != nullptr)
+    //     count++;
 
-    if (count > 1)
-    {
-        count--;
+    // if (count > 1)
+    // {
+    //     count--;
 
-        // Save the device ID of the disk in the last slot
-        int last_id = _fnDisks[count].disk_dev.id();
+    //     // Save the device ID of the disk in the last slot
+    //     int last_id = _fnDisks[count].disk_dev.id();
 
-        for (int n = count; n > 0; n--)
-        {
-            int swap = _fnDisks[n - 1].disk_dev.id();
-            Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            _adamnet_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
-        }
+    //     for (int n = count; n > 0; n--)
+    //     {
+    //         int swap = _fnDisks[n - 1].disk_dev.id();
+    //         Debug_printf("setting slot %d to ID %hx\n", n, swap);
+    //         _adamnet_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
+    //     }
 
-        // The first slot gets the device ID of the last slot
-        _adamnet_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
-    }
+    //     // The first slot gets the device ID of the last slot
+    //     _adamnet_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+    // }
 }
 
 // This gets called when we're about to shutdown/reboot
