@@ -317,6 +317,9 @@ void systemBus::setup()
 
     // Set up interrupt for RESET line
     reset_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    // Set up event queue
+    qAdamNetMessages = xQueueCreate(4, sizeof(adamnet_message_t));
+
     // Start card detect task
     xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, this, 10, NULL);
     // Enable interrupt for card detection
