@@ -10,6 +10,16 @@
 
 #include <map>
 
+enum adamnet_message : uint16_t
+{
+    SIOMSG_DISKSWAP  // Rotate disk
+};
+
+struct adamnet_message_t
+{
+    adamnet_message message_id;
+    uint16_t message_arg;
+};
 
 #define ADAMNET_BAUDRATE 62500
 
