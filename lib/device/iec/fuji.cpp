@@ -8,6 +8,7 @@
 #include <cstring>
 #include <sstream>
 #include "string_utils.h"
+#include "../../../include/petscii.h"
 
 #include "../../../include/debug.h"
 
@@ -98,20 +99,20 @@ void iecFuji::net_scan_networks()
 // Return scanned network entry
 void iecFuji::net_scan_result()
 {
-    std::vector<std::string> t = util_tokenize(payload, ',');
+    
 
-    // t[0] = SCANRESULT
-    // t[1] = scan result # (0-numresults)
+    // pt[0] = SCANRESULT
+    // pt[1] = scan result # (0-numresults)
     struct
     {
         char ssid[33];
         uint8_t rssi;
     } detail;
 
-    if (t.size() > 1)
+    if (pt.size() > 1)
     {
-        util_remove_spaces(t[1]);
-        int i = atoi(t[1].c_str());
+        util_remove_spaces(pt[1]);
+        int i = atoi(pt[1].c_str());
         fnWiFi.get_scan_result(i, detail.ssid, &detail.rssi);
         Debug_printf("SSID: %s RSSI: %u\r\n", detail.ssid, detail.rssi);
     }
@@ -186,18 +187,17 @@ void iecFuji::net_set_ssid()
     }
     else // easy BASIC form
     {
-        std::string s = payload.substr(8, std::string::npos);
-        std::vector<std::string> t = util_tokenize(s, ',');
+        
 
-        if (t.size() == 2)
+        if (pt.size() == 3)
         {
-            if ( mstr::isNumeric( t[0] ) ) {
+            if ( mstr::isNumeric( pt[1] ) ) {
                 // Find SSID by CRC8 Number
-                t[0] = fnWiFi.get_network_name_by_crc8( std::stoi(t[0]) );
+                pt[1] = fnWiFi.get_network_name_by_crc8( std::stoi(pt[1]) );
             }
 
-            strncpy(cfg.ssid, t[0].c_str(), 33);
-            strncpy(cfg.password, t[1].c_str(), 64);
+            strncpy(cfg.ssid, pt[1].c_str(), 33);
+            strncpy(cfg.password, pt[2].c_str(), 64);
         }
     }
 
@@ -257,14 +257,14 @@ void iecFuji::unmount_host()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
-        if (t.size() < 2) // send error.
+        
+        if (pt.size() < 2) // send error.
         {
             response = "invalid # of parameters";
             return;
         }
 
-        hs = atoi(t[1].c_str());
+        hs = atoi(pt[1].c_str());
     }
 
     if (!_validate_device_slot(hs, "unmount_host"))
@@ -294,15 +294,15 @@ void iecFuji::mount_host()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ',');
+        
 
-        if (t.size() < 2) // send error.
+        if (pt.size() < 2) // send error.
         {
             response = "INVALID # OF PARAMETERS.";
             return;
         }
 
-        hs = atoi(t[1].c_str());
+        hs = atoi(pt[1].c_str());
     }
 
     if (!_validate_device_slot(hs, "mount_host"))
@@ -330,15 +330,15 @@ void iecFuji::mount_host()
 void iecFuji::disk_image_mount()
 {
     _populate_slots_from_config();
-    std::vector<std::string> t = util_tokenize(payload, ',');
-    if (t.size() < 3)
+    
+    if (pt.size() < 3)
     {
         response = "invalid # of parameters";
         return;
     }
 
-    uint8_t ds = atoi(t[1].c_str());
-    uint8_t mode = atoi(t[2].c_str());
+    uint8_t ds = atoi(pt[1].c_str());
+    uint8_t mode = atoi(pt[2].c_str());
 
     char flag[3] = {'r', 0, 0};
 
@@ -389,16 +389,16 @@ void iecFuji::set_boot_config()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        
 
-        if (t.size() < 2)
+        if (pt.size() < 2)
         {
             Debug_printf("Invalid # of parameters.\r\n");
             response = "invalid # of parameters";
             return;
         }
 
-        boot_config = atoi(t[1].c_str());
+        boot_config = atoi(pt[1].c_str());
     }
     response = "ok";
 }
@@ -484,9 +484,9 @@ void iecFuji::set_boot_mode()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ',');
+        
 
-        if (t.size() < 2)
+        if (pt.size() < 2)
         {
             Debug_printf("Invalid # of parameters.\r\n");
             // send error
@@ -495,7 +495,7 @@ void iecFuji::set_boot_mode()
         }
 
         boot_config = true;
-        insert_boot_device(atoi(t[1].c_str()));
+        insert_boot_device(atoi(pt[1].c_str()));
     }
     response = "ok";
 }
@@ -524,23 +524,23 @@ void iecFuji::open_app_key()
         memcpy(&_current_appkey, &payload.c_str()[1], sizeof(_current_appkey));
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ',');
+        
         unsigned int val;
 
-        if (t.size() < 5)
+        if (pt.size() < 5)
         {
             Debug_printf("Incorrect number of parameters.\r\n");
             response = "invalid # of parameters";
             // send error.
         }
 
-        sscanf(t[1].c_str(), "%x", &val);
+        sscanf(pt[1].c_str(), "%x", &val);
         _current_appkey.creator = (uint16_t)val;
-        sscanf(t[2].c_str(), "%x", &val);
+        sscanf(pt[2].c_str(), "%x", &val);
         _current_appkey.app = (uint8_t)val;
-        sscanf(t[3].c_str(), "%x", &val);
+        sscanf(pt[3].c_str(), "%x", &val);
         _current_appkey.key = (uint8_t)val;
-        sscanf(t[4].c_str(), "%x", &val);
+        sscanf(pt[4].c_str(), "%x", &val);
         _current_appkey.mode = (appkey_mode)val;
         _current_appkey.reserved = 0;
     }
@@ -590,20 +590,29 @@ void iecFuji::write_app_key()
 {
     uint16_t keylen = -1;
     char value[MAX_APPKEY_LEN];
+    std::vector<std::string> ptRaw;
 
+    // Binary mode comes through as-is (PETSCII)
     if (payload[0] == FUJICMD_WRITE_APPKEY)
     {
         keylen = payload[1] & 0xFF;
-        keylen |= payload[2] << 8;
+        keylen |= payload[2] << 8; 
         strncpy(value, &payload.c_str()[3], MAX_APPKEY_LEN);
     }
     else
-    {
-        std::vector<std::string> t = util_tokenize(payload, ':');
-        if (t.size() > 3)
+    {   
+        if (pt.size() > 2)
         {
-            keylen = atoi(t[1].c_str());
-            strncpy(value, t[2].c_str(), MAX_APPKEY_LEN);
+            // Tokenize the raw PETSCII payload to save to the file
+            ptRaw = tokenize_basic_command(payloadRaw);
+
+            keylen = atoi(pt[1].c_str());
+            
+            // Bounds check
+            if (keylen > MAX_APPKEY_LEN)
+                keylen = MAX_APPKEY_LEN;
+
+            strncpy(value, ptRaw[2].c_str(), keylen);
         }
         else
         {
@@ -723,17 +732,8 @@ void iecFuji::read_app_key()
 
     _r.size = count;
 
-    if (payload[0] == FUJICMD_READ_APPKEY)
-        response = std::string((char *)&_r, MAX_APPKEY_LEN);
-    else
-    {
-        char reply[128];
-        memset(reply, 0, sizeof(reply));
-        snprintf(reply, sizeof(reply), "\"%04x\",\"%s\"", _r.size, _r.value);
-        response = std::string(reply);
-    }
-
-    response = "ok\r";
+    // Bytes were written raw (PETSCII) so no need to map before sending back
+    response = std::string((char *)&_r, MAX_APPKEY_LEN);
 }
 
 // Disk Image Unmount
@@ -747,8 +747,8 @@ void iecFuji::disk_image_umount()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
-        deviceSlot = atoi(t[1].c_str());
+        
+        deviceSlot = atoi(pt[1].c_str());
     }
 
     Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
@@ -789,17 +789,17 @@ void iecFuji::open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    std::vector<std::string> t = util_tokenize(payload, ',');
+    
 
-    if (t.size() < 3)
+    if (pt.size() < 3)
     {
         response = "invalid # of parameters.";
         return; // send error
     }
 
     char dirpath[256];
-    uint8_t hostSlot = atoi(t[1].c_str());
-    strncpy(dirpath, t[2].c_str(), sizeof(dirpath));
+    uint8_t hostSlot = atoi(pt[1].c_str());
+    strncpy(dirpath, pt[2].c_str(), sizeof(dirpath));
 
     if (!_validate_host_slot(hostSlot))
     {
@@ -890,17 +890,17 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
 void iecFuji::read_directory_entry()
 {
-    std::vector<std::string> t = util_tokenize(payload, ',');
+    
 
-    if (t.size() < 2)
+    if (pt.size() < 2)
     {
         // send error
         response = "invalid # of parameters";
         return;
     }
 
-    uint8_t maxlen = atoi(t[1].c_str());
-    uint8_t addtlopts = atoi(t[2].c_str());
+    uint8_t maxlen = atoi(pt[1].c_str());
+    uint8_t addtlopts = atoi(pt[2].c_str());
 
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
@@ -1016,15 +1016,15 @@ void iecFuji::set_directory_position()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
-        if (t.size() < 2)
+        
+        if (pt.size() < 2)
         {
             Debug_println("Invalid directory position");
             response = "error: invalid directory position\r";
             return;
         }
 
-        pos = atoi(t[1].c_str());
+        pos = atoi(pt[1].c_str());
     }
 
     // Make sure we have a current open directory
@@ -1116,17 +1116,17 @@ void iecFuji::read_host_slots()
         response = std::string((const char *)hostSlots, 256);
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ',');
+        
 
-        if (t.size() < 2)
+        if (pt.size() < 2)
         {
             response = "host slot # required";
             return;
         }
 
-        util_remove_spaces(t[1]);
+        util_remove_spaces(pt[1]);
 
-        int selected_hs = atoi(t[1].c_str());
+        int selected_hs = atoi(pt[1].c_str());
         std::string hn = std::string(hostSlots[selected_hs]);
 
         if (hn.empty())
@@ -1170,15 +1170,15 @@ void iecFuji::write_host_slots()
     else
     {
         // PUTHOST,<slot>,<hostname>
-        std::vector<std::string> t = util_tokenize(payload, ',');
+        
 
-        if (t.size() < 2)
+        if (pt.size() < 2)
         {
             response = "no host slot #";
             return;
         }
         else
-            hostSlot = atoi(t[1].c_str());
+            hostSlot = atoi(pt[1].c_str());
 
         if (!_validate_host_slot(hostSlot))
         {
@@ -1187,9 +1187,9 @@ void iecFuji::write_host_slots()
             return;
         }
 
-        if (t.size() == 3)
+        if (pt.size() == 3)
         {
-            hostname = t[2];
+            hostname = pt[2];
         }
         else
         {
@@ -1261,17 +1261,17 @@ void iecFuji::read_device_slots()
         status_override = std::string((const char *)&diskSlots, returnsize);
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ',');
+        
 
-        if (t.size() < 2)
+        if (pt.size() < 2)
         {
             response = "host slot required";
             return;
         }
 
-        util_remove_spaces(t[1]);
+        util_remove_spaces(pt[1]);
 
-        int selected_ds = atoi(t[1].c_str());
+        int selected_ds = atoi(pt[1].c_str());
 
         response = diskSlots[selected_ds].filename;
     }
@@ -1304,33 +1304,33 @@ void iecFuji::write_device_slots()
     else
     {
         // from BASIC
-        std::vector<std::string> t = util_tokenize(payload, ',');
+        
 
-        if (t.size() < 4)
+        if (pt.size() < 4)
         {
             response = "need file mode";
             return;
         }
-        else if (t.size() < 3)
+        else if (pt.size() < 3)
         {
             response = "need filename";
             return;
         }
-        else if (t.size() < 2)
+        else if (pt.size() < 2)
         {
             response = "need host slot";
             return;
         }
-        else if (t.size() < 1)
+        else if (pt.size() < 1)
         {
             response = "need device slot";
             return;
         }
 
-        unsigned char ds = atoi(t[1].c_str());
-        unsigned char hs = atoi(t[2].c_str());
-        string filename = t[3];
-        unsigned char m = atoi(t[4].c_str());
+        unsigned char ds = atoi(pt[1].c_str());
+        unsigned char hs = atoi(pt[2].c_str());
+        string filename = pt[3];
+        unsigned char m = atoi(pt[4].c_str());
 
         _fnDisks[ds].reset(filename.c_str(),hs,m);
         strncpy(_fnDisks[ds].filename,filename.c_str(),256);
@@ -1420,8 +1420,8 @@ void iecFuji::set_device_filename()
     }
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ',');
-        if (t.size() < 4)
+        
+        if (pt.size() < 4)
         {
             Debug_printf("not enough parameters.\n");
             response = "error: invalid # of parameters";
@@ -1461,9 +1461,9 @@ void iecFuji::get_device_filename()
         ds = payload[1];
     else
     {
-        std::vector<std::string> t = util_tokenize(payload, ':');
+        
 
-        if (t.size() < 2)
+        if (pt.size() < 2)
         {
             Debug_printf("Incorrect # of parameters.\n");
             response = "invalid # of parameters";
@@ -1471,7 +1471,7 @@ void iecFuji::get_device_filename()
             return;
         }
 
-        ds = atoi(t[1].c_str());
+        ds = atoi(pt[1].c_str());
     }
 
     if (!_validate_device_slot(ds, "get_device_filename"))
@@ -1525,12 +1525,28 @@ device_state_t iecFuji::process()
 
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
-        for (int i=0;i<response.size();i++)
-        {
-            Debug_printf("%02X ",response[i]);
+        #ifdef DEBUG
+        if (response.size()>0) 
+        {  
+            Debug_printf("Sending: ");
+
+            // Hex
+            for (int i=0;i<response.size();i++)
+            {
+                Debug_printf("%02X ",response[i]);
+            }
+
+            Debug_printf("  ");
+            // ASCII Text representation
+            for (int i=0;i<response.size();i++)
+            {
+                char c = petscii2ascii(response[i]);
+                Debug_printf("%c", c<0x20 || c>0x7f ? '.' : c);
+            }
         }
         
         Debug_printf("\n");
+        #endif
 
         while (!IEC.sendBytes(response))
             ;
@@ -1564,8 +1580,11 @@ void iecFuji::local_ip()
 
 void iecFuji::process_basic_commands()
 {
+    // Store raw payload before mapping to ASCII, in case it is needed (e.g. storing unmodified appkey data)
+    payloadRaw = payload;
+
     mstr::toASCII(payload);
-    pt = util_tokenize(payload, ',');
+    pt = tokenize_basic_command(payload);
 
     if (payload.find("adapterconfig") != std::string::npos)
         get_adapter_config();
@@ -1629,6 +1648,32 @@ void iecFuji::process_basic_commands()
 
 void iecFuji::process_raw_commands()
 {
+    #ifdef DEBUG
+    if (response.size()>0) 
+    {  
+        int size=payload.size();
+        Debug_printf("Received RAW Command: (%i bytes) ", size);
+        
+        if (size>256)
+            size=256;
+
+        // Hex
+        for (int i=0;i<size;i++)
+        {
+            Debug_printf("%02X ",payload[i]);
+        }
+
+        Debug_printf("  ");
+        // ASCII Text representation
+        for (int i=0;i<size;i++)
+        {
+            char c = petscii2ascii(payload[i]);
+            Debug_printf("%c", c<0x20 || c>0x7f ? '.' : c);
+        }
+        Debug_printf("\n");
+    }
+    #endif
+    
     switch (payload[0])
     {
     case FUJICMD_RESET:
@@ -1732,6 +1777,26 @@ int iecFuji::get_disk_id(int drive_slot)
 std::string iecFuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
+}
+
+/* @brief Tokenizes the payload command and parameters.
+ Example: "COMMAND:Param1,Param2" will return a vector of [0]="COMMAND", [1]="Param1",[2]="Param2"
+ Also supports "COMMAND,Param1,Param2"
+*/
+vector<string> iecFuji::tokenize_basic_command(string command)
+{
+    Debug_printf("Tokenizing basic command: %s\n", command.c_str());
+
+    // Replace the first ":" with "," for easy tokenization. 
+    // Assume it is fine to change the payload at this point.
+    // Technically, "COMMAND,Param1,Param2" will work the smae, if ":" is not in a param value
+    size_t endOfCommand = command.find(':');
+    if (endOfCommand != std::string::npos)
+        command.replace(endOfCommand,1,",");
+    
+    vector<string> result =  util_tokenize(command, ',');
+    return result;
+
 }
 
 #endif /* BUILD_IEC */
