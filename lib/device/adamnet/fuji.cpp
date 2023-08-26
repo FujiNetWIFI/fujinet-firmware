@@ -284,6 +284,9 @@ void adamFuji::adamnet_disk_image_mount()
 
     adamnet_recv(); // CK
 
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+
     // TODO: Implement FETCH?
     char flag[3] = {'r', 0, 0};
     if (options == DISK_ACCESS_MODE_WRITE)
@@ -297,9 +300,6 @@ void adamFuji::adamnet_disk_image_mount()
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
     disk.disk_dev.host = &host;
-
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
 
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
