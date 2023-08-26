@@ -200,7 +200,7 @@ string FNJSON::getValue(cJSON *item)
                 mstr::toPETSCII(tempStr);
                 ss << tempStr;
             #else
-                ss << item->string
+                ss << item->string;
             #endif
 
             ss << lineEnding + getValue(item);
