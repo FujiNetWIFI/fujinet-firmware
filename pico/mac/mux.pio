@@ -1,56 +1,48 @@
 ;
-; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+; FujiNet Project
 ;
-; SPDX-License-Identifier: BSD-3-Clause
+; Vintage Macintosh Microfloppy Controller Interface
+; selects output pins between RMT, TACH and LATCH
+;
 ;
 
-; SET pin 0 should be mapped to your LED GPIO
-
-
-; TODO: 
-; side set the pin directions so can tie all 3 pin outputs together
-; make another PIO to simply buffer the RDDATA signals from the ESP32
 .program mux
-.side_set 3 optional            
+.side_set 3 opt pindirs           
 start:
+    jmp pin next4
     mov osr, pins               ; get the input phases
     out x, 4                    ; copy to X
     set y, 0b0100               ; RDDATA (head 0) 
     jmp x!=y next1
-    jmp start       side 0b001
+    jmp start       side 0b010
 next1:
     set y, 0b1100               ; RDDATA (head 1) 
     jmp x!=y next2
-    jmp start       side 0b001
+    jmp start       side 0b010
 next2:
     set y, 0b1011               ; TACH 
     jmp x!=y next3
-    jmp start       side 0b010
-next3:
+    jmp start       side 0b001
+next3:                          ; LATCH
     jmp start       side 0b100
-
+next4:
+    jmp start       side 0b000  ; enable high (not enabled)
 
 % c-sdk {
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
 
-void mux_program_init(PIO pio, uint sm, uint offset, uint pin) {
+void mux_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin) {
    // configure a SM
    pio_sm_config c = mux_program_get_default_config(offset);
    // config side set
-   sm_config_set_sideset_pins(&c, pin);
-   // set the out pin to pin
-   //sm_config_set_out_pins(&c, pin, 3);
-   // start at GPIO2 to read in the mux
-   sm_config_set_in_pins(&c, 2); // start at GPIO 2 for the mux
+   sm_config_set_sideset_pins(&c, mux_pin);
+   sm_config_set_in_pins(&c, in_pin); 
+   sm_config_set_jmp_pin(&c, in_pin-1);
    // there are 4 wires to read for latch mux, shift to the right, no autopull
-   // sm_config_set_in_shift(&c, true, false, 4);
    sm_config_set_out_shift(&c, true, false, 4);
-   // set pin as a GPIO output connected to this SM
-   pio_gpio_init(pio, pin+0);
-   pio_gpio_init(pio, pin+1);
-   pio_gpio_init(pio, pin+2);
-   pio_sm_set_consecutive_pindirs(pio, sm, pin, 3, true);
-   //sm_config_set_set_pins(&c, pin, 1);
+   for (int i=0; i<3; i++)
+      pio_gpio_init(pio, mux_pin + i);
+   pio_sm_set_consecutive_pindirs(pio, sm, mux_pin, 3, false);
    // initialize
    pio_sm_init(pio, sm, offset, &c);
 }
