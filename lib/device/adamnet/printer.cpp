@@ -36,18 +36,17 @@ void printerTask(void *param)
 {
     adamPrinter *p = (adamPrinter *)param;
 
-    while(1)
+    while (1)
     {
         if (need_print == true)
         {
-            fnLedManager.set(LED_BT,true);
+            fnLedManager.set(LED_BT, true);
             p->perform_print();
-            fnLedManager.set(LED_BT,false);
-            need_print=false;
+            fnLedManager.set(LED_BT, false);
+            need_print = false;
         }
 
-    vTaskDelay(1);
-
+        vTaskDelay(1);
     }
 }
 
@@ -57,9 +56,9 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
     _storage = filesystem;
     set_printer_type(print_type);
 
-    getPrinterPtr()->setEOLBypass(true);
-    getPrinterPtr()->setTranslate850(false);
-    getPrinterPtr()->setEOL(0x0D);
+    // getPrinterPtr()->setEOLBypass(true);
+    // getPrinterPtr()->setTranslate850(false);
+    // getPrinterPtr()->setEOL(0x0D);
 
     xTaskCreate(printerTask, "ptsk", 4096, this, PRINTER_PRIORITY, &thPrinter);
 }
@@ -96,13 +95,13 @@ void adamPrinter::adamnet_control_status()
 
 void adamPrinter::perform_print()
 {
-    memcpy(_pptr->provideBuffer(),pi.buf,pi.len);
-    _pptr->process(pi.len,0,0);
+    memcpy(_pptr->provideBuffer(), pi.buf, pi.len);
+    _pptr->process(pi.len, 0, 0);
 }
 
 void adamPrinter::adamnet_control_send()
 {
-    memset(&pi,0,sizeof(pi));
+    memset(&pi, 0, sizeof(pi));
     pi.len = adamnet_recv_length();
     adamnet_recv_buffer(pi.buf, pi.len);
     adamnet_recv(); // ck
@@ -110,7 +109,7 @@ void adamPrinter::adamnet_control_send()
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    need_print=true;
+    need_print = true;
 
     _last_ms = fnSystem.millis();
 }
@@ -119,7 +118,7 @@ void adamPrinter::adamnet_control_ready()
 {
     AdamNet.start_time = esp_timer_get_time();
 
-    if (need_print==true)
+    if (need_print == true)
         adamnet_response_nack();
     else
         adamnet_response_ack();
