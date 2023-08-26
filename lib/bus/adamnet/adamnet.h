@@ -12,7 +12,7 @@
 
 enum adamnet_message : uint16_t
 {
-    SIOMSG_DISKSWAP  // Rotate disk
+    ADAMNETMSG_DISKSWAP  // Rotate disk
 };
 
 struct adamnet_message_t

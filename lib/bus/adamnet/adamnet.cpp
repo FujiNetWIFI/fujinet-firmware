@@ -10,6 +10,7 @@
 #include "fnSystem.h"
 #include "led.h"
 #include <cstring>
+#include "fuji.h"
 
 #define IDLE_TIME 180 // Idle tolerance in microseconds
 
@@ -287,13 +288,24 @@ void systemBus::_adamnet_process_cmd()
 
 void systemBus::_adamnet_process_queue()
 {
+    adamnet_message_t msg;
+    if (xQueueReceive(qAdamNetMessages, &msg, 0) == pdTRUE)
+    {
+        switch (msg.message_id)
+        {
+        case ADAMNETMSG_DISKSWAP:
+            if (_fujiDev != nullptr)
+                _fujiDev->image_rotate();
+            break;
+        }
+    }
 }
 
 void systemBus::service()
 {
     // process queue messages (disk swap)
     _adamnet_process_queue();
-    
+
     // Process anything waiting.
     if (fnUartBUS.available() > 0)
         _adamnet_process_cmd();
