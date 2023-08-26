@@ -1,14 +1,17 @@
 ;
-; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+; FujiNet Project
 ;
-; SPDX-License-Identifier: BSD-3-Clause
+; Vintage Macintosh Microfloppy Controller Interface
+; sends the phases to the PICO when the strobe sets
 ;
 
 .define LSTRB 12
+.define ENABLE 7
 
 .program commands
 start:
 .wrap_target
+    wait 0 gpio ENABLE
     wait 1 gpio LSTRB   ; latch strobe
     in pins, 4          ; get the phases
     wait 0 gpio LSTRB   ; wait for the strobe to deassert

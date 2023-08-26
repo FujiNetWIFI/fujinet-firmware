@@ -32,6 +32,16 @@ mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *fil
     old_pos = 2; // makde different to force change_track buffer copy
     change_track(0); // initialize rmt buffer
     change_track(1); // initialize rmt buffer
+    switch (_disk->num_sides)
+    {
+    case 1:
+      fnUartBUS.write('s');
+      break;
+    case 2:
+      fnUartBUS.write('d');
+    default:
+      break;
+    }
     break;
   // case MEDIATYPE_DSK:
   //   Debug_printf("\nMounting Media Type DSK");
@@ -55,6 +65,53 @@ mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *fil
 //   old_pos = 0;
 //   device_active = false;
 // }
+
+/* MCI/DCD signals
+
+ * 800 KB GCR Drive
+CA2	    CA1	    CA0	    SEL	    RD Output       PIO
+Low	    Low	    Low	    Low	    !DIRTN          latch
+Low	    Low	    Low	    High	  !CSTIN          latch
+Low	    Low	    High	  Low	    !STEP           latch
+Low	    Low	    High	  High	  !WRPROT         latch
+Low	    High	  Low	    Low	    !MOTORON        latch
+Low	    High    Low     High    !TK0            latch
+Low	    High	  High	  Low	    SWITCHED        latch
+Low	    High	  High	  High	  !TACH           tach
+High	  Low	    Low	    Low	    RDDATA0         echo
+High	  Low	    Low	    High	  RDDATA1         echo
+High	  Low	    High	  Low	    SUPERDRIVE      latch
+High	  Low	    High	  High	  +               latch
+High	  High	  Low	    Low	    SIDES           latch
+High	  High	  Low	    High	  !READY          latch
+High	  High	  High	  Low	    !DRVIN          latch
+High	  High	  High	  High	  REVISED         latch
++ TODO
+
+Signal Descriptions
+Signal Name 	Description
+!DIRTN	      Step direction; low=toward center (+), high=toward rim (-)
+!CSTIN	      Low when disk is present
+!STEP	        Low when track step has been requested
+!WRPROT	      Low when disk is write protected or not inserted
+!MOTORON	    Low when drive motor is on
+!TK0	        Low when head is over track 0 (outermost track)
+SWITCHED	    High when disk has been changed since signal was last cleared
+!TACH	        Tachometer; frequency reflects drive speed in RPM
+INDEX	        Pulses high for ~2 ms once per rotation
+RDDATA0	      Signal from bottom head; falling edge indicates flux transition
+RDDATA1	      Signal from top head; falling edge indicates flux transition
+SUPERDRIVE	  High when a Superdrive (FDHD) is present
+MFMMODE	      High when drive is in MFM mode
+SIDES	        High when drive has a top head in addition to a bottom head
+!READY	      Low when motor is at proper speed and head is ready to step
+!DRVIN	      Low when drive is installed
+REVISED	      High for double-sided double-density drives, low for single-sided double-density drives
+PRESENT/!HD	  High when a double-density (not high-density) disk is present on a high-density drive
+DCDDATA	      Communication channel from DCD device to Macintosh
+!HSHK	        Low when DCD device is ready to receive or wishes to send
+
+*/
 
 void macFloppy::unmount()
 {

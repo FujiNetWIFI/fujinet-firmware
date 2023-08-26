@@ -13,14 +13,16 @@
 #include "commands.pio.h"
 #include "echo.pio.h"
 #include "latch.pio.h"
+#include "mux.pio.h"
 
 // #include "../../include/pinmap/mac_rev0.h"
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
+#define ENABLE 7
 #define MCI_CA0 8
-#define ECHO_IN 15
+#define ECHO_IN 21
 #define TACH_OUT 21
-#define ECHO_OUT 22
+#define ECHO_OUT 18
 #define LATCH_OUT 20
 
 #define SM_CMD 0
@@ -29,8 +31,9 @@
 #define SM_ECHO 3
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin);
-void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
+void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins);
 void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
+void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin);
 
 #define UART_ID uart1
 #define BAUD_RATE 1000000 //230400 //115200
@@ -48,36 +51,38 @@ const int tach_lut[5][3] = {{0, 15, 394},
 uint32_t a;
     char c;
     
+PIO pio = pio0;
 
-void setup_esp_uart() {
-  uart_init(UART_ID, BAUD_RATE);
+void setup_esp_uart()
+{
+    uart_init(UART_ID, BAUD_RATE);
 
-  gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-  gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
-  uart_set_hw_flow(UART_ID, false, false);
-  uart_set_format(UART_ID, DATA_BITS, STOP_BITS, PARITY);
-  uart_set_fifo_enabled(UART_ID, true);
+    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+    uart_set_hw_flow(UART_ID, false, false);
+    uart_set_format(UART_ID, DATA_BITS, STOP_BITS, PARITY);
+    uart_set_fifo_enabled(UART_ID, true);
 }
 
 /**
  * 800 KB GCR Drive
-CA2	    CA1	    CA0	    SEL	    RD Output
-Low	    Low	    Low	    Low	    !DIRTN
-Low	    Low	    Low	    High	!CSTIN
-Low	    Low	    High	Low	    !STEP
-Low	    Low	    High	High	!WRPROT
-Low	    High	Low	    Low	    !MOTORON
-Low	    High    Low     High    !TK0
-Low	    High	High	Low	    SWITCHED
-Low	    High	High	High	!TACH
-High	Low	    Low	    Low	    RDDATA0
-High	Low	    Low	    High	RDDATA1
-High	Low	    High	Low	    SUPERDRIVE
-High	Low	    High	High	+
-High	High	Low	    Low	    SIDES
-High	High	Low	    High	!READY
-High	High	High	Low	    !DRVIN
-High	High	High	High	REVISED
+CA2	    CA1	    CA0	    SEL	    RD Output       PIO             addr
+Low	    Low	    Low	    Low	    !DIRTN          latch           0
+Low	    Low	    Low	    High	!CSTIN          latch           1
+Low	    Low	    High	Low	    !STEP           latch           2
+Low	    Low	    High	High	!WRPROT         latch           3
+Low	    High	Low	    Low	    !MOTORON        latch           4
+Low	    High    Low     High    !TK0            latch           5
+Low	    High	High	Low	    SWITCHED        latch           6
+Low	    High	High	High	!TACH           tach            7
+High	Low	    Low	    Low	    RDDATA0         echo            8
+High	Low	    Low	    High	RDDATA1         echo            9
+High	Low	    High	Low	    SUPERDRIVE      latch           a
+High	Low	    High	High	+               latch           b
+High	High	Low	    Low	    SIDES           latch           c
+High	High	Low	    High	!READY          latch           d
+High	High	High	Low	    !DRVIN          latch           e
+High	High	High	High	REVISED         latch           f
 + TODO
 
 Signal Descriptions
@@ -105,6 +110,63 @@ DCDDATA	Communication channel from DCD device to Macintosh
 
 */
 
+// info from Apple Computer Drawing Number 699-0452-A
+enum latch_bits {
+    DIRTN = 0,      // 0 !DIRTN	     This signal sets the direction of head motion. A zero sets direction toward the center of the disk and a one sets direction towards outer edge. When IENBL is high IDIRTN is set to zero. Change of !DIRTN command is not allowed during head movement nor head settlying time.
+    STEP,           // 1 !STEP	     At the falling edge of this signal the destination track counter is counted up or down depending on the ID'IIRTN level. After the destination counter in the drive received the falling edge of !STEP, the drive sets !STEP to high.
+    MOTORON,        // 2 !MOTORON	 When this signal is set to low, the disk motor is turned on. When IENBL is high, /MOTORON is set to high.
+    EJECT,          // 3 EJECT       At the rising edge of the LSTRB, EJECT is set to high and the ejection operation starts. EJECT is set to low at rising edge of ICSTIN or 2 sec maximum after rising edge of EJECT. When power is turned on, EJECT is set to low.
+    DATA0,          // 4             read data - not from latch but comes from RMT device
+    na0101,         // 5             not assigned in latch
+    SINGLESIDE,     // 6 !SINGLESIDE A status bit which is read as one for double sided drive.
+    DRVIN,          // 7 !DRVIN      This status bit is read as a zero only if the selected drive is connected to the host computer.
+    CSTIN,          // 8 !CSTIN      This status bit is read as a zero only when a diskette is in the drive or when the mechanism for ejection and insertion is at the disk-in position without diskette.
+    WRTPRT,         // 9 !WRTPRT     This status bit is read as a zero only when a write protected diskette is in the drive or no diskette is inserted in the drive.
+    TKO,            // a !TKO        This status bit is read as a zero when a head is on track 00 or outer position of track 00. NOTE: rrKO is an output signal of a latch whose status is decided by the track 00 sensor only while the drive is not in power save mode.
+    TACH,           // b             tachometer - generated by the RP2040 clock device
+    DATA1,          // c             read data - not from latch but comes from RMT device
+    na1101,         // d             not assigned in latch
+    READY,          // e !READY      This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk. IREADY is a zero when the head position is settled on disired track, motor is at the desired speed, and a diskette is in the drive.
+    REVISED         // f REVISED     This status line is used to indicate that the interface definition of the connected external drive. When REVISED is a one, the drive Part No. will be 699-0326 or when REVISED is a zero, the drive Part No. will be 699-0285.
+};
+
+uint16_t latch = 0;
+
+uint16_t get_latch() { return latch; }
+
+uint16_t set_latch(enum latch_bits s)
+{
+  latch |= (1 << s);
+  return latch;
+};
+
+uint16_t clr_latch(enum latch_bits c)
+{
+    latch &= ~(1 << c);
+    return latch;
+};
+
+bool latch_val(enum latch_bits b)
+{
+    return (latch & (1 << b));
+}
+
+void preset_latch()
+{
+    clr_latch(DIRTN);
+    set_latch(STEP);
+    set_latch(MOTORON);
+    clr_latch(EJECT);
+    set_latch(SINGLESIDE);
+    clr_latch(DRVIN);
+    set_latch(CSTIN);
+    clr_latch(WRTPRT);
+    set_latch(TKO);
+    set_latch(READY);
+    set_latch(REVISED);   // my mac plus revised looks set
+}
+
+
 void set_tach_freq(char c)
 {
   // To configure a clock, we need to know the following pieces of information:
@@ -119,63 +181,195 @@ void set_tach_freq(char c)
   }
 }
 
-int main()
+void loop();
+void setup()
 {
-    // start TACH clock
+    
     stdio_init_all();
+    // gpio_pull_up(ENABLE);
 
-    set_tach_freq(0); 
+    set_tach_freq(0); // start TACH clock
     
     setup_default_uart();
     setup_esp_uart();
 
-    PIO pio = pio0;
+    preset_latch();
+
     uint offset = pio_add_program(pio, &commands_program);
     printf("\nLoaded cmd program at %d\n", offset);
     pio_commands(pio, SM_CMD, offset, MCI_CA0); // read phases starting on pin 8
+    
     offset = pio_add_program(pio, &echo_program);
     printf("Loaded echo program at %d\n", offset);
-    pio_echo(pio, SM_ECHO, offset, ECHO_IN, ECHO_OUT);
+    pio_echo(pio, SM_ECHO, offset, ECHO_IN, ECHO_OUT, 2);
+    
     offset = pio_add_program(pio, &latch_program);
     printf("Loaded latch program at %d\n", offset);
     pio_latch(pio, SM_LATCH, offset, MCI_CA0, LATCH_OUT);
     pio_sm_put_blocking(pio, SM_LATCH, 0xffff); // send the register word to the PIO        
-    // todo: add other PIO SM's here (mux)
+    
+    offset = pio_add_program(pio, &mux_program);
+    printf("Loaded mux program at %d\n", offset);
+    pio_mux(pio, SM_MUX, offset, MCI_CA0, ECHO_OUT);
+}
+
+
+int main()
+{
+    setup();
+    // latch setup
+
+    // 11xx x101 00xx 0110
+
+    pio_sm_put_blocking(pio, SM_LATCH, get_latch()); // send the register word to the PIO  
+
+ 
 
     while (true)
     {
-        if (!pio_sm_is_rx_fifo_empty(pio, SM_CMD))
-        {
-            a = pio_sm_get_blocking(pio, SM_CMD);
-            uart_putc_raw(UART_ID, (char)(a + '0'));
-        }
-        if (uart_is_readable(uart1))
-        {
-            c = uart_getc(UART_ID);
-            if (!(c & 128))
-                printf("%c", c);
-            else
-                set_tach_freq(c & 127);
-        }
-        // to do: get response from ESP32 and update latch values (like READY, TACH), push LATCH value to PIO
-        // to do: read both enable lines and indicate which drive is active when sending single char to esp32
-        // to do: do we need to make non-blocking so can update latch values? or are latch values only updated after commands?
+        loop();
     }
 }
+
+bool step_state = false;
+
+void loop()
+{
+    if (!pio_sm_is_rx_fifo_empty(pio, SM_CMD))
+    {
+    a = pio_sm_get_blocking(pio, SM_CMD);
+    switch (a)
+    {
+      // !READY
+      // This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk.
+      // !READY is a zero when
+      //      the head position is settled on disired track,
+      //      motor is at the desired speed,
+      //      and a diskette is in the drive.
+    case 0:
+      // !DIRTN
+      // This signal sets the direction of head motion.
+      // A zero sets direction toward the center of the disk and a one sets direction towards outer edge.
+      // When !ENBL is high !DIRTN is set to zero.
+      // Change of !DIRTN command is not allowed during head movement nor head settlying time.
+      // set direction to increase track number
+      clr_latch(DIRTN);
+      break;
+    case 4:
+      set_latch(DIRTN);
+      break;
+    case 1:
+      // !STEP
+      // At the falling edge of this signal the destination track counter is counted up or down depending on the !DIRTN level.
+      // After the destination counter in the drive received the falling edge of !STEP, the drive sets !STEP to high.
+      // step the head
+      clr_latch(STEP);
+      set_latch(READY);
+      step_state = true;
+      break;
+    case 2:
+      // !MOTORON
+      // When this signal is set to low, the disk motor is turned on.
+      // When !ENBL is high, /MOTORON is set to high.
+      // turn motor on
+      clr_latch(MOTORON);
+      set_latch(READY);
+      break;
+    case 6:
+      // turn motor off
+      set_latch(MOTORON);
+      set_latch(READY);
+      break;
+    case 7:
+      // EJECT
+      // At the rising edge of the LSTRB, EJECT is set to high and the ejection operation starts.
+      // EJECT is set to low at rising edge of !CSTIN or 2 sec maximum after rising edge of EJECT.
+      // When power is turned on, EJECT is set to low.
+      // eject
+      // set_latch(EJECT); // to do - need to clr eject when a disk is inserted - so cheat for now
+      // set_latch(READY);
+      break;
+    default:
+      printf("\nUNKNOWN PHASE COMMAND");
+      break;
+    }
+    pio_sm_put_blocking(pio, SM_LATCH, get_latch()); // send the register word to the PIO
+    uart_putc_raw(UART_ID, (char)(a + '0'));
+    }
+
+    // !STEP
+    // At the falling edge of this signal the destination track counter is counted up or down depending on the !DIRTN level.
+    // After the destination counter in the drive received the falling edge of !STEP, the drive sets !STEP to high.
+    if (step_state)
+    {
+      set_latch(STEP);
+      step_state = false;
+    }
+
+    if (uart_is_readable(uart1))
+    {
+    // !READY
+    // This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk.
+    // !READY is a zero when
+    //      the head position is settled on disired track,
+    //      motor is at the desired speed,
+    //      and a diskette is in the drive.
+    c = uart_getc(UART_ID);
+    // to do: figure out when to clear !READY
+    if (c & 128)
+    {
+      if (c == 128)
+          clr_latch(TKO); // at track zero
+      // set_tach_freq(c & 127);
+    }
+    else
+      switch (c)
+      {
+      case 's':
+          // single sided disk is in the slot
+          set_latch(SINGLESIDE);
+          clr_latch(CSTIN);
+          clr_latch(WRTPRT); // everythign is write protected for now
+          break;
+      case 'd':
+          // double sided disk
+          clr_latch(SINGLESIDE);
+          clr_latch(CSTIN);
+          clr_latch(WRTPRT); // everythign is write protected for now
+          break;
+      case 'S':             // step complete (data copied to RMT buffer on ESP32)
+      case 'M':             // motor on
+          clr_latch(READY); // hack - really should not set READY low until the 3 criteria are met
+      default:
+          break;
+      }
+
+    pio_sm_put_blocking(pio, SM_LATCH, get_latch()); // send the register word to the PIO
+    }
+    // to do: get response from ESP32 and update latch values (like READY, TACH), push LATCH value to PIO
+    // to do: read both enable lines and indicate which drive is active when sending single char to esp32
+}
+
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin) {
     commands_program_init(pio, sm, offset, pin);
     pio_sm_set_enabled(pio, sm, true);
 }
 
-void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
+void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins)
 {
-    echo_program_init(pio, sm, offset, in_pin, out_pin);
+    echo_program_init(pio, sm, offset, in_pin, out_pin, num_pins);
     pio_sm_set_enabled(pio, sm, true);
 }
 
 void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
 {
     latch_program_init(pio, sm, offset, in_pin, out_pin);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
+{
+    mux_program_init(pio, sm, offset, in_pin, mux_pin);
     pio_sm_set_enabled(pio, sm, true);
 }
