@@ -291,6 +291,9 @@ void systemBus::_adamnet_process_queue()
 
 void systemBus::service()
 {
+    // process queue messages (disk swap)
+    _adamnet_process_queue();
+    
     // Process anything waiting.
     if (fnUartBUS.available() > 0)
         _adamnet_process_cmd();
