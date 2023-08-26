@@ -290,6 +290,12 @@ void KeyManager::_keystate_task(void *param)
                 msg.message_id = SIOMSG_DISKSWAP;
                 xQueueSend(SIO.qSioMessages, &msg, 0);
 #endif /* BUILD_ATARI */
+#ifdef BUILD_ADAM
+                Debug_println("ACTION: Send image_rotate message to SIO queue");
+                adamnet_message_t msg;
+                msg.message_id = ADAMNETMSG_DISKSWAP;
+                xQueueSend(AdamNet.qAdamNetMessages, &msg, 0);
+#endif /* BUILD_ADAM*/ 
             }
             break;
 
