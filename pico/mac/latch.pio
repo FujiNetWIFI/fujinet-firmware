@@ -5,8 +5,11 @@
 ; Reads the drive phases and output a latch bit 
 ;
 
+.define ENABLE 7
+
 .program latch
 start:
+    wait 0 gpio ENABLE
     mov osr, pins   ; read the GPIO's into the output shift register
     out y, 4        ; shift the 4 LSBs into Y
     pull noblock    ; get the latch word into OSR, if no new word in FIFO, get it from X
