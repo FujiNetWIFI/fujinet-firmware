@@ -72,7 +72,7 @@ private:
 
     void process_raw_commands();
     void process_basic_commands();
-    vector<string> tokenize_basic_command();
+    vector<string> tokenize_basic_command(string command);
 
 protected:
     void reset_fujinet();          // 0xFF

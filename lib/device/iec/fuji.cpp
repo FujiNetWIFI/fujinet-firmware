@@ -590,7 +590,9 @@ void iecFuji::write_app_key()
 {
     uint16_t keylen = -1;
     char value[MAX_APPKEY_LEN];
+    std::vector<std::string> ptRaw;
 
+    // Binary mode comes through as-is (PETSCII)
     if (payload[0] == FUJICMD_WRITE_APPKEY)
     {
         keylen = payload[1] & 0xFF;
@@ -601,8 +603,16 @@ void iecFuji::write_app_key()
     {   
         if (pt.size() > 2)
         {
+            // Tokenize the raw PETSCII payload to save to the file
+            ptRaw = tokenize_basic_command(payloadRaw);
+
             keylen = atoi(pt[1].c_str());
-            strncpy(value, pt[2].c_str(), MAX_APPKEY_LEN);
+            
+            // Bounds check
+            if (keylen > MAX_APPKEY_LEN)
+                keylen = MAX_APPKEY_LEN;
+
+            strncpy(value, ptRaw[2].c_str(), keylen);
         }
         else
         {
@@ -722,15 +732,8 @@ void iecFuji::read_app_key()
 
     _r.size = count;
 
-    if (payload[0] == FUJICMD_READ_APPKEY)
-        response = std::string((char *)&_r, MAX_APPKEY_LEN);
-    else
-    {
-        char reply[128];
-        memset(reply, 0, sizeof(reply));
-        snprintf(reply, sizeof(reply), "\"%04x\",\"%s\"", _r.size, _r.value);
-        response = std::string(reply);
-    }
+    // Bytes were written raw (PETSCII) so no need to map before sending back
+    response = std::string((char *)&_r, MAX_APPKEY_LEN);
 }
 
 // Disk Image Unmount
@@ -1577,8 +1580,11 @@ void iecFuji::local_ip()
 
 void iecFuji::process_basic_commands()
 {
+    // Store raw payload before mapping to ASCII, in case it is needed (e.g. storing unmodified appkey data)
+    payloadRaw = payload;
+
     mstr::toASCII(payload);
-    pt = tokenize_basic_command();
+    pt = tokenize_basic_command(payload);
 
     if (payload.find("adapterconfig") != std::string::npos)
         get_adapter_config();
@@ -1777,18 +1783,18 @@ std::string iecFuji::get_host_prefix(int host_slot)
  Example: "COMMAND:Param1,Param2" will return a vector of [0]="COMMAND", [1]="Param1",[2]="Param2"
  Also supports "COMMAND,Param1,Param2"
 */
-vector<string> iecFuji::tokenize_basic_command()
+vector<string> iecFuji::tokenize_basic_command(string command)
 {
-    Debug_printf("Tokenizing basic command: %s\n", payload.c_str());
+    Debug_printf("Tokenizing basic command: %s\n", command.c_str());
 
     // Replace the first ":" with "," for easy tokenization. 
     // Assume it is fine to change the payload at this point.
     // Technically, "COMMAND,Param1,Param2" will work the smae, if ":" is not in a param value
-    size_t endOfCommand = payload.find(':');
+    size_t endOfCommand = command.find(':');
     if (endOfCommand != std::string::npos)
-        payload.replace(endOfCommand,1,",");
+        command.replace(endOfCommand,1,",");
     
-    vector<string> result =  util_tokenize(payload, ',');
+    vector<string> result =  util_tokenize(command, ',');
     return result;
 
 }
