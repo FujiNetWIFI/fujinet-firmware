@@ -16,6 +16,14 @@
 
 void printerTask(void * param);
 
+typedef struct _printItem
+{
+    uint8_t len;
+    uint8_t buf[16];
+} PrintItem;
+
+static QueueHandle_t pxq;
+
 class adamPrinter : public virtualDevice
 {
 protected:
