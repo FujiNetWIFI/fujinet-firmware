@@ -330,15 +330,19 @@ void loop()
           set_latch(SINGLESIDE);
           clr_latch(CSTIN);
           clr_latch(WRTPRT); // everythign is write protected for now
+          printf("\nSS disk mounted");
           break;
       case 'd':
           // double sided disk
           clr_latch(SINGLESIDE);
           clr_latch(CSTIN);
           clr_latch(WRTPRT); // everythign is write protected for now
+          printf("\nDS disk mounted");
           break;
       case 'S':             // step complete (data copied to RMT buffer on ESP32)
+          printf("\nStep sequence complete");
       case 'M':             // motor on
+          printf("\nMotor is on");
           clr_latch(READY); // hack - really should not set READY low until the 3 criteria are met
       default:
           break;

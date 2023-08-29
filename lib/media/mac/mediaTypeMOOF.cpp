@@ -85,14 +85,18 @@ bool MediaTypeMOOF::moof_read_info()
     case 1:
         num_sides = 1;
         moof_disktype = moof_disk_type_t::SSDD_GCR;
+        Debug_printf("\nSingle sided GCR disk");
         break;
     case 2:
         num_sides = 2;
         moof_disktype = moof_disk_type_t::DSDD_GCR;
+        Debug_printf("\nDouble sided GCR disk");
         break;
     case 3:
         num_sides = 2;
         moof_disktype = moof_disk_type_t::DSDD_MFM;
+        Debug_printf("\nDouble sided MFM disk - not supported");
+        return true;
         break;
     default:
         moof_disktype = moof_disk_type_t::UNKNOWN;

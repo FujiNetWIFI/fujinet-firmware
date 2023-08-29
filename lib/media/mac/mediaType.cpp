@@ -30,7 +30,7 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
     if (l > 5 && filename[l - 5] == '.')
     {
         // Check the last 4 characters of the string
-        const char *ext = filename + l - 2;
+        const char *ext = filename + l - 4;
         if (strcasecmp(ext, "MOOF") == 0)
             return MEDIATYPE_MOOF;
     }

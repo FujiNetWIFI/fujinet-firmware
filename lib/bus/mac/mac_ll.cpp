@@ -885,13 +885,15 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
     rmt_item32_t* pdest = dest;
     while (num < wanted_num)
     {
-        // move this to nextbit()
-        // MC34780 behavior for random bit insertion
-      // https://applesaucefdc.com/woz/reference2/
+       // hold over from DISK][ bit stream generation
+       // move this to nextbit()
+       // MC34780 behavior for random bit insertion
+       // https://applesaucefdc.com/woz/reference2/
       window <<= 1;
       window |= (uint8_t)floppy_ll.nextbit();
       window &= 0x0f;
-      outbit = (window != 0) ? window & 0x02 : floppy_ll.fakebit();
+      // outbit = (window != 0) ? window & 0x02 : floppy_ll.fakebit();
+      outbit = (window != 0) ? window & 0x02 : 0; // turn off random bits
       pdest->val = (outbit != 0) ? bit1.val : bit0.val;
 
       // pdest->val = floppy_ll.nextbit() ? bit1.val : bit0.val;
