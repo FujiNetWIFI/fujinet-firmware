@@ -69,35 +69,35 @@ void macBus::service(void)
       {
         t0 = fnSystem.micros();
         track_not_copied = true;
-        int tp = theFuji.get_disks(0)->disk_dev.step();
-        if (tp < 0)
+        int track_position = theFuji.get_disks(0)->disk_dev.step();
+        if (track_position < 0)
         {
           fnUartBUS.write('N');
         }
         else
         {
-          fnUartBUS.write(tp | 128); // send the track position(/2) back
+          fnUartBUS.write(track_position | 128); // send the track position(/2) back
           // fnUartBUS.flush();
         }
       }
       break;
     case 2:
       // turn motor ons
-      Debug_printf("\nMOTOR ON");
+      Debug_printf("\nMotor ON");
       floppy_ll.start(0);
       fnUartBUS.write('M');
       // fnUartBUS.flush();
       break;
     case 6:
       // turn motor off
-      Debug_printf("\nMOTOR OFF");
+      Debug_printf("\nMotor OFF");
       floppy_ll.stop();
       fnUartBUS.write('F');
       // fnUartBUS.flush();
       break;
     case 7:
       // eject
-      Debug_printf("\nEJECT!!!");
+      Debug_printf("\neject but do nothing");
       fnUartBUS.write('E');
       // fnUartBUS.flush();
       break;

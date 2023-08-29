@@ -47,12 +47,14 @@ protected:
     int head_dir;
 
 public:
+    bool readonly;
+    
     macFloppy() {};
     ~macFloppy() {};
 
     // void init();
-    mediatype_t mount(FILE *f, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN) { return mount(f, disk_type); };
+    mediatype_t mount(FILE *f, const char *filename, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN) { return mount(f, filename, disk_type); };
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors) { return false; };
     int get_track_pos() { return track_pos; };
@@ -61,8 +63,8 @@ public:
     int step();
     void change_track(int side);
     void update_track_buffers();
-    // void set_disk_number(char c) { disk_num = c; }
-    // char get_disk_number() { return disk_num; };
+    void set_disk_number(char c) { disk_num = c; _devnum = c; }
+    char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
     void shutdown() override {};
