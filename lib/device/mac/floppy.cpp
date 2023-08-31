@@ -5,7 +5,7 @@
 #define NS_PER_BIT_TIME 125
 #define BLANK_TRACK_LEN 6400
 
-mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *filename), uint32_t disksize, mediatype_t disk_type)
+mediatype_t macFloppy::mount(FILE *f, const char *filename, mediatype_t disk_type) //, const char *filename), uint32_t disksize, mediatype_t disk_type)
 {
 
   mediatype_t mt = MEDIATYPE_UNKNOWN;
@@ -19,6 +19,9 @@ mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *fil
     delete _disk;
     _disk = nullptr;
   }
+
+  if (disk_type == MEDIATYPE_UNKNOWN)
+    disk_type = MediaType::discover_mediatype(filename);
 
   switch (disk_type)
   {
@@ -36,9 +39,11 @@ mediatype_t macFloppy::mount(FILE *f, mediatype_t disk_type) //, const char *fil
     {
     case 1:
       fnUartBUS.write('s');
+      fnUartBUS.write(track_pos | 128);
       break;
     case 2:
       fnUartBUS.write('d');
+      fnUartBUS.write(track_pos | 128);
     default:
       break;
     }
@@ -115,6 +120,7 @@ DCDDATA	      Communication channel from DCD device to Macintosh
 
 void macFloppy::unmount()
 {
+  ((MediaTypeMOOF *)_disk)->unmount();
 }
 
 int IRAM_ATTR macFloppy::step()
