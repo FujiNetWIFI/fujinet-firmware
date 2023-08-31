@@ -525,7 +525,15 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
     case MEDIATYPE_PO:
         Debug_printf("\r\nMedia Type PO");
         _disk = new MediaTypePO();
+        _disk->_media_host = host;
+        strcpy(_disk->_disk_filename, filename);
         mt = _disk->mount(f, disksize);
+
+        // firmware needs to believe a high score enabled disk is 
+        // not write-protected. Otherwise it will skip write process
+        if (_disk->high_score_enabled)
+          readonly = false;
+
         device_active = true; //change status only after we are mounted
         //_disk->fileptr() = f;
         // mt = MEDIATYPE_PO;
