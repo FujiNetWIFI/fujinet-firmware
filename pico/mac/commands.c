@@ -136,34 +136,37 @@ uint16_t get_latch() { return latch; }
 
 uint16_t set_latch(enum latch_bits s)
 {
-  latch |= (1 << s);
+  latch |= (1u << s);
   return latch;
 };
 
 uint16_t clr_latch(enum latch_bits c)
 {
-    latch &= ~(1 << c);
+    latch &= ~(1u << c);
     return latch;
 };
 
 bool latch_val(enum latch_bits b)
 {
-    return (latch & (1 << b));
+    return (latch & (1u << b));
 }
 
 void preset_latch()
 {
+    latch =0;
     clr_latch(DIRTN);
     set_latch(STEP);
     set_latch(MOTORON);
     clr_latch(EJECT);
     set_latch(SINGLESIDE);
     clr_latch(DRVIN);
-    set_latch(CSTIN);
+    clr_latch(CSTIN); //set_latch(CSTIN);
     clr_latch(WRTPRT);
     set_latch(TKO);
     set_latch(READY);
     set_latch(REVISED);   // my mac plus revised looks set
+    // for (int i=0; i<16; i++)
+    //   printf("\nlatch bit %02d = %d",i, latch_val(i));
 }
 
 
@@ -327,23 +330,27 @@ void loop()
       {
       case 's':
           // single sided disk is in the slot
-          set_latch(SINGLESIDE);
-          clr_latch(CSTIN);
-          clr_latch(WRTPRT); // everythign is write protected for now
-          break;
-      case 'd':
-          // double sided disk
           clr_latch(SINGLESIDE);
           clr_latch(CSTIN);
           clr_latch(WRTPRT); // everythign is write protected for now
+          printf("\nSS disk mounted");
+          break;
+      case 'd':
+          // double sided disk
+          set_latch(SINGLESIDE);
+          clr_latch(CSTIN);
+          clr_latch(WRTPRT); // everythign is write protected for now
+          printf("\nDS disk mounted");
           break;
       case 'S':             // step complete (data copied to RMT buffer on ESP32)
+          printf("\nStep sequence complete");
       case 'M':             // motor on
+          printf("\nMotor is on");
           clr_latch(READY); // hack - really should not set READY low until the 3 criteria are met
       default:
           break;
       }
-
+    // printf("latch %04x", get_latch());
     pio_sm_put_blocking(pio, SM_LATCH, get_latch()); // send the register word to the PIO
     }
     // to do: get response from ESP32 and update latch values (like READY, TACH), push LATCH value to PIO
