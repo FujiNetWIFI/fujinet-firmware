@@ -98,10 +98,13 @@ bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 {
     uint8_t buf[256];
 
-    memset(buf, 0xE5, 256);
-
     for (uint32_t b = 0; b < numBlocks; b++)
     {
+        if (b<13)
+            memset(buf, 0x00, 256);
+        else
+            memset(buf, 0xE5, 256);
+
         fwrite(buf, 1, 256, fileh);
         fwrite(buf, 1, 256, fileh);
         fwrite(buf, 1, 256, fileh);
