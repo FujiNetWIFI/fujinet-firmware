@@ -35,7 +35,8 @@ protected:
     uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
     int32_t _media_last_sector = INVALID_SECTOR_VALUE;
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
-    uint16_t _high_score_block = 0; /* High score block to allow write. 1-65535 */
+    uint16_t _high_score_block_lb = 0; /* High score block (lower bound) to allow write. 1-65535 */
+    uint16_t _high_score_block_ub = 0; /* High score block (upper bound) to allow write. 1-65535 */
 
 public:
     // struct
