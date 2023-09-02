@@ -18,7 +18,7 @@ if (blockNum == 0 || blockNum != last_block_num + 1) // example optimization, on
     }
   }
 
-  if (high_score_enabled && _high_score_block == blockNum)
+  if (high_score_enabled && blockNum >= _high_score_block_lb && blockNum <= _high_score_block_ub)
     last_block_num = INVALID_SECTOR_VALUE; // try to invalidate cache if game re-reads hs table
   else
     last_block_num = blockNum;
@@ -31,7 +31,7 @@ bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
 {
     size_t writesize = *count;
 
-    if (high_score_enabled && blockNum == _high_score_block)
+    if (high_score_enabled && blockNum >= _high_score_block_lb && blockNum <= _high_score_block_ub)
     {
         Debug_printf("high score: Swapping file handles\r\n");
         oldFileh = _media_fileh;
@@ -55,7 +55,7 @@ bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
        return true;
     }
 
-    if (high_score_enabled && blockNum == _high_score_block)
+    if (high_score_enabled && blockNum >= _high_score_block_lb && blockNum <= _high_score_block_ub)
     {
         Debug_printf("high score: Reverting file handles.\r\n");
         if (hsFileh != nullptr)
@@ -80,14 +80,22 @@ mediatype_t MediaTypePO::mount(FILE *f, uint32_t disksize)
     fread(&hdr,sizeof(char),64,f);
     if (hdr[0] == '2' && hdr[1] == 'I' && hdr[2] == 'M' && hdr[3] == 'G')
     {
-        // check for 'high score enabled' signature
+        // check for 'high score enabled'
+        // expected format at offset 0x48 of 2mg hdr: H,I,<blk_lb_lo>,<blk_lb_hi>,<blk_ub_lo>,<blk_ub_hi>
+        // where blk is block range containing high score table, lb = lower bound, ub = upper bound
+        // if upper bound is undefined (0x0000), then lower bound defines range
         if (hdr[48] == 'H' && hdr[49] == 'I')
         {
-            _high_score_block = UINT16_FROM_HILOBYTES(hdr[51], hdr[50]);
-            if (_high_score_block > 0)
+            // read range of blocks from the 2mg header that qualify to be written (little endian)
+            _high_score_block_lb = UINT16_FROM_HILOBYTES(hdr[51], hdr[50]);
+            _high_score_block_ub = UINT16_FROM_HILOBYTES(hdr[53], hdr[52]);
+            if (_high_score_block_lb > 0)
             {
-                Debug_printf("high score: Requested block: 0x%04x\r\n", _high_score_block);
+                if (_high_score_block_ub == 0)
+                    _high_score_block_ub = _high_score_block_lb;
+
                 high_score_enabled = true;
+                Debug_printf("\r\nhigh score: block range: %04x..%04x\r\n", _high_score_block_lb, _high_score_block_ub);
             }
         }
         offset = 64;
