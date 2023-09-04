@@ -17,6 +17,7 @@ private:
 
     void put_bs()
     {
+        Debug_printf("BS\n");
         isVT = false;
         _column--;
     }
