@@ -20,28 +20,35 @@
 #include "png_printer.h"
 #include "coleco_printer.h"
 
-#define PRINTER_PRIORITY 10
+#define PRINTER_PRIORITY 9
 
 constexpr const char *const adamPrinter::printer_model_str[PRINTER_INVALID];
 
 void printerTask(void *param)
 {
     printer_emu *p = (printer_emu *)param;
+    unsigned char i = 0;
 
     while (true)
     {
-        if (uxQueueMessagesWaiting(pxq))
+        while (uxQueueMessagesWaiting(pxq))
         {
             PrintItem pi;
 
-            fnLedManager.set(LED_BT,true);
-            xQueueReceive(pxq,&pi,portMAX_DELAY);
-            memcpy(p->provideBuffer(),&pi.buf,pi.len);
-            p->process(pi.len,0,0);
-            fnLedManager.set(LED_BT,false);
+            xQueueReceive(pxq, &pi, portMAX_DELAY);
+            memcpy(&p->provideBuffer()[i], &pi.buf, pi.len);
+            i += pi.len;
         }
 
-        vTaskDelay(10/portTICK_PERIOD_MS);
+        if (i)
+        {
+            fnLedManager.set(LED_BT, true);
+            p->process(i, 0, 0);
+            i = 0;
+            fnLedManager.set(LED_BT, false);
+        }
+
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -51,7 +58,7 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
     _storage = filesystem;
     set_printer_type(print_type);
 
-    pxq = xQueueCreate(16,sizeof(PrintItem));
+    pxq = xQueueCreate(160, sizeof(PrintItem));
 
     xTaskCreate(printerTask, "ptsk", 4096, _pptr, PRINTER_PRIORITY, &thPrinter);
 }
@@ -65,10 +72,6 @@ adamPrinter::~adamPrinter()
         delete _pptr;
 
     vQueueDelete(pxq);
-}
-
-void adamPrinter::start_printer_task()
-{
 }
 
 adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
@@ -88,10 +91,6 @@ void adamPrinter::adamnet_control_status()
     adamnet_send_buffer(c, sizeof(c));
 }
 
-void adamPrinter::perform_print()
-{
-}
-
 void adamPrinter::adamnet_control_send()
 {
     PrintItem pi;
@@ -103,20 +102,20 @@ void adamPrinter::adamnet_control_send()
     // AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    xQueueSend(pxq,&pi,portMAX_DELAY);
+    xQueueSend(pxq, &pi, portMAX_DELAY);
 
     _last_ms = fnSystem.millis();
 }
 
 void adamPrinter::adamnet_control_ready()
 {
-    // AdamNet.start_time = esp_timer_get_time();
+    AdamNet.start_time = esp_timer_get_time();
 
-    if (!uxQueueSpacesAvailable(pxq))
-    {
+    if (getPrinterPtr()->is_printing)
         adamnet_response_nack();
-    }
-    else   
+    else if (!uxQueueSpacesAvailable(pxq))
+        adamnet_response_nack();
+    else
         adamnet_response_ack();
 }
 
