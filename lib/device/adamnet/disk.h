@@ -35,6 +35,8 @@ public:
     void unmount();
     bool write_blank(FILE *f, uint32_t numBlocks);
     virtual void reset() override;
+    MediaType *get_media() { return  _media; }
+    void set_media(MediaType *__media) { _media = __media; }
 
     mediatype_t mediatype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
 
