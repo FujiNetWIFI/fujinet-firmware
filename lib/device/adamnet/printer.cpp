@@ -24,6 +24,8 @@
 
 constexpr const char *const adamPrinter::printer_model_str[PRINTER_INVALID];
 
+static QueueHandle_t pxq;
+
 void printerTask(void *param)
 {
     printer_emu *p = (printer_emu *)param;
