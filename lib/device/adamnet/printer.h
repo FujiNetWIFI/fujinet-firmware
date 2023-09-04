@@ -22,8 +22,6 @@ typedef struct _printItem
     uint8_t buf[16];
 } PrintItem;
 
-static QueueHandle_t pxq;
-
 class adamPrinter : public virtualDevice
 {
 protected:
