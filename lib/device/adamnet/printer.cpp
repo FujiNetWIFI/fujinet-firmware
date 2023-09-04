@@ -60,7 +60,7 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 
     pxq = xQueueCreate(160, sizeof(PrintItem));
 
-    xTaskCreate(printerTask, "ptsk", 4096, _pptr, PRINTER_PRIORITY, &thPrinter);
+    xTaskCreatePinnedToCore(printerTask,"ptsk",4096,_pptr,PRINTER_PRIORITY,&thPrinter,0);
 }
 
 adamPrinter::~adamPrinter()
