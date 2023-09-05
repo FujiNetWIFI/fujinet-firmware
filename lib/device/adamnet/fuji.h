@@ -59,6 +59,7 @@ private:
     bool scanStarted = false;
     bool hostMounted[MAX_HOSTS];
     bool setSSIDStarted = false;
+    unsigned char active_rotate_slot=0;
 
     uint8_t response[1024];
     uint16_t response_len = 0;
