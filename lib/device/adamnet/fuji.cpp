@@ -12,6 +12,7 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
+#include "led.h"
 
 #include "utils.h"
 
@@ -572,8 +573,17 @@ void adamFuji::image_rotate()
 
     Debug_printf("count is %u\n", count);
 
+    active_rotate_slot++;
+
+    if (active_rotate_slot>count-1)
+        active_rotate_slot=0;
+
     if (count > 1)
     {
+        Debug_printv("ACTIVE ROTATE SLOT %u\n",active_rotate_slot);
+
+        fnLedManager.blink(LED_BUS,active_rotate_slot+1);
+
         count--;
 
         // Save the device ID of the disk in the last slot
@@ -1285,6 +1295,8 @@ void adamFuji::setup(systemBus *siobus)
 void adamFuji::mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
+
+    active_rotate_slot=0;
 
     for (int i = 0; i < 4; i++)
     {
