@@ -28,7 +28,7 @@ static QueueHandle_t pxq;
 
 void printerTask(void *param)
 {
-    printer_emu *p = (printer_emu *)param;
+    adamPrinter *p = (adamPrinter *)param;
     unsigned char i = 0;
 
     while (true)
@@ -36,16 +36,17 @@ void printerTask(void *param)
         while (uxQueueMessagesWaiting(pxq))
         {
             PrintItem pi;
+            uint8_t *pbuf = p->getPrinterPtr()->provideBuffer();
 
             xQueueReceive(pxq, &pi, portMAX_DELAY);
-            memcpy(&p->provideBuffer()[i], &pi.buf, pi.len);
+            memcpy(&pbuf[i], &pi.buf, pi.len);
             i += pi.len;
         }
 
         if (i)
         {
             fnLedManager.set(LED_BT, true);
-            p->process(i, 0, 0);
+            p->getPrinterPtr()->process(i,0,0);
             i = 0;
             fnLedManager.set(LED_BT, false);
         }
@@ -62,7 +63,7 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
 
     pxq = xQueueCreate(160, sizeof(PrintItem));
 
-    xTaskCreatePinnedToCore(printerTask,"ptsk",4096,_pptr,PRINTER_PRIORITY,&thPrinter,0);
+    xTaskCreatePinnedToCore(printerTask,"ptsk",4096,this,PRINTER_PRIORITY,&thPrinter,0);
 }
 
 adamPrinter::~adamPrinter()
