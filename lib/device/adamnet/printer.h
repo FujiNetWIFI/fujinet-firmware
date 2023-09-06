@@ -107,6 +107,7 @@ public:
 
     printer_emu *getPrinterPtr() { return _pptr; };
 
+    void do_print(int i);
 
 private:
     printer_type _ptype;
