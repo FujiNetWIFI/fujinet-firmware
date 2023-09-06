@@ -42,6 +42,25 @@ typedef struct
     char fn_version[15];
 } AdapterConfig;
 
+typedef struct
+{
+    char ssid[33];
+    char hostname[64];
+    unsigned char localIP[4];
+    unsigned char gateway[4];
+    unsigned char netmask[4];
+    unsigned char dnsIP[4];
+    unsigned char macAddress[6];
+    unsigned char bssid[6];
+    char fn_version[15];
+    char sLocalIP[16];
+    char sGateway[16];
+    char sNetmask[16];
+    char sDnsIP[16];
+    char sMacAddress[18];
+    char sBssid[18];
+} AdapterConfigExtended;
+
 enum appkey_mode : uint8_t
 {
     APPKEYMODE_READ = 0,
@@ -112,6 +131,7 @@ protected:
     void sio_net_get_wifi_enabled();   // 0xEA
     void sio_disk_image_umount();      // 0xE9
     void sio_get_adapter_config();     // 0xE8
+    void sio_get_adapter_config_extended(); // 0xE8
     void sio_new_disk();               // 0xE7
     void sio_unmount_host();           // 0xE6
     void sio_get_directory_position(); // 0xE5

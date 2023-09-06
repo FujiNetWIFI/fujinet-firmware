@@ -1118,10 +1118,52 @@ void sioFuji::sio_close_directory()
     sio_complete();
 }
 
+void sioFuji::sio_get_adapter_config_extended()
+{
+    // return string versions of the data rather than just bytes
+    AdapterConfigExtended cfg;
+    memset(&cfg, 0, sizeof(cfg));       // ensures all strings are null terminated
+
+    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
+
+    if (!fnWiFi.connected())
+    {
+        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
+    }
+    else
+    {
+        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
+        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
+        fnWiFi.get_current_bssid(cfg.bssid);
+        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
+    }
+
+    fnWiFi.get_mac(cfg.macAddress);
+
+    // convert fields to strings
+    strlcpy(cfg.sLocalIP, fnSystem.Net.get_ip4_address_str().c_str(), 16);
+    strlcpy(cfg.sGateway, fnSystem.Net.get_ip4_gateway_str().c_str(), 16);
+    strlcpy(cfg.sDnsIP,   fnSystem.Net.get_ip4_dns_str().c_str(),     16);
+    strlcpy(cfg.sNetmask, fnSystem.Net.get_ip4_mask_str().c_str(),    16);
+
+    sprintf(cfg.sMacAddress, "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
+    sprintf(cfg.sBssid,      "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
+
+    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
+
+}
+
 // Get network adapter configuration
 void sioFuji::sio_get_adapter_config()
 {
-    Debug_println("Fuji cmd: GET ADAPTER CONFIG");
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG (aux1:%hu)\r\n", cmdFrame.aux1);
+    if (cmdFrame.aux1 == 1)
+    {
+        Debug_println("Returning extended adapter config information");
+        sio_get_adapter_config_extended();
+        return;
+    }
 
     // Response to  FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
