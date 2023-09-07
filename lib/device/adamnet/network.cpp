@@ -592,11 +592,10 @@ void adamNetwork::adamnet_special_00(unsigned short s)
     cmdFrame.aux2 = adamnet_recv();
 
     AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
 
-    if (protocol->special_00(&cmdFrame) == false)
-        adamnet_response_ack();
-    else
-        adamnet_response_nack();
+    protocol->special_00(&cmdFrame);
+    inq_dstats = 0xff;
 }
 
 /**
@@ -614,6 +613,8 @@ void adamNetwork::adamnet_special_40(unsigned short s)
         adamnet_response_ack();
     else
         adamnet_response_nack();
+
+    inq_dstats = 0xff;
 }
 
 /**
@@ -640,6 +641,7 @@ void adamNetwork::adamnet_special_80(unsigned short s)
         adamnet_response_ack();
     else
         adamnet_response_nack();
+    inq_dstats = 0xff;
 }
 
 void adamNetwork::adamnet_response_status()
@@ -714,9 +716,12 @@ void adamNetwork::adamnet_control_send()
         set_password(s);
         break;
     default:
+        Debug_printf("fall through to default\n");
         switch (channelMode)
         {
         case PROTOCOL:
+            do_inquiry(c); // set inq_dstats
+
             if (inq_dstats == 0x00)
                 adamnet_special_00(s);
             else if (inq_dstats == 0x40)
@@ -741,7 +746,6 @@ void adamNetwork::adamnet_control_send()
             Debug_printf("Unknown channel mode\n");
             break;
         }
-        do_inquiry(c);
     }
 }
 
