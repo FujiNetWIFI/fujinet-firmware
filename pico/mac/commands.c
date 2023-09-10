@@ -4,16 +4,24 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+//#define FLOPPY
+#undef FLOPPY
+//#undef DCD
+#define DCD
+
 #include <stdio.h>
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include "hardware/clocks.h"
 
 #include "hardware/pio.h"
+
 #include "commands.pio.h"
 #include "echo.pio.h"
 #include "latch.pio.h"
 #include "mux.pio.h"
+
+#include "dcd_latch.pio.h"
 
 // #include "../../include/pinmap/mac_rev0.h"
 #define UART_TX_PIN 4
@@ -30,10 +38,17 @@
 #define SM_MUX 2
 #define SM_ECHO 3
 
+#define SM_DCD_LATCH 0
+#define SM_DCD_READ 1
+#define SM_DCD_WRITE 2
+#define SM_DCD_MUX 3
+
 void pio_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins);
 void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin);
+
+void pio_dcd_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 
 #define UART_ID uart1
 #define BAUD_RATE 2000000 //230400 //115200
@@ -51,7 +66,8 @@ const int tach_lut[5][3] = {{0, 15, 394},
 uint32_t a;
     char c;
     
-PIO pio = pio0;
+PIO pio_floppy = pio0;
+PIO pio_dcd = pio1;
 
 void setup_esp_uart()
 {
@@ -130,9 +146,11 @@ enum latch_bits {
     REVISED         // f REVISED     This status line is used to indicate that the interface definition of the connected external drive. When REVISED is a one, the drive Part No. will be 699-0326 or when REVISED is a zero, the drive Part No. will be 699-0285.
 };
 
-uint16_t latch = 0;
+uint16_t latch;
+uint8_t dcd_latch;
 
 uint16_t get_latch() { return latch; }
+uint8_t dcd_get_latch() { return dcd_latch; }
 
 uint16_t set_latch(enum latch_bits s)
 {
@@ -140,16 +158,42 @@ uint16_t set_latch(enum latch_bits s)
   return latch;
 };
 
+uint8_t dcd_set_latch(uint8_t s)
+{
+  dcd_latch |= (1u << s);
+  return dcd_latch;
+}
+
 uint16_t clr_latch(enum latch_bits c)
 {
     latch &= ~(1u << c);
     return latch;
 };
 
-bool latch_val(enum latch_bits b)
+uint8_t dcd_clr_latch(uint8_t c)
 {
-    return (latch & (1u << b));
+    dcd_latch &= ~(1u << c);
+    return dcd_latch;
+};
+
+uint8_t dcd_assert_hshk()
+{
+  dcd_clr_latch(2);
+  dcd_clr_latch(3);
+  return dcd_latch;
 }
+
+uint8_t dcd_deassert_hshk()
+{
+  dcd_set_latch(2);
+  dcd_set_latch(3);
+  return dcd_latch;
+}
+
+// bool latch_val(enum latch_bits b)
+// {
+//     return (latch & (1u << b));
+// }
 
 void preset_latch()
 {
@@ -169,6 +213,10 @@ void preset_latch()
     //   printf("\nlatch bit %02d = %d",i, latch_val(i));
 }
 
+void dcd_preset_latch()
+{
+  dcd_latch = 0b11001100; //  DCD signature HHLx + no handshake HHxx
+}
 
 void set_tach_freq(char c)
 {
@@ -185,52 +233,58 @@ void set_tach_freq(char c)
 }
 
 void loop();
+void dcd_loop();
 void setup()
 {
-    
-    stdio_init_all();
-    // gpio_pull_up(ENABLE);
+  uint offset;
 
-    set_tach_freq(0); // start TACH clock
-    
+    stdio_init_all();
     setup_default_uart();
     setup_esp_uart();
 
+#ifdef FLOPPY
+    set_tach_freq(0); // start TACH clock
     preset_latch();
 
-    uint offset = pio_add_program(pio, &commands_program);
+    offset = pio_add_program(pio_floppy, &commands_program);
     printf("\nLoaded cmd program at %d\n", offset);
-    pio_commands(pio, SM_CMD, offset, MCI_CA0); // read phases starting on pin 8
+    pio_commands(pio_floppy, SM_CMD, offset, MCI_CA0); // read phases starting on pin 8
     
-    offset = pio_add_program(pio, &echo_program);
+    offset = pio_add_program(pio_floppy, &echo_program);
     printf("Loaded echo program at %d\n", offset);
-    pio_echo(pio, SM_ECHO, offset, ECHO_IN, ECHO_OUT, 2);
+    pio_echo(pio_floppy, SM_ECHO, offset, ECHO_IN, ECHO_OUT, 2);
     
-    offset = pio_add_program(pio, &latch_program);
+    offset = pio_add_program(pio_floppy, &latch_program);
     printf("Loaded latch program at %d\n", offset);
-    pio_latch(pio, SM_LATCH, offset, MCI_CA0, LATCH_OUT);
-    pio_sm_put_blocking(pio, SM_LATCH, 0xffff); // send the register word to the PIO        
+    pio_latch(pio_floppy, SM_LATCH, offset, MCI_CA0, LATCH_OUT);
+    pio_sm_put_blocking(pio_floppy, SM_LATCH, get_latch()); // send the register word to the PIO         
     
-    offset = pio_add_program(pio, &mux_program);
+    offset = pio_add_program(pio_floppy, &mux_program);
     printf("Loaded mux program at %d\n", offset);
-    pio_mux(pio, SM_MUX, offset, MCI_CA0, ECHO_OUT);
-}
+    pio_mux(pio_floppy, SM_MUX, offset, MCI_CA0, ECHO_OUT);
 
+#elif defined(DCD)
+
+    dcd_preset_latch();
+
+    offset = pio_add_program(pio_dcd, &dcd_latch_program);
+    printf("Loaded DCD latch program at %d\n", offset);
+    pio_dcd_latch(pio_dcd, SM_DCD_LATCH, offset, MCI_CA0, LATCH_OUT);
+    pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO   
+
+#endif // FLOPPY
+}
 
 int main()
 {
     setup();
-    // latch setup
-
-    // 11xx x101 00xx 0110
-
-    pio_sm_put_blocking(pio, SM_LATCH, get_latch()); // send the register word to the PIO  
-
- 
-
     while (true)
     {
-        loop();
+#ifdef FLOPPY
+      loop();
+#elif defined(DCD)
+      dcd_loop();
+#endif
     }
 }
 
@@ -238,9 +292,9 @@ bool step_state = false;
 
 void loop()
 {
-    if (!pio_sm_is_rx_fifo_empty(pio, SM_CMD))
+    if (!pio_sm_is_rx_fifo_empty(pio_floppy, SM_CMD))
     {
-    a = pio_sm_get_blocking(pio, SM_CMD);
+    a = pio_sm_get_blocking(pio_floppy, SM_CMD);
     switch (a)
     {
       // !READY
@@ -296,7 +350,7 @@ void loop()
       printf("\nUNKNOWN PHASE COMMAND");
       break;
     }
-    pio_sm_put_blocking(pio, SM_LATCH, get_latch()); // send the register word to the PIO
+    pio_sm_put_blocking(pio_floppy, SM_LATCH, get_latch()); // send the register word to the PIO
     uart_putc_raw(UART_ID, (char)(a + '0'));
     }
 
@@ -351,12 +405,17 @@ void loop()
           break;
       }
     // printf("latch %04x", get_latch());
-    pio_sm_put_blocking(pio, SM_LATCH, get_latch()); // send the register word to the PIO
+    pio_sm_put_blocking(pio_floppy, SM_LATCH, get_latch()); // send the register word to the PIO
     }
     // to do: get response from ESP32 and update latch values (like READY, TACH), push LATCH value to PIO
     // to do: read both enable lines and indicate which drive is active when sending single char to esp32
 }
 
+
+void dcd_loop()
+{
+
+}
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin) {
     commands_program_init(pio, sm, offset, pin);
@@ -380,3 +439,10 @@ void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
     mux_program_init(pio, sm, offset, in_pin, mux_pin);
     pio_sm_set_enabled(pio, sm, true);
 }
+
+void pio_dcd_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
+{
+    dcd_latch_program_init(pio, sm, offset, in_pin, out_pin);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
