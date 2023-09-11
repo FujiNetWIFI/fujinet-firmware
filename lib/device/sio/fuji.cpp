@@ -1794,16 +1794,22 @@ void sioFuji::sio_base64_encode_length()
     Debug_printf("FUJI: BASE64 ENCODE LENGTH\n");
 
     size_t l = base64_buffer.length();
+    uint8_t response[4] = {
+        (uint8_t)(l >>  0),
+        (uint8_t)(l >>  8),
+        (uint8_t)(l >>  16),
+        (uint8_t)(l >>  24)
+    };
 
     if (!l)
     {
         Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
-        bus_to_computer((uint8_t *)l, sizeof(size_t), true);
+        bus_to_computer(response, sizeof(response), true);
     }
 
     Debug_printf("base64 buffer length: %u bytes\n", l);
 
-    bus_to_computer((uint8_t *)&l, sizeof(size_t), false);
+    bus_to_computer(response, sizeof(response), false);
 }
 
 void sioFuji::sio_base64_encode_output()
@@ -1840,6 +1846,7 @@ void sioFuji::sio_base64_encode_output()
     base64_buffer.shrink_to_fit();
 
     bus_to_computer(p, l, false);
+    free(p);
 }
 
 void sioFuji::sio_base64_decode_input()
@@ -1901,17 +1908,23 @@ void sioFuji::sio_base64_decode_length()
     Debug_printf("FUJI: BASE64 DECODE LENGTH\n");
 
     size_t l = base64_buffer.length();
+    uint8_t response[4] = {
+        (uint8_t)(l >>  0),
+        (uint8_t)(l >>  8),
+        (uint8_t)(l >>  16),
+        (uint8_t)(l >>  24)
+    };
 
     if (!l)
     {
         Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
-        sio_error();
+        bus_to_computer(response, sizeof(response), true);
         return;
     }
 
     Debug_printf("base64 buffer length: %u bytes\n", l);
 
-    bus_to_computer((uint8_t *)&l, sizeof(size_t), false);
+    bus_to_computer(response, sizeof(response), false);
 }
 
 void sioFuji::sio_base64_decode_output()
@@ -1950,6 +1963,7 @@ void sioFuji::sio_base64_decode_output()
     base64_buffer.erase(0, l);
     base64_buffer.shrink_to_fit();
     bus_to_computer(p, l, false);
+    free(p);
 }
 
 void sioFuji::sio_hash_input()
@@ -2074,7 +2088,7 @@ void sioFuji::sio_hash_length()
     if (m == 1)  // Hex output
         m <<= 1; // double it.
 
-    bus_to_computer((uint8_t *)r, 1, false);
+    bus_to_computer((uint8_t *)&r, 1, false);
 }
 
 void sioFuji::sio_hash_output()
