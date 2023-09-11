@@ -22,6 +22,7 @@
 #include "mux.pio.h"
 
 #include "dcd_latch.pio.h"
+#include "dcd_commands.pio.h"
 
 // #include "../../include/pinmap/mac_rev0.h"
 #define UART_TX_PIN 4
@@ -39,7 +40,7 @@
 #define SM_ECHO 3
 
 #define SM_DCD_LATCH 0
-#define SM_DCD_READ 1
+#define SM_DCD_CMD 1
 #define SM_DCD_WRITE 2
 #define SM_DCD_MUX 3
 
@@ -270,7 +271,11 @@ void setup()
     offset = pio_add_program(pio_dcd, &dcd_latch_program);
     printf("Loaded DCD latch program at %d\n", offset);
     pio_dcd_latch(pio_dcd, SM_DCD_LATCH, offset, MCI_CA0, LATCH_OUT);
-    pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO   
+    pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO  
+
+    offset = pio_add_program(pio_dcd, &dcd_commands_program);
+    printf("Loaded DCD commands program at %d\n", offset);
+    pio_dcd_commands(pio_dcd, SM_DCD_CMD, offset, MCI_CA0); 
 
 #endif // FLOPPY
 }
@@ -414,7 +419,8 @@ void loop()
 
 void dcd_loop()
 {
-
+  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  printf("%c",a+'0');
 }
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin) {
@@ -446,3 +452,8 @@ void pio_dcd_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
     pio_sm_set_enabled(pio, sm, true);
 }
 
+void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin)
+{
+  dcd_commands_program_init(pio, sm, offset, pin);
+  pio_sm_set_enabled(pio, sm, true);
+}
