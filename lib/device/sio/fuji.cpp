@@ -694,7 +694,8 @@ void sioFuji::sio_write_app_key()
 
     if (sio_checksum((uint8_t *)value, sizeof(value)) != ck)
     {
-        sio_error();
+        // apc: don't send 'E' on checksum error, 'N' was sent already
+        // sio_error();
         return;
     }
 
@@ -754,11 +755,20 @@ void sioFuji::sio_read_app_key()
 
     Debug_println("Fuji cmd: READ APPKEY");
 
+    struct
+    {
+        uint16_t size;
+        uint8_t value[MAX_APPKEY_LEN];
+    } __attribute__((packed)) response;
+    memset(&response, 0, sizeof(response));
+
     // Make sure we have an SD card mounted
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - can't read app key");
-        sio_error();
+        // sio_error();
+        // apc: we have to send error + dummy data after cmd was acked
+        bus_to_computer((uint8_t *)&response, sizeof(response), true);
         return;
     }
 
@@ -766,7 +776,7 @@ void sioFuji::sio_read_app_key()
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
     {
         Debug_println("Invalid app key metadata - aborting");
-        sio_error();
+        bus_to_computer((uint8_t *)&response, sizeof(response), true);
         return;
     }
 
@@ -778,16 +788,9 @@ void sioFuji::sio_read_app_key()
     if (fIn == nullptr)
     {
         Debug_printf("Failed to open input file: errno=%d\n", errno);
-        sio_error();
+        bus_to_computer((uint8_t *)&response, sizeof(response), true);
         return;
     }
-
-    struct
-    {
-        uint16_t size;
-        uint8_t value[MAX_APPKEY_LEN];
-    } __attribute__((packed)) response;
-    memset(&response, 0, sizeof(response));
 
     size_t count = fread(response.value, 1, sizeof(response.value), fIn);
 
