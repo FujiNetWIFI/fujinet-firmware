@@ -122,6 +122,7 @@ protected:
     void sio_disk_image_mount();       // 0xF8
     void sio_open_directory();         // 0xF7
     void sio_read_directory_entry();   // 0xF6
+    void sio_read_directory_block();   // 0xF6
     void sio_close_directory();        // 0xF5
     void sio_read_host_slots();        // 0xF4
     void sio_write_host_slots();       // 0xF3
