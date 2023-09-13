@@ -11,7 +11,10 @@
 
 #define FNWIFI_RECONNECT_RETRIES 4
 #define FNWIFI_SCAN_RESULTS_MAX 20
-#define FNWIFI_BIT_CONNECTED BIT0
+
+#define WIFI_CONNECTED_BIT    BIT0
+#define WIFI_FAIL_BIT         BIT1
+#define WIFI_NO_IP_YET_BIT    BIT2
 
 // using namespace std;
 
@@ -41,6 +44,9 @@ private:
 
     char *_mac_to_string(char dest[18], uint8_t mac[6]);
 
+    static void conn_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data);
+    static esp_err_t block();
+
     static void _wifi_event_handler(void *arg, esp_event_base_t event_base,
                                     int32_t event_id, void *event_data);
     EventGroupHandle_t _wifi_event_group;
@@ -63,6 +69,8 @@ public:
     void stop();
 
     ~WiFiManager();
+
+    int test_connect(const char *ssid, const char *password);
 
     int connect(const char *ssid, const char *password);
     int connect();
