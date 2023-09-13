@@ -57,8 +57,7 @@ void fnConfig::_read_section_wifi(std::stringstream &ss)
     Debug_println("Reading wifi section");
 
     // Throw out any existing data
-    _wifi.ssid.clear();
-    _wifi.passphrase.clear();
+    reset_wifi();
 
     std::string line;
     // Read lines until one starts with '[' which indicates a new section

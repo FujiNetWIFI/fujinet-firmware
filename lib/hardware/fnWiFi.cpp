@@ -173,6 +173,115 @@ int WiFiManager::connect(const char *ssid, const char *password)
     return e;
 }
 
+static EventGroupHandle_t wifi_event_group;
+
+void WiFiManager::conn_event_handler(void* arg, esp_event_base_t event_base, int32_t event_id, void* event_data)
+{
+    if (event_base == WIFI_EVENT) {
+        switch (event_id) {
+            case WIFI_EVENT_STA_START:
+                Debug_println("WIFI_EVENT_STA_START received, connecting");
+                esp_wifi_connect();
+                break;
+            case WIFI_EVENT_STA_DISCONNECTED:
+                Debug_println("WIFI_EVENT_STA_DISCONNECTED: settting WIFI_FAIL_BIT");
+                xEventGroupSetBits(wifi_event_group, WIFI_FAIL_BIT);
+                break;
+            case WIFI_EVENT_STA_CONNECTED:
+                Debug_printf("WIFI_EVENT_STA_CONNECTED received, ssid: %s, channel: %d\r\n", ((wifi_event_sta_connected_t*)event_data)->ssid, ((wifi_event_sta_connected_t*)event_data)->channel);
+                xEventGroupSetBits(wifi_event_group, WIFI_NO_IP_YET_BIT);
+                break;
+            default:
+                Debug_printf("Ignoring event_id: %d\r\n", event_id);
+                break;
+        }
+    }
+
+    if (event_base == IP_EVENT) {
+        switch (event_id) {
+            case IP_EVENT_STA_GOT_IP:
+                // not sure this can happen in our scenario
+                Debug_println("IP_EVENT_STA_GOT_IP received, setting WIFI_CONNECTED_BIT");
+                xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
+                break;
+            default:
+                Debug_printf("Ignoring event_id: %d\r\n", event_id);
+                break;
+        }
+    }
+
+}
+
+int WiFiManager::test_connect(const char *ssid, const char *password)
+{
+    stop();
+    if (wifi_event_group == nullptr)
+        wifi_event_group = xEventGroupCreate();
+
+    ESP_ERROR_CHECK(esp_netif_init());
+    if (_wifi_sta == nullptr)
+    {
+        ESP_ERROR_CHECK(esp_event_loop_create_default());
+        _wifi_sta = esp_netif_create_default_wifi_ap();
+
+        wifi_init_config_t wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
+        ESP_ERROR_CHECK(esp_wifi_init(&wifi_init_cfg));
+        ESP_ERROR_CHECK(esp_wifi_set_storage(WIFI_STORAGE_RAM));
+    }
+
+    ESP_ERROR_CHECK(esp_event_handler_register(WIFI_EVENT, ESP_EVENT_ANY_ID, conn_event_handler, this));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, conn_event_handler, this));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_LOST_IP, conn_event_handler, this));
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA) );
+
+    wifi_config_t wifi_config;
+    memset(&wifi_config, 0, sizeof(wifi_config));
+
+    strlcpy((char *)wifi_config.sta.ssid, ssid, sizeof(wifi_config.sta.ssid));
+    strlcpy((char *)wifi_config.sta.password, password, sizeof(wifi_config.sta.password));
+
+    // Debug_printf("wifi_config.sta.ssid: >%s<\r\n", wifi_config.sta.ssid);
+    // Debug_printf("wifi_config.sta.pass: >%s<\r\n", wifi_config.sta.password);
+
+    wifi_config.sta.pmf_cfg.capable = true;
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+
+    ESP_ERROR_CHECK(esp_wifi_start());
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE));
+    esp_netif_set_hostname(_wifi_sta, Config.get_general_devicename().c_str());
+
+    esp_err_t result = block();
+
+    // clean up
+    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_LOST_IP, conn_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_unregister(IP_EVENT, IP_EVENT_STA_GOT_IP, conn_event_handler));
+    ESP_ERROR_CHECK(esp_event_handler_unregister(WIFI_EVENT, ESP_EVENT_ANY_ID, conn_event_handler));
+    vEventGroupDelete(wifi_event_group);
+    wifi_event_group = nullptr;
+
+    return result;
+}
+
+esp_err_t WiFiManager::block()
+{
+    EventBits_t bits = xEventGroupWaitBits(wifi_event_group,
+		WIFI_NO_IP_YET_BIT | WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+		pdFALSE,
+		pdFALSE,
+		30000 / portTICK_PERIOD_MS);
+		// portMAX_DELAY);
+
+    if (bits & WIFI_CONNECTED_BIT) {
+        return ESP_OK;
+    } else if (bits & WIFI_FAIL_BIT) {
+        return ESP_FAIL;
+    } else if (bits & WIFI_NO_IP_YET_BIT) {
+        return ESP_OK;
+    } else {
+        return ESP_FAIL;
+    }
+}
+
 bool WiFiManager::connected()
 {
     return _connected;
