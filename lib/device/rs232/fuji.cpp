@@ -1097,7 +1097,7 @@ void rs232Fuji::rs232_set_host_prefix()
     char prefix[MAX_HOST_PREFIX_LEN];
     uint8_t hostSlot = cmdFrame.aux1;
 
-    uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
+    uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_HOST_PREFIX_LEN);
 
     Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
 
