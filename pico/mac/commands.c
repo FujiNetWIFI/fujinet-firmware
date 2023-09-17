@@ -71,7 +71,7 @@ const int tach_lut[5][3] = {{0, 15, 394},
                             {64, 79, 590}};
 
 uint32_t a;
-uint32_t b;
+uint32_t b[12];
     char c;
     
 PIO pio_floppy = pio0;
@@ -448,11 +448,10 @@ void dcd_loop()
     {
       case 1: // for now receiving a command
       printf("\nReceived Command Sequence: ");
-       while(1)
-       {
-        b = pio_sm_get_blocking(pio_floppy, SM_DCD_READ);
-        printf("%02x ", b);
-       }
+       for (int i=0; i<12; i++)
+          b[i] = pio_sm_get_blocking(pio_floppy, SM_DCD_READ);
+       for (int i=0; i<12; i++)
+          printf("%02x ", b[i]);
     case 3: // handshake
       //  printf("\nHandshake\n");
       pio_sm_set_enabled(pio_floppy, SM_DCD_READ, true);
