@@ -33,6 +33,8 @@ pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/latch.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/mux.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_latch.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_commands.pio)
+pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_mux.pio)
+pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_read.pio)
 # however, alternatively you can choose to generate it somewhere else (in this case in the source tree for check in)
 #pico_generate_pio_header(pio_and ${CMAKE_CURRENT_LIST_DIR}/blink.pio OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR})
 
