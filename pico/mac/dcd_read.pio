@@ -1,0 +1,51 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; sRead NRZI stream
+;
+;
+
+.define ENABLE 7
+.define T0 10
+
+.program dcd_read
+    wait 0 gpio ENABLE                  ; make sure device is enabled (maybe could remove if SM was triggered by main program)
+    set y, 0                            ; initial state is always 0 (probably unneeded if can reset set whole SM)
+    wait 1 pin 0        [T0/2-1]        ; wait for rising edge on write line from mac
+loop:
+    jmp pin high                         ; need T0 cycles from jmp to jmp
+low:
+    in y, 1                             ; the decoded value is equal to the previous state
+    set y, 0                            ; previous state is now zero
+    jmp loop            [T0-4]
+high:                         
+    mov y, ~Y
+    in y, 1                             ; the deocded value is the inverse of the previous state
+    set y, 1                            ; previous state is now one
+    jmp loop            [T0-5]
+; probably will need to have a counter and wait on edge of next byte
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+void dcd_read_program_init(PIO pio, uint sm, uint offset, uint in_pin)
+{
+    // configure a SM
+    pio_sm_config c = dcd_read_program_get_default_config(offset);
+    // config side set
+    //    sm_config_set_sideset_pins(&c, mux_pin);
+    sm_config_set_in_pins(&c, in_pin);
+    sm_config_set_jmp_pin(&c, in_pin);
+
+    // sm_config_set_out_shift(&c, true, false, 1);
+    sm_config_set_in_shift(&c, false, true, 8);
+
+    pio_gpio_init(pio, in_pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, in_pin, 1, false);
+    // initialize
+    float cycles_per_bit = 10.0;
+    float div = clock_get_hz(clk_sys) / (500.0e3 * cycles_per_bit);
+    sm_config_set_clkdiv(&c, div);
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}

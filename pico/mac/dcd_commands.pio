@@ -15,11 +15,12 @@ start:
     mov osr, pins      ; get the phase values
     out x, 3            ; move 3 bits into X
     jmp x!=y next       ; pins have changes
-    jmp start
+.wrap    
 next:
     in x, 3             ; send the phase values to fifo
     mov y, x            ; remember the current phase state
-.wrap
+    jmp start
+
 
 % c-sdk {
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin

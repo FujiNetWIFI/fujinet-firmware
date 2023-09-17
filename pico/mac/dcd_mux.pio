@@ -1,0 +1,58 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; selects output pins between RMT, TACH and LATCH
+;
+;
+
+.define public LSTRB 12
+.define public ENABLE 7
+
+; The DCD mux will really control the RD line direction.
+; It will ...
+; count the number of strobes and disable RD after 1, 2, or 3 of them
+; it will reset the counter when disable goes high
+; probably at some point should push the strobe counter so the FN can decide which disk image to use
+
+.program dcd_mux
+    ; initial state is RD is hi-z and we have 2 DCDs
+    ; we wait to be enabled then RD goes to output
+start:    
+    set pindirs, 0
+.wrap_target
+    set x, 0
+    wait 0 gpio ENABLE
+    set pindirs, 1
+cont:
+    ; now we need to wait to be strobed or to be disabled
+    jmp pin start   ; disabled so go back to the beginning!
+    mov osr, pins            ; get LSTRB value into osr
+    out y, 1                 ; stick it in Y
+    jmp !Y cont             ; not strobing loop
+    wait 0 gpio LSTRB
+    jmp x-- cont
+    set pindirs, 0
+    wait 1 gpio ENABLE
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+// #define LSTRB 12
+// #define ENABLE 7
+void dcd_mux_program_init(PIO pio, uint sm, uint offset, uint set_pin) {
+   // configure a SM
+   pio_sm_config c = dcd_mux_program_get_default_config(offset);
+   // config side set
+//    sm_config_set_sideset_pins(&c, mux_pin);
+    sm_config_set_in_pins(&c, LSTRB); 
+    sm_config_set_jmp_pin(&c, ENABLE);
+   // there are 4 wires to read for latch mux, shift to the right, no autopull
+    sm_config_set_set_pins(&c, set_pin, 1);
+   sm_config_set_out_shift(&c, true, false, 1);
+   pio_gpio_init(pio, set_pin);
+   pio_sm_set_consecutive_pindirs(pio, sm, set_pin, 1, false);
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}
