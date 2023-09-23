@@ -18,8 +18,9 @@ reset:
     wait 1 pin 0         side 1         ; wait for rising edge on write line from mac
     jmp loop1           side 1
 loop:
-    nop                  side 1   [T0/2-1]
+    nop                  side 1   [T0/2-2]
 loop1:
+    wait 0 gpio 9       side 1      ; block on CA1
     jmp pin high         side 0                 ; need T0 cycles from jmp to jmp
 low:
     in y, 1              side 0    [1]       ; the decoded value is equal to the previous state
@@ -52,14 +53,16 @@ void dcd_read_program_init(PIO pio, uint sm, uint offset, uint in_pin)
     //    sm_config_set_sideset_pins(&c, mux_pin);
     sm_config_set_in_pins(&c, in_pin);
     sm_config_set_jmp_pin(&c, in_pin);
-    sm_config_set_sideset_pins(&c, 15); // TEMPORARY FOR DEBUGGING
+    // sm_config_set_sideset_pins(&c, 15); // TEMPORARY FOR DEBUGGING
     // sm_config_set_out_shift(&c, true, false, 1);
     sm_config_set_in_shift(&c, false, true, 8);
 
     pio_gpio_init(pio, in_pin);
     pio_sm_set_consecutive_pindirs(pio, sm, in_pin, 1, false);
-    pio_gpio_init(pio, 15);
-    pio_sm_set_consecutive_pindirs(pio, sm, 15, 1, true); // TEMPORARY FOR DEBUG OUTPUT (EXTRA)
+//    pio_gpio_init(pio, 15);
+//    pio_sm_set_consecutive_pindirs(pio, sm, 15, 1, true); // TEMPORARY FOR DEBUG OUTPUT (EXTRA)
+    pio_gpio_init(pio, 9);
+    pio_sm_set_consecutive_pindirs(pio, sm, 9, 1, false); // for blocking on CA1
 
     // initialize
     float cycles_per_bit = T0;
