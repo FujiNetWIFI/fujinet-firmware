@@ -2,10 +2,9 @@
 ; FujiNet Project
 ;
 ; Vintage Macintosh Microfloppy Controller Interface
-; sends the phases to the PICO when the strobe sets
+; sends the phases to the PICO when the state changes
 ;
 
-.define LSTRB 12
 .define ENABLE 7
 
 .program dcd_commands

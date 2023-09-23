@@ -56,6 +56,7 @@ void dcd_read_program_init(PIO pio, uint sm, uint offset, uint in_pin)
     // sm_config_set_sideset_pins(&c, 15); // TEMPORARY FOR DEBUGGING
     // sm_config_set_out_shift(&c, true, false, 1);
     sm_config_set_in_shift(&c, false, true, 8);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
 
     pio_gpio_init(pio, in_pin);
     pio_sm_set_consecutive_pindirs(pio, sm, in_pin, 1, false);

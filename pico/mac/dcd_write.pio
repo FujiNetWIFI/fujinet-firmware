@@ -28,12 +28,12 @@
 .program dcd_write
     ; wait 0 gpio ENABLE              ; make sure its us
 .wrap_target
-    set x, 7                        ; 8 bits
-pulse:
+    ;set x, 7                        ; 8 bits
+;pulse:
     out pins, 1             [3]
     set pins, 0             [14]
-    jmp x-- pulse      
-.wrap                               ; stretch by 1 or 2 clocks?
+    ;jmp x-- pulse      
+.wrap  
 
 % c-sdk {
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
@@ -44,7 +44,8 @@ void dcd_write_program_init(PIO pio, uint sm, uint offset, uint pin) {
    // config side set
    sm_config_set_set_pins(&c, pin, 1);
    sm_config_set_out_pins(&c, pin, 1); 
-   sm_config_set_out_shift(&c, true, true, 8);
+   sm_config_set_out_shift(&c, false, true, 8);
+   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
    // pio_gpio_init(pio, pin);
 // pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
    // initialize
