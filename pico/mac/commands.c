@@ -535,6 +535,48 @@ void dcd_loop()
 
 uint8_t payload[538];
 
+void dcd_read(uint8_t ntx)
+{
+  /*Macintosh:
+
+  Offset	Value
+  0	0x00
+  1	Number of sectors to read
+  2-4	Sector offset (big-endian)
+  5	0x00
+  6	Checksum
+  DCD Device:
+
+  Offset	Value
+  0	0x80
+  1	Number of sectors remaining to be read (including sector contained in this response)
+  2-5	Status
+  6-25	Tags of sector being read (20 bytes)
+  26-537	Data of sector being read (512 bytes)
+  538	Checksum
+
+  The DCD device then repeats this response for each sector the Macintosh has requested
+  to be read with the value at offset 1 in the response counting down, beginning at the
+  value at offset 1 in the command and ending at 0x01.
+  */
+
+//  printf("\nRead Command: ");
+//   for (int i=0; i<7; i++)
+//     printf("%02x ",payload[i]);
+//   while(1);
+
+  uint8_t num_sectors = payload[1];
+  // uint32_t sector_offset = ((uint32_t)payload[2] << 16) + ((uint32_t)payload[3] << 8) + (uint32_t)payload[4];
+  uart_putc_raw(UART_ID,'R');
+  uart_putc_raw(UART_ID, payload[2]);
+  uart_putc_raw(UART_ID, payload[3]);
+  uart_putc_raw(UART_ID, payload[4]);
+
+  memset(payload, 0, sizeof(payload));
+  payload[0]=0x80;
+  payload[1]=num_sectors;
+}
+
 void dcd_status(uint8_t ntx)
 {
   /*
@@ -634,6 +676,10 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
 
   switch (payload[0])
   {
+  case 0x00:
+    // read sectors
+    dcd_read(ntx);
+    break;
   case 0x03:
     // status
     // during boot sequence:
