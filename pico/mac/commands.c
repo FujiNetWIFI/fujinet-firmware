@@ -83,6 +83,7 @@ uint32_t olda;
 PIO pio_floppy = pio0;
 PIO pio_dcd = pio1;
 PIO pio_dcd_rw = pio0;
+uint pio_read_offset;
 
 void setup_esp_uart()
 {
@@ -298,9 +299,9 @@ void setup()
     printf("Loaded DCD mux program at %d\n", offset);
     pio_dcd_mux(pio_dcd, SM_DCD_MUX, offset, LATCH_OUT);
 
-    offset = pio_add_program(pio_dcd_rw, &dcd_read_program);
-    printf("Loaded DCD read program at %d\n", offset);
-    pio_dcd_read(pio_dcd_rw, SM_DCD_READ, offset, MCI_WR);
+    pio_read_offset = pio_add_program(pio_dcd_rw, &dcd_read_program);
+    printf("Loaded DCD read program at %d\n", pio_read_offset);
+    pio_dcd_read(pio_dcd_rw, SM_DCD_READ, pio_read_offset, MCI_WR);
 
     offset = pio_add_program(pio_dcd, &dcd_write_program);
     printf("Loaded DCD write program at %d\n", offset);
@@ -511,8 +512,9 @@ void dcd_loop()
       //  printf("\nHandshake\n");
       if (olda == 2)
       {
-        pio_sm_set_enabled(pio_dcd_rw, SM_DCD_READ, true); // to do : init or restart and move PC to top of program
         //pio_sm_restart(pio_dcd_rw, SM_DCD_READ);
+        pio_dcd_read(pio_dcd_rw, SM_DCD_READ, pio_read_offset, MCI_WR); // re-init
+        pio_sm_set_enabled(pio_dcd_rw, SM_DCD_READ, true);
         dcd_assert_hshk();
       }
       break;
@@ -611,13 +613,11 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
   // handshake
   //
   while (gpio_get(MCI_WR)); // WR needs to return to 0 (at least from a status command at boot)
-  olda=a;
   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
   assert(a==3);
   dcd_deassert_hshk();
   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
   assert(a==2); // now back to idle and awaiting DCD response
-  // is this where I fast ACK?
   dcd_assert_hshk();
     a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
   assert(a==3); // now back to idle and awaiting DCD response
@@ -646,9 +646,16 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
     break;
   
   default:
+    printf("\nnot implemented %02x\n",payload[0]);
     break;
   }
-  
+
+
+  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==3);
+  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==2); // now back to idle and awaiting DCD response
+  dcd_deassert_hshk();
 }
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin) {

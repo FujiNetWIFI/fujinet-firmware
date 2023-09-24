@@ -26,13 +26,9 @@
 ; total = 20 ticks = 2.08 us
 
 .program dcd_write
-    ; wait 0 gpio ENABLE              ; make sure its us
 .wrap_target
-    ;set x, 7                        ; 8 bits
-;pulse:
     out pins, 1             [3]
     set pins, 0             [14]
-    ;jmp x-- pulse      
 .wrap  
 
 % c-sdk {
