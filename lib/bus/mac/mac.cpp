@@ -40,6 +40,15 @@ void macBus::setup(void)
  * EJECT          0   1   1   1     7     eject the disk
  */
 
+/**
+ * for DCD (HD20) the protocol is different.
+ * need to read and write blocks
+ * would be nice to fetch the image name so it can be displayed on the mac
+ * 
+ * block numbers are 3 bytes, 512 bytes/block - 8GB addressable, but MAC OS limites to 2 GB
+ * 
+*/
+
 void macBus::service(void)
 {
   // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines - get_disks(0 or 1)
@@ -47,65 +56,84 @@ void macBus::service(void)
   {
     int c=fnUartBUS.read();
     if (c==0) return;
-    switch (c-'0')
+    else if (c < 'A') // floppy
     {
-    case 0:
-      // set direction to increase track number
-      Debug_printf("%c",'I');
-      theFuji.get_disks(0)->disk_dev.set_dir(+1);
-      // fnUartBUS.write('I');
-      // fnUartBUS.flush();
-      break;
-    case 4:
-      // set direction to decrease track number
-      Debug_printf("%c",'D');
-      theFuji.get_disks(0)->disk_dev.set_dir(-1);
-      // fnUartBUS.write('D');
-      // fnUartBUS.flush();
-      break;
-    case 1:
-      // step the head 
-      Debug_printf("%c",'S');
+      switch (c - '0')
       {
-        t0 = fnSystem.micros();
-        track_not_copied = true;
-        int track_position = theFuji.get_disks(0)->disk_dev.step();
-        if (track_position < 0)
+      case 0:
+        // set direction to increase track number
+        Debug_printf("%c", 'I');
+        theFuji.get_disks(0)->disk_dev.set_dir(+1);
+        // fnUartBUS.write('I');
+        // fnUartBUS.flush();
+        break;
+      case 4:
+        // set direction to decrease track number
+        Debug_printf("%c", 'D');
+        theFuji.get_disks(0)->disk_dev.set_dir(-1);
+        // fnUartBUS.write('D');
+        // fnUartBUS.flush();
+        break;
+      case 1:
+        // step the head
+        Debug_printf("%c", 'S');
         {
-          fnUartBUS.write('N');
+          t0 = fnSystem.micros();
+          track_not_copied = true;
+          int track_position = theFuji.get_disks(0)->disk_dev.step();
+          if (track_position < 0)
+          {
+            fnUartBUS.write('N');
+          }
+          else
+          {
+            fnUartBUS.write(track_position | 128); // send the track position(/2) back
+            // fnUartBUS.flush();
+          }
         }
-        else
-        {
-          fnUartBUS.write(track_position | 128); // send the track position(/2) back
-          // fnUartBUS.flush();
-        }
+        break;
+      case 2:
+        // turn motor ons
+        Debug_printf("\nMotor ON");
+        floppy_ll.start(0);
+        fnUartBUS.write('M');
+        // fnUartBUS.flush();
+        break;
+      case 6:
+        // turn motor off
+        Debug_printf("\nMotor OFF");
+        floppy_ll.stop();
+        fnUartBUS.write('F');
+        // fnUartBUS.flush();
+        break;
+      case 7:
+        // eject
+        Debug_printf("\neject but do nothing");
+        fnUartBUS.write('E');
+        // fnUartBUS.flush();
+        break;
+      default:
+        Debug_printf("%03d");
+        fnUartBUS.write('X');
+        // fnUartBUS.flush();
+        break;
       }
-      break;
-    case 2:
-      // turn motor ons
-      Debug_printf("\nMotor ON");
-      floppy_ll.start(0);
-      fnUartBUS.write('M');
-      // fnUartBUS.flush();
-      break;
-    case 6:
-      // turn motor off
-      Debug_printf("\nMotor OFF");
-      floppy_ll.stop();
-      fnUartBUS.write('F');
-      // fnUartBUS.flush();
-      break;
-    case 7:
-      // eject
-      Debug_printf("\neject but do nothing");
-      fnUartBUS.write('E');
-      // fnUartBUS.flush();
-      break;
-    default:
-      Debug_printf("%03d");
-      fnUartBUS.write('X');
-      // fnUartBUS.flush();
-      break;
+    }
+    else // DCD
+    { 
+      switch (c)
+      {
+      case 'R':
+      {
+        char s[3];
+        fnUartBUS.readBytes(s, 3);
+        uint32_t sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
+        Debug_printf("\nDCD sector request: %d", sector_num);
+      }
+        break;
+      default:
+        break;
+      }
     }
   }
   if (track_not_copied && stepper_timeout())
