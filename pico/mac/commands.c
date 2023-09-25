@@ -84,6 +84,7 @@ PIO pio_floppy = pio0;
 PIO pio_dcd = pio1;
 PIO pio_dcd_rw = pio0;
 uint pio_read_offset;
+uint pio_write_offset;
 
 void setup_esp_uart()
 {
@@ -303,9 +304,9 @@ void setup()
     printf("Loaded DCD read program at %d\n", pio_read_offset);
     pio_dcd_read(pio_dcd_rw, SM_DCD_READ, pio_read_offset, MCI_WR);
 
-    offset = pio_add_program(pio_dcd, &dcd_write_program);
-    printf("Loaded DCD write program at %d\n", offset);
-    pio_dcd_write(pio_dcd, SM_DCD_WRITE, offset, LATCH_OUT);
+    pio_write_offset = pio_add_program(pio_dcd, &dcd_write_program);
+    printf("Loaded DCD write program at %d\n", pio_write_offset);
+    pio_dcd_write(pio_dcd, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
 
   // pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, false);
   // pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, true);  
@@ -533,7 +534,44 @@ void dcd_loop()
    }
 }
 
-uint8_t payload[538];
+uint8_t payload[539];
+
+void send_packet(uint8_t ntx)
+{
+  // send the response packet encoding along the way
+  pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, false);
+  // pio_dcd_write(pio_dcd, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
+  pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, true);
+  pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, 0xaa << 24);
+  pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, (ntx | 0x80) << 24);
+  uint8_t *p = payload;
+  for (int i=0; i<ntx; i++)
+  {
+    uint8_t lsb = 0;
+    for (int j = 0; j < 7; j++)
+    {
+      lsb <<= 1;
+      lsb |= (*p) & 0x01;
+      pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, (((*p) >> 1) | 0x80)<<24);
+      p++;
+    }
+      pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, (lsb | 0x80)<<24);  
+  }
+  // pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, 0x80 << 24); 
+  while (!pio_sm_is_tx_fifo_empty(pio_dcd, SM_DCD_WRITE))
+    ;
+  pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, false); // re-aquire the READ line for the LATCH function
+  pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, true);
+}
+
+void compute_checksum(int a)
+{
+  uint8_t sum = 0;
+  for (int i = 0; i < a; i++)
+    sum += payload[i];
+  sum = ~sum;
+  payload[a] = ++sum;
+}
 
 void dcd_read(uint8_t ntx)
 {
@@ -575,6 +613,11 @@ void dcd_read(uint8_t ntx)
   memset(payload, 0, sizeof(payload));
   payload[0]=0x80;
   payload[1]=num_sectors;
+  printf("\n sending back %d groups\n",ntx);
+  uart_read_blocking(UART_ID,&payload[26],512);
+  compute_checksum(538);
+  send_packet(ntx);
+  // send_packet(539/7);
 }
 
 void dcd_status(uint8_t ntx)
@@ -605,47 +648,26 @@ void dcd_status(uint8_t ntx)
   payload[10] = 0xe6;
   payload[11] = 0x35;
   payload[12] = 0x98;
-  uint8_t sum=0;
-  for (int i=0; i<342; i++)
-    sum += payload[i];
-  sum = ~sum;
-  payload[342] = ++sum;
-  // send the response packet encoding along the way
-  pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, false);
-  pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, true);  
-  pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, 0xaa<<24);
-  pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, ntx | 0x80<<24);
-  uint8_t *p = payload;
-  for (int i=0; i<ntx; i++)
-  {
-    uint8_t lsb = 0;
-    for (int j = 0; j < 7; j++)
-    {
-      lsb <<= 1;
-      lsb |= (*p) & 0x01;
-      pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, (((*p) >> 1) | 0x80)<<24);
-      p++;
-    }
-      pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, (lsb | 0x80)<<24);  
-  }
-  while (!pio_sm_is_tx_fifo_empty(pio_dcd, SM_DCD_WRITE))
-    ;
-  pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, false); // re-aquire the READ line for the LATCH function
-  pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, true);
+  // memset(&payload[70],0xaa,128);
+  compute_checksum(342);
+  send_packet(ntx);
 }
 
 
 void dcd_process(uint8_t nrx, uint8_t ntx)
 {
+  printf("\n\n%d rx, %d tx",nrx,ntx);
   uint8_t *p = payload;
   for (int i=0; i < nrx; i++)
   {
     // probably check for HOLDOFF, then handshake and wait for sync, then continue loop
     uint8_t lsb = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
-    // printf("\nL%02x ",lsb);
+    printf("\nL%02x ",lsb);
     for (int j=0; j < 7; j++)
     {
-       *p = (pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ)<<1) | (lsb & 0x01);
+      uint8_t b = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
+      printf("%02x ", b);
+       *p = (b<<1) | (lsb & 0x01);
        lsb >>= 1;
        p++;
     }
@@ -667,17 +689,23 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
   assert(a==1); // now back to idle and awaiting DCD response
 
   // //
-  // printf("\nPayload: ");
-  // for (uint8_t*ptr=payload; ptr<p; ptr++)
-  // {
-  //   printf(" %02x",*ptr);
-  // }
-  // printf("\n");
+  printf("\nPayload: ");
+  for (uint8_t*ptr=payload; ptr<p; ptr++)
+  {
+    printf(" %02x",*ptr);
+  }
+  printf("\n");
 
   switch (payload[0])
   {
   case 0x00:
     // read sectors
+    // the boot read command is: aa 81 84 c1 81 c0 c1 80 80 80 fd
+    // decoded: 00 82 00 00 00 00 7e
+    // 0x82+0x7e=0x100 - check
+    // going to read 0x82 (130) sectors
+    // but it only asked for 4 groups back - hmmmmm 
+
     dcd_read(ntx);
     break;
   case 0x03:

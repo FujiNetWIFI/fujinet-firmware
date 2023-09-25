@@ -49,6 +49,8 @@ void macBus::setup(void)
  * 
 */
 
+uint8_t sector_buffer[512];
+
 void macBus::service(void)
 {
   // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines - get_disks(0 or 1)
@@ -124,12 +126,7 @@ void macBus::service(void)
       switch (c)
       {
       case 'R':
-      {
-        char s[3];
-        fnUartBUS.readBytes(s, 3);
-        uint32_t sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
-        Debug_printf("\nDCD sector request: %d", sector_num);
-      }
+        theFuji.get_disks(0)->disk_dev.process('R');
         break;
       default:
         break;
