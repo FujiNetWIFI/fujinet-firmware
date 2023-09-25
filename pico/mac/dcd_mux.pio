@@ -21,7 +21,7 @@
 start:    
     set pindirs, 0
 .wrap_target
-    set x, 1
+    set x, 0
     wait 0 gpio ENABLE
     set pindirs, 1
 cont:
