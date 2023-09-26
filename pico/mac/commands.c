@@ -536,32 +536,101 @@ void dcd_loop()
 
 uint8_t payload[539];
 
+inline static void send_byte(uint8_t c)
+{
+  pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, c << 24);
+}
+
 void send_packet(uint8_t ntx)
 {
   // send the response packet encoding along the way
   pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, false);
   // pio_dcd_write(pio_dcd, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
   pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, true);
-  pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, 0xaa << 24);
-  pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, (ntx | 0x80) << 24);
+  send_byte(0xaa);
+  send_byte(ntx | 0x80);
   uint8_t *p = payload;
   for (int i=0; i<ntx; i++)
   {
     uint8_t lsb = 0;
     for (int j = 0; j < 7; j++)
     {
-      lsb <<= 1;
-      lsb |= (*p) & 0x01;
-      pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, (((*p) >> 1) | 0x80)<<24);
+      // lsb <<= 1;
+      lsb |= ((*p) & 0x01) << j;
+      send_byte(((*p) >> 1) | 0x80);
       p++;
     }
-      pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, (lsb | 0x80)<<24);  
+    send_byte(lsb | 0x80);  
   }
+  send_byte(0x80);
   // pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, 0x80 << 24); 
   while (!pio_sm_is_tx_fifo_empty(pio_dcd, SM_DCD_WRITE))
     ;
   pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, false); // re-aquire the READ line for the LATCH function
   pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, true);
+}
+
+void simulate_packet(uint8_t ntx)
+{
+  uint8_t encoded[538];
+  encoded[0] = 0xaa;
+  encoded[1] = ntx | 0x80;
+  uint8_t *p = payload;
+  int k=2;
+  for (int i=0; i<ntx; i++)
+  {
+    uint8_t lsb = 0;
+    for (int j = 0; j < 7; j++)
+    {
+      // lsb <<= 1;
+      printf("%02x ", *p);
+      lsb |= ((*p) & 0x01) << j;
+      encoded[k] = (((*p) >> 1) | 0x80);
+      p++;
+      k++;
+    }
+    encoded[k++]=(lsb | 0x80);  
+  }
+
+  printf("\n");
+
+  for (int i=0; i<k; i++)
+    printf("%02x ", encoded[i]);
+  
+  printf("\n");
+}
+
+void simulate_receive_packet(uint8_t nrx, uint8_t ntx)
+{
+  uint8_t encoded[538];
+
+  encoded[0] = 0xaa;
+  encoded[1] = nrx | 0x80;
+  encoded[2] = ntx | 0x80;
+  uint8_t *p = payload;
+  int k=3;
+  for (int i=0; i<nrx; i++)
+  {
+    uint8_t lsb = 0;
+    int k_lsb = k++;
+    for (int j = 0; j < 7; j++)
+    {
+      // lsb <<= 1;
+      printf("%02x ", *p);
+      lsb |= ((*p) & 0x01) << j;
+      encoded[k] = (((*p) >> 1) | 0x80);
+      p++;
+      k++;
+    }
+    encoded[k_lsb]=(lsb | 0x80);  
+  }
+
+  printf("\n");
+
+  for (int i=0; i<k; i++)
+    printf("%02x ", encoded[i]);
+  
+  printf("\n");
 }
 
 void compute_checksum(int a)
@@ -646,23 +715,32 @@ void dcd_status(uint8_t ntx)
   payload[7] = 1;
   payload[9] = 1;
   payload[10] = 0xe6;
-  payload[11] = 0x35;
-  payload[12] = 0x98;
-  // memset(&payload[70],0xaa,128);
+  payload[11] = 0xA0;
+  payload[12] = 0x00;
+  memset(&payload[70],0xaa,128);
+  payload[326] = 7;
+  payload[327] = 'F';
+  payload[328] = 'u';
+  payload[329] = 'j';
+  payload[330] = 'i';
+  payload[331] = 'n';
+  payload[332] = 'e';
+  payload[333] = 't';
   compute_checksum(342);
   send_packet(ntx);
+  // simulate_packet(ntx);
+  // assert(false);
 }
-
 
 void dcd_process(uint8_t nrx, uint8_t ntx)
 {
-  printf("\n\n%d rx, %d tx",nrx,ntx);
+  printf("\n\nEncoded data: aa %02x %02x ",nrx | 0x80, ntx | 0x80);
   uint8_t *p = payload;
   for (int i=0; i < nrx; i++)
   {
     // probably check for HOLDOFF, then handshake and wait for sync, then continue loop
     uint8_t lsb = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
-    printf("\nL%02x ",lsb);
+    printf("%02x ",lsb);
     for (int j=0; j < 7; j++)
     {
       uint8_t b = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
@@ -695,6 +773,9 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
     printf(" %02x",*ptr);
   }
   printf("\n");
+
+  // simulate_receive_packet(nrx, ntx);
+  // assert(false);
 
   switch (payload[0])
   {
