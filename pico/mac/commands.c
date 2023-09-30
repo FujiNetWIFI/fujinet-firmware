@@ -548,7 +548,7 @@ void send_packet(uint8_t ntx)
   pio_dcd_write(pio_dcd, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
   pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, true);
   send_byte(0xaa);
-  send_byte(ntx | 0x80);
+  // send_byte(ntx | 0x80); - NOT SENT - OOPS
   uint8_t *p = payload;
   for (int i=0; i<ntx; i++)
   {
