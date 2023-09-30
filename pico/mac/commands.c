@@ -545,7 +545,7 @@ void send_packet(uint8_t ntx)
 {
   // send the response packet encoding along the way
   pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, false);
-  // pio_dcd_write(pio_dcd, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
+  pio_dcd_write(pio_dcd, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
   pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, true);
   send_byte(0xaa);
   send_byte(ntx | 0x80);
@@ -560,12 +560,15 @@ void send_packet(uint8_t ntx)
       send_byte(((*p) >> 1) | 0x80);
       p++;
     }
-    send_byte(lsb | 0x80);  
+    send_byte(lsb | 0x80); 
   }
-  send_byte(0x80);
+  // printf("\nsent %d\n",ct);
+  // send_byte(0x80); // send_byte(0x80);
+  send_byte(0x00); // dummy data for a pause to allow the last byte to send 
   // pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, 0x80 << 24); 
   while (!pio_sm_is_tx_fifo_empty(pio_dcd, SM_DCD_WRITE))
     ;
+  
   pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, false); // re-aquire the READ line for the LATCH function
   pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, true);
 }
@@ -639,7 +642,8 @@ void compute_checksum(int a)
   for (int i = 0; i < a; i++)
     sum += payload[i];
   sum = ~sum;
-  payload[a] = ++sum;
+  sum++;
+  payload[a] = (uint8_t)(0xff & sum);
 }
 
 void dcd_read(uint8_t ntx)
@@ -691,60 +695,135 @@ void dcd_read(uint8_t ntx)
 
 void dcd_status(uint8_t ntx)
 {
+  const uint8_t s[] = {0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0xe6, 0x00, 0x98, 0x35, 0x00,
+                       0x45, 0x00, 0x01, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x7f, 0xff, 0xff, 0xfe, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80,
+                       0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x88,
+                       0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x7f, 0xff, 0xff, 0xfe, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x7f, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xfe, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
+
   /*
   DCD Device:
     Offset	Value	Sample Value from HD20
-    0	0x83	
-    1	0x00	
-    2-5	Status	
+    0	0x83
+    1	0x00
+    2-5	Status
     6-7	Device type	0x0001
     8-9	Device manufacturer	0x0001
     10	Device characteristics bit field (see below)	0xE6
     11-13	Number of blocks	0x009835
     14-15	Number of spare blocks	0x0045
     16-17	Number of bad blocks	0x0001
-    18-69	Manufacturer reserved	
-    70-197	Icon (see below)	
-    198-325	Icon mask (see below)	
-    326	Device location string length	
-    327-341	Device location string	
-    342	Checksum	
+    18-69	Manufacturer reserved
+    70-197	Icon (see below)
+    198-325	Icon mask (see below)
+    326	Device location string length
+    327-341	Device location string
+    342	Checksum
+
+    The device characteristics bit field is defined as follows:
+    Value	Meaning
+    0x80	Mountable
+    0x40	Readable
+    0x20	Writable
+    0x10	Ejectable (see below)
+    0x08	Write protected
+    0x04	Icon included
+    0x02	Disk in place (see below)
+
   */
-  memset(payload, 0, sizeof(payload));
-  payload[0] = 0x83;
-  payload[7] = 1;
-  payload[9] = 1;
-  payload[10] = 0xe6;
-  payload[11] = 0xA0;
-  payload[12] = 0x00;
-  memset(&payload[70],0xaa,128);
-  payload[326] = 7;
-  payload[327] = 'F';
-  payload[328] = 'u';
-  payload[329] = 'j';
-  payload[330] = 'i';
-  payload[331] = 'n';
-  payload[332] = 'e';
-  payload[333] = 't';
-  compute_checksum(342);
+  printf(" status ");
+  // memset(payload, 0, sizeof(payload));
+  // payload[0] = 0x83;
+  // payload[7] = 1;
+  // payload[9] = 1;
+  // payload[10] =  0xe6; //8 | 0x40 | 0x80; // 0xe6;
+  // payload[12] = 0xA0;
+  // //memset(&payload[70],0xaa,128);
+  // // payload[326] = 7;
+  // // payload[327] = 'F';
+  // // payload[328] = 'u';
+  // // payload[329] = 'j';
+  // // payload[330] = 'i';
+  // // payload[331] = 'n';
+  // // payload[332] = 'e';
+  // // payload[333] = 't';
+  // compute_checksum(342);
+  memcpy(payload,s,sizeof(s));
   send_packet(ntx);
   // simulate_packet(ntx);
   // assert(false);
 }
 
+void dcd_unknown(uint8_t ntx)
+{
+  /*
+  DCD Device:
+    Offset	Value	Sample Value from HD20
+    0	0x83	
+    1	0x00	
+    2-5	Status	
+    6 checksum
+  */
+  printf(" sending0x22 ");
+  memset(payload, 0, sizeof(payload));
+  payload[0] = 0x80 | 0x22;
+  compute_checksum(6);
+  assert(ntx==1);
+  send_packet(ntx);
+  // simulate_packet(ntx);
+  // assert(false);
+}
+
+void dcd_format(uint8_t ntx)
+{
+  /*
+  DCD Device:
+    Offset	Value	Sample Value from HD20
+    0	0x83	
+    1	0x00	
+    2-5	Status	
+    6 checksum
+  */
+  memset(payload, 0, sizeof(payload));
+  payload[0] = 0x80 + 0x19;
+  compute_checksum(6);
+  assert(ntx==1);
+  send_packet(ntx);
+  // simulate_packet(ntx);
+  // assert(false);
+}
+
+
 void dcd_process(uint8_t nrx, uint8_t ntx)
 {
-  printf("\n\nEncoded data: aa %02x %02x ",nrx | 0x80, ntx | 0x80);
+  // printf("\n\nEncoded data: aa %02x %02x ",nrx | 0x80, ntx | 0x80);
   uint8_t *p = payload;
   for (int i=0; i < nrx; i++)
   {
     // probably check for HOLDOFF, then handshake and wait for sync, then continue loop
     uint8_t lsb = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
-    printf("%02x ",lsb);
+    // printf("%02x ",lsb);
     for (int j=0; j < 7; j++)
     {
       uint8_t b = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
-      printf("%02x ", b);
+      // printf("%02x ", b);
        *p = (b<<1) | (lsb & 0x01);
        lsb >>= 1;
        p++;
@@ -757,22 +836,24 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
   while (gpio_get(MCI_WR)); // WR needs to return to 0 (at least from a status command at boot)
   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
   assert(a==3);
+  //busy_wait_us_32(10);
   dcd_deassert_hshk();
   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
   assert(a==2); // now back to idle and awaiting DCD response
+  // busy_wait_us_32(10);
   dcd_assert_hshk();
     a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
   assert(a==3); // now back to idle and awaiting DCD response
     a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
   assert(a==1); // now back to idle and awaiting DCD response
 
-  // //
-  printf("\nPayload: ");
-  for (uint8_t*ptr=payload; ptr<p; ptr++)
-  {
-    printf(" %02x",*ptr);
-  }
-  printf("\n");
+  // // //
+  // printf("\nPayload: ");
+  // for (uint8_t*ptr=payload; ptr<p; ptr++)
+  // {
+  //   printf(" %02x",*ptr);
+  // }
+  // printf("\n");
 
   // simulate_receive_packet(nrx, ntx);
   // assert(false);
@@ -799,7 +880,12 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
     // The 7-to-8 group should decode to 03 00 00 00 00 00 FD
     dcd_status(ntx);
     break;
-  
+  case 0x19:
+    dcd_format(ntx);
+    break;
+  case 0x22:
+    dcd_unknown(ntx);
+    break;
   default:
     printf("\nnot implemented %02x\n",payload[0]);
     break;

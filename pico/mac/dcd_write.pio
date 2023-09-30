@@ -27,8 +27,8 @@
 
 .program dcd_write
 .wrap_target
-    out pins, 1             [3]
-    set pins, 0             [14]
+    out pins, 1             [4]
+    set pins, 0             [13]
 .wrap  
 
 % c-sdk {
