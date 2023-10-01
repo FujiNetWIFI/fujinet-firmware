@@ -759,15 +759,7 @@ void adamNetwork::adamnet_control_clr()
 
 void adamNetwork::adamnet_control_receive_channel()
 {
-    switch (channelMode)
-    {
-    case JSON:
-        adamnet_control_receive_channel_json();
-        break;
-    case PROTOCOL:
-        adamnet_control_receive_channel_protocol();
-        break;
-    }
+
 }
 
 void adamNetwork::adamnet_control_receive_channel_json()
@@ -798,20 +790,19 @@ void adamNetwork::adamnet_control_receive_channel_protocol()
 {
     NetworkStatus ns;
 
+    AdamNet.start_time = esp_timer_get_time();
+
     if ((protocol == nullptr) || (receiveBuffer == nullptr))
+    {
+        // adamnet_response_nack();
         return; // Punch out.
+    }
 
     // Get status
     protocol->status(&ns);
-    if (ns.rxBytesWaiting > 0)
-        Debug_printf("!!! rxBytesWaiting: %d\n", ns.rxBytesWaiting);
-    if (ns.rxBytesWaiting > 0)
-        adamnet_response_ack();
-    else
-    {
-        adamnet_response_nack();
+
+    if (!ns.rxBytesWaiting)
         return;
-    }
 
     // Truncate bytes waiting to response size
     ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
@@ -842,13 +833,18 @@ void adamNetwork::adamnet_control_receive()
         adamnet_response_ack();
         return;
     }
-
-    switch (receiveMode)
+    else if ((response_len == 0) && (channelMode == PROTOCOL)) // this is hacky as hell
     {
-    case CHANNEL:
-        adamnet_control_receive_channel();
+        adamnet_response_nack();
+    }
+
+    switch (channelMode)
+    {
+    case JSON:
+        adamnet_control_receive_channel_json();
         break;
-    case STATUS:
+    case PROTOCOL:
+        adamnet_control_receive_channel_protocol();
         break;
     }
 }
