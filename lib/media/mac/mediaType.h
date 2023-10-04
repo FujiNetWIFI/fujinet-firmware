@@ -27,7 +27,7 @@ protected:
     FILE *_media_fileh = nullptr;
     uint32_t _media_image_size = 0;
     uint32_t _media_num_sectors = 0;
-    uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
+    uint16_t _media_sector_size = 512; //DISK_BYTES_PER_SECTOR_SINGLE;
     int32_t _media_last_sector = INVALID_SECTOR_VALUE;
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 

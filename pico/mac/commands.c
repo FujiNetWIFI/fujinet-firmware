@@ -541,6 +541,24 @@ inline static void send_byte(uint8_t c)
   pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, c << 24);
 }
 
+void handshake_before_send()
+{
+    dcd_assert_hshk();
+    a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==3); // now back to idle and awaiting DCD response
+    a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==1); // now back to idle and awaiting DCD response
+}
+
+void handshake_after_send()
+{
+  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==3);
+  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==2); // now back to idle and awaiting DCD response
+}
+
+
 void send_packet(uint8_t ntx)
 {
   // send the response packet encoding along the way
@@ -563,21 +581,24 @@ void send_packet(uint8_t ntx)
     send_byte(lsb | 0x80); 
   }
   // printf("\nsent %d\n",ct);
-  // send_byte(0x80); // send_byte(0x80);
+  // send_byte(0xff); // send_byte(0x80);
   send_byte(0x00); // dummy data for a pause to allow the last byte to send 
-  // pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, 0x80 << 24); 
   while (!pio_sm_is_tx_fifo_empty(pio_dcd, SM_DCD_WRITE))
     ;
   
+  dcd_deassert_hshk();
   pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, false); // re-aquire the READ line for the LATCH function
   pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, true);
+
+  handshake_after_send();
+
 }
 
 void simulate_packet(uint8_t ntx)
 {
   uint8_t encoded[538];
   encoded[0] = 0xaa;
-  encoded[1] = ntx | 0x80;
+  //encoded[1] = ntx | 0x80;
   uint8_t *p = payload;
   int k=2;
   for (int i=0; i<ntx; i++)
@@ -646,6 +667,7 @@ void compute_checksum(int a)
   payload[a] = (uint8_t)(0xff & sum);
 }
 
+
 void dcd_read(uint8_t ntx)
 {
   /*Macintosh:
@@ -676,21 +698,124 @@ void dcd_read(uint8_t ntx)
 //     printf("%02x ",payload[i]);
 //   while(1);
 
+  
   uint8_t num_sectors = payload[1];
+  uint32_t sector = (payload[2] << 16) + (payload[3] << 8) + payload[4];
   // uint32_t sector_offset = ((uint32_t)payload[2] << 16) + ((uint32_t)payload[3] << 8) + (uint32_t)payload[4];
-  uart_putc_raw(UART_ID,'R');
-  uart_putc_raw(UART_ID, payload[2]);
-  uart_putc_raw(UART_ID, payload[3]);
-  uart_putc_raw(UART_ID, payload[4]);
+  printf("read %d sectors\n", num_sectors);
 
-  memset(payload, 0, sizeof(payload));
-  payload[0]=0x80;
-  payload[1]=num_sectors;
-  printf("\n sending back %d groups\n",ntx);
-  uart_read_blocking(UART_ID,&payload[26],512);
-  compute_checksum(538);
-  send_packet(ntx);
-  // send_packet(539/7);
+  // clear out UART buffer cause there was a residual byte
+  while(uart_is_readable(UART_ID))
+    uart_getc(UART_ID);
+
+  for (uint8_t i=0; i<num_sectors; i++)
+  {
+    printf("sending sector %06x in %d groups\n", sector, ntx);
+    
+    uart_putc_raw(UART_ID, 'R');
+    uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
+    uart_putc_raw(UART_ID, (sector >> 8) & 0xff);
+    uart_putc_raw(UART_ID, sector & 0xff);
+    sector++;
+
+    memset(payload, 0, sizeof(payload));
+    payload[0] = 0x80;
+    payload[1] = num_sectors-i;
+
+    uart_read_blocking(UART_ID, &payload[26], 512);
+    for (int x=0; x<16; x++)
+    {
+      printf("%02x ", payload[26+x]);
+    }
+    printf("\n");
+    compute_checksum(538);
+    handshake_before_send();
+    send_packet(ntx);
+
+  }
+}
+
+void dcd_write(uint8_t ntx, bool cont)
+{
+  /*Macintosh:
+    Offset	Value
+    0	0x01
+    1	Number of sectors remaining to be written (including sector contained in this response)
+    2-4	Sector offset (big-endian)
+    5	0x00
+    6-25	Tags of sector to be written (20 bytes)
+    26-537	Data of sector to be written (512 bytes)
+    538	Checksum
+
+OR
+
+    Macintosh (if more than one sector is to be written):
+    Offset	Value
+    0	0x41
+    1	Number of sectors remaining to be written (including sector contained in this response)
+    2-5	0x00 0x00 0x00 0x00
+    6-25	Tags of sector to be written (20 bytes)
+    26-537	Data of sector to be written (512 bytes)
+    538	Checksum
+
+  Response:
+  DCD Device:
+  Offset	Value
+    0	0x81
+    1	Number of sectors remaining to be written (including sector contained in last command)
+    2-5	Status
+    6	Checksum
+
+  The Macintosh then repeats this command (and the DCD device repeats its response above)
+  for each sector the Macintosh has requested to be written with the value at offset 1 in
+  the command counting down, ending at 0x01.
+  */
+
+  //  printf("\nRead Command: ");
+  //   for (int i=0; i<7; i++)
+  //     printf("%02x ",payload[i]);
+  //   while(1);
+
+  uint8_t num_sectors = payload[1];
+  static uint32_t sector = 0;
+  if (cont)
+  {
+    sector++;
+  }
+  else
+  {
+    sector = (payload[2] << 16) + (payload[3] << 8) + payload[4];
+    printf("write %06x sectors\n", sector);
+  }
+
+  ///  TODO FROM HERE CHANGE FROM READ TO WRITE
+
+  // clear out UART buffer cause there was a residual byte
+  // while(uart_is_readable(UART_ID))
+  //   uart_getc(UART_ID);
+
+  //   printf("sending sector %06x in %d groups\n", sector, ntx);
+    
+  //   uart_putc_raw(UART_ID, 'R');
+  //   uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
+  //   uart_putc_raw(UART_ID, (sector >> 8) & 0xff);
+  //   uart_putc_raw(UART_ID, sector & 0xff);
+  //   sector++;
+    // uart_read_blocking(UART_ID, &payload[26], 512);
+    // for (int x=0; x<512; x++)
+    // {
+    //   printf("%02x ", payload[26+x]);
+    // }
+
+    // response packet
+    memset(payload, 0, sizeof(payload));
+    payload[0] = 0x81;
+    payload[1] = num_sectors;
+
+    printf("\n");
+    compute_checksum(6);
+    handshake_before_send();
+    send_packet(ntx);
 }
 
 void dcd_status(uint8_t ntx)
@@ -748,7 +873,8 @@ void dcd_status(uint8_t ntx)
     0x02	Disk in place (see below)
 
   */
-  printf(" status ");
+  printf("status\n");
+  memcpy(payload,s,sizeof(s));
   // memset(payload, 0, sizeof(payload));
   // payload[0] = 0x83;
   // payload[7] = 1;
@@ -764,8 +890,10 @@ void dcd_status(uint8_t ntx)
   // // payload[331] = 'n';
   // // payload[332] = 'e';
   // // payload[333] = 't';
-  // compute_checksum(342);
-  memcpy(payload,s,sizeof(s));
+  compute_checksum(342);
+
+  handshake_before_send();
+
   send_packet(ntx);
   // simulate_packet(ntx);
   // assert(false);
@@ -781,11 +909,14 @@ void dcd_unknown(uint8_t ntx)
     2-5	Status	
     6 checksum
   */
-  printf(" sending0x22 ");
+  printf("sending0x22 ");
   memset(payload, 0, sizeof(payload));
   payload[0] = 0x80 | 0x22;
   compute_checksum(6);
   assert(ntx==1);
+
+  handshake_before_send();
+
   send_packet(ntx);
   // simulate_packet(ntx);
   // assert(false);
@@ -805,6 +936,10 @@ void dcd_format(uint8_t ntx)
   payload[0] = 0x80 + 0x19;
   compute_checksum(6);
   assert(ntx==1);
+  printf("format\n");
+
+  handshake_before_send();
+
   send_packet(ntx);
   // simulate_packet(ntx);
   // assert(false);
@@ -817,7 +952,7 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
   uint8_t *p = payload;
   for (int i=0; i < nrx; i++)
   {
-    // probably check for HOLDOFF, then handshake and wait for sync, then continue loop
+    // probably check for HOLDOFF, then handshake and wait for sync, then cont loop
     uint8_t lsb = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
     // printf("%02x ",lsb);
     for (int j=0; j < 7; j++)
@@ -840,20 +975,20 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
   dcd_deassert_hshk();
   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
   assert(a==2); // now back to idle and awaiting DCD response
-  // busy_wait_us_32(10);
-  dcd_assert_hshk();
-    a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
-  assert(a==3); // now back to idle and awaiting DCD response
-    a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
-  assert(a==1); // now back to idle and awaiting DCD response
+  // busy_wait_us_32(3000);
+  // dcd_assert_hshk();
+  //   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  // assert(a==3); // now back to idle and awaiting DCD response
+  //   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  // assert(a==1); // now back to idle and awaiting DCD response
 
-  // // //
-  // printf("\nPayload: ");
-  // for (uint8_t*ptr=payload; ptr<p; ptr++)
-  // {
-  //   printf(" %02x",*ptr);
-  // }
-  // printf("\n");
+  // //
+  printf("\nPayload: ");
+  for (uint8_t*ptr=payload; ptr<p; ptr++)
+  {
+    printf(" %02x",*ptr);
+  }
+  printf("\n");
 
   // simulate_receive_packet(nrx, ntx);
   // assert(false);
@@ -867,8 +1002,12 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
     // 0x82+0x7e=0x100 - check
     // going to read 0x82 (130) sectors
     // but it only asked for 4 groups back - hmmmmm 
-
     dcd_read(ntx);
+    break;
+  case 0x01:
+
+    // write sectors
+    dcd_write(ntx, false);
     break;
   case 0x03:
     // status
@@ -886,17 +1025,16 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
   case 0x22:
     dcd_unknown(ntx);
     break;
+  case 0x41:
+
+    // cont to write sectors
+    dcd_write(ntx, true);
+    break;
   default:
     printf("\nnot implemented %02x\n",payload[0]);
     break;
   }
-
-
-  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
-  assert(a==3);
-  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
-  assert(a==2); // now back to idle and awaiting DCD response
-  dcd_deassert_hshk();
+ 
 }
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin) {
