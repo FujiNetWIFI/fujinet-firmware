@@ -8,8 +8,8 @@
 
 bool MediaTypeDCD::read(uint32_t blockNum, uint8_t* buffer)
 {
-    size_t readsize = _media_sector_size;
-if (blockNum == 0 || blockNum != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
+    size_t readsize = 512;//_media_sector_size;
+if ((blockNum == 0) || (blockNum != last_block_num + 1)) // example optimization, only do seek if not reading next block -tschak
   {
      if (fseek(_media_fileh, (blockNum * readsize) + offset, SEEK_SET))
     {

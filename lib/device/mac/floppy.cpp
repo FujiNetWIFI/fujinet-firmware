@@ -205,9 +205,9 @@ void macFloppy::process(mac_cmd_t cmd)
     char s[3];
     fnUartBUS.readBytes(s, 3);
     sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
-    // Debug_printf("\nDCD sector request: %d", sector_num);
+    Debug_printf("\nDCD sector request: %06x", sector_num);
     if (_disk->read(sector_num, buffer))
-      Debug_printf("\nError Reading Sector %d",sector_num);
+      Debug_printf("\nError Reading Sector %06x",sector_num);
     fnUartBUS.write(buffer, sizeof(buffer));
     break;
   default:
