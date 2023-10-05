@@ -10,6 +10,7 @@
 #define DCD
 
 #include <stdio.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include "hardware/clocks.h"
@@ -22,12 +23,17 @@
 #include "mux.pio.h"
 
 #include "dcd_latch.pio.h"
+#include "dcd_commands.pio.h"
+#include "dcd_mux.pio.h"
+#include "dcd_read.pio.h"
+#include "dcd_write.pio.h"
 
 // #include "../../include/pinmap/mac_rev0.h"
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
 #define ENABLE 7
 #define MCI_CA0 8
+#define MCI_WR   14
 #define ECHO_IN 21
 #define TACH_OUT 21
 #define ECHO_OUT 18
@@ -38,10 +44,12 @@
 #define SM_MUX 2
 #define SM_ECHO 3
 
-#define SM_DCD_LATCH 0
-#define SM_DCD_READ 1
-#define SM_DCD_WRITE 2
-#define SM_DCD_MUX 3
+#define SM_DCD_LATCH 3
+#define SM_DCD_CMD 1
+#define SM_DCD_MUX 2
+#define SM_DCD_READ 0
+#define SM_DCD_WRITE 0
+
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins);
@@ -49,6 +57,10 @@ void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin);
 
 void pio_dcd_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
+void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin);
+void pio_dcd_mux(PIO pio, uint sm, uint offset, uint pin);
+void pio_dcd_read(PIO pio, uint sm, uint offset, uint pin);
+void pio_dcd_write(PIO pio, uint sm, uint offset, uint pin);
 
 #define UART_ID uart1
 #define BAUD_RATE 2000000 //230400 //115200
@@ -64,10 +76,15 @@ const int tach_lut[5][3] = {{0, 15, 394},
                             {64, 79, 590}};
 
 uint32_t a;
+uint32_t b[12];
     char c;
+uint32_t olda;
     
 PIO pio_floppy = pio0;
 PIO pio_dcd = pio1;
+PIO pio_dcd_rw = pio0;
+uint pio_read_offset;
+uint pio_write_offset;
 
 void setup_esp_uart()
 {
@@ -180,6 +197,7 @@ uint8_t dcd_assert_hshk()
 {
   dcd_clr_latch(2);
   dcd_clr_latch(3);
+  pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO
   return dcd_latch;
 }
 
@@ -187,6 +205,7 @@ uint8_t dcd_deassert_hshk()
 {
   dcd_set_latch(2);
   dcd_set_latch(3);
+  pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO
   return dcd_latch;
 }
 
@@ -234,6 +253,7 @@ void set_tach_freq(char c)
 
 void loop();
 void dcd_loop();
+
 void setup()
 {
   uint offset;
@@ -268,10 +288,32 @@ void setup()
     dcd_preset_latch();
 
     offset = pio_add_program(pio_dcd, &dcd_latch_program);
-    printf("Loaded DCD latch program at %d\n", offset);
+    printf("\nLoaded DCD latch program at %d\n", offset);
     pio_dcd_latch(pio_dcd, SM_DCD_LATCH, offset, MCI_CA0, LATCH_OUT);
-    pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO   
+    pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO  
 
+    offset = pio_add_program(pio_dcd, &dcd_commands_program);
+    printf("Loaded DCD commands program at %d\n", offset);
+    pio_dcd_commands(pio_dcd, SM_DCD_CMD, offset, MCI_CA0); 
+
+    offset = pio_add_program(pio_dcd, &dcd_mux_program);
+    printf("Loaded DCD mux program at %d\n", offset);
+    pio_dcd_mux(pio_dcd, SM_DCD_MUX, offset, LATCH_OUT);
+
+    pio_read_offset = pio_add_program(pio_dcd_rw, &dcd_read_program);
+    printf("Loaded DCD read program at %d\n", pio_read_offset);
+    pio_dcd_read(pio_dcd_rw, SM_DCD_READ, pio_read_offset, MCI_WR);
+
+    pio_write_offset = pio_add_program(pio_dcd, &dcd_write_program);
+    printf("Loaded DCD write program at %d\n", pio_write_offset);
+    pio_dcd_write(pio_dcd, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
+
+  // pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, false);
+  // pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, true);  
+  // pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, 0xaa<<24);
+  // pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, 0x80<<24);
+  // while(1)
+  // ;
 #endif // FLOPPY
 }
 
@@ -281,7 +323,7 @@ int main()
     while (true)
     {
 #ifdef FLOPPY
-      loop();
+      floppy_loop();
 #elif defined(DCD)
       dcd_loop();
 #endif
@@ -290,7 +332,7 @@ int main()
 
 bool step_state = false;
 
-void loop()
+void floppy_loop()
 {
     if (!pio_sm_is_rx_fifo_empty(pio_floppy, SM_CMD))
     {
@@ -411,10 +453,588 @@ void loop()
     // to do: read both enable lines and indicate which drive is active when sending single char to esp32
 }
 
+struct dcd_triad {
+  uint8_t sync;
+  uint8_t num_rx;
+  uint8_t num_tx;
+} cmd;
+
+bool host = false;
+
+// forward declarations
+void dcd_process(uint8_t nrx, uint8_t ntx);
 
 void dcd_loop()
 {
+  // latest thoughts:
+  // this loop handshakes and receives the DCD command and fires off the command handler
+  // todo: make dcd_mux.pio push the DCD volume # (or floppy state) to the input FIFO.
 
+  // thoughts:
+  // this is done by a SM: during boot sequence, need to look for STRB to deal with daisy chained DCD and floppy
+  // if only one HD20, then after first STRB, READ should go hi-z.
+  // then maybe we get a reset? the Reset should allow READ to go output when ENABLED
+  //
+  // need a state variable to track changes in the "command" phase settings
+  // 
+  // 
+  if (!pio_sm_is_rx_fifo_empty(pio_dcd, SM_DCD_CMD))
+  {
+    olda = a;
+    a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+    switch (a)
+    {
+      case 0: 
+        host = true;
+        break;
+      case 1: // for now receiving a command
+        host = true;
+        // The Macintosh's data transfer begins with three bytes which are not encoded using the 7-to-8 encoding. 
+        // The first is an 0xAA "sync" byte. 
+        // The second indicates the number of 7-to-8-encoded groups contained in the transfer to follow, plus 0x80 (because the MSB must be set). 
+        // The third indicates the number of 7-to-8-encoded groups that the Macintosh expects to receive in response, plus 0x80. 
+        // These three bytes are followed by 7-to-8-encoded groups, the number of which was indicated by the second byte.
+        cmd.sync = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
+        assert(cmd.sync == 0xaa);
+        cmd.num_rx = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
+        cmd.num_tx = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
+        dcd_process(cmd.num_rx & 0x7f, cmd.num_tx & 0x7f);
+        break;
+    case 2:
+      host = false;
+      // idle
+      // if (olda == 3)
+      // {
+      //   dcd_assert_hshk();
+      // }
+      break;
+    case 3: // handshake
+      host = true;
+      //  printf("\nHandshake\n");
+      if (olda == 2)
+      {
+        //pio_sm_restart(pio_dcd_rw, SM_DCD_READ);
+        pio_dcd_read(pio_dcd_rw, SM_DCD_READ, pio_read_offset, MCI_WR); // re-init
+        pio_sm_set_enabled(pio_dcd_rw, SM_DCD_READ, true);
+        dcd_assert_hshk();
+      }
+      break;
+    case 4:
+      host = false;
+      // reset
+      dcd_deassert_hshk();
+      pio_sm_exec(pio_dcd, SM_DCD_MUX, 0xe081); // set pindirs 1
+      break;
+    default:
+      host = false;
+      dcd_deassert_hshk();
+      break;
+    }
+    printf("%c", a + '0');
+   }
+}
+
+uint8_t payload[539];
+
+inline static void send_byte(uint8_t c)
+{
+  pio_sm_put_blocking(pio_dcd, SM_DCD_WRITE, c << 24);
+}
+
+void handshake_before_send()
+{
+    dcd_assert_hshk();
+    a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==3); // now back to idle and awaiting DCD response
+    a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==1); // now back to idle and awaiting DCD response
+}
+
+void handshake_after_send()
+{
+  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==3);
+  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==2); // now back to idle and awaiting DCD response
+}
+
+
+void send_packet(uint8_t ntx)
+{
+  // send the response packet encoding along the way
+  pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, false);
+  pio_dcd_write(pio_dcd, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
+  pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, true);
+  send_byte(0xaa);
+  // send_byte(ntx | 0x80); - NOT SENT - OOPS
+  uint8_t *p = payload;
+  for (int i=0; i<ntx; i++)
+  {
+    uint8_t lsb = 0;
+    for (int j = 0; j < 7; j++)
+    {
+      // lsb <<= 1;
+      lsb |= ((*p) & 0x01) << j;
+      send_byte(((*p) >> 1) | 0x80);
+      p++;
+    }
+    send_byte(lsb | 0x80); 
+  }
+  // printf("\nsent %d\n",ct);
+  // send_byte(0xff); // send_byte(0x80);
+  send_byte(0x00); // dummy data for a pause to allow the last byte to send 
+  while (!pio_sm_is_tx_fifo_empty(pio_dcd, SM_DCD_WRITE))
+    ;
+  
+  dcd_deassert_hshk();
+  pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, false); // re-aquire the READ line for the LATCH function
+  pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, true);
+
+  handshake_after_send();
+
+}
+
+void simulate_packet(uint8_t ntx)
+{
+  uint8_t encoded[538];
+  encoded[0] = 0xaa;
+  //encoded[1] = ntx | 0x80;
+  uint8_t *p = payload;
+  int k=2;
+  for (int i=0; i<ntx; i++)
+  {
+    uint8_t lsb = 0;
+    for (int j = 0; j < 7; j++)
+    {
+      // lsb <<= 1;
+      printf("%02x ", *p);
+      lsb |= ((*p) & 0x01) << j;
+      encoded[k] = (((*p) >> 1) | 0x80);
+      p++;
+      k++;
+    }
+    encoded[k++]=(lsb | 0x80);  
+  }
+
+  printf("\n");
+
+  for (int i=0; i<k; i++)
+    printf("%02x ", encoded[i]);
+  
+  printf("\n");
+}
+
+void simulate_receive_packet(uint8_t nrx, uint8_t ntx)
+{
+  uint8_t encoded[538];
+
+  encoded[0] = 0xaa;
+  encoded[1] = nrx | 0x80;
+  encoded[2] = ntx | 0x80;
+  uint8_t *p = payload;
+  int k=3;
+  for (int i=0; i<nrx; i++)
+  {
+    uint8_t lsb = 0;
+    int k_lsb = k++;
+    for (int j = 0; j < 7; j++)
+    {
+      // lsb <<= 1;
+      printf("%02x ", *p);
+      lsb |= ((*p) & 0x01) << j;
+      encoded[k] = (((*p) >> 1) | 0x80);
+      p++;
+      k++;
+    }
+    encoded[k_lsb]=(lsb | 0x80);  
+  }
+
+  printf("\n");
+
+  for (int i=0; i<k; i++)
+    printf("%02x ", encoded[i]);
+  
+  printf("\n");
+}
+
+void compute_checksum(int a)
+{
+  uint8_t sum = 0;
+  for (int i = 0; i < a; i++)
+    sum += payload[i];
+  sum = ~sum;
+  sum++;
+  payload[a] = (uint8_t)(0xff & sum);
+}
+
+
+void dcd_read(uint8_t ntx)
+{
+  /*Macintosh:
+
+  Offset	Value
+  0	0x00
+  1	Number of sectors to read
+  2-4	Sector offset (big-endian)
+  5	0x00
+  6	Checksum
+  DCD Device:
+
+  Offset	Value
+  0	0x80
+  1	Number of sectors remaining to be read (including sector contained in this response)
+  2-5	Status
+  6-25	Tags of sector being read (20 bytes)
+  26-537	Data of sector being read (512 bytes)
+  538	Checksum
+
+  The DCD device then repeats this response for each sector the Macintosh has requested
+  to be read with the value at offset 1 in the response counting down, beginning at the
+  value at offset 1 in the command and ending at 0x01.
+  */
+
+//  printf("\nRead Command: ");
+//   for (int i=0; i<7; i++)
+//     printf("%02x ",payload[i]);
+//   while(1);
+
+  
+  uint8_t num_sectors = payload[1];
+  uint32_t sector = (payload[2] << 16) + (payload[3] << 8) + payload[4];
+  // uint32_t sector_offset = ((uint32_t)payload[2] << 16) + ((uint32_t)payload[3] << 8) + (uint32_t)payload[4];
+  printf("read %d sectors\n", num_sectors);
+
+  // clear out UART buffer cause there was a residual byte
+  while(uart_is_readable(UART_ID))
+    uart_getc(UART_ID);
+
+  for (uint8_t i=0; i<num_sectors; i++)
+  {
+    printf("sending sector %06x in %d groups\n", sector, ntx);
+    
+    uart_putc_raw(UART_ID, 'R');
+    uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
+    uart_putc_raw(UART_ID, (sector >> 8) & 0xff);
+    uart_putc_raw(UART_ID, sector & 0xff);
+    sector++;
+
+    memset(payload, 0, sizeof(payload));
+    payload[0] = 0x80;
+    payload[1] = num_sectors-i;
+
+    uart_read_blocking(UART_ID, &payload[26], 512);
+    for (int x=0; x<16; x++)
+    {
+      printf("%02x ", payload[26+x]);
+    }
+    printf("\n");
+    compute_checksum(538);
+    handshake_before_send();
+    send_packet(ntx);
+
+  }
+}
+
+void dcd_write(uint8_t ntx, bool cont)
+{
+  /*Macintosh:
+    Offset	Value
+    0	0x01
+    1	Number of sectors remaining to be written (including sector contained in this response)
+    2-4	Sector offset (big-endian)
+    5	0x00
+    6-25	Tags of sector to be written (20 bytes)
+    26-537	Data of sector to be written (512 bytes)
+    538	Checksum
+
+OR
+
+    Macintosh (if more than one sector is to be written):
+    Offset	Value
+    0	0x41
+    1	Number of sectors remaining to be written (including sector contained in this response)
+    2-5	0x00 0x00 0x00 0x00
+    6-25	Tags of sector to be written (20 bytes)
+    26-537	Data of sector to be written (512 bytes)
+    538	Checksum
+
+  Response:
+  DCD Device:
+  Offset	Value
+    0	0x81
+    1	Number of sectors remaining to be written (including sector contained in last command)
+    2-5	Status
+    6	Checksum
+
+  The Macintosh then repeats this command (and the DCD device repeats its response above)
+  for each sector the Macintosh has requested to be written with the value at offset 1 in
+  the command counting down, ending at 0x01.
+  */
+
+  //  printf("\nRead Command: ");
+  //   for (int i=0; i<7; i++)
+  //     printf("%02x ",payload[i]);
+  //   while(1);
+
+  uint8_t num_sectors = payload[1];
+  static uint32_t sector = 0;
+  if (cont)
+  {
+    sector++;
+  }
+  else
+  {
+    sector = (payload[2] << 16) + (payload[3] << 8) + payload[4];
+    printf("write %06x sectors\n", sector);
+  }
+
+  ///  TODO FROM HERE CHANGE FROM READ TO WRITE
+
+  // clear out UART buffer cause there was a residual byte
+  // while(uart_is_readable(UART_ID))
+  //   uart_getc(UART_ID);
+
+  //   printf("sending sector %06x in %d groups\n", sector, ntx);
+    
+  //   uart_putc_raw(UART_ID, 'R');
+  //   uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
+  //   uart_putc_raw(UART_ID, (sector >> 8) & 0xff);
+  //   uart_putc_raw(UART_ID, sector & 0xff);
+  //   sector++;
+    // uart_read_blocking(UART_ID, &payload[26], 512);
+    // for (int x=0; x<512; x++)
+    // {
+    //   printf("%02x ", payload[26+x]);
+    // }
+
+    // response packet
+    memset(payload, 0, sizeof(payload));
+    payload[0] = 0x81;
+    payload[1] = num_sectors;
+
+    printf("\n");
+    compute_checksum(6);
+    handshake_before_send();
+    send_packet(ntx);
+}
+
+void dcd_status(uint8_t ntx)
+{
+  const uint8_t s[] = {0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0xe6, 0x00, 0x98, 0x35, 0x00,
+                       0x45, 0x00, 0x01, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x7f, 0xff, 0xff, 0xfe, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80,
+                       0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x88,
+                       0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x7f, 0xff, 0xff, 0xfe, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x7f, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xfe, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
+
+  /*
+  DCD Device:
+    Offset	Value	Sample Value from HD20
+    0	0x83
+    1	0x00
+    2-5	Status
+    6-7	Device type	0x0001
+    8-9	Device manufacturer	0x0001
+    10	Device characteristics bit field (see below)	0xE6
+    11-13	Number of blocks	0x009835
+    14-15	Number of spare blocks	0x0045
+    16-17	Number of bad blocks	0x0001
+    18-69	Manufacturer reserved
+    70-197	Icon (see below)
+    198-325	Icon mask (see below)
+    326	Device location string length
+    327-341	Device location string
+    342	Checksum
+
+    The device characteristics bit field is defined as follows:
+    Value	Meaning
+    0x80	Mountable
+    0x40	Readable
+    0x20	Writable
+    0x10	Ejectable (see below)
+    0x08	Write protected
+    0x04	Icon included
+    0x02	Disk in place (see below)
+
+  */
+  printf("status\n");
+  memcpy(payload,s,sizeof(s));
+  // memset(payload, 0, sizeof(payload));
+  // payload[0] = 0x83;
+  // payload[7] = 1;
+  // payload[9] = 1;
+  // payload[10] =  0xe6; //8 | 0x40 | 0x80; // 0xe6;
+  // payload[12] = 0xA0;
+  // //memset(&payload[70],0xaa,128);
+  // // payload[326] = 7;
+  // // payload[327] = 'F';
+  // // payload[328] = 'u';
+  // // payload[329] = 'j';
+  // // payload[330] = 'i';
+  // // payload[331] = 'n';
+  // // payload[332] = 'e';
+  // // payload[333] = 't';
+  compute_checksum(342);
+
+  handshake_before_send();
+
+  send_packet(ntx);
+  // simulate_packet(ntx);
+  // assert(false);
+}
+
+void dcd_unknown(uint8_t ntx)
+{
+  /*
+  DCD Device:
+    Offset	Value	Sample Value from HD20
+    0	0x83	
+    1	0x00	
+    2-5	Status	
+    6 checksum
+  */
+  printf("sending0x22 ");
+  memset(payload, 0, sizeof(payload));
+  payload[0] = 0x80 | 0x22;
+  compute_checksum(6);
+  assert(ntx==1);
+
+  handshake_before_send();
+
+  send_packet(ntx);
+  // simulate_packet(ntx);
+  // assert(false);
+}
+
+void dcd_format(uint8_t ntx)
+{
+  /*
+  DCD Device:
+    Offset	Value	Sample Value from HD20
+    0	0x83	
+    1	0x00	
+    2-5	Status	
+    6 checksum
+  */
+  memset(payload, 0, sizeof(payload));
+  payload[0] = 0x80 + 0x19;
+  compute_checksum(6);
+  assert(ntx==1);
+  printf("format\n");
+
+  handshake_before_send();
+
+  send_packet(ntx);
+  // simulate_packet(ntx);
+  // assert(false);
+}
+
+
+void dcd_process(uint8_t nrx, uint8_t ntx)
+{
+  // printf("\n\nEncoded data: aa %02x %02x ",nrx | 0x80, ntx | 0x80);
+  uint8_t *p = payload;
+  for (int i=0; i < nrx; i++)
+  {
+    // probably check for HOLDOFF, then handshake and wait for sync, then cont loop
+    uint8_t lsb = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
+    // printf("%02x ",lsb);
+    for (int j=0; j < 7; j++)
+    {
+      uint8_t b = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
+      // printf("%02x ", b);
+       *p = (b<<1) | (lsb & 0x01);
+       lsb >>= 1;
+       p++;
+    }
+  }
+  pio_sm_set_enabled(pio_dcd_rw, SM_DCD_READ, false); // stop the read state machine
+  //
+  // handshake
+  //
+  while (gpio_get(MCI_WR)); // WR needs to return to 0 (at least from a status command at boot)
+  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==3);
+  //busy_wait_us_32(10);
+  dcd_deassert_hshk();
+  a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  assert(a==2); // now back to idle and awaiting DCD response
+  // busy_wait_us_32(3000);
+  // dcd_assert_hshk();
+  //   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  // assert(a==3); // now back to idle and awaiting DCD response
+  //   a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
+  // assert(a==1); // now back to idle and awaiting DCD response
+
+  // //
+  printf("\nPayload: ");
+  for (uint8_t*ptr=payload; ptr<p; ptr++)
+  {
+    printf(" %02x",*ptr);
+  }
+  printf("\n");
+
+  // simulate_receive_packet(nrx, ntx);
+  // assert(false);
+
+  switch (payload[0])
+  {
+  case 0x00:
+    // read sectors
+    // the boot read command is: aa 81 84 c1 81 c0 c1 80 80 80 fd
+    // decoded: 00 82 00 00 00 00 7e
+    // 0x82+0x7e=0x100 - check
+    // going to read 0x82 (130) sectors
+    // but it only asked for 4 groups back - hmmmmm 
+    dcd_read(ntx);
+    break;
+  case 0x01:
+
+    // write sectors
+    dcd_write(ntx, false);
+    break;
+  case 0x03:
+    // status
+    // during boot sequence:
+    // Received Command Sequence: aa 81 b1 c1 81 80 80 80 80 80 fe
+    // aa - sync
+    // 81 - will send 1 x 7-to-8 group
+    // b1 - want 0x31 (49) groups: 49*7 = 343 bytes
+    // The 7-to-8 group should decode to 03 00 00 00 00 00 FD
+    dcd_status(ntx);
+    break;
+  case 0x19:
+    dcd_format(ntx);
+    break;
+  case 0x22:
+    dcd_unknown(ntx);
+    break;
+  case 0x41:
+
+    // cont to write sectors
+    dcd_write(ntx, true);
+    break;
+  default:
+    printf("\nnot implemented %02x\n",payload[0]);
+    break;
+  }
+ 
 }
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin) {
@@ -446,3 +1066,24 @@ void pio_dcd_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
     pio_sm_set_enabled(pio, sm, true);
 }
 
+void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin)
+{
+  dcd_commands_program_init(pio, sm, offset, pin);
+  pio_sm_set_enabled(pio, sm, true);
+}
+
+void pio_dcd_mux(PIO pio, uint sm, uint offset, uint pin)
+{
+  dcd_mux_program_init(pio, sm, offset, pin);
+  pio_sm_set_enabled(pio, sm, true);
+}
+
+void pio_dcd_read(PIO pio, uint sm, uint offset, uint pin)
+{
+  dcd_read_program_init(pio, sm, offset, pin);
+}
+
+void pio_dcd_write(PIO pio, uint sm, uint offset, uint pin)
+{
+  dcd_write_program_init(pio, sm, offset, pin);
+}

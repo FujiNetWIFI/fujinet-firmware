@@ -68,7 +68,7 @@ public:
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
     void shutdown() override {};
-    void process(mac_cmd_t cmd) override {};
+    void process(mac_cmd_t cmd) override;
 };
 
 #endif // guard
