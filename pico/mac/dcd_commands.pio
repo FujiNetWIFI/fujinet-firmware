@@ -1,0 +1,44 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; sends the phases to the PICO when the state changes
+;
+
+.define ENABLE 7
+
+.program dcd_commands
+start:
+.wrap_target
+    wait 0 gpio ENABLE       ; are we enabled?
+    mov osr, pins      ; get the phase values
+    out x, 3            ; move 3 bits into X
+    jmp x!=y next       ; pins have changes
+.wrap    
+next:
+    in x, 3             ; send the phase values to fifo
+    mov y, x            ; remember the current phase state
+    jmp start
+
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+
+void dcd_commands_program_init(PIO pio, uint sm, uint offset, uint pin) {
+   // configure a SM
+   pio_sm_config c = dcd_commands_program_get_default_config(offset);
+   // set the out pin to pin
+//    sm_config_set_out_pins(&c, pin, 1);
+   // start at GPIO2 to read in the dcd_commands
+   sm_config_set_in_pins(&c, pin); // start at GPIO 2 for the dcd_commands
+   // there are 3 wires to read for latch mux, shift to the left, autopush
+   sm_config_set_in_shift(&c, false, true, 3);
+   // sm_config_set_out_shift(&c, true, false, 1); // shift to the right
+   // set pin as a GPIO output connected to this SM
+   // pio_gpio_init(pio, pin);
+   // pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+   // sm_config_set_set_pins(&c, pin, 1);
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}

@@ -1,0 +1,74 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; sRead NRZI stream
+;
+;
+
+.define ENABLE 7
+.define public T0 10
+
+.program dcd_read
+.side_set 1
+    wait 0 gpio ENABLE   side 1               ; make sure device is enabled (maybe could remove if SM was triggered by main program)
+    set y, 0             side 0               ; initial state is always 0 (probably unneeded if can reset set whole SM)
+    set x, 7             side 0   
+reset:
+    wait 1 pin 0         side 1         ; wait for rising edge on write line from mac
+    jmp loop1           side 1
+loop:
+    nop                  side 1   [T0/2-2]
+loop1:
+    wait 0 gpio 9       side 1      ; block on CA1
+    jmp pin high         side 0                 ; need T0 cycles from jmp to jmp
+low:
+    in y, 1              side 0    [1]       ; the decoded value is equal to the previous state
+    set y, 0             side 0          ; previous state is now zero
+    jmp x-- loop         side 1         ; last bit?
+    jmp sync             side 1        ; get the next bit
+high:                         
+    mov y, ~y           side 0 
+    in y, 1             side 0                   ; the deocded value is the inverse of the previous state
+    set y, 1            side 1                ; previous state is now one
+    jmp x-- loop        side 1          ; last bit?
+    ; fall thru // jmp loop                      ; get the next bit
+; probably will need to have a counter and wait on edge of next byte
+sync:
+    set x, 7            side 1
+    jmp !y reset        side 0
+    wait 0 pin 0        side 1 
+    jmp loop1           side 1  
+
+
+    
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+void dcd_read_program_init(PIO pio, uint sm, uint offset, uint in_pin)
+{
+    // configure a SM
+    pio_sm_config c = dcd_read_program_get_default_config(offset);
+    // config side set
+    //    sm_config_set_sideset_pins(&c, mux_pin);
+    sm_config_set_in_pins(&c, in_pin);
+    sm_config_set_jmp_pin(&c, in_pin);
+    // sm_config_set_sideset_pins(&c, 15); // TEMPORARY FOR DEBUGGING
+    // sm_config_set_out_shift(&c, true, false, 1);
+    sm_config_set_in_shift(&c, false, true, 8);
+    sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+
+    pio_gpio_init(pio, in_pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, in_pin, 1, false);
+//    pio_gpio_init(pio, 15);
+//    pio_sm_set_consecutive_pindirs(pio, sm, 15, 1, true); // TEMPORARY FOR DEBUG OUTPUT (EXTRA)
+    pio_gpio_init(pio, 9);
+    pio_sm_set_consecutive_pindirs(pio, sm, 9, 1, false); // for blocking on CA1
+
+    // initialize
+    float cycles_per_bit = T0;
+    float div = clock_get_hz(clk_sys) / (500.0e3 * cycles_per_bit); // 125MHz/500kHz = 250
+    sm_config_set_clkdiv(&c, div);
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}

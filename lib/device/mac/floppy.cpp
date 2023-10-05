@@ -48,6 +48,12 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, mediatype_t disk_typ
       break;
     }
     break;
+  case MEDIATYPE_DCD:
+    Debug_printf("\nMounting Media Type HDV for DCD");
+    device_active = true;
+    _disk = new MediaTypeDCD();
+    mt = ((MediaTypeDCD *)_disk)->mount(f);
+  break;
   // case MEDIATYPE_DSK:
   //   Debug_printf("\nMounting Media Type DSK");
   //   device_active = true;
@@ -187,6 +193,27 @@ void IRAM_ATTR macFloppy::change_track(int side)
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
 
+
+void macFloppy::process(mac_cmd_t cmd)
+{
+  uint32_t sector_num;
+  uint8_t buffer[512];
+
+  switch (cmd)
+  {
+  case 'R':
+    char s[3];
+    fnUartBUS.readBytes(s, 3);
+    sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
+    Debug_printf("\nDCD sector request: %06x", sector_num);
+    if (_disk->read(sector_num, buffer))
+      Debug_printf("\nError Reading Sector %06x",sector_num);
+    fnUartBUS.write(buffer, sizeof(buffer));
+    break;
+  default:
+    break;
+  }
+}
 
 #endif // BUILD_MAC
 

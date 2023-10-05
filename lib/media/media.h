@@ -39,6 +39,7 @@
 #ifdef BUILD_MAC
 #include "mac/mediaType.h"
 #include "mac/mediaTypeMOOF.h"
+#include "mac/mediaTypeDCD.h"
 #endif
 
 #ifdef BUILD_S100
