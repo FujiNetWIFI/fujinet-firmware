@@ -469,6 +469,13 @@ void IRAM_ATTR iwmBus::service()
     // expect a command packet
     // should not ACK unless we know this is our Command
 
+    // force floppy off when SP bus is enabled, needed for softsp
+    if (_old_enable_state != iwm_enable_state_t::off)
+    {
+      _old_enable_state = iwm_enable_state_t::off;
+      diskii_xface.stop();
+    }
+
     if (sp_command_mode != sp_cmd_state_t::command)
     {
       // iwm_ack_deassert(); // go hi-Z
