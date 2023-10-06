@@ -2,7 +2,7 @@
 #define _MEDIA_TYPE_
 
 #include <stdio.h>
-#include <fujiHost.h>
+#include"../fuji/fujiHost.h"
 
 #define INVALID_SECTOR_VALUE 65536
 
