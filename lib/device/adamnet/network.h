@@ -53,6 +53,11 @@ public:
     bool interruptProceed = false;
 
     /**
+     * @brief called to return the extended error number from a protocol adapter
+     */
+    virtual void get_error();
+
+    /**
      * Called for ADAM Command 'O' to open a connection to a network protocol, allocate all buffers,
      * and start the receive PROCEED interrupt.
      */
