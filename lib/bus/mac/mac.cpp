@@ -128,6 +128,8 @@ void macBus::service(void)
       case 'R':
         theFuji.get_disks(0)->disk_dev.process('R');
         break;
+      case 'W':
+        theFuji.get_disks(0)->disk_dev.process('W');
       default:
         break;
       }

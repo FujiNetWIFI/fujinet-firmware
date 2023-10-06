@@ -561,6 +561,9 @@ void handshake_after_send()
 
 void send_packet(uint8_t ntx)
 {
+
+  handshake_before_send();
+
   // send the response packet encoding along the way
   pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, false);
   pio_dcd_write(pio_dcd, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
@@ -604,69 +607,6 @@ void send_packet(uint8_t ntx)
   handshake_after_send();
 
 }
-
-// void simulate_packet(uint8_t ntx)
-// {
-//   uint8_t encoded[538];
-//   encoded[0] = 0xaa;
-//   //encoded[1] = ntx | 0x80;
-//   uint8_t *p = payload;
-//   int k=2;
-//   for (int i=0; i<ntx; i++)
-//   {
-//     uint8_t lsb = 0;
-//     for (int j = 0; j < 7; j++)
-//     {
-//       // lsb <<= 1;
-//       printf("%02x ", *p);
-//       lsb |= ((*p) & 0x01) << j;
-//       encoded[k] = (((*p) >> 1) | 0x80);
-//       p++;
-//       k++;
-//     }
-//     encoded[k++]=(lsb | 0x80);  
-//   }
-
-//   printf("\n");
-
-//   for (int i=0; i<k; i++)
-//     printf("%02x ", encoded[i]);
-  
-//   printf("\n");
-// }
-
-// void simulate_receive_packet(uint8_t nrx, uint8_t ntx)
-// {
-//   uint8_t encoded[538];
-
-//   encoded[0] = 0xaa;
-//   encoded[1] = nrx | 0x80;
-//   encoded[2] = ntx | 0x80;
-//   uint8_t *p = payload;
-//   int k=3;
-//   for (int i=0; i<nrx; i++)
-//   {
-//     uint8_t lsb = 0;
-//     int k_lsb = k++;
-//     for (int j = 0; j < 7; j++)
-//     {
-//       // lsb <<= 1;
-//       printf("%02x ", *p);
-//       lsb |= ((*p) & 0x01) << j;
-//       encoded[k] = (((*p) >> 1) | 0x80);
-//       p++;
-//       k++;
-//     }
-//     encoded[k_lsb]=(lsb | 0x80);  
-//   }
-
-//   printf("\n");
-
-//   for (int i=0; i<k; i++)
-//     printf("%02x ", encoded[i]);
-  
-//   printf("\n");
-// }
 
 void compute_checksum(int n)
 {
@@ -740,13 +680,13 @@ void dcd_read(uint8_t ntx)
     }
     printf("\n");
     compute_checksum(538);
-    handshake_before_send();
+
     send_packet(ntx);
 
   }
 }
 
-void dcd_write(uint8_t ntx, bool cont)
+void dcd_write(uint8_t ntx, bool cont, bool verf)
 {
   /*Macintosh:
     Offset	Value
@@ -780,6 +720,12 @@ OR
   The Macintosh then repeats this command (and the DCD device repeats its response above)
   for each sector the Macintosh has requested to be written with the value at offset 1 in
   the command counting down, ending at 0x01.
+
+  Write and Verify Sectors
+  This command is identical to Write Sectors, except that the first byte of the initial 
+  command from the Macintosh is 0x02, the first byte of the DCD's response is 0x82, 
+  and the first byte of subsequent continuations of the command from the Macintosh is 0x42.
+
   */
 
   //  printf("\nRead Command: ");
@@ -802,57 +748,38 @@ OR
   ///  TODO FROM HERE CHANGE FROM READ TO WRITE
 
   // clear out UART buffer cause there was a residual byte
-  // while(uart_is_readable(UART_ID))
-  //   uart_getc(UART_ID);
+  while(uart_is_readable(UART_ID))
+    uart_getc(UART_ID);
 
-  //   printf("sending sector %06x in %d groups\n", sector, ntx);
-    
-  //   uart_putc_raw(UART_ID, 'R');
-  //   uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
-  //   uart_putc_raw(UART_ID, (sector >> 8) & 0xff);
-  //   uart_putc_raw(UART_ID, sector & 0xff);
-  //   sector++;
-    // uart_read_blocking(UART_ID, &payload[26], 512);
-    // for (int x=0; x<512; x++)
-    // {
-    //   printf("%02x ", payload[26+x]);
-    // }
+  printf("writing sector %06x in %d groups\n", sector, ntx);
 
-    // response packet
-    memset(payload, 0, sizeof(payload));
-    payload[0] = 0x81;
-    payload[1] = num_sectors;
+  uart_putc_raw(UART_ID, 'W');
+  uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
+  uart_putc_raw(UART_ID, (sector >> 8) & 0xff);
+  uart_putc_raw(UART_ID, sector & 0xff);
+  sector++;
+  uart_write_blocking(UART_ID, &payload[26], 512);
+  // for (int x=0; x<512; x++)
+  // {
+  //   printf("%02x ", payload[26+x]);
+  // }
+  while (!uart_is_readable(UART_ID))
+    ;
+  c = uart_getc(UART_ID);
+  assert(c=='w');
+  // response packet
+  memset(payload, 0, sizeof(payload));
+  payload[0] = (!verf) ? 0x81 : 0x82;
+  payload[1] = num_sectors;
 
-    printf("\n");
-    compute_checksum(6);
-    handshake_before_send();
-    send_packet(ntx);
+  printf("\n");
+  compute_checksum(6);
+
+  send_packet(ntx);
 }
 
 void dcd_status(uint8_t ntx)
 {
-  // const uint8_t s[] = {0x83, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x01, 0xe6, 0x00, 0x98, 0x35, 0x00,
-  //                      0x45, 0x00, 0x01, 0x00, 0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x7f, 0xff, 0xff, 0xfe, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80,
-  //                      0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x88,
-  //                      0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x80, 0x00, 0x00, 0x01, 0x7f, 0xff, 0xff, 0xfe, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x7f, 0xff, 0xff, 0xfe, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-  //                      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-  //                      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x7f, 0xff, 0xff, 0xfe, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-  //                      0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01};
   const uint8_t icon[] = {0b11111111, 0b11111110, 0b11111111, 0b11111111,
                           0b11111111, 0b11111110, 0b11111111, 0b11111111,
                           0b11111111, 0b11111110, 0b11111111, 0b11111111,
@@ -936,8 +863,6 @@ void dcd_status(uint8_t ntx)
   payload[333] = 't';
   compute_checksum(342);
 
-  handshake_before_send();
-
   send_packet(ntx);
   // simulate_packet(ntx);
   // assert(false);
@@ -959,8 +884,6 @@ void dcd_unknown(uint8_t ntx)
   compute_checksum(6);
   assert(ntx==1);
 
-  handshake_before_send();
-
   send_packet(ntx);
   // simulate_packet(ntx);
   // assert(false);
@@ -981,8 +904,6 @@ void dcd_format(uint8_t ntx)
   compute_checksum(6);
   assert(ntx==1);
   printf("format\n");
-
-  handshake_before_send();
 
   send_packet(ntx);
   // simulate_packet(ntx);
@@ -1062,9 +983,12 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
     dcd_read(ntx);
     break;
   case 0x01:
-
     // write sectors
-    dcd_write(ntx, false);
+    dcd_write(ntx, false, false);
+    break;
+  case 0x02:
+    // write sectors
+    dcd_write(ntx, false, true);
     break;
   case 0x03:
     // status
@@ -1083,15 +1007,17 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
     dcd_unknown(ntx);
     break;
   case 0x41:
-
     // cont to write sectors
-    dcd_write(ntx, true);
+    dcd_write(ntx, true, false);
+    break;
+  case 0x42:
+    // cont to write sectors
+    dcd_write(ntx, true, true);
     break;
   default:
     printf("\nnot implemented %02x\n",payload[0]);
     break;
   }
- 
 }
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin) {

@@ -29,7 +29,7 @@ if ((blockNum == 0) || (blockNum != last_block_num + 1)) // example optimization
 
 bool MediaTypeDCD::write(uint32_t blockNum, uint8_t* buffer)
 {
-    size_t writesize = _media_sector_size;
+    size_t writesize = 512; //_media_sector_size;
 
     // if (high_score_enabled && blockNum >= _high_score_block_lb && blockNum <= _high_score_block_ub)
     // {
