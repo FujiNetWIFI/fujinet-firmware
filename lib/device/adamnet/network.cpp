@@ -173,6 +173,10 @@ void adamNetwork::open(unsigned short s)
 
     // Associate channel mode
     json.setProtocol(protocol);
+
+    // Clear response
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 /**
@@ -208,6 +212,9 @@ void adamNetwork::close()
     // Delete the protocol object
     delete protocol;
     protocol = nullptr;
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 /**
@@ -387,6 +394,9 @@ void adamNetwork::set_prefix(unsigned short s)
     }
 
     Debug_printf("Prefix now: %s\n", prefix.c_str());
+
+    response_len = 0;
+    memset(response, 0, sizeof(response));
 }
 
 /**
@@ -449,6 +459,9 @@ void adamNetwork::del(uint16_t s)
         statusByte.bits.client_error = true;
         return;
     }
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void adamNetwork::rename(uint16_t s)
@@ -472,6 +485,9 @@ void adamNetwork::rename(uint16_t s)
         statusByte.bits.client_error = true;
         return;
     }
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void adamNetwork::mkdir(uint16_t s)
@@ -495,6 +511,9 @@ void adamNetwork::mkdir(uint16_t s)
         statusByte.bits.client_error = true;
         return;
     }
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void adamNetwork::channel_mode()
@@ -521,25 +540,24 @@ void adamNetwork::channel_mode()
     }
 
     Debug_printf("adamNetwork::channel_mode(%u)\n", m);
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void adamNetwork::json_query(unsigned short s)
 {
-    uint8_t *c = (uint8_t *)malloc(s);
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 
-    adamnet_recv_buffer(c, s);
+    adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    json.setReadQuery(std::string((char *)c, s), cmdFrame.aux2);
+    json.setReadQuery(std::string((char *)response, s), cmdFrame.aux2);
 
-    Debug_printv("adamNetwork::json_query(%s)\n", c);
-
-    free(c);
+    Debug_printv("adamNetwork::json_query(%s)\n", response);
 }
 
 void adamNetwork::json_parse()
@@ -548,6 +566,8 @@ void adamNetwork::json_parse()
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
     json.parse();
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 /**
@@ -621,11 +641,16 @@ void adamNetwork::adamnet_special_00(unsigned short s)
     cmdFrame.aux1 = adamnet_recv();
     cmdFrame.aux2 = adamnet_recv();
 
+    adamnet_recv(); // CK
+
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     protocol->special_00(&cmdFrame);
     inq_dstats = 0xff;
+
+    response_len = 0;
+    memset(response, 0, sizeof(response));
 }
 
 /**
@@ -639,12 +664,17 @@ void adamNetwork::adamnet_special_40(unsigned short s)
     cmdFrame.aux1 = adamnet_recv();
     cmdFrame.aux2 = adamnet_recv();
 
+    adamnet_recv(); // CK
+
     if (protocol->special_40(response, 1024, &cmdFrame) == false)
         adamnet_response_ack();
     else
         adamnet_response_nack();
 
     inq_dstats = 0xff;
+
+    response_len = 0;
+    memset(response, 0, sizeof(response));
 }
 
 /**
@@ -666,12 +696,17 @@ void adamNetwork::adamnet_special_80(unsigned short s)
 
     Debug_printf("adamNetwork::adamnet_special_80() - %s\n", spData);
 
+    adamnet_recv(); // CK
+
     // Do protocol action and return
     if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
         adamnet_response_ack();
     else
         adamnet_response_nack();
     inq_dstats = 0xff;
+
+    memset(response, 0, sizeof(response));
+    response_len = 0;
 }
 
 void adamNetwork::adamnet_response_status()
@@ -724,7 +759,7 @@ void adamNetwork::adamnet_control_send()
     case '0':
         get_prefix();
         break;
-        case 'E':
+    case 'E':
         get_error();
         break;
     case 'O':
@@ -814,15 +849,13 @@ void adamNetwork::adamnet_control_receive_channel_json()
     }
 }
 
-void adamNetwork::adamnet_control_receive_channel_protocol()
+inline void adamNetwork::adamnet_control_receive_channel_protocol()
 {
     NetworkStatus ns;
 
-    AdamNet.start_time = esp_timer_get_time();
-
     if ((protocol == nullptr) || (receiveBuffer == nullptr))
     {
-        // adamnet_response_nack();
+        adamnet_response_nack(true);
         return; // Punch out.
     }
 
@@ -830,7 +863,16 @@ void adamNetwork::adamnet_control_receive_channel_protocol()
     protocol->status(&ns);
 
     if (!ns.rxBytesWaiting)
+    {
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_nack(true);
         return;
+    }
+    else
+    {
+        AdamNet.start_time = esp_timer_get_time();
+        adamnet_response_ack(true);
+    }
 
     // Truncate bytes waiting to response size
     ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
@@ -840,6 +882,7 @@ void adamNetwork::adamnet_control_receive_channel_protocol()
     {
         statusByte.bits.client_error = true;
         err = protocol->error;
+        adamnet_response_nack();
         return;
     }
     else // everything ok
@@ -851,7 +894,7 @@ void adamNetwork::adamnet_control_receive_channel_protocol()
     }
 }
 
-void adamNetwork::adamnet_control_receive()
+inline void adamNetwork::adamnet_control_receive()
 {
     AdamNet.start_time = esp_timer_get_time();
 
@@ -860,10 +903,6 @@ void adamNetwork::adamnet_control_receive()
     {
         adamnet_response_ack();
         return;
-    }
-    else if ((response_len == 0) && (channelMode == PROTOCOL)) // this is hacky as hell
-    {
-        adamnet_response_nack();
     }
 
     switch (channelMode)
@@ -890,7 +929,7 @@ void adamNetwork::adamnet_response_send()
     }
     else
         adamnet_send(0xC0 | _devnum); // NAK!
-        
+
     memset(response, 0, response_len);
     response_len = 0;
 }
