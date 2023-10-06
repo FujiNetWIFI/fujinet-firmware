@@ -64,6 +64,25 @@ adamNetwork::~adamNetwork()
 /** ADAM COMMANDS ***************************************************************/
 
 /**
+ * @brief get error number from protocol adapter
+ */
+void adamNetwork::get_error()
+{
+    NetworkStatus ns;
+
+    adamnet_recv(); // CK
+    AdamNet.start_time = esp_timer_get_time();
+    adamnet_response_ack();
+    response_len = 1;
+
+    if (protocol == nullptr)
+        response[0] = NETWORK_ERROR_NOT_CONNECTED;
+
+    protocol->status(&ns);
+
+    response[0] = ns.error;
+}
+/**
  * ADAM Open command
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
  * method. Also set up RX interrupt.
@@ -693,6 +712,9 @@ void adamNetwork::adamnet_control_send()
         break;
     case '0':
         get_prefix();
+        break;
+        case 'E':
+        get_error();
         break;
     case 'O':
         open(s);
