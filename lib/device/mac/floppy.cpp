@@ -198,17 +198,38 @@ void macFloppy::process(mac_cmd_t cmd)
 {
   uint32_t sector_num;
   uint8_t buffer[512];
+  char s[3];
 
   switch (cmd)
   {
   case 'R':
-    char s[3];
     fnUartBUS.readBytes(s, 3);
     sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
     Debug_printf("\nDCD sector request: %06x", sector_num);
     if (_disk->read(sector_num, buffer))
       Debug_printf("\nError Reading Sector %06x",sector_num);
     fnUartBUS.write(buffer, sizeof(buffer));
+    break;
+  case 'W':
+    // uart_putc_raw(UART_ID, 'W');
+    // uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
+    // uart_putc_raw(UART_ID, (sector >> 8) & 0xff);
+    // uart_putc_raw(UART_ID, sector & 0xff);
+    // sector++;
+    // uart_write_blocking(UART_ID, &payload[26], 512);
+    fnUartBUS.readBytes(s, 3);
+    fnUartBUS.readBytes(buffer, sizeof(buffer));
+    sector_num = ((uint32_t)s[0] << 16) + ((uint32_t)s[1] << 8) + (uint32_t)s[2];
+    Debug_printf("\nDCD sector write: %06x", sector_num);
+    if (_disk->write(sector_num, buffer))
+    {
+      Debug_printf("\nError Writing Sector %06x", sector_num);
+      fnUartBUS.write('e');
+    }
+    else
+    {
+      fnUartBUS.write('w');
+    }
     break;
   default:
     break;
