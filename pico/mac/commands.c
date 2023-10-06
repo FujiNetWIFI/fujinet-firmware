@@ -571,14 +571,16 @@ void send_packet(uint8_t ntx)
   for (int i=0; i<ntx; i++)
   {
     // first check for holdoff
+    while (!pio_sm_is_tx_fifo_empty(pio_dcd, SM_DCD_WRITE))
+      ;
     if (!pio_sm_is_rx_fifo_empty(pio_dcd, SM_DCD_CMD))
     {
       a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
-      assert(a==0);
+      assert(a == 0);
       a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
-      assert(a==1);
+      assert(a == 1);
       send_byte(0xaa);
-    }
+      }
     uint8_t lsb = 0;
     for (int j = 0; j < 7; j++)
     {
@@ -1003,7 +1005,9 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
         ; // WR needs to return to 0 (first sign of resume)
       a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
       assert(a==1); // resuming!
-      uint8_t b = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
+      uint8_t b = 0;
+      while (b!=0xaa)
+        b = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
       assert(b==0xaa); // should be a sync byte
     }
     uint8_t lsb = pio_sm_get_blocking(pio_dcd_rw, SM_DCD_READ);
