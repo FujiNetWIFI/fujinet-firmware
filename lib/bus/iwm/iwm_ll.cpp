@@ -27,6 +27,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // update the head position based on phases
   // put the right track in the SPI buffer
 
+  uint32_t int_gpio_num = (uint32_t) arg; // gpio that triggered the interrupt
   int error; // checksum error return
   uint8_t c;
 
@@ -114,7 +115,10 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       break;
     }
   }
-  else if (diskii_xface.iwm_enable_states() & 0b11)
+  // add extra condition here to stop edge case where on softsp, the disk is stepping inadvertantly when SP bus is
+  // disabled. PH1 gets set low first, then PH3 follows a very short time after. We look for the interrupt on PH1 (33)
+  // and then PH1 = 0 (going low) and PH3 = 1 (still high)
+  else if ((diskii_xface.iwm_enable_states() & 0b11) && !((int_gpio_num == 33 && _phases == 0b1000)))
   {
     if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
     {
@@ -633,10 +637,10 @@ void iwm_ll::setup_gpio()
 
 
   // attach the interrupt service routine
-  gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, NULL);
-  gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, NULL);
-  gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, NULL);
-  gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, NULL);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, (void*) (gpio_num_t)SP_PHI0);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI1, phi_isr_handler, (void*) (gpio_num_t)SP_PHI1);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI2, phi_isr_handler, (void*) (gpio_num_t)SP_PHI2);
+  gpio_isr_handler_add((gpio_num_t)SP_PHI3, phi_isr_handler, (void*) (gpio_num_t)SP_PHI3);
 }
 
 void iwm_sp_ll::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num)
@@ -1055,8 +1059,10 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
   // only enable diskII if we are either not on an en35 capable host, or we are on an en35host and /EN35=high
   if (!IWM.en35Host || (IWM.en35Host && (GPIO.in1.val & (0x01 << (SP_EN35 - 32)))))
   {
-    states |= (GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) ? 0b00 : 0b01;
-    states |= (GPIO.in & (0x01 << SP_DRIVE2)) ? 0b00 : 0b10;
+    if (!(states |= (GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) ? 0b00 : 0b01))
+    {
+      states |= (GPIO.in & (0x01 << SP_DRIVE2)) ? 0b00 : 0b10;
+    }
   }
   return states;
 }
