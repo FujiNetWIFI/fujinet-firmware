@@ -868,6 +868,53 @@ void dcd_status(uint8_t ntx)
   // assert(false);
 }
 
+void dcd_id(uint8_t ntx)
+{
+
+  /*
+  DCD Device:
+    Offset	Value	Sample Value from HD20
+    0	0x84
+    1	0x00
+    2-5	Status
+    6-18	Name string	"Rene-1 RM MH "
+    19-21	Device type	0x000210
+    22-23	Firmware revision	0x3372
+    24-26	Capacity (blocks)	0x009835
+    27-28	Bytes per block	0x0214
+    29-30	Number of cylinders	0x0131
+    31	Number of heads	0x04
+    32	Number of sectors	0x20
+    33-35	Number of possible spare blocks	0x00004C
+    36-38	Number of spare blocks (?)	0x110100 (?)
+    39-41	Number of bad blocks (?)	0x000000 (?)
+    42-47	0x00 0x00 0x00 0x00 0x00 0x00
+    48	Checksum
+  */
+  printf("id\n");
+  // memcpy(payload,s,sizeof(s));
+  memset(payload, 0, sizeof(payload));
+  payload[0] = 0x84;
+  strcpy("FujiNet DCD", &payload[6]);
+  payload[20]=0x02;
+  payload[21]=0x10;
+  payload[22]=0x33;
+  payload[23]=0x72;
+  payload[25]=0x98;
+  payload[26]=0x35;
+  payload[27]=0x02;
+  payload[28]=0x14;
+  payload[29]=0x01;
+  payload[30]=0x31;
+  payload[31]=0x04;
+  payload[32]=0x20;
+  compute_checksum(48);
+
+  send_packet(ntx);
+  // simulate_packet(ntx);
+  // assert(false);
+}
+
 void dcd_unknown(uint8_t ntx)
 {
   /*
@@ -910,6 +957,33 @@ void dcd_format(uint8_t ntx)
   // assert(false);
 }
 
+void dcd_verify(uint8_t ntx)
+{
+  /*
+  Verify Format
+  The meaning of this command is guessed from its use in the Erase Disk command in operation.
+
+  The observed status from this command on an actual HD20 was 0x0000008A, 
+  however, returning a status of 0x00000000 does not appear to interrupt 
+  the Erase Disk operation.
+
+  DCD Device:
+    Offset	
+    0	0x9a	
+    1	0x00	
+    2-5	Status	
+    6 checksum
+  */
+  memset(payload, 0, sizeof(payload));
+  payload[0] = 0x80 + 0x1a;
+  compute_checksum(6);
+  assert(ntx==1);
+  printf("verify format\n");
+
+  send_packet(ntx);
+  // simulate_packet(ntx);
+  // assert(false);
+}
 
 void dcd_process(uint8_t nrx, uint8_t ntx)
 {
@@ -1000,8 +1074,15 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
     // The 7-to-8 group should decode to 03 00 00 00 00 00 FD
     dcd_status(ntx);
     break;
+  case 0x04:
+    // Read ID
+    dcd_id(ntx);
+    break;
   case 0x19:
     dcd_format(ntx);
+    break;
+  case 0x1a:
+    dcd_verify(ntx);
     break;
   case 0x22:
     dcd_unknown(ntx);
