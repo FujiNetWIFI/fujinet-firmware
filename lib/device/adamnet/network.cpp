@@ -757,11 +757,6 @@ void adamNetwork::adamnet_control_clr()
         jsonRecvd = false;
 }
 
-void adamNetwork::adamnet_control_receive_channel()
-{
-
-}
-
 void adamNetwork::adamnet_control_receive_channel_json()
 {
     NetworkStatus ns;
