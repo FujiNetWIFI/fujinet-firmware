@@ -45,6 +45,8 @@ adamNetwork::adamNetwork()
     transmitBuffer->clear();
     specialBuffer->clear();
 
+    protocol = nullptr;
+
     json.setLineEnding("\x00");
 }
 
@@ -59,6 +61,11 @@ adamNetwork::~adamNetwork()
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
+
+    if (protocol != nullptr)
+        delete protocol;
+
+    protocol = nullptr;
 }
 
 /** ADAM COMMANDS ***************************************************************/
@@ -70,17 +77,21 @@ void adamNetwork::get_error()
 {
     NetworkStatus ns;
 
+    Debug_printf("Get Error\n");
     adamnet_recv(); // CK
     AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
     response_len = 1;
 
     if (protocol == nullptr)
+    {
         response[0] = NETWORK_ERROR_NOT_CONNECTED;
-
-    protocol->status(&ns);
-
-    response[0] = ns.error;
+    }
+    else
+    {
+        protocol->status(&ns);
+        response[0] = ns.error;
+    }
 }
 /**
  * ADAM Open command
