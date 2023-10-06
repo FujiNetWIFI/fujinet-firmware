@@ -61,7 +61,7 @@ static void adamnet_reset_intr_task(void *arg)
         }
 
         b->reset();
-        vTaskDelay(1);
+        vTaskDelay(1/portTICK_PERIOD_MS);
     }
 }
 
@@ -160,27 +160,32 @@ void virtualDevice::reset()
     Debug_printf("No Reset implemented for device %u\n", _devnum);
 }
 
-void virtualDevice::adamnet_response_ack()
+void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 300)
+    if (!doNotWaitForIdle)
     {
         AdamNet.wait_for_idle();
-        adamnet_send(0x90 | _devnum);
     }
-    else
+    
+    if (t < 300)
     {
+        adamnet_send(0x90 | _devnum);
     }
 }
 
-void virtualDevice::adamnet_response_nack()
+void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 300)
+    if (!doNotWaitForIdle)
     {
         AdamNet.wait_for_idle();
+    }
+    
+    if (t < 300)
+    {
         adamnet_send(0xC0 | _devnum);
     }
 }

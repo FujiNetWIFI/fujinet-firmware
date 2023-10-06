@@ -146,13 +146,15 @@ protected:
 
     /**
      * @brief acknowledge, but not if cmd took too long.
+     * @param doNotWaitForIdle do not wait for idle if true.
      */
-    virtual void adamnet_response_ack();
+    virtual void adamnet_response_ack(bool doNotWaitForIdle=false);
 
     /**
      * @brief non-acknowledge, but not if cmd took too long
+     * param doNotWaitForIdle do not wait for idle if true.
      */
-    virtual void adamnet_response_nack();
+    virtual void adamnet_response_nack(bool doNotWaitForIdle=false);
 
     /**
      * @brief acknowledge if device is ready, but not if cmd took too long.

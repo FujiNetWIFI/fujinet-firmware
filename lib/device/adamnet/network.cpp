@@ -849,13 +849,13 @@ void adamNetwork::adamnet_control_receive_channel_json()
     }
 }
 
-void adamNetwork::adamnet_control_receive_channel_protocol()
+inline void adamNetwork::adamnet_control_receive_channel_protocol()
 {
     NetworkStatus ns;
 
     if ((protocol == nullptr) || (receiveBuffer == nullptr))
     {
-        adamnet_response_nack();
+        adamnet_response_nack(true);
         return; // Punch out.
     }
 
@@ -865,13 +865,13 @@ void adamNetwork::adamnet_control_receive_channel_protocol()
     if (!ns.rxBytesWaiting)
     {
         AdamNet.start_time = esp_timer_get_time();
-        adamnet_response_nack();
+        adamnet_response_nack(true);
         return;
     }
     else
     {
         AdamNet.start_time = esp_timer_get_time();
-        adamnet_response_ack();
+        adamnet_response_ack(true);
     }
 
     // Truncate bytes waiting to response size
@@ -894,7 +894,7 @@ void adamNetwork::adamnet_control_receive_channel_protocol()
     }
 }
 
-void adamNetwork::adamnet_control_receive()
+inline void adamNetwork::adamnet_control_receive()
 {
     AdamNet.start_time = esp_timer_get_time();
 
