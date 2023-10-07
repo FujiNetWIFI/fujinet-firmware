@@ -405,7 +405,7 @@ void floppy_loop()
       step_state = false;
     }
 
-    if (uart_is_readable(uart1))
+    if (uart_is_readable(UART_ID))
     {
     // !READY
     // This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk.
@@ -440,6 +440,7 @@ void floppy_loop()
           break;
       case 'S':             // step complete (data copied to RMT buffer on ESP32)
           printf("\nStep sequence complete");
+          // fall through?????????????????????????????????????????
       case 'M':             // motor on
           printf("\nMotor is on");
           clr_latch(READY); // hack - really should not set READY low until the 3 criteria are met
@@ -531,7 +532,24 @@ void dcd_loop()
       break;
     }
     printf("%c", a + '0');
-   }
+  }
+
+  // handle comms from ESP32
+  if (uart_is_readable(UART_ID))
+  {
+    c = uart_getc(UART_ID);
+    switch (c)
+    {
+    case 'h': // harddisk is mounted
+      c = uart_getc(UART_ID);
+      printf("\nHard Disk %d mounted", c);
+      // c is now the drive slot (DCD unit) number
+      // can add write protection info (or should move status packet generation to ESP32)
+      break;
+    default:
+      break;
+     }
+  }
 }
 
 uint8_t payload[539];
@@ -548,6 +566,8 @@ void handshake_before_send()
   assert(a==3); // now back to idle and awaiting DCD response
     a = pio_sm_get_blocking(pio_dcd, SM_DCD_CMD);
   assert(a==1); // now back to idle and awaiting DCD response
+  // to do: handshaking error recovery -
+  // case 1: TNFS seek timeout and abort - need to capture on LogAn to see what's going on
 }
 
 void handshake_after_send()
@@ -766,7 +786,7 @@ OR
   while (!uart_is_readable(UART_ID))
     ;
   c = uart_getc(UART_ID);
-  assert(c=='w');
+  assert(c=='w'); // error handling?
   // response packet
   memset(payload, 0, sizeof(payload));
   payload[0] = (!verf) ? 0x81 : 0x82;
@@ -780,6 +800,7 @@ OR
 
 void dcd_status(uint8_t ntx)
 {
+  // to do : move status packet generation to ESP32
   const uint8_t icon[] = {0b11111111, 0b11111110, 0b11111111, 0b11111111,
                           0b11111111, 0b11111110, 0b11111111, 0b11111111,
                           0b11111111, 0b11111110, 0b11111111, 0b11111111,
@@ -849,7 +870,8 @@ void dcd_status(uint8_t ntx)
   payload[0] = 0x83;
   payload[7] = 1;
   payload[9] = 1;
-  payload[10] = 0x80 | 0x40 | 0x20 | 0x04 | 0x02; // 0xe6;
+  // payload[10] = 0x80 | 0x40 | 0x20 | 0x04 | 0x02; // 0xe6;
+  payload[10] = 0x80 | 0x40 | 0x08 | 0x04 | 0x02; // 0xe6;
   payload[12] = 0xB0;
   memcpy(&payload[70], icon, sizeof(icon));
   memset(&payload[198],0xff,128);

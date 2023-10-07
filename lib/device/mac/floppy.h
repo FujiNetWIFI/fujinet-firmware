@@ -53,8 +53,8 @@ public:
     ~macFloppy() {};
 
     // void init();
-    mediatype_t mount(FILE *f, const char *filename, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN) { return mount(f, filename, disk_type); };
+    //mediatype_t mount(FILE *f, const char *filename, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize , mediatype_t disk_type = MEDIATYPE_UNKNOWN);// { return mount(f, filename, disk_type); };
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors) { return false; };
     int get_track_pos() { return track_pos; };
