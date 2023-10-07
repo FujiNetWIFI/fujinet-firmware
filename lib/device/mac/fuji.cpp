@@ -76,7 +76,7 @@ void macFuji::setup(macBus *macbus)
   //   {
         FILE *f = fsFlash.file_open("/autorun.moof");
         if (f!=nullptr)
-          _fnDisks[0].disk_dev.mount(f, "/autorun.moof", MEDIATYPE_MOOF);
+          _fnDisks[4].disk_dev.mount(f, "/autorun.moof", MEDIATYPE_MOOF);
         else
           Debug_printf("\nCould not open 'autorun.moof'"); 
   //   }

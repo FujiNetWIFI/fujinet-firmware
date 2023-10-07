@@ -53,7 +53,7 @@ class macDevice
   friend macBus;
 
 protected:
-  uint8_t _devnum;             // assigned by Apple II during INIT
+  uint8_t _devnum;             
   bool _initialized;
 
 public:
