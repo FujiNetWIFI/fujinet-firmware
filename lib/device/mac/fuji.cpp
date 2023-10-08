@@ -65,18 +65,23 @@ void macFuji::setup(macBus *macbus)
   //   _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
 
   //  27-aug-23 use something similar for Mac floppy/dcd disks
-  //  for (int i = MAX_DISK_DEVICES - MAX_DISK2_DEVICES -1; i >= 0; i--)
-  //  {
-  //    _fnDisks[i].disk_dev.set_disk_number('0' + i);
-  //    _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
-  //  }
+   for (int i = MAX_DISK_DEVICES - MAX_FLOPPY_DEVICES -1; i >= 0; i--)
+   {
+     _fnDisks[i].disk_dev.set_disk_number('0' + i);
+    //  _mac_bus->addDevice(&_fnDisks[i].disk_dev, mac_fujinet_type_t::HardDisk);
+   }
+   for (int i = MAX_DISK_DEVICES - 1; i >= MAX_DISK_DEVICES - MAX_FLOPPY_DEVICES; i--)
+   {
+     _fnDisks[MAX_DISK_DEVICES - 1].disk_dev.set_disk_number('0' + i);
+    //  _mac_bus->addDevice(&_fnDisks[i].disk_dev, mac_fujinet_type_t::Floppy);
+   }
 
   //   Debug_printf("\nConfig General Boot Mode: %u\n",Config.get_general_boot_mode());
   //   if (Config.get_general_boot_mode() == 0)
   //   {
         FILE *f = fsFlash.file_open("/autorun.moof");
         if (f!=nullptr)
-          _fnDisks[4].disk_dev.mount(f, "/autorun.moof", MEDIATYPE_MOOF);
+          _fnDisks[MAX_DISK_DEVICES - MAX_FLOPPY_DEVICES].disk_dev.mount(f, "/autorun.moof", MEDIATYPE_MOOF);
         else
           Debug_printf("\nCould not open 'autorun.moof'"); 
   //   }
