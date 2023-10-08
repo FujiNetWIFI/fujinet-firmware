@@ -16,24 +16,22 @@
 ; probably at some point should push the strobe counter so the FN can decide which disk image to use
 
 .program dcd_mux
+.side_set 1 opt pindirs
     ; initial state is RD is hi-z and we have 2 DCDs
     ; we wait to be enabled then RD goes to output
 start:    
-    set pindirs, 0
 .wrap_target
-    set x, 0
+    set x, 0                side 0
     wait 0 gpio ENABLE
-    set pindirs, 1
 cont:
     ; now we need to wait to be strobed or to be disabled
-    jmp pin start   ; disabled so go back to the beginning!
+    jmp pin start           side 1 ; disabled so go back to the beginning!
     mov osr, pins            ; get LSTRB value into osr
     out y, 1                 ; stick it in Y
     jmp !Y cont             ; not strobing loop
     wait 0 gpio LSTRB
     jmp x-- cont
-    set pindirs, 0
-    wait 1 gpio ENABLE
+    wait 1 gpio ENABLE      side 0
 .wrap
 
 % c-sdk {
@@ -44,11 +42,11 @@ void dcd_mux_program_init(PIO pio, uint sm, uint offset, uint set_pin) {
    // configure a SM
    pio_sm_config c = dcd_mux_program_get_default_config(offset);
    // config side set
-//    sm_config_set_sideset_pins(&c, mux_pin);
+    sm_config_set_sideset_pins(&c, set_pin);
     sm_config_set_in_pins(&c, LSTRB); 
     sm_config_set_jmp_pin(&c, ENABLE);
    // there are 4 wires to read for latch mux, shift to the right, no autopull
-    sm_config_set_set_pins(&c, set_pin, 1);
+    // sm_config_set_set_pins(&c, set_pin, 1);
    sm_config_set_out_shift(&c, true, false, 1);
    pio_gpio_init(pio, set_pin);
    pio_sm_set_consecutive_pindirs(pio, sm, set_pin, 1, false);
