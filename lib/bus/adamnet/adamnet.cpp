@@ -287,8 +287,8 @@ void systemBus::_adamnet_process_cmd()
         fnLedManager.set(eLed::LED_BUS, false);
     }
 
-    wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
     fnUartBUS.flush_input();
+    wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
 }
 
 void systemBus::_adamnet_process_queue()
