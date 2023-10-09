@@ -124,12 +124,19 @@ void macBus::service(void)
     else // DCD
     { 
       switch (c)
-      {
-      case 'R':
-        theFuji.get_disks(0)->disk_dev.process('R');
+      { 
+      case 'A':
+      case 'B':
+      case 'C':
+      case 'D':
+        _active_DCD_disk = c-'A'; // 0, 1, 2, 3
+        Debug_printf("\nactive disk %d", _active_DCD_disk);
         break;
+      case 'R':
+      case 'T':
       case 'W':
-        theFuji.get_disks(0)->disk_dev.process('W');
+        theFuji.get_disks(_active_DCD_disk)->disk_dev.process(c);
+        break;
       default:
         break;
       }
@@ -137,7 +144,7 @@ void macBus::service(void)
   }
   if (track_not_copied && stepper_timeout())
   {
-    theFuji.get_disks(0)->disk_dev.update_track_buffers();
+    theFuji.get_disks(4)->disk_dev.update_track_buffers();
     track_not_copied = false;
     fnUartBUS.write('S');
   }

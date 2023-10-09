@@ -53,7 +53,7 @@ class macDevice
   friend macBus;
 
 protected:
-  uint8_t _devnum;             
+  char _devnum;             
   bool _initialized;
 
 public:
@@ -62,7 +62,7 @@ public:
   virtual void shutdown() = 0;
   virtual void process(mac_cmd_t cmd) = 0;
 
-  uint8_t id() { return _devnum; };
+  char id() { return _devnum; };
 };
 
 class macBus
@@ -81,6 +81,8 @@ private:
   // iwmClock *_clockDev = nullptr;
 
   const int _mac_baud_rate = 2000000; //230400; //was 115200;
+
+  int _active_DCD_disk;
 
 public:
   std::forward_list<macDevice *> _daisyChain;
