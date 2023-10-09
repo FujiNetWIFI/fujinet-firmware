@@ -29,6 +29,8 @@ class fnHttpServiceConfigurator
     static void config_modem_sniffer_enabled(std::string modem_sniffer_enabled);
     static void config_encrypt_passphrase_enabled(std::string encrypt_passphrase_enabled);
     static void config_apetime_enabled(std::string apetime_enabled);
+    static void config_cpm_enabled(std::string cpm_enabled);
+    static void config_cpm_ccp(std::string cpm_ccp);
 
 
 public:

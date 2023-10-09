@@ -249,6 +249,7 @@ void systemBus::_sio_process_cmd()
         }
     }
     fnLedManager.set(eLed::LED_BUS, false);
+    //Debug_printv("free low heap: %lu\r\n",esp_get_free_internal_heap_size());
 }
 
 // Look to see if we have any waiting messages and process them accordingly
@@ -300,7 +301,7 @@ void systemBus::service()
             return; // break!
         }
     }
-    else if (_cpmDev != nullptr && _cpmDev->cpmActive)
+    else if (_cpmDev != nullptr && _cpmDev->cpmActive && Config.get_cpm_enabled())
     {
         _cpmDev->sio_handle_cpm();
         return; // break!
