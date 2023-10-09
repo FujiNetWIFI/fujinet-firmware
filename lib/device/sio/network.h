@@ -392,6 +392,12 @@ private:
     void sio_set_json_query();
 
     /**
+     * @brief Set JSON parameters. (must be in JSON channelMode)
+     * Used to affect values on the JSON object
+     */
+    void sio_set_json_parameters();
+
+    /**
      * @brief Set timer rate for PROCEED timer in ms
      */
     void sio_set_timer_rate();
