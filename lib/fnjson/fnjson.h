@@ -30,6 +30,7 @@ public:
     bool readValue(uint8_t *buf, unsigned short len);
     string processString(string in);
     int json_bytes_remaining = 0;
+    void setQueryParam(uint8_t qp);
     
 private:
     cJSON *_json = nullptr;
