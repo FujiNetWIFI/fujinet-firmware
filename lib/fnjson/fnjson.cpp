@@ -54,6 +54,12 @@ void FNJSON::setProtocol(NetworkProtocol *newProtocol)
     _protocol = newProtocol;
 }
 
+void FNJSON::setQueryParam(uint8_t qp)
+{
+    Debug_printf("FNJSON::setQueryParam(0x%02hx)\r\n", qp);
+    _queryParam = qp;
+}
+
 /**
  * Set read query string
  */

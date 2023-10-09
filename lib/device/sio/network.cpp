@@ -703,6 +703,10 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
         case 0xFC:
             inq_dstats = 0x00;
             break;
+        case 0xFB: // String Processing mode, only in JSON mode
+            if (channelMode == JSON)
+                inq_dstats = 0x00;
+            break;
         case 0x30:
             inq_dstats = 0x40;
             break;
@@ -748,6 +752,9 @@ void sioNetwork::sio_special_00()
         break;
     case 'Z':
         sio_set_timer_rate();
+        break;
+    case 0xFB: // JSON parameter wrangling
+        sio_set_json_parameters();
         break;
     case 0xFC: // SET CHANNEL MODE
         sio_set_channel_mode();
@@ -1106,6 +1113,39 @@ void sioNetwork::sio_set_json_query()
     free(tmp);
     Debug_printf("Query set to %s\n",inp);
     sio_complete();
+}
+
+void sioNetwork::sio_set_json_parameters()
+{
+    // aux1  | aux2    |    meaning
+    // 0     | 0/1/2   |  Set the json->_queryParam value, which is the translation value for string processing
+    // 1     |   c     |  Set the json->lineEnding = c, convert from char to single byte string
+
+    switch (cmdFrame.aux1)
+    {
+    case 0:     // JSON QUERY PARAM
+        if (cmdFrame.aux2 > 2)
+        {
+            sio_error();
+            return;
+        }
+        json->setQueryParam(cmdFrame.aux2);
+        sio_complete();
+        break;
+    case 1:     // LINE ENDING
+    {
+        std::stringstream ss;
+        ss << cmdFrame.aux2;
+        string new_le = ss.str();
+        Debug_printf("JSON line ending changed to 0x%02hx\r\n", cmdFrame.aux2);
+        json->setLineEnding(new_le);
+        sio_complete();
+        break;
+    }
+    default:
+        sio_error();
+        break;
+    }
 }
 
 void sioNetwork::sio_set_timer_rate()
