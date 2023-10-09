@@ -79,6 +79,7 @@ uint32_t a;
 uint32_t b[12];
     char c;
 uint32_t olda;
+uint32_t active_disk_number;
     
 PIO pio_floppy = pio0;
 PIO pio_dcd = pio1;
@@ -234,7 +235,7 @@ void preset_latch()
 
 void dcd_preset_latch()
 {
-  dcd_latch = 0b11001100; //  DCD signature HHLx + no handshake HHxx
+  dcd_latch = 0b11011100; //  DCD signature HHLx + no handshake HHxx
 }
 
 void set_tach_freq(char c)
@@ -479,6 +480,13 @@ void dcd_loop()
   // need a state variable to track changes in the "command" phase settings
   // 
   // 
+  if (!pio_sm_is_rx_fifo_empty(pio_dcd, SM_DCD_MUX))
+  {
+    active_disk_number = NUM_DCD + 'A' - pio_sm_get_blocking(pio_dcd, SM_DCD_MUX);
+    printf("%c", active_disk_number);
+    uart_putc_raw(UART_ID, active_disk_number);
+  }
+
   if (!pio_sm_is_rx_fifo_empty(pio_dcd, SM_DCD_CMD))
   {
     olda = a;
@@ -504,7 +512,7 @@ void dcd_loop()
     case 2:
       host = false;
       // idle
-      // if (olda == 3)
+      // if (olda == 6)
       // {
       //   dcd_assert_hshk();
       // }
@@ -522,9 +530,10 @@ void dcd_loop()
       break;
     case 4:
       host = false;
-      // reset
       dcd_deassert_hshk();
-      pio_sm_exec(pio_dcd, SM_DCD_MUX, 0xe081); // set pindirs 1
+      pio_sm_set_enabled(pio_dcd, SM_DCD_WRITE, false);
+      pio_sm_set_enabled(pio_dcd, SM_DCD_LATCH, true);
+      pio_sm_exec(pio_dcd, SM_DCD_MUX, 0xe080); // set pindirs 0
       break;
     default:
       host = false;
@@ -541,8 +550,8 @@ void dcd_loop()
     switch (c)
     {
     case 'h': // harddisk is mounted
-      c = uart_getc(UART_ID);
-      printf("\nHard Disk %d mounted", c);
+      c = uart_getc(UART_ID); // char starting with '0'
+      printf("\nHard Disk %c mounted", c);
       // c is now the drive slot (DCD unit) number
       // can add write protection info (or should move status packet generation to ESP32)
       break;
@@ -800,41 +809,7 @@ OR
 
 void dcd_status(uint8_t ntx)
 {
-  // to do : move status packet generation to ESP32
-  const uint8_t icon[] = {0b11111111, 0b11111110, 0b11111111, 0b11111111,
-                          0b11111111, 0b11111110, 0b11111111, 0b11111111,
-                          0b11111111, 0b11111110, 0b11111111, 0b11111111,
-                          0b11111111, 0b11111000, 0b00111111, 0b11111111,
-                          0b11111111, 0b11110000, 0b00011111, 0b11111111,
-                          0b11111110, 0b11100000, 0b00001110, 0b11111111,
-                          0b11111110, 0b11100000, 0b00001110, 0b11111111,
-                          0b11111000, 0b00000000, 0b00000000, 0b00011111,
-                          0b11111110, 0b11100000, 0b00001110, 0b11111111,
-                          0b11111110, 0b11100000, 0b00001110, 0b11111111,
-                          0b11111110, 0b11110000, 0b00011110, 0b11111111,
-                          0b11111000, 0b00111000, 0b00111000, 0b00111111,
-                          0b11110000, 0b00010011, 0b10010000, 0b00011111,
-                          0b11100000, 0b00000111, 0b11000000, 0b00001111,
-                          0b11100000, 0b00001111, 0b11100000, 0b00001111,
-                          0b00000000, 0b00001111, 0b11100000, 0b00000111,
-                          0b11100000, 0b00001111, 0b11100000, 0b00001111,
-                          0b11100000, 0b00000111, 0b11000000, 0b00001111,
-                          0b11110000, 0b00010011, 0b10010000, 0b00011111,
-                          0b11111000, 0b00111000, 0b00111000, 0b00111111,
-                          0b11111110, 0b11111110, 0b11110000, 0b00011111,
-                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
-                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
-                          0b11111100, 0b00000000, 0b00000000, 0b00000011,
-                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
-                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
-                          0b11111110, 0b11111110, 0b11110000, 0b00011111,
-                          0b11111111, 0b11111110, 0b11111000, 0b00111111,
-                          0b11111111, 0b11111110, 0b11111110, 0b11111111,
-                          0b11111111, 0b11111110, 0b11111110, 0b11111111,
-                          0b11111111, 0b11111000, 0b00000000, 0b00000000,
-                          0b11111111, 0b11111110, 0b11111110, 0b11111111};
-
-  /*
+   /*
   DCD Device:
     Offset	Value	Sample Value from HD20
     0	0x83
@@ -853,41 +828,30 @@ void dcd_status(uint8_t ntx)
     327-341	Device location string
     342	Checksum
 
-    The device characteristics bit field is defined as follows:
-    Value	Meaning
-    0x80	Mountable
-    0x40	Readable
-    0x20	Writable
-    0x10	Ejectable (see below)
-    0x08	Write protected
-    0x04	Icon included
-    0x02	Disk in place (see below)
-
   */
   printf("status\n");
   // memcpy(payload,s,sizeof(s));
   memset(payload, 0, sizeof(payload));
   payload[0] = 0x83;
-  payload[7] = 1;
-  payload[9] = 1;
-  // payload[10] = 0x80 | 0x40 | 0x20 | 0x04 | 0x02; // 0xe6;
-  payload[10] = 0x80 | 0x40 | 0x08 | 0x04 | 0x02; // 0xe6;
-  payload[12] = 0xB0;
-  memcpy(&payload[70], icon, sizeof(icon));
-  memset(&payload[198],0xff,128);
-  payload[326] = 7;
-  payload[327] = 'F';
-  payload[328] = 'u';
-  payload[329] = 'j';
-  payload[330] = 'i';
-  payload[331] = 'N';
-  payload[332] = 'e';
-  payload[333] = 't';
+  // to do receive 336 bytes into payload[6]
+
+  // clear out UART buffer cause there was a residual byte
+  while (uart_is_readable(UART_ID))
+    uart_getc(UART_ID);
+
+  uart_putc_raw(UART_ID, 'T');
+
+  uart_read_blocking(UART_ID, &payload[6], 336);
+
+  for (int x = 0; x < 16; x++)
+  {
+    printf("%02x ", payload[6 + x]);
+  }
+  printf("\n");
+
   compute_checksum(342);
 
   send_packet(ntx);
-  // simulate_packet(ntx);
-  // assert(false);
 }
 
 void dcd_id(uint8_t ntx)

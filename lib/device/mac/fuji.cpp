@@ -27,14 +27,14 @@ macFuji::macFuji()
   
 }
 
-void macFuji::startup_hack()
-{
-  Debug_printf("\n Fuji startup hack");
-  for (int i = 0; i < MAX_DISK_DEVICES; i++)
-  {
-    _fnDisks[i].disk_dev.set_disk_number(i);
-  }
-}
+// void macFuji::startup_hack()
+// {
+//   Debug_printf("\n Fuji startup hack");
+//   for (int i = 0; i < MAX_DISK_DEVICES; i++)
+//   {
+//     _fnDisks[i].disk_dev.set_disk_number(i);
+//   }
+// }
 
 macFloppy *macFuji::bootdisk()
 {

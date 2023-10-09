@@ -8,6 +8,7 @@
 
 .define public LSTRB 12
 .define public ENABLE 7
+.define public NUM_DCD 2
 
 ; The DCD mux will really control the RD line direction.
 ; It will ...
@@ -19,10 +20,12 @@
 .side_set 1 opt pindirs
     ; initial state is RD is hi-z and we have 2 DCDs
     ; we wait to be enabled then RD goes to output
-start:    
 .wrap_target
-    set x, 0                side 0
-    wait 0 gpio ENABLE
+start:    
+    set x, NUM_DCD                side 0      ; put the number of DCD devices in X
+    wait 0 gpio ENABLE                  ; don't do anything until we're enabled
+    in x, 32                            ; say we are at the first DCD
+    jmp x-- cont                        ; decrement X to wait for the next strobe
 cont:
     ; now we need to wait to be strobed or to be disabled
     jmp pin start           side 1 ; disabled so go back to the beginning!
@@ -30,6 +33,7 @@ cont:
     out y, 1                 ; stick it in Y
     jmp !Y cont             ; not strobing loop
     wait 0 gpio LSTRB
+    in x, 32                ; push X to the FIFO to tell the program a certain drive is selected
     jmp x-- cont
     wait 1 gpio ENABLE      side 0
 .wrap
@@ -46,8 +50,9 @@ void dcd_mux_program_init(PIO pio, uint sm, uint offset, uint set_pin) {
     sm_config_set_in_pins(&c, LSTRB); 
     sm_config_set_jmp_pin(&c, ENABLE);
    // there are 4 wires to read for latch mux, shift to the right, no autopull
-    // sm_config_set_set_pins(&c, set_pin, 1);
+   sm_config_set_set_pins(&c, set_pin, 1);
    sm_config_set_out_shift(&c, true, false, 1);
+   sm_config_set_in_shift(&c, true, true, 32);
    pio_gpio_init(pio, set_pin);
    pio_sm_set_consecutive_pindirs(pio, sm, set_pin, 1, false);
    // initialize

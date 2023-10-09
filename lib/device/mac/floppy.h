@@ -46,6 +46,8 @@ protected:
     int old_pos;
     int head_dir;
 
+    void dcd_status(uint8_t* buffer);
+
 public:
     bool readonly;
     

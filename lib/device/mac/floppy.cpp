@@ -1,6 +1,7 @@
 #ifdef BUILD_MAC
 #include "floppy.h"
 #include "../bus/mac/mac_ll.h"
+#include <cstring>
 
 #define NS_PER_BIT_TIME 125
 #define BLANK_TRACK_LEN 6400
@@ -196,6 +197,83 @@ void IRAM_ATTR macFloppy::change_track(int side)
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
 
+void macFloppy::dcd_status(uint8_t* payload)
+{
+   const uint8_t icon[] = {0b11111111, 0b11111110, 0b11111111, 0b11111111,
+                          0b11111111, 0b11111110, 0b11111111, 0b11111111,
+                          0b11111111, 0b11111110, 0b11111111, 0b11111111,
+                          0b11111111, 0b11111000, 0b00111111, 0b11111111,
+                          0b11111111, 0b11110000, 0b00011111, 0b11111111,
+                          0b11111110, 0b11100000, 0b00001110, 0b11111111,
+                          0b11111110, 0b11100000, 0b00001110, 0b11111111,
+                          0b11111000, 0b00000000, 0b00000000, 0b00011111,
+                          0b11111110, 0b11100000, 0b00001110, 0b11111111,
+                          0b11111110, 0b11100000, 0b00001110, 0b11111111,
+                          0b11111110, 0b11110000, 0b00011110, 0b11111111,
+                          0b11111000, 0b00111000, 0b00111000, 0b00111111,
+                          0b11110000, 0b00010011, 0b10010000, 0b00011111,
+                          0b11100000, 0b00000111, 0b11000000, 0b00001111,
+                          0b11100000, 0b00001111, 0b11100000, 0b00001111,
+                          0b00000000, 0b00001111, 0b11100000, 0b00000111,
+                          0b11100000, 0b00001111, 0b11100000, 0b00001111,
+                          0b11100000, 0b00000111, 0b11000000, 0b00001111,
+                          0b11110000, 0b00010011, 0b10010000, 0b00011111,
+                          0b11111000, 0b00111000, 0b00111000, 0b00111111,
+                          0b11111110, 0b11111110, 0b11110000, 0b00011111,
+                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
+                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
+                          0b11111100, 0b00000000, 0b00000000, 0b00000011,
+                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
+                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
+                          0b11111110, 0b11111110, 0b11110000, 0b00011111,
+                          0b11111111, 0b11111110, 0b11111000, 0b00111111,
+                          0b11111111, 0b11111110, 0b11111110, 0b11111111,
+                          0b11111111, 0b11111110, 0b11111110, 0b11111111,
+                          0b11111111, 0b11111000, 0b00000000, 0b00000000,
+                          0b11111111, 0b11111110, 0b11111110, 0b11111111};
+
+  /*
+    DCD Device:
+    Offset	Value	Sample Value from HD20
+    0	0x83
+    1	0x00
+    2-5	Status
+    6-7	Device type	0x0001
+    8-9	Device manufacturer	0x0001
+    10	Device characteristics bit field (see below)	0xE6
+    11-13	Number of blocks	0x009835
+    14-15	Number of spare blocks	0x0045
+    16-17	Number of bad blocks	0x0001
+    18-69	Manufacturer reserved
+    70-197	Icon (see below)
+    198-325	Icon mask (see below)
+    326	Device location string length
+    327-341	Device location string
+    342	Checksum
+
+    The device characteristics bit field is defined as follows:
+    Value	Meaning
+    0x80	Mountable
+    0x40	Readable
+    0x20	Writable
+    0x10	Ejectable (see below)
+    0x08	Write protected
+    0x04	Icon included
+    0x02	Disk in place (see below)
+
+    The "ejectable" and "disk in place" bits are ostensibly intended to support removable media, however no mechanism for ejecting disks is known to exist in the protocol.
+*/
+  payload[7] = 1;
+  payload[9] = 1;
+  payload[10] = 0x80 | 0x40 | 0x20 | 0x04 | 0x02; // 0xe6; // to do update using read/write indicator
+  payload[12] = 0xB0; // to do update using file size / 512
+  memcpy(&payload[70], icon, sizeof(icon));
+  // to do insert slot number bitmap into icon LL corner
+  memset(&payload[198],0xff,128);
+  payload[326] = 7;
+  strcpy((char*)&payload[327],"FujiNet Slot");
+  payload[340] = get_disk_number();
+}
 
 void macFloppy::process(mac_cmd_t cmd)
 {
@@ -211,9 +289,17 @@ void macFloppy::process(mac_cmd_t cmd)
     Debug_printf("\nDCD sector request: %06x", sector_num);
     if (_disk->read(sector_num, buffer))
       Debug_printf("\nError Reading Sector %06x",sector_num);
+    // todo: error handling
     fnUartBUS.write(buffer, sizeof(buffer));
     break;
+  case 'T':
+    memset(buffer,0,sizeof(buffer));
+    dcd_status(buffer);
+    Debug_printf("\nSending STATUS block");
+    fnUartBUS.write(&buffer[6], 336); // status info block is 336 char's without header and checksum
+    break;
   case 'W':
+    // code on PICO:
     // uart_putc_raw(UART_ID, 'W');
     // uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
     // uart_putc_raw(UART_ID, (sector >> 8) & 0xff);
