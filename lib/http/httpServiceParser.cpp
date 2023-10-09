@@ -102,6 +102,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PRINTER_LIST,
         FN_ENCRYPT_PASSPHRASE_ENABLED,
         FN_APETIME_ENABLED,
+        FN_CPM_ENABLED,
+        FN_CPM_CCP,
         FN_LASTTAG
     };
 
@@ -188,7 +190,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HARDWARE_VER",
         "FN_PRINTER_LIST",
         "FN_ENCRYPT_PASSPHRASE_ENABLED",
-        "FN_APETIME_ENABLED"
+        "FN_APETIME_ENABLED",
+        "FN_CPM_ENABLED",
+        "FN_CPM_CCP"
     };
 
     stringstream resultstream;
@@ -337,7 +341,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #endif /* BUILD_APPLE */
         }
         break;
-#ifdef BUILD_ATARI        
+#ifdef BUILD_ATARI
     case FN_PLAY_RECORD:
         if (theFuji.cassette()->get_buttons())
             resultstream << "0 PLAY";
@@ -484,6 +488,12 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_ENCRYPT_PASSPHRASE_ENABLED:
         resultstream << Config.get_general_encrypt_passphrase();
+        break;
+    case FN_CPM_ENABLED:
+        resultstream << Config.get_cpm_enabled();
+        break;
+    case FN_CPM_CCP:
+        resultstream << Config.get_ccp_filename();
         break;
     default:
         resultstream << tag;
