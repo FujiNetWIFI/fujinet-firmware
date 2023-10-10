@@ -222,16 +222,50 @@ void macFloppy::dcd_status(uint8_t* payload)
                           0b11111110, 0b11111110, 0b11110000, 0b00011111,
                           0b11111110, 0b11111110, 0b11100000, 0b00001111,
                           0b11111110, 0b11111110, 0b11100000, 0b00001111,
-                          0b11111100, 0b00000000, 0b00000000, 0b00000011,
-                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
-                          0b11111110, 0b11111110, 0b11100000, 0b00001111,
-                          0b11111110, 0b11111110, 0b11110000, 0b00011111,
+                          0b11111110, 0b00000000, 0b00000000, 0b00000011,
+                          0b11111111, 0b11111110, 0b11100000, 0b00001111,
+                          0b11111111, 0b11111110, 0b11100000, 0b00001111,
+                          0b11111111, 0b11111110, 0b11110000, 0b00011111,
                           0b11111111, 0b11111110, 0b11111000, 0b00111111,
                           0b11111111, 0b11111110, 0b11111110, 0b11111111,
                           0b11111111, 0b11111110, 0b11111110, 0b11111111,
                           0b11111111, 0b11111000, 0b00000000, 0b00000000,
                           0b11111111, 0b11111110, 0b11111110, 0b11111111};
 
+   const uint8_t numset[4][8] = {
+    {0b00011000,
+     0b01111000,
+     0b00011000,
+     0b00011000,
+     0b00011000,
+     0b00011000,
+     0b01111110},
+   
+    {0b01111110,
+     0b11000011,
+     0b00000110,
+     0b00001100,
+     0b00110000,
+     0b01100000,
+     0b11111111}, 
+
+    {0b01111110,
+     0b11000011,
+     0b00000011,
+     0b00111100,
+     0b00000011,
+     0b11000011,
+     0b01111110}, 
+
+    {0b00011110,
+     0b00110110,
+     0b01100110,
+     0b11111111,
+     0b00000110,
+     0b00000110,
+     0b00000110}
+    };
+  
   /*
     DCD Device:
     Offset	Value	Sample Value from HD20
@@ -266,13 +300,17 @@ void macFloppy::dcd_status(uint8_t* payload)
   payload[7] = 1;
   payload[9] = 1;
   payload[10] = 0x80 | 0x40 | 0x20 | 0x04 | 0x02; // 0xe6; // to do update using read/write indicator
+  if (readonly) {payload[10] |= 0x08;};
   payload[12] = 0xB0; // to do update using file size / 512
   memcpy(&payload[70], icon, sizeof(icon));
-  // to do insert slot number bitmap into icon LL corner
-  memset(&payload[198],0xff,128);
-  payload[326] = 7;
-  strcpy((char*)&payload[327],"FujiNet Slot");
-  payload[340] = get_disk_number();
+  for (int i = 0 ; i < 7 ; i++)
+  {
+    payload[70+96+4*i]=~numset[get_disk_number()-'0'][i];
+  }
+  memset(&payload[198], 0xff, 128);
+  payload[326] = 10; // seems to be limited to 12 chars
+  strcpy((char*)&payload[327],"FujiNet_D");
+  payload[336] = get_disk_number()+1;
 }
 
 void macFloppy::process(mac_cmd_t cmd)
