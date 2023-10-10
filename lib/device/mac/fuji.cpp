@@ -207,7 +207,11 @@ bool macFuji::mount_all()
 
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-            if(disk.access_mode == DISK_ACCESS_MODE_WRITE) {disk.disk_dev.readonly = false;}
+            disk.disk_dev.readonly = true;
+            if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            {
+              disk.disk_dev.readonly = false;
+            }
         }
     }
 
