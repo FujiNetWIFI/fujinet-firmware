@@ -833,8 +833,7 @@ void dcd_status(uint8_t ntx)
   // memcpy(payload,s,sizeof(s));
   memset(payload, 0, sizeof(payload));
   payload[0] = 0x83;
-  // to do receive 336 bytes into payload[6]
-
+  
   // clear out UART buffer cause there was a residual byte
   while (uart_is_readable(UART_ID))
     uart_getc(UART_ID);
