@@ -916,27 +916,27 @@ void adamFuji::adamnet_new_disk()
 
     adamnet_recv(); // CK
 
-    fujiDisk &disk = _fnDisks[ds];
-    fujiHost &host = _fnHosts[hs];
-
-    if (host.file_exists((const char *)p))
+    if (newImageStarted)
     {
-        AdamNet.start_time = esp_timer_get_time();
-        adamnet_response_ack();
+        adamnet_response_ack(true);
+        newImageStarted = false;
         return;
     }
+    
+    fujiDisk &disk = _fnDisks[ds];
+    fujiHost &host = _fnHosts[hs];
+    
     disk.host_slot = hs;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
     strlcpy(disk.filename, (const char *)p, 256);
 
+    newImageStarted = true;
+    
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
 
     Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
-
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
 
     fclose(disk.fileh);
 }
