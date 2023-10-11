@@ -17,6 +17,7 @@ private:
     TaskHandle_t diskTask;
 
     unsigned long blockNum=INVALID_SECTOR_VALUE;
+    unsigned long blockNumRead=INVALID_SECTOR_VALUE;
 
     void adamnet_control_clr();
     void adamnet_control_receive();
