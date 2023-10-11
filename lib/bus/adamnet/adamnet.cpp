@@ -170,7 +170,7 @@ void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
     }
     else
     {
-        esp_rom_delay_us(IDLE_TIME);
+        esp_rom_delay_us(160);
     }
 
     adamnet_send(0x90 | _devnum);    
