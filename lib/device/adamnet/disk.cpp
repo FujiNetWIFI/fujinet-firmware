@@ -1,6 +1,7 @@
 #ifdef BUILD_ADAM
 
 #include "disk.h"
+#include "led.h"
 
 #include <memory.h>
 #include <string.h>
@@ -153,9 +154,9 @@ void adamDisk::adamnet_control_send_block_num()
         _media->format(NULL);
     }
 
-    AdamNet.start_time=esp_timer_get_time();
-    
-    adamnet_response_ack();
+    esp_rom_delay_us(120);
+
+    adamnet_response_ack(true);
 
     Debug_printf("BLOCK: %lu\n", blockNum);
 }
@@ -166,6 +167,7 @@ void adamDisk::adamnet_control_send_block_data()
         return;
 
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
+    esp_rom_delay_us(160);
     adamnet_response_ack(true);
     Debug_printf("Block Data Write\n");
 
