@@ -24,6 +24,8 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize, m
   if (disk_type == MEDIATYPE_UNKNOWN)
     disk_type = MediaType::discover_mediatype(filename);
 
+  _disk_size_in_blocks = disksize/512;
+
   switch (disk_type)
   {
   case MEDIATYPE_MOOF:
@@ -295,9 +297,13 @@ void macFloppy::dcd_status(uint8_t* payload)
 */
   payload[7] = 1;
   payload[9] = 1;
-  payload[10] = 0x80 | 0x40 | 0x20 | 0x04 | 0x02; // 0xe6; // to do update using read/write indicator
+  payload[10] = 0x80 | 0x40 | 0x20 | 0x04 | 0x02; // real HD20 says 0xe6; 
   if (readonly) {payload[10] |= 0x08;};
-  payload[12] = 0xB0; // to do update using file size / 512
+  
+  payload[11] = (_disk_size_in_blocks >> 16) & 0xff;
+  payload[12] = (_disk_size_in_blocks >> 8) & 0xff;
+  payload[13] = _disk_size_in_blocks & 0xff;
+
   memcpy(&payload[70], icon, sizeof(icon));
   for (int i = 0 ; i < 6 ; i++)
   {
