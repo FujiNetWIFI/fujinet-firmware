@@ -80,8 +80,6 @@ private:
 
     appkey _current_appkey;
 
-    bool newImageStarted = false;
-
 protected:
     void adamnet_reset_fujinet();          // 0xFF
     void adamnet_net_get_ssid();           // 0xFE
