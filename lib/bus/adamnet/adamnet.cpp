@@ -168,12 +168,11 @@ void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
     {
         AdamNet.wait_for_idle();
     }
-    else
+    
+    if (t < 300)
     {
-        esp_rom_delay_us(IDLE_TIME);
+        adamnet_send(0x90 | _devnum);
     }
-
-    adamnet_send(0x90 | _devnum);    
 }
 
 void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
@@ -184,17 +183,16 @@ void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
     {
         AdamNet.wait_for_idle();
     }
-    else
-    {
-        esp_rom_delay_us(IDLE_TIME);
-    }
     
-    adamnet_send(0xC0 | _devnum);
+    if (t < 300)
+    {
+        adamnet_send(0xC0 | _devnum);
+    }
 }
 
 void virtualDevice::adamnet_control_ready()
 {
-    adamnet_response_ack(true);
+    adamnet_response_ack();
 }
 
 void systemBus::wait_for_idle()
@@ -272,6 +270,7 @@ void systemBus::_adamnet_process_cmd()
     uint8_t b;
 
     b = fnUartBUS.read();
+    start_time = esp_timer_get_time();
 
     uint8_t d = b & 0x0F;
 
@@ -283,7 +282,6 @@ void systemBus::_adamnet_process_cmd()
     {
         // turn on AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, true);
-        start_time = esp_timer_get_time();
         _daisyChain[d]->adamnet_process(b);
         // turn off AdamNet Indicator LED
         fnLedManager.set(eLed::LED_BUS, false);
