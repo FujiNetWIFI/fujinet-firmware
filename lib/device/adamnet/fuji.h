@@ -54,6 +54,7 @@ struct appkey
 class adamFuji : public virtualDevice
 {
 private:
+    bool new_disk_completed = false;
     bool isReady = false;
     bool alreadyRunning = false; // Replace isReady and scanStarted with THIS.
     bool scanStarted = false;
