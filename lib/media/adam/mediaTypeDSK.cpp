@@ -135,14 +135,14 @@ bool MediaTypeDSK::format(uint16_t *responsesize)
 {
     for (uint32_t b = 0; b < _media_num_blocks; b++)
     {
-        // if (b<13)
-        // {
-        //     memset(_media_blockbuff,0x00,1024);
-        // }
-        // else
-        // {
-        memset(_media_blockbuff,0xE5,1024);
-        // }
+        if (b<13)
+        {
+            memset(_media_blockbuff,0x00,1024);
+        }
+        else
+        {
+            memset(_media_blockbuff,0xE5,1024);
+        }
         write(b, 0);
     }
     return false;
@@ -169,16 +169,16 @@ bool MediaTypeDSK::create(FILE *f, uint32_t numBlocks)
 
     for (uint32_t b = 0; b < numBlocks; b++)
     {
-        // if (b<13)
-        // {
-        //     memset(buf,0x00,1024);
-        // }
-        // else
-        // {
-        memset(buf,0xE5,1024);
-        fwrite(buf, 1024, 1, f);
-        // }
+        if (b<13)
+        {
+            memset(buf,0x00,1024);
+        }
+        else
+        {
+            memset(buf,0xE5,1024);
+        }
     }
+        fwrite(buf, 1024, 1, f);
 
     return true;
 }
