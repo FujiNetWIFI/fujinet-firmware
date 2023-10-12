@@ -919,12 +919,14 @@ void adamFuji::adamnet_new_disk()
     fujiDisk &disk = _fnDisks[ds];
     fujiHost &host = _fnHosts[hs];
 
-    if (host.file_exists((const char *)p))
+    if (new_disk_completed)
     {
+        new_disk_completed = false;
         AdamNet.start_time = esp_timer_get_time();
         adamnet_response_ack();
         return;
     }
+
     disk.host_slot = hs;
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
     strlcpy(disk.filename, (const char *)p, 256);
@@ -935,10 +937,9 @@ void adamFuji::adamnet_new_disk()
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-
     fclose(disk.fileh);
+
+    new_disk_completed = true;
 }
 
 // Send host slot data to computer
