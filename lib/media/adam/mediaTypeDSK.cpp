@@ -133,18 +133,13 @@ uint8_t MediaTypeDSK::status()
 // Returns TRUE if an error condition occurred
 bool MediaTypeDSK::format(uint16_t *responsesize)
 {
+    memset(_media_blockbuff,0xE5,1024);
+    
     for (uint32_t b = 0; b < _media_num_blocks; b++)
     {
-        if (b<13)
-        {
-            memset(_media_blockbuff,0x00,1024);
-        }
-        else
-        {
-            memset(_media_blockbuff,0xE5,1024);
-        }
         write(b, 0);
     }
+    
     return false;
 }
 
@@ -166,19 +161,13 @@ bool MediaTypeDSK::create(FILE *f, uint32_t numBlocks)
 {
     Debug_print("DSK CREATE\r\n");
     uint8_t buf[1024];
-
+    
+    memset(buf,0xE5,1024);
+    
     for (uint32_t b = 0; b < numBlocks; b++)
     {
-        if (b<13)
-        {
-            memset(buf,0x00,1024);
-        }
-        else
-        {
-            memset(buf,0xE5,1024);
-        }
-    }
         fwrite(buf, 1024, 1, f);
+    }
 
     return true;
 }
