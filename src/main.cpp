@@ -361,9 +361,7 @@ extern "C"
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
 
-
-        // Sit here twiddling our thumbs
-        while (true)
-            vTaskDelay(9000 / portTICK_PERIOD_MS);
+        // Delete app_main() task since we no longer need it
+        vTaskDelete(NULL);
     }
 }
