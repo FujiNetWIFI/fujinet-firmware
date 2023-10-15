@@ -125,10 +125,15 @@ void iwmNetwork::send_status_dib_reply_packet()
  */
 void iwmNetwork::open()
 {
-    int idx = 0;
-    uint8_t _aux1 = data_buffer[idx++];
-    uint8_t _aux2 = data_buffer[idx++];
-    string d = string((char *)&data_buffer[idx], 256);
+    uint8_t _aux1 = data_buffer[0];
+    uint8_t _aux2 = data_buffer[1];
+
+    auto start = data_buffer + 2;
+    auto end = start + std::min<std::size_t>(256, sizeof(data_buffer) - 2);
+    auto null_pos = std::find(start, end, 0);
+
+    // ensure the string does not go past a null, but can be up to 256 bytes long if one not found
+    string d(start, null_pos);
 
     Debug_printf("\naux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
