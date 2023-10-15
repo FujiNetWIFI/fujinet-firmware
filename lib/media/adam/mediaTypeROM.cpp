@@ -5,6 +5,9 @@
 #include <cstring>
 
 #include "../../include/debug.h"
+#include "fnSystem.h"
+
+#define ROM_BLOCK_SIZE 512
 
 MediaTypeROM::MediaTypeROM()
 {
@@ -56,6 +59,8 @@ bool MediaTypeROM::format(uint16_t *responsesize)
 
 mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
 {
+    uint16_t o = 0;
+
     Debug_print("ROM MOUNT\r\n");
 
     _media_fileh = f;
@@ -65,10 +70,27 @@ mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
         disksize = 32768;
 
     // Load ROM into memory.
-    if (fread(rom, 1, disksize, f) != disksize)
+    // Do this and yield in chonks so we don't starve the other threads
+
+    while (disksize)
     {
-        _media_fileh = nullptr;
-        return MEDIATYPE_UNKNOWN;
+        uint16_t rsz = (disksize > ROM_BLOCK_SIZE ? ROM_BLOCK_SIZE : disksize);
+
+        Debug_printf("Reading %u bytes, %u bytes remaining\n",rsz,disksize);
+        
+        if (fread(&rom[o], sizeof(uint8_t), rsz, f) != rsz)
+        {
+            fclose(f);
+            _media_fileh = nullptr;
+            return MEDIATYPE_UNKNOWN;
+        }
+        else
+        {
+            o += rsz;
+            disksize -= rsz;
+        }
+
+        fnSystem.yield(); // Let the system breathe.
     }
 
     return _mediatype;
