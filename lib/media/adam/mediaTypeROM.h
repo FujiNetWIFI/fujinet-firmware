@@ -28,6 +28,9 @@ public:
     MediaTypeROM();
     virtual ~MediaTypeROM();
 
+    // Returns byte offset of given sector number
+    virtual uint32_t _block_to_offset(uint32_t blockNum);
+
     virtual bool read(uint32_t blockNum, uint16_t *readcount) override;
     virtual bool write(uint32_t blockNum, bool verify) override;
 
