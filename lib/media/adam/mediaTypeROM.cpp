@@ -90,7 +90,7 @@ mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
             disksize -= rsz;
         }
 
-        fnSystem.yield(); // Let the system breathe.
+        fnSystem.delay(100);
     }
 
     return _mediatype;
