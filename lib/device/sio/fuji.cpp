@@ -1191,6 +1191,7 @@ void sioFuji::sio_read_directory_block()
     Debug_printf("Actual data size: %d to atari\n", response.size());
     char *s = util_hexdump(response.data(), response.size());
     Debug_printf("dump: \n%s\n", s);
+    free(s);
 
     // buffer with 0s to requested size
     response.resize(response_max, 0);

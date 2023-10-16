@@ -5,10 +5,13 @@
 #include <cstring>
 
 #include "../../include/debug.h"
+#include "fnSystem.h"
+
+#define ROM_BLOCK_SIZE 512
 
 MediaTypeROM::MediaTypeROM()
 {
-    rom=(char *)malloc(32768);
+    rom = (char *)malloc(32768);
 }
 
 MediaTypeROM::~MediaTypeROM()
@@ -16,25 +19,82 @@ MediaTypeROM::~MediaTypeROM()
     free(rom);
 }
 
+// Returns byte offset of given sector number
+uint32_t MediaTypeROM::_block_to_offset(uint32_t blockNum)
+{
+    return blockNum * 1024;
+}
+
 // Returns TRUE if an error condition occurred
 bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
 {
-    if (blockNum == 0)
-        memcpy(_media_blockbuff, block0, sizeof(_media_blockbuff));
-    else if (blockNum == 1)
-        memcpy(_media_blockbuff, block1, sizeof(_media_blockbuff));
-    else
+    bool err = false;
+    
+    if (blockNum == _media_last_block)
+        return false; // We already have block.
+
+    Debug_print("ROM READ\r\n");
+
+    // Return an error if we're trying to read beyond the end of the disk
+    if (blockNum > _media_num_blocks - 1)
     {
-        blockNum -= 2;
-        if (blockNum < 32)
-            memcpy(_media_blockbuff, &rom[blockNum * 1024], sizeof(_media_blockbuff));
+        Debug_printf("::read block %d > %d\r\n", blockNum, _media_num_blocks);
+        _media_controller_status = 2;
+        return true;
+    }
+
+    memset(_media_blockbuff, 0, sizeof(_media_blockbuff));
+
+    if (blockNum == 0)
+    {
+        memcpy(_media_blockbuff, block0, sizeof(_media_blockbuff));
+    }
+    else if (blockNum == 1)
+    {
+        memcpy(_media_blockbuff, block1, sizeof(_media_blockbuff));
+    }
+    else // (blocknum > 1)
+    {
+        // // Perform a seek if we're not reading the sector after the last one we read
+        uint32_t offset = _block_to_offset(blockNum - 2); // minus the two boot blocks
+        err = fseek(_media_fileh, offset, SEEK_SET) != 0;
+        _media_last_block = INVALID_SECTOR_VALUE;
+
+        if (err == false)
+            err = fread(_media_blockbuff, 1, 1024, _media_fileh) != 1024;
+
+        if (err == false)
+        {
+            _media_last_block = blockNum;
+            _media_controller_status = 0;
+            return false;
+        }
         else
         {
+            _media_last_block = INVALID_SECTOR_VALUE;
             _media_controller_status = 2;
             return true;
         }
     }
-    return false;
+    return err;
+
+    // The old code is here.
+    // if (blockNum == 0)
+    //     memcpy(_media_blockbuff, block0, sizeof(_media_blockbuff));
+    // else if (blockNum == 1)
+    //     memcpy(_media_blockbuff, block1, sizeof(_media_blockbuff));
+    // else
+    // {
+    //     blockNum -= 2;
+    //     if (blockNum < 32)
+    //         memcpy(_media_blockbuff, &rom[blockNum * 1024], sizeof(_media_blockbuff));
+    //     else
+    //     {
+    //         _media_controller_status = 2;
+    //         return true;
+    //     }
+    // }
+    // return false;
 }
 
 // Returns TRUE if an error condition occurred
@@ -60,17 +120,10 @@ mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_ROM;
+    _media_num_blocks = disksize / 1024;
+    _media_num_blocks += 2; // to account for the two boot blocks.
 
-    if (disksize > 32768)
-        disksize = 32768;
-
-    // Load ROM into memory.
-    if (fread(rom, 1, disksize, f) != disksize)
-    {
-        _media_fileh = nullptr;
-        return MEDIATYPE_UNKNOWN;
-    }
-
+    Debug_printv("FLAGS: %x\n", _media_fileh->_flags);
     return _mediatype;
 }
 

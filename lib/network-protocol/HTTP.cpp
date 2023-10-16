@@ -509,7 +509,7 @@ bool NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned sh
     if (pos == string::npos)
         return true;
 
-    Debug_printf("NetworkProtocolHTTP::write_file_set_header(%s,%s)", incomingHeader.substr(0, pos).c_str(), incomingHeader.substr(pos + 2).c_str());
+    Debug_printf("NetworkProtocolHTTP::write_file_set_header(%s,%s)\r\n", incomingHeader.substr(0, pos).c_str(), incomingHeader.substr(pos + 2).c_str());
 
     client->set_header(incomingHeader.substr(0, pos).c_str(), incomingHeader.substr(pos + 2).c_str());
     return false;
