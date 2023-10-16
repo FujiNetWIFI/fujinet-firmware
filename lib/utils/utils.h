@@ -92,4 +92,7 @@ void util_ascii_to_petscii_str(std::string &s);
 // generic hex dump for debug output
 char *util_hexdump(const void *buf, size_t len);
 
+// check if a double is very close to an integer
+bool isApproximatelyInteger(double value, double tolerance = 1e-6);
+
 #endif // _FN_UTILS_H

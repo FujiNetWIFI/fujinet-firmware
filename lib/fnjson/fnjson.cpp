@@ -14,6 +14,7 @@
 #include <ostream>
 #include "string_utils.h"
 #include "../../include/debug.h"
+#include "../utils/utils.h"
 
 /**
  * ctor
@@ -152,38 +153,37 @@ string FNJSON::getValue(cJSON *item)
 
     if (cJSON_IsString(item))
     {
-        Debug_printf("S: [cJSON_IsString] %s\r\n", cJSON_GetStringValue(item));
-        ss << processString(cJSON_GetStringValue(item) + lineEnding);
+        char *strValue = cJSON_GetStringValue(item);
+        Debug_printf("S: [cJSON_IsString] %s\r\n", strValue);
+        ss << processString(strValue + lineEnding);
     }
     else if (cJSON_IsBool(item))
     {
-        Debug_printf("S: [cJSON_IsBool] %s\r\n", cJSON_IsTrue(item) ? "true" : "false");
-
-        if (cJSON_IsTrue(item))
-            ss << "TRUE" + lineEnding;
-        else if (cJSON_IsFalse(item))
-            ss << "FALSE" + lineEnding;
+        bool isTrue = cJSON_IsTrue(item);
+        Debug_printf("S: [cJSON_IsBool] %s\r\n", isTrue ? "true" : "false");
+        ss << (isTrue ? "TRUE" : "FALSE") + lineEnding;
     }
     else if (cJSON_IsNull(item))
     {
         Debug_printf("S: [cJSON_IsNull]\r\n");
-
         ss << "NULL" + lineEnding;
     }
     else if (cJSON_IsNumber(item))
     {
-        Debug_printf("S: [cJSON_IsNumber] %f\r\n", cJSON_GetNumberValue(item));
-
+        double num = cJSON_GetNumberValue(item);
+        bool isInt = isApproximatelyInteger(num);
         // Is the number an integer?
-        if (floor(cJSON_GetNumberValue(item)) == cJSON_GetNumberValue(item))
+        if (isInt)
         {
             // yes, return as 64 bit integer
-            ss << (int64_t)(cJSON_GetNumberValue(item));
+            Debug_printf("S: [cJSON_IsNumber INT] %d\r\n", (int64_t)num);
+            ss << (int64_t)num;
         }
         else
         {
             // no, return as double with max. 10 digits
-            ss << setprecision(10) << cJSON_GetNumberValue(item);
+            Debug_printf("S: [cJSON_IsNumber] %f\r\n", num);
+            ss << setprecision(10) << num;
         }
 
         ss << lineEnding;
@@ -257,31 +257,44 @@ bool FNJSON::parse()
     NetworkStatus ns;
 
     if (_json != nullptr)
+    {
+        // delete and set to null. we only set a new _json value if the parsebuffer is not empty
         cJSON_Delete(_json);
+        _json = nullptr;
+    }
 
     if (_protocol == nullptr)
     {
         Debug_printf("FNJSON::parse() - NULL protocol.\r\n");
         return false;
     }
-
+    _parseBuffer.clear();
     _protocol->status(&ns);
+    Debug_printf("json parse, initial status: ns.rxBW: %d, ns.conn: %d, ns.err: %d\r\n", ns.rxBytesWaiting, ns.connected, ns.error);
 
     while (ns.connected)
     {
-        _protocol->read(ns.rxBytesWaiting);
-        _parseBuffer += *_protocol->receiveBuffer;
-        _protocol->receiveBuffer->clear();
+        // don't try reading 0 bytes when there's no content.
+        if (ns.rxBytesWaiting > 0)
+        {
+            _protocol->read(ns.rxBytesWaiting);
+            _parseBuffer += *_protocol->receiveBuffer;
+            _protocol->receiveBuffer->clear();
+        }
         _protocol->status(&ns);
         vTaskDelay(10);
     }
 
     Debug_printf("S: %s\r\n", _parseBuffer.c_str());
-    _json = cJSON_Parse(_parseBuffer.c_str());
+    // only try and parse the buffer if it has data. Empty response doesn't need parsing.
+    if (!_parseBuffer.empty())
+    {
+        _json = cJSON_Parse(_parseBuffer.c_str());
+    }
 
     if (_json == nullptr)
     {
-        Debug_printf("FNJSON::parse() - Could not parse JSON\r\n");
+        Debug_printf("FNJSON::parse() - Could not parse JSON, parseBuffer length: %d\r\n", _parseBuffer.size());
         return false;
     }
 

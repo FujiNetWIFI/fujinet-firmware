@@ -93,7 +93,7 @@ void sioNetwork::sio_open()
 
     newData = (uint8_t *)malloc(NEWDATA_SIZE);
 
-    if (!newData)
+    if (newData == nullptr)
     {
         Debug_printv("Could not allocate write buffer\n");
         sio_error();
@@ -139,8 +139,11 @@ void sioNetwork::sio_open()
             protocolParser = nullptr;
         }
 
-        if (newData)
+        if (newData != nullptr)
+        {
             free(newData);
+            newData = nullptr;
+        }
 
         sio_error();
         return;
@@ -159,8 +162,11 @@ void sioNetwork::sio_open()
             protocolParser = nullptr;
         }
 
-        if (newData)
+        if (newData != nullptr)
+        {
             free(newData);
+            newData = nullptr;
+        }
 
         sio_error();
         return;
@@ -224,8 +230,11 @@ void sioNetwork::sio_close()
         json = nullptr;
     }
 
-    if (newData)
+    if (newData != nullptr)
+    {
         free(newData);
+        newData = nullptr;
+    }
 
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 }
@@ -693,32 +702,35 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
 
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
+    {
         inq_dstats = protocol->special_inquiry(inq_cmd);
+        Debug_printf("protocol special_inquiry returned %d\r\n", inq_dstats);
+    }
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
     if (inq_dstats == 0xFF)
     {
         switch (inq_cmd)
         {
-        case 0x20:
-        case 0x21:
-        case 0x23:
-        case 0x24:
-        case 0x2A:
-        case 0x2B:
-        case 0x2C:
-        case 0xFD:
-        case 0xFE:
+        case 0x20: // ' ' rename
+        case 0x21: // '!' delete
+        case 0x23: // '#' lock
+        case 0x24: // '$' unlock
+        case 0x2A: // '*' mkdir
+        case 0x2B: // '+' rmdir
+        case 0x2C: // ',' chdir/get prefix
+        case 0xFD: //     login
+        case 0xFE: //     password
             inq_dstats = 0x80;
             break;
-        case 0xFC:
+        case 0xFC: //     channel mode
             inq_dstats = 0x00;
             break;
         case 0xFB: // String Processing mode, only in JSON mode
             if (channelMode == JSON)
                 inq_dstats = 0x00;
             break;
-        case 0x30:
+        case 0x30: // '0' set prefix
             inq_dstats = 0x40;
             break;
         case 'Z': // Set interrupt rate
@@ -812,15 +824,15 @@ void sioNetwork::sio_special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x20: // RENAME
-    case 0x21: // DELETE
-    case 0x23: // LOCK
-    case 0x24: // UNLOCK
-    case 0x2A: // MKDIR
-    case 0x2B: // RMDIR
+    case 0x20: // RENAME  ' '
+    case 0x21: // DELETE  '!'
+    case 0x23: // LOCK    '#'
+    case 0x24: // UNLOCK  '$'
+    case 0x2A: // MKDIR   '*'
+    case 0x2B: // RMDIR   '+'
         sio_do_idempotent_command_80();
         return;
-    case 0x2C: // CHDIR
+    case 0x2C: // CHDIR   ','
         sio_set_prefix();
         return;
     case 'Q':
