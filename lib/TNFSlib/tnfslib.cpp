@@ -526,18 +526,23 @@ int _tnfs_cache_seek(tnfsFileHandleInfo *pFHI, int32_t position, uint8_t type)
         destination_pos = pFHI->file_size + position;
 
     uint32_t cache_end = pFHI->cache_start + pFHI->cache_available;
+#ifdef TNFS_DEBUG
     Debug_printf("_tnfs_cache_seek current=%u, destination=%u, cache_start=%u, cache_end=%u\r\n",
                  pFHI->cached_pos, destination_pos, pFHI->cache_start, cache_end);
+#endif
 
     // Just update our position if we're within the cached region
     if (destination_pos >= pFHI->cache_start && destination_pos < cache_end)
     {
+#ifdef TNFS_DEBUG
         Debug_println("_tnfs_cache_seek within cached region");
+#endif
         pFHI->cached_pos = destination_pos;
         return 0;
     }
-
+#ifdef TNFS_DEBUG
     Debug_println("_tnfs_cache_seek outside cached region");
+#endif
     return -1;
 }
 
@@ -559,7 +564,9 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
     if (pFileInf == nullptr)
         return TNFS_RESULT_BAD_FILE_DESCRIPTOR;
 
+#ifdef TNFS_DEBUG
     Debug_printf("tnfs_lseek currpos=%d, pos=%d, typ=%d\r\n", pFileInf->cached_pos, position, type);
+#endif
 
     // Try to fulfill the seek within our internal cache
     if (skip_cache == false && _tnfs_cache_seek(pFileInf, position, type) == 0)
@@ -595,8 +602,9 @@ int tnfs_lseek(tnfsMountInfo *m_info, int16_t file_handle, int32_t position, uin
             if(new_position != nullptr)
                 *new_position = pFileInf->file_position;
             uint32_t response_pos = TNFS_UINT32_FROM_LOHI_BYTEPTR(packet.payload + 1);
+#ifdef TNFS_DEBUG
             Debug_printf("tnfs_lseek success, new pos=%u, response pos=%u\r\n", pFileInf->file_position, response_pos);
-
+#endif
             // TODO: This is temporary while we confirm that the recently-changed TNFSD code matches what we've been doing prior
             if(pFileInf->file_position != response_pos)
             {

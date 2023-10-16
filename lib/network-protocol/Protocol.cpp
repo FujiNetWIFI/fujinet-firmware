@@ -103,7 +103,7 @@ bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     // Set translation mode, Bits 0-1 of aux2
     translation_mode = cmdFrame->aux2 & 0x7F; // we now have more xlation modes.
 
-    Debug_printf("translation mode = %u",translation_mode);
+    Debug_printf("translation mode = %u\r\n",translation_mode);
 
     // Persist aux1/aux2 values for later.
     aux1_open = cmdFrame->aux1;

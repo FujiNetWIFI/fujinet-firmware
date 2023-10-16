@@ -351,15 +351,17 @@ extern "C"
 // Create a new high-priority task to handle the main loop
 // This is assigned to CPU1; the WiFi task ends up on CPU0
 #define MAIN_STACKSIZE 32768
+#ifdef BUILD_ADAM
+#define MAIN_PRIORITY 30
+#else
 #define MAIN_PRIORITY 17
+#endif
 #define MAIN_CPUAFFINITY 1
 
         xTaskCreatePinnedToCore(fn_service_loop, "fnLoop",
                                 MAIN_STACKSIZE, nullptr, MAIN_PRIORITY, nullptr, MAIN_CPUAFFINITY);
 
-
-        // Sit here twiddling our thumbs
-        while (true)
-            vTaskDelay(9000 / portTICK_PERIOD_MS);
+        // Delete app_main() task since we no longer need it
+        vTaskDelete(NULL);
     }
 }
