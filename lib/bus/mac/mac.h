@@ -83,6 +83,7 @@ private:
   const int _mac_baud_rate = 2000000; //230400; //was 115200;
 
   int _active_DCD_disk;
+  uint8_t _mounted_disks;
 
 public:
   std::forward_list<macDevice *> _daisyChain;
@@ -104,6 +105,9 @@ public:
   bool shuttingDown = false; // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
   // bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
+
+  void add_mount(char c);
+  void rem_mount(char c);
 
   bool stepper_timeout();
   unsigned long t0;

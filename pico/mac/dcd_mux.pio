@@ -8,7 +8,6 @@
 
 .define public LSTRB 12
 .define public ENABLE 7
-.define public NUM_DCD 2
 
 ; The DCD mux will really control the RD line direction.
 ; It will ...
@@ -22,7 +21,7 @@
     ; we wait to be enabled then RD goes to output
 .wrap_target
 start:    
-    set x, NUM_DCD                side 0      ; put the number of DCD devices in X
+    set x, 0                side 0      ; put the number of DCD devices in X (0xf022 - last digit is number of DCDs)
     wait 0 gpio ENABLE                  ; don't do anything until we're enabled
     in x, 32                            ; say we are at the first DCD
     jmp x-- cont                        ; decrement X to wait for the next strobe

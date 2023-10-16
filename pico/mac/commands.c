@@ -16,6 +16,9 @@
 #include "hardware/clocks.h"
 
 #include "hardware/pio.h"
+#include "hardware/pio_instructions.h"
+#include "hardware/regs/pio.h"
+#include "hardware/regs/addressmap.h"
 
 #include "commands.pio.h"
 #include "echo.pio.h"
@@ -80,12 +83,14 @@ uint32_t b[12];
     char c;
 uint32_t olda;
 uint32_t active_disk_number;
+uint num_dcd_drives;
     
 PIO pio_floppy = pio0;
 PIO pio_dcd = pio1;
 PIO pio_dcd_rw = pio0;
 uint pio_read_offset;
 uint pio_write_offset;
+uint pio_mux_offset;
 
 void setup_esp_uart()
 {
@@ -297,9 +302,9 @@ void setup()
     printf("Loaded DCD commands program at %d\n", offset);
     pio_dcd_commands(pio_dcd, SM_DCD_CMD, offset, MCI_CA0); 
 
-    offset = pio_add_program(pio_dcd, &dcd_mux_program);
-    printf("Loaded DCD mux program at %d\n", offset);
-    pio_dcd_mux(pio_dcd, SM_DCD_MUX, offset, LATCH_OUT);
+    pio_mux_offset = pio_add_program(pio_dcd, &dcd_mux_program);
+    printf("Loaded DCD mux program at %d\n", pio_mux_offset);
+    pio_dcd_mux(pio_dcd, SM_DCD_MUX, pio_mux_offset, LATCH_OUT);
 
     pio_read_offset = pio_add_program(pio_dcd_rw, &dcd_read_program);
     printf("Loaded DCD read program at %d\n", pio_read_offset);
@@ -482,7 +487,7 @@ void dcd_loop()
   // 
   if (!pio_sm_is_rx_fifo_empty(pio_dcd, SM_DCD_MUX))
   {
-    active_disk_number = NUM_DCD + 'A' - pio_sm_get_blocking(pio_dcd, SM_DCD_MUX);
+    active_disk_number = num_dcd_drives + 'A' - pio_sm_get_blocking(pio_dcd, SM_DCD_MUX);
     printf("%c", active_disk_number);
     uart_putc_raw(UART_ID, active_disk_number);
   }
@@ -549,11 +554,19 @@ void dcd_loop()
     c = uart_getc(UART_ID);
     switch (c)
     {
-    case 'h': // harddisk is mounted
-      c = uart_getc(UART_ID); // char starting with '0'
-      printf("\nHard Disk %c mounted", c);
-      // c is now the drive slot (DCD unit) number
-      // can add write protection info (or should move status packet generation to ESP32)
+    case 'h': // harddisk is mounted/unmounted
+      num_dcd_drives = uart_getc(UART_ID);
+      printf("\nNumber of DCD's mounted: %d", num_dcd_drives);
+      // need to set number in DCD mux PIO and reset the machine
+      // set x, N     side 0 ; put the number of DCD devices in X (0xf02N - last digit is number of DCDs)
+      // uint instr = 0xf020 + num_dcd_drives;
+       // pause the machine, change the instruction, move the PC, resume
+      pio_sm_set_enabled(pio_dcd, SM_DCD_MUX, false);
+      volatile uint *target;
+      target = (uint *)(PIO1_BASE + PIO_INSTR_MEM0_OFFSET + 4*pio_mux_offset);
+      *target = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(1, 0);
+      pio_sm_set_enabled(pio_dcd, SM_DCD_MUX, true);
+      pio_sm_exec(pio_dcd, SM_DCD_MUX, pio_encode_jmp(pio_mux_offset));
       break;
     default:
       break;
@@ -795,7 +808,9 @@ OR
   while (!uart_is_readable(UART_ID))
     ;
   c = uart_getc(UART_ID);
-  assert(c=='w'); // error handling?
+  if (c=='e')
+    printf("\nMac WROTE TO READONLY DISK!\n");
+  // assert(c=='w'); // error handling?
   // response packet
   memset(payload, 0, sizeof(payload));
   payload[0] = (!verf) ? 0x81 : 0x82;
