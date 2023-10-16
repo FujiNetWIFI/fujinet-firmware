@@ -150,6 +150,27 @@ void macBus::service(void)
   }
 }
 
+void macBus::add_mount(char c)
+{
+  _mounted_disks |= 1 << (c - '0');
+  // find maximum consecutively occupied disk slot
+  char d = 0;
+  while (_mounted_disks & (1 << d))
+    d++;
+  fnUartBUS.write('h'); // harddisk
+  fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
+}
+
+void macBus::rem_mount(char c)
+{
+  _mounted_disks &= ~(1 << (c - '0'));
+  char d = 0;
+  while (_mounted_disks & (1 << d))
+    d++;
+  fnUartBUS.write('h'); // harddisk
+  fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
+}
+
 bool macBus::stepper_timeout()
 {
   unsigned long tn = fnSystem.micros();

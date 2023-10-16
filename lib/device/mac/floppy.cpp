@@ -52,12 +52,11 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize, m
     }
     break;
   case MEDIATYPE_DCD:
-    Debug_printf("\nMounting Media Type HDV for DCD");
+    Debug_printf("\nMounting Media Type DSK for DCD");
     device_active = true;
     _disk = new MediaTypeDCD();
     mt = ((MediaTypeDCD *)_disk)->mount(f);
-    fnUartBUS.write('h'); // harddisk
-    fnUartBUS.write(id()); // DCD number 
+    MAC.add_mount(id());
   break;
   // case MEDIATYPE_DSK:
   //   Debug_printf("\nMounting Media Type DSK");
@@ -133,6 +132,11 @@ void macFloppy::unmount()
 {
   // todo - check device type and call correct unmount() 
   // ((MediaTypeMOOF *)_disk)->unmount();
+  if (disktype() == mediatype_t::MEDIATYPE_MOOF)
+    ((MediaTypeMOOF *)_disk)->unmount();
+  else
+    _disk->unmount();
+  MAC.rem_mount(id());
 }
 
 int IRAM_ATTR macFloppy::step()
@@ -297,9 +301,10 @@ void macFloppy::dcd_status(uint8_t* payload)
 */
   payload[7] = 1;
   payload[9] = 1;
-  payload[10] = 0x80 | 0x40 | 0x20 | 0x04 | 0x02; // real HD20 says 0xe6; 
+  payload[10] = 0x80 | 0x40 | 0x20 | 0x04 | 0x02; // real HD20 says 0xe6, which is same; 
   if (readonly) {payload[10] |= 0x08;};
-  
+  // no way to eject DCD's, so 0x10 and 0x02 cannot change. 
+
   payload[11] = (_disk_size_in_blocks >> 16) & 0xff;
   payload[12] = (_disk_size_in_blocks >> 8) & 0xff;
   payload[13] = _disk_size_in_blocks & 0xff;
