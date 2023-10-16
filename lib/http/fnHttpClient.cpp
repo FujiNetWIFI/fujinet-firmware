@@ -8,6 +8,7 @@
 #include "../../include/debug.h"
 
 #include "fnSystem.h"
+#include "../fn_esp_http_client/fn_esp_http_client.h"
 
 #include "utils.h"
 
@@ -37,6 +38,7 @@ fnHttpClient::~fnHttpClient()
     }
 
     free(_buffer);
+    _buffer = nullptr;
 }
 
 // Start an HTTP client session to the given URL
@@ -65,7 +67,16 @@ bool fnHttpClient::begin(const std::string &url)
 int fnHttpClient::available()
 {
     if (_handle == nullptr)
+    {
+        Debug_printf("fnHttpClient::available() _handle is null\r\n");
         return 0;
+    }
+
+    if (_handle->response == nullptr)
+    {
+        Debug_printf("fnHttpClient::available() _handle->response is null\r\n");
+        return 0;
+    }
 
     int result = 0;
     int len = -1;

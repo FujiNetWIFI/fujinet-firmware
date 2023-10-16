@@ -19,12 +19,15 @@ Aux1 values
 ===========
 
 4 = GET, no headers, just grab data.
+5 = DELETE, no headers
 6 = PROPFIND, WebDAV directory
 8 = PUT, write data to server, XIO used to toggle headers to get versus data write
+9 = DELETE, with headers
 12 = GET, write sets headers to fetch, read grabs data
 13 = POST, write sends post data to server, read grabs response, XIO used to change write behavior, toggle headers to get or headers to set.
 14 = PUT, write sends post data to server, read grabs response, XIO used to change write behavior, toggle headers to get or headers to set.
 DELETE, MKCOL, RMCOL, COPY, MOVE, are all handled via idempotent XIO commands.
+DELETE can be done via special/XIO if you do not want to handle the response, otherwise use aux1=5/9 with normal open/read.
 */
 
 NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string *sp_buf)
@@ -45,7 +48,10 @@ NetworkProtocolHTTP::~NetworkProtocolHTTP()
 {
     for (int i = 0; i < collect_headers_count; i++)
         if (collect_headers[i] != nullptr)
+        {
             free(collect_headers[i]);
+            collect_headers[i] = nullptr;
+        }
 }
 
 uint8_t NetworkProtocolHTTP::special_inquiry(uint8_t cmd)
@@ -121,6 +127,10 @@ bool NetworkProtocolHTTP::open_file_handle()
         break;
     case 8: // WRITE, filename resolve, ignored if not found.
         httpOpenMode = PUT;
+        break;
+    case 5: // DELETE with no headers
+    case 9: // DELETE with ability to set headers
+        httpOpenMode = DELETE;
         break;
     case 13: // POST can set headers, also no filename resolve
     case 14: // PUT with ability to set headers, no filename resolve
@@ -323,20 +333,35 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     // if (fromInterrupt == false)
     //     Debug_printf("Channel mode is %u\r\n", httpChannelMode);
 
+    if (client == nullptr) {
+        status->rxBytesWaiting = 0;
+        status->connected = 0;
+        status->error = NETWORK_ERROR_GENERAL;
+        return true;
+    }
+
     switch (httpChannelMode)
     {
     case DATA:
+    {
         if (fromInterrupt == false && resultCode == 0)
+        {
+            Debug_printf("calling http_transaction\r\n");
             http_transaction();
-        status->rxBytesWaiting = client->available() > 65535 ? 65535 : client->available();
+        }
+        auto available = client->available();
+        status->rxBytesWaiting = available > 65535 ? 65535 : available;
         status->connected = client->is_transaction_done() ? 0 : 1;
-        status->error = client->available() == 0 && client->is_transaction_done() && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
+        status->error = available == 0 && client->is_transaction_done() && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
+        // Debug_printf("NetworkProtocolHTTP::status_file DATA, available: %d, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", available, status->rxBytesWaiting, status->connected, status->error);
         return false;
+    }
     case SET_HEADERS:
     case COLLECT_HEADERS:
     case SEND_POST_DATA:
         status->rxBytesWaiting = status->connected = 0;
         status->error = NETWORK_ERROR_SUCCESS;
+        // Debug_printf("NetworkProtocolHTTP::status_file SH/CH/SPD, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
         return false;
     case GET_HEADERS:
         if (resultCode == 0)
@@ -344,8 +369,10 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
         status->rxBytesWaiting = (returned_header_cursor < collect_headers_count ? returned_headers[returned_header_cursor].size() : 0);
         status->connected = 0; // so that we always ask in this mode.
         status->error = returned_header_cursor == collect_headers_count && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
+        // Debug_printf("NetworkProtocolHTTP::status_file GH, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
         return false;
     default:
+        Debug_printf("ERROR: Unknown httpChannelMode: %d\r\n", httpChannelMode);
         return true;
     }
 }
@@ -582,7 +609,6 @@ void NetworkProtocolHTTP::http_transaction()
 {
     if ((aux1_open != 4) && (aux1_open != 8) && (collect_headers_count > 0))
     {
-        Debug_printf("CALLING COLLECT HEADERS!\r\n");
         client->collect_headers((const char **)collect_headers, collect_headers_count);
     }
 
@@ -599,6 +625,9 @@ void NetworkProtocolHTTP::http_transaction()
         break;
     case PUT:
         resultCode = client->PUT(postData.c_str(), postData.size());
+        break;
+    case DELETE:
+        resultCode = client->DELETE();
         break;
     }
 
@@ -670,7 +699,7 @@ bool NetworkProtocolHTTP::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolHTTP::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("NetworkProtocolHTTP::del, url: %s\r\n", url->toString().c_str());
+    Debug_printf("NetworkProtocolHTTP::del(%s,%s)", url->hostName.c_str(), url->path.c_str());
     mount(url);
 
     resultCode = client->DELETE();
@@ -683,7 +712,7 @@ bool NetworkProtocolHTTP::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolHTTP::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("NetworkProtocolHTTP::mkdir(%s,%s)", url->hostName, url->path);
+    Debug_printf("NetworkProtocolHTTP::mkdir(%s,%s)", url->hostName.c_str(), url->path.c_str());
 
     mount(url);
 

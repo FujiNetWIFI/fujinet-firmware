@@ -27,6 +27,8 @@
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
 
+#define NEWDATA_SIZE 65535
+
 class sioNetwork : public virtualDevice
 {
 
@@ -257,8 +259,7 @@ private:
     /**
      * @brief the write buffer
      */
-    uint8_t *newData;
-#define NEWDATA_SIZE 65535
+    uint8_t *newData = nullptr;
 
     /**
      * Instantiate protocol object

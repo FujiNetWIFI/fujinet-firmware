@@ -21,7 +21,8 @@
 #include "esp_err.h"
 #include "esp_tls.h"
 #include "esp_transport.h"
-
+#include "fn_http_header.h"
+#include "fn_http_auth.h"
 
 namespace fujinet
 {
@@ -143,6 +144,99 @@ typedef enum {
     /* 4xx - Client Error */
     HttpStatus_Unauthorized      = 401
 } HttpStatus_Code;
+
+/**
+ * HTTP Buffer
+ */
+typedef struct {
+    char *data;         /*!< The HTTP data received from the server */
+    int len;            /*!< The HTTP data len received from the server */
+    char *raw_data;     /*!< The HTTP data after decoding */
+    int raw_len;        /*!< The HTTP data len after decoding */
+    char *output_ptr;   /*!< The destination address of the data to be copied to after decoding */
+} esp_http_buffer_t;
+
+/**
+ * private HTTP Data structure
+ */
+typedef struct {
+    http_header_handle_t headers;       /*!< http header */
+    esp_http_buffer_t   *buffer;        /*!< data buffer as linked list */
+    int                 status_code;    /*!< status code (integer) */
+    int                 content_length; /*!< data length */
+    int                 chunk_length;   /*!< last chunk length */
+    int                 total_chunk_length; /*!< total chunk length */
+    int                 data_offset;    /*!< offset to http data (Skip header) */
+    int                 data_process;   /*!< data processed */
+    int                 method;         /*!< http method */
+    bool                is_chunked;
+} esp_http_data_t;
+
+typedef struct {
+    char                         *url;
+    char                         *scheme;
+    char                         *host;
+    int                          port;
+    char                         *username;
+    char                         *password;
+    char                         *path;
+    char                         *query;
+    char                         *cert_pem;
+    esp_http_client_method_t     method;
+    esp_http_client_auth_type_t  auth_type;
+    esp_http_client_transport_t  transport_type;
+    int                          max_store_header_size;
+} connection_info_t;
+
+typedef enum {
+    HTTP_STATE_UNINIT = 0,
+    HTTP_STATE_INIT,
+    HTTP_STATE_CONNECTED,
+    HTTP_STATE_REQ_COMPLETE_HEADER,
+    HTTP_STATE_REQ_COMPLETE_DATA,
+    HTTP_STATE_RES_COMPLETE_HEADER,
+    HTTP_STATE_RES_COMPLETE_DATA,
+    HTTP_STATE_CLOSE
+} esp_http_state_t;
+/**
+ * HTTP client class
+ */
+struct esp_http_client {
+    int                         redirect_counter;
+    int                         max_redirection_count;
+    int                         process_again;
+    struct http_parser          *parser;
+    struct http_parser_settings *parser_settings;
+    esp_transport_list_handle_t     transport_list;
+    esp_transport_handle_t          transport;
+    esp_http_data_t                 *request;
+    esp_http_data_t                 *response;
+    void                        *user_data;
+    esp_http_auth_data_t        *auth_data;
+    char                        *post_data;
+    char                        *location;
+    char                        *auth_header;
+    char                        *current_header_key;
+    char                        *current_header_value;
+    int                         post_len;
+    connection_info_t           connection_info;
+    bool                        is_chunk_complete;
+    esp_http_state_t            state;
+    http_event_handle_cb        event_handler;
+    int                         timeout_ms;
+    int                         buffer_size_rx;
+    int                         buffer_size_tx;
+    bool                        disable_auto_redirect;
+    esp_http_client_event_t     event;
+    int                         data_written_index;
+    int                         data_write_left;
+    bool                        first_line_prepared;
+    int                         header_index;
+    bool                        is_async;
+};
+
+typedef struct esp_http_client esp_http_client_t;
+
 
 #define ESP_ERR_HTTP_BASE               (0x7000)                    /*!< Starting number of HTTP error codes */
 #define ESP_ERR_HTTP_MAX_REDIRECT       (ESP_ERR_HTTP_BASE + 1)     /*!< The error exceeds the number of HTTP redirects */

@@ -157,7 +157,8 @@ private:
     {
         GET,
         POST,
-        PUT
+        PUT,
+        DELETE
     } HTTPOpenMode;
 
     HTTPOpenMode httpOpenMode = HTTPOpenMode::GET;
