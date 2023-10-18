@@ -68,6 +68,14 @@ sioNetwork::~sioNetwork()
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
+    receiveBuffer = nullptr;
+    transmitBuffer = nullptr;
+    specialBuffer = nullptr;
+
+    if (protocol != nullptr)
+        delete protocol;
+
+    protocol = nullptr;
 }
 
 /** SIO COMMANDS ***************************************************************/
@@ -211,7 +219,10 @@ void sioNetwork::sio_close()
     protocol = nullptr;
 
     if (json != nullptr)
+    {
         delete json;
+        json = nullptr;
+    }
 
     if (newData)
         free(newData);
@@ -1164,6 +1175,7 @@ void sioNetwork::sio_set_timer_rate()
 
 void sioNetwork::sio_do_idempotent_command_80()
 {
+    Debug_printf("sioNetwork::sio_do_idempotent_command_80()\r\n");
     sio_ack();
 
     parse_and_instantiate_protocol();

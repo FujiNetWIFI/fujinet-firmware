@@ -18,6 +18,7 @@ iwmPrinter::iwmPrinter(FileSystem *filesystem, printer_type printer_type)
 iwmPrinter::~iwmPrinter()
 {
     delete _pptr;
+    _pptr = nullptr;
 }
 
 void iwmPrinter::send_status_reply_packet()
@@ -208,7 +209,10 @@ void iwmPrinter::process(iwm_decoded_cmd_t cmd)
 void iwmPrinter::set_printer_type(iwmPrinter::printer_type printer_type)
 {
     // Destroy any current printer emu object
-    delete _pptr;
+    if (_pptr != nullptr)
+    {
+        delete _pptr;
+    }
 
     _ptype = printer_type;
     switch (printer_type)

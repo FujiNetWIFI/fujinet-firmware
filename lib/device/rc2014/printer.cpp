@@ -39,6 +39,7 @@ rc2014Printer::rc2014Printer(FileSystem *filesystem, printer_type print_type)
 rc2014Printer::~rc2014Printer()
 {
     delete _pptr;
+    _pptr = nullptr;
 }
 
 rc2014Printer::printer_type rc2014Printer::match_modelname(std::string model_name)
@@ -168,7 +169,10 @@ void rc2014Printer::shutdown()
 void rc2014Printer::set_printer_type(printer_type printer_type)
 {
     // Destroy any current printer emu object
-    delete _pptr;
+    if (_pptr != nullptr)
+    {
+        delete _pptr;
+    }
 
     _ptype = printer_type;
     switch (printer_type)

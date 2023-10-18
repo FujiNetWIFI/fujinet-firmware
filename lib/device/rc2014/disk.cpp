@@ -25,7 +25,10 @@ rc2014Disk::rc2014Disk()
 rc2014Disk::~rc2014Disk()
 {
     if (_media != nullptr)
+    {
         delete _media;
+        _media = nullptr;
+    }
 }
 
 // Read disk data and send to computer

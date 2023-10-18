@@ -53,6 +53,11 @@ iecNetwork::~iecNetwork()
         delete receiveBuffer[i];
         delete transmitBuffer[i];
         delete specialBuffer[i];
+        protocol[i] = nullptr;
+        json[i] = nullptr;
+        receiveBuffer[i] = nullptr;
+        transmitBuffer[i] = nullptr;
+        specialBuffer[i] = nullptr;
     }
 }
 

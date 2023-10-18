@@ -19,6 +19,7 @@ adamKeyboard::~adamKeyboard()
     // vTaskDelete(kbTask);
     server->stop();
     delete server;
+    server = nullptr;
 }
 
 void adamKeyboard::adamnet_control_status()
