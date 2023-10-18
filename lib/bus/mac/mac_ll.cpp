@@ -804,13 +804,13 @@ void mac_ll::setup_gpio()
 #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 #define RMT_USEC (APB_CLK_FREQ / MHZ)
 
-void mac_floppy_ll::start(uint8_t drive)
+void mac_floppy_ll::start()
 {
   // floppy_ll.set_output_to_rmt();
   // floppy_ll.enable_output();
   ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer[0], track_numbits[0], track_bit_period));
   fnLedManager.set(LED_BUS, true);
-  Debug_printf("\nstart floppy %d : ",drive+1);
+  Debug_printf("\nstart floppy");
 }
 
 void mac_floppy_ll::stop()
