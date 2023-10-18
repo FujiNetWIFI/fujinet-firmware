@@ -18,7 +18,10 @@ s100spiDisk::s100spiDisk()
 s100spiDisk::~s100spiDisk()
 {
     if (_media != nullptr)
+    {
         delete _media;
+        _media = nullptr;
+    }
 }
 
 void s100spiDisk::reset()

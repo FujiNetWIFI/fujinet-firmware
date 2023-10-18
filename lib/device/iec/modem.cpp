@@ -13,6 +13,7 @@ iecModem::~iecModem()
     if (modemSniffer != nullptr)
     {
         delete modemSniffer;
+        modemSniffer = nullptr;
     }
 }
 
