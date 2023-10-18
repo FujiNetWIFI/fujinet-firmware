@@ -65,14 +65,14 @@ void macBus::service(void)
       case 0:
         // set direction to increase track number
         Debug_printf("%c", 'I');
-        theFuji.get_disks(0)->disk_dev.set_dir(+1);
+        theFuji.get_disks(4)->disk_dev.set_dir(+1);
         // fnUartBUS.write('I');
         // fnUartBUS.flush();
         break;
       case 4:
         // set direction to decrease track number
         Debug_printf("%c", 'D');
-        theFuji.get_disks(0)->disk_dev.set_dir(-1);
+        theFuji.get_disks(4)->disk_dev.set_dir(-1);
         // fnUartBUS.write('D');
         // fnUartBUS.flush();
         break;
@@ -82,7 +82,7 @@ void macBus::service(void)
         {
           t0 = fnSystem.micros();
           track_not_copied = true;
-          int track_position = theFuji.get_disks(0)->disk_dev.step();
+          int track_position = theFuji.get_disks(4)->disk_dev.step();
           if (track_position < 0)
           {
             fnUartBUS.write('N');
