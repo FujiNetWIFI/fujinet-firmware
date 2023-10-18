@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-//#define FLOPPY
-#undef FLOPPY
-//#undef DCD
-#define DCD
+#define FLOPPY
+//#undef FLOPPY
+#undef DCD
+//#define DCD
 
 #include <stdio.h>
 #include <string.h>
@@ -259,6 +259,7 @@ void set_tach_freq(char c)
 
 void loop();
 void dcd_loop();
+void floppy_loop();
 
 void setup()
 {
@@ -446,10 +447,12 @@ void floppy_loop()
           break;
       case 'S':             // step complete (data copied to RMT buffer on ESP32)
           printf("\nStep sequence complete");
-          // fall through?????????????????????????????????????????
+          clr_latch(READY); // hack - really should not set READY low until the 3 criteria are met
+          break;
       case 'M':             // motor on
           printf("\nMotor is on");
           clr_latch(READY); // hack - really should not set READY low until the 3 criteria are met
+          break;
       default:
           break;
       }

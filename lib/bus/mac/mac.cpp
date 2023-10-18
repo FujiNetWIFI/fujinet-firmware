@@ -149,28 +149,28 @@ void macBus::service(void)
   }
 }
 
-char macBus::num_mounts()
+char macBus::num_dcd_mounts()
 {
   // find maximum consecutively occupied disk slot
   char d = 0;
-  while (_mounted_disks & (1 << d))
+  while (_mounted_dcd_disks & (1 << d))
     d++;
   return d;
 }
 
-void macBus::add_mount(char c)
+void macBus::add_dcd_mount(char c)
 {
-  _mounted_disks |= 1 << (c - '0');
+  _mounted_dcd_disks |= 1 << (c - '0');
   // find maximum consecutively occupied disk slot
-  char d = num_mounts();
+  char d = num_dcd_mounts();
   fnUartBUS.write('h'); // harddisk
   fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
 }
 
-void macBus::rem_mount(char c)
+void macBus::rem_dcd_mount(char c)
 {
-  _mounted_disks &= ~(1 << (c - '0'));
-  char d = num_mounts();
+  _mounted_dcd_disks &= ~(1 << (c - '0'));
+  char d = num_dcd_mounts();
   fnUartBUS.write('h'); // harddisk
   fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
 }
