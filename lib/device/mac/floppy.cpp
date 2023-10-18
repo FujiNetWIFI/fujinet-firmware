@@ -31,7 +31,7 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize, m
   case MEDIATYPE_MOOF:
     Debug_printf("\nMounting Media Type MOOF");
     // init();
-    device_active = true;
+    device_active = (id() == '4');
     _disk = new MediaTypeMOOF();
     mt = ((MediaTypeMOOF *)_disk)->mount(f);
     track_pos = 0;
@@ -56,7 +56,7 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize, m
     device_active = true;
     _disk = new MediaTypeDCD();
     mt = ((MediaTypeDCD *)_disk)->mount(f);
-    MAC.add_mount(id());
+    MAC.add_dcd_mount(id());
   break;
   // case MEDIATYPE_DSK:
   //   Debug_printf("\nMounting Media Type DSK");
@@ -136,7 +136,8 @@ void macFloppy::unmount()
     ((MediaTypeMOOF *)_disk)->unmount();
   else
     _disk->unmount();
-  MAC.rem_mount(id());
+  MAC.rem_dcd_mount(id());
+  device_active = false;
 }
 
 int IRAM_ATTR macFloppy::step()
