@@ -90,14 +90,13 @@ void macBus::service(void)
           else
           {
             fnUartBUS.write(track_position | 128); // send the track position(/2) back
-            // fnUartBUS.flush();
           }
         }
         break;
       case 2:
         // turn motor ons
         Debug_printf("\nMotor ON");
-        floppy_ll.start(0);
+        floppy_ll.start();
         fnUartBUS.write('M');
         // fnUartBUS.flush();
         break;
@@ -150,13 +149,20 @@ void macBus::service(void)
   }
 }
 
-void macBus::add_mount(char c)
+char macBus::num_mounts()
 {
-  _mounted_disks |= 1 << (c - '0');
   // find maximum consecutively occupied disk slot
   char d = 0;
   while (_mounted_disks & (1 << d))
     d++;
+  return d;
+}
+
+void macBus::add_mount(char c)
+{
+  _mounted_disks |= 1 << (c - '0');
+  // find maximum consecutively occupied disk slot
+  char d = num_mounts();
   fnUartBUS.write('h'); // harddisk
   fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
 }
@@ -164,9 +170,7 @@ void macBus::add_mount(char c)
 void macBus::rem_mount(char c)
 {
   _mounted_disks &= ~(1 << (c - '0'));
-  char d = 0;
-  while (_mounted_disks & (1 << d))
-    d++;
+  char d = num_mounts();
   fnUartBUS.write('h'); // harddisk
   fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
 }

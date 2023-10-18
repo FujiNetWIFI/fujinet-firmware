@@ -85,6 +85,8 @@ private:
   int _active_DCD_disk;
   uint8_t _mounted_disks;
 
+  char num_mounts();
+
 public:
   std::forward_list<macDevice *> _daisyChain;
 
