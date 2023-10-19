@@ -29,6 +29,7 @@ macModem::~macModem()
     if (modemSniffer != nullptr)
     {
         delete modemSniffer;
+        modemSniffer = nullptr;
     }
 
     // if (telnet != nullptr)
@@ -152,6 +153,7 @@ iwmModem::~iwmModem()
     if (modemSniffer != nullptr)
     {
         delete modemSniffer;
+        modemSniffer = nullptr;
     }
 
     if (telnet != nullptr)

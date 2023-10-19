@@ -389,6 +389,7 @@ void NetworkProtocolFS::resolve()
 
 bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
+    Debug_printf("NetworkProtocolFS::perform_idempotent_80, url: %s\r\n", url->toString().c_str());
     switch (cmdFrame->comnd)
     {
     case 0x20:

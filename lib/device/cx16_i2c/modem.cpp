@@ -11,6 +11,7 @@ cx16Modem::cx16Modem(FileSystem *_fs, bool snifferEnable)
 cx16Modem::~cx16Modem()
 {
     delete modemSniffer;
+    modemSniffer = nullptr;
 }
 
 #endif /* BUILD_CX16 */

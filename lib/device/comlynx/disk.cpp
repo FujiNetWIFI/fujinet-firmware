@@ -23,7 +23,10 @@ lynxDisk::lynxDisk()
 lynxDisk::~lynxDisk()
 {
     if (_media != nullptr)
+    {
         delete _media;
+        _media = nullptr;
+    }
 }
 
 void lynxDisk::reset()

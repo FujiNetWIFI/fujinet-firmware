@@ -31,6 +31,7 @@ cbuf::cbuf(size_t size) : next(NULL), _size(size + 1), _buf(new char[size + 1]),
 cbuf::~cbuf()
 {
     delete[] _buf;
+    _buf = nullptr;
 }
 
 size_t cbuf::resizeAdd(size_t addSize)

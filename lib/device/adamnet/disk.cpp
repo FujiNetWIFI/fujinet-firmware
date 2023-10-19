@@ -23,7 +23,10 @@ adamDisk::adamDisk()
 adamDisk::~adamDisk()
 {
     if (_media != nullptr)
+    {
         delete _media;
+        _media = nullptr;
+    }
 }
 
 void adamDisk::reset()

@@ -105,6 +105,7 @@ modem::~modem()
     if (modemSniffer != nullptr)
     {
         delete modemSniffer;
+        modemSniffer = nullptr;
     }
 
     if (telnet != nullptr)

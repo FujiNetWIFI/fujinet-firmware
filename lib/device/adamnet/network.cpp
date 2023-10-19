@@ -61,6 +61,9 @@ adamNetwork::~adamNetwork()
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
+    receiveBuffer = nullptr;
+    transmitBuffer = nullptr;
+    specialBuffer = nullptr;
 
     if (protocol != nullptr)
         delete protocol;
