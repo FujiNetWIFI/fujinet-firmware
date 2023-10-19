@@ -109,7 +109,9 @@ void macBus::service(void)
         break;
       case 7:
         // eject
-        Debug_printf("\neject but do nothing");
+        Debug_printf("\neject - unmounting");
+        floppy_ll.stop();
+        theFuji.get_disks(4)->disk_dev.unmount();
         fnUartBUS.write('E');
         // fnUartBUS.flush();
         break;

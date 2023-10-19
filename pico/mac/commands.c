@@ -229,7 +229,7 @@ void preset_latch()
     clr_latch(EJECT);
     set_latch(SINGLESIDE);
     clr_latch(DRVIN);
-    clr_latch(CSTIN); //set_latch(CSTIN);
+    set_latch(CSTIN); // no disk in drive
     clr_latch(WRTPRT);
     set_latch(TKO);
     set_latch(READY);
@@ -392,8 +392,8 @@ void floppy_loop()
       // EJECT is set to low at rising edge of !CSTIN or 2 sec maximum after rising edge of EJECT.
       // When power is turned on, EJECT is set to low.
       // eject
-      // set_latch(EJECT); // to do - need to clr eject when a disk is inserted - so cheat for now
-      // set_latch(READY);
+      set_latch(EJECT); // to do - need to clr eject when a disk is inserted - so cheat for now
+      set_latch(READY);
       break;
     default:
       printf("\nUNKNOWN PHASE COMMAND");
@@ -445,6 +445,15 @@ void floppy_loop()
           clr_latch(WRTPRT); // everythign is write protected for now
           printf("\nDS disk mounted");
           break;
+      case 'E':
+        // EJECT
+        //  At the rising edge of the LSTRB, EJECT is set to high and the ejection operation starts.
+        //  EJECT is set to low at rising edge of !CSTIN or 2 sec maximum after rising edge of EJECT.
+        //  When power is turned on, EJECT is set to low.
+          set_latch(CSTIN);
+          clr_latch(EJECT);
+          printf("\nFloppy Ejected");
+        break;
       case 'S':             // step complete (data copied to RMT buffer on ESP32)
           printf("\nStep sequence complete");
           clr_latch(READY); // hack - really should not set READY low until the 3 criteria are met
