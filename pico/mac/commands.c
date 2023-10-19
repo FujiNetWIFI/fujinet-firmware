@@ -403,7 +403,7 @@ void floppy_loop()
     uart_putc_raw(UART_ID, (char)(a + '0'));
     }
 
-    // !STEP
+    // !STEP - a little state machine with !STEP required to make this work
     // At the falling edge of this signal the destination track counter is counted up or down depending on the !DIRTN level.
     // After the destination counter in the drive received the falling edge of !STEP, the drive sets !STEP to high.
     if (step_state)

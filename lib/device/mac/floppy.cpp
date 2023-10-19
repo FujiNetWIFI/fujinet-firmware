@@ -134,7 +134,7 @@ void macFloppy::unmount()
   // ((MediaTypeMOOF *)_disk)->unmount();
   if (disktype() == mediatype_t::MEDIATYPE_MOOF)
     ((MediaTypeMOOF *)_disk)->unmount();
-  else
+  else if (_disk != nullptr)
     _disk->unmount();
   MAC.rem_dcd_mount(id());
   device_active = false;
