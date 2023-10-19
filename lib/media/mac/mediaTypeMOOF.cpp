@@ -28,11 +28,16 @@ mediatype_t MediaTypeMOOF::mount(FILE *f, uint32_t disksize)
 void MediaTypeMOOF::unmount()
 {
     MediaType::unmount();
+#ifdef CACHE_IMAGE
     for (int i = 0; i < MAX_TRACKS; i++)
     {
         if (trk_ptrs[i] != nullptr)
             free(trk_ptrs[i]);
     }
+#else
+    free(trk_buffer);
+    trk_buffer = nullptr;
+#endif
 }
 
 bool MediaTypeMOOF::moof_check_header()
@@ -147,6 +152,22 @@ bool MediaTypeMOOF::moof_read_tmap()
     return false;
 }
 
+uint8_t *MediaTypeMOOF::get_track(int t)
+{
+
+#ifdef CACHE_IMAGE
+    return trk_ptrs[tmap[t]];
+#else
+    size_t s = trks[t].block_count * 512;
+    Debug_printf("\nReading %d bytes of track %d", s, t);
+    fseek(_media_fileh, trks[t].start_block * 512, SEEK_SET);
+    fread(trk_buffer, 1, s, _media_fileh);
+    // Debug_printf("\n%d, %d, %lu", trks[t].start_block, trks[t].block_count, trks[t].bit_count);
+    return trk_buffer; 
+#endif
+
+}
+
 bool MediaTypeMOOF::moof_read_tracks()
 { // depend upon little endian-ness
     fseek(_media_fileh, 256, SEEK_SET);
@@ -156,6 +177,8 @@ bool MediaTypeMOOF::moof_read_tracks()
     for (int i = 0; i < MAX_TRACKS; i++)
         Debug_printf("\n%d, %d, %lu", trks[i].start_block, trks[i].block_count, trks[i].bit_count);
 #endif
+
+#ifdef CACHE_IMAGE
     // read MOOF tracks into RAM
     for (int i = 0; i < MAX_TRACKS; i++)
     {
@@ -177,6 +200,23 @@ bool MediaTypeMOOF::moof_read_tracks()
             }
         }
     }
+#else
+    size_t s = num_blocks * 512;
+    if (s != 0)
+    {
+        trk_buffer = (uint8_t *)heap_caps_malloc(s, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+        if (trk_buffer != nullptr)
+        {
+            Debug_printf("\n%d bytes allocated for MOOF track buffer", s);
+        }
+        else
+        {
+            Debug_printf("\nNo RAM allocated!");
+            return true;
+        }
+    }
+#endif
+
     return false;
 }
 

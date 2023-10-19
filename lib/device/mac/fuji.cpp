@@ -76,14 +76,16 @@ void macFuji::setup(macBus *macbus)
     //  _mac_bus->addDevice(&_fnDisks[i].disk_dev, mac_fujinet_type_t::Floppy);
    }
 
+
+  // to do AUTORUN
   //   Debug_printf("\nConfig General Boot Mode: %u\n",Config.get_general_boot_mode());
   //   if (Config.get_general_boot_mode() == 0)
   //   {
-        FILE *f = fsFlash.file_open("/autorun.moof");
-        if (f!=nullptr)
-          _fnDisks[MAX_DISK_DEVICES - MAX_FLOPPY_DEVICES].disk_dev.mount(f, "/autorun.moof", MEDIATYPE_MOOF);
-        else
-          Debug_printf("\nCould not open 'autorun.moof'"); 
+        // FILE *f = fsFlash.file_open("/autorun.moof");
+        // if (f!=nullptr)
+        //   _fnDisks[MAX_DISK_DEVICES - MAX_FLOPPY_DEVICES].disk_dev.mount(f, "/autorun.moof", MEDIATYPE_MOOF);
+        // else
+        //   Debug_printf("\nCould not open 'autorun.moof'"); 
   //   }
   //   else
   //   {
