@@ -66,6 +66,7 @@ void FNJSON::setQueryParam(uint8_t qp)
  */
 void FNJSON::setReadQuery(const string &queryString, uint8_t queryParam)
 {
+    Debug_printf("FNJSON::setReadQuery queryString: %s, queryParam: %d\r\n", queryString.c_str(), queryParam);
     _queryString = queryString;
     _queryParam = queryParam;
     _item = resolveQuery();
@@ -77,9 +78,9 @@ void FNJSON::setReadQuery(const string &queryString, uint8_t queryParam)
  */
 cJSON *FNJSON::resolveQuery()
 {
-    if (_queryString.empty())
-        return _json;
-
+    // Queries must start with a slash, else the JSON parsing crashes FujiNet
+    // An alternative fix would be to check if the returned value was equal to _json and do something with it, but this is simpler.
+    _queryString = prependSlash(_queryString);
     return cJSONUtils_GetPointer(_json, _queryString.c_str());
 }
 
@@ -149,6 +150,14 @@ string FNJSON::processString(string in)
  */
 string FNJSON::getValue(cJSON *item)
 {
+    if (item == NULL)
+    {
+        Debug_printf("\r\nFNJSON::getValue called with null item, returning empty string.\r\n");
+        return string("");
+    }
+
+    // char *asString = cJSON_PrintUnformatted(item);
+    // Debug_printf("FNJSON::getValue called with item: >%s<\r\n", asString);
     stringstream ss;
 
     if (cJSON_IsString(item))
