@@ -107,6 +107,7 @@ rs232Modem::~rs232Modem()
     if (modemSniffer != nullptr)
     {
         delete modemSniffer;
+        modemSniffer = nullptr;
     }
 
     if (telnet != nullptr)
@@ -159,6 +160,9 @@ void rs232Modem::rs232_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
     // Get out if nothing above indicated we should respond to this poll
     if (respond == false)
         return;
+
+    // HACK TO GET IT TO COMPILE, TODO: FIX RS232
+    int filesize = 100;
 
     // Simply return (without ACK) if we failed to get this
     if (filesize < 0)
@@ -254,7 +258,10 @@ void rs232Modem::rs232_send_firmware(uint8_t loadcommand)
     }
 
     // Load firmware from file
-    uint8_t *code;
+    // HACK TO GET RS232 TO COMPILE, TODO: FIX RS232
+    uint8_t *code = NULL;
+    int codesize = 100;
+
     // NAK if we failed to get this
     if (codesize < 0 || code == NULL)
     {

@@ -20,7 +20,7 @@ class s100spiPrinter : public virtualDevice
 {
 protected:
     // SIO THINGS
-    TaskHandle_t *thPrinter;
+    TaskHandle_t thPrinter;
 
     uint8_t _buffer[16];
     

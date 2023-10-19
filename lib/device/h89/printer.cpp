@@ -42,6 +42,7 @@ H89Printer::~H89Printer()
 {
     //vTaskDelete(thPrinter);
     delete _pptr;
+    _pptr = nullptr;
 }
 
 H89Printer::printer_type H89Printer::match_modelname(std::string model_name)
@@ -82,7 +83,10 @@ void H89Printer::shutdown()
 void H89Printer::set_printer_type(printer_type printer_type)
 {
     // Destroy any current printer emu object
-    delete _pptr;
+    if (_pptr != nullptr)
+    {
+        delete _pptr;
+    }
 
     _ptype = printer_type;
     switch (printer_type)

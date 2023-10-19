@@ -37,7 +37,6 @@ NetworkProtocolTCP::~NetworkProtocolTCP()
     if (server != nullptr)
     {
         delete server;
-
         server = nullptr;
     }
 }

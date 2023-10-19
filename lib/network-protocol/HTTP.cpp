@@ -238,6 +238,7 @@ bool NetworkProtocolHTTP::umount()
         return false;
 
     delete client;
+    client = nullptr;
 
     return false;
 }
@@ -669,6 +670,7 @@ bool NetworkProtocolHTTP::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolHTTP::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
+    Debug_printf("NetworkProtocolHTTP::del, url: %s\r\n", url->toString().c_str());
     mount(url);
 
     resultCode = client->DELETE();

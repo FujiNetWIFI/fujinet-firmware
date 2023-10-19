@@ -70,7 +70,10 @@ lynxPrinter::~lynxPrinter()
         vTaskDelete(thPrinter);
 
     if (_pptr != nullptr)
+    {
         delete _pptr;
+        _pptr = nullptr;
+    }
 }
 
 void lynxPrinter::start_printer_task()
@@ -150,7 +153,10 @@ void lynxPrinter::shutdown()
 void lynxPrinter::set_printer_type(printer_type printer_type)
 {
     // Destroy any current printer emu object
-    delete _pptr;
+    if (_pptr != nullptr)
+    {
+        delete _pptr;
+    }
 
     _ptype = printer_type;
     switch (printer_type)

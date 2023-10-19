@@ -70,6 +70,8 @@ AtxTrack::~AtxTrack()
 {
     if (data != nullptr)
         delete[] data;
+
+    data = nullptr;
 };
 
 AtxTrack::AtxTrack(){
@@ -494,6 +496,7 @@ bool MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTra
     {
         Debug_printf("failed reading %d sector data chunk bytes (%d, %d)\r\n", data_size, i, errno);
         delete[] track.data;
+        track.data = nullptr;
         return false;
     }
 
