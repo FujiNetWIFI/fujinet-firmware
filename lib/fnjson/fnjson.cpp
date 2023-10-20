@@ -78,9 +78,9 @@ void FNJSON::setReadQuery(const string &queryString, uint8_t queryParam)
  */
 cJSON *FNJSON::resolveQuery()
 {
-    // Queries must start with a slash, else the JSON parsing crashes FujiNet
-    // An alternative fix would be to check if the returned value was equal to _json and do something with it, but this is simpler.
-    _queryString = prependSlash(_queryString);
+    if (_queryString.empty())
+        return _json;
+
     return cJSONUtils_GetPointer(_json, _queryString.c_str());
 }
 
@@ -156,8 +156,6 @@ string FNJSON::getValue(cJSON *item)
         return string("");
     }
 
-    // char *asString = cJSON_PrintUnformatted(item);
-    // Debug_printf("FNJSON::getValue called with item: >%s<\r\n", asString);
     stringstream ss;
 
     if (cJSON_IsString(item))
@@ -204,21 +202,29 @@ string FNJSON::getValue(cJSON *item)
             setLineEnding("\x0a");
         #endif
 
-        item = item->child;
-
-        do
+        if (item->child == NULL)
         {
-            #ifdef BUILD_IEC
-                // Convert key to PETSCII
-                string tempStr = string((const char *)item->string);
-                mstr::toPETSCII(tempStr);
-                ss << tempStr;
-            #else
-                ss << item->string;
-            #endif
+            Debug_printf("FNJSON::getValue OBJECT has no CHILD, adding empty string\r\n");
+            ss << lineEnding;
+        }
+        else
+        {
+            item = item->child;
+            do
+            {
+                #ifdef BUILD_IEC
+                    // Convert key to PETSCII
+                    string tempStr = string((const char *)item->string);
+                    mstr::toPETSCII(tempStr);
+                    ss << tempStr;
+                #else
+                    ss << item->string;
+                #endif
 
-            ss << lineEnding + getValue(item);
-        } while ((item = item->next) != NULL);
+                ss << lineEnding + getValue(item);
+            } while ((item = item->next) != NULL);
+        }
+
     }
     else if (cJSON_IsArray(item))
     {
