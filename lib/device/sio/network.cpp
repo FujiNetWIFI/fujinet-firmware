@@ -1126,7 +1126,7 @@ void sioNetwork::sio_set_json_query()
 
     std::string inp_string;
     if (last_colon_pos != std::string::npos) {
-        Debug_printf("sioNetwork::sio_set_json_query - skipped device spec. Application should be updated to remove it from query.");
+        Debug_printf("sioNetwork::sio_set_json_query - skipped device spec. Application should be updated to remove it from query (%s)\r\n", in_string.c_str());
         inp_string = in_string.substr(last_colon_pos + 1);
     } else {
         inp_string = in_string;
