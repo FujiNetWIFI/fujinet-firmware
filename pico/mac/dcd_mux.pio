@@ -36,6 +36,8 @@ cont:
     jmp x-- cont
     wait 1 gpio ENABLE      side 0
 .wrap
+    nop                     ; need to pad a couple instructions to make it same length as floppy mux
+    nop
 
 % c-sdk {
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
