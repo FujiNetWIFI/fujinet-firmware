@@ -25,7 +25,7 @@
 #include "latch.pio.h"
 #include "mux.pio.h"
 
-#include "dcd_latch.pio.h"
+// #include "dcd_latch.pio.h"
 #include "dcd_commands.pio.h"
 #include "dcd_mux.pio.h"
 #include "dcd_read.pio.h"
@@ -173,52 +173,29 @@ uint16_t latch;
 uint8_t dcd_latch;
 
 uint16_t get_latch() { return latch; }
-uint8_t dcd_get_latch() { return dcd_latch; }
+uint16_t dcd_get_latch() { return ((dcd_latch << 8) + dcd_latch); }
 
-uint16_t set_latch(enum latch_bits s)
-{
-  latch |= (1u << s);
-  return latch;
-};
+void set_latch(enum latch_bits s) { latch |= (1u << s); }
 
-uint8_t dcd_set_latch(uint8_t s)
-{
-  dcd_latch |= (1u << s);
-  return dcd_latch;
-}
+void dcd_set_latch(uint8_t s) { dcd_latch |= (1u << s); }
 
-uint16_t clr_latch(enum latch_bits c)
-{
-    latch &= ~(1u << c);
-    return latch;
-};
+void clr_latch(enum latch_bits c) { latch &= ~(1u << c); }
 
-uint8_t dcd_clr_latch(uint8_t c)
-{
-    dcd_latch &= ~(1u << c);
-    return dcd_latch;
-};
+void dcd_clr_latch(uint8_t c) { dcd_latch &= ~(1u << c); }
 
-uint8_t dcd_assert_hshk()
-{
-  dcd_clr_latch(2);
-  dcd_clr_latch(3);
+void dcd_assert_hshk()
+{                   // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
+  dcd_clr_latch(2); // 2	    Low	  High	Low	  Low	  Low	  Low	  !HSHK
+  dcd_clr_latch(3); // 3	    Low	  High	High	High	Low	  Low	  !HSHK
   pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO
-  return dcd_latch;
 }
 
-uint8_t dcd_deassert_hshk()
-{
-  dcd_set_latch(2);
-  dcd_set_latch(3);
+void dcd_deassert_hshk()
+{                   // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
+  dcd_set_latch(2); // 2	    Low	  High	Low	  Low	  Low	  Low	  !HSHK
+  dcd_set_latch(3); // 3	    Low	  High	High	High	Low	  Low	  !HSHK
   pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO
-  return dcd_latch;
 }
-
-// bool latch_val(enum latch_bits b)
-// {
-//     return (latch & (1u << b));
-// }
 
 void preset_latch()
 {
@@ -240,7 +217,16 @@ void preset_latch()
 
 void dcd_preset_latch()
 {
-  dcd_latch = 0b11011100; //  DCD signature HHLx + no handshake HHxx
+  dcd_latch = 0;
+                    // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
+  dcd_clr_latch(0); // 0	    Low	  Low	  Low	  High	High	Low	  Data
+  dcd_clr_latch(1); // 1	    Low	  Low	  High	High	Low	  Low	  Data
+  dcd_set_latch(2); // 2	    Low	  High	Low	  Low	  Low	  Low	  !HSHK
+  dcd_set_latch(3); // 3	    Low	  High	High	High	Low	  Low	  !HSHK
+  dcd_set_latch(4); // 4	    High	Low	  Low	  Low	  Low	  High	--
+  dcd_clr_latch(5); // 5	    High	Low	  High	Low	  Low	  Low	  Drive Low
+  dcd_set_latch(6); // 6	    High	High	Low	  Low	  Low	  Low	  Drive High
+  dcd_set_latch(7); // 7	    High	High	High	Low	  Low	  Low	  Drive High
 }
 
 void set_tach_freq(char c)
@@ -257,7 +243,6 @@ void set_tach_freq(char c)
   }
 }
 
-void loop();
 void dcd_loop();
 void floppy_loop();
 
@@ -294,8 +279,8 @@ void setup()
 
     dcd_preset_latch();
 
-    offset = pio_add_program(pio_dcd, &dcd_latch_program);
-    printf("\nLoaded DCD latch program at %d\n", offset);
+    offset = pio_add_program(pio_dcd, &latch_program);
+    printf("\nLoaded latch program at %d\n", offset);
     pio_dcd_latch(pio_dcd, SM_DCD_LATCH, offset, MCI_CA0, LATCH_OUT);
     pio_sm_put_blocking(pio_dcd, SM_DCD_LATCH, dcd_get_latch()); // send the register word to the PIO  
 
@@ -485,18 +470,6 @@ void dcd_process(uint8_t nrx, uint8_t ntx);
 
 void dcd_loop()
 {
-  // latest thoughts:
-  // this loop handshakes and receives the DCD command and fires off the command handler
-  // todo: make dcd_mux.pio push the DCD volume # (or floppy state) to the input FIFO.
-
-  // thoughts:
-  // this is done by a SM: during boot sequence, need to look for STRB to deal with daisy chained DCD and floppy
-  // if only one HD20, then after first STRB, READ should go hi-z.
-  // then maybe we get a reset? the Reset should allow READ to go output when ENABLED
-  //
-  // need a state variable to track changes in the "command" phase settings
-  // 
-  // 
   if (!pio_sm_is_rx_fifo_empty(pio_dcd, SM_DCD_MUX))
   {
     active_disk_number = num_dcd_drives + 'A' - pio_sm_get_blocking(pio_dcd, SM_DCD_MUX);
@@ -882,7 +855,7 @@ void dcd_status(uint8_t ntx)
 
 void dcd_id(uint8_t ntx)
 {
-
+ // to do  - move generation of the ID response packet to the ESP32 so the capacity can be generated
   /*
   DCD Device:
     Offset	Value	Sample Value from HD20
@@ -927,26 +900,26 @@ void dcd_id(uint8_t ntx)
   // assert(false);
 }
 
-void dcd_unknown(uint8_t ntx)
-{
-  /*
-  DCD Device:
-    Offset	Value	Sample Value from HD20
-    0	0x83	
-    1	0x00	
-    2-5	Status	
-    6 checksum
-  */
-  printf("sending0x22 ");
-  memset(payload, 0, sizeof(payload));
-  payload[0] = 0x80 | 0x22;
-  compute_checksum(6);
-  assert(ntx==1);
+// void dcd_unknown(uint8_t ntx)
+// {
+//   /*
+//   DCD Device:
+//     Offset	Value	Sample Value from HD20
+//     0	0x83	
+//     1	0x00	
+//     2-5	Status	
+//     6 checksum
+//   */
+//   printf("sending0x22 ");
+//   memset(payload, 0, sizeof(payload));
+//   payload[0] = 0x80 | 0x22;
+//   compute_checksum(6);
+//   assert(ntx==1);
 
-  send_packet(ntx);
-  // simulate_packet(ntx);
-  // assert(false);
-}
+//   send_packet(ntx);
+//   // simulate_packet(ntx);
+//   // assert(false);
+// }
 
 void dcd_format(uint8_t ntx)
 {
@@ -1096,9 +1069,9 @@ void dcd_process(uint8_t nrx, uint8_t ntx)
   case 0x1a:
     dcd_verify(ntx);
     break;
-  case 0x22:
-    dcd_unknown(ntx);
-    break;
+  // case 0x22:
+  //   dcd_unknown(ntx);
+  //   break;
   case 0x41:
     // cont to write sectors
     dcd_write(ntx, true, false);
@@ -1138,7 +1111,7 @@ void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
 
 void pio_dcd_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
 {
-    dcd_latch_program_init(pio, sm, offset, in_pin, out_pin);
+    latch_program_init(pio, sm, offset, in_pin, out_pin);
     pio_sm_set_enabled(pio, sm, true);
 }
 

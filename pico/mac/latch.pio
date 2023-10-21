@@ -3,6 +3,7 @@
 ;
 ; Vintage Macintosh Microfloppy Controller Interface
 ; Reads the drive phases and output a latch bit 
+; for DCD, the 8-bit latch register should be copied into upper and lower bytes of the value pulled by the SM
 ;
 
 .define ENABLE 7
