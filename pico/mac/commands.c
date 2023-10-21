@@ -316,8 +316,8 @@ void setup()
     printf("Loaded floppy echo program at %d\n", offset);
     pio_echo(pioblk_rw, SM_FPY_ECHO, offset, ECHO_IN, ECHO_OUT, 2);
 
-    pio_write_offset = pio_add_program(pioblk_rw, &dcd_write_program);
-    printf("Loaded DCD write program at %d\n", pio_write_offset);
+    //pio_write_offset = pio_add_program(pioblk_rw, &dcd_write_program);
+    //printf("Loaded DCD write program at %d\n", pio_write_offset);
     // pio_dcd_write(pioblk_rw, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
 
     // pio_mux_offset = pio_add_program(pioblk_rw, &dcd_mux_program);
@@ -326,7 +326,7 @@ void setup()
 
     pio_mux_offset = pio_add_program(pioblk_rw, &mux_program);
     printf("Loaded Floppy mux program at %d\n", pio_mux_offset);
-    pio_mux(pioblk_rw, SM_MUX, offset, MCI_CA0, ECHO_OUT);
+    pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, ECHO_OUT);
 
 #ifdef FLOPPY
     set_tach_freq(0); // start TACH clock
@@ -378,7 +378,7 @@ void floppy_loop()
   if (!pio_sm_is_rx_fifo_empty(pioblk_read_only, SM_FPY_CMD))
   {
     a = pio_sm_get_blocking(pioblk_read_only, SM_FPY_CMD);
-    printf("%d",a);
+    // printf("%d",a);
     switch (a)
     {
       // !READY
