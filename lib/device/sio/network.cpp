@@ -7,7 +7,10 @@
 #include "network.h"
 
 #include <cstring>
+#include <string>
 #include <algorithm>
+#include <vector>
+#include <memory>
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
@@ -1106,7 +1109,6 @@ void sioNetwork::sio_set_json_query()
 {
     uint8_t in[256];
     const char *inp = NULL;
-    uint8_t *tmp;
 
     memset(in, 0, sizeof(in));
 
@@ -1119,22 +1121,28 @@ void sioNetwork::sio_set_json_query()
             in[i] = 0x00;
     }
 
-    inp = strrchr((const char *)in, ':');
-    
-    if (inp == NULL)
-    {
-        sio_error();
-        return;
+    std::string in_string(reinterpret_cast<char*>(in));
+    size_t last_colon_pos = in_string.rfind(':');
+
+    std::string inp_string;
+    if (last_colon_pos != std::string::npos) {
+        Debug_printf("sioNetwork::sio_set_json_query - skipped device spec. Application should be updated to remove it from query (%s)\r\n", in_string.c_str());
+        inp_string = in_string.substr(last_colon_pos + 1);
+    } else {
+        inp_string = in_string;
     }
 
-    inp++;
-    json->setReadQuery(string(inp), cmdFrame.aux2);
-    json_bytes_remaining = json->readValueLen();
-    tmp = (uint8_t *)malloc(json->readValueLen());
-    json->readValue(tmp,json_bytes_remaining);
-    *receiveBuffer += string((const char *)tmp,json_bytes_remaining);
-    free(tmp);
-    Debug_printf("Query set to %s\n",inp);
+    json->setReadQuery(inp_string, cmdFrame.aux2);
+    json_bytes_remaining = json->json_bytes_remaining;
+
+    std::vector<uint8_t> tmp(json_bytes_remaining);
+    json->readValue(tmp.data(), json_bytes_remaining);
+
+    // don't copy past first nul char in tmp
+    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    *receiveBuffer += std::string(tmp.begin(), null_pos);
+
+    Debug_printf("Query set to >%s<\r\n", inp_string.c_str());
     sio_complete();
 }
 

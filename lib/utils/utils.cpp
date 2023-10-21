@@ -896,3 +896,10 @@ char *util_hexdump(const void *buf, size_t len) {
 bool isApproximatelyInteger(double value, double tolerance) {
     return std::abs(value - std::floor(value)) < tolerance;
 }
+
+std::string prependSlash(const std::string& str) {
+    if (str.empty() || str[0] != '/') {
+        return "/" + str;
+    }
+    return str;
+}

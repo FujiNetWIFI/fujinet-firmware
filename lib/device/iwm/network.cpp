@@ -389,7 +389,7 @@ void iwmNetwork::json_query(iwm_decoded_cmd_t cmd)
     // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
     // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
-    Debug_printf("Query set to: %s\n", string((char *)data_buffer, data_len).c_str());
+    Debug_printf("\r\nQuery set to: %s, data_len: %d\r\n", string((char *)data_buffer, data_len).c_str(), data_len);
     json.setReadQuery(string((char *)data_buffer, data_len),cmdFrame.aux2);
 }
 
