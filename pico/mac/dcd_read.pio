@@ -11,34 +11,32 @@
 
 .program dcd_read
 .side_set 1
-    wait 0 gpio ENABLE   side 1               ; make sure device is enabled (maybe could remove if SM was triggered by main program)
-    set y, 0             side 0               ; initial state is always 0 (probably unneeded if can reset set whole SM)
-    set x, 7             side 0   
+    ; wait 0 gpio ENABLE   side 1               ; removed if SM was triggered by main program
+    set y, 0             side 0                 ; initial state is always 0
+    set x, 7             side 0                 ; bit counter
 reset:
-    wait 1 pin 0         side 1         ; wait for rising edge on write line from mac
-    jmp loop1           side 1
+    wait 1 pin 0         side 1                 ; wait for rising edge on write line from mac to start reading byte
+    jmp loop1            side 1                 ; 
 loop:
-    nop                  side 1   [T0/2-2]
+    nop                  side 1   [T0/2-2]      ; wait for 1/2 bit width
 loop1:
-    wait 0 gpio 9       side 1      ; block on CA1
+    wait 0 gpio 9        side 1                 ; block on CA1 at the end of the transmission
     jmp pin high         side 0                 ; need T0 cycles from jmp to jmp
 low:
-    in y, 1              side 0    [1]       ; the decoded value is equal to the previous state
-    set y, 0             side 0          ; previous state is now zero
-    jmp x-- loop         side 1         ; last bit?
-    jmp sync             side 1        ; get the next bit
+    in y, 1              side 0   [1]           ; shift in the decoded value, which is equal to the previous state y
+    set y, 0             side 0                 ; previous state is now low (zero)
+    jmp x-- loop         side 1                 ; check to see if we're at the last bit?
+    jmp sync             side 1                 ; if so, then wait for the next byte to start
 high:                         
-    mov y, ~y           side 0 
-    in y, 1             side 0                   ; the deocded value is the inverse of the previous state
-    set y, 1            side 1                ; previous state is now one
-    jmp x-- loop        side 1          ; last bit?
-    ; fall thru // jmp loop                      ; get the next bit
-; probably will need to have a counter and wait on edge of next byte
+    mov y, ~y            side 0 
+    in y, 1              side 0                 ; the deocded value is the inverse of the previous state
+    set y, 1             side 1                 ; previous state is now one
+    jmp x-- loop         side 1                 ; last bit?
 sync:
-    set x, 7            side 1
-    jmp !y reset        side 0
-    wait 0 pin 0        side 1 
-    jmp loop1           side 1  
+    set x, 7             side 1                 ; reset the bit counter
+    jmp !y reset         side 0                 ; go to top if y was 0
+    wait 0 pin 0         side 1                 ; otherwise wait for falling edge to sync to next back
+    jmp loop1            side 1                 ; start reading byte again
 
 
     
