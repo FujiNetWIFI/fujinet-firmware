@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#define FLOPPY
-//#undef FLOPPY
-#undef DCD
-//#define DCD
+//#define FLOPPY
+#undef FLOPPY
+//#undef DCD
+#define DCD
 
 #include <stdio.h>
 #include <string.h>
