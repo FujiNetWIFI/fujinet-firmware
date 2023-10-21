@@ -66,6 +66,7 @@ void FNJSON::setQueryParam(uint8_t qp)
  */
 void FNJSON::setReadQuery(const string &queryString, uint8_t queryParam)
 {
+    Debug_printf("FNJSON::setReadQuery queryString: %s, queryParam: %d\r\n", queryString.c_str(), queryParam);
     _queryString = queryString;
     _queryParam = queryParam;
     _item = resolveQuery();
@@ -149,6 +150,12 @@ string FNJSON::processString(string in)
  */
 string FNJSON::getValue(cJSON *item)
 {
+    if (item == NULL)
+    {
+        Debug_printf("\r\nFNJSON::getValue called with null item, returning empty string.\r\n");
+        return string("");
+    }
+
     stringstream ss;
 
     if (cJSON_IsString(item))
@@ -195,21 +202,29 @@ string FNJSON::getValue(cJSON *item)
             setLineEnding("\x0a");
         #endif
 
-        item = item->child;
-
-        do
+        if (item->child == NULL)
         {
-            #ifdef BUILD_IEC
-                // Convert key to PETSCII
-                string tempStr = string((const char *)item->string);
-                mstr::toPETSCII(tempStr);
-                ss << tempStr;
-            #else
-                ss << item->string;
-            #endif
+            Debug_printf("FNJSON::getValue OBJECT has no CHILD, adding empty string\r\n");
+            ss << lineEnding;
+        }
+        else
+        {
+            item = item->child;
+            do
+            {
+                #ifdef BUILD_IEC
+                    // Convert key to PETSCII
+                    string tempStr = string((const char *)item->string);
+                    mstr::toPETSCII(tempStr);
+                    ss << tempStr;
+                #else
+                    ss << item->string;
+                #endif
 
-            ss << lineEnding + getValue(item);
-        } while ((item = item->next) != NULL);
+                ss << lineEnding + getValue(item);
+            } while ((item = item->next) != NULL);
+        }
+
     }
     else if (cJSON_IsArray(item))
     {
