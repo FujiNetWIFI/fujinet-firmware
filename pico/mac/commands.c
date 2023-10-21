@@ -60,6 +60,8 @@ PIO pioblk_rw = pio1;
 uint pio_read_offset;
 uint pio_write_offset;
 uint pio_mux_offset;
+uint pio_floppy_cmd_offset;
+uint pio_dcd_cmd_offset;
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins);
@@ -72,19 +74,7 @@ void pio_dcd_mux(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_read(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_write(PIO pio, uint sm, uint offset, uint pin);
 
-void pio_switch_to_floppy_mux()
-{
-  pio_remove_program(pioblk_rw, &dcd_mux_program, pio_mux_offset);
-  pio_add_program_at_offset(pioblk_rw, &mux_program, pio_mux_offset);
-  pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, ECHO_OUT);
-}
 
-void pio_switch_to_dcd_mux()
-{
-  pio_remove_program(pioblk_rw, &mux_program, pio_mux_offset);
-  pio_add_program_at_offset(pioblk_rw, &dcd_mux_program, pio_mux_offset);
-  pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
-}
 
 /**
  * HERE IS UART SETUP
@@ -266,6 +256,44 @@ void set_tach_freq(char c)
   }
 }
 
+void switch_to_floppy()
+{
+  // latch
+  pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
+
+  // commands
+  pio_sm_set_enabled(pioblk_read_only, SM_DCD_CMD, false); // stop the DCD command interpreter
+  pio_commands(pioblk_read_only, SM_FPY_CMD, pio_floppy_cmd_offset, MCI_CA0); // read phases starting on pin 8
+  
+  // mux
+  pio_remove_program(pioblk_rw, &dcd_mux_program, pio_mux_offset);
+  pio_add_program_at_offset(pioblk_rw, &mux_program, pio_mux_offset);
+  pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, ECHO_OUT);
+
+  // echo
+  // pio_sm_set_enabled(pioblk_rw, SM_FPY_ECHO, true);
+
+}
+
+void switch_to_dcd()
+{
+  // latch
+  pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
+
+  // commands
+  pio_sm_set_enabled(pioblk_read_only, SM_FPY_CMD, false); // stop the floppy command interpreter
+  pio_dcd_commands(pioblk_read_only, SM_DCD_CMD, pio_dcd_cmd_offset, MCI_CA0); // read phases starting on pin 8
+
+  // mux
+  pio_remove_program(pioblk_rw, &mux_program, pio_mux_offset);
+  pio_add_program_at_offset(pioblk_rw, &dcd_mux_program, pio_mux_offset);
+  pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
+
+  // echo
+  // pio_sm_set_enabled(pioblk_rw, SM_FPY_ECHO, false);
+
+}
+
 void setup()
 {
   uint offset;
@@ -281,18 +309,19 @@ void setup()
 
     /** 
      * put the read-only SM's in PIO0: floppy cmd, dcd cmd, dcd read
+     * configure as if DCD is default ON
     */
-    offset = pio_add_program(pioblk_read_only, &commands_program);
-    printf("\nLoaded Floppy cmd program at %d", offset);
-    pio_commands(pioblk_read_only, SM_FPY_CMD, offset, MCI_CA0); // read phases starting on pin 8
+    pio_floppy_cmd_offset = pio_add_program(pioblk_read_only, &commands_program);
+    printf("\nLoaded Floppy cmd program at %d", pio_floppy_cmd_offset);
+    // pio_commands(pioblk_read_only, SM_FPY_CMD, pio_floppy_cmd_offset, MCI_CA0); // read phases starting on pin 8
     
-    offset = pio_add_program(pioblk_read_only, &dcd_commands_program);
-    printf("\nLoaded DCD commands program at %d", offset);
-    // pio_dcd_commands(pioblk_read_only, SM_DCD_CMD, offset, MCI_CA0); // read phases starting on pin 8
+    pio_dcd_cmd_offset = pio_add_program(pioblk_read_only, &dcd_commands_program);
+    printf("\nLoaded DCD commands program at %d", pio_dcd_cmd_offset);
+    pio_dcd_commands(pioblk_read_only, SM_DCD_CMD, pio_dcd_cmd_offset, MCI_CA0); // read phases starting on pin 8
 
     pio_read_offset = pio_add_program(pioblk_read_only, &dcd_read_program);
     printf("\nLoaded DCD read program at %d\n", pio_read_offset);
-    // pio_dcd_read(pioblk_read_only, SM_DCD_READ, pio_read_offset, MCI_WR);
+    pio_dcd_read(pioblk_read_only, SM_DCD_READ, pio_read_offset, MCI_WR);
 
     /** 
      * put the output SM's in PIO1: echo, dcd write, common latch
@@ -316,17 +345,17 @@ void setup()
     printf("Loaded floppy echo program at %d\n", offset);
     pio_echo(pioblk_rw, SM_FPY_ECHO, offset, ECHO_IN, ECHO_OUT, 2);
 
-    //pio_write_offset = pio_add_program(pioblk_rw, &dcd_write_program);
-    //printf("Loaded DCD write program at %d\n", pio_write_offset);
-    // pio_dcd_write(pioblk_rw, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
+    pio_write_offset = pio_add_program(pioblk_rw, &dcd_write_program);
+    printf("Loaded DCD write program at %d\n", pio_write_offset);
+    pio_dcd_write(pioblk_rw, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
 
-    // pio_mux_offset = pio_add_program(pioblk_rw, &dcd_mux_program);
-    // printf("Loaded DCD mux program at %d\n", pio_mux_offset);
-    // pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
+    pio_mux_offset = pio_add_program(pioblk_rw, &dcd_mux_program);
+    printf("Loaded DCD mux program at %d\n", pio_mux_offset);
+    pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
 
-    pio_mux_offset = pio_add_program(pioblk_rw, &mux_program);
-    printf("Loaded Floppy mux program at %d\n", pio_mux_offset);
-    pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, ECHO_OUT);
+    // pio_mux_offset = pio_add_program(pioblk_rw, &mux_program);
+    // printf("Loaded Floppy mux program at %d\n", pio_mux_offset);
+    // pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, ECHO_OUT);
 
 #ifdef FLOPPY
     set_tach_freq(0); // start TACH clock
@@ -360,14 +389,9 @@ int main()
     setup();
     while (true)
     {
-      floppy_loop();
-#ifdef FLOPPY
-      floppy_loop();
-#elif defined(DCD)
+      // floppy_loop();
       dcd_loop();
-#endif
     }
-      
 }
 
 bool step_state = false;
