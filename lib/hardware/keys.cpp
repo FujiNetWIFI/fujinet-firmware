@@ -74,6 +74,13 @@ void KeyManager::setup()
 #endif
     }
 
+#ifdef NO_BUTTONS
+    _keys[eKey::BUTTON_A].disabled = true;
+    _keys[eKey::BUTTON_B].disabled = true;
+    _keys[eKey::BUTTON_C].disabled = true;
+    Debug_println("NO_BUTTONS: disabled all buttons");
+#endif /* PINMAP_IEC_NUGGET */
+
 #endif /* PINMAP_ESP32S3 */
 
     // Start a new task to check the status of the buttons
