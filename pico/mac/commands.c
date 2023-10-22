@@ -547,9 +547,13 @@ void dcd_loop()
 {
   if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
   {
-    active_disk_number = num_dcd_drives + 'A' - pio_sm_get_blocking(pioblk_rw, SM_MUX);
-    printf("%c", active_disk_number);
-    uart_putc_raw(UART_ID, active_disk_number);
+    int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
+    if (m != 0)
+    {
+      active_disk_number = num_dcd_drives + 'A' - m;
+      printf("%c", active_disk_number);
+      uart_putc_raw(UART_ID, active_disk_number);
+    }
   }
 
   if (!pio_sm_is_rx_fifo_empty(pioblk_read_only, SM_DCD_CMD))
@@ -622,8 +626,9 @@ void dcd_loop()
       uint32_t save = hw_claim_lock();
       pioblk_rw->instr_mem[pio_mux_offset] = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(1, 0);
       hw_claim_unlock(save);
-      pio_sm_exec(pioblk_rw, SM_MUX, pio_encode_jmp(pio_mux_offset));
-      pio_sm_set_enabled(pioblk_rw, SM_MUX, true);
+      pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
+      // pio_sm_exec(pioblk_rw, SM_MUX, pio_encode_jmp(pio_mux_offset));
+      // pio_sm_set_enabled(pioblk_rw, SM_MUX, true);
       break;
     default:
       break;
