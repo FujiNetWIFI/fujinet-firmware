@@ -31,6 +31,7 @@
 
 #ifdef BUILD_APPLE
 # include "apple/mediaType.h"
+# include "apple/mediaTypeDO.h"
 # include "apple/mediaTypePO.h"
 # include "apple/mediaTypeWOZ.h"
 # include "apple/mediaTypeDSK.h"
