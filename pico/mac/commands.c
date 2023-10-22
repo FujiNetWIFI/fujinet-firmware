@@ -14,6 +14,7 @@
 #include "pico/stdlib.h"
 #include "hardware/uart.h"
 #include "hardware/clocks.h"
+#include "hardware/claim.h"
 
 #include "hardware/pio.h"
 #include "hardware/pio_instructions.h"
@@ -387,6 +388,7 @@ void floppy_loop();
 int main()
 {
     setup();
+    // switch_to_floppy();
     while (true)
     {
       // floppy_loop();
@@ -394,10 +396,9 @@ int main()
     }
 }
 
-bool step_state = false;
 void floppy_loop()
 {
-  //static bool step_state = false;
+  static bool step_state = false;
 
   if (!pio_sm_is_rx_fifo_empty(pioblk_read_only, SM_FPY_CMD))
   {
@@ -586,7 +587,6 @@ void dcd_loop()
       //  printf("\nHandshake\n");
       if (olda == 2)
       {
-        //pio_sm_restart(pio_dcd_rw, SM_DCD_READ);
         pio_dcd_read(pioblk_read_only, SM_DCD_READ, pio_read_offset, MCI_WR); // re-init
         pio_sm_set_enabled(pioblk_read_only, SM_DCD_READ, true);
         dcd_assert_hshk();
@@ -597,8 +597,7 @@ void dcd_loop()
       dcd_deassert_hshk();
       pio_sm_set_enabled(pioblk_rw, SM_DCD_WRITE, false);
       pio_sm_set_enabled(pioblk_rw, SM_LATCH, true);
-      pio_sm_exec(pioblk_rw, SM_MUX, 0xe080); // set pindirs 0 to do swap with below
-      // pio_sm_exec(pioblk_rw, SM_MUX, pio_encode_set(pio_pindirs, 0)); // set pindirs 0
+      pio_sm_exec(pioblk_rw, SM_MUX, pio_encode_set(pio_pindirs, 0));
       break;
     default:
       host = false;
@@ -618,15 +617,13 @@ void dcd_loop()
       num_dcd_drives = uart_getc(UART_ID);
       printf("\nNumber of DCD's mounted: %d", num_dcd_drives);
       // need to set number in DCD mux PIO and reset the machine
-      // set x, N     side 0 ; put the number of DCD devices in X (0xf02N - last digit is number of DCDs)
-      // uint instr = 0xf020 + num_dcd_drives;
-       // pause the machine, change the instruction, move the PC, resume
+      // pause the machine, change the instruction, move the PC, resume
       pio_sm_set_enabled(pioblk_rw, SM_MUX, false);
-      volatile uint *target;
-      target = (uint *)(PIO1_BASE + PIO_INSTR_MEM0_OFFSET + 4*pio_mux_offset);
-      *target = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(1, 0);
-      pio_sm_set_enabled(pioblk_rw, SM_MUX, true);
+      uint32_t save = hw_claim_lock();
+      pioblk_rw->instr_mem[pio_mux_offset] = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(1, 0);
+      hw_claim_unlock(save);
       pio_sm_exec(pioblk_rw, SM_MUX, pio_encode_jmp(pio_mux_offset));
+      pio_sm_set_enabled(pioblk_rw, SM_MUX, true);
       break;
     default:
       break;
