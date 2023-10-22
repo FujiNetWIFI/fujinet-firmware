@@ -759,7 +759,7 @@ void dcd_read(uint8_t ntx)
 
   for (uint8_t i=0; i<num_sectors; i++)
   {
-    printf("sending sector %06x in %d groups\n", sector, ntx);
+    // printf("sending sector %06x in %d groups\n", sector, ntx);
     
     uart_putc_raw(UART_ID, 'R');
     uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
@@ -849,7 +849,7 @@ OR
   while(uart_is_readable(UART_ID))
     uart_getc(UART_ID);
 
-  printf("writing sector %06x in %d groups\n", sector, ntx);
+  // printf("writing sector %06x in %d groups\n", sector, ntx);
 
   uart_putc_raw(UART_ID, 'W');
   uart_putc_raw(UART_ID, (sector >> 16) & 0xff);
