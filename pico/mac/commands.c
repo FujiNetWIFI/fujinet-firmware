@@ -339,8 +339,7 @@ void setup()
     offset = pio_add_program(pioblk_rw, &latch_program);
     printf("\nLoaded latch program at %d\n", offset);
     pio_latch(pioblk_rw, SM_LATCH, offset, MCI_CA0, LATCH_OUT);
-    // pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
-    pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
+    pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
 
     offset = pio_add_program(pioblk_rw, &echo_program);
     printf("Loaded floppy echo program at %d\n", offset);
