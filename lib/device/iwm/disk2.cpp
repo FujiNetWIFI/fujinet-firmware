@@ -60,10 +60,12 @@ mediatype_t iwmDisk2::mount(FILE *f, mediatype_t disk_type)//, const char *filen
         mt = ((MediaTypeWOZ *)_disk)->mount(f);
         change_track(0); // initialize spi buffer
         break;
-    case MEDIATYPE_DSK:
+    case MEDIATYPE_DO:
+    case MEDIATYPE_PO:
         Debug_printf("\nMounting Media Type DSK");
         device_active = true;
         _disk = new MediaTypeDSK();
+        _disk->_mediatype = disk_type;
         mt = ((MediaTypeDSK *)_disk)->mount(f);
         change_track(0); // initialize spi buffer
         break;
