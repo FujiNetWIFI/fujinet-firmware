@@ -383,21 +383,65 @@ void setup()
 
 void dcd_loop();
 void floppy_loop();
+void esp_loop();
+
+enum disk_mode_t {
+  DCD = 0,
+  TO_FPY,
+  FPY,
+  TO_DCD
+} disk_mode = DCD;
 
 int main()
 {
-    setup();
-    // switch_to_floppy();
-    while (true)
+  setup();
+  // switch_to_floppy();
+  while (true)
+  {
+    switch (disk_mode)
     {
-      // floppy_loop();
+    case DCD:
       dcd_loop();
+      break;
+    case TO_FPY:
+      switch_to_floppy();
+      disk_mode = FPY;
+      // fall thru
+    case FPY:
+      floppy_loop();
+      break;
+    case TO_DCD:
+      switch_to_dcd();
+      disk_mode = DCD;
+    default:
+      break;
     }
+  }
 }
 
+void esp_loop()
+{
+  if (uart_is_readable(UART_ID))
+  {
+    // !READY
+    // This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk.
+    // !READY is a zero when
+    //      the head position is settled on disired track,
+    //      motor is at the desired speed,
+    //      and a diskette is in the drive.
+    c = uart_getc(UART_ID);
+  }
+  
+}
 void floppy_loop()
 {
   static bool step_state = false;
+
+  if (gpio_get(ENABLE))
+  {
+    disk_mode = TO_DCD;
+    return;
+  }
 
   if (!pio_sm_is_rx_fifo_empty(pioblk_read_only, SM_FPY_CMD))
   {
@@ -471,15 +515,16 @@ void floppy_loop()
       step_state = false;
     }
 
-    if (uart_is_readable(UART_ID))
+    if (c != 0)
     {
+
     // !READY
     // This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk.
     // !READY is a zero when
     //      the head position is settled on disired track,
     //      motor is at the desired speed,
     //      and a diskette is in the drive.
-    c = uart_getc(UART_ID);
+
     // to do: figure out when to clear !READY
     if (c & 128)
     {
@@ -524,8 +569,8 @@ void floppy_loop()
       default:
           break;
       }
-    // printf("latch %04x", get_latch());
-    pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
+      // printf("latch %04x", get_latch());
+      pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
     }
     // to do: get response from ESP32 and update latch values (like READY, TACH), push LATCH value to PIO
     // to do: read both enable lines and indicate which drive is active when sending single char to esp32
@@ -552,6 +597,11 @@ void dcd_loop()
       active_disk_number = num_dcd_drives + 'A' - m;
       printf("%c", active_disk_number);
       uart_putc_raw(UART_ID, active_disk_number);
+    }
+    else
+    {
+      disk_mode = TO_FPY;
+      return;
     }
   }
 
