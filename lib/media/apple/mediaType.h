@@ -17,9 +17,10 @@
 enum mediatype_t 
 {
     MEDIATYPE_UNKNOWN = 0,
+    MEDIATYPE_DO,
+    MEDIATYPE_DSK,
     MEDIATYPE_PO,
     MEDIATYPE_WOZ,
-    MEDIATYPE_DSK,
     MEDIATYPE_COUNT
 };
 
@@ -85,6 +86,7 @@ public:
     virtual bool status() = 0;
 
     static mediatype_t discover_mediatype(const char *filename);
+    static mediatype_t discover_dsk_mediatype(FILE* f, uint32_t disksize);
 
     // void dump_percom_block();
     // void derive_percom_block(uint16_t numSectors);
