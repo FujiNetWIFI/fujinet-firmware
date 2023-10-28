@@ -88,7 +88,10 @@ mediatype_t cx16Disk::mount(FILE *f, const char *filename, uint32_t disksize, me
 cx16Disk::~cx16Disk()
 {
     if (_disk != nullptr)
+    {
         delete _disk;
+        _disk = nullptr;
+    }
 }
 
 // Unmount disk file

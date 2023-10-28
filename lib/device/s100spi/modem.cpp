@@ -87,6 +87,7 @@ s100spiModem::~s100spiModem()
     if (modemSniffer != nullptr)
     {
         delete modemSniffer;
+        modemSniffer = nullptr;
     }
 
     if (telnet != nullptr)

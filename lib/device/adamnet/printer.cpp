@@ -24,30 +24,34 @@
 
 constexpr const char *const adamPrinter::printer_model_str[PRINTER_INVALID];
 
-struct _printItem
-{
-    uint8_t len;
-    uint8_t buf[16];
-} pi;
-
-bool need_print = false;
+static QueueHandle_t pxq;
 
 void printerTask(void *param)
 {
     adamPrinter *p = (adamPrinter *)param;
+    unsigned char i = 0;
 
-    while(1)
+    while (true)
     {
-        if (need_print == true)
+        while (uxQueueMessagesWaiting(pxq))
         {
-            fnLedManager.set(LED_BT,true);
-            p->perform_print();
-            fnLedManager.set(LED_BT,false);
-            need_print=false;
+            PrintItem pi;
+            uint8_t *pbuf = p->getPrinterPtr()->provideBuffer();
+
+            xQueueReceive(pxq, &pi, portMAX_DELAY);
+            memcpy(&pbuf[i], &pi.buf, pi.len);
+            i += pi.len;
         }
 
-    vTaskDelay(1);
+        if (i)
+        {
+            fnLedManager.set(LED_BT, true);
+            p->getPrinterPtr()->process(i,0,0);
+            i = 0;
+            fnLedManager.set(LED_BT, false);
+        }
 
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 
@@ -57,11 +61,9 @@ adamPrinter::adamPrinter(FileSystem *filesystem, printer_type print_type)
     _storage = filesystem;
     set_printer_type(print_type);
 
-    getPrinterPtr()->setEOLBypass(true);
-    getPrinterPtr()->setTranslate850(false);
-    getPrinterPtr()->setEOL(0x0D);
+    pxq = xQueueCreate(160, sizeof(PrintItem));
 
-    xTaskCreate(printerTask, "ptsk", 4096, this, PRINTER_PRIORITY, &thPrinter);
+    xTaskCreatePinnedToCore(printerTask,"ptsk",4096,this,PRINTER_PRIORITY,&thPrinter,0);
 }
 
 adamPrinter::~adamPrinter()
@@ -70,11 +72,12 @@ adamPrinter::~adamPrinter()
         vTaskDelete(thPrinter);
 
     if (_pptr != nullptr)
+    {
         delete _pptr;
-}
+        _pptr = nullptr;
+    }
 
-void adamPrinter::start_printer_task()
-{
+    vQueueDelete(pxq);
 }
 
 adamPrinter::printer_type adamPrinter::match_modelname(std::string model_name)
@@ -94,23 +97,18 @@ void adamPrinter::adamnet_control_status()
     adamnet_send_buffer(c, sizeof(c));
 }
 
-void adamPrinter::perform_print()
-{
-    memcpy(_pptr->provideBuffer(),pi.buf,pi.len);
-    _pptr->process(pi.len,0,0);
-}
-
 void adamPrinter::adamnet_control_send()
 {
-    memset(&pi,0,sizeof(pi));
+    PrintItem pi;
+
     pi.len = adamnet_recv_length();
     adamnet_recv_buffer(pi.buf, pi.len);
     adamnet_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    // AdamNet.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
-    need_print=true;
+    xQueueSend(pxq, &pi, portMAX_DELAY);
 
     _last_ms = fnSystem.millis();
 }
@@ -119,7 +117,9 @@ void adamPrinter::adamnet_control_ready()
 {
     AdamNet.start_time = esp_timer_get_time();
 
-    if (need_print==true)
+    if (getPrinterPtr()->is_printing)
+        adamnet_response_nack();
+    else if (!uxQueueSpacesAvailable(pxq))
         adamnet_response_nack();
     else
         adamnet_response_ack();
@@ -150,7 +150,10 @@ void adamPrinter::shutdown()
 void adamPrinter::set_printer_type(printer_type printer_type)
 {
     // Destroy any current printer emu object
-    delete _pptr;
+    if (_pptr != nullptr)
+    {
+        delete _pptr;
+    }
 
     _ptype = printer_type;
     switch (printer_type)

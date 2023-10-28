@@ -70,6 +70,14 @@ rs232Network::~rs232Network()
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
+    receiveBuffer = nullptr;
+    transmitBuffer = nullptr;
+    specialBuffer = nullptr;
+
+    if (protocol != nullptr)
+        delete protocol;
+
+    protocol = nullptr;
 }
 
 /** RS232 COMMANDS ***************************************************************/

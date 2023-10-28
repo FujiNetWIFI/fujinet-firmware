@@ -650,6 +650,9 @@ fnFTP::~fnFTP()
         delete control;
     if (data != nullptr)
         delete data;
+
+    control = nullptr;
+    data = nullptr;
 }
 
 bool fnFTP::login(const string &_username, const string &_password, const string &_hostname, unsigned short _port)

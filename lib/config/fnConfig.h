@@ -23,7 +23,7 @@
 
 #define CONFIG_DEFAULT_SNTPSERVER "pool.ntp.org"
 
-#define PHONEBOOK_CHAR_WIDTH 12 
+#define PHONEBOOK_CHAR_WIDTH 12
 
 
 class fnConfig
@@ -164,6 +164,8 @@ public:
     // CPM
     std::string get_ccp_filename(){ return _cpm.ccp; };
     void store_ccp_filename(const std::string &filename);
+    void store_cpm_enabled(bool cpm_enabled);
+    bool get_cpm_enabled(){ return _cpm.cpm_enabled; };
 
     // ENABLE/DISABLE DEVICE SLOTS
     bool get_device_slot_enable_1();
@@ -206,7 +208,7 @@ private:
     void _read_section_host(std::stringstream &ss, int index);
     void _read_section_mount(std::stringstream &ss, int index);
     void _read_section_printer(std::stringstream &ss, int index);
-    void _read_section_tape(std::stringstream &ss, int index);    
+    void _read_section_tape(std::stringstream &ss, int index);
     void _read_section_modem(std::stringstream &ss);
     void _read_section_cassette(std::stringstream &ss);
     void _read_section_phonebook(std::stringstream &ss, int index);
@@ -271,7 +273,7 @@ private:
      to those limitations.
      We set asside 33 characters to allow for a zero terminator in a 32-char SSID
      and treat it as string instead of an array of arbitrary byte values.
-     
+
      Similarly, the PSK (passphrase/password) is 64 octets.
      User-facing systems will typically take an 8 to 63 ASCII string and hash
      that into a 64 octet value. Although we're storing that ASCII string,
@@ -332,6 +334,7 @@ private:
 
     struct cpm_info
     {
+        bool cpm_enabled = true;
         std::string ccp;
     };
 

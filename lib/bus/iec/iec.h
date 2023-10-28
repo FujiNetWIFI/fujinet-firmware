@@ -173,6 +173,11 @@ protected:
      */
     std::string payload;
 
+     /**
+     * @brief The current device command in raw PETSCII. Used when payload is converted to ASCII for Basic commands
+     */
+    std::string payloadRaw;
+
     /**
      * @brief pointer to the current command data
      */

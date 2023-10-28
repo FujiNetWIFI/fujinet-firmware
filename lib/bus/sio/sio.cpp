@@ -66,6 +66,7 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
     uart->flush();
 }
 
+// TODO apc: change return type to indicate valid/invalid checksum
 /*
    SIO READ from ATARI by DEVICE
    buf = buffer from atari to fujinet
@@ -102,12 +103,12 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     if (ck_rcv != ck_tst)
     {
         sio_nak();
-        return false;
+        // return false; // apc
     }
     else
         sio_ack();
 
-    return ck_rcv;
+    return ck_rcv; // TODO apc: change to true and update all callers, no need to calculate/check checksum again
 }
 
 // SIO NAK
@@ -248,6 +249,7 @@ void systemBus::_sio_process_cmd()
         }
     }
     fnLedManager.set(eLed::LED_BUS, false);
+    //Debug_printv("free low heap: %lu\r\n",esp_get_free_internal_heap_size());
 }
 
 // Look to see if we have any waiting messages and process them accordingly
@@ -299,7 +301,7 @@ void systemBus::service()
             return; // break!
         }
     }
-    else if (_cpmDev != nullptr && _cpmDev->cpmActive)
+    else if (_cpmDev != nullptr && _cpmDev->cpmActive && Config.get_cpm_enabled())
     {
         _cpmDev->sio_handle_cpm();
         return; // break!

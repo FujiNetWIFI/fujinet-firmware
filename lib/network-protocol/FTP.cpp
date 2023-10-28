@@ -28,6 +28,7 @@ NetworkProtocolFTP::~NetworkProtocolFTP()
 {
     Debug_printf("NetworkProtocolFTP::dtor\r\n");
     delete ftp;
+    ftp = nullptr;
 }
 
 bool NetworkProtocolFTP::open_file_handle()

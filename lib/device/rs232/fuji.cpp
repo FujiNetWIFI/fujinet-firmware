@@ -1097,7 +1097,7 @@ void rs232Fuji::rs232_set_host_prefix()
     char prefix[MAX_HOST_PREFIX_LEN];
     uint8_t hostSlot = cmdFrame.aux1;
 
-    uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
+    uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_HOST_PREFIX_LEN);
 
     Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
 
@@ -1312,8 +1312,9 @@ void rs232Fuji::rs232_set_device_filename()
     // Handle DISK slots
     if (slot < MAX_DISK_DEVICES)
     {
-        // TODO: Set HOST and MODE
         memcpy(_fnDisks[cmdFrame.aux1].filename, tmp, MAX_FILENAME_LEN);
+        _fnDisks[cmdFrame.aux1].host_slot = host;
+        _fnDisks[cmdFrame.aux1].access_mode = mode;
         _populate_config_from_slots();
     }
     // Handle TAPE slots

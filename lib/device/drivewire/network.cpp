@@ -54,6 +54,14 @@ drivewireNetwork::~drivewireNetwork()
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
+    receiveBuffer = nullptr;
+    transmitBuffer = nullptr;
+    specialBuffer = nullptr;
+
+    if (protocol != nullptr)
+        delete protocol;
+
+    protocol = nullptr;
 }
 
 /** DRIVEWIRE COMMANDS ***************************************************************/
@@ -403,7 +411,10 @@ bool drivewireNetwork::parseURL()
     string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
 
     if (urlParser != nullptr)
+    {
         delete urlParser;
+        urlParser = nullptr;
+    }
 
     // Prepend prefix, if set.
     if (prefix.length() > 0)

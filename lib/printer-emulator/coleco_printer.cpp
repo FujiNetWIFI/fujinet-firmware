@@ -1,58 +1,55 @@
+#include <cstring>
 #include "coleco_printer.h"
 
-#include "../../include/debug.h"
-
-
-void colecoprinter::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
+void colecoprinter::line_output()
 {
-    switch (c)
+    for (int i=0;i<80;i++)
     {
-    case 8:
-        fprintf(_file, ")%d(", (int)(charWidth / lineHeight * 900.));
-        pdf_X -= charWidth; // update x position
-        break;
-    case 9:
-        break;
-    case 10:
-        pdf_dY -= lineHeight; // set pdf_dY and rise to one line
-        pdf_set_rise();
-        break;
-    case 11:
-        pdf_dY -= 6.0; // set pdf_dY and rise to one line
-        pdf_set_rise();
-        break;
-    case 12:
-        pdf_end_page();
-        break;
-    case 13:
-        pdf_end_line();
-        pdf_dY += lineHeight;
-        pdf_new_line();
-        break;
-    case 14:
-        backwards = true;
-        break;
-    case 15:
-        backwards = false;
-        break;
-    default:
+        char c = bdb.get()[i];
+
         if (c > 31 && c < 128)
         {
             if (c == '\\' || c == '(' || c == ')')
                 fputc('\\', _file);
             fputc(c, _file);
 
-            if (backwards == true)
-            {
-                fprintf(_file, ")%d(", (int)(1200.));
-                pdf_X -= charWidth*2; // update x position
-            }
-            else
-                pdf_X += charWidth; // update x position
-        } else
-        {
-            Debug_printf("ignore %02x\r\n", c);
+            pdf_X += charWidth; // update x position
         }
+    }
+
+    pdf_end_line();
+    pdf_new_line();
+
+    bdb.clear();
+}
+
+void colecoprinter::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
+{
+    bdb.put(c);
+
+    switch (c)
+    {
+    case 10: // LF
+        Debug_printv("LF");
+        line_output();
+        break;
+    case 11:
+        if (bdb.getIsVT() == true)
+        {
+            line_output();
+            bdb.setIsVT(false);
+        }
+        else
+        {
+            bdb.setIsVT(true);
+        }
+        break;
+    case 12:
+        pdf_end_page();
+        break;
+    case 13:
+        bdb.reset();
+        break;
     }
 }
 
@@ -70,6 +67,9 @@ void colecoprinter::post_new_file()
     charWidth = 6.0; // 12cpi
     fontNumber = 1;
     fontSize = 10;
+
+    bdb.clear();
+    bdb.reset();
 
     pdf_header();
 }

@@ -53,7 +53,7 @@ class macDevice
   friend macBus;
 
 protected:
-  uint8_t _devnum;             // assigned by Apple II during INIT
+  char _devnum;             
   bool _initialized;
 
 public:
@@ -62,7 +62,7 @@ public:
   virtual void shutdown() = 0;
   virtual void process(mac_cmd_t cmd) = 0;
 
-  uint8_t id() { return _devnum; };
+  char id() { return _devnum; };
 };
 
 class macBus
@@ -80,7 +80,12 @@ private:
   // iwmPrinter *_printerdev = nullptr;
   // iwmClock *_clockDev = nullptr;
 
-  const int _mac_baud_rate = 115200;
+  const int _mac_baud_rate = 2000000; //230400; //was 115200;
+
+  int _active_DCD_disk;
+  uint8_t _mounted_dcd_disks;
+
+  char num_dcd_mounts();
 
 public:
   std::forward_list<macDevice *> _daisyChain;
@@ -102,6 +107,13 @@ public:
   bool shuttingDown = false; // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
   // bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
+
+  void add_dcd_mount(char c);
+  void rem_dcd_mount(char c);
+
+  bool stepper_timeout();
+  unsigned long t0;
+  bool track_not_copied;
 };
 
 extern macBus MAC;

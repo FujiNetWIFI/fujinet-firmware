@@ -10,6 +10,16 @@
 
 #include <map>
 
+enum adamnet_message : uint16_t
+{
+    ADAMNETMSG_DISKSWAP  // Rotate disk
+};
+
+struct adamnet_message_t
+{
+    adamnet_message message_id;
+    uint16_t message_arg;
+};
 
 #define ADAMNET_BAUDRATE 62500
 
@@ -136,13 +146,15 @@ protected:
 
     /**
      * @brief acknowledge, but not if cmd took too long.
+     * @param doNotWaitForIdle do not wait for idle if true.
      */
-    virtual void adamnet_response_ack();
+    virtual void adamnet_response_ack(bool doNotWaitForIdle=false);
 
     /**
      * @brief non-acknowledge, but not if cmd took too long
+     * param doNotWaitForIdle do not wait for idle if true.
      */
-    virtual void adamnet_response_nack();
+    virtual void adamnet_response_nack(bool doNotWaitForIdle=false);
 
     /**
      * @brief acknowledge if device is ready, but not if cmd took too long.

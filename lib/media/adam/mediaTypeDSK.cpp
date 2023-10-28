@@ -8,7 +8,6 @@
 
 #include "../../include/debug.h"
 
-
 #define INTERLEAVE 5 // 5:1 sector layout in image files (WHY?!?!!?)
 
 // Returns byte offsets of given block number, with interleave
@@ -21,7 +20,7 @@ std::pair<uint32_t, uint32_t> MediaTypeDSK::_block_to_offsets(uint32_t blockNum)
     o2 = ((r == 0) || (r == 1)) ? (blockNum * 1024) + (INTERLEAVE * 512)
                                 : (blockNum * 1024) - (4096 - (INTERLEAVE * 512));
 
-    return std::make_pair(o1,o2);
+    return std::make_pair(o1, o2);
 }
 
 // Returns TRUE if an error condition occurred
@@ -29,14 +28,14 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 {
     if (blockNum == _media_last_block)
         return false; // Already have
-    
+
     Debug_print("DSK READ\r\n");
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks - 1)
     {
         Debug_printf("::read block %lu > %lu\r\n", blockNum, _media_num_blocks);
-        _media_controller_status=2;
+        _media_controller_status = 2;
         return true;
     }
 
@@ -44,26 +43,26 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
 
     bool err = false;
 
-    // Read lower part of block    
-    std::pair <uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
+    // Read lower part of block
+    std::pair<uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
     err = fseek(_media_fileh, offsets.first, SEEK_SET) != 0;
 
     if (err == false)
         err = fread(_media_blockbuff, 1, 512, _media_fileh) != 512;
 
-   // Read upper part of block
+    // Read upper part of block
     if (err == false)
         err = fseek(_media_fileh, offsets.second, SEEK_SET) != 0;
 
     if (err == false)
-        err = fread(&_media_blockbuff[512],1,512,_media_fileh) != 512;
+        err = fread(&_media_blockbuff[512], 1, 512, _media_fileh) != 512;
 
     if (err == false)
         _media_last_block = blockNum;
     else
         _media_last_block = INVALID_SECTOR_VALUE;
 
-    _media_controller_status=0;
+    _media_controller_status = 0;
 
     return err;
 }
@@ -78,28 +77,50 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
     if (blockNum > _media_num_blocks)
     {
         Debug_printf("::write block BEYOND END %lu > %lu\r\n", blockNum, _media_num_blocks);
-        _media_controller_status=2;
+        _media_controller_status = 2;
         return true;
     }
 
-    std::pair <uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
+    std::pair<uint32_t, uint32_t> offsets = _block_to_offsets(blockNum);
+
+    if (_media_fileh->_flags == 0x1484) // mounted R/O, attempt HS R/W
+    {
+        Debug_printf("High score mode activated, attempting write open\r\n");
+
+        oldFileh = _media_fileh;
+        hsFileh = _media_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename) + 1, "r+");
+        _media_fileh = hsFileh;
+    }
 
     // Write lower part of block
     err = fseek(_media_fileh, offsets.first, SEEK_SET) != 0;
     if (err == false)
-        err = fwrite(_media_blockbuff,1,512,_media_fileh) != 512;
-    
+        err = fwrite(_media_blockbuff, 1, 512, _media_fileh) != 512;
+
     // Write upper part of block
     if (err == false)
         err = fseek(_media_fileh, offsets.second, SEEK_SET) != 0;
     if (err == false)
-        err = fwrite(&_media_blockbuff[512],1,512,_media_fileh) != 512;
+        err = fwrite(&_media_blockbuff[512], 1, 512, _media_fileh) != 512;
 
     int ret = fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
     ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DSK::write fsync:%d\r\n", ret);
 
-    _media_controller_status=0;
+    if (_media_fileh->_flags == 0x1484)
+    {
+        Debug_printf("Closing high score sector.\r\n");
+
+        if (hsFileh != nullptr)
+            fclose(hsFileh);
+
+        _media_fileh = oldFileh;
+        _media_last_block = INVALID_SECTOR_VALUE; // force a cache invalidate.
+    }
+    else
+        _media_last_block = blockNum;
+
+    _media_controller_status = 0;
 
     return false;
 }
@@ -113,8 +134,12 @@ uint8_t MediaTypeDSK::status()
 bool MediaTypeDSK::format(uint16_t *responsesize)
 {
     memset(_media_blockbuff,0xE5,1024);
-    for (uint32_t b=0;b<_media_num_blocks;b++)
-        write(b,0);
+    
+    for (uint32_t b = 0; b < _media_num_blocks; b++)
+    {
+        write(b, 0);
+    }
+    
     return false;
 }
 
@@ -125,8 +150,8 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
     _media_fileh = f;
     _mediatype = MEDIATYPE_DSK;
     _media_num_blocks = disksize / 1024;
-    Debug_printf("_media_num_blocks %lu\r\n",_media_num_blocks);
-    _media_last_block=0xFFFFFFFE;
+    Debug_printf("_media_num_blocks %lu\r\n", _media_num_blocks);
+    _media_last_block = 0xFFFFFFFE;
 
     return _mediatype;
 }
@@ -136,10 +161,13 @@ bool MediaTypeDSK::create(FILE *f, uint32_t numBlocks)
 {
     Debug_print("DSK CREATE\r\n");
     uint8_t buf[1024];
-
+    
     memset(buf,0xE5,1024);
-    for (uint32_t b=0; b<numBlocks; b++)
-        fwrite(buf,1024,1,f);
+    
+    for (uint32_t b = 0; b < numBlocks; b++)
+    {
+        fwrite(buf, 1024, 1, f);
+    }
 
     return true;
 }
