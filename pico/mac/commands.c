@@ -74,6 +74,7 @@ void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_mux(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_read(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_write(PIO pio, uint sm, uint offset, uint pin);
+void set_num_dcd();
 
 
 
@@ -100,12 +101,6 @@ void setup_esp_uart()
 /**
  * DATA NEEDED FOR OPERATION
 */
-const int tach_lut[5][3] = {{0, 15, 394},
-                            {16, 31, 429},
-                            {32, 47, 472},
-                            {48, 63, 525},
-                            {64, 79, 590}};
-
 uint32_t a;
 uint32_t b[12];
     char c;
@@ -245,11 +240,18 @@ void dcd_preset_latch()
 
 void set_tach_freq(char c)
 {
+  const int tach_lut[5][3] = {{0, 15, 394},
+                            {16, 31, 429},
+                            {32, 47, 472},
+                            {48, 63, 525},
+                            {64, 79, 590}};
+  
   // To configure a clock, we need to know the following pieces of information:
   // The frequency of the clock source
   // The mux / aux mux position of the clock source
   // The desired output frequency
   // use 125 MHZ PLL as a source
+  
   for (int i = 0; i < 5; i++)
   {
     if ((c >= tach_lut[i][0]) && (c <= tach_lut[i][1]))
@@ -289,10 +291,22 @@ void switch_to_dcd()
   pio_remove_program(pioblk_rw, &mux_program, pio_mux_offset);
   pio_add_program_at_offset(pioblk_rw, &dcd_mux_program, pio_mux_offset);
   pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
+  set_num_dcd();
 
   // echo
   // pio_sm_set_enabled(pioblk_rw, SM_FPY_ECHO, false);
 
+}
+
+void set_num_dcd()
+{
+      // need to set number in DCD mux PIO and reset the machine
+      // pause the machine, change the instruction, move the PC, resume
+      pio_sm_set_enabled(pioblk_rw, SM_MUX, false);
+      uint32_t save = hw_claim_lock();
+      pioblk_rw->instr_mem[pio_mux_offset] = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(1, 0);
+      hw_claim_unlock(save);
+      pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
 }
 
 void setup()
@@ -398,6 +412,7 @@ int main()
   // switch_to_floppy();
   while (true)
   {
+    esp_loop();
     switch (disk_mode)
     {
     case DCD:
@@ -423,21 +438,28 @@ void esp_loop()
 {
   if (uart_is_readable(UART_ID))
   {
-    // !READY
-    // This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk.
-    // !READY is a zero when
-    //      the head position is settled on disired track,
-    //      motor is at the desired speed,
-    //      and a diskette is in the drive.
     c = uart_getc(UART_ID);
+      // handle comms from ESP32
+    switch (c)
+    {
+    case 'h': // harddisk is mounted/unmounted
+      num_dcd_drives = uart_getc(UART_ID);
+      printf("\nNumber of DCD's mounted: %d", num_dcd_drives);
+      if (disk_mode == DCD)
+        set_num_dcd();
+      c = 0; // need to clear c so not picked up by floppy loop although it would never respond to 'h'
+      break;
+    default:
+      break;
+    }
   }
-  
 }
+
 void floppy_loop()
 {
   static bool step_state = false;
 
-  if (gpio_get(ENABLE))
+  if (gpio_get(ENABLE) && (num_dcd_drives > 0))
   {
     disk_mode = TO_DCD;
     return;
@@ -571,8 +593,8 @@ void floppy_loop()
       }
       // printf("latch %04x", get_latch());
       pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
+      c = 0; // clear c because processed it and don't want infinite loop
     }
-    // to do: get response from ESP32 and update latch values (like READY, TACH), push LATCH value to PIO
     // to do: read both enable lines and indicate which drive is active when sending single char to esp32
 }
 
@@ -589,9 +611,16 @@ void dcd_process(uint8_t nrx, uint8_t ntx);
 
 void dcd_loop()
 {
+  if (num_dcd_drives == 0)
+  {
+    disk_mode = TO_FPY;
+    return;
+  }
+
   if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
   {
     int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
+    printf("m%dm",m);
     if (m != 0)
     {
       active_disk_number = num_dcd_drives + 'A' - m;
@@ -660,29 +689,6 @@ void dcd_loop()
     printf("%c", a + '0');
   }
 
-  // handle comms from ESP32
-  if (uart_is_readable(UART_ID))
-  {
-    c = uart_getc(UART_ID);
-    switch (c)
-    {
-    case 'h': // harddisk is mounted/unmounted
-      num_dcd_drives = uart_getc(UART_ID);
-      printf("\nNumber of DCD's mounted: %d", num_dcd_drives);
-      // need to set number in DCD mux PIO and reset the machine
-      // pause the machine, change the instruction, move the PC, resume
-      pio_sm_set_enabled(pioblk_rw, SM_MUX, false);
-      uint32_t save = hw_claim_lock();
-      pioblk_rw->instr_mem[pio_mux_offset] = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(1, 0);
-      hw_claim_unlock(save);
-      pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
-      // pio_sm_exec(pioblk_rw, SM_MUX, pio_encode_jmp(pio_mux_offset));
-      // pio_sm_set_enabled(pioblk_rw, SM_MUX, true);
-      break;
-    default:
-      break;
-     }
-  }
 }
 
 uint8_t payload[539];
