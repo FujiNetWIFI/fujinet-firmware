@@ -40,6 +40,7 @@ adamSerial::~adamSerial()
 {
     server->stop();
     delete server;
+    server = nullptr;
 }
 
 void adamSerial::command_recv()

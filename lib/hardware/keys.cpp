@@ -43,20 +43,20 @@ void KeyManager::setup()
 #ifdef NO_BUTTONS
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-#elif defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC)
+#elif defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC) || defined(PINMAP_MAC_REV0)
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
 #else
     fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NO_BUTTONS */
 
-#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232) && !defined(BUILD_RC2014) && !defined(BUILD_IEC)
+#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232) && !defined(BUILD_RC2014) && !defined(BUILD_IEC) && !defined(BUILD_MAC)
     fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #endif /* NOT LYNX OR A2 */
 
     // Enable safe reset on Button C if available
     if (fnSystem.get_hardware_ver() >= 2)
     {
-#if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC)
+#if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC) || defined(PINMAP_MAC_REV0)
         /* Check if hardware has SPI fix and thus no safe reset button (_keys[eKey::BUTTON_C].disabled = true) */
         if (fnSystem.spifix() && fnSystem.get_safe_reset_gpio() == 14)
         {
@@ -73,6 +73,13 @@ void KeyManager::setup()
         Debug_printf("Safe Reset button ENABLED on GPIO %d\r\n", fnSystem.get_safe_reset_gpio());
 #endif
     }
+
+#ifdef NO_BUTTONS
+    _keys[eKey::BUTTON_A].disabled = true;
+    _keys[eKey::BUTTON_B].disabled = true;
+    _keys[eKey::BUTTON_C].disabled = true;
+    Debug_println("NO_BUTTONS: disabled all buttons");
+#endif /* PINMAP_IEC_NUGGET */
 
 #endif /* PINMAP_ESP32S3 */
 
@@ -186,7 +193,7 @@ void KeyManager::_keystate_task(void *param)
 
     KeyManager *pKM = (KeyManager *)param;
 
-#if defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232)
+#if defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232) || defined(BUILD_MAC)
     // No button B onboard
     pKM->_keys[eKey::BUTTON_B].disabled = true;
 #endif
@@ -271,7 +278,7 @@ void KeyManager::_keystate_task(void *param)
             // Debug_printf("himem free: %u\r\n", esp_himem_get_free_size());
             // Debug_printf("himem reserved: %u\r\n", esp_himem_reserved_area_size());
 #else
-            fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
+            //fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
 #endif // PINMAP_A2_REV0
 
 // Either toggle BT baud rate or do a disk image rotation on B_KEY SHORT PRESS
@@ -290,6 +297,12 @@ void KeyManager::_keystate_task(void *param)
                 msg.message_id = SIOMSG_DISKSWAP;
                 xQueueSend(SIO.qSioMessages, &msg, 0);
 #endif /* BUILD_ATARI */
+#ifdef BUILD_ADAM
+                Debug_println("ACTION: Send image_rotate message to SIO queue");
+                adamnet_message_t msg;
+                msg.message_id = ADAMNETMSG_DISKSWAP;
+                xQueueSend(AdamNet.qAdamNetMessages, &msg, 0);
+#endif /* BUILD_ADAM*/ 
             }
             break;
 

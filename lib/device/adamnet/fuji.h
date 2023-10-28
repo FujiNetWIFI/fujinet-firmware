@@ -54,11 +54,13 @@ struct appkey
 class adamFuji : public virtualDevice
 {
 private:
+    bool new_disk_completed = false;
     bool isReady = false;
     bool alreadyRunning = false; // Replace isReady and scanStarted with THIS.
     bool scanStarted = false;
     bool hostMounted[MAX_HOSTS];
     bool setSSIDStarted = false;
+    unsigned char active_rotate_slot=0;
 
     uint8_t response[1024];
     uint16_t response_len = 0;

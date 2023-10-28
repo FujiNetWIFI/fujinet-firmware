@@ -1,6 +1,7 @@
 #ifdef BUILD_APPLE
 
 #include "mediaType.h"
+#include "utils.h"
 
 #include <cstdint>
 #include <cstring>
@@ -58,8 +59,37 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         const char *ext = filename + l - 2;
         if (strcasecmp(ext, "PO") == 0)
             return MEDIATYPE_PO;
+        else if (strcasecmp(ext, "DO") == 0)
+            return MEDIATYPE_DO;
     }
     return MEDIATYPE_UNKNOWN;
 }
 
-#endif // NEW_TARGET
+mediatype_t MediaType::discover_dsk_mediatype(FILE *f, uint32_t disksize)
+{
+    mediatype_t default_mt = MEDIATYPE_DO;
+
+    const size_t header_size = 64;
+    uint8_t hdr[header_size];
+
+    // a ProDOS Volume Directory Header is always in block 2,
+    // if the file is in ProDOS order, it will be at offset 1024 
+    if (fseek(f, 1024, SEEK_SET) != 0)
+        return default_mt;
+
+    if (fread(hdr, 1, header_size, f) != header_size)
+        return default_mt;
+
+    uint16_t prevPointer = UINT16_FROM_HILOBYTES(hdr[1], hdr[0]);
+    uint8_t  storage_type = hdr[4] >> 4;
+    uint16_t total_blocks = UINT16_FROM_HILOBYTES(hdr[0x2A], hdr[0x29]);
+
+    if (prevPointer == 0 && storage_type == 0xF && total_blocks == (disksize / 512)) {
+        // looks like a valid volume header, assume file is in ProDOS order 
+        return MEDIATYPE_PO;
+    }
+
+    return default_mt;
+}
+
+#endif // BUILD_APPLE

@@ -515,20 +515,42 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
   }
 
   // Determine MediaType based on filename extension
-  if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
+  if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr) {
     disk_type = MediaType::discover_mediatype(filename);
+    if (disk_type == MEDIATYPE_DSK) {
+        // determine DO or PO based on file contents
+        disk_type = MediaType::discover_dsk_mediatype(f, disksize);
+    }
+  }
 
   if (deviceSlot < 4) // SP drive
   {    
     switch (disk_type)
     {
+    case MEDIATYPE_DO:
+        Debug_printf("\r\nMedia Type DO");
+        _disk = new MediaTypeDO();
+        _disk->_media_host = host;
+        _disk->_mediatype = disk_type;
+        strcpy(_disk->_disk_filename, filename);
+        mt = _disk->mount(f, disksize);
+
+        device_active = true; //change status only after we are mounted
+        break;
     case MEDIATYPE_PO:
         Debug_printf("\r\nMedia Type PO");
         _disk = new MediaTypePO();
+        _disk->_media_host = host;
+        _disk->_mediatype = disk_type;
+        strcpy(_disk->_disk_filename, filename);
         mt = _disk->mount(f, disksize);
+
+        // firmware needs to believe a high score enabled disk is 
+        // not write-protected. Otherwise it will skip write process
+        if (_disk->high_score_enabled)
+          readonly = false;
+
         device_active = true; //change status only after we are mounted
-        //_disk->fileptr() = f;
-        // mt = MEDIATYPE_PO;
         break;
     default:
         Debug_printf("\r\nMedia Type UNKNOWN for SP Drive - no mount in disk.cpp");
@@ -540,7 +562,8 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
   {
     switch (disk_type)
     {
-      case MEDIATYPE_DSK:
+      case MEDIATYPE_DO:
+      case MEDIATYPE_PO:
       case MEDIATYPE_WOZ:
           theFuji._fnDisk2s[deviceSlot - 4].init();
           theFuji._fnDisk2s[deviceSlot - 4].mount(f, disk_type); // modulo to ensure device 0 or 1

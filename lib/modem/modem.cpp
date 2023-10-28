@@ -105,6 +105,7 @@ modem::~modem()
     if (modemSniffer != nullptr)
     {
         delete modemSniffer;
+        modemSniffer = nullptr;
     }
 
     if (telnet != nullptr)
@@ -1486,9 +1487,16 @@ void modem::modemCommand()
             at_cmd_println("OK");
         break;
     case AT_CPM:
-        modemActive = false;
-        SIO.getCPM()->init_cpm(modemBaud);
-        SIO.getCPM()->cpmActive = true;
+        if (Config.get_cpm_enabled())
+        {
+            modemActive = false;
+            SIO.getCPM()->init_cpm(modemBaud);
+            SIO.getCPM()->cpmActive = true;
+        }
+        else
+        {
+            at_cmd_println("CP/M IS DISABLED");
+        }
         break;
     case AT_PHONEBOOKLIST:
         at_handle_pblist();

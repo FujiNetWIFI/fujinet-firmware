@@ -227,7 +227,10 @@ mediatype_t rs232Disk::mount(FILE *f, const char *filename, uint32_t disksize, m
 rs232Disk::~rs232Disk()
 {
     if (_disk != nullptr)
+    {
         delete _disk;
+        _disk = nullptr;
+    }
 }
 
 // Unmount disk file

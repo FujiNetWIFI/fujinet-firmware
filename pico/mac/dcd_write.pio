@@ -1,0 +1,54 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; outputs IWM pulse train to Mac
+;
+;
+
+; get a byte from the FIFO into the OSR (autopull?)
+; when OSR is not 0, then start outputting data (or maybe always output data)
+; output is 1 pulse (1 or 0) followed by 3 blanks (0s)
+; pull, shift, set, shift, set .... until 0, then pull again
+
+; 
+; logic analyzer looks like 0.4 us pulses in 2.1 us periods
+; floppy emulator successfuly works with 0.5 us pulses in 2.0 us periods
+
+; DOES NOT HAVE HOLDOFF IMPLEMENTED
+; CAN SIMPLIFY WITH AUTOPULL, REMOVE WAIT ENABLE, USE WRAPPING
+; IF USE SIDESET, THEN CAN ADD 15 CLK DELAY - total 16 clk max
+; so would like 16 clks = 1.5 us - maybe make the clock cycle = 0.1 us, so 5=0.5 us pulse and 15 = 1.5 us blank
+; but dont want to do fractional divide ... instead clk/13 = 9.6154 MHZ
+; 1 tick = 0.104 us
+; 4 ticks = .416 us for 1 pulse 
+; 16 ticks = 1.664 us for blank time
+; total = 20 ticks = 2.08 us
+
+.program dcd_write
+.wrap_target
+    out pins, 1             [4]
+    set pins, 0             [13]
+.wrap  
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+
+void dcd_write_program_init(PIO pio, uint sm, uint offset, uint pin) {
+   // configure a SM
+   pio_sm_config c = dcd_write_program_get_default_config(offset);
+   // config side set
+   sm_config_set_set_pins(&c, pin, 1);
+   sm_config_set_out_pins(&c, pin, 1); 
+   sm_config_set_out_shift(&c, false, true, 8);
+   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_TX);
+   // pio_gpio_init(pio, pin);
+// pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+   // initialize
+   
+  //float cycles_per_bit = 20;
+    // float div = clock_get_hz(clk_sys) / (500.0e3 * cycles_per_bit); // 125MHz/500kHz = 250
+    sm_config_set_clkdiv(&c, 13); // do 13 instead of 12.5
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}

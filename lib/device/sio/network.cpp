@@ -7,7 +7,10 @@
 #include "network.h"
 
 #include <cstring>
+#include <string>
 #include <algorithm>
+#include <vector>
+#include <memory>
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
@@ -68,6 +71,14 @@ sioNetwork::~sioNetwork()
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
+    receiveBuffer = nullptr;
+    transmitBuffer = nullptr;
+    specialBuffer = nullptr;
+
+    if (protocol != nullptr)
+        delete protocol;
+
+    protocol = nullptr;
 }
 
 /** SIO COMMANDS ***************************************************************/
@@ -82,6 +93,14 @@ void sioNetwork::sio_open()
     Debug_println("sioNetwork::sio_open()\n");
 
     sio_ack();
+
+    newData = (uint8_t *)malloc(NEWDATA_SIZE);
+
+    if (newData == nullptr)
+    {
+        Debug_printv("Could not allocate write buffer\n");
+        sio_error();
+    }
 
     channelMode = PROTOCOL;
 
@@ -123,6 +142,12 @@ void sioNetwork::sio_open()
             protocolParser = nullptr;
         }
 
+        if (newData != nullptr)
+        {
+            free(newData);
+            newData = nullptr;
+        }
+
         sio_error();
         return;
     }
@@ -139,6 +164,13 @@ void sioNetwork::sio_open()
             delete protocolParser;
             protocolParser = nullptr;
         }
+
+        if (newData != nullptr)
+        {
+            free(newData);
+            newData = nullptr;
+        }
+
         sio_error();
         return;
     }
@@ -196,7 +228,16 @@ void sioNetwork::sio_close()
     protocol = nullptr;
 
     if (json != nullptr)
+    {
         delete json;
+        json = nullptr;
+    }
+
+    if (newData != nullptr)
+    {
+        free(newData);
+        newData = nullptr;
+    }
 
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 }
@@ -293,7 +334,6 @@ void sioNetwork::sio_write()
     unsigned short num_bytes = sio_get_aux();
     bool err = false;
 
-    uint8_t *newData = (uint8_t *)malloc(num_bytes);
     Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
 
     if (newData == nullptr)
@@ -315,14 +355,12 @@ void sioNetwork::sio_write()
         }
         status.error = NETWORK_ERROR_NOT_CONNECTED;
         sio_error();
-        free(newData);
         return;
     }
 
     // Get the data from the Atari
     bus_to_peripheral(newData, num_bytes);
     *transmitBuffer += string((char *)newData, num_bytes);
-    free(newData);
 
     // Do the channel write
     err = sio_write_channel(num_bytes);
@@ -498,7 +536,7 @@ void sioNetwork::sio_set_prefix()
     {
         prefix.clear();
     }
-    else if (prefixSpec_str == "..") // Devance path N:..
+    else if (prefixSpec_str == ".." || prefixSpec_str == "<") // Devance path N:..
     {
         vector<int> pathLocations;
         for (int i = 0; i < prefix.size(); i++)
@@ -667,28 +705,35 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
 
     // Ask protocol for dstats, otherwise get it locally.
     if (protocol != nullptr)
+    {
         inq_dstats = protocol->special_inquiry(inq_cmd);
+        Debug_printf("protocol special_inquiry returned %d\r\n", inq_dstats);
+    }
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
     if (inq_dstats == 0xFF)
     {
         switch (inq_cmd)
         {
-        case 0x20:
-        case 0x21:
-        case 0x23:
-        case 0x24:
-        case 0x2A:
-        case 0x2B:
-        case 0x2C:
-        case 0xFD:
-        case 0xFE:
+        case 0x20: // ' ' rename
+        case 0x21: // '!' delete
+        case 0x23: // '#' lock
+        case 0x24: // '$' unlock
+        case 0x2A: // '*' mkdir
+        case 0x2B: // '+' rmdir
+        case 0x2C: // ',' chdir/get prefix
+        case 0xFD: //     login
+        case 0xFE: //     password
             inq_dstats = 0x80;
             break;
-        case 0xFC:
+        case 0xFC: //     channel mode
             inq_dstats = 0x00;
             break;
-        case 0x30:
+        case 0xFB: // String Processing mode, only in JSON mode
+            if (channelMode == JSON)
+                inq_dstats = 0x00;
+            break;
+        case 0x30: // '0' set prefix
             inq_dstats = 0x40;
             break;
         case 'Z': // Set interrupt rate
@@ -733,6 +778,9 @@ void sioNetwork::sio_special_00()
         break;
     case 'Z':
         sio_set_timer_rate();
+        break;
+    case 0xFB: // JSON parameter wrangling
+        sio_set_json_parameters();
         break;
     case 0xFC: // SET CHANNEL MODE
         sio_set_channel_mode();
@@ -779,15 +827,15 @@ void sioNetwork::sio_special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case 0x20: // RENAME
-    case 0x21: // DELETE
-    case 0x23: // LOCK
-    case 0x24: // UNLOCK
-    case 0x2A: // MKDIR
-    case 0x2B: // RMDIR
+    case 0x20: // RENAME  ' '
+    case 0x21: // DELETE  '!'
+    case 0x23: // LOCK    '#'
+    case 0x24: // UNLOCK  '$'
+    case 0x2A: // MKDIR   '*'
+    case 0x2B: // RMDIR   '+'
         sio_do_idempotent_command_80();
         return;
-    case 0x2C: // CHDIR
+    case 0x2C: // CHDIR   ','
         sio_set_prefix();
         return;
     case 'Q':
@@ -1061,7 +1109,6 @@ void sioNetwork::sio_set_json_query()
 {
     uint8_t in[256];
     const char *inp = NULL;
-    uint8_t *tmp;
 
     memset(in, 0, sizeof(in));
 
@@ -1074,23 +1121,62 @@ void sioNetwork::sio_set_json_query()
             in[i] = 0x00;
     }
 
-    inp = strrchr((const char *)in, ':');
-    
-    if (inp == NULL)
-    {
-        sio_error();
-        return;
+    std::string in_string(reinterpret_cast<char*>(in));
+    size_t last_colon_pos = in_string.rfind(':');
+
+    std::string inp_string;
+    if (last_colon_pos != std::string::npos) {
+        Debug_printf("sioNetwork::sio_set_json_query - skipped device spec. Application should be updated to remove it from query (%s)\r\n", in_string.c_str());
+        inp_string = in_string.substr(last_colon_pos + 1);
+    } else {
+        inp_string = in_string;
     }
 
-    inp++;
-    json->setReadQuery(string(inp), cmdFrame.aux2);
-    json_bytes_remaining = json->readValueLen();
-    tmp = (uint8_t *)malloc(json->readValueLen());
-    json->readValue(tmp,json_bytes_remaining);
-    *receiveBuffer += string((const char *)tmp,json_bytes_remaining);
-    free(tmp);
-    Debug_printf("Query set to %s\n",inp);
+    json->setReadQuery(inp_string, cmdFrame.aux2);
+    json_bytes_remaining = json->json_bytes_remaining;
+
+    std::vector<uint8_t> tmp(json_bytes_remaining);
+    json->readValue(tmp.data(), json_bytes_remaining);
+
+    // don't copy past first nul char in tmp
+    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    *receiveBuffer += std::string(tmp.begin(), null_pos);
+
+    Debug_printf("Query set to >%s<\r\n", inp_string.c_str());
     sio_complete();
+}
+
+void sioNetwork::sio_set_json_parameters()
+{
+    // aux1  | aux2    |    meaning
+    // 0     | 0/1/2   |  Set the json->_queryParam value, which is the translation value for string processing
+    // 1     |   c     |  Set the json->lineEnding = c, convert from char to single byte string
+
+    switch (cmdFrame.aux1)
+    {
+    case 0:     // JSON QUERY PARAM
+        if (cmdFrame.aux2 > 2)
+        {
+            sio_error();
+            return;
+        }
+        json->setQueryParam(cmdFrame.aux2);
+        sio_complete();
+        break;
+    case 1:     // LINE ENDING
+    {
+        std::stringstream ss;
+        ss << cmdFrame.aux2;
+        string new_le = ss.str();
+        Debug_printf("JSON line ending changed to 0x%02hx\r\n", cmdFrame.aux2);
+        json->setLineEnding(new_le);
+        sio_complete();
+        break;
+    }
+    default:
+        sio_error();
+        break;
+    }
 }
 
 void sioNetwork::sio_set_timer_rate()
@@ -1109,6 +1195,7 @@ void sioNetwork::sio_set_timer_rate()
 
 void sioNetwork::sio_do_idempotent_command_80()
 {
+    Debug_printf("sioNetwork::sio_do_idempotent_command_80()\r\n");
     sio_ack();
 
     parse_and_instantiate_protocol();

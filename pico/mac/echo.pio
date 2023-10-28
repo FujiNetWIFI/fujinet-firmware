@@ -1,0 +1,35 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; copies input to output - for the ESP32 RMT signal
+;
+
+.program echo
+start:
+.wrap_target
+    mov pins, pins
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+
+void echo_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins) {
+   // configure a SM
+   pio_sm_config c = echo_program_get_default_config(offset);
+   // set the out pin to out_pin
+   sm_config_set_out_pins(&c, out_pin, num_pins);
+   // set the in pin to in_pin
+   sm_config_set_in_pins(&c, in_pin); 
+   // there are 1 wires to read, shift to the left, no autopush
+   // sm_config_set_in_shift(&c, false, true, 4);
+   // sm_config_set_out_shift(&c, true, false, 1); // shift to the right
+   // set pin as a GPIO output connected to this SM
+   for (int i=0; i<num_pins; i++)
+       pio_gpio_init(pio, out_pin + i);
+//    pio_sm_set_consecutive_pindirs(pio, sm, out_pin, num_pins, true);
+   // sm_config_set_set_pins(&c, pin, 1);
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}

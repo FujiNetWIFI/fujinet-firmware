@@ -1,0 +1,40 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; sends the phases to the PICO when the strobe sets
+;
+
+.define LSTRB 12
+.define ENABLE 7
+
+.program commands
+start:
+.wrap_target
+    wait 0 gpio ENABLE
+    wait 1 gpio LSTRB   ; latch strobe
+    in pins, 4          ; get the phases
+    wait 0 gpio LSTRB   ; wait for the strobe to deassert
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+
+void commands_program_init(PIO pio, uint sm, uint offset, uint pin) {
+   // configure a SM
+   pio_sm_config c = commands_program_get_default_config(offset);
+   // set the out pin to pin
+//    sm_config_set_out_pins(&c, pin, 1);
+   // start at GPIO2 to read in the commands
+   sm_config_set_in_pins(&c, pin); // start at GPIO 2 for the commands
+   // there are 4 wires to read for latch mux, shift to the left, autopush
+   sm_config_set_in_shift(&c, false, true, 4);
+   // sm_config_set_out_shift(&c, true, false, 1); // shift to the right
+   // set pin as a GPIO output connected to this SM
+   // pio_gpio_init(pio, pin);
+   // pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+   // sm_config_set_set_pins(&c, pin, 1);
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}

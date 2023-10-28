@@ -19,6 +19,7 @@ lynxKeyboard::~lynxKeyboard()
     // vTaskDelete(kbTask);
     server->stop();
     delete server;
+    server = nullptr;
 }
 
 void lynxKeyboard::comlynx_control_status()

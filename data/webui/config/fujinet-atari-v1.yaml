@@ -17,3 +17,4 @@ components:
   disk_swap: true
   boot_settings: true
   apetime: true
+  cpm_settings: true

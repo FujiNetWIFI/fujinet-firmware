@@ -322,7 +322,8 @@ void iwmDevice::send_reply_packet(uint8_t status)
 void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 {
   //Handle possible data packet to avoid crash extended and non-extended
-  switch(cmd.command) {
+  switch(cmd.command)
+  {
     case 0x42:
     case 0x44:
     case 0x49:
@@ -351,8 +352,45 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
     uint8_t control_code = get_status_code(cmd);
     Debug_printf("\r\nbad command was a control command with control code %02x",control_code);
   }
-  else{
+  else
+  {
     send_reply_packet(SP_ERR_BADCMD); //response for Any other command with a data packet
+  }
+}
+
+void iwmDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
+{
+  //Handle possible data packet to avoid crash extended and non-extended
+  switch(cmd.command) {
+    case 0x42:
+    case 0x44:
+    case 0x49:
+    case 0x4a:
+    case 0x4b:
+    case 0x02:
+    case 0x04:
+    case 0x09:
+    case 0x0a:
+    case 0x0b:
+    data_len = 512;
+    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+    Debug_printf("\r\nUnit %02x Offline, Command with data packet %02x\r\n", id(), cmd.command);
+    print_packet((uint8_t *)data_buffer, data_len);
+    break;
+    default: //just send the response and return like before
+      send_reply_packet(SP_ERR_OFFLINE);
+      Debug_printf("\r\nUnit %02x Offline, Command %02x", id(), cmd.command);
+      return;
+  }
+  if(cmd.command == 0x04) //Decode command control code
+  {
+    send_reply_packet(SP_ERR_OFFLINE);
+    uint8_t control_code = get_status_code(cmd);
+    Debug_printf("\r\nOffline command was a control command with control code %02x",control_code);
+  }
+  else
+  {
+    send_reply_packet(SP_ERR_OFFLINE); //response for Any other command with a data packet
   }
 }
 
@@ -468,6 +506,13 @@ void IRAM_ATTR iwmBus::service()
   case iwm_phases_t::enable:
     // expect a command packet
     // should not ACK unless we know this is our Command
+
+    // force floppy off when SP bus is enabled, needed for softsp
+    if (_old_enable_state != iwm_enable_state_t::off)
+    {
+      _old_enable_state = iwm_enable_state_t::off;
+      diskii_xface.stop();
+    }
 
     if (sp_command_mode != sp_cmd_state_t::command)
     {
