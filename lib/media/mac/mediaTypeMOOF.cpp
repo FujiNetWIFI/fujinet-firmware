@@ -33,6 +33,8 @@ void MediaTypeMOOF::unmount()
     {
         if (trk_ptrs[i] != nullptr)
             free(trk_ptrs[i]);
+            
+        trk_ptrs[i] = nullptr;
     }
 #else
     free(trk_buffer);
@@ -182,6 +184,7 @@ bool MediaTypeMOOF::moof_read_tracks()
     // read MOOF tracks into RAM
     for (int i = 0; i < MAX_TRACKS; i++)
     {
+        trk_ptrs[i] = nullptr;
         size_t s = trks[i].block_count * 512;
         if (s != 0)
         {

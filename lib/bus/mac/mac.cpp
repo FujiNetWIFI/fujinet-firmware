@@ -130,6 +130,7 @@ void macBus::service(void)
       case 'B':
       case 'C':
       case 'D':
+      case 'E':
         _active_DCD_disk = c-'A'; // 0, 1, 2, 3
         Debug_printf("\nactive disk %d", _active_DCD_disk);
         break;
