@@ -295,7 +295,8 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
         return;
 
-    if (device_active == false)
+    if (device_active == false &&
+        (cmdFrame.comnd != SIO_DISKCMD_STATUS && cmdFrame.comnd != SIO_DISKCMD_HSIO_INDEX))
         return;
 
     Debug_printf("disk sio_process(), baud: %d\n", SIO.getBaudrate());
