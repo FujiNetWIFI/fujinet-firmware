@@ -36,7 +36,7 @@ void iwmDisk2::init()
   device_active = false;
 }
 
-mediatype_t iwmDisk2::mount(FILE *f, mediatype_t disk_type)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
+mediatype_t iwmDisk2::mount(FILE *f, uint32_t disksize, mediatype_t disk_type)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
 {
 
   mediatype_t mt = MEDIATYPE_UNKNOWN;
@@ -57,8 +57,7 @@ mediatype_t iwmDisk2::mount(FILE *f, mediatype_t disk_type)//, const char *filen
         Debug_printf("\nMounting Media Type WOZ");
         device_active = true;
         _disk = new MediaTypeWOZ();
-        mt = ((MediaTypeWOZ *)_disk)->mount(f);
-        change_track(0); // initialize spi buffer
+        mt = ((MediaTypeWOZ *)_disk)->mount(f, disksize);
         break;
     case MEDIATYPE_DO:
     case MEDIATYPE_PO:
@@ -66,13 +65,17 @@ mediatype_t iwmDisk2::mount(FILE *f, mediatype_t disk_type)//, const char *filen
         device_active = true;
         _disk = new MediaTypeDSK();
         _disk->_mediatype = disk_type;
-        mt = ((MediaTypeDSK *)_disk)->mount(f);
-        change_track(0); // initialize spi buffer
+        mt = ((MediaTypeDSK *)_disk)->mount(f, disksize);
         break;
     default:
+        break;
+    }
+
+    if (mt == MEDIATYPE_WOZ) {
+        change_track(0); // initialize spi buffer
+    } else {
         Debug_printf("\nMedia Type UNKNOWN - no mount in disk2.cpp");
         device_active = false;
-        break;
     }
 
     return mt;

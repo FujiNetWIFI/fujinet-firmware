@@ -90,6 +90,17 @@ bool MediaTypeDO::format(uint16_t *respopnsesize)
 
 mediatype_t MediaTypeDO::mount(FILE *f, uint32_t disksize)
 {
+    switch (disksize) {
+        case 35 * BYTES_PER_TRACK:
+        case 36 * BYTES_PER_TRACK:
+        case 40 * BYTES_PER_TRACK:
+            // 35, 36, and 40 tracks are supported (same as Applesauce)
+            break;
+        default:
+	        Debug_printf("\nMediaTypeDO error: unsupported disk image size %ld", disksize);
+            return MEDIATYPE_UNKNOWN;
+    }
+
     diskiiemulation = false;
     _media_fileh = f;
     num_blocks = disksize / BYTES_PER_BLOCK;
