@@ -18,6 +18,8 @@
 class MediaTypeDSK  : public MediaTypeWOZ
 {
 private:
+    size_t num_tracks = 0;
+
     void dsk2woz_info();
     void dsk2woz_tmap();
     bool dsk2woz_tracks(uint8_t *dsk); 
@@ -25,7 +27,6 @@ private:
 public:
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
-    mediatype_t mount(FILE *f) {return mount(f, 0);};
     // virtual void unmount() override;
 
     // static bool create(FILE *f, uint32_t numBlock);
