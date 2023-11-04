@@ -40,7 +40,6 @@ public:
     virtual bool format(uint16_t *respopnsesize) override { return false; };
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
-    mediatype_t mount(FILE *f) {return mount(f, 0);};
     virtual void unmount() override;
 
     virtual bool status() override {return (_media_fileh != nullptr);}
