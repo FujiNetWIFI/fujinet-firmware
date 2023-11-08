@@ -1,3 +1,4 @@
+#ifndef ESP_PLATFORM
 #ifdef BUILD_APPLE
 
 #if SMARTPORT == SLIP
@@ -64,6 +65,7 @@ size_t iwm_slip::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 
 iwm_slip smartport;
 
-#endif
+#endif // SMARTPORT == SLIP
 
-#endif
+#endif // BUILD_APPLE
+#endif // !ESP_PLATFORM
