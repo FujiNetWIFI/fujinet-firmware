@@ -4,6 +4,26 @@
 
 #include "bus.h"
 #include "../media/media.h"
+/* 
+// drive state bits
+#define STAT_DIRTN   0b0000
+#define STAT_STEP    0b0001
+#define STAT_MOTORON 0b0010
+#define STAT_EJECT   0b0011
+#define STAT_DATAHD0 0b0100
+        not assigned 0b0101
+#define STAT_SS      0b0110 
+#define STAT_DRVIN   0b0111
+#define STAT_CSTIN   0b1000
+#define STAT_WRTPRT  0b1001
+#define STAT_TKO     0b1010
+#define STAT_TACH    0b1011
+#define STAT_DATAHD1 0b1100
+        not assigned 0b1101
+#define STAT_READY   0b1110
+#define STAT_REVISED 0b1111
+ */
+
 
 class macFloppy : public macDevice
 {
@@ -26,13 +46,19 @@ protected:
     int old_pos;
     int head_dir;
 
+    uint32_t _disk_size_in_blocks;
+
+    void dcd_status(uint8_t* buffer);
+
 public:
+    bool readonly;
+    
     macFloppy() {};
     ~macFloppy() {};
 
     // void init();
-    mediatype_t mount(FILE *f, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN) { return mount(f, disk_type); };
+    //mediatype_t mount(FILE *f, const char *filename, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize , mediatype_t disk_type = MEDIATYPE_UNKNOWN);// { return mount(f, filename, disk_type); };
     void unmount();
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors) { return false; };
     int get_track_pos() { return track_pos; };
@@ -41,12 +67,12 @@ public:
     int step();
     void change_track(int side);
     void update_track_buffers();
-    // void set_disk_number(char c) { disk_num = c; }
-    // char get_disk_number() { return disk_num; };
+    void set_disk_number(char c) { disk_num = c; _devnum = c; }
+    char get_disk_number() { return disk_num; };
     mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
     void shutdown() override {};
-    void process(mac_cmd_t cmd) override {};
+    void process(mac_cmd_t cmd) override;
 };
 
 #endif // guard

@@ -10,6 +10,7 @@
 // #include <stdint.h>
 // #include <string.h>
 
+#define BYTES_PER_TRACK 4096
 
 // routines to convert DSK to WOZ stolen from DSK2WOZ by Tom Harte 
 // https://github.com/TomHarte/dsk2woz
@@ -19,16 +20,29 @@ static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_num
 
 mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 {
+    switch (disksize) {
+        case 35 * BYTES_PER_TRACK:
+        case 36 * BYTES_PER_TRACK:
+        case 40 * BYTES_PER_TRACK:
+            // 35, 36, and 40 tracks are supported (same as Applesauce)
+            break;
+        default:
+	        Debug_printf("\nMediaTypeDSK error: unsupported disk image size %ld", disksize);
+            return MEDIATYPE_UNKNOWN;
+    }
+
     _media_fileh = f;
     diskiiemulation = true;
+    num_tracks = disksize / BYTES_PER_TRACK;
 
     // allocated SPRAM
-    const size_t dsk_image_size = 35 * 16 * 256;
+    const size_t dsk_image_size = num_tracks * BYTES_PER_TRACK;
     uint8_t *dsk = (uint8_t*)heap_caps_malloc(dsk_image_size, MALLOC_CAP_SPIRAM);
+    if (fseek(f, 0, SEEK_SET) != 0)
+        return MEDIATYPE_UNKNOWN;
     size_t bytes_read = fread(dsk, 1, dsk_image_size, f);
     if (bytes_read != dsk_image_size)
         return MEDIATYPE_UNKNOWN;
-    const bool is_prodos = false;
 
     dsk2woz_info();
     dsk2woz_tmap();
@@ -58,7 +72,7 @@ void MediaTypeDSK::dsk2woz_tmap()
 	// Let's start by filling the entire TMAP with empty tracks.
 	memset(tmap, 0xff, 160);
 	// Then we will add in the mappings.
-	for(size_t c = 0; c < 35; ++c) 
+	for(size_t c = 0; c < num_tracks; ++c) 
     {
 		size_t track_position = c << 2;
         if (c > 0)
@@ -87,10 +101,11 @@ bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
 
     // Debug_printf("\nStart Block, Block Count, Bit Count");
     
+	Debug_printf("\nMediaTypeDSK is_prodos: %s", _mediatype == MEDIATYPE_PO ? "Y" : "N");
 
 	// TODO: adapt this to that
-	// Write out all 35 tracks.
-	for (size_t c = 0; c < 35; c++)
+	// Write out all tracks.
+	for (size_t c = 0; c < num_tracks; c++)
 	{
 		uint16_t bytes_used;
 		uint16_t bit_count;
@@ -99,7 +114,7 @@ bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
 		{
 			trk_ptrs[c] = temp_ptr;
 			memset(trk_ptrs[c], 0, WOZ1_NUM_BLKS * 512);
-			serialise_track(trk_ptrs[c], &dsk[c * 16 * 256], c, false);
+			serialise_track(trk_ptrs[c], &dsk[c * 16 * 256], c, _mediatype == MEDIATYPE_PO);
 			temp_ptr += WOZ1_TRACK_LEN;
 			bytes_used = temp_ptr[0] + (temp_ptr[1] << 8);
 			temp_ptr += sizeof(uint16_t);

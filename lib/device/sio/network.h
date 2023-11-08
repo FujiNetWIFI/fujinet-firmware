@@ -27,6 +27,8 @@
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
 
+#define NEWDATA_SIZE 65535
+
 class sioNetwork : public virtualDevice
 {
 
@@ -257,8 +259,7 @@ private:
     /**
      * @brief the write buffer
      */
-    uint8_t *newData;
-#define NEWDATA_SIZE 65535
+    uint8_t *newData = nullptr;
 
     /**
      * Instantiate protocol object
@@ -390,6 +391,12 @@ private:
      * @brief Set JSON query string. (must be in JSON channelMode)
      */
     void sio_set_json_query();
+
+    /**
+     * @brief Set JSON parameters. (must be in JSON channelMode)
+     * Used to affect values on the JSON object
+     */
+    void sio_set_json_parameters();
 
     /**
      * @brief Set timer rate for PROCEED timer in ms

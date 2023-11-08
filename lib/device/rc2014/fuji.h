@@ -3,6 +3,11 @@
 
 #include <cstdint>
 
+#include "mbedtls/sha1.h"
+#include "mbedtls/sha256.h"
+#include "mbedtls/sha512.h"
+#include "mbedtls/md5.h"
+
 #include "network.h"
 #include "disk.h"
 
@@ -81,6 +86,16 @@ private:
 
     std::string base64_buffer;
 
+    mbedtls_md5_context _md5;
+    mbedtls_sha1_context _sha1;
+    mbedtls_sha256_context _sha256;
+    mbedtls_sha512_context _sha512;
+
+    char hash_mode = 0;
+    unsigned char _md5_output[16];
+    unsigned char _sha1_output[20];
+    unsigned char _sha256_output[32];
+    unsigned char _sha512_output[64];
 protected:
     void rc2014_reset_fujinet();          // 0xFF
     void rc2014_net_get_ssid();           // 0xFE
@@ -127,6 +142,10 @@ protected:
     void rc2014_base64_decode_compute();  // 0xCB
     void rc2014_base64_decode_length();   // 0xCA
     void rc2014_base64_decode_output();   // 0xC9
+    void rc2014_hash_input();             // 0xC8
+    void rc2014_hash_compute();           // 0xC7
+    void rc2014_hash_length();            // 0xC6
+    void rc2014_hash_output();            // 0xC5
 
     void rc2014_test_command();
 

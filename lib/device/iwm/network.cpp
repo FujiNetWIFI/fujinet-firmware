@@ -55,6 +55,14 @@ iwmNetwork::~iwmNetwork()
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
+    receiveBuffer = nullptr;
+    transmitBuffer = nullptr;
+    specialBuffer = nullptr;
+
+    if (protocol != nullptr)
+        delete protocol;
+
+    protocol = nullptr;
 }
 
 /** iwm COMMANDS ***************************************************************/
@@ -125,10 +133,15 @@ void iwmNetwork::send_status_dib_reply_packet()
  */
 void iwmNetwork::open()
 {
-    int idx = 0;
-    uint8_t _aux1 = data_buffer[idx++];
-    uint8_t _aux2 = data_buffer[idx++];
-    string d = string((char *)&data_buffer[idx], 256);
+    uint8_t _aux1 = data_buffer[0];
+    uint8_t _aux2 = data_buffer[1];
+
+    auto start = data_buffer + 2;
+    auto end = start + std::min<std::size_t>(256, sizeof(data_buffer) - 2);
+    auto null_pos = std::find(start, end, 0);
+
+    // ensure the string does not go past a null, but can be up to 256 bytes long if one not found
+    string d(start, null_pos);
 
     Debug_printf("\naux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
@@ -376,7 +389,7 @@ void iwmNetwork::json_query(iwm_decoded_cmd_t cmd)
     // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
     // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
 
-    Debug_printf("Query set to: %s\n", string((char *)data_buffer, data_len).c_str());
+    Debug_printf("\r\nQuery set to: %s, data_len: %d\r\n", string((char *)data_buffer, data_len).c_str(), data_len);
     json.setReadQuery(string((char *)data_buffer, data_len),cmdFrame.aux2);
 }
 

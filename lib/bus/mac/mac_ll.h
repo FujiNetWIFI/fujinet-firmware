@@ -89,7 +89,7 @@ protected:
   // void iwm_extra_clr();
   // void disable_output();
   // void enable_output();
-  bool mac_headsel_val() { return ((GPIO.in) & (0x01 << MCI_HDSEL)); }
+  bool mac_headsel_val() { return ((GPIO.in1.val) & (0x01U << (MCI_HDSEL-32))); }
 public:
   void setup_gpio();
 };
@@ -188,7 +188,7 @@ public:
 
   // Disk II handling by RMT peripheral
   void setup_rmt(); // install the RMT device
-  void start(uint8_t drive);
+  void start();
   void stop();
   // need a function to remove the RMT device?
 

@@ -502,8 +502,8 @@ iwmDisk::iwmDisk()
 
 mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
+  mediatype_t mt = disk_type;
   uint8_t deviceSlot = data_buffer[0]; // from mount ctrl cmd
-  mediatype_t mt = MEDIATYPE_UNKNOWN;
   Debug_printf("disk MOUNT %s\n", filename);
    
   // Destroy any existing MediaType
@@ -515,41 +515,69 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
   }
 
   // Determine MediaType based on filename extension
-  if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
-    disk_type = MediaType::discover_mediatype(filename);
+  if (mt == MEDIATYPE_UNKNOWN && filename != nullptr) {
+      mt = MediaType::discover_mediatype(filename);
+  }
+
+  if (mt == MEDIATYPE_DSK) {
+      // determine DO or PO based on file contents
+      mt = MediaType::discover_dsk_mediatype(f, disksize);
+  }
 
   if (deviceSlot < 4) // SP drive
   {    
-    switch (disk_type)
+    switch (mt)
     {
+    case MEDIATYPE_DO:
+        Debug_printf("\r\nMedia Type DO");
+        _disk = new MediaTypeDO();
+        break;
     case MEDIATYPE_PO:
         Debug_printf("\r\nMedia Type PO");
         _disk = new MediaTypePO();
-        mt = _disk->mount(f, disksize);
-        device_active = true; //change status only after we are mounted
-        //_disk->fileptr() = f;
-        // mt = MEDIATYPE_PO;
         break;
     default:
-        Debug_printf("\r\nMedia Type UNKNOWN for SP Drive - no mount in disk.cpp");
-        device_active = false;
+        Debug_printf("\r\nUnsupported Media Type for SmartPort");
+        mt = MEDIATYPE_UNKNOWN;
         break;
+    }
+
+    if (mt != MEDIATYPE_UNKNOWN) {
+        _disk->_media_host = host;
+        _disk->_mediatype = mt;
+        strcpy(_disk->_disk_filename, filename);
+        mt = _disk->mount(f, disksize);
+    }
+
+    if (mt != MEDIATYPE_UNKNOWN) {
+        // firmware needs to believe a high score enabled disk is 
+        // not write-protected. Otherwise it will skip write process
+        if (_disk->high_score_enabled)
+          readonly = false;
+
+        device_active = true; //change status only after we are mounted
     }
   }
   else // DiskII drive
   {
-    switch (disk_type)
+    switch (mt)
     {
-      case MEDIATYPE_DSK:
+      case MEDIATYPE_DO:
+      case MEDIATYPE_PO:
       case MEDIATYPE_WOZ:
           theFuji._fnDisk2s[deviceSlot - 4].init();
-          theFuji._fnDisk2s[deviceSlot - 4].mount(f, disk_type); // modulo to ensure device 0 or 1
+          mt = theFuji._fnDisk2s[deviceSlot - 4].mount(f, disksize, mt);
       break;
     default:
-        Debug_printf("\r\nMedia Type UNKNOWN for DiskII - no mount in disk.cpp");
-        device_active = false;
+        Debug_printf("\r\nUnsupported Media Type for DiskII");
+        mt = MEDIATYPE_UNKNOWN;
         break;
     }
+  }
+
+  if (mt == MEDIATYPE_UNKNOWN) {
+      Debug_printf("\r\nMedia Type UNKNOWN - no mount in disk.cpp");
+      device_active = false;
   }
 
   return mt;

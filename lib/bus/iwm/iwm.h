@@ -48,7 +48,7 @@
 #define SP_SUBTYPE_BYTE_REMOVABLE 0x00
 #define SP_SUBTYPE_BYTE_HARDDISK 0x20 // fixed media
 #define SP_SUBTYPE_BYTE_SWITCHED 0x40 // removable and supports disk switched errors
-#define SP_SUBTYPE_BYTE_HARDDISK_EXTENDED 0xA0 
+#define SP_SUBTYPE_BYTE_HARDDISK_EXTENDED 0xA0
 #define SP_SUBTYPE_BYTE_REMOVABLE_EXTENDED 0xC0 // removable and extended and supports disk switched errors
 
 #define SP_TYPE_BYTE_SCSI 0x03
@@ -252,7 +252,7 @@ protected:
 
   virtual void send_extended_status_reply_packet() = 0;
   virtual void send_extended_status_dib_reply_packet() = 0;
-  
+
   virtual void shutdown() = 0;
   virtual void process(iwm_decoded_cmd_t cmd) = 0;
 
@@ -273,6 +273,7 @@ protected:
   uint32_t get_address(iwm_decoded_cmd_t cmd) { return cmd.params[4] + (cmd.params[5] << 8) + (cmd.params[6] << 16); }
 
   void iwm_return_badcmd(iwm_decoded_cmd_t cmd);
+  void iwm_return_device_offline(iwm_decoded_cmd_t cmd);
   void iwm_return_ioerror();
   void iwm_return_noerror();
 
@@ -284,7 +285,7 @@ public:
   bool device_active;
   uint8_t prevtype = SP_TYPE_BYTE_HARDDISK; //preserve previous device type when offline
   bool switched = false; //indicate disk switched condition
-  bool readonly = true;  //write protected 
+  bool readonly = true;  //write protected
   bool is_config_device;
   /**
    * @brief get the IWM device Number (1-255)
@@ -295,7 +296,7 @@ public:
   //void assign_id(uint8_t n) { _devnum = n; };
 
   void assign_name(std::string name) {dib.device_name = name;}
-  
+
   /**
    * @brief Get the iwmBus object that this iwmDevice is attached to.
    */
@@ -344,18 +345,18 @@ private:
 
   iwm_decoded_cmd_t command;
 
-  void handle_init(); 
+  void handle_init();
 
   int old_track = -1;
   int new_track = -1;
 
 public:
   std::forward_list<iwmDevice *> _daisyChain;
-  
+
   cmdPacket_t command_packet;
   bool iwm_decode_data_packet(uint8_t *a, int &n);
    int iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t* data, uint16_t num);
- 
+
   // these things stay for the most part
   void setup();
   void service();
@@ -374,7 +375,7 @@ public:
   bool shuttingDown = false;                                  // TRUE if we are in shutdown process
   bool getShuttingDown() { return shuttingDown; };
   bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
-  
+
 };
 
 extern iwmBus IWM;

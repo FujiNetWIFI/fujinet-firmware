@@ -18,7 +18,7 @@ function selectListValue(selectName, currentValue) {
 	if (mySelect == null) return;
 
 	var opts = mySelect.options;
-	
+
 	for (var opt, j = 0; opt = opts[j]; j++) {
 		if (opt.value == currentValue) {
 			mySelect.selectedIndex = j;
@@ -94,6 +94,11 @@ setInputValue(current_encrypt_passphrase_enabled == 1, "encrypt-passphrase-yes",
 {% if components.apetime %}
 setInputValue(current_apetime == 1, "tz-apetime-yes", "tz-apetime-no");
 {% endif %}
+
+{% if components.cpm_settings %}
+setInputValue(current_cpm_enabled == 1, "cpm-virt-yes", "cpm-virt-no");
+{% endif %}
+
 
 {% if components.pclink %}
 setInputValue(current_pclink == 1, "pclink-yes", "pclink-no");

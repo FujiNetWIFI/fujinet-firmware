@@ -229,6 +229,10 @@ public:
     virtualDevice *deviceById(uint8_t device_id);
     void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
     QueueHandle_t qs100spiMessages = nullptr;
+
+    bool shuttingDown = false;
+    bool getShuttingDown() { return shuttingDown; };
+
 };
 
 extern systemBus s100Bus;

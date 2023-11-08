@@ -97,6 +97,7 @@ rc2014Modem::~rc2014Modem()
     if (modemSniffer != nullptr)
     {
         delete modemSniffer;
+        modemSniffer = nullptr;
     }
 
     if (telnet != nullptr)

@@ -1,11 +1,16 @@
 ;
-; Copyright (c) 2020 Raspberry Pi (Trading) Ltd.
+; FujiNet Project
 ;
-; SPDX-License-Identifier: BSD-3-Clause
+; Vintage Macintosh Microfloppy Controller Interface
+; Reads the drive phases and output a latch bit 
+; for DCD, the 8-bit latch register should be copied into upper and lower bytes of the value pulled by the SM
 ;
+
+.define ENABLE 7
 
 .program latch
 start:
+    wait 0 gpio ENABLE
     mov osr, pins   ; read the GPIO's into the output shift register
     out y, 4        ; shift the 4 LSBs into Y
     pull noblock    ; get the latch word into OSR, if no new word in FIFO, get it from X
@@ -33,7 +38,7 @@ void latch_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin
    sm_config_set_out_shift(&c, true, false, 16);
    // set out_pin as a GPIO output connected to this SM
    pio_gpio_init(pio, out_pin);
-   pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
+//    pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
    // sm_config_set_set_pins(&c, pin, 1);
    // initialize
    pio_sm_init(pio, sm, offset, &c);

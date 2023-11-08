@@ -40,6 +40,17 @@ void macBus::setup(void)
  * EJECT          0   1   1   1     7     eject the disk
  */
 
+/**
+ * for DCD (HD20) the protocol is different.
+ * need to read and write blocks
+ * would be nice to fetch the image name so it can be displayed on the mac
+ * 
+ * block numbers are 3 bytes, 512 bytes/block - 8GB addressable, but MAC OS limites to 2 GB
+ * 
+*/
+
+uint8_t sector_buffer[512];
+
 void macBus::service(void)
 {
   // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines - get_disks(0 or 1)
@@ -47,72 +58,124 @@ void macBus::service(void)
   {
     int c=fnUartBUS.read();
     if (c==0) return;
-    switch (c-'0')
+    else if (c < 'A') // floppy
     {
-    case 0:
-      // set direction to increase track number
-      Debug_printf("%c",'I');
-      theFuji.get_disks(0)->disk_dev.set_dir(+1);
-      // fnUartBUS.write('I');
-      // fnUartBUS.flush();
-      break;
-    case 4:
-      // set direction to decrease track number
-      Debug_printf("%c",'D');
-      theFuji.get_disks(0)->disk_dev.set_dir(-1);
-      // fnUartBUS.write('D');
-      // fnUartBUS.flush();
-      break;
-    case 1:
-      // step the head 
-      Debug_printf("%c",'S');
+      switch (c - '0')
       {
-        t0 = fnSystem.micros();
-        track_not_copied = true;
-        int tp = theFuji.get_disks(0)->disk_dev.step();
-        if (tp < 0)
+      case 0:
+        // set direction to increase track number
+        Debug_printf("%c", 'I');
+        theFuji.get_disks(4)->disk_dev.set_dir(+1);
+        // fnUartBUS.write('I');
+        // fnUartBUS.flush();
+        break;
+      case 4:
+        // set direction to decrease track number
+        Debug_printf("%c", 'D');
+        theFuji.get_disks(4)->disk_dev.set_dir(-1);
+        // fnUartBUS.write('D');
+        // fnUartBUS.flush();
+        break;
+      case 1:
+        // step the head
+        Debug_printf("%c", 'S');
         {
-          fnUartBUS.write('N');
+          t0 = fnSystem.micros();
+          track_not_copied = true;
+          int track_position = theFuji.get_disks(4)->disk_dev.step();
+          if (track_position < 0)
+          {
+            fnUartBUS.write('N');
+          }
+          else
+          {
+            fnUartBUS.write(track_position | 128); // send the track position(/2) back
+          }
         }
-        else
-        {
-          fnUartBUS.write(tp | 128); // send the track position(/2) back
-          // fnUartBUS.flush();
-        }
+        break;
+      case 2:
+        // turn motor ons
+        Debug_printf("\nMotor ON");
+        floppy_ll.start();
+        fnUartBUS.write('M');
+        // fnUartBUS.flush();
+        break;
+      case 6:
+        // turn motor off
+        Debug_printf("\nMotor OFF");
+        floppy_ll.stop();
+        fnUartBUS.write('F');
+        // fnUartBUS.flush();
+        break;
+      case 7:
+        // eject
+        Debug_printf("\neject - unmounting");
+        floppy_ll.stop();
+        theFuji.get_disks(4)->disk_dev.unmount();
+        fnUartBUS.write('E');
+        // fnUartBUS.flush();
+        break;
+      default:
+        Debug_printf("%03d");
+        fnUartBUS.write('X');
+        // fnUartBUS.flush();
+        break;
       }
-      break;
-    case 2:
-      // turn motor ons
-      Debug_printf("\nMOTOR ON");
-      floppy_ll.start(0);
-      fnUartBUS.write('M');
-      // fnUartBUS.flush();
-      break;
-    case 6:
-      // turn motor off
-      Debug_printf("\nMOTOR OFF");
-      floppy_ll.stop();
-      fnUartBUS.write('F');
-      // fnUartBUS.flush();
-      break;
-    case 7:
-      // eject
-      Debug_printf("\nEJECT!!!");
-      fnUartBUS.write('E');
-      // fnUartBUS.flush();
-      break;
-    default:
-      Debug_printf("%03d");
-      fnUartBUS.write('X');
-      // fnUartBUS.flush();
-      break;
+    }
+    else // DCD
+    { 
+      switch (c)
+      { 
+      case 'A':
+      case 'B':
+      case 'C':
+      case 'D':
+      case 'E':
+        _active_DCD_disk = c-'A'; // 0, 1, 2, 3
+        Debug_printf("\nactive disk %d", _active_DCD_disk);
+        break;
+      case 'R':
+      case 'T':
+      case 'W':
+        theFuji.get_disks(_active_DCD_disk)->disk_dev.process(c);
+        break;
+      default:
+        break;
+      }
     }
   }
   if (track_not_copied && stepper_timeout())
   {
-    theFuji.get_disks(0)->disk_dev.update_track_buffers();
+    theFuji.get_disks(4)->disk_dev.update_track_buffers();
     track_not_copied = false;
+    fnUartBUS.write('S');
   }
+}
+
+char macBus::num_dcd_mounts()
+{
+  // find maximum consecutively occupied disk slot
+  char d = 0;
+  while (_mounted_dcd_disks & (1 << d))
+    d++;
+  return d;
+}
+
+void macBus::add_dcd_mount(char c)
+{
+  _mounted_dcd_disks |= 1 << (c - '0');
+  // find maximum consecutively occupied disk slot
+  char d = num_dcd_mounts();
+  fnUartBUS.write('h'); // harddisk
+  fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
+}
+
+void macBus::rem_dcd_mount(char c)
+{
+  _mounted_dcd_disks &= ~(1 << (c - '0'));
+  char d = num_dcd_mounts();
+  fnUartBUS.write('h'); // harddisk
+  fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
 }
 
 bool macBus::stepper_timeout()

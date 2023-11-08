@@ -17,6 +17,7 @@ macPrinter::macPrinter(FileSystem *filesystem, printer_type printer_type)
 macPrinter::~macPrinter()
 {
     delete _pptr;
+    _pptr = nullptr;
 }
 
 /**
@@ -41,7 +42,10 @@ void macPrinter::process(mac_cmd_t cmd)
 void macPrinter::set_printer_type(macPrinter::printer_type printer_type)
 {
     // Destroy any current printer emu object
-    delete _pptr;
+    if (_pptr != nullptr)
+    {
+        delete _pptr;
+    }
 
     _ptype = printer_type;
     switch (printer_type)

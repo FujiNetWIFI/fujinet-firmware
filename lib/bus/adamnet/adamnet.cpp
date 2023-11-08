@@ -10,6 +10,7 @@
 #include "fnSystem.h"
 #include "led.h"
 #include <cstring>
+#include "fuji.h"
 
 #define IDLE_TIME 180 // Idle tolerance in microseconds
 
@@ -60,7 +61,7 @@ static void adamnet_reset_intr_task(void *arg)
         }
 
         b->reset();
-        vTaskDelay(1);
+        vTaskDelay(1/portTICK_PERIOD_MS);
     }
 }
 
@@ -159,27 +160,32 @@ void virtualDevice::reset()
     Debug_printf("No Reset implemented for device %u\n", _devnum);
 }
 
-void virtualDevice::adamnet_response_ack()
+void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 300)
+    if (!doNotWaitForIdle)
     {
         AdamNet.wait_for_idle();
-        adamnet_send(0x90 | _devnum);
     }
-    else
+    
+    if (t < 300)
     {
+        adamnet_send(0x90 | _devnum);
     }
 }
 
-void virtualDevice::adamnet_response_nack()
+void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
 {
     int64_t t = esp_timer_get_time() - AdamNet.start_time;
 
-    if (t < 300)
+    if (!doNotWaitForIdle)
     {
         AdamNet.wait_for_idle();
+    }
+    
+    if (t < 300)
+    {
         adamnet_send(0xC0 | _devnum);
     }
 }
@@ -282,15 +288,28 @@ void systemBus::_adamnet_process_cmd()
     }
 
     wait_for_idle(); // to avoid failing edge case where device is connected but disabled.
-    fnUartBUS.flush_input();
 }
 
 void systemBus::_adamnet_process_queue()
 {
+    adamnet_message_t msg;
+    if (xQueueReceive(qAdamNetMessages, &msg, 0) == pdTRUE)
+    {
+        switch (msg.message_id)
+        {
+        case ADAMNETMSG_DISKSWAP:
+            if (_fujiDev != nullptr)
+                _fujiDev->image_rotate();
+            break;
+        }
+    }
 }
 
 void systemBus::service()
 {
+    // process queue messages (disk swap)
+    _adamnet_process_queue();
+
     // Process anything waiting.
     if (fnUartBUS.available() > 0)
         _adamnet_process_cmd();
@@ -302,6 +321,9 @@ void systemBus::setup()
 
     // Set up interrupt for RESET line
     reset_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    // Set up event queue
+    qAdamNetMessages = xQueueCreate(4, sizeof(adamnet_message_t));
+
     // Start card detect task
     xTaskCreate(adamnet_reset_intr_task, "adamnet_reset_intr_task", 2048, this, 10, NULL);
     // Enable interrupt for card detection

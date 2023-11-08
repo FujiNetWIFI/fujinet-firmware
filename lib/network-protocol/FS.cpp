@@ -196,7 +196,7 @@ bool NetworkProtocolFS::read_file(unsigned short len)
 
     if (buf == nullptr)
     {
-        Debug_printf("NetworkProtocolTNFS:read_file(%u) could not allocate.\r\n", len);
+        Debug_printf("NetworkProtocolFS:read_file(%u) could not allocate.\r\n", len);
         return true; // error
     }
 
@@ -389,6 +389,7 @@ void NetworkProtocolFS::resolve()
 
 bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame)
 {
+    Debug_printf("NetworkProtocolFS::perform_idempotent_80, url: %s\r\n", url->toString().c_str());
     switch (cmdFrame->comnd)
     {
     case 0x20:

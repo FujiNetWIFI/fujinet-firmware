@@ -54,6 +54,7 @@ s100spiPrinter::~s100spiPrinter()
 {
     vTaskDelete(thPrinter);
     delete _pptr;
+    _pptr = nullptr;
 }
 
 s100spiPrinter::printer_type s100spiPrinter::match_modelname(std::string model_name)
@@ -122,7 +123,10 @@ void s100spiPrinter::shutdown()
 void s100spiPrinter::set_printer_type(printer_type printer_type)
 {
     // Destroy any current printer emu object
-    delete _pptr;
+    if (_pptr != nullptr)
+    {
+        delete _pptr;
+    }
 
     _ptype = printer_type;
     switch (printer_type)

@@ -21,6 +21,8 @@
 
 #include "base64.h"
 
+#define ADDITIONAL_DETAILS_BYTES 10
+
 sioFuji theFuji; // global fuji device object
 
 // sioDisk sioDiskDevs[MAX_HOSTS];
@@ -219,82 +221,94 @@ void sioFuji::sio_net_set_ssid()
 
     uint8_t ck = bus_to_peripheral((uint8_t *)&cfg, sizeof(cfg));
 
-    if (sio_checksum((uint8_t *)&cfg, sizeof(cfg)) != ck)
+    if (sio_checksum((uint8_t *)&cfg, sizeof(cfg)) != ck) {
         sio_error();
-    else
+        return;
+    }
+
+    bool save = cmdFrame.aux1 != 0;
+
+    Debug_printf("Connecting to net: >%s< password: >%s<\r\n", cfg.ssid, cfg.password);
+
+    int test_result = fnWiFi.test_connect(cfg.ssid, cfg.password);
+    if (test_result != 0)
     {
-        bool save = cmdFrame.aux1 != 0;
+        Debug_println("Could not connect to target SSID. Aborting save.");
+        sio_error();
+        return;
+    }
 
-        Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
+    // Only save these if we're asked to, otherwise assume it was a test for connectivity
+    if (save)
+    {
+        // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
+        // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
+        // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
 
-        fnWiFi.connect(cfg.ssid, cfg.password);
-
-        // Only save these if we're asked to, otherwise assume it was a test for connectivity
-        if (save)
+        int ssid_in_stored = -1;
+        for (i = 0; i < MAX_WIFI_STORED; i++)
         {
-            // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
-            // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
-            // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
-
-            int ssid_in_stored = -1;
-            for (i = 0; i < MAX_WIFI_STORED; i++)
+            if (Config.get_wifi_stored_ssid(i) == cfg.ssid)
             {
-                if (Config.get_wifi_stored_ssid(i) == cfg.ssid)
-                {
-                    ssid_in_stored = i;
-                    break;
-                }
+                ssid_in_stored = i;
+                break;
             }
-
-            // case 1
-            if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
-            {
-                Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
-                // Move enabled stored down one, last one will drop off
-                for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
-                {
-                    bool enabled = Config.get_wifi_stored_enabled(j - 1);
-                    if (!enabled)
-                        continue;
-
-                    Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
-                    Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
-                    Config.store_wifi_stored_enabled(j, true); // already confirmed this is enabled
-                }
-                // push the current to the top of stored
-                Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
-                Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
-                Config.store_wifi_stored_enabled(0, true);
-            }
-
-            // case 2
-            if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
-            {
-                Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\n", ssid_in_stored);
-                // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
-                for (int j = ssid_in_stored; j > 0; j--)
-                {
-                    Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
-                    Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
-                    Config.store_wifi_stored_enabled(j, true);
-                }
-
-                // push the current to the top of stored
-                Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
-                Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
-                Config.store_wifi_stored_enabled(0, true);
-            }
-
-            // save the new SSID as current
-            Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-            // Clear text here, it will be encrypted internally if enabled for encryption
-            Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-
-            Config.save();
         }
 
-        sio_complete();
+        // case 1
+        if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
+        {
+            Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
+            // Move enabled stored down one, last one will drop off
+            for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
+            {
+                bool enabled = Config.get_wifi_stored_enabled(j - 1);
+                if (!enabled)
+                    continue;
+
+                Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
+                Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
+                Config.store_wifi_stored_enabled(j, true); // already confirmed this is enabled
+            }
+            // push the current to the top of stored
+            Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
+            Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
+            Config.store_wifi_stored_enabled(0, true);
+        }
+
+        // case 2
+        if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
+        {
+            Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\n", ssid_in_stored);
+            // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
+            for (int j = ssid_in_stored; j > 0; j--)
+            {
+                Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
+                Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
+                Config.store_wifi_stored_enabled(j, true);
+            }
+
+            // push the current to the top of stored
+            Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
+            Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
+            Config.store_wifi_stored_enabled(0, true);
+        }
+
+        // save the new SSID as current
+        Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+        // Clear text here, it will be encrypted internally if enabled for encryption
+        Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+
+        Config.save();
     }
+    Debug_println("Restarting WiFiManager");
+    fnWiFi.start();
+
+    // give it a few seconds to restart the WiFi before we return to the client, who will immediately start checking status
+    // and get errors if we're not up yet
+    fnSystem.delay(3000);
+
+    sio_complete();
 }
 
 // Get WiFi Status
@@ -694,7 +708,8 @@ void sioFuji::sio_write_app_key()
 
     if (sio_checksum((uint8_t *)value, sizeof(value)) != ck)
     {
-        sio_error();
+        // apc: don't send 'E' on checksum error, 'N' was sent already
+        // sio_error();
         return;
     }
 
@@ -754,11 +769,20 @@ void sioFuji::sio_read_app_key()
 
     Debug_println("Fuji cmd: READ APPKEY");
 
+    struct
+    {
+        uint16_t size;
+        uint8_t value[MAX_APPKEY_LEN];
+    } __attribute__((packed)) response;
+    memset(&response, 0, sizeof(response));
+
     // Make sure we have an SD card mounted
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - can't read app key");
-        sio_error();
+        // sio_error();
+        // apc: we have to send error + dummy data after cmd was acked
+        bus_to_computer((uint8_t *)&response, sizeof(response), true);
         return;
     }
 
@@ -766,7 +790,7 @@ void sioFuji::sio_read_app_key()
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
     {
         Debug_println("Invalid app key metadata - aborting");
-        sio_error();
+        bus_to_computer((uint8_t *)&response, sizeof(response), true);
         return;
     }
 
@@ -778,16 +802,9 @@ void sioFuji::sio_read_app_key()
     if (fIn == nullptr)
     {
         Debug_printf("Failed to open input file: errno=%d\n", errno);
-        sio_error();
+        bus_to_computer((uint8_t *)&response, sizeof(response), true);
         return;
     }
-
-    struct
-    {
-        uint16_t size;
-        uint8_t value[MAX_APPKEY_LEN];
-    } __attribute__((packed)) response;
-    memset(&response, 0, sizeof(response));
 
     size_t count = fread(response.value, 1, sizeof(response.value), fIn);
 
@@ -1003,8 +1020,193 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[9] = MediaType::discover_disktype(f->filename);
 }
 
+// TODO: VERIFY THIS CODE. THE STASH SEEMED CORRUPT
+void sioFuji::sio_read_directory_block()
+{
+    // aux1 holds entry size for each record
+    uint8_t maxlen = cmdFrame.aux1;
+
+    // aux2:
+    // b0-2 = number of pages - 1 (i.e. 1 to 8)
+    // b3,4 = not used
+    // b5   = extended entry information (as per normal, adds 10 bytes of information to each entry at start)
+    // b6,7 = block mode marker already checked.
+
+    bool is_extended = ((cmdFrame.aux2 & 0x20) == 0x20);
+    uint8_t pages = (cmdFrame.aux2 & 0x07) + 1;
+
+    Debug_printf("Fuji cmd: READ DIRECTORY BLOCK (pages=%d, maxlen=%d, extended: %d)\n", pages, maxlen, is_extended);
+    
+    std::vector<uint8_t> response;
+    std::vector<uint8_t> start_offsets; // holds all the offsets for each dir entry in the response
+    std::vector<uint8_t> data_block;    // the data for each dir entry. no terminator char needed as we track the offsets. Double 0x7f is end of dir, and no more entries will come
+
+    uint16_t response_max = pages * 256;
+
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("No currently open directory\n");
+        sio_error();
+        return;
+    }
+
+    bool is_eod = false;
+    char current_entry[256];
+    uint16_t num_entries = 0;
+    uint16_t total_size = 9; // header bytes
+
+    uint16_t initial_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+
+    // keep filling buffers up until it can't fit another maxlen (plus header bytes etc)
+    // or we hit end of dir
+    while ( !is_eod && num_entries < 256 )
+    {
+        uint16_t additional_size = 0;
+        uint16_t pos_before_next = _fnHosts[_current_open_directory_slot].dir_tell();
+        fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+        if (f == nullptr)
+        {
+            // reached end of dir
+            is_eod = true;
+            current_entry[0] = 0x7F;
+            current_entry[1] = 0x7F;
+            current_entry[2] = 0;
+            additional_size = 2;
+        }
+        else
+        {
+            Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+            int bufsize;
+            char *filenamedest = current_entry;
+
+            // If 0x80 is set on AUX2, send back additional information
+            if (is_extended)
+            {
+                _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+                // Adjust remaining size of buffer and file path destination
+                bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
+                filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
+            }
+            else
+            {
+                bufsize = maxlen;
+            }
+
+            int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+            additional_size = filelen + is_extended ? ADDITIONAL_DETAILS_BYTES : 0;
+
+            // Add a slash at the end of directory entries
+            if (f->isDir && filelen < (bufsize - 2))
+            {
+                current_entry[filelen] = '/';
+                current_entry[filelen + 1] = '\0';
+                additional_size++;
+            }
+
+        }
+
+        // would this take us over the limit? 2 for start_offset bytes.
+        uint16_t new_size = total_size + 2 + additional_size;
+
+        if (new_size > response_max) {
+            Debug_printf("skipping add, would have taken us to %d size. additional was: %d\n", new_size, additional_size);
+            // reset to previous pos, and exit loop
+            _fnHosts[_current_open_directory_slot].dir_seek(pos_before_next);
+            break;
+        } else {
+            Debug_printf("adding additional entry with size: %d\n", additional_size);
+        }
+
+
+        start_offsets.push_back(static_cast<uint8_t>(data_block.size() & 0xFF)); // lo byte of current size (which is same as offset)
+        start_offsets.push_back(static_cast<uint8_t>((data_block.size() >> 8) & 0xFF)); // high byte
+
+        // add the string to the data block without the terminating null
+        if (is_extended)
+        {
+            // strlen doesn't work as we have prepended some additional information
+            // add the additional bytes first
+            for(int i=0; i < ADDITIONAL_DETAILS_BYTES; i++)
+            {
+                data_block.push_back(static_cast<uint8_t>(current_entry[i]));
+            }
+            // Then add the string part
+            int s_len = std::strlen(current_entry + ADDITIONAL_DETAILS_BYTES);
+            data_block.insert(data_block.end(), current_entry + ADDITIONAL_DETAILS_BYTES, current_entry + ADDITIONAL_DETAILS_BYTES + std::strlen(current_entry + ADDITIONAL_DETAILS_BYTES));
+        } else {
+            data_block.insert(data_block.end(), current_entry, current_entry + std::strlen(current_entry));
+        }
+
+        total_size = 9 + data_block.size() + start_offsets.size();
+        Debug_printf("current sizes, data: %d, offsets: %d, total: %d\n", data_block.size(), start_offsets.size(), data_block.size() + start_offsets.size());
+
+
+        num_entries++;
+    }
+
+    // ###################################################################
+    // CREATE THE RESPONSE BLOCK:
+    // ###################################################################
+    // byte 0-1 = "MF" (Multi-File, take your pick :D )
+    // byte 2   = Flags (currently 0x80 = Extended Information)
+    // byte 3   = Max Size Per Entry (maxlen from input)
+    // byte 4   = Num Entries in block (max 255)
+    // byte 5-6 = Total size of block (i.e. size without padding)
+    // byte 7-8 = First Position in block (i.e. dir pos value at start), allows up to 64k entries over all blocks
+    // Num Entries x 2 = Offsets in Data for each entry
+    // Data x Num Entries = data for each dir.
+    // 
+    // All above is < pages x 256 in size
+    
+    // HEADER BYTES
+    std::string headerBytes = "MF";
+    response.insert(response.end(), headerBytes.begin(), headerBytes.end());
+
+    // FLAGS
+    uint8_t header_flags = is_extended ? 0x80 : 0;  // more flags may come
+    response.push_back(header_flags);
+
+    // MAX SIZE PER ENTRY
+    response.push_back(maxlen);
+
+    // NUM ENTRIES
+    response.push_back(static_cast<uint8_t>(num_entries));
+
+    // Total size
+    int final_size = 9 + data_block.size() + start_offsets.size();
+    response.push_back(static_cast<uint8_t>(final_size & 0xFF));
+    response.push_back(static_cast<uint8_t>((final_size >> 8) & 0xFF));
+
+    // INITIAL POS VALUE
+    response.push_back(static_cast<uint8_t>(initial_pos & 0xFF));
+    response.push_back(static_cast<uint8_t>((initial_pos >> 8) & 0xFF));
+
+    // OFFSETS
+    response.insert(response.end(), start_offsets.begin(), start_offsets.end());
+
+    // DATA
+    response.insert(response.end(), data_block.begin(), data_block.end());
+
+    Debug_printf("Actual data size: %d to atari\n", response.size());
+    char *s = util_hexdump(response.data(), response.size());
+    Debug_printf("dump: \n%s\n", s);
+    free(s);
+
+    // buffer with 0s to requested size
+    response.resize(response_max, 0);
+
+    bus_to_computer(response.data(), response_max, false);
+}
+
 void sioFuji::sio_read_directory_entry()
 {
+     if ((cmdFrame.aux2 & 0xC0) == 0xC0) {
+        // Block mode directory entry
+        sio_read_directory_block();
+        return;
+    }
+
     uint8_t maxlen = cmdFrame.aux1;
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
@@ -1033,7 +1235,6 @@ void sioFuji::sio_read_directory_entry()
         int bufsize = sizeof(current_entry);
         char *filenamedest = current_entry;
 
-#define ADDITIONAL_DETAILS_BYTES 10
         // If 0x80 is set on AUX2, send back additional information
         if (cmdFrame.aux2 & 0x80)
         {
@@ -1118,10 +1319,52 @@ void sioFuji::sio_close_directory()
     sio_complete();
 }
 
+void sioFuji::sio_get_adapter_config_extended()
+{
+    // return string versions of the data rather than just bytes
+    AdapterConfigExtended cfg;
+    memset(&cfg, 0, sizeof(cfg));       // ensures all strings are null terminated
+
+    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
+
+    if (!fnWiFi.connected())
+    {
+        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
+    }
+    else
+    {
+        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
+        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
+        fnWiFi.get_current_bssid(cfg.bssid);
+        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
+    }
+
+    fnWiFi.get_mac(cfg.macAddress);
+
+    // convert fields to strings
+    strlcpy(cfg.sLocalIP, fnSystem.Net.get_ip4_address_str().c_str(), 16);
+    strlcpy(cfg.sGateway, fnSystem.Net.get_ip4_gateway_str().c_str(), 16);
+    strlcpy(cfg.sDnsIP,   fnSystem.Net.get_ip4_dns_str().c_str(),     16);
+    strlcpy(cfg.sNetmask, fnSystem.Net.get_ip4_mask_str().c_str(),    16);
+
+    sprintf(cfg.sMacAddress, "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
+    sprintf(cfg.sBssid,      "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
+
+    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
+
+}
+
 // Get network adapter configuration
 void sioFuji::sio_get_adapter_config()
 {
-    Debug_println("Fuji cmd: GET ADAPTER CONFIG");
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG (aux1:%hu)\r\n", cmdFrame.aux1);
+    if (cmdFrame.aux1 == 1)
+    {
+        Debug_println("Returning extended adapter config information");
+        sio_get_adapter_config_extended();
+        return;
+    }
 
     // Response to  FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
@@ -1752,16 +1995,22 @@ void sioFuji::sio_base64_encode_length()
     Debug_printf("FUJI: BASE64 ENCODE LENGTH\n");
 
     size_t l = base64_buffer.length();
+    uint8_t response[4] = {
+        (uint8_t)(l >>  0),
+        (uint8_t)(l >>  8),
+        (uint8_t)(l >>  16),
+        (uint8_t)(l >>  24)
+    };
 
     if (!l)
     {
         Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
-        bus_to_computer((uint8_t *)l, sizeof(size_t), true);
+        bus_to_computer(response, sizeof(response), true);
     }
 
     Debug_printf("base64 buffer length: %u bytes\n", l);
 
-    bus_to_computer((uint8_t *)&l, sizeof(size_t), false);
+    bus_to_computer(response, sizeof(response), false);
 }
 
 void sioFuji::sio_base64_encode_output()
@@ -1798,6 +2047,7 @@ void sioFuji::sio_base64_encode_output()
     base64_buffer.shrink_to_fit();
 
     bus_to_computer(p, l, false);
+    free(p);
 }
 
 void sioFuji::sio_base64_decode_input()
@@ -1859,17 +2109,23 @@ void sioFuji::sio_base64_decode_length()
     Debug_printf("FUJI: BASE64 DECODE LENGTH\n");
 
     size_t l = base64_buffer.length();
+    uint8_t response[4] = {
+        (uint8_t)(l >>  0),
+        (uint8_t)(l >>  8),
+        (uint8_t)(l >>  16),
+        (uint8_t)(l >>  24)
+    };
 
     if (!l)
     {
         Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
-        sio_error();
+        bus_to_computer(response, sizeof(response), true);
         return;
     }
 
     Debug_printf("base64 buffer length: %u bytes\n", l);
 
-    bus_to_computer((uint8_t *)&l, sizeof(size_t), false);
+    bus_to_computer(response, sizeof(response), false);
 }
 
 void sioFuji::sio_base64_decode_output()
@@ -1908,6 +2164,7 @@ void sioFuji::sio_base64_decode_output()
     base64_buffer.erase(0, l);
     base64_buffer.shrink_to_fit();
     bus_to_computer(p, l, false);
+    free(p);
 }
 
 void sioFuji::sio_hash_input()
@@ -2032,7 +2289,7 @@ void sioFuji::sio_hash_length()
     if (m == 1)  // Hex output
         m <<= 1; // double it.
 
-    bus_to_computer((uint8_t *)r, 1, false);
+    bus_to_computer((uint8_t *)&r, 1, false);
 }
 
 void sioFuji::sio_hash_output()
@@ -2155,70 +2412,70 @@ void sioFuji::sio_hash_output()
         {
             olen <<= 1;
             sprintf((char *)o, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-                    _sha256_output[0],
-                    _sha256_output[1],
-                    _sha256_output[2],
-                    _sha256_output[3],
-                    _sha256_output[4],
-                    _sha256_output[5],
-                    _sha256_output[6],
-                    _sha256_output[7],
-                    _sha256_output[8],
-                    _sha256_output[9],
-                    _sha256_output[10],
-                    _sha256_output[11],
-                    _sha256_output[12],
-                    _sha256_output[13],
-                    _sha256_output[14],
-                    _sha256_output[15],
-                    _sha256_output[16],
-                    _sha256_output[17],
-                    _sha256_output[18],
-                    _sha256_output[19],
-                    _sha256_output[20],
-                    _sha256_output[21],
-                    _sha256_output[22],
-                    _sha256_output[23],
-                    _sha256_output[24],
-                    _sha256_output[25],
-                    _sha256_output[26],
-                    _sha256_output[27],
-                    _sha256_output[28],
-                    _sha256_output[29],
-                    _sha256_output[30],
-                    _sha256_output[31],
-                    _sha256_output[32],
-                    _sha256_output[33],
-                    _sha256_output[34],
-                    _sha256_output[35],
-                    _sha256_output[36],
-                    _sha256_output[37],
-                    _sha256_output[38],
-                    _sha256_output[39],
-                    _sha256_output[40],
-                    _sha256_output[41],
-                    _sha256_output[42],
-                    _sha256_output[43],
-                    _sha256_output[44],
-                    _sha256_output[45],
-                    _sha256_output[46],
-                    _sha256_output[47],
-                    _sha256_output[48],
-                    _sha256_output[49],
-                    _sha256_output[50],
-                    _sha256_output[51],
-                    _sha256_output[52],
-                    _sha256_output[53],
-                    _sha256_output[54],
-                    _sha256_output[55],
-                    _sha256_output[56],
-                    _sha256_output[57],
-                    _sha256_output[58],
-                    _sha256_output[59],
-                    _sha256_output[60],
-                    _sha256_output[61],
-                    _sha256_output[62],
-                    _sha256_output[63]);
+                    _sha512_output[0],
+                    _sha512_output[1],
+                    _sha512_output[2],
+                    _sha512_output[3],
+                    _sha512_output[4],
+                    _sha512_output[5],
+                    _sha512_output[6],
+                    _sha512_output[7],
+                    _sha512_output[8],
+                    _sha512_output[9],
+                    _sha512_output[10],
+                    _sha512_output[11],
+                    _sha512_output[12],
+                    _sha512_output[13],
+                    _sha512_output[14],
+                    _sha512_output[15],
+                    _sha512_output[16],
+                    _sha512_output[17],
+                    _sha512_output[18],
+                    _sha512_output[19],
+                    _sha512_output[20],
+                    _sha512_output[21],
+                    _sha512_output[22],
+                    _sha512_output[23],
+                    _sha512_output[24],
+                    _sha512_output[25],
+                    _sha512_output[26],
+                    _sha512_output[27],
+                    _sha512_output[28],
+                    _sha512_output[29],
+                    _sha512_output[30],
+                    _sha512_output[31],
+                    _sha512_output[32],
+                    _sha512_output[33],
+                    _sha512_output[34],
+                    _sha512_output[35],
+                    _sha512_output[36],
+                    _sha512_output[37],
+                    _sha512_output[38],
+                    _sha512_output[39],
+                    _sha512_output[40],
+                    _sha512_output[41],
+                    _sha512_output[42],
+                    _sha512_output[43],
+                    _sha512_output[44],
+                    _sha512_output[45],
+                    _sha512_output[46],
+                    _sha512_output[47],
+                    _sha512_output[48],
+                    _sha512_output[49],
+                    _sha512_output[50],
+                    _sha512_output[51],
+                    _sha512_output[52],
+                    _sha512_output[53],
+                    _sha512_output[54],
+                    _sha512_output[55],
+                    _sha512_output[56],
+                    _sha512_output[57],
+                    _sha512_output[58],
+                    _sha512_output[59],
+                    _sha512_output[60],
+                    _sha512_output[61],
+                    _sha512_output[62],
+                    _sha512_output[63]);
         }
         break;
     }

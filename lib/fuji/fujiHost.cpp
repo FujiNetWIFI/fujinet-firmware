@@ -356,6 +356,7 @@ int fujiHost::unmount_tnfs()
     if (_fs != nullptr)
     {
         delete _fs;
+        _fs = nullptr;
     }
 
     return 0;

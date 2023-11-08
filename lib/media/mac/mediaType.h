@@ -17,6 +17,7 @@ enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_MOOF,
+    MEDIATYPE_DCD,
     MEDIATYPE_COUNT
 };
 
@@ -26,7 +27,7 @@ protected:
     FILE *_media_fileh = nullptr;
     uint32_t _media_image_size = 0;
     uint32_t _media_num_sectors = 0;
-    uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
+    uint16_t _media_sector_size = 512; //DISK_BYTES_PER_SECTOR_SINGLE;
     int32_t _media_last_sector = INVALID_SECTOR_VALUE;
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
 
@@ -65,9 +66,9 @@ public:
     virtual bool format(uint16_t *respopnsesize);
 
     // Returns TRUE if an error condition occurred
-    virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t *buffer) = 0;
+    virtual bool read(uint32_t blockNum, uint8_t *buffer) = 0;
     // Returns TRUE if an error condition occurred
-    virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t *buffer) = 0;
+    virtual bool write(uint32_t blockNum, uint8_t *buffer) = 0;
 
     // virtual uint16_t sector_size(uint16_t sectornum);
 

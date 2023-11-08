@@ -35,7 +35,11 @@ constexpr const char * const cx16Printer::printer_model_str[PRINTER_INVALID];
 
 cx16Printer::~cx16Printer()
 {
-    delete _pptr;
+    if (_pptr != nullptr)
+    {
+        delete _pptr;
+        _pptr = nullptr;
+    }
 }
 
 // write for W commands
@@ -158,7 +162,10 @@ void cx16Printer::status()
 void cx16Printer::set_printer_type(cx16Printer::printer_type printer_type)
 {
     // Destroy any current printer emu object
-    delete _pptr;
+    if (_pptr != nullptr)
+    {
+        delete _pptr;
+    }
 
     _ptype = printer_type;
     switch (printer_type)

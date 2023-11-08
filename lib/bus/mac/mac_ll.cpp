@@ -804,13 +804,13 @@ void mac_ll::setup_gpio()
 #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 #define RMT_USEC (APB_CLK_FREQ / MHZ)
 
-void mac_floppy_ll::start(uint8_t drive)
+void mac_floppy_ll::start()
 {
   // floppy_ll.set_output_to_rmt();
   // floppy_ll.enable_output();
   ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer[0], track_numbits[0], track_bit_period));
   fnLedManager.set(LED_BUS, true);
-  Debug_printf("\nstart floppy %d : ",drive+1);
+  Debug_printf("\nstart floppy");
 }
 
 void mac_floppy_ll::stop()
@@ -885,16 +885,18 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
     rmt_item32_t* pdest = dest;
     while (num < wanted_num)
     {
-        // move this to nextbit()
-        // MC34780 behavior for random bit insertion
-      // https://applesaucefdc.com/woz/reference2/
-      window <<= 1;
-      window |= (uint8_t)floppy_ll.nextbit();
-      window &= 0x0f;
-      outbit = (window != 0) ? window & 0x02 : floppy_ll.fakebit();
-      pdest->val = (outbit != 0) ? bit1.val : bit0.val;
+       // hold over from DISK][ bit stream generation
+       // move this to nextbit()
+       // MC34780 behavior for random bit insertion
+       // https://applesaucefdc.com/woz/reference2/
+      // window <<= 1;
+      // window |= (uint8_t)floppy_ll.nextbit();
+      // window &= 0x0f;
+      // // outbit = (window != 0) ? window & 0x02 : floppy_ll.fakebit();
+      // outbit = (window != 0) ? window & 0x02 : 0; // turn off random bits
+      // pdest->val = (outbit != 0) ? bit1.val : bit0.val;
 
-      // pdest->val = floppy_ll.nextbit() ? bit1.val : bit0.val;
+      pdest->val = floppy_ll.nextbit() ? bit1.val : bit0.val;
 
       num++;
       pdest++;
@@ -927,7 +929,7 @@ void mac_floppy_ll::setup_rmt()
   else
     config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; 
 #endif
-  config.mem_block_num = 8;
+  config.mem_block_num = 1;
   config.tx_config.loop_en = false;
   config.tx_config.carrier_en = false;
   config.tx_config.idle_output_en = true;
