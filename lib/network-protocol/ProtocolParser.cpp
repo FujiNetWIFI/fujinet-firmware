@@ -9,6 +9,7 @@
 #include "HTTP.h"
 #include "SSH.h"
 #include "SMB.h"
+#include "SD.h"
 
 #include "../utils/string_utils.h"
 #include "../../include/debug.h"
@@ -51,6 +52,9 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
             break;
         case "SMB"_sh:
             protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
+            break;
+        case "SD"_sh:
+            protocol = new NetworkProtocolSD(receiveBuffer, transmitBuffer, specialBuffer);
             break;
         default:
             Debug_printf("Invalid protocol: %s\n", scheme.c_str());
