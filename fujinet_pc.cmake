@@ -56,13 +56,15 @@ set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware
     lib/FileSystem lib/EdUrlParser
     lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson
-    lib/mongoose lib/webdav lib/http lib/sam lib/task
+    lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
     lib/network-protocol 
     lib/fuji lib/bus lib/device lib/media
     lib/encrypt lib/base64
-    components_pc/cJSON components_pc/libsmb2/include components_pc/libssh/include
-    ${CMAKE_CURRENT_BINARY_DIR}/components_pc/libssh/include
+    components_pc/mongoose
+    components_pc/cJSON
+    components_pc/libsmb2/include
+    components_pc/libssh/include ${CMAKE_CURRENT_BINARY_DIR}/components_pc/libssh/include
 )
 
 set(SOURCES src/main.cpp
@@ -112,7 +114,7 @@ set(SOURCES src/main.cpp
     lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
-    lib/mongoose/mongoose.h lib/mongoose/mongoose.c
+    components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
     lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
     lib/http/httpService.h lib/http/httpService.cpp
     lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
