@@ -61,8 +61,8 @@ set(INCLUDE_DIRS include
     lib/network-protocol 
     lib/fuji lib/bus lib/device lib/media
     lib/encrypt lib/base64
-    components/cJSON components/libsmb2/include components/libssh/include
-    ${CMAKE_CURRENT_BINARY_DIR}/components/libssh/include
+    components_pc/cJSON components_pc/libsmb2/include components_pc/libssh/include
+    ${CMAKE_CURRENT_BINARY_DIR}/components_pc/libssh/include
 )
 
 set(SOURCES src/main.cpp
@@ -236,7 +236,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 # Mbed TLS
 # https://github.com/Mbed-TLS/mbedtls
 # - to build from source (failed on Windows/MSYS2)
-# add_subdirectory(components/mbedtls)
+# add_subdirectory(components_pc/mbedtls)
 # - to use library package (Ubuntu deb package is old, does not support cmake/find_package)
 # find_package(MbedTLS)
 # - try to find necessary files in system ...
@@ -257,7 +257,7 @@ set(ENABLE_CJSON_UTILS ON CACHE BOOL "Enable building the cJSON_Utils library.")
 set(ENABLE_CJSON_TEST OFF CACHE BOOL "Enable building cJSON test")
 # set(CJSON_OVERRIDE_BUILD_SHARED_LIBS ON CACHE BOOL "Override BUILD_SHARED_LIBS with CJSON_BUILD_SHARED_LIBS")
 # set(CJSON_BUILD_SHARED_LIBS OFF CACHE BOOL "Overrides BUILD_SHARED_LIBS if CJSON_OVERRIDE_BUILD_SHARED_LIBS is enabled")
-add_subdirectory(components/cJSON)
+add_subdirectory(components_pc/cJSON)
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     #add_link_options("-fstack-protector") # requires newer cmake
     set(CMAKE_EXE_LINKER_FLAGS "-fstack-protector") # works with old cmake
@@ -266,14 +266,14 @@ endif()
 
 # Libsmb2
 # https://github.com/sahlberg/libsmb2
-add_subdirectory(components/libsmb2)
+add_subdirectory(components_pc/libsmb2)
 
 # libssh
 # https://www.libssh.org/
 # - FujiNet (platfomio/ESP32) port
 # add_subdirectory(lib/libssh)
 # - Regular elease
-add_subdirectory(components/libssh)
+add_subdirectory(components_pc/libssh)
 
 target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh)
 target_link_libraries(fujinet ${CRYPTO_LIBS})
