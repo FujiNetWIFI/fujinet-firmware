@@ -1,5 +1,5 @@
 if (NOT "$ENV{FUJINET_PC}" STREQUAL "")
-    set(FUJINET_PC "$ENV{FUJINET_PC}" CACHE INTERNAL "FUJINET_PC - Enforce FujiNet-PC build, copied from environment variable")
+    set(FUJINET_PC "$ENV{FUJINET_PC}" CACHE INTERNAL "FUJINET_PC - Set non-zero to enforce FujiNet-PC build, copied from environment variable")
 endif()
 
 if (NOT FUJINET_PC)
