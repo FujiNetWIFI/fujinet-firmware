@@ -1,6 +1,7 @@
 #ifndef STRING_UTILS_H
 #define STRING_UTILS_H
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -54,4 +55,4 @@ namespace mstr {
     std::string parent(std::string path, std::string plus = "");
     std::string localParent(std::string path, std::string plus);
 }
-#endif
+#endif // STRING_UTILS_H

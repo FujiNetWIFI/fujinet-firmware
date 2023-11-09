@@ -36,11 +36,13 @@
 
 - TODO: lib/config/fnc_wifi.cpp
 
-- **DONE**: include/debug.h lib/utils/utils.h lib/utils/utils.cpp
+- **DONE** / merged: include/debug.h
 
-- TODO: lib/utils/cbuf.h lib/utils/cbuf.cpp
+- **DONE** / merged: lib/utils/utils.h lib/utils/utils.cpp
 
-- TODO: lib/utils/string_utils.h lib/utils/string_utils.cpp
+- **DONE** / no change: lib/utils/cbuf.h lib/utils/cbuf.cpp
+
+- **WIP**: lib/utils/string_utils.h lib/utils/string_utils.cpp
 
 - TODO: lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
 
@@ -74,7 +76,7 @@
 
 - TODO: lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
 
-- **NO CHANGE**: lib/EdUrlParser/EdUrlParser.h lib/EdUrlParser/EdUrlParser.cpp
+- **DONE** / no change: lib/EdUrlParser/EdUrlParser.h lib/EdUrlParser/EdUrlParser.cpp
 
     Note: So far the file compiles without errors.
     Maybe it will be necessary to use FN-PC version calling std namespace explicitly

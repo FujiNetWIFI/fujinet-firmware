@@ -10,6 +10,10 @@
 #include <sstream>
 #include <iomanip>
 
+#if defined(_WIN32)
+#include "asprintf.h" // use asprintf from libsmb2
+#endif
+
 // Copy string to char buffer
 void copyString(const std::string& input, char *dst, size_t dst_size)
 {
@@ -182,16 +186,16 @@ namespace mstr {
         unsigned int index;
 
         for (index = 0; index < s1.size(); index++) {
-            switch (s1[index]) {
+            switch ((unsigned char)s1[index]) {
                 case '*':
                     return true; /* rest is not interesting, it's a match */
                 case '?':
-                    if (s2[index] == 0xa0) {
+                    if ((unsigned char)s2[index] == 0xa0) {
                         return false; /* wildcard, but the other is too short */
                     }
                     break;
                 case 0xa0: /* This one ends, let's see if the other as well */
-                    return (s2[index] == 0xa0);
+                    return ((unsigned char)s2[index] == 0xa0);
                 default:
                     if (s1[index] != s2[index]) {
                         return false; /* does not match */
@@ -234,7 +238,7 @@ namespace mstr {
     void A02Space(std::string &s)
     {
         std::transform(s.begin(), s.end(), s.begin(),
-                    [](unsigned char c) { return (c == '\xA0') ? '\x20': c; });
+                    [](unsigned char c) { return (c == 0xa0) ? 0x20: c; });
     }
 
     bool isText(std::string &s) 
