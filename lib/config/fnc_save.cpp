@@ -14,7 +14,11 @@ void fnConfig::save()
 {
     int i;
 
+#ifdef ESP_PLATFORM
     Debug_println("fnConfig::save");
+#else
+    Debug_printf("fnConfig::save \"%s\"\r\n", _general.config_file_path.c_str());
+#endif
 
     if (!_dirty)
     {
@@ -42,6 +46,14 @@ void fnConfig::save()
     ss << "encrypt_passphrase=" << _general.encrypt_passphrase << LINETERM;
 
     // ss << LINETERM;
+
+#ifndef ESP_PLATFORM
+    // SERIAL
+    ss << LINETERM << "[Serial]" << LINETERM;
+    ss << "port=" << _serial.port << LINETERM;
+    ss << "command=" << std::string(_serial_command_pin_names[_serial.command]) << LINETERM;
+    ss << "proceed=" << std::string(_serial_proceed_pin_names[_serial.proceed]) << LINETERM;
+#endif
 
     // WIFI
     ss << LINETERM << "[WiFi]" LINETERM;
@@ -158,6 +170,15 @@ void fnConfig::save()
     ss << "enable_device_slot_8=" << _denable.device_8_enabled << LINETERM;
     ss << "enable_apetime=" << _denable.apetime << LINETERM;
 
+#ifndef ESP_PLATFORM
+    // NETSIO
+    ss << LINETERM << "[NetSIO]" << LINETERM;
+    ss << "enabled=" << _netsio.netsio_enabled << LINETERM;
+    ss << "host=" << _netsio.host << LINETERM;
+    ss << "port=" << _netsio.port << LINETERM;
+#endif
+
+#ifdef ESP_PLATFORM
     // Write the results out
     FILE *fout = NULL;
     if (fnConfig::get_general_fnconfig_spifs() == true) //only if spiffs is enabled
@@ -178,14 +199,25 @@ void fnConfig::save()
             return;
         }
     }
-        std::string result = ss.str();
-        size_t z = fwrite(result.c_str(), 1, result.length(), fout);
-        (void)z; // Get around unused var
-        Debug_printf("fnConfig::save wrote %d bytes\r\n", z);
-        fclose(fout);
+#else
+// !ESP_PLATFORM
+    // Write the results out
+    FILE *fout = fopen(_general.config_file_path.c_str(), FILE_WRITE);
+    if (fout == nullptr)
+    {
+        Debug_printf("Failed to open config file\r\n");
+        return;
+    }
+#endif
+    std::string result = ss.str();
+    size_t z = fwrite(result.c_str(), 1, result.length(), fout);
+    (void)z; // Get around unused var
+    Debug_printf("fnConfig::save wrote %u bytes\r\n", (unsigned)z);
+    fclose(fout);
     
     _dirty = false;
 
+#ifdef ESP_PLATFORM
     // Copy to SD if possible, only when wrote FLASH first 
     if (fnSDFAT.running() && fnConfig::get_general_fnconfig_spifs() == true)
     {
@@ -196,4 +228,5 @@ void fnConfig::save()
             return;
         }
     }
+#endif
 }

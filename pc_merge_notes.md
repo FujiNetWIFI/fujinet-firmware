@@ -2,63 +2,75 @@
 
 - TODO: src/main.cpp
 
-- TODO: lib/config/fnConfig.h lib/config/fnConfig.cpp
+- **DONE** / merge: lib/config/fnConfig.h lib/config/fnConfig.cpp
 
-- TODO: lib/config/fnc_bt.cpp
+    removed get_general_label(), use get_general_devicename() instead
 
-- TODO: lib/config/fnc_cassette.cpp
+- **DONE** / identical: lib/config/fnc_bt.cpp
 
-- TODO: lib/config/fnc_cpm.cpp
+- **DONE** / identical: lib/config/fnc_cassette.cpp
 
-- TODO: lib/config/fnc_enable.cpp
+- **DONE** / identical: lib/config/fnc_cpm.cpp
 
-- TODO: lib/config/fnc_general.cpp
+- **DONE** / identical: lib/config/fnc_enable.cpp
 
-- TODO: lib/config/fnc_hosts.cpp
+- **DONE**: lib/config/fnc_general.cpp
 
-- TODO: lib/config/fnc_load.cpp
+- **DONE** / identical: lib/config/fnc_hosts.cpp
 
-- TODO: lib/config/fnc_modem.cpp
+- **DONE**: lib/config/fnc_load.cpp
 
-- TODO: lib/config/fnc_mounts.cpp
+- **DONE** / identical: lib/config/fnc_modem.cpp
 
-- TODO: lib/config/fnc_network.cpp
+- **DONE** / identical: lib/config/fnc_mounts.cpp
 
-- TODO: lib/config/fnc_phonebook.cpp
+- **DONE** / merge: lib/config/fnc_network.cpp
 
-- TODO: lib/config/fnc_printer.cpp
+- **DONE** / identical: lib/config/fnc_phonebook.cpp
 
-- TODO: lib/config/fnc_save.cpp
+- **DONE** / identical: lib/config/fnc_printer.cpp
 
-- TODO: lib/config/fnc_serial.cpp
+- **DONE** / merge: lib/config/fnc_save.cpp
 
-- TODO: lib/config/fnc_util.cpp
+- **DONE** / merge: lib/config/fnc_serial.cpp
 
-- TODO: lib/config/fnc_wifi.cpp
+- **DONE** / merge: lib/config/fnc_util.cpp
 
-- **DONE** / merged: include/debug.h
+- **DONE** / identical: lib/config/fnc_wifi.cpp
 
-- **DONE** / merged: lib/utils/utils.h lib/utils/utils.cpp
+- **DONE** / merge: include/debug.h
 
-- **DONE** / no change: lib/utils/cbuf.h lib/utils/cbuf.cpp
+- **DONE** / merge: lib/utils/utils.h lib/utils/utils.cpp
 
-- **WIP**: lib/utils/string_utils.h lib/utils/string_utils.cpp
+- **DONE** / identical: lib/utils/cbuf.h lib/utils/cbuf.cpp
 
-- TODO: lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
+- **DONE**: lib/utils/string_utils.h lib/utils/string_utils.cpp
+
+- **WIP**: lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
+
+    fnWiFi.h
 
 - TODO: lib/hardware/led.h lib/hardware/led.cpp
 
-- TODO: lib/hardware/fnUART.h lib/hardware/fnUART.cpp
+- **WIP**: lib/hardware/fnUART.h lib/hardware/fnUART.cpp
 
-- TODO: lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
+    fnUART.h
+
+- **WIP**: lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
+
+    fnSystem.h
 
 - TODO: lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
 
-- TODO: lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
+- **WIO**: lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
+
+    fnFS.h
 
 - TODO: lib/FileSystem/fnFsSPIFFS.h lib/FileSystem/fnFsSPIFFS.cpp
 
-- TODO: lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
+- **WIP**: lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
+
+    fnFsSD.h
 
 - TODO: lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
 
@@ -83,7 +95,9 @@
     (std::string std::vectort etc.) to fix "ambiguous byte" compilation errors
     - FN-PC files with "ambiguous byte" fix: EdUrlParser.[h,cpp] fnjson.cpp fnFTP.h
 
-- TODO: lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
+- **WIP**: lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
+
+    fnDNS.h
 
 - TODO: lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
 
@@ -193,7 +207,9 @@
 
 - TODO: lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
 
-- TODO: lib/bus/sio/sio.h lib/bus/sio/sio.cpp
+- **WIP**: lib/bus/sio/sio.h lib/bus/sio/sio.cpp
+
+    sio.h
 
 - TODO: lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
 
@@ -285,6 +301,6 @@
 
 - TODO: lib/compat/compat_inet.c
 
-- TODO: lib/compat/compat_gettimeofday.c
+- **DONE** / merged: lib/compat/compat_gettimeofday.h lib/compat/compat_gettimeofday.c
 
 - TODO: 

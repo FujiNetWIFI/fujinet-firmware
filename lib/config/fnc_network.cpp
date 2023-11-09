@@ -1,5 +1,6 @@
 #include "fnConfig.h"
 #include <cstring>
+#include "compat_string.h"
 
 void fnConfig::store_udpstream_host(const char host_ip[64])
 {

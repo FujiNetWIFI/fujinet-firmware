@@ -4,15 +4,28 @@
 #include <time.h>
 
 #include <stdio.h>
+#include <stdint.h>
 
 
-#ifndef FILE_READ
-#define FILE_READ "r"
-#define FILE_WRITE "w"
-#define FILE_APPEND "a"
+#ifndef ESP_PLATFORM
+#include "compat_dirent.h"
+#include "fnFile.h"
 #endif
 
+#ifndef FILE_READ
+#define FILE_READ "rb"
+#define FILE_WRITE "wb"
+#define FILE_APPEND "ab"
+#define FILE_READ_TEXT "rt"
+#define FILE_WRITE_TEXT "wt"
+#define FILE_APPEND_TEXT "at"
+#endif
+
+#ifdef ESP_PLATFORM
 #define MAX_PATHLEN 256
+#else
+#define MAX_PATHLEN 1024
+#endif
 
 #define FNFS_INVALID_DIRPOS 0xFFFF
 
@@ -22,6 +35,10 @@ enum fsType
     FSTYPE_LITTLEFS,
     FSTYPE_SDFAT,
     FSTYPE_TNFS,
+#ifndef ESP_PLATFORM
+    FSTYPE_SMB,
+    FSTYPE_FTP,
+#endif
     FSTYPE_COUNT
 };
 
@@ -40,7 +57,11 @@ typedef struct fsdir_entry fsdir_entry_t;
 class FileSystem
 {
 protected:
+#ifdef ESP_PLATFORM
     char _basepath[20] = { '\0' };
+#else
+    char _basepath[MAX_PATHLEN] = { '\0' };
+#endif
     bool _started = false;
     fsdir_entry _direntry;
 
@@ -61,6 +82,9 @@ public:
     static const char *type_to_string(fsType type);
 
     static long filesize(FILE *);
+#ifndef ESP_PLATFORM
+    static long filesize(FileHandler *);
+#endif
     static long filesize(const char *filepath);
 
     // Different FS implemenations may require different startup parameters,
@@ -68,6 +92,9 @@ public:
     //virtual bool start()=0;
 
     virtual FILE * file_open(const char* path, const char* mode = FILE_READ) = 0;
+#ifndef ESP_PLATFORM
+    virtual FileHandler * filehandler_open(const char* path, const char* mode = FILE_READ) = 0;
+#endif
 
     virtual bool exists(const char* path) = 0;
 

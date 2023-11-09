@@ -5,6 +5,7 @@
 
 #include <cstring>
 #include <sstream>
+#include <sys/stat.h>
 
 #include "keys.h"
 #include "utils.h"
@@ -17,6 +18,7 @@
 */
 void fnConfig::load()
 {
+#ifdef ESP_PLATFORM
     Debug_println("fnConfig::load");
 
 #if defined(NO_BUTTONS) || defined(BUILD_LYNX) || defined(BUILD_APPLE) || defined(BUILD_RS232) || defined(BUILD_RC2014)
@@ -89,6 +91,28 @@ New behavior: copy from SD first if available, then read FLASH.
         Debug_println("Load fnconfig.ini from flash");
         fin = fsFlash.file_open(CONFIG_FILENAME);
     }
+// ESP_PLATFORM
+ #else
+// !ESP_PLATFORM
+    Debug_printf("fnConfig::load \"%s\"\n", _general.config_file_path.c_str());
+        
+    struct stat st;
+    if (stat(_general.config_file_path.c_str(), &st) < 0)
+    {
+        _dirty = true; // We have a new (blank) config, so we treat it as needing to be saved
+        Debug_println("No config found - starting fresh!");
+        return; // No local copy - ABORT
+    }
+    FILE *fin = fopen(_general.config_file_path.c_str(), FILE_READ_TEXT);
+// !ESP_PLATFORM
+ #endif
+
+    if (fin == nullptr)
+    {
+        Debug_printf("Failed to open config file\n");
+        return;
+    }
+
     // Read INI file into buffer (for speed)
     // Then look for sections and handle each
     char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
@@ -162,6 +186,14 @@ New behavior: copy from SD first if available, then read FLASH.
         case SECTION_DEVICE_ENABLE: // Thom put this here to handle explicit device enables in adam
             _read_section_device_enable(ss);
             break;
+#ifndef ESP_PLATFORM
+        case SECTION_SERIAL:
+            _read_section_serial(ss);
+            break;
+        case SECTION_NETSIO:
+            _read_section_netsio(ss);
+            break;
+#endif
         case SECTION_UNKNOWN:
             break;
         }
@@ -169,6 +201,7 @@ New behavior: copy from SD first if available, then read FLASH.
 
     _dirty = false;
 
+#ifdef ESP_PLATFORM
     if (fnConfig::get_general_fnconfig_spifs() == true) // Only if flash is enabled
     {
         if (true == fsFlash.exists(CONFIG_FILENAME))
@@ -215,4 +248,5 @@ New behavior: copy from SD first if available, then read FLASH.
             } 
         }
     }
+#endif // ESP_PLATFORM
 }

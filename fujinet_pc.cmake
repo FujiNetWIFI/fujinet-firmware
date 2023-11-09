@@ -69,23 +69,23 @@ set(INCLUDE_DIRS include
 
 set(SOURCES
 # set(SOURCES src/main.cpp
-#     lib/config/fnConfig.h lib/config/fnConfig.cpp
-#     lib/config/fnc_bt.cpp
-#     lib/config/fnc_cassette.cpp
-#     lib/config/fnc_cpm.cpp
-#     lib/config/fnc_enable.cpp
-#     lib/config/fnc_general.cpp
-#     lib/config/fnc_hosts.cpp
-#     lib/config/fnc_load.cpp
-#     lib/config/fnc_modem.cpp
-#     lib/config/fnc_mounts.cpp
-#     lib/config/fnc_network.cpp
-#     lib/config/fnc_phonebook.cpp
-#     lib/config/fnc_printer.cpp
-#     lib/config/fnc_save.cpp
-#     lib/config/fnc_serial.cpp
-#     lib/config/fnc_util.cpp
-#     lib/config/fnc_wifi.cpp
+    lib/config/fnConfig.h lib/config/fnConfig.cpp
+    lib/config/fnc_bt.cpp
+    lib/config/fnc_cassette.cpp
+    lib/config/fnc_cpm.cpp
+    lib/config/fnc_enable.cpp
+    lib/config/fnc_general.cpp
+    lib/config/fnc_hosts.cpp
+    lib/config/fnc_load.cpp
+    lib/config/fnc_modem.cpp
+    lib/config/fnc_mounts.cpp
+    lib/config/fnc_network.cpp
+    lib/config/fnc_phonebook.cpp
+    lib/config/fnc_printer.cpp
+    lib/config/fnc_save.cpp
+    lib/config/fnc_serial.cpp
+    lib/config/fnc_util.cpp
+    lib/config/fnc_wifi.cpp
     include/debug.h 
     lib/utils/utils.h lib/utils/utils.cpp
     lib/utils/cbuf.h lib/utils/cbuf.cpp
@@ -208,7 +208,7 @@ set(SOURCES
 #     lib/base64/base64.h lib/base64/base64.c
 #     lib/encrypt/crypt.h lib/encrypt/crypt.cpp
 #     lib/compat/compat_inet.c
-#     lib/compat/compat_gettimeofday.c
+    lib/compat/compat_gettimeofday.h lib/compat/compat_gettimeofday.c
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
