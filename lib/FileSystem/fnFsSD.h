@@ -1,7 +1,9 @@
 #ifndef _FN_FSSD_
 #define _FN_FSSD_
 
-#include <esp_vfs_fat.h>
+#ifdef ESP_PLATFORM
+#include "esp_vfs_fat.h"
+#endif
 
 #include <stdio.h>
 
@@ -10,16 +12,27 @@
 class FileSystemSDFAT : public FileSystem
 {
 private:
+#ifdef ESP_PLATFORM
     FF_DIR _dir;
+#else
+    DIR * _dir;
+#endif
     uint64_t _card_capacity = 0;
 public:
+#ifdef ESP_PLATFORM
     bool start();
+#else
+    bool start(const char *sd_path = nullptr);
+#endif
     virtual bool is_global() override { return true; };
 
     fsType type() override { return FSTYPE_SDFAT; };
     const char * typestring() override { return type_to_string(FSTYPE_SDFAT); };
 
     FILE * file_open(const char* path, const char* mode = FILE_READ) override;
+#ifndef ESP_PLATFORM
+    FileHandler * filehandler_open(const char* path, const char* mode = FILE_READ) override;
+#endif
 
     bool exists(const char* path) override;
 

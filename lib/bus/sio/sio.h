@@ -1,11 +1,14 @@
 #ifndef SIO_H
 #define SIO_H
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
-
 #include <forward_list>
 
+#ifdef ESP_PLATFORM
+#include <freertos/FreeRTOS.h>
+#include <freertos/queue.h>
+#else
+#include "sio/siocom/fnSioCom.h"
+#endif
 
 #define DELAY_T4 850
 #define DELAY_T5 250
@@ -47,6 +50,7 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define SIO_STANDARD_BAUDRATE 19200
 
 #define SIO_HISPEED_LOWEST_INDEX 0x0A // Lowest HSIO index we'll accept
+#define SIO_HISPEED_x2_INDEX 0x10 // this index is accepted too (by FujiNet-PC)
 
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define SERIAL_TIMEOUT 300
@@ -146,7 +150,9 @@ protected:
      * Atari that we are now processing the command.
      */
     void sio_ack();
-
+#ifndef ESP_PLATFORM
+    void sio_late_ack();   // for NetSIO, ACK is delayed until we now how much data will be read from Atari
+#endif
     /**
      * @brief Send a non-acknowledgement (NAK) to the Atari 'N'
      * This should be used if the command received by the SIO device is invalid, in the first place. It is not
@@ -263,6 +269,10 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
+#ifndef ESP_PLATFORM
+    bool _command_processed = false;
+#endif
+
     void _sio_process_cmd();
     void _sio_process_queue();
 
@@ -293,6 +303,11 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
+#ifndef ESP_PLATFORM
+    void set_command_processed(bool processed);
+    void sio_empty_ack();                                       // for NetSIO, notify hub we are not interested to handle the command
+#endif
+
     sioCassette *getCassette() { return _cassetteDev; }
     sioPrinter *getPrinter() { return _printerdev; }
     sioCPM *getCPM() { return _cpmDev; }
@@ -300,7 +315,9 @@ public:
     // I wish this codebase would make up its mind to use camel or snake casing.
     modem *get_modem() { return _modemDev; }
 
+#ifdef ESP_PLATFORM
     QueueHandle_t qSioMessages = nullptr;
+#endif
 };
 
 extern systemBus SIO;

@@ -14,6 +14,7 @@ std::string fnConfig::get_pb_host_name(const char *pbnum)
     //Return empty (not found)
     return std::string();
 }
+
 std::string fnConfig::get_pb_host_port(const char *pbnum)
 {
     int i=0;
@@ -27,6 +28,7 @@ std::string fnConfig::get_pb_host_port(const char *pbnum)
     //Return empty (not found)
     return std::string();
 }
+
 bool fnConfig::add_pb_number(const char *pbnum, const char *pbhost, const char *pbport)
 {
     //Check maximum lenght of phone number
@@ -50,6 +52,7 @@ bool fnConfig::add_pb_number(const char *pbnum, const char *pbhost, const char *
     return false;
     
 }
+
 bool fnConfig::del_pb_number(const char *pbnum)
 {
     int i=0;
@@ -69,6 +72,7 @@ bool fnConfig::del_pb_number(const char *pbnum)
     //Not found
     return false;
 }
+
 void fnConfig::clear_pb(void)
 {
     for (int i=0; i<MAX_PB_SLOTS; i++) 
@@ -80,6 +84,7 @@ void fnConfig::clear_pb(void)
     save();
     _dirty = true;
 }
+
 std::string fnConfig::get_pb_entry(uint8_t n)
 {
     if (_phonebook_slots[n].phnumber.empty())

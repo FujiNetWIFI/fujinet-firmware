@@ -6,11 +6,18 @@
 #define FNSYSTEM_H
 
 #include <string>
+#include <cstdint>
 
+#ifdef ESP_PLATFORM
 #include <driver/gpio.h>
+#endif
 
 #include "fnFS.h"
 
+// from sysexits.h
+// #define EX_TEMPFAIL     75      /* temp failure; user is invited to retry */
+// exit code should be monitored by parent process and FN restarted if ended with 75
+#define EXIT_AND_RESTART 75
 
 #define FILE_COPY_BUFFERSIZE 2048
 
@@ -21,13 +28,19 @@
 class SystemManager
 {
 private:
-    char _uptime_string[18];
+    char _uptime_string[24];
     char _currenttime_string[40];
     int _hardware_version = 0; // unknown
     bool a2spifix = false;
     bool a2no3state = false;
     bool ledstrip_found = false;
+#ifdef ESP_PLATFORM
     gpio_num_t safe_reset_gpio = GPIO_NUM_14; // Default 14 for most boards, can be changed in fnSystem during hardware checks
+#else
+    char _uname_string[128];
+    uint64_t _reboot_at = 0;
+    int _reboot_code = EXIT_AND_RESTART;
+#endif
 
 public:
     SystemManager();
@@ -86,21 +99,34 @@ public:
 #define DIGI_LOW 0x00
 #define DIGI_HIGH 0x01
 
+#ifdef ESP_PLATFORM
     void set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode = PULL_NONE, gpio_int_type_t intr_type = GPIO_INTR_DISABLE);
+#endif
 
     int digital_read(uint8_t pin);
     void digital_write(uint8_t pin, uint8_t val);
 
+#ifdef ESP_PLATFORM
     void reboot();
+#else
+    void reboot(uint32_t delay_ms = 0, bool reboot=true);
+    bool check_deferred_reboot();
+#endif
     uint32_t get_cpu_frequency();
     uint32_t get_free_heap_size();
     uint32_t get_psram_size();
     const char *get_sdk_version();
     chipmodels get_cpu_model();
     int get_cpu_rev();
+#ifdef ESP_PLATFORM
     int64_t get_uptime();
     unsigned long millis();
     unsigned long micros();
+#else
+    uint64_t get_uptime();
+    uint64_t millis();
+    uint64_t micros();
+#endif
     void delay_microseconds(uint32_t us);
     void delay(uint32_t ms);
 
@@ -110,6 +136,10 @@ public:
     void update_hostname(const char *hostname);
 
     const char *get_fujinet_version(bool shortVersionOnly = false);
+
+#ifndef ESP_PLATFORM
+    const char *get_uname();
+#endif
 
     int get_sio_voltage();
     void yield();
@@ -130,7 +160,9 @@ public:
     bool spifix() { return a2spifix; };
     bool no3state() { return a2no3state; };
     bool ledstrip() { return ledstrip_found; };
+#ifdef ESP_PLATFORM
     gpio_num_t get_safe_reset_gpio() { return safe_reset_gpio; };
+#endif
 };
 
 extern SystemManager fnSystem;

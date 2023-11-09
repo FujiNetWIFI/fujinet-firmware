@@ -1,5 +1,5 @@
 #include "fnConfig.h"
-#include <cstring>
+#include "compat_string.h"
 
 fnConfig Config;
 

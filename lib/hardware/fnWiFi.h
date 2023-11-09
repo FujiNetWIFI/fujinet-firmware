@@ -1,6 +1,12 @@
 #ifndef FNWIFI_H
 #define FNWIFI_H
 
+#ifndef ESP_PLATFORM
+// dummy wifi module
+#include "fnDummyWiFi.h"
+#endif // !ESP_PLATFORM
+
+#ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>
 #include <freertos/event_groups.h>
 #include <esp_netif.h>
@@ -98,4 +104,5 @@ public:
 
 extern WiFiManager fnWiFi;
 
+#endif // ESP_PLATFORM
 #endif // FNWIFI_H
