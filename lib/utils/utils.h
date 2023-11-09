@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
 
 
 #define __BEGIN_IGNORE_UNUSEDVARS _Pragma("GCC diagnostic push")    \
@@ -97,5 +98,10 @@ bool isApproximatelyInteger(double value, double tolerance = 1e-6);
 
 // ensure string starts with a "/"
 std::string prependSlash(const std::string& str);
+
+#ifndef ESP_PLATFORM
+// helper function for Debug_print* macros on fujinet-pc
+void util_debug_printf(const char *fmt, ...);
+#endif // !ESP_PLATFORM
 
 #endif // _FN_UTILS_H

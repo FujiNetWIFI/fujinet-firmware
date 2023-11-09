@@ -36,9 +36,9 @@ set(FUJINET_DATA_DIR ${CMAKE_SOURCE_DIR}/data/${FUJINET_BUILD_PLATFORM})
 # # ESP32 PIN map (not used by FujiNet-PC)
 # set(FUJINET_PIN_MAP PINMAP_NONE)
 
-# add -DNO_DEBUG_PRINT to supress Debug_print output in Release build
+# -DDBUG2 to enable monitor messages for a release build
 # -DSKIP_SERVER_CERT_VERIFY does not work with MbedTLS
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DSMARTPORT=SLIP -DFLASH_SPIFFS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DSMARTPORT=SLIP -DFLASH_SPIFFS -DDBUG2")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVERBOSE_HTTP -D__PC_BUILD_DEBUG__")
 
 # mongoose.c some compile options: -DMG_ENABLE_LINES=1 -DMG_ENABLE_DIRECTORY_LISTING=1 -DMG_ENABLE_SSI=1
@@ -67,146 +67,147 @@ set(INCLUDE_DIRS include
     components_pc/libssh/include ${CMAKE_CURRENT_BINARY_DIR}/components_pc/libssh/include
 )
 
-set(SOURCES src/main.cpp
-    lib/config/fnConfig.h lib/config/fnConfig.cpp
-    lib/config/fnc_bt.cpp
-    lib/config/fnc_cassette.cpp
-    lib/config/fnc_cpm.cpp
-    lib/config/fnc_enable.cpp
-    lib/config/fnc_general.cpp
-    lib/config/fnc_hosts.cpp
-    lib/config/fnc_load.cpp
-    lib/config/fnc_modem.cpp
-    lib/config/fnc_mounts.cpp
-    lib/config/fnc_network.cpp
-    lib/config/fnc_phonebook.cpp
-    lib/config/fnc_printer.cpp
-    lib/config/fnc_save.cpp
-    lib/config/fnc_serial.cpp
-    lib/config/fnc_util.cpp
-    lib/config/fnc_wifi.cpp
-    lib/utils/utils.h lib/utils/utils.cpp
-    lib/utils/cbuf.h lib/utils/cbuf.cpp
-    lib/utils/string_utils.h lib/utils/string_utils.cpp
-    lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
-    lib/hardware/led.h lib/hardware/led.cpp
-    lib/hardware/fnUART.h lib/hardware/fnUART.cpp
-    lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
-    lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
-    lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
-    lib/FileSystem/fnFsSPIFFS.h lib/FileSystem/fnFsSPIFFS.cpp
-    lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
-    lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
-    lib/FileSystem/fnFsSMB.h lib/FileSystem/fnFsSMB.cpp
-    lib/FileSystem/fnFsFTP.h lib/FileSystem/fnFsFTP.cpp
-    lib/FileSystem/fnFile.h lib/FileSystem/fnFile.cpp
-    lib/FileSystem/fnFileLocal.h lib/FileSystem/fnFileLocal.cpp
-    lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
-    lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
-    lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
+set(SOURCES
+# set(SOURCES src/main.cpp
+#     lib/config/fnConfig.h lib/config/fnConfig.cpp
+#     lib/config/fnc_bt.cpp
+#     lib/config/fnc_cassette.cpp
+#     lib/config/fnc_cpm.cpp
+#     lib/config/fnc_enable.cpp
+#     lib/config/fnc_general.cpp
+#     lib/config/fnc_hosts.cpp
+#     lib/config/fnc_load.cpp
+#     lib/config/fnc_modem.cpp
+#     lib/config/fnc_mounts.cpp
+#     lib/config/fnc_network.cpp
+#     lib/config/fnc_phonebook.cpp
+#     lib/config/fnc_printer.cpp
+#     lib/config/fnc_save.cpp
+#     lib/config/fnc_serial.cpp
+#     lib/config/fnc_util.cpp
+#     lib/config/fnc_wifi.cpp
+    include/debug.h lib/utils/utils.h lib/utils/utils.cpp
+#     lib/utils/cbuf.h lib/utils/cbuf.cpp
+#     lib/utils/string_utils.h lib/utils/string_utils.cpp
+#     lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
+#     lib/hardware/led.h lib/hardware/led.cpp
+#     lib/hardware/fnUART.h lib/hardware/fnUART.cpp
+#     lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
+#     lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
+#     lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
+#     lib/FileSystem/fnFsSPIFFS.h lib/FileSystem/fnFsSPIFFS.cpp
+#     lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
+#     lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
+#     lib/FileSystem/fnFsSMB.h lib/FileSystem/fnFsSMB.cpp
+#     lib/FileSystem/fnFsFTP.h lib/FileSystem/fnFsFTP.cpp
+#     lib/FileSystem/fnFile.h lib/FileSystem/fnFile.cpp
+#     lib/FileSystem/fnFileLocal.h lib/FileSystem/fnFileLocal.cpp
+#     lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
+#     lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
+#     lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
     lib/EdUrlParser/EdUrlParser.h lib/EdUrlParser/EdUrlParser.cpp
-    lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
-    lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
-    lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
-    lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
-    lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
-    lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
-    lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
-    lib/telnet/libtelnet.h lib/telnet/libtelnet.c
-    lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
-    components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
-    lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
-    lib/http/httpService.h lib/http/httpService.cpp
-    lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
-    lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
-    lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
-    lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
-    lib/task/fnTask.h lib/task/fnTask.cpp
-    lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
-    lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
-    lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp
-    lib/printer-emulator/atari_1025.h lib/printer-emulator/atari_1025.cpp
-    lib/printer-emulator/atari_1027.h lib/printer-emulator/atari_1027.cpp
-    lib/printer-emulator/atari_1029.h lib/printer-emulator/atari_1029.cpp
-    lib/printer-emulator/atari_820.h lib/printer-emulator/atari_820.cpp
-    lib/printer-emulator/atari_822.h lib/printer-emulator/atari_822.cpp
-    lib/printer-emulator/atari_825.h lib/printer-emulator/atari_825.cpp
-    lib/printer-emulator/atari_xdm121.h lib/printer-emulator/atari_xdm121.cpp
-    lib/printer-emulator/atari_xmm801.h lib/printer-emulator/atari_xmm801.cpp
-    lib/printer-emulator/epson_80.h lib/printer-emulator/epson_80.cpp
-    lib/printer-emulator/epson_tps.h
-    lib/printer-emulator/file_printer.h lib/printer-emulator/file_printer.cpp
-    lib/printer-emulator/html_printer.h lib/printer-emulator/html_printer.cpp
-    lib/printer-emulator/okimate_10.h lib/printer-emulator/okimate_10.cpp
-    lib/printer-emulator/pdf_printer.h lib/printer-emulator/pdf_printer.cpp
-    lib/printer-emulator/png_printer.h lib/printer-emulator/png_printer.cpp
-    lib/printer-emulator/printer_emulator.h lib/printer-emulator/printer_emulator.cpp
-    lib/printer-emulator/svg_plotter.h lib/printer-emulator/svg_plotter.cpp
-    lib/network-protocol//networkStatus.h
-    lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
-    lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
-    lib/network-protocol/Test.h lib/network-protocol/Test.cpp
-    lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
-    lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
-    lib/network-protocol/Telnet.h lib/network-protocol/Telnet.cpp
-    lib/network-protocol/FS.h lib/network-protocol/FS.cpp
-    lib/network-protocol/FTP.h lib/network-protocol/FTP.cpp
-    lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
-    lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
-    lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
-    lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
-    lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
-    lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
-    lib/bus/bus.h
-    lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
-    lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
-    lib/bus/sio/sio.h lib/bus/sio/sio.cpp
-    lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
-    lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
-    lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
-    lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
-    lib/device/device.h
-    lib/device/disk.h
-    lib/device/printer.h
-    lib/device/modem.h
-    lib/device/cassette.h
-    lib/device/fuji.h
-    lib/device/network.h
-    lib/device/udpstream.h
-    lib/device/siocpm.h
-    lib/device/iwm/disk.h lib/device/iwm/disk.cpp
-    lib/device/iwm/disk2.h lib/device/iwm/disk2.cpp
-    lib/device/iwm/printer.h lib/device/iwm/printer.cpp
-    lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
-    lib/device/iwm/modem.h lib/device/iwm/modem.cpp
-    lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
-    lib/device/iwm/network.h lib/device/iwm/network.cpp
-    lib/device/iwm/clock.h lib/device/iwm/clock.cpp
-    lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
-    lib/device/sio/disk.h lib/device/sio/disk.cpp
-    lib/device/sio/printer.h lib/device/sio/printer.cpp
-    lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
-    lib/device/sio/cassette.h lib/device/sio/cassette.cpp
-    lib/device/sio/fuji.h lib/device/sio/fuji.cpp
-    lib/device/sio/network.h lib/device/sio/network.cpp
-    lib/device/sio/apetime.h lib/device/sio/apetime.cpp
-    lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
-    lib/device/sio/pclink.h lib/device/sio/pclink.cpp
-    lib/modem/modem.h lib/modem/modem.cpp
-    lib/media/media.h
-    lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
-    lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
-    lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
-    lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
-    lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
-    lib/media/atari/diskType.h lib/media/atari/diskType.cpp
-    lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
-    lib/media/atari/diskTypeAtx.h 
-    lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
-    lib/base64/base64.h lib/base64/base64.c
-    lib/encrypt/crypt.h lib/encrypt/crypt.cpp
-    lib/compat/compat_inet.c
-    lib/compat/compat_gettimeofday.c
+#     lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
+#     lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
+#     lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
+#     lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
+#     lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
+#     lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
+#     lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
+#     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
+#     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
+#     components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
+#     lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
+#     lib/http/httpService.h lib/http/httpService.cpp
+#     lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
+#     lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
+#     lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
+#     lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
+#     lib/task/fnTask.h lib/task/fnTask.cpp
+#     lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
+#     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
+#     lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp
+#     lib/printer-emulator/atari_1025.h lib/printer-emulator/atari_1025.cpp
+#     lib/printer-emulator/atari_1027.h lib/printer-emulator/atari_1027.cpp
+#     lib/printer-emulator/atari_1029.h lib/printer-emulator/atari_1029.cpp
+#     lib/printer-emulator/atari_820.h lib/printer-emulator/atari_820.cpp
+#     lib/printer-emulator/atari_822.h lib/printer-emulator/atari_822.cpp
+#     lib/printer-emulator/atari_825.h lib/printer-emulator/atari_825.cpp
+#     lib/printer-emulator/atari_xdm121.h lib/printer-emulator/atari_xdm121.cpp
+#     lib/printer-emulator/atari_xmm801.h lib/printer-emulator/atari_xmm801.cpp
+#     lib/printer-emulator/epson_80.h lib/printer-emulator/epson_80.cpp
+#     lib/printer-emulator/epson_tps.h
+#     lib/printer-emulator/file_printer.h lib/printer-emulator/file_printer.cpp
+#     lib/printer-emulator/html_printer.h lib/printer-emulator/html_printer.cpp
+#     lib/printer-emulator/okimate_10.h lib/printer-emulator/okimate_10.cpp
+#     lib/printer-emulator/pdf_printer.h lib/printer-emulator/pdf_printer.cpp
+#     lib/printer-emulator/png_printer.h lib/printer-emulator/png_printer.cpp
+#     lib/printer-emulator/printer_emulator.h lib/printer-emulator/printer_emulator.cpp
+#     lib/printer-emulator/svg_plotter.h lib/printer-emulator/svg_plotter.cpp
+#     lib/network-protocol//networkStatus.h
+#     lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
+#     lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
+#     lib/network-protocol/Test.h lib/network-protocol/Test.cpp
+#     lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
+#     lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
+#     lib/network-protocol/Telnet.h lib/network-protocol/Telnet.cpp
+#     lib/network-protocol/FS.h lib/network-protocol/FS.cpp
+#     lib/network-protocol/FTP.h lib/network-protocol/FTP.cpp
+#     lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
+#     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
+#     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
+#     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
+#     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
+#     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
+#     lib/bus/bus.h
+#     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
+#     lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
+#     lib/bus/sio/sio.h lib/bus/sio/sio.cpp
+#     lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
+#     lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
+#     lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
+#     lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
+#     lib/device/device.h
+#     lib/device/disk.h
+#     lib/device/printer.h
+#     lib/device/modem.h
+#     lib/device/cassette.h
+#     lib/device/fuji.h
+#     lib/device/network.h
+#     lib/device/udpstream.h
+#     lib/device/siocpm.h
+#     lib/device/iwm/disk.h lib/device/iwm/disk.cpp
+#     lib/device/iwm/disk2.h lib/device/iwm/disk2.cpp
+#     lib/device/iwm/printer.h lib/device/iwm/printer.cpp
+#     lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
+#     lib/device/iwm/modem.h lib/device/iwm/modem.cpp
+#     lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
+#     lib/device/iwm/network.h lib/device/iwm/network.cpp
+#     lib/device/iwm/clock.h lib/device/iwm/clock.cpp
+#     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
+#     lib/device/sio/disk.h lib/device/sio/disk.cpp
+#     lib/device/sio/printer.h lib/device/sio/printer.cpp
+#     lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
+#     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
+#     lib/device/sio/fuji.h lib/device/sio/fuji.cpp
+#     lib/device/sio/network.h lib/device/sio/network.cpp
+#     lib/device/sio/apetime.h lib/device/sio/apetime.cpp
+#     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
+#     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
+#     lib/modem/modem.h lib/modem/modem.cpp
+#     lib/media/media.h
+#     lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
+#     lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
+#     lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
+#     lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
+#     lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
+#     lib/media/atari/diskType.h lib/media/atari/diskType.cpp
+#     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
+#     lib/media/atari/diskTypeAtx.h 
+#     lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
+#     lib/base64/base64.h lib/base64/base64.c
+#     lib/encrypt/crypt.h lib/encrypt/crypt.cpp
+#     lib/compat/compat_inet.c
+#     lib/compat/compat_gettimeofday.c
 )
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")

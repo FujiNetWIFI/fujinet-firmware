@@ -2,6 +2,7 @@
 #ifndef PINMAP_H
 #define PINMAP_H
 
+#ifdef ESP_PLATFORM
 #include "pinmap/a2_fn10.h"
 #include "pinmap/a2_rev0.h"
 #include "pinmap/mac_rev0.h"
@@ -18,5 +19,6 @@
 #include "pinmap/cx16.h"
 #include "pinmap/rc2014spi_rev0.h"
 #include "pinmap/heathkit_h89.h"
+#endif // ESP_PLATFORM
 
 #endif /* PINMAP_H */

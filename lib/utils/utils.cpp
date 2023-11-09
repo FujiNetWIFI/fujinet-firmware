@@ -6,6 +6,12 @@
 #include <sstream>
 #include <stack>
 #include <cmath>
+#include "compat_string.h"
+
+#ifndef ESP_PLATFORM
+#include <cstdarg>
+#include "compat_gettimeofday.h"
+#endif
 
 #include "../../include/debug.h"
 
@@ -266,11 +272,11 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
     returned_entry.replace(0, filename.length(), filename);
 
     if (fileSize > 1048576)
-        sprintf(tmp, "%2dM", (fileSize >> 20));
+        sprintf(tmp, "%2uM", (unsigned int)(fileSize >> 20));
     else if (fileSize > 1024)
-        sprintf(tmp, "%4dK", (fileSize >> 10));
+        sprintf(tmp, "%4uK", (unsigned int)(fileSize >> 10));
     else
-        sprintf(tmp, "%4d", fileSize);
+        sprintf(tmp, "%4u", (unsigned int)fileSize);
 
     stylized_filesize = tmp;
 
@@ -302,7 +308,11 @@ char apple2_fs[6];
 const char *apple2_filesize(size_t fileSize)
 {
     unsigned short fs = fileSize / 512;
-    itoa(fs, apple2_fs, 10);
+#ifdef ESP_PLATFORM
+     itoa(fs, apple2_fs, 10);
+#else
+    sprintf(apple2_fs, "%u", fs);
+#endif
     return apple2_fs;
 }
 
@@ -508,9 +518,9 @@ void util_dump_bytes(const uint8_t *buff, uint32_t buff_size)
     {
         for (int k = 0; (k + j) < buff_size && k < bytes_per_line; k++)
             Debug_printf("%02X ", buff[k + j]);
-        Debug_println();
+        Debug_println("");
     }
-    Debug_println();
+    Debug_println("");
 }
 
 vector<string> util_tokenize(string s, char c)
@@ -637,10 +647,17 @@ void util_sam_say(const char *p,
     char pitchs[4], speeds[4], mouths[4], throats[4]; // itoa temp vars
 
     // Convert to strings.
+#ifdef ESP_PLATFORM
     itoa(pitch, pitchs, 10);
     itoa(speed, speeds, 10);
     itoa(mouth, mouths, 10);
     itoa(throat, throats, 10);
+#else
+    sprintf(pitchs, "%u", pitch);
+    sprintf(speeds, "%u", speed);
+    sprintf(mouths, "%u", mouth);
+    sprintf(throats, "%u", throat);
+#endif
 
     memset(a, 0, sizeof(a));
     a[n++] = (char *)("sam"); // argv[0] for compatibility
@@ -665,7 +682,9 @@ void util_sam_say(const char *p,
 
     // Append the phrase to say.
     a[n++] = (char *)p;
+#ifdef ESP_PLATFORM
     sam(n, a);
+#endif
 }
 
 /**
@@ -903,3 +922,63 @@ std::string prependSlash(const std::string& str) {
     }
     return str;
 }
+
+#ifndef ESP_PLATFORM
+// helper function for Debug_print* macros on fujinet-pc
+void util_debug_printf(const char *fmt, ...)
+{
+    static bool print_ts = true;
+    va_list argp;
+
+    if (!print_ts)
+    {
+        if (fmt != nullptr)
+        {
+            print_ts = fmt[strlen(fmt)-1] == '\n';
+        }
+        else
+        {
+            va_start(argp, fmt);
+            const char *s = va_arg(argp, const char*);
+            print_ts = s[strlen(s)-1] == '\n';
+            va_end(argp);
+        }
+        if (print_ts)
+            printf("\n");
+    }
+
+    if (print_ts) 
+    {
+        // printf("DEBUG > ");
+        timeval tv;
+        tm tm;
+        char buffer[32];
+
+        compat_gettimeofday(&tv, NULL);
+#if defined(_WIN32)
+        time_t t = (time_t)tv.tv_sec;
+        localtime_s(&tm, &t);
+#else
+        localtime_r(&tv.tv_sec, &tm);
+#endif
+        size_t endpos = strftime(buffer, sizeof(buffer), "%H:%M:%S", &tm);
+        snprintf(buffer + endpos, sizeof(buffer) - endpos, ".%06d", (int)(tv.tv_usec));
+        printf("%s > ", buffer);
+    }
+
+    va_start(argp, fmt);
+    if (fmt != nullptr)
+    {
+        print_ts = fmt[strlen(fmt)-1] == '\n';
+        vprintf(fmt, argp);
+    }
+    else
+    {
+        const char *s = va_arg(argp, const char*);
+        print_ts = s[strlen(s)-1] == '\n';
+        printf("%s", s);
+    }
+    va_end(argp);
+    fflush(stdout);
+}
+#endif // !ESP_PLATFORM
