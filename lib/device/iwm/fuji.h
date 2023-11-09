@@ -66,7 +66,6 @@ private:
     bool scanStarted = false;
     bool hostMounted[MAX_HOSTS];
     bool setSSIDStarted = false;
-    uint8_t err_result = SP_ERR_NOERROR;
 
     //uint8_t response[1024]; // use packet_buffer instead
     //uint16_t response_len;
@@ -116,8 +115,8 @@ protected:
     void iwm_ctrl_net_set_ssid();                // control 0xFB
     void iwm_stat_net_get_wifi_status();         // status 0xFA
     void iwm_ctrl_mount_host();                  // 0xF9
-    void iwm_ctrl_disk_image_mount();            // 0xF8
-    void iwm_ctrl_open_directory();              // 0xF7
+    uint8_t iwm_ctrl_disk_image_mount();         // 0xF8
+    uint8_t iwm_ctrl_open_directory();           // 0xF7
     void iwm_ctrl_read_directory_entry();        // 0xF6
     void iwm_stat_read_directory_entry();        // 0xF6
 
