@@ -284,30 +284,32 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(fujinet ws2_32)
 endif()
 
-# Version file
+# TODO megre build_version.py with ESP version
+# # Version file
 
-# run build_version.py to update version.h
-add_custom_command(
-  OUTPUT  "${CMAKE_BINARY_DIR}/version.h"
-  DEPENDS build_version.py
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  COMMAND python build_version.py
-  COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/include/version.h" "${CMAKE_BINARY_DIR}/version.h"
-  COMMENT "Update version file"
-  VERBATIM
-)
-add_custom_target(build_version DEPENDS "${CMAKE_BINARY_DIR}/version.h")
-add_dependencies(fujinet build_version)
+# # run build_version.py to update version.h
+# add_custom_command(
+#   OUTPUT  "${CMAKE_BINARY_DIR}/version.h"
+#   DEPENDS build_version.py
+#   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+#   COMMAND python build_version.py
+#   COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/include/version.h" "${CMAKE_BINARY_DIR}/version.h"
+#   COMMENT "Update version file"
+#   VERBATIM
+# )
+# add_custom_target(build_version DEPENDS "${CMAKE_BINARY_DIR}/version.h")
+# add_dependencies(fujinet build_version)
 
-# WebUI
-# "build_webui" target
-add_custom_command(
-    OUTPUT "${FUJINET_DATA_DIR}"
-    DEPENDS build_webui.py
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMAND ${CMAKE_COMMAND} -E env FUJINET_TARGET=${FUJINET_TARGET} FUJINET_BUILD_PLATFORM=${FUJINET_BUILD_PLATFORM} python build_webui.py
-)
-add_custom_target(build_webui DEPENDS "${FUJINET_DATA_DIR}")
+# TODO megre build_webui.py with ESP version
+# # WebUI
+# # "build_webui" target
+# add_custom_command(
+#     OUTPUT "${FUJINET_DATA_DIR}"
+#     DEPENDS build_webui.py
+#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+#     COMMAND ${CMAKE_COMMAND} -E env FUJINET_TARGET=${FUJINET_TARGET} FUJINET_BUILD_PLATFORM=${FUJINET_BUILD_PLATFORM} python build_webui.py
+# )
+# add_custom_target(build_webui DEPENDS "${FUJINET_DATA_DIR}")
 
 # "dist" target
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -332,7 +334,8 @@ else()
     )
 endif()
 add_dependencies(dist fujinet)
-add_dependencies(dist build_webui)
+# TODO megre build_webui.py with ESP version
+# add_dependencies(dist build_webui)
 
 # include dist cleanup in "clean" target
 set_property(
