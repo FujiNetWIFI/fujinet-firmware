@@ -86,9 +86,10 @@ set(SOURCES
 #     lib/config/fnc_serial.cpp
 #     lib/config/fnc_util.cpp
 #     lib/config/fnc_wifi.cpp
-    include/debug.h lib/utils/utils.h lib/utils/utils.cpp
-#     lib/utils/cbuf.h lib/utils/cbuf.cpp
-#     lib/utils/string_utils.h lib/utils/string_utils.cpp
+    include/debug.h 
+    lib/utils/utils.h lib/utils/utils.cpp
+    lib/utils/cbuf.h lib/utils/cbuf.cpp
+    lib/utils/string_utils.h lib/utils/string_utils.cpp
 #     lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
 #     lib/hardware/led.h lib/hardware/led.cpp
 #     lib/hardware/fnUART.h lib/hardware/fnUART.cpp
