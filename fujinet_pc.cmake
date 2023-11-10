@@ -115,7 +115,7 @@ set(SOURCES
 #     lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
 #     lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
 #     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
-#     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
+    lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
 #     components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
 #     lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
 #     lib/http/httpService.h lib/http/httpService.cpp

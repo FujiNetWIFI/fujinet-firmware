@@ -62,7 +62,7 @@
 
 - TODO: lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
 
-- **WIO**: lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
+- **WIP**: lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
 
     fnFS.h
 
@@ -113,7 +113,7 @@
 
 - TODO: lib/telnet/libtelnet.h lib/telnet/libtelnet.c
 
-- TODO: lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
+- **DONE** / merge: lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
 
 - TODO: components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
 
