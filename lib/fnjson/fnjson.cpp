@@ -156,7 +156,7 @@ string FNJSON::getValue(cJSON *item)
         return string("");
     }
 
-    stringstream ss;
+    std::stringstream ss;
 
     if (cJSON_IsString(item))
     {
@@ -190,7 +190,7 @@ string FNJSON::getValue(cJSON *item)
         {
             // no, return as double with max. 10 digits
             Debug_printf("S: [cJSON_IsNumber] %f\r\n", num);
-            ss << setprecision(10) << num;
+            ss << std::setprecision(10) << num;
         }
 
         ss << lineEnding;
@@ -297,7 +297,9 @@ bool FNJSON::parse()
             _protocol->receiveBuffer->clear();
         }
         _protocol->status(&ns);
+#ifdef ESP_PLATFORM
         vTaskDelay(10);
+#endif
     }
 
     Debug_printf("S: %s\r\n", _parseBuffer.c_str());
