@@ -295,7 +295,8 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
         return;
 
-    if (device_active == false)
+    if ((device_active == false && cmdFrame.device != SIO_DEVICEID_DISK) || // not active and not D1
+        (device_active == false && theFuji.boot_config == false)) // not active and not config boot
         return;
 
     Debug_printf("disk sio_process(), baud: %d\n", SIO.getBaudrate());

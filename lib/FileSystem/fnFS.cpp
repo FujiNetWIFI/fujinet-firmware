@@ -36,6 +36,8 @@ char * FileSystem::_make_fullpath(const char *path)
 // Returns size of open file
 long FileSystem::filesize(FILE *f)
 {
+    if (f == nullptr)
+        return -1;
     long curr = ftell(f);
     fseek(f, 0, SEEK_END);
     long end = ftell(f);
