@@ -181,8 +181,8 @@ enum latch_bits {
 uint16_t latch;
 uint8_t dcd_latch;
 
-uint16_t get_latch() { return latch; }
-uint16_t dcd_get_latch() { return ((dcd_latch << 8) + dcd_latch); }
+inline uint16_t get_latch() { return latch; }
+inline uint16_t dcd_get_latch() { return ((dcd_latch << 8) + dcd_latch); }
 
 void set_latch(enum latch_bits s) { latch |= (1u << s); }
 
@@ -191,6 +191,8 @@ void dcd_set_latch(uint8_t s) { dcd_latch |= (1u << s); }
 void clr_latch(enum latch_bits c) { latch &= ~(1u << c); }
 
 void dcd_clr_latch(uint8_t c) { dcd_latch &= ~(1u << c); }
+
+bool latch_val(enum latch_bits s) { return latch & (1u << s); }
 
 void dcd_assert_hshk()
 {                   // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
@@ -208,18 +210,20 @@ void dcd_deassert_hshk()
 
 void preset_latch()
 {
-    latch =0;
-    clr_latch(DIRTN);
-    set_latch(STEP);
-    set_latch(MOTORON);
+  // set up like an empty floppy
+    latch =-1;
+    // clr_latch(DIRTN);
+    // set_latch(STEP);
+    // set_latch(MOTORON);
     clr_latch(EJECT);
-    set_latch(SINGLESIDE);
-    clr_latch(DRVIN);
-    set_latch(CSTIN); // no disk in drive
+    // set_latch(na0101); // to contrast to DCD, but this is SUPERDRIVE
+    clr_latch(SINGLESIDE); // clear it to start so in constrast with DCD if necessary
+    clr_latch(DRVIN); // low because the drive is present
+    // set_latch(CSTIN); // no disk in drive
     clr_latch(WRTPRT);
-    set_latch(TKO);
-    set_latch(READY);
-    set_latch(REVISED);   // my mac plus revised looks set
+    // set_latch(TKO);
+    // set_latch(READY);
+    // set_latch(REVISED);   // my mac plus revised looks set
     // for (int i=0; i<16; i++)
     //   printf("\nlatch bit %02d = %d",i, latch_val(i));
 }
@@ -264,15 +268,16 @@ void switch_to_floppy()
   // latch
   pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
 
-  // commands
-  pio_sm_set_enabled(pioblk_read_only, SM_DCD_CMD, false); // stop the DCD command interpreter
-  pio_commands(pioblk_read_only, SM_FPY_CMD, pio_floppy_cmd_offset, MCI_CA0); // read phases starting on pin 8
-  
   // mux
   pio_remove_program(pioblk_rw, &dcd_mux_program, pio_mux_offset);
   pio_add_program_at_offset(pioblk_rw, &mux_program, pio_mux_offset);
   pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, ECHO_OUT);
 
+  // commands
+  while (gpio_get(LSTRB));  
+  pio_sm_set_enabled(pioblk_read_only, SM_DCD_CMD, false); // stop the DCD command interpreter
+  pio_commands(pioblk_read_only, SM_FPY_CMD, pio_floppy_cmd_offset, MCI_CA0); // read phases starting on pin 8
+  
   // echo
   // pio_sm_set_enabled(pioblk_rw, SM_FPY_ECHO, true);
 
@@ -439,7 +444,7 @@ void esp_loop()
   if (uart_is_readable(UART_ID))
   {
     c = uart_getc(UART_ID);
-      // handle comms from ESP32
+    // handle comms from ESP32
     switch (c)
     {
     case 'h': // harddisk is mounted/unmounted
@@ -448,6 +453,20 @@ void esp_loop()
       if (disk_mode == DCD)
         set_num_dcd();
       c = 0; // need to clear c so not picked up by floppy loop although it would never respond to 'h'
+      break;
+    case 's':
+      // single sided disk is in the slot
+      clr_latch(SINGLESIDE);
+      clr_latch(CSTIN);
+      clr_latch(WRTPRT); // everythign is write protected for now
+      printf("\nSS disk mounted");
+      break;
+    case 'd':
+      // double sided disk
+      set_latch(SINGLESIDE);
+      clr_latch(CSTIN);
+      clr_latch(WRTPRT); // everythign is write protected for now
+      printf("\nDS disk mounted");
       break;
     default:
       break;
@@ -461,6 +480,7 @@ void floppy_loop()
 
   if (gpio_get(ENABLE) && (num_dcd_drives > 0))
   {
+    pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
     disk_mode = TO_DCD;
     return;
   }
@@ -469,6 +489,8 @@ void floppy_loop()
   {
     a = pio_sm_get_blocking(pioblk_read_only, SM_FPY_CMD);
     // printf("%d",a);
+    if (latch_val(CSTIN))
+      return;
     switch (a)
     {
       // !READY
@@ -517,13 +539,13 @@ void floppy_loop()
       // EJECT is set to low at rising edge of !CSTIN or 2 sec maximum after rising edge of EJECT.
       // When power is turned on, EJECT is set to low.
       // eject
-      set_latch(EJECT); // to do - need to clr eject when a disk is inserted - so cheat for now
+      set_latch(EJECT); // gets cleared when ESP responds with 'E'
       set_latch(READY);
       break;
     default:
       printf("\nUNKNOWN PHASE COMMAND");
       break;
-    }
+      }
     pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
     uart_putc_raw(UART_ID, (char)(a + '0'));
     }
@@ -557,20 +579,6 @@ void floppy_loop()
     else
       switch (c)
       {
-      case 's':
-          // single sided disk is in the slot
-          clr_latch(SINGLESIDE);
-          clr_latch(CSTIN);
-          clr_latch(WRTPRT); // everythign is write protected for now
-          printf("\nSS disk mounted");
-          break;
-      case 'd':
-          // double sided disk
-          set_latch(SINGLESIDE);
-          clr_latch(CSTIN);
-          clr_latch(WRTPRT); // everythign is write protected for now
-          printf("\nDS disk mounted");
-          break;
       case 'E':
         // EJECT
         //  At the rising edge of the LSTRB, EJECT is set to high and the ejection operation starts.
@@ -620,7 +628,7 @@ void dcd_loop()
   if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
   {
     int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
-    printf("m%dm",m);
+    // printf("m%dm",m);
     if (m != 0)
     {
       active_disk_number = num_dcd_drives + 'A' - m;
@@ -629,6 +637,8 @@ void dcd_loop()
     }
     else
     {
+      // if (!latch_val(CSTIN))
+      pio_sm_put_blocking(pioblk_rw, SM_LATCH, latch); // send the register word to the PIO 
       disk_mode = TO_FPY;
       return;
     }
