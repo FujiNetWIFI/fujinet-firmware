@@ -198,7 +198,7 @@ void iwmFuji::iwm_ctrl_unmount_host() // SP CTRL command
 }
 
 // Disk Image Mount
-void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
+uint8_t iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 {
     Debug_printf("\r\nFuji cmd: MOUNT IMAGE");
 
@@ -220,6 +220,12 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
     disk.disk_dev.host = &host;
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
+    if (disk.fileh == nullptr)
+    {
+        Debug_printf("\r\nFailed to open %s", disk.filename);
+        return SP_ERR_NODRIVE;
+    }
+
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
 
@@ -234,6 +240,7 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 
     if(options == DISK_ACCESS_MODE_WRITE) {disk.disk_dev.readonly = false;}
 
+    return SP_ERR_NOERROR;
 }
 
 
@@ -507,9 +514,11 @@ void iwmFuji::shutdown()
 
 
 
-void iwmFuji::iwm_ctrl_open_directory() 
+uint8_t iwmFuji::iwm_ctrl_open_directory() 
 {
     Debug_printf("\r\nFuji cmd: OPEN DIRECTORY");
+
+    uint8_t err_result = SP_ERR_NOERROR;
 
     int idx = 0;
     uint8_t hostSlot = data_buffer[idx++];// adamnet_recv();
@@ -540,8 +549,7 @@ void iwmFuji::iwm_ctrl_open_directory()
         if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
           _current_open_directory_slot = hostSlot;
         else
-          err_result = 0x30; // bad device specific error
-                             // to do - error reutrn if cannot open directory?
+          err_result = SP_ERR_IOERROR;
     }
   //   else
   //   {
@@ -551,6 +559,7 @@ void iwmFuji::iwm_ctrl_open_directory()
   //   }
   // // to do - return false or true?
   //   response_len = 1;
+    return err_result;
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -1081,12 +1090,12 @@ void iwmFuji::setup(iwmBus *iwmbus)
     if (Config.get_general_boot_mode() == 0)
     {
         FILE *f = fsFlash.file_open("/autorun.po");
-         _fnDisks[0].disk_dev.mount(f, "/autorun.po", 512*256, MEDIATYPE_PO);
+         _fnDisks[0].disk_dev.mount(f, "/autorun.po", 140 * 1024, MEDIATYPE_PO);
     }
     else
     {
         FILE *f = fsFlash.file_open("/mount-and-boot.po");
-         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);      
+         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 140 * 1024, MEDIATYPE_PO);      
     }
 
     // theNetwork = new adamNetwork();
@@ -1288,7 +1297,7 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 
 void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
-  err_result = SP_ERR_NOERROR;
+  uint8_t err_result = SP_ERR_NOERROR;
   
   // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
   uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
@@ -1312,6 +1321,9 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
       send_reply_packet(err_result); 
       iwm_ctrl_reset_fujinet();
       break;
+
+
+      
     // case FUJICMD_GET_SSID:               // 0xFE
     // case FUJICMD_SCAN_NETWORKS:          // 0xFD
     case FUJICMD_GET_SCAN_RESULT:        // 0xFC
@@ -1325,11 +1337,11 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
       iwm_ctrl_mount_host();
       break;
     case FUJICMD_MOUNT_IMAGE: // 0xF8
-      iwm_ctrl_disk_image_mount();
+      err_result = iwm_ctrl_disk_image_mount();
       break;
     case FUJICMD_OPEN_DIRECTORY:         // 0xF7
       // print_packet((uint8_t *)data_buffer, 512);
-      iwm_ctrl_open_directory();
+      err_result = iwm_ctrl_open_directory();
       break;
     case FUJICMD_READ_DIR_ENTRY:         // 0xF6
       iwm_ctrl_read_directory_entry();
