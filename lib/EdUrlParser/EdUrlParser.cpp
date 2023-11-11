@@ -102,7 +102,7 @@ void EdUrlParser::toHex(char* desthex, char c) {
 
 // #prgamas are to ignore warnings about variables being set and not used
 __BEGIN_IGNORE_UNUSEDVARS
-int EdUrlParser::parsePath(vector<string>* folders, string pathstr) {
+int EdUrlParser::parsePath(std::vector<string>* folders, string pathstr) {
 	int _url_errorno = 0;
 	int path_pos = 0;
 	size_t pos = 0;
@@ -216,11 +216,11 @@ bool EdUrlParser::toChar(const char* hex, char *result) {
 	return true;
 }
 
-size_t EdUrlParser::parseKeyValueMap(unordered_map<string, string> *kvmap, const string &rawstr, bool strict) {
+size_t EdUrlParser::parseKeyValueMap(std::unordered_map<string, string> *kvmap, const string &rawstr, bool strict) {
 	return parseKeyValue(rawstr, __kv_callback_map, kvmap, strict);
 }
 
-size_t EdUrlParser::parseKeyValueList(vector< query_kv_t > *kvvec, const string &rawstr, bool strict) {
+size_t EdUrlParser::parseKeyValueList(std::vector< query_kv_t > *kvvec, const string &rawstr, bool strict) {
 	return parseKeyValue(rawstr, __kv_callback_vec, kvvec, strict);
 }
 
@@ -275,13 +275,13 @@ size_t EdUrlParser::parseKeyValue(const string &rawstr, __kv_callback kvcb, void
 
 
 int __kv_callback_map(void* list, string k, string v) {
-	auto *map = (unordered_map<string, string>*)list;
+	auto *map = (std::unordered_map<string, string>*)list;
 	(*map)[k] = v;
 	return map->size();
 }
 
 int __kv_callback_vec(void* list, string k, string v) {
-	auto *vec = (vector<query_kv_t>*)list;
+	auto *vec = (std::vector<query_kv_t>*)list;
 	query_kv_t t ={k, v};
 	vec->push_back(t);
 	return vec->size();
