@@ -2,10 +2,17 @@
 
 #include "fnFsSPIFFS.h"
 
+#ifdef ESP_PLATFORM
 #include <esp_vfs.h>
 #include <esp_spiffs.h>
+#else
+#include "fnFileLocal.h"
+#endif
+
+#include <sys/stat.h>
 #include <errno.h>
 
+#include "compat_string.h"
 #include "../../include/debug.h"
 
 
@@ -93,6 +100,15 @@ FILE * FileSystemSPIFFS::file_open(const char* path, const char* mode)
     return result;
 }
 
+#ifndef ESP_PLATFORM
+FileHandler * FileSystemSPIFFS::filehandler_open(const char* path, const char* mode)
+{
+    Debug_printf("FileSystemSPIFFS::filehandler_open %s %s\n", path, mode);
+    FILE * fh = file_open(path, mode);
+    return (fh == nullptr) ? nullptr : new FileHandlerLocal(fh);
+}
+#endif
+
 bool FileSystemSPIFFS::exists(const char* path)
 {
     char * fpath = _make_fullpath(path);
@@ -132,14 +148,18 @@ bool FileSystemSPIFFS::rename(const char* pathFrom, const char* pathTo)
 uint64_t FileSystemSPIFFS::total_bytes()
 {
     size_t total = 0, used = 0;
+#ifdef ESP_PLATFORM
 	esp_spiffs_info(NULL, &total, &used);
+#endif
     return (uint64_t)total;
 }
 
 uint64_t FileSystemSPIFFS::used_bytes()
 {
     size_t total = 0, used = 0;
+#ifdef ESP_PLATFORM
 	esp_spiffs_info(NULL, &total, &used);
+#endif
     return (uint64_t)used;
 }
 
@@ -149,12 +169,20 @@ bool FileSystemSPIFFS::start()
         return true;
 
     // Set our basepath
+#ifdef ESP_PLATFORM
 #ifndef BUILD_IEC
     strlcpy(_basepath, "/spiffs", sizeof(_basepath));
 #else
     strlcpy(_basepath, "", sizeof(_basepath));
 #endif
+// ESP_PLATFORM
+#else
+// !ESP_PLATFORM
+    strlcpy(_basepath, "data", sizeof(_basepath));
+#endif
 
+
+#ifdef ESP_PLATFORM
     esp_vfs_spiffs_conf_t conf = {
       .base_path = _basepath,
       .partition_label = "flash",
@@ -172,9 +200,10 @@ bool FileSystemSPIFFS::start()
         _started = false;
     }
     else
+#endif // ESP_PLATFORM
     {
         _started = true;
-    #ifdef DEBUG        
+    #ifdef DEBUG
         Debug_println("SPIFFS mounted.");
         /*
         size_t total = 0, used = 0;

@@ -1,7 +1,9 @@
 #ifndef _TNFSLIB_MOUNTINFO_H
 #define _TNFSLIB_MOUNTINFO_H
 
-#include <lwip/netdb.h>
+#include <cstdint>
+
+#include "fnDNS.h"
 
 
 #define TNFS_DEFAULT_PORT 16384

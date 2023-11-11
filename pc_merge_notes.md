@@ -60,33 +60,31 @@
 
     fnSystem.h
 
-- TODO: lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
+- **DONE** / add: lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
 
-- **WIP**: lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
+- **DONE** / merge: lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
 
-    fnFS.h
-
-- TODO: lib/FileSystem/fnFsSPIFFS.h lib/FileSystem/fnFsSPIFFS.cpp
+- **DONE** / merge: lib/FileSystem/fnFsSPIFFS.h lib/FileSystem/fnFsSPIFFS.cpp
 
 - **WIP**: lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
 
     fnFsSD.h
 
-- TODO: lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
+- **DONE** / merge: lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
 
-- TODO: lib/FileSystem/fnFsSMB.h lib/FileSystem/fnFsSMB.cpp
+- **DONE** / add: lib/FileSystem/fnFsSMB.h lib/FileSystem/fnFsSMB.cpp
 
-- TODO: lib/FileSystem/fnFsFTP.h lib/FileSystem/fnFsFTP.cpp
+- **DONE** / add: lib/FileSystem/fnFsFTP.h lib/FileSystem/fnFsFTP.cpp
 
-- TODO: lib/FileSystem/fnFile.h lib/FileSystem/fnFile.cpp
+- **DONE** / add: lib/FileSystem/fnFile.h lib/FileSystem/fnFile.cpp
 
-- TODO: lib/FileSystem/fnFileLocal.h lib/FileSystem/fnFileLocal.cpp
+- **DONE** / add: lib/FileSystem/fnFileLocal.h lib/FileSystem/fnFileLocal.cpp
 
-- TODO: lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
+- **DONE** / add: lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
 
-- TODO: lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
+- **DONE** / add: lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
 
-- TODO: lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
+- **DONE** / add: lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
 
 - **DONE** / no change: lib/EdUrlParser/EdUrlParser.h lib/EdUrlParser/EdUrlParser.cpp
 
@@ -101,13 +99,17 @@
 
 - TODO: lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
 
-- TODO: lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
+- **WIP**: lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
+
+    fnTcpClient.h
 
 - TODO: lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
 
 - TODO: lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
 
-- TODO: lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
+- **WIP**: lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
+
+    tnfslibMountInfo.h
 
 - TODO: lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
 
@@ -273,7 +275,9 @@
 
 - TODO: lib/device/sio/pclink.h lib/device/sio/pclink.cpp
 
-- TODO: lib/modem/modem.h lib/modem/modem.cpp
+- **WIP**: lib/modem/modem.h lib/modem/modem.cpp
+
+    modem.h
 
 - TODO: lib/media/media.h
 
