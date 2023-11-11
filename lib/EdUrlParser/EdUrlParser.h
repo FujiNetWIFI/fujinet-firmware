@@ -13,7 +13,7 @@
 #include <unordered_map>
 #include <vector>
 
-using namespace std;
+using std::string;
 
 typedef struct {
 	string key;
@@ -28,13 +28,13 @@ private:
 public:
 	virtual ~EdUrlParser();
 	static EdUrlParser* parseUrl(const string &urlstr);
-	static int parsePath(vector<string> *pdirlist, string pathstr);
+	static int parsePath(std::vector<string> *pdirlist, string pathstr);
 	static string urlDecode(const string &str);
 	static bool toChar(const char* hex, char *result);
 	static string urlEncode(const string &s);
 	static void toHex(char *desthex, char c);
-	static size_t parseKeyValueMap(unordered_map<string, string> *kvmap, const string &str, bool strict=true);
-	static size_t parseKeyValueList(vector< query_kv_t > *kvmap, const string &rawstr, bool strict=true);
+	static size_t parseKeyValueMap(std::unordered_map<string, string> *kvmap, const string &str, bool strict=true);
+	static size_t parseKeyValueList(std::vector< query_kv_t > *kvmap, const string &rawstr, bool strict=true);
 	static size_t parseKeyValue(const string &rawstr, __kv_callback kvcb, void* obj, bool strict);
 	bool isValidUrl();
 
