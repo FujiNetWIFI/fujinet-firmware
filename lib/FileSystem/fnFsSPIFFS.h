@@ -2,7 +2,7 @@
 #define _FN_FSSPIFFS_
 #ifdef FLASH_SPIFFS
 
-#include <dirent.h>
+#include "compat_dirent.h"
 
 #include "fnFS.h"
 
@@ -21,6 +21,9 @@ public:
     virtual bool is_global() override { return true; };    
 
     FILE * file_open(const char* path, const char* mode = FILE_READ) override;
+#ifndef ESP_PLATFORM
+    FileHandler * filehandler_open(const char* path, const char* mode = FILE_READ) override;
+#endif
 
     bool exists(const char* path) override;
 

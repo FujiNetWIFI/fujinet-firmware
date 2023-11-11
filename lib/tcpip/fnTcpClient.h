@@ -5,6 +5,7 @@
 
 #include <memory>
 
+#include "compat_inet.h"
 
 class fnTcpClientSocketHandle;
 class fnTcpClientRxBuffer;

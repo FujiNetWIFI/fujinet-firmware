@@ -1,11 +1,19 @@
 #include "fnFsTNFS.h"
 
-#include "../../include/debug.h"
+#include <sys/stat.h>
+#include <errno.h>
+
+#ifdef ESP_PLATFORM
+#include "fnFsTNFSvfs.h"
+#else
+#include "fnFileTNFS.h"
+#endif
 
 #include "fnSystem.h"
 #include "fnDNS.h"
-
-#include "fnFsTNFSvfs.h"
+#include "tnfslib.h"
+#include "compat_string.h"
+#include "../../include/debug.h"
 
 FileSystemTNFS fnTNFS;
 
@@ -18,8 +26,10 @@ FileSystemTNFS::~FileSystemTNFS()
 {
     if (_started)
         tnfs_umount(&_mountinfo);
+#ifdef ESP_PLATFORM
     if(_basepath[0] != '\0')
-        vfs_tnfs_unregister(_basepath);
+    vfs_tnfs_unregister(_basepath);
+#endif
 }
 
 bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpath, const char * userid, const char * password)
@@ -60,7 +70,7 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     else
         _mountinfo.password[0] = '\0';
 
-    Debug_printf("TNFS mount %s[%s]:%hu\r\n", _mountinfo.hostname, inet_ntoa(_mountinfo.host_ip), _mountinfo.port);
+    Debug_printf("TNFS mount %s[%s]:%hu\r\n", _mountinfo.hostname, compat_inet_ntoa(_mountinfo.host_ip), _mountinfo.port);
 
     int r = tnfs_mount(&_mountinfo);
     if (r != TNFS_RESULT_SUCCESS)
@@ -72,12 +82,14 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     }
     Debug_printf("TNFS mount successful. session: 0x%hx, version: 0x%04hx, min_retry: %hums\r\n", _mountinfo.session, _mountinfo.server_version, _mountinfo.min_retry_ms);
 
+#ifdef ESP_PLATFORM
     // Register a new VFS driver to handle this connection
     if(vfs_tnfs_register(_mountinfo, _basepath, sizeof(_basepath)) != 0)
     {
         Debug_println("Failed to register VFS driver!");
         return false;
     }
+#endif
 
     _started = true;
 
@@ -120,6 +132,7 @@ bool FileSystemTNFS::rename(const char* pathFrom, const char* pathTo)
 
 FILE * FileSystemTNFS::file_open(const char* path, const char* mode)
 {
+#ifdef ESP_PLATFORM
     if(!_started || path == nullptr)
         return nullptr;
 
@@ -127,15 +140,79 @@ FILE * FileSystemTNFS::file_open(const char* path, const char* mode)
     FILE * result = fopen(fpath, mode);
     free(fpath);
     return result;
+#else
+    Debug_printf("FileSystemTNFS::file_open() - ERROR! Use filehandler_open() instead\n");
+    return nullptr;
+#endif
 }
 
 bool FileSystemTNFS::is_dir(const char *path)
 {
+#ifdef ESP_PLATFORM
     char * fpath = _make_fullpath(path);
     struct stat info;
     stat( fpath, &info);
     return (info.st_mode == S_IFDIR) ? true: false;
+#else
+    tnfsStat tstat;
+    int result = tnfs_stat(&_mountinfo, &tstat, path);
+    return tstat.isDir ? true : false;
+#endif
 }
+
+#ifndef ESP_PLATFORM
+FileHandler * FileSystemTNFS::filehandler_open(const char* path, const char* mode)
+{
+    if(!_started || path == nullptr)
+        return nullptr;
+
+    int16_t handle;
+    uint16_t create_perms = TNFS_CREATEPERM_S_IRUSR | TNFS_CREATEPERM_S_IWUSR | TNFS_CREATEPERM_S_IXUSR;
+
+    // Translate mode to open_mode
+    uint16_t open_mode = 0;
+    for (const char *m = mode; *m != '\0'; m++)
+    {
+        switch (*m)
+        {
+        case 'r':
+            open_mode = TNFS_OPENMODE_READ;
+            break;
+        case 'w':
+            open_mode = TNFS_OPENMODE_WRITE | TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE_TRUNCATE;
+            break;
+        case 'a':
+            open_mode = TNFS_OPENMODE_WRITE | TNFS_OPENMODE_WRITE_CREATE;
+            break;
+        case '+':
+            if (open_mode == TNFS_OPENMODE_READ) // "r+""
+                open_mode = TNFS_OPENMODE_READWRITE;
+            else if (open_mode == (TNFS_OPENMODE_WRITE | TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE_TRUNCATE)) // "w+"
+                open_mode = TNFS_OPENMODE_READWRITE | TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE_TRUNCATE;
+            else if (open_mode == (TNFS_OPENMODE_WRITE | TNFS_OPENMODE_WRITE_CREATE)) // "a+"
+                open_mode = TNFS_OPENMODE_READWRITE | TNFS_OPENMODE_WRITE_CREATE;
+            break;
+        }
+    }
+    if (open_mode == 0)
+    {
+        Debug_printf("FileSystemTNFS::filehandler_open - bad open mode %s -> %u\n", mode, open_mode);
+        return nullptr;
+    }
+
+    int result = tnfs_open(&_mountinfo, path, open_mode, create_perms, &handle);
+    if(result != TNFS_RESULT_SUCCESS)
+    {
+        #ifdef DEBUG
+        //Debug_printf("vfs_tnfs_open = %d\n", result);
+        #endif
+        errno = tnfs_code_to_errno(result);
+        return nullptr;
+    }
+    errno = 0;
+    return new FileHandlerTNFS(&_mountinfo, handle);
+}
+#endif
 
 bool FileSystemTNFS::dir_open(const char * path, const char *pattern, uint16_t diropts)
 {
