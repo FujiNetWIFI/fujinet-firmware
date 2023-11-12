@@ -645,7 +645,7 @@ void SystemManager::check_hardware_ver()
 #endif
 
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_MAC_REV0)
-    int spifixupcheck, spifixdowncheck, rev1upcheck, rev1downcheck;
+    int spifixupcheck, spifixdowncheck, rev1upcheck, rev1downcheck, bufupcheck, bufdowncheck;
 
 #ifndef MASTERIES_SPI_FIX
 #   ifdef REV1DETECT
@@ -675,8 +675,24 @@ void SystemManager::check_hardware_ver()
 
         safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
     }
+
+    /* Apple 2 Rev 1 Latest has pulldown on IO25 for buffer/bus enable line
+       If found, enable the buffer chips
+    */
+    fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    bufupcheck = fnSystem.digital_read(GPIO_NUM_25);
+    fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    bufdowncheck = fnSystem.digital_read(GPIO_NUM_25);
+
+    if (bufupcheck == bufdowncheck && bufupcheck == DIGI_LOW)
+    {
+        Debug_printf("FujiApple Rev1 Buffered Bus Enabled\r\n");
+        fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_NONE);
+        fnSystem.digital_write(GPIO_NUM_25, DIGI_HIGH);
+    }
+
 #   endif /* REV1DETECT */
-#endif /* MASTERIES_SPI_FIX*/
+#endif /* MASTERIES_SPI_FIX */
 
 #ifdef NO3STATE
     /* For those who have modified their FujiApple to remove the tristate buffer but
