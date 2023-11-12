@@ -48,11 +48,9 @@
 
 - **DONE** / add: lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
 
-- TODO: lib/hardware/led.h lib/hardware/led.cpp
+- **DONE** / merge: lib/hardware/led.h lib/hardware/led.cpp
 
-- **WIP**: lib/hardware/fnUART.h lib/hardware/fnUART.cpp
-
-    fnUART.h
+- **DONE** / merge: lib/hardware/fnUART.h lib/hardware/fnUART.cpp lib/hardware/fnUARTUnix.cpp lib/hardware/fnUARTWindows.cpp
 
 - **WIP**: lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
 
