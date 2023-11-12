@@ -51,7 +51,7 @@ public:
     uint16_t dir_tell() override;
     bool dir_seek(uint16_t) override;
 
-    bool create_path(const char *fullpath);
+    bool create_path(const char *path);
     
     uint64_t card_size();
     uint64_t total_bytes();

@@ -66,9 +66,7 @@
 
 - **DONE** / merge: lib/FileSystem/fnFsSPIFFS.h lib/FileSystem/fnFsSPIFFS.cpp
 
-- **WIP**: lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
-
-    fnFsSD.h
+- **DONE** / merge: lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
 
 - **DONE** / merge: lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
 

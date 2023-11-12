@@ -3,11 +3,19 @@
 
 #include "fnFsSD.h"
 
+#ifdef ESP_PLATFORM
 #include <esp_vfs.h>
 #include <esp_vfs_fat.h>
 #include <driver/sdmmc_host.h>
 #include <esp_rom_gpio.h>
 #include <soc/sdmmc_periph.h>
+#else
+#include "fnFileLocal.h"
+#endif
+
+#include <sys/stat.h>
+#include <errno.h>
+#include "compat_string.h"
 
 #include <algorithm>
 #include <memory>
@@ -18,9 +26,20 @@
 
 #include "utils.h"
 
+#ifdef ESP_PLATFORM
+
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
 #define SDSPI_DEFAULT_DMA 1
+#endif
+
+#else
+// !ESP_PLATFORM
+#if defined(_WIN32)
+#include <direct.h>
+#define mkdir(A, B) _mkdir(A)
+#endif // _WIN32
+// !ESP_PLATFORM
 #endif
 
 // Our global SD interface
@@ -55,6 +74,8 @@ bool _fssd_fsdir_sort_time_descend(fsdir_entry &left, fsdir_entry &right)
 
 typedef bool (*sort_fn_t)(fsdir_entry &left, fsdir_entry &right);
 
+
+#ifdef ESP_PLATFORM
 /*
   Converts the FatFs ftime and fdate to a POSIX time_t value
 */
@@ -101,6 +122,7 @@ time_t _fssd_fatdatetime_to_epoch(WORD ftime, WORD fdate)
 
     return mktime(&tmtime);
 }
+#endif
 
 bool FileSystemSDFAT::is_dir(const char *path)
 {
@@ -113,13 +135,27 @@ bool FileSystemSDFAT::is_dir(const char *path)
 bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t diropts)
 {
     // TODO: Add pattern and sorting options
-    
+
+#ifndef ESP_PLATFORM
+    Debug_printf("FileSystemSDFAT::dir_open \"%s\"\n", path);
+#endif
+
     // Throw out any existing directory entry data
     _dir_entries.clear();
+    _dir_entry_current = 0;
 
+#ifdef ESP_PLATFORM
     FRESULT result = f_opendir(&_dir, path);
     if(result != FR_OK)
         return false;
+#else
+    char * fpath = _make_fullpath(path);
+    Debug_printf("FileSystemSDFAT::dir_open - opendir \"%s\"\n", fpath);
+    _dir = opendir(fpath);
+    free(fpath);
+    if(_dir == nullptr)
+        return false;
+#endif
 
     bool have_pattern = pattern != nullptr && pattern[0] != '\0';
 
@@ -128,6 +164,8 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
     std::vector<fsdir_entry> store_directories;
     std::vector<fsdir_entry> store_files;
     fsdir_entry *entry;
+
+#ifdef ESP_PLATFORM
     FILINFO finfo;
 
     while(f_readdir(&_dir, &finfo) == FR_OK)
@@ -144,9 +182,7 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
 
         // Ignore some special files we create on SD
         if(strcmp(finfo.fname, "paper") == 0 
-        #ifndef FNCONFIG_DEBUG
         || strcmp(finfo.fname, "fnconfig.ini") == 0
-        #endif
         || strcmp(finfo.fname, "rs232dump") == 0)
             continue;
 
@@ -173,6 +209,54 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         entry->size = finfo.fsize;
         entry->modified_time = _fssd_fatdatetime_to_epoch(finfo.ftime, finfo.fdate);
     }
+// ESP_PLATFORM
+#else
+// !ESP_PLATFORM
+    struct dirent *d;
+    struct stat s;
+
+    while((d = readdir(_dir)) != nullptr)
+    {
+        // Ignore items starting with '.'
+        if(d->d_name[0] == '.')
+            continue;
+        // Ignore some special files we create on SD
+        if(strcmp(d->d_name, "paper") == 0 
+        || strcmp(d->d_name, "fnconfig.ini") == 0
+        || strcmp(d->d_name, "rs232dump") == 0)
+            continue;
+        // Debug_printf("Entry %s (%d)\n", d->d_name, d->d_type);
+
+        // Determine which list to put this in
+        if(d->d_type == DT_DIR || d->d_type == DT_LNK) // well, assume symlinks points to directories only
+        {
+            store_directories.push_back(fsdir_entry());
+            entry = &store_directories.back();
+            entry->isDir = true;
+        }
+        else
+        {
+            // Skip this entry if we have a search filter and it doesn't match it
+            if(have_pattern && util_wildcard_match(d->d_name, pattern) == false)
+                continue;
+
+            store_files.push_back(fsdir_entry());
+            entry = &store_files.back();
+            entry->isDir = false;
+        }
+
+        // Copy the data we want into the record
+        strlcpy(entry->filename, d->d_name, sizeof(entry->filename));
+        fpath = _make_fullpath(entry->filename);
+        if(stat(fpath, &s) == 0)
+        {
+            entry->size = s.st_size;
+            entry->modified_time = s.st_mtime;
+        }
+        free(fpath);
+    }
+// !ESP_PLATFORM
+#endif
 
     // Choose the appropriate sorting function
     sort_fn_t sortfn;
@@ -195,7 +279,11 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
     _dir_entries.insert( _dir_entries.end(), store_files.begin(), store_files.end() );
 
     // Future operations will be performed on the cache
+#ifdef ESP_PLATFORM
     f_closedir(&_dir);
+#else
+    closedir(_dir);
+#endif
 
     return true;
 }
@@ -246,28 +334,48 @@ FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
     FILE * result = fopen(fpath, mode);
     free(fpath);
     //Debug_printf("sdfileopen2: task hwm %u, %p\r\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
-#ifdef DEBUG
     Debug_printf("fopen = %s : %s\r\n", path, result == nullptr ? "err" : "ok");
-#endif    
     return result;
 }
 
+#ifndef ESP_PLATFORM
+FileHandler * FileSystemSDFAT::filehandler_open(const char* path, const char* mode)
+{
+    Debug_printf("FileSystemSDFAT::filehandler_open %s %s\n", path, mode);
+    FILE * fh = file_open(path, mode);
+    return (fh == nullptr) ? nullptr : new FileHandlerLocal(fh);
+}
+#endif
+
 bool FileSystemSDFAT::exists(const char* path)
 {
+#ifdef ESP_PLATFORM
     FRESULT result = f_stat(path, NULL);
-#ifdef DEBUG
     //Debug_printf("sdFileSystem::exists returned %d on \"%s\"\r\n", result, path);
-#endif
     return (result == FR_OK);
+#else
+    char * fpath = _make_fullpath(path);
+    struct stat st;
+    int i = stat(fpath, &st);
+    //Debug_printf("sdFileSystem::exists returned %d on \"%s\"\r\n", result, path);
+    free(fpath);
+    return (i == 0);
+#endif
 }
 
 bool FileSystemSDFAT::remove(const char* path)
 {
+#ifdef ESP_PLATFORM
     FRESULT result = f_unlink(path);
-#ifdef DEBUG
     //Debug_printf("sdFileSystem::remove returned %d on \"%s\"\r\n", result, path);
-#endif
     return (result == FR_OK);
+#else
+    char * fpath = _make_fullpath(path);
+    int i = ::remove(fpath);
+    //Debug_printf("sdFileSystem::remove returned %d on \"%s\"\r\n", result, path);
+    free(fpath);
+    return (i == 0);
+#endif
 }
 
 /* Checks that path exists and creates if it doesn't including any parent directories
@@ -280,10 +388,15 @@ bool FileSystemSDFAT::remove(const char* path)
    "/abc/def"
    "abc/def/ghi"
 */
-bool FileSystemSDFAT::create_path(const char *fullpath)
+bool FileSystemSDFAT::create_path(const char *path)
 {
     char segment[64];
 
+#ifdef ESP_PLATFORM
+    const char *fullpath = path;
+#else
+    char *fullpath = _make_fullpath(path);
+#endif
     const char *end = fullpath;
     bool done = false;
 
@@ -313,28 +426,52 @@ bool FileSystemSDFAT::create_path(const char *fullpath)
             */
             strlcpy(segment, fullpath, end - fullpath + (done ? 2 : 1));
             Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
+#ifdef ESP_PLATFORM
             if ( !exists(segment) )
             {
-            if(0 != f_mkdir(segment))
-            {
+                if(0 != f_mkdir(segment))
+                {
                     Debug_printf("FAILED errno=%d\r\n", errno);
+                    return false;
                 }
             }
-        }
+#else
+            if(0 != ::mkdir(segment, S_IRWXU))
+            {
+                if(errno != EEXIST)
+                {
+                    Debug_printf("FAILED errno=%d\r\n", errno);
+                    free(fullpath);
+                    return false;
+                }
+            }
+#endif
+        } // found
 
         end++;
     }
+#ifndef ESP_PLATFORM
+    free(fullpath);
+#endif
 
     return true;
 }
 
 bool FileSystemSDFAT::rename(const char* pathFrom, const char* pathTo)
 {
+#ifdef ESP_PLATFORM
     FRESULT result = f_rename(pathFrom, pathTo);
-#ifdef DEBUG
-    Debug_printf("sdFileSystem::rename returned %d on \"%s\" -> \"%s\"\r\n", result, pathFrom, pathTo);
-#endif
+    Debug_printf("FileSystemSDFAT::rename returned %d on \"%s\" -> \"%s\"\r\n", result, pathFrom, pathTo);
     return (result == FR_OK);
+#else
+    char * spath = _make_fullpath(pathFrom);
+    char * dpath = _make_fullpath(pathTo);
+    int i = ::rename(spath, dpath);
+    Debug_printf("FileSystemSDFAT::rename returned %d on \"%s\" -> \"%s\" (%s -> %s)\r\n", i, pathFrom, pathTo, spath, dpath);
+    free(spath);
+    free(dpath);
+    return (i == 0);
+#endif
 }
 
 uint64_t FileSystemSDFAT::card_size()
@@ -344,29 +481,33 @@ uint64_t FileSystemSDFAT::card_size()
 
 uint64_t FileSystemSDFAT::total_bytes()
 {
+    uint64_t size = 0ULL;
+#ifdef ESP_PLATFORM
 	FATFS* fsinfo;
 	DWORD fre_clust;
-    uint64_t size = 0ULL;
 
 	if (f_getfree("0:", &fre_clust, &fsinfo) == 0)
     {
         // cluster_size * num_clusters * sector_size
         size = ((uint64_t)(fsinfo->csize)) * (fsinfo->n_fatent - 2) * (fsinfo->ssize);
     }
+#endif
 	return size;
 }
 
 uint64_t FileSystemSDFAT::used_bytes()
 {
+    uint64_t size = 0ULL;
+#ifdef ESP_PLATFORM
 	FATFS* fsinfo;
 	DWORD fre_clust;
-    uint64_t size = 0ULL;
 
 	if(f_getfree("0:", &fre_clust, &fsinfo) == 0)
     {
         // cluster_size * (num_clusters - free_clusters) * sector_size
 	    size = ((uint64_t)(fsinfo->csize)) * ((fsinfo->n_fatent-2)-(fsinfo->free_clst)) * (fsinfo->ssize);
     }
+#endif
 	return size;
 }
 
@@ -380,19 +521,22 @@ const char * FileSystemSDFAT::partition_type()
         "FAT32",
         "EXFAT"
     };
+    unsigned char i = 0;
 
+#ifdef ESP_PLATFORM
 	FATFS* fsinfo;
 	DWORD fre_clust;
 
-    BYTE i = 0;
  	if(f_getfree("0:", &fre_clust, &fsinfo) == 0)
     {
         if(fsinfo->fs_type >= FS_FAT12 && fsinfo->fs_type <= FS_EXFAT)
             i = fsinfo->fs_type;
     }
+#endif
     return names[i];
 }
 
+#ifdef ESP_PLATFORM
 bool FileSystemSDFAT::start()
 {
     if(_started)
@@ -465,7 +609,6 @@ bool FileSystemSDFAT::start()
     {
         _started = true;
         _card_capacity = (uint64_t)sdcard_info->csd.capacity * sdcard_info->csd.sector_size;
-    #ifdef DEBUG
         Debug_println("SD mounted.");
 
     /*
@@ -478,7 +621,6 @@ bool FileSystemSDFAT::start()
         Debug_printf("  partition type: %s\r\n", partition_type());
         Debug_printf("  partition size: %llu, used: %llu\r\n", total_bytes(), used_bytes());
     */
-    #endif
     }
     else 
     {
@@ -491,3 +633,26 @@ bool FileSystemSDFAT::start()
 
     return _started;
 }
+#else
+// !ESP_PLATFORM
+bool FileSystemSDFAT::start(const char *sd_path)
+{
+    if(_started)
+        return true;
+
+    // Set our basepath
+    if (sd_path)
+        strlcpy(_basepath, sd_path, sizeof(_basepath));
+    else
+        strlcpy(_basepath, "SD", sizeof(_basepath));
+
+    // TODO test if _basepath directory exists
+    _started = true;
+    // _card_capacity = (uint64_t)sdcard_info->csd.capacity * sdcard_info->csd.sector_size;
+    _card_capacity = 0;
+    Debug_println("SD mounted.");
+
+    return _started;
+}
+// !ESP_PLATFORM
+#endif
