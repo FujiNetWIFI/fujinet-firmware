@@ -115,7 +115,7 @@
 
 - **DONE** / merge: lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
 
-- TODO: components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
+- **DONE** / add: components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
 
 - TODO: lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
 
