@@ -97,7 +97,7 @@ set(SOURCES
     lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
     lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
     lib/FileSystem/fnFsSPIFFS.h lib/FileSystem/fnFsSPIFFS.cpp
-#     lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
+    lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
     lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
     lib/FileSystem/fnFsSMB.h lib/FileSystem/fnFsSMB.cpp
     lib/FileSystem/fnFsFTP.h lib/FileSystem/fnFsFTP.cpp
