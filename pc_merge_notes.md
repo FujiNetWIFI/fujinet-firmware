@@ -46,9 +46,7 @@
 
 - **DONE**: lib/utils/string_utils.h lib/utils/string_utils.cpp
 
-- **WIP**: lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
-
-    fnWiFi.h
+- **DONE** / add: lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
 
 - TODO: lib/hardware/led.h lib/hardware/led.cpp
 
@@ -119,7 +117,9 @@
 
 - TODO: lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
 
-- TODO: lib/http/httpService.h lib/http/httpService.cpp
+- **WIP**: lib/http/httpService.h lib/http/httpService.cpp
+
+    httpService.h
 
 - TODO: lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
 

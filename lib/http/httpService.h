@@ -29,7 +29,11 @@ If a file has an extention pre-determined to support parsing (see/update
 #ifndef HTTPSERVICE_H
 #define HTTPSERVICE_H
 
+#ifdef ESP_PLATFORM
 #include <esp_http_server.h>
+#else
+#include "mongoose.h"
+#endif
 
 #include <map>
 #include <string>
@@ -51,7 +55,11 @@ If a file has an extention pre-determined to support parsing (see/update
 class fnHttpService 
 {
     struct serverstate {
+#ifdef ESP_PLATFORM
         httpd_handle_t hServer;
+#else
+        struct mg_mgr *hServer;
+#endif
         FileSystem *_FS = nullptr;
     } state;
 
@@ -63,6 +71,7 @@ class fnHttpService
         fnwserr_post_fail
     };
 
+#ifdef ESP_PLATFORM
     struct queryparts {
         std::string full_uri;
         std::string path;
@@ -81,6 +90,21 @@ class fnHttpService
     static void send_file(httpd_req_t *req, const char *filename);
     static void parse_query(httpd_req_t *req, queryparts *results);
     static void send_header_footer(httpd_req_t *req, int headfoot);
+#else
+// !ESP_PLATFORM
+    static struct mg_mgr * start_server(serverstate &state);
+    static void cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data);
+    static void return_http_error(struct mg_connection *c, _fnwserr errnum);
+    static const char * find_mimetype_str(const char *extension);
+    static const char * get_extension(const char *filename);
+    static const char * get_basename(const char *filepath);
+    static void set_file_content_type(struct mg_connection *c, const char *filepath);
+    static void send_file_parsed(struct mg_connection *c, const char *filename);
+    static void send_file(struct mg_connection *c, const char *filename);
+    static int redirect_or_result(mg_connection *c, mg_http_message *hm, int result);
+
+    friend class fnHttpServiceBrowser; // allow browser to call above functions
+#endif
 
 public:
 
@@ -91,6 +115,7 @@ public:
     void addToErrMsg(const std::string &_e) { errMsg += _e; }
     bool errMsgEmpty() { return errMsg.empty(); }
 
+#ifdef ESP_PLATFORM
     static esp_err_t get_handler_test(httpd_req_t *req);
     static esp_err_t get_handler_index(httpd_req_t *req);
     static esp_err_t get_handler_file_in_query(httpd_req_t *req);
@@ -108,11 +133,26 @@ public:
 #endif
 
     static esp_err_t post_handler_config(httpd_req_t *req);
+#else
+// !ESP_PLATFORM
+    static int get_handler_print(struct mg_connection *c);
+    // static esp_err_t get_handler_modem_sniffer(httpd_req_t *req);
+    static int get_handler_swap(struct mg_connection *c, struct mg_http_message *hm);
+    static int get_handler_mount(struct mg_connection *c, struct mg_http_message *hm);
+    static int get_handler_eject(mg_connection *c, mg_http_message *hm);
+
+    static int post_handler_config(struct mg_connection *c, struct mg_http_message *hm);
+
+    static int get_handler_browse(mg_connection *c, mg_http_message *hm);
+
+    void service();
+// !ESP_PLATFORM
+#endif
 
     void start();
     void stop();
     bool running(void) {
-        return state.hServer != NULL;
+        return state.hServer != nullptr;
     }
 };
 
