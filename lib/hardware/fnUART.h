@@ -37,6 +37,9 @@ private:
     int _proceed_tiocm;
     int _fd;
 #endif
+    // serial port error counter
+    int _errcount;
+    unsigned long _suspend_time;
 #endif // !ESP_PLATFORM
 
     bool _initialized = false; // is UART ready?
@@ -134,12 +137,12 @@ public:
     // size_t println(int num, int base = 10);
 
     // //size_t print(const char *format, ...);
-    size_t print(const char *str);
-    size_t print(const std::string &str);
-    size_t print(int n, int base = 10);
-    size_t print(unsigned int n, int base = 10);
-    size_t print(long n, int base = 10);
-    size_t print(unsigned long n, int base = 10);
+    // size_t print(const char *str);
+    // size_t print(const std::string &str);
+    // size_t print(int n, int base = 10);
+    // size_t print(unsigned int n, int base = 10);
+    // size_t print(long n, int base = 10);
+    // size_t print(unsigned long n, int base = 10);
 #endif // ESP_PLATFORM
 };
 
