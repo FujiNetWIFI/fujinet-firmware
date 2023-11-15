@@ -3,7 +3,7 @@
 #ifndef _FN_UDP_
 #define _FN_UDP_
 
-#include <lwip/netdb.h>
+#include "compat_inet.h"
 
 #include "cbuf.h"
 

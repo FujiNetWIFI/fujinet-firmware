@@ -109,7 +109,7 @@ set(SOURCES
     lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
     lib/EdUrlParser/EdUrlParser.h lib/EdUrlParser/EdUrlParser.cpp
     lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
-#     lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
+    lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
 #     lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
 #     lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
 #     lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
