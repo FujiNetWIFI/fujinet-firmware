@@ -85,9 +85,7 @@
     (std::string std::vectort etc.) to fix "ambiguous byte" compilation errors
     - FN-PC files with "ambiguous byte" fix: EdUrlParser.[h,cpp] fnjson.cpp fnFTP.h
 
-- **WIP**: lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
-
-    fnDNS.h
+- **DONE** / merge: lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
 
 - TODO: lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
 
