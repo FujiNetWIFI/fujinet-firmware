@@ -52,9 +52,7 @@
 
 - **DONE** / merge: lib/hardware/fnUART.h lib/hardware/fnUART.cpp lib/hardware/fnUARTUnix.cpp lib/hardware/fnUARTWindows.cpp
 
-- **WIP**: lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
-
-    fnSystem.h
+- **DONE** / merge: lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
 
 - **DONE** / add: lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
 

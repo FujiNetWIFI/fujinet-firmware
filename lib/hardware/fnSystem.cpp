@@ -1,6 +1,8 @@
 
 #include "fnSystem.h"
 
+#ifdef ESP_PLATFORM
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <esp_system.h>
@@ -20,6 +22,21 @@
 #endif
 #include <soc/rtc.h>
 #include <esp_adc_cal.h>
+
+// ESP_PLATFORM
+#else
+// !ESP_PLATFORM
+
+#include <sys/time.h>
+#include <unistd.h>
+#include <sched.h>
+#include "compat_uname.h"
+#include "compat_gettimeofday.h"
+#include "compat_esp.h" // empty IRAM_ATTR macro for FujiNet-PC
+
+// !ESP_PLATFORM
+#endif
+
 #include <time.h>
 #include <cstring>
 
@@ -38,6 +55,8 @@
 #endif
 
 
+
+#ifdef ESP_PLATFORM
 static QueueHandle_t card_detect_evt_queue = NULL;
 
 static void IRAM_ATTR card_detect_isr_handler(void *arg)
@@ -86,6 +105,20 @@ static void setup_card_detect(gpio_num_t pin)
     // Add the card detect handler
     gpio_isr_handler_add(pin, card_detect_isr_handler, (void *)pin);
 }
+// ESP_PLATFORM
+#else
+// !ESP_PLATFORM
+// keep reference timestamp
+uint64_t _get_start_millis()
+{
+    struct timeval tv;
+    compat_gettimeofday(&tv, NULL);
+    return (uint64_t)(tv.tv_sec*1000ULL+tv.tv_usec/1000ULL);
+}
+uint64_t _start_millis = _get_start_millis();
+uint64_t _start_micros = _start_millis*1000;
+// !ESP_PLATFORM
+#endif
 
 // Global object to manage System
 SystemManager fnSystem;
@@ -94,17 +127,25 @@ SystemManager::SystemManager()
 {
     memset(_uptime_string,0,sizeof(_uptime_string));
     memset(_currenttime_string,0,sizeof(_currenttime_string));
+#ifndef ESP_PLATFORM
+    memset(_uname_string, 0, sizeof(_uname_string));
+#endif
     _hardware_version=0;
 }
 
 // Returns current CPU frequency in MHz
 uint32_t SystemManager::get_cpu_frequency()
 {
+#ifdef ESP_PLATFORM
     rtc_cpu_freq_config_t cfg;
     rtc_clk_cpu_freq_get_config(&cfg);
     return cfg.freq_mhz;
+#else
+    return 1;
+#endif
 }
 
+#ifdef ESP_PLATFORM
 // Set pin mode
 void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pull_mode, gpio_int_type_t intr_type)
 {
@@ -133,11 +174,13 @@ void SystemManager::set_pin_mode(uint8_t pin, gpio_mode_t mode, pull_updown_t pu
     // configure GPIO with the given settings
     gpio_config(&io_conf);
 }
+#endif
 
 // from esp32-hal-misc.
 // Set DIGI_LOW or DIGI_HIGH
 void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
 {
+#ifdef ESP_PLATFORM
     if (val)
     {
         if (pin < 32)
@@ -160,12 +203,16 @@ void IRAM_ATTR SystemManager::digital_write(uint8_t pin, uint8_t val)
             GPIO.out1_w1tc.val = ((uint32_t)1 << (pin - 32));
         }
     }
+#else
+    Debug_println("SystemManager::digital_write() not implemented");
+#endif
 }
 
 // from esp32-hal-misc.
 // Returns DIGI_LOW or DIGI_HIGH
 int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
 {
+#ifdef ESP_PLATFORM
     if (pin < 32)
     {
         return (GPIO.in >> pin) & 0x1;
@@ -174,9 +221,13 @@ int IRAM_ATTR SystemManager::digital_read(uint8_t pin)
     {
         return (GPIO.in1.val >> (pin - 32)) & 0x1;
     }
+#else
+    Debug_println("SystemManager::digital_read() not implemented");
+#endif
     return 0;
 }
 
+#ifdef ESP_PLATFORM
 // from esp32-hal-misc.c
 unsigned long IRAM_ATTR SystemManager::micros()
 {
@@ -194,7 +245,28 @@ void SystemManager::delay(uint32_t ms)
 {
     vTaskDelay(ms / portTICK_PERIOD_MS);
 }
+#else
+uint64_t SystemManager::micros()
+{
+    struct timeval tv;
+    compat_gettimeofday(&tv, NULL);
+    return (uint64_t)(tv.tv_sec*1000000ULL+tv.tv_usec) - _start_micros;
+}
 
+uint64_t SystemManager::millis()
+{
+    struct timeval tv;
+    compat_gettimeofday(&tv, NULL);
+    return (uint64_t)(tv.tv_sec*1000UL+tv.tv_usec/1000UL) - _start_millis;
+}
+
+void SystemManager::delay(uint32_t ms)
+{
+    usleep(ms*1000);
+}
+#endif
+
+#ifdef ESP_PLATFORM
 // from esp32-hal-misc.
 void IRAM_ATTR SystemManager::delay_microseconds(uint32_t us)
 {
@@ -214,13 +286,91 @@ void IRAM_ATTR SystemManager::delay_microseconds(uint32_t us)
             NOP();
     }
 }
+#endif // ESP_PLATFORM
 
+#if defined(__linux__) || defined(__APPLE__)
+void SystemManager::delay_microseconds(uint32_t us)
+{
+    usleep(us);
+}
+#endif
+
+#if defined(_WIN32)
+void SystemManager::delay_microseconds(uint32_t us)
+{
+    // a)
+    // HANDLE timer; 
+    // LARGE_INTEGER ft; 
+
+    // ft.QuadPart = -(10*us); // Convert to 100 nanosecond interval, negative value indicates relative time
+
+    // timer = CreateWaitableTimer(NULL, TRUE, NULL); 
+    // SetWaitableTimer(timer, &ft, 0, NULL, NULL, 0); 
+    // WaitForSingleObject(timer, INFINITE); 
+
+    // CloseHandle(timer);
+
+    // b)
+    // usleep(us);
+
+    // c)
+    // std::this_thread::sleep_for(std::chrono::microseconds(us));
+
+    // d) combination of Sleep and busy-looping
+    if (us > 1000000)
+    {
+        // At least one second. Millisecond resolution is sufficient.
+        Sleep(us / 1000);
+    }
+    else
+    {
+        // Use Sleep for the largest part, and busy-loop for the rest
+        static double frequency;
+        if (frequency == 0)
+        {
+            LARGE_INTEGER freq;
+            if (!QueryPerformanceFrequency (&freq))
+            {
+                Debug_println("QueryPerformanceCounter failed");
+                // Cannot use QueryPerformanceCounter.
+                Sleep (us / 1000);
+                return;
+            }
+            frequency = (double) freq.QuadPart / 1000000000.0;
+        }
+        long long expected_counter_difference = 1000 * us * frequency;
+        int sleep_part = (int) us / 1000 - 10;
+        LARGE_INTEGER before;
+        QueryPerformanceCounter (&before);
+        long long expected_counter = before.QuadPart + expected_counter_difference;
+        if (sleep_part > 0)
+            Sleep(sleep_part);
+        for (;;)
+        {
+            LARGE_INTEGER after;
+            QueryPerformanceCounter (&after);
+            if (after.QuadPart >= expected_counter)
+                break;
+        }
+    }
+}
+#endif // _WIN32
+
+
+#ifdef ESP_PLATFORM
 // from esp32-hal-misc.
 void SystemManager::yield()
 {
     vPortYield();
 }
+#else
+void SystemManager::yield()
+{
+    sched_yield();
+}
+#endif
 
+#ifdef ESP_PLATFORM
 // TODO: Close open files first
 void SystemManager::reboot()
 {
@@ -228,27 +378,67 @@ void SystemManager::reboot()
     fnWiFi.stop();
     esp_restart();
 }
+#else
+void SystemManager::reboot(uint32_t delay_ms, bool reboot)
+{
+    if (delay_ms == 0)
+    {
+        // do cleanup and exit
+        Debug_println("SystemManager::reboot - exiting ...");
+        // FN will be restarted if ended with EXIT_AND_RESTART (75)
+        exit(_reboot_code);
+    }
+    else
+    {
+        // deferred reboot
+        // called from httpService, some time is needed to finish http request prior exiting
+        _reboot_at = millis() + delay_ms;
+        _reboot_code = reboot ? EXIT_AND_RESTART : 0;
+        Debug_printf("SystemManager::reboot - exit(%d) in %d ms\n", _reboot_code, delay_ms);
+    }
+}
+
+bool SystemManager::check_deferred_reboot()
+{
+    return _reboot_at && millis() >= _reboot_at;
+}
+#endif
 
 /* Size of available heap. Size of largest contiguous block may be smaller.
 */
 uint32_t SystemManager::get_free_heap_size()
 {
+#ifdef ESP_PLATFORM
     return esp_get_free_heap_size();
+#else
+    return 0;
+#endif
 }
 
 /* Microseconds since system boot-up
 */
+#ifdef ESP_PLATFORM
 int64_t SystemManager::get_uptime()
 {
     return esp_timer_get_time();
 }
+#else
+uint64_t SystemManager::get_uptime()
+{
+    return micros();
+}
+#endif
 
 void SystemManager::update_timezone(const char *timezone)
 {
+#ifdef ESP_PLATFORM
     if (timezone != nullptr && timezone[0] != '\0')
         setenv("TZ", timezone, 1);
 
     tzset();
+#else
+    Debug_printf("SystemManager::update_timezone(%s) - not implemented\r\n", timezone);
+#endif
 }
 
 void SystemManager::update_hostname(const char *hostname)
@@ -265,14 +455,25 @@ const char *SystemManager::get_current_time_str()
     time_t tt = time(nullptr);
     struct tm *tinfo = localtime(&tt);
 
+#if !defined(_WIN32) || defined(_UCRT)
+    // compatibility notice:
+    // this works on Windows only if linked using newer UCRT lib (Universal C runtime, Windows 10+)
     strftime(_currenttime_string, sizeof(_currenttime_string), "%a %b %e, %H:%M:%S %Y %z", tinfo);
-
+#else
+    // this should work on Windows if linked using old MSVCRT lib
+    // (%#d instead of %e, no timezone)
+    strftime(_currenttime_string, sizeof(_currenttime_string), "%a %b %#d, %H:%M:%S %Y", tinfo);
+#endif
     return _currenttime_string;
 }
 
 const char *SystemManager::get_uptime_str()
 {
+#ifdef ESP_PLATFORM
     int64_t ms = esp_timer_get_time();
+#else
+    int64_t ms = (int64_t)micros();
+#endif
 
     long ml = ms / 1000;
     long s = ml / 1000;
@@ -287,9 +488,33 @@ const char *SystemManager::get_uptime_str()
     return _uptime_string;
 }
 
+#ifndef ESP_PLATFORM
+const char *SystemManager::get_uname()
+{
+    struct utsname uts;
+
+    if (uname(&uts) == -1)
+        return "Unknown";
+
+#if defined(_WIN32)
+    if (snprintf(_uname_string, sizeof(_uname_string), "%s %s.%s %s", uts.sysname, uts.version, uts.release, uts.machine) >= sizeof(_uname_string))
+#else
+    if (snprintf(_uname_string, sizeof(_uname_string), "%s %s %s", uts.sysname, uts.release, uts.machine) >= sizeof(_uname_string))
+#endif
+    {
+        strcpy(_uname_string+sizeof(_uname_string)-4, "...");
+    }
+    return _uname_string;
+}
+#endif // !ESP_PLATFORM
+
 const char *SystemManager::get_sdk_version()
 {
+#ifdef ESP_PLATFORM
     return esp_get_idf_version();
+#else
+    return "NOSDK";
+#endif
 }
 
 const char *SystemManager::get_fujinet_version(bool shortVersionOnly)
@@ -302,13 +527,18 @@ const char *SystemManager::get_fujinet_version(bool shortVersionOnly)
 
 int SystemManager::get_cpu_rev()
 {
+#ifdef ESP_PLATFORM
     esp_chip_info_t chipinfo;
     esp_chip_info(&chipinfo);
     return chipinfo.revision;
+#else
+    return 0;
+#endif
 }
 
 SystemManager::chipmodels SystemManager::get_cpu_model()
 {
+#ifdef ESP_PLATFORM
     esp_chip_info_t chipinfo;
     esp_chip_info(&chipinfo);
 
@@ -321,10 +551,15 @@ SystemManager::chipmodels SystemManager::get_cpu_model()
         return chipmodels::CHIP_UNKNOWN;
         break;
     }
+#else
+    return chipmodels::CHIP_UNKNOWN;
+#endif
 }
 
 int SystemManager::get_sio_voltage()
 {
+#ifdef ESP_PLATFORM
+
 #if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(PINMAP_A2_REV0)
     // Configure ADC1_CH7
     adc1_config_width(ADC_WIDTH_12Bit);
@@ -365,12 +600,18 @@ int SystemManager::get_sio_voltage()
 #else
     return 0;
 #endif
+
+// ESP_PLATFORM
+#else
+// !ESP_PLATFORM
+    return 0;
+#endif
 }
 
 /*
  Create temporary file using provided FileSystem.
  Filename will be 8 characters long. If provided, generated filename will be placed in result_filename
- File opened in "w+" mode.
+ File opened in "wb+" mode.
 */
 FILE *SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
 {
@@ -388,7 +629,7 @@ FILE *SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
         fname = buff;
 
     sprintf(fname, "%08u", (unsigned)ms);
-    return fs->file_open(fname, "w+");
+    return fs->file_open(fname, "wb+");
 }
 
 void SystemManager::delete_tempfile(FileSystem *fs, const char *filename)
@@ -414,7 +655,7 @@ void SystemManager::delete_tempfile(const char *filename)
 /*
  Create temporary file. fnSDFAT will be used if available, otherwise fsFlash.
  Filename will be 8 characters long. If provided, generated filename will be placed in result_filename
- File opened in "w+" mode.
+ File opened in "wb+" mode.
 */
 FILE *SystemManager::make_tempfile(char *result_filename)
 {
@@ -444,7 +685,7 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
     }
 
     size_t result = 0;
-    FILE *fout = dest_fs->file_open(dest_filename, "w");
+    FILE *fout = dest_fs->file_open(dest_filename, "wb");
     if (fout == nullptr)
     {
         Debug_println("copy_file failed to open destination");
@@ -464,7 +705,7 @@ size_t SystemManager::copy_file(FileSystem *source_fs, const char *source_filena
     fclose(fin);
     free(buffer);
 
-    Debug_printf("copy_file copied %d bytes\r\n", result);
+    Debug_printf("copy_file copied %u bytes\r\n", (unsigned)result);
 
     return result;
 }
@@ -520,9 +761,13 @@ esp_err_t SystemManager::dac_output_voltage(dac_channel_t channel, uint8_t dac_v
 
 uint32_t SystemManager::get_psram_size()
 {
+#ifdef ESP_PLATFORM
     multi_heap_info_t info;
     heap_caps_get_info(&info, MALLOC_CAP_SPIRAM);
     return info.total_free_bytes + info.total_allocated_bytes;
+#else
+    return 0;
+#endif
 }
 
 /*
@@ -542,7 +787,7 @@ int SystemManager::load_firmware(const char *filename, uint8_t *buffer)
     FILE *f = fsFlash.file_open(filename);
     size_t file_size = FileSystem::filesize(f);
 
-    Debug_printf("load_firmware file size = %u\r\n", file_size);
+    Debug_printf("load_firmware file size = %u\r\n", (unsigned)file_size);
 
     if (buffer == NULL)
     {
@@ -584,6 +829,9 @@ const char *SystemManager::get_hardware_ver_str()
     case 4:
         return "1.6.1 and up";
         break;
+    case -1:
+        return "fujinet-pc";
+        break;
     case 0:
     default:
         return "Unknown";
@@ -598,6 +846,8 @@ const char *SystemManager::get_hardware_ver_str()
 */
 void SystemManager::check_hardware_ver()
 {
+#ifdef ESP_PLATFORM
+
 #ifdef PINMAP_ESP32S3
 
     if (PIN_CARD_DETECT != GPIO_NUM_NC)
@@ -743,12 +993,20 @@ void SystemManager::check_hardware_ver()
     fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 
 #endif /* PINMAP_ESP32S3 */
+
+// ESP_PLATFORM
+#else
+// !ESP_PLATFORM
+    // fujinet-pc
+    _hardware_version = -1;
+#endif
 }
 
 // Dumps list of current tasks
 void SystemManager::debug_print_tasks()
 {
 #ifdef DEBUG
+#ifdef ESP_PLATFORM
 
     static const char *status[] = {"Running", "Ready", "Blocked", "Suspened", "Deleted"};
 
@@ -770,5 +1028,6 @@ void SystemManager::debug_print_tasks()
                      pTasks[i].pcTaskName);
     }
     Debug_printf("\nCPU MHz: %d\r\n", fnSystem.get_cpu_frequency());
-#endif
+#endif // ESP_PLATFORM
+#endif // DEBUG
 }
