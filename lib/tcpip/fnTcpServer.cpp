@@ -2,7 +2,11 @@
 
 #include "fnTcpServer.h"
 
-#include <lwip/netdb.h>
+#include <fcntl.h>
+
+#if !defined(_WIN32)
+#include <netinet/tcp.h>
+#endif
 
 #include "../../include/debug.h"
 
@@ -23,7 +27,7 @@ int fnTcpServer::begin(uint16_t port)
     _sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (_sockfd < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to allocate socket, err %d\r\n", errno);
+        Debug_printf("fnTcpServer::begin failed to allocate socket, err %d\r\n", compat_getsockerr());
         return 0;
     }
 
@@ -34,30 +38,43 @@ int fnTcpServer::begin(uint16_t port)
     server.sin_port = htons(_port);
     if (bind(_sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to bind socket, err %d\r\n", errno);
+        Debug_printf("fnTcpServer::begin failed to bind socket, err %d\r\n", compat_getsockerr());
         return 0;
     }
 
     int enable = 1;
-    if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+#if defined(_WIN32)
+    if (setsockopt(_sockfd, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (char *) &enable, sizeof(enable)) != 0)
     {
-        Debug_printf("fnTcpServer::begin failed to set SO_REUSEADDR, err %d\r\n", errno);
+        Debug_printf("fnTcpServer::begin failed to set SO_EXCLUSIVEADDRUSE, err %d\r\n", compat_getsockerr());
         return 0;
     }
+#else
+    if (setsockopt(_sockfd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0)
+    {
+        Debug_printf("fnTcpServer::begin failed to set SO_REUSEADDR, err %d\r\n", compat_getsockerr());
+        return 0;
+    }
+#endif
 
     Debug_printf("Max clients is currently %u\r\n",_max_clients);
 
     // Now listen in on this socket
     if (listen(_sockfd, _max_clients) < 0)
     {
-        Debug_printf("fnTcpServer::begin failed to listen on socket, err %d\r\n", errno);
+        Debug_printf("fnTcpServer::begin failed to listen on socket, err %d\r\n", compat_getsockerr());
         return 0;
     }
 
     // Switch to non-blocking mode
+#if defined(_WIN32)
+    unsigned long on = 1;
+    if (ioctlsocket(_sockfd, FIONBIO, &on) < 0)
+#else
     if (fcntl(_sockfd, F_SETFL, O_NONBLOCK) < 0)
+#endif
     {
-        Debug_printf("fnTcpServer::begin failed to set non-blocking mode. Closing down server. err %d\n", errno);
+        Debug_printf("fnTcpServer::begin failed to set non-blocking mode. Closing down server. err %d\r\n", compat_getsockerr());
         stop();
         return 0;
     }
@@ -77,11 +94,11 @@ bool fnTcpServer::hasClient()
 
     struct sockaddr_in _client;
     int cs = sizeof(struct sockaddr_in);
-    _accepted_sockfd = lwip_accept(_sockfd, (struct sockaddr *)&_client, (socklen_t *)&cs);
+    _accepted_sockfd = ::accept(_sockfd, (struct sockaddr *)&_client, (socklen_t *)&cs);
 
     if (_accepted_sockfd >= 0)
     {
-        Debug_printf("TcpServer accepted connection from %s\r\n", inet_ntoa(_client.sin_addr.s_addr));
+        Debug_printf("TcpServer accepted connection from %s\r\n", inet_ntoa(_client.sin_addr));
         return true;
     }
 
@@ -108,17 +125,17 @@ fnTcpClient fnTcpServer::available()
     {
         struct sockaddr_in _client;
         int cs = sizeof(struct sockaddr_in);
-        client_sock = lwip_accept(_sockfd, (struct sockaddr *)&_client, (socklen_t *)&cs);
+        client_sock = ::accept(_sockfd, (struct sockaddr *)&_client, (socklen_t *)&cs);
     }
 
     // If we have a client, turn on SO_KEEPALIVE and TCP_NODELAY and return new fnTcpClient
     if (client_sock >= 0)
     {
         int val = 1;
-        if (setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, &val, sizeof(val)) == ESP_OK)
+        if (setsockopt(client_sock, SOL_SOCKET, SO_KEEPALIVE, (char *)&val, sizeof(val)) == 0)
         {
             val = _noDelay;
-            if (setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, &val, sizeof(val)) == ESP_OK)
+            if (setsockopt(client_sock, IPPROTO_TCP, TCP_NODELAY, (char *)&val, sizeof(val)) == 0)
                 return fnTcpClient(client_sock);
         }
     }
@@ -130,12 +147,19 @@ fnTcpClient fnTcpServer::available()
 // Set both send and receive timeouts on the TCP socket
 int fnTcpServer::setTimeout(uint32_t seconds)
 {
+#if defined(_WIN32)
+    DWORD ms = 1000 * seconds;
+    if (setsockopt(_sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&ms, sizeof(ms)) != 0)
+        return -1;
+    return setsockopt(_sockfd, SOL_SOCKET, SO_SNDTIMEO, (char *)&ms, sizeof(ms));
+#else
     struct timeval tv;
     tv.tv_sec = seconds;
     tv.tv_usec = 0;
     if (setsockopt(_sockfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval)) < 0)
         return -1;
     return setsockopt(_sockfd, SOL_SOCKET, SO_SNDTIMEO, (char *)&tv, sizeof(struct timeval));
+#endif
 }
 
 // Closes listening socket
@@ -144,8 +168,8 @@ void fnTcpServer::stop()
     if (_sockfd > 0)
     {
         Debug_printf("fnTcpServer::stop(%d)\r\n", _sockfd);
-        lwip_close(_sockfd);
-        Debug_printf("close errno %d\r\n",errno);
+        closesocket(_sockfd);
+        Debug_printf("close errno %d\r\n",compat_getsockerr());
         _sockfd = -1;
         _listening = false;
     }
