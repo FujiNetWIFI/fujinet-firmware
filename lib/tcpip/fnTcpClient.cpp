@@ -2,11 +2,35 @@
 
 #include "fnTcpClient.h"
 
-#include <lwip/netdb.h>
+#include <cstring>
+#include <fcntl.h>
+#include <errno.h>
 
-#include "../../include/debug.h"
+#ifndef ESP_PLATFORM
+# if defined(_WIN32)
+// this only eliminates compilation errors on Windows
+// for non-blocking socket operations FIONBIO must be set
+#  define MSG_DONTWAIT 0
+# else
+#  include <sys/ioctl.h>
+#  include <netinet/tcp.h>
+# endif
+
+# ifndef MSG_NOSIGNAL
+#  if defined(_WIN32)
+#   define MSG_NOSIGNAL 0
+#  endif
+// MSG_NOSIGNAL does not exists on older macOS
+#  if defined(__APPLE__) || defined(__MACH__)
+#   define USE_SO_NOSIGPIPE
+#   define MSG_NOSIGNAL 0
+#  endif
+# endif
+#endif // !ESP_PLATFORM
 
 #include "fnDNS.h"
+
+#include "../../include/debug.h"
 
 
 #define FNTCP_MAX_WRITE_RETRY (10)
@@ -29,13 +53,27 @@ private:
         {
             return 0;
         }
+#if defined(_WIN32)
+        unsigned long count;
+        int res = ioctlsocket(_fd, FIONREAD, &count);
+        if (res != 0)
+        {
+            _failed = true;
+            return 0;
+        }
+#else
         int count;
+#ifdef ESP_PLATFORM
         int res = lwip_ioctl(_fd, FIONREAD, &count);
+#else
+        int res = ioctl(_fd, FIONREAD, &count);
+#endif
         if (res < 0)
         {
             _failed = true;
             return 0;
         }
+#endif
         return count;
     }
 
@@ -67,10 +105,15 @@ private:
         }
 
         // Read the data
-        int res = recv(_fd, _buffer + _fill, _size - _fill, MSG_DONTWAIT);
+        int res = recv(_fd, (char *)(_buffer + _fill), _size - _fill, MSG_DONTWAIT);
         if (res < 0)
         {
-            if (errno != EWOULDBLOCK)
+            int err = compat_getsockerr();
+#if defined(_WIN32)
+            if (err != WSAEWOULDBLOCK)
+#else
+            if (err != EWOULDBLOCK)
+#endif
             {
                 _failed = true;
             }
@@ -162,7 +205,7 @@ public:
     int fd() { return _sockfd; }
     int close()
     {
-        int res = (_sockfd >= 0) ? ::close(_sockfd) : -1;
+        int res = (_sockfd >= 0) ? closesocket(_sockfd) : -1;
         _sockfd = -1;
         return res;
     }
@@ -193,11 +236,25 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
     {
-        Debug_printf("socket: %d\r\n", errno);
+        Debug_printf("socket: %d\r\n", compat_getsockerr());
         return 0;
     }
+
+#ifdef USE_SO_NOSIGPIPE
+    // set SO_NOSIGPIPE on macOS without MSG_NOSIGNAL
+    {
+        int set = 1;
+        setSocketOption(SO_NOSIGPIPE, (char *)&set, sizeof(int));
+    }
+#endif
+
     // Add O_NONBLOCK to our socket file descriptor
+#if defined(_WIN32)
+    unsigned long on = 1;
+    ioctlsocket(sockfd, FIONBIO, &on);
+#else
     fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK);
+#endif
 
     // Fill a new sockaddr_in struct with our info
     struct sockaddr_in serveraddr;
@@ -207,11 +264,23 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     serveraddr.sin_port = htons(port);
 
     // Connect to the server
+#ifdef ESP_PLATFORM
     int res = lwip_connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
-    if (res < 0 && errno != EINPROGRESS)
+#else
+    int res = ::connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
+#endif
+    int err = compat_getsockerr();
+
+#if defined(_WIN32)
+    if (res < 0 && err != WSAEWOULDBLOCK)
+#else
+    if (res < 0 && err != EINPROGRESS)
+#endif
     {
-        Debug_printf("connect on fd %d, errno: %d, \"%s\"\r\n", sockfd, errno, strerror(errno));
-        ::close(sockfd);
+        Debug_printf("connect on fd %d, errno: %d, \"%s\"\r\n", sockfd, err, compat_sockstrerror(err));
+        closesocket(sockfd);
+        // re-set errno for errno_to_error()
+        compat_setsockerr(err);
         return 0;
     }
 
@@ -220,50 +289,76 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     fd_set fdset;
     FD_ZERO(&fdset);
     FD_SET(sockfd, &fdset);
+    // select for error on sockfd too
+    fd_set fdseterr;
+    FD_ZERO(&fdseterr);
+    FD_SET(sockfd, &fdseterr);
 
     struct timeval tv;
     tv.tv_sec = timeout / 1000;
     tv.tv_usec = (timeout - tv.tv_sec*1000) * 1000;
 
-    res = select(sockfd + 1, nullptr, &fdset, nullptr, timeout < 0 ? nullptr : &tv);
+    res = select(sockfd + 1, nullptr, &fdset, &fdseterr, timeout < 0 ? nullptr : &tv);
     // Error result
     if (res < 0)
     {
-        Debug_printf("select on fd %d, errno: %d, \"%s\"\r\n", sockfd, errno, strerror(errno));
-        ::close(sockfd);
+        err = compat_getsockerr();
+        Debug_printf("select on fd %d, errno: %d, \"%s\"\r\n", sockfd, err, compat_sockstrerror(err));
+        closesocket(sockfd);
+        // re-set errno
+        compat_setsockerr(err);
         return 0;
     }
     // Timeout reached
     else if (res == 0)
     {
         Debug_printf("select returned due to timeout %d ms for fd %d\r\n", timeout, sockfd);
-        ::close(sockfd);
+        closesocket(sockfd);
+#if defined(_WIN32)
+        err = WSAETIMEDOUT;
+#else
+        err = ETIMEDOUT;
+#endif
+        // set errno
+        compat_setsockerr(err);
         return 0;
     }
-    // Success
+    // Success (ready for write) OR error on socket
     else
     {
         int sockerr;
         socklen_t len = (socklen_t)sizeof(int);
         // Store any socket error value in sockerr
-        res = getsockopt(sockfd, SOL_SOCKET, SO_ERROR, &sockerr, &len);
+        res = getsockopt(sockfd, SOL_SOCKET, SO_ERROR, (char *)&sockerr, &len);
         if (res < 0)
         {
             // Failed to retrieve SO_ERROR
-            Debug_printf("getsockopt on fd %d, errno: %d, \"%s\"\r\n", sockfd, errno, strerror(errno));
-            ::close(sockfd);
+            err = compat_getsockerr();
+            Debug_printf("getsockopt on fd %d, errno: %d, \"%s\"\r\n", sockfd, err ,compat_sockstrerror(err));
+            closesocket(sockfd);
+            // set errno
+            compat_setsockerr(err);
             return 0;
         }
         // Retrieved SO_ERROR and found that we have an error condition
         if (sockerr != 0)
         {
-            Debug_printf("socket error on fd %d, errno: %d, \"%s\"\r\n", sockfd, sockerr, strerror(sockerr));
-            ::close(sockfd);
+            Debug_printf("socket error on fd %d, errno: %d, \"%s\"\r\n", sockfd, sockerr, compat_sockstrerror(sockerr));
+            closesocket(sockfd);
+            // set errno
+            compat_setsockerr(sockerr);
             return 0;
         }
     }
+
     // Remove the O_NONBLOCK flag
+#if defined(_WIN32)
+    // cannot use MSG_DONTWAIT on Windows, keep O_NONBLOCK
+    // unsigned long off = 0;
+    // ioctlsocket(sockfd, FIONBIO, &off);
+#else
     fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & (~O_NONBLOCK));
+#endif
     // Create a socket handle and recieve buffer objects
     _clientSocketHandle.reset(new fnTcpClientSocketHandle(sockfd));
     _rxBuffer.reset(new fnTcpClientRxBuffer(sockfd));
@@ -282,12 +377,16 @@ int fnTcpClient::connect(const char *host, uint16_t port, int32_t timeout)
 int fnTcpClient::setTimeout(uint32_t seconds)
 {
     //Client::setTimeout(seconds * 1000); // This sets the timeout on the underlying Stream in the WiFiClient code
+#if defined(_WIN32)
+    DWORD tv = 1000 * seconds;
+#else
     struct timeval tv;
     tv.tv_sec = seconds;
     tv.tv_usec = 0;
-    if (setSocketOption(SO_RCVTIMEO, (char *)&tv, sizeof(struct timeval)) < 0)
+#endif
+    if (setSocketOption(SO_RCVTIMEO, (char *)&tv, sizeof(tv)) < 0)
         return -1;
-    return setSocketOption(SO_SNDTIMEO, (char *)&tv, sizeof(struct timeval));
+    return setSocketOption(SO_SNDTIMEO, (char *)&tv, sizeof(tv));
 }
 
 // Set socket option
@@ -296,7 +395,7 @@ int fnTcpClient::setSocketOption(int option, char *value, size_t len)
     int res = setsockopt(fd(), SOL_SOCKET, option, value, len);
     if (res < 0)
     {
-        Debug_printf("%X : %d\r\n", option, errno);
+        Debug_printf("%X : %d\r\n", option, compat_getsockerr());
     }
 
     return res;
@@ -308,7 +407,7 @@ int fnTcpClient::setOption(int option, int *value)
     int res = setsockopt(fd(), IPPROTO_TCP, option, (char *)value, sizeof(int));
     if (res < 0)
     {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), errno, strerror(errno));
+        Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
     }
 
     return res;
@@ -321,7 +420,7 @@ int fnTcpClient::getOption(int option, int *value)
     int res = getsockopt(fd(), IPPROTO_TCP, option, (char *)value, &size);
     if (res < 0)
     {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), errno, strerror(errno));
+        Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
     }
 
     return res;
@@ -373,7 +472,7 @@ size_t fnTcpClient::write(const uint8_t *buf, size_t size)
         // (Otherwise we timed-out and should retry the loop)
         if (FD_ISSET(socketFileDescriptor, &fdset))
         {
-            res = send(socketFileDescriptor, (void *)buf, bytesRemaining, MSG_DONTWAIT);
+            res = send(socketFileDescriptor, (char *)buf, bytesRemaining, MSG_DONTWAIT | MSG_NOSIGNAL);
             // We succeeded sending some bytes
             if (res > 0)
             {
@@ -394,9 +493,10 @@ size_t fnTcpClient::write(const uint8_t *buf, size_t size)
             // We got an error
             else if (res < 0)
             {
-                Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), errno, strerror(errno));
+                int err = compat_getsockerr();
+                Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), err, strerror(err));
                 // Give up if this wasn't just a try again error
-                if (errno != EAGAIN)
+                if (err != EAGAIN)
                 {
                     stop();
                     res = 0;
@@ -514,10 +614,11 @@ void fnTcpClient::flush()
     while (a)
     {
         toRead = (a > FNTCP_FLUSH_BUFFER_SIZE) ? FNTCP_FLUSH_BUFFER_SIZE : a;
-        res = recv(fd(), buf, toRead, MSG_DONTWAIT);
+        res = recv(fd(), (char *)buf, toRead, MSG_DONTWAIT);
         if (res < 0)
         {
-            Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), errno, strerror(errno));
+            Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", 
+                fd(), compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
             stop();
             break;
         }
@@ -532,7 +633,7 @@ uint8_t fnTcpClient::connected()
     if (_connected)
     {
         uint8_t dummy;
-        int res = recv(fd(), &dummy, 1, MSG_PEEK | MSG_DONTWAIT);
+        int res = recv(fd(), (char *)&dummy, 1, MSG_PEEK | MSG_DONTWAIT);
 
         if (res > 0)
         {
@@ -545,22 +646,36 @@ uint8_t fnTcpClient::connected()
         }
         else
         {
-            switch (errno)
+            int err = compat_getsockerr();
+            switch (err)
             {
+#if defined(_WIN32)
+            case WSAEWOULDBLOCK:
+#else
             case EWOULDBLOCK:
+#endif
             case ENOENT: // Caused by VFS
                 _connected = true;
                 break;
+#if defined(_WIN32)
+            case WSAENETDOWN:
+            case WSAENETRESET:
+            case WSAESHUTDOWN:
+            case WSAECONNABORTED:
+            case WSAECONNRESET:
+            case WSAETIMEDOUT:
+#else
             case ENOTCONN:
             case EPIPE:
             case ECONNRESET:
             case ECONNREFUSED:
             case ECONNABORTED:
+#endif
                 _connected = false;
-                Debug_printf("fnTcpClient disconnected: res %d, errno %d\r\n", res, errno);
+                Debug_printf("fnTcpClient disconnected: res %d, errno %d\r\n", res, err);
                 break;
             default:
-                Debug_printf("fnTcpClient unexpected: res %d, errno %d\r\n", res, errno);
+                Debug_printf("fnTcpClient unexpected: res %d, errno %d\r\n", res, err);
                 _connected = true;
                 break;
             }
