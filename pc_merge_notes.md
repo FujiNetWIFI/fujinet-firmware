@@ -91,7 +91,7 @@
 
 - **DONE** / merge: lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
 
-- TODO: lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
+- **DONE** / merge: lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
 
 - TODO: lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
 

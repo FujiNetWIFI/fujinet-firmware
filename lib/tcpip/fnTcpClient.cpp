@@ -264,11 +264,7 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     serveraddr.sin_port = htons(port);
 
     // Connect to the server
-#ifdef ESP_PLATFORM
-    int res = lwip_connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
-#else
     int res = ::connect(sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
-#endif
     int err = compat_getsockerr();
 
 #if defined(_WIN32)
