@@ -23,7 +23,6 @@ public:
     ~fnTcpClient();
 
     void stop();
-    int close();
 
     int connect(const char *host, uint16_t port, int32_t timeout = -1);
     int connect(in_addr_t addr, uint16_t port, int32_t timeout = -1);
