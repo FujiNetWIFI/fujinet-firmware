@@ -93,7 +93,7 @@
 
 - **DONE** / merge: lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
 
-- TODO: lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
+- **DONE** / merge: lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
 
 - **WIP**: lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
 

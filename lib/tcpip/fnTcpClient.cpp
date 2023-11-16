@@ -744,10 +744,3 @@ int fnTcpClient::fd() const
     else
         return _clientSocketHandle->fd();
 }
-
-int fnTcpClient::close()
-{
-    int res = (_clientSocketHandle != nullptr) ? _clientSocketHandle->close() : -1;
-    stop();
-    return res;
-}

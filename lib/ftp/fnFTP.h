@@ -113,6 +113,13 @@ public:
      */
     bool data_connected();
 
+
+    /**
+     * Recovery FTP connection.
+     * @return TRUE on error, FALSE on success
+     */
+    bool reconnect();
+
 protected:
 private:
     /**
