@@ -15,7 +15,6 @@
 #include "../../include/debug.h"
 
 
-
 #define UDP_RXTX_BUFLEN 1460
 
 #if defined(_WIN32)

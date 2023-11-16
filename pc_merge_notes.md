@@ -89,9 +89,7 @@
 
 - **DONE** / merge: lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
 
-- **WIP**: lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
-
-    fnTcpClient.h
+- **DONE** / merge: lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
 
 - TODO: lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
 
