@@ -268,9 +268,11 @@ void modem::sio_send_firmware(uint8_t loadcommand)
     if (codesize < 0 || code == NULL)
     {
         sio_nak();
+        if (code)
+            free(code);
         return;
     }
-    // Acknoledge before continuing
+    // Acknowledge before continuing
     sio_ack();
 
     // We need a delay here when working in high-speed mode.
@@ -447,14 +449,16 @@ void modem::sio_config()
        4,5: Word size (00=5,01=6,10=7,11=8)
        3-0: Baud rate:
     */
-#define BAUD_300 0x8
-#define BAUD_600 0x9
-#define BAUD_1200 0xA
-#define BAUD_1800 0xB
-#define BAUD_2400 0xC
-#define BAUD_4800 0xD
-#define BAUD_9600 0xE
-#define BAUD_19200 0xF
+
+// a8jan: BAUD_300, BAUD_600, ... already exists somewhere on Windows/MinGW
+#define MODEM_BAUD_300 0x8
+#define MODEM_BAUD_600 0x9
+#define MODEM_BAUD_1200 0xA
+#define MODEM_BAUD_1800 0xB
+#define MODEM_BAUD_2400 0xC
+#define MODEM_BAUD_4800 0xD
+#define MODEM_BAUD_9600 0xE
+#define MODEM_BAUD_19200 0xF
     /*
        AUX2:
        7-3: NA
@@ -475,28 +479,28 @@ void modem::sio_config()
 
     switch (newBaud)
     {
-    case BAUD_300:
+    case MODEM_BAUD_300:
         modemBaud = 300;
         break;
-    case BAUD_600:
+    case MODEM_BAUD_600:
         modemBaud = 600;
         break;
-    case BAUD_1200:
+    case MODEM_BAUD_1200:
         modemBaud = 1200;
         break;
-    case BAUD_1800:
+    case MODEM_BAUD_1800:
         modemBaud = 1800;
         break;
-    case BAUD_2400:
+    case MODEM_BAUD_2400:
         modemBaud = 2400;
         break;
-    case BAUD_4800:
+    case MODEM_BAUD_4800:
         modemBaud = 4800;
         break;
-    case BAUD_9600:
+    case MODEM_BAUD_9600:
         modemBaud = 9600;
         break;
-    case BAUD_19200:
+    case MODEM_BAUD_19200:
         modemBaud = 19200;
         break;
     default:
@@ -526,7 +530,7 @@ void modem::sio_stream()
       RESPONSE
       Payload: 9 bytes to configure POKEY baud rate ($D200-$D208)
     */
-    char response[] = {0x28, 0xA0, 0x00, 0xA0, 0x28, 0xA0, 0x00, 0xA0, 0x78}; // 19200
+    unsigned char response[] = {0x28, 0xA0, 0x00, 0xA0, 0x28, 0xA0, 0x00, 0xA0, 0x78}; // 19200
 
     switch (modemBaud)
     {
@@ -565,7 +569,8 @@ void modem::sio_stream()
     }
 
     bus_to_computer((uint8_t *)response, sizeof(response), false);
-
+    
+    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY); // macOS workaround (flush on uart was not working)
     get_uart()->set_baudrate(modemBaud);
     modemActive = true;
     Debug_printf("Modem streaming at %u baud\n", modemBaud);
@@ -1608,7 +1613,13 @@ void modem::sio_handle_modem()
         {
             // get char from Atari SIO
             //char chr = SIO_UART.read();
-            char chr = get_uart()->read();
+            int intchr = get_uart()->read();
+            if (intchr < 0)
+            {
+                // read error or timeout
+                return;
+            }
+            unsigned char chr = intchr;
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -1739,8 +1750,9 @@ void modem::sio_handle_modem()
                 telnet_send(telnet, (const char *)txBuf, sioBytesRead);
             }
             else
+            {
                 tcpClient.write(&txBuf[0], sioBytesRead);
-
+            }
             // And send it off to the sniffer, if enabled.
             modemSniffer->dumpOutput(&txBuf[0], sioBytesRead);
             _lasttime = fnSystem.millis();
@@ -1904,7 +1916,7 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
             sio_status();
             break;
         case SIO_MODEMCMD_WRITE:
-            sio_ack();
+            sio_late_ack();
             sio_write();
             break;
         case SIO_MODEMCMD_STREAM:

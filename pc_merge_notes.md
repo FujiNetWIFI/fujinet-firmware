@@ -118,8 +118,6 @@
 
 - **DONE** / add: lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
 
-- TODO: lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
-
 - TODO: lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp
 
 - TODO: lib/printer-emulator/atari_1025.h lib/printer-emulator/atari_1025.cpp
@@ -258,9 +256,9 @@
 
 - TODO: lib/device/sio/pclink.h lib/device/sio/pclink.cpp
 
-- **WIP**: lib/modem/modem.h lib/modem/modem.cpp
+- **DONE** / merge: lib/modem/modem.h lib/modem/modem.cpp
 
-    modem.h
+- **DONE** / merge: lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
 
 - TODO: lib/media/media.h
 

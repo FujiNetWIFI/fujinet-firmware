@@ -126,7 +126,6 @@ set(SOURCES
 #     lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
     lib/task/fnTask.h lib/task/fnTask.cpp
     lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
-#     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
 #     lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp
 #     lib/printer-emulator/atari_1025.h lib/printer-emulator/atari_1025.cpp
 #     lib/printer-emulator/atari_1027.h lib/printer-emulator/atari_1027.cpp
@@ -195,7 +194,8 @@ set(SOURCES
 #     lib/device/sio/apetime.h lib/device/sio/apetime.cpp
 #     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
 #     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
-#     lib/modem/modem.h lib/modem/modem.cpp
+    lib/modem/modem.h lib/modem/modem.cpp
+    lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
 #     lib/media/media.h
 #     lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
 #     lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp

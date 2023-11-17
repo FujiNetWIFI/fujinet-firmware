@@ -6,7 +6,13 @@
 #include "bus.h"
 #include "fnTcpClient.h"
 #include "fnTcpServer.h"
+#ifdef ESP_PLATFORM
 #include "fnUART.h"
+#define MODEM_UART_T UARTManager
+#else
+// fnSioCom.h is included from bus.h
+#define MODEM_UART_T SioCom
+#endif
 #include "modem-sniffer.h"
 #include "libtelnet.h"
 
@@ -159,9 +165,17 @@ private:
     unsigned short listenPort = 0; // Listen to this if not connected. Set to zero to disable.
     fnTcpClient tcpClient;         // Modem client
     fnTcpServer tcpServer;         // Modem server
+#ifdef ESP_PLATFORM
     unsigned long lastRingMs = 0;  // Time of last "RING" message (millis())
+#else
+    uint64_t lastRingMs = 0;       // Time of last "RING" message (millis())
+#endif
     char plusCount = 0;            // Go to AT mode at "+++" sequence, that has to be counted
+#ifdef ESP_PLATFORM
     unsigned long plusTime = 0;    // When did we last receive a "+++" sequence
+#else
+    uint64_t plusTime = 0;         // When did we last receive a "+++" sequence
+#endif
     uint8_t txBuf[TX_BUF_SIZE];
     bool cmdOutput=true;            // toggle whether to emit command output
     bool numericResultCode=false;   // Use numeric result codes? (ATV0)
@@ -172,14 +186,18 @@ private:
     bool answerHack=false;          // ATA answer hack on SIO write.
     FileSystem *activeFS;           // Active Filesystem for ModemSniffer.
     ModemSniffer* modemSniffer;     // ptr to modem sniffer.
+#ifdef ESP_PLATFORM
     time_t _lasttime;               // most recent timestamp of data activity.
+#else
+    uint64_t _lasttime;             // most recent timestamp of data activity.
+#endif
     telnet_t *telnet;               // telnet FSM state.
     bool use_telnet=false;          // Use telnet mode?
     bool do_echo;                   // telnet echo toggle.
     string term_type;               // telnet terminal type.
     long answerTimer;
     bool answered=false;
-    UARTManager* uart;              // UART manager to use.
+    MODEM_UART_T* uart;             // UART manager to use.
     int ringCount;                  // Keep track of how many incoming RINGs
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
@@ -240,8 +258,8 @@ public:
     void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
     string get_term_type() {return term_type; }
     void set_term_type(string _term_type) { term_type = _term_type; }
-    UARTManager* get_uart() { return uart; }
-    void set_uart(UARTManager *_uart) { uart = _uart; }
+    MODEM_UART_T* get_uart() { return uart; }
+    void set_uart(MODEM_UART_T *_uart) { uart = _uart; }
 
 };
 
