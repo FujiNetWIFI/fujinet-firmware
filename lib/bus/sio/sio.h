@@ -150,7 +150,9 @@ protected:
      * Atari that we are now processing the command.
      */
     void sio_ack();
-#ifndef ESP_PLATFORM
+#ifdef ESP_PLATFORM
+#define sio_late_ack    sio_ack
+#else
     void sio_late_ack();   // for NetSIO, ACK is delayed until we now how much data will be read from Atari
 #endif
     /**

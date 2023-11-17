@@ -3,6 +3,9 @@
  * logs character streams from MODEM.
  */
 
+#include <string.h>
+#include <errno.h>
+
 #include "modem-sniffer.h"
 
 #include "../../include/debug.h"
@@ -45,6 +48,8 @@ void ModemSniffer::closeOutput()
 {
     Debug_print("ModemSniffer::closeOutput\n");
 
+#ifdef ESP_PLATFORM
+// jk: why?
     if (_file == nullptr)
     {
         _file = activeFS->file_open(SNIFFER_OUTPUT_FILE, "r+"); // Seeks don't work right if we use "append" mode - use "r+"
@@ -57,11 +62,15 @@ void ModemSniffer::closeOutput()
 
         fseek(_file, 0, SEEK_END);
     }
+#endif
 
-    // Close the file
-    fflush(_file);
-    fclose(_file);
-    _file = nullptr;
+    if (_file != nullptr)
+    {
+        // Close the file
+        fflush(_file);
+        fclose(_file);
+        _file = nullptr;
+    }
 }
 
 FILE *ModemSniffer::closeOutputAndProvideReadHandle()
@@ -71,7 +80,9 @@ FILE *ModemSniffer::closeOutputAndProvideReadHandle()
     closeOutput();
     FILE *result = activeFS->file_open(SNIFFER_OUTPUT_FILE); // read-only.
     if (result == nullptr)
-        Debug_printf("Error opening sniffer output: %d\n", errno);
+    {
+        Debug_printf("Error opening sniffer output: %d - %s\n", errno, strerror(errno));
+    }
 
     return result;
 }
@@ -81,7 +92,7 @@ void ModemSniffer::restartOutput()
     if (_file != nullptr)
         fclose(_file);
 
-    _file = activeFS->file_open(SNIFFER_OUTPUT_FILE, "w"); // This should create/truncate the file
+    _file = activeFS->file_open(SNIFFER_OUTPUT_FILE, "wb"); // This should create/truncate the file
 
     Debug_printf("ModemSniffer::restartOutput(%p)\n", _file);
 }
