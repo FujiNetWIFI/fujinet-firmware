@@ -115,7 +115,7 @@ set(SOURCES
     lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
     lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
     lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
-#     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
+    lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
     components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
 #     lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
@@ -124,8 +124,8 @@ set(SOURCES
 #     lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
 #     lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
 #     lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
-#     lib/task/fnTask.h lib/task/fnTask.cpp
-#     lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
+    lib/task/fnTask.h lib/task/fnTask.cpp
+    lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
 #     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
 #     lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp
 #     lib/printer-emulator/atari_1025.h lib/printer-emulator/atari_1025.cpp
@@ -206,9 +206,9 @@ set(SOURCES
 #     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
 #     lib/media/atari/diskTypeAtx.h 
 #     lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
-#     lib/base64/base64.h lib/base64/base64.c
-#     lib/encrypt/crypt.h lib/encrypt/crypt.cpp
-#     lib/compat/compat_inet.c
+    lib/base64/base64.h lib/base64/base64.c
+    lib/encrypt/crypt.h lib/encrypt/crypt.cpp
+    lib/compat/compat_inet.c
     lib/compat/compat_gettimeofday.h lib/compat/compat_gettimeofday.c
 )
 
