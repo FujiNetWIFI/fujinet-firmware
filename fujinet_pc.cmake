@@ -13,23 +13,26 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #######################################
 # Atari
 #######################################
-# fujinet.build_platform
-set(FUJINET_BUILD_PLATFORM BUILD_ATARI)
-# fujinet.build_board
-set(FUJINET_TARGET fujinet-pc-atari)
-# fujinet.build_bus
-set(FUJINET_BUILD_BUS SIO)
+if(FUJINET_PLATFORM STREQUAL "ATARI")
+    # fujinet.build_platform
+    set(FUJINET_BUILD_PLATFORM BUILD_ATARI)
+    # fujinet.build_board
+    set(FUJINET_TARGET fujinet-pc-atari)
+    # fujinet.build_bus
+    set(FUJINET_BUILD_BUS SIO)
+endif()
 
 #######################################
 # Apple
 #######################################
-# # fujinet.build_platform
-# set(FUJINET_BUILD_PLATFORM BUILD_APPLE)
-# # fujinet.build_board
-# set(FUJINET_TARGET fujinet-pc-apple)
-# # fujinet.build_bus
-# set(FUJINET_BUILD_BUS IWM)
-
+if(FUJINET_PLATFORM STREQUAL "APPLE")
+    # fujinet.build_platform
+    set(FUJINET_BUILD_PLATFORM BUILD_APPLE)
+    # fujinet.build_board
+    set(FUJINET_TARGET fujinet-pc-apple)
+    # fujinet.build_bus
+    set(FUJINET_BUILD_BUS IWM)
+endif()
 
 # platformio.data_dir
 set(FUJINET_DATA_DIR ${CMAKE_SOURCE_DIR}/data/${FUJINET_BUILD_PLATFORM})
@@ -167,15 +170,15 @@ set(SOURCES
 #     lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
 #     lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
 #     lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
-#     lib/device/device.h
-#     lib/device/disk.h
-#     lib/device/printer.h
-#     lib/device/modem.h
-#     lib/device/cassette.h
-#     lib/device/fuji.h
-#     lib/device/network.h
-#     lib/device/udpstream.h
-#     lib/device/siocpm.h
+    lib/device/device.h
+    lib/device/disk.h
+    lib/device/printer.h
+    lib/device/modem.h
+    lib/device/cassette.h
+    lib/device/fuji.h
+    lib/device/network.h
+    lib/device/udpstream.h
+    lib/device/siocpm.h
 #     lib/device/iwm/disk.h lib/device/iwm/disk.cpp
 #     lib/device/iwm/disk2.h lib/device/iwm/disk2.cpp
 #     lib/device/iwm/printer.h lib/device/iwm/printer.cpp
