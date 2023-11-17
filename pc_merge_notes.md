@@ -80,11 +80,6 @@
 
 - **DONE** / no change: lib/EdUrlParser/EdUrlParser.h lib/EdUrlParser/EdUrlParser.cpp
 
-    Note: So far the file compiles without errors.
-    Maybe it will be necessary to use FN-PC version calling std namespace explicitly
-    (std::string std::vectort etc.) to fix "ambiguous byte" compilation errors
-    - FN-PC files with "ambiguous byte" fix: EdUrlParser.[h,cpp] fnjson.cpp fnFTP.h
-
 - **DONE** / merge: lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
 
 - **DONE** / merge: lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
@@ -95,11 +90,9 @@
 
 - **DONE** / merge: lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
 
-- **WIP**: lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
+- **DONE** / merge: lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
 
-    tnfslibMountInfo.h
-
-- TODO: lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
+- **DONE** / merge: lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
 
 - TODO: lib/telnet/libtelnet.h lib/telnet/libtelnet.c
 

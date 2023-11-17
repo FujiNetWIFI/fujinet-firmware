@@ -113,8 +113,8 @@ set(SOURCES
     lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
     lib/tcpip/fnTcpServer.h lib/tcpip/fnTcpServer.cpp
     lib/ftp/fnFTP.h lib/ftp/fnFTP.cpp
-#     lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
-#     lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
+    lib/TNFSlib/tnfslibMountInfo.h lib/TNFSlib/tnfslibMountInfo.cpp
+    lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
 #     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
     components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
