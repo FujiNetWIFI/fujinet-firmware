@@ -25,8 +25,8 @@
 
 using namespace std;
 
-QueueHandle_t rxq;
-QueueHandle_t txq;
+// OS QueueHandle_t rxq;
+// OS QueueHandle_t txq;
 
 typedef struct
 {
@@ -509,26 +509,26 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-	return uxQueueMessagesWaiting(txq);
+	return 0; // OS uxQueueMessagesWaiting(txq);
 }
 
 uint8_t _getch(void)
 {
 	uint8_t c;
-	xQueueReceive(txq,&c,portMAX_DELAY);
+	// OS xQueueReceive(txq,&c,portMAX_DELAY);
 	return c;
 }
 
 uint8_t _getche(void)
 {
 	uint8_t c = _getch();
-	xQueueSend(rxq,&c,portMAX_DELAY);
+	// OS xQueueSend(rxq,&c,portMAX_DELAY);
 	return c;
 }
 
 void _putch(uint8_t ch)
 {
-	xQueueSend(rxq,&ch,portMAX_DELAY);
+	// OS xQueueSend(rxq,&ch,portMAX_DELAY);
 }
 
 void _clrscr(void)

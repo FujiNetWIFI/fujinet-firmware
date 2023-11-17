@@ -78,7 +78,7 @@
 
 - **DONE** / add: lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
 
-- **DONE** / no change: lib/EdUrlParser/EdUrlParser.h lib/EdUrlParser/EdUrlParser.cpp
+- **DONE** / identical: lib/EdUrlParser/EdUrlParser.h lib/EdUrlParser/EdUrlParser.cpp
 
 - **DONE** / merge: lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
 
@@ -94,7 +94,7 @@
 
 - **DONE** / merge: lib/TNFSlib/tnfslib.h lib/TNFSlib/tnfslib.cpp
 
-- TODO: lib/telnet/libtelnet.h lib/telnet/libtelnet.c
+- **DONE** / identical: lib/telnet/libtelnet.h lib/telnet/libtelnet.c
 
 - **DONE** / merge: lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
 
@@ -114,9 +114,9 @@
 
 - TODO: lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
 
-- TODO: lib/task/fnTask.h lib/task/fnTask.cpp
+- **DONE** / add: lib/task/fnTask.h lib/task/fnTask.cpp
 
-- TODO: lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
+- **DONE** / add: lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
 
 - TODO: lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
 
@@ -282,12 +282,16 @@
 
 - TODO: lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
 
-- TODO: lib/base64/base64.h lib/base64/base64.c
+- **DONE** / identical: lib/base64/base64.h lib/base64/base64.c
 
-- TODO: lib/encrypt/crypt.h lib/encrypt/crypt.cpp
+- **DONE** / identical: lib/encrypt/crypt.h lib/encrypt/crypt.cpp
 
-- TODO: lib/compat/compat_inet.c
+- **WIP** / merge: lib/runcpm
 
-- **DONE** / merged: lib/compat/compat_gettimeofday.h lib/compat/compat_gettimeofday.c
+- **DONE** / merge: lib/compat/compat_inet.c
 
-- TODO: 
+- **DONE** / add: lib/compat/compat_gettimeofday.h lib/compat/compat_gettimeofday.c
+
+- **DONE** / add: lib/compat/win32_uname.c
+
+- **DONE** / add: lib/compat/strlcat.c lib/compat/strlcpy.c
