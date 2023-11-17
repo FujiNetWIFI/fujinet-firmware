@@ -5,22 +5,32 @@
 # include "sio/apetime.h"
 # include "sio/cassette.h"
 # include "sio/disk.h"
+# ifndef ESP_PLATFORM
+#  include "sio/pclink.h"
+# endif
 # include "sio/udpstream.h"
 # include "../lib/modem/modem.h"
 # include "sio/network.h"
 # include "sio/printer.h"
 # include "sio/printerlist.h"
 # include "sio/siocpm.h"
-# include "sio/voice.h"
+# ifdef ESP_PLATFORM
+#  include "sio/voice.h"
+# endif
 # include "sio/fuji.h"
 
     sioApeTime apeTime;
+# ifdef ESP_PLATFORM
     sioVoice sioV;
+# endif
     sioUDPStream udpDev;
     // sioCassette sioC; // now part of sioFuji theFuji object
     modem *sioR;
     sioCPM sioZ;
-#endif
+# ifndef ESP_PLATFORM
+    sioPCLink pcLink;
+# endif
+#endif // BUILD_ATARI
 
 #ifdef BUILD_COCO
 # include "drivewire/cassette.h"
