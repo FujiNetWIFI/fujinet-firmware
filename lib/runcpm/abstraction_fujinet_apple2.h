@@ -25,9 +25,10 @@
 
 using namespace std;
 
+// OS
 #ifdef ESP_PLATFORM
-OS QueueHandle_t rxq;
-OS QueueHandle_t txq;
+QueueHandle_t rxq;
+QueueHandle_t txq;
 #endif
 
 typedef struct
