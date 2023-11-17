@@ -25,8 +25,10 @@
 
 using namespace std;
 
-// OS QueueHandle_t rxq;
-// OS QueueHandle_t txq;
+#ifdef ESP_PLATFORM
+OS QueueHandle_t rxq;
+OS QueueHandle_t txq;
+#endif
 
 typedef struct
 {
@@ -509,26 +511,40 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-	return 0; // OS uxQueueMessagesWaiting(txq);
+// OS
+#ifdef ESP_PLATFORM
+	return uxQueueMessagesWaiting(txq);
+#else
+	return 0;
+#endif
 }
 
 uint8_t _getch(void)
 {
 	uint8_t c;
-	// OS xQueueReceive(txq,&c,portMAX_DELAY);
+// OS
+#ifdef ESP_PLATFORM
+	xQueueReceive(txq,&c,portMAX_DELAY);
+#endif
 	return c;
 }
 
 uint8_t _getche(void)
 {
 	uint8_t c = _getch();
-	// OS xQueueSend(rxq,&c,portMAX_DELAY);
+// OS
+#ifdef ESP_PLATFORM
+	xQueueSend(rxq,&c,portMAX_DELAY);
+#endif
 	return c;
 }
 
 void _putch(uint8_t ch)
 {
-	// OS xQueueSend(rxq,&ch,portMAX_DELAY);
+// OS
+#ifdef ESP_PLATFORM
+	xQueueSend(rxq,&ch,portMAX_DELAY);
+#endif
 }
 
 void _clrscr(void)

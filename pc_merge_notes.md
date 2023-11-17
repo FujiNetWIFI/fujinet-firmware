@@ -286,7 +286,7 @@
 
 - **DONE** / identical: lib/encrypt/crypt.h lib/encrypt/crypt.cpp
 
-- **WIP** / merge: lib/runcpm
+- **DONE** / merge: lib/runcpm
 
 - **DONE** / merge: lib/compat/compat_inet.c
 
