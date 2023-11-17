@@ -186,7 +186,9 @@
 
 - TODO: lib/bus/bus.h
 
-- TODO: lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
+- **WIP**: lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
+
+        iwm.h
 
 - TODO: lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
 
@@ -202,23 +204,23 @@
 
 - TODO: lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
 
-- TODO: lib/device/device.h
+- **DONE** / merge: lib/device/device.h
 
-- TODO: lib/device/disk.h
+- **DONE** / merge: lib/device/disk.h
 
-- TODO: lib/device/printer.h
+- **DONE** / identical: lib/device/printer.h
 
-- TODO: lib/device/modem.h
+- **DONE** / identical: lib/device/modem.h
 
-- TODO: lib/device/cassette.h
+- **DONE** / identical: lib/device/cassette.h
 
-- TODO: lib/device/fuji.h
+- **DONE** / identical: lib/device/fuji.h
 
-- TODO: lib/device/network.h
+- **DONE** / identical: lib/device/network.h
 
-- TODO: lib/device/udpstream.h
+- **DONE** / identical: lib/device/udpstream.h
 
-- TODO: lib/device/siocpm.h
+- **DONE** / identical: lib/device/siocpm.h
 
 - TODO: lib/device/iwm/disk.h lib/device/iwm/disk.cpp
 
@@ -228,7 +230,9 @@
 
 - TODO: lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
 
-- TODO: lib/device/iwm/modem.h lib/device/iwm/modem.cpp
+- **WIP**: lib/device/iwm/modem.h lib/device/iwm/modem.cpp
+
+    modem.h
 
 - TODO: lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
 

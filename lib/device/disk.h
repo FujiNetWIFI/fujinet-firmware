@@ -1,6 +1,11 @@
 #ifndef DEVICE_DISK_H
 #define DEVICE_DISK_H
 
+// MinGW DEVICE_TYPE is defined in winioctl.h
+#ifdef DEVICE_TYPE
+#undef DEVICE_TYPE
+#endif
+
 #ifdef BUILD_ATARI
 # include "sio/disk.h"
 # define DEVICE_TYPE sioDisk

@@ -1,3 +1,4 @@
+#ifdef BUILD_ATARI
 #include "modem.h"
 
 #include "../../../include/debug.h"
@@ -1928,3 +1929,4 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
         }
     }
 }
+#endif // BUILD_ATARI

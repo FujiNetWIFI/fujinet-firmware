@@ -5,7 +5,16 @@
 #include "../../include/debug.h"
 
 #include "bus.h"
+
+#ifdef ESP_PLATFORM
 #include "iwm_ll.h"
+#else
+ #if SMARTPORT == SLIP
+  #include "iwm_slip.h"
+ #else
+  #include "iwm_ll.h"
+ #endif
+#endif
 
 #include <cstdint>
 #include <forward_list>
