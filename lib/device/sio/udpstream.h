@@ -1,7 +1,9 @@
 #ifndef UDPSTREAM_H
 #define UDPSTREAM_H
 
+#ifdef ESP_PLATFORM
 #include <driver/ledc.h>
+#endif
 
 #include "bus.h"
 

@@ -150,11 +150,19 @@ protected:
      * Atari that we are now processing the command.
      */
     void sio_ack();
+
+    /**
+     * @brief Send an acknowledgement byte to the Atari 'A'
+     * - without NetSIO, send ACK as usually
+     * - with NetSIO, ACK is delayed untill we now how much data should be written by Atari to peripheral
+     *   ACK byte together with expected write size is send as part of SYNC_RESPONSE
+     */
 #ifdef ESP_PLATFORM
-#define sio_late_ack    sio_ack
+    inline void sio_late_ack() { sio_ack(); };
 #else
-    void sio_late_ack();   // for NetSIO, ACK is delayed until we now how much data will be read from Atari
+    void sio_late_ack();   
 #endif
+
     /**
      * @brief Send a non-acknowledgement (NAK) to the Atari 'N'
      * This should be used if the command received by the SIO device is invalid, in the first place. It is not

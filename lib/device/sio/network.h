@@ -1,7 +1,9 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#ifdef ESP_PLATFORM
 #include <driver/timer.h>
+#endif
 
 #include <string>
 #include <vector>
@@ -46,7 +48,9 @@ public:
     /**
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
      */
+#ifdef ESP_PLATFORM
     portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+#endif
 
     /**
      * Toggled by the rate limiting timer to indicate that the PROCEED interrupt should
@@ -178,7 +182,11 @@ private:
     /**
      * ESP timer handle for the Interrupt rate limiting timer
      */
+#ifdef ESP_PLATFORM
     esp_timer_handle_t rateTimerHandle = nullptr;
+#else
+    uint64_t lastInterruptMs;
+#endif
 
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
@@ -222,9 +230,13 @@ private:
     string password;
 
     /**
-     * Timer Rate for interrupt timer
+     * Timer Rate for interrupt timer (ms)
      */
+#ifdef ESP_PLATFORM
     int timerRate = 100;
+#else
+    int timerRate = 20;
+#endif
 
     /**
      * The channel mode for the currently open SIO device. By default, it is PROTOCOL, which passes
@@ -370,6 +382,13 @@ private:
      * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
      */
     void sio_assert_interrupt();
+
+#ifndef ESP_PLATFORM
+    /**
+     * Called to clear the PROCEED interrupt
+     */
+    void sio_clear_interrupt();
+#endif
 
     /**
      * @brief Perform the inquiry, handle both local and protocol commands.

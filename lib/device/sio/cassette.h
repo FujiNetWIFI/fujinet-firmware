@@ -5,6 +5,9 @@
 
 #include "bus.h"
 #include "fnSystem.h"
+#ifndef ESP_PLATFORM
+#include "fnFile.h"
+#endif
 
 #define CASSETTE_BAUDRATE 600
 #define BLOCK_LEN 128
@@ -64,7 +67,11 @@ class sioCassette : public virtualDevice
 {
 protected:
     // FileSystem *_FS = nullptr;
+#ifdef ESP_PLATFORM
     FILE *_file = nullptr;
+#else
+    FileHandler *_file = nullptr;
+#endif
     size_t filesize = 0;
 
     bool _mounted = false;                                    // indicates if a CAS or WAV file is open
@@ -82,7 +89,11 @@ protected:
     uint8_t decode_fsk();
 
     // helper function to read motor pin
+#ifdef ESP_PLATFORM
     bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
+#else
+    bool motor_line() { return fnSioCom.motor_asserted(); }
+#endif
 
     // have to populate virtual functions to complete class
     void sio_status() override{}; // $53, 'S', Status
@@ -93,7 +104,11 @@ protected:
 
 public:
     void umount_cassette_file();
+#ifdef ESP_PLATFORM
     void mount_cassette_file(FILE *f, size_t fz);
+#else
+    void mount_cassette_file(FileHandler *f, size_t fz);
+#endif
 
     void sio_enable_cassette();  // setup cassette
     void sio_disable_cassette(); // stop cassette
