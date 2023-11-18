@@ -192,7 +192,7 @@
 
 - TODO: lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
 
-- **WIP**: lib/bus/sio/sio.h lib/bus/sio/sio.cpp
+- **DONE**: lib/bus/sio/sio.h lib/bus/sio/sio.cpp
 
 - **DONE** / add: lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
 
