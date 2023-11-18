@@ -194,15 +194,13 @@
 
 - **WIP**: lib/bus/sio/sio.h lib/bus/sio/sio.cpp
 
-    sio.h
+- **DONE** / add: lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
 
-- TODO: lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
+- **DONE** / add: lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
 
-- TODO: lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
+- **DONE** / add: lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
 
-- TODO: lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
-
-- TODO: lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
+- **DONE** / add: lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
 
 - **DONE** / merge: lib/device/device.h
 
@@ -248,11 +246,19 @@
 
 - TODO: lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
 
-- TODO: lib/device/sio/cassette.h lib/device/sio/cassette.cpp
+- **WIP**: lib/device/sio/cassette.h lib/device/sio/cassette.cpp
+
+    cassette.h
 
 - TODO: lib/device/sio/fuji.h lib/device/sio/fuji.cpp
 
-- TODO: lib/device/sio/network.h lib/device/sio/network.cpp
+- **WIP**: lib/device/sio/network.h lib/device/sio/network.cpp
+
+    network.h
+
+- **WIP**: lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
+
+    udpstream.h
 
 - TODO: lib/device/sio/apetime.h lib/device/sio/apetime.cpp
 
@@ -264,7 +270,7 @@
 
 - **DONE** / merge: lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
 
-- TODO: lib/media/media.h
+- **DONE** / merge: lib/media/media.h
 
 - TODO: lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
 

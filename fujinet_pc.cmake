@@ -165,11 +165,11 @@ set(SOURCES
 #     lib/bus/bus.h
 #     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
 #     lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
-#     lib/bus/sio/sio.h lib/bus/sio/sio.cpp
-#     lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
-#     lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
-#     lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
-#     lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
+    lib/bus/sio/sio.h lib/bus/sio/sio.cpp
+    lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
+    lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
+    lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
+    lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
     lib/device/device.h
     lib/device/disk.h
     lib/device/printer.h
@@ -194,6 +194,7 @@ set(SOURCES
 #     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
 #     lib/device/sio/fuji.h lib/device/sio/fuji.cpp
 #     lib/device/sio/network.h lib/device/sio/network.cpp
+#     lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
 #     lib/device/sio/apetime.h lib/device/sio/apetime.cpp
 #     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
 #     lib/device/sio/pclink.h lib/device/sio/pclink.cpp

@@ -4,7 +4,9 @@
 #ifdef BUILD_ATARI
 # include "atari/diskType.h"
 # include "atari/diskTypeAtr.h"
+#ifdef ESP_PLATFORM
 # include "atari/diskTypeAtx.h"
+#endif
 # include "atari/diskTypeXex.h"
 #endif
 
