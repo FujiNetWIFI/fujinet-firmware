@@ -1,7 +1,11 @@
 #ifdef BUILD_APPLE
 #include "iwm.h"
 #include "fnSystem.h"
+
+#ifdef ESP_PLATFORM
 #include "fnHardwareTimer.h"
+#endif
+
 // #include "fnFsTNFS.h" // do i need this?
 #include <string.h>
 // #include "driver/timer.h" // contains the hardware timer register data structure
@@ -14,6 +18,8 @@
 #include "../device/iwm/fuji.h"
 #include "../device/iwm/cpm.h"
 #include "../device/iwm/clock.h"
+
+#include "compat_esp.h" // empty IRAM_ATTR macro for FujiNet-PC
 
 /******************************************************************************
 Based on:
@@ -85,6 +91,10 @@ void print_packet(uint8_t *data, int bytes)
 void print_packet(uint8_t *data)
 {
   Debug_printf("\n");
+#if SMARTPORT == SLIP
+  for (int i = 0; i < COMMAND_LEN; i++)
+    Debug_printf("%02x ", data[i]);
+#else
   for (int i = 0; i < 40; i++)
   {
     if (data[i] != 0 || i == 0)
@@ -92,6 +102,7 @@ void print_packet(uint8_t *data)
     else
       break;
   }
+#endif
   // Debug_printf("\r\n");
 }
 
@@ -151,6 +162,7 @@ void iwmBus::iwm_ack_assert()
   smartport.spi_end();
 }
 
+#if SMARTPORT != SLIP
 bool iwmBus::iwm_phase_val(uint8_t p)
 {
   uint8_t phases = _phases; // smartport.iwm_phase_vector();
@@ -159,6 +171,7 @@ bool iwmBus::iwm_phase_val(uint8_t p)
   Debug_printf("\r\nphase number out of range");
   return false;
 }
+#endif
 
 iwmBus::iwm_phases_t iwmBus::iwm_phases()
 {
@@ -275,11 +288,13 @@ void iwmBus::setup(void)
 {
   Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
 
+#if SMARTPORT != SLIP
   fnTimer.config();
   Debug_printf("\r\nFujiNet Hardware timer started");
 
   diskii_xface.setup_rmt();
   Debug_printf("\r\nRMT configured for Disk ][ Output");
+#endif
 
   smartport.setup_spi();
   Debug_printf("\r\nSPI configured for smartport I/O");
@@ -490,6 +505,7 @@ void IRAM_ATTR iwmBus::service()
     for (auto devicep : _daisyChain)
       devicep->_devnum = 0;
 
+#if SMARTPORT != SLIP
     while (iwm_phases() == iwm_phases_t::reset)
       portYIELD(); // no timeout needed because the IWM must eventually clear reset.
     // even if it doesn't, we would just come back to here, so might as
@@ -501,6 +517,7 @@ void IRAM_ATTR iwmBus::service()
     // lets sample it here in case the host is not on when the FN is powered on/reset
     (GPIO.in1.val & (0x01 << (SP_EN35 - 32))) ? en35Host = true : en35Host = false;
     Debug_printf("\r\nen35Host = %d",en35Host);
+#endif /* !SLIP */
 
     break;
   case iwm_phases_t::enable:
@@ -511,7 +528,9 @@ void IRAM_ATTR iwmBus::service()
     if (_old_enable_state != iwm_enable_state_t::off)
     {
       _old_enable_state = iwm_enable_state_t::off;
+#if SMARTPORT != SLIP
       diskii_xface.stop();
+#endif /* !SLIP */
     }
 
     if (sp_command_mode != sp_cmd_state_t::command)
@@ -520,7 +539,7 @@ void IRAM_ATTR iwmBus::service()
       return;
     }
 
-    if (command_packet.command == 0x85)
+    if ((command_packet.command & 0x7f) == 0x05)
     {
       // wait for REQ to go low
       if (iwm_req_deassert_timeout(50000))
@@ -548,9 +567,11 @@ void IRAM_ATTR iwmBus::service()
             iwm_ack_deassert(); // go hi-Z
             return;
           }
+#if SMARTPORT != SLIP
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
-          Debug_printf("\nCommand Packet:");
+#endif
+          Debug_printf("\r\nCommand Packet:");
           print_packet(command_packet.data);
 
           _activeDev = devicep;
@@ -569,6 +590,7 @@ void IRAM_ATTR iwmBus::service()
     iwm_ack_deassert(); // go hi-Z
   }                     // switch (phasestate)
 
+#if SMARTPORT != SLIP
   // check on the diskii status
   switch (iwm_drive_enabled())
   {
@@ -608,9 +630,10 @@ void IRAM_ATTR iwmBus::service()
     iwm_ack_deassert();
     return;
   }
-
+#endif /* !SLIP */
 }
 
+#if SMARTPORT != SLIP
 iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
 {
   uint8_t phases = smartport.iwm_phase_vector();
@@ -645,6 +668,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
     return iwm_enable_state_t::off;
   }
 }
+#endif /* !SLIP */
 
 void iwmBus::handle_init()
 {

@@ -1,7 +1,9 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#ifdef ESP_PLATFORM
 #include <esp_timer.h>
+#endif
 
 #include <string>
 
@@ -50,7 +52,9 @@ public:
     /**
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
      */
+#ifdef ESP_PLATFORM // OS
     portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+#endif
 
     /**
      * Toggled by the rate limiting timer to indicate that the PROCEED interrupt should
@@ -210,7 +214,9 @@ private:
     /**
      * ESP timer handle for the Interrupt rate limiting timer
      */
+#ifdef ESP_PLATFORM // OS
     esp_timer_handle_t rateTimerHandle = nullptr;
+#endif
 
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/

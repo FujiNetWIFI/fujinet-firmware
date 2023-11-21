@@ -155,8 +155,7 @@ private:
     int count_ReqHandler = 0;
     bool firmware_sent = false;
   
-// OS
-#ifdef ESP_PLATFORM
+#ifdef ESP_PLATFORM // OS
     QueueHandle_t mrxq;
     QueueHandle_t mtxq;
     TaskHandle_t modemTask;

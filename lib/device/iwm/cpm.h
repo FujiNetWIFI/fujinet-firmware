@@ -15,7 +15,9 @@ class iwmCPM : public iwmDevice
 {
 private:
 
+#ifdef ESP_PLATFORM // OS
     TaskHandle_t cpmTaskHandle = NULL;
+#endif
 
     void boot();
 

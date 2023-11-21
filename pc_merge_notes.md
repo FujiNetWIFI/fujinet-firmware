@@ -186,11 +186,11 @@
 
 - TODO: lib/bus/bus.h
 
-- **WIP**: lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
+- **DONE** / merge: lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
 
-        iwm.h
+- **DONE** / merge: lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
 
-- TODO: lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
+- **DONE** / merge: lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
 
 - **DONE**: lib/bus/sio/sio.h lib/bus/sio/sio.cpp
 
@@ -224,7 +224,9 @@
 
 - TODO: lib/device/iwm/disk2.h lib/device/iwm/disk2.cpp
 
-- TODO: lib/device/iwm/printer.h lib/device/iwm/printer.cpp
+- **WIP**: lib/device/iwm/printer.h lib/device/iwm/printer.cpp
+
+    printer.h
 
 - TODO: lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
 
@@ -234,11 +236,15 @@
 
 - TODO: lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
 
-- TODO: lib/device/iwm/network.h lib/device/iwm/network.cpp
+- **WIP: lib/device/iwm/network.h lib/device/iwm/network.cpp
+
+        network.h
 
 - TODO: lib/device/iwm/clock.h lib/device/iwm/clock.cpp
 
-- TODO: lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
+- **WIP**: lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
+
+    cpm.h
 
 - TODO: lib/device/sio/disk.h lib/device/sio/disk.cpp
 

@@ -1,12 +1,16 @@
 #ifdef BUILD_APPLE
 
+// TODO define SMARTPORT for ESP in platformio.ini
+#include "iwm.h"
+
+#if SMARTPORT != SLIP
+
 #include <string.h>
 
 #include "esp_rom_gpio.h"
 #include "soc/spi_periph.h"
 
 #include "iwm_ll.h"
-#include "iwm.h"
 #include "../device/iwm/disk2.h"
 #include "../device/iwm/fuji.h"
 #include "fnSystem.h"
@@ -1070,4 +1074,6 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 iwm_sp_ll smartport;
 iwm_diskii_ll diskii_xface;
 
-#endif
+#endif // SMARTPORT != SLIP
+
+#endif // BUILD_APPLE

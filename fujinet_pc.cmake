@@ -163,8 +163,8 @@ set(SOURCES
 #     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
 #     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
 #     lib/bus/bus.h
-#     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
-#     lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
+    lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
+    lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
     lib/bus/sio/sio.h lib/bus/sio/sio.cpp
     lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
     lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
