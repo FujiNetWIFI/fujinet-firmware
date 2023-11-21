@@ -4,16 +4,22 @@
 
 #include "../../include/debug.h"
 
-#include "bus.h"
+// TODO for ESP build, add -D SMARTPORT=SPI to platformio.ini?
+//      for PC build SMARTPORT is defined in fujinet_pc.cmake
+#ifndef SMARTPORT
+# define SPI 1
+# define SLIP 2
+# ifdef ESP_PLATFORM
+#  define SMARTPORT SPI
+# else
+#  define SMARTPORT SLIP
+# endif
+#endif
 
-#ifdef ESP_PLATFORM
-#include "iwm_ll.h"
+#if SMARTPORT == SLIP
+#include "iwm_slip.h"
 #else
- #if SMARTPORT == SLIP
-  #include "iwm_slip.h"
- #else
-  #include "iwm_ll.h"
- #endif
+#include "iwm_ll.h"
 #endif
 
 #include <cstdint>
@@ -120,72 +126,8 @@ union cmdFrame_t
     } __attribute__((packed));
 };
 
-#define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 #define BLOCK_DATA_LEN      512
 #define MAX_DATA_LEN        767
-#define MAX_SP_PACKET_LEN         891
-// to do - make block packet compatible up to 767 data bytes?
-
-union cmdPacket_t
-{
-/*
-C3 PBEGIN   MARKS BEGINNING OF PACKET 32 micro Sec.
-81 DEST     DESTINATION UNIT NUMBER 32 micro Sec.
-80 SRC      SOURCE UNIT NUMBER 32 micro Sec.
-80 TYPE     PACKET TYPE FIELD 32 micro Sec.
-80 AUX      PACKET AUXILLIARY TYPE FIELD 32 micro Sec.
-80 STAT     DATA STATUS FIELD 32 micro Sec.
-82 ODDCNT   ODD BYTES COUNT 32 micro Sec.
-81 GRP7CNT  GROUP OF 7 BYTES COUNT 32 micro Sec.
-80 ODDMSB   ODD BYTES MSB's 32 micro Sec.
-81 COMMAND  1ST ODD BYTE = Command Byte 32 micro Sec.
-83 PARMCNT  2ND ODD BYTE = Parameter Count 32 micro Sec.
-80 GRP7MSB  MSB's FOR 1ST GROUP OF 7 32 micro Sec.
-80 G7BYTE1  BYTE 1 FOR 1ST GROUP OF 7 32 micro Sec.
-98 G7BYTE2  BYTE 2 FOR 1ST GROUP OF 7 32 micro Sec.
-82 G7BYTE3  BYTE 3 FOR 1ST GROUP OF 7 32 micro Sec.
-80 G7BYTE4  BYTE 4 FOR 1ST GROUP OF 7 32 micro Sec.
-80 G7BYTE5  BYTE 5 FOR 1ST GROUP OF 7 32 micro Sec.
-80 G7BYTE5  BYTE 6 FOR 1ST GROUP OF 7 32 micro Sec.
-80 G7BYTE6  BYTE 7 FOR 1ST GROUP OF 7 32 micro Sec.
-BB CHKSUM1  1ST BYTE OF CHECKSUM 32 micro Sec.
-EE CHKSUM2  2ND BYTE OF CHECKSUM 32 micro Sec.
-C8 PEND     PACKET END BYTE 32 micro Sec.
-00 CLEAR    zero after packet for FujiNet use
-*/
-struct
-{
-  uint8_t sync1;   // 0
-  uint8_t sync2;   // 1
-  uint8_t sync3;   // 2
-  uint8_t sync4;   // 3
-  uint8_t sync5;   // 4
-  uint8_t pbegin;  // 5
-  uint8_t dest;    // 6
-  uint8_t source;  // 7
-  uint8_t type;    // 8
-  uint8_t aux;     // 9
-  uint8_t stat;    // 10
-  uint8_t oddcnt;  // 11
-  uint8_t grp7cnt; // 12
-  uint8_t oddmsb;  // 13
-  uint8_t command; // 14
-  uint8_t parmcnt; // 15
-  uint8_t grp7msb; // 16
-  uint8_t g7byte1; // 17
-  uint8_t g7byte2; // 18
-  uint8_t g7byte3; // 19
-  uint8_t g7byte4; // 20
-  uint8_t g7byte5; // 21
-  uint8_t g7byte6; // 22
-  uint8_t g7byte7; // 23
-  uint8_t chksum1; // 24
-  uint8_t chksum2; // 25
-  uint8_t pend;    // 26
-  uint8_t clear;   // 27
-  };
-  uint8_t data[COMMAND_PACKET_LEN + 1];
-};
 
 union iwm_decoded_cmd_t
 {
@@ -329,7 +271,9 @@ private:
   iwmPrinter *_printerdev = nullptr;
   iwmClock *_clockDev = nullptr;
 
+  #if SMARTPORT != SLIP
   bool iwm_phase_val(uint8_t p);
+  #endif
 
   enum class iwm_phases_t
   {

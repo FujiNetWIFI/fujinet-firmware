@@ -25,8 +25,7 @@
 
 using namespace std;
 
-// OS
-#ifdef ESP_PLATFORM
+#ifdef ESP_PLATFORM // OS
 QueueHandle_t rxq;
 QueueHandle_t txq;
 #endif
@@ -512,8 +511,7 @@ uint8_t _sys_makedisk(uint8_t drive)
 
 int _kbhit(void)
 {
-// OS
-#ifdef ESP_PLATFORM
+#ifdef ESP_PLATFORM // OS
 	return uxQueueMessagesWaiting(txq);
 #else
 	return 0;
@@ -523,8 +521,7 @@ int _kbhit(void)
 uint8_t _getch(void)
 {
 	uint8_t c;
-// OS
-#ifdef ESP_PLATFORM
+#ifdef ESP_PLATFORM // OS
 	xQueueReceive(txq,&c,portMAX_DELAY);
 #endif
 	return c;
@@ -533,8 +530,7 @@ uint8_t _getch(void)
 uint8_t _getche(void)
 {
 	uint8_t c = _getch();
-// OS
-#ifdef ESP_PLATFORM
+#ifdef ESP_PLATFORM // OS
 	xQueueSend(rxq,&c,portMAX_DELAY);
 #endif
 	return c;
@@ -542,8 +538,7 @@ uint8_t _getche(void)
 
 void _putch(uint8_t ch)
 {
-// OS
-#ifdef ESP_PLATFORM
+#ifdef ESP_PLATFORM // OS
 	xQueueSend(rxq,&ch,portMAX_DELAY);
 #endif
 }

@@ -27,7 +27,7 @@ protected:
     void iwm_close(iwm_decoded_cmd_t cmd) override;
     void iwm_write(iwm_decoded_cmd_t cmd) override;
     void process(iwm_decoded_cmd_t cmd) override;
-    void shutdown() {}
+    void shutdown() override {}
 
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
