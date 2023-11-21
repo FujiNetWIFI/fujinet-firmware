@@ -6,7 +6,7 @@
 ;
 ;
 
-.define public LSTRB 12
+.define public LSTRB 13
 .define public ENABLE 7
 
 ; The DCD mux will really control the RD line direction.
