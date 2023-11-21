@@ -6,7 +6,6 @@
 ;
 
 .define ENABLE 7
-.define LSTRB 12
 
 .program dcd_latch
 start:
