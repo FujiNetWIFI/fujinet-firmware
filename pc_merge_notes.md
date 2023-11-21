@@ -236,9 +236,9 @@
 
 - TODO: lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
 
-- **WIP: lib/device/iwm/network.h lib/device/iwm/network.cpp
+- **WIP**: lib/device/iwm/network.h lib/device/iwm/network.cpp
 
-        network.h
+    network.h
 
 - TODO: lib/device/iwm/clock.h lib/device/iwm/clock.cpp
 
