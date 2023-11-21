@@ -178,21 +178,31 @@ enum latch_bits {
     REVISED         // f REVISED     This status line is used to indicate that the interface definition of the connected external drive. When REVISED is a one, the drive Part No. will be 699-0326 or when REVISED is a zero, the drive Part No. will be 699-0285.
 };
 
-uint16_t latch;
-uint8_t dcd_latch;
+__aligned(32) bool latch_lut[24];
 
-inline uint16_t get_latch() { return latch; }
-inline uint16_t dcd_get_latch() { return ((dcd_latch << 8) + dcd_latch); }
+uint16_t get_latch() 
+{
+  int latch = 0;
+  for (int i=0; i<16; i++)
+    latch |= ((int)latch_lut[i] << i);
+  return (uint16_t)(latch & 0xffff);
+}
 
-void set_latch(enum latch_bits s) { latch |= (1u << s); }
+uint8_t dcd_get_latch() 
+{
+  int latch = 0;
+  for (int i=0; i<8; i++)
+    latch |= ((int)latch_lut[16 + i] << i);
+  return (uint8_t)(latch & 0xff);
+}
 
-void dcd_set_latch(uint8_t s) { dcd_latch |= (1u << s); }
+void set_latch(enum latch_bits s) { latch_lut[s] = true; }
+void clr_latch(enum latch_bits c) { latch_lut[c] = false; }
+bool latch_val(enum latch_bits s) { return latch_lut[s]; }
 
-void clr_latch(enum latch_bits c) { latch &= ~(1u << c); }
+void dcd_set_latch(uint8_t s) { latch_lut[16 + s] = true; }
+void dcd_clr_latch(uint8_t c) { latch_lut[16 + c] = false; }
 
-void dcd_clr_latch(uint8_t c) { dcd_latch &= ~(1u << c); }
-
-bool latch_val(enum latch_bits s) { return latch & (1u << s); }
 
 void dcd_assert_hshk()
 {                   // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
@@ -210,8 +220,13 @@ void dcd_deassert_hshk()
 
 void preset_latch()
 {
+  for (int i = 0; i < 16; i++)
+  {
+    // latch_lut[i] = true;
+    set_latch(i);
+  }
   // set up like an empty floppy
-    latch =-1;
+    // latch =-1;
     // clr_latch(DIRTN);
     // set_latch(STEP);
     // set_latch(MOTORON);
@@ -226,11 +241,12 @@ void preset_latch()
     // set_latch(REVISED);   // my mac plus revised looks set
     // for (int i=0; i<16; i++)
     //   printf("\nlatch bit %02d = %d",i, latch_val(i));
+    printf("\nFloppy Latch: %04x", get_latch());
 }
 
 void dcd_preset_latch()
 {
-  dcd_latch = 0;
+  // dcd_latch = 0;
                     // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
   dcd_clr_latch(0); // 0	    Low	  Low	  Low	  High	High	Low	  Data
   dcd_clr_latch(1); // 1	    Low	  Low	  High	High	Low	  Low	  Data
@@ -240,6 +256,7 @@ void dcd_preset_latch()
   dcd_clr_latch(5); // 5	    High	Low	  High	Low	  Low	  Low	  Drive Low
   dcd_set_latch(6); // 6	    High	High	Low	  Low	  Low	  Low	  Drive High
   dcd_set_latch(7); // 7	    High	High	High	Low	  Low	  Low	  Drive High
+  printf("\nDCD Latch: %02x", dcd_get_latch());
 }
 
 void set_tach_freq(char c)
@@ -638,7 +655,7 @@ void dcd_loop()
     else
     {
       // if (!latch_val(CSTIN))
-      pio_sm_put_blocking(pioblk_rw, SM_LATCH, latch); // send the register word to the PIO 
+      pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
       disk_mode = TO_FPY;
       return;
     }
