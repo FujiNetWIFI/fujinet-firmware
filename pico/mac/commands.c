@@ -312,7 +312,7 @@ void switch_to_dcd()
   // mux
   pio_remove_program(pioblk_rw, &mux_program, pio_mux_offset);
   pio_add_program_at_offset(pioblk_rw, &dcd_mux_program, pio_mux_offset);
-  pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
+  pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, ECHO_OUT);
   set_num_dcd();
 
   // echo
@@ -328,7 +328,7 @@ void set_num_dcd()
       uint32_t save = hw_claim_lock();
       pioblk_rw->instr_mem[pio_mux_offset] = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(1, 0);
       hw_claim_unlock(save);
-      pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
+      pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, ECHO_OUT);
 }
 
 void setup()
@@ -387,7 +387,7 @@ void setup()
 
     pio_mux_offset = pio_add_program(pioblk_rw, &dcd_mux_program);
     printf("Loaded DCD mux program at %d\n", pio_mux_offset);
-    pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, LATCH_OUT);
+    pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, ECHO_OUT);
 
     // pio_mux_offset = pio_add_program(pioblk_rw, &mux_program);
     // printf("Loaded Floppy mux program at %d\n", pio_mux_offset);
