@@ -9,6 +9,7 @@
 #include "pinmap/adamv1.h"
 #include "pinmap/iec.h"
 #include "pinmap/iec-d32pro.h"
+#include "pinmap/coco_devkitc.h"
 #include "pinmap/iec-nugget.h"
 #include "pinmap/fujiloaf-rev0.h"
 #include "pinmap/fujiapple-iec.h"
