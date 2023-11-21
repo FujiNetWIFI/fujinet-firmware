@@ -775,6 +775,7 @@ int systemBus::getHighSpeedBaud()
     return _sioBaudHigh;
 }
 
+#ifndef ESP_PLATFORM
 // indicate command was handled by some device
 void systemBus::set_command_processed(bool processed)
 {
@@ -789,6 +790,7 @@ void systemBus::sio_empty_ack()
         fnSioCom.netsio_empty_sync();
     }
 }
+#endif
 
 void systemBus::setUDPHost(const char *hostname, int port)
 {
