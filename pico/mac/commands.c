@@ -1245,12 +1245,6 @@ void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
     pio_sm_set_enabled(pio, sm, true);
 }
 
-// void pio_dcd_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
-// {
-//     latch_program_init(pio, sm, offset, in_pin, out_pin);
-//     pio_sm_set_enabled(pio, sm, true);
-// }
-
 void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin)
 {
   dcd_commands_program_init(pio, sm, offset, pin);
