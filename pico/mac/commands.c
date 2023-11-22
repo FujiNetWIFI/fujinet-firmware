@@ -28,7 +28,6 @@
 #include "mux.pio.h"
 
 #include "dcd_commands.pio.h"
-#include "dcd_mux.pio.h"
 #include "dcd_read.pio.h"
 #include "dcd_write.pio.h"
 
@@ -70,9 +69,7 @@ void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num
 // void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin);
 
-// void pio_dcd_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin);
-void pio_dcd_mux(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_read(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_write(PIO pio, uint sm, uint offset, uint pin);
 void set_num_dcd();
@@ -283,42 +280,17 @@ void set_tach_freq(char c)
 
 void switch_to_floppy()
 {
-  // latch
-  // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
-
-  // mux
-  pio_remove_program(pioblk_rw, &dcd_mux_program, pio_mux_offset);
-  pio_add_program_at_offset(pioblk_rw, &mux_program, pio_mux_offset);
-  pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, MUX_OUT);
-
   // commands
   while (gpio_get(LSTRB));  
   pio_sm_set_enabled(pioblk_read_only, SM_DCD_CMD, false); // stop the DCD command interpreter
   pio_commands(pioblk_read_only, SM_FPY_CMD, pio_floppy_cmd_offset, MCI_CA0); // read phases starting on pin 8
-  
-  // echo
-  // pio_sm_set_enabled(pioblk_rw, SM_FPY_ECHO, true);
-
 }
 
 void switch_to_dcd()
 {
-  // latch
-  // pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
-
   // commands
   pio_sm_set_enabled(pioblk_read_only, SM_FPY_CMD, false); // stop the floppy command interpreter
   pio_dcd_commands(pioblk_read_only, SM_DCD_CMD, pio_dcd_cmd_offset, MCI_CA0); // read phases starting on pin 8
-
-  // mux
-  pio_remove_program(pioblk_rw, &mux_program, pio_mux_offset);
-  pio_add_program_at_offset(pioblk_rw, &dcd_mux_program, pio_mux_offset);
-  pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, MUX_OUT);
-  set_num_dcd();
-
-  // echo
-  // pio_sm_set_enabled(pioblk_rw, SM_FPY_ECHO, false);
-
 }
 
 void set_num_dcd()
@@ -327,9 +299,9 @@ void set_num_dcd()
       // pause the machine, change the instruction, move the PC, resume
       pio_sm_set_enabled(pioblk_rw, SM_MUX, false);
       uint32_t save = hw_claim_lock();
-      pioblk_rw->instr_mem[pio_mux_offset] = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(1, 0);
+      pioblk_rw->instr_mem[pio_mux_offset] = pio_encode_set(pio_x, num_dcd_drives) | pio_encode_sideset_opt(3, 0);
       hw_claim_unlock(save);
-      pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, MUX_OUT);
+      pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, MUX_OUT);
 }
 
 int chan_latch_addr, chan_latch_data;
@@ -431,13 +403,9 @@ void setup()
     printf("Loaded DCD write program at %d\n", pio_write_offset);
     pio_dcd_write(pioblk_rw, SM_DCD_WRITE, pio_write_offset, LATCH_OUT);
 
-    pio_mux_offset = pio_add_program(pioblk_rw, &dcd_mux_program);
-    printf("Loaded DCD mux program at %d\n", pio_mux_offset);
-    pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, MUX_OUT);
-
-    // pio_mux_offset = pio_add_program(pioblk_rw, &mux_program);
-    // printf("Loaded Floppy mux program at %d\n", pio_mux_offset);
-    // pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, ECHO_OUT);
+    pio_mux_offset = pio_add_program(pioblk_rw, &mux_program);
+    printf("Loaded mux program at %d\n", pio_mux_offset);
+    pio_mux(pioblk_rw, SM_MUX, pio_mux_offset, MCI_CA0, MUX_OUT);
 }
 
 void dcd_loop();
@@ -490,8 +458,7 @@ void esp_loop()
     case 'h': // harddisk is mounted/unmounted
       num_dcd_drives = uart_getc(UART_ID);
       printf("\nNumber of DCD's mounted: %d", num_dcd_drives);
-      if (disk_mode == DCD)
-        set_num_dcd();
+      set_num_dcd(); // tell SM_MUX how many DCD's and restart it
       c = 0; // need to clear c so not picked up by floppy loop although it would never respond to 'h'
       break;
     case 's':
@@ -520,7 +487,6 @@ void floppy_loop()
 
   if (gpio_get(ENABLE) && (num_dcd_drives > 0))
   {
-    // pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
     disk_mode = TO_DCD;
     return;
   }
@@ -586,7 +552,6 @@ void floppy_loop()
       printf("\nUNKNOWN PHASE COMMAND");
       break;
       }
-    // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
     uart_putc_raw(UART_ID, (char)(a + '0'));
     }
 
@@ -640,7 +605,6 @@ void floppy_loop()
           break;
       }
       // printf("latch %04x", get_latch());
-      // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
       c = 0; // clear c because processed it and don't want infinite loop
     }
     // to do: read both enable lines and indicate which drive is active when sending single char to esp32
@@ -729,7 +693,7 @@ void dcd_loop()
       dcd_deassert_hshk();
       pio_sm_set_enabled(pioblk_rw, SM_DCD_WRITE, false);
       pio_sm_set_enabled(pioblk_rw, SM_LATCH, true);
-      pio_sm_exec(pioblk_rw, SM_MUX, pio_encode_set(pio_pindirs, 0));
+      pio_sm_exec(pioblk_rw, SM_MUX, pio_encode_set(pio_pindirs, 0)); // to do - does this do anything because out pins not set?
       break;
     default:
       host = false;
@@ -1288,12 +1252,6 @@ void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
 void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin)
 {
   dcd_commands_program_init(pio, sm, offset, pin);
-  pio_sm_set_enabled(pio, sm, true);
-}
-
-void pio_dcd_mux(PIO pio, uint sm, uint offset, uint pin)
-{
-  dcd_mux_program_init(pio, sm, offset, pin);
   pio_sm_set_enabled(pio, sm, true);
 }
 
