@@ -6,22 +6,25 @@
 ; for DCD, the 8-bit latch register should be copied into upper and lower bytes of the value pulled by the SM
 ;
 
-.define ENABLE 7
+; .define ENABLE 7
 
 .program latch
-start:
-    wait 0 gpio ENABLE
-    mov osr, pins   ; read the GPIO's into the output shift register
-    out y, 4        ; shift the 4 LSBs into Y
-    pull noblock    ; get the latch word into OSR, if no new word in FIFO, get it from X
-    mov x, osr      ; put the osr back into X in case it's new
-.wrap_target
-    jmp y-- loop    ; if y>0 goto to loop and decrement y
-    out pins, 1     ; output the desired bit
-    jmp start       ; do it again
-loop:
-    out null, 1     ; get rid of a bit
-.wrap               
+    mov isr, y      ; put the base address in ISR
+    in pins, 5      ; copy the pin combination into the ISR (auto push)
+    out pins, 1     ; output the latch bit value 
+; start:
+;     wait 0 gpio ENABLE
+;     mov osr, pins   ; read the GPIO's into the output shift register
+;     out y, 4        ; shift the 4 LSBs into Y
+;     pull noblock    ; get the latch word into OSR, if no new word in FIFO, get it from X
+;     mov x, osr      ; put the osr back into X in case it's new
+; .wrap_target
+;     jmp y-- loop    ; if y>0 goto to loop and decrement y
+;     out pins, 1     ; output the desired bit
+;     jmp start       ; do it again
+; loop:
+;     out null, 1     ; get rid of a bit
+; .wrap               
 
 
 % c-sdk {
@@ -30,15 +33,19 @@ loop:
 void latch_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin) {
    // configure a SM
    pio_sm_config c = latch_program_get_default_config(offset);
+   
    // set the out pin to out_pin
    sm_config_set_out_pins(&c, out_pin, 1);
+   // get 1 bit latch values through the OSR from the main program
+   sm_config_set_out_shift(&c, true, true, 1);
+   
    // start at in_pin to read in the phases
    sm_config_set_in_pins(&c, in_pin); 
-   // get 16 bit latch values through the OSR from the main program
-   sm_config_set_out_shift(&c, true, false, 16);
+   sm_config_set_in_shift(&c, false, true, 5);
+
    // set out_pin as a GPIO output connected to this SM
    pio_gpio_init(pio, out_pin);
-//    pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
+   pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
    // sm_config_set_set_pins(&c, pin, 1);
    // initialize
    pio_sm_init(pio, sm, offset, &c);
