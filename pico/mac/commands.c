@@ -15,6 +15,7 @@
 #include "hardware/uart.h"
 #include "hardware/clocks.h"
 #include "hardware/claim.h"
+#include "hardware/dma.h"
 
 #include "hardware/pio.h"
 #include "hardware/pio_instructions.h"
@@ -26,7 +27,6 @@
 #include "latch.pio.h"
 #include "mux.pio.h"
 
-// #include "dcd_latch.pio.h"
 #include "dcd_commands.pio.h"
 #include "dcd_mux.pio.h"
 #include "dcd_read.pio.h"
@@ -67,7 +67,7 @@ uint pio_dcd_cmd_offset;
 
 void pio_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins);
-void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
+// void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin);
 
 // void pio_dcd_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
@@ -209,14 +209,14 @@ void dcd_assert_hshk()
 {                   // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
   dcd_clr_latch(2); // 2	    Low	  High	Low	  Low	  Low	  Low	  !HSHK
   dcd_clr_latch(3); // 3	    Low	  High	High	High	Low	  Low	  !HSHK
-  pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO
+  // pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO
 }
 
 void dcd_deassert_hshk()
 {                   // State	CA2	  CA1	  CA0	  HOST	HOFF	RESET	RD Function
   dcd_set_latch(2); // 2	    Low	  High	Low	  Low	  Low	  Low	  !HSHK
   dcd_set_latch(3); // 3	    Low	  High	High	High	Low	  Low	  !HSHK
-  pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO
+  // pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO
 }
 
 void preset_latch()
@@ -284,7 +284,7 @@ void set_tach_freq(char c)
 void switch_to_floppy()
 {
   // latch
-  pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
+  // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
 
   // mux
   pio_remove_program(pioblk_rw, &dcd_mux_program, pio_mux_offset);
@@ -304,7 +304,7 @@ void switch_to_floppy()
 void switch_to_dcd()
 {
   // latch
-  pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
+  // pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
 
   // commands
   pio_sm_set_enabled(pioblk_read_only, SM_FPY_CMD, false); // stop the floppy command interpreter
@@ -331,6 +331,9 @@ void set_num_dcd()
       hw_claim_unlock(save);
       pio_dcd_mux(pioblk_rw, SM_MUX, pio_mux_offset, MUX_OUT);
 }
+
+int chan_latch_addr, chan_latch_data;
+dma_channel_config cfg_latch_addr, cfg_latch_data;
 
 void setup()
 {
@@ -375,8 +378,50 @@ void setup()
     */
     offset = pio_add_program(pioblk_rw, &latch_program);
     printf("\nLoaded latch program at %d\n", offset);
-    pio_latch(pioblk_rw, SM_LATCH, offset, MCI_CA0, LATCH_OUT);
-    pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
+    latch_program_init(pioblk_rw, SM_LATCH, offset, MCI_CA0, LATCH_OUT);
+    pio_sm_put(pioblk_rw, SM_LATCH, (uintptr_t)latch_lut >> 5);
+    pio_sm_exec_wait_blocking(pioblk_rw, SM_LATCH, pio_encode_pull(false, true));
+    pio_sm_exec_wait_blocking(pioblk_rw, SM_LATCH, pio_encode_mov(pio_y, pio_osr));
+    pio_sm_exec_wait_blocking(pioblk_rw, SM_LATCH, pio_encode_out(pio_null, 1)); 
+    pio_sm_set_enabled(pioblk_rw, SM_LATCH, true);
+
+    chan_latch_addr = dma_claim_unused_channel(true);
+    cfg_latch_addr = dma_channel_get_default_config(chan_latch_addr);
+
+    chan_latch_data = dma_claim_unused_channel(true);
+    cfg_latch_data = dma_channel_get_default_config(chan_latch_data);
+ 
+    channel_config_set_read_increment(&cfg_latch_data,false);
+    channel_config_set_write_increment(&cfg_latch_data,false);
+    channel_config_set_dreq(&cfg_latch_data, pio_get_dreq(pioblk_rw, SM_LATCH, true)); // mux PIO
+    channel_config_set_chain_to(&cfg_latch_data, chan_latch_addr);
+    channel_config_set_transfer_data_size(&cfg_latch_data, DMA_SIZE_8);
+    channel_config_set_irq_quiet(&cfg_latch_data, true);
+    channel_config_set_enable(&cfg_latch_data, true);
+    dma_channel_configure(
+        chan_latch_data,                          // Channel to be configured
+        &cfg_latch_data,                        // The configuration we just created
+        &pioblk_rw->txf[SM_LATCH],                   // The initial write address
+        latch_lut,                      // The initial read address
+        1,                                  // Number of transfers; in this case each is 1 byte.
+        false                               // do not Start immediately.      
+      );
+
+    channel_config_set_read_increment(&cfg_latch_addr,false);
+    channel_config_set_write_increment(&cfg_latch_addr,false);
+    channel_config_set_dreq(&cfg_latch_addr, pio_get_dreq(pioblk_rw, SM_LATCH, false)); // mux PIO
+    channel_config_set_chain_to(&cfg_latch_addr, chan_latch_data);
+    channel_config_set_transfer_data_size(&cfg_latch_addr, DMA_SIZE_32);
+    channel_config_set_irq_quiet(&cfg_latch_addr, true);
+    channel_config_set_enable(&cfg_latch_addr, true);
+    dma_channel_configure(
+        chan_latch_addr,                          // Channel to be configured
+        &cfg_latch_addr,                        // The configuration we just created
+        &dma_channel_hw_addr(chan_latch_data)->read_addr,   // The initial write address
+        &pioblk_rw->rxf[SM_LATCH],            // The initial read address
+        1,                                  // Number of transfers; in this case each is 1 byte.
+        true                               // do not Start immediately.      
+      );
 
     offset = pio_add_program(pioblk_rw, &echo_program);
     printf("Loaded floppy echo program at %d\n", offset);
@@ -475,7 +520,7 @@ void floppy_loop()
 
   if (gpio_get(ENABLE) && (num_dcd_drives > 0))
   {
-    pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
+    // pio_sm_put_blocking(pioblk_rw, SM_LATCH, dcd_get_latch()); // send the register word to the PIO 
     disk_mode = TO_DCD;
     return;
   }
@@ -541,7 +586,7 @@ void floppy_loop()
       printf("\nUNKNOWN PHASE COMMAND");
       break;
       }
-    pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
+    // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
     uart_putc_raw(UART_ID, (char)(a + '0'));
     }
 
@@ -595,7 +640,7 @@ void floppy_loop()
           break;
       }
       // printf("latch %04x", get_latch());
-      pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
+      // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
       c = 0; // clear c because processed it and don't want infinite loop
     }
     // to do: read both enable lines and indicate which drive is active when sending single char to esp32
@@ -633,7 +678,7 @@ void dcd_loop()
     else
     {
       // if (!latch_val(CSTIN))
-      pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
+      // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
       disk_mode = TO_FPY;
       return;
     }
@@ -1233,11 +1278,6 @@ void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num
     pio_sm_set_enabled(pio, sm, true);
 }
 
-void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
-{
-    latch_program_init(pio, sm, offset, in_pin, out_pin);
-    pio_sm_set_enabled(pio, sm, true);
-}
 
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
 {
