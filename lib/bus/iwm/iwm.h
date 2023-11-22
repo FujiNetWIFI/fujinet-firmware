@@ -4,19 +4,10 @@
 
 #include "../../include/debug.h"
 
-// TODO for ESP build, add -D SMARTPORT=SPI to platformio.ini?
-//      for PC build SMARTPORT is defined in fujinet_pc.cmake
-#ifndef SMARTPORT
-# define SPI 1
-# define SLIP 2
-# ifdef ESP_PLATFORM
-#  define SMARTPORT SPI
-# else
-#  define SMARTPORT SLIP
-# endif
-#endif
+// for ESP IWM-SLIP build, SP_OVER_SLIP should be defined in platformio.ini
+// for PC IWM-SLIP build SP_OVER_SLIP should be defined in fujinet_pc.cmake
 
-#if SMARTPORT == SLIP
+#ifdef SP_OVER_SLIP
 #include "iwm_slip.h"
 #else
 #include "iwm_ll.h"
@@ -271,7 +262,7 @@ private:
   iwmPrinter *_printerdev = nullptr;
   iwmClock *_clockDev = nullptr;
 
-  #if SMARTPORT != SLIP
+  #ifndef SP_OVER_SLIP
   bool iwm_phase_val(uint8_t p);
   #endif
 
