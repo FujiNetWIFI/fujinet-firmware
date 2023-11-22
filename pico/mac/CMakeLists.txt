@@ -40,7 +40,7 @@ pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_write.pio)
 
 # target_sources(pio_and PRIVATE pio_and.c)
 
-target_link_libraries(commands pico_stdlib hardware_pio)
+target_link_libraries(commands pico_stdlib hardware_pio hardware_dma)
 
 # Add the standard include files to the build
 target_include_directories(commands PRIVATE
