@@ -1,13 +1,11 @@
 #ifdef BUILD_APPLE
 
-// TODO define SMARTPORT for ESP in platformio.ini
-#include "iwm.h"
-
-#if SMARTPORT == SLIP
+#ifdef SP_OVER_SLIP
 
 #include <string.h>
 
 #include "iwm_slip.h"
+#include "iwm.h"
 
 #define PHASE_IDLE   0b0000
 #define PHASE_ENABLE 0b1010
@@ -90,6 +88,6 @@ size_t iwm_slip::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 
 iwm_slip smartport;
 
-#endif // SMARTPORT == SLIP
+#endif // SP_OVER_SLIP
 
 #endif // BUILD_APPLE
