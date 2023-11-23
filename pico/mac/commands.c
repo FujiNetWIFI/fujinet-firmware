@@ -110,6 +110,32 @@ uint num_dcd_drives;
  * LATCH INFORMATION AND CODE
 */
 
+__aligned(32) bool latch_lut[24];
+
+// latches stored at bool LUT's. Floppy is 16 bits and dcd is 8 bits,
+// represented by bool in array. Array is addressed via DMA using following addresses:
+
+// 0b0xxxx   0..15 is floppy
+// 0b10xxx  16..24 is dcd
+
+// the dcd latch is the same for all the dcd drives - no unique info
+// floppy latches have many unique settings (e.g., CSTIN, TK0, SIDES)
+// so if we add the internal floppy, we need another 16 values.
+// if we add another address bit using the internal ENABLE line
+// then we can expand the lut to 24+16 = 40 bools (aligned to 64 bytes)
+// floppy is 16 bits and dcd is 8 bits
+// 0b00xxxx   0..15 is internal floppy
+// 0b01xxxx  16..31 is unassigned
+// 0b10xxxx  32..47 is external floppy
+// 0b110xxx  48..55 is dcd
+// 0b111xxx  56..63 is unassigned 
+//
+// this means putting the internal ENABLE on pin DISKFLAG+1 = 13
+// or rather move CA0 down to 6 and put the two ENABLES above DISKFLAG
+//
+// not sure if there's enough SM instructions left to force a floppy type when 
+// the internal ENABLE is activated
+
 /**
  * 800 KB GCR Drive
 CA2	    CA1	    CA0	    SEL	    RD Output       PIO             addr
@@ -175,8 +201,6 @@ enum latch_bits {
     READY,          // e !READY      This status line is used to indicate that the host system can read the recorded data on the disk or write data to the disk. IREADY is a zero when the head position is settled on disired track, motor is at the desired speed, and a diskette is in the drive.
     REVISED         // f REVISED     This status line is used to indicate that the interface definition of the connected external drive. When REVISED is a one, the drive Part No. will be 699-0326 or when REVISED is a zero, the drive Part No. will be 699-0285.
 };
-
-__aligned(32) bool latch_lut[24];
 
 uint16_t get_latch() 
 {
