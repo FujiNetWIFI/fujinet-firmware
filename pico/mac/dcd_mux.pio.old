@@ -6,7 +6,7 @@
 ;
 ;
 
-.define public LSTRB 12
+.define public LSTRB 13
 .define public ENABLE 7
 
 ; The DCD mux will really control the RD line direction.
@@ -16,46 +16,50 @@
 ; probably at some point should push the strobe counter so the FN can decide which disk image to use
 
 .program dcd_mux
-.side_set 1 opt pindirs
+.side_set 3 opt pindirs
     ; initial state is RD is hi-z and we have 2 DCDs
     ; we wait to be enabled then RD goes to output
 .wrap_target
 start:    
-    set x, 0                side 0      ; put the number of DCD devices in X (0xf020 - last digit is number of DCDs)
+    set x, 0                side 0b000      ; put the number of DCD devices in X (0xf020 - last digit is number of DCDs)
     wait 0 gpio ENABLE                  ; don't do anything until we're enabled
-    in x, 32                            ; say we are at the first DCD
-    jmp x-- cont                        ; decrement X to wait for the next strobe
+    set pins, 1
+    jmp entry
 cont:
     ; now we need to wait to be strobed or to be disabled
-    jmp pin start           side 1 ; disabled so go back to the beginning!
+    jmp pin start           side 0b100 ; disabled so go back to the beginning!
     mov osr, pins            ; get LSTRB value into osr
     out y, 1                 ; stick it in Y
     jmp !Y cont             ; not strobing loop
+entry:
     in x, 32                ; push X to the FIFO to tell the program a certain drive is selected
     wait 0 gpio LSTRB
     jmp x-- cont
+    set pins, 0
     wait 1 gpio ENABLE      ; side 0
 .wrap
-    nop                     ; need to pad a couple instructions to make it same length as floppy mux
     nop
-
+    
 % c-sdk {
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
 // #define LSTRB 12
 // #define ENABLE 7
-void dcd_mux_program_init(PIO pio, uint sm, uint offset, uint set_pin) {
+void dcd_mux_program_init(PIO pio, uint sm, uint offset, uint mux_pin) {
    // configure a SM
    pio_sm_config c = dcd_mux_program_get_default_config(offset);
    // config side set
-    sm_config_set_sideset_pins(&c, set_pin);
+    sm_config_set_sideset_pins(&c, mux_pin);
     sm_config_set_in_pins(&c, LSTRB); 
     sm_config_set_jmp_pin(&c, ENABLE);
    // there are 4 wires to read for latch mux, shift to the right, no autopull
-   sm_config_set_set_pins(&c, set_pin, 1);
+   sm_config_set_set_pins(&c, 12, 1); // todo: update with a parameter
    sm_config_set_out_shift(&c, true, false, 1);
    sm_config_set_in_shift(&c, true, true, 32);
-   pio_gpio_init(pio, set_pin);
-   pio_sm_set_consecutive_pindirs(pio, sm, set_pin, 1, false);
+   for (int i=0; i<3; i++)
+      pio_gpio_init(pio, mux_pin + i);
+   pio_sm_set_consecutive_pindirs(pio, sm, mux_pin, 3, false);
+   pio_gpio_init(pio, 12);
+   pio_sm_set_consecutive_pindirs(pio, sm, 12, 1, true);
    // initialize
    pio_sm_init(pio, sm, offset, &c);
 }

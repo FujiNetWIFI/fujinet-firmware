@@ -31,9 +31,7 @@ pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/commands.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/echo.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/latch.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/mux.pio)
-pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_latch.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_commands.pio)
-pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_mux.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_read.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_write.pio)
 # however, alternatively you can choose to generate it somewhere else (in this case in the source tree for check in)
@@ -41,7 +39,7 @@ pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/dcd_write.pio)
 
 # target_sources(pio_and PRIVATE pio_and.c)
 
-target_link_libraries(commands pico_stdlib hardware_pio)
+target_link_libraries(commands pico_stdlib hardware_pio hardware_dma)
 
 # Add the standard include files to the build
 target_include_directories(commands PRIVATE

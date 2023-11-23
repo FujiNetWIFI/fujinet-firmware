@@ -2,27 +2,25 @@
 ; FujiNet Project
 ;
 ; Vintage Macintosh Microfloppy Controller Interface
-; Reads the drive phases and output a latch bit 
-; for DCD, the 8-bit latch register should be copied into upper and lower bytes of the value pulled by the SM
+; Reads the drive phases (pushed to RX FIFO) and output a latch bit (pulled to TX_FIFO) 
+; Uses 2 DMA channels to read the desired latch bit
 ;
-
-.define ENABLE 7
+; the Y register is set prior to enabling the SM using 
+    ; put LUT address into the FIFO
+    ; pull
+    ; mov y, osr
+    ; out null, 1
+    ;
+    ; or using c code:
+    ; pio_sm_put(pioblk_rw, SM_LATCH, (uintptr_t)latch_lut >> 5);
+    ; pio_sm_exec_wait_blocking(pioblk_rw, SM_LATCH, pio_encode_pull(false, true));
+    ; pio_sm_exec_wait_blocking(pioblk_rw, SM_LATCH, pio_encode_mov(pio_y, pio_osr));
+    ; pio_sm_exec_wait_blocking(pioblk_rw, SM_LATCH, pio_encode_out(pio_null, 1)); 
 
 .program latch
-start:
-    wait 0 gpio ENABLE
-    mov osr, pins   ; read the GPIO's into the output shift register
-    out y, 4        ; shift the 4 LSBs into Y
-    pull noblock    ; get the latch word into OSR, if no new word in FIFO, get it from X
-    mov x, osr      ; put the osr back into X in case it's new
-.wrap_target
-    jmp y-- loop    ; if y>0 goto to loop and decrement y
-    out pins, 1     ; output the desired bit
-    jmp start       ; do it again
-loop:
-    out null, 1     ; get rid of a bit
-.wrap               
-
+    mov isr, y      ; put the base address in ISR
+    in pins, 5      ; copy the pin combination into the ISR (auto push)
+    out pins, 1     ; output the latch bit value 
 
 % c-sdk {
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
@@ -30,15 +28,18 @@ loop:
 void latch_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin) {
    // configure a SM
    pio_sm_config c = latch_program_get_default_config(offset);
-   // set the out pin to out_pin
+   
+   // get 1 bit latch values through the OSR and output on out_pin
    sm_config_set_out_pins(&c, out_pin, 1);
-   // start at in_pin to read in the phases
+   sm_config_set_out_shift(&c, true, true, 1);
+   
+   // start at in_pin to read in the phases and push to the FIFO
    sm_config_set_in_pins(&c, in_pin); 
-   // get 16 bit latch values through the OSR from the main program
-   sm_config_set_out_shift(&c, true, false, 16);
+   sm_config_set_in_shift(&c, false, true, 5);
+
    // set out_pin as a GPIO output connected to this SM
    pio_gpio_init(pio, out_pin);
-//    pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
+   pio_sm_set_consecutive_pindirs(pio, sm, out_pin, 1, true);
    // sm_config_set_set_pins(&c, pin, 1);
    // initialize
    pio_sm_init(pio, sm, offset, &c);
