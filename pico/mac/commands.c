@@ -24,6 +24,7 @@
 
 #include "commands.pio.h"
 #include "echo.pio.h"
+#include "enand.pio.h"
 #include "latch.pio.h"
 #include "mux.pio.h"
 
@@ -68,13 +69,11 @@ void pio_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins);
 // void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin);
-
+void pio_enand(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_read(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_write(PIO pio, uint sm, uint offset, uint pin);
 void set_num_dcd();
-
-
 
 /**
  * HERE IS UART SETUP
@@ -1266,6 +1265,11 @@ void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num
     pio_sm_set_enabled(pio, sm, true);
 }
 
+void pio_enand(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
+{
+  enand_program_init(pio, sm, offset, in_pin, out_pin);
+  pio_sm_set_enabled(pio, sm, true);
+}
 
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
 {
