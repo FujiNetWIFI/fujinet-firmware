@@ -1282,6 +1282,10 @@ void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin)
 void pio_dcd_read(PIO pio, uint sm, uint offset, uint pin)
 {
   dcd_read_program_init(pio, sm, offset, pin);
+  // set y, 0             side 0                 ; initial state is always 0
+  // set x, 7             side 0                 ; bit counter
+  pio_sm_exec_wait_blocking(pio, sm, pio_encode_set(pio_y, 0));
+  pio_sm_exec_wait_blocking(pio, sm, pio_encode_set(pio_x, 7));
 }
 
 void pio_dcd_write(PIO pio, uint sm, uint offset, uint pin)
