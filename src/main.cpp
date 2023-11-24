@@ -300,7 +300,7 @@ void main_setup()
     for (unsigned long i=0;i<sizeof(casdata);i++)
     {
         dac_output_voltage(DAC_CHANNEL_1,casdata[i]);
-        esp_rom_delay_us(91); // working on getting the right delay val
+        esp_rom_delay_us(89); // this is slightly faster than calculated value of 91, what gives?
     }
 
     dac_output_disable(DAC_CHANNEL_1);
