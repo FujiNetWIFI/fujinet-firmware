@@ -10,13 +10,15 @@
 
 .program dcd_read
 .side_set 1
-    set y, 0             side 0                 ; initial state is always 0
-    set x, 7             side 0                 ; bit counter
+    ; manually exec the following two statements after init before enable
+    ; set y, 0             side 0                 ; initial state is always 0
+    ; set x, 7             side 0                 ; bit counter
 reset:
     wait 1 pin 0         side 1                 ; wait for rising edge on write line from mac to start reading byte
     jmp loop1            side 1                 ; 
 loop:
     nop                  side 1   [T0/2-2]      ; wait for 1/2 bit width
+.wrap_target
 loop1:
     wait 0 gpio 9        side 1                 ; block on CA1 at the end of the transmission
     jmp pin high         side 0                 ; need T0 cycles from jmp to jmp
@@ -34,7 +36,8 @@ sync:
     set x, 7             side 1                 ; reset the bit counter
     jmp !y reset         side 0                 ; go to top if y was 0
     wait 0 pin 0         side 1                 ; otherwise wait for falling edge to sync to next back
-    jmp loop1            side 1                 ; start reading byte again
+ .wrap
+ ;   jmp loop1            side 1                 ; start reading byte again
 
 
     
