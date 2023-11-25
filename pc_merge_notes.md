@@ -140,13 +140,19 @@
 
 - TODO: lib/printer-emulator/epson_tps.h
 
-- TODO: lib/printer-emulator/file_printer.h lib/printer-emulator/file_printer.cpp
+- **WIP**: lib/printer-emulator/file_printer.h lib/printer-emulator/file_printer.cpp
 
-- TODO: lib/printer-emulator/html_printer.h lib/printer-emulator/html_printer.cpp
+    file_printer.h
+
+- **WIP**: lib/printer-emulator/html_printer.h lib/printer-emulator/html_printer.cpp
+
+    html_printer.h
 
 - TODO: lib/printer-emulator/okimate_10.h lib/printer-emulator/okimate_10.cpp
 
-- TODO: lib/printer-emulator/pdf_printer.h lib/printer-emulator/pdf_printer.cpp
+- **WIP**: lib/printer-emulator/pdf_printer.h lib/printer-emulator/pdf_printer.cpp
+
+    pdf_printer.h
 
 - TODO: lib/printer-emulator/png_printer.h lib/printer-emulator/png_printer.cpp
 
@@ -180,9 +186,13 @@
 
 - TODO: lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
 
-- TODO: lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
+- **WIP**: lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
 
-- TODO: lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
+    fujiHost.h
+
+- **WIP**: lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
+
+    fujiDisk.h
 
 - TODO: lib/bus/bus.h
 
@@ -220,31 +230,23 @@
 
 - **DONE** / identical: lib/device/siocpm.h
 
-- TODO: lib/device/iwm/disk.h lib/device/iwm/disk.cpp
+- **DONE** / merge: lib/device/iwm/disk.h lib/device/iwm/disk.cpp
 
-- TODO: lib/device/iwm/disk2.h lib/device/iwm/disk2.cpp
+- **DONE** / merge: lib/device/iwm/disk2.h lib/device/iwm/disk2.cpp
 
-- **WIP**: lib/device/iwm/printer.h lib/device/iwm/printer.cpp
+- **DONE** / merge: lib/device/iwm/printer.h lib/device/iwm/printer.cpp
 
-    printer.h
+- **DONE** / merge: lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
 
-- TODO: lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
+- **DONE** / merge: lib/device/iwm/modem.h lib/device/iwm/modem.cpp
 
-- **WIP**: lib/device/iwm/modem.h lib/device/iwm/modem.cpp
+- **DONE** / merge: lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
 
-    modem.h
+- **DONE** / merge: lib/device/iwm/network.h lib/device/iwm/network.cpp
 
-- TODO: lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
+- **DONE** / merge: lib/device/iwm/clock.h lib/device/iwm/clock.cpp
 
-- **WIP**: lib/device/iwm/network.h lib/device/iwm/network.cpp
-
-    network.h
-
-- TODO: lib/device/iwm/clock.h lib/device/iwm/clock.cpp
-
-- **WIP**: lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
-
-    cpm.h
+- **DONE** / merge: lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
 
 - TODO: lib/device/sio/disk.h lib/device/sio/disk.cpp
 
@@ -278,13 +280,21 @@
 
 - **DONE** / merge: lib/media/media.h
 
-- TODO: lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
+- **WIP**: lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
 
-- TODO: lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
+    mediaType.h
 
-- TODO: lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
+- **WIP**: lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
 
-- TODO: lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
+    mediaTypeDO.h
+
+- **WIP**: lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
+
+    mediaTypeDSK.h
+
+- **WIP**: lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
+
+    mediaTypePO.h
 
 - TODO: lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
 

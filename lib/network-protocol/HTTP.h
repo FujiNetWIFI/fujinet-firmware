@@ -3,10 +3,14 @@
 
 #include <expat.h>
 
-#include "FS.h"
-
+#ifdef ESP_PLATFORM
 #include "fnHttpClient.h"
-#include "WEBDAV.h"
+#else
+#include "mgHttpClient.h"
+#endif
+
+#include "WebDAV.h"
+#include "FS.h"
 
 class NetworkProtocolHTTP : public NetworkProtocolFS
 {
@@ -180,7 +184,11 @@ private:
     /**
      * The fnHTTPClient object used by the adaptor for HTTP calls
      */
+#ifdef ESP_PLATFORM
     fnHttpClient *client = nullptr;
+#else
+    mgHttpClient *client = nullptr;
+#endif
 
     /**
      * result code returned by an HTTP verb

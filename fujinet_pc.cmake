@@ -179,15 +179,15 @@ set(SOURCES
     lib/device/network.h
     lib/device/udpstream.h
     lib/device/siocpm.h
-#     lib/device/iwm/disk.h lib/device/iwm/disk.cpp
-#     lib/device/iwm/disk2.h lib/device/iwm/disk2.cpp
-#     lib/device/iwm/printer.h lib/device/iwm/printer.cpp
-#     lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
-#     lib/device/iwm/modem.h lib/device/iwm/modem.cpp
-#     lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
-#     lib/device/iwm/network.h lib/device/iwm/network.cpp
-#     lib/device/iwm/clock.h lib/device/iwm/clock.cpp
-#     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
+    lib/device/iwm/disk.h lib/device/iwm/disk.cpp
+    lib/device/iwm/disk2.h lib/device/iwm/disk2.cpp
+    lib/device/iwm/printer.h lib/device/iwm/printer.cpp
+    lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
+    lib/device/iwm/modem.h lib/device/iwm/modem.cpp
+    lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
+    lib/device/iwm/network.h lib/device/iwm/network.cpp
+    lib/device/iwm/clock.h lib/device/iwm/clock.cpp
+    lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
 #     lib/device/sio/disk.h lib/device/sio/disk.cpp
 #     lib/device/sio/printer.h lib/device/sio/printer.cpp
 #     lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp

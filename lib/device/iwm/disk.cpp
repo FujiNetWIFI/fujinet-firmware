@@ -500,7 +500,11 @@ iwmDisk::iwmDisk()
   // init();
 }
 
+#ifdef ESP_PLATFORM
 mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+#else
+mediatype_t iwmDisk::mount(FileHandler *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+#endif
 {
   mediatype_t mt = disk_type;
   uint8_t deviceSlot = data_buffer[0]; // from mount ctrl cmd
@@ -558,6 +562,7 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         device_active = true; //change status only after we are mounted
     }
   }
+#ifndef SP_OVER_SLIP
   else // DiskII drive
   {
     switch (mt)
@@ -574,6 +579,7 @@ mediatype_t iwmDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         break;
     }
   }
+#endif /* !SLIP */
 
   if (mt == MEDIATYPE_UNKNOWN) {
       Debug_printf("\r\nMedia Type UNKNOWN - no mount in disk.cpp");
@@ -597,7 +603,11 @@ void iwmDisk::unmount()
     }
 }
 
+#ifdef ESP_PLATFORM
 bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
+#else
+bool iwmDisk::write_blank(FileHandler *f, uint16_t sectorSize, uint16_t numSectors)
+#endif
 {
   
   return false;
@@ -607,7 +617,11 @@ bool iwmDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
  * Used for writing ProDOS images which exist in multiples of 
  * 512 byte blocks.
  */
+#ifdef ESP_PLATFORM
 bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
+#else
+bool iwmDisk::write_blank(FileHandler *f, uint16_t numBlocks)
+#endif
 {
   unsigned char buf[512];
 
@@ -639,14 +653,23 @@ bool iwmDisk::write_blank(FILE *f, uint16_t numBlocks)
 
     header.numBlocks = numBlocks;
 
+#ifdef ESP_PLATFORM
     fwrite(&header,sizeof(header),1,f);
+#else
+    f->write(&header,sizeof(header),1);
+#endif
   }
 
   long offset = (numBlocks - 1) * 512;
 
   // Sparse Write
+#ifdef ESP_PLATFORM
   fseek(f,offset,SEEK_SET);
   fwrite(&buf,sizeof(unsigned char),sizeof(buf),f);
+#else
+  f->seek(offset,SEEK_SET);
+  f->write(&buf,sizeof(unsigned char),sizeof(buf));
+#endif
 
   blank_header_type = 0; // Reset to unadorned.
   return false;

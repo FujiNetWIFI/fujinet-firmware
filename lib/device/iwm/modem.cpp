@@ -1,13 +1,12 @@
 #ifdef BUILD_APPLE
 
 #include <string.h>
-#include <lwip/netdb.h>
 
+#include "compat_inet.h"
 #include "../../include/atascii.h"
 #include "modem.h"
 #include "../hardware/fnUART.h"
 #include "fnWiFi.h"
-#include "fsFlash.h"
 #include "fnSystem.h"
 #include "../utils/utils.h"
 #include "fnConfig.h"
@@ -85,7 +84,9 @@ static void _modem_task(void *arg)
     while (true)
     {
         m->handle_modem();
+#ifdef ESP_PLATFORM // OS
         vTaskDelay(10);
+#endif
     }
 }
 
@@ -95,9 +96,11 @@ iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
     set_term_type("dumb");
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
+#ifdef ESP_PLATFORM // OS
     mrxq = xQueueCreate(16384, sizeof(char));
     mtxq = xQueueCreate(16384, sizeof(char));
     xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
+#endif
 }
 
 iwmModem::~iwmModem()
@@ -113,9 +116,11 @@ iwmModem::~iwmModem()
         telnet_free(telnet);
     }
 
+#ifdef ESP_PLATFORM // OS
     vTaskDelete(modemTask);
     vQueueDelete(mrxq);
     vQueueDelete(mtxq);
+#endif
 }
 
 unsigned short iwmModem::modem_write(uint8_t *buf, unsigned short len)
@@ -124,7 +129,9 @@ unsigned short iwmModem::modem_write(uint8_t *buf, unsigned short len)
 
     while (len > 0)
     {
+#ifdef ESP_PLATFORM // OS
         xQueueSend(mrxq, &buf[l++], portMAX_DELAY);
+#endif
         len--;
     }
 
@@ -133,7 +140,9 @@ unsigned short iwmModem::modem_write(uint8_t *buf, unsigned short len)
 
 unsigned short iwmModem::modem_write(char c)
 {
+#ifdef ESP_PLATFORM // OS
     xQueueSend(mrxq, &c, portMAX_DELAY);
+#endif
     return 1;
 }
 
@@ -143,7 +152,9 @@ unsigned short iwmModem::modem_print(const char *s)
 
     while (*s != 0x00)
     {
+#ifdef ESP_PLATFORM // OS
         xQueueSend(mrxq, s++, portMAX_DELAY);
+#endif
         l++;
     }
 
@@ -159,7 +170,11 @@ unsigned short iwmModem::modem_print(int i)
 {
     char out[80];
 
+#ifdef ESP_PLATFORM
     itoa(i, out, 10);
+#else
+    sprintf(out, "%d", i);
+#endif
 
     return modem_print(out);
 }
@@ -168,8 +183,10 @@ unsigned short iwmModem::modem_read(uint8_t *buf, unsigned short len)
 {
     unsigned short i, l = 0;
 
+#ifdef ESP_PLATFORM // OS
     for (i = 0; i < len; i++)
         l += xQueueReceive(mtxq, &buf[i], portMAX_DELAY);
+#endif
 
     return l;
 }
@@ -1096,11 +1113,15 @@ void iwmModem::handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         // if (SIO_UART.available() /*|| blockWritePending == true */ )
+#ifdef ESP_PLATFORM // OS
         if (uxQueueMessagesWaiting(mtxq))
+#endif
         {
-            char chr;
+            unsigned char chr;
 
+#ifdef ESP_PLATFORM // OS
             xQueueReceive(mtxq, &chr, portMAX_DELAY);
+#endif
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -1189,8 +1210,11 @@ void iwmModem::handle_modem()
             }
         }
 
+#ifdef ESP_PLATFORM // OS
         int sioBytesAvail = uxQueueMessagesWaiting(mtxq);
-
+#else
+        int sioBytesAvail;
+#endif
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
         {
@@ -1402,7 +1426,11 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
 {
     uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+#ifdef ESP_PLATFORM // OS
     unsigned short mw = uxQueueMessagesWaiting(mrxq);
+#else
+    unsigned short mw;
+#endif
 
     Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
 
@@ -1419,7 +1447,9 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
         for (int i = 0; i < numbytes; i++)
         {
             char b;
+#ifdef ESP_PLATFORM // OS
             xQueueReceive(mrxq, &b, portMAX_DELAY);
+#endif
             data_buffer[i] = b;
             data_len++;
         }
@@ -1454,8 +1484,10 @@ void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
 
     {
         // DO write
+#ifdef ESP_PLATFORM // OS
         for (int i = 0; i < num_bytes; i++)
             xQueueSend(mtxq, &data_buffer[i], portMAX_DELAY);
+#endif
     }
 
     send_reply_packet(SP_ERR_NOERROR);
@@ -1484,7 +1516,11 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
 void iwmModem::iwm_modem_status()
 {
+#ifdef ESP_PLATFORM // OS
     unsigned short mw = uxQueueMessagesWaiting(mrxq);
+#else
+    unsigned short mw;
+#endif
 
     //if (mw > 512)
     //    mw = 512;

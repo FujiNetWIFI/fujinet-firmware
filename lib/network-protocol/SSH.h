@@ -5,7 +5,9 @@
 #ifndef NETWORKPROTOCOL_SSH
 #define NETWORKPROTOCOL_SSH
 
+#ifdef ESP_PLATFORM
 #include <lwip/sockets.h>
+#endif
 
 #include <string>
 
@@ -13,7 +15,10 @@
 
 #include "fnTcpClient.h"
 #include "libssh/libssh.h"
+#ifdef ESP_PLATFORM
+// apc: this is libssh private header!
 #include "libssh/session.h"
+#endif
 
 using namespace std;
 

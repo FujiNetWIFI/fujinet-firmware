@@ -24,7 +24,11 @@
 class fujiDisk
 {
 public:    
+#ifdef ESP_PLATFORM
     FILE* fileh = nullptr;
+#else
+    FileHandler* fileh = nullptr;
+#endif
     uint8_t access_mode = DISK_ACCESS_MODE_READ;
     mediatype_t disk_type = MEDIATYPE_UNKNOWN;
     uint32_t disk_size = 0;

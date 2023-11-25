@@ -8,7 +8,7 @@
 #include "fsFlash.h"
 #include "utils.h"
 
-#include <string>
+#include "compat_string.h"
 
 #define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40
@@ -145,7 +145,11 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
 
         Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
-        if (fnWiFi.connect(cfg.ssid, cfg.password) == ESP_OK)
+// TODO: better
+#if ESP_OK != 0
+#error "ESP_OK != 0"
+#endif
+        if (fnWiFi.connect(cfg.ssid, cfg.password) == 0) // ESP_OK
         {
           Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
           Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
@@ -206,9 +210,15 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
     uint8_t options = data_buffer[1]; //adamnet_recv(); // DISK_ACCESS_MODE
     
     // TODO: Implement FETCH?
+#ifdef ESP_PLATFORM
     char flag[3] = {'r', 0, 0};
     if (options == DISK_ACCESS_MODE_WRITE)
         flag[1] = '+';
+#else
+    char flag[4] = {'r', 'b', 0, 0};
+    if (options == DISK_ACCESS_MODE_WRITE)
+        flag[2] = '+';
+#endif
 
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
@@ -218,7 +228,11 @@ void iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
     disk.disk_dev.host = &host;
+#ifdef ESP_PLATFORM
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+#else
+    disk.fileh = host.filehandler_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+#endif
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
@@ -260,8 +274,13 @@ void iwmFuji::iwm_ctrl_copy_file()
     std::string copySpec;
     std::string sourcePath;
     std::string destPath;
+#ifdef ESP_PLATFORM
     FILE *sourceFile;
     FILE *destFile;
+#else
+    FileHandler *sourceFile;
+    FileHandler *destFile;
+#endif
     char *dataBuf;
     unsigned char sourceSlot;
     unsigned char destSlot;
@@ -288,20 +307,35 @@ void iwmFuji::iwm_ctrl_copy_file()
     _fnHosts[destSlot].mount();
 
     // Open files...
+#ifdef ESP_PLATFORM
     sourceFile = _fnHosts[sourceSlot].file_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
     destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
+#else
+    sourceFile = _fnHosts[sourceSlot].filehandler_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "rb");
+    destFile = _fnHosts[destSlot].filehandler_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "wb");
+#endif
 
     dataBuf = (char *)malloc(532);
     size_t count = 0;
     do
     {
+#ifdef ESP_PLATFORM
         count = fread(dataBuf, 1, 532, sourceFile);
         fwrite(dataBuf, 1, count, destFile);
+#else
+        count = sourceFile->read(dataBuf, 1, 532);
+        destFile->write(dataBuf, 1, count);
+#endif
     } while (count > 0);
 
     // copyEnd:
+#ifdef ESP_PLATFORM
     fclose(sourceFile);
     fclose(destFile);
+#else
+    sourceFile->close();
+    destFile->close();
+#endif
     free(dataBuf);
 }
  
@@ -314,10 +348,15 @@ bool iwmFuji::mount_all()
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
+#ifdef ESP_PLATFORM
         char flag[3] = {'r', 0, 0};
-
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
+#else
+        char flag[4] = {'r', 'b', 0, 0};
+        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            flag[2] = '+';
+#endif
 
         if (disk.host_slot != INVALID_HOST_SLOT)
         {
@@ -331,7 +370,11 @@ bool iwmFuji::mount_all()
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                          disk.filename, disk.host_slot, flag, i + 1);
 
+#ifdef ESP_PLATFORM
             disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+#else
+            disk.fileh = host.filehandler_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+#endif
 
             if (disk.fileh == nullptr)
             {
@@ -795,14 +838,22 @@ void iwmFuji::iwm_ctrl_new_disk()
     disk.access_mode = DISK_ACCESS_MODE_WRITE;
     strlcpy(disk.filename, (const char *)p, 256);
 
+#ifdef ESP_PLATFORM
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+#else
+    disk.fileh = host.filehandler_open(disk.filename, disk.filename, sizeof(disk.filename), "wb");
+#endif
 
     Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
     disk.disk_dev.blank_header_type = t;
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
+#ifdef ESP_PLATFORM
     fclose(disk.fileh);
+#else
+    disk.fileh->close();
+#endif
 }
 
 // Send host slot data to computer
@@ -1008,6 +1059,7 @@ void iwmFuji::insert_boot_device(uint8_t d)
 {
     const char *config_atr = "/autorun.po";
     const char *mount_all_atr = "/mount-and-boot.po";
+#ifdef ESP_PLATFORM
     FILE *fBoot;
 
     switch (d)
@@ -1022,6 +1074,33 @@ void iwmFuji::insert_boot_device(uint8_t d)
         _fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 143360, MEDIATYPE_PO);        
         break;
     }
+#else
+    const char *boot_img;
+    FileHandler *fBoot;
+
+    switch (d)
+    {
+    case 0:
+        boot_img = config_atr;
+        fBoot = fsFlash.filehandler_open(boot_img);
+        break;
+    case 1:
+        boot_img = mount_all_atr;
+        fBoot = fsFlash.filehandler_open(boot_img);
+        break;
+    default:
+        Debug_printf("Invalid boot mode: %d\n", d);
+        return;
+    }
+
+    if (fBoot == nullptr)
+    {
+        Debug_printf("Failed to open boot disk image: %s\n", boot_img);
+        return;
+    }
+
+    _fnDisks[0].disk_dev.mount(fBoot, boot_img, 143360, MEDIATYPE_PO);
+#endif
 
     _fnDisks[0].disk_dev.is_config_device = true;
     _fnDisks[0].disk_dev.device_active = true;
@@ -1078,6 +1157,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
    }
 
     Debug_printf("\nConfig General Boot Mode: %u\n",Config.get_general_boot_mode());
+#ifdef ESP_PLATFORM
     if (Config.get_general_boot_mode() == 0)
     {
         FILE *f = fsFlash.file_open("/autorun.po");
@@ -1088,6 +1168,9 @@ void iwmFuji::setup(iwmBus *iwmbus)
         FILE *f = fsFlash.file_open("/mount-and-boot.po");
          _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);      
     }
+#else
+    insert_boot_device(Config.get_general_boot_mode());
+#endif
 
     // theNetwork = new adamNetwork();
     // theSerial = new adamSerial();

@@ -17,7 +17,11 @@ public:
 
     virtual bool format(uint16_t *respopnsesize) override;
 
+#ifdef ESP_PLATFORM
     virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
+#else
+    virtual mediatype_t mount(FileHandler *f, uint32_t disksize) override;
+#endif
 
     virtual bool status() override {return (_media_fileh != nullptr);}
 };
