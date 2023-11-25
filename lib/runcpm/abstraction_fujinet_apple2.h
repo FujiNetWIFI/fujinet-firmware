@@ -7,6 +7,7 @@
 
 #include <queue>
 #include <string.h>
+#include <errno.h>
 
 #include "globals.h"
 

@@ -25,6 +25,8 @@
 #include "SSH.h"
 #include "SMB.h"
 
+#include "ProtocolParser.h"
+
 // using namespace std;
 
 /**
@@ -628,7 +630,7 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     NetworkStatus ns;
 
-    if ((protocol == nullptr))
+    if (protocol == nullptr)
         return true; // Punch out.
 
     // Get status

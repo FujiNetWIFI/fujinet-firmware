@@ -10,6 +10,7 @@
 #include "fnFS.h"
 #include "fnFsSD.h"
 #include "fnConfig.h"
+#include "compat_string.h"
 
 #include "../hardware/led.h"
 
@@ -41,7 +42,9 @@ static void cpmTask(void *arg)
         memset(newname, 0, sizeof(newname));
         memset(fcbname, 0, sizeof(fcbname));
         memset(pattern, 0, sizeof(pattern));
+#ifdef ESP_PLATFORM // OS
         vTaskDelay(100);
+#endif
         _puts(CCPHEAD);
         _PatchCPM();
         _ccp();
@@ -50,8 +53,10 @@ static void cpmTask(void *arg)
 
 iwmCPM::iwmCPM()
 {
+#ifdef ESP_PLATFORM // OS
     rxq = xQueueCreate(2048, sizeof(char));
     txq = xQueueCreate(2048, sizeof(char));
+#endif
 }
 
 void iwmCPM::send_status_reply_packet()
@@ -119,10 +124,11 @@ void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
     uint8_t err_result = SP_ERR_NOERROR;
 
     Debug_printf("\r\nCP/M: Open\n");
+#ifdef ESP_PLATFORM // OS
     if (!fnSystem.spifix())
     {
         err_result = SP_ERR_OFFLINE;
-        Debug_printf("FujiApple SPI Fix Missing, not starting CP/M\n");
+    Debug_printf("FujiApple SPI Fix Missing, not starting CP/M\n");
     }
     else
     {
@@ -132,6 +138,7 @@ void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
             xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
         }
     }
+#endif
 
     send_reply_packet(err_result);
 }
@@ -163,7 +170,9 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         return;
         break;
     case 'S': // Status
+#ifdef ESP_PLATFORM // OS
         mw = uxQueueMessagesWaiting(rxq);
+#endif
 
         if (mw > 512)
             mw = 512;
@@ -174,7 +183,9 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
         Debug_printf("%u bytes waiting\n", mw);
         break;
     case 'B':
+#ifdef ESP_PLATFORM // OS
         data_buffer[0]=(cpmTaskHandle==NULL ? 0 : 1);
+#endif
         data_len = 0;
         Debug_printf("CPM Task Running? %d",data_buffer[0]);
         break;
@@ -188,7 +199,11 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
 {
     uint16_t numbytes = get_numbytes(cmd); // cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     uint32_t addy = get_address(cmd);      // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
+#ifdef ESP_PLATFORM // OS
     unsigned short mw = uxQueueMessagesWaiting(rxq);
+#else
+    unsigned short mw;
+#endif
 
     Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
 
@@ -205,7 +220,9 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
         for (int i = 0; i < numbytes; i++)
         {
             char b;
+#ifdef ESP_PLATFORM // OS
             xQueueReceive(rxq, &b, portMAX_DELAY);
+#endif
             data_buffer[i] = b;
             data_len++;
         }
@@ -240,8 +257,10 @@ void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
 
     {
         // DO write
+#ifdef ESP_PLATFORM // OS
         for (int i = 0; i < num_bytes; i++)
             xQueueSend(txq, &data_buffer[i], portMAX_DELAY);
+#endif
     }
 
     send_reply_packet(SP_ERR_NOERROR);
@@ -264,19 +283,23 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
         switch (control_code)
         {
         case 'B': // Boot
+#ifdef ESP_PLATFORM // OS
             if (!fnSystem.spifix())
             {
                 err_result = SP_ERR_OFFLINE;
                 Debug_printf("FujiApple SPI Fix Missing, not starting CP/M\n");
             }
             else
+#endif
             {
                 Debug_printf("!!! STARTING CP/M TASK!!!\n");
+#ifdef ESP_PLATFORM // OS
                 if (cpmTaskHandle != NULL)
                 {
-                    break;
+                        break;
                 }
                 xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
+#endif
             }
             break;
         }

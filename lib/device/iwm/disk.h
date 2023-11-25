@@ -45,10 +45,19 @@ public:
     uint8_t blank_header_type = 0; // unadorned by default.
     iwmDisk();
     fujiHost *host = nullptr;
+#ifdef ESP_PLATFORM
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+#else
+    mediatype_t mount(FileHandler *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+#endif
     void unmount();
+#ifdef ESP_PLATFORM
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
     bool write_blank(FILE *f, uint16_t numBlocks);
+#else
+    bool write_blank(FileHandler *f, uint16_t sectorSize, uint16_t numSectors);
+    bool write_blank(FileHandler *f, uint16_t numBlocks);
+#endif
 
     void set_disk_number(char c) { disk_num = c; }
     char get_disk_number() { return disk_num; };

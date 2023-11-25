@@ -1,9 +1,15 @@
 #ifdef BUILD_APPLE
+#ifndef SP_OVER_SLIP
+
 #include "disk2.h"
 
 #include "fnSystem.h"
 #include "fuji.h"
+#ifdef ESP_PLATFORM
 #include "fnHardwareTimer.h"
+#endif
+
+#include "compat_esp.h" // empty IRAM_ATTR macro for FujiNet-PC
 
 #define NS_PER_BIT_TIME 125
 #define BLANK_TRACK_LEN 6400
@@ -36,7 +42,11 @@ void iwmDisk2::init()
   device_active = false;
 }
 
+#ifdef ESP_PLATFORM
 mediatype_t iwmDisk2::mount(FILE *f, uint32_t disksize, mediatype_t disk_type)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
+#else
+mediatype_t iwmDisk2::mount(FileHandler *f, uint32_t disksize, mediatype_t disk_type)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
+#endif
 {
 
   mediatype_t mt = MEDIATYPE_UNKNOWN;
@@ -86,7 +96,11 @@ void iwmDisk2::unmount()
 
 }
 
+#ifdef ESP_PLATFORM
 bool iwmDisk2::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
+#else
+bool iwmDisk2::write_blank(FileHandler *f, uint16_t sectorSize, uint16_t numSectors)
+#endif
 {
   return false;
 }
@@ -133,6 +147,7 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   if ((((MediaTypeWOZ *)_disk)->trackmap(old_pos) == ((MediaTypeWOZ *)_disk)->trackmap(track_pos)) && indicator)
     return;
 
+#ifndef SP_OVER_SLIP
   // need to tell diskii_xface the number of bits in the track
   // and where the track data is located so it can convert it
   if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
@@ -150,7 +165,9 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
         BLANK_TRACK_LEN, 
         BLANK_TRACK_LEN * 8, 
         NS_PER_BIT_TIME * ((MediaTypeWOZ *)_disk)->optimal_bit_timing);
+#endif // !SLIP
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
 
+#endif /* !SLIP */
 #endif /* BUILD_APPLE */

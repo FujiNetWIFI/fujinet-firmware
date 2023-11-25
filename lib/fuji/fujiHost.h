@@ -10,7 +10,11 @@ enum fujiHostType
 {
     HOSTTYPE_UNINITIALIZED = 0,
     HOSTTYPE_LOCAL,
-    HOSTTYPE_TNFS
+    HOSTTYPE_TNFS,
+#ifndef ESP_PLATFORM
+    HOSTTYPE_SMB,
+    HOSTTYPE_FTP,
+#endif
 };
 
 class fujiHost
@@ -27,6 +31,10 @@ private:
 
     int mount_local();
     int mount_tnfs();
+#ifndef ESP_PLATFORM
+    int mount_smb();
+    int mount_ftp();
+#endif
 
     int unmount_local();
     int unmount_tnfs();
@@ -54,8 +62,13 @@ public:
 
     // File functions
     bool file_exists(const char *path);
+#ifdef ESP_PLATFORM
     FILE * file_open(const char *path, char *fullpath, int fullpathlen, const char *mode);
     long file_size(FILE *filehandle);
+#else
+    FileHandler * filehandler_open(const char *path, char *fullpath, int fullpathlen, const char *mode);
+    long file_size(FileHandler *filehandle);
+#endif
     bool file_remove(char *fullpath);
 
     // Directory functions

@@ -76,7 +76,7 @@ protected:
 
 public:
 
-    virtual const char *modelname(void) = 0;
+    // virtual const char *modelname(void) = 0;
     pdfPrinter() { _paper_type = PDF; };
 
 };
