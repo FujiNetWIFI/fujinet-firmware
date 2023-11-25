@@ -4,7 +4,6 @@
 ; Vintage Macintosh Microfloppy Controller Interface
 ; Read NRZI stream
 ;
-;
 
 .define public T0 10
 

@@ -15,9 +15,7 @@
 ; logic analyzer looks like 0.4 us pulses in 2.1 us periods
 ; floppy emulator successfuly works with 0.5 us pulses in 2.0 us periods
 
-; DOES NOT HAVE HOLDOFF IMPLEMENTED
-; CAN SIMPLIFY WITH AUTOPULL, REMOVE WAIT ENABLE, USE WRAPPING
-; IF USE SIDESET, THEN CAN ADD 15 CLK DELAY - total 16 clk max
+; Using Sideset, cAN ADD 15 CLK DELAY - total 16 clk max
 ; so would like 16 clks = 1.5 us - maybe make the clock cycle = 0.1 us, so 5=0.5 us pulse and 15 = 1.5 us blank
 ; but dont want to do fractional divide ... instead clk/13 = 9.6154 MHZ
 ; 1 tick = 0.104 us

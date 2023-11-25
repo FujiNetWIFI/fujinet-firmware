@@ -5,10 +5,10 @@
 ; selects output pins between RMT, TACH and LATCH
 ;
 ;
-
+.define MCI_CA0 6
 .define public LSTRB 13
-.define public ENABLE 7
-.define public DISKFLAG 12
+.define public ENABLE 11
+.define public DISKFLAG 10
 
 ; The DCD mux will really control the RD line direction.
 ; It will ...
@@ -30,7 +30,6 @@ start:
     set x, 0                side 0b000      ; put the number of DCD devices in X (0xf020 - last digit is number of DCDs)
     wait 0 gpio ENABLE                      ; don't do anything until we're enabled
 .wrap_target
-entry:
     in x, 32                                ; push X to the FIFO to tell the program a certain drive is selected
     wait 0 gpio LSTRB                       ; wait for strobe to deassert
     jmp x-- dcd                            ; if X>0, then count down to next drive
@@ -57,7 +56,7 @@ dcd:
     set pins, 1                             ; say to latch we're in DCD mode
     jmp pin start            ; disabled so go back to the beginning!
     mov osr, pins           side 0b100 ; get LSTRB value into osr
-    out null, 5             ; have to blow some into null first
+    out null, (LSTRB-MCI_CA0)  ; have to blow some into null first - LSTRB-MCI_CA0 - sort of violates the coding scheme to pass the in_pin
     out y, 1                 ; stick it in Y
     jmp !Y dcd             ; not strobing loop
 .wrap

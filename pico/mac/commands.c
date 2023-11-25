@@ -35,8 +35,10 @@
 // define GPIO pins
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
-#define ENABLE      7
-#define MCI_CA0     8
+#define EN0
+#define EN1
+#define ENABLE      11 // was 7 - swap order of CA and EN
+#define MCI_CA0     6  // was 8 - move CA down to EN
 #define MCI_WR      15
 #define ECHO_IN     21
 #define TACH_OUT    21
