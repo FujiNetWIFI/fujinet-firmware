@@ -68,6 +68,8 @@ public:
     void store_general_timezone(const char *timezone);
     void store_general_rotation_sounds(bool rotation_sounds);
     void store_general_config_enabled(bool config_enabled);
+    std::string get_config_filename(){ return _general.config_filename; };
+    void store_config_filename(const std::string &filename);
     bool get_general_boot_mode() { return _general.boot_mode; }
     void store_general_boot_mode(uint8_t boot_mode);
     void store_udpstream_host(const char host_ip[64]);
@@ -308,6 +310,7 @@ private:
         std::string timezone;
         bool rotation_sounds = true;
         bool config_enabled = true;
+        std::string config_filename;
         int boot_mode = 0;
         bool fnconfig_spifs = true;
         bool status_wait_enabled = true;
