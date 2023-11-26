@@ -1036,7 +1036,7 @@ void sioFuji::sio_read_directory_block()
     uint8_t pages = (cmdFrame.aux2 & 0x07) + 1;
 
     Debug_printf("Fuji cmd: READ DIRECTORY BLOCK (pages=%d, maxlen=%d, extended: %d)\n", pages, maxlen, is_extended);
-    
+
     std::vector<uint8_t> response;
     std::vector<uint8_t> start_offsets; // holds all the offsets for each dir entry in the response
     std::vector<uint8_t> data_block;    // the data for each dir entry. no terminator char needed as we track the offsets. Double 0x7f is end of dir, and no more entries will come
@@ -1156,9 +1156,9 @@ void sioFuji::sio_read_directory_block()
     // byte 7-8 = First Position in block (i.e. dir pos value at start), allows up to 64k entries over all blocks
     // Num Entries x 2 = Offsets in Data for each entry
     // Data x Num Entries = data for each dir.
-    // 
+    //
     // All above is < pages x 256 in size
-    
+
     // HEADER BYTES
     std::string headerBytes = "MF";
     response.insert(response.end(), headerBytes.begin(), headerBytes.end());
@@ -1846,6 +1846,8 @@ void sioFuji::sio_set_sio_external_clock()
 void sioFuji::insert_boot_device(uint8_t d)
 {
     const char *config_atr = "/autorun.atr";
+    std::string altconfigfile = Config.get_config_filename();
+    const char *alt_config_atr = altconfigfile.c_str();
     const char *mount_all_atr = "/mount-and-boot.atr";
     FILE *fBoot;
 
@@ -1854,6 +1856,17 @@ void sioFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
+        if( !altconfigfile.empty() && fnSDFAT.running() != false )
+        {
+            fBoot = fnSDFAT.file_open(alt_config_atr, "r");
+            // if open fails, fall back to default config
+            if (fBoot != nullptr)
+            {
+                _bootDisk.mount(fBoot, alt_config_atr, 0);
+                Debug_printf("Mounted Alternate CONFIG %s\n", alt_config_atr);
+                break;
+            }
+        }
         fBoot = fsFlash.file_open(config_atr);
         _bootDisk.mount(fBoot, config_atr, 0);
         break;
