@@ -33,6 +33,7 @@ void fnConfig::save()
     ss << "hsioindex=" << _general.hsio_index << LINETERM;
     ss << "rotationsounds=" << _general.rotation_sounds << LINETERM;
     ss << "configenabled=" << _general.config_enabled << LINETERM;
+    ss << "altconfigfile=" << _general.config_filename << LINETERM;
     ss << "boot_mode=" << _general.boot_mode << LINETERM;
     if (_general.timezone.empty() == false)
         ss << "timezone=" << _general.timezone << LINETERM;
