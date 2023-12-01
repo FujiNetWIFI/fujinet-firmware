@@ -186,15 +186,13 @@
 
 - TODO: lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
 
-- **WIP**: lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
+- **DONE** / identical: lib/fuji/fujiCmd.h
 
-    fujiHost.h
+- **DONE** / merge: lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
 
-- **WIP**: lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
+- **DONE** / merge: lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
 
-    fujiDisk.h
-
-- TODO: lib/bus/bus.h
+- **DONE** / merge: lib/bus/bus.h
 
 - **DONE** / merge: lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
 

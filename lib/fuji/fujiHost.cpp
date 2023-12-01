@@ -1,12 +1,16 @@
-
 #include "fujiHost.h"
 
 #include <cstring>
+#include "compat_string.h"
 
 #include "../../include/debug.h"
 
 #include "fnFsSD.h"
 #include "fnFsTNFS.h"
+#ifndef ESP_PLATFORM
+#include "fnFsSMB.h"
+#include "fnFsFTP.h"
+#endif
 
 #include "utils.h"
 
@@ -22,7 +26,7 @@ void fujiHost::cleanup()
     if (_fs != nullptr)
         _fs->dir_close();
 
-    // Delete the filesystem if it's not one of the global oens
+    // Delete the filesystem if it's not one of the global ones
     if (_fs->is_global() == false)
         delete _fs;
 
@@ -41,9 +45,11 @@ void fujiHost::set_type(fujiHostType type)
     case HOSTTYPE_UNINITIALIZED:
         break;
     case HOSTTYPE_LOCAL:
-        cleanup();
-        break;
     case HOSTTYPE_TNFS:
+#ifndef ESP_PLATFORM
+    case HOSTTYPE_SMB:
+    case HOSTTYPE_FTP:
+#endif
         cleanup();
         break;
     }
@@ -63,7 +69,7 @@ void fujiHost::set_hostname(const char *hostname)
             Debug_print("fujiHost::set_hostname new name matches old - nothing changes\n");
             return;
         }
-        Debug_printf("fujiHost::set_hostname replacing hold host \"%s\"\n", _hostname);
+        Debug_printf("fujiHost::set_hostname \"%s\" replacing old host \"%s\"\n", hostname, _hostname);
         set_type(HOSTTYPE_UNINITIALIZED);
     }
     strlcpy(_hostname, hostname, sizeof(_hostname));
@@ -104,6 +110,10 @@ uint16_t fujiHost::dir_tell()
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
+#ifndef ESP_PLATFORM
+    case HOSTTYPE_SMB:
+    case HOSTTYPE_FTP:
+#endif
         result = _fs->dir_tell();
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -123,6 +133,10 @@ bool fujiHost::dir_seek(uint16_t pos)
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
+#ifndef ESP_PLATFORM
+    case HOSTTYPE_SMB:
+    case HOSTTYPE_FTP:
+#endif
         result = _fs->dir_seek(pos);
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -152,6 +166,10 @@ bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
+#ifndef ESP_PLATFORM
+    case HOSTTYPE_SMB:
+    case HOSTTYPE_FTP:
+#endif
         result = _fs->dir_open(realpath, pattern, options);
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -168,6 +186,10 @@ fsdir_entry_t *fujiHost::dir_nextfile()
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
+#ifndef ESP_PLATFORM
+    case HOSTTYPE_SMB:
+    case HOSTTYPE_FTP:
+#endif
         return _fs->dir_read();
     case HOSTTYPE_UNINITIALIZED:
         break;
@@ -197,7 +219,11 @@ bool fujiHost::file_exists(const char *path)
     return _fs->exists(realpath);
 }
 
+#ifdef ESP_PLATFORM
 long fujiHost::file_size(FILE *filehandle)
+#else
+long fujiHost::file_size(FileHandler *filehandle)
+#endif
 {
     Debug_print("::get_filesize\n");
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
@@ -209,7 +235,11 @@ long fujiHost::file_size(FILE *filehandle)
    if the combined prefix + path is longer than fullpathlen.
    Fullpath may be the same buffer as path.
 */
+#ifdef ESP_PLATFORM
 FILE * fujiHost::file_open(const char *path, char *fullpath, int fullpathlen, const char *mode)
+#else
+FileHandler * fujiHost::filehandler_open(const char *path, char *fullpath, int fullpathlen, const char *mode)
+#endif
 {
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
         return nullptr;
@@ -229,7 +259,11 @@ FILE * fujiHost::file_open(const char *path, char *fullpath, int fullpathlen, co
     }
     Debug_printf("fujiHost #%d opening file path \"%s\"\n", slotid, fullpath);
 
+#ifdef ESP_PLATFORM
     return _fs->file_open(fullpath, mode);
+#else
+    return _fs->filehandler_open(fullpath, mode);
+#endif
 }
 
 /* Remove a file from the host
@@ -349,9 +383,87 @@ int fujiHost::mount_tnfs()
     return -1;
 }
 
-int fujiHost::unmount_tnfs()
+#ifndef ESP_PLATFORM
+int fujiHost::mount_smb()
 {
-    Debug_printf("TNFS filesystem unmounted.\n");
+    Debug_printf("::mount_smb {%d:%d} \"%s\"\n", slotid, _type, _hostname);
+
+    // Don't do anything if that's already what's set
+    if (_type == HOSTTYPE_SMB)
+    {
+        if (_fs != nullptr && _fs->running())
+        {
+            Debug_printf("::mount_smb Currently connected to share \"%s\"\n", _hostname);
+            return 0;
+        }
+    }
+    else
+        set_type(HOSTTYPE_SMB); // Only start fresh if not HOSTTYPE_SMB
+
+    _fs = new FileSystemSMB;
+
+    if (_fs == nullptr)
+    {
+        Debug_println("Couldn't create a new FsSMB in fujiHost::mount_smb!");
+    }
+    else
+    {
+        Debug_println("Calling SMB::begin");
+        // ensure URL starts with lowercase 'smb'
+        char url[MAX_HOSTNAME_LEN];
+        strcpy(url, _hostname);
+        url[0] = 's';
+        url[1] = 'm';
+        url[2] = 'b';
+
+        if (((FileSystemSMB *)_fs)->start(url))
+        {
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+int fujiHost::mount_ftp()
+{
+    Debug_printf("::mount_ftp {%d:%d} \"%s\"\n", slotid, _type, _hostname);
+
+    // Don't do anything if that's already what's set
+    if (_type == HOSTTYPE_FTP)
+    {
+        if (_fs != nullptr && _fs->running())
+        {
+            Debug_printf("::mount_ftp Currently connected to share \"%s\"\n", _hostname);
+            return 0;
+        }
+    }
+    else
+        set_type(HOSTTYPE_FTP); // Only start fresh if not HOSTTYPE_FTP
+
+    _fs = new FileSystemFTP;
+
+    if (_fs == nullptr)
+    {
+        Debug_println("Couldn't create a new FsFTP in fujiHost::mount_ftp!");
+    }
+    else
+    {
+        Debug_println("Calling FTP::begin");
+
+        if (((FileSystemFTP *)_fs)->start(_hostname))
+        {
+            return 0;
+        }
+    }
+
+    return -1;
+}
+#endif
+
+int fujiHost::unmount_fs()
+{
+    Debug_printf("Filesystem (%s) unmounted.\n", _fs != nullptr ? _fs->typestring() : "null");
 
     if (_fs != nullptr)
     {
@@ -375,6 +487,14 @@ bool fujiHost::mount()
     if (0 == mount_local())
         return true;
 
+#ifndef ESP_PLATFORM
+    if (0 == strncasecmp("smb://", _hostname, 6))
+        return 0 == mount_smb();
+
+    if (0 == strncasecmp("ftp://", _hostname, 6))
+        return 0 == mount_ftp();
+#endif
+
     // Try mounting TNFS last
     return 0 == mount_tnfs();
 }
@@ -394,6 +514,6 @@ bool fujiHost::umount()
         return 0;
     }
 
-    // Try unmounting TNFS
-    return 0 == unmount_tnfs();
+    // Try unmounting TNFS/SMB/FTP
+    return 0 == unmount_fs();
 }
