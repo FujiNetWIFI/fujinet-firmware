@@ -8,10 +8,18 @@
 #include "fnSystem.h"
 #include "utils.h"
 
+// TODO: merge/fix this at global level
+#ifdef ESP_PLATFORM
+#define FN_BUS_LINK fnUartBUS
+#else
+#define FN_BUS_LINK fnSioCom
+#endif
+
 void sioUDPStream::sio_enable_udpstream()
 {
     if (udpstream_port == MIDI_PORT)
     {
+#ifdef ESP_PLATFORM
         // Setup PWM channel for CLOCK IN
         ledc_channel_config_t ledc_channel_sio_ckin;
         ledc_channel_sio_ckin.gpio_num = PIN_CKI;
@@ -33,9 +41,10 @@ void sioUDPStream::sio_enable_udpstream()
         // Enable PWM on CLOCK IN
         ledc_channel_config(&ledc_channel_sio_ckin);
         ledc_timer_config(&ledc_timer);
+#endif
 
         // Change baud rate
-        fnUartBUS.set_baudrate(MIDI_BAUDRATE);
+        FN_BUS_LINK.set_baudrate(MIDI_BAUDRATE);
     }
 
     // Open the UDP connection
@@ -52,8 +61,10 @@ void sioUDPStream::sio_disable_udpstream()
     udpStream.stop();
     if (udpstream_port == MIDI_PORT)
     {
+#ifdef ESP_PLATFORM
         ledc_stop(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
-        fnUartBUS.set_baudrate(SIO_STANDARD_BAUDRATE);
+#endif
+        FN_BUS_LINK.set_baudrate(SIO_STANDARD_BAUDRATE);
     }
     udpstreamActive = false;
 #ifdef DEBUG
@@ -69,7 +80,7 @@ void sioUDPStream::sio_handle_udpstream()
     {
         udpStream.read(buf_net, UDPSTREAM_BUFFER_SIZE);
         // Send to Atari UART
-        fnUartBUS.write(buf_net, packetSize);
+        FN_BUS_LINK.write(buf_net, packetSize);
 #ifdef DEBUG_UDPSTREAM
         Debug_print("UDP-IN: ");
         util_dump_bytes(buf_net, packetSize);
@@ -77,12 +88,16 @@ void sioUDPStream::sio_handle_udpstream()
     }
 
     // Read the data until there's a pause in the incoming stream
-    if (fnUartBUS.available() > 0)
+    if (FN_BUS_LINK.available() > 0)
     {
         while (true)
         {
             // Break out of UDPStream mode if COMMAND is asserted
+#ifdef ESP_PLATFORM
             if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
+#else
+            if (FN_BUS_LINK.command_asserted())
+#endif
             {
 #ifdef DEBUG
                 Debug_println("CMD Asserted in LOOP, stopping UDPStream");
@@ -90,17 +105,17 @@ void sioUDPStream::sio_handle_udpstream()
                 sio_disable_udpstream();
                 return;
             }
-            if (fnUartBUS.available() > 0)
+            if (FN_BUS_LINK.available() > 0)
             {
                 // Collect bytes read in our buffer
-                buf_stream[buf_stream_index] = (char)fnUartBUS.read();
-                if (buf_stream_index < UDPSTREAM_BUFFER_SIZE - 1)
+                buf_stream[buf_stream_index] = (unsigned char)FN_BUS_LINK.read(); // TODO apc: check for error first
+                if (buf_stream_index < UDPSTREAM_BUFFER_SIZE - 1) // TODO apc: fix buf_stream_index type (uint8 is too small)
                     buf_stream_index++;
             }
             else
             {
                 fnSystem.delay_microseconds(UDPSTREAM_PACKET_TIMEOUT);
-                if (fnUartBUS.available() <= 0)
+                if (FN_BUS_LINK.available() <= 0)
                     break;
             }
         }

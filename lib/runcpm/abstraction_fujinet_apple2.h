@@ -8,6 +8,7 @@
 #include <queue>
 #include <string.h>
 #include <errno.h>
+#include "compat_string.h"
 
 #include "globals.h"
 

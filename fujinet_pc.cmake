@@ -162,7 +162,7 @@ set(SOURCES
 #     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
 #     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
 #     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
-#     lib/bus/bus.h
+    lib/bus/bus.h
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
     lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
     lib/bus/sio/sio.h lib/bus/sio/sio.cpp
@@ -188,16 +188,17 @@ set(SOURCES
     lib/device/iwm/network.h lib/device/iwm/network.cpp
     lib/device/iwm/clock.h lib/device/iwm/clock.cpp
     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
-#     lib/device/sio/disk.h lib/device/sio/disk.cpp
-#     lib/device/sio/printer.h lib/device/sio/printer.cpp
-#     lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
-#     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
-#     lib/device/sio/fuji.h lib/device/sio/fuji.cpp
-#     lib/device/sio/network.h lib/device/sio/network.cpp
-#     lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
-#     lib/device/sio/apetime.h lib/device/sio/apetime.cpp
-#     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
-#     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
+    lib/device/sio/disk.h lib/device/sio/disk.cpp
+    lib/device/sio/printer.h lib/device/sio/printer.cpp
+    lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
+    lib/device/sio/cassette.h lib/device/sio/cassette.cpp
+    lib/device/sio/fuji.h lib/device/sio/fuji.cpp
+    lib/device/sio/network.h lib/device/sio/network.cpp
+    lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
+    #lib/device/sio/voice.h lib/device/sio/voice.cpp
+    lib/device/sio/apetime.h lib/device/sio/apetime.cpp
+    lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
+    lib/device/sio/pclink.h lib/device/sio/pclink.cpp
     lib/modem/modem.h lib/modem/modem.cpp
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
 #     lib/media/media.h

@@ -33,10 +33,16 @@
 
 using namespace std;
 
+//
+// TODO: add checksum handling when calling bus_to_peripheral() !
+//
+
+
 /**
  * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
  * flag to true. This is set to false when the interrupt is serviced.
  */
+#ifdef ESP_PLATFORM
 void onTimer(void *info)
 {
     sioNetwork *parent = (sioNetwork *)info;
@@ -44,6 +50,7 @@ void onTimer(void *info)
     parent->interruptProceed = !parent->interruptProceed;
     portEXIT_CRITICAL_ISR(&parent->timerMux);
 }
+#endif
 
 /**
  * Constructor
@@ -64,21 +71,25 @@ sioNetwork::sioNetwork()
  */
 sioNetwork::~sioNetwork()
 {
+#ifndef ESP_PLATFORM // TODO apc: can be be in both?
+    timer_stop();
+#endif
+
+    // first, delete protocol instance
+    if (protocol != nullptr)
+        delete protocol;
+    protocol = nullptr;
+
+    // then delete all buffers
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
-
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
     receiveBuffer = nullptr;
     transmitBuffer = nullptr;
     specialBuffer = nullptr;
-
-    if (protocol != nullptr)
-        delete protocol;
-
-    protocol = nullptr;
 }
 
 /** SIO COMMANDS ***************************************************************/
@@ -90,9 +101,9 @@ sioNetwork::~sioNetwork()
  */
 void sioNetwork::sio_open()
 {
-    Debug_println("sioNetwork::sio_open()\n");
+    Debug_println("sioNetwork::sio_open()");
 
-    sio_ack();
+    sio_late_ack();
 
     newData = (uint8_t *)malloc(NEWDATA_SIZE);
 
@@ -148,7 +159,9 @@ void sioNetwork::sio_open()
             newData = nullptr;
         }
 
+#ifdef ESP_PLATFORM // TODO apc: sio_error() was called already from parse_and_instantiate_protocol()
         sio_error();
+#endif
         return;
     }
 
@@ -222,7 +235,9 @@ void sioNetwork::sio_close()
     else
         sio_complete();
 
+#ifdef ESP_PLATFORM
     Debug_printv("Before protocol delete %lu\n",esp_get_free_internal_heap_size());
+#endif
     // Delete the protocol object
     delete protocol;
     protocol = nullptr;
@@ -239,7 +254,9 @@ void sioNetwork::sio_close()
         newData = nullptr;
     }
 
+#ifdef ESP_PLATFORM
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
+#endif
 }
 
 /**
@@ -343,7 +360,7 @@ void sioNetwork::sio_write()
         return;
     }
 
-    sio_ack();
+    // sio_ack(); // apc: not yet
 
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
@@ -358,8 +375,10 @@ void sioNetwork::sio_write()
         return;
     }
 
+    sio_late_ack();
+
     // Get the data from the Atari
-    bus_to_peripheral(newData, num_bytes);
+    bus_to_peripheral(newData, num_bytes); // TODO test checksum
     *transmitBuffer += string((char *)newData, num_bytes);
 
     // Do the channel write
@@ -525,7 +544,7 @@ void sioNetwork::sio_set_prefix()
 
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
-    bus_to_peripheral(prefixSpec, sizeof(prefixSpec));
+    bus_to_peripheral(prefixSpec, sizeof(prefixSpec)); // TODO test checksum
     util_devicespec_fix_9b(prefixSpec, sizeof(prefixSpec));
 
     prefixSpec_str = string((const char *)prefixSpec);
@@ -627,7 +646,7 @@ void sioNetwork::sio_set_login()
     uint8_t loginSpec[256];
 
     memset(loginSpec, 0, sizeof(loginSpec));
-    bus_to_peripheral(loginSpec, sizeof(loginSpec));
+    bus_to_peripheral(loginSpec, sizeof(loginSpec)); // TODO test checksum
     util_devicespec_fix_9b(loginSpec, sizeof(loginSpec));
 
     login = string((char *)loginSpec);
@@ -642,7 +661,7 @@ void sioNetwork::sio_set_password()
     uint8_t passwordSpec[256];
 
     memset(passwordSpec, 0, sizeof(passwordSpec));
-    bus_to_peripheral(passwordSpec, sizeof(passwordSpec));
+    bus_to_peripheral(passwordSpec, sizeof(passwordSpec)); // TODO test checksum
     util_devicespec_fix_9b(passwordSpec, sizeof(passwordSpec));
 
     password = string((char *)passwordSpec);
@@ -670,7 +689,7 @@ void sioNetwork::sio_special()
         sio_special_40();
         break;
     case 0x80: // Payload to Peripheral
-        sio_ack();
+        sio_late_ack();
         sio_special_80();
         break;
     default:
@@ -853,7 +872,7 @@ void sioNetwork::sio_special_80()
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
 
     // Get special (devicespec) from computer
-    bus_to_peripheral(spData, SPECIAL_BUFFER_SIZE);
+    bus_to_peripheral(spData, SPECIAL_BUFFER_SIZE); // TODO test checksum
 
     Debug_printf("sioNetwork::sio_special_80() - %s\n", spData);
 
@@ -930,6 +949,10 @@ void sioNetwork::sio_poll_interrupt()
 
         if (status.rxBytesWaiting > 0 || status.connected == 0)
             sio_assert_interrupt();
+#ifndef ESP_PLATFORM
+        else
+            sio_clear_interrupt();
+#endif
 
         reservedSave = status.connected;
         errorSave = status.error;
@@ -971,7 +994,7 @@ void sioNetwork::create_devicespec()
     memset(devicespecBuf, 0, sizeof(devicespecBuf));
 
     // Get Devicespec from buffer, and put into primary devicespec string
-    bus_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
+    bus_to_peripheral(devicespecBuf, sizeof(devicespecBuf)); // TODO test checksum
     util_devicespec_fix_9b(devicespecBuf, sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
 
@@ -1019,6 +1042,7 @@ void sioNetwork::parse_and_instantiate_protocol()
  */
 void sioNetwork::timer_start()
 {
+#ifdef ESP_PLATFORM
     esp_timer_create_args_t tcfg;
     tcfg.arg = this;
     tcfg.callback = onTimer;
@@ -1026,6 +1050,9 @@ void sioNetwork::timer_start()
     tcfg.name = nullptr;
     esp_timer_create(&tcfg, &rateTimerHandle);
     esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
+#else
+    lastInterruptMs = fnSystem.millis() - timerRate;
+#endif
 }
 
 /**
@@ -1033,6 +1060,7 @@ void sioNetwork::timer_start()
  */
 void sioNetwork::timer_stop()
 {
+#ifdef ESP_PLATFORM
     // Delete existing timer
     if (rateTimerHandle != nullptr)
     {
@@ -1041,6 +1069,7 @@ void sioNetwork::timer_stop()
         esp_timer_delete(rateTimerHandle);
         rateTimerHandle = nullptr;
     }
+#endif
 }
 
 /**
@@ -1089,9 +1118,35 @@ void sioNetwork::processCommaFromDevicespec()
  */
 void sioNetwork::sio_assert_interrupt()
 {
+#ifdef ESP_PLATFORM
     fnSystem.digital_write(PIN_PROC, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
     // Debug_print(interruptProceed ? "+" : "-");
+#else
+    uint64_t ms = fnSystem.millis();
+    if (ms - lastInterruptMs >= timerRate)
+    {
+        interruptProceed = !interruptProceed;
+        fnSioCom.set_proceed(interruptProceed);
+        lastInterruptMs = ms;
+    }
+#endif
 }
+
+#ifndef ESP_PLATFORM
+/**
+ * Called to clear the PROCEED interrupt
+ */
+void sioNetwork::sio_clear_interrupt()
+{
+    if (interruptProceed) 
+    {
+        // Debug_println("clear interrupt");
+        interruptProceed = false;
+        fnSioCom.set_proceed(interruptProceed);
+        lastInterruptMs = fnSystem.millis();
+    }
+}
+#endif
 
 void sioNetwork::sio_set_translation()
 {
@@ -1108,11 +1163,10 @@ void sioNetwork::sio_parse_json()
 void sioNetwork::sio_set_json_query()
 {
     uint8_t in[256];
-    const char *inp = NULL;
 
     memset(in, 0, sizeof(in));
 
-    uint8_t ck = bus_to_peripheral(in, sizeof(in));
+    bus_to_peripheral(in, sizeof(in)); // TODO test checksum
 
     // strip away line endings from input spec.
     for (int i = 0; i < 256; i++)
@@ -1196,7 +1250,9 @@ void sioNetwork::sio_set_timer_rate()
 void sioNetwork::sio_do_idempotent_command_80()
 {
     Debug_printf("sioNetwork::sio_do_idempotent_command_80()\r\n");
+#ifdef ESP_PLATFORM // apc: isn't it already ACK'ed?
     sio_ack();
+#endif
 
     parse_and_instantiate_protocol();
 

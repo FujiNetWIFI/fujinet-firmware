@@ -2,17 +2,23 @@
 
 #include "fuji.h"
 
+#ifdef ESP_PLATFORM
 #include <driver/ledc.h>
+#endif
 
 #include <cstdint>
 #include <cstring>
+#ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
+#include <libgen.h>
+#endif
+#include <errno.h>
+#include "compat_string.h"
 
 #include "../../../include/debug.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fsFlash.h"
-#include "fnFsSPIFFS.h"
 #include "fnFsTNFS.h"
 #include "fnWiFi.h"
 
@@ -329,6 +335,7 @@ void sioFuji::sio_net_get_wifi_enabled()
 }
 
 // Mount Server
+#ifdef ESP_PLATFORM // TODO merge
 void sioFuji::sio_mount_host()
 {
     Debug_println("Fuji cmd: MOUNT HOST");
@@ -347,8 +354,28 @@ void sioFuji::sio_mount_host()
     else
         sio_complete();
 }
+#else
+int sioFuji::sio_mount_host(bool siomode, int slot)
+{
+    Debug_println("Fuji cmd: MOUNT HOST");
+
+    unsigned char hostSlot = siomode ? cmdFrame.aux1 : slot;
+
+    // Make sure we weren't given a bad hostSlot
+    if (!_validate_host_slot(hostSlot, "sio_tnfs_mount_hosts"))
+    {
+        return _on_error(siomode);
+    }
+
+    if (!_fnHosts[hostSlot].mount())
+        return _on_error(siomode);
+    else
+        return _on_ok(siomode);
+}
+#endif
 
 // Disk Image Mount
+#ifdef ESP_PLATFORM  // TODO merge
 void sioFuji::sio_disk_image_mount()
 {
     // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
@@ -410,6 +437,66 @@ void sioFuji::sio_disk_image_mount()
 
     sio_complete();
 }
+#else
+int sioFuji::sio_disk_image_mount(bool siomode, int slot)
+{
+    // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
+    // to the C: device. Everything stays the same here and the mounting
+    // where all the magic happens is done in the sioDisk::mount() function.
+    // This function opens the file, so cassette does not need to open the file.
+    // Cassette needs the file pointer and file size.
+
+    uint8_t deviceSlot = siomode ? cmdFrame.aux1 : slot;
+    uint8_t options = siomode ? cmdFrame.aux2 : _fnDisks[slot].access_mode; // DISK_ACCESS_MODE
+
+    Debug_printf("Fuji cmd: MOUNT IMAGE 0x%02X 0x%02X\n", deviceSlot, options);
+
+    // TODO: Implement FETCH?
+    char flag[4] = {'r', 'b', 0, 0};
+    if (options == DISK_ACCESS_MODE_WRITE)
+        flag[2] = '+';
+
+    // Make sure we weren't given a bad hostSlot
+    if (!_validate_device_slot(deviceSlot))
+    {
+        return _on_error(siomode);
+    }
+
+    if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
+    {
+        return _on_error(siomode);
+    }
+
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiHost &host = _fnHosts[disk.host_slot];
+
+    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                 disk.filename, disk.host_slot, flag, deviceSlot + 1);
+
+    // TODO: Refactor along with mount disk image.
+    disk.disk_dev.host = &host;
+
+    disk.fileh = host.filehandler_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+    if (disk.fileh == nullptr)
+    {
+        return _on_error(siomode);
+    }
+
+    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+    boot_config = false;
+    status_wait_count = 0;
+
+    // We need the file size for loading XEX files and for CASSETTE, so get that too
+    disk.disk_size = host.file_size(disk.fileh);
+
+    // And now mount it
+    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+
+    return _on_ok(siomode);
+}
+#endif
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void sioFuji::sio_set_boot_config()
@@ -426,8 +513,13 @@ void sioFuji::sio_copy_file()
     string sourcePath;
     string destPath;
     uint8_t ck;
+#ifdef ESP_PLATFORM
     FILE *sourceFile;
     FILE *destFile;
+#else
+    FileHandler *sourceFile;
+    FileHandler *destFile;
+#endif
     char *dataBuf;
     unsigned char sourceSlot;
     unsigned char destSlot;
@@ -499,7 +591,11 @@ void sioFuji::sio_copy_file()
     _fnHosts[destSlot].mount();
 
     // Open files...
+#ifdef ESP_PLATFORM
     sourceFile = _fnHosts[sourceSlot].file_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
+#else
+    sourceFile = _fnHosts[sourceSlot].filehandler_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "rb");
+#endif
 
     if (sourceFile == nullptr)
     {
@@ -508,12 +604,20 @@ void sioFuji::sio_copy_file()
         return;
     }
 
+#ifdef ESP_PLATFORM
     destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
+#else
+    destFile = _fnHosts[destSlot].filehandler_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "wb");
+#endif
 
     if (destFile == nullptr)
     {
         sio_error();
+#ifdef ESP_PLATFORM
         fclose(sourceFile);
+#else
+        sourceFile->close();
+#endif
         free(dataBuf);
         return;
     }
@@ -525,7 +629,11 @@ void sioFuji::sio_copy_file()
     bool err = false;
     do
     {
+#ifdef ESP_PLATFORM
         readCount = fread(dataBuf, 1, 532, sourceFile);
+#else
+        readCount = sourceFile->read(dataBuf, 1, 532);
+#endif
         readTotal += readCount;
         // Check if we got enough bytes on the read
         if (readCount < 532 && readTotal != expected)
@@ -533,7 +641,11 @@ void sioFuji::sio_copy_file()
             err = true;
             break;
         }
+#ifdef ESP_PLATFORM
         writeCount = fwrite(dataBuf, 1, readCount, destFile);
+#else
+        writeCount = destFile->write(dataBuf, 1, readCount);
+#endif
         // Check if we sent enough bytes on the write
         if (writeCount != readCount)
         {
@@ -556,13 +668,22 @@ void sioFuji::sio_copy_file()
     }
 
     // copyEnd:
+#ifdef ESP_PLATFORM
     fclose(sourceFile);
     fclose(destFile);
+#else
+    sourceFile->close();
+    destFile->close();
+#endif
     free(dataBuf);
 }
 
 // Mount all
+#ifdef ESP_PLATFORM
 void sioFuji::mount_all()
+#else
+int sioFuji::mount_all(bool siomode)
+#endif
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
@@ -570,10 +691,17 @@ void sioFuji::mount_all()
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
+#ifdef ESP_PLATFORM
         char flag[3] = {'r', 0, 0};
 
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
+#else
+        char flag[4] = {'r', 'b', 0, 0};
+
+        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
+            flag[2] = '+';
+#endif
 
         if (disk.host_slot != INVALID_HOST_SLOT)
         {
@@ -581,13 +709,18 @@ void sioFuji::mount_all()
 
             if (host.mount() == false)
             {
+#ifdef ESP_PLATFORM
                 sio_error();
                 return;
+#else
+                return _on_error(siomode);
+#endif
             }
 
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                          disk.filename, disk.host_slot, flag, i + 1);
 
+#ifdef ESP_PLATFORM
             disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
             if (disk.fileh == nullptr)
@@ -595,6 +728,14 @@ void sioFuji::mount_all()
                 sio_error();
                 return;
             }
+#else
+            disk.fileh = host.filehandler_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+
+            if (disk.fileh == nullptr)
+            {
+                return _on_error(siomode);
+            }
+#endif
 
             // We've gotten this far, so make sure our bootable CONFIG disk is disabled
             boot_config = false;
@@ -618,7 +759,11 @@ void sioFuji::mount_all()
         boot_config = false;
     }
 
+#ifdef ESP_PLATFORM
     sio_complete();
+#else
+    return _on_ok(siomode);
+#endif
 }
 
 // Set boot mode
@@ -740,7 +885,11 @@ void sioFuji::sio_write_app_key()
     // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
     fnSDFAT.create_path("/FujiNet");
 
+#ifdef ESP_PLATFORM
     FILE *fOut = fnSDFAT.file_open(filename, "w");
+#else
+    FILE *fOut = fnSDFAT.file_open(filename, FILE_WRITE);
+#endif
     if (fOut == nullptr)
     {
         Debug_printf("Failed to open/create output file: errno=%d\n", errno);
@@ -754,7 +903,7 @@ void sioFuji::sio_write_app_key()
 
     if (count != keylen)
     {
-        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
+        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", (unsigned)count, keylen, e);
         sio_error();
     }
 
@@ -798,7 +947,11 @@ void sioFuji::sio_read_app_key()
 
     Debug_printf("Reading appkey from \"%s\"\n", filename);
 
+#ifdef ESP_PLATFORM
     FILE *fIn = fnSDFAT.file_open(filename, "r");
+#else
+    FILE *fIn = fnSDFAT.file_open(filename, FILE_READ);
+#endif
     if (fIn == nullptr)
     {
         Debug_printf("Failed to open input file: errno=%d\n", errno);
@@ -809,7 +962,7 @@ void sioFuji::sio_read_app_key()
     size_t count = fread(response.value, 1, sizeof(response.value), fIn);
 
     fclose(fIn);
-    Debug_printf("Read %d bytes from input file\n", count);
+    Debug_printf("Read %u bytes from input file\n", (unsigned)count);
 
     response.size = count;
 
@@ -844,10 +997,30 @@ void sioFuji::debug_tape()
     }
 }
 
+#ifndef ESP_PLATFORM
+int sioFuji::_on_ok(bool siomode)
+{
+    if (siomode) sio_complete();
+    return 0;
+}
+
+int sioFuji::_on_error(bool siomode, int rc)
+{
+    if (siomode) sio_error();
+    return rc;
+}
+#endif
+
 // Disk Image Unmount
+#ifdef ESP_PLATFORM
 void sioFuji::sio_disk_image_umount()
 {
     uint8_t deviceSlot = cmdFrame.aux1;
+#else
+int sioFuji::sio_disk_image_umount(bool siomode, int slot)
+{
+    uint8_t deviceSlot = siomode ? cmdFrame.aux1 : slot;
+#endif
 
     Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
@@ -869,6 +1042,7 @@ void sioFuji::sio_disk_image_umount()
     // {
     // }
     // Invalid slot
+#ifdef ESP_PLATFORM
     else
     {
         sio_error();
@@ -876,6 +1050,14 @@ void sioFuji::sio_disk_image_umount()
     }
 
     sio_complete();
+#else
+    else
+    {
+        return _on_error(siomode);
+    }
+
+    return _on_ok(siomode);
+#endif
 }
 
 // Disk Image Rotate
@@ -902,12 +1084,12 @@ void sioFuji::image_rotate()
         for (int n = count; n > 0; n--)
         {
             int swap = _fnDisks[n - 1].disk_dev.id();
-            Debug_printf("setting slot %d to ID %hx\n", n, swap);
+            Debug_printf("setting slot %d to ID %x\n", n, swap);
             _sio_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
         }
 
         // The first slot gets the device ID of the last slot
-        Debug_printf("setting slot %d to ID %hx\n", 0, last_id);
+        Debug_printf("setting slot %d to ID %x\n", 0, last_id);
         _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
@@ -1094,7 +1276,7 @@ void sioFuji::sio_read_directory_block()
             }
 
             int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
-            additional_size = filelen + is_extended ? ADDITIONAL_DETAILS_BYTES : 0;
+            additional_size = filelen + (is_extended ? ADDITIONAL_DETAILS_BYTES : 0);
 
             // Add a slash at the end of directory entries
             if (f->isDir && filelen < (bufsize - 2))
@@ -1132,7 +1314,7 @@ void sioFuji::sio_read_directory_block()
                 data_block.push_back(static_cast<uint8_t>(current_entry[i]));
             }
             // Then add the string part
-            int s_len = std::strlen(current_entry + ADDITIONAL_DETAILS_BYTES);
+            //int s_len = std::strlen(current_entry + ADDITIONAL_DETAILS_BYTES);
             data_block.insert(data_block.end(), current_entry + ADDITIONAL_DETAILS_BYTES, current_entry + ADDITIONAL_DETAILS_BYTES + std::strlen(current_entry + ADDITIONAL_DETAILS_BYTES));
         } else {
             data_block.insert(data_block.end(), current_entry, current_entry + std::strlen(current_entry));
@@ -1435,7 +1617,11 @@ void sioFuji::sio_new_disk()
         return;
     }
 
+#ifdef ESP_PLATFORM
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+#else
+    disk.fileh = host.filehandler_open(disk.filename, disk.filename, sizeof(disk.filename), FILE_WRITE);
+#endif
     if (disk.fileh == nullptr)
     {
         Debug_printf("sio_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
@@ -1444,7 +1630,11 @@ void sioFuji::sio_new_disk()
     }
 
     bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.sectorSize, newDisk.numSectors);
+#ifdef ESP_PLATFORM
     fclose(disk.fileh);
+#else
+    disk.fileh->close();
+#endif
 
     if (ok == false)
     {
@@ -1728,7 +1918,7 @@ void sioFuji::_populate_config_from_slots()
     }
 }
 
-// AUX1 is our index value (from 0 to SIO_HISPEED_LOWEST_INDEX)
+// AUX1 is our index value (from 0 to SIO_HISPEED_LOWEST_INDEX, for FN-PC 0 .. 10, 16)
 // AUX2 requests a save of the change if set to 1
 void sioFuji::sio_set_hsio_index()
 {
@@ -1738,7 +1928,11 @@ void sioFuji::sio_set_hsio_index()
     uint8_t index = cmdFrame.aux1;
 
     // Make sure it's a valid value
+#ifdef ESP_PLATFORM
     if (index > SIO_HISPEED_LOWEST_INDEX)
+#else
+    if (index > SIO_HISPEED_LOWEST_INDEX && index != SIO_HISPEED_x2_INDEX) // accept 0 .. 10, 16
+#endif
     {
         sio_error();
         return;
@@ -1847,6 +2041,7 @@ void sioFuji::insert_boot_device(uint8_t d)
 {
     const char *config_atr = "/autorun.atr";
     const char *mount_all_atr = "/mount-and-boot.atr";
+#ifdef ESP_PLATFORM // TODO merge
     FILE *fBoot;
 
     _bootDisk.unmount();
@@ -1871,6 +2066,47 @@ void sioFuji::insert_boot_device(uint8_t d)
         }
         break;
     }
+#else
+    const char *lobby_tnfs = "tnfs.fujinet.online";
+    const char *lobby_xex = "/ATARI/_lobby.xex";
+    const char *boot_img;
+
+    FileHandler *fBoot = nullptr;
+
+    _bootDisk.unmount();
+
+    switch (d)
+    {
+    case 0:
+        boot_img = config_atr;
+        fBoot = fsFlash.filehandler_open(boot_img);
+        break;
+    case 1:
+        boot_img = mount_all_atr;
+        fBoot = fsFlash.filehandler_open(boot_img);
+        break;
+    case 2:
+        Debug_printf("Mounting lobby server\n");
+        if (fnTNFS.start(lobby_tnfs))
+        {
+            Debug_printf("opening lobby.\n");
+            boot_img = lobby_xex;
+            fBoot = fnTNFS.filehandler_open(boot_img);
+        }
+        break;
+    default:
+        Debug_printf("Invalid boot mode: %d\n", d);
+        return;
+    }
+
+    if (fBoot == nullptr)
+    {
+        Debug_printf("Failed to open boot disk image: %s\n", boot_img);
+        return;
+    }
+
+    _bootDisk.mount(fBoot, boot_img ,0);
+#endif
 
     _bootDisk.is_config_device = true;
     _bootDisk.device_active = false;
@@ -2517,7 +2753,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_net_scan_result();
         break;
     case FUJICMD_SET_SSID:
-        sio_ack();
+        sio_late_ack();
         sio_net_set_ssid();
         break;
     case FUJICMD_GET_SSID:
@@ -2537,7 +2773,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_disk_image_mount();
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        sio_ack();
+        sio_late_ack();
         sio_open_directory();
         break;
     case FUJICMD_READ_DIR_ENTRY:
@@ -2561,7 +2797,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_read_host_slots();
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
-        sio_ack();
+        sio_late_ack();
         sio_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
@@ -2569,7 +2805,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        sio_ack();
+        sio_late_ack();
         sio_write_device_slots();
         break;
     case FUJICMD_GET_WIFI_ENABLED:
@@ -2585,7 +2821,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_get_adapter_config();
         break;
     case FUJICMD_NEW_DISK:
-        sio_ack();
+        sio_late_ack();
         sio_new_disk();
         break;
     case FUJICMD_UNMOUNT_HOST:
@@ -2593,11 +2829,11 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_unmount_host();
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        sio_ack();
+        sio_late_ack();
         sio_set_device_filename();
         break;
     case FUJICMD_SET_HOST_PREFIX:
-        sio_ack();
+        sio_late_ack();
         sio_set_host_prefix();
         break;
     case FUJICMD_GET_HOST_PREFIX:
@@ -2609,7 +2845,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_set_sio_external_clock();
         break;
     case FUJICMD_WRITE_APPKEY:
-        sio_ack();
+        sio_late_ack();
         sio_write_app_key();
         break;
     case FUJICMD_READ_APPKEY:
@@ -2617,7 +2853,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_read_app_key();
         break;
     case FUJICMD_OPEN_APPKEY:
-        sio_ack();
+        sio_late_ack();
         sio_open_app_key();
         break;
     case FUJICMD_CLOSE_APPKEY:
@@ -2633,7 +2869,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_set_boot_config();
         break;
     case FUJICMD_COPY_FILE:
-        sio_ack();
+        sio_late_ack();
         sio_copy_file();
         break;
     case FUJICMD_MOUNT_ALL:
@@ -2645,11 +2881,11 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_set_boot_mode();
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
-        sio_ack();
+        sio_late_ack();
         sio_enable_udpstream();
         break;
     case FUJICMD_BASE64_ENCODE_INPUT:
-        sio_ack();
+        sio_late_ack();
         sio_base64_encode_input();
         break;
     case FUJICMD_BASE64_ENCODE_COMPUTE:
@@ -2665,7 +2901,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_base64_encode_output();
         break;
     case FUJICMD_BASE64_DECODE_INPUT:
-        sio_ack();
+        sio_late_ack();
         sio_base64_decode_input();
         break;
     case FUJICMD_BASE64_DECODE_COMPUTE:
@@ -2681,7 +2917,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_base64_decode_output();
         break;
     case FUJICMD_HASH_INPUT:
-        sio_ack();
+        sio_late_ack();
         sio_hash_input();
         break;
     case FUJICMD_HASH_COMPUTE:

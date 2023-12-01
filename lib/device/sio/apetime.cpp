@@ -3,6 +3,8 @@
 #include "apetime.h"
 
 #include <cstring>
+#include <ctime>
+#include "compat_string.h"
 
 #include "../../include/debug.h"
 
@@ -16,6 +18,10 @@ char * ape_timezone = NULL;
 void sioApeTime::_sio_get_time(bool use_timezone)
 {
     char old_tz[64];
+#if defined(_WIN32)
+    // We have to use putenv() on Windows/MinGW/MSYS2
+    char new_tz_eq[64+3] = "TZ="; // prepare for putenv()
+#endif
 
     if (use_timezone) {
       Debug_println("APETIME time query (timezone)");
@@ -29,15 +35,33 @@ void sioApeTime::_sio_get_time(bool use_timezone)
 
     if (ape_timezone != NULL && use_timezone) {
         Debug_printf("Using time zone %s\n", ape_timezone);
+#ifdef ESP_PLATFORM // TODO: any reason for strncpy()?
         strncpy(old_tz, getenv("TZ"), sizeof(old_tz));
+#else
+        strlcpy(old_tz, getenv("TZ"), sizeof(old_tz));
+#endif
+
+// TODO: use putenv on all platforms?
+#if defined(_WIN32)
+        // We have to use putenv() on Windows/MinGW/MSYS2
+        strlcpy(new_tz_eq+3, ape_timezone, sizeof(new_tz_eq)-3);
+        putenv(new_tz_eq);
+
+#else
         setenv("TZ", ape_timezone, 1);
+#endif
         tzset();
     }
 
     struct tm * now = localtime(&tt);
 
     if (ape_timezone != NULL && use_timezone) {
+#if defined(_WIN32)
+        strlcpy(new_tz_eq+3, old_tz, sizeof(new_tz_eq)-3);
+        putenv(new_tz_eq);
+#else
         setenv("TZ", old_tz, 1);
+#endif
         tzset();
     }
 
@@ -97,7 +121,7 @@ void sioApeTime::sio_process(uint32_t commanddata, uint8_t checksum)
         _sio_get_time(false);
         break;
     case SIO_APETIMECMD_SETTZ:
-        sio_ack();
+        sio_late_ack();
         _sio_set_tz();
         break;
     case SIO_APETIMECMD_GETTZTIME:

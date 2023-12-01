@@ -22,6 +22,7 @@
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 8
 
+#define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
 
 #define MAX_APPKEY_LEN 64
@@ -31,7 +32,7 @@
 
 typedef struct
 {
-    char ssid[33];
+    char ssid[MAX_SSID_LEN+1];
     char hostname[64];
     unsigned char localIP[4];
     unsigned char gateway[4];
@@ -96,6 +97,11 @@ private:
 
     uint8_t _countScannedSSIDs = 0;
 
+#ifndef ESP_PLATFORM
+    int _on_ok(bool siomode);
+    int _on_error(bool siomode, int rc=-1);
+#endif
+
     appkey _current_appkey;
 
     std::string base64_buffer;
@@ -118,8 +124,13 @@ protected:
     void sio_net_scan_result();        // 0xFC
     void sio_net_set_ssid();           // 0xFB
     void sio_net_get_wifi_status();    // 0xFA
+#ifdef ESP_PLATFORM
     void sio_mount_host();             // 0xF9
     void sio_disk_image_mount();       // 0xF8
+#else
+    int sio_mount_host(bool siomode=true, int slot=-1);         // 0xF9
+    int sio_disk_image_mount(bool siomode=true, int slot=-1);   // 0xF8
+#endif
     void sio_open_directory();         // 0xF7
     void sio_read_directory_entry();   // 0xF6
     void sio_read_directory_block();   // 0xF6
@@ -130,7 +141,11 @@ protected:
     void sio_write_device_slots();     // 0xF1
     void sio_enable_udpstream();       // 0xF0
     void sio_net_get_wifi_enabled();   // 0xEA
+#ifdef ESP_PLATFORM
     void sio_disk_image_umount();      // 0xE9
+#else
+    int sio_disk_image_umount(bool siomode=true, int slot=-1);  // 0xE9
+#endif
     void sio_get_adapter_config();     // 0xE8
     void sio_get_adapter_config_extended(); // 0xE8
     void sio_new_disk();               // 0xE7
@@ -168,6 +183,10 @@ protected:
 
     void shutdown() override;
 
+#ifndef ESP_PLATFORM
+    friend class fnHttpServiceBrowser; // allow browser to call above functions
+#endif
+
 public:
     bool boot_config = true;
 
@@ -194,7 +213,11 @@ public:
     void _populate_slots_from_config();
     void _populate_config_from_slots();
 
+#ifdef ESP_PLATFORM
     void mount_all();              // 0xD7
+#else
+    int mount_all(bool siomode=true);              // 0xD7
+#endif
 
     sioFuji();
 };
