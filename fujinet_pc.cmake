@@ -160,8 +160,9 @@ set(SOURCES
 #     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
 #     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
 #     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
-#     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
-#     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
+    lib/fuji/fujiCmd.h
+    lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
+    lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
     lib/bus/bus.h
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
     lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp

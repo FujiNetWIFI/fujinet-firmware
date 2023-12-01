@@ -37,7 +37,7 @@ private:
 #endif
 
     int unmount_local();
-    int unmount_tnfs();
+    int unmount_fs();
 
 public:
     int slotid = -1;
