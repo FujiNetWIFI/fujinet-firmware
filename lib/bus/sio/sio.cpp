@@ -125,6 +125,7 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     if (ck_rcv != ck_tst)
     {
         sio_nak();
+        Debug_printf("bus_to_peripheral() - Data Frame Chksum error, calc %02x, rcv %02x\n", ck_tst, ck_rcv);
         // return false; // apc
     }
     else

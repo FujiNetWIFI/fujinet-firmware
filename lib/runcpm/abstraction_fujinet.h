@@ -6,6 +6,7 @@
 #define ABSTRACTION_FUJINET_H
 
 #include <string.h>
+#include <errno.h>
 #include "compat_string.h"
 
 #include "globals.h"

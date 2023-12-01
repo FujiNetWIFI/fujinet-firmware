@@ -3,6 +3,7 @@
 #include "disk.h"
 
 #include <cstring>
+#include <memory.h>
 
 #include "../../include/debug.h"
 
@@ -197,7 +198,11 @@ void sioDisk::sio_write_percom_block()
    then we assume it's MEDIATYPE_ATR.
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
+#ifdef ESP_PLATFORM
 mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+#else
+mediatype_t sioDisk::mount(FileHandler *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+#endif
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
     //  MediaType::discover_disktype(filename) can detect CAS and WAV files
@@ -234,6 +239,7 @@ mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
         }
         return _disk->mount(f, disksize);
     case MEDIATYPE_ATX:
+#ifdef ESP_PLATFORM
         device_active = true;
         _disk = new MediaTypeATX();
         if (host != nullptr)
@@ -242,6 +248,9 @@ mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, med
             strcpy(_disk->_disk_filename, filename);
         }
         return _disk->mount(f, disksize);
+#else
+        Debug_println("ATX is not yet supported");
+#endif
     case MEDIATYPE_ATR:
     case MEDIATYPE_UNKNOWN:
     default:
@@ -275,11 +284,19 @@ void sioDisk::unmount()
     {
         _disk->unmount();
         device_active = false;
+#ifndef ESP_PLATFORM // apc: good for ESP too?
+        delete _disk;
+        _disk = nullptr;
+#endif
     }
 }
 
 // Create blank disk
+#ifdef ESP_PLATFORM
 bool sioDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
+#else
+bool sioDisk::write_blank(FileHandler *f, uint16_t sectorSize, uint16_t numSectors)
+#endif
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 
@@ -341,7 +358,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         }
         else
         {
-            sio_ack();
+            sio_late_ack();
             sio_write(false);
         }
         return;
@@ -360,7 +377,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
             }
             else
             {
-                sio_ack();
+                sio_late_ack();
                 sio_write(false);
             }
         }
@@ -405,7 +422,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         }
         else
         {
-            sio_ack();
+            sio_late_ack();
             sio_write(true);
         }
         return;
@@ -424,7 +441,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
             }
             else
             {
-                sio_ack();
+                sio_late_ack();
                 sio_write(true);
             }
             return;
@@ -449,7 +466,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_read_percom_block();
         return;
     case SIO_DISKCMD_PERCOM_WRITE:
-        sio_ack();
+        sio_late_ack();
         sio_write_percom_block();
         return;
     case SIO_DISKCMD_HSIO_INDEX:

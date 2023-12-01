@@ -248,31 +248,27 @@
 
 - **DONE** / merge: lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
 
-- TODO: lib/device/sio/disk.h lib/device/sio/disk.cpp
+- **DONE** / merge: lib/device/sio/disk.h lib/device/sio/disk.cpp
 
-- TODO: lib/device/sio/printer.h lib/device/sio/printer.cpp
+- **DONE** / merge: lib/device/sio/printer.h lib/device/sio/printer.cpp
 
-- TODO: lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
+- **DONE** / identical: lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
 
-- **WIP**: lib/device/sio/cassette.h lib/device/sio/cassette.cpp
+- **DONE** / merge: lib/device/sio/cassette.h lib/device/sio/cassette.cpp
 
-    cassette.h
+- **DONE** / merge: lib/device/sio/fuji.h lib/device/sio/fuji.cpp
 
-- TODO: lib/device/sio/fuji.h lib/device/sio/fuji.cpp
+- **DONE** / merge: lib/device/sio/network.h lib/device/sio/network.cpp
 
-- **WIP**: lib/device/sio/network.h lib/device/sio/network.cpp
+- **DONE** / merge: lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
 
-    network.h
+- **DONE** / merge: lib/device/sio/voice.h lib/device/sio/voice.cpp
 
-- **WIP**: lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
+- **DONE** / merge: lib/device/sio/apetime.h lib/device/sio/apetime.cpp
 
-    udpstream.h
+- **DONE** / merge: lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
 
-- TODO: lib/device/sio/apetime.h lib/device/sio/apetime.cpp
-
-- TODO: lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
-
-- TODO: lib/device/sio/pclink.h lib/device/sio/pclink.cpp
+- **DONE** / add: lib/device/sio/pclink.h lib/device/sio/pclink.cpp
 
 - **DONE** / merge: lib/modem/modem.h lib/modem/modem.cpp
 
@@ -298,13 +294,19 @@
 
 - TODO: lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
 
-- TODO: lib/media/atari/diskType.h lib/media/atari/diskType.cpp
+- **WIP**: lib/media/atari/diskType.h lib/media/atari/diskType.cpp
 
-- TODO: lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
+    diskType.h
 
-- TODO: lib/media/atari/diskTypeAtx.h 
+- **WIP**: lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
 
-- TODO: lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
+    diskTypeAtr.h
+
+- **DONE** / merge: lib/media/atari/diskTypeAtx.h
+
+- **WIP**: lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
+
+    diskTypeXex.h
 
 - **DONE** / identical: lib/base64/base64.h lib/base64/base64.c
 
