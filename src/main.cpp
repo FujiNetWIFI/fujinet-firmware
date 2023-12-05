@@ -20,7 +20,6 @@
 
 #include "httpService.h"
 #include <driver/dac.h>
-#include "casdata.h"
 
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
@@ -282,28 +281,6 @@ void main_setup()
 
     // Go setup SIO
     CX16.setup();
-#endif
-
-#ifdef BUILD_COCO
-    Debug_printf("Cassette test code\n");
-    
-    dac_output_enable(DAC_CHANNEL_1);
-    
-    Debug_printf("Sending Cassette silence\n");
-    for (unsigned long i=0;i<1000000UL;i++)
-    {
-        dac_output_voltage(DAC_CHANNEL_1,0);
-        esp_rom_delay_us(5);
-    }
-
-    Debug_printf("Sending Cassette data\n");
-    for (unsigned long i=0;i<sizeof(casdata);i++)
-    {
-        dac_output_voltage(DAC_CHANNEL_1,casdata[i]);
-        esp_rom_delay_us(89); // this is slightly faster than calculated value of 91, what gives?
-    }
-
-    dac_output_disable(DAC_CHANNEL_1);
 #endif
 
 #ifdef DEBUG
