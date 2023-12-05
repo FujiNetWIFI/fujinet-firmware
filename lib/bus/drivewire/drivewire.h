@@ -256,6 +256,7 @@ public:
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
+    bool motorActive = false;
 
     drivewireCassette *getCassette() { return _cassetteDev; }
     drivewirePrinter *getPrinter() { return _printerdev; }
