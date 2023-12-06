@@ -19,7 +19,6 @@
 #include "fnFsSD.h"
 
 #include "httpService.h"
-#include <driver/dac.h>
 
 #ifdef BLUETOOTH_SUPPORT
 #include "fnBluetooth.h"
