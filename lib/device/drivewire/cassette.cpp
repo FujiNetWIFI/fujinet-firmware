@@ -83,7 +83,9 @@ void drivewireCassette::drivewire_process(uint32_t commanddata, uint8_t checksum
  */
 void drivewireCassette::play()
 {
-    stop();
+    if (playTask)
+        return;
+
     Debug_printv("Play tape");    
     xTaskCreate(_play,"playTask",4096,this,10,&playTask);
 }

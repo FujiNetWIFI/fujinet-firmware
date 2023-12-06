@@ -85,9 +85,13 @@ void systemBus::service()
     if (_cassetteDev)
     {
         if (motorActive)
+        {
             _cassetteDev->play();
+        }
         else
+        {
             _cassetteDev->stop();
+        }
     }
 }
 
