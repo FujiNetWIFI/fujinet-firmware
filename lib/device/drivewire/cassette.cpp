@@ -87,7 +87,7 @@ void drivewireCassette::play()
         return;
 
     Debug_printv("Play tape");    
-    xTaskCreate(_play,"playTask",4096,this,10,&playTask);
+    xTaskCreate(_play,"playTask",4096,this,20,&playTask);
 }
 
 /**
