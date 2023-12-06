@@ -43,11 +43,12 @@ static void drivewire_intr_task(void* arg)
         {
             if ( gpio_num == PIN_CASS_MOTOR &&  gpio_get_level( (gpio_num_t)gpio_num) )
             {
-                Debug_printv( "Cassette motor enalbed! Send boot loader!" );
+                Debug_printv( "Cassette motor enabled. Send boot loader!" );
                 bus->motorActive = true;                               
             }
             else
             {
+                Debug_printv("Cassette motor off");
                 bus->motorActive = false;
             }
         }
@@ -82,8 +83,12 @@ void systemBus::service()
 {
     // Handle cassette play if MOTOR pin active.
     if (_cassetteDev)
+    {
         if (motorActive)
             _cassetteDev->play();
+        else
+            _cassetteDev->stop();
+    }
 }
 
 // Setup DRIVEWIRE bus
