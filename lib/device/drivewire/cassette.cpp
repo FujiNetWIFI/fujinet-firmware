@@ -16,10 +16,13 @@
 
 #define SAMPLE_DELAY_US 89
 
+FILE *casf = NULL;
+
 static void _play(void* arg)
 {
     drivewireCassette *cass = (drivewireCassette *)arg;
-    FILE *casf = fsFlash.file_open("/hdbcc2.raw","r");
+    
+    casf = fsFlash.file_open("/hdbcc2.raw","r");
 
     if (!casf)
     {
@@ -57,6 +60,7 @@ static void _play(void* arg)
     dac_output_disable(DAC_CHANNEL_1);
 
     fclose(casf);
+    casf = NULL;
 
     Debug_printv("Tape done.");
  
@@ -92,6 +96,12 @@ void drivewireCassette::stop()
     if (playTask)
     {
         Debug_printv("Stop tape");
+        
+        if (casf)
+        {
+            fclose(casf);
+        }
+        
         vTaskDelete(playTask);
         playTask=NULL;
     }
