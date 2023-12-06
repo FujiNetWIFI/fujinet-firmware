@@ -16,13 +16,11 @@ virtual void setup();
 virtual void drivewire_process(uint32_t commanddata, uint8_t checksum);
 virtual void shutdown();
 void play();
+void stop();
 
 private:
 
-/**
- * @brief The file pointer used by the cassette
- */
-FILE *casf = NULL;
+TaskHandle_t playTask = NULL;
 
 };
 

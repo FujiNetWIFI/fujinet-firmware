@@ -16,21 +16,10 @@
 
 #define SAMPLE_DELAY_US 89
 
-/**
- * @brief since cassette isn't a DW device, we don't handle it here.
- */
-void drivewireCassette::drivewire_process(uint32_t commanddata, uint8_t checksum)
+static void _play(void* arg)
 {
-    // Not really used...
-}
-
-/**
- * @brief Handle when motor active, and send tape via DAC
- * @note This routine stays active until tape is done streaming.
- */
-void drivewireCassette::play()
-{
-    casf = fsFlash.file_open("/hdbcc2.raw","r");
+    drivewireCassette *cass = (drivewireCassette *)arg;
+    FILE *casf = fsFlash.file_open("/hdbcc2.raw","r");
 
     if (!casf)
     {
@@ -70,6 +59,42 @@ void drivewireCassette::play()
     fclose(casf);
 
     Debug_printv("Tape done.");
+ 
+    // We're done, just wait to be killed.
+    while(1)
+        vTaskDelay(10/portTICK_PERIOD_MS);
+}
+
+/**
+ * @brief since cassette isn't a DW device, we don't handle it here.
+ */
+void drivewireCassette::drivewire_process(uint32_t commanddata, uint8_t checksum)
+{
+    // Not really used...
+}
+
+/**
+ * @brief Handle when motor active, and send tape via DAC
+ * @note This routine stays active until tape is done streaming.
+ */
+void drivewireCassette::play()
+{
+    stop();
+    Debug_printv("Play tape");    
+    xTaskCreate(_play,"playTask",4096,this,10,&playTask);
+}
+
+/**
+ * @brief Handle when motor inactive, stop task if needed
+ */
+void drivewireCassette::stop()
+{
+    if (playTask)
+    {
+        Debug_printv("Stop tape");
+        vTaskDelete(playTask);
+        playTask=NULL;
+    }
 }
 
 void drivewireCassette::setup()
