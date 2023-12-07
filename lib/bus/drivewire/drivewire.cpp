@@ -93,6 +93,17 @@ void systemBus::service()
             _cassetteDev->stop();
         }
     }
+
+    // Handle DLOAD
+    if (fnUartBUS.available())
+    {
+        for (int i=0;i<fnUartBUS.available();i++)
+        {
+            Debug_printf("%02X ",fnUartBUS.read());
+        }
+
+        Debug_printf("\n");
+    }
 }
 
 // Setup DRIVEWIRE bus
@@ -119,6 +130,9 @@ void systemBus::setup()
     //configure GPIO with the given settings
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, (void*) PIN_CASS_MOTOR);
+
+    // Start in DLOAD mode
+    fnUartBUS.begin(1200);
 }
 
 // Add device to DRIVEWIRE bus
