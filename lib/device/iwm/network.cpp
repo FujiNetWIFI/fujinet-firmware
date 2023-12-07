@@ -40,6 +40,8 @@ iwmNetwork::iwmNetwork()
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
+
+    json.setLineEnding("\x0a");
 }
 
 /**
