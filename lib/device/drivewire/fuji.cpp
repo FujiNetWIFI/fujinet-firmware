@@ -1651,6 +1651,7 @@ void drivewireFuji::setup(systemBus *drivewirebus)
     // cassette()->set_buttons(Config.get_cassette_buttons());
     // cassette()->set_pulldown(Config.get_cassette_pulldown());
 
+    cassette()->setup();
 
 }
 

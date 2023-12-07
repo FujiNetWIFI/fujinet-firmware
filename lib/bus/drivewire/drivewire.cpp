@@ -7,6 +7,7 @@
 #include "fuji.h"
 #include "udpstream.h"
 #include "modem.h"
+#include "cassette.h"
 #include "../../lib/device/drivewire/cpm.h"
 
 #include "fnSystem.h"
@@ -34,6 +35,7 @@ static void IRAM_ATTR drivewire_isr_handler(void* arg)
 static void drivewire_intr_task(void* arg)
 {
     uint32_t gpio_num;
+    systemBus *bus = (systemBus *)arg;
 
     while ( true ) 
     {
@@ -41,17 +43,17 @@ static void drivewire_intr_task(void* arg)
         {
             if ( gpio_num == PIN_CASS_MOTOR &&  gpio_get_level( (gpio_num_t)gpio_num) )
             {
-                Debug_printv( "Cassette motor enalbed! Send boot loader!" );
-                
-                // auto cassette = theFuji.cassette();
-                // FILE *fp = fopen("/dw3doscc1.bin", "r");
-                // fseek(fp, 0L, SEEK_END);
-                // auto sz = ftell(fp);
-                // rewind(fp);
-                // cassette->mount_cassette_file(fp, sz);
-                // cassette->drivewire_enable_cassette();
+                Debug_printv( "Cassette motor enabled. Send boot loader!" );
+                bus->motorActive = true;                               
+            }
+            else
+            {
+                Debug_printv("Cassette motor off");
+                bus->motorActive = false;
             }
         }
+
+        vTaskDelay(10/portTICK_PERIOD_MS); // avoid spinning too fast...
     }
 }
 
@@ -79,6 +81,18 @@ void systemBus::_drivewire_process_queue()
  */
 void systemBus::service()
 {
+    // Handle cassette play if MOTOR pin active.
+    if (_cassetteDev)
+    {
+        if (motorActive)
+        {
+            _cassetteDev->play();
+        }
+        else
+        {
+            _cassetteDev->stop();
+        }
+    }
 }
 
 // Setup DRIVEWIRE bus
@@ -89,7 +103,7 @@ void systemBus::setup()
 
     // Start task
     //xTaskCreate(drivewire_intr_task, "drivewire_intr_task", 2048, NULL, 10, NULL);
-    xTaskCreatePinnedToCore(drivewire_intr_task, "drivewire_intr_task", 4096, NULL, 10, NULL, 0);
+    xTaskCreatePinnedToCore(drivewire_intr_task, "drivewire_intr_task", 4096, this, 10, NULL, 0);
 
     // Setup interrupt for cassette motor pin
     gpio_config_t io_conf = {
@@ -100,6 +114,8 @@ void systemBus::setup()
         .intr_type = GPIO_INTR_POSEDGE                // interrupt on positive edge
     };
 
+    _cassetteDev = new drivewireCassette();
+    
     //configure GPIO with the given settings
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, (void*) PIN_CASS_MOTOR);
