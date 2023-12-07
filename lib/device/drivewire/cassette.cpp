@@ -17,12 +17,14 @@
 #define SAMPLE_DELAY_US 89
 
 FILE *casf = NULL;
+uint8_t *casbuf = NULL;
 
 static void _play(void* arg)
 {
     drivewireCassette *cass = (drivewireCassette *)arg;
     
     casf = fsFlash.file_open("/hdbcc2.raw","r");
+
 
     if (!casf)
     {
@@ -33,6 +35,21 @@ static void _play(void* arg)
     else
     {
         Debug_printv("cassette file opened.");
+    }
+
+    size_t sz=0UL;
+
+    fseek(casf,0UL,SEEK_END);
+    sz = ftell(casf);
+    casbuf = (uint8_t *)malloc(sz);
+    fseek(casf,0UL,SEEK_SET);
+
+    fread(casbuf,sizeof(uint8_t),sz,casf);
+
+    if (casf)
+    {
+        fclose(casf);
+        casf = NULL;
     }
 
     Debug_printv("Enabling DAC.")
@@ -48,10 +65,9 @@ static void _play(void* arg)
 
     Debug_printv("sending data.");
 
-    while (!feof(casf))
+    for (size_t i=0;i<sz;i++)
     {
-        uint8_t b = fgetc(casf);
-        dac_output_voltage(DAC_CHANNEL_1,b);
+        dac_output_voltage(DAC_CHANNEL_1,casbuf[i]);
         esp_rom_delay_us(SAMPLE_DELAY_US);
     }
 
@@ -59,8 +75,8 @@ static void _play(void* arg)
 
     dac_output_disable(DAC_CHANNEL_1);
 
-    fclose(casf);
-    casf = NULL;
+    if (casbuf)
+        free(casbuf);
 
     Debug_printv("Tape done.");
  
@@ -87,7 +103,7 @@ void drivewireCassette::play()
         return;
 
     Debug_printv("Play tape");    
-    xTaskCreate(_play,"playTask",4096,this,20,&playTask);
+    xTaskCreate(_play,"playTask",4096,this,10,&playTask);
 }
 
 /**
@@ -106,6 +122,12 @@ void drivewireCassette::stop()
         
         vTaskDelete(playTask);
         playTask=NULL;
+
+        if (casbuf)
+        {
+            free(casbuf);
+            casbuf=NULL;
+        }
     }
 }
 
