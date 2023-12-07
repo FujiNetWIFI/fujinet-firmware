@@ -79,10 +79,9 @@ static void _play(void* arg)
         free(casbuf);
 
     Debug_printv("Tape done.");
- 
-    // We're done, just wait to be killed.
-    while(1)
-        vTaskDelay(10/portTICK_PERIOD_MS);
+    TaskHandle_t t = cass->playTask;
+    cass->playTask=NULL;
+    vTaskDelete(t);
 }
 
 /**
