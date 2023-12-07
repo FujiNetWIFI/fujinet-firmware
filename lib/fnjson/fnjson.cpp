@@ -155,6 +155,8 @@ string FNJSON::getValue(cJSON *item)
         Debug_printf("\r\nFNJSON::getValue called with null item, returning empty string.\r\n");
         return string("");
     }
+    // Fix where the print cursor is.
+    Debug_printf("\r\n");
 
     stringstream ss;
 
