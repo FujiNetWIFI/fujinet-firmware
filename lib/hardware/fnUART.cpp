@@ -110,6 +110,12 @@ void UARTManager::begin(int baud)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
 #endif /* BUILD_ADAM */
 
+#ifdef BUILD_COCO
+    if (_uart_num == 2)
+        uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
+#endif /* BUILD_ADAM */
+
+
     // Arduino default buffer size is 256
     int uart_buffer_size = 256;
     int uart_queue_size = 10;
