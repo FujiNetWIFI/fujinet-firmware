@@ -25,6 +25,7 @@ static void _play(void* arg)
     
     casf = fsFlash.file_open("/hdbcc2.raw","r");
 
+    Debug_printf("PLAY\n");
 
     if (!casf)
     {
@@ -102,7 +103,7 @@ void drivewireCassette::play()
         return;
 
     Debug_printv("Play tape");    
-    xTaskCreate(_play,"playTask",4096,this,10,&playTask);
+    xTaskCreate(_play,"playTask",4096,this,8,&playTask);
 }
 
 /**
