@@ -93,17 +93,7 @@ void systemBus::service()
             _cassetteDev->stop();
         }
     }
-
-    // Handle DLOAD
-    if (fnUartBUS.available())
-    {
-        for (int i=0;i<fnUartBUS.available();i++)
-        {
-            Debug_printf("%02X ",fnUartBUS.read());
-        }
-
-        Debug_printf("\n");
-    }
+    
 }
 
 // Setup DRIVEWIRE bus
@@ -133,6 +123,7 @@ void systemBus::setup()
 
     // Start in DLOAD mode
     fnUartBUS.begin(1200);
+    Debug_printv("DLOAD MODE");
 }
 
 // Add device to DRIVEWIRE bus
