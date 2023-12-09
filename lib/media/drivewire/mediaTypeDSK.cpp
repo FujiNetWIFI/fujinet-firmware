@@ -19,7 +19,7 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     if (blockNum == _media_last_block)
         return false; // We already have block.
 
-    Debug_print("DSK READ\n");
+    Debug_print("DW DSK READ\n");
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks)
@@ -35,12 +35,17 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     // Perform a seek if we're not reading the sector after the last one we read
     if (blockNum != _media_last_block + 1)
     {
+        Debug_printv("Doing seek.");
         uint32_t offset = _block_to_offset(blockNum);
         err = fseek(_media_fileh, offset, SEEK_SET) != 0;
     }
+    else
+    {
+        Debug_printv("Did not do seek.");
+    }
 
     if (err == false)
-        err = fread(_media_blockbuff, 1, 1024, _media_fileh) != 1024;
+        err = fread(_media_blockbuff, 1, MEDIA_BLOCK_SIZE, _media_fileh) != MEDIA_BLOCK_SIZE;
 
     if (err == false)
         _media_last_block = blockNum;

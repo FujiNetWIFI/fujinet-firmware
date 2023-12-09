@@ -24,7 +24,7 @@
 
 #include <forward_list>
 
-#define DRIVEWIRE_BAUDRATE 62500
+#define DRIVEWIRE_BAUDRATE 57600
 
 /* Operation Codes */
 #define		OP_NOP		0
@@ -39,6 +39,7 @@
 #define		OP_INIT		'I'
 #define		OP_TERM		'T'
 #define		OP_TIME		'#'
+#define     OP_RESET3   0xF8
 #define		OP_RESET2	0xFE
 #define		OP_RESET1	0xFF
 #define		OP_PRINT	'P'
@@ -170,8 +171,29 @@ private:
     /**
      * @brief Current Baud Rate
      */
-    int _drivewireBaud = 0;
+    int _drivewireBaud = DRIVEWIRE_BAUDRATE;
 
+    /**
+     * @brief Logical sector number (1-16777216)
+     */
+    uint32_t lsn;
+
+    /**
+     * @brief Drive number (0-255)
+     */
+    uint8_t drive_num;
+
+    /**
+     * @brief Sector data (256 bytes)
+     */
+    uint8_t sector_data[256];
+
+    /**
+     * @brief NOP command (do nothing)
+     */
+    void op_nop();
+    void op_reset();
+    void op_readex();
 
     // int readSector(struct dwTransferData *dp);
     // int writeSector(struct dwTransferData *dp);

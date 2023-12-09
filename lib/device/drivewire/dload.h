@@ -70,6 +70,11 @@ private:
     virtual void send_filetype_file_not_found();
 
     /**
+     * @brief send binary filetype binary reply
+     */
+    virtual void send_filetype_binary();
+
+    /**
      * @brief wait for block request
      */
     virtual void pblkr_from_coco();

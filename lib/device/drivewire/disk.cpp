@@ -26,7 +26,7 @@ mediatype_t drivewireDisk::mount(FILE *f, const char *filename, uint32_t disksiz
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
 
-    Debug_printf("disk MOUNT %s\n", filename);
+    Debug_printf("DW disk MOUNT %s\n", filename);
 
     // Destroy any existing MediaType
     if (_media != nullptr)
@@ -58,6 +58,36 @@ mediatype_t drivewireDisk::mount(FILE *f, const char *filename, uint32_t disksiz
     
 void drivewireDisk::unmount()
 {
+}
+
+bool drivewireDisk::read(uint32_t lsn, uint8_t *buf)
+{
+    if (!buf)
+    {
+        Debug_printv("BUFFER is NULL, IGNORED.");
+        return true;
+    }
+
+    bool r = _media->read(lsn,0);
+    memcpy(buf,_media->_media_blockbuff,MEDIA_BLOCK_SIZE);
+
+    Debug_printf("\n");
+
+    return 0;
+}
+
+bool drivewireDisk::write(uint32_t lsn, uint8_t *buf)
+{
+    if (!buf)
+    {
+        Debug_printv("BUFFER is NULL, IGNORED.");
+        return true;
+    }
+
+    memcpy(_media->_media_blockbuff,buf,MEDIA_BLOCK_SIZE);
+    bool r = _media->write(lsn,0);
+
+    return r;
 }
 
 #endif /* BUILD_COCO */
