@@ -56,14 +56,6 @@ static void _play(void* arg)
     Debug_printv("Enabling DAC.")
     dac_output_enable(DAC_CHANNEL_1);
 
-    // Send silence
-    Debug_printv("sending silence");
-    for (unsigned long i=0;i<1000000UL;i++)
-        {
-            dac_output_voltage(DAC_CHANNEL_1,0);
-            esp_rom_delay_us(5);        
-        }
-
     Debug_printv("sending data.");
 
     for (size_t i=0;i<sz;i++)
@@ -80,9 +72,7 @@ static void _play(void* arg)
         free(casbuf);
 
     Debug_printv("Tape done.");
-    TaskHandle_t t = cass->playTask;
-    cass->playTask=NULL;
-    vTaskDelete(t);
+    vTaskDelete(NULL);
 }
 
 /**
@@ -95,7 +85,7 @@ void drivewireCassette::play()
         return;
 
     Debug_printv("Play tape");    
-    xTaskCreate(_play,"playTask",4096,this,8,&playTask);
+    xTaskCreate(_play,"playTask",4096,this,99,&playTask);
 }
 
 /**

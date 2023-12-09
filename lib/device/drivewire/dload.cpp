@@ -83,10 +83,7 @@ void drivewireDload::get_filename()
 
     memset(fn, 0x00, sizeof(fn));
 
-    if (fnUartBUS.available() > 8)
-    {
-        fnUartBUS.readBytes(fn, 8);
-    }
+    fnUartBUS.readBytes(fn, 8);
 
     Debug_printv("Requested Filename %s", fn);
 
@@ -144,6 +141,9 @@ void drivewireDload::send_filetype()
 
     Debug_printv("File opened.");
 
+    //send_filetype_binary();
+    send_filetype_file_not_found();
+
     dState = P_BLKR_FROM_COCO;
 }
 
@@ -157,6 +157,16 @@ void drivewireDload::send_filetype_file_not_found()
 
     // Return to initial state.
     dState = PFILR_FROM_COCO;
+}
+
+void drivewireDload::send_filetype_binary()
+{
+    Debug_printv("Sending binary filetype");
+    fnUartBUS.write(0x02); // Binary file
+    fnUartBUS.write(0x00); // ASCII flag = 0
+    fnUartBUS.write(0x02); // XOR value :)
+
+    dState = P_BLKR_FROM_COCO;
 }
 
 void drivewireDload::pblkr_from_coco()
