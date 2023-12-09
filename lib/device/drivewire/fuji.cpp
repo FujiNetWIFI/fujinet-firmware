@@ -1627,31 +1627,18 @@ void drivewireFuji::drivewire_enable_udpstream()
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup(systemBus *drivewirebus)
 {
-    // // set up Fuji device
-    // _drivewire_bus = drivewirebus;
+    // set up Fuji device
+    _drivewire_bus = drivewirebus;
 
-    // _populate_slots_from_config();
+    _populate_slots_from_config();
 
-    // insert_boot_device(Config.get_general_boot_mode());
+    insert_boot_device(Config.get_general_boot_mode());
 
-    // // Disable booting from CONFIG if our settings say to turn it off
-    // boot_config = Config.get_general_config_enabled();
+    // Disable booting from CONFIG if our settings say to turn it off
+    boot_config = Config.get_general_config_enabled();
 
-    // //Disable status_wait if our settings say to turn it off
-    // status_wait_enabled = Config.get_general_status_wait_enabled();
-
-    // // Add our devices to the DRIVEWIRE bus
-    // for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    //     _drivewire_bus->addDevice(&_fnDisks[i].disk_dev, DRIVEWIRE_DEVICEID_DISK + i);
-
-    // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    //     _drivewire_bus->addDevice(&drivewireNetDevs[i], DRIVEWIRE_DEVICEID_FN_NETWORK + i);
-
-    // _drivewire_bus->addDevice(&_cassetteDev, DRIVEWIRE_DEVICEID_CASSETTE);
-    // cassette()->set_buttons(Config.get_cassette_buttons());
-    // cassette()->set_pulldown(Config.get_cassette_pulldown());
-
-    cassette()->setup();
+    //Disable status_wait if our settings say to turn it off
+    status_wait_enabled = Config.get_general_status_wait_enabled();
 
 }
 
