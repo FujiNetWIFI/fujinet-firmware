@@ -2,6 +2,7 @@
 #define _MEDIA_TYPE_
 
 #include <stdio.h>
+#include <fujiHost.h>
 
 #define INVALID_SECTOR_VALUE 0xFFFFFFFF
 
@@ -44,6 +45,9 @@ public:
     uint8_t _media_blockbuff[MEDIA_BLOCK_SIZE];
     uint32_t _media_last_block = INVALID_SECTOR_VALUE-1;
     uint8_t _media_controller_status = DISK_CTRL_STATUS_CLEAR;
+    fujiHost *_media_host = nullptr;
+    char _disk_filename[256];
+
 
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
