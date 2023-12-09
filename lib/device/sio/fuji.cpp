@@ -19,7 +19,8 @@
 #include "led.h"
 #include "utils.h"
 
-#include "base64.h"
+#include "../../encoding/base64.h"
+#include "../../encoding/hash.h"
 
 #define ADDITIONAL_DETAILS_BYTES 10
 
@@ -1962,21 +1963,9 @@ void sioFuji::sio_base64_encode_input()
         return;
     }
 
-    unsigned char *p = (unsigned char *)malloc(len);
-
-    if (!p)
-    {
-        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n", len);
-        sio_error();
-        return;
-    }
-
-    bus_to_peripheral(p, len);
-
-    base64_buffer += string((const char *)p, len);
-
-    free(p);
-
+    std::vector<unsigned char> p(len);
+    bus_to_peripheral(p.data(), len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
     sio_complete();
 }
 
@@ -1986,8 +1975,7 @@ void sioFuji::sio_base64_encode_compute()
 
     Debug_printf("FUJI: BASE64 ENCODE COMPUTE\n");
 
-    char *p = base64_encode(base64_buffer.c_str(), base64_buffer.size(), &out_len);
-
+    std::unique_ptr<char[]> p = Base64::encode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
     if (!p)
     {
         Debug_printf("base64_encode compute failed\n");
@@ -1995,9 +1983,8 @@ void sioFuji::sio_base64_encode_compute()
         return;
     }
 
-    base64_buffer.clear();
-    base64_buffer = string(p, out_len);
-    free(p);
+    base64.base64_buffer.clear();
+    base64.base64_buffer = string(p.get(), out_len);
 
     Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
     sio_complete();
@@ -2007,7 +1994,7 @@ void sioFuji::sio_base64_encode_length()
 {
     Debug_printf("FUJI: BASE64 ENCODE LENGTH\n");
 
-    size_t l = base64_buffer.length();
+    size_t l = base64.base64_buffer.length();
     uint8_t response[4] = {
         (uint8_t)(l >>  0),
         (uint8_t)(l >>  8),
@@ -2030,37 +2017,29 @@ void sioFuji::sio_base64_encode_output()
 {
     Debug_printf("FUJI: BASE64 ENCODE OUTPUT\n");
 
-    size_t l = sio_get_aux();
+    size_t len = sio_get_aux();
 
-    if (!l)
+    if (!len)
     {
         Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
         return;
     }
-    else if (l > base64_buffer.length())
+    else if (len > base64.base64_buffer.length())
     {
-        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", l, base64_buffer.length());
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, base64.base64_buffer.length());
         return;
     }
     else
     {
-        Debug_printf("Requested %u bytes\n", l);
+        Debug_printf("Requested %u bytes\n", len);
     }
 
-    unsigned char *p = (unsigned char *)malloc(l);
+    std::vector<unsigned char> p(len);
+    std::memcpy(p.data(), base64.base64_buffer.data(), len);
+    base64.base64_buffer.erase(0, len);
+    base64.base64_buffer.shrink_to_fit();
 
-    if (!p)
-    {
-        Debug_printf("Could not allocate %u bytes from heap, aborting.\n", l);
-        return;
-    }
-
-    memcpy(p, base64_buffer.data(), l);
-    base64_buffer.erase(0, l);
-    base64_buffer.shrink_to_fit();
-
-    bus_to_computer(p, l, false);
-    free(p);
+    bus_to_computer(p.data(), len, false);
 }
 
 void sioFuji::sio_base64_decode_input()
@@ -2076,21 +2055,9 @@ void sioFuji::sio_base64_decode_input()
         return;
     }
 
-    unsigned char *p = (unsigned char *)malloc(len);
-
-    if (!p)
-    {
-        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n", len);
-        sio_error();
-        return;
-    }
-
-    bus_to_peripheral(p, len);
-
-    base64_buffer += string((const char *)p, len);
-
-    free(p);
-
+    std::vector<unsigned char> p(len);
+    bus_to_peripheral(p.data(), len);
+    base64.base64_buffer += string((const char *)p.data(), len);
     sio_complete();
 }
 
@@ -2100,8 +2067,7 @@ void sioFuji::sio_base64_decode_compute()
 
     Debug_printf("FUJI: BASE64 DECODE COMPUTE\n");
 
-    unsigned char *p = base64_decode(base64_buffer.c_str(), base64_buffer.size(), &out_len);
-
+    std::unique_ptr<unsigned char[]> p = Base64::decode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
     if (!p)
     {
         Debug_printf("base64_encode compute failed\n");
@@ -2109,9 +2075,8 @@ void sioFuji::sio_base64_decode_compute()
         return;
     }
 
-    base64_buffer.clear();
-    base64_buffer = string((const char *)p, out_len);
-    free(p);
+    base64.base64_buffer.clear();
+    base64.base64_buffer = string((const char *)p.get(), out_len);
 
     Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
     sio_complete();
@@ -2121,22 +2086,22 @@ void sioFuji::sio_base64_decode_length()
 {
     Debug_printf("FUJI: BASE64 DECODE LENGTH\n");
 
-    size_t l = base64_buffer.length();
+    size_t len = base64.base64_buffer.length();
     uint8_t response[4] = {
-        (uint8_t)(l >>  0),
-        (uint8_t)(l >>  8),
-        (uint8_t)(l >>  16),
-        (uint8_t)(l >>  24)
+        (uint8_t)(len >>  0),
+        (uint8_t)(len >>  8),
+        (uint8_t)(len >>  16),
+        (uint8_t)(len >>  24)
     };
 
-    if (!l)
+    if (!len)
     {
         Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
         bus_to_computer(response, sizeof(response), true);
         return;
     }
 
-    Debug_printf("base64 buffer length: %u bytes\n", l);
+    Debug_printf("base64 buffer length: %u bytes\n", len);
 
     bus_to_computer(response, sizeof(response), false);
 }
@@ -2145,39 +2110,30 @@ void sioFuji::sio_base64_decode_output()
 {
     Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
 
-    size_t l = sio_get_aux();
+    size_t len = sio_get_aux();
 
-    if (!l)
+    if (!len)
     {
         Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
         sio_error();
         return;
     }
-    else if (l > base64_buffer.length())
+    else if (len > base64.base64_buffer.length())
     {
-        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", l, base64_buffer.length());
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, base64.base64_buffer.length());
         sio_error();
         return;
     }
     else
     {
-        Debug_printf("Requested %u bytes\n", l);
+        Debug_printf("Requested %u bytes\n", len);
     }
 
-    unsigned char *p = (unsigned char *)malloc(l);
-
-    if (!p)
-    {
-        Debug_printf("Could not allocate %u bytes from heap, aborting.\n", l);
-        sio_error();
-        return;
-    }
-
-    memcpy(p, base64_buffer.data(), l);
-    base64_buffer.erase(0, l);
-    base64_buffer.shrink_to_fit();
-    bus_to_computer(p, l, false);
-    free(p);
+    std::vector<unsigned char> p(len);
+    memcpy(p.data(), base64.base64_buffer.data(), len);
+    base64.base64_buffer.erase(0, len);
+    base64.base64_buffer.shrink_to_fit();
+    bus_to_computer(p.data(), len, false);
 }
 
 void sioFuji::sio_hash_input()
@@ -2193,20 +2149,9 @@ void sioFuji::sio_hash_input()
         return;
     }
 
-    unsigned char *p = (unsigned char *)malloc(len);
-
-    if (!p)
-    {
-        Debug_printf("Could not allocate %u bytes for buffer. Aborting.\n");
-        sio_error();
-        return;
-    }
-
-    bus_to_peripheral(p, len);
-
-    base64_buffer += string((const char *)p, len);
-
-    free(p);
+    std::vector<unsigned char> p(len);
+    bus_to_peripheral(p.data(), len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
 
     sio_complete();
 }
@@ -2215,65 +2160,11 @@ void sioFuji::sio_hash_compute()
 {
     uint16_t m = hash_mode = sio_get_aux();
 
-    // Initialize hash context
-    switch (m)
-    {
-    case 0: // md5
-        // Not implemented
-        break;
-    case 1: // sha1
-        mbedtls_sha1_init(&_sha1);
-        mbedtls_sha1_starts(&_sha1);
-        break;
-    case 2: // sha256
-        mbedtls_sha256_init(&_sha256);
-        mbedtls_sha256_starts(&_sha256,0);
-        break;
-    case 3: // sha512
-        mbedtls_sha512_init(&_sha512);
-        mbedtls_sha512_starts(&_sha512,0);
-        break;
-    }
+    Debug_printf("FUJI: HASH COMPUTE\n");
 
-    // Update
-    switch (m)
-    {
-    case 0: // MD5
-        // Not implemented
-        break;
-    case 1: // SHA1
-        mbedtls_sha1_update(&_sha1, (const unsigned char *)base64_buffer.data(), base64_buffer.size());
-        break;
-    case 2: // SHA256
-        mbedtls_sha256_update(&_sha256, (const unsigned char *)base64_buffer.data(), base64_buffer.size());
-        break;
-    case 3: // SHA512
-        mbedtls_sha512_update(&_sha512, (const unsigned char *)base64_buffer.data(), base64_buffer.size());
-        break;
-    }
-
-    // Clean up
-    switch (m)
-    {
-    case 0: // MD5
-        // Not implemented
-        break;
-    case 1: // SHA1
-        mbedtls_sha1_finish(&_sha1, _sha1_output);
-        mbedtls_sha1_free(&_sha1);
-        break;
-    case 2: // SHA256
-        mbedtls_sha256_finish(&_sha256, _sha256_output);
-        mbedtls_sha256_free(&_sha256);
-        break;
-    case 3: // SHA512
-        mbedtls_sha512_finish(&_sha512, _sha512_output);
-        mbedtls_sha512_free(&_sha512);
-        break;
-    }
-
-    base64_buffer.clear();
-    base64_buffer.shrink_to_fit();
+    hasher.compute(m, base64.base64_buffer);
+    base64.base64_buffer.clear();
+    base64.base64_buffer.shrink_to_fit();
 
     sio_complete();
 }
@@ -2307,193 +2198,13 @@ void sioFuji::sio_hash_length()
 
 void sioFuji::sio_hash_output()
 {
-    uint8_t o[129];
-    uint16_t olen=0;
+    uint16_t olen = 0;
     uint16_t m = sio_get_aux();
 
-    memset(o, 0x00, sizeof(o));
+    Debug_printf("FUJI: HASH OUTPUT\n");
 
-    switch (hash_mode)
-    {
-    case 0: // MD5
-        olen = 16;
-
-        if (m == 0)
-            memcpy(o, _md5_output, 16);
-        else if (m == 1)
-        {
-            olen <<= 1;
-            sprintf((char *)o, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-                    _md5_output[0],
-                    _md5_output[1],
-                    _md5_output[2],
-                    _md5_output[3],
-                    _md5_output[4],
-                    _md5_output[5],
-                    _md5_output[6],
-                    _md5_output[7],
-                    _md5_output[8],
-                    _md5_output[9],
-                    _md5_output[10],
-                    _md5_output[11],
-                    _md5_output[12],
-                    _md5_output[13],
-                    _md5_output[14],
-                    _md5_output[15]);
-        }
-        break;
-    case 1: // SHA1
-        olen = 20;
-
-        if (m == 0)
-            memcpy(o, _sha1_output, 20);
-        else if (m == 1)
-        {
-            olen <<= 1;
-            sprintf((char *)o, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-                    _sha1_output[0],
-                    _sha1_output[1],
-                    _sha1_output[2],
-                    _sha1_output[3],
-                    _sha1_output[4],
-                    _sha1_output[5],
-                    _sha1_output[6],
-                    _sha1_output[7],
-                    _sha1_output[8],
-                    _sha1_output[9],
-                    _sha1_output[10],
-                    _sha1_output[11],
-                    _sha1_output[12],
-                    _sha1_output[13],
-                    _sha1_output[14],
-                    _sha1_output[15],
-                    _sha1_output[16],
-                    _sha1_output[17],
-                    _sha1_output[18],
-                    _sha1_output[19]);
-        }
-        break;
-    case 2: // SHA256
-        olen = 32;
-
-        if (m == 0)
-            memcpy(o, _sha256_output, 32);
-        else if (m == 1)
-        {
-            olen <<= 1;
-            sprintf((char *)o, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-                    _sha256_output[0],
-                    _sha256_output[1],
-                    _sha256_output[2],
-                    _sha256_output[3],
-                    _sha256_output[4],
-                    _sha256_output[5],
-                    _sha256_output[6],
-                    _sha256_output[7],
-                    _sha256_output[8],
-                    _sha256_output[9],
-                    _sha256_output[10],
-                    _sha256_output[11],
-                    _sha256_output[12],
-                    _sha256_output[13],
-                    _sha256_output[14],
-                    _sha256_output[15],
-                    _sha256_output[16],
-                    _sha256_output[17],
-                    _sha256_output[18],
-                    _sha256_output[19],
-                    _sha256_output[20],
-                    _sha256_output[21],
-                    _sha256_output[22],
-                    _sha256_output[23],
-                    _sha256_output[24],
-                    _sha256_output[25],
-                    _sha256_output[26],
-                    _sha256_output[27],
-                    _sha256_output[28],
-                    _sha256_output[29],
-                    _sha256_output[30],
-                    _sha256_output[31]);
-        }
-        break;
-    case 3: // SHA512
-        olen = 64;
-
-        if (m == 0)
-            memcpy(o, _sha512_output, 64);
-        else if (m == 1)
-        {
-            olen <<= 1;
-            sprintf((char *)o, "%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x",
-                    _sha512_output[0],
-                    _sha512_output[1],
-                    _sha512_output[2],
-                    _sha512_output[3],
-                    _sha512_output[4],
-                    _sha512_output[5],
-                    _sha512_output[6],
-                    _sha512_output[7],
-                    _sha512_output[8],
-                    _sha512_output[9],
-                    _sha512_output[10],
-                    _sha512_output[11],
-                    _sha512_output[12],
-                    _sha512_output[13],
-                    _sha512_output[14],
-                    _sha512_output[15],
-                    _sha512_output[16],
-                    _sha512_output[17],
-                    _sha512_output[18],
-                    _sha512_output[19],
-                    _sha512_output[20],
-                    _sha512_output[21],
-                    _sha512_output[22],
-                    _sha512_output[23],
-                    _sha512_output[24],
-                    _sha512_output[25],
-                    _sha512_output[26],
-                    _sha512_output[27],
-                    _sha512_output[28],
-                    _sha512_output[29],
-                    _sha512_output[30],
-                    _sha512_output[31],
-                    _sha512_output[32],
-                    _sha512_output[33],
-                    _sha512_output[34],
-                    _sha512_output[35],
-                    _sha512_output[36],
-                    _sha512_output[37],
-                    _sha512_output[38],
-                    _sha512_output[39],
-                    _sha512_output[40],
-                    _sha512_output[41],
-                    _sha512_output[42],
-                    _sha512_output[43],
-                    _sha512_output[44],
-                    _sha512_output[45],
-                    _sha512_output[46],
-                    _sha512_output[47],
-                    _sha512_output[48],
-                    _sha512_output[49],
-                    _sha512_output[50],
-                    _sha512_output[51],
-                    _sha512_output[52],
-                    _sha512_output[53],
-                    _sha512_output[54],
-                    _sha512_output[55],
-                    _sha512_output[56],
-                    _sha512_output[57],
-                    _sha512_output[58],
-                    _sha512_output[59],
-                    _sha512_output[60],
-                    _sha512_output[61],
-                    _sha512_output[62],
-                    _sha512_output[63]);
-        }
-        break;
-    }
-
-    bus_to_computer(o,olen,false);
+    std::vector<uint8_t> o = hasher.hash_output(m, hash_mode, olen);
+    bus_to_computer(o.data(), olen, false);
 }
 
 void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
