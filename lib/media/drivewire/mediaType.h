@@ -5,20 +5,14 @@
 
 #define INVALID_SECTOR_VALUE 0xFFFFFFFF
 
-#define MEDIA_BLOCK_SIZE 1024
-
-#define DISK_BYTES_PER_SECTOR_SINGLE 128
-#define DISK_BYTES_PER_SECTOR_DOUBLE 256
-#define DISK_BYTES_PER_SECTOR_DOUBLE_DOUBLE 512
+#define MEDIA_BLOCK_SIZE 256
 
 #define DISK_CTRL_STATUS_CLEAR 0x00
 
 enum mediatype_t 
 {
     MEDIATYPE_UNKNOWN = 0,
-    MEDIATYPE_DDP,
     MEDIATYPE_DSK,
-    MEDIATYPE_ROM,
     MEDIATYPE_COUNT
 };
 
@@ -28,7 +22,7 @@ protected:
     FILE *_media_fileh = nullptr;
     uint32_t _media_image_size = 0;
     uint32_t _media_num_blocks = 256;
-    uint16_t _media_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
+    uint16_t _media_sector_size = MEDIA_BLOCK_SIZE;
 
 public:
     struct

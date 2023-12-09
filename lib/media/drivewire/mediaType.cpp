@@ -1,4 +1,4 @@
-#ifdef NEW_TARGET
+#ifdef BUILD_COCO
 
 #include "mediaType.h"
 
@@ -42,17 +42,9 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
     {
         // Check the last 3 characters of the string
         const char *ext = filename + l - 3;
-        if (strcasecmp(ext, "DDP") == 0)
-        {
-            return MEDIATYPE_DDP;
-        }
-        else if (strcasecmp(ext, "DSK") == 0)
+        if (strcasecmp(ext, "DSK") == 0)
         {
             return MEDIATYPE_DSK;
-        }
-        else if (strcasecmp(ext, "ROM") == 0)
-        {
-            return MEDIATYPE_ROM;
         }
     }
     return MEDIATYPE_UNKNOWN;
