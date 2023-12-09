@@ -62,25 +62,4 @@ void drivewireCPM::init_cpm(int baud)
     // memset(pattern, 0, sizeof(pattern));
 }
 
-void drivewireCPM::drivewire_process(uint32_t commanddata, uint8_t checksum)
-{
-    // cmdFrame.commanddata = commanddata;
-    // cmdFrame.checksum = checksum;
-
-    // switch (cmdFrame.comnd)
-    // {
-    // case 'G':
-    //     sio_ack();
-    //     fnSystem.delay(10);
-    //     sio_complete();
-    //     fnSystem.delay(5000);
-    //     init_cpm(9600);
-    //     cpmActive = true;
-    //     break;
-    // default:
-    //     sio_nak();
-    //     break;
-    // }
-}
-
 #endif /* BUILD_COCO */
