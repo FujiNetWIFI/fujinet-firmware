@@ -316,9 +316,4 @@ void drivewireDload::dload_process()
     }
 }
 
-void drivewireDload::drivewire_process(uint32_t commanddata, uint8_t checksum)
-{
-    // Must be implemented, but does not do anything.
-}
-
 #endif /* BUILD_COCO */

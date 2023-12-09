@@ -86,14 +86,6 @@ static void _play(void* arg)
 }
 
 /**
- * @brief since cassette isn't a DW device, we don't handle it here.
- */
-void drivewireCassette::drivewire_process(uint32_t commanddata, uint8_t checksum)
-{
-    // Not really used...
-}
-
-/**
  * @brief Handle when motor active, and send tape via DAC
  * @note This routine stays active until tape is done streaming.
  */

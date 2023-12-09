@@ -17,7 +17,6 @@ protected:
     uint8_t _buffer[40];
     void drivewire_write(uint8_t aux1, uint8_t aux2);
     void drivewire_status();
-    void drivewire_process(uint32_t commanddata, uint8_t checksum) override;
     void shutdown() override;
 
     printer_emu *_pptr = nullptr;

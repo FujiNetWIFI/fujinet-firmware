@@ -112,8 +112,6 @@ protected:
     void drivewire_copy_file();              // 0xD8
     void drivewire_set_boot_mode();          // 0xD6
 
-    void drivewire_process(uint32_t commanddata, uint8_t checksum);
-
     void shutdown() override;
 
 public:

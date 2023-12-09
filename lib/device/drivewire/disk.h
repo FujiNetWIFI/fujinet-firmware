@@ -10,8 +10,6 @@ class drivewireDisk : public virtualDevice
 private:
     MediaType *_media = nullptr;
 
-    void drivewire_process(uint32_t commanddata, uint8_t checksum);
-
 public:
     drivewireDisk();
     ~drivewireDisk();

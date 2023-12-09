@@ -16,8 +16,6 @@ class drivewireCPM : public virtualDevice
 {
 private:
 
-    void drivewire_process(uint32_t commanddata, uint8_t checksum);
-
 public:
     bool cpmActive = false; 
     void init_cpm(int baud);

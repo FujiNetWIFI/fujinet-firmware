@@ -176,9 +176,4 @@ drivewirePrinter::printer_type drivewirePrinter::match_modelname(std::string mod
     return (printer_type)i;
 }
 
-// Process command
-void drivewirePrinter::drivewire_process(uint32_t commanddata, uint8_t checksum)
-{
-}
-
 #endif /* BUILD_COCO */

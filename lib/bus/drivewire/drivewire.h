@@ -26,24 +26,24 @@
 
 #define DRIVEWIRE_BAUDRATE 62500
 
-// /* Operation Codes */
-// #define		OP_NOP		0
-// #define		OP_GETSTAT	'G'
-// #define		OP_SETSTAT	'S'
-// #define		OP_READ		'R'
-// #define		OP_READEX	'R'+128
-// #define		OP_WRITE	'W'
-// #define		OP_REREAD	'r'
-// #define		OP_REREADEX	'r'+128
-// #define		OP_REWRITE	'w'
-// #define		OP_INIT		'I'
-// #define		OP_TERM		'T'
-// #define		OP_TIME		'#'
-// #define		OP_RESET2	0xFE
-// #define		OP_RESET1	0xFF
-// #define		OP_PRINT	'P'
-// #define		OP_PRINTFLUSH	'F'
-// #define     OP_VPORT_READ    'C'
+/* Operation Codes */
+#define		OP_NOP		0
+#define		OP_GETSTAT	'G'
+#define		OP_SETSTAT	'S'
+#define		OP_READ		'R'
+#define		OP_READEX	'R'+128
+#define		OP_WRITE	'W'
+#define		OP_REREAD	'r'
+#define		OP_REREADEX	'r'+128
+#define		OP_REWRITE	'w'
+#define		OP_INIT		'I'
+#define		OP_TERM		'T'
+#define		OP_TIME		'#'
+#define		OP_RESET2	0xFE
+#define		OP_RESET1	0xFF
+#define		OP_PRINT	'P'
+#define		OP_PRINTFLUSH	'F'
+#define     OP_VPORT_READ    'C'
 
 // struct dwTransferData
 // {
@@ -80,7 +80,7 @@
 // EXTERN int interactive;
 
 
-
+// This is here because the network protocol adapters speak this
 union cmdFrame_t
 {
     struct
@@ -118,22 +118,10 @@ protected:
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
     
-    /**
-     * @brief All DRIVEWIRE devices repeatedly call this routine to fan out to other methods for each command. 
-     * This is typcially implemented as a switch() statement.
-     */
-    virtual void drivewire_process(uint32_t commanddata, uint8_t checksum) = 0;
-
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
 
 public:
-    /**
-     * @brief get the DRIVEWIRE device Number (1-255)
-     * @return The device number registered for this device
-     */
-    int id() { return _devnum; };
-
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
      */
@@ -167,10 +155,6 @@ struct drivewire_message_t
 class systemBus
 {
 private:
-    std::forward_list<virtualDevice *> _daisyChain;
-
-    int _command_frame_counter = 0;
-
     virtualDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
@@ -179,8 +163,6 @@ private:
     drivewireCassette *_cassetteDev = nullptr;
     drivewireCPM *_cpmDev = nullptr;
     drivewirePrinter *_printerdev = nullptr;
-
-    bool useUltraHigh = false; // Use fujinet derived clock.
 
     void _drivewire_process_cmd();
     void _drivewire_process_queue();
@@ -243,12 +225,6 @@ public:
     void setup();
     void service();
     void shutdown();
-
-    int numDevices();
-    void addDevice(virtualDevice *pDevice, int device_id);
-    void remDevice(virtualDevice *pDevice);
-    virtualDevice *deviceById(int device_id);
-    void changeDeviceId(virtualDevice *pDevice, int device_id);
 
     int getBaudrate();                                          // Gets current DRIVEWIRE baud rate setting
     void setBaudrate(int baud);                                 // Sets DRIVEWIRE to specific baud rate

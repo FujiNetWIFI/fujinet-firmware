@@ -126,58 +126,13 @@ void systemBus::setup()
     Debug_printv("DLOAD MODE");
 }
 
-// Add device to DRIVEWIRE bus
-void systemBus::addDevice(virtualDevice *pDevice, int device_id)
-{
-}
-
-// Removes device from the DRIVEWIRE bus.
-// Note that the destructor is called on the device!
-void systemBus::remDevice(virtualDevice *p)
-{
-    _daisyChain.remove(p);
-}
-
-// Should avoid using this as it requires counting through the list
-int systemBus::numDevices()
-{
-    int i = 0;
-    __BEGIN_IGNORE_UNUSEDVARS
-    for (auto devicep : _daisyChain)
-        i++;
-    return i;
-    __END_IGNORE_UNUSEDVARS
-}
-
-void systemBus::changeDeviceId(virtualDevice *p, int device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep == p)
-            devicep->_devnum = device_id;
-    }
-}
-
-virtualDevice *systemBus::deviceById(int device_id)
-{
-    for (auto devicep : _daisyChain)
-    {
-        if (devicep->_devnum == device_id)
-            return devicep;
-    }
-    return nullptr;
-}
-
 // Give devices an opportunity to clean up before a reboot
 void systemBus::shutdown()
 {
     shuttingDown = true;
 
-    for (auto devicep : _daisyChain)
-    {
-        Debug_printf("Shutting down device %02x\n",devicep->id());
-        devicep->shutdown();
-    }
+    // TODO: implement device shutdown for all sub-busses
+
     Debug_printf("All devices shut down.\n");
 }
 
