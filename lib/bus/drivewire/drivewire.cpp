@@ -156,10 +156,10 @@ void systemBus::service()
         }
     }
 
-    //if (fnUartBUS.available())
-    //    _drivewire_process_cmd();
+    if (fnUartBUS.available())
+       _drivewire_process_cmd();
 
-    dload.dload_process();
+    // dload.dload_process();
 }
 
 // Setup DRIVEWIRE bus
@@ -188,8 +188,8 @@ void systemBus::setup()
     gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, (void *)PIN_CASS_MOTOR);
 
     // Start in DLOAD mode
-    fnUartBUS.begin(1200);
-    Debug_printv("DLOAD MODE");
+    fnUartBUS.begin(57600);
+    Debug_printv("DRIVEWIRE MODE");
 }
 
 // Give devices an opportunity to clean up before a reboot
