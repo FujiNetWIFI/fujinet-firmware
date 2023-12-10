@@ -14,7 +14,7 @@
 
 #include "led.h"
 
-#define SAMPLE_DELAY_US 89
+#define SAMPLE_DELAY_US 91
 
 FILE *casf = NULL;
 uint8_t *casbuf = NULL;
