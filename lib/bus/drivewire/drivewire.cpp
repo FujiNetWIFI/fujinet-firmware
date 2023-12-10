@@ -95,6 +95,11 @@ void systemBus::op_readex()
         return;
     }
 
+    if (!d->device_active)
+    {
+        Debug_printv("Device not active.");
+    }
+
     d->read(lsn,sector_data);
 
     fnUartBUS.write(sector_data,MEDIA_BLOCK_SIZE);
@@ -104,6 +109,14 @@ void systemBus::op_readex()
 
     fnUartBUS.write(0x00); // todo: proper err handling and cksum
     fnUartBUS.write(0x00); // todo: proper err handling and cksum
+}
+
+void systemBus::op_fuji()
+{
+    Debug_printv("OP FUJI!");
+    while (fnUartBUS.available())
+        Debug_printf("%02x ",fnUartBUS.read());
+    Debug_printf("\n");
 }
 
 // Read and process a command frame from DRIVEWIRE
@@ -123,6 +136,9 @@ void systemBus::_drivewire_process_cmd()
         break;
     case OP_READEX:
         op_readex();
+        break;
+    case OP_FUJI:
+        op_fuji();
         break;
     }
 }
