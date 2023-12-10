@@ -27,7 +27,7 @@ static QueueHandle_t drivewire_evt_queue = NULL;
 
 drivewireDload dload;
 
-#define DEBOUNCE_THRESHOLD_US 500000ULL
+#define DEBOUNCE_THRESHOLD_US 50000ULL
 
 static void IRAM_ATTR drivewire_isr_handler(void *arg)
 {
@@ -39,9 +39,7 @@ static void IRAM_ATTR drivewire_isr_handler(void *arg)
 static void drivewire_intr_task(void *arg)
 {
     uint32_t gpio_num;
-    int64_t time_since_last_change=0;
     int64_t d;
-    bool current_pin_state=gpio_get_level(PIN_CASS_MOTOR);
 
     systemBus *bus = (systemBus *)arg;
 
@@ -49,23 +47,15 @@ static void drivewire_intr_task(void *arg)
     {
         if (xQueueReceive(drivewire_evt_queue, &gpio_num, portMAX_DELAY))
         {
+            esp_rom_delay_us(DEBOUNCE_THRESHOLD_US);
+
             if (gpio_num == PIN_CASS_MOTOR && gpio_get_level((gpio_num_t)gpio_num))
             {
-                d = time_since_last_change-esp_timer_get_time();
-                if (d > DEBOUNCE_THRESHOLD_US)
-                {
-                    time_since_last_change=esp_timer_get_time();
-                    bus->motorActive=true;
-                }
+                bus->motorActive = true;
             }
             else
             {
-                d = time_since_last_change-esp_timer_get_time();
-                if (d > DEBOUNCE_THRESHOLD_US)
-                {
-                    time_since_last_change=esp_timer_get_time();
-                    bus->motorActive=false;
-                }                
+                bus->motorActive = false;
             }
         }
 
@@ -90,21 +80,21 @@ void systemBus::op_reset()
 void systemBus::op_readex()
 {
     drivewireDisk *d = nullptr;
-    uint16_t c=0;
-    
+    uint16_t c = 0;
+
     drive_num = fnUartBUS.read();
 
     lsn = fnUartBUS.read() << 16;
     lsn |= fnUartBUS.read() << 8;
     lsn |= fnUartBUS.read();
 
-    Debug_printv("OP_READEX: DRIVE %3u - SECTOR %8lu",drive_num,lsn);
+    Debug_printv("OP_READEX: DRIVE %3u - SECTOR %8lu", drive_num, lsn);
 
     d = &theFuji.get_disks(drive_num)->disk_dev;
 
     if (!d)
     {
-        Debug_printv("Invalid drive #%3u",drive_num);
+        Debug_printv("Invalid drive #%3u", drive_num);
         return;
     }
 
@@ -113,9 +103,9 @@ void systemBus::op_readex()
         Debug_printv("Device not active.");
     }
 
-    d->read(lsn,sector_data);
+    d->read(lsn, sector_data);
 
-    fnUartBUS.write(sector_data,MEDIA_BLOCK_SIZE);
+    fnUartBUS.write(sector_data, MEDIA_BLOCK_SIZE);
 
     fnUartBUS.read();
     fnUartBUS.read();
@@ -128,7 +118,7 @@ void systemBus::op_fuji()
 {
     Debug_printv("OP FUJI!");
     while (fnUartBUS.available())
-        Debug_printf("%02x ",fnUartBUS.read());
+        Debug_printf("%02x ", fnUartBUS.read());
     Debug_printf("\n");
 }
 
@@ -186,7 +176,7 @@ void systemBus::service()
     }
 
     if (fnUartBUS.available())
-       _drivewire_process_cmd();
+        _drivewire_process_cmd();
 
     // dload.dload_process();
 }
