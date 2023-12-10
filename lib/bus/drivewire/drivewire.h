@@ -45,6 +45,7 @@
 #define		OP_PRINT	'P'
 #define		OP_PRINTFLUSH	'F'
 #define     OP_VPORT_READ    'C'
+#define     OP_FUJI 0xE2
 
 // struct dwTransferData
 // {
@@ -194,6 +195,7 @@ private:
     void op_nop();
     void op_reset();
     void op_readex();
+    void op_fuji();
 
     // int readSector(struct dwTransferData *dp);
     // int writeSector(struct dwTransferData *dp);
