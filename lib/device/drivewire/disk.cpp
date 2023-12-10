@@ -71,8 +71,6 @@ bool drivewireDisk::read(uint32_t lsn, uint8_t *buf)
     bool r = _media->read(lsn,0);
     memcpy(buf,_media->_media_blockbuff,MEDIA_BLOCK_SIZE);
 
-    Debug_printf("\n");
-
     return 0;
 }
 
