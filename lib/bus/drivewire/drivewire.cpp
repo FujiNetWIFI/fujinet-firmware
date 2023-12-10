@@ -27,6 +27,8 @@ static QueueHandle_t drivewire_evt_queue = NULL;
 
 drivewireDload dload;
 
+#define DEBOUNCE_THRESHOLD_US 500000ULL
+
 static void IRAM_ATTR drivewire_isr_handler(void *arg)
 {
     // Generic default interrupt handler
@@ -37,6 +39,10 @@ static void IRAM_ATTR drivewire_isr_handler(void *arg)
 static void drivewire_intr_task(void *arg)
 {
     uint32_t gpio_num;
+    int64_t time_since_last_change=0;
+    int64_t d;
+    bool current_pin_state=gpio_get_level(PIN_CASS_MOTOR);
+
     systemBus *bus = (systemBus *)arg;
 
     while (true)
@@ -45,14 +51,21 @@ static void drivewire_intr_task(void *arg)
         {
             if (gpio_num == PIN_CASS_MOTOR && gpio_get_level((gpio_num_t)gpio_num))
             {
-                Debug_printv("Cassette motor enabled. Send boot loader!");
-                bus->motorActive = true;
+                d = time_since_last_change-esp_timer_get_time();
+                if (d > DEBOUNCE_THRESHOLD_US)
+                {
+                    time_since_last_change=esp_timer_get_time();
+                    bus->motorActive=true;
+                }
             }
             else
             {
-                Debug_printv("Cassette motor off");
-                bus->motorActive = false;
-                bus->getCassette()->stop();
+                d = time_since_last_change-esp_timer_get_time();
+                if (d > DEBOUNCE_THRESHOLD_US)
+                {
+                    time_since_last_change=esp_timer_get_time();
+                    bus->motorActive=false;
+                }                
             }
         }
 
