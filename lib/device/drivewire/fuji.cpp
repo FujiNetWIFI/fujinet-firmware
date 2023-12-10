@@ -1571,26 +1571,21 @@ void drivewireFuji::drivewire_set_drivewire_external_clock()
 // Mounts the desired boot disk number
 void drivewireFuji::insert_boot_device(uint8_t d)
 {
-    // const char *config_atr = "/autorun.atr";
-    // const char *mount_all_atr = "/mount-and-boot.atr";
-    // FILE *fBoot;
+    const char *config_atr = "/autorun.dsk";
+    FILE *fBoot;
 
-    // _bootDisk.unmount();
+    _bootDisk.unmount();
 
-    // switch (d)
-    // {
-    // case 0:
-    //     fBoot = fsFlash.file_open(config_atr);
-    //     _bootDisk.mount(fBoot, config_atr, 0);
-    //     break;
-    // case 1:
-    //     fBoot = fsFlash.file_open(mount_all_atr);
-    //     _bootDisk.mount(fBoot, mount_all_atr, 0);
-    //     break;
-    // }
+    switch (d)
+    {
+    case 0:
+        fBoot = fsFlash.file_open(config_atr);
+        _bootDisk.mount(fBoot, config_atr, 0);
+        break;
+    }
 
-    // _bootDisk.is_config_device = true;
-    // _bootDisk.device_active = false;
+    _bootDisk.is_config_device = true;
+    _bootDisk.device_active = false;
 }
 
 // Set UDP Stream HOST & PORT and start it
