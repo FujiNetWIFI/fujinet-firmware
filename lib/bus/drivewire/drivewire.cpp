@@ -169,10 +169,6 @@ void systemBus::service()
             _cassetteDev->play();
             return;
         }
-        else
-        {
-            _cassetteDev->stop();
-        }
     }
 
     if (fnUartBUS.available())
@@ -206,7 +202,7 @@ void systemBus::setup()
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, (void *)PIN_CASS_MOTOR);
 
-    // Start in DLOAD mode
+    // Start in DRIVEWIRE mode
     fnUartBUS.begin(57600);
     Debug_printv("DRIVEWIRE MODE");
 }

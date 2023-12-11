@@ -17,7 +17,6 @@ TaskHandle_t playTask = NULL;
 virtual void setup();
 virtual void shutdown();
 void play();
-void stop();
 
 private:
 
