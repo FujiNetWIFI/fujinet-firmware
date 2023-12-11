@@ -114,12 +114,66 @@ void systemBus::op_readex()
     fnUartBUS.write(0x00); // todo: proper err handling and cksum
 }
 
+void systemBus::op_write()
+{
+    drivewireDisk *d = nullptr;
+    uint16_t c = 0;
+
+    drive_num = fnUartBUS.read();
+
+    lsn = fnUartBUS.read() << 16;
+    lsn |= fnUartBUS.read() << 8;
+    lsn |= fnUartBUS.read();
+
+    size_t s = fnUartBUS.readBytes(sector_data,MEDIA_BLOCK_SIZE);
+
+    if (s != MEDIA_BLOCK_SIZE)
+    {
+        Debug_printv("Insufficient # of bytes for write, total recvd: %u",s);
+        fnUartBUS.flush_input();
+        return;
+    }
+
+    // Todo handle checksum.
+    fnUartBUS.read();
+    fnUartBUS.read();
+
+    Debug_printv("OP_WRITE: DRIVE %3u - SECTOR %8lu", drive_num, lsn);
+
+    d = &theFuji.get_disks(drive_num)->disk_dev;
+
+    if (!d)
+    {
+        Debug_printv("Invalid drive #%3u", drive_num);
+        return;
+    }
+
+    if (!d->device_active)
+    {
+        Debug_printv("Device not active.");
+    }
+
+    d->write(lsn,sector_data);
+
+    fnUartBUS.write(0x00); // TODO: Checksum
+}
+
 void systemBus::op_fuji()
 {
     Debug_printv("OP FUJI!");
     while (fnUartBUS.available())
         Debug_printf("%02x ", fnUartBUS.read());
     Debug_printf("\n");
+}
+
+void systemBus::op_unhandled(uint8_t c)
+{
+    Debug_printv("Unhandled opcode: %02x",c);
+
+    while (fnUartBUS.available())
+        Debug_printf("%02x ",fnUartBUS.read());
+
+    fnUartBUS.flush_input();
 }
 
 // Read and process a command frame from DRIVEWIRE
@@ -140,8 +194,14 @@ void systemBus::_drivewire_process_cmd()
     case OP_READEX:
         op_readex();
         break;
+    case OP_WRITE:
+        op_write();
+        break;
     case OP_FUJI:
         op_fuji();
+        break;
+    default:
+        op_unhandled(c);
         break;
     }
 }
