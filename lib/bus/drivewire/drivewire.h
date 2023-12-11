@@ -196,6 +196,8 @@ private:
     void op_reset();
     void op_readex();
     void op_fuji();
+    void op_write();
+    void op_unhandled(uint8_t c);
 
     // int readSector(struct dwTransferData *dp);
     // int writeSector(struct dwTransferData *dp);
