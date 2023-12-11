@@ -176,6 +176,44 @@ void systemBus::op_unhandled(uint8_t c)
     fnUartBUS.flush_input();
 }
 
+void systemBus::op_time()
+{
+    time_t tt = time(nullptr);
+    struct tm * now = localtime(&tt);
+
+    now->tm_mon++;
+
+    Debug_printf("Returning %02d/%02d/%02d %02d:%02d:%02d\n", now->tm_year, now->tm_mon, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
+
+    fnUartBUS.write(now->tm_year-1900);
+    fnUartBUS.write(now->tm_mon);
+    fnUartBUS.write(now->tm_mday);
+    fnUartBUS.write(now->tm_hour);
+    fnUartBUS.write(now->tm_min);
+    fnUartBUS.write(now->tm_sec);
+}
+
+void systemBus::op_init()
+{
+    Debug_printv("OP_INIT");
+}
+
+void systemBus::op_dwinit()
+{
+    Debug_printv("OP_DWINIT - Sending feature byte 0x%02x",DWINIT_FEATURES);
+    fnUartBUS.write(DWINIT_FEATURES);
+}
+
+void systemBus::op_getstat()
+{
+    Debug_printv("OP_GETSTAT: 0x%02x",fnUartBUS.read());
+}
+
+void systemBus::op_setstat()
+{
+    Debug_printv("OP_SETSTAT: 0x%02x",fnUartBUS.read());
+}
+
 // Read and process a command frame from DRIVEWIRE
 void systemBus::_drivewire_process_cmd()
 {
@@ -196,6 +234,21 @@ void systemBus::_drivewire_process_cmd()
         break;
     case OP_WRITE:
         op_write();
+        break;
+    case OP_TIME:
+        op_time();
+        break;
+    case OP_INIT:
+        op_init();
+        break;
+    case OP_DWINIT:
+        op_dwinit();
+        break;
+    case OP_GETSTAT:
+        op_getstat();
+        break;
+    case OP_SETSTAT:
+        op_setstat();
         break;
     case OP_FUJI:
         op_fuji();

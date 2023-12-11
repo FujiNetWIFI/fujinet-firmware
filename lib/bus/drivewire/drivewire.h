@@ -37,6 +37,7 @@
 #define		OP_REREADEX	'r'+128
 #define		OP_REWRITE	'w'
 #define		OP_INIT		'I'
+#define     OP_DWINIT   'Z'
 #define		OP_TERM		'T'
 #define		OP_TIME		'#'
 #define     OP_RESET3   0xF8
@@ -46,6 +47,18 @@
 #define		OP_PRINTFLUSH	'F'
 #define     OP_VPORT_READ    'C'
 #define     OP_FUJI 0xE2
+
+#define FEATURE_EMCEE    0x01
+#define FEATURE_DLOAD    0x02
+#define FEATURE_HDBDOS   0x04
+#define FEATURE_DOSPLUS  0x08
+#define FEATURE_PRINTER  0x10
+#define FEATURE_SSH      0x20
+#define FEATURE_PLAYSND  0x40
+#define FEATURE_RESERVED 0x80
+
+#define DWINIT_FEATURES  FEATURE_DLOAD | \
+                         FEATURE_HDBDOS
 
 // struct dwTransferData
 // {
@@ -197,7 +210,12 @@ private:
     void op_readex();
     void op_fuji();
     void op_write();
+    void op_time();
+    void op_init();
+    void op_dwinit();
     void op_unhandled(uint8_t c);
+    void op_getstat();
+    void op_setstat();
 
     // int readSector(struct dwTransferData *dp);
     // int writeSector(struct dwTransferData *dp);
