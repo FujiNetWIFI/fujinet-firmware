@@ -114,7 +114,7 @@ drivewireFuji::drivewireFuji()
 }
 
 // Reset FujiNet
-void drivewireFuji::drivewire_reset_fujinet()
+void drivewireFuji::reset_fujinet()
 {
     Debug_println("Fuji cmd: REBOOT");
     // drivewire_complete();
@@ -122,7 +122,7 @@ void drivewireFuji::drivewire_reset_fujinet()
 }
 
 // Scan for networks
-void drivewireFuji::drivewire_net_scan_networks()
+void drivewireFuji::net_scan_networks()
 {
     // Debug_println("Fuji cmd: SCAN NETWORKS");
 
@@ -136,7 +136,7 @@ void drivewireFuji::drivewire_net_scan_networks()
 }
 
 // Return scanned network entry
-void drivewireFuji::drivewire_net_scan_result()
+void drivewireFuji::net_scan_result()
 {
     // Debug_println("Fuji cmd: GET SCAN RESULT");
 
@@ -160,7 +160,7 @@ void drivewireFuji::drivewire_net_scan_result()
 }
 
 //  Get SSID
-void drivewireFuji::drivewire_net_get_ssid()
+void drivewireFuji::net_get_ssid()
 {
     // Debug_println("Fuji cmd: GET SSID");
 
@@ -190,7 +190,7 @@ void drivewireFuji::drivewire_net_get_ssid()
 }
 
 // Set SSID
-void drivewireFuji::drivewire_net_set_ssid()
+void drivewireFuji::net_set_ssid()
 {
     // Debug_println("Fuji cmd: SET SSID");
     // int i;
@@ -280,7 +280,7 @@ void drivewireFuji::drivewire_net_set_ssid()
 }
 
 // Get WiFi Status
-void drivewireFuji::drivewire_net_get_wifi_status()
+void drivewireFuji::net_get_wifi_status()
 {
     // Debug_println("Fuji cmd: GET WIFI STATUS");
     // // WL_CONNECTED = 3, WL_DISCONNECTED = 6
@@ -289,7 +289,7 @@ void drivewireFuji::drivewire_net_get_wifi_status()
 }
 
 // Check if Wifi is enabled
-void drivewireFuji::drivewire_net_get_wifi_enabled()
+void drivewireFuji::net_get_wifi_enabled()
 {
     // uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
     // Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n",e);
@@ -297,7 +297,7 @@ void drivewireFuji::drivewire_net_get_wifi_enabled()
 }
 
 // Mount Server
-void drivewireFuji::drivewire_mount_host()
+void drivewireFuji::mount_host()
 {
     // Debug_println("Fuji cmd: MOUNT HOST");
 
@@ -317,7 +317,7 @@ void drivewireFuji::drivewire_mount_host()
 }
 
 // Disk Image Mount
-void drivewireFuji::drivewire_disk_image_mount()
+void drivewireFuji::disk_image_mount()
 {
     // // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
     // // to the C: device. Everything stays the same here and the mounting
@@ -380,14 +380,14 @@ void drivewireFuji::drivewire_disk_image_mount()
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
-void drivewireFuji::drivewire_set_boot_config()
+void drivewireFuji::set_boot_config()
 {
     // boot_config = cmdFrame.aux1;
     // drivewire_complete();
 }
 
 // Do DRIVEWIRE copy
-void drivewireFuji::drivewire_copy_file()
+void drivewireFuji::copy_file()
 {
     // uint8_t csBuf[256];
     // string copySpec;
@@ -578,7 +578,7 @@ void drivewireFuji::mount_all()
 }
 
 // Set boot mode
-void drivewireFuji::drivewire_set_boot_mode()
+void drivewireFuji::set_boot_mode()
 {
     // insert_boot_device(cmdFrame.aux1);
     // boot_config = true;
@@ -600,7 +600,7 @@ char *_generate_appkey_filename(appkey *info)
  Requiring a separate OPEN command makes both the read and write commands behave similarly
  and leaves the possibity for a more robust/general file read/write function later.
 */
-void drivewireFuji::drivewire_open_app_key()
+void drivewireFuji::open_app_key()
 {
     // Debug_print("Fuji cmd: OPEN APPKEY\n");
 
@@ -640,7 +640,7 @@ void drivewireFuji::drivewire_open_app_key()
   The app key close operation is a placeholder in case we want to provide more robust file
   read/write operations. Currently, the file is closed immediately after the read or write operation.
 */
-void drivewireFuji::drivewire_close_app_key()
+void drivewireFuji::close_app_key()
 {
     Debug_print("Fuji cmd: CLOSE APPKEY\n");
     _current_appkey.creator = 0;
@@ -651,7 +651,7 @@ void drivewireFuji::drivewire_close_app_key()
 /*
  Write an "app key" to SD (ONLY!) storage.
 */
-void drivewireFuji::drivewire_write_app_key()
+void drivewireFuji::write_app_key()
 {
     // uint16_t keylen = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
 
@@ -719,7 +719,7 @@ void drivewireFuji::drivewire_write_app_key()
 /*
  Read an "app key" from SD (ONLY!) storage
 */
-void drivewireFuji::drivewire_read_app_key()
+void drivewireFuji::read_app_key()
 {
     // Debug_println("Fuji cmd: READ APPKEY");
 
@@ -797,7 +797,7 @@ void drivewireFuji::debug_tape()
 }
 
 // Disk Image Unmount
-void drivewireFuji::drivewire_disk_image_umount()
+void drivewireFuji::disk_image_umount()
 {
     // uint8_t deviceSlot = cmdFrame.aux1;
 
@@ -884,7 +884,7 @@ void drivewireFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
-void drivewireFuji::drivewire_open_directory()
+void drivewireFuji::open_directory()
 {
     // Debug_println("Fuji cmd: OPEN DIRECTORY");
 
@@ -972,7 +972,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 //     dest[9] = MediaType::discover_disktype(f->filename);
 }
 
-void drivewireFuji::drivewire_read_directory_entry()
+void drivewireFuji::read_directory_entry()
 {
 //     uint8_t maxlen = cmdFrame.aux1;
 //     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
@@ -1030,7 +1030,7 @@ void drivewireFuji::drivewire_read_directory_entry()
 //     bus_to_computer((uint8_t *)current_entry, maxlen, false);
 }
 
-void drivewireFuji::drivewire_get_directory_position()
+void drivewireFuji::get_directory_position()
 {
     // Debug_println("Fuji cmd: GET DIRECTORY POSITION");
 
@@ -1052,7 +1052,7 @@ void drivewireFuji::drivewire_get_directory_position()
     // bus_to_computer((uint8_t *)&pos, sizeof(pos), false);
 }
 
-void drivewireFuji::drivewire_set_directory_position()
+void drivewireFuji::set_directory_position()
 {
     // Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
@@ -1076,7 +1076,7 @@ void drivewireFuji::drivewire_set_directory_position()
     // drivewire_complete();
 }
 
-void drivewireFuji::drivewire_close_directory()
+void drivewireFuji::close_directory()
 {
     // Debug_println("Fuji cmd: CLOSE DIRECTORY");
 
@@ -1088,7 +1088,7 @@ void drivewireFuji::drivewire_close_directory()
 }
 
 // Get network adapter configuration
-void drivewireFuji::drivewire_get_adapter_config()
+void drivewireFuji::get_adapter_config()
 {
     // Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
@@ -1118,7 +1118,7 @@ void drivewireFuji::drivewire_get_adapter_config()
 }
 
 //  Make new disk and shove into device slot
-void drivewireFuji::drivewire_new_disk()
+void drivewireFuji::new_disk()
 {
     // Debug_println("Fuji cmd: NEW DISK");
 
@@ -1184,7 +1184,7 @@ void drivewireFuji::drivewire_new_disk()
 }
 
 // Unmount specified host
-void drivewireFuji::drivewire_unmount_host()
+void drivewireFuji::unmount_host()
 {
     // Debug_println("Fuji cmd: UNMOUNT HOST");
 
@@ -1222,7 +1222,7 @@ void drivewireFuji::drivewire_unmount_host()
 }
 
 // Send host slot data to computer
-void drivewireFuji::drivewire_read_host_slots()
+void drivewireFuji::read_host_slots()
 {
     // Debug_println("Fuji cmd: READ HOST SLOTS");
 
@@ -1236,7 +1236,7 @@ void drivewireFuji::drivewire_read_host_slots()
 }
 
 // Read and save host slot data from computer
-void drivewireFuji::drivewire_write_host_slots()
+void drivewireFuji::write_host_slots()
 {
     // Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
@@ -1258,7 +1258,7 @@ void drivewireFuji::drivewire_write_host_slots()
 }
 
 // Store host path prefix
-void drivewireFuji::drivewire_set_host_prefix()
+void drivewireFuji::set_host_prefix()
 {
     // char prefix[MAX_HOST_PREFIX_LEN];
     // uint8_t hostSlot = cmdFrame.aux1;
@@ -1284,7 +1284,7 @@ void drivewireFuji::drivewire_set_host_prefix()
 }
 
 // Retrieve host path prefix
-void drivewireFuji::drivewire_get_host_prefix()
+void drivewireFuji::get_host_prefix()
 {
     // uint8_t hostSlot = cmdFrame.aux1;
     // Debug_printf("Fuji cmd: GET HOST PREFIX %uh\n", hostSlot);
@@ -1301,7 +1301,7 @@ void drivewireFuji::drivewire_get_host_prefix()
 }
 
 // Send device slot data to computer
-void drivewireFuji::drivewire_read_device_slots()
+void drivewireFuji::read_device_slots()
 {
     // Debug_println("Fuji cmd: READ DEVICE SLOTS");
 
@@ -1365,7 +1365,7 @@ void drivewireFuji::drivewire_read_device_slots()
 }
 
 // Read and save disk slot data from computer
-void drivewireFuji::drivewire_write_device_slots()
+void drivewireFuji::write_device_slots()
 {
     // Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
 
@@ -1456,7 +1456,7 @@ void drivewireFuji::_populate_config_from_slots()
 
 // AUX1 is our index value (from 0 to DRIVEWIRE_HISPEED_LOWEST_INDEX)
 // AUX2 requests a save of the change if set to 1
-void drivewireFuji::drivewire_set_hdrivewire_index()
+void drivewireFuji::set_hdrivewire_index()
 {
     // Debug_println("Fuji cmd: SET HDRIVEWIRE INDEX");
 
@@ -1483,7 +1483,7 @@ void drivewireFuji::drivewire_set_hdrivewire_index()
 }
 
 // Write a 256 byte filename to the device slot
-void drivewireFuji::drivewire_set_device_filename()
+void drivewireFuji::set_device_filename()
 {
     // char tmp[MAX_FILENAME_LEN];
 
@@ -1531,7 +1531,7 @@ void drivewireFuji::drivewire_set_device_filename()
 }
 
 // Get a 256 byte filename from device slot
-void drivewireFuji::drivewire_get_device_filename()
+void drivewireFuji::get_device_filename()
 {
     // char tmp[MAX_FILENAME_LEN];
     // unsigned char err = false;
@@ -1549,12 +1549,12 @@ void drivewireFuji::drivewire_get_device_filename()
 }
 
 // Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
-void drivewireFuji::drivewire_set_drivewire_external_clock()
+void drivewireFuji::set_drivewire_external_clock()
 {
     // unsigned short speed = drivewire_get_aux();
     // int baudRate = speed * 1000;
 
-    // Debug_printf("drivewireFuji::drivewire_set_external_clock(%u)\n", baudRate);
+    // Debug_printf("drivewireFuji::set_external_clock(%u)\n", baudRate);
 
     // if (speed == 0)
     // {
@@ -1589,7 +1589,7 @@ void drivewireFuji::insert_boot_device(uint8_t d)
 }
 
 // Set UDP Stream HOST & PORT and start it
-void drivewireFuji::drivewire_enable_udpstream()
+void drivewireFuji::enable_udpstream()
 {
     // char host[64];
 
@@ -1647,6 +1647,17 @@ int drivewireFuji::get_disk_id(int drive_slot)
 std::string drivewireFuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
+}
+
+void drivewireFuji::process()
+{
+    uint8_t c = 0;
+
+    switch (c)
+    {
+        case FUJICMD_RESET:
+            
+    }
 }
 
 #endif /* BUILD_COCO */

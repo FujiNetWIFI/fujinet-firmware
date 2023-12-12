@@ -75,42 +75,42 @@ private:
     appkey _current_appkey;
 
 protected:
-    void drivewire_reset_fujinet();          // 0xFF
-    void drivewire_net_get_ssid();           // 0xFE
-    void drivewire_net_scan_networks();      // 0xFD
-    void drivewire_net_scan_result();        // 0xFC
-    void drivewire_net_set_ssid();           // 0xFB
-    void drivewire_net_get_wifi_status();    // 0xFA
-    void drivewire_mount_host();             // 0xF9
-    void drivewire_disk_image_mount();       // 0xF8
-    void drivewire_open_directory();         // 0xF7
-    void drivewire_read_directory_entry();   // 0xF6
-    void drivewire_close_directory();        // 0xF5
-    void drivewire_read_host_slots();        // 0xF4
-    void drivewire_write_host_slots();       // 0xF3
-    void drivewire_read_device_slots();      // 0xF2
-    void drivewire_write_device_slots();     // 0xF1
-    void drivewire_enable_udpstream();       // 0xF0
-    void drivewire_net_get_wifi_enabled();   // 0xEA
-    void drivewire_disk_image_umount();      // 0xE9
-    void drivewire_get_adapter_config();     // 0xE8
-    void drivewire_new_disk();               // 0xE7
-    void drivewire_unmount_host();           // 0xE6
-    void drivewire_get_directory_position(); // 0xE5
-    void drivewire_set_directory_position(); // 0xE4
-    void drivewire_set_hdrivewire_index();         // 0xE3
-    void drivewire_set_device_filename();    // 0xE2
-    void drivewire_set_host_prefix();        // 0xE1
-    void drivewire_get_host_prefix();        // 0xE0
-    void drivewire_set_drivewire_external_clock(); // 0xDF
-    void drivewire_write_app_key();          // 0xDE
-    void drivewire_read_app_key();           // 0xDD
-    void drivewire_open_app_key();           // 0xDC
-    void drivewire_close_app_key();          // 0xDB
-    void drivewire_get_device_filename();    // 0xDA
-    void drivewire_set_boot_config();        // 0xD9
-    void drivewire_copy_file();              // 0xD8
-    void drivewire_set_boot_mode();          // 0xD6
+    void reset_fujinet();          // 0xFF
+    void net_get_ssid();           // 0xFE
+    void net_scan_networks();      // 0xFD
+    void net_scan_result();        // 0xFC
+    void net_set_ssid();           // 0xFB
+    void net_get_wifi_status();    // 0xFA
+    void mount_host();             // 0xF9
+    void disk_image_mount();       // 0xF8
+    void open_directory();         // 0xF7
+    void read_directory_entry();   // 0xF6
+    void close_directory();        // 0xF5
+    void read_host_slots();        // 0xF4
+    void write_host_slots();       // 0xF3
+    void read_device_slots();      // 0xF2
+    void write_device_slots();     // 0xF1
+    void enable_udpstream();       // 0xF0
+    void net_get_wifi_enabled();   // 0xEA
+    void disk_image_umount();      // 0xE9
+    void get_adapter_config();     // 0xE8
+    void new_disk();               // 0xE7
+    void unmount_host();           // 0xE6
+    void get_directory_position(); // 0xE5
+    void set_directory_position(); // 0xE4
+    void set_hdrivewire_index();         // 0xE3
+    void set_device_filename();    // 0xE2
+    void set_host_prefix();        // 0xE1
+    void get_host_prefix();        // 0xE0
+    void set_drivewire_external_clock(); // 0xDF
+    void write_app_key();          // 0xDE
+    void read_app_key();           // 0xDD
+    void open_app_key();           // 0xDC
+    void close_app_key();          // 0xDB
+    void get_device_filename();    // 0xDA
+    void set_boot_config();        // 0xD9
+    void copy_file();              // 0xD8
+    void set_boot_mode();          // 0xD6
 
     void shutdown() override;
 
@@ -139,6 +139,8 @@ public:
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();
+
+    void process();
 
     void mount_all();              // 0xD7
 
