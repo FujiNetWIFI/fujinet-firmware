@@ -8,6 +8,7 @@
 #include "udpstream.h"
 #include "modem.h"
 #include "cassette.h"
+#include "printer.h"
 #include "drivewire/dload.h"
 #include "../../lib/device/drivewire/cpm.h"
 
@@ -90,7 +91,10 @@ void systemBus::op_readex()
 
     Debug_printv("OP_READEX: DRIVE %3u - SECTOR %8lu", drive_num, lsn);
 
-    d = &theFuji.get_disks(drive_num)->disk_dev;
+    if (theFuji.boot_config)
+        d = theFuji.bootdisk();
+    else
+        d = &theFuji.get_disks(drive_num)->disk_dev;
 
     if (!d)
     {
@@ -214,6 +218,18 @@ void systemBus::op_setstat()
     Debug_printv("OP_SETSTAT: 0x%02x",fnUartBUS.read());
 }
 
+void systemBus::op_serread()
+{
+    // TODO: Temporary until modem and network are working
+    fnUartBUS.write(0x00);
+    fnUartBUS.write(0x00);
+}
+
+void systemBus::op_print()
+{
+    _printerdev->write(fnUartBUS.read());
+}
+
 // Read and process a command frame from DRIVEWIRE
 void systemBus::_drivewire_process_cmd()
 {
@@ -244,12 +260,22 @@ void systemBus::_drivewire_process_cmd()
     case OP_DWINIT:
         op_dwinit();
         break;
-    case OP_GETSTAT:
-        op_getstat();
+    case OP_SERREAD:
+        op_serread();
         break;
-    case OP_SETSTAT:
-        op_setstat();
+    case OP_PRINT:
+        op_print();
         break;
+    case OP_PRINTFLUSH:
+        // Not needed.
+        break;
+    // case OP_GETSTAT:
+    //     op_getstat();
+    //     break;
+    // case OP_SETSTAT:
+    //     op_setstat();
+    //     break;
+    
     case OP_FUJI:
         op_fuji();
         break;

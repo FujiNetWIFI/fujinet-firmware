@@ -28,6 +28,7 @@
 
 /* Operation Codes */
 #define		OP_NOP		0
+#define     OP_SERREAD  'C'
 #define		OP_GETSTAT	'G'
 #define		OP_SETSTAT	'S'
 #define		OP_READ		'R'
@@ -58,7 +59,8 @@
 #define FEATURE_RESERVED 0x80
 
 #define DWINIT_FEATURES  FEATURE_DLOAD | \
-                         FEATURE_HDBDOS
+                         FEATURE_HDBDOS | \
+                         FEATURE_PRINTER
 
 // struct dwTransferData
 // {
@@ -216,6 +218,8 @@ private:
     void op_unhandled(uint8_t c);
     void op_getstat();
     void op_setstat();
+    void op_serread();
+    void op_print();
 
     // int readSector(struct dwTransferData *dp);
     // int writeSector(struct dwTransferData *dp);
@@ -280,6 +284,7 @@ public:
 
     drivewireCassette *getCassette() { return _cassetteDev; }
     drivewirePrinter *getPrinter() { return _printerdev; }
+    void setPrinter(drivewirePrinter *_p) { _printerdev = _p; }
     drivewireCPM *getCPM() { return _cpmDev; }
 
     // I wish this codebase would make up its mind to use camel or snake casing.
