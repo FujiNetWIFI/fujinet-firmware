@@ -211,10 +211,6 @@ void main_setup()
 
 #endif
 
-#ifdef BUILD_COCO
-    theFuji.setup(&DRIVEWIRE);
-#endif /* BUILD_COCO */
-
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
