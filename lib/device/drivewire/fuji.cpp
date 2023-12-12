@@ -1571,8 +1571,11 @@ void drivewireFuji::set_drivewire_external_clock()
 // Mounts the desired boot disk number
 void drivewireFuji::insert_boot_device(uint8_t d)
 {
+    Debug_printf("insert_boot_device()\n");
+
     const char *config_atr = "/autorun.dsk";
     FILE *fBoot;
+    size_t sz = 0;
 
     _bootDisk.unmount();
 
@@ -1580,12 +1583,15 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fsFlash.file_open(config_atr);
-        _bootDisk.mount(fBoot, config_atr, 0);
+        fseek(fBoot,0,SEEK_END);
+        sz = ftell(fBoot);
+        fseek(fBoot,0,SEEK_SET);
+        _bootDisk.mount(fBoot, config_atr, sz);
         break;
     }
 
     _bootDisk.is_config_device = true;
-    _bootDisk.device_active = false;
+    _bootDisk.device_active = true;
 }
 
 // Set UDP Stream HOST & PORT and start it
@@ -1618,6 +1624,7 @@ void drivewireFuji::enable_udpstream()
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup(systemBus *drivewirebus)
 {
+    Debug_printf("theFuji.setup()\n");
     // set up Fuji device
     _drivewire_bus = drivewirebus;
 
@@ -1655,8 +1662,8 @@ void drivewireFuji::process()
 
     switch (c)
     {
-        case FUJICMD_RESET:
-            
+        default:
+        break;            
     }
 }
 
