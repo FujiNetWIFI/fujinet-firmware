@@ -15,7 +15,6 @@ class drivewirePrinter : public virtualDevice
 protected:
     // DRIVEWIRE THINGS
     uint8_t _buffer[40];
-    void drivewire_write(uint8_t aux1, uint8_t aux2);
     void drivewire_status();
     void shutdown() override;
 
@@ -83,6 +82,8 @@ public:
     void reset_printer() { set_printer_type(_ptype); };
     time_t lastPrintTime() { return _last_ms; };
     void print_from_cpm(uint8_t c);
+
+    void write(uint8_t c);
 
     printer_emu *getPrinterPtr() { return _pptr; };
 
