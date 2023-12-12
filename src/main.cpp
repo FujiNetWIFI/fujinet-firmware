@@ -127,6 +127,18 @@ void main_setup()
 
 #ifdef BUILD_COCO
     theFuji.setup(&DRIVEWIRE);
+
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    drivewirePrinter::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == drivewirePrinter::printer_type::PRINTER_INVALID)
+        ptype = drivewirePrinter::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+
+    drivewirePrinter *ptr = new drivewirePrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+    DRIVEWIRE.setPrinter(ptr);
+
     DRIVEWIRE.setup();
 #endif
 
