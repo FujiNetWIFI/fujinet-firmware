@@ -165,9 +165,7 @@ void systemBus::op_write()
 void systemBus::op_fuji()
 {
     Debug_printv("OP FUJI!");
-    while (fnUartBUS.available())
-        Debug_printf("%02x ", fnUartBUS.read());
-    Debug_printf("\n");
+    theFuji.process();
 }
 
 void systemBus::op_unhandled(uint8_t c)
