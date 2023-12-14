@@ -26,8 +26,12 @@ public:
         ch = utf8map[(uint8_t)petscii];
     }
 
+    size_t fromCharArray(char* reader);
+
     std::string toUtf8();
     uint8_t toPetscii();
+    size_t toUnicode32(std::string& input_utf8, uint32_t* output_unicode32);
+    std::string fromUnicode32(uint32_t* input_unicode32, size_t input_length);
 };
 
 #endif /* MEATLOAF_UTILS_U8CHAR */

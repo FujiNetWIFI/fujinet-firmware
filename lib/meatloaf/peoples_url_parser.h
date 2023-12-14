@@ -231,15 +231,15 @@ public:
     }
 
     // void dump() {
-    //     printf("scheme: %s\n", scheme.c_str());
-    //     printf("user pass: %s -- %s\n", user.c_str(), pass.c_str());
-    //     printf("host port: %s -- %s\n", host.c_str(), port.c_str());
-    //     printf("path: %s\n", path.c_str());
-    //     printf("name: %s\n", name.c_str());
-    //     printf("extension: %s\n", extension.c_str());
-    //     printf("root: %s\n", root().c_str());
-    //     printf("base: %s\n", base().c_str());
-    //     printf("pathToFile: %s\n", pathToFile().c_str());
+    //     printf("scheme: %s\r\n", scheme.c_str());
+    //     printf("user pass: %s -- %s\r\n", user.c_str(), pass.c_str());
+    //     printf("host port: %s -- %s\r\n", host.c_str(), port.c_str());
+    //     printf("path: %s\r\n", path.c_str());
+    //     printf("name: %s\r\n", name.c_str());
+    //     printf("extension: %s\r\n", extension.c_str());
+    //     printf("root: %s\r\n", root().c_str());
+    //     printf("base: %s\r\n", base().c_str());
+    //     printf("pathToFile: %s\r\n", pathToFile().c_str());
     // }
 
 };
