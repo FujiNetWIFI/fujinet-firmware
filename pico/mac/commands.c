@@ -504,6 +504,25 @@ void esp_loop()
       break;
     }
   }
+
+  if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
+  {
+    int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
+    // printf("m%dm",m);
+    if (m != 0)
+    {
+      active_disk_number = num_dcd_drives + 'A' - m;
+      printf("%c", active_disk_number);
+      uart_putc_raw(UART_ID, active_disk_number);
+    }
+    else
+    {
+      // if (!latch_val(CSTIN))
+      // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
+      if (disk_mode != FPY)
+        disk_mode = TO_FPY;
+    }
+  }
 }
 
 void floppy_loop()
@@ -654,24 +673,24 @@ void dcd_loop()
     return;
   }
 
-  if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
-  {
-    int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
-    // printf("m%dm",m);
-    if (m != 0)
-    {
-      active_disk_number = num_dcd_drives + 'A' - m;
-      printf("%c", active_disk_number);
-      uart_putc_raw(UART_ID, active_disk_number);
-    }
-    else
-    {
-      // if (!latch_val(CSTIN))
-      // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
-      disk_mode = TO_FPY;
-      return;
-    }
-  }
+  // if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
+  // {
+  //   int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
+  //   // printf("m%dm",m);
+  //   if (m != 0)
+  //   {
+  //     active_disk_number = num_dcd_drives + 'A' - m;
+  //     printf("%c", active_disk_number);
+  //     uart_putc_raw(UART_ID, active_disk_number);
+  //   }
+  //   else
+  //   {
+  //     // if (!latch_val(CSTIN))
+  //     // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
+  //     disk_mode = TO_FPY;
+  //     return;
+  //   }
+  // }
 
   if (!pio_sm_is_rx_fifo_empty(pioblk_read_only, SM_DCD_CMD))
   {
