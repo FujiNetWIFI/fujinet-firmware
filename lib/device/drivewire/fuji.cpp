@@ -1641,6 +1641,9 @@ void drivewireFuji::process()
 
     switch (c)
     {
+    case FUJICMD_GET_SSID:
+        net_get_ssid();
+        break;
     case FUJICMD_READ_HOST_SLOTS:
         read_host_slots();
         break;
