@@ -138,25 +138,25 @@ void drivewireFuji::net_scan_networks()
 // Return scanned network entry
 void drivewireFuji::net_scan_result()
 {
-    // Debug_println("Fuji cmd: GET SCAN RESULT");
+    Debug_println("Fuji cmd: GET SCAN RESULT");
 
-    // // Response to  FUJICMD_GET_SCAN_RESULT
-    // struct
-    // {
-    //     char ssid[MAX_SSID_LEN+1];
-    //     uint8_t rssi;
-    // } detail;
+    // Response to  FUJICMD_GET_SCAN_RESULT
+    struct
+    {
+        char ssid[MAX_SSID_LEN+1];
+        uint8_t rssi;
+    } detail;
 
-    // bool err = false;
-    // if (cmdFrame.aux1 < _countScannedSSIDs)
-    //     fnWiFi.get_scan_result(cmdFrame.aux1, detail.ssid, &detail.rssi);
-    // else
-    // {
-    //     memset(&detail, 0, sizeof(detail));
-    //     err = true;
-    // }
+    bool err = false;
+    if (cmdFrame.aux1 < _countScannedSSIDs)
+        fnWiFi.get_scan_result(cmdFrame.aux1, detail.ssid, &detail.rssi);
+    else
+    {
+        memset(&detail, 0, sizeof(detail));
+        err = true;
+    }
 
-    // bus_to_computer((uint8_t *)&detail, sizeof(detail), err);
+    fnUartBUS.write((uint8_t *)&detail, sizeof(detail));
 }
 
 //  Get SSID
