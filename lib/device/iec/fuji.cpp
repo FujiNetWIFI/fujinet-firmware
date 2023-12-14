@@ -8,7 +8,6 @@
 #include <cstring>
 #include <sstream>
 #include "string_utils.h"
-#include "../../../include/petscii.h"
 
 #include "../../../include/debug.h"
 
@@ -23,6 +22,21 @@
 #include "utils.h"
 
 iecFuji theFuji; // global fuji device object
+
+// Initializes base settings and adds our devices to the SIO bus
+void iecFuji::setup(systemBus *siobus)
+{
+    // TODO IMPLEMENT
+    Debug_printf("iecFuji::setup()\n");
+
+    _populate_slots_from_config();
+
+    IEC.addDevice(new iecDisk(), 8);
+    IEC.addDevice(new iecNetwork(), 12);
+    IEC.addDevice(new iecCpm(), 14);
+    IEC.addDevice(new iecClock(), 29);
+    IEC.addDevice(this, 0x0F);
+}
 
 // iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
@@ -72,7 +86,7 @@ iecFuji::iecFuji()
 }
 
 // Reset FujiNet
-void iecFuji::reset_fujinet()
+void iecFuji::reset_device()
 {
     // TODO IMPLEMENT
     fnSystem.reboot();
@@ -132,7 +146,7 @@ void iecFuji::net_scan_result()
         char t[8];
 
         std::string s = std::string(detail.ssid);
-        mstr::toPETSCII(s);
+        s = mstr::toPETSCII2(s);
         itoa(detail.rssi, t, 10);
 
         response = std::string(t) + ",\"" + s + "\"";
@@ -165,7 +179,7 @@ void iecFuji::net_get_ssid()
     else // BASIC mode.
     {
         response = std::string(cfg.ssid);
-        mstr::toPETSCII(response);
+        response = mstr::toPETSCII2(response);
     }
 }
 
@@ -187,8 +201,6 @@ void iecFuji::net_set_ssid()
     }
     else // easy BASIC form
     {
-        
-
         if (pt.size() == 3)
         {
             if ( mstr::isNumeric( pt[1] ) ) {
@@ -201,12 +213,12 @@ void iecFuji::net_set_ssid()
         }
     }
 
-    Debug_printf("Storing WiFi SSID and Password.\n");
+    Debug_printf("Storing WiFi SSID and Password.\r\n");
     Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
     Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
     Config.save();
 
-    Debug_printf("Connecting to net %s\n", cfg.ssid);
+    Debug_printf("Connecting to net %s\r\n", cfg.ssid);
     fnWiFi.connect(cfg.ssid, cfg.password);
 
     iecStatus.channel = 15;
@@ -215,13 +227,14 @@ void iecFuji::net_set_ssid()
     iecStatus.connected = fnWiFi.connected();
 }
 
+
 // Get WiFi Status
 void iecFuji::net_get_wifi_status()
 {
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     char r[4];
 
-    Debug_printv("payload[0]==%02x\n", payload[0]);
+    Debug_printv("payload[0]==%02x\r\n", payload[0]);
 
     if (payload[0] == FUJICMD_GET_WIFISTATUS)
     {
@@ -237,7 +250,7 @@ void iecFuji::net_get_wifi_status()
         else
             response = "disconnected";
 
-        mstr::toPETSCII(response);
+        response = mstr::toPETSCII2(response);
     }
 }
 
@@ -322,7 +335,7 @@ void iecFuji::mount_host()
     string hns;
     _fnHosts[hs].get_hostname(hn, 64);
     hns = string(hn);
-    mstr::toPETSCII(hns);
+    hns = mstr::toPETSCII2(hns);
     response = hns + " MOUNTED.";
 }
 
@@ -670,7 +683,7 @@ void iecFuji::write_app_key()
     if (count != keylen)
     {
         char e[128];
-        sprintf(e, "error: only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, errno);
+        sprintf(e, "error: only wrote %u bytes of expected %hu, errno=%d\r\n", count, keylen, errno);
         response = std::string(e);
         // Send error
     }
@@ -964,7 +977,7 @@ void iecFuji::read_directory_entry()
         memset(reply, 0, sizeof(reply));
         sprintf(reply, "%s", current_entry);
         std::string s(reply);
-        mstr::toPETSCII(s);
+        s = mstr::toPETSCII2(s);
         response = s;
     }
 }
@@ -1136,7 +1149,7 @@ void iecFuji::read_host_slots()
         else
             response = std::string(hostSlots[selected_hs]);
 
-        mstr::toPETSCII(response);
+        response = mstr::toPETSCII2(response);
     }
 }
 
@@ -1492,20 +1505,6 @@ void iecFuji::insert_boot_device(uint8_t d)
     // TODO IMPLEMENT
 }
 
-// Initializes base settings and adds our devices to the SIO bus
-void iecFuji::setup(systemBus *siobus)
-{
-    // TODO IMPLEMENT
-    Debug_printf("iecFuji::setup()\n");
-
-    _populate_slots_from_config();
-
-    IEC.addDevice(new iecDisk(), 8);
-    IEC.addDevice(new iecNetwork(), 12);
-    IEC.addDevice(new iecCpm(), 14);
-    IEC.addDevice(new iecClock(), 29);
-    IEC.addDevice(this, 0x0F);
-}
 
 iecDisk *iecFuji::bootdisk()
 {
@@ -1518,7 +1517,7 @@ device_state_t iecFuji::process()
 
     if (commanddata.channel != CHANNEL_COMMAND)
     {
-        Debug_printf("Fuji device only accepts on channel 15. Sending NOTFOUND.\n");
+        Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
         device_state = DEVICE_ERROR;
         IEC.senderTimeout();
     }
@@ -1528,7 +1527,7 @@ device_state_t iecFuji::process()
         #ifdef DEBUG
         if (response.size()>0) 
         {  
-            Debug_printf("Sending: ");
+            Debug_printv("Sending: ");
 
             // Hex
             for (int i=0;i<response.size();i++)
@@ -1536,13 +1535,13 @@ device_state_t iecFuji::process()
                 Debug_printf("%02X ",response[i]);
             }
 
-            Debug_printf("  ");
-            // ASCII Text representation
-            for (int i=0;i<response.size();i++)
-            {
-                char c = petscii2ascii(response[i]);
-                Debug_printf("%c", c<0x20 || c>0x7f ? '.' : c);
-            }
+            // Debug_printf("  ");
+            // // ASCII Text representation
+            // for (int i=0;i<response.size();i++)
+            // {
+            //     char c = petscii2ascii(response[i]);
+            //     Debug_printf("%c", c<0x20 || c>0x7f ? '.' : c);
+            // }
         }
         
         Debug_printf("\n");
@@ -1574,17 +1573,15 @@ void iecFuji::local_ip()
 
     iecStatus.channel = 15;
     iecStatus.error = 0;
-    iecStatus.msg = string(msg);
+    iecStatus.msg = std::string(msg);
     iecStatus.connected = 0;
 }
 
+
 void iecFuji::process_basic_commands()
 {
-    // Store raw payload before mapping to ASCII, in case it is needed (e.g. storing unmodified appkey data)
-    payloadRaw = payload;
-
-    mstr::toASCII(payload);
-    pt = tokenize_basic_command(payload);
+    payload = mstr::toUTF8(payload);
+    pt = util_tokenize(payload, ',');
 
     if (payload.find("adapterconfig") != std::string::npos)
         get_adapter_config();
@@ -1593,7 +1590,7 @@ void iecFuji::process_basic_commands()
     else if (payload.find("getssid") != std::string::npos)
         net_get_ssid();
     else if (payload.find("reset") != std::string::npos)
-        reset_fujinet();
+        reset_device();
     else if (payload.find("scanresult") != std::string::npos)
         net_scan_result();
     else if (payload.find("scan") != std::string::npos)
@@ -1644,40 +1641,22 @@ void iecFuji::process_basic_commands()
         mount_all();
     else if (payload.find("localip") != std::string::npos)
         local_ip();
-}
+    else if (payload.find("bptiming") != std::string::npos)
+{
+        if ( pt.size() < 3 ) 
+            return;
 
+        IEC.setBitTiming(pt[1], atoi(pt[2].c_str()), atoi(pt[3].c_str()), atoi(pt[4].c_str()), atoi(pt[5].c_str()));
+        }
+    }
+    
 void iecFuji::process_raw_commands()
 {
-    #ifdef DEBUG
-    if (response.size()>0) 
-    {  
-        int size=payload.size();
-        Debug_printf("Received RAW Command: (%i bytes) ", size);
-        
-        if (size>256)
-            size=256;
-
-        // Hex
-        for (int i=0;i<size;i++)
-        {
-            Debug_printf("%02X ",payload[i]);
-        }
-
-        Debug_printf("  ");
-        // ASCII Text representation
-        for (int i=0;i<size;i++)
-        {
-            char c = petscii2ascii(payload[i]);
-            Debug_printf("%c", c<0x20 || c>0x7f ? '.' : c);
-        }
-        Debug_printf("\n");
-    }
-    #endif
-    
+    Debug_printv("payload[%d]", payload[0]);
     switch (payload[0])
     {
     case FUJICMD_RESET:
-        reset_fujinet();
+        reset_device();
         break;
     case FUJICMD_GET_SSID:
         net_get_ssid();

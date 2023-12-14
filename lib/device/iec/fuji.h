@@ -47,6 +47,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
+
 class iecFuji : public virtualDevice
 {
 private:
@@ -75,7 +76,7 @@ private:
     vector<string> tokenize_basic_command(string command);
 
 protected:
-    void reset_fujinet();          // 0xFF
+    void reset_device();           // 0xFF
     void net_get_ssid();           // 0xFE
     void net_scan_networks();      // 0xFD
     void net_scan_result();        // 0xFC

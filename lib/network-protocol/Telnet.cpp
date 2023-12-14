@@ -136,7 +136,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
     // Return success
     error = 1;
 
-    Debug_printf("NetworkProtocolTelnet::read(%d) - %s\r\n", newRxLen, receiveBuffer->c_str());
+    Debug_printf("NetworkProtocolTELNET::read(%d) - %s\r\n", newRxLen, receiveBuffer->c_str());
 
     return NetworkProtocol::read(newRxLen); // Set by calls into telnet_recv()
 }

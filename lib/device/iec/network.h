@@ -165,6 +165,11 @@ class iecNetwork : public virtualDevice
     void query_json();
 
     /**
+     * @brief parse into bite size strings
+     */
+    void parse_bite();
+
+    /**
      * @brief Set device ID from dos command
      */
     void set_device_id();

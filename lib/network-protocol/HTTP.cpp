@@ -115,7 +115,7 @@ bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
 
 bool NetworkProtocolHTTP::open_file_handle()
 {
-    Debug_printf("NetworkProtocolHTTP::open_file_handle()\r\n");
+    Debug_printv("NetworkProtocolHTTP::open_file_handle() aux1[%d]\r\n", aux1_open);
 
     error = NETWORK_ERROR_SUCCESS;
 
