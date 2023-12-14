@@ -15,7 +15,7 @@
 
 class iecDisk : public virtualDevice
 {
-private:
+protected:
     //MediaType *_disk = nullptr;
 
     std::unique_ptr<MFile> _base;   // Always points to current directory/image
@@ -26,6 +26,9 @@ private:
     bool registerStream (uint8_t channel);
     std::shared_ptr<MStream> retrieveStream ( uint8_t channel );
     bool closeStream ( uint8_t channel, bool close_all = false );
+    uint16_t retrieveLastByte ( uint8_t channel );
+    void storeLastByte( uint8_t channel, char last);
+    void flushLastByte( uint8_t channel );
 
     // Directory
 	uint16_t sendHeader(std::string header, std::string id);
@@ -157,8 +160,9 @@ public:
     //mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
     std::unordered_map<uint16_t, std::shared_ptr<MStream>> streams;
+    std::unordered_map<uint16_t, uint16_t> streamLastByte;
 
     ~iecDisk();
 };
 
-#endif
+#endif // DISK_H
