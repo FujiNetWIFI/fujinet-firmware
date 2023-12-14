@@ -1,3 +1,4 @@
+#ifdef BUILD_IEC
 #ifndef MEATLOAF_WRAPPER_IEC_BUFFER
 #define MEATLOAF_WRAPPER_IEC_BUFFER
 
@@ -87,3 +88,4 @@ public:
 extern oiecstream iecStream;
 
 #endif /* MEATLOAF_WRAPPER_IEC_BUFFER */
+#endif /* BUILD_IEC */
