@@ -1,3 +1,4 @@
+#ifdef BUILD_IEC
 #include "iec_buffer.h"
 
 oiecstream iecStream;
@@ -126,3 +127,4 @@ void oiecstream::putUtf8(U8Char* codePoint) {
 
     //     (*this) << converted;
     // }
+#endif /* BUILD_IEC */
