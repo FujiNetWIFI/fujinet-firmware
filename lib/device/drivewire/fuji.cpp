@@ -1638,7 +1638,7 @@ void drivewireFuji::process()
     switch (c)
     {
     case FUJICMD_GET_SCAN_RESULT:
-        net_scan_result;
+        net_scan_result();
         break;
     case FUJICMD_SCAN_NETWORKS:
         net_scan_networks();
