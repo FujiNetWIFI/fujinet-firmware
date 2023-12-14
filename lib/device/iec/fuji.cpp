@@ -31,11 +31,12 @@ void iecFuji::setup(systemBus *siobus)
 
     _populate_slots_from_config();
 
-    IEC.addDevice(new iecDisk(), 8);
-    IEC.addDevice(new iecNetwork(), 12);
-    IEC.addDevice(new iecCpm(), 14);
+                                            // 04-07 Printers / Plotters
+    IEC.addDevice(new iecDisk(), 8);        // 08-16 Drives
+    IEC.addDevice(new iecNetwork(), 16);    // 16-19 Network Devices
+    IEC.addDevice(new iecCpm(), 20);        // 20-29 Other
     IEC.addDevice(new iecClock(), 29);
-    IEC.addDevice(this, 0x0F);
+    IEC.addDevice(this, 30);                // 30    FujiNet
 }
 
 // iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
