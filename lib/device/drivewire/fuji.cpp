@@ -124,15 +124,15 @@ void drivewireFuji::reset_fujinet()
 // Scan for networks
 void drivewireFuji::net_scan_networks()
 {
-    // Debug_println("Fuji cmd: SCAN NETWORKS");
+    Debug_println("Fuji cmd: SCAN NETWORKS");
 
-    // char ret[4] = {0};
+    char ret[4] = {0};
 
-    // _countScannedSSIDs = fnWiFi.scan_networks();
+    _countScannedSSIDs = fnWiFi.scan_networks();
 
-    // ret[0] = _countScannedSSIDs;
+    ret[0] = _countScannedSSIDs;
 
-    // bus_to_computer((uint8_t *)ret, 4, false);
+    fnUartBUS.write((uint8_t *)ret, 4);
 }
 
 // Return scanned network entry
@@ -1637,6 +1637,9 @@ void drivewireFuji::process()
 
     switch (c)
     {
+    case FUJICMD_SCAN_NETWORKS:
+        net_scan_networks();
+        break;
     case FUJICMD_SET_SSID:
         net_set_ssid();
         break;
