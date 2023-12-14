@@ -47,9 +47,9 @@ protected:
     }
 
     bool seekEntry( std::string filename ) override;
-    bool seekEntry( size_t index ) override;
+    bool seekEntry( uint16_t index ) override;
 
-    size_t readFile(uint8_t* buf, size_t size) override;
+    uint16_t readFile(uint8_t* buf, uint16_t size) override;
     bool seekPath(std::string path) override;
 
     Header header;
@@ -71,7 +71,7 @@ public:
         isDir = is_dir;
 
         media_image = name;
-        mstr::toASCII(media_image);
+        //mstr::toUTF8(media_image);
     };
     
     ~T64File() {
@@ -79,12 +79,6 @@ public:
     }
 
     MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
-
-    std::string petsciiName() override {
-        // It's already in PETSCII
-        mstr::replaceAll(name, "\\", "/");
-        return name;
-    }
 
     bool isDirectory() override;
     bool rewindDirectory() override;

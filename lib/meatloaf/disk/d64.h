@@ -1,4 +1,5 @@
-// .D64 - The D64 disk image format
+// .D64, .D41 - 1541 disk image format
+//
 // https://vice-emu.sourceforge.io/vice_17.html#SEC345
 // https://ist.uwaterloo.ca/~schepers/formats/D64.TXT
 // https://ist.uwaterloo.ca/~schepers/formats/GEOS.TXT
@@ -6,6 +7,7 @@
 //  - disucssion of disk id in sector missing from d64 file format is interesting
 // https://www.c64-wiki.com/wiki/Disk_Image
 // http://unusedino.de/ec64/technical3.html
+// http://www.baltissen.org/newhtm/diskimag.htm
 //
 
 #ifndef MEATLOAF_MEDIA_D64
@@ -153,38 +155,38 @@ public:
 
         // // DOLPHIN DOS
         // partitions[0].block_allocation_map.push_back( 
-        //         {
-        //             18,     // track
-        //             0,      // sector
-        //             0xAC,   // offset
-        //             36,      // start_track
-        //             40,     // end_track
-        //             4       // byte_count
-        //         } 
+        //     {
+        //         18,     // track
+        //         0,      // sector
+        //         0xAC,   // offset
+        //         36,     // start_track
+        //         40,     // end_track
+        //         4       // byte_count
+        //     } 
         // );
 
         // // SPEED DOS
         // partitions[0].block_allocation_map.push_back( 
-        //         {
-        //             18,     // track
-        //             0,      // sector
-        //             0xC0,   // offset
-        //             36,     // start_track
-        //             40,     // end_track
-        //             4       // byte_count
-        //         } 
+        //     {
+        //         18,     // track
+        //         0,      // sector
+        //         0xC0,   // offset
+        //         36,     // start_track
+        //         40,     // end_track
+        //         4       // byte_count
+        //     } 
         // );
 
         // // PrologicDOS
         // partitions[0].block_allocation_map.push_back( 
-        //         {
-        //             18,     // track
-        //             0,      // sector
+        //     {
+        //         18,     // track
+        //         0,      // sector
         //         0x90,   // offset
-        //             36,     // start_track
-        //             40,     // end_track
-        //             4       // byte_count
-        //         } 
+        //         36,     // start_track
+        //         40,     // end_track
+        //         4       // byte_count
+        //     } 
         // );
         // partitions[0].header_offset = 0xA4;
 
@@ -218,7 +220,7 @@ public:
     }
 
     virtual bool seekPath(std::string path) override;
-    size_t readFile(uint8_t* buf, size_t size) override;
+    uint16_t readFile(uint8_t* buf, uint16_t size) override;
 
     Header header;      // Directory header data
     Entry entry;        // Directory entry data
@@ -238,7 +240,7 @@ private:
     void sendListing();
 
     bool seekEntry( std::string filename );
-    bool seekEntry( uint32_t index = 0 );
+    bool seekEntry( uint16_t index = 0 );
 
 
     std::string readBlock( uint8_t track, uint8_t sector );
@@ -268,7 +270,7 @@ public:
         isDir = is_dir;
 
         media_image = name;
-        mstr::toASCII(media_image);
+        isPETSCII = true;
     };
     
     ~D64File() {
@@ -276,12 +278,6 @@ public:
     }
 
     MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
-
-    std::string petsciiName() override {
-        // It's already in PETSCII
-        mstr::replaceAll(name, "\\", "/");
-        return name;
-    }
 
     bool isDirectory() override;
     bool rewindDirectory() override;
@@ -315,7 +311,13 @@ public:
 
     bool handles(std::string fileName) {
         //Serial.printf("handles w dnp %s %d\r\n", fileName.rfind(".dnp"), fileName.length()-4);
-        return byExtension(".d64", fileName);
+        return byExtension(
+            {
+                ".d64",
+                ".d41"
+            }, 
+            fileName
+        );
     }
 
     D64FileSystem(): MFileSystem("d64") {};

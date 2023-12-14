@@ -44,7 +44,7 @@ public:
             return true;
 
         int rc = m_wifi.open("commodoreserver.com", 1541);
-        Debug_printf("csstreambuf: connect to cserver returned: %d\r\n", rc);
+        Serial.printf("csstreambuf: connect to cserver returned: %d\r\n", rc);
 
         if(rc == 1) {
             if(gbuf == nullptr)
@@ -59,7 +59,7 @@ public:
     }
 
     void close() {
-        Debug_printf("csstreambuf: closing\r\n");
+        Serial.printf("csstreambuf: closing\r\n");
         if(m_wifi.isOpen()) {
             m_wifi.close();
         }
@@ -220,10 +220,6 @@ public:
 
     MStream* createIStream(std::shared_ptr<MStream> src) { return src.get(); };
     MStream* meatStream() override ; // has to return OPENED stream
-
-    std::string petsciiName() override {
-        return name;
-    }
 
     //MFile* cd(std::string newDir);
     bool isDirectory() override;

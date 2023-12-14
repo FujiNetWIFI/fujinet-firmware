@@ -13,8 +13,7 @@
 
 bool TNFSFile::pathValid(std::string path) 
 {
-    std::string s = std::string(basepath + path);
-    auto apath = s.c_str();
+    auto apath = std::string(basepath + path).c_str();
     while (*apath) {
         const char *slash = strchr(apath, '/');
         if (!slash) {
@@ -314,7 +313,8 @@ bool TNFSIStream::open() {
         // Set file size
         fseek(handle->file_h, 0, SEEK_END);
         //Debug_printv("IStream: past fseek 1");
-        _size = ftell(handle->file_h);
+        m_length = ftell(handle->file_h);
+        m_bytesAvailable = m_length;
         //Debug_printv("IStream: past ftell");
         fseek(handle->file_h, 0, SEEK_SET);
         //Debug_printv("IStream: past fseek 2");
@@ -341,26 +341,6 @@ uint32_t TNFSIStream::read(uint8_t* buf, uint32_t size) {
     }
 
     return bytesRead;
-};
-
-
-uint32_t TNFSIStream::size() {
-    return _size;
-};
-
-uint32_t TNFSIStream::available() {
-    if(!isOpen()) return 0;
-    return _size - position();
-};
-
-
-uint32_t TNFSIStream::position() {
-    if(!isOpen()) return 0;
-    return ftell(handle->file_h);
-};
-
-size_t TNFSIStream::error() {
-    return 0;
 };
 
 bool TNFSIStream::seek(uint32_t pos) {
@@ -416,10 +396,9 @@ void TNFSHandle::obtain(std::string m_path, std::string mode) {
         // it will be caught by the real file open later on
 
         char *pathStr = new char[m_path.length()];
+        strncpy(pathStr, m_path.data(), m_path.length());
 
         if (pathStr) {
-            strncpy(pathStr, m_path.data(), m_path.length());
-
             // Make dirs up to the final fnamepart
             char *ptr = strchr(pathStr, '/');
             while (ptr) {

@@ -4,8 +4,8 @@
  * Streams
  ********************************************************/
 
-size_t P00IStream::readFile(uint8_t* buf, size_t size) {
-    size_t bytesRead = 0;
+uint16_t P00IStream::readFile(uint8_t* buf, uint16_t size) {
+    uint16_t bytesRead = 0;
 
     bytesRead += containerStream->read(buf, size);
     m_bytesAvailable -= bytesRead;

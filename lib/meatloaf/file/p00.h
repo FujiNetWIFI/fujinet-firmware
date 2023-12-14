@@ -57,7 +57,7 @@ protected:
         return "";
     };
 
-    size_t readFile(uint8_t* buf, size_t size) override;
+    uint16_t readFile(uint8_t* buf, uint16_t size) override;
 
     Header header;
 
@@ -82,12 +82,6 @@ public:
     }
 
     MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
-
-    std::string petsciiName() override {
-        // It's already in PETSCII
-        mstr::replaceAll(name, "\\", "/");
-        return name;
-    }
 
     bool isDirectory() override { return false; };;
     bool rewindDirectory() override { return false; };;

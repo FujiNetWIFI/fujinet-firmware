@@ -6,15 +6,22 @@
 
 #include "meat_io.h"
 
-using namespace std;
-
 namespace Meat
 {
     /********************************************************
      * C++ Input MFile buffer
      ********************************************************/
 
-    template <class charT, class traits = std::char_traits<charT>>
+    struct my_char_traits : public std::char_traits<char> 
+    {
+        typedef std::char_traits<char>::int_type int_type;
+        static constexpr int_type nda() noexcept 
+        {
+            return static_cast<int>(_MEAT_NO_DATA_AVAIL);
+        }
+    };
+
+    template <class charT, class traits = my_char_traits>
     class mfilebuf : public std::basic_filebuf<charT, traits>
     {
         std::unique_ptr<MStream> mstream;
@@ -37,8 +44,8 @@ namespace Meat
 
         mfilebuf()
         {
-            ibuffer = new char[ibufsize];
-            obuffer = new char[obufsize];
+            ibuffer = new char[ibufsize+1];
+            obuffer = new char[obufsize+1];
         };
 
         ~mfilebuf()
@@ -52,10 +59,16 @@ namespace Meat
             close();
         }
 
-        std::filebuf *doOpen()
+        std::filebuf *doOpen(std::ios_base::openmode mode)
         {
             // Debug_println("In filebuf open pre reset mistream");
-            mstream.reset(mfile->meatStream());
+            if (mode == std::ios_base::in)
+                mstream.reset(mfile->meatStream());
+            else
+            {
+                // TODO - ok we have to obtain the out stream here SOMEHOW
+            }
+
             // Debug_println("In filebuf open post reset mistream");
             if (mstream->isOpen())
             {
@@ -67,25 +80,25 @@ namespace Meat
                 return nullptr;
         }
 
-        std::filebuf *open(const char* filename)
+        std::filebuf *open(const char *filename, std::ios_base::openmode mode)
         {
             // Debug_println("In filebuf open");
             mfile.reset(MFSOwner::File(filename));
-            return doOpen();
+            return doOpen(mode);
         };
 
-        std::filebuf *open(const std::string filename)
+        std::filebuf *open(const std::string filename, std::ios_base::openmode mode)
         {
             // Debug_println("In filebuf open");
             mfile.reset(MFSOwner::File(filename));
-            return doOpen();
+            return doOpen(mode);
         };
 
         virtual bool close()
         {
             if (is_open())
             {
-                // Debug_printv("closing in filebuf\r\n");
+                // Debug_printv("closing in filebuf\n");
                 sync();
                 mstream->close();
                 return true;
@@ -95,6 +108,8 @@ namespace Meat
 
         bool is_open() const
         {
+            Debug_printv("is_open");
+
             if (mstream == nullptr)
                 return false;
             else
@@ -123,31 +138,31 @@ namespace Meat
 
         // https://newbedev.com/how-to-write-custom-input-stream-in-c
 
-        
-        static int nda()
-        { return static_cast<int_type>(_MEAT_NO_DATA_AVAIL); }
-
         // let's get a byte relative to current egptr
         int operator[](int index)
         {
             // 1. let's check if our index is within current buffer POINTERS
             // gptr = current character (get pointer)
             // egptr = one past end of get area
-            if(this->gptr() == this->egptr())
+            if (this->gptr() == this->egptr())
                 underflow();
 
-            if(this->gptr() < this->egptr()) {
+            if (this->gptr() < this->egptr())
+            {
                 Debug_printf("%d char is within gptr-egptr range", index); // or - send the char across IEC to our C64
                 return std::char_traits<char>::to_int_type(this->gptr()[index]);
             }
-            else {
+            else
+            {
                 Debug_printf("Index out of current buffer %d", this->gptr() - this->egptr());
-                return _MEAT_NO_DATA_AVAIL;
+
+                return my_char_traits::nda();
             }
         }
 
         int underflow() override
         {
+
             if (!is_open())
             {
                 return std::char_traits<char>::eof();
@@ -158,32 +173,33 @@ namespace Meat
                 // no more characters are available, size == 0.
                 // auto buffer = reader->read();
 
-                //Debug_printv("--mfilebuf underflow, calling read!");
-
                 int readCount = mstream->read((uint8_t *)ibuffer, ibufsize);
 
-                if(readCount == _MEAT_NO_DATA_AVAIL) {
-                    //Debug_printv("--mfilebuf underflow no data available, will teturn=%d!", nda());
+                Debug_printv("meat buffer underflow, readCount=%d", readCount);
+
+                // beg, curr, end <=> eback, gptr, egptr
+                if (readCount == _MEAT_NO_DATA_AVAIL)
+                {
                     // if gptr >= egptr - sgetc will call underflow again:
                     //                   gptr     egptr
-                    this->setg(ibuffer, ibuffer, ibuffer); // beg, curr, end <=> eback, gptr, egptr
-                    ibuffer[0]=_MEAT_NO_DATA_AVAIL; // this will be picked up by commodore server test!
-                    return _MEAT_NO_DATA_AVAIL;
-                    //return nda();
-                    //return std::char_traits<char>::to_int_type('x'); // this is not read
-                    //return std::char_traits<char>::eof();
+                    Debug_printv("meat underflow received _MEAT_NO_DATA_AVAIL!");
+                    //this->setg(ibuffer, ibuffer, ibuffer); 
+
+                    return my_char_traits::nda();
                 }
-                else if(readCount < 0) {
-                    Debug_printv("--mfilebuf different read error, RC=%d!", readCount);
-                    this->setg(ibuffer, ibuffer, ibuffer);
+                else if (readCount <= 0)
+                {
+                    Debug_printv("--mfilebuf read error or EOF, RC=%d!", readCount);
+                    //this->setg(ibuffer, ibuffer, ibuffer);
                     return std::char_traits<char>::eof();
                 }
-                else {
+                else
+                {
                     currBuffEnd = mstream->position();
-                    currBuffStart = currBuffEnd-readCount; // this is where our buffer data starts
+                    currBuffStart = currBuffEnd - readCount; // this is where our buffer data starts
 
-                    //Debug_printv("--mfilebuf underflow, read bytes=%d--", readCount);
-
+                    // Debug_printv("--mfilebuf underflow, read bytes=%d--", readCount);
+                    // beg, curr, end <=> eback, gptr, egptr
                     this->setg(ibuffer, ibuffer, ibuffer + readCount);
                 }
             }
@@ -239,9 +255,10 @@ namespace Meat
             if (ch != EOF)
             {
                 *end++ = ch;
+                this->pbump(1);
             }
 
-            Debug_printv("%d bytes in buffer will be written", end-this->pbase());
+            Debug_printv("%d bytes in buffer will be written", end - this->pbase());
 
             uint8_t *pBase = (uint8_t *)this->pbase();
 
@@ -258,7 +275,7 @@ namespace Meat
             return ch;
         };
 
-        std::streampos seekposforce(std::streampos __pos, std::ios_base::openmode __mode = std::ios_base::in | std::ios_base::out)
+        std::streampos seekposforce(std::streampos __pos, std::ios_base::openmode __mode = std::ios_base::in)
         {
             std::streampos __ret = std::streampos(off_type(-1));
 
@@ -272,7 +289,7 @@ namespace Meat
             return __ret;
         }
 
-        std::streampos seekpos(std::streampos __pos, std::ios_base::openmode __mode = std::ios_base::in | std::ios_base::out) override
+        std::streampos seekpos(std::streampos __pos, std::ios_base::openmode __mode = std::ios_base::in) override
         {
             std::streampos __ret = std::streampos(off_type(-1));
 
@@ -370,9 +387,6 @@ namespace Meat
         };
     };
 
-
-
-
     // [27.8.1.11] Template class basic_fstream
     /**
      *  @brief  Controlling input and output for files.
@@ -426,21 +440,20 @@ namespace Meat
          *  @param  __mode  Open file in specified mode (see std::ios_base).
          */
         explicit basic_fstream(const char *__s,
-                               std::ios_base::openmode __mode = std::ios_base::in | std::ios_base::out)
+                               std::ios_base::openmode __mode = std::ios_base::in)
             : __iostream_type(0), _M_filebuf()
         {
             this->init(&_M_filebuf);
             this->open(__s, __mode);
         }
 
-        explicit basic_fstream(MFile* fi,
-                               std::ios_base::openmode __mode = std::ios_base::in | std::ios_base::out)
+        explicit basic_fstream(MFile *fi,
+                               std::ios_base::openmode __mode = std::ios_base::in)
             : __iostream_type(0), _M_filebuf()
         {
             this->init(&_M_filebuf);
             this->open(fi->url.c_str(), __mode);
         }
-
 
 #if __cplusplus >= 201103L
         /**
@@ -448,13 +461,13 @@ namespace Meat
          *  @param  __s  Null terminated string specifying the filename.
          *  @param  __mode  Open file in specified mode (see std::ios_base).
          */
-        explicit basic_fstream(const std::string &__s, std::ios_base::openmode __mode = std::ios_base::in | std::ios_base::out) : __iostream_type(0), _M_filebuf()
+        explicit basic_fstream(const std::string &__s, std::ios_base::openmode __mode = std::ios_base::in) : __iostream_type(0), _M_filebuf()
         {
             this->init(&_M_filebuf);
             this->open(__s, __mode);
         }
 
-#if __cplusplus >= 201703L
+#if __cplusplus >= 201703L && __cplusplus < 202002L
         /**
          *  @param  Create an input/output file stream.
          *  @param  __s  filesystem::path specifying the filename.
@@ -464,7 +477,8 @@ namespace Meat
         basic_fstream(const _Path &__s,
                       ios_base::openmode __mode = ios_base::in | ios_base::out)
             : basic_fstream(__s.c_str(), __mode)
-        { }
+        {
+        }
 #endif // C++17
 
         basic_fstream(const basic_fstream &) = delete;
@@ -524,6 +538,7 @@ namespace Meat
          */
         bool is_open()
         {
+            Debug_printv("is_open");
             return _M_filebuf.is_open();
         }
 
@@ -531,6 +546,7 @@ namespace Meat
         // 365. Lack of const-qualification in clause 27
         bool is_open() const
         {
+            Debug_printv("is_open const");
             return _M_filebuf.is_open();
         }
 
@@ -542,9 +558,9 @@ namespace Meat
          *  Calls @c std::basic_filebuf::open(__s,__mode).  If that
          *  function fails, @c failbit is set in the stream's error state.
          */
-        void open(const char *__s, std::ios_base::openmode __mode = std::ios_base::in | std::ios_base::out)
+        void open(const char *__s, std::ios_base::openmode __mode = std::ios_base::in)
         {
-            if (!_M_filebuf.open(__s/*, __mode*/))
+            if (!_M_filebuf.open(__s, __mode))
                 this->setstate(std::ios_base::failbit);
             else
                 // _GLIBCXX_RESOLVE_LIB_DEFECTS
@@ -561,9 +577,9 @@ namespace Meat
          *  Calls @c std::basic_filebuf::open(__s,__mode).  If that
          *  function fails, @c failbit is set in the stream's error state.
          */
-        void open(const std::string &__s, std::ios_base::openmode __mode = std::ios_base::in | std::ios_base::out)
+        void open(const std::string &__s, std::ios_base::openmode __mode = std::ios_base::in)
         {
-            if (!_M_filebuf.open(__s/*, __mode*/))
+            if (!_M_filebuf.open(__s, __mode))
                 this->setstate(std::ios_base::failbit);
             else
                 // _GLIBCXX_RESOLVE_LIB_DEFECTS
@@ -571,7 +587,7 @@ namespace Meat
                 this->clear();
         }
 
-#if __cplusplus >= 201703L
+#if __cplusplus >= 201703L && __cplusplus < 202002L
         /**
          *  @brief  Opens an external file.
          *  @param  __s  The name of the file, as a filesystem::path.
@@ -618,6 +634,39 @@ namespace Meat
             U8Char wide = U8Char(c);
             (*this) << wide.toUtf8();
         }
+
+        bool nda() const {
+            return (this->rdstate() & ndabit) != 0;
+        }
+
+        basic_fstream<_CharT, _Traits> &checkNda()
+        {
+            // first naive implementation...
+
+            /*
+            istream->good(); // rdstate == 0
+            istream->bad(); // rdstate() & badbit) != 0
+            istream->eof(); // rdstate() & eofbit) != 0
+            istream->fail(); // >rdstate() & (badbit | failbit)) != 0
+            istream->rdstate();
+            istream->setstate();
+            _S_goodbit 		= 0,
+            _S_badbit 		= 1L << 0,
+            _S_eofbit 		= 1L << 1,
+            _S_failbit		= 1L << 2,
+            _S_ios_iostate_end = 1L << 16,
+            _S_ios_iostate_max = __INT_MAX__,
+            _S_ios_iostate_min = ~__INT_MAX__
+            */
+
+            const int_type __cb = this->rdbuf()->sgetc(); // check next char, don't advance
+            if(traits_type::eq_int_type(__cb, my_char_traits::nda())) {
+                // it's NDA - ok, so let's set a proper mark on this stream
+                this->rdbuf()->sbumpc(); // skip nda and... 
+                this->setstate((std::ios_base::iostate)ndabit); // set state to nda
+            } 
+            return *this;
+        }
     };
 
     typedef basic_fstream<char> iostream;
@@ -628,8 +677,8 @@ namespace Meat
     //     return is;
     // }
 
-    //https://stdcxx.apache.org/doc/stdlibug/39-3.html
-    //https://cplusplus.com/reference/istream/iostream/
+    // https://stdcxx.apache.org/doc/stdlibug/39-3.html
+    // https://cplusplus.com/reference/istream/iostream/
 }
 
 #endif /* MEATLOAF_BUFFER */

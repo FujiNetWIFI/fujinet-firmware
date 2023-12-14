@@ -15,7 +15,10 @@
 #include "string_utils.h"
 #include "U8Char.h"
 
-#define _MEAT_NO_DATA_AVAIL -69
+#define _MEAT_NO_DATA_AVAIL (std::ios_base::eofbit)
+
+static const std::ios_base::iostate ndabit = _MEAT_NO_DATA_AVAIL;
+
 
 /********************************************************
  * Universal file
@@ -39,11 +42,7 @@ public:
         }
     };
 
-    MFile* parent(std::string = "");
-    MFile* localParent(std::string);
-    MFile* root(std::string);
-    MFile* localRoot(std::string);
-
+    bool isPETSCII = false;
     std::string media_header;
     std::string media_id;
     std::string media_archive;
@@ -55,16 +54,14 @@ public:
 
     // bool copyTo(MFile* dst);
 
-    virtual std::string petsciiName() {
-        std::string pname = name;
-        mstr::toPETSCII(pname);
-        return pname;
-    }
-
     // has to return OPENED stream
     virtual MStream* meatStream();
 
-    virtual MFile* cd(std::string newDir);
+    MFile* cd(std::string newDir);
+    MFile* cdParent(std::string = "");
+    MFile* cdLocalParent(std::string);
+    MFile* cdRoot(std::string);
+    MFile* cdLocalRoot(std::string);
     virtual bool isDirectory() = 0;
     virtual bool rewindDirectory() = 0 ;
     virtual MFile* getNextFileInDir() = 0 ;
@@ -77,6 +74,13 @@ public:
     virtual time_t getCreationTime() = 0 ;
     virtual uint32_t size() = 0;
     virtual uint64_t getAvailableSpace();
+    virtual uint32_t blocks() {
+        auto s = size();
+        if ( s > 0 && s < media_block_size )
+            return 1;
+        else
+            return ( s / media_block_size );
+    }
 
     virtual bool isText() {
         return mstr::isText(extension);
@@ -111,6 +115,16 @@ public:
 
     static bool byExtension(const char* ext, std::string fileName) {
         return mstr::endsWith(fileName, ext, false);
+    }
+
+    static bool byExtension(std::vector<std::string> ext, std::string fileName) {
+        for ( auto & e : ext )
+        {
+            if ( mstr::endsWith(fileName, e.c_str(), false) )
+                return true;
+        }
+
+        return false;
     }
 
 protected:

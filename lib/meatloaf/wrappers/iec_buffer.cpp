@@ -24,7 +24,7 @@ size_t oiecstream::easyWrite() {
     //  pptr =  Returns the pointer to the current character (put pointer) in the put area.
     //  pbase = Returns the pointer to the beginning ("base") of the put area.
     //  epptr = Returns the pointer one past the end of the put area.
-    Debug_printv("buff->IEC:");
+    Serial.printf("buff->IEC:");
     for(auto b = pbase(); b < pptr()-1; b++) {
         //Serial.printf("%c",*b);
         //Serial.printf("%c[%.2X]",*b, *b);
