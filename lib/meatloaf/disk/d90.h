@@ -1,4 +1,5 @@
 // .D90 - The D90 image is bit-for-bit copy of the hard drives in the D9090 and D9060
+//
 // https://vice-emu.sourceforge.io/vice_17.html#SEC388
 // http://www.baltissen.org/newhtm/diskimag.htm
 //
@@ -140,10 +141,10 @@ public:
     }
 
     bool handles(std::string fileName) {
-        return byExtension(".D90", fileName);
+        return byExtension(".d90", fileName);
     }
 
-    D90FileSystem(): MFileSystem("D90") {};
+    D90FileSystem(): MFileSystem("d90") {};
 };
 
 

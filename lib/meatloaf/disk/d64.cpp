@@ -105,7 +105,8 @@ bool D64IStream::deallocateBlock( uint8_t track, uint8_t sector)
 bool D64IStream::seekEntry( std::string filename )
 {
     uint32_t index = 1;
-    mstr::rtrimA0(filename);
+    //mstr::rtrimA0(filename);
+    //filename = mstr::toPETSCII2(filename);
     mstr::replaceAll(filename, "\\", "/");
 
     // Read Directory Entries
@@ -114,24 +115,23 @@ bool D64IStream::seekEntry( std::string filename )
         while ( seekEntry( index ) )
         {
             std::string entryFilename = entry.filename;
-            mstr::rtrimA0(entryFilename);
-            mstr::replaceAll(filename, "\\", "/");
-            mstr::toASCII(entryFilename);
+            entryFilename = mstr::toUTF8(entryFilename);
+
             Debug_printv("index[%d] track[%d] sector[%d] filename[%s] entry.filename[%.16s]", index, track, sector, filename.c_str(), entryFilename.c_str());
 
             //Debug_printv("filename[%s] entry[%s]", filename.c_str(), entryFilename.c_str());
 
             // Read Entry From Stream
-            if (entry.file_type & 0b00000111 && filename == "*")
+            if (entry.file_type & 0b00000111 && filename == "*") // Match first PRG
             {
                 filename = entryFilename;
                 return true;
             }
-            else if ( filename == entryFilename )
+            else if ( filename == entryFilename ) // Match exact
             {
                 return true;
             }
-            else if ( mstr::compare(filename, entryFilename) )
+            else if ( mstr::compare(filename, entryFilename) ) // X?XX?X* Wildcard match
             {
                 // Move stream pointer to start track/sector
                 return true;
@@ -139,6 +139,8 @@ bool D64IStream::seekEntry( std::string filename )
 
             index++;
         }
+
+        Debug_printv("File not found!");
     }
 
     entry.next_track = 0;
@@ -149,15 +151,15 @@ bool D64IStream::seekEntry( std::string filename )
     return false;
 }
 
-bool D64IStream::seekEntry( uint32_t index )
+bool D64IStream::seekEntry( uint16_t index )
 {
     bool r = false;
 
     // Calculate Sector offset & Entry offset
     // 8 Entries Per Sector, 32 bytes Per Entry
     index--;
-    uint8_t sectorOffset = index / 8;
-    uint8_t entryOffset = (index % 8) * 32;
+    uint16_t sectorOffset = index / 8;
+    uint16_t entryOffset = (index % 8) * 32;
 
     // Debug_printv("----------");
     // Debug_printv("index[%d] sectorOffset[%d] entryOffset[%d] entry_index[%d]", index, sectorOffset, entryOffset, entry_index);
@@ -181,6 +183,10 @@ bool D64IStream::seekEntry( uint32_t index )
                 // Debug_printv("next_track[%d] next_sector[%d]", entry.next_track, entry.next_sector);
                 r = seekSector( entry.next_track, entry.next_sector );
             }
+
+            // Seek failed
+            if ( !r )
+                return false;
 
             containerStream->read((uint8_t *)&entry, sizeof(entry));
             next_track = entry.next_track;
@@ -262,8 +268,7 @@ uint16_t D64IStream::blocksFree()
     return free_count;
 }
 
-size_t D64IStream::readFile(uint8_t* buf, size_t size) {
-    size_t bytesRead = 0;
+uint16_t D64IStream::readFile(uint8_t* buf, uint16_t size) {
 
     if ( sector_offset % block_size == 0 )
     {
@@ -275,16 +280,22 @@ size_t D64IStream::readFile(uint8_t* buf, size_t size) {
         //Debug_printv("next_track[%d] next_sector[%d] sector_offset[%d]", next_track, next_sector, sector_offset);
     }
 
-    bytesRead += containerStream->read(buf, size);
-    sector_offset += bytesRead;
-    m_bytesAvailable -= bytesRead;
-
-    if ( sector_offset % block_size == 0 )
+    uint16_t bytesRead = 0;
+    if ( size > m_bytesAvailable )
+        size = m_bytesAvailable;
+    
+    if ( size > 0 )
     {
-        // We are at the end of the block
-        // Follow track/sector link to move to next block
-        seekSector( next_track, next_sector );
-        //Debug_printv("track[%d] sector[%d] sector_offset[%d]", track, sector, sector_offset);
+        bytesRead += containerStream->read(buf, size);
+        sector_offset += bytesRead;
+
+        if ( sector_offset % block_size == 0 )
+        {
+            // We are at the end of the block
+            // Follow track/sector link to move to next block
+            seekSector( next_track, next_sector );
+            //Debug_printv("track[%d] sector[%d] sector_offset[%d]", track, sector, sector_offset);
+        }
     }
 
     // if ( !bytesRead )
@@ -382,7 +393,7 @@ bool D64File::rewindDirectory() {
     media_blocks_free = image->blocksFree();
     media_block_size = image->block_size;
     media_image = name;
-    mstr::toASCII(media_image);
+    //mstr::toUTF8(media_image);
 
     return true;
 }
@@ -404,7 +415,7 @@ MFile* D64File::getNextFileInDir() {
     if ( r )
     {
         std::string fileName = image->entry.filename;
-        mstr::rtrimA0(fileName);
+        //mstr::rtrimA0(fileName);
         mstr::replaceAll(fileName, "/", "\\");
         //Debug_printv( "entry[%s]", (streamFile->url + "/" + fileName).c_str() );
         auto file = MFSOwner::File(streamFile->url + "/" + fileName);
@@ -424,15 +435,15 @@ time_t D64File::getLastWrite() {
 }
 
 time_t D64File::getCreationTime() {
-    tm entry_time;
+    tm *entry_time = 0;
     auto entry = ImageBroker::obtain<D64IStream>(streamFile->url)->entry;
-    entry_time.tm_year = entry.year + 1900;
-    entry_time.tm_mon = entry.month;
-    entry_time.tm_mday = entry.day;
-    entry_time.tm_hour = entry.hour;
-    entry_time.tm_min = entry.minute;
+    entry_time->tm_year = entry.year + 1900;
+    entry_time->tm_mon = entry.month;
+    entry_time->tm_mday = entry.day;
+    entry_time->tm_hour = entry.hour;
+    entry_time->tm_min = entry.minute;
 
-    return mktime(&entry_time);
+    return mktime(entry_time);
 }
 
 bool D64File::exists() {

@@ -47,7 +47,7 @@ public:
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
             seekEntry( name );
 
-        if (!pathValid(path))
+        if (!pathValid(path.c_str()))
             m_isNull = true;
         else
             m_isNull = false;
@@ -161,9 +161,6 @@ protected:
     std::string localPath;
 
     std::unique_ptr<FlashHandle> handle;
-
-private:
-    size_t _size = 0;
 };
 
 

@@ -131,6 +131,11 @@ bool HttpIStream::open() {
     else if(secondaryAddress == 2)
         r = m_http.POST(url);
 
+    if ( r ) {
+        m_length = m_http.m_length;
+        m_bytesAvailable = m_length;
+    }
+
     return r;
 }
 
@@ -150,7 +155,18 @@ bool HttpIStream::seek(uint32_t pos) {
 }
 
 uint32_t HttpIStream::read(uint8_t* buf, uint32_t size) {
-    return m_http.read(buf, size);
+    uint32_t bytesRead = 0;
+    if ( size > m_bytesAvailable )
+        size = m_bytesAvailable;
+    
+    if ( size > 0 )
+    {
+        bytesRead = m_http.read(buf, size);
+        m_position += bytesRead;
+        m_bytesAvailable = m_length - m_position;
+    }
+
+    return bytesRead;
 };
 
 uint32_t HttpIStream::write(const uint8_t *buf, uint32_t size) {
@@ -279,7 +295,7 @@ bool MeatHttpClient::seek(uint32_t pos) {
             Debug_printv("Seek successful");
 
             m_position = pos;
-            m_bytesAvailable = m_length-pos;
+            m_bytesAvailable = m_length - m_position;
             return true;
         }
     }
@@ -313,8 +329,8 @@ bool MeatHttpClient::seek(uint32_t pos) {
             }
         }
 
-        m_bytesAvailable = m_length-pos;
         m_position = pos;
+        m_bytesAvailable = m_length - m_position;
         Debug_printv("stream opened[%s]", url.c_str());
 
         return true;
@@ -328,8 +344,8 @@ uint32_t MeatHttpClient::read(uint8_t* buf, uint32_t size) {
         auto bytesRead= esp_http_client_read(m_http, (char *)buf, size );
         
         if(bytesRead>0) {
-            m_bytesAvailable -= bytesRead;
             m_position+=bytesRead;
+            m_bytesAvailable = m_length - m_position;
         }
         return bytesRead;        
     }
@@ -467,16 +483,25 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
                 else
                 {
                     //Debug_printv("no match");
-                    meatClient->url += evt->header_value;                    
+                    if ( mstr::startsWith(evt->header_value, (char *)"/") )
+                    {
+                        // Absolute path redirect
+                        PeoplesUrlParser u;
+                        u.parseUrl( meatClient->url );
+                        meatClient->url = u.root() + evt->header_value;
+                    }
+                    else
+                    {
+                        // Relative path redirect
+                        meatClient->url += evt->header_value;
+                    }
                 }
 
                 //Debug_printv("new url '%s'", meatClient->url.c_str());
             }
 
             // Allow override in lambda
-            if(meatClient != nullptr) {
-                meatClient->onHeader(evt->header_key, evt->header_value);
-            }
+            meatClient->onHeader(evt->header_key, evt->header_value);
 
             break;
 

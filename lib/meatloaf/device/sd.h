@@ -8,7 +8,7 @@
 
 #include "meat_io.h"
 
-#include "../device/flash.h"
+#include "flash.h"
 #include "fnFsSD.h"
 
 #include "peoples_url_parser.h"

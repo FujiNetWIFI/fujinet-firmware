@@ -31,14 +31,54 @@
 // TCP_CLENT_SOCKET = clear bit 5
 // TCP_SERVER_SOCKET = set bit 5
 
-class MStream {
+class MStream 
+{
+protected:
+    uint32_t m_length = 0;
+    uint32_t m_bytesAvailable = 0;
+    uint32_t m_position = 0;
+    uint8_t m_load_address[2] = {0, 0};
+    size_t m_error = 0;
+
 public:
     virtual ~MStream() {};
 
-    virtual uint32_t available() = 0;
-    virtual uint32_t size() = 0;
-    virtual uint32_t position() = 0;
-    virtual size_t error() = 0;
+    uint8_t secondaryAddress = 0;
+    std::string url = "";
+
+    bool has_subdirs = true;
+    size_t block_size = 256;
+
+    virtual uint32_t size() {
+        return m_length;
+    };
+
+    virtual uint32_t available() {
+        return m_bytesAvailable;
+    };
+
+    virtual uint32_t position() {
+        return m_position;
+    }
+
+    virtual size_t error() {
+        return m_error;
+    }
+
+    virtual uint32_t blocks() {
+        if ( m_length > 0 && m_length < block_size )
+            return 1;
+        else
+            return ( m_length / block_size );
+    }
+
+    virtual bool eos()  {
+//        Debug_printv("m_length[%d] m_bytesAvailable[%d] m_position[%d]", m_length, m_bytesAvailable, m_position);
+        if ( m_bytesAvailable == 0 )
+            return true;
+        
+        return false;
+    }
     virtual void reset() {};
     
     virtual bool isOpen() = 0;
@@ -50,11 +90,6 @@ public:
 
     virtual uint32_t write(const uint8_t *buf, uint32_t size) = 0;
     virtual uint32_t read(uint8_t* buf, uint32_t size) = 0;
-
-    uint8_t secondaryAddress = 0;
-    std::string url = "";
-
-    bool has_subdirs = true;
 
     virtual bool seek(uint32_t pos, int mode) {
         if(mode == SEEK_SET) {

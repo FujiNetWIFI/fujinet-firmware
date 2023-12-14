@@ -1,4 +1,5 @@
-// .D71 - The D71 disk image format
+// .D71 - 1571 disk image format
+//
 // https://vice-emu.sourceforge.io/vice_17.html#SEC373
 // https://ist.uwaterloo.ca/~schepers/formats/D71.TXT
 //
