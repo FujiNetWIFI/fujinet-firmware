@@ -1,21 +1,38 @@
+// Meatloaf - A Commodore 64/128 multi-device emulator
+// https://github.com/idolpx/meatloaf
+// Copyright(C) 2020 James Johnston
+//
+// Meatloaf is free software : you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Meatloaf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
+
 #ifdef BUILD_IEC
 
-#include "iecProtocolSerial.h"
+#include "cpbstandardserial.h"
 
 #include "bus.h"
-#include "iecProtocolBase.h"
+#include "_protocol.h"
 
 #include "../../../include/debug.h"
 #include "../../../include/pinmap.h"
 
+using namespace Protocol;
 
-
-IecProtocolSerial::IecProtocolSerial()
+CPBStandardSerial::CPBStandardSerial()
 {
 
 }
 
-IecProtocolSerial::~IecProtocolSerial()
+CPBStandardSerial::~CPBStandardSerial()
 {
 
 }
@@ -29,17 +46,23 @@ IecProtocolSerial::~IecProtocolSerial()
 // "ready  to  send"  signal  whenever  it  likes;  it  can  wait  a  long  time.    If  it's
 // a printer chugging out a line of print, or a disk drive with a formatting job in progress,
 // it might holdback for quite a while; there's no time limit.
-bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
+bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
 {
     //IEC.pull ( PIN_IEC_SRQ );
 
     IEC.flags &= CLEAR_LOW;
 
-    if ( IEC.status ( PIN_IEC_ATN ) ) return false;
+    // if ( IEC.status ( PIN_IEC_ATN ) ) return false;
 
     // Say we're ready
     //wait( TIMING_STABLE );
     IEC.release ( PIN_IEC_CLK_OUT );
+    // if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
+    // {
+    //     Debug_printv ( "Wait for other talkers to release clock [%02X]", data );
+    //     return false; // return error because of ATN or timeout
+    // }
+
 
     // Wait for listener to be ready
     // STEP 2: READY FOR DATA
@@ -50,7 +73,9 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     //IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
     {
-        Debug_printv ( "Wait for listener to be ready [%02X]", data );
+        if ( !(IEC.flags & ATN_PULLED) )
+            Debug_printv ( "Wait for listener to be ready [%02X]", data );
+
         return false; // return error because of ATN or timeout
     }
     //IEC.release ( PIN_IEC_SRQ );
@@ -124,7 +149,7 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
     // if ( eoi )
     //     IEC.release ( PIN_IEC_CLK_OUT );
 
-    timeoutWait( PIN_IEC_DATA_IN, RELEASED, TIMING_Tbb);
+    // timeoutWait( PIN_IEC_DATA_IN, RELEASED, TIMING_Tbb);
 
     //IEC.release ( PIN_IEC_SRQ );
 
@@ -149,43 +174,47 @@ bool IecProtocolSerial::sendByte(uint8_t data, bool eoi)
 // to prepare for the next bit. When the talker figures the data has been held for a sufficient  length  of  time,  it
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
 
-bool IecProtocolSerial::sendBits ( uint8_t data )
+bool CPBStandardSerial::sendBits ( uint8_t data )
 {
     uint8_t tv = TIMING_Tv64; // C64 data valid timing
 
-    // We can send faster if in VIC20 Mode
-    if ( IEC.flags & VIC20_MODE )
-    {
-        tv = TIMING_Tv; // VIC-20 data valid timing
-    }
+    // // We can send faster if in VIC20 Mode
+    // if ( IEC.flags & VIC20_MODE )
+    // {
+    //     tv = TIMING_Tv; // VIC-20 data valid timing
+    // }
+
+//    IEC.release(PIN_IEC_DATA_OUT);
+    // Wait for DATA to be RELEASED
+    // if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED ) )
+    // {
+    //     Debug_printv ( "Wait for listener to release DATA [%d]", data );
+    //     return false; // return error because timeout
+    // }
 
     // Send bits
     for ( uint8_t n = 0; n < 8; n++ )
     {
-        // Check to see if DATA is being pulled
-        if ( IEC.status( PIN_IEC_DATA_IN ) == PULLED )
-            return false; // If it is we exit
-
-        if ( !wait ( TIMING_Ts1 ) ) return false; // 57us 
+        //if ( !wait ( TIMING_Ts1 ) ) return false; // 57us 
+        wait ( TIMING_Ts1, false );
 
         // set bit
         ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
         data >>= 1; // shift to next bit
-        if ( !wait ( TIMING_Ts2 ) ) return false; // 28us
+        //if ( !wait ( TIMING_Ts2 ) ) return false; // 28us
+        wait ( TIMING_Ts2, false );
 
         // tell listener bit is ready to read
         IEC.release ( PIN_IEC_CLK_OUT );
-        if ( !wait ( tv ) ) return false; // 76us 
+        //if ( !wait ( tv ) ) return false; // 76us 
+        wait ( tv, false );
 
-        // tell listner to wait
+        // tell listener to wait
         IEC.pull ( PIN_IEC_CLK_OUT );
     }
 
     // Release data line after byte sent
     IEC.release ( PIN_IEC_DATA_OUT );
-#ifndef IEC_SPLIT_LINES
-    IEC.set_pin_mode ( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT ); // Set DATA IN back to input
-#endif
 
     return true;
 } // sendBits
@@ -202,12 +231,9 @@ bool IecProtocolSerial::sendBits ( uint8_t data )
 // "ready  to  send"  signal  whenever  it  likes;  it  can  wait  a  long  time.    If  it's
 // a printer chugging out a line of print, or a disk drive with a formatting job in progress,
 // it might holdback for quite a while; there's no time limit.
-int16_t IecProtocolSerial::receiveByte()
+int8_t CPBStandardSerial::receiveByte()
 {
     IEC.flags &= CLEAR_LOW;
-
-    // Sometimes the C64 pulls ATN but doesn't pull CLOCK right away
-    if ( !wait ( TIMING_STABLE ) ) return -1;
 
     // Wait for talker ready
     if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
@@ -256,23 +282,24 @@ int16_t IecProtocolSerial::receiveByte()
 
         // Acknowledge by pull down data more than 60us
         IEC.pull ( PIN_IEC_DATA_OUT );
-        if ( !wait ( TIMING_Tei ) ) return -1;
+        wait ( TIMING_Tei, false );
         IEC.release ( PIN_IEC_DATA_OUT );
 
         IEC.flags |= EOI_RECVD;
 
         // wait for talker to pull clock line
-        while ( IEC.status ( PIN_IEC_CLK_IN ) != PULLED );
+        if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, FOREVER ) == TIMED_OUT )
+        {
+            Debug_printv ( "Wait for talker after EOI" );
+            return -1; // return error because timeout
+        }
     }
     //IEC.release ( PIN_IEC_SRQ );
 
-
     // STEP 3: RECEIVING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
-    int16_t data = receiveBits();
+    int8_t data = receiveBits();
     //IEC.release ( PIN_IEC_SRQ );
-    if ( data < 0 )
-        return -1;
 
     // STEP 4: FRAME HANDSHAKE
     // After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true
@@ -282,7 +309,7 @@ int16_t IecProtocolSerial::receiveByte()
 
     // Acknowledge byte received
     //IEC.pull ( PIN_IEC_SRQ );
-    if ( !wait ( TIMING_Tf ) ) return -1;
+    //if ( !wait ( TIMING_Tf ) ) return -1;
     IEC.pull ( PIN_IEC_DATA_OUT );
     //IEC.release ( PIN_IEC_SRQ );
 
@@ -292,14 +319,13 @@ int16_t IecProtocolSerial::receiveByte()
     // happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause,
     // the Clock and Data lines are RELEASED to false and transmission stops.
 
-    if ( (IEC.flags & EOI_RECVD)
-	 && wait ( TIMING_Tfr )
-	 && (IEC.status( PIN_IEC_ATN ) == RELEASED) )
-    {
-        IEC.release ( PIN_IEC_DATA_OUT );
-    }
+    // if ( (IEC.flags & EOI_RECVD) )
+    // {
+    //     wait ( TIMING_Tfr );
+    //     IEC.release ( PIN_IEC_DATA_OUT );
+    // }
 
-    timeoutWait( PIN_IEC_CLK_IN, RELEASED, TIMING_Tbb);
+    // timeoutWait( PIN_IEC_CLK_IN, RELEASED, TIMING_Tbb);
 
     return data;
 }
@@ -322,7 +348,7 @@ int16_t IecProtocolSerial::receiveByte()
 // false, it grabs the bit from the Data line and puts it away.  It then waits for the clock line to go true, in order
 // to prepare for the next bit. When the talker figures the data has been held for a sufficient  length  of  time,  it
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
-int16_t IecProtocolSerial::receiveBits ()
+int8_t CPBStandardSerial::receiveBits ()
 {
     // Listening for bits
     uint8_t data = 0;
@@ -332,63 +358,62 @@ int16_t IecProtocolSerial::receiveBits ()
 
     //IEC.pull ( PIN_IEC_SRQ );
 #ifndef IEC_SPLIT_LINES
-    IEC.set_pin_mode ( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT ); // Set DATA IN back to input
+    IEC.release(PIN_IEC_DATA_IN); // Set DATA IN back to input
 #endif
 
     for ( n = 0; n < 8; n++ )
     {
-        do
+        // Time the release of the clock line to detect JiffyDOS
+        //IEC.pull ( PIN_IEC_SRQ );
+        bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_PROTOCOL_DETECT, false );
+        //IEC.release ( PIN_IEC_SRQ );
+
+        // // If the bit time is less than 40us we are talking with a VIC20
+        // if ( bit_time < TIMING_VIC20_DETECT )
+        //     IEC.flags |= VIC20_MODE;
+
+        // If there is a 218us delay before the last bit, the controller uses SauceDOS/JiffyDOS
+        if ( (n == 3 || n == 7) && bit_time >= TIMING_PROTOCOL_DETECT )
         {
-            // wait for bit to be ready to read
-            //IEC.pull ( PIN_IEC_SRQ );
-            bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_EMPTY, false );
-
-            // // If the bit time is less than 40us we are talking with a VIC20
-            // if ( bit_time < TIMING_VIC20_DETECT )
-            //     IEC.flags |= VIC20_MODE;
-
-            // If there is a delay before the last bit, the controller uses JiffyDOS
-            if ( n == 7 && bit_time >= TIMING_JIFFY_DETECT )
+            if ( (IEC.flags & ATN_PULLED) && data < 0x60 )
             {
-                if ( (IEC.flags & ATN_PULLED) && data < 0x60 )
+                uint8_t device = (data >> 1) & 0x1F;
+                if ( IEC.isDeviceEnabled ( device ) )
                 {
-                    uint8_t device = data & 0x1F;
-                    if ( IEC.enabledDevices & ( 1 << device ) )
+                    // acknowledge we support SauceDOS/JiffyDOS
+                    IEC.pull(PIN_IEC_DATA_OUT);
+                    wait( TIMING_PROTOCOL_ACK, false );
+                    IEC.release(PIN_IEC_DATA_OUT);
+
+                    // If SRQ is pulled then SauceDOS is active on controller
+                    if ( IEC.status ( PIN_IEC_SRQ ) )
                     {
-                        /* If it's for us, notify controller that we support Jiffy too */
-                        IEC.pull(PIN_IEC_DATA_OUT);
-                        wait( TIMING_JIFFY_ACK, 0, false );
-                        IEC.release(PIN_IEC_DATA_OUT);
-#ifndef IEC_SPLIT_LINES
-                        IEC.set_pin_mode ( PIN_IEC_DATA_IN, gpio_mode_t::GPIO_MODE_INPUT ); // Set DATA IN back to input
-#endif
-                        IEC.flags |= JIFFY_ACTIVE;
+                        IEC.flags |= SAUCEDOS_ACTIVE;
+                    }
+                    else
+                    {
+                        IEC.flags |= JIFFYDOS_ACTIVE;
                     }
                 }
             }
-            else if ( bit_time > TIMING_EMPTY )
-            {
-                if ( n == 0 )
-                {
-                    Debug_printv ( "empty stream signaled" );
-                    IEC.flags |= EMPTY_STREAM;
-                }
-                else
-                {
-                    Debug_printv ( "bit timeout" );
-                }
+        }
 
-                return -1;
+        // wait for bit to be ready to read
+        //IEC.pull ( PIN_IEC_SRQ );
+        if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, (TIMING_EMPTY - TIMING_PROTOCOL_DETECT) ) == TIMED_OUT )
+        {
+            if ( n == 0 )
+            {
+                Debug_printv ( "empty stream signaled" );
+                IEC.flags |= EMPTY_STREAM;
             }
-        } while ( bit_time >= TIMING_JIFFY_DETECT );
-        
-        // // wait for bit to be ready to read
-        // IEC.pull ( PIN_IEC_SRQ );
-        // if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED ) == TIMED_OUT )
-        // {
-        //     Debug_printv ( "wait for talker to start sending bit n[%d]", n );
-        //     return -1; // return error because timeout
-        // }
+            else
+            {
+                Debug_printv ( "bit timeout" );
+            }
+            return -1;
+        }
+        //IEC.release ( PIN_IEC_SRQ );
 
         // get bit
         data >>= 1;
@@ -408,5 +433,4 @@ int16_t IecProtocolSerial::receiveBits ()
 }
 
 
-
-#endif
+#endif // BUILD_IEC
