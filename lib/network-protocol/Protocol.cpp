@@ -201,7 +201,7 @@ void NetworkProtocol::translate_receive_buffer()
         break;
     case TRANSLATION_MODE_PETSCII:
         Debug_printf("!!! PETSCII !!!\r\n");
-        mstr::toPETSCII(*receiveBuffer);
+        *receiveBuffer = mstr::toUTF8(*receiveBuffer);
         break;
     }
 
@@ -236,7 +236,7 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
         util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_CRLF);
         break;
     case TRANSLATION_MODE_PETSCII:
-        mstr::toASCII(*transmitBuffer);
+        *transmitBuffer = mstr::toUTF8(*transmitBuffer);
         break;
     }
 

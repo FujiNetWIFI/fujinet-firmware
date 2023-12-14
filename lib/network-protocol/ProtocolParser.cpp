@@ -61,6 +61,30 @@ NetworkProtocol* ProtocolParser::createProtocol(std::string scheme, std::string 
             break;
     }
 
+    // mstr::toUpper(scheme);
+    // if (mstr::equals(scheme, (char *)"TCP"))
+    //     protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
+    // else if (mstr::equals(scheme, (char *)"UDP"))
+    //     protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
+    // else if (mstr::equals(scheme, (char *)"TEST"))
+    //     protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
+    // else if (mstr::equals(scheme, (char *)"TELNET"))
+    //     protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
+    // else if (mstr::equals(scheme, (char *)"TNFS"))
+    //     protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
+    // else if (mstr::equals(scheme, (char *)"FTP"))
+    //     protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
+    // else if (mstr::equals(scheme, (char *)"HTTP") || mstr::equals(scheme, (char *)"HTTPS"))
+    //     protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
+    // else if (mstr::equals(scheme, (char *)"SSH"))
+    //     protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
+    // else if (mstr::equals(scheme, (char *)"SMB"))
+    //     protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
+    // else if (mstr::equals(scheme, (char *)"SD"))
+    //     protocol = new NetworkProtocolSD(receiveBuffer, transmitBuffer, specialBuffer);
+    // else
+    //     Debug_printf("Invalid protocol: %s\n", scheme.c_str());
+
     if (protocol && !login->empty()) {
         protocol->login = login;
         protocol->password = password;
