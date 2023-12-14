@@ -15,7 +15,7 @@
 #endif
 
 #include "../lib/hardware/fnUART.h"
-
+#define Serial fnUartDebug
 
 /*
   Debugging Macros
