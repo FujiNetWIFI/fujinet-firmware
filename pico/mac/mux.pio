@@ -66,21 +66,28 @@ dcd:
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
 void mux_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
 {
-   // configure a SM
+   
    pio_sm_config c = mux_program_get_default_config(offset);
-   // config side set
-    sm_config_set_sideset_pins(&c, mux_pin);
-    sm_config_set_in_pins(&c, in_pin); 
-    sm_config_set_jmp_pin(&c, ENABLE);
-   // there are 4 wires to read for latch mux, shift to the right, no autopull
+   
+   sm_config_set_sideset_pins(&c, mux_pin);
    sm_config_set_set_pins(&c, DISKFLAG, 1); // todo: update with a parameter
+
+   sm_config_set_in_pins(&c, in_pin); 
+
+   sm_config_set_jmp_pin(&c, ENABLE);
+      
    sm_config_set_out_shift(&c, true, false, 0);
+
    sm_config_set_in_shift(&c, true, true, 32);
+   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+
+   //output GPIO's
    for (int i=0; i<3; i++)
       pio_gpio_init(pio, mux_pin + i);
    pio_sm_set_consecutive_pindirs(pio, sm, mux_pin, 3, false);
    pio_gpio_init(pio, DISKFLAG);
    pio_sm_set_consecutive_pindirs(pio, sm, DISKFLAG, 1, true);
+   
    // initialize
    pio_sm_init(pio, sm, offset, &c);
 }
