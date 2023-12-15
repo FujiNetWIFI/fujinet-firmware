@@ -42,9 +42,9 @@
 #define MCI_WR      15
 #define ECHO_IN     21
 #define TACH_OUT    21
-#define ECHO_OUT    18
+#define ECHO_OUT    19
 #define MUX_OUT     18
-#define LATCH_OUT   20
+#define LATCH_OUT   18
 
 /**
  * HERE STARTS PIO DEFINITIONS AND HEADERS
