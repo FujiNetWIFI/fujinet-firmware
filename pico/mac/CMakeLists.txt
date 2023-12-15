@@ -28,6 +28,7 @@ add_executable(commands commands.c)
 
 # by default the header is generated into the build dir
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/commands.pio)
+pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/enand.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/echo.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/latch.pio)
 pico_generate_pio_header(commands ${CMAKE_CURRENT_LIST_DIR}/mux.pio)
