@@ -40,22 +40,22 @@ floppy:
     out x, 4                    ; copy to X
     set y, 0b0100               ; RDDATA (head 0) 
     jmp x!=y next1
-    jmp floppy       side 0b010
+    jmp floppy       side 0b100
 next1:
     set y, 0b1100               ; RDDATA (head 1) 
     jmp x!=y next2
-    jmp floppy       side 0b010
+    jmp floppy       side 0b100
 next2:
     set y, 0b1011               ; TACH 
     jmp x!=y next3
-    jmp floppy       side 0b001
+    jmp floppy       side 0b010
 next3:                          ; LATCH
-    jmp floppy       side 0b100
+    jmp floppy       side 0b001
 dcd:
     ; now we need to wait to be strobed or to be disabled
     set pins, 1                             ; say to latch we're in DCD mode
     jmp pin start            ; disabled so go back to the beginning!
-    mov osr, pins           side 0b100 ; get LSTRB value into osr
+    mov osr, pins           side 0b001 ; get LSTRB value into osr
     out null, (LSTRB-MCI_CA0)  ; have to blow some into null first - LSTRB-MCI_CA0 - sort of violates the coding scheme to pass the in_pin
     out y, 1                 ; stick it in Y
     jmp !Y dcd             ; not strobing loop
