@@ -126,19 +126,23 @@ void drivewireFuji::net_scan_networks()
 {
     Debug_println("Fuji cmd: SCAN NETWORKS");
 
-    char ret[4] = {0};
+    if (!wifiScanStarted)
+    {
+        wifiScanStarted=true;
+        _countScannedSSIDs = fnWiFi.scan_networks();
+    }
 
-    _countScannedSSIDs = fnWiFi.scan_networks();
-
-    ret[0] = _countScannedSSIDs;
-
-    fnUartBUS.write((uint8_t *)ret, 4);
+    fnUartBUS.write(_countScannedSSIDs);
 }
 
 // Return scanned network entry
 void drivewireFuji::net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
+
+    uint8_t n = fnUartBUS.read();
+
+    wifiScanStarted=false;
 
     // Response to  FUJICMD_GET_SCAN_RESULT
     struct
@@ -148,8 +152,8 @@ void drivewireFuji::net_scan_result()
     } detail;
 
     bool err = false;
-    if (cmdFrame.aux1 < _countScannedSSIDs)
-        fnWiFi.get_scan_result(cmdFrame.aux1, detail.ssid, &detail.rssi);
+    if (n < _countScannedSSIDs)
+        fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
     else
     {
         memset(&detail, 0, sizeof(detail));
@@ -1087,31 +1091,31 @@ void drivewireFuji::close_directory()
 // Get network adapter configuration
 void drivewireFuji::get_adapter_config()
 {
-    // Debug_println("Fuji cmd: GET ADAPTER CONFIG");
+    Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
-    // // Response to  FUJICMD_GET_ADAPTERCONFIG
-    // AdapterConfig cfg;
+    // Response to  FUJICMD_GET_ADAPTERCONFIG
+    AdapterConfig cfg;
 
-    // memset(&cfg, 0, sizeof(cfg));
+    memset(&cfg, 0, sizeof(cfg));
 
-    // strlcpy(cfg.fn_verdrivewiren, fnSystem.get_fujinet_verdrivewiren(true), sizeof(cfg.fn_verdrivewiren));
+    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
 
-    // if (!fnWiFi.connected())
-    // {
-    //     strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-    // }
-    // else
-    // {
-    //     strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-    //     strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-    //     fnWiFi.get_current_bssid(cfg.bssid);
-    //     fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-    //     fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    // }
+    if (!fnWiFi.connected())
+    {
+        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
+    }
+    else
+    {
+        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
+        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
+        fnWiFi.get_current_bssid(cfg.bssid);
+        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
+    }
 
-    // fnWiFi.get_mac(cfg.macAddress);
+    fnWiFi.get_mac(cfg.macAddress);
 
-    // bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
+    fnUartBUS.write((uint8_t *)&cfg,sizeof(cfg));
 }
 
 //  Make new disk and shove into device slot
@@ -1637,6 +1641,9 @@ void drivewireFuji::process()
 
     switch (c)
     {
+    case FUJICMD_GET_ADAPTERCONFIG:
+        get_adapter_config();
+        break;
     case FUJICMD_GET_SCAN_RESULT:
         net_scan_result();
         break;
