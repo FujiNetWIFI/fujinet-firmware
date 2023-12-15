@@ -5,10 +5,10 @@
 ; selects output pins between RMT, TACH and LATCH
 ;
 ;
-
+.define MCI_CA0 6
 .define public LSTRB 13
-.define public ENABLE 7
-.define public DISKFLAG 12
+.define public ENABLE 11
+.define public DISKFLAG 10
 
 ; The DCD mux will really control the RD line direction.
 ; It will ...
@@ -30,7 +30,6 @@ start:
     set x, 0                side 0b000      ; put the number of DCD devices in X (0xf020 - last digit is number of DCDs)
     wait 0 gpio ENABLE                      ; don't do anything until we're enabled
 .wrap_target
-entry:
     in x, 32                                ; push X to the FIFO to tell the program a certain drive is selected
     wait 0 gpio LSTRB                       ; wait for strobe to deassert
     jmp x-- dcd                            ; if X>0, then count down to next drive
@@ -41,23 +40,23 @@ floppy:
     out x, 4                    ; copy to X
     set y, 0b0100               ; RDDATA (head 0) 
     jmp x!=y next1
-    jmp floppy       side 0b010
+    jmp floppy       side 0b100
 next1:
     set y, 0b1100               ; RDDATA (head 1) 
     jmp x!=y next2
-    jmp floppy       side 0b010
+    jmp floppy       side 0b100
 next2:
     set y, 0b1011               ; TACH 
     jmp x!=y next3
-    jmp floppy       side 0b001
+    jmp floppy       side 0b010
 next3:                          ; LATCH
-    jmp floppy       side 0b100
+    jmp floppy       side 0b001
 dcd:
     ; now we need to wait to be strobed or to be disabled
     set pins, 1                             ; say to latch we're in DCD mode
     jmp pin start            ; disabled so go back to the beginning!
-    mov osr, pins           side 0b100 ; get LSTRB value into osr
-    out null, 5             ; have to blow some into null first
+    mov osr, pins           side 0b001 ; get LSTRB value into osr
+    out null, (LSTRB-MCI_CA0)  ; have to blow some into null first - LSTRB-MCI_CA0 - sort of violates the coding scheme to pass the in_pin
     out y, 1                 ; stick it in Y
     jmp !Y dcd             ; not strobing loop
 .wrap
@@ -67,21 +66,28 @@ dcd:
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
 void mux_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
 {
-   // configure a SM
+   
    pio_sm_config c = mux_program_get_default_config(offset);
-   // config side set
-    sm_config_set_sideset_pins(&c, mux_pin);
-    sm_config_set_in_pins(&c, in_pin); 
-    sm_config_set_jmp_pin(&c, ENABLE);
-   // there are 4 wires to read for latch mux, shift to the right, no autopull
+   
+   sm_config_set_sideset_pins(&c, mux_pin);
    sm_config_set_set_pins(&c, DISKFLAG, 1); // todo: update with a parameter
+
+   sm_config_set_in_pins(&c, in_pin); 
+
+   sm_config_set_jmp_pin(&c, ENABLE);
+      
    sm_config_set_out_shift(&c, true, false, 0);
+
    sm_config_set_in_shift(&c, true, true, 32);
+   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
+
+   //output GPIO's
    for (int i=0; i<3; i++)
       pio_gpio_init(pio, mux_pin + i);
    pio_sm_set_consecutive_pindirs(pio, sm, mux_pin, 3, false);
    pio_gpio_init(pio, DISKFLAG);
    pio_sm_set_consecutive_pindirs(pio, sm, DISKFLAG, 1, true);
+   
    // initialize
    pio_sm_init(pio, sm, offset, &c);
 }

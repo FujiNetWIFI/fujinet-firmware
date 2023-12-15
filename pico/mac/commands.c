@@ -24,6 +24,7 @@
 
 #include "commands.pio.h"
 #include "echo.pio.h"
+#include "enand.pio.h"
 #include "latch.pio.h"
 #include "mux.pio.h"
 
@@ -34,14 +35,16 @@
 // define GPIO pins
 #define UART_TX_PIN 4
 #define UART_RX_PIN 5
-#define ENABLE      7
-#define MCI_CA0     8
+#define EN0
+#define EN1
+#define ENABLE      11 // was 7 - swap order of CA and EN
+#define MCI_CA0     6  // was 8 - move CA down to EN
 #define MCI_WR      15
 #define ECHO_IN     21
 #define TACH_OUT    21
-#define ECHO_OUT    18
+#define ECHO_OUT    19
 #define MUX_OUT     18
-#define LATCH_OUT   20
+#define LATCH_OUT   18
 
 /**
  * HERE STARTS PIO DEFINITIONS AND HEADERS
@@ -68,13 +71,11 @@ void pio_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num_pins);
 // void pio_latch(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin);
-
+void pio_enand(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_read(PIO pio, uint sm, uint offset, uint pin);
 void pio_dcd_write(PIO pio, uint sm, uint offset, uint pin);
 void set_num_dcd();
-
-
 
 /**
  * HERE IS UART SETUP
@@ -503,6 +504,25 @@ void esp_loop()
       break;
     }
   }
+
+  if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
+  {
+    int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
+    // printf("m%dm",m);
+    if (m != 0)
+    {
+      active_disk_number = num_dcd_drives + 'A' - m;
+      printf("%c", active_disk_number);
+      uart_putc_raw(UART_ID, active_disk_number);
+    }
+    else
+    {
+      // if (!latch_val(CSTIN))
+      // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO
+      if (disk_mode != FPY)
+        disk_mode = TO_FPY;
+    }
+  }
 }
 
 void floppy_loop()
@@ -653,24 +673,24 @@ void dcd_loop()
     return;
   }
 
-  if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
-  {
-    int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
-    // printf("m%dm",m);
-    if (m != 0)
-    {
-      active_disk_number = num_dcd_drives + 'A' - m;
-      printf("%c", active_disk_number);
-      uart_putc_raw(UART_ID, active_disk_number);
-    }
-    else
-    {
-      // if (!latch_val(CSTIN))
-      // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
-      disk_mode = TO_FPY;
-      return;
-    }
-  }
+  // if (!pio_sm_is_rx_fifo_empty(pioblk_rw, SM_MUX))
+  // {
+  //   int m = pio_sm_get_blocking(pioblk_rw, SM_MUX);
+  //   // printf("m%dm",m);
+  //   if (m != 0)
+  //   {
+  //     active_disk_number = num_dcd_drives + 'A' - m;
+  //     printf("%c", active_disk_number);
+  //     uart_putc_raw(UART_ID, active_disk_number);
+  //   }
+  //   else
+  //   {
+  //     // if (!latch_val(CSTIN))
+  //     // pio_sm_put_blocking(pioblk_rw, SM_LATCH, get_latch()); // send the register word to the PIO 
+  //     disk_mode = TO_FPY;
+  //     return;
+  //   }
+  // }
 
   if (!pio_sm_is_rx_fifo_empty(pioblk_read_only, SM_DCD_CMD))
   {
@@ -1266,6 +1286,11 @@ void pio_echo(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin, uint num
     pio_sm_set_enabled(pio, sm, true);
 }
 
+void pio_enand(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin)
+{
+  enand_program_init(pio, sm, offset, in_pin, out_pin);
+  pio_sm_set_enabled(pio, sm, true);
+}
 
 void pio_mux(PIO pio, uint sm, uint offset, uint in_pin, uint mux_pin)
 {
@@ -1282,6 +1307,10 @@ void pio_dcd_commands(PIO pio, uint sm, uint offset, uint pin)
 void pio_dcd_read(PIO pio, uint sm, uint offset, uint pin)
 {
   dcd_read_program_init(pio, sm, offset, pin);
+  // set y, 0             side 0                 ; initial state is always 0
+  // set x, 7             side 0                 ; bit counter
+  pio_sm_exec_wait_blocking(pio, sm, pio_encode_set(pio_y, 0));
+  pio_sm_exec_wait_blocking(pio, sm, pio_encode_set(pio_x, 7));
 }
 
 void pio_dcd_write(PIO pio, uint sm, uint offset, uint pin)
