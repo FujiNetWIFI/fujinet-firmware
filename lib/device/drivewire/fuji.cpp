@@ -1185,23 +1185,16 @@ void drivewireFuji::read_host_slots()
 // Read and save host slot data from computer
 void drivewireFuji::write_host_slots()
 {
-    // Debug_println("Fuji cmd: WRITE HOST SLOTS");
+    Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
-    // char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    // uint8_t ck = bus_to_peripheral((uint8_t *)&hostSlots, sizeof(hostSlots));
+    char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
+    fnUartBUS.readBytes((uint8_t *)&hostSlots, sizeof(hostSlots));
 
-    // if (drivewire_checksum((uint8_t *)hostSlots, sizeof(hostSlots)) == ck)
-    // {
-    //     for (int i = 0; i < MAX_HOSTS; i++)
-    //         _fnHosts[i].set_hostname(hostSlots[i]);
+    for (int i = 0; i < MAX_HOSTS; i++)
+        _fnHosts[i].set_hostname(hostSlots[i]);
 
-    //     _populate_config_from_slots();
-    //     Config.save();
-
-    //     drivewire_complete();
-    // }
-    // else
-    //     drivewire_error();
+    _populate_config_from_slots();
+    Config.save();
 }
 
 // Store host path prefix
@@ -1291,31 +1284,24 @@ void drivewireFuji::read_device_slots()
 // Read and save disk slot data from computer
 void drivewireFuji::write_device_slots()
 {
-    // Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
+    Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
 
-    // struct
-    // {
-    //     uint8_t hostSlot;
-    //     uint8_t mode;
-    //     char filename[MAX_DISPLAY_FILENAME_LEN];
-    // } diskSlots[MAX_DISK_DEVICES];
+    struct
+    {
+        uint8_t hostSlot;
+        uint8_t mode;
+        char filename[MAX_DISPLAY_FILENAME_LEN];
+    } diskSlots[MAX_DISK_DEVICES];
 
-    // uint8_t ck = bus_to_peripheral((uint8_t *)&diskSlots, sizeof(diskSlots));
+    fnUartBUS.readBytes((uint8_t *)&diskSlots, sizeof(diskSlots));
 
-    // if (ck == drivewire_checksum((uint8_t *)&diskSlots, sizeof(diskSlots)))
-    // {
-    //     // Load the data into our current device array
-    //     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    //         _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
+    // Load the data into our current device array
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
 
-    //     // Save the data to disk
-    //     _populate_config_from_slots();
-    //     Config.save();
-
-    //     drivewire_complete();
-    // }
-    // else
-    //     drivewire_error();
+    // Save the data to disk
+    _populate_config_from_slots();
+    Config.save();
 }
 
 // Temporary(?) function while we move from old config storage to new
@@ -1605,6 +1591,9 @@ void drivewireFuji::process()
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
         read_device_slots();
+        break;
+    case FUJICMD_WRITE_HOST_SLOTS:
+        write_host_slots();
         break;
     case FUJICMD_GET_WIFI_ENABLED:
         net_get_wifi_enabled();
