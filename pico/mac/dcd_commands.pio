@@ -5,7 +5,7 @@
 ; sends the phases to the PICO when the state changes
 ;
 
-.define ENABLE 7
+.define public ENABLE 11
 
 .program dcd_commands
 start:

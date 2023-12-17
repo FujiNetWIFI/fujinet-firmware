@@ -126,13 +126,13 @@ void drivewireFuji::net_scan_networks()
 {
     Debug_println("Fuji cmd: SCAN NETWORKS");
 
-    char ret[4] = {0};
+    if (!wifiScanStarted)
+    {
+        wifiScanStarted = true;
+        _countScannedSSIDs = fnWiFi.scan_networks();
+    }
 
-    _countScannedSSIDs = fnWiFi.scan_networks();
-
-    ret[0] = _countScannedSSIDs;
-
-    fnUartBUS.write((uint8_t *)ret, 4);
+    fnUartBUS.write(_countScannedSSIDs);
 }
 
 // Return scanned network entry
@@ -140,16 +140,20 @@ void drivewireFuji::net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
 
+    uint8_t n = fnUartBUS.read();
+
+    wifiScanStarted = false;
+
     // Response to  FUJICMD_GET_SCAN_RESULT
     struct
     {
-        char ssid[MAX_SSID_LEN+1];
+        char ssid[MAX_SSID_LEN + 1];
         uint8_t rssi;
     } detail;
 
     bool err = false;
-    if (cmdFrame.aux1 < _countScannedSSIDs)
-        fnWiFi.get_scan_result(cmdFrame.aux1, detail.ssid, &detail.rssi);
+    if (n < _countScannedSSIDs)
+        fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
     else
     {
         memset(&detail, 0, sizeof(detail));
@@ -192,85 +196,29 @@ void drivewireFuji::net_get_ssid()
 // Set SSID
 void drivewireFuji::net_set_ssid()
 {
-    Debug_println("Fuji cmd: SET SSID");
-    int i;
-
-    // Data for  FUJICMD_SET_SSID
+    Debug_printf("\r\nFuji cmd: SET SSID");
     struct
     {
         char ssid[MAX_SSID_LEN + 1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
-    fnUartBUS.readBytes((char *)&cfg, sizeof(cfg));
+    fnUartBUS.readBytes((uint8_t *)&cfg, sizeof(cfg));
 
-    bool save = cmdFrame.aux1 != 0;
+    bool save = false; // for now don't save - to do save if connection was succesful
 
-    Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
+    Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
-    fnWiFi.connect(cfg.ssid, cfg.password);
+    if (fnWiFi.connect(cfg.ssid, cfg.password) == ESP_OK)
+    {
+        Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+        Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+    }
 
     // Only save these if we're asked to, otherwise assume it was a test for connectivity
-    if (save && fnWiFi.connected())
+    // should only save if connection was successful - i think
+    if (save)
     {
-        // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
-        // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
-        // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
-
-        int ssid_in_stored = -1;
-        for (i = 0; i < MAX_WIFI_STORED; i++)
-        {
-            if (Config.get_wifi_stored_ssid(i) == cfg.ssid)
-            {
-                ssid_in_stored = i;
-                break;
-            }
-        }
-
-        // case 1
-        if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
-        {
-            Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
-            // Move enabled stored down one, last one will drop off
-            for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
-            {
-                bool enabled = Config.get_wifi_stored_enabled(j - 1);
-                if (!enabled)
-                    continue;
-
-                Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
-                Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
-                Config.store_wifi_stored_enabled(j, true); // already confirmed this is enabled
-            }
-            // push the current to the top of stored
-            Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
-            Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
-            Config.store_wifi_stored_enabled(0, true);
-        }
-
-        // case 2
-        if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
-        {
-            Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\n", ssid_in_stored);
-            // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
-            for (int j = ssid_in_stored; j > 0; j--)
-            {
-                Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
-                Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
-                Config.store_wifi_stored_enabled(j, true);
-            }
-
-            // push the current to the top of stored
-            Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
-            Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
-            Config.store_wifi_stored_enabled(0, true);
-        }
-
-        // save the new SSID as current
-        Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-        // Clear text here, it will be encrypted internally if enabled for encryption
-        Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-
         Config.save();
     }
 }
@@ -296,21 +244,11 @@ void drivewireFuji::net_get_wifi_enabled()
 // Mount Server
 void drivewireFuji::mount_host()
 {
-    // Debug_println("Fuji cmd: MOUNT HOST");
+    Debug_println("Fuji cmd: MOUNT HOST");
 
-    // unsigned char hostSlot = cmdFrame.aux1;
+    unsigned char hostSlot = fnUartBUS.read();
 
-    // // Make sure we weren't given a bad hostSlot
-    // if (!_validate_host_slot(hostSlot, "drivewire_tnfs_mount_hosts"))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // if (!_fnHosts[hostSlot].mount())
-    //     drivewire_error();
-    // else
-    //     drivewire_complete();
+    _fnHosts[hostSlot].mount();
 }
 
 // Disk Image Mount
@@ -883,148 +821,123 @@ void drivewireFuji::shutdown()
 
 void drivewireFuji::open_directory()
 {
-    // Debug_println("Fuji cmd: OPEN DIRECTORY");
+    Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    // char dirpath[256];
-    // uint8_t hostSlot = cmdFrame.aux1;
-    // uint8_t ck = bus_to_peripheral((uint8_t *)&dirpath, sizeof(dirpath));
+    char dirpath[256];
+    uint8_t hostSlot = fnUartBUS.read();
+    fnUartBUS.readBytes((uint8_t *)&dirpath, sizeof(dirpath));
 
-    // if (drivewire_checksum((uint8_t *)&dirpath, sizeof(dirpath)) != ck)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-    // if (!_validate_host_slot(hostSlot))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    // If we already have a directory open, close it first
+    if (_current_open_directory_slot != -1)
+    {
+        Debug_print("Directory was already open - closing it first\n");
+        _fnHosts[_current_open_directory_slot].dir_close();
+        _current_open_directory_slot = -1;
+    }
 
-    // // If we already have a directory open, close it first
-    // if (_current_open_directory_slot != -1)
-    // {
-    //     Debug_print("Directory was already open - closign it first\n");
-    //     _fnHosts[_current_open_directory_slot].dir_close();
-    //     _current_open_directory_slot = -1;
-    // }
+    // See if there's a search pattern after the directory path
+    const char *pattern = nullptr;
+    int pathlen = strnlen(dirpath, sizeof(dirpath));
+    if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+    {
+        pattern = dirpath + pathlen + 1;
+        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+        if (patternlen < 1)
+            pattern = nullptr;
+    }
 
-    // // See if there's a search pattern after the directory path
-    // const char *pattern = nullptr;
-    // int pathlen = strnlen(dirpath, sizeof(dirpath));
-    // if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
-    // {
-    //     pattern = dirpath + pathlen + 1;
-    //     int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
-    //     if (patternlen < 1)
-    //         pattern = nullptr;
-    // }
+    // Remove trailing slash
+    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
+        dirpath[pathlen - 1] = '\0';
 
-    // // Remove trailing slash
-    // if (pathlen > 1 && dirpath[pathlen - 1] == '/')
-    //     dirpath[pathlen - 1] = '\0';
-
-    // Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
-
-    // if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-    // {
-    //     _current_open_directory_slot = hostSlot;
-    //     drivewire_complete();
-    // }
-    // else
-    //     drivewire_error();
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-    //     // File modified date-time
-    //     struct tm *modtime = localtime(&f->modified_time);
-    //     modtime->tm_mon++;
-    //     modtime->tm_year -= 70;
+        // File modified date-time
+        struct tm *modtime = localtime(&f->modified_time);
+        modtime->tm_mon++;
+        modtime->tm_year -= 70;
 
-    //     dest[0] = modtime->tm_year;
-    //     dest[1] = modtime->tm_mon;
-    //     dest[2] = modtime->tm_mday;
-    //     dest[3] = modtime->tm_hour;
-    //     dest[4] = modtime->tm_min;
-    //     dest[5] = modtime->tm_sec;
+        dest[0] = modtime->tm_year;
+        dest[1] = modtime->tm_mon;
+        dest[2] = modtime->tm_mday;
+        dest[3] = modtime->tm_hour;
+        dest[4] = modtime->tm_min;
+        dest[5] = modtime->tm_sec;
 
-    //     // File size
-    //     uint16_t fsize = f->size;
-    //     dest[6] = LOBYTE_FROM_UINT16(fsize);
-    //     dest[7] = HIBYTE_FROM_UINT16(fsize);
+        // File size
+        uint16_t fsize = f->size;
+        dest[6] = LOBYTE_FROM_UINT16(fsize);
+        dest[7] = HIBYTE_FROM_UINT16(fsize);
 
-    //     // File flags
-    // #define FF_DIR 0x01
-    // #define FF_TRUNC 0x02
+        // File flags
+    #define FF_DIR 0x01
+    #define FF_TRUNC 0x02
 
-    //     dest[8] = f->isDir ? FF_DIR : 0;
+        dest[8] = f->isDir ? FF_DIR : 0;
 
-    //     maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
-    //     if (f->isDir) // Also subtract a byte for a terminating slash on directories
-    //         maxlen--;
-    //     if (strlen(f->filename) >= maxlen)
-    //         dest[8] |= FF_TRUNC;
+        maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
+        if (f->isDir) // Also subtract a byte for a terminating slash on directories
+            maxlen--;
+        if (strlen(f->filename) >= maxlen)
+            dest[8] |= FF_TRUNC;
 
-    //     // File type
-    //     dest[9] = MediaType::discover_disktype(f->filename);
+        // File type
+        dest[9] = MediaType::discover_mediatype(f->filename);
 }
 
 void drivewireFuji::read_directory_entry()
 {
-    //     uint8_t maxlen = cmdFrame.aux1;
-    //     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
+        uint8_t maxlen = fnUartBUS.read();
+        uint8_t addtl = fnUartBUS.read();
 
-    //     // Make sure we have a current open directory
-    //     if (_current_open_directory_slot == -1)
-    //     {
-    //         Debug_print("No currently open directory\n");
-    //         drivewire_error();
-    //         return;
-    //     }
+        Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
-    //     char current_entry[256];
+        char current_entry[256];
 
-    //     fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+        fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
-    //     if (f == nullptr)
-    //     {
-    //         Debug_println("Reached end of of directory");
-    //         current_entry[0] = 0x7F;
-    //         current_entry[1] = 0x7F;
-    //     }
-    //     else
-    //     {
-    //         Debug_printf("::read_direntry \"%s\"\n", f->filename);
+        if (f == nullptr)
+        {
+            Debug_println("Reached end of of directory");
+            current_entry[0] = 0x7F;
+            current_entry[1] = 0x7F;
+        }
+        else
+        {
+            Debug_printf("::read_direntry \"%s\"\n", f->filename);
 
-    //         int bufsize = sizeof(current_entry);
-    //         char *filenamedest = current_entry;
+            int bufsize = sizeof(current_entry);
+            char *filenamedest = current_entry;
 
-    // #define ADDITIONAL_DETAILS_BYTES 10
-    //         // If 0x80 is set on AUX2, send back additional information
-    //         if (cmdFrame.aux2 & 0x80)
-    //         {
-    //             _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
-    //             // Adjust remaining size of buffer and file path destination
-    //             bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
-    //             filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
-    //         }
-    //         else
-    //         {
-    //             bufsize = maxlen;
-    //         }
+    #define ADDITIONAL_DETAILS_BYTES 10
+            // If 0x80 is set on AUX2, send back additional information
+            if (addtl & 0x80)
+            {
+                _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+                // Adjust remaining size of buffer and file path destination
+                bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
+                filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
+            }
+            else
+            {
+                bufsize = maxlen;
+            }
 
-    //         //int filelen = strlcpy(filenamedest, f->filename, bufsize);
-    //         int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+            //int filelen = strlcpy(filenamedest, f->filename, bufsize);
+            int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
 
-    //         // Add a slash at the end of directory entries
-    //         if (f->isDir && filelen < (bufsize - 2))
-    //         {
-    //             current_entry[filelen] = '/';
-    //             current_entry[filelen + 1] = '\0';
-    //         }
-    //     }
+            // Add a slash at the end of directory entries
+            if (f->isDir && filelen < (bufsize - 2))
+            {
+                current_entry[filelen] = '/';
+                current_entry[filelen + 1] = '\0';
+            }
+        }
 
-    //     bus_to_computer((uint8_t *)current_entry, maxlen, false);
+        fnUartBUS.write((uint8_t *)current_entry, maxlen);
 }
 
 void drivewireFuji::get_directory_position()
@@ -1075,43 +988,42 @@ void drivewireFuji::set_directory_position()
 
 void drivewireFuji::close_directory()
 {
-    // Debug_println("Fuji cmd: CLOSE DIRECTORY");
+    Debug_println("Fuji cmd: CLOSE DIRECTORY");
 
-    // if (_current_open_directory_slot != -1)
-    //     _fnHosts[_current_open_directory_slot].dir_close();
+    if (_current_open_directory_slot != -1)
+        _fnHosts[_current_open_directory_slot].dir_close();
 
-    // _current_open_directory_slot = -1;
-    // drivewire_complete();
+    _current_open_directory_slot = -1;
 }
 
 // Get network adapter configuration
 void drivewireFuji::get_adapter_config()
 {
-    // Debug_println("Fuji cmd: GET ADAPTER CONFIG");
+    Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
-    // // Response to  FUJICMD_GET_ADAPTERCONFIG
-    // AdapterConfig cfg;
+    // Response to  FUJICMD_GET_ADAPTERCONFIG
+    AdapterConfig cfg;
 
-    // memset(&cfg, 0, sizeof(cfg));
+    memset(&cfg, 0, sizeof(cfg));
 
-    // strlcpy(cfg.fn_verdrivewiren, fnSystem.get_fujinet_verdrivewiren(true), sizeof(cfg.fn_verdrivewiren));
+    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
 
-    // if (!fnWiFi.connected())
-    // {
-    //     strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-    // }
-    // else
-    // {
-    //     strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-    //     strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-    //     fnWiFi.get_current_bssid(cfg.bssid);
-    //     fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-    //     fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    // }
+    if (!fnWiFi.connected())
+    {
+        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
+    }
+    else
+    {
+        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
+        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
+        fnWiFi.get_current_bssid(cfg.bssid);
+        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
+    }
 
-    // fnWiFi.get_mac(cfg.macAddress);
+    fnWiFi.get_mac(cfg.macAddress);
 
-    // bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
+    fnUartBUS.write((uint8_t *)&cfg, sizeof(cfg));
 }
 
 //  Make new disk and shove into device slot
@@ -1237,23 +1149,16 @@ void drivewireFuji::read_host_slots()
 // Read and save host slot data from computer
 void drivewireFuji::write_host_slots()
 {
-    // Debug_println("Fuji cmd: WRITE HOST SLOTS");
+    Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
-    // char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    // uint8_t ck = bus_to_peripheral((uint8_t *)&hostSlots, sizeof(hostSlots));
+    char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
+    fnUartBUS.readBytes((uint8_t *)&hostSlots, sizeof(hostSlots));
 
-    // if (drivewire_checksum((uint8_t *)hostSlots, sizeof(hostSlots)) == ck)
-    // {
-    //     for (int i = 0; i < MAX_HOSTS; i++)
-    //         _fnHosts[i].set_hostname(hostSlots[i]);
+    for (int i = 0; i < MAX_HOSTS; i++)
+        _fnHosts[i].set_hostname(hostSlots[i]);
 
-    //     _populate_config_from_slots();
-    //     Config.save();
-
-    //     drivewire_complete();
-    // }
-    // else
-    //     drivewire_error();
+    _populate_config_from_slots();
+    Config.save();
 }
 
 // Store host path prefix
@@ -1343,31 +1248,24 @@ void drivewireFuji::read_device_slots()
 // Read and save disk slot data from computer
 void drivewireFuji::write_device_slots()
 {
-    // Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
+    Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
 
-    // struct
-    // {
-    //     uint8_t hostSlot;
-    //     uint8_t mode;
-    //     char filename[MAX_DISPLAY_FILENAME_LEN];
-    // } diskSlots[MAX_DISK_DEVICES];
+    struct
+    {
+        uint8_t hostSlot;
+        uint8_t mode;
+        char filename[MAX_DISPLAY_FILENAME_LEN];
+    } diskSlots[MAX_DISK_DEVICES];
 
-    // uint8_t ck = bus_to_peripheral((uint8_t *)&diskSlots, sizeof(diskSlots));
+    fnUartBUS.readBytes((uint8_t *)&diskSlots, sizeof(diskSlots));
 
-    // if (ck == drivewire_checksum((uint8_t *)&diskSlots, sizeof(diskSlots)))
-    // {
-    //     // Load the data into our current device array
-    //     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    //         _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
+    // Load the data into our current device array
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
 
-    //     // Save the data to disk
-    //     _populate_config_from_slots();
-    //     Config.save();
-
-    //     drivewire_complete();
-    // }
-    // else
-    //     drivewire_error();
+    // Save the data to disk
+    _populate_config_from_slots();
+    Config.save();
 }
 
 // Temporary(?) function while we move from old config storage to new
@@ -1637,6 +1535,9 @@ void drivewireFuji::process()
 
     switch (c)
     {
+    case FUJICMD_GET_ADAPTERCONFIG:
+        get_adapter_config();
+        break;
     case FUJICMD_GET_SCAN_RESULT:
         net_scan_result();
         break;
@@ -1655,11 +1556,29 @@ void drivewireFuji::process()
     case FUJICMD_READ_DEVICE_SLOTS:
         read_device_slots();
         break;
+    case FUJICMD_WRITE_DEVICE_SLOTS:
+        write_device_slots();
+        break;
+    case FUJICMD_WRITE_HOST_SLOTS:
+        write_host_slots();
+        break;
     case FUJICMD_GET_WIFI_ENABLED:
         net_get_wifi_enabled();
         break;
     case FUJICMD_GET_WIFISTATUS:
         net_get_wifi_status();
+        break;
+    case FUJICMD_MOUNT_HOST:
+        mount_host();
+        break;
+    case FUJICMD_OPEN_DIRECTORY:
+        open_directory();
+        break;
+    case FUJICMD_CLOSE_DIRECTORY:
+        close_directory();
+        break;
+    case FUJICMD_READ_DIR_ENTRY:
+        read_directory_entry();
         break;
     default:
         break;
