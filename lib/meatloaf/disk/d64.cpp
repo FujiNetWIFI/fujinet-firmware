@@ -108,6 +108,7 @@ bool D64IStream::seekEntry( std::string filename )
     //mstr::rtrimA0(filename);
     //filename = mstr::toPETSCII2(filename);
     mstr::replaceAll(filename, "\\", "/");
+    bool wildcard =  ( mstr::contains(filename, "*") || mstr::contains(filename, "?") );
 
     // Read Directory Entries
     if ( filename.size() )
@@ -115,6 +116,7 @@ bool D64IStream::seekEntry( std::string filename )
         while ( seekEntry( index ) )
         {
             std::string entryFilename = entry.filename;
+            mstr::rtrimA0(entryFilename);
             entryFilename = mstr::toUTF8(entryFilename);
 
             Debug_printv("index[%d] track[%d] sector[%d] filename[%s] entry.filename[%.16s]", index, track, sector, filename.c_str(), entryFilename.c_str());
@@ -131,10 +133,13 @@ bool D64IStream::seekEntry( std::string filename )
             {
                 return true;
             }
-            else if ( mstr::compare(filename, entryFilename) ) // X?XX?X* Wildcard match
+            else if ( wildcard )
             {
-                // Move stream pointer to start track/sector
-                return true;
+                if ( mstr::compare(filename, entryFilename) ) // X?XX?X* Wildcard match
+                {
+                    // Move stream pointer to start track/sector
+                    return true;
+                }
             }
 
             index++;

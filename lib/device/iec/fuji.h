@@ -13,8 +13,8 @@
 #include "../fuji/fujiCmd.h"
 
 #define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 4
-#define MAX_NETWORK_DEVICES 8
+#define MAX_DISK_DEVICES 8
+#define MAX_NETWORK_DEVICES 4
 
 #define MAX_APPKEY_LEN 64
 
@@ -131,7 +131,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(systemBus *siobus);
+    void setup(systemBus *bus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);
