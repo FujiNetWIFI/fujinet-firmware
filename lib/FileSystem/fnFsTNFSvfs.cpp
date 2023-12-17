@@ -12,7 +12,7 @@
 #include "tnfslib.h"
 
 /*
-    These are the 23 functions that can be registered (not including 6 fucntions for select())
+    These are the 23 functions that can be registered (not including 6 functions for select())
     from esp_vfs.h:
 
     IMPLEMENTED:

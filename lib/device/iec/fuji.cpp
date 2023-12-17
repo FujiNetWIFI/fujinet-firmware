@@ -24,19 +24,26 @@
 iecFuji theFuji; // global fuji device object
 
 // Initializes base settings and adds our devices to the SIO bus
-void iecFuji::setup(systemBus *siobus)
+void iecFuji::setup(systemBus *bus)
 {
     // TODO IMPLEMENT
     Debug_printf("iecFuji::setup()\n");
 
     _populate_slots_from_config();
 
-                                            // 04-07 Printers / Plotters
-    IEC.addDevice(new iecDisk(), 8);        // 08-16 Drives
-    IEC.addDevice(new iecNetwork(), 16);    // 16-19 Network Devices
-    IEC.addDevice(new iecCpm(), 20);        // 20-29 Other
-    IEC.addDevice(new iecClock(), 29);
-    IEC.addDevice(this, 30);                // 30    FujiNet
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+//    iecPrinter::printer_type ptype = Config.get_printer_type(0);
+    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_COMMODORE_MPS803; // temporary
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+    iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    bus->addDevice(ptr, 4);                  // 04-07 Printers / Plotters
+    bus->addDevice(new iecDisk(), 8);        // 08-16 Drives
+    bus->addDevice(new iecNetwork(), 16);    // 16-19 Network Devices
+    bus->addDevice(new iecCpm(), 20);        // 20-29 Other
+    bus->addDevice(new iecClock(), 29);
+    bus->addDevice(this, 30);                // 30    FujiNet
 }
 
 // iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
