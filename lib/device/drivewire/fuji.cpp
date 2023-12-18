@@ -825,6 +825,7 @@ void drivewireFuji::open_directory()
 
     char dirpath[256];
     uint8_t hostSlot = fnUartBUS.read();
+
     fnUartBUS.readBytes((uint8_t *)&dirpath, sizeof(dirpath));
 
     // If we already have a directory open, close it first
@@ -851,6 +852,9 @@ void drivewireFuji::open_directory()
         dirpath[pathlen - 1] = '\0';
 
     Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
+
+    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
+        _current_open_directory_slot = hostSlot;
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
