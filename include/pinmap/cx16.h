@@ -49,4 +49,4 @@
 #define PIN_SDA                 GPIO_NUM_21
 #define PIN_SCL                 GPIO_NUM_22
 
-#endif /* PINMAP_ATARIV1 */
+#endif /* PINMAP_CX16 */
