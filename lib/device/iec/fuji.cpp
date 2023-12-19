@@ -23,21 +23,7 @@
 
 iecFuji theFuji; // global fuji device object
 
-// Initializes base settings and adds our devices to the SIO bus
-void iecFuji::setup(systemBus *siobus)
-{
-    // TODO IMPLEMENT
-    Debug_printf("iecFuji::setup()\n");
 
-    _populate_slots_from_config();
-
-                                            // 04-07 Printers / Plotters
-    IEC.addDevice(new iecDisk(), 8);        // 08-16 Drives
-    IEC.addDevice(new iecNetwork(), 16);    // 16-19 Network Devices
-    IEC.addDevice(new iecCpm(), 20);        // 20-29 Other
-    IEC.addDevice(new iecClock(), 29);
-    IEC.addDevice(this, 30);                // 30    FujiNet
-}
 
 // iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
@@ -85,6 +71,267 @@ iecFuji::iecFuji()
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
 }
+
+// Initializes base settings and adds our devices to the SIO bus
+void iecFuji::setup(systemBus *bus)
+{
+    // TODO IMPLEMENT
+    Debug_printf("iecFuji::setup()\n");
+
+    _populate_slots_from_config();
+
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+//    iecPrinter::printer_type ptype = Config.get_printer_type(0);
+    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_COMMODORE_MPS803; // temporary
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+    iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    bus->addDevice(ptr, 4);                  // 04-07 Printers / Plotters
+    bus->addDevice(new iecDisk(), 8);        // 08-16 Drives
+    bus->addDevice(new iecNetwork(), 16);    // 16-19 Network Devices
+    bus->addDevice(new iecCpm(), 20);        // 20-29 Other
+    bus->addDevice(new iecClock(), 29);
+    bus->addDevice(this, 30);                // 30    FujiNet
+}
+
+device_state_t iecFuji::process()
+{
+    virtualDevice::process();
+
+    if (commanddata.channel != CHANNEL_COMMAND)
+    {
+        Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
+        device_state = DEVICE_ERROR;
+        IEC.senderTimeout();
+    }
+
+    if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
+    {
+        #ifdef DEBUG
+        if (response.size()>0) 
+        {  
+            Debug_printv("Sending: ");
+
+            // Hex
+            for (int i=0;i<response.size();i++)
+            {
+                Debug_printf("%02X ",response[i]);
+            }
+
+            // Debug_printf("  ");
+            // // ASCII Text representation
+            // for (int i=0;i<response.size();i++)
+            // {
+            //     char c = petscii2ascii(response[i]);
+            //     Debug_printf("%c", c<0x20 || c>0x7f ? '.' : c);
+            // }
+        }
+        
+        Debug_printf("\n");
+        #endif
+
+        while (!IEC.sendBytes(response, true))
+            ;
+    }
+    else if (commanddata.primary == IEC_UNLISTEN)
+    {
+        if (payload[0] > 0x7F)
+            process_raw_commands();
+        else
+            process_basic_commands();
+    }
+
+    return device_state;
+}
+
+// COMMODORE SPECIFIC CONVENIENCE COMMANDS /////////////////////
+
+void iecFuji::local_ip()
+{
+    char msg[17];
+
+    fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+
+    sprintf(msg, "%u.%u.%u.%u", cfg.localIP[0], cfg.localIP[1], cfg.localIP[2], cfg.localIP[3]);
+
+    iecStatus.channel = 15;
+    iecStatus.error = 0;
+    iecStatus.msg = std::string(msg);
+    iecStatus.connected = 0;
+}
+
+
+void iecFuji::process_basic_commands()
+{
+    payload = mstr::toUTF8(payload);
+    pt = util_tokenize(payload, ',');
+
+    if (payload.find("adapterconfig") != std::string::npos)
+        get_adapter_config();
+    else if (payload.find("setssid") != std::string::npos)
+        net_set_ssid();
+    else if (payload.find("getssid") != std::string::npos)
+        net_get_ssid();
+    else if (payload.find("reset") != std::string::npos)
+        reset_device();
+    else if (payload.find("scanresult") != std::string::npos)
+        net_scan_result();
+    else if (payload.find("scan") != std::string::npos)
+        net_scan_networks();
+    else if (payload.find("wifistatus") != std::string::npos)
+        net_get_wifi_status();
+    else if (payload.find("mounthost") != std::string::npos)
+        mount_host();
+    else if (payload.find("mountdrive") != std::string::npos)
+        disk_image_mount();
+    else if (payload.find("opendir") != std::string::npos)
+        open_directory();
+    else if (payload.find("readdir") != std::string::npos)
+        read_directory_entry();
+    else if (payload.find("closedir") != std::string::npos)
+        close_directory();
+    else if (payload.find("gethost") != std::string::npos ||
+             payload.find("flh") != std::string::npos)
+        read_host_slots();
+    else if (payload.find("puthost") != std::string::npos ||
+             payload.find("fhost") != std::string::npos)
+        write_host_slots();
+    else if (payload.find("getdrive") != std::string::npos)
+        read_device_slots();
+    else if (payload.find("unmounthost") != std::string::npos)
+        unmount_host();
+    else if (payload.find("getdirpos") != std::string::npos)
+        get_directory_position();
+    else if (payload.find("setdirpos") != std::string::npos)
+        set_directory_position();
+    else if (payload.find("setdrivefilename") != std::string::npos)
+        set_device_filename();
+    else if (payload.find("writeappkey") != std::string::npos)
+        write_app_key();
+    else if (payload.find("readappkey") != std::string::npos)
+        read_app_key();
+    else if (payload.find("openappkey") != std::string::npos)
+        open_app_key();
+    else if (payload.find("closeappkey") != std::string::npos)
+        close_app_key();
+    else if (payload.find("drivefilename") != std::string::npos)
+        get_device_filename();
+    else if (payload.find("bootconfig") != std::string::npos)
+        set_boot_config();
+    else if (payload.find("bootmode") != std::string::npos)
+        set_boot_mode();
+    else if (payload.find("mountall") != std::string::npos)
+        mount_all();
+    else if (payload.find("localip") != std::string::npos)
+        local_ip();
+    else if (payload.find("bptiming") != std::string::npos)
+{
+        if ( pt.size() < 3 ) 
+            return;
+
+        IEC.setBitTiming(pt[1], atoi(pt[2].c_str()), atoi(pt[3].c_str()), atoi(pt[4].c_str()), atoi(pt[5].c_str()));
+        }
+    }
+    
+void iecFuji::process_raw_commands()
+{
+    Debug_printv("payload[%d]", payload[0]);
+    switch (payload[0])
+    {
+    case FUJICMD_RESET:
+        reset_device();
+        break;
+    case FUJICMD_GET_SSID:
+        net_get_ssid();
+        break;
+    case FUJICMD_SCAN_NETWORKS:
+        net_scan_networks();
+        break;
+    case FUJICMD_GET_SCAN_RESULT:
+        net_scan_result();
+        break;
+    case FUJICMD_SET_SSID:
+        net_set_ssid();
+        break;
+    case FUJICMD_GET_WIFISTATUS:
+        net_get_wifi_status();
+        break;
+    case FUJICMD_MOUNT_HOST:
+        mount_host();
+        break;
+    case FUJICMD_MOUNT_IMAGE:
+        disk_image_mount();
+        break;
+    case FUJICMD_OPEN_DIRECTORY:
+        open_directory();
+        break;
+    case FUJICMD_READ_DIR_ENTRY:
+        read_directory_entry();
+        break;
+    case FUJICMD_CLOSE_DIRECTORY:
+        close_directory();
+        break;
+    case FUJICMD_READ_HOST_SLOTS:
+        read_host_slots();
+        break;
+    case FUJICMD_WRITE_HOST_SLOTS:
+        write_host_slots();
+        break;
+    case FUJICMD_READ_DEVICE_SLOTS:
+        read_device_slots();
+        break;
+    case FUJICMD_WRITE_DEVICE_SLOTS:
+        write_device_slots();
+        break;
+    case FUJICMD_ENABLE_UDPSTREAM:
+        // Not implemented.
+        break;
+    case FUJICMD_UNMOUNT_IMAGE:
+        disk_image_umount();
+        break;
+    case FUJICMD_UNMOUNT_HOST:
+        unmount_host();
+        break;
+    case FUJICMD_GET_ADAPTERCONFIG:
+        get_adapter_config();
+        break;
+    case FUJICMD_GET_DIRECTORY_POSITION:
+        get_directory_position();
+        break;
+    case FUJICMD_SET_DIRECTORY_POSITION:
+        set_directory_position();
+        break;
+    case FUJICMD_SET_DEVICE_FULLPATH:
+        set_device_filename();
+        break;
+    case FUJICMD_WRITE_APPKEY:
+        write_app_key();
+        break;
+    case FUJICMD_READ_APPKEY:
+        read_app_key();
+        break;
+    case FUJICMD_OPEN_APPKEY:
+        open_app_key();
+        break;
+    case FUJICMD_CLOSE_APPKEY:
+        close_app_key();
+        break;
+    case FUJICMD_GET_DEVICE_FULLPATH:
+        get_device_filename();
+        break;
+    case 0xD9:
+        set_boot_config();
+        break;
+    case FUJICMD_SET_BOOT_MODE:
+        set_boot_mode();
+        break;
+    case FUJICMD_MOUNT_ALL:
+        mount_all();
+        break;
+    }
+}
+
 
 // Reset FujiNet
 void iecFuji::reset_device()
@@ -147,7 +394,6 @@ void iecFuji::net_scan_result()
         char t[8];
 
         std::string s = std::string(detail.ssid);
-        s = mstr::toPETSCII2(s);
         itoa(detail.rssi, t, 10);
 
         response = std::string(t) + ",\"" + s + "\"";
@@ -160,7 +406,7 @@ void iecFuji::net_get_ssid()
     struct
     {
         char ssid[MAX_SSID_LEN + 1];
-        char password[64];
+        char password[MAX_PASSPHRASE_LEN + 1];
     } cfg;
 
     memset(&cfg, 0, sizeof(cfg));
@@ -180,12 +426,11 @@ void iecFuji::net_get_ssid()
     else // BASIC mode.
     {
         response = std::string(cfg.ssid);
-        response = mstr::toPETSCII2(response);
     }
 }
 
 // Set SSID
-void iecFuji::net_set_ssid()
+void iecFuji::net_set_ssid(bool store)
 {
     Debug_println("Fuji cmd: SET SSID");
 
@@ -193,8 +438,10 @@ void iecFuji::net_set_ssid()
     struct
     {
         char ssid[MAX_SSID_LEN + 1];
-        char password[64];
+        char password[MAX_PASSPHRASE_LEN + 1];
     } cfg;
+
+    memset(&cfg, 0, sizeof(cfg));
 
     if (payload[0] == FUJICMD_SET_SSID)
     {
@@ -202,15 +449,26 @@ void iecFuji::net_set_ssid()
     }
     else // easy BASIC form
     {
-        if (pt.size() == 3)
+        std::string s = payload.substr(8, std::string::npos);
+        std::vector<std::string> t = util_tokenize(s, ',');
+
+        if (t.size() == 2)
         {
-            if ( mstr::isNumeric( pt[1] ) ) {
+            if ( mstr::isNumeric( t[0] ) ) {
                 // Find SSID by CRC8 Number
-                pt[1] = fnWiFi.get_network_name_by_crc8( std::stoi(pt[1]) );
+                t[0] = fnWiFi.get_network_name_by_crc8( std::stoi(t[0]) );
             }
 
-            strncpy(cfg.ssid, pt[1].c_str(), 33);
-            strncpy(cfg.password, pt[2].c_str(), 64);
+            strncpy(cfg.ssid, t[0].c_str(),
+                t[0].length() > sizeof(cfg.ssid) ? sizeof(cfg.ssid) : t[0].length());
+            strncpy(cfg.password, t[1].c_str(),
+                t[1].length() > sizeof(cfg.password) ? sizeof(cfg.password) : t[1].length());
+            Debug_printv("t1[%s] t2[%s] ssid[%s] pass[%s]", t[0].c_str(), t[1].c_str(), cfg.ssid, cfg.password);
+        }
+        else
+        {
+            Debug_printv("SSID, PASSWORD not set!");
+            return;
         }
     }
 
@@ -219,8 +477,12 @@ void iecFuji::net_set_ssid()
     Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
     Config.save();
 
-    Debug_printf("Connecting to net %s\r\n", cfg.ssid);
+    Debug_printf("Connecting to [%s]\r\n", cfg.ssid);
     fnWiFi.connect(cfg.ssid, cfg.password);
+
+    // Only save these if we're asked to, otherwise assume it was a test for connectivity
+    if ( store && fnWiFi.connected() )
+        net_store_ssid();
 
     iecStatus.channel = 15;
     iecStatus.error = 0;
@@ -228,6 +490,67 @@ void iecFuji::net_set_ssid()
     iecStatus.connected = fnWiFi.connected();
 }
 
+void iecFuji::net_store_ssid()
+{
+    // Only save these if we're asked to, otherwise assume it was a test for connectivity
+
+    // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
+    // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
+    // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
+
+    int ssid_in_stored = -1;
+    for (int i = 0; i < MAX_WIFI_STORED; i++)
+    {
+        if (Config.get_wifi_stored_ssid(i) == cfg.ssid)
+        {
+            ssid_in_stored = i;
+            break;
+        }
+    }
+
+    // case 1
+    if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+        Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
+        // Move enabled stored down one, last one will drop off
+        for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
+        {
+            bool enabled = Config.get_wifi_stored_enabled(j - 1);
+            if (!enabled) continue;
+
+            Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
+            Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
+            Config.store_wifi_stored_enabled(j, true); // already confirmed this is enabled
+        }
+        // push the current to the top of stored
+        Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
+        Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
+        Config.store_wifi_stored_enabled(0, true);
+    }
+
+    // case 2
+    if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+        Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\r\n", ssid_in_stored);
+        // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
+        for (int j = ssid_in_stored; j > 0; j--)
+        {
+            Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
+            Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
+            Config.store_wifi_stored_enabled(j, true);
+        }
+
+        // push the current to the top of stored
+        Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
+        Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
+        Config.store_wifi_stored_enabled(0, true);
+    }
+
+    // save the new SSID as current
+    Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+    // Clear text here, it will be encrypted internally if enabled for encryption
+    Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+
+    Config.save();
+}
 
 // Get WiFi Status
 void iecFuji::net_get_wifi_status()
@@ -250,8 +573,6 @@ void iecFuji::net_get_wifi_status()
             response = "connected";
         else
             response = "disconnected";
-
-        response = mstr::toPETSCII2(response);
     }
 }
 
@@ -538,7 +859,6 @@ void iecFuji::open_app_key()
         memcpy(&_current_appkey, &payload.c_str()[1], sizeof(_current_appkey));
     else
     {
-        
         unsigned int val;
 
         if (pt.size() < 5)
@@ -1510,243 +1830,6 @@ void iecFuji::insert_boot_device(uint8_t d)
 iecDisk *iecFuji::bootdisk()
 {
     return &_bootDisk;
-}
-
-device_state_t iecFuji::process()
-{
-    virtualDevice::process();
-
-    if (commanddata.channel != CHANNEL_COMMAND)
-    {
-        Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
-        device_state = DEVICE_ERROR;
-        IEC.senderTimeout();
-    }
-
-    if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
-    {
-        #ifdef DEBUG
-        if (response.size()>0) 
-        {  
-            Debug_printv("Sending: ");
-
-            // Hex
-            for (int i=0;i<response.size();i++)
-            {
-                Debug_printf("%02X ",response[i]);
-            }
-
-            // Debug_printf("  ");
-            // // ASCII Text representation
-            // for (int i=0;i<response.size();i++)
-            // {
-            //     char c = petscii2ascii(response[i]);
-            //     Debug_printf("%c", c<0x20 || c>0x7f ? '.' : c);
-            // }
-        }
-        
-        Debug_printf("\n");
-        #endif
-
-        while (!IEC.sendBytes(response))
-            ;
-    }
-    else if (commanddata.primary == IEC_UNLISTEN)
-    {
-        if (payload[0] > 0x7F)
-            process_raw_commands();
-        else
-            process_basic_commands();
-    }
-
-    return device_state;
-}
-
-// COMMODORE SPECIFIC CONVENIENCE COMMANDS /////////////////////
-
-void iecFuji::local_ip()
-{
-    char msg[17];
-
-    fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-
-    sprintf(msg, "%u.%u.%u.%u", cfg.localIP[0], cfg.localIP[1], cfg.localIP[2], cfg.localIP[3]);
-
-    iecStatus.channel = 15;
-    iecStatus.error = 0;
-    iecStatus.msg = std::string(msg);
-    iecStatus.connected = 0;
-}
-
-
-void iecFuji::process_basic_commands()
-{
-    payload = mstr::toUTF8(payload);
-    pt = util_tokenize(payload, ',');
-
-    if (payload.find("adapterconfig") != std::string::npos)
-        get_adapter_config();
-    else if (payload.find("setssid") != std::string::npos)
-        net_set_ssid();
-    else if (payload.find("getssid") != std::string::npos)
-        net_get_ssid();
-    else if (payload.find("reset") != std::string::npos)
-        reset_device();
-    else if (payload.find("scanresult") != std::string::npos)
-        net_scan_result();
-    else if (payload.find("scan") != std::string::npos)
-        net_scan_networks();
-    else if (payload.find("wifistatus") != std::string::npos)
-        net_get_wifi_status();
-    else if (payload.find("mounthost") != std::string::npos)
-        mount_host();
-    else if (payload.find("mountdrive") != std::string::npos)
-        disk_image_mount();
-    else if (payload.find("opendir") != std::string::npos)
-        open_directory();
-    else if (payload.find("readdir") != std::string::npos)
-        read_directory_entry();
-    else if (payload.find("closedir") != std::string::npos)
-        close_directory();
-    else if (payload.find("gethost") != std::string::npos ||
-             payload.find("flh") != std::string::npos)
-        read_host_slots();
-    else if (payload.find("puthost") != std::string::npos ||
-             payload.find("fhost") != std::string::npos)
-        write_host_slots();
-    else if (payload.find("getdrive") != std::string::npos)
-        read_device_slots();
-    else if (payload.find("unmounthost") != std::string::npos)
-        unmount_host();
-    else if (payload.find("getdirpos") != std::string::npos)
-        get_directory_position();
-    else if (payload.find("setdirpos") != std::string::npos)
-        set_directory_position();
-    else if (payload.find("setdrivefilename") != std::string::npos)
-        set_device_filename();
-    else if (payload.find("writeappkey") != std::string::npos)
-        write_app_key();
-    else if (payload.find("readappkey") != std::string::npos)
-        read_app_key();
-    else if (payload.find("openappkey") != std::string::npos)
-        open_app_key();
-    else if (payload.find("closeappkey") != std::string::npos)
-        close_app_key();
-    else if (payload.find("drivefilename") != std::string::npos)
-        get_device_filename();
-    else if (payload.find("bootconfig") != std::string::npos)
-        set_boot_config();
-    else if (payload.find("bootmode") != std::string::npos)
-        set_boot_mode();
-    else if (payload.find("mountall") != std::string::npos)
-        mount_all();
-    else if (payload.find("localip") != std::string::npos)
-        local_ip();
-    else if (payload.find("bptiming") != std::string::npos)
-{
-        if ( pt.size() < 3 ) 
-            return;
-
-        IEC.setBitTiming(pt[1], atoi(pt[2].c_str()), atoi(pt[3].c_str()), atoi(pt[4].c_str()), atoi(pt[5].c_str()));
-        }
-    }
-    
-void iecFuji::process_raw_commands()
-{
-    Debug_printv("payload[%d]", payload[0]);
-    switch (payload[0])
-    {
-    case FUJICMD_RESET:
-        reset_device();
-        break;
-    case FUJICMD_GET_SSID:
-        net_get_ssid();
-        break;
-    case FUJICMD_SCAN_NETWORKS:
-        net_scan_networks();
-        break;
-    case FUJICMD_GET_SCAN_RESULT:
-        net_scan_result();
-        break;
-    case FUJICMD_SET_SSID:
-        net_set_ssid();
-        break;
-    case FUJICMD_GET_WIFISTATUS:
-        net_get_wifi_status();
-        break;
-    case FUJICMD_MOUNT_HOST:
-        mount_host();
-        break;
-    case FUJICMD_MOUNT_IMAGE:
-        disk_image_mount();
-        break;
-    case FUJICMD_OPEN_DIRECTORY:
-        open_directory();
-        break;
-    case FUJICMD_READ_DIR_ENTRY:
-        read_directory_entry();
-        break;
-    case FUJICMD_CLOSE_DIRECTORY:
-        close_directory();
-        break;
-    case FUJICMD_READ_HOST_SLOTS:
-        read_host_slots();
-        break;
-    case FUJICMD_WRITE_HOST_SLOTS:
-        write_host_slots();
-        break;
-    case FUJICMD_READ_DEVICE_SLOTS:
-        read_device_slots();
-        break;
-    case FUJICMD_WRITE_DEVICE_SLOTS:
-        write_device_slots();
-        break;
-    case FUJICMD_ENABLE_UDPSTREAM:
-        // Not implemented.
-        break;
-    case FUJICMD_UNMOUNT_IMAGE:
-        disk_image_umount();
-        break;
-    case FUJICMD_UNMOUNT_HOST:
-        unmount_host();
-        break;
-    case FUJICMD_GET_ADAPTERCONFIG:
-        get_adapter_config();
-        break;
-    case FUJICMD_GET_DIRECTORY_POSITION:
-        get_directory_position();
-        break;
-    case FUJICMD_SET_DIRECTORY_POSITION:
-        set_directory_position();
-        break;
-    case FUJICMD_SET_DEVICE_FULLPATH:
-        set_device_filename();
-        break;
-    case FUJICMD_WRITE_APPKEY:
-        write_app_key();
-        break;
-    case FUJICMD_READ_APPKEY:
-        read_app_key();
-        break;
-    case FUJICMD_OPEN_APPKEY:
-        open_app_key();
-        break;
-    case FUJICMD_CLOSE_APPKEY:
-        close_app_key();
-        break;
-    case FUJICMD_GET_DEVICE_FULLPATH:
-        get_device_filename();
-        break;
-    case 0xD9:
-        set_boot_config();
-        break;
-    case FUJICMD_SET_BOOT_MODE:
-        set_boot_mode();
-        break;
-    case FUJICMD_MOUNT_ALL:
-        mount_all();
-        break;
-    }
 }
 
 int iecFuji::get_disk_id(int drive_slot)

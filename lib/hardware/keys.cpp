@@ -220,9 +220,8 @@ void KeyManager::_keystate_task(void *param)
                 fnBtManager.stop();
                 fnLedManager.set(BLUETOOTH_LED, false);
 
-                // Start WiFi
+                // Start WiFi and connect
                 fnWiFi.start();
-                fnWiFi.connect();
 
                 // Save Bluetooth status in fnConfig
                 Config.store_bt_status(false); // Disabled

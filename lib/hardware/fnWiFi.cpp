@@ -108,6 +108,10 @@ int WiFiManager::start()
     esp_netif_set_hostname(_wifi_sta, Config.get_general_devicename().c_str());
 
     _started = true;
+
+    // // Go ahead and try connecting to WiFi
+    // connect();
+
     return 0;
 }
 
@@ -126,8 +130,15 @@ int WiFiManager::connect()
 
         return connect(Config.get_wifi_ssid().c_str(), Config.get_wifi_passphrase().c_str());
     }
-    else
-        return -1;
+    // else
+    // {
+    //     if ( strlen( WIFI_SSID ) )
+    //     {
+    //         Debug_printv("Connection failed.  Trying default WiFi Settings. [%s][%s]", WIFI_SSID, WIFI_PASSWORD);
+    //         return connect( WIFI_SSID, WIFI_PASSWORD );
+    //     }
+    // }
+    return -1;
 }
 
 int WiFiManager::connect(const char *ssid, const char *password)
@@ -770,7 +781,7 @@ std::string WiFiManager::get_network_name_by_crc8(uint8_t crc8)
             return _network_name;
         }
     }
-    return nullptr;
+    return std::string();
 }
 
 std::vector<std::string> WiFiManager::get_network_names()

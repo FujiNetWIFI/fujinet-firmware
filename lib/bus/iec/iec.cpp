@@ -88,41 +88,40 @@ void IRAM_ATTR systemBus::release ( int _pin )
         _reg = GPIO_ENABLE1_REG, _pin -= 32; 
     } 
     REG_CLR_BIT(_reg, 1 << _pin); // GPIO_MODE_INPUT
-
-    //protocol->wait( 4 ); // Delay for slow pull up
 }
 
-bool IRAM_ATTR systemBus::status ( uint8_t pin )
+bool IRAM_ATTR systemBus::status ( int _pin )
 {
 #ifndef IEC_SPLIT_LINES
-    release ( pin );
+    release ( _pin );
 #endif
-    int l = gpio_get_level ( ( gpio_num_t ) pin ) ? RELEASED : PULLED;
     
-    return l;
+    return gpio_get_level ( ( gpio_num_t ) _pin ) ? RELEASED : PULLED;
 }
 
-uint8_t IRAM_ATTR systemBus::status()
-{
-    uint8_t data = 0;
+// int IRAM_ATTR systemBus::status()
+// {
+//     int data = 0;
 
-    gpio_config_t io_config =
-    {
-        .pin_bit_mask = BIT(PIN_IEC_CLK_IN) | BIT(PIN_IEC_DATA_IN) | BIT(PIN_IEC_SRQ) | BIT(PIN_IEC_RESET),
-        .mode = GPIO_MODE_INPUT,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
+//     gpio_config_t io_config =
+//     {
+//         .pin_bit_mask = BIT(PIN_IEC_CLK_IN) | BIT(PIN_IEC_DATA_IN) | BIT(PIN_IEC_SRQ) | BIT(PIN_IEC_RESET),
+//         .mode = GPIO_MODE_INPUT,
+//         .pull_up_en = GPIO_PULLUP_ENABLE,
+//         .intr_type = GPIO_INTR_DISABLE,
+//     };
 
-    ESP_ERROR_CHECK(gpio_config(&io_config));
-    uint64_t io_data = REG_READ(GPIO_IN_REG);
+//     ESP_ERROR_CHECK(gpio_config(&io_config));
+//     uint64_t io_data = REG_READ(GPIO_IN_REG);
 
-    // data << (1 & (io_data & (1 << PIN_IEC_CLK_IN)));
-    // data << (2 & (io_data & (1 << PIN_IEC_DATA_IN)));
-    // data << (3 & (io_data & (1 << PIN_IEC_SRQ)));
-    // data << (4 & (io_data & (1 << PIN_IEC_RESET)));
+//     //data |= (0 & (io_data & (1 << PIN_IEC_ATN)));
+//     data |= (1 & (io_data & (1 << PIN_IEC_CLK_IN)));
+//     data |= (2 & (io_data & (1 << PIN_IEC_DATA_IN)));
+//     data |= (3 & (io_data & (1 << PIN_IEC_SRQ)));
+//     data |= (4 & (io_data & (1 << PIN_IEC_RESET)));
 
-    return data;
-}
+//     return data;
+// }
 
 void systemBus::setup()
 {
@@ -217,9 +216,10 @@ void IRAM_ATTR systemBus::service()
         if (bus_state == BUS_OFFLINE)
             break;
 
-        //pull ( PIN_IEC_SRQ );
         if (bus_state == BUS_ACTIVE)
         {
+            pull ( PIN_IEC_SRQ );
+
             //release ( PIN_IEC_CLK_OUT );
             //pull ( PIN_IEC_DATA_OUT );
 
@@ -228,17 +228,19 @@ void IRAM_ATTR systemBus::service()
             // Read bus command bytes
             //Debug_printv("command");
             read_command();
+
+            release ( PIN_IEC_SRQ );
         }
-        //release ( PIN_IEC_SRQ );
 
         if (bus_state == BUS_PROCESS)
         {
             // Sometimes ATN isn't released immediately. Wait for ATN to be
             // released before trying to read payload. Long ATN delay (>1.5ms)
             // seems to occur more frequently with VIC-20.
-            protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER, false);
+            // protocol->timeoutWait(PIN_IEC_ATN, RELEASED, FOREVER, false);
 
             //Debug_printv("data");
+            pull ( PIN_IEC_SRQ );
             if (data.secondary == IEC_OPEN || data.secondary == IEC_REOPEN)
             {
                 // Switch to detected protocol
@@ -283,6 +285,7 @@ void IRAM_ATTR systemBus::service()
             // Switch back to standard serial
             detected_protocol = PROTOCOL_SERIAL;
             protocol = selectProtocol();
+            release ( PIN_IEC_SRQ );
         }
 
         if ( status ( PIN_IEC_ATN ) )
@@ -317,9 +320,9 @@ void systemBus::read_command()
     }
         //release( PIN_IEC_SRQ );
 
-    pull( PIN_IEC_SRQ );
-    int8_t c = receiveByte();
-    release( PIN_IEC_SRQ );
+    //pull( PIN_IEC_SRQ );
+    uint8_t c = receiveByte();
+    //release( PIN_IEC_SRQ );
 
         // Check for error
     if ( flags & ERROR )
@@ -399,38 +402,38 @@ void systemBus::read_command()
 
             default:
 
-            pull ( PIN_IEC_SRQ );
+            //pull ( PIN_IEC_SRQ );
             std::string secondary;
             bus_state = BUS_PROCESS;
 
-                command = c & 0xF0;
-                switch ( command )
-                {
+            command = c & 0xF0;
+            switch ( command )
+            {
                 case IEC_OPEN:
-                data.secondary = IEC_OPEN;
-                data.channel = c ^ IEC_OPEN;
-                secondary = "OPEN";
+                    data.secondary = IEC_OPEN;
+                    data.channel = c ^ IEC_OPEN;
+                    secondary = "OPEN";
                     break;
 
                 case IEC_REOPEN:
-                data.secondary = IEC_REOPEN;
-                data.channel = c ^ IEC_REOPEN;
-                secondary = "DATA";
+                    data.secondary = IEC_REOPEN;
+                    data.channel = c ^ IEC_REOPEN;
+                    secondary = "DATA";
                     break;
 
                 case IEC_CLOSE:
-                data.secondary = IEC_CLOSE;
-                data.channel = c ^ IEC_CLOSE;
-                secondary = "CLOSE";
+                    data.secondary = IEC_CLOSE;
+                    data.channel = c ^ IEC_CLOSE;
+                    secondary = "CLOSE";
                     break;
 
                 default:
                     bus_state = BUS_IDLE;
-                }
+            }
 
             // *** IMPORTANT! This helps keep us in sync!
             protocol->wait( TIMING_SYNC, false);
-            release ( PIN_IEC_SRQ );
+            //release ( PIN_IEC_SRQ );
 
             Debug_printf(" (%.2X %s  %.2d CHANNEL)\r\n", data.secondary, secondary.c_str(), data.channel);
         }
@@ -676,7 +679,7 @@ int8_t systemBus::receiveByte()
 {
     int8_t b = protocol->receiveByte();
 #ifdef DATA_STREAM
-    Debug_printf("%.2X ", b);
+    Debug_printf("%.2X ", (uint8_t)b);
 #endif
     if (b == -1)
     {
@@ -898,7 +901,7 @@ void systemBus::addDevice(virtualDevice *pDevice, int device_id)
     }
 
     // TODO, add device shortcut pointer logic like others
-    Debug_printf("Device #%02d Ready!\r\n", device_id);
+    Serial.printf("Device #%02d Ready!\r\n", device_id);
 
     pDevice->_devnum = device_id;
     _daisyChain.push_front(pDevice);
