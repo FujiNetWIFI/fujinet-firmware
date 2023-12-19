@@ -13,7 +13,6 @@
 #include "meat_stream.h"
 #include "peoples_url_parser.h"
 #include "string_utils.h"
-#include "U8Char.h"
 
 #define _MEAT_NO_DATA_AVAIL (std::ios_base::eofbit)
 
@@ -117,8 +116,8 @@ public:
         return mstr::endsWith(fileName, ext, false);
     }
 
-    static bool byExtension(std::vector<std::string> ext, std::string fileName) {
-        for ( auto & e : ext )
+    static bool byExtension(const std::vector<std::string> &ext, std::string fileName) {
+        for ( const auto &e : ext )
         {
             if ( mstr::endsWith(fileName, e.c_str(), false) )
                 return true;
