@@ -771,7 +771,6 @@ void iecNetwork::iec_talk_command()
 
 void iecNetwork::iec_command()
 {
-
     // Check pt size before proceeding to avoid a crash
     if (pt.size()==0) {
         Debug_printf("pt.size()==0!\n");

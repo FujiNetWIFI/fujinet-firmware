@@ -122,4 +122,4 @@ bool MediaTypeDSK::create(FILE *f, uint32_t numBlocks)
 
     return true;
 }
-#endif // NEW_TARGET
+#endif // BUILD_COCO

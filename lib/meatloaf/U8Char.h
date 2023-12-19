@@ -18,11 +18,11 @@ class U8Char {
 
 public:
     char16_t ch;
-    U8Char(uint16_t codepoint): ch(codepoint) {};
+    U8Char(const uint16_t codepoint): ch(codepoint) {};
     U8Char(std::istream* reader) {
         fromUtf8Stream(reader);
     }
-    U8Char(char petscii) {
+    U8Char(const char petscii) {
         ch = utf8map[(uint8_t)petscii];
     }
 
@@ -30,8 +30,10 @@ public:
 
     std::string toUtf8();
     uint8_t toPetscii();
-    size_t toUnicode32(std::string& input_utf8, uint32_t* output_unicode32);
+    size_t toUnicode32(std::string& input_utf8, uint32_t* output_unicode32, size_t max_output_length);
     std::string fromUnicode32(uint32_t* input_unicode32, size_t input_length);
+    static std::string toPunycode(std::string utf8String);
+    static std::string fromPunycode(std::string punycodeString);
 };
 
 #endif /* MEATLOAF_UTILS_U8CHAR */

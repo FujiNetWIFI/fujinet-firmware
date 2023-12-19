@@ -6,6 +6,8 @@
 
 #include "meat_io.h"
 
+#include "U8Char.h"
+
 namespace Meat
 {
     /********************************************************
@@ -87,7 +89,7 @@ namespace Meat
             return doOpen(mode);
         };
 
-        std::filebuf *open(const std::string filename, std::ios_base::openmode mode)
+        std::filebuf *open(const std::string &filename, std::ios_base::openmode mode)
         {
             // Debug_println("In filebuf open");
             mfile.reset(MFSOwner::File(filename));
@@ -260,7 +262,7 @@ namespace Meat
 
             Debug_printv("%d bytes in buffer will be written", end - this->pbase());
 
-            uint8_t *pBase = (uint8_t *)this->pbase();
+            const uint8_t *pBase = (uint8_t *)this->pbase();
 
             if (mstream->write(pBase, end - this->pbase()) == 0)
             {
@@ -370,7 +372,7 @@ namespace Meat
             }
             else
             {
-                uint8_t *buffer = (uint8_t *)this->pbase();
+                const uint8_t *buffer = (uint8_t *)this->pbase();
 
                 // pptr =  Returns the pointer to the current character (put pointer) in the put area.
                 // pbase = Returns the pointer to the beginning ("base") of the put area.

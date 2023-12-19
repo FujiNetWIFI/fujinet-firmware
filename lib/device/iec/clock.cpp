@@ -21,7 +21,8 @@ void iecClock::set_timestamp(std::string s)
 void iecClock::set_timestamp_format(std::string s)
 {
     Debug_printf("set_timestamp_format(%s)\n",s.c_str());
-    tf = s; //mstr::toUTF8(s);
+    s = mstr::toUTF8(s);
+    tf = s;
 }
 
 device_state_t iecClock::process()
