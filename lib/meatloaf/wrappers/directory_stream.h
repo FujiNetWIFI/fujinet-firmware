@@ -89,7 +89,7 @@ public:
         return lineToBuffer(69,"directory entry line in ASCII"); // return length of BASIC line written to the buffer
     }
 
-    size_t lineToBuffer(uint16_t lineNumber, std::string lineContents) {
+    size_t lineToBuffer(uint16_t lineNumber, const std::string &lineContents) {
         // 1. convert lineContents to PETSCII or whatever is required to send to the C64
         // 2. fill our buffer with next line pointer, line number and converted lineContents
         // for(i...) buffer[i]=XXXX...

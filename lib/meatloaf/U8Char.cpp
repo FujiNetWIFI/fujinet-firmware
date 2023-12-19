@@ -1,4 +1,5 @@
 #include "U8Char.h"
+#include "punycode.h"
 
 // from https://style64.org/petscii/
 
@@ -122,22 +123,49 @@ uint8_t U8Char::toPetscii() {
 // char* utf8 -> uint32_t* -> char* ascii_punycode
 
 // convert utf8 encoded string to array of uint32_t, return length of output_unicode32
-size_t U8Char::toUnicode32(std::string& input_utf8, uint32_t* output_unicode32) {
+size_t U8Char::toUnicode32(std::string& input_utf8, uint32_t* output_unicode32, size_t max_output_length) {
     size_t input_length = input_utf8.length();
     size_t output_length = 0;
-    // for(size_t i = 0; i<input_length; i++) {
-    //     U8Char ch(input_utf8[i]);
-    //     output_unicode32[output_length++] = ch.ch;
-    // }
+    size_t i = 0;
+    char* asChar = (char *)input_utf8.c_str();
+
+    while(i<input_length && output_length<max_output_length) {
+        U8Char ch(' ');
+        size_t skip = ch.fromCharArray(asChar+i);
+        output_unicode32[output_length++] = ch.ch;
+        i += skip;
+    }
     return output_length;
 }
 
 // convert array of uint32_t to utf8 encoded string, return utf8 string
 std::string U8Char::fromUnicode32(uint32_t* input_unicode32, size_t input_length) {
     std::string output_utf8;
-    // for(size_t i = 0; i<input_length; i++) {
-    //     U8Char ch(input_unicode32[i]);
-    //     output_utf8 += ch.toUtf8();
-    // }
+    for(size_t i = 0; i<input_length; i++) {
+        U8Char ch((uint16_t)input_unicode32[i]);
+        output_utf8 += ch.toUtf8();
+    }
     return output_utf8;
+}
+
+std::string U8Char::toPunycode(std::string utf8String) {
+    uint32_t asU32[1024];
+    char asPunycode[1024];
+    size_t dstlen = sizeof asPunycode;
+    size_t n_converted;
+    U8Char temp(' ');
+
+    size_t conv_len = temp.toUnicode32(utf8String, asU32, sizeof asU32);
+    n_converted = punycode_encode(asU32, conv_len, asPunycode, &dstlen);    
+    return std::string(asPunycode, n_converted);
+}
+
+
+std::string U8Char::fromPunycode(std::string punycodeString) {
+    uint32_t asU32[1024];
+    size_t dstlen = sizeof asU32;
+    U8Char temp(' ');
+
+    punycode_decode(punycodeString.c_str(), punycodeString.length(), asU32, &dstlen);
+    return temp.fromUnicode32(asU32, dstlen);
 }

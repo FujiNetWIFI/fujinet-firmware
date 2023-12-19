@@ -565,10 +565,10 @@ public:
     void senderTimeout();
 
 
-    void IRAM_ATTR pull ( int _pin );
-    void IRAM_ATTR release ( int _pin );
-    bool IRAM_ATTR status ( int _pin );
-    //uint8_t IRAM_ATTR status();
+    void pull ( int _pin );
+    void release ( int _pin );
+    bool status ( int _pin );
+    //uint8_t status();
 };
 /**
  * @brief Return
