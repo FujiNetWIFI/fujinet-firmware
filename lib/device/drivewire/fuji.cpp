@@ -1375,39 +1375,19 @@ void drivewireFuji::set_device_filename()
 // Get a 256 byte filename from device slot
 void drivewireFuji::get_device_filename()
 {
-    // char tmp[MAX_FILENAME_LEN];
-    // unsigned char err = false;
+    char tmp[MAX_FILENAME_LEN];
+    unsigned char err = false;
 
-    // // AUX1 is the desired device slot
-    // uint8_t slot = cmdFrame.aux1;
+    // AUX1 is the desired device slot
+    uint8_t slot = fnUartBUS.read();
 
-    // if (slot > 7)
-    // {
-    //     err = true;
-    // }
+    if (slot > 7)
+    {
+        err = true;
+    }
 
-    // memcpy(tmp, _fnDisks[cmdFrame.aux1].filename, MAX_FILENAME_LEN);
-    // bus_to_computer((uint8_t *)tmp, MAX_FILENAME_LEN, err);
-}
-
-// Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
-void drivewireFuji::set_drivewire_external_clock()
-{
-    // unsigned short speed = drivewire_get_aux();
-    // int baudRate = speed * 1000;
-
-    // Debug_printf("drivewireFuji::set_external_clock(%u)\n", baudRate);
-
-    // if (speed == 0)
-    // {
-    //     DRIVEWIRE.setUltraHigh(false, 0);
-    // }
-    // else
-    // {
-    //     DRIVEWIRE.setUltraHigh(true, baudRate);
-    // }
-
-    // drivewire_complete();
+    memcpy(tmp, _fnDisks[slot].filename, MAX_FILENAME_LEN);
+    fnUartBUS.write((uint8_t *)tmp, MAX_FILENAME_LEN);
 }
 
 // Mounts the desired boot disk number
