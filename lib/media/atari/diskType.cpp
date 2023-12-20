@@ -138,7 +138,11 @@ void MediaType::unmount()
 {
     if (_disk_fileh != nullptr)
     {
+#ifdef ESP_PLATFORM
         fclose(_disk_fileh);
+#else
+        _disk_fileh->close();
+#endif
         _disk_fileh = nullptr;
     }
 }

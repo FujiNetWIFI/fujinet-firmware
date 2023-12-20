@@ -292,19 +292,13 @@
 
 - TODO: lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
 
-- **WIP**: lib/media/atari/diskType.h lib/media/atari/diskType.cpp
+- **DONE** / merge: lib/media/atari/diskType.h lib/media/atari/diskType.cpp
 
-    diskType.h
-
-- **WIP**: lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
-
-    diskTypeAtr.h
+- **DONE** / merge: lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
 
 - **DONE** / merge: lib/media/atari/diskTypeAtx.h
 
-- **WIP**: lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
-
-    diskTypeXex.h
+- **DONE** / merge: lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
 
 - **DONE** / identical: lib/base64/base64.h lib/base64/base64.c
 
