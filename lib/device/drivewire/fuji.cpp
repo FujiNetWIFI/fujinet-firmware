@@ -256,64 +256,42 @@ void drivewireFuji::mount_host()
 // Disk Image Mount
 void drivewireFuji::disk_image_mount()
 {
-    // // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
-    // // to the C: device. Everything stays the same here and the mounting
-    // // where all the magic happens is done in the drivewireDisk::mount() function.
-    // // This function opens the file, so cassette does not need to open the file.
-    // // Cassette needs the file pointer and file size.
+    // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
+    // to the C: device. Everything stays the same here and the mounting
+    // where all the magic happens is done in the drivewireDisk::mount() function.
+    // This function opens the file, so cassette does not need to open the file.
+    // Cassette needs the file pointer and file size.
 
-    // Debug_println("Fuji cmd: MOUNT IMAGE");
+    Debug_println("Fuji cmd: MOUNT IMAGE");
 
-    // uint8_t deviceSlot = cmdFrame.aux1;
-    // uint8_t options = cmdFrame.aux2; // DISK_ACCESS_MODE
+    uint8_t deviceSlot = fnUartBUS.read();
+    uint8_t options = fnUartBUS.read(); // DISK_ACCESS_MODE
 
-    // // TODO: Implement FETCH?
-    // char flag[3] = {'r', 0, 0};
-    // if (options == DISK_ACCESS_MODE_WRITE)
-    //     flag[1] = '+';
+    // TODO: Implement FETCH?
+    char flag[3] = {'r', 0, 0};
+    if (options == DISK_ACCESS_MODE_WRITE)
+        flag[1] = '+';
 
-    // // Make sure we weren't given a bad hostSlot
-    // if (!_validate_device_slot(deviceSlot))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiHost &host = _fnHosts[disk.host_slot];
 
-    // if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                 disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    // // A couple of reference variables to make things much easier to read...
-    // fujiDisk &disk = _fnDisks[deviceSlot];
-    // fujiHost &host = _fnHosts[disk.host_slot];
+    // TODO: Refactor along with mount disk image.
+    disk.disk_dev.host = &host;
 
-    // Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-    //              disk.filename, disk.host_slot, flag, deviceSlot + 1);
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
-    // // TODO: Refactor along with mount disk image.
-    // disk.disk_dev.host = &host;
+    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+    boot_config = false;
 
-    // disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+    // We need the file size for loading XEX files and for CASSETTE, so get that too
+    disk.disk_size = host.file_size(disk.fileh);
 
-    // if (disk.fileh == nullptr)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-    // boot_config = false;
-    // status_wait_count = 0;
-
-    // // We need the file size for loading XEX files and for CASSETTE, so get that too
-    // disk.disk_size = host.file_size(disk.fileh);
-
-    // // And now mount it
-    // disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-
-    // drivewire_complete();
+    // And now mount it
+    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -1530,6 +1508,15 @@ void drivewireFuji::process()
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
         set_directory_position();
+        break;
+    case FUJICMD_SET_DEVICE_FULLPATH:
+        set_device_filename();
+        break;
+    case FUJICMD_GET_DEVICE_FULLPATH:
+        get_device_filename();
+        break;
+    case FUJICMD_MOUNT_IMAGE:
+        disk_image_mount();
         break;
     default:
         break;
