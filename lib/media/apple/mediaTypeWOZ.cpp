@@ -7,7 +7,11 @@
 #define WOZ1 '1'
 #define WOZ2 '2'
 
+#ifdef ESP_PLATFORM
 mediatype_t MediaTypeWOZ::mount(FILE *f, uint32_t disksize)
+#else
+mediatype_t MediaTypeWOZ::mount(FileHandler *f, uint32_t disksize)
+#endif
 {
     _media_fileh = f;
     diskiiemulation = true;
@@ -54,7 +58,11 @@ void MediaTypeWOZ::unmount()
 bool MediaTypeWOZ::wozX_check_header()
 {
     char hdr[12];
+#ifdef ESP_PLATFORM
     fread(&hdr, sizeof(char), 12, _media_fileh);
+#else
+    _media_fileh->read(&hdr, sizeof(char), 12);
+#endif
     if (hdr[0] == 'W' && hdr[1] == 'O' && hdr[2] == 'Z')
     {
         woz_version = hdr[3];
@@ -78,17 +86,29 @@ bool MediaTypeWOZ::wozX_check_header()
 
 bool MediaTypeWOZ::wozX_read_info()
 {
+#ifdef ESP_PLATFORM
     if (fseek(_media_fileh, 12, SEEK_SET))
+#else
+    if (_media_fileh->seek(12, SEEK_SET))
+#endif
     {
         Debug_printf("\nError seeking INFO chunk");
         return true;
     }
     uint32_t chunk_id, chunk_size;
+#ifdef ESP_PLATFORM
     fread(&chunk_id, sizeof(chunk_id), 1, _media_fileh);
     Debug_printf("\nINFO Chunk ID: %08x", chunk_id);
     fread(&chunk_size, sizeof(chunk_size), 1, _media_fileh);
     Debug_printf("\nINFO Chunk size: %d", chunk_size);
     Debug_printf("\nNow at byte %d", ftell(_media_fileh));
+#else
+    _media_fileh->read(&chunk_id, sizeof(chunk_id), 1);
+    Debug_printf("\nINFO Chunk ID: %08x", chunk_id);
+    _media_fileh->read(&chunk_size, sizeof(chunk_size), 1);
+    Debug_printf("\nINFO Chunk size: %d", chunk_size);
+    Debug_printf("\nNow at byte %d", _media_fileh->tell());
+#endif
     // could read a whole bunch of other stuff  ...
 
     switch (woz_version)
@@ -101,6 +121,7 @@ bool MediaTypeWOZ::wozX_read_info()
         // but jump to offset 44 to get the track size
         {
             // jump to offset 39 to get bit timing
+#ifdef ESP_PLATFORM
             fseek(_media_fileh, 39, SEEK_CUR);
             uint8_t bit_timing;
             fread(&bit_timing, sizeof(uint8_t), 1, _media_fileh);
@@ -110,6 +131,17 @@ bool MediaTypeWOZ::wozX_read_info()
             fseek(_media_fileh, 4, SEEK_CUR);
             uint16_t largest_track;
             fread(&largest_track, sizeof(uint16_t), 1, _media_fileh);
+#else
+            _media_fileh->seek(39, SEEK_CUR);
+            uint8_t bit_timing;
+            _media_fileh->read(&bit_timing, sizeof(uint8_t), 1);
+            optimal_bit_timing = bit_timing;
+            Debug_printf("\nWOZ2 Optimal Bit Timing = 125 ns X %d = %d ns",optimal_bit_timing, (int)optimal_bit_timing * 125);
+            // and jump to offset 44 to get the track size
+            _media_fileh->seek(4, SEEK_CUR);
+            uint16_t largest_track;
+            _media_fileh->read(&largest_track, sizeof(uint16_t), 1);
+#endif
             num_blocks = largest_track;
         }
         break;
@@ -123,13 +155,18 @@ bool MediaTypeWOZ::wozX_read_info()
 
 bool MediaTypeWOZ::wozX_read_tmap()
 { // read TMAP
+#ifdef ESP_PLATFORM
     if (fseek(_media_fileh, 80, SEEK_SET))
+#else
+    if (_media_fileh->seek(80, SEEK_SET))
+#endif
     {
         Debug_printf("\nError seeking TMAP chunk");
         return true;
     }
 
     uint32_t chunk_id, chunk_size;
+#ifdef ESP_PLATFORM
     fread(&chunk_id, sizeof(chunk_id), 1, _media_fileh);
     Debug_printf("\nTMAP Chunk ID: %08x", chunk_id);
     fread(&chunk_size, sizeof(chunk_size), 1, _media_fileh);
@@ -137,6 +174,15 @@ bool MediaTypeWOZ::wozX_read_tmap()
     Debug_printf("\nNow at byte %d", ftell(_media_fileh));
 
     fread(&tmap, sizeof(tmap[0]), MAX_TRACKS, _media_fileh);
+#else
+    _media_fileh->read(&chunk_id, sizeof(chunk_id), 1);
+    Debug_printf("\nTMAP Chunk ID: %08x", chunk_id);
+    _media_fileh->read(&chunk_size, sizeof(chunk_size), 1);
+    Debug_printf("\nTMAP Chunk size: %d", chunk_size);
+    Debug_printf("\nNow at byte %d", _media_fileh->tell());
+
+    _media_fileh->read(&tmap, sizeof(tmap[0]), MAX_TRACKS);
+#endif
 #ifdef DEBUG
     Debug_printf("\nTrack, Index");
     for (int i = 0; i < MAX_TRACKS; i++)
@@ -148,7 +194,11 @@ bool MediaTypeWOZ::wozX_read_tmap()
 
 bool MediaTypeWOZ::woz1_read_tracks()
 {    // depend upon little endian-ness
+#ifdef ESP_PLATFORM
     fseek(_media_fileh, 256, SEEK_SET);
+#else
+    _media_fileh->seek(256, SEEK_SET);
+#endif
 
     // woz1 track data organized as:
     // Offset	Size	    Name	        Usage
@@ -162,16 +212,26 @@ bool MediaTypeWOZ::woz1_read_tracks()
 
     Debug_printf("\nStart Block, Block Count, Bit Count");
     
+#ifdef ESP_PLATFORM
     uint8_t *temp_ptr = (uint8_t *)heap_caps_malloc(WOZ1_NUM_BLKS * 512, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
+#else
+    uint8_t *temp_ptr = (uint8_t *)malloc(WOZ1_NUM_BLKS * 512);
+#endif
     uint16_t bytes_used;
     uint16_t bit_count;
 
     for (int i = 0; i < MAX_TRACKS; i++)
     {
         memset(temp_ptr, 0, WOZ1_NUM_BLKS * 512);
+#ifdef ESP_PLATFORM
         fread(temp_ptr, 1, WOZ1_TRACK_LEN, _media_fileh);
         fread(&bytes_used, sizeof(bytes_used), 1, _media_fileh);
         fread(&bit_count, sizeof(bit_count), 1, _media_fileh);
+#else
+        _media_fileh->read(temp_ptr, 1, WOZ1_TRACK_LEN);
+        _media_fileh->read(&bytes_used, sizeof(bytes_used), 1);
+        _media_fileh->read(&bit_count, sizeof(bit_count), 1);
+#endif
         trks[i].block_count = bytes_used / 512;
         if (bytes_used % 512)
             trks[i].block_count++;
@@ -179,7 +239,11 @@ bool MediaTypeWOZ::woz1_read_tracks()
         if (bit_count > 0)
         {
             size_t s = trks[i].block_count * 512;
+#ifdef ESP_PLATFORM
             trk_ptrs[i] = (uint8_t *)heap_caps_malloc(s, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+#else
+            trk_ptrs[i] = (uint8_t *)malloc(s);
+#endif
             if (trk_ptrs[i] != nullptr)
             {
                 Debug_printf("\nStoring %d bytes of track %d into location %lu", bytes_used, i, trk_ptrs[i]);
@@ -198,7 +262,11 @@ bool MediaTypeWOZ::woz1_read_tracks()
             trk_ptrs[i] = nullptr;
             Debug_printf("\nTrack %d is blank!",i);
         }
+#ifdef ESP_PLATFORM
         fread(temp_ptr, 1, 6, _media_fileh); // read through rest of bytes in track
+#else
+        _media_fileh->read(temp_ptr, 1, 6); // read through rest of bytes in track
+#endif
     }
     free(temp_ptr);
     return false;
@@ -206,8 +274,13 @@ bool MediaTypeWOZ::woz1_read_tracks()
 
 bool MediaTypeWOZ::woz2_read_tracks()
 {    // depend upon little endian-ness
+#ifdef ESP_PLATFORM
     fseek(_media_fileh, 256, SEEK_SET);
     fread(&trks, sizeof(TRK_t), MAX_TRACKS, _media_fileh);
+#else
+    _media_fileh->seek(256, SEEK_SET);
+    _media_fileh->read(&trks, sizeof(TRK_t), MAX_TRACKS);
+#endif
 #ifdef DEBUG
     Debug_printf("\nStart Block, Block Count, Bit Count");
     for (int i=0; i<MAX_TRACKS; i++)
@@ -219,12 +292,21 @@ bool MediaTypeWOZ::woz2_read_tracks()
         size_t s = trks[i].block_count * 512;
         if (s != 0)
         {
+#ifdef ESP_PLATFORM
             trk_ptrs[i] = (uint8_t *)heap_caps_malloc(s, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+#else
+            trk_ptrs[i] = (uint8_t *)malloc(s);
+#endif
             if (trk_ptrs[i] != nullptr)
             {
                 Debug_printf("\nReading %d bytes of track %d into location %lu", s, i, trk_ptrs[i]);
+#ifdef ESP_PLATFORM
                 fseek(_media_fileh, trks[i].start_block * 512, SEEK_SET);
                 fread(trk_ptrs[i], 1, s, _media_fileh);
+#else
+                _media_fileh->seek(trks[i].start_block * 512, SEEK_SET);
+                _media_fileh->read(trk_ptrs[i], 1, s);
+#endif
                 Debug_printf("\n%d, %d, %lu", trks[i].start_block, trks[i].block_count, trks[i].bit_count);
             }
             else

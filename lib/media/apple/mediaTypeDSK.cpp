@@ -18,7 +18,11 @@
 // forward reference
 static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
 
+#ifdef ESP_PLATFORM
 mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
+#else
+mediatype_t MediaTypeDSK::mount(FileHandler *f, uint32_t disksize)
+#endif
 {
     switch (disksize) {
         case 35 * BYTES_PER_TRACK:
@@ -37,10 +41,17 @@ mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
 
     // allocated SPRAM
     const size_t dsk_image_size = num_tracks * BYTES_PER_TRACK;
+#ifdef ESP_PLATFORM
     uint8_t *dsk = (uint8_t*)heap_caps_malloc(dsk_image_size, MALLOC_CAP_SPIRAM);
     if (fseek(f, 0, SEEK_SET) != 0)
         return MEDIATYPE_UNKNOWN;
     size_t bytes_read = fread(dsk, 1, dsk_image_size, f);
+#else
+	uint8_t *dsk = (uint8_t*)malloc(dsk_image_size);
+    if (f->seek(0, SEEK_SET) != 0)
+        return MEDIATYPE_UNKNOWN;
+    size_t bytes_read = f->read(dsk, 1, dsk_image_size);
+#endif
     if (bytes_read != dsk_image_size)
         return MEDIATYPE_UNKNOWN;
 
@@ -109,7 +120,11 @@ bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
 	{
 		uint16_t bytes_used;
 		uint16_t bit_count;
+#ifdef ESP_PLATFORM
 		uint8_t* temp_ptr = (uint8_t *)heap_caps_malloc(WOZ1_NUM_BLKS * 512, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+#else
+		uint8_t* temp_ptr = (uint8_t *)malloc(WOZ1_NUM_BLKS * 512);
+#endif
 		if (temp_ptr != nullptr)
 		{
 			trk_ptrs[c] = temp_ptr;

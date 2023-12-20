@@ -11,7 +11,11 @@ bool MediaTypePO::read(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
     size_t readsize = *count;
 if (blockNum == 0 || blockNum != last_block_num + 1) // example optimization, only do seek if not reading next block -tschak
   {
+#ifdef ESP_PLATFORM
      if (fseek(_media_fileh, (blockNum * readsize) + offset, SEEK_SET))
+#else
+     if (_media_fileh->seek((blockNum * readsize) + offset, SEEK_SET))
+#endif
     {
         reset_seek_opto();
         return true;
@@ -23,7 +27,11 @@ if (blockNum == 0 || blockNum != last_block_num + 1) // example optimization, on
   else
     last_block_num = blockNum;
 
+#ifdef ESP_PLATFORM
   readsize = fread((unsigned char *)buffer, 1, readsize, _media_fileh); // Reading block from SD Card
+#else
+  readsize = _media_fileh->read((unsigned char *)buffer, 1, readsize); // Reading block from SD Card
+#endif
   return (readsize != *count);
 }
 
@@ -35,20 +43,32 @@ bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
     {
         Debug_printf("high score: Swapping file handles\r\n");
         oldFileh = _media_fileh;
+#ifdef ESP_PLATFORM
         hsFileh = _media_host->file_open(_disk_filename, _disk_filename, strlen(_disk_filename) +1, "r+");
+#else
+        hsFileh = _media_host->filehandler_open(_disk_filename, _disk_filename, strlen(_disk_filename) +1, "rb+");
+#endif
         _media_fileh = hsFileh;
     }
 
     if (blockNum != last_block_num + 1) // example optimization, only do seek if not writing next block -tschak
     {
+#ifdef ESP_PLATFORM
          if (fseek(_media_fileh, (blockNum * writesize) + offset, SEEK_SET))
+#else
+         if (_media_fileh->seek((blockNum * writesize) + offset, SEEK_SET))
+#endif
         {
             reset_seek_opto();
             return true;
         }
     }
     last_block_num = blockNum;
+#ifdef ESP_PLATFORM
     writesize = fwrite((unsigned char *)buffer, 1, writesize, _media_fileh);
+#else
+    writesize = _media_fileh->write((unsigned char *)buffer, 1, writesize);
+#endif
     if (writesize != *count)
     {
        reset_seek_opto();
@@ -59,7 +79,11 @@ bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
     {
         Debug_printf("high score: Reverting file handles.\r\n");
         if (hsFileh != nullptr)
+#ifdef ESP_PLATFORM
             fclose(hsFileh);
+#else
+            hsFileh->close();
+#endif
 
         _media_fileh = oldFileh;
         last_block_num = INVALID_SECTOR_VALUE; // Invalidate cache
@@ -73,11 +97,19 @@ bool MediaTypePO::format(uint16_t *respopnsesize)
     return false;
 }
 
+#ifdef ESP_PLATFORM
 mediatype_t MediaTypePO::mount(FILE *f, uint32_t disksize)
+#else
+mediatype_t MediaTypePO::mount(FileHandler *f, uint32_t disksize)
+#endif
 {
     diskiiemulation = false;
     char hdr[64];
+#ifdef ESP_PLATFORM
     fread(&hdr,sizeof(char),64,f);
+#else
+    f->read(&hdr,sizeof(char),64);
+#endif
     if (hdr[0] == '2' && hdr[1] == 'I' && hdr[2] == 'M' && hdr[3] == 'G')
     {
         // check for 'high score enabled'

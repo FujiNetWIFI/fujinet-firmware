@@ -202,12 +202,12 @@ set(SOURCES
     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
     lib/modem/modem.h lib/modem/modem.cpp
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
-#     lib/media/media.h
-#     lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
-#     lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
-#     lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
-#     lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
-#     lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
+    lib/media/media.h
+    lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
+    lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
+    lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
+    lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
+    lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
     lib/media/atari/diskType.h lib/media/atari/diskType.cpp
     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
     lib/media/atari/diskTypeAtx.h 
