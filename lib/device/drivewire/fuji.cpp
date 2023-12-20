@@ -17,6 +17,8 @@
 #include "led.h"
 #include "utils.h"
 
+#define ADDITIONAL_DETAILS_BYTES 10
+
 drivewireFuji theFuji; // global fuji device object
 
 // drivewireDisk drivewireDiskDevs[MAX_HOSTS];
@@ -823,171 +825,154 @@ void drivewireFuji::open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    char dirpath[256];
     uint8_t hostSlot = fnUartBUS.read();
 
-    fnUartBUS.readBytes((uint8_t *)&dirpath, sizeof(dirpath));
+    Debug_printf("Available? %u\n", fnUartBUS.available());
 
-    // If we already have a directory open, close it first
-    if (_current_open_directory_slot != -1)
+    fnUartBUS.readBytes((uint8_t *)&dirpath, 256);
+
+    Debug_printf("What did I get? %s\n", dirpath);
+
+    if (_current_open_directory_slot == -1)
     {
-        Debug_print("Directory was already open - closing it first\n");
-        _fnHosts[_current_open_directory_slot].dir_close();
-        _current_open_directory_slot = -1;
+        // See if there's a search pattern after the directory path
+        const char *pattern = nullptr;
+        int pathlen = strnlen(dirpath, sizeof(dirpath));
+        Debug_printf("pathlen: %u\n", pathlen);
+        if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+        {
+            Debug_print("Did we go here?");
+            pattern = dirpath + pathlen + 1;
+            int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+            if (patternlen < 1)
+                pattern = nullptr;
+        }
+
+        // Remove trailing slash
+        if (pathlen > 1 && dirpath[pathlen - 1] == '/')
+            dirpath[pathlen - 1] = '\0';
+
+        Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
+
+        if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
+        {
+            _current_open_directory_slot = hostSlot;
+        }
     }
-
-    // See if there's a search pattern after the directory path
-    const char *pattern = nullptr;
-    int pathlen = strnlen(dirpath, sizeof(dirpath));
-    if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
-    {
-        pattern = dirpath + pathlen + 1;
-        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
-        if (patternlen < 1)
-            pattern = nullptr;
-    }
-
-    // Remove trailing slash
-    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
-        dirpath[pathlen - 1] = '\0';
-
-    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
-
-    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-        _current_open_directory_slot = hostSlot;
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-        // File modified date-time
-        struct tm *modtime = localtime(&f->modified_time);
-        modtime->tm_mon++;
-        modtime->tm_year -= 70;
+    // File modified date-time
+    struct tm *modtime = localtime(&f->modified_time);
+    modtime->tm_mon++;
+    modtime->tm_year -= 70;
 
-        dest[0] = modtime->tm_year;
-        dest[1] = modtime->tm_mon;
-        dest[2] = modtime->tm_mday;
-        dest[3] = modtime->tm_hour;
-        dest[4] = modtime->tm_min;
-        dest[5] = modtime->tm_sec;
+    dest[0] = modtime->tm_year;
+    dest[1] = modtime->tm_mon;
+    dest[2] = modtime->tm_mday;
+    dest[3] = modtime->tm_hour;
+    dest[4] = modtime->tm_min;
+    dest[5] = modtime->tm_sec;
 
-        // File size
-        uint16_t fsize = f->size;
-        dest[6] = LOBYTE_FROM_UINT16(fsize);
-        dest[7] = HIBYTE_FROM_UINT16(fsize);
+    // File size
+    uint16_t fsize = f->size;
+    dest[6] = HIBYTE_FROM_UINT16(fsize);
+    dest[7] = LOBYTE_FROM_UINT16(fsize);
 
-        // File flags
-    #define FF_DIR 0x01
-    #define FF_TRUNC 0x02
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
 
-        dest[8] = f->isDir ? FF_DIR : 0;
+    dest[8] = f->isDir ? FF_DIR : 0;
 
-        maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
-        if (f->isDir) // Also subtract a byte for a terminating slash on directories
-            maxlen--;
-        if (strlen(f->filename) >= maxlen)
-            dest[8] |= FF_TRUNC;
+    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
+    if (f->isDir) // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    if (strlen(f->filename) >= maxlen)
+        dest[8] |= FF_TRUNC;
 
-        // File type
-        dest[9] = MediaType::discover_mediatype(f->filename);
+    // File type
+    dest[9] = MediaType::discover_mediatype(f->filename);
 }
 
 void drivewireFuji::read_directory_entry()
 {
-        uint8_t maxlen = fnUartBUS.read();
-        uint8_t addtl = fnUartBUS.read();
+    uint8_t maxlen = fnUartBUS.read();
+    uint8_t addtl = fnUartBUS.read();
 
-        Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
-        char current_entry[256];
+    char current_entry[256];
 
-        fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+    fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
-        if (f == nullptr)
+    if (f == nullptr)
+    {
+        Debug_println("Reached end of of directory");
+        current_entry[0] = 0x7F;
+        current_entry[1] = 0x7F;
+    }
+    else
+    {
+        Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+        int bufsize = sizeof(current_entry);
+        char *filenamedest = current_entry;
+
+        // If 0x80 is set on AUX2, send back additional information
+        if (addtl & 0x80)
         {
-            Debug_println("Reached end of of directory");
-            current_entry[0] = 0x7F;
-            current_entry[1] = 0x7F;
+            _set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
+            // Adjust remaining size of buffer and file path destination
+            bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
+            filenamedest = dirpath + ADDITIONAL_DETAILS_BYTES;
         }
         else
         {
-            Debug_printf("::read_direntry \"%s\"\n", f->filename);
-
-            int bufsize = sizeof(current_entry);
-            char *filenamedest = current_entry;
-
-    #define ADDITIONAL_DETAILS_BYTES 10
-            // If 0x80 is set on AUX2, send back additional information
-            if (addtl & 0x80)
-            {
-                _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
-                // Adjust remaining size of buffer and file path destination
-                bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
-                filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
-            }
-            else
-            {
-                bufsize = maxlen;
-            }
-
-            //int filelen = strlcpy(filenamedest, f->filename, bufsize);
-            int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
-
-            // Add a slash at the end of directory entries
-            if (f->isDir && filelen < (bufsize - 2))
-            {
-                current_entry[filelen] = '/';
-                current_entry[filelen + 1] = '\0';
-            }
+            bufsize = maxlen;
         }
 
-        fnUartBUS.write((uint8_t *)current_entry, maxlen);
+        // int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+
+        // Add a slash at the end of directory entries
+        if (f->isDir && filelen < (bufsize - 2))
+        {
+            current_entry[filelen] = '/';
+            current_entry[filelen + 1] = '\0';
+        }
+    }
+
+    fnUartBUS.write((uint8_t *)current_entry, maxlen);
 }
 
 void drivewireFuji::get_directory_position()
 {
-    // Debug_println("Fuji cmd: GET DIRECTORY POSITION");
+    Debug_println("Fuji cmd: GET DIRECTORY POSITION");
 
-    // // Make sure we have a current open directory
-    // if (_current_open_directory_slot == -1)
-    // {
-    //     Debug_print("No currently open directory\n");
-    //     drivewire_error();
-    //     return;
-    // }
+    uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
 
-    // uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
-    // if (pos == FNFS_INVALID_DIRPOS)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-    // // Return the value we read
-    // bus_to_computer((uint8_t *)&pos, sizeof(pos), false);
+    // Return the value we read
+    fnUartBUS.write(pos << 8);
+    fnUartBUS.write(pos & 0xFF);
 }
 
 void drivewireFuji::set_directory_position()
 {
-    // Debug_println("Fuji cmd: SET DIRECTORY POSITION");
+    uint8_t h, l;
 
-    // // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    // uint16_t pos = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
-    // // Make sure we have a current open directory
-    // if (_current_open_directory_slot == -1)
-    // {
-    //     Debug_print("No currently open directory\n");
-    //     drivewire_error();
-    //     return;
-    // }
+    // DAUX1 and DAUX2 hold the position to seek to in low/high order
+    h = fnUartBUS.read();
+    l = fnUartBUS.read();
 
-    // bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
-    // if (result == false)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-    // drivewire_complete();
+    Debug_printf("H: %02x L: %02x", h, l);
+
+    uint16_t pos = UINT16_FROM_HILOBYTES(h, l);
+
+    bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
 }
 
 void drivewireFuji::close_directory()
@@ -1363,49 +1348,28 @@ void drivewireFuji::set_hdrivewire_index()
 // Write a 256 byte filename to the device slot
 void drivewireFuji::set_device_filename()
 {
-    // char tmp[MAX_FILENAME_LEN];
+    char tmp[MAX_FILENAME_LEN];
 
-    // // AUX1 is the desired device slot
-    // uint8_t slot = cmdFrame.aux1;
-    // // AUX2 contains the host slot and the mount mode (READ/WRITE)
-    // uint8_t host = cmdFrame.aux2 >> 4;
-    // uint8_t mode = cmdFrame.aux2 & 0x0F;
+    // AUX1 is the desired device slot
+    uint8_t slot = fnUartBUS.read();
+    // AUX2 contains the host slot and the mount mode (READ/WRITE)
+    uint8_t host = fnUartBUS.read();
+    uint8_t mode = fnUartBUS.read();
 
-    // uint8_t ck = bus_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
+    fnUartBUS.readBytes(tmp,MAX_FILENAME_LEN);
 
-    // Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
-    // if (drivewire_checksum((uint8_t *)tmp, MAX_FILENAME_LEN) != ck)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    // Handle DISK slots
+    if (slot < MAX_DISK_DEVICES)
+    {
+        memcpy(_fnDisks[slot].filename, tmp, MAX_FILENAME_LEN);
+        _fnDisks[slot].host_slot = host;
+        _fnDisks[slot].access_mode = mode;
+        _populate_config_from_slots();
+    }
 
-    // // Handle DISK slots
-    // if (slot < MAX_DISK_DEVICES)
-    // {
-    //     memcpy(_fnDisks[cmdFrame.aux1].filename, tmp, MAX_FILENAME_LEN);
-    //     _fnDisks[cmdFrame.aux1].host_slot = host;
-    //     _fnDisks[cmdFrame.aux1].access_mode = mode;
-    //     _populate_config_from_slots();
-    // }
-    // // Handle TAPE slots
-    // // else if (slot == BASE_TAPE_SLOT) // TODO? currently do not use this option for CAS image filenames
-    // // {
-    // //     // Just save the filename until we need it mount the tape
-    // //     // TODO: allow read and write options
-    // //     Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
-    // // }
-    // // Bad slot
-    // else
-    // {
-    //     Debug_println("BAD DEVICE SLOT");
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // Config.save();
-    // drivewire_complete();
+    Config.save();
 }
 
 // Get a 256 byte filename from device slot
@@ -1583,6 +1547,9 @@ void drivewireFuji::process()
         break;
     case FUJICMD_READ_DIR_ENTRY:
         read_directory_entry();
+        break;
+    case FUJICMD_SET_DIRECTORY_POSITION:
+        set_directory_position();
         break;
     default:
         break;
