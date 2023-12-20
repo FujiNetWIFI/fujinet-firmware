@@ -208,10 +208,10 @@ set(SOURCES
 #     lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
 #     lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
 #     lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
-#     lib/media/atari/diskType.h lib/media/atari/diskType.cpp
-#     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
-#     lib/media/atari/diskTypeAtx.h 
-#     lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
+    lib/media/atari/diskType.h lib/media/atari/diskType.cpp
+    lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
+    lib/media/atari/diskTypeAtx.h 
+    lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
     lib/base64/base64.h lib/base64/base64.c
     lib/encrypt/crypt.h lib/encrypt/crypt.cpp
     lib/compat/compat_inet.c

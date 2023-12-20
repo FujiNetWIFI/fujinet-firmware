@@ -1,11 +1,15 @@
 #ifndef _MEDIATYPE_
 #define _MEDIATYPE_
 
-// #include <stdio.h>
-#include <fujiHost.h>
 #include <stdint.h>
 
+#ifdef ESP_PLATFORM
+#include <stdio.h>
+#else
 #include "fnFile.h"
+#endif
+
+#include "fujiHost.h"
 
 #define INVALID_SECTOR_VALUE 65536
 
