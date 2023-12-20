@@ -274,21 +274,13 @@
 
 - **DONE** / merge: lib/media/media.h
 
-- **WIP**: lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
+- **DONE** / merge: lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
 
-    mediaType.h
+- **DONE** / merge: lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
 
-- **WIP**: lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
+- **DONE** / merge: lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
 
-    mediaTypeDO.h
-
-- **WIP**: lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
-
-    mediaTypeDSK.h
-
-- **WIP**: lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
-
-    mediaTypePO.h
+- **DONE** / merge: lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
 
 - TODO: lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
 
