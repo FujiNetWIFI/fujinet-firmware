@@ -162,7 +162,7 @@
 
 - **DONE** / merge: lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
 
-- TODO: lib/network-protocol/Test.h lib/network-protocol/Test.cpp
+- **DONE** / merge: lib/network-protocol/Test.h lib/network-protocol/Test.cpp
 
 - TODO: lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
 

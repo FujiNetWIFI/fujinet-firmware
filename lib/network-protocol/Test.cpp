@@ -66,7 +66,7 @@ bool NetworkProtocolTest::read(unsigned short len)
 
     Debug_printf("NetworkProtocolTest::read(%u)\r\n", len);
     for (int i = 0; i < receiveBuffer->length(); i++)
-        Debug_printf("%02x ", receiveBuffer->at(i));
+        Debug_printf("%02x ", (unsigned char)receiveBuffer->at(i));
     Debug_printf("\r\n");
 
     return NetworkProtocol::read(len);
@@ -78,14 +78,14 @@ bool NetworkProtocolTest::write(unsigned short len)
 
     Debug_printf("NetworkProtocolTest::write(%u) - Before translate_transmit_buffer()", len);
     for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", transmitBuffer->at(i));
+        Debug_printf("%02x ", (unsigned char)transmitBuffer->at(i));
     Debug_printf("\r\n");
 
     len = translate_transmit_buffer();
 
     Debug_printf("NetworkProtocolTest::write(%u) - After translate_transmit_buffer()", len);
     for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", transmitBuffer->at(i));
+        Debug_printf("%02x ", (unsigned char)transmitBuffer->at(i));
     Debug_printf("\r\n");
 
     transmitBuffer->erase(0, len);
