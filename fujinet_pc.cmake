@@ -121,12 +121,12 @@ set(SOURCES
     lib/telnet/libtelnet.h lib/telnet/libtelnet.c
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
     components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
-#     lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
+    lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
 #     lib/http/httpService.h lib/http/httpService.cpp
 #     lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
 #     lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
-#     lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
-#     lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
+    lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
+    lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
     lib/task/fnTask.h lib/task/fnTask.cpp
     lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
 #     lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp

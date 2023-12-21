@@ -392,7 +392,7 @@ void fnHttpServiceBrowser::print_head(mg_connection *c, int slot)
         "a:hover {background: gold; transition: background-color .4s;}"
         "</style></head>"
         "<body><h1><a href=\"/\" title=\"Back to Config\">&#215;</a> Host %d</h1>", 
-        Config.get_general_label().c_str() ,slot+1, slot+1);
+        Config.get_general_devicename().c_str() ,slot+1, slot+1);
         // &#129128; &#129120; - nice wide leftwards arrow but not working in Safari
 }
 
