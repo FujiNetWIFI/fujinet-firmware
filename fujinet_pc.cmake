@@ -150,7 +150,7 @@ set(SOURCES
     lib/network-protocol/networkStatus.h lib/network-protocol/status_error_codes.h
     lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
     lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
-#     lib/network-protocol/Test.h lib/network-protocol/Test.cpp
+    lib/network-protocol/Test.h lib/network-protocol/Test.cpp
 #     lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
 #     lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
 #     lib/network-protocol/Telnet.h lib/network-protocol/Telnet.cpp
