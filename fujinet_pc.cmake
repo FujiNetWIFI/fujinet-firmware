@@ -129,24 +129,24 @@ set(SOURCES
     lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
     lib/task/fnTask.h lib/task/fnTask.cpp
     lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
-#     lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp
-#     lib/printer-emulator/atari_1025.h lib/printer-emulator/atari_1025.cpp
-#     lib/printer-emulator/atari_1027.h lib/printer-emulator/atari_1027.cpp
-#     lib/printer-emulator/atari_1029.h lib/printer-emulator/atari_1029.cpp
-#     lib/printer-emulator/atari_820.h lib/printer-emulator/atari_820.cpp
-#     lib/printer-emulator/atari_822.h lib/printer-emulator/atari_822.cpp
-#     lib/printer-emulator/atari_825.h lib/printer-emulator/atari_825.cpp
-#     lib/printer-emulator/atari_xdm121.h lib/printer-emulator/atari_xdm121.cpp
-#     lib/printer-emulator/atari_xmm801.h lib/printer-emulator/atari_xmm801.cpp
-#     lib/printer-emulator/epson_80.h lib/printer-emulator/epson_80.cpp
-#     lib/printer-emulator/epson_tps.h
-#     lib/printer-emulator/file_printer.h lib/printer-emulator/file_printer.cpp
-#     lib/printer-emulator/html_printer.h lib/printer-emulator/html_printer.cpp
-#     lib/printer-emulator/okimate_10.h lib/printer-emulator/okimate_10.cpp
-#     lib/printer-emulator/pdf_printer.h lib/printer-emulator/pdf_printer.cpp
-#     lib/printer-emulator/png_printer.h lib/printer-emulator/png_printer.cpp
-#     lib/printer-emulator/printer_emulator.h lib/printer-emulator/printer_emulator.cpp
-#     lib/printer-emulator/svg_plotter.h lib/printer-emulator/svg_plotter.cpp
+    lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp
+    lib/printer-emulator/atari_1025.h lib/printer-emulator/atari_1025.cpp
+    lib/printer-emulator/atari_1027.h lib/printer-emulator/atari_1027.cpp
+    lib/printer-emulator/atari_1029.h lib/printer-emulator/atari_1029.cpp
+    lib/printer-emulator/atari_820.h lib/printer-emulator/atari_820.cpp
+    lib/printer-emulator/atari_822.h lib/printer-emulator/atari_822.cpp
+    lib/printer-emulator/atari_825.h lib/printer-emulator/atari_825.cpp
+    lib/printer-emulator/atari_xdm121.h lib/printer-emulator/atari_xdm121.cpp
+    lib/printer-emulator/atari_xmm801.h lib/printer-emulator/atari_xmm801.cpp
+    lib/printer-emulator/epson_80.h lib/printer-emulator/epson_80.cpp
+    lib/printer-emulator/epson_tps.h
+    lib/printer-emulator/file_printer.h lib/printer-emulator/file_printer.cpp
+    lib/printer-emulator/html_printer.h lib/printer-emulator/html_printer.cpp
+    lib/printer-emulator/okimate_10.h lib/printer-emulator/okimate_10.cpp
+    lib/printer-emulator/pdf_printer.h lib/printer-emulator/pdf_printer.cpp
+    lib/printer-emulator/png_printer.h lib/printer-emulator/png_printer.cpp
+    lib/printer-emulator/printer_emulator.h lib/printer-emulator/printer_emulator.cpp
+    lib/printer-emulator/svg_plotter.h lib/printer-emulator/svg_plotter.cpp
 #     lib/network-protocol//networkStatus.h
 #     lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
 #     lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp

@@ -84,7 +84,7 @@ bool printer_emu::process(uint8_t linelen, uint8_t aux1, uint8_t aux2)
     }
 
     // Open output file for appending
-    _file = _FS->file_open(PRINTER_OUTFILE, "r+"); // This is supposed to open the file for writing at the end, but reading at the beginnig
+    _file = _FS->file_open(PRINTER_OUTFILE, "rb+"); // This is supposed to open the file for writing at the end, but reading at the beginnig
     fseek(_file, 0, SEEK_END); // Make sure we're at the end of the file for reading in case the emaulator code expects that
 
     bool result = process_buffer(linelen, aux1, aux2);
@@ -114,7 +114,7 @@ void printer_emu::closeOutput()
     // Give printer emulator chance to finish output
     if(_file == nullptr)
     {
-        _file = _FS->file_open(PRINTER_OUTFILE, "r+"); // Seeks don't work right if we use "append" mode - use "r+"
+        _file = _FS->file_open(PRINTER_OUTFILE, "rb+"); // Seeks don't work right if we use "append" mode - use "rb+"
         fseek(_file, 0, SEEK_END);
     }
 
@@ -132,7 +132,7 @@ void printer_emu::restart_output()
     _output_started = false;
     if(_file != nullptr)
         fclose(_file);
-    _file = _FS->file_open(PRINTER_OUTFILE, "w"); // This should create/truncate the file
+    _file = _FS->file_open(PRINTER_OUTFILE, "wb"); // This should create/truncate the file
 #ifdef DEBUG
     if (_file != nullptr)
     {

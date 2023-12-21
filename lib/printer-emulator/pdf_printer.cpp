@@ -274,7 +274,7 @@ void pdfPrinter::pdf_end_page()
     size_t idx_temp = ftell(_file);
     fflush(_file);
     fseek(_file, idx_stream_length, SEEK_SET);
-    fprintf(_file, "%10u", (idx_stream_stop - idx_stream_start));
+    fprintf(_file, "%10u", (unsigned)(idx_stream_stop - idx_stream_start));
     fflush(_file);
     fseek(_file, idx_temp, SEEK_SET);
     // set counters
@@ -294,11 +294,11 @@ void pdfPrinter::pdf_xref()
     fprintf(_file, "0000000000 65535 f\n");
     for (int i = 1; i < pdf_objCtr; i++)
     {
-        fprintf(_file, "%010u 00000 n\n", objLocations[i]);
+        fprintf(_file, "%010u 00000 n\n", (unsigned)objLocations[i]);
     }
     fprintf(_file, "trailer <</Size %d/Root 1 0 R>>\n", pdf_objCtr);
     fprintf(_file, "startxref\n");
-    fprintf(_file, "%u\n", xref);
+    fprintf(_file, "%u\n", (unsigned)xref);
     fprintf(_file, "%%%%EOF\n");
 }
 
