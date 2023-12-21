@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -9,24 +8,6 @@ char *compat_inet_ntoa(in_addr_t in)
     struct in_addr sin;
     sin.s_addr = in;
     return inet_ntoa(sin);
-}
-
-int compat_getsockerr()
-{
-#if defined(_WIN32)
-    return WSAGetLastError();
-#else
-    return errno;
-#endif
-}
-
-void compat_setsockerr(int err)
-{
-#if defined(_WIN32)
-    WSASetLastError(err);
-#else
-    errno = err;
-#endif
 }
 
 // NOTE: This is not thread safe function
