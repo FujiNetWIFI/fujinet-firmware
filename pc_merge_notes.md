@@ -100,7 +100,7 @@
 
 - **DONE** / add: components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
 
-- TODO: lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
+- **DONE** / identical: lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
 
 - **WIP**: lib/http/httpService.h lib/http/httpService.cpp
 
@@ -110,9 +110,11 @@
 
 - TODO: lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
 
-- TODO: lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
+- **DONE** / add: lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
 
-- TODO: lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
+    replaced get_general_label() with get_general_devicename()
+
+- **DONE** / add: lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
 
 - **DONE** / add: lib/task/fnTask.h lib/task/fnTask.cpp
 
@@ -282,7 +284,7 @@
 
 - **DONE** / merge: lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
 
-- TODO: lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
+- **DONE** / merge: lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
 
 - **DONE** / merge: lib/media/atari/diskType.h lib/media/atari/diskType.cpp
 
