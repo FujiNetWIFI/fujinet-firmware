@@ -5,6 +5,10 @@
 
 #include "pdf_printer.h"
 
+// on Windows/MinGW NUMFONTS is somewhere defined already
+#ifdef NUMFONTS
+#undef NUMFONTS
+#endif
 #define NUMFONTS 15
 
 class epson80 : public pdfPrinter

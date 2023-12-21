@@ -120,47 +120,41 @@
 
 - **DONE** / add: lib/task/fnTaskManager.h lib/task/fnTaskManager.cpp
 
-- TODO: lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp
+- **DONE** / identical: lib/printer-emulator/atari_1020.h lib/printer-emulator/atari_1020.cpp
 
-- TODO: lib/printer-emulator/atari_1025.h lib/printer-emulator/atari_1025.cpp
+- **DONE** / identical: lib/printer-emulator/atari_1025.h lib/printer-emulator/atari_1025.cpp
 
-- TODO: lib/printer-emulator/atari_1027.h lib/printer-emulator/atari_1027.cpp
+- **DONE** / merge: lib/printer-emulator/atari_1027.h lib/printer-emulator/atari_1027.cpp
 
-- TODO: lib/printer-emulator/atari_1029.h lib/printer-emulator/atari_1029.cpp
+- **DONE** / identical: lib/printer-emulator/atari_1029.h lib/printer-emulator/atari_1029.cpp
 
-- TODO: lib/printer-emulator/atari_820.h lib/printer-emulator/atari_820.cpp
+- **DONE** / identical: lib/printer-emulator/atari_820.h lib/printer-emulator/atari_820.cpp
 
-- TODO: lib/printer-emulator/atari_822.h lib/printer-emulator/atari_822.cpp
+- **DONE** / identical: lib/printer-emulator/atari_822.h lib/printer-emulator/atari_822.cpp
 
-- TODO: lib/printer-emulator/atari_825.h lib/printer-emulator/atari_825.cpp
+- **DONE** / identical: lib/printer-emulator/atari_825.h lib/printer-emulator/atari_825.cpp
 
-- TODO: lib/printer-emulator/atari_xdm121.h lib/printer-emulator/atari_xdm121.cpp
+- **DONE** / identical: lib/printer-emulator/atari_xdm121.h lib/printer-emulator/atari_xdm121.cpp
 
-- TODO: lib/printer-emulator/atari_xmm801.h lib/printer-emulator/atari_xmm801.cpp
+- **DONE** / identical: lib/printer-emulator/atari_xmm801.h lib/printer-emulator/atari_xmm801.cpp
 
-- TODO: lib/printer-emulator/epson_80.h lib/printer-emulator/epson_80.cpp
+- **DONE** / merge: lib/printer-emulator/epson_80.h lib/printer-emulator/epson_80.cpp
 
-- TODO: lib/printer-emulator/epson_tps.h
+- **DONE** / identical: lib/printer-emulator/epson_tps.h
 
-- **WIP**: lib/printer-emulator/file_printer.h lib/printer-emulator/file_printer.cpp
+- **DONE** / merge: lib/printer-emulator/file_printer.h lib/printer-emulator/file_printer.cpp
 
-    file_printer.h
+- **DONE** / merge: lib/printer-emulator/html_printer.h lib/printer-emulator/html_printer.cpp
 
-- **WIP**: lib/printer-emulator/html_printer.h lib/printer-emulator/html_printer.cpp
+- **DONE** / identical: lib/printer-emulator/okimate_10.h lib/printer-emulator/okimate_10.cpp
 
-    html_printer.h
+- **DONE** / merge: lib/printer-emulator/pdf_printer.h lib/printer-emulator/pdf_printer.cpp
 
-- TODO: lib/printer-emulator/okimate_10.h lib/printer-emulator/okimate_10.cpp
+- **DONE** / merge: lib/printer-emulator/png_printer.h lib/printer-emulator/png_printer.cpp
 
-- **WIP**: lib/printer-emulator/pdf_printer.h lib/printer-emulator/pdf_printer.cpp
+- **DONE** / merge: lib/printer-emulator/printer_emulator.h lib/printer-emulator/printer_emulator.cpp
 
-    pdf_printer.h
-
-- TODO: lib/printer-emulator/png_printer.h lib/printer-emulator/png_printer.cpp
-
-- TODO: lib/printer-emulator/printer_emulator.h lib/printer-emulator/printer_emulator.cpp
-
-- TODO: lib/printer-emulator/svg_plotter.h lib/printer-emulator/svg_plotter.cpp
+- **DONE** / identical: lib/printer-emulator/svg_plotter.h lib/printer-emulator/svg_plotter.cpp
 
 - TODO: lib/network-protocol//networkStatus.h
 
