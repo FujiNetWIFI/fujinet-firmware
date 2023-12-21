@@ -1,6 +1,8 @@
 #ifndef COMPAT_INET_H
 #define COMPAT_INET_H
 
+#include <errno.h>
+
 #if defined(_WIN32)
 
 #include <stdint.h>
@@ -44,8 +46,24 @@ extern "C" {
 /* takes in_addr_t as argument */
 char *compat_inet_ntoa(in_addr_t in);
 
-int compat_getsockerr();
-void compat_setsockerr(int err);
+static inline int compat_getsockerr()
+{
+#if defined(_WIN32)
+    return WSAGetLastError();
+#else
+    return errno;
+#endif
+}
+
+static inline void compat_setsockerr(int err)
+{
+#if defined(_WIN32)
+    WSASetLastError(err);
+#else
+    errno = err;
+#endif
+}
+
 const char *compat_sockstrerror(int err);
 
 #ifdef __cplusplus
