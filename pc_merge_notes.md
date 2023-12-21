@@ -156,11 +156,11 @@
 
 - **DONE** / identical: lib/printer-emulator/svg_plotter.h lib/printer-emulator/svg_plotter.cpp
 
-- TODO: lib/network-protocol//networkStatus.h
+- **DONE** / identical: lib/network-protocol/networkStatus.h lib/network-protocol/status_error_codes.h
 
-- TODO: lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
+- **DONE** / merge: lib/network-protocol/Protocol.h lib/network-protocol/Protocol.cpp
 
-- TODO: lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
+- **DONE** / merge: lib/network-protocol/ProtocolParser.h lib/network-protocol/ProtocolParser.cpp
 
 - TODO: lib/network-protocol/Test.h lib/network-protocol/Test.cpp
 

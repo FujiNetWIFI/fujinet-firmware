@@ -1,5 +1,7 @@
 #include "ProtocolParser.h"
 
+#include <algorithm>
+
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
