@@ -74,7 +74,7 @@ bool MediaTypeWOZ::wozX_check_header()
         return true;
     }
     // check for file integrity
-    if (hdr[4] == 0xFF && hdr[5] == 0x0A && hdr[6] == 0x0D && hdr[7] == 0x0A)
+    if ((unsigned char)(hdr[4]) == 0xFF && hdr[5] == 0x0A && hdr[6] == 0x0D && hdr[7] == 0x0A)
         Debug_printf("\n8-bit binary file verified");
     else
         return true;
