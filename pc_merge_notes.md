@@ -166,7 +166,7 @@
 
 - **DONE** / merge: lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
 
-- TODO: lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
+- **DONE** / merge: lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
 
 - TODO: lib/network-protocol/Telnet.h lib/network-protocol/Telnet.cpp
 
