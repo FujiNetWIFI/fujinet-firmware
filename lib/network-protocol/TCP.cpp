@@ -6,7 +6,11 @@
 
 #include "TCP.h"
 
-#include <arpa/inet.h>
+#include <stdlib.h>
+#include <string.h>
+#include <errno.h>
+#include <string.h>
+#include "compat_inet.h"
 
 #include "../../include/debug.h"
 
@@ -50,7 +54,7 @@ bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     bool ret = true; // assume error until proven ok
 
-    Debug_printf("NetworkProtocolTCP::open(%s:%s)", urlParser->hostName.c_str(), urlParser->port.c_str());
+    Debug_printf("NetworkProtocolTCP::open(%s:%s)\r\n", urlParser->hostName.c_str(), urlParser->port.c_str());
 
     if (urlParser->hostName.empty())
     {
@@ -338,7 +342,11 @@ bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
 
     Debug_printf("Connecting to host %s port %d\r\n", hostname.c_str(), port);
 
+#ifdef ESP_PLATFORM
     res = client.connect(hostname.c_str(), port);
+#else
+    res = client.connect(hostname.c_str(), port, 5000); // TODO constant for connect timeout
+#endif
 
     if (res == 0)
     {
@@ -373,7 +381,7 @@ bool NetworkProtocolTCP::special_accept_connection()
         {
             remoteIP = client.remoteIP();
             remotePort = client.remotePort();
-            remoteIPString = inet_ntoa(remoteIP);
+            remoteIPString = compat_inet_ntoa(remoteIP);
             Debug_printf("Accepted connection from %s:%u\r\n", remoteIPString, remotePort);
             return false;
         }
@@ -415,7 +423,7 @@ bool NetworkProtocolTCP::special_close_client_connection()
 
     remoteIP = client.remoteIP();
     remotePort = client.remotePort();
-    remoteIPString = inet_ntoa(remoteIP);
+    remoteIPString = compat_inet_ntoa(remoteIP);
 
     Debug_printf("Disconnecting client %s:%u\r\n", remoteIPString, remotePort);
 

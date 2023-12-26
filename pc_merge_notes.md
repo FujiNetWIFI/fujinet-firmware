@@ -164,7 +164,7 @@
 
 - **DONE** / merge: lib/network-protocol/Test.h lib/network-protocol/Test.cpp
 
-- TODO: lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
+- **DONE** / merge: lib/network-protocol/TCP.h lib/network-protocol/TCP.cpp
 
 - TODO: lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
 
