@@ -172,9 +172,9 @@
 
 - **DONE** / merge: lib/network-protocol/FS.h lib/network-protocol/FS.cpp
 
-- TODO: lib/network-protocol/FTP.h lib/network-protocol/FTP.cpp
+- **DONE** / identical: lib/network-protocol/FTP.h lib/network-protocol/FTP.cpp
 
-- TODO: lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
+- **DONE** / merge: lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
 
 - TODO: lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
 
