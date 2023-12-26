@@ -170,7 +170,7 @@
 
 - **DONE** / merge: lib/network-protocol/Telnet.h lib/network-protocol/Telnet.cpp
 
-- TODO: lib/network-protocol/FS.h lib/network-protocol/FS.cpp
+- **DONE** / merge: lib/network-protocol/FS.h lib/network-protocol/FS.cpp
 
 - TODO: lib/network-protocol/FTP.h lib/network-protocol/FTP.cpp
 

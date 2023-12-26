@@ -6,6 +6,9 @@
 
 #include "FS.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "../../include/debug.h"
 
 #include "status_error_codes.h"
@@ -116,6 +119,8 @@ bool NetworkProtocolFS::open_dir()
 
     if (error == NETWORK_ERROR_END_OF_FILE)
         error = NETWORK_ERROR_SUCCESS;
+
+    free(entryBuffer);
 
     return error != NETWORK_ERROR_SUCCESS;
 }
