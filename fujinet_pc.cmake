@@ -155,8 +155,8 @@ set(SOURCES
     lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
     lib/network-protocol/Telnet.h lib/network-protocol/Telnet.cpp
     lib/network-protocol/FS.h lib/network-protocol/FS.cpp
-#     lib/network-protocol/FTP.h lib/network-protocol/FTP.cpp
-#     lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
+    lib/network-protocol/FTP.h lib/network-protocol/FTP.cpp
+    lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
 #     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
 #     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
 #     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp

@@ -6,6 +6,8 @@
 
 #include "TNFS.h"
 
+#include <string.h>
+
 #include "../../include/debug.h"
 
 #include "status_error_codes.h"
@@ -229,7 +231,7 @@ uint8_t NetworkProtocolTNFS::special_inquiry(uint8_t cmd)
         return NetworkProtocolFS::special_inquiry(cmd);
     }
 
-    Debug_printf("NetworkProtocolTNFS:::special_inquiry(%u) - 0x%02x\r\n",ret);
+    Debug_printf("NetworkProtocolTNFS:::special_inquiry(%u) - 0x%02x\r\n", cmd, ret);
 
     return ret;
 }
