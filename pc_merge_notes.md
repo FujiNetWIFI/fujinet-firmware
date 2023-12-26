@@ -178,9 +178,9 @@
 
 - TODO: lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
 
-- **WIP**: lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
+- **DONE** / merge: lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
 
-- TODO: lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
+- **DONE** / merge: lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
 
 - **DONE** / identical: lib/fuji/fujiCmd.h
 

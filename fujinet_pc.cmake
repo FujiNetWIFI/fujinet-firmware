@@ -159,7 +159,7 @@ set(SOURCES
     lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
 #     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
-#     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
+    lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
     lib/fuji/fujiCmd.h
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
