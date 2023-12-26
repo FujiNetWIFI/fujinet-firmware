@@ -112,6 +112,15 @@ protected:
      */
     bool set_destination(uint8_t *sp_buf, unsigned short len);
 
+#ifndef ESP_PLATFORM
+    /**
+     * @brief Get remote address
+     * @param sp_buf pointer to transmit special buffer.
+     * @param len of special transmit buffer
+     */
+    bool get_remote(uint8_t *sp_buf, unsigned short len);
+#endif
+
 private:
     /**
      * Is current destination multicast?
