@@ -168,7 +168,7 @@
 
 - **DONE** / merge: lib/network-protocol/UDP.h lib/network-protocol/UDP.cpp
 
-- TODO: lib/network-protocol/Telnet.h lib/network-protocol/Telnet.cpp
+- **DONE** / merge: lib/network-protocol/Telnet.h lib/network-protocol/Telnet.cpp
 
 - TODO: lib/network-protocol/FS.h lib/network-protocol/FS.cpp
 

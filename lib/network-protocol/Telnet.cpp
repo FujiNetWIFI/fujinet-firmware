@@ -6,6 +6,11 @@
 
 #include "Telnet.h"
 
+#include <stdlib.h>
+#include <errno.h>
+#include <string.h>
+#include "compat_inet.h"
+
 #include "../../include/debug.h"
 
 #include "libtelnet.h"
@@ -104,7 +109,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
 
     if (newData == nullptr)
     {
-        Debug_printf("Could not allocate %u bytes! Aborting!\r\n");
+        Debug_printf("Could not allocate %u bytes! Aborting!\r\n", len);
         return true; // error.
     }
 
@@ -130,9 +135,9 @@ bool NetworkProtocolTELNET::read(unsigned short len)
             free(newData);
             return true;
         }
-
-        free(newData);
     }
+    free(newData);
+
     // Return success
     error = 1;
 
