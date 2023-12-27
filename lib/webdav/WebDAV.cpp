@@ -35,8 +35,8 @@ void WebDAV::Char(const XML_Char *s, int len)
     if (insideResponse == true)
     {
         if (insideDisplayName == true)
-            currentEntry.filename = string(s, len);
+            currentEntry.filename = std::string(s, len);
         else if (insideGetContentLength == true)
-            currentEntry.fileSize = string(s, len);
+            currentEntry.fileSize = std::string(s, len);
     }
 }

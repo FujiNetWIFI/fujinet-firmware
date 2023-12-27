@@ -20,7 +20,7 @@
 #include "libssh/session.h"
 #endif
 
-using namespace std;
+// using namespace std;
 
 class NetworkProtocolSSH : public NetworkProtocol
 {

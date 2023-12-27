@@ -9,8 +9,8 @@
 
 // using namespace fujinet;
 
-// on Windows/MinGW DELETE is somewhere defined already
-#ifdef DELETE
+// on Windows/MinGW DELETE is defined already ...
+#if defined(_WIN32) && defined(DELETE)
 #undef DELETE
 #endif
 

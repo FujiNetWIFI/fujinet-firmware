@@ -9,7 +9,7 @@
 
 #include "fnTcpClient.h"
 
-using namespace std;
+using std::string;
 
 #define FTP_TIMEOUT 5000 // This is how long we wait for a reply packet from the server
 
@@ -169,8 +169,8 @@ private:
     /**
      * Directory buffer stream
      */
-    stringstream dirBuffer;
-
+    std::stringstream dirBuffer;
+    
     /**
      * The data port returned by EPSV
      */

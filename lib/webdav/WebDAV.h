@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-using namespace std;
+// using namespace std;
 
 /**
  * @brief a class wrapping expat parser for directory entries
@@ -26,11 +26,11 @@ public:
         /**
          * Entry filename
          */
-        string filename;
+        std::string filename;
         /**
          * Entry filesize
          */
-        string fileSize;
+        std::string fileSize;
     };
 
     /**
@@ -56,7 +56,7 @@ public:
     /**
      * @brief collection of DAV entries.
      */
-    vector<DAVEntry> entries;
+    std::vector<DAVEntry> entries;
 
     /**
      * @brief the current entry
