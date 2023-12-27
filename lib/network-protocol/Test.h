@@ -9,7 +9,7 @@
 
 #include "Protocol.h"
 
-using namespace std;
+// using namespace std;
 
 class NetworkProtocolTest : public NetworkProtocol
 {

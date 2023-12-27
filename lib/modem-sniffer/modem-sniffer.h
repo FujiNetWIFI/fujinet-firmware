@@ -14,7 +14,7 @@
 #include "fnFS.h"
 
 
-using namespace std;
+// using namespace std;
 
 #define SNIFFER_OUTPUT_FILE "/rs232dump"
 

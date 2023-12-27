@@ -25,7 +25,7 @@
 
 #define HostOS 0x07 // FUJINET
 
-using namespace std;
+// using namespace std;
 
 #ifdef ESP_PLATFORM // OS
 QueueHandle_t rxq;
