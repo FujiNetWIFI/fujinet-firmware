@@ -5,12 +5,19 @@
 
 #ifdef ESP_PLATFORM
 #include "fnHttpClient.h"
+#define HTTP_CLIENT_CLASS fnHttpClient
 #else
 #include "mgHttpClient.h"
+#define HTTP_CLIENT_CLASS mgHttpClient
 #endif
 
 #include "WebDAV.h"
 #include "FS.h"
+
+// on Windows/MinGW DELETE is defined already ...
+#if defined(_WIN32) && defined(DELETE)
+#undef DELETE
+#endif
 
 class NetworkProtocolHTTP : public NetworkProtocolFS
 {
@@ -22,7 +29,7 @@ public:
      * @param sp_buf pointer to special buffer
      * @return a NetworkProtocolFS object
      */
-    NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string *sp_buf);
+    NetworkProtocolHTTP(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf);
 
     /**
      * dTOR
@@ -208,7 +215,7 @@ private:
     /**
      * Returned headers
      */
-    vector<string> returned_headers;
+    std::vector<string> returned_headers;
 
     /**
      * Returned header cursor
@@ -223,7 +230,7 @@ private:
     /**
      * POST or PUT Data to send.
      */
-    string postData;
+    std::string postData;
 
     /**
      * WebDAV handler
@@ -233,7 +240,7 @@ private:
     /**
      * Current Directory entry cursor
      */
-    vector<WebDAV::DAVEntry>::iterator dirEntryCursor;
+    std::vector<WebDAV::DAVEntry>::iterator dirEntryCursor;
 
     /**
      * Do HTTP transaction
