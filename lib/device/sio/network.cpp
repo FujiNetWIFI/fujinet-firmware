@@ -557,7 +557,7 @@ void sioNetwork::sio_set_prefix()
     }
     else if (prefixSpec_str == ".." || prefixSpec_str == "<") // Devance path N:..
     {
-        vector<int> pathLocations;
+        std::vector<int> pathLocations;
         for (int i = 0; i < prefix.size(); i++)
         {
             if (prefix[i] == '/')

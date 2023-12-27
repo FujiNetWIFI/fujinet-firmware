@@ -1710,7 +1710,7 @@ void modem::sio_handle_modem()
         }
 
         int sioBytesAvail = get_uart()->available();
-        //int sioBytesAvail = min(0, get_uart()->available());
+        //int sioBytesAvail = std::min(0, get_uart()->available());
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
