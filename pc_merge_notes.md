@@ -176,7 +176,7 @@
 
 - **DONE** / merge: lib/network-protocol/TNFS.h lib/network-protocol/TNFS.cpp
 
-- TODO: lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
+- **DONE** / merge: lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
 
 - **DONE** / merge: lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
 

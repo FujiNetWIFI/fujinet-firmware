@@ -30,7 +30,7 @@ DELETE, MKCOL, RMCOL, COPY, MOVE, are all handled via idempotent XIO commands.
 DELETE can be done via special/XIO if you do not want to handle the response, otherwise use aux1=5/9 with normal open/read.
 */
 
-NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolHTTP::NetworkProtocolHTTP(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
     rename_implemented = true;
@@ -161,12 +161,12 @@ bool NetworkProtocolHTTP::open_dir_handle()
     if (client != nullptr)
     {
         delete client;
-        client = new fnHttpClient();
+        client = new HTTP_CLIENT_CLASS();
         client->begin(opened_url->toString());
     }
 
     // client->begin already called in mount()
-    resultCode = client->PROPFIND(fnHttpClient::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
+    resultCode = client->PROPFIND(HTTP_CLIENT_CLASS::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
 
     if (resultCode > 399)
     {
@@ -211,7 +211,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
     if (client != nullptr)
     {
         delete client;
-        client = new fnHttpClient();
+        client = new HTTP_CLIENT_CLASS();
         client->begin(opened_url->toString());
     }
 
@@ -230,7 +230,7 @@ bool NetworkProtocolHTTP::mount(EdUrlParser *url)
     else if (url->scheme == "HTTPS")
         url->scheme = "https";
 
-    client = new fnHttpClient();
+    client = new HTTP_CLIENT_CLASS();
 
     // fileSize = 65535;
 
@@ -351,8 +351,19 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
         }
         auto available = client->available();
         status->rxBytesWaiting = available > 65535 ? 65535 : available;
+#ifdef ESP_PLATFORM
         status->connected = client->is_transaction_done() ? 0 : 1;
-        status->error = available == 0 && client->is_transaction_done() && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
+        if (available == 0 && client->is_transaction_done() && error == NETWORK_ERROR_SUCCESS)
+            status->error = NETWORK_ERROR_END_OF_FILE;
+        else
+            status->error = error;
+#else
+        status->connected = available == 0 ? 0 : 1;
+        if (available == 0 && error == NETWORK_ERROR_SUCCESS)
+            status->error = NETWORK_ERROR_END_OF_FILE;
+        else
+            status->error = error;
+#endif
         // Debug_printf("NetworkProtocolHTTP::status_file DATA, available: %d, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", available, status->rxBytesWaiting, status->connected, status->error);
         return false;
     }
@@ -502,14 +513,14 @@ bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned sh
 
         // Remove EOL, make NUL delimited.
         for (int i = 0; i < len; i++)
-            if (requestedHeader[i] == 0x9B)
+            if ((unsigned char)requestedHeader[i] == 0x9B)
                 requestedHeader[i] = 0x00;
             else if (requestedHeader[i] == 0x0D)
                 requestedHeader[i] = 0x00;
             else if (requestedHeader[i] == 0x0a)
                 requestedHeader[i] = 0x00;
 
-        Debug_printf("collect_headers[%u,%u] = \"%s\"\r\n", collect_headers_count, len, requestedHeader);
+        Debug_printf("collect_headers[%lu,%u] = \"%s\"\r\n", (unsigned long)collect_headers_count, len, requestedHeader);
 
         // Add result to header array.
         collect_headers[collect_headers_count++] = requestedHeader;
@@ -537,9 +548,20 @@ bool NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned sh
     if (pos == string::npos)
         return true;
 
+#ifdef ESP_PLATFORM
     Debug_printf("NetworkProtocolHTTP::write_file_set_header(%s,%s)\r\n", incomingHeader.substr(0, pos).c_str(), incomingHeader.substr(pos + 2).c_str());
 
     client->set_header(incomingHeader.substr(0, pos).c_str(), incomingHeader.substr(pos + 2).c_str());
+#else // TODO merge
+    string key(incomingHeader.substr(0, pos));
+    string val(incomingHeader.substr(pos + 2));
+    util_string_trim(key);
+    util_string_trim(val);
+
+    Debug_printf("NetworkProtocolHTTP::write_file_set_header(%s,%s)\r\n", key.c_str(), val.c_str());
+
+    client->set_header(key.c_str(), val.c_str());
+#endif
     return false;
 }
 
@@ -581,7 +603,7 @@ bool NetworkProtocolHTTP::stat()
     delete client;
 
     // Temporarily use client to do the HEAD request
-    client = new fnHttpClient();
+    client = new HTTP_CLIENT_CLASS();
     client->begin(opened_url->toString());
     resultCode = client->HEAD();
     fserror_to_error();
@@ -597,7 +619,7 @@ bool NetworkProtocolHTTP::stat()
         delete client;
 
         // Recreate it for the rest of resolve()
-        client = new fnHttpClient();
+        client = new HTTP_CLIENT_CLASS();
         ret = !client->begin(opened_url->toString());
         resultCode = 0; // so GET will actually happen.
     }
@@ -654,7 +676,7 @@ bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
 
     if (p == nullptr)
     {
-        Debug_printf("NetworkProtocolHTTP::parseDir(%p,%u) - could not create expat parser. Aborting.\r\n");
+        Debug_printf("NetworkProtocolHTTP::parseDir(%p,%u) - could not create expat parser. Aborting.\r\n", buf, len);
         return true;
     }
 
