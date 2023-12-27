@@ -446,7 +446,7 @@ void rc2014Network::set_prefix(unsigned short s)
 
     if (prefixSpec_str == "..") // Devance path N:..
     {
-        vector<int> pathLocations;
+        std::vector<int> pathLocations;
         for (int i = 0; i < prefix.size(); i++)
         {
             if (prefix[i] == '/')

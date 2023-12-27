@@ -1657,7 +1657,7 @@ void rs232Modem::rs232_handle_modem()
         }
 
         int rs232BytesAvail = fnUartBUS.available();
-        //int rs232BytesAvail = min(0, fnUartBUS.available());
+        //int rs232BytesAvail = std::min(0, fnUartBUS.available());
 
         // send from Atari to Fujinet
         if (rs232BytesAvail && tcpClient.connected())
