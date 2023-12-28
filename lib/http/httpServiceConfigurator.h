@@ -32,6 +32,10 @@ class fnHttpServiceConfigurator
     static void config_cpm_enabled(std::string cpm_enabled);
     static void config_cpm_ccp(std::string cpm_ccp);
 
+#ifndef ESP_PLATFORM
+    static void config_serial(std::string port, std::string command, std::string proceed);
+    static void config_netsio(std::string enable_netsio, std::string netsio_host_port);
+#endif
 
 public:
     static char * url_decode(char * dst, const char * src, size_t dstsize);

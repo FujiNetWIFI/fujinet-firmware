@@ -21,6 +21,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     enum tagids
     {
         FN_HOSTNAME = 0,
+#ifndef ESP_PLATFORM
+        FN_DEVICE_NAME,
+#endif
         FN_VERSION,
         FN_IPADDRESS,
         FN_IPMASK,
@@ -30,6 +33,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_WIFIBSSID,
         FN_WIFIMAC,
         FN_WIFIDETAIL,
+#ifndef ESP_PLATFORM
+        FN_UNAME,
+#endif
         FN_SPIFFS_SIZE,
         FN_SPIFFS_USED,
         FN_SD_SIZE,
@@ -57,6 +63,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PRINTER_ENABLED,
         FN_MODEM_ENABLED,
         FN_MODEM_SNIFFER_ENABLED,
+#ifndef ESP_PLATFORM
+        FN_SERIAL_PORT,
+        FN_SERIAL_COMMAND,
+        FN_SERIAL_PROCEED,
+        FN_SIO_HSTEXT,
+        FN_NETSIO_ENABLED,
+        FN_NETSIO_HOST,
+#endif
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -65,6 +79,16 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_DRIVE6HOST,
         FN_DRIVE7HOST,
         FN_DRIVE8HOST,
+#ifndef ESP_PLATFORM
+        FN_DRIVE1BROWSER,
+        FN_DRIVE2BROWSER,
+        FN_DRIVE3BROWSER,
+        FN_DRIVE4BROWSER,
+        FN_DRIVE5BROWSER,
+        FN_DRIVE6BROWSER,
+        FN_DRIVE7BROWSER,
+        FN_DRIVE8BROWSER,
+#endif
         FN_DRIVE1MOUNT,
         FN_DRIVE2MOUNT,
         FN_DRIVE3MOUNT,
@@ -110,6 +134,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     const char *tagids[FN_LASTTAG] =
     {
         "FN_HOSTNAME",
+#ifndef ESP_PLATFORM
+        "FN_DEVICE_NAME",
+#endif
         "FN_VERSION",
         "FN_IPADDRESS",
         "FN_IPMASK",
@@ -119,6 +146,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_WIFIBSSID",
         "FN_WIFIMAC",
         "FN_WIFIDETAIL",
+#ifndef ESP_PLATFORM
+        "FN_UNAME",
+#endif
         "FN_SPIFFS_SIZE",
         "FN_SPIFFS_USED",
         "FN_SD_SIZE",
@@ -146,6 +176,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PRINTER_ENABLED",
         "FN_MODEM_ENABLED",
         "FN_MODEM_SNIFFER_ENABLED",
+#ifndef ESP_PLATFORM
+        "FN_SERIAL_PORT",
+        "FN_SERIAL_COMMAND",
+        "FN_SERIAL_PROCEED",
+        "FN_SIO_HSTEXT",
+        "FN_NETSIO_ENABLED",
+        "FN_NETSIO_HOST",
+#endif
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
         "FN_DRIVE3HOST",
@@ -154,6 +192,16 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_DRIVE6HOST",
         "FN_DRIVE7HOST",
         "FN_DRIVE8HOST",
+#ifndef ESP_PLATFORM
+        "FN_DRIVE1BROWSER",
+        "FN_DRIVE2BROWSER",
+        "FN_DRIVE3BROWSER",
+        "FN_DRIVE4BROWSER",
+        "FN_DRIVE5BROWSER",
+        "FN_DRIVE6BROWSER",
+        "FN_DRIVE7BROWSER",
+        "FN_DRIVE8BROWSER",
+#endif
         "FN_DRIVE1MOUNT",
         "FN_DRIVE2MOUNT",
         "FN_DRIVE3MOUNT",
@@ -212,6 +260,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 
     int drive_slot, host_slot;
     char disk_id;
+#ifndef ESP_PLATFORM
+    int hsioindex;
+#endif
 
     // Provide a replacement value
     switch (tagid)
@@ -219,6 +270,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_HOSTNAME:
         resultstream << fnSystem.Net.get_hostname();
         break;
+#ifndef ESP_PLATFORM
+    case FN_DEVICE_NAME:
+        resultstream << Config.get_general_devicename();
+        break;
+#endif
     case FN_VERSION:
         resultstream << fnSystem.get_fujinet_version();
         break;
@@ -246,6 +302,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_WIFIDETAIL:
         resultstream << fnWiFi.get_current_detail_str();
         break;
+#ifndef ESP_PLATFORM
+    case FN_UNAME:
+        resultstream << fnSystem.get_uname();
+        break;
+#endif
     case FN_SPIFFS_SIZE:
         resultstream << fsFlash.total_bytes();
         break;
@@ -301,10 +362,30 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_SIO_HSINDEX:
         resultstream << SIO.getHighSpeedIndex();
         break;
+#ifndef ESP_PLATFORM
+    case FN_SIO_HSTEXT:
+        hsioindex = SIO.getHighSpeedIndex();
+        if (hsioindex == HSIO_DISABLED_INDEX)
+            resultstream << "HSIO Disabled";
+        else
+            resultstream << hsioindex;
+        break;
+#endif
     case FN_SIO_HSBAUD:
         resultstream << SIO.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
+#ifndef ESP_PLATFORM
+    case FN_SERIAL_PORT:
+        resultstream << Config.get_serial_port();
+        break;
+    case FN_SERIAL_COMMAND:
+        resultstream << Config.get_serial_command();
+        break;
+    case FN_SERIAL_PROCEED:
+        resultstream << Config.get_serial_proceed();
+        break;
+#endif
     case FN_PRINTER1_MODEL:
         {
 #ifdef BUILD_ADAM
@@ -376,6 +457,16 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_MODEM_SNIFFER_ENABLED:
         resultstream << Config.get_modem_sniffer_enabled();
         break;
+#ifndef ESP_PLATFORM
+    case FN_NETSIO_ENABLED:
+        resultstream << Config.get_netsio_enabled();
+        break;
+    case FN_NETSIO_HOST:
+        resultstream << Config.get_netsio_host();
+        if (Config.get_netsio_port() != CONFIG_DEFAULT_NETSIO_PORT)
+            resultstream << ":" << Config.get_netsio_port();
+        break;
+#endif
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:
     case FN_DRIVE3HOST:
@@ -384,15 +475,34 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6HOST:
     case FN_DRIVE7HOST:
     case FN_DRIVE8HOST:
-	/* From what host is each disk is mounted on each Drive Slot? */
-	drive_slot = tagid - FN_DRIVE1HOST;
-	host_slot = Config.get_mount_host_slot(drive_slot);
+        /* From what host is each disk is mounted on each Drive Slot? */
+        drive_slot = tagid - FN_DRIVE1HOST;
+        host_slot = Config.get_mount_host_slot(drive_slot);
         if (host_slot != HOST_SLOT_INVALID) {
-	    resultstream << Config.get_host_name(host_slot);
+            resultstream << Config.get_host_name(host_slot);
         } else {
             resultstream << "";
         }
         break;
+#ifndef ESP_PLATFORM
+    case FN_DRIVE1BROWSER:
+    case FN_DRIVE2BROWSER:
+    case FN_DRIVE3BROWSER:
+    case FN_DRIVE4BROWSER:
+    case FN_DRIVE5BROWSER:
+    case FN_DRIVE6BROWSER:
+    case FN_DRIVE7BROWSER:
+    case FN_DRIVE8BROWSER:
+        /* Link to browse the files */
+        drive_slot = tagid - FN_DRIVE1BROWSER;
+        host_slot = Config.get_mount_host_slot(drive_slot);
+        if (host_slot != HOST_SLOT_INVALID) {
+            resultstream << "/browse/host/" << host_slot+1 << Config.get_mount_path(drive_slot) << "?action=slotlist";
+        } else {
+            resultstream << "#";
+        }
+        break;
+#endif
     case FN_DRIVE1MOUNT:
     case FN_DRIVE2MOUNT:
     case FN_DRIVE3MOUNT:
@@ -401,16 +511,16 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_DRIVE6MOUNT:
     case FN_DRIVE7MOUNT:
     case FN_DRIVE8MOUNT:
-	/* What disk is mounted on each Drive Slot (and is it read-only or read-write)? */
-	drive_slot = tagid - FN_DRIVE1MOUNT;
-	host_slot = Config.get_mount_host_slot(drive_slot);
+        /* What disk is mounted on each Drive Slot (and is it read-only or read-write)? */
+        drive_slot = tagid - FN_DRIVE1MOUNT;
+        host_slot = Config.get_mount_host_slot(drive_slot);
         if (host_slot != HOST_SLOT_INVALID) {
-	    resultstream << Config.get_mount_path(drive_slot);
-	    resultstream << " (" << (Config.get_mount_mode(drive_slot) == fnConfig::mount_modes::MOUNTMODE_READ ? "R" : "W") << ")";
+            resultstream << Config.get_mount_path(drive_slot);
+            resultstream << " (" << (Config.get_mount_mode(drive_slot) == fnConfig::mount_modes::MOUNTMODE_READ ? "R" : "W") << ")";
         } else {
             resultstream << "(Empty)";
         }
-        break;
+    break;
     case FN_HOST1:
     case FN_HOST2:
     case FN_HOST3:
@@ -419,10 +529,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_HOST6:
     case FN_HOST7:
     case FN_HOST8:
-	/* What TNFS host is mounted on each Host Slot? */
-	host_slot = tagid - FN_HOST1;
+        /* What TNFS host is mounted on each Host Slot? */
+        host_slot = tagid - FN_HOST1;
         if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID) {
-	    resultstream << Config.get_host_name(host_slot);
+            resultstream << Config.get_host_name(host_slot);
         } else {
             resultstream << "(Empty)";
         }
@@ -450,11 +560,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_HOST6PREFIX:
     case FN_HOST7PREFIX:
     case FN_HOST8PREFIX:
-	/* What directory prefix is set right now
+        /* What directory prefix is set right now
            for the TNFS host mounted on each Host Slot? */
-	host_slot = tagid - FN_HOST1PREFIX;
+        host_slot = tagid - FN_HOST1PREFIX;
         if (Config.get_host_type(host_slot) != fnConfig::host_types::HOSTTYPE_INVALID) {
-	    resultstream << theFuji.get_host_prefix(host_slot);
+            resultstream << theFuji.get_host_prefix(host_slot);
         } else {
             resultstream << "";
         }
@@ -522,7 +632,7 @@ bool fnHttpServiceParser::is_parsable(const char *extension)
 string fnHttpServiceParser::parse_contents(const string &contents)
 {
     std::stringstream ss;
-    uint pos = 0, x, y;
+    size_t pos = 0, x, y;
     do
     {
         x = contents.find("<%", pos);

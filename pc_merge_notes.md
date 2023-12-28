@@ -102,13 +102,13 @@
 
 - **DONE** / identical: lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
 
-- **WIP**: lib/http/httpService.h lib/http/httpService.cpp
+- **DONE** / merrge: lib/http/httpService.h lib/http/httpService.cpp
 
-    httpService.h
+    added lib/http/mgHttpService.cpp - mongoose based version for fujinet-pc
 
-- TODO: lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
+- **DONE** / merge: lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
 
-- TODO: lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
+- **DONE** / merge: lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
 
 - **DONE** / add: lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
 
