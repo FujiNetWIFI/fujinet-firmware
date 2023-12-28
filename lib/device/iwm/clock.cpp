@@ -84,7 +84,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         break;
     case 'T': // Date and time, easy to be used by general programs
         tt = time(nullptr);
-#ifdef ESP_PLATFPRM
+#ifdef ESP_PLATFORM
         setenv("TZ",Config.get_general_timezone().c_str(),1);
 #endif
         tzset();
@@ -101,7 +101,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         break;
     case 'P': // Date and time, to be used by a ProDOS driver
         tt = time(nullptr);
-#ifdef ESP_PLATFPRM
+#ifdef ESP_PLATFORM
         setenv("TZ",Config.get_general_timezone().c_str(),1);
 #endif
         tzset();
@@ -116,7 +116,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         break;
     case 'S': // Date and time, ASCII string in SOS set_time format YYYYMMDDxHHMMSSxxx
         tt = time(nullptr);
-#ifdef ESP_PLATFPRM
+#ifdef ESP_PLATFORM
         setenv("TZ",Config.get_general_timezone().c_str(),1);
 #endif
         tzset();
