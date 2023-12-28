@@ -683,66 +683,20 @@ void drivewireFuji::read_app_key()
     // bus_to_computer((uint8_t *)&response, sizeof(response), false);
 }
 
-// DEBUG TAPE
-void drivewireFuji::debug_tape()
-{
-    // // if not mounted then disable cassette and do nothing
-    // // if mounted then activate cassette
-    // // if mounted and active, then deactivate
-    // // no longer need to handle file open/close
-    // if (_cassetteDev.is_mounted() == true)
-    // {
-    //     if (_cassetteDev.is_active() == false)
-    //     {
-    //         Debug_println("::debug_tape ENABLE");
-    //         _cassetteDev.drivewire_enable_cassette();
-    //     }
-    //     else
-    //     {
-    //         Debug_println("::debug_tape DISABLE");
-    //         _cassetteDev.drivewire_disable_cassette();
-    //     }
-    // }
-    // else
-    // {
-    //     Debug_println("::debug_tape NO CAS FILE MOUNTED");
-    //     Debug_println("::debug_tape DISABLE");
-    //     _cassetteDev.drivewire_disable_cassette();
-    // }
-}
-
 // Disk Image Unmount
 void drivewireFuji::disk_image_umount()
 {
-    // uint8_t deviceSlot = cmdFrame.aux1;
+    uint8_t deviceSlot = fnUartBUS.read();
 
-    // Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
+    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
-    // // Handle disk slots
-    // if (deviceSlot < MAX_DISK_DEVICES)
-    // {
-    //     _fnDisks[deviceSlot].disk_dev.unmount();
-    //     if (_fnDisks[deviceSlot].disk_type == MEDIATYPE_CAS || _fnDisks[deviceSlot].disk_type == MEDIATYPE_WAV)
-    //     {
-    //         // tell cassette it unmount
-    //         _cassetteDev.umount_cassette_file();
-    //         _cassetteDev.drivewire_disable_cassette();
-    //     }
-    //     _fnDisks[deviceSlot].disk_dev.device_active = false;
-    //     _fnDisks[deviceSlot].reset();
-    // }
-    // // Handle tape
-    // // else if (deviceSlot == BASE_TAPE_SLOT)
-    // // {
-    // // }
-    // // Invalid slot
-    // else
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // drivewire_complete();
+    // Handle disk slots
+    if (deviceSlot < MAX_DISK_DEVICES)
+    {
+        _fnDisks[deviceSlot].disk_dev.unmount();
+        _fnDisks[deviceSlot].disk_dev.device_active = false;
+        _fnDisks[deviceSlot].reset();
+    }
 }
 
 // Disk Image Rotate
@@ -1062,39 +1016,23 @@ void drivewireFuji::new_disk()
 // Unmount specified host
 void drivewireFuji::unmount_host()
 {
-    // Debug_println("Fuji cmd: UNMOUNT HOST");
+    Debug_println("Fuji cmd: UNMOUNT HOST");
 
-    // unsigned char hostSlot = cmdFrame.aux1 - 1;
+    unsigned char hostSlot = fnUartBUS.read();
 
-    // // Make sure we weren't given a bad hostSlot
-    // if (!_validate_host_slot(hostSlot, "drivewire_tnfs_mount_hosts"))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    // Unmount any disks associated with host slot
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        if (_fnDisks[i].host_slot == hostSlot)
+        {
+            _fnDisks[i].disk_dev.unmount();
+            _fnDisks[i].disk_dev.device_active = false;
+            _fnDisks[i].reset();
+        }
+    }
 
-    // // Unmount any disks associated with host slot
-    // for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    // {
-    //     if (_fnDisks[i].host_slot == hostSlot)
-    //     {
-    //         _fnDisks[i].disk_dev.unmount();
-    //         if (_fnDisks[i].disk_type == MEDIATYPE_CAS || _fnDisks[i].disk_type == MEDIATYPE_WAV)
-    //         {
-    //             // tell cassette it unmount
-    //             _cassetteDev.umount_cassette_file();
-    //             _cassetteDev.drivewire_disable_cassette();
-    //         }
-    //         _fnDisks[i].disk_dev.device_active = false;
-    //         _fnDisks[i].reset();
-    //     }
-    // }
-
-    // // Unmount the host
-    // if (_fnHosts[hostSlot].umount())
-    //     drivewire_error();
-    // else
-    //     drivewire_complete();
+    // Unmount the host
+    _fnHosts[hostSlot].umount();
 }
 
 // Send host slot data to computer
@@ -1126,49 +1064,6 @@ void drivewireFuji::write_host_slots()
 
     _populate_config_from_slots();
     Config.save();
-}
-
-// Store host path prefix
-void drivewireFuji::set_host_prefix()
-{
-    // char prefix[MAX_HOST_PREFIX_LEN];
-    // uint8_t hostSlot = cmdFrame.aux1;
-
-    // uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
-
-    // Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
-
-    // if (drivewire_checksum((uint8_t *)prefix, sizeof(prefix)) != ck)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // if (!_validate_host_slot(hostSlot))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // _fnHosts[hostSlot].set_prefix(prefix);
-    // drivewire_complete();
-}
-
-// Retrieve host path prefix
-void drivewireFuji::get_host_prefix()
-{
-    // uint8_t hostSlot = cmdFrame.aux1;
-    // Debug_printf("Fuji cmd: GET HOST PREFIX %uh\n", hostSlot);
-
-    // if (!_validate_host_slot(hostSlot))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-    // char prefix[MAX_HOST_PREFIX_LEN];
-    // _fnHosts[hostSlot].get_prefix(prefix, sizeof(prefix));
-
-    // bus_to_computer((uint8_t *)prefix, sizeof(prefix), false);
 }
 
 // Send device slot data to computer
@@ -1295,34 +1190,6 @@ void drivewireFuji::_populate_config_from_slots()
     }
 }
 
-// AUX1 is our index value (from 0 to DRIVEWIRE_HISPEED_LOWEST_INDEX)
-// AUX2 requests a save of the change if set to 1
-void drivewireFuji::set_hdrivewire_index()
-{
-    // Debug_println("Fuji cmd: SET HDRIVEWIRE INDEX");
-
-    // // DAUX1 holds the desired index value
-    // uint8_t index = cmdFrame.aux1;
-
-    // // Make sure it's a valid value
-    // if (index > DRIVEWIRE_HISPEED_LOWEST_INDEX)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // DRIVEWIRE.setHighSpeedIndex(index);
-
-    // // Go ahead and save it if AUX2 = 1
-    // if (cmdFrame.aux2 & 1)
-    // {
-    //     Config.store_general_hdrivewireindex(index);
-    //     Config.save();
-    // }
-
-    // drivewire_complete();
-}
-
 // Write a 256 byte filename to the device slot
 void drivewireFuji::set_device_filename()
 {
@@ -1392,33 +1259,6 @@ void drivewireFuji::insert_boot_device(uint8_t d)
 
     _bootDisk.is_config_device = true;
     _bootDisk.device_active = true;
-}
-
-// Set UDP Stream HOST & PORT and start it
-void drivewireFuji::enable_udpstream()
-{
-    // char host[64];
-
-    // uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
-
-    // if (drivewire_checksum((uint8_t *)&host, sizeof(host)) != ck)
-    //     drivewire_error();
-    // else
-    // {
-    //     int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
-
-    //     Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
-
-    //     // Save the host and port
-    //     Config.store_udpstream_host(host);
-    //     Config.store_udpstream_port(port);
-    //     Config.save();
-
-    //     drivewire_complete();
-
-    //     // Start the UDP Stream
-    //     DRIVEWIRE.setUDPHost(host, port);
-    // }
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
@@ -1517,6 +1357,12 @@ void drivewireFuji::process()
         break;
     case FUJICMD_MOUNT_IMAGE:
         disk_image_mount();
+        break;
+    case FUJICMD_UNMOUNT_HOST:
+        unmount_host();
+        break;
+    case FUJICMD_UNMOUNT_IMAGE:
+        disk_image_umount();
         break;
     default:
         break;
