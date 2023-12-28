@@ -191,11 +191,7 @@ private:
     /**
      * The fnHTTPClient object used by the adaptor for HTTP calls
      */
-#ifdef ESP_PLATFORM
-    fnHttpClient *client = nullptr;
-#else
-    mgHttpClient *client = nullptr;
-#endif
+    HTTP_CLIENT_CLASS *client = nullptr;
 
     /**
      * result code returned by an HTTP verb
