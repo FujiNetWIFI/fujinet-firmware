@@ -78,7 +78,7 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
     // Write the data
     e = fwrite(&_media_blockbuff, 1, MEDIA_BLOCK_SIZE, _media_fileh);
 
-    if (e != 1024)
+    if (e != MEDIA_BLOCK_SIZE)
     {
         Debug_printf("::write error %d, %d\n", e, errno);
         return true;
