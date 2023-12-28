@@ -1,6 +1,6 @@
 # Merge status #
 
-- TODO: src/main.cpp
+- **DONE** / merge: src/main.cpp
 
 - **DONE** / merge: lib/config/fnConfig.h lib/config/fnConfig.cpp
 
