@@ -10,7 +10,7 @@
 #include "../config/fnConfig.h"
 
 #include "httpService.h"
-// #include "led.h"
+#include "led.h"
 
 // Global object to manage WiFi
 DummyWiFiManager fnWiFi;
@@ -36,7 +36,7 @@ int DummyWiFiManager::start()
     Debug_println("DummyWiFiManager::start");
     _started = true;
     _connected = true;
-    // fnLedManager.set(eLed::LED_WIFI, true);
+    fnLedManager.set(eLed::LED_WIFI, true);
     // fnSystem.Net.start_sntp_client();
     fnHTTPD.start();
 
@@ -168,7 +168,7 @@ void DummyWiFiManager::set_hostname(const char *hostname)
 void DummyWiFiManager::handle_station_stop()
 {
     _connected = false;
-    // fnLedManager.set(eLed::LED_WIFI, false);
+    fnLedManager.set(eLed::LED_WIFI, false);
     fnHTTPD.stop();
     // fnSystem.Net.stop_sntp_client();
 }

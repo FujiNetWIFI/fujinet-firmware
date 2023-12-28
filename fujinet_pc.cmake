@@ -70,8 +70,7 @@ set(INCLUDE_DIRS include
     components_pc/libssh/include ${CMAKE_CURRENT_BINARY_DIR}/components_pc/libssh/include
 )
 
-set(SOURCES
-# set(SOURCES src/main.cpp
+set(SOURCES src/main.cpp
     lib/config/fnConfig.h lib/config/fnConfig.cpp
     lib/config/fnc_bt.cpp
     lib/config/fnc_cassette.cpp
@@ -290,7 +289,7 @@ target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh)
 target_link_libraries(fujinet ${CRYPTO_LIBS})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    target_link_libraries(fujinet ws2_32)
+    target_link_libraries(fujinet ws2_32 bcrypt)
 endif()
 
 # TODO megre build_version.py with ESP version
