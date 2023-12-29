@@ -1,6 +1,7 @@
 
 #include "d64.h"
 
+#include "endianness.h"
 
 // D64 Utility Functions
 
