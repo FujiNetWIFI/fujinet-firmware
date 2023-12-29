@@ -174,12 +174,12 @@ void systemBus::op_write()
 
     c2 = drivewire_checksum(sector_data,MEDIA_BLOCK_SIZE);
 
-    if (c1 != c2)
-    {
-        Debug_printf("Checksum error\n");
-        fnUartBUS.write(243);
-        return;
-    }
+    // if (c1 != c2)
+    // {
+    //     Debug_printf("Checksum error\n");
+    //     fnUartBUS.write(243);
+    //     return;
+    // }
 
     Debug_printv("OP_WRITE: DRIVE %3u - SECTOR %8lu", drive_num, lsn);
 
@@ -205,11 +205,12 @@ void systemBus::op_write()
         fnUartBUS.write(0xF5);
         return;
     }
+
+    fnUartBUS.write(0x00); // success
 }
 
 void systemBus::op_fuji()
 {
-    Debug_printv("OP FUJI!");
     theFuji.process();
 }
 
