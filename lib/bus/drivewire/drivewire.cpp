@@ -100,7 +100,7 @@ void systemBus::op_readex()
     lsn |= fnUartBUS.read() << 8;
     lsn |= fnUartBUS.read();
 
-    Debug_printv("OP_READEX: DRIVE %3u - SECTOR %8lu", drive_num, lsn);
+    Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
     if (theFuji.boot_config)
         d = theFuji.bootdisk();
@@ -181,7 +181,7 @@ void systemBus::op_write()
     //     return;
     // }
 
-    Debug_printv("OP_WRITE: DRIVE %3u - SECTOR %8lu", drive_num, lsn);
+    Debug_printf("OP_WRITE DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
     d = &theFuji.get_disks(drive_num)->disk_dev;
 
