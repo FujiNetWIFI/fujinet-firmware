@@ -17,6 +17,8 @@
 #include "led.h"
 #include "utils.h"
 
+#define ADDITIONAL_DETAILS_BYTES 10
+
 drivewireFuji theFuji; // global fuji device object
 
 // drivewireDisk drivewireDiskDevs[MAX_HOSTS];
@@ -254,64 +256,42 @@ void drivewireFuji::mount_host()
 // Disk Image Mount
 void drivewireFuji::disk_image_mount()
 {
-    // // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
-    // // to the C: device. Everything stays the same here and the mounting
-    // // where all the magic happens is done in the drivewireDisk::mount() function.
-    // // This function opens the file, so cassette does not need to open the file.
-    // // Cassette needs the file pointer and file size.
+    // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
+    // to the C: device. Everything stays the same here and the mounting
+    // where all the magic happens is done in the drivewireDisk::mount() function.
+    // This function opens the file, so cassette does not need to open the file.
+    // Cassette needs the file pointer and file size.
 
-    // Debug_println("Fuji cmd: MOUNT IMAGE");
+    Debug_println("Fuji cmd: MOUNT IMAGE");
 
-    // uint8_t deviceSlot = cmdFrame.aux1;
-    // uint8_t options = cmdFrame.aux2; // DISK_ACCESS_MODE
+    uint8_t deviceSlot = fnUartBUS.read();
+    uint8_t options = fnUartBUS.read(); // DISK_ACCESS_MODE
 
-    // // TODO: Implement FETCH?
-    // char flag[3] = {'r', 0, 0};
-    // if (options == DISK_ACCESS_MODE_WRITE)
-    //     flag[1] = '+';
+    // TODO: Implement FETCH?
+    char flag[3] = {'r', 0, 0};
+    if (options == DISK_ACCESS_MODE_WRITE)
+        flag[1] = '+';
 
-    // // Make sure we weren't given a bad hostSlot
-    // if (!_validate_device_slot(deviceSlot))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiHost &host = _fnHosts[disk.host_slot];
 
-    // if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                 disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    // // A couple of reference variables to make things much easier to read...
-    // fujiDisk &disk = _fnDisks[deviceSlot];
-    // fujiHost &host = _fnHosts[disk.host_slot];
+    // TODO: Refactor along with mount disk image.
+    disk.disk_dev.host = &host;
 
-    // Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-    //              disk.filename, disk.host_slot, flag, deviceSlot + 1);
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
-    // // TODO: Refactor along with mount disk image.
-    // disk.disk_dev.host = &host;
+    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+    boot_config = false;
 
-    // disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+    // We need the file size for loading XEX files and for CASSETTE, so get that too
+    disk.disk_size = host.file_size(disk.fileh);
 
-    // if (disk.fileh == nullptr)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-    // boot_config = false;
-    // status_wait_count = 0;
-
-    // // We need the file size for loading XEX files and for CASSETTE, so get that too
-    // disk.disk_size = host.file_size(disk.fileh);
-
-    // // And now mount it
-    // disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-
-    // drivewire_complete();
+    // And now mount it
+    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -703,66 +683,20 @@ void drivewireFuji::read_app_key()
     // bus_to_computer((uint8_t *)&response, sizeof(response), false);
 }
 
-// DEBUG TAPE
-void drivewireFuji::debug_tape()
-{
-    // // if not mounted then disable cassette and do nothing
-    // // if mounted then activate cassette
-    // // if mounted and active, then deactivate
-    // // no longer need to handle file open/close
-    // if (_cassetteDev.is_mounted() == true)
-    // {
-    //     if (_cassetteDev.is_active() == false)
-    //     {
-    //         Debug_println("::debug_tape ENABLE");
-    //         _cassetteDev.drivewire_enable_cassette();
-    //     }
-    //     else
-    //     {
-    //         Debug_println("::debug_tape DISABLE");
-    //         _cassetteDev.drivewire_disable_cassette();
-    //     }
-    // }
-    // else
-    // {
-    //     Debug_println("::debug_tape NO CAS FILE MOUNTED");
-    //     Debug_println("::debug_tape DISABLE");
-    //     _cassetteDev.drivewire_disable_cassette();
-    // }
-}
-
 // Disk Image Unmount
 void drivewireFuji::disk_image_umount()
 {
-    // uint8_t deviceSlot = cmdFrame.aux1;
+    uint8_t deviceSlot = fnUartBUS.read();
 
-    // Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
+    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
-    // // Handle disk slots
-    // if (deviceSlot < MAX_DISK_DEVICES)
-    // {
-    //     _fnDisks[deviceSlot].disk_dev.unmount();
-    //     if (_fnDisks[deviceSlot].disk_type == MEDIATYPE_CAS || _fnDisks[deviceSlot].disk_type == MEDIATYPE_WAV)
-    //     {
-    //         // tell cassette it unmount
-    //         _cassetteDev.umount_cassette_file();
-    //         _cassetteDev.drivewire_disable_cassette();
-    //     }
-    //     _fnDisks[deviceSlot].disk_dev.device_active = false;
-    //     _fnDisks[deviceSlot].reset();
-    // }
-    // // Handle tape
-    // // else if (deviceSlot == BASE_TAPE_SLOT)
-    // // {
-    // // }
-    // // Invalid slot
-    // else
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // drivewire_complete();
+    // Handle disk slots
+    if (deviceSlot < MAX_DISK_DEVICES)
+    {
+        _fnDisks[deviceSlot].disk_dev.unmount();
+        _fnDisks[deviceSlot].disk_dev.device_active = false;
+        _fnDisks[deviceSlot].reset();
+    }
 }
 
 // Disk Image Rotate
@@ -823,171 +757,154 @@ void drivewireFuji::open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    char dirpath[256];
     uint8_t hostSlot = fnUartBUS.read();
 
-    fnUartBUS.readBytes((uint8_t *)&dirpath, sizeof(dirpath));
+    Debug_printf("Available? %u\n", fnUartBUS.available());
 
-    // If we already have a directory open, close it first
-    if (_current_open_directory_slot != -1)
+    fnUartBUS.readBytes((uint8_t *)&dirpath, 256);
+
+    Debug_printf("What did I get? %s\n", dirpath);
+
+    if (_current_open_directory_slot == -1)
     {
-        Debug_print("Directory was already open - closing it first\n");
-        _fnHosts[_current_open_directory_slot].dir_close();
-        _current_open_directory_slot = -1;
+        // See if there's a search pattern after the directory path
+        const char *pattern = nullptr;
+        int pathlen = strnlen(dirpath, sizeof(dirpath));
+        Debug_printf("pathlen: %u\n", pathlen);
+        if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+        {
+            Debug_print("Did we go here?");
+            pattern = dirpath + pathlen + 1;
+            int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+            if (patternlen < 1)
+                pattern = nullptr;
+        }
+
+        // Remove trailing slash
+        if (pathlen > 1 && dirpath[pathlen - 1] == '/')
+            dirpath[pathlen - 1] = '\0';
+
+        Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
+
+        if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
+        {
+            _current_open_directory_slot = hostSlot;
+        }
     }
-
-    // See if there's a search pattern after the directory path
-    const char *pattern = nullptr;
-    int pathlen = strnlen(dirpath, sizeof(dirpath));
-    if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
-    {
-        pattern = dirpath + pathlen + 1;
-        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
-        if (patternlen < 1)
-            pattern = nullptr;
-    }
-
-    // Remove trailing slash
-    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
-        dirpath[pathlen - 1] = '\0';
-
-    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
-
-    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-        _current_open_directory_slot = hostSlot;
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
-        // File modified date-time
-        struct tm *modtime = localtime(&f->modified_time);
-        modtime->tm_mon++;
-        modtime->tm_year -= 70;
+    // File modified date-time
+    struct tm *modtime = localtime(&f->modified_time);
+    modtime->tm_mon++;
+    modtime->tm_year -= 70;
 
-        dest[0] = modtime->tm_year;
-        dest[1] = modtime->tm_mon;
-        dest[2] = modtime->tm_mday;
-        dest[3] = modtime->tm_hour;
-        dest[4] = modtime->tm_min;
-        dest[5] = modtime->tm_sec;
+    dest[0] = modtime->tm_year;
+    dest[1] = modtime->tm_mon;
+    dest[2] = modtime->tm_mday;
+    dest[3] = modtime->tm_hour;
+    dest[4] = modtime->tm_min;
+    dest[5] = modtime->tm_sec;
 
-        // File size
-        uint16_t fsize = f->size;
-        dest[6] = LOBYTE_FROM_UINT16(fsize);
-        dest[7] = HIBYTE_FROM_UINT16(fsize);
+    // File size
+    uint16_t fsize = f->size;
+    dest[6] = HIBYTE_FROM_UINT16(fsize);
+    dest[7] = LOBYTE_FROM_UINT16(fsize);
 
-        // File flags
-    #define FF_DIR 0x01
-    #define FF_TRUNC 0x02
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
 
-        dest[8] = f->isDir ? FF_DIR : 0;
+    dest[8] = f->isDir ? FF_DIR : 0;
 
-        maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
-        if (f->isDir) // Also subtract a byte for a terminating slash on directories
-            maxlen--;
-        if (strlen(f->filename) >= maxlen)
-            dest[8] |= FF_TRUNC;
+    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
+    if (f->isDir) // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    if (strlen(f->filename) >= maxlen)
+        dest[8] |= FF_TRUNC;
 
-        // File type
-        dest[9] = MediaType::discover_mediatype(f->filename);
+    // File type
+    dest[9] = MediaType::discover_mediatype(f->filename);
 }
 
 void drivewireFuji::read_directory_entry()
 {
-        uint8_t maxlen = fnUartBUS.read();
-        uint8_t addtl = fnUartBUS.read();
+    uint8_t maxlen = fnUartBUS.read();
+    uint8_t addtl = fnUartBUS.read();
 
-        Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
-        char current_entry[256];
+    char current_entry[256];
 
-        fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+    fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
-        if (f == nullptr)
+    if (f == nullptr)
+    {
+        Debug_println("Reached end of of directory");
+        current_entry[0] = 0x7F;
+        current_entry[1] = 0x7F;
+    }
+    else
+    {
+        Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+        int bufsize = sizeof(current_entry);
+        char *filenamedest = current_entry;
+
+        // If 0x80 is set on AUX2, send back additional information
+        if (addtl & 0x80)
         {
-            Debug_println("Reached end of of directory");
-            current_entry[0] = 0x7F;
-            current_entry[1] = 0x7F;
+            _set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
+            // Adjust remaining size of buffer and file path destination
+            bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
+            filenamedest = dirpath + ADDITIONAL_DETAILS_BYTES;
         }
         else
         {
-            Debug_printf("::read_direntry \"%s\"\n", f->filename);
-
-            int bufsize = sizeof(current_entry);
-            char *filenamedest = current_entry;
-
-    #define ADDITIONAL_DETAILS_BYTES 10
-            // If 0x80 is set on AUX2, send back additional information
-            if (addtl & 0x80)
-            {
-                _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
-                // Adjust remaining size of buffer and file path destination
-                bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
-                filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
-            }
-            else
-            {
-                bufsize = maxlen;
-            }
-
-            //int filelen = strlcpy(filenamedest, f->filename, bufsize);
-            int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
-
-            // Add a slash at the end of directory entries
-            if (f->isDir && filelen < (bufsize - 2))
-            {
-                current_entry[filelen] = '/';
-                current_entry[filelen + 1] = '\0';
-            }
+            bufsize = maxlen;
         }
 
-        fnUartBUS.write((uint8_t *)current_entry, maxlen);
+        // int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+
+        // Add a slash at the end of directory entries
+        if (f->isDir && filelen < (bufsize - 2))
+        {
+            current_entry[filelen] = '/';
+            current_entry[filelen + 1] = '\0';
+        }
+    }
+
+    fnUartBUS.write((uint8_t *)current_entry, maxlen);
 }
 
 void drivewireFuji::get_directory_position()
 {
-    // Debug_println("Fuji cmd: GET DIRECTORY POSITION");
+    Debug_println("Fuji cmd: GET DIRECTORY POSITION");
 
-    // // Make sure we have a current open directory
-    // if (_current_open_directory_slot == -1)
-    // {
-    //     Debug_print("No currently open directory\n");
-    //     drivewire_error();
-    //     return;
-    // }
+    uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
 
-    // uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
-    // if (pos == FNFS_INVALID_DIRPOS)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-    // // Return the value we read
-    // bus_to_computer((uint8_t *)&pos, sizeof(pos), false);
+    // Return the value we read
+    fnUartBUS.write(pos << 8);
+    fnUartBUS.write(pos & 0xFF);
 }
 
 void drivewireFuji::set_directory_position()
 {
-    // Debug_println("Fuji cmd: SET DIRECTORY POSITION");
+    uint8_t h, l;
 
-    // // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    // uint16_t pos = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
-    // // Make sure we have a current open directory
-    // if (_current_open_directory_slot == -1)
-    // {
-    //     Debug_print("No currently open directory\n");
-    //     drivewire_error();
-    //     return;
-    // }
+    // DAUX1 and DAUX2 hold the position to seek to in low/high order
+    h = fnUartBUS.read();
+    l = fnUartBUS.read();
 
-    // bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
-    // if (result == false)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-    // drivewire_complete();
+    Debug_printf("H: %02x L: %02x", h, l);
+
+    uint16_t pos = UINT16_FROM_HILOBYTES(h, l);
+
+    bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
 }
 
 void drivewireFuji::close_directory()
@@ -1099,39 +1016,23 @@ void drivewireFuji::new_disk()
 // Unmount specified host
 void drivewireFuji::unmount_host()
 {
-    // Debug_println("Fuji cmd: UNMOUNT HOST");
+    Debug_println("Fuji cmd: UNMOUNT HOST");
 
-    // unsigned char hostSlot = cmdFrame.aux1 - 1;
+    unsigned char hostSlot = fnUartBUS.read();
 
-    // // Make sure we weren't given a bad hostSlot
-    // if (!_validate_host_slot(hostSlot, "drivewire_tnfs_mount_hosts"))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    // Unmount any disks associated with host slot
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        if (_fnDisks[i].host_slot == hostSlot)
+        {
+            _fnDisks[i].disk_dev.unmount();
+            _fnDisks[i].disk_dev.device_active = false;
+            _fnDisks[i].reset();
+        }
+    }
 
-    // // Unmount any disks associated with host slot
-    // for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    // {
-    //     if (_fnDisks[i].host_slot == hostSlot)
-    //     {
-    //         _fnDisks[i].disk_dev.unmount();
-    //         if (_fnDisks[i].disk_type == MEDIATYPE_CAS || _fnDisks[i].disk_type == MEDIATYPE_WAV)
-    //         {
-    //             // tell cassette it unmount
-    //             _cassetteDev.umount_cassette_file();
-    //             _cassetteDev.drivewire_disable_cassette();
-    //         }
-    //         _fnDisks[i].disk_dev.device_active = false;
-    //         _fnDisks[i].reset();
-    //     }
-    // }
-
-    // // Unmount the host
-    // if (_fnHosts[hostSlot].umount())
-    //     drivewire_error();
-    // else
-    //     drivewire_complete();
+    // Unmount the host
+    _fnHosts[hostSlot].umount();
 }
 
 // Send host slot data to computer
@@ -1163,49 +1064,6 @@ void drivewireFuji::write_host_slots()
 
     _populate_config_from_slots();
     Config.save();
-}
-
-// Store host path prefix
-void drivewireFuji::set_host_prefix()
-{
-    // char prefix[MAX_HOST_PREFIX_LEN];
-    // uint8_t hostSlot = cmdFrame.aux1;
-
-    // uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_FILENAME_LEN);
-
-    // Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
-
-    // if (drivewire_checksum((uint8_t *)prefix, sizeof(prefix)) != ck)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // if (!_validate_host_slot(hostSlot))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // _fnHosts[hostSlot].set_prefix(prefix);
-    // drivewire_complete();
-}
-
-// Retrieve host path prefix
-void drivewireFuji::get_host_prefix()
-{
-    // uint8_t hostSlot = cmdFrame.aux1;
-    // Debug_printf("Fuji cmd: GET HOST PREFIX %uh\n", hostSlot);
-
-    // if (!_validate_host_slot(hostSlot))
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-    // char prefix[MAX_HOST_PREFIX_LEN];
-    // _fnHosts[hostSlot].get_prefix(prefix, sizeof(prefix));
-
-    // bus_to_computer((uint8_t *)prefix, sizeof(prefix), false);
 }
 
 // Send device slot data to computer
@@ -1332,118 +1190,49 @@ void drivewireFuji::_populate_config_from_slots()
     }
 }
 
-// AUX1 is our index value (from 0 to DRIVEWIRE_HISPEED_LOWEST_INDEX)
-// AUX2 requests a save of the change if set to 1
-void drivewireFuji::set_hdrivewire_index()
-{
-    // Debug_println("Fuji cmd: SET HDRIVEWIRE INDEX");
-
-    // // DAUX1 holds the desired index value
-    // uint8_t index = cmdFrame.aux1;
-
-    // // Make sure it's a valid value
-    // if (index > DRIVEWIRE_HISPEED_LOWEST_INDEX)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // DRIVEWIRE.setHighSpeedIndex(index);
-
-    // // Go ahead and save it if AUX2 = 1
-    // if (cmdFrame.aux2 & 1)
-    // {
-    //     Config.store_general_hdrivewireindex(index);
-    //     Config.save();
-    // }
-
-    // drivewire_complete();
-}
-
 // Write a 256 byte filename to the device slot
 void drivewireFuji::set_device_filename()
 {
-    // char tmp[MAX_FILENAME_LEN];
+    char tmp[MAX_FILENAME_LEN];
 
-    // // AUX1 is the desired device slot
-    // uint8_t slot = cmdFrame.aux1;
-    // // AUX2 contains the host slot and the mount mode (READ/WRITE)
-    // uint8_t host = cmdFrame.aux2 >> 4;
-    // uint8_t mode = cmdFrame.aux2 & 0x0F;
+    // AUX1 is the desired device slot
+    uint8_t slot = fnUartBUS.read();
+    // AUX2 contains the host slot and the mount mode (READ/WRITE)
+    uint8_t host = fnUartBUS.read();
+    uint8_t mode = fnUartBUS.read();
 
-    // uint8_t ck = bus_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
+    fnUartBUS.readBytes(tmp,MAX_FILENAME_LEN);
 
-    // Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
-    // if (drivewire_checksum((uint8_t *)tmp, MAX_FILENAME_LEN) != ck)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    // Handle DISK slots
+    if (slot < MAX_DISK_DEVICES)
+    {
+        memcpy(_fnDisks[slot].filename, tmp, MAX_FILENAME_LEN);
+        _fnDisks[slot].host_slot = host;
+        _fnDisks[slot].access_mode = mode;
+        _populate_config_from_slots();
+    }
 
-    // // Handle DISK slots
-    // if (slot < MAX_DISK_DEVICES)
-    // {
-    //     memcpy(_fnDisks[cmdFrame.aux1].filename, tmp, MAX_FILENAME_LEN);
-    //     _fnDisks[cmdFrame.aux1].host_slot = host;
-    //     _fnDisks[cmdFrame.aux1].access_mode = mode;
-    //     _populate_config_from_slots();
-    // }
-    // // Handle TAPE slots
-    // // else if (slot == BASE_TAPE_SLOT) // TODO? currently do not use this option for CAS image filenames
-    // // {
-    // //     // Just save the filename until we need it mount the tape
-    // //     // TODO: allow read and write options
-    // //     Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
-    // // }
-    // // Bad slot
-    // else
-    // {
-    //     Debug_println("BAD DEVICE SLOT");
-    //     drivewire_error();
-    //     return;
-    // }
-
-    // Config.save();
-    // drivewire_complete();
+    Config.save();
 }
 
 // Get a 256 byte filename from device slot
 void drivewireFuji::get_device_filename()
 {
-    // char tmp[MAX_FILENAME_LEN];
-    // unsigned char err = false;
+    char tmp[MAX_FILENAME_LEN];
+    unsigned char err = false;
 
-    // // AUX1 is the desired device slot
-    // uint8_t slot = cmdFrame.aux1;
+    // AUX1 is the desired device slot
+    uint8_t slot = fnUartBUS.read();
 
-    // if (slot > 7)
-    // {
-    //     err = true;
-    // }
+    if (slot > 7)
+    {
+        err = true;
+    }
 
-    // memcpy(tmp, _fnDisks[cmdFrame.aux1].filename, MAX_FILENAME_LEN);
-    // bus_to_computer((uint8_t *)tmp, MAX_FILENAME_LEN, err);
-}
-
-// Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
-void drivewireFuji::set_drivewire_external_clock()
-{
-    // unsigned short speed = drivewire_get_aux();
-    // int baudRate = speed * 1000;
-
-    // Debug_printf("drivewireFuji::set_external_clock(%u)\n", baudRate);
-
-    // if (speed == 0)
-    // {
-    //     DRIVEWIRE.setUltraHigh(false, 0);
-    // }
-    // else
-    // {
-    //     DRIVEWIRE.setUltraHigh(true, baudRate);
-    // }
-
-    // drivewire_complete();
+    memcpy(tmp, _fnDisks[slot].filename, MAX_FILENAME_LEN);
+    fnUartBUS.write((uint8_t *)tmp, MAX_FILENAME_LEN);
 }
 
 // Mounts the desired boot disk number
@@ -1470,33 +1259,6 @@ void drivewireFuji::insert_boot_device(uint8_t d)
 
     _bootDisk.is_config_device = true;
     _bootDisk.device_active = true;
-}
-
-// Set UDP Stream HOST & PORT and start it
-void drivewireFuji::enable_udpstream()
-{
-    // char host[64];
-
-    // uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
-
-    // if (drivewire_checksum((uint8_t *)&host, sizeof(host)) != ck)
-    //     drivewire_error();
-    // else
-    // {
-    //     int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
-
-    //     Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
-
-    //     // Save the host and port
-    //     Config.store_udpstream_host(host);
-    //     Config.store_udpstream_port(port);
-    //     Config.save();
-
-    //     drivewire_complete();
-
-    //     // Start the UDP Stream
-    //     DRIVEWIRE.setUDPHost(host, port);
-    // }
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
@@ -1583,6 +1345,24 @@ void drivewireFuji::process()
         break;
     case FUJICMD_READ_DIR_ENTRY:
         read_directory_entry();
+        break;
+    case FUJICMD_SET_DIRECTORY_POSITION:
+        set_directory_position();
+        break;
+    case FUJICMD_SET_DEVICE_FULLPATH:
+        set_device_filename();
+        break;
+    case FUJICMD_GET_DEVICE_FULLPATH:
+        get_device_filename();
+        break;
+    case FUJICMD_MOUNT_IMAGE:
+        disk_image_mount();
+        break;
+    case FUJICMD_UNMOUNT_HOST:
+        unmount_host();
+        break;
+    case FUJICMD_UNMOUNT_IMAGE:
+        disk_image_umount();
         break;
     default:
         break;

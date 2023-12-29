@@ -37,6 +37,17 @@ static void IRAM_ATTR drivewire_isr_handler(void *arg)
     xQueueSendFromISR(drivewire_evt_queue, &gpio_num, NULL);
 }
 
+// Calculate 8-bit checksum
+inline uint16_t drivewire_checksum(uint8_t *buf, unsigned short len)
+{
+    uint16_t chk = 0;
+
+    for (int i = 0; i < len; i++)
+        chk += buf[i];
+
+    return chk;
+}
+
 static void drivewire_intr_task(void *arg)
 {
     uint32_t gpio_num;
@@ -81,7 +92,7 @@ void systemBus::op_reset()
 void systemBus::op_readex()
 {
     drivewireDisk *d = nullptr;
-    uint16_t c = 0;
+    uint16_t c1 = 0,c2 = 0;
 
     drive_num = fnUartBUS.read();
 
@@ -99,29 +110,48 @@ void systemBus::op_readex()
     if (!d)
     {
         Debug_printv("Invalid drive #%3u", drive_num);
+        fnUartBUS.write(0xF6);
+        fnUartBUS.flush();
+        fnUartBUS.flush_input();
         return;
     }
 
     if (!d->device_active)
     {
         Debug_printv("Device not active.");
+        fnUartBUS.write(0xF6);
+        fnUartBUS.flush();
+        fnUartBUS.flush_input();
+        return;
     }
 
-    d->read(lsn, sector_data);
+    if (d->read(lsn, sector_data))
+    {
+        Debug_printf("Read error\n");
+        fnUartBUS.write(0xF4);
+        fnUartBUS.flush();
+        fnUartBUS.flush_input();
+        return;
+    }
 
     fnUartBUS.write(sector_data, MEDIA_BLOCK_SIZE);
 
-    fnUartBUS.read();
-    fnUartBUS.read();
+    c1 = (fnUartBUS.read()) << 8;
+    c1 |= fnUartBUS.read();
 
-    fnUartBUS.write(0x00); // todo: proper err handling and cksum
-    fnUartBUS.write(0x00); // todo: proper err handling and cksum
+    c2 = drivewire_checksum(sector_data,MEDIA_BLOCK_SIZE);
+
+    if (c1 != c2)
+        fnUartBUS.write(243);
+    else
+        fnUartBUS.write(0x00);
+
 }
 
 void systemBus::op_write()
 {
     drivewireDisk *d = nullptr;
-    uint16_t c = 0;
+    uint16_t c1 = 0, c2 = 0;
 
     drive_num = fnUartBUS.read();
 
@@ -139,8 +169,17 @@ void systemBus::op_write()
     }
 
     // Todo handle checksum.
-    fnUartBUS.read();
-    fnUartBUS.read();
+    c1 = fnUartBUS.read();
+    c1 |= fnUartBUS.read() << 8;
+
+    c2 = drivewire_checksum(sector_data,MEDIA_BLOCK_SIZE);
+
+    if (c1 != c2)
+    {
+        Debug_printf("Checksum error\n");
+        fnUartBUS.write(243);
+        return;
+    }
 
     Debug_printv("OP_WRITE: DRIVE %3u - SECTOR %8lu", drive_num, lsn);
 
@@ -149,17 +188,23 @@ void systemBus::op_write()
     if (!d)
     {
         Debug_printv("Invalid drive #%3u", drive_num);
+        fnUartBUS.write(0xF6);
         return;
     }
 
     if (!d->device_active)
     {
         Debug_printv("Device not active.");
+        fnUartBUS.write(0xF6);
+        return;
     }
 
-    d->write(lsn,sector_data);
-
-    fnUartBUS.write(0x00); // TODO: Checksum
+    if (d->write(lsn,sector_data))
+    {
+        Debug_print("Write error\n");
+        fnUartBUS.write(0xF5);
+        return;
+    }
 }
 
 void systemBus::op_fuji()
