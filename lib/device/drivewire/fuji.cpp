@@ -17,7 +17,7 @@
 #include "led.h"
 #include "utils.h"
 
-#define ADDITIONAL_DETAILS_BYTES 10
+#define ADDITIONAL_DETAILS_BYTES 13
 
 drivewireFuji theFuji; // global fuji device object
 
@@ -809,10 +809,10 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
     // File size
     uint32_t fsize = f->size;
-    dest[6] = fsize & 0xFF;
-    dest[7] = (fsize >> 24) & 0xFF;
-    dest[8] = (fsize >> 16) & 0xFF;
-    dest[9] = (fsize >> 8) & 0xFF;
+    dest[6] = (fsize >> 24) & 0xFF;
+    dest[7] = (fsize >> 16) & 0xFF;
+    dest[8] = (fsize >> 8) & 0xFF;
+    dest[9] = fsize & 0xFF;
 
     // File flags
 #define FF_DIR 0x01
@@ -835,16 +835,16 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     Debug_printf("\n");
 }
 
+char current_entry[256];
+
 void drivewireFuji::read_directory_entry()
 {
     uint8_t maxlen = fnUartBUS.read();
     uint8_t addtl = fnUartBUS.read();
 
-    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen,addtl);
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
 
-    char current_entry[256];
-
-    memset(current_entry,0,sizeof(current_entry));
+    memset(current_entry, 0, sizeof(current_entry));
 
     fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
@@ -859,7 +859,7 @@ void drivewireFuji::read_directory_entry()
         Debug_printf("::read_direntry \"%s\"\n", f->filename);
 
         int bufsize = sizeof(current_entry);
-        char *filenamedest = current_entry;
+        int fno=0;
 
         // If 0x80 is set on AUX2, send back additional information
         if (addtl & 0x80)
@@ -868,7 +868,7 @@ void drivewireFuji::read_directory_entry()
             _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
             // Adjust remaining size of buffer and file path destination
             bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
-            filenamedest = dirpath + ADDITIONAL_DETAILS_BYTES;
+            fno += ADDITIONAL_DETAILS_BYTES;
         }
         else
         {
@@ -876,7 +876,7 @@ void drivewireFuji::read_directory_entry()
         }
 
         // int filelen = strlcpy(filenamedest, f->filename, bufsize);
-        int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+        int filelen = util_ellipsize(f->filename, &current_entry[fno], bufsize);
 
         // Add a slash at the end of directory entries
         if (f->isDir && filelen < (bufsize - 2))
@@ -885,14 +885,7 @@ void drivewireFuji::read_directory_entry()
             current_entry[filelen + 1] = '\0';
         }
     }
-
-    for (int i=0;i<maxlen;i++)
-    {
-        Debug_printf("%02X ",current_entry[i]);
-    }
-
-    Debug_printf("\n");
-
+    
     fnUartBUS.write((uint8_t *)current_entry, maxlen);
 }
 
@@ -1218,7 +1211,7 @@ void drivewireFuji::set_device_filename()
     uint8_t host = fnUartBUS.read();
     uint8_t mode = fnUartBUS.read();
 
-    fnUartBUS.readBytes(tmp,MAX_FILENAME_LEN);
+    fnUartBUS.readBytes(tmp, MAX_FILENAME_LEN);
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
