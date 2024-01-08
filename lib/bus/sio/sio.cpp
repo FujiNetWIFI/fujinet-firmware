@@ -261,7 +261,8 @@ void systemBus::_sio_process_cmd()
     // Turn on the SIO indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
 
-    Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
+    Debug_print("\n");
+    Debug_printf("CF: %02x %02x %02x %02x %02x\n",
                  tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
 
     // Wait for CMD line to raise again
