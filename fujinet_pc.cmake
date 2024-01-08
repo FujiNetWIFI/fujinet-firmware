@@ -1,6 +1,4 @@
-#######################################
 # FujiNet-PC
-#######################################
 
 #cmake_minimum_required(VERSION 3.7.2...3.22)
 cmake_minimum_required(VERSION 3.4...3.22)
@@ -10,32 +8,28 @@ project(fujinet-pc)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-#######################################
-# Atari
-#######################################
-if(FUJINET_PLATFORM STREQUAL "ATARI")
+if(FUJINET_TARGET STREQUAL "ATARI")
     # fujinet.build_platform
     set(FUJINET_BUILD_PLATFORM BUILD_ATARI)
-    # fujinet.build_board
-    set(FUJINET_TARGET fujinet-pc-atari)
+    # fujinet.build_board (used by build_webui.py)
+    set(FUJINET_BUILD_BOARD fujinet-pc-atari)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS SIO)
-endif()
-
-#######################################
-# Apple
-#######################################
-if(FUJINET_PLATFORM STREQUAL "APPLE")
+elseif(FUJINET_TARGET STREQUAL "APPLE")
     # fujinet.build_platform
     set(FUJINET_BUILD_PLATFORM BUILD_APPLE)
-    # fujinet.build_board
-    set(FUJINET_TARGET fujinet-pc-apple)
+    # fujinet.build_board (used by build_webui.py)
+    set(FUJINET_BUILD_BOARD fujinet-pc-apple)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS IWM)
+else()
+    message(FATAL_ERROR "Invalid target '${FUJINET_TARGET}'! Please choose from 'ATARI' or 'APPLE'.")
 endif()
 
-# platformio.data_dir
-set(FUJINET_DATA_DIR ${CMAKE_SOURCE_DIR}/data/${FUJINET_BUILD_PLATFORM})
+# platformio.data_dir (not used by FujiNet-PC)
+#set(PLATFORM_DATA_DIR ${CMAKE_SOURCE_DIR}/data/${FUJINET_BUILD_PLATFORM})
+# build output data directory (used by build_webui.py)
+set(BUILD_DATA_DIR ${CMAKE_CURRENT_BINARY_DIR}/data)
 # # ESP32 PIN map (not used by FujiNet-PC)
 # set(FUJINET_PIN_MAP PINMAP_NONE)
 
@@ -308,16 +302,19 @@ endif()
 # add_custom_target(build_version DEPENDS "${CMAKE_BINARY_DIR}/version.h")
 # add_dependencies(fujinet build_version)
 
-# TODO megre build_webui.py with ESP version
-# # WebUI
-# # "build_webui" target
-# add_custom_command(
-#     OUTPUT "${FUJINET_DATA_DIR}"
-#     DEPENDS build_webui.py
-#     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-#     COMMAND ${CMAKE_COMMAND} -E env FUJINET_TARGET=${FUJINET_TARGET} FUJINET_BUILD_PLATFORM=${FUJINET_BUILD_PLATFORM} python build_webui.py
-# )
-# add_custom_target(build_webui DEPENDS "${FUJINET_DATA_DIR}")
+# WebUI
+# "build_webui" target
+add_custom_command(
+    OUTPUT "${BUILD_DATA_DIR}"
+    DEPENDS build_webui.py
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E env
+      FUJINET_BUILD_BOARD=${FUJINET_BUILD_BOARD}
+      FUJINET_BUILD_PLATFORM=${FUJINET_BUILD_PLATFORM}
+      BUILD_DATA_DIR=${BUILD_DATA_DIR}
+      python3 build_webui.py
+)
+add_custom_target(build_webui DEPENDS "${BUILD_DATA_DIR}")
 
 # "dist" target
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -326,7 +323,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         COMMAND ${CMAKE_COMMAND} -E make_directory dist
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/distfiles dist
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:fujinet> dist
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${FUJINET_DATA_DIR} dist/data
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${BUILD_DATA_DIR} dist/data
         # DLL's TODO how to make this using cmake?
         COMMAND ldd $<TARGET_FILE:fujinet> | grep -v -i '/windows' 
         | awk '{print $$3}' | xargs -I {} cp -p {} dist
@@ -337,15 +334,18 @@ else()
         COMMAND ${CMAKE_COMMAND} -E make_directory dist
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/distfiles dist
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:fujinet> dist
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${FUJINET_DATA_DIR} dist/data
+        COMMAND ${CMAKE_COMMAND} -E copy_directory ${BUILD_DATA_DIR} dist/data
         COMMAND ${CMAKE_COMMAND} -E remove dist/run-fujinet.bat
     )
 endif()
 add_dependencies(dist fujinet)
-# TODO megre build_webui.py with ESP version
-# add_dependencies(dist build_webui)
+add_dependencies(dist build_webui)
 
 # include dist cleanup in "clean" target
 set_property(
     DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES dist
+)
+# include data cleanup in "clean" target
+set_property(
+    DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${BUILD_DATA_DIR}
 )
