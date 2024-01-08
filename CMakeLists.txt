@@ -1,27 +1,38 @@
-if (NOT "$ENV{FUJINET_PC}" STREQUAL "")
-    set(FUJINET_PC "$ENV{FUJINET_PC}" CACHE INTERNAL "FUJINET_PC - Set non-zero to enforce FujiNet-PC build, copied from environment variable")
+# ESP build is controlled via platformio.ini file
+# FUJINET_TARGET variable is used to enforce FujiNet-PC build for specified target
+
+if (NOT "$ENV{FUJINET_TARGET}" STREQUAL "")
+    set(FUJINET_TARGET "$ENV{FUJINET_TARGET}" CACHE INTERNAL "FUJINET_TARGET - Set to enforce FujiNet-PC build, set to one of 'ATARI' or 'APPLE', copied from environment variable")
 endif()
 
-if (NOT FUJINET_PC)
+if (NOT FUJINET_TARGET)
     #### FujiNet ESP ####
 
-    message("Running CMake to build FujiNet for ESP")
+    message(STATUS "Running CMake to build FujiNet for ESP")
     cmake_minimum_required(VERSION 3.16.0)
     include($ENV{IDF_PATH}/tools/cmake/project.cmake)
     list(APPEND EXTRA_COMPONENT_DIRS components${IDF_VERSION_MAJOR})
     project(FujiNet_idf)
 
 else()
-    #### FujiNet PC ####
+    #### FujiNet-PC ####
 
-    # Call cmake {SOURCE_DIR} -DFUJINET_PC=1 -DFUJINET_PLATFORM=[ATARI|APPLE] -DCMAKE_BUILD_TYPE=[Debug|RelWitthDebInfo|Release]
-    if (NOT "$ENV{FUJINET_PLATFORM}" STREQUAL "")
-        set(FUJINET_PLATFORM "$ENV{FUJINET_PLATFORM}" CACHE INTERNAL "FUJINET_PLATFORM - Set to one of ATARI APPLE, copied from environment variable")
-    endif()
-    if (NOT FUJINET_PLATFORM)
-        message(FATAL_ERROR "To build FujiNet-PC set FUJINET_PLATFORM to one of ATARI APPLE")
-    endif()
-    message("Running CMake to build FujiNet for PC (Linux/macOS/Windows), platform ${FUJINET_PLATFORM}")
+    # To build, e.g. for ATARI target
+    #   cd build
+    #   cmake .. -DFUJINET_TARGET=ATARI -DCMAKE_BUILD_TYPE=Debug
+    #   make all && make dist
+    # To run
+    #   (cd dist && ./run-fujinet)
+
+    # To build - alternative way, using environment variable
+    #   cd build
+    #   export FUJINET_TARGET=ATARI
+    #   cmake -S .. -B $FUJINET_TARGET -DCMAKE_BUILD_TYPE=Debug
+    #   make -C $FUJINET_TARGET -j4 dist
+    # To run
+    #   (cd $FUJINET_TARGET/dist && ./run-fujinet)
+
+    message(STATUS "Running CMake to build FujiNet-PC (Linux, macOS, Windows), target ${FUJINET_TARGET}")
     include(fujinet_pc.cmake)
 
 endif()
