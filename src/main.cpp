@@ -65,19 +65,19 @@ void print_version()
 #endif
     printf("\n");
 
-    printf("Platform: ");
+    printf("Target: ");
 #if defined(BUILD_ATARI)
-    printf("Atari");
+    printf("ATARI");
 #elif defined(BUILD_ADAM)
-    printf("Adam");
+    printf("ADAM");
 #elif defined(BUILD_APPLE)
-    printf("Apple");
+    printf("APPLE");
 #elif defined(BUILD_MAC)
-    printf("Mac");
+    printf("MAC");
 #elif defined(BUILD_IEC)
-    printf("Commodore");
+    printf("IEC");
 #elif defined(BUILD_LYNX)
-    printf("Lynx");
+    printf("LYNX");
 #elif defined(BUILD_S100)
     printf("S100");
 #elif defined(BUILD_RS232)
@@ -89,7 +89,7 @@ void print_version()
 #elif defined(BUILD_H89)
     printf("H89");
 #elif defined(BUILD_COCO)
-    printf("TRS-80");
+    printf("COCO");
 #else
     printf("unknown");
 #endif
