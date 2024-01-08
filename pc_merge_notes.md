@@ -4,8 +4,6 @@
 
 - **DONE** / merge: lib/config/fnConfig.h lib/config/fnConfig.cpp
 
-    removed get_general_label(), use get_general_devicename() instead
-
 - **DONE** / identical: lib/config/fnc_bt.cpp
 
 - **DONE** / identical: lib/config/fnc_cassette.cpp
@@ -111,8 +109,6 @@
 - **DONE** / merge: lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
 
 - **DONE** / add: lib/http/httpServiceBrowser.h lib/http/httpServiceBrowser.cpp
-
-    replaced get_general_label() with get_general_devicename()
 
 - **DONE** / add: lib/http/mgHttpClient.h lib/http/mgHttpClient.cpp
 

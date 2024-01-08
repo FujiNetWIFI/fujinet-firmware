@@ -385,14 +385,14 @@ void fnHttpServiceBrowser::print_head(mg_connection *c, int slot)
 {
     mg_http_printf_chunk(
         c,
-        "<!DOCTYPE html><html><head><title>%s : Host %d</title>"
+        "<!DOCTYPE html><html><head><title>FujiNet - %s : Host %d</title>"
         "<style>th,td {text-align: left; padding-right: 1em; "
         "font-family: monospace; font-size: 14px;} "
         "a {color: black; text-decoration: none; border-radius: .2em; padding: .1em;} "
         "a:hover {background: gold; transition: background-color .4s;}"
         "</style></head>"
         "<body><h1><a href=\"/\" title=\"Back to Config\">&#215;</a> Host %d</h1>", 
-        Config.get_general_devicename().c_str() ,slot+1, slot+1);
+        Config.get_general_label().c_str() ,slot+1, slot+1);
         // &#129128; &#129120; - nice wide leftwards arrow but not working in Safari
 }
 

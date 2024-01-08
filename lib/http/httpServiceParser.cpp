@@ -23,6 +23,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_HOSTNAME = 0,
 #ifndef ESP_PLATFORM
         FN_DEVICE_NAME,
+        FN_LABEL,
 #endif
         FN_VERSION,
         FN_IPADDRESS,
@@ -136,6 +137,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_HOSTNAME",
 #ifndef ESP_PLATFORM
         "FN_DEVICE_NAME",
+        "FN_LABEL",
 #endif
         "FN_VERSION",
         "FN_IPADDRESS",
@@ -273,6 +275,10 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifndef ESP_PLATFORM
     case FN_DEVICE_NAME:
         resultstream << Config.get_general_devicename();
+        break;
+    case FN_LABEL:
+        // TODO html escape
+        resultstream << Config.get_general_label();
         break;
 #endif
     case FN_VERSION:
