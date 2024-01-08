@@ -1,8 +1,7 @@
 # Visual Studio Code workspace files
 *.code-workspace
-
-# VS Code build directory
 **/.vscode
+.vs/
 
 # PlatformIO build directory
 **/.pio
@@ -22,6 +21,7 @@ sdkconfig.fujinet-v1
 include/version.h
 build/CMakeCache.txt
 build/*
+out/*
 
 # ignore generated WebUI files
 data/BUILD_*
@@ -33,3 +33,6 @@ dependencies.lock
 
 # Ignore packed firmware files
 firmware/*
+
+# Build artifacts
+CMakeSettings.json

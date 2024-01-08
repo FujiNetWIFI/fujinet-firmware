@@ -1277,7 +1277,7 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 {
   // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
   uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-  Debug_printf("\ntheFuji Device %02x Status Code %02x", id(), status_code);
+  Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), status_code);
   // Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
 
   switch (status_code)

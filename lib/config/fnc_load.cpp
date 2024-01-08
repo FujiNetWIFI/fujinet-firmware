@@ -193,6 +193,9 @@ New behavior: copy from SD first if available, then read FLASH.
         case SECTION_NETSIO:
             _read_section_netsio(ss);
             break;
+        case SECTION_BOIP:
+            _read_section_boip(ss);
+            break;
 #endif
         case SECTION_UNKNOWN:
             break;

@@ -69,8 +69,8 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
     time_t tt;
     struct tm *now;
 
-    uint8_t status_code = get_status_code(cmd); 
-    Debug_printf("\r\nDevice %02x Status Code %02x\n", id(), status_code);
+    uint8_t status_code = get_status_code(cmd);
+    Debug_printf("\r\n[CLOCK] Device %02x Status Code %02x\r\n", id(), status_code);
 
     switch (status_code)
     {
