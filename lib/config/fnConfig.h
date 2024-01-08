@@ -35,6 +35,7 @@
 #define WEB_SERVER_LISTEN_URL "http://0.0.0.0:8000"
 
 #define CONFIG_DEFAULT_NETSIO_PORT 9997
+#define CONFIG_DEFAULT_BOIP_PORT 1985
 
 #endif
 
@@ -256,6 +257,14 @@ public:
     void store_netsio_enabled(bool enabled);
     void store_netsio_host(const char *host);
     void store_netsio_port(int port);
+
+    // BUS over IP
+    bool get_boip_enabled() { return _boip.boip_enabled; }
+    std::string get_boip_host() { return _boip.host; }
+    int get_boip_port() { return _boip.port; }
+    void store_boip_enabled(bool enabled);
+    void store_boip_host(const char *host);
+    void store_boip_port(int port);
 #endif
 
     void load();
@@ -287,6 +296,7 @@ private:
 #ifndef ESP_PLATFORM
     void _read_section_serial(std::stringstream &ss);
     void _read_section_netsio(std::stringstream &ss);
+    void _read_section_boip(std::stringstream &ss);
 #endif
 
     enum section_match
@@ -308,6 +318,7 @@ private:
 #ifndef ESP_PLATFORM
         SECTION_SERIAL,
         SECTION_NETSIO,
+        SECTION_BOIP,
 #endif
         SECTION_UNKNOWN
     };
@@ -435,6 +446,13 @@ private:
         std::string host = "";
         int port = CONFIG_DEFAULT_NETSIO_PORT;
     };
+
+    struct boip_info
+    {
+        bool boip_enabled = false;
+        std::string host = "";
+        int port = CONFIG_DEFAULT_BOIP_PORT;
+    };
 #endif
 
     struct modem_info
@@ -491,6 +509,7 @@ private:
 #ifndef ESP_PLATFORM
     serial_info _serial;
     netsio_info _netsio;
+    boip_info _boip;
 #endif
     cpm_info _cpm;
     device_enable_info _denable;

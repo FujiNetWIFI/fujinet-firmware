@@ -74,7 +74,7 @@ void iwmDisk::send_status_reply_packet()
   if((!device_active)) {data[0] &= ~(STATCODE_DEVICE_ONLINE);}
   if(device_active) {data[0] |= STATCODE_DEVICE_ONLINE;}
   if(readonly) {data[0] |= STATCODE_WRITE_PROTECT;}
-  Debug_printf("\r\nsend_status_reply_packet status = %02X\r\n",data[0]);
+  Debug_printf("\r\n[DISK] send_status_reply_packet status = %02X\r\n",data[0]);
   data[1] = data[2] = data[3] = 0;
   if (_disk != nullptr)
   {

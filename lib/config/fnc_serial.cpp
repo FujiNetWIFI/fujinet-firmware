@@ -57,6 +57,30 @@ void fnConfig::store_netsio_port(int port) {
     _dirty = true;
 }
 
+void fnConfig::store_boip_enabled(bool enabled) {
+    if (_boip.boip_enabled == enabled)
+        return;
+
+    _boip.boip_enabled = enabled;
+    _dirty = true;
+}
+
+void fnConfig::store_boip_host(const char *host) {
+    if (_boip.host.compare(host) == 0)
+        return;
+
+    _boip.host = host;
+    _dirty = true;
+}
+
+void fnConfig::store_boip_port(int port) {
+    if (_boip.port == port)
+        return;
+
+    _boip.port = port;
+    _dirty = true;
+}
+
 void fnConfig::_read_section_serial(std::stringstream &ss)
 {
     std::string line;
@@ -107,6 +131,35 @@ void fnConfig::_read_section_netsio(std::stringstream &ss)
                 if (port <= 0 || port > 65535) 
                     port = CONFIG_DEFAULT_NETSIO_PORT;
                 _netsio.port = port;
+            }
+        }
+    }
+}
+
+void fnConfig::_read_section_boip(std::stringstream &ss)
+{
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "enabled") == 0)
+            {
+                _boip.boip_enabled = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "host") == 0)
+            {
+                _boip.host = value;
+            }
+            else if (strcasecmp(name.c_str(), "port") == 0)
+            {
+                int port = atoi(value.c_str());
+                if (port <= 0 || port > 65535) 
+                    port = CONFIG_DEFAULT_NETSIO_PORT;
+                _boip.port = port;
             }
         }
     }

@@ -232,7 +232,7 @@ int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8
   {
     r = smartport.iwm_send_packet_spi();
     retry--;
-  } while (r && retry); // retry if we get an error and haven't tried to many times
+  } while (r && retry); // retry if we get an error and haven't tried too many times
 
   return r;
 }
@@ -580,6 +580,7 @@ void IRAM_ATTR iwmBus::service()
           smartport.decode_data_packet(command_packet.data, command.decoded);
           print_packet(command.decoded, 9);
           _activeDev->process(command);
+          break; // we don't need to needlessly keep looping once we find it
         }
       }
     }

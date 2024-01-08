@@ -105,8 +105,9 @@ void iwmPrinter::send_extended_status_dib_reply_packet()
 
 void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)
 {
-    Debug_printf("\nPrinter: Status cmd %02X\n", cmd.command);
-    switch (get_status_code(cmd))
+    uint8_t status_code = get_status_code(cmd); 
+    Debug_printf("\r\n[PRINTER]: Device: %02x Status Code %02x\r\n", id(), status_code);
+    switch (status_code)
     {
     case IWM_STATUS_STATUS:
         send_status_reply_packet();

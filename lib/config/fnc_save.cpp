@@ -174,6 +174,12 @@ void fnConfig::save()
     ss << "enabled=" << _netsio.netsio_enabled << LINETERM;
     ss << "host=" << _netsio.host << LINETERM;
     ss << "port=" << _netsio.port << LINETERM;
+
+    // Bus Over IP
+    ss << LINETERM << "[BOIP]" << LINETERM;
+    ss << "enabled=" << _boip.boip_enabled << LINETERM;
+    ss << "host=" << _boip.host << LINETERM;
+    ss << "port=" << _boip.port << LINETERM;
 #endif
 
 #ifdef ESP_PLATFORM

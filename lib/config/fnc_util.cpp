@@ -130,6 +130,10 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 return SECTION_NETSIO;
             }
+            else if (strncasecmp("BOIP", s1.c_str(), 4) == 0)
+            {
+                return SECTION_BOIP;
+            }
 #endif
         }
     }

@@ -2,7 +2,15 @@
 #ifndef IWM_SLIP_H
 #define IWM_SLIP_H
 
-#include <stdint.h>
+#include <cstdint> 
+#include <thread>
+#include <atomic>
+#include <queue>
+#include <mutex>
+#include <condition_variable>
+#include "Connection.h"
+#include "../../slip/Request.h"
+#include "../../slip/Response.h"
 
 #define COMMAND_LEN 8 // Read Request / Write Request
 #define PACKET_LEN  2 + 767 // Read Response
@@ -37,7 +45,7 @@ extern sp_cmd_state_t sp_command_mode;
 class iwm_slip
 {
 public:
-
+  ~iwm_slip();
   void setup_gpio();
   void setup_spi();
 
@@ -54,8 +62,31 @@ public:
   size_t decode_data_packet(uint8_t* output_data);
   size_t decode_data_packet(uint8_t* input_data, uint8_t* output_data);
 
+  void close_connection(int sock);
+  bool connect_to_server(std::string host, int port);
+  void wait_for_requests();
+
   uint8_t packet_buffer[PACKET_LEN];
   size_t packet_size;
+  std::shared_ptr<Connection> connection_;
+  std::thread request_thread_;
+	std::atomic<bool> is_responding_{false};
+
+  std::queue<std::vector<uint8_t>> request_queue_;
+  std::mutex queue_mutex_;
+
+  std::unique_ptr<Request> current_request;
+  std::unique_ptr<Response> current_response;
+
+  std::string ipt2str(iwm_packet_type_t packet_type) {
+    switch (packet_type) {
+      case iwm_packet_type_t::status: return "status";
+      case iwm_packet_type_t::data: return "data";
+      case iwm_packet_type_t::ext_status: return "ext_status";
+      case iwm_packet_type_t::ext_data: return "ext_data";
+      default: return "unknown";
+    }
+  }
 };
 
 extern iwm_slip smartport;
