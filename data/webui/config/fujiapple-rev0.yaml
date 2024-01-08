@@ -17,3 +17,5 @@ components:
   boot_settings: true
   apetime: false
   cpm_settings: true
+tweaks:
+  # webui tweaks, if any

@@ -10,11 +10,13 @@ components:
   printer_settings: true
   modem_settings: true
   hsio_settings: false
-  timezone: true
+  timezone: false
+  apetime: false
   udp_stream: true
   program_recorder: false
   disk_swap: true
   boot_settings: true
-  apetime: false
+  cpm_settings: true
 tweaks:
   # webui tweaks, if any
+  fujinet_pc: true
