@@ -2,7 +2,7 @@
 <html>
 
 <head>
-	<title>FujiNet - <%FN_HOSTNAME%></title>
+	<title>FujiNet - {% if tweaks.fujinet_pc %}<%FN_LABEL%>{% else %}<%FN_HOSTNAME%>{% endif %}</title>
 	<meta charset="utf-8" />
 	<script type="text/javascript" src="{{ paths.js_path }}/utils.js"></script>
 	<link rel="stylesheet" href="{{ paths.css_path }}/core.css">
@@ -90,6 +90,15 @@
 					<div class="det detlinecol"><%FN_VERSION%></div>
 				</div>
 				<div class="detline alt">
+					{% if tweaks.fujinet_pc %}
+					<div class="deth detlinecol">Device name</div>
+					<div class="det detlinecol">
+						<form action="/config" method="post">
+							<input type="text" name="hostname" id="txt_hostname" value="<%FN_DEVICE_NAME%>"/>
+							<input type="submit" value="Save">
+						</form>
+					</div>
+					{% else %}
 					<div class="deth detlinecol">Host name</div>
 					<div class="det detlinecol">
 						<form action="/config" method="post">
@@ -97,11 +106,31 @@
 							<input type="submit" value="Save">
 						</form>
 					</div>
+					{% endif %}
 				</div>
 				<div class="detline">
+					{% if tweaks.fujinet_pc %}
+					<div class="deth detlinecol">Host name</div>
+					<div class="det detlinecol"><%FN_HOSTNAME%></div>
+					{% else %}
 					<div class="deth detlinecol">IP address</div>
 					<div class="det detlinecol"><%FN_IPADDRESS%> / <%FN_IPMASK%></div>
+					{% endif %}
 				</div>
+				{% if tweaks.fujinet_pc %}
+				<div class="detline alt">
+					<div class="deth detlinecol">IP address</div>
+					<div class="det detlinecol"></div>
+				</div>
+				<div class="detline">
+					<div class="deth detlinecol">Default gateway</div>
+					<div class="det detlinecol"></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth detlinecol">DNS server</div>
+					<div class="det detlinecol"></div>
+				</div>
+				{% else %}
 				<div class="detline alt">
 					<div class="deth detlinecol">Default gateway</div>
 					<div class="det detlinecol"><%FN_IPGATEWAY%></div>
@@ -126,11 +155,45 @@
 					<div class="deth detlinecol">WiFi details</div>
 					<div class="det small detlinecol"><%FN_WIFIDETAIL%></div>
 				</div>
+				{% endif %}
 			</div>
 			{% endif %}
 			{% if components.hardware %}
 			<div class="flexchild">
 				<header class="child-header">HARD<span id="logowob"></span>WARE</header>
+				{% if tweaks.fujinet_pc %}
+				<div class="detline">
+					<div class="deth detlinecol">Detected Hardware Version</div>
+					<div class="det detlinecol"><%FN_HARDWARE_VER%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth detlinecol">System</div>
+					<div class="det detlinecol"><%FN_UNAME%></div>
+				</div>
+				<div class="detline">
+					<div class="deth detlinecol">Current time</div>
+					<div class="det detlinecol"><%FN_CURRENTTIME%></div>
+				</div>
+				<div class="detline alt">
+					<div class="deth detlinecol">FujiNet uptime</div>
+					<div class="det detlinecol" id="uptime">
+						<script>writeUptimeString(<%FN_UPTIME%>, "uptime")</script>
+					</div>
+				</div>
+				{% if components.hsio_settings %}
+				<div class="detline">
+					<div class="deth detlinecol">HSIO Index:Baud</div>
+					<div class="det detlinecol"><%FN_SIO_HSTEXT%>:
+						<span id="sio_hsbaud"></span>
+						<script>writeLocaleNumber(<%FN_SIO_HSBAUD%>, "sio_hsbaud")</script>
+					</div>
+				</div>
+				{% endif %}
+				<div class="detline alt">
+					<div class="deth detlinecol">Restart FujiNet</div>
+					<div class="det detlinecol"><input type="button" id="restartButton" value="Restart..." onclick="restartButton()" style="width: 7em"></div>
+				</div>
+				{% else %}
 				<div class="detline">
 					<div class="deth detlinecol">Detected Hardware Version</div>
 					<div class="det detlinecol"><%FN_HARDWARE_VER%></div>
@@ -195,84 +258,52 @@
 					</div>
 				</div>
 				{% endif %}
+				{% endif %}
 			</div>
 			{% endif %}
 			{% if components.hosts_list %}
 			<div class="flexchild">
 				<header class="child-header">HOSTS<span id="logowob"></span>LIST</header>
-				<div class="detline">
-					<div class="deth detlinecol">Host 1</div>
-					<div class="det detlinecol"><a href="/hsdir?hostslot=0"><%FN_HOST1%> :: <%FN_HOST1PREFIX%></a></div>
+				{% for hs in range(1, 9) %}
+				<div class="{{ loop.cycle('detline', 'detline alt') }}">
+					<div class="deth detlinecol">Host {{ hs }}</div>
+					{% if tweaks.fujinet_pc %}
+					<div class="det detlinecol"><a href="/browse/host/{{ hs }}"><%FN_HOST{{ hs }}%> :: <%FN_HOST{{ hs }}PREFIX%></a></div>
+					{% else %}
+					<div class="det detlinecol"><a href="/hsdir?hostslot={{ hs-1 }}"><%FN_HOST{{ hs }}%> :: <%FN_HOST{{ hs }}PREFIX%></a></div>
+					{% endif %}
 				</div>
-				<div class="detline alt">
-					<div class="deth detlinecol">Host 2</div>
-					<div class="det detlinecol"><a href="/hsdir?hostslot=1"><%FN_HOST2%> :: <%FN_HOST2PREFIX%></a></div>
-				</div>
-				<div class="detline">
-					<div class="deth detlinecol">Host 3</div>
-					<div class="det detlinecol"><a href="/hsdir?hostslot=2"><%FN_HOST3%> :: <%FN_HOST3PREFIX%></a></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth detlinecol">Host 4</div>
-					<div class="det detlinecol"><a href="/hsdir?hostslot=3"><%FN_HOST4%> :: <%FN_HOST4PREFIX%></a></div>
-				</div>
-				<div class="detline">
-					<div class="deth detlinecol">Host 5</div>
-					<div class="det detlinecol"><a href="/hsdir?hostslot=4"><%FN_HOST5%> :: <%FN_HOST5PREFIX%></a></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth detlinecol">Host 6</div>
-					<div class="det detlinecol"><a href="/hsdir?hostslot=5"><%FN_HOST6%> :: <%FN_HOST6PREFIX%></a></div>
-				</div>
-				<div class="detline">
-					<div class="deth detlinecol">Host 7</div>
-					<div class="det detlinecol"><a href="/hsdir?hostslot=6"><%FN_HOST7%> :: <%FN_HOST7PREFIX%></a></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth detlinecol">Host 8</div>
-					<div class="det detlinecol"><a href="/hsdir?hostslot=7"><%FN_HOST8%> :: <%FN_HOST8PREFIX%></a></div>
-				</div>
+				{% endfor %}
 			</div>
 			{% endif %}
 			{% if components.mount_list %}
 			<div class="flexchild">
 				<header class="child-header">MOUNT<span id="logowob"></span>LIST</header>
+				{% if not tweaks.fujinet_pc %}
 				<div class="detline alt">
 					<div class="deth detlinecol"><a href="/mount?mountall=1"> MOUNT ALL SLOTS</a></div>
 					<div class="det detlinecol">&nbsp;</div>
 				</div>
+				{% endif %}
+				{% for ds in range(1, 9) %}
+				<div class="{{ loop.cycle('detline', 'detline alt') }}">
+					<div class="deth detlinecol">Drive Slot {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%> <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a></div>
+					{% if tweaks.fujinet_pc %}
+					<div class="det detlinecol"><a href="<%FN_DRIVE{{ ds }}BROWSER%>"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></a></div>
+					{% else %}
+					<div class="det detlinecol"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></div>
+					{% endif %}
+				</div>
+				{% endfor %}
+				{% if tweaks.fujinet_pc %}
 				<div class="detline">
-					<div class="deth detlinecol">Drive Slot 1<%FN_DRIVE1DEVICE%> <a href="/unmount?deviceslot=0">[EJECT]</a></div>
-					<div class="det detlinecol"><%FN_DRIVE1HOST%> :: <%FN_DRIVE1MOUNT%></div>
+					<div class="deth detlinecol">Drive Slots</div>
+					<div class="det detlinecol">
+						<input type="button" id="mountAllButton" value="Mount All" onclick="mountAllButton()">
+						<input type="button" id="swapButton" value="Swap" onclick="swapButton()">
+					</div>
 				</div>
-				<div class="detline alt">
-					<div class="deth detlinecol">Drive Slot 2<%FN_DRIVE2DEVICE%> <a href="/unmount?deviceslot=1">[EJECT]</a></div>
-					<div class="det detlinecol"><%FN_DRIVE2HOST%> :: <%FN_DRIVE2MOUNT%></div>
-				</div>
-				<div class="detline">
-					<div class="deth detlinecol">Drive Slot 3<%FN_DRIVE3DEVICE%> <a href="/unmount?deviceslot=2">[EJECT]</a></div>
-					<div class="det detlinecol"><%FN_DRIVE3HOST%> :: <%FN_DRIVE3MOUNT%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth detlinecol">Drive Slot 4<%FN_DRIVE4DEVICE%> <a href="/unmount?deviceslot=3">[EJECT]</a></div>
-					<div class="det detlinecol"><%FN_DRIVE4HOST%> :: <%FN_DRIVE4MOUNT%></div>
-				</div>
-				<div class="detline">
-					<div class="deth detlinecol">Drive Slot 5<%FN_DRIVE5DEVICE%> <a href="/unmount?deviceslot=4">[EJECT]</a></div>
-					<div class="det detlinecol"><%FN_DRIVE5HOST%> :: <%FN_DRIVE5MOUNT%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth detlinecol">Drive Slot 6<%FN_DRIVE6DEVICE%> <a href="/unmount?deviceslot=5">[EJECT]</a></div>
-					<div class="det detlinecol"><%FN_DRIVE6HOST%> :: <%FN_DRIVE6MOUNT%></div>
-				</div>
-				<div class="detline">
-					<div class="deth detlinecol">Drive Slot 7<%FN_DRIVE7DEVICE%> <a href="/unmount?deviceslot=6">[EJECT]</a></div>
-					<div class="det detlinecol"><%FN_DRIVE7HOST%> :: <%FN_DRIVE7MOUNT%></div>
-				</div>
-				<div class="detline alt">
-					<div class="deth detlinecol">Drive Slot 8<%FN_DRIVE8DEVICE%> <a href="/unmount?deviceslot=7">[EJECT]</a></div>
-					<div class="det detlinecol"><%FN_DRIVE8HOST%> :: <%FN_DRIVE8MOUNT%></div>
-				</div>
+				{% endif %}
 			</div>
 			{% endif %}
 			{% if components.printer_settings %}
@@ -540,7 +571,7 @@
 								<label>Current Setting</label>
 							</div>
 							<div class="settings-value">
-								<%FN_SIO_HSINDEX%>
+								{% if tweaks.fujinet_pc %}<%FN_SIO_HSTEXT%>{% else %}<%FN_SIO_HSINDEX%>{% endif %}
 							</div>
 						</div>
 						<hr>
@@ -560,6 +591,11 @@
 									<option value="7">7: 63Kb</option>
 									<option value="8">8: 58Kb</option>
 									<option value="9">9: 55Kb</option>
+									{% if tweaks.fujinet_pc %}
+									<option value="10">10: 52 Kb</option>
+									<option value="16">16: 38 Kb</option>
+									<option value="-1">HSIO Disabled</option>
+									{% endif %}
 								</select>
 								<span class="focus"></span>
 							</div>
@@ -579,7 +615,7 @@
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						Time<span id="logowob"></span>Zone
+						Time<span id="logowob"></span>{% if tweaks.fujinet_pc %}Settings{% else %}Zone{% endif %}
 					</div>
 					<script>
 						{% if components.apetime %}
@@ -605,6 +641,7 @@
 						</div>
 					</div>
 					<div class="settings-content settings-45-55">
+						{% if not tweaks.fujinet_pc %}
 						<div class="set">
 							<div class="settings-label">
 								<label for="select_tz">Timezone <a href="https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html" target="_new">?</a></label>
@@ -646,6 +683,7 @@
 								<input type="text" name="timezone" id="txt_timezone" value="<%FN_TIMEZONE%>">
 							</div>
 						</div>
+						{% endif %}
 						{% if components.apetime %}
 						<div class="set">
 							<div class="settings-label">
@@ -792,6 +830,7 @@
 								</div>
 							</div>
 						</div>
+						{% if not tweaks.fujinet_pc %}
 						<div class="set">
 							<div class="settings-label">
 								<label for="">Mode</label>
@@ -805,6 +844,7 @@
 								</div>
 							</div>
 						</div>
+						{% endif %}
 						<div class="set">
 							<div class="settings-label">
 								<label for="">Activate by</label>
@@ -928,6 +968,144 @@
 								</div>
 							</div>
 						</div>
+					</div>
+					<div class="settings-footer">
+						<div class="save-button">
+							<button type="submit" value="Save">Save</button>
+						</div>
+					</div>
+				</div>
+				</form>
+			</div>
+			{% endif %}
+			{% if components.serial_port %}
+			<div class="flexchild">
+				<form action="/config" method="post">
+				<div class="settings">
+					<div class="settings-header">Serial<span id="logowob"></span>Port</div>
+					<div class="settings-left">
+						<div class="svgicon">
+							<svg width="100%" height="100%" viewBox="0 0 140 140" version="1.1" xmlns="http://www.w3.org/2000/svg"
+								xmlns:svg="http://www.w3.org/2000/svg">
+								<defs id="defs2" />
+								<g id="layer1" transform="translate(-33.977509,-76.63298)">
+									<rect
+										style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:7;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+										id="rect1688" width="125.02666" height="55.6049" x="39.46418" y="116.83053" ry="9.9387922" />
+									<g id="g2039" transform="translate(3.0519491,36.553767)">
+										<circle
+											style="fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:7;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+											id="path263" cx="74.026917" cy="108.07922" r="13.287051" />
+										<circle
+											style="fill:none;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:7;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+											id="path263-6" cx="123.8242" cy="108.07922" r="13.287051" />
+										<path
+											style="fill:none;stroke:#000000;stroke-width:7;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+											d="M 148.72284,91.421646 V 124.73679" id="path2278" />
+										<path
+											style="fill:none;stroke:#000000;stroke-width:7;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+											d="M 98.925556,91.421648 V 124.73679" id="path2278-3" />
+										<path
+											style="fill:none;stroke:#000000;stroke-width:7;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+											d="M 49.128272,91.421648 V 124.73679" id="path2278-5" />
+									</g>
+								</g>
+							</svg>
+						</div>
+					</div>
+					<div class="settings-content settings-45-55">
+						<div class="set">
+							<div class="settings-label">
+								<label for="serial_port">Serial Port</label>
+							</div>
+							<div class="settings-value">
+								<input type="text" name="serial_port" id="serial_port" value="<%FN_SERIAL_PORT%>">
+							</div>
+						</div>
+						<div class="set">
+							<div class="settings-label">
+								<label>COMMAND on</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="command-on-dsr" name="serial_command" type="radio" value="1">
+									<label for="command-on-dsr" class="r-printer-port">DSR</label>
+									<input checked="" id="command-on-cts" name="serial_command" type="radio" value="2">
+									<label for="command-on-cts" class="r-printer-port">CTS</label>
+									<input checked="" id="command-on-ri" name="serial_command" type="radio" value="3">
+									<label for="command-on-ri" class="r-printer-port">RI</label>
+								</div>
+							</div>
+						</div>
+						<div class="set">
+							<div class="settings-label">
+								<label>PROCEED on</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="proceed-on-dtr" name="serial_proceed" type="radio" value="1">
+									<label for="proceed-on-dtr" class="r-printer-port">DTR</label>
+									<input checked="" id="proceed-on-rts" name="serial_proceed" type="radio" value="2">
+									<label for="proceed-on-rts" class="r-printer-port">RTS</label>
+								</div>
+							</div>
+						</div>
+						<script>
+							var current_serial_command = "<%FN_SERIAL_COMMAND%>";
+							var current_serial_proceed = "<%FN_SERIAL_PROCEED%>";
+						</script>
+					</div>
+					<div class="settings-footer">
+						<div class="save-button">
+							<button type="submit" value="Save">Save</button>
+						</div>
+					</div>
+				</div>
+				</form>
+			</div>
+			{% endif %}
+			{% if components.emulator_settings %}
+			<div class="flexchild">
+				<form action="/config" method="post">
+				<div class="settings">
+					<div class="settings-header">Emulator<span id="logowob"></span>Settings</div>
+					<div class="settings-left">
+						<div class="svgicon">
+						</div>
+					</div>
+					<div class="settings-content settings-45-55">
+						<div class="set">
+							<div class="settings-label">
+								<label for="">Enable SIO over Network</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="netsio-yes" name="netsio_enable" type="radio" value="1">
+									<label for="netsio-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="netsio-no" name="netsio_enable" type="radio" value="0">
+									<label for="netsio-no" class="r-yes-no">No</label>
+								</div>
+							</div>
+						</div>
+						<div class="set">
+							<div class="settings-label">
+								<label for="netsio_host">Hostname or IP [:port]</label>
+							</div>
+							<div class="settings-value">
+								<input type="text" name="netsio_host" id="netsio_host" value="<%FN_NETSIO_HOST%>">
+							</div>
+						</div>
+						<hr>
+						<div class="settings-text">
+							<div>
+								When enabled, FujiNet will not use the physical serial port to transmit
+								SIO data and signals. Instead, it will communicate over the network with
+								an Atari emulator. Port is optional (defaults to 9997).
+							</div>
+						</div>
+						<script>
+							var current_netsio_enabled = "<%FN_NETSIO_ENABLED%>";
+						</script>
 					</div>
 					<div class="settings-footer">
 						<div class="save-button">
