@@ -1,0 +1,15 @@
+#!/bin/sh
+
+echo "Starting FujiNet"
+./fujinet "$@"
+rc=$?
+
+# from sysexits.h
+# #define EX_TEMPFAIL     75      /* temp failure; user is invited to retry */
+while [ $rc -eq 75 ]; do
+    echo "Restarting FujiNet"
+    ./fujinet "$@"
+    rc=$?
+done
+
+echo "FujiNet ended with exit code $rc"
