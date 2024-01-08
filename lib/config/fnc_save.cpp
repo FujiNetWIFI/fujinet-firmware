@@ -47,14 +47,6 @@ void fnConfig::save()
 
     // ss << LINETERM;
 
-#ifndef ESP_PLATFORM
-    // SERIAL
-    ss << LINETERM << "[Serial]" << LINETERM;
-    ss << "port=" << _serial.port << LINETERM;
-    ss << "command=" << std::string(_serial_command_pin_names[_serial.command]) << LINETERM;
-    ss << "proceed=" << std::string(_serial_proceed_pin_names[_serial.proceed]) << LINETERM;
-#endif
-
     // WIFI
     ss << LINETERM << "[WiFi]" LINETERM;
     ss << "enabled=" << _wifi.enabled << LINETERM;
@@ -171,6 +163,12 @@ void fnConfig::save()
     ss << "enable_apetime=" << _denable.apetime << LINETERM;
 
 #ifndef ESP_PLATFORM
+    // SERIAL
+    ss << LINETERM << "[Serial]" << LINETERM;
+    ss << "port=" << _serial.port << LINETERM;
+    ss << "command=" << std::string(_serial_command_pin_names[_serial.command]) << LINETERM;
+    ss << "proceed=" << std::string(_serial_proceed_pin_names[_serial.proceed]) << LINETERM;
+
     // NETSIO
     ss << LINETERM << "[NetSIO]" << LINETERM;
     ss << "enabled=" << _netsio.netsio_enabled << LINETERM;

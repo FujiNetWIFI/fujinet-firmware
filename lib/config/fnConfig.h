@@ -96,6 +96,9 @@ public:
 
     // GENERAL
     std::string get_general_devicename() { return _general.devicename; };
+#ifndef ESP_PLATFORM
+    std::string get_general_label();
+#endif
     int get_general_hsioindex() { return _general.hsio_index; };
     std::string get_general_timezone() { return _general.timezone; };
     bool get_general_rotation_sounds() { return _general.rotation_sounds; };
