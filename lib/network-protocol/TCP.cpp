@@ -56,7 +56,7 @@ bool NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
     {
         // Open server on port, otherwise, treat as empty socket.
         if (!urlParser->port.empty())
-            ret = open_server(atoi(urlParser->port.c_str()));
+            ret = open_server(urlParser->getPort());
         else
         {
             Debug_printf("Empty socket enabled.\r\n");
@@ -69,7 +69,7 @@ bool NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
             urlParser->port = "23";
 
         // open client connection
-        ret = open_client(urlParser->host, atoi(urlParser->port.c_str()));
+        ret = open_client(urlParser->host, urlParser->getPort());
     }
 
     // call base class
