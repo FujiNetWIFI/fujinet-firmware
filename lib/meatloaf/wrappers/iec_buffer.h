@@ -19,14 +19,20 @@
  * oiecstream
  * 
  * Standard C++ stream for writing to IEC
+ * 
+ * This is of course a bit counter-intuitive:
+ * 
+ * Writing to iecstream == LOAD on C64 (pipe mode: _S_in), we're doing file -> IEC -> C64
+ * Reading from iestream == SAVE on C64 (pipe mode: _S_out), we're doing C64 -> IEC -> file
  ********************************************************/
 
 class oiecstream : private std::filebuf, public std::ostream {
     char* data = nullptr;
     systemBus* m_iec = nullptr;
-    bool m_isOpen = false;
+    bool _is_open = false;
 
-    size_t easyWrite();
+    size_t sendBytesViaIEC();
+    size_t receiveBytesViaIEC();
 
 public:
     oiecstream(const oiecstream &copied) : std::ios(0), std::filebuf(),  std::ostream( this ) {
@@ -55,7 +61,7 @@ public:
         setp(data, data+IEC_BUFFER_SIZE);
         if(iec != nullptr)
         {
-            m_isOpen = true;
+            _is_open = true;
             clear();
         }
     }
@@ -70,19 +76,20 @@ public:
             setp(data, data+IEC_BUFFER_SIZE);
         }
 
-        m_isOpen = false;
+        _is_open = false;
     }
 
     bool is_open() const {
-        return m_isOpen;
+        return _is_open;
     }    
 
     int overflow(int ch  = std::filebuf::traits_type::eof()) override;
 
     int sync() override;
 
-
     void putUtf8(U8Char* codePoint);
+
+    void flushpbuff();
 };
 
 extern oiecstream iecStream;

@@ -1,10 +1,12 @@
 #include "flash.h"
 
-#include "../../../include/debug.h"
-
 #include <sys/stat.h>
 #include <unistd.h>
+#include <sstream>
+#include <iomanip>
 
+#include "../../../include/debug.h"
+#include "string_utils.h"
 
 /********************************************************
  * MFileSystem implementations
@@ -58,18 +60,19 @@ bool FlashFile::isDirectory()
     return S_ISDIR(info.st_mode);
 }
 
-MStream* FlashFile::createIStream(std::shared_ptr<MStream> is) {
-    return is.get(); // we don't have to process this stream in any way, just return the original stream
-}
 
-MStream* FlashFile::meatStream()
+MStream* FlashFile::getSourceStream(std::ios_base::openmode mode)
 {
     std::string full_path = basepath + path;
-    MStream* istream = new FlashIStream(full_path);
-    //Debug_printv("FlashFile::meatStream() 3, not null=%d", istream != nullptr);
+    MStream* istream = new FlashIStream(full_path, mode);
+    //Debug_printv("FlashFile::getSourceStream() 3, not null=%d", istream != nullptr);
     istream->open();   
-    //Debug_printv("FlashFile::meatStream() 4");
+    //Debug_printv("FlashFile::getSourceStream() 4");
     return istream;
+}
+
+MStream* FlashFile::getDecodedStream(std::shared_ptr<MStream> is) {
+    return is.get(); // we don't have to process this stream in any way, just return the original stream
 }
 
 time_t FlashFile::getLastWrite()
@@ -240,7 +243,6 @@ MFile* FlashFile::getNextFileInDir()
 
 bool FlashFile::seekEntry( std::string filename )
 {
-    DIR* d;
     std::string apath = (basepath + pathToFile()).c_str();
     if (apath.empty()) {
         apath = "/";
@@ -248,14 +250,16 @@ bool FlashFile::seekEntry( std::string filename )
 
     Debug_printv( "path[%s] filename[%s] size[%d]", apath.c_str(), filename.c_str(), filename.size());
 
-    d = opendir( apath.c_str() );
+    DIR* d = opendir( apath.c_str() );
     if(d == nullptr)
         return false;
 
     // Read Directory Entries
-    struct dirent* dirent = NULL;
     if ( filename.size() > 0 )
     {
+        struct dirent* dirent = NULL;
+        bool found = false;
+        bool wildcard =  ( mstr::contains(filename, "*") || mstr::contains(filename, "?") );
         while ( (dirent = readdir( d )) != NULL )
         {
             std::string entryFilename = dirent->d_name;
@@ -265,16 +269,30 @@ bool FlashFile::seekEntry( std::string filename )
             // Read Entry From Stream
             if ( dirent->d_type != DT_DIR ) // Only want to match files not directories
             {
-                if ( filename == entryFilename )
+                // Read Entry From Stream
+                if (filename == "*") // Match first entry
                 {
-                    closedir( d );
-                    return true;
+                    filename = entryFilename;
+                    found = true;
                 }
-                else if ( filename == "*" || mstr::compare(filename, entryFilename) )
+                else if ( filename == entryFilename ) // Match exact
                 {
-                    // Set filename to this filename
-                    Debug_printv( "Found! file[%s] -> entry[%s]", filename.c_str(), entryFilename.c_str() );
-                    parseURL(apath + "/" + std::string(dirent->d_name));
+                    found = true;
+                }
+                else if ( wildcard )
+                {
+                    if ( mstr::compare(filename, entryFilename) ) // X?XX?X* Wildcard match
+                    {
+                        // Set filename to this filename
+                        Debug_printv( "Found! file[%s] -> entry[%s]", filename.c_str(), entryFilename.c_str() );
+                        resetURL(apath + "/" + entryFilename);
+                        found = true;
+                    }
+                }
+
+                if ( found )
+                {
+                    _exists = true;
                     closedir( d );
                     return true;
                 }
@@ -298,16 +316,12 @@ uint32_t FlashIStream::write(const uint8_t *buf, uint32_t size) {
         return 0;
     }
 
-    //Debug_printv("in byteWrite '%c', handle->file_h is null=[%d]\r\n", buf[0], handle->file_h == nullptr);
+    Debug_printv("in byteWrite '%c', handle->file_h is null=[%d]\r\n", buf[0], handle->file_h == nullptr);
 
     // buffer, element size, count, handle
     int result = fwrite((void*) buf, 1, size, handle->file_h );
 
-    //Debug_printv("after lfs_file_write");
-
-    if (result < 0) {
-        Debug_printv("write rc=%d\r\n", result);
-    }
+    Debug_printv("after write rc=%d\r\n", result);
     return result;
 };
 
@@ -324,15 +338,32 @@ bool FlashIStream::open() {
     //Debug_printv("IStream: trying to open flash fs, calling isOpen");
 
     //Debug_printv("IStream: wasn't open, calling obtain");
-    handle->obtain(localPath, "r");
+    if(mode == std::ios_base::in)
+        handle->obtain(localPath, "r");
+    else if(mode == std::ios_base::out) {
+        Debug_printv("FlashIStream: ok, we are in write mode!");
+        handle->obtain(localPath, "w");
+    }
+    else if(mode == std::ios_base::app)
+        handle->obtain(localPath, "a");
+    else if(mode == (std::ios_base::in | std::ios_base::out))
+        handle->obtain(localPath, "r+");
+    else if(mode == (std::ios_base::in | std::ios_base::app))
+        handle->obtain(localPath, "a+");
+    else if(mode == (std::ios_base::in | std::ios_base::out | std::ios_base::trunc))
+        handle->obtain(localPath, "w+");
+    else if(mode == (std::ios_base::in | std::ios_base::out | std::ios_base::app))
+        handle->obtain(localPath, "a+");
 
-    if(isOpen()) {
+    // The below code will definitely destroy whatever open above does, because it will move the file pointer
+    // so I just wrapped it to be called only for in
+    if(isOpen() && mode == std::ios_base::in) {
         //Debug_printv("IStream: past obtain");
         // Set file size
         fseek(handle->file_h, 0, SEEK_END);
         //Debug_printv("IStream: past fseek 1");
-        m_length = ftell(handle->file_h);
-        m_bytesAvailable = m_length;
+        _size = ftell(handle->file_h);
+        _position = 0;
         //Debug_printv("IStream: past ftell");
         fseek(handle->file_h, 0, SEEK_SET);
         //Debug_printv("IStream: past fseek 2");
@@ -352,38 +383,40 @@ uint32_t FlashIStream::read(uint8_t* buf, uint32_t size) {
     }
 
     uint32_t bytesRead = 0;
-    if ( size > m_bytesAvailable )
-        size = m_bytesAvailable;
+    if ( size > available() )
+        size = available();
     
     if ( size > 0 )
     {
         bytesRead = fread((void*) buf, 1, size, handle->file_h );
-        m_position += bytesRead;
-        m_bytesAvailable = m_length - m_position;
+        // Debug_printv("bytesRead[%d]", bytesRead);
+        // auto hex = mstr::toHex(buf, bytesRead);
+        // Debug_printv("[%s]", hex.c_str());
+        _position += bytesRead;
     }
 
     return bytesRead;
 };
 
 
-uint32_t FlashIStream::size() {
-    return m_length;
-};
+// uint32_t FlashIStream::size() {
+//     return _size;
+// };
 
-uint32_t FlashIStream::available() {
-    if(!isOpen()) return 0;
-    return m_length - position();
-};
+// uint32_t FlashIStream::available() {
+//     if(!isOpen()) return 0;
+//     return _size - position();
+// };
 
 
-uint32_t FlashIStream::position() {
-    if(!isOpen()) return 0;
-    return ftell(handle->file_h);
-};
+// uint32_t FlashIStream::position() {
+//     if(!isOpen()) return 0;
+//     return ftell(handle->file_h);
+// };
 
-size_t FlashIStream::error() {
-    return 0;
-};
+// size_t FlashIStream::error() {
+//     return 0;
+// };
 
 bool FlashIStream::seek(uint32_t pos) {
     // Debug_printv("pos[%d]", pos);

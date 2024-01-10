@@ -2,7 +2,7 @@
 // https://en.wikipedia.org/wiki/SD_card
 // https://github.com/arduino-libraries/SD
 //
-
+#ifndef TEST_NATIVE
 #ifndef MEATLOAF_DEVICE_SD
 #define MEATLOAF_DEVICE_SD
 
@@ -27,7 +27,7 @@ class SDFileSystem: public MFileSystem
 {
 private:
     MFile* getFile(std::string path) override {
-        PeoplesUrlParser *url = PeoplesUrlParser::parseURL(path);
+        PeoplesUrlParser *url = PeoplesUrlParser::parseURL( path );
 
         std::string basepath = fnSDFAT.basepath();
         basepath += std::string("/");
@@ -46,3 +46,4 @@ public:
 
 
 #endif // MEATLOAF_DEVICE_SD
+#endif // TEST_NATIVE

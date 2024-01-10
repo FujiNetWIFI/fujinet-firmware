@@ -1273,6 +1273,8 @@ device_state_t iecNetwork::process()
     //payload=mstr::toUTF8(payload); // @idolpx? What should I do instead?
 
     Debug_printv("payload[%s]", payload.c_str());
+    std::string hex = mstr::toHex(payload);
+    Debug_printv("hex[%s]", hex.c_str());
 
     // fan out to appropriate process routine
     switch (commanddata.channel)

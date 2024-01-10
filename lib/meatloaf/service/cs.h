@@ -214,12 +214,13 @@ public:
     {
         media_blocks_free = 65535;
         media_block_size = 1; // blocks are already calculated
-        //parseURL(path);
+        //parseUrl(path);
         // Debug_printv("path[%s] size[%d]", path.c_str(), size);
+        isPETSCII = true;
     };
 
-    MStream* createIStream(std::shared_ptr<MStream> src) { return src.get(); };
-    MStream* meatStream() override ; // has to return OPENED stream
+    MStream* getDecodedStream(std::shared_ptr<MStream> src) { return src.get(); };
+    MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override ; // has to return OPENED stream
 
     //MFile* cd(std::string newDir);
     bool isDirectory() override;
@@ -275,10 +276,10 @@ public:
 
 protected:
     std::string url;
-    bool m_isOpen;
-    uint32_t m_length;
-    uint32_t m_bytesAvailable = 0;
-    uint32_t m_position = 0;
+    bool _is_open;
+    // uint32_t _size;
+    // uint32_t m_bytesAvailable = 0;
+    // uint32_t _position = 0;
 };
 
 
