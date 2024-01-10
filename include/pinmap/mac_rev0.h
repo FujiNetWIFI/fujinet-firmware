@@ -19,7 +19,7 @@
 #define PIN_UART1_RX            GPIO_NUM_9
 #define PIN_UART1_TX            GPIO_NUM_10
 #define PIN_UART2_RX            GPIO_NUM_33
-#define PIN_UART2_TX            GPIO_NUM_21
+#define PIN_UART2_TX            GPIO_NUM_26
 
 /* Buttons */
 #define PIN_BUTTON_A            GPIO_NUM_0  // keys.cpp
@@ -55,7 +55,7 @@
 // #define SP_WRPROT               GPIO_NUM_27
 // #define SP_ACK                  GPIO_NUM_27
 #define SP_RDDATA               GPIO_NUM_4  // tri-state gate enable line
-// #define SP_WRDATA               GPIO_NUM_22
+#define SP_WRDATA               GPIO_NUM_22
 // #define SP_WREQ                 GPIO_NUM_26
 // #define SP_DRIVE1               GPIO_NUM_36
 // #define SP_DRIVE2               GPIO_NUM_21
