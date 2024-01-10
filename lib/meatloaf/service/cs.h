@@ -214,7 +214,7 @@ public:
     {
         media_blocks_free = 65535;
         media_block_size = 1; // blocks are already calculated
-        //parseUrl(path);
+        //parseURL(path);
         // Debug_printv("path[%s] size[%d]", path.c_str(), size);
     };
 

@@ -16,7 +16,7 @@ MeatHttpClient* HttpFile::fromHeader() {
         //Debug_printv("before head url[%s]", url.c_str());
         client->HEAD(url);
         //Debug_printv("after head url[%s]", client->url.c_str());
-        parseUrl(client->url);
+        parseURL(client->url);
     }
     return client;
 }
@@ -486,9 +486,8 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
                     if ( mstr::startsWith(evt->header_value, (char *)"/") )
                     {
                         // Absolute path redirect
-                        PeoplesUrlParser u;
-                        u.parseUrl( meatClient->url );
-                        meatClient->url = u.root() + evt->header_value;
+                        PeoplesUrlParser *u = PeoplesUrlParser::parseURL( meatClient->url );
+                        meatClient->url = u->root() + evt->header_value;
                     }
                     else
                     {

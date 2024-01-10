@@ -1035,11 +1035,10 @@ bool iecDisk::sendFile()
     {
         if ( istream->has_subdirs )
         {
-            PeoplesUrlParser u;
-            u.parseUrl( istream->url );
-            Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u.base().c_str() );
-            _last_file = u.name;
-            _base.reset( MFSOwner::File( u.base() ) );
+            PeoplesUrlParser *u = PeoplesUrlParser::parseURL( istream->url );
+            Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u->base().c_str() );
+            _last_file = u->name;
+            _base.reset( MFSOwner::File( u->base() ) );
         }
         else
         {

@@ -41,7 +41,7 @@ public:
     std::string basepath = "";
     
     FlashFile(std::string path): MFile(path) {
-        // parseUrl( path );
+        // parseURL( path );
 
         // Find full filename for wildcard
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))

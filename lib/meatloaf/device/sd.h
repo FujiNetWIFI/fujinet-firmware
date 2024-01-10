@@ -27,15 +27,13 @@ class SDFileSystem: public MFileSystem
 {
 private:
     MFile* getFile(std::string path) override {
-        PeoplesUrlParser url;
-
-        url.parseUrl(path);
+        PeoplesUrlParser *url = PeoplesUrlParser::parseURL(path);
 
         std::string basepath = fnSDFAT.basepath();
         basepath += std::string("/");
         //Debug_printv("basepath[%s] url.path[%s]", basepath.c_str(), url.path.c_str());
 
-        return new FlashFile( url.path );
+        return new FlashFile( url->path );
     }
 
     bool handles(std::string name) {

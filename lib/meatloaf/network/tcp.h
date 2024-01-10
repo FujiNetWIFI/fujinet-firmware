@@ -4,6 +4,7 @@
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
 #include "../../include/debug.h"
+#include "peoples_url_parser.h"
 
 //
 // This is a standard "reading socket" - i.e. if you connect to a remote server
@@ -241,9 +242,8 @@ public:
     }
 
     bool open() override {
-        PeoplesUrlParser p;
-        p.parseUrl(url);
-        return socket.open(p.host.c_str(), p.getPort());
+        PeoplesUrlParser *p = PeoplesUrlParser::parseURL(url);
+        return socket.open(p->host.c_str(), atoi(p->port.c_str()));
     }
 
     // MStream methods

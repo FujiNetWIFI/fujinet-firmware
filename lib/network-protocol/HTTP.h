@@ -57,7 +57,7 @@ protected:
      * @param url the url to mount
      * @return false on no error, true on error.
      */
-    virtual bool mount(EdUrlParser *url);
+    virtual bool mount(PeoplesUrlParser *url);
 
     /**
      * @brief Unmount TNFS server specified in mountInfo.
@@ -119,35 +119,35 @@ protected:
 
     /**
      * @brief Rename file specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file/dest to rename
+     * @param url pointer to PeoplesUrlParser pointing to file/dest to rename
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rename(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Delete file specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool del(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Make directory specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Remove directory specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
 private:
     /**

@@ -274,7 +274,7 @@ bool FlashFile::seekEntry( std::string filename )
                 {
                     // Set filename to this filename
                     Debug_printv( "Found! file[%s] -> entry[%s]", filename.c_str(), entryFilename.c_str() );
-                    parseUrl(apath + "/" + std::string(dirent->d_name));
+                    parseURL(apath + "/" + std::string(dirent->d_name));
                     closedir( d );
                     return true;
                 }

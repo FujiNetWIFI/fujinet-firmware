@@ -118,7 +118,7 @@ void iecNetwork::iec_open()
         protocol[commanddata.channel] = nullptr;
     }
 
-    urlParser[commanddata.channel] = EdUrlParser::parseUrl(deviceSpec[commanddata.channel]);
+    urlParser[commanddata.channel] = PeoplesUrlParser::parseURL(deviceSpec[commanddata.channel]);
 
     // This is unbelievably stupid, but here we are.
     for (int i = 0; i < urlParser[commanddata.channel]->query.size(); i++)

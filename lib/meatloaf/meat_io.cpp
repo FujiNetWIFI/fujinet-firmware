@@ -226,11 +226,10 @@ MFile* MFSOwner::File(std::string path) {
 
 std::string MFSOwner::existsLocal( std::string path )
 {
-    PeoplesUrlParser url;
-    url.parseUrl(path);
+    PeoplesUrlParser *url = PeoplesUrlParser::parseURL(path);
 
     // Debug_printv( "path[%s] name[%s] size[%d]", path.c_str(), url.name.c_str(), url.name.size() );
-    if ( url.name.size() == 16 )
+    if ( url->name.size() == 16 )
     {
         struct stat st;
         int i = stat(std::string(path).c_str(), &st);
@@ -241,8 +240,8 @@ std::string MFSOwner::existsLocal( std::string path )
             DIR *dir;
             struct dirent *ent;
 
-            std::string p = url.pathToFile();
-            std::string name = url.name;
+            std::string p = url->pathToFile();
+            std::string name = url->name;
             // Debug_printv( "pathToFile[%s] basename[%s]", p.c_str(), name.c_str() );
             if ((dir = opendir ( p.c_str() )) != NULL)
             {
@@ -315,7 +314,7 @@ MFile::MFile(std::string path) {
     //     path = "";
     // }
 
-    parseUrl(path);
+    parseURL(path);
 }
 
 MFile::MFile(std::string path, std::string name) : MFile(path + "/" + name) {
