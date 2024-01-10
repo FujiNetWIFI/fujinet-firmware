@@ -6,7 +6,7 @@
 
 #include "meat_io.h"
 
-#include "U8Char.h"
+#include "../../include/debug.h"
 
 namespace Meat
 {
@@ -29,10 +29,10 @@ namespace Meat
         std::unique_ptr<MStream> mstream;
         std::unique_ptr<MFile> mfile;
 
-        static const size_t ibufsize = 2048;
-        static const size_t obufsize = 512;
-        char *ibuffer;
-        char *obuffer;
+        static const size_t gbuffer_size = 2048;
+        static const size_t pbuffer_size = 512;
+        char *gbuffer;
+        char *pbuffer;
 
         std::streampos currBuffStart = 0;
         std::streampos currBuffEnd;
@@ -46,17 +46,17 @@ namespace Meat
 
         mfilebuf()
         {
-            ibuffer = new char[ibufsize+1];
-            obuffer = new char[obufsize+1];
+            gbuffer = new char[gbuffer_size+1];
+            pbuffer = new char[pbuffer_size+1];
         };
 
         ~mfilebuf()
         {
-            if (obuffer != nullptr)
-                delete[] obuffer;
+            if (pbuffer != nullptr)
+                delete[] pbuffer;
 
-            if (ibuffer != nullptr)
-                delete[] ibuffer;
+            if (gbuffer != nullptr)
+                delete[] gbuffer;
 
             close();
         }
@@ -64,18 +64,18 @@ namespace Meat
         std::filebuf *doOpen(std::ios_base::openmode mode)
         {
             // Debug_println("In filebuf open pre reset mistream");
-            if (mode == std::ios_base::in)
-                mstream.reset(mfile->meatStream());
-            else
-            {
-                // TODO - ok we have to obtain the out stream here SOMEHOW
-            }
+            mstream.reset(mfile->getSourceStream(mode));
 
-            // Debug_println("In filebuf open post reset mistream");
             if (mstream->isOpen())
             {
                 // Debug_println("In filebuf open success!");
-                this->setp(obuffer, obuffer + obufsize);
+                if (mode == std::ios_base::in) {
+                    // initialize get buffer using gbuffer_size
+                    this->setg(gbuffer, gbuffer, gbuffer);
+                }
+                else if (mode == std::ios_base::out) {
+                    this->setp(pbuffer, pbuffer + pbuffer_size);
+                }
                 return this;
             }
             else
@@ -175,7 +175,7 @@ namespace Meat
                 // no more characters are available, size == 0.
                 // auto buffer = reader->read();
 
-                int readCount = mstream->read((uint8_t *)ibuffer, ibufsize);
+                int readCount = mstream->read((uint8_t *)gbuffer, gbuffer_size);
 
                 Debug_printv("meat buffer underflow, readCount=%d", readCount);
 
@@ -185,14 +185,14 @@ namespace Meat
                     // if gptr >= egptr - sgetc will call underflow again:
                     //                   gptr     egptr
                     Debug_printv("meat underflow received _MEAT_NO_DATA_AVAIL!");
-                    //this->setg(ibuffer, ibuffer, ibuffer); 
+                    //this->setg(gbuffer, gbuffer, gbuffer); 
 
                     return my_char_traits::nda();
                 }
                 else if (readCount <= 0)
                 {
                     Debug_printv("--mfilebuf read error or EOF, RC=%d!", readCount);
-                    //this->setg(ibuffer, ibuffer, ibuffer);
+                    //this->setg(gbuffer, gbuffer, gbuffer);
                     return std::char_traits<char>::eof();
                 }
                 else
@@ -202,7 +202,7 @@ namespace Meat
 
                     // Debug_printv("--mfilebuf underflow, read bytes=%d--", readCount);
                     // beg, curr, end <=> eback, gptr, egptr
-                    this->setg(ibuffer, ibuffer, ibuffer + readCount);
+                    this->setg(gbuffer, gbuffer, gbuffer + readCount);
                 }
             }
             // eback = beginning of get area
@@ -243,7 +243,7 @@ namespace Meat
         int overflow(int ch = traits_type::eof()) override
         {
 
-            // Debug_printv("in overflow");
+            Debug_printv("in overflow");
             //  pptr =  Returns the pointer to the current character (put pointer) in the put area.
             //  pbase = Returns the pointer to the beginning ("base") of the put area.
             //  epptr = Returns the pointer one past the end of the put area.
@@ -254,6 +254,9 @@ namespace Meat
             }
 
             char *end = this->pptr();
+
+            Debug_printv("before write call, ch=%d [%c], buffer contains:%d", ch, (char)ch, this->pptr() - this->pbase());
+
             if (ch != EOF)
             {
                 *end++ = ch;
@@ -272,7 +275,7 @@ namespace Meat
             {
                 ch = 0;
             }
-            this->setp(obuffer, obuffer + obufsize);
+            this->setp(pbuffer, pbuffer + pbuffer_size);
 
             return ch;
         };
@@ -284,8 +287,8 @@ namespace Meat
             if (mstream->seek(__pos))
             {
                 __ret = std::streampos(off_type(__pos));
-                this->setg(ibuffer, ibuffer, ibuffer);
-                this->setp(obuffer, obuffer + obufsize);
+                this->setg(gbuffer, gbuffer, gbuffer);
+                this->setp(pbuffer, pbuffer + pbuffer_size);
             }
 
             return __ret;
@@ -295,13 +298,13 @@ namespace Meat
         {
             std::streampos __ret = std::streampos(off_type(-1));
 
-            // pbase - obuffer start
-            // pptr - current obuffer position
-            // epptr - obuffer end
+            // pbase - pbuffer start
+            // pptr - current pbuffer position
+            // epptr - pbuffer end
 
-            // ebackk - ibuffer start
-            // gptr - current ibuffer position
-            // egptr - ibuffer end
+            // ebackk - gbuffer start
+            // gptr - current gbuffer position
+            // egptr - gbuffer end
 
             Debug_printv("meat buffer seekpos called, newPos=%d buffer=[%d,%d]", (size_t)__pos, (size_t)currBuffStart, (size_t)currBuffEnd);
 
@@ -316,10 +319,10 @@ namespace Meat
                 // !!!
 
                 std::streampos delta = __pos - currBuffStart;
-                // TODO - check if eback == ibuffer!!!
-                // TODO - check if pbase == obuffer!!!
-                this->setg(this->eback(), ibuffer + delta, this->egptr());
-                this->setp(this->pbase(), obuffer + delta);
+                // TODO - check if eback == gbuffer!!!
+                // TODO - check if pbase == pbuffer!!!
+                this->setg(this->eback(), gbuffer + delta, this->egptr());
+                this->setp(this->pbase(), pbuffer + delta);
             }
             else if (mstream->seek(__pos))
             {
@@ -332,16 +335,16 @@ namespace Meat
 
                 // not sure if this is ok, but is supposed to cause underflow
                 // underflow will set it to:
-                // setg(ibuffer, ibuffer, ibuffer + readCount);
+                // setg(gbuffer, gbuffer, gbuffer + readCount);
                 //         begin    next     end
-                this->setg(ibuffer, ibuffer, ibuffer);
+                this->setg(gbuffer, gbuffer, gbuffer);
 
                 // not sure if this is ok, but is supposed to cause overflow and prepare a clean buffer for writing
                 // that's how overflow does it after writing all:
                 // write(pbase, pptr-pbase)
-                // setp(obuffer, obuffer+obufsize);
+                // setp(pbuffer, pbuffer+pbuffer_size);
                 //         begin    end
-                this->setp(obuffer, obuffer + obufsize);
+                this->setp(pbuffer, pbuffer + pbuffer_size);
             }
 
             return __ret;
@@ -382,7 +385,7 @@ namespace Meat
                 auto result = mstream->write(buffer, this->pptr() - this->pbase());
                 // Debug_printv("%d bytes left in buffer written to sink, rc=%d", pptr()-pbase(), result);
 
-                this->setp(obuffer, obuffer + obufsize);
+                this->setp(pbuffer, pbuffer + pbuffer_size);
 
                 return (result != 0) ? 0 : -1;
             }

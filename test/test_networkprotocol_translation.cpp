@@ -56,7 +56,7 @@ void tests_networkprotocol_translation()
 void tests_networkprotocol_translation_rx_cr_to_eol()
 {
     cmdFrame_t cmdFrame = {0x71, 'O', 0x0C, 0x01, 0xFF};
-    EdUrlParser *url = EdUrlParser::parseUrl("TCP://TCP:1234/");
+    PeoplesUrlParser *url = PeoplesUrlParser::parseURL("TCP://TCP:1234/");
 
     tests_networkprotocol_translation_setup(test_cr);
 
@@ -75,7 +75,7 @@ void tests_networkprotocol_translation_rx_cr_to_eol()
 void tests_networkprotocol_translation_rx_lf_to_eol()
 {
     cmdFrame_t cmdFrame = {0x71, 'O', 0x0C, 0x02, 0xFF};
-    EdUrlParser *url = EdUrlParser::parseUrl("TCP://TCP:1234/");
+    PeoplesUrlParser *url = PeoplesUrlParser::parseURL("TCP://TCP:1234/");
 
     tests_networkprotocol_translation_setup(test_lf);
 
@@ -94,7 +94,7 @@ void tests_networkprotocol_translation_rx_lf_to_eol()
 void tests_networkprotocol_translation_rx_crlf_to_eol()
 {
     cmdFrame_t cmdFrame = {0x71, 'O', 0x0C, 0x03, 0xFF};
-    EdUrlParser *url = EdUrlParser::parseUrl("TCP://TCP:1234/");
+    PeoplesUrlParser *url = PeoplesUrlParser::parseURL("TCP://TCP:1234/");
 
     tests_networkprotocol_translation_setup(test_crlf);
 
@@ -113,7 +113,7 @@ void tests_networkprotocol_translation_rx_crlf_to_eol()
 void tests_networkprotocol_translation_tx_eol_to_cr()
 {
     cmdFrame_t cmdFrame = {0x71, 'O', 0x0C, 0x01, 0xFF};
-    EdUrlParser *url = EdUrlParser::parseUrl("TCP://TCP:1234/");
+    PeoplesUrlParser *url = PeoplesUrlParser::parseURL("TCP://TCP:1234/");
 
     tests_networkprotocol_translation_setup(test_eol);
 
@@ -132,7 +132,7 @@ void tests_networkprotocol_translation_tx_eol_to_cr()
 void tests_networkprotocol_translation_tx_eol_to_lf()
 {
     cmdFrame_t cmdFrame = {0x71, 'O', 0x0C, 0x02, 0xFF};
-    EdUrlParser *url = EdUrlParser::parseUrl("TCP://TCP:1234/");
+    PeoplesUrlParser *url = PeoplesUrlParser::parseURL("TCP://TCP:1234/");
 
     tests_networkprotocol_translation_setup(test_eol);
 
@@ -151,7 +151,7 @@ void tests_networkprotocol_translation_tx_eol_to_lf()
 void tests_networkprotocol_translation_tx_eol_to_crlf()
 {
     cmdFrame_t cmdFrame = {0x71, 'O', 0x0C, 0x03, 0xFF};
-    EdUrlParser *url = EdUrlParser::parseUrl("TCP://TCP:1234/");
+    PeoplesUrlParser *url = PeoplesUrlParser::parseURL("TCP://TCP:1234/");
 
     tests_networkprotocol_translation_setup(test_eol);
 

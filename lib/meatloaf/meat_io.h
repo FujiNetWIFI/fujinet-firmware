@@ -6,13 +6,14 @@
 #include <vector>
 #include <fstream>
 
-#include "../../include/debug.h"
+//#include "../../include/debug.h"
 
 //#include "wrappers/iec_buffer.h"
 
 #include "meat_stream.h"
 #include "peoples_url_parser.h"
 #include "string_utils.h"
+#include "U8Char.h"
 
 #define _MEAT_NO_DATA_AVAIL (std::ios_base::eofbit)
 
@@ -54,7 +55,8 @@ public:
     // bool copyTo(MFile* dst);
 
     // has to return OPENED stream
-    virtual MStream* meatStream();
+    virtual MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in);
+    virtual MStream* getDecodedStream(std::shared_ptr<MStream> src) = 0;
 
     MFile* cd(std::string newDir);
     MFile* cdParent(std::string = "");
@@ -66,13 +68,16 @@ public:
     virtual MFile* getNextFileInDir() = 0 ;
     virtual bool mkDir() = 0 ;    
 
-    virtual bool exists() = 0;
+    virtual bool exists() { return _exists; };
     virtual bool remove() = 0;
     virtual bool rename(std::string dest) = 0;    
     virtual time_t getLastWrite() = 0 ;
     virtual time_t getCreationTime() = 0 ;
-    virtual uint32_t size() = 0;
     virtual uint64_t getAvailableSpace();
+
+    virtual uint32_t size() {
+        return _size;
+    };
     virtual uint32_t blocks() {
         auto s = size();
         if ( s > 0 && s < media_block_size )
@@ -88,8 +93,10 @@ public:
     MFile* streamFile = nullptr;
     std::string pathInStream;
 
+    uint32_t _size = 0;
+    uint32_t _exists = true;
+
 protected:
-    virtual MStream* createIStream(std::shared_ptr<MStream> src) = 0;
     bool m_isNull;
 
 friend class MFSOwner;
@@ -109,7 +116,7 @@ public:
     virtual bool handles(std::string path) = 0;
     virtual MFile* getFile(std::string path) = 0;
     bool isMounted() {
-        return m_isMounted;
+        return _is_mounted;
     }
 
     static bool byExtension(const char* ext, std::string fileName) {
@@ -128,7 +135,7 @@ public:
 
 protected:
     const char* symbol = nullptr;
-    bool m_isMounted = false;
+    bool _is_mounted = false;
 
     friend class MFSOwner;
 };

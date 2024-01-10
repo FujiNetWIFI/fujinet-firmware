@@ -16,7 +16,7 @@ public:
     /**
      * ctor
      */
-    NetworkProtocolTCP(string *rx_buf, string *tx_buf, string *sp_buf);
+    NetworkProtocolTCP(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf);
 
     /**
      * dtor
@@ -28,7 +28,7 @@ public:
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
      */
-    virtual bool open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Close connection to the protocol.
@@ -110,7 +110,7 @@ protected:
      * @param port the port number to connect to.
      * @return error flag. TRUE on erorr. FALSE on success.
      */
-    bool open_client(string hostname, unsigned short port);
+    bool open_client(std::string hostname, unsigned short port);
 
     /**
      * Special: Accept a server connection, transfer to client socket.

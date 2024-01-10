@@ -11,7 +11,7 @@
 
 
 
-NetworkProtocolUDP::NetworkProtocolUDP(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolUDP::NetworkProtocolUDP(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     Debug_printf("NetworkProtocolUDP::ctor\r\n");
@@ -22,15 +22,15 @@ NetworkProtocolUDP::~NetworkProtocolUDP()
     Debug_printf("NetworkProtocolUDP::dtor\r\n");
 }
 
-bool NetworkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("NetworkProtocolUDP::open(%s:%s)\r\n", urlParser->hostName.c_str(), urlParser->port.c_str());
+    Debug_printf("NetworkProtocolUDP::open(%s:%s)\r\n", urlParser->host.c_str(), urlParser->port.c_str());
 
     // Set destination to hostname, if set.
-    if (!urlParser->hostName.empty())
+    if (!urlParser->host.empty())
     {
-        Debug_printf("Setting destination hostname to: %s\r\n", urlParser->hostName.c_str());
-        dest = urlParser->hostName;
+        Debug_printf("Setting destination hostname to: %s\r\n", urlParser->host.c_str());
+        dest = urlParser->host;
     }
 
     // Port must be set, or we bail.
@@ -54,7 +54,7 @@ bool NetworkProtocolUDP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     }
     else
     {
-        dest = urlParser->hostName;
+        dest = urlParser->host;
         port = atoi(urlParser->port.c_str());
         Debug_printf("After begin: %s:%u\r\n", dest.c_str(), port);
     }
@@ -79,7 +79,7 @@ bool NetworkProtocolUDP::close()
 bool NetworkProtocolUDP::read(unsigned short len)
 {
     uint8_t *newData = (uint8_t *)malloc(len);
-    string newString;
+    std::string newString;
 
     Debug_printf("NetworkProtocolUDP::read(%u)\r\n", len);
 
@@ -102,7 +102,7 @@ bool NetworkProtocolUDP::read(unsigned short len)
         udp.read(newData, len);
 
         // Add new data to buffer.
-        newString = string((char *)newData, len);
+        newString = std::string((char *)newData, len);
         *receiveBuffer += newString;
     }
 
@@ -163,7 +163,7 @@ bool NetworkProtocolUDP::status(NetworkStatus *status)
         // Only change dest if we need to.
         if (udp.remoteIP() != IPADDR_NONE)
         {
-            dest = string(inet_ntoa(addr));
+            dest = std::string(inet_ntoa(addr));
             port = udp.remotePort();
         }
     }
@@ -213,18 +213,18 @@ bool NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
 
 bool NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
 {
-    string path((const char *)sp_buf, len);
+    std::string path((const char *)sp_buf, len);
     int device_colon = path.find_first_of(":");
     int port_colon = path.find_last_of(":");
 
-    if (device_colon == string::npos)
+    if (device_colon == std::string::npos)
         return true;
 
     if (port_colon == device_colon)
         return true;
 
-    string new_dest_str = path.substr(device_colon + 1, port_colon - 2);
-    string new_port_str = path.substr(port_colon + 1);
+    std::string new_dest_str = path.substr(device_colon + 1, port_colon - 2);
+    std::string new_port_str = path.substr(port_colon + 1);
 
     Debug_printf("New Destination %s port %s\r\n", new_dest_str.c_str(), new_port_str.c_str());
 
@@ -239,7 +239,7 @@ bool NetworkProtocolUDP::is_multicast()
     return multicast_write;
 }
 
-bool NetworkProtocolUDP::is_multicast(string h)
+bool NetworkProtocolUDP::is_multicast(std::string h)
 {
     return is_multicast(get_ip4_addr_by_name(h.c_str()));
 }

@@ -11,7 +11,7 @@
 #include "status_error_codes.h"
 
 
-NetworkProtocolTNFS::NetworkProtocolTNFS(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolTNFS::NetworkProtocolTNFS(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
     rename_implemented = true;
@@ -68,15 +68,15 @@ bool NetworkProtocolTNFS::open_dir_handle()
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::mount(EdUrlParser *url)
+bool NetworkProtocolTNFS::mount(PeoplesUrlParser *url)
 {
-    strcpy(mountInfo.hostname, url->hostName.c_str());
+    strcpy(mountInfo.hostname, url->host.c_str());
     strcpy(mountInfo.mountpath, "/");
 
     tnfs_error = tnfs_mount(&mountInfo);
     fserror_to_error();
 
-    Debug_printf("NetworkProtocolTNFS::mount(%s,%s) - %d\r\n", url->hostName.c_str(), url->path.c_str(), tnfs_error);
+    Debug_printf("NetworkProtocolTNFS::mount(%s,%s) - %d\r\n", url->host.c_str(), url->path.c_str(), tnfs_error);
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
@@ -257,7 +257,7 @@ bool NetworkProtocolTNFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFra
     return false;
 }
 
-bool NetworkProtocolTNFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTNFS::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     if (NetworkProtocolFS::rename(url, cmdFrame) == true)
         return true;
@@ -274,7 +274,7 @@ bool NetworkProtocolTNFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTNFS::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     mount(url);
 
@@ -288,9 +288,9 @@ bool NetworkProtocolTNFS::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTNFS::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("NetworkProtocolTNFS::mkdir(%s,%s)", url->hostName.c_str(), url->path.c_str());
+    Debug_printf("NetworkProtocolTNFS::mkdir(%s,%s)", url->host.c_str(), url->path.c_str());
 
     mount(url);
 
@@ -302,7 +302,7 @@ bool NetworkProtocolTNFS::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTNFS::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     mount(url);
 
@@ -326,7 +326,7 @@ bool NetworkProtocolTNFS::stat()
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTNFS::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     Debug_printf("lock: %s\r\n", url->path.c_str());
     tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0444);
@@ -337,7 +337,7 @@ bool NetworkProtocolTNFS::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
 
-bool NetworkProtocolTNFS::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTNFS::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     tnfs_error = tnfs_chmod(&mountInfo, url->path.c_str(), 0644);
 

@@ -5,6 +5,8 @@
 
 #include "fnFS.h"
 
+#include "../../../include/debug.h"
+
 #include "make_unique.h"
 
 #include <dirent.h>
@@ -42,7 +44,7 @@ public:
 
     //MFile* cd(std::string newDir);
     bool isDirectory() override;
-    MStream* meatStream() override ; // has to return OPENED stream
+    MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override ; // has to return OPENED stream
     time_t getLastWrite() override ;
     time_t getCreationTime() override ;
     bool rewindDirectory() override ;
@@ -52,7 +54,7 @@ public:
     uint32_t size() override ;
     bool remove() override ;
     bool rename(std::string dest);
-    MStream* createIStream(std::shared_ptr<MStream> src);
+    MStream* getDecodedStream(std::shared_ptr<MStream> src);
 
     bool seekEntry( std::string filename );
 

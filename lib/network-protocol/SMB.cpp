@@ -21,7 +21,7 @@
 
 
 
-NetworkProtocolSMB::NetworkProtocolSMB(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolSMB::NetworkProtocolSMB(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
     rename_implemented = true;
@@ -95,12 +95,12 @@ bool NetworkProtocolSMB::open_dir_handle()
     return false;
 }
 
-bool NetworkProtocolSMB::mount(EdUrlParser *url)
+bool NetworkProtocolSMB::mount(PeoplesUrlParser *url)
 {
-    string openURL = url->mRawUrl;
+    std::string openURL = url->url;
 
     // use mRawURL to bypass our normal URL processing.
-    if (openURL.find("SMB:") != string::npos)
+    if (openURL.find("SMB:") != std::string::npos)
     {
         openURL[0] = 's';
         openURL[1] = 'm';
@@ -246,24 +246,24 @@ bool NetworkProtocolSMB::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
     return false;
 }
 
-bool NetworkProtocolSMB::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolSMB::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolSMB::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     mount(url);
 
     if (smb2_mkdir(smb, smb_url->path) != 0)
     {
         fserror_to_error();
-        Debug_printf("NetworkProtocolSMB::mkdir(%s) SMB error: %s\r\n",url->mRawUrl.c_str(), smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::mkdir(%s) SMB error: %s\r\n",url->url.c_str(), smb2_get_error(smb));
     }
 
     umount();
@@ -271,14 +271,14 @@ bool NetworkProtocolSMB::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return false;
 }
 
-bool NetworkProtocolSMB::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     mount(url);
 
     if (smb2_rmdir(smb, smb_url->path) != 0)
     {
         fserror_to_error();
-        Debug_printf("NetworkProtocolSMB::rmdir(%s) SMB error: %s\r\n",url->mRawUrl.c_str(), smb2_get_error(smb));
+        Debug_printf("NetworkProtocolSMB::rmdir(%s) SMB error: %s\r\n",url->url.c_str(), smb2_get_error(smb));
     }
 
     umount();
@@ -296,12 +296,12 @@ bool NetworkProtocolSMB::stat()
     return ret != 0;
 }
 
-bool NetworkProtocolSMB::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolSMB::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }

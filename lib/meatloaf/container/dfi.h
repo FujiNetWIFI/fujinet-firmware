@@ -96,7 +96,7 @@
 #define MEATLOAF_MEDIA_DFI
 
 #include "meat_io.h"
-#include "d64.h"
+#include "disk/d64.h"
 
 
 /********************************************************
@@ -161,7 +161,6 @@ public:
         partitions[0].directory_sector = partitions[0].header_sector;
     };
 
-	virtual uint8_t speedZone( uint8_t track) override { return 0; };
 
 protected:
 
@@ -178,7 +177,7 @@ class DFIFile: public D64File {
 public:
     DFIFile(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
 
-    MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
 };
 
 
@@ -194,7 +193,7 @@ public:
         return new DFIFile(path);
     }
 
-    bool handles(std::string fileName) {
+    bool handles(std::string fileName) override {
         return byExtension(".dfi", fileName);
     }
 
