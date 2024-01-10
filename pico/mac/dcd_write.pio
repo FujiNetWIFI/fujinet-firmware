@@ -46,7 +46,7 @@ void dcd_write_program_init(PIO pio, uint sm, uint offset, uint pin) {
    
   //float cycles_per_bit = 20;
     // float div = clock_get_hz(clk_sys) / (500.0e3 * cycles_per_bit); // 125MHz/500kHz = 250
-    sm_config_set_clkdiv(&c, 13); // do 13 instead of 12.5
+    sm_config_set_clkdiv(&c, 13); // do 13 instead of 12.5 = 250/20
    pio_sm_init(pio, sm, offset, &c);
 }
 %}
