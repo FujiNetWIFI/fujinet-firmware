@@ -9,7 +9,7 @@
 #include "bus.h"
 
 #include "Protocol.h"
-#include "EdUrlParser.h"
+#include "peoples_url_parser.h"
 #include "networkStatus.h"
 #include "status_error_codes.h"
 #include "fnjson.h"
@@ -128,9 +128,9 @@ private:
     string *specialBuffer = nullptr;
 
     /**
-     * The EdUrlParser object used to hold/process a URL
+     * The PeoplesUrlParser object used to hold/process a URL
      */
-    EdUrlParser *urlParser = nullptr;
+    PeoplesUrlParser *urlParser = nullptr;
 
     /**
      * Instance of currently open network protocol
@@ -222,7 +222,7 @@ private:
     /**
      * Is this a valid URL? (used to generate ERROR 165)
      */
-    bool isValidURL(EdUrlParser *url);
+    bool isValidURL(PeoplesUrlParser *url);
 
     /**
      * Preprocess a URL given aux1 open mode. This is used to work around various assumptions that different

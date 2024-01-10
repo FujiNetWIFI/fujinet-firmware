@@ -122,14 +122,14 @@ public:
         isDir = is_dir;
 
         media_image = name;
-        //mstr::toUTF8(media_image);
+        isPETSCII = true;
     };
     
     ~TCRTFile() {
         // don't close the stream here! It will be used by shared ptr D64Util to keep reading image params
     }
 
-    MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
 
     bool isDirectory() override;
     bool rewindDirectory() override;
@@ -138,7 +138,7 @@ public:
 
     bool exists() override { return true; };
     bool remove() override { return false; };
-    bool rename(std::string dest) { return false; };
+    bool rename(std::string dest) override { return false; };
     time_t getLastWrite() override { return 0; };
     time_t getCreationTime() override { return 0; };
     uint32_t size() override;
@@ -160,7 +160,7 @@ public:
         return new TCRTFile(path);
     }
 
-    bool handles(std::string fileName) {
+    bool handles(std::string fileName) override {
         return byExtension(".tcrt", fileName);
     }
 

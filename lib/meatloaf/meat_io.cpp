@@ -1,5 +1,6 @@
 #include "meat_io.h"
 
+#include <dirent.h>
 #include <sys/stat.h>
 #include <algorithm>
 #include <vector>
@@ -9,16 +10,19 @@
 
 #include "MIOException.h"
 
-#include "utils.h"
 #include "string_utils.h"
 #include "peoples_url_parser.h"
-#include "U8Char.h"
 
 //#include "wrappers/directory_stream.h"
 
 // Archive
+//#include "archive/archive_ml.h"
 
 // Cartridge
+
+// Container
+#include "container/d8b.h"
+#include "container/dfi.h"
 
 // Device
 #include "device/flash.h"
@@ -30,10 +34,8 @@
 #include "disk/d80.h"
 #include "disk/d81.h"
 #include "disk/d82.h"
+#include "disk/d90.h"
 #include "disk/dnp.h"
-
-#include "disk/d8b.h"
-#include "disk/dfi.h"
 
 // File
 #include "file/p00.h"
@@ -54,6 +56,8 @@
 // Tape
 #include "tape/t64.h"
 #include "tape/tcrt.h"
+
+#include "meat_buffer.h"
 
 /********************************************************
  * MFSOwner implementations
@@ -76,6 +80,9 @@ TNFSFileSystem tnfsFS;
 
 //WSFileSystem wsFS;
 
+// Archive
+//ArchiveContainerFileSystem archiveFS;
+
 // File
 P00FileSystem p00FS;
 
@@ -85,6 +92,7 @@ D71FileSystem d71FS;
 D80FileSystem d80FS;
 D81FileSystem d81FS;
 D82FileSystem d82FS;
+D90FileSystem d90FS;
 DNPFileSystem dnpFS;
 
 D8BFileSystem d8bFS;
@@ -105,8 +113,9 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
 #ifdef SD_CARD
     &sdFS,
 #endif
+//    &archiveFS, // extension-based FS have to be on top to be picked first, otherwise the scheme will pick them!
     &p00FS,
-    &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &dnpFS,
+    &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &d90FS, &dnpFS,
     &d8bFS, &dfiFS,
     &t64FS, &tcrtFS,
     &httpFS, &mlFS, &tnfsFS
@@ -167,10 +176,6 @@ MFile* MFSOwner::File(std::string path) {
     //     return csFS.getFile(path);
     // }
 
-    // // If it's a local file wildcard match and return full path
-    // if ( device_config.image().empty() )
-    //     path = existsLocal(path);
-
     std::vector<std::string> paths = mstr::split(path,'/');
 
     //Debug_printv("Trying to factory path [%s]", path.c_str());
@@ -226,11 +231,10 @@ MFile* MFSOwner::File(std::string path) {
 
 std::string MFSOwner::existsLocal( std::string path )
 {
-    PeoplesUrlParser url;
-    url.parseUrl(path);
+    PeoplesUrlParser *url = PeoplesUrlParser::parseURL( path );
 
     // Debug_printv( "path[%s] name[%s] size[%d]", path.c_str(), url.name.c_str(), url.name.size() );
-    if ( url.name.size() == 16 )
+    if ( url->name.size() == 16 )
     {
         struct stat st;
         int i = stat(std::string(path).c_str(), &st);
@@ -241,8 +245,8 @@ std::string MFSOwner::existsLocal( std::string path )
             DIR *dir;
             struct dirent *ent;
 
-            std::string p = url.pathToFile();
-            std::string name = url.name;
+            std::string p = url->pathToFile();
+            std::string name = url->name;
             // Debug_printv( "pathToFile[%s] basename[%s]", p.c_str(), name.c_str() );
             if ((dir = opendir ( p.c_str() )) != NULL)
             {
@@ -315,7 +319,7 @@ MFile::MFile(std::string path) {
     //     path = "";
     // }
 
-    parseUrl(path);
+    resetURL(path);
 }
 
 MFile::MFile(std::string path, std::string name) : MFile(path + "/" + name) {
@@ -334,14 +338,16 @@ bool MFile::operator!=(nullptr_t ptr) {
     return m_isNull;
 }
 
-MStream* MFile::meatStream() {
+MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
     // has to return OPENED stream
-    std::shared_ptr<MStream> containerStream(streamFile->meatStream()); // get its base stream, i.e. zip raw file contents
+    std::shared_ptr<MStream> containerStream(streamFile->getSourceStream(mode)); // get its base stream, i.e. zip raw file contents
     Debug_printv("containerStream isRandomAccess[%d] isBrowsable[%d]", containerStream->isRandomAccess(), containerStream->isBrowsable());
 
-    MStream* decodedStream(createIStream(containerStream)); // wrap this stream into decoded stream, i.e. unpacked zip files
+    MStream* decodedStream(getDecodedStream(containerStream)); // wrap this stream into decoded stream, i.e. unpacked zip files
     decodedStream->url = this->url;
     Debug_printv("decodedStream isRandomAccess[%d] isBrowsable[%d]", decodedStream->isRandomAccess(), decodedStream->isBrowsable());
+
+    Debug_printv("pathInStream [%s]", pathInStream.c_str());
 
     if(decodedStream->isRandomAccess() && pathInStream != "") {
         bool foundIt = decodedStream->seekPath(this->pathInStream);
@@ -373,8 +379,6 @@ MStream* MFile::meatStream() {
     //Debug_printv("returning decodedStream");
     return decodedStream;
 };
-
-
 
 MFile* MFile::cd(std::string newDir) 
 {
@@ -440,7 +444,7 @@ MFile* MFile::cd(std::string newDir)
     }
     else 
     {
-        newDir = mstr::toUTF8( newDir );
+        //newDir = mstr::toUTF8( newDir );
 
         // Add new directory to path
         if ( !mstr::endsWith(url, "/") && newDir.size() )
@@ -448,8 +452,30 @@ MFile* MFile::cd(std::string newDir)
 
         Debug_printv("> url[%s] newDir[%s]", url.c_str(), newDir.c_str());
 
+        // Add new directory to path
+        MFile* newPath = MFSOwner::File(url + newDir);
 
-        return MFSOwner::File(url + newDir);
+        if(mstr::endsWith(newDir, ".url", false)) {
+            // we need to get actual url
+
+            //auto reader = Meat::New<MFile>(newDir);
+            //auto istream = reader->getSourceStream();
+            Meat::iostream reader(newPath);
+
+
+            //uint8_t url[istream->size()]; // NOPE, streams have no size!
+            //istream->read(url, istream->size());
+            std::string url;
+            reader >> url;
+
+            Debug_printv("url[%s]", url);
+            //std::string ml_url((char *)url);
+
+            delete newPath;
+            newPath = MFSOwner::File(url);
+        }
+        
+        return newPath;
     }
 };
 

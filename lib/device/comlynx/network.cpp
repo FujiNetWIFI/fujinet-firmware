@@ -929,7 +929,7 @@ void lynxNetwork::create_devicespec(string d)
 void lynxNetwork::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
+    urlParser = PeoplesUrlParser::parseURL(url);
 }
 
 void lynxNetwork::parse_and_instantiate_protocol(string d)

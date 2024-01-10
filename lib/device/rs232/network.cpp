@@ -885,7 +885,7 @@ void rs232Network::create_devicespec()
 void rs232Network::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
+    urlParser = PeoplesUrlParser::parseURL(url);
 }
 
 void rs232Network::parse_and_instantiate_protocol()

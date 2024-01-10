@@ -1,15 +1,16 @@
 #include "string_utils.h"
 
-#include "../../include/petscii.h"
-#include "../../include/debug.h"
-#include "U8Char.h"
-
 #include <algorithm>
 #include <cstdarg>
 #include <cstring>
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+
+//#include "../../include/petscii.h"
+#include "../../include/debug.h"
+#include "U8Char.h"
+
 
 // Copy string to char buffer
 void copyString(const std::string& input, char *dst, size_t dst_size)
@@ -230,18 +231,21 @@ namespace mstr {
     // }
 
     // convert PETSCII to UTF8, using methods from U8Char
-    std::string toUTF8(std::string &petsciiInput)
+    std::string toUTF8(const std::string &petsciiInput)
     {
         std::string utf8string;
         for(char petscii : petsciiInput) {
+            if(petscii > 0)
+            {
             U8Char u8char(petscii);
             utf8string+=u8char.toUtf8();
+        }
         }
         return utf8string;
     }
 
     // convert UTF8 to PETSCII, using methods from U8Char
-    std::string toPETSCII2(std::string &utfInputString)
+    std::string toPETSCII2(const std::string &utfInputString)
     {
         std::string petsciiString;
         char* utfInput = (char*)utfInputString.c_str();
@@ -254,6 +258,19 @@ namespace mstr {
             utfInput+=skip;
         }
         return petsciiString;
+    }
+
+    // convert string to hex
+    std::string toHex(const char *input, size_t size)
+    {
+        std::stringstream ss;
+        for(int i=0; i<size; ++i)
+            ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << (int)input[i];
+        return ss.str();
+    }
+    std::string toHex(const std::string &input)
+    {
+        return toHex(input.c_str(), input.size());
     }
 
     // convert to A0 space to 20 space (in place)
@@ -567,4 +584,5 @@ namespace mstr {
         //     parent = streamFile->url;
         return parent + "/" + plus;
     }
+
 }

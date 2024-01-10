@@ -20,7 +20,7 @@
  * @param sp_buf pointer to special buffer
  * @return a NetworkProtocolTCP object
  */
-NetworkProtocolTCP::NetworkProtocolTCP(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolTCP::NetworkProtocolTCP(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     Debug_printf("NetworkProtocolTCP::ctor\r\n");
@@ -46,17 +46,17 @@ NetworkProtocolTCP::~NetworkProtocolTCP()
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     bool ret = true; // assume error until proven ok
 
-    Debug_printf("NetworkProtocolTCP::open(%s:%s)", urlParser->hostName.c_str(), urlParser->port.c_str());
+    Debug_printf("NetworkProtocolTCP::open(%s:%s)", urlParser->host.c_str(), urlParser->port.c_str());
 
-    if (urlParser->hostName.empty())
+    if (urlParser->host.empty())
     {
         // Open server on port, otherwise, treat as empty socket.
         if (!urlParser->port.empty())
-            ret = open_server(atoi(urlParser->port.c_str()));
+            ret = open_server(urlParser->getPort());
         else
         {
             Debug_printf("Empty socket enabled.\r\n");
@@ -69,7 +69,7 @@ bool NetworkProtocolTCP::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
             urlParser->port = "23";
 
         // open client connection
-        ret = open_client(urlParser->hostName, atoi(urlParser->port.c_str()));
+        ret = open_client(urlParser->host, urlParser->getPort());
     }
 
     // call base class
@@ -111,7 +111,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
 {
     unsigned short actual_len = 0;
     uint8_t *newData = (uint8_t *)malloc(len);
-    string newString;
+    std::string newString;
 
     Debug_printf("NetworkProtocolTCP::read(%u)\r\n", len);
 
@@ -150,7 +150,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
         }
 
         // Add new data to buffer.
-        newString = string((char *)newData, len);
+        newString = std::string((char *)newData, len);
         *receiveBuffer += newString;
     }
     // Return success
@@ -330,7 +330,7 @@ bool NetworkProtocolTCP::open_server(unsigned short port)
  * @param port the port number to connect to.
  * @return error flag. TRUE on erorr. FALSE on success.
  */
-bool NetworkProtocolTCP::open_client(string hostname, unsigned short port)
+bool NetworkProtocolTCP::open_client(std::string hostname, unsigned short port)
 {
     int res = 0;
 

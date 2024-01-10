@@ -203,7 +203,6 @@ void iecDisk::iec_open()
         payload = pt[0];
         //Debug_printv("filename[%s] type[%s] mode[%s]", pt[0].c_str(), pt[1].c_str(), pt[2].c_str());
     }
-    //mstr::toUTF8(s);
 
     Debug_printv("payload[%s]", payload.c_str());
 
@@ -224,6 +223,7 @@ void iecDisk::iec_open()
         if ( payload[0] == '$' ) 
             payload.clear();
 
+        payload = mstr::toUTF8(payload);
         auto n = _base->cd( payload );
         if ( n != nullptr )
             _base.reset( n );
@@ -347,10 +347,24 @@ void iecDisk::iec_command()
     switch ( payload[0] )
     {
         case 'B':
+            if (payload[1] == '-')
+            {
             // B-P buffer pointer
+                if (payload[2] == 'P')
+                {
+                    payload = mstr::drop(payload, 3);
+                    mstr::trim(payload);
+                    mstr::replaceAll(payload, "  ", " ");
+                    pti = util_tokenize_uint8(payload);
+                    Debug_printv("payload[%s] channel[%d] position[%d]", payload.c_str(), pti[0], pti[1]);
+
+                    auto stream = retrieveStream( pti[0] );
+                    stream->position( pti[1] );
+                }
             // B-A allocate bit in BAM not implemented
             // B-F free bit in BAM not implemented
             // B-E block execute impossible at this level of emulation!
+            }
             //Error(ERROR_31_SYNTAX_ERROR);
             Debug_printv( "block/buffer");
         break;
@@ -400,6 +414,8 @@ void iecDisk::iec_command()
             if (payload[1] == '1') // User 1
             {
                 payload = mstr::drop(payload, 3);
+                mstr::trim(payload);
+                mstr::replaceAll(payload, "  ", " ");
                 pti = util_tokenize_uint8(payload);
                 Debug_printv("payload[%s] channel[%d] media[%d] track[%d] sector[%d]", payload.c_str(), pti[0], pti[1], pti[2], pti[3]);
 
@@ -556,6 +572,7 @@ void iecDisk::set_prefix()
         path = mstr::drop(path, 1);
 
     Debug_printv("path[%s]", path.c_str());
+    path = mstr::toUTF8( path );
     auto n = _base->cd( path );
     if ( n != nullptr )
         _base.reset( n );
@@ -593,7 +610,7 @@ bool iecDisk::registerStream (uint8_t channel)
             return false;
 
         Debug_printv("LOAD \"%s\"", _base->url.c_str());
-        new_stream = std::shared_ptr<MStream>(_base->meatStream());
+        new_stream = std::shared_ptr<MStream>(_base->getSourceStream());
     }
 
     // SAVE / PUT / PRINT / WRITE
@@ -601,13 +618,13 @@ bool iecDisk::registerStream (uint8_t channel)
     {
         Debug_printv("SAVE \"%s\"", _base->url.c_str());
         // CREATE STREAM HERE FOR OUTPUT
-        new_stream = std::shared_ptr<MStream>(_base->meatStream());
+        new_stream = std::shared_ptr<MStream>(_base->getSourceStream());
         new_stream->open();
     }
     else
     {
         Debug_printv("OTHER \"%s\"", _base->url.c_str());
-        new_stream = std::shared_ptr<MStream>(_base->meatStream());
+        new_stream = std::shared_ptr<MStream>(_base->getSourceStream());
     }
 
 
@@ -813,6 +830,7 @@ uint16_t iecDisk::sendHeader(std::string header, std::string id)
         if ( IEC.flags & ERROR ) return 0;
         byte_count += sendLine(0, "%*s\"%-*s\" NFO", 0, "", 19, archive.c_str());
         if ( IEC.flags & ERROR ) return 0;
+        sent_info = true;
     }
     if (image.size())
     {
@@ -912,6 +930,9 @@ void iecDisk::sendListing()
     else
     {
         // Send listing header from media file
+        if ( !entry->isPETSCII )
+            _base->media_header = mstr::toPETSCII2( _base->media_header );
+
         byte_count += sendHeader(_base->media_header.c_str(), _base->media_id.c_str());
         if ( IEC.flags & ERROR ) return;
     }
@@ -925,6 +946,11 @@ void iecDisk::sendListing()
             if (entry->extension.length())
             {
                 extension = entry->extension;
+
+                // Change extension to PRG if it is non-standard
+                std::string valid_extensions = "delseqprgusrrelcbm";
+                if ( mstr::contains(valid_extensions, extension.c_str()) )
+                    extension = "prg";
             }
             else
             {
@@ -1035,11 +1061,10 @@ bool iecDisk::sendFile()
     {
         if ( istream->has_subdirs )
         {
-            PeoplesUrlParser u;
-            u.parseUrl( istream->url );
-            Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u.base().c_str() );
-            _last_file = u.name;
-            _base.reset( MFSOwner::File( u.base() ) );
+            PeoplesUrlParser *u = PeoplesUrlParser::parseURL( istream->url );
+            Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u->base().c_str() );
+            _last_file = u->name;
+            _base.reset( MFSOwner::File( u->base() ) );
         }
         else
         {

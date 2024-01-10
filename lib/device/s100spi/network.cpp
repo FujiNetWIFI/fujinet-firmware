@@ -841,7 +841,7 @@ void s100spiNetwork::create_devicespec(string d)
 void s100spiNetwork::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
+    urlParser = PeoplesUrlParser::parseURL(url);
 }
 
 void s100spiNetwork::parse_and_instantiate_protocol(string d)

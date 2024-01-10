@@ -30,7 +30,7 @@ DELETE, MKCOL, RMCOL, COPY, MOVE, are all handled via idempotent XIO commands.
 DELETE can be done via special/XIO if you do not want to handle the response, otherwise use aux1=5/9 with normal open/read.
 */
 
-NetworkProtocolHTTP::NetworkProtocolHTTP(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolHTTP::NetworkProtocolHTTP(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
     rename_implemented = true;
@@ -162,7 +162,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
     {
         delete client;
         client = new fnHttpClient();
-        client->begin(opened_url->toString());
+        client->begin(opened_url->url);
     }
 
     // client->begin already called in mount()
@@ -212,7 +212,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
     {
         delete client;
         client = new fnHttpClient();
-        client->begin(opened_url->toString());
+        client->begin(opened_url->url);
     }
 
     // Directory parsed, ready to be returned by read_dir_entry()
@@ -220,9 +220,9 @@ bool NetworkProtocolHTTP::open_dir_handle()
     return false;
 }
 
-bool NetworkProtocolHTTP::mount(EdUrlParser *url)
+bool NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
 {
-    Debug_printf("NetworkProtocolHTTP::mount(%s)\r\n", url->toString().c_str());
+    Debug_printf("NetworkProtocolHTTP::mount(%s)\r\n", url->url.c_str());
 
     // fix scheme because esp-idf hates uppercase for some #()$@ reason.
     if (url->scheme == "HTTP")
@@ -237,7 +237,7 @@ bool NetworkProtocolHTTP::mount(EdUrlParser *url)
     if (aux1_open == 6)
         util_replaceAll(url->path, "*.*", "");
 
-    return !client->begin(url->toString());
+    return !client->begin(url->url);
 }
 
 bool NetworkProtocolHTTP::umount()
@@ -524,17 +524,17 @@ bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned sh
 
 bool NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned short len)
 {
-    string incomingHeader = string((char *)buf, len);
+    std::string incomingHeader = std::string((char *)buf, len);
     size_t pos = incomingHeader.find('\x9b');
 
     // Erase ATASCII EOL if present
-    if (pos != string::npos)
+    if (pos != std::string::npos)
         incomingHeader.erase(pos);
 
     // Find delimiter
     pos = incomingHeader.find(":");
 
-    if (pos == string::npos)
+    if (pos == std::string::npos)
         return true;
 
     Debug_printf("NetworkProtocolHTTP::write_file_set_header(%s,%s)\r\n", incomingHeader.substr(0, pos).c_str(), incomingHeader.substr(pos + 2).c_str());
@@ -551,7 +551,7 @@ bool NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigne
         return true;
     }
 
-    postData += string((char *)buf, len);
+    postData += std::string((char *)buf, len);
     return false;
 }
 
@@ -563,7 +563,7 @@ bool NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short le
         return true;
     }
 
-    postData += string((char *)buf, len);
+    postData += std::string((char *)buf, len);
     return false; // come back here later.
 }
 
@@ -572,7 +572,7 @@ bool NetworkProtocolHTTP::stat()
     bool ret = false;
     return ret; // short circuit it for now.
 
-    Debug_printf("NetworkProtocolHTTP::stat(%s)\r\n", opened_url->toString().c_str());
+    Debug_printf("NetworkProtocolHTTP::stat(%s)\r\n", opened_url->url.c_str());
 
     if (aux1_open != 4) // only for READ FILE
         return false;   // We don't care.
@@ -582,7 +582,7 @@ bool NetworkProtocolHTTP::stat()
 
     // Temporarily use client to do the HEAD request
     client = new fnHttpClient();
-    client->begin(opened_url->toString());
+    client->begin(opened_url->url);
     resultCode = client->HEAD();
     fserror_to_error();
 
@@ -598,7 +598,7 @@ bool NetworkProtocolHTTP::stat()
 
         // Recreate it for the rest of resolve()
         client = new fnHttpClient();
-        ret = !client->begin(opened_url->toString());
+        ret = !client->begin(opened_url->url);
         resultCode = 0; // so GET will actually happen.
     }
 
@@ -637,7 +637,7 @@ void NetworkProtocolHTTP::http_transaction()
 
         for (int i = 0; i < client->get_header_count(); i++)
         {
-            returned_headers.push_back(string(client->get_header(collect_headers[i]) + "\x9b"));
+            returned_headers.push_back(std::string(client->get_header(collect_headers[i]) + "\x9b"));
         }
     }
 
@@ -680,7 +680,7 @@ bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
     return err;
 }
 
-bool NetworkProtocolHTTP::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolHTTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     if (NetworkProtocolFS::rename(url, cmdFrame) == true)
         return true;
@@ -697,9 +697,9 @@ bool NetworkProtocolHTTP::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return resultCode > 399;
 }
 
-bool NetworkProtocolHTTP::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolHTTP::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("NetworkProtocolHTTP::del(%s,%s)", url->hostName.c_str(), url->path.c_str());
+    Debug_printf("NetworkProtocolHTTP::del(%s,%s)", url->host.c_str(), url->path.c_str());
     mount(url);
 
     resultCode = client->DELETE();
@@ -710,9 +710,9 @@ bool NetworkProtocolHTTP::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return resultCode > 399;
 }
 
-bool NetworkProtocolHTTP::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("NetworkProtocolHTTP::mkdir(%s,%s)", url->hostName.c_str(), url->path.c_str());
+    Debug_printf("NetworkProtocolHTTP::mkdir(%s,%s)", url->host.c_str(), url->path.c_str());
 
     mount(url);
 
@@ -723,7 +723,7 @@ bool NetworkProtocolHTTP::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return resultCode > 399;
 }
 
-bool NetworkProtocolHTTP::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolHTTP::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return del(url, cmdFrame);
 }
