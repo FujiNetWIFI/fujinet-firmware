@@ -22,10 +22,10 @@ class MLFileSystem: public MFileSystem
 
         //Debug_printv("MLFileSystem::getFile(%s)", path.c_str());
         PeoplesUrlParser *urlParser = PeoplesUrlParser::parseURL(path);
-        std::string code = mstr::toUTF8(urlParser->name);
+        //std::string code = mstr::toUTF8(urlParser->name);
 
         //Debug_printv("url[%s]", urlParser.name.c_str());
-        std::string ml_url = "https://api.meatloaf.cc/?" + code;
+        std::string ml_url = "https://api.meatloaf.cc/?" + urlParser->name;
         //Debug_printv("ml_url[%s]", ml_url.c_str());
         
         //Debug_printv("url[%s]", ml_url.c_str());
