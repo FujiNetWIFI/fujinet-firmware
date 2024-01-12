@@ -377,7 +377,7 @@ void drivewireNetwork::parse_and_instantiate_protocol()
 /**
  * Is this a valid URL? (Used to generate ERROR 165)
  */
-bool drivewireNetwork::isValidURL(EdUrlParser *url)
+bool drivewireNetwork::isValidURL(PeoplesUrlParser *url)
 {
     if (url->scheme == "")
         return false;
@@ -435,7 +435,7 @@ bool drivewireNetwork::parseURL()
 
     // chop off front of device name for URL, and parse it.
     url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
+    urlParser = PeoplesUrlParser::parseURL(url);
 
     Debug_printf("drivewireNetwork::parseURL transformed to (%s, %s)\n", deviceSpec.c_str(), url.c_str());
 

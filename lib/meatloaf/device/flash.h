@@ -1,3 +1,4 @@
+#ifndef TEST_NATIVE
 #ifndef MEATLOAF_DEVICE_FLASH
 #define MEATLOAF_DEVICE_FLASH
 
@@ -12,6 +13,7 @@
 #include <dirent.h>
 #include <string.h>
 
+#include "../../include/debug.h"
 
 /********************************************************
  * MFileSystem
@@ -61,17 +63,19 @@ public:
 
     //MFile* cd(std::string newDir);
     bool isDirectory() override;
-    MStream* meatStream() override ; // has to return OPENED stream
-    time_t getLastWrite() override ;
-    time_t getCreationTime() override ;
-    bool rewindDirectory() override ;
-    MFile* getNextFileInDir() override ;
-    bool mkDir() override ;
-    bool exists() override ;
-    uint32_t size() override ;
-    bool remove() override ;
+    MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override ; // has to return OPENED stream
+    MStream* getDecodedStream(std::shared_ptr<MStream> src);
+
+    bool rewindDirectory() override;
+    MFile* getNextFileInDir() override;
+    bool mkDir() override;
+    bool exists() override;
+    bool remove() override;
     bool rename(std::string dest);
-    MStream* createIStream(std::shared_ptr<MStream> src);
+
+    time_t getLastWrite() override;
+    time_t getCreationTime() override;
+    uint32_t size() override;
 
     bool seekEntry( std::string filename );
 
@@ -87,7 +91,6 @@ private:
     std::string _pattern;
 
     bool pathValid(std::string path);
-
 };
 
 
@@ -120,10 +123,11 @@ private:
 
 class FlashIStream: public MStream {
 public:
-    FlashIStream(std::string& path) {
+    FlashIStream(std::string& path, std::ios_base::openmode m) {
         localPath = path;
+        mode = m;
         handle = std::make_unique<FlashHandle>();
-        url = path;
+        //url = path;
     }
     ~FlashIStream() override {
         close();
@@ -134,10 +138,10 @@ public:
     bool isRandomAccess() override { return true; };
 
     // MStream methods
-    uint32_t available() override;
-    uint32_t size() override;    
-    uint32_t position() override;
-    size_t error() override;
+    // uint32_t available() override;
+    // uint32_t size() override;
+    // uint32_t position() override;
+    // size_t error() override;
 
     virtual bool seek(uint32_t pos) override;
     virtual bool seek(uint32_t pos, int mode) override;    
@@ -166,3 +170,4 @@ protected:
 
 
 #endif // MEATLOAF_DEVICE_FLASH
+#endif // TEST_NATIVE

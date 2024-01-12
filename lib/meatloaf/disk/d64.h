@@ -194,10 +194,23 @@ public:
 
     };
 
+	// virtual std::unordered_map<std::string, std::string> info() override { 
+    //     return {
+    //         {"System", "Commodore"},
+    //         {"Format", "D64"},
+    //         {"Media Type", "DISK"},
+    //         {"Tracks", getTrackCount()},
+    //         {"Sectors / Blocks", this.getSectorCount()},
+    //         {"Sector / Block Size", std::string(block_size)},
+    //         {"Error Info", (this.error_info) ? "Available" : "Not Available"},
+    //         {"Write Protected", ""},
+    //         {"DOS Format", this.getDiskFormat()}
+    //     }; 
+    // };
 
-    virtual uint16_t blocksFree();
+    uint16_t blocksFree() override;
 
-	virtual uint8_t speedZone( uint8_t track)
+	uint8_t speedZone( uint8_t track) override
 	{
 		return (track < 18) + (track < 25) + (track < 31);
 	};
@@ -239,8 +252,8 @@ public:
 private:
     void sendListing();
 
-    bool seekEntry( std::string filename );
-    bool seekEntry( uint16_t index = 0 );
+    bool seekEntry( std::string filename ) override;
+    bool seekEntry( uint16_t index = 0 ) override;
 
 
     std::string readBlock( uint8_t track, uint8_t sector );
@@ -266,7 +279,8 @@ private:
 class D64File: public MFile {
 public:
 
-    D64File(std::string path, bool is_dir = true): MFile(path) {
+    D64File(std::string path, bool is_dir = true): MFile(path)
+    {
         isDir = is_dir;
 
         media_image = name;
@@ -277,7 +291,7 @@ public:
         // don't close the stream here! It will be used by shared ptr D64Util to keep reading image params
     }
 
-    MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
 
     bool isDirectory() override;
     bool rewindDirectory() override;
@@ -286,7 +300,7 @@ public:
 
     bool exists() override;
     bool remove() override { return false; };
-    bool rename(std::string dest) { return false; };
+    bool rename(std::string dest) override { return false; };
     time_t getLastWrite() override;
     time_t getCreationTime() override;
     uint32_t size() override;     
@@ -309,7 +323,7 @@ public:
         return new D64File(path);
     }
 
-    bool handles(std::string fileName) {
+    bool handles(std::string fileName) override {
         //Serial.printf("handles w dnp %s %d\r\n", fileName.rfind(".dnp"), fileName.length()-4);
         return byExtension(
             {

@@ -985,7 +985,7 @@ void sioNetwork::create_devicespec()
 void sioNetwork::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
+    urlParser = PeoplesUrlParser::parseURL(url);
 }
 
 void sioNetwork::parse_and_instantiate_protocol()

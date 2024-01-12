@@ -1,6 +1,5 @@
 #include "tcrt.h"
 
-#include "utils.h"
 
 /********************************************************
  * Streams
@@ -9,8 +8,8 @@
 bool TCRTIStream::seekEntry( std::string filename )
 {
     size_t index = 1;
-    mstr::rtrimA0(filename);
     mstr::replaceAll(filename, "\\", "/");
+    bool wildcard =  ( mstr::contains(filename, "*") || mstr::contains(filename, "?") );
 
     // Read Directory Entries
     if ( filename.size() )
@@ -19,21 +18,29 @@ bool TCRTIStream::seekEntry( std::string filename )
         {
             std::string entryFilename = entry.filename;
             mstr::rtrimA0(entryFilename);
-            mstr::replaceAll(filename, "\\", "/");
-            //mstr::toUTF8(entryFilename);
+            entryFilename = mstr::toUTF8(entryFilename);
+
             Debug_printv("filename[%s] entry.filename[%.16s]", filename.c_str(), entryFilename.c_str());
 
             // Read Entry From Stream
-            if (filename == "*")
+            if (filename == "*") // Match first PRG
             {
-                filename == entryFilename;
-            }
-            
-            if ( mstr::compare(filename, entryFilename) )
-            {
-                // Move stream pointer to start track/sector
+                filename = entryFilename;
                 return true;
             }
+            else if ( filename == entryFilename ) // Match exact
+            {
+                return true;
+            }
+            else if ( wildcard )
+            {
+                if ( mstr::compare(filename, entryFilename) ) // X?XX?X* Wildcard match
+                {
+                    // Move stream pointer to start track/sector
+                    return true;
+                }
+            }
+
             index++;
         }
     }
@@ -55,11 +62,11 @@ bool TCRTIStream::seekEntry( uint16_t index )
     containerStream->seek(entryOffset);
     containerStream->read((uint8_t *)&entry, sizeof(entry));
 
-    uint32_t file_start_address = (0xD8 + (entry.file_start_address[0] << 8 | entry.file_start_address[1]));
-    uint32_t file_size = (entry.file_size[0] << 8) | (entry.file_size[1] << 16) | (entry.file_size[2]);
-    uint32_t file_load_address = entry.file_load_address[0] | entry.file_load_address[1] << 8;
+    // uint32_t file_start_address = (0xD8 + (entry.file_start_address[0] << 8 | entry.file_start_address[1]));
+    // uint32_t file_size = (entry.file_size[0] | (entry.file_size[1] << 8) | (entry.file_size[2] << 16)) + 2; // 2 bytes for load address
+    // uint32_t file_load_address = entry.file_load_address[0] | entry.file_load_address[1] << 8;
 
-    Debug_printv("file_name[%.16s] file_type[%02X] data_offset[%X] file_size[%d] load_address[%04X]", entry.filename, entry.file_type, file_start_address, file_size, file_load_address);
+    // Debug_printv("file_name[%.16s] file_type[%02X] data_offset[%X] file_size[%d] load_address[%04X]", entry.filename, entry.file_type, file_start_address, file_size, file_load_address);
 
     entry_index = index + 1;    
     if ( entry.file_type == 0xFF )
@@ -71,13 +78,25 @@ bool TCRTIStream::seekEntry( uint16_t index )
 uint16_t TCRTIStream::readFile(uint8_t* buf, uint16_t size) {
     uint16_t bytesRead = 0;
 
-    if ( m_position == 0)
+    if ( _position < 2)
     {
         Debug_printv("send load address[%4X]", m_load_address);
+
+        buf[0] = m_load_address[_position];
+        bytesRead++;
+        // if ( size > 1 )
+        // {
+        //     buf[0] = m_load_address[0];
+        //     buf[1] = m_load_address[1];
+        //     bytesRead += containerStream->read(buf, size);
+        // }
+    }
+    else
+    {
+        bytesRead += containerStream->read(buf, size);
     }
 
-    bytesRead += containerStream->read(buf, size);
-    m_bytesAvailable -= bytesRead;
+    _position += bytesRead;
 
     return bytesRead;
 }
@@ -97,8 +116,7 @@ bool TCRTIStream::seekPath(std::string path) {
         Debug_printv("filename [%.16s] type[%s]", entry.filename, type);
 
         // Calculate file size
-        m_length = (entry.file_size[0] << 8) | (entry.file_size[1] << 16) | (entry.file_size[2]);
-        m_bytesAvailable = m_length;
+        _size = (entry.file_size[0] | (entry.file_size[1] << 8) | (entry.file_size[2] << 16)) + 2; // 2 bytes for load address
 
         // Load Address
         m_load_address[0] = entry.file_load_address[0];
@@ -108,7 +126,7 @@ bool TCRTIStream::seekPath(std::string path) {
         uint32_t file_start_address = (0xD8 + (entry.file_start_address[0] << 8 | entry.file_start_address[1]));
         containerStream->seek(file_start_address);
 
-        Debug_printv("File Size: size[%d] available[%d]", m_length, m_bytesAvailable);
+        Debug_printv("File Size: size[%d] available[%d]", _size, available());
         
         return true;
     }
@@ -124,7 +142,7 @@ bool TCRTIStream::seekPath(std::string path) {
  * File implementations
  ********************************************************/
 
-MStream* TCRTFile::createIStream(std::shared_ptr<MStream> containerIstream) {
+MStream* TCRTFile::getDecodedStream(std::shared_ptr<MStream> containerIstream) {
     Debug_printv("[%s]", url.c_str());
 
     return new TCRTIStream(containerIstream);
@@ -197,14 +215,17 @@ MFile* TCRTFile::getNextFileInDir() {
 
 
 uint32_t TCRTFile::size() {
-    // Debug_printv("[%s]", streamFile->url.c_str());
+    //Debug_printv("[%s]", streamFile->url.c_str());
     // use TCRT to get size of the file in image
     auto entry = ImageBroker::obtain<TCRTIStream>(streamFile->url)->entry;
 
     //size_t blocks = (UINT16_FROM_LE_UINT16(image->entry.load_address) + image->entry.file_size)) / image->block_size;
     //size_t blocks = 1;
 
-    size_t bytes = (entry.file_size[0] << 8) | (entry.file_size[1] << 16) | (entry.file_size[2]);
+    // 9E 60 00
+    // 158 96 0
+
+    size_t bytes = (entry.file_size[0] | (entry.file_size[1] << 8) | (entry.file_size[2] << 16)) + 2; // 2 bytes for load address
 
     return bytes;
 }

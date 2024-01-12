@@ -626,7 +626,7 @@ void H89Network::create_devicespec(string d)
 void H89Network::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
+    urlParser = PeoplesUrlParser::parseURL(url);
 }
 
 void H89Network::parse_and_instantiate_protocol(string d)

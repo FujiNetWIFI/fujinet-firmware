@@ -143,6 +143,7 @@ void main_setup()
 #endif
 
 #ifdef BUILD_IEC
+
     // Setup IEC Bus
     IEC.setup();
 

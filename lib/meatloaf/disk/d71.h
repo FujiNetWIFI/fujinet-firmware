@@ -91,7 +91,7 @@ class D71File: public D64File {
 public:
     D71File(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
 
-    MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
 };
 
 
@@ -107,7 +107,7 @@ public:
         return new D71File(path);
     }
 
-    bool handles(std::string fileName) {
+    bool handles(std::string fileName) override {
         return byExtension(".d71", fileName);
     }
 

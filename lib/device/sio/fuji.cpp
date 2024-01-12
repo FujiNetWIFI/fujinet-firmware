@@ -423,9 +423,9 @@ void sioFuji::sio_set_boot_config()
 void sioFuji::sio_copy_file()
 {
     uint8_t csBuf[256];
-    string copySpec;
-    string sourcePath;
-    string destPath;
+    std::string copySpec;
+    std::string sourcePath;
+    std::string destPath;
     uint8_t ck;
     FILE *sourceFile;
     FILE *destFile;
@@ -452,12 +452,12 @@ void sioFuji::sio_copy_file()
         return;
     }
 
-    copySpec = string((char *)csBuf);
+    copySpec = std::string((char *)csBuf);
 
     Debug_printf("copySpec: %s\n", copySpec.c_str());
 
     // Check for malformed copyspec.
-    if (copySpec.empty() || copySpec.find_first_of("|") == string::npos)
+    if (copySpec.empty() || copySpec.find_first_of("|") == std::string::npos)
     {
         sio_error();
         free(dataBuf);
@@ -491,7 +491,7 @@ void sioFuji::sio_copy_file()
     if (destPath.back() == '/')
     {
         Debug_printf("append source file\n");
-        string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
+        std::string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
         destPath += sourceFilename;
     }
 
@@ -1984,7 +1984,7 @@ void sioFuji::sio_base64_encode_compute()
     }
 
     base64.base64_buffer.clear();
-    base64.base64_buffer = string(p.get(), out_len);
+    base64.base64_buffer = std::string(p.get(), out_len);
 
     Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
     sio_complete();
@@ -2057,7 +2057,7 @@ void sioFuji::sio_base64_decode_input()
 
     std::vector<unsigned char> p(len);
     bus_to_peripheral(p.data(), len);
-    base64.base64_buffer += string((const char *)p.data(), len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
     sio_complete();
 }
 
@@ -2076,7 +2076,7 @@ void sioFuji::sio_base64_decode_compute()
     }
 
     base64.base64_buffer.clear();
-    base64.base64_buffer = string((const char *)p.get(), out_len);
+    base64.base64_buffer = std::string((const char *)p.get(), out_len);
 
     Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
     sio_complete();

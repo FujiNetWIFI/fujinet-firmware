@@ -39,8 +39,7 @@ protected:
             entry_index = 1;
             seekHeader();
 
-            m_length = ( containerStream->size() - sizeof(header) );
-            m_bytesAvailable = m_length;
+            _size = ( containerStream->size() - sizeof(header) );
 
             return true;
         }
@@ -73,15 +72,13 @@ private:
 class P00File: public MFile {
 public:
 
-    P00File(std::string path, bool is_dir = false): MFile(path) {
-        isDir = is_dir;
-    };
+    P00File(std::string path, bool is_dir = false): MFile(path) {};
     
     ~P00File() {
         // don't close the stream here! It will be used by shared ptr D64Util to keep reading image params
     }
 
-    MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
 
     bool isDirectory() override { return false; };;
     bool rewindDirectory() override { return false; };;
@@ -90,7 +87,7 @@ public:
 
     bool exists() override { return true; };
     bool remove() override { return false; };
-    bool rename(std::string dest) { return false; };
+    bool rename(std::string dest) override { return false; };
     time_t getLastWrite() override { return 0; };
     time_t getCreationTime() override { return 0; };
     uint32_t size() override;
@@ -112,7 +109,7 @@ public:
         return new P00File(path);
     }
 
-    bool handles(std::string fileName) {
+    bool handles(std::string fileName) override {
         return byExtension(".p00", fileName);
     }
 

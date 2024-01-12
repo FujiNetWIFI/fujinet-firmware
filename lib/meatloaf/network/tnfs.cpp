@@ -43,17 +43,17 @@ bool TNFSFile::isDirectory()
     return S_ISDIR(info.st_mode);
 }
 
-MStream* TNFSFile::createIStream(std::shared_ptr<MStream> is) {
+MStream* TNFSFile::getDecodedStream(std::shared_ptr<MStream> is) {
     return is.get(); // we don't have to process this stream in any way, just return the original stream
 }
 
-MStream* TNFSFile::meatStream()
+MStream* TNFSFile::getSourceStream(std::ios_base::openmode mode)
 {
     std::string full_path = basepath + path;
     MStream* istream = new TNFSIStream(full_path);
-    //Debug_printv("TNFSFile::meatStream() 3, not null=%d", istream != nullptr);
+    //Debug_printv("TNFSFile::getSourceStream() 3, not null=%d", istream != nullptr);
     istream->open();   
-    //Debug_printv("TNFSFile::meatStream() 4");
+    //Debug_printv("TNFSFile::getSourceStream() 4");
     return istream;
 }
 
@@ -257,7 +257,7 @@ bool TNFSFile::seekEntry( std::string filename )
             {
                 // Set filename to this filename
                 Debug_printv( "Found! file[%s] -> entry[%s]", filename.c_str(), entryFilename.c_str() );
-                parseUrl(apath + "/" + std::string(dirent->d_name));
+                resetURL(apath + "/" + std::string(dirent->d_name));
                 closedir( d );
                 return true;
             }
@@ -313,8 +313,7 @@ bool TNFSIStream::open() {
         // Set file size
         fseek(handle->file_h, 0, SEEK_END);
         //Debug_printv("IStream: past fseek 1");
-        m_length = ftell(handle->file_h);
-        m_bytesAvailable = m_length;
+        _size = ftell(handle->file_h);
         //Debug_printv("IStream: past ftell");
         fseek(handle->file_h, 0, SEEK_SET);
         //Debug_printv("IStream: past fseek 2");

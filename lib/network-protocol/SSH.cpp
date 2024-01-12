@@ -24,7 +24,7 @@ NetworkProtocolSSH::~NetworkProtocolSSH()
     heap_caps_free(rxbuf);
 }
 
-bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     NetworkProtocol::open(urlParser, cmdFrame);
     int ret;
@@ -38,7 +38,7 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     // Port 22 by default.
     if (urlParser->port.empty())
     {
-        urlParser->port = 22;
+        urlParser->port = "22";
     }
 
     if ((ret = ssh_init()) != 0)
@@ -58,9 +58,9 @@ bool NetworkProtocolSSH::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
     }
 
     int verbosity = SSH_LOG_PROTOCOL;
-    int port = atoi(urlParser->port.c_str());
+    int port = urlParser->getPort();
     ssh_options_set(session, SSH_OPTIONS_USER, login->c_str());
-    ssh_options_set(session, SSH_OPTIONS_HOST, urlParser->hostName.c_str());
+    ssh_options_set(session, SSH_OPTIONS_HOST, urlParser->host.c_str());
     ssh_options_set(session, SSH_OPTIONS_LOG_VERBOSITY, &verbosity);
     ssh_options_set(session, SSH_OPTIONS_PORT, &port);
     session->opts.config_processed = true;

@@ -1010,7 +1010,7 @@ void adamNetwork::create_devicespec(string d)
 void adamNetwork::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
+    urlParser = PeoplesUrlParser::parseURL(url);
 }
 
 void adamNetwork::parse_and_instantiate_protocol(string d)
