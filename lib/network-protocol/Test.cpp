@@ -6,7 +6,7 @@
 
 #include "../../include/debug.h"
 
-NetworkProtocolTest::NetworkProtocolTest(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolTest::NetworkProtocolTest(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     Debug_printf("NetworkProtocolTest::NetworkProtocolTest(%p,%p,%p)\r\n", rx_buf, tx_buf, sp_buf);

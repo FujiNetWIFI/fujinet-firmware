@@ -921,14 +921,17 @@ void mac_floppy_ll::setup_rmt()
 
   config.rmt_mode = rmt_mode_t::RMT_MODE_TX;
   config.channel = RMT_TX_CHANNEL;
-#ifdef RMTTEST
-  config.gpio_num = (gpio_num_t)SP_EXTRA;
-#else
-  if(fnSystem.spifix())
-    config.gpio_num = (gpio_num_t)SP_SPI_FIX_PIN; 
-  else
-    config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; 
-#endif
+
+ config.gpio_num = (gpio_num_t)SP_WRDATA;
+// #ifdef RMTTEST
+//   config.gpio_num = (gpio_num_t)SP_EXTRA;
+// #else
+//   if(fnSystem.spifix())
+//     config.gpio_num = (gpio_num_t)SP_SPI_FIX_PIN; 
+//   else
+//     config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; 
+// #endif
+
   config.mem_block_num = 1;
   config.tx_config.loop_en = false;
   config.tx_config.carrier_en = false;

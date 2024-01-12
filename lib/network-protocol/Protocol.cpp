@@ -68,9 +68,9 @@ using namespace std;
  * @param tx_buf pointer to transmit buffer
  * @param sp_buf pointer to special buffer
  */
-NetworkProtocol::NetworkProtocol(string *rx_buf,
-                                 string *tx_buf,
-                                 string *sp_buf)
+NetworkProtocol::NetworkProtocol(std::string *rx_buf,
+                                 std::string *tx_buf,
+                                 std::string *sp_buf)
 {
     Debug_printf("NetworkProtocol::ctor()\r\n");
 

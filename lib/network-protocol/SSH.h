@@ -29,7 +29,7 @@ public:
     /**
      * ctor
      */
-    NetworkProtocolSSH(string *rx_buf, string *tx_buf, string *sp_buf);
+    NetworkProtocolSSH(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf);
 
     /**
      * dtor
