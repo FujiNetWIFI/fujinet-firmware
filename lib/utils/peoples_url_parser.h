@@ -37,6 +37,7 @@ protected:
 public:
     ~PeoplesUrlParser() {};
 
+    std::string mRawUrl;
     std::string url;
     std::string scheme;
     std::string user;
@@ -59,6 +60,8 @@ public:
     static PeoplesUrlParser* parseURL(const std::string &u);
     void resetURL(const std::string u);
     std::string rebuildUrl(void);
+    bool isValidUrl();
+
 
 
     // void dump() {
