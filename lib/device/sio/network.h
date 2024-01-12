@@ -143,17 +143,17 @@ private:
     /**
      * The Receive buffer for this N: device
      */
-    string *receiveBuffer = nullptr;
+    std::string *receiveBuffer = nullptr;
 
     /**
      * The transmit buffer for this N: device
      */
-    string *transmitBuffer = nullptr;
+    std::string *transmitBuffer = nullptr;
 
     /**
      * The special buffer for this N: device
      */
-    string *specialBuffer = nullptr;
+    std::string *specialBuffer = nullptr;
 
     /**
      * The PeoplesUrlParser object used to hold/process a URL
@@ -183,12 +183,12 @@ private:
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
      */
-    string deviceSpec;
+    std::string deviceSpec;
 
     /**
      * The currently set Prefix for this N: device, set by SIO call 0x2C
      */
-    string prefix;
+    std::string prefix;
 
     /**
      * The AUX1 value used for OPEN.
@@ -214,12 +214,12 @@ private:
     /**
      * The login to use for a protocol action
      */
-    string login;
+    std::string login;
 
     /**
      * The password to use for a protocol action
      */
-    string password;
+    std::string password;
 
     /**
      * Timer Rate for interrupt timer
