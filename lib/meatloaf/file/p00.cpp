@@ -8,7 +8,7 @@ uint16_t P00IStream::readFile(uint8_t* buf, uint16_t size) {
     uint16_t bytesRead = 0;
 
     bytesRead += containerStream->read(buf, size);
-    m_bytesAvailable -= bytesRead;
+    _position += bytesRead;
 
     return bytesRead;
 }
@@ -19,7 +19,7 @@ uint16_t P00IStream::readFile(uint8_t* buf, uint16_t size) {
  * File implementations
  ********************************************************/
 
-MStream* P00File::createIStream(std::shared_ptr<MStream> containerIstream) {
+MStream* P00File::getDecodedStream(std::shared_ptr<MStream> containerIstream) {
     Debug_printv("[%s]", url.c_str());
 
     return new P00IStream(containerIstream);

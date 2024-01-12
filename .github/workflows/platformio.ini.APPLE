@@ -72,7 +72,7 @@ build_board    = fujiapple-rev0         ; FujiApple Rev 0 Prototype
 [platformio]
 description = FujiNet retro computer to ESP32 WiFi Multifunction Firmware
 default_envs = ${fujinet.build_board}
-data_dir = $PROJECT_DIR/data/${fujinet.build_platform}
+data_dir = /$PROJECT_DIR/data/${fujinet.build_platform}
 
 [env]
 ; Common settings for all enivornments

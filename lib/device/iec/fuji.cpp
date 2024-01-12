@@ -87,12 +87,12 @@ void iecFuji::setup(systemBus *bus)
     iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
-    bus->addDevice(ptr, 4);                  // 04-07 Printers / Plotters
-    bus->addDevice(new iecDisk(), 8);        // 08-16 Drives
-    bus->addDevice(new iecNetwork(), 16);    // 16-19 Network Devices
-    bus->addDevice(new iecCpm(), 20);        // 20-29 Other
-    bus->addDevice(new iecClock(), 29);
-    bus->addDevice(this, 30);                // 30    FujiNet
+    Serial.print("Printer "); bus->addDevice(ptr, 4);                   // 04-07 Printers / Plotters
+    Serial.print("Disk "); bus->addDevice(new iecDisk(), 8);            // 08-16 Drives
+    Serial.print("Network "); bus->addDevice(new iecNetwork(), 16);     // 16-19 Network Devices
+    Serial.print("CPM "); bus->addDevice(new iecCpm(), 20);             // 20-29 Other
+    Serial.print("Clock "); bus->addDevice(new iecClock(), 29);
+    Serial.print("FujiNet "); bus->addDevice(this, 30);                 // 30    FujiNet
 }
 
 device_state_t iecFuji::process()
@@ -459,11 +459,17 @@ void iecFuji::net_set_ssid(bool store)
                 t[0] = fnWiFi.get_network_name_by_crc8( std::stoi(t[0]) );
             }
 
+            Debug_printv("t1[%s] t2[%s]", t[0].c_str(), t[1].c_str());
+
+            // URL Decode SSID/PASSWORD to handle special chars
+            t[0] = mstr::urlDecode(t[0]);
+            t[1] = mstr::urlDecode(t[1]);
+
             strncpy(cfg.ssid, t[0].c_str(),
                 t[0].length() > sizeof(cfg.ssid) ? sizeof(cfg.ssid) : t[0].length());
             strncpy(cfg.password, t[1].c_str(),
                 t[1].length() > sizeof(cfg.password) ? sizeof(cfg.password) : t[1].length());
-            Debug_printv("t1[%s] t2[%s] ssid[%s] pass[%s]", t[0].c_str(), t[1].c_str(), cfg.ssid, cfg.password);
+            Debug_printv("ssid[%s] pass[%s]", cfg.ssid, cfg.password);
         }
         else
         {

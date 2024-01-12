@@ -162,11 +162,11 @@ public:
 
     adamFuji();
 
-    string copySpec;
+    std::string copySpec;
     unsigned char sourceSlot = 0;
     unsigned char destSlot = 0;
-    string sourcePath;
-    string destPath;
+    std::string sourcePath;
+    std::string destPath;
     FILE *sourceFile = nullptr;
     FILE *destFile = nullptr;
     char *dataBuf = nullptr;

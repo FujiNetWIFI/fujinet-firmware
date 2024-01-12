@@ -15,7 +15,7 @@
 
 #define ENTRY_BUFFER_SIZE 256
 
-NetworkProtocolFS::NetworkProtocolFS(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolFS::NetworkProtocolFS(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {
     fileSize = 0;
@@ -25,7 +25,7 @@ NetworkProtocolFS::~NetworkProtocolFS()
 {
 }
 
-bool NetworkProtocolFS::open(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::open(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     // Call base class.
     NetworkProtocol::open(url, cmdFrame);
@@ -74,7 +74,7 @@ bool NetworkProtocolFS::open_dir()
     if (filename.empty())
         filename = "*";
 
-    Debug_printf("NetworkProtocolFS::open_dir(%s)\r\n", opened_url->toString().c_str());
+    Debug_printf("NetworkProtocolFS::open_dir(%s)\r\n", opened_url->url.c_str());
 
     if (opened_url->path.empty())
     {
@@ -95,14 +95,14 @@ bool NetworkProtocolFS::open_dir()
         {
             // Long entry
             if (aux2_open == 0x81) // Apple2 80 col format.
-                dirBuffer += util_long_entry_apple2_80col(string(entryBuffer), fileSize, is_directory) + "\x9b";
+                dirBuffer += util_long_entry_apple2_80col(std::string(entryBuffer), fileSize, is_directory) + "\x9b";
             else
-            dirBuffer += util_long_entry(string(entryBuffer), fileSize, is_directory) + "\x9b";
+            dirBuffer += util_long_entry(std::string(entryBuffer), fileSize, is_directory) + "\x9b";
         }
         else
         {
             // 8.3 entry
-            dirBuffer += util_entry(util_crunch(string(entryBuffer)), fileSize, is_directory, is_locked) + "\x9b";
+            dirBuffer += util_entry(util_crunch(std::string(entryBuffer)), fileSize, is_directory, is_locked) + "\x9b";
         }
         fserror_to_error();
 
@@ -120,7 +120,7 @@ bool NetworkProtocolFS::open_dir()
     return error != NETWORK_ERROR_SUCCESS;
 }
 
-void NetworkProtocolFS::update_dir_filename(EdUrlParser *url)
+void NetworkProtocolFS::update_dir_filename(PeoplesUrlParser *url)
 {
     size_t found = url->path.find_last_of("/");
 
@@ -210,7 +210,7 @@ bool NetworkProtocolFS::read_file(unsigned short len)
         }
 
         // Append to receive buffer.
-        *receiveBuffer += string((char *)buf, len);
+        *receiveBuffer += std::string((char *)buf, len);
         fileSize -= len;
     }
     else
@@ -349,7 +349,7 @@ void NetworkProtocolFS::resolve()
     if (stat() == true) // true = error.
     {
         // File wasn't found, let's try resolving against the crunched filename
-        string crunched_filename = util_crunch(filename);
+        std::string crunched_filename = util_crunch(filename);
 
         char e[256]; // current entry.
 
@@ -363,8 +363,8 @@ void NetworkProtocolFS::resolve()
 
         while (read_dir_entry(e, 255) == false)
         {
-            string current_entry = string(e);
-            string crunched_entry = util_crunch(current_entry);
+            std::string current_entry = std::string(e);
+            std::string crunched_entry = util_crunch(current_entry);
 
             Debug_printf("current entry \"%s\" crunched entry \"%s\"\r\n", current_entry.c_str(), crunched_entry.c_str());
 
@@ -379,7 +379,7 @@ void NetworkProtocolFS::resolve()
         close_dir_handle();
     }
 
-    Debug_printf("Resolved to %s\r\n", opened_url->toString().c_str());
+    Debug_printf("Resolved to %s\r\n", opened_url->url.c_str());
 
     // Clear file size, if resolved to write and not append.
     if (aux1_open == 8)
@@ -387,9 +387,9 @@ void NetworkProtocolFS::resolve()
     
 }
 
-bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("NetworkProtocolFS::perform_idempotent_80, url: %s\r\n", url->toString().c_str());
+    Debug_printf("NetworkProtocolFS::perform_idempotent_80, url: %s\r\n", url->url.c_str());
     switch (cmdFrame->comnd)
     {
     case 0x20:
@@ -410,7 +410,7 @@ bool NetworkProtocolFS::perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdF
     }
 }
 
-bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     update_dir_filename(url);
 
@@ -419,7 +419,7 @@ bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
     size_t comma_pos = filename.find_first_of(",");
 
     // No comma found, return invalid devicespec error.
-    if (comma_pos == string::npos)
+    if (comma_pos == std::string::npos)
     {
         error = NETWORK_ERROR_INVALID_DEVICESPEC;
         return true;
@@ -433,27 +433,27 @@ bool NetworkProtocolFS::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
     return false;
 }
 
-bool NetworkProtocolFS::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolFS::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolFS::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolFS::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolFS::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }

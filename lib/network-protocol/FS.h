@@ -42,7 +42,7 @@ public:
      * @param sp_buf pointer to special buffer
      * @return a NetworkProtocolFS object
      */
-    NetworkProtocolFS(string *rx_buf, string *tx_buf, string *sp_buf);
+    NetworkProtocolFS(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf);
 
     /**
      * dTOR
@@ -51,11 +51,11 @@ public:
 
     /**
      * @brief Open a URL
-     * @param url pointer to EdUrlParser pointing to file to open.
+     * @param url pointer to PeoplesUrlParser pointing to file to open.
      * @param cmdFrame pointer to command frame for aux1/aux2/etc values.
      * @return error flag TRUE on error, FALSE on success.
      */
-    virtual bool open(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool open(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Close the open URL
@@ -118,7 +118,7 @@ public:
      * @param url The URL object.
      * @param cmdFrame command frame.
      */
-    virtual bool perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
 protected:
     /**
@@ -138,17 +138,17 @@ protected:
     /**
      * Directory of currently open file
      */
-    string dir;
+    std::string dir;
 
     /**
      * Filename of currently open file
      */
-    string filename;
+    std::string filename;
 
     /**
      * Filename for destination (e.g. rename)
      */
-    string destFilename;
+    std::string destFilename;
 
     /**
      * File size
@@ -158,7 +158,7 @@ protected:
     /**
      * Directory buffer
      */
-    string dirBuffer;
+    std::string dirBuffer;
     
     /**
      * Is open file a directory?
@@ -204,7 +204,7 @@ protected:
      * @param url the url to mount
      * @return false on no error, true on error.
      */
-    virtual bool mount(EdUrlParser *url) = 0;
+    virtual bool mount(PeoplesUrlParser *url) = 0;
 
     /**
      * @brief Unmount TNFS server specified in mountInfo.
@@ -228,7 +228,7 @@ protected:
      * Update dir and filename
      * @param url the URL to update dir and filename with.
      */
-    void update_dir_filename(EdUrlParser *url);
+    void update_dir_filename(PeoplesUrlParser *url);
 
     /**
      * @brief Read from file
@@ -319,51 +319,51 @@ protected:
 
     /**
      * @brief Rename file specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file/dest to rename
+     * @param url pointer to PeoplesUrlParser pointing to file/dest to rename
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rename(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Delete file specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool del(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Make directory specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Remove directory specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief lock file specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool lock(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
     /**
      * @brief unlock file specified by incoming devicespec.
-     * @param url pointer to EdUrlParser pointing to file to delete
+     * @param url pointer to PeoplesUrlParser pointing to file to delete
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool unlock(EdUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
 };
 

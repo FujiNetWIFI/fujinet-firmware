@@ -661,7 +661,7 @@ void rc2014Network::create_devicespec(string d)
 void rc2014Network::create_url_parser()
 {
     std::string url = deviceSpec;
-    urlParser = EdUrlParser::parseUrl(url);
+    urlParser = PeoplesUrlParser::parseURL(url);
 }
 
 void rc2014Network::parse_and_instantiate_protocol(string d)

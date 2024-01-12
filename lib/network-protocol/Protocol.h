@@ -5,7 +5,7 @@
 
 #include "bus.h"
 #include "networkStatus.h"
-#include "../EdUrlParser/EdUrlParser.h"
+#include "peoples_url_parser.h"
 
 class NetworkProtocol
 {
@@ -28,7 +28,7 @@ public:
     /**
      * Pointer to passed in URL
      */
-    EdUrlParser *opened_url = nullptr;
+    PeoplesUrlParser *opened_url = nullptr;
 
     /**
      * ctor - Initialize network protocol object.
@@ -84,7 +84,7 @@ public:
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
      */
-    virtual bool open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame);
 
     /**
      * @brief Close connection to the protocol.
@@ -146,7 +146,7 @@ public:
      * @param url The URL object.
      * @param cmdFrame command frame.
      */
-    virtual bool perform_idempotent_80(EdUrlParser *url, cmdFrame_t *cmdFrame) { return false; };
+    virtual bool perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) { return false; };
 
     /**
      * @brief return an _atari_ error (>199) based on errno. into error for status reporting.

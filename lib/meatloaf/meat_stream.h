@@ -1,6 +1,8 @@
 #ifndef MEATLOAF_STREAM
 #define MEATLOAF_STREAM
 
+#include <unordered_map>
+
 /********************************************************
  * Universal streams
  ********************************************************/
@@ -9,7 +11,7 @@
 #define SEEK_CUR  1
 #define SEEK_END  2
 
-#define SA0 0b0001111
+#define SA0 0b00001111
 #define SA1 0b00011111
 #define SA2 0b00101111
 #define SA3 0b00111111
@@ -34,31 +36,37 @@
 class MStream 
 {
 protected:
-    uint32_t m_length = 0;
-    uint32_t m_bytesAvailable = 0;
-    uint32_t m_position = 0;
+    uint32_t _size = 0;
+    uint32_t _position = 0;
     uint8_t m_load_address[2] = {0, 0};
-    size_t m_error = 0;
+    uint8_t m_error = 0;
 
 public:
     virtual ~MStream() {};
 
-    uint8_t secondaryAddress = 0;
+    std::ios_base::openmode mode;
     std::string url = "";
 
     bool has_subdirs = true;
     size_t block_size = 256;
 
+    virtual std::unordered_map<std::string, std::string> info() {
+        return {};
+    }
+
     virtual uint32_t size() {
-        return m_length;
+        return _size;
     };
 
     virtual uint32_t available() {
-        return m_bytesAvailable;
+        return _size - _position;
     };
 
     virtual uint32_t position() {
-        return m_position;
+        return _position;
+    }
+    virtual void position( uint32_t p) {
+        _position = p;
     }
 
     virtual size_t error() {
@@ -66,20 +74,24 @@ public:
     }
 
     virtual uint32_t blocks() {
-        if ( m_length > 0 && m_length < block_size )
+        if ( _size > 0 && _size < block_size )
             return 1;
         else
-            return ( m_length / block_size );
+            return ( _size / block_size );
     }
 
     virtual bool eos()  {
-//        Debug_printv("m_length[%d] m_bytesAvailable[%d] m_position[%d]", m_length, m_bytesAvailable, m_position);
-        if ( m_bytesAvailable == 0 )
+//        Debug_printv("_size[%d] m_bytesAvailable[%d] _position[%d]", _size, available(), _position);
+        if ( available() == 0 )
             return true;
         
         return false;
     }
-    virtual void reset() {};
+    virtual void reset() 
+    {
+        _size = block_size;
+        _position = 0;
+    };
     
     virtual bool isOpen() = 0;
     virtual bool isBrowsable() { return false; };
@@ -96,6 +108,7 @@ public:
             return seek(pos);
         }
         else if(mode == SEEK_CUR) {
+            if(pos == 0) return true;
             return seek(position()+pos);
         }
         else {

@@ -9,7 +9,7 @@
 #include "SD.h"
 #include "status_error_codes.h"
 
-NetworkProtocolSD::NetworkProtocolSD(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolSD::NetworkProtocolSD(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)
 {
 
@@ -30,7 +30,7 @@ bool NetworkProtocolSD::open_dir_handle()
     return false;
 }
 
-bool NetworkProtocolSD::mount(EdUrlParser *url)
+bool NetworkProtocolSD::mount(PeoplesUrlParser *url)
 {
     return false;
 }
@@ -90,22 +90,22 @@ bool NetworkProtocolSD::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
     return false;
 }
 
-bool NetworkProtocolSD::rename(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolSD::del(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolSD::mkdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolSD::rmdir(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
@@ -115,12 +115,12 @@ bool NetworkProtocolSD::stat()
     return false;
 }
 
-bool NetworkProtocolSD::lock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
 
-bool NetworkProtocolSD::unlock(EdUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
