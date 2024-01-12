@@ -73,7 +73,7 @@ build_board    = lolin-d32-iec          ; Commodore IEC using Lolin D32 Pro
 [platformio]
 description = FujiNet retro computer to ESP32 WiFi Multifunction Firmware
 default_envs = ${fujinet.build_board}
-data_dir = $PROJECT_DIR/data/${fujinet.build_platform}
+data_dir = /$PROJECT_DIR/data/${fujinet.build_platform}
 
 [env]
 ; Common settings for all enivornments
