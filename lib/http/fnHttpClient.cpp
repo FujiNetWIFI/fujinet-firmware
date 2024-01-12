@@ -759,7 +759,7 @@ char *fnHttpClient::get_header(int index, char *buffer, int buffer_len)
 const std::string fnHttpClient::get_header(int index)
 {
     if (index < 0 || index > (_stored_headers.size() - 1))
-        return nullptr;
+        return std::string();
 
     auto vi = _stored_headers.begin();
     std::advance(vi, index);

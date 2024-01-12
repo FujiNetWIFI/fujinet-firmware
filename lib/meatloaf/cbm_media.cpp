@@ -49,7 +49,7 @@ void CBMImageStream::close() {
 
 };
 
-uint16_t CBMImageStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
+uint32_t CBMImageStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
 {
     // Calculate file size
     seekSector(start_track, start_sector);
@@ -62,38 +62,23 @@ uint16_t CBMImageStream::seekFileSize( uint8_t start_track, uint8_t start_sector
         containerStream->read(&start_sector, 1);
         blocks++;
         if ( start_track > 0 )
-            seekSector( start_track, start_sector );
+            if ( !seekSector( start_track, start_sector ) )
+                break;
     } while ( start_track > 0 );
     blocks--;
-    return (blocks * (block_size - 2)) + start_sector;
+    return (blocks * (block_size - 2)) + start_sector - 1;
 };
 
 
-uint32_t CBMImageStream::position() {
-    return m_position; // return position within "seeked" file, not the D64 image!
-};
-
-size_t CBMImageStream::error() {
-    return m_error; // return position within "seeked" file, not the D64 image!
-};
-
-uint32_t CBMImageStream::available() {
-    // return bytes available in currently "seeked" file
-    return m_bytesAvailable;
-};
-
-uint32_t CBMImageStream::size() {
-    // size of the "seeked" file, not the image.
-    return m_length;
-};
 
 uint32_t CBMImageStream::write(const uint8_t *buf, uint32_t size) {
     return -1;
 }
 
-
 uint32_t CBMImageStream::read(uint8_t* buf, uint32_t size) {
     uint32_t bytesRead = 0;
+
+    //Debug_printv("seekCalled[%d]", seekCalled);
 
     if(seekCalled) {
         // if we have the stream set to a specific file already, either via seekNextEntry or seekPath, return bytes of the file here
@@ -106,13 +91,14 @@ uint32_t CBMImageStream::read(uint8_t* buf, uint32_t size) {
         bytesRead = containerStream->read(buf, size);
     }
 
-    m_position += bytesRead;
+    _position += bytesRead;
+
     return bytesRead;
 };
 
 bool CBMImageStream::isOpen() {
 
-    return m_isOpen;
+    return _is_open;
 };
 
 

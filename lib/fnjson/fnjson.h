@@ -10,6 +10,7 @@
 
 #include <cJSON.h>
 #include <cJSON_Utils.h>
+#include <string.h>
 
 #include "../network-protocol/Protocol.h"
 
@@ -19,16 +20,16 @@ public:
     FNJSON();
     virtual ~FNJSON();
 
-    void setLineEnding(const string &_lineEnding);
+    void setLineEnding(const std::string &_lineEnding);
     void setProtocol(NetworkProtocol *newProtocol);
-    void setReadQuery(const string &queryString, uint8_t queryParam);
+    void setReadQuery(const std::string &queryString, uint8_t queryParam);
     cJSON *resolveQuery();
     bool status(NetworkStatus *status);
     
     bool parse();
     int readValueLen();
     bool readValue(uint8_t *buf, unsigned short len);
-    string processString(string in);
+    std::string processString(std::string in);
     int json_bytes_remaining = 0;
     void setQueryParam(uint8_t qp);
     
@@ -36,11 +37,11 @@ private:
     cJSON *_json = nullptr;
     cJSON *_item = nullptr;
     NetworkProtocol *_protocol = nullptr;
-    string _queryString;
+    std::string _queryString;
     uint8_t _queryParam = 0;
-    string lineEnding;
-    string getValue(cJSON *item);
-    string _parseBuffer;
+    std::string lineEnding;
+    std::string getValue(cJSON *item);
+    std::string _parseBuffer;
 };
 
 #endif /* JSON_H */

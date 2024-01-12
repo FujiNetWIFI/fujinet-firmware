@@ -13,8 +13,7 @@
 
 bool TNFSFile::pathValid(std::string path) 
 {
-    std::string s = std::string(basepath + path);
-    auto apath = s.c_str();
+    auto apath = std::string(basepath + path).c_str();
     while (*apath) {
         const char *slash = strchr(apath, '/');
         if (!slash) {
@@ -44,17 +43,17 @@ bool TNFSFile::isDirectory()
     return S_ISDIR(info.st_mode);
 }
 
-MStream* TNFSFile::createIStream(std::shared_ptr<MStream> is) {
+MStream* TNFSFile::getDecodedStream(std::shared_ptr<MStream> is) {
     return is.get(); // we don't have to process this stream in any way, just return the original stream
 }
 
-MStream* TNFSFile::meatStream()
+MStream* TNFSFile::getSourceStream(std::ios_base::openmode mode)
 {
     std::string full_path = basepath + path;
     MStream* istream = new TNFSIStream(full_path);
-    //Debug_printv("TNFSFile::meatStream() 3, not null=%d", istream != nullptr);
+    //Debug_printv("TNFSFile::getSourceStream() 3, not null=%d", istream != nullptr);
     istream->open();   
-    //Debug_printv("TNFSFile::meatStream() 4");
+    //Debug_printv("TNFSFile::getSourceStream() 4");
     return istream;
 }
 
@@ -258,7 +257,7 @@ bool TNFSFile::seekEntry( std::string filename )
             {
                 // Set filename to this filename
                 Debug_printv( "Found! file[%s] -> entry[%s]", filename.c_str(), entryFilename.c_str() );
-                parseUrl(apath + "/" + std::string(dirent->d_name));
+                resetURL(apath + "/" + std::string(dirent->d_name));
                 closedir( d );
                 return true;
             }
@@ -343,26 +342,6 @@ uint32_t TNFSIStream::read(uint8_t* buf, uint32_t size) {
     return bytesRead;
 };
 
-
-uint32_t TNFSIStream::size() {
-    return _size;
-};
-
-uint32_t TNFSIStream::available() {
-    if(!isOpen()) return 0;
-    return _size - position();
-};
-
-
-uint32_t TNFSIStream::position() {
-    if(!isOpen()) return 0;
-    return ftell(handle->file_h);
-};
-
-size_t TNFSIStream::error() {
-    return 0;
-};
-
 bool TNFSIStream::seek(uint32_t pos) {
     // Debug_printv("pos[%d]", pos);
         if (!isOpen()) {
@@ -416,10 +395,9 @@ void TNFSHandle::obtain(std::string m_path, std::string mode) {
         // it will be caught by the real file open later on
 
         char *pathStr = new char[m_path.length()];
+        strncpy(pathStr, m_path.data(), m_path.length());
 
         if (pathStr) {
-            strncpy(pathStr, m_path.data(), m_path.length());
-
             // Make dirs up to the final fnamepart
             char *ptr = strchr(pathStr, '/');
             while (ptr) {

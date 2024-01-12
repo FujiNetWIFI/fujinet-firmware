@@ -42,6 +42,8 @@ iwmNetwork::iwmNetwork()
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
+
+    json.setLineEnding("\x0a");
 }
 
 /**
@@ -947,7 +949,7 @@ void iwmNetwork::create_devicespec(string d)
 void iwmNetwork::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = EdUrlParser::parseUrl(url);
+    urlParser = PeoplesUrlParser::parseURL(url);
 }
 
 void iwmNetwork::parse_and_instantiate_protocol(string d)

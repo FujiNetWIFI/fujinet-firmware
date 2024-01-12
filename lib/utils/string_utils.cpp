@@ -1,14 +1,16 @@
 #include "string_utils.h"
 
-#include "../../include/petscii.h"
-#include "../../include/debug.h"
-
 #include <algorithm>
 #include <cstdarg>
 #include <cstring>
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+
+//#include "../../include/petscii.h"
+#include "../../include/debug.h"
+#include "U8Char.h"
+
 
 #if defined(_WIN32)
 #include "asprintf.h" // use asprintf from libsmb2
@@ -26,8 +28,6 @@ constexpr unsigned int hash(const char *s, int off = 0) {
 }
 
 namespace mstr {
-
-    std::string byteSuffixes[9] = { "", "K", "M", "G", "T", "P", "E", "Z", "Y" };
 
     // trim from start (in place)
     void ltrim(std::string &s)
@@ -220,18 +220,61 @@ namespace mstr {
                     [](unsigned char c) { return std::toupper(c); });
     }
 
-    // convert to ascii (in place)
-    void toASCII(std::string &s)
+    // // convert to ascii (in place) - DO NOT USE, use toUtf8 instead!
+    // void toASCII(std::string &s)
+    // {
+    //     std::transform(s.begin(), s.end(), s.begin(),
+    //                 [](unsigned char c) { return petscii2ascii(c); });
+    // }
+
+    // // convert to petscii (in place) - DO NOT USE, utf8 can't be converted in place!
+    // void toPETSCII(std::string &s)
+    // {
+    //     std::transform(s.begin(), s.end(), s.begin(),
+    //                 [](unsigned char c) { return ascii2petscii(c); });
+    // }
+
+    // convert PETSCII to UTF8, using methods from U8Char
+    std::string toUTF8(const std::string &petsciiInput)
     {
-        std::transform(s.begin(), s.end(), s.begin(),
-                    [](unsigned char c) { return petscii2ascii(c); });
+        std::string utf8string;
+        for(char petscii : petsciiInput) {
+            if(petscii > 0)
+            {
+            U8Char u8char(petscii);
+            utf8string+=u8char.toUtf8();
+        }
+        }
+        return utf8string;
     }
 
-    // convert to petscii (in place)
-    void toPETSCII(std::string &s)
+    // convert UTF8 to PETSCII, using methods from U8Char
+    std::string toPETSCII2(const std::string &utfInputString)
     {
-        std::transform(s.begin(), s.end(), s.begin(),
-                    [](unsigned char c) { return ascii2petscii(c); });
+        std::string petsciiString;
+        char* utfInput = (char*)utfInputString.c_str();
+        auto end = utfInput + utfInputString.length();
+
+        while(utfInput<end) {
+            U8Char u8char(' ');
+            size_t skip = u8char.fromCharArray(utfInput);
+            petsciiString+=u8char.toPetscii();
+            utfInput+=skip;
+        }
+        return petsciiString;
+    }
+
+    // convert string to hex
+    std::string toHex(const char *input, size_t size)
+    {
+        std::stringstream ss;
+        for(int i=0; i<size; ++i)
+            ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << (int)input[i];
+        return ss.str();
+    }
+    std::string toHex(const std::string &input)
+    {
+        return toHex(input.c_str(), input.size());
     }
 
     // convert to A0 space to 20 space (in place)
@@ -274,13 +317,23 @@ namespace mstr {
 
     void replaceAll(std::string &s, const std::string &search, const std::string &replace) 
     {
-        for( size_t pos = 0; ; pos += replace.length() ) {
+        const size_t size = search.size();
+        bool size_match = ( size == replace.size() );
+        for( size_t pos = 0; ; pos += replace.size() ) {
             // Locate the substring to replace
             pos = s.find( search, pos );
             if( pos == std::string::npos ) break;
-            // Replace by erasing and inserting
-            s.erase( pos, search.length() );
-            s.insert( pos, replace );
+            if ( size_match )
+            {
+                // Faster using replace if they are the same size
+                s.replace( pos, size, replace);
+            }
+            else
+            {
+                // Replace by erasing and inserting
+                s.erase( pos, search.size() );
+                s.insert( pos, replace );
+            }
         }
     }
 
@@ -401,24 +454,22 @@ namespace mstr {
         return text;
     }
 
-    std::string formatBytes(uint64_t value)
+    std::string formatBytes(uint64_t size)
     {
+        std::string byteSuffixes[9] = { "", "K", "M", "G", "T"}; //, "P", "E", "Z", "Y" };
         uint8_t i = 0;
         double n = 0;
-        char *f = NULL;
 
-        //Debug_printv("bytes[%llu]", value);
-
+        //Debug_printv("bytes[%llu]", size);
         do
         {          
-            n = value / std::pow(1024, ++i);
+            n = size / std::pow(1024, ++i);
             //Debug_printv("i[%d] n[%llu]", i, n);
         }
         while ( n >= 1 );
 
-        n = value / std::pow(1024, --i);
-        asprintf(&f, "%.2f %s", n, byteSuffixes[i].c_str());
-        return f;
+        n = size / std::pow(1024, --i);
+        return format("%.2f %s", n, byteSuffixes[i].c_str());
     }
 
 
@@ -537,4 +588,5 @@ namespace mstr {
         //     parent = streamFile->url;
         return parent + "/" + plus;
     }
+
 }

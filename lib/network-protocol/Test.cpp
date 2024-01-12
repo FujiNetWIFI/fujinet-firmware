@@ -18,7 +18,7 @@ NetworkProtocolTest::~NetworkProtocolTest()
     test_data.clear();
 }
 
-bool NetworkProtocolTest::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTest::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     NetworkProtocol::open(urlParser, cmdFrame);
 

@@ -1,4 +1,5 @@
-// .D71 - The D71 disk image format
+// .D71 - 1571 disk image format
+//
 // https://vice-emu.sourceforge.io/vice_17.html#SEC373
 // https://ist.uwaterloo.ca/~schepers/formats/D71.TXT
 //
@@ -90,7 +91,7 @@ class D71File: public D64File {
 public:
     D71File(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
 
-    MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
 };
 
 
@@ -106,7 +107,7 @@ public:
         return new D71File(path);
     }
 
-    bool handles(std::string fileName) {
+    bool handles(std::string fileName) override {
         return byExtension(".d71", fileName);
     }
 

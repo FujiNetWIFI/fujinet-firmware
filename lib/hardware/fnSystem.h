@@ -12,7 +12,7 @@
 #include <driver/gpio.h>
 #endif
 
-#include "fnFS.h"
+#include "../FileSystem/fnFS.h"
 
 // from sysexits.h
 // #define EX_TEMPFAIL     75      /* temp failure; user is invited to retry */

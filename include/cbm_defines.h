@@ -15,10 +15,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef IECDEFINES_H
-#define IECDEFINES_H
 
-#include <stdint.h>
+#ifndef CBMDEFINES_H
+#define CBMDEFINES_H
+
+#include <cstdint>
 
 // The base pointer of basic.
 #define CBM_BASIC_START 0x0401
@@ -32,9 +33,6 @@
 #define CBM_1541_VIA2_SIZE 0x10
 #define CBM_1541_ROM_OFFSET 0xC000
 #define CBM_1541_ROM_SIZE (1024 * 16)
-
-// Largest Serial byte buffer request from / to.
-#define MAX_BYTES_PER_REQUEST 256
 
 // Back arrow character code.
 #define CBM_DOLLAR_SIGN '$'
@@ -81,6 +79,9 @@
 
 #define CBM_CS_UPPPER "\x0E"
 #define CBM_CS_GFX "\x8E"
+
+#define CBM_SCREEN_ROWS 25
+#define CBM_SCREEN_COLS 40
 
 // Device OPEN channels.
 // Special channels.
@@ -134,6 +135,7 @@ typedef enum
     ErrCount
 } IOErrorMessage;
 
+
 // BIT Flags
 #define CLEAR            0x0000    // clear all flags
 #define CLEAR_LOW        0xFF00    // clear low byte
@@ -143,11 +145,12 @@ typedef enum
 #define EMPTY_STREAM     (1 << 3)
 #define COMMAND_RECVD    (1 << 4)
 
-#define VIC20_MODE      (1 << 8)
-#define JIFFY_ACTIVE    (1 << 9)
-#define JIFFY_LOAD      (1 << 10)
-#define DOLPHIN_ACTIVE  (1 << 11)
-#define WIC64_ACTIVE    (1 << 12)
+// Detected Protocols
+#define FAST_SERIAL_ACTIVE  (1 << 8)
+#define PARALLEL_ACTIVE     (1 << 9)
+#define SAUCEDOS_ACTIVE     (1 << 10)
+#define JIFFYDOS_ACTIVE     (1 << 11)
+#define WIC64_ACTIVE        (1 << 13)
 
 // IEC protocol timing consts in microseconds (us)
 // IEC-Disected p10-11         // Description              //   1541    C64     min     typical     max         // Notes
@@ -159,7 +162,7 @@ typedef enum
 #define TIMING_Ts1     57      // BIT SET-UP LISTENER PRE       57us    47us
 #define TIMING_Ts2     28      // BIT SET-UP LISTENER POST      28us    24us
 #define TIMING_Tv      20      // DATA VALID VIC20              76us    26us    20us    20us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker. )
-#define TIMING_Tv64    80      // DATA VALID C64
+#define TIMING_Tv64    76      // DATA VALID C64
 #define TIMING_Tf      45      // FRAME HANDSHAKE                               0       20us        1000us      (If maximum time exceeded, frame error.)
 #define TIMEOUT_Tf     1000
 #define TIMING_Tr      20      // FRAME TO RELEASE OF ATN                       20us    -           -
@@ -176,17 +179,18 @@ typedef enum
 #define TIMING_Tfr     60      // EOI ACKNOWLEDGE                               60us    -           -
 
 #define TIMING_EMPTY   512     // SIGNAL EMPTY STREAM
-#define TIMING_SYNC    250     // SYNC WITH ATN
-#define TIMING_STABLE  70      // WAIT FOR BUS TO BE STABLE
+#define TIMING_SYNC    100     // SYNC WITH ATN
+#define TIMING_STABLE  20      // WAIT FOR BUS TO BE STABLE
+#define TIMING_DELAY   70      // DELAY AFTER ATN
 
 #define TIMING_VIC20_DETECT   40   // VIC20 DETECTED WHEN HOST BIT TIME IS LESS THAN 40us
-#define TIMING_JIFFY_DETECT   218  // JIFFYDOS ENABLED DELAY ON LAST BIT
-#define TIMING_JIFFY_ACK      101  // JIFFYDOS ACK RESPONSE
+#define TIMING_PROTOCOL_DETECT   218  // SAUCEDOS/JIFFYDOS CAPABLE DELAY
+#define TIMING_PROTOCOL_ACK      101  // SAUCEDOS/JIFFYDOS ACK RESPONSE
 
 // See timeoutWait
 #define TIMEOUT_DEFAULT 1000 // 1ms
 #define TIMED_OUT -1
-#define FOREVER 3000 // 0
+#define FOREVER 5000000 // 0
 
 #ifndef IEC_INVERTED_LINES
 // Not Inverted
@@ -202,4 +206,4 @@ typedef enum
 #define HIGH 0x00
 #endif
 
-#endif // IECDEFINES_H
+#endif // CBMDEFINES_H

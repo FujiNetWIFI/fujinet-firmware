@@ -1,14 +1,16 @@
 #include "t64.h"
 
+#include "endianness.h"
+
 /********************************************************
  * Streams
  ********************************************************/
 
 bool T64IStream::seekEntry( std::string filename )
 {
-    uint8_t index = 1;
-    mstr::rtrimA0(filename);
+    size_t index = 1;
     mstr::replaceAll(filename, "\\", "/");
+    bool wildcard =  ( mstr::contains(filename, "*") || mstr::contains(filename, "?") );
 
     // Read Directory Entries
     if ( filename.size() )
@@ -17,21 +19,29 @@ bool T64IStream::seekEntry( std::string filename )
         {
             std::string entryFilename = entry.filename;
             mstr::rtrimA0(entryFilename);
-            mstr::replaceAll(filename, "\\", "/");
-            mstr::toASCII(entryFilename);
+            entryFilename = mstr::toUTF8(entryFilename);
+
             Debug_printv("filename[%s] entry.filename[%.16s]", filename.c_str(), entryFilename.c_str());
 
             // Read Entry From Stream
-            if (filename == "*")
+            if (filename == "*") // Match first PRG
             {
-                filename == entryFilename;
-            }
-
-            if ( mstr::compare(filename, entryFilename) )
-            {
-                // Move stream pointer to start track/sector
+                filename = entryFilename;
                 return true;
             }
+            else if ( filename == entryFilename ) // Match exact
+            {
+                return true;
+            }
+            else if ( wildcard )
+            {
+                if ( mstr::compare(filename, entryFilename) ) // X?XX?X* Wildcard match
+                {
+                    // Move stream pointer to start track/sector
+                    return true;
+                }
+            }
+
             index++;
         }
     }
@@ -41,11 +51,11 @@ bool T64IStream::seekEntry( std::string filename )
     return false;
 }
 
-bool T64IStream::seekEntry( size_t index )
+bool T64IStream::seekEntry( uint16_t index )
 {
     // Calculate Sector offset & Entry offset
     index--;
-    uint8_t entryOffset = 0x40 + (index * sizeof(entry));
+    uint16_t entryOffset = 0x40 + (index * sizeof(entry));
 
     //Debug_printv("----------");
     //Debug_printv("index[%d] sectorOffset[%d] entryOffset[%d] entry_index[%d]", index, sectorOffset, entryOffset, entry_index);
@@ -64,15 +74,15 @@ bool T64IStream::seekEntry( size_t index )
 }
 
 
-size_t T64IStream::readFile(uint8_t* buf, size_t size) {
-    size_t bytesRead = 0;
+uint16_t T64IStream::readFile(uint8_t* buf, uint16_t size) {
+    uint16_t bytesRead = 0;
 
-    if (m_position < 2)
+    if (_position < 2)
     {
-        //Debug_printv("position[%d]", m_position);
+        //Debug_printv("position[%d]", _position);
 
         // Send Starting Address
-        buf[0] = entry.start_address[m_position];
+        buf[0] = entry.start_address[_position];
         bytesRead++;
     }
     else
@@ -80,7 +90,7 @@ size_t T64IStream::readFile(uint8_t* buf, size_t size) {
         bytesRead += containerStream->read(buf, size);
     }
 
-    m_bytesAvailable -= bytesRead;
+    _position += bytesRead;
 
     return bytesRead;
 }
@@ -100,17 +110,16 @@ bool T64IStream::seekPath(std::string path) {
         size_t start_address = UINT16_FROM_HILOBYTES(entry.start_address[1], entry.start_address[0]);
         size_t end_address = UINT16_FROM_HILOBYTES(entry.end_address[1], entry.end_address[0]);
         size_t data_offset = UINT32_FROM_LE_UINT32(entry.data_offset);
-        Debug_printv("filename [%.16s] type[%s] start_address[%d] end_address[%d] data_offset[%d]", entry.filename, type, start_address, end_address, data_offset);
+        Debug_printv("filename [%.16s] type[%s] start_address[%zu] end_address[%zu] data_offset[%zu]", entry.filename, type, start_address, end_address, data_offset);
 
         // Calculate file size
-        m_length = ( end_address - start_address ) + 2;
-        m_bytesAvailable = m_length;
-        m_position = 0;
+        _size = ( end_address - start_address ) + 2;
+        _position = 0;
 
         // Set position to beginning of file
         containerStream->seek(entry.data_offset);
 
-        Debug_printv("File Size: size[%d] available[%d] position[%d]", m_length, m_bytesAvailable, m_position);
+        Debug_printv("File Size: size[%d] available[%d] position[%d]", _size, available(), _position);
 
         return true;
     }
@@ -126,7 +135,7 @@ bool T64IStream::seekPath(std::string path) {
  * File implementations
  ********************************************************/
 
-MStream* T64File::createIStream(std::shared_ptr<MStream> containerIstream) {
+MStream* T64File::getDecodedStream(std::shared_ptr<MStream> containerIstream) {
     Debug_printv("[%s]", url.c_str());
 
     return new T64IStream(containerIstream);
@@ -159,7 +168,7 @@ bool T64File::rewindDirectory() {
     media_blocks_free = 0;
     media_block_size = image->block_size;
     media_image = name;
-    mstr::toASCII(media_image);
+    //mstr::toUTF8(media_image);
 
     Debug_printv("media_header[%s] media_id[%s] media_blocks_free[%d] media_block_size[%d] media_image[%s]", media_header.c_str(), media_id.c_str(), media_blocks_free, media_block_size, media_image.c_str());
 

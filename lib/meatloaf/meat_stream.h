@@ -1,6 +1,8 @@
 #ifndef MEATLOAF_STREAM
 #define MEATLOAF_STREAM
 
+#include <unordered_map>
+
 /********************************************************
  * Universal streams
  ********************************************************/
@@ -9,7 +11,7 @@
 #define SEEK_CUR  1
 #define SEEK_END  2
 
-#define SA0 0b0001111
+#define SA0 0b00001111
 #define SA1 0b00011111
 #define SA2 0b00101111
 #define SA3 0b00111111
@@ -31,15 +33,65 @@
 // TCP_CLENT_SOCKET = clear bit 5
 // TCP_SERVER_SOCKET = set bit 5
 
-class MStream {
+class MStream 
+{
+protected:
+    uint32_t _size = 0;
+    uint32_t _position = 0;
+    uint8_t m_load_address[2] = {0, 0};
+    uint8_t m_error = 0;
+
 public:
     virtual ~MStream() {};
 
-    virtual uint32_t available() = 0;
-    virtual uint32_t size() = 0;
-    virtual uint32_t position() = 0;
-    virtual size_t error() = 0;
-    virtual void reset() {};
+    std::ios_base::openmode mode;
+    std::string url = "";
+
+    bool has_subdirs = true;
+    size_t block_size = 256;
+
+    virtual std::unordered_map<std::string, std::string> info() {
+        return {};
+    }
+
+    virtual uint32_t size() {
+        return _size;
+    };
+
+    virtual uint32_t available() {
+        return _size - _position;
+    };
+
+    virtual uint32_t position() {
+        return _position;
+    }
+    virtual void position( uint32_t p) {
+        _position = p;
+    }
+
+    virtual size_t error() {
+        return m_error;
+    }
+
+    virtual uint32_t blocks() {
+        if ( _size > 0 && _size < block_size )
+            return 1;
+        else
+            return ( _size / block_size );
+    }
+
+    virtual bool eos()  {
+//        Debug_printv("_size[%d] m_bytesAvailable[%d] _position[%d]", _size, available(), _position);
+        if ( available() == 0 )
+            return true;
+        
+        return false;
+    }
+    virtual void reset() 
+    {
+        _size = block_size;
+        _position = 0;
+    };
     
     virtual bool isOpen() = 0;
     virtual bool isBrowsable() { return false; };
@@ -51,16 +103,12 @@ public:
     virtual uint32_t write(const uint8_t *buf, uint32_t size) = 0;
     virtual uint32_t read(uint8_t* buf, uint32_t size) = 0;
 
-    uint8_t secondaryAddress = 0;
-    std::string url = "";
-
-    bool has_subdirs = true;
-
     virtual bool seek(uint32_t pos, int mode) {
         if(mode == SEEK_SET) {
             return seek(pos);
         }
         else if(mode == SEEK_CUR) {
+            if(pos == 0) return true;
             return seek(position()+pos);
         }
         else {

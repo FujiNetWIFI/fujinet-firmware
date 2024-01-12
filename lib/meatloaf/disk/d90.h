@@ -1,5 +1,6 @@
 // .D90 - The D90 image is bit-for-bit copy of the hard drives in the D9090 and D9060
-// https://vice-emu.sourceforge.io/vice_17.html#SEC388
+//
+// https://vice-emu.sourceforge.io/vice_16.html#SEC429
 // http://www.baltissen.org/newhtm/diskimag.htm
 //
 
@@ -123,7 +124,7 @@ class D90File: public D64File {
 public:
     D90File(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
 
-    MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
 };
 
 
@@ -139,11 +140,17 @@ public:
         return new D90File(path);
     }
 
-    bool handles(std::string fileName) {
-        return byExtension(".D90", fileName);
+    bool handles(std::string fileName) override {
+        return byExtension(
+            {
+                ".d90",
+                ".d60"
+            }, 
+            fileName
+        );
     }
 
-    D90FileSystem(): MFileSystem("D90") {};
+    D90FileSystem(): MFileSystem("d90") {};
 };
 
 

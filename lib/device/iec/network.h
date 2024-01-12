@@ -7,7 +7,7 @@
 
 #include "../../bus/bus.h"
 
-#include "../EdUrlParser/EdUrlParser.h"
+#include "peoples_url_parser.h"
 
 #include "../network-protocol/Protocol.h"
 
@@ -85,7 +85,7 @@ class iecNetwork : public virtualDevice
     /**
      * @brief the URL parser for each channel
      */
-    EdUrlParser *urlParser[NUM_CHANNELS];
+    PeoplesUrlParser *urlParser[NUM_CHANNELS];
 
     /**
      * @brief the prefix for each channel
@@ -163,6 +163,11 @@ class iecNetwork : public virtualDevice
      * @brief query JSON
      */
     void query_json();
+
+    /**
+     * @brief parse into bite size strings
+     */
+    void parse_bite();
 
     /**
      * @brief Set device ID from dos command

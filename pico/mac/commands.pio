@@ -5,8 +5,8 @@
 ; sends the phases to the PICO when the strobe sets
 ;
 
-.define LSTRB 12
-.define ENABLE 7
+.define public LSTRB 13
+.define public ENABLE 11
 
 .program commands
 start:

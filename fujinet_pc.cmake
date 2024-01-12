@@ -87,6 +87,9 @@ set(SOURCES src/main.cpp
     lib/utils/utils.h lib/utils/utils.cpp
     lib/utils/cbuf.h lib/utils/cbuf.cpp
     lib/utils/string_utils.h lib/utils/string_utils.cpp
+    lib/utils/peoples_url_parser.h lib/utils/peoples_url_parser.cpp
+    lib/utils/punycode.h lib/utils/punycode.cpp
+    lib/utils/U8Char.h lib/utils/U8Char.cpp
     lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
     lib/hardware/led.h lib/hardware/led.cpp
     lib/hardware/fnUART.h lib/hardware/fnUART.cpp 
@@ -104,7 +107,7 @@ set(SOURCES src/main.cpp
     lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
     lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
     lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
-    lib/EdUrlParser/EdUrlParser.h lib/EdUrlParser/EdUrlParser.cpp
+    
     lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
     lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
     lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
@@ -236,7 +239,8 @@ set(SOURCES src/main.cpp
     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
     lib/media/atari/diskTypeAtx.h 
     lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
-    lib/base64/base64.h lib/base64/base64.c
+    lib/encoding/base64.h lib/encoding/base64.cpp
+    lib/encoding/hash.h lib/encoding/hash.cpp
     lib/encrypt/crypt.h lib/encrypt/crypt.cpp
     lib/compat/compat_inet.c
     lib/compat/compat_gettimeofday.h lib/compat/compat_gettimeofday.c

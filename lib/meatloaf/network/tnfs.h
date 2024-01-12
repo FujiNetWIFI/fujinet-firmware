@@ -5,6 +5,8 @@
 
 #include "fnFS.h"
 
+#include "../../../include/debug.h"
+
 #include "make_unique.h"
 
 #include <dirent.h>
@@ -28,7 +30,7 @@ public:
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
             seekEntry( name );
 
-        if (!pathValid(path))
+        if (!pathValid(path.c_str()))
             m_isNull = true;
         else
             m_isNull = false;
@@ -42,7 +44,7 @@ public:
 
     //MFile* cd(std::string newDir);
     bool isDirectory() override;
-    MStream* meatStream() override ; // has to return OPENED stream
+    MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override ; // has to return OPENED stream
     time_t getLastWrite() override ;
     time_t getCreationTime() override ;
     bool rewindDirectory() override ;
@@ -52,7 +54,7 @@ public:
     uint32_t size() override ;
     bool remove() override ;
     bool rename(std::string dest);
-    MStream* createIStream(std::shared_ptr<MStream> src);
+    MStream* getDecodedStream(std::shared_ptr<MStream> src);
 
     bool seekEntry( std::string filename );
 
@@ -112,15 +114,8 @@ public:
         close();
     }
 
-    // MStream methods
     bool isBrowsable() override { return false; };
     bool isRandomAccess() override { return true; };
-
-    // MStream methods
-    uint32_t available() override;
-    uint32_t size() override;    
-    uint32_t position() override;
-    size_t error() override;
 
     virtual bool seek(uint32_t pos) override;
     virtual bool seek(uint32_t pos, int mode) override;    
@@ -144,9 +139,6 @@ protected:
     std::string localPath;
 
     std::unique_ptr<TNFSHandle> handle;
-
-private:
-    size_t _size = 0;
 };
 
 

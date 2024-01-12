@@ -2,30 +2,29 @@
 ; FujiNet Project
 ;
 ; Vintage Macintosh Microfloppy Controller Interface
-; sRead NRZI stream
-;
+; Read NRZI stream
 ;
 
-.define ENABLE 7
 .define public T0 10
 
 .program dcd_read
 .side_set 1
-    ; wait 0 gpio ENABLE   side 1               ; removed if SM was triggered by main program
-    set y, 0             side 0                 ; initial state is always 0
-    set x, 7             side 0                 ; bit counter
+    ; manually exec the following two statements after init before enable
+    ; set y, 0             side 0                 ; initial state is always 0
+    ; set x, 7             side 0                 ; bit counter
 reset:
     wait 1 pin 0         side 1                 ; wait for rising edge on write line from mac to start reading byte
     jmp loop1            side 1                 ; 
 loop:
     nop                  side 1   [T0/2-2]      ; wait for 1/2 bit width
+.wrap_target
 loop1:
     wait 0 gpio 9        side 1                 ; block on CA1 at the end of the transmission
     jmp pin high         side 0                 ; need T0 cycles from jmp to jmp
 low:
     in y, 1              side 0   [1]           ; shift in the decoded value, which is equal to the previous state y
     set y, 0             side 0                 ; previous state is now low (zero)
-    jmp x-- loop         side 1                 ; check to see if we're at the last bit?
+    jmp x-- loop         side 1                 ; check to see if we are at the last bit?
     jmp sync             side 1                 ; if so, then wait for the next byte to start
 high:                         
     mov y, ~y            side 0 
@@ -36,7 +35,8 @@ sync:
     set x, 7             side 1                 ; reset the bit counter
     jmp !y reset         side 0                 ; go to top if y was 0
     wait 0 pin 0         side 1                 ; otherwise wait for falling edge to sync to next back
-    jmp loop1            side 1                 ; start reading byte again
+ .wrap
+ ;   jmp loop1            side 1                 ; start reading byte again
 
 
     
@@ -47,22 +47,15 @@ void dcd_read_program_init(PIO pio, uint sm, uint offset, uint in_pin)
 {
     // configure a SM
     pio_sm_config c = dcd_read_program_get_default_config(offset);
-    // config side set
-    //    sm_config_set_sideset_pins(&c, mux_pin);
     sm_config_set_in_pins(&c, in_pin);
     sm_config_set_jmp_pin(&c, in_pin);
-    // sm_config_set_sideset_pins(&c, 15); // TEMPORARY FOR DEBUGGING
-    // sm_config_set_out_shift(&c, true, false, 1);
     sm_config_set_in_shift(&c, false, true, 8);
     sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
-
-    pio_gpio_init(pio, in_pin);
-    pio_sm_set_consecutive_pindirs(pio, sm, in_pin, 1, false);
-//    pio_gpio_init(pio, 15);
-//    pio_sm_set_consecutive_pindirs(pio, sm, 15, 1, true); // TEMPORARY FOR DEBUG OUTPUT (EXTRA)
-    pio_gpio_init(pio, 9);
-    pio_sm_set_consecutive_pindirs(pio, sm, 9, 1, false); // for blocking on CA1
-
+    
+    // sm_config_set_sideset_pins(&c, 16); // TEMPORARY FOR DEBUGGING
+    // pio_gpio_init(pio, 16);
+    // pio_sm_set_consecutive_pindirs(pio, sm, 16, 1, true); // TEMPORARY FOR DEBUG OUTPUT (EXTRA)
+    
     // initialize
     float cycles_per_bit = T0;
     float div = clock_get_hz(clk_sys) / (500.0e3 * cycles_per_bit); // 125MHz/500kHz = 250

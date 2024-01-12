@@ -1,4 +1,5 @@
 // .D81 - This is a byte for byte copy of a physical 1581 disk
+//
 // https://vice-emu.sourceforge.io/vice_17.html#SEC354
 // https://ist.uwaterloo.ca/~schepers/formats/D81.TXT
 //
@@ -85,7 +86,7 @@ class D81File: public D64File {
 public:
     D81File(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
 
-    MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
 };
 
 
@@ -101,7 +102,7 @@ public:
         return new D81File(path);
     }
 
-    bool handles(std::string fileName) {
+    bool handles(std::string fileName) override {
         return byExtension(".d81", fileName);
     }
 

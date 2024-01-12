@@ -10,7 +10,6 @@ private:
     void _sio_set_tz();
 
 public:
-    void drivewire_process(uint32_t commanddata, uint8_t checksum);
 };
 
 #endif // APETIME_H
