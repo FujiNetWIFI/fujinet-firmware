@@ -200,7 +200,7 @@ private:
     /**
      * Returned headers
      */
-    vector<string> returned_headers;
+    std::vector<std::string> returned_headers;
 
     /**
      * Returned header cursor

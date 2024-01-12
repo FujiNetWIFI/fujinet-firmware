@@ -18,7 +18,7 @@ public:
     /**
      * ctor
      */
-    NetworkProtocolTest(string *rx_buf, string *tx_buf, string *sp_buf);
+    NetworkProtocolTest(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf);
 
     /**
      * dtor
@@ -91,7 +91,7 @@ private:
     /**
      * String to hold test data
      */
-    string test_data;
+    std::string test_data;
 };
 
 #endif /* NETWORKPROTOCOL_TEST */
