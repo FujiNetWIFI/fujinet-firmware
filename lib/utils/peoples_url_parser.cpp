@@ -197,6 +197,7 @@ void PeoplesUrlParser::resetURL(const std::string u) {
     //Debug_printv("u[%s]", u.c_str());
 
     url = u;
+    mRawUrl = u;
 
     //Debug_printv("Before [%s]", url.c_str());
 
@@ -279,3 +280,7 @@ std::string PeoplesUrlParser::rebuildUrl(void)
 //     printf("pathToFile: %s\r\n", pathToFile().c_str());
 // }
 
+bool PeoplesUrlParser::isValidUrl()
+{
+    return !scheme.empty() && !(path.empty() && port.empty());
+}
