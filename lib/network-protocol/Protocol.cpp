@@ -100,7 +100,7 @@ NetworkProtocol::~NetworkProtocol()
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-bool NetworkProtocol::open(EdUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     // Set translation mode, Bits 0-1 of aux2
     translation_mode = cmdFrame->aux2 & 0x7F; // we now have more xlation modes.
@@ -203,7 +203,7 @@ void NetworkProtocol::translate_receive_buffer()
         break;
     case TRANSLATION_MODE_PETSCII:
         Debug_printf("!!! PETSCII !!!\r\n");
-        mstr::toPETSCII(*receiveBuffer);
+        *receiveBuffer = mstr::toUTF8(*receiveBuffer);
         break;
     }
 
@@ -238,7 +238,7 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
         util_replaceAll(*transmitBuffer, STR_EOL, STR_ASCII_CRLF);
         break;
     case TRANSLATION_MODE_PETSCII:
-        mstr::toASCII(*transmitBuffer);
+        *transmitBuffer = mstr::toUTF8(*transmitBuffer);
         break;
     }
 

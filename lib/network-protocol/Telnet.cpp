@@ -37,12 +37,12 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
         return;
     }
 
-    string *receiveBuffer = protocol->getReceiveBuffer();
+    std::string *receiveBuffer = protocol->getReceiveBuffer();
 
     switch (ev->type)
     {
     case TELNET_EV_DATA: // Received Data
-        *receiveBuffer += string(ev->data.buffer, ev->data.size);
+        *receiveBuffer += std::string(ev->data.buffer, ev->data.size);
         protocol->newRxLen = receiveBuffer->size();
         break;
     case TELNET_EV_SEND:
@@ -72,7 +72,7 @@ static void _event_handler(telnet_t *telnet, telnet_event_t *ev, void *user_data
 /**
  * ctor
  */
-NetworkProtocolTELNET::NetworkProtocolTELNET(string *rx_buf, string *tx_buf, string *sp_buf)
+NetworkProtocolTELNET::NetworkProtocolTELNET(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocolTCP(rx_buf, tx_buf, sp_buf)
 {
     Debug_printf("NetworkProtocolTELNET::ctor\r\n");
@@ -141,7 +141,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
     // Return success
     error = 1;
 
-    Debug_printf("NetworkProtocolTelnet::read(%d) - %s\r\n", newRxLen, receiveBuffer->c_str());
+    Debug_printf("NetworkProtocolTELNET::read(%d) - %s\r\n", newRxLen, receiveBuffer->c_str());
 
     return NetworkProtocol::read(newRxLen); // Set by calls into telnet_recv()
 }

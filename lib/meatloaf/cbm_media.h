@@ -7,8 +7,9 @@
 #include <map>
 #include <bitset>
 #include <unordered_map>
+#include <sstream>
 
-#include "../../../include/debug.h"
+#include "../../include/debug.h"
 
 #include "string_utils.h"
 
@@ -22,15 +23,13 @@ class CBMImageStream: public MStream {
 public:
     CBMImageStream(std::shared_ptr<MStream> is) {
         containerStream = is;
-        m_isOpen = true;
+        _is_open = true;
         has_subdirs = false;
     }
 
     // MStream methods
     bool open() override;
     void close() override;
-    uint32_t position() override;
-    size_t error() override;
 
     ~CBMImageStream() {
         //Debug_printv("close");
@@ -66,11 +65,24 @@ public:
     // readString = (size) => this.containerStream.readString(size);
     virtual std::string readString( uint8_t size )
     {
-        uint8_t b[size] = { 0x00 };
-        uint8_t r = containerStream->read( b, size );
-        return std::string((char *)b);
+        uint8_t b[size];
+        if ( containerStream->read( b, size ) )
+            return std::string((char *)b);
+        
+        return std::string();
     }
     // readStringUntil = (delimiter = 0x00) => this.containerStream.readStringUntil(delimiter);
+    virtual std::string readStringUntil( uint8_t delimiter = '\0' )
+    {
+        uint8_t b[1];
+        std::stringstream ss;
+        while( containerStream->read( b, 1 ) )
+        {
+            if ( b[0] == delimiter )
+                ss << b;
+        }
+        return ss.str();
+    }
 
     // seek = (offset) => this.containerStream.seek(offset + this.media_header_size);
     bool seek(uint32_t offset) override { return containerStream->seek(offset + media_header_size); }
@@ -80,20 +92,18 @@ public:
     bool seekPath(std::string path) override { return false; };
     std::string seekNextEntry() override { return ""; };
 
-    virtual uint16_t seekFileSize( uint8_t start_track, uint8_t start_sector );
+    virtual uint32_t seekFileSize( uint8_t start_track, uint8_t start_sector );
 
-    uint32_t available() override;
-    uint32_t size() override;
     uint32_t read(uint8_t* buf, uint32_t size) override;
-    uint32_t write(const uint8_t *buf, uint32_t size);
-    void reset() {
+    uint32_t write(const uint8_t *buf, uint32_t size) override;
+    void reset() override {
         seekCalled = false;
-        m_position = 0;
-        m_length = block_size;
-        m_bytesAvailable = block_size;
+        _position = 0;
+        _size = block_size;
+        //m_load_address = {0, 0};
     }
 
-    bool isOpen();
+    bool isOpen() override;
     std::string url;
 
 protected:
@@ -101,23 +111,18 @@ protected:
     bool seekCalled = false;
     std::shared_ptr<MStream> containerStream;
 
-    bool m_isOpen = false;
-    uint32_t m_length = 0;
-    uint32_t m_bytesAvailable = 0;
-    uint32_t m_position = 0;
-    size_t m_error = 0;
+    bool _is_open = false;
 
-    CBMImageStream* decodedStream = nullptr;
+    CBMImageStream* decodedStream;
 
     bool show_hidden = false;
 
-    size_t block_size = 256;
     size_t media_header_size = 0x00;
     size_t entry_index = 0;  // Currently selected directory entry
     size_t entry_count = -1; // Directory list entry count (-1 unknown)
 
     enum open_modes { OPEN_READ, OPEN_WRITE, OPEN_APPEND, OPEN_MODIFY };
-    std::string file_type_label[8] = { "del", "seq", "prg", "usr", "rel", "cbm", "dir", "???" };
+    std::string file_type_label[12] = { "DEL", "SEQ", "PRG", "USR", "REL", "CBM", "DIR", "SUS", "NAT", "CMD", "CFS", "???" };
 
     virtual void seekHeader() = 0;
     virtual bool seekNextImageEntry() = 0;
@@ -130,9 +135,9 @@ protected:
 	virtual uint8_t speedZone( uint8_t track) { return 0; };
 
     virtual bool seekEntry( std::string filename ) { return false; };
-    virtual bool seekEntry( size_t index ) { return false; };
+    virtual bool seekEntry( uint16_t index ) { return false; };
 
-    virtual size_t readFile(uint8_t* buf, size_t size) = 0;
+    virtual uint16_t readFile(uint8_t* buf, uint16_t size) = 0;
     std::string decodeType(uint8_t file_type, bool show_hidden = false);
 
 private:
@@ -180,7 +185,7 @@ public:
 
         // create and add stream to broker if not found
         auto newFile = MFSOwner::File(url);
-        T* newStream = (T*)newFile->meatStream();
+        T* newStream = (T*)newFile->getSourceStream();
 
         // Are we at the root of the pathInStream?
         if ( newFile->pathInStream == "")

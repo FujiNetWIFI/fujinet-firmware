@@ -41,7 +41,7 @@ FNJSON::~FNJSON()
 /**
  * Specify line ending
  */
-void FNJSON::setLineEnding(const string &_lineEnding)
+void FNJSON::setLineEnding(const std::string &_lineEnding)
 {
     lineEnding = _lineEnding;
 }
@@ -64,7 +64,7 @@ void FNJSON::setQueryParam(uint8_t qp)
 /**
  * Set read query string
  */
-void FNJSON::setReadQuery(const string &queryString, uint8_t queryParam)
+void FNJSON::setReadQuery(const std::string &queryString, uint8_t queryParam)
 {
     Debug_printf("FNJSON::setReadQuery queryString: %s, queryParam: %d\r\n", queryString.c_str(), queryParam);
     _queryString = queryString;
@@ -87,21 +87,21 @@ cJSON *FNJSON::resolveQuery()
 /**
  * Process string, strip out HTML tags if needed
  */
-string FNJSON::processString(string in)
+std::string FNJSON::processString(std::string in)
 {
-    while (in.find("<") != string::npos)
+    while (in.find("<") != std::string::npos)
     {
         auto startpos = in.find("<");
         auto endpos = in.find(">") + 1;
 
-        if (endpos != string::npos)
+        if (endpos != std::string::npos)
         {
             in.erase(startpos, endpos - startpos);
         }
     }
 
 #ifdef BUILD_IEC
-    mstr::toPETSCII(in);
+    in = mstr::toPETSCII2(in);
 #endif
 
 #ifdef BUILD_ATARI
@@ -121,22 +121,22 @@ string FNJSON::processString(string in)
         if ((_queryParam & 2) != 0)
         {
             // yes, mapping to international charset
-            string mapFrom[] = {"á", "ù", "Ñ", "É", "ç", "ô", "ò", "ì", "£", "ï", "ü", "ä", "Ö", "ú", "ó", "ö", "Ü", "â", "û", "î", "é", "è", "ñ", "ê", "å", "à", "Å", "¡", "Ä", "ß"};
-            string mapTo[] = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x0a", "\x0b", "\x0c", "\x0d", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x60", "\x7b", "ss"};
+            std::string mapFrom[] = {"á", "ù", "Ñ", "É", "ç", "ô", "ò", "ì", "£", "ï", "ü", "ä", "Ö", "ú", "ó", "ö", "Ü", "â", "û", "î", "é", "è", "ñ", "ê", "å", "à", "Å", "¡", "Ä", "ß"};
+            std::string mapTo[] = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x0a", "\x0b", "\x0c", "\x0d", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x60", "\x7b", "ss"};
             int elementCount = sizeof(mapFrom) / sizeof(mapFrom[0]);
             for (int elementIndex = 0; elementIndex < elementCount; elementIndex++)
                 if (in.find(mapFrom[elementIndex]) != std::string::npos)
-                    in.replace(in.find(mapFrom[elementIndex]), string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
+                    in.replace(in.find(mapFrom[elementIndex]), std::string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
         }
         else
         {
             // no, mapping to normal ASCI (workaround)
-            string mapFrom[] = {"Ä", "Ö", "Ü", "ä", "ö", "ü", "ß", "é", "è", "á", "à", "ó", "ò", "ú", "ù"};
-            string mapTo[] = {"Ae", "Oe", "Ue", "ae", "oe", "ue", "ss", "e", "e", "a", "a", "o", "o", "u", "u"};
+            std::string mapFrom[] = {"Ä", "Ö", "Ü", "ä", "ö", "ü", "ß", "é", "è", "á", "à", "ó", "ò", "ú", "ù"};
+            std::string mapTo[] = {"Ae", "Oe", "Ue", "ae", "oe", "ue", "ss", "e", "e", "a", "a", "o", "o", "u", "u"};
             int elementCount = sizeof(mapFrom) / sizeof(mapFrom[0]);
             for (int elementIndex = 0; elementIndex < elementCount; elementIndex++)
                 if (in.find(mapFrom[elementIndex]) != std::string::npos)
-                    in.replace(in.find(mapFrom[elementIndex]), string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
+                    in.replace(in.find(mapFrom[elementIndex]), std::string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
         }
 
     }
@@ -148,13 +148,15 @@ string FNJSON::processString(string in)
 /**
  * Return normalized string of JSON item
  */
-string FNJSON::getValue(cJSON *item)
+std::string FNJSON::getValue(cJSON *item)
 {
     if (item == NULL)
     {
         Debug_printf("\r\nFNJSON::getValue called with null item, returning empty string.\r\n");
-        return string("");
+        return std::string("");
     }
+    // Fix where the print cursor is.
+    Debug_printf("\r\n");
 
     std::stringstream ss;
 
@@ -212,14 +214,13 @@ string FNJSON::getValue(cJSON *item)
             item = item->child;
             do
             {
-                #ifdef BUILD_IEC
-                    // Convert key to PETSCII
-                    string tempStr = string((const char *)item->string);
-                    mstr::toPETSCII(tempStr);
-                    ss << tempStr;
-                #else
+                // #ifdef BUILD_IEC
+                //     // Convert key to PETSCII
+                //     string tempStr = string((const char *)item->string);
+                //     ss << mstr::toPETSCII2(tempStr);
+                // #else
                     ss << item->string;
-                #endif
+                // #endif
 
                 ss << lineEnding + getValue(item);
             } while ((item = item->next) != NULL);

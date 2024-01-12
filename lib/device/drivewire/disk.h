@@ -8,9 +8,7 @@
 class drivewireDisk : public virtualDevice
 {
 private:
-    MediaType *_disk = nullptr;
-
-    void drivewire_process(uint32_t commanddata, uint8_t checksum);
+    MediaType *_media = nullptr;
 
 public:
     drivewireDisk();
@@ -18,9 +16,12 @@ public:
 
     fujiHost *host = nullptr;
 
-    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+    mediatype_t disktype() { return _media == nullptr ? MEDIATYPE_UNKNOWN : _media->_mediatype; };
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
+
+    bool read(uint32_t sector, uint8_t *buf);
+    bool write(uint32_t sector, uint8_t *buf);
 };
 
 #endif

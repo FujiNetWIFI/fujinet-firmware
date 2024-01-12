@@ -129,6 +129,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_APETIME_ENABLED,
         FN_CPM_ENABLED,
         FN_CPM_CCP,
+        FN_ALT_CFG,
         FN_LASTTAG
     };
 
@@ -242,7 +243,8 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_ENCRYPT_PASSPHRASE_ENABLED",
         "FN_APETIME_ENABLED",
         "FN_CPM_ENABLED",
-        "FN_CPM_CCP"
+        "FN_CPM_CCP",
+        "FN_ALT_CFG"
     };
 
     stringstream resultstream;
@@ -610,6 +612,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_CPM_CCP:
         resultstream << Config.get_ccp_filename();
+        break;
+    case FN_ALT_CFG:
+        resultstream << Config.get_config_filename();
         break;
     default:
         resultstream << tag;

@@ -9,7 +9,7 @@
 #include "bus.h"
 
 #include "Protocol.h"
-#include "EdUrlParser.h"
+#include "peoples_url_parser.h"
 #include "networkStatus.h"
 #include "status_error_codes.h"
 #include "fnjson.h"
@@ -106,13 +106,6 @@ public:
      */
     virtual void drivewire_set_password();
 
-    /**
-     * Process incoming DRIVEWIRE command for device 0x7X
-     * @param comanddata incoming 4 bytes containing command and aux bytes
-     * @param checksum 8 bit checksum
-     */
-    virtual void drivewire_process(uint32_t commanddata, uint8_t checksum);
-
 private:
     /**
      * Buffer for holding devicespec
@@ -135,9 +128,9 @@ private:
     string *specialBuffer = nullptr;
 
     /**
-     * The EdUrlParser object used to hold/process a URL
+     * The PeoplesUrlParser object used to hold/process a URL
      */
-    EdUrlParser *urlParser = nullptr;
+    PeoplesUrlParser *urlParser = nullptr;
 
     /**
      * Instance of currently open network protocol
@@ -229,7 +222,7 @@ private:
     /**
      * Is this a valid URL? (used to generate ERROR 165)
      */
-    bool isValidURL(EdUrlParser *url);
+    bool isValidURL(PeoplesUrlParser *url);
 
     /**
      * Preprocess a URL given aux1 open mode. This is used to work around various assumptions that different

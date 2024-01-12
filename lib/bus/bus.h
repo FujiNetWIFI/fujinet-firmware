@@ -8,6 +8,8 @@
 
 #ifdef BUILD_IEC
 #include "iec/iec.h"
+#include "iec/parallel.h"
+#include "iec/ieee-488.h"
 #define SYSTEM_BUS IEC
 #endif
 

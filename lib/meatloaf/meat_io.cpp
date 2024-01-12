@@ -1,5 +1,6 @@
 #include "meat_io.h"
 
+#include <dirent.h>
 #include <sys/stat.h>
 #include <algorithm>
 #include <vector>
@@ -9,15 +10,19 @@
 
 #include "MIOException.h"
 
-#include "utils.h"
 #include "string_utils.h"
 #include "peoples_url_parser.h"
 
 //#include "wrappers/directory_stream.h"
 
 // Archive
+//#include "archive/archive_ml.h"
 
 // Cartridge
+
+// Container
+#include "container/d8b.h"
+#include "container/dfi.h"
 
 // Device
 #include "device/flash.h"
@@ -29,27 +34,30 @@
 #include "disk/d80.h"
 #include "disk/d81.h"
 #include "disk/d82.h"
+#include "disk/d90.h"
 #include "disk/dnp.h"
-
-#include "disk/d8b.h"
-#include "disk/dfi.h"
 
 // File
 #include "file/p00.h"
 
 // Network
 #include "network/http.h"
-#include "network/ml.h"
 #include "network/tnfs.h"
 // #include "network/ipfs.h"
 // #include "network/tnfs.h"
 // #include "network/smb.h"
-// #include "network/cs.h"
 // #include "network/ws.h"
+
+// Service
+// #include "service/cs.h"
+#include "service/ml.h"
+
 
 // Tape
 #include "tape/t64.h"
 #include "tape/tcrt.h"
+
+#include "meat_buffer.h"
 
 /********************************************************
  * MFSOwner implementations
@@ -59,7 +67,7 @@
 FlashFileSystem defaultFS;
 #ifdef SD_CARD
 SDFileSystem sdFS;
-#endif          
+#endif
 
 // Scheme
 HttpFileSystem httpFS;
@@ -72,6 +80,9 @@ TNFSFileSystem tnfsFS;
 
 //WSFileSystem wsFS;
 
+// Archive
+//ArchiveContainerFileSystem archiveFS;
+
 // File
 P00FileSystem p00FS;
 
@@ -81,6 +92,7 @@ D71FileSystem d71FS;
 D80FileSystem d80FS;
 D81FileSystem d81FS;
 D82FileSystem d82FS;
+D90FileSystem d90FS;
 DNPFileSystem dnpFS;
 
 D8BFileSystem d8bFS;
@@ -101,8 +113,9 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
 #ifdef SD_CARD
     &sdFS,
 #endif
+//    &archiveFS, // extension-based FS have to be on top to be picked first, otherwise the scheme will pick them!
     &p00FS,
-    &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &dnpFS,
+    &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &d90FS, &dnpFS,
     &d8bFS, &dfiFS,
     &t64FS, &tcrtFS,
     &httpFS, &mlFS, &tnfsFS
@@ -163,10 +176,6 @@ MFile* MFSOwner::File(std::string path) {
     //     return csFS.getFile(path);
     // }
 
-    // // If it's a local file wildcard match and return full path
-    // if ( device_config.image().empty() )
-    //     path = existsLocal(path);
-
     std::vector<std::string> paths = mstr::split(path,'/');
 
     //Debug_printv("Trying to factory path [%s]", path.c_str());
@@ -222,11 +231,10 @@ MFile* MFSOwner::File(std::string path) {
 
 std::string MFSOwner::existsLocal( std::string path )
 {
-    PeoplesUrlParser url;
-    url.parseUrl(path);
+    PeoplesUrlParser *url = PeoplesUrlParser::parseURL( path );
 
     // Debug_printv( "path[%s] name[%s] size[%d]", path.c_str(), url.name.c_str(), url.name.size() );
-    if ( url.name.size() == 16 )
+    if ( url->name.size() == 16 )
     {
         struct stat st;
         int i = stat(std::string(path).c_str(), &st);
@@ -237,8 +245,8 @@ std::string MFSOwner::existsLocal( std::string path )
             DIR *dir;
             struct dirent *ent;
 
-            std::string p = url.pathToFile();
-            std::string name = url.name;
+            std::string p = url->pathToFile();
+            std::string name = url->name;
             // Debug_printv( "pathToFile[%s] basename[%s]", p.c_str(), name.c_str() );
             if ((dir = opendir ( p.c_str() )) != NULL)
             {
@@ -311,25 +319,35 @@ MFile::MFile(std::string path) {
     //     path = "";
     // }
 
-    parseUrl(path);
+    resetURL(path);
 }
 
-MFile::MFile(std::string path, std::string name) : MFile(path + "/" + name) {}
+MFile::MFile(std::string path, std::string name) : MFile(path + "/" + name) {
+    if(mstr::startsWith(name, "xn--")) {
+        this->path = path + "/" + U8Char::fromPunycode(name);
+    }
+}
 
-MFile::MFile(MFile* path, std::string name) : MFile(path->path + "/" + name) {}
+MFile::MFile(MFile* path, std::string name) : MFile(path->path + "/" + name) {
+    if(mstr::startsWith(name, "xn--")) {
+        this->path = path->path + "/" + U8Char::fromPunycode(name);
+    }
+}
 
 bool MFile::operator!=(nullptr_t ptr) {
     return m_isNull;
 }
 
-MStream* MFile::meatStream() {
+MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
     // has to return OPENED stream
-    std::shared_ptr<MStream> containerStream(streamFile->meatStream()); // get its base stream, i.e. zip raw file contents
+    std::shared_ptr<MStream> containerStream(streamFile->getSourceStream(mode)); // get its base stream, i.e. zip raw file contents
     Debug_printv("containerStream isRandomAccess[%d] isBrowsable[%d]", containerStream->isRandomAccess(), containerStream->isBrowsable());
 
-    MStream* decodedStream(createIStream(containerStream)); // wrap this stream into decoded stream, i.e. unpacked zip files
+    MStream* decodedStream(getDecodedStream(containerStream)); // wrap this stream into decoded stream, i.e. unpacked zip files
     decodedStream->url = this->url;
     Debug_printv("decodedStream isRandomAccess[%d] isBrowsable[%d]", decodedStream->isRandomAccess(), decodedStream->isBrowsable());
+
+    Debug_printv("pathInStream [%s]", pathInStream.c_str());
 
     if(decodedStream->isRandomAccess() && pathInStream != "") {
         bool foundIt = decodedStream->seekPath(this->pathInStream);
@@ -362,8 +380,107 @@ MStream* MFile::meatStream() {
     return decodedStream;
 };
 
+MFile* MFile::cd(std::string newDir) 
+{
+    Debug_printv("cd requested: [%s]", newDir.c_str());
+    if ( streamFile != nullptr)
+        Debug_printv("streamFile[%s]", streamFile->url.c_str());
 
-MFile* MFile::parent(std::string plus) 
+    // OK to clarify - coming here there should be ONLY path or magicSymbol-path combo!
+    // NO "cd:xxxxx", no "/cd:xxxxx" ALLOWED here! ******************
+    //
+    // if you want to support LOAD"CDxxxxxx" just parse/drop the CD BEFORE calling this function
+    // and call it ONLY with the path you want to change into!
+
+    if(newDir.find(':') != std::string::npos) 
+    {
+        // I can only guess we're CDing into another url scheme, this means we're changing whole path
+        return MFSOwner::File(newDir);
+    }
+    else if(newDir[0]=='_') // {CBM LEFT ARROW}
+    {
+        // user entered: CD:_ or CD_ 
+        // means: go up one directory
+
+        // user entered: CD:_DIR or CD_DIR
+        // means: go to a directory in the same directory as this one
+        return cdParent(mstr::drop(newDir,1));
+    }
+    else if(newDir[0]=='.' && newDir[1]=='.')
+    {
+        if(newDir.size()==2) 
+        {
+            // user entered: CD:.. or CD..
+            // means: go up one directory
+            return cdParent();
+        }
+        else 
+        {
+            // user entered: CD:..DIR or CD..DIR
+            // meaning: Go back one directory
+            return cdLocalParent(mstr::drop(newDir,2));
+        }
+    }
+    else if(newDir[0]=='/' && newDir[1]=='/') 
+    {
+        // user entered: CD:// or CD//
+        // means: change to the root of stream
+
+        // user entered: CD://DIR or CD//DIR
+        // means: change to a dir in root of stream
+        return cdLocalRoot(mstr::drop(newDir,2));
+    }
+    else if(newDir[0]=='/') 
+    {
+        // user entered: CD:/DIR or CD/DIR
+        // means: go to a directory in the same directory as this one
+        return cdParent(mstr::drop(newDir,1));
+    }
+    else if(newDir[0]=='^') // {CBM UP ARROW}
+    {
+        // user entered: CD:^ or CD^ 
+        // means: change to flash root
+        return MFSOwner::File("/");
+    }
+    else 
+    {
+        //newDir = mstr::toUTF8( newDir );
+
+        // Add new directory to path
+        if ( !mstr::endsWith(url, "/") && newDir.size() )
+            url.push_back('/');
+
+        Debug_printv("> url[%s] newDir[%s]", url.c_str(), newDir.c_str());
+
+        // Add new directory to path
+        MFile* newPath = MFSOwner::File(url + newDir);
+
+        if(mstr::endsWith(newDir, ".url", false)) {
+            // we need to get actual url
+
+            //auto reader = Meat::New<MFile>(newDir);
+            //auto istream = reader->getSourceStream();
+            Meat::iostream reader(newPath);
+
+
+            //uint8_t url[istream->size()]; // NOPE, streams have no size!
+            //istream->read(url, istream->size());
+            std::string url;
+            reader >> url;
+
+            Debug_printv("url[%s]", url);
+            //std::string ml_url((char *)url);
+
+            delete newPath;
+            newPath = MFSOwner::File(url);
+        }
+        
+        return newPath;
+    }
+};
+
+
+MFile* MFile::cdParent(std::string plus) 
 {
     Debug_printv("url[%s] path[%s] plus[%s]", url.c_str(), path.c_str(), plus.c_str());
 
@@ -389,7 +506,7 @@ MFile* MFile::parent(std::string plus)
     }
 };
 
-MFile* MFile::localParent(std::string plus) 
+MFile* MFile::cdLocalParent(std::string plus) 
 {
     Debug_printv("url[%s] path[%s] plus[%s]", url.c_str(), path.c_str(), plus.c_str());
     // drop last dir
@@ -405,13 +522,13 @@ MFile* MFile::localParent(std::string plus)
     return MFSOwner::File( parent + "/" + plus );
 };
 
-MFile* MFile::root(std::string plus) 
+MFile* MFile::cdRoot(std::string plus) 
 {
     Debug_printv("url[%s] path[%s] plus[%s]", url.c_str(), path.c_str(), plus.c_str());
     return MFSOwner::File( "/" + plus );
 };
 
-MFile* MFile::localRoot(std::string plus) 
+MFile* MFile::cdLocalRoot(std::string plus) 
 {
     Debug_printv("url[%s] path[%s] plus[%s]", url.c_str(), path.c_str(), plus.c_str());
 
@@ -420,97 +537,6 @@ MFile* MFile::localRoot(std::string plus)
         return MFSOwner::File( "/" + plus );
     }
     return MFSOwner::File( streamFile->url + "/" + plus );
-};
-
-MFile* MFile::cd(std::string newDir) 
-{
-
-    Debug_printv("cd requested: [%s]", newDir.c_str());
-    if ( streamFile != nullptr)
-            Debug_printv("streamFile[%s]", streamFile->url.c_str());
-
-    // OK to clarify - coming here there should be ONLY path or magicSymbol-path combo!
-    // NO "cd:xxxxx", no "/cd:xxxxx" ALLOWED here! ******************
-    //
-    // if you want to support LOAD"CDxxxxxx" just parse/drop the CD BEFORE calling this function
-    // and call it ONLY with the path you want to change into!
-
-    if(newDir.find(':') != std::string::npos) 
-    {
-        // I can only guess we're CDing into another url scheme, this means we're changing whole path
-        return MFSOwner::File(newDir);
-    }
-    else if(newDir[0]=='_') // {CBM LEFT ARROW}
-    {
-        // user entered: CD:_ or CD_ 
-        // means: go up one directory
-
-        // user entered: CD:_DIR or CD_DIR
-        // means: go to a directory in the same directory as this one
-        return parent(mstr::drop(newDir,1));
-    }
-    else if(newDir[0]=='.' && newDir[1]=='.')
-    {
-        if(newDir.size()==2) 
-        {
-            // user entered: CD:.. or CD..
-            // means: go up one directory
-            return parent();
-        }
-        else 
-        {
-            // user entered: CD:..DIR or CD..DIR
-            // meaning: Go back one directory
-            return localParent(mstr::drop(newDir,2));
-        }
-    }
-    else if(newDir[0]=='/' && newDir[1]=='/') 
-    {
-        // user entered: CD:// or CD//
-        // means: change to the root of stream
-
-        // user entered: CD://DIR or CD//DIR
-        // means: change to a dir in root of stream
-        return localRoot(mstr::drop(newDir,2));
-    }
-    else if(newDir[0]=='/') 
-    {
-        // user entered: CD:/DIR or CD/DIR
-        // means: go to a directory in the same directory as this one
-        return parent(mstr::drop(newDir,1));
-    }
-    else if(newDir[0]=='^') // {CBM UP ARROW}
-    {
-        // user entered: CD:^ or CD^ 
-        // means: change to flash root
-        return MFSOwner::File("/");
-    }
-
-
-    // if(newDir[0]=='@' /*&& newDir[1]=='/' let's be consistent!*/) {
-    //     if(newDir.size() == 1) {
-    //         // user entered: CD:@ or CD@
-    //         // meaning: go to the .sys folder
-    //         return MFSOwner::File("/.sys");
-    //     }
-    //     else {
-    //         // user entered: CD:@FOLDER or CD@FOLDER
-    //         // meaning: go to a folder in .sys folder
-    //         return MFSOwner::File("/.sys/" + mstr::drop(newDir,1));
-    //     }
-    // }
-
-    else 
-    {
-        // Add new directory to path
-        if ( !mstr::endsWith(url, "/") && newDir.size() )
-            url.push_back('/');
-
-        Debug_printv("> url[%s] newDir[%s]", url.c_str(), newDir.c_str());
-
-
-        return MFSOwner::File(url + newDir);
-    }
 };
 
 // bool MFile::copyTo(MFile* dst) {

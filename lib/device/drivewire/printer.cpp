@@ -39,8 +39,11 @@ drivewirePrinter::~drivewirePrinter()
 }
 
 // write for W commands
-void drivewirePrinter::drivewire_write(uint8_t aux1, uint8_t aux2)
+void drivewirePrinter::write(uint8_t c)
 {
+    _last_ms = fnSystem.millis();
+    _pptr->provideBuffer()[0] = c;
+    _pptr->process(1, 0, 0);
 }
 
 /**
@@ -174,11 +177,6 @@ drivewirePrinter::printer_type drivewirePrinter::match_modelname(std::string mod
             break;
 
     return (printer_type)i;
-}
-
-// Process command
-void drivewirePrinter::drivewire_process(uint32_t commanddata, uint8_t checksum)
-{
 }
 
 #endif /* BUILD_COCO */

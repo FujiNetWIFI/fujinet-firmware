@@ -7,7 +7,7 @@
 
 #include "bus.h"
 
-#include "EdUrlParser.h"
+#include "peoples_url_parser.h"
 
 #include "Protocol.h"
 #include "fnjson.h"
@@ -137,9 +137,9 @@ private:
     std::string *specialBuffer = nullptr;
 
     /**
-     * The EdUrlParser object used to hold/process a URL
+     * The PeoplesUrlParser object used to hold/process a URL
      */
-    EdUrlParser *urlParser = nullptr;
+    PeoplesUrlParser *urlParser = nullptr;
 
     /**
      * Instance of currently open network protocol

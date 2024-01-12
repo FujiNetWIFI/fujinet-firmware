@@ -278,22 +278,28 @@ void main_setup(int argc, char *argv[])
 
 #ifdef BUILD_COCO
     theFuji.setup(&DRIVEWIRE);
+
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    drivewirePrinter::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == drivewirePrinter::printer_type::PRINTER_INVALID)
+        ptype = drivewirePrinter::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+
+    drivewirePrinter *ptr = new drivewirePrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+    DRIVEWIRE.setPrinter(ptr);
+
     DRIVEWIRE.setup();
 #endif
 
 #ifdef BUILD_IEC
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
 
     // Setup IEC Bus
     IEC.setup();
-//    iecPrinter::printer_type ptype = Config.get_printer_type(0);
-    iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_COMMODORE_MPS803; // temporary
-    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
-    iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
-    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
-    IEC.addDevice(ptr, 0x04); // add as device #4 for now
+
     theFuji.setup(&IEC);
-    sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
+    //sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
 
 #endif // BUILD_IEC
 

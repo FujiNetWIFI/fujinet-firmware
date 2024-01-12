@@ -27,6 +27,10 @@
 // http://www.ffd2.com/fridge/docs/1541dis.html#E853
 // http://unusedino.de/ec64/technical/aay/c1541/
 // http://unusedino.de/ec64/technical/aay/c1581/
+// http://www.bitcity.de/1541%20Serial%20Interface.htm
+// http://www.bitcity.de/theory.htm
+// https://comp.sys.cbm.narkive.com/ebz1uFEx/annc-vip-the-virtual-iec-peripheral
+// https://www.djupdal.org/cbm/iecata/
 //
 
 #include <cstdint>
@@ -40,9 +44,18 @@
 #include <memory>
 #include <driver/gpio.h>
 #include "fnSystem.h"
-#include "protocol/iecProtocolBase.h"
+
+#include "protocol/_protocol.h"
+#include "protocol/jiffydos.h"
+#ifdef PARALLEL_BUS
+#include "protocol/dolphindos.h"
+#endif
+
+#include <soc/gpio_reg.h>
 
 #include "../../../include/debug.h"
+#include "../../../include/pinmap.h"
+
 
 /**
  * @brief The command frame
@@ -100,6 +113,21 @@ typedef enum
     DEVICE_TALK = 3,    // A command is recieved and we must talk now
     DEVICE_PROCESS = 4, // Execute device command
 } device_state_t;
+
+typedef enum {
+    PROTOCOL_SERIAL,
+    PROTOCOL_FAST_SERIAL,
+    PROTOCOL_SAUCEDOS,
+    PROTOCOL_JIFFYDOS,
+    PROTOCOL_EPYXFASTLOAD,
+    PROTOCOL_WARPSPEED,
+    PROTOCOL_SPEEDDOS,
+    PROTOCOL_DOLPHINDOS,
+    PROTOCOL_WIC64,
+    PROTOCOL_IEEE488
+} bus_protocol_t;
+
+using namespace Protocol;
 
 /**
  * @class IECData
@@ -223,7 +251,7 @@ protected:
     /**
      * @brief Get device ready to handle next phase of command.
      */
-    device_state_t queue_command(IECData data)
+    device_state_t queue_command(const IECData &data)
     {
         commanddata = data;
 
@@ -317,9 +345,19 @@ private:
     bool shuttingDown = false;
 
     /**
+     * @brief the detected bus protocol
+     */
+    bus_protocol_t detected_protocol = PROTOCOL_SERIAL;  // default is IEC Serial
+
+    /**
      * @brief the active bus protocol
      */
-    std::shared_ptr<IecProtocolBase> protocol = nullptr;
+    std::shared_ptr<IECProtocol> protocol = nullptr;
+
+    /**
+     * @brief Switch to detected bus protocol
+     */
+    std::shared_ptr<IECProtocol> selectProtocol();
 
     /**
      * IEC LISTEN received
@@ -424,6 +462,16 @@ public:
     void releaseLines(bool wait = false);
 
     /**
+     * @brief Set 2bit fast loader pair timing
+     * @param set Send 's', Receive 'r'
+     * @param p1 Pair 1
+     * @param p2 Pair 2
+     * @param p3 Pair 3
+     * @param p4 Pair 4
+     */
+    void setBitTiming(std::string set, int p1 = 0, int p2 = 0, int p3 = 0, int p4 = 0);
+
+    /**
      * @brief send single byte
      * @param c byte to send
      * @param eoi Send EOI?
@@ -438,7 +486,7 @@ public:
      * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(const char *buf, size_t len, bool eoi = true);
+    bool sendBytes(const char *buf, size_t len, bool eoi = false);
 
     /**
      * @brief Send string to bus
@@ -446,13 +494,19 @@ public:
      * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(std::string s, bool eoi = true);
+    bool sendBytes(std::string s, bool eoi = false);
 
     /**
      * @brief Receive Byte from bus
-     * @return Byte received from bus, or -1 for error.
+     * @return Byte received from bus, or -1 for error
      */
-    int16_t receiveByte();
+    int8_t receiveByte();
+
+    /**
+     * @brief Receive String from bus
+     * @return std::string received from bus
+     */
+    std::string receiveBytes();
 
     /**
      * @brief called in response to RESET pin being asserted.
@@ -514,59 +568,12 @@ public:
      */
     void senderTimeout();
 
-    // true => PULL => LOW
-    inline void IRAM_ATTR pull ( uint8_t pin )
-    {
-#ifndef IEC_SPLIT_LINES
-        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
-#endif
-        fnSystem.digital_write ( pin, LOW );
-    }
 
-    // false => RELEASE => HIGH
-    inline void IRAM_ATTR release ( uint8_t pin )
-    {
-#ifndef IEC_SPLIT_LINES
-        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_OUTPUT );
-#endif
-        fnSystem.digital_write ( pin, HIGH );
-    }
-
-    inline bool IRAM_ATTR status ( uint8_t pin )
-    {
-#ifndef IEC_SPLIT_LINES
-        set_pin_mode ( pin, gpio_mode_t::GPIO_MODE_INPUT );
-#endif
-        return gpio_get_level ( ( gpio_num_t ) pin ) ? RELEASED : PULLED;
-    }
-
-    inline void IRAM_ATTR set_pin_mode ( uint8_t pin, gpio_mode_t mode )
-    {
-        static uint64_t gpio_pin_modes;
-        uint8_t b_mode = ( mode == 1 ) ? 1 : 0;
-
-        // is this pin mode already set the way we want?
-#ifndef IEC_SPLIT_LINES
-        if ( ( ( gpio_pin_modes >> pin ) & 1ULL ) != b_mode )
-#endif
-        {
-            // toggle bit so we don't change mode unnecessarily
-            gpio_pin_modes ^= ( -b_mode ^ gpio_pin_modes ) & ( 1ULL << pin );
-
-            gpio_config_t io_conf =
-            {
-                .pin_bit_mask = ( 1ULL << pin ),            // bit mask of the pins that you want to set
-                .mode = mode,                               // set as input mode
-                .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
-                .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
-                .intr_type = GPIO_INTR_DISABLE              // interrupt of falling edge
-            };
-            //configure GPIO with the given settings
-            gpio_config ( &io_conf );
-        }
-    }
+    void pull ( int _pin );
+    void release ( int _pin );
+    bool status ( int _pin );
+    //uint8_t status();
 };
-
 /**
  * @brief Return
  */

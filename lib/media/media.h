@@ -61,10 +61,8 @@
 #endif
 
 #ifdef BUILD_COCO
-# include "new/mediaType.h"
-# include "new/mediaTypeDDP.h"
-# include "new/mediaTypeDSK.h"
-# include "new/mediaTypeROM.h"
+# include "drivewire/mediaType.h"
+# include "drivewire/mediaTypeDSK.h"
 #endif
 
 #ifdef NEW_TARGET

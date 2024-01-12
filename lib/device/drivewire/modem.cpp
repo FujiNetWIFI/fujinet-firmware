@@ -1217,15 +1217,4 @@ void drivewireModem::shutdown()
             modemSniffer->closeOutput();
 }
 
-/*
-  Process command
-*/
-void drivewireModem::drivewire_process(uint32_t commanddata, uint8_t checksum)
-{
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
-    fnUartDebug.printf("drivewire_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
-}
-
 #endif /* NEW_TARGET */

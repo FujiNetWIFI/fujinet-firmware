@@ -42,6 +42,17 @@ void fnConfig::store_general_config_enabled(bool config_enabled)
     _general.config_enabled = config_enabled;
     _dirty = true;
 }
+
+// Saves alternative config boot disk filename
+void fnConfig::store_config_filename(const std::string &filename)
+{
+    if (_general.config_filename == filename)
+        return;
+
+    _general.config_filename = filename;
+    _dirty = true;
+}
+
 void fnConfig::store_general_status_wait_enabled(bool status_wait_enabled)
 {
     if (_general.status_wait_enabled == status_wait_enabled)
@@ -70,7 +81,7 @@ void fnConfig::store_general_encrypt_passphrase(bool encrypt_passphrase)
     }
 
     _dirty = true;
-    
+
 }
 
 bool fnConfig::get_general_encrypt_passphrase()
@@ -82,7 +93,7 @@ void fnConfig::store_general_boot_mode(uint8_t boot_mode)
 {
     if (_general.boot_mode == boot_mode)
         return;
-    
+
     _general.boot_mode = boot_mode;
     _dirty = true;
 }
@@ -190,6 +201,10 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "configenabled") == 0)
             {
                 _general.config_enabled = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "altconfigfile") == 0)
+            {
+                _general.config_filename = value;
             }
             else if (strcasecmp(name.c_str(), "boot_mode") == 0)
             {

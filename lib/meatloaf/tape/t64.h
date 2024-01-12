@@ -47,9 +47,9 @@ protected:
     }
 
     bool seekEntry( std::string filename ) override;
-    bool seekEntry( size_t index ) override;
+    bool seekEntry( uint16_t index ) override;
 
-    size_t readFile(uint8_t* buf, size_t size) override;
+    uint16_t readFile(uint8_t* buf, uint16_t size) override;
     bool seekPath(std::string path) override;
 
     Header header;
@@ -71,20 +71,14 @@ public:
         isDir = is_dir;
 
         media_image = name;
-        mstr::toASCII(media_image);
+        isPETSCII = true;
     };
     
     ~T64File() {
         // don't close the stream here! It will be used by shared ptr D64Util to keep reading image params
     }
 
-    MStream* createIStream(std::shared_ptr<MStream> containerIstream) override;
-
-    std::string petsciiName() override {
-        // It's already in PETSCII
-        mstr::replaceAll(name, "\\", "/");
-        return name;
-    }
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
 
     bool isDirectory() override;
     bool rewindDirectory() override;
@@ -93,7 +87,7 @@ public:
 
     bool exists() override { return true; };
     bool remove() override { return false; };
-    bool rename(std::string dest) { return false; };
+    bool rename(std::string dest) override { return false; };
     time_t getLastWrite() override { return 0; };
     time_t getCreationTime() override { return 0; };
     uint32_t size() override;
@@ -115,7 +109,7 @@ public:
         return new T64File(path);
     }
 
-    bool handles(std::string fileName) {
+    bool handles(std::string fileName) override {
         return byExtension(".t64", fileName);
     }
 

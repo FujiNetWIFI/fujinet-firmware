@@ -475,6 +475,22 @@ void fnHttpServiceConfigurator::config_cpm_ccp(std::string cpm_ccp)
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_alt_filename(std::string alt_cfg)
+{
+    // Use $ as a flag to reset to default since empty field never gets to here
+    if ( !strcmp(alt_cfg.c_str(), "$") )
+    {
+        Debug_printf("Set CONFIG boot disk to DEFAULT\n");
+        Config.store_config_filename("");
+    }
+    else
+    {
+        Debug_printf("Set Alternate CONFIG boot disk: %s\n", alt_cfg.c_str());
+        Config.store_config_filename(alt_cfg.c_str());
+    }
+    Config.save();
+}
+
 #ifndef ESP_PLATFORM
 void fnHttpServiceConfigurator::config_serial(std::string port, std::string command, std::string proceed)
 {
@@ -668,6 +684,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("cpm_ccp") == 0)
         {
             config_cpm_ccp(i->second);
+        }
+        else if (i->first.compare("alt_cfg") == 0)
+        {
+            config_alt_filename(i->second);
         }
 #ifndef ESP_PLATFORM
         else if (i->first.compare("serial_port") == 0)

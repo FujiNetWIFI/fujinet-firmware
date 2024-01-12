@@ -1,6 +1,7 @@
 
 #include "d64.h"
 
+#include "endianness.h"
 
 // D64 Utility Functions
 
@@ -41,9 +42,9 @@ bool D64IStream::seekSector( uint8_t track, uint8_t sector, uint8_t offset )
     //Debug_printv("track[%d] sector[%d] offset[%d]", track, sector, offset);
 
     // Is this a valid track?
-    auto c = partitions[partition].block_allocation_map.size() - 1;
-    auto start_track = partitions[partition].block_allocation_map[0].start_track;
-    auto end_track = partitions[partition].block_allocation_map[c].end_track;
+    uint8_t c = partitions[partition].block_allocation_map.size() - 1;
+    uint8_t start_track = partitions[partition].block_allocation_map[0].start_track;
+    uint8_t end_track = partitions[partition].block_allocation_map[c].end_track;
     if ( track < start_track || track > end_track )
     {
         Debug_printv("track[%d] start_track[%d] end_track[%d]", track, start_track, end_track);
@@ -105,8 +106,8 @@ bool D64IStream::deallocateBlock( uint8_t track, uint8_t sector)
 bool D64IStream::seekEntry( std::string filename )
 {
     uint32_t index = 1;
-    mstr::rtrimA0(filename);
     mstr::replaceAll(filename, "\\", "/");
+    bool wildcard =  ( mstr::contains(filename, "*") || mstr::contains(filename, "?") );
 
     // Read Directory Entries
     if ( filename.size() )
@@ -115,30 +116,35 @@ bool D64IStream::seekEntry( std::string filename )
         {
             std::string entryFilename = entry.filename;
             mstr::rtrimA0(entryFilename);
-            mstr::replaceAll(filename, "\\", "/");
-            mstr::toASCII(entryFilename);
+            entryFilename = mstr::toUTF8(entryFilename);
+
             Debug_printv("index[%d] track[%d] sector[%d] filename[%s] entry.filename[%.16s]", index, track, sector, filename.c_str(), entryFilename.c_str());
 
             //Debug_printv("filename[%s] entry[%s]", filename.c_str(), entryFilename.c_str());
 
             // Read Entry From Stream
-            if (entry.file_type & 0b00000111 && filename == "*")
+            if (entry.file_type & 0b00000111 && filename == "*") // Match first PRG
             {
                 filename = entryFilename;
                 return true;
             }
-            else if ( filename == entryFilename )
+            else if ( filename == entryFilename ) // Match exact
             {
                 return true;
             }
-            else if ( mstr::compare(filename, entryFilename) )
+            else if ( wildcard )
             {
-                // Move stream pointer to start track/sector
-                return true;
+                if ( mstr::compare(filename, entryFilename) ) // X?XX?X* Wildcard match
+                {
+                    // Move stream pointer to start track/sector
+                    return true;
+                }
             }
 
             index++;
         }
+
+        Debug_printv("File not found!");
     }
 
     entry.next_track = 0;
@@ -149,15 +155,13 @@ bool D64IStream::seekEntry( std::string filename )
     return false;
 }
 
-bool D64IStream::seekEntry( uint32_t index )
+bool D64IStream::seekEntry( uint16_t index )
 {
-    bool r = false;
-
     // Calculate Sector offset & Entry offset
     // 8 Entries Per Sector, 32 bytes Per Entry
     index--;
-    uint8_t sectorOffset = index / 8;
-    uint8_t entryOffset = (index % 8) * 32;
+    uint16_t sectorOffset = index / 8;
+    uint16_t entryOffset = (index % 8) * 32;
 
     // Debug_printv("----------");
     // Debug_printv("index[%d] sectorOffset[%d] entryOffset[%d] entry_index[%d]", index, sectorOffset, entryOffset, entry_index);
@@ -167,28 +171,31 @@ bool D64IStream::seekEntry( uint32_t index )
     {
         // Start at first sector of directory
         next_track = 0;
-        r = seekSector( 
-            partitions[partition].directory_track,
-            partitions[partition].directory_sector,
-            partitions[partition].directory_offset
-        );
+        if ( !seekSector( 
+                partitions[partition].directory_track,
+                partitions[partition].directory_sector,
+                partitions[partition].directory_offset
+            )
+        ) return false;
 
         // Find sector with requested entry
         do
         {
             if ( next_track )
             {
-                // Debug_printv("next_track[%d] next_sector[%d]", entry.next_track, entry.next_sector);
-                r = seekSector( entry.next_track, entry.next_sector );
+                Debug_printv("next_track[%d] next_sector[%d]", entry.next_track, entry.next_sector);
+                if ( !seekSector( entry.next_track, entry.next_sector ) )
+                    return false;
             }
 
             containerStream->read((uint8_t *)&entry, sizeof(entry));
             next_track = entry.next_track;
             next_sector = entry.next_sector;
 
-            // Debug_printv("sectorOffset[%d] -> track[%d] sector[%d]", sectorOffset, track, sector);
+            Debug_printv("sectorOffset[%d] -> track[%d] sector[%d]", sectorOffset, track, sector);
         } while ( sectorOffset-- > 0 );
-        r = seekSector( track, sector, entryOffset );
+        if ( !seekSector( track, sector, entryOffset ) )
+            return false;
     }
     else
     {
@@ -197,8 +204,9 @@ bool D64IStream::seekEntry( uint32_t index )
             if ( next_track == 0 )
                 return false;
 
-            // Debug_printv("Follow link track[%d] sector[%d] entryOffset[%d]", next_track, next_sector, entryOffset);
-            r = seekSector( next_track, next_sector, entryOffset );
+            //Debug_printv("Follow link track[%d] sector[%d] entryOffset[%d]", next_track, next_sector, entryOffset);
+            if ( !seekSector( next_track, next_sector, entryOffset ) )
+                return false;
         }
     }
 
@@ -226,14 +234,16 @@ uint16_t D64IStream::blocksFree()
 
     for(uint8_t x = 0; x < partitions[partition].block_allocation_map.size(); x++)
     {
-        uint8_t bam[partitions[partition].block_allocation_map[x].byte_count] = { 0 };
+        uint8_t bam[partitions[partition].block_allocation_map[x].byte_count];
         //Debug_printv("start_track[%d] end_track[%d]", block_allocation_map[x].start_track, block_allocation_map[x].end_track);
 
-        seekSector(
-            partitions[partition].block_allocation_map[x].track, 
-            partitions[partition].block_allocation_map[x].sector, 
-            partitions[partition].block_allocation_map[x].offset
-        );
+        if ( !seekSector(
+                partitions[partition].block_allocation_map[x].track, 
+                partitions[partition].block_allocation_map[x].sector, 
+                partitions[partition].block_allocation_map[x].offset
+            )
+        ) return 0;
+
         for(uint8_t i = partitions[partition].block_allocation_map[x].start_track; i <= partitions[partition].block_allocation_map[x].end_track; i++)
         {
             containerStream->read((uint8_t *)&bam, sizeof(bam));
@@ -262,8 +272,7 @@ uint16_t D64IStream::blocksFree()
     return free_count;
 }
 
-size_t D64IStream::readFile(uint8_t* buf, size_t size) {
-    size_t bytesRead = 0;
+uint16_t D64IStream::readFile(uint8_t* buf, uint16_t size) {
 
     if ( sector_offset % block_size == 0 )
     {
@@ -275,16 +284,25 @@ size_t D64IStream::readFile(uint8_t* buf, size_t size) {
         //Debug_printv("next_track[%d] next_sector[%d] sector_offset[%d]", next_track, next_sector, sector_offset);
     }
 
-    bytesRead += containerStream->read(buf, size);
-    sector_offset += bytesRead;
-    m_bytesAvailable -= bytesRead;
-
-    if ( sector_offset % block_size == 0 )
+    uint16_t bytesRead = 0;
+    if ( size > available() )
+        size = available();
+    
+    if ( size > 0 )
     {
-        // We are at the end of the block
-        // Follow track/sector link to move to next block
-        seekSector( next_track, next_sector );
-        //Debug_printv("track[%d] sector[%d] sector_offset[%d]", track, sector, sector_offset);
+        bytesRead += containerStream->read(buf, size);
+        sector_offset += bytesRead;
+
+        if ( sector_offset % block_size == 0 )
+        {
+            // We are at the end of the block
+            // Follow track/sector link to move to next block
+            if ( !seekSector( next_track, next_sector ) )
+            {
+                return 0;
+            }
+            //Debug_printv("track[%d] sector[%d] sector_offset[%d]", track, sector, sector_offset);
+        }
     }
 
     // if ( !bytesRead )
@@ -312,7 +330,7 @@ bool D64IStream::seekPath(std::string path) {
     // return D64Image.seekFile(containerIStream, path);
     if ( mstr::endsWith(path,"#") ) // Direct Access Mode
     {
-        Debug_printv("Direct Access Mode track[0] sector[0] path[%s]", path.c_str());
+        Debug_printv("Direct Access Mode track[1] sector[0] path[%s]", path.c_str());
         seekCalled = false;
         return seekSector(1, 0);
     }
@@ -325,13 +343,12 @@ bool D64IStream::seekPath(std::string path) {
         // Calculate file size
         uint8_t t = entry.start_track;
         uint8_t s = entry.start_sector;
-        m_length = seekFileSize( t, s );
-        m_bytesAvailable = m_length;
+        _size = seekFileSize( t, s );
 
         // Set position to beginning of file
         bool r = seekSector( t, s );
 
-        Debug_printv("File Size: blocks[%d] size[%d] available[%d] r[%d]", entry.blocks, m_length, m_bytesAvailable, r);
+        Debug_printv("File Size: blocks[%d] size[%d] available[%d] r[%d]", entry.blocks, _size, available(), r);
 
         return r;
     }
@@ -348,7 +365,7 @@ bool D64IStream::seekPath(std::string path) {
  * File implementations
  ********************************************************/
 
-MStream* D64File::createIStream(std::shared_ptr<MStream> containerIstream) {
+MStream* D64File::getDecodedStream(std::shared_ptr<MStream> containerIstream) {
     // Debug_printv("[%s]", url.c_str());
 
     return new D64IStream(containerIstream);
@@ -382,7 +399,7 @@ bool D64File::rewindDirectory() {
     media_blocks_free = image->blocksFree();
     media_block_size = image->block_size;
     media_image = name;
-    mstr::toASCII(media_image);
+    //mstr::toUTF8(media_image);
 
     return true;
 }
@@ -404,7 +421,7 @@ MFile* D64File::getNextFileInDir() {
     if ( r )
     {
         std::string fileName = image->entry.filename;
-        mstr::rtrimA0(fileName);
+        //mstr::rtrimA0(fileName);
         mstr::replaceAll(fileName, "/", "\\");
         //Debug_printv( "entry[%s]", (streamFile->url + "/" + fileName).c_str() );
         auto file = MFSOwner::File(streamFile->url + "/" + fileName);
@@ -424,22 +441,22 @@ time_t D64File::getLastWrite() {
 }
 
 time_t D64File::getCreationTime() {
-    tm entry_time;
+    tm *entry_time = 0;
     auto entry = ImageBroker::obtain<D64IStream>(streamFile->url)->entry;
-    entry_time.tm_year = entry.year + 1900;
-    entry_time.tm_mon = entry.month;
-    entry_time.tm_mday = entry.day;
-    entry_time.tm_hour = entry.hour;
-    entry_time.tm_min = entry.minute;
+    entry_time->tm_year = entry.year + 1900;
+    entry_time->tm_mon = entry.month;
+    entry_time->tm_mday = entry.day;
+    entry_time->tm_hour = entry.hour;
+    entry_time->tm_min = entry.minute;
 
-    return mktime(&entry_time);
+    return mktime(entry_time);
 }
 
 bool D64File::exists() {
     // here I'd rather use D64 logic to see if such file name exists in the image!
     //Debug_printv("here");
     return true;
-} 
+}
 
 uint32_t D64File::size() {
     //Debug_printv("[%s]", streamFile->url.c_str());
