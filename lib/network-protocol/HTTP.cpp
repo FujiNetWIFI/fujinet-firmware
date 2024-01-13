@@ -553,8 +553,8 @@ bool NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned sh
 
     client->set_header(incomingHeader.substr(0, pos).c_str(), incomingHeader.substr(pos + 2).c_str());
 #else // TODO merge
-    string key(incomingHeader.substr(0, pos));
-    string val(incomingHeader.substr(pos + 2));
+    std::string key(incomingHeader.substr(0, pos));
+    std::string val(incomingHeader.substr(pos + 2));
     util_string_trim(key);
     util_string_trim(val);
 
