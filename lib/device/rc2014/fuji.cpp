@@ -996,7 +996,7 @@ void rc2014Fuji::rc2014_base64_encode_compute()
     rc2014_send_ack();
 
     base64.base64_buffer.clear();
-    base64.base64_buffer = string(p.get(), out_len);
+    base64.base64_buffer = std::string(p.get(), out_len);
 
     Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
     rc2014_send_complete();
@@ -1073,7 +1073,7 @@ void rc2014Fuji::rc2014_base64_decode_input()
 
     rc2014_recv_buffer((uint8_t *)p.data(), len);
     rc2014_send_ack();
-    base64.base64_buffer += string((const char *)p.data(), len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
     rc2014_send_complete();
 }
 
@@ -1094,7 +1094,7 @@ void rc2014Fuji::rc2014_base64_decode_compute()
     rc2014_send_ack();
 
     base64.base64_buffer.clear();
-    base64.base64_buffer = string((const char *)p.get(), out_len);
+    base64.base64_buffer = std::string((const char *)p.get(), out_len);
 
     Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
     rc2014_send_complete();
@@ -1171,7 +1171,7 @@ void rc2014Fuji::rc2014_hash_input()
     rc2014_send_ack();
     rc2014_recv_buffer((uint8_t *)p.data(), len);
     rc2014_send_ack();
-    base64.base64_buffer += string((const char *)p.data(), len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
 
     rc2014_send_complete();
 }
