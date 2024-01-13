@@ -64,7 +64,7 @@ bool FileSystemFTP::start(const char *url, const char *user, const char *passwor
         return false;
     }
 
-    _url = EdUrlParser::parseUrl(url);
+    _url = PeoplesUrlParser::parseURL(url);
     if (!isValidURL(_url))
     {
         Debug_printf("FileSystemFTP::start() - failed to parse URL \"%s\"\n", url);
@@ -74,24 +74,24 @@ bool FileSystemFTP::start(const char *url, const char *user, const char *passwor
     res = _ftp->login(
         user == nullptr ? "anonymous" : user,
         password == nullptr ? "fujinet@fujinet.online" : password,
-        _url->hostName,
+        _url->host,
         _url->port.empty() ? 21 : atoi(_url->port.c_str())
     );
 
 	if (res)
     {
-        Debug_printf("FileSystemFTP::start() - FTP login failed: %s\n", _url->hostName.c_str());
+        Debug_printf("FileSystemFTP::start() - FTP login failed: %s\n", _url->host.c_str());
         return false;
 	}
 
-    Debug_printf("FTP logged in: %s\n", _url->hostName.c_str());
+    Debug_printf("FTP logged in: %s\n", _url->host.c_str());
 
     _started = true;
 
     return true;
 }
 
-bool FileSystemFTP::isValidURL(EdUrlParser *url)
+bool FileSystemFTP::isValidURL(PeoplesUrlParser *url)
 {
     return url->path.empty();
 }

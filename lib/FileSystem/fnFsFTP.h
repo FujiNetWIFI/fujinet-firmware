@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <cstddef>
 
-#include "EdUrlParser.h"
+#include "peoples_url_parser.h"
 #include "fnFTP.h"
 #include "fnFS.h"
 #include "fnDirCache.h"
@@ -14,7 +14,7 @@ class FileSystemFTP : public FileSystem
 {
 private:
     // parsed FTP URL
-    EdUrlParser *_url;
+    PeoplesUrlParser *_url;
 
     // fnFTP instance
     fnFTP *_ftp;
@@ -55,7 +55,7 @@ public:
     FileHandler *cache_file(const char *path);
 
 protected:
-    bool isValidURL(EdUrlParser *url);
+    bool isValidURL(PeoplesUrlParser *url);
 };
 
 #endif // FN_FSFTP_H
