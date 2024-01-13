@@ -157,6 +157,7 @@ set(SOURCES src/main.cpp
     lib/network-protocol/HTTP.h lib/network-protocol/HTTP.cpp
     lib/network-protocol/SMB.h lib/network-protocol/SMB.cpp
     lib/network-protocol/SSH.h lib/network-protocol/SSH.cpp
+    lib/network-protocol/SD.h lib/network-protocol/SD.cpp
     lib/fuji/fujiCmd.h
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
