@@ -20,7 +20,7 @@ else()
     # To build, e.g. for ATARI target
     #   cd build
     #   cmake .. -DFUJINET_TARGET=ATARI -DCMAKE_BUILD_TYPE=Debug
-    #   make all && make dist
+    #   cmake --build . --target=dist
     # To run
     #   (cd dist && ./run-fujinet)
 
@@ -28,7 +28,7 @@ else()
     #   cd build
     #   export FUJINET_TARGET=ATARI
     #   cmake -S .. -B $FUJINET_TARGET -DCMAKE_BUILD_TYPE=Debug
-    #   make -C $FUJINET_TARGET -j4 dist
+    #   cmake --build $FUJINET_TARGET --target=dist
     # To run
     #   (cd $FUJINET_TARGET/dist && ./run-fujinet)
 

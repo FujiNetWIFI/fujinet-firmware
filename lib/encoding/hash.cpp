@@ -1,5 +1,6 @@
 #include <memory>
-#include <string.h>
+#include <string>
+#include <cstring>
 
 #include "hash.h"
 
