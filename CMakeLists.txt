@@ -7,6 +7,9 @@ endif()
 
 if (NOT FUJINET_TARGET)
     #### FujiNet ESP ####
+    # NOTE: YOU ARE NOT EXPECTED TO CALL THIS FOR ESP TARGET DIRECTLY FROM cmake,
+    # USE pio AS NORMAL (e.g. via "build.sh -b") WHICH WILL CALL THIS ITSELF
+    # WITH CORRECT ENVIRONMENT
 
     message(STATUS "Running CMake to build FujiNet for ESP")
     cmake_minimum_required(VERSION 3.16.0)

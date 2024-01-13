@@ -2,12 +2,12 @@
 Import("env")
 
 try:
-    import Jinja2
+    import jinja2
 except ImportError:
     env.Execute("$PYTHONEXE -m pip install Jinja2")
 
 try:
-    import pyyaml
+    import yaml
 except ImportError:
     env.Execute("$PYTHONEXE -m pip install pyyaml")
 
