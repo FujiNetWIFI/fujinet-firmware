@@ -36,3 +36,5 @@ firmware/*
 
 # Build artifacts
 CMakeSettings.json
+
+.cache/
