@@ -163,11 +163,11 @@ public:
 
     lynxFuji();
 
-    string copySpec;
+    std::string copySpec;
     unsigned char sourceSlot;
     unsigned char destSlot;
-    string sourcePath;
-    string destPath;
+    std::string sourcePath;
+    std::string destPath;
     FILE *sourceFile;
     FILE *destFile;
     char *dataBuf;

@@ -173,7 +173,7 @@ private:
     telnet_t *telnet;               // telnet FSM state.
     bool use_telnet=false;          // Use telnet mode?
     bool do_echo;                   // telnet echo toggle.
-    string term_type;               // telnet terminal type.
+    std::string term_type;               // telnet terminal type.
     long answerTimer;
     bool answered=false;
 
@@ -233,8 +233,8 @@ public:
     fnTcpClient get_tcp_client() { return tcpClient; } // Return TCP client.
     bool get_do_echo() { return do_echo; }
     void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
-    string get_term_type() {return term_type; }
-    void set_term_type(string _term_type) { term_type = _term_type; }
+    std::string get_term_type() {return term_type; }
+    void set_term_type(std::string _term_type) { term_type = _term_type; }
 
 };
 

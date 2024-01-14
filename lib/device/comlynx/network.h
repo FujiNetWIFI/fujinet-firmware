@@ -304,7 +304,7 @@ private:
     /**
      * Create the deviceSpec and fix it for parsing
      */
-    void create_devicespec(string d);
+    void create_devicespec(std::string d);
 
     /**
      * Create a urlParser from deviceSpec

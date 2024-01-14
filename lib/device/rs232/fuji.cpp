@@ -154,7 +154,7 @@ void rs232Fuji::rs232_net_get_ssid()
     memset(&cfg, 0, sizeof(cfg));
 
     /*
-     We memcpy instead of strcpy because technically the SSID and phasephras aren't strings and aren't null terminated,
+     We memcpy instead of strcpy because technically the SSID and phasephras aren't std::strings and aren't null terminated,
      they're arrays of bytes officially and can contain any byte value - including a zero - at any point in the array.
      However, we're not consistent about how we treat this in the different parts of the code.
     */
@@ -313,9 +313,9 @@ void rs232Fuji::rs232_set_boot_config()
 void rs232Fuji::rs232_copy_file()
 {
     uint8_t csBuf[256];
-    string copySpec;
-    string sourcePath;
-    string destPath;
+    std::string copySpec;
+    std::string sourcePath;
+    std::string destPath;
     uint8_t ck;
     FILE *sourceFile;
     FILE *destFile;
@@ -342,12 +342,12 @@ void rs232Fuji::rs232_copy_file()
         return;
     }
 
-    copySpec = string((char *)csBuf);
+    copySpec = std::string((char *)csBuf);
 
     Debug_printf("copySpec: %s\n", copySpec.c_str());
 
     // Check for malformed copyspec.
-    if (copySpec.empty() || copySpec.find_first_of("|") == string::npos)
+    if (copySpec.empty() || copySpec.find_first_of("|") == std::string::npos)
     {
         rs232_error();
         free(dataBuf);
@@ -381,7 +381,7 @@ void rs232Fuji::rs232_copy_file()
     if (destPath.back() == '/')
     {
         Debug_printf("append source file\n");
-        string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
+        std::string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
         destPath += sourceFilename;
     }
 
