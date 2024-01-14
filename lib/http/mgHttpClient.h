@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <cstdint>
 
 // http timeout in ms
 #define HTTP_TIMEOUT 7000
