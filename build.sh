@@ -11,6 +11,7 @@
 #   ./build.sh -ux          # upload image, no spam in build
 #   ./build.sh -fx          # upload file system, no spam in build
 
+BUILD_ALL=0
 RUN_BUILD=0
 ENV_NAME=""
 DO_CLEAN=0
@@ -24,26 +25,37 @@ UPLOAD_FS=0
 DEV_MODE=0
 ZIP_MODE=0
 AUTOCLEAN=1
+INI_FILE="platformio.ini"
 
 # This beast finds the directory the build.sh script is in, no matter where it's run from
 # which should be the root of the project
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 function show_help {
-  echo "Usage: $(basename $0) [-b|-e ENV|-c|-m|-t TARGET|-z|-p TARGET|-g|-h]"
+  echo "Usage: $(basename $0) [-a|-b|-c|-d|-e ENV|-f|-g|-i FILE|-m|-n|-t TARGET|-p TARGET|-u|-z|-h]"
+  echo " Most common options:"
+  echo "   -c       # run clean before build (applies to PC build too)"
   echo "   -b       # run build"
-  echo "   -c       # run clean before build"
+  echo "   -m       # run monitor after build"
+  echo "   -u       # upload image (device code)"
+  echo "   -f       # upload filesystem (webUI etc)"
+  echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI)"
+  echo ""
+  echo "Advanced options:"
+  echo "   -a       # build ALL target platforms and exit. useful to test code against everything"
   echo "   -d       # add dev flag to build"
   echo "   -e ENV   # use specific environment"
-  echo "   -f       # upload filesystem (webUI etc)"
   echo "   -g       # do NOT use debug for PC build, i.e. default is debug build"
-  echo "   -m       # run monitor after build"
+  echo "   -i FILE  # use FILE as INI instead of platformio.ini -  used during build-all"
   echo "   -n       # do not autoclean"
   echo "   -t TGT   # run target task (default of none means do build, but -b must be specified"
-  echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI)"
-  echo "   -u       # upload image (device code)"
   echo "   -z       # build flashable zip"
   echo "   -h       # this help"
+  echo ""
+  echo "Simple builds:"
+  echo "    ./build.sh -cb        # for CLEAN + BUILD of current target in platformio.ini"
+  echo "    ./build.sh -m         # View FujiNet Monitor"
+  echo "    ./build.sh -cbum      # Clean/Build/Upload to FN/Monitor"
   exit 1
 }
 
@@ -51,15 +63,17 @@ if [ $# -eq 0 ] ; then
   show_help
 fi
 
-while getopts ":bcde:fmnp:t:uxzh" flag
+while getopts "abcde:fghi:mnp:t:uz" flag
 do
   case "$flag" in
+    a) BUILD_ALL=1 ;;
     b) RUN_BUILD=1 ;;
     c) DO_CLEAN=1 ;;
     d) DEV_MODE=1 ;;
     e) ENV_NAME=${OPTARG} ;;
     f) UPLOAD_FS=1 ;;
     g) DEBUG_PC_BUILD=0 ;;
+    i) INI_FILE=${OPTARG} ;;
     m) SHOW_MONITOR=1 ;;
     n) AUTOCLEAN=0 ;;
     p) PC_TARGET=${OPTARG} ;;
@@ -135,6 +149,13 @@ if [ ! -z "$PC_TARGET" ] ; then
   exit 0
 fi
 
+##############################################################
+# BUILD ALL platforms
+if [ $BUILD_ALL -eq 1 ] ; then
+  chmod 755 $SCRIPT_DIR/build-platforms/build-all.sh
+  $SCRIPT_DIR/build-platforms/build-all.sh
+  exit $?
+fi
 
 ##############################################################
 # NORMAL BUILD MODES USING pio
@@ -164,15 +185,15 @@ if [ ${AUTOCLEAN} -eq 0 ] ; then
 fi
 
 if [ ${RUN_BUILD} -eq 1 ] ; then
-  pio run ${DEV_MODE_ARG} $ENV_ARG $TARGET_ARG $AUTOCLEAN_ARG 2>&1
+  pio run -c $INI_FILE ${DEV_MODE_ARG} $ENV_ARG $TARGET_ARG $AUTOCLEAN_ARG 2>&1
 fi
 
 if [ ${UPLOAD_FS} -eq 1 ]; then
-  pio run ${DEV_MODE_ARG} -t uploadfs 2>&1
+  pio run -c $INI_FILE ${DEV_MODE_ARG} -t uploadfs 2>&1
 fi
 
 if [ ${UPLOAD_IMAGE} -eq 1 ]; then
-  pio run ${DEV_MODE_ARG} -t upload 2>&1
+  pio run -c $INI_FILE ${DEV_MODE_ARG} -t upload 2>&1
 fi
 
 if [ ${SHOW_MONITOR} -eq 1 ]; then
