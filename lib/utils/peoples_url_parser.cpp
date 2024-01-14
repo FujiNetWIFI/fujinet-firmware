@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <cstdint>
 
 #include "../../include/debug.h"
 

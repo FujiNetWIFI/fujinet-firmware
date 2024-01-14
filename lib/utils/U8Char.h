@@ -3,6 +3,7 @@
 
 #include <string>
 #include <iostream>
+#include <cstdint>
 
 /********************************************************
  * U8Char
