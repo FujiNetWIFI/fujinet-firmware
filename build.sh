@@ -99,9 +99,11 @@ if [ ! -z "$PC_TARGET" ] ; then
     echo "ERROR: Could not find build dir to run cmake in"
     exit 1
   fi
-  echo "Removing old build artifacts"
-  rm -rf $SCRIPT_DIR/build/*
-  rm $SCRIPT_DIR/build/.ninja* 2>/dev/null
+  if [ $DO_CLEAN -eq 1 ] ; then
+    echo "Removing old build artifacts"
+    rm -rf $SCRIPT_DIR/build/*
+    rm $SCRIPT_DIR/build/.ninja* 2>/dev/null
+  fi
   cd $SCRIPT_DIR/build
   if [ $DEBUG_PC_BUILD -eq 1 ] ; then
     cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Debug
