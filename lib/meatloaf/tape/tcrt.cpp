@@ -5,6 +5,58 @@
  * Streams
  ********************************************************/
 
+// Translate TCRT file type to standard CBM file type
+std::string TCRTIStream::decodeType(uint8_t file_type, bool show_hidden)
+{
+    std::string type = "PRG";
+
+    // Type
+    // 0x00 - 0x3f: An program which can be loaded into the C64 and executed.
+    // The load address from the FS is used (not stored in the file!). The load address + size must fit into the C64.
+    // 0x00: general program
+    // 0x01: game
+    // 0x02: utility
+    // 0x03: multimedia
+    // 0x04: demo
+    // 0x05: image
+    // 0x06: tune
+    // 0x38-0x3f: private use area
+    // if ( file_type <= 0x3F )
+    //     return "PRG";
+
+    // 0x40 - 0x7f: A bundled file (see below) Same types as 0x00-0x3f (just for a bundle and not a prg)
+    // This mode is designed for games that need to load further files or store data like high scores or save games.
+    // It also cen be used for subdirectories.
+    if ( file_type >= 0x40 && file_type <= 0x7F )
+        type = "DIR";
+
+    // 0x80 - 0xef: Data files may not displayed by a browser.
+    // 0x80: general data
+    // 0x81: text file (lower PETSCII)
+    // 0x82: koala image
+    // 0x83: hires image
+    // 0x84: fli image (multicolor)
+    if ( file_type == 0x81 )
+        type = "SEQ";
+    // else if ( file_type >= 0x80 && file_type <= 0xEF )
+    //     return "PRG";
+
+    // 0xf0: separator - this name should be displayed just as a separator. size must be 0, all other info data (start, load address) is undefined
+    // if ( file_type == 0xF0 )
+    //     return "PRG";
+
+    // 0xfe: System file! This file is (part of) the program that launches at power up.
+    // No other program should ever rename/delete this file or relocate the blocks. 
+    // (The entry within the FS however can be moved around. This may cover the FS itself, but it's not required.)
+    if ( file_type == 0xFE )
+       type = "DEL";
+
+    // 0xff: Marker for the first free entry.
+
+    // All types not mentioned above are reserved.
+    return type;
+}
+
 bool TCRTIStream::seekEntry( std::string filename )
 {
     size_t index = 1;
@@ -16,27 +68,29 @@ bool TCRTIStream::seekEntry( std::string filename )
     {
         while ( seekEntry( index ) )
         {
-            std::string entryFilename = entry.filename;
-            mstr::rtrimA0(entryFilename);
+            std::string entryFilename = mstr::format("%.16s", entry.filename);
+            mstr::replaceAll(entryFilename, "/", "\\");
+            //mstr::trim(entryFilename);
             entryFilename = mstr::toUTF8(entryFilename);
 
-            Debug_printv("filename[%s] entry.filename[%.16s]", filename.c_str(), entryFilename.c_str());
+            //Debug_printv("index[%d] filename[%s] entry.filename[%s] entry.file_type[%d]", index, filename.c_str(), entryFilename.c_str(), entry.file_type);
 
-            // Read Entry From Stream
-            if (filename == "*") // Match first PRG
-            {
-                filename = entryFilename;
-                return true;
-            }
-            else if ( filename == entryFilename ) // Match exact
+            if ( filename == entryFilename ) // Match exact
             {
                 return true;
             }
-            else if ( wildcard )
+            else if ( wildcard ) // Wildcard Match
             {
-                if ( mstr::compare(filename, entryFilename) ) // X?XX?X* Wildcard match
+                if (filename == "*") // Match first PRG
                 {
-                    // Move stream pointer to start track/sector
+                    if (entry.file_type < 0xFE) // Skip system files
+                    {
+                        filename = entryFilename;
+                        return true;
+                    }
+                }
+                else if ( mstr::compare(filename, entryFilename) ) // X?XX?X* Wildcard match
+                {
                     return true;
                 }
             }
@@ -62,11 +116,11 @@ bool TCRTIStream::seekEntry( uint16_t index )
     containerStream->seek(entryOffset);
     containerStream->read((uint8_t *)&entry, sizeof(entry));
 
-    // uint32_t file_start_address = (0xD8 + (entry.file_start_address[0] << 8 | entry.file_start_address[1]));
-    // uint32_t file_size = (entry.file_size[0] | (entry.file_size[1] << 8) | (entry.file_size[2] << 16)) + 2; // 2 bytes for load address
-    // uint32_t file_load_address = entry.file_load_address[0] | entry.file_load_address[1] << 8;
+    //uint32_t file_start_address = (0xD8 + (entry.file_start_address[0] << 8 | entry.file_start_address[1] << 16));
+    //uint32_t file_size = (entry.file_size[0] | (entry.file_size[1] << 8) | (entry.file_size[2] << 16)) + 2; // 2 bytes for load address
+    //uint32_t file_load_address = entry.file_load_address[0] | entry.file_load_address[1] << 8;
 
-    // Debug_printv("file_name[%.16s] file_type[%02X] data_offset[%X] file_size[%d] load_address[%04X]", entry.filename, entry.file_type, file_start_address, file_size, file_load_address);
+    //Debug_printv("file_name[%.16s] file_type[%02X] data_offset[%X] file_size[%d] load_address[%04X]", entry.filename, entry.file_type, file_start_address, file_size, file_load_address);
 
     entry_index = index + 1;    
     if ( entry.file_type == 0xFF )
@@ -80,10 +134,10 @@ uint16_t TCRTIStream::readFile(uint8_t* buf, uint16_t size) {
 
     if ( _position < 2)
     {
-        Debug_printv("send load address[%4X]", m_load_address);
+        //Debug_printv("send load address[%4X]", _load_address);
 
-        buf[0] = m_load_address[_position];
-        bytesRead++;
+        buf[0] = _load_address[_position];
+        bytesRead = size;
         // if ( size > 1 )
         // {
         //     buf[0] = m_load_address[0];
@@ -95,8 +149,6 @@ uint16_t TCRTIStream::readFile(uint8_t* buf, uint16_t size) {
     {
         bytesRead += containerStream->read(buf, size);
     }
-
-    _position += bytesRead;
 
     return bytesRead;
 }
@@ -112,18 +164,19 @@ bool TCRTIStream::seekPath(std::string path) {
     if ( seekEntry(path) )
     {
         //auto entry = containerImage->entry;
-        auto type = decodeType(mapType(entry.file_type)).c_str();
-        Debug_printv("filename [%.16s] type[%s]", entry.filename, type);
+        //auto type = decodeType(entry.file_type).c_str();
+        //Debug_printv("filename [%.16s] type[%s]", entry.filename, type);
 
         // Calculate file size
         _size = (entry.file_size[0] | (entry.file_size[1] << 8) | (entry.file_size[2] << 16)) + 2; // 2 bytes for load address
 
         // Load Address
-        m_load_address[0] = entry.file_load_address[0];
-        m_load_address[1] = entry.file_load_address[1];
+        _load_address[0] = entry.file_load_address[0];
+        _load_address[1] = entry.file_load_address[1];
 
         // Set position to beginning of file
-        uint32_t file_start_address = (0xD8 + (entry.file_start_address[0] << 8 | entry.file_start_address[1]));
+        _position = 0;
+        uint32_t file_start_address = (0xD8 + (entry.file_start_address[0] << 8 | entry.file_start_address[1] << 16));
         containerStream->seek(file_start_address);
 
         Debug_printv("File Size: size[%d] available[%d]", _size, available());
@@ -194,7 +247,7 @@ MFile* TCRTFile::getNextFileInDir() {
     do
     {
         r = image->seekNextImageEntry();
-    } while ( r && image->mapType(image->entry.file_type) == 0x00); // Skip hidden files
+    } while ( r && image->entry.file_type >= 0xFE); // Skip SYSTEM files
     
     if ( r )
     {
@@ -202,7 +255,7 @@ MFile* TCRTFile::getNextFileInDir() {
         mstr::replaceAll(fileName, "/", "\\");
         //Debug_printv( "entry[%s]", (streamFile->url + "/" + fileName).c_str() );
         auto file = MFSOwner::File(streamFile->url + "/" + fileName);
-        file->extension = image->decodeType(image->mapType(image->entry.file_type));
+        file->extension = image->decodeType(image->entry.file_type);
         return file;
     }
     else

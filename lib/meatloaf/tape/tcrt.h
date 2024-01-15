@@ -8,18 +8,18 @@
 #define MEATLOAF_MEDIA_TCRT
 
 #include "meat_io.h"
-#include "cbm_media.h"
+#include "meat_media.h"
 
 
 /********************************************************
  * Streams
  ********************************************************/
 
-class TCRTIStream : public CBMImageStream {
+class TCRTIStream : public MImageStream {
     // override everything that requires overriding here
 
 public:
-    TCRTIStream(std::shared_ptr<MStream> is) : CBMImageStream(is) {};
+    TCRTIStream(std::shared_ptr<MStream> is) : MImageStream(is) {};
 
 protected:
     struct Header {
@@ -56,55 +56,7 @@ protected:
     Header header;
     Entry entry;
 
-    // Translate TCRT file type to standard CBM file type
-    uint8_t mapType(uint8_t file_type)
-    {
-        // Type
-        // 0x00 - 0x3f: An program which can be loaded into the C64 and executed.
-        // The load address from the FS is used (not stored in the file!). The load address + size must fit into the C64.
-        // 0x00: general program
-        // 0x01: game
-        // 0x02: utility
-        // 0x03: multimedia
-        // 0x04: demo
-        // 0x05: image
-        // 0x06: tune
-        // 0x38-0x3f: private use area
-        if ( file_type <= 0x3F )
-            return 0x82; // PRG
-
-        // 0x40 - 0x7f: A bundled file (see below) Same types as 0x00-0x3f (just for a bundle and not a prg)
-        // This mode is designed for games that need to load further files or store data like high scores or save games.
-        // It also cen be used for subdirectories.
-        if ( file_type >= 0x40 && file_type <= 0x7F )
-            return 0x86; // DIR
-
-        // 0x80 - 0xef: Data files may not displayed by a browser.
-        // 0x80: general data
-        // 0x81: text file (lower PETSCII)
-        // 0x82: koala image
-        // 0x83: hires image
-        // 0x84: fli image (multicolor)
-        if ( file_type == 0x81 )
-            return 0x81; // SEQ
-        else if ( file_type >= 0x80 && file_type <= 0xEF )
-            return 0x82; // PRG
-
-        // 0xf0: separator - this name should be displayed just as a separator. size must be 0, all other info data (start, load address) is undefined
-        if ( file_type == 0xF0 )
-            return 0x82; // PRG
-
-        // 0xfe: System file! This file is (part of) the program that launches at power up.
-        // No other program should ever rename/delete this file or relocate the blocks. 
-        // (The entry within the FS however can be moved around. This may cover the FS itself, but it's not required.)
-        //if ( file_type == 0xFE )
-        //    return 0x00; // DEL
-
-        // 0xff: Marker for the first free entry.
-
-        // All types not mentioned above are reserved.
-        return 0x00; // DEL
-    }
+    std::string decodeType(uint8_t file_type, bool show_hidden = false) override;
 
 private:
     friend class TCRTFile;

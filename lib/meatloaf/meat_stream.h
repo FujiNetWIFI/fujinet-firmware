@@ -38,8 +38,8 @@ class MStream
 protected:
     uint32_t _size = 0;
     uint32_t _position = 0;
-    uint8_t m_load_address[2] = {0, 0};
-    uint8_t m_error = 0;
+    uint8_t _load_address[2] = {0, 0};
+    uint8_t _error = 0;
 
 public:
     virtual ~MStream() {};
@@ -70,14 +70,7 @@ public:
     }
 
     virtual size_t error() {
-        return m_error;
-    }
-
-    virtual uint32_t blocks() {
-        if ( _size > 0 && _size < block_size )
-            return 1;
-        else
-            return ( _size / block_size );
+        return _error;
     }
 
     virtual bool eos()  {

@@ -43,11 +43,11 @@ public:
         };
         partitions.clear();
         partitions.push_back(p);
-        sectorsPerTrack = { 255 };
+        sectorsPerTrack = { 256 };
         has_subdirs = true;
     };
 
-	virtual uint8_t speedZone( uint8_t track) override { return 0; };
+	virtual uint8_t speedZone(uint8_t track) override { return 0; };
 
 protected:
 
@@ -64,7 +64,12 @@ class DNPFile: public D64File {
 public:
     DNPFile(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
 
-    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
+    {
+        Debug_printv("[%s]", url.c_str());
+
+        return new DNPIStream(containerIstream);
+    }
 };
 
 

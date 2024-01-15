@@ -56,7 +56,7 @@ public:
         sectorsPerTrack = { 23, 25, 27, 29 };
     };
 
-	virtual uint8_t speedZone( uint8_t track) override
+	virtual uint8_t speedZone(uint8_t track) override
 	{
         return (track < 40) + (track < 54) + (track < 65);
 	};
@@ -76,7 +76,12 @@ class D80File: public D64File {
 public:
     D80File(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
 
-    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
+    {
+        Debug_printv("[%s]", url.c_str());
+
+        return new D80IStream(containerIstream);
+    }
 };
 
 
