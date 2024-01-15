@@ -955,6 +955,7 @@ void drivewireFuji::get_adapter_config()
     fnWiFi.get_mac(cfg.macAddress);
 
     fnUartBUS.write((uint8_t *)&cfg, sizeof(cfg));
+    Debug_printf("Sizeof cfg: %u\n",sizeof(cfg));
 }
 
 //  Make new disk and shove into device slot
@@ -1305,6 +1306,12 @@ std::string drivewireFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
+void drivewireFuji::device_error()
+{
+    Debug_printf("FUJI DEVICE STATUS\n");
+    // fnUartBUS.write(0x2A);
+}
+
 void drivewireFuji::process()
 {
     uint8_t c = fnUartBUS.read();
@@ -1373,6 +1380,9 @@ void drivewireFuji::process()
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         disk_image_umount();
+        break;
+    case FUJICMD_DEVICE_ERROR:
+        device_error();
         break;
     default:
         break;
