@@ -323,6 +323,9 @@ void systemBus::_drivewire_process_cmd()
     case OP_FUJI:
         op_fuji();
         break;
+    case OP_NET:
+        op_net();
+        break;
     default:
         op_unhandled(c);
         break;

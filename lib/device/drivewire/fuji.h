@@ -115,6 +115,7 @@ protected:
     void set_boot_config();        // 0xD9
     void copy_file();              // 0xD8
     void set_boot_mode();          // 0xD6
+    void device_error();           // 0x00
 
     void shutdown() override;
 
