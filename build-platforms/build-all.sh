@@ -49,4 +49,3 @@ for piofile in $(ls -1 $SCRIPT_DIR/platformio-*.ini) ; do
     popd
 
 done
-
