@@ -214,6 +214,13 @@ void systemBus::op_fuji()
     theFuji.process();
 }
 
+void systemBus::op_net()
+{
+    // Get device ID
+    uint8_t device_id = (uint8_t)fnUartBUS.read();
+    
+}
+
 void systemBus::op_unhandled(uint8_t c)
 {
     Debug_printv("Unhandled opcode: %02x",c);
