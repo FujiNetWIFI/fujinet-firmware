@@ -212,6 +212,7 @@ private:
     void op_reset();
     void op_readex();
     void op_fuji();
+    void op_net();
     void op_write();
     void op_time();
     void op_init();
