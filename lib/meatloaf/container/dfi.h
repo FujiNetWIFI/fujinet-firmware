@@ -87,8 +87,10 @@
 // For some example sources please download the patched cbmconvert
 // sources "cbmconvert-2.1.2_dfi.tar.gz" from the retrohackers forum:
 // http://retrohackers.org/forum/viewtopic.php?p=434#434
+// https://github.com/dr-m/cbmconvert
+// https://www.cise.ufl.edu/ubuntu/pool/universe/c/cbmconvert/
 //
-
+// https://sourceforge.net/projects/rrtools/
 // https://cbm8bit.com/8bit/commodore/server/Unrenamed%20Achives/browse/c64/dfi
 
 
@@ -132,7 +134,7 @@ public:
         };
         partitions.clear();
         partitions.push_back(p);
-        sectorsPerTrack = { 255 };
+        sectorsPerTrack = { 256 };
 
         // // The header's size is 256 bytes, that's exactly one sector. The header is
         // // always the first sector in the image (track 1, sector 0).
@@ -158,9 +160,10 @@ public:
         // this.partitions[0].directory_track = this.partitions[0].track;
         partitions[0].directory_track = partitions[0].header_track;
         // this.partitions[0].directory_sector = this.partitions[0].sector + 1;
-        partitions[0].directory_sector = partitions[0].header_sector;
+        partitions[0].directory_sector = partitions[0].header_sector + 1;
     };
 
+	virtual uint8_t speedZone(uint8_t track) override { return 0; };
 
 protected:
 
@@ -177,7 +180,12 @@ class DFIFile: public D64File {
 public:
     DFIFile(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
 
-    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
+    {
+        Debug_printv("[%s]", url.c_str());
+
+        return new DFIIStream(containerIstream);
+    }
 };
 
 

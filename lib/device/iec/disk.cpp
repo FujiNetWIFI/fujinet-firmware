@@ -16,7 +16,7 @@
 #include "led.h"
 #include "utils.h"
 
-#include "cbm_media.h"
+#include "meat_media.h"
 
 // External ref to fuji object.
 extern iecFuji theFuji;
@@ -386,8 +386,29 @@ void iecDisk::iec_command()
         case 'M':
             if ( payload[1] == '-' ) // Memory
             {
-                Debug_printv( "memory");
-                //Memory();
+                if (payload[2] == 'R') // M-R memory read
+                {
+                    payload = mstr::drop(payload, 3);
+                    std::string code = mstr::toHex(payload);
+                    uint16_t address = (payload[0] | payload[1] << 8);
+                    uint8_t size = payload[2];
+                    Debug_printv("Memory Read [%s]", code.c_str());
+                    Debug_printv("address[%.4X] size[%d]", address, size);
+                }
+                else if (payload[2] == 'W') // M-W memory write
+                {
+                    payload = mstr::drop(payload, 3);
+                    std::string code = mstr::toHex(payload);
+                    uint16_t address = (payload[0] | payload[1] << 8);
+                    Debug_printv("Memory Write address[%.4X][%s]", address, code.c_str());
+                }
+                else if (payload[2] == 'E') // M-E memory write
+                {
+                    payload = mstr::drop(payload, 3);
+                    std::string code = mstr::toHex(payload);
+                    uint16_t address = (payload[0] | payload[1] << 8);
+                    Debug_printv("Memory Execute address[%.4X][%s]", address, code.c_str());
+                }
             }
         break;
         case 'N':
@@ -1075,11 +1096,11 @@ bool iecDisk::sendFile()
     }
 
     bool eoi = false;
-    uint32_t len = istream->size();
+    uint32_t size = istream->size();
     uint32_t avail = istream->available();
 
     //fnLedStrip.startRainbow(300);
-    Debug_printv("len[%d] avail[%d]", len, avail);
+    Debug_printv("size[%d] avail[%d]", size, avail);
 
     if( commanddata.channel == CHANNEL_LOAD )
     {
@@ -1136,7 +1157,7 @@ bool iecDisk::sendFile()
 
         b = nb; // byte = next byte
 
-        uint32_t t = (count * 100) / len;
+        uint32_t t = (count * 100) / size;
 #ifdef DATA_STREAM
         // Show ASCII Data
         if (b < 32 || b >= 127)
@@ -1173,7 +1194,7 @@ bool iecDisk::sendFile()
     }
 
 #ifdef DATA_STREAM
-      uint32_t t = (count * 100) / len;
+    uint32_t t = (count * 100) / size;
     ba[bi++] = 0;
       Debug_printf(" %s (%d %d%%) [%d]\r\n", ba, count, t, avail);
 #endif

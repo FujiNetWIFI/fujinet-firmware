@@ -6,17 +6,17 @@
 #define MEATLOAF_MEDIA_P00
 
 #include "meat_io.h"
-#include "cbm_media.h"
+#include "meat_media.h"
 
 /********************************************************
  * Streams
  ********************************************************/
 
-class P00IStream : public CBMImageStream {
+class P00IStream : public MImageStream {
     // override everything that requires overriding here
 
 public:
-    P00IStream(std::shared_ptr<MStream> is) : CBMImageStream(is) {
+    P00IStream(std::shared_ptr<MStream> is) : MImageStream(is) {
         entry_count = 1;
         seekNextEntry();
     };

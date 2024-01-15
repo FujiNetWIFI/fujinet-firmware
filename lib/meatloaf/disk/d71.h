@@ -91,7 +91,12 @@ class D71File: public D64File {
 public:
     D71File(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
 
-    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
+    {
+        Debug_printv("[%s]", url.c_str());
+
+        return new D71IStream(containerIstream);
+    }
 };
 
 

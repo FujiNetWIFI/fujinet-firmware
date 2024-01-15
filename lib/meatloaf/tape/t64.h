@@ -8,18 +8,18 @@
 #define MEATLOAF_MEDIA_T64
 
 #include "meat_io.h"
-#include "cbm_media.h"
+#include "meat_media.h"
 
 
 /********************************************************
  * Streams
  ********************************************************/
 
-class T64IStream : public CBMImageStream {
+class T64IStream : public MImageStream {
     // override everything that requires overriding here
 
 public:
-    T64IStream(std::shared_ptr<MStream> is) : CBMImageStream(is) { };
+    T64IStream(std::shared_ptr<MStream> is) : MImageStream(is) { };
 
 protected:
     struct Header {
@@ -54,6 +54,8 @@ protected:
 
     Header header;
     Entry entry;
+
+    std::string decodeType(uint8_t file_type, bool show_hidden = false) override;
 
 private:
     friend class T64File;

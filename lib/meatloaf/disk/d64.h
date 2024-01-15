@@ -19,14 +19,14 @@
 #include <bitset>
 
 #include "string_utils.h"
-#include "cbm_media.h"
+#include "meat_media.h"
 
 
 /********************************************************
  * Streams
  ********************************************************/
 
-class D64IStream : public CBMImageStream {
+class D64IStream : public MImageStream {
 
 protected:
 
@@ -76,7 +76,7 @@ protected:
 
 public:
     std::vector<Partition> partitions;
-    std::vector<uint8_t> sectorsPerTrack = { 17, 18, 19, 21 };
+    std::vector<uint16_t> sectorsPerTrack = { 17, 18, 19, 21 };
     std::vector<uint8_t> interleave = { 3, 10 }; // Directory, File
 
     uint8_t dos_version = 0x41;
@@ -86,7 +86,7 @@ public:
     bool error_info = false;
     std::string bam_message = "";
 
-    D64IStream(std::shared_ptr<MStream> is) : CBMImageStream(is) 
+    D64IStream(std::shared_ptr<MStream> is) : MImageStream(is) 
     {
         // D64 Partition Info
         std::vector<BlockAllocationMap> b = { 
@@ -227,6 +227,14 @@ public:
         );
         containerStream->read((uint8_t*)&header, sizeof(header));
     }
+    uint16_t getSectorCount( uint16_t track )
+    {
+        return sectorsPerTrack[speedZone(track)];
+    }
+    uint16_t getTrackCount()
+    {
+        return partitions[0].block_allocation_map[0].end_track;
+    }
 
     bool seekNextImageEntry() override {
         return seekEntry( entry_index + 1 );
@@ -242,7 +250,7 @@ public:
     uint64_t block = 0;
     uint8_t track = 0;
     uint8_t sector = 0;
-    uint16_t offset = 0;
+    uint8_t offset = 0;
     uint64_t blocks_free = 0;
 
     uint8_t next_track = 0;
@@ -255,11 +263,16 @@ private:
     bool seekEntry( std::string filename ) override;
     bool seekEntry( uint16_t index = 0 ) override;
 
-
     std::string readBlock( uint8_t track, uint8_t sector );
-    bool writeBlock( uint8_t track, uint8_t sector, std::string data );    
+    bool writeBlock( uint8_t track, uint8_t sector, std::string data );
     bool allocateBlock( uint8_t track, uint8_t sector );
     bool deallocateBlock( uint8_t track, uint8_t sector );
+    bool getNextFreeBlock(uint8_t startTrack, uint8_t startSector, uint8_t *foundTrack, uint8_t *foundSector);
+    bool isBlockFree(uint8_t track, uint8_t sector);
+
+    // Container
+    friend class D8BFile;
+    friend class DFIFile;
 
     // Disk
     friend class D64File;
@@ -267,7 +280,6 @@ private:
     friend class D80File;
     friend class D81File;
     friend class D82File;
-    friend class D8BFile;
     friend class DNPFile;    
 };
 

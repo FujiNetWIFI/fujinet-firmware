@@ -26,7 +26,7 @@
 #define USER_AGENT "MEATLOAF/" FN_VERSION_FULL " (" PLATFORM_DETAILS ")"
 
 class MeatHttpClient {
-    esp_http_client_handle_t m_http = nullptr;
+    esp_http_client_handle_t _http = nullptr;
     static esp_err_t _http_event_handler(esp_http_client_event_t *evt);
     int openAndFetchHeaders(esp_http_client_method_t meth, int resume = 0);
     esp_http_client_method_t lastMethod;
@@ -73,7 +73,7 @@ public:
     uint32_t _size = 0;
     // uint32_t m_bytesAvailable = 0;
     uint32_t _position = 0;
-    // size_t m_error = 0;
+    size_t _error = 0;
 
     bool m_isWebDAV = false;
     bool m_isDirectory = false;
@@ -162,7 +162,7 @@ public:
     bool isOpen() override;
 
 protected:
-    MeatHttpClient m_http;
+    MeatHttpClient _http;
 
 };
 

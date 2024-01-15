@@ -1,8 +1,8 @@
-#include "cbm_media.h"
+#include "meat_media.h"
 
 // Utility Functions
 
-std::string CBMImageStream::decodeType(uint8_t file_type, bool show_hidden)
+std::string MImageStream::decodeType(uint8_t file_type, bool show_hidden)
 {
     //bool hide = false;
     std::string type = file_type_label[ file_type & 0b00000111 ];
@@ -29,14 +29,14 @@ std::string CBMImageStream::decodeType(uint8_t file_type, bool show_hidden)
  * Istream impls
  ********************************************************/
 
-// std::string CBMImageStream::seekNextEntry() {
+// std::string MImageStream::seekNextEntry() {
 //     // Implement this to skip a queue of file streams to start of next file and return its name
 //     // this will cause the next read to return bytes of "next" file in D64 image
 //     // might not have sense in this case, as D64 is kinda random access, not a stream.
 //     return "";
 // };
 
-bool CBMImageStream::open() {
+bool MImageStream::open() {
     // return true if we were able to read the image and confirmed it is valid.
     // it's up to you in what state the stream will be after open. Could be either:
     // 1. EOF-like state (0 available) and the state will be cleared only after succesful seekNextEntry or seekPath
@@ -45,11 +45,11 @@ bool CBMImageStream::open() {
     return false;
 };
 
-void CBMImageStream::close() {
+void MImageStream::close() {
 
 };
 
-uint32_t CBMImageStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
+uint32_t MImageStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
 {
     // Calculate file size
     seekSector(start_track, start_sector);
@@ -71,14 +71,16 @@ uint32_t CBMImageStream::seekFileSize( uint8_t start_track, uint8_t start_sector
 
 
 
-uint32_t CBMImageStream::write(const uint8_t *buf, uint32_t size) {
+uint32_t MImageStream::write(const uint8_t *buf, uint32_t size) {
     return -1;
 }
 
-uint32_t CBMImageStream::read(uint8_t* buf, uint32_t size) {
+uint32_t MImageStream::read(uint8_t* buf, uint32_t size) {
     uint32_t bytesRead = 0;
 
     //Debug_printv("seekCalled[%d]", seekCalled);
+    if ( _position >= _size )
+        return 0;
 
     if(seekCalled) {
         // if we have the stream set to a specific file already, either via seekNextEntry or seekPath, return bytes of the file here
@@ -96,10 +98,10 @@ uint32_t CBMImageStream::read(uint8_t* buf, uint32_t size) {
     return bytesRead;
 };
 
-bool CBMImageStream::isOpen() {
+bool MImageStream::isOpen() {
 
     return _is_open;
 };
 
 
-std::unordered_map<std::string, CBMImageStream*> ImageBroker::repo;
+std::unordered_map<std::string, MImageStream*> ImageBroker::repo;
