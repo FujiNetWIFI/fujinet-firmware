@@ -258,7 +258,6 @@ void drivewireNetwork::close()
 void drivewireNetwork::read()
 {
     uint16_t num_bytes = get_daux();
-    bool err = false;
 
     Debug_printf("drivewireNetwork::read( %u bytes)\n", num_bytes);
 
@@ -285,7 +284,7 @@ void drivewireNetwork::read()
     }
 
     // Do the channel read
-    err = read_channel(num_bytes);
+    read_channel(num_bytes);
 
     // Write error code
     fnUartBUS.write(ns.error);
@@ -340,6 +339,31 @@ bool drivewireNetwork::read_channel(unsigned short num_bytes)
  */
 void drivewireNetwork::write()
 {
+    uint16_t num_bytes = get_daux();
+
+    Debug_printf("sioNetwork::drivewire_write( %u bytes)\n", num_bytes);
+
+    // If protocol isn't connected, then return not connected.
+    if (protocol == nullptr)
+    {
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
+        ns.error = NETWORK_ERROR_NOT_CONNECTED;
+        fnUartBUS.write(ns.error);
+        return;
+    }
+
+    // Get the data from the Atari
+    while (fnUartBUS.available())
+        *transmitBuffer += fnUartBUS.read();
+
+    // Do the channel write
+    write_channel(num_bytes);
+
+    fnUartBUS.write(ns.error);
 }
 
 /**
