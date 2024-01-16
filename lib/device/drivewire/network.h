@@ -48,12 +48,12 @@ public:
     /**
      * Called for DRIVEWIRE Command 'O' to open a connection to a network protocol, allocate all buffers,
      */
-    virtual void drivewire_open();
+    virtual void open();
 
     /**
      * Called for DRIVEWIRE Command 'C' to close a connection to a network protocol, de-allocate all buffers,
      */
-    virtual void drivewire_close();
+    virtual void close();
 
     /**
      * DRIVEWIRE Read command
@@ -62,21 +62,21 @@ public:
      *  
      * @note It is the channel's responsibility to pad to required length.
      */
-    virtual void drivewire_read();
+    virtual void read();
 
     /**
      * DRIVEWIRE Write command
      * Write # of bytes specified by aux1/aux2 from tx_buffer out to DRIVEWIRE. If protocol is unable to return requested
      * number of bytes, return ERROR.
      */
-    virtual void drivewire_write();
+    virtual void write();
 
     /**
      * DRIVEWIRE Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
      * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
      * with them locally. Then serialize resulting NetworkStatus object to DRIVEWIRE.
      */
-    virtual void drivewire_special();
+    virtual void special();
 
     /**
      * DRIVEWIRE Special, called as a default for any other DRIVEWIRE command not processed by the other drivewire_ functions.
@@ -84,32 +84,32 @@ public:
      * process the special command. Otherwise, the command is handled locally. In either case, either drivewire_complete()
      * or drivewire_error() is called.
      */
-    virtual void drivewire_status();
+    virtual void status();
 
     /**
      * @brief set channel mode, JSON or PROTOCOL
      */
-    virtual void drivewire_set_channel_mode();
+    virtual void set_channel_mode();
 
     /**
      * @brief Called to set prefix
      */
-    virtual void drivewire_set_prefix();
+    virtual void set_prefix();
 
     /**
      * @brief Called to get prefix
      */
-    virtual void drivewire_get_prefix();
+    virtual void get_prefix();
 
     /**
      * @brief called to set login
      */
-    virtual void drivewire_set_login();
+    virtual void set_login();
 
     /**
      * @brief called to set password
      */
-    virtual void drivewire_set_password();
+    virtual void set_password();
 
 private:
     /**
@@ -145,7 +145,7 @@ private:
     /**
      * Network Status object
      */
-    NetworkStatus status;
+    NetworkStatus ns;
 
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
@@ -257,36 +257,36 @@ private:
      * @param num_bytes Number of bytes to read.
      * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
      */
-    bool drivewire_read_channel(unsigned short num_bytes);
+    bool read_channel(unsigned short num_bytes);
 
     /**
      * @brief Perform read of the current JSON channel
      * @param num_bytes Number of bytes to read
      */
-    bool drivewire_read_channel_json(unsigned short num_bytes);
+    bool read_channel_json(unsigned short num_bytes);
 
     /**
      * Perform the correct write based on value of channelMode
      * @param num_bytes Number of bytes to write.
      * @return TRUE on error, FALSE on success. Used to emit drivewire_error or drivewire_complete().
      */
-    bool drivewire_write_channel(unsigned short num_bytes);
+    bool write_channel(unsigned short num_bytes);
 
     /**
      * @brief perform local status commands, if protocol is not bound, based on cmdFrame
      * value.
      */
-    void drivewire_status_local();
+    void status_local();
 
     /**
      * @brief perform channel status commands, if there is a protocol bound.
      */
-    void drivewire_status_channel();
+    void status_channel();
 
     /**
      * @brief get JSON status (# of bytes in receive channel)
      */
-    bool drivewire_status_channel_json(NetworkStatus *ns);
+    bool status_channel_json(NetworkStatus *ns);
 
     /**
      * @brief Do an inquiry to determine whether a protoocol supports a particular command.
@@ -294,14 +294,14 @@ private:
      * or $FF - Command not supported, which should then be used as a DSTATS value by the
      * Atari when making the N: DRIVEWIRE call.
      */
-    void drivewire_special_inquiry();
+    void special_inquiry();
 
     /**
      * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
      * Essentially, call the protocol action 
      * and based on the return, signal drivewire_complete() or error().
      */
-    void drivewire_special_00();
+    void special_00();
 
     /**
      * @brief called to handle protocol interactions when DSTATS=$40, meaning the payload is to go from
@@ -309,7 +309,7 @@ private:
      * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
      * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
      */
-    void drivewire_special_40();
+    void special_40();
 
     /**
      * @brief called to handle protocol interactions when DSTATS=$80, meaning the payload is to go from
@@ -317,7 +317,7 @@ private:
      * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
      * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
      */
-    void drivewire_special_80();
+    void special_80();
 
     /**
      * @brief Perform the inquiry, handle both local and protocol commands.
@@ -328,27 +328,27 @@ private:
     /**
      * @brief set translation specified by aux1 to aux2_translation mode.
      */
-    void drivewire_set_translation();
+    void set_translation();
 
     /**
      * @brief Parse incoming JSON. (must be in JSON channelMode)
      */
-    void drivewire_parse_json();
+    void parse_json();
 
     /**
      * @brief Set JSON query std::string. (must be in JSON channelMode)
      */
-    void drivewire_set_json_query();
+    void json_query();
 
     /**
      * @brief Set timer rate for PROCEED timer in ms
      */
-    void drivewire_set_timer_rate();
+    void set_timer_rate();
 
     /**
      * @brief perform ->FujiNet commands on protocols that do not use an explicit OPEN channel.
      */
-    void drivewire_do_idempotent_command_80();
+    void do_idempotent_command_80();
 
     /**
      * @brief parse URL and instantiate protocol

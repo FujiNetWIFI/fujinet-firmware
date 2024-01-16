@@ -71,7 +71,7 @@ drivewireNetwork::~drivewireNetwork()
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
  * method. Also set up RX interrupt.
  */
-void drivewireNetwork::drivewire_open()
+void drivewireNetwork::open()
 {
 }
 
@@ -79,7 +79,7 @@ void drivewireNetwork::drivewire_open()
  * DRIVEWIRE Close command
  * Tear down everything set up by drivewire_open(), as well as RX interrupt.
  */
-void drivewireNetwork::drivewire_close()
+void drivewireNetwork::close()
 {
 }
 
@@ -90,7 +90,7 @@ void drivewireNetwork::drivewire_close()
  *
  * @note It is the channel's responsibility to pad to required length.
  */
-void drivewireNetwork::drivewire_read()
+void drivewireNetwork::read()
 {
 }
 
@@ -98,7 +98,7 @@ void drivewireNetwork::drivewire_read()
  * @brief Perform read of the current JSON channel
  * @param num_bytes Number of bytes to read
  */
-bool drivewireNetwork::drivewire_read_channel_json(unsigned short num_bytes)
+bool drivewireNetwork::read_channel_json(unsigned short num_bytes)
 {
     if (num_bytes > json_bytes_remaining)
         json_bytes_remaining = 0;
@@ -113,7 +113,7 @@ bool drivewireNetwork::drivewire_read_channel_json(unsigned short num_bytes)
  * @param num_bytes - number of bytes to read from channel.
  * @return TRUE on error, FALSE on success. Passed directly to bus_to_computer().
  */
-bool drivewireNetwork::drivewire_read_channel(unsigned short num_bytes)
+bool drivewireNetwork::read_channel(unsigned short num_bytes)
 {
     bool err = false;
 
@@ -123,7 +123,7 @@ bool drivewireNetwork::drivewire_read_channel(unsigned short num_bytes)
         err = protocol->read(num_bytes);
         break;
     case JSON:
-        err = drivewire_read_channel_json(num_bytes);
+        err = read_channel_json(num_bytes);
         break;
     }
     return err;
@@ -134,7 +134,7 @@ bool drivewireNetwork::drivewire_read_channel(unsigned short num_bytes)
  * Write # of bytes specified by aux1/aux2 from tx_buffer out to DRIVEWIRE. If protocol is unable to return requested
  * number of bytes, return ERROR.
  */
-void drivewireNetwork::drivewire_write()
+void drivewireNetwork::write()
 {
 }
 
@@ -143,7 +143,7 @@ void drivewireNetwork::drivewire_write()
  * @param num_bytes Number of bytes to write.
  * @return TRUE on error, FALSE on success. Used to emit drivewire_error or drivewire_complete().
  */
-bool drivewireNetwork::drivewire_write_channel(unsigned short num_bytes)
+bool drivewireNetwork::write_channel(unsigned short num_bytes)
 {
     bool err = false;
 
@@ -165,23 +165,23 @@ bool drivewireNetwork::drivewire_write_channel(unsigned short num_bytes)
  * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
  * with them locally. Then serialize resulting NetworkStatus object to DRIVEWIRE.
  */
-void drivewireNetwork::drivewire_status()
+void drivewireNetwork::status()
 {
     if (protocol == nullptr)
-        drivewire_status_local();
+        status_local();
     else
-        drivewire_status_channel();
+        status_channel();
 }
 
 /**
  * @brief perform local status commands, if protocol is not bound, based on cmdFrame
  * value.
  */
-void drivewireNetwork::drivewire_status_local()
+void drivewireNetwork::status_local()
 {
 }
 
-bool drivewireNetwork::drivewire_status_channel_json(NetworkStatus *ns)
+bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? 1 : 136;
@@ -192,28 +192,28 @@ bool drivewireNetwork::drivewire_status_channel_json(NetworkStatus *ns)
 /**
  * @brief perform channel status commands, if there is a protocol bound.
  */
-void drivewireNetwork::drivewire_status_channel()
+void drivewireNetwork::status_channel()
 {
 }
 
 /**
  * Get Prefix
  */
-void drivewireNetwork::drivewire_get_prefix()
+void drivewireNetwork::get_prefix()
 {
 }
 
 /**
  * Set Prefix
  */
-void drivewireNetwork::drivewire_set_prefix()
+void drivewireNetwork::set_prefix()
 {
 }
 
 /**
  * @brief set channel mode
  */
-void drivewireNetwork::drivewire_set_channel_mode()
+void drivewireNetwork::set_channel_mode()
 {
     switch (cmdFrame.aux2)
     {
@@ -231,14 +231,14 @@ void drivewireNetwork::drivewire_set_channel_mode()
 /**
  * Set login
  */
-void drivewireNetwork::drivewire_set_login()
+void drivewireNetwork::set_login()
 {
 }
 
 /**
  * Set password
  */
-void drivewireNetwork::drivewire_set_password()
+void drivewireNetwork::set_password()
 {
 }
 
@@ -248,7 +248,7 @@ void drivewireNetwork::drivewire_set_password()
  * process the special command. Otherwise, the command is handled locally. In either case, either drivewire_complete()
  * or drivewire_error() is called.
  */
-void drivewireNetwork::drivewire_special()
+void drivewireNetwork::special()
 {
 }
 
@@ -258,7 +258,7 @@ void drivewireNetwork::drivewire_special()
  * or $FF - Command not supported, which should then be used as a DSTATS value by the
  * Atari when making the N: DRIVEWIRE call.
  */
-void drivewireNetwork::drivewire_special_inquiry()
+void drivewireNetwork::special_inquiry()
 {
 }
 
@@ -271,7 +271,7 @@ void drivewireNetwork::do_inquiry(unsigned char inq_cmd)
  * Essentially, call the protocol action
  * and based on the return, signal drivewire_complete() or error().
  */
-void drivewireNetwork::drivewire_special_00()
+void drivewireNetwork::special_00()
 {
 }
 
@@ -281,7 +281,7 @@ void drivewireNetwork::drivewire_special_00()
  * buffer (containing the devicespec) and based on the return, use bus_to_computer() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void drivewireNetwork::drivewire_special_40()
+void drivewireNetwork::special_40()
 {
 }
 
@@ -291,7 +291,7 @@ void drivewireNetwork::drivewire_special_40()
  * buffer (containing the devicespec) and based on the return, use bus_to_peripheral() to transfer the
  * resulting data. Currently this is assumed to be a fixed 256 byte buffer.
  */
-void drivewireNetwork::drivewire_special_80()
+void drivewireNetwork::special_80()
 {
 }
 
@@ -456,23 +456,23 @@ void drivewireNetwork::processCommaFromDevicespec()
 {
 }
 
-void drivewireNetwork::drivewire_set_translation()
+void drivewireNetwork::set_translation()
 {
 }
 
-void drivewireNetwork::drivewire_parse_json()
+void drivewireNetwork::parse_json()
 {
 }
 
-void drivewireNetwork::drivewire_set_json_query()
+void drivewireNetwork::json_query()
 {
 }
 
-void drivewireNetwork::drivewire_set_timer_rate()
+void drivewireNetwork::set_timer_rate()
 {
 }
 
-void drivewireNetwork::drivewire_do_idempotent_command_80()
+void drivewireNetwork::do_idempotent_command_80()
 {
 }
 
@@ -486,25 +486,25 @@ void drivewireNetwork::process()
     switch (cmdFrame.comnd)
     {
     case 'O':
-        drivewire_open();
+        open();
         break;
     case 'C':
-        drivewire_close();
+        close();
         break;
     case 'R':
-        drivewire_read();
+        read();
         break;
     case 'W':
-        drivewire_write();
+        write();
         break;
     case 'S':
-        drivewire_status();
+        status();
         break;
     case 0xFF:
-        drivewire_special_inquiry();
+        special_inquiry();
         break;
     default:
-        drivewire_special();
+        special();
         break;
     }
 }
