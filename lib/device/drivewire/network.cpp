@@ -29,6 +29,20 @@
 using namespace std;
 
 /**
+ * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
+ * flag to true. This is set to false when the interrupt is serviced.
+ */
+#ifdef ESP_PLATFORM
+void onTimer(void *info)
+{
+    drivewireNetwork *parent = (drivewireNetwork *)info;
+    portENTER_CRITICAL_ISR(&parent->timerMux);
+    parent->interruptCD = !parent->interruptCD;
+    portEXIT_CRITICAL_ISR(&parent->timerMux);
+}
+#endif
+
+/**
  * Constructor
  */
 drivewireNetwork::drivewireNetwork()
@@ -64,6 +78,41 @@ drivewireNetwork::~drivewireNetwork()
     protocol = nullptr;
 }
 
+/**
+ * Start the Interrupt rate limiting timer
+ */
+void drivewireNetwork::timer_start()
+{
+#ifdef ESP_PLATFORM
+    esp_timer_create_args_t tcfg;
+    tcfg.arg = this;
+    tcfg.callback = onTimer;
+    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
+    tcfg.name = nullptr;
+    esp_timer_create(&tcfg, &rateTimerHandle);
+    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
+#else
+    lastInterruptMs = fnSystem.millis() - timerRate;
+#endif
+}
+
+/**
+ * Stop the Interrupt rate limiting timer
+ */
+void drivewireNetwork::timer_stop()
+{
+#ifdef ESP_PLATFORM
+    // Delete existing timer
+    if (rateTimerHandle != nullptr)
+    {
+        Debug_println("Deleting existing rateTimer\n");
+        esp_timer_stop(rateTimerHandle);
+        esp_timer_delete(rateTimerHandle);
+        rateTimerHandle = nullptr;
+    }
+#endif
+}
+
 /** DRIVEWIRE COMMANDS ***************************************************************/
 
 /**
@@ -73,6 +122,83 @@ drivewireNetwork::~drivewireNetwork()
  */
 void drivewireNetwork::open()
 {
+    Debug_printf("drivewireNetwork::sio_open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
+
+    while (fnUartBUS.available())
+        deviceSpec += fnUartBUS.read();
+
+    channelMode = PROTOCOL;
+
+    // Delete timer if already extant.
+    timer_stop();
+
+    // persist aux1/aux2 values
+    open_aux1 = cmdFrame.aux1;
+    open_aux2 = cmdFrame.aux2;
+    open_aux2 |= trans_aux2;
+    cmdFrame.aux2 |= trans_aux2;
+
+    // Shut down protocol if we are sending another open before we close.
+    if (protocol != nullptr)
+    {
+        protocol->close();
+        delete protocol;
+        protocol = nullptr;
+    }
+
+    if (protocolParser != nullptr)
+    {
+        delete protocolParser;
+        protocolParser = nullptr;
+    }
+
+    // Reset status buffer
+    ns.reset();
+
+    // Parse and instantiate protocol
+    parse_and_instantiate_protocol();
+
+    if (protocol == nullptr)
+    {
+        // invalid devicespec error already passed in.
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
+        return;
+    }
+
+    // Attempt protocol open
+    if (protocol->open(urlParser, &cmdFrame) == true)
+    {
+        ns.error = protocol->error;
+        Debug_printf("Protocol unable to make connection. Error: %d\n", ns.error);
+        delete protocol;
+        protocol = nullptr;
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
+
+        return;
+    }
+
+    // Everything good, start the interrupt timer!
+    timer_start();
+
+    // Go ahead and send an interrupt, so CoCo knows to get status.
+    protocol->forceStatus = true;
+
+    // TODO: Finally, go ahead and let the parsers know
+    json = new FNJSON();
+    json->setLineEnding("\x0a");
+    json->setProtocol(protocol);
+    channelMode = PROTOCOL;
+
+    // And signal complete!
+    fnUartBUS.write(ns.error);
 }
 
 /**
