@@ -166,6 +166,7 @@ void drivewireNetwork::open()
             delete protocolParser;
             protocolParser = nullptr;
         }
+        fnUartBUS.write(ns.error);
         return;
     }
 
@@ -181,7 +182,7 @@ void drivewireNetwork::open()
             delete protocolParser;
             protocolParser = nullptr;
         }
-
+        fnUartBUS.write(ns.error);
         return;
     }
 
@@ -220,6 +221,7 @@ void drivewireNetwork::close()
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
+        fnUartBUS.write(ns.error);
         return;
     }
 
@@ -255,6 +257,45 @@ void drivewireNetwork::close()
  */
 void drivewireNetwork::read()
 {
+    uint16_t num_bytes = get_daux();
+    bool err = false;
+
+    Debug_printf("drivewireNetwork::read( %u bytes)\n", num_bytes);
+
+    // Check for rx buffer. If NULL, then tell caller we could not allocate buffers.
+    if (receiveBuffer == nullptr)
+    {
+        ns.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        fnUartBUS.write(ns.error);
+        return;
+    }
+
+    // If protocol isn't connected, then return not connected.
+    if (protocol == nullptr)
+    {
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
+
+        ns.error = NETWORK_ERROR_NOT_CONNECTED;
+        fnUartBUS.write(ns.error);
+        return;
+    }
+
+    // Do the channel read
+    err = read_channel(num_bytes);
+
+    // Write error code
+    fnUartBUS.write(ns.error);
+
+    // And send off buffer to computer
+    fnUartBUS.write((uint8_t *)receiveBuffer->data(), num_bytes);
+ 
+    // Remove from receive buffer and shrink.
+    receiveBuffer->erase(0, num_bytes);
+    receiveBuffer->shrink_to_fit();
 }
 
 /**

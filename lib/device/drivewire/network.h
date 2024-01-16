@@ -257,6 +257,11 @@ private:
     unsigned short json_bytes_remaining=0;
 
     /**
+     * Return 16 bit value returned from command frame 
+     */
+    uint16_t get_daux() { return (uint16_t)((cmdFrame.aux1 * 256) + cmdFrame.aux2);}
+
+    /**
      * Instantiate protocol object
      * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
      */
