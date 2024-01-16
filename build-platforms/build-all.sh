@@ -4,10 +4,40 @@
 # merging it with BASE.ini to create platformio-test.ini
 # which the build.sh script will run a clean build against.
 
+# search_file is the name of the completed firmware that proves we built that platform
+# file_name is the resulting file that will hold the results of the build-all
+SEARCH_FILE="firmware.bin"
+FILE_NAME="build-results.txt"
+
+
+# Clean up any old ini files as well.
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 if [ -f "$SCRIPT_DIR/test.ini" ] ; then
   rm $SCRIPT_DIR/test.ini
 fi
+
+
+echo ' ---------------------------------------- '
+echo ' |                                      | '
+echo ' | Starting build-all script.....       | '
+echo " |  SCRIPT_DIR=$SCRIPT_DIR"
+echo " |  output will be saved in $FILE_NAME"
+echo ' |  in the root of this repo.'
+echo ' |                                      | '
+echo '  ---------------------------------------'
+echo ''
+echo ''
+
+printf "Below this begins each platform build in sequence...."
+printf "\n\n\n"
+
+# We will create a record of what is built
+# but first, clean out the old one....
+if [ -f "$FILE_NAME" ]; then
+    rm "$FILE_NAME"
+    printf 'Found an old results file, deleted it.\n\n'
+fi
+
 
 # reads an ini [section] given the name from file, writes to output file.
 function get_section {
@@ -25,7 +55,13 @@ function get_section {
     }' $in_file > $out_file
 }
 
+
+# Setup a results file so we can see how we did.
+NOW=$(date +"%Y-%m-%d %H:%M:%S")
+printf "Start Time: $NOW - ----- Starting Build the World for Fujinet\n\n\n" >> "$FILE_NAME"
+
 # loop over every platformio-XXX.ini file, and use it to create a test platformio file
+
 for piofile in $(ls -1 $SCRIPT_DIR/platformio-*.ini) ; do
     echo "Testing $(basename $piofile)"
 
@@ -45,7 +81,32 @@ for piofile in $(ls -1 $SCRIPT_DIR/platformio-*.ini) ; do
     rm $SCRIPT_DIR/part1.ini
 
     pushd ${SCRIPT_DIR}/..
-    ./build.sh -cb -i $SCRIPT_DIR/test.ini
+
+    # Breaking this up into 3 parts.
+     # 1. - call build for the platform
+     # 2. - echo a line in results file, find firmware.bin
+     # 3. - now call build but just to clean
+
+    ./build.sh -b -i $SCRIPT_DIR/test.ini
+
+    # first determine if there is a firmware bin which means a good build
+    NOW=$(date +"%Y-%m-%d %H:%M:%S")
+
+    # Extract the substring after 'platformio-' and before '.ini'
+    extracted_string=$(echo "$piofile" | sed -e 's|.*platformio-\(.*\)\.ini|\1|')
+    printf "$NOW - Built $extracted_string\n" >> "$FILE_NAME"
+
+    FOUND=$(find . -name "$SEARCH_FILE" -print -quit)
+    if [ -n "$FOUND" ]; then
+      printf "File '$SEARCH_FILE' found" >> "$FILE_NAME"
+    else
+      printf "File '$SEARCH_FILE' not found - this platfrom has issues \n" >> "$FILE_NAME"
+    fi
+    echo "------------------------------------------------" >> "$FILE_NAME"
+
+    ./build.sh -c -i $SCRIPT_DIR/test.ini
+
     popd
+
 
 done
