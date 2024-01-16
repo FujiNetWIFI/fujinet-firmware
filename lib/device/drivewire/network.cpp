@@ -207,6 +207,43 @@ void drivewireNetwork::open()
  */
 void drivewireNetwork::close()
 {
+    Debug_printf("drivewireNetwork::sio_close()\n");
+
+    ns.reset();
+
+    if (protocolParser != nullptr)
+    {
+        delete protocolParser;
+        protocolParser = nullptr;
+    }
+
+    // If no protocol enabled, we just signal complete, and return.
+    if (protocol == nullptr)
+    {
+        return;
+    }
+
+    // Ask the protocol to close
+    protocol->close();
+
+#ifdef ESP_PLATFORM
+    Debug_printv("Before protocol delete %lu\n",esp_get_free_internal_heap_size());
+#endif
+    // Delete the protocol object
+    delete protocol;
+    protocol = nullptr;
+
+    if (json != nullptr)
+    {
+        delete json;
+        json = nullptr;
+    }
+
+#ifdef ESP_PLATFORM
+    Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
+#endif
+    
+    fnUartBUS.write(ns.error);
 }
 
 /**
