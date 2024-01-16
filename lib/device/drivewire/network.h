@@ -41,6 +41,11 @@ public:
     virtual ~drivewireNetwork();
 
     /**
+     * @brief process network device command
+     */
+    void process();
+
+    /**
      * Called for DRIVEWIRE Command 'O' to open a connection to a network protocol, allocate all buffers,
      */
     virtual void drivewire_open();

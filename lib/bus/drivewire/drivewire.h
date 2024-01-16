@@ -23,6 +23,7 @@
 #include <freertos/queue.h>
 
 #include <forward_list>
+#include <map>
 
 #define DRIVEWIRE_BAUDRATE 57600
 
@@ -176,7 +177,8 @@ private:
     virtualDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
-    drivewireNetwork *_netDev[8] = {nullptr};
+    //drivewireNetwork *_netDev[8] = {nullptr};
+    std::map<uint8_t,drivewireNetwork *> _netDev;
     drivewireUDPStream *_udpDev = nullptr;
     drivewireCassette *_cassetteDev = nullptr;
     drivewireCPM *_cpmDev = nullptr;
