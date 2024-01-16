@@ -13,6 +13,7 @@
 #include "networkStatus.h"
 #include "status_error_codes.h"
 #include "fnjson.h"
+#include "ProtocolParser.h"
 
 /**
  * Number of devices to expose via DRIVEWIRE, becomes 0x71 to 0x70 + NUM_DEVICES - 1
@@ -39,6 +40,19 @@ public:
      * Destructor
      */
     virtual ~drivewireNetwork();
+
+    /**
+     * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
+     */
+#ifdef ESP_PLATFORM
+    portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+#endif
+
+    /**
+     * Toggled by the rate limiting timer to indicate that the PROCEED interrupt should
+     * be pulsed.
+     */
+    bool interruptCD = false;
 
     /**
      * @brief process network device command
@@ -112,6 +126,7 @@ public:
     virtual void set_password();
 
 private:
+
     /**
      * Buffer for holding devicespec
      */
@@ -143,9 +158,23 @@ private:
     NetworkProtocol *protocol = nullptr;
 
     /**
+     * @brief Factory that creates protocol from urls
+    */
+    ProtocolParser *protocolParser = nullptr;
+
+    /**
      * Network Status object
      */
     NetworkStatus ns;
+
+    /**
+     * ESP timer handle for the Interrupt rate limiting timer
+     */
+#ifdef ESP_PLATFORM
+    esp_timer_handle_t rateTimerHandle = nullptr;
+#else
+    uint64_t lastInterruptMs;
+#endif
 
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
@@ -187,6 +216,15 @@ private:
      * The password to use for a protocol action
      */
     std::string password;
+
+    /**
+     * Timer Rate for interrupt timer (ms)
+     */
+#ifdef ESP_PLATFORM
+    int timerRate = 100;
+#else
+    int timerRate = 20;
+#endif
 
     /**
      * The channel mode for the currently open DRIVEWIRE device. By default, it is PROTOCOL, which passes
@@ -355,6 +393,15 @@ private:
      */
     void parse_and_instantiate_protocol();
 
+    /**
+     * Start the Interrupt rate limiting timer
+     */
+    void timer_start();
+
+    /**
+     * Stop the Interrupt rate limiting timer
+     */
+    void timer_stop();
 };
 
 #endif /* NETWORK_H */
