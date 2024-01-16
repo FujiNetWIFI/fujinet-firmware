@@ -407,6 +407,40 @@ void drivewireNetwork::status()
  */
 void drivewireNetwork::status_local()
 {
+    uint8_t ipAddress[4];
+    uint8_t ipNetmask[4];
+    uint8_t ipGateway[4];
+    uint8_t ipDNS[4];
+    uint8_t default_status[4] = {0, 0, 0, 0};
+
+    Debug_printf("drivewireNetwork::sio_status_local(%u)\n", cmdFrame.aux2);
+
+    fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
+    fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
+
+    switch (cmdFrame.aux2)
+    {
+    case 1: // IP Address
+        Debug_printf("IP Address: %u.%u.%u.%u\n", ipAddress[0], ipAddress[1], ipAddress[2], ipAddress[3]);
+        fnUartBUS.write(ipAddress,sizeof(ipAddress));
+        break;
+    case 2: // Netmask
+        Debug_printf("Netmask: %u.%u.%u.%u\n", ipNetmask[0], ipNetmask[1], ipNetmask[2], ipNetmask[3]);
+        fnUartBUS.write(ipNetmask,sizeof(ipNetmask));
+        break;
+    case 3: // Gatway
+        Debug_printf("Gateway: %u.%u.%u.%u\n", ipGateway[0], ipGateway[1], ipGateway[2], ipGateway[3]);
+        fnUartBUS.write(ipGateway,sizeof(ipGateway));
+        break;
+    case 4: // DNS
+        Debug_printf("DNS: %u.%u.%u.%u\n", ipDNS[0], ipDNS[1], ipDNS[2], ipDNS[3]);
+        fnUartBUS.write(ipDNS,sizeof(ipDNS));
+        break;
+    default:
+        default_status[2] = ns.connected;
+        default_status[3] = ns.error;
+        fnUartBUS.write(default_status,sizeof(default_status));
+    }
 }
 
 bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
@@ -422,6 +456,7 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
  */
 void drivewireNetwork::status_channel()
 {
+
 }
 
 /**
