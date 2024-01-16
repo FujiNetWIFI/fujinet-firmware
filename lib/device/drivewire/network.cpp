@@ -456,7 +456,34 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
  */
 void drivewireNetwork::status_channel()
 {
+    uint8_t serialized_status[4] = {0, 0, 0, 0};
+    bool err = false;
 
+    Debug_printf("drivewireNetwork::sio_status_channel(%u)\n", channelMode);
+
+    switch (channelMode)
+    {
+    case PROTOCOL:
+        err = protocol->status(&ns);
+        break;
+    case JSON:
+        status_channel_json(&ns);
+        break;
+    }
+    // clear forced flag (first status after open)
+    protocol->forceStatus = false;
+
+    // Serialize status into status bytes (rxBytesWaiting sent big endian!)
+    serialized_status[0] = ns.rxBytesWaiting >> 8;
+    serialized_status[1] = ns.rxBytesWaiting & 0xFF;
+    serialized_status[2] = ns.connected;
+    serialized_status[3] = ns.error;
+
+    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
+                 ns.rxBytesWaiting, ns.connected, ns.error);
+
+    // and send to computer
+    fnUartBUS.write(serialized_status, sizeof(serialized_status));
 }
 
 /**
