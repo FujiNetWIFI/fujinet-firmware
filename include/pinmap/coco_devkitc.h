@@ -34,5 +34,6 @@
 #define PIN_CASS_MOTOR          GPIO_NUM_34 // Second motor pin is tied to +3V
 #define PIN_CASS_DATA_IN        GPIO_NUM_33
 #define PIN_CASS_DATA_OUT       GPIO_NUM_26
+#define PIN_CD                  GPIO_NUM_22 // same as atari PROC
 
 #endif /* PINMAP_COCO_DEVKITC */
