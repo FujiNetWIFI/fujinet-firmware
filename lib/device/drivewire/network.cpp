@@ -101,9 +101,9 @@ void drivewireNetwork::drivewire_read()
 bool drivewireNetwork::drivewire_read_channel_json(unsigned short num_bytes)
 {
     if (num_bytes > json_bytes_remaining)
-        json_bytes_remaining=0;
+        json_bytes_remaining = 0;
     else
-        json_bytes_remaining-=num_bytes;
+        json_bytes_remaining -= num_bytes;
 
     return false;
 }
@@ -474,6 +474,39 @@ void drivewireNetwork::drivewire_set_timer_rate()
 
 void drivewireNetwork::drivewire_do_idempotent_command_80()
 {
+}
+
+void drivewireNetwork::process()
+{
+    // Read the three command and aux bytes
+    cmdFrame.comnd = (uint8_t)fnUartBUS.read();
+    cmdFrame.aux1 = (uint8_t)fnUartBUS.read();
+    cmdFrame.aux2 = (uint8_t)fnUartBUS.read();
+
+    switch (cmdFrame.comnd)
+    {
+    case 'O':
+        drivewire_open();
+        break;
+    case 'C':
+        drivewire_close();
+        break;
+    case 'R':
+        drivewire_read();
+        break;
+    case 'W':
+        drivewire_write();
+        break;
+    case 'S':
+        drivewire_status();
+        break;
+    case 0xFF:
+        drivewire_special_inquiry();
+        break;
+    default:
+        drivewire_special();
+        break;
+    }
 }
 
 #endif /* BUILD_COCO */

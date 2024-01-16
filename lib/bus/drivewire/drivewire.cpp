@@ -92,7 +92,7 @@ void systemBus::op_reset()
 void systemBus::op_readex()
 {
     drivewireDisk *d = nullptr;
-    uint16_t c1 = 0,c2 = 0;
+    uint16_t c1 = 0, c2 = 0;
 
     drive_num = fnUartBUS.read();
 
@@ -139,13 +139,12 @@ void systemBus::op_readex()
     c1 = (fnUartBUS.read()) << 8;
     c1 |= fnUartBUS.read();
 
-    c2 = drivewire_checksum(sector_data,MEDIA_BLOCK_SIZE);
+    c2 = drivewire_checksum(sector_data, MEDIA_BLOCK_SIZE);
 
     if (c1 != c2)
         fnUartBUS.write(243);
     else
         fnUartBUS.write(0x00);
-
 }
 
 void systemBus::op_write()
@@ -159,11 +158,11 @@ void systemBus::op_write()
     lsn |= fnUartBUS.read() << 8;
     lsn |= fnUartBUS.read();
 
-    size_t s = fnUartBUS.readBytes(sector_data,MEDIA_BLOCK_SIZE);
+    size_t s = fnUartBUS.readBytes(sector_data, MEDIA_BLOCK_SIZE);
 
     if (s != MEDIA_BLOCK_SIZE)
     {
-        Debug_printv("Insufficient # of bytes for write, total recvd: %u",s);
+        Debug_printv("Insufficient # of bytes for write, total recvd: %u", s);
         fnUartBUS.flush_input();
         return;
     }
@@ -172,7 +171,7 @@ void systemBus::op_write()
     c1 = fnUartBUS.read();
     c1 |= fnUartBUS.read() << 8;
 
-    c2 = drivewire_checksum(sector_data,MEDIA_BLOCK_SIZE);
+    c2 = drivewire_checksum(sector_data, MEDIA_BLOCK_SIZE);
 
     // if (c1 != c2)
     // {
@@ -199,7 +198,7 @@ void systemBus::op_write()
         return;
     }
 
-    if (d->write(lsn,sector_data))
+    if (d->write(lsn, sector_data))
     {
         Debug_print("Write error\n");
         fnUartBUS.write(0xF5);
@@ -218,15 +217,25 @@ void systemBus::op_net()
 {
     // Get device ID
     uint8_t device_id = (uint8_t)fnUartBUS.read();
-    
+
+    // If device doesn't exist, create it.
+    if (!_netDev.contains(device_id))
+    {
+        Debug_printf("Opening new network device %u\n",device_id);
+        _netDev[device_id] = new drivewireNetwork();
+    }
+
+    // And pass control to it
+    Debug_printf("OP_NET: %u\n",device_id);
+    _netDev[device_id]->process();    
 }
 
 void systemBus::op_unhandled(uint8_t c)
 {
-    Debug_printv("Unhandled opcode: %02x",c);
+    Debug_printv("Unhandled opcode: %02x", c);
 
     while (fnUartBUS.available())
-        Debug_printf("%02x ",fnUartBUS.read());
+        Debug_printf("%02x ", fnUartBUS.read());
 
     fnUartBUS.flush_input();
 }
@@ -234,13 +243,13 @@ void systemBus::op_unhandled(uint8_t c)
 void systemBus::op_time()
 {
     time_t tt = time(nullptr);
-    struct tm * now = localtime(&tt);
+    struct tm *now = localtime(&tt);
 
     now->tm_mon++;
 
     Debug_printf("Returning %02d/%02d/%02d %02d:%02d:%02d\n", now->tm_year, now->tm_mon, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
 
-    fnUartBUS.write(now->tm_year-1900);
+    fnUartBUS.write(now->tm_year - 1900);
     fnUartBUS.write(now->tm_mon);
     fnUartBUS.write(now->tm_mday);
     fnUartBUS.write(now->tm_hour);
@@ -255,18 +264,18 @@ void systemBus::op_init()
 
 void systemBus::op_dwinit()
 {
-    Debug_printv("OP_DWINIT - Sending feature byte 0x%02x",DWINIT_FEATURES);
+    Debug_printv("OP_DWINIT - Sending feature byte 0x%02x", DWINIT_FEATURES);
     fnUartBUS.write(DWINIT_FEATURES);
 }
 
 void systemBus::op_getstat()
 {
-    Debug_printv("OP_GETSTAT: 0x%02x",fnUartBUS.read());
+    Debug_printv("OP_GETSTAT: 0x%02x", fnUartBUS.read());
 }
 
 void systemBus::op_setstat()
 {
-    Debug_printv("OP_SETSTAT: 0x%02x",fnUartBUS.read());
+    Debug_printv("OP_SETSTAT: 0x%02x", fnUartBUS.read());
 }
 
 void systemBus::op_serread()
@@ -320,13 +329,13 @@ void systemBus::_drivewire_process_cmd()
     case OP_PRINTFLUSH:
         // Not needed.
         break;
-    // case OP_GETSTAT:
-    //     op_getstat();
-    //     break;
-    // case OP_SETSTAT:
-    //     op_setstat();
-    //     break;
-    
+        // case OP_GETSTAT:
+        //     op_getstat();
+        //     break;
+        // case OP_SETSTAT:
+        //     op_setstat();
+        //     break;
+
     case OP_FUJI:
         op_fuji();
         break;
@@ -406,6 +415,19 @@ void systemBus::shutdown()
     shuttingDown = true;
 
     // TODO: implement device shutdown for all sub-busses
+
+    for (std::map<uint8_t, drivewireNetwork *>::iterator it = _netDev.begin();
+         it != _netDev.end();
+         ++it)
+    {
+        Debug_printf("Shutting down network device ID: %u\n",it->first);
+
+        if (it->second != nullptr)
+            delete it->second;
+    }
+
+    Debug_printf("Clearing Network Device array.\n");
+    _netDev.clear();
 
     Debug_printf("All devices shut down.\n");
 }
