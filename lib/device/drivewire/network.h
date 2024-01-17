@@ -42,6 +42,12 @@ public:
     virtual ~drivewireNetwork();
 
     /**
+     * Toggled by the rate limiting timer to indicate that the CD interrupt should
+     * be pulsed.
+     */
+    bool interruptCD = false;
+
+    /**
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
      */
 #ifdef ESP_PLATFORM
@@ -49,15 +55,14 @@ public:
 #endif
 
     /**
-     * Toggled by the rate limiting timer to indicate that the PROCEED interrupt should
-     * be pulsed.
-     */
-    bool interruptCD = false;
-
-    /**
      * @brief process network device command
      */
     void process();
+
+    /**
+     * Check to see if PROCEED needs to be asserted.
+     */
+    void poll_interrupt();
 
     /**
      * Called for DRIVEWIRE Command 'O' to open a connection to a network protocol, allocate all buffers,
@@ -255,6 +260,11 @@ private:
      * Bytes sent of current JSON query object.
      */
     unsigned short json_bytes_remaining=0;
+
+    /**
+     * Called to pulse the CD interrupt, rate limited by the interrupt timer.
+     */
+    void assert_interrupt();
 
     /**
      * Return 16 bit value returned from command frame 
