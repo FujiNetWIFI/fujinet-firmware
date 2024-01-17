@@ -941,8 +941,59 @@ void drivewireNetwork::poll_interrupt()
     }
 }
 
+/**
+ * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
+ * disk utility packages do when opening a device, such as adding wildcards for directory opens.
+ */
+void drivewireNetwork::create_devicespec()
+{
+    int i=0;
+    // Clean up devicespec buffer.
+    memset(devicespecBuf, 0, sizeof(devicespecBuf));
+
+    // Get Devicespec from buffer, and put into primary devicespec string
+    while (fnUartBUS.available())
+        devicespecBuf[i++]=fnUartBUS.read();
+
+    deviceSpec = string((char *)devicespecBuf);
+
+    deviceSpec = util_devicespec_fix_for_parsing(deviceSpec, prefix, cmdFrame.aux1 == 6, true);
+}
+
+/*
+ * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * of Network.
+*/
+void drivewireNetwork::create_url_parser()
+{
+    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
+    urlParser = PeoplesUrlParser::parseURL(url);
+}
+
 void drivewireNetwork::parse_and_instantiate_protocol()
 {
+    create_devicespec();
+    create_url_parser();
+
+    // Invalid URL returns error 165 in status.
+    if (!urlParser->isValidUrl())
+    {
+        Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
+        ns.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        fnUartBUS.write(ns.error);
+        return;
+    }
+
+    Debug_printf("::parse_and_instantiate_protocol transformed to (%s, %s)\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+
+    // Instantiate protocol object.
+    if (!instantiate_protocol())
+    {
+        Debug_printf("Could not open protocol.\n");
+        ns.error = NETWORK_ERROR_GENERAL;
+        fnUartBUS.write(ns.error);
+        return;
+    }  
 }
 
 /**
@@ -1025,26 +1076,96 @@ bool drivewireNetwork::parseURL()
  */
 void drivewireNetwork::processCommaFromDevicespec()
 {
+    size_t comma_pos = deviceSpec.find(",");
+    vector<string> tokens;
+
+    if (comma_pos == string::npos)
+        return; // no comma
+
+    tokens = util_tokenize(deviceSpec, ',');
+
+    for (vector<string>::iterator it = tokens.begin(); it != tokens.end(); ++it)
+    {
+        string item = *it;
+
+        Debug_printf("processCommaFromDeviceSpec() found one.\n");
+
+        if (item[0] != 'N')
+            continue;                                       // not us.
+        else if (item[1] == ':' && cmdFrame.device != 0x71) // N: but we aren't N1:
+            continue;                                       // also not us.
+        else
+        {
+            // This is our deviceSpec.
+            deviceSpec = item;
+            break;
+        }
+    }
+
+    Debug_printf("Passed back deviceSpec %s\n", deviceSpec.c_str());
 }
 
 void drivewireNetwork::set_translation()
 {
+    trans_aux2 = cmdFrame.aux2;
 }
 
 void drivewireNetwork::parse_json()
 {
+    fnUartBUS.write(json->parse());
 }
 
 void drivewireNetwork::json_query()
 {
-}
+    std::string in_string;
 
-void drivewireNetwork::set_timer_rate()
-{
+    while (fnUartBUS.available())
+        in_string += fnUartBUS.read();
+
+    // strip away line endings from input spec.
+    for (int i = 0; i < 256; i++)
+    {
+        if (in_string[i] == 0x0A || in_string[i] == 0x0D || in_string[i] == 0x9b)
+            in_string[i] = 0x00;
+    }
+
+    json->setReadQuery(in_string, cmdFrame.aux2);
+    json_bytes_remaining = json->json_bytes_remaining;
+
+    std::vector<uint8_t> tmp(json_bytes_remaining);
+    json->readValue(tmp.data(), json_bytes_remaining);
+
+    // don't copy past first nul char in tmp
+    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    *receiveBuffer += std::string(tmp.begin(), null_pos);
+
+    Debug_printf("Query set to >%s<\r\n", in_string.c_str());
+    //sio_complete();
 }
 
 void drivewireNetwork::do_idempotent_command_80()
 {
+    Debug_printf("sioNetwork::sio_do_idempotent_command_80()\r\n");
+// #ifdef ESP_PLATFORM // apc: isn't it already ACK'ed?
+//     sio_ack();
+// #endif
+
+    parse_and_instantiate_protocol();
+
+    if (protocol == nullptr)
+    {
+        Debug_printf("Protocol = NULL\n");
+        //sio_error();
+        return;
+    }
+
+    if (protocol->perform_idempotent_80(urlParser, &cmdFrame) == true)
+    {
+        Debug_printf("perform_idempotent_80 failed\n");
+        // sio_error();
+    }
+    // else
+    //     sio_complete();
 }
 
 void drivewireNetwork::process()

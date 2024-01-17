@@ -278,6 +278,16 @@ private:
     bool instantiate_protocol();
 
     /**
+     * Create the deviceSpec and fix it for parsing
+     */
+    void create_devicespec();
+
+    /**
+     * Create a urlParser from deviceSpec
+    */
+   void create_url_parser();
+
+    /**
      * Is this a valid URL? (used to generate ERROR 165)
      */
     bool isValidURL(PeoplesUrlParser *url);
@@ -392,11 +402,6 @@ private:
      * @brief Set JSON query std::string. (must be in JSON channelMode)
      */
     void json_query();
-
-    /**
-     * @brief Set timer rate for PROCEED timer in ms
-     */
-    void set_timer_rate();
 
     /**
      * @brief perform ->FujiNet commands on protocols that do not use an explicit OPEN channel.
