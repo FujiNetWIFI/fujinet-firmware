@@ -595,6 +595,11 @@ void drivewireNetwork::set_channel_mode()
  */
 void drivewireNetwork::set_login()
 {
+    login.clear();
+    while (fnUartBUS.available())
+        login += fnUartBUS.read();
+    
+    Debug_printf("drivewireNetwork::set_login(%s)\n",login.c_str());
 }
 
 /**
@@ -602,6 +607,11 @@ void drivewireNetwork::set_login()
  */
 void drivewireNetwork::set_password()
 {
+    password.clear();
+    while (fnUartBUS.available())
+        password += fnUartBUS.read();
+
+    Debug_printf("drivewireNetwork::set_password(%s)\n",password.c_str());
 }
 
 /**
