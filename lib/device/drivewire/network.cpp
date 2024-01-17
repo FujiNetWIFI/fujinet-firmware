@@ -648,10 +648,73 @@ void drivewireNetwork::special()
  */
 void drivewireNetwork::special_inquiry()
 {
+    Debug_printf("drivewireNetwork::special_inquiry(%02x)\n", cmdFrame.aux1);
+
+    do_inquiry(cmdFrame.aux1);
+
+    // Finally, return the completed inq_dstats value back to CoCo
+    fnUartBUS.write(&inq_dstats, sizeof(inq_dstats));
 }
 
 void drivewireNetwork::do_inquiry(unsigned char inq_cmd)
 {
+    // Reset inq_dstats
+    inq_dstats = 0xff;
+
+    // Ask protocol for dstats, otherwise get it locally.
+    if (protocol != nullptr)
+    {
+        inq_dstats = protocol->special_inquiry(inq_cmd);
+        Debug_printf("protocol special_inquiry returned %d\r\n", inq_dstats);
+    }
+
+    // If we didn't get one from protocol, or unsupported, see if supported globally.
+    if (inq_dstats == 0xFF)
+    {
+        switch (inq_cmd)
+        {
+        case 0x20: // ' ' rename
+        case 0x21: // '!' delete
+        case 0x23: // '#' lock
+        case 0x24: // '$' unlock
+        case 0x2A: // '*' mkdir
+        case 0x2B: // '+' rmdir
+        case 0x2C: // ',' chdir/get prefix
+        case 0xFD: //     login
+        case 0xFE: //     password
+            inq_dstats = 0x80;
+            break;
+        case 0xFC: //     channel mode
+            inq_dstats = 0x00;
+            break;
+        case 0xFB: // String Processing mode, only in JSON mode
+            if (channelMode == JSON)
+                inq_dstats = 0x00;
+            break;
+        case 0x30: // '0' set prefix
+            inq_dstats = 0x40;
+            break;
+        case 'Z': // Set interrupt rate
+            inq_dstats = 0x00;
+            break;
+        case 'T': // Set Translation
+            inq_dstats = 0x00;
+            break;
+        case 'P': // JSON Parse
+            if (channelMode == JSON)
+                inq_dstats = 0x00;
+            break;
+        case 'Q': // JSON Query
+            if (channelMode == JSON)
+                inq_dstats = 0x80;
+            break;
+        default:
+            inq_dstats = 0xFF; // not supported
+            break;
+        }
+    }
+
+    Debug_printf("inq_dstats = %u\n", inq_dstats);
 }
 
 /**
