@@ -29,7 +29,7 @@
 using namespace std;
 
 /**
- * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
+ * Static callback function for the interrupt rate limiting timer. It sets the interruptCD
  * flag to true. This is set to false when the interrupt is serviced.
  */
 #ifdef ESP_PLATFORM
@@ -189,7 +189,7 @@ void drivewireNetwork::open()
     // Everything good, start the interrupt timer!
     timer_start();
 
-    // Go ahead and send an interrupt, so CoCo knows to get status.
+    // Go ahead and send an interrupt, so CoCo knows to get ns.
     protocol->forceStatus = true;
 
     // TODO: Finally, go ahead and let the parsers know
@@ -888,6 +888,57 @@ bool drivewireNetwork::instantiate_protocol()
 
     Debug_printf("drivewireNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
     return true;
+}
+
+/**
+ * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
+ */
+void drivewireNetwork::assert_interrupt()
+{
+#ifdef ESP_PLATFORM
+    fnSystem.digital_write(PIN_CD, interruptCD == true ? DIGI_HIGH : DIGI_LOW);
+#else
+    uint64_t ms = fnSystem.millis();
+    if (ms - lastInterruptMs >= timerRate)
+    {
+        interruptCD = !interruptCD;
+        fnSioCom.set_proceed(interruptCD);
+        lastInterruptMs = ms;
+    }
+#endif
+}
+
+/**
+ * Check to see if PROCEED needs to be asserted, and assert if needed (continue toggling PROCEED).
+ */
+void drivewireNetwork::poll_interrupt()
+{
+    if (protocol != nullptr)
+    {
+        if (protocol->interruptEnable == false)
+            return;
+
+        /* assert interrupt if we need Status call from host to arrive */
+        if (protocol->forceStatus == true)
+        {
+            assert_interrupt();
+            return;
+        }
+
+        protocol->fromInterrupt = true;
+        protocol->status(&ns);
+        protocol->fromInterrupt = false;
+
+        if (ns.rxBytesWaiting > 0 || ns.connected == 0)
+            assert_interrupt();
+#ifndef ESP_PLATFORM
+        else
+            sio_clear_interrupt();
+#endif
+
+        reservedSave = ns.connected;
+        errorSave = ns.error;
+    }
 }
 
 void drivewireNetwork::parse_and_instantiate_protocol()
