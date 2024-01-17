@@ -622,6 +622,22 @@ void drivewireNetwork::set_password()
  */
 void drivewireNetwork::special()
 {
+    do_inquiry(cmdFrame.comnd);
+
+    switch (inq_dstats)
+    {
+    case 0x00: // No payload
+        special_00();
+        break;
+    case 0x40: // Payload to Atari
+        special_40();
+        break;
+    case 0x80: // Payload to Peripheral
+        special_80();
+        break;
+    default:
+        break;
+    }
 }
 
 /**
