@@ -491,6 +491,8 @@ void drivewireNetwork::status_channel()
  */
 void drivewireNetwork::get_prefix()
 {
+    Debug_printf("drivewireNetwork::get_prefix(%s)\n",prefix.c_str());
+    fnUartBUS.write((uint8_t *)prefix.c_str(),prefix.size());
 }
 
 /**
@@ -498,6 +500,7 @@ void drivewireNetwork::get_prefix()
  */
 void drivewireNetwork::set_prefix()
 {
+
 }
 
 /**
