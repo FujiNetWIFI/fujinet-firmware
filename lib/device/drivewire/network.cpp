@@ -752,6 +752,15 @@ void drivewireNetwork::special_00()
  */
 void drivewireNetwork::special_40()
 {
+    // Handle commands that exist outside of an open channel.
+    switch (cmdFrame.comnd)
+    {
+    case 0x30:
+        get_prefix();
+        return;
+    }
+
+    // not sure what to do here, FIXME.
 }
 
 /**
@@ -762,6 +771,48 @@ void drivewireNetwork::special_40()
  */
 void drivewireNetwork::special_80()
 {
+    uint8_t spData[SPECIAL_BUFFER_SIZE];
+    int i=0;
+
+    // Handle commands that exist outside of an open channel.
+    switch (cmdFrame.comnd)
+    {
+    case 0x20: // RENAME  ' '
+    case 0x21: // DELETE  '!'
+    case 0x23: // LOCK    '#'
+    case 0x24: // UNLOCK  '$'
+    case 0x2A: // MKDIR   '*'
+    case 0x2B: // RMDIR   '+'
+        do_idempotent_command_80();
+        return;
+    case 0x2C: // CHDIR   ','
+        set_prefix();
+        return;
+    case 'Q':
+        if (channelMode == JSON)
+            json_query();
+        return;
+    case 0xFD: // LOGIN
+        set_login();
+        return;
+    case 0xFE: // PASSWORD
+        set_password();
+        return;
+    }
+
+    memset(spData, 0, SPECIAL_BUFFER_SIZE);
+
+    // Get special (devicespec) from computer
+    while (fnUartBUS.available())
+        spData[i++]=fnUartBUS.read();
+
+    Debug_printf("drivewireNetwork::special_80() - %s\n", spData);
+
+    // Do protocol action and return
+    protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame);
+
+    protocol->status(&ns);
+    fnUartBUS.write(ns.error);
 }
 
 /** PRIVATE METHODS ************************************************************/
