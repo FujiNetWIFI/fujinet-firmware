@@ -724,6 +724,24 @@ void drivewireNetwork::do_inquiry(unsigned char inq_cmd)
  */
 void drivewireNetwork::special_00()
 {
+    // Handle commands that exist outside of an open channel.
+    switch (cmdFrame.comnd)
+    {
+    case 'P':
+        if (channelMode == JSON)
+            parse_json();
+        break;
+    case 'T':
+        set_translation();
+        break;
+    case 0xFC: // SET CHANNEL MODE
+        set_channel_mode();
+        break;
+    default:
+        protocol->special_00(&cmdFrame);
+    }
+
+    fnUartBUS.write(ns.error);
 }
 
 /**
