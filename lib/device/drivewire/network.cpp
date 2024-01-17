@@ -500,7 +500,76 @@ void drivewireNetwork::get_prefix()
  */
 void drivewireNetwork::set_prefix()
 {
+    std::string prefixSpec_str;
 
+    while (fnUartBUS.available())
+        prefixSpec_str += fnUartBUS.read();
+
+    prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
+    Debug_printf("drivewireNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
+
+    if (prefixSpec_str.empty())
+    {
+        prefix.clear();
+    }
+    else if (prefixSpec_str == ".." || prefixSpec_str == "<") // Devance path N:..
+    {
+        std::vector<int> pathLocations;
+        for (int i = 0; i < prefix.size(); i++)
+        {
+            if (prefix[i] == '/')
+            {
+                pathLocations.push_back(i);
+            }
+        }
+
+        if (prefix[prefix.size() - 1] == '/')
+        {
+            // Get rid of last path segment.
+            pathLocations.pop_back();
+        }
+
+        // truncate to that location.
+        prefix = prefix.substr(0, pathLocations.back() + 1);
+    }
+    else if ((prefixSpec_str == "/") || (prefixSpec_str == ">")) // Go back to hostname.
+    {
+        // TNFS://foo.com/path
+        size_t pos = prefix.find("/");
+        
+        if (pos == string::npos)
+            prefix.clear();
+        
+        pos = prefix.find("/",++pos);
+
+        if (pos == string::npos)
+            prefix.clear();
+
+        pos = prefix.find("/",++pos);
+
+        if (pos == string::npos)
+            prefix += "/";
+
+        pos = prefix.find("/",++pos);
+
+        prefix = prefix.substr(0,pos);
+    }
+    else if (prefixSpec_str[0] == '/') // N:/DIR
+    {
+        prefix = prefixSpec_str;
+    }
+    else if (prefixSpec_str.find_first_of(":") != string::npos)
+    {
+        prefix = prefixSpec_str;
+    }
+    else // append to path.
+    {
+        prefix += prefixSpec_str;
+    }
+
+    prefix = util_get_canonical_path(prefix);
+
+    Debug_printf("Prefix now: %s\n", prefix.c_str());
 }
 
 /**
