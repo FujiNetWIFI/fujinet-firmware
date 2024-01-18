@@ -65,7 +65,7 @@ size_t printer_emu::getOutputSize()
     if(_file != nullptr)
         return FileSystem::filesize(_file);
 
-    long result = FileSystem::filesize(PRINTER_OUTFILE);
+    long result = _FS->filesize(PRINTER_OUTFILE);
 
     return result == -1 ? 0 : result;
 }

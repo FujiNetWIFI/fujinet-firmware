@@ -16,9 +16,11 @@
 #define FILE_READ "rb"
 #define FILE_WRITE "wb"
 #define FILE_APPEND "ab"
+#define FILE_READ_WRITE "r+b"
 #define FILE_READ_TEXT "rt"
 #define FILE_WRITE_TEXT "wt"
 #define FILE_APPEND_TEXT "at"
+#define FILE_READ_WRITE_TEXT "r+t"
 #endif
 
 #ifdef ESP_PLATFORM
@@ -85,7 +87,7 @@ public:
 #ifndef ESP_PLATFORM
     static long filesize(FileHandler *);
 #endif
-    static long filesize(const char *filepath);
+    virtual long filesize(const char *path);
 
     // Different FS implemenations may require different startup parameters,
     // so each should define its own version of start()

@@ -14,6 +14,7 @@
 #endif
 
 #include <sys/stat.h>
+#include <unistd.h>
 #include <errno.h>
 #include "compat_string.h"
 
@@ -27,18 +28,19 @@
 #include "utils.h"
 
 #ifdef ESP_PLATFORM
-
-#include <esp_idf_version.h>
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
-#define SDSPI_DEFAULT_DMA 1
-#endif
-
+  #include <esp_idf_version.h>
+  #if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
+  #define SDSPI_DEFAULT_DMA 1
+  #endif
 #else
 // !ESP_PLATFORM
-#if defined(_WIN32)
-#include <direct.h>
-#define mkdir(A, B) _mkdir(A)
-#endif // _WIN32
+  #if defined(_WIN32)
+    #include <direct.h>
+    static inline int mkdir(const char *path, mode_t mode)
+    {
+        return _mkdir(path);
+    }
+  #endif // _WIN32
 // !ESP_PLATFORM
 #endif
 
@@ -128,8 +130,37 @@ bool FileSystemSDFAT::is_dir(const char *path)
 {
     char * fpath = _make_fullpath(path);
     struct stat info;
-    stat( fpath, &info);
+    stat(fpath, &info);
+    free(fpath);
     return (info.st_mode == S_IFDIR) ? true: false;
+}
+
+bool FileSystemSDFAT::mkdir(const char* path)
+{
+    char * fpath = _make_fullpath(path);
+    Debug_printf("FileSystemSDFAT::mkdir \"%s\" (\"%s\")\r\n", path, fpath);
+
+    int result = ::mkdir(fpath, S_IRWXU);
+    free(fpath);
+    if(0 != result)
+    {
+        Debug_printf("  mkdir failed: errno %d\r\n", errno);
+    }
+    return (0 == result);
+}
+
+bool FileSystemSDFAT::rmdir(const char* path)
+{
+    char * fpath = _make_fullpath(path);
+    Debug_printf("FileSystemSDFAT::rmdir \"%s\" (\"%s\")\r\n", path, fpath);
+
+    int result = ::rmdir(fpath);
+    free(fpath);
+    if(0 != result)
+    {
+        Debug_printf("  rmdir failed: errno %d\r\n", errno);
+    }
+    return (0 == result);
 }
 
 bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t diropts)
@@ -341,7 +372,7 @@ FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
 #ifndef ESP_PLATFORM
 FileHandler * FileSystemSDFAT::filehandler_open(const char* path, const char* mode)
 {
-    Debug_printf("FileSystemSDFAT::filehandler_open %s %s\n", path, mode);
+    Debug_printf("FileSystemSDFAT::filehandler_open %s %s\r\n", path, mode);
     FILE * fh = file_open(path, mode);
     return (fh == nullptr) ? nullptr : new FileHandlerLocal(fh);
 }
@@ -363,6 +394,17 @@ bool FileSystemSDFAT::exists(const char* path)
 #endif
 }
 
+long FileSystemSDFAT::filesize(const char *path)
+{
+    char * fpath = _make_fullpath(path);
+    struct stat st;
+    int i = stat(fpath, &st);
+    long res = (0 == i) ? st.st_size : -1;
+    Debug_printf("FileSystemSDFAT::filesize returned %ld on \"%s\" (\"%s\")\r\n", res, path, fpath);
+    free(fpath);
+    return res;
+}
+
 bool FileSystemSDFAT::remove(const char* path)
 {
 #ifdef ESP_PLATFORM
@@ -371,10 +413,10 @@ bool FileSystemSDFAT::remove(const char* path)
     return (result == FR_OK);
 #else
     char * fpath = _make_fullpath(path);
-    int i = ::remove(fpath);
+    int result = ::remove(fpath);
     //Debug_printf("sdFileSystem::remove returned %d on \"%s\"\r\n", result, path);
     free(fpath);
-    return (i == 0);
+    return (0 == result);
 #endif
 }
 
@@ -646,11 +688,20 @@ bool FileSystemSDFAT::start(const char *sd_path)
     else
         strlcpy(_basepath, "SD", sizeof(_basepath));
 
-    // TODO test if _basepath directory exists
-    _started = true;
-    // _card_capacity = (uint64_t)sdcard_info->csd.capacity * sdcard_info->csd.sector_size;
     _card_capacity = 0;
-    Debug_println("SD mounted.");
+
+    // test if _basepath directory exists
+    struct stat st;
+    int result = stat(_basepath, &st);
+    if (0 == result)
+    {
+        _started = true;
+        Debug_printf("SD mounted (directory \"%s\").\r\n", _basepath);
+    }
+    else
+    {
+        Debug_printf("SD mount failed, directory \"%s\" does not exist\r\n", _basepath);
+    }
 
     return _started;
 }

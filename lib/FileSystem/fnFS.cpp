@@ -54,24 +54,24 @@ long FileSystem::filesize(FILE *f)
 #ifndef ESP_PLATFORM
 long FileSystem::filesize(FileHandler *fh)
 {
-    Debug_println("FileSystem::filesize from FileHandler");
     long curr = fh->tell();
     fh->seek(0, SEEK_END);
     long end = fh->tell();
     fh->seek(curr, SEEK_SET);
+    Debug_printf("FileSystem::filesize from FileHandler returned %ld\r\n", end);
     return end;
 }
 #endif
 
-// TODO - jk: implement per filesystem?
+// TODO: implement per filesystem
 // Returns size of file given path
-long FileSystem::filesize(const char *filepath)
+long FileSystem::filesize(const char *path)
 {
 #ifndef ESP_PLATFORM
-    Debug_println("!!! TODO !!! FileSystem::filesize from filepath");
+    Debug_println("!!! TODO !!! FileSystem::filesize from path");
 #endif
     struct stat fstat;
-    if( 0 == stat(filepath, &fstat))
+    if( 0 == stat(path, &fstat))
         return fstat.st_size;
     return -1;
 }

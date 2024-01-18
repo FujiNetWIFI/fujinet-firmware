@@ -39,7 +39,7 @@ size_t ModemSniffer::getOutputSize()
     if (_file != nullptr)
         return FileSystem::filesize(_file);
 
-    long result = FileSystem::filesize(SNIFFER_OUTPUT_FILE);
+    long result = activeFS->filesize(SNIFFER_OUTPUT_FILE);
 
     return result == -1 ? 0 : result;
 }
