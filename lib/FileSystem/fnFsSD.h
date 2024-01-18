@@ -29,6 +29,8 @@ public:
     fsType type() override { return FSTYPE_SDFAT; };
     const char * typestring() override { return type_to_string(FSTYPE_SDFAT); };
 
+    long filesize(const char *filepath) override;
+
     FILE * file_open(const char* path, const char* mode = FILE_READ) override;
 #ifndef ESP_PLATFORM
     FileHandler * filehandler_open(const char* path, const char* mode = FILE_READ) override;
@@ -41,8 +43,8 @@ public:
     bool rename(const char* pathFrom, const char* pathTo) override;
 
     bool is_dir(const char *path) override;
-    bool mkdir(const char* path) override { return true; };
-    bool rmdir(const char* path) override { return true; };
+    bool mkdir(const char* path) override;
+    bool rmdir(const char* path) override;
     bool dir_exists(const char* path) override { return true; };
 
     bool dir_open(const char * path, const char *pattern, uint16_t diropts) override;
