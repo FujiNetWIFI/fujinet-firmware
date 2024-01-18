@@ -3,6 +3,8 @@
 
 #include "FS.h"
 
+#include <cstdio>
+
 class NetworkProtocolSD : public NetworkProtocolFS
 {
 public:
@@ -198,7 +200,7 @@ private:
     /**
      * The resulting file handle of open file.
      */
-    int16_t fd = 0;
+    ::FILE *fh = nullptr;
 
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
