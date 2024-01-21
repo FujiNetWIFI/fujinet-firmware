@@ -163,7 +163,7 @@ set(SOURCES src/main.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
     lib/bus/bus.h
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
-    lib/bus/iwm/iwm_slip.h lib/bus/iwm/iwm_slip.cpp
+    lib/bus/iwm/iwm_slip.h lib/utils/std_extensions.hpp lib/bus/iwm/iwm_slip.cpp
     lib/bus/iwm/Connection.h lib/bus/iwm/Connection.cpp
     lib/bus/iwm/TCPConnection.h lib/bus/iwm/TCPConnection.cpp
     lib/bus/sio/sio.h lib/bus/sio/sio.cpp

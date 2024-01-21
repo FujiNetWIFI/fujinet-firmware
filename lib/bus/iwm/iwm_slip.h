@@ -8,9 +8,13 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <unordered_map>
+#include <functional>
 #include "Connection.h"
+
 #include "../../slip/Request.h"
 #include "../../slip/Response.h"
+#include "compat_inet.h"
 
 #define COMMAND_LEN 8 // Read Request / Write Request
 #define PACKET_LEN  2 + 767 // Read Response
@@ -63,7 +67,7 @@ public:
   size_t decode_data_packet(uint8_t* input_data, uint8_t* output_data);
 
   void close_connection(int sock);
-  bool connect_to_server(std::string host, int port);
+  bool connect_to_server(in_addr_t host, int port);
   void wait_for_requests();
 
   uint8_t packet_buffer[PACKET_LEN];
@@ -87,6 +91,14 @@ public:
       default: return "unknown";
     }
   }
+
+private:
+  // Special handlers for byte sequences not part of the protocol. All start 0xFF and are 4 bytes
+  static constexpr std::array<uint8_t, 4> reboot_sequence = {0xFF, 0x00, 0x00, 0xFF};
+
+  static const std::unordered_map<std::array<uint8_t, 4>, std::function<uint8_t(iwm_slip *)>> special_handlers;
+
+  uint8_t reboot();
 };
 
 extern iwm_slip smartport;
