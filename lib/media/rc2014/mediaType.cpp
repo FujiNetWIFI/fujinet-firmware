@@ -95,4 +95,8 @@ uint16_t MediaType::sector_size(uint16_t sector)
     return DISK_BYTES_PER_SECTOR_SINGLE;
 }
 
+uint32_t MediaType::num_sectors() {
+    return _media_num_sectors;
+}
+
 #endif // NEW_TARGET

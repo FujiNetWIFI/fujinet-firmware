@@ -80,6 +80,7 @@ public:
 
     static mediatype_t discover_mediatype(const char *filename, uint32_t disksize);
     uint16_t sector_size(uint16_t sector);
+    uint32_t num_sectors();
 
     virtual ~MediaType();
 };
