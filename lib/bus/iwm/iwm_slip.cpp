@@ -11,8 +11,10 @@
 #include <iomanip>
 #include <thread>
 #include <stdexcept>
-
 #include <string.h>
+#include <unordered_map>
+
+#include "../../utils/std_extensions.hpp"
 
 #ifdef _WIN32
  #include <winsock2.h>
@@ -31,6 +33,7 @@
 #include "../slip/Request.h"
 #include "fnConfig.h"
 #include "fnDNS.h"
+#include "fnSystem.h"
 
 #define PHASE_IDLE   0b0000
 #define PHASE_ENABLE 0b1010
@@ -48,6 +51,11 @@ iwm_slip::~iwm_slip() {
   }
 }
 
+const std::unordered_map<std::array<uint8_t, 4>, std::function<uint8_t(iwm_slip*)>> iwm_slip::special_handlers = {
+  {reboot_sequence, &iwm_slip::reboot} //,
+  // {other_sequence, &iwm_slip::other}
+};
+
 void iwm_slip::setup_gpio()
 {
 }
@@ -56,19 +64,30 @@ void iwm_slip::setup_spi() {
   // Create a listener for requests.
   std::cout << "iwm_slip::setup_spi - attempting to connect to SLIP server " << Config.get_boip_host() << ":" << Config.get_boip_port() << std::endl;
   bool connected = false;
+
+  in_addr_t host_ip = get_ip4_addr_by_name(Config.get_boip_host().c_str());
+  if (host_ip == IPADDR_NONE) {
+    std::ostringstream msg;
+    msg << "The host value " << Config.get_boip_host() << " could not be converted to an IP address";
+    throw std::runtime_error(msg.str());
+  }
   // There really isn't anything else for this SLIP version to do than try and get a connection to server, so keep trying. User can kill process themselves.
+  int iteration_count = 0;
   while (!connected) {
     try {
-      connected = connect_to_server(Config.get_boip_host(), Config.get_boip_port());
+      connected = connect_to_server(host_ip, Config.get_boip_port());
     } catch (const std::runtime_error& e) {
 
     }
     if (!connected) {
-      std::cout << "Retrying in 5 seconds..." << std::endl;
-      std::this_thread::sleep_for(std::chrono::seconds(5));
+      iteration_count++;
+      if (iteration_count % 1000 == 0) {
+        std::cout << "." << std::flush;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
-  std::cout << "iwm_slip::setup_spi - connection to server successful" << std::endl;
+  std::cout << std::endl << "iwm_slip::setup_spi - connection to server successful" << std::endl;
 }
 
 bool iwm_slip::req_wait_for_falling_timeout(int t)
@@ -93,8 +112,20 @@ uint8_t iwm_slip::iwm_phase_vector()
   }
 
   // create a Request object from the data
-  auto request_data = request_queue_.front();
+  std::vector<uint8_t> request_data = request_queue_.front();
   request_queue_.pop();
+
+  // Handle Special requests outside the protocol from the server, e.g. reboot.
+  if (request_data.size() == 4) {
+    std::array<uint8_t, 4> key_array{request_data[0], request_data[1], request_data[2], request_data[3]}; // Correct initialization
+    auto it = special_handlers.find(key_array);
+    if (it != special_handlers.end()) {
+      // Sequence found, call the handler on this iwm_slip instance
+      return (it->second)(this);
+    }
+  }
+
+  // Not a special sequence, handle as normal packet
   current_request = Request::from_packet(request_data);
 
   std::fill(std::begin(IWM.command_packet.data), std::end(IWM.command_packet.data), 0);
@@ -176,7 +207,7 @@ void iwm_slip::close_connection(int sock) {
 #endif
 }
 
-bool iwm_slip::connect_to_server(std::string host, int port)
+bool iwm_slip::connect_to_server(in_addr_t host, int port)
 {
   int sock;
 #ifdef _WIN32
@@ -191,18 +222,10 @@ bool iwm_slip::connect_to_server(std::string host, int port)
     throw std::runtime_error(msg.str());
   }
 
-  auto host_ip = get_ip4_addr_by_name(host.c_str());
-  if (host_ip == IPADDR_NONE) {
-    close_connection(sock);
-    std::ostringstream msg;
-    msg << "The host value " << host << "could not be converted to an IP address";
-    throw std::runtime_error(msg.str());
-  }
-
   sockaddr_in server_addr{};
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(port);
-  server_addr.sin_addr.s_addr = host_ip;
+  server_addr.sin_addr.s_addr = host;
 
   if (connect(sock, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) < 0) {
     close_connection(sock);
@@ -232,6 +255,15 @@ void iwm_slip::wait_for_requests() {
       request_queue_.push(request_data);
     }
   }
+}
+
+uint8_t iwm_slip::reboot() {
+  // set the reboot going - these will also happen in the deconstructor, so maybe overkill?
+  printf("iwm_slip::reboot - reboot sequence detected, rebooting\n");
+  connection_->set_is_connected(false);
+  is_responding_ = false;
+  fnSystem.reboot(1, true);
+  return PHASE_RESET;
 }
 
 iwm_slip smartport;
