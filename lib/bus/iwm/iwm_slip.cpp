@@ -41,14 +41,20 @@
 
 sp_cmd_state_t sp_command_mode;
 
-iwm_slip::~iwm_slip() {
+void iwm_slip::end_request_thread() {
   // stop listening for requests, and stop the connection.
   is_responding_ = false;
   connection_->set_is_connected(false);
   connection_->join();
+  close_connection(connection_sock);
+  connection_sock = 0;
   if (request_thread_.joinable()) {
     request_thread_.join();
   }
+}
+
+iwm_slip::~iwm_slip() {
+  end_request_thread();
 }
 
 const std::unordered_map<std::array<uint8_t, 4>, std::function<uint8_t(iwm_slip*)>> iwm_slip::special_handlers = {
@@ -199,11 +205,12 @@ size_t iwm_slip::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 }
 
 void iwm_slip::close_connection(int sock) {
+  if (sock == 0) return;
 #ifdef _WIN32
-    closesocket(sock);
-    WSACleanup();
+  closesocket(sock);
+  WSACleanup();
 #else
-    close(sock);
+  close(sock);
 #endif
 }
 
@@ -231,6 +238,7 @@ bool iwm_slip::connect_to_server(in_addr_t host, int port)
     close_connection(sock);
     return false;
   }
+  connection_sock = sock;
 
   std::shared_ptr<Connection> conn = std::make_shared<TCPConnection>(sock);
   conn->set_is_connected(true);
@@ -259,10 +267,11 @@ void iwm_slip::wait_for_requests() {
 
 uint8_t iwm_slip::reboot() {
   // set the reboot going - these will also happen in the deconstructor, so maybe overkill?
-  printf("iwm_slip::reboot - reboot sequence detected, rebooting\n");
-  connection_->set_is_connected(false);
+  printf("iwm_slip::reboot - reboot sequence detected, ending connection and resetting\n");
   is_responding_ = false;
-  fnSystem.reboot(1, true);
+  // fnSystem.reboot(1, true);
+  end_request_thread();
+  setup_spi();
   return PHASE_RESET;
 }
 

@@ -69,6 +69,8 @@ public:
   void close_connection(int sock);
   bool connect_to_server(in_addr_t host, int port);
   void wait_for_requests();
+  void end_request_thread();
+  int connection_sock = 0;
 
   uint8_t packet_buffer[PACKET_LEN];
   size_t packet_size;
