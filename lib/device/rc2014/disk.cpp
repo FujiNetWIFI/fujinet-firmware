@@ -16,6 +16,7 @@
 #define RC2014_DISKCMD_READ 0x52
 #define RC2014_DISKCMD_STATUS 0x53
 #define RC2014_DISKCMD_WRITE 0x57
+#define RC2014_DISKCMD_SIZE 0x5A   // 0x5A = 'Z'
 
 rc2014Disk::rc2014Disk()
 {
@@ -209,6 +210,29 @@ void rc2014Disk::unmount()
     }
 }
 
+void rc2014Disk::get_size()
+{
+    Debug_print("disk SIZE\n");
+    rc2014_send_ack();
+
+    uint32_t disk_size = 0;
+    if (_media != nullptr)
+        disk_size = _media->num_sectors();
+
+    uint8_t sectors[4];
+    sectors[0] = disk_size & 0xFF;
+    sectors[1] = (disk_size >> 8) & 0xFF;
+    sectors[2] = (disk_size >> 16) & 0xFF;
+    sectors[3] = (disk_size >> 24) & 0xFF;
+
+    Debug_printf("number of sectors: %d\n", disk_size);
+
+    rc2014_send_buffer(sectors, sizeof(sectors));
+    rc2014_flush();
+
+    rc2014_send_complete();
+}
+
 // Create blank disk
 bool rc2014Disk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 {
@@ -216,7 +240,6 @@ bool rc2014Disk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 
     return true; //MediaTypeImg::create(f, sectorSize, numSectors);
 }
-
 
 void rc2014Disk::rc2014_process(uint32_t commanddata, uint8_t checksum)
 {
@@ -242,6 +265,9 @@ void rc2014Disk::rc2014_process(uint32_t commanddata, uint8_t checksum)
     case RC2014_DISKCMD_FORMAT:
     case RC2014_DISKCMD_FORMAT_MEDIUM:
         format();
+        return;
+    case RC2014_DISKCMD_SIZE:
+        get_size();
         return;
     default:
         Debug_printf("rc2014_process() command not implemented. Cmd received: %02x\n", cmdFrame.comnd);

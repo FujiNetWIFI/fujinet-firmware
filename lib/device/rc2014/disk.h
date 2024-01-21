@@ -22,6 +22,7 @@ private:
     void write(bool verify);
     void format();
     void status();
+    void get_size();
 
     bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
 
