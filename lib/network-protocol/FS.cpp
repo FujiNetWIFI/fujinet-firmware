@@ -394,7 +394,7 @@ void NetworkProtocolFS::resolve()
 
 bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    Debug_printf("NetworkProtocolFS::perform_idempotent_80, url: %s\r\n", url->url.c_str());
+    Debug_printf("NetworkProtocolFS::perform_idempotent_80, url: %s cmd: 0x%02X\r\n", url->url.c_str(), cmdFrame->comnd);
     switch (cmdFrame->comnd)
     {
     case 0x20:
@@ -410,7 +410,7 @@ bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t 
     case 0x2B:
         return rmdir(url, cmdFrame);
     default:
-        Debug_printf("Uncaught idempotent command: %u\r\n", cmdFrame->comnd);
+        Debug_printf("Uncaught idempotent command: 0x%02X\r\n", cmdFrame->comnd);
         return true;
     }
 }
