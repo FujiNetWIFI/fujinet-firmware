@@ -158,10 +158,7 @@ void sioNetwork::sio_open()
             free(newData);
             newData = nullptr;
         }
-
-#ifdef ESP_PLATFORM // TODO apc: sio_error() was called already from parse_and_instantiate_protocol()
-        sio_error();
-#endif
+        // sio_error() - was already called from parse_and_instantiate_protocol()
         return;
     }
 
@@ -1250,16 +1247,37 @@ void sioNetwork::sio_set_timer_rate()
 void sioNetwork::sio_do_idempotent_command_80()
 {
     Debug_printf("sioNetwork::sio_do_idempotent_command_80()\r\n");
-#ifdef ESP_PLATFORM // apc: isn't it already ACK'ed?
-    sio_ack();
-#endif
+    // sio_ack() - was already called from sio_special()
 
+    // Shut down protocol left from previous command, if any
+    if (protocol != nullptr)
+    {
+        protocol->close();
+        delete protocol;
+        protocol = nullptr;
+    }
+
+    if (protocolParser != nullptr)
+    {
+        delete protocolParser;
+        protocolParser = nullptr;
+    }
+
+    // Reset status buffer
+    status.reset();
+
+    // Parse and instantiate protocol
     parse_and_instantiate_protocol();
 
     if (protocol == nullptr)
     {
         Debug_printf("Protocol = NULL\n");
-        sio_error();
+        if (protocolParser != nullptr)
+        {
+            delete protocolParser;
+            protocolParser = nullptr;
+        }
+        // sio_error() - was already called from parse_and_instantiate_protocol()
         return;
     }
 
