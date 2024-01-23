@@ -17,7 +17,7 @@ public:
   virtual void send_data(const std::vector<uint8_t> &data) = 0;
 
   virtual void create_read_channel() = 0;
-  virtual void close() = 0;
+  virtual void close_connection() = 0;
 
   bool is_connected() const { return is_connected_; }
   void set_is_connected(const bool is_connected) { is_connected_ = is_connected; }
