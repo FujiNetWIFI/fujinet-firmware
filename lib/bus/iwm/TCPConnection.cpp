@@ -24,7 +24,7 @@
 // #include "Log.h"
 #include "SLIP.h"
 
-void TCPConnection::close()
+void TCPConnection::close_connection()
 {
   if (socket_ != 0)
   {

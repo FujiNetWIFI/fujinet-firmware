@@ -26,13 +26,8 @@
 #else
   #include <arpa/inet.h>
   #include <errno.h>
- #include <sys/socket.h>
- #include <sys/socket.h>
- #include <netinet/in.h>
- #include <arpa/inet.h>
+  #include <netinet/in.h>
   #include <sys/socket.h>
- #include <netinet/in.h>
- #include <arpa/inet.h>
   #include <unistd.h>
   #define CLOSE_SOCKET close
   #define SHUTDOWN_SOCKET(s) shutdown(s, SHUT_WR)
