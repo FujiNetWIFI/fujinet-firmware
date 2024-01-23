@@ -16,15 +16,29 @@
 
 #include "../../utils/std_extensions.hpp"
 
-#ifdef _WIN32
- #include <winsock2.h>
- #pragma comment(lib, "ws2_32.lib")
- #include <ws2tcpip.h>
+#ifdef WIN32
+  #include <winsock2.h>
+  #include <ws2tcpip.h>
+  #pragma comment(lib, "ws2_32.lib")
+  #define CLOSE_SOCKET closesocket
+  #define SHUTDOWN_SOCKET(s) shutdown(s, SD_SEND)
+  #define SOCKET_ERROR_CODE WSAGetLastError()
 #else
+  #include <arpa/inet.h>
+  #include <errno.h>
+ #include <sys/socket.h>
  #include <sys/socket.h>
  #include <netinet/in.h>
  #include <arpa/inet.h>
- #include <unistd.h>
+  #include <sys/socket.h>
+ #include <netinet/in.h>
+ #include <arpa/inet.h>
+  #include <unistd.h>
+  #define CLOSE_SOCKET close
+  #define SHUTDOWN_SOCKET(s) shutdown(s, SHUT_WR)
+  #define SOCKET_ERROR_CODE errno
+  #define INVALID_SOCKET -1
+  #define SOCKET_ERROR -1
 #endif
 
 #include "iwm_slip.h"
@@ -42,11 +56,12 @@
 sp_cmd_state_t sp_command_mode;
 
 void iwm_slip::end_request_thread() {
+  std::cout << "Ending request thread" << std::endl;
   // stop listening for requests, and stop the connection.
   is_responding_ = false;
   connection_->set_is_connected(false);
   connection_->join();
-  close_connection(connection_sock);
+  close_connection(connection_sock, true);
   connection_sock = 0;
   if (request_thread_.joinable()) {
     request_thread_.join();
@@ -56,11 +71,6 @@ void iwm_slip::end_request_thread() {
 iwm_slip::~iwm_slip() {
   end_request_thread();
 }
-
-const std::unordered_map<std::array<uint8_t, 4>, std::function<uint8_t(iwm_slip*)>> iwm_slip::special_handlers = {
-  {reboot_sequence, &iwm_slip::reboot} //,
-  // {other_sequence, &iwm_slip::other}
-};
 
 void iwm_slip::setup_gpio()
 {
@@ -87,9 +97,7 @@ void iwm_slip::setup_spi() {
     }
     if (!connected) {
       iteration_count++;
-      if (iteration_count % 1000 == 0) {
-        std::cout << "." << std::flush;
-      }
+      std::cout << "." << std::flush;
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   }
@@ -108,6 +116,12 @@ bool iwm_slip::req_wait_for_rising_timeout(int t)
 
 uint8_t iwm_slip::iwm_phase_vector()
 {
+  if (!connection_->is_connected()) {
+    // the responder thread has finished, so reset by going into connect mode again
+    restart();
+    return PHASE_RESET;
+  }
+
   // Lock the mutex before accessing the queue
   std::lock_guard<std::mutex> lock(queue_mutex_);
 
@@ -120,18 +134,6 @@ uint8_t iwm_slip::iwm_phase_vector()
   // create a Request object from the data
   std::vector<uint8_t> request_data = request_queue_.front();
   request_queue_.pop();
-
-  // Handle Special requests outside the protocol from the server, e.g. reboot.
-  if (request_data.size() == 4) {
-    std::array<uint8_t, 4> key_array{request_data[0], request_data[1], request_data[2], request_data[3]}; // Correct initialization
-    auto it = special_handlers.find(key_array);
-    if (it != special_handlers.end()) {
-      // Sequence found, call the handler on this iwm_slip instance
-      return (it->second)(this);
-    }
-  }
-
-  // Not a special sequence, handle as normal packet
   current_request = Request::from_packet(request_data);
 
   std::fill(std::begin(IWM.command_packet.data), std::end(IWM.command_packet.data), 0);
@@ -204,26 +206,36 @@ size_t iwm_slip::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   return 0; // unused
 }
 
-void iwm_slip::close_connection(int sock) {
+void iwm_slip::close_connection(int sock, bool report_error) {
   if (sock == 0) return;
+
+  if (SHUTDOWN_SOCKET(sock) == SOCKET_ERROR && report_error)
+  {
+    std::cerr << "Error shutting down socket, error code: " << SOCKET_ERROR_CODE << std::endl;
+  }
+
+  if (CLOSE_SOCKET(sock) == SOCKET_ERROR && report_error)
+  {
+    std::cerr << "Error closing socket, error code: " << SOCKET_ERROR_CODE << std::endl;
+  }
+
 #ifdef _WIN32
-  closesocket(sock);
   WSACleanup();
-#else
-  close(sock);
 #endif
 }
 
 bool iwm_slip::connect_to_server(in_addr_t host, int port)
 {
-  int sock;
 #ifdef _WIN32
   WSADATA wsa_data;
-  WSAStartup(MAKEWORD(2, 2), &wsa_data);
-  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
-#else
-  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+  if (WSAStartup(MAKEWORD(2, 2), &wsa_data) != 0) {
+    std::ostringstream msg;
+    msg << "WSAStartup failed with code " << WSAGetLastError() << std::endl;
+    throw std::runtime_error(msg.str());
+  }
 #endif
+  int sock;
+  if ((sock = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
     std::ostringstream msg;
     msg << "A socket could not be created.";
     throw std::runtime_error(msg.str());
@@ -235,7 +247,7 @@ bool iwm_slip::connect_to_server(in_addr_t host, int port)
   server_addr.sin_addr.s_addr = host;
 
   if (connect(sock, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) < 0) {
-    close_connection(sock);
+    close_connection(sock, false);
     return false;
   }
   connection_sock = sock;
@@ -265,14 +277,10 @@ void iwm_slip::wait_for_requests() {
   }
 }
 
-uint8_t iwm_slip::reboot() {
-  // set the reboot going - these will also happen in the deconstructor, so maybe overkill?
-  printf("iwm_slip::reboot - reboot sequence detected, ending connection and resetting\n");
-  is_responding_ = false;
-  // fnSystem.reboot(1, true);
+void iwm_slip::restart() {
+  std::cout << "iwm_slip::restarting" << std::endl;
   end_request_thread();
   setup_spi();
-  return PHASE_RESET;
 }
 
 iwm_slip smartport;

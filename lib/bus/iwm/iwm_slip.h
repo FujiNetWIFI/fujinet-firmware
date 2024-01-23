@@ -66,7 +66,7 @@ public:
   size_t decode_data_packet(uint8_t* output_data);
   size_t decode_data_packet(uint8_t* input_data, uint8_t* output_data);
 
-  void close_connection(int sock);
+  void close_connection(int sock, bool report_error);
   bool connect_to_server(in_addr_t host, int port);
   void wait_for_requests();
   void end_request_thread();
@@ -95,12 +95,7 @@ public:
   }
 
 private:
-  // Special handlers for byte sequences not part of the protocol. All start 0xFF and are 4 bytes
-  static constexpr std::array<uint8_t, 4> reboot_sequence = {0xFF, 0x00, 0x00, 0xFF};
-
-  static const std::unordered_map<std::array<uint8_t, 4>, std::function<uint8_t(iwm_slip *)>> special_handlers;
-
-  uint8_t reboot();
+  void restart();
 };
 
 extern iwm_slip smartport;
