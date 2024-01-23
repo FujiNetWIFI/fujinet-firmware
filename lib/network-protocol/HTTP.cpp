@@ -226,9 +226,15 @@ bool NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
 
     // fix scheme because esp-idf hates uppercase for some #()$@ reason.
     if (url->scheme == "HTTP")
+    {
         url->scheme = "http";
+        url->rebuildUrl();
+    }
     else if (url->scheme == "HTTPS")
+    {
         url->scheme = "https";
+        url->rebuildUrl();
+    }
 
     client = new HTTP_CLIENT_CLASS();
 
