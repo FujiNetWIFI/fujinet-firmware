@@ -88,4 +88,16 @@ bool drivewireDisk::write(uint32_t lsn, uint8_t *buf)
     return r;
 }
 
+bool drivewireDisk::write_blank(FILE *f, uint8_t numDisks)
+{
+    size_t numBytes = numDisks*161280;
+
+    for (size_t i=0;i<numBytes;i++)
+        if (fputc(0xFF,f) == EOF)
+            return false;
+
+    return true;
+}
+
+
 #endif /* BUILD_COCO */
