@@ -961,67 +961,54 @@ void drivewireFuji::get_adapter_config()
 //  Make new disk and shove into device slot
 void drivewireFuji::new_disk()
 {
-    // Debug_println("Fuji cmd: NEW DISK");
+    Debug_println("Fuji cmd: NEW DISK");
 
-    // struct
-    // {
-    //     unsigned short numSectors;
-    //     unsigned short sectorSize;
-    //     unsigned char hostSlot;
-    //     unsigned char deviceSlot;
-    //     char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
-    // } newDisk;
+    struct
+    {
+        unsigned short numDisks;
+        unsigned char hostSlot;
+        unsigned char deviceSlot;
+        char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
+    } newDisk;
 
-    // // Ask for details on the new disk to create
-    // uint8_t ck = bus_to_peripheral((uint8_t *)&newDisk, sizeof(newDisk));
+    fnUartBUS.readBytes((uint8_t *)&newDisk, sizeof(newDisk));
 
-    // if (ck != drivewire_checksum((uint8_t *)&newDisk, sizeof(newDisk)))
-    // {
-    //     Debug_print("drivewire_new_disk Bad checksum\n");
-    //     drivewire_error();
-    //     return;
-    // }
-    // if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
-    // {
-    //     Debug_print("drivewire_new_disk Bad disk or host slot parameter\n");
-    //     drivewire_error();
-    //     return;
-    // }
-    // // A couple of reference variables to make things much easier to read...
-    // fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
-    // fujiHost &host = _fnHosts[newDisk.hostSlot];
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
+    fujiHost &host = _fnHosts[newDisk.hostSlot];
 
-    // disk.host_slot = newDisk.hostSlot;
-    // disk.access_mode = DISK_ACCESS_MODE_WRITE;
-    // strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
+    disk.host_slot = newDisk.hostSlot;
+    disk.access_mode = DISK_ACCESS_MODE_WRITE;
+    strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
 
-    // if (host.file_exists(disk.filename))
-    // {
-    //     Debug_printf("drivewire_new_disk File exists: \"%s\"\n", disk.filename);
-    //     drivewire_error();
-    //     return;
-    // }
+    if (host.file_exists(disk.filename))
+    {
+        Debug_printf("drivewire_new_disk File exists: \"%s\"\n", disk.filename);
+        drivewire_error();
+        return;
+    }
 
-    // disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-    // if (disk.fileh == nullptr)
-    // {
-    //     Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-    //     drivewire_error();
-    //     return;
-    // }
+    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+    if (disk.fileh == nullptr)
+    {
+        Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
+        drivewire_error();
+        return;
+    }
 
-    // bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.sectorSize, newDisk.numSectors);
-    // fclose(disk.fileh);
+    bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.numDisks);
 
-    // if (ok == false)
-    // {
-    //     Debug_print("drivewire_new_disk Data write failed\n");
-    //     drivewire_error();
-    //     return;
-    // }
+    fclose(disk.fileh);
 
-    // Debug_print("drivewire_new_disk succeeded\n");
-    // drivewire_complete();
+    if (ok == false)
+    {
+        Debug_print("drivewire_new_disk Data write failed\n");
+        drivewire_error();
+        return;
+    }
+
+    Debug_print("drivewire_new_disk succeeded\n");
+    drivewire_complete();
 }
 
 // Unmount specified host
