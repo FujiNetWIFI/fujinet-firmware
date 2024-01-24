@@ -20,6 +20,8 @@ public:
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
 
+    bool write_blank(FILE *f, uint8_t numDisks);
+
     bool read(uint32_t sector, uint8_t *buf);
     bool write(uint32_t sector, uint8_t *buf);
 };
