@@ -125,7 +125,10 @@ void drivewireNetwork::open()
     Debug_printf("drivewireNetwork::sio_open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
 
     while (fnUartBUS.available())
-        deviceSpec += fnUartBUS.read();
+        {
+            deviceSpec += fnUartBUS.read();
+        }
+
 
     channelMode = PROTOCOL;
 
@@ -947,15 +950,7 @@ void drivewireNetwork::poll_interrupt()
  */
 void drivewireNetwork::create_devicespec()
 {
-    int i=0;
-    // Clean up devicespec buffer.
-    memset(devicespecBuf, 0, sizeof(devicespecBuf));
-
     // Get Devicespec from buffer, and put into primary devicespec string
-    while (fnUartBUS.available())
-        devicespecBuf[i++]=fnUartBUS.read();
-
-    deviceSpec = string((char *)devicespecBuf);
 
     deviceSpec = util_devicespec_fix_for_parsing(deviceSpec, prefix, cmdFrame.aux1 == 6, true);
 }
@@ -1170,6 +1165,7 @@ void drivewireNetwork::do_idempotent_command_80()
 
 void drivewireNetwork::process()
 {
+    Debug_printf("Available? %u\n",fnUartBUS.available());
     // Read the three command and aux bytes
     cmdFrame.comnd = (uint8_t)fnUartBUS.read();
     cmdFrame.aux1 = (uint8_t)fnUartBUS.read();
