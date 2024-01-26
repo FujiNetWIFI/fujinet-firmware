@@ -558,6 +558,7 @@ void IRAM_ATTR iwmBus::service()
     {
       for (auto devicep : _daisyChain)
       {
+        // This could be a map of _devnum to devicep, then wouldn't have to loop.
         if (command_packet.dest == devicep->_devnum)
         {
           // wait for REQ to go low
