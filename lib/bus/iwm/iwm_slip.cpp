@@ -144,11 +144,6 @@ int iwm_slip::iwm_send_packet_spi()
 {
   auto data = current_response->serialize();
 
-  // Some debug to remove
-  char *msg = util_hexdump(data.data(), data.size());
-  printf("iwm_slip::iwm_send_packet_spi\nresponse data (not including SLIP):\n%s\n", msg);
-  free(msg);
-
   // send the data
   try {
     connection_->send_data(data);
@@ -167,9 +162,14 @@ void iwm_slip::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint
 {
   std::cout << "\niwm_slip::encode_packet\nsource: " << static_cast<unsigned int>(source) << ", packet type: " << ipt2str(packet_type) << ", status: " << static_cast<unsigned int>(status) << ", num: " << static_cast<unsigned int>(num) << std::endl;
   if (num > 0) {
-    char *msg = util_hexdump(data, num);
-    printf("%s\n", msg);
+    int chars_to_print = num;
+    if (chars_to_print > 32) chars_to_print = 32;
+    char *msg = util_hexdump(data, chars_to_print);
+    printf("%s", msg);
     free(msg);
+    if (chars_to_print < num) {
+      printf("... truncated\n");
+    }
   }
 
   // Create response object from data being given
@@ -185,9 +185,14 @@ size_t iwm_slip::decode_data_packet(uint8_t* output_data)
   auto payload_size = current_request->payload_size();
   std::cout << "\niwm_slip::decode_data_packet\nrequest payload size: " << payload_size << ", data:" << std::endl;
   if (payload_size > 0) {
-    char *msg = util_hexdump(output_data, payload_size);
+    int chars_to_print = payload_size;
+    if (chars_to_print > 32) chars_to_print = 32;
+    char *msg = util_hexdump(output_data, chars_to_print);
     printf("%s\n", msg);
     free(msg);
+    if (chars_to_print < payload_size) {
+      printf("... truncated\n");
+    }
   }
 
   return current_request->payload_size();
@@ -262,9 +267,14 @@ void iwm_slip::wait_for_requests() {
   while (is_responding_) {
     auto request_data = connection_->wait_for_request();
     if (!request_data.empty()) {
-      char *msg = util_hexdump(request_data.data(), request_data.size());
+      int chars_to_print = request_data.size();
+      if (chars_to_print > 32) chars_to_print = 32;
+      char *msg = util_hexdump(request_data.data(), chars_to_print);
       printf("\nNEW Request data:\n%s\n", msg);
       free(msg);
+      if (chars_to_print != request_data.size()) {
+        printf("... truncated\n");
+      }
 
       std::lock_guard<std::mutex> lock(queue_mutex_);
       request_queue_.push(request_data);
