@@ -72,6 +72,11 @@ void iwm_slip::setup_gpio()
 }
 
 void iwm_slip::setup_spi() {
+#ifdef WIN32
+  int iteration_mod = 10;
+#else
+  int iteration_mod = 15;
+#endif
   // Create a listener for requests.
   std::cout << "iwm_slip::setup_spi - attempting to connect to SLIP server " << Config.get_boip_host() << ":" << Config.get_boip_port() << std::endl;
   bool connected = false;
@@ -92,8 +97,10 @@ void iwm_slip::setup_spi() {
     }
     if (!connected) {
       iteration_count++;
-      std::cout << "." << std::flush;
-      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      if (iteration_count % iteration_mod == 0) {
+        std::cout << "." << std::flush;
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));  // pause for 0.1s every loop around. keeps it slightly less busy.
     }
   }
   std::cout << std::endl << "iwm_slip::setup_spi - connection to server successful" << std::endl;
@@ -246,9 +253,33 @@ bool iwm_slip::connect_to_server(in_addr_t host, int port)
   server_addr.sin_port = htons(port);
   server_addr.sin_addr.s_addr = host;
 
+#ifdef _WIN32
+  u_long mode = 1;  // 1 to enable non-blocking socket
+  ioctlsocket(sock, FIONBIO, &mode);
+#endif
+
+  bool did_connect = false;
   if (connect(sock, reinterpret_cast<sockaddr*>(&server_addr), sizeof(server_addr)) < 0) {
-    close_connection(sock, false);
-    return false;
+#ifdef _WIN32
+    if (WSAGetLastError() == WSAEWOULDBLOCK) {
+      // The connection attempt is in progress.
+      fd_set writefds;
+      FD_ZERO(&writefds);
+      FD_SET(sock, &writefds);
+      timeval tv;
+      tv.tv_sec = 0;
+      tv.tv_usec = 50000;  // Wait up to 50 milliseconds for the connection to complete.
+      if (select(0, NULL, &writefds, NULL, &tv) == 1) {
+        did_connect = true;
+      }
+    }
+    mode = 0;  // 0 to disable non-blocking socket
+    ioctlsocket(sock, FIONBIO, &mode);
+#endif
+    if (!did_connect) {
+      close_connection(sock, false);
+      return false;
+    }
   }
   connection_sock = sock;
 
