@@ -16,5 +16,6 @@ components:
   disk_swap: true
   boot_settings: true
   apetime: true
+  pclink: true
 tweaks:
   # webui tweaks, if any

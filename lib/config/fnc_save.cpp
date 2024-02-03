@@ -162,6 +162,7 @@ void fnConfig::save()
     ss << "enable_device_slot_7=" << _denable.device_7_enabled << LINETERM;
     ss << "enable_device_slot_8=" << _denable.device_8_enabled << LINETERM;
     ss << "enable_apetime=" << _denable.apetime << LINETERM;
+    ss << "enable_pclink=" << _denable.pclink << LINETERM;
 
 #ifndef ESP_PLATFORM
     // SERIAL

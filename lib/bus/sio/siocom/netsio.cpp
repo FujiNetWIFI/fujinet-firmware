@@ -354,7 +354,7 @@ int NetSioPort::handle_netsio()
 
             case NETSIO_DATA_BYTE:
                 b = rxbuf[1];
-                if (_baud_peer < _baud * 95 / 100 || _baud_peer > _baud * 105 / 100)
+                if (_baud_peer < _baud * 90 / 100 || _baud_peer > _baud * 110 / 100)
                     b ^= (uint8_t)_baud_peer ^ (uint8_t)_baud; // corrupt byte
                 if (rxbuffer_put(b))
                     Debug_println("NetSIO rxbuffer overrun");
@@ -367,7 +367,7 @@ int NetSioPort::handle_netsio()
                     // for (int i = 1; i < received; i++)
                     {
                         b = rxbuf[i];
-                        if (_baud_peer < _baud * 95 / 100 || _baud_peer > _baud * 105 / 100)
+                        if (_baud_peer < _baud * 90 / 100 || _baud_peer > _baud * 110 / 100)
                             b ^= (uint8_t)_baud_peer ^ (uint8_t)_baud; // corrupt byte
                         if (rxbuffer_put(b))
                             Debug_println("NetSIO rxbuffer overrun");

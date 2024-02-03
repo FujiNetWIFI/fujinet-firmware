@@ -580,6 +580,13 @@ void fnHttpServiceConfigurator::config_netsio(std::string enable_netsio, std::st
 }
 #endif // !ESP_PLATFORM
 
+void fnHttpServiceConfigurator::config_pclink_enabled(std::string enabled)
+{
+    Debug_printf("New PCLink Enable Value: %s\n", enabled.c_str());
+    Config.store_pclink_enabled(atoi(enabled.c_str()));
+    Config.save();
+}
+
 int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t postlen)
 {
 #ifdef DEBUG
@@ -713,6 +720,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
             update_netsio = true;
         }
 #endif
+        else if (i->first.compare("pclink_enabled") == 0)
+        {
+            config_pclink_enabled(i->second);
+        }
     } // end for loop
 
 #ifndef ESP_PLATFORM

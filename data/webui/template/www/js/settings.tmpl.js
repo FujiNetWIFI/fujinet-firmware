@@ -144,3 +144,7 @@ setSerialProceed(current_serial_proceed);
 {% if components.emulator_settings %}
 setInputValue(current_netsio_enabled == 1, "netsio-yes", "netsio-no");
 {% endif %}
+
+{% if components.pclink %}
+setInputValue(current_pclink == 1, "pclink-yes", "pclink-no");
+{% endif %}
