@@ -90,6 +90,9 @@ void iwm_slip::setup_spi() {
   // There really isn't anything else for this SLIP version to do than try and get a connection to server, so keep trying. User can kill process themselves.
   int iteration_count = 0;
   while (!connected) {
+    if (fnSystem.check_for_shutdown()) {
+      return; // get out, shutdown requested
+    }
     try {
       connected = connect_to_server(host_ip, Config.get_boip_port());
     } catch (const std::runtime_error& e) {
