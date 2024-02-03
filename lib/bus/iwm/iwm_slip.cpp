@@ -54,8 +54,10 @@ void iwm_slip::end_request_thread() {
   std::cout << "Ending request thread" << std::endl;
   // stop listening for requests, and stop the connection.
   is_responding_ = false;
-  connection_->set_is_connected(false);
-  connection_->join();
+  if (connection_) {
+    connection_->set_is_connected(false);
+    connection_->join();
+  }
   close_connection(connection_sock, true);
   connection_sock = 0;
   if (request_thread_.joinable()) {
