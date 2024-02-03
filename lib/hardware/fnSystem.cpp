@@ -405,7 +405,8 @@ bool SystemManager::check_deferred_reboot()
 
 int SystemManager::request_for_shutdown()
 {
-    return (_shutdown_requests = 1 + _shutdown_requests);
+    _shutdown_requests = _shutdown_requests + 1;
+    return _shutdown_requests;
 }
 int SystemManager::check_for_shutdown()
 {
