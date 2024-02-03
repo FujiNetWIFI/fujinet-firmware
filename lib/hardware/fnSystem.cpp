@@ -402,6 +402,15 @@ bool SystemManager::check_deferred_reboot()
 {
     return _reboot_at && millis() >= _reboot_at;
 }
+
+int SystemManager::request_for_shutdown()
+{
+    return (_shutdown_requests = 1 + _shutdown_requests);
+}
+int SystemManager::check_for_shutdown()
+{
+    return _shutdown_requests;
+}
 #endif
 
 /* Size of available heap. Size of largest contiguous block may be smaller.

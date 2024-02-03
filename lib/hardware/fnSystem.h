@@ -10,6 +10,8 @@
 
 #ifdef ESP_PLATFORM
 #include <driver/gpio.h>
+#else
+#include <signal.h>
 #endif
 
 #include "../FileSystem/fnFS.h"
@@ -40,6 +42,7 @@ private:
     char _uname_string[128];
     uint64_t _reboot_at = 0;
     int _reboot_code = EXIT_AND_RESTART;
+    volatile sig_atomic_t _shutdown_requests = 0;
 #endif
 
 public:
@@ -111,6 +114,8 @@ public:
 #else
     void reboot(uint32_t delay_ms = 0, bool reboot=true);
     bool check_deferred_reboot();
+    int request_for_shutdown();
+    int check_for_shutdown();
 #endif
     uint32_t get_cpu_frequency();
     uint32_t get_free_heap_size();
