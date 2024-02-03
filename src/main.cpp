@@ -97,9 +97,16 @@ void print_version()
 }
 
 volatile sig_atomic_t fn_shutdown = 0;
+volatile int exit_for_restart = 0;
 
 void sighandler(int signum)
 {
+#if !defined(_WIN32)
+    if (signum == SIGHUP)
+        exit_for_restart = 1;       // gracefull shutdown (with restart by run-fujinet script)
+    if (signum == SIGUSR1)
+        _exit(EXIT_AND_RESTART);    // not gracefull shutdown (with restart by run-fujinet script)
+#endif
     fn_shutdown = 1 + fn_shutdown;
     if (fn_shutdown >= 3)
         _exit(EXIT_FAILURE); // emergency exit
@@ -193,6 +200,9 @@ void main_setup(int argc, char *argv[])
     signal(SIGTERM, sighandler);
   #if defined(_WIN32)
     signal(SIGBREAK, sighandler);
+  #else
+    signal(SIGHUP, sighandler);
+    signal(SIGUSR1, sighandler);
   #endif
 
   #if defined(_WIN32)
@@ -568,6 +578,9 @@ int main(int argc, char *argv[])
     main_setup(argc, argv);
     // Enter service loop
     fn_service_loop(nullptr);
+
+    if (exit_for_restart)
+        fnSystem.reboot(); // calls exit(75)
     return EXIT_SUCCESS;
 }
 
