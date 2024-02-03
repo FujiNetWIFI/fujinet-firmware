@@ -20,6 +20,7 @@ components:
   serial_port: true
   emulator_settings: true
   cpm_settings: true
+  pclink: true
 tweaks:
   # webui tweaks, if any
   fujinet_pc: true

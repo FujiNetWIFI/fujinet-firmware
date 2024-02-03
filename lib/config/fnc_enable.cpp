@@ -127,6 +127,20 @@ void fnConfig::store_apetime_enabled(bool enabled)
     }
 }
 
+bool fnConfig::get_pclink_enabled()
+{
+    return _denable.pclink;
+}
+
+void fnConfig::store_pclink_enabled(bool enabled)
+{
+    if (_denable.pclink != enabled)
+    {
+        _denable.pclink = enabled;
+        _dirty = true;
+    }
+}
+
 void fnConfig::_read_section_device_enable(std::stringstream &ss)
 {
     std::string line;
@@ -156,6 +170,8 @@ void fnConfig::_read_section_device_enable(std::stringstream &ss)
                 _denable.device_8_enabled = atoi(value.c_str());
             else if (strcasecmp(name.c_str(), "enable_apetime") == 0)
                 _denable.apetime = atoi(value.c_str());        
+            else if (strcasecmp(name.c_str(), "enable_pclink") == 0)
+                _denable.pclink = atoi(value.c_str());        
         }
     }
 }

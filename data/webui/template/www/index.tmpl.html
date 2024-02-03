@@ -878,6 +878,121 @@
 				</div>
 			</div>
 			{% endif %}
+			{% if components.cpm_settings %}
+			<div class="flexchild">
+				<form action="/config" method="post">
+				<div class="settings">
+					<div class="settings-header">
+						CP/M<span id="logowob"></span>Settings
+					</div>
+					<div class="settings-left">
+							<div class="svgicon">
+								<svg width="53.317mm" height="46.17mm" version="1.1" viewBox="0 0 53.317 46.17" xmlns="http://www.w3.org/2000/svg">
+								 <g transform="translate(-7.5798 -24.586)">
+								  <rect x="9.7771" y="26.784" width="48.922" height="41.775" ry="8.4013" fill="#454545" stroke="#000" stroke-width="3.9947"/>
+								  <g fill="#0f0">
+								   <g transform="matrix(1.5554 0 0 1.5554 -4.3212 -13.767)" stroke-width=".26458" aria-label="CP/M">
+									<path d="m11.825 31.973h0.79375v-0.79375h0.79375v-0.79375h3.175v0.79375h0.79375v1.5875h-0.79375v-0.79375h-0.79375v-0.79375h-1.5875v0.79375h-0.79375v4.7625h0.79375v0.79375h1.5875v-0.79375h0.79375v-0.79375h0.79375v1.5875h-0.79375v0.79375h-3.175v-0.79375h-0.79375v-0.79375h-0.79375z"/>
+									<path d="m18.439 30.385v0.79375h0.79375v6.35h-0.79375v0.79375h3.175v-0.79375h-0.79375v-3.175h2.3812v-0.79375h0.79375v-2.3812h-0.79375v-0.79375zm2.3812 0.79375h1.5875v2.3812h-1.5875z"/>
+									<path d="m25.054 38.323v-1.5875h0.79375v-0.79375h0.79375v-0.79375h0.79375v-0.79375h0.79375v-0.79375h0.79375v-0.79375h0.79375v-0.79375h0.79375v1.5875h-0.79375v0.79375h-0.79375v0.79375h-0.79375v0.79375h-0.79375v0.79375h-0.79375v0.79375h-0.79375v0.79375z"/>
+									<path d="m31.668 30.385v7.9375h1.5875v-4.7625h0.79375v0.79375h0.79375v-0.79375h0.79375v4.7625h1.5875v-7.9375h-1.5875v0.79375h-0.79375v0.79375h-0.79375v-0.79375h-0.79375v-0.79375z"/>
+								   </g>
+								   <g transform="matrix(1.5554 0 0 1.5554 -4.3212 -13.767)" stroke-width=".26458" aria-label="A0&gt;">
+									<path d="m16.217 48.336h-0.97014v-1.9403h-1.4552v1.9403h-0.97014v-3.3955h0.48507v-0.48507h0.48507v-0.48507h0.48507v-0.48507h0.48507v0.48507h0.48507v0.48507h0.48507v0.48507h0.48507zm-0.97014-2.4253v-0.97014h-0.48507v-0.48507h-0.48507v0.48507h-0.48507v0.97014z"/>
+									<path d="m16.966 47.366h0.48507v0.48507h0.48507v0.48507h1.4552v-0.48507h0.48507v-0.48507h0.48507v-2.9104h-0.48507v-0.48507h-0.48507v-0.48507h-1.4552v0.48507h-0.48507v0.48507h-0.48507zm1.9403-3.3955v0.48507h0.48507v2.9104h-0.48507v0.48507h-0.48507v-0.48507h-0.48507v-2.9104h0.48507v-0.48507zm-0.48507 1.4552h0.48507v0.97014h-0.48507z"/>
+									<path d="m24.507 46.396h-0.48507v0.48507h-0.48507v0.48507h-0.48507v0.48507h-0.48507v0.48507h-0.97014v-0.48507h0.48507v-0.48507h0.48507v-0.48507h0.48507v-0.48507h0.48507v-0.48507h-0.48507v-0.48507h-0.48507v-0.48507h-0.48507v-0.48507h-0.48507v-0.48507h0.97014v0.48507h0.48507v0.48507h0.48507v0.48507h0.48507v0.48507h0.48507z"/>
+								   </g>
+								   <rect x="36.147" y="54.021" width="5.191" height="7.6902" rx="0" ry="0"/>
+								  </g>
+								 </g>
+								</svg>
+							</div>
+					</div>
+					<div class="settings-content settings-55-45">
+						<div class="set">
+							<div class="settings-label">
+								<label>Use as virtual CP/M device</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="cpm-virt-yes" name="cpm_enabled" type="radio" value="1">
+									<label for="cpm-virt-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="cpm-virt-no" name="cpm_enabled" type="radio" value="0">
+									<label for="cpm-virt-no" class="r-yes-no">No</label>
+								</div>
+							</div>
+						</div>
+						<div class="set">
+							<div class="settings-label">
+								<label>Set custom Console Command Processor</label>
+							</div>
+							<div class="settings-value">
+								<input type="text" name="cpm_ccp" id="cpm_ccp" value="<%FN_CPM_CCP%>">
+							</div>
+						</div>
+						<hr>
+						<div class="settings-text">
+							<div>
+								Custom CCP must be a valid path on the SD Card<br>
+								Example: <strong>/some/directory/custom.ccp</strong><br>
+								Set CCP to <strong>$</strong> for default built-in CCP<br>
+							</div>
+						</div>
+						<script>
+							var current_cpm_enabled = "<%FN_CPM_ENABLED%>";
+						</script>
+					</div>
+					<div class="settings-footer">
+						<div class="save-button">
+							<button type="submit" value="Save">Save</button>
+						</div>
+					</div>
+				</div>
+				</form>
+			</div>
+			{% endif %}
+			{% if components.pclink %}
+			<div class="flexchild">
+				<form action="/config" method="post">
+				<div class="settings">
+					<div class="settings-header">
+						PC<span id="logowob"></span>Link
+					</div>
+					<script>
+						var current_pclink = "<%FN_PCLINK_ENABLED%>";
+					</script>
+					<div class="settings-left">
+						<div class="svgicon">
+							<!-- SVG PCLink icon should go here
+							<svg width="100%" height="100%" viewBox="0 0 297 254" version="1.1"
+							</svg>
+							-->
+						</div>
+					</div>
+					<div class="settings-content settings-45-55">
+						<div class="set">
+							<div class="settings-label">
+								<label for="">Enable PCLink</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="pclink-yes" name="pclink_enabled" type="radio" value="1">
+									<label for="pclink-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="pclink-no" name="pclink_enabled" type="radio" value="0">
+									<label for="pclink-no" class="r-yes-no">No</label>
+								</div>
+							</div>
+						</div>
+					</div>
+					<div class="settings-footer">
+						<div class="save-button">
+							<button type="submit" value="Save">Save</button>
+						</div>
+					</div>
+				</div>
+				</form>
+			</div>
+			{% endif %}
 			{% if components.disk_swap %}
 			<div class="flexchild">
 				<form action="/config" method="post">
@@ -1308,79 +1423,6 @@
 								</div>
 							</div>
 						</div>
-					</div>
-					<div class="settings-footer">
-						<div class="save-button">
-							<button type="submit" value="Save">Save</button>
-						</div>
-					</div>
-				</div>
-				</form>
-			</div>
-			{% endif %}
-			{% if components.cpm_settings %}
-			<div class="flexchild">
-				<form action="/config" method="post">
-				<div class="settings">
-					<div class="settings-header">
-						CP/M<span id="logowob"></span>Settings
-					</div>
-					<div class="settings-left">
-							<div class="svgicon">
-								<svg width="53.317mm" height="46.17mm" version="1.1" viewBox="0 0 53.317 46.17" xmlns="http://www.w3.org/2000/svg">
-								 <g transform="translate(-7.5798 -24.586)">
-								  <rect x="9.7771" y="26.784" width="48.922" height="41.775" ry="8.4013" fill="#454545" stroke="#000" stroke-width="3.9947"/>
-								  <g fill="#0f0">
-								   <g transform="matrix(1.5554 0 0 1.5554 -4.3212 -13.767)" stroke-width=".26458" aria-label="CP/M">
-									<path d="m11.825 31.973h0.79375v-0.79375h0.79375v-0.79375h3.175v0.79375h0.79375v1.5875h-0.79375v-0.79375h-0.79375v-0.79375h-1.5875v0.79375h-0.79375v4.7625h0.79375v0.79375h1.5875v-0.79375h0.79375v-0.79375h0.79375v1.5875h-0.79375v0.79375h-3.175v-0.79375h-0.79375v-0.79375h-0.79375z"/>
-									<path d="m18.439 30.385v0.79375h0.79375v6.35h-0.79375v0.79375h3.175v-0.79375h-0.79375v-3.175h2.3812v-0.79375h0.79375v-2.3812h-0.79375v-0.79375zm2.3812 0.79375h1.5875v2.3812h-1.5875z"/>
-									<path d="m25.054 38.323v-1.5875h0.79375v-0.79375h0.79375v-0.79375h0.79375v-0.79375h0.79375v-0.79375h0.79375v-0.79375h0.79375v-0.79375h0.79375v1.5875h-0.79375v0.79375h-0.79375v0.79375h-0.79375v0.79375h-0.79375v0.79375h-0.79375v0.79375h-0.79375v0.79375z"/>
-									<path d="m31.668 30.385v7.9375h1.5875v-4.7625h0.79375v0.79375h0.79375v-0.79375h0.79375v4.7625h1.5875v-7.9375h-1.5875v0.79375h-0.79375v0.79375h-0.79375v-0.79375h-0.79375v-0.79375z"/>
-								   </g>
-								   <g transform="matrix(1.5554 0 0 1.5554 -4.3212 -13.767)" stroke-width=".26458" aria-label="A0&gt;">
-									<path d="m16.217 48.336h-0.97014v-1.9403h-1.4552v1.9403h-0.97014v-3.3955h0.48507v-0.48507h0.48507v-0.48507h0.48507v-0.48507h0.48507v0.48507h0.48507v0.48507h0.48507v0.48507h0.48507zm-0.97014-2.4253v-0.97014h-0.48507v-0.48507h-0.48507v0.48507h-0.48507v0.97014z"/>
-									<path d="m16.966 47.366h0.48507v0.48507h0.48507v0.48507h1.4552v-0.48507h0.48507v-0.48507h0.48507v-2.9104h-0.48507v-0.48507h-0.48507v-0.48507h-1.4552v0.48507h-0.48507v0.48507h-0.48507zm1.9403-3.3955v0.48507h0.48507v2.9104h-0.48507v0.48507h-0.48507v-0.48507h-0.48507v-2.9104h0.48507v-0.48507zm-0.48507 1.4552h0.48507v0.97014h-0.48507z"/>
-									<path d="m24.507 46.396h-0.48507v0.48507h-0.48507v0.48507h-0.48507v0.48507h-0.48507v0.48507h-0.97014v-0.48507h0.48507v-0.48507h0.48507v-0.48507h0.48507v-0.48507h0.48507v-0.48507h-0.48507v-0.48507h-0.48507v-0.48507h-0.48507v-0.48507h-0.48507v-0.48507h0.97014v0.48507h0.48507v0.48507h0.48507v0.48507h0.48507v0.48507h0.48507z"/>
-								   </g>
-								   <rect x="36.147" y="54.021" width="5.191" height="7.6902" rx="0" ry="0"/>
-								  </g>
-								 </g>
-								</svg>
-							</div>
-					</div>
-					<div class="settings-content settings-55-45">
-						<div class="set">
-							<div class="settings-label">
-								<label>Use as virtual CP/M device</label>
-							</div>
-							<div class="settings-value">
-								<div class="radio-container">
-									<input checked="" id="cpm-virt-yes" name="cpm_enabled" type="radio" value="1">
-									<label for="cpm-virt-yes" class="r-yes-no">Yes</label>
-									<input checked="" id="cpm-virt-no" name="cpm_enabled" type="radio" value="0">
-									<label for="cpm-virt-no" class="r-yes-no">No</label>
-								</div>
-							</div>
-						</div>
-						<div class="set">
-							<div class="settings-label">
-								<label>Set custom Console Command Processor</label>
-							</div>
-							<div class="settings-value">
-								<input type="text" name="cpm_ccp" id="cpm_ccp" value="<%FN_CPM_CCP%>">
-							</div>
-						</div>
-						<hr>
-						<div class="settings-text">
-							<div>
-								Custom CCP must be a valid path on the SD Card<br>
-								Example: <strong>/some/directory/custom.ccp</strong><br>
-								Set CCP to <strong>$</strong> for default built-in CCP<br>
-							</div>
-						</div>
-						<script>
-							var current_cpm_enabled = "<%FN_CPM_ENABLED%>";
-						</script>
 					</div>
 					<div class="settings-footer">
 						<div class="save-button">

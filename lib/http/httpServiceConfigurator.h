@@ -32,6 +32,7 @@ class fnHttpServiceConfigurator
     static void config_cpm_enabled(std::string cpm_enabled);
     static void config_cpm_ccp(std::string cpm_ccp);
     static void config_alt_filename(std::string alt_cfg);
+    static void config_pclink_enabled(std::string pclink_enabled);
 
 #ifndef ESP_PLATFORM
     static void config_serial(std::string port, std::string command, std::string proceed);
