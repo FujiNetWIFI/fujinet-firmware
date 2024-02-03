@@ -103,13 +103,13 @@ void sighandler(int signum)
 {
 #if !defined(_WIN32)
     if (signum == SIGHUP)
-        exit_for_restart = 1;       // gracefull shutdown (with restart by run-fujinet script)
+        exit_for_restart = 1;       // graceful shutdown (with restart by run-fujinet script)
     if (signum == SIGUSR1)
-        _exit(EXIT_AND_RESTART);    // not gracefull shutdown (with restart by run-fujinet script)
+        _exit(EXIT_AND_RESTART);    // forced exit (with restart by run-fujinet script)
 #endif
     fn_shutdown = 1 + fn_shutdown;
     if (fn_shutdown >= 3)
-        _exit(EXIT_FAILURE); // emergency exit
+        _exit(EXIT_FAILURE);        // emergency exit after any 3 signals
 }
 
 #endif // !ESP_PLATFORM
