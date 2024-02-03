@@ -74,7 +74,7 @@ public:
 
   uint8_t packet_buffer[PACKET_LEN];
   size_t packet_size;
-  std::shared_ptr<Connection> connection_;
+  std::shared_ptr<Connection> connection_ = nullptr;
   std::thread request_thread_;
 	std::atomic<bool> is_responding_{false};
 
