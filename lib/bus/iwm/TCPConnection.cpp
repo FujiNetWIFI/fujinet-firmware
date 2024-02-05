@@ -1,3 +1,6 @@
+#ifdef BUILD_APPLE
+#ifdef SP_OVER_SLIP
+
 #include "TCPConnection.h"
 
 #include <cstring>
@@ -129,3 +132,6 @@ void TCPConnection::create_read_channel()
 		LogFileOutput("TCPConnection::create_read_channel - thread is EXITING\n");
 	});
 }
+
+#endif
+#endif
