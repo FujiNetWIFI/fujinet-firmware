@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 fn_pid=0
 rc=75
