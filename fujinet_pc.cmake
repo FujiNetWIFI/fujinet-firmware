@@ -372,6 +372,7 @@ else()
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:fujinet> dist
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${BUILD_DATA_DIR} dist/data
         COMMAND ${CMAKE_COMMAND} -E remove dist/run-fujinet.bat
+        COMMAND ${CMAKE_COMMAND} -E remove dist/run-fujinet.ps1
     )
 endif()
 add_dependencies(dist fujinet)
