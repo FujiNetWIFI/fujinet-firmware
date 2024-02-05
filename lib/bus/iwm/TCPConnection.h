@@ -1,4 +1,6 @@
 #pragma once
+#ifdef BUILD_APPLE
+#ifdef SP_OVER_SLIP
 
 #include "Connection.h"
 #include <string>
@@ -19,3 +21,6 @@ public:
 private:
 	int socket_;
 };
+
+#endif
+#endif

@@ -1,3 +1,6 @@
+#ifdef BUILD_APPLE
+#ifdef SP_OVER_SLIP
+
 #include "Connection.h"
 #include <condition_variable>
 #include <cstdint>
@@ -47,3 +50,6 @@ void Connection::join()
 		reading_thread_.join();
 	}
 }
+
+#endif
+#endif

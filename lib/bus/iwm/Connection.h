@@ -1,4 +1,6 @@
 #pragma once
+#ifdef BUILD_APPLE
+#ifdef SP_OVER_SLIP
 
 #include <array>
 #include <atomic>
@@ -37,3 +39,6 @@ protected:
 	std::mutex data_mutex_;
 	std::condition_variable data_cv_;
 };
+
+#endif
+#endif
