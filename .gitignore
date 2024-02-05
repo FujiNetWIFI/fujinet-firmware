@@ -21,6 +21,7 @@ sdkconfig.fujinet-v1
 include/version.h
 build/CMakeCache.txt
 build/*
+!build/.gitkeep
 out/*
 
 # ignore generated WebUI files
