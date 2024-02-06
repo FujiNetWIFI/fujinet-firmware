@@ -96,13 +96,18 @@ void print_version()
     printf("\n");
 }
 
-volatile sig_atomic_t fn_shutdown = 0;
+volatile int exit_for_restart = 0;
 
 void sighandler(int signum)
 {
-    fn_shutdown = 1 + fn_shutdown;
-    if (fn_shutdown >= 3)
-        _exit(EXIT_FAILURE); // emergency exit
+#if !defined(_WIN32)
+    if (signum == SIGHUP)
+        exit_for_restart = 1;       // graceful shutdown (with restart by run-fujinet script)
+    if (signum == SIGUSR1)
+        _exit(EXIT_AND_RESTART);    // forced exit (with restart by run-fujinet script)
+#endif
+    if (fnSystem.request_for_shutdown() >= 3)
+        _exit(EXIT_FAILURE);        // emergency exit after any 3 signals
 }
 
 #endif // !ESP_PLATFORM
@@ -193,6 +198,9 @@ void main_setup(int argc, char *argv[])
     signal(SIGTERM, sighandler);
   #if defined(_WIN32)
     signal(SIGBREAK, sighandler);
+  #else
+    signal(SIGHUP, sighandler);
+    signal(SIGUSR1, sighandler);
   #endif
 
   #if defined(_WIN32)
@@ -473,6 +481,10 @@ void fn_service_loop(void *param)
 {
 #ifdef ESP_PLATFORM
     main_setup();
+#else
+    if (fnSystem.check_for_shutdown()) {
+      return; // get out, shutdown already requested
+    }
 #endif
 
     // Now that our main service is running, try connecting to WiFi or BlueTooth
@@ -498,7 +510,7 @@ void fn_service_loop(void *param)
     // Shouldn't be a problem, but something to keep in mind...
     while (true)
 #else
-    while (!fn_shutdown)
+    while (fnSystem.check_for_shutdown() == 0)
 #endif
     {
 
@@ -577,6 +589,9 @@ int main(int argc, char *argv[])
     main_setup(argc, argv);
     // Enter service loop
     fn_service_loop(nullptr);
+
+    if (exit_for_restart)
+        fnSystem.reboot(); // calls exit(75)
     return EXIT_SUCCESS;
 }
 
