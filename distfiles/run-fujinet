@@ -1,15 +1,40 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
-echo "Starting FujiNet"
-./fujinet "$@"
-rc=$?
+fn_pid=0
+rc=75
 
-# from sysexits.h
-# #define EX_TEMPFAIL     75      /* temp failure; user is invited to retry */
+function start_fujinet {
+  ./fujinet "$@" &
+  fn_pid=$!
+}
+
+function kill_fujinet {
+  kill -HUP $fn_pid
+}
+
+function check_restart {
+  echo ""
+  echo "Received signal to restart FujiNet"
+  kill -HUP $fn_pid
+  sleep 1
+  start_fujinet "$@"
+}
+
+trap check_restart SIGHUP SIGUSR1 SIGCONT
+trap kill_fujinet SIGINT SIGTERM SIGQUIT
+
 while [ $rc -eq 75 ]; do
-    echo "Restarting FujiNet"
-    ./fujinet "$@"
-    rc=$?
+  echo "Starting FujiNet"
+  start_fujinet "$@"
+  running=1
+  while [ ! -z "$running" ]; do
+    sleep 1
+    running=$(ps -ef | grep " $fn_pid " | grep -Ev "grep")
+  done
+
+  echo "Fujinet Not running, waiting on process"
+  wait $fn_pid
+  rc=$?
 done
 
 echo "FujiNet ended with exit code $rc"

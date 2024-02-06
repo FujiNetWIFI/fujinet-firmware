@@ -1,4 +1,6 @@
 #pragma once
+#ifdef BUILD_APPLE
+#ifdef SP_OVER_SLIP
 
 #include "Connection.h"
 #include <string>
@@ -9,7 +11,7 @@ class TCPConnection : public Connection, public std::enable_shared_from_this<TCP
 public:
 	TCPConnection(int socket) : socket_(socket) {}
 
-	virtual void send_data(const std::vector<uint8_t>& data) override;
+	virtual void send_data(const std::vector<uint8_t> &data) override;
 	virtual void create_read_channel() override;
 	virtual void close_connection() override;
 
@@ -19,3 +21,6 @@ public:
 private:
 	int socket_;
 };
+
+#endif
+#endif

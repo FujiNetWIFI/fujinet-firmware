@@ -129,10 +129,7 @@ fi
 # PC BUILD using cmake
 if [ ! -z "$PC_TARGET" ] ; then
   echo "PC Build Mode"
-  if [ ! -d "$SCRIPT_DIR/build" ] ; then
-    echo "ERROR: Could not find build dir to run cmake in"
-    exit 1
-  fi
+  mkdir -p "$SCRIPT_DIR/build"
   if [ $DO_CLEAN -eq 1 ] ; then
     echo "Removing old build artifacts"
     rm -rf $SCRIPT_DIR/build/*
