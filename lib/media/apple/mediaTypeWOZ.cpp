@@ -1,5 +1,6 @@
 #ifdef BUILD_APPLE
 
+#include "esp_heap_caps.h"
 #include "mediaTypeWOZ.h"
 #include "../../include/debug.h"
 #include <string.h>

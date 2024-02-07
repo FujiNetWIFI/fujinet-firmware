@@ -1,8 +1,10 @@
 #ifdef BUILD_APPLE
 
+#include "esp_heap_caps.h"
 #include "mediaTypeDSK.h"
 #include "../../include/debug.h"
 #include <string.h>
+
 
 // #include <assert.h>
 // #include <stdbool.h>
