@@ -207,7 +207,7 @@ void main_setup(int argc, char *argv[])
     // Initialize Winsock
     WSADATA wsaData;
     int result = WSAStartup(MAKEWORD(2,2), &wsaData);
-    if (result != 0) 
+    if (result != 0)
     {
         Debug_printf("WSAStartup failed: %d\n", result);
         exit(EXIT_FAILURE);
@@ -225,7 +225,7 @@ void main_setup(int argc, char *argv[])
 
     fsFlash.start();
 #ifdef ESP_PLATFORM
-    fnSDFAT.start();
+    fnSDFAT.init_spi(); // initialize SPI for SD card. card is mounted later
 #else
     fnSDFAT.start(Config.get_general_SD_path().c_str());
 #endif
@@ -233,10 +233,8 @@ void main_setup(int argc, char *argv[])
     // setup crypto key - must be done before loading the config
     crypto.setkey("FNK" + fnWiFi.get_mac_str());
 
-    // Load our stored configuration
+    // Load our stored configuration from Flash
     Config.load();
-
-    // WiFi/BT auto connect moved to app_main()
 
 #ifdef BUILD_ATARI
     theFuji.setup(&SIO);
@@ -402,7 +400,6 @@ void main_setup(int argc, char *argv[])
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-
     iwmModem *sioR;
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
@@ -411,10 +408,8 @@ void main_setup(int argc, char *argv[])
     iwmPrinter *ptr = new iwmPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
     IWM.addDevice(ptr, iwm_fujinet_type_t::Printer);
-
     theFuji.setup(&IWM);
     IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
-
 #endif /* BUILD_APPLE */
 
 #ifdef BUILD_MAC
@@ -467,18 +462,19 @@ void main_setup(int argc, char *argv[])
 
 #endif /* BUILD_S100*/
 
-// Main high-priority service loop
-void fn_service_loop(void *param)
+// Deferred setup routines
+void fn_defer_setup(void *param)
 {
 #ifdef ESP_PLATFORM
-    main_setup();
-#else
-    if (fnSystem.check_for_shutdown()) {
-      return; // get out, shutdown already requested
-    }
+    bool mounted = false;
+    mounted = fnSDFAT.start(); // Try to mount SD card
+    if (mounted)
+        Config.load(); // Reload config if SD card is available
+#endif // ESP_PLATFORM
+
+#ifdef BUILD_APPLE
 #endif
 
-    // Now that our main service is running, try connecting to WiFi or BlueTooth
     if (Config.get_bt_status())
     {
 #ifdef BLUETOOTH_SUPPORT
@@ -494,6 +490,22 @@ void fn_service_loop(void *param)
         // Go ahead and try reconnecting to WiFi
         fnWiFi.connect();
     }
+
+    // Delete fn_defer_setup task since we no longer need it
+    vTaskDelete(NULL);
+}
+
+// Main high-priority service loop
+void fn_service_loop(void *param)
+{
+    bool defer_started = false;
+#ifdef ESP_PLATFORM
+    main_setup();
+#else
+    if (fnSystem.check_for_shutdown()) {
+      return; // get out, shutdown already requested
+    }
+#endif
 
     // Main service loop
 #ifdef ESP_PLATFORM
@@ -519,6 +531,12 @@ void fn_service_loop(void *param)
 #endif
         SYSTEM_BUS.service();
 
+        // We've defered starting some things. Run them now
+        if (!defer_started)
+        {
+            defer_started = true;
+            xTaskCreatePinnedToCore(fn_defer_setup, "fnDeferSetup", 10000, nullptr, 12, nullptr, 0);
+        }
 #ifdef ESP_PLATFORM
         taskYIELD(); // Allow other tasks to run
 #else
