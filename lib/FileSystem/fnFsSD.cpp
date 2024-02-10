@@ -114,7 +114,7 @@ time_t _fssd_fatdatetime_to_epoch(WORD ftime, WORD fdate)
     #ifdef DEBUG
     /*
         Debug_printf("FileSystemSDFAT direntry: \"%s\"\r\n", _direntry.filename);
-        Debug_printf("FileSystemSDFAT date (0x%04x): yr=%d, mn=%d, da=%d; time (0x%04x) hr=%d, mi=%d, se=%d\r\n", 
+        Debug_printf("FileSystemSDFAT date (0x%04x): yr=%d, mn=%d, da=%d; time (0x%04x) hr=%d, mi=%d, se=%d\r\n",
             finfo.fdate,
             tmtime.tm_year, tmtime.tm_mon, tmtime.tm_mday,
             finfo.ftime,
@@ -212,7 +212,7 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
             continue;
 
         // Ignore some special files we create on SD
-        if(strcmp(finfo.fname, "paper") == 0 
+        if(strcmp(finfo.fname, "paper") == 0
         || strcmp(finfo.fname, "fnconfig.ini") == 0
         || strcmp(finfo.fname, "rs232dump") == 0)
             continue;
@@ -252,7 +252,7 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         if(d->d_name[0] == '.')
             continue;
         // Ignore some special files we create on SD
-        if(strcmp(d->d_name, "paper") == 0 
+        if(strcmp(d->d_name, "paper") == 0
         || strcmp(d->d_name, "fnconfig.ini") == 0
         || strcmp(d->d_name, "rs232dump") == 0)
             continue;
@@ -297,7 +297,7 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
     }
     else
     {
-        sortfn = (diropts & DIR_OPTION_DESCENDING) ? _fssd_fsdir_sort_name_descend : _fssd_fsdir_sort_name_ascend;        
+        sortfn = (diropts & DIR_OPTION_DESCENDING) ? _fssd_fsdir_sort_name_descend : _fssd_fsdir_sort_name_ascend;
     }
 
     // Sort each list
@@ -555,7 +555,7 @@ uint64_t FileSystemSDFAT::used_bytes()
 
 const char * FileSystemSDFAT::partition_type()
 {
-    static const char *names[] = 
+    static const char *names[] =
     {
         "UNKNOWN",
         "FAT12",
@@ -579,6 +579,33 @@ const char * FileSystemSDFAT::partition_type()
 }
 
 #ifdef ESP_PLATFORM
+bool FileSystemSDFAT::init_spi()
+{
+    esp_err_t ret;
+
+    // Set up SPI bus
+    spi_bus_config_t bus_cfg =
+    {
+        .mosi_io_num = PIN_SD_HOST_MOSI,
+        .miso_io_num = PIN_SD_HOST_MISO,
+        .sclk_io_num = PIN_SD_HOST_SCK,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+#ifdef BUILD_APPLE
+        .max_transfer_sz = 27000
+#else
+        .max_transfer_sz = 4000
+#endif
+    };
+
+    ret = spi_bus_initialize(SDSPI_DEFAULT_HOST ,&bus_cfg, SDSPI_DEFAULT_DMA);
+
+    if (ret == ESP_OK)
+        return false; // No ERROR
+    else
+        return true; // ERROR
+}
+
 bool FileSystemSDFAT::start()
 {
     if(_started)
@@ -620,24 +647,7 @@ bool FileSystemSDFAT::start()
 #else /* SDMMC_HOST_WIDTH */
 
     // Set up a configuration to the SD host interface
-    sdmmc_host_t host_config = SDSPI_HOST_DEFAULT(); 
-
-    // Set up SPI bus
-    spi_bus_config_t bus_cfg = 
-    {
-        .mosi_io_num = PIN_SD_HOST_MOSI,
-        .miso_io_num = PIN_SD_HOST_MISO,
-        .sclk_io_num = PIN_SD_HOST_SCK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-#ifdef BUILD_APPLE
-        .max_transfer_sz = 27000
-#else
-        .max_transfer_sz = 4000
-#endif
-    };
-
-    spi_bus_initialize(SDSPI_DEFAULT_HOST ,&bus_cfg, SDSPI_DEFAULT_DMA);
+    sdmmc_host_t host_config = SDSPI_HOST_DEFAULT();
 
     sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
     slot_config.gpio_cs = PIN_SD_HOST_CS;
@@ -664,7 +674,7 @@ bool FileSystemSDFAT::start()
         Debug_printf("  partition size: %llu, used: %llu\r\n", total_bytes(), used_bytes());
     */
     }
-    else 
+    else
     {
         _started = false;
         _card_capacity = 0;

@@ -20,6 +20,7 @@ private:
     uint64_t _card_capacity = 0;
 public:
 #ifdef ESP_PLATFORM
+    bool init_spi();
     bool start();
 #else
     bool start(const char *sd_path = nullptr);
@@ -54,7 +55,7 @@ public:
     bool dir_seek(uint16_t) override;
 
     bool create_path(const char *path);
-    
+
     uint64_t card_size();
     uint64_t total_bytes();
     uint64_t used_bytes();
