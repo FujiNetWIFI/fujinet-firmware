@@ -1,5 +1,3 @@
-#ifndef ESP_PLATFORM
-
 #ifdef BUILD_ATARI
 
 /*
@@ -22,6 +20,11 @@
 #include <utime.h>
 
 #include "compat_dirent.h"
+
+#include "modem.h"
+#include "utils.h"
+#include "fnConfig.h"
+#include "fnSystem.h"
 
 #include "pclink.h"
 
@@ -164,8 +167,8 @@ static DEVICE device[16];	/* one PCLINK device with 16 units */
 #  define COM_DATA 1
 
 static void pclink_ack(ushort devno, ushort d, uchar what);
-static void com_read(uchar *buf, int size, const ushort type);
-static void com_write(uchar *buf, int size);
+static uint8_t pclink_read(uint8_t *buf, int len);
+static void pclink_write(uint8_t *buf, int len);
 
 /* Calculate Atari-style CRC for the given buffer
  */
@@ -719,6 +722,28 @@ set_status_size(uchar devno, uchar cunit, ushort size)
 	device[cunit].status.none = (size & 0xff00) >> 8;
 }
 
+#ifdef ESP_PLATFORM
+static int
+validate_user_path(char *defwd, char *newpath)
+{
+	char *d;
+	struct stat st;
+
+	d = strstr(newpath, defwd);
+	if (d == NULL || d != newpath)
+		return 0;
+	d = newpath + strlen(defwd);
+	if (*d != '\0' && *d != '/')
+		return 0;
+
+	if (stat(newpath, &st) < 0)
+		return 0;
+	if (!S_ISDIR(st.st_mode))
+		return 0;
+
+	return 1;
+}
+#else
 static int
 validate_user_path(char *defwd, char *newpath)
 {
@@ -755,6 +780,7 @@ abs_path(const char *path, char *abspath, int size)
         return 0;
 	return 1;
 }
+#endif
 
 static int
 ispathsep(uchar c)
@@ -837,6 +863,9 @@ create_user_path(uchar devno, uchar cunit, char *newpath)
 	}
 	strcat(newpath, (char *)upath);
 	sl = strlen(newpath);
+	// resolve ".." and "."
+	strcpy(newpath, util_get_canonical_path(std::string(newpath)).c_str());
+	sl = strlen(newpath);
 	if (sl && (newpath[sl-1] == '/'))
 		newpath[sl-1] = 0;
 }
@@ -906,11 +935,8 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		pclink_ack(devno, cunit, 'a');	/* ack the command (late_ack) */ 
 
 		memset(&pbuf, 0, sizeof(PARBUF));
-
-		com_read((uchar *)&pbuf, (int)parsize, COM_DATA);
-		com_read(&sck, 1, COM_DATA);
-
-		ck = calc_checksum((uchar *)&pbuf, (int)parsize);
+		sck = pclink_read((uchar *)&pbuf, (int)parsize);  // read data + checksum byte
+		ck = calc_checksum((uchar *)&pbuf, (int)parsize); // calculate checksum from data
 
 		device[cunit].status.stat &= ~0x02;
 
@@ -920,24 +946,8 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		{
 			device[cunit].status.stat |= 0x02;
 			Debug_printf("PARBLK CRC error, Atari: $%02x, PC: $%02x\n", sck, ck);
-
-# if 0
-			Debug_printf("PARBLK size %d, dump:\n", (int)parsize);
-			{
-				int dumpi;
-				uchar *dumpp = (uchar *)&pbuf;
-
-				for (dumpi = 0; dumpi < parsize; dumpi++)
-				{
-					Debug_printf("%02x ", dumpp[dumpi]);
-				}
-				Debug_printf("\n");
-			}
-# endif
-
 			device[cunit].status.err = 143;
 			goto complete;
-//			goto exit;
 		}
 
         Debug_printf("PARBLK size %d, dump: ", (int)parsize);
@@ -949,12 +959,14 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
             {
                 Debug_printf("%02x ", dumpp[dumpi]);
             }
-            //Debug_printf("\n");
+#ifdef ESP_PLATFORM
+            Debug_printf("\n");
+#endif
         }
 
 		device[cunit].status.stat &= ~0x04;
 
-# if 1
+# if 0
 		/* True if Atari didn't catch the ACK above and retried the command */
 		if (pbuf.fno > PCL_MAX_FNO)
 		{
@@ -1047,7 +1059,8 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		Debug_printf("handle %d\n", handle);
 
-		mem = (uchar*)malloc(blk_size + 1);
+		//mem = (uchar*)malloc(blk_size + 1);
+		mem = (uchar*)malloc(blk_size);
 
 		if (device[cunit].status.err == 1)
 		{
@@ -1118,10 +1131,11 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 
 		Debug_printf("FREAD: send $%04lx (%ld), status $%02x\n", blk_size, blk_size, device[cunit].status.err);
 
-		sck = calc_checksum(mem, blk_size);
-		mem[blk_size] = sck;
+		//sck = calc_checksum(mem, blk_size);
+		//mem[blk_size] = sck;
 		pclink_ack(devno, cunit, 'C');
-		com_write(mem, blk_size + 1);
+		//com_write(mem, blk_size + 1);
+		pclink_write(mem, blk_size); // write data + checksum byte
 
 		free(mem);
 
@@ -1177,14 +1191,13 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			}
 		}
 
-		mem = (uchar*)malloc(blk_size + 1);
+		//mem = (uchar*)malloc(blk_size + 1);
+		mem = (uchar*)malloc(blk_size);
 
-		com_read(mem, blk_size, COM_DATA);
-		com_read(&sck, sizeof(uchar), COM_DATA);
+		sck = pclink_read(mem, blk_size);  // read data + checksum byte
+		ck = calc_checksum(mem, blk_size); // calculate checksum from data
 
 		pclink_ack(devno, cunit, 'A'); 	/* ack the block of data */
-
-		ck = calc_checksum(mem, blk_size);
 
 		if (ck != sck)
 		{
@@ -1266,7 +1279,8 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 	if ((fno == 0x03) || (fno == 0x04))	/* FTELL/FLEN */
 	{
 		ulong outval = 0;
-		uchar out[4];
+		//uchar out[4];
+		uchar out[3];
 
 		if (ccom == 'P')
 		{
@@ -1296,9 +1310,10 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 		out[1] = (uchar)((outval & 0x0000ff00L) >> 8);
 		out[2] = (uchar)((outval & 0x00ff0000L) >> 16);
 
-		out[3] = calc_checksum(out, sizeof(out)-1);
+		//out[3] = calc_checksum(out, sizeof(out)-1);
 		pclink_ack(devno, cunit, 'C');
-		com_write(out, sizeof(out));
+		//com_write(out, sizeof(out));
+		pclink_write(out, sizeof(out)); // write data + checksum byte
 
 		goto exit;
 	}
@@ -1381,10 +1396,11 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			pcl_dbf.dirbuf[17], pcl_dbf.dirbuf[18], pcl_dbf.dirbuf[19],
 			pcl_dbf.dirbuf[20], pcl_dbf.dirbuf[21], pcl_dbf.dirbuf[22]);
 		
-		sck = calc_checksum((uchar *)&pcl_dbf, sizeof(pcl_dbf));
+		//sck = calc_checksum((uchar *)&pcl_dbf, sizeof(pcl_dbf));
 		pclink_ack(devno, cunit, 'C');
-		com_write((uchar *)&pcl_dbf, sizeof(pcl_dbf));
-		com_write(&sck, 1);
+		//com_write((uchar *)&pcl_dbf, sizeof(pcl_dbf));
+		//com_write(&sck, 1);
+		pclink_write((uchar *)&pcl_dbf, sizeof(pcl_dbf)); // write data + checksum byte
 
 		goto exit;
 	}
@@ -1789,10 +1805,11 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
 			}
 
 complete_fopen:
-			sck = calc_checksum((uchar *)&pcl_dbf, sizeof(pcl_dbf));
+			//sck = calc_checksum((uchar *)&pcl_dbf, sizeof(pcl_dbf));
 			pclink_ack(devno, cunit, 'C');
-			com_write((uchar *)&pcl_dbf, sizeof(pcl_dbf));
-			com_write(&sck, 1);
+			//com_write((uchar *)&pcl_dbf, sizeof(pcl_dbf));
+			//com_write(&sck, 1);
+			pclink_write((uchar *)&pcl_dbf, sizeof(pcl_dbf)); // write data + checksum byte
 
 			goto exit;
 		}
@@ -2045,11 +2062,14 @@ complete_fopen:
 					newmode |= S_IWUSR;
 				if (fatr2 & SA_PROTECT)
 					newmode &= ~S_IWUSR;
+				// TODO - chmod is not available on platformio
+#ifndef ESP_PLATFORM
 				if (chmod(xpath, newmode))
 				{
 					Debug_printf("CHMOD: failed on '%s'\n", xpath);
 					device[cunit].status.err |= 255;
 				}
+#endif
 				fcnt++;
 			}
 		}
@@ -2127,6 +2147,7 @@ complete_fopen:
 				Debug_printf("MKDIR: setting timestamp in '%s'\n", newpath);
 # endif
 
+                utime(newpath, &ub);
 			}
 		}
 		goto complete;
@@ -2211,7 +2232,7 @@ complete_fopen:
 	if (fno == 0x10)	/* CHDIR */
 	{
 		ulong i;
-		char newpath[1024], newwd[1024], oldwd[1024];
+		char newpath[1024];
 
 		if (ccom == 'R')
 		{
@@ -2221,9 +2242,10 @@ complete_fopen:
 			goto complete;
 		}
 
-//		Debug_printf("req. path '%s'\n", device[cunit].parbuf.path);
+		Debug_printf("req. path '%s'\n", device[cunit].parbuf.path);
 
 		create_user_path(devno, cunit, newpath);
+		Debug_printf("newpath '%s'\n", newpath);
 
 		if (!validate_user_path(device[cunit].dirname, newpath))
 		{
@@ -2232,28 +2254,15 @@ complete_fopen:
 			goto complete;
 		}
 
-		(void)getcwd(oldwd, sizeof(oldwd));
+		// chdir and getcwd not implemented on platformio (as of July 2023)
+		// https://github.com/espressif/esp-idf/issues/8540
 
-		if (chdir(newpath))
-		{
-			Debug_printf("cannot access '%s', %s\n", newpath, strerror(errno));
-			device[cunit].status.err = 150;
-			goto complete;
-		}
-
-		(void)getcwd(newwd, sizeof(newwd));
-
-# if 0
-		Debug_printf("newwd %s\n", newwd);
-# endif
 		/* validate_user_path() guarantees that .dirname is part of newwd */
 		i = strlen(device[cunit].dirname);
-		strcpy((char *)device[cunit].cwd, newwd + i);
+		strcpy((char *)device[cunit].cwd, newpath + i);
 		Debug_printf("new current dir '%s'\n", (char *)device[cunit].cwd);
 
 		device[cunit].status.err = 1;
-
-		(void)chdir(oldwd);
 
 		goto complete;
 	}
@@ -2289,10 +2298,11 @@ complete_fopen:
 
 		Debug_printf("send '%s'\n", tempcwd);
 
-		sck = calc_checksum(tempcwd, sizeof(tempcwd)-1);
+		//sck = calc_checksum(tempcwd, sizeof(tempcwd)-1);
 		pclink_ack(devno, cunit, 'C');
-		com_write(tempcwd, sizeof(tempcwd)-1);
-		com_write(&sck, sizeof(sck));
+		//com_write(tempcwd, sizeof(tempcwd)-1);
+		//com_write(&sck, sizeof(sck));
+		pclink_write(tempcwd, sizeof(tempcwd)-1); // write data + checksum byte
 
 		goto exit;
 	}
@@ -2303,7 +2313,7 @@ complete_fopen:
 		int x;
 		uchar c = 0, volname[8];
 		char lpath[1024];
-		static uchar dfree[65] =
+		static uchar dfree[64] =
 		{
 			0x21,		/* data format version */
 			0x00, 0x00,	/* main directory ptr */
@@ -2328,7 +2338,7 @@ complete_fopen:
 			0,0,0,0,0,0,0,0,
 			0,0,0,0,0,0,0,0,
 			0,0,0,0,0,
-			0		/* CRC */
+			//0		/* CRC */
 		};
 
 		device[cunit].status.err = 1;
@@ -2402,9 +2412,10 @@ complete_fopen:
 
 		Debug_printf("DFREE: send info (%d bytes)\n", (int)sizeof(dfree)-1);
 
-		dfree[64] = calc_checksum(dfree, sizeof(dfree)-1);
+		//dfree[64] = calc_checksum(dfree, sizeof(dfree)-1);
 		pclink_ack(devno, cunit, 'C');
-		com_write(dfree, sizeof(dfree));
+		//com_write(dfree, sizeof(dfree));
+		pclink_write(dfree, sizeof(dfree)); // write data + checksum byte
 
 		goto exit;
 	}
@@ -2476,30 +2487,82 @@ exit:
 	return;
 }
 
-static void
-com_read(uchar *buf, int size, const ushort type)
+/*
+ * PCLink specific version of bus_to_peripheral(), no ACK/NAK is send here
+ */
+static uint8_t
+pclink_read(uint8_t *buf, int len)
 {
-    fnSioCom.read(buf, size, type == COM_COMD);
+    // Retrieve data frame from computer
+    Debug_printf("<-SIO read (PCLINK) %hu bytes\n", len);
+
+#ifdef ESP_PLATFORM
+    UARTManager *uart = pcLink.sio_get_bus().get_modem()->get_uart();
+
+    __BEGIN_IGNORE_UNUSEDVARS
+    size_t l = uart->readBytes(buf, len);
+    __END_IGNORE_UNUSEDVARS
+
+    // Wait for checksum
+    while (uart->available() <= 0)
+        fnSystem.yield();
+    uint8_t ck_rcv = uart->read();
+#else
+    if (fnSioCom.get_sio_mode() == SioCom::sio_mode::NETSIO)
+    {
+        fnSioCom.netsio_write_size(len); // set hint for NetSIO
+    }
+
+    size_t l = fnSioCom.readBytes(buf, len);
+
+    // Wait for checksum
+    while (0 == fnSioCom.available())
+        fnSystem.yield();
+    uint8_t ck_rcv = fnSioCom.read();
+#endif
+
+#ifdef VERBOSE_SIO
+    Debug_printf("RECV <%u> BYTES, checksum: %hu\n\t", (unsigned int)l, ck_rcv);
+    for (int i = 0; i < len; i++)
+        Debug_printf("%02x ", buf[i]);
+    Debug_print("\n");
+#endif
+
+    return ck_rcv;
 }
 
+/*
+ * PCLink specific version of bus_to_computer(), no C/E is send here
+ */
 static void
-com_write(uchar *buf, int size)
+pclink_write(uint8_t *buf, int len)
 {
-# ifdef SIOTRACE
-	if (log_flag)
-	{
-		Debug_printf("<- send %d bytes ... ", size);
-	}
-# endif
+    // Write data frame to computer
+    Debug_printf("->SIO write (PCLINK) %hu bytes\n", len);
+#ifdef VERBOSE_SIO
+    Debug_printf("SEND <%u> BYTES\n\t", len);
+    for (int i = 0; i < len; i++)
+        Debug_printf("%02x ", buf[i]);
+    Debug_print("\n");
+#endif
 
-    fnSioCom.write(buf, size);
+    // Write data frame
+#ifdef ESP_PLATFORM
+    UARTManager *uart = pcLink.sio_get_bus().get_modem()->get_uart();
+    uart->write(buf, len);
+    // Write checksum
+    uart->write(sio_checksum(buf, len));
+
+    uart->flush();
+#else
+    fnSioCom.write(buf, len);
+    // Write checksum
+    fnSioCom.write(sio_checksum(buf, len));
+
     fnSioCom.flush();
-
-# ifdef SIOTRACE
-	if (log_flag)
-		Debug_printf("OK\n");
-# endif
+#endif
 }
+
 
 static void
 get_device_status(ushort devno, ushort d, uchar *st)
@@ -2514,7 +2577,13 @@ get_device_status(ushort devno, ushort d, uchar *st)
 static void
 pclink_ack(ushort devno, ushort d, uchar what)
 {
+    fnSystem.delay_microseconds(DELAY_T4);
+
+    // call one of sio_ack/sio_nak/sio_complete/sio_error
+    pcLink.send_ack_byte(what);
+
 	device[d].status.stat &= ~(0x01|0x04);
+
 	switch (what)
 	{
     case 'E':
@@ -2525,8 +2594,7 @@ pclink_ack(ushort devno, ushort d, uchar what)
         break;
 	}
 
-    // call one of sio_ack/sio_nak/sio_complete/sio_error
-    pcLink.send_ack_byte(what);
+    fnSystem.delay_microseconds(DELAY_T4);
 
 # ifdef SIOTRACE
 	if (log_flag)
@@ -2544,11 +2612,13 @@ void sioPCLink::send_ack_byte(uint8_t  what)
 {
 	switch (what)
 	{
+	case 'a':
+#ifndef ESP_PLATFORM
+        sio_late_ack();
+        break;
+#endif
     case 'A':
         sio_ack();
-        break;
-    case 'a':
-        sio_late_ack();
         break;
     case 'N':
         sio_nak();
@@ -2569,12 +2639,15 @@ void sioPCLink::mount(int no, const char* path)
     fps_close(no);
     memset(&device[no].parbuf, 0, sizeof(PARBUF));
 
+#ifdef ESP_PLATFORM
+    strncpy(device[no].dirname,path,1023);
+#else
     if (!abs_path(path, device[no].dirname, 1024))
     {
         Debug_printf("PCLINK failed to get absolute path for \"%s\"\n", path);
         return;
     }
-    //strncpy(device[no].dirname,path,1023);
+#endif
     device[no].dirname[1023]=0;
     device[no].cwd[0]=0;
     device[no].on = 1;
@@ -2599,11 +2672,11 @@ void sioPCLink::unmount(int no)
 // Status
 void sioPCLink::sio_status()
 {
+// # ifdef SIOTRACE
+// 	if (log_flag)
+		Debug_printf("STATUS: %02x %02x %02x %02x\n", status[0], status[1], status[2], status[3]);
+// # endif
     bus_to_computer(status, sizeof(status), false);
-# ifdef SIOTRACE
-	if (log_flag)
-		Debug_printf("<- STATUS $%02x $%02x $%02x $%02x\n", status[0], status[1], status[2], status[3]);
-# endif
 }
 
 // Process SIO command
@@ -2616,7 +2689,13 @@ void sioPCLink::sio_process(uint32_t commanddata, uint8_t checksum)
     uchar cdev = SIO_DEVICEID_PCLINK;
     uchar devno = cdev >> 4; // ??? magical 6
 
-    Debug_print("PCLink sio_process()\n");
+    if (!Config.get_pclink_enabled())
+	{
+        Debug_println("PCLink disabled, ignoring");
+		return;
+	}
+
+    Debug_println("PCLink sio_process()");
 
     /* cunit == 0 is init during warm reset */
     if ((cunit == 0) || device[cunit].on)
@@ -2624,11 +2703,11 @@ void sioPCLink::sio_process(uint32_t commanddata, uint8_t checksum)
         switch (cmdFrame.comnd)
         {
         case 'P':
-            Debug_println("PARAMETERS");
+            Debug_println("PARBLK");
             do_pclink(devno, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
             break;
         case 'R':
-            Debug_println("RESULT");
+            Debug_println("EXEC");
             do_pclink(devno, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
             break;
         case 'S':	/* status */
@@ -2650,5 +2729,3 @@ void sioPCLink::sio_process(uint32_t commanddata, uint8_t checksum)
 }
 
 #endif /* BUILD_ATARI */
-
-#endif // !ESP_PLATFORM
