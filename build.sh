@@ -52,7 +52,7 @@ fi
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 function show_help {
-  echo "Usage: $(basename $0) [-a|-b|-c|-d|-e ENV|-f|-g|-i FILE|-m|-n|-t TARGET|-p TARGET|-u|-z|-h]"
+  echo "Usage: $(basename $0) [-a|-b|-c|-d|-e ENV|-f|-g|-i FILE|-m|-n|-t TARGET|-p TARGET|-u|-z|-h] -- [additional args]"
   echo " Most common options:"
   echo "   -c       # run clean before build (applies to PC build too)"
   echo "   -b       # run build"
@@ -71,6 +71,9 @@ function show_help {
   echo "   -t TGT   # run target task (default of none means do build, but -b must be specified"
   echo "   -z       # build flashable zip"
   echo "   -h       # this help"
+  echo ""
+  echo "Additional Args can be accepted to pass values onto sub processes where supported."
+  echo "  e.g. ./build.sh -p APPLE -- -DSLIP_PROTOCOL=COM"
   echo ""
   echo "Simple builds:"
   echo "    ./build.sh -cb        # for CLEAN + BUILD of current target in platformio.ini"
@@ -137,9 +140,9 @@ if [ ! -z "$PC_TARGET" ] ; then
   fi
   cd $SCRIPT_DIR/build
   if [ $DEBUG_PC_BUILD -eq 1 ] ; then
-    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Debug
+    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Debug "$@"
   else
-    cmake .. -DFUJINET_TARGET=$PC_TARGET
+    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Release "$@"
   fi
   if [ $? -ne 0 ] ; then
     echo "Error running initial cmake. Aborting"
