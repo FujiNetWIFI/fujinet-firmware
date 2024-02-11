@@ -117,7 +117,7 @@ set(SOURCES src/main.cpp
     lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
     lib/FileSystem/fnFileSMB.h lib/FileSystem/fnFileSMB.cpp
     lib/FileSystem/fnFileMem.h lib/FileSystem/fnFileMem.cpp
-    
+    lib/FileSystem/fnio.h lib/FileSystem/fnio.cpp
     lib/tcpip/fnDNS.h lib/tcpip/fnDNS.cpp
     lib/tcpip/fnUDP.h lib/tcpip/fnUDP.cpp
     lib/tcpip/fnTcpClient.h lib/tcpip/fnTcpClient.cpp
