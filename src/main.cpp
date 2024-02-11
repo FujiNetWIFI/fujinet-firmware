@@ -247,10 +247,19 @@ void main_setup(int argc, char *argv[])
 
 #ifdef ESP_PLATFORM
     SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
-#else
-    pcLink.mount(1, Config.get_general_SD_path().c_str()); // mount SD as PCL1:
-    SIO.addDevice(&pcLink, SIO_DEVICEID_PCLINK); // PCLink
 #endif
+
+    // add PCLink device only if we have SD card
+    if (fnSDFAT.running())
+    {
+#ifdef ESP_PLATFORM
+        // TODO how to get the folder SD is mounted on?
+        pcLink.mount(1, "/sd"); // mount SD card as PCL1:
+#else
+        pcLink.mount(1, Config.get_general_SD_path().c_str()); // mount SD as PCL1:
+#endif
+        SIO.addDevice(&pcLink, SIO_DEVICEID_PCLINK); // PCLink
+    }
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;

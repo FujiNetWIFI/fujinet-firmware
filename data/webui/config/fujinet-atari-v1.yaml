@@ -18,5 +18,6 @@ components:
   boot_settings: true
   apetime: true
   cpm_settings: true
+  pclink: true
 tweaks:
   # webui tweaks, if any

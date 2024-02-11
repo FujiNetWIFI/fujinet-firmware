@@ -5,9 +5,7 @@
 # include "sio/apetime.h"
 # include "sio/cassette.h"
 # include "sio/disk.h"
-# ifndef ESP_PLATFORM
-#  include "sio/pclink.h"
-# endif
+# include "sio/pclink.h"
 # include "sio/udpstream.h"
 # include "../lib/modem/modem.h"
 # include "sio/network.h"
@@ -27,9 +25,7 @@
     // sioCassette sioC; // now part of sioFuji theFuji object
     modem *sioR;
     sioCPM sioZ;
-# ifndef ESP_PLATFORM
     sioPCLink pcLink;
-# endif
 #endif // BUILD_ATARI
 
 #ifdef BUILD_COCO
