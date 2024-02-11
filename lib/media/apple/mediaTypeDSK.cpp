@@ -1,6 +1,8 @@
 #ifdef BUILD_APPLE
 
+#ifndef SP_OVER_SLIP
 #include "esp_heap_caps.h"
+#endif
 #include "mediaTypeDSK.h"
 #include "../../include/debug.h"
 #include <string.h>

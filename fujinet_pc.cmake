@@ -26,6 +26,16 @@ else()
     message(FATAL_ERROR "Invalid target '${FUJINET_TARGET}'! Please choose from 'ATARI' or 'APPLE'.")
 endif()
 
+set(SLIP_PROTOCOL "NET" CACHE STRING "Select the protocol type (NET or COM)")
+
+set_property(CACHE SLIP_PROTOCOL PROPERTY STRINGS "NET" "COM")
+
+if(NOT SLIP_PROTOCOL STREQUAL "NET" AND NOT SLIP_PROTOCOL STREQUAL "COM")
+  message(FATAL_ERROR "Invalid value for SLIP_PROTOCOL: ${SLIP_PROTOCOL}. Please choose either NET or COM.")
+endif()
+
+message(STATUS "SLIP_PROTOCOL is ${SLIP_PROTOCOL}")
+
 # platformio.data_dir (not used by FujiNet-PC)
 #set(PLATFORM_DATA_DIR ${CMAKE_SOURCE_DIR}/data/${FUJINET_BUILD_PLATFORM})
 # build output data directory (used by build_webui.py)
@@ -162,15 +172,57 @@ set(SOURCES src/main.cpp
     lib/fuji/fujiHost.h lib/fuji/fujiHost.cpp
     lib/fuji/fujiDisk.h lib/fuji/fujiDisk.cpp
     lib/bus/bus.h
-    lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
-    lib/bus/iwm/iwm_slip.h lib/utils/std_extensions.hpp lib/bus/iwm/iwm_slip.cpp
-    lib/bus/iwm/Connection.h lib/bus/iwm/Connection.cpp
-    lib/bus/iwm/TCPConnection.h lib/bus/iwm/TCPConnection.cpp
+    lib/device/device.h
+    lib/device/disk.h
+    lib/device/printer.h
+    lib/device/modem.h
+    lib/device/cassette.h
+    lib/device/fuji.h
+    lib/device/network.h
+    lib/device/udpstream.h
+    lib/device/siocpm.h
+    lib/modem/modem.h lib/modem/modem.cpp
+    lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
+    lib/media/media.h
+    lib/encoding/base64.h lib/encoding/base64.cpp
+    lib/encoding/hash.h lib/encoding/hash.cpp
+    lib/encrypt/crypt.h lib/encrypt/crypt.cpp
+    lib/compat/compat_inet.c
+    lib/compat/compat_gettimeofday.h lib/compat/compat_gettimeofday.c
+)
+
+if(FUJINET_TARGET STREQUAL "ATARI")
+    list(APPEND SOURCES
+
     lib/bus/sio/sio.h lib/bus/sio/sio.cpp
     lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
     lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
     lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
     lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
+    lib/media/atari/diskType.h lib/media/atari/diskType.cpp
+    lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
+    lib/media/atari/diskTypeAtx.h 
+    lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
+
+    lib/device/sio/disk.h lib/device/sio/disk.cpp
+    lib/device/sio/printer.h lib/device/sio/printer.cpp
+    lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
+    lib/device/sio/cassette.h lib/device/sio/cassette.cpp
+    lib/device/sio/fuji.h lib/device/sio/fuji.cpp
+    lib/device/sio/network.h lib/device/sio/network.cpp
+    lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
+    #lib/device/sio/voice.h lib/device/sio/voice.cpp
+    lib/device/sio/apetime.h lib/device/sio/apetime.cpp
+    lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
+    lib/device/sio/pclink.h lib/device/sio/pclink.cpp
+
+    )
+endif()
+
+if(FUJINET_TARGET STREQUAL "APPLE")
+    list(APPEND SOURCES
+
+    lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
     lib/slip/SPoSLIP.h
     lib/slip/Packet.h
     lib/slip/SmartPortCodes.h
@@ -199,15 +251,13 @@ set(SOURCES src/main.cpp
     lib/slip/WriteBlockResponse.h lib/slip/WriteBlockResponse.cpp
     lib/slip/WriteRequest.h lib/slip/WriteRequest.cpp
     lib/slip/WriteResponse.h lib/slip/WriteResponse.cpp
-    lib/device/device.h
-    lib/device/disk.h
-    lib/device/printer.h
-    lib/device/modem.h
-    lib/device/cassette.h
-    lib/device/fuji.h
-    lib/device/network.h
-    lib/device/udpstream.h
-    lib/device/siocpm.h
+
+    lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
+    lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
+    lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
+    lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
+    lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
+
     lib/device/iwm/disk.h lib/device/iwm/disk.cpp
     lib/device/iwm/disk2.h lib/device/iwm/disk2.cpp
     lib/device/iwm/printer.h lib/device/iwm/printer.cpp
@@ -217,35 +267,22 @@ set(SOURCES src/main.cpp
     lib/device/iwm/network.h lib/device/iwm/network.cpp
     lib/device/iwm/clock.h lib/device/iwm/clock.cpp
     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
-    lib/device/sio/disk.h lib/device/sio/disk.cpp
-    lib/device/sio/printer.h lib/device/sio/printer.cpp
-    lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
-    lib/device/sio/cassette.h lib/device/sio/cassette.cpp
-    lib/device/sio/fuji.h lib/device/sio/fuji.cpp
-    lib/device/sio/network.h lib/device/sio/network.cpp
-    lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
-    #lib/device/sio/voice.h lib/device/sio/voice.cpp
-    lib/device/sio/apetime.h lib/device/sio/apetime.cpp
-    lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
-    lib/device/sio/pclink.h lib/device/sio/pclink.cpp
-    lib/modem/modem.h lib/modem/modem.cpp
-    lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
-    lib/media/media.h
-    lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
-    lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
-    lib/media/apple/mediaTypeDSK.h lib/media/apple/mediaTypeDSK.cpp
-    lib/media/apple/mediaTypePO.h lib/media/apple/mediaTypePO.cpp
-    lib/media/apple/mediaTypeWOZ.h lib/media/apple/mediaTypeWOZ.cpp
-    lib/media/atari/diskType.h lib/media/atari/diskType.cpp
-    lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
-    lib/media/atari/diskTypeAtx.h 
-    lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
-    lib/encoding/base64.h lib/encoding/base64.cpp
-    lib/encoding/hash.h lib/encoding/hash.cpp
-    lib/encrypt/crypt.h lib/encrypt/crypt.cpp
-    lib/compat/compat_inet.c
-    lib/compat/compat_gettimeofday.h lib/compat/compat_gettimeofday.c
-)
+
+    )
+endif()
+
+if(SLIP_PROTOCOL STREQUAL "NET")
+    list(APPEND SOURCES
+        lib/bus/iwm/iwm_slip.h lib/utils/std_extensions.hpp lib/bus/iwm/iwm_slip.cpp
+        lib/bus/iwm/Connection.h lib/bus/iwm/Connection.cpp
+        lib/bus/iwm/TCPConnection.h lib/bus/iwm/TCPConnection.cpp
+    )
+elseif(SLIP_PROTOCOL STREQUAL "COM")
+    # Append sources specific to COM
+    list(APPEND SOURCES
+    )
+endif()
+
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(SOURCES ${SOURCES} lib/compat/win32_uname.c)
