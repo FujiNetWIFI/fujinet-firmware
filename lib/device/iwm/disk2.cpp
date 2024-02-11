@@ -42,11 +42,7 @@ void iwmDisk2::init()
   device_active = false;
 }
 
-#ifdef ESP_PLATFORM
-mediatype_t iwmDisk2::mount(FILE *f, uint32_t disksize, mediatype_t disk_type)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
-#else
-mediatype_t iwmDisk2::mount(FileHandler *f, uint32_t disksize, mediatype_t disk_type)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
-#endif
+mediatype_t iwmDisk2::mount(fnFile *f, uint32_t disksize, mediatype_t disk_type)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
 {
 
   mediatype_t mt = MEDIATYPE_UNKNOWN;
@@ -96,11 +92,7 @@ void iwmDisk2::unmount()
 
 }
 
-#ifdef ESP_PLATFORM
-bool iwmDisk2::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
-#else
-bool iwmDisk2::write_blank(FileHandler *f, uint16_t sectorSize, uint16_t numSectors)
-#endif
+bool iwmDisk2::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 {
   return false;
 }

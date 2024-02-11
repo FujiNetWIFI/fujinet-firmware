@@ -31,11 +31,7 @@ void MediaType::unmount()
 {
     if (_media_fileh != nullptr)
     {
-#ifdef ESP_PLATFORM
-        fclose(_media_fileh);
-#else
-        _media_fileh->close();
-#endif
+        fnio::fclose(_media_fileh);
         _media_fileh = nullptr;
     }
 }
@@ -69,11 +65,7 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
     return MEDIATYPE_UNKNOWN;
 }
 
-#ifdef ESP_PLATFORM
-mediatype_t MediaType::discover_dsk_mediatype(FILE *f, uint32_t disksize)
-#else
-mediatype_t MediaType::discover_dsk_mediatype(FileHandler *f, uint32_t disksize)
-#endif
+mediatype_t MediaType::discover_dsk_mediatype(fnFile *f, uint32_t disksize)
 {
     mediatype_t default_mt = MEDIATYPE_DO;
 
@@ -82,19 +74,11 @@ mediatype_t MediaType::discover_dsk_mediatype(FileHandler *f, uint32_t disksize)
 
     // a ProDOS Volume Directory Header is always in block 2,
     // if the file is in ProDOS order, it will be at offset 1024 
-#ifdef ESP_PLATFORM
-    if (fseek(f, 1024, SEEK_SET) != 0)
+    if (fnio::fseek(f, 1024, SEEK_SET) != 0)
         return default_mt;
 
-    if (fread(hdr, 1, header_size, f) != header_size)
+    if (fnio::fread(hdr, 1, header_size, f) != header_size)
         return default_mt;
-#else
-    if (f->seek(1024, SEEK_SET) != 0)
-        return default_mt;
-
-    if (f->read(hdr, 1, header_size) != header_size)
-        return default_mt;
-#endif
 
     uint16_t prevPointer = UINT16_FROM_HILOBYTES(hdr[1], hdr[0]);
     uint8_t  storage_type = hdr[4] >> 4;

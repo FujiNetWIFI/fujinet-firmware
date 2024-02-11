@@ -18,7 +18,7 @@
 class fnHttpSendFileTask : public fnTask
 {
 public:
-    fnHttpSendFileTask(FileSystem *fs, FileHandler *fh, mg_connection *c);
+    fnHttpSendFileTask(FileSystem *fs, fnFile *fh, mg_connection *c);
 protected:
     virtual int start() override;
     virtual int abort() override;
@@ -26,13 +26,13 @@ protected:
 private:
     char buf[FNWS_SEND_BUFF_SIZE];
     FileSystem * _fs;
-    FileHandler * _fh;
+    fnFile * _fh;
     mg_connection * _c;
     size_t _filesize;
     size_t _total;
 };
 
-fnHttpSendFileTask::fnHttpSendFileTask(FileSystem *fs, FileHandler *fh, mg_connection *c)
+fnHttpSendFileTask::fnHttpSendFileTask(FileSystem *fs, fnFile *fh, mg_connection *c)
 {
     _fs = fs;
     _fh = fh;
@@ -50,7 +50,7 @@ int fnHttpSendFileTask::start()
 
 int fnHttpSendFileTask::abort()
 {
-    _fh->close(); // close (and delete) FileHandler
+    _fh->close(); // close (and delete _fh)
     delete _fs; // delete temporary FileSystem
     Debug_printf("fnHttpSendFileTask aborted #%d\n", _id);
     return 0;
@@ -70,7 +70,7 @@ int fnHttpSendFileTask::step()
         return 0; // continue
 
     // done
-    _fh->close(); // close (and delete) FileHandler
+    _fh->close(); // close (and delete _fh)
     delete _fs;  // delete temporary FileSystem
     Debug_printf("Sent %lu of %lu bytes\n", (unsigned long)_total, (unsigned long)_filesize);
 
@@ -266,7 +266,7 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
         }
         else if (strcmp(action, "download") == 0)
         {
-            FileHandler *fh = fs->filehandler_open(path);
+            fnFile *fh = fs->fnfile_open(path);
             if (fh != nullptr)
             {
                 // file download
@@ -488,7 +488,7 @@ void fnHttpServiceBrowser::print_dentry(mg_connection *c, fsdir_entry *dp, int s
 }
 
 
-int fnHttpServiceBrowser::browse_sendfile(mg_connection *c, FileSystem *fs, FileHandler *fh, const char *filename, unsigned long filesize)
+int fnHttpServiceBrowser::browse_sendfile(mg_connection *c, FileSystem *fs, fnFile *fh, const char *filename, unsigned long filesize)
 {
     mg_printf(c, "HTTP/1.1 200 OK\r\n");
     // Set the response content type

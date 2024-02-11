@@ -1,14 +1,11 @@
 #ifndef _MEDIA_TYPE_
 #define _MEDIA_TYPE_
 
-#include <stdio.h>
 #include <stdint.h>
 
-#include"../fuji/fujiHost.h"
-
-#ifndef ESP_PLATFORM
 #include "fnFile.h"
-#endif
+
+#include"../fuji/fujiHost.h"
 
 #define INVALID_SECTOR_VALUE 65536
 
@@ -20,7 +17,7 @@
 
 #define DISK_CTRL_STATUS_CLEAR 0x00
 
-enum mediatype_t 
+enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_DO,
@@ -33,15 +30,9 @@ enum mediatype_t
 class MediaType
 {
 protected:
-#ifdef ESP_PLATFORM
-    FILE *_media_fileh = nullptr;
-    FILE *oldFileh = nullptr; /* Temp fileh for high score enabled games */
-    FILE *hsFileh = nullptr; /* Temp fileh for high score enabled games */
-#else
-    FileHandler *_media_fileh = nullptr;
-    FileHandler *oldFileh = nullptr; /* Temp fileh for high score enabled games */
-    FileHandler *hsFileh = nullptr; /* Temp fileh for high score enabled games */
-#endif
+    fnFile *_media_fileh = nullptr;
+    fnFile *oldFileh = nullptr; /* Temp fileh for high score enabled games */
+    fnFile *hsFileh = nullptr; /* Temp fileh for high score enabled games */
 
     uint32_t _media_image_size = 0;
     uint32_t _media_num_sectors = 0;
@@ -73,11 +64,7 @@ public:
 
     char _disk_filename[256];
     fujiHost *_media_host = nullptr;
-#ifdef ESP_PLATFORM
-    FILE *_media_hsfileh = nullptr;
-#else
-    FileHandler *_media_hsfileh = nullptr;
-#endif
+    fnFile *_media_hsfileh = nullptr;
     bool high_score_enabled = false;
 
     // uint8_t _media_sectorbuff[DISK_SECTORBUF_SIZE];
@@ -86,11 +73,7 @@ public:
     // bool _allow_hsio = true;
     bool diskiiemulation;
 
-#ifdef ESP_PLATFORM
-    virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
-#else
-    virtual mediatype_t mount(FileHandler *f, uint32_t disksize) = 0;
-#endif
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) = 0;
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred
@@ -106,11 +89,7 @@ public:
     virtual bool status() = 0;
 
     static mediatype_t discover_mediatype(const char *filename);
-#ifdef ESP_PLATFORM
-    static mediatype_t discover_dsk_mediatype(FILE* f, uint32_t disksize);
-#else
-    static mediatype_t discover_dsk_mediatype(FileHandler* f, uint32_t disksize);
-#endif
+    static mediatype_t discover_dsk_mediatype(fnFile* f, uint32_t disksize);
 
     // void dump_percom_block();
     // void derive_percom_block(uint16_t numSectors);

@@ -30,17 +30,9 @@ protected:
 public:
     iwmDisk2();
     void init();
-#ifdef ESP_PLATFORM
-    mediatype_t mount(FILE *f, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
-#else
-    mediatype_t mount(FileHandler *f, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
-#endif
+    mediatype_t mount(fnFile *f, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
-#ifdef ESP_PLATFORM
-    bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
-#else
-    bool write_blank(FileHandler *f, uint16_t sectorSize, uint16_t numSectors);
-#endif
+    bool write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors);
     int get_track_pos() { return track_pos; };
     bool phases_valid(uint8_t phases);
     bool move_head();

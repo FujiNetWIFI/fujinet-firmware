@@ -219,11 +219,7 @@ bool fujiHost::file_exists(const char *path)
     return _fs->exists(realpath);
 }
 
-#ifdef ESP_PLATFORM
-long fujiHost::file_size(FILE *filehandle)
-#else
-long fujiHost::file_size(FileHandler *filehandle)
-#endif
+long fujiHost::file_size(fnFile *filehandle)
 {
     Debug_print("::get_filesize\n");
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
@@ -235,11 +231,7 @@ long fujiHost::file_size(FileHandler *filehandle)
    if the combined prefix + path is longer than fullpathlen.
    Fullpath may be the same buffer as path.
 */
-#ifdef ESP_PLATFORM
-FILE * fujiHost::file_open(const char *path, char *fullpath, int fullpathlen, const char *mode)
-#else
-FileHandler * fujiHost::filehandler_open(const char *path, char *fullpath, int fullpathlen, const char *mode)
-#endif
+fnFile * fujiHost::fnfile_open(const char *path, char *fullpath, int fullpathlen, const char *mode)
 {
     if (_type == HOSTTYPE_UNINITIALIZED || _fs == nullptr)
         return nullptr;
@@ -259,11 +251,7 @@ FileHandler * fujiHost::filehandler_open(const char *path, char *fullpath, int f
     }
     Debug_printf("fujiHost #%d opening file path \"%s\"\n", slotid, fullpath);
 
-#ifdef ESP_PLATFORM
-    return _fs->file_open(fullpath, mode);
-#else
-    return _fs->filehandler_open(fullpath, mode);
-#endif
+    return _fs->fnfile_open(fullpath, mode);
 }
 
 /* Remove a file from the host

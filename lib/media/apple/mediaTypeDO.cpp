@@ -39,17 +39,10 @@ bool MediaTypeDO::read_sector(int track, int sector, uint8_t* buffer)
     bool err = false;
     uint32_t offset = (track * BYTES_PER_TRACK) + (sector * BYTES_PER_SECTOR);
 
-#ifdef ESP_PLATFORM
-    err = fseek(_media_fileh, offset, SEEK_SET) != 0;
+    err = fnio::fseek(_media_fileh, offset, SEEK_SET) != 0;
 
     if (!err)
-        err = fread(buffer, 1, BYTES_PER_SECTOR, _media_fileh) != BYTES_PER_SECTOR;
-#else
-    err = _media_fileh->seek(offset, SEEK_SET) != 0;
-
-    if (!err)
-        err = _media_fileh->read(buffer, 1, BYTES_PER_SECTOR) != BYTES_PER_SECTOR;
-#endif
+        err = fnio::fread(buffer, 1, BYTES_PER_SECTOR, _media_fileh) != BYTES_PER_SECTOR;
 
     return err;
 }
@@ -82,17 +75,10 @@ bool MediaTypeDO::write_sector(int track, int sector, uint8_t* buffer)
     bool err = false;
     uint32_t offset = (track * BYTES_PER_TRACK) + (sector * BYTES_PER_SECTOR);
 
-#ifdef ESP_PLATFORM
-    err = fseek(_media_fileh, offset, SEEK_SET) != 0;
+    err = fnio::fseek(_media_fileh, offset, SEEK_SET) != 0;
 
     if (!err)
-        err = fwrite(buffer, 1, BYTES_PER_SECTOR, _media_fileh) != BYTES_PER_SECTOR;
-#else
-    err = _media_fileh->seek(offset, SEEK_SET) != 0;
-
-    if (!err)
-        err = _media_fileh->write(buffer, 1, BYTES_PER_SECTOR) != BYTES_PER_SECTOR;
-#endif
+        err = fnio::fwrite(buffer, 1, BYTES_PER_SECTOR, _media_fileh) != BYTES_PER_SECTOR;
 
     return err;
 }
@@ -102,11 +88,7 @@ bool MediaTypeDO::format(uint16_t *respopnsesize)
     return false;
 }
 
-#ifdef ESP_PLATFORM
-mediatype_t MediaTypeDO::mount(FILE *f, uint32_t disksize)
-#else
-mediatype_t MediaTypeDO::mount(FileHandler *f, uint32_t disksize)
-#endif
+mediatype_t MediaTypeDO::mount(fnFile *f, uint32_t disksize)
 {
     switch (disksize) {
         case 35 * BYTES_PER_TRACK:

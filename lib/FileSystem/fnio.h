@@ -3,12 +3,7 @@
 
 #include <cstdio>
 
-#ifdef ESP_PLATFORM
-typedef std::FILE fnFile;
-#else
 #include "fnFile.h"
-typedef FileHandler fnFile;
-#endif
 
 namespace fnio
 {
