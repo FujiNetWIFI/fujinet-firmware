@@ -147,11 +147,7 @@ void sioCassette::close_cassette_file()
     // for closing files used for writing
     if (_file != nullptr)
     {
-#ifdef ESP_PLATFORM
-        fclose(_file);
-#else
-        _file->close();
-#endif
+        fnio::fclose(_file);
 #ifdef DEBUG
         Debug_println("CAS file closed.");
 #endif
@@ -172,11 +168,7 @@ void sioCassette::open_cassette_file(FileSystem *_FS)
     strcat(fn, ".cas");
 
     close_cassette_file();
-#ifdef ESP_PLATFORM
-    _file = _FS->file_open(fn, "w+"); // use "w+" for CSAVE test
-#else
-    _file = _FS->filehandler_open(fn, "wb+"); // use "w+" for CSAVE test
-#endif
+    _file = _FS->fnfile_open(fn, "wb+"); // use "w+" for CSAVE test
     if (!_file)
     {
         _mounted = false;
@@ -202,11 +194,7 @@ void sioCassette::umount_cassette_file()
         _mounted = false;
 }
 
-#ifdef ESP_PLATFORM
-void sioCassette::mount_cassette_file(FILE *f, size_t fz)
-#else
-void sioCassette::mount_cassette_file(FileHandler *f, size_t fz)
-#endif
+void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
 {
 
     tape_offset = 0;
@@ -376,13 +364,8 @@ size_t sioCassette::send_tape_block(size_t offset)
 #endif
         //read block
         //r = faccess_offset(FILE_ACCESS_READ, offset, BLOCK_LEN);
-#ifdef ESP_PLATFORM
-        fseek(_file, offset, SEEK_SET);
-        r = fread(atari_sector_buffer, 1, BLOCK_LEN, _file);
-#else
-        _file->seek(offset, SEEK_SET);
-        r = _file->read(atari_sector_buffer, 1, BLOCK_LEN);
-#endif
+        fnio::fseek(_file, offset, SEEK_SET);
+        r = fnio::fread(atari_sector_buffer, 1, BLOCK_LEN, _file);
 
         //shift buffer 3 bytes right
         for (i = 0; i < BLOCK_LEN; i++)
@@ -428,13 +411,8 @@ void sioCassette::check_for_FUJI_file()
     uint8_t *p = hdr->chunk_type;
 
     // faccess_offset(FILE_ACCESS_READ, 0, sizeof(struct tape_FUJI_hdr));
-#ifdef ESP_PLATFORM
-    fseek(_file, 0, SEEK_SET);
-    fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
-#else
-    _file->seek(0, SEEK_SET);
-    _file->read(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr));
-#endif
+    fnio::fseek(_file, 0, SEEK_SET);
+    fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
     if (p[0] == 'F' && //search for FUJI header
         p[1] == 'U' &&
         p[2] == 'J' &&
@@ -477,13 +455,8 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
 #ifdef DEBUG
         Debug_printf("Offset: %u\r\n", offset);
 #endif
-#ifdef ESP_PLATFORM
-        fseek(_file, offset, SEEK_SET);
-        fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
-#else
-        _file->seek(offset, SEEK_SET);
-        _file->read(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr));
-#endif
+        fnio::fseek(_file, offset, SEEK_SET);
+        fnio::fread(atari_sector_buffer, 1, sizeof(struct tape_FUJI_hdr), _file);
         len = hdr->chunk_length;
 
         if (p[0] == 'd' && //is a data header?
@@ -554,13 +527,8 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
                 len = 0;
             }
 
-#ifdef ESP_PLATFORM
-            fseek(_file, offset, SEEK_SET);
-            r = fread(atari_sector_buffer, 1, buflen, _file);
-#else
-            _file->seek(offset, SEEK_SET);
-            r = _file->read(atari_sector_buffer, 1, buflen);
-#endif
+            fnio::fseek(_file, offset, SEEK_SET);
+            r = fnio::fread(atari_sector_buffer, 1, buflen, _file);
             offset += r;
 
 #ifdef DEBUG

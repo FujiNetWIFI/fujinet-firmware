@@ -418,7 +418,7 @@ void sioFuji::sio_disk_image_mount()
     // TODO: Refactor along with mount disk image.
     disk.disk_dev.host = &host;
 
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     if (disk.fileh == nullptr)
     {
@@ -478,7 +478,7 @@ int sioFuji::sio_disk_image_mount(bool siomode, int slot)
     // TODO: Refactor along with mount disk image.
     disk.disk_dev.host = &host;
 
-    disk.fileh = host.filehandler_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     if (disk.fileh == nullptr)
     {
@@ -514,13 +514,8 @@ void sioFuji::sio_copy_file()
     std::string sourcePath;
     std::string destPath;
     uint8_t ck;
-#ifdef ESP_PLATFORM
-    FILE *sourceFile;
-    FILE *destFile;
-#else
-    FileHandler *sourceFile;
-    FileHandler *destFile;
-#endif
+    fnFile *sourceFile;
+    fnFile *destFile;
     char *dataBuf;
     unsigned char sourceSlot;
     unsigned char destSlot;
@@ -592,11 +587,7 @@ void sioFuji::sio_copy_file()
     _fnHosts[destSlot].mount();
 
     // Open files...
-#ifdef ESP_PLATFORM
-    sourceFile = _fnHosts[sourceSlot].file_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
-#else
-    sourceFile = _fnHosts[sourceSlot].filehandler_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "rb");
-#endif
+    sourceFile = _fnHosts[sourceSlot].fnfile_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, FILE_READ);
 
     if (sourceFile == nullptr)
     {
@@ -605,20 +596,12 @@ void sioFuji::sio_copy_file()
         return;
     }
 
-#ifdef ESP_PLATFORM
-    destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
-#else
-    destFile = _fnHosts[destSlot].filehandler_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "wb");
-#endif
+    destFile = _fnHosts[destSlot].fnfile_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, FILE_WRITE);
 
     if (destFile == nullptr)
     {
         sio_error();
-#ifdef ESP_PLATFORM
-        fclose(sourceFile);
-#else
-        sourceFile->close();
-#endif
+        fnio::fclose(sourceFile);
         free(dataBuf);
         return;
     }
@@ -630,11 +613,7 @@ void sioFuji::sio_copy_file()
     bool err = false;
     do
     {
-#ifdef ESP_PLATFORM
-        readCount = fread(dataBuf, 1, 532, sourceFile);
-#else
-        readCount = sourceFile->read(dataBuf, 1, 532);
-#endif
+        readCount = fnio::fread(dataBuf, 1, 532, sourceFile);
         readTotal += readCount;
         // Check if we got enough bytes on the read
         if (readCount < 532 && readTotal != expected)
@@ -642,11 +621,7 @@ void sioFuji::sio_copy_file()
             err = true;
             break;
         }
-#ifdef ESP_PLATFORM
-        writeCount = fwrite(dataBuf, 1, readCount, destFile);
-#else
-        writeCount = destFile->write(dataBuf, 1, readCount);
-#endif
+        writeCount = fnio::fwrite(dataBuf, 1, readCount, destFile);
         // Check if we sent enough bytes on the write
         if (writeCount != readCount)
         {
@@ -669,13 +644,8 @@ void sioFuji::sio_copy_file()
     }
 
     // copyEnd:
-#ifdef ESP_PLATFORM
-    fclose(sourceFile);
-    fclose(destFile);
-#else
-    sourceFile->close();
-    destFile->close();
-#endif
+    fnio::fclose(sourceFile);
+    fnio::fclose(destFile);
     free(dataBuf);
 }
 
@@ -692,17 +662,10 @@ int sioFuji::mount_all(bool siomode)
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
-#ifdef ESP_PLATFORM
-        char flag[3] = {'r', 0, 0};
-
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-            flag[1] = '+';
-#else
         char flag[4] = {'r', 'b', 0, 0};
 
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[2] = '+';
-#endif
 
         if (disk.host_slot != INVALID_HOST_SLOT)
         {
@@ -721,22 +684,17 @@ int sioFuji::mount_all(bool siomode)
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                          disk.filename, disk.host_slot, flag, i + 1);
 
-#ifdef ESP_PLATFORM
-            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+            disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
             if (disk.fileh == nullptr)
             {
+#ifdef ESP_PLATFORM
                 sio_error();
                 return;
-            }
 #else
-            disk.fileh = host.filehandler_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-            if (disk.fileh == nullptr)
-            {
                 return _on_error(siomode);
-            }
 #endif
+            }
 
             // We've gotten this far, so make sure our bootable CONFIG disk is disabled
             boot_config = false;
@@ -886,11 +844,7 @@ void sioFuji::sio_write_app_key()
     // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
     fnSDFAT.create_path("/FujiNet");
 
-#ifdef ESP_PLATFORM
-    FILE *fOut = fnSDFAT.file_open(filename, "w");
-#else
     FILE *fOut = fnSDFAT.file_open(filename, FILE_WRITE);
-#endif
     if (fOut == nullptr)
     {
         Debug_printf("Failed to open/create output file: errno=%d\n", errno);
@@ -948,11 +902,7 @@ void sioFuji::sio_read_app_key()
 
     Debug_printf("Reading appkey from \"%s\"\n", filename);
 
-#ifdef ESP_PLATFORM
-    FILE *fIn = fnSDFAT.file_open(filename, "r");
-#else
     FILE *fIn = fnSDFAT.file_open(filename, FILE_READ);
-#endif
     if (fIn == nullptr)
     {
         Debug_printf("Failed to open input file: errno=%d\n", errno);
@@ -1618,11 +1568,7 @@ void sioFuji::sio_new_disk()
         return;
     }
 
-#ifdef ESP_PLATFORM
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-#else
-    disk.fileh = host.filehandler_open(disk.filename, disk.filename, sizeof(disk.filename), FILE_WRITE);
-#endif
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), FILE_WRITE);
     if (disk.fileh == nullptr)
     {
         Debug_printf("sio_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
@@ -1631,11 +1577,7 @@ void sioFuji::sio_new_disk()
     }
 
     bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.sectorSize, newDisk.numSectors);
-#ifdef ESP_PLATFORM
-    fclose(disk.fileh);
-#else
-    disk.fileh->close();
-#endif
+    fnio::fclose(disk.fileh);
 
     if (ok == false)
     {
@@ -2045,7 +1987,7 @@ void sioFuji::insert_boot_device(uint8_t d)
     const char *alt_config_atr = altconfigfile.c_str();
     const char *mount_all_atr = "/mount-and-boot.atr";
 #ifdef ESP_PLATFORM // TODO merge
-    FILE *fBoot;
+    fnFile *fBoot;
 
     _bootDisk.unmount();
 
@@ -2054,7 +1996,7 @@ void sioFuji::insert_boot_device(uint8_t d)
     case 0:
         if( !altconfigfile.empty() && fnSDFAT.running() != false )
         {
-            fBoot = fnSDFAT.file_open(alt_config_atr, "r");
+            fBoot = fnSDFAT.fnfile_open(alt_config_atr);
             // if open fails, fall back to default config
             if (fBoot != nullptr)
             {
@@ -2063,11 +2005,11 @@ void sioFuji::insert_boot_device(uint8_t d)
                 break;
             }
         }
-        fBoot = fsFlash.file_open(config_atr);
+        fBoot = fsFlash.fnfile_open(config_atr);
         _bootDisk.mount(fBoot, config_atr, 0);
         break;
     case 1:
-        fBoot = fsFlash.file_open(mount_all_atr);
+        fBoot = fsFlash.fnfile_open(mount_all_atr);
         _bootDisk.mount(fBoot, mount_all_atr, 0);
         break;
     case 2:
@@ -2075,7 +2017,7 @@ void sioFuji::insert_boot_device(uint8_t d)
         if (fnTNFS.start("tnfs.fujinet.online"))
         {
             Debug_printf("opening lobby.\n");
-            fBoot = fnTNFS.file_open("/ATARI/_lobby.xex");
+            fBoot = fnTNFS.fnfile_open("/ATARI/_lobby.xex");
             _bootDisk.mount(fBoot, "/ATARI/_lobby.xex", 0);
         }
         break;
@@ -2085,7 +2027,7 @@ void sioFuji::insert_boot_device(uint8_t d)
     const char *lobby_xex = "/ATARI/_lobby.xex";
     const char *boot_img;
 
-    FileHandler *fBoot = nullptr;
+    fnFile *fBoot = nullptr;
 
     _bootDisk.unmount();
 
@@ -2094,7 +2036,7 @@ void sioFuji::insert_boot_device(uint8_t d)
     case 0:
         if( !altconfigfile.empty() && fnSDFAT.running() != false )
         {
-            fBoot = fnSDFAT.filehandler_open(alt_config_atr);
+            fBoot = fnSDFAT.fnfile_open(alt_config_atr);
             // if open fails, fall back to default config
             if (fBoot != nullptr)
             {
@@ -2104,11 +2046,11 @@ void sioFuji::insert_boot_device(uint8_t d)
             }
         }
         boot_img = config_atr;
-        fBoot = fsFlash.filehandler_open(boot_img);
+        fBoot = fsFlash.fnfile_open(boot_img);
         break;
     case 1:
         boot_img = mount_all_atr;
-        fBoot = fsFlash.filehandler_open(boot_img);
+        fBoot = fsFlash.fnfile_open(boot_img);
         break;
     case 2:
         Debug_printf("Mounting lobby server\n");
@@ -2116,7 +2058,7 @@ void sioFuji::insert_boot_device(uint8_t d)
         {
             Debug_printf("opening lobby.\n");
             boot_img = lobby_xex;
-            fBoot = fnTNFS.filehandler_open(boot_img);
+            fBoot = fnTNFS.fnfile_open(boot_img);
         }
         break;
     default:

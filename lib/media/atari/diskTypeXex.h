@@ -15,11 +15,7 @@ private:
 public:
     virtual bool read(uint16_t sectornum, uint16_t *readcount) override;
 
-#ifdef ESP_PLATFORM
-    virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
-#else
-    virtual mediatype_t mount(FileHandler *f, uint32_t disksize) override;
-#endif
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
     virtual void unmount() override;
 
     virtual void status(uint8_t statusbuff[4]) override;
