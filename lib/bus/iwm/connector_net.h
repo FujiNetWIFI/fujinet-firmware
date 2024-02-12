@@ -1,3 +1,5 @@
+#ifdef BUILD_APPLE
+
 #pragma once
 
 #include <memory>
@@ -17,3 +19,5 @@ private:
 	in_addr_t host_ip = IPADDR_NONE;
 
 };
+
+#endif /* BUILD_APPLE */

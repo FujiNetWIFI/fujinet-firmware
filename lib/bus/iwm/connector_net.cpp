@@ -1,3 +1,5 @@
+#ifdef BUILD_APPLE
+
 #include "connector_net.h"
 #include "TCPConnection.h"
 
@@ -131,3 +133,5 @@ std::shared_ptr<Connection> connector_net::create_connection()
 	conn->create_read_channel();
 	return conn;
 }
+
+#endif /* BUILD_APPLE */
