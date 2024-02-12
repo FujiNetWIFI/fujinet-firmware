@@ -22,19 +22,29 @@ elseif(FUJINET_TARGET STREQUAL "APPLE")
     set(FUJINET_BUILD_BOARD fujinet-pc-apple)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS IWM)
+
+    ######################## SLIP PROTOCOL PROCESSING
+    set(SLIP_PROTOCOL "NET" CACHE STRING "Select the protocol type (NET or COM)")
+    
+    set_property(CACHE SLIP_PROTOCOL PROPERTY STRINGS "NET" "COM")
+    
+    if(NOT SLIP_PROTOCOL STREQUAL "NET" AND NOT SLIP_PROTOCOL STREQUAL "COM")
+      message(FATAL_ERROR "Invalid value for SLIP_PROTOCOL: ${SLIP_PROTOCOL}. Please choose either NET or COM.")
+    endif()
+    
+    # convert to values for C++ code to use as macros
+    if(SLIP_PROTOCOL STREQUAL "NET")
+        add_compile_definitions(SLIP_PROTOCOL_NET=1)
+    elseif(SLIP_PROTOCOL STREQUAL "COM")
+        add_compile_definitions(SLIP_PROTOCOL_COM=1)
+    endif()
+    
+    message(STATUS "SLIP_PROTOCOL is ${SLIP_PROTOCOL}")
+    ################################################
 else()
     message(FATAL_ERROR "Invalid target '${FUJINET_TARGET}'! Please choose from 'ATARI' or 'APPLE'.")
 endif()
 
-set(SLIP_PROTOCOL "NET" CACHE STRING "Select the protocol type (NET or COM)")
-
-set_property(CACHE SLIP_PROTOCOL PROPERTY STRINGS "NET" "COM")
-
-if(NOT SLIP_PROTOCOL STREQUAL "NET" AND NOT SLIP_PROTOCOL STREQUAL "COM")
-  message(FATAL_ERROR "Invalid value for SLIP_PROTOCOL: ${SLIP_PROTOCOL}. Please choose either NET or COM.")
-endif()
-
-message(STATUS "SLIP_PROTOCOL is ${SLIP_PROTOCOL}")
 
 # platformio.data_dir (not used by FujiNet-PC)
 #set(PLATFORM_DATA_DIR ${CMAKE_SOURCE_DIR}/data/${FUJINET_BUILD_PLATFORM})
@@ -222,10 +232,11 @@ endif()
 if(FUJINET_TARGET STREQUAL "APPLE")
     list(APPEND SOURCES
 
+    lib/bus/iwm/iwm_slip.h lib/utils/std_extensions.hpp lib/bus/iwm/iwm_slip.cpp
+    lib/bus/iwm/connector.h
+    lib/bus/iwm/Connection.h lib/bus/iwm/Connection.cpp
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
-    lib/slip/SPoSLIP.h
-    lib/slip/Packet.h
-    lib/slip/SmartPortCodes.h
+    lib/slip/SmartPortPacket.h
     lib/slip/Response.h lib/slip/Response.cpp
     lib/slip/Request.h lib/slip/Request.cpp
     lib/slip/SLIP.h lib/slip/SLIP.cpp
@@ -269,19 +280,20 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
 
     )
+
+    if(SLIP_PROTOCOL STREQUAL "NET")
+        list(APPEND SOURCES
+            lib/bus/iwm/connector_net.h lib/bus/iwm/connector_net.cpp
+            lib/bus/iwm/TCPConnection.h lib/bus/iwm/TCPConnection.cpp
+        )
+    elseif(SLIP_PROTOCOL STREQUAL "COM")
+        # Append sources specific to COM
+        list(APPEND SOURCES
+        )
+    endif()
+
 endif()
 
-if(SLIP_PROTOCOL STREQUAL "NET")
-    list(APPEND SOURCES
-        lib/bus/iwm/iwm_slip.h lib/utils/std_extensions.hpp lib/bus/iwm/iwm_slip.cpp
-        lib/bus/iwm/Connection.h lib/bus/iwm/Connection.cpp
-        lib/bus/iwm/TCPConnection.h lib/bus/iwm/TCPConnection.cpp
-    )
-elseif(SLIP_PROTOCOL STREQUAL "COM")
-    # Append sources specific to COM
-    list(APPEND SOURCES
-    )
-endif()
 
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
