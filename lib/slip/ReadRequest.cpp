@@ -1,10 +1,7 @@
 ﻿#ifdef SP_OVER_SLIP
 
 #include "ReadRequest.h"
-
 #include "ReadResponse.h"
-#include "SmartPortCodes.h"
-
 
 ReadRequest::ReadRequest(const uint8_t request_sequence_number, const uint8_t sp_unit)
 	: Request(request_sequence_number, SP_READ, sp_unit), byte_count_(), address_()

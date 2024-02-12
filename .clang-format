@@ -27,4 +27,4 @@ BraceWrapping:
   BeforeWhile: false
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
-IndentPPDirectives: BeforeHash
+IndentPPDirectives: None

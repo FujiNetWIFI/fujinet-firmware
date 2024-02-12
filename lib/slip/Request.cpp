@@ -3,7 +3,6 @@
 #include <sstream>
 
 #include "Request.h"
-#include "SmartPortCodes.h"
 
 #include "CloseRequest.h"
 #include "CloseResponse.h"
@@ -29,7 +28,7 @@
 #include "WriteResponse.h"
 
 Request::Request(const uint8_t request_sequence_number, const uint8_t command_number, const uint8_t sp_unit)
-	: Packet(request_sequence_number), command_number_(command_number), sp_unit_(sp_unit) {}
+	: SmartPortPacket(request_sequence_number), command_number_(command_number), sp_unit_(sp_unit) {}
 
 uint8_t Request::get_command_number() const { return command_number_; }
 

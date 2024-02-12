@@ -1,10 +1,7 @@
 ﻿#ifdef SP_OVER_SLIP
 
 #include "InitRequest.h"
-
 #include "InitResponse.h"
-#include "SmartPortCodes.h"
-
 
 InitRequest::InitRequest(const uint8_t request_sequence_number, const uint8_t sp_unit)
 	: Request(request_sequence_number, SP_INIT, sp_unit) {}
