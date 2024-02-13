@@ -1,6 +1,7 @@
-#ifdef BUILD_APPLE
-
 #pragma once
+
+#ifdef BUILD_APPLE
+#ifdef SP_OVER_SLIP
 
 #include <memory>
 #include "connector.h"
@@ -20,4 +21,5 @@ private:
 
 };
 
+#endif /* SP_OVER_SLIP */
 #endif /* BUILD_APPLE */
