@@ -1,6 +1,7 @@
+#pragma once
+
 #ifdef BUILD_APPLE
-#ifndef IWM_SLIP_H
-#define IWM_SLIP_H
+#ifdef SP_OVER_SLIP
 
 #include <cstdint>
 #include <thread>
@@ -117,5 +118,6 @@ private:
 
 extern iwm_slip smartport;
 
-#endif // IWM_SLIP_H
+
+#endif // SP_OVER_SLIP
 #endif // BUILD_APPLE

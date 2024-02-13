@@ -1,6 +1,5 @@
 #ifdef BUILD_APPLE
-
-#if defined(SP_OVER_SLIP) && defined(SLIP_PROTOCOL_NET)
+#ifdef SP_OVER_SLIP
 
 #include <algorithm>
 #include <iostream>
@@ -266,5 +265,4 @@ void iwm_slip::restart()
 iwm_slip smartport;
 
 #endif // SP_OVER_SLIP
-
 #endif // BUILD_APPLE
