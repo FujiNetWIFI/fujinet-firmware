@@ -103,6 +103,7 @@ void setup_esp_uart()
 uint32_t a;
 uint32_t b[12];
     char c;
+    char current_track;
 uint32_t olda;
 uint32_t active_disk_number;
 uint num_dcd_drives;
@@ -341,7 +342,8 @@ void setup()
     setup_esp_uart();
 
     // merged setup
-    set_tach_freq(0); // start TACH clock
+    current_track = 0;
+    set_tach_freq(current_track); // start TACH clock
     preset_latch();
     dcd_preset_latch();
 
@@ -621,9 +623,12 @@ void floppy_loop()
     // to do: figure out when to clear !READY
     if (c & 128)
     {
-      if (c == 128)
+      current_track = c & 127;
+      if (current_track == 0)
           clr_latch(TKO); // at track zero
-      // set_tach_freq(c & 127);
+      else
+          set_latch(TKO);
+      set_tach_freq(current_track);
     }
     else
       switch (c)
