@@ -1,0 +1,46 @@
+;
+; FujiNet Project
+;
+; Atari 2600 VCS ROM emulator
+; Reads the address (pushed to RX FIFO) and outputs a data byte (pulled to TX_FIFO) 
+; Uses 2 DMA channels to read the desired data
+;
+; the Y register is set prior to enabling the SM using 
+    ; put LUT address into the FIFO
+    ; pull
+    ; mov y, osr
+    ; out null, 1
+    ;
+    ; or using c code:
+    ; pio_sm_put(pioblk, SM_ROM, (uintptr_t)rom >> 12);
+    ; pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_pull(false, true));
+    ; pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_mov(pio_y, pio_osr));
+    ; pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_out(pio_null, 1)); 
+
+.define public ADDRWIDTH 12
+.define public DATAWIDTH 8
+
+.program rom
+    mov isr, y      ; put the base address in ISR
+    in pins, ADDRWIDTH     ; copy the pin combination into the ISR (auto push)
+    out pins, DATAWIDTH     ; output the rom byte value 
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+
+void rom_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin) {
+   // configure a SM
+   pio_sm_config c = rom_program_get_default_config(offset);
+   
+   // get 8 bits rom values through the OSR and output on out_pin
+   sm_config_set_out_pins(&c, out_pin, DATAWIDTH);
+   sm_config_set_out_shift(&c, true, true, DATAWIDTH);
+   
+   // start at in_pin to read in the phases and push to the FIFO
+   sm_config_set_in_pins(&c, in_pin); 
+   sm_config_set_in_shift(&c, false, true, ADDRWIDTH);
+
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}

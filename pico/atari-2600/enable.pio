@@ -1,0 +1,33 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; sends the phases to the PICO when the strobe sets
+;
+
+.define public ENABLE 2
+
+.program enable
+.side_set 3 opt pindirs
+    set pindirs 0       side 0      ; set DATA bus as read
+    wait 0 gpio ENABLE              ; wait for enable to go low (ADDR 13 via inverter)
+    set pindirs 0b11111  side 0b111   ; set DATA bus as write
+    wait 1 gpio ENABLE              ; wait for the strobe to deassert
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+
+void enable_program_init(PIO pio, uint sm, uint offset, uint pin) {
+   // configure a SM
+   pio_sm_config c = enable_program_get_default_config(offset);
+   // set the out pin to pin
+   sm_config_set_set_pins(&c, pin, 5);
+   sm_config_set_sideset_pins(&c, pin + 5);
+   
+   // set pin as a GPIO output connected to this SM
+   pio_sm_set_consecutive_pindirs(pio, sm, out_pin, DATAWIDTH, false);
+   
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}
