@@ -263,12 +263,30 @@ public:
     void store_netsio_port(int port);
 
     // BUS over IP
-    bool get_boip_enabled() { return _boip.boip_enabled; }
+    bool get_boip_enabled() { return _boip.boip_enabled; } // unused
     std::string get_boip_host() { return _boip.host; }
     int get_boip_port() { return _boip.port; }
     void store_boip_enabled(bool enabled);
     void store_boip_host(const char *host);
     void store_boip_port(int port);
+
+    // BUS over Serial
+    bool get_bos_enabled() { return _bos.bos_enabled; } // unused
+    std::string get_bos_port_name() { return _bos.port_name; }
+    int get_bos_baud() { return _bos.baud; }
+    int get_bos_bits() { return _bos.bits; }
+    int get_bos_parity() { return _bos.parity; }
+    int get_bos_stop_bits() { return _bos.stop_bits; }
+    int get_bos_flowcontrol() { return _bos.flowcontrol; }
+
+    void store_bos_enabled(bool bos_enabled);
+    void store_bos_port_name(char *port_name);
+    void store_bos_baud(int baud);
+    void store_bos_bits(int bits);
+    void store_bos_parity(int parity);
+    void store_bos_stop_bits(int stop_bits);
+    void store_bos_flowcontrol(int flowcontrol);
+
 #endif
 
     void load();
@@ -301,6 +319,7 @@ private:
     void _read_section_serial(std::stringstream &ss);
     void _read_section_netsio(std::stringstream &ss);
     void _read_section_boip(std::stringstream &ss);
+    void _read_section_bos(std::stringstream &ss);
 #endif
 
     enum section_match
@@ -323,6 +342,7 @@ private:
         SECTION_SERIAL,
         SECTION_NETSIO,
         SECTION_BOIP,
+        SECTION_BOS,
 #endif
         SECTION_UNKNOWN
     };
@@ -452,11 +472,25 @@ private:
         int port = CONFIG_DEFAULT_NETSIO_PORT;
     };
 
+    // "bus" over IP
     struct boip_info
     {
         bool boip_enabled = false;
         std::string host = "";
         int port = CONFIG_DEFAULT_BOIP_PORT;
+    };
+
+
+    // "bus" over serial
+    struct bos_info
+    {
+        bool bos_enabled = false;
+        std::string port_name = "COM1";
+        int baud = 9600;
+        int bits = 8;
+        int parity = 0; // SP_PARITY_NONE
+        int stop_bits = 1;
+        int flowcontrol = 0; // SP_FLOWCONTROL_NONE
     };
 #endif
 
@@ -516,6 +550,7 @@ private:
     serial_info _serial;
     netsio_info _netsio;
     boip_info _boip;
+    bos_info _bos;
 #endif
     cpm_info _cpm;
     device_enable_info _denable;

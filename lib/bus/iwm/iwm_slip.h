@@ -20,7 +20,7 @@
 #ifdef SLIP_PROTOCOL_NET
 #include "connector_net.h"
 #else
-
+#include "connector_com.h"
 #endif
 
 #define COMMAND_LEN 8	   // Read Request / Write Request
@@ -78,6 +78,8 @@ public:
 
 #ifdef SLIP_PROTOCOL_NET
 	connector_net connector;
+#else
+	connector_com connector;
 #endif
 
 	void wait_for_requests();

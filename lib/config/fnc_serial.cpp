@@ -57,6 +57,10 @@ void fnConfig::store_netsio_port(int port) {
     _dirty = true;
 }
 
+/*
+ * TODO! Create a Web configuration section for the Bus Over IP and Bus Over Serial data so it can be configured from WebUI.
+*/
+
 void fnConfig::store_boip_enabled(bool enabled) {
     if (_boip.boip_enabled == enabled)
         return;
@@ -80,6 +84,63 @@ void fnConfig::store_boip_port(int port) {
     _boip.port = port;
     _dirty = true;
 }
+
+void fnConfig::store_bos_enabled(bool bos_enabled) {
+    if (_bos.bos_enabled == bos_enabled)
+        return;
+    
+    _bos.bos_enabled = bos_enabled;
+    _dirty = true;
+}
+
+void fnConfig::store_bos_port_name(char *port_name) {
+    if (_bos.port_name.compare(port_name) == 0)
+        return;
+    
+    _bos.port_name = port_name;
+    _dirty = true;
+}
+
+void fnConfig::store_bos_baud(int baud) {
+    if (_bos.baud == baud)
+        return;
+    
+    _bos.baud = baud;
+    _dirty = true;
+}
+
+void fnConfig::store_bos_bits(int bits) {
+    if (_bos.bits == bits)
+        return;
+    
+    _bos.bits = bits;
+    _dirty = true;
+}
+
+void fnConfig::store_bos_parity(int parity) {
+    if (_bos.parity == parity)
+        return;
+    
+    _bos.parity = parity;
+    _dirty = true;
+}
+
+void fnConfig::store_bos_stop_bits(int stop_bits) {
+    if (_bos.stop_bits == stop_bits)
+        return;
+    
+    _bos.stop_bits = stop_bits;
+    _dirty = true;
+}
+
+void fnConfig::store_bos_flowcontrol(int flowcontrol) {
+    if (_bos.flowcontrol == flowcontrol)
+        return;
+    
+    _bos.flowcontrol = flowcontrol;
+    _dirty = true;
+}
+
 
 void fnConfig::_read_section_serial(std::stringstream &ss)
 {
@@ -160,6 +221,54 @@ void fnConfig::_read_section_boip(std::stringstream &ss)
                 if (port <= 0 || port > 65535) 
                     port = CONFIG_DEFAULT_NETSIO_PORT;
                 _boip.port = port;
+            }
+        }
+    }
+}
+
+void fnConfig::_read_section_bos(std::stringstream &ss)
+{
+    std::string line;
+    // Read lines until one starts with '[' which indicates a new section
+    while (_read_line(ss, line, '[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line, name, value))
+        {
+            if (strcasecmp(name.c_str(), "enabled") == 0)
+            {
+                _bos.bos_enabled = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "port_name") == 0)
+            {
+                Debug_printf("XXXXXXXXXXXX CONFIG: Setting port_name from config to %s\n", value.c_str());
+                _bos.port_name = value;
+            }
+            else if (strcasecmp(name.c_str(), "baud") == 0)
+            {
+                int baud = atoi(value.c_str());
+                _bos.baud = baud;
+            }
+            else if (strcasecmp(name.c_str(), "bits") == 0)
+            {
+                int bits = atoi(value.c_str());
+                _bos.bits = bits;
+            }
+            else if (strcasecmp(name.c_str(), "parity") == 0)
+            {
+                int parity = atoi(value.c_str());
+                _bos.parity = parity;
+            }
+            else if (strcasecmp(name.c_str(), "stop_bits") == 0)
+            {
+                int stop_bits = atoi(value.c_str());
+                _bos.stop_bits = stop_bits;
+            }
+            else if (strcasecmp(name.c_str(), "flowcontrol") == 0)
+            {
+                int flowcontrol = atoi(value.c_str());
+                _bos.flowcontrol = flowcontrol;
             }
         }
     }
