@@ -104,6 +104,7 @@ uint32_t a;
 uint32_t b[12];
     char c;
     char current_track;
+uint64_t last_time = 0;
 uint32_t olda;
 uint32_t active_disk_number;
 uint num_dcd_drives;
@@ -283,7 +284,7 @@ void dcd_preset_latch()
   printf("\nDCD Latch: %02x", dcd_get_latch());
 }
 
-void set_tach_freq(char c)
+void set_tach_freq(char c, char wobble)
 {
   const int tach_lut[5][3] = {{0, 15, 394},
                             {16, 31, 429},
@@ -300,7 +301,7 @@ void set_tach_freq(char c)
   for (int i = 0; i < 5; i++)
   {
     if ((c >= tach_lut[i][0]) && (c <= tach_lut[i][1]))
-      clock_gpio_init_int_frac(TACH_OUT, CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_VALUE_CLK_SYS, 125 * MHZ / tach_lut[i][2], 0);
+      clock_gpio_init_int_frac(TACH_OUT, CLOCKS_CLK_GPOUT0_CTRL_AUXSRC_VALUE_CLK_SYS, 125 * MHZ / (tach_lut[i][2]+wobble), 0);
   }
 }
 
@@ -343,7 +344,7 @@ void setup()
 
     // merged setup
     current_track = 0;
-    set_tach_freq(current_track); // start TACH clock
+    set_tach_freq(current_track, 0); // start TACH clock
     preset_latch();
     dcd_preset_latch();
 
@@ -531,6 +532,10 @@ void floppy_loop()
 {
   static bool step_state = false;
 
+  // I settled on a flutter cycle period of 640 ms and a flutter amplitude of about 0.25%.
+  // tach ranges approx 400-600 Hz, so that's about 1.0-1.5 Hz. Call it 1 Hz.
+  static char wobble = 1;
+
   if (gpio_get(ENABLE) && (num_dcd_drives > 0))
   {
     disk_mode = TO_DCD;
@@ -628,7 +633,7 @@ void floppy_loop()
           clr_latch(TKO); // at track zero
       else
           set_latch(TKO);
-      set_tach_freq(current_track);
+      set_tach_freq(current_track, 0);
     }
     else
       switch (c)
@@ -657,6 +662,14 @@ void floppy_loop()
       c = 0; // clear c because processed it and don't want infinite loop
     }
     // to do: read both enable lines and indicate which drive is active when sending single char to esp32
+
+  if ((time_us_64() - last_time) > 640*1000)
+    {
+      last_time = time_us_64();
+      set_tach_freq(current_track, wobble);
+      wobble = -wobble;
+    }
+
 }
 
 struct dcd_triad {
