@@ -182,6 +182,16 @@ void fnConfig::save()
     ss << "enabled=" << _boip.boip_enabled << LINETERM;
     ss << "host=" << _boip.host << LINETERM;
     ss << "port=" << _boip.port << LINETERM;
+
+    // Bus Over IP
+    ss << LINETERM << "[BOS]" << LINETERM;
+    ss << "enabled=" << _bos.bos_enabled << LINETERM;
+    ss << "port_name=" << _bos.port_name.c_str() << LINETERM;
+    ss << "baud=" << _bos.baud << LINETERM;
+    ss << "bits=" << _bos.bits << LINETERM;
+    ss << "parity=" << _bos.parity << LINETERM;
+    ss << "stop_bits=" << _bos.stop_bits << LINETERM;
+    ss << "flowcontrol=" << _bos.flowcontrol << LINETERM;
 #endif
 
 #ifdef ESP_PLATFORM

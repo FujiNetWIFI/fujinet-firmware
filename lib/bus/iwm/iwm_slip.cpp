@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <thread>
 #include <stdexcept>
+#include <cstdlib>
 #include <string.h>
 #include <unordered_map>
 
@@ -69,7 +70,7 @@ void iwm_slip::end_request_thread()
 		connection_->set_is_connected(false);
 		connection_->join();
 	}
-	connector.close_connection(true);
+	connection_->close_connection();
 	if (request_thread_.joinable())
 	{
 		request_thread_.join();
@@ -104,6 +105,9 @@ void iwm_slip::setup_spi()
 			connection_ = connector.create_connection();
 		} catch (const std::runtime_error &e)
 		{
+			// Some error in config etc which we cannot recover from
+			std::cerr << "ERROR creating connection: " << e.what() << std::endl;
+			std::exit(EXIT_FAILURE);
 		}
 		if (!connection_)
 		{

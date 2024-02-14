@@ -34,25 +34,17 @@
 
 #endif
 
-void connector_net::close_connection(bool report_error)
+void close_connection(int sock, bool report_error)
 {
 	if (sock == 0)
 		return;
 
-	if (SHUTDOWN_SOCKET(sock) == SOCKET_ERROR && report_error)
-	{
-		std::cerr << "Error shutting down socket, error code: " << SOCKET_ERROR_CODE << std::endl;
-	}
-
-	if (CLOSE_SOCKET(sock) == SOCKET_ERROR && report_error)
-	{
-		std::cerr << "Error closing socket, error code: " << SOCKET_ERROR_CODE << std::endl;
-	}
+	SHUTDOWN_SOCKET(sock);
+	CLOSE_SOCKET(sock);
 
 #ifdef _WIN32
 	WSACleanup();
 #endif
-	sock = 0;
 }
 
 std::shared_ptr<Connection> connector_net::create_connection()
@@ -67,10 +59,10 @@ std::shared_ptr<Connection> connector_net::create_connection()
 			throw std::runtime_error(msg.str());
 		}
 	}
-	if (host_port == 0) {
+	if (host_port == 0)
+	{
 		host_port = Config.get_boip_port();
 	}
-
 
 #ifdef _WIN32
 	WSADATA wsa_data;
@@ -118,18 +110,16 @@ std::shared_ptr<Connection> connector_net::create_connection()
 			}
 		}
 		mode = 0; // 0 to disable non-blocking socket
-		ioctlsocket(sock, FIONBIO, &mode);
+		ioctlsocket(try_sock, FIONBIO, &mode);
 #endif
 		if (!did_connect)
 		{
-			sock = try_sock;
-			close_connection(false);
+			close_connection(try_sock, false);
 			return nullptr;
 		}
 	}
-	sock = try_sock;
 
-	std::shared_ptr<Connection> conn = std::make_shared<TCPConnection>(sock);
+	std::shared_ptr<Connection> conn = std::make_shared<TCPConnection>(try_sock);
 	conn->set_is_connected(true);
 	conn->create_read_channel();
 	return conn;

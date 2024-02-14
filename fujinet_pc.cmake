@@ -45,6 +45,7 @@ else()
     message(FATAL_ERROR "Invalid target '${FUJINET_TARGET}'! Please choose from 'ATARI' or 'APPLE'.")
 endif()
 
+find_package(PkgConfig)
 
 # platformio.data_dir (not used by FujiNet-PC)
 #set(PLATFORM_DATA_DIR ${CMAKE_SOURCE_DIR}/data/${FUJINET_BUILD_PLATFORM})
@@ -287,14 +288,13 @@ if(FUJINET_TARGET STREQUAL "APPLE")
             lib/bus/iwm/TCPConnection.h lib/bus/iwm/TCPConnection.cpp
         )
     elseif(SLIP_PROTOCOL STREQUAL "COM")
-        # Append sources specific to COM
         list(APPEND SOURCES
+            lib/bus/iwm/connector_com.h lib/bus/iwm/connector_com.cpp
+            lib/bus/iwm/COMConnection.h lib/bus/iwm/COMConnection.cpp
         )
     endif()
 
 endif()
-
-
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(SOURCES ${SOURCES} lib/compat/win32_uname.c)
@@ -339,6 +339,13 @@ set(CRYPTO_LIBS ${MBEDTLS_STATIC_LIB} ${MBEDX509_STATIC_LIB} ${MBEDCRYPTO_STATIC
 # message("MBEDCRYPTO_STATIC_LIB=${MBEDCRYPTO_STATIC_LIB}")
 # message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
 target_include_directories(fujinet PRIVATE ${INCLUDE_DIRS} ${MBEDTLS_INCLUDE_DIR})
+
+if(SLIP_PROTOCOL STREQUAL "COM")
+    pkg_search_module(LIBSERIALPORT REQUIRED libserialport)
+    target_include_directories(fujinet PRIVATE ${LIBSERIALPORT_INCLUDE_DIRS})
+    target_link_libraries(fujinet ${LIBSERIALPORT_LIBRARIES})
+    target_compile_options(fujinet PRIVATE ${LIBSERIALPORT_CFLAGS_OTHER})
+endif()
 
 # cJSON library
 # https://github.com/DaveGamble/cJSON
