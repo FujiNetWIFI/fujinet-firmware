@@ -69,6 +69,11 @@ public:
      */
     bool getEnable() { return enable; }
 
+    /**
+     * @brief set active filesystem, for deferred use.
+     */
+    void setActiveFS(FileSystem *_fs) { activeFS = _fs; }
+
 private:
     /**
      * Is sniffer enabled?
