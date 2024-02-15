@@ -12,10 +12,10 @@
 
 ModemSniffer::ModemSniffer(FileSystem *_fs, bool _enable)
 {
-    if (_fs == nullptr)
-        Debug_printf("_fs is NULL!\n");
-    else
-        Debug_printf("ModemSniffer::ModemSniffer(%s)\n", _fs->typestring());
+    // if (_fs == nullptr)
+    //     Debug_printf("_fs is NULL!\n");
+    // else
+    //     Debug_printf("ModemSniffer::ModemSniffer(%s)\n", _fs->typestring());
 
     activeFS = _fs;
     direction = INIT;
