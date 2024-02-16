@@ -77,9 +77,7 @@ void svgPlotter::svg_abs_plot_line()
         y2 = svg_Y_home + (double)svg_arg[1]; // the modulo is not right
     svg_X = x2;
     svg_Y = y2;
-#ifdef DEBUG
     Debug_printf("abs line: x1=\"%g\" x2=\"%g\" y1=\"%g\" y2=\"%g\" \r\n", x1, x2, y1, y2);
-#endif
     svg_update_bounds();
     svg_plot_line(x1, x2, y1, y2);
 }
@@ -140,9 +138,7 @@ void svgPlotter::svg_handle_char(unsigned char c)
         case 7:
             textMode = false;
             escMode = false;
-#ifdef DEBUG
             Debug_printf("\nentering GRAPHICS mode!\r\n");
-#endif
             return; // short circuit text mode logic
         case 14:
             svg_set_text_size(1);
@@ -259,9 +255,7 @@ void svgPlotter::svg_plot_axis()
 void svgPlotter::svg_get_arg(std::string S, int n)
 {
     svg_arg[n] = atoi(S.c_str());
-#ifdef DEBUG
     Debug_printf(" (arg %d : %d)\r\n", n, svg_arg[n]);
-#endif
 }
 
 void svgPlotter::svg_get_2_args(std::string S)
@@ -438,23 +432,17 @@ bool svgPlotter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     uint8_t new_n = 0;
     while (buffer[new_n++] != ATASCII_EOL && new_n < n)
     {
-#ifdef DEBUG
         Debug_printf("%c", buffer[new_n - 1]);
-#endif
     }
     //new_n++;
-#ifdef DEBUG
     Debug_printf(" : End of buffer, char %x at %d\r\n", buffer[new_n - 1], new_n - 1);
-#endif
 
     // looks like escape codes take you out of GRAPHICS MODE
     if (buffer[0] == 27)
     {
         textMode = true;
         svg_X = 0.;
-#ifdef DEBUG
         Debug_printf("Text Mode!\r\n");
-#endif
     }
     if (!textMode)
         graphics_command(new_n);

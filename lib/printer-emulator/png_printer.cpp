@@ -80,9 +80,7 @@ uint32_t pngPrinter::rc_crc32(uint32_t crc, const uint8_t *buf, size_t len)
 
 void pngPrinter::png_signature()
 {
-#ifdef DEBUG
     Debug_println("Writing PNG Signature.");
-#endif
     uint8_t sig[] = {0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
     fwrite(sig, 1, 8, _file);
 }
@@ -102,9 +100,7 @@ void pngPrinter::png_header()
         Filter method: 1 byte
         Interlace method: 1 byte
     */
-#ifdef DEBUG
     Debug_println("Writing PNG Header.");
-#endif
 
     uint8_t header[] = {
         // IHDR chunk
@@ -137,9 +133,7 @@ void pngPrinter::png_header()
 
 void pngPrinter::png_palette()
 {
-#ifdef DEBUG
     Debug_println("Writing PNG Palette.");
-#endif
     uint8_t len[] = {0x00, 0x00, 0x00, 0x00}; // 0-3      size placeholder
     const uint8_t data[] = {
         // IDAT chunk data
@@ -224,9 +218,7 @@ void pngPrinter::png_data()
     to the encoder’s buffer size.) It is important to emphasize that IDAT chunk boundaries have no semantic
     significance and can occur at any point in the compressed datastream
 */
-#ifdef DEBUG
     Debug_println("Starting PNG Image Data...");
-#endif
     uint8_t data[] = {
         // IDAT chunk
         0x00, 0x00, 0x00, 0x00, // 0-3      size placeholder
@@ -258,9 +250,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
 
     if (img_pos == 0)
     {
-#ifdef DEBUG
         Debug_println("Writing ZLIB header.");
-#endif
         // write out a ZLIB header
         // Compression method/flags code: 1 byte (For PNG compression method 0, the zlib compression method/flags code must specify method code 8 (“deflate” compression))
         c = 0x08; // ZLIB "Deflate" compression scheme
@@ -288,9 +278,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
                 blkSize = (uint16_t)(imgSize - img_pos);
             }
 
-#ifdef DEBUG
             Debug_println("Writing ZLIB block header.");
-#endif
             // write out block header
             crc_value = rc_crc32(crc_value, c);
             fputc(c, _file);
@@ -315,9 +303,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         //at beginning of a line?
         if (Xpos == 0)
         {
-#ifdef DEBUG
             Debug_printf("Starting PNG line %d ... ",Ypos);
-#endif
             c = 0;
             crc_value = rc_crc32(crc_value, c);
             adler_value = update_adler32(adler_value, c);
@@ -343,26 +329,20 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
         // check for end of's
         if (Xpos == width)
         {
-#ifdef DEBUG
             Debug_println("Finished PNG line.");
-#endif
             Xpos = 0;
             Ypos++;
         }
         if (blk_pos == blkSize)
         {
-#ifdef DEBUG
             Debug_println("End of ZLIB block.");
-#endif
             blk_pos = 0;
         }
     };
 
     if (img_pos == imgSize)
     {
-#ifdef DEBUG
         Debug_println("Writing ZLIB Adler checksum and PNG data CRC.");
-#endif
         uint8_t data[] = {
             0, 0, 0, 0, // Adler32 Check value: 4 bytes
             0, 0, 0, 0  // CRC32: 4 bytes
@@ -378,9 +358,7 @@ void pngPrinter::png_add_data(uint8_t *buf, uint32_t n)
 
 void pngPrinter::png_end()
 {
-#ifdef DEBUG
     Debug_println("Writing PNG footer.");
-#endif
     unsigned char end[] = {
         0x00, 0x00, 0x00, 0x00,  // zero length
         'I', 'E', 'N', 'D',      // IEND
@@ -407,18 +385,14 @@ void pngPrinter::post_new_file()
 bool pngPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
 {
 // copy buffer[] into linebuffer[]
-#ifdef DEBUG
     Debug_printf("%d bytes rx'd by PNG printer\r\n", n);
-#endif
     uint16_t i = 0;
     while (i < n && img_pos < imgSize)
     {
         //Debug_println("processing buffer.");
         if (BOLflag)
         {
-#ifdef DEBUG
             Debug_println("Processing new line!");
-#endif
             rep_code = buffer[i++];
             BOLflag = false;
         }
@@ -430,9 +404,7 @@ bool pngPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
         {
             while (rep_code-- > 0)
             {
-#ifdef DEBUG
                 Debug_printf("Adding line %d\r\n", rep_code);
-#endif
                 png_add_data(&line_buffer[0], 320);
             }
             BOLflag = true;
