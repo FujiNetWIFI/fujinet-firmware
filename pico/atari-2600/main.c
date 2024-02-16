@@ -19,11 +19,12 @@
 // define GPIO pins
 #define UART_TX_PIN  4
 #define UART_RX_PIN  5
-#define ENABLE       2
 #define ROMADDR      6
 #define ROMDATA     18
 // DATAWIDTH defined in rom.pio
 // ADDRWIDTH defined in rom.pio
+// ENABLED defined in enable.pio
+
 
 /**
  * HERE STARTS PIO DEFINITIONS AND HEADERS
@@ -66,11 +67,10 @@ dma_channel_config cfg_addr, cfg_data;
 
 void setup()
 {
-  uint offset;
+     stdio_init_all();
 
-    stdio_init_all();
-    setup_default_uart();
-    setup_esp_uart();
+    // setup_default_uart();
+    // setup_esp_uart();
 
     /** 
      * put the output SM's in PIO0: enable, rom
@@ -86,11 +86,14 @@ void setup()
     */
 
     // configure GPIOs for DATA bus output to attached to PIOBLK
-    for (int i = 0; i < 8; i++)
+    for (int i = 0; i < DATAWIDTH; i++)
     {
       pio_gpio_init(pioblk, ROMDATA + i);
-      gpio_set_pulls(ROMDATA + i, true, false); // switch to pull up resistors (not clear if 2600 has pull ups on the data bus)
+      gpio_set_pulls(ROMDATA + i, false, false); // switch to pull up resistors (not clear if 2600 has pull ups on the data bus)
     }
+
+    for (int i = 0; i < ADDRWIDTH; i++)
+      gpio_set_pulls(ROMADDR + i, false, false);
 
     // add the enable program
     pio_enable_offset = pio_add_program(pioblk, &enable_program);
@@ -156,16 +159,17 @@ void esp_loop();
 int main()
 {
   setup();
-  // switch_to_floppy();
   while (true)
   {
-    esp_loop();
+    // esp_loop();
+    printf("atari 2600\n");
+    sleep_ms(1000);
   }
 }
 
-char c;
 void esp_loop()
 {
+  static char c;
   if (uart_is_readable(UART_ID))
   {
     c = uart_getc(UART_ID);

@@ -17,7 +17,7 @@
     ; pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_mov(pio_y, pio_osr));
     ; pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_out(pio_null, 1)); 
 
-.define public ADDRWIDTH 12
+.define public ADDRWIDTH 11
 .define public DATAWIDTH 8
 
 .program rom
