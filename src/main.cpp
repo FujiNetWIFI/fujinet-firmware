@@ -245,11 +245,22 @@ void main_setup(int argc, char *argv[])
 
 #ifdef ESP_PLATFORM
     SIO.addDevice(&udpDev, SIO_DEVICEID_MIDI); // UDP/MIDI device
-#else
-    pcLink.mount(1, Config.get_general_SD_path().c_str()); // mount SD as PCL1:
-    SIO.addDevice(&pcLink, SIO_DEVICEID_PCLINK); // PCLink
 #endif
 
+#ifndef ESP_PLATFORM
+    // add PCLink device only if we have SD card
+    if (fnSDFAT.running())
+    {
+        // TODO how to get the folder SD is mounted on?
+        pcLink.mount(1, Config.get_general_SD_path().c_str()); // mount SD as PCL1:
+        SIO.addDevice(&pcLink, SIO_DEVICEID_PCLINK); // PCLink
+    }
+#endif
+
+#ifdef ESP_PLATFORM
+    sioR = new modem(nullptr, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
+    sioR->set_uart(&fnUartBUS);
+#else
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     sioPrinter::printer_type ptype = Config.get_printer_type(0);
@@ -262,14 +273,9 @@ void main_setup(int argc, char *argv[])
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
     SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
-
-    sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-#ifdef ESP_PLATFORM
-    sioR->set_uart(&fnUartBUS);
-#else
     sioR->set_uart(&fnSioCom);
+    sioR->setActiveFS(ptrfs); // Set FS for modem sniffer
 #endif
-
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
 #ifdef ESP_PLATFORM
@@ -365,7 +371,6 @@ void main_setup(int argc, char *argv[])
 #ifdef BUILD_ADAM
     theFuji.setup(&AdamNet);
     AdamNet.setup();
-    fnSDFAT.create_path("/FujiNet");
 
     Debug_printf("Adding virtual printer\r\n");
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -401,13 +406,18 @@ void main_setup(int argc, char *argv[])
 
 #ifdef BUILD_APPLE
     iwmModem *sioR;
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
-    sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
-    IWM.addDevice(sioR,iwm_fujinet_type_t::Modem);
+    sioR = new iwmModem(nullptr, Config.get_modem_sniffer_enabled());
+    iwmPrinter *iwmptr;
     iwmPrinter::printer_type ptype = Config.get_printer_type(0);
-    iwmPrinter *ptr = new iwmPrinter(ptrfs, ptype);
-    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
-    IWM.addDevice(ptr, iwm_fujinet_type_t::Printer);
+    iwmptr = new iwmPrinter(nullptr, ptype);
+#ifndef ESP_PLATFORM
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    sioR->setActiveFS(ptrfs); // Set FS for modem sniffer
+    iwmptr->setActiveFS(ptrfs); // Set FS for printer
+    fnPrinters.set_entry(0, iwmptr, ptype, Config.get_printer_port(0));
+#endif // ESP_PLATFORM
+    IWM.addDevice(sioR, iwm_fujinet_type_t::Modem);
+    IWM.addDevice(iwmptr, iwm_fujinet_type_t::Printer);
     theFuji.setup(&IWM);
     IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
 #endif /* BUILD_APPLE */
@@ -462,18 +472,69 @@ void main_setup(int argc, char *argv[])
 
 #endif /* BUILD_S100*/
 
+#ifdef ESP_PLATFORM
 // Deferred setup routines
 void fn_defer_setup(void *param)
 {
-#ifdef ESP_PLATFORM
     bool mounted = false;
     mounted = fnSDFAT.start(); // Try to mount SD card
     if (mounted)
+    {
         Config.load(); // Reload config if SD card is available
-#endif // ESP_PLATFORM
+        fnSDFAT.create_path("/FujiNet"); // Make sure we have FujiNet dir on SD for Appkeys
+    }
+
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+
+// Platform specific deferred setup
+#ifdef BUILD_ATARI
+    // add PCLink device only if we have SD card
+    if (fnSDFAT.running())
+    {
+        // TODO how to get the folder SD is mounted on?
+        pcLink.mount(1, "/sd"); // mount SD card as PCL1:
+        SIO.addDevice(&pcLink, SIO_DEVICEID_PCLINK); // PCLink
+    }
+
+    // Create a new printer object, setting its output depending on whether we have SD or not
+    sioPrinter::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == sioPrinter::printer_type::PRINTER_INVALID)
+        ptype = sioPrinter::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+
+    sioPrinter *ptr = new sioPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+
+    SIO.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+    sioR->setActiveFS(ptrfs); // Set FS for modem sniffer
+#endif // BUILD_ATARI
+
+#ifdef BUILD_ADAM
+#endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-#endif
+    sioR->setActiveFS(ptrfs); // Set FS for modem sniffer
+
+//    iwmPrinter::printer_type ptype = Config.get_printer_type(0);
+//    fnPrinters.set_entry(0, iwmptr, ptype, Config.get_printer_port(0));
+    //iwmptr->setActiveFS(ptrfs); // Set FS for printer
+#endif // BUILD_APPLE
+
+#ifdef BUILD_MAC
+#endif // BUILD_MAC
+
+#ifdef BUILD_IEC
+#endif // BUILD_IEC
+
+#ifdef BUILD_COCO
+#endif // BUILD_COCO
+
+#ifdef BUILD_LYNX
+#endif // BUILD_LYNX
+
+#ifdef BUILD_RS232
+#endif // BUILD_RS232
 
     if (Config.get_bt_status())
     {
@@ -491,19 +552,30 @@ void fn_defer_setup(void *param)
         fnWiFi.connect();
     }
 
+    Debug_print("Deferred Setup Complete!\r\n");
+
     // Delete fn_defer_setup task since we no longer need it
     vTaskDelete(NULL);
 }
+#endif // ESP_PLATFORM
 
 // Main high-priority service loop
 void fn_service_loop(void *param)
 {
-    bool defer_started = false;
 #ifdef ESP_PLATFORM
+    bool defer_started = false;
     main_setup();
 #else
     if (fnSystem.check_for_shutdown()) {
       return; // get out, shutdown already requested
+    }
+
+    if (Config.get_wifi_enabled())
+    {
+        // Set up the WiFi adapter if enabled in config
+        fnWiFi.start();
+        // Go ahead and try reconnecting to WiFi
+        fnWiFi.connect();
     }
 #endif
 
@@ -531,13 +603,14 @@ void fn_service_loop(void *param)
 #endif
         SYSTEM_BUS.service();
 
+#ifdef ESP_PLATFORM
         // We've defered starting some things. Run them now
         if (!defer_started)
         {
             defer_started = true;
             xTaskCreatePinnedToCore(fn_defer_setup, "fnDeferSetup", 10000, nullptr, 12, nullptr, 0);
         }
-#ifdef ESP_PLATFORM
+
         taskYIELD(); // Allow other tasks to run
 #else
 // !ESP_PLATFORM

@@ -9,7 +9,8 @@
 // initialzie printer by creating an output file
 void printer_emu::initPrinter(FileSystem *fs)
 {
-    _FS = fs;
+    if(fs != nullptr)
+        _FS = fs;
 }
 
 

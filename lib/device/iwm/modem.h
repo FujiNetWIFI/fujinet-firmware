@@ -154,7 +154,7 @@ private:
     int count_ReqRelocator = 0;
     int count_ReqHandler = 0;
     bool firmware_sent = false;
-  
+
 #ifdef ESP_PLATFORM // OS
     QueueHandle_t mrxq;
     QueueHandle_t mtxq;
@@ -179,7 +179,7 @@ private:
     bool CRX=false;                 // CRX flag.
     uint8_t mdmStatus[2] = {0x00, 0x00}; // modem status value
     bool answerHack=false;          // ATA answer hack on SIO write.
-    FileSystem *activeFS;           // Active Filesystem for ModemSniffer.
+    FileSystem *activeFS = nullptr; // Active Filesystem for ModemSniffer.
     ModemSniffer* modemSniffer;     // ptr to modem sniffer.
     time_t _lasttime;               // most recent timestamp of data activity.
     telnet_t *telnet;               // telnet FSM state.
@@ -206,7 +206,7 @@ private:
 
     void send_extended_status_reply_packet() override{};
     void send_extended_status_dib_reply_packet() override{};
-    
+
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command
@@ -246,7 +246,7 @@ public:
     fnTcpClient get_tcp_client() { return tcpClient; } // Return TCP client.
     bool get_do_echo() { return do_echo; }
     void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
-    std::string get_term_type() {return term_type; }
+    std::string get_term_type() { return term_type; }
     void set_term_type(std::string _term_type) { term_type = _term_type; }
 
     // Low level routines to write to modem IWM queue
@@ -257,6 +257,8 @@ public:
     unsigned short modem_print(int i);
 
     unsigned short modem_read(uint8_t *buf, unsigned short len);
+
+    void setActiveFS(FileSystem *_fs) { activeFS = _fs; };
 
 //  virtual void startup_hack() override {};
 };

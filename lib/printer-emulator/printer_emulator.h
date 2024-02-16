@@ -45,17 +45,17 @@ protected:
 
     // Called before a printer output file is closed to send to the user (allows for providing footer data)
     virtual void pre_close_file()=0;
-    
+
     // Called to actually process the printer output from the Atari as uint8_ts
     virtual bool process_buffer(uint8_t linelen, uint8_t aux1, uint8_t aux2)=0;
 
     size_t copy_file_to_output(const char *filename);
     void restart_output();
-    
+
 public:
 
     bool is_printing=false;
-    
+
     // Destructor must be virtual to allow for proper cleanup of derived classes
     virtual ~printer_emu();
 
@@ -87,6 +87,7 @@ public:
 
     uint8_t getEOL() { return _eol; }
 
+    void setActiveFS(FileSystem *_fs) { _FS = _fs; }
 };
 
 #endif // PRINTER_EMU_H

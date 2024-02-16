@@ -69,6 +69,7 @@ public:
     printer_emu *getPrinterPtr() { return _pptr; };
     void print_from_cpm(uint8_t c);
 
+    void setActiveFS(FileSystem *_fs) { _storage = _fs; _pptr->setActiveFS(_fs); }
 private:
     printer_type _ptype;
     int _llen = 0;

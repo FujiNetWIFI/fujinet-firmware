@@ -239,7 +239,8 @@ void iwmPrinter::set_printer_type(iwmPrinter::printer_type printer_type)
         break;
     }
 
-    _pptr->initPrinter(_storage);
+    if(_storage != nullptr)
+        _pptr->initPrinter(_storage);
 }
 
 iwmPrinter::printer_type iwmPrinter::match_modelname(std::string model_name)

@@ -256,10 +256,11 @@ public:
     fnTcpClient get_tcp_client() { return tcpClient; } // Return TCP client.
     bool get_do_echo() { return do_echo; }
     void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
-    std::string get_term_type() {return term_type; }
+    std::string get_term_type() { return term_type; }
     void set_term_type(std::string _term_type) { term_type = _term_type; }
     MODEM_UART_T* get_uart() { return uart; }
     void set_uart(MODEM_UART_T *_uart) { uart = _uart; }
+    void setActiveFS(FileSystem *_fs) { activeFS = _fs; modemSniffer->setActiveFS(_fs); };
 
 };
 
