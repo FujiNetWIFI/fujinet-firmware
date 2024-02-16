@@ -68,9 +68,7 @@ fsdir_entry * FileSystemSPIFFS::dir_read()
             _direntry.size = s.st_size;
             _direntry.modified_time = s.st_mtime;
         }
-        #ifdef DEBUG
-            // Debug_printf("stat \"%s\" errno %d\r\n", fpath, errno);
-        #endif
+        // Debug_printf("stat \"%s\" errno %d\r\n", fpath, errno);
         return &_direntry;
     }
     return nullptr;
@@ -114,9 +112,7 @@ bool FileSystemSPIFFS::exists(const char* path)
     char * fpath = _make_fullpath(path);
     struct stat st;
     int i = stat(fpath, &st);
-#ifdef DEBUG
     //Debug_printf("FileSystemSPIFFS::exists returned %d on \"%s\" (%s)\r\n", i, path, fpath);
-#endif
     free(fpath);
     return (i == 0);
 }
@@ -125,9 +121,7 @@ bool FileSystemSPIFFS::remove(const char* path)
 {
     char * fpath = _make_fullpath(path);
     int i = ::remove(fpath);
-#ifdef DEBUG
     Debug_printf("FileSystemSPIFFS::remove returned %d on \"%s\" (%s)\r\n", i, path, fpath);
-#endif
     free(fpath);
     return (i == 0);
 }
@@ -137,9 +131,7 @@ bool FileSystemSPIFFS::rename(const char* pathFrom, const char* pathTo)
     char * spath = _make_fullpath(pathFrom);
     char * dpath = _make_fullpath(pathTo);
     int i = ::rename(spath, dpath);
-#ifdef DEBUG
     Debug_printf("FileSystemSPIFFS::rename returned %d on \"%s\" -> \"%s\" (%s -> %s)\r\n", i, pathFrom, pathTo, spath, dpath);
-#endif
     free(spath);
     free(dpath);
     return (i == 0);
@@ -194,17 +186,15 @@ bool FileSystemSPIFFS::start()
 
     if (e != ESP_OK)
     {
-        #ifdef DEBUG
         Debug_printf("Failed to mount SPIFFS partition, err = %d\r\n", e);
-        #endif
         _started = false;
     }
     else
 #endif // ESP_PLATFORM
     {
         _started = true;
-    #ifdef DEBUG
         Debug_println("SPIFFS mounted.");
+    #ifdef DEBUG
         /*
         size_t total = 0, used = 0;
         esp_spiffs_info(NULL, &total, &used);

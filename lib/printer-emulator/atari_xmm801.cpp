@@ -15,38 +15,28 @@ void xmm801::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
             // epson_cmd.N1 = 0;
             // epson_cmd.N2 = 0;
             epson_cmd.cmd = c; // assign command char
-#ifdef DEBUG
             Debug_printf("Command: %c\r\n", c);
-#endif
         }
         else
         {
             epson_cmd.ctr++; // increment counter to keep track of the byte in the command
-#ifdef DEBUG
             Debug_printf("Command counter: %d\r\n", epson_cmd.ctr);
-#endif
         }
 
         if (epson_cmd.ctr == 1)
         {
             epson_cmd.N1 = c;
-#ifdef DEBUG
             Debug_printf("N1: %d\r\n", c);
-#endif
         }
         else if (epson_cmd.ctr == 2)
         {
             epson_cmd.N2 = c;
-#ifdef DEBUG
             Debug_printf("N2: %d\r\n", c);
-#endif
         }
         else if (epson_cmd.ctr == 3)
         {
             epson_cmd.N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & (uint8_t)0x07));
-#ifdef DEBUG
             Debug_printf("N: %d\r\n", epson_cmd.N);
-#endif
         }
         // state machine actions
         switch (epson_cmd.cmd)
@@ -176,9 +166,7 @@ void xmm801::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
         case '@': // XMM // Resets all special modes to power up state including Top Of Form
                   // need to reset font to normal
                   // not sure what to do about TOF?
-#ifdef DEBUG
             Debug_printf("@ reset!\r\n");
-#endif
             at_reset();
             epson_set_font(epson_font_lookup(0), 7.2);
             reset_cmd();
@@ -273,9 +261,7 @@ void xmm801::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
             if (epson_cmd.ctr == 0)
             {
                 textMode = false;
-#ifdef DEBUG
                 Debug_printf("Switch to GFX mode\r\n");
-#endif
             } // first change fonts to GFX font
             // then print GFX for each ctr value > 2
             // finally change fonts back to whatever it was for ctr == N+2
@@ -324,9 +310,7 @@ void xmm801::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
                     epson_set_font(1, 7.2);
                     textMode = true;
                     reset_cmd();
-#ifdef DEBUG
                     Debug_printf("Finished GFX mode\r\n");
-#endif
                 }
             }
             break;

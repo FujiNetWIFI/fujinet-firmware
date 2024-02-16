@@ -111,7 +111,6 @@ time_t _fssd_fatdatetime_to_epoch(WORD ftime, WORD fdate)
 
     tmtime.tm_isdst = 0;
 
-    #ifdef DEBUG
     /*
         Debug_printf("FileSystemSDFAT direntry: \"%s\"\r\n", _direntry.filename);
         Debug_printf("FileSystemSDFAT date (0x%04x): yr=%d, mn=%d, da=%d; time (0x%04x) hr=%d, mi=%d, se=%d\r\n", 
@@ -120,7 +119,6 @@ time_t _fssd_fatdatetime_to_epoch(WORD ftime, WORD fdate)
             finfo.ftime,
             tmtime.tm_hour, tmtime.tm_min, tmtime.tm_sec);
     */
-    #endif
 
     return mktime(&tmtime);
 }
@@ -668,9 +666,7 @@ bool FileSystemSDFAT::start()
     {
         _started = false;
         _card_capacity = 0;
-    #ifdef DEBUG
         Debug_printf("SD mount failed with code #%d, \"%s\"\r\n", e, esp_err_to_name(e));
-    #endif
     }
 
     return _started;

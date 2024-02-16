@@ -250,7 +250,7 @@ int tnfs_close(tnfsMountInfo *m_info, int16_t file_handle)
     return -1;
 }
 
-#ifdef DEBUG
+// #ifdef not needed, the linker optimization includes the code only if called from somewhere
 void _tnfs_cache_dump(const char *title, uint8_t *cache, uint32_t cache_size)
 {
     int bytes_per_line = 16;
@@ -263,7 +263,6 @@ void _tnfs_cache_dump(const char *title, uint8_t *cache, uint32_t cache_size)
     }
     Debug_println("");
 }
-#endif
 
 /*
  Fills destination buffer with data available in internal cache, if any

@@ -128,9 +128,7 @@ int vfs_tnfs_open(void* ctx, const char * path, int flags, int mode)
     int result = tnfs_open(mi, path, tflags, mode, &handle);
     if(result != TNFS_RESULT_SUCCESS)
     {
-        #ifdef DEBUG
         //Debug_printf("vfs_tnfs_open = %d\r\n", result);
-        #endif
         errno = tnfs_code_to_errno(result);
         return -1;
     }
@@ -274,8 +272,6 @@ esp_err_t vfs_tnfs_unregister(const char * basepath)
 {
     esp_err_t e = esp_vfs_unregister(basepath);
 
-    #ifdef DEBUG
     Debug_printf("vfs_tnfs_unregister \"%s\" = %d \"%s\"\r\n", basepath, e, esp_err_to_name(e));
-    #endif
     return e;
 }
