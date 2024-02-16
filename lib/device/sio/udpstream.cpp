@@ -10,6 +10,7 @@
 
 // TODO: merge/fix this at global level
 #ifdef ESP_PLATFORM
+#include "fnUART.h"
 #define FN_BUS_LINK fnUartBUS
 #else
 #define FN_BUS_LINK fnSioCom
