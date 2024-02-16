@@ -51,9 +51,7 @@ void sioUDPStream::sio_enable_udpstream()
     udpStream.begin(udpstream_port);
 
     udpstreamActive = true;
-#ifdef DEBUG
     Debug_println("UDPSTREAM mode ENABLED");
-#endif
 }
 
 void sioUDPStream::sio_disable_udpstream()
@@ -67,9 +65,7 @@ void sioUDPStream::sio_disable_udpstream()
         FN_BUS_LINK.set_baudrate(SIO_STANDARD_BAUDRATE);
     }
     udpstreamActive = false;
-#ifdef DEBUG
     Debug_println("UDPSTREAM mode DISABLED");
-#endif
 }
 
 void sioUDPStream::sio_handle_udpstream()
@@ -99,9 +95,7 @@ void sioUDPStream::sio_handle_udpstream()
             if (FN_BUS_LINK.command_asserted())
 #endif
             {
-#ifdef DEBUG
                 Debug_println("CMD Asserted in LOOP, stopping UDPStream");
-#endif
                 sio_disable_udpstream();
                 return;
             }
