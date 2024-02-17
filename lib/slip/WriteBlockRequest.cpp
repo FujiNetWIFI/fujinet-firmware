@@ -1,10 +1,7 @@
 ﻿#ifdef SP_OVER_SLIP
 
 #include "WriteBlockRequest.h"
-
 #include "WriteBlockResponse.h"
-#include "SmartPortCodes.h"
-
 
 WriteBlockRequest::WriteBlockRequest(const uint8_t request_sequence_number, const uint8_t sp_unit)
 	: Request(request_sequence_number, SP_WRITE_BLOCK, sp_unit), block_number_{}, block_data_{} {}

@@ -2,7 +2,6 @@
 
 #include <stdexcept>
 
-#include "SmartPortCodes.h"
 #include "StatusRequest.h"
 #include "StatusResponse.h"
 

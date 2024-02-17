@@ -1,5 +1,5 @@
 #ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#if defined(SP_OVER_SLIP) && defined(SLIP_PROTOCOL_NET)
 
 #include "TCPConnection.h"
 

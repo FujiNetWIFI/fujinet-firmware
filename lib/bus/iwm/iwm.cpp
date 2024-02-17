@@ -53,39 +53,9 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 //*****************************************************************************
 void print_packet(uint8_t *data, int bytes)
 {
-  int row;
-  char tbs[12];
-  char xx;
-
-  Debug_printf(("\n"));
-  for (int count = 0; count < bytes; count = count + 16)
-  {
-    sprintf(tbs, ("%04X: "), count);
-    Debug_print(tbs);
-    for (row = 0; row < 16; row++)
-    {
-      if (count + row >= bytes)
-        Debug_print(("   "));
-      else
-      {
-        Debug_printf("%02x ", data[count + row]);
-      }
-    }
-    Debug_print(("-"));
-    for (row = 0; row < 16; row++)
-    {
-      if ((data[count + row] > 31) && (count + row < bytes) && (data[count + row] < 128))
-      {
-        xx = data[count + row];
-        Debug_printf("%c", xx);
-      }
-      else
-      {
-        Debug_print(("."));
-      }
-    }
-    Debug_printf(("\n"));
-  }
+  char *msg = util_hexdump(data, bytes);
+  Debug_printf("\n%s\n", msg);
+  free(msg);
 }
 
 void print_packet(uint8_t *data)
@@ -111,15 +81,15 @@ void print_packet_wave(uint8_t *data, int bytes)
   int row;
   char tbs[12];
 
-  Debug_printf(("\n"));
+  Debug_printf("\n");
   for (int count = 0; count < bytes; count = count + 12)
   {
-    sprintf(tbs, ("%04X: "), count);
+    sprintf(tbs, "%04X: ", count);
     Debug_print(tbs);
     for (row = 0; row < 12; row++)
     {
       if (count + row >= bytes)
-        Debug_print(("         "));
+        Debug_print("         ");
       else
       {
         uint8_t b = data[count + row];
@@ -138,7 +108,7 @@ void print_packet_wave(uint8_t *data, int bytes)
         Debug_print(".");
       }
     }
-    Debug_printf(("\r\n"));
+    Debug_printf("\r\n");
   }
 }
 
@@ -286,7 +256,7 @@ bool iwmBus::iwm_decode_data_packet(uint8_t *data, int &n)
 
 void iwmBus::setup(void)
 {
-  Debug_printf(("\r\nIWM FujiNet based on SmartportSD v1.15\r\n"));
+  Debug_printf("\r\nIWM FujiNet based on SmartportSD v1.15\r\n");
 
 #ifndef SP_OVER_SLIP
   fnTimer.config();
@@ -499,7 +469,7 @@ void IRAM_ATTR iwmBus::service()
   case iwm_phases_t::idle:
     break;
   case iwm_phases_t::reset:
-    Debug_printf(("\r\nReset"));
+    Debug_printf("\r\nReset");
 
     // clear all the device addresses
     for (auto devicep : _daisyChain)
@@ -511,7 +481,7 @@ void IRAM_ATTR iwmBus::service()
     // even if it doesn't, we would just come back to here, so might as
     // well wait until reset clears.
 
-    Debug_printf(("\r\nReset Cleared"));
+    Debug_printf("\r\nReset Cleared");
 
     // if /EN35 is high, we must be on a host that supports 3.5 dumb drives
     // lets sample it here in case the host is not on when the FN is powered on/reset
@@ -704,7 +674,7 @@ void iwmBus::handle_init()
 
       // print_packet ((uint8_t*) packet_buffer,get_packet_length());
 
-      Debug_printf(("\r\nDrive: %02x\r\n"), pDevice->id());
+      Debug_printf("\r\nDrive: %02x\r\n", pDevice->id());
       fnLedManager.set(LED_BUS, false);
       return;
     }

@@ -1,13 +1,9 @@
 #ifndef DEVICE_DISK_H
 #define DEVICE_DISK_H
 
-// MinGW DEVICE_TYPE is defined in winioctl.h
-#ifdef DEVICE_TYPE
-#undef DEVICE_TYPE
-#endif
-
 #ifdef BUILD_ATARI
 # include "sio/disk.h"
+# undef DEVICE_TYPE // MSYS2: DEVICE_TYPE is defined in winioctl.h
 # define DEVICE_TYPE sioDisk
 #endif
 
@@ -18,6 +14,7 @@
 
 #ifdef BUILD_APPLE
 #include "iwm/disk.h"
+#undef DEVICE_TYPE // MSYS2: DEVICE_TYPE is defined in winioctl.h
 #define DEVICE_TYPE iwmDisk
 #endif
 

@@ -102,9 +102,7 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
             {
                 sKey.clear();
                 sKey.append(postdata + iKey, i - iKey);
-#ifdef DEBUG
                 Debug_printf("key=\"%s\"\n", sKey.c_str());
-#endif
 
                 iVal = i + 1;
                 s = STATE_SEARCH_ENDVALUE;
@@ -115,9 +113,7 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
             {
                 sVal.clear();
                 sVal.append(postdata + iVal, (i == postlen - 1) ? postlen - iVal : i - iVal);
-#ifdef DEBUG
                 Debug_printf("value=\"%s\"\n", sVal.c_str());
-#endif
 
                 results[sKey] = sVal;
                 iKey = ++i;
@@ -418,14 +414,10 @@ void fnHttpServiceConfigurator::config_printer_port(std::string printernumber, s
 
     if (port < 0 || port > 3)
     {
-#ifdef DEBUG
         Debug_printf("Bad printer port number: %d\n", port);
-#endif
         return;
     }
-#ifdef DEBUG
     Debug_printf("config_printer changing printer %d port to %d\n", pn, port);
-#endif
     // Store our change in Config
     Config.store_printer_port(pn - 1, port);
     // Store our change in the printer list
@@ -589,9 +581,7 @@ void fnHttpServiceConfigurator::config_pclink_enabled(std::string enabled)
 
 int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t postlen)
 {
-#ifdef DEBUG
     Debug_printf("process_config_post: %s\n", postdata);
-#endif
     // Create a new buffer for the url-decoded version of the data
     char *decoded_buf = (char *)malloc(postlen + 1);
     url_decode(decoded_buf, postdata, postlen);

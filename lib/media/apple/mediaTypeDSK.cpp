@@ -1,8 +1,12 @@
 #ifdef BUILD_APPLE
 
+#ifndef SP_OVER_SLIP
+#include "esp_heap_caps.h"
+#endif
 #include "mediaTypeDSK.h"
 #include "../../include/debug.h"
 #include <string.h>
+
 
 // #include <assert.h>
 // #include <stdbool.h>
@@ -18,11 +22,7 @@
 // forward reference
 static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
 
-#ifdef ESP_PLATFORM
-mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
-#else
-mediatype_t MediaTypeDSK::mount(FileHandler *f, uint32_t disksize)
-#endif
+mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
 {
     switch (disksize) {
         case 35 * BYTES_PER_TRACK:
@@ -43,15 +43,12 @@ mediatype_t MediaTypeDSK::mount(FileHandler *f, uint32_t disksize)
     const size_t dsk_image_size = num_tracks * BYTES_PER_TRACK;
 #ifdef ESP_PLATFORM
     uint8_t *dsk = (uint8_t*)heap_caps_malloc(dsk_image_size, MALLOC_CAP_SPIRAM);
-    if (fseek(f, 0, SEEK_SET) != 0)
-        return MEDIATYPE_UNKNOWN;
-    size_t bytes_read = fread(dsk, 1, dsk_image_size, f);
 #else
 	uint8_t *dsk = (uint8_t*)malloc(dsk_image_size);
-    if (f->seek(0, SEEK_SET) != 0)
-        return MEDIATYPE_UNKNOWN;
-    size_t bytes_read = f->read(dsk, 1, dsk_image_size);
 #endif
+    if (fnio::fseek(f, 0, SEEK_SET) != 0)
+        return MEDIATYPE_UNKNOWN;
+    size_t bytes_read = fnio::fread(dsk, 1, dsk_image_size, f);
     if (bytes_read != dsk_image_size)
         return MEDIATYPE_UNKNOWN;
 

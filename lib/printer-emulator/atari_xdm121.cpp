@@ -65,38 +65,28 @@ void xdm121::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
             // epson_cmd.N1 = 0;
             // epson_cmd.N2 = 0;
             epson_cmd.cmd = c; // assign command char
-#ifdef DEBUG
             Debug_printf("Command: %c\r\n", c);
-#endif
         }
         else
         {
             epson_cmd.ctr++; // increment counter to keep track of the byte in the command
-#ifdef DEBUG
             Debug_printf("Command counter: %d\r\n", epson_cmd.ctr);
-#endif
         }
 
         if (epson_cmd.ctr == 1)
         {
             epson_cmd.N1 = c;
-#ifdef DEBUG
             Debug_printf("N1: %d\r\n", c);
-#endif
         }
         else if (epson_cmd.ctr == 2)
         {
             epson_cmd.N2 = c;
-#ifdef DEBUG
             Debug_printf("N2: %d\r\n", c);
-#endif
         }
         else if (epson_cmd.ctr == 3)
         {
             epson_cmd.N = (uint16_t)epson_cmd.N1 + 256 * ((uint16_t)(epson_cmd.N2 & (uint8_t)0x07));
-#ifdef DEBUG
             Debug_printf("N: %d\r\n", epson_cmd.N);
-#endif
         }
         // state machine actions
         switch (epson_cmd.cmd)
@@ -181,9 +171,7 @@ void xdm121::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
         case '@': // XDM // Resets all special modes to power up state including Top Of Form
                   // need to reset font to normal
                   // not sure what to do about TOF?
-#ifdef DEBUG
             Debug_printf("@ reset!\r\n");
-#endif
             at_reset();
             xdm_set_font(epson_font_mask);
             reset_cmd();

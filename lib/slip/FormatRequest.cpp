@@ -1,10 +1,7 @@
 ﻿#ifdef SP_OVER_SLIP
 
 #include "FormatRequest.h"
-
 #include "FormatResponse.h"
-#include "SmartPortCodes.h"
-
 
 FormatRequest::FormatRequest(const uint8_t request_sequence_number, const uint8_t sp_unit)
 	: Request(request_sequence_number, SP_FORMAT, sp_unit) {}

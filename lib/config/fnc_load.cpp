@@ -193,8 +193,13 @@ New behavior: copy from SD first if available, then read FLASH.
         case SECTION_NETSIO:
             _read_section_netsio(ss);
             break;
+        // Bus Over IP, for APPLE SmartPort over Serial via TCP
         case SECTION_BOIP:
             _read_section_boip(ss);
+            break;
+        // Bus Over Serial, for APPLE SmartPort over Serial via USB/Serial
+        case SECTION_BOS:
+            _read_section_bos(ss);
             break;
 #endif
         case SECTION_UNKNOWN:

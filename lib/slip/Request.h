@@ -4,12 +4,12 @@
 #include <memory>
 #include <cstdint>
 #include <stdexcept>
-#include "Packet.h"
+#include "SmartPortPacket.h"
 
 // Forward reference to break circular dependency
 class Response;
 
-class Request : public Packet
+class Request : public SmartPortPacket
 {
 public:
 	Request(uint8_t request_sequence_number, uint8_t command_number, uint8_t sp_unit);

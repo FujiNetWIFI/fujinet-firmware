@@ -655,7 +655,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
             fujiDisk *disk = theFuji.get_disks(ds);
             fujiHost *host = theFuji.get_hosts(hs);
 
-            disk->fileh = host->file_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
+            disk->fileh = host->fnfile_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
 
             if (disk->fileh == nullptr)
             {

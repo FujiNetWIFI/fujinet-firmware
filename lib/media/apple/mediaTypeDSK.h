@@ -26,11 +26,7 @@ private:
 
 public:
 
-#ifdef ESP_PLATFORM
-    virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
-#else
-    virtual mediatype_t mount(FileHandler *f, uint32_t disksize) override;
-#endif
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
     // virtual void unmount() override;
 
     // static bool create(FILE *f, uint32_t numBlock);

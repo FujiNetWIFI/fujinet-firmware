@@ -1,12 +1,7 @@
 ﻿#ifdef SP_OVER_SLIP
 
-// ReSharper disable CppPassValueParameterByConstReference
-
 #include "WriteRequest.h"
-
 #include "WriteResponse.h"
-#include "SmartPortCodes.h"
-
 
 WriteRequest::WriteRequest(const uint8_t request_sequence_number, const uint8_t sp_unit)
 	: Request(request_sequence_number, SP_WRITE, sp_unit), byte_count_(), address_()
