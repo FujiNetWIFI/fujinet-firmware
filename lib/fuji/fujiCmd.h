@@ -35,7 +35,15 @@
 #define FUJICMD_READ_APPKEY 0xDD                /*  */
 #define FUJICMD_OPEN_APPKEY 0xDC                /*  */
 #define FUJICMD_CLOSE_APPKEY 0xDB               /*  */
-#define FUJICMD_GET_DEVICE_FULLPATH 0xDA        /*  */
+#define FUJICMD_GET_DEVICE_FULLPATH 0xDA        /* Fullpath of file in drive slot (DAUX1) */
+#define FUJICMD_GET_DEVICE1_FULLPATH 0xA0       /* Fullpath of file in drive slot 0 */
+#define FUJICMD_GET_DEVICE2_FULLPATH 0xA1       /* Fullpath of file in drive slot 1 */
+#define FUJICMD_GET_DEVICE3_FULLPATH 0xA2       /* Fullpath of file in drive slot 2 */
+#define FUJICMD_GET_DEVICE4_FULLPATH 0xA3       /* Fullpath of file in drive slot 3 */
+#define FUJICMD_GET_DEVICE5_FULLPATH 0xA4       /* Fullpath of file in drive slot 4 */
+#define FUJICMD_GET_DEVICE6_FULLPATH 0xA5       /* Fullpath of file in drive slot 5 */
+#define FUJICMD_GET_DEVICE7_FULLPATH 0xA6       /* Fullpath of file in drive slot 6 */
+#define FUJICMD_GET_DEVICE8_FULLPATH 0xA7       /* Fullpath of file in drive slot 7 */
 #define FUJICMD_CONFIG_BOOT 0xD9                /*  */
 #define FUJICMD_COPY_FILE 0xD8                  /*  */
 #define FUJICMD_MOUNT_ALL 0xD7                  /* Mount all disk slots */
