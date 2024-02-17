@@ -129,29 +129,28 @@ protected:
     void iwm_stat_get_adapter_config();     // 0xE8
     void iwm_ctrl_new_disk();               // 0xE7
     void iwm_ctrl_unmount_host();           // 0xE6
- 
-   void iwm_stat_get_directory_position(); // 0xE5
-   void iwm_ctrl_set_directory_position(); // 0xE4
+
+    void iwm_stat_get_directory_position(); // 0xE5
+    void iwm_ctrl_set_directory_position(); // 0xE4
 /*
     void adamnet_set_hadamnet_index();         // 0xE3
- */
-   void iwm_ctrl_set_device_filename();    // 0xE2
+*/
+    void iwm_ctrl_set_device_filename();    // 0xE2
 
     void iwm_ctrl_set_host_prefix();        // 0xE1
     void iwm_stat_get_host_prefix();        // 0xE0
 /*
     void adamnet_set_adamnet_external_clock(); // 0xDF
-    */
+*/
     void iwm_ctrl_write_app_key();          // 0xDE
     void iwm_ctrl_read_app_key();           // 0xDD - control
     void iwm_stat_read_app_key();             // 0xDD - status
-    /*
+/*
     void adamnet_open_app_key();           // 0xDC
     void adamnet_close_app_key();          // 0xDB
-    */
-    void iwm_ctrl_get_device_filename();    // 0xDA
-    void iwm_stat_get_device_filename();    // 0xDA
-    
+*/
+    void iwm_stat_get_device_filename(uint8_t s);    // 0xDA, 0xA0 thru 0xA7
+
     void iwm_ctrl_set_boot_config();            // 0xD9
     void iwm_ctrl_copy_file();                  // 0xD8
     void iwm_ctrl_set_boot_mode();              // 0xD6
@@ -166,7 +165,7 @@ protected:
     void iwm_open(iwm_decoded_cmd_t cmd) override;
     void iwm_close(iwm_decoded_cmd_t cmd) override;
     void iwm_read(iwm_decoded_cmd_t cmd) override;
-    void iwm_status(iwm_decoded_cmd_t cmd) override; 
+    void iwm_status(iwm_decoded_cmd_t cmd) override;
 
     void send_status_reply_packet() override;
     void send_status_dib_reply_packet() override;
@@ -176,9 +175,9 @@ protected:
 
 public:
     bool boot_config = true;
-    
+
     bool status_wait_enabled = true;
-    
+
     iwmDisk *bootdisk();
 
     void debug_tape();
