@@ -62,13 +62,15 @@ public:
 
     // File functions
     bool file_exists(const char *path);
+    fnFile * fnfile_open(const char *path, char *fullpath, int fullpathlen, const char *mode);
 #ifdef ESP_PLATFORM
-    FILE * file_open(const char *path, char *fullpath, int fullpathlen, const char *mode);
-    long file_size(FILE *filehandle);
-#else
-    FileHandler * filehandler_open(const char *path, char *fullpath, int fullpathlen, const char *mode);
-    long file_size(FileHandler *filehandle);
+    // allow compilation of FILE* based fujiHost (all platforms except ATARI and APPLE)
+    FILE * file_open(const char *path, char *fullpath, int fullpathlen, const char *mode) {
+        return fnfile_open(path, fullpath, fullpathlen, mode);
+    }
 #endif
+    long file_size(fnFile *filehandle);
+
     bool file_remove(char *fullpath);
 
     // Directory functions

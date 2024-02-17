@@ -1,10 +1,7 @@
 ﻿#ifdef SP_OVER_SLIP
 
 #include "OpenRequest.h"
-
 #include "OpenResponse.h"
-#include "SmartPortCodes.h"
-
 
 OpenRequest::OpenRequest(const uint8_t request_sequence_number, const uint8_t sp_unit)
 	: Request(request_sequence_number, SP_OPEN, sp_unit) {}

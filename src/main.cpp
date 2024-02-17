@@ -460,8 +460,8 @@ void main_setup(int argc, char *argv[])
   #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
     Debug_printf("Available heap: %u\nSetup complete @ %lu (%lums)\r\n", fnSystem.get_free_heap_size(), endms, endms - startms);
-  #endif // DEBUG
     Debug_printv("Low Heap: %lu\n",esp_get_free_internal_heap_size());
+  #endif // DEBUG
 #else
 // !ESP_PLATFORM
     unsigned long endms = fnSystem.millis();

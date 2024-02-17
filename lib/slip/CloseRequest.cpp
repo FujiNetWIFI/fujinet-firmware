@@ -2,10 +2,7 @@
 
 #include <memory>
 #include "CloseRequest.h"
-
 #include "CloseResponse.h"
-#include "SmartPortCodes.h"
-
 
 CloseRequest::CloseRequest(const uint8_t request_sequence_number, const uint8_t sp_unit)
 	: Request(request_sequence_number, SP_CLOSE, sp_unit) {}

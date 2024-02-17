@@ -2,9 +2,9 @@
 
 #include <vector>
 #include <cstdint>
-#include "Packet.h"
+#include "SmartPortPacket.h"
 
-class Response : public Packet
+class Response : public SmartPortPacket
 {
 public:
 	Response(uint8_t request_sequence_number, uint8_t status);

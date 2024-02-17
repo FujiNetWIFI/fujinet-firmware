@@ -2,10 +2,7 @@
 
 #include <algorithm>
 #include "ControlRequest.h"
-
 #include "ControlResponse.h"
-#include "SmartPortCodes.h"
-
 
 ControlRequest::ControlRequest(const uint8_t request_sequence_number, const uint8_t sp_unit, const uint8_t control_code, std::vector<uint8_t>& data)
 	: Request(request_sequence_number, SP_CONTROL, sp_unit), control_code_(control_code), data_(std::move(data)) {}

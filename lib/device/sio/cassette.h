@@ -5,9 +5,7 @@
 
 #include "bus.h"
 #include "fnSystem.h"
-#ifndef ESP_PLATFORM
 #include "fnFile.h"
-#endif
 
 #define CASSETTE_BAUDRATE 600
 #define BLOCK_LEN 128
@@ -67,11 +65,7 @@ class sioCassette : public virtualDevice
 {
 protected:
     // FileSystem *_FS = nullptr;
-#ifdef ESP_PLATFORM
-    FILE *_file = nullptr;
-#else
-    FileHandler *_file = nullptr;
-#endif
+    fnFile *_file = nullptr;
     size_t filesize = 0;
 
     bool _mounted = false;                                    // indicates if a CAS or WAV file is open
@@ -104,11 +98,7 @@ protected:
 
 public:
     void umount_cassette_file();
-#ifdef ESP_PLATFORM
-    void mount_cassette_file(FILE *f, size_t fz);
-#else
-    void mount_cassette_file(FileHandler *f, size_t fz);
-#endif
+    void mount_cassette_file(fnFile *f, size_t fz);
 
     void sio_enable_cassette();  // setup cassette
     void sio_disable_cassette(); // stop cassette

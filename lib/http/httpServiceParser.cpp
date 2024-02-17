@@ -251,9 +251,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 
     stringstream resultstream;
 
-#ifdef DEBUG
     // Debug_printf("Substituting tag '%s'\n", tag.c_str());
-#endif
 
     int tagid;
     for (tagid = 0; tagid < FN_LASTTAG; tagid++)
@@ -625,9 +623,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << tag;
         break;
     }
-#ifdef DEBUG
     // Debug_printf("Substitution result: \"%s\"\n", resultstream.str().c_str());
-#endif
     return resultstream.str();
 }
 

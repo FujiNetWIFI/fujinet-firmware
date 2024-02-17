@@ -134,6 +134,10 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 return SECTION_BOIP;
             }
+            else if (strncasecmp("BOS", s1.c_str(), 3) == 0)
+            {
+                return SECTION_BOS;
+            }
 #endif
         }
     }

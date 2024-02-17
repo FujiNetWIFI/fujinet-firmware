@@ -1,6 +1,6 @@
 #pragma once
 #ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#if defined(SP_OVER_SLIP) && defined(SLIP_PROTOCOL_NET)
 
 #include "Connection.h"
 #include <string>
@@ -20,6 +20,7 @@ public:
 
 private:
 	int socket_;
+
 };
 
 #endif

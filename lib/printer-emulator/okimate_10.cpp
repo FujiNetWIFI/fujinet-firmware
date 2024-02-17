@@ -346,9 +346,7 @@ void okimate10::okimate_output_color_line()
     }
     //okimate_current_fnt_mask = 0xFF;
     okimate_new_fnt_mask = 0x80; // set color back to
-#ifdef DEBUG
     Debug_println("Color output line complete");
-#endif
     fprintf(_file, ")]TJ\r\n"); // close the line
     pdf_X = 0;                // CR
     pdf_clear_modes();
@@ -397,31 +395,23 @@ void okimate10::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
         {
             okimate_cmd.ctr = 0;
             okimate_cmd.cmd = c; // assign command char
-#ifdef DEBUG
             Debug_printf("Command: %02x\r\n", c);
-#endif
         }
         else
         {
             okimate_cmd.ctr++; // increment counter to keep track of the byte in the command
-#ifdef DEBUG
             Debug_printf("Command counter: %d\r\n", okimate_cmd.ctr);
-#endif
         }
 
         if (okimate_cmd.ctr == 1)
         {
             okimate_cmd.n = c;
-#ifdef DEBUG
             Debug_printf("n: %d\r\n", c);
-#endif
         }
         else if (okimate_cmd.ctr == 2)
         {
             okimate_cmd.data = c;
-#ifdef DEBUG
             Debug_printf("data: %d\r\n", c);
-#endif
         }
 
         // state machine actions
@@ -468,9 +458,7 @@ void okimate10::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
                     charWidth = 1.2;
                 //    okimate_current_fnt_mask = okimate_new_fnt_mask;
                 textMode = false;
-#ifdef DEBUG
                 Debug_printf("Entering GFX mode\r\n");
-#endif
             }
             else
                 switch (c)
@@ -485,9 +473,7 @@ void okimate10::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
                     cmdMode = true;
                     okimate_cmd.cmd = 0x8A;
                     okimate_cmd.ctr = 0;
-#ifdef DEBUG
                     Debug_printf("Go to line advance from gfx\r\n");
-#endif
                     break;
                 case 0x91: // end gfx mode
                     // reset font
@@ -500,9 +486,7 @@ void okimate10::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
                     //    okimate_current_fnt_mask = okimate_new_fnt_mask;
                     textMode = true;
                     reset_cmd();
-#ifdef DEBUG
                     Debug_printf("Finished GFX mode\r\n");
-#endif
                     break;
                 case 0x99: // 0x99     Align Ribbon (for color mode)
                     okimate_init_colormode();
@@ -513,9 +497,7 @@ void okimate10::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
                     cmdMode = true;
                     okimate_cmd.cmd = 0x9A;
                     okimate_cmd.ctr = 0;
-#ifdef DEBUG
                     Debug_printf("Go to repeated gfx char\r\n");
-#endif
                     break;
                 case 0x9B:
                     okimate_next_color();
@@ -582,29 +564,21 @@ void okimate10::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
         // command state machine switching
         if (okimate_cmd.ctr == 0)
         {
-#ifdef DEBUG
             Debug_printf("Command: %02x\r\n", okimate_cmd.cmd);
-#endif
         }
 
         okimate_cmd.ctr++; // increment counter to keep track of the byte in the command
-#ifdef DEBUG
         Debug_printf("Command counter: %d\r\n", okimate_cmd.ctr);
-#endif
 
         if (okimate_cmd.ctr == 1)
         {
             okimate_cmd.n = c;
-#ifdef DEBUG
             Debug_printf("n: %d\r\n", c);
-#endif
         }
         else if (okimate_cmd.ctr == 2)
         {
             okimate_cmd.data = c;
-#ifdef DEBUG
             Debug_printf("data: %d\r\n", c);
-#endif
         }
 
         switch (okimate_cmd.cmd)

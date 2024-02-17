@@ -198,11 +198,7 @@ void sioDisk::sio_write_percom_block()
    then we assume it's MEDIATYPE_ATR.
    Return value is MEDIATYPE_UNKNOWN in case of failure.
 */
-#ifdef ESP_PLATFORM
-mediatype_t sioDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
-#else
-mediatype_t sioDisk::mount(FileHandler *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
-#endif
+mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
     //  MediaType::discover_disktype(filename) can detect CAS and WAV files
@@ -292,11 +288,7 @@ void sioDisk::unmount()
 }
 
 // Create blank disk
-#ifdef ESP_PLATFORM
-bool sioDisk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
-#else
-bool sioDisk::write_blank(FileHandler *f, uint16_t sectorSize, uint16_t numSectors)
-#endif
+bool sioDisk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 {
     Debug_print("disk CREATE NEW IMAGE\n");
 

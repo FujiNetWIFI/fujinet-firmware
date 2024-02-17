@@ -20,3 +20,4 @@ components:
   pclink: false
 tweaks:
   # webui tweaks, if any
+  fujiapple: true

@@ -6,10 +6,10 @@
 #include <stdio.h>
 #include <cstdint>
 
+#include "fnio.h"
 
 #ifndef ESP_PLATFORM
 #include "compat_dirent.h"
-#include "fnFile.h"
 #endif
 
 #ifndef FILE_READ
@@ -94,8 +94,15 @@ public:
     //virtual bool start()=0;
 
     virtual FILE * file_open(const char* path, const char* mode = FILE_READ) = 0;
-#ifndef ESP_PLATFORM
+#ifdef ESP_PLATFORM
+    virtual fnFile * fnfile_open(const char* path, const char* mode = FILE_READ) {
+        return file_open(path, mode);
+    }
+#else
     virtual FileHandler * filehandler_open(const char* path, const char* mode = FILE_READ) = 0;
+    virtual fnFile * fnfile_open(const char* path, const char* mode = FILE_READ) {
+        return filehandler_open(path, mode);
+    }
 #endif
 
     virtual bool exists(const char* path) = 0;
