@@ -35,7 +35,7 @@ if [ "$OS_TYPE" = "Linux" ]; then
     echo "Running on a Linux system. Wise choice."
 elif [ "$OS_TYPE" = "Darwin" ]; then
     echo "Running on a Macintosh system."
-    BINARY_PATH="/usr/local/opt/gnu-sed/libexec/gnubin/sed"
+    BINARY_PATH="$(which gsed)"
     if [ -f "$BINARY_PATH" ]; then
       echo "Proper sed Binary file found: $BINARY_PATH"
     else
