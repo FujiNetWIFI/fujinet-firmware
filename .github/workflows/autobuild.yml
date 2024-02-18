@@ -60,16 +60,16 @@ jobs:
       run: pip show platformio
 
     - name: Create PlatformIO INI for Build
-      run: cp /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+      run: cp /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-firmware/fujinet-firmware/platformio.ini
 
     - name: Show platformio.ini
-      run: cat /home/runner/work/fujinet-platformio/fujinet-platformio/platformio.ini
+      run: cat /home/runner/work/fujinet-firmware/fujinet-firmware/platformio.ini
 
     - name: Get PIO build_board from INI
       id: build_board
       shell: bash
       run: |
-        echo "NAME=$(grep '^[^;]*build_board ' /home/runner/work/fujinet-platformio/fujinet-platformio/.github/workflows/platformio.ini.${{ matrix.target-platform }} | sed s'/ //'g | cut -d "=" -f 2 | cut -d ";" -f 1)" >> $GITHUB_OUTPUT
+        echo "NAME=$(grep '^[^;]*build_board ' /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.ini.${{ matrix.target-platform }} | sed s'/ //'g | cut -d "=" -f 2 | cut -d ";" -f 1)" >> $GITHUB_OUTPUT
 
     # Build filesystem first so spiffs.bin is available during firmware build
     - name: Build Filesystem
