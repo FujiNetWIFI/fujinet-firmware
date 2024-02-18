@@ -12,6 +12,13 @@ from zipfile import ZipFile
 
 print("Build firmware ZIP enabled")
 
+ini_file = 'platformio.ini'
+# this is specified with "-c /path/to/your.ini" when running pio
+if env["PROJECT_CONFIG"] is not None:
+    ini_file = env["PROJECT_CONFIG"]
+
+print(f"Reading from config file {ini_file}")
+
 def makezip(source, target, env):
     # Make sure all the files are built and ready to zip
     zipit = True
@@ -31,7 +38,7 @@ def makezip(source, target, env):
     if zipit == True:
         # Get the build_board variable
         config = configparser.ConfigParser()
-        config.read('platformio.ini')
+        config.read(ini_file)
         environment = "env:"+config['fujinet']['build_board'].split()[0]
         print(f"Creating firmware zip for FujiNet ESP32 Board: {config[environment]['board']}")
 

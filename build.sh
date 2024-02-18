@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/env bash
 
 # an interface to running pio builds
 # args can be combined, e.g. '-cbufm' and in any order.
@@ -33,10 +33,6 @@ SETUP_NEW_BOARD=""
 ANSWER_YES=0
 INI_FILE="${SCRIPT_DIR}/platformio-generated.ini"
 LOCAL_INI_VALUES_FILE="${SCRIPT_DIR}/platformio.local.ini"
-
-# This beast finds the directory the build.sh script is in, no matter where it's run from
-# which should be the root of the project
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 function show_help {
   echo "Usage: $(basename $0) [-a|-b|-c|-d|-e ENV|-f|-g|-i FILE|-m|-n|-t TARGET|-p TARGET|-s BOARD_NAME|-u|-y|-z|-h] -- [additional args]"
@@ -151,13 +147,24 @@ if [ $create_result -ne 0 ] ; then
   exit $create_result
 fi
 
+BUILD_BOARD=$(grep '^build_board = ' $INI_FILE | cut -d" " -f 3)
+
 ##############################################################
 # ZIP MODE for building firmware zip file.
 # This is Separate from the main build, and if chosen exits after running
 if [ ${ZIP_MODE} -eq 1 ] ; then
-  pio run -c $INI_FILE -t clean -t buildfs
-  pio run -c $INI_FILE --disable-auto-clean
-  exit 0
+  echo "=============================================================="
+  echo "Running pio tasks: clean, buildfs for env $BUILD_BOARD"
+  pio run -c $INI_FILE -t clean -t buildfs -e $BUILD_BOARD
+  if [ $? -ne 0 ]; then
+    echo "Error building filesystem."
+    exit 1
+  fi
+
+  echo "=============================================================="
+  echo "Running main pio build task"
+  pio run -c $INI_FILE --disable-auto-clean -e $BUILD_BOARD
+  exit $?
 fi
 
 ##############################################################
