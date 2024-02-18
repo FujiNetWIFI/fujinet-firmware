@@ -8,6 +8,9 @@
 
 # PlatformIO project settings
 platformio.ini
+platformio.local*.ini
+platformio-generated.ini
+platformio-release.ini
 
 # PlatformIO monitor logs
 platformio-device-monitor-*.log

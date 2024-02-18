@@ -1,5 +1,5 @@
-#FujiNet   
-=========
+# FujiNet
+
 A multi-function peripheral built on ESP32 hardware being developed for the multiple 8-bit systems
 
 ### Please see the [GitHub wiki](https://github.com/FujiNetWIFI/fujinet-platformio/wiki) for documenation and additional details.
@@ -20,7 +20,12 @@ To upgrade:
 
 -------------------------------------------------
 
+## Generating platformio configuration for your board
+
+See [build.sh documentation](build-sh.md) for full documentation on using build.sh to configure your platformio ini files.
+
 ## ATARI
+
 FujiNet currently provides the following devices for the Atari 8-bit system:
 
 * D: for disk emulation, allowing disk images to be read or written to on SD cards or TNFS servers over the local network or Internet.
@@ -60,3 +65,4 @@ There are two active threads on the AtariAge forums:
 ["#FujiNet - a WIP SIO Network Adapter for the Atari 8-bit"](https://atariage.com/forums/topic/298720-fujinet-a-wip-sio-network-adapter-for-the-atari-8-bit/)  
 * Hardware discussion in
 ["#FujiNet Hardware Discussion"](https://atariage.com/forums/topic/306728-fujinet-hardware-discussion/)
+
