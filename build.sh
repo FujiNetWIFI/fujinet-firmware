@@ -102,7 +102,13 @@ do
 done
 shift $((OPTIND - 1))
 
-# check if we are setting up a new board INI file.
+if [ $BUILD_ALL -eq 1 ] ; then
+  # BUILD ALL platforms and exit
+  chmod 755 $SCRIPT_DIR/build-platforms/build-all.sh
+  $SCRIPT_DIR/build-platforms/build-all.sh
+  exit $?
+fi
+
 if [ -z "$SETUP_NEW_BOARD" ] ; then
   # Did not specify -s flag, so do not overwrite local changes with new board
   # but do re-generate the INI file, this ensures upstream changes are pulled into
@@ -143,16 +149,6 @@ fi
 if [ $create_result -ne 0 ] ; then
   echo "Could not run build due to previous errors. Aborting"
   exit $create_result
-fi
-
-if [[ ! -f "$INI_FILE" && $BUILD_ALL -eq 0 ]] ; then
-  echo "INI file '$INI_FILE' for building could not be found."
-  echo "Specify an existing file, or generate a new one for your platform with:"
-  echo ""
-  echo "    python create-platformio-ini.py -n fujinet-atari-v1"
-  echo ""
-  echo "Adjust the board name to match an existing one from build-platforms/ subdirectory"
-  exit 1
 fi
 
 ##############################################################
@@ -203,14 +199,6 @@ if [ ! -z "$PC_TARGET" ] ; then
   fi
   echo "Built PC version in build/dist folder"
   exit 0
-fi
-
-##############################################################
-# BUILD ALL platforms
-if [ $BUILD_ALL -eq 1 ] ; then
-  chmod 755 $SCRIPT_DIR/build-platforms/build-all.sh
-  $SCRIPT_DIR/build-platforms/build-all.sh
-  exit $?
 fi
 
 ##############################################################

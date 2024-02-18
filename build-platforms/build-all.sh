@@ -3,6 +3,32 @@
 # This script will build the platform target file for all targets found with name platform-<TARGET>
 # which the build.sh script will run a clean build against.
 
+print_with_border() {
+    local input="$1"
+    local max_length=0
+
+    while IFS= read -r line; do
+        (( ${#line} > max_length )) && max_length=${#line}
+    done <<< "$input"
+
+    echo "+-$(
+        for ((i=0; i<max_length; i++)); do
+            printf "-"
+        done
+    )-+"
+
+    while IFS= read -r line; do
+        printf "| %-${max_length}s |\n" "$line"
+    done <<< "$input"
+
+    echo "+-$(
+        for ((i=0; i<max_length; i++)); do
+            printf "-"
+        done
+    )-+"
+}
+
+
 # FIRMWARE_OUTPUT_FILE is the name of the completed firmware that proves we built that platform
 # RESULTS_OUTPUT_FILE is the resulting file that will hold the results of the build-all
 FIRMWARE_OUTPUT_FILE="firmware.bin"
@@ -16,39 +42,30 @@ fi
 
 LOCAL_INI="$SCRIPT_DIR/local.ini"
 
-echo ' ---------------------------------------- '
-echo ' |                                      | '
-echo ' | Starting build-all script.....       | '
-echo " |  SCRIPT_DIR=$SCRIPT_DIR"
-echo " |  output will be saved in $RESULTS_OUTPUT_FILE"
-echo ' |  in the root of this repo.'
-echo ' |                                      | '
-echo '  ---------------------------------------'
-echo ''
-echo ''
+OUTPUT_STRING="Starting build-all script.
 
-printf "Below this begins each platform build in sequence...."
-printf "\n\n\n"
+Output will be saved in:
+$(realpath $RESULTS_OUTPUT_FILE)"
 
-# We will create a record of what is built
-# but first, clean out the old one....
+print_with_border "$OUTPUT_STRING"
+echo ""
+
 if [ -f "$RESULTS_OUTPUT_FILE" ]; then
     rm "$RESULTS_OUTPUT_FILE"
-    printf 'Found an old results file, deleted it.\n\n'
 fi
 
 # Setup a results file so we can see how we did.
 NOW=$(date +"%Y-%m-%d %H:%M:%S")
-printf "Start Time: $NOW - ----- Starting Build the World for Fujinet\n\n\n" >> "$RESULTS_OUTPUT_FILE"
+printf "Start Time: $NOW\nRunning Builds\n\n" >> "$RESULTS_OUTPUT_FILE"
 
 # loop over every platformio-XXX.ini file, and use it to create a test platformio file
 
-for piofile in $(ls -1 $SCRIPT_DIR/platformio-*.ini) ; do
+while IFS= read -r piofile; do
     BASE_NAME=$(basename $piofile)
     BOARD_NAME=$(echo ${BASE_NAME//.ini} | cut -d\- -f2-)
     echo "Testing $(basename $piofile)"
 
-    pushd ${SCRIPT_DIR}/..
+    pushd ${SCRIPT_DIR}/.. > /dev/null
 
     # Breaking this up into 3 parts.
      # 1. - call build for the platform
@@ -69,12 +86,15 @@ for piofile in $(ls -1 $SCRIPT_DIR/platformio-*.ini) ; do
     else
       printf "File '$FIRMWARE_OUTPUT_FILE' not found - this platfrom has issues \n" >> "$RESULTS_OUTPUT_FILE"
     fi
-    echo "------------------------------------------------" >> "$RESULTS_OUTPUT_FILE"
+    echo "" >> "$RESULTS_OUTPUT_FILE"
 
     # clean up after ourselves
     ./build.sh -c -l $LOCAL_INI -i $SCRIPT_DIR/test.ini
 
-    popd
+    popd > /dev/null
+done < <(find "$SCRIPT_DIR" -name 'platformio-*.ini' -print)
 
+OUTPUT_STRING="Results
 
-done
+$(cat $RESULTS_OUTPUT_FILE)"
+print_with_border "$OUTPUT_STRING"
