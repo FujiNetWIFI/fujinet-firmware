@@ -86,9 +86,11 @@ void PeoplesUrlParser::cleanPath() {
     if(path.size() == 0)
         return;
 
-    while(mstr::endsWith(path,"/")) {
-        path=mstr::dropLast(path, 1);
-    }
+    // apc: keep trailing '/'
+    // it's needed to list a directory on N:
+    // while(mstr::endsWith(path,"/")) {
+    //     path=mstr::dropLast(path, 1);
+    // }
     mstr::replaceAll(path, "//", "/");
 }
 
@@ -283,5 +285,6 @@ std::string PeoplesUrlParser::rebuildUrl(void)
 
 bool PeoplesUrlParser::isValidUrl()
 {
+    dump();
     return !scheme.empty() && !(path.empty() && port.empty());
 }
