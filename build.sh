@@ -105,6 +105,47 @@ if [ $BUILD_ALL -eq 1 ] ; then
   exit $?
 fi
 
+##############################################################
+# PC BUILD using cmake
+if [ ! -z "$PC_TARGET" ] ; then
+  echo "PC Build Mode"
+  mkdir -p "$SCRIPT_DIR/build"
+  if [ $DO_CLEAN -eq 1 ] ; then
+    echo "Removing old build artifacts"
+    rm -rf $SCRIPT_DIR/build/*
+    rm $SCRIPT_DIR/build/.ninja* 2>/dev/null
+  fi
+  cd $SCRIPT_DIR/build
+  if [ $DEBUG_PC_BUILD -eq 1 ] ; then
+    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Debug "$@"
+  else
+    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Release "$@"
+  fi
+  if [ $? -ne 0 ] ; then
+    echo "Error running initial cmake. Aborting"
+    exit 1
+  fi
+  # check if all the required python modules are installed
+  python -c "import importlib.util, sys; sys.exit(0 if all(importlib.util.find_spec(mod.strip()) for mod in open('${SCRIPT_DIR}/python_modules.txt')) else 1)"
+  if [ $? -eq 1 ] ; then
+    echo "At least one of the required python modules is missing"
+    sh ${SCRIPT_DIR}/install_python_modules.sh
+  fi
+
+  cmake --build .
+  if [ $? -ne 0 ] ; then
+    echo "Error running actual cmake build. Aborting"
+    exit 1
+  fi
+  cmake --build . --target dist
+  if [ $? -ne 0 ] ; then
+    echo "Error running cmake distribution. Aborting"
+    exit 1
+  fi
+  echo "Built PC version in build/dist folder"
+  exit 0
+fi
+
 if [ -z "$SETUP_NEW_BOARD" ] ; then
   # Did not specify -s flag, so do not overwrite local changes with new board
   # but do re-generate the INI file, this ensures upstream changes are pulled into
@@ -167,46 +208,6 @@ if [ ${ZIP_MODE} -eq 1 ] ; then
   exit $?
 fi
 
-##############################################################
-# PC BUILD using cmake
-if [ ! -z "$PC_TARGET" ] ; then
-  echo "PC Build Mode"
-  mkdir -p "$SCRIPT_DIR/build"
-  if [ $DO_CLEAN -eq 1 ] ; then
-    echo "Removing old build artifacts"
-    rm -rf $SCRIPT_DIR/build/*
-    rm $SCRIPT_DIR/build/.ninja* 2>/dev/null
-  fi
-  cd $SCRIPT_DIR/build
-  if [ $DEBUG_PC_BUILD -eq 1 ] ; then
-    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Debug "$@"
-  else
-    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Release "$@"
-  fi
-  if [ $? -ne 0 ] ; then
-    echo "Error running initial cmake. Aborting"
-    exit 1
-  fi
-  # check if all the required python modules are installed
-  python -c "import importlib.util, sys; sys.exit(0 if all(importlib.util.find_spec(mod.strip()) for mod in open('${SCRIPT_DIR}/python_modules.txt')) else 1)"
-  if [ $? -eq 1 ] ; then
-    echo "At least one of the required python modules is missing"
-    sh ${SCRIPT_DIR}/install_python_modules.sh
-  fi
-
-  cmake --build .
-  if [ $? -ne 0 ] ; then
-    echo "Error running actual cmake build. Aborting"
-    exit 1
-  fi
-  cmake --build . --target dist
-  if [ $? -ne 0 ] ; then
-    echo "Error running cmake distribution. Aborting"
-    exit 1
-  fi
-  echo "Built PC version in build/dist folder"
-  exit 0
-fi
 
 ##############################################################
 # NORMAL BUILD MODES USING pio
