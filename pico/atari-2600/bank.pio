@@ -1,0 +1,43 @@
+;
+; FujiNet Project
+;
+; Vintage Macintosh Microfloppy Controller Interface
+; sends the phases to the PICO when the strobe sets
+;
+
+.define public ENABLE 2
+
+.program bank
+start:
+.wrap_target
+    wait 0 gpio ENABLE              ; wait for enable to go low (ADDR 12 via inverter)
+    mov osr, ~pins                  ; Put the inverted address into the OSR
+    out y, 3                        ; put potential (inverted)bank value into Y
+    out x, 9            ; shift the rest of the address into X
+    jmp !x bank                     ; if the 9 msb address lines are 1 (inverted are 0) - address $FF8
+.wrap
+bank:
+    in y, 3                         ; shift the bank into the ISR with autopush
+    jmp start
+
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+
+void bank_program_init(PIO pio, uint sm, uint offset, uint pin) {
+   // configure a SM
+   pio_sm_config c = bank_program_get_default_config(offset);
+   // set the in pin to pin
+   sm_config_set_in_pins(&c, pin);
+   sm_config_set_in_shift(&c, false, true, 3);
+   // configure the OSR
+   sm_config_set_out_shift(&c, true, false, 12);
+
+   // sm_config_set_sideset_pins(&c, pin + 5);
+    // set pin as a GPIO output connected to this SM
+   // pio_sm_set_consecutive_pindirs(pio, sm, pin, DATAWIDTH, false);
+   
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}

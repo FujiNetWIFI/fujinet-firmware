@@ -31,6 +31,7 @@ add_executable(main main.c rom.c)
 # pico_generate_pio_header(pio_and ${CMAKE_CURRENT_LIST_DIR}/blink.pio OUTPUT_DIR ${CMAKE_CURRENT_LIST_DIR})
 pico_generate_pio_header(main ${CMAKE_CURRENT_LIST_DIR}/rom.pio)
 pico_generate_pio_header(main ${CMAKE_CURRENT_LIST_DIR}/enable.pio)
+pico_generate_pio_header(main ${CMAKE_CURRENT_LIST_DIR}/bank.pio)
 
 # target_sources(rom PRIVATE rom.c)
 

@@ -15,6 +15,7 @@
 
 #include "rom.pio.h"
 #include "enable.pio.h"
+#include "bank.pio.h"
 
 // define GPIO pins
 #define UART_TX_PIN  4
@@ -35,9 +36,11 @@ PIO pioblk = pio0;
 // So, make the ENABLE higher than the ROM so it overrides - it shouldn't matter because ROM is writing value and ENABLE is writing direction.
 #define SM_ENABLE 1
 #define SM_ROM 0
+#define SM_BANK 2
 
 uint pio_enable_offset;
 uint pio_rom_offset;
+uint pio_bank_offset;
 
 // void rom_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin);
 
@@ -64,6 +67,16 @@ void setup_esp_uart()
 
 int chan_addr, chan_data;
 dma_channel_config cfg_addr, cfg_data;
+
+void change_bank(uint8_t bank)
+{
+    pio_sm_set_enabled(pioblk, SM_ROM, false); // start the ROM SM in prep for DMA config
+    pio_sm_put(pioblk, SM_ROM, ((uintptr_t)rom + bank*4096) >> ADDRWIDTH); // put the base address into the FIFO
+    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_pull(false, true));  // pull the base address into the OSR
+    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_mov(pio_y, pio_osr)); // move the base address into Y
+    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_out(pio_null, DATAWIDTH)); // clear the OSR to trigger the auto push
+    pio_sm_set_enabled(pioblk, SM_ROM, true); // start the ROM SM in prep for DMA config
+}
 
 void setup()
 {
@@ -106,11 +119,12 @@ void setup()
     printf("\nLoaded rom program at %d\n", pio_rom_offset);
     rom_program_init(pioblk, SM_ROM, pio_rom_offset, ROMADDR, ROMDATA);
     // push some functions to transfer the ROM array base address to REG Y
-    pio_sm_put(pioblk, SM_ROM, (uintptr_t)rom >> ADDRWIDTH); // put the base address into the FIFO
-    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_pull(false, true));  // pull the base address into the OSR
-    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_mov(pio_y, pio_osr)); // move the base address into Y
-    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_out(pio_null, DATAWIDTH)); // clear the OSR to trigger the auto push
-    pio_sm_set_enabled(pioblk, SM_ROM, true); // start the ROM SM in prep for DMA config
+    change_bank(0);
+    // pio_sm_put(pioblk, SM_ROM, (uintptr_t)rom >> ADDRWIDTH); // put the base address into the FIFO
+    // pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_pull(false, true));  // pull the base address into the OSR
+    // pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_mov(pio_y, pio_osr)); // move the base address into Y
+    // pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_out(pio_null, DATAWIDTH)); // clear the OSR to trigger the auto push
+    // pio_sm_set_enabled(pioblk, SM_ROM, true); // start the ROM SM in prep for DMA config
 
     // create DMAs for address and data channels
     chan_addr = dma_claim_unused_channel(true);
@@ -152,7 +166,16 @@ void setup()
         1,                                          // Number of transfers; in this case each is 1 word.
         true                                        // go!
     );
+
+    // set up bank switching PIO
+    pio_bank_offset = pio_add_program(pioblk, &bank_program);
+    printf("\nLoaded bank program at %d\n", pio_bank_offset);
+    bank_program_init(pioblk, SM_BANK, pio_bank_offset, ROMADDR);
+    pio_sm_set_enabled(pioblk, SM_BANK, true);
+
 }
+
+
 
 void esp_loop();
 
@@ -161,9 +184,21 @@ int main()
   setup();
   while (true)
   {
-    // esp_loop();
-    printf("atari 2600\n");
-    sleep_ms(1000);
+    if (!pio_sm_is_rx_fifo_empty(pioblk, SM_BANK))
+    {
+      // printf("s");
+      int m = pio_sm_get_blocking(pioblk, SM_BANK);
+      switch (m)
+      {
+      case 0:
+        change_bank(1);
+        break;
+      case 1:
+        change_bank(0);
+      default:
+        break;
+      }
+    }
   }
 }
 
