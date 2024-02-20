@@ -1,14 +1,38 @@
 #!/bin/bash -e
 
 # This script will build the platform target file for all targets found with name platform-<TARGET>
-# merging it with BASE.ini to create platformio-test.ini
 # which the build.sh script will run a clean build against.
 
-# search_file is the name of the completed firmware that proves we built that platform
-# file_name is the resulting file that will hold the results of the build-all
-SEARCH_FILE="firmware.bin"
-FILE_NAME="build-results.txt"
+print_with_border() {
+    local input="$1"
+    local max_length=0
 
+    while IFS= read -r line; do
+        (( ${#line} > max_length )) && max_length=${#line}
+    done <<< "$input"
+
+    echo "+-$(
+        for ((i=0; i<max_length; i++)); do
+            printf "-"
+        done
+    )-+"
+
+    while IFS= read -r line; do
+        printf "| %-${max_length}s |\n" "$line"
+    done <<< "$input"
+
+    echo "+-$(
+        for ((i=0; i<max_length; i++)); do
+            printf "-"
+        done
+    )-+"
+}
+
+
+# FIRMWARE_OUTPUT_FILE is the name of the completed firmware that proves we built that platform
+# RESULTS_OUTPUT_FILE is the resulting file that will hold the results of the build-all
+FIRMWARE_OUTPUT_FILE="firmware.bin"
+RESULTS_OUTPUT_FILE="build-results.txt"
 
 # Clean up any old ini files as well.
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
@@ -16,97 +40,61 @@ if [ -f "$SCRIPT_DIR/test.ini" ] ; then
   rm $SCRIPT_DIR/test.ini
 fi
 
+LOCAL_INI="$SCRIPT_DIR/local.ini"
 
-echo ' ---------------------------------------- '
-echo ' |                                      | '
-echo ' | Starting build-all script.....       | '
-echo " |  SCRIPT_DIR=$SCRIPT_DIR"
-echo " |  output will be saved in $FILE_NAME"
-echo ' |  in the root of this repo.'
-echo ' |                                      | '
-echo '  ---------------------------------------'
-echo ''
-echo ''
+OUTPUT_STRING="Starting build-all script.
 
-printf "Below this begins each platform build in sequence...."
-printf "\n\n\n"
+Output will be saved in:
+$(realpath $RESULTS_OUTPUT_FILE)"
 
-# We will create a record of what is built
-# but first, clean out the old one....
-if [ -f "$FILE_NAME" ]; then
-    rm "$FILE_NAME"
-    printf 'Found an old results file, deleted it.\n\n'
+print_with_border "$OUTPUT_STRING"
+echo ""
+
+if [ -f "$RESULTS_OUTPUT_FILE" ]; then
+    rm "$RESULTS_OUTPUT_FILE"
 fi
-
-
-# reads an ini [section] given the name from file, writes to output file.
-function get_section {
-    local target_name=$1
-    local in_file=$2
-    local out_file=$3
-    awk -v TARGET=$target_name '
-    {
-        if ($0 ~ /^\[.*/) { 
-          gsub(/^\[|\]$/, "", $0)
-          SECTION=$0
-        } else if (($0 != "") && (SECTION==TARGET)) { 
-          print $0 
-        }
-    }' $in_file > $out_file
-}
-
 
 # Setup a results file so we can see how we did.
 NOW=$(date +"%Y-%m-%d %H:%M:%S")
-printf "Start Time: $NOW - ----- Starting Build the World for Fujinet\n\n\n" >> "$FILE_NAME"
+printf "Start Time: $NOW\nRunning Builds\n\n" >> "$RESULTS_OUTPUT_FILE"
 
 # loop over every platformio-XXX.ini file, and use it to create a test platformio file
 
-for piofile in $(ls -1 $SCRIPT_DIR/platformio-*.ini) ; do
+while IFS= read -r piofile; do
+    BASE_NAME=$(basename $piofile)
+    BOARD_NAME=$(echo ${BASE_NAME//.ini} | cut -d\- -f2-)
     echo "Testing $(basename $piofile)"
 
-    SECTION_FUJINET_FILE=$SCRIPT_DIR/section_fujinet.txt
-    get_section fujinet $piofile $SECTION_FUJINET_FILE
-
-    build_board=$(grep build_board $SECTION_FUJINET_FILE | cut -d= -f2 | tr -d ' ')
-
-    SECTION_ENV_FILE=$SCRIPT_DIR/section_env.txt
-    get_section "env:$build_board" $piofile $SECTION_ENV_FILE
-    sed "1i[env:$build_board]" $SECTION_ENV_FILE > ${SECTION_ENV_FILE}.tmp
-    mv ${SECTION_ENV_FILE}.tmp ${SECTION_ENV_FILE}
-
-    # now change the BASE.ini to include these sections
-    awk 'NR == FNR { a[FNR] = $0; n++; next} /##BUILD_PROPERTIES##/ { for(i=1; i<=n; i++){print a[i]}; next}1' $SECTION_FUJINET_FILE $SCRIPT_DIR/BASE.ini > $SCRIPT_DIR/part1.ini
-    awk 'NR == FNR { a[FNR] = $0; n++; next} /##ENV_SECTION##/ { for(i=1; i<=n; i++){print a[i]}; next}1' $SECTION_ENV_FILE $SCRIPT_DIR/part1.ini > $SCRIPT_DIR/test.ini
-    rm $SCRIPT_DIR/part1.ini
-
-    pushd ${SCRIPT_DIR}/..
+    pushd ${SCRIPT_DIR}/.. > /dev/null
 
     # Breaking this up into 3 parts.
      # 1. - call build for the platform
      # 2. - echo a line in results file, find firmware.bin
      # 3. - now call build but just to clean
 
-    ./build.sh -b -i $SCRIPT_DIR/test.ini
+    ./build.sh -y -s ${BOARD_NAME} -l $LOCAL_INI -i $SCRIPT_DIR/test.ini -b
 
     # first determine if there is a firmware bin which means a good build
     NOW=$(date +"%Y-%m-%d %H:%M:%S")
 
     # Extract the substring after 'platformio-' and before '.ini'
-    extracted_string=$(echo "$piofile" | sed -e 's|.*platformio-\(.*\)\.ini|\1|')
-    printf "$NOW - Built $extracted_string\n" >> "$FILE_NAME"
+    printf "$NOW - Built $BOARD_NAME\n" >> "$RESULTS_OUTPUT_FILE"
 
-    FOUND=$(find . -name "$SEARCH_FILE" -print -quit)
+    FOUND=$(find . -name "$FIRMWARE_OUTPUT_FILE" -print -quit)
     if [ -n "$FOUND" ]; then
-      printf "File '$SEARCH_FILE' found" >> "$FILE_NAME"
+      printf "File '$FIRMWARE_OUTPUT_FILE' found" >> "$RESULTS_OUTPUT_FILE"
     else
-      printf "File '$SEARCH_FILE' not found - this platfrom has issues \n" >> "$FILE_NAME"
+      printf "File '$FIRMWARE_OUTPUT_FILE' not found - this platfrom has issues \n" >> "$RESULTS_OUTPUT_FILE"
     fi
-    echo "------------------------------------------------" >> "$FILE_NAME"
+    echo "" >> "$RESULTS_OUTPUT_FILE"
 
-    ./build.sh -c -i $SCRIPT_DIR/test.ini
+    # clean up after ourselves
+    ./build.sh -c -l $LOCAL_INI -i $SCRIPT_DIR/test.ini
 
-    popd
+    popd > /dev/null
+done < <(find "$SCRIPT_DIR" -name 'platformio-*.ini' -print)
 
+OUTPUT_STRING="Results
 
-done
+$(cat $RESULTS_OUTPUT_FILE)"
+print_with_border "$OUTPUT_STRING"

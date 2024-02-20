@@ -41,17 +41,24 @@ except NameError:
     print("Running build_webui.py outside the PlatformIO environment.")
     env = None
 
+ini_file = 'platformio.ini'
+
 if env is not None:
     if build_board is None:
         build_board = env["PIOENV"]
-        # PROGRAM_ARGS is a list of args provided by pio with "-a" switch
+    # PROGRAM_ARGS is a list of args provided by pio with "-a" switch
     if 'dev' in env["PROGRAM_ARGS"]:
         build_board = "dev"
 
+    if env["PROJECT_CONFIG"] is not None:
+        ini_file = env["PROJECT_CONFIG"]
+
     if build_platform is None:
         pio_config = configparser.ConfigParser()
-        pio_config.read('platformio.ini')
+        pio_config.read(ini_file)
         build_platform = pio_config['fujinet']['build_platform']
+
+print(f"Reading from config file {ini_file}")
 
 if build_data_dir is None:
     build_data_dir = f"data/{build_platform}"
