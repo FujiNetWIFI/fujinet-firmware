@@ -30,7 +30,7 @@ cat <<EOF > firmware/releases-$PLATFORM.json
     "build_date": "$BUILD_DATE",
     "description": "$DESC",
     "git_commit": "$GIT_SHORT_COMMIT",
-    "url": "https://github.com/$REPO_OWNER/fujinet-platformio/releases/download/$VERSION/$FILENAME",
+    "url": "https://github.com/$REPO_OWNER/fujinet-firmware/releases/download/$VERSION/$FILENAME",
     "sha256": "$ZIPSHASUM"
 }
 EOF
