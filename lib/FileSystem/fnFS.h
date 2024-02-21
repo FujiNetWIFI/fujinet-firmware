@@ -37,10 +37,8 @@ enum fsType
     FSTYPE_LITTLEFS,
     FSTYPE_SDFAT,
     FSTYPE_TNFS,
-#ifndef ESP_PLATFORM
     FSTYPE_SMB,
     FSTYPE_FTP,
-#endif
     FSTYPE_COUNT
 };
 
