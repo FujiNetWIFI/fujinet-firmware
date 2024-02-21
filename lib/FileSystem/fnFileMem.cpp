@@ -1,4 +1,3 @@
-#ifndef ESP_PLATFORM
 
 #include <errno.h>
 #include <string.h>
@@ -154,5 +153,3 @@ int FileHandlerMem::grow(long filesize)
     _filesize = filesize;
     return 0;
 }
-
-#endif // !ESP_PLATFORM

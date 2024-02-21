@@ -1,4 +1,3 @@
-#ifndef ESP_PLATFORM
 
 #include "fnDirCache.h"
 
@@ -115,5 +114,3 @@ bool DirCache::seek(uint16_t pos)
     else
         return false;
 }
-
-#endif // !ESP_PLATFORM

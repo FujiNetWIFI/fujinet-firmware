@@ -1,4 +1,3 @@
-#ifndef ESP_PLATFORM
 
 #include "fnFsSMB.h"
 
@@ -276,5 +275,3 @@ bool FileSystemSMB::dir_seek(uint16_t pos)
 {
     return _dircache.seek(pos);
 }
-
-#endif // !ESP_PLATFORM

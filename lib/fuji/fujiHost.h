@@ -11,10 +11,8 @@ enum fujiHostType
     HOSTTYPE_UNINITIALIZED = 0,
     HOSTTYPE_LOCAL,
     HOSTTYPE_TNFS,
-#ifndef ESP_PLATFORM
     HOSTTYPE_SMB,
     HOSTTYPE_FTP,
-#endif
 };
 
 class fujiHost
@@ -31,10 +29,8 @@ private:
 
     int mount_local();
     int mount_tnfs();
-#ifndef ESP_PLATFORM
     int mount_smb();
     int mount_ftp();
-#endif
 
     int unmount_local();
     int unmount_fs();

@@ -86,12 +86,10 @@ const char * FileSystem::type_to_string(fsType type)
             return "FS_SDFAT";
         case FSTYPE_TNFS:
             return "FS_TNFS";
-#ifndef ESP_PLATFORM
         case FSTYPE_SMB:
             return "FS_SMB";
         case FSTYPE_FTP:
             return "FS_FTP";
-#endif
         default:
             return "UNKNOWN FS TYPE";
     }

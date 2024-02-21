@@ -1,4 +1,3 @@
-#ifndef ESP_PLATFORM
 
 #include "fnFsFTP.h"
 
@@ -343,5 +342,3 @@ bool FileSystemFTP::dir_seek(uint16_t pos)
 {
     return _dircache.seek(pos);
 }
-
-#endif // !ESP_PLATFORM
