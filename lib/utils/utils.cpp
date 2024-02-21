@@ -845,7 +845,7 @@ std::string util_get_canonical_path(std::string prefix)
     }
 
     // kludge
-    if (res[res.length() - 1] != '/')
+    if ((res[res.length() - 1] != '/') && (res.length() > 0))
         res.append("/");
 
     return res;

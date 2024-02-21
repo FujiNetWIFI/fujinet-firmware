@@ -129,7 +129,7 @@ void NetworkProtocolFS::update_dir_filename(PeoplesUrlParser *url)
 {
     size_t found = url->path.find_last_of("/");
 
-    dir = url->path.substr(0, found + 1);
+    dir = util_get_canonical_path(url->path.substr(0, found + 1));
     filename = url->path.substr(found + 1);
 
     // transform the possible everything wildcards
