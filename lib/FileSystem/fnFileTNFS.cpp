@@ -1,4 +1,6 @@
 #ifndef ESP_PLATFORM
+// This TNFS code is needed for FN-PC
+// On FN-ESP TNFS is based on VFS, FileHandlerLocal is used for read/write/etc.
 
 #include <unistd.h>  // for fsync
 #include <errno.h>

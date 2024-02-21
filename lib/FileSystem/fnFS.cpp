@@ -49,7 +49,7 @@ long FileSystem::filesize(FILE *f)
 }
 
 
-#ifndef ESP_PLATFORM
+#ifndef FNIO_IS_STDIO
 long FileSystem::filesize(FileHandler *fh)
 {
     long curr = fh->tell();

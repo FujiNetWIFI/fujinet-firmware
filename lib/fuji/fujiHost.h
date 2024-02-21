@@ -63,7 +63,7 @@ public:
     // File functions
     bool file_exists(const char *path);
     fnFile * fnfile_open(const char *path, char *fullpath, int fullpathlen, const char *mode);
-#ifdef ESP_PLATFORM
+#ifdef FNIO_IS_STDIO
     // allow compilation of FILE* based fujiHost (all platforms except ATARI and APPLE)
     FILE * file_open(const char *path, char *fullpath, int fullpathlen, const char *mode) {
         return fnfile_open(path, fullpath, fullpathlen, mode);
