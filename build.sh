@@ -1,4 +1,4 @@
-#!/bin/env bash
+#!/usr/bin/env bash
 
 # an interface to running pio builds
 # args can be combined, e.g. '-cbufm' and in any order.
