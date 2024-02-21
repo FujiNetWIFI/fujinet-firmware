@@ -110,6 +110,15 @@ fi
 if [ ! -z "$PC_TARGET" ] ; then
   echo "PC Build Mode"
   mkdir -p "$SCRIPT_DIR/build"
+  LAST_TARGET_FILE="$SCRIPT_DIR/build/last-target"
+  LAST_TARGET=""
+  if [ -f "${LAST_TARGET_FILE}" ]; then
+    LAST_TARGET=$(cat ${LAST_TARGET_FILE})
+  fi
+  if [[ (-n ${LAST_TARGET}) && ("${LAST_TARGET}" != "$PC_TARGET") ]] ; then
+    DO_CLEAN=1
+  fi
+  echo -n "$PC_TARGET" > ${LAST_TARGET_FILE}
   if [ $DO_CLEAN -eq 1 ] ; then
     echo "Removing old build artifacts"
     rm -rf $SCRIPT_DIR/build/*
