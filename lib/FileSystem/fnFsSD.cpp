@@ -2,6 +2,7 @@
 */
 
 #include "fnFsSD.h"
+#include "fnFileLocal.h"
 
 #ifdef ESP_PLATFORM
 #include <esp_vfs.h>
@@ -9,8 +10,6 @@
 #include <driver/sdmmc_host.h>
 #include <esp_rom_gpio.h>
 #include <soc/sdmmc_periph.h>
-#else
-#include "fnFileLocal.h"
 #endif
 
 #include <sys/stat.h>
@@ -367,7 +366,7 @@ FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
     return result;
 }
 
-#ifndef ESP_PLATFORM
+#ifndef FNIO_IS_STDIO
 FileHandler * FileSystemSDFAT::filehandler_open(const char* path, const char* mode)
 {
     Debug_printf("FileSystemSDFAT::filehandler_open %s %s\r\n", path, mode);

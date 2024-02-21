@@ -1,4 +1,5 @@
 #include "fnFsTNFS.h"
+#include "fnFileLocal.h"
 
 #include <sys/stat.h>
 #include <errno.h>
@@ -160,9 +161,13 @@ bool FileSystemTNFS::is_dir(const char *path)
 #endif
 }
 
-#ifndef ESP_PLATFORM
+#ifndef FNIO_IS_STDIO
 FileHandler * FileSystemTNFS::filehandler_open(const char* path, const char* mode)
 {
+#ifdef ESP_PLATFORM
+    FILE * fh = file_open(path, mode);
+    return (fh == nullptr) ? nullptr : new FileHandlerLocal(fh);
+#else
     if(!_started || path == nullptr)
         return nullptr;
 
@@ -211,6 +216,7 @@ FileHandler * FileSystemTNFS::filehandler_open(const char* path, const char* mod
     }
     errno = 0;
     return new FileHandlerTNFS(&_mountinfo, handle);
+#endif
 }
 #endif
 

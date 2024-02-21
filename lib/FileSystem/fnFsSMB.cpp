@@ -125,6 +125,7 @@ FILE  *FileSystemSMB::file_open(const char *path, const char *mode)
     return nullptr;
 }
 
+#ifndef FNIO_IS_STDIO
 FileHandler *FileSystemSMB::filehandler_open(const char *path, const char *mode)
 {
     if(!_started || path == nullptr)
@@ -171,6 +172,7 @@ FileHandler *FileSystemSMB::filehandler_open(const char *path, const char *mode)
 
     return new FileHandlerSMB(_smb, fh);
 }
+#endif
 
 bool FileSystemSMB::is_dir(const char *path)
 {

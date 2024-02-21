@@ -1,7 +1,7 @@
 #ifndef FN_FILELOCAL_H
 #define FN_FILELOCAL_H
 
-#include <stdlib.h>
+#include <cstdio>
 #include "fnFile.h"
 
 

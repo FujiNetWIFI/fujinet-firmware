@@ -1,12 +1,11 @@
 #ifdef FLASH_SPIFFS
 
 #include "fnFsSPIFFS.h"
+#include "fnFileLocal.h"
 
 #ifdef ESP_PLATFORM
 #include <esp_vfs.h>
 #include <esp_spiffs.h>
-#else
-#include "fnFileLocal.h"
 #endif
 
 #include <sys/stat.h>
@@ -14,7 +13,6 @@
 
 #include "compat_string.h"
 #include "../../include/debug.h"
-
 
 #define SPIFFS_MAXPATH 512
 
@@ -98,7 +96,7 @@ FILE * FileSystemSPIFFS::file_open(const char* path, const char* mode)
     return result;
 }
 
-#ifndef ESP_PLATFORM
+#ifndef FNIO_IS_STDIO
 FileHandler * FileSystemSPIFFS::filehandler_open(const char* path, const char* mode)
 {
     Debug_printf("FileSystemSPIFFS::filehandler_open %s %s\n", path, mode);

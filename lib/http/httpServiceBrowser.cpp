@@ -11,6 +11,7 @@
 #include "fnFsFTP.h"
 #include "fnTaskManager.h"
 #include "fnConfig.h"
+#include "fnio.h"
 
 #include "debug.h"
 
@@ -50,7 +51,7 @@ int fnHttpSendFileTask::start()
 
 int fnHttpSendFileTask::abort()
 {
-    _fh->close(); // close (and delete _fh)
+    fnio::fclose(_fh); // close (and delete _fh)
     delete _fs; // delete temporary FileSystem
     Debug_printf("fnHttpSendFileTask aborted #%d\n", _id);
     return 0;
@@ -62,7 +63,7 @@ int fnHttpSendFileTask::step()
 
     // Send the file content out in chunks
     size_t count = 0;
-    count = _fh->read((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE);
+    count = fnio::fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, _fh);
     _total += count;
     mg_send(_c, buf, count);
 
@@ -70,7 +71,7 @@ int fnHttpSendFileTask::step()
         return 0; // continue
 
     // done
-    _fh->close(); // close (and delete _fh)
+    fnio::fclose(_fh); // close (and delete _fh)
     delete _fs;  // delete temporary FileSystem
     Debug_printf("Sent %lu of %lu bytes\n", (unsigned long)_total, (unsigned long)_filesize);
 
@@ -502,7 +503,7 @@ int fnHttpServiceBrowser::browse_sendfile(mg_connection *c, FileSystem *fs, fnFi
     {
         Debug_println("Failed to create fnHttpSendFileTask");
         mg_http_reply(c, 400, "", "Failed to create a task\n");
-        fh->close();
+        fnio::fclose(fh); // close (and delete _fh)
         return -1;
     }
     return (taskMgr.submit_task(task) > 0) ? 1 : 0; // 1 -> do not delete the file system, if task was submitted

@@ -118,6 +118,7 @@ FILE  *FileSystemFTP::file_open(const char *path, const char *mode)
     return nullptr;
 }
 
+#ifndef FNIO_IS_STDIO
 FileHandler *FileSystemFTP::filehandler_open(const char *path, const char *mode)
 {
     FileHandler *fh = cache_file(path);
@@ -251,6 +252,7 @@ FileHandler *FileSystemFTP::cache_file(const char *path)
     }
     return fh;
 }
+#endif
 
 bool FileSystemFTP::is_dir(const char *path)
 {
