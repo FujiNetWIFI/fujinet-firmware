@@ -58,8 +58,6 @@ public:
     FileHandler *cache_file(const char *path);
 #endif
 
-protected:
-    bool isValidURL(PeoplesUrlParser *url);
 };
 
 #endif // FN_FSFTP_H

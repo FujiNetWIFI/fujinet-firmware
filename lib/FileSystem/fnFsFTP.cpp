@@ -65,7 +65,7 @@ bool FileSystemFTP::start(const char *url, const char *user, const char *passwor
     }
 
     _url = PeoplesUrlParser::parseURL(url);
-    if (!isValidURL(_url))
+    if (!_url->isValidUrl())
     {
         Debug_printf("FileSystemFTP::start() - failed to parse URL \"%s\"\n", url);
         return false;
@@ -89,11 +89,6 @@ bool FileSystemFTP::start(const char *url, const char *user, const char *passwor
     _started = true;
 
     return true;
-}
-
-bool FileSystemFTP::isValidURL(PeoplesUrlParser *url)
-{
-    return url->path.empty();
 }
 
 bool FileSystemFTP::exists(const char *path)
