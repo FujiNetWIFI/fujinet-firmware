@@ -21,7 +21,8 @@
 .define public DATAWIDTH 8
 
 .program rom
-    mov isr, y      ; put the base address in ISR
+    in y, (32-ADDRWIDTH-1)      ; put the base address in ISR
+    in x, 1
     in pins, ADDRWIDTH     ; copy the pin combination into the ISR (auto push)
     out pins, DATAWIDTH     ; output the rom byte value 
 
@@ -38,7 +39,7 @@ void rom_program_init(PIO pio, uint sm, uint offset, uint in_pin, uint out_pin) 
    
    // start at in_pin to read in the phases and push to the FIFO
    sm_config_set_in_pins(&c, in_pin); 
-   sm_config_set_in_shift(&c, false, true, ADDRWIDTH);
+   sm_config_set_in_shift(&c, false, true, 32);
 
    // initialize
    pio_sm_init(pio, sm, offset, &c);

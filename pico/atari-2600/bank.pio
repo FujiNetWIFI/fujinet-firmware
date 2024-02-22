@@ -13,7 +13,7 @@ start:
     wait 0 gpio ENABLE              ; wait for enable to go low (ADDR 12 via inverter)
     mov osr, ~pins                  ; Put the inverted address into the OSR
     out y, 3                        ; put potential (inverted)bank value into Y
-    out x, 9            ; shift the rest of the address into X
+    out x, 9                        ; shift the rest of the address into X
     jmp !x bank                     ; if the 9 msb address lines are 1 (inverted are 0) - address $FF8
 .wrap
 bank:

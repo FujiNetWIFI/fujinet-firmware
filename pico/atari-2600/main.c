@@ -68,15 +68,15 @@ void setup_esp_uart()
 int chan_addr, chan_data;
 dma_channel_config cfg_addr, cfg_data;
 
-void change_bank(uint8_t bank)
-{
-    pio_sm_set_enabled(pioblk, SM_ROM, false); // start the ROM SM in prep for DMA config
-    pio_sm_put(pioblk, SM_ROM, ((uintptr_t)rom + bank*4096) >> ADDRWIDTH); // put the base address into the FIFO
-    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_pull(false, true));  // pull the base address into the OSR
-    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_mov(pio_y, pio_osr)); // move the base address into Y
-    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_out(pio_null, DATAWIDTH)); // clear the OSR to trigger the auto push
-    pio_sm_set_enabled(pioblk, SM_ROM, true); // start the ROM SM in prep for DMA config
-}
+// void change_bank(uint8_t bank)
+// {
+//     pio_sm_set_enabled(pioblk, SM_ROM, false); // start the ROM SM in prep for DMA config
+//     pio_sm_put(pioblk, SM_ROM, ((uintptr_t)rom + bank*4096) >> ADDRWIDTH); // put the base address into the FIFO
+//     pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_pull(false, true));  // pull the base address into the OSR
+//     pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_mov(pio_y, pio_osr)); // move the base address into Y
+//     pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_out(pio_null, DATAWIDTH)); // clear the OSR to trigger the auto push
+//     pio_sm_set_enabled(pioblk, SM_ROM, true); // start the ROM SM in prep for DMA config
+// }
 
 void setup()
 {
@@ -102,7 +102,7 @@ void setup()
     for (int i = 0; i < DATAWIDTH; i++)
     {
       pio_gpio_init(pioblk, ROMDATA + i);
-      gpio_set_pulls(ROMDATA + i, false, false); // switch to pull up resistors (not clear if 2600 has pull ups on the data bus)
+      gpio_set_pulls(ROMDATA + i, false, false); // no pulls
     }
 
     for (int i = 0; i < ADDRWIDTH; i++)
@@ -119,12 +119,20 @@ void setup()
     printf("\nLoaded rom program at %d\n", pio_rom_offset);
     rom_program_init(pioblk, SM_ROM, pio_rom_offset, ROMADDR, ROMDATA);
     // push some functions to transfer the ROM array base address to REG Y
-    change_bank(0);
-    // pio_sm_put(pioblk, SM_ROM, (uintptr_t)rom >> ADDRWIDTH); // put the base address into the FIFO
-    // pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_pull(false, true));  // pull the base address into the OSR
-    // pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_mov(pio_y, pio_osr)); // move the base address into Y
-    // pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_out(pio_null, DATAWIDTH)); // clear the OSR to trigger the auto push
-    // pio_sm_set_enabled(pioblk, SM_ROM, true); // start the ROM SM in prep for DMA config
+    // change_bank(0);
+    // split rom base address between X and Y for bank switching attempt
+    // atari maps to 12 bits
+    // F8 bank switching maps to 1 bit
+    // so base address is 32-12-1 bits
+    // 19 bits go into Y
+    // 1 bit goes into X
+    // for F8 switching demo
+    pio_sm_put(pioblk, SM_ROM, (uintptr_t)rom >> (ADDRWIDTH+1)); // put the base address into the FIFO
+    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_pull(false, true));  // pull the base address into the OSR
+    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_mov(pio_y, pio_osr)); // move the base address into Y
+    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_out(pio_null, DATAWIDTH)); // clear the OSR to trigger the auto push
+    pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_set(pio_x, 0));
+    pio_sm_set_enabled(pioblk, SM_ROM, true); // start the ROM SM in prep for DMA config
 
     // create DMAs for address and data channels
     chan_addr = dma_claim_unused_channel(true);
@@ -190,11 +198,13 @@ int main()
       int m = pio_sm_get_blocking(pioblk, SM_BANK);
       switch (m)
       {
-      case 0:
-        change_bank(1);
+      case 0b111: // inverted 0b000
+        //change_bank(1);
+        pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_set(pio_x, 0));
         break;
-      case 1:
-        change_bank(0);
+      case 0b110: // inverted 0b001
+        //change_bank(0);
+        pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_set(pio_x, 1));
       default:
         break;
       }
