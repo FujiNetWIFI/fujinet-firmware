@@ -844,8 +844,8 @@ std::string util_get_canonical_path(std::string prefix)
         st1.pop();
     }
 
-    // kludge
-    if ((res[res.length() - 1] != '/') && (res.length() > 0))
+    // Append trailing slash if not already there
+    if ((res.length() > 0) && (res[res.length() - 1] != '/'))
         res.append("/");
 
     return res;
