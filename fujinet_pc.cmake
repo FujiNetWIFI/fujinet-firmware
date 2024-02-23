@@ -47,6 +47,30 @@ endif()
 
 find_package(PkgConfig)
 
+
+# Check if MSYSTEM is defined and set variables accordingly
+if(DEFINED ENV{MSYSTEM})
+    if($ENV{MSYSTEM} STREQUAL "CLANG64")
+        set(MSYS_LIBRARY_PATH /clang64/lib)
+        set(MSYS_INCLUDE_PATH /clang64/include)
+    elseif($ENV{MSYSTEM} STREQUAL "MINGW64")
+        set(MSYS_LIBRARY_PATH /mingw64/lib)
+        set(MSYS_INCLUDE_PATH /mingw64/include)
+    elseif($ENV{MSYSTEM} STREQUAL "UCRT64")
+        set(MSYS_LIBRARY_PATH /ucrt64/lib)
+        set(MSYS_INCLUDE_PATH /ucrt64/include)
+    elseif($ENV{MSYSTEM} STREQUAL "CLANG32")
+        set(MSYS_LIBRARY_PATH /clang32/lib)
+        set(MSYS_INCLUDE_PATH /clang32/include)
+    endif()
+else()
+    # Handle the case where MSYSTEM is not defined (e.g., Linux or other environments)
+    set(MSYS_LIBRARY_PATH "")
+    set(MSYS_INCLUDE_PATH "")
+endif()
+
+# Determine MSYS environment
+
 # platformio.data_dir (not used by FujiNet-PC)
 #set(PLATFORM_DATA_DIR ${CMAKE_SOURCE_DIR}/data/${FUJINET_BUILD_PLATFORM})
 # build output data directory (used by build_webui.py)
@@ -329,16 +353,24 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 # - to use library package (Ubuntu deb package is old, does not support cmake/find_package)
 # find_package(MbedTLS)
 # - try to find necessary files in system ...
-find_library(MBEDTLS_STATIC_LIB libmbedtls.a /usr/lib /usr/local/lib /usr/local/opt /clang64/lib /clang32/lib)
-find_library(MBEDX509_STATIC_LIB libmbedx509.a /usr/lib /usr/local/lib /usr/local/opt /clang64/lib /clang32/lib)
-find_library(MBEDCRYPTO_STATIC_LIB libmbedcrypto.a /usr/lib /usr/local/lib /usr/local/opt /clang64/lib /clang32/lib)
-find_path(MBEDTLS_INCLUDE_DIR mbedtls/ssl.h /usr/include /usr/local/include /usr/local/lib /usr/local/opt /clang64/include /clang32/include)
+
+# Use the determined paths
+find_library(MBEDTLS_STATIC_LIB libmbedtls.a /usr/lib /usr/local/lib /usr/local/opt ${MSYS_LIBRARY_PATH})
+find_library(MBEDX509_STATIC_LIB libmbedx509.a /usr/lib /usr/local/lib /usr/local/opt ${MSYS_LIBRARY_PATH})
+find_library(MBEDCRYPTO_STATIC_LIB libmbedcrypto.a /usr/lib /usr/local/lib /usr/local/opt ${MSYS_LIBRARY_PATH})
+find_path(MBEDTLS_INCLUDE_DIR mbedtls/ssl.h /usr/include /usr/local/include /usr/local/lib /usr/local/opt ${MSYS_INCLUDE_PATH})
+
 set(CRYPTO_LIBS ${MBEDTLS_STATIC_LIB} ${MBEDX509_STATIC_LIB} ${MBEDCRYPTO_STATIC_LIB})
+
 # message("MBEDTLS_STATIC_LIB=${MBEDTLS_STATIC_LIB}")
 # message("MBEDX509_STATIC_LIB=${MBEDX509_STATIC_LIB}")
 # message("MBEDCRYPTO_STATIC_LIB=${MBEDCRYPTO_STATIC_LIB}")
 # message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
+
+set(MBEDTLS_LIBRARIES ${CRYPTO_LIBS})
+
 target_include_directories(fujinet PRIVATE ${INCLUDE_DIRS} ${MBEDTLS_INCLUDE_DIR})
+target_link_libraries(fujinet ${CRYPTO_LIBS})
 
 if(SLIP_PROTOCOL STREQUAL "COM")
     pkg_search_module(LIBSERIALPORT REQUIRED libserialport)
@@ -372,7 +404,6 @@ add_subdirectory(components_pc/libsmb2)
 add_subdirectory(components_pc/libssh)
 
 target_link_libraries(fujinet pthread expat cjson cjson_utils smb2 ssh)
-target_link_libraries(fujinet ${CRYPTO_LIBS})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(fujinet ws2_32 bcrypt)
