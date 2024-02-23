@@ -175,11 +175,11 @@ void setup()
         true                                        // go!
     );
 
-    // set up bank switching PIO
-    pio_bank_offset = pio_add_program(pioblk, &bank_program);
-    printf("\nLoaded bank program at %d\n", pio_bank_offset);
-    bank_program_init(pioblk, SM_BANK, pio_bank_offset, ROMADDR);
-    pio_sm_set_enabled(pioblk, SM_BANK, true);
+    // // set up bank switching PIO
+    // pio_bank_offset = pio_add_program(pioblk, &bank_program);
+    // printf("\nLoaded bank program at %d\n", pio_bank_offset);
+    // bank_program_init(pioblk, SM_BANK, pio_bank_offset, ROMADDR);
+    // pio_sm_set_enabled(pioblk, SM_BANK, true);
 
 }
 
@@ -192,23 +192,40 @@ int main()
   setup();
   while (true)
   {
-    if (!pio_sm_is_rx_fifo_empty(pioblk, SM_BANK))
-    {
-      // printf("s");
-      int m = pio_sm_get_blocking(pioblk, SM_BANK);
-      switch (m)
+    uint32_t a = gpio_get_all();
+    //                      11111111
+    //GPIO                  765432109876543210
+    const uint32_t mask = 0b111111111111000100;
+    uint32_t b = a & mask;
+    switch (b)
       {
-      case 0b111: // inverted 0b000
-        //change_bank(1);
+      case 0xFF8 << ROMADDR:
         pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_set(pio_x, 0));
         break;
-      case 0b110: // inverted 0b001
-        //change_bank(0);
+      case 0xFF9 << ROMADDR:
         pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_set(pio_x, 1));
+        break;
       default:
         break;
       }
-    }
+
+    // if (!pio_sm_is_rx_fifo_empty(pioblk, SM_BANK))
+    // {
+    //   // printf("s");
+    //   int m = pio_sm_get_blocking(pioblk, SM_BANK);
+    //   switch (m)
+    //   {
+    //   case 0b111: // inverted 0b000
+    //     //change_bank(1);
+    //     pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_set(pio_x, 0));
+    //     break;
+    //   case 0b110: // inverted 0b001
+    //     //change_bank(0);
+    //     pio_sm_exec_wait_blocking(pioblk, SM_ROM, pio_encode_set(pio_x, 1));
+    //   default:
+    //     break;
+    //   }
+    // }
   }
 }
 
