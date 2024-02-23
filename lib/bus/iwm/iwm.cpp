@@ -713,8 +713,17 @@ void iwmBus::handle_init()
   fnLedManager.set(LED_BUS, false);
 }
 
+template<typename T>
+void push_back(std::forward_list<T>& flist, const T& value) {
+    auto it = flist.before_begin();
+    for (auto next = flist.begin(); next != flist.end(); it = next++) {
+        // Just iterating to the end.
+    }
+    flist.insert_after(it, value);
+}
+
 // Add device to SIO bus
-void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
+void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType, bool pushBack)
 {
   // SmartPort interface assigns device numbers to the devices in the daisy chain one at a time
   // as opposed to using standard or fixed device ID's like Atari SIO. Therefore, an emulated
@@ -779,7 +788,10 @@ void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
   pDevice->_devnum = 0;
   pDevice->_initialized = false;
 
-  _daisyChain.push_front(pDevice);
+  if (pushBack)
+    push_back(_daisyChain, pDevice); // put the device at the end of the chain
+  else
+    _daisyChain.push_front(pDevice); // put the device at the beginning of the chain
 }
 
 // Removes device from the SIO bus.

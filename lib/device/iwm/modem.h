@@ -259,6 +259,7 @@ public:
     unsigned short modem_read(uint8_t *buf, unsigned short len);
 
     void setActiveFS(FileSystem *_fs) { activeFS = _fs; };
+    FileSystem * getActiveFS() { return activeFS; };
 
 //  virtual void startup_hack() override {};
 };

@@ -1151,18 +1151,18 @@ void iwmFuji::setup(iwmBus *iwmbus)
     status_wait_enabled = false;  // to do - understand?
 
     theNetwork = new iwmNetwork();
-    _iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network);
+    _iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network, false);
 
     theClock = new iwmClock();
-    _iwm_bus->addDevice(theClock, iwm_fujinet_type_t::Clock);
+    _iwm_bus->addDevice(theClock, iwm_fujinet_type_t::Clock, false);
 
     theCPM = new iwmCPM();
-    _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);    
+    _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM, false);
 
    for (int i = MAX_DISK_DEVICES - MAX_DISK2_DEVICES -1; i >= 0; i--)
    {
      _fnDisks[i].disk_dev.set_disk_number('0' + i);
-     _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
+     _iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk, false);
    }
 
     Debug_printf("\nConfig General Boot Mode: %u\n",Config.get_general_boot_mode());
@@ -1175,7 +1175,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
     else
     {
         FILE *f = fsFlash.file_open("/mount-and-boot.po");
-         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 140 * 1024, MEDIATYPE_PO);      
+         _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 140 * 1024, MEDIATYPE_PO);
     }
 #else
     insert_boot_device(Config.get_general_boot_mode());

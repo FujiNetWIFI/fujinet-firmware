@@ -260,7 +260,7 @@ public:
     void set_term_type(std::string _term_type) { term_type = _term_type; }
     MODEM_UART_T* get_uart() { return uart; }
     void set_uart(MODEM_UART_T *_uart) { uart = _uart; }
-    void setActiveFS(FileSystem *_fs) { activeFS = _fs; modemSniffer->setActiveFS(_fs); };
+    void setActiveFS(FileSystem *_fs) { activeFS = _fs; };
 
 };
 

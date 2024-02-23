@@ -307,7 +307,7 @@ public:
   void shutdown();
 
   int numDevices();
-  void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType); // todo: probably get called by handle_init()
+  void addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType, bool pushBack); // todo: probably get called by handle_init()
   void remDevice(iwmDevice *pDevice);
   iwmDevice *deviceById(int device_id);
   iwmDevice *firstDev() {return _daisyChain.front();}

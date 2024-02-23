@@ -112,6 +112,8 @@ void sighandler(int signum)
 
 #endif // !ESP_PLATFORM
 
+FileSystem *ptrfs; // Pointer to the the active filesystem for temp storage
+
 void main_shutdown_handler()
 {
     Debug_println("Shutdown handler called");
@@ -218,12 +220,12 @@ void main_setup(int argc, char *argv[])
     fnSystem.check_hardware_ver(); // Run early to determine correct FujiNet hardware
     Debug_printf("Detected Hardware Version: %s\r\n", fnSystem.get_hardware_ver_str());
 
-#ifdef ESP_PLATFORM
-    fnKeyManager.setup();
-#endif
+#ifndef ESP_PLATFORM
     fnLedManager.setup();
+#endif
 
     fsFlash.start();
+    ptrfs = (FileSystem *)&fsFlash; // We may change this later but set it now
 #ifdef ESP_PLATFORM
     fnSDFAT.init_spi(); // initialize SPI for SD card. card is mounted later
 #else
@@ -405,21 +407,24 @@ void main_setup(int argc, char *argv[])
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-    iwmModem *sioR;
-    sioR = new iwmModem(nullptr, Config.get_modem_sniffer_enabled());
-    iwmPrinter *iwmptr;
-    iwmPrinter::printer_type ptype = Config.get_printer_type(0);
-    iwmptr = new iwmPrinter(nullptr, ptype);
 #ifndef ESP_PLATFORM
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
-    sioR->setActiveFS(ptrfs); // Set FS for modem sniffer
-    iwmptr->setActiveFS(ptrfs); // Set FS for printer
-    fnPrinters.set_entry(0, iwmptr, ptype, Config.get_printer_port(0));
 #endif // ESP_PLATFORM
-    IWM.addDevice(sioR, iwm_fujinet_type_t::Modem);
-    IWM.addDevice(iwmptr, iwm_fujinet_type_t::Printer);
+    // Add the modem and printer with flashFS pointer for ESP_PLATFORM
+    // which will be changed later in deferred setup to SDFS if available
+
+    iwmModem *sioR;
+    sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
+    IWM.addDevice(sioR, iwm_fujinet_type_t::Modem, false);
+
+    iwmPrinter *iwmptr;
+    iwmPrinter::printer_type ptype = Config.get_printer_type(0);
+    iwmptr = new iwmPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, iwmptr, ptype, Config.get_printer_port(0));
+    IWM.addDevice(iwmptr, iwm_fujinet_type_t::Printer, false);
+
     theFuji.setup(&IWM);
-    IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
+    IWM.setup();
 #endif /* BUILD_APPLE */
 
 #ifdef BUILD_MAC
@@ -477,14 +482,18 @@ void main_setup(int argc, char *argv[])
 void fn_defer_setup(void *param)
 {
     bool mounted = false;
+    FileSystem* ptrfs = (FileSystem*)param; // FS pointer passed to task
+
     mounted = fnSDFAT.start(); // Try to mount SD card
     if (mounted)
     {
         Config.load(); // Reload config if SD card is available
         fnSDFAT.create_path("/FujiNet"); // Make sure we have FujiNet dir on SD for Appkeys
+        ptrfs = (FileSystem *)&fnSDFAT;
     }
 
-    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    fnKeyManager.setup();
+    fnLedManager.setup();
 
 // Platform specific deferred setup
 #ifdef BUILD_ATARI
@@ -514,11 +523,16 @@ void fn_defer_setup(void *param)
 #endif // BUILD_ADAM
 
 #ifdef BUILD_APPLE
-    sioR->setActiveFS(ptrfs); // Set FS for modem sniffer
-
-//    iwmPrinter::printer_type ptype = Config.get_printer_type(0);
-//    fnPrinters.set_entry(0, iwmptr, ptype, Config.get_printer_port(0));
-    //iwmptr->setActiveFS(ptrfs); // Set FS for printer
+    // SP devices added here will not appear in the SP list on first boot if bus powered.
+    // After mount and boot the system is reset and they will be detected
+    /* iwmModem *sioR;
+    sioR = new iwmModem(ptrfs, Config.get_modem_sniffer_enabled());
+    iwmPrinter *iwmptr;
+    iwmPrinter::printer_type ptype = Config.get_printer_type(0);
+    iwmptr = new iwmPrinter(ptrfs, ptype);
+    fnPrinters.set_entry(0, iwmptr, ptype, Config.get_printer_port(0));
+    IWM.addDevice(sioR, iwm_fujinet_type_t::Modem, true);
+    IWM.addDevice(iwmptr, iwm_fujinet_type_t::Printer, true); */
 #endif // BUILD_APPLE
 
 #ifdef BUILD_MAC
@@ -608,7 +622,7 @@ void fn_service_loop(void *param)
         if (!defer_started)
         {
             defer_started = true;
-            xTaskCreatePinnedToCore(fn_defer_setup, "fnDeferSetup", 10000, nullptr, 12, nullptr, 0);
+            xTaskCreatePinnedToCore(fn_defer_setup, "fnDeferSetup", 10000, (void *)&ptrfs, 12, nullptr, 0);
         }
 
         taskYIELD(); // Allow other tasks to run
