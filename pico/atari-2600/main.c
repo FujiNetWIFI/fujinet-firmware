@@ -1,4 +1,6 @@
+#include <stdio.h>
 #include "pico/stdlib.h"
+#include "pico/multicore.h"
 #include "rom.h"
 
 #define PINROMADDR  6
@@ -7,7 +9,7 @@
 #define ADDRWIDTH  12
 #define DATAWIDTH   8
 
-int main()
+void f8_cart()
 {
   const uint32_t addrmask = 0xfff << PINROMADDR;
   const uint32_t datamask = 0xff << PINROMDATA;
@@ -45,11 +47,23 @@ int main()
         gpio_put_masked(datamask, ((uint32_t)rom[addr | bank]) << PINROMDATA);
         break;
       }
-      
     }
     else
     {
       gpio_set_dir_all_bits(0);
     }
   }
+}
+
+int main()
+{
+  stdio_init_all();
+
+  
+
+  multicore_launch_core1(f8_cart);
+  while (true)
+  {
+
+   }
 }
