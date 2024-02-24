@@ -20,11 +20,11 @@
 /* Buttons - keys.cpp */
 #define PIN_BUTTON_A            GPIO_NUM_0  // Button 0 on DEVKITC-VE
 #define PIN_BUTTON_B            GPIO_NUM_NC // No Button B
-#define PIN_BUTTON_C            GPIO_NUM_39 // Safe reset
+#define PIN_BUTTON_C            GPIO_NUM_14 // Safe reset
 
 /* LEDs - leds.cpp */
-#define PIN_LED_WIFI            GPIO_NUM_14
-#define PIN_LED_BUS             GPIO_NUM_12
+#define PIN_LED_WIFI            GPIO_NUM_2
+#define PIN_LED_BUS             GPIO_NUM_4
 #define PIN_LED_BT              GPIO_NUM_NC // No BT LED
 
 /* Audio Output - samlib.h */
