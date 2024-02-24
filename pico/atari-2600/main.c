@@ -10,20 +10,18 @@
 
 #include "rom.h"
 
-
 // define GPIO pins
-#define UART_TX_PIN  4
-#define UART_RX_PIN  5
 #define PINROMADDR      6
 #define PINROMDATA     18
 #define ENABLE      2
 #define ADDRWIDTH   12
 #define DATAWIDTH   8
 
-
 /**
  * HERE IS UART SETUP
 */
+#define UART_TX_PIN  4
+#define UART_RX_PIN  5
 #define UART_ID uart1
 #define BAUD_RATE 2000000 //230400 //115200
 #define DATA_BITS 8
@@ -54,7 +52,8 @@ void setup()
 
     for (int i = 0; i < ADDRWIDTH; i++)
       gpio_disable_pulls(PINROMADDR + i);
-    
+
+    gpio_set_pulls(ENABLE, true, false);
 }
 
 
