@@ -295,6 +295,8 @@ void systemBus::_drivewire_process_cmd()
 {
     uint8_t c = fnUartBUS.read();
 
+    fnLedManager.set(eLed::LED_BUS, true);
+
     switch (c)
     {
     case OP_NOP:
@@ -346,6 +348,8 @@ void systemBus::_drivewire_process_cmd()
         op_unhandled(c);
         break;
     }
+
+    fnLedManager.set(eLed::LED_BUS, false);
 }
 
 // Look to see if we have any waiting messages and process them accordingly
