@@ -42,7 +42,7 @@ void setup_esp_uart()
 
 void setup()
 {
-     stdio_init_all();
+    //  stdio_init_all();
 
     // setup_default_uart();
     // setup_esp_uart();
@@ -87,7 +87,7 @@ int main()
       //   break;
       // default:
       gpio_set_dir_out_masked(datamask);
-      gpio_put_all((uint32_t)rom[b] << PINROMDATA);
+      gpio_put_masked(datamask, (uint32_t)rom[b] << PINROMDATA);
       // break;
       // }
 
