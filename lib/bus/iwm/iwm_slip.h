@@ -13,8 +13,8 @@
 #include <functional>
 #include "Connection.h"
 
-#include "../../slip/Request.h"
-#include "../../slip/Response.h"
+#include "../../devrelay/types/Request.h"
+#include "../../devrelay/types/Response.h"
 #include "compat_inet.h"
 
 #ifdef SLIP_PROTOCOL_NET
