@@ -103,7 +103,7 @@ set(INCLUDE_DIRS include
     lib/network-protocol 
     lib/fuji lib/bus lib/device lib/media
     lib/encrypt lib/base64
-    lib/slip
+    lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     components_pc/mongoose
     components_pc/cJSON
     components_pc/libsmb2/include
@@ -259,34 +259,25 @@ if(FUJINET_TARGET STREQUAL "APPLE")
 
     lib/bus/iwm/iwm_slip.h lib/utils/std_extensions.hpp lib/bus/iwm/iwm_slip.cpp
     lib/bus/iwm/connector.h
-    lib/bus/iwm/Connection.h lib/bus/iwm/Connection.cpp
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
-    lib/slip/SmartPortPacket.h
-    lib/slip/Response.h lib/slip/Response.cpp
-    lib/slip/Request.h lib/slip/Request.cpp
-    lib/slip/SLIP.h lib/slip/SLIP.cpp
-    lib/slip/CloseRequest.h lib/slip/CloseRequest.cpp
-    lib/slip/CloseResponse.h lib/slip/CloseResponse.cpp
-    lib/slip/ControlRequest.h lib/slip/ControlRequest.cpp
-    lib/slip/ControlResponse.h lib/slip/ControlResponse.cpp
-    lib/slip/FormatRequest.h lib/slip/FormatRequest.cpp
-    lib/slip/FormatResponse.h lib/slip/FormatResponse.cpp
-    lib/slip/InitRequest.h lib/slip/InitRequest.cpp
-    lib/slip/InitResponse.h lib/slip/InitResponse.cpp
-    lib/slip/OpenRequest.h lib/slip/OpenRequest.cpp
-    lib/slip/OpenResponse.h lib/slip/OpenResponse.cpp
-    lib/slip/ReadBlockRequest.h lib/slip/ReadBlockRequest.cpp
-    lib/slip/ReadBlockResponse.h lib/slip/ReadBlockResponse.cpp
-    lib/slip/ReadRequest.h lib/slip/ReadRequest.cpp
-    lib/slip/ReadResponse.h lib/slip/ReadResponse.cpp
-    lib/slip/ResetRequest.h lib/slip/ResetRequest.cpp
-    lib/slip/ResetResponse.h lib/slip/ResetResponse.cpp
-    lib/slip/StatusRequest.h lib/slip/StatusRequest.cpp
-    lib/slip/StatusResponse.h lib/slip/StatusResponse.cpp
-    lib/slip/WriteBlockRequest.h lib/slip/WriteBlockRequest.cpp
-    lib/slip/WriteBlockResponse.h lib/slip/WriteBlockResponse.cpp
-    lib/slip/WriteRequest.h lib/slip/WriteRequest.cpp
-    lib/slip/WriteResponse.h lib/slip/WriteResponse.cpp
+
+    lib/devrelay/types/Request.h lib/devrelay/types/Request.cpp
+    lib/devrelay/types/Response.h lib/devrelay/types/Response.cpp
+    lib/devrelay/service/Listener.h lib/devrelay/service/Listener.cpp
+    lib/devrelay/service/Connection.h lib/devrelay/service/Connection.cpp
+    lib/devrelay/service/Requestor.h lib/devrelay/service/Requestor.cpp
+    lib/devrelay/slip/SLIP.h lib/devrelay/slip/SLIP.cpp
+    lib/devrelay/commands/Control.h lib/devrelay/commands/Control.cpp
+    lib/devrelay/commands/WriteBlock.h lib/devrelay/commands/WriteBlock.cpp
+    lib/devrelay/commands/Close.h lib/devrelay/commands/Close.cpp
+    lib/devrelay/commands/ReadBlock.h lib/devrelay/commands/ReadBlock.cpp
+    lib/devrelay/commands/Read.h lib/devrelay/commands/Read.cpp
+    lib/devrelay/commands/Reset.h lib/devrelay/commands/Reset.cpp
+    lib/devrelay/commands/Open.h lib/devrelay/commands/Open.cpp
+    lib/devrelay/commands/Format.h lib/devrelay/commands/Format.cpp
+    lib/devrelay/commands/Write.h lib/devrelay/commands/Write.cpp
+    lib/devrelay/commands/Init.h lib/devrelay/commands/Init.cpp
+    lib/devrelay/commands/Status.h lib/devrelay/commands/Status.cpp
 
     lib/media/apple/mediaType.h lib/media/apple/mediaType.cpp
     lib/media/apple/mediaTypeDO.h lib/media/apple/mediaTypeDO.cpp
@@ -309,7 +300,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     if(SLIP_PROTOCOL STREQUAL "NET")
         list(APPEND SOURCES
             lib/bus/iwm/connector_net.h lib/bus/iwm/connector_net.cpp
-            lib/bus/iwm/TCPConnection.h lib/bus/iwm/TCPConnection.cpp
+            lib/devrelay/service/TCPConnection.h lib/devrelay/service/TCPConnection.cpp
         )
     elseif(SLIP_PROTOCOL STREQUAL "COM")
         list(APPEND SOURCES

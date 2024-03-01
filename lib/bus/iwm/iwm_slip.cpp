@@ -44,12 +44,12 @@
 #include "iwm.h"
 
 #ifdef SLIP_PROTOCOL_NET
-#include "TCPConnection.h"
+#include "../../devrelay/service/TCPConnection.h"
 #else
 #include "COMConnection.h"
 #endif
 
-#include "../slip/Request.h"
+#include "../../devrelay/types/Request.h"
 #include "fnConfig.h"
 #include "fnDNS.h"
 #include "fnSystem.h"
