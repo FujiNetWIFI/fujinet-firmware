@@ -39,13 +39,13 @@ public:
     void change_track(int indicator);
     void disableD2() { 
         enabledD2 = false;
-#ifndef SP_OVER_SLIP 
+#ifndef DEV_RELAY_SLIP
         diskii_xface.enableD2();
 #endif
     };
     void enableD2() {
         enabledD2 = true;
-#ifndef SP_OVER_SLIP 
+#ifndef DEV_RELAY_SLIP
         diskii_xface.disableD2();
 #endif
     };

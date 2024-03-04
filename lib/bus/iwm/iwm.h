@@ -4,10 +4,10 @@
 
 #include "../../include/debug.h"
 
-// for ESP IWM-SLIP build, SP_OVER_SLIP should be defined in platformio.ini
-// for PC IWM-SLIP build SP_OVER_SLIP should be defined in fujinet_pc.cmake
+// for ESP IWM-SLIP build, DEV_RELAY_SLIP should be defined in platformio.ini
+// for PC IWM-SLIP build DEV_RELAY_SLIP should be defined in fujinet_pc.cmake
 
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 #include "iwm_slip.h"
 #else
 #include "iwm_ll.h"
@@ -262,7 +262,7 @@ private:
   iwmPrinter *_printerdev = nullptr;
   iwmClock *_clockDev = nullptr;
 
-  #ifndef SP_OVER_SLIP
+  #ifndef DEV_RELAY_SLIP
   bool iwm_phase_val(uint8_t p);
   #endif
 

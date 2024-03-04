@@ -125,6 +125,9 @@ if [ ! -z "$PC_TARGET" ] ; then
     rm $SCRIPT_DIR/build/.ninja* 2>/dev/null
   fi
   cd $SCRIPT_DIR/build
+  # Write out the compile commands for clangd etc to use
+  cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DFUJINET_TARGET=$PC_TARGET "$@"
+  # Run the specific build
   if [ $DEBUG_PC_BUILD -eq 1 ] ; then
     cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Debug "$@"
   else

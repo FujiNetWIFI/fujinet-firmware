@@ -1,7 +1,6 @@
 #pragma once
 
-#ifdef BUILD_APPLE
-#if defined(SP_OVER_SLIP) && defined(SLIP_PROTOCOL_NET)
+#if defined(DEV_RELAY_SLIP) && defined(SLIP_PROTOCOL_NET)
 
 #include <memory>
 #include <string>
@@ -23,5 +22,4 @@ public:
 private:
 	int socket_;
 };
-#endif
 #endif

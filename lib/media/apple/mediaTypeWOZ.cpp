@@ -1,6 +1,6 @@
 #ifdef BUILD_APPLE
 
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
 #include "esp_heap_caps.h"
 #endif
 #include "mediaTypeWOZ.h"

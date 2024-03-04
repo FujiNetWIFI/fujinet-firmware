@@ -1,6 +1,5 @@
 #pragma once
-#ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include <array>
 #include <atomic>
@@ -40,5 +39,4 @@ protected:
 	std::condition_variable data_cv_;
 };
 
-#endif
 #endif

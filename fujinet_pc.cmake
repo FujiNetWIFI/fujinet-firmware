@@ -80,14 +80,14 @@ set(BUILD_DATA_DIR ${CMAKE_CURRENT_BINARY_DIR}/data)
 
 # -DDBUG2 to enable monitor messages for a release build
 # -DSKIP_SERVER_CERT_VERIFY does not work with MbedTLS
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DSP_OVER_SLIP -DFLASH_SPIFFS -DDBUG2")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DDEV_RELAY_SLIP -DFLASH_SPIFFS -DDBUG2")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVERBOSE_HTTP -D__PC_BUILD_DEBUG__")
 
 # mongoose.c some compile options: -DMG_ENABLE_LINES=1 -DMG_ENABLE_DIRECTORY_LISTING=1 -DMG_ENABLE_SSI=1
 # # use OpenSSL
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DMG_ENABLE_OPENSSL=1 -DMG_ENABLE_LOG=0")
 # use MbedTLS
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DMG_ENABLE_MBEDTLS=1 -DMG_ENABLE_LOG=0 -DSP_OVER_SLIP")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DMG_ENABLE_MBEDTLS=1 -DMG_ENABLE_LOG=0 -DDEV_RELAY_SLIP")
 
 # INCLUDE (CheckIncludeFiles)
 # CHECK_INCLUDE_FILES (bsd/string.h HAVE_BSD_STRING_H)
@@ -261,6 +261,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/bus/iwm/connector.h
     lib/bus/iwm/iwm.h lib/bus/iwm/iwm.cpp
 
+    lib/devrelay/util.h lib/devrelay/util.cpp
     lib/devrelay/types/Request.h lib/devrelay/types/Request.cpp
     lib/devrelay/types/Response.h lib/devrelay/types/Response.cpp
     lib/devrelay/service/Listener.h lib/devrelay/service/Listener.cpp
@@ -305,7 +306,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     elseif(SLIP_PROTOCOL STREQUAL "COM")
         list(APPEND SOURCES
             lib/bus/iwm/connector_com.h lib/bus/iwm/connector_com.cpp
-            lib/bus/iwm/COMConnection.h lib/bus/iwm/COMConnection.cpp
+            lib/devrelay/service/COMConnection.h lib/devrelay/service/COMConnection.cpp
         )
     endif()
 

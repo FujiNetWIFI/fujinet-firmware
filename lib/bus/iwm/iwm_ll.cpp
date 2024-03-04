@@ -1,6 +1,6 @@
 #ifdef BUILD_APPLE
 
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
 
 #include <string.h>
 
@@ -1079,6 +1079,6 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
 iwm_sp_ll smartport;
 iwm_diskii_ll diskii_xface;
 
-#endif // !SP_OVER_SLIP
+#endif // !DEV_RELAY_SLIP
 
 #endif // BUILD_APPLE

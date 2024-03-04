@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include <cstdint>
 #include <thread>
@@ -121,5 +121,5 @@ private:
 extern iwm_slip smartport;
 
 
-#endif // SP_OVER_SLIP
+#endif // DEV_RELAY_SLIP
 #endif // BUILD_APPLE

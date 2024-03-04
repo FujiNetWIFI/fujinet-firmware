@@ -1,5 +1,4 @@
-#ifdef BUILD_APPLE
-#if defined(SP_OVER_SLIP) && defined(SLIP_PROTOCOL_NET)
+#if defined(DEV_RELAY_SLIP) && defined(SLIP_PROTOCOL_NET)
 
 #include <cstring>
 #include <iostream>
@@ -141,6 +140,4 @@ void TCPConnection::create_read_channel()
 	reading_thread_.detach();
 }
 
-
-#endif
 #endif

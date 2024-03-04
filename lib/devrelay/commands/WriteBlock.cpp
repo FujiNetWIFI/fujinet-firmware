@@ -1,4 +1,4 @@
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include "WriteBlock.h"
 #include <cstdint>
@@ -11,7 +11,8 @@ std::vector<uint8_t> WriteBlockRequest::serialize() const
 	request_data.push_back(this->get_request_sequence_number());
 	request_data.push_back(this->get_command_number());
 	request_data.push_back(this->get_device_id());
-	request_data.push_back(this->get_block_size());
+	request_data.push_back(this->get_block_size() & 0xFF);
+	request_data.push_back((this->get_block_size() >> 8) & 0xFF);
 	request_data.insert(request_data.end(), block_number_.begin(), block_number_.end());
 	request_data.insert(request_data.end(), block_data_.begin(), block_data_.end());
 

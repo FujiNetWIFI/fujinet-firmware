@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include <memory>
 #include "connector.h"
@@ -18,5 +18,5 @@ private:
 	in_addr_t host_ip = IPADDR_NONE;
 };
 
-#endif /* SP_OVER_SLIP */
+#endif /* DEV_RELAY_SLIP */
 #endif /* BUILD_APPLE */

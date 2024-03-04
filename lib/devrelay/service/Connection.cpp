@@ -1,5 +1,4 @@
-#ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include <condition_variable>
 #include <cstdint>
@@ -52,5 +51,4 @@ void Connection::join()
 	}
 }
 
-#endif
 #endif
