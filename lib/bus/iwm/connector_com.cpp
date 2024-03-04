@@ -1,5 +1,5 @@
 #ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include "connector_com.h"
 #include <libserialport.h>

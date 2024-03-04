@@ -61,7 +61,7 @@ void print_packet(uint8_t *data, int bytes)
 void print_packet(uint8_t *data)
 {
   Debug_printf("\n");
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
   for (int i = 0; i < COMMAND_LEN; i++)
     Debug_printf("%02x ", data[i]);
 #else
@@ -132,7 +132,7 @@ void iwmBus::iwm_ack_assert()
   smartport.spi_end();
 }
 
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
 bool iwmBus::iwm_phase_val(uint8_t p)
 {
   uint8_t phases = _phases; // smartport.iwm_phase_vector();
@@ -258,7 +258,7 @@ void iwmBus::setup(void)
 {
   Debug_printf("\r\nIWM FujiNet based on SmartportSD v1.15\r\n");
 
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
   fnTimer.config();
   Debug_printf("\r\nFujiNet Hardware timer started");
 
@@ -475,7 +475,7 @@ void IRAM_ATTR iwmBus::service()
     for (auto devicep : _daisyChain)
       devicep->_devnum = 0;
 
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
     while (iwm_phases() == iwm_phases_t::reset)
       portYIELD(); // no timeout needed because the IWM must eventually clear reset.
     // even if it doesn't, we would just come back to here, so might as
@@ -498,7 +498,7 @@ void IRAM_ATTR iwmBus::service()
     if (_old_enable_state != iwm_enable_state_t::off)
     {
       _old_enable_state = iwm_enable_state_t::off;
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
       diskii_xface.stop();
 #endif /* !SLIP */
     }
@@ -538,7 +538,7 @@ void IRAM_ATTR iwmBus::service()
             iwm_ack_deassert(); // go hi-Z
             return;
           }
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
 #endif
@@ -562,7 +562,7 @@ void IRAM_ATTR iwmBus::service()
     iwm_ack_deassert(); // go hi-Z
   }                     // switch (phasestate)
 
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
   // check on the diskii status
   switch (iwm_drive_enabled())
   {
@@ -605,7 +605,7 @@ void IRAM_ATTR iwmBus::service()
 #endif /* !SLIP */
 }
 
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
 iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
 {
   uint8_t phases = smartport.iwm_phase_vector();

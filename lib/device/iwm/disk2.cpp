@@ -1,5 +1,5 @@
 #ifdef BUILD_APPLE
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
 
 #include "disk2.h"
 
@@ -139,7 +139,7 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   if ((((MediaTypeWOZ *)_disk)->trackmap(old_pos) == ((MediaTypeWOZ *)_disk)->trackmap(track_pos)) && indicator)
     return;
 
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
   // need to tell diskii_xface the number of bits in the track
   // and where the track data is located so it can convert it
   if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)

@@ -558,7 +558,7 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
         device_active = true; //change status only after we are mounted
     }
   }
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
   else // DiskII drive
   {
     switch (mt)

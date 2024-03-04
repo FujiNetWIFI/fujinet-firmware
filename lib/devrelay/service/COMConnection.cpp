@@ -1,9 +1,8 @@
-#ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#if defined(DEV_RELAY_SLIP) && defined(SLIP_PROTOCOL_COM)
 
 #include "COMConnection.h"
 #include <iostream>
-#include "SLIP.h"
+#include "../slip/SLIP.h"
 
 COMConnection::COMConnection(const std::string &port_name, struct sp_port *port, bool is_connected) : port_name_(port_name), port_(port) { set_is_connected(is_connected); }
 
@@ -65,5 +64,4 @@ void COMConnection::close_connection()
 	}
 }
 
-#endif
 #endif

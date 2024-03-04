@@ -1,4 +1,5 @@
 #pragma once
+#if defined(DEV_RELAY_SLIP) && defined(SLIP_PROTOCOL_NET)
 
 #include <memory>
 #include <mutex>
@@ -83,3 +84,5 @@ public:
 	void connection_closed(Connection *connection);
 	void add_connection_info(uint8_t key, const ConnectionInfo &info) { connection_info_map_[key] = info; }
 };
+
+#endif

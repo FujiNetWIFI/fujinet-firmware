@@ -1,5 +1,5 @@
 #ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include "connector_net.h"
 #include "TCPConnection.h"
@@ -125,5 +125,5 @@ std::shared_ptr<Connection> connector_net::create_connection()
 	return conn;
 }
 
-#endif /* SP_OVER_SLIP */
+#endif /* DEV_RELAY_SLIP */
 #endif /* BUILD_APPLE */

@@ -1,9 +1,8 @@
 #pragma once
 
-#ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#if defined(DEV_RELAY_SLIP) && defined(SLIP_PROTOCOL_COM)
 
-#include "Connection.h" // Make sure this path is correct based on your project structure
+#include "Connection.h"
 #include <libserialport.h>
 #include <string>
 #include <vector>
@@ -39,5 +38,4 @@ private:
 	struct sp_port *port_;
 };
 
-#endif
 #endif

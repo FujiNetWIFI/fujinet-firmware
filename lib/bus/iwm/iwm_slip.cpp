@@ -1,5 +1,5 @@
 #ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include <algorithm>
 #include <iostream>
@@ -46,7 +46,7 @@
 #ifdef SLIP_PROTOCOL_NET
 #include "../../devrelay/service/TCPConnection.h"
 #else
-#include "COMConnection.h"
+#include "../../devrelay/service/COMConnection.h"
 #endif
 
 #include "../../devrelay/types/Request.h"
@@ -268,5 +268,5 @@ void iwm_slip::restart()
 
 iwm_slip smartport;
 
-#endif // SP_OVER_SLIP
+#endif // DEV_RELAY_SLIP
 #endif // BUILD_APPLE

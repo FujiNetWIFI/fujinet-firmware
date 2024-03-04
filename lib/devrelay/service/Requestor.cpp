@@ -1,4 +1,4 @@
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include <iostream>
 
@@ -35,6 +35,5 @@ uint8_t Requestor::next_request_number()
 	request_number_ = (request_number_ + 1) % 256;
 	return current_number;
 }
-
 
 #endif

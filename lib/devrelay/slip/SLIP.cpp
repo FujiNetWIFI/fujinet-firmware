@@ -1,4 +1,4 @@
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include <iostream>
 

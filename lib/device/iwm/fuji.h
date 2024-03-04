@@ -193,7 +193,7 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
-#ifndef SP_OVER_SLIP
+#ifndef DEV_RELAY_SLIP
     iwmDisk2 _fnDisk2s[MAX_DISK2_DEVICES];
 #endif
 

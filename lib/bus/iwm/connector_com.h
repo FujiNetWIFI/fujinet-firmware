@@ -1,7 +1,7 @@
 #pragma once
 
 #ifdef BUILD_APPLE
-#ifdef SP_OVER_SLIP
+#ifdef DEV_RELAY_SLIP
 
 #include "connector.h"
 #include "COMConnection.h"
