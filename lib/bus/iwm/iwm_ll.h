@@ -246,6 +246,8 @@ private:
 
   void set_output_to_rmt();
 
+  bool enabledD2 = true;
+
 public:
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
@@ -262,6 +264,10 @@ public:
   void copy_track(uint8_t *track, size_t tracklen, size_t trackbits, int bitperiod);
 
   void set_output_to_low();
+
+  void enableD2(){ enabledD2 = true; };
+  void disableD2(){ enabledD2 = false; };
+  bool isDrive2Enabled(){ return enabledD2; };
 };
 
 extern iwm_sp_ll smartport;
