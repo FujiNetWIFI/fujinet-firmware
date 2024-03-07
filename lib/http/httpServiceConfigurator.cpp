@@ -579,6 +579,12 @@ void fnHttpServiceConfigurator::config_pclink_enabled(std::string enabled)
     Config.save();
 }
 
+static void reboot_task(void *arg)
+{
+    fnSystem.reboot();
+    vTaskDelay(1);
+}
+
 int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t postlen)
 {
     Debug_printf("process_config_post: %s\n", postdata);
@@ -598,7 +604,12 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
 
     for (std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); ++i)
     {
-        if (i->first.compare("printermodel1") == 0)
+        if (i->first.compare("resetfuji") == 0)
+        {
+            // Start a new task to reboot or we get stuck in endless loop waiting for web service to end
+            xTaskCreate(reboot_task, "reboot_task", 2048, NULL, 15, NULL);
+        }
+        else if (i->first.compare("printermodel1") == 0)
         {
             config_printer_model(i->first, i->second);
         }

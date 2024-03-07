@@ -66,6 +66,15 @@ hr {
     font-size: 1.5rem;
 }
 
+.flexchild .child-header button {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    height: 2rem;
+    line-height: 1.9rem;
+    border-radius: 1.5rem;
+    background: #999;
+    color: #fff;
+}
+
 .detline {
     display: table;
     width: 100%;
