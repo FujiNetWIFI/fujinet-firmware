@@ -160,7 +160,19 @@
 			{% endif %}
 			{% if components.hardware %}
 			<div class="flexchild">
-				<header class="child-header">HARD<span id="logowob"></span>WARE</header>
+				<header class="child-header">
+					HARD<span id="logowob"></span>WARE
+					<span style="float: right">
+						{% if tweaks.fujinet_pc %}
+						<input type="button" id="restartButton" value="Restart..." onclick="restartButton()" style="width: 7em">
+						{% else %}
+						<form action="/config" method="post">
+							<input type="hidden" name="resetfuji" value="resetfuji">
+							<button type="submit" value="Reset FujiNet">Reset FujiNet</button>
+						</form>
+						{% endif %}
+					</span>
+				</header>
 				{% if tweaks.fujinet_pc %}
 				<div class="detline">
 					<div class="deth detlinecol">Detected Hardware Version</div>
