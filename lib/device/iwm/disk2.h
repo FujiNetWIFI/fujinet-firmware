@@ -37,8 +37,18 @@ public:
     bool phases_valid(uint8_t phases);
     bool move_head();
     void change_track(int indicator);
-    void disableD2() { enabledD2 = false; diskii_xface.enableD2(); };
-    void enableD2() { enabledD2 = true; diskii_xface.disableD2(); };
+    void disableD2() { 
+        enabledD2 = false;
+#ifndef SP_OVER_SLIP 
+        diskii_xface.enableD2();
+#endif
+    };
+    void enableD2() {
+        enabledD2 = true;
+#ifndef SP_OVER_SLIP 
+        diskii_xface.disableD2();
+#endif
+    };
     bool isDrive2Enabled() { return enabledD2; };
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
