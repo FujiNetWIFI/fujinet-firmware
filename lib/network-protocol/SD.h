@@ -186,23 +186,8 @@ protected:
      */
     virtual bool close_dir_handle() override;
 
-    /**
-     * @brief return status from file (e.g. # of bytes remaining.)
-     * @param Pointer to NetworkStatus object to inject new data.
-     * @return FALSE if success, TRUE if error.
-     */
-    virtual bool status_file(NetworkStatus *status) override;
-
-    /**
-     * @brief return status from directory (e.g. # of bytes remaining.)
-     * @param Pointer to NetworkStatus object to inject new data.
-     * @return FALSE if success, TRUE if error.
-     */
-    virtual bool status_dir(NetworkStatus *status) override;
 
 private:
-
-    bool eof_reached = false;
 
     /**
      * The create permissions of the open file

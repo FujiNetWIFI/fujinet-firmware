@@ -152,12 +152,6 @@ bool NetworkProtocolSD::read_file_handle(uint8_t *buf, unsigned short len)
         else
             errno_to_error(); // fread may not set errno!
     }
-    else
-    {
-        // stay compatible with the rest - indicate EOF already on last byte
-        if (len >= fileSize)
-            eof_reached = true;
-    }
     Debug_printf("NetworkProtocolSD::read_file_handle(len: %u) error: %d\r\n", len, error);
 
     return NETWORK_ERROR_SUCCESS != error;
@@ -215,28 +209,6 @@ bool NetworkProtocolSD::write_file_handle(uint8_t *buf, unsigned short len)
     return NETWORK_ERROR_SUCCESS != error;
 }
 
-bool NetworkProtocolSD::status_file(NetworkStatus *status)
-{
-    NetworkProtocolFS::status_file(status);
-    status->connected = false == check_fs() ? 1 : 0;
-    status->error = eof_reached ? NETWORK_ERROR_END_OF_FILE : error;
-    //Debug_printf("NetworkProtocolSD::status_file - BW: %d C: %d E: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
-
-    NetworkProtocol::status(status);
-
-    return false;
-}
-
-bool NetworkProtocolSD::status_dir(NetworkStatus *status)
-{
-    NetworkProtocolFS::status_dir(status);
-    status->connected = false == check_fs() ? 1 : 0;
-    //Debug_printf("NetworkProtocolSD::status_dir - BW: %d C: %d E: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
-
-    NetworkProtocol::status(status);
-
-    return false;
-}
 
 uint8_t NetworkProtocolSD::special_inquiry(uint8_t cmd)
 {
