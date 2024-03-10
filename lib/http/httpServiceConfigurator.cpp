@@ -579,11 +579,13 @@ void fnHttpServiceConfigurator::config_pclink_enabled(std::string enabled)
     Config.save();
 }
 
+#ifdef ESP_PLATFORM
 static void reboot_task(void *arg)
 {
     fnSystem.reboot();
     vTaskDelay(1);
 }
+#endif
 
 int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t postlen)
 {
@@ -606,8 +608,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
     {
         if (i->first.compare("resetfuji") == 0)
         {
+        #ifdef ESP_PLATFORM
             // Start a new task to reboot or we get stuck in endless loop waiting for web service to end
             xTaskCreate(reboot_task, "reboot_task", 2048, NULL, 15, NULL);
+        #endif
         }
         else if (i->first.compare("printermodel1") == 0)
         {
