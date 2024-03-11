@@ -5,7 +5,7 @@
 
 #include "bus.h"
 #include "fnSystem.h"
-#include "fnFile.h"
+#include "fnio.h"
 
 #define CASSETTE_BAUDRATE 600
 #define BLOCK_LEN 128

@@ -995,6 +995,7 @@ bool fnFTP::close()
     }
     _stor = false;
     _expect_control_response = false;
+    control->flush();
     return res;
 }
 
@@ -1051,6 +1052,7 @@ bool fnFTP::parse_response()
         if (multi_line) // ignore body of multi-line response
             continue;
         // error - nothing above
+        Debug_printf("fnFTP::parse_response() - failed\r\n");
         _statusCode = 501;  //syntax error
         return true;        // error
     }
@@ -1112,6 +1114,7 @@ bool fnFTP::get_data_port()
 
     Debug_printf("fnFTP::get_data_port()\r\n");
 
+    control->flush();
     EPSV();
 
     Debug_printf("Did EPSV, getting response.\r\n");
@@ -1122,6 +1125,7 @@ bool fnFTP::get_data_port()
         return true;
     }
 
+/*
     if (is_negative_permanent_reply())
     {
         Debug_printf("Server unable to reserve port. Response was: %s\r\n", controlResponse.c_str());
@@ -1135,6 +1139,14 @@ bool fnFTP::get_data_port()
     }
 
     if (is_negative_transient_reply())
+    {
+        Debug_printf("Cannot get data port. Response was: %s\n", controlResponse.c_str());
+        return true;
+    }
+*/
+
+    // accept only 229 response: Entering Extended Passive Mode (|||nnnn|)
+    if (_statusCode != 229)
     {
         Debug_printf("Cannot get data port. Response was: %s\n", controlResponse.c_str());
         return true;

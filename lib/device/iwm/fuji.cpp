@@ -1103,12 +1103,12 @@ void iwmFuji::setup(iwmBus *iwmbus)
 #ifdef ESP_PLATFORM
 	if (Config.get_general_boot_mode() == 0)
 	{
-		FILE *f = fsFlash.file_open("/autorun.po");
+		fnFile *f = fsFlash.fnfile_open("/autorun.po");
 		_fnDisks[0].disk_dev.mount(f, "/autorun.po", 140 * 1024, MEDIATYPE_PO);
 	}
 	else
 	{
-		FILE *f = fsFlash.file_open("/mount-and-boot.po");
+		fnFile *f = fsFlash.fnfile_open("/mount-and-boot.po");
 		_fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 140 * 1024, MEDIATYPE_PO);
 	}
 #else

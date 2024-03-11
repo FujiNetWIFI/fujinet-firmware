@@ -231,6 +231,7 @@ void sioCassette::sio_enable_cassette()
 #endif
         Debug_printf("set pin to input. Value is %d\n", a);
         Debug_println("Writing FUJI File HEADERS");
+    #if 0
         fprintf(_file, "FUJI");
         fputc(16, _file);
         fputc(0, _file);
@@ -243,9 +244,16 @@ void sioCassette::sio_enable_cassette()
         fputc(0, _file);
         fputc(0x58, _file);
         fputc(0x02, _file);
-
-        fflush(_file);
-        tape_offset = ftell(_file);
+    #else
+        unsigned char headers[] = {
+            'F', 'U', 'J', 'I', 16, 0, 0, 0,
+            'F', 'u', 'j', 'i', 'N', 'e', 't', ' ', 'C', 'A', 'S', ' ', 'F', 'i', 'l', 'e',
+            'b', 'a', 'u', 'd', 0, 0, 0x58, 0x02
+        };
+        fnio::fwrite(headers, sizeof(headers), 1, _file);
+    #endif
+        fnio::fflush(_file);
+        tape_offset = fnio::ftell(_file);
         block++;
 #else
         Debug_println("Writing FUJI File HEADERS - NOT IMPLEMENTED!!!");
@@ -543,15 +551,22 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
     uint64_t tic = fnSystem.millis();
 
     // write out data here to file
+    #if 0
     offset += fprintf(_file, "data");
     offset += fputc(BLOCK_LEN + 4, _file); // 132 bytes
     offset += fputc(0, _file);
+    #else
+    unsigned char data_head[] = {
+        'd', 'a' ,'t', 'a', BLOCK_LEN + 4, 0
+    };
+    offset += fnio::fwrite(data_head, sizeof(data_head), 1, _file);
+    #endif
 
     while (!casUART.available()) // && motor_line()
         casUART.service(decode_fsk());
     uint16_t irg = fnSystem.millis() - tic - 10000 / casUART.get_baud(); // adjust for first byte
     Debug_printf("irg %u\n", irg);
-    offset += fwrite(&irg, 2, 1, _file);
+    offset += fnio::fwrite(&irg, 2, 1, _file);
     uint8_t b = casUART.read(); // should be 0x55
     atari_sector_buffer[idx++] = b;
     Debug_printf("marker 1: %02x\n", b);
@@ -591,7 +606,7 @@ size_t sioCassette::receive_FUJI_tape_block(size_t offset)
         Debug_printf("%02x ", atari_sector_buffer[i]);
     Debug_printf("\n");
 
-    offset += fwrite(atari_sector_buffer, 1, BLOCK_LEN + 4, _file);
+    offset += fnio::fwrite(atari_sector_buffer, 1, BLOCK_LEN + 4, _file);
 
     Debug_printf("file offset: %d\n", offset);
 #else

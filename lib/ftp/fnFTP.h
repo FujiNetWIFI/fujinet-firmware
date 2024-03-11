@@ -11,7 +11,7 @@
 
 using std::string;
 
-#define FTP_TIMEOUT 5000 // This is how long we wait for a reply packet from the server
+#define FTP_TIMEOUT 15000 // This is how long we wait for a reply packet from the server
 
 class fnFTP
 {

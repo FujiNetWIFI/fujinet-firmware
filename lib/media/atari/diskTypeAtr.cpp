@@ -150,11 +150,8 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
         return true;
     }
 
-    int ret = fnio::fflush(_disk_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
-#ifdef ESP_PLATFORM
-    ret = fsync(fileno(_disk_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
-#endif
-    Debug_printf("ATR::write fsync:%d\r\n", ret);
+    int ret = fnio::fflush(_disk_fileh); // Since we might get reset at any moment, go ahead and sync the file
+    Debug_printf("ATR::write fflush:%d\r\n", ret);
 
     if (_high_score_sector != 0)
     {

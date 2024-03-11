@@ -492,7 +492,7 @@ bool MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTra
     track.data = new uint8_t[data_size];
 
     int i;
-    if ((i = fread(track.data, 1, data_size, _disk_fileh)) != data_size)
+    if ((i = fnio::fread(track.data, 1, data_size, _disk_fileh)) != data_size)
     {
         Debug_printf("failed reading %d sector data chunk bytes (%d, %d)\r\n", data_size, i, errno);
         delete[] track.data;
@@ -537,7 +537,7 @@ bool MediaTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTra
     // Attempt to read sector_header * sector_count
     sector_header_t *sector_list = new sector_header_t[track.sector_count];
     int i;
-    if ((i = fread(sector_list, 1, readz, _disk_fileh)) != readz)
+    if ((i = fnio::fread(sector_list, 1, readz, _disk_fileh)) != readz)
     {
         Debug_printf("failed reading sector list chunk bytes (%d, %d)\r\n", i, errno);
         delete[] sector_list;
@@ -575,7 +575,7 @@ bool MediaTypeATX::_load_atx_chunk_unknown(chunk_header_t &chunk_hdr, AtxTrack &
     {
         Debug_printf("seeking +%u to skip this chunk\r\n", chunk_size);
         int i;
-        if ((i = fseek(_disk_fileh, chunk_size, SEEK_CUR)) < 0)
+        if ((i = fnio::fseek(_disk_fileh, chunk_size, SEEK_CUR)) < 0)
         {
             Debug_printf("seek failed (%d, %d)\r\n", i, errno);
             return false;
@@ -601,7 +601,7 @@ int MediaTypeATX::_load_atx_track_chunk(track_header_t &trk_hdr, AtxTrack &track
     chunk_header_t chunk_hdr;
 
     int i;
-    if ((i = fread(&chunk_hdr, 1, sizeof(chunk_hdr), _disk_fileh)) != sizeof(chunk_hdr))
+    if ((i = fnio::fread(&chunk_hdr, 1, sizeof(chunk_hdr), _disk_fileh)) != sizeof(chunk_hdr))
     {
         Debug_printf("failed reading track chunk bytes (%d, %d)\r\n", i, errno);
         return -1;
@@ -660,7 +660,7 @@ bool MediaTypeATX::_load_atx_track_record(uint32_t length)
     track_header_t trk_hdr;
 
     int i;
-    if ((i = fread(&trk_hdr, 1, sizeof(trk_hdr), _disk_fileh)) != sizeof(trk_hdr))
+    if ((i = fnio::fread(&trk_hdr, 1, sizeof(trk_hdr), _disk_fileh)) != sizeof(trk_hdr))
     {
         Debug_printf("failed reading track header bytes (%d, %d)\r\n", i, errno);
         return false;
@@ -708,7 +708,7 @@ bool MediaTypeATX::_load_atx_track_record(uint32_t length)
         #ifdef VERBOSE_ATX
         Debug_printf("seeking +%u to first chunk start pos\r\n", chunk_start_offset);
         #endif
-        if ((i = fseek(_disk_fileh, chunk_start_offset, SEEK_CUR)) < 0)
+        if ((i = fnio::fseek(_disk_fileh, chunk_start_offset, SEEK_CUR)) < 0)
         {
             Debug_printf("failed seeking to first chunk in track record (%d, %d)\r\n", i, errno);
             return false;
@@ -741,7 +741,7 @@ bool MediaTypeATX::_load_atx_record()
     record_header rec_hdr;
 
     int i;
-    if ((i = fread(&rec_hdr, 1, sizeof(rec_hdr), _disk_fileh)) != sizeof(rec_hdr))
+    if ((i = fnio::fread(&rec_hdr, 1, sizeof(rec_hdr), _disk_fileh)) != sizeof(rec_hdr))
     {
         if (errno != EOF)
         {
@@ -760,7 +760,7 @@ bool MediaTypeATX::_load_atx_record()
     {
         Debug_print("record type is not TRACK - skipping\r\n");
         // Skip forward to the next record
-        if ((i = fseek(_disk_fileh, rec_hdr.length - sizeof(rec_hdr), SEEK_CUR)) < 0)
+        if ((i = fnio::fseek(_disk_fileh, rec_hdr.length - sizeof(rec_hdr), SEEK_CUR)) < 0)
         {
             Debug_printf("failed seeking past this record (%d, %d)\r\n", i, errno);
             return false;
@@ -782,7 +782,7 @@ bool MediaTypeATX::_load_atx_data(atx_header_t &atx_hdr)
 
     // Seek to the start of the ATX record data
     int i;
-    if ((i = fseek(_disk_fileh, atx_hdr.start, SEEK_SET)) < 0)
+    if ((i = fnio::fseek(_disk_fileh, atx_hdr.start, SEEK_SET)) < 0)
     {
         Debug_printf("failed seeking to start of ATX data (%d, %d)\r\n", i, errno);
         return false;
@@ -808,7 +808,7 @@ bool MediaTypeATX::_load_atx_data(atx_header_t &atx_hdr)
 
  Since timing is important, we will load the entire image into memory.
  */
-mediatype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeATX::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("ATX MOUNT\r\n");
 
@@ -817,7 +817,7 @@ mediatype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
 
     // Load what should be the ATX header before attempting to load the rest
     int i;
-    if ((i = fseek(f, 0, SEEK_SET)) < 0)
+    if ((i = fnio::fseek(f, 0, SEEK_SET)) < 0)
     {
         Debug_printf("failed seeking to header on disk image (%d, %d)\r\n", i, errno);
         return MEDIATYPE_UNKNOWN;
@@ -825,7 +825,7 @@ mediatype_t MediaTypeATX::mount(FILE *f, uint32_t disksize)
 
     atx_header hdr;
 
-    if ((i = fread(&hdr, 1, sizeof(hdr), f)) != sizeof(hdr))
+    if ((i = fnio::fread(&hdr, 1, sizeof(hdr), f)) != sizeof(hdr))
     {
         Debug_printf("failed reading header bytes (%d, %d)\r\n", i, errno);
         return MEDIATYPE_UNKNOWN;
