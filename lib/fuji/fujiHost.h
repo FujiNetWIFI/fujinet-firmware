@@ -11,10 +11,8 @@ enum fujiHostType
     HOSTTYPE_UNINITIALIZED = 0,
     HOSTTYPE_LOCAL,
     HOSTTYPE_TNFS,
-#ifndef ESP_PLATFORM
     HOSTTYPE_SMB,
     HOSTTYPE_FTP,
-#endif
 };
 
 class fujiHost
@@ -31,10 +29,8 @@ private:
 
     int mount_local();
     int mount_tnfs();
-#ifndef ESP_PLATFORM
     int mount_smb();
     int mount_ftp();
-#endif
 
     int unmount_local();
     int unmount_fs();
@@ -63,7 +59,7 @@ public:
     // File functions
     bool file_exists(const char *path);
     fnFile * fnfile_open(const char *path, char *fullpath, int fullpathlen, const char *mode);
-#ifdef ESP_PLATFORM
+#ifdef FNIO_IS_STDIO
     // allow compilation of FILE* based fujiHost (all platforms except ATARI and APPLE)
     FILE * file_open(const char *path, char *fullpath, int fullpathlen, const char *mode) {
         return fnfile_open(path, fullpath, fullpathlen, mode);

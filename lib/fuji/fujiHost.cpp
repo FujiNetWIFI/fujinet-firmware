@@ -7,10 +7,8 @@
 
 #include "fnFsSD.h"
 #include "fnFsTNFS.h"
-#ifndef ESP_PLATFORM
 #include "fnFsSMB.h"
 #include "fnFsFTP.h"
-#endif
 
 #include "utils.h"
 
@@ -46,10 +44,8 @@ void fujiHost::set_type(fujiHostType type)
         break;
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
-#ifndef ESP_PLATFORM
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
-#endif
         cleanup();
         break;
     }
@@ -110,10 +106,8 @@ uint16_t fujiHost::dir_tell()
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
-#ifndef ESP_PLATFORM
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
-#endif
         result = _fs->dir_tell();
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -133,10 +127,8 @@ bool fujiHost::dir_seek(uint16_t pos)
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
-#ifndef ESP_PLATFORM
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
-#endif
         result = _fs->dir_seek(pos);
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -166,10 +158,8 @@ bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
-#ifndef ESP_PLATFORM
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
-#endif
         result = _fs->dir_open(realpath, pattern, options);
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -186,10 +176,8 @@ fsdir_entry_t *fujiHost::dir_nextfile()
     {
     case HOSTTYPE_LOCAL:
     case HOSTTYPE_TNFS:
-#ifndef ESP_PLATFORM
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
-#endif
         return _fs->dir_read();
     case HOSTTYPE_UNINITIALIZED:
         break;
@@ -371,7 +359,6 @@ int fujiHost::mount_tnfs()
     return -1;
 }
 
-#ifndef ESP_PLATFORM
 int fujiHost::mount_smb()
 {
     Debug_printf("::mount_smb {%d:%d} \"%s\"\n", slotid, _type, _hostname);
@@ -447,7 +434,6 @@ int fujiHost::mount_ftp()
 
     return -1;
 }
-#endif
 
 int fujiHost::unmount_fs()
 {
@@ -475,13 +461,11 @@ bool fujiHost::mount()
     if (0 == mount_local())
         return true;
 
-#ifndef ESP_PLATFORM
     if (0 == strncasecmp("smb://", _hostname, 6))
         return 0 == mount_smb();
 
     if (0 == strncasecmp("ftp://", _hostname, 6))
         return 0 == mount_ftp();
-#endif
 
     // Try mounting TNFS last
     return 0 == mount_tnfs();

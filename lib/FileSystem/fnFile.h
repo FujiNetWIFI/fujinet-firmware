@@ -1,17 +1,13 @@
 #ifndef FN_FILE_H
 #define FN_FILE_H
 
-#include <cstdio>
-
-#ifdef ESP_PLATFORM
-
-typedef std::FILE fnFile;
-
-#else
+#include <cstddef>
 
 /* 
-FileHandler - stdlib's FILE abstraction to allow implement other file protocols in application (no need for kernel/FUSE drivers)
-*/
+ * FileHandler - abstraction of FILE from stdio
+ * it allows to implement other file protocols at application layer
+ * no need to use kernel/VFS or FUSE drivers
+ */
 
 // TODO rename FileHandler to fnFile
 class FileHandler
@@ -28,9 +24,5 @@ public:
     virtual int flush() = 0;
     virtual int eof() {return 0;}; // TODO!
 };
-
-typedef FileHandler fnFile;
-
-#endif
 
 #endif // FN_FILE_H

@@ -33,7 +33,9 @@ public:
     const char *typestring() override { return type_to_string(FSTYPE_FTP); };
 
     FILE *file_open(const char *path, const char *mode = FILE_READ) override;
+#ifndef FNIO_IS_STDIO
     FileHandler *filehandler_open(const char *path, const char *mode = FILE_READ) override;
+#endif
 
     bool exists(const char *path) override;
 
@@ -52,10 +54,10 @@ public:
     uint16_t dir_tell() override;
     bool dir_seek(uint16_t pos) override;
 
+#ifndef FNIO_IS_STDIO
     FileHandler *cache_file(const char *path);
+#endif
 
-protected:
-    bool isValidURL(PeoplesUrlParser *url);
 };
 
 #endif // FN_FSFTP_H

@@ -1,4 +1,3 @@
-#ifndef ESP_PLATFORM
 
 #include <errno.h>
 
@@ -140,5 +139,3 @@ int FileHandlerSMB::flush()
     }
     return 0;
 }
-
-#endif // !ESP_PLATFORM
