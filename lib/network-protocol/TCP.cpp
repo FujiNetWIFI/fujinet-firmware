@@ -427,6 +427,11 @@ bool NetworkProtocolTCP::special_close_client_connection()
 
     Debug_printf("Disconnecting client %s:%u\r\n", remoteIPString, remotePort);
 
+    // Clear all buffers.
+    receiveBuffer->clear();
+    transmitBuffer->clear();
+    specialBuffer->clear();
+
     client.stop();
 
     return false;
