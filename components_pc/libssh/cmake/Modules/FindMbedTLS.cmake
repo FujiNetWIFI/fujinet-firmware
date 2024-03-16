@@ -93,7 +93,7 @@ if (MBEDTLS_VERSION)
             in the system variable MBEDTLS_ROOT_DIR"
     )
 else (MBEDTLS_VERSION)
-    find_package_handle_standard_args(MBedTLS
+    find_package_handle_standard_args(MbedTLS
         "Could NOT find mbedTLS, try to set the path to mbedLS root folder in
         the system variable MBEDTLS_ROOT_DIR"
         MBEDTLS_INCLUDE_DIR

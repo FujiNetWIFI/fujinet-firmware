@@ -64,7 +64,7 @@ if (ARGP_LIBRARY)
 endif (ARGP_LIBRARY)
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(ARGP DEFAULT_MSG ARGP_LIBRARIES ARGP_INCLUDE_DIR)
+find_package_handle_standard_args(Argp DEFAULT_MSG ARGP_LIBRARIES ARGP_INCLUDE_DIR)
 
 # show the ARGP_INCLUDE_DIR and ARGP_LIBRARIES variables only in the advanced view
 mark_as_advanced(ARGP_INCLUDE_DIR ARGP_LIBRARIES)
