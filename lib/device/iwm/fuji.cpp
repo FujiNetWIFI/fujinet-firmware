@@ -1329,6 +1329,7 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 	// case FUJICMD_DISABLE_DEVICE:         // 0xD4
 	case FUJICMD_DEVICE_ENABLE_STATUS: 		// 0xD1
 		send_stat_get_enable();
+		break;
 	case FUJICMD_GET_ADAPTERCONFIG_EXTENDED: // 0xC4
 		iwm_stat_get_adapter_config_extended(); // to do - set up as a DCB?
 		break;
