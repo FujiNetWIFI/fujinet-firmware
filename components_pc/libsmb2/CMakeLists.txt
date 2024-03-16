@@ -71,7 +71,7 @@ if(NOT ESP_PLATFORM)
     ##### EMD PICO_BOARD
 
   else() ##### DEFAULT
-    cmake_minimum_required(VERSION 3.2)
+    cmake_minimum_required(VERSION 3.5)
 
     project(libsmb2
             LANGUAGES C

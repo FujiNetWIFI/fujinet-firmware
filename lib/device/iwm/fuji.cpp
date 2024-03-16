@@ -742,7 +742,8 @@ void iwmFuji::iwm_ctrl_close_directory()
 
 void iwmFuji::iwm_stat_get_adapter_config_extended()
 {
-    // return string versions of the data rather than just bytes
+    // also return string versions of the data to save the host some computing
+	Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
     AdapterConfigExtended cfg;
     memset(&cfg, 0, sizeof(cfg));       // ensures all strings are null terminated
 
@@ -780,19 +781,8 @@ void iwmFuji::iwm_stat_get_adapter_config_extended()
 // Get network adapter configuration
 void iwmFuji::iwm_stat_get_adapter_config()
 {
-	// aux1/2 are bytes 0/1 of data_buffer, the special value of aux1=1 means do extended adapter config
-	uint8_t aux1 = data_buffer[0];
-    Debug_printf("Fuji cmd: GET ADAPTER CONFIG (aux1:%hu)\r\n", aux1);
-    if (aux1 == 1)
-    {
-        Debug_println("Returning extended adapter config information");
-        iwm_stat_get_adapter_config_extended();
-        return;
-    }
-
-	// Response to FUJICMD_GET_ADAPTERCONFIG
+	Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
 	AdapterConfig cfg;
-
 	memset(&cfg, 0, sizeof(cfg));
 
 	strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
@@ -1339,6 +1329,9 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 	// case FUJICMD_DISABLE_DEVICE:         // 0xD4
 	case FUJICMD_DEVICE_ENABLE_STATUS: 		// 0xD1
 		send_stat_get_enable();
+	case FUJICMD_GET_ADAPTERCONFIG_EXTENDED: // 0xC4
+		iwm_stat_get_adapter_config_extended(); // to do - set up as a DCB?
+		break;
 	case FUJICMD_STATUS: 					// 0x53
 		// to do? parallel to SP status?
 		break;
