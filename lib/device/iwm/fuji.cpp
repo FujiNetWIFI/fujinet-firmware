@@ -1455,7 +1455,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 		iwm_ctrl_copy_file();
 		break;
 	case FUJICMD_MOUNT_ALL: 				// 0xD7
-		mount_all();
+		err_result = (mount_all() == true ? SP_ERR_IOERROR : SP_ERR_NOERROR);
 		break;
 	case FUJICMD_SET_BOOT_MODE: 			// 0xD6
 		iwm_ctrl_set_boot_mode();
