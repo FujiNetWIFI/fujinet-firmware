@@ -918,6 +918,15 @@ void iwmFuji::iwm_stat_read_device_slots()
 	data_len = returnsize;
 }
 
+// Get the wifi enabled value
+void iwmFuji::iwm_stat_get_wifi_enabled()
+{
+	uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
+	Debug_printf("\nFuji cmd: GET WIFI ENABLED: %d", e);
+	data_buffer[0] = e;
+	data_len = 1;
+}
+
 // Read and save disk slot data from computer
 void iwmFuji::iwm_ctrl_write_device_slots()
 {
@@ -1289,6 +1298,9 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 		iwm_stat_read_device_slots();
 		break;
 	// case FUJICMD_WRITE_DEVICE_SLOTS:     // 0xF1
+	case FUJICMD_GET_WIFI_ENABLED:          // 0xEA
+		iwm_stat_get_wifi_enabled();
+		break;
 	// case FUJICMD_UNMOUNT_IMAGE:          // 0xE9
 	case FUJICMD_GET_ADAPTERCONFIG:	   		// 0xE8
 		iwm_stat_get_adapter_config(); // to do - set up as a DCB?

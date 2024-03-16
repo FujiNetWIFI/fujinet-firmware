@@ -144,6 +144,7 @@ protected:
     void iwm_ctrl_write_host_slots();       // 0xF3
     void iwm_stat_read_device_slots();      // 0xF2
     void iwm_ctrl_write_device_slots();     // 0xF1
+    void iwm_stat_get_wifi_enabled();       // 0xEA
     void iwm_ctrl_disk_image_umount();      // 0xE9
     void iwm_stat_get_adapter_config();     // 0xE8
     void iwm_stat_get_adapter_config_extended(); // 0xE8 (additional cmd data)
