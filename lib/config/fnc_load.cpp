@@ -21,7 +21,7 @@ void fnConfig::load()
 #ifdef ESP_PLATFORM
     Debug_println("fnConfig::load");
 
-#ifdef BUILD_ATARI
+#if defined(BUILD_ATARI) || defined(BUILD_ADAM)
     // Don't erase config if there are no buttons or on devices without Button B
     // Clear the config file if key is currently pressed
     // This is the "Turn on while holding B button to reset Config" option.
