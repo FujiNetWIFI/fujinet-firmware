@@ -156,7 +156,7 @@ protected:
 /*
     void adamnet_set_hadamnet_index();         // 0xE3
 */
-    void iwm_ctrl_set_device_filename();    // 0xE2
+    uint8_t iwm_ctrl_set_device_filename(); // 0xE2
 
     void iwm_ctrl_set_host_prefix();        // 0xE1
     void iwm_stat_get_host_prefix();        // 0xE0

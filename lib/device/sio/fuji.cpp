@@ -1899,14 +1899,14 @@ void sioFuji::sio_set_device_filename()
     char tmp[MAX_FILENAME_LEN];
 
     // AUX1 is the desired device slot
-    uint8_t slot = cmdFrame.aux1;
+    uint8_t deviceSlot = cmdFrame.aux1;
     // AUX2 contains the host slot and the mount mode (READ/WRITE)
     uint8_t host = cmdFrame.aux2 >> 4;
     uint8_t mode = cmdFrame.aux2 & 0x0F;
 
     uint8_t ck = bus_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
 
-    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", deviceSlot, host, mode, tmp);
 
     if (sio_checksum((uint8_t *)tmp, MAX_FILENAME_LEN) != ck)
     {
@@ -1915,11 +1915,11 @@ void sioFuji::sio_set_device_filename()
     }
 
     // Handle DISK slots
-    if (slot < MAX_DISK_DEVICES)
+    if (deviceSlot < MAX_DISK_DEVICES)
     {
-        memcpy(_fnDisks[cmdFrame.aux1].filename, tmp, MAX_FILENAME_LEN);
-        _fnDisks[cmdFrame.aux1].host_slot = host;
-        _fnDisks[cmdFrame.aux1].access_mode = mode;
+        memcpy(_fnDisks[deviceSlot].filename, tmp, MAX_FILENAME_LEN);
+        _fnDisks[deviceSlot].host_slot = host;
+        _fnDisks[deviceSlot].access_mode = mode;
         _populate_config_from_slots();
     }
     // Handle TAPE slots
