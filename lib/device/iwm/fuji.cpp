@@ -1010,22 +1010,35 @@ void iwmFuji::_populate_config_from_slots()
 }
 
 // Write a 256 byte filename to the device slot
-void iwmFuji::iwm_ctrl_set_device_filename()
+uint8_t iwmFuji::iwm_ctrl_set_device_filename()
 {
+	uint8_t err_return = SP_ERR_NOERROR;
 	char f[MAX_FILENAME_LEN];
 	int idx = 0;
-	unsigned char ds = data_buffer[idx++]; // adamnet_recv();
+	uint8_t deviceSlot = data_buffer[idx++];
+	uint8_t host = data_buffer[idx++];
+	uint8_t mode = data_buffer[idx++];
+
 	uint16_t s = data_len;
-	s--;
+	s -= 3; 	// remove 3 bytes for other args
 
-	Debug_printf("\nSET DEVICE SLOT %d", ds);
+	Debug_printf("\nSET DEVICE SLOT: %d, HOST: %d, MODE: %d", deviceSlot, host, mode);
 
-	// adamnet_recv_buffer((uint8_t *)&f, s);
 	memcpy((uint8_t *)&f, &data_buffer[idx], s);
 	Debug_printf("\nfilename: %s", f);
 
-	memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
-	_populate_config_from_slots(); // this one maybe unnecessary?
+	if (deviceSlot < MAX_DISK_DEVICES) {
+		memcpy(_fnDisks[deviceSlot].filename, f, MAX_FILENAME_LEN);
+		_fnDisks[deviceSlot].host_slot = host;
+		_fnDisks[deviceSlot].access_mode = mode;
+		_populate_config_from_slots();
+	}
+	else
+	{
+		Debug_println("\nBAD DEVICE SLOT");
+		err_return = SP_ERR_BADCTL;
+	}
+	return err_return;
 }
 
 // Get a 256 byte filename from device slot
@@ -1433,7 +1446,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 		iwm_ctrl_set_directory_position();
 		break;
 	case FUJICMD_SET_DEVICE_FULLPATH: 		// 0xE2
-		iwm_ctrl_set_device_filename();
+		err_result = iwm_ctrl_set_device_filename();
 		break;
 	case FUJICMD_SET_HOST_PREFIX: 			// 0xE1
 		iwm_ctrl_set_host_prefix();
