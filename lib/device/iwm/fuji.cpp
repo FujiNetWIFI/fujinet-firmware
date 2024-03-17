@@ -778,6 +778,18 @@ void iwmFuji::iwm_stat_get_adapter_config_extended()
 
 }
 
+void iwmFuji::iwm_stat_fuji_status()
+{
+	// Place holder for 4 bytes to fill the Fuji device status.
+	// TODO: decide what we want to tell the host.
+	// e.g. 
+	// - are all devices working? maybe some bitmap
+	// - how many devices do we have?
+	char ret[4] = {0};
+	memcpy(data_buffer, &ret[0], 4);
+	data_len = 4;
+}
+
 // Get network adapter configuration
 void iwmFuji::iwm_stat_get_adapter_config()
 {
@@ -1360,6 +1372,11 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 		break;
 	case FUJICMD_STATUS: 					// 0x53
 		// to do? parallel to SP status?
+		// This should be the status, in some way, of the FUJI device itself.
+		// Though what we want to return is anyone's guess.
+		// For now, if it's responding, then it's probably good enough to say it's
+		// ok.
+		iwm_stat_fuji_status();
 		break;
 	default:
 		Debug_printf("\nBad Status Code, sending error response");

@@ -178,6 +178,7 @@ protected:
     void iwm_ctrl_enable_device();          // 0xD5
     void iwm_ctrl_disable_device();         // 0xD4
     void send_stat_get_enable();        // 0xD1
+    void iwm_stat_fuji_status();        // 0x53
 
     void shutdown() override;
     void process(iwm_decoded_cmd_t cmd) override;
