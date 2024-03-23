@@ -126,6 +126,25 @@ void sioDisk::sio_status()
 
     uint8_t _status[4];
     _status[0] = 0x00;
+    
+    if (_disk != nullptr)
+    {
+        if (_disk->_disk_num_sectors == 1040)
+        {
+            _status[0] |= 0x80; // 1050 density
+        }
+
+        if (_disk->_disk_sector_size == 256)
+        {
+            _status[0] |= 0x20; // Double density
+        }
+
+        if (_disk->_disk_num_sectors == 1440 || _disk->_disk_num_sectors == 2880)
+        {
+            _status[0] |= 0x40; // Double sided
+        }
+    }
+
     _status[1] = ~DISK_CTRL_STATUS_CLEAR; // Negation of default clear status
     _status[2] = DRIVE_DEFAULT_TIMEOUT_810;
     _status[3] = 0x00;
