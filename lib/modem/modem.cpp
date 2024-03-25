@@ -9,6 +9,7 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "siocpm.h"
+#include "led.h"
 
 #include "utils.h"
 
@@ -333,6 +334,7 @@ void modem::sio_write()
             }
             else
             {
+                fnLedManager.blink(LED_BT,1);
                 if (tcpClient.connected())
                     tcpClient.write(txBuf, cmdFrame.aux1);
             }
@@ -588,6 +590,8 @@ void modem::sio_listen()
         tcpServer.stop();
     }
 
+    fnLedManager.blink(LED_BT);
+
     listenPort = cmdFrame.aux2 * 256 + cmdFrame.aux1;
 
     if (listenPort < 1)
@@ -613,6 +617,7 @@ void modem::sio_listen()
 void modem::sio_unlisten()
 {
     sio_ack();
+    fnLedManager.blink(LED_BT);
     tcpClient.stop();
     tcpServer.stop();
     sio_complete();
@@ -627,6 +632,8 @@ void modem::sio_baudlock()
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
     modemBaud = sio_get_aux();
 
+    fnLedManager.blink(LED_BT);
+
     Debug_printf("baudLock: %d\n", baudLock);
 
     sio_complete();
@@ -639,6 +646,8 @@ void modem::sio_autoanswer()
 {
     sio_ack();
     autoAnswer = (cmdFrame.aux1 > 0 ? true : false);
+
+    fnLedManager.blink(LED_BT);
 
     Debug_printf("autoanswer: %d\n", autoAnswer);
 
@@ -695,6 +704,8 @@ void modem::at_cmd_println()
     if (cmdOutput == false)
         return;
 
+    fnLedManager.set(LED_BT,true);
+
     if (cmdAtascii == true)
     {
         get_uart()->write(ATASCII_EOL);
@@ -705,12 +716,16 @@ void modem::at_cmd_println()
         get_uart()->write(ASCII_LF);
     }
     get_uart()->flush();
+
+    fnLedManager.set(LED_BT,false);
 }
 
 void modem::at_cmd_println(const char *s, bool addEol)
 {
     if (cmdOutput == false)
         return;
+
+    fnLedManager.set(LED_BT,true);
 
     get_uart()->print(s);
     if (addEol)
@@ -726,12 +741,16 @@ void modem::at_cmd_println(const char *s, bool addEol)
         }
     }
     get_uart()->flush();
+
+    fnLedManager.set(LED_BT,false);
 }
 
 void modem::at_cmd_println(int i, bool addEol)
 {
     if (cmdOutput == false)
         return;
+
+    fnLedManager.set(LED_BT,true);
 
     get_uart()->print(i);
     if (addEol)
@@ -747,12 +766,16 @@ void modem::at_cmd_println(int i, bool addEol)
         }
     }
     get_uart()->flush();
+
+    fnLedManager.set(LED_BT,false);
 }
 
 void modem::at_cmd_println(std::string s, bool addEol)
 {
     if (cmdOutput == false)
         return;
+
+    fnLedManager.set(LED_BT,true);
 
     get_uart()->print(s);
     if (addEol)
@@ -768,6 +791,8 @@ void modem::at_cmd_println(std::string s, bool addEol)
         }
     }
     get_uart()->flush();
+
+    fnLedManager.set(LED_BT,false);
 }
 
 void modem::at_handle_wificonnect()
@@ -1565,6 +1590,7 @@ void modem::sio_handle_modem()
         if (answerHack == true)
         {
             Debug_printf("XXX ANSWERHACK !!! SENDING ATA! ");
+            fnLedManager.blink(LED_BT,2);
             cmd = "ATA";
             modemCommand();
             answerHack = false;
@@ -1689,6 +1715,7 @@ void modem::sio_handle_modem()
         if (tcpServer.hasClient())
         {
             fnTcpClient c = tcpServer.accept();
+            fnLedManager.blink(LED_BT,3);
             c.write("The MODEM is currently serving another caller. Please try again later.\x0d\x0a\x9b");
             c.stop();
         }
@@ -1715,6 +1742,8 @@ void modem::sio_handle_modem()
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
         {
+            fnLedManager.set(eLed::LED_BT,true);
+            
             // In telnet in worst case we have to escape every uint8_t
             // so leave half of the buffer always free
             //int max_buf_size;
@@ -1757,6 +1786,8 @@ void modem::sio_handle_modem()
             // And send it off to the sniffer, if enabled.
             modemSniffer->dumpOutput(&txBuf[0], sioBytesRead);
             _lasttime = fnSystem.millis();
+
+            fnLedManager.set(eLed::LED_BT,false);
         }
 
         // read from Fujinet to Atari
@@ -1766,6 +1797,8 @@ void modem::sio_handle_modem()
         // check to see how many bytes are avail to read
         while ((bytesAvail = tcpClient.available()) > 0)
         {
+            fnLedManager.set(eLed::LED_BT,true);
+
             // read as many as our buffer size will take (RECVBUFSIZE)
             unsigned int bytesRead =
                 tcpClient.read(buf, (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
@@ -1780,6 +1813,8 @@ void modem::sio_handle_modem()
                 get_uart()->flush();
             }
 
+            fnLedManager.set(eLed::LED_BT,false);
+ 
             // And dump to sniffer, if enabled.
             modemSniffer->dumpInput(buf, bytesRead);
             _lasttime = fnSystem.millis();
