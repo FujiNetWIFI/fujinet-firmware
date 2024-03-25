@@ -140,8 +140,8 @@ int fnHttpServiceBrowser::browse_html_escape(const char *src, size_t src_len, ch
 int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, FileSystem *fs, int slot, const char *host_path, unsigned pathlen)
 {
     char path[256];
-    char enc_path[256]; // URL encoded path
-    char esc_path[256]; // HTML escaped path
+    char enc_path[1024]; // URL encoded path
+    char esc_path[1024]; // HTML escaped path
 
     if (pathlen > 0)
     {
@@ -456,8 +456,8 @@ void fnHttpServiceBrowser::print_dentry(mg_connection *c, fsdir_entry *dp, int s
     const char *slash = dp->isDir ? "/" : "";
     const char *form = dp->isDir ? "" : "?action=slotlist";
     const char *sep = enc_path[strlen(enc_path)-1] == '/' ? "" : "/";
-    char enc_filename[128]; // URL encoded file name
-    char esc_filename[128]; // HTML escaped file name
+    char enc_filename[1024]; // URL encoded file name
+    char esc_filename[1024]; // HTML escaped file name
 
     if (browse_url_encode(dp->filename, strlen(dp->filename), enc_filename, sizeof(enc_filename)) < 0)
     {
