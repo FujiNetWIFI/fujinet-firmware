@@ -29,16 +29,16 @@ If a file has an extention pre-determined to support parsing (see/update
 #ifndef HTTPSERVICE_H
 #define HTTPSERVICE_H
 
+#include <map>
+#include <string>
+
+#include "fnFS.h"
+
 #ifdef ESP_PLATFORM
 #include <esp_http_server.h>
 #else
 #include "mongoose.h"
 #endif
-
-#include <map>
-#include <string>
-
-#include "fnFS.h"
 
 // FNWS_FILE_ROOT should end in a slash '/'
 #define FNWS_FILE_ROOT "/www/"
@@ -93,7 +93,7 @@ class fnHttpService
 #else
 // !ESP_PLATFORM
     static struct mg_mgr * start_server(serverstate &state);
-    static void cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data);
+    static void cb(struct mg_connection *c, int ev, void *ev_data);
     static void return_http_error(struct mg_connection *c, _fnwserr errnum);
     static const char * find_mimetype_str(const char *extension);
     static const char * get_extension(const char *filename);

@@ -242,7 +242,6 @@ void fnConfig::_read_section_bos(std::stringstream &ss)
             }
             else if (strcasecmp(name.c_str(), "port_name") == 0)
             {
-                Debug_printf("XXXXXXXXXXXX CONFIG: Setting port_name from config to %s\n", value.c_str());
                 _bos.port_name = value;
             }
             else if (strcasecmp(name.c_str(), "baud") == 0)

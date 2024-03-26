@@ -7,6 +7,8 @@
 
 // http timeout in ms
 #define HTTP_TIMEOUT 7000
+// while debugging, increase timeout
+// #define HTTP_TIMEOUT 600000
 
 // using namespace fujinet;
 
@@ -24,6 +26,11 @@ private:
     std::string _url;
 
     char *_buffer; // Will be allocated to hold message received by mongoose
+
+    // char *_dechunk_buffer; // allocated to handle dechunking
+    // will the read keep returning the old data? or can we detect and move on? the service won't be repeating, so we need to reset buffer correctly after dechunking
+    // uint16_t old_chunk_length = 0;
+
     int _buffer_pos;
     int _buffer_len;
     int _buffer_total_read;
@@ -32,6 +39,8 @@ private:
     // TaskHandle_t _taskh_subtask = nullptr;
     bool _processed;
     bool _progressed;
+
+    // bool _chunked;
 
     bool _ignore_response_body = false;
     bool _transaction_begin;
@@ -80,7 +89,7 @@ private:
 
     // static void _perform_subtask(void *param);
     // static esp_err_t _httpevent_handler(esp_http_client_event_t *evt);
-    static void _httpevent_handler(struct mg_connection *c, int ev, void *ev_data, void *user_data);
+    static void _httpevent_handler(struct mg_connection *c, int ev, void *ev_data);
 
     // void _delete_subtask_if_running();
 
@@ -89,6 +98,10 @@ private:
     int _perform();
     void _perform_connect();
     // int _perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size);
+
+    // These are for 2nd part of the upgrade
+    // void process_data(struct mg_connection *c);
+    // void process_connect(struct mg_connection *c);
 
 public:
 
@@ -115,6 +128,7 @@ public:
     int COPY(const char *destination, bool overwrite, bool move = false);
     int MOVE(const char *destination, bool overwrite);
 
+    bool is_transaction_done() { return _transaction_done; }
     int available();
 
     int read(uint8_t *dest_buffer, int dest_bufflen);

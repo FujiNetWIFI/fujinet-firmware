@@ -28,6 +28,9 @@
  */
 #define ALIVE_RATE_MS       1000
 #define ALIVE_TIMEOUT_MS    5000
+// While debugging:
+// #define ALIVE_RATE_MS       200000
+// #define ALIVE_TIMEOUT_MS    600000
 
 // Constructor
 NetSioPort::NetSioPort() :

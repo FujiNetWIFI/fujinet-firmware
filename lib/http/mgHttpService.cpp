@@ -4,13 +4,10 @@
 
 #ifndef ESP_PLATFORM
 
-#include "httpService.h"
-
 #include <sstream>
 #include <vector>
 #include <map>
 
-#include "../../include/debug.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -20,10 +17,12 @@
 #include "printer.h"
 #include "fuji.h"
 
+#include "httpService.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
 #include "httpServiceBrowser.h"
 
+#include "../../include/debug.h"
 
 
 using namespace std;
@@ -598,7 +597,7 @@ int fnHttpService::get_handler_eject(mg_connection *c, mg_http_message *hm)
     return 0;
 }
 
-void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data, void *fn_data)
+void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
 {
     static const char *s_root_dir = "data/www";
 
@@ -692,7 +691,6 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data, void *fn_
             mg_http_serve_dir(c, (mg_http_message*)ev_data, &opts);
         }
     }
-    (void) fn_data;
 }
 
 struct mg_mgr * fnHttpService::start_server(serverstate &srvstate)
