@@ -191,6 +191,7 @@ int fnConfig::_read_line(std::stringstream &ss, std::string &line, char abort_if
     while ((iseof = ss.eof()) == false)
     {
         ss.read(&c, 1);
+        if ((iseof = ss.eof()) == true) break; // eof reached, get out
 
         // Consume the next character after \r if it's a \n
         if (c == '\r')
