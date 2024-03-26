@@ -1,6 +1,3 @@
-
-#include "fnFS.h"
-
 #ifdef ESP_PLATFORM
 #include <esp_vfs.h>
 #endif
@@ -9,6 +6,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "fnFS.h"
 #include "compat_string.h"
 #include "../../include/debug.h"
 

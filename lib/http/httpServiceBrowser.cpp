@@ -2,8 +2,6 @@
 
 #include "compat_string.h"
 
-#include "httpServiceBrowser.h"
-#include "httpService.h"
 #include "fuji.h"
 #include "fnFsSD.h"
 #include "fnFsTNFS.h"
@@ -12,6 +10,9 @@
 #include "fnTaskManager.h"
 #include "fnConfig.h"
 #include "fnio.h"
+
+#include "httpServiceBrowser.h"
+#include "httpService.h"
 
 #include "debug.h"
 
