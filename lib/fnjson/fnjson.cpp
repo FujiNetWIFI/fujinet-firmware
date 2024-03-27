@@ -163,7 +163,8 @@ std::string FNJSON::getValue(cJSON *item)
     if (cJSON_IsString(item))
     {
         char *strValue = cJSON_GetStringValue(item);
-        Debug_printf("S: [cJSON_IsString] %s\r\n", strValue);
+        // Debug_printf("S: [cJSON_IsString] %s\r\n", strValue);
+        Debug_printf("S: [cJSON_IsString] ... (not printing)\r\n");
         ss << processString(strValue + lineEnding);
     }
     else if (cJSON_IsBool(item))

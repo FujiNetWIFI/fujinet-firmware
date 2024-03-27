@@ -2,14 +2,6 @@
 
 # an interface to running pio builds
 # args can be combined, e.g. '-cbufm' and in any order.
-# switches with values must be specified separately.
-# typical usage:
-#   ./build.sh -h           # display help for this script!
-#   ./build.sh -cb          # clean and build firmware
-#   ./build.sh -m           # monitor device
-#   ./build.sh -u           # upload firmware image
-#   ./build.sh -f           # upload file system
-
 # SEE build-sh.md FOR ADDITIONAL IMPORTANT INFORMATION ABOUT
 # CONFIGURATION INI FILE USAGE
 
@@ -23,7 +15,7 @@ SHOW_GRAPH=0
 SHOW_MONITOR=0
 TARGET_NAME=""
 PC_TARGET=""
-DEBUG_PC_BUILD=1
+DEBUG_PC_BUILD=0
 UPLOAD_IMAGE=0
 UPLOAD_FS=0
 DEV_MODE=0
@@ -31,38 +23,48 @@ ZIP_MODE=0
 AUTOCLEAN=1
 SETUP_NEW_BOARD=""
 ANSWER_YES=0
+CMAKE_GENERATOR=""
 INI_FILE="${SCRIPT_DIR}/platformio-generated.ini"
 LOCAL_INI_VALUES_FILE="${SCRIPT_DIR}/platformio.local.ini"
 
 function show_help {
-  echo "Usage: $(basename $0) [-a|-b|-c|-d|-e ENV|-f|-g|-i FILE|-m|-n|-t TARGET|-p TARGET|-s BOARD_NAME|-u|-y|-z|-h] -- [additional args]"
-  echo " Most common options:"
-  echo "   -c       # run clean before build (applies to PC build too)"
-  echo "   -b       # run build"
-  echo "   -m       # run monitor after build"
-  echo "   -u       # upload image (device code)"
-  echo "   -f       # upload filesystem (webUI etc)"
-  echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI)"
+  echo "Usage: $(basename $0) [options] -- [additional args]"
   echo ""
-  echo "Advanced options:"
-  echo "   -a       # build ALL target platforms and exit. useful to test code against everything"
+  echo "fujinet-firmware (pio) options:"
+  echo "   -c       # run clean before build"
+  echo "   -b       # run build"
+  echo "   -u       # upload firmware"
+  echo "   -f       # upload filesystem (webUI etc)"
+  echo "   -m       # run monitor after build"
   echo "   -d       # add dev flag to build"
   echo "   -e ENV   # use specific environment"
-  echo "   -g       # do NOT use debug for PC build, i.e. default is debug build"
-  echo "   -i FILE  # use FILE as INI instead of platformio.ini -  used during build-all"
-  echo "   -l FILE  # use FILE for local ini values when creating generated INI file"
-  echo "   -n       # do not autoclean"
-  echo "   -s NAME  # Setup a new board from name, writes a new file 'platformio.local.ini'"
   echo "   -t TGT   # run target task (default of none means do build, but -b must be specified"
-  echo "   -y       # answers any questions with Y automatically, for unattended builds"
+  echo "   -n       # do not autoclean"
+  echo ""
+  echo "one-off firmware options"
+  echo "   -a       # build ALL target platforms to test changes work on all platforms"
   echo "   -z       # build flashable zip"
+  echo ""
+  echo "fujinet-firmware board setup options:"
+  echo "   -s NAME  # Setup a new board from name, writes a new file 'platformio.local.ini'"
+  echo "   -i FILE  # use FILE as INI instead of platformio-generated.ini"
+  echo "   -l FILE  # use FILE to use instead of 'platform.local.ini'"
+  echo ""
+  echo "fujinet-pc (cmake) options:"
+  echo "   -c       # run clean before build"
+  echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI)"
+  echo "   -g       # enable debug in generated fujinet-pc exe"
+  echo "   -G GEN   # Use GEN as the Generator for cmake (e.g. -G \"Unix Makefiles\" )"  
+  echo ""
+  echo "other options:"  
+  echo "   -y       # answers any questions with Y automatically, for unattended builds"
   echo "   -h       # this help"
   echo ""
   echo "Additional Args can be accepted to pass values onto sub processes where supported."
-  echo "  e.g. ./build.sh -p APPLE -- -DSLIP_PROTOCOL=COM"
+  echo "  e.g. ./build.sh -p APPLE -- -DFOO=BAR"
   echo ""
-  echo "Simple builds:"
-  echo "    ./build.sh -cb        # for CLEAN + BUILD of current target in platformio.ini"
+  echo "Simple firmware builds:"
+  echo "    ./build.sh -cb        # for CLEAN + BUILD of current target in platformio-local.ini"
   echo "    ./build.sh -m         # View FujiNet Monitor"
   echo "    ./build.sh -cbum      # Clean/Build/Upload to FN/Monitor"
   exit 1
@@ -72,7 +74,7 @@ if [ $# -eq 0 ] ; then
   show_help
 fi
 
-while getopts "abcde:fghi:l:mnp:s:t:uyz" flag
+while getopts "abcde:fgG:hi:l:mnp:s:t:uyz" flag
 do
   case "$flag" in
     a) BUILD_ALL=1 ;;
@@ -81,7 +83,7 @@ do
     d) DEV_MODE=1 ;;
     e) ENV_NAME=${OPTARG} ;;
     f) UPLOAD_FS=1 ;;
-    g) DEBUG_PC_BUILD=0 ;;
+    g) DEBUG_PC_BUILD=1 ;;
     i) INI_FILE=${OPTARG} ;;
     l) LOCAL_INI_VALUES_FILE=${OPTARG} ;;
     m) SHOW_MONITOR=1 ;;
@@ -90,6 +92,7 @@ do
     t) TARGET_NAME=${OPTARG} ;;
     s) SETUP_NEW_BOARD=${OPTARG} ;;
     u) UPLOAD_IMAGE=1 ;;
+    G) CMAKE_GENERATOR=${OPTARG} ;;
     y) ANSWER_YES=1  ;;
     z) ZIP_MODE=1 ;;
     h) show_help ;;
@@ -109,6 +112,12 @@ fi
 # PC BUILD using cmake
 if [ ! -z "$PC_TARGET" ] ; then
   echo "PC Build Mode"
+
+  GEN_CMD=""
+  if [ -n "$CMAKE_GENERATOR" ] ; then
+    GEN_CMD="-G $CMAKE_GENERATOR"
+  fi
+
   mkdir -p "$SCRIPT_DIR/build"
   LAST_TARGET_FILE="$SCRIPT_DIR/build/last-target"
   LAST_TARGET=""
@@ -126,13 +135,14 @@ if [ ! -z "$PC_TARGET" ] ; then
   fi
   cd $SCRIPT_DIR/build
   # Write out the compile commands for clangd etc to use
-  cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DFUJINET_TARGET=$PC_TARGET "$@"
+  cmake "$GEN_CMD" .. -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DFUJINET_TARGET=$PC_TARGET "$@"
   # Run the specific build
+  BUILD_TYPE="Release"
   if [ $DEBUG_PC_BUILD -eq 1 ] ; then
-    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Debug "$@"
-  else
-    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=Release "$@"
+    BUILD_TYPE="Debug"
   fi
+  echo "Building for $BUILD_TYPE"
+  cmake "$GEN_CMD" .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=$BUILD_TYPE "$@"
   if [ $? -ne 0 ] ; then
     echo "Error running initial cmake. Aborting"
     exit 1
