@@ -185,7 +185,10 @@ void fnHttpService::send_file(struct mg_connection *c, const char *filename)
 
     // Handle file differently if it's one of the types we parse
     if (fnHttpServiceParser::is_parsable(get_extension(filename)))
-        return send_file_parsed(c, fpath.c_str());
+    {
+        send_file_parsed(c, fpath.c_str());
+        return;
+    }
 
     // Retrieve server state
     serverstate *pState = &fnHTTPD.state; // ops TODO
@@ -233,77 +236,6 @@ int fnHttpService::redirect_or_result(mg_connection *c, mg_http_message *hm, int
     }
     return result;
 }
-
-// void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
-// {
-//     results->full_uri += req->uri;
-//     // See if we have any arguments
-//     int path_end = results->full_uri.find_first_of('?');
-//     if (path_end < 0)
-//     {
-//         results->path += results->full_uri;
-//         return;
-//     }
-//     results->path += results->full_uri.substr(0, path_end - 1);
-//     results->query += results->full_uri.substr(path_end + 1);
-//     // TO DO: parse arguments, but we've no need for them yet
-// }
-
-// esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
-// {
-//     Debug_printf("Index request handler %p\n", xTaskGetCurrentTaskHandle());
-
-//     send_file(req, "index.html");
-//     return ESP_OK;
-// }
-
-// esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
-// {
-//     TaskHandle_t task = xTaskGetCurrentTaskHandle();
-//     Debug_printf("Test request handler %p\n", task);
-
-//     //Debug_printf("WiFI handle %p\n", handle_WiFi);
-//     //vTaskPrioritySet(handle_WiFi, 5);
-
-//     // Send the file content out in chunks
-//     char testln[100];
-//     for (int i = 0; i < 2000; i++)
-//     {
-//         int z = sprintf(testln, "%04d %06lu %p 0123456789 ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz<br/>\n",
-//                         i, fnSystem.millis() / 100, task);
-//         httpd_resp_send_chunk(req, testln, z);
-//     }
-//     httpd_resp_send_chunk(req, nullptr, 0);
-
-//     //vTaskPrioritySet(handle_WiFi, 23);
-
-//     Debug_println("Test completed");
-//     return ESP_OK;
-// }
-
-// esp_err_t fnHttpService::get_handler_file_in_query(httpd_req_t *req)
-// {
-//     //Debug_printf("File_in_query request handler '%s'\n", req->uri);
-
-//     // Get the file to send from the query
-//     queryparts qp;
-//     parse_query(req, &qp);
-//     send_file(req, qp.query.c_str());
-
-//     return ESP_OK;
-// }
-
-// esp_err_t fnHttpService::get_handler_file_in_path(httpd_req_t *req)
-// {
-//     //Debug_printf("File_in_path request handler '%s'\n", req->uri);
-
-//     // Get the file to send from the query
-//     queryparts qp;
-//     parse_query(req, &qp);
-//     send_file(req, qp.path.c_str());
-
-//     return ESP_OK;
-// }
 
 int fnHttpService::get_handler_print(struct mg_connection *c)
 {
@@ -412,53 +344,6 @@ int fnHttpService::get_handler_print(struct mg_connection *c)
     return 0; //ESP_OK;
 }
 
-// esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
-// {
-//     Debug_printf("Modem Sniffer output request handler\n");
-//     ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
-//     Debug_printf("Got modem Sniffer.\n");
-//     time_t now = fnSystem.millis();
-
-//     if (now - sioR->get_last_activity_time() < PRINTER_BUSY_TIME) // re-using printer timeout constant.
-//     {
-//         return_http_error(req, fnwserr_post_fail);
-//         return ESP_FAIL;
-//     }
-
-//     set_file_content_type(req,"modem-sniffer.txt");
-
-//     FILE *sOutput = modemSniffer->closeOutputAndProvideReadHandle();
-//     Debug_printf("Got file handle %p\n",sOutput);
-//     if(sOutput == nullptr)
-//     {
-//         return_http_error(req, fnwserr_post_fail);
-//         return ESP_FAIL;
-//     }
-    
-//     // Finally, write the data
-//     // Send the file content out in chunks
-//     char *buf = (char *)malloc(FNWS_SEND_BUFF_SIZE);
-//     size_t count = 0, total = 0;
-//     do
-//     {
-//         count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, sOutput);
-//         // Debug_printf("fread %d, %d\n", count, errno);
-//         total += count;
-
-//         httpd_resp_send_chunk(req, buf, count);
-//     } while (count > 0);
-
-//     Debug_printf("Sent %u bytes total from sniffer file\n", total);
-
-//     free(buf);
-//     fclose(sOutput);
-
-//     Debug_printf("Sniffer dump completed.\n");
-
-//     return ESP_OK;
-// }
-
-// esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
 int fnHttpService::post_handler_config(struct mg_connection *c, struct mg_http_message *hm)
 {
 
@@ -690,6 +575,7 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
             struct mg_http_serve_opts opts = {s_root_dir, NULL};
             mg_http_serve_dir(c, (mg_http_message*)ev_data, &opts);
         }
+        c->is_draining = 1;
     }
 }
 
