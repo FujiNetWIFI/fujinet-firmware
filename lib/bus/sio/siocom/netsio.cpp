@@ -417,7 +417,9 @@ int NetSioPort::handle_netsio()
 
             case NETSIO_COLD_RESET:
                 // emulator cold reset, do fujinet restart
+#ifndef DEBUG_NO_REBOOT
                 fnSystem.reboot();
+#endif
                 break;
 
             default:

@@ -112,7 +112,8 @@ fi
 # PC BUILD using cmake
 if [ ! -z "$PC_TARGET" ] ; then
   echo "PC Build Mode"
-
+  # lets build_webui.py know we are using the generated INI file, this variable name is the one PIO uses when it calls subprocesses, so we use same name.
+  export PROJECT_CONFIG=$INI_FILE
   GEN_CMD=""
   if [ -n "$CMAKE_GENERATOR" ] ; then
     GEN_CMD="-G $CMAKE_GENERATOR"
@@ -128,27 +129,41 @@ if [ ! -z "$PC_TARGET" ] ; then
     DO_CLEAN=1
   fi
   echo -n "$PC_TARGET" > ${LAST_TARGET_FILE}
+
   if [ $DO_CLEAN -eq 1 ] ; then
     echo "Removing old build artifacts"
     rm -rf $SCRIPT_DIR/build/*
     rm $SCRIPT_DIR/build/.ninja* 2>/dev/null
   fi
+
   cd $SCRIPT_DIR/build
   # Write out the compile commands for clangd etc to use
-  cmake "$GEN_CMD" .. -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DFUJINET_TARGET=$PC_TARGET "$@"
+  if [ -z "$GEN_CMD" ]; then
+    cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DFUJINET_TARGET=$PC_TARGET "$@"
+  else
+    cmake "$GEN_CMD" .. -DCMAKE_EXPORT_COMPILE_COMMANDS=1 -DFUJINET_TARGET=$PC_TARGET "$@"
+  fi
   # Run the specific build
   BUILD_TYPE="Release"
   if [ $DEBUG_PC_BUILD -eq 1 ] ; then
     BUILD_TYPE="Debug"
   fi
+
   echo "Building for $BUILD_TYPE"
-  cmake "$GEN_CMD" .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=$BUILD_TYPE "$@"
+  if [ -z "$GEN_CMD" ]; then
+    cmake .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=$BUILD_TYPE "$@"
+  else
+    cmake "$GEN_CMD" .. -DFUJINET_TARGET=$PC_TARGET -DCMAKE_BUILD_TYPE=$BUILD_TYPE "$@"
+  fi
   if [ $? -ne 0 ] ; then
     echo "Error running initial cmake. Aborting"
     exit 1
   fi
-  # check if all the required python modules are installed
-  python -c "import importlib.util, sys; sys.exit(0 if all(importlib.util.find_spec(mod.strip()) for mod in open('${SCRIPT_DIR}/python_modules.txt')) else 1)"
+
+  # python_modules.txt contains pairs of module name and installable package names, separated by pipe symbol
+  MOD_LIST=$(sed '/^#/d' < "${SCRIPT_DIR}/python_modules.txt" | cut -d\| -f1 | tr '\n' ' ' | sed 's# *$##;s# \{1,\}# #g')
+  echo "Checking python modules installed: $MOD_LIST"
+  python -c "import importlib.util, sys; sys.exit(0 if all(importlib.util.find_spec(mod.strip()) for mod in '''$MOD_LIST'''.split()) else 1)"
   if [ $? -eq 1 ] ; then
     echo "At least one of the required python modules is missing"
     sh ${SCRIPT_DIR}/install_python_modules.sh
@@ -159,11 +174,14 @@ if [ ! -z "$PC_TARGET" ] ; then
     echo "Error running actual cmake build. Aborting"
     exit 1
   fi
+
+  # write it into the dist dir
   cmake --build . --target dist
   if [ $? -ne 0 ] ; then
     echo "Error running cmake distribution. Aborting"
     exit 1
   fi
+
   echo "Built PC version in build/dist folder"
   exit 0
 fi
@@ -271,5 +289,9 @@ if [ ${UPLOAD_IMAGE} -eq 1 ] ; then
 fi
 
 if [ ${SHOW_MONITOR} -eq 1 ] ; then
-  pio device monitor 2>&1
+  # device monitor hard codes to using platformio.ini, let's grab all the data it would use directly from our generated ini.
+  MONITOR_PORT=$(grep ^monitor_port $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
+  MONITOR_SPEED=$(grep ^monitor_speed $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
+  MONITOR_FILTERS=$(grep ^monitor_filters $INI_FILE | cut -d= -f2 | cut -d\; -f1 | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')  
+  pio device monitor -p $MONITOR_PORT -b $MONITOR_SPEED $MONITOR_FILTERS 2>&1
 fi
