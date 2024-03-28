@@ -34,6 +34,9 @@ build_board = os.environ.get("FUJINET_BUILD_BOARD")
 build_platform = os.environ.get("FUJINET_BUILD_PLATFORM")
 build_data_dir = os.environ.get("BUILD_DATA_DIR")
 
+# PROJECT_CONFIG is set by pio when passed the -i param to choose a specific ini file, and also build.sh uses same variable name too for consistency
+ini_file = os.environ.get("PROJECT_CONFIG")
+
 try:
     Import("env")
     # print(env.Dump())
@@ -41,7 +44,9 @@ except NameError:
     print("Running build_webui.py outside the PlatformIO environment.")
     env = None
 
-ini_file = 'platformio.ini'
+# Still default to the old name if the user is manually running this script
+if ini_file is None:
+    ini_file = 'platformio.ini'
 
 if env is not None:
     if build_board is None:
@@ -50,6 +55,7 @@ if env is not None:
     if 'dev' in env["PROGRAM_ARGS"]:
         build_board = "dev"
 
+    # this is set by "pio" if it is running the build
     if env["PROJECT_CONFIG"] is not None:
         ini_file = env["PROJECT_CONFIG"]
 
@@ -58,14 +64,13 @@ if env is not None:
         pio_config.read(ini_file)
         build_platform = pio_config['fujinet']['build_platform']
 
-print(f"Reading from config file {ini_file}")
-
 if build_data_dir is None:
-    build_data_dir = f"data/{build_platform}"
+    build_data_dir = os.path.join("data", build_platform)
 
 print(f"Building webUI into {build_data_dir}")
 print(f"  build_platform: {build_platform}")
 print(f"  build_board: {build_board}")
+print(f"  config file: {ini_file}")
 
 template_env = Environment(loader=FileSystemLoader("data/webui/template"))
 config = load(open(os.path.join('data', 'webui', 'config', f'{build_board}.yaml')), Loader=Loader)
@@ -73,10 +78,7 @@ config = load(open(os.path.join('data', 'webui', 'config', f'{build_board}.yaml'
 if not build_platform.startswith('BUILD_'):
     raise Exception(f"build_platform does not match BUILD_*, aborting")
 
-if build_data_dir is None:
-    data_build_platform_path = os.path.join("data", build_platform)
-else:
-    data_build_platform_path = build_data_dir
+data_build_platform_path = build_data_dir
 if (os.path.isdir(data_build_platform_path)):
     shutil.rmtree(data_build_platform_path)
 

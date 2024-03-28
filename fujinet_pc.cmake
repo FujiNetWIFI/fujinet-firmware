@@ -97,6 +97,11 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DMG_TLS=1 -DMG_
 # CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/include/config.h)
 # set(INCLUDE_DIRS include ${CMAKE_CURRENT_BINARY_DIR}/include
 
+# Add additional debug if set
+if(DEFINED DEBUG_NO_REBOOT)
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG_NO_REBOOT=1")
+endif()
+
 set(INCLUDE_DIRS include
     lib/compat lib/config lib/utils lib/hardware
     lib/FileSystem lib/EdUrlParser

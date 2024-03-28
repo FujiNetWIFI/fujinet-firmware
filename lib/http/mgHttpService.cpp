@@ -210,7 +210,7 @@ void fnHttpService::send_file(struct mg_connection *c, const char *filename)
         do
         {
             count = fread((uint8_t *)buf, 1, FNWS_SEND_BUFF_SIZE, fInput);
-            mg_send(c, buf, count);
+            if (count > 0) mg_send(c, buf, count);
         } while (count > 0);
         free(buf);
         fclose(fInput);

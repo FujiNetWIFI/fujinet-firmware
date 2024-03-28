@@ -1,2 +1,8 @@
-yaml
-jinja2
+# first value is the python module name, second is the pip installable package to install that module
+# blank lines, and lines starting with # are ignored 
+
+# yaml - required for parsing markup files
+yaml|pyyaml
+
+# templating engine
+jinja2|Jinja2
