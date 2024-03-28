@@ -10,6 +10,7 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fnBluetooth.h"
+#include "fuji.h"
 
 #include "led.h"
 
@@ -240,6 +241,11 @@ void KeyManager::_keystate_task(void *param)
                 Config.save();
             }
 #endif //BLUETOOTH_SUPPORT
+#ifdef BUILD_MAC
+            Debug_println("ACTION: Mount all disks");
+            theFuji.mount_all();
+#endif /* BUILD_MAC */
+
             break;
 
         case eKeyStatus::SHORT_PRESS:
