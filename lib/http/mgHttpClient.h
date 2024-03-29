@@ -99,9 +99,9 @@ private:
     void _perform_connect();
     // int _perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size);
 
-    // These are for 2nd part of the upgrade
-    // void process_data(struct mg_connection *c);
-    // void process_connect(struct mg_connection *c);
+    size_t process_chunked_data_in_place(char* data);
+    void handle_connect(struct mg_connection *c);
+    void handle_http_msg(struct mg_connection *c, struct mg_http_message *hm);
 
 public:
 
