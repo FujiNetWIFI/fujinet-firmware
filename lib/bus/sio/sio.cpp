@@ -796,6 +796,12 @@ void systemBus::sio_empty_ack()
 
 void systemBus::setUDPHost(const char *hostname, int port)
 {
+    if (_udpDev == nullptr)
+    {
+        Debug_printf("ERROR: UDP Device is not set. Cannot set HOST/PORT");
+        return;
+    }
+
     // Turn off if hostname is STOP
     if (hostname != nullptr && !strcmp(hostname, "STOP"))
     {

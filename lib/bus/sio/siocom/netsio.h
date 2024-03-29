@@ -1,9 +1,9 @@
 #ifndef NETSIO_H
 #define NETSIO_H
 
+#include <sys/time.h>
 #include "sioport.h"
 #include "fnDNS.h"
-#include <sys/time.h>
 
 class NetSioPort : public SioPort
 {

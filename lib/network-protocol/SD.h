@@ -1,9 +1,9 @@
 #ifndef NETWORKPROTOCOLSD_H
 #define NETWORKPROTOCOLSD_H
 
+#include <cstdio>
 #include "FS.h"
 
-#include <cstdio>
 
 class NetworkProtocolSD : public NetworkProtocolFS
 {

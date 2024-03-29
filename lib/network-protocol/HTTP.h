@@ -3,6 +3,9 @@
 
 #include <expat.h>
 
+#include "WebDAV.h"
+#include "FS.h"
+
 #ifdef ESP_PLATFORM
 #include "fnHttpClient.h"
 #define HTTP_CLIENT_CLASS fnHttpClient
@@ -10,9 +13,6 @@
 #include "mgHttpClient.h"
 #define HTTP_CLIENT_CLASS mgHttpClient
 #endif
-
-#include "WebDAV.h"
-#include "FS.h"
 
 // on Windows/MinGW DELETE is defined already ...
 #if defined(_WIN32) && defined(DELETE)
