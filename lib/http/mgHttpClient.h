@@ -5,6 +5,9 @@
 #include <map>
 #include <cstdint>
 
+#include "mongoose.h"
+#undef mkdir
+
 // http timeout in ms
 #define HTTP_TIMEOUT 7000
 // while debugging, increase timeout
@@ -44,7 +47,7 @@ private:
 
     bool _ignore_response_body = false;
     bool _transaction_begin;
-    bool _transaction_done;
+    bool _transaction_done = true;
     int _redirect_count;
     int _max_redirects;
     bool connected = false;
@@ -99,9 +102,13 @@ private:
     void _perform_connect();
     // int _perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size);
 
+    bool is_chunked = false;
     size_t process_chunked_data_in_place(char* data);
     void handle_connect(struct mg_connection *c);
     void handle_http_msg(struct mg_connection *c, struct mg_http_message *hm);
+    void handle_read(struct mg_connection *c);
+    void send_data(struct mg_http_message *hm, int status_code);
+    struct mg_http_message current_message;
 
 public:
 

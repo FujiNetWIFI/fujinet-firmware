@@ -24,7 +24,7 @@ private:
     uint8_t buf_net[UDPSTREAM_BUFFER_SIZE];
     uint8_t buf_stream[UDPSTREAM_BUFFER_SIZE];
 
-    uint8_t buf_stream_index=0;
+    uint16_t buf_stream_index=0;
 
     void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;

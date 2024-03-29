@@ -350,34 +350,19 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     {
     case DATA:
     {
-        // if (fromInterrupt == false && (resultCode == 0 || !client->is_transaction_done()))
-        if (!fromInterrupt && resultCode == 0)
+        if (fromInterrupt == false && (resultCode == 0 || (!client->is_transaction_done() && client->available() == 0)))
         {
             Debug_printf("calling http_transaction\r\n");
             http_transaction();
         }
         auto available = client->available();
         status->rxBytesWaiting = available > 65535 ? 65535 : available;
-#ifdef ESP_PLATFORM
         status->connected = client->is_transaction_done() ? 0 : 1;
+
         if (available == 0 && client->is_transaction_done() && error == NETWORK_ERROR_SUCCESS)
             status->error = NETWORK_ERROR_END_OF_FILE;
         else
             status->error = error;
-#else
-        status->connected = available == 0 ? 0 : 1;
-        if (available == 0 && error == NETWORK_ERROR_SUCCESS)
-            status->error = NETWORK_ERROR_END_OF_FILE;
-        else
-            status->error = error;
-
-        // TODO: this is the testing new code for chunks.
-        // status->connected = client->is_transaction_done() ? 0 : 1; // available == 0 ? 0 : 1;
-        // if (available == 0 && client->is_transaction_done() && error == NETWORK_ERROR_SUCCESS)
-        //     status->error = NETWORK_ERROR_END_OF_FILE;
-        // else
-        //     status->error = error;
-#endif
         // Debug_printf("NetworkProtocolHTTP::status_file DATA, available: %d, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", available, status->rxBytesWaiting, status->connected, status->error);
         return false;
     }

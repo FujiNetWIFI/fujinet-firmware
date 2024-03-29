@@ -104,7 +104,7 @@ void sioUDPStream::sio_handle_udpstream()
             {
                 // Collect bytes read in our buffer
                 buf_stream[buf_stream_index] = (unsigned char)FN_BUS_LINK.read(); // TODO apc: check for error first
-                if (buf_stream_index < UDPSTREAM_BUFFER_SIZE - 1) // TODO apc: fix buf_stream_index type (uint8 is too small)
+                if (buf_stream_index < UDPSTREAM_BUFFER_SIZE - 1)
                     buf_stream_index++;
             }
             else

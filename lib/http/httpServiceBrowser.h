@@ -3,6 +3,7 @@
 
 #include "fnFS.h"
 #include "mongoose.h"
+#undef mkdir
 
 class fnHttpServiceBrowser
 {

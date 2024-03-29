@@ -38,6 +38,7 @@ If a file has an extention pre-determined to support parsing (see/update
 #include <esp_http_server.h>
 #else
 #include "mongoose.h"
+#undef mkdir
 #endif
 
 // FNWS_FILE_ROOT should end in a slash '/'
