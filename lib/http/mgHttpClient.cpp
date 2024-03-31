@@ -105,6 +105,16 @@ mgHttpClient::~mgHttpClient()
         free(_buffer);
         _buffer = nullptr;
     }
+    if (current_message != nullptr) {
+#ifdef VERBOSE_HTTP
+        Debug_printf("mgHttpClient current_message free\n");
+#endif
+        freeHttpMessage(current_message);
+        current_message = nullptr;
+    }
+#ifdef VERBOSE_HTTP
+        Debug_printf("mgHttpClient exiting deconstructor\n");
+#endif
 }
 
 // Start an HTTP client session to the given URL
@@ -292,6 +302,43 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
     }
 }
 
+void mgHttpClient::deepCopyHttpMessage(const struct mg_http_message *src, struct mg_http_message *dest) {
+    // First, shallow copy the entire struct to copy over the non-pointer fields
+    *dest = *src;
+
+    // Now, deep copy each mg_str field that contains a pointer
+    dest->method.ptr = util_strndup(src->method.ptr, src->method.len);
+    dest->uri.ptr = util_strndup(src->uri.ptr, src->uri.len);
+    dest->query.ptr = util_strndup(src->query.ptr, src->query.len);
+    dest->proto.ptr = util_strndup(src->proto.ptr, src->proto.len);
+    dest->body.ptr = util_strndup(src->body.ptr, src->body.len);
+    dest->head.ptr = util_strndup(src->head.ptr, src->head.len);
+    dest->message.ptr = util_strndup(src->message.ptr, src->message.len);
+
+    // Deep copy headers array
+    for (int i = 0; i < MG_MAX_HTTP_HEADERS && src->headers[i].name.len > 0; ++i) {
+        dest->headers[i].name.ptr = util_strndup(src->headers[i].name.ptr, src->headers[i].name.len);
+        dest->headers[i].value.ptr = util_strndup(src->headers[i].value.ptr, src->headers[i].value.len);
+    }
+}
+
+void mgHttpClient::freeHttpMessage(struct mg_http_message *msg) {
+    // Free each allocated string
+    free((void*)msg->method.ptr);
+    free((void*)msg->uri.ptr);
+    free((void*)msg->query.ptr);
+    free((void*)msg->proto.ptr);
+    free((void*)msg->body.ptr);
+    free((void*)msg->head.ptr);
+    free((void*)msg->message.ptr);
+
+    // Free headers
+    for (int i = 0; i < MG_MAX_HTTP_HEADERS && msg->headers[i].name.len > 0; ++i) {
+        free((void*)msg->headers[i].name.ptr);
+        free((void*)msg->headers[i].value.ptr);
+    }
+}
+
 void mgHttpClient::send_data(struct mg_http_message *hm, int status_code)
 {
 #ifdef VERBOSE_HTTP
@@ -382,10 +429,14 @@ void mgHttpClient::handle_read(struct mg_connection *c)
         // Debug_printf("[1] about to send '%s' [%d]\n", hm.body.ptr, hm.body.len);
 
         // keep a copy of the http message for subsequent blocks, we will amend its data. we need the headers kept around
-        memcpy(&current_message, &hm, sizeof(hm));
-        int status_code = std::stoi(std::string(hm.uri.ptr, hm.uri.len));
+        if (current_message != nullptr) {
+            freeHttpMessage(current_message);
+        }
+        current_message = (struct mg_http_message *) malloc(sizeof(struct mg_http_message));
+        deepCopyHttpMessage(&hm, current_message);
 
-        send_data(&current_message, status_code);
+        int status_code = std::stoi(std::string(current_message->uri.ptr, current_message->uri.len));
+        send_data(current_message, status_code);
 
         // is this correct? we might get a small chunked block that is complete.
         c->is_closing = 0;
@@ -400,11 +451,22 @@ void mgHttpClient::handle_read(struct mg_connection *c)
             c->recv.buf[c->recv.len] = '\0';
         }
 
-        current_message.body.len = process_chunked_data_in_place((char *) c->recv.buf);
-        current_message.body.ptr = (const char *) c->recv.buf;
+        size_t new_len = process_chunked_data_in_place((char *) c->recv.buf);
+
+        // Allocate or reallocate memory for current_message->body.ptr to hold the new data
+        char* new_body_ptr = (char*)realloc((void*)current_message->body.ptr, new_len);
+
+        // Since realloc might return a different pointer, update current_message->body.ptr
+        current_message->body.ptr = new_body_ptr;
+
+        // Copy the processed data into the newly allocated memory
+        memcpy((void*)current_message->body.ptr, c->recv.buf, new_len);
+
+        // Update current_message->body.len with the new length
+        current_message->body.len = new_len;
 
         // Debug_printf("[2] about to send '%s' [%d]\n", current_message.body.ptr, current_message.body.len);
-        send_data(&current_message, 200);
+        send_data(current_message, 200);
 
         c->is_closing = c->recv.len == 0 ? 1 : 0;      // there's more data to get yet, so don't close until we have got the end of message, which is when recv.len is 0.
         c->recv.len = 0;

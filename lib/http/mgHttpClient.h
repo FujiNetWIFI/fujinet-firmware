@@ -108,7 +108,10 @@ private:
     void handle_http_msg(struct mg_connection *c, struct mg_http_message *hm);
     void handle_read(struct mg_connection *c);
     void send_data(struct mg_http_message *hm, int status_code);
-    struct mg_http_message current_message;
+
+    void deepCopyHttpMessage(const struct mg_http_message *src, struct mg_http_message *dest);
+    void freeHttpMessage(struct mg_http_message *msg);
+    struct mg_http_message *current_message = nullptr;
 
 public:
 

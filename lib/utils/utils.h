@@ -112,4 +112,6 @@ std::string prependSlash(const std::string& str);
 void util_debug_printf(const char *fmt, ...);
 #endif // !ESP_PLATFORM
 
+char* util_strndup(const char* s, size_t n);
+
 #endif // _FN_UTILS_H
