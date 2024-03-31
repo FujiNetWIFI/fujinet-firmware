@@ -416,7 +416,11 @@ void systemBus::setup()
     
     fnSystem.set_pin_mode(PIN_EPROM_A14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
     fnSystem.set_pin_mode(PIN_EPROM_A15, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
-
+    
+    #ifdef FORCE_UART_BAUD
+        Debug_printv("FORCE_UART_BAUD set to %u",FORCE_UART_BAUD);
+        _drivewireBaud = FORCE_UART_BAUD;
+    #else
     if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
     {
         _drivewireBaud = 38400; //Coco1 ROM Image
@@ -437,6 +441,9 @@ void systemBus::setup()
         _drivewireBaud = 57600; //Default or no switch
         Debug_printv("A14 and A15 High, defaulting to 57600 baud");
     }
+
+    #endif /* FORCE_UART_BAUD */
+    
     fnUartBUS.begin(_drivewireBaud);
     Debug_printv("DRIVEWIRE MODE");
 }
