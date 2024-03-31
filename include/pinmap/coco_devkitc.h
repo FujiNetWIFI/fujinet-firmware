@@ -35,5 +35,6 @@
 #define PIN_CASS_DATA_IN        GPIO_NUM_33
 #define PIN_CASS_DATA_OUT       GPIO_NUM_26
 #define PIN_CD                  GPIO_NUM_22 // same as atari PROC
-
+#define PIN_EPROM_A14           GPIO_NUM_36 // Used to set the serial baud rate
+#define PIN_EPROM_A15           GPIO_NUM_39 // based on the HDB-DOS image selected
 #endif /* PINMAP_COCO_DEVKITC */

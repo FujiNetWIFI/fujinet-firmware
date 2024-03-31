@@ -409,7 +409,35 @@ void systemBus::setup()
     gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, (void *)PIN_CASS_MOTOR);
 
     // Start in DRIVEWIRE mode
-    fnUartBUS.begin(57600);
+    // Set the initial buad rate based on which ROM image is selected by the A14/A15 dip switch on Rev000 or newer.
+    // If using an older Rev0 or Rev00 board, you will need to pull PIN_EPROM_A14 (IO36) up to 3.3V or 5V via a 10K
+    // resistor to have it default to the previous default of 57600 baud otherwise they will both read as low and you
+    // will get 38400 baud.
+    
+    fnSystem.set_pin_mode(PIN_EPROM_A14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+    fnSystem.set_pin_mode(PIN_EPROM_A15, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+
+    if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
+    {
+        _drivewireBaud = 38400; //Coco1 ROM Image
+        Debug_printv("A14 Low, A15 Low, 38400 baud");
+    }
+    else if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_HIGH && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
+    {
+        _drivewireBaud = 57600; //Coco2 ROM Image 
+        Debug_printv("A14 High, A15 Low, 57600 baud");  
+    }
+    else if  (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_HIGH)
+    {
+        _drivewireBaud = 115200; //Coco3 ROM Image
+        Debug_printv("A14 Low, A15 High, 115200 baud");
+    }
+    else
+    {
+        _drivewireBaud = 57600; //Default or no switch
+        Debug_printv("A14 and A15 High, defaulting to 57600 baud");
+    }
+    fnUartBUS.begin(_drivewireBaud);
     Debug_printv("DRIVEWIRE MODE");
 }
 
