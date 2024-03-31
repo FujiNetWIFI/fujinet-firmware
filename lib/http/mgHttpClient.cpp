@@ -553,7 +553,6 @@ void mgHttpClient::_httpevent_handler(struct mg_connection *c, int ev, void *ev_
 #endif
         client->_transaction_done = true;
         client->is_chunked = false;
-        *(bool *) c->fn_data = true;
         break;
     
     case MG_EV_ERROR:
@@ -561,7 +560,6 @@ void mgHttpClient::_httpevent_handler(struct mg_connection *c, int ev, void *ev_
         client->_transaction_done = true;
         client->_processed = true;  // Error, tell event loop to stop
         client->_status_code = 901; // Fake HTTP status code to indicate connection error
-        *(bool *) c->fn_data = true;
         break;
     
     case MG_EV_POLL:
