@@ -377,6 +377,16 @@ void systemBus::service()
         }
     }
 
+    // check and assert interrupts if needed for any open
+    // network device.
+    if (!_netDev.empty())
+    {    
+        for (auto it=_netDev.begin(); it != _netDev.end(); ++it)
+        {
+            it->second->poll_interrupt();
+        }
+    }
+
     if (fnUartBUS.available())
         _drivewire_process_cmd();
 
