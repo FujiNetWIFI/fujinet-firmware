@@ -155,6 +155,7 @@ public:
     int get_header_count();
 
     void collect_headers(const char* headerKeys[], const size_t headerKeysCount);
+    void set_header_value(const struct mg_str *name, const struct mg_str *value);
 
     //const char * buffer_contents(int *buffer_len);
 };

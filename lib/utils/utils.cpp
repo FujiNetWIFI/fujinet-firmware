@@ -19,6 +19,14 @@
 
 using namespace std;
 
+// non destructive version of lowercase conversion
+std::string util_tolower(const std::string& str) {
+    std::string lower_str = str;
+    std::transform(lower_str.begin(), lower_str.end(), lower_str.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+    return lower_str;
+}
+
 // convert to lowercase (in place)
 void util_string_tolower(std::string &s)
 {

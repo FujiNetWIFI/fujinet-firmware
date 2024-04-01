@@ -275,13 +275,7 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
         if (client->_stored_headers.size() <= 0)
             break;
 
-        std::string hkey(evt->header_key);
-        header_map_t::iterator it = client->_stored_headers.find(hkey);
-        if (it != client->_stored_headers.end())
-        {
-            std::string hval(evt->header_value);
-            it->second = hval;
-        }
+        client->set_header_value(evt->header_key, evt->header_value);
         break;
     }
     case HTTP_EVENT_ON_DATA: // Occurs multiple times when receiving body data from the server. MAY BE SKIPPED IF BODY IS EMPTY!
@@ -766,10 +760,10 @@ const std::string fnHttpClient::get_header(int index)
     return vi->second;
 }
 
-// Returns value of requested response header or nullptr if there is no match
+// Returns value of requested response header or empty string if there is no match
 const std::string fnHttpClient::get_header(const char *header)
 {
-    std::string hkey(header);
+    std::string hkey = util_tolower(header);
     header_map_t::iterator it = _stored_headers.find(hkey);
     if (it != _stored_headers.end())
         return it->second;
@@ -785,6 +779,20 @@ void fnHttpClient::collect_headers(const char *headerKeys[], const size_t header
     // Clear out the current headers
     _stored_headers.clear();
 
-    for (int i = 0; i < headerKeysCount; i++)
-        _stored_headers.insert(header_entry_t(headerKeys[i], std::string()));
+    for (int i = 0; i < headerKeysCount; i++) {
+        std::string lower_key = util_tolower(headerKeys[i]);
+        _stored_headers.insert(header_entry_t(lower_key, std::string()));
+    }
+}
+
+// Sets the header's value in the map if found (case insensitive)
+void fnHttpClient::set_header_value(const char *name, const char *value)
+{
+    std::string hkey = util_tolower(name);
+    header_map_t::iterator it = _stored_headers.find(hkey);
+    if (it != _stored_headers.end())
+    {
+        it->second = std::string(value);
+    }
+
 }
