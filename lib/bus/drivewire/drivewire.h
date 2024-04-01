@@ -189,7 +189,6 @@ private:
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
     //drivewireNetwork *_netDev[8] = {nullptr};
-    std::map<uint8_t,drivewireNetwork *> _netDev;
     drivewireUDPStream *_udpDev = nullptr;
     drivewireCassette *_cassetteDev = nullptr;
     drivewireCPM *_cpmDev = nullptr;
@@ -301,6 +300,7 @@ public:
     drivewirePrinter *getPrinter() { return _printerdev; }
     void setPrinter(drivewirePrinter *_p) { _printerdev = _p; }
     drivewireCPM *getCPM() { return _cpmDev; }
+    std::map<uint8_t,drivewireNetwork *> _netDev;
 
     // I wish this codebase would make up its mind to use camel or snake casing.
     drivewireModem *get_modem() { return _modemDev; }
