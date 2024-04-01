@@ -91,6 +91,7 @@ public:
     int get_header_count();
 
     void collect_headers(const char* headerKeys[], const size_t headerKeysCount);
+    void set_header_value(const char *name, const char *value);
 
     //const char * buffer_contents(int *buffer_len);
 };

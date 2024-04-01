@@ -365,15 +365,7 @@ void mgHttpClient::send_data(struct mg_http_message *hm, int status_code)
         if (_stored_headers.size() <= 0)
             break;
 
-        struct mg_str *name = &hm->headers[i].name;
-        struct mg_str *value = &hm->headers[i].value;
-        std::string hkey(std::string(name->ptr, name->len));
-        header_map_t::iterator it = _stored_headers.find(hkey);
-        if (it != _stored_headers.end())
-        {
-            std::string hval(std::string(value->ptr, value->len));
-            it->second = hval;
-        }
+        set_header_value(&hm->headers[i].name, &hm->headers[i].value);
     }
 
     // allocate buffer for received data
@@ -825,10 +817,10 @@ const std::string mgHttpClient::get_header(int index)
     return vi->second;
 }
 
-// Returns value of requested response header or nullptr if there is no match
+// Returns value of requested response header or empty string if there is no match
 const std::string mgHttpClient::get_header(const char *header)
 {
-    std::string hkey(header);
+    std::string hkey = util_tolower(header);
     header_map_t::iterator it = _stored_headers.find(hkey);
     if (it != _stored_headers.end())
         return it->second;
@@ -844,8 +836,22 @@ void mgHttpClient::collect_headers(const char *headerKeys[], const size_t header
     // Clear out the current headers
     _stored_headers.clear();
 
-    for (int i = 0; i < headerKeysCount; i++)
-        _stored_headers.insert(header_entry_t(headerKeys[i], std::string()));
+    for (int i = 0; i < headerKeysCount; i++) {
+        std::string lower_key = util_tolower(headerKeys[i]);
+        _stored_headers.insert(header_entry_t(lower_key, std::string()));
+    }
+}
+
+// Sets the header's value in the map if found (case insensitive)
+void mgHttpClient::set_header_value(const struct mg_str *name, const struct mg_str *value)
+{
+    std::string hkey = util_tolower(std::string(name->ptr, name->len));
+    header_map_t::iterator it = _stored_headers.find(hkey);
+    if (it != _stored_headers.end())
+    {
+        std::string hval(std::string(value->ptr, value->len));
+        it->second = hval;
+    }
 }
 
 #endif // !ESP_PLATFORM

@@ -46,6 +46,7 @@ void util_string_ltrim(std::string &s);
 void util_string_rtrim(std::string &s);
 void util_string_trim(std::string &s);
 
+std::string util_tolower(const std::string& str);
 void util_string_tolower(std::string &s);
 void util_string_toupper(std::string &s);
 
