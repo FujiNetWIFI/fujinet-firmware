@@ -29,6 +29,8 @@ public:
     virtual void set_proceed(bool level) override { _uart.set_proceed(level); }
     virtual void set_interrupt(bool level) override { _uart.set_interrupt(level); }
 
+    virtual void bus_idle(uint16_t ms) override;
+
     virtual int available() override { return _uart.available(); }
     virtual void flush() override { _uart.flush(); }
     virtual void flush_input() override { _uart.flush_input(); }

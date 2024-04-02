@@ -474,9 +474,21 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
 
     // TO DO : turn on LED
     fnLedManager.set(eLed::LED_BUS, true);
-    while (gap--)
+    while (gap)
     {
+#ifdef ESP_PLATFORM
+        gap--;
         fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
+#else
+        int step;
+        // FN_BUS_LINK is fnSioCom
+        if (FN_BUS_LINK.get_sio_mode() == SioCom::sio_mode::NETSIO)
+            step = gap > 1000 ? 1000 : gap; // step is 1000 ms (NetSIO)
+        else
+            step = gap > 20 ? 20 : gap; // step is 20 ms (SerialSIO)
+        gap -= step;
+        FN_BUS_LINK.bus_idle(step); // idle bus (i.e. delay for SerialSIO, BUS_IDLE message for NetSIO)
+#endif
         if (has_pulldown() && !motor_line() && gap > 1000)
         {
             fnLedManager.set(eLed::LED_BUS, false);

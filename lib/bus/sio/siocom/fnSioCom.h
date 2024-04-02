@@ -73,6 +73,8 @@ public:
     size_t print(long n, int base = 10);
     size_t print(unsigned long n, int base = 10);
 
+    void bus_idle(uint16_t ms);
+
     // specific to SerialSioPort
     void set_serial_port(const char *device, int command_pin, int proceed_pin);
     const char* get_serial_port(int &command_pin, int &proceed_pin);
