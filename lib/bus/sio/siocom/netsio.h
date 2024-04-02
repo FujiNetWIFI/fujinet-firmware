@@ -72,6 +72,8 @@ public:
     virtual void set_proceed(bool level) override;
     virtual void set_interrupt(bool level) override;
 
+    virtual void bus_idle(uint16_t ms) override;
+
     virtual int available() override;
     virtual void flush() override;
     virtual void flush_input() override;

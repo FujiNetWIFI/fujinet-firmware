@@ -190,6 +190,11 @@ size_t SioCom::print(unsigned long n, int base)
     }
 }
 
+void SioCom::bus_idle(uint16_t ms)
+{
+    _sioPort->bus_idle(ms);
+}
+
 // specific to SerialSioPort
 void SioCom::set_serial_port(const char *device, int command_pin, int proceed_pin)
 {
