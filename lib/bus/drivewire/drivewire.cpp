@@ -418,6 +418,10 @@ void systemBus::setup()
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_CASS_MOTOR, drivewire_isr_handler, (void *)PIN_CASS_MOTOR);
 
+    // Configure CD pin.
+    fnSystem.set_pin_mode(PIN_CD, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.digital_write(PIN_CD, DIGI_HIGH);
+
     // Start in DRIVEWIRE mode
     // Set the initial buad rate based on which ROM image is selected by the A14/A15 dip switch on Rev000 or newer.
     // If using an older Rev0 or Rev00 board, you will need to pull PIN_EPROM_A14 (IO36) up to 3.3V or 5V via a 10K
