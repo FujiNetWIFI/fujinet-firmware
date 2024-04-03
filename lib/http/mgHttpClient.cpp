@@ -11,6 +11,8 @@
 #include <string.h>
 #include <ctype.h>
 
+// #include <mbedtls/debug.h>
+
 #include "fnSystem.h"
 #include "utils.h"
 #include "mgHttpClient.h"
@@ -88,6 +90,8 @@ size_t mgHttpClient::process_chunked_data_in_place(char* data) {
 mgHttpClient::mgHttpClient()
 {
     _buffer = nullptr;
+    // Used for cert debugging:
+    // mbedtls_debug_set_threshold(5);
 }
 
 // Close connection, destroy any resoruces
@@ -206,12 +210,12 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
     // If url is https://, tell client connection to use TLS
     if (mg_url_is_ssl(url))
     {
-        struct mg_str key_data = mg_file_read(&mg_fs_posix, "tls/private-key.pem");
+        // struct mg_str key_data = mg_file_read(&mg_fs_posix, "tls/private-key.pem");
         struct mg_tls_opts opts = {};
 #ifdef SKIP_SERVER_CERT_VERIFY                
         opts.ca.ptr = nullptr; // disable certificate checking 
 #else
-        opts.ca.ptr = "data/ca.pem";
+        opts.ca = mg_file_read(&mg_fs_posix, "data/ca.pem");
 
         // this is how to load the files rather than refer to them by name (for BUILT_IN tls)
         // opts.ca = mg_file_read(&mg_fs_posix, "data/ca.pem");
