@@ -47,3 +47,5 @@ build-results.txt
 platformio.ini-E
 platformio.iniwow
 
+build-apple/
+build-atari/
