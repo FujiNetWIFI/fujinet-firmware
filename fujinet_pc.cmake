@@ -90,6 +90,8 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVERBOSE_HTTP -D__PC_BUILD_
 
 # use MbedTLS
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DMG_TLS=1 -DMG_ENABLE_LOG=0 -DDEV_RELAY_SLIP")
+# MG_TLS needed by mgHttpClient
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMG_TLS=1")
 # additional debug when investigating TLS issue
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DMG_ENABLE_LOG=1 -DMBEDTLS_X509_CRT_PARSE_C=1 -DMBEDTLS_DEBUG_C=1")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMG_ENABLE_LOG=1 -DMBEDTLS_X509_CRT_PARSE_C=1 -DMBEDTLS_DEBUG_C=1")
@@ -373,6 +375,12 @@ set(CRYPTO_LIBS ${MBEDTLS_STATIC_LIB} ${MBEDX509_STATIC_LIB} ${MBEDCRYPTO_STATIC
 # message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
 
 set(MBEDTLS_LIBRARIES ${CRYPTO_LIBS})
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    # required for certificate enumeration on windows
+    target_link_libraries(fujinet crypt32)
+endif()
+
 
 target_include_directories(fujinet PRIVATE ${INCLUDE_DIRS} ${MBEDTLS_INCLUDE_DIR})
 target_link_libraries(fujinet ${CRYPTO_LIBS})
