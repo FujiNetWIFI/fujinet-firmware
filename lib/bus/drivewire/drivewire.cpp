@@ -81,7 +81,6 @@ systemBus virtualDevice::get_bus() { return DRIVEWIRE; }
 
 void systemBus::op_nop()
 {
-    Debug_printv("op_nop()");
 }
 
 void systemBus::op_reset()
