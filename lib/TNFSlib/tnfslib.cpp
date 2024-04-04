@@ -10,6 +10,7 @@
 #include "fnSystem.h"
 #include "bus.h"
 #include "fnUDP.h"
+#include "fnTcpClient.h"
 
 #include "utils.h"
 
@@ -26,6 +27,8 @@
 #endif
 
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
+bool _tnfs_transaction_tcp(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
+bool _tnfs_transaction_udp(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
 #ifndef ESP_PLATFORM
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command);
 #endif
@@ -1225,7 +1228,54 @@ const char *tnfs_getcwd(tnfsMountInfo *m_info)
 // ------------------------------------------------
 
 /*
-  Send constructed TNFS packet and check for reply
+  Send constructed TNFS packet via TCP or UDP (depending on the m_info->use_tcp) and
+  check for reply
+ */
+bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
+{
+    if (m_info->use_tcp)
+    {
+        return _tnfs_transaction_tcp(m_info, pkt, payload_size);
+    }
+    else
+    {
+        return _tnfs_transaction_udp(m_info, pkt, payload_size);
+    }
+}
+
+/*
+  Send constructed TNFS packet via TCP and check for reply. We rely on the TCP to handle
+  retries.
+ */
+bool _tnfs_transaction_tcp(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
+{
+    fnTcpClient *tcp = &m_info->tcp_client;
+    if (!tcp->connected())
+    {
+        bool success = false;
+        if (m_info->host_ip != IPADDR_NONE)
+            success = tcp->connect(m_info->host_ip, m_info->port, TNFS_TIMEOUT);
+        else
+            success = tcp->connect(m_info->hostname, m_info->port, TNFS_TIMEOUT);
+        if (!success)
+        {
+            Debug_println("Can't connect to the TCP server");
+            return false;
+        }
+    }
+
+    // Set our session ID
+    pkt.session_idl = TNFS_LOBYTE_FROM_UINT16(m_info->session);
+    pkt.session_idh = TNFS_HIBYTE_FROM_UINT16(m_info->session);
+    pkt.sequence_num = m_info->current_sequence_num++;
+
+    tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
+    tcp->read(pkt.rawData, sizeof(pkt.rawData));
+    return tcp->connected();
+}
+
+/*
+  Send constructed TNFS packet via UDP and check for reply
   The send/receive loop will be attempted tnfsPacket.max_retries times (default: TNFS_RETRIES)
   Each retry attempt is limited to tnfsPacket.timeout_ms (default: TNFS_TIMEOUT)
 
@@ -1237,7 +1287,7 @@ const char *tnfs_getcwd(tnfsMountInfo *m_info)
   returns - true if response packet was received
             false if no response received during retries/timeout period
  */
-bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
+bool _tnfs_transaction_udp(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
 {
     fnUDP udp;
 
