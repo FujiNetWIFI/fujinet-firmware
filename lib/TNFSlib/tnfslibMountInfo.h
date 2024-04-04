@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "fnDNS.h"
+#include "fnTcpClient.h"
 
 
 #define TNFS_DEFAULT_PORT 16384
@@ -79,6 +80,9 @@ public:
     uint16_t count_dircache() { return _dir_cache_count; };
     void set_dircache_eof() { _dir_cache_eof = true; };
     bool get_dircache_eof() { return _dir_cache_eof; };
+
+    bool use_tcp = false;
+    fnTcpClient tcp_client;
 
     // These char[] sizes are abitrary...
     char hostname[64] = { '\0' };
