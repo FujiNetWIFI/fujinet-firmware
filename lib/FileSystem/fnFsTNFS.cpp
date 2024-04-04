@@ -41,13 +41,27 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     if(host == nullptr || host[0] == '\0')
         return false;
 
-    strlcpy(_mountinfo.hostname, host, sizeof(_mountinfo.hostname));
+    if (strncmp("_tcp.", host, 5) == 0)
+    {
+        const char *host_no_prefix = &host[5];
+        if (host_no_prefix[0] == '\0')
+        {
+            return false;
+        }
+        _mountinfo.use_tcp = true;
+        strlcpy(_mountinfo.hostname, host_no_prefix, sizeof(_mountinfo.hostname));
+    }
+    else
+    {
+        strlcpy(_mountinfo.hostname, host, sizeof(_mountinfo.hostname));
+    }
+
 
     // Try to resolve the hostname and store that so we don't have to keep looking it up
-    _mountinfo.host_ip = get_ip4_addr_by_name(host);
+    _mountinfo.host_ip = get_ip4_addr_by_name(_mountinfo.hostname);
     if(_mountinfo.host_ip == IPADDR_NONE)
     {
-        Debug_printf("Failed to resolve hostname \"%s\"\r\n", host);
+        Debug_printf("Failed to resolve hostname \"%s\"\r\n", _mountinfo.hostname);
         return false;
     }
     // TODO: Refresh the DNS name we resolved after X amount of time
