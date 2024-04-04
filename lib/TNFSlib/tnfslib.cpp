@@ -1269,8 +1269,32 @@ bool _tnfs_transaction_tcp(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payl
     pkt.session_idh = TNFS_HIBYTE_FROM_UINT16(m_info->session);
     pkt.sequence_num = m_info->current_sequence_num++;
 
-    tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
-    tcp->read(pkt.rawData, sizeof(pkt.rawData));
+    int sent = tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
+    Debug_printf("Sent %d bytes. Payload size: %d. Header size: %d.\n", sent, payload_size, TNFS_HEADER_SIZE);
+
+    #ifdef ESP_PLATFORM
+    int ms_start = fnSystem.millis();
+    #else
+    uint64_t ms_start = fnSystem.millis();
+    #endif
+
+    do
+    {
+      if (tcp->available())
+      {
+        break;
+      }
+      fnSystem.delay_microseconds(2000);
+    } while ((fnSystem.millis() - ms_start) < m_info->timeout_ms); // packet receive loop
+
+    if (!tcp->available())
+    {
+        return false;
+    }
+
+    int received = tcp->read(pkt.rawData, sizeof(pkt.rawData));
+    Debug_printf("Received %d bytes.\n", received);
+
     return tcp->connected();
 }
 
