@@ -158,6 +158,18 @@ public:
     void set_header_value(const struct mg_str *name, const struct mg_str *value);
 
     //const char * buffer_contents(int *buffer_len);
+
+    // Certificate handling
+    void load_system_certs();
+    mg_str ca;
+
+#if defined(_WIN32)
+    void load_system_certs_windows();
+    std::string concatenatedPEM;
+#else
+    void load_system_certs_unix();
+#endif
+
 };
 
 #endif // _MG_HTTPCLIENT_H_

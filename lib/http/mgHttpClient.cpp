@@ -4,14 +4,38 @@
 // what we set the timeout value to.
 
 #include <cstdlib>
-#include <string.h>
+#include <ctype.h>
+#include <iostream>
 #include <map>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
+#include <sstream>
+#include <string>
+#include <vector>
 
 // #include <mbedtls/debug.h>
+
+#include "mongoose.h"
+#undef mkdir
+
+#if defined(_WIN32)
+
+#if MG_TLS == MG_TLS_OPENSSL
+// only convert to PEM from windows raw, so only need it here
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+#endif
+
+
+#if MG_TLS == MG_TLS_MBED
+#include <mbedtls/pem.h>
+#include <mbedtls/x509_crt.h>
+#endif
+
+#include <winsock2.h>
+#include <windows.h>
+#include <wincrypt.h>
+#endif
 
 #include "fnSystem.h"
 #include "utils.h"
@@ -19,8 +43,6 @@
 
 #include "../../include/debug.h"
 
-#include "mongoose.h"
-#undef mkdir
 
 #define HTTPCLIENT_WAIT_FOR_CONSUMER_TASK 20000 // 20s
 #define HTTPCLIENT_WAIT_FOR_HTTP_TASK 20000     // 20s
@@ -29,69 +51,13 @@
 
 const char *webdav_depths[] = {"0", "1", "infinity"};
 
-/*
- * Replaces a piece of chunked html (with size and data) with just the data.
- * Works for multiple blocks.
- * Also ignores any CHUNK EXTENSIONS, e.g. D;foo=bar;baz;qux=123\r\n
- * 
- */
-size_t mgHttpClient::process_chunked_data_in_place(char* data) {
-    char* input_ptr = data; // Pointer to read from the original data
-    char* output_ptr = data; // Pointer to write to the start of the data
-    size_t total_length = 0; // Keep track of the total length of de-chunked data
-
-    while (1) {
-        // Find the end of the chunk size line
-        char* end_of_chunk_size_line = strstr(input_ptr, "\r\n");
-        if (!end_of_chunk_size_line) break; // No more complete chunks
-
-        // Find the position of the first semicolon in the chunk size line, if present
-        char* semicolon_pos = strchr(input_ptr, ';');
-        if (semicolon_pos && semicolon_pos < end_of_chunk_size_line) {
-            // If there's a semicolon before the end of the chunk size line, it marks the start of extensions
-            *semicolon_pos = '\0'; // Temporarily null-terminate at the semicolon to ignore extensions
-        } else {
-            // No semicolon found, so null-terminate at the end of the chunk size line for parsing
-            *end_of_chunk_size_line = '\0';
-        }
-
-        // Parse the chunk size, which is a HEX number of bytes
-        unsigned int chunk_size = 0;
-        sscanf(input_ptr, "%x", &chunk_size);
-
-        // Restore the modified character (semicolon or carriage return)
-        if (semicolon_pos && semicolon_pos < end_of_chunk_size_line) {
-            *semicolon_pos = ';'; // Restore semicolon if it was replaced
-        } else {
-            *end_of_chunk_size_line = '\r'; // Restore carriage return if that was replaced
-        }
-
-        if (chunk_size == 0) break; // End of data
-
-        // Move input_ptr to the start of the chunk data, skipping over the chunk size line
-        input_ptr = end_of_chunk_size_line + 2;
-
-        // Move the chunk data to the output position
-        memmove(output_ptr, input_ptr, chunk_size);
-
-        // Update the pointers and total_length
-        input_ptr += chunk_size + 2; // Move past this chunk's data and the following \r\n
-        output_ptr += chunk_size;    // Move output_ptr to the end of the moved data
-        total_length += chunk_size;  // Add this chunk's size to the total length
-    }
-
-    // Null-terminate the final output string - optional but safe the final string always smaller than the starting string
-    *output_ptr = '\0';
-
-    return total_length;
-}
-
-
 mgHttpClient::mgHttpClient()
 {
-    _buffer = nullptr;
     // Used for cert debugging:
     // mbedtls_debug_set_threshold(5);
+
+    _buffer = nullptr;
+    load_system_certs();
 }
 
 // Close connection, destroy any resoruces
@@ -103,23 +69,185 @@ mgHttpClient::~mgHttpClient()
         mg_mgr_free(_handle);
 
     if (_buffer != nullptr) {
-#ifdef VERBOSE_HTTP
-        Debug_printf("mgHttpClient buffer free\n");
-#endif
         free(_buffer);
         _buffer = nullptr;
     }
+
     if (current_message != nullptr) {
-#ifdef VERBOSE_HTTP
-        Debug_printf("mgHttpClient current_message free\n");
-#endif
         freeHttpMessage(current_message);
         current_message = nullptr;
     }
-#ifdef VERBOSE_HTTP
-        Debug_printf("mgHttpClient exiting deconstructor\n");
+
+}
+
+void mgHttpClient::load_system_certs() {
+#if defined(__linux__) || defined(__APPLE__)
+    load_system_certs_unix();
+#elif defined(_WIN32)
+    load_system_certs_windows();
+#else
+    // report unsupported...
 #endif
 }
+
+#if defined(_WIN32)
+
+#if MG_TLS == MG_TLS_OPENSSL
+
+// NOTE: This is untested as I have only used mbed tls
+std::vector<std::vector<char>> ConvertCertificatesToPEM(const std::vector<std::vector<unsigned char>>& certificates) {
+    std::vector<std::vector<char>> pemCertificates;
+
+    for (const auto& certData : certificates) {
+        const unsigned char* pCertData = certData.data();
+        X509* cert = d2i_X509(NULL, &pCertData, static_cast<long>(certData.size()));
+        if (cert) {
+            BIO* bio = BIO_new(BIO_s_mem());
+            if (PEM_write_bio_X509(bio, cert)) {
+                BUF_MEM* bptr;
+                BIO_get_mem_ptr(bio, &bptr);
+                std::vector<char> pemData(bptr->data, bptr->data + bptr->length);
+                pemCertificates.push_back(pemData);
+            }
+            BIO_free(bio);
+            X509_free(cert);
+        }
+    }
+
+    return pemCertificates;
+}
+#elif MG_TLS == MG_TLS_MBED
+
+
+std::vector<std::vector<char>> ConvertCertificatesToPEM(const std::vector<std::vector<unsigned char>>& certificates) {
+    const size_t MBEDTLS_PEM_BUFFER_SIZE = 10240;
+    std::vector<std::vector<char>> pemCertificates;
+
+    for (const auto& derCert : certificates) {
+        mbedtls_x509_crt crt;
+        mbedtls_x509_crt_init(&crt);
+
+        // Parse DER certificate
+        int ret = mbedtls_x509_crt_parse_der(&crt, derCert.data(), derCert.size());
+        if (ret != 0) {
+            // we'll just skip this certificate.
+            mbedtls_x509_crt_free(&crt);
+            continue;
+        }
+
+        std::vector<char> pemCert(MBEDTLS_PEM_BUFFER_SIZE, '\0');
+        size_t pem_len = 0;
+
+        // Convert DER to PEM
+        ret = mbedtls_pem_write_buffer("-----BEGIN CERTIFICATE-----\n",
+                                       "-----END CERTIFICATE-----\n",
+                                       crt.raw.p, crt.raw.len,
+                                       reinterpret_cast<unsigned char*>(pemCert.data()), pemCert.size(), &pem_len);
+        if (ret == 0) {
+            // Resize to actual PEM length
+            pemCert.resize(pem_len - 1); // Exclude the null terminator added by mbedtls_pem_write_buffer
+            pemCertificates.push_back(std::move(pemCert));
+        }
+
+        mbedtls_x509_crt_free(&crt);
+    }
+
+    return pemCertificates;
+}
+
+#else
+// TODO: if any other MG_TLS type is used, will need to implement conversion to PEM for it.
+std::vector<std::vector<char>> ConvertCertificatesToPEM(const std::vector<std::vector<unsigned char>>& certificates) {
+    return std::vector<std::vector<char>>();
+}
+
+#endif
+
+
+std::vector<std::vector<unsigned char>> EnumerateCertificates() {
+    std::vector<std::vector<unsigned char>> certificates;
+
+    HCERTSTORE hStore = CertOpenSystemStore(NULL, "ROOT");
+    if (!hStore) {
+        std::cerr << "Failed to open certificate store\n";
+        return certificates; // Empty vector on failure
+    }
+
+    PCCERT_CONTEXT pCertContext = NULL;
+    while ((pCertContext = CertEnumCertificatesInStore(hStore, pCertContext)) != NULL) {
+        std::vector<unsigned char> certData(pCertContext->pbCertEncoded, pCertContext->pbCertEncoded + pCertContext->cbCertEncoded);
+        certificates.push_back(certData);
+    }
+
+    CertCloseStore(hStore, 0);
+    return certificates;
+}
+
+void mgHttpClient::load_system_certs_windows() {
+    auto certificates = EnumerateCertificates();
+    auto pemCertificates = ConvertCertificatesToPEM(certificates);
+    if (!pemCertificates.empty()) {
+        Debug_printf("System certificates loaded, count: %d\n", pemCertificates.size());
+        for (const auto& pemData : pemCertificates) {
+            concatenatedPEM.append(pemData.begin(), pemData.end());
+        }
+
+        ca.ptr = concatenatedPEM.c_str();
+        ca.len = concatenatedPEM.length();
+    }
+    else {
+        Debug_printf("WARNING: could not find system certificate file, falling back to local file.\n");
+        ca = mg_file_read(&mg_fs_posix, "data/ca.pem");
+    }
+}
+
+#else // !_WIN32
+
+void mgHttpClient::load_system_certs_unix() {
+
+#if defined(__linux__)
+    ca = mg_file_read(&mg_fs_posix, "/etc/ssl/certs/ca-certificates.crt");
+#else // MAC
+    ca = mg_file_read(&mg_fs_posix, "/etc/ssl/cert.pem");
+#endif
+
+    if (ca.len == 0) {
+        Debug_printf("WARNING: could not find system certificate file, falling back to local file.\n");
+        ca = mg_file_read(&mg_fs_posix, "data/ca.pem");
+    } else {
+        // We need to first strip any additional lines from the CA file between certs
+        // as mbedtls does not like them
+        std::string certData(ca.ptr, ca.len);
+        std::istringstream certStream(certData);
+        std::string line;
+        std::string processedCerts;
+        bool inCertBlock = false;
+        int cert_count = 0;
+
+        while (std::getline(certStream, line)) {
+            if (line.find("-----BEGIN CERTIFICATE-----") != std::string::npos) {
+                inCertBlock = true;
+                cert_count++;
+            }
+            if (inCertBlock) {
+                processedCerts += line + "\n";
+            }
+            if (line.find("-----END CERTIFICATE-----") != std::string::npos) {
+                inCertBlock = false;
+            }
+        }
+
+        // Update 'ca' with the processed certificates
+        free((void*)ca.ptr);
+        ca.ptr = strdup(processedCerts.c_str());
+        ca.len = processedCerts.length();
+
+        Debug_printf("System certificates loaded, count: %d\n", cert_count);
+
+    }
+}
+
+#endif
 
 // Start an HTTP client session to the given URL
 bool mgHttpClient::begin(std::string url)
@@ -215,10 +343,10 @@ void mgHttpClient::handle_connect(struct mg_connection *c)
 #ifdef SKIP_SERVER_CERT_VERIFY                
         opts.ca.ptr = nullptr; // disable certificate checking 
 #else
-        opts.ca = mg_file_read(&mg_fs_posix, "data/ca.pem");
+        // certificates are loaded on initialization of the client in cross platform way.
+        opts.ca = ca;
 
         // this is how to load the files rather than refer to them by name (for BUILT_IN tls)
-        // opts.ca = mg_file_read(&mg_fs_posix, "data/ca.pem");
         // opts.cert = mg_file_read(&mg_fs_posix, "tls/cert.pem");
         // opts.key = mg_file_read(&mg_fs_posix, "tls/private-key.pem");
 #endif
@@ -856,6 +984,63 @@ void mgHttpClient::set_header_value(const struct mg_str *name, const struct mg_s
         std::string hval(std::string(value->ptr, value->len));
         it->second = hval;
     }
+}
+
+/*
+ * Replaces a piece of chunked html (with size and data) with just the data.
+ * Works for multiple blocks.
+ * Also ignores any CHUNK EXTENSIONS, e.g. D;foo=bar;baz;qux=123\r\n
+ * 
+ */
+size_t mgHttpClient::process_chunked_data_in_place(char* data) {
+    char* input_ptr = data; // Pointer to read from the original data
+    char* output_ptr = data; // Pointer to write to the start of the data
+    size_t total_length = 0; // Keep track of the total length of de-chunked data
+
+    while (1) {
+        // Find the end of the chunk size line
+        char* end_of_chunk_size_line = strstr(input_ptr, "\r\n");
+        if (!end_of_chunk_size_line) break; // No more complete chunks
+
+        // Find the position of the first semicolon in the chunk size line, if present
+        char* semicolon_pos = strchr(input_ptr, ';');
+        if (semicolon_pos && semicolon_pos < end_of_chunk_size_line) {
+            // If there's a semicolon before the end of the chunk size line, it marks the start of extensions
+            *semicolon_pos = '\0'; // Temporarily null-terminate at the semicolon to ignore extensions
+        } else {
+            // No semicolon found, so null-terminate at the end of the chunk size line for parsing
+            *end_of_chunk_size_line = '\0';
+        }
+
+        // Parse the chunk size, which is a HEX number of bytes
+        unsigned int chunk_size = 0;
+        sscanf(input_ptr, "%x", &chunk_size);
+
+        // Restore the modified character (semicolon or carriage return)
+        if (semicolon_pos && semicolon_pos < end_of_chunk_size_line) {
+            *semicolon_pos = ';'; // Restore semicolon if it was replaced
+        } else {
+            *end_of_chunk_size_line = '\r'; // Restore carriage return if that was replaced
+        }
+
+        if (chunk_size == 0) break; // End of data
+
+        // Move input_ptr to the start of the chunk data, skipping over the chunk size line
+        input_ptr = end_of_chunk_size_line + 2;
+
+        // Move the chunk data to the output position
+        memmove(output_ptr, input_ptr, chunk_size);
+
+        // Update the pointers and total_length
+        input_ptr += chunk_size + 2; // Move past this chunk's data and the following \r\n
+        output_ptr += chunk_size;    // Move output_ptr to the end of the moved data
+        total_length += chunk_size;  // Add this chunk's size to the total length
+    }
+
+    // Null-terminate the final output string - optional but safe the final string always smaller than the starting string
+    *output_ptr = '\0';
+
+    return total_length;
 }
 
 #endif // !ESP_PLATFORM
