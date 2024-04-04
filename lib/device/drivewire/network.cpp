@@ -202,7 +202,9 @@ void drivewireNetwork::open()
     channelMode = PROTOCOL;
 
     // And signal complete!
+    ns.error = 1;
     fnUartBUS.write(ns.error);
+    Debug_printv("ns.error = %u\n",ns.error);
 }
 
 /**
@@ -944,6 +946,12 @@ void drivewireNetwork::poll_interrupt()
     }
 }
 
+void drivewireNetwork::get_error()
+{
+    Debug_printf("drivewireNetwork::get_error(%u)\n",ns.error);
+    fnUartBUS.write(ns.error);
+}
+
 /**
  * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
  * disk utility packages do when opening a device, such as adding wildcards for directory opens.
@@ -1165,14 +1173,18 @@ void drivewireNetwork::do_idempotent_command_80()
 
 void drivewireNetwork::process()
 {
-    Debug_printf("Available? %u\n",fnUartBUS.available());
     // Read the three command and aux bytes
     cmdFrame.comnd = (uint8_t)fnUartBUS.read();
     cmdFrame.aux1 = (uint8_t)fnUartBUS.read();
     cmdFrame.aux2 = (uint8_t)fnUartBUS.read();
 
+    Debug_printf("comnd: %c\n",cmdFrame.comnd);
+    
     switch (cmdFrame.comnd)
     {
+    case 'E':
+        get_error();
+        break;
     case 'O':
         open();
         break;

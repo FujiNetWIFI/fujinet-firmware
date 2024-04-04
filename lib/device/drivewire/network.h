@@ -65,6 +65,11 @@ public:
     void poll_interrupt();
 
     /**
+     * Get last error
+     */
+    void get_error();
+    
+    /**
      * Called for DRIVEWIRE Command 'O' to open a connection to a network protocol, allocate all buffers,
      */
     virtual void open();
