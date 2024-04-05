@@ -350,7 +350,11 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     {
     case DATA:
     {
-        if (fromInterrupt == false && (resultCode == 0 || (!client->is_transaction_done() && client->available() == 0)))
+#ifdef ESP_PLATFORM
+        if (!fromInterrupt && resultCode == 0)
+#else
+        if (!fromInterrupt && (resultCode == 0 || (!client->is_transaction_done() && client->available() == 0)))
+#endif
         {
             Debug_printf("calling http_transaction\r\n");
             http_transaction();
