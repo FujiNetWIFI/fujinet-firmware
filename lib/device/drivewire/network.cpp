@@ -303,7 +303,7 @@ void drivewireNetwork::read()
     read_channel(num_bytes);
 
     // And set response buffer.
-    response += receiveBuffer;
+    response += *receiveBuffer;
  
     // Remove from receive buffer and shrink.
     receiveBuffer->erase(0, num_bytes);
