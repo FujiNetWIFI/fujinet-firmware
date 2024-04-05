@@ -65,9 +65,19 @@ public:
     void poll_interrupt();
 
     /**
-     * Get last error
+     * @brief Ready?
      */
-    void get_error();
+    void ready();
+
+    /**
+     * @brief Get last error
+     */
+    void send_error();
+
+    /**
+     * @brief send response
+     */
+    void send_response();
     
     /**
      * Called for DRIVEWIRE Command 'O' to open a connection to a network protocol, allocate all buffers,
@@ -136,6 +146,11 @@ public:
     virtual void set_password();
 
 private:
+
+    /**
+     * @brief the response buffer
+     */
+    std::string response;
 
     /**
      * Buffer for holding devicespec

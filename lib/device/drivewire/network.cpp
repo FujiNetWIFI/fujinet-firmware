@@ -115,6 +115,11 @@ void drivewireNetwork::timer_stop()
 
 /** DRIVEWIRE COMMANDS ***************************************************************/
 
+void drivewireNetwork::ready()
+{
+    fnUartBUS.write(0x01); // yes, ready.
+}
+
 /**
  * DRIVEWIRE Open command
  * Called in response to 'O' command. Instantiate a protocol, pass URL to it, call its open
@@ -226,7 +231,7 @@ void drivewireNetwork::close()
     // If no protocol enabled, we just signal complete, and return.
     if (protocol == nullptr)
     {
-        fnUartBUS.write(ns.error);
+        //fnUartBUS.write(ns.error);
         return;
     }
 
@@ -250,7 +255,7 @@ void drivewireNetwork::close()
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 #endif
     
-    fnUartBUS.write(ns.error);
+    //fnUartBUS.write(ns.error);
 }
 
 /**
@@ -262,7 +267,15 @@ void drivewireNetwork::close()
  */
 void drivewireNetwork::read()
 {
-    uint16_t num_bytes = get_daux();
+    uint8_t num_bytesh = cmdFrame.aux1;
+    uint8_t num_bytesl = cmdFrame.aux2;
+    uint16_t num_bytes = (num_bytesh * 256) + num_bytesl;
+
+    if (!num_bytes)
+    {
+        Debug_printf("drivewireNetwork::read() - Zero bytes requested. Bailing.\n");
+        return;
+    }
 
     Debug_printf("drivewireNetwork::read( %u bytes)\n", num_bytes);
 
@@ -270,7 +283,6 @@ void drivewireNetwork::read()
     if (receiveBuffer == nullptr)
     {
         ns.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
-        fnUartBUS.write(ns.error);
         return;
     }
 
@@ -284,18 +296,14 @@ void drivewireNetwork::read()
         }
 
         ns.error = NETWORK_ERROR_NOT_CONNECTED;
-        fnUartBUS.write(ns.error);
         return;
     }
 
     // Do the channel read
     read_channel(num_bytes);
 
-    // Write error code
-    fnUartBUS.write(ns.error);
-
-    // And send off buffer to computer
-    fnUartBUS.write((uint8_t *)receiveBuffer->data(), num_bytes);
+    // And set response buffer.
+    response += receiveBuffer;
  
     // Remove from receive buffer and shrink.
     receiveBuffer->erase(0, num_bytes);
@@ -346,6 +354,12 @@ void drivewireNetwork::write()
 {
     uint16_t num_bytes = get_daux();
 
+    if (!num_bytes)
+    {
+        Debug_printf("drivewireNetwork::write() - refusing to write 0 bytes.\n");
+        return;
+    }
+
     Debug_printf("sioNetwork::drivewire_write( %u bytes)\n", num_bytes);
 
     // If protocol isn't connected, then return not connected.
@@ -357,18 +371,18 @@ void drivewireNetwork::write()
             protocolParser = nullptr;
         }
         ns.error = NETWORK_ERROR_NOT_CONNECTED;
-        fnUartBUS.write(ns.error);
         return;
     }
 
-    // Get the data from the Atari
-    while (fnUartBUS.available())
+    // Get the data from the CoCo
+    while (num_bytes)
+    {
         *transmitBuffer += fnUartBUS.read();
+        num_bytes--;
+    }
 
     // Do the channel write
     write_channel(num_bytes);
-
-    fnUartBUS.write(ns.error);
 }
 
 /**
@@ -752,7 +766,6 @@ void drivewireNetwork::special_00()
         protocol->special_00(&cmdFrame);
     }
 
-    fnUartBUS.write(ns.error);
 }
 
 /**
@@ -823,7 +836,6 @@ void drivewireNetwork::special_80()
     protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame);
 
     protocol->status(&ns);
-    fnUartBUS.write(ns.error);
 }
 
 /** PRIVATE METHODS ************************************************************/
@@ -952,10 +964,26 @@ void drivewireNetwork::poll_interrupt()
     }
 }
 
-void drivewireNetwork::get_error()
+void drivewireNetwork::send_error()
 {
-    Debug_printf("drivewireNetwork::get_error(%u)\n",ns.error);
+    Debug_printf("drivewireNetwork::send_error(%u)\n",ns.error);
     fnUartBUS.write(ns.error);
+}
+
+void drivewireNetwork::send_response()
+{
+    uint16_t l = response.length() > 65535 ? 65535 : (uint16_t)response.length();
+
+    // Send length
+    fnUartBUS.write(l >> 8);
+    fnUartBUS.write(l & 0xFF);
+
+    // Send body
+    fnUartBUS.write(response);
+
+    // Clear the response
+    response.clear();
+    response.shrink_to_fit();
 }
 
 /**
@@ -989,7 +1017,6 @@ void drivewireNetwork::parse_and_instantiate_protocol()
     {
         Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
         ns.error = NETWORK_ERROR_INVALID_DEVICESPEC;
-        fnUartBUS.write(ns.error);
         return;
     }
 
@@ -1000,7 +1027,6 @@ void drivewireNetwork::parse_and_instantiate_protocol()
     {
         Debug_printf("Could not open protocol.\n");
         ns.error = NETWORK_ERROR_GENERAL;
-        fnUartBUS.write(ns.error);
         return;
     }  
 }
@@ -1189,10 +1215,13 @@ void drivewireNetwork::process()
     switch (cmdFrame.comnd)
     {
     case 0x00: // Ready?
-        fnUartBUS.write(0x01); // Yes.
+        ready(); // Yes.
         break;
-    case 'E':
-        get_error();
+    case 0x01: // Send Response
+        send_response();
+        break;
+    case 0x02: // Send error
+        send_error();
         break;
     case 'O':
         open();
