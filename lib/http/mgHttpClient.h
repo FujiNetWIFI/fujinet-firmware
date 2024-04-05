@@ -103,7 +103,7 @@ private:
     // int _perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size);
 
     bool is_chunked = false;
-    size_t process_chunked_data_in_place(char* data);
+    size_t process_chunked_data_in_place(char* data, size_t upper_bound);
     void handle_connect(struct mg_connection *c);
     void handle_http_msg(struct mg_connection *c, struct mg_http_message *hm);
     void handle_read(struct mg_connection *c);
