@@ -136,6 +136,11 @@
 #define NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD 212
 
 /**
+ * Could not parse JSON
+ */
+#define NETWORK_ERROR_COULD_NOT_PARSE_JSON 213
+
+/**
  * Could not allocate buffers
  */
 #define NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS 255
