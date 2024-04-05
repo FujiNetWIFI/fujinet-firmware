@@ -547,9 +547,17 @@ void mgHttpClient::handle_read(struct mg_connection *c)
     int n = mg_http_parse((const char *) c->recv.buf, c->recv.len, &hm);
     // Debug_printf("handle_read, n: %d, recv: %s, recv.len: %d, hm.body: >%s<, len: %d\n", n, c->recv.buf, c->recv.len, hm.body.ptr, hm.body.len);
     if (hm.body.len == -1 && n > 0) {
-        is_chunked = true;
         // 1st block of chunked data, decode it. we abuse the string data as we'll empty it at the end anyway. sorry const
-        hm.body.len = process_chunked_data_in_place((char *) hm.body.ptr);
+        int decoded_len = process_chunked_data_in_place((char *) hm.body.ptr, c->recv.size);
+        if (decoded_len == 0) {
+            Debug_printf("mgHttpClient: no chunks in data, but also no content-length! quitting processing this as a block.\n");
+            return;
+        }
+
+        // looks like it was chunked data, so continue.
+        hm.body.len = decoded_len;
+        is_chunked = true;
+
         // Debug_printf("[1] about to send '%s' [%d]\n", hm.body.ptr, hm.body.len);
 
         // keep a copy of the http message for subsequent blocks, we will amend its data. we need the headers kept around
@@ -575,7 +583,7 @@ void mgHttpClient::handle_read(struct mg_connection *c)
             c->recv.buf[c->recv.len] = '\0';
         }
 
-        size_t new_len = process_chunked_data_in_place((char *) c->recv.buf);
+        size_t new_len = process_chunked_data_in_place((char *) c->recv.buf, c->recv.size);
 
         // Allocate or reallocate memory for current_message->body.ptr to hold the new data
         char* new_body_ptr = (char*)realloc((void*)current_message->body.ptr, new_len);
@@ -991,56 +999,72 @@ void mgHttpClient::set_header_value(const struct mg_str *name, const struct mg_s
  * Works for multiple blocks.
  * Also ignores any CHUNK EXTENSIONS, e.g. D;foo=bar;baz;qux=123\r\n
  * 
+ * Data is only changed if any valid chunk blocks are detected within the upper_bound size given.
+ * If none are found, 0 is returned and data is untouched.
+ * 
  */
-size_t mgHttpClient::process_chunked_data_in_place(char* data) {
-    char* input_ptr = data; // Pointer to read from the original data
-    char* output_ptr = data; // Pointer to write to the start of the data
-    size_t total_length = 0; // Keep track of the total length of de-chunked data
+size_t mgHttpClient::process_chunked_data_in_place(char* data, size_t upper_bound) {
+    if (!std::isxdigit(data[0])) {
+        return 0; // Not chunk-encoded data
+    }
 
-    while (1) {
-        // Find the end of the chunk size line
+    std::string decoded_data; // Accumulate decoded chunks here
+    char* input_ptr = data;
+    size_t processed_length = 0; // Track how much of the input we have processed
+
+    while (processed_length < upper_bound) {
         char* end_of_chunk_size_line = strstr(input_ptr, "\r\n");
-        if (!end_of_chunk_size_line) break; // No more complete chunks
+        if (!end_of_chunk_size_line) {
+            // No complete chunk size line found
+            break; // Stop processing, but keep valid chunks processed so far
+        }
 
-        // Find the position of the first semicolon in the chunk size line, if present
         char* semicolon_pos = strchr(input_ptr, ';');
         if (semicolon_pos && semicolon_pos < end_of_chunk_size_line) {
-            // If there's a semicolon before the end of the chunk size line, it marks the start of extensions
-            *semicolon_pos = '\0'; // Temporarily null-terminate at the semicolon to ignore extensions
+            *semicolon_pos = '\0'; // Ignore extensions for simplicity
         } else {
-            // No semicolon found, so null-terminate at the end of the chunk size line for parsing
             *end_of_chunk_size_line = '\0';
         }
 
-        // Parse the chunk size, which is a HEX number of bytes
-        unsigned int chunk_size = 0;
-        sscanf(input_ptr, "%x", &chunk_size);
-
-        // Restore the modified character (semicolon or carriage return)
-        if (semicolon_pos && semicolon_pos < end_of_chunk_size_line) {
-            *semicolon_pos = ';'; // Restore semicolon if it was replaced
-        } else {
-            *end_of_chunk_size_line = '\r'; // Restore carriage return if that was replaced
+        unsigned int chunk_size;
+        if (sscanf(input_ptr, "%x", &chunk_size) != 1) {
+            // Failed to parse chunk size
+            break; // Stop processing, but keep valid chunks processed so far
         }
 
-        if (chunk_size == 0) break; // End of data
+        // Restore the modified character
+        if (semicolon_pos && semicolon_pos < end_of_chunk_size_line) {
+            *semicolon_pos = ';';
+        } else {
+            *end_of_chunk_size_line = '\r';
+        }
 
-        // Move input_ptr to the start of the chunk data, skipping over the chunk size line
-        input_ptr = end_of_chunk_size_line + 2;
+        if (chunk_size == 0) {
+            // This is the last chunk
+            break;
+        }
 
-        // Move the chunk data to the output position
-        memmove(output_ptr, input_ptr, chunk_size);
+        input_ptr = end_of_chunk_size_line + 2; // Move past the chunk size line
+        processed_length += (input_ptr - data); // Update processed length
 
-        // Update the pointers and total_length
-        input_ptr += chunk_size + 2; // Move past this chunk's data and the following \r\n
-        output_ptr += chunk_size;    // Move output_ptr to the end of the moved data
-        total_length += chunk_size;  // Add this chunk's size to the total length
+        if (processed_length + chunk_size + 2 > upper_bound || strncmp(input_ptr + chunk_size, "\r\n", 2) != 0) {
+            // No end of chunk marker or chunk data exceeds buffer
+            break; // Stop processing, but keep valid chunks processed so far
+        }
+
+        decoded_data.append(input_ptr, chunk_size); // Add chunk data to decoded_data
+        input_ptr += chunk_size + 2; // Move to the next chunk
+        processed_length += chunk_size + 2; // Update processed length
     }
 
-    // Null-terminate the final output string - optional but safe the final string always smaller than the starting string
-    *output_ptr = '\0';
+    if (!decoded_data.empty()) {
+        // Replace the original buffer with the accumulated decoded data
+        memcpy(data, decoded_data.c_str(), decoded_data.size());
+        data[decoded_data.size()] = '\0'; // Null-terminate the result
+        return decoded_data.size(); // Return the length of the decoded data
+    }
 
-    return total_length;
+    return 0; // No valid chunks were processed
 }
 
 #endif // !ESP_PLATFORM
