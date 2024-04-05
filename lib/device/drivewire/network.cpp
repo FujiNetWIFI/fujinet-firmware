@@ -169,7 +169,7 @@ void drivewireNetwork::open()
             delete protocolParser;
             protocolParser = nullptr;
         }
-        fnUartBUS.write(ns.error);
+        //fnUartBUS.write(ns.error);
         return;
     }
 
@@ -185,7 +185,7 @@ void drivewireNetwork::open()
             delete protocolParser;
             protocolParser = nullptr;
         }
-        fnUartBUS.write(ns.error);
+        //fnUartBUS.write(ns.error);
         return;
     }
 
@@ -203,8 +203,8 @@ void drivewireNetwork::open()
 
     // And signal complete!
     ns.error = 1;
-    fnUartBUS.write(ns.error);
-    Debug_printv("ns.error = %u\n",ns.error);
+    //fnUartBUS.write(ns.error);
+    //Debug_printv("ns.error = %u\n",ns.error);
 }
 
 /**
@@ -487,6 +487,8 @@ void drivewireNetwork::status_channel()
     Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
                  ns.rxBytesWaiting, ns.connected, ns.error);
 
+    Debug_printf("%02X %02X %02X %02X\n",serialized_status[0],serialized_status[1],serialized_status[2],serialized_status[3]);
+
     // and send to computer
     fnUartBUS.write(serialized_status, sizeof(serialized_status));
 }
@@ -582,6 +584,8 @@ void drivewireNetwork::set_prefix()
  */
 void drivewireNetwork::set_channel_mode()
 {
+    cmdFrame.aux2 = fnUartBUS.read();
+
     switch (cmdFrame.aux2)
     {
     case 0:
@@ -593,6 +597,8 @@ void drivewireNetwork::set_channel_mode()
     default:
         break;
     }
+
+    Debug_printv("channel mode now %u\n",channelMode);
 }
 
 /**
@@ -1115,7 +1121,7 @@ void drivewireNetwork::set_translation()
 
 void drivewireNetwork::parse_json()
 {
-    fnUartBUS.write(json->parse());
+    ns.error = json->parse() ? NETWORK_ERROR_SUCCESS : NETWORK_ERROR_COULD_NOT_PARSE_JSON;
 }
 
 void drivewireNetwork::json_query()
@@ -1182,6 +1188,9 @@ void drivewireNetwork::process()
     
     switch (cmdFrame.comnd)
     {
+    case 0x00: // Ready?
+        fnUartBUS.write(0x01); // Yes.
+        break;
     case 'E':
         get_error();
         break;
@@ -1207,6 +1216,8 @@ void drivewireNetwork::process()
         special();
         break;
     }
+
+    fnUartBUS.flush_input();
 }
 
 #endif /* BUILD_COCO */
