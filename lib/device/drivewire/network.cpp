@@ -209,7 +209,7 @@ void drivewireNetwork::open()
     // And signal complete!
     ns.error = 1;
     //fnUartBUS.write(ns.error);
-    //Debug_printv("ns.error = %u\n",ns.error);
+    Debug_printf("ns.error = %u\n",ns.error);
 }
 
 /**
@@ -598,9 +598,7 @@ void drivewireNetwork::set_prefix()
  */
 void drivewireNetwork::set_channel_mode()
 {
-    cmdFrame.aux2 = fnUartBUS.read();
-
-    switch (cmdFrame.aux2)
+    switch (cmdFrame.aux1)
     {
     case 0:
         channelMode = PROTOCOL;
@@ -1210,7 +1208,7 @@ void drivewireNetwork::process()
     cmdFrame.aux1 = (uint8_t)fnUartBUS.read();
     cmdFrame.aux2 = (uint8_t)fnUartBUS.read();
 
-    Debug_printf("comnd: %c\n",cmdFrame.comnd);
+    Debug_printf("comnd: '%c' %u,%u,%u\n",cmdFrame.comnd,cmdFrame.comnd,cmdFrame.aux1,cmdFrame.aux2);
     
     switch (cmdFrame.comnd)
     {
