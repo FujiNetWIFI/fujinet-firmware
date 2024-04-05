@@ -979,7 +979,7 @@ void drivewireNetwork::send_response()
     fnUartBUS.write(l & 0xFF);
 
     // Send body
-    fnUartBUS.write(response.c_str(),response.size());
+    fnUartBUS.write((uint8_t *)response.c_str(),response.size());
 
     // Clear the response
     response.clear();
