@@ -441,25 +441,31 @@ void drivewireNetwork::status_local()
     {
     case 1: // IP Address
         Debug_printf("IP Address: %u.%u.%u.%u\n", ipAddress[0], ipAddress[1], ipAddress[2], ipAddress[3]);
-        fnUartBUS.write(ipAddress,sizeof(ipAddress));
+        memcpy(default_status,ipAddress,sizeof(default_status));
         break;
     case 2: // Netmask
         Debug_printf("Netmask: %u.%u.%u.%u\n", ipNetmask[0], ipNetmask[1], ipNetmask[2], ipNetmask[3]);
-        fnUartBUS.write(ipNetmask,sizeof(ipNetmask));
+        memcpy(default_status,ipNetmask,sizeof(default_status));
         break;
     case 3: // Gatway
         Debug_printf("Gateway: %u.%u.%u.%u\n", ipGateway[0], ipGateway[1], ipGateway[2], ipGateway[3]);
-        fnUartBUS.write(ipGateway,sizeof(ipGateway));
+        memcpy(default_status,ipGateway,sizeof(default_status));
         break;
     case 4: // DNS
         Debug_printf("DNS: %u.%u.%u.%u\n", ipDNS[0], ipDNS[1], ipDNS[2], ipDNS[3]);
-        fnUartBUS.write(ipDNS,sizeof(ipDNS));
+        memcpy(default_status,ipDNS,sizeof(default_status));
         break;
     default:
         default_status[2] = ns.connected;
         default_status[3] = ns.error;
-        fnUartBUS.write(default_status,sizeof(default_status));
+        break;
     }
+
+    response.clear();
+    response += default_status[0];
+    response += default_status[1];
+    response += default_status[2];
+    response += default_status[3];
 }
 
 bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
