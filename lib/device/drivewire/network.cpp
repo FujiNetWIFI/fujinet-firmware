@@ -1255,8 +1255,6 @@ void drivewireNetwork::process()
         special();
         break;
     }
-
-    fnUartBUS.flush_input();
 }
 
 #endif /* BUILD_COCO */
