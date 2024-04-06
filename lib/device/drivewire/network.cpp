@@ -505,10 +505,10 @@ void drivewireNetwork::status_channel()
     // and fill response.
     response.clear();
     response.shrink_to_fit();
-    response[0] = serialized_status[0];
-    response[1] = serialized_status[1];
-    response[2] = serialized_status[2];
-    response[3] = serialized_status[3];
+    response += serialized_status[0];
+    response += serialized_status[1];
+    response += serialized_status[2];
+    response += serialized_status[3];
 }
 
 /**
@@ -974,14 +974,8 @@ void drivewireNetwork::send_error()
 
 void drivewireNetwork::send_response()
 {
-    uint16_t l = response.length() > 65535 ? 65535 : (uint16_t)response.length();
-
-    // Send length
-    fnUartBUS.write(l >> 8);
-    fnUartBUS.write(l & 0xFF);
-
     // Send body
-    fnUartBUS.write((uint8_t *)response.c_str(),response.size());
+    fnUartBUS.write((uint8_t *)response.c_str(),response.length());
 
     // Clear the response
     response.clear();
