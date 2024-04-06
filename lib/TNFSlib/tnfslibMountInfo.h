@@ -22,6 +22,10 @@
 
 #define TNFS_MAX_DIRCACHE_ENTRIES 32 // Max number of directory cache entries we'll store
 
+#define TNFS_PROTOCOL_UNKNOWN 0
+#define TNFS_PROTOCOL_TCP 1
+#define TNFS_PROTOCOL_UDP 2
+
 // Some things we need to keep track of for every file we open
 struct tnfsFileHandleInfo
 {
@@ -81,7 +85,7 @@ public:
     void set_dircache_eof() { _dir_cache_eof = true; };
     bool get_dircache_eof() { return _dir_cache_eof; };
 
-    bool use_tcp = false;
+    uint8_t protocol = TNFS_PROTOCOL_UNKNOWN;
     fnTcpClient tcp_client;
 
     // These char[] sizes are abitrary...
