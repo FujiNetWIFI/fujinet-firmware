@@ -476,14 +476,13 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
 void drivewireNetwork::status_channel()
 {
     uint8_t serialized_status[4] = {0, 0, 0, 0};
-    bool err = false;
 
     Debug_printf("drivewireNetwork::sio_status_channel(%u)\n", channelMode);
 
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->status(&ns);
+        protocol->status(&ns);
         break;
     case JSON:
         status_channel_json(&ns);
@@ -503,8 +502,13 @@ void drivewireNetwork::status_channel()
 
     Debug_printf("%02X %02X %02X %02X\n",serialized_status[0],serialized_status[1],serialized_status[2],serialized_status[3]);
 
-    // and send to computer
-    fnUartBUS.write(serialized_status, sizeof(serialized_status));
+    // and fill response.
+    response.clear();
+    response.shrink_to_fit();
+    response[0] = serialized_status[0];
+    response[1] = serialized_status[1];
+    response[2] = serialized_status[2];
+    response[3] = serialized_status[3];
 }
 
 /**
@@ -1151,12 +1155,16 @@ void drivewireNetwork::parse_json()
 void drivewireNetwork::json_query()
 {
     std::string in_string;
+    uint16_t len = get_daux();
 
-    while (fnUartBUS.available())
+    while (len)
+    {
         in_string += fnUartBUS.read();
+        len--;
+    }
 
     // strip away line endings from input spec.
-    for (int i = 0; i < 256; i++)
+    for (int i = 0; i < in_string.size(); i++)
     {
         if (in_string[i] == 0x0A || in_string[i] == 0x0D || in_string[i] == 0x9b)
             in_string[i] = 0x00;
@@ -1172,8 +1180,12 @@ void drivewireNetwork::json_query()
     auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
     *receiveBuffer += std::string(tmp.begin(), null_pos);
 
+    for (int i=0;i<in_string.length();i++)
+        Debug_printf("%02X ",in_string[i]);
+    
+    Debug_printf("\n");
+
     Debug_printf("Query set to >%s<\r\n", in_string.c_str());
-    //sio_complete();
 }
 
 void drivewireNetwork::do_idempotent_command_80()
