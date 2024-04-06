@@ -1236,7 +1236,7 @@ const char *tnfs_getcwd(tnfsMountInfo *m_info)
 */
 bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
 {
-    if (m_info->use_tcp)
+    if (m_info->protocol == TNFS_PROTOCOL_UNKNOWN || m_info->protocol == TNFS_PROTOCOL_TCP)
     {
         fnTcpClient *tcp = &m_info->tcp_client;
         if (!tcp->connected())
@@ -1246,10 +1246,20 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
                 success = tcp->connect(m_info->host_ip, m_info->port, TNFS_TIMEOUT);
             else
                 success = tcp->connect(m_info->hostname, m_info->port, TNFS_TIMEOUT);
+            if (!success && m_info->protocol == TNFS_PROTOCOL_UNKNOWN)
+            {
+                Debug_println("Can't connect to the TCP server; falling back to UDP.");
+                m_info->protocol = TNFS_PROTOCOL_UDP;
+                return _tnfs_send(udp, m_info, pkt, payload_size);
+            }
             if (!success)
             {
                 Debug_println("Can't connect to the TCP server");
                 return false;
+            }
+            if (m_info->protocol == TNFS_PROTOCOL_UNKNOWN)
+            {
+                m_info->protocol = TNFS_PROTOCOL_TCP;
             }
         }
         int l = tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
@@ -1280,7 +1290,7 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
 */
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
 {
-    if (m_info->use_tcp)
+    if (m_info->protocol == TNFS_PROTOCOL_TCP)
     {
         fnTcpClient *tcp = &m_info->tcp_client;
         if (!tcp->connected())
@@ -1433,6 +1443,16 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
 #endif
 
             } while ((fnSystem.millis() - ms_start) < m_info->timeout_ms); // packet receive loop
+
+            if (m_info->protocol == TNFS_PROTOCOL_TCP && pkt.command == TNFS_CMD_MOUNT)
+            {
+                // This is probably an old tcpd server, accepting TCP connections but not responding
+                // to any commands. We should fall back to UDP too and don't count this iteration
+                // in the retry counter.
+                Debug_println("No response to TCP mount request; falling back to UDP.");
+                m_info->protocol = TNFS_PROTOCOL_UDP;
+                continue;
+            }
 
             if (retry >= 0)
             {

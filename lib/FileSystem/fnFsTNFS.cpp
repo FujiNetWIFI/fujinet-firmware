@@ -48,7 +48,7 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
         {
             return false;
         }
-        _mountinfo.use_tcp = true;
+        _mountinfo.protocol = TNFS_PROTOCOL_TCP;
         strlcpy(_mountinfo.hostname, host_no_prefix, sizeof(_mountinfo.hostname));
     }
     else
