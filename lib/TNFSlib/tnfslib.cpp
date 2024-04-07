@@ -1257,10 +1257,6 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
                 Debug_println("Can't connect to the TCP server");
                 return false;
             }
-            if (m_info->protocol == TNFS_PROTOCOL_UNKNOWN)
-            {
-                m_info->protocol = TNFS_PROTOCOL_TCP;
-            }
         }
         int l = tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
         return l == payload_size + TNFS_HEADER_SIZE;
@@ -1290,7 +1286,7 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
 */
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
 {
-    if (m_info->protocol == TNFS_PROTOCOL_TCP)
+    if (m_info->protocol == TNFS_PROTOCOL_TCP || m_info->protocol == TNFS_PROTOCOL_UNKNOWN)
     {
         fnTcpClient *tcp = &m_info->tcp_client;
         if (!tcp->connected())
@@ -1383,6 +1379,11 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
 #ifdef DEBUG
                     _tnfs_debug_packet(pkt, l, true);
 #endif
+                    if (m_info->protocol == TNFS_PROTOCOL_UNKNOWN)
+                    {
+                        Debug_println("TNFS server supports TCP.");
+                        m_info->protocol = TNFS_PROTOCOL_TCP;
+                    }
 
                     // Out of order packet received.
                     if (pkt.sequence_num != current_sequence_num)
@@ -1444,7 +1445,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
 
             } while ((fnSystem.millis() - ms_start) < m_info->timeout_ms); // packet receive loop
 
-            if (m_info->protocol == TNFS_PROTOCOL_TCP && pkt.command == TNFS_CMD_MOUNT)
+            if (m_info->protocol == TNFS_PROTOCOL_UNKNOWN)
             {
                 // This is probably an old tcpd server, accepting TCP connections but not responding
                 // to any commands. We should fall back to UDP too and don't count this iteration
