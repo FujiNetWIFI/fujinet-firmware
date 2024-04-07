@@ -353,10 +353,26 @@ bool drivewireNetwork::read_channel(unsigned short num_bytes)
 void drivewireNetwork::write()
 {
     uint16_t num_bytes = get_daux();
+    char *txbuf=nullptr;
 
     if (!num_bytes)
     {
         Debug_printf("drivewireNetwork::write() - refusing to write 0 bytes.\n");
+        return;
+    }
+
+    txbuf=(char *)malloc(num_bytes);
+
+    if (!txbuf)
+    {
+        Debug_printf("drivewireNetwork::write() - could not allocate %u bytes.\n");
+        return;
+    }
+
+    if (fnUartBUS.readBytes(txbuf,num_bytes) < num_bytes)
+    {
+        Debug_printf("drivewireNetwork::write() - short read\n");
+        free(txbuf);
         return;
     }
 
@@ -374,12 +390,11 @@ void drivewireNetwork::write()
         return;
     }
 
-    // Get the data from the CoCo
-    while (num_bytes)
-    {
-        *transmitBuffer += fnUartBUS.read();
-        num_bytes--;
-    }
+    std::string s = std::string(txbuf,num_bytes);
+
+    *transmitBuffer += s;
+
+    free(txbuf);
 
     // Do the channel write
     write_channel(num_bytes);
