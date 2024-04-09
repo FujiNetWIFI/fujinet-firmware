@@ -1472,10 +1472,6 @@ void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
 
     switch (cmdFrame.comnd)
     {
-    case FUJICMD_TEST:
-        rs232_ack();
-        rs232_test();
-        break;
     case FUJICMD_STATUS:
         rs232_ack();
         rs232_status();
