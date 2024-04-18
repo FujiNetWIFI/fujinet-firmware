@@ -129,6 +129,8 @@ void drivewireNetwork::open()
 {
     Debug_printf("drivewireNetwork::sio_open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
 
+    deviceSpec.clear();
+    
     while (fnUartBUS.available())
         {
             deviceSpec += fnUartBUS.read();
