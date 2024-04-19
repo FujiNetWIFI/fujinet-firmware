@@ -98,14 +98,14 @@ bool NetworkProtocolFS::open_dir()
         {
             // Long entry
             if (aux2_open == 0x81) // Apple2 80 col format.
-                dirBuffer += util_long_entry_apple2_80col(std::string(entryBuffer), fileSize, is_directory) + "\x9b";
+                dirBuffer += util_long_entry_apple2_80col(std::string(entryBuffer), fileSize, is_directory) + lineEnding;
             else
-            dirBuffer += util_long_entry(std::string(entryBuffer), fileSize, is_directory) + "\x9b";
+            dirBuffer += util_long_entry(std::string(entryBuffer), fileSize, is_directory) + lineEnding;
         }
         else
         {
             // 8.3 entry
-            dirBuffer += util_entry(util_crunch(std::string(entryBuffer)), fileSize, is_directory, is_locked) + "\x9b";
+            dirBuffer += util_entry(util_crunch(std::string(entryBuffer)), fileSize, is_directory, is_locked) + lineEnding;
         }
         fserror_to_error();
 
