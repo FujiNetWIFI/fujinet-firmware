@@ -80,6 +80,16 @@ public:
     bool forceStatus = false;
 
     /**
+     * The line ending to emit
+     */
+    std::string lineEnding = "\x9B";
+
+    /**
+     * Set line ending to string
+     */
+    void setLineEnding(std::string s) { lineEnding = s; }
+
+    /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
