@@ -180,6 +180,9 @@ void drivewireNetwork::open()
         return;
     }
 
+    // Set line ending to CR
+    protocol->setLineEnding("\x0D");
+
     // Attempt protocol open
     if (protocol->open(urlParser, &cmdFrame) == true)
     {
