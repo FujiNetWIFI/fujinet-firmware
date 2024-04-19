@@ -90,6 +90,17 @@ public:
     void setLineEnding(std::string s) { lineEnding = s; }
 
     /**
+     * The sector size to display in directory for FS derived protocols
+     */
+    int FSSectorSize = 256;
+
+    /**
+     * @brief Set sector size to display in directory for FS derived protocols
+     * @param sectorSize in bytes.
+     */
+    void setFSSectorSize(int sectorSize) { FSSectorSize = sectorSize; }
+
+    /**
      * @brief Open connection to the protocol using URL
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
