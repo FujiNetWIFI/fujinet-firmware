@@ -264,7 +264,15 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
 
 std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 {
+#ifdef BUILD_COCO
+#define LONG_ENTRY_TRIM_LEN 25
+#define LONG_ENTRY_EOL "\x0D"
+    std::string returned_entry = "                               ";
+#else
+#define LONG_ENTRY_TRIM_LEN 30
+#define LONG_ENTRY_EOL "\x9B"
     std::string returned_entry = "                                     ";
+#endif /* BUILD_COCO */
     std::string stylized_filesize;
 
     char tmp[8];
@@ -274,8 +282,8 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 
     // Double size of returned entry if > 30 chars.
     // Add EOL so SpartaDOS doesn't truncate record. grrr.
-    if (filename.length() > 30)
-        returned_entry += "\x9b" + returned_entry;
+    if (filename.length() > LONG_ENTRY_TRIM_LEN)
+        returned_entry += LONG_ENTRY_EOL + returned_entry;
 
     returned_entry.replace(0, filename.length(), filename);
 
