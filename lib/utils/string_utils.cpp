@@ -458,27 +458,24 @@ namespace mstr {
     {
         char ch;
         int i = 0, ii = 0;
-        char ret[size];
-        ret[0] = '\0';
+        char ret[size]{};
 
         while ( s[i] != '\0')
         {
-            if (
-                (s[i] == '%') &&        // Is this a '%' char?
-                isxdigit(s[i + 1]) &&   // Are the next two chars valid hex?
-                isxdigit(s[i + 2]) && 
-                (i + 2 <= size)         // Is i+2 less than string size?
-            )
+            ret[ii] = s[i];
+            if (i + 2 <= size)              // Is i+2 less than encoded string size?
             {
-                ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]);
-                ret[ii] = ch;
-                i += 2;
+                if (
+                    (s[i] == '%') &&        // Is this a '%' char?
+                    isxdigit(s[i + 1]) &&   // Are the next two chars valid hex?
+                    isxdigit(s[i + 2])
+                )
+                {
+                    ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]);
+                    ret[ii] = ch;
+                    i += 2;
+                }
             }
-            else
-            {
-                ret[ii] = s[i];
-            }
-
             Debug_printv("ret[%s] ch[%2X]", ret, ret[ii]);
 
             i++;
