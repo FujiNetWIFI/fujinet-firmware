@@ -210,9 +210,9 @@ void drivewireFuji::net_set_ssid()
 
     bool save = false; // for now don't save - to do save if connection was succesful
 
-    // URL Decode SSID/PASSWORD to handle special chars
-    mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
-    mstr::urlDecode(cfg.password, sizeof(cfg.password));
+    // URL Decode SSID/PASSWORD to handle special chars (FIXME)
+    //mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
+    //mstr::urlDecode(cfg.password, sizeof(cfg.password));
 
     Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
