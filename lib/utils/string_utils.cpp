@@ -458,7 +458,8 @@ namespace mstr {
     {
         char ch;
         int i = 0, ii = 0;
-        char ret[size]{};
+        char ret[size];
+        ret[0] = '\0'; // re-dd fix for compiling with clang (Boisy Pitre)
 
         while ( s[i] != '\0')
         {
