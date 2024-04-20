@@ -16,6 +16,7 @@
 
 #include "led.h"
 #include "utils.h"
+#include "string_utils.h"
 
 #define ADDITIONAL_DETAILS_BYTES 13
 
@@ -208,6 +209,10 @@ void drivewireFuji::net_set_ssid()
     fnUartBUS.readBytes((uint8_t *)&cfg, sizeof(cfg));
 
     bool save = false; // for now don't save - to do save if connection was succesful
+
+    // URL Decode SSID/PASSWORD to handle special chars
+    mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
+    mstr::urlDecode(cfg.password, sizeof(cfg.password));
 
     Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 

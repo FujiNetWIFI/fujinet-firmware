@@ -14,6 +14,7 @@
 #include "fsFlash.h"
 
 #include "utils.h"
+#include "string_utils.h"
 
 #define ADDITIONAL_DETAILS_BYTES 12
 
@@ -202,6 +203,10 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
         comlynx_recv(); // CK
 
         bool save = true;
+
+        // URL Decode SSID/PASSWORD to handle special chars
+        mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
+        mstr::urlDecode(cfg.password, sizeof(cfg.password));
 
         Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 

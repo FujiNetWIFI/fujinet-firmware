@@ -50,6 +50,7 @@ namespace mstr {
 
     std::string urlEncode(const std::string &s);
     std::string urlDecode(std::string s);
+    void urlDecode(char *s, size_t size);
 
     // void toASCII(std::string &s);
     // void toPETSCII(std::string &s);

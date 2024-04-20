@@ -24,6 +24,7 @@
 
 #include "led.h"
 #include "utils.h"
+#include "string_utils.h"
 
 #include "../../encoding/base64.h"
 #include "../../encoding/hash.h"
@@ -234,6 +235,10 @@ void sioFuji::sio_net_set_ssid()
     }
 
     bool save = cmdFrame.aux1 != 0;
+
+    // URL Decode SSID/PASSWORD to handle special chars
+    mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
+    mstr::urlDecode(cfg.password, sizeof(cfg.password));
 
     Debug_printf("Connecting to net: >%s< password: >%s<\r\n", cfg.ssid, cfg.password);
 
