@@ -283,6 +283,12 @@ namespace mstr {
         return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
     }
 
+    bool isHex(std::string &s)
+    {
+        return std::all_of(s.begin(), s.end(), 
+                        [](unsigned char c) { return ::isxdigit(c); });
+    }
+
     // convert to A0 space to 20 space (in place)
     void A02Space(std::string &s)
     {
@@ -457,26 +463,29 @@ namespace mstr {
 
         while ( s[i] != '\0')
         {
-            if (s[i] != '%')
-            {
-                if (s[i] == '+')
-                    ret[ii] = ' ';
-                else
-                    ret[ii] = s[i];
-            }
-            else
+            if (
+                (s[i] == '%') &&        // Is this a '%' char?
+                isxdigit(s[i + 1]) &&   // Are the next two chars valid hex?
+                isxdigit(s[i + 2]) && 
+                (i + 2 <= size)         // Is i+2 less than string size?
+            )
             {
                 ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]);
                 ret[ii] = ch;
                 i += 2;
             }
-            //Debug_printv("ret[%s] ch[%2X]", ret, ret[ii]);
+            else
+            {
+                ret[ii] = s[i];
+            }
+
+            Debug_printv("ret[%s] ch[%2X]", ret, ret[ii]);
 
             i++;
             ii++;
         }
         strncpy(s, ret, size);
-        //Debug_printv("ret[%s] s[%s]", ret, s);
+        Debug_printv("ret[%s] s[%s]", ret, s);
     }
 
     std::string format(const char *format, ...)
