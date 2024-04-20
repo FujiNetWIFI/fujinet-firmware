@@ -476,13 +476,13 @@ namespace mstr {
                     i += 2;
                 }
             }
-            Debug_printv("ret[%s] ch[%2X]", ret, ret[ii]);
+            //Debug_printv("ret[%s] ch[%2X]", ret, ret[ii]);
 
             i++;
             ii++;
         }
         strncpy(s, ret, size);
-        Debug_printv("ret[%s] s[%s]", ret, s);
+        //Debug_printv("ret[%s] s[%s]", ret, s);
     }
 
     std::string format(const char *format, ...)
