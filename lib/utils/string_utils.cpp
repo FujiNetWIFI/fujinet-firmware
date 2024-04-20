@@ -452,7 +452,8 @@ namespace mstr {
     {
         char ch;
         int i = 0, ii = 0;
-        char ret[size] = { '\0' };
+        char ret[size];
+        ret[0] = '\0';
 
         while ( s[i] != '\0')
         {
