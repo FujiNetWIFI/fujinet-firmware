@@ -16,6 +16,7 @@
 
 #include "led.h"
 #include "utils.h"
+#include "string_utils.h"
 
 rs232Fuji theFuji; // global fuji device object
 
@@ -188,6 +189,10 @@ void rs232Fuji::rs232_net_set_ssid()
     else
     {
         bool save = cmdFrame.aux1 != 0;
+
+        // URL Decode SSID/PASSWORD to handle special chars
+        mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
+        mstr::urlDecode(cfg.password, sizeof(cfg.password));
 
         Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 

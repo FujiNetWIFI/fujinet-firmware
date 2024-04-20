@@ -277,6 +277,12 @@ namespace mstr {
         return toHex(input.c_str(), input.size());
     }
 
+    // convert hex char to it's integer value
+    char fromHex(char ch)
+    {
+        return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
+    }
+
     // convert to A0 space to 20 space (in place)
     void A02Space(std::string &s)
     {
@@ -440,6 +446,36 @@ namespace mstr {
         }
 
         return ret;
+    }
+
+    void urlDecode(char *s, size_t size)
+    {
+        char ch;
+        int i = 0, ii = 0;
+        char ret[size] = { '\0' };
+
+        while ( s[i] != '\0')
+        {
+            if (s[i] != '%')
+            {
+                if (s[i] == '+')
+                    ret[ii] = ' ';
+                else
+                    ret[ii] = s[i];
+            }
+            else
+            {
+                ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]);
+                ret[ii] = ch;
+                i += 2;
+            }
+            //Debug_printv("ret[%s] ch[%2X]", ret, ret[ii]);
+
+            i++;
+            ii++;
+        }
+        strncpy(s, ret, size);
+        //Debug_printv("ret[%s] s[%s]", ret, s);
     }
 
     std::string format(const char *format, ...)

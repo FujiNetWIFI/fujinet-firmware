@@ -12,6 +12,7 @@
 #include "fsFlash.h"
 
 #include "utils.h"
+#include "string_utils.h"
 
 #include "../../encoding/base64.h"
 #include "../../encoding/hash.h"
@@ -212,6 +213,10 @@ void rc2014Fuji::rc2014_net_set_ssid()
         rc2014_send_ack();
 
         bool save = true;
+
+        // URL Decode SSID/PASSWORD to handle special chars
+        mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
+        mstr::urlDecode(cfg.password, sizeof(cfg.password));
 
         Debug_printf("Connecting to net: %s password: %s (length: %d)\n", cfg.ssid, cfg.password, strlen(cfg.password));
 

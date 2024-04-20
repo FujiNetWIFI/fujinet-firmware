@@ -7,6 +7,7 @@
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "utils.h"
+#include "string_utils.h"
 
 #include "compat_string.h"
 
@@ -140,6 +141,10 @@ void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
 	// adamnet_recv_buffer((uint8_t *)&cfg, s);
 
 	bool save = false; // for now don't save - to do save if connection was succesful
+
+	// URL Decode SSID/PASSWORD to handle special chars
+    mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
+    mstr::urlDecode(cfg.password, sizeof(cfg.password));
 
 	Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
