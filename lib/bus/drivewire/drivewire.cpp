@@ -470,10 +470,13 @@ void systemBus::setup()
 
     #endif /* FORCE_UART_BAUD */
 #else
-    _drivewireBaud = 115200; //Coco3 ROM Image
+    // Setup SIO ports: serial UART and NetSIO
+    fnUartBUS.set_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed()); // UART
+    _drivewireBaud = 57600;
 #endif
     
     fnUartBUS.begin(_drivewireBaud);
+    fnUartBUS.flush_input();
     Debug_printv("DRIVEWIRE MODE");
 }
 
