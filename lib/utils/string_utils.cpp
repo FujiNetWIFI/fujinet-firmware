@@ -458,13 +458,10 @@ namespace mstr {
     {
         char ch;
         int i = 0, ii = 0;
-        char ret[size];
-        ret[0] = '\0'; // re-dd fix for compiling with clang (Boisy Pitre)
 
         while ( s[i] != '\0')
         {
-            ret[ii] = s[i];
-            if (i + 2 <= size)              // Is i+2 less than encoded string size?
+            if (i + 2 <= size)              // Is i+2 less than encoded string buffer size?
             {
                 if (
                     (s[i] == '%') &&        // Is this a '%' char?
@@ -472,18 +469,22 @@ namespace mstr {
                     isxdigit(s[i + 2])
                 )
                 {
-                    ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]);
-                    ret[ii] = ch;
+                    ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]); // Decode byte
+                    s[ii] = ch;
                     i += 2;
                 }
+                else
+                {
+                    s[ii] = s[i];
+                }
+                ii++;
             }
-            //Debug_printv("ret[%s] ch[%2X]", ret, ret[ii]);
+            //Debug_printv("ii[%d] ch[%2X] s[%s] size[%d]", ii, s[ii], s, size);
 
             i++;
-            ii++;
         }
-        strncpy(s, ret, size);
-        //Debug_printv("ret[%s] s[%s]", ret, s);
+        s[ii] = '\0';
+        //Debug_printv("ii[%d] s[%s]", ii, s);
     }
 
     std::string format(const char *format, ...)
