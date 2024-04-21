@@ -54,6 +54,7 @@ inline uint16_t drivewire_checksum(uint8_t *buf, unsigned short len)
     return chk;
 }
 
+#ifdef ESP_PLATFORM
 static void drivewire_intr_task(void *arg)
 {
     uint32_t gpio_num;
@@ -63,7 +64,6 @@ static void drivewire_intr_task(void *arg)
 
     while (true)
     {
-#ifdef ESP_PLATFORM
         if (xQueueReceive(drivewire_evt_queue, &gpio_num, portMAX_DELAY))
         {
             esp_rom_delay_us(DEBOUNCE_THRESHOLD_US);
@@ -79,9 +79,9 @@ static void drivewire_intr_task(void *arg)
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS); // avoid spinning too fast...
-#endif
     }
 }
+#endif
 
 // Helper functions outside the class defintions
 
@@ -467,10 +467,12 @@ void systemBus::setup()
     }
 
     #endif /* FORCE_UART_BAUD */
+#else
+    _drivewireBaud = 115200; //Coco3 ROM Image
+#endif
     
     fnUartBUS.begin(_drivewireBaud);
     Debug_printv("DRIVEWIRE MODE");
-#endif
 }
 
 // Give devices an opportunity to clean up before a reboot

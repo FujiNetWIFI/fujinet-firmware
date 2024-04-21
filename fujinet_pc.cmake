@@ -337,12 +337,12 @@ endif()
 if(FUJINET_TARGET STREQUAL "COCO")
     list(APPEND SOURCES
 
-    lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
     lib/bus/sio/sio.h lib/bus/sio/sio.cpp
     lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
     lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
     lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
     lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
+    lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
 
     lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
 
