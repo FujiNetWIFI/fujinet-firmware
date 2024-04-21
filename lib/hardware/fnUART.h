@@ -146,7 +146,7 @@ public:
 #endif // ESP_PLATFORM
 };
 
-#ifdef ESP_PLATFORM
+#if defined(ESP_PLATFORM) || defined(BUILD_COCO)
 extern UARTManager fnUartDebug;
 extern UARTManager fnUartBUS;
 #endif

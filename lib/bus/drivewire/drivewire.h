@@ -19,8 +19,10 @@
 #ifndef COCO_H
 #define COCO_H
 
+#ifdef ESP32_PLATFORM
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#endif
 
 #include <forward_list>
 #include <map>
@@ -305,7 +307,9 @@ public:
     // I wish this codebase would make up its mind to use camel or snake casing.
     drivewireModem *get_modem() { return _modemDev; }
 
+#ifdef ESP32_PLATFORM
     QueueHandle_t qDrivewireMessages = nullptr;
+#endif
 };
 
 extern systemBus DRIVEWIRE;

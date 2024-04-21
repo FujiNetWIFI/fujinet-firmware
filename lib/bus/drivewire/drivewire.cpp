@@ -18,24 +18,30 @@
 #include "led.h"
 #include "utils.h"
 
+#ifdef ESP_PLATFORM
 #include <freertos/queue.h>
 #include <freertos/task.h>
+#endif
 
 #include "../../include/pinmap.h"
 #include "../../include/debug.h"
 
+#ifdef ESP_PLATFORM
 static QueueHandle_t drivewire_evt_queue = NULL;
+#endif
 
 drivewireDload dload;
 
 #define DEBOUNCE_THRESHOLD_US 50000ULL
 
+#ifdef ESP_PLATFORM
 static void IRAM_ATTR drivewire_isr_handler(void *arg)
 {
     // Generic default interrupt handler
     uint32_t gpio_num = (uint32_t)arg;
     xQueueSendFromISR(drivewire_evt_queue, &gpio_num, NULL);
 }
+#endif
 
 // Calculate 8-bit checksum
 inline uint16_t drivewire_checksum(uint8_t *buf, unsigned short len)
@@ -57,6 +63,7 @@ static void drivewire_intr_task(void *arg)
 
     while (true)
     {
+#ifdef ESP_PLATFORM
         if (xQueueReceive(drivewire_evt_queue, &gpio_num, portMAX_DELAY))
         {
             esp_rom_delay_us(DEBOUNCE_THRESHOLD_US);
@@ -72,6 +79,7 @@ static void drivewire_intr_task(void *arg)
         }
 
         vTaskDelay(10 / portTICK_PERIOD_MS); // avoid spinning too fast...
+#endif
     }
 }
 
@@ -366,6 +374,7 @@ void systemBus::_drivewire_process_queue()
  */
 void systemBus::service()
 {
+#ifdef ESP_PLATFORM
     // Handle cassette play if MOTOR pin active.
     if (_cassetteDev)
     {
@@ -375,6 +384,7 @@ void systemBus::service()
             return;
         }
     }
+#endif
 
     // check and assert interrupts if needed for any open
     // network device.
@@ -395,6 +405,7 @@ void systemBus::service()
 // Setup DRIVEWIRE bus
 void systemBus::setup()
 {
+#ifdef ESP_PLATFORM
     // Create a queue to handle parallel event from ISR
     drivewire_evt_queue = xQueueCreate(10, sizeof(uint32_t));
 
@@ -459,6 +470,7 @@ void systemBus::setup()
     
     fnUartBUS.begin(_drivewireBaud);
     Debug_printv("DRIVEWIRE MODE");
+#endif
 }
 
 // Give devices an opportunity to clean up before a reboot

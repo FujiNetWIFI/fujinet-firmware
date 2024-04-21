@@ -2,7 +2,11 @@
 
 #include "fuji.h"
 
+#ifdef ESP_PLATFORM
 #include <driver/ledc.h>
+#else
+#include <libgen.h>
+#endif
 
 #include <cstdint>
 #include <cstring>
@@ -68,6 +72,7 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
  */
 void say_number(unsigned char n)
 {
+#ifdef TODO_SPEECH
     switch (n)
     {
     case 1:
@@ -97,6 +102,7 @@ void say_number(unsigned char n)
     default:
         Debug_printf("say_number() - Uncaught number %d", n);
     }
+#endif
 }
 
 /**
@@ -104,8 +110,10 @@ void say_number(unsigned char n)
  */
 void say_swap_label()
 {
+#ifdef TODO_SPEECH
     // DISK
     util_sam_say("DIHSK7Q ", true);
+#endif
 }
 
 // Constructor
@@ -1100,7 +1108,11 @@ void drivewireFuji::read_device_slots()
             // usually too long for the Atari to show anyway, so the image name is more important.
             // Note: Basename can modify the input, so use a copy of the filename
             filename = strdup(_fnDisks[i].filename);
+#ifdef ESP_PLATFORM
             strlcpy(diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN);
+#else
+            strlcpy(diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN);
+#endif
             free(filename);
         }
     }
