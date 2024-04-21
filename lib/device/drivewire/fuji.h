@@ -17,6 +17,12 @@
 #define MAX_DISK_DEVICES 4
 #define MAX_NETWORK_DEVICES 8
 
+#ifdef ESP32_PLATFORM
+#else
+#define ESP_OK  0
+#endif
+
+#define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
 
 #define MAX_APPKEY_LEN 64
@@ -66,7 +72,9 @@ private:
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
+#ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
+#endif
 
     int _current_open_directory_slot = -1;
 
@@ -128,7 +136,9 @@ public:
 
     drivewireNetwork *network();
 
+#ifdef ESP_PLATFORM
     drivewireCassette *cassette() { return &_cassetteDev; };
+#endif
     void debug_tape();
 
     void insert_boot_device(uint8_t d);

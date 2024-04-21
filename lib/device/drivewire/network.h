@@ -1,7 +1,9 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#ifdef ESP32_PLATFORM
 #include <driver/timer.h>
+#endif
 
 #include <string>
 #include <vector>

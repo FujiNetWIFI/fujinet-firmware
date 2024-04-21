@@ -12,7 +12,9 @@ protected:
 
 public:
 
+#ifdef ESP32_PLATFORM
 TaskHandle_t playTask = NULL;
+#endif
 
 virtual void setup();
 virtual void shutdown();
