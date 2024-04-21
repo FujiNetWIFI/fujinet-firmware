@@ -94,6 +94,7 @@ void systemBus::op_nop()
 void systemBus::op_reset()
 {
     Debug_printv("op_reset()");
+    
 }
 
 void systemBus::op_readex()
@@ -120,6 +121,7 @@ void systemBus::op_readex()
         fnUartBUS.write(0xF6);
         fnUartBUS.flush();
         fnUartBUS.flush_input();
+        
         return;
     }
 

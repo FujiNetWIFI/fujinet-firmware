@@ -1,4 +1,4 @@
-#ifndef ESP_PLATFORM
+#ifndef ESP_PLATFORM || defined(BUILD_COCO)
 
 #if defined(_WIN32) // TODO #if defined
 
