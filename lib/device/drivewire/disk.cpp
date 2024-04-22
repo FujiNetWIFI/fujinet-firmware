@@ -22,7 +22,7 @@ drivewireDisk::~drivewireDisk()
 {
 }
 
-mediatype_t drivewireDisk::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
+mediatype_t drivewireDisk::mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     mediatype_t mt = MEDIATYPE_UNKNOWN;
 
@@ -88,13 +88,13 @@ bool drivewireDisk::write(uint32_t lsn, uint8_t *buf)
     return r;
 }
 
-bool drivewireDisk::write_blank(FILE *f, uint8_t numDisks)
+bool drivewireDisk::write_blank(fnFile *f, uint8_t numDisks)
 {
     size_t numBytes = numDisks*161280;
-
+    char ff = 0xFF;
+    
     for (size_t i=0;i<numBytes;i++)
-        if (fputc(0xFF,f) == EOF)
-            return false;
+        fnio::fwrite(&ff, 1, 1, f);
 
     return true;
 }

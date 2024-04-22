@@ -2,6 +2,7 @@
 
 #include "mediaTypeDSK.h"
 
+#include <unistd.h>
 #include <cstdint>
 #include <cstring>
 
@@ -36,11 +37,11 @@ bool MediaTypeDSK::read(uint32_t blockNum, uint16_t *readcount)
     if (blockNum != _media_last_block + 1)
     {
         uint32_t offset = _block_to_offset(blockNum);
-        err = fseek(_media_fileh, offset, SEEK_SET) != 0;
+        err = fnio::fseek(_media_fileh, offset, SEEK_SET) != 0;
     }
     
     if (err == false)
-        err = fread(_media_blockbuff, 1, MEDIA_BLOCK_SIZE, _media_fileh) != MEDIA_BLOCK_SIZE;
+        err = fnio::fread(_media_blockbuff, 1, MEDIA_BLOCK_SIZE, _media_fileh) != MEDIA_BLOCK_SIZE;
 
     if (err == false)
         _media_last_block = blockNum;
@@ -63,7 +64,7 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
 
     // Perform a seek if we're writing to the sector after the last one
     int e;
-    e = fseek(_media_fileh, offset, SEEK_SET);
+    e = fnio::fseek(_media_fileh, offset, SEEK_SET);
     if (e != 0)
     {
         Debug_printf("::write seek error %d\n", e);
@@ -71,7 +72,7 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
         return true;
     }
     // Write the data
-    e = fwrite(&_media_blockbuff, 1, MEDIA_BLOCK_SIZE, _media_fileh);
+    e = fnio::fwrite(&_media_blockbuff, 1, MEDIA_BLOCK_SIZE, _media_fileh);
 
     if (e != MEDIA_BLOCK_SIZE)
     {
@@ -79,8 +80,9 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
         return true;
     }
 
-    int ret = fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
-    ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
+    int ret = fnio::fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
+// TODO: Boisy needs to address this.
+//    ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DSK::write fsync:%d\n", ret);
 
     _media_last_block = INVALID_SECTOR_VALUE;
@@ -99,7 +101,7 @@ bool MediaTypeDSK::format(uint16_t *responsesize)
     return false;
 }
 
-mediatype_t MediaTypeDSK::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("DSK MOUNT\n");
 

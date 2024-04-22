@@ -952,6 +952,8 @@ void drivewireNetwork::assert_interrupt()
 #ifdef ESP_PLATFORM
     fnSystem.digital_write(PIN_CD, interruptCD == true ? DIGI_HIGH : DIGI_LOW);
 #else
+/* TODO: We'll get to this at a future date.
+
     uint64_t ms = fnSystem.millis();
     if (ms - lastInterruptMs >= timerRate)
     {
@@ -959,6 +961,7 @@ void drivewireNetwork::assert_interrupt()
         fnSioCom.set_proceed(interruptCD);
         lastInterruptMs = ms;
     }
+    */
 #endif
 }
 
@@ -986,8 +989,10 @@ void drivewireNetwork::poll_interrupt()
         if (ns.rxBytesWaiting > 0 || ns.connected == 0)
             assert_interrupt();
 #ifndef ESP_PLATFORM
-        else
+else
+/* TODO: We'll get to this at a future date.
             sio_clear_interrupt();
+ */
 #endif
 
         reservedSave = ns.connected;
