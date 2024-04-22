@@ -542,8 +542,11 @@ void drivewireNetwork::status_channel()
  */
 void drivewireNetwork::get_prefix()
 {
+    char out[256];
     Debug_printf("drivewireNetwork::get_prefix(%s)\n",prefix.c_str());
-    response = prefix;
+    memset(out,0,sizeof(out));
+    strcpy(out,prefix.c_str());
+    response = std::string(out,256);
 }
 
 /**
@@ -1007,6 +1010,8 @@ void drivewireNetwork::send_response()
 {
     // Send body
     fnUartBUS.write((uint8_t *)response.c_str(),response.length());
+
+    Debug_printf("drivewireNetwork::send_response(%s)",response.c_str());
 
     // Clear the response
     response.clear();

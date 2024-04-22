@@ -63,6 +63,7 @@ namespace mstr {
     bool isNumeric(std::string &s);
     bool isA0Space(int ch);
     void A02Space(std::string &s);
+    bool isHex(std::string &input);
 
     std::string format(const char *format, ...);
     std::string formatBytes(uint64_t value);

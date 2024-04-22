@@ -283,6 +283,12 @@ namespace mstr {
         return isdigit(ch) ? ch - '0' : tolower(ch) - 'a' + 10;
     }
 
+    bool isHex(std::string &s)
+    {
+        return std::all_of(s.begin(), s.end(), 
+                        [](unsigned char c) { return ::isxdigit(c); });
+    }
+
     // convert to A0 space to 20 space (in place)
     void A02Space(std::string &s)
     {
@@ -453,30 +459,35 @@ namespace mstr {
         char ch;
         int i = 0, ii = 0;
         char ret[size];
-        ret[0] = '\0';
 
+        memset(ret,0,size);
+      
         while ( s[i] != '\0')
         {
-            if (s[i] != '%')
+            if (i + 2 <= size)              // Is i+2 less than encoded string buffer size?
             {
-                if (s[i] == '+')
-                    ret[ii] = ' ';
+                if (
+                    (s[i] == '%') &&        // Is this a '%' char?
+                    isxdigit(s[i + 1]) &&   // Are the next two chars valid hex?
+                    isxdigit(s[i + 2])
+                )
+                {
+                    ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]); // Decode byte
+                    s[ii] = ch;
+                    i += 2;
+                }
                 else
-                    ret[ii] = s[i];
+                {
+                    s[ii] = s[i];
+                }
+                ii++;
             }
-            else
-            {
-                ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]);
-                ret[ii] = ch;
-                i += 2;
-            }
-            //Debug_printv("ret[%s] ch[%2X]", ret, ret[ii]);
+            //Debug_printv("ii[%d] ch[%2X] s[%s] size[%d]", ii, s[ii], s, size);
 
             i++;
-            ii++;
         }
-        strncpy(s, ret, size);
-        //Debug_printv("ret[%s] s[%s]", ret, s);
+        s[ii] = '\0';
+        //Debug_printv("ii[%d] s[%s]", ii, s);
     }
 
     std::string format(const char *format, ...)

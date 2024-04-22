@@ -206,9 +206,9 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
         bool save = true;
 
-        // URL Decode SSID/PASSWORD to handle special chars
-        mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
-        mstr::urlDecode(cfg.password, sizeof(cfg.password));
+        // URL Decode SSID/PASSWORD to handle special chars (FIXME)
+        //urlDecode(cfg.ssid, sizeof(cfg.ssid));
+        //mstr::urlDecode(cfg.password, sizeof(cfg.password));
 
         Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
 
