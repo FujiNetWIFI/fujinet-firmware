@@ -95,6 +95,9 @@ void systemBus::op_reset()
 {
     Debug_printv("op_reset()");
     
+    // When a reset transaction occurs, set the mounted disk image to the CONFIG disk image.
+    theFuji.boot_config = true;
+    theFuji.insert_boot_device(Config.get_general_boot_mode());
 }
 
 void systemBus::op_readex()
