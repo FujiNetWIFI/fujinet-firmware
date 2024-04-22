@@ -81,7 +81,11 @@ bool MediaTypeDSK::write(uint32_t blockNum, bool verify)
     }
 
     int ret = fnio::fflush(_media_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
-// TODO: Boisy needs to address this.
+    
+    // This next line is commented out because there's no fsync in the 
+    // fnio class. In a discussion with @apc from the following discussion:
+    // https://discord.com/channels/655893677146636301/1209535440915406848/1231880068528214026
+    // fnio::fflush() should be sufficient for syncing as well.
 //    ret = fsync(fileno(_media_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
     Debug_printf("DSK::write fsync:%d\n", ret);
 
