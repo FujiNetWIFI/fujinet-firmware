@@ -215,7 +215,7 @@ private:
 
 public:
     virtual bool read(uint16_t sectornum, uint16_t *readcount) override;
-    virtual bool format(uint16_t *respopnsesize) override;
+    virtual bool format(uint16_t *responsesize) override;
 
     virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
 

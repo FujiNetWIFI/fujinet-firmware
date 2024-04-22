@@ -37,7 +37,7 @@ public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
     virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
 
-    virtual bool format(uint16_t *respopnsesize) override { return false; };
+    virtual bool format(uint16_t *responsesize) override { return false; };
 
     virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
     virtual void unmount() override;

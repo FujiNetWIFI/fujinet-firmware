@@ -69,7 +69,7 @@ public:
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred
-    virtual bool format(uint16_t *respopnsesize);
+    virtual bool format(uint16_t *responsesize);
 
     // Returns TRUE if an error condition occurred
     virtual bool read(uint16_t sectornum, uint16_t *readcount) = 0;

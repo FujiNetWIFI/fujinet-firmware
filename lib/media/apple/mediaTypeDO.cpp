@@ -83,7 +83,7 @@ bool MediaTypeDO::write_sector(int track, int sector, uint8_t* buffer)
     return err;
 }
 
-bool MediaTypeDO::format(uint16_t *respopnsesize)
+bool MediaTypeDO::format(uint16_t *responsesize)
 {
     return false;
 }
