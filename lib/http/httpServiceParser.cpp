@@ -66,6 +66,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_MODEM_SNIFFER_ENABLED,
 #ifndef ESP_PLATFORM
         FN_SERIAL_PORT,
+        FN_SERIAL_PORT_BAUD,
         FN_SERIAL_COMMAND,
         FN_SERIAL_PROCEED,
         FN_SIO_HSTEXT,
@@ -182,6 +183,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_MODEM_SNIFFER_ENABLED",
 #ifndef ESP_PLATFORM
         "FN_SERIAL_PORT",
+        "FN_SERIAL_PORT_BAUD",
         "FN_SERIAL_COMMAND",
         "FN_SERIAL_PROCEED",
         "FN_SIO_HSTEXT",
@@ -389,6 +391,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifndef ESP_PLATFORM
     case FN_SERIAL_PORT:
         resultstream << Config.get_serial_port();
+        break;
+    case FN_SERIAL_PORT_BAUD:
+        resultstream << Config.get_serial_port_baud();
         break;
     case FN_SERIAL_COMMAND:
         resultstream << Config.get_serial_command();

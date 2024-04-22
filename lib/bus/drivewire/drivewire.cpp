@@ -475,7 +475,15 @@ void systemBus::setup()
 #else
     // Setup SIO ports: serial UART and NetSIO
     fnUartBUS.set_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed()); // UART
-    _drivewireBaud = 57600;
+    std::string baudString = Config.get_serial_port_baud();
+    if (baudString.empty())
+    {
+        _drivewireBaud = 57600;
+    }
+    else
+    {
+        _drivewireBaud = std::stoi(baudString);
+    }
 #endif
     
     fnUartBUS.begin(_drivewireBaud);

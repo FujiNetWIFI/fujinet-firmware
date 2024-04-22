@@ -137,6 +137,7 @@ public:
 
     // SERIAL PORT
     std::string get_serial_port() { return _serial.port; };
+    std::string get_serial_port_baud() { return _serial.baud; };
     serial_command_pin get_serial_command() { return _serial.command; };
     serial_proceed_pin get_serial_proceed() { return _serial.proceed; };
     void store_serial_port(const char *port);
@@ -461,6 +462,7 @@ private:
     struct serial_info
     {
         std::string port;
+        std::string baud;
         serial_command_pin command = SERIAL_COMMAND_DSR;
         serial_proceed_pin proceed = SERIAL_PROCEED_DTR;
     };
