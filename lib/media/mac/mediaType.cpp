@@ -6,7 +6,7 @@ MediaType::~MediaType()
     unmount();
 }
 
-bool MediaType::format(uint16_t *respopnsesize)
+bool MediaType::format(uint16_t *responsesize)
 {
     return true;
 }
@@ -71,7 +71,7 @@ MediaType::~MediaType()
     unmount();
 }
 
-bool MediaType::format(uint16_t *respopnsesize)
+bool MediaType::format(uint16_t *responsesize)
 {
     return true;
 }

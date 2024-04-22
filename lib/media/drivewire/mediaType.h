@@ -56,7 +56,7 @@ public:
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred
-    virtual bool format(uint16_t *respopnsesize);
+    virtual bool format(uint16_t *responsesize);
 
     // Returns TRUE if an error condition occurred
     virtual bool read(uint32_t blockNum, uint16_t *readcount) = 0;
