@@ -156,6 +156,10 @@ void fnConfig::_read_section_serial(std::stringstream &ss)
             {
                 _serial.port = value;
             }
+            else if (strcasecmp(name.c_str(), "baud") == 0)
+            {
+                _serial.baud = value.c_str();
+            }
             else if (strcasecmp(name.c_str(), "command") == 0)
             {
                 _serial.command = serial_command_from_string(value.c_str());

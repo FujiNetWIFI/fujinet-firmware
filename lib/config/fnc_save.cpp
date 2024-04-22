@@ -168,6 +168,7 @@ void fnConfig::save()
     // SERIAL
     ss << LINETERM << "[Serial]" << LINETERM;
     ss << "port=" << _serial.port << LINETERM;
+    ss << "baud=" << _serial.baud << LINETERM;
     ss << "command=" << std::string(_serial_command_pin_names[_serial.command]) << LINETERM;
     ss << "proceed=" << std::string(_serial_proceed_pin_names[_serial.proceed]) << LINETERM;
 
