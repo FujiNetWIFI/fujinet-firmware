@@ -51,7 +51,7 @@ public:
     virtual bool read(uint32_t blockNum, uint8_t *buffer) override { return true; };
     virtual bool write(uint32_t blockNum, uint8_t *buffer) override { return true; };
 
-    virtual bool format(uint16_t *respopnsesize) override { return false; };
+    virtual bool format(uint16_t *responsesize) override { return false; };
 
     virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
     mediatype_t mount(FILE *f) { return mount(f, 0); };

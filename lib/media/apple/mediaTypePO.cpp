@@ -68,7 +68,7 @@ bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
     return false;
 }
 
-bool MediaTypePO::format(uint16_t *respopnsesize)
+bool MediaTypePO::format(uint16_t *responsesize)
 {
     return false;
 }
