@@ -23,6 +23,13 @@ elseif(FUJINET_TARGET STREQUAL "APPLE")
     set(FUJINET_BUILD_BOARD fujinet-pc-apple)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS IWM)
+elseif(FUJINET_TARGET STREQUAL "COCO")
+    # fujinet.build_platform
+    set(FUJINET_BUILD_PLATFORM BUILD_COCO)
+    # fujinet.build_board (used by build_webui.py)
+    set(FUJINET_BUILD_BOARD fujinet-pc-coco)
+    # fujinet.build_bus
+    set(FUJINET_BUILD_BUS IWM)
 
     ######################## SLIP PROTOCOL PROCESSING
     set(SLIP_PROTOCOL "NET" CACHE STRING "Select the protocol type (NET or COM)")
@@ -325,6 +332,29 @@ if(FUJINET_TARGET STREQUAL "APPLE")
         )
     endif()
 
+endif()
+
+if(FUJINET_TARGET STREQUAL "COCO")
+    list(APPEND SOURCES
+
+    lib/bus/sio/sio.h lib/bus/sio/sio.cpp
+    lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
+    lib/hardware/fnUART.h lib/hardware/fnUARTUnix.cpp
+    lib/hardware/fnUART.h lib/hardware/fnUARTWindows.cpp
+
+    lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
+
+    lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
+    lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
+    
+    lib/device/drivewire/fuji.h lib/device/drivewire/fuji.cpp
+    lib/device/drivewire/network.h lib/device/drivewire/network.cpp
+    lib/device/drivewire/dload.h lib/device/drivewire/dload.cpp
+    lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
+    lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
+    lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
+
+    )
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")

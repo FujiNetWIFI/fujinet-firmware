@@ -521,4 +521,10 @@ size_t Print::println(struct tm * timeinfo, const char * format)
 }
 */
 
+#else
+
+#ifdef BUILD_COCO
+#include "fnUART.h"
+    UARTManager fnUartBUS;
+#endif
 #endif // ESP_PLATFORM

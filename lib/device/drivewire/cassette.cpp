@@ -3,7 +3,10 @@
 #include "cassette.h"
 
 #include <cstring>
+
+#ifdef ESP_PLATFORM
 #include <driver/dac.h>
+#endif
 
 #include "../../include/debug.h"
 

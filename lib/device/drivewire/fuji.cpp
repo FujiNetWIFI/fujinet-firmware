@@ -2,7 +2,11 @@
 
 #include "fuji.h"
 
+#ifdef ESP_PLATFORM
 #include <driver/ledc.h>
+#else
+#include <libgen.h>
+#endif
 
 #include <cstdint>
 #include <cstring>
@@ -68,6 +72,7 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
  */
 void say_number(unsigned char n)
 {
+#ifdef TODO_SPEECH
     switch (n)
     {
     case 1:
@@ -97,6 +102,7 @@ void say_number(unsigned char n)
     default:
         Debug_printf("say_number() - Uncaught number %d", n);
     }
+#endif
 }
 
 /**
@@ -104,8 +110,10 @@ void say_number(unsigned char n)
  */
 void say_swap_label()
 {
+#ifdef TODO_SPEECH
     // DISK
     util_sam_say("DIHSK7Q ", true);
+#endif
 }
 
 // Constructor
@@ -287,7 +295,7 @@ void drivewireFuji::disk_image_mount()
     // TODO: Refactor along with mount disk image.
     disk.disk_dev.host = &host;
 
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
@@ -468,7 +476,7 @@ void drivewireFuji::mount_all()
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                          disk.filename, disk.host_slot, flag, i + 1);
 
-            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+            disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
             if (disk.fileh == nullptr)
             {
@@ -993,7 +1001,7 @@ void drivewireFuji::new_disk()
         return;
     }
 
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
     if (disk.fileh == nullptr)
     {
         Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
@@ -1003,7 +1011,7 @@ void drivewireFuji::new_disk()
 
     bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.numDisks);
 
-    fclose(disk.fileh);
+    fnio::fclose(disk.fileh);
 
     if (ok == false)
     {
@@ -1100,7 +1108,11 @@ void drivewireFuji::read_device_slots()
             // usually too long for the Atari to show anyway, so the image name is more important.
             // Note: Basename can modify the input, so use a copy of the filename
             filename = strdup(_fnDisks[i].filename);
+#ifdef ESP_PLATFORM
             strlcpy(diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN);
+#else
+            strlcpy(diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN);
+#endif
             free(filename);
         }
     }
@@ -1244,7 +1256,7 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     Debug_printf("insert_boot_device()\n");
 
     const char *config_atr = "/autorun.dsk";
-    FILE *fBoot;
+    fnFile *fBoot;
     size_t sz = 0;
 
     _bootDisk.unmount();
@@ -1252,10 +1264,10 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fsFlash.file_open(config_atr);
-        fseek(fBoot, 0, SEEK_END);
-        sz = ftell(fBoot);
-        fseek(fBoot, 0, SEEK_SET);
+        fBoot = fsFlash.fnfile_open(config_atr);
+        fnio::fseek(fBoot, 0, SEEK_END);
+        sz = fnio::ftell(fBoot);
+        fnio::fseek(fBoot, 0, SEEK_SET);
         _bootDisk.mount(fBoot, config_atr, sz);
         break;
     }

@@ -18,24 +18,30 @@
 #include "led.h"
 #include "utils.h"
 
+#ifdef ESP_PLATFORM
 #include <freertos/queue.h>
 #include <freertos/task.h>
+#endif
 
 #include "../../include/pinmap.h"
 #include "../../include/debug.h"
 
+#ifdef ESP_PLATFORM
 static QueueHandle_t drivewire_evt_queue = NULL;
+#endif
 
 drivewireDload dload;
 
 #define DEBOUNCE_THRESHOLD_US 50000ULL
 
+#ifdef ESP_PLATFORM
 static void IRAM_ATTR drivewire_isr_handler(void *arg)
 {
     // Generic default interrupt handler
     uint32_t gpio_num = (uint32_t)arg;
     xQueueSendFromISR(drivewire_evt_queue, &gpio_num, NULL);
 }
+#endif
 
 // Calculate 8-bit checksum
 inline uint16_t drivewire_checksum(uint8_t *buf, unsigned short len)
@@ -48,6 +54,7 @@ inline uint16_t drivewire_checksum(uint8_t *buf, unsigned short len)
     return chk;
 }
 
+#ifdef ESP_PLATFORM
 static void drivewire_intr_task(void *arg)
 {
     uint32_t gpio_num;
@@ -74,6 +81,7 @@ static void drivewire_intr_task(void *arg)
         vTaskDelay(10 / portTICK_PERIOD_MS); // avoid spinning too fast...
     }
 }
+#endif
 
 // Helper functions outside the class defintions
 
@@ -86,6 +94,7 @@ void systemBus::op_nop()
 void systemBus::op_reset()
 {
     Debug_printv("op_reset()");
+    
 }
 
 void systemBus::op_readex()
@@ -112,6 +121,7 @@ void systemBus::op_readex()
         fnUartBUS.write(0xF6);
         fnUartBUS.flush();
         fnUartBUS.flush_input();
+        
         return;
     }
 
@@ -366,6 +376,7 @@ void systemBus::_drivewire_process_queue()
  */
 void systemBus::service()
 {
+#ifdef ESP_PLATFORM
     // Handle cassette play if MOTOR pin active.
     if (_cassetteDev)
     {
@@ -375,6 +386,7 @@ void systemBus::service()
             return;
         }
     }
+#endif
 
     // check and assert interrupts if needed for any open
     // network device.
@@ -395,6 +407,7 @@ void systemBus::service()
 // Setup DRIVEWIRE bus
 void systemBus::setup()
 {
+#ifdef ESP_PLATFORM
     // Create a queue to handle parallel event from ISR
     drivewire_evt_queue = xQueueCreate(10, sizeof(uint32_t));
 
@@ -456,8 +469,14 @@ void systemBus::setup()
     }
 
     #endif /* FORCE_UART_BAUD */
+#else
+    // Setup SIO ports: serial UART and NetSIO
+    fnUartBUS.set_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed()); // UART
+    _drivewireBaud = 57600;
+#endif
     
     fnUartBUS.begin(_drivewireBaud);
+    fnUartBUS.flush_input();
     Debug_printv("DRIVEWIRE MODE");
 }
 

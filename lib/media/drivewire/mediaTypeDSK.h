@@ -16,7 +16,7 @@ public:
 
     virtual bool format(uint16_t *respopnsesize) override;
 
-    virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
 
     virtual uint8_t status() override;
 

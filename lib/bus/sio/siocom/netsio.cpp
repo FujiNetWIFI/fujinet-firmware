@@ -1,6 +1,6 @@
 #ifndef ESP_PLATFORM
 
-#ifdef BUILD_ATARI
+#if defined(BUILD_ATARI) || defined(BUILD_COCO)
 
 #include "netsio.h"
 #include "netsio_proto.h"
