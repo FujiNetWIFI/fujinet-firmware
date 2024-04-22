@@ -918,10 +918,14 @@ void sioFuji::sio_read_app_key()
         bus_to_computer((uint8_t *)&response, sizeof(response), true);
         return;
     }
-
+#ifdef ESP_PLATFORM
+    size_t count = fread(response.value, 1, sizeof(response.value), fIn);
+    fclose(fIn);
+#else
     size_t count = fnio::fread(response.value, 1, sizeof(response.value), fIn);
-
     fnio::fclose(fIn);
+#endif /* ESP_PLATFORM */
+
     Debug_printf("Read %u bytes from input file\n", (unsigned)count);
 
     response.size = count;
