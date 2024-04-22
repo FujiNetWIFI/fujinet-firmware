@@ -910,7 +910,7 @@ void sioFuji::sio_read_app_key()
 #ifdef ESP_PLATFORM
     FILE *fIn = fnSDFAT.file_open(filename, FILE_READ);
 #else
-    FILE *fIn = fnSDFAT.fnfile_open(filename, FILE_READ);
+    fnFile *fIn = fnSDFAT.fnfile_open(filename, FILE_READ);
 #endif
     if (fIn == nullptr)
     {
@@ -919,9 +919,9 @@ void sioFuji::sio_read_app_key()
         return;
     }
 
-    size_t count = fread(response.value, 1, sizeof(response.value), fIn);
+    size_t count = fnio::fread(response.value, 1, sizeof(response.value), fIn);
 
-    fclose(fIn);
+    fnio::fclose(fIn);
     Debug_printf("Read %u bytes from input file\n", (unsigned)count);
 
     response.size = count;
