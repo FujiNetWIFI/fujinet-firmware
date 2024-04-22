@@ -20,7 +20,7 @@ enum mediatype_t
 class MediaType
 {
 protected:
-    FILE *_media_fileh = nullptr;
+    fnFile *_media_fileh = nullptr;
     uint32_t _media_image_size = 0;
     uint32_t _media_num_blocks = 256;
     uint16_t _media_sector_size = MEDIA_BLOCK_SIZE;
@@ -52,7 +52,7 @@ public:
     mediatype_t _mediatype = MEDIATYPE_UNKNOWN;
     bool _allow_hsio = true;
 
-    virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) = 0;
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred

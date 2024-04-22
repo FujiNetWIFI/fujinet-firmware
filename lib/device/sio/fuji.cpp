@@ -907,7 +907,7 @@ void sioFuji::sio_read_app_key()
 
     Debug_printf("Reading appkey from \"%s\"\n", filename);
 
-    FILE *fIn = fnSDFAT.file_open(filename, FILE_READ);
+    FILE *fIn = fnSDFAT.fnfile_open(filename, FILE_READ);
     if (fIn == nullptr)
     {
         Debug_printf("Failed to open input file: errno=%d\n", errno);
