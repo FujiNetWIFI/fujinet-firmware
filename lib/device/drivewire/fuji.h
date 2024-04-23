@@ -3,7 +3,7 @@
 
 #include <cstdint>
 #include <cstring>
-
+#include <compat_string.h>
 #include "bus.h"
 #include "disk.h"
 #include "network.h"
@@ -165,3 +165,4 @@ public:
 extern drivewireFuji theFuji;
 
 #endif // FUJI_H
+
