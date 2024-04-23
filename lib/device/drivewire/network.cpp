@@ -129,14 +129,21 @@ void drivewireNetwork::open()
 {
     Debug_printf("drivewireNetwork::sio_open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
 
-    deviceSpec.clear();
+    char tmp[256];
+    memset(tmp,0,sizeof(tmp));
+
+    size_t bytes_read = fnUartBUS.readBytes(tmp,256);
+
+    Debug_printf("tmp = %s\n",tmp);
+
+    if (bytes_read != 256)
+    {
+        Debug_printf("Short read of %lu bytes. Exiting.",bytes_read);
+        return;
+    }
+
+    deviceSpec = std::string(tmp,256);
     
-    while (fnUartBUS.available())
-        {
-            deviceSpec += fnUartBUS.read();
-        }
-
-
     channelMode = PROTOCOL;
 
     // Delete timer if already extant.
@@ -555,9 +562,17 @@ void drivewireNetwork::get_prefix()
 void drivewireNetwork::set_prefix()
 {
     std::string prefixSpec_str;
+    char tmp[256];
+    memset(tmp,0,sizeof(tmp));
+    size_t read_bytes = fnUartBUS.readBytes(tmp,256);
 
-    while (fnUartBUS.available())
-        prefixSpec_str += fnUartBUS.read();
+    if (read_bytes != 256)
+    {
+        Debug_printf("Short read by %lu bytes. Exiting.",read_bytes);
+        return;
+    }
+
+    prefixSpec_str = std::string(tmp,256);
 
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("drivewireNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
@@ -651,9 +666,18 @@ void drivewireNetwork::set_channel_mode()
  */
 void drivewireNetwork::set_login()
 {
-    login.clear();
-    while (fnUartBUS.available())
-        login += fnUartBUS.read();
+    char tmp[256];
+    memset(tmp,0,sizeof(tmp));
+
+    size_t bytes_read = fnUartBUS.readBytes(tmp,256);
+
+    if (bytes_read != 256)
+    {
+        Debug_printf("Short read of %lu bytes. Exiting.\n",bytes_read);
+        return;
+    }
+
+    login = std::string(tmp,256);    
     
     Debug_printf("drivewireNetwork::set_login(%s)\n",login.c_str());
 }
@@ -663,9 +687,16 @@ void drivewireNetwork::set_login()
  */
 void drivewireNetwork::set_password()
 {
-    password.clear();
-    while (fnUartBUS.available())
-        password += fnUartBUS.read();
+    char tmp[256];
+    memset(tmp,0,sizeof(tmp));
+
+    size_t bytes_read = fnUartBUS.readBytes(tmp,256);
+
+    if (bytes_read != 256)
+    {
+        Debug_printf("Short read of %lu bytes. Exiting.\n",bytes_read);
+        return;
+    }
 
     Debug_printf("drivewireNetwork::set_password(%s)\n",password.c_str());
 }
@@ -858,8 +889,8 @@ void drivewireNetwork::special_80()
     memset(spData, 0, SPECIAL_BUFFER_SIZE);
 
     // Get special (devicespec) from computer
-    while (fnUartBUS.available())
-        spData[i++]=fnUartBUS.read();
+
+    fnUartBUS.readBytes(spData,256);
 
     Debug_printf("drivewireNetwork::special_80() - %s\n", spData);
 
@@ -1185,13 +1216,18 @@ void drivewireNetwork::parse_json()
 void drivewireNetwork::json_query()
 {
     std::string in_string;
-    uint16_t len = get_daux();
+    char tmpq[256];
+    memset(tmpq,0,sizeof(tmpq));
 
-    while (len)
+    size_t bytes_read = fnUartBUS.readBytes(tmpq,256);
+
+    if (bytes_read != 256)
     {
-        in_string += fnUartBUS.read();
-        len--;
+        Debug_printf("Short read of %lu bytes. Exiting\n",bytes_read);
+        return;
     }
+
+    in_string = std::string(tmpq,256);
 
     // strip away line endings from input spec.
     for (int i = 0; i < in_string.size(); i++)
@@ -1200,7 +1236,7 @@ void drivewireNetwork::json_query()
             in_string[i] = 0x00;
     }
 
-    json->setReadQuery(in_string, cmdFrame.aux2);
+    json->setReadQuery(in_string, 256);
     json_bytes_remaining = json->json_bytes_remaining;
 
     std::vector<uint8_t> tmp(json_bytes_remaining);
