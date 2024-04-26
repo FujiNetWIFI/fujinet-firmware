@@ -13,7 +13,7 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM, APPLE, ATARI-8mb, IEC-LOLIN-D32, IEC-FUJIAPL]
+        target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, IEC-LOLIN-D32]
 
     steps:
     - name: Checkout Source
@@ -58,24 +58,19 @@ jobs:
       run: pip show platformio
 
     - name: Create PlatformIO INI for Build
-      run: cp /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.ini.${{ matrix.target-platform }} /home/runner/work/fujinet-firmware/fujinet-firmware/platformio.ini
+      run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
 
     - name: Show platformio.ini
-      run: cat /home/runner/work/fujinet-firmware/fujinet-firmware/platformio.ini
+      run: cat /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
 
     - name: Get PIO build_board from INI
       id: build_board
       shell: bash
       run: |
-        echo "NAME=$(grep '^[^;]*build_board ' /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.ini.${{ matrix.target-platform }} | sed s'/ //'g | cut -d "=" -f 2 | cut -d ";" -f 1)" >> $GITHUB_OUTPUT
+        echo "NAME=$(grep '^[^;]*build_board ' /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini | sed s'/ //'g | cut -d "=" -f 2 | cut -d ";" -f 1)" >> $GITHUB_OUTPUT
 
-    # Build filesystem first so spiffs.bin is available during firmware build
-    - name: Build Filesystem
-      run: pio run -t buildfs -e ${{ steps.build_board.outputs.NAME }}
-
-    # Build the firmware
-    - name: Build Firimware
-      run: pio run -e ${{ steps.build_board.outputs.NAME }}
+    - name: Build release
+      run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -z -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
 
     - name: Get version number from release.json
       id: release-ver
@@ -90,7 +85,7 @@ jobs:
     - name: Rename firmware file if needed
       shell: bash
       run: |
-        mv firmware/fujinet-${{ matrix.target-platform }}-${{ steps.release-ver.outputs.VERSION }}.zip firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        mv firmware/fujinet-*.zip firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
 
     - name: Fetch Tag Info
       run: git fetch --tags --force
