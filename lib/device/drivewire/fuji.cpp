@@ -1305,6 +1305,18 @@ std::string drivewireFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
+void drivewireFuji::send_response()
+{
+    // Send body
+    fnUartBUS.write((uint8_t *)response.c_str(),response.length());
+
+    Debug_printf("drivewireNetwork::send_response(%s)",response.c_str());
+
+    // Clear the response
+    response.clear();
+    response.shrink_to_fit();    
+}
+
 void drivewireFuji::ready()
 {
     fnUartBUS.write(0x01); // Yes, ready.
@@ -1381,6 +1393,9 @@ void drivewireFuji::process()
         break;
     case FUJICMD_NEW_DISK:
         new_disk();
+        break;
+    case FUJICMD_SEND_RESPONSE:
+        send_response();
         break;
     case FUJICMD_DEVICE_READY:
         ready();
