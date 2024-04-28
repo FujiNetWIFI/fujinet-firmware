@@ -90,11 +90,15 @@ bool drivewireDisk::write(uint32_t lsn, uint8_t *buf)
 
 bool drivewireDisk::write_blank(fnFile *f, uint8_t numDisks)
 {
-    size_t numBytes = numDisks*161280;
-    char ff = 0xFF;
-    
-    for (size_t i=0;i<numBytes;i++)
-        fnio::fwrite(&ff, 1, 1, f);
+    uint8_t b[512];
+    size_t n = numDisks * 315;
+
+    Debug_printf("write_blank num_disks: %lu\n",n);
+
+    memset(b,0xFF,sizeof(b));
+
+    for (size_t i=0;i<n;i++)
+        fnio::fwrite(b,sizeof(b),1,f);
 
     return true;
 }
