@@ -70,6 +70,8 @@ private:
 
     std::string response;
 
+    uint8_t errorCode;
+
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
@@ -125,6 +127,7 @@ protected:
     void set_boot_config();        // 0xD9
     void copy_file();              // 0xD8
     void set_boot_mode();          // 0xD6
+    void send_error();
     void send_response();          // 0x01
     void ready();                  // 0x00
     void shutdown() override;
