@@ -243,7 +243,11 @@ void drivewireFuji::net_get_wifi_status()
 {
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     Debug_printv("Fuji cmd: GET WIFI STATUS: %u", wifiStatus);
-    fnUartBUS.write(wifiStatus);
+
+    response.clear();
+    response.shrink_to_fit();
+
+    response += wifiStatus;
 }
 
 // Check if Wifi is enabled
@@ -253,7 +257,10 @@ void drivewireFuji::net_get_wifi_enabled()
 
     Debug_printv("Fuji cmd: GET WIFI ENABLED: %u", e);
 
-    fnUartBUS.write(e);
+    response.clear();
+    response.shrink_to_fit();
+
+    response += e;
 }
 
 // Mount Server
@@ -1318,8 +1325,6 @@ void drivewireFuji::send_response()
 {
     // Send body
     fnUartBUS.write((uint8_t *)response.c_str(),response.length());
-
-    Debug_printf("drivewireNetwork::send_response(%s)",response.c_str());
 
     // Clear the response
     response.clear();
