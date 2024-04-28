@@ -1305,10 +1305,9 @@ std::string drivewireFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
-void drivewireFuji::device_error()
+void drivewireFuji::ready()
 {
-    Debug_printf("FUJI DEVICE STATUS\n");
-    // fnUartBUS.write(0x2A);
+    fnUartBUS.write(0x01); // Yes, ready.
 }
 
 void drivewireFuji::process()
@@ -1383,8 +1382,8 @@ void drivewireFuji::process()
     case FUJICMD_NEW_DISK:
         new_disk();
         break;
-    case FUJICMD_DEVICE_ERROR:
-        device_error();
+    case FUJICMD_DEVICE_READY:
+        ready();
         break;
     default:
         break;
