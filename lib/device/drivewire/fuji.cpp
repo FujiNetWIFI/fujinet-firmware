@@ -978,13 +978,18 @@ void drivewireFuji::new_disk()
 
     struct
     {
-        unsigned short numDisks;
+        unsigned char numDisks;
         unsigned char hostSlot;
         unsigned char deviceSlot;
         char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
     } newDisk;
 
     fnUartBUS.readBytes((uint8_t *)&newDisk, sizeof(newDisk));
+
+    Debug_printf("numDisks: %u\n",newDisk.numDisks);
+    Debug_printf("hostSlot: %u\n",newDisk.hostSlot);
+    Debug_printf("deviceSl: %u\n",newDisk.deviceSlot);
+    Debug_printf("filename: %s\n",newDisk.filename);
 
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
@@ -1012,16 +1017,6 @@ void drivewireFuji::new_disk()
     bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.numDisks);
 
     fnio::fclose(disk.fileh);
-
-    if (ok == false)
-    {
-        Debug_print("drivewire_new_disk Data write failed\n");
-        drivewire_error();
-        return;
-    }
-
-    Debug_print("drivewire_new_disk succeeded\n");
-    drivewire_complete();
 }
 
 // Unmount specified host
@@ -1384,6 +1379,9 @@ void drivewireFuji::process()
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         disk_image_umount();
+        break;
+    case FUJICMD_NEW_DISK:
+        new_disk();
         break;
     case FUJICMD_DEVICE_ERROR:
         device_error();
