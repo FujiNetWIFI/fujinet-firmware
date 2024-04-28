@@ -967,8 +967,11 @@ void drivewireFuji::get_adapter_config()
 
     fnWiFi.get_mac(cfg.macAddress);
 
-    fnUartBUS.write((uint8_t *)&cfg, sizeof(cfg));
-    Debug_printf("Sizeof cfg: %u\n",sizeof(cfg));
+    response.clear();
+    response.shrink_to_fit();
+
+    errorCode = 1;
+    response = std::string((const char *)&cfg, sizeof(cfg));
 }
 
 //  Make new disk and shove into device slot
