@@ -1305,6 +1305,12 @@ std::string drivewireFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
+void drivewireFuji::send_error()
+{
+    Debug_printf("drivewireFuji::send_error(%u)\n",errorCode);
+    fnUartBUS.write(errorCode);
+}
+
 void drivewireFuji::send_response()
 {
     // Send body
