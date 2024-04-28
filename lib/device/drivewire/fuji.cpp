@@ -143,7 +143,10 @@ void drivewireFuji::net_scan_networks()
         _countScannedSSIDs = fnWiFi.scan_networks();
     }
 
-    fnUartBUS.write(_countScannedSSIDs);
+    response.clear();
+    response.shrink_to_fit();
+
+    response += _countScannedSSIDs;
 }
 
 // Return scanned network entry
@@ -171,7 +174,10 @@ void drivewireFuji::net_scan_result()
         err = true;
     }
 
-    fnUartBUS.write((uint8_t *)&detail, sizeof(detail));
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)&detail, sizeof(detail));
 }
 
 //  Get SSID
@@ -201,7 +207,10 @@ void drivewireFuji::net_get_ssid()
     memcpy(cfg.password, s.c_str(),
            s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
 
-    fnUartBUS.write((uint8_t *)&cfg, sizeof(cfg));
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)&cfg, sizeof(cfg));
 }
 
 // Set SSID
