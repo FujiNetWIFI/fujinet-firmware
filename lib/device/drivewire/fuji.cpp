@@ -1133,7 +1133,10 @@ void drivewireFuji::read_device_slots()
 
     returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
 
-    fnUartBUS.write((uint8_t *)&diskSlots, returnsize);
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)&diskSlots, returnsize);
 }
 
 // Read and save disk slot data from computer
