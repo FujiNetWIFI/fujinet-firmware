@@ -20,12 +20,16 @@ private:
     TaskHandle_t cpmTaskHandle = NULL;
 #endif /* ESP_PLATFORM */
 
-    void boot();
-
 public:
     drivewireCPM();
     virtual ~drivewireCPM();
-    
+    virtual void process();
+    virtual void boot();
+    virtual void read();
+    virtual void write();
+    virtual void status();
 };
+
+extern drivewireCPM theCPM;
 
 #endif /* DRIVEWIRECPM_H */

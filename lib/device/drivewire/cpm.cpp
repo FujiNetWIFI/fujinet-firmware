@@ -57,4 +57,47 @@ drivewireCPM::~drivewireCPM()
     vQueueDelete(txq);
 }
 
+void drivewireCPM::boot()
+{
+
+}
+
+void drivewireCPM::read()
+{
+
+}
+
+void drivewireCPM::write()
+{
+
+}
+
+void drivewireCPM::status()
+{
+
+}
+
+void drivewireCPM::process()
+{
+    uint8_t cmd = fnUartBUS.read();
+
+    switch(cmd)
+    {
+        case 'B':
+            boot();
+            break;
+        case 'R':
+            read();
+            break;
+        case 'W':
+            write();
+            break;
+        case 'S':
+            status();
+            break;
+    }
+}
+
+drivewireCPM theCPM;
+
 #endif /* BUILD_COCO */

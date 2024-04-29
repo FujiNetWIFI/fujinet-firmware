@@ -225,6 +225,11 @@ void systemBus::op_fuji()
     theFuji.process();
 }
 
+void systemBus::op_cpm()
+{
+    theCPM.process();
+}
+
 void systemBus::op_net()
 {
     // Get device ID
