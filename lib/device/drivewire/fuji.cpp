@@ -788,21 +788,15 @@ void drivewireFuji::open_directory()
 
     uint8_t hostSlot = fnUartBUS.read();
 
-    Debug_printf("Available? %u\n", fnUartBUS.available());
-
     fnUartBUS.readBytes((uint8_t *)&dirpath, 256);
-
-    Debug_printf("What did I get? %s\n", dirpath);
 
     if (_current_open_directory_slot == -1)
     {
         // See if there's a search pattern after the directory path
         const char *pattern = nullptr;
         int pathlen = strnlen(dirpath, sizeof(dirpath));
-        Debug_printf("pathlen: %u\n", pathlen);
         if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
         {
-            Debug_print("Did we go here?");
             pattern = dirpath + pathlen + 1;
             int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
             if (patternlen < 1)
