@@ -156,16 +156,6 @@ public:
     bool device_active = true;
 
     /**
-     * @brief return true to indicate successful command
-     */
-    void drivewire_complete() { fnUartBUS.write(true); }
-
-    /**
-     * @brief return false to indicate unsuccessful command
-     */
-    void drivewire_error() { fnUartBUS.write(false); }
-
-    /**
      * @brief Get the systemBus object that this virtualDevice is attached to.
      */
     systemBus get_bus();

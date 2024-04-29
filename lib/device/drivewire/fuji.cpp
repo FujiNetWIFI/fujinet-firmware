@@ -1018,7 +1018,6 @@ void drivewireFuji::new_disk()
     if (host.file_exists(disk.filename))
     {
         Debug_printf("drivewire_new_disk File exists: \"%s\"\n", disk.filename);
-        drivewire_error();
         return;
     }
 
@@ -1026,7 +1025,6 @@ void drivewireFuji::new_disk()
     if (disk.fileh == nullptr)
     {
         Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        drivewire_error();
         return;
     }
 
