@@ -25,6 +25,8 @@ public:
     drivewireCPM();
     virtual ~drivewireCPM();
     virtual void process();
+    virtual void ready();
+    virtual void send_response();
     virtual void boot();
     virtual void read();
     virtual void write();

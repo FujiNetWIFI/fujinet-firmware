@@ -62,6 +62,21 @@ drivewireCPM::~drivewireCPM()
     vQueueDelete(txq);
 }
 
+void drivewireCPM::ready()
+{
+    fnUartBUS.write(0x01);
+}
+
+void drivewireCPM::send_response()
+{
+    // Send body
+    fnUartBUS.write((uint8_t *)response.c_str(),response.length());
+
+    // Clear the response
+    response.clear();
+    response.shrink_to_fit();    
+}
+
 void drivewireCPM::boot()
 {
 #ifdef ESP_PLATFORM
@@ -134,6 +149,12 @@ void drivewireCPM::process()
 
     switch(cmd)
     {
+        case 0x00:
+            ready();
+            break;
+        case 0x01:
+            send_response();
+            break;
         case 'B':
             boot();
             break;
