@@ -53,6 +53,7 @@
 #define     OP_VPORT_READ    'C'
 #define     OP_FUJI 0xE2
 #define     OP_NET 0xE3
+#define     OP_CPM 0xE4
 
 #define FEATURE_EMCEE    0x01
 #define FEATURE_DLOAD    0x02
