@@ -16,10 +16,15 @@ class drivewireCPM : public virtualDevice
 {
 private:
 
+#ifdef ESP_PLATFORM
+    TaskHandle_t cpmTaskHandle = NULL;
+#endif /* ESP_PLATFORM */
+
+    void boot();
+
 public:
-    bool cpmActive = false; 
-    void init_cpm(int baud);
-    void drivewire_handle_cpm();
+    drivewireCPM();
+    virtual ~drivewireCPM();
     
 };
 
