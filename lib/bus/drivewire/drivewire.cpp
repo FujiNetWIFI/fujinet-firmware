@@ -227,7 +227,9 @@ void systemBus::op_fuji()
 
 void systemBus::op_cpm()
 {
+#ifdef ESP_PLATFORM
     theCPM.process();
+#endif /* ESP_PLATFORM */
 }
 
 void systemBus::op_net()
