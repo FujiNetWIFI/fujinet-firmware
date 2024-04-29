@@ -170,6 +170,8 @@ void drivewireCPM::process()
     }
 }
 
+#ifdef ESP_PLATFORM
 drivewireCPM theCPM;
+#endif /* ESP_PLATFORM */
 
 #endif /* BUILD_COCO */
