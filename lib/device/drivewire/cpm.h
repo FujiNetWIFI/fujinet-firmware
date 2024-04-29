@@ -15,6 +15,7 @@ typedef unsigned int    uint32;
 class drivewireCPM : public virtualDevice
 {
 private:
+    std::string response;
 
 #ifdef ESP_PLATFORM
     TaskHandle_t cpmTaskHandle = NULL;
