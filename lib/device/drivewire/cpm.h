@@ -33,6 +33,8 @@ public:
     virtual void status();
 };
 
+#ifdef ESP_PLATFORM
 extern drivewireCPM theCPM;
+#endif /* ESP_PLATFORM */
 
 #endif /* DRIVEWIRECPM_H */
