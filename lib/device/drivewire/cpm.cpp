@@ -53,13 +53,26 @@ drivewireCPM::drivewireCPM()
 
 drivewireCPM::~drivewireCPM()
 {
+    if (cpmTaskHandle != NULL)
+    {
+        vTaskDelete(cpmTaskHandle);
+    }
+
     vQueueDelete(rxq);
     vQueueDelete(txq);
 }
 
 void drivewireCPM::boot()
 {
+#ifdef ESP_PLATFORM
+    if (cpmTaskHandle != NULL)
+    {
+        vTaskDelete(cpmTaskHandle);
+        cpmTaskHandle = NULL;
+    }
 
+    xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, 20, &cpmTaskHandle, 1);
+#endif /* ESP_PLATFORM */
 }
 
 void drivewireCPM::read()
