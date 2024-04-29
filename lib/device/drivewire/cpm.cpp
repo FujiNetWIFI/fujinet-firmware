@@ -51,16 +51,16 @@ drivewireCPM::drivewireCPM()
     txq = xQueueCreate(2048, sizeof(char));
 }
 
-drivewireCPM::~drivewireCPM()
-{
-    if (cpmTaskHandle != NULL)
-    {
-        vTaskDelete(cpmTaskHandle);
-    }
+// drivewireCPM::~drivewireCPM()
+// {
+//     if (cpmTaskHandle != NULL)
+//     {
+//         vTaskDelete(cpmTaskHandle);
+//     }
 
-    vQueueDelete(rxq);
-    vQueueDelete(txq);
-}
+//     vQueueDelete(rxq);
+//     vQueueDelete(txq);
+// }
 
 void drivewireCPM::ready()
 {

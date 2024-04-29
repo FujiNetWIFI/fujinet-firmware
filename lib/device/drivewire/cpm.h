@@ -23,7 +23,7 @@ private:
 
 public:
     drivewireCPM();
-    virtual ~drivewireCPM();
+    // virtual ~drivewireCPM();
     virtual void process();
     virtual void ready();
     virtual void send_response();
