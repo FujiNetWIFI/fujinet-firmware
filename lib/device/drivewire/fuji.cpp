@@ -1071,9 +1071,10 @@ void drivewireFuji::read_host_slots()
     for (int i = 0; i < MAX_HOSTS; i++)
         strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
 
-    for (int i = 0; i < MAX_HOSTS; i++)
-        for (int j = 0; j < MAX_HOSTNAME_LEN; j++)
-            fnUartBUS.write(hostSlots[i][j]);
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)hostSlots,256);
 }
 
 // Read and save host slot data from computer
