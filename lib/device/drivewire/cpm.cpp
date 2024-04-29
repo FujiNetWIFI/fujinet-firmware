@@ -1,5 +1,7 @@
 #ifdef BUILD_COCO
 
+#ifdef ESP_PLATFORM
+
 #define CCP_INTERNAL
 
 #include "cpm.h"
@@ -170,8 +172,8 @@ void drivewireCPM::process()
     }
 }
 
-#ifdef ESP_PLATFORM
 drivewireCPM theCPM;
+
 #endif /* ESP_PLATFORM */
 
 #endif /* BUILD_COCO */
