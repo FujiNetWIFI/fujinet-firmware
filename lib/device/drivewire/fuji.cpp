@@ -909,7 +909,10 @@ void drivewireFuji::read_directory_entry()
         }
     }
     
-    fnUartBUS.write((uint8_t *)current_entry, maxlen);
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)current_entry, maxlen);
 }
 
 void drivewireFuji::get_directory_position()
