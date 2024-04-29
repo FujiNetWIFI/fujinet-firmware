@@ -104,7 +104,17 @@ void drivewireCPM::read()
 
 void drivewireCPM::write()
 {
+    uint8_t lenh = fnUartBUS.read();
+    uint8_t lenl = fnUartBUS.read();
+    uint16_t len = (lenh * 256) + lenl;
 
+    for (uint16_t i=0;i<len;i++)
+    {
+        char b = fnUartBUS.read();
+#ifdef ESP_PLATFORM
+        xQueueSend(txq, &b, portMAX_DELAY);
+#endif /* ESP_PLATFORM */
+    }
 }
 
 void drivewireCPM::status()
