@@ -1262,7 +1262,10 @@ void drivewireFuji::get_device_filename()
     }
 
     memcpy(tmp, _fnDisks[slot].filename, MAX_FILENAME_LEN);
-    fnUartBUS.write((uint8_t *)tmp, MAX_FILENAME_LEN);
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string(tmp, MAX_FILENAME_LEN);
 }
 
 // Mounts the desired boot disk number
