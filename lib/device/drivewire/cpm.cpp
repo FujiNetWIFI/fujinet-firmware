@@ -121,8 +121,11 @@ void drivewireCPM::status()
 {
     unsigned short mw = uxQueueMessagesWaiting(rxq);
 
-    fnUartBUS.write((mw << 8) & 0xFF);
-    fnUartBUS.write(mw & 0xFF);
+    response.clear();
+    response.shrink_to_fit();
+
+    response += mw << 8 & 0xFF;
+    response += mw & 0xFF;
 }
 
 void drivewireCPM::process()
