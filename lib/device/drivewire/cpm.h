@@ -2,6 +2,8 @@
 #ifndef DRIVEWIRECPM_H
 #define DRIVEWIRECPM_H
 
+#ifdef ESP_PLATFORM
+
 #include "bus.h"
 
 
@@ -33,7 +35,6 @@ public:
     virtual void status();
 };
 
-#ifdef ESP_PLATFORM
 extern drivewireCPM theCPM;
 #endif /* ESP_PLATFORM */
 
