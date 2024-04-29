@@ -36,12 +36,10 @@
 # include "drivewire/network.h"
 # include "drivewire/printer.h"
 # include "drivewire/printerlist.h"
-# include "drivewire/cpm.h"
 # include "drivewire/fuji.h"
 
     drivewireClock dwClock;
     drivewireModem *sioR;
-    drivewireCPM drivewireZ;
 #endif
 
 #ifdef BUILD_RS232
