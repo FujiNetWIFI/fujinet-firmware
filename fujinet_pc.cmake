@@ -30,7 +30,11 @@ elseif(FUJINET_TARGET STREQUAL "COCO")
     set(FUJINET_BUILD_BOARD fujinet-pc-coco)
     # fujinet.build_bus
     set(FUJINET_BUILD_BUS IWM)
+else()
+    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'ATARI', 'APPLE', or 'COCO'.")
+endif()
 
+if(FUJINET_TARGET STREQUAL "APPLE")
     ######################## SLIP PROTOCOL PROCESSING
     set(SLIP_PROTOCOL "NET" CACHE STRING "Select the protocol type (NET or COM)")
     
@@ -49,8 +53,6 @@ elseif(FUJINET_TARGET STREQUAL "COCO")
     
     message(STATUS "SLIP_PROTOCOL is ${SLIP_PROTOCOL}")
     ################################################
-else()
-    message(FATAL_ERROR "Invalid target '${FUJINET_TARGET}'! Please choose from 'ATARI' or 'APPLE'.")
 endif()
 
 find_package(PkgConfig)
@@ -415,7 +417,7 @@ endif()
 target_include_directories(fujinet PRIVATE ${INCLUDE_DIRS} ${MBEDTLS_INCLUDE_DIR})
 target_link_libraries(fujinet ${CRYPTO_LIBS})
 
-if(SLIP_PROTOCOL STREQUAL "COM")
+if(DEFINED USE_LIBSERIAL)
     pkg_search_module(LIBSERIALPORT REQUIRED libserialport)
     target_include_directories(fujinet PRIVATE ${LIBSERIALPORT_INCLUDE_DIRS})
     target_link_libraries(fujinet ${LIBSERIALPORT_LIBRARIES})
@@ -452,7 +454,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(fujinet ws2_32 bcrypt)
 endif()
 
-# TODO megre build_version.py with ESP version
+# TODO merge build_version.py with ESP version
 # # Version file
 
 # # run build_version.py to update version.h
