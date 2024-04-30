@@ -546,38 +546,34 @@ char *_generate_appkey_filename(appkey *info)
 */
 void drivewireFuji::open_app_key()
 {
-    // Debug_print("Fuji cmd: OPEN APPKEY\n");
+    Debug_print("Fuji cmd: OPEN APPKEY\n");
 
-    // // The data expected for this command
-    // uint8_t ck = bus_to_peripheral((uint8_t *)&_current_appkey, sizeof(_current_appkey));
+    fnUartBUS.readBytes((uint8_t *)&_current_appkey, sizeof(_current_appkey));
 
-    // if (drivewire_checksum((uint8_t *)&_current_appkey, sizeof(_current_appkey)) != ck)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    // Endian swap
+    uint16_t tmp = _current_appkey.creator;
+    _current_appkey.creator = tmp >> 8 | tmp << 8;
 
-    // // We're only supporting writing to SD, so return an error if there's no SD mounted
-    // if (fnSDFAT.running() == false)
-    // {
-    //     Debug_println("No SD mounted - returning error");
-    //     drivewire_error();
-    //     return;
-    // }
+    // Basic check for valid data
+    if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
+    {
+        Debug_println("Invalid app key data");
+        errorCode = 144;
+        return;
+    }
 
-    // // Basic check for valid data
-    // if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
-    // {
-    //     Debug_println("Invalid app key data");
-    //     drivewire_error();
-    //     return;
-    // }
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - returning error");
+        errorCode = 144;
+        return;
+    }
 
-    // Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
-    //              _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
-    //              _generate_appkey_filename(&_current_appkey));
+    errorCode = 1;
 
-    // drivewire_complete();
+    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
+                _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
+                _generate_appkey_filename(&_current_appkey));
 }
 
 /*
