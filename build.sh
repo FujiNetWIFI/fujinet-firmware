@@ -13,6 +13,7 @@ ENV_NAME=""
 DO_CLEAN=0
 SHOW_GRAPH=0
 SHOW_MONITOR=0
+SHOW_BOARDS=0
 TARGET_NAME=""
 PC_TARGET=""
 DEBUG_PC_BUILD=0
@@ -26,6 +27,14 @@ ANSWER_YES=0
 CMAKE_GENERATOR=""
 INI_FILE="${SCRIPT_DIR}/platformio-generated.ini"
 LOCAL_INI_VALUES_FILE="${SCRIPT_DIR}/platformio.local.ini"
+
+function display_board_names {
+  while IFS= read -r piofile; do
+    BASE_NAME=$(basename $piofile)
+    BOARD_NAME=$(echo ${BASE_NAME//.ini} | cut -d\- -f2-)
+    echo "$(basename $piofile)"
+  done < <(find "$SCRIPT_DIR/build-platforms" -name 'platformio-*.ini' -print | sort)
+}
 
 function show_help {
   echo "Usage: $(basename $0) [options] -- [additional args]"
@@ -67,6 +76,10 @@ function show_help {
   echo "    ./build.sh -cb        # for CLEAN + BUILD of current target in platformio-local.ini"
   echo "    ./build.sh -m         # View FujiNet Monitor"
   echo "    ./build.sh -cbum      # Clean/Build/Upload to FN/Monitor"
+  echo ""
+  echo "Supported boards:"
+  echo ""
+  display_board_names
   exit 1
 }
 
@@ -74,7 +87,7 @@ if [ $# -eq 0 ] ; then
   show_help
 fi
 
-while getopts "abcde:fgG:hi:l:mnp:s:t:uyz" flag
+while getopts "abcde:fgG:hi:l:mnp:s:St:uyz" flag
 do
   case "$flag" in
     a) BUILD_ALL=1 ;;
@@ -91,6 +104,7 @@ do
     p) PC_TARGET=${OPTARG} ;;
     t) TARGET_NAME=${OPTARG} ;;
     s) SETUP_NEW_BOARD=${OPTARG} ;;
+    S) SHOW_BOARDS=1 ;;
     u) UPLOAD_IMAGE=1 ;;
     G) CMAKE_GENERATOR=${OPTARG} ;;
     y) ANSWER_YES=1  ;;
@@ -100,6 +114,11 @@ do
   esac
 done
 shift $((OPTIND - 1))
+
+if [ $SHOW_BOARDS -eq 1 ] ; then
+  display_board_names
+  exit 1
+fi
 
 if [ $BUILD_ALL -eq 1 ] ; then
   # BUILD ALL platforms and exit
