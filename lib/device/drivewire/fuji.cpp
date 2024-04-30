@@ -1425,6 +1425,40 @@ void drivewireFuji::process()
     case FUJICMD_DEVICE_READY:
         ready();
         break;
+    case FUJICMD_OPEN_APPKEY:
+        break;
+    case FUJICMD_CLOSE_APPKEY:
+        break;
+    case FUJICMD_READ_APPKEY:
+        break;
+    case FUJICMD_WRITE_APPKEY:
+        break;
+    case FUJICMD_RANDOM_NUMBER:
+        break;
+    case FUJICMD_BASE64_ENCODE_INPUT:
+        break;
+    case FUJICMD_BASE64_ENCODE_COMPUTE:
+        break;
+    case FUJICMD_BASE64_ENCODE_LENGTH:
+        break;
+    case FUJICMD_BASE64_ENCODE_OUTPUT:
+        break;
+    case FUJICMD_BASE64_DECODE_INPUT:
+        break;
+    case FUJICMD_BASE64_DECODE_COMPUTE:
+        break;
+    case FUJICMD_BASE64_DECODE_LENGTH:
+        break;
+    case FUJICMD_BASE64_DECODE_OUTPUT:
+        break;
+    case FUJICMD_HASH_INPUT:
+        break;
+    case FUJICMD_HASH_COMPUTE:
+        break;
+    case FUJICMD_HASH_LENGTH:
+        break;
+    case FUJICMD_HASH_OUTPUT:
+        break;
     default:
         break;
     }
