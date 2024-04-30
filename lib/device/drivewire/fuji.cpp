@@ -585,7 +585,7 @@ void drivewireFuji::close_app_key()
     Debug_print("Fuji cmd: CLOSE APPKEY\n");
     _current_appkey.creator = 0;
     _current_appkey.mode = APPKEYMODE_INVALID;
-    // drivewire_complete();
+    errorCode = 1;
 }
 
 /*
