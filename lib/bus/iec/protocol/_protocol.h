@@ -24,7 +24,7 @@ namespace Protocol
          * @brief receive byte from bus
          * @return The byte received from bus.
         */
-        virtual int8_t receiveByte() = 0;
+        virtual int16_t receiveByte() = 0;
 
         /**
          * @brief send byte to bus

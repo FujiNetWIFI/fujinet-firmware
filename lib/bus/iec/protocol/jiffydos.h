@@ -25,6 +25,10 @@
 // https://www.c64-wiki.com/wiki/SJLOAD
 // https://github.com/mist64/cbmbus_doc/blob/cb021f3454b499c579c265859ce67ba99e85652b/7%20JiffyDOS.md
 // https://ar.c64.org/rrwiki/images/4/48/The_Transactor_Vol09_03_1989_Feb_JD_review.pdf
+// https://c65gs.blogspot.com/2023/10/hardware-accelerated-iec-serial.html?m=0
+// https://c65gs.blogspot.com/2023/12/hardware-accelerated-iec-serial.html?m=0
+// https://c65gs.blogspot.com/2024/01/hardware-accelerated-iec-serial-bus.html?m=0
+// https://c65gs.blogspot.com/2024/01/hardware-accelerated-iec-controller.html?m=0
 //
 
 #ifndef PROTOCOL_JIFFYDOS_H
@@ -47,7 +51,7 @@ namespace Protocol
 		protected:
 			uint8_t loadmode = 0;
 			uint8_t skipeoi = 0;
-			int8_t receiveByte(void) override;
+			int16_t receiveByte(void) override;
 			bool sendByte(uint8_t data, bool eoi) override;
 			bool sendByte(uint8_t data, bool eoi, uint8_t loadflags);
 	};

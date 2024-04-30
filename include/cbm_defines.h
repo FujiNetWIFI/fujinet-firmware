@@ -22,11 +22,11 @@
 #include <cstdint>
 
 // The base pointer of basic.
-#define CBM_BASIC_START 0x0401
+#define CBM_BASIC_START     0x0401
 
 // 1541 RAM and ROM memory map definitions.
 #define CBM_1541_RAM_OFFSET 0
-#define CBM_1541_RAM_SIZE (1024 * 2)
+#define CBM_1541_RAM_SIZE  (1024 * 2)
 #define CBM_1541_VIA1_OFFSET 0x1800
 #define CBM_1541_VIA1_SIZE 0x10
 #define CBM_1541_VIA2_OFFSET 0x1C00
@@ -95,7 +95,7 @@ enum IECChannels
 typedef enum
 {
     ErrOK = 0,
-    ErrFilesScratched, // Files scratched response, not an error condition.
+    ErrFilesScratched,              // Files scratched response, not an error condition.
     ErrBlockHeaderNotFound = 20,
     ErrSyncCharNotFound,
     ErrDataBlockNotFound,
@@ -110,9 +110,9 @@ typedef enum
     ErrInvalidCommand,
     ErrLongLine,
     ErrInvalidFilename,
-    ErrNoFileGiven,          // The file name was left out of a command or the DOS does not recognize it as such.
-                             // Typically, a colon or equal character has been left out of the command
-    ErrCommandNotFound = 39, // This error may result if the command sent to command channel (secondary address 15) is unrecognizedby the DOS.
+    ErrNoFileGiven,                 // The file name was left out of a command or the DOS does not recognize it as such.
+                                    // Typically, a colon or equal character has been left out of the command
+    ErrCommandNotFound = 39,        // This error may result if the command sent to command channel (secondary address 15) is unrecognizedby the DOS.
     ErrRecordNotPresent = 50,
     ErrOverflowInRecord,
     ErrFileTooLarge,
@@ -127,10 +127,10 @@ typedef enum
     ErrNoChannelAvailable = 70,
     ErrDirectoryError,
     ErrDiskFullOrDirectoryFull,
-    ErrIntro,               // power up message or write attempt with DOS mismatch
-    ErrDriveNotReady,       // typically in this emulation could also mean: not supported on this file system.
-    ErrSerialComm = 97,     // something went sideways with serial communication to the file server.
-    ErrNotImplemented = 98, // The command or specific operation is not yet implemented in this device.
+    ErrIntro,                       // power up message or write attempt with DOS mismatch
+    ErrDriveNotReady,               // typically in this emulation could also mean: not supported on this file system.
+    ErrSerialComm = 97,             // something went sideways with serial communication to the file server.
+    ErrNotImplemented = 98,         // The command or specific operation is not yet implemented in this device.
     ErrUnknownError = 99,
     ErrCount
 } IOErrorMessage;
@@ -159,8 +159,8 @@ typedef enum
 #define TIMING_Tne     40      // NON-EOI RESPONSE TO RFD                       -       40us        200us       (If maximum time exceeded, EOI response required.)
 #define TIMEOUT_Tne    250
 #define TIMING_Ts      70      // BIT SET-UP TALKER                     71us    20us    70us        -           
-#define TIMING_Ts1     57      // BIT SET-UP LISTENER PRE       57us    47us
-#define TIMING_Ts2     28      // BIT SET-UP LISTENER POST      28us    24us
+#define TIMING_Ts0     57      // BIT SET-UP LISTENER PRE       57us    47us
+#define TIMING_Ts1     28      // BIT SET-UP LISTENER POST      28us    24us
 #define TIMING_Tv      20      // DATA VALID VIC20              76us    26us    20us    20us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker. )
 #define TIMING_Tv64    76      // DATA VALID C64
 #define TIMING_Tf      45      // FRAME HANDSHAKE                               0       20us        1000us      (If maximum time exceeded, frame error.)
@@ -183,7 +183,7 @@ typedef enum
 #define TIMING_STABLE  20      // WAIT FOR BUS TO BE STABLE
 #define TIMING_DELAY   70      // DELAY AFTER ATN
 
-#define TIMING_VIC20_DETECT   40   // VIC20 DETECTED WHEN HOST BIT TIME IS LESS THAN 40us
+#define TIMING_VIC20_DETECT      40   // VIC20 DETECTED WHEN HOST BIT TIME IS LESS THAN 40us
 #define TIMING_PROTOCOL_DETECT   218  // SAUCEDOS/JIFFYDOS CAPABLE DELAY
 #define TIMING_PROTOCOL_ACK      101  // SAUCEDOS/JIFFYDOS ACK RESPONSE
 
