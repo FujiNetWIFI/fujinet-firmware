@@ -19,6 +19,10 @@
 #include "jiffydos.h"
 
 #include <rom/ets_sys.h>
+// #include <freertos/FreeRTOS.h>
+// #include <freertos/task.h>
+// #include <freertos/semphr.h>
+// #include <driver/timer.h>
 
 #include "bus.h"
 #include "_protocol.h"
@@ -28,12 +32,23 @@
 
 using namespace Protocol;
 
+// #define portTICK_PERIOD_NS(ns)  ((( TickType_t ) 1000000 / configTICK_RATE_HZ) / ns)
+
+// // https://embeddedexplorer.com/esp32-timer-tutorial/
+// static SemaphoreHandle_t s_timer_sem;
+// static bool IRAM_ATTR timer_group_isr_callback(void * args)
+// {
+//     BaseType_t high_task_awoken = pdFALSE;
+//     xSemaphoreGiveFromISR(s_timer_sem, &high_task_awoken);
+//     return (high_task_awoken == pdTRUE);
+// }
+
 // STEP 1: READY TO RECEIVE
 // Sooner or later, the talker will want to talk, and send a character.
 // When it's ready to go, it releases the Clock line to false.  This signal change might be
 // translated as "I'm ready to send a character." The listener must detect this and 
 // immediately start receiving data on both the clock and data lines.
-int8_t  JiffyDOS::receiveByte ()
+int16_t  JiffyDOS::receiveByte ()
 {
     uint8_t data = 0;
     uint8_t bus = 0;
@@ -42,6 +57,25 @@ int8_t  JiffyDOS::receiveByte ()
     IEC.flags and_eq CLEAR_LOW;
 
     //IEC.pull ( PIN_IEC_SRQ );
+
+    // Setup timer
+    // s_timer_sem = xSemaphoreCreateBinary();
+    // if (s_timer_sem == NULL) {
+    //     printf("Binary semaphore can not be created");
+    // }
+    // timer_config_t config = {
+    //     .alarm_en = TIMER_ALARM_EN,
+    //     .counter_en = TIMER_PAUSE,
+    //     .counter_dir = TIMER_COUNT_UP,
+    //     .auto_reload = TIMER_AUTORELOAD_DIS,
+    //     .divider = 16
+    // };
+    // timer_init(TIMER_GROUP_0, TIMER_0, &config);
+    // timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0);
+    // timer_set_alarm_value(TIMER_GROUP_0, TIMER_0, portTICK_PERIOD_NS(bit_pair_timing[1][0]));
+    // timer_enable_intr(TIMER_GROUP_0, TIMER_0);
+    // timer_isr_callback_add(TIMER_GROUP_0, TIMER_0, timer_group_isr_callback, NULL, 0);
+
 
     // Release the Data line to signal we are ready
 #ifndef IEC_SPLIT_LINE
@@ -63,37 +97,47 @@ int8_t  JiffyDOS::receiveByte ()
 
     //IEC.pull ( PIN_IEC_SRQ );
 
+    // Start timer
+    //timer_start(TIMER_GROUP_0, TIMER_0);
+
     // get bits 4,5
     IEC.pull ( PIN_IEC_SRQ );
-    ets_delay_us(bit_pair_timing[1][0]);
     if ( gpio_get_level ( PIN_IEC_CLK_IN ) )  data |= 0b00010000; // 1
     if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0b00100000; // 0
+    ets_delay_us(bit_pair_timing[1][0]);
+    //xSemaphoreTake(s_timer_sem, portMAX_DELAY);
     IEC.release( PIN_IEC_SRQ );
-    ets_delay_us(1);
+    //ets_delay_us(1);
 
     // get bits 6,7
     IEC.pull ( PIN_IEC_SRQ );
-    ets_delay_us(bit_pair_timing[1][1]);
     if ( gpio_get_level ( PIN_IEC_CLK_IN ) ) data |=  0b01000000; // 1
     if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0b10000000; // 1
+    ets_delay_us(bit_pair_timing[1][1]);
+    //xSemaphoreTake(s_timer_sem, portMAX_DELAY);
     IEC.release( PIN_IEC_SRQ );
-    ets_delay_us(1);
+    //ets_delay_us(1);
 
     // get bits 3,1
     IEC.pull ( PIN_IEC_SRQ );
-    ets_delay_us(bit_pair_timing[1][2]);
     if ( gpio_get_level ( PIN_IEC_CLK_IN ) )  data |= 0b00001000; // 1
     if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0b00000010; // 1
+    ets_delay_us(bit_pair_timing[1][2]);
+    //xSemaphoreTake(s_timer_sem, portMAX_DELAY);
     IEC.release( PIN_IEC_SRQ );
-    ets_delay_us(1);
+    //ets_delay_us(1);
 
     // get bits 2,0
     IEC.pull ( PIN_IEC_SRQ );
-    ets_delay_us(bit_pair_timing[1][3]);
     if ( gpio_get_level ( PIN_IEC_CLK_IN ) )  data |= 0b00000100; // 0
     if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0b00000001; // 1
+    ets_delay_us(bit_pair_timing[1][3]);
+    //xSemaphoreTake(s_timer_sem, portMAX_DELAY);
     IEC.release( PIN_IEC_SRQ );
-    ets_delay_us(1);
+    //ets_delay_us(1);
+
+    // Stop timer
+    //timer_deinit(TIMER_GROUP_0, TIMER_0);
 
     // rearrange bits
     data ^= bitmask;
@@ -102,13 +146,13 @@ int8_t  JiffyDOS::receiveByte ()
     // STEP 3: CHECK FOR EOI
     IEC.pull ( PIN_IEC_SRQ );
     ets_delay_us(13);
-    if ( IEC.status ( PIN_IEC_CLK_IN ) == RELEASED && IEC.status ( PIN_IEC_CLK_IN ) == RELEASED )
+    if ( IEC.status ( PIN_IEC_CLK_IN ) == RELEASED && IEC.status ( PIN_IEC_DATA_IN ) == RELEASED )
     {
         Debug_printv("ERROR [%2X]", data);
         IEC.flags |= ERROR;
         return -1;
     }
-    else if ( IEC.status ( PIN_IEC_CLK_IN ) == RELEASED && IEC.status ( PIN_IEC_CLK_IN ) == PULLED )
+    else if ( IEC.status ( PIN_IEC_CLK_IN ) == PULLED && IEC.status ( PIN_IEC_DATA_IN ) == RELEASED )
     {
         Debug_printv("EOI [%2X]", data);
         IEC.flags |= EOI_RECVD;

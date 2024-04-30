@@ -107,7 +107,7 @@ typedef enum
 typedef enum
 {
     DEVICE_ERROR = -1,
-    DEVICE_IDLE = 0, // Ready and waiting
+    DEVICE_IDLE = 0,    // Ready and waiting
     DEVICE_ACTIVE = 1,
     DEVICE_LISTEN = 2,  // A command is recieved and data is coming to us
     DEVICE_TALK = 3,    // A command is recieved and we must talk now
@@ -201,7 +201,7 @@ protected:
      */
     std::string payload;
 
-     /**
+    /**
      * @brief The current device command in raw PETSCII. Used when payload is converted to ASCII for Basic commands
      */
     std::string payloadRaw;
@@ -500,7 +500,7 @@ public:
      * @brief Receive Byte from bus
      * @return Byte received from bus, or -1 for error
      */
-    int8_t receiveByte();
+    int16_t receiveByte();
 
     /**
      * @brief Receive String from bus
@@ -569,10 +569,11 @@ public:
     void senderTimeout();
 
 
-    void pull ( int _pin );
-    void release ( int _pin );
-    bool status ( int _pin );
-    //uint8_t status();
+    void pull ( uint8_t _pin );
+    void release ( uint8_t _pin );
+    bool status ( uint8_t _pin );
+
+    void debugTiming();
 };
 /**
  * @brief Return

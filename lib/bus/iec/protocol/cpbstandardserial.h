@@ -53,7 +53,7 @@ namespace Protocol
          * @brief receive byte from bus
          * @return The byte received from bus.
          */
-        virtual int8_t receiveByte();
+        virtual int16_t receiveByte();
         
         /**
          * @brief send byte to bus
