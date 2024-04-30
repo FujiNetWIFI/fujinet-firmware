@@ -102,13 +102,13 @@ void drivewireCPM::read()
     if (!len)
         return;
 
-    if (len > mw)
+    if (!mw)
         return;
-    
+
     response.clear();
     response.shrink_to_fit();
 
-    for (uint16_t i=0; i<mw; i++)
+    for (uint16_t i=0; i<len; i++)
     {
         char b;
 
@@ -125,6 +125,9 @@ void drivewireCPM::write()
     uint8_t lenl = fnUartBUS.read();
     uint16_t len = (lenh * 256) + lenl;
 
+    if (!len)
+        return;
+
     for (uint16_t i=0;i<len;i++)
     {
         char b = fnUartBUS.read();
@@ -137,12 +140,15 @@ void drivewireCPM::write()
 void drivewireCPM::status()
 {
     unsigned short mw = uxQueueMessagesWaiting(rxq);
+    unsigned char status_response[2] = {0,0};
 
     response.clear();
     response.shrink_to_fit();
 
-    response += mw << 8 & 0xFF;
-    response += mw & 0xFF;
+    status_response[0] = mw >> 8;
+    status_response[1] = mw & 0xFF;
+
+    response = std::string((const char *)status_response, 2);
 }
 
 void drivewireCPM::process()

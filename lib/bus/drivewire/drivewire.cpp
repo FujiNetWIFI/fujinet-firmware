@@ -363,6 +363,9 @@ void systemBus::_drivewire_process_cmd()
     case OP_NET:
         op_net();
         break;
+    case OP_CPM:
+        op_cpm();
+        break;
     default:
         op_unhandled(c);
         break;
