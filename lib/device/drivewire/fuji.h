@@ -132,8 +132,10 @@ protected:
     void base64_encode_compute();  // 0xCF
     void base64_encode_length();   // 0xCE
     void base64_encode_output();   // 0xCD
-    void base64_decode_input();    // 0xCB
-    void base64_decode_compute();  // 0xCC
+    void base64_decode_input();    // 0xCC
+    void base64_decode_compute();  // 0xCB
+    void base64_decode_length();   // 0xCA
+    void base64_decode_output();   // 0xC9
     void send_error();
     void send_response();          // 0x01
     void ready();                  // 0x00

@@ -1410,6 +1410,69 @@ void drivewireFuji::base64_decode_compute()
     errorCode = 1;
 }
 
+void drivewireFuji::base64_decode_length()
+{
+    Debug_printf("FUJI: BASE64 DECODE LENGTH\n");
+
+    size_t len = base64.base64_buffer.length();
+    uint8_t _response[4] = {
+        (uint8_t)(len >>  24),
+        (uint8_t)(len >>  16),
+        (uint8_t)(len >>  8),
+        (uint8_t)(len >>  0)
+    };
+
+    if (!len)
+    {
+        Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
+        errorCode = 144;
+        return;
+    }
+
+    Debug_printf("base64 buffer length: %u bytes\n", len);
+
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)_response, 4);
+}
+
+void drivewireFuji::base64_decode_output()
+{
+    Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
+
+    uint8_t lenl = fnUartBUS.read();
+    uint8_t lenh = fnUartBUS.read();
+    uint16_t len = lenh << 8 | lenl;
+
+    if (!len)
+    {
+        Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
+        errorCode = 144;
+        return;
+    }
+    else if (len > base64.base64_buffer.length())
+    {
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, base64.base64_buffer.length());
+        errorCode = 144;
+        return;
+    }
+    else
+    {
+        Debug_printf("Requested %u bytes\n", len);
+    }
+
+    std::vector<unsigned char> p(len);
+    memcpy(p.data(), base64.base64_buffer.data(), len);
+    base64.base64_buffer.erase(0, len);
+    base64.base64_buffer.shrink_to_fit();
+    response.clear();
+    response.shrink_to_fit();
+    response = std::string((const char *)p.data(), len);
+
+    errorCode = 1;
+}
+
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup(systemBus *drivewirebus)
 {
@@ -1589,8 +1652,10 @@ void drivewireFuji::process()
         base64_decode_compute();
         break;
     case FUJICMD_BASE64_DECODE_LENGTH:
+        base64_decode_length();
         break;
     case FUJICMD_BASE64_DECODE_OUTPUT:
+        base64_decode_output();
         break;
     case FUJICMD_HASH_INPUT:
         break;
