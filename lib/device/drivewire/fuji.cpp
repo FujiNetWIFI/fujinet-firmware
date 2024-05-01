@@ -22,6 +22,9 @@
 #include "utils.h"
 #include "string_utils.h"
 
+#include "../../encoding/base64.h"
+#include "../../encoding/hash.h"
+
 #define ADDITIONAL_DETAILS_BYTES 13
 
 drivewireFuji theFuji; // global fuji device object
@@ -1287,6 +1290,25 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     _bootDisk.device_active = true;
 }
 
+void drivewireFuji::base64_encode_input()
+{
+    uint8_t lenh = fnUartBUS.read();
+    uint8_t lenl = fnUartBUS.read();
+    uint16_t len = lenh << 8 | lenl;
+
+    if (!len)
+    {
+        Debug_printf("Zero length. Aborting.\n");
+        errorCode = 144;
+        return;
+    }
+
+    std::vector<unsigned char> p(len);
+    fnUartBUS.readBytes(p.data(), len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
+    errorCode = 1;
+}
+
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup(systemBus *drivewirebus)
 {
@@ -1448,6 +1470,7 @@ void drivewireFuji::process()
         random();
         break;
     case FUJICMD_BASE64_ENCODE_INPUT:
+        base64_encode_input();
         break;
     case FUJICMD_BASE64_ENCODE_COMPUTE:
         break;
