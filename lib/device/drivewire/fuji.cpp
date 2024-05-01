@@ -1347,6 +1347,28 @@ void drivewireFuji::base64_encode_length()
     errorCode = 1;
 }
 
+void drivewireFuji::base64_encode_output()
+{
+    uint8_t lenl = fnUartBUS.read();
+    uint8_t lenh = fnUartBUS.read();
+    uint16_t len = lenl << 8 | lenl;
+
+    if (!len)
+    {
+        Debug_printf("Refusing to send zero byte buffer. Exiting.");
+        errorCode = 144; 
+        return;
+    }
+
+    std::vector<unsigned char> p(len);
+    std::memcpy(p.data(), base64.base64_buffer.data(), len);
+    base64.base64_buffer.erase(0, len);
+    base64.base64_buffer.shrink_to_fit();
+
+    response = std::string((const char *)p.data(), len);
+    errorCode = 1;    
+}
+
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup(systemBus *drivewirebus)
 {
@@ -1517,6 +1539,7 @@ void drivewireFuji::process()
         base64_encode_length();
         break;
     case FUJICMD_BASE64_ENCODE_OUTPUT:
+        base64_encode_output();
         break;
     case FUJICMD_BASE64_DECODE_INPUT:
         break;
