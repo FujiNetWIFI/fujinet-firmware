@@ -32,11 +32,11 @@ If a file has an extention pre-determined to support parsing (see/update
 #include <map>
 #include <string>
 
-#include "webdav/request.h"
 
 #include "fnFS.h"
 
 #ifdef ESP_PLATFORM
+#include "webdav/request.h"
 #include <esp_http_server.h>
 #else
 #include "mongoose.h"
