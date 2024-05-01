@@ -593,67 +593,59 @@ void drivewireFuji::close_app_key()
 */
 void drivewireFuji::write_app_key()
 {
-    // uint16_t keylen = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+    uint8_t lenh = fnUartBUS.read();
+    uint8_t lenl = fnUartBUS.read();
+    uint16_t len = lenh << 8 | lenl;
+    uint8_t value[MAX_APPKEY_LEN];
 
-    // Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
+    memset(value,0,sizeof(value));
 
-    // // Data for  FUJICMD_WRITE_APPKEY
-    // uint8_t value[MAX_APPKEY_LEN];
+    fnUartBUS.readBytes(value, len);
 
-    // uint8_t ck = bus_to_peripheral((uint8_t *)value, sizeof(value));
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        errorCode = 144;
+        return;
+    }
 
-    // if (drivewire_checksum((uint8_t *)value, sizeof(value)) != ck)
-    // {
-    //     drivewire_error();
-    //     return;
-    // }
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't write app key");
+        errorCode = 144;
+        return;
+    }
 
-    // // Make sure we have valid app key information
-    // if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
-    // {
-    //     Debug_println("Invalid app key metadata - aborting");
-    //     drivewire_error();
-    //     return;
-    // }
+    char *filename = _generate_appkey_filename(&_current_appkey);
 
-    // // Make sure we have an SD card mounted
-    // if (fnSDFAT.running() == false)
-    // {
-    //     Debug_println("No SD mounted - can't write app key");
-    //     drivewire_error();
-    //     return;
-    // }
+    // Reset the app key data so we require calling APPKEY OPEN before another attempt
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
 
-    // char *filename = _generate_appkey_filename(&_current_appkey);
+    Debug_printf("Writing appkey to \"%s\"\n", filename);
 
-    // // Reset the app key data so we require calling APPKEY OPEN before another attempt
-    // _current_appkey.creator = 0;
-    // _current_appkey.mode = APPKEYMODE_INVALID;
+    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+    fnSDFAT.create_path("/FujiNet");
 
-    // Debug_printf("Writing appkey to \"%s\"\n", filename);
+    FILE *fOut = fnSDFAT.file_open(filename, "w");
+    if (fOut == nullptr)
+    {
+        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
+        errorCode = 144;
+        return;
+    }
+    size_t count = fwrite(value, 1, len, fOut);
+    int e = errno;
 
-    // // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
-    // fnSDFAT.create_path("/FujiNet");
+    fclose(fOut);
 
-    // FILE *fOut = fnSDFAT.file_open(filename, "w");
-    // if (fOut == nullptr)
-    // {
-    //     Debug_printf("Failed to open/create output file: errno=%d\n", errno);
-    //     drivewire_error();
-    //     return;
-    // }
-    // size_t count = fwrite(value, 1, keylen, fOut);
-    // int e = errno;
-
-    // fclose(fOut);
-
-    // if (count != keylen)
-    // {
-    //     Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
-    //     drivewire_error();
-    // }
-
-    // drivewire_complete();
+    if (count != len)
+    {
+        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, len, e);
+        errorCode = 144;
+    }
 }
 
 /*
