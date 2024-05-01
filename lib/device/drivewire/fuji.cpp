@@ -702,7 +702,8 @@ void drivewireFuji::read_app_key()
     uint16_t tmp = _response.size << 8 | _response.size >> 8;
     _response.size = tmp;
 
-    fnUartBUS.write((uint8_t *)&response, sizeof(response));
+    response = std::string((const char *)&response);
+
     errorCode = 1;
 }
 
