@@ -129,6 +129,7 @@ protected:
     void set_boot_mode();          // 0xD6
     void random();                 // 0xD3
     void base64_encode_input();    // 0xD0
+    void base64_encode_compute();  // 0xCF
     void send_error();
     void send_response();          // 0x01
     void ready();                  // 0x00
