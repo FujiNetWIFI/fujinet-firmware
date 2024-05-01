@@ -1309,6 +1309,25 @@ void drivewireFuji::base64_encode_input()
     errorCode = 1;
 }
 
+void drivewireFuji::base64_encode_compute()
+{
+    size_t out_len;
+
+    std::unique_ptr<char[]> p = Base64::encode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
+
+    if (!p)
+    {
+        Debug_printf("base64_encode_compute() failed.\n");
+        errorCode = 144;
+        return;
+    }
+
+    base64.base64_buffer.clear();
+    base64.base64_buffer = std::string(p.get(), out_len);
+    
+    errorCode = 1;
+}
+
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup(systemBus *drivewirebus)
 {
