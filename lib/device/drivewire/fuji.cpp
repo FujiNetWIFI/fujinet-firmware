@@ -1420,12 +1420,16 @@ void drivewireFuji::process()
         ready();
         break;
     case FUJICMD_OPEN_APPKEY:
+        open_app_key();
         break;
     case FUJICMD_CLOSE_APPKEY:
+        close_app_key();
         break;
     case FUJICMD_READ_APPKEY:
+        read_app_key();
         break;
     case FUJICMD_WRITE_APPKEY:
+        write_app_key();
         break;
     case FUJICMD_RANDOM_NUMBER:
         break;
