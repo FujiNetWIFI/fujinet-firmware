@@ -76,6 +76,8 @@ private:
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
+    uint8_t hash_mode = 0;
+
 #ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
 #endif
@@ -136,7 +138,11 @@ protected:
     void base64_decode_compute();  // 0xCB
     void base64_decode_length();   // 0xCA
     void base64_decode_output();   // 0xC9
-    void send_error();
+    void hash_input();             // 0xC8
+    void hash_compute();           // 0xC7
+    void hash_length();            // 0xC6
+    void hash_output();            // 0xC5
+    void send_error();             // 0x02
     void send_response();          // 0x01
     void ready();                  // 0x00
     void shutdown() override;

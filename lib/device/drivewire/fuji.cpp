@@ -1473,6 +1473,90 @@ void drivewireFuji::base64_decode_output()
     errorCode = 1;
 }
 
+void drivewireFuji::hash_input()
+{
+    uint8_t lenl = fnUartBUS.read();
+    uint8_t lenh = fnUartBUS.read();
+    uint16_t len = lenh << 8 | lenl;
+
+   Debug_printf("FUJI: HASH INPUT\n");
+
+    if (!len)
+    {
+        Debug_printf("Invalid length. Aborting");
+        errorCode = 144;
+        return;
+    }
+
+    std::vector<unsigned char> p(len);
+    fnUartBUS.readBytes(p.data(),len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
+
+    errorCode = 1;
+}
+
+void drivewireFuji::hash_compute()
+{
+    uint8_t m = hash_mode = fnUartBUS.read();
+
+    Debug_printf("FUJI: HASH COMPUTE\n");
+
+    hasher.compute(m, base64.base64_buffer);
+    base64.base64_buffer.clear();
+    base64.base64_buffer.shrink_to_fit();
+
+    errorCode = 1;
+}
+
+void drivewireFuji::hash_length()
+{
+    unsigned char r = 0;
+    uint8_t m = fnUartBUS.read();
+
+    switch (hash_mode)
+    {
+    case 0: // MD5
+        r = 16;
+        break;
+    case 1: // SHA1
+        r = 20;
+        break;
+    case 2: // SHA256
+        r = 32;
+        break;
+    case 3: // SHA512
+        r = 64;
+        break;
+    }
+
+    if (m == 1)  // Hex output
+        m <<= 1; // double it.
+
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)&r, 1);
+
+    errorCode = 1;
+}
+
+void drivewireFuji::hash_output()
+{
+    uint16_t olen = 0;
+    uint8_t m = fnUartBUS.read();
+
+    Debug_printf("FUJI: HASH OUTPUT\n");
+
+    std::vector<uint8_t> o = hasher.hash_output(m, hash_mode, olen);
+
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)o.data(), olen);
+
+    errorCode = 1;
+}
+
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup(systemBus *drivewirebus)
 {
@@ -1658,12 +1742,16 @@ void drivewireFuji::process()
         base64_decode_output();
         break;
     case FUJICMD_HASH_INPUT:
+        hash_input();
         break;
     case FUJICMD_HASH_COMPUTE:
+        hash_compute();
         break;
     case FUJICMD_HASH_LENGTH:
+        hash_length();
         break;
     case FUJICMD_HASH_OUTPUT:
+        hash_output();
         break;
     default:
         break;
