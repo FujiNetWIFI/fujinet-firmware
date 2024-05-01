@@ -1,12 +1,13 @@
 #include "tcrt.h"
 
+//#include "meat_broker.h"
 
 /********************************************************
  * Streams
  ********************************************************/
 
 // Translate TCRT file type to standard CBM file type
-std::string TCRTIStream::decodeType(uint8_t file_type, bool show_hidden)
+std::string TCRTMStream::decodeType(uint8_t file_type, bool show_hidden)
 {
     std::string type = "PRG";
 
@@ -57,7 +58,7 @@ std::string TCRTIStream::decodeType(uint8_t file_type, bool show_hidden)
     return type;
 }
 
-bool TCRTIStream::seekEntry( std::string filename )
+bool TCRTMStream::seekEntry( std::string filename )
 {
     size_t index = 1;
     mstr::replaceAll(filename, "\\", "/");
@@ -104,7 +105,7 @@ bool TCRTIStream::seekEntry( std::string filename )
     return false;
 }
 
-bool TCRTIStream::seekEntry( uint16_t index )
+bool TCRTMStream::seekEntry( uint16_t index )
 {
     // Calculate Sector offset & Entry offset
     index--;
@@ -129,7 +130,7 @@ bool TCRTIStream::seekEntry( uint16_t index )
         return true;
 }
 
-uint16_t TCRTIStream::readFile(uint8_t* buf, uint16_t size) {
+uint16_t TCRTMStream::readFile(uint8_t* buf, uint16_t size) {
     uint16_t bytesRead = 0;
 
     if ( _position < 2)
@@ -153,7 +154,7 @@ uint16_t TCRTIStream::readFile(uint8_t* buf, uint16_t size) {
     return bytesRead;
 }
 
-bool TCRTIStream::seekPath(std::string path) {
+bool TCRTMStream::seekPath(std::string path) {
     // Implement this to skip a queue of file streams to start of file by name
     // this will cause the next read to return bytes of 'path'
     seekCalled = true;
@@ -195,14 +196,7 @@ bool TCRTIStream::seekPath(std::string path) {
  * File implementations
  ********************************************************/
 
-MStream* TCRTFile::getDecodedStream(std::shared_ptr<MStream> containerIstream) {
-    Debug_printv("[%s]", url.c_str());
-
-    return new TCRTIStream(containerIstream);
-}
-
-
-bool TCRTFile::isDirectory() {
+bool TCRTMFile::isDirectory() {
     //Debug_printv("pathInStream[%s]", pathInStream.c_str());
     if ( pathInStream == "" )
         return true;
@@ -210,10 +204,10 @@ bool TCRTFile::isDirectory() {
         return false;
 };
 
-bool TCRTFile::rewindDirectory() {
+bool TCRTMFile::rewindDirectory() {
     dirIsOpen = true;
     Debug_printv("streamFile->url[%s]", streamFile->url.c_str());
-    auto image = ImageBroker::obtain<TCRTIStream>(streamFile->url);
+    auto image = ImageBroker::obtain<TCRTMStream>(streamFile->url);
     if ( image == nullptr )
         Debug_printv("image pointer is null");
 
@@ -235,13 +229,13 @@ bool TCRTFile::rewindDirectory() {
     return true;
 }
 
-MFile* TCRTFile::getNextFileInDir() {
+MFile* TCRTMFile::getNextFileInDir() {
 
     if(!dirIsOpen)
         rewindDirectory();
 
     // Get entry pointed to by containerStream
-    auto image = ImageBroker::obtain<TCRTIStream>(streamFile->url);
+    auto image = ImageBroker::obtain<TCRTMStream>(streamFile->url);
 
     bool r = false;
     do
@@ -267,10 +261,10 @@ MFile* TCRTFile::getNextFileInDir() {
 }
 
 
-uint32_t TCRTFile::size() {
+uint32_t TCRTMFile::size() {
     //Debug_printv("[%s]", streamFile->url.c_str());
     // use TCRT to get size of the file in image
-    auto entry = ImageBroker::obtain<TCRTIStream>(streamFile->url)->entry;
+    auto entry = ImageBroker::obtain<TCRTMStream>(streamFile->url)->entry;
 
     //size_t blocks = (UINT16_FROM_LE_UINT16(image->entry.load_address) + image->entry.file_size)) / image->block_size;
     //size_t blocks = 1;

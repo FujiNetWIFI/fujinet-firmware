@@ -113,7 +113,7 @@ void iecClock::iec_reopen_talk()
     
     mstr::toUpper(s);
     
-    IEC.sendBytes(s,true);
+    IEC.sendBytes(s, true);
 }
 
 #endif /* BUILD_IEC */

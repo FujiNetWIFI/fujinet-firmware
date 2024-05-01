@@ -8,7 +8,7 @@
 #ifndef MEATLOAF_SCHEME_HTTP
 #define MEATLOAF_SCHEME_HTTP
 
-#include "meat_io.h"
+#include "meatloaf.h"
 
 #include <esp_http_client.h>
 #include <functional>
@@ -17,6 +17,7 @@
 #include "../../../include/debug.h"
 //#include "../../include/global_defines.h"
 #include "../../include/version.h"
+#include "utils.h"
 
 #define HTTP_BLOCK_SIZE 256
 
@@ -46,8 +47,18 @@ public:
         close();
     }
 
-    void setHeaders(std::map<std::string, std::string> &h) {
-        headers = h;
+    bool setHeader(const std::string header) {
+        auto h = util_tokenize(header, ':');
+        if ( h.size() == 2)
+        {
+            headers.insert( std::pair<std::string, std::string>(h[0], h[1]) );
+            return true;
+        }
+        return false;
+    }
+    std::string getHeader(std::string header)
+    {
+        return headers[header];
     }
 
     bool GET(std::string url);
@@ -128,16 +139,14 @@ public:
  ********************************************************/
 
 class HttpIStream: public MStream {
-    std::map<std::string, std::string> headers;
 
 public:
     HttpIStream(std::string path) {
         url = path;
     };
-    HttpIStream(std::string path, std::ios_base::openmode m, std::map<std::string, std::string> &h) {
+    HttpIStream(std::string path, std::ios_base::openmode m) {
         url = path;
         mode = m;
-        headers = h;
     };
 
     ~HttpIStream() {

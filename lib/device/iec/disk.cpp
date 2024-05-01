@@ -168,7 +168,7 @@ void iecDisk::process_command()
         if (commanddata.secondary == IEC_CLOSE)
             iec_close();
         else
-        iec_command();
+            iec_command();
     }
 }
 
@@ -349,7 +349,7 @@ void iecDisk::iec_command()
         case 'B':
             if (payload[1] == '-')
             {
-            // B-P buffer pointer
+                // B-P buffer pointer
                 if (payload[2] == 'P')
                 {
                     payload = mstr::drop(payload, 3);
@@ -361,9 +361,9 @@ void iecDisk::iec_command()
                     auto stream = retrieveStream( pti[0] );
                     stream->position( pti[1] );
                 }
-            // B-A allocate bit in BAM not implemented
-            // B-F free bit in BAM not implemented
-            // B-E block execute impossible at this level of emulation!
+                // B-A allocate bit in BAM not implemented
+                // B-F free bit in BAM not implemented
+                // B-E block execute impossible at this level of emulation!
             }
             //Error(ERROR_31_SYNTAX_ERROR);
             Debug_printv( "block/buffer");
@@ -649,21 +649,21 @@ bool iecDisk::registerStream (uint8_t channel)
     }
 
 
-        if ( new_stream == nullptr )
-        {
-            return false;
-        }
+    if ( new_stream == nullptr )
+    {
+        return false;
+    }
 
-        if( !new_stream->isOpen() )
-        {
-            Debug_printv("Error creating stream");
-            return false;
-        }
-        else
-        {
-            // Close the stream if it is already open
-            closeStream( channel );
-        }
+    if( !new_stream->isOpen() )
+    {
+        Debug_printv("Error creating stream");
+        return false;
+    }
+    else
+    {
+        // Close the stream if it is already open
+        closeStream( channel );
+    }
 
 
     //size_t key = ( IEC.data.device * 100 ) + IEC.data.channel;
@@ -1140,12 +1140,12 @@ bool iecDisk::sendFile()
         // Send Byte
         //IEC.pull(PIN_IEC_SRQ);
         success_tx = IEC.sendByte(b, eoi);
-            if ( !success_tx )
-            {
-                Debug_printv("tx fail");
+        if ( !success_tx )
+        {
+            Debug_printv("tx fail");
             //IEC.release(PIN_IEC_SRQ);
             return false;
-            }
+        }
         //IEC.release(PIN_IEC_SRQ);
 
         // Read next byte
@@ -1194,9 +1194,12 @@ bool iecDisk::sendFile()
     }
 
 #ifdef DATA_STREAM
-    uint32_t t = (count * 100) / size;
-    ba[bi++] = 0;
-      Debug_printf(" %s (%d %d%%) [%d]\r\n", ba, count, t, avail);
+    if ( size )
+    {
+        uint32_t t = (count * 100) / size;
+        ba[bi++] = 0;
+        Debug_printf(" %s (%d %d%%) [%d]\r\n", ba, count, t, avail);
+    }
 #endif
 
     Debug_printf("\r\n=================================\r\n%d bytes sent of %d [SYS%d]\r\n", count, avail, sys_address);

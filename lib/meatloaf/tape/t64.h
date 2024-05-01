@@ -7,19 +7,19 @@
 #ifndef MEATLOAF_MEDIA_T64
 #define MEATLOAF_MEDIA_T64
 
-#include "meat_io.h"
-#include "meat_media.h"
+#include "../meatloaf.h"
+#include "../meat_media.h"
 
 
 /********************************************************
  * Streams
  ********************************************************/
 
-class T64IStream : public MImageStream {
+class T64MStream : public MMediaStream {
     // override everything that requires overriding here
 
 public:
-    T64IStream(std::shared_ptr<MStream> is) : MImageStream(is) { };
+    T64MStream(std::shared_ptr<MStream> is) : MMediaStream(is) { };
 
 protected:
     struct Header {
@@ -58,7 +58,7 @@ protected:
     std::string decodeType(uint8_t file_type, bool show_hidden = false) override;
 
 private:
-    friend class T64File;
+    friend class T64MFile;
 };
 
 
@@ -66,21 +66,26 @@ private:
  * File implementations
  ********************************************************/
 
-class T64File: public MFile {
+class T64MFile: public MFile {
 public:
 
-    T64File(std::string path, bool is_dir = true): MFile(path) {
+    T64MFile(std::string path, bool is_dir = true): MFile(path) {
         isDir = is_dir;
 
         media_image = name;
         isPETSCII = true;
     };
     
-    ~T64File() {
+    ~T64MFile() {
         // don't close the stream here! It will be used by shared ptr D64Util to keep reading image params
     }
 
-    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
+    {
+        Debug_printv("[%s]", url.c_str());
+
+        return new T64MStream(containerIstream);
+    }
 
     bool isDirectory() override;
     bool rewindDirectory() override;
@@ -104,18 +109,18 @@ public:
  * FS
  ********************************************************/
 
-class T64FileSystem: public MFileSystem
+class T64MFileSystem: public MFileSystem
 {
 public:
     MFile* getFile(std::string path) override {
-        return new T64File(path);
+        return new T64MFile(path);
     }
 
     bool handles(std::string fileName) override {
         return byExtension(".t64", fileName);
     }
 
-    T64FileSystem(): MFileSystem("t64") {};
+    T64MFileSystem(): MFileSystem("t64") {};
 };
 
 

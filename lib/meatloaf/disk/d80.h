@@ -8,7 +8,7 @@
 #ifndef MEATLOAF_MEDIA_D80
 #define MEATLOAF_MEDIA_D80
 
-#include "meat_io.h"
+#include "../meatloaf.h"
 #include "d64.h"
 
 
@@ -16,11 +16,11 @@
  * Streams
  ********************************************************/
 
-class D80IStream : public D64IStream {
+class D80MStream : public D64MStream {
     // override everything that requires overriding here
 
 public:
-    D80IStream(std::shared_ptr<MStream> is) : D64IStream(is)
+    D80MStream(std::shared_ptr<MStream> is) : D64MStream(is)
     {
         // D80 Partition Info
         std::vector<BlockAllocationMap> b = { 
@@ -56,15 +56,15 @@ public:
         sectorsPerTrack = { 23, 25, 27, 29 };
     };
 
-	virtual uint8_t speedZone(uint8_t track) override
-	{
+    virtual uint8_t speedZone(uint8_t track) override
+    {
         return (track < 40) + (track < 54) + (track < 65);
-	};
+    };
 
 protected:
 
 private:
-    friend class D80File;
+    friend class D80MFile;
 };
 
 
@@ -72,15 +72,15 @@ private:
  * File implementations
  ********************************************************/
 
-class D80File: public D64File {
+class D80MFile: public D64MFile {
 public:
-    D80File(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
+    D80MFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) {};
 
     MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
     {
         Debug_printv("[%s]", url.c_str());
 
-        return new D80IStream(containerIstream);
+        return new D80MStream(containerIstream);
     }
 };
 
@@ -90,18 +90,18 @@ public:
  * FS
  ********************************************************/
 
-class D80FileSystem: public MFileSystem
+class D80MFileSystem: public MFileSystem
 {
 public:
     MFile* getFile(std::string path) override {
-        return new D80File(path);
+        return new D80MFile(path);
     }
 
     bool handles(std::string fileName) override {
         return byExtension(".d80", fileName);
     }
 
-    D80FileSystem(): MFileSystem("d80") {};
+    D80MFileSystem(): MFileSystem("d80") {};
 };
 
 

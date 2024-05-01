@@ -7,19 +7,19 @@
 #ifndef MEATLOAF_MEDIA_TCRT
 #define MEATLOAF_MEDIA_TCRT
 
-#include "meat_io.h"
-#include "meat_media.h"
+#include "../meatloaf.h"
+#include "../meat_media.h"
 
 
 /********************************************************
  * Streams
  ********************************************************/
 
-class TCRTIStream : public MImageStream {
+class TCRTMStream : public MMediaStream {
     // override everything that requires overriding here
 
 public:
-    TCRTIStream(std::shared_ptr<MStream> is) : MImageStream(is) {};
+    TCRTMStream(std::shared_ptr<MStream> is) : MMediaStream(is) {};
 
 protected:
     struct Header {
@@ -59,7 +59,7 @@ protected:
     std::string decodeType(uint8_t file_type, bool show_hidden = false) override;
 
 private:
-    friend class TCRTFile;
+    friend class TCRTMFile;
 };
 
 
@@ -67,21 +67,26 @@ private:
  * File implementations
  ********************************************************/
 
-class TCRTFile: public MFile {
+class TCRTMFile: public MFile {
 public:
 
-    TCRTFile(std::string path, bool is_dir = true): MFile(path) {
+    TCRTMFile(std::string path, bool is_dir = true): MFile(path) {
         isDir = is_dir;
 
         media_image = name;
         isPETSCII = true;
     };
     
-    ~TCRTFile() {
+    ~TCRTMFile() {
         // don't close the stream here! It will be used by shared ptr D64Util to keep reading image params
     }
 
-    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
+    {
+        Debug_printv("[%s]", url.c_str());
+
+        return new TCRTMStream(containerIstream);
+    }
 
     bool isDirectory() override;
     bool rewindDirectory() override;
@@ -105,18 +110,18 @@ public:
  * FS
  ********************************************************/
 
-class TCRTFileSystem: public MFileSystem
+class TCRTMFileSystem: public MFileSystem
 {
 public:
     MFile* getFile(std::string path) override {
-        return new TCRTFile(path);
+        return new TCRTMFile(path);
     }
 
     bool handles(std::string fileName) override {
         return byExtension(".tcrt", fileName);
     }
 
-    TCRTFileSystem(): MFileSystem("tcrt") {};
+    TCRTMFileSystem(): MFileSystem("tcrt") {};
 };
 
 

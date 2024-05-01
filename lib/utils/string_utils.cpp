@@ -241,9 +241,9 @@ namespace mstr {
         for(char petscii : petsciiInput) {
             if(petscii > 0)
             {
-            U8Char u8char(petscii);
-            utf8string+=u8char.toUtf8();
-        }
+                U8Char u8char(petscii);
+                utf8string+=u8char.toUtf8();
+            }
         }
         return utf8string;
     }
@@ -412,8 +412,16 @@ namespace mstr {
         {
             std::string::value_type c = (*i);
 
+            // Change space to '+'
+            // if ( c == ' ')
+            // {
+            //     escaped << '+';
+            //     continue;
+            // }
+
             // Keep alphanumeric and other accepted characters intact
-            if (isalnum((unsigned char)c) || c == '-' || c == '_' || c == '.' || c == '~' || c == '/' || c == ' ')
+            //if (isalnum((unsigned char)c) || c == '-' || c == '_' || c == '.' || c == '~' || c == '/' || c == ' ')
+            if (isalnum((unsigned char)c) || c == '-' || c == '_' || c == '.' || c == '~' || c == '/' || c == '+')
             {
                 escaped << c;
                 continue;

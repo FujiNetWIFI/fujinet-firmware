@@ -63,8 +63,6 @@ public:
     std::string rebuildUrl(void);
     bool isValidUrl();
 
-
-
     void dump() {
         printf("scheme: %s\r\n", scheme.c_str());
         printf("user pass: %s -- %s\r\n", user.c_str(), password.c_str());

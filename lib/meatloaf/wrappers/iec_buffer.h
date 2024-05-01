@@ -4,7 +4,11 @@
 
 #include "../../../include/debug.h"
 
+#if HOST_OS==win32
+#include "../../bus/bus.h"
+#else
 #include "bus.h"
+#endif
 
 #include <string>
 #include <iostream>

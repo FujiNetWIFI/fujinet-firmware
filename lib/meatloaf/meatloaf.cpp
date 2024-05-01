@@ -1,4 +1,4 @@
-#include "meat_io.h"
+#include "meatloaf.h"
 
 #include <dirent.h>
 #include <sys/stat.h>
@@ -6,14 +6,15 @@
 #include <vector>
 #include <sstream>
 
-#include "../../include/debug.h"
-
-#include "MIOException.h"
+//#include "meat_broker.h"
+#include "meat_buffer.h"
+//#include "wrappers/directory_stream.h"
 
 #include "string_utils.h"
 #include "peoples_url_parser.h"
 
-//#include "wrappers/directory_stream.h"
+#include "MIOException.h"
+#include "../../include/debug.h"
 
 // Archive
 //#include "archive/archive_ml.h"
@@ -40,6 +41,9 @@
 // File
 #include "file/p00.h"
 
+// Link
+// Loaders
+
 // Network
 #include "network/http.h"
 #include "network/tnfs.h"
@@ -48,62 +52,64 @@
 // #include "network/smb.h"
 // #include "network/ws.h"
 
-// Service
-// #include "service/cs.h"
-#include "service/ml.h"
+// Scanners
 
+// Service
+#include "service/cs.h"
+#include "service/ml.h"
 
 // Tape
 #include "tape/t64.h"
 #include "tape/tcrt.h"
 
-#include "meat_buffer.h"
 
 /********************************************************
  * MFSOwner implementations
  ********************************************************/
 
 // initialize other filesystems here
-FlashFileSystem defaultFS;
+FlashMFileSystem defaultFS;
 #ifdef SD_CARD
 SDFileSystem sdFS;
 #endif
 
-// Scheme
-HttpFileSystem httpFS;
-MLFileSystem mlFS;
-TNFSFileSystem tnfsFS;
-// IPFSFileSystem ipfsFS;
-// TNFSFileSystem tnfsFS;
-// CServerFileSystem csFS;
-// TcpFileSystem tcpFS;
-
-//WSFileSystem wsFS;
 
 // Archive
-//ArchiveContainerFileSystem archiveFS;
-
-// File
-P00FileSystem p00FS;
-
-// Disk
-D64FileSystem d64FS;
-D71FileSystem d71FS;
-D80FileSystem d80FS;
-D81FileSystem d81FS;
-D82FileSystem d82FS;
-D90FileSystem d90FS;
-DNPFileSystem dnpFS;
-
-D8BFileSystem d8bFS;
-DFIFileSystem dfiFS;
-
-// Tape
-T64FileSystem t64FS;
-TCRTFileSystem tcrtFS;
+//ArchiveMFileSystem archiveFS;
 
 // Cartridge
 
+// Container
+D8BMFileSystem d8bFS;
+DFIMFileSystem dfiFS;
+
+// File
+P00MFileSystem p00FS;
+
+// Disk
+D64MFileSystem d64FS;
+D71MFileSystem d71FS;
+D80MFileSystem d80FS;
+D81MFileSystem d81FS;
+D82MFileSystem d82FS;
+D90MFileSystem d90FS;
+DNPMFileSystem dnpFS;
+
+// Network
+HttpFileSystem httpFS;
+TNFSFileSystem tnfsFS;
+// IPFSFileSystem ipfsFS;
+//TNFSFileSystem tnfsFS;
+// TcpFileSystem tcpFS;
+//WSFileSystem wsFS;
+
+// Service
+// CServerFileSystem csFS;
+MLFileSystem mlFS;
+
+// Tape
+T64MFileSystem t64FS;
+TCRTMFileSystem tcrtFS;
 
 
 // put all available filesystems in this array - first matching system gets the file!
@@ -114,13 +120,13 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
     &sdFS,
 #endif
 //    &archiveFS, // extension-based FS have to be on top to be picked first, otherwise the scheme will pick them!
-    &p00FS,
     &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &d90FS, &dnpFS,
     &d8bFS, &dfiFS,
-    &t64FS, &tcrtFS,
-    &httpFS, &mlFS, &tnfsFS
+    &p00FS,
+    &httpFS, //&tnfsFS,
+    &mlFS,
+    &t64FS, &tcrtFS
 //    &ipfsFS, &tcpFS,
-//    &tnfsFS
 };
 
 bool MFSOwner::mount(std::string name) {
@@ -169,8 +175,6 @@ MFile* MFSOwner::File(std::shared_ptr<MFile> file) {
 
 
 MFile* MFSOwner::File(std::string path) {
-    //Debug_printv("in File\r\n");
-
     // if(mstr::startsWith(path,"cs:", false)) {
     //     //Serial.printf("CServer path found!\r\n");
     //     return csFS.getFile(path);
@@ -340,6 +344,9 @@ bool MFile::operator!=(nullptr_t ptr) {
 
 MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
     // has to return OPENED stream
+    Debug_printv("pathInStream[%s] streamFile[%s]", pathInStream.c_str(), streamFile->url.c_str());
+    //std::shared_ptr<MFile> containerFile(MFSOwner::File(streamPath)); // get the base file that knows how to handle this kind of container, i.e 7z
+
     std::shared_ptr<MStream> containerStream(streamFile->getSourceStream(mode)); // get its base stream, i.e. zip raw file contents
     Debug_printv("containerStream isRandomAccess[%d] isBrowsable[%d]", containerStream->isRandomAccess(), containerStream->isBrowsable());
 
@@ -468,7 +475,7 @@ MFile* MFile::cd(std::string newDir)
             std::string url;
             reader >> url;
 
-            Debug_printv("url[%s]", url);
+            Debug_printv("url[%s]", url.c_str());
             //std::string ml_url((char *)url);
 
             delete newPath;
@@ -568,6 +575,7 @@ uint64_t MFile::getAvailableSpace()
 {
     if ( mstr::startsWith(path, (char *)"/sd") )
     {
+#ifdef SD_CARD
         FATFS* fsinfo;
         DWORD fre_clust;
 
@@ -579,6 +587,7 @@ uint64_t MFile::getAvailableSpace()
             //Debug_printv("total[%llu] used[%llu free[%llu]", total, used, free);
             return free;
         }
+#endif
     }
     else
     {
@@ -589,11 +598,10 @@ uint64_t MFile::getAvailableSpace()
         //Debug_printv("total[%d] used[%d] free[%d]", total, used, free);
         return free;
 #elif FLASH_LITTLEFS
+        // TODO: Implement for LITTLEFS
+        Debug_printv("LITTLEFS getAvailableSpace()");
 #endif
     }
 
     return 65535;
 }
-
-
-

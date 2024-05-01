@@ -97,19 +97,19 @@
 #ifndef MEATLOAF_MEDIA_DFI
 #define MEATLOAF_MEDIA_DFI
 
-#include "meat_io.h"
-#include "disk/d64.h"
+#include "../meatloaf.h"
+#include "../disk/d64.h"
 
 
 /********************************************************
  * Streams
  ********************************************************/
 
-class DFIIStream : public D64IStream {
+class DFIMStream : public D64MStream {
     // override everything that requires overriding here
 
 public:
-    DFIIStream(std::shared_ptr<MStream> is) : D64IStream(is)
+    DFIMStream(std::shared_ptr<MStream> is) : D64MStream(is)
     {
         // DFI Partition Info
         std::vector<BlockAllocationMap> b = { 
@@ -163,12 +163,11 @@ public:
         partitions[0].directory_sector = partitions[0].header_sector + 1;
     };
 
-	virtual uint8_t speedZone(uint8_t track) override { return 0; };
 
 protected:
 
 private:
-    friend class DFIFile;
+    friend class DFIMFile;
 };
 
 
@@ -176,15 +175,15 @@ private:
  * File implementations
  ********************************************************/
 
-class DFIFile: public D64File {
+class DFIMFile: public D64MFile {
 public:
-    DFIFile(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
+    DFIMFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) {};
 
     MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
     {
         Debug_printv("[%s]", url.c_str());
 
-        return new DFIIStream(containerIstream);
+        return new DFIMStream(containerIstream);
     }
 };
 
@@ -194,18 +193,18 @@ public:
  * FS
  ********************************************************/
 
-class DFIFileSystem: public MFileSystem
+class DFIMFileSystem: public MFileSystem
 {
 public:
     MFile* getFile(std::string path) override {
-        return new DFIFile(path);
+        return new DFIMFile(path);
     }
 
     bool handles(std::string fileName) override {
         return byExtension(".dfi", fileName);
     }
 
-    DFIFileSystem(): MFileSystem("dfi") {};
+    DFIMFileSystem(): MFileSystem("dfi") {};
 };
 
 
