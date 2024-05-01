@@ -1351,7 +1351,7 @@ void drivewireFuji::base64_encode_output()
 {
     uint8_t lenl = fnUartBUS.read();
     uint8_t lenh = fnUartBUS.read();
-    uint16_t len = lenl << 8 | lenl;
+    uint16_t len = lenh << 8 | lenl;
 
     if (!len)
     {
@@ -1367,6 +1367,47 @@ void drivewireFuji::base64_encode_output()
 
     response = std::string((const char *)p.data(), len);
     errorCode = 1;    
+}
+
+void drivewireFuji::base64_decode_input()
+{
+    uint8_t lenl = fnUartBUS.read();
+    uint8_t lenh = fnUartBUS.read();
+    uint16_t len = lenh << 8 | lenl;
+
+    if (!len)
+    {
+        Debug_printf("Refusing to input zero length. Exiting.\n");
+        errorCode = 144;
+        return;
+    }
+
+    std::vector<unsigned char> p(len);
+    fnUartBUS.readBytes(p.data(), len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
+
+    errorCode = 1;
+}
+
+void drivewireFuji::base64_decode_compute()
+{
+    size_t out_len;
+
+    Debug_printf("FUJI: BASE64 DECODE COMPUTE\n");
+
+    std::unique_ptr<unsigned char[]> p = Base64::decode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
+    if (!p)
+    {
+        Debug_printf("base64_encode compute failed\n");
+        errorCode = 144;
+        return;
+    }
+
+    base64.base64_buffer.clear();
+    base64.base64_buffer = std::string((const char *)p.get(), out_len);
+
+    Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
+    errorCode = 1;
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
@@ -1542,8 +1583,10 @@ void drivewireFuji::process()
         base64_encode_output();
         break;
     case FUJICMD_BASE64_DECODE_INPUT:
+        base64_decode_input();
         break;
     case FUJICMD_BASE64_DECODE_COMPUTE:
+        base64_decode_compute();
         break;
     case FUJICMD_BASE64_DECODE_LENGTH:
         break;
