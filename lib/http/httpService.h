@@ -32,6 +32,8 @@ If a file has an extention pre-determined to support parsing (see/update
 #include <map>
 #include <string>
 
+#include "webdav/request.h"
+
 #include "fnFS.h"
 
 #ifdef ESP_PLATFORM
@@ -91,6 +93,10 @@ class fnHttpService
     static void send_file(httpd_req_t *req, const char *filename);
     static void parse_query(httpd_req_t *req, queryparts *results);
     static void send_header_footer(httpd_req_t *req, int headfoot);
+
+    // WebDAV
+    static void webdav_register(httpd_handle_t server, const char *root_uri, const char *root_path);
+    static esp_err_t webdav_handler(httpd_req_t *httpd_req);
 #else
 // !ESP_PLATFORM
     static struct mg_mgr * start_server(serverstate &state);
