@@ -1327,6 +1327,18 @@ void drivewireFuji::send_error()
     fnUartBUS.write(errorCode);
 }
 
+void drivewireFuji::random()
+{
+    int r = rand();
+    Debug_printf("drivewireFuji::random(%u)\n",r);
+
+    response.clear();
+    response.shrink_to_fit();
+
+    // Endianness does not matter, so long as it is random.
+    response = std::string((const char *)&r,sizeof(r));
+}
+
 void drivewireFuji::send_response()
 {
     // Send body
@@ -1433,6 +1445,7 @@ void drivewireFuji::process()
         write_app_key();
         break;
     case FUJICMD_RANDOM_NUMBER:
+        random();
         break;
     case FUJICMD_BASE64_ENCODE_INPUT:
         break;
