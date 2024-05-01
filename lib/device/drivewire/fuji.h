@@ -130,6 +130,7 @@ protected:
     void random();                 // 0xD3
     void base64_encode_input();    // 0xD0
     void base64_encode_compute();  // 0xCF
+    void base64_encode_length();   // 0xCE
     void send_error();
     void send_response();          // 0x01
     void ready();                  // 0x00

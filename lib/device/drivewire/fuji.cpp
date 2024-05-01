@@ -1324,7 +1324,26 @@ void drivewireFuji::base64_encode_compute()
 
     base64.base64_buffer.clear();
     base64.base64_buffer = std::string(p.get(), out_len);
-    
+
+    errorCode = 1;
+}
+
+void drivewireFuji::base64_encode_length()
+{
+    size_t l = base64.base64_buffer.length();
+    uint8_t o[4] = 
+    {
+        (uint8_t)(l >> 24),
+        (uint8_t)(l >> 16),
+        (uint8_t)(l >> 8),
+        (uint8_t)(l)
+    };
+
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)&o, 4);
+
     errorCode = 1;
 }
 
@@ -1492,8 +1511,10 @@ void drivewireFuji::process()
         base64_encode_input();
         break;
     case FUJICMD_BASE64_ENCODE_COMPUTE:
+        base64_encode_compute();
         break;
     case FUJICMD_BASE64_ENCODE_LENGTH:
+        base64_encode_length();
         break;
     case FUJICMD_BASE64_ENCODE_OUTPUT:
         break;
