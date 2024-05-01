@@ -698,6 +698,8 @@ void drivewireNetwork::set_password()
         return;
     }
 
+    password = std::string(tmp,256);
+
     Debug_printf("drivewireNetwork::set_password(%s)\n",password.c_str());
 }
 
