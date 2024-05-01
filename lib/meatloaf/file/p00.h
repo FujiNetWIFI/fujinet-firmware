@@ -5,18 +5,18 @@
 #ifndef MEATLOAF_MEDIA_P00
 #define MEATLOAF_MEDIA_P00
 
-#include "meat_io.h"
-#include "meat_media.h"
+#include "../meatloaf.h"
+#include "../meat_media.h"
 
 /********************************************************
  * Streams
  ********************************************************/
 
-class P00IStream : public MImageStream {
+class P00MStream : public MMediaStream {
     // override everything that requires overriding here
 
 public:
-    P00IStream(std::shared_ptr<MStream> is) : MImageStream(is) {
+    P00MStream(std::shared_ptr<MStream> is) : MMediaStream(is) {
         entry_count = 1;
         seekNextEntry();
     };
@@ -61,7 +61,7 @@ protected:
     Header header;
 
 private:
-    friend class P00File;
+    friend class P00MFile;
 };
 
 
@@ -69,16 +69,21 @@ private:
  * File implementations
  ********************************************************/
 
-class P00File: public MFile {
+class P00MFile: public MFile {
 public:
 
-    P00File(std::string path, bool is_dir = false): MFile(path) {};
+    P00MFile(std::string path, bool is_dir = false): MFile(path) {};
     
-    ~P00File() {
+    ~P00MFile() {
         // don't close the stream here! It will be used by shared ptr D64Util to keep reading image params
     }
 
-    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
+    {
+        Debug_printv("[%s]", url.c_str());
+
+        return new P00MStream(containerIstream);
+    }
 
     bool isDirectory() override { return false; };;
     bool rewindDirectory() override { return false; };;
@@ -102,18 +107,18 @@ public:
  * FS
  ********************************************************/
 
-class P00FileSystem: public MFileSystem
+class P00MFileSystem: public MFileSystem
 {
 public:
     MFile* getFile(std::string path) override {
-        return new P00File(path);
+        return new P00MFile(path);
     }
 
     bool handles(std::string fileName) override {
         return byExtension(".p00", fileName);
     }
 
-    P00FileSystem(): MFileSystem("p00") {};
+    P00MFileSystem(): MFileSystem("p00") {};
 };
 
 #endif // MEATLOAF_MEDIA_P00

@@ -63,7 +63,6 @@ namespace mstr {
     bool isNumeric(std::string &s);
     bool isA0Space(int ch);
     void A02Space(std::string &s);
-    bool isHex(std::string &input);
 
     std::string format(const char *format, ...);
     std::string formatBytes(uint64_t value);
@@ -72,4 +71,4 @@ namespace mstr {
     std::string parent(std::string path, std::string plus = "");
     std::string localParent(std::string path, std::string plus);
 }
-#endif // STRING_UTILS_H
+#endif

@@ -8,8 +8,8 @@
 
 #include "bus.h"
 #include "../../media/media.h"
-#include "../meatloaf/meat_io.h"
-#include "../meatloaf/meat_buffer.h"
+#include "../../meatloaf/meatloaf.h"
+#include "../../meatloaf/meat_buffer.h"
 
 #define PRODUCT_ID "MEATLOAF CBM"
 

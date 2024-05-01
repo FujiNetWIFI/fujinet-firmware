@@ -50,7 +50,7 @@ MStream* HttpFile::getSourceStream(std::ios_base::openmode mode) {
     // headers["Accept"] = "*/*";
     // headers["Accept-Encoding"] = "gzip, deflate";
     // etc.
-    MStream* istream = new HttpIStream(url, mode, headers);
+    MStream* istream = new HttpIStream(url, mode);
     istream->open();
 
     return istream;
@@ -137,7 +137,6 @@ bool HttpFile::isText() {
  ********************************************************/
 bool HttpIStream::open() {
     bool r = false;
-    _http.setHeaders(headers);
 
     if(mode == (std::ios_base::out | std::ios_base::app))
         r = _http.PUT(url);
@@ -273,6 +272,11 @@ bool MeatHttpClient::open(std::string dstUrl, esp_http_client_method_t meth) {
     lastMethod = meth;
     _error = 0;
 
+    // if ( meth == HTTP_METHOD_HEAD)
+    //     return processRedirectsAndOpen(0);
+    // else
+    //     return true;
+
     return processRedirectsAndOpen(0);
 };
 
@@ -355,6 +359,12 @@ bool MeatHttpClient::seek(uint32_t pos) {
 }
 
 uint32_t MeatHttpClient::read(uint8_t* buf, uint32_t size) {
+
+    if (!_is_open) {
+        Debug_printv("Opening HTTP Stream!");
+        processRedirectsAndOpen(0);
+    }
+
     if (_is_open) {
         auto bytesRead= esp_http_client_read(_http, (char *)buf, size );
         
@@ -367,7 +377,13 @@ uint32_t MeatHttpClient::read(uint8_t* buf, uint32_t size) {
 };
 
 uint32_t MeatHttpClient::write(const uint8_t* buf, uint32_t size) {
-    if (_is_open) {
+    if (!_is_open) 
+    {
+        if ( setHeader( (char *)buf ) )
+            return size;
+    }
+    else
+    {
         auto bytesWritten= esp_http_client_write(_http, (char *)buf, size );
         _position+=bytesWritten;
         return bytesWritten;        
@@ -438,6 +454,7 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
         case HTTP_EVENT_ERROR: // This event occurs when there are any errors during execution
             Debug_printv("HTTP_EVENT_ERROR");
             meatClient->_error = 1;
+            
             break;
 
         case HTTP_EVENT_ON_CONNECTED: // Once the HTTP has been connected to the server, no data exchange has been performed

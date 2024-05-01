@@ -8,7 +8,7 @@
 #ifndef MEATLOAF_MEDIA_D90
 #define MEATLOAF_MEDIA_D90
 
-#include "meat_io.h"
+#include "../meatloaf.h"
 #include "d64.h"
 
 
@@ -16,11 +16,11 @@
  * Streams
  ********************************************************/
 
-class D90IStream : public D64IStream {
+class D90MStream : public D64MStream {
     // override everything that requires overriding here
 
 public:
-    D90IStream(std::shared_ptr<MStream> is) : D64IStream(is)
+    D90MStream(std::shared_ptr<MStream> is) : D64MStream(is)
     {
         // D90 Partition Info
         std::vector<BlockAllocationMap> b = { 
@@ -112,7 +112,7 @@ public:
 protected:
 
 private:
-    friend class D90File;
+    friend class D90MFile;
 };
 
 
@@ -120,15 +120,15 @@ private:
  * File implementations
  ********************************************************/
 
-class D90File: public D64File {
+class D90MFile: public D64MFile {
 public:
-    D90File(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
+    D90MFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) {};
 
     MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
     {
         Debug_printv("[%s]", url.c_str());
 
-        return new D90IStream(containerIstream);
+        return new D90MStream(containerIstream);
     }
 };
 
@@ -138,11 +138,11 @@ public:
  * FS
  ********************************************************/
 
-class D90FileSystem: public MFileSystem
+class D90MFileSystem: public MFileSystem
 {
 public:
     MFile* getFile(std::string path) override {
-        return new D90File(path);
+        return new D90MFile(path);
     }
 
     bool handles(std::string fileName) override {
@@ -155,7 +155,7 @@ public:
         );
     }
 
-    D90FileSystem(): MFileSystem("d90") {};
+    D90MFileSystem(): MFileSystem("d90") {};
 };
 
 

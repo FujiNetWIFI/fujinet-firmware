@@ -6,7 +6,7 @@
 #ifndef MEATLOAF_MEDIA_DNP
 #define MEATLOAF_MEDIA_DNP
 
-#include "meat_io.h"
+#include "../meatloaf.h"
 #include "d64.h"
 
 
@@ -14,11 +14,11 @@
  * Streams
  ********************************************************/
 
-class DNPIStream : public D64IStream {
+class DNPMStream : public D64MStream {
     // override everything that requires overriding here
 
 public:
-    DNPIStream(std::shared_ptr<MStream> is) : D64IStream(is) 
+    DNPMStream(std::shared_ptr<MStream> is) : D64MStream(is) 
     {
         // DNP Partition Info
         std::vector<BlockAllocationMap> b = { 
@@ -47,12 +47,10 @@ public:
         has_subdirs = true;
     };
 
-	virtual uint8_t speedZone(uint8_t track) override { return 0; };
-
 protected:
 
 private:
-    friend class DNPFile;
+    friend class DNPMFile;
 };
 
 
@@ -60,15 +58,15 @@ private:
  * File implementations
  ********************************************************/
 
-class DNPFile: public D64File {
+class DNPMFile: public D64MFile {
 public:
-    DNPFile(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
+    DNPMFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) {};
 
     MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
     {
         Debug_printv("[%s]", url.c_str());
 
-        return new DNPIStream(containerIstream);
+        return new DNPMStream(containerIstream);
     }
 };
 
@@ -78,18 +76,18 @@ public:
  * FS
  ********************************************************/
 
-class DNPFileSystem: public MFileSystem
+class DNPMFileSystem: public MFileSystem
 {
 public:
     MFile* getFile(std::string path) override {
-        return new DNPFile(path);
+        return new DNPMFile(path);
     }
 
     bool handles(std::string fileName) override {
         return byExtension(".dnp", fileName);
     }
 
-    DNPFileSystem(): MFileSystem("dnp") {};
+    DNPMFileSystem(): MFileSystem("dnp") {};
 };
 
 

@@ -4,7 +4,7 @@
 #include <memory>
 #include <fstream>
 
-#include "meat_io.h"
+#include "meatloaf.h"
 
 #include "../../include/debug.h"
 
@@ -198,7 +198,7 @@ namespace Meat
                 else
                 {
                     currBuffEnd = mstream->position();
-                    currBuffStart = currBuffEnd - readCount; // this is where our buffer data starts
+                    currBuffStart = (uint32_t)currBuffEnd - readCount; // this is where our buffer data starts
 
                     // Debug_printv("--mfilebuf underflow, read bytes=%d--", readCount);
                     // beg, curr, end <=> eback, gptr, egptr
@@ -255,7 +255,7 @@ namespace Meat
 
             char *end = this->pptr();
 
-            Debug_printv("before write call, ch=%d [%c], buffer contains:%d", ch, (char)ch, this->pptr() - this->pbase());
+            Debug_printv("before write call, ch=%d [%c], buffer contains:%lu", ch, (char)ch, this->pptr() - this->pbase());
 
             if (ch != EOF)
             {
@@ -263,7 +263,7 @@ namespace Meat
                 this->pbump(1);
             }
 
-            Debug_printv("%d bytes in buffer will be written", end - this->pbase());
+            Debug_printv("%lu bytes in buffer will be written", end - this->pbase());
 
             const uint8_t *pBase = (uint8_t *)this->pbase();
 
@@ -306,13 +306,13 @@ namespace Meat
             // gptr - current gbuffer position
             // egptr - gbuffer end
 
-            Debug_printv("meat buffer seekpos called, newPos=%d buffer=[%d,%d]", (size_t)__pos, (size_t)currBuffStart, (size_t)currBuffEnd);
+            Debug_printv("meat buffer seekpos called, newPos=%d buffer=[%d,%d]", (int)__pos, (int)currBuffStart, (int)currBuffEnd);
 
             if (__pos >= currBuffStart && __pos < currBuffEnd)
             {
-                Debug_printv("Seek withn chace, lucky!");
+                Debug_printv("Seek within cache, lucky!");
 
-                // we're seeing within existing buffer, so let's reuse
+                // we're seeking within existing buffer, so let's reuse
 
                 // !!!
                 // NOTE - THIS PIECE OF CODE HAS TO BE THROUGHLY TESTED!!!!
@@ -326,7 +326,7 @@ namespace Meat
             }
             else if (mstream->seek(__pos))
             {
-                Debug_printv("Seek missed the chache, read required!");
+                Debug_printv("Seek missed the cache, read required!");
                 // the seek op isn't within existing buffer, so we need to actually
                 // call seek on stream and force underflow/overflow
 

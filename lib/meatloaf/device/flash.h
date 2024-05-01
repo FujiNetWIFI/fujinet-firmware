@@ -2,7 +2,7 @@
 #ifndef MEATLOAF_DEVICE_FLASH
 #define MEATLOAF_DEVICE_FLASH
 
-#include "meat_io.h"
+#include "meatloaf.h"
 
 #ifdef FLASH_SPIFFS
 #include "esp_spiffs.h"
@@ -19,12 +19,12 @@
  * MFileSystem
  ********************************************************/
 
-class FlashFileSystem: public MFileSystem 
+class FlashMFileSystem: public MFileSystem 
 {
-    bool handles(std::string path);
+    bool handles(std::string path) override;
     
 public:
-    FlashFileSystem() : MFileSystem("FlashFS") {};
+    FlashMFileSystem() : MFileSystem("FlashFS") {};
     MFile* getFile(std::string path) override;
 
 };
@@ -35,14 +35,14 @@ public:
  * MFile
  ********************************************************/
 
-class FlashFile: public MFile
+class FlashMFile: public MFile
 {
-friend class FlashIStream;
+friend class FlashMStream;
 
 public:
     std::string basepath = "";
     
-    FlashFile(std::string path): MFile(path) {
+    FlashMFile(std::string path): MFile(path) {
         // parseUrl( path );
 
         // Find full filename for wildcard
@@ -56,7 +56,7 @@ public:
 
         //Debug_printv("basepath[%s] path[%s] valid[%d]", basepath.c_str(), this->path.c_str(), m_isNull);
     };
-    ~FlashFile() {
+    ~FlashMFile() {
         //Serial.printf("*** Destroying flashfile %s\r\n", url.c_str());
         closeDir();
     }
@@ -64,14 +64,14 @@ public:
     //MFile* cd(std::string newDir);
     bool isDirectory() override;
     MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override ; // has to return OPENED stream
-    MStream* getDecodedStream(std::shared_ptr<MStream> src);
+    MStream* getDecodedStream(std::shared_ptr<MStream> src) override;
 
     bool rewindDirectory() override;
     MFile* getNextFileInDir() override;
     bool mkDir() override;
     bool exists() override;
     bool remove() override;
-    bool rename(std::string dest);
+    bool rename(std::string dest) override;
 
     time_t getLastWrite() override;
     time_t getCreationTime() override;
@@ -121,27 +121,21 @@ private:
  * MStream I
  ********************************************************/
 
-class FlashIStream: public MStream {
+class FlashMStream: public MStream {
 public:
-    FlashIStream(std::string& path, std::ios_base::openmode m) {
+    FlashMStream(std::string& path, std::ios_base::openmode m) {
         localPath = path;
         mode = m;
         handle = std::make_unique<FlashHandle>();
         //url = path;
     }
-    ~FlashIStream() override {
+    ~FlashMStream() override {
         close();
     }
 
     // MStream methods
     bool isBrowsable() override { return false; };
     bool isRandomAccess() override { return true; };
-
-    // MStream methods
-    // uint32_t available() override;
-    // uint32_t size() override;
-    // uint32_t position() override;
-    // size_t error() override;
 
     virtual bool seek(uint32_t pos) override;
     virtual bool seek(uint32_t pos, int mode) override;    
@@ -159,7 +153,7 @@ public:
         return false;
     }
 
-    bool isOpen();
+    bool isOpen() override;
 
 protected:
     std::string localPath;

@@ -7,19 +7,19 @@
 #ifndef MEATLOAF_MEDIA_D8B
 #define MEATLOAF_MEDIA_D8B
 
-#include "meat_io.h"
-#include "disk/d64.h"
+#include "../meatloaf.h"
+#include "../disk/d64.h"
 
 
 /********************************************************
  * Streams
  ********************************************************/
 
-class D8BIStream : public D64IStream {
+class D8BMStream : public D64MStream {
     // override everything that requires overriding here
 
 public:
-    D8BIStream(std::shared_ptr<MStream> is) : D64IStream(is)
+    D8BMStream(std::shared_ptr<MStream> is) : D64MStream(is)
     {
         // D8B Partition Info
         std::vector<BlockAllocationMap> b = { 
@@ -58,7 +58,7 @@ public:
         }
     };
 
-	// virtual std::unordered_map<std::string, std::string> info() override { 
+    // virtual std::unordered_map<std::string, std::string> info() override { 
     //     return {
     //         {"System", "Commodore"},
     //         {"Format", "D8B"},
@@ -70,12 +70,10 @@ public:
     //     }; 
     // };
 
-	virtual uint8_t speedZone(uint8_t track) override { return 0; };
-
 protected:
 
 private:
-    friend class D8BFile;
+    friend class D8BMFile;
 };
 
 
@@ -83,15 +81,15 @@ private:
  * File implementations
  ********************************************************/
 
-class D8BFile: public D64File {
+class D8BMFile: public D64MFile {
 public:
-    D8BFile(std::string path, bool is_dir = true) : D64File(path, is_dir) {};
+    D8BMFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) {};
 
     MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
     {
         Debug_printv("[%s]", url.c_str());
 
-        return new D8BIStream(containerIstream);
+        return new D8BMStream(containerIstream);
     }
 };
 
@@ -101,18 +99,18 @@ public:
  * FS
  ********************************************************/
 
-class D8BFileSystem: public MFileSystem
+class D8BMFileSystem: public MFileSystem
 {
 public:
     MFile* getFile(std::string path) override {
-        return new D8BFile(path);
+        return new D8BMFile(path);
     }
 
     bool handles(std::string fileName) override {
         return byExtension(".d8b", fileName);
     }
 
-    D8BFileSystem(): MFileSystem("d8b") {};
+    D8BMFileSystem(): MFileSystem("d8b") {};
 };
 
 

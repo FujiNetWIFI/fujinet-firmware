@@ -1,12 +1,13 @@
 #include "t64.h"
 
+//#include "meat_broker.h"
 #include "endianness.h"
 
 /********************************************************
  * Streams
  ********************************************************/
 
-std::string T64IStream::decodeType(uint8_t file_type, bool show_hidden)
+std::string T64MStream::decodeType(uint8_t file_type, bool show_hidden)
 {
     std::string type = "PRG";
 
@@ -21,7 +22,7 @@ std::string T64IStream::decodeType(uint8_t file_type, bool show_hidden)
     return type;
 }
 
-bool T64IStream::seekEntry( std::string filename )
+bool T64MStream::seekEntry( std::string filename )
 {
     size_t index = 1;
     mstr::replaceAll(filename, "\\", "/");
@@ -65,7 +66,7 @@ bool T64IStream::seekEntry( std::string filename )
     return false;
 }
 
-bool T64IStream::seekEntry( uint16_t index )
+bool T64MStream::seekEntry( uint16_t index )
 {
     // Calculate Sector offset & Entry offset
     index--;
@@ -88,7 +89,7 @@ bool T64IStream::seekEntry( uint16_t index )
 }
 
 
-uint16_t T64IStream::readFile(uint8_t* buf, uint16_t size) {
+uint16_t T64MStream::readFile(uint8_t* buf, uint16_t size) {
     uint16_t bytesRead = 0;
 
     if ( _position < 2)
@@ -113,7 +114,7 @@ uint16_t T64IStream::readFile(uint8_t* buf, uint16_t size) {
 }
 
 
-bool T64IStream::seekPath(std::string path) {
+bool T64MStream::seekPath(std::string path) {
     // Implement this to skip a queue of file streams to start of file by name
     // this will cause the next read to return bytes of 'path'
     seekCalled = true;
@@ -157,14 +158,7 @@ bool T64IStream::seekPath(std::string path) {
  * File implementations
  ********************************************************/
 
-MStream* T64File::getDecodedStream(std::shared_ptr<MStream> containerIstream) {
-    Debug_printv("[%s]", url.c_str());
-
-    return new T64IStream(containerIstream);
-}
-
-
-bool T64File::isDirectory() {
+bool T64MFile::isDirectory() {
     //Debug_printv("pathInStream[%s]", pathInStream.c_str());
     if ( pathInStream == "" )
         return true;
@@ -172,10 +166,10 @@ bool T64File::isDirectory() {
         return false;
 };
 
-bool T64File::rewindDirectory() {
+bool T64MFile::rewindDirectory() {
     dirIsOpen = true;
     Debug_printv("streamFile->url[%s]", streamFile->url.c_str());
-    auto image = ImageBroker::obtain<T64IStream>(streamFile->url);
+    auto image = ImageBroker::obtain<T64MStream>(streamFile->url);
     if ( image == nullptr )
         Debug_printv("image pointer is null");
 
@@ -197,13 +191,13 @@ bool T64File::rewindDirectory() {
     return true;
 }
 
-MFile* T64File::getNextFileInDir() {
+MFile* T64MFile::getNextFileInDir() {
 
     if(!dirIsOpen)
         rewindDirectory();
 
     // Get entry pointed to by containerStream
-    auto image = ImageBroker::obtain<T64IStream>(streamFile->url);
+    auto image = ImageBroker::obtain<T64MStream>(streamFile->url);
 
     if ( image->seekNextImageEntry() )
     {
@@ -225,10 +219,10 @@ MFile* T64File::getNextFileInDir() {
 }
 
 
-uint32_t T64File::size() {
+uint32_t T64MFile::size() {
     // Debug_printv("[%s]", streamFile->url.c_str());
     // use T64 to get size of the file in image
-    auto entry = ImageBroker::obtain<T64IStream>(streamFile->url)->entry;
+    auto entry = ImageBroker::obtain<T64MStream>(streamFile->url)->entry;
 
     //Debug_printv("end0[%d] end1[%d] start0[%d] start1[%d]", entry.end_address[0], entry.end_address[1], entry.start_address[0], entry.start_address[1]);
     size_t end_address = UINT16_FROM_HILOBYTES(entry.end_address[1], entry.end_address[0]);
