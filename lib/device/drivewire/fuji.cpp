@@ -646,6 +646,7 @@ void drivewireFuji::write_app_key()
         Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, len, e);
         errorCode = 144;
     }
+    errorCode = 1;
 }
 
 /*
@@ -653,51 +654,56 @@ void drivewireFuji::write_app_key()
 */
 void drivewireFuji::read_app_key()
 {
-    // Debug_println("Fuji cmd: READ APPKEY");
+    Debug_println("Fuji cmd: READ APPKEY");
 
-    // // Make sure we have an SD card mounted
-    // if (fnSDFAT.running() == false)
-    // {
-    //     Debug_println("No SD mounted - can't read app key");
-    //     drivewire_error();
-    //     return;
-    // }
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't read app key");
+        errorCode = 144;
+        return;
+    }
 
-    // // Make sure we have valid app key information
-    // if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
-    // {
-    //     Debug_println("Invalid app key metadata - aborting");
-    //     drivewire_error();
-    //     return;
-    // }
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        errorCode = 144;
+        return;
+    }
 
-    // char *filename = _generate_appkey_filename(&_current_appkey);
+    char *filename = _generate_appkey_filename(&_current_appkey);
 
-    // Debug_printf("Reading appkey from \"%s\"\n", filename);
+    Debug_printf("Reading appkey from \"%s\"\n", filename);
 
-    // FILE *fIn = fnSDFAT.file_open(filename, "r");
-    // if (fIn == nullptr)
-    // {
-    //     Debug_printf("Failed to open input file: errno=%d\n", errno);
-    //     drivewire_error();
-    //     return;
-    // }
+    FILE *fIn = fnSDFAT.file_open(filename, "r");
+    if (fIn == nullptr)
+    {
+        Debug_printf("Failed to open input file: errno=%d\n", errno);
+        errorCode = 144;
+        return;
+    }
 
-    // struct
-    // {
-    //     uint16_t size;
-    //     uint8_t value[MAX_APPKEY_LEN];
-    // } __attribute__((packed)) response;
-    // memset(&response, 0, sizeof(response));
+    struct
+    {
+        uint16_t size;
+        uint8_t value[MAX_APPKEY_LEN];
+    } __attribute__((packed)) _response;
+    memset(&_response, 0, sizeof(_response));
 
-    // size_t count = fread(response.value, 1, sizeof(response.value), fIn);
+    size_t count = fread(_response.value, 1, sizeof(_response.value), fIn);
 
-    // fclose(fIn);
-    // Debug_printf("Read %d bytes from input file\n", count);
+    fclose(fIn);
+    Debug_printf("Read %d bytes from input file\n", count);
 
-    // response.size = count;
+    _response.size = count;
 
-    // bus_to_computer((uint8_t *)&response, sizeof(response), false);
+    // Endian flip of size
+    uint16_t tmp = _response.size << 8 | _response.size >> 8;
+    _response.size = tmp;
+
+    fnUartBUS.write((uint8_t *)&response, sizeof(response));
+    errorCode = 1;
 }
 
 // Disk Image Unmount
