@@ -527,9 +527,8 @@ void drivewireFuji::mount_all()
 // Set boot mode
 void drivewireFuji::set_boot_mode()
 {
-    // insert_boot_device(cmdFrame.aux1);
-    // boot_config = true;
-    // drivewire_complete();
+    insert_boot_device(fnUartBUS.read());
+    boot_config = true;
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -1270,7 +1269,9 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     Debug_printf("insert_boot_device()\n");
 
     const char *config_atr = "/autorun.dsk";
-    fnFile *fBoot;
+    const char *mount_and_boot_atr = "/mount-and-boot.dsk";
+
+    fnFile *fBoot = NULL;
     size_t sz = 0;
 
     _bootDisk.unmount();
@@ -1279,15 +1280,22 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fsFlash.fnfile_open(config_atr);
+        break;
+    case 1:
+        fBoot = fsFlash.fnfile_open(mount_and_boot_atr);
+        break;
+    }
+
+    if (fBoot)
+    {
         fnio::fseek(fBoot, 0, SEEK_END);
         sz = fnio::ftell(fBoot);
         fnio::fseek(fBoot, 0, SEEK_SET);
         _bootDisk.mount(fBoot, config_atr, sz);
-        break;
-    }
 
-    _bootDisk.is_config_device = true;
-    _bootDisk.device_active = true;
+        _bootDisk.is_config_device = true;
+        _bootDisk.device_active = true;
+    }
 }
 
 void drivewireFuji::base64_encode_input()
@@ -1752,6 +1760,9 @@ void drivewireFuji::process()
         break;
     case FUJICMD_HASH_OUTPUT:
         hash_output();
+        break;
+    case FUJICMD_SET_BOOT_MODE:
+        set_boot_mode();
         break;
     default:
         break;
