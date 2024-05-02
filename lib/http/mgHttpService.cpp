@@ -176,6 +176,8 @@ void fnHttpService::send_file_parsed(struct mg_connection *c, const char *filena
 */
 void fnHttpService::send_file(struct mg_connection *c, const char *filename)
 {
+    // Debug_printf("send_file '%s'\r\n", filename);
+
     // Build the full file path
     string fpath = FNWS_FILE_ROOT;
     // Trim any '/' prefix before adding it to the base directory
@@ -575,7 +577,7 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
             struct mg_http_serve_opts opts = {s_root_dir, NULL};
             mg_http_serve_dir(c, (mg_http_message*)ev_data, &opts);
         }
-        c->is_draining = 1;
+        c->is_resp = 0;
     }
 }
 
