@@ -312,5 +312,26 @@ if [ ${SHOW_MONITOR} -eq 1 ] ; then
   MONITOR_PORT=$(grep ^monitor_port $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
   MONITOR_SPEED=$(grep ^monitor_speed $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
   MONITOR_FILTERS=$(grep ^monitor_filters $INI_FILE | cut -d= -f2 | cut -d\; -f1 | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')  
+
+  # warn the user if the build_board in platformio.ini (if exists) is not the same as INI_FILE version, as that means stacktrace will not work correctly
+  # because the monitor does not allow an INI file to be set!!
+  PIO_BOARD=$(grep "build_board *=" platformio.ini | awk '{print $3}')
+  INI_BOARD=$(grep "build_board *=" ${INI_FILE} | awk '{print $3}')
+  if [ "${PIO_BOARD}" != "${INI_BOARD}" ]; then
+    echo "╔═════════════════════════════════════════╗"
+    echo "║                WARNING                  ║"
+    echo "╟─────────────────────────────────────────╢"
+    echo "║ INCONSISTENT build_board VALUE DETECTED ║"
+    echo "║   THIS MEANS STACKTRACE WILL NOT WORK   ║"
+    echo "╚═════════════════════════════════════════╝"
+    echo ""
+    echo " platformio.ini = ${PIO_BOARD}"
+    echo " $(basename ${INI_FILE}) = ${INI_BOARD}"
+    echo ""
+    echo " This is because 'pio device monitor' does not allow setting the INI file to use, but 'pio run' does."
+    echo " You can fix this by copying the build_board to the old platformio.ini, or copy $(basename ${INI_FILE}) over platformio.ini entirely"
+    echo ""
+  fi
+
   pio device monitor -p $MONITOR_PORT -b $MONITOR_SPEED $MONITOR_FILTERS 2>&1
 fi
