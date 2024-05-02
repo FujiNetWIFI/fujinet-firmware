@@ -474,7 +474,9 @@ void drivewireFuji::mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
-    for (int i = 0; i < 8; i++)
+    Debug_printf("drivewireFuji::mount_all()\n");
+
+    for (int i = 0; i < 4; i++)
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
@@ -514,6 +516,7 @@ void drivewireFuji::mount_all()
 
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+            disk.disk_dev.device_active = true;
         }
     }
 
@@ -522,6 +525,9 @@ void drivewireFuji::mount_all()
         // No disks in a slot, disable config
         boot_config = false;
     }
+
+    Debug_printf("drivewireFuji::mount_all() done.\n");
+
 }
 
 // Set boot mode
@@ -1763,6 +1769,9 @@ void drivewireFuji::process()
         break;
     case FUJICMD_SET_BOOT_MODE:
         set_boot_mode();
+        break;
+    case FUJICMD_MOUNT_ALL:
+        mount_all();
         break;
     default:
         break;
