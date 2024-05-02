@@ -45,8 +45,13 @@ If a file has an extention pre-determined to support parsing (see/update
 
 // FNWS_FILE_ROOT should end in a slash '/'
 #define FNWS_FILE_ROOT "/www/"
+#ifdef ESP_PLATFORM
 #define FNWS_SEND_BUFF_SIZE 512 // Used when sending files in chunks
 #define FNWS_RECV_BUFF_SIZE 512 // Used when receiving POST data from client
+#else
+#define FNWS_SEND_BUFF_SIZE 4096 // Used when sending files in chunks
+#define FNWS_RECV_BUFF_SIZE 4096 // Used when receiving POST data from client
+#endif
 
 #define MSG_ERR_OPENING_FILE     "Error opening file"
 #define MSG_ERR_OUT_OF_MEMORY    "Ran out of memory"
