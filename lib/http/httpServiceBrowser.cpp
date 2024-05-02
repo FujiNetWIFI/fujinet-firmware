@@ -52,6 +52,7 @@ int fnHttpSendFileTask::start()
 
 int fnHttpSendFileTask::abort()
 {
+    _c->is_draining = 1;
     fnio::fclose(_fh); // close (and delete _fh)
     delete _fs; // delete temporary FileSystem
     Debug_printf("fnHttpSendFileTask aborted #%d\n", _id);
@@ -72,6 +73,7 @@ int fnHttpSendFileTask::step()
         return 0; // continue
 
     // done
+    _c->is_resp = 0;
     fnio::fclose(_fh); // close (and delete _fh)
     delete _fs;  // delete temporary FileSystem
     Debug_printf("Sent %lu of %lu bytes\n", (unsigned long)_total, (unsigned long)_filesize);
