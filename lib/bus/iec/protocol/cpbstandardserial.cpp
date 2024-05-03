@@ -143,7 +143,7 @@ int16_t CPBStandardSerial::receiveByte()
 
     // timeoutWait( PIN_IEC_CLK_IN, RELEASED, TIMING_Tbb);
 
-    return data;
+    return (uint8_t) (data & 0xFF);
 }
 
 
