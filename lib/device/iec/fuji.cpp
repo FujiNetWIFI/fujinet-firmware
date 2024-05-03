@@ -106,6 +106,11 @@ device_state_t iecFuji::process()
         IEC.senderTimeout();
     }
 
+    // Debug_printf("Checking commanddata\n   primary: %02x\n    device: %02x\n secondary: %02x\n   channel: %02x\n   payload: ", commanddata.primary, commanddata.device, commanddata.secondary, commanddata.channel);
+    // char *msg = util_hexdump(commanddata.payload.c_str(), 8);
+    // Debug_printf("%s\n", msg);
+    // free(msg);
+
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
         #ifdef DEBUG

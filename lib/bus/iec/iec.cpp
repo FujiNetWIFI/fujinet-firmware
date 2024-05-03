@@ -245,6 +245,13 @@ void IRAM_ATTR systemBus::service()
 
         if (bus_state == BUS_PROCESS)
         {
+
+            // Debug_printf("BUS_PROCESS data\n   primary: %02x\n    device: %02x\n secondary: %02x\n   channel: %02x\n   payload: ", data.primary, data.device, data.secondary, data.channel);
+            // char *msg = util_hexdump(data.payload.c_str(), 8);
+            // Debug_printf("%s\n", msg);
+            // free(msg);
+
+
             // Sometimes ATN isn't released immediately. Wait for ATN to be
             // released before trying to read payload. Long ATN delay (>1.5ms)
             // seems to occur more frequently with VIC-20.
@@ -273,30 +280,33 @@ void IRAM_ATTR systemBus::service()
             }
 
             // Queue control codes and command in specified device
-            device_state_t device_state = deviceById(data.device)->queue_command(data);
+            auto d = deviceById(data.device);
+            if (d != nullptr) {
+                device_state_t device_state = d->queue_command(data);
 
-            fnLedManager.set(eLed::LED_BUS, true);
+                fnLedManager.set(eLed::LED_BUS, true);
 
-            //Debug_printv("bus[%d] device[%d]", bus_state, device_state);
-            device_state = deviceById(data.device)->process();
-            if ( device_state < DEVICE_ACTIVE )
-            {
-                // for (auto devicep : _daisyChain)
-                // {
-                //     if ( devicep->device_state > DEVICE_IDLE )
-                //         devicep->process();
-                // }
-                data.init();
-                //Debug_printv("bus init");
+                //Debug_printv("bus[%d] device[%d]", bus_state, device_state);
+                device_state = d->process();
+                if ( device_state < DEVICE_ACTIVE )
+                {
+                    // for (auto devicep : _daisyChain)
+                    // {
+                    //     if ( devicep->device_state > DEVICE_IDLE )
+                    //         devicep->process();
+                    // }
+                    data.init();
+                    //Debug_printv("bus init");
+                }
+
+                //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
+                bus_state = BUS_IDLE;
+
+                // Switch back to standard serial
+                detected_protocol = PROTOCOL_SERIAL;
+                protocol = selectProtocol();
+                //release ( PIN_IEC_SRQ );
             }
-
-            //Debug_printv("bus[%d] device[%d] flags[%d]", bus_state, device_state, flags);
-            bus_state = BUS_IDLE;
-
-            // Switch back to standard serial
-            detected_protocol = PROTOCOL_SERIAL;
-            protocol = selectProtocol();
-            //release ( PIN_IEC_SRQ );
         }
 
         if ( status ( PIN_IEC_ATN ) )
@@ -797,6 +807,12 @@ void IRAM_ATTR systemBus::deviceListen()
     {
         read_payload();
         Debug_printf("{%s}\r\n", data.payload.c_str());
+        Debug_printf("hex[8]: ");
+
+        char *msg = util_hexdump(data.payload.c_str(), 8);
+        Debug_printf("%s\n", msg);
+        free(msg);
+
     }
 
     // CLOSE Named Channel
