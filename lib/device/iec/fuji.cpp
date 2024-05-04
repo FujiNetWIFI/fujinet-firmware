@@ -23,7 +23,9 @@
 
 iecFuji theFuji; // global fuji device object
 
-
+#define ADDITIONAL_DETAILS_BYTES 10
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
 
 // iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
@@ -104,6 +106,7 @@ device_state_t iecFuji::process()
         Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
         device_state = DEVICE_ERROR;
         IEC.senderTimeout();
+        return device_state;
     }
 
     // Debug_printf("Checking commanddata\n   primary: %02x\n    device: %02x\n secondary: %02x\n   channel: %02x\n   payload: ", commanddata.primary, commanddata.device, commanddata.secondary, commanddata.channel);
@@ -116,12 +119,20 @@ device_state_t iecFuji::process()
         #ifdef DEBUG
         if (response.size()>0) 
         {  
-            Debug_printv("Sending: ");
 
-            // Hex
-            for (int i=0;i<response.size();i++)
-            {
-                Debug_printf("%02X ",response[i]);
+            // ensure we don't flood the logs with debug, and make it look pretty using util_hexdump
+            uint8_t debug_len = response.size();
+            bool is_truncated = false;
+            if (debug_len > 128) {
+                debug_len = 128;
+                is_truncated = true;
+            }
+
+            char *msg = util_hexdump(response.c_str(), debug_len);
+            Debug_printf("Sending:\n%s\n", msg);
+            free(msg);
+            if (is_truncated) {
+                Debug_printf("[truncated from %d]\n", response.size());
             }
 
             // Debug_printf("  ");
@@ -136,8 +147,15 @@ device_state_t iecFuji::process()
         Debug_printf("\n");
         #endif
 
-        while (!IEC.sendBytes(response, true))
-            ;
+        // TODO: review everywhere that directly uses IEC.sendBytes and make them all use iec with a common method?
+        if (!responseV.empty()) {
+            IEC.sendBytes(reinterpret_cast<char*>(responseV.data()), responseV.size());
+            responseV.clear();
+        } else {
+            IEC.sendBytes(const_cast<char*>(response.c_str()), response.size());
+            response = "";
+        }
+
     }
     else if (commanddata.primary == IEC_UNLISTEN)
     {
@@ -354,8 +372,8 @@ void iecFuji::net_scan_networks()
 
     if (payload[0] == FUJICMD_SCAN_NETWORKS)
     {
-        response = "";
-        response += static_cast<char>(_countScannedSSIDs);
+        // dealing with binary data, so use the vector version
+        responseV.push_back(_countScannedSSIDs);
     }
     else
     {
@@ -390,10 +408,9 @@ void iecFuji::net_scan_result()
         detail.rssi = 0;
     }
 
-    if (payload[0] == FUJICMD_GET_SCAN_RESULT) // raw
+    if (payload[0] == FUJICMD_GET_SCAN_RESULT)
     {
-        std::string r = std::string((const char *)&detail, sizeof(detail));
-        status_override = r;
+        responseV.assign(reinterpret_cast<const uint8_t*>(&detail), reinterpret_cast<const uint8_t*>(&detail) + sizeof(detail));
     }
     else // SCANRESULT,n
     {
@@ -427,7 +444,7 @@ void iecFuji::net_get_ssid()
 
     if (payload[0] == FUJICMD_GET_SSID)
     {
-        response = std::string((const char *)&cfg, sizeof(cfg));
+        responseV.assign(reinterpret_cast<const uint8_t*>(&cfg), reinterpret_cast<const uint8_t*>(&cfg) + sizeof(cfg));
     }
     else // BASIC mode.
     {
@@ -567,20 +584,15 @@ void iecFuji::net_store_ssid()
 // Get WiFi Status
 void iecFuji::net_get_wifi_status()
 {
+    // Debug_printv("payload[0]==%02x\r\n", payload[0]);
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
-    char r[4];
-
-    Debug_printv("payload[0]==%02x\r\n", payload[0]);
 
     if (payload[0] == FUJICMD_GET_WIFISTATUS)
     {
-        response.clear();
-        response = string((const char *)&wifiStatus,1);
-        return;
+        responseV.push_back(wifiStatus);
     }
     else
     {
-        response.clear();
         if (wifiStatus)
             response = "connected";
         else
@@ -1218,10 +1230,6 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[6] = LOBYTE_FROM_UINT16(fsize);
     dest[7] = HIBYTE_FROM_UINT16(fsize);
 
-    // File flags
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
-
     dest[8] = f->isDir ? FF_DIR : 0;
 
     maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
@@ -1234,85 +1242,65 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[9] = MediaType::discover_mediatype(f->filename);
 }
 
-void iecFuji::read_directory_entry()
-{
-    
-
-    if (pt.size() < 2)
-    {
-        // send error
+bool iecFuji::validate_parameters_and_setup(uint8_t& maxlen, uint8_t& addtlopts) {
+    if (pt.size() < 2) {
         response = "invalid # of parameters";
-        return;
+        return false;
     }
+    maxlen = atoi(pt[1].c_str());
+    addtlopts = atoi(pt[2].c_str());
+    return true;
+}
 
-    uint8_t maxlen = atoi(pt[1].c_str());
-    uint8_t addtlopts = atoi(pt[2].c_str());
-
-    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
-
-    // Make sure we have a current open directory
-    if (_current_open_directory_slot == -1)
-    {
-        // Return error.
+bool iecFuji::validate_directory_slot() {
+    if (_current_open_directory_slot == -1) {
         response = "no currently open directory";
         Debug_print("No currently open directory\n");
-        return;
+        return false;
     }
+    return true;
+}
 
-    char current_entry[256];
-
+std::string iecFuji::process_directory_entry(uint8_t maxlen, uint8_t addtlopts) {
     fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-
-    if (f == nullptr)
-    {
+    if (f == nullptr) {
         Debug_println("Reached end of of directory");
-        current_entry[0] = 0x7F;
-        current_entry[1] = 0x7F;
-    }
-    else
-    {
-        Debug_printf("::read_direntry \"%s\"\n", f->filename);
-
-        int bufsize = sizeof(current_entry);
-        char *filenamedest = current_entry;
-
-#define ADDITIONAL_DETAILS_BYTES 10
-        // If 0x80 is set on AUX2, send back additional information
-        if (addtlopts & 0x80)
-        {
-            _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
-            // Adjust remaining size of buffer and file path destination
-            bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
-            filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
-        }
-        else
-        {
-            bufsize = maxlen;
-        }
-
-        // int filelen = strlcpy(filenamedest, f->filename, bufsize);
-        int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
-
-        // Add a slash at the end of directory entries
-        if (f->isDir && filelen < (bufsize - 2))
-        {
-            current_entry[filelen] = '/';
-            current_entry[filelen + 1] = '\0';
-        }
+        return std::string(2, char(0x7F));
     }
 
-    // Output RAW vs non-raw
-    if (payload[0] == FUJICMD_READ_DIR_ENTRY)
-        response = std::string((const char *)current_entry, maxlen);
-    else
-    {
-        char reply[258];
-        memset(reply, 0, sizeof(reply));
-        sprintf(reply, "%s", current_entry);
-        std::string s(reply);
-        s = mstr::toPETSCII2(s);
-        response = s;
+    Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+    std::string entry;
+    if (addtlopts & 0x80) {
+        uint8_t extra[10];
+        _set_additional_direntry_details(f, extra, maxlen);
+        entry.append(reinterpret_cast<char*>(extra), sizeof(extra));
     }
+
+    size_t maxFilenameSize = maxlen - entry.size() - (f->isDir ? 1 : 0); // Reserve space for '/' if directory
+    std::string ellipsizedFilename = util_ellipsize_string(f->filename, maxFilenameSize);
+
+    entry += ellipsizedFilename;
+    if (f->isDir) entry += '/';
+
+    return entry;
+}
+
+void iecFuji::format_and_set_response(const std::string& entry) {
+    if (payload[0] == FUJICMD_READ_DIR_ENTRY) {
+        response = entry;
+    } else {
+        response = mstr::toPETSCII2(entry);
+    }
+}
+
+void iecFuji::read_directory_entry() {
+    uint8_t maxlen, addtlopts;
+    if (!validate_parameters_and_setup(maxlen, addtlopts)) return;
+    if (!validate_directory_slot()) return;
+
+    std::string entry = process_directory_entry(maxlen, addtlopts);
+    format_and_set_response(entry);
 }
 
 void iecFuji::get_directory_position()
@@ -1340,12 +1328,10 @@ void iecFuji::get_directory_position()
     // Return the value we read
 
     if (payload[0] == FUJICMD_GET_DIRECTORY_POSITION)
-        response = std::string((const char *)&pos, sizeof(pos));
+        responseV.assign(reinterpret_cast<const uint8_t*>(&pos), reinterpret_cast<const uint8_t*>(&pos) + sizeof(pos));
     else
     {
-        char reply[8];
-        itoa(pos, reply, 10);
-        response = std::string(reply);
+        response = std::to_string(pos);
     }
 }
 
@@ -1430,8 +1416,7 @@ void iecFuji::get_adapter_config()
 
     if (payload[0] == FUJICMD_GET_ADAPTERCONFIG)
     {
-        std::string reply = std::string((const char *)&cfg, sizeof(AdapterConfig));
-        response = reply;
+        responseV.assign(reinterpret_cast<const uint8_t*>(&cfg), reinterpret_cast<const uint8_t*>(&cfg) + sizeof(AdapterConfig));
     }
     else if (payload == "ADAPTERCONFIG")
     {
