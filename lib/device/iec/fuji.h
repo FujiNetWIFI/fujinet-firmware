@@ -71,10 +71,16 @@ private:
     AdapterConfig cfg;
 
     std::string response;
+    std::vector<uint8_t> responseV;
 
     void process_raw_commands();
     void process_basic_commands();
     vector<string> tokenize_basic_command(string command);
+
+    bool validate_parameters_and_setup(uint8_t& maxlen, uint8_t& addtlopts);
+    bool validate_directory_slot();
+    std::string process_directory_entry(uint8_t maxlen, uint8_t addtlopts);
+    void format_and_set_response(const std::string& entry);
 
 protected:
     void reset_device();           // 0xFF

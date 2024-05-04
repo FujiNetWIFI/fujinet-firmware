@@ -385,22 +385,19 @@ int util_ellipsize(const char *src, char *dst, int dstsize)
     return dstsize;
 }
 
-/*
-std::string util_ellipsize(std::string longString, int maxLength)
-{
-    size_t partSize = (maxLength - 3) >> 1; // size of left/right parts.
-    std::string leftPart;
-    std::string rightPart;
+std::string util_ellipsize_string(const std::string& src, size_t maxSize) {
+    if (src.length() <= maxSize) {
+        return src;
+    }
+    
+    if (maxSize < 6) { // Not enough space for ellipsis in the middle
+        return src.substr(0, maxSize);
+    }
 
-    if (longString.length() <= maxLength)
-        return longString;
-
-    leftPart = longString.substr(0, partSize);
-    rightPart = longString.substr(longString.length() - partSize, longString.length());
-
-    return leftPart + "..." + rightPart;
+    size_t leftLen = (maxSize - 3) / 2; // 3 for ellipsis
+    size_t rightLen = maxSize - 3 - leftLen;
+    return src.substr(0, leftLen) + "..." + src.substr(src.length() - rightLen);
 }
-*/
 
 // Function that matches input string against given wildcard pattern
 bool util_wildcard_match(const char *str, const char *pattern)
