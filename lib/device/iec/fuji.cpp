@@ -354,7 +354,8 @@ void iecFuji::net_scan_networks()
 
     if (payload[0] == FUJICMD_SCAN_NETWORKS)
     {
-        response[0] = _countScannedSSIDs;
+        response = "";
+        response += static_cast<char>(_countScannedSSIDs);
     }
     else
     {
