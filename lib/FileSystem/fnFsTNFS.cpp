@@ -38,24 +38,29 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     if (_started)
         return false;
 
-    if(host == nullptr || host[0] == '\0')
+    if(host == nullptr)
         return false;
 
+    const char *host_no_prefix;
     if (strncmp("_tcp.", host, 5) == 0)
     {
-        const char *host_no_prefix = &host[5];
-        if (host_no_prefix[0] == '\0')
-        {
-            return false;
-        }
+        host_no_prefix = &host[5];
         _mountinfo.protocol = TNFS_PROTOCOL_TCP;
-        strlcpy(_mountinfo.hostname, host_no_prefix, sizeof(_mountinfo.hostname));
+    }
+    else if (strncmp("_udp.", host, 5) == 0)
+    {
+        host_no_prefix = &host[5];
+        _mountinfo.protocol = TNFS_PROTOCOL_UDP;
     }
     else
     {
-        strlcpy(_mountinfo.hostname, host, sizeof(_mountinfo.hostname));
+        host_no_prefix = host;
     }
-
+    if (host_no_prefix[0] == '\0')
+    {
+            return false;
+    }
+    strlcpy(_mountinfo.hostname, host_no_prefix, sizeof(_mountinfo.hostname));
 
     // Try to resolve the hostname and store that so we don't have to keep looking it up
     _mountinfo.host_ip = get_ip4_addr_by_name(_mountinfo.hostname);
