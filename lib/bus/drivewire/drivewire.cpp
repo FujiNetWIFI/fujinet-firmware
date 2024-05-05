@@ -426,7 +426,7 @@ void systemBus::setup()
 
     // Start task
     // xTaskCreate(drivewire_intr_task, "drivewire_intr_task", 2048, NULL, 10, NULL);
-    xTaskCreatePinnedToCore(drivewire_intr_task, "drivewire_intr_task", 4096, this, 10, NULL, 0);
+    // xTaskCreatePinnedToCore(drivewire_intr_task, "drivewire_intr_task", 4096, this, 10, NULL, 0);
 
     // Setup interrupt for cassette motor pin
     gpio_config_t io_conf = {
