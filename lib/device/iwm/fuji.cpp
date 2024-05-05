@@ -392,71 +392,80 @@ char *_generate_appkey_filename(appkey *info)
 	return filenamebuf;
 }
 
+
+/*
+ Opens an "app key" for reading/writing - stores appkey name for subsequent read/write calls
+*/
+void iwmFuji::iwm_ctrl_open_app_key()
+{
+	int idx = 0;
+	FILE *fp;
+	uint8_t creatorL = data_buffer[idx++];
+	uint8_t creatorM = data_buffer[idx++]; 
+	uint8_t app = data_buffer[idx++]; 
+	uint8_t key = data_buffer[idx++]; 
+  uint8_t mode = data_buffer[idx++];
+
+	snprintf(_appkeyfilename, sizeof(_appkeyfilename), "/FujiNet/%02hhx%02hhx%02hhx%02hhx.key", creatorM, creatorL, app, key);
+	Debug_printf("\r\nFuji Cmd: OPEN APPKEY %s in mode %i\n", _appkeyfilename, mode);
+
+	// If reading, we will update the control stat length for the subsequent read_app_key status call
+	if (mode == 0)
+	{
+		// Clear out stat buffer
+		memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
+
+		fp = fnSDFAT.file_open(_appkeyfilename, "r");
+		if (fp == nullptr)
+		{
+			Debug_printf("Could not read from SD Card.");
+
+			// Set stat buffer to 0 to signify the app key was not found
+			ctrl_stat_len=0;
+			return;
+		}
+		
+		// Read in the app key file data, to be sent in read_app_key call
+		ctrl_stat_len = fread(ctrl_stat_buffer, sizeof(char), 64, fp);
+		fclose(fp);
+	}
+
+}
+
 /*
  Write an "app key" to SD (ONLY!) storage.
 */
 void iwmFuji::iwm_ctrl_write_app_key()
 {
-	uint16_t creator = data_len; // adamnet_recv_length();
-	int idx = 0;
-	uint8_t app = data_buffer[idx++]; // adamnet_recv();
-	uint8_t key = data_buffer[idx++]; // adamnet_recv();
-	uint8_t data[64];
-	char appkeyfilename[30];
+	uint8_t data[65];
 	FILE *fp;
+	memset(data,0,65);
+	memcpy(data, &data_buffer[0], 64); 
+ 
+	Debug_printf("\r\nFuji Cmd: WRITE APPKEY:%s\n", &data);
 
-	snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key", creator, app, key);
+  // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+  fnSDFAT.create_path("/FujiNet");
 
-	memcpy(data, &data_buffer[idx], 64); // adamnet_recv_buffer(data,64);
-
-	Debug_printf("Fuji Cmd: WRITE APPKEY %s\n", appkeyfilename);
-
-	fp = fnSDFAT.file_open(appkeyfilename, "w");
+	fp = fnSDFAT.file_open(_appkeyfilename, "w");
 
 	if (fp == nullptr)
 	{
-		Debug_printf("Could not open.\n");
+		Debug_printf("Could not write to SD Card.\n");
 		return;
 	}
 
-	// size_t l = fwrite(data,sizeof(uint8_t),sizeof(data),fp);
-	fwrite(data, sizeof(uint8_t), sizeof(data), fp);
+	fwrite(data, sizeof(uint8_t), 64, fp);
 	fclose(fp);
 }
 
 /*
  Read an "app key" from SD (ONLY!) storage
- // to do - Apple 2 should send a CTRL command to read app key then a STATUS command to get the app key
- // can use the same CMD code to make it easier but maybe confusing - a little different protocol than adamnet
 */
-void iwmFuji::iwm_ctrl_read_app_key()
-{
-	uint16_t creator = data_len; // adamnet_recv_length();
-	int idx = 0;
-	uint8_t app = data_buffer[idx++]; // adamnet_recv();
-	uint8_t key = data_buffer[idx++]; // adamnet_recv();
-
-	char appkeyfilename[30];
-	FILE *fp;
-
-	snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key", creator, app, key);
-
-	fp = fnSDFAT.file_open(appkeyfilename, "r");
-
-	if (fp == nullptr)
-	{
-		Debug_printf("Could not open key.");
-		return;
-	}
-
-	memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
-	ctrl_stat_len = fread(ctrl_stat_buffer, sizeof(char), 64, fp);
-	fclose(fp);
-}
-
-void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the read app key control command
+void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the open() control command
 {
 	Debug_printf("\r\nFuji cmd: READ APP KEY");
+	
 	memset(data_buffer, 0, sizeof(data_buffer));
 	memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
 	data_len = ctrl_stat_len;
@@ -1477,10 +1486,12 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 	case FUJICMD_WRITE_APPKEY: 				// 0xDE
 		iwm_ctrl_write_app_key();
 		break;
-	case FUJICMD_READ_APPKEY:	 			// 0xDD
-		iwm_ctrl_read_app_key(); // use before reading the key using statys
+	//case FUJICMD_READ_APPKEY:	 			// 0xDD
+		//iwm_ctrl_read_app_key(); // use before reading the key using statys
 		break;
-	// case FUJICMD_OPEN_APPKEY:        	// 0xDC
+	case FUJICMD_OPEN_APPKEY:        	// 0xDC
+		iwm_ctrl_open_app_key();
+		break;
 	// case FUJICMD_CLOSE_APPKEY:        	// 0xDB
 	// case FUJICMD_GET_DEVICE_FULLPATH:	// 0xDA
 	case FUJICMD_CONFIG_BOOT: 				// 0xD9
