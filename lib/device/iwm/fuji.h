@@ -116,7 +116,7 @@ private:
 
     uint8_t _countScannedSSIDs = 0;
 
-    appkey _current_appkey;
+    char _appkeyfilename[30]; // Temp storage for appkey filename, populated by open and read by read/write
 
     uint8_t ctrl_stat_buffer[767]; // what is proper length
     size_t ctrl_stat_len = 0; // max payload length is 767
@@ -165,10 +165,10 @@ protected:
 */
     void iwm_ctrl_write_app_key();          // 0xDE
     void iwm_ctrl_read_app_key();           // 0xDD - control
-    void iwm_stat_read_app_key();             // 0xDD - status
-/*
-    void adamnet_open_app_key();           // 0xDC
-    void adamnet_close_app_key();          // 0xDB
+    void iwm_stat_read_app_key();           // 0xDD - status
+    void iwm_ctrl_open_app_key();           // 0xDC
+
+/*  void adamnet_close_app_key();          // 0xDB
 */
     void iwm_stat_get_device_filename(uint8_t s);    // 0xDA, 0xA0 thru 0xA7
 
