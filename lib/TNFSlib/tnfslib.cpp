@@ -30,9 +30,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen)
 bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt);
 
-#ifndef ESP_PLATFORM
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command);
-#endif
 
 int _tnfs_adjust_with_full_path(tnfsMountInfo *m_info, char *buffer, const char *source, int bufflen);
 
@@ -1326,11 +1324,9 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
 {
     fnUDP udp;
 
-#ifndef ESP_PLATFORM
-// TODO review session recovery
     // Keep copy of 1st payload byte
     uint8_t payload_0 = pkt.payload[0];
-#endif
+
     // Set our session ID
     pkt.session_idl = TNFS_LOBYTE_FROM_UINT16(m_info->session);
     pkt.session_idh = TNFS_HIBYTE_FROM_UINT16(m_info->session);
@@ -1403,8 +1399,6 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
                                 backoffms = TNFS_MAX_BACKOFF_DELAY;
                             fnSystem.delay(backoffms);
                         }
-#ifndef ESP_PLATFORM
-// TODO review session recovery
                         // Check for invalid (expired) session
                         else if (pkt.payload[0] == TNFS_RESULT_INVALID_HANDLE \
                                  && pkt.command != TNFS_CMD_MOUNT \
@@ -1427,7 +1421,6 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
                             // get out of packet receive loop
                             break;
                         }
-#endif
                         else
                         {
 #ifndef ESP_PLATFORM
@@ -1474,7 +1467,6 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
     return false;
 }
 
-#ifndef ESP_PLATFORM
 // Re-mount using provided tnfsMountInfo*
 // Returns TNFS result code
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command)
@@ -1505,7 +1497,6 @@ uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command)
     // all other commands requires file descriptor or handle (which is lost with expired session)
     return TNFS_RESULT_BAD_FILENUM;
 }
-#endif
 
 // Copies to buffer while ensuring that we start with a '/'
 // Returns length of new full path or -1 on failure
