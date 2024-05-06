@@ -30,6 +30,13 @@ FileSystemTNFS::~FileSystemTNFS()
 #ifdef ESP_PLATFORM
     if(_basepath[0] != '\0')
     vfs_tnfs_unregister(_basepath);
+
+    if (keepAliveTimerHandle != nullptr)
+    {
+        esp_timer_stop(keepAliveTimerHandle);
+        esp_timer_delete(keepAliveTimerHandle);
+        keepAliveTimerHandle = nullptr;
+    }
 #endif
 }
 
@@ -109,6 +116,17 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
         Debug_println("Failed to register VFS driver!");
         return false;
     }
+
+    esp_timer_create_args_t tcfg = {
+        .callback = keepAliveTNFS,
+        .arg = this,
+        .dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK,
+        .name = "tnfs_keep_alive",
+        .skip_unhandled_events = true,
+    };
+    esp_timer_create(&tcfg, &keepAliveTimerHandle);
+    // Send a keep-alive message every 60s.
+    esp_timer_start_periodic(keepAliveTimerHandle, 60 * 1000000);
 #endif
 
     _started = true;
@@ -322,3 +340,12 @@ bool FileSystemTNFS::dir_seek(uint16_t position)
 
     return 0 == tnfs_seekdir(&_mountinfo, position);
 }
+
+#ifdef ESP_PLATFORM
+void keepAliveTNFS(void *info)
+{
+    Debug_println("Sending keep-alive command");
+    FileSystemTNFS *parent = (FileSystemTNFS *)info;
+    parent->exists("keep-alive");
+}
+#endif
