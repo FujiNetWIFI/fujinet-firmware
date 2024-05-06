@@ -10,6 +10,7 @@ private:
     tnfsMountInfo _mountinfo;
 #ifdef ESP_PLATFORM
     unsigned long _last_dns_refresh  = 0;
+    esp_timer_handle_t keepAliveTimerHandle = nullptr;
 #else
     uint64_t _last_dns_refresh  = 0;
 #endif
@@ -48,5 +49,9 @@ public:
 };
 
 extern FileSystemTNFS fnTNFS;
+
+#ifdef ESP_PLATFORM
+void keepAliveTNFS(void *info);
+#endif
 
 #endif // _FN_FSTNFS_
