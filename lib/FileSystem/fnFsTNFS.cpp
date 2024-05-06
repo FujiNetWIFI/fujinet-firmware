@@ -344,7 +344,9 @@ bool FileSystemTNFS::dir_seek(uint16_t position)
 #ifdef ESP_PLATFORM
 void keepAliveTNFS(void *info)
 {
+#ifdef VERBOSE_TNFS
     Debug_println("Sending keep-alive command");
+#endif
     FileSystemTNFS *parent = (FileSystemTNFS *)info;
     parent->exists("keep-alive");
 }
