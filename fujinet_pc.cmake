@@ -58,28 +58,27 @@ endif()
 find_package(PkgConfig)
 
 
-# Check if MSYSTEM is defined and set variables accordingly
-if(DEFINED ENV{MSYSTEM})
-    if($ENV{MSYSTEM} STREQUAL "CLANG64")
-        set(MSYS_LIBRARY_PATH /clang64/lib)
-        set(MSYS_INCLUDE_PATH /clang64/include)
-    elseif($ENV{MSYSTEM} STREQUAL "MINGW64")
-        set(MSYS_LIBRARY_PATH /mingw64/lib)
-        set(MSYS_INCLUDE_PATH /mingw64/include)
-    elseif($ENV{MSYSTEM} STREQUAL "UCRT64")
-        set(MSYS_LIBRARY_PATH /ucrt64/lib)
-        set(MSYS_INCLUDE_PATH /ucrt64/include)
-    elseif($ENV{MSYSTEM} STREQUAL "CLANG32")
-        set(MSYS_LIBRARY_PATH /clang32/lib)
-        set(MSYS_INCLUDE_PATH /clang32/include)
-    endif()
-else()
-    # Handle the case where MSYSTEM is not defined (e.g., Linux or other environments)
-    set(MSYS_LIBRARY_PATH "")
-    set(MSYS_INCLUDE_PATH "")
-endif()
-
-# Determine MSYS environment
+# # Determine MSYS environment
+# # Check if MSYSTEM is defined and set variables accordingly
+# if(DEFINED ENV{MSYSTEM})
+#     if($ENV{MSYSTEM} STREQUAL "CLANG64")
+#         set(MSYS_LIBRARY_PATH /clang64/lib)
+#         set(MSYS_INCLUDE_PATH /clang64/include)
+#     elseif($ENV{MSYSTEM} STREQUAL "MINGW64")
+#         set(MSYS_LIBRARY_PATH /mingw64/lib)
+#         set(MSYS_INCLUDE_PATH /mingw64/include)
+#     elseif($ENV{MSYSTEM} STREQUAL "UCRT64")
+#         set(MSYS_LIBRARY_PATH /ucrt64/lib)
+#         set(MSYS_INCLUDE_PATH /ucrt64/include)
+#     elseif($ENV{MSYSTEM} STREQUAL "CLANG32")
+#         set(MSYS_LIBRARY_PATH /clang32/lib)
+#         set(MSYS_INCLUDE_PATH /clang32/include)
+#     endif()
+# else()
+#     # Handle the case where MSYSTEM is not defined (e.g., Linux or other environments)
+#     set(MSYS_LIBRARY_PATH "")
+#     set(MSYS_INCLUDE_PATH "")
+# endif()
 
 # platformio.data_dir (not used by FujiNet-PC)
 #set(PLATFORM_DATA_DIR ${CMAKE_SOURCE_DIR}/data/${FUJINET_BUILD_PLATFORM})
@@ -94,10 +93,10 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DDEV_RELAY_
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DVERBOSE_HTTP -D__PC_BUILD_DEBUG__")
 
 # mongoose.c some compile options: -DMG_ENABLE_LINES=1 -DMG_ENABLE_DIRECTORY_LISTING=1 -DMG_ENABLE_SSI=1
-# # use OpenSSL
-# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DGM_TLS=2 -DMG_ENABLE_LOG=0")
+# # use OpenSSL (MG_TLS=2)
+# set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DMG_TLS=2 -DMG_ENABLE_LOG=0")
 
-# use MbedTLS
+# use MbedTLS (MG_TLS=1)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DMG_TLS=1 -DMG_ENABLE_LOG=0 -DDEV_RELAY_SLIP")
 # MG_TLS needed by mgHttpClient
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMG_TLS=1")
@@ -105,7 +104,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMG_TLS=1")
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DMG_ENABLE_LOG=1 -DMBEDTLS_X509_CRT_PARSE_C=1 -DMBEDTLS_DEBUG_C=1")
 # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DMG_ENABLE_LOG=1 -DMBEDTLS_X509_CRT_PARSE_C=1 -DMBEDTLS_DEBUG_C=1")
 
-# Use BUILT IN tls
+# alternatively, to use mongoose build-in TLS (MG_TLS=0)
 # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D${FUJINET_BUILD_PLATFORM} -DMG_TLS=3 -DMG_ENABLE_LOG=0 -DDEV_RELAY_SLIP")
 
 # INCLUDE (CheckIncludeFiles)
@@ -392,21 +391,22 @@ option(BUILD_SHARED_LIBS "Build shared libraries" OFF)
 # - to use library package (Ubuntu deb package is old, does not support cmake/find_package)
 # find_package(MbedTLS)
 # - try to find necessary files in system ...
-
-# Use the determined paths
-find_library(MBEDTLS_STATIC_LIB libmbedtls.a /usr/lib /usr/local/lib /usr/local/opt ${MSYS_LIBRARY_PATH})
-find_library(MBEDX509_STATIC_LIB libmbedx509.a /usr/lib /usr/local/lib /usr/local/opt ${MSYS_LIBRARY_PATH})
-find_library(MBEDCRYPTO_STATIC_LIB libmbedcrypto.a /usr/lib /usr/local/lib /usr/local/opt ${MSYS_LIBRARY_PATH})
-find_path(MBEDTLS_INCLUDE_DIR mbedtls/ssl.h /usr/include /usr/local/include /usr/local/lib /usr/local/opt ${MSYS_INCLUDE_PATH})
+set(_MBEDTLS_ROOT_HINTS $ENV{MBEDTLS_ROOT_DIR} ${MBEDTLS_ROOT_DIR})
+set(_MBEDTLS_ROOT_PATHS "$ENV{PROGRAMFILES}/libmbedtls")
+set(_MBEDTLS_ROOT_HINTS_AND_PATHS HINTS ${_MBEDTLS_ROOT_HINTS} PATHS ${_MBEDTLS_ROOT_PATHS})
+find_library(MBEDTLS_STATIC_LIB libmbedtls.a HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS})
+find_library(MBEDX509_STATIC_LIB libmbedx509.a HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS})
+find_library(MBEDCRYPTO_STATIC_LIB libmbedcrypto.a HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS})
+find_path(MBEDTLS_INCLUDE_DIR mbedtls/ssl.h HINTS ${_MBEDTLS_ROOT_HINTS_AND_PATHS} PATH_SUFFIXES include)
 
 set(CRYPTO_LIBS ${MBEDTLS_STATIC_LIB} ${MBEDX509_STATIC_LIB} ${MBEDCRYPTO_STATIC_LIB})
 
-# message("MBEDTLS_STATIC_LIB=${MBEDTLS_STATIC_LIB}")
-# message("MBEDX509_STATIC_LIB=${MBEDX509_STATIC_LIB}")
-# message("MBEDCRYPTO_STATIC_LIB=${MBEDCRYPTO_STATIC_LIB}")
-# message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
-
-set(MBEDTLS_LIBRARIES ${CRYPTO_LIBS})
+message("***************** Mbed TLS *****************")
+message("MBEDTLS_STATIC_LIB=${MBEDTLS_STATIC_LIB}")
+message("MBEDX509_STATIC_LIB=${MBEDX509_STATIC_LIB}")
+message("MBEDCRYPTO_STATIC_LIB=${MBEDCRYPTO_STATIC_LIB}")
+message("MBEDTLS_INCLUDE_DIR=${MBEDTLS_INCLUDE_DIR}")
+message("********************************************")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     # required for certificate enumeration on windows
