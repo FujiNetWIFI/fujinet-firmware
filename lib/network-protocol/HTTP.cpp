@@ -317,6 +317,8 @@ void NetworkProtocolHTTP::fserror_to_error()
     case 428:
     case 429:
     case 431:
+        error = NETWORK_ERROR_CLIENT_GENERAL;
+        break;
     case 500:
     case 501:
     case 502:
@@ -328,6 +330,8 @@ void NetworkProtocolHTTP::fserror_to_error()
     case 508:
     case 510:
     case 511:
+        error = NETWORK_ERROR_SERVER_GENERAL;
+        break;
     default:
         error = NETWORK_ERROR_GENERAL;
         break;

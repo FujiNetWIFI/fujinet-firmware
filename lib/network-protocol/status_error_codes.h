@@ -141,6 +141,16 @@
 #define NETWORK_ERROR_COULD_NOT_PARSE_JSON 213
 
 /**
+ * General client error
+ */
+#define NETWORK_ERROR_CLIENT_GENERAL 214
+
+/**
+ * General Server error
+ */
+#define NETWORK_ERROR_SERVER_GENERAL 215
+
+/**
  * Could not allocate buffers
  */
 #define NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS 255
