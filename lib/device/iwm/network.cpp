@@ -607,12 +607,11 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
         Debug_printf("read_channel_json(1) - data_len: %02x, json_bytes_remaining: %02x\n", data_len, json.json_bytes_remaining);
         int print_len = data_len;
         if (print_len > 16) print_len = 16;
-        //char *msg = util_hexdump(data_buffer, print_len);
-        //Debug_printf("%s\n", msg);
+        //std::string msg = util_hexdump(data_buffer, print_len);
+        //Debug_printf("%s\n", msg.c_str());
         //if (print_len != data_len) {
         //    Debug_printf("... truncated");
         //}
-        //free(msg);
     }
     else
     {
@@ -624,8 +623,8 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
         Debug_printf("read_channel_json(2) - data_len: %02x, json_bytes_remaining: %02x\n", num_bytes, json.json_bytes_remaining);
         int print_len = num_bytes;
         if (print_len > 16) print_len = 16;
-        //char *msg = util_hexdump(data_buffer, print_len);
-        //Debug_printf("%s\n", msg);
+        //std::string msg = util_hexdump(data_buffer, print_len);
+        //Debug_printf("%s\n", msg.c_str());
         //if (print_len != num_bytes) {
         //    Debug_printf("... truncated");
         //}

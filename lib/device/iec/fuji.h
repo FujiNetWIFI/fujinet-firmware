@@ -73,6 +73,7 @@ private:
 
     std::string response;
     std::vector<uint8_t> responseV;
+    bool is_raw_command;
 
     void process_raw_commands();
     void process_basic_commands();
@@ -88,14 +89,23 @@ protected:
 
     void net_get_ssid();           // 0xFE
     void net_scan_networks();      // 0xFD
-    void net_scan_result();        // 0xFC
+    void net_scan_result(int n);   // 0xFC
+    void net_scan_result_basic();
+    void net_scan_result_raw();
     void net_set_ssid( bool store = true );           // 0xFB
-    void net_store_ssid();
+    void net_store_ssid(std::string ssid, std::string password);
     void net_get_wifi_status();    // 0xFA
     
     void mount_host();             // 0xF9
-    void disk_image_mount();       // 0xF8
-    void open_directory();         // 0xF7
+
+    bool disk_image_mount(uint8_t ds, uint8_t mode); // 0xF8
+    void disk_image_mount_raw();
+    void disk_image_mount_basic();
+
+    bool open_directory(uint8_t hs, std::string dirpath, std::string pattern); // 0xF7
+    void open_directory_basic();
+    void open_directory_raw();
+
     void read_directory_entry();   // 0xF6
     void close_directory();        // 0xF5
     void read_host_slots();        // 0xF4

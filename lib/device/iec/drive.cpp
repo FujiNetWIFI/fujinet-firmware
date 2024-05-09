@@ -406,7 +406,7 @@ void iecDrive::iec_command()
                     uint16_t address = (payload[0] | payload[1] << 8);
                     Debug_printv("Memory Write address[%.4X][%s]", address, code.c_str());
                 }
-                else if (payload[2] == 'E') // M-E memory write
+                else if (payload[2] == 'E') // M-E memory execute
                 {
                     payload = mstr::drop(payload, 3);
                     std::string code = mstr::toHex(payload);

@@ -189,9 +189,8 @@ void iwm_slip::encode_packet(uint8_t source, iwm_packet_type_t packet_type, uint
 	// 	int chars_to_print = num;
 	// 	if (chars_to_print > 32)
 	// 		chars_to_print = 32;
-	// 	char *msg = util_hexdump(data, chars_to_print);
-	// 	printf("%s", msg);
-	// 	free(msg);
+	// 	std::string msg = util_hexdump(data, chars_to_print);
+	// 	printf("%s", msg.c_str());
 	// 	if (chars_to_print < num)
 	// 	{
 	// 		printf("... truncated\n");
@@ -215,9 +214,8 @@ size_t iwm_slip::decode_data_packet(uint8_t *output_data)
 	// 	int chars_to_print = payload_size;
 	// 	if (chars_to_print > 32)
 	// 		chars_to_print = 32;
-	// 	char *msg = util_hexdump(output_data, chars_to_print);
-	// 	printf("%s\n", msg);
-	// 	free(msg);
+	// 	std::string msg = util_hexdump(output_data, chars_to_print);
+	// 	printf("%s\n", msg.c_str());
 	// 	if (chars_to_print < payload_size)
 	// 	{
 	// 		printf("... truncated\n");
@@ -245,9 +243,8 @@ void iwm_slip::wait_for_requests()
 			// int chars_to_print = request_data.size();
 			// if (chars_to_print > 32)
 			// 	chars_to_print = 32;
-			// char *msg = util_hexdump(request_data.data(), chars_to_print);
-			// printf("\nNEW Request data:\n%s\n", msg);
-			// free(msg);
+			// std::string msg = util_hexdump(request_data.data(), chars_to_print);
+			// printf("\nNEW Request data:\n%s\n", msg.c_str());
 			// if (chars_to_print != request_data.size())
 			// {
 			// 	printf("... truncated\n");

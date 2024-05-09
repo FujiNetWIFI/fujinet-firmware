@@ -238,11 +238,7 @@ void sioFuji::sio_net_set_ssid()
 
     bool save = cmdFrame.aux1 != 0;
 
-    // URL Decode SSID/PASSWORD to handle special chars FIXME
-    //mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
-    //mstr::urlDecode(cfg.password, sizeof(cfg.password));
-
-    Debug_printf("Connecting to net: >%s< password: >%s<\r\n", cfg.ssid, cfg.password);
+    // Debug_printf("Connecting to net: >%s< password: >%s<\r\n", cfg.ssid, cfg.password);
 
     int test_result = fnWiFi.test_connect(cfg.ssid, cfg.password);
     if (test_result != 0)
@@ -923,9 +919,8 @@ void sioFuji::sio_read_app_key()
     fclose(fIn);
 
 #ifdef DEBUG
-	char *msg = util_hexdump(response_data.data(), appkey_size);
-	Debug_printf("%s\n", msg);
-	free(msg);
+	std::string msg = util_hexdump(response_data.data(), appkey_size);
+	Debug_printf("%s\n", msg.c_str());
 #endif
 
     bus_to_computer(response_data.data(), response_data.size(), false);
@@ -1333,9 +1328,8 @@ void sioFuji::sio_read_directory_block()
     response.insert(response.end(), data_block.begin(), data_block.end());
 
     Debug_printf("Actual data size: %d to atari\n", response.size());
-    char *s = util_hexdump(response.data(), response.size());
-    Debug_printf("dump: \n%s\n", s);
-    free(s);
+    std::string s = util_hexdump(response.data(), response.size());
+    Debug_printf("dump: \n%s\n", s.c_str());
 
     // buffer with 0s to requested size
     response.resize(response_max, 0);

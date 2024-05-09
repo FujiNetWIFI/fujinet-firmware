@@ -533,7 +533,8 @@ void systemBus::read_command()
 
 void systemBus::read_payload()
 {
-    // Record the command string until ATN is PULLED 
+    // Record the command string until ATN is PULLED
+    // NOTE: string is just a container, it may contain arbitrary bytes but a LOT of code treats payload as a string
     std::string listen_command = "";
 
     // ATN might get pulled right away if there is no command string to send
@@ -816,13 +817,7 @@ void IRAM_ATTR systemBus::deviceListen()
     else if (data.secondary == IEC_OPEN || data.secondary == IEC_REOPEN)
     {
         read_payload();
-        Debug_printf("{%s}\r\n", data.payload.c_str());
-        Debug_printf("hex[8]: ");
-
-        char *msg = util_hexdump(data.payload.c_str(), 8);
-        Debug_printf("%s\n", msg);
-        free(msg);
-
+        Debug_printf("payload: \r\n%s\r\n", util_hexdump(data.payload.data(), data.payload.size()).c_str());
     }
 
     // CLOSE Named Channel

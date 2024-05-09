@@ -7,8 +7,9 @@
 #include <cstdint>
 #include <cstring>
 #include <sstream>
-#include "string_utils.h"
+#include <utility>
 
+#include "string_utils.h"
 #include "../../../include/debug.h"
 
 #include "fnSystem.h"
@@ -20,6 +21,7 @@
 #include "siocpm.h"
 #include "clock.h"
 #include "utils.h"
+#include "status_error_codes.h"
 
 iecFuji theFuji; // global fuji device object
 
@@ -97,6 +99,32 @@ void iecFuji::setup(systemBus *bus)
     Serial.print("FujiNet "); bus->addDevice(this, 30);                 // 30    FujiNet
 }
 
+void logResponse(const void* data, size_t length)
+{
+    // ensure we don't flood the logs with debug, and make it look pretty using util_hexdump
+    uint8_t debug_len = length;
+    bool is_truncated = false;
+    if (debug_len > 64) {
+        debug_len = 64;
+        is_truncated = true;
+    }
+
+    std::string msg = util_hexdump(data, debug_len);
+    Debug_printf("Sending:\n%s\n", msg.c_str());
+    if (is_truncated) {
+        Debug_printf("[truncated from %d]\n", length);
+    }
+
+    // Debug_printf("  ");
+    // // ASCII Text representation
+    // for (int i=0;i<length;i++)
+    // {
+    //     char c = petscii2ascii(data[i]);
+    //     Debug_printf("%c", c<0x20 || c>0x7f ? '.' : c);
+    // }
+
+}
+
 device_state_t iecFuji::process()
 {
     virtualDevice::process();
@@ -112,49 +140,32 @@ device_state_t iecFuji::process()
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
         #ifdef DEBUG
-        if (response.size()>0) 
-        {  
-
-            // ensure we don't flood the logs with debug, and make it look pretty using util_hexdump
-            uint8_t debug_len = response.size();
-            bool is_truncated = false;
-            if (debug_len > 128) {
-                debug_len = 128;
-                is_truncated = true;
-            }
-
-            char *msg = util_hexdump(response.c_str(), debug_len);
-            Debug_printf("Sending:\n%s\n", msg);
-            free(msg);
-            if (is_truncated) {
-                Debug_printf("[truncated from %d]\n", response.size());
-            }
-
-            // Debug_printf("  ");
-            // // ASCII Text representation
-            // for (int i=0;i<response.size();i++)
-            // {
-            //     char c = petscii2ascii(response[i]);
-            //     Debug_printf("%c", c<0x20 || c>0x7f ? '.' : c);
-            // }
-        }
-        
+        if (!response.empty()) logResponse(response.data(), response.size());
+        if (!responseV.empty()) logResponse(responseV.data(), responseV.size());
         Debug_printf("\n");
         #endif
 
         // TODO: review everywhere that directly uses IEC.sendBytes and make them all use iec with a common method?
-        if (!responseV.empty()) {
+
+        // only send raw back for a raw command, thus code can set "response", but we won't send it back as that's BASIC response
+        if (!responseV.empty() && is_raw_command) {
             IEC.sendBytes(reinterpret_cast<char*>(responseV.data()), responseV.size());
-            responseV.clear();
-        } else {
-            IEC.sendBytes(const_cast<char*>(response.c_str()), response.size());
-            response = "";
         }
+
+        // only send string response back for basic command        
+        if(!response.empty() && !is_raw_command) {
+            IEC.sendBytes(const_cast<char*>(response.c_str()), response.size());
+        }
+
+        // ensure responses are cleared for next command in case they were set but didn't match the command type (i.e. basic or raw)
+        responseV.clear();
+        response = "";
 
     }
     else if (commanddata.primary == IEC_UNLISTEN)
     {
-        if (payload[0] > 0x7F)
+        is_raw_command = payload[0] > 0x7F;
+        if (is_raw_command)
             process_raw_commands();
         else
             process_basic_commands();
@@ -194,7 +205,7 @@ void iecFuji::process_basic_commands()
     else if (payload.find("reset") != std::string::npos)
         reset_device();
     else if (payload.find("scanresult") != std::string::npos)
-        net_scan_result();
+        net_scan_result_basic();
     else if (payload.find("scan") != std::string::npos)
         net_scan_networks();
     else if (payload.find("wifistatus") != std::string::npos)
@@ -202,9 +213,9 @@ void iecFuji::process_basic_commands()
     else if (payload.find("mounthost") != std::string::npos)
         mount_host();
     else if (payload.find("mountdrive") != std::string::npos)
-        disk_image_mount();
+        disk_image_mount_basic();
     else if (payload.find("opendir") != std::string::npos)
-        open_directory();
+        open_directory_basic();
     else if (payload.find("readdir") != std::string::npos)
         read_directory_entry();
     else if (payload.find("closedir") != std::string::npos)
@@ -250,6 +261,7 @@ void iecFuji::process_basic_commands()
 
         IEC.setBitTiming(pt[1], atoi(pt[2].c_str()), atoi(pt[3].c_str()), atoi(pt[4].c_str()), atoi(pt[5].c_str()));
     }
+
 }
 
 void iecFuji::process_raw_commands()
@@ -267,7 +279,7 @@ void iecFuji::process_raw_commands()
         net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        net_scan_result();
+        net_scan_result_raw();
         break;
     case FUJICMD_SET_SSID:
         net_set_ssid();
@@ -279,10 +291,10 @@ void iecFuji::process_raw_commands()
         mount_host();
         break;
     case FUJICMD_MOUNT_IMAGE:
-        disk_image_mount();
+        disk_image_mount_raw();
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        open_directory();
+        open_directory_raw();
         break;
     case FUJICMD_READ_DIR_ENTRY:
         read_directory_entry();
@@ -377,44 +389,44 @@ void iecFuji::net_scan_networks()
     }
 }
 
-// Return scanned network entry
-void iecFuji::net_scan_result()
+void iecFuji::net_scan_result_basic()
 {
+    if (pt.size() != 2) {
+        state = DEVICE_ERROR;
+        return;
+    }
+    util_remove_spaces(pt[1]);
+    int i = atoi(pt[1].c_str());
+    net_scan_result(i);
+}
 
+void iecFuji::net_scan_result_raw()
+{
+    int n = payload[1];
+    net_scan_result(n);
+}
 
-    // pt[0] = SCANRESULT
-    // pt[1] = scan result # (0-numresults)
+// Return scanned network entry
+void iecFuji::net_scan_result(int scan_num)
+{
     struct
     {
         char ssid[33];
         uint8_t rssi;
     } detail;
 
-    if (pt.size() > 1)
-    {
-        util_remove_spaces(pt[1]);
-        int i = atoi(pt[1].c_str());
-        fnWiFi.get_scan_result(i, detail.ssid, &detail.rssi);
-        Debug_printf("SSID: %s RSSI: %u\r\n", detail.ssid, detail.rssi);
-    }
-    else
-    {
-        strcpy(detail.ssid, "INVALID SSID");
-        detail.rssi = 0;
-    }
+    memset(&detail.ssid[0], 0, sizeof(detail));
+
+    fnWiFi.get_scan_result(scan_num, detail.ssid, &detail.rssi);
+    Debug_printf("SSID: %s RSSI: %u\r\n", detail.ssid, detail.rssi);
 
     if (payload[0] == FUJICMD_GET_SCAN_RESULT)
     {
         responseV.assign(reinterpret_cast<const uint8_t*>(&detail), reinterpret_cast<const uint8_t*>(&detail) + sizeof(detail));
     }
-    else // SCANRESULT,n
+    else
     {
-        char t[8];
-
-        std::string s = std::string(detail.ssid);
-        itoa(detail.rssi, t, 10);
-
-        response = std::string(t) + ",\"" + s + "\"";
+        response = std::to_string(detail.rssi) + ",\"" + std::string(detail.ssid) + "\"";
     }
 }
 
@@ -457,13 +469,18 @@ void iecFuji::net_set_ssid(bool store)
     {
         char ssid[MAX_SSID_LEN + 1];
         char password[MAX_PASSPHRASE_LEN + 1];
-    } cfg;
+    } net_config;
 
-    memset(&cfg, 0, sizeof(cfg));
+    memset(&net_config, 0, sizeof(net_config));
 
     if (payload[0] == FUJICMD_SET_SSID)
     {
-        strncpy((char *)&cfg, payload.substr(12, std::string::npos).c_str(), sizeof(cfg));
+        // the data is coming to us packed not in struct format, so depack it into the NetConfig
+        // Had issues with it not sending password after large number of \0 padding ssid.
+        uint8_t sent_ssid_len = strlen(&payload[1]);
+        uint8_t sent_pass_len = strlen(&payload[2 + sent_ssid_len]);
+        strncpy((char *)&net_config.ssid[0], (const char *) &payload[1], sent_ssid_len);
+        strncpy((char *)&net_config.password[0], (const char *) &payload[2 + sent_ssid_len], sent_pass_len);
     }
     else // easy BASIC form
     {
@@ -483,11 +500,11 @@ void iecFuji::net_set_ssid(bool store)
             t[0] = mstr::urlDecode(t[0]);
             t[1] = mstr::urlDecode(t[1]);
 
-            strncpy(cfg.ssid, t[0].c_str(),
-                t[0].length() > sizeof(cfg.ssid) ? sizeof(cfg.ssid) : t[0].length());
-            strncpy(cfg.password, t[1].c_str(),
-                t[1].length() > sizeof(cfg.password) ? sizeof(cfg.password) : t[1].length());
-            Debug_printv("ssid[%s] pass[%s]", cfg.ssid, cfg.password);
+            strncpy(net_config.ssid, t[0].c_str(),
+                t[0].length() > sizeof(net_config.ssid) ? sizeof(net_config.ssid) : t[0].length());
+            strncpy(net_config.password, t[1].c_str(),
+                t[1].length() > sizeof(net_config.password) ? sizeof(net_config.password) : t[1].length());
+            Debug_printv("ssid[%s] pass[%s]", net_config.ssid, net_config.password);
         }
         else
         {
@@ -496,36 +513,45 @@ void iecFuji::net_set_ssid(bool store)
         }
     }
 
-    Debug_printf("Storing WiFi SSID and Password.\r\n");
-    Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-    Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-    Config.save();
+    int test_result = fnWiFi.test_connect(net_config.ssid, net_config.password);
+    if (test_result != 0)
+    {
+        Debug_println("Could not connect to target SSID. Aborting save.");
+        iecStatus.msg = "ssid not set";
+    } else {
+        // Only save these if we're asked to, otherwise assume it was a test for connectivity
+        if (store) {
+            net_store_ssid(net_config.ssid, net_config.password);
+        }
+        iecStatus.msg = "ssid set";
+    }
 
-    Debug_printf("Connecting to [%s]\r\n", cfg.ssid);
-    fnWiFi.connect(cfg.ssid, cfg.password);
+    Debug_println("Restarting WiFiManager");
+    fnWiFi.start();
 
-    // Only save these if we're asked to, otherwise assume it was a test for connectivity
-    if ( store && fnWiFi.connected() )
-        net_store_ssid();
+    // give it a few seconds to restart the WiFi before we return to the client, who will immediately start checking status if this is CONFIG
+    // and get errors if we're not up yet
+    fnSystem.delay(3000);
 
     iecStatus.channel = 15;
-    iecStatus.error = 0;
-    iecStatus.msg = "ssid set";
+    iecStatus.error = test_result == 0 ? NETWORK_ERROR_SUCCESS : NETWORK_ERROR_NOT_CONNECTED;
     iecStatus.connected = fnWiFi.connected();
 }
 
-void iecFuji::net_store_ssid()
+void iecFuji::net_store_ssid(std::string ssid, std::string password)
 {
-    // Only save these if we're asked to, otherwise assume it was a test for connectivity
 
     // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
     // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
     // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
 
     int ssid_in_stored = -1;
+
     for (int i = 0; i < MAX_WIFI_STORED; i++)
     {
-        if (Config.get_wifi_stored_ssid(i) == cfg.ssid)
+        std::string stored = Config.get_wifi_stored_ssid(i);
+        std::string ithConfig = Config.get_wifi_stored_ssid(i);
+        if (!ithConfig.empty() && ithConfig == ssid)
         {
             ssid_in_stored = i;
             break;
@@ -533,7 +559,7 @@ void iecFuji::net_store_ssid()
     }
 
     // case 1
-    if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+    if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != ssid) {
         Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
         // Move enabled stored down one, last one will drop off
         for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
@@ -552,7 +578,7 @@ void iecFuji::net_store_ssid()
     }
 
     // case 2
-    if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid) {
+    if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != ssid) {
         Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\r\n", ssid_in_stored);
         // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
         for (int j = ssid_in_stored; j > 0; j--)
@@ -569,9 +595,9 @@ void iecFuji::net_store_ssid()
     }
 
     // save the new SSID as current
-    Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+    Config.store_wifi_ssid(ssid.c_str(), ssid.size());
     // Clear text here, it will be encrypted internally if enabled for encryption
-    Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+    Config.store_wifi_passphrase(password.c_str(), password.size());
 
     Config.save();
 }
@@ -648,8 +674,6 @@ void iecFuji::mount_host()
     }
     else
     {
-        
-
         if (pt.size() < 2) // send error.
         {
             response = "INVALID # OF PARAMETERS.";
@@ -668,6 +692,10 @@ void iecFuji::mount_host()
     if (!_fnHosts[hs].mount())
     {
         response = "UNABLE TO MOUNT HOST SLOT #";
+        if (is_raw_command) {
+            state = DEVICE_ERROR;
+            IEC.senderTimeout();
+        }
         return; // send error.
     }
 
@@ -680,8 +708,7 @@ void iecFuji::mount_host()
     response = hns + " MOUNTED.";
 }
 
-// Disk Image Mount
-void iecFuji::disk_image_mount()
+void iecFuji::disk_image_mount_basic()
 {
     _populate_slots_from_config();
     
@@ -694,6 +721,26 @@ void iecFuji::disk_image_mount()
     uint8_t ds = atoi(pt[1].c_str());
     uint8_t mode = atoi(pt[2].c_str());
 
+    bool is_success = disk_image_mount(ds, mode);
+    if (!is_success) {
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+    }
+}
+
+void iecFuji::disk_image_mount_raw()
+{
+    _populate_slots_from_config();
+    bool is_success = disk_image_mount(payload[1], payload[2]);
+    if (!is_success) {
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+    }
+}
+
+// Disk Image Mount
+bool iecFuji::disk_image_mount(uint8_t ds, uint8_t mode)
+{
     char flag[3] = {'r', 0, 0};
 
     if (mode == DISK_ACCESS_MODE_WRITE)
@@ -702,7 +749,7 @@ void iecFuji::disk_image_mount()
     if (!_validate_device_slot(ds))
     {
         response = "invalid device slot.";
-        return; // error.
+        return false;
     }
 
     // A couple of reference variables to make things much easier to read...
@@ -720,7 +767,7 @@ void iecFuji::disk_image_mount()
     if (disk.fileh == nullptr)
     {
         response = "no file handle";
-        return;
+        return false;
     }
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
@@ -732,6 +779,7 @@ void iecFuji::disk_image_mount()
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
     response = "mounted";
+    return true;
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
@@ -1138,11 +1186,33 @@ void iecFuji::shutdown()
     // TODO IMPLEMENT
 }
 
-void iecFuji::open_directory()
+std::pair<std::string, std::string> split_at_delim(const std::string& input, char delim) {
+    // Find the position of the first occurrence of delim in the string
+    size_t pos = input.find(delim);
+
+    std::string firstPart, secondPart;
+    if (pos != std::string::npos) {
+        firstPart = input.substr(0, pos);
+        // Check if there's content beyond the delim for the second part
+        if (pos + 1 < input.size()) {
+            secondPart = input.substr(pos + 1);
+        }
+    } else {
+        // If delim is not found, the entire input is the first part
+        firstPart = input;
+    }
+
+    // Remove trailing slash from firstPart, if present
+    if (!firstPart.empty() && firstPart.back() == '/') {
+        firstPart.pop_back();
+    }
+
+    return {firstPart, secondPart};
+}
+
+void iecFuji::open_directory_basic()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
-
-    
 
     if (pt.size() < 3)
     {
@@ -1150,15 +1220,42 @@ void iecFuji::open_directory()
         return; // send error
     }
 
-    char dirpath[256];
-    uint8_t hostSlot = atoi(pt[1].c_str());
-    strncpy(dirpath, pt[2].c_str(), sizeof(dirpath));
+    uint8_t host_slot = atoi(pt[1].c_str());
+    auto [dirpath, pattern] = split_at_delim(pt[2], '~');
 
-    if (!_validate_host_slot(hostSlot))
+    if (!open_directory(host_slot, dirpath, pattern)) {
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+    }
+}
+
+void iecFuji::open_directory_raw()
+{
+    Debug_println("Fuji cmd: OPEN DIRECTORY");
+    if (payload.size() < 3)
     {
-        // send error
-        response = "invalid host slot #";
+        Debug_printf("ERROR: open_directory_raw, payload too short\r\n");
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
         return;
+    }
+
+    uint8_t host_slot = payload[1];
+    auto [dirpath, pattern] = split_at_delim(payload.substr(2),  '\0');
+
+    if (!open_directory(host_slot, dirpath, pattern)) {
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+    }
+
+}
+
+bool iecFuji::open_directory(uint8_t hs, std::string dirpath, std::string pattern)
+{
+    if (!_validate_host_slot(hs))
+    {
+        response = "invalid host slot #";
+        return false;
     }
 
     // If we already have a directory open, close it first
@@ -1169,41 +1266,20 @@ void iecFuji::open_directory()
         _current_open_directory_slot = -1;
     }
 
-    // Preprocess ~ (pi!) into filter
-    for (int i = 0; i < sizeof(dirpath); i++)
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath.c_str(), pattern.c_str());
+
+    if (_fnHosts[hs].dir_open(dirpath.data(), pattern.empty() ? nullptr : pattern.c_str(), 0))
     {
-        if (dirpath[i] == '~')
-            dirpath[i] = 0; // turn into null
-    }
-
-    // See if there's a search pattern after the directory path
-    const char *pattern = nullptr;
-    int pathlen = strnlen(dirpath, sizeof(dirpath));
-    if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
-    {
-        pattern = dirpath + pathlen + 1;
-        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
-        if (patternlen < 1)
-            pattern = nullptr;
-    }
-
-    // Remove trailing slash
-    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
-        dirpath[pathlen - 1] = '\0';
-
-    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
-
-    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-    {
-        _current_open_directory_slot = hostSlot;
+        _current_open_directory_slot = hs;
+        response = "ok";
+        return true;
     }
     else
     {
-        // send error
         response = "unable to open directory";
+        return false;
     }
 
-    response = "ok";
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -1630,8 +1706,6 @@ void iecFuji::write_device_slots()
     else
     {
         // from BASIC
-        
-
         if (pt.size() < 4)
         {
             response = "need file mode";
