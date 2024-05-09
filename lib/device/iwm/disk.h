@@ -41,6 +41,9 @@ protected:
     uint8_t smartport_device_type();
     uint8_t smartport_device_subtype();
 
+    uint8_t create_status();
+    std::vector<uint8_t> create_blocksize(bool is_32_bits = false);
+
 public:
     uint8_t blank_header_type = 0; // unadorned by default.
     iwmDisk();
