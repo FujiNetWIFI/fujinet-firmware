@@ -1,4 +1,9 @@
 #ifdef BUILD_APPLE
+#include <array>
+#include <functional>
+#include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "fuji.h"
@@ -21,10 +26,132 @@ iwmFuji theFuji; // Global fuji object.
 iwmFuji::iwmFuji()
 {
 	Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
-	// Helpful for debugging
 	for (int i = 0; i < MAX_HOSTS; i++)
 		_fnHosts[i].slotid = i;
+	
+	command_handlers = {
+		{ 0x00, [this](iwm_decoded_cmd_t cmd) { iwm_status(cmd); }},			// status
+		{ 0x04, [this](iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }},				// control
+		{ 0x06, [this](iwm_decoded_cmd_t cmd) { iwm_open(cmd); }},				// open
+		{ 0x07, [this](iwm_decoded_cmd_t cmd) { iwm_close(cmd); }},				// close
+		{ 0x08, [this](iwm_decoded_cmd_t cmd) { iwm_read(cmd); }},				// read
+
+		{ 0x01, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},		// read block
+		{ 0x02, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},		// write block
+		{ 0x03, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},		// format
+		{ 0x09, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }}		// write
+	};
+
+	control_handlers = {
+        { 0xAA, [this]() 							{ this->iwm_dummy_command(); }},
+		{ IWM_CTRL_SET_DCB, [this]() 				{ this->iwm_dummy_command(); }},
+        { IWM_CTRL_SET_NEWLINE, [this]() 			{ this->iwm_dummy_command(); }},
+
+		{ FUJICMD_CLOSE_DIRECTORY, [this]() 		{ this->iwm_ctrl_close_directory(); }},
+		{ FUJICMD_CONFIG_BOOT, [this]()				{ this->iwm_ctrl_set_boot_config(); }},
+		{ FUJICMD_COPY_FILE, [this]()				{ this->iwm_ctrl_copy_file(); }},
+		{ FUJICMD_DISABLE_DEVICE, [this]()			{ this->iwm_ctrl_disable_device(); }},
+		{ FUJICMD_ENABLE_DEVICE, [this]()			{ this->iwm_ctrl_enable_device(); }},
+		{ FUJICMD_GET_SCAN_RESULT, [this]() 		{ this->iwm_ctrl_net_scan_result(); }},
+		{ FUJICMD_MOUNT_HOST, [this]() 				{ this->iwm_ctrl_mount_host(); }},
+		{ FUJICMD_NEW_DISK, [this]()	 			{ this->iwm_ctrl_new_disk(); }},
+		{ FUJICMD_OPEN_APPKEY, [this]()	 			{ this->iwm_ctrl_open_app_key(); }},
+		{ FUJICMD_READ_DIR_ENTRY, [this]() 			{ this->iwm_ctrl_read_directory_entry(); }},
+		{ FUJICMD_SET_BOOT_MODE, [this]()			{ this->iwm_ctrl_set_boot_mode(); }},
+		{ FUJICMD_SET_DEVICE_FULLPATH, [this]()		{ this->iwm_ctrl_set_device_filename(); }},
+		{ FUJICMD_SET_DIRECTORY_POSITION, [this]()	{ this->iwm_ctrl_set_directory_position(); }},
+		{ FUJICMD_SET_HOST_PREFIX, [this]()			{ this->iwm_ctrl_set_host_prefix(); }},
+		{ FUJICMD_SET_SSID, [this]() 				{ this->iwm_ctrl_net_set_ssid(); }},
+		{ FUJICMD_UNMOUNT_HOST, [this]()	 		{ this->iwm_ctrl_unmount_host(); }},
+		{ FUJICMD_UNMOUNT_IMAGE, [this]()	 		{ this->iwm_ctrl_disk_image_umount(); }},
+		{ FUJICMD_WRITE_APPKEY, [this]()			{ this->iwm_ctrl_write_app_key(); }},
+		{ FUJICMD_WRITE_DEVICE_SLOTS, [this]() 		{ this->iwm_ctrl_write_device_slots(); }},
+		{ FUJICMD_WRITE_HOST_SLOTS, [this]() 		{ this->iwm_ctrl_write_host_slots(); }},
+
+		{ IWM_CTRL_RESET, [this]() 					{ this->send_reply_packet(err_result); this->iwm_ctrl_reset_fujinet(); }},
+		{ FUJICMD_RESET,  [this]() 					{ this->send_reply_packet(err_result); this->iwm_ctrl_reset_fujinet(); }},
+
+		{ FUJICMD_MOUNT_ALL, [&]() 					{ err_result = (mount_all() ? SP_ERR_IOERROR : SP_ERR_NOERROR); }},
+		{ FUJICMD_MOUNT_IMAGE, [&]() 				{ err_result = iwm_ctrl_disk_image_mount(); }},
+		{ FUJICMD_OPEN_DIRECTORY, [&]() 			{ err_result = iwm_ctrl_open_directory(); }}
+
+	};
+
+	status_handlers = {
+		{ 0xAA, [this]() 						 		{ this->iwm_hello_world(); }},
+		
+		{ IWM_STATUS_DIB, [this]() 				 		{ this->send_status_dib_reply_packet(); status_completed = true; }},
+		{ IWM_STATUS_STATUS, [this]() 			 		{ this->send_status_reply_packet(); status_completed = true; }},
+		
+		{ FUJICMD_DEVICE_ENABLE_STATUS, [this]() 		{ this->send_stat_get_enable(); }},
+		{ FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() 	{ this->iwm_stat_get_adapter_config_extended(); }},
+		{ FUJICMD_GET_ADAPTERCONFIG, [this]() 			{ this->iwm_stat_get_adapter_config(); }},
+		{ FUJICMD_GET_DEVICE_FULLPATH, [this]()			{ this->iwm_stat_get_device_filename(status_code); }},
+		{ FUJICMD_GET_DEVICE1_FULLPATH, [this]()		{ this->iwm_stat_get_device_filename(status_code); }},
+		{ FUJICMD_GET_DEVICE2_FULLPATH, [this]()		{ this->iwm_stat_get_device_filename(status_code); }},
+		{ FUJICMD_GET_DEVICE3_FULLPATH, [this]()		{ this->iwm_stat_get_device_filename(status_code); }},
+		{ FUJICMD_GET_DEVICE4_FULLPATH, [this]()		{ this->iwm_stat_get_device_filename(status_code); }},
+		{ FUJICMD_GET_DEVICE5_FULLPATH, [this]()		{ this->iwm_stat_get_device_filename(status_code); }},
+		{ FUJICMD_GET_DEVICE6_FULLPATH, [this]()		{ this->iwm_stat_get_device_filename(status_code); }},
+		{ FUJICMD_GET_DEVICE7_FULLPATH, [this]()		{ this->iwm_stat_get_device_filename(status_code); }},
+		{ FUJICMD_GET_DEVICE8_FULLPATH, [this]()		{ this->iwm_stat_get_device_filename(status_code); }},
+		{ FUJICMD_GET_DIRECTORY_POSITION, [this]() 		{ this->iwm_stat_get_directory_position(); }},
+		{ FUJICMD_GET_HOST_PREFIX, [this]() 	 		{ this->iwm_stat_get_host_prefix(); }},
+		{ FUJICMD_GET_SCAN_RESULT, [this]() 	 		{ this->iwm_stat_net_scan_result(); }},
+		{ FUJICMD_GET_SSID, [this]() 			 		{ this->iwm_stat_net_get_ssid(); }},
+		{ FUJICMD_GET_WIFI_ENABLED, [this]() 	 		{ this->iwm_stat_get_wifi_enabled(); }},
+		{ FUJICMD_GET_WIFISTATUS, [this]() 		 		{ this->iwm_stat_net_get_wifi_status(); }},
+		{ FUJICMD_READ_APPKEY, [this]() 		 		{ this->iwm_stat_read_app_key(); }},
+		{ FUJICMD_READ_DEVICE_SLOTS, [this]() 	 		{ this->iwm_stat_read_device_slots(); }},
+		{ FUJICMD_READ_DIR_ENTRY, [this]() 		 		{ this->iwm_stat_read_directory_entry(); }},
+		{ FUJICMD_READ_HOST_SLOTS, [this]() 	 		{ this->iwm_stat_read_host_slots(); }},
+		{ FUJICMD_SCAN_NETWORKS, [this]() 		 		{ this->iwm_stat_net_scan_networks(); }},
+		{ FUJICMD_STATUS, [this]() 				 		{ this->iwm_stat_fuji_status(); }}
+
+	};
+
 }
+
+//// UNHANDLED CONTROL FUNCTIONS
+// case FUJICMD_CLOSE_APPKEY:        	// 0xDB
+// case FUJICMD_GET_ADAPTERCONFIG:      // 0xE8
+// case FUJICMD_GET_DEVICE_FULLPATH:	// 0xDA
+// case FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
+// case FUJICMD_GET_HOST_PREFIX:     	// 0xE0
+// case FUJICMD_GET_SSID:               // 0xFE
+// case FUJICMD_GET_WIFISTATUS:         // 0xFA
+// case FUJICMD_READ_APPKEY:	 		// 0xDD
+// case FUJICMD_READ_DEVICE_SLOTS:      // 0xF2
+// case FUJICMD_READ_HOST_SLOTS:        // 0xF4
+// case FUJICMD_SCAN_NETWORKS:          // 0xFD
+// case FUJICMD_STATUS:              	// 0x53
+
+//// Unhandled Status Commands
+// case FUJICMD_CLOSE_APPKEY:           // 0xDB
+// case FUJICMD_CLOSE_DIRECTORY:        // 0xF5
+// case FUJICMD_CONFIG_BOOT:            // 0xD9
+// case FUJICMD_COPY_FILE:              // 0xD8
+// case FUJICMD_DISABLE_DEVICE:         // 0xD4
+// case FUJICMD_ENABLE_DEVICE:          // 0xD5
+// case FUJICMD_MOUNT_ALL:              // 0xD7
+// case FUJICMD_MOUNT_HOST:             // 0xF9
+// case FUJICMD_MOUNT_IMAGE:            // 0xF8
+// case FUJICMD_NEW_DISK:               // 0xE7
+// case FUJICMD_OPEN_APPKEY:            // 0xDC
+// case FUJICMD_OPEN_DIRECTORY:         // 0xF7
+// case FUJICMD_RESET:               	// 0xFF
+// case FUJICMD_SET_BOOT_MODE:          // 0xD6
+// case FUJICMD_SET_DEVICE_FULLPATH:    // 0xE2
+// case FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
+// case FUJICMD_SET_HOST_PREFIX:        // 0xE1
+// case FUJICMD_SET_SSID:            	// 0xFB
+// case FUJICMD_UNMOUNT_HOST:           // 0xE6
+// case FUJICMD_UNMOUNT_IMAGE:          // 0xE9
+// case FUJICMD_WRITE_APPKEY:           // 0xDE
+// case FUJICMD_WRITE_DEVICE_SLOTS:     // 0xF1
+// case FUJICMD_WRITE_HOST_SLOTS:       // 0xF3
+// case IWM_STATUS_DCB:                 // 0x01
+// case IWM_STATUS_NEWLINE:             // 0x02
 
 void iwmFuji::iwm_dummy_command() // SP CTRL command
 {
@@ -1251,289 +1378,69 @@ void iwmFuji::send_stat_get_enable()
 
 void iwmFuji::iwm_open(iwm_decoded_cmd_t cmd)
 {
-	// Debug_printf("\r\nOpen FujiNet Unit # %02x",cmd.g7byte1);
 	send_status_reply_packet();
 }
 
 void iwmFuji::iwm_close(iwm_decoded_cmd_t cmd) {}
-
 void iwmFuji::iwm_read(iwm_decoded_cmd_t cmd) {}
 
 void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 {
-	// uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
-	uint8_t status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-	Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), status_code);
-	// Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+	status_code = get_status_code(cmd);
+	status_completed = false;
 
-	switch (status_code)
-	{
-	case 0xAA:
-		iwm_hello_world();
-		break;
-	case IWM_STATUS_STATUS: 				// 0x00
-		send_status_reply_packet();
-		return;
-		break;
-	// case IWM_STATUS_DCB:                  // 0x01
-	// case IWM_STATUS_NEWLINE:              // 0x02
-	case IWM_STATUS_DIB: // 0x03
-		send_status_dib_reply_packet();
-		return;
-		break;
-	// case FUJICMD_RESET:               	// 0xFF
-	case FUJICMD_GET_SSID: 					// 0xFE
-		iwm_stat_net_get_ssid();
-		break;
-	case FUJICMD_SCAN_NETWORKS: 			// 0xFD
-		iwm_stat_net_scan_networks();
-		break;
-	case FUJICMD_GET_SCAN_RESULT: 			// 0xFC
-		iwm_stat_net_scan_result();
-		break;
-	// case FUJICMD_SET_SSID:            	// 0xFB
-	case FUJICMD_GET_WIFISTATUS: 			// 0xFA
-		iwm_stat_net_get_wifi_status();
-		break;
-	// case FUJICMD_MOUNT_HOST:             // 0xF9
-	// case FUJICMD_MOUNT_IMAGE:            // 0xF8
-	// case FUJICMD_OPEN_DIRECTORY:         // 0xF7
-	case FUJICMD_READ_DIR_ENTRY: 			// 0xF6
-		iwm_stat_read_directory_entry();
-		break;
-	// case FUJICMD_CLOSE_DIRECTORY:        // 0xF5
-	case FUJICMD_READ_HOST_SLOTS: 			// 0xF4
-		iwm_stat_read_host_slots();
-		break;
-	// case FUJICMD_WRITE_HOST_SLOTS:       // 0xF3
-	case FUJICMD_READ_DEVICE_SLOTS: 		// 0xF2
-		iwm_stat_read_device_slots();
-		break;
-	// case FUJICMD_WRITE_DEVICE_SLOTS:     // 0xF1
-	case FUJICMD_GET_WIFI_ENABLED:          // 0xEA
-		iwm_stat_get_wifi_enabled();
-		break;
-	// case FUJICMD_UNMOUNT_IMAGE:          // 0xE9
-	case FUJICMD_GET_ADAPTERCONFIG:	   		// 0xE8
-		iwm_stat_get_adapter_config(); // to do - set up as a DCB?
-		break;
-	// case FUJICMD_NEW_DISK:               // 0xE7
-	// case FUJICMD_UNMOUNT_HOST:           // 0xE6
-	case FUJICMD_GET_DIRECTORY_POSITION: 	// 0xE5
-		iwm_stat_get_directory_position();
-		break;
-	// case FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
-	// case FUJICMD_SET_DEVICE_FULLPATH:    // 0xE2
-	// case FUJICMD_SET_HOST_PREFIX:        // 0xE1
-	case FUJICMD_GET_HOST_PREFIX: // 0xE0
-		iwm_stat_get_host_prefix();
-		break;
-	// case FUJICMD_WRITE_APPKEY:           // 0xDE
-	case FUJICMD_READ_APPKEY: // 0xDD
-		iwm_stat_read_app_key();
-		break;
-	// case FUJICMD_OPEN_APPKEY:            // 0xDC
-	// case FUJICMD_CLOSE_APPKEY:           // 0xDB
-	case FUJICMD_GET_DEVICE_FULLPATH:  		// 0xDA
-	case FUJICMD_GET_DEVICE1_FULLPATH: 		// 0xA0
-	case FUJICMD_GET_DEVICE2_FULLPATH: 		// 0xA1
-	case FUJICMD_GET_DEVICE3_FULLPATH: 		// 0xA2
-	case FUJICMD_GET_DEVICE4_FULLPATH: 		// 0xA3
-	case FUJICMD_GET_DEVICE5_FULLPATH: 		// 0xA4
-	case FUJICMD_GET_DEVICE6_FULLPATH: 		// 0xA5
-	case FUJICMD_GET_DEVICE7_FULLPATH: 		// 0xA6
-	case FUJICMD_GET_DEVICE8_FULLPATH: 		// 0xA7
-		iwm_stat_get_device_filename(status_code);
-		break;
-	// case FUJICMD_CONFIG_BOOT:            // 0xD9
-	// case FUJICMD_COPY_FILE:              // 0xD8
-	// case FUJICMD_MOUNT_ALL:              // 0xD7
-	// case FUJICMD_SET_BOOT_MODE:          // 0xD6
-	// case FUJICMD_ENABLE_DEVICE:          // 0xD5
-	// case FUJICMD_DISABLE_DEVICE:         // 0xD4
-	case FUJICMD_DEVICE_ENABLE_STATUS: 		// 0xD1
-		send_stat_get_enable();
-		break;
-	case FUJICMD_GET_ADAPTERCONFIG_EXTENDED: // 0xC4
-		iwm_stat_get_adapter_config_extended(); // to do - set up as a DCB?
-		break;
-	case FUJICMD_STATUS: 					// 0x53
-		// to do? parallel to SP status?
-		// This should be the status, in some way, of the FUJI device itself.
-		// Though what we want to return is anyone's guess.
-		// For now, if it's responding, then it's probably good enough to say it's
-		// ok.
-		iwm_stat_fuji_status();
-		break;
-	default:
-		Debug_printf("\nBad Status Code, sending error response");
-		send_reply_packet(SP_ERR_BADCTL);
-		return;
-		break;
-	}
+	Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), status_code);
+
+	auto it = status_handlers.find(status_code);
+    if (it != status_handlers.end()) {
+        it->second();
+    } else {
+		Debug_printf("ERROR: Unhandled status code: %02X\n", status_code);
+    }
+
+	if (status_completed) return;
+
 	Debug_printf("\nStatus code complete, sending response");
 	IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
 void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
-	uint8_t err_result = SP_ERR_NOERROR;
-
-	// uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
-	uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
+	uint8_t control_code = get_status_code(cmd);
 	Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), control_code);
-	// already called by ISR
+
+	err_result = SP_ERR_NOERROR;
 	data_len = 512;
-	Debug_printf("\nDecoding Control Data Packet:");
+
+	Debug_printf("\nDecoding Control Data Packet for code: %02X\r\n", control_code);
 	IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-	// data_len = decode_packet((uint8_t *)data_buffer);
 	print_packet((uint8_t *)data_buffer, data_len);
 
-	switch (control_code)
-	{
-	case IWM_CTRL_SET_DCB:	   				// 0x01
-	case IWM_CTRL_SET_NEWLINE: 				// 0x02
-	case 0xAA:
-		iwm_dummy_command();
-		break;
-	case IWM_CTRL_RESET: 					// 0x00
-	case FUJICMD_RESET:	 					// 0xFF
-		send_reply_packet(err_result);
-		iwm_ctrl_reset_fujinet();
-		break;
+	auto it = control_handlers.find(control_code);
+    if (it != control_handlers.end()) {
+        it->second();
+    } else {
+		Debug_printf("ERROR: Unhandled control code: %02X\n", control_code);
+        err_result = SP_ERR_BADCTL;
+    }
 
-	// case FUJICMD_GET_SSID:               // 0xFE
-	// case FUJICMD_SCAN_NETWORKS:          // 0xFD
-	case FUJICMD_GET_SCAN_RESULT: 			// 0xFC
-		iwm_ctrl_net_scan_result();
-		break;
-	case FUJICMD_SET_SSID:
-		iwm_ctrl_net_set_ssid(); 			// 0xFB
-		break;
-	// case FUJICMD_GET_WIFISTATUS:         // 0xFA
-	case FUJICMD_MOUNT_HOST: 				// 0xF9
-		iwm_ctrl_mount_host();
-		break;
-	case FUJICMD_MOUNT_IMAGE: 				// 0xF8
-		err_result = iwm_ctrl_disk_image_mount();
-		break;
-	case FUJICMD_OPEN_DIRECTORY: 			// 0xF7
-		// print_packet((uint8_t *)data_buffer, 512);
-		err_result = iwm_ctrl_open_directory();
-		break;
-	case FUJICMD_READ_DIR_ENTRY: 			// 0xF6
-		iwm_ctrl_read_directory_entry();
-		break;
-	case FUJICMD_CLOSE_DIRECTORY: 			// 0xF5
-		iwm_ctrl_close_directory();
-		break;
-	// case FUJICMD_READ_HOST_SLOTS:        // 0xF4
-	case FUJICMD_WRITE_HOST_SLOTS: 			// 0xF3
-		iwm_ctrl_write_host_slots();
-		break;
-	// case FUJICMD_READ_DEVICE_SLOTS:      // 0xF2
-	case FUJICMD_WRITE_DEVICE_SLOTS: 		// 0xF1
-		iwm_ctrl_write_device_slots();
-		break;
-	case FUJICMD_UNMOUNT_IMAGE: 			// 0xE9
-		iwm_ctrl_disk_image_umount();
-		break;
-	// case FUJICMD_GET_ADAPTERCONFIG:      // 0xE8
-	case FUJICMD_NEW_DISK: 					// 0xE7
-		iwm_ctrl_new_disk();
-		break;
-	case FUJICMD_UNMOUNT_HOST: 				// 0xE6
-		iwm_ctrl_unmount_host();
-		break;
-	// case FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
-	case FUJICMD_SET_DIRECTORY_POSITION: 	// 0xE4
-		iwm_ctrl_set_directory_position();
-		break;
-	case FUJICMD_SET_DEVICE_FULLPATH: 		// 0xE2
-		err_result = iwm_ctrl_set_device_filename();
-		break;
-	case FUJICMD_SET_HOST_PREFIX: 			// 0xE1
-		iwm_ctrl_set_host_prefix();
-		break;
-	// case FUJICMD_GET_HOST_PREFIX:     	// 0xE0
-	case FUJICMD_WRITE_APPKEY: 				// 0xDE
-		iwm_ctrl_write_app_key();
-		break;
-	//case FUJICMD_READ_APPKEY:	 			// 0xDD
-		//iwm_ctrl_read_app_key(); // use before reading the key using statys
-		break;
-	case FUJICMD_OPEN_APPKEY:        	// 0xDC
-		iwm_ctrl_open_app_key();
-		break;
-	// case FUJICMD_CLOSE_APPKEY:        	// 0xDB
-	// case FUJICMD_GET_DEVICE_FULLPATH:	// 0xDA
-	case FUJICMD_CONFIG_BOOT: 				// 0xD9
-		iwm_ctrl_set_boot_config();
-		break;
-	case FUJICMD_COPY_FILE: 				// 0xD8
-		iwm_ctrl_copy_file();
-		break;
-	case FUJICMD_MOUNT_ALL: 				// 0xD7
-		err_result = (mount_all() == true ? SP_ERR_IOERROR : SP_ERR_NOERROR);
-		break;
-	case FUJICMD_SET_BOOT_MODE: 			// 0xD6
-		iwm_ctrl_set_boot_mode();
-		break;
-	case FUJICMD_ENABLE_DEVICE: 			// 0xD5
-		iwm_ctrl_enable_device();
-		break;
-	case FUJICMD_DISABLE_DEVICE: 			// 0xD4
-		iwm_ctrl_disable_device();
-		break;
-	// case FUJICMD_STATUS:              	// 0x53
-	default:
-		err_result = SP_ERR_BADCTL;
-		break;
-	}
 	send_reply_packet(err_result);
 }
+
 
 void iwmFuji::process(iwm_decoded_cmd_t cmd)
 {
 	fnLedManager.set(LED_BUS, true);
-	switch (cmd.command)
-	{
-	case 0x00: // status
-		Debug_printf("\ntheFuji handling status command");
-		iwm_status(cmd);
-		break;
-	case 0x01: // read block
+
+    auto it = command_handlers.find(cmd.command);
+	Debug_printf("\n----- iwmFuji::process handling command: %02X\r\n", cmd.command);
+    if (it != command_handlers.end()) {
+        it->second(cmd);
+    } else {
+        Debug_printf("\nUnknown command: %02X\r\n", cmd.command);
 		iwm_return_badcmd(cmd);
-		break;
-	case 0x02: // write block
-		iwm_return_badcmd(cmd);
-		break;
-	case 0x03: // format
-		iwm_return_badcmd(cmd);
-		break;
-	case 0x04: // control
-		Debug_printf("\ntheFuji handling control command");
-		iwm_ctrl(cmd);
-		break;
-	case 0x06: // open
-		Debug_printf("\ntheFuji handling open command");
-		iwm_open(cmd);
-		break;
-	case 0x07: // close
-		Debug_printf("\ntheFuji handling close command");
-		iwm_close(cmd);
-		break;
-	case 0x08: // read
-		Debug_printf("\ntheFuji handling read command");
-		iwm_read(cmd);
-		break;
-	case 0x09: // write
-		iwm_return_badcmd(cmd);
-		break;
-	default:
-		iwm_return_badcmd(cmd);
-		break;
-	} // switch (cmd)
+    }
+
 	fnLedManager.set(LED_BUS, false);
 }
 
