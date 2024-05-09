@@ -2,6 +2,10 @@
 #ifndef FUJI_H
 #define FUJI_H
 #include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
 
 #include "../../include/debug.h"
 #include "bus.h"
@@ -77,6 +81,11 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
+
+using IWMCmdHandlers = std::function<void(iwm_decoded_cmd_t)>;
+using IWMControlHandlers = std::function<void()>;
+using IWMStatusHandlers = std::function<void()>;
+
 class iwmFuji : public iwmDevice
 {
 private:
@@ -122,6 +131,10 @@ private:
     size_t ctrl_stat_len = 0; // max payload length is 767
 
     char dirpath[256];
+
+    std::unordered_map<uint8_t, IWMCmdHandlers> command_handlers;
+    std::unordered_map<uint8_t, IWMControlHandlers> control_handlers;
+    std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
 
 protected:
     void iwm_dummy_command();                    // control 0xAA
@@ -199,6 +212,10 @@ public:
     bool boot_config = true;
 
     bool status_wait_enabled = true;
+
+    uint8_t err_result = SP_ERR_NOERROR;
+    bool status_completed = false;
+    uint8_t status_code;
 
     iwmDisk *bootdisk();
 
