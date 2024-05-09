@@ -43,64 +43,20 @@ void iwmPrinter::send_extended_status_reply_packet()
 
 void iwmPrinter::send_status_dib_reply_packet()
 {
-    uint8_t data[25];
-
-    data[0] = 0b01110000;
-    data[1] = data[2] = data[3] = 0;
-    data[4] = 7;
-    data[5] = 'P';
-    data[6] = 'R';
-    data[7] = 'I';
-    data[8] = 'N';
-    data[9] = 'T';
-    data[10] = 'E';
-    data[11] = 'R';
-    data[12] = ' ';
-    data[13] = ' ';
-    data[14] = ' ';
-    data[15] = ' ';
-    data[16] = ' ';
-    data[17] = ' ';
-    data[18] = ' ';
-    data[19] = ' ';
-    data[20] = ' ';
-    data[21] = SP_TYPE_BYTE_FUJINET_PRINTER;
-    data[22] = SP_SUBTYPE_BYTE_FUJINET_PRINTER;
-    data[23] = 0x00;
-    data[24] = 0x01;
-
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+    Debug_printf("\r\nPRINTER: Sending DIB reply\r\n");
+    std::vector<uint8_t> data = create_dib_reply_packet(
+        "PRINTER",                                                          // name
+        0b01110000,                                                         // status
+        { 0, 0, 0 },                                                        // block size
+        { SP_TYPE_BYTE_FUJINET_PRINTER, SP_SUBTYPE_BYTE_FUJINET_PRINTER },  // type, subtype
+        { 0x00, 0x01 }                                                      // version.
+    );
+    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmPrinter::send_extended_status_dib_reply_packet()
 {
-    uint8_t data[25];
-
-    data[0] = 0b01110000;
-    data[1] = data[2] = data[3] = 0;
-    data[4] = 7;
-    data[5] = 'P';
-    data[6] = 'R';
-    data[7] = 'I';
-    data[8] = 'N';
-    data[9] = 'T';
-    data[10] = 'E';
-    data[11] = 'R';
-    data[12] = ' ';
-    data[13] = ' ';
-    data[14] = ' ';
-    data[15] = ' ';
-    data[16] = ' ';
-    data[17] = ' ';
-    data[18] = ' ';
-    data[19] = ' ';
-    data[20] = ' ';
-    data[21] = SP_TYPE_BYTE_FUJINET_PRINTER;
-    data[22] = SP_SUBTYPE_BYTE_FUJINET_PRINTER;
-    data[23] = 0x00;
-    data[24] = 0x01;
-
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 25);
+    send_status_dib_reply_packet();
 }
 
 void iwmPrinter::iwm_status(iwm_decoded_cmd_t cmd)

@@ -13,9 +13,11 @@
 #include "iwm_ll.h"
 #endif
 
+#include <array>
 #include <cstdint>
 #include <forward_list>
 #include <string>
+#include <vector>
 
 #include "fnFS.h"
 
@@ -222,6 +224,8 @@ protected:
   // iwm packet handling
   static uint8_t data_buffer[MAX_DATA_LEN]; // un-encoded binary data (512 bytes for a block)
   static int data_len; // how many bytes in the data buffer
+
+  std::vector<uint8_t> create_dib_reply_packet(const std::string& device_name, uint8_t status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version);
 
 public:
   bool device_active;

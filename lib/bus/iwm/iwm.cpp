@@ -1,4 +1,11 @@
 #ifdef BUILD_APPLE
+
+#include <array>
+#include <cstdint>
+#include <string>
+#include <vector>
+
+
 #include "iwm.h"
 #include "fnSystem.h"
 
@@ -6,9 +13,7 @@
 #include "fnHardwareTimer.h"
 #endif
 
-// #include "fnFsTNFS.h" // do i need this?
 #include <string.h>
-// #include "driver/timer.h" // contains the hardware timer register data structure
 #include "../../include/debug.h"
 #include "utils.h"
 #include "led.h"
@@ -217,47 +222,6 @@ bool iwmBus::iwm_decode_data_packet(uint8_t *data, int &n)
   n = smartport.decode_data_packet(data);
   return false;
 }
-/*
- {
-  memset(data, 0, n);
-  int nn = 17 + n % 7 + (n % 7 != 0) + n * 8 / 7;
-  Debug_printf("\r\nAttempting to receive %d length packet", nn);
-  portDISABLE_INTERRUPTS();
-  iwm_ack_deassert();
-  for (int i = 0; i < attempts; i++)
-  {
-    int error = smartport.iwm_read_packet_spi(nn);
-    if (!error)
-    {
-      iwm_ack_assert();
-      portENABLE_INTERRUPTS();
-#ifdef DEBUG
-      //if (smartport.packet_buffer[8] == 0x82) // packet type    // limit debug packet print if needed to data packets
-      //  print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN); // print raw received packet contents
-#endif
-      n = smartport.decode_data_packet(data);
-      return false;
-    }
-    else if (error == 2) // checksum nok
-    {
-      smartport.spi_end(); // when this ends, we might be in the middle of receiving the next resent packet
-      portENABLE_INTERRUPTS();
-      Debug_printf("\r\nChksum error, calc %02x, pkt %02x", smartport.calc_checksum, smartport.pkt_checksum);
-#ifdef DEBUG
-      //print_packet(smartport.packet_buffer,BLOCK_PACKET_LEN);  // print raw received packet contents
-#endif
-      portDISABLE_INTERRUPTS();
-      smartport.req_wait_for_falling_timeout(1000000); // wait up to 100ms to catch REQ going low and line up with end of the resent packet
-    } // if
-  }
-#ifdef DEBUG
-  Debug_printf("\r\nERROR: Read Packet tries exceeds %d attempts", attempts);
-  // print_packet(data);
-#endif
-  portENABLE_INTERRUPTS();
-  return true;
-}
-*/
 
 void iwmBus::setup(void)
 {
@@ -277,16 +241,6 @@ void iwmBus::setup(void)
   smartport.setup_gpio();
   Debug_printf("\r\nIWM GPIO configured");
   }
-
-//*****************************************************************************
-// Function: encode_data_packet
-// Parameters: source id
-// Returns: none
-//
-// Description: encode 512 byte data packet for read block command from host
-// requires the data to be in the packet buffer, and builds the smartport
-// packet IN PLACE in the packet buffer
-//*****************************************************************************
 
 //*****************************************************************************
 // Function: send_init_reply_packet
@@ -324,16 +278,17 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
     case 0x09:
     case 0x0a:
     case 0x0b:
-    data_len = 512;
-    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-    Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
-    print_packet((uint8_t *)data_buffer, data_len);
-    break;
-    default://just send the response and return like before
+      data_len = 512;
+      IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+      Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
+      print_packet((uint8_t *)data_buffer, data_len);
+      break;
+    default: //just send the response and return like before
       send_reply_packet(SP_ERR_BADCMD);
       Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
       return;
   }
+
   if(cmd.command == 0x04) //Decode command control code
   {
     send_reply_packet(SP_ERR_BADCTL); //we may be required to accept some control commands
@@ -351,7 +306,8 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
 void iwmDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
 {
   //Handle possible data packet to avoid crash extended and non-extended
-  switch(cmd.command) {
+  switch(cmd.command)
+  {
     case 0x42:
     case 0x44:
     case 0x49:
@@ -362,16 +318,17 @@ void iwmDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
     case 0x09:
     case 0x0a:
     case 0x0b:
-    data_len = 512;
-    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-    Debug_printf("\r\nUnit %02x Offline, Command with data packet %02x\r\n", id(), cmd.command);
-    print_packet((uint8_t *)data_buffer, data_len);
-    break;
+      data_len = 512;
+      IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+      Debug_printf("\r\nUnit %02x Offline, Command with data packet %02x\r\n", id(), cmd.command);
+      print_packet((uint8_t *)data_buffer, data_len);
+      break;
     default: //just send the response and return like before
       send_reply_packet(SP_ERR_OFFLINE);
       Debug_printf("\r\nUnit %02x Offline, Command %02x", id(), cmd.command);
       return;
   }
+
   if(cmd.command == 0x04) //Decode command control code
   {
     send_reply_packet(SP_ERR_OFFLINE);
@@ -397,21 +354,39 @@ void iwmDevice::iwm_return_noerror()
 
 void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 {
-  uint8_t status_code = cmd.params[2]; // cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
+  uint8_t status_code = cmd.params[2];
   Debug_printf("\r\nTarget Device: %02x", id());
-  // add a switch case statement for ALL THE STATUSESESESESS
+
   if (status_code == 0x03)
-  { // if statcode=3, then status with device info block
-    Debug_printf("\r\n******** Sending DIB! ********");
+  {
+    Debug_printf("\r\nSending **DIB** Status");
     send_status_dib_reply_packet();
-    // print_packet ((unsigned char*) packet_buffer,get_packet_length());
-    // fnSystem.delay(50);
   }
   else
-  { // else just return device status
-    Debug_printf("\r\nSending Status");
+  {
+    Debug_printf("\r\nSending Device Status");
     send_status_reply_packet();
   }
+}
+
+// Create a vector from the input for the various send_status_dib_reply_packet routines to call
+std::vector<uint8_t> iwmDevice::create_dib_reply_packet(const std::string& device_name, uint8_t status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version)
+{
+    std::vector<uint8_t> data;
+    data.push_back(status);
+    data.insert(data.end(), block_size.begin(), block_size.end());
+    data.push_back(static_cast<uint8_t>(device_name.size()));
+
+    data.insert(data.end(), device_name.begin(), device_name.end());
+    size_t padding_size = 16 - device_name.size();
+    for (int i = 0; i < padding_size; i++) {
+      data.push_back(' ');
+    }
+
+    data.insert(data.end(), type.begin(), type.end());
+    data.insert(data.end(), version.begin(), version.end());
+
+    return data;
 }
 
 //*****************************************************************************
