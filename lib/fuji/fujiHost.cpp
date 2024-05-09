@@ -457,6 +457,11 @@ bool fujiHost::mount()
 {
     Debug_printf("::mount {%d} \"%s\"\n", slotid, _hostname);
 
+    if (strlen(_hostname) == 0) {
+        Debug_printf("::mount hostname is empty, exiting\r\n");
+        return false;
+    }
+
     // Try mounting locally first
     if (0 == mount_local())
         return true;

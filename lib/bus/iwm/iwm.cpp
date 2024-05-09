@@ -60,12 +60,11 @@ void print_packet(uint8_t *data, int bytes)
 {
   // int print_len = bytes;
   // if (print_len > 16) print_len = 16;
-  // char *msg = util_hexdump(data, print_len);
-  // Debug_printf("\nsize: %d\n%s\n", bytes, msg);
+  // std::string msg = util_hexdump(data, print_len);
+  // Debug_printf("\nsize: %d\n%s\n", bytes, msg.c_str());
   // if (print_len != bytes) {
   //   Debug_printf("... truncated");
   // }
-  // free(msg);
 }
 
 void print_packet(uint8_t *data)

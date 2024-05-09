@@ -161,6 +161,10 @@ public:
      * @brief the device command
      */
     std::string payload = "";
+    /**
+     * @brief the raw bytes received for the command
+    */
+    std::vector<uint8_t> payload_raw;
 
     /**
      * @brief clear and initialize IEC command data
@@ -172,6 +176,7 @@ public:
         secondary = 0;
         channel = 0;
         payload = "";
+        payload_raw.clear();
     }
 };
 
