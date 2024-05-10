@@ -4,12 +4,13 @@
 <head>
 	<title>FujiNet - {% if tweaks.fujinet_pc %}<%FN_LABEL%>{% else %}<%FN_HOSTNAME%>{% endif %}</title>
 	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<script type="text/javascript" src="{{ paths.js_path }}/utils.js"></script>
 	<link rel="stylesheet" href="{{ paths.css_path }}/core.css">
 </head>
 
 <body>
-	<div class="header">
+	<div class="wrapper">
 		<div class="headerlogo">
 			<a href="https://fujinet.online/">
 				<svg width="100%" height="100%" viewBox="0 0 594 189" version="1.1" xmlns="http://www.w3.org/2000/svg"
@@ -76,15 +77,17 @@
 				</svg>
 			</a>
 		</div>
-		<div class="flexparent">
-			<div class="flexchild">
-				<h2 style="text-align: center;">Need help? Go to the <a href="https://github.com/FujiNetWIFI/fujinet-platformio/wiki">FujiNet Wiki!</a></h2>
+
+		<div class="module-container">
+			<div class="module">
+				<h3 style="text-align: center;">Need help? Go to the <a href="https://github.com/FujiNetWIFI/fujinet-platformio/wiki">FujiNet Wiki!</a></h3>
 			</div>
 		</div>
-		<div class="flexparent">
+
+		<div class="module-container">
 			{% if components.network %}
-			<div class="flexchild">
-				<header class="child-header">NET<span id="logowob"></span>WORK</header>
+			<div class="module">
+				<header class="module-header">NET<span class="logowob"></span>WORK</header>
 				<div class="detline">
 					<div class="deth detlinecol">FujiNet version</div>
 					<div class="det detlinecol"><%FN_VERSION%></div>
@@ -159,9 +162,9 @@
 			</div>
 			{% endif %}
 			{% if components.hardware %}
-			<div class="flexchild">
-				<header class="child-header">
-					HARD<span id="logowob"></span>WARE
+			<div class="module">
+				<header class="module-header">
+					HARD<span class="logowob"></span>WARE
 					<span style="float: right">
 						{% if tweaks.fujinet_pc %}
 						<input type="button" id="restartButton" value="Restart..." onclick="restartButton()" style="width: 7em">
@@ -274,8 +277,8 @@
 			</div>
 			{% endif %}
 			{% if components.hosts_list %}
-			<div class="flexchild">
-				<header class="child-header">HOSTS<span id="logowob"></span>LIST</header>
+			<div class="module">
+				<header class="module-header">HOSTS<span class="logowob"></span>LIST</header>
 				{% for hs in range(1, 9) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
 					<div class="deth detlinecol">Host {{ hs }}</div>
@@ -289,8 +292,8 @@
 			</div>
 			{% endif %}
 			{% if components.mount_list %}
-			<div class="flexchild">
-				<header class="child-header">MOUNT<span id="logowob"></span>LIST</header>
+			<div class="module">
+				<header class="module-header">MOUNT<span class="logowob"></span>LIST</header>
 				{% if not tweaks.fujinet_pc %}
 				<div class="detline alt">
 					<div class="deth detlinecol"><a href="/mount?mountall=1"> MOUNT ALL DISKS</a></div>
@@ -336,10 +339,10 @@
 			</div>
 			{% endif %}
 			{% if components.printer_settings %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
-					<div class="settings-header">Printer<span id="logowob"></span>Settings</div>
+					<div class="settings-header">Printer<span class="logowob"></span>Settings</div>
 					<div class="settings-left">
 						<div class="svgicon">
 						<a href="/print">
@@ -397,11 +400,12 @@
 									</g>
 								</g>
 							</svg>
-							<span class="important">Click to download your current print-out</span>
+							<span class="action-link">Click to download your current print-out</span>
 						</a>
 						</div>
 					</div>
 					<div class="settings-content settings-45-55">
+						<a href="/print" class="action-link">Download your current print-out</a>
 						<div class="set">
 							<div class="settings-label">
 								<label>Use as virtual printer</label>
@@ -460,11 +464,11 @@
 			</div>
 			{% endif %}
 			{% if components.modem_settings %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						Modem<span id="logowob"></span>Settings
+						Modem<span class="logowob"></span>Settings
 					</div>
 					<div class="settings-left">
 						<a href="/modem-sniffer.txt">
@@ -493,11 +497,12 @@
 										</g>
 									</g>
 								</svg>
-								<span class="important">Click to download modem sniffer log</span>
+								<span class="action-link">Click to download modem sniffer log</span>
 							</div>
 						</a>
 					</div>
 					<div class="settings-content settings-55-45">
+						<a href="/modem-sniffer.txt" class="action-link">Download modem sniffer log</a>
 						<div class="set">
 							<div class="settings-label">
 								<label>Use as virtual modem</label>
@@ -539,11 +544,11 @@
 			</div>
 			{% endif %}
 			{% if components.hsio_settings %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						HSIO<span id="logowob"></span>Settings
+						HSIO<span class="logowob"></span>Settings
 					</div>
 					<div class="settings-left">
 						<div class="svgicon">
@@ -640,11 +645,11 @@
 			</div>
 			{% endif %}
 			{% if components.timezone %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						Time<span id="logowob"></span>{% if tweaks.fujinet_pc %}Settings{% else %}Zone{% endif %}
+						Time<span class="logowob"></span>{% if tweaks.fujinet_pc %}Settings{% else %}Zone{% endif %}
 					</div>
 					<script>
 						{% if components.apetime %}
@@ -739,10 +744,10 @@
 			</div>
 			{% endif %}
 			{% if components.udp_stream %}
-			<div class="flexchild">
+			<div class="module">
 				<div class="settings">
 					<div class="settings-header">
-						UDP<span id="logowob"></span>Stream
+						UDP<span class="logowob"></span>Stream
 					</div>
 					<div class="settings-left">
 						<div class="svgicon">
@@ -800,10 +805,10 @@
 			</div>
 			{% endif %}
 			{% if components.program_recorder %}
-			<div class="flexchild">
+			<div class="module">
 				<div class="settings">
 					<div class="settings-header">
-						Program<span id="logowob"></span>Recorder
+						Program<span class="logowob"></span>Recorder
 					</div>
 					<script>
 						var current_cassette_enabled = "<%FN_CASSETTE_ENABLED%>";
@@ -908,15 +913,15 @@
 			</div>
 			{% endif %}
 			{% if components.cpm_settings %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						CP/M<span id="logowob"></span>Settings
+						CP/M<span class="logowob"></span>Settings
 					</div>
 					<div class="settings-left">
 							<div class="svgicon">
-								<svg width="53.317mm" height="46.17mm" version="1.1" viewBox="0 0 53.317 46.17" xmlns="http://www.w3.org/2000/svg">
+								<svg width="100%" height="100%" version="1.1" viewBox="0 0 53.317 46.17" xmlns="http://www.w3.org/2000/svg">
 								 <g transform="translate(-7.5798 -24.586)">
 								  <rect x="9.7771" y="26.784" width="48.922" height="41.775" ry="8.4013" fill="#454545" stroke="#000" stroke-width="3.9947"/>
 								  <g fill="#0f0">
@@ -981,11 +986,11 @@
 			</div>
 			{% endif %}
 			{% if components.pclink %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						PC<span id="logowob"></span>Link
+						PC<span class="logowob"></span>Link
 					</div>
 					<script>
 						var current_pclink = "<%FN_PCLINK_ENABLED%>";
@@ -1023,11 +1028,11 @@
 			</div>
 			{% endif %}
 			{% if components.disk_swap %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						Disk<span id="logowob"></span>Swap
+						Disk<span class="logowob"></span>Swap
 					</div>
 					<script>
 						var current_rotation_sounds = "<%FN_ROTATION_SOUNDS%>";
@@ -1123,10 +1128,10 @@
 			</div>
 			{% endif %}
 			{% if components.serial_port %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
-					<div class="settings-header">Serial<span id="logowob"></span>Port</div>
+					<div class="settings-header">Serial<span class="logowob"></span>Port</div>
 					<div class="settings-left">
 						<div class="svgicon">
 							<svg width="100%" height="100%" viewBox="0 0 140 140" version="1.1" xmlns="http://www.w3.org/2000/svg"
@@ -1209,10 +1214,10 @@
 			</div>
 			{% endif %}
 			{% if components.emulator_settings %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
-					<div class="settings-header">Emulator<span id="logowob"></span>Settings</div>
+					<div class="settings-header">Emulator<span class="logowob"></span>Settings</div>
 					<div class="settings-left">
 						<div class="svgicon">
 						</div>
@@ -1261,11 +1266,11 @@
 			</div>
 			{% endif %}
 			{% if components.boot_settings %}
-			<div class="flexchild">
+			<div class="module">
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
-						Boot<span id="logowob"></span>Settings
+						Boot<span class="logowob"></span>Settings
 					</div>
 					<script>
 						var current_boot_mode = "<%FN_BOOT_MODE%>";
