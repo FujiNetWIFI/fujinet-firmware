@@ -271,7 +271,6 @@ void KeyManager::_keystate_task(void *param)
             {
                 fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
             }
-            Debug_println("ACTION: Reboot");
             //fnSystem.reboot();
             // IEC.releaseLines();
 #ifdef BUILD_IEC
@@ -312,6 +311,7 @@ void KeyManager::_keystate_task(void *param)
 
         case eKeyStatus::DOUBLE_TAP:
             Debug_println("BUTTON_A: DOUBLE-TAP");
+            fnSystem.debug_print_tasks();
             break;
 
         default:
