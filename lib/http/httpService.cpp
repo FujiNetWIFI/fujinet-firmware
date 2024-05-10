@@ -913,7 +913,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
     chunk +=
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
-        "               <header>SELECT DISK TO MOUNT<span id=\"logowob\"></span>" +
+        "               <header>SELECT DISK TO MOUNT<span class=\"logowob\"></span>" +
         string(theFuji.get_hosts(hs)->get_hostname()) +
         qp.query_parsed["path"] +
         "</header>\n"
@@ -1090,7 +1090,7 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
     chunk +=
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
-        "               <header>SELECT DRIVE SLOT<span id=\"logowob\"></span>" +
+        "               <header>SELECT DRIVE SLOT<span class=\"logowob\"></span>" +
         string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] +
         "</header>\n"
         "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
