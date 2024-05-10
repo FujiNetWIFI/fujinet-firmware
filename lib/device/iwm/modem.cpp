@@ -96,11 +96,6 @@ iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
     modemSniffer = new ModemSniffer(activeFS, snifferEnable);
     set_term_type("dumb");
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
-#ifdef ESP_PLATFORM // OS
-    mrxq = xQueueCreate(16384, sizeof(char));
-    mtxq = xQueueCreate(16384, sizeof(char));
-    xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
-#endif
 }
 
 iwmModem::~iwmModem()
@@ -1377,6 +1372,26 @@ void iwmModem::send_status_dib_reply_packet()
 void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nModem: Open\n");
+    if (modemTask)
+    {
+        vTaskDelete(modemTask);
+    }
+
+    if (mrxq)
+    {
+        vQueueDelete(mrxq);
+    }
+
+    if (mtxq)
+    {
+        vQueueDelete(mtxq);
+    }
+
+#ifdef ESP_PLATFORM // OS
+    mrxq = xQueueCreate(16384, sizeof(char));
+    mtxq = xQueueCreate(16384, sizeof(char));
+    xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
+#endif
     send_reply_packet(SP_ERR_NOERROR);
 }
 
@@ -1390,6 +1405,21 @@ void iwmModem::iwm_close(iwm_decoded_cmd_t cmd)
         tcpClient.stop();
     }
     
+    if (modemTask)
+    {
+        vTaskDelete(modemTask);
+    }
+
+    if (mrxq)
+    {
+        vQueueDelete(mrxq);
+    }
+
+    if (mtxq)
+    {
+        vQueueDelete(mtxq);
+    }    
+
     send_reply_packet(SP_ERR_NOERROR);
 }
 
