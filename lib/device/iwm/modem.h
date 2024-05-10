@@ -201,6 +201,8 @@ private:
 
     void iwm_modem_status();
 
+    void create_modem_task();
+
     void send_status_reply_packet() override;
     void send_status_dib_reply_packet() override;
 
