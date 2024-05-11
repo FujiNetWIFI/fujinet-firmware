@@ -15,6 +15,8 @@
 #include "utils.h"
 
 #include <cstring>
+#include <memory>
+#include <iostream>
 
 #define ENTRY_BUFFER_SIZE 256
 
@@ -195,7 +197,7 @@ bool NetworkProtocolFS::read(unsigned short len)
 
 bool NetworkProtocolFS::read_file(unsigned short len)
 {
-    buf = (uint8_t *)malloc(len);
+    std::shared_ptr<std::vector<uint8_t>> buf = std::make_shared<std::vector<uint8_t>>(len);
 
     Debug_printf("NetworkProtocolFS::read_file(%u)\r\n", len);
 
@@ -208,21 +210,20 @@ bool NetworkProtocolFS::read_file(unsigned short len)
     if (receiveBuffer->length() == 0)
     {
         // Do block read.
-        if (read_file_handle(buf, len) == true)
+        if (read_file_handle(buf->data(), len) == true)
         {
-            free(buf);
+            Debug_printf("Nothing new from adapter, bailing.\n");
             return true;
         }
 
         // Append to receive buffer.
-        *receiveBuffer += std::string((char *)buf, len);
+        receiveBuffer->insert(receiveBuffer->end(), buf->begin(), buf->end());
         fileSize -= len;
     }
     else
         error = NETWORK_ERROR_SUCCESS;
 
-    // Done with the temporary buffer.
-    free(buf);
+    // No need to free, as shared_ptr will handle it.
 
     // Pass back to base class for translation.
     return NetworkProtocol::read(len);
