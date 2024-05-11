@@ -65,11 +65,12 @@ typedef struct
     char sBssid[18];
 } AdapterConfigExtended;
 
-enum appkey_mode : uint8_t
+enum appkey_mode : int8_t
 {
+    APPKEYMODE_INVALID = -1,
     APPKEYMODE_READ = 0,
     APPKEYMODE_WRITE,
-    APPKEYMODE_INVALID
+    APPKEYMODE_READ_256
 };
 
 struct appkey
@@ -207,6 +208,13 @@ protected:
 
     void send_extended_status_reply_packet() override{};
     void send_extended_status_dib_reply_packet() override{};
+
+    // map appkey open modes to key sizes. The open will set the appkey_size to correct value for subsequent reads to ensure the returned block is the correct size
+    int appkey_size = 64;
+    std::map<int, int> mode_to_keysize = {
+        {0, 64},
+        {2, 256}
+    };
 
 public:
     bool boot_config = true;

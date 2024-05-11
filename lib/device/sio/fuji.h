@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <map>
 
 #include "mbedtls/sha1.h"
 #include "mbedtls/sha256.h"
@@ -62,11 +63,12 @@ typedef struct
     char sBssid[18];
 } AdapterConfigExtended;
 
-enum appkey_mode : uint8_t
+enum appkey_mode : int8_t
 {
+    APPKEYMODE_INVALID = -1,
     APPKEYMODE_READ = 0,
     APPKEYMODE_WRITE,
-    APPKEYMODE_INVALID
+    APPKEYMODE_READ_256
 };
 
 struct appkey
@@ -176,6 +178,12 @@ protected:
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
 
     void shutdown() override;
+
+    int appkey_size = 64;
+    std::map<int, int> mode_to_keysize = {
+        {0, 64},
+        {2, 256}
+    };
 
 #ifndef ESP_PLATFORM
     friend class fnHttpServiceBrowser; // allow browser to call above functions

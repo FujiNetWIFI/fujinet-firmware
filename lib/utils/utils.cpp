@@ -2,10 +2,12 @@
 #include "utils.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
+#include <map>
 #include <sstream>
 #include <stack>
-#include <cmath>
+
 #include "compat_string.h"
 
 #ifndef ESP_PLATFORM
@@ -1009,4 +1011,9 @@ char* util_strndup(const char* s, size_t n) {
     memcpy(new_str, s, len);
     new_str[len] = '\0';
     return new_str;
+}
+
+int get_value_or_default(const std::map<int, int>& map, int key, int default_value) {
+    auto it = map.find(key);
+    return it != map.end() ? it->second : default_value;
 }

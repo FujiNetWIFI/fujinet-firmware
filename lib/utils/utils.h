@@ -1,6 +1,7 @@
 #ifndef _FN_UTILS_H
 #define _FN_UTILS_H
 
+#include <map>
 #include <string>
 #include <vector>
 #include <cstdint>
@@ -114,5 +115,7 @@ void util_debug_printf(const char *fmt, ...);
 #endif // !ESP_PLATFORM
 
 char* util_strndup(const char* s, size_t n);
+
+int get_value_or_default(const std::map<int, int>& map, int key, int default_value);
 
 #endif // _FN_UTILS_H

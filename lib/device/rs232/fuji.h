@@ -36,11 +36,12 @@ typedef struct
     char fn_verrs232n[15];
 } AdapterConfig;
 
-enum appkey_mode : uint8_t
+enum appkey_mode : int8_t
 {
+    APPKEYMODE_INVALID = -1,
     APPKEYMODE_READ = 0,
     APPKEYMODE_WRITE,
-    APPKEYMODE_INVALID
+    APPKEYMODE_READ_256
 };
 
 struct appkey
