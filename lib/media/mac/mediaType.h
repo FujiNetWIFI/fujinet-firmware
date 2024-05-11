@@ -16,8 +16,10 @@
 enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
-    MEDIATYPE_MOOF,
-    MEDIATYPE_DCD,
+    MEDIATYPE_MOOF,             // flux-level floppy disk image - https://applesaucefdc.com/moof-reference/ 
+    MEDIATYPE_DCD,              // directly connected disk, uses one of the following
+    MEDIATYPE_DSK,              // flat binary .dsk file
+    MEDIATYPE_DC42,             // diskcopy 4.2 .image file - https://www.discferret.com/wiki/Apple_DiskCopy_4.2
     MEDIATYPE_COUNT
 };
 

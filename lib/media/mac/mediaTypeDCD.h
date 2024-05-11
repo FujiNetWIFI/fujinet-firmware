@@ -26,6 +26,8 @@ public:
     size_t size() {return _media_num_sectors;}
     size_t sectorsize() {return _media_sector_size;}
     void reset_seek_opto() {last_block_num = 0xFFFFFFFF;};
+
+    MediaTypeDCD(int x = 0) : offset(x) {}
 };
 
 

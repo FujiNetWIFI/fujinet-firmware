@@ -51,13 +51,20 @@ mediatype_t macFloppy::mount(FILE *f, const char *filename, uint32_t disksize, m
       break;
     }
     break;
-  case MEDIATYPE_DCD:
+  case MEDIATYPE_DSK:
     Debug_printf("\nMounting Media Type DSK for DCD");
     device_active = true;
     _disk = new MediaTypeDCD();
     mt = ((MediaTypeDCD *)_disk)->mount(f);
     MAC.add_dcd_mount(id());
-  break;
+    break;
+  case MEDIATYPE_DC42:
+    Debug_printf("\nMounting Media Type DC42 for DCD");
+    device_active = true;
+    _disk = new MediaTypeDCD(0x54); // offset of image data in Disk Copy 4.2 file
+    mt = ((MediaTypeDCD *)_disk)->mount(f);
+    MAC.add_dcd_mount(id());
+    break;
   // case MEDIATYPE_DSK:
   //   Debug_printf("\nMounting Media Type DSK");
   //   device_active = true;

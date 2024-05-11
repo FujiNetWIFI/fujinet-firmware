@@ -100,7 +100,7 @@ mediatype_t MediaTypeDCD::mount(FILE *f, uint32_t disksize)
     //     }
     //     offset = 64;
     // }
-    offset = 0;
+    // offset = 0; // set value at constructor
     _media_fileh = f;
     disksize -= offset;
     _media_sector_size = 512;
