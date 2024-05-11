@@ -97,8 +97,8 @@ iwmModem::iwmModem(FileSystem *_fs, bool snifferEnable)
     set_term_type("dumb");
     telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
 #ifdef ESP_PLATFORM // OS
-    mrxq = xQueueCreate(16384, sizeof(char));
-    mtxq = xQueueCreate(16384, sizeof(char));
+    mrxq = xQueueCreate(32770, sizeof(char));
+    mtxq = xQueueCreate(32770, sizeof(char));
     xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
 #endif
 }
