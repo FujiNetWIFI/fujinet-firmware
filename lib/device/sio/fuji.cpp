@@ -8,10 +8,12 @@
 
 #include <cstdint>
 #include <cstring>
+#include <errno.h>
 #ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
 #include <libgen.h>
 #endif
-#include <errno.h>
+#include <map>
+#include <vector>
 #include "compat_string.h"
 
 #include "../../../include/debug.h"
@@ -782,6 +784,8 @@ void sioFuji::sio_open_app_key()
         return;
     }
 
+    appkey_size = get_value_or_default(mode_to_keysize,  _current_appkey.mode, 64);
+
     Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
                  _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
                  _generate_appkey_filename(&_current_appkey));
@@ -807,15 +811,14 @@ void sioFuji::sio_close_app_key()
 void sioFuji::sio_write_app_key()
 {
     uint16_t keylen = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+    // std::copy(&data_buffer[0], &data_buffer[0] + keylen, data.begin());
 
     Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
 
-    // Data for  FUJICMD_WRITE_APPKEY
-    uint8_t value[MAX_APPKEY_LEN];
+    std::vector<uint8_t> value(appkey_size, 0);
 
-    uint8_t ck = bus_to_peripheral((uint8_t *)value, sizeof(value));
-
-    if (sio_checksum((uint8_t *)value, sizeof(value)) != ck)
+    uint8_t ck = bus_to_peripheral((uint8_t *)value.data(), value.size());
+    if (sio_checksum(value.data(), value.size()) != ck)
     {
         // apc: don't send 'E' on checksum error, 'N' was sent already
         // sio_error();
@@ -856,7 +859,7 @@ void sioFuji::sio_write_app_key()
         sio_error();
         return;
     }
-    size_t count = fwrite(value, 1, keylen, fOut);
+    size_t count = fwrite(value.data(), 1, keylen, fOut);
     int e = errno;
 
     fclose(fOut);
@@ -870,60 +873,62 @@ void sioFuji::sio_write_app_key()
     sio_complete();
 }
 
+size_t read_file_into_vector(FILE* fIn, std::vector<uint8_t>& response_data, size_t size) {
+    response_data.resize(size + 2);
+    size_t bytes_read = fread(response_data.data() + 2, 1, size, fIn);
+
+    // Insert the size at the beginning of the vector
+    response_data[0] = static_cast<uint8_t>(bytes_read & 0xFF); // Low byte of the size
+    response_data[1] = static_cast<uint8_t>((bytes_read >> 8) & 0xFF); // High byte of the size
+    return bytes_read;
+}
+
 /*
  Read an "app key" from SD (ONLY!) storage
 */
 void sioFuji::sio_read_app_key()
 {
-
     Debug_println("Fuji cmd: READ APPKEY");
-
-    struct
-    {
-        uint16_t size;
-        uint8_t value[MAX_APPKEY_LEN];
-    } __attribute__((packed)) response;
-    memset(&response, 0, sizeof(response));
+    std::vector<uint8_t> response_data(appkey_size + 2);
 
     // Make sure we have an SD card mounted
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - can't read app key");
-        // sio_error();
-        // apc: we have to send error + dummy data after cmd was acked
-        bus_to_computer((uint8_t *)&response, sizeof(response), true);
+        bus_to_computer(response_data.data(), response_data.size(), true);
         return;
     }
 
-    // Make sure we have valid app key information
-    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
+    // Make sure we have valid app key information, and the mode is not WRITE
+    if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_WRITE)
     {
         Debug_println("Invalid app key metadata - aborting");
-        bus_to_computer((uint8_t *)&response, sizeof(response), true);
+        bus_to_computer(response_data.data(), response_data.size(), true);
         return;
     }
 
     char *filename = _generate_appkey_filename(&_current_appkey);
-
     Debug_printf("Reading appkey from \"%s\"\n", filename);
 
     FILE *fIn = fnSDFAT.file_open(filename, FILE_READ);
     if (fIn == nullptr)
     {
         Debug_printf("Failed to open input file: errno=%d\n", errno);
-        bus_to_computer((uint8_t *)&response, sizeof(response), true);
+        bus_to_computer(response_data.data(), response_data.size(), true);
         return;
     }
 
-    size_t count = fread(response.value, 1, sizeof(response.value), fIn);
-
+    size_t count = read_file_into_vector(fIn, response_data, appkey_size);
+    Debug_printf("Read %u bytes from input file\n", (unsigned)count);
     fclose(fIn);
 
-    Debug_printf("Read %u bytes from input file\n", (unsigned)count);
+#ifdef DEBUG
+	char *msg = util_hexdump(response_data.data(), appkey_size);
+	Debug_printf("%s\n", msg);
+	free(msg);
+#endif
 
-    response.size = count;
-
-    bus_to_computer((uint8_t *)&response, sizeof(response), false);
+    bus_to_computer(response_data.data(), response_data.size(), false);
 }
 
 // DEBUG TAPE

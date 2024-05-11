@@ -519,7 +519,6 @@ char *_generate_appkey_filename(appkey *info)
 	return filenamebuf;
 }
 
-
 /*
  Opens an "app key" for reading/writing - stores appkey name for subsequent read/write calls
 */
@@ -537,25 +536,28 @@ void iwmFuji::iwm_ctrl_open_app_key()
 	Debug_printf("\r\nFuji Cmd: OPEN APPKEY %s in mode %i\n", _appkeyfilename, mode);
 
 	// If reading, we will update the control stat length for the subsequent read_app_key status call
-	if (mode == 0)
+	if (mode == 1) return;	// write mode
+
+	// set the appkey_size according to the mode, if mode is unknown, default to 64
+	appkey_size = get_value_or_default(mode_to_keysize, mode, 64);
+
+	fp = fnSDFAT.file_open(_appkeyfilename, "r");
+	if (fp == nullptr)
 	{
-		// Clear out stat buffer
-		memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
+		Debug_printf("iwm_ctrl_open_app_key ERROR: Could not read from SD Card.\r\n");
 
-		fp = fnSDFAT.file_open(_appkeyfilename, "r");
-		if (fp == nullptr)
-		{
-			Debug_printf("Could not read from SD Card.");
-
-			// Set stat buffer to 0 to signify the app key was not found
-			ctrl_stat_len=0;
-			return;
-		}
-		
-		// Read in the app key file data, to be sent in read_app_key call
-		ctrl_stat_len = fread(ctrl_stat_buffer, sizeof(char), 64, fp);
-		fclose(fp);
+		// Set stat buffer to 0 to signify the app key was not found
+		ctrl_stat_len=0;
+		return;
 	}
+
+	// don't need to do this if we're returning exact number of bytes
+	// // Clear out stat buffer before reading into it
+	// memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
+	
+	// Read in the app key file data, to be sent in read_app_key call
+	ctrl_stat_len = fread(ctrl_stat_buffer, sizeof(char), appkey_size, fp);
+	fclose(fp);
 
 }
 
@@ -564,25 +566,24 @@ void iwmFuji::iwm_ctrl_open_app_key()
 */
 void iwmFuji::iwm_ctrl_write_app_key()
 {
-	uint8_t data[65];
 	FILE *fp;
-	memset(data,0,65);
-	memcpy(data, &data_buffer[0], 64); 
- 
-	Debug_printf("\r\nFuji Cmd: WRITE APPKEY:%s\n", &data);
+    std::vector<uint8_t> data(appkey_size, 0);
+    std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
+
+	Debug_printf("\r\nFuji Cmd: WRITE APPKEY\n");
+
 
 	// Make sure we have a "/FujiNet" directory, since that's where we're putting these files
 	fnSDFAT.create_path("/FujiNet");
 
 	fp = fnSDFAT.file_open(_appkeyfilename, "w");
-
 	if (fp == nullptr)
 	{
-		Debug_printf("Could not write to SD Card.\n");
+		Debug_printf("iwm_ctrl_write_app_key ERROR: Could not write to SD Card.\r\n");
 		return;
 	}
 
-	fwrite(data, sizeof(uint8_t), 64, fp);
+	fwrite(data.data(), sizeof(uint8_t), data_len, fp);
 	fclose(fp);
 }
 
