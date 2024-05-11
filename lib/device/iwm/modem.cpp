@@ -1369,9 +1369,8 @@ void iwmModem::send_status_dib_reply_packet()
 	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
-void iwmModem::create_modem_task()
+void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
 {
-#ifdef ESP_PLATFORM // OS
     Debug_printf("\nModem: Open\n");
     if (modemTask)
     {
@@ -1388,15 +1387,11 @@ void iwmModem::create_modem_task()
         vQueueDelete(mtxq);
     }
 
+#ifdef ESP_PLATFORM // OS
     mrxq = xQueueCreate(16384, sizeof(char));
     mtxq = xQueueCreate(16384, sizeof(char));
     xTaskCreatePinnedToCore(_modem_task, "modemTask", 4096, this, MODEM_TASK_PRIORITY, &modemTask, MODEM_TASK_CPU);
-#endif /* ESP_PLATFORM */
-}
-
-void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
-{
-    create_modem_task();
+#endif
     send_reply_packet(SP_ERR_NOERROR);
 }
 
@@ -1523,11 +1518,7 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
 void iwmModem::iwm_modem_status()
 {
 #ifdef ESP_PLATFORM // OS
-    if (!modemTask)
-    {
-        create_modem_task();
-    }
-unsigned short mw = uxQueueMessagesWaiting(mrxq);
+    unsigned short mw = uxQueueMessagesWaiting(mrxq);
 #else
     unsigned short mw;
 #endif
