@@ -92,26 +92,29 @@ bool NetworkProtocolFS::open_dir()
         return true;
     }
 
-    char *entryBuffer = (char *)malloc(ENTRY_BUFFER_SIZE);
+    // Using a shared_ptr for entryBuffer
+    auto entryBuffer = std::make_shared<std::vector<uint8_t>>(ENTRY_BUFFER_SIZE);
 
-    while (read_dir_entry(entryBuffer, ENTRY_BUFFER_SIZE-1) == false)
+    while (read_dir_entry((char *)entryBuffer->data(), ENTRY_BUFFER_SIZE - 1) == false)
     {
         if (aux2_open & 0x80)
         {
             // Long entry
             if (aux2_open == 0x81) // Apple2 80 col format.
-                dirBuffer += util_long_entry_apple2_80col(std::string(entryBuffer), fileSize, is_directory) + lineEnding;
+                dirBuffer += util_long_entry_apple2_80col(std::string(entryBuffer->begin(), entryBuffer->end()), fileSize, is_directory) + lineEnding;
             else
-            dirBuffer += util_long_entry(std::string(entryBuffer), fileSize, is_directory) + lineEnding;
+                dirBuffer += util_long_entry(std::string(entryBuffer->begin(), entryBuffer->end()), fileSize, is_directory) + lineEnding;
         }
         else
         {
             // 8.3 entry
-            dirBuffer += util_entry(util_crunch(std::string(entryBuffer)), fileSize, is_directory, is_locked) + lineEnding;
+            dirBuffer += util_entry(util_crunch(std::string(entryBuffer->begin(), entryBuffer->end())), fileSize, is_directory, is_locked) + lineEnding;
         }
         fserror_to_error();
 
-        memset(entryBuffer,0,ENTRY_BUFFER_SIZE);
+        // Clearing the buffer for reuse
+        entryBuffer->clear();
+        entryBuffer->shrink_to_fit();
     }
 
 #ifdef BUILD_ATARI
@@ -122,7 +125,7 @@ bool NetworkProtocolFS::open_dir()
     if (error == NETWORK_ERROR_END_OF_FILE)
         error = NETWORK_ERROR_SUCCESS;
 
-    free(entryBuffer);
+    // No need to free entryBuffer since it's managed by shared_ptr
 
     return error != NETWORK_ERROR_SUCCESS;
 }
