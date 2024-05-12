@@ -7,7 +7,7 @@
 # include "sio/disk.h"
 # include "sio/pclink.h"
 # include "sio/udpstream.h"
-# include "../lib/modem/modem.h"
+# include "sio/modem.h"
 # include "sio/network.h"
 # include "sio/printer.h"
 # include "sio/printerlist.h"
