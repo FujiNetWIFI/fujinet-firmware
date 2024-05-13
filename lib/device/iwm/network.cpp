@@ -601,12 +601,12 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
         Debug_printf("read_channel_json(1) - data_len: %02x, json_bytes_remaining: %02x\n", data_len, json.json_bytes_remaining);
         int print_len = data_len;
         if (print_len > 16) print_len = 16;
-        char *msg = util_hexdump(data_buffer, print_len);
-        Debug_printf("%s\n", msg);
-        if (print_len != data_len) {
-            Debug_printf("... truncated");
-        }
-        free(msg);
+        //char *msg = util_hexdump(data_buffer, print_len);
+        //Debug_printf("%s\n", msg);
+        //if (print_len != data_len) {
+        //    Debug_printf("... truncated");
+        //}
+        //free(msg);
     }
     else
     {
@@ -618,11 +618,11 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
         Debug_printf("read_channel_json(2) - data_len: %02x, json_bytes_remaining: %02x\n", num_bytes, json.json_bytes_remaining);
         int print_len = num_bytes;
         if (print_len > 16) print_len = 16;
-        char *msg = util_hexdump(data_buffer, print_len);
-        Debug_printf("%s\n", msg);
-        if (print_len != num_bytes) {
-            Debug_printf("... truncated");
-        }
+        //char *msg = util_hexdump(data_buffer, print_len);
+        //Debug_printf("%s\n", msg);
+        //if (print_len != num_bytes) {
+        //    Debug_printf("... truncated");
+        //}
     }
 
     return false;
@@ -938,6 +938,10 @@ void iwmNetwork::create_devicespec(string d)
 void iwmNetwork::create_url_parser()
 {
     std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
+
+    if (urlParser)
+        delete urlParser;
+
     urlParser = PeoplesUrlParser::parseURL(url);
 }
 

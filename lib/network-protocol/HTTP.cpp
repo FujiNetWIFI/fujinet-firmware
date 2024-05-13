@@ -53,6 +53,9 @@ NetworkProtocolHTTP::~NetworkProtocolHTTP()
             free(collect_headers[i]);
             collect_headers[i] = nullptr;
         }
+
+    if (client)
+        delete(client);
 }
 
 uint8_t NetworkProtocolHTTP::special_inquiry(uint8_t cmd)
@@ -225,6 +228,9 @@ bool NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
         url->scheme = "https";
         url->rebuildUrl();
     }
+
+    if (client)
+        delete client;
 
     client = new HTTP_CLIENT_CLASS();
 
