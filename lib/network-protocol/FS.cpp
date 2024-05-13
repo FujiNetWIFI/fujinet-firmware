@@ -17,6 +17,7 @@
 #include <cstring>
 #include <memory>
 #include <iostream>
+#include <vector>
 
 #ifdef ESP_PLATFORM
 #include "esp_heap_trace.h"

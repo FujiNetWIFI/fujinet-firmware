@@ -8,6 +8,7 @@
 
 #include "status_error_codes.h"
 
+#include <vector>
 
 #define RXBUF_SIZE 65535
 

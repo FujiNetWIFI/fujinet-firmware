@@ -16,6 +16,7 @@
 #include "libtelnet.h"
 #include "status_error_codes.h"
 
+#include <vector>
 
 
 static const telnet_telopt_t telopts[] = {
