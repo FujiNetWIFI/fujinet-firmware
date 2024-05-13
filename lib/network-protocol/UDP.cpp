@@ -94,38 +94,29 @@ bool NetworkProtocolUDP::close()
 
 bool NetworkProtocolUDP::read(unsigned short len)
 {
-    uint8_t *newData = (uint8_t *)malloc(len);
-    std::string newString;
+    std::vector<uint8_t> newData = std::vector<uint8_t>(len);
 
     Debug_printf("NetworkProtocolUDP::read(%u)\r\n", len);
-
-    if (newData == nullptr)
-    {
-        Debug_printf("Could not allocate %u bytes! Aborting!\r\n", len);
-        return true; // error.
-    }
 
     if (receiveBuffer->length() == 0)
     {
         if (udp.available() == 0)
         {
             errno_to_error();
-            free(newData);
             return true;
         }
 
         // Do the read.
-        udp.read(newData, len);
+        udp.read(newData.data(), len);
 
         // Add new data to buffer.
-        newString = std::string((char *)newData, len);
-        *receiveBuffer += newString;
+        receiveBuffer->insert(receiveBuffer->end(),newData.begin(),newData.end());
     }
 
     // Return success
     Debug_printf("errno = %u\r\n", errno);
     error = 1;
-    free(newData);
+    
     return NetworkProtocol::read(len);
 }
 
