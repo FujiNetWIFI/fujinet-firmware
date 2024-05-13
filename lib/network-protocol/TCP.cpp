@@ -114,16 +114,9 @@ bool NetworkProtocolTCP::close()
 bool NetworkProtocolTCP::read(unsigned short len)
 {
     unsigned short actual_len = 0;
-    uint8_t *newData = (uint8_t *)malloc(len);
-    std::string newString;
+    std::vector<uint8_t> newData = std::vector<uint8_t>(len);
 
     Debug_printf("NetworkProtocolTCP::read(%u)\r\n", len);
-
-    if (newData == nullptr)
-    {
-        Debug_printf("Could not allocate %u bytes! Aborting!\r\n",len);
-        return true; // error.
-    }
 
     if (receiveBuffer->length() == 0)
     {
@@ -131,35 +124,28 @@ bool NetworkProtocolTCP::read(unsigned short len)
         if (!client.connected())
         {
             error = NETWORK_ERROR_NOT_CONNECTED;
-            free(newData);
             return true; // error
         }
 
         // Do the read from client socket.
-        actual_len = client.read(newData, len);
+        actual_len = client.read(newData.data(), len);
 
         // bail if the connection is reset.
         if (errno == ECONNRESET)
         {
             error = NETWORK_ERROR_CONNECTION_RESET;
-            free(newData);
             return true;
         }
         else if (actual_len != len) // Read was short and timed out.
         {
             Debug_printf("Short receive. We got %u bytes, returning %u bytes and ERROR\r\n", actual_len, len);
             error = NETWORK_ERROR_SOCKET_TIMEOUT;
-            free(newData);
             return true;
         }
 
         // Add new data to buffer.
-        newString = std::string((char *)newData, len);
-        *receiveBuffer += newString;
-    }
-    // Return success
-    free(newData);
-    
+        receiveBuffer->insert(receiveBuffer->end(), newData.begin(), newData.end());
+    }    
     error = 1;
     return NetworkProtocol::read(len);
 }
