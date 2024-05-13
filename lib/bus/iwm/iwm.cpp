@@ -58,14 +58,14 @@ https://www.bigmessowires.com/2015/04/09/more-fun-with-apple-iigs-disks/
 //*****************************************************************************
 void print_packet(uint8_t *data, int bytes)
 {
-  int print_len = bytes;
-  if (print_len > 16) print_len = 16;
-  char *msg = util_hexdump(data, print_len);
-  Debug_printf("\nsize: %d\n%s\n", bytes, msg);
-  if (print_len != bytes) {
-    Debug_printf("... truncated");
-  }
-  free(msg);
+  // int print_len = bytes;
+  // if (print_len > 16) print_len = 16;
+  // char *msg = util_hexdump(data, print_len);
+  // Debug_printf("\nsize: %d\n%s\n", bytes, msg);
+  // if (print_len != bytes) {
+  //   Debug_printf("... truncated");
+  // }
+  // free(msg);
 }
 
 void print_packet(uint8_t *data)
