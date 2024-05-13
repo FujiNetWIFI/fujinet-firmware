@@ -239,7 +239,6 @@ set(SOURCES src/main.cpp
     lib/device/network.h
     lib/device/udpstream.h
     lib/device/siocpm.h
-    lib/modem/modem.h lib/modem/modem.cpp
     lib/modem-sniffer/modem-sniffer.h lib/modem-sniffer/modem-sniffer.cpp
     lib/media/media.h
     lib/encoding/base64.h lib/encoding/base64.cpp
@@ -273,6 +272,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/apetime.h lib/device/sio/apetime.cpp
     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
+    lib/device/sio/modem.h lib/device/sio/modem.cpp
 
     )
 endif()

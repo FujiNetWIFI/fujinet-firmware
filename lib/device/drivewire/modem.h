@@ -142,7 +142,7 @@ private:
         AT_O,
         AT_ENUMCOUNT};
 
-    uint modemBaud = 115200; // Holds modem baud rate, Default 300
+    unsigned int modemBaud = 115200; // Holds modem baud rate, Default 300
     bool DTR = false;
     bool RTS = false;
     bool XMT = false;

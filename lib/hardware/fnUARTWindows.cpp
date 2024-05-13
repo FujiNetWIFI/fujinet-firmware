@@ -1,6 +1,6 @@
-#ifndef ESP_PLATFORM || defined(BUILD_COCO)
+#ifndef ESP_PLATFORM
 
-#if defined(_WIN32) // TODO #if defined
+#if defined(_WIN32)
 
 // Windows UART code
 

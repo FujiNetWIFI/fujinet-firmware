@@ -1223,6 +1223,7 @@ void drivewireNetwork::json_query()
 
     size_t bytes_read = fnUartBUS.readBytes(tmpq,256);
 
+    // why does it need to be 256 bytes?
     if (bytes_read != 256)
     {
         Debug_printf("Short read of %lu bytes. Exiting\n",bytes_read);
@@ -1234,11 +1235,15 @@ void drivewireNetwork::json_query()
     // strip away line endings from input spec.
     for (int i = 0; i < in_string.size(); i++)
     {
-        if (in_string[i] == 0x0A || in_string[i] == 0x0D || in_string[i] == 0x9b)
-            in_string[i] = 0x00;
+        unsigned char currentChar = static_cast<unsigned char>(in_string[i]);
+        if (currentChar == 0x0A || currentChar == 0x0D || currentChar == 0x9b)
+        {
+            in_string[i] = '\0';
+        }
     }
 
-    json->setReadQuery(in_string, 256);
+    // Query param is only used in ATARI at the moment, and 256 is too large for the type.
+    json->setReadQuery(in_string, 0);
     json_bytes_remaining = json->json_bytes_remaining;
 
     std::vector<uint8_t> tmp(json_bytes_remaining);
