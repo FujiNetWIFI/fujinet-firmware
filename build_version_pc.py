@@ -23,7 +23,7 @@ class Version:
         self.suffix = ""
         if version not in self.head_tags:
             if self.git_sha_short:
-                self.suffix = "+git_" + self.git_sha_short
+                self.suffix = "+git-" + self.git_sha_short
             else:
                 self.suffix = "-nogit"
 
