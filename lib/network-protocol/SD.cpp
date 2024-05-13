@@ -14,6 +14,7 @@
 #include "status_error_codes.h"
 #include "compat_string.h"
 
+#include <vector>
 
 NetworkProtocolSD::NetworkProtocolSD(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocolFS(rx_buf, tx_buf, sp_buf)

@@ -16,6 +16,7 @@
 
 #include "status_error_codes.h"
 
+#include <vector>
 
 /**
  * @brief ctor

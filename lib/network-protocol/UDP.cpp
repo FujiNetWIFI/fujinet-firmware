@@ -15,6 +15,8 @@
 #include "status_error_codes.h"
 #include "fnDNS.h"
 
+#include <vector>
+
 
 
 NetworkProtocolUDP::NetworkProtocolUDP(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
