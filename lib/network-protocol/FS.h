@@ -31,11 +31,6 @@ public:
     bool rmdir_implemented = false;
 
     /**
-     * Internal temporary buffer for read
-     */
-    uint8_t *buf;
-
-    /**
      * @brief ctor
      * @param rx_buf pointer to receive buffer
      * @param tx_buf pointer to transmit buffer
