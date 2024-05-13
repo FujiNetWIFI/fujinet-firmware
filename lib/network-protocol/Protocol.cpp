@@ -127,6 +127,10 @@ bool NetworkProtocol::close()
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
+    receiveBuffer->shrink_to_fit();
+    transmitBuffer->shrink_to_fit();
+    specialBuffer->shrink_to_fit();
+    
     error = 1;
     return false;
 }
