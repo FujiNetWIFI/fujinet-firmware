@@ -1,24 +1,24 @@
 name: Build FujiNet-PC
 
 on:
-  push:
-    branches:
-      - "**"
-  # workflow_dispatch:
-  #   inputs:
-  #     buildType:
-  #       description: 'Build Type'
-  #       required: true
-  #       type: choice
-  #       options:
-  #       - Debug
-  #       - RelWithDebInfo
-  #       - Release
-  #       default: 'Debug'
-  #     prepRelease:
-  #       description: 'Prepare GitHub Release (Draft)'
-  #       type: boolean
-  #       default: false
+  # push:
+  #   branches:
+  #     - "**"
+  workflow_dispatch:
+    inputs:
+      # buildType:
+      #   description: 'Build Type'
+      #   required: true
+      #   type: choice
+      #   options:
+      #   - Debug
+      #   - RelWithDebInfo
+      #   - Release
+      #   default: 'Debug'
+      prepRelease:
+        description: 'Prepare GitHub Release (Draft)'
+        type: boolean
+        default: false
         
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
