@@ -454,21 +454,20 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     target_link_libraries(fujinet ws2_32 bcrypt)
 endif()
 
-# TODO merge build_version.py with ESP version
-# # Version file
-
-# # run build_version.py to update version.h
-# add_custom_command(
-#   OUTPUT  "${CMAKE_BINARY_DIR}/version.h"
-#   DEPENDS build_version.py
-#   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-#   COMMAND python build_version.py
-#   COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_SOURCE_DIR}/include/version.h" "${CMAKE_BINARY_DIR}/version.h"
-#   COMMENT "Update version file"
-#   VERBATIM
-# )
-# add_custom_target(build_version DEPENDS "${CMAKE_BINARY_DIR}/version.h")
-# add_dependencies(fujinet build_version)
+# Version file
+# run build_version_pc.py to generate ${CMAKE_BINARY_DIR}/include/build_version.h
+add_custom_command(
+  OUTPUT  "${CMAKE_BINARY_DIR}/include/build_version.h"
+  DEPENDS build_version_pc.py "${CMAKE_SOURCE_DIR}/include/version.h"
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/include"
+  COMMAND python build_version_pc.py "${CMAKE_SOURCE_DIR}/include/version.h" "${CMAKE_BINARY_DIR}/include/build_version.h"
+  COMMENT "Create build_version.h file"
+  VERBATIM
+)
+add_custom_target(build_version DEPENDS "${CMAKE_BINARY_DIR}/include/build_version.h")
+add_dependencies(fujinet build_version)
+target_include_directories(fujinet PRIVATE "${CMAKE_BINARY_DIR}/include")
 
 # WebUI
 # "build_webui" target
@@ -517,4 +516,7 @@ set_property(
 # include data cleanup in "clean" target
 set_property(
     DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES ${BUILD_DATA_DIR}
+)
+set_property(
+    DIRECTORY APPEND PROPERTY ADDITIONAL_CLEAN_FILES "${CMAKE_BINARY_DIR}/include"
 )
