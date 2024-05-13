@@ -6,6 +6,8 @@
 
 #include "../../include/debug.h"
 
+#include <vector>
+
 NetworkProtocolTest::NetworkProtocolTest(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
     : NetworkProtocol(rx_buf, tx_buf, sp_buf)
 {

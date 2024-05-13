@@ -13,6 +13,8 @@
 
 #include <esp_heap_trace.h>
 
+#include <vector>
+
 /**
  Modes and the N: HTTP Adapter:
 
