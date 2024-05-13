@@ -11,6 +11,7 @@
 #include "status_error_codes.h"
 #include "utils.h"
 
+#include <esp_heap_trace.h>
 
 /**
  Modes and the N: HTTP Adapter:
@@ -153,7 +154,6 @@ bool NetworkProtocolHTTP::open_file_handle()
 
 bool NetworkProtocolHTTP::open_dir_handle()
 {
-    char *buf;
     unsigned short len, actual_len;
 
     Debug_printf("NetworkProtocolHTTP::open_dir_handle()\r\n");
@@ -176,32 +176,23 @@ bool NetworkProtocolHTTP::open_dir_handle()
     }
 
     len = client->available();
-    buf = (char *)malloc(len);
-
-    if (buf == nullptr)
-    {
-        Debug_printf("Could not allocate %u bytes for PROPFIND data. Aborting\r\n", len);
-        error = NETWORK_ERROR_GENERAL;
-        return true;
-    }
+    std::vector<uint8_t> buf = std::vector<uint8_t>(len);
 
     // Grab the buffer.
-    actual_len = client->read((uint8_t *)buf, len);
+    actual_len = client->read(buf.data(), len);
 
     if (actual_len != len)
     {
         Debug_printf("Expected %u bytes, actually got %u bytes.\r\n", len, actual_len);
         error = NETWORK_ERROR_GENERAL;
-        free(buf);        
         return true;
     }
 
     // Parse the buffer
-    if (parseDir(buf, len))
+    if (parseDir((char *)buf.data(), len))
     {
         Debug_printf("Could not parse buffer, returning 144\r\n");
         error = NETWORK_ERROR_GENERAL;
-        free(buf);
         return true;
     }
 
@@ -216,7 +207,6 @@ bool NetworkProtocolHTTP::open_dir_handle()
     }
 
     // Directory parsed, ready to be returned by read_dir_entry()
-    free(buf);
     return false;
 }
 
