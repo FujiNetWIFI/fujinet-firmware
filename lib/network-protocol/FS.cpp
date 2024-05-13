@@ -18,6 +18,10 @@
 #include <memory>
 #include <iostream>
 
+#ifdef ESP_PLATFORM
+#include "esp_heap_trace.h"
+#endif
+
 #define ENTRY_BUFFER_SIZE 256
 
 NetworkProtocolFS::NetworkProtocolFS(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)
@@ -200,33 +204,25 @@ bool NetworkProtocolFS::read(unsigned short len)
 
 bool NetworkProtocolFS::read_file(unsigned short len)
 {
-    std::shared_ptr<std::vector<uint8_t>> buf = std::make_shared<std::vector<uint8_t>>(len);
+    std::vector<uint8_t> buf = std::vector<uint8_t>(len);
 
     Debug_printf("NetworkProtocolFS::read_file(%u)\r\n", len);
-
-    if (buf == nullptr)
-    {
-        Debug_printf("NetworkProtocolFS:read_file(%u) could not allocate.\r\n", len);
-        return true; // error
-    }
 
     if (receiveBuffer->length() == 0)
     {
         // Do block read.
-        if (read_file_handle(buf->data(), len) == true)
+        if (read_file_handle(buf.data(), len) == true)
         {
             Debug_printf("Nothing new from adapter, bailing.\n");
             return true;
         }
 
         // Append to receive buffer.
-        receiveBuffer->insert(receiveBuffer->end(), buf->begin(), buf->end());
+        receiveBuffer->insert(receiveBuffer->end(), buf.begin(), buf.end());
         fileSize -= len;
     }
     else
         error = NETWORK_ERROR_SUCCESS;
-
-    // No need to free, as shared_ptr will handle it.
 
     // Pass back to base class for translation.
     return NetworkProtocol::read(len);
