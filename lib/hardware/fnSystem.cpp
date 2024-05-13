@@ -33,6 +33,7 @@
 #include "compat_uname.h"
 #include "compat_gettimeofday.h"
 #include "compat_esp.h" // empty IRAM_ATTR macro for FujiNet-PC
+#include "build_version.h"
 
 // !ESP_PLATFORM
 #endif
@@ -52,6 +53,34 @@
 
 #ifdef BUILD_APPLE
 #define BUS_CLASS IWM
+#endif
+
+#if defined(BUILD_ATARI)
+    #define TARGET_PLATFORM_NAME "ATARI"
+#elif defined(BUILD_ADAM)
+    #define TARGET_PLATFORM_NAME "ADAM"
+#elif defined(BUILD_APPLE)
+    #define TARGET_PLATFORM_NAME "APPLE"
+#elif defined(BUILD_MAC)
+    #define TARGET_PLATFORM_NAME "MAC"
+#elif defined(BUILD_IEC)
+    #define TARGET_PLATFORM_NAME "IEC"
+#elif defined(BUILD_LYNX)
+    #define TARGET_PLATFORM_NAME "LYNX"
+#elif defined(BUILD_S100)
+    #define TARGET_PLATFORM_NAME "S100"
+#elif defined(BUILD_RS232)
+    #define TARGET_PLATFORM_NAME "RS232"
+#elif defined(BUILD_CX16)
+    #define TARGET_PLATFORM_NAME "CX16"
+#elif defined(BUILD_RC2014)
+    #define TARGET_PLATFORM_NAME "RC2014"
+#elif defined(BUILD_H89)
+    #define TARGET_PLATFORM_NAME "H89"
+#elif defined(BUILD_COCO)
+    #define TARGET_PLATFORM_NAME "COCO"
+#else
+    #define TARGET_PLATFORM_NAME "unknown"
 #endif
 
 
@@ -527,12 +556,24 @@ const char *SystemManager::get_sdk_version()
 #endif
 }
 
+const char *SystemManager::get_target_platform_str()
+{
+    return TARGET_PLATFORM_NAME;
+}
+
 const char *SystemManager::get_fujinet_version(bool shortVersionOnly)
 {
+#ifdef ESP_PLATFORM
     if (shortVersionOnly)
         return FN_VERSION_FULL;
     else
-        return FN_VERSION_FULL " " FN_VERSION_DATE;
+        return FN_VERSION_FULL " " FN_VERSION_DATE " (" TARGET_PLATFORM_NAME ")";
+#else
+    if (shortVersionOnly)
+        return FN_VERSION_FULL_GIT;
+    else
+        return FN_VERSION_FULL_GIT " " FN_BUILD_GIT_DATE " (" TARGET_PLATFORM_NAME ")";
+#endif
 }
 
 int SystemManager::get_cpu_rev()

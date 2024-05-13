@@ -31,6 +31,7 @@
 #ifndef ESP_PLATFORM
 #include "fnTaskManager.h"
 #include "version.h"
+#include "build_version.h"
 #endif
 
 #ifdef BLUETOOTH_SUPPORT
@@ -50,8 +51,8 @@
 
 void print_version()
 {
-    printf("FujiNet-PC " FN_VERSION_FULL "\n");
-    printf("Version date: " FN_VERSION_DATE "\n");
+    printf("FujiNet-PC " FN_VERSION_FULL_GIT "\n");
+    printf("Version date: " FN_BUILD_GIT_DATE "\n");
 
     printf("Build: ");
 #if defined(_WIN32)
@@ -65,35 +66,7 @@ void print_version()
 #endif
     printf("\n");
 
-    printf("Target: ");
-#if defined(BUILD_ATARI)
-    printf("ATARI");
-#elif defined(BUILD_ADAM)
-    printf("ADAM");
-#elif defined(BUILD_APPLE)
-    printf("APPLE");
-#elif defined(BUILD_MAC)
-    printf("MAC");
-#elif defined(BUILD_IEC)
-    printf("IEC");
-#elif defined(BUILD_LYNX)
-    printf("LYNX");
-#elif defined(BUILD_S100)
-    printf("S100");
-#elif defined(BUILD_RS232)
-    printf("RS232");
-#elif defined(BUILD_CX16)
-    printf("CX16");
-#elif defined(BUILD_RC2014)
-    printf("RC2014");
-#elif defined(BUILD_H89)
-    printf("H89");
-#elif defined(BUILD_COCO)
-    printf("COCO");
-#else
-    printf("unknown");
-#endif
-    printf("\n");
+    printf("Target: %s\n", fnSystem.get_target_platform_str());
 }
 
 volatile int exit_for_restart = 0;

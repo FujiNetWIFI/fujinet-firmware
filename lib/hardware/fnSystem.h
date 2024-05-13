@@ -161,6 +161,7 @@ public:
     void check_hardware_ver();
     int get_hardware_ver() { return _hardware_version; };
     const char *get_hardware_ver_str();
+    const char *get_target_platform_str();
 
     bool spifix() { return a2spifix; };
     bool no3state() { return a2no3state; };
