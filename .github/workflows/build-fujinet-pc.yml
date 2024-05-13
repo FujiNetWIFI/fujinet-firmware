@@ -1,0 +1,193 @@
+name: Build FujiNet-PC
+
+on:
+  push:
+    branches:
+      - "**"
+  # workflow_dispatch:
+  #   inputs:
+  #     buildType:
+  #       description: 'Build Type'
+  #       required: true
+  #       type: choice
+  #       options:
+  #       - Debug
+  #       - RelWithDebInfo
+  #       - Release
+  #       default: 'Debug'
+  #     prepRelease:
+  #       description: 'Prepare GitHub Release (Draft)'
+  #       type: boolean
+  #       default: false
+        
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: ${{ github.event.inputs.buildType }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: Ubuntu 22.04
+            runner: ubuntu-22.04
+            target: ubuntu-22.04-amd64
+            default-shell: bash
+          # - name: Ubuntu 20.04
+          #   target: ubuntu-20.04-amd64
+          #   runner: ubuntu-20.04
+          #   default-shell: bash
+          - name: macOS 12
+            target: macos-12
+            runner: macos-12
+            default-shell: bash
+          - name: Windows
+            target: windows-x64
+            runner: windows-latest
+            sys: clang64
+            default-shell: msys2 {0}
+          # # mbedtls not available anymore for clang32 :-(
+          # - name: Windows x86
+          #   target: windows-x86
+          #   runner: windows-latest
+          #   sys: clang32
+          #   default-shell: msys2 {0}
+        fujinet_target:
+          - APPLE
+          - ATARI
+          - COCO
+
+    # continue-on-error: true
+    name: "${{ matrix.os.name }}: Target ${{ matrix.fujinet_target }}"
+    runs-on: ${{ matrix.os.runner }}
+    defaults:
+      run:
+        shell: ${{ matrix.os.default-shell }}
+    outputs:
+      fujinet_version: ${{ steps.version.outputs.fujinet }}
+
+    steps:
+    # Setup MSYS2 on Windows
+    - name: '[Windows] Setup MSYS2'
+      if: ${{ startsWith(matrix.os.target, 'windows') }}
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: ${{matrix.os.sys}}
+        update: true
+        install: >-
+          git
+          base-devel
+        pacboy: >-
+          toolchain:p
+          cmake:p
+          ninja:p
+          python-pip:p
+          mbedtls:p
+
+    - name: '[macOS] Install MbedTLS'
+      if: ${{ startsWith(matrix.os.target, 'macos') }}
+      run: |
+        brew update
+        brew install mbedtls
+
+    - name: '[Ubuntu] Install MbedTLS'
+      if: ${{ startsWith(matrix.os.target, 'ubuntu') }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libmbedtls-dev
+
+    - name: About ${{ matrix.os.name }}
+      run: |
+        echo "Building for ${{ matrix.os.name }} (${{ matrix.os.target }}) on ${{ matrix.os.runner }}"
+        uname -a
+
+    - name: '🧰 Checkout'
+      uses: actions/checkout@v3
+
+    - name: Fetch tags
+      run: git fetch --prune --unshallow --tags
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      id: cp310
+      with:
+        python-version: '3.10'
+
+    - name: Check Python version
+      run: |
+        which python
+        python --version
+        echo '${{ steps.cp310.outputs.python-path }}'
+        '${{ steps.cp310.outputs.python-path }}' --version
+  
+    - name: Install Python packages
+      run: pip install -U Jinja2 pyyaml
+  
+    - name: '🚧 Build FujiNet-PC (matrix.fujinet_target)'
+      run: ./build.sh -p ${{ matrix.fujinet_target }}
+
+    # - name: Configure CMake
+    #   #run: cmake -B build -DFUJINET_TARGET=${{matrix.fujinet_target}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+    #   run: cmake -B build -DFUJINET_TARGET=${{matrix.fujinet_target}} -DCMAKE_BUILD_TYPE=Release
+
+    # - name: '🚧 Build FujiNet-PC'
+    #   run: cmake --build build --target all -j 8
+
+    # - name: Prepare dist
+    #   run: cmake --build build --target dist
+
+    - name: List dist
+      working-directory: build/dist
+      run: ls -la
+
+    - name: 'Get build version'
+      id: version
+      working-directory: build/dist
+      run: |
+        ./fujinet -V
+        echo "fujinet=$(./fujinet -V | awk '{if(tolower($1)=="fujinet-pc") print $2}')" >> $GITHUB_OUTPUT
+
+    - name: 'Tar dist files'
+      working-directory: build
+      run: |
+        mv dist fujinet-pc-${{ matrix.fujinet_target }}
+        tar -cvf fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}.tar fujinet-pc-${{ matrix.fujinet_target }}
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}
+        path: build/fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}.tar
+        
+  release:
+    if: ${{ github.event.inputs.prepRelease == 'true' }}
+    # Create GitHub release
+    runs-on: ubuntu-latest
+    name: Release
+    needs: build
+
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: release
+
+    - name: Display structure of downloaded files
+      run: ls -lR release
+      
+    - name: Zip release files
+      working-directory: release
+      run: |
+        for D in fujinet-pc-*_*ubuntu* fujinet-pc-*_*macos*; do gzip -9v $D/fujinet-pc-*_*.tar; done
+        for D in fujinet-pc-*_*windows*; do (cd $D; F=(fujinet-pc-*_*.tar); tar -xvf $F; zip -r ${F%.*}.zip fujinet-pc-*); done
+        
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+          name: "FujiNet-PC ${{ needs.build.outputs.fujinet_version }}"
+          tag_name: ${{ needs.build.outputs.fujinet_version }}
+          draft: true
+          files: |
+            release/fujinet-pc_*/fujinet-pc_*.tar.gz
+            release/fujinet-pc_*/fujinet-pc_*.zip
