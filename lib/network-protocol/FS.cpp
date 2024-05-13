@@ -19,10 +19,6 @@
 #include <iostream>
 #include <vector>
 
-#ifdef ESP_PLATFORM
-#include "esp_heap_trace.h"
-#endif
-
 #define ENTRY_BUFFER_SIZE 256
 
 NetworkProtocolFS::NetworkProtocolFS(std::string *rx_buf, std::string *tx_buf, std::string *sp_buf)

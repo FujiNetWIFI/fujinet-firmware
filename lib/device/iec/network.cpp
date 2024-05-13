@@ -24,8 +24,6 @@
 #include "SSH.h"
 #include "SMB.h"
 
-#include "esp_heap_trace.h"
-
 iecNetwork::iecNetwork()
 {
     for (int i = 0; i < NUM_CHANNELS; i++)

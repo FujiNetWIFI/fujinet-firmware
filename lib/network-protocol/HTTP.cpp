@@ -11,8 +11,6 @@
 #include "status_error_codes.h"
 #include "utils.h"
 
-#include <esp_heap_trace.h>
-
 #include <vector>
 
 /**
