@@ -56,9 +56,14 @@ iwmNetwork::~iwmNetwork()
     transmitBuffer->clear();
     specialBuffer->clear();
 
+    specialBuffer->shrink_to_fit();
+    transmitBuffer->shrink_to_fit();
+    receiveBuffer->shrink_to_fit();
+
     delete receiveBuffer;
     delete transmitBuffer;
     delete specialBuffer;
+
     receiveBuffer = nullptr;
     transmitBuffer = nullptr;
     specialBuffer = nullptr;
@@ -196,6 +201,10 @@ void iwmNetwork::close()
         return;
     }
 
+    receiveBuffer->shrink_to_fit();
+    transmitBuffer->shrink_to_fit();
+    specialBuffer->shrink_to_fit();
+    
     // Ask the protocol to close
     protocol->close();
 
