@@ -8,6 +8,9 @@
 #endif
 
 #if defined (_WIN32)
+// The inclusion of windows.h is causing compiler warnings where winsock2 is also needed, so added it here as most
+// code that includes fnUART uses winsock2
+#include <winsock2.h>
 #include <windows.h>
 #endif
 
