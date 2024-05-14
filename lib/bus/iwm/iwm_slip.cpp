@@ -69,8 +69,8 @@ void iwm_slip::end_request_thread()
 	{
 		connection_->set_is_connected(false);
 		connection_->join();
+		connection_->close_connection();
 	}
-	connection_->close_connection();
 	if (request_thread_.joinable())
 	{
 		request_thread_.join();
