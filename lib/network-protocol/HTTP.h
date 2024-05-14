@@ -199,14 +199,16 @@ private:
     int resultCode = 0;
 
     /**
-     * Array of up to 32 headers
+     * Headers the client wants us to collect information on if they are seen.
+     * The contract is to only collect headers the client is interested in, which they register for before making the request.
      */
-    char *collect_headers[32];
+    // char *collect_headers[32];
+    std::vector<std::string> collect_headers;
 
     /**
      * Collected headers count
      */
-    size_t collect_headers_count = 0;
+    // size_t collect_headers_count = 0;
 
     /**
      * Returned headers
