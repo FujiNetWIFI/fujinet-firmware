@@ -6,6 +6,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 
 #include "fn_esp_http_client.h"
 
@@ -90,8 +91,13 @@ public:
     char * get_header(int index, char *buffer, int buffer_len);
     int get_header_count();
 
-    void collect_headers(const char* headerKeys[], const size_t headerKeysCount);
+    void create_empty_stored_headers(const std::vector<std::string>& headerKeys);
     void set_header_value(const char *name, const char *value);
+
+    const std::map<std::string, std::string>& get_stored_headers() const {
+        return _stored_headers;
+    }
+
 
     //const char * buffer_contents(int *buffer_len);
 };

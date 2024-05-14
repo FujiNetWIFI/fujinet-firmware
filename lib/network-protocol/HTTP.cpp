@@ -40,20 +40,13 @@ NetworkProtocolHTTP::NetworkProtocolHTTP(std::string *rx_buf, std::string *tx_bu
     rmdir_implemented = true;
     fileSize = 0;
     resultCode = 0;
-    collect_headers_count = 0;
+    // collect_headers_count = 0;
     returned_header_cursor = 0;
     httpChannelMode = DATA;
 }
 
 NetworkProtocolHTTP::~NetworkProtocolHTTP()
 {
-    for (int i = 0; i < collect_headers_count; i++)
-        if (collect_headers[i] != nullptr)
-        {
-            free(collect_headers[i]);
-            collect_headers[i] = nullptr;
-        }
-
     if (client)
         delete(client);
 }
@@ -380,9 +373,9 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     case GET_HEADERS:
         if (resultCode == 0)
             http_transaction();
-        status->rxBytesWaiting = (returned_header_cursor < collect_headers_count ? returned_headers[returned_header_cursor].size() : 0);
+        status->rxBytesWaiting = (returned_header_cursor < collect_headers.size() ? returned_headers[returned_header_cursor].size() : 0);
         status->connected = 0; // so that we always ask in this mode.
-        status->error = returned_header_cursor == collect_headers_count && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
+        status->error = returned_header_cursor == collect_headers.size() && error == NETWORK_ERROR_SUCCESS ? NETWORK_ERROR_END_OF_FILE : error;
         // Debug_printf("NetworkProtocolHTTP::status_file GH, s.rxBW: %d, s.conn: %d, s.err: %d\r\n", status->rxBytesWaiting, status->connected, status->error);
         return false;
     default:
@@ -501,39 +494,25 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
 
 bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned short len)
 {
-    if (httpOpenMode == GET)
-    {
-        char *requestedHeader = (char *)malloc(len);
-
-        if (requestedHeader == nullptr)
-        {
-            Debug_printf("Could not allocate %u bytes for header\r\n", len);
-            return true;
-        }
-
-        // move source buffer into requested header.
-        memcpy(requestedHeader, buf, len);
-
-        // Remove EOL, make NUL delimited.
-        for (int i = 0; i < len; i++)
-            if ((unsigned char)requestedHeader[i] == 0x9B)
-                requestedHeader[i] = 0x00;
-            else if (requestedHeader[i] == 0x0D)
-                requestedHeader[i] = 0x00;
-            else if (requestedHeader[i] == 0x0a)
-                requestedHeader[i] = 0x00;
-
-        Debug_printf("collect_headers[%lu,%u] = \"%s\"\r\n", (unsigned long)collect_headers_count, len, requestedHeader);
-
-        // Add result to header array.
-        collect_headers[collect_headers_count++] = requestedHeader;
-        return false;
-    }
-    else
+    if (httpOpenMode != GET)
     {
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
         return true;
     }
+
+    if (len > 0) {
+        unsigned char lastChar = buf[len - 1];
+        if (lastChar == 0x9B || lastChar == '\r' || lastChar == '\n') {
+            len--;
+        }
+    }
+    std::string requestedHeader(reinterpret_cast<const char*>(buf), len);
+
+    Debug_printf("collect_headers[%lu,%u] = \"%s\"\r\n", (unsigned long)collect_headers.size(), len, requestedHeader.c_str());
+
+    // Add result to header vector.
+    collect_headers.push_back(std::move(requestedHeader)); // Use std::move to avoid copying the string
+    return false;
 }
 
 bool NetworkProtocolHTTP::write_file_handle_set_header(uint8_t *buf, unsigned short len)
@@ -632,9 +611,9 @@ bool NetworkProtocolHTTP::stat()
 
 void NetworkProtocolHTTP::http_transaction()
 {
-    if ((aux1_open != 4) && (aux1_open != 8) && (collect_headers_count > 0))
+    if ((aux1_open != 4) && (aux1_open != 8) && !collect_headers.empty())
     {
-        client->collect_headers((const char **)collect_headers, collect_headers_count);
+        client->create_empty_stored_headers(collect_headers);
     }
 
     switch (httpOpenMode)
@@ -656,18 +635,18 @@ void NetworkProtocolHTTP::http_transaction()
         break;
     }
 
-    if ((aux1_open != 4) && (aux1_open != 8) && (collect_headers_count > 0))
+    // the appropriate headers to be collected should have now been done, so let's put their values into returned_headers
+    if ((aux1_open != 4) && (aux1_open != 8) && (!collect_headers.empty()))
     {
-        Debug_printf("Header count %u\r\n", client->get_header_count());
+        Debug_printf("setting returned_headers (count =%u)\r\n", client->get_header_count());
 
-        for (int i = 0; i < client->get_header_count(); i++)
-        {
-            returned_headers.push_back(std::string(client->get_header(collect_headers[i]) + "\x9b"));
+        for (const auto& header_pair : client->get_stored_headers()) {
+            std::string header = header_pair.second + "\x9b"; // TODO: can we use platform specific value rather than ATARI default?
+            returned_headers.push_back(header);
         }
     }
 
     fserror_to_error();
-    
     fileSize = bodySize = client->available();
 }
 

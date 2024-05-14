@@ -968,17 +968,15 @@ const std::string mgHttpClient::get_header(const char *header)
 }
 
 // Specifies names of response headers to be stored from the server response
-void mgHttpClient::collect_headers(const char *headerKeys[], const size_t headerKeysCount)
+void mgHttpClient::create_empty_stored_headers(const std::vector<std::string>& headerKeys)
 {
-    if (_handle == nullptr || headerKeys == nullptr)
+    if (_handle == nullptr || headerKeys.empty())
         return;
 
-    // Clear out the current headers
     _stored_headers.clear();
-
-    for (int i = 0; i < headerKeysCount; i++) {
-        std::string lower_key = util_tolower(headerKeys[i]);
-        _stored_headers.insert(header_entry_t(lower_key, std::string()));
+    for (const auto& key : headerKeys) {
+        std::string lower_key = util_tolower(key);
+        _stored_headers[lower_key] = std::string();
     }
 }
 
