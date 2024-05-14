@@ -189,5 +189,5 @@ jobs:
           tag_name: ${{ needs.build.outputs.fujinet_version }}
           draft: true
           files: |
-            release/fujinet-pc_*/fujinet-pc-*_*.tar.gz
-            release/fujinet-pc_*/fujinet-pc-*_*.zip
+            release/fujinet-pc-*_*/fujinet-pc-*_*.tar.gz
+            release/fujinet-pc-*_*/fujinet-pc-*_*.zip
