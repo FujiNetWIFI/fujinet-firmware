@@ -1,8 +1,9 @@
 #ifndef FN_FSFTP_H
 #define FN_FSFTP_H
 
-#include <stdint.h>
 #include <cstddef>
+#include <memory>
+#include <stdint.h>
 
 #include "peoples_url_parser.h"
 #include "fnFTP.h"
@@ -14,7 +15,7 @@ class FileSystemFTP : public FileSystem
 {
 private:
     // parsed FTP URL
-    PeoplesUrlParser *_url;
+    std::unique_ptr<PeoplesUrlParser> _url;
 
     // fnFTP instance
     fnFTP *_ftp;

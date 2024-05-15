@@ -5,6 +5,7 @@
 #include <esp_timer.h>
 #endif
 
+#include <memory>
 #include <string>
 
 #include "../../bus/bus.h"
@@ -178,7 +179,7 @@ private:
     /**
      * The PeoplesUrlParser object used to hold/process a URL
      */
-    PeoplesUrlParser *urlParser = nullptr;
+    std::unique_ptr<PeoplesUrlParser> urlParser = nullptr;
 
     /**
      * Instance of currently open network protocol

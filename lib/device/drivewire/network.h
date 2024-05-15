@@ -5,6 +5,7 @@
 #include <driver/timer.h>
 #endif
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -177,7 +178,7 @@ private:
     /**
      * The PeoplesUrlParser object used to hold/process a URL
      */
-    PeoplesUrlParser *urlParser = nullptr;
+    std::unique_ptr<PeoplesUrlParser> urlParser = nullptr;
 
     /**
      * Instance of currently open network protocol
@@ -318,7 +319,7 @@ private:
      * Preprocess a URL given aux1 open mode. This is used to work around various assumptions that different
      * disk utility packages do when opening a device, such as adding wildcards for directory opens. 
      * 
-     * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+     * The resulting URL is then sent into a URL Parser to get our URLParser object which is used in the rest
      * of drivewireNetwork.
      * 
      * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom

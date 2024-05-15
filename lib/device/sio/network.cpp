@@ -163,7 +163,7 @@ void sioNetwork::sio_open()
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser, &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) == true)
     {
         status.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", status.error);
@@ -986,7 +986,7 @@ void sioNetwork::create_devicespec()
 }
 
 /*
- * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * The resulting URL is then sent into a URL Parser to get our URLParser object which is used in the rest
  * of Network.
 */
 void sioNetwork::create_url_parser()
@@ -1268,7 +1268,7 @@ void sioNetwork::sio_do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser, &cmdFrame) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         sio_error();

@@ -19,8 +19,9 @@
 #ifndef MEATLOAF_PUP_H
 #define MEATLOAF_PUP_H
 
-#include <string>
 #include <cstdint>
+#include <memory>
+#include <string>
 
 class PeoplesUrlParser
 {
@@ -58,7 +59,7 @@ public:
 
     uint16_t getPort();
 
-    static PeoplesUrlParser* parseURL(const std::string &u);
+    static std::unique_ptr<PeoplesUrlParser> parseURL(const std::string &u);
     void resetURL(const std::string u);
     std::string rebuildUrl(void);
     bool isValidUrl();

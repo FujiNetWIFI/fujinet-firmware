@@ -160,7 +160,7 @@ void adamNetwork::open(unsigned short s)
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser, &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) == true)
     {
         statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
@@ -457,7 +457,7 @@ void adamNetwork::del(uint16_t s)
 
     cmdFrame.comnd = '!';
 
-    if (protocol->perform_idempotent_80(urlParser, &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
     {
         statusByte.bits.client_error = true;
         return;
@@ -483,7 +483,7 @@ void adamNetwork::rename(uint16_t s)
 
     cmdFrame.comnd = ' ';
 
-    if (protocol->perform_idempotent_80(urlParser, &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
     {
         statusByte.bits.client_error = true;
         return;
@@ -509,7 +509,7 @@ void adamNetwork::mkdir(uint16_t s)
 
     cmdFrame.comnd = '*';
 
-    if (protocol->perform_idempotent_80(urlParser, &cmdFrame))
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
     {
         statusByte.bits.client_error = true;
         return;
@@ -1004,7 +1004,7 @@ void adamNetwork::create_devicespec(string d)
 }
 
 /*
- * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * The resulting URL is then sent into a URL Parser to get our URLParser object which is used in the rest
  * of Network.
  */
 void adamNetwork::create_url_parser()
