@@ -105,12 +105,12 @@ void sioNetwork::sio_open()
 
     sio_late_ack();
 
-    newData = (uint8_t *)malloc(NEWDATA_SIZE);
-
-    if (newData == nullptr)
-    {
+    try {
+        newData.resize(NEWDATA_SIZE);
+    } catch (const std::bad_alloc& e) {
         Debug_printv("Could not allocate write buffer\n");
         sio_error();
+        return;
     }
 
     channelMode = PROTOCOL;
@@ -153,11 +153,6 @@ void sioNetwork::sio_open()
             protocolParser = nullptr;
         }
 
-        if (newData != nullptr)
-        {
-            free(newData);
-            newData = nullptr;
-        }
         // sio_error() - was already called from parse_and_instantiate_protocol()
         return;
     }
@@ -173,12 +168,6 @@ void sioNetwork::sio_open()
         {
             delete protocolParser;
             protocolParser = nullptr;
-        }
-
-        if (newData != nullptr)
-        {
-            free(newData);
-            newData = nullptr;
         }
 
         sio_error();
@@ -243,12 +232,6 @@ void sioNetwork::sio_close()
     {
         delete json;
         json = nullptr;
-    }
-
-    if (newData != nullptr)
-    {
-        free(newData);
-        newData = nullptr;
     }
 
 #ifdef ESP_PLATFORM
@@ -350,13 +333,6 @@ void sioNetwork::sio_write()
 
     Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
 
-    if (newData == nullptr)
-    {
-        Debug_printf("Could not allocate %u bytes.\n", num_bytes);
-        sio_error();
-        return;
-    }
-
     // sio_ack(); // apc: not yet
 
     // If protocol isn't connected, then return not connected.
@@ -375,8 +351,8 @@ void sioNetwork::sio_write()
     sio_late_ack();
 
     // Get the data from the Atari
-    bus_to_peripheral(newData, num_bytes); // TODO test checksum
-    *transmitBuffer += string((char *)newData, num_bytes);
+    bus_to_peripheral(newData.data(), num_bytes); // TODO test checksum
+    *transmitBuffer += string((char *)newData.data(), num_bytes);
 
     // Do the channel write
     err = sio_write_channel(num_bytes);

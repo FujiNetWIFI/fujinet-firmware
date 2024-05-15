@@ -272,7 +272,7 @@ private:
     /**
      * @brief the write buffer
      */
-    uint8_t *newData = nullptr;
+    std::vector<uint8_t> newData;
 
     /**
      * Instantiate protocol object
