@@ -105,10 +105,12 @@ void sioNetwork::sio_open()
 
     sio_late_ack();
 
-    try {
-        newData.resize(NEWDATA_SIZE);
-    } catch (const std::bad_alloc& e) {
-        Debug_printv("Could not allocate write buffer\n");
+    auto prevCapacity = newData.capacity();
+    newData.resize(NEWDATA_SIZE);
+    auto newCapacity = newData.capacity();
+
+    if (newCapacity < NEWDATA_SIZE || newData.size() != NEWDATA_SIZE) {
+        Debug_printv("Could not allocate write buffer prev: %d, requested: %d\n", prevCapacity, NEWDATA_SIZE);
         sio_error();
         return;
     }
