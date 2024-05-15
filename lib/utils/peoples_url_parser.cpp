@@ -19,10 +19,11 @@
 
 #include "peoples_url_parser.h"
 
+#include <cstdint>
+#include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
-#include <sstream>
-#include <cstdint>
 
 #include "../../include/debug.h"
 
@@ -186,10 +187,12 @@ uint16_t PeoplesUrlParser::getPort() {
 }
 
 
-PeoplesUrlParser* PeoplesUrlParser::parseURL(const std::string &u) {
-    PeoplesUrlParser *url = new PeoplesUrlParser;
-    url->resetURL(u);
-    return url;
+std::unique_ptr<PeoplesUrlParser> PeoplesUrlParser::parseURL(const std::string &u) {
+    // Directly creating a unique_ptr using a private constructor workaround. If direct constructor was available, this wouldn't be needed
+    struct MakeUniqueEnabler : public PeoplesUrlParser {};
+    auto parser = std::make_unique<MakeUniqueEnabler>();
+    parser->resetURL(u);
+    return parser;
 }
 
 void PeoplesUrlParser::resetURL(const std::string u) {

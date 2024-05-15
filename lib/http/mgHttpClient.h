@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <memory>
 #include <cstdint>
 
 #include "mongoose.h"
@@ -19,6 +20,15 @@
 #if defined(_WIN32) && defined(DELETE)
 #undef DELETE
 #endif
+
+struct MgMgrDeleter {
+    void operator()(mg_mgr* ptr) const {
+        if (ptr != nullptr) {
+            mg_mgr_free(ptr);
+            delete ptr;
+        }
+    }
+};
 
 class mgHttpClient
 {
@@ -58,7 +68,7 @@ private:
     header_map_t _request_headers;
 
     // esp_http_client_handle_t _handle = nullptr;
-    struct mg_mgr *_handle;
+    std::unique_ptr<mg_mgr, MgMgrDeleter> _handle;
 
     // http response status code and content length
     int _status_code;

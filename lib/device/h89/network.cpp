@@ -119,7 +119,7 @@ void H89Network::open()
     // }
 
     // // Attempt protocol open
-    // if (protocol->open(urlParser, &cmdFrame) == true)
+    // if (protocol->open(urlParser.get(), &cmdFrame) == true)
     // {
     //     network_status.error = protocol->error;
     //     Debug_printf("Protocol unable to make connection. Error: %d\n", protocol->error);
@@ -620,7 +620,7 @@ void H89Network::create_devicespec(string d)
 }
 
 /*
- * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * The resulting URL is then sent into a URL Parser to get our URLParser object which is used in the rest
  * of Network.
 */
 void H89Network::create_url_parser()

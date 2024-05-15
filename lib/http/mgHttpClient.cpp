@@ -65,9 +65,6 @@ mgHttpClient::~mgHttpClient()
 {
     close();
 
-    if (_handle != nullptr)
-        mg_mgr_free(_handle);
-
     if (_buffer != nullptr) {
         free(_buffer);
         _buffer = nullptr;
@@ -265,12 +262,12 @@ bool mgHttpClient::begin(std::string url)
 
     _max_redirects = 10;
 
-    _handle = new(struct mg_mgr);
+    _handle.reset(new mg_mgr());
     if (_handle == nullptr)
         return false;
 
-    _url = url;
-    mg_mgr_init(_handle);
+    _url = std::move(url);
+    mg_mgr_init(_handle.get());
     return true;
 }
 
@@ -743,7 +740,7 @@ int mgHttpClient::_perform()
     {
         while (!_processed)
         {
-            mg_mgr_poll(_handle, 50);
+            mg_mgr_poll(_handle.get(), 50);
             if (_progressed)
             {
                 _progressed = false;
@@ -812,7 +809,7 @@ void mgHttpClient::_perform_connect()
     _buffer_len = 0;
     _buffer_total_read = 0;
     
-    mg_http_connect(_handle, _url.c_str(), _httpevent_handler, this);  // Create client connection
+    mg_http_connect(_handle.get(), _url.c_str(), _httpevent_handler, this);  // Create client connection
 }
 
 int mgHttpClient::PUT(const char *put_data, int put_datalen)

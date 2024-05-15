@@ -191,7 +191,7 @@ void drivewireNetwork::open()
     protocol->setLineEnding("\x0D");
 
     // Attempt protocol open
-    if (protocol->open(urlParser, &cmdFrame) == true)
+    if (protocol->open(urlParser.get(), &cmdFrame) == true)
     {
         ns.error = protocol->error;
         Debug_printf("Protocol unable to make connection. Error: %d\n", ns.error);
@@ -1063,7 +1063,7 @@ void drivewireNetwork::create_devicespec()
 }
 
 /*
- * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * The resulting URL is then sent into a URL Parser to get our URLParser object which is used in the rest
  * of Network.
 */
 void drivewireNetwork::create_url_parser()
@@ -1113,7 +1113,7 @@ bool drivewireNetwork::isValidURL(PeoplesUrlParser *url)
  * Preprocess deviceSpec given aux1 open mode. This is used to work around various assumptions that different
  * disk utility packages do when opening a device, such as adding wildcards for directory opens.
  *
- * The resulting URL is then sent into EdURLParser to get our URLParser object which is used in the rest
+ * The resulting URL is then sent into a URL Parser to get our URLParser object which is used in the rest
  * of drivewireNetwork.
  *
  * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
@@ -1122,12 +1122,6 @@ bool drivewireNetwork::parseURL()
 {
     string url;
     string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
-
-    if (urlParser != nullptr)
-    {
-        delete urlParser;
-        urlParser = nullptr;
-    }
 
     // Prepend prefix, if set.
     if (prefix.length() > 0)
@@ -1161,7 +1155,7 @@ bool drivewireNetwork::parseURL()
 
     Debug_printf("drivewireNetwork::parseURL transformed to (%s, %s)\n", deviceSpec.c_str(), url.c_str());
 
-    return isValidURL(urlParser);
+    return isValidURL(urlParser.get());
 }
 
 /**
@@ -1277,7 +1271,7 @@ void drivewireNetwork::do_idempotent_command_80()
         return;
     }
 
-    if (protocol->perform_idempotent_80(urlParser, &cmdFrame) == true)
+    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
     {
         Debug_printf("perform_idempotent_80 failed\n");
         // sio_error();

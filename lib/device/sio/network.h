@@ -6,6 +6,7 @@
 #endif
 
 #include <string>
+#include <memory>
 #include <vector>
 
 #include "bus.h"
@@ -162,7 +163,7 @@ private:
     /**
      * The PeoplesUrlParser object used to hold/process a URL
      */
-    PeoplesUrlParser *urlParser = nullptr;
+    std::unique_ptr<PeoplesUrlParser> urlParser = nullptr;
 
     /**
      * Instance of currently open network protocol
