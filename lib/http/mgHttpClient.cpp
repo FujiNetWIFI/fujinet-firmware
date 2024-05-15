@@ -204,25 +204,31 @@ void mgHttpClient::load_system_certs_windows() {
 #else // !_WIN32
 
 void mgHttpClient::load_system_certs_unix() {
+    int cert_count = 0;
+    certDataStorage.clear();
 
+    // Load the initial certificate file
 #if defined(__linux__)
-    ca = mg_file_read(&mg_fs_posix, "/etc/ssl/certs/ca-certificates.crt");
+    mg_str tempCa = mg_file_read(&mg_fs_posix, "/etc/ssl/certs/ca-certificates.crt");
 #else // MAC
-    ca = mg_file_read(&mg_fs_posix, "/etc/ssl/cert.pem");
+    mg_str tempCa = mg_file_read(&mg_fs_posix, "/etc/ssl/cert.pem");
 #endif
 
-    if (ca.len == 0) {
+    if (tempCa.len == 0) {
         Debug_printf("WARNING: could not find system certificate file, falling back to local file.\n");
-        ca = mg_file_read(&mg_fs_posix, "data/ca.pem");
-    } else {
-        // We need to first strip any additional lines from the CA file between certs
-        // as mbedtls does not like them
-        std::string certData(ca.ptr, ca.len);
+        // If the initial load fails, try the fallback file
+        if (tempCa.ptr != NULL) {
+            free((void*)tempCa.ptr); // Free the memory if it was allocated
+        }
+        tempCa = mg_file_read(&mg_fs_posix, "data/ca.pem");
+    }
+
+    if (tempCa.ptr != NULL) {
+        // Process the certificate data
+        std::string certData(tempCa.ptr, tempCa.len);
         std::istringstream certStream(certData);
         std::string line;
-        std::string processedCerts;
         bool inCertBlock = false;
-        int cert_count = 0;
 
         while (std::getline(certStream, line)) {
             if (line.find("-----BEGIN CERTIFICATE-----") != std::string::npos) {
@@ -230,21 +236,22 @@ void mgHttpClient::load_system_certs_unix() {
                 cert_count++;
             }
             if (inCertBlock) {
-                processedCerts += line + "\n";
+                certDataStorage += line + "\n";
             }
             if (line.find("-----END CERTIFICATE-----") != std::string::npos) {
                 inCertBlock = false;
             }
         }
 
-        // Update 'ca' with the processed certificates
-        free((void*)ca.ptr);
-        ca.ptr = strdup(processedCerts.c_str());
-        ca.len = processedCerts.length();
-
-        Debug_printf("System certificates loaded, count: %d\n", cert_count);
-
+        // Free the memory allocated by mg_file_read
+        free((void*)tempCa.ptr);
     }
+
+    // Update 'ca' to point to the processed certificates stored in 'certDataStorage'
+    ca.ptr = certDataStorage.c_str();
+    ca.len = certDataStorage.length();
+
+    Debug_printf("System certificates loaded, count: %d\n", cert_count);
 }
 
 #endif

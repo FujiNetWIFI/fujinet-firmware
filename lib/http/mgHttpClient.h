@@ -112,6 +112,7 @@ private:
     void deepCopyHttpMessage(const struct mg_http_message *src, struct mg_http_message *dest);
     void freeHttpMessage(struct mg_http_message *msg);
     struct mg_http_message *current_message = nullptr;
+    std::string certDataStorage; // Store the processed certificate data
 
 public:
 
