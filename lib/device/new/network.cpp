@@ -254,7 +254,13 @@ void adamNetwork::status()
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->status(&s);
+        if (protocol == nullptr) {
+            Debug_printf("ERROR: Calling status on a null protocol.\r\n");
+            err = true;
+            s.error = true;
+        } else {
+            err = protocol->status(&s);
+        }
         break;
     case JSON:
         // err = _json->status(&status);

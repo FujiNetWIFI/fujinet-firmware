@@ -515,7 +515,12 @@ void drivewireNetwork::status_channel()
     switch (channelMode)
     {
     case PROTOCOL:
-        protocol->status(&ns);
+        if (protocol == nullptr) {
+            Debug_printf("ERROR: Calling status_channel on a null protocol.\r\n");
+            ns.error = true;
+        } else {
+            protocol->status(&ns);
+        }
         break;
     case JSON:
         status_channel_json(&ns);
@@ -895,6 +900,13 @@ void drivewireNetwork::special_80()
     fnUartBUS.readBytes(spData,256);
 
     Debug_printf("drivewireNetwork::special_80() - %s\n", spData);
+
+    if (protocol == nullptr) {
+        Debug_printf("ERROR: Calling special_80 on a null protocol.\r\n");
+        ns.reset();
+        ns.error = true;
+        return;
+    }
 
     // Do protocol action and return
     protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame);

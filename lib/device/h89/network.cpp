@@ -313,7 +313,13 @@ void H89Network::status()
     // switch (channelMode)
     // {
     // case PROTOCOL:
+    // if (protocol == nullptr) {
+    //     Debug_printf("ERROR: Calling status on a null protocol.\r\n");
+    //     err = true;
+    //     s.error = true;
+    // } else {
     //     err = protocol->status(&s);
+    // }
     //     break;
     // case JSON:
     //     err = status_channel_json(&s);

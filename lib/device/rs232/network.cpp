@@ -420,7 +420,13 @@ void rs232Network::rs232_status_channel()
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->status(&status);
+        if (protocol == nullptr) {
+            Debug_printf("ERROR: Calling rs232_status_channel on a null protocol.\r\n");
+            err = true;
+            status.error = true;
+        } else {
+            err = protocol->status(&status);
+        }
         break;
     case JSON:
         rs232_status_channel_json(&status);

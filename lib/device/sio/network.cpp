@@ -471,7 +471,13 @@ void sioNetwork::sio_status_channel()
     switch (channelMode)
     {
     case PROTOCOL:
-        err = protocol->status(&status);
+        if (protocol == nullptr) {
+            Debug_printf("ERROR: Calling status on a null protocol.\r\n");
+            err = true;
+            status.error = true;
+        } else {
+            err = protocol->status(&status);
+        }
         break;
     case JSON:
         sio_status_channel_json(&status);
