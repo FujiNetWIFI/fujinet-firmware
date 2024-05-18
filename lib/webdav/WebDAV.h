@@ -34,6 +34,11 @@ public:
     };
 
     /**
+     * @brief Called to reset before processing new XML
+     */
+    void reset();
+
+    /**
      * @brief Called when start tag is encountered.
      * @param el element to be processed
      * @param attr array of attributes attached to element
