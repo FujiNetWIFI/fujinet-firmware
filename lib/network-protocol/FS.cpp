@@ -114,6 +114,7 @@ bool NetworkProtocolFS::open_dir()
 
         // Clearing the buffer for reuse
         entryBuffer.clear();
+        entryBuffer.resize(ENTRY_BUFFER_SIZE, 0); // fenrock was right.
     }
 
 #ifdef BUILD_ATARI
