@@ -10,6 +10,7 @@
 
 #include "status_error_codes.h"
 #include "utils.h"
+#include "compat_string.h"
 
 #include <vector>
 
