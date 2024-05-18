@@ -172,10 +172,11 @@ bool NetworkProtocolHTTP::open_dir_handle()
     }
 
     len = client->available();
-    std::vector<uint8_t> buf = std::vector<uint8_t>(len);
+    std::vector<uint8_t> buf = std::vector<uint8_t>(len+1); // +1 for '\0'
 
     // Grab the buffer.
     actual_len = client->read(buf.data(), len);
+    buf[len] = 0; // make it C string compatible, useful for Debug_printf ;-)
 
     if (actual_len != len)
     {
@@ -433,18 +434,17 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 
     if (dirEntryCursor != webDAV.entries.end())
     {
+        strlcpy(buf, dirEntryCursor->filename.c_str(), len);
         fileSize = atoi(dirEntryCursor->fileSize.c_str());
-        strcpy(buf, dirEntryCursor->filename.c_str());
         ++dirEntryCursor;
+        Debug_printf("Returning: %s, %u\r\n", buf, fileSize);
     }
     else
     {
         // EOF
-        error = 136;
+        error = NETWORK_ERROR_END_OF_FILE;
         err = true;
     }
-
-    Debug_printf("Returning: %s, %u\r\n", buf, fileSize);
 
     return err;
 }
@@ -663,9 +663,10 @@ bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
     }
 
     // Put PROPFIND data to debug console
-    Debug_printf("PROPFIND DATA:\n\n%s\r\n", buf);
+    Debug_printf("PROPFIND DATA (%d bytes):\r\n%s\r\n", len, buf);
 
     // Set everything up
+    webDAV.reset();
     XML_SetUserData(p, &webDAV);
     XML_SetElementHandler(p, Start<WebDAV>, End<WebDAV>);
     XML_SetCharacterDataHandler(p, Char<WebDAV>);
