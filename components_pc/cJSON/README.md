@@ -10,6 +10,7 @@ Ultralightweight JSON parser in ANSI C.
     * [Copying the source](#copying-the-source)
     * [CMake](#cmake)
     * [Makefile](#makefile)
+    * [Meson](#meson)
     * [Vcpkg](#Vcpkg)
   * [Including cJSON](#including-cjson)
   * [Data Structure](#data-structure)
@@ -118,6 +119,7 @@ You can change the build process with a list of different options that you can p
 * `-DCMAKE_INSTALL_PREFIX=/usr`: Set a prefix for the installation.
 * `-DENABLE_LOCALES=On`: Enable the usage of localeconv method. ( on by default )
 * `-DCJSON_OVERRIDE_BUILD_SHARED_LIBS=On`: Enable overriding the value of `BUILD_SHARED_LIBS` with `-DCJSON_BUILD_SHARED_LIBS`.
+* `-DENABLE_CJSON_VERSION_SO`: Enable cJSON so version. ( on by default )
 
 If you are packaging cJSON for a distribution of Linux, you would probably take these steps for example:
 ```
@@ -143,6 +145,23 @@ make all
 ```
 
 If you want, you can install the compiled library to your system using `make install`. By default it will install the headers in `/usr/local/include/cjson` and the libraries in `/usr/local/lib`. But you can change this behavior by setting the `PREFIX` and `DESTDIR` variables: `make PREFIX=/usr DESTDIR=temp install`. And uninstall them with: `make PREFIX=/usr DESTDIR=temp uninstall`.
+
+#### Meson
+
+To make cjson work in a project using meson, the libcjson dependency has to be included:
+
+```meson
+project('c-json-example', 'c')
+
+cjson = dependency('libcjson')
+
+example = executable(
+    'example',
+    'example.c',
+    dependencies: [cjson],
+)
+```
+
 
 #### Vcpkg
 
@@ -406,7 +425,7 @@ end:
 }
 ```
 
-Alternatively we can use the `cJSON_Add...ToObject` helper functions to make our lifes a little easier:
+Alternatively we can use the `cJSON_Add...ToObject` helper functions to make our lives a little easier:
 
 ```c
 //NOTE: Returns a heap allocated string, you are required to free it after use.
