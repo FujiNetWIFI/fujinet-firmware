@@ -125,8 +125,6 @@ bool NetworkProtocolFS::open_dir()
     if (error == NETWORK_ERROR_END_OF_FILE)
         error = NETWORK_ERROR_SUCCESS;
 
-    // No need to free entryBuffer since it's managed by shared_ptr
-
     return error != NETWORK_ERROR_SUCCESS;
 }
 
