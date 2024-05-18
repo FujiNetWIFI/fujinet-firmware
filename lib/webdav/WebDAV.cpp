@@ -16,7 +16,12 @@ void WebDAV::Start(const XML_Char *el, const XML_Char **attr)
     Debug_printf("WebDAV::Start(%s, )\n", el);
     size_t el_len = strlen(el);
     if (IS_ANYNS_ELEMENT("response", el, el_len))
+    {
         insideResponse = true;
+         // reset entry name and size
+        currentEntry.filename.clear();
+        currentEntry.fileSize.clear();
+    }
     else if (IS_ANYNS_ELEMENT("displayname", el, el_len))
         insideDisplayName = true;
     else if (IS_ANYNS_ELEMENT("getcontentlength", el, el_len))
