@@ -93,7 +93,7 @@ bool NetworkProtocolFS::open_dir()
         return true;
     }
 
-    std::vector<uint8_t> entryBuffer = std::vector<uint8_t>(ENTRY_BUFFER_SIZE);
+    std::vector<uint8_t> entryBuffer(ENTRY_BUFFER_SIZE);
 
     while (read_dir_entry((char *)entryBuffer.data(), ENTRY_BUFFER_SIZE - 1) == false)
     {
@@ -101,20 +101,19 @@ bool NetworkProtocolFS::open_dir()
         {
             // Long entry
             if (aux2_open == 0x81) // Apple2 80 col format.
-                dirBuffer += util_long_entry_apple2_80col(std::string(entryBuffer.begin(), entryBuffer.end()), fileSize, is_directory) + lineEnding;
+                dirBuffer += util_long_entry_apple2_80col(std::string((char *)entryBuffer.data()), fileSize, is_directory) + lineEnding;
             else
-                dirBuffer += util_long_entry(std::string(entryBuffer.begin(), entryBuffer.end()), fileSize, is_directory) + lineEnding;
+                dirBuffer += util_long_entry(std::string((char *)entryBuffer.data()), fileSize, is_directory) + lineEnding;
         }
         else
         {
             // 8.3 entry
-            dirBuffer += util_entry(util_crunch(std::string(entryBuffer.begin(), entryBuffer.end())), fileSize, is_directory, is_locked) + lineEnding;
+            dirBuffer += util_entry(util_crunch(std::string((char *)entryBuffer.data())), fileSize, is_directory, is_locked) + lineEnding;
         }
         fserror_to_error();
 
         // Clearing the buffer for reuse
-        entryBuffer.clear();
-        entryBuffer.resize(ENTRY_BUFFER_SIZE, 0); // fenrock was right.
+        std::fill(entryBuffer.begin(), entryBuffer.end(), 0);
     }
 
 #ifdef BUILD_ATARI
