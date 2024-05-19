@@ -1318,7 +1318,14 @@ void rs232Fuji::rs232_set_device_filename()
     if (slot < MAX_DISK_DEVICES)
     {
         memcpy(_fnDisks[cmdFrame.aux1].filename, tmp, MAX_FILENAME_LEN);
-        _fnDisks[cmdFrame.aux1].host_slot = host;
+
+        // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
+        if (strlen(_fnDisks[cmdFrame.aux1].filename) == 0) {
+            _fnDisks[cmdFrame.aux1].host_slot = INVALID_HOST_SLOT;
+        } else {
+            _fnDisks[cmdFrame.aux1].host_slot = host;
+        }
+
         _fnDisks[cmdFrame.aux1].access_mode = mode;
         _populate_config_from_slots();
     }

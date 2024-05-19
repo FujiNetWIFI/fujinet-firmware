@@ -1751,13 +1751,25 @@ void iecFuji::set_device_filename()
     }
     else
     {
-        
         if (pt.size() < 4)
         {
             Debug_printf("not enough parameters.\n");
             response = "error: invalid # of parameters";
             return; // send error
         }
+        slot = atoi(pt[0].c_str());
+        host = atoi(pt[1].c_str());
+        mode = atoi(pt[2].c_str());
+
+        size_t len = pt[3].size();
+        if (len > MAX_FILENAME_LEN) {
+            Debug_printf("ERROR: device filename too long, cannot save.\n");
+            response = "error: device filename too long";
+            return;
+        }
+
+        memcpy(tmp, pt[3].c_str(), len);
+        tmp[len] = '\0';    // ensure there's a terminating 0
     }
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
@@ -1765,8 +1777,15 @@ void iecFuji::set_device_filename()
     // Handle DISK slots
     if (slot < MAX_DISK_DEVICES)
     {
-        // TODO: Set HOST and MODE
         memcpy(_fnDisks[slot].filename, tmp, MAX_FILENAME_LEN);
+
+        // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
+        if (strlen(_fnDisks[slot].filename) == 0) {
+            _fnDisks[slot].host_slot = INVALID_HOST_SLOT;
+        } else {
+            _fnDisks[slot].host_slot = host;
+        }
+        _fnDisks[slot].access_mode = mode;
         _populate_config_from_slots();
     }
     else

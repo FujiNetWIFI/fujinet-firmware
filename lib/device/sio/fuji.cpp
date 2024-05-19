@@ -1929,7 +1929,12 @@ void sioFuji::sio_set_device_filename()
     if (deviceSlot < MAX_DISK_DEVICES)
     {
         memcpy(_fnDisks[deviceSlot].filename, tmp, MAX_FILENAME_LEN);
-        _fnDisks[deviceSlot].host_slot = host;
+        // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
+        if (strlen(_fnDisks[deviceSlot].filename) == 0) {
+            _fnDisks[deviceSlot].host_slot = INVALID_HOST_SLOT;
+        } else {
+            _fnDisks[deviceSlot].host_slot = host;
+        }
         _fnDisks[deviceSlot].access_mode = mode;
         _populate_config_from_slots();
     }
