@@ -115,36 +115,36 @@ void drivewireDload::valid_filename()
 
 void drivewireDload::send_filetype()
 {
-    // as part of this, we tokenize filename
-    // to get rid of the padded spaces
-    char *p = strtok(fn, " ");
+    // // as part of this, we tokenize filename
+    // // to get rid of the padded spaces
+    // char *p = strtok(fn, " ");
 
-    // Handle null filename as not found
-    if (!p)
-        send_filetype_file_not_found();
+    // // Handle null filename as not found
+    // if (!p)
+    //     send_filetype_file_not_found();
 
-    if (!fsFlash.exists(p))
-    {
-        // File not found
-        send_filetype_file_not_found();
-    }
+    // if (!fsFlash.exists(p))
+    // {
+    //     // File not found
+    //     send_filetype_file_not_found();
+    // }
 
-    // File found, let's open it.
-    fp = fsFlash.file_open(p);
+    // // File found, let's open it.
+    // fp = fsFlash.file_open(p);
 
-    // Could not open file, send file not found, report to console
-    if (!fp)
-    {
-        Debug_printv("Could not open file %s, errno = %d", p, errno);
-        send_filetype_file_not_found();
-    }
+    // // Could not open file, send file not found, report to console
+    // if (!fp)
+    // {
+    //     Debug_printv("Could not open file %s, errno = %d", p, errno);
+    //     send_filetype_file_not_found();
+    // }
 
-    Debug_printv("File opened.");
+    // Debug_printv("File opened.");
 
-    //send_filetype_binary();
-    send_filetype_file_not_found();
+    // //send_filetype_binary();
+    // send_filetype_file_not_found();
 
-    dState = P_BLKR_FROM_COCO;
+    // dState = P_BLKR_FROM_COCO;
 }
 
 void drivewireDload::send_filetype_file_not_found()
