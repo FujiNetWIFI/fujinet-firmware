@@ -25,53 +25,53 @@
  */
 void drivewireCassette::play()
 {
-    FILE *casf = fsFlash.file_open("/hdbcc2.raw", "r");
-    uint8_t *casbuf = NULL;
-    size_t sz = 0UL;
+    // FILE *casf = fsFlash.file_open("/hdbcc2.raw", "r");
+    // uint8_t *casbuf = NULL;
+    // size_t sz = 0UL;
 
-    Debug_printv("Reading /hdbcc2.raw");
+    // Debug_printv("Reading /hdbcc2.raw");
     
-    // Determine and allocate memory for image
-    fseek(casf, 0UL, SEEK_END);
-    sz = ftell(casf);
-    casbuf = (uint8_t *)malloc(sz);
-    fseek(casf, 0UL, SEEK_SET);
+    // // Determine and allocate memory for image
+    // fseek(casf, 0UL, SEEK_END);
+    // sz = ftell(casf);
+    // casbuf = (uint8_t *)malloc(sz);
+    // fseek(casf, 0UL, SEEK_SET);
 
-    // Read image into memory
-    fread(casbuf, sizeof(uint8_t), sz, casf);
+    // // Read image into memory
+    // fread(casbuf, sizeof(uint8_t), sz, casf);
     
-    // Done with file
-    fclose(casf);
+    // // Done with file
+    // fclose(casf);
 
-    // Now play it back.
-    Debug_printv("Enabling DAC.")
-        dac_output_enable(DAC_CHANNEL_1);
+    // // Now play it back.
+    // Debug_printv("Enabling DAC.")
+    //     dac_output_enable(DAC_CHANNEL_1);
 
-    Debug_printv("sending data.");
+    // Debug_printv("sending data.");
 
-    for (size_t i = 0; i < sz; i++)
-    {
-        dac_output_voltage(DAC_CHANNEL_1, casbuf[i]);
+    // for (size_t i = 0; i < sz; i++)
+    // {
+    //     dac_output_voltage(DAC_CHANNEL_1, casbuf[i]);
 
-        // Abort if motor drops.
-        if (!DRIVEWIRE.motorActive)
-            break;
+    //     // Abort if motor drops.
+    //     if (!DRIVEWIRE.motorActive)
+    //         break;
 
-        esp_rom_delay_us(SAMPLE_DELAY_US);
-    }
+    //     esp_rom_delay_us(SAMPLE_DELAY_US);
+    // }
 
-    Debug_printv("Disabling DAC.");
+    // Debug_printv("Disabling DAC.");
 
-    dac_output_disable(DAC_CHANNEL_1);
+    // dac_output_disable(DAC_CHANNEL_1);
 
-    // Deallocate casbuf.
-    if (casbuf)
-    {
-        free(casbuf);
-        casbuf = NULL;
-    }
+    // // Deallocate casbuf.
+    // if (casbuf)
+    // {
+    //     free(casbuf);
+    //     casbuf = NULL;
+    // }
 
-    Debug_printv("Tape done.");
+    // Debug_printv("Tape done.");
 }
 
 void drivewireCassette::setup()
