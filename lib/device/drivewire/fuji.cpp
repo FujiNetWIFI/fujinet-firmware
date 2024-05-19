@@ -485,7 +485,7 @@ void drivewireFuji::mount_all()
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
 
-        if (disk.host_slot != INVALID_HOST_SLOT)
+        if (disk.host_slot != INVALID_HOST_SLOT && strlen(disk.filename) > 0)
         {
             nodisks = false; // We have a disk in a slot
 
