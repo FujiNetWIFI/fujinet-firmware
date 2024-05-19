@@ -38,6 +38,14 @@ bool NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
     NetworkProtocol::open(urlParser, cmdFrame);
     int ret;
 
+    if (!urlParser->user.empty()) {
+        login = &urlParser->user;
+    }
+
+    if (!urlParser->password.empty()) {
+        password = &urlParser->password;
+    }
+
     if (!login || !password || (login->empty() && password->empty()))
     {
         error = NETWORK_ERROR_INVALID_USERNAME_OR_PASSWORD;
