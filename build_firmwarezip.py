@@ -31,8 +31,8 @@ def makezip(source, target, env):
     if not os.path.exists(env.subst("$BUILD_DIR/firmware.bin")):
         print("FIRMWARE not available to pack in firmware zip")
         zipit = False
-    if not os.path.exists(env.subst("$BUILD_DIR/spiffs.bin")):
-        print("SPIFFS not available to pack in firmware zip, run \"Build Filesystem Image\" first")
+    if not os.path.exists(env.subst("$BUILD_DIR/littlefs.bin")):
+        print("LittleFS not available to pack in firmware zip, run \"Build Filesystem Image\" first")
         zipit = False
 
     if zipit == True:
@@ -118,7 +118,7 @@ def makezip(source, target, env):
             "offset": "0x10000"
         },
         {
-            "filename": "spiffs.bin",
+            "filename": "littlefs.bin",
             "offset": "0x910000"
         }
     ]
@@ -138,7 +138,7 @@ def makezip(source, target, env):
             "offset": "0x10000"
         },
         {
-            "filename": "spiffs.bin",
+            "filename": "littlefs.bin",
             "offset": "0x600000"
         }
     ]
@@ -158,7 +158,7 @@ def makezip(source, target, env):
             "offset": "0x10000"
         },
         {
-            "filename": "spiffs.bin",
+            "filename": "littlefs.bin",
             "offset": "0x250000"
         }
     ]
@@ -174,7 +174,7 @@ def makezip(source, target, env):
             zip_object.write(env.subst("$BUILD_DIR/bootloader.bin"), "bootloader.bin")
             zip_object.write(env.subst("$BUILD_DIR/partitions.bin"), "partitions.bin")
             zip_object.write(env.subst("$BUILD_DIR/firmware.bin"), "firmware.bin")
-            zip_object.write(env.subst("$BUILD_DIR/spiffs.bin"), "spiffs.bin")
+            zip_object.write(env.subst("$BUILD_DIR/littlefs.bin"), "littlefs.bin")
             zip_object.write("firmware/release.json", "release.json")
     else:
         print("Skipping making firmware ZIP due to error")
