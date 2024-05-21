@@ -151,7 +151,7 @@ bool NetworkProtocolHTTP::open_file_handle()
 
 bool NetworkProtocolHTTP::open_dir_handle()
 {
-    unsigned short len, actual_len;
+    int len, actual_len;
 
     Debug_printf("NetworkProtocolHTTP::open_dir_handle()\r\n");
 
@@ -163,7 +163,11 @@ bool NetworkProtocolHTTP::open_dir_handle()
     }
 
     // client->begin already called in mount()
-    resultCode = client->PROPFIND(HTTP_CLIENT_CLASS::webdav_depth::DEPTH_1, "<?xml version=\"1.0\"?>\r\n<D:propfind xmlns:D=\"DAV:\">\r\n<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /></D:prop>\r\n</D:propfind>\r\n");
+    resultCode = client->PROPFIND(HTTP_CLIENT_CLASS::webdav_depth::DEPTH_1, 
+    "<?xml version=\"1.0\"?>\r\n"
+    "<D:propfind xmlns:D=\"DAV:\">\r\n"
+    "<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /><D:resourcetype /></D:prop>\r\n"
+    "</D:propfind>\r\n");
 
     if (resultCode > 399)
     {
@@ -172,30 +176,76 @@ bool NetworkProtocolHTTP::open_dir_handle()
         return true;
     }
 
-    len = client->available();
-    std::vector<uint8_t> buf = std::vector<uint8_t>(len+1); // +1 for '\0'
-
-    // Grab the buffer.
-    actual_len = client->read(buf.data(), len);
-    buf[len] = 0; // make it C string compatible, useful for Debug_printf ;-)
-
-    if (actual_len != len)
+    // Setup XML WebDAV parser
+    if (webDAV.begin_parser())
     {
-        Debug_printf("Expected %u bytes, actually got %u bytes.\r\n", len, actual_len);
+        Debug_printf("Failed to setup parser.\r\n");
         error = NETWORK_ERROR_GENERAL;
         return true;
     }
 
-    // Parse the buffer
-    if (parseDir((char *)buf.data(), len))
+    std::vector<uint8_t> buf;
+
+    // Process all response chunks
+    while ( !client->is_transaction_done() || client->available() > 0)
     {
-        Debug_printf("Could not parse buffer, returning 144\r\n");
-        error = NETWORK_ERROR_GENERAL;
+        len = client->available();
+        if (len > 0)
+        {
+            Debug_printf("data available %d ...\n", len);
+            // increase chunk buffer if necessary
+            if (len >= buf.size())
+                buf.resize(len+1); // +1 for '\0'
+
+            // Grab the buffer
+            actual_len = client->read(buf.data(), len);
+
+            if (actual_len != len)
+            {
+                Debug_printf("Expected %d bytes, actually got %d bytes.\r\n", len, actual_len);
+                error = NETWORK_ERROR_GENERAL;
+                break;
+            }
+            buf[len] = '\0'; // make buffer C string compatible for Debug_printf()
+
+            // Parse the buffer
+            if (webDAV.parse((char *)buf.data(), len, false))
+            {
+                Debug_printf("Could not parse buffer, returning 144\r\n");
+                error = NETWORK_ERROR_GENERAL;
+                break;
+            }
+        }
+        else if (len == 0)
+        {
+            Debug_println("waiting for data");
+#ifdef ESP_PLATFORM
+            vTaskDelay(100 / portTICK_PERIOD_MS); // TBD !!!
+#endif
+        }
+        else // if (len < 0)
+        {
+            Debug_println("something went wrong");
+            error = NETWORK_ERROR_GENERAL;
+            break;
+        }
+    }
+
+    if (error != NETWORK_ERROR_SUCCESS)
+    {
+        Debug_printf("NetworkProtocolHTTP::open_dir_handle() - error %u\r\n", error);
+        webDAV.end_parser(true); // release parser resources + clear collected entries
         return true;
     }
 
-    // Scoot to beginning of entries.
-    dirEntryCursor = webDAV.entries.begin();
+    // finish parsing (not sure if this is necessary)
+    webDAV.parse(nullptr, 0, true);
+
+    // Release parser resources (keep directory entries)
+    webDAV.end_parser();
+
+    // Scoot to beginning of directory entries.
+    dirEntryCursor = webDAV.rewind();
 
     if (client != nullptr)
     {
@@ -232,7 +282,10 @@ bool NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
     // fileSize = 65535;
 
     if (aux1_open == 6)
+    {
         util_replaceAll(url->path, "*.*", "");
+        url->rebuildUrl();
+    }
 
     return !client->begin(url->url);
 }
@@ -431,14 +484,13 @@ bool NetworkProtocolHTTP::read_dir_entry(char *buf, unsigned short len)
 
     Debug_printf("NetworkProtocolHTTP::read_dir_entry(%p,%u)\r\n", buf, len);
 
-    // TODO: Get directory attribute.
-
     if (dirEntryCursor != webDAV.entries.end())
     {
         strlcpy(buf, dirEntryCursor->filename.c_str(), len);
         fileSize = atoi(dirEntryCursor->fileSize.c_str());
+        is_directory = dirEntryCursor->isDir;
         ++dirEntryCursor;
-        Debug_printf("Returning: %s, %u\r\n", buf, fileSize);
+        Debug_printf("Returning: %s, %u, %s\r\n", buf, fileSize, is_directory ? "DIR" : "FILE");
     }
     else
     {
@@ -468,6 +520,7 @@ bool NetworkProtocolHTTP::close_file_handle()
 bool NetworkProtocolHTTP::close_dir_handle()
 {
     Debug_printf("NetworkProtocolHTTP::close_dir_handle()\r\n");
+    webDAV.clear(); // release directory entries
     return false;
 }
 
@@ -649,41 +702,6 @@ void NetworkProtocolHTTP::http_transaction()
 
     fserror_to_error();
     fileSize = bodySize = client->available();
-}
-
-bool NetworkProtocolHTTP::parseDir(char *buf, unsigned short len)
-{
-    XML_Parser p = XML_ParserCreate(NULL);
-    XML_Status xs;
-    bool err = false;
-
-    if (p == nullptr)
-    {
-        Debug_printf("NetworkProtocolHTTP::parseDir(%p,%u) - could not create expat parser. Aborting.\r\n", buf, len);
-        return true;
-    }
-
-    // Put PROPFIND data to debug console
-    Debug_printf("PROPFIND DATA (%d bytes):\r\n%s\r\n", len, buf);
-
-    // Set everything up
-    webDAV.reset();
-    XML_SetUserData(p, &webDAV);
-    XML_SetElementHandler(p, Start<WebDAV>, End<WebDAV>);
-    XML_SetCharacterDataHandler(p, Char<WebDAV>);
-
-    // And parse the damned buffer
-    xs = XML_Parse(p, buf, len, true);
-
-    if (xs == XML_STATUS_ERROR)
-    {
-        Debug_printf("DAV response XML Parse Error! msg: %s line: %lu\r\n", XML_ErrorString(XML_GetErrorCode(p)), XML_GetCurrentLineNumber(p));
-    }
-
-    if (p != nullptr)
-        XML_ParserFree(p);
-
-    return err;
 }
 
 bool NetworkProtocolHTTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
