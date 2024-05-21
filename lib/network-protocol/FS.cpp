@@ -101,19 +101,19 @@ bool NetworkProtocolFS::open_dir()
         {
             // Long entry
             if (aux2_open == 0x81) // Apple2 80 col format.
-                dirBuffer += util_long_entry_apple2_80col(std::string((char *)entryBuffer.data()), fileSize, is_directory) + lineEnding;
+                dirBuffer += util_long_entry_apple2_80col((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
             else
-                dirBuffer += util_long_entry(std::string((char *)entryBuffer.data()), fileSize, is_directory) + lineEnding;
+                dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
         }
         else
         {
             // 8.3 entry
-            dirBuffer += util_entry(util_crunch(std::string((char *)entryBuffer.data())), fileSize, is_directory, is_locked) + lineEnding;
+            dirBuffer += util_entry(util_crunch((char *)entryBuffer.data()), fileSize, is_directory, is_locked) + lineEnding;
         }
         fserror_to_error();
 
         // Clearing the buffer for reuse
-        std::fill(entryBuffer.begin(), entryBuffer.end(), 0);
+        std::fill(entryBuffer.begin(), entryBuffer.end(), 0); // fenrock was right.
     }
 
 #ifdef BUILD_ATARI
