@@ -72,7 +72,7 @@ jobs:
 
     - name: Set Nightly Version in Firmware
       id: nightly-version
-      run: sed -i "s/\"${{ steps.version.outputs.VERSION }}\"/\"${{ steps.version.outputs.VERSION }}-$(date +%Y%m%d)-${{ steps.short-sha.outputs.sha }}\"/\" /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h
+      run: sed -i "s/\"${{ steps.version.outputs.VERSION }}\"/\"${{ steps.version.outputs.VERSION }}-$(date +%Y%m%d)-${{ steps.short-sha.outputs.sha }}\"/" /home/runner/work/fujinet-firmware/fujinet-firmware/include/version.h
 
     - name: Build release
       run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -z -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
