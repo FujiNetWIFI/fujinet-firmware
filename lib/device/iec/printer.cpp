@@ -150,7 +150,7 @@ device_state_t iecPrinter::process()
         commanddata.secondary == IEC_REOPEN)
         write(commanddata.channel);
 
-    return device_state;
+    return state;
 }
 
 #endif /* BUILD_IEC */

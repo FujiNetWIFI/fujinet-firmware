@@ -31,6 +31,41 @@
 // https://c65gs.blogspot.com/2024/01/hardware-accelerated-iec-controller.html?m=0
 //
 
+// https://retrocomputing.stackexchange.com/questions/14071/what-are-my-options-for-fast-bidirectional-transfer-between-a-c64-and-a-1541?rq=1
+//
+// ltransferbyte:
+//     nop     ; timing critical section
+//     nop
+//     nop
+//     nop
+//     lda #$03
+//     ldx #$23
+//     stx $dd00   ; data=active,clock=inactive,ATN=inactive
+//     bit $dd00
+//     bvc lloadinnerloop  ; branch if 1541 sets clock active (needs to load next block)
+//     nop
+//     sta $dd00   ; set data inactive
+//     lda $dd00   ; read bits 1/0
+//     nop
+//     lsr
+//     lsr
+//     eor $dd00   ; read bits 3/2
+//     bit $00     ; burn cycles
+//     lsr
+//     lsr
+//     eor $dd00   ; read bits 5/4
+//     bit $00     ; burn cycles
+//     lsr
+//     lsr
+//     eor $dd00   ; read bits 7/6
+//     eor #$03
+//     sta ($ae),y ; store byte
+//     inc $ae     ; load address lo
+//     bne ltransferbyte
+//     inc $af     ; load address hi
+//     jmp ltransferbyte
+//
+
 #ifndef PROTOCOL_JIFFYDOS_H
 #define PROTOCOL_JIFFYDOS_H
 

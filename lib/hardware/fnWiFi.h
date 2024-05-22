@@ -34,7 +34,7 @@ private:
         // bool enabled;
     };
 
-   bool _started = false;
+    bool _started = false;
     bool _connected = false;
     std::string _ssid;
     std::string _password;

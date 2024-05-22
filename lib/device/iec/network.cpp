@@ -103,7 +103,7 @@ void iecNetwork::iec_open()
         break;
     default:
         cmdFrame.aux1 = 12;                                    // default read/write
-        cmdFrame.aux2 = translationMode[commanddata.channel]; // now used
+        cmdFrame.aux2 = translationMode[commanddata.channel];  // now used
         Debug_printf("translation mode: %u\r\n", cmdFrame.aux2);
         break;
     }
@@ -240,7 +240,7 @@ void iecNetwork::iec_close()
     specialBuffer[commanddata.channel]->shrink_to_fit();
 
     commanddata.init();
-    device_state = DEVICE_IDLE;
+    state = DEVICE_IDLE;
     Debug_printv("device init");
 }
 
@@ -572,7 +572,7 @@ void iecNetwork::query_json()
             s[i] = 0x5F; // wtf?
 
     json[channel]->setReadQuery(s, 0);
-    
+
     if (!json[channel]->readValueLen())
     {
         iecStatus.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
@@ -638,8 +638,9 @@ void iecNetwork::parse_bite()
     //mstr::replaceAll(*receiveBuffer[channel], ";", "\";\"");
     //mstr::replaceAll(*receiveBuffer[channel], ":", "\":\"");
     //mstr::replaceAll(*receiveBuffer[channel], "\r", "\"\r\"");
-    mstr::replaceAll(*receiveBuffer[channel], "\"", "\"\"");
-    *receiveBuffer[channel] = mstr::toUTF8( *receiveBuffer[channel] );
+    //mstr::replaceAll(*receiveBuffer[channel], "\"", "\"\"");
+    mstr::replaceAll(*receiveBuffer[channel], "\"", "");
+    *receiveBuffer[channel] = mstr::toPETSCII2( *receiveBuffer[channel] );
 
     // break up receiveBuffer[channel] into bites less than bite_size bytes
     std::string bites = "\"";
@@ -1291,7 +1292,7 @@ device_state_t iecNetwork::process()
         break;
     }
 
-    return device_state;
+    return state;
 }
 
 void iecNetwork::process_load()

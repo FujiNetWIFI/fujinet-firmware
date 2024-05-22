@@ -44,7 +44,7 @@ device_state_t iecClock::process()
         break;
     }
 
-    return device_state;
+    return state;
 }
 
 void iecClock::iec_open()

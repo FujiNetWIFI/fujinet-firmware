@@ -127,6 +127,7 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
     &mlFS,
     &t64FS, &tcrtFS
 //    &ipfsFS, &tcpFS,
+//    &tnfsFS
 };
 
 bool MFSOwner::mount(std::string name) {

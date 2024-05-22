@@ -31,6 +31,11 @@
 // http://www.bitcity.de/theory.htm
 // https://comp.sys.cbm.narkive.com/ebz1uFEx/annc-vip-the-virtual-iec-peripheral
 // https://www.djupdal.org/cbm/iecata/
+// https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/api-reference/peripherals/dedic_gpio.html
+// https://esp32.com/viewtopic.php?t=27963
+// https://github.com/alwint3r/esp32-read-multiple-gpio-pins
+// https://github.com/alwint3r/esp32-set-clear-multiple-gpio
+// https://www.commodore.ca/wp-content/uploads/2018/11/Commodore-IEC-Serial-Bus-Manual-C64-Plus4.txt
 //
 
 #include <cstdint>
@@ -214,7 +219,7 @@ protected:
     /**
      * @brief current device state.
      */
-    device_state_t device_state;
+    device_state_t state;
 
     /**
      * @brief response queue (e.g. INPUT)
@@ -256,11 +261,11 @@ protected:
         commanddata = data;
 
         if (commanddata.primary == IEC_LISTEN)
-            device_state = DEVICE_LISTEN;
+            state = DEVICE_LISTEN;
         else if (commanddata.primary == IEC_TALK)
-            device_state = DEVICE_TALK;
+            state = DEVICE_TALK;
 
-        return device_state;
+        return state;
     }
 
     /**
@@ -423,7 +428,12 @@ public:
     /**
      * @brief current bus state
      */
-    bus_state_t bus_state;
+    bus_state_t state;
+
+    /**
+     * @brief vic20 mode enables faster valid bit timing
+     */
+    bool vic20_mode = false;
 
     /**
      * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
@@ -569,9 +579,16 @@ public:
     void senderTimeout();
 
 
+    bool pin_atn = false;
+    bool pin_clk = false;
+    bool pin_data = false;
+    bool pin_srq = false;
+    bool pin_reset = false;
+
     void pull ( uint8_t _pin );
     void release ( uint8_t _pin );
     bool status ( uint8_t _pin );
+    bool status ();
 
     void debugTiming();
 };

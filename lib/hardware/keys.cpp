@@ -271,6 +271,7 @@ void KeyManager::_keystate_task(void *param)
             {
                 fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
             }
+            Debug_println("ACTION: Reboot");
             //fnSystem.reboot();
             // IEC.releaseLines();
 #ifdef BUILD_IEC
@@ -305,7 +306,7 @@ void KeyManager::_keystate_task(void *param)
                 adamnet_message_t msg;
                 msg.message_id = ADAMNETMSG_DISKSWAP;
                 xQueueSend(AdamNet.qAdamNetMessages, &msg, 0);
-#endif /* BUILD_ADAM*/
+#endif /* BUILD_ADAM*/ 
             }
             break;
 

@@ -262,7 +262,7 @@ bool MeatHttpClient::processRedirectsAndOpen(int range) {
     _exists = true;
     _position = 0;
 
-    Debug_printv("size[%d] avail[%d] isFriendlySkipper[%d] isText[%d] httpCode[%d]", _size, available(), isFriendlySkipper, isText, lastRC);
+    Debug_printv("size[%d] avail[%d] isFriendlySkipper[%d] isText[%d] httpCode[%d] method[%d]", _size, available(), isFriendlySkipper, isText, lastRC, lastMethod);
 
     return true;
 }
@@ -271,11 +271,6 @@ bool MeatHttpClient::open(std::string dstUrl, esp_http_client_method_t meth) {
     url = dstUrl;
     lastMethod = meth;
     _error = 0;
-
-    // if ( meth == HTTP_METHOD_HEAD)
-    //     return processRedirectsAndOpen(0);
-    // else
-    //     return true;
 
     return processRedirectsAndOpen(0);
 };
@@ -454,7 +449,6 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
         case HTTP_EVENT_ERROR: // This event occurs when there are any errors during execution
             Debug_printv("HTTP_EVENT_ERROR");
             meatClient->_error = 1;
-            
             break;
 
         case HTTP_EVENT_ON_CONNECTED: // Once the HTTP has been connected to the server, no data exchange has been performed

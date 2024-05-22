@@ -55,5 +55,10 @@
 #define PIN_IEC_DATA_OUT        GPIO_NUM_14
 #define PIN_IEC_SRQ             GPIO_NUM_27
 
+/* Modem/Parallel Switch */
+/* Unused with Nugget    */
+#define PIN_MODEM_ENABLE        GPIO_NUM_2  // High = Modem enabled
+#define PIN_MODEM_UP9600        GPIO_NUM_15 // High = UP9600 enabled
+
 #endif // PINMAP_IEC_NUGGET
 #endif // PINMAP_IEC_NUGGET_H

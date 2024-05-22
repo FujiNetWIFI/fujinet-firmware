@@ -15,9 +15,9 @@ namespace Protocol
         public:
 
         // 2bit Fast Loader Pair Timing
-        uint8_t bit_pair_timing[2][4] = { 
-            {0, 0, 0, 0},   // Send
-            {13, 12, 10, 12}    // Receive
+        uint8_t bit_pair_timing[2][4] = {
+            {13, 11, 13, 13},    // Receive
+            {14, 10, 11, 11}     // Send
         };
 
         /**
@@ -49,10 +49,10 @@ namespace Protocol
          * @brief Wait for specified milliseconds, or until ATN status changes
          * @param wait_us # of milliseconds to wait
          * @param start The previously set start millisecond time.
-         * @param watch_atn also abort if ATN status changes? (default is true)
+         * @param watch_atn also abort if ATN status changes? (default is false)
          */
-        virtual bool wait(size_t wait_us, bool watch_atn = true);
-        virtual bool wait(size_t wait_us, uint64_t start, bool watch_atn = true);
+        virtual bool wait(size_t wait_us, bool watch_atn = false);
+        virtual bool wait(size_t wait_us, uint64_t start, bool watch_atn = false);
     };
 };
 

@@ -61,7 +61,7 @@ private:
 
     int _current_open_directory_slot = -1;
 
-    iecDisk _bootDisk; // special disk drive just for configuration
+    iecDrive _bootDisk; // special disk drive just for configuration
 
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
 
@@ -154,7 +154,7 @@ public:
     
     //iecNetwork *network();
 
-    iecDisk *bootdisk();
+    iecDrive *bootdisk();
 
     void insert_boot_device(uint8_t d);
 
