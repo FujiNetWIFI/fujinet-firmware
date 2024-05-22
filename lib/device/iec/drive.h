@@ -1,20 +1,36 @@
-#ifndef DISK_H
-#define DISK_H
+#ifndef DRIVE_H
+#define DRIVE_H
 
 #include "../fuji/fujiHost.h"
 
 #include <string>
 #include <unordered_map>
 
-#include "bus.h"
+#include "../../bus/bus.h"
 #include "../../media/media.h"
-#include "../../meatloaf/meatloaf.h"
-#include "../../meatloaf/meat_buffer.h"
+#include "../meatloaf/meatloaf.h"
+#include "../meatloaf/meat_buffer.h"
+#include "../meatloaf/wrappers/iec_buffer.h"
+#include "../meatloaf/wrappers/directory_stream.h"
+
+//#include "dos/_dos.h"
+//#include "dos/cbmdos.2.5.h"
 
 #define PRODUCT_ID "MEATLOAF CBM"
 
-class iecDisk : public virtualDevice
+class iecDrive : public virtualDevice
 {
+private:
+    // /**
+    //  * @brief the active bus protocol
+    //  */
+    // std::shared_ptr<DOS> _dos = nullptr;
+
+    // /**
+    //  * @brief Switch to detected bus protocol
+    //  */
+    // std::shared_ptr<DOS> selectDOS();
+
 protected:
     //MediaType *_disk = nullptr;
 
@@ -151,7 +167,7 @@ protected:
     void iec_talk_command_buffer_status() override;
 
 public:
-    iecDisk();
+    iecDrive();
     fujiHost *host;
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();
@@ -162,7 +178,7 @@ public:
     std::unordered_map<uint16_t, std::shared_ptr<MStream>> streams;
     std::unordered_map<uint16_t, uint16_t> streamLastByte;
 
-    ~iecDisk();
+    ~iecDrive();
 };
 
-#endif // DISK_H
+#endif // DRIVE_H

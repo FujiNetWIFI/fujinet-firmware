@@ -60,7 +60,7 @@
 #ifdef BUILD_IEC
 # include "iec/clock.h"
 # include "iec/cpm.h"
-# include "iec/disk.h"
+# include "iec/drive.h"
 # include "iec/printer.h"
 # include "iec/printerlist.h"
 # include "iec/fuji.h"

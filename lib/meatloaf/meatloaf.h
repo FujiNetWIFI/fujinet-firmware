@@ -83,8 +83,9 @@ public:
     virtual uint32_t position() {
         return _position;
     }
-    virtual void position( uint32_t p) {
+    virtual bool position( uint32_t p) {
         _position = p;
+        return seek( _position );
     }
 
     virtual size_t error() {
@@ -116,14 +117,17 @@ public:
 
     virtual bool seek(uint32_t pos, int mode) {
         if(mode == SEEK_SET) {
-            return seek(pos);
+            _position = pos;
+            return seek( _position );
         }
         else if(mode == SEEK_CUR) {
             if(pos == 0) return true;
-            return seek(position()+pos);
+            _position += pos;
+            return seek( _position );
         }
         else {
-            return seek(size() - pos);
+            _position = _size - pos;
+            return seek( _position );
         }
     }
     virtual bool seek(uint32_t pos) = 0;

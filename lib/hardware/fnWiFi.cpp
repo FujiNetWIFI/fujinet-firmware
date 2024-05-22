@@ -98,7 +98,6 @@ int WiFiManager::start()
 
     // Set WiFi mode to Station
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
-
     ESP_ERROR_CHECK(esp_wifi_start());
 
     // Disable powersave for lower latency

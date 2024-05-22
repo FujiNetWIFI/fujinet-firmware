@@ -90,7 +90,7 @@ void iecFuji::setup(systemBus *bus)
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
     Serial.print("Printer "); bus->addDevice(ptr, 4);                   // 04-07 Printers / Plotters
-    Serial.print("Disk "); bus->addDevice(new iecDisk(), 8);            // 08-16 Drives
+    Serial.print("Disk "); bus->addDevice(new iecDrive(), 8);            // 08-16 Drives
     Serial.print("Network "); bus->addDevice(new iecNetwork(), 16);     // 16-19 Network Devices
     Serial.print("CPM "); bus->addDevice(new iecCpm(), 20);             // 20-29 Other
     Serial.print("Clock "); bus->addDevice(new iecClock(), 29);
@@ -104,15 +104,10 @@ device_state_t iecFuji::process()
     if (commanddata.channel != CHANNEL_COMMAND)
     {
         Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
-        device_state = DEVICE_ERROR;
+        state = DEVICE_ERROR;
         IEC.senderTimeout();
-        return device_state;
+        return state;
     }
-
-    // Debug_printf("Checking commanddata\n   primary: %02x\n    device: %02x\n secondary: %02x\n   channel: %02x\n   payload: ", commanddata.primary, commanddata.device, commanddata.secondary, commanddata.channel);
-    // char *msg = util_hexdump(commanddata.payload.c_str(), 8);
-    // Debug_printf("%s\n", msg);
-    // free(msg);
 
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
@@ -165,7 +160,7 @@ device_state_t iecFuji::process()
             process_basic_commands();
     }
 
-    return device_state;
+    return state;
 }
 
 // COMMODORE SPECIFIC CONVENIENCE COMMANDS /////////////////////
@@ -249,14 +244,14 @@ void iecFuji::process_basic_commands()
     else if (payload.find("localip") != std::string::npos)
         local_ip();
     else if (payload.find("bptiming") != std::string::npos)
-{
+    {
         if ( pt.size() < 3 ) 
             return;
 
         IEC.setBitTiming(pt[1], atoi(pt[2].c_str()), atoi(pt[3].c_str()), atoi(pt[4].c_str()), atoi(pt[5].c_str()));
-        }
     }
-    
+}
+
 void iecFuji::process_raw_commands()
 {
     Debug_printv("payload[%d]", payload[0]);
@@ -385,7 +380,7 @@ void iecFuji::net_scan_networks()
 // Return scanned network entry
 void iecFuji::net_scan_result()
 {
-    
+
 
     // pt[0] = SCANRESULT
     // pt[1] = scan result # (0-numresults)
@@ -954,11 +949,11 @@ void iecFuji::write_app_key()
     if (payload[0] == FUJICMD_WRITE_APPKEY)
     {
         keylen = payload[1] & 0xFF;
-        keylen |= payload[2] << 8; 
+        keylen |= payload[2] << 8;
         strncpy(value, &payload.c_str()[3], MAX_APPKEY_LEN);
     }
     else
-    {   
+    {
         if (pt.size() > 2)
         {
             // Tokenize the raw PETSCII payload to save to the file
@@ -1843,7 +1838,7 @@ void iecFuji::insert_boot_device(uint8_t d)
 }
 
 
-iecDisk *iecFuji::bootdisk()
+iecDrive *iecFuji::bootdisk()
 {
     return &_bootDisk;
 }

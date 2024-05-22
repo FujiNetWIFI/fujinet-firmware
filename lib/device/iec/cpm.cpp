@@ -74,7 +74,7 @@ void iecCpm::iec_close()
         vTaskDelete(cpmTaskHandle);
 
     commanddata.init();
-    device_state = DEVICE_IDLE;
+    state = DEVICE_IDLE;
     Debug_printv("device init");
 }
 
@@ -167,7 +167,7 @@ device_state_t iecCpm::process()
         break;
     }
 
-    return device_state;
+    return state;
 }
 
 #endif /* BUILD_IEC */

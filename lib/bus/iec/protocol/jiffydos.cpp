@@ -32,50 +32,12 @@
 
 using namespace Protocol;
 
-// #define portTICK_PERIOD_NS(ns)  ((( TickType_t ) 1000000 / configTICK_RATE_HZ) / ns)
 
-// // https://embeddedexplorer.com/esp32-timer-tutorial/
-// static SemaphoreHandle_t s_timer_sem;
-// static bool IRAM_ATTR timer_group_isr_callback(void * args)
-// {
-//     BaseType_t high_task_awoken = pdFALSE;
-//     xSemaphoreGiveFromISR(s_timer_sem, &high_task_awoken);
-//     return (high_task_awoken == pdTRUE);
-// }
-
-// STEP 1: READY TO RECEIVE
-// Sooner or later, the talker will want to talk, and send a character.
-// When it's ready to go, it releases the Clock line to false.  This signal change might be
-// translated as "I'm ready to send a character." The listener must detect this and 
-// immediately start receiving data on both the clock and data lines.
 int16_t  JiffyDOS::receiveByte ()
 {
     uint8_t data = 0;
-    uint8_t bus = 0;
-    uint8_t bitmask = 0xFF;
 
     IEC.flags and_eq CLEAR_LOW;
-
-    //IEC.pull ( PIN_IEC_SRQ );
-
-    // Setup timer
-    // s_timer_sem = xSemaphoreCreateBinary();
-    // if (s_timer_sem == NULL) {
-    //     printf("Binary semaphore can not be created");
-    // }
-    // timer_config_t config = {
-    //     .alarm_en = TIMER_ALARM_EN,
-    //     .counter_en = TIMER_PAUSE,
-    //     .counter_dir = TIMER_COUNT_UP,
-    //     .auto_reload = TIMER_AUTORELOAD_DIS,
-    //     .divider = 16
-    // };
-    // timer_init(TIMER_GROUP_0, TIMER_0, &config);
-    // timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0);
-    // timer_set_alarm_value(TIMER_GROUP_0, TIMER_0, portTICK_PERIOD_NS(bit_pair_timing[1][0]));
-    // timer_enable_intr(TIMER_GROUP_0, TIMER_0);
-    // timer_isr_callback_add(TIMER_GROUP_0, TIMER_0, timer_group_isr_callback, NULL, 0);
-
 
     // Release the Data line to signal we are ready
 #ifndef IEC_SPLIT_LINE
@@ -84,87 +46,62 @@ int16_t  JiffyDOS::receiveByte ()
 #endif
 
     // Wait for talker ready
-    if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
-    {
-        Debug_printv ( "Wait for talker ready" );
-        IEC.flags or_eq ERROR;
-        return -1; // return error because timeout
-    }
+    while ( IEC.status( PIN_IEC_CLK_IN ) == PULLED );
 
-
-    // STEP 2: RECEIVING THE BITS
+    // RECEIVING THE BITS
     // As soon as the talker releases the Clock line we are expected to receive the bits
+    // Bits are inverted so use IEC.status() to get pulled/released status
 
-    //IEC.pull ( PIN_IEC_SRQ );
+    IEC.pull ( PIN_IEC_SRQ );
 
-    // Start timer
-    //timer_start(TIMER_GROUP_0, TIMER_0);
+    // Setup Delay
+    //uint64_t cur_time = esp_timer_get_time();
+    //uint64_t exp_time = 11;
+    esp_rom_delay_us ( 11 );
 
     // get bits 4,5
-    IEC.pull ( PIN_IEC_SRQ );
-    if ( gpio_get_level ( PIN_IEC_CLK_IN ) )  data |= 0b00010000; // 1
-    if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0b00100000; // 0
-    ets_delay_us(bit_pair_timing[1][0]);
-    //xSemaphoreTake(s_timer_sem, portMAX_DELAY);
-    IEC.release( PIN_IEC_SRQ );
-    //ets_delay_us(1);
+    //IEC.pull ( PIN_IEC_SRQ );
+    if ( IEC.status ( PIN_IEC_CLK_IN ) )  data |= 0b00010000; // 1
+    if ( IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0b00100000; // 0
+    //IEC.release ( PIN_IEC_SRQ );
+    esp_rom_delay_us ( bit_pair_timing[0][0] );
 
     // get bits 6,7
-    IEC.pull ( PIN_IEC_SRQ );
-    if ( gpio_get_level ( PIN_IEC_CLK_IN ) ) data |=  0b01000000; // 1
-    if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0b10000000; // 1
-    ets_delay_us(bit_pair_timing[1][1]);
-    //xSemaphoreTake(s_timer_sem, portMAX_DELAY);
-    IEC.release( PIN_IEC_SRQ );
-    //ets_delay_us(1);
+    //IEC.pull ( PIN_IEC_SRQ );
+    if ( IEC.status ( PIN_IEC_CLK_IN ) ) data |=  0b01000000; // 0
+    if ( IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0b10000000; // 0
+    //IEC.release ( PIN_IEC_SRQ );
+    esp_rom_delay_us ( bit_pair_timing[1][1] );
 
     // get bits 3,1
-    IEC.pull ( PIN_IEC_SRQ );
-    if ( gpio_get_level ( PIN_IEC_CLK_IN ) )  data |= 0b00001000; // 1
-    if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0b00000010; // 1
-    ets_delay_us(bit_pair_timing[1][2]);
-    //xSemaphoreTake(s_timer_sem, portMAX_DELAY);
-    IEC.release( PIN_IEC_SRQ );
-    //ets_delay_us(1);
+    //IEC.pull ( PIN_IEC_SRQ );
+    if ( IEC.status ( PIN_IEC_CLK_IN ) )  data |= 0b00001000; // 0
+    if ( IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0b00000010; // 0
+    //IEC.release ( PIN_IEC_SRQ );
+    esp_rom_delay_us ( bit_pair_timing[0][2] );
 
     // get bits 2,0
-    IEC.pull ( PIN_IEC_SRQ );
-    if ( gpio_get_level ( PIN_IEC_CLK_IN ) )  data |= 0b00000100; // 0
-    if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0b00000001; // 1
-    ets_delay_us(bit_pair_timing[1][3]);
-    //xSemaphoreTake(s_timer_sem, portMAX_DELAY);
-    IEC.release( PIN_IEC_SRQ );
-    //ets_delay_us(1);
+    //IEC.pull ( PIN_IEC_SRQ );
+    if ( IEC.status ( PIN_IEC_CLK_IN ) )  data |= 0b00000100; // 1
+    if ( IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0b00000001; // 0
+    //IEC.release ( PIN_IEC_SRQ );
+    esp_rom_delay_us ( bit_pair_timing[0][3] );
 
-    // Stop timer
-    //timer_deinit(TIMER_GROUP_0, TIMER_0);
-
-    // rearrange bits
-    data ^= bitmask;
-    // Debug_printv("data[%2X]", data); // $ = 0x24
-
-    // STEP 3: CHECK FOR EOI
-    IEC.pull ( PIN_IEC_SRQ );
-    ets_delay_us(13);
-    if ( IEC.status ( PIN_IEC_CLK_IN ) == RELEASED && IEC.status ( PIN_IEC_DATA_IN ) == RELEASED )
-    {
-        Debug_printv("ERROR [%2X]", data);
-        IEC.flags |= ERROR;
-        return -1;
-    }
-    else if ( IEC.status ( PIN_IEC_CLK_IN ) == PULLED && IEC.status ( PIN_IEC_DATA_IN ) == RELEASED )
-    {
-        Debug_printv("EOI [%2X]", data);
-        IEC.flags |= EOI_RECVD;
-    }
-    IEC.release ( PIN_IEC_SRQ );
-
-    // STEP 4: Acknowledge byte received
-    ets_delay_us(11);
+    // Acknowledge byte received
+    // If we want to indicate an error we can release DATA
     IEC.pull ( PIN_IEC_DATA_OUT );
-    ets_delay_us(31);
 
-    return data;
+    // Check CLK for EOI
+    //bool eoi = gpio_get_level ( PIN_IEC_CLK_IN );
+    //esp_rom_delay_us ( 15 );
+
+    IEC.release ( PIN_IEC_SRQ );
+    esp_rom_delay_us ( 158 );
+
+    //if ( eoi ) IEC.flags |= EOI_RECVD;
+    //Debug_printv("data[%02X] eoi[%d]", data, eoi); // $ = 0x24
+
+    return (uint8_t) (data & 0xFF);
 } // receiveByte
 
 
@@ -180,90 +117,63 @@ bool JiffyDOS::sendByte ( uint8_t data, bool signalEOI )
 {
     IEC.flags and_eq CLEAR_LOW;
 
-    // Initial handshake
-    IEC.pull( PIN_IEC_CLK_OUT );
-    IEC.pull( PIN_IEC_DATA_OUT );
-    wait ( 3 );
+    // Release the Data line to signal we are ready
+#ifndef IEC_SPLIT_LINE
+    IEC.pull(PIN_IEC_CLK_IN);
+    IEC.pull(PIN_IEC_DATA_IN);
+#endif
 
-    /* JiffyDOS uses a slightly modified protocol for LOAD that */
-    /* is activated by using 0x61 instead of 0x60 in the TALK   */
-    /* state. The original floppy code has additional checks    */
-    /* that force the non-load Jiffy protocol for file types    */
-    /* other than SEQ and PRG.                                  */
-    /* Please note that $ is special-cased in the kernal so it  */
-    /* will never trigger this.                                 */
-    if ( IEC.data.primary == IEC_TALK && IEC.data.secondary == IEC_REOPEN_JD )
-    {
-        
-    }
+    // Wait for listener ready
+    esp_rom_delay_us ( 10 );
+    IEC.release ( PIN_IEC_CLK_OUT );
+    esp_rom_delay_us ( 10 );
+    IEC.release ( PIN_IEC_CLK_OUT );
 
-//   if (loadmode) {
-//     /* LOAD mode: start marker is data low */
-//     while (!IEC_DATA) ; // wait until data actually is high again
-//     llfl_wait_data(0, ATNABORT);
-//   } else {
-//     /* single byte mode: start marker is data high */
-//     llfl_wait_data(1, ATNABORT);
-//   }
+    // STEP 2: SENDING THE BITS
+    // As soon as the listener releases the DATA line we are expected to send the bits
+    // Bits are inverted so use IEC.status() to get pulled/released status
 
+    //IEC.pull ( PIN_IEC_SRQ );
 
+    // Start timer
+    esp_rom_delay_us ( 37 );
 
-    for ( uint8_t n = 0; n < 8; n++ )
-    {
-    
-    #ifdef SPLIT_LINES
-        // If data pin is PULLED, exit and cleanup
-        if ( status ( PIN_IEC_DATA_IN ) == PULLED ) return false;
-    #endif
+    // set bits 0,1
+    //IEC.pull ( PIN_IEC_SRQ );
+    ( data & 1 ) ? IEC.release ( PIN_IEC_CLK_OUT ) : IEC.pull ( PIN_IEC_CLK_OUT );
+    data >>= 1; // shift to next bit
+    ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
+    esp_rom_delay_us ( bit_pair_timing[1][0] );
 
-        // set bit
-        ( data bitand 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
-        data >>= 1; // get next bit
-        if ( !wait ( TIMING_Ts ) ) return false;
+    // set bits 2,3
+    data >>= 1; // shift to next bit
+    ( data & 1 ) ? IEC.release ( PIN_IEC_CLK_OUT ) : IEC.pull ( PIN_IEC_CLK_OUT );
+    data >>= 1; // shift to next bit
+    ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
+    esp_rom_delay_us ( bit_pair_timing[1][1] );
 
-        // // Release data line after bit sent
-        // release ( PIN_IEC_DATA_OUT );
+    // set bits 4,5
+    data >>= 1; // shift to next bit
+    ( data & 1 ) ? IEC.release ( PIN_IEC_CLK_OUT ) : IEC.pull ( PIN_IEC_CLK_OUT );
+    data >>= 1; // shift to next bit
+    ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
+    esp_rom_delay_us ( bit_pair_timing[1][2] );
 
-        // tell listener bit is ready to read
-        IEC.release ( PIN_IEC_CLK_OUT );
-        if ( !wait ( TIMING_Tv ) ) return false;
+    // set bits 6,7
+    data >>= 1; // shift to next bit
+    ( data & 1 ) ? IEC.release ( PIN_IEC_CLK_OUT ) : IEC.pull ( PIN_IEC_CLK_OUT );
+    data >>= 1; // shift to next bit
+    ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
+    esp_rom_delay_us ( bit_pair_timing[1][3] );
 
-        // tell listner to wait
-        IEC.pull ( PIN_IEC_CLK_OUT );
-    }
-    // Release data line after byte sent
-    IEC.release ( PIN_IEC_DATA_OUT );
+    // Acknowledge byte received
+    // If we want to indicate an error we can release DATA
+//    bool error = IEC.status ( PIN_IEC_DATA_IN );
 
-
-    // STEP 4: FRAME HANDSHAKE
-    // After the eighth bit has been sent, it's the listener's turn to acknowledge.  At this moment, the Clock line  is  true
-    // and  the  Data  line  is  false.    The  listener  must  acknowledge  receiving  the  byte  OK  by pulling the Data
-    // line to true. The talker is now watching the Data line.  If the listener doesn't pull the  Data  line  true  within
-    // one  millisecond  -  one  thousand  microseconds  -  it  will  know  that something's wrong and may alarm appropriately.
-
-    // Wait for listener to accept data
-    if ( timeoutWait ( PIN_IEC_DATA_IN, PULLED, TIMEOUT_Tf ) >= TIMEOUT_Tf )
-    {
-        Debug_printv ( "Wait for listener to acknowledge byte received" );
-        return false; // return error because timeout
-    }
-
-    // STEP 5: START OVER
-    // We're  finished,  and  back  where  we  started.    The  talker  is  holding  the  Clock  line  true,
-    // and  the listener is holding the Data line true. We're ready for step 1; we may send another character - unless EOI has
-    // happened. If EOI was sent or received in this last transmission, both talker and listener "letgo."  After a suitable pause,
-    // the Clock and Data lines are RELEASED to false and transmission stops.
-
-    if ( signalEOI )
-    {
-        // EOI Received
-        if ( !wait ( TIMING_Tfr ) ) return false;
-        IEC.release ( PIN_IEC_CLK_OUT );
-    }
-    // else
-    // {
-    //     wait ( TIMING_Tbb );
-    // }
+    // Check CLK for EOI
+    ( signalEOI ) ? IEC.pull ( PIN_IEC_CLK_OUT ) : IEC.release ( PIN_IEC_CLK_OUT );
+    esp_rom_delay_us ( 13 );
+    //IEC.release ( PIN_IEC_SRQ );
 
     return true;
 } // sendByte
