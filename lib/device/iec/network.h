@@ -1,6 +1,7 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
+#include <array>
 #include <esp_timer.h>
 #include <memory>
 #include <string>
