@@ -12,6 +12,7 @@
 
 #include "../../include/pinmap.h"
 
+#include "../../include/debug.h"
 
 #define UART_DEBUG UART_NUM_0
 #define UART_ADAMNET UART_NUM_2
