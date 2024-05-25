@@ -521,8 +521,8 @@ void IRAM_ATTR iwmBus::service()
           // need to take time here to service other ESP processes so they can catch up
           taskYIELD(); // Allow other tasks to run
 #endif
-          Debug_printf("\r\nCommand Packet:");
-          print_packet(command_packet.data);
+          // Debug_printf("\r\nCommand Packet:");
+          // print_packet(command_packet.data);
 
           _activeDev = devicep;
           // handle command
