@@ -3,6 +3,7 @@
 
 #include <sys/stat.h>
 #include <errno.h>
+#include <mutex>
 #include "compat_string.h"
 
 #include "../../include/debug.h"
@@ -1322,6 +1323,8 @@ int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
  */
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
 {
+    std::lock_guard<std::mutex> lock(m_info->transaction_mutex);
+
     fnUDP udp;
 
     // Keep copy of 1st payload byte
