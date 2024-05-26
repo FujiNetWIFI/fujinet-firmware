@@ -106,7 +106,7 @@ public:
 
     int16_t dir_handle = TNFS_INVALID_HANDLE; // Stored from server's response to TNFS_OPENDIR
     uint16_t dir_entries = 0; // Stored from server's response to TNFS_OPENDIRX
-    std::mutex transaction_mutex;
+    std::recursive_mutex transaction_mutex;
 };
 
 #endif // _TNFSLIB_MOUNTINFO_H
