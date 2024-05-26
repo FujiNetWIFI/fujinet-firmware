@@ -275,7 +275,7 @@ void KeyManager::_keystate_task(void *param)
             //fnSystem.reboot();
             // IEC.releaseLines();
 #ifdef BUILD_IEC
-            Debug_printf("bus_state[%d]\r\n", IEC.bus_state);
+            //Debug_printf("bus_state[%d]\r\n", IEC.bus_state);
 #endif
             Debug_printf("Heap: %lu\r\n",esp_get_free_internal_heap_size());
             // Debug_printf("PsramSize: %u\r\n", fnSystem.get_psram_size());
