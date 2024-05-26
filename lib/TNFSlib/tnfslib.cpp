@@ -1323,7 +1323,7 @@ int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
  */
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
 {
-    std::lock_guard<std::mutex> lock(m_info->transaction_mutex);
+    std::lock_guard<std::recursive_mutex> lock(m_info->transaction_mutex);
 
     fnUDP udp;
 
