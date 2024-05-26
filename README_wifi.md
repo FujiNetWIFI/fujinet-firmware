@@ -2,7 +2,7 @@
 
 This is disabled by default, and will reset to disabled on CONFIG reset (Power ON + B button)
 
-In the WiFi UI configuration is an option to enable wifi passphrase encryptiong.
+In the WiFi UI configuration is an option to enable wifi passphrase encryption.
 
 The option will enable/disable wifi passphrase encryption with a key unique to the FUJINET device and offers protection from observation of passphrases in INI files.
 

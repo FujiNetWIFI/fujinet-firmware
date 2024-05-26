@@ -66,7 +66,7 @@ You can specify the local file that will be used (in both reading and generating
 ./build.sh -s fujinet-atari-v1 -l platformio.local-atari.ini
 ```
 The above will generate a new local file, but name it `platformio.local-atari.ini` instead
-of the default `platforio.local.ini`
+of the default `platformio.local.ini`
 
 You can then use this file in building the application, instead of the default file. This is
 useful if you have several devices, e.g. if you generate `platformio.local-apple.ini` and `platformio.local-atari.ini`, then you can build with them:
