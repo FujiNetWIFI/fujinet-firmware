@@ -1093,7 +1093,7 @@ void sioFuji::sio_open_directory()
     // If we already have a directory open, close it first
     if (_current_open_directory_slot != -1)
     {
-        Debug_print("Directory was already open - closign it first\n");
+        Debug_print("Directory was already open - closing it first\n");
         _fnHosts[_current_open_directory_slot].dir_close();
         _current_open_directory_slot = -1;
     }

@@ -1465,7 +1465,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
         retry++;
     }
 
-    Debug_println("Retry attempts failed");
+    Debug_printf("Retry attempts failed for host: %s, path: %s, cwd: %s\r\n", m_info->hostname, m_info->mountpath, m_info->current_working_directory);
 
     return false;
 }

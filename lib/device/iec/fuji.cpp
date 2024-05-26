@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <cstring>
 #include <sstream>
+#include <string>
 #include <utility>
 
 #include "string_utils.h"
@@ -140,8 +141,8 @@ device_state_t iecFuji::process()
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
         #ifdef DEBUG
-        if (!response.empty()) logResponse(response.data(), response.size());
-        if (!responseV.empty()) logResponse(responseV.data(), responseV.size());
+        if (!response.empty() && !is_raw_command) logResponse(response.data(), response.size());
+        if (!responseV.empty() && is_raw_command) logResponse(responseV.data(), responseV.size());
         Debug_printf("\n");
         #endif
 
@@ -193,6 +194,7 @@ void iecFuji::local_ip()
 
 void iecFuji::process_basic_commands()
 {
+    payloadRaw = payload;               // required for appkey in BASIC
     payload = mstr::toUTF8(payload);
     pt = util_tokenize(payload, ',');
 
@@ -237,7 +239,7 @@ void iecFuji::process_basic_commands()
     else if (payload.find("setdrivefilename") != std::string::npos)
         set_device_filename();
     else if (payload.find("writeappkey") != std::string::npos)
-        write_app_key();
+        write_app_key_basic();
     else if (payload.find("readappkey") != std::string::npos)
         read_app_key();
     else if (payload.find("openappkey") != std::string::npos)
@@ -336,7 +338,7 @@ void iecFuji::process_raw_commands()
         set_device_filename();
         break;
     case FUJICMD_WRITE_APPKEY:
-        write_app_key();
+        write_app_key_raw();
         break;
     case FUJICMD_READ_APPKEY:
         read_app_key();
@@ -984,65 +986,101 @@ void iecFuji::close_app_key()
     response = "ok";
 }
 
-/*
- Write an "app key" to SD (ONLY!) storage.
-*/
-void iecFuji::write_app_key()
+bool iecFuji::check_appkey_creator(bool check_is_write)
 {
-    uint16_t keylen = -1;
-    char value[MAX_APPKEY_LEN];
-    std::vector<std::string> ptRaw;
-
-    // Binary mode comes through as-is (PETSCII)
-    if (payload[0] == FUJICMD_WRITE_APPKEY)
-    {
-        keylen = payload[1] & 0xFF;
-        keylen |= payload[2] << 8;
-        strncpy(value, &payload.c_str()[3], MAX_APPKEY_LEN);
-    }
-    else
-    {
-        if (pt.size() > 2)
-        {
-            // Tokenize the raw PETSCII payload to save to the file
-            ptRaw = tokenize_basic_command(payloadRaw);
-
-            keylen = atoi(pt[1].c_str());
-            
-            // Bounds check
-            if (keylen > MAX_APPKEY_LEN)
-                keylen = MAX_APPKEY_LEN;
-
-            strncpy(value, ptRaw[2].c_str(), keylen);
-        }
-        else
-        {
-            // send error
-            response = "invalid # of parameters";
-            return;
-        }
-    }
-
-    Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\r\n", keylen);
-
-    // Make sure we have valid app key information
-    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
+    if (_current_appkey.creator == 0 || (check_is_write && _current_appkey.mode != APPKEYMODE_WRITE))
     {
         Debug_println("Invalid app key metadata - aborting");
-        // Send error
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+        return false;
+    }
+    return true;
+}
+
+bool iecFuji::check_sd_running()
+{
+    if (!fnSDFAT.running())
+    {
+        Debug_println("No SD mounted - can't write app key");
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+        return false;
+    }
+    return true;
+}
+
+void iecFuji::write_app_key_raw()
+{
+    if (!check_appkey_creator(true) || !check_sd_running())
+    {
+        // no error messages are set (yet?) in raw. Maybe that is how to send error code back?
+        return;
+    }
+
+    // payload[0] = 0xDE for write app key cmd
+    // [1+] = data to write to key, size payload - 1
+    // we can't write more than the appkey_size, which is set by the mode.
+    // May have to change this later as per Eric's comments in discord.
+    size_t write_size = payload.size() - 1;
+    if (write_size > appkey_size)
+    {
+        Debug_printf("ERROR: key data sent was larger than keysize. Aborting rather than potentially corrupting existing data.");
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+        return;
+    }
+
+    std::vector<uint8_t> key_data(payload.begin() + 1, payload.end());
+    Debug_printf("key_data: \r\n%s\r\n", util_hexdump(key_data.data(), key_data.size()).c_str());
+    write_app_key(std::move(key_data));
+}
+
+void iecFuji::write_app_key_basic()
+{
+    // In BASIC, the key length is specified in the parameters.
+    if (pt.size() <= 2)
+    {
+        // send error
+        response = "invalid # of parameters";
+        return;
+    }
+
+    if (!check_appkey_creator(true))
+    {
+        Debug_println("Invalid app key metadata - aborting");
         response = "malformed appkey data.";
         return;
     }
 
-    // Make sure we have an SD card mounted
-    if (fnSDFAT.running() == false)
+    if (!check_sd_running())
     {
         Debug_println("No SD mounted - can't write app key");
-        // Send error
         response = "no sd card mounted";
         return;
     }
 
+
+    // Tokenize the raw PETSCII payload to save to the file
+    std::vector<std::string> ptRaw;
+    ptRaw = tokenize_basic_command(payloadRaw);
+
+    // do we need keylen anymore?
+    int keylen = atoi(pt[1].c_str());
+    
+    // Bounds check
+    if (keylen > MAX_APPKEY_LEN)
+        keylen = MAX_APPKEY_LEN;
+
+    std::vector<uint8_t> key_data(ptRaw[2].begin(), ptRaw[2].end());
+    write_app_key(std::move(key_data));
+}
+
+/*
+ Write an "app key" to SD (ONLY!) storage.
+*/
+void iecFuji::write_app_key(std::vector<uint8_t>&& value)
+{
     char *filename = _generate_appkey_filename(&_current_appkey);
 
     // Reset the app key data so we require calling APPKEY OPEN before another attempt
@@ -1054,30 +1092,34 @@ void iecFuji::write_app_key()
     // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
     fnSDFAT.create_path("/FujiNet");
 
-    FILE *fOut = fnSDFAT.file_open(filename, "w");
+    FILE *fOut = fnSDFAT.file_open(filename, FILE_WRITE);
     if (fOut == nullptr)
     {
-        Debug_printf("Failed to open/create output file: errno=%d\r\n", errno);
-        // Send error
-        char e[8];
-        itoa(errno, e, 10);
-        response = "failed to write appkey file " + std::string(e);
+        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
         return;
     }
-    size_t count = fwrite(value, 1, keylen, fOut);
-
+    size_t count = fwrite(value.data(), 1, value.size(), fOut);
+    int e = errno;
     fclose(fOut);
 
-    if (count != keylen)
+    if (count != value.size())
     {
-        char e[128];
-        sprintf(e, "error: only wrote %u bytes of expected %hu, errno=%d\r\n", count, keylen, errno);
-        response = std::string(e);
-        // Send error
+        if (!is_raw_command)
+        {
+            std::ostringstream oss;
+            oss << "error: only wrote " << count << " bytes of expected " << value.size() << ", errno=" << e << "\r\n";
+            response = oss.str();
+        }
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+        return;
     }
 
-    // Send ok
-    response = "ok";
+    if (!is_raw_command)
+    {
+        response = "ok";
+    }
+
 }
 
 /*
@@ -1093,6 +1135,8 @@ void iecFuji::read_app_key()
         Debug_println("No SD mounted - can't read app key");
         response = "no sd mounted";
         // Send error
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
         return;
     }
 
@@ -1102,39 +1146,43 @@ void iecFuji::read_app_key()
         Debug_println("Invalid app key metadata - aborting");
         response = "invalid appkey metadata";
         // Send error
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
         return;
     }
 
     char *filename = _generate_appkey_filename(&_current_appkey);
-
     Debug_printf("Reading appkey from \"%s\"\r\n", filename);
 
     FILE *fIn = fnSDFAT.file_open(filename, "r");
     if (fIn == nullptr)
     {
-        char e[128];
-        sprintf(e, "Failed to open input file: errno=%d\r\n", errno);
-        // Send error
-        response = std::string(e);
+        std::ostringstream oss;
+        oss << "Failed to open input file: errno=" << errno << "\r\n";
+        response = oss.str();
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
         return;
     }
 
-    struct
-    {
-        uint16_t size;
-        uint8_t value[MAX_APPKEY_LEN];
-    } __attribute__((packed)) _r;
-    memset(&_r, 0, sizeof(_r));
-
-    size_t count = fread(_r.value, 1, sizeof(_r.value), fIn);
-
+    std::vector<uint8_t> response_data(appkey_size);
+    size_t count = fread(response_data.data(), 1, response_data.size(), fIn);
+    response_data.resize(count);
+    Debug_printf("Read %u bytes from input file\n", (unsigned)count);
     fclose(fIn);
-    Debug_printf("Read %d bytes from input file\r\n", count);
 
-    _r.size = count;
+#ifdef DEBUG
+	Debug_printf("response raw:\r\n%s\n", util_hexdump(response_data.data(), count).c_str());
+#endif
 
-    // Bytes were written raw (PETSCII) so no need to map before sending back
-    response = std::string((char *)&_r, MAX_APPKEY_LEN);
+    if (is_raw_command)
+    {
+        responseV = std::move(response_data);
+    }
+    else {
+        response.assign(response_data.begin(), response_data.end());
+    }
+
 }
 
 // Disk Image Unmount
@@ -1261,7 +1309,7 @@ bool iecFuji::open_directory(uint8_t hs, std::string dirpath, std::string patter
     // If we already have a directory open, close it first
     if (_current_open_directory_slot != -1)
     {
-        Debug_print("Directory was already open - closign it first\n");
+        Debug_print("Directory was already open - closing it first\n");
         _fnHosts[_current_open_directory_slot].dir_close();
         _current_open_directory_slot = -1;
     }
