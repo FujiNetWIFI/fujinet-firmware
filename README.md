@@ -2,7 +2,7 @@
 
 A multi-function peripheral built on ESP32 hardware being developed for the multiple 8-bit systems
 
-### Please see the [GitHub wiki](https://github.com/FujiNetWIFI/fujinet-platformio/wiki) for documenation and additional details.
+### Please see the [GitHub wiki](https://github.com/FujiNetWIFI/fujinet-platformio/wiki) for documentation and additional details.
 
 ### A dedicated web site is also available at https://fujinet.online/
 
