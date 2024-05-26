@@ -1520,6 +1520,8 @@ _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnf
     if (res_pkt.sequence_num != req_pkt.sequence_num)
     {
         Debug_printf("TNFS OUT OF ORDER SEQUENCE! Rcvd: %x, Expected: %x\r\n", res_pkt.sequence_num, req_pkt.sequence_num);
+        // Exhaust the buffer so we'll receive a clean answer once the request is retried.
+        while (_tnfs_recv(&udp, m_info, res_pkt) >= 0);
         return RESP_INVALID;
     }
 
