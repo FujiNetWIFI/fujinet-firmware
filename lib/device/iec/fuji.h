@@ -133,7 +133,10 @@ protected:
     
     void set_external_clock();     // 0xDF
     
-    void write_app_key();          // 0xDE
+    void write_app_key_raw();      // 0xDE
+    void write_app_key_basic();
+    void write_app_key(std::vector<uint8_t>&& value); // vector will be moved to avoid copy
+
     void read_app_key();           // 0xDD
     void open_app_key();           // 0xDC
     void close_app_key();          // 0xDB
@@ -150,7 +153,13 @@ protected:
 
     void shutdown() override;
 
-protected:
+    int appkey_size = 64;
+    std::map<int, int> mode_to_keysize = {
+        {0, 64},
+        {2, 256}
+    };
+    bool check_appkey_creator(bool check_is_write);
+    bool check_sd_running();
 
     /**
      * @brief called to process command either at open or listen

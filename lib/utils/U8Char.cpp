@@ -34,6 +34,9 @@ const char16_t U8Char::utf8map[] = {
 
 };
 
+std::unordered_map<char16_t, uint8_t> U8Char::ch_to_petascii_map;
+std::once_flag U8Char::ch_to_petascii_init_flag;
+
 void U8Char::fromUtf8Stream(std::istream* reader) {
     uint8_t byte = reader->get();
     if(byte<=0x7f) {
@@ -111,9 +114,9 @@ std::string U8Char::toUtf8() {
 }
 
 uint8_t U8Char::toPetscii() {
-    for(int i = 0; i<256; i++) {
-        if(utf8map[i]==ch)
-            return i;
+    auto it = ch_to_petascii_map.find(ch);
+    if (it != ch_to_petascii_map.end()) {
+        return it->second;
     }
     return missing;
 }
