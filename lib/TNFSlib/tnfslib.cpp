@@ -1,6 +1,7 @@
 
 #include "tnfslib.h"
 
+#include <cstdlib>
 #include <sys/stat.h>
 #include <errno.h>
 #include <mutex>
@@ -29,6 +30,7 @@
 
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
 bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
+bool _tnfs_udp_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt);
 
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command);
@@ -1262,6 +1264,24 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
     }
     else
     {
+#ifdef TNFS_UDP_SIMULATE_SEND_LOSS
+        if (rand() < TNFS_UDP_SIMULATE_SEND_LOSS_PROB * RAND_MAX) {
+            Debug_println("TNFS_UDP_SIMULATE: send loss");
+            return true;
+        }
+#endif
+#ifdef TNFS_UDP_SIMULATE_SEND_TWICE
+        if (rand() < TNFS_UDP_SIMULATE_SEND_TWICE_PROB * RAND_MAX) {
+            Debug_println("TNFS_UDP_SIMULATE: send twice");
+            _tnfs_udp_send(udp, m_info, pkt, payload_size);
+        }
+#endif
+        return _tnfs_udp_send(udp, m_info, pkt, payload_size);
+    }
+}
+
+bool _tnfs_udp_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
+{
         bool sent;
         // Use the IP address if we have it
         if (m_info->host_ip != IPADDR_NONE)
@@ -1275,7 +1295,6 @@ bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t pay
             sent = udp->endPacket();
         }
         return sent;
-    }
 }
 
 /*
@@ -1300,11 +1319,33 @@ int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
     }
     else
     {
+#ifdef TNFS_UDP_SIMULATE_RECV_TWICE
+        if (m_info->last_packet_len >= 0 && rand() < TNFS_UDP_SIMULATE_RECV_TWICE_PROB * RAND_MAX) {
+            Debug_println("TNFS_UDP_SIMULATE: recv twice");
+            memcpy(pkt.rawData, m_info->last_packet, sizeof(pkt.rawData));
+            int len = m_info->last_packet_len;
+            m_info->last_packet_len = -1;
+            return len;
+        }
+#endif
         if (!udp->parsePacket())
         {
             return -1;
         }
-        return udp->read(pkt.rawData, sizeof(pkt.rawData));
+#ifdef TNFS_UDP_SIMULATE_RECV_LOSS
+        if (rand() < TNFS_UDP_SIMULATE_RECV_LOSS_PROB * RAND_MAX) {
+            Debug_println("TNFS_UDP_SIMULATE: recv loss");
+            tnfsPacket lostPkt;
+            udp->read(lostPkt.rawData, sizeof(pkt.rawData));
+            return -1;
+        }
+#endif
+        int len = udp->read(pkt.rawData, sizeof(pkt.rawData));
+#ifdef TNFS_UDP_SIMULATE_RECV_TWICE
+        memcpy(m_info->last_packet, pkt.rawData, sizeof(m_info->last_packet));
+        m_info->last_packet_len = len;
+#endif
+        return len;
     }
 }
 
