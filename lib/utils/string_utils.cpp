@@ -436,66 +436,58 @@ namespace mstr {
         return escaped.str();
     }
 
-    std::string urlDecode(std::string s){
-        std::string ret;
+    void urlDecode(char *s, size_t size, bool alter_pluses)
+    {
         char ch;
-        int i, ii, len = s.length();
+        int i = 0, ii = 0;
 
-        for (i = 0; i < len; i++)
-        {
-            if (s[i] != '%')
+        while (s[i] != '\0' && i < size) {
+            if (alter_pluses && s[i] == '+')
             {
-                if (s[i] == '+')
-                    ret += ' ';
-                else
-                    ret += s[i];
+                s[ii++] = ' ';
+                i++;
+            } 
+            else if ((s[i] == '%') && 
+                    isxdigit(s[i + 1]) && 
+                    isxdigit(s[i + 2]) &&
+                    (i + 2 < size))
+            {
+                ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]);
+                s[ii++] = ch;
+                i += 3; // Skip past the percent encoding.
             }
             else
             {
-                sscanf(s.substr(i + 1, 2).c_str(), "%x", &ii);
-                ch = static_cast<char>(ii);
-                ret += ch;
-                i += 2;
+                s[ii++] = s[i++];
             }
         }
-
-        return ret;
+        s[ii] = '\0'; // Null-terminate the decoded string.
     }
 
     void urlDecode(char *s, size_t size)
     {
-        char ch;
-        int i = 0, ii = 0;
-        char ret[size];
+        urlDecode(s, size, true);
+    }
 
-        memset(ret,0,size);
-      
-        while ( s[i] != '\0')
-        {
-            if (i + 2 <= size)              // Is i+2 less than encoded string buffer size?
-            {
-                if (
-                    (s[i] == '%') &&        // Is this a '%' char?
-                    isxdigit(s[i + 1]) &&   // Are the next two chars valid hex?
-                    isxdigit(s[i + 2])
-                )
-                {
-                    ch = fromHex(s[i + 1]) << 4 | fromHex(s[i + 2]); // Decode byte
-                    s[ii] = ch;
-                    i += 2;
-                }
-                else
-                {
-                    s[ii] = s[i];
-                }
-                ii++;
-            }
-            //Debug_printv("ii[%d] ch[%2X] s[%s] size[%d]", ii, s[ii], s, size);
+    std::string urlDecode(const std::string& s, bool alter_pluses)
+    {
+        if (s.empty()) return s;
 
-            i++;
-        }
-        s[ii] = '\0';
-        //Debug_printv("ii[%d] s[%s]", ii, s);
+        size_t size = s.size() + 1; // +1 for null terminator
+        char* buffer = new char[size];
+        std::copy(s.begin(), s.end(), buffer);
+        buffer[s.size()] = '\0'; // Ensure null termination
+
+        urlDecode(buffer, size, alter_pluses);
+
+        std::string result(buffer);
+        delete[] buffer;
+        return result;
+    }
+
+    std::string urlDecode(const std::string& s)
+    {
+        return urlDecode(s, true);
     }
 
     std::string format(const char *format, ...)

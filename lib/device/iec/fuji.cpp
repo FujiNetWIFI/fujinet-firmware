@@ -201,19 +201,19 @@ void iecFuji::process_basic_commands()
     if (payload.find("adapterconfig") != std::string::npos)
         get_adapter_config();
     else if (payload.find("setssid") != std::string::npos)
-        net_set_ssid();
+        net_set_ssid_basic();
     else if (payload.find("getssid") != std::string::npos)
-        net_get_ssid();
+        net_get_ssid_basic();
     else if (payload.find("reset") != std::string::npos)
         reset_device();
     else if (payload.find("scanresult") != std::string::npos)
         net_scan_result_basic();
     else if (payload.find("scan") != std::string::npos)
-        net_scan_networks();
+        net_scan_networks_basic();
     else if (payload.find("wifistatus") != std::string::npos)
         net_get_wifi_status();
     else if (payload.find("mounthost") != std::string::npos)
-        mount_host();
+        mount_host_basic();
     else if (payload.find("mountdrive") != std::string::npos)
         disk_image_mount_basic();
     else if (payload.find("opendir") != std::string::npos)
@@ -275,22 +275,22 @@ void iecFuji::process_raw_commands()
         reset_device();
         break;
     case FUJICMD_GET_SSID:
-        net_get_ssid();
+        net_get_ssid_raw();
         break;
     case FUJICMD_SCAN_NETWORKS:
-        net_scan_networks();
+        net_scan_networks_raw();
         break;
     case FUJICMD_GET_SCAN_RESULT:
         net_scan_result_raw();
         break;
     case FUJICMD_SET_SSID:
-        net_set_ssid();
+        net_set_ssid_raw();
         break;
     case FUJICMD_GET_WIFISTATUS:
         net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        mount_host();
+        mount_host_raw();
         break;
     case FUJICMD_MOUNT_IMAGE:
         disk_image_mount_raw();
@@ -368,27 +368,24 @@ void iecFuji::process_raw_commands()
 // Reset FujiNet
 void iecFuji::reset_device()
 {
-    // TODO IMPLEMENT
     fnSystem.reboot();
 }
 
-// Scan for networks
+void iecFuji::net_scan_networks_basic()
+{
+    net_scan_networks();
+    response = std::to_string(_countScannedSSIDs);
+}
+
+void iecFuji::net_scan_networks_raw()
+{
+    net_scan_networks();
+    responseV.push_back(_countScannedSSIDs);
+}
+
 void iecFuji::net_scan_networks()
 {
-    char c[8];
-
     _countScannedSSIDs = fnWiFi.scan_networks();
-
-    if (payload[0] == FUJICMD_SCAN_NETWORKS)
-    {
-        // dealing with binary data, so use the vector version
-        responseV.push_back(_countScannedSSIDs);
-    }
-    else
-    {
-        itoa(_countScannedSSIDs, c, 10);
-        response = string(c);
-    }
 }
 
 void iecFuji::net_scan_result_basic()
@@ -399,121 +396,109 @@ void iecFuji::net_scan_result_basic()
     }
     util_remove_spaces(pt[1]);
     int i = atoi(pt[1].c_str());
-    net_scan_result(i);
+    scan_result_t result = net_scan_result(i);
+    response = std::to_string(result.rssi) + ",\"" + std::string(result.ssid) + "\"";
 }
 
 void iecFuji::net_scan_result_raw()
 {
     int n = payload[1];
-    net_scan_result(n);
+    scan_result_t result = net_scan_result(n);
+    responseV.assign(reinterpret_cast<const uint8_t*>(&result), reinterpret_cast<const uint8_t*>(&result) + sizeof(result));
 }
 
-// Return scanned network entry
-void iecFuji::net_scan_result(int scan_num)
+scan_result_t iecFuji::net_scan_result(int scan_num)
 {
-    struct
-    {
-        char ssid[33];
-        uint8_t rssi;
-    } detail;
-
-    memset(&detail.ssid[0], 0, sizeof(detail));
-
-    fnWiFi.get_scan_result(scan_num, detail.ssid, &detail.rssi);
-    Debug_printf("SSID: %s RSSI: %u\r\n", detail.ssid, detail.rssi);
-
-    if (payload[0] == FUJICMD_GET_SCAN_RESULT)
-    {
-        responseV.assign(reinterpret_cast<const uint8_t*>(&detail), reinterpret_cast<const uint8_t*>(&detail) + sizeof(detail));
-    }
-    else
-    {
-        response = std::to_string(detail.rssi) + ",\"" + std::string(detail.ssid) + "\"";
-    }
+    scan_result_t result;
+    memset(&result.ssid[0], 0, sizeof(scan_result_t));
+    fnWiFi.get_scan_result(scan_num, result.ssid, &result.rssi);
+    Debug_printf("SSID: %s RSSI: %u\r\n", result.ssid, result.rssi);
+    return result;
 }
 
-//  Get SSID
-void iecFuji::net_get_ssid()
+void iecFuji::net_get_ssid_basic()
 {
-    struct
-    {
-        char ssid[MAX_SSID_LEN + 1];
-        char password[MAX_PASSPHRASE_LEN + 1];
-    } cfg;
-
-    memset(&cfg, 0, sizeof(cfg));
-
-    std::string s = Config.get_wifi_ssid();
-    memcpy(cfg.ssid, s.c_str(),
-           s.length() > sizeof(cfg.ssid) ? sizeof(cfg.ssid) : s.length());
-
-    s = Config.get_wifi_passphrase();
-    memcpy(cfg.password, s.c_str(),
-           s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
-
-    if (payload[0] == FUJICMD_GET_SSID)
-    {
-        responseV.assign(reinterpret_cast<const uint8_t*>(&cfg), reinterpret_cast<const uint8_t*>(&cfg) + sizeof(cfg));
-    }
-    else // BASIC mode.
-    {
-        response = std::string(cfg.ssid);
-    }
+    net_config_t net_config = net_get_ssid();
+    response = std::string(net_config.ssid);
 }
 
-// Set SSID
-void iecFuji::net_set_ssid(bool store)
+void iecFuji::net_get_ssid_raw()
 {
-    Debug_println("Fuji cmd: SET SSID");
+    net_config_t net_config = net_get_ssid();
+    responseV.assign(reinterpret_cast<const uint8_t*>(&net_config), reinterpret_cast<const uint8_t*>(&net_config) + sizeof(net_config));
+}
 
-    // Data for  FUJICMD_SET_SSID
-    struct
-    {
-        char ssid[MAX_SSID_LEN + 1];
-        char password[MAX_PASSPHRASE_LEN + 1];
-    } net_config;
-
+net_config_t iecFuji::net_get_ssid()
+{
+    net_config_t net_config;
     memset(&net_config, 0, sizeof(net_config));
 
-    if (payload[0] == FUJICMD_SET_SSID)
+    std::string s = Config.get_wifi_ssid();
+    memcpy(net_config.ssid, s.c_str(), s.length() > sizeof(net_config.ssid) ? sizeof(net_config.ssid) : s.length());
+
+    s = Config.get_wifi_passphrase();
+    memcpy(net_config.password, s.c_str(), s.length() > sizeof(net_config.password) ? sizeof(net_config.password) : s.length());
+
+    return net_config;
+}
+
+void iecFuji::net_set_ssid_basic(bool store)
+{
+    if (pt.size() != 3)
     {
-        // the data is coming to us packed not in struct format, so depack it into the NetConfig
-        // Had issues with it not sending password after large number of \0 padding ssid.
-        uint8_t sent_ssid_len = strlen(&payload[1]);
-        uint8_t sent_pass_len = strlen(&payload[2 + sent_ssid_len]);
-        strncpy((char *)&net_config.ssid[0], (const char *) &payload[1], sent_ssid_len);
-        strncpy((char *)&net_config.password[0], (const char *) &payload[2 + sent_ssid_len], sent_pass_len);
+        Debug_printv("error: bad args");
+        response = "BAD SSID ARGS";
+        return;
     }
-    else // easy BASIC form
-    {
-        std::string s = payload.substr(8, std::string::npos);
-        std::vector<std::string> t = util_tokenize(s, ',');
 
-        if (t.size() == 2)
-        {
-            if ( mstr::isNumeric( t[0] ) ) {
-                // Find SSID by CRC8 Number
-                t[0] = fnWiFi.get_network_name_by_crc8( std::stoi(t[0]) );
-            }
-
-            Debug_printv("t1[%s] t2[%s]", t[0].c_str(), t[1].c_str());
-
-            // URL Decode SSID/PASSWORD to handle special chars
-            t[0] = mstr::urlDecode(t[0]);
-            t[1] = mstr::urlDecode(t[1]);
-
-            strncpy(net_config.ssid, t[0].c_str(),
-                t[0].length() > sizeof(net_config.ssid) ? sizeof(net_config.ssid) : t[0].length());
-            strncpy(net_config.password, t[1].c_str(),
-                t[1].length() > sizeof(net_config.password) ? sizeof(net_config.password) : t[1].length());
-            Debug_printv("ssid[%s] pass[%s]", net_config.ssid, net_config.password);
-        }
-        else
-        {
-            Debug_printv("SSID, PASSWORD not set!");
-            return;
-        }
+    if (mstr::isNumeric(pt[1])) {
+        // Find SSID by CRC8 Number
+        pt[1] = fnWiFi.get_network_name_by_crc8(std::stoi(pt[1]));
     }
+
+    // Debug_printv("pt1[%s] pt2[%s]", pt[1].c_str(), pt[2].c_str());
+
+    // URL Decode SSID/PASSWORD. This will convert any %xx values to their equivalent char for the xx code. e.g. "%20" is a space
+    // It does NOT replace '+' with a space as that's frankly just insane.
+    // NOTE: if your password or username has a deliberate % followed by 2 digits, (e.g. the literal string "%69") you will have to type "%2569" to "escape" the percentage.
+    // but that's the price you pay for using urlencoding without asking the user if they want it!
+    std::string ssid = mstr::urlDecode(pt[1], false);
+    std::string passphrase = mstr::urlDecode(pt[2], false);
+
+    if (ssid.length() > MAX_SSID_LEN || passphrase.length() > MAX_PASSPHRASE_LEN || ssid.length() == 0 || passphrase.length() == 0) {
+        response = "ERROR: BAD SSID/PASSPHRASE";
+        return;
+    }
+
+    net_config_t net_config;
+    memset(&net_config, 0, sizeof(net_config_t));
+
+    strncpy(net_config.ssid, ssid.c_str(), ssid.length());
+    strncpy(net_config.password, passphrase.c_str(), passphrase.length());
+    Debug_printv("ssid[%s] pass[%s]", net_config.ssid, net_config.password);
+
+    net_set_ssid(store, net_config);
+}
+
+void iecFuji::net_set_ssid_raw(bool store)
+{
+    net_config_t net_config;
+    memset(&net_config, 0, sizeof(net_config_t));
+
+    // the data is coming to us packed not in struct format, so depack it into the NetConfig
+    // Had issues with it not sending password after large number of \0 padding ssid.
+    uint8_t sent_ssid_len = strlen(&payload[1]);
+    uint8_t sent_pass_len = strlen(&payload[2 + sent_ssid_len]);
+    strncpy((char *)&net_config.ssid[0], (const char *) &payload[1], sent_ssid_len);
+    strncpy((char *)&net_config.password[0], (const char *) &payload[2 + sent_ssid_len], sent_pass_len);
+    Debug_printv("ssid[%s] pass[%s]", net_config.ssid, net_config.password);
+
+    net_set_ssid(store, net_config);
+}
+
+void iecFuji::net_set_ssid(bool store, net_config_t& net_config)
+{
+    Debug_println("Fuji cmd: SET SSID");
 
     int test_result = fnWiFi.test_connect(net_config.ssid, net_config.password);
     if (test_result != 0)
@@ -532,9 +517,10 @@ void iecFuji::net_set_ssid(bool store)
     fnWiFi.start();
 
     // give it a few seconds to restart the WiFi before we return to the client, who will immediately start checking status if this is CONFIG
-    // and get errors if we're not up yet
-    fnSystem.delay(3000);
+    // and get errors if we're not up yet.
+    fnSystem.delay(4000);
 
+    // what happens to iecStatus values?
     iecStatus.channel = 15;
     iecStatus.error = test_result == 0 ? NETWORK_ERROR_SUCCESS : NETWORK_ERROR_NOT_CONNECTED;
     iecStatus.connected = fnWiFi.connected();
@@ -542,7 +528,6 @@ void iecFuji::net_set_ssid(bool store)
 
 void iecFuji::net_store_ssid(std::string ssid, std::string password)
 {
-
     // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
     // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
     // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
@@ -604,26 +589,22 @@ void iecFuji::net_store_ssid(std::string ssid, std::string password)
     Config.save();
 }
 
-// Get WiFi Status
-void iecFuji::net_get_wifi_status()
+void iecFuji::net_get_wifi_status_raw()
 {
-    // Debug_printv("payload[0]==%02x\r\n", payload[0]);
-    uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
-
-    if (payload[0] == FUJICMD_GET_WIFISTATUS)
-    {
-        responseV.push_back(wifiStatus);
-    }
-    else
-    {
-        if (wifiStatus)
-            response = "connected";
-        else
-            response = "disconnected";
-    }
+    responseV.push_back(net_get_wifi_status());    
 }
 
-// Check if Wifi is enabled
+void iecFuji::net_get_wifi_status_basic()
+{
+    response = net_get_wifi_status() == 3 ? "connected" : "disconnected";
+}
+
+
+uint8_t iecFuji::net_get_wifi_status()
+{
+    return fnWiFi.connected() ? 3 : 6;
+}
+
 void iecFuji::net_get_wifi_enabled()
 {
     // Not needed, will remove.
@@ -664,50 +645,52 @@ void iecFuji::unmount_host()
     response="ok";
 }
 
-// Mount Server
-void iecFuji::mount_host()
+
+void iecFuji::mount_host_raw()
 {
-    int hs = -1;
-
-    _populate_slots_from_config();
-    if (payload[0] == FUJICMD_MOUNT_HOST)
+    int hs = payload[1];
+    if (hs < 0 || hs >= MAX_HOSTS)
     {
-        hs = payload[1];
-    }
-    else
-    {
-        if (pt.size() < 2) // send error.
-        {
-            response = "INVALID # OF PARAMETERS.";
-            return;
-        }
-
-        hs = atoi(pt[1].c_str());
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+        return;
     }
 
-    if (!_validate_device_slot(hs, "mount_host"))
+    if (!mount_host(hs))
     {
-        response = "INVALID HOST HOST #";
-        return; // send error.
+        // TODO: how to get the error code back to library? does everything need to react to responseV?
+        state = DEVICE_ERROR;
+        IEC.senderTimeout();
+    }
+}
+
+void iecFuji::mount_host_basic()
+{
+    if (pt.size() < 2)
+    {
+        response = "INVALID # OF PARAMETERS.";
+        return;
     }
 
-    if (!_fnHosts[hs].mount())
-    {
+    int hs = atoi(pt[1].c_str());
+    if (hs < 0 || hs >= MAX_HOSTS) {
+        response = "INVALID HOST #";
+        return;
+    }
+
+    if (mount_host(hs)) {
+        string hns = _fnHosts[hs].get_hostname();
+        hns = mstr::toPETSCII2(hns);
+        response = hns + " MOUNTED.";
+    } else {
         response = "UNABLE TO MOUNT HOST SLOT #";
-        if (is_raw_command) {
-            state = DEVICE_ERROR;
-            IEC.senderTimeout();
-        }
-        return; // send error.
     }
+}
 
-    // Otherwise, mount was successful.
-    char hn[64];
-    string hns;
-    _fnHosts[hs].get_hostname(hn, 64);
-    hns = string(hn);
-    hns = mstr::toPETSCII2(hns);
-    response = hns + " MOUNTED.";
+bool iecFuji::mount_host(int hs)
+{
+    _populate_slots_from_config();
+    return _fnHosts[hs].mount();
 }
 
 void iecFuji::disk_image_mount_basic()
