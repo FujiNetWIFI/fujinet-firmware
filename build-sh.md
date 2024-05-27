@@ -52,7 +52,7 @@ named `platformio-generated.ini` to build.
 
 This file is created every time build.sh is run, merging values from the following files in the following order:
 
-- `platformio.common.ini`
+- `platformio-ini-files/platformio.common.ini`
 - `build-platforms/platformio-{build_board}.ini`
 - `platformio.local.ini`
 
@@ -137,27 +137,14 @@ This is a great way of just generating the ini files, and exiting without doing 
 
 Note: Absolute and relative paths can be specified for names of files and do not have to be in the current working directory.
 
-### Example - running a release/zip build
+### Creating a release/zip build
 
-If you want to create a ZIP release, you can use a local ini file called `platformio.local-atari-release.ini` as follows:
-
-```ini
-; ... normal changes
-[env]
-extra_scripts +=
-    post:build_firmwarezip.py
-```
-
-and then generate a build with
+Simply specify `-z` arg with anything else you need.
 
 ```sh
-./build.sh -z -i platformio-release.ini -l platformio.local-atari-release.ini
+./build.sh -z
 ```
 
 The `-z` argument is the flag to generate a release archive zip file.
 
-This command will first create a full generated platformio ini file named `platformio-release.ini`, using the local changes in `platformio.local-atari-release.ini`
-
-This is how [autobuild.yml](.github/workflows/autobuild.yml) works, by generating a specific full
-platformio ini file for each named platform, and using the local file to supply additional
-values for that platform.
+This pulls in changes from `platformio-ini-files/platformio.zip-options.ini` over the top of the generated ini file.

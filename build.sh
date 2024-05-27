@@ -226,7 +226,7 @@ if [ -z "$SETUP_NEW_BOARD" ] ; then
   fi
 
   if [ ${ZIP_MODE} -eq 1 ] ; then
-    python create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio.zip-options.ini
+    python create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio-ini-files/platformio.zip-options.ini
   else
     python create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
   fi
@@ -244,7 +244,7 @@ else
     fi
   fi
   if [ ${ZIP_MODE} -eq 1 ] ; then
-    python create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio.zip-options.ini
+    python create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio-ini-files/platformio.zip-options.ini
   else
     python create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
   fi
