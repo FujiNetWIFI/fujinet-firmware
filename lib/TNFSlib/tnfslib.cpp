@@ -13,6 +13,7 @@
 #include "bus.h"
 #include "fnUDP.h"
 #include "fnTcpClient.h"
+#include "tnfslib_udp.h"
 
 #include "utils.h"
 
@@ -46,8 +47,9 @@ typedef enum
 
 bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t datalen);
 bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
-bool _tnfs_udp_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
 int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt);
+bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size);
+int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt);
 _tnfs_send_recv_result _tnfs_send_recv(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
 _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnfsPacket &req_pkt, uint16_t payload_size, tnfsPacket &res_pkt);
 uint8_t _tnfs_session_recovery(tnfsMountInfo *m_info, uint8_t command);
@@ -1254,64 +1256,69 @@ const char *tnfs_getcwd(tnfsMountInfo *m_info)
 */
 bool _tnfs_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
 {
-    if (m_info->protocol == TNFS_PROTOCOL_UNKNOWN || m_info->protocol == TNFS_PROTOCOL_TCP)
+    if (m_info->protocol == TNFS_PROTOCOL_UNKNOWN)
     {
-        fnTcpClient *tcp = &m_info->tcp_client;
-        if (!tcp->connected())
+        bool success = _tnfs_tcp_send(m_info, pkt, payload_size);
+        if (!success)
         {
-            bool success = false;
-            if (m_info->host_ip != IPADDR_NONE)
-                success = tcp->connect(m_info->host_ip, m_info->port, TNFS_TIMEOUT);
-            else
-                success = tcp->connect(m_info->hostname, m_info->port, TNFS_TIMEOUT);
-            if (!success && m_info->protocol == TNFS_PROTOCOL_UNKNOWN)
-            {
-                Debug_println("Can't connect to the TCP server; falling back to UDP.");
-                m_info->protocol = TNFS_PROTOCOL_UDP;
-                return _tnfs_send(udp, m_info, pkt, payload_size);
-            }
-            if (!success)
-            {
-                Debug_println("Can't connect to the TCP server");
-                return false;
-            }
+            Debug_println("Can't connect to the TCP server; falling back to UDP.");
+            m_info->protocol = TNFS_PROTOCOL_UDP;
+            return _tnfs_udp_send(udp, m_info, pkt, payload_size);
         }
-        int l = tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
-        return l == payload_size + TNFS_HEADER_SIZE;
+        return success;
+    }
+    else if (m_info->protocol == TNFS_PROTOCOL_TCP)
+    {
+        return _tnfs_tcp_send(m_info, pkt, payload_size);
     }
     else
     {
-#ifdef TNFS_UDP_SIMULATE_SEND_LOSS
-        if (rand() < TNFS_UDP_SIMULATE_SEND_LOSS_PROB * RAND_MAX) {
-            Debug_println("TNFS_UDP_SIMULATE: send loss");
-            return true;
-        }
-#endif
-#ifdef TNFS_UDP_SIMULATE_SEND_TWICE
-        if (rand() < TNFS_UDP_SIMULATE_SEND_TWICE_PROB * RAND_MAX) {
-            Debug_println("TNFS_UDP_SIMULATE: send twice");
-            _tnfs_udp_send(udp, m_info, pkt, payload_size);
-        }
-#endif
         return _tnfs_udp_send(udp, m_info, pkt, payload_size);
     }
 }
 
+bool _tnfs_tcp_send(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
+{
+    fnTcpClient *tcp = &m_info->tcp_client;
+    if (!tcp->connected())
+    {
+        bool success = false;
+        if (m_info->host_ip != IPADDR_NONE)
+            success = tcp->connect(m_info->host_ip, m_info->port, TNFS_TIMEOUT);
+        else
+            success = tcp->connect(m_info->hostname, m_info->port, TNFS_TIMEOUT);
+        if (!success)
+        {
+            Debug_println("Can't connect to the TCP server");
+            return false;
+        }
+    }
+    int l = tcp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE);
+    return l == payload_size + TNFS_HEADER_SIZE;
+}
+
+#ifndef TNFS_UDP_SIMULATE_POOR_CONNECTION
 bool _tnfs_udp_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
 {
-        bool sent;
-        // Use the IP address if we have it
-        if (m_info->host_ip != IPADDR_NONE)
-            sent = udp->beginPacket(m_info->host_ip, m_info->port);
-        else
-            sent = udp->beginPacket(m_info->hostname, m_info->port);
+    return _tnfs_udp_do_send(udp, m_info, pkt, payload_size);
+}
+#endif
 
-        if (sent)
-        {
-            udp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE); // Add the data payload along with 4 bytes of TNFS header
-            sent = udp->endPacket();
-        }
-        return sent;
+bool _tnfs_udp_do_send(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_size)
+{
+    bool sent;
+    // Use the IP address if we have it
+    if (m_info->host_ip != IPADDR_NONE)
+        sent = udp->beginPacket(m_info->host_ip, m_info->port);
+    else
+        sent = udp->beginPacket(m_info->hostname, m_info->port);
+
+    if (sent)
+    {
+        udp->write(pkt.rawData, payload_size + TNFS_HEADER_SIZE); // Add the data payload along with 4 bytes of TNFS header
+        sent = udp->endPacket();
+    }
+    return sent;
 }
 
 /*
@@ -1323,48 +1330,39 @@ int _tnfs_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
 {
     if (m_info->protocol == TNFS_PROTOCOL_TCP || m_info->protocol == TNFS_PROTOCOL_UNKNOWN)
     {
-        fnTcpClient *tcp = &m_info->tcp_client;
-        if (!tcp->connected())
-        {
-            return -1;
-        }
-        if (!tcp->available())
-        {
-            return -1;
-        }
-        return tcp->read(pkt.rawData, sizeof(pkt.rawData));
+        return _tnfs_tcp_recv(m_info, pkt);
     }
     else
     {
-#ifdef TNFS_UDP_SIMULATE_RECV_TWICE
-        if (m_info->last_packet_len >= 0 && rand() < TNFS_UDP_SIMULATE_RECV_TWICE_PROB * RAND_MAX) {
-            Debug_println("TNFS_UDP_SIMULATE: recv twice");
-            memcpy(pkt.rawData, m_info->last_packet, sizeof(pkt.rawData));
-            int len = m_info->last_packet_len;
-            m_info->last_packet_len = -1;
-            return len;
-        }
-#endif
-        if (!udp->parsePacket())
-        {
-            return -1;
-        }
-#ifdef TNFS_UDP_SIMULATE_RECV_LOSS
-        if (rand() < TNFS_UDP_SIMULATE_RECV_LOSS_PROB * RAND_MAX) {
-            Debug_println("TNFS_UDP_SIMULATE: recv loss");
-            tnfsPacket lostPkt;
-            udp->read(lostPkt.rawData, sizeof(pkt.rawData));
-            return -1;
-        }
-#endif
-        int len = udp->read(pkt.rawData, sizeof(pkt.rawData));
-#ifdef TNFS_UDP_SIMULATE_RECV_TWICE
-        memcpy(m_info->last_packet, pkt.rawData, sizeof(m_info->last_packet));
-        m_info->last_packet_len = len;
-#endif
-        return len;
+        return _tnfs_udp_recv(udp, m_info, pkt);
     }
 }
+
+int _tnfs_tcp_recv(tnfsMountInfo *m_info, tnfsPacket &pkt)
+{
+    fnTcpClient *tcp = &m_info->tcp_client;
+    if (!tcp->connected())
+    {
+        return -1;
+    }
+    if (!tcp->available())
+    {
+        return -1;
+    }
+    return tcp->read(pkt.rawData, sizeof(pkt.rawData));
+}
+
+#ifndef TNFS_UDP_SIMULATE_POOR_CONNECTION
+int _tnfs_udp_recv(fnUDP *udp, tnfsMountInfo *m_info, tnfsPacket &pkt)
+{
+    if (!udp->parsePacket())
+    {
+        return -1;
+    }
+    int len = udp->read(pkt.rawData, sizeof(pkt.rawData));
+    return len;
+}
+#endif
 
 /*
   Send constructed TNFS packet and check for reply
