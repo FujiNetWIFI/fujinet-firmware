@@ -134,7 +134,7 @@ def main():
     if args.output_file:
         output_file = args.output_file
 
-    merge_ini_files('platformio.common.ini', local_file, output_file)
+    merge_ini_files('platformio-ini-files/platformio.common.ini', local_file, output_file)
 
     # merge in files specified
     if args.add_files:
