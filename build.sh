@@ -225,7 +225,11 @@ if [ -z "$SETUP_NEW_BOARD" ] ; then
     exit 1
   fi
 
-  python create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
+  if [ ${ZIP_MODE} -eq 1 ] ; then
+    python create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio.zip-options.ini
+  else
+    python create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
+  fi
   create_result=$?
 else
   # this will create a clean platformio INI file, but honours the command line args
@@ -239,7 +243,12 @@ else
       exit 1
     fi
   fi
-  python create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
+  if [ ${ZIP_MODE} -eq 1 ] ; then
+    python create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio.zip-options.ini
+  else
+    python create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
+  fi
+
   create_result=$?
 fi
 if [ $create_result -ne 0 ] ; then
