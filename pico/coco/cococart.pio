@@ -1,0 +1,126 @@
+;
+; FujiNet Project
+;
+; Tandy Color Computer expansion/cartridge slot interface
+;
+
+; .define public PINROMADDR  8
+; .define public PINROMDATA  0
+.define public CLKPIN     25
+; .define public RWPIN      24
+.define public CTSPIN     26
+.define public ROMWIDTH   14
+.define public DATAWIDTH   8
+
+
+;
+;
+; CoCoWrite - captures bytes written to the CoCo IO address space
+; PIO captures the address LSB and data byte, pushing to the FIFO
+;
+;
+
+.program cocowrite
+;.side_set 1
+start:
+.wrap_target
+    wait 0 gpio CLKPIN          ; wait until new cycle starts
+    jmp pin start               ; if RW = READ, the go back
+    mov osr, ~pins              ; put the inverted address into OUT starting with A8
+    out x, 8                    ; put the inverted 8 MSBs (A8-A15) in X to test
+    jmp x-- start               ; A8-A15 != 0xFF to try again (inverted A != 0)
+    wait 1 gpio CLKPIN          ; wait for rising edge of E
+    in pins 32                  ; put D0-D7 and A0-A7 into the input FIFO (via autopush)
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO inputs
+void cocowrite_program_init(PIO pio, uint sm, uint offset) {
+   // configure a SM
+   pio_sm_config c = cocowrite_program_get_default_config(offset);
+   
+   // set the out pin to pin
+   // sm_config_set_out_pins(&c, pin, 1);
+   
+   // start at GPIO16 to read in the commands
+   sm_config_set_in_pins(&c, PINROMADDR + 8); // start at GPIO 16 for the MSB address
+   
+   // use the RW pin for JMP instruction
+   sm_config_set_jmp_pin(&c, RWPIN);
+
+   // there are 16 wires to read for the DATA byte and ADDR LSB, shift to the left, autopush
+   sm_config_set_in_shift(&c, false, true, 32);
+   
+   // output things
+   sm_config_set_out_shift(&c, true, false, 32); // shift to the right
+
+   // set pin as a GPIO output connected to this SM
+   // sm_config_set_sideset_pins(&c, CLKPIN+1);
+   // pio_gpio_init(pio, CLKPIN+1);
+   // pio_sm_set_consecutive_pindirs(pio, sm, CLKPIN+1, 1, true);
+   // sm_config_set_set_pins(&c, pin, 1);
+   
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}
+
+;
+;
+; CoCo ROM emulator
+;
+; maximum CoCo ROM address space is 16K or 14 bits
+;
+;
+; the Y register is set prior to enabling the SM using 
+    ; put ROM image address into the FIFO
+    ; pull
+    ; mov y, osr
+    ; out null, 1
+    ;
+    ; or using c code:
+    ; pio_sm_put(pioblk_rw, SM_ROM, (uintptr_t)rom_lut >> 14);
+    ; pio_sm_exec_wait_blocking(pioblk_rw, SM_ROM, pio_encode_pull(false, true));
+    ; pio_sm_exec_wait_blocking(pioblk_rw, SM_ROM, pio_encode_mov(pio_y, pio_osr));
+    ; pio_sm_exec_wait_blocking(pioblk_rw, SM_ROM, pio_encode_out(pio_null, 1)); 
+
+.program rom
+    wait 0 gpio CLKPIN          ; on clock falling edge
+    mov osr, null               ; turn off the outputs
+    out pindirs, DATAWIDTH
+    wait 0 gpio CTSPIN          ; wait until the CTS is low     
+    mov isr, y                  ; put the base address in ISR
+    in pins, ROMWIDTH           ; copy the 32-bit address into the ISR (auto push)
+    pull                        ; wait for the DMA to return a byte of ROM
+    out pins, DATAWIDTH                 ; output the rom bit value 
+    wait 1 gpio CLKPIN
+    mov osr, ~null             ; enable the outputs
+    out pindirs, DATAWIDTH
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+
+void rom_program_init(PIO pio, uint sm, uint offset) {
+   // configure a SM
+   pio_sm_config c = rom_program_get_default_config(offset);
+   
+   // get 8 bit rom values through the OSR and output
+   sm_config_set_out_pins(&c, PINROMDATA, DATAWIDTH);
+   sm_config_set_out_shift(&c, true, false, DATAWIDTH); // no autopull because need to use OSR to set pindirs
+   
+   // start at in_pin to read in the phases and push to the FIFO
+   sm_config_set_in_pins(&c, PINROMADDR); 
+   sm_config_set_in_shift(&c, false, true, ROMWIDTH); // autopush
+
+   // use the CTS pin for JMP instruction
+   sm_config_set_jmp_pin(&c, CTSPIN);
+
+   // set out_pin as a GPIO output connected to this SM
+   for (int i = 0; i < DATAWIDTH; i++)
+	   pio_gpio_init(pio, PINROMDATA + i);
+   pio_sm_set_consecutive_pindirs(pio, sm, PINROMDATA, DATAWIDTH, false);
+   // sm_config_set_set_pins(&c, pin, 1);
+   // initialize
+   pio_sm_init(pio, sm, offset, &c);
+}
+%}
