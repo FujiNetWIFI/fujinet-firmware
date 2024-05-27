@@ -7,6 +7,7 @@
 #include "bus.h"
 #include "network.h"
 #include "cassette.h"
+#include "fnWiFi.h"
 
 #include "../fuji/fujiHost.h"
 #include "../fuji/fujiDisk.h"
@@ -16,6 +17,7 @@
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 4
 
+// only in BASIC:
 #define MAX_APPKEY_LEN 64
 
 typedef struct
@@ -49,6 +51,17 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
+typedef struct
+{
+    char ssid[33];
+    uint8_t rssi;
+} scan_result_t;
+
+typedef struct
+{
+    char ssid[MAX_SSID_LEN + 1];
+    char password[MAX_PASSPHRASE_LEN + 1];
+} net_config_t;
 
 class iecFuji : public virtualDevice
 {
@@ -85,22 +98,46 @@ private:
     void format_and_set_response(const std::string& entry);
 
 protected:
-    void reset_device();           // 0xFF
+    // helper functions
+    void net_store_ssid(std::string ssid, std::string password);
 
-    void net_get_ssid();           // 0xFE
-    void net_scan_networks();      // 0xFD
-    void net_scan_result(int n);   // 0xFC
+    // 0xFF
+    void reset_device();
+
+    // 0xFE
+    net_config_t net_get_ssid();
+    void net_get_ssid_basic();
+    void net_get_ssid_raw();
+
+    // 0xFD
+    void net_scan_networks();
+    void net_scan_networks_basic();
+    void net_scan_networks_raw();
+
+    // 0xFC
+    scan_result_t net_scan_result(int scan_num);
     void net_scan_result_basic();
     void net_scan_result_raw();
-    void net_set_ssid( bool store = true );           // 0xFB
-    void net_store_ssid(std::string ssid, std::string password);
-    void net_get_wifi_status();    // 0xFA
     
-    void mount_host();             // 0xF9
+    // 0xFB
+    void net_set_ssid(bool store, net_config_t& net_config);
+    void net_set_ssid_basic(bool store = true);
+    void net_set_ssid_raw(bool store = true);
 
-    bool disk_image_mount(uint8_t ds, uint8_t mode); // 0xF8
-    void disk_image_mount_raw();
+    // 0xFA
+    uint8_t net_get_wifi_status();
+    void net_get_wifi_status_basic();
+    void net_get_wifi_status_raw();
+    
+    // 0xF9
+    bool mount_host(int hs);
+    void mount_host_basic();
+    void mount_host_raw();
+
+    // 0xF8
+    bool disk_image_mount(uint8_t ds, uint8_t mode);
     void disk_image_mount_basic();
+    void disk_image_mount_raw();
 
     bool open_directory(uint8_t hs, std::string dirpath, std::string pattern); // 0xF7
     void open_directory_basic();
@@ -133,9 +170,10 @@ protected:
     
     void set_external_clock();     // 0xDF
     
-    void write_app_key_raw();      // 0xDE
+    // 0xDE
+    void write_app_key(std::vector<uint8_t>&& value);
     void write_app_key_basic();
-    void write_app_key(std::vector<uint8_t>&& value); // vector will be moved to avoid copy
+    void write_app_key_raw();
 
     void read_app_key();           // 0xDD
     void open_app_key();           // 0xDC
