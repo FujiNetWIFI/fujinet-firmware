@@ -47,8 +47,8 @@ void parallelBus::service()
 
     Debug_printv( "User Port Data Interrupt Received!" );
 
-    //Debug_printv("bus_state[%d]", IEC.bus_state);
-    if ( IEC.bus_state > BUS_OFFLINE ) // Is C64 is powered on?
+    //Debug_printv("bus_state[%d]", IEC.state);
+    if ( IEC.state > BUS_OFFLINE ) // Is C64 is powered on?
     {
         // Update flags and data
         PARALLEL.readByte();
@@ -143,7 +143,7 @@ void parallelBus::reset()
     // Debug_printv("flag2");
     // GPIOX.pinMode( FLAG2, GPIOX_MODE_OUTPUT );
 
-    //Debug_printv("reset! bus_state[%d]", IEC.bus_state);
+    //Debug_printv("reset! bus_state[%d]", IEC.state);
 
     //Debug_printv("userport flags");
     GPIOX.portMode( USERPORT_FLAGS, 0x05 ); // Set PA2 & PC2 to INPUT
