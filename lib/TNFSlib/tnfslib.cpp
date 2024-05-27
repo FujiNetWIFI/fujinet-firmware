@@ -1394,8 +1394,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
     reqPkt.sequence_num = m_info->current_sequence_num++;
 
     // Start a new retry sequence
-    int retry = 0;
-    while (retry < m_info->max_retries)
+    for (int retry = 0; retry < m_info->max_retries; retry++)
     {
         switch(_tnfs_send_recv(udp, m_info, reqPkt, payload_size, pkt))
         {
@@ -1403,7 +1402,7 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
             return true;
 
             case RESET:
-            retry = 0;
+            retry = -1;
             continue;
 
             case FAILED:
@@ -1414,8 +1413,6 @@ bool _tnfs_transaction(tnfsMountInfo *m_info, tnfsPacket &pkt, uint16_t payload_
         
         // Make sure we wait before retrying
         fnSystem.delay(m_info->min_retry_ms);
-
-        retry++;
     }
 
     Debug_printf("Retry attempts failed for host: %s, path: %s, cwd: %s\r\n", m_info->hostname, m_info->mountpath, m_info->current_working_directory);
@@ -1505,8 +1502,6 @@ _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnf
     {
         return NO_RESP;
     }
-
-    __IGNORE_UNUSED_VAR(l);
 #ifdef DEBUG
     _tnfs_debug_packet(res_pkt, l, true);
 #endif
