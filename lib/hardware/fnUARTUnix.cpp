@@ -113,10 +113,12 @@ void UARTManager::set_port(const char *device, int command_pin, int proceed_pin)
     }
 }
 
-const char* UARTManager::get_port(int &command_pin, int &proceed_pin)
+const char* UARTManager::get_port(int *ptr_command_pin, int *ptr_proceed_pin)
 {
-    command_pin = _command_pin;
-    proceed_pin = _proceed_pin;
+    if (ptr_command_pin)
+        *ptr_command_pin = _command_pin;
+    if (ptr_proceed_pin)
+        *ptr_proceed_pin = _proceed_pin;
     return _device;
 }
 

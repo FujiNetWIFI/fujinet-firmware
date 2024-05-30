@@ -484,7 +484,7 @@ void systemBus::setup()
     #endif /* FORCE_UART_BAUD */
 #else
     // Setup SIO ports: serial UART and NetSIO
-    fnUartBUS.set_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed()); // UART
+    fnUartBUS.set_port(Config.get_serial_port().c_str()); // UART
     std::string baudString = Config.get_serial_port_baud();
     if (baudString.empty())
     {

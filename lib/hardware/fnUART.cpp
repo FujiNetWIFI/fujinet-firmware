@@ -118,7 +118,7 @@ void UARTManager::begin(int baud)
 #ifdef BUILD_COCO
     if (_uart_num == 2)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
-#endif /* BUILD_ADAM */
+#endif /* BUILD_COCO */
 
 
     // Arduino default buffer size is 256
@@ -182,6 +182,15 @@ int UARTManager::available()
 int UARTManager::peek()
 {
     return 0;
+}
+
+/* Get current baud rate
+*/
+uint32_t UARTManager::get_baudrate()
+{
+    uint32_t baud;
+    uart_get_baudrate(_uart_num, &baud);
+    return baud;
 }
 
 /* Changes baud rate

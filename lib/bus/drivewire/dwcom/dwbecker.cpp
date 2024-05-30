@@ -1,9 +1,33 @@
-#ifndef ESP_PLATFORM
+#ifdef BUILD_COCO
 
-#ifdef BUILD_ATARI
+#include "dwbecker.h"
+#include "removeme_proto.h"
 
-#include "netsio.h"
-#include "netsio_proto.h"
+/*
+ * TODO - TCP listen,accept,read,write code here
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// remove NetSIO code
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -33,12 +57,12 @@
 // #define ALIVE_TIMEOUT_MS    600000
 
 // Constructor
-NetSioPort::NetSioPort() :
+BeckerPort::BeckerPort() :
     _host{0},
     _ip(IPADDR_NONE),
     _port(NETSIO_PORT),
-    _baud(SIOPORT_DEFAULT_BAUD),
-    _baud_peer(SIOPORT_DEFAULT_BAUD),
+    _baud(DWPORT_DEFAULT_BAUD),
+    _baud_peer(DWPORT_DEFAULT_BAUD),
     _fd(-1),
     _initialized(false),
     _command_asserted(false),
@@ -52,12 +76,12 @@ NetSioPort::NetSioPort() :
     _credit(3)
 {}
 
-NetSioPort::~NetSioPort()
+BeckerPort::~BeckerPort()
 {
     end();
 }
 
-void NetSioPort::begin(int baud)
+void BeckerPort::begin(int baud)
 {
     if (_initialized) 
     {
@@ -150,7 +174,7 @@ void NetSioPort::begin(int baud)
     set_baudrate(baud);
 }
 
-void NetSioPort::end()
+void BeckerPort::end()
 {
     if (_fd >= 0)
     {
@@ -164,22 +188,26 @@ void NetSioPort::end()
     _initialized = false;
 }
 
-bool NetSioPort::poll(int ms)
+bool BeckerPort::poll(int ms)
 {
+#ifdef ESP_PLATFORM
+    return false;
+#else
     if (_initialized)
         return wait_sock_readable(ms);
     fnSystem.delay(ms);
     return false;
+#endif
 }
 
-void NetSioPort::suspend(int ms)
+void BeckerPort::suspend(int ms)
 {
     Debug_printf("Suspending NetSIO for %d ms\n", ms);
     _resume_time = fnSystem.millis() + ms;
     end();
 }
 
-int NetSioPort::ping(int count, int interval_ms, int timeout_ms, bool fast)
+int BeckerPort::ping(int count, int interval_ms, int timeout_ms, bool fast)
 {
     uint8_t ping;
     uint64_t t1, t2;
@@ -233,12 +261,12 @@ int NetSioPort::ping(int count, int interval_ms, int timeout_ms, bool fast)
     return ok_count ? rtt_sum / ok_count : -1;
 }
 
-bool NetSioPort::rxbuffer_empty()
+bool BeckerPort::rxbuffer_empty()
 {
     return (_rxhead == _rxtail && !_rxfull);
 }
 
-bool NetSioPort::rxbuffer_put(uint8_t b) 
+bool BeckerPort::rxbuffer_put(uint8_t b) 
 {
     _rxbuf[_rxhead++] = b;
     _rxhead %= sizeof(_rxbuf);
@@ -251,7 +279,7 @@ bool NetSioPort::rxbuffer_put(uint8_t b)
     return false;
 }
 
-int NetSioPort::rxbuffer_get() 
+int BeckerPort::rxbuffer_get() 
 {
     int b;
     if (rxbuffer_empty())
@@ -262,7 +290,7 @@ int NetSioPort::rxbuffer_get()
     return b;
 }
 
-int  NetSioPort::rxbuffer_available() 
+int  BeckerPort::rxbuffer_available() 
 {
     int avail = _rxhead - _rxtail;
     if ((avail < 0) || (avail == 0 && _rxfull))
@@ -270,13 +298,13 @@ int  NetSioPort::rxbuffer_available()
     return avail;
 }
 
-void NetSioPort::rxbuffer_flush() 
+void BeckerPort::rxbuffer_flush() 
 {
     _rxtail = _rxhead;
     _rxfull = false;
 }
 
-bool NetSioPort::resume_test()
+bool BeckerPort::resume_test()
 {
     if (!_initialized)
     {
@@ -292,147 +320,148 @@ bool NetSioPort::resume_test()
     return _initialized;
 }
 
-bool NetSioPort::keep_alive()
+bool BeckerPort::keep_alive()
 {
-    ssize_t result;
-    uint64_t ms = fnSystem.millis();
+    // ssize_t result;
+    // uint64_t ms = fnSystem.millis();
 
-    // if ALIVE_RATE_MS time passed since last alive request was sent
-    if (ms - _alive_request >= ALIVE_RATE_MS)
-    {
-        // if alive request was send but we did not received any response then we lost connection
-        if (ms - _alive_request < ALIVE_TIMEOUT_MS && ms - _alive_time >= ALIVE_TIMEOUT_MS)
-        {
-            Debug_println("NetSIO connection lost");
-            // Debug_printf("> %lu %lu %lu  %lu %lu\n", ms, _alive_request, _alive_time, ms-_alive_request, ms-_alive_time);
-            // ping hub
-            if (ping(2, 1000, 2000) < 0)
-            {
-                // no ping response
-                suspend(5000);
-                return false;
-            }
-            // reconnect on ping response
-            end();
-            begin(_baud);
-        }
-        // if nothing received for longer than ALIVE_RATE_MS, keep sending alive requests at ALIVE_RATE_MS rate
-        else if (ms - _alive_time >= ALIVE_RATE_MS)
-        {
-            _alive_request = ms;
-            uint8_t alive = NETSIO_ALIVE_REQUEST;
-            result = send(_fd, (char *)&alive, 1, 0);
-            // Debug_printf("Alive %lu %ld\n", ms, result);
-        }
-    }
+    // // if ALIVE_RATE_MS time passed since last alive request was sent
+    // if (ms - _alive_request >= ALIVE_RATE_MS)
+    // {
+    //     // if alive request was send but we did not received any response then we lost connection
+    //     if (ms - _alive_request < ALIVE_TIMEOUT_MS && ms - _alive_time >= ALIVE_TIMEOUT_MS)
+    //     {
+    //         Debug_println("NetSIO connection lost");
+    //         // Debug_printf("> %lu %lu %lu  %lu %lu\n", ms, _alive_request, _alive_time, ms-_alive_request, ms-_alive_time);
+    //         // ping hub
+    //         if (ping(2, 1000, 2000) < 0)
+    //         {
+    //             // no ping response
+    //             suspend(5000);
+    //             return false;
+    //         }
+    //         // reconnect on ping response
+    //         end();
+    //         begin(_baud);
+    //     }
+    //     // if nothing received for longer than ALIVE_RATE_MS, keep sending alive requests at ALIVE_RATE_MS rate
+    //     else if (ms - _alive_time >= ALIVE_RATE_MS)
+    //     {
+    //         _alive_request = ms;
+    //         uint8_t alive = NETSIO_ALIVE_REQUEST;
+    //         result = send(_fd, (char *)&alive, 1, 0);
+    //         // Debug_printf("Alive %lu %ld\n", ms, result);
+    //     }
+    // }
     return _initialized;
 }
 
 /* read NetSIO message from socket and update internal variables */
-int NetSioPort::handle_netsio()
+int BeckerPort::handle_netsio()
 {
-    uint8_t rxbuf[514]; // must be able to hold whole netsio datagram, i.e. >= rxbuffer_len+2 defined in netsio.atdevice
-    uint8_t b;
-    int received;
+    return 0;
+//     uint8_t rxbuf[514]; // must be able to hold whole netsio datagram, i.e. >= rxbuffer_len+2 defined in netsio.atdevice
+//     uint8_t b;
+//     int received;
 
-    if (!resume_test())
-        return 0;
+//     if (!resume_test())
+//         return 0;
 
-    received = recv(_fd, (char *)rxbuf, sizeof(rxbuf), 0);
-    if (received > 0)
-    {
-#ifdef VERBOSE_SIO
-        Debug_printf("NetSIO RECV <%i> BYTES\n\t", received);
-        for (int i = 0; i < received; i++)
-            Debug_printf("%02x ", rxbuf[i]);
-        Debug_print("\n");
-#endif
-        _alive_time = fnSystem.millis(); // update last received
-        switch (rxbuf[0])
-        {
-            case NETSIO_DATA_BYTE_SYNC:
-                if (received >= 3)
-                    _sync_request_num = rxbuf[2];
-                // [[fallthrough]]; // > No warning
+//     received = recv(_fd, (char *)rxbuf, sizeof(rxbuf), 0);
+//     if (received > 0)
+//     {
+// #ifdef VERBOSE_SIO
+//         Debug_printf("NetSIO RECV <%i> BYTES\n\t", received);
+//         for (int i = 0; i < received; i++)
+//             Debug_printf("%02x ", rxbuf[i]);
+//         Debug_print("\n");
+// #endif
+//         _alive_time = fnSystem.millis(); // update last received
+//         switch (rxbuf[0])
+//         {
+//             case NETSIO_DATA_BYTE_SYNC:
+//                 if (received >= 3)
+//                     _sync_request_num = rxbuf[2];
+//                 // [[fallthrough]]; // > No warning
 
-            case NETSIO_DATA_BYTE:
-                b = rxbuf[1];
-                if (_baud_peer < _baud * 90 / 100 || _baud_peer > _baud * 110 / 100)
-                    b ^= (uint8_t)_baud_peer ^ (uint8_t)_baud; // corrupt byte
-                if (rxbuffer_put(b))
-                    Debug_println("NetSIO rxbuffer overrun");
-                break;
+//             case NETSIO_DATA_BYTE:
+//                 b = rxbuf[1];
+//                 if (_baud_peer < _baud * 90 / 100 || _baud_peer > _baud * 110 / 100)
+//                     b ^= (uint8_t)_baud_peer ^ (uint8_t)_baud; // corrupt byte
+//                 if (rxbuffer_put(b))
+//                     Debug_println("NetSIO rxbuffer overrun");
+//                 break;
 
-            case NETSIO_DATA_BLOCK:
-                if (received >= 2)
-                {
-                    for (int i = 1; i < received-1; i++) // TODO received-1, to test packet SNs
-                    // for (int i = 1; i < received; i++)
-                    {
-                        b = rxbuf[i];
-                        if (_baud_peer < _baud * 90 / 100 || _baud_peer > _baud * 110 / 100)
-                            b ^= (uint8_t)_baud_peer ^ (uint8_t)_baud; // corrupt byte
-                        if (rxbuffer_put(b))
-                            Debug_println("NetSIO rxbuffer overrun");
-                    }
-                }
-                break;
+//             case NETSIO_DATA_BLOCK:
+//                 if (received >= 2)
+//                 {
+//                     for (int i = 1; i < received-1; i++) // TODO received-1, to test packet SNs
+//                     // for (int i = 1; i < received; i++)
+//                     {
+//                         b = rxbuf[i];
+//                         if (_baud_peer < _baud * 90 / 100 || _baud_peer > _baud * 110 / 100)
+//                             b ^= (uint8_t)_baud_peer ^ (uint8_t)_baud; // corrupt byte
+//                         if (rxbuffer_put(b))
+//                             Debug_println("NetSIO rxbuffer overrun");
+//                     }
+//                 }
+//                 break;
 
-            case NETSIO_COMMAND_OFF_SYNC:
-                if (received >= 2) 
-                    _sync_request_num = rxbuf[1]; // sync request sequence number
-                // [[fallthrough]]; // > No warning
+//             case NETSIO_COMMAND_OFF_SYNC:
+//                 if (received >= 2) 
+//                     _sync_request_num = rxbuf[1]; // sync request sequence number
+//                 // [[fallthrough]]; // > No warning
 
-            case NETSIO_COMMAND_OFF:
-                _command_asserted = false;
-                break;
+//             case NETSIO_COMMAND_OFF:
+//                 _command_asserted = false;
+//                 break;
 
-            case NETSIO_COMMAND_ON:
-                _command_asserted = true;
-                _sync_request_num = -1; // cancel any sync request
-                _sync_write_size = -1;
-                rxbuffer_flush();   // flush any stray input data
-                break;
+//             case NETSIO_COMMAND_ON:
+//                 _command_asserted = true;
+//                 _sync_request_num = -1; // cancel any sync request
+//                 _sync_write_size = -1;
+//                 rxbuffer_flush();   // flush any stray input data
+//                 break;
 
-            case NETSIO_MOTOR_OFF:
-                _motor_asserted = false;
-                break;
+//             case NETSIO_MOTOR_OFF:
+//                 _motor_asserted = false;
+//                 break;
 
-            case NETSIO_MOTOR_ON:
-                _motor_asserted = true;
-                break;
+//             case NETSIO_MOTOR_ON:
+//                 _motor_asserted = true;
+//                 break;
 
-            case NETSIO_SPEED_CHANGE:
-                // speed change notification
-                if (received >= 5)
-                {
-                    _baud_peer = rxbuf[1] | (rxbuf[2] << 8) | (rxbuf[3] << 16) | (rxbuf[4] << 24);
-                    Debug_printf("NetSIO peer baudrate: %d\n", _baud_peer);
-                }
-                break;
+//             case NETSIO_SPEED_CHANGE:
+//                 // speed change notification
+//                 if (received >= 5)
+//                 {
+//                     _baud_peer = rxbuf[1] | (rxbuf[2] << 8) | (rxbuf[3] << 16) | (rxbuf[4] << 24);
+//                     Debug_printf("NetSIO peer baudrate: %d\n", _baud_peer);
+//                 }
+//                 break;
 
-            case NETSIO_CREDIT_UPDATE:
-                _credit = rxbuf[1];
-                break;
+//             case NETSIO_CREDIT_UPDATE:
+//                 _credit = rxbuf[1];
+//                 break;
 
-            case NETSIO_COLD_RESET:
-                // emulator cold reset, do fujinet restart
-#ifndef DEBUG_NO_REBOOT
-                fnSystem.reboot();
-#endif
-                break;
+//             case NETSIO_COLD_RESET:
+//                 // emulator cold reset, do fujinet restart
+// #ifndef DEBUG_NO_REBOOT
+//                 fnSystem.reboot();
+// #endif
+//                 break;
 
-            default:
-                break;
-        }
-    }
+//             default:
+//                 break;
+//         }
+//     }
 
-    keep_alive();
+//     keep_alive();
 
-    return received;
+//     return received;
 }
 
-timeval NetSioPort::timeval_from_ms(const uint32_t millis)
+timeval BeckerPort::timeval_from_ms(const uint32_t millis)
 {
   timeval tv;
   tv.tv_sec = millis / 1000;
@@ -440,7 +469,7 @@ timeval NetSioPort::timeval_from_ms(const uint32_t millis)
   return tv;
 }
 
-bool NetSioPort::wait_sock_readable(uint32_t timeout_ms)
+bool BeckerPort::wait_sock_readable(uint32_t timeout_ms)
 {
     timeval timeout_tv;
     fd_set readfds;
@@ -486,7 +515,7 @@ bool NetSioPort::wait_sock_readable(uint32_t timeout_ms)
     return true;
 }
 
-bool NetSioPort::wait_sock_writable(uint32_t timeout_ms)
+bool BeckerPort::wait_sock_writable(uint32_t timeout_ms)
 {
     timeval timeout_tv;
     fd_set writefds;
@@ -531,7 +560,7 @@ bool NetSioPort::wait_sock_writable(uint32_t timeout_ms)
     return true;
 }
 
-ssize_t NetSioPort::write_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms)
+ssize_t BeckerPort::write_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms)
 {
     if (!wait_sock_writable(timeout_ms))
     {
@@ -548,7 +577,7 @@ ssize_t NetSioPort::write_sock(const uint8_t *buffer, size_t size, uint32_t time
     return result;
 }
 
-bool NetSioPort::wait_for_data(uint32_t timeout_ms)
+bool BeckerPort::wait_for_data(uint32_t timeout_ms)
 {
     while (rxbuffer_empty())
     {
@@ -561,7 +590,7 @@ bool NetSioPort::wait_for_data(uint32_t timeout_ms)
     return true;
 }
 
-bool NetSioPort::wait_for_credit(int needed)
+bool BeckerPort::wait_for_credit(int needed)
 {
     uint8_t txbuf[2];
     txbuf[0] = NETSIO_CREDIT_STATUS;
@@ -586,7 +615,7 @@ bool NetSioPort::wait_for_credit(int needed)
 
 /* Discards anything in the input buffer
 */
-void NetSioPort::flush_input()
+void BeckerPort::flush_input()
 {
     if (_initialized)
         rxbuffer_flush();
@@ -595,7 +624,7 @@ void NetSioPort::flush_input()
 /* Clears input buffer and flushes out transmit buffer waiting at most
    waiting MAX_FLUSH_WAIT_TICKS until all sends are completed
 */
-void NetSioPort::flush()
+void BeckerPort::flush()
 {
     if (_initialized)
     {
@@ -606,7 +635,7 @@ void NetSioPort::flush()
 
 /* Returns number of bytes available in receive buffer or -1 on error
 */
-int NetSioPort::available()
+int BeckerPort::available()
 {
     if (rxbuffer_empty())
         handle_netsio();
@@ -615,7 +644,7 @@ int NetSioPort::available()
 
 /* Changes baud rate
 */
-void NetSioPort::set_baudrate(uint32_t baud)
+void BeckerPort::set_baudrate(uint32_t baud)
 {
     Debug_printf("NetSIO set_baudrate: %d\n", baud);
 
@@ -633,75 +662,14 @@ void NetSioPort::set_baudrate(uint32_t baud)
     _baud = baud;
 }
 
-uint32_t NetSioPort::get_baudrate()
+uint32_t BeckerPort::get_baudrate()
 {
     return _baud;
 }
 
-bool NetSioPort::command_asserted(void)
-{
-    // process NetSIO message, if any
-    handle_netsio();
-    return _command_asserted;
-}
-
-bool NetSioPort::motor_asserted(void)
-{
-    handle_netsio();
-    return _motor_asserted;
-}
-
-void NetSioPort::set_proceed(bool level)
-{
-    static int last_level = -1; // 0,1 or -1 for unknown
-    int new_level = level ? 0 : 1;
-
-    if (!_initialized)
-        return;
-    if (last_level == new_level)
-        return;
-
-    Debug_print(level ? "_" : "-");
-    last_level = new_level;
-
-    wait_for_credit(1);
-    uint8_t cmd = level ? NETSIO_PROCEED_ON : NETSIO_PROCEED_OFF;
-    write_sock(&cmd, 1);
-}
-
-void NetSioPort::set_interrupt(bool level)
-{
-    static int last_level = -1; // 0,1 or -1 for unknown
-    int new_level = level ? 0 : 1;
-
-    if (!_initialized)
-        return;
-    if (last_level == new_level)
-        return;
-
-    Debug_print(level ? "\\" : "/");
-    last_level = new_level;
-
-    wait_for_credit(1);
-    uint8_t cmd = level ? NETSIO_INTERRUPT_ON : NETSIO_INTERRUPT_OFF;
-    write_sock(&cmd, 1);
-}
-
-void NetSioPort::bus_idle(uint16_t ms)
-{
-    uint8_t cmd[3];
-    cmd[0] = NETSIO_BUS_IDLE;
-    cmd[1] = ms & 0xff;
-    cmd[2] = (ms >> 8) & 0xff;
-
-    wait_for_credit(1);
-    write_sock(cmd, sizeof(cmd));
-}
-
-
 /* Returns a single byte from the incoming stream
 */
-int NetSioPort::read(void)
+int BeckerPort::read(void)
 {
     if (!_initialized)
         return -1;
@@ -717,7 +685,7 @@ int NetSioPort::read(void)
 /* Since the underlying Stream calls this Read() multiple times to get more than one
 *  character for ReadBytes(), we override with a single call to uart_read_bytes
 */
-size_t NetSioPort::read(uint8_t *buffer, size_t length, bool command_mode)
+size_t BeckerPort::read(uint8_t *buffer, size_t length)
 {
     if (!_initialized)
         return 0;
@@ -763,7 +731,7 @@ size_t NetSioPort::read(uint8_t *buffer, size_t length, bool command_mode)
 }
 
 /* write single byte via NetSIO */
-ssize_t NetSioPort::write(uint8_t c)
+ssize_t BeckerPort::write(uint8_t c)
 {
     uint8_t txbuf[2];
 
@@ -802,7 +770,7 @@ ssize_t NetSioPort::write(uint8_t c)
     return (result > 0) ? 1 : 0; // amount of data bytes written
 }
 
-ssize_t NetSioPort::write(const uint8_t *buffer, size_t size)
+ssize_t BeckerPort::write(const uint8_t *buffer, size_t size)
 {
     int result;
     int to_send;
@@ -830,8 +798,8 @@ ssize_t NetSioPort::write(const uint8_t *buffer, size_t size)
     return txbytes;
 }
 
-// specific to NetSioPort
-void NetSioPort::set_host(const char *host, int port)
+// specific to BeckerPort
+void BeckerPort::set_host(const char *host, int port)
 {
     if (host != nullptr)
         strlcpy(_host, host, sizeof(_host));
@@ -841,24 +809,24 @@ void NetSioPort::set_host(const char *host, int port)
     _port = port;
 }
 
-const char* NetSioPort::get_host(int &port)
+const char* BeckerPort::get_host(int &port)
 {
     port = _port;
     return _host;
 }
 
-void NetSioPort::set_sync_ack_byte(int ack_byte)
+void BeckerPort::set_sync_ack_byte(int ack_byte)
 {
     _sync_ack_byte = ack_byte;
     _sync_write_size = 0;
 }
 
-void NetSioPort::set_sync_write_size(int write_size)
+void BeckerPort::set_sync_write_size(int write_size)
 {
     _sync_write_size = write_size;
 }
 
-ssize_t NetSioPort::send_sync_response(uint8_t response_type, uint8_t ack_byte, uint16_t sync_write_size)
+ssize_t BeckerPort::send_sync_response(uint8_t response_type, uint8_t ack_byte, uint16_t sync_write_size)
 {
     uint8_t txbuf[6];
 
@@ -879,12 +847,10 @@ ssize_t NetSioPort::send_sync_response(uint8_t response_type, uint8_t ack_byte, 
     return (result > 0 && response_type != NETSIO_EMPTY_SYNC) ? 1 : 0; // amount of data bytes written
 }
 
-void NetSioPort::send_empty_sync()
+void BeckerPort::send_empty_sync()
 {
     if (_sync_request_num >= 0)
         send_sync_response(NETSIO_EMPTY_SYNC);
 }
 
-#endif // BUILD_ATARI
-
-#endif // !ESP_PLATFORM
+#endif // BUILD_COCO

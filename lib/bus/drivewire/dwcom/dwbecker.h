@@ -1,0 +1,117 @@
+#ifndef DWBECKER_H
+#define DWBECKER_H
+
+#include <sys/time.h>
+#include "dwport.h"
+#include "fnDNS.h"
+
+
+/*
+ * TODO - TCP listen,accept,read,write code here
+ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// remove NetSIO code
+
+
+class BeckerPort : public DwPort
+{
+private:
+    char _host[64];
+    in_addr_t _ip;
+    uint16_t _port;
+
+    uint32_t _baud;
+    uint32_t _baud_peer;
+    int _fd;
+    bool _initialized;
+    bool _command_asserted;
+    bool _motor_asserted;
+
+    uint8_t _rxbuf[1024];
+    int _rxhead;
+    int _rxtail;
+    bool _rxfull;
+
+    int _sync_request_num;  // 0..255 sync request sequence number, -1 if sync is not requested
+    uint8_t _sync_ack_byte; // ACK byte to send with sync response
+    int _sync_write_size;   // 0 .. no SIO write (from computer), > 0 .. expected bytes written
+
+    // serial port error counter
+    int _errcount;
+    uint64_t _resume_time;
+    uint64_t _alive_time;    // when last message was received
+    uint64_t _alive_request; // when last ALIVE request was sent
+    // flow control
+    int _credit;
+
+protected:
+    void suspend(int ms=5000);
+    bool resume_test();
+    bool keep_alive();
+
+    int handle_netsio();
+    static timeval timeval_from_ms(const uint32_t millis);
+
+    bool wait_sock_readable(uint32_t timeout_ms);
+    bool wait_for_data(uint32_t timeout_ms);
+    bool wait_for_credit(int needed);
+
+    bool wait_sock_writable(uint32_t timeout_ms);
+    ssize_t write_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms=500);
+
+    bool rxbuffer_empty();
+    bool rxbuffer_put(uint8_t b);
+    int rxbuffer_get();
+    int rxbuffer_available();
+    void rxbuffer_flush();
+
+public:
+    BeckerPort();
+    virtual ~BeckerPort();
+    virtual void begin(int baud) override;
+    virtual void end() override;
+    virtual bool poll(int ms) override;
+
+    virtual void set_baudrate(uint32_t baud) override;
+    virtual uint32_t get_baudrate() override;
+
+    virtual int available() override;
+    virtual void flush() override;
+    virtual void flush_input() override;
+
+    // read single byte
+    virtual int read() override;
+    // read bytes into buffer
+    virtual size_t read(uint8_t *buffer, size_t length) override;
+
+    // write single byte
+    virtual ssize_t write(uint8_t b) override;
+    // write buffer
+    virtual ssize_t write(const uint8_t *buffer, size_t size) override;
+
+    // specific to BeckerPort
+    void set_host(const char *host, int port);
+    const char* get_host(int &port);
+    int ping(int count=4, int interval_ms=1000, int timeout_ms=500, bool fast=true);
+
+    void set_sync_ack_byte(int ack_byte);
+    void set_sync_write_size(int write_size);
+    ssize_t send_sync_response(uint8_t response_type, uint8_t ack_byte=0, uint16_t sync_write_size=0);
+    void send_empty_sync();
+};
+
+#endif // DWBECKER_H

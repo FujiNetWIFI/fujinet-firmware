@@ -54,7 +54,7 @@ public:
         _uart.set_port(device, command_pin, proceed_pin);
     }
     const char* get_port(int &command_pin, int &proceed_pin) {
-        return _uart.get_port(command_pin, proceed_pin);
+        return _uart.get_port(&command_pin, &proceed_pin);
     }
 };
 
