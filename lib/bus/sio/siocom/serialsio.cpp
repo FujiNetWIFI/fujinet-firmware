@@ -1,6 +1,6 @@
 #ifndef ESP_PLATFORM
 
-#if defined(BUILD_ATARI) || defined(BUILD_COCO)
+#ifdef BUILD_ATARI
 
 #include "serialsio.h"
 #include "fnSystem.h"

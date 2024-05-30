@@ -55,6 +55,7 @@ public:
 
     void begin(int baud);
     void end();
+    uint32_t get_baudrate();
     void set_baudrate(uint32_t baud);
     bool initialized() { return _initialized; }
 
@@ -101,8 +102,8 @@ public:
     void suspend(int sec=5);
     bool initialized() { return _initialized; }
 
-    void set_port(const char *device, int command_pin, int proceed_pin);
-    const char* get_port(int &command_pin, int &proceed_pin);
+    void set_port(const char *device, int command_pin=0, int proceed_pin=0);
+    const char* get_port(int *ptr_command_pin=nullptr, int *ptr_proceed_pin=nullptr);
 
     void set_baudrate(uint32_t baud);
     uint32_t get_baudrate() { return _baud; }

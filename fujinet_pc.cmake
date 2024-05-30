@@ -339,8 +339,11 @@ endif()
 if(FUJINET_TARGET STREQUAL "COCO")
     list(APPEND SOURCES
 
-    lib/bus/sio/sio.h lib/bus/sio/sio.cpp
     lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
+    lib/bus/drivewire/dwcom/fnDwCom.h lib/bus/drivewire/dwcom/fnDwCom.cpp
+    lib/bus/drivewire/dwcom/dwport.h lib/bus/drivewire/dwcom/dwport.cpp
+    lib/bus/drivewire/dwcom/dwserial.h lib/bus/drivewire/dwcom/dwserial.cpp
+    lib/bus/drivewire/dwcom/dwbecker.h lib/bus/drivewire/dwcom/dwbecker.cpp
     lib/hardware/fnUART.h lib/hardware/fnUARTUnix.cpp
     lib/hardware/fnUART.h lib/hardware/fnUARTWindows.cpp
 
