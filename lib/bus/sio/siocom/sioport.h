@@ -33,7 +33,7 @@ public:
     virtual void flush_input() = 0;
 
     virtual int read() = 0; // read single byte
-    virtual size_t read(uint8_t *buffer, size_t length, bool command_mode=false) = 0; // read bytes into buffer
+    virtual size_t read(uint8_t *buffer, size_t length) = 0; // read bytes into buffer
 
     virtual ssize_t write(uint8_t b) = 0; // write single byte
     virtual ssize_t write(const uint8_t *buffer, size_t size) = 0; // write buffer

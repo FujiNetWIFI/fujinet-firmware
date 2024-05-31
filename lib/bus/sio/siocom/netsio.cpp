@@ -717,7 +717,7 @@ int NetSioPort::read(void)
 /* Since the underlying Stream calls this Read() multiple times to get more than one
 *  character for ReadBytes(), we override with a single call to uart_read_bytes
 */
-size_t NetSioPort::read(uint8_t *buffer, size_t length, bool command_mode)
+size_t NetSioPort::read(uint8_t *buffer, size_t length)
 {
     if (!_initialized)
         return 0;
@@ -751,13 +751,6 @@ size_t NetSioPort::read(uint8_t *buffer, size_t length, bool command_mode)
             // done
             break;
         }
-
-        // // wait for more data
-        // if (command_mode && !command_asserted())
-        // {
-        //     Debug_println("### NetSIO read()) CMD pin deasserted while reading command ###");
-        //     return 1 + length; // indicate to SIO caller
-        // }
     }
     return rxbytes;
 }

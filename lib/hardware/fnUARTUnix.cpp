@@ -469,7 +469,7 @@ int UARTManager::read(void)
 /* Since the underlying Stream calls this Read() multiple times to get more than one
  *  character for ReadBytes(), we override with a single call to uart_read_bytes
  */
-size_t UARTManager::readBytes(uint8_t *buffer, size_t length, bool command_mode)
+size_t UARTManager::readBytes(uint8_t *buffer, size_t length)
 {
     if (!_initialized)
         return 0;
@@ -500,12 +500,6 @@ size_t UARTManager::readBytes(uint8_t *buffer, size_t length, bool command_mode)
             break;
         }
 
-        // // wait for more data
-        // if (command_mode && !command_asserted())
-        // {
-        //     Debug_println("### UART readBytes() CMD pin deasserted while reading command ###");
-        //     return 1 + length; // indicate to SIO caller
-        // }
         if (!waitReadable(500)) // 500 ms timeout
         {
             Debug_println("UART readBytes() TIMEOUT");

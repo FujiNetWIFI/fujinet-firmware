@@ -81,7 +81,7 @@ public:
     // read single byte
     virtual int read() override;
     // read bytes into buffer
-    virtual size_t read(uint8_t *buffer, size_t length, bool command_mode=false) override;
+    virtual size_t read(uint8_t *buffer, size_t length) override;
 
     // write single byte
     virtual ssize_t write(uint8_t b) override;
