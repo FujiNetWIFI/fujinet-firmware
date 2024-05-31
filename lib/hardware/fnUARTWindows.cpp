@@ -407,7 +407,7 @@ int UARTManager::read(void)
     return (readBytes(&byte, 1) == 1) ? byte : -1;
 }
 
-size_t UARTManager::readBytes(uint8_t *buffer, size_t length, bool command_mode)
+size_t UARTManager::readBytes(uint8_t *buffer, size_t length)
 {
     if (!_initialized)
         return 0;

@@ -38,8 +38,8 @@ public:
     // read single byte
     virtual int read() override { return _uart.read(); }
     // read bytes into buffer
-    virtual size_t read(uint8_t *buffer, size_t length, bool command_mode=false) override {
-        return _uart.readBytes(buffer, length, command_mode);
+    virtual size_t read(uint8_t *buffer, size_t length) override {
+        return _uart.readBytes(buffer, length);
     }
 
     // write single byte

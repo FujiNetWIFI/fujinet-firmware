@@ -92,15 +92,15 @@ int SioCom::read()
 }
 
 // read bytes into buffer
-size_t SioCom::read(uint8_t *buffer, size_t length, bool command_mode)
+size_t SioCom::read(uint8_t *buffer, size_t length)
 {
-    return _sioPort->read(buffer, length, command_mode);
+    return _sioPort->read(buffer, length);
 }
 
 // alias to read
-size_t SioCom::readBytes(uint8_t *buffer, size_t length, bool command_mode)
+size_t SioCom::readBytes(uint8_t *buffer, size_t length)
 {
-    return  _sioPort->read(buffer, length, command_mode);
+    return  _sioPort->read(buffer, length);
 }
 
 // write single byte

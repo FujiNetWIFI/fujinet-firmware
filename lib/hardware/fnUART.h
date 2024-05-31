@@ -120,7 +120,7 @@ public:
     bool waitReadable(uint32_t timeout_ms);
 
     int read();
-    size_t readBytes(uint8_t *buffer, size_t length, bool command_mode=false);
+    size_t readBytes(uint8_t *buffer, size_t length);
     size_t readBytes(char *buffer, size_t length) { return readBytes((uint8_t *)buffer, length); }
 
     size_t write(uint8_t);

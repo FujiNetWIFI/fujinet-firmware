@@ -54,9 +54,9 @@ public:
     // read single byte
     int read();
     // read bytes into buffer
-    size_t read(uint8_t *buffer, size_t length, bool command_mode=false);
+    size_t read(uint8_t *buffer, size_t length);
     // alias to read
-    size_t readBytes(uint8_t *buffer, size_t length, bool command_mode=false);
+    size_t readBytes(uint8_t *buffer, size_t length);
 
     // write single byte
     ssize_t write(uint8_t b);
