@@ -85,9 +85,6 @@ jobs:
     - name: Build release
       run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -z -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
 
-    - name: Fix firmware name
-      run: mv firmware/fujinet*.zip firmware/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}.${{ steps.short-sha.outputs.sha }}.zip
-
     - name: Deploy ${{ matrix.target-platform }} Firmware
       uses: WebFreak001/deploy-nightly@v3.1.0
       with:
