@@ -85,12 +85,15 @@ jobs:
     - name: Build release
       run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -z -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
 
+    - name: Standardize Firmware Name
+      run: mv ./firmware/fujinet*.zip ./firmware/nightly-fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}.${{ steps.short-sha.outputs.sha }}.zip
+
     - name: Deploy ${{ matrix.target-platform }} Firmware
       uses: WebFreak001/deploy-nightly@v3.1.0
       with:
         upload_url: https://uploads.github.com/repos/FujiNetWIFI/fujinet-firmware/releases/156608864/assets{?name,label}
         release_id: 156608864
-        asset_path: ./firmware/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}.${{ steps.short-sha.outputs.sha }}.zip
-        asset_name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}.${{ steps.short-sha.outputs.sha }}_${{ steps.commit-date.outputs.COMMIT_DATE }}.zip
+        asset_path: ./firmware/nightly-fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}.${{ steps.short-sha.outputs.sha }}.zip
+        asset_name: fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}-${{ steps.short-sha.outputs.sha }}.zip
         asset_content_type: application/zip
         max_releases: 1
