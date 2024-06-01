@@ -26,7 +26,9 @@
 
 #include <forward_list>
 #include <map>
-#include <fnUART.h>
+// fnUartBUS (Serial only) was replaced with fnDwCom (Serial|TCP/Becker)
+//#include <fnUART.h>
+#include "drivewire/dwcom/fnDwCom.h"
 
 #define DRIVEWIRE_BAUDRATE 57600
 

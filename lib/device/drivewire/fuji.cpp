@@ -157,7 +157,7 @@ void drivewireFuji::net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
 
-    uint8_t n = fnUartBUS.read();
+    uint8_t n = fnDwCom.read();
 
     wifiScanStarted = false;
 
@@ -226,7 +226,7 @@ void drivewireFuji::net_set_ssid()
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
-    fnUartBUS.readBytes((uint8_t *)&cfg, sizeof(cfg));
+    fnDwCom.readBytes((uint8_t *)&cfg, sizeof(cfg));
 
     bool save = false; // for now don't save - to do save if connection was succesful
 
@@ -280,7 +280,7 @@ void drivewireFuji::mount_host()
 {
     Debug_println("Fuji cmd: MOUNT HOST");
 
-    unsigned char hostSlot = fnUartBUS.read();
+    unsigned char hostSlot = fnDwCom.read();
 
     _fnHosts[hostSlot].mount();
 }
@@ -296,8 +296,8 @@ void drivewireFuji::disk_image_mount()
 
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
-    uint8_t deviceSlot = fnUartBUS.read();
-    uint8_t options = fnUartBUS.read(); // DISK_ACCESS_MODE
+    uint8_t deviceSlot = fnDwCom.read();
+    uint8_t options = fnDwCom.read(); // DISK_ACCESS_MODE
 
     // TODO: Implement FETCH?
     char flag[3] = {'r', 0, 0};
@@ -533,7 +533,7 @@ void drivewireFuji::mount_all()
 // Set boot mode
 void drivewireFuji::set_boot_mode()
 {
-    insert_boot_device(fnUartBUS.read());
+    insert_boot_device(fnDwCom.read());
     boot_config = true;
 }
 
@@ -556,7 +556,7 @@ void drivewireFuji::open_app_key()
 {
     Debug_print("Fuji cmd: OPEN APPKEY\n");
 
-    fnUartBUS.readBytes((uint8_t *)&_current_appkey, sizeof(_current_appkey));
+    fnDwCom.readBytes((uint8_t *)&_current_appkey, sizeof(_current_appkey));
 
     // Endian swap
     uint16_t tmp = _current_appkey.creator;
@@ -601,14 +601,14 @@ void drivewireFuji::close_app_key()
 */
 void drivewireFuji::write_app_key()
 {
-    uint8_t lenh = fnUartBUS.read();
-    uint8_t lenl = fnUartBUS.read();
+    uint8_t lenh = fnDwCom.read();
+    uint8_t lenl = fnDwCom.read();
     uint16_t len = lenh << 8 | lenl;
     uint8_t value[MAX_APPKEY_LEN];
 
     memset(value,0,sizeof(value));
 
-    fnUartBUS.readBytes(value, len);
+    fnDwCom.readBytes(value, len);
 
     // Make sure we have valid app key information
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
@@ -718,7 +718,7 @@ void drivewireFuji::read_app_key()
 // Disk Image Unmount
 void drivewireFuji::disk_image_umount()
 {
-    uint8_t deviceSlot = fnUartBUS.read();
+    uint8_t deviceSlot = fnDwCom.read();
 
     Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
@@ -789,9 +789,9 @@ void drivewireFuji::open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    uint8_t hostSlot = fnUartBUS.read();
+    uint8_t hostSlot = fnDwCom.read();
 
-    fnUartBUS.readBytes((uint8_t *)&dirpath, 256);
+    fnDwCom.readBytes((uint8_t *)&dirpath, 256);
 
     if (_current_open_directory_slot == -1)
     {
@@ -865,8 +865,8 @@ char current_entry[256];
 
 void drivewireFuji::read_directory_entry()
 {
-    uint8_t maxlen = fnUartBUS.read();
-    uint8_t addtl = fnUartBUS.read();
+    uint8_t maxlen = fnDwCom.read();
+    uint8_t addtl = fnDwCom.read();
 
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
 
@@ -925,8 +925,8 @@ void drivewireFuji::get_directory_position()
     uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
 
     // Return the value we read
-    fnUartBUS.write(pos << 8);
-    fnUartBUS.write(pos & 0xFF);
+    fnDwCom.write(pos << 8);
+    fnDwCom.write(pos & 0xFF);
 }
 
 void drivewireFuji::set_directory_position()
@@ -936,8 +936,8 @@ void drivewireFuji::set_directory_position()
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    h = fnUartBUS.read();
-    l = fnUartBUS.read();
+    h = fnDwCom.read();
+    l = fnDwCom.read();
 
     Debug_printf("H: %02x L: %02x", h, l);
 
@@ -1003,7 +1003,7 @@ void drivewireFuji::new_disk()
         char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
     } newDisk;
 
-    fnUartBUS.readBytes((uint8_t *)&newDisk, sizeof(newDisk));
+    fnDwCom.readBytes((uint8_t *)&newDisk, sizeof(newDisk));
 
     Debug_printf("numDisks: %u\n",newDisk.numDisks);
     Debug_printf("hostSlot: %u\n",newDisk.hostSlot);
@@ -1041,7 +1041,7 @@ void drivewireFuji::unmount_host()
 {
     Debug_println("Fuji cmd: UNMOUNT HOST");
 
-    unsigned char hostSlot = fnUartBUS.read();
+    unsigned char hostSlot = fnDwCom.read();
 
     // Unmount any disks associated with host slot
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -1081,7 +1081,7 @@ void drivewireFuji::write_host_slots()
     Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    fnUartBUS.readBytes((uint8_t *)&hostSlots, sizeof(hostSlots));
+    fnDwCom.readBytes((uint8_t *)&hostSlots, sizeof(hostSlots));
 
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].set_hostname(hostSlots[i]);
@@ -1150,7 +1150,7 @@ void drivewireFuji::write_device_slots()
         char filename[MAX_DISPLAY_FILENAME_LEN];
     } diskSlots[MAX_DISK_DEVICES];
 
-    fnUartBUS.readBytes((uint8_t *)&diskSlots, sizeof(diskSlots));
+    fnDwCom.readBytes((uint8_t *)&diskSlots, sizeof(diskSlots));
 
     // Load the data into our current device array
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -1227,12 +1227,12 @@ void drivewireFuji::set_device_filename()
     char tmp[MAX_FILENAME_LEN];
 
     // AUX1 is the desired device slot
-    uint8_t slot = fnUartBUS.read();
+    uint8_t slot = fnDwCom.read();
     // AUX2 contains the host slot and the mount mode (READ/WRITE)
-    uint8_t host = fnUartBUS.read();
-    uint8_t mode = fnUartBUS.read();
+    uint8_t host = fnDwCom.read();
+    uint8_t mode = fnDwCom.read();
 
-    fnUartBUS.readBytes(tmp, MAX_FILENAME_LEN);
+    fnDwCom.readBytes((uint8_t *)tmp, MAX_FILENAME_LEN);
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
@@ -1260,7 +1260,7 @@ void drivewireFuji::get_device_filename()
     unsigned char err = false;
 
     // AUX1 is the desired device slot
-    uint8_t slot = fnUartBUS.read();
+    uint8_t slot = fnDwCom.read();
 
     if (slot > 7)
     {
@@ -1311,8 +1311,8 @@ void drivewireFuji::insert_boot_device(uint8_t d)
 
 void drivewireFuji::base64_encode_input()
 {
-    uint8_t lenh = fnUartBUS.read();
-    uint8_t lenl = fnUartBUS.read();
+    uint8_t lenh = fnDwCom.read();
+    uint8_t lenl = fnDwCom.read();
     uint16_t len = lenh << 8 | lenl;
 
     if (!len)
@@ -1323,7 +1323,7 @@ void drivewireFuji::base64_encode_input()
     }
 
     std::vector<unsigned char> p(len);
-    fnUartBUS.readBytes(p.data(), len);
+    fnDwCom.readBytes(p.data(), len);
     base64.base64_buffer += std::string((const char *)p.data(), len);
     errorCode = 1;
 }
@@ -1368,8 +1368,8 @@ void drivewireFuji::base64_encode_length()
 
 void drivewireFuji::base64_encode_output()
 {
-    uint8_t lenl = fnUartBUS.read();
-    uint8_t lenh = fnUartBUS.read();
+    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = fnDwCom.read();
     uint16_t len = lenh << 8 | lenl;
 
     if (!len)
@@ -1390,8 +1390,8 @@ void drivewireFuji::base64_encode_output()
 
 void drivewireFuji::base64_decode_input()
 {
-    uint8_t lenl = fnUartBUS.read();
-    uint8_t lenh = fnUartBUS.read();
+    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = fnDwCom.read();
     uint16_t len = lenh << 8 | lenl;
 
     if (!len)
@@ -1402,7 +1402,7 @@ void drivewireFuji::base64_decode_input()
     }
 
     std::vector<unsigned char> p(len);
-    fnUartBUS.readBytes(p.data(), len);
+    fnDwCom.readBytes(p.data(), len);
     base64.base64_buffer += std::string((const char *)p.data(), len);
 
     errorCode = 1;
@@ -1460,8 +1460,8 @@ void drivewireFuji::base64_decode_output()
 {
     Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
 
-    uint8_t lenl = fnUartBUS.read();
-    uint8_t lenh = fnUartBUS.read();
+    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = fnDwCom.read();
     uint16_t len = lenh << 8 | lenl;
 
     if (!len)
@@ -1494,8 +1494,8 @@ void drivewireFuji::base64_decode_output()
 
 void drivewireFuji::hash_input()
 {
-    uint8_t lenl = fnUartBUS.read();
-    uint8_t lenh = fnUartBUS.read();
+    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = fnDwCom.read();
     uint16_t len = lenh << 8 | lenl;
 
    Debug_printf("FUJI: HASH INPUT\n");
@@ -1508,7 +1508,7 @@ void drivewireFuji::hash_input()
     }
 
     std::vector<unsigned char> p(len);
-    fnUartBUS.readBytes(p.data(),len);
+    fnDwCom.readBytes(p.data(),len);
     base64.base64_buffer += std::string((const char *)p.data(), len);
 
     errorCode = 1;
@@ -1516,7 +1516,7 @@ void drivewireFuji::hash_input()
 
 void drivewireFuji::hash_compute()
 {
-    uint8_t m = hash_mode = fnUartBUS.read();
+    uint8_t m = hash_mode = fnDwCom.read();
 
     Debug_printf("FUJI: HASH COMPUTE\n");
 
@@ -1530,7 +1530,7 @@ void drivewireFuji::hash_compute()
 void drivewireFuji::hash_length()
 {
     unsigned char r = 0;
-    uint8_t m = fnUartBUS.read();
+    uint8_t m = fnDwCom.read();
 
     switch (hash_mode)
     {
@@ -1562,7 +1562,7 @@ void drivewireFuji::hash_length()
 void drivewireFuji::hash_output()
 {
     uint16_t olen = 0;
-    uint8_t m = fnUartBUS.read();
+    uint8_t m = fnDwCom.read();
 
     Debug_printf("FUJI: HASH OUTPUT\n");
 
@@ -1613,7 +1613,7 @@ std::string drivewireFuji::get_host_prefix(int host_slot)
 void drivewireFuji::send_error()
 {
     Debug_printf("drivewireFuji::send_error(%u)\n",errorCode);
-    fnUartBUS.write(errorCode);
+    fnDwCom.write(errorCode);
 }
 
 void drivewireFuji::random()
@@ -1631,7 +1631,7 @@ void drivewireFuji::random()
 void drivewireFuji::send_response()
 {
     // Send body
-    fnUartBUS.write((uint8_t *)response.c_str(),response.length());
+    fnDwCom.write((uint8_t *)response.c_str(),response.length());
 
     // Clear the response
     response.clear();
@@ -1640,12 +1640,12 @@ void drivewireFuji::send_response()
 
 void drivewireFuji::ready()
 {
-    fnUartBUS.write(0x01); // Yes, ready.
+    fnDwCom.write(0x01); // Yes, ready.
 }
 
 void drivewireFuji::process()
 {
-    uint8_t c = fnUartBUS.read();
+    uint8_t c = fnDwCom.read();
 
     switch (c)
     {

@@ -4,8 +4,14 @@
 #define FNUART_H
 
 #ifdef ESP_PLATFORM
-#include <driver/uart.h>
-#endif
+#  include <driver/uart.h>
+#  define FN_UART_DEBUG   UART_NUM_0
+#  ifdef BUILD_RS232
+#    define FN_UART_BUS   UART_NUM_1
+#  else
+#    define FN_UART_BUS   UART_NUM_2
+#  endif
+#endif // ESP_PLATFORM
 
 #if defined (_WIN32)
 // The inclusion of windows.h is causing compiler warnings where winsock2 is also needed, so added it here as most
@@ -150,9 +156,13 @@ public:
 #endif // ESP_PLATFORM
 };
 
-#if defined(ESP_PLATFORM) || defined(BUILD_COCO)
-extern UARTManager fnUartDebug;
-extern UARTManager fnUartBUS;
+#ifdef ESP_PLATFORM
+  // Serial "debug port" for FN-ESP (not available on FN-PC)
+  extern UARTManager fnUartDebug;
+  // Serial "bus port" (CoCo uses fnDwCom - configurable serial or TCP (Becker) drivewire port)
+  #ifndef BUILD_COCO
+    extern UARTManager fnUartBUS;
+  #endif
 #endif
 
 #endif //FNUART_H
