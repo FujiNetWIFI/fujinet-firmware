@@ -166,21 +166,17 @@ void UARTManager::begin(int baud)
 #if defined(__linux__)
     // Enable low latency
 	struct serial_struct ss;
-    if (-1 == ioctl(_fd, TIOCGSERIAL, &ss))
+    if (ioctl(_fd, TIOCGSERIAL, &ss) == -1)
     {
-        Debug_printf("TIOCGSERIAL error %d: %s\n", errno, strerror(errno));
-        suspend();
-        return;
+        Debug_printf("TIOCGSERIAL warning %d: %s\n", errno, strerror(errno));
     }
-	ss.flags |= ASYNC_LOW_LATENCY;
-    if (-1 == ioctl(_fd, TIOCSSERIAL, &ss))
-        Debug_printf("TIOCSSERIAL error %d: %s\n", errno, strerror(errno));
+    else
+    {
+        ss.flags |= ASYNC_LOW_LATENCY;
+        if (ioctl(_fd, TIOCSSERIAL, &ss) == -1)
+            Debug_printf("TIOCSSERIAL warning %d: %s\n", errno, strerror(errno));
+    }
 #endif
-
-#ifdef BUILD_ADAM
-    if (_uart_num == 2)
-        uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
-#endif /* BUILD_ADAM */
 
     // Read in existing settings
     struct termios tios;
