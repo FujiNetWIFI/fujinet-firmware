@@ -170,13 +170,23 @@ def makezip(source, target, env):
             f.write(json_contents)
 
         # Create the ZIP File
-        with ZipFile(firmwarezip, 'w') as zip_object:
-            zip_object.write(env.subst("$BUILD_DIR/bootloader.bin"), "bootloader.bin")
-            zip_object.write(env.subst("$BUILD_DIR/partitions.bin"), "partitions.bin")
-            zip_object.write(env.subst("$BUILD_DIR/firmware.bin"), "firmware.bin")
-            zip_object.write(env.subst("$BUILD_DIR/littlefs.bin"), "littlefs.bin")
-            zip_object.write("firmware/release.json", "release.json")
+        try:
+            with ZipFile(firmwarezip, 'w') as zip_object:
+                zip_object.write(env.subst("$BUILD_DIR/bootloader.bin"), "bootloader.bin")
+                zip_object.write(env.subst("$BUILD_DIR/partitions.bin"), "partitions.bin")
+                zip_object.write(env.subst("$BUILD_DIR/firmware.bin"), "firmware.bin")
+                zip_object.write(env.subst("$BUILD_DIR/littlefs.bin"), "littlefs.bin")
+                zip_object.write("firmware/release.json", "release.json")
+        finally: 
+            print("*" * 80)
+            print("*")
+            print("*   FIRMWARE ZIP CREATED AT: " + firmwarezip)
+            print("*")
+            print("*" * 80)
+ 
+	
     else:
         print("Skipping making firmware ZIP due to error")
 
 env.AddPostAction("$BUILD_DIR/${PROGNAME}.bin", makezip)
+   
