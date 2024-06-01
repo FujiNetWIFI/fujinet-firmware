@@ -14,7 +14,11 @@
 class SerialDwPort : public DwPort
 {
 private:
+#ifdef ESP_PLATFORM
+    UARTManager _uart = UARTManager(FN_UART_BUS);
+#else
     UARTManager _uart;
+#endif
 public:
     SerialDwPort() {}
     virtual void begin(int baud) override { _uart.begin(baud); }
@@ -38,8 +42,8 @@ public:
     // read single byte
     virtual int read() override { return _uart.read(); }
     // read bytes into buffer
-    virtual size_t read(uint8_t *buffer, size_t length) override {
-        return _uart.readBytes(buffer, length);
+    virtual size_t read(uint8_t *buffer, size_t size) override {
+        return _uart.readBytes(buffer, size);
     }
 
     // write single byte

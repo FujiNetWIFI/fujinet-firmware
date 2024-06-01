@@ -35,36 +35,56 @@ private:
 
 public:
     DwCom();
-    void begin(int baud = 0);
-    void end();
-    bool poll(int ms);
+    void begin(int baud = 0)
+    {
+        if (baud)
+            _dwPort->begin(baud);
+        else
+            _dwPort->begin(get_baudrate()); // start with default build-in baudrate
+    }
 
-    void set_baudrate(uint32_t baud);
-    uint32_t get_baudrate();
+    void end() { _dwPort->end(); }
 
-    int available();
-    void flush();
-    void flush_input();
+    /*
+    * Poll the DriveWire port
+    * ms = milliseconds to wait for "port event"
+    * return true if port handling is needed
+    */
+    bool poll(int ms) { return _dwPort->poll(ms); }
+
+    void set_baudrate(uint32_t baud) { _dwPort->set_baudrate(baud); }
+    uint32_t get_baudrate() { return _dwPort->get_baudrate(); }
+
+    int available() { return _dwPort->available(); }
+
+    void flush() { _dwPort->flush(); }
+    void flush_input() {  _dwPort->flush_input(); }
 
     // read single byte
-    int read();
+    int read() { return _dwPort->read(); }
     // read bytes into buffer
-    size_t read(uint8_t *buffer, size_t length);
+    size_t read(uint8_t *buffer, size_t length) { return _dwPort->read(buffer, length); }
     // alias to read
-    size_t readBytes(uint8_t *buffer, size_t length);
+    size_t readBytes(uint8_t *buffer, size_t length) { return  _dwPort->read(buffer, length); }
 
     // write single byte
-    ssize_t write(uint8_t b);
+    ssize_t write(uint8_t b) { return _dwPort->write(b); }
     // write buffer
-    ssize_t write(const uint8_t *buffer, size_t size);
+    ssize_t write(const uint8_t *buffer, size_t size) { return _dwPort->write(buffer, size); }
     // write C-string
-    ssize_t write(const char *str);
+    ssize_t write(const char *str) { return _dwPort->write((const uint8_t *)str, strlen(str)); }
+
+    // mimic UARTManager overloaded write functions
+    size_t write(unsigned long n) { return _dwPort->write((uint8_t)n); }
+    size_t write(long n) { return _dwPort->write((uint8_t)n); }
+    size_t write(unsigned int n) { return _dwPort->write((uint8_t)n); }
+    size_t write(int n) { return _dwPort->write((uint8_t)n); }
 
     // print utility functions
-    size_t print(const char *str);
-    size_t print(std::string str);
-    size_t print(int n, int base = 10);
-    size_t print(unsigned int n, int base = 10);
+    size_t print(const char *str) { return write(str); }
+    size_t print(std::string str) { return write(str.c_str()); }
+    size_t print(int n, int base = 10) { return print((long) n, base); }
+    size_t print(unsigned int n, int base = 10) { return print((unsigned long) n, base); }
     size_t print(long n, int base = 10);
     size_t print(unsigned long n, int base = 10);
 

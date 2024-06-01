@@ -15,90 +15,6 @@ DwCom fnDwCom;
 
 DwCom::DwCom() : _dw_mode(dw_mode::SERIAL), _dwPort(&_serialDw) {}
 
-void DwCom::begin(int baud)
-{
-    if (baud)
-        _dwPort->begin(baud);
-    else
-        _dwPort->begin(get_baudrate());
-}
-
-void DwCom::end() 
-{ 
-    _dwPort->end(); 
-}
-
-/*
- Poll the DriveWire port
- * ms = milliseconds to wait for "port event"
- * return true if port handling is needed
- */
-bool DwCom::poll(int ms)
-{
-    return _dwPort->poll(ms);
-}
-
-void DwCom::set_baudrate(uint32_t baud) 
-{ 
-    _dwPort->set_baudrate(baud); 
-}
-
-uint32_t DwCom::get_baudrate()
-{
-    return _dwPort->get_baudrate(); 
-}
-
-int DwCom::available() 
-{
-    return _dwPort->available();
-}
-
-void DwCom::flush() 
-{
-    _dwPort->flush();
-}
-
-void DwCom::flush_input()
-{
-    _dwPort->flush_input();
-}
-
-// read single byte
-int DwCom::read()
-{
-    return _dwPort->read();
-}
-
-// read bytes into buffer
-size_t DwCom::read(uint8_t *buffer, size_t length)
-{
-    return _dwPort->read(buffer, length);
-}
-
-// alias to read
-size_t DwCom::readBytes(uint8_t *buffer, size_t length)
-{
-    return  _dwPort->read(buffer, length);
-}
-
-// write single byte
-ssize_t DwCom::write(uint8_t b)
-{
-    return _dwPort->write(b);
-}
-
-// write buffer
-ssize_t DwCom::write(const uint8_t *buffer, size_t size) 
-{
-    return _dwPort->write(buffer, size);
-}
-
-// write C-string
-ssize_t DwCom::write(const char *str)
-{
-    return _dwPort->write((const uint8_t *)str, strlen(str));
-};
-
 // print utility functions
 
 size_t DwCom::_print_number(unsigned long n, uint8_t base)
@@ -120,26 +36,6 @@ size_t DwCom::_print_number(unsigned long n, uint8_t base)
     } while(n);
 
     return write(str);
-}
-
-size_t DwCom::print(const char *str)
-{
-    return write(str);
-}
-
-size_t DwCom::print(std::string str)
-{
-    return print(str.c_str());
-}
-
-size_t DwCom::print(int n, int base)
-{
-    return print((long) n, base);
-}
-
-size_t DwCom::print(unsigned int n, int base)
-{
-    return print((unsigned long) n, base);
 }
 
 size_t DwCom::print(long n, int base)
