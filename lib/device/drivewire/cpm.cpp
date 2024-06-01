@@ -66,13 +66,13 @@ drivewireCPM::drivewireCPM()
 
 void drivewireCPM::ready()
 {
-    fnUartBUS.write(0x01);
+    fnDwCom.write(0x01);
 }
 
 void drivewireCPM::send_response()
 {
     // Send body
-    fnUartBUS.write((uint8_t *)response.c_str(),response.length());
+    fnDwCom.write((uint8_t *)response.c_str(),response.length());
 
     // Clear the response
     response.clear();
@@ -94,8 +94,8 @@ void drivewireCPM::boot()
 
 void drivewireCPM::read()
 {
-    uint8_t lenh = fnUartBUS.read();
-    uint8_t lenl = fnUartBUS.read();
+    uint8_t lenh = fnDwCom.read();
+    uint8_t lenl = fnDwCom.read();
     uint16_t len = (lenh * 256) + lenl;
     uint16_t mw = uxQueueMessagesWaiting(rxq);
 
@@ -121,8 +121,8 @@ void drivewireCPM::read()
 
 void drivewireCPM::write()
 {
-    uint8_t lenh = fnUartBUS.read();
-    uint8_t lenl = fnUartBUS.read();
+    uint8_t lenh = fnDwCom.read();
+    uint8_t lenl = fnDwCom.read();
     uint16_t len = (lenh * 256) + lenl;
 
     if (!len)
@@ -130,7 +130,7 @@ void drivewireCPM::write()
 
     for (uint16_t i=0;i<len;i++)
     {
-        char b = fnUartBUS.read();
+        char b = fnDwCom.read();
 #ifdef ESP_PLATFORM
         xQueueSend(txq, &b, portMAX_DELAY);
 #endif /* ESP_PLATFORM */
@@ -153,7 +153,7 @@ void drivewireCPM::status()
 
 void drivewireCPM::process()
 {
-    uint8_t cmd = fnUartBUS.read();
+    uint8_t cmd = fnDwCom.read();
 
     switch(cmd)
     {

@@ -131,7 +131,7 @@ void drivewireModem::at_connect_resultCode(int modemBaud)
         break;
     }
     // drivewire_send_int(resultCode);
-    // fnUartBUS.write(ASCII_CR);
+    // fnDwCom.write(ASCII_CR);
 }
 
 /**
@@ -463,7 +463,7 @@ void drivewireModem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartBUS.flush();
+        fnDwCom.flush();
         answerHack = false;
     }
 }
@@ -1004,11 +1004,11 @@ void drivewireModem::modemCommand()
 
 //         // In command mode - don't exchange with TCP but gather characters to a string
 //         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-//         if (fnUartBUS.available() > 0)
+//         if (fnDwCom.available() > 0)
 //         {
 //             // get char from Atari SIO
 //             //char chr = SIO_UART.read();
-//             char chr = fnUartBUS.read();
+//             char chr = fnDwCom.read();
 
 //             // Return, enter, new line, carriage return.. anything goes to end the command
 //             if ((chr == ASCII_LF) || (chr == ASCII_CR))

@@ -168,13 +168,13 @@ void UARTManager::begin(int baud)
 	struct serial_struct ss;
     if (ioctl(_fd, TIOCGSERIAL, &ss) == -1)
     {
-        Debug_printf("TIOCGSERIAL warning %d: %s\n", errno, strerror(errno));
+        Debug_printf("UART warning: TIOCGSERIAL failed: %d - %s\n", errno, strerror(errno));
     }
     else
     {
         ss.flags |= ASYNC_LOW_LATENCY;
         if (ioctl(_fd, TIOCSSERIAL, &ss) == -1)
-            Debug_printf("TIOCSSERIAL warning %d: %s\n", errno, strerror(errno));
+            Debug_printf("UART warning: TIOCSSERIAL failed: %d - %s\n", errno, strerror(errno));
     }
 #endif
 

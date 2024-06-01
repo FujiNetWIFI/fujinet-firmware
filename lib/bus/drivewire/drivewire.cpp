@@ -105,11 +105,11 @@ void systemBus::op_readex()
     drivewireDisk *d = nullptr;
     uint16_t c1 = 0, c2 = 0;
 
-    drive_num = fnUartBUS.read();
+    drive_num = fnDwCom.read();
 
-    lsn = fnUartBUS.read() << 16;
-    lsn |= fnUartBUS.read() << 8;
-    lsn |= fnUartBUS.read();
+    lsn = fnDwCom.read() << 16;
+    lsn |= fnDwCom.read() << 8;
+    lsn |= fnDwCom.read();
 
     Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
@@ -121,9 +121,9 @@ void systemBus::op_readex()
     if (!d)
     {
         Debug_printv("Invalid drive #%3u", drive_num);
-        fnUartBUS.write(0xF6);
-        fnUartBUS.flush();
-        fnUartBUS.flush_input();
+        fnDwCom.write(0xF6);
+        fnDwCom.flush();
+        fnDwCom.flush_input();
         
         return;
     }
@@ -131,32 +131,32 @@ void systemBus::op_readex()
     if (!d->device_active)
     {
         Debug_printv("Device not active.");
-        fnUartBUS.write(0xF6);
-        fnUartBUS.flush();
-        fnUartBUS.flush_input();
+        fnDwCom.write(0xF6);
+        fnDwCom.flush();
+        fnDwCom.flush_input();
         return;
     }
 
     if (d->read(lsn, sector_data))
     {
         Debug_printf("Read error\n");
-        fnUartBUS.write(0xF4);
-        fnUartBUS.flush();
-        fnUartBUS.flush_input();
+        fnDwCom.write(0xF4);
+        fnDwCom.flush();
+        fnDwCom.flush_input();
         return;
     }
 
-    fnUartBUS.write(sector_data, MEDIA_BLOCK_SIZE);
+    fnDwCom.write(sector_data, MEDIA_BLOCK_SIZE);
 
-    c1 = (fnUartBUS.read()) << 8;
-    c1 |= fnUartBUS.read();
+    c1 = (fnDwCom.read()) << 8;
+    c1 |= fnDwCom.read();
 
     c2 = drivewire_checksum(sector_data, MEDIA_BLOCK_SIZE);
 
     if (c1 != c2)
-        fnUartBUS.write(243);
+        fnDwCom.write(243);
     else
-        fnUartBUS.write(0x00);
+        fnDwCom.write(0x00);
 }
 
 void systemBus::op_write()
@@ -164,31 +164,31 @@ void systemBus::op_write()
     drivewireDisk *d = nullptr;
     uint16_t c1 = 0, c2 = 0;
 
-    drive_num = fnUartBUS.read();
+    drive_num = fnDwCom.read();
 
-    lsn = fnUartBUS.read() << 16;
-    lsn |= fnUartBUS.read() << 8;
-    lsn |= fnUartBUS.read();
+    lsn = fnDwCom.read() << 16;
+    lsn |= fnDwCom.read() << 8;
+    lsn |= fnDwCom.read();
 
-    size_t s = fnUartBUS.readBytes(sector_data, MEDIA_BLOCK_SIZE);
+    size_t s = fnDwCom.readBytes(sector_data, MEDIA_BLOCK_SIZE);
 
     if (s != MEDIA_BLOCK_SIZE)
     {
         Debug_printv("Insufficient # of bytes for write, total recvd: %u", s);
-        fnUartBUS.flush_input();
+        fnDwCom.flush_input();
         return;
     }
 
     // Todo handle checksum.
-    c1 = fnUartBUS.read();
-    c1 |= fnUartBUS.read() << 8;
+    c1 = fnDwCom.read();
+    c1 |= fnDwCom.read() << 8;
 
     c2 = drivewire_checksum(sector_data, MEDIA_BLOCK_SIZE);
 
     // if (c1 != c2)
     // {
     //     Debug_printf("Checksum error\n");
-    //     fnUartBUS.write(243);
+    //     fnDwCom.write(243);
     //     return;
     // }
 
@@ -199,25 +199,25 @@ void systemBus::op_write()
     if (!d)
     {
         Debug_printv("Invalid drive #%3u", drive_num);
-        fnUartBUS.write(0xF6);
+        fnDwCom.write(0xF6);
         return;
     }
 
     if (!d->device_active)
     {
         Debug_printv("Device not active.");
-        fnUartBUS.write(0xF6);
+        fnDwCom.write(0xF6);
         return;
     }
 
     if (d->write(lsn, sector_data))
     {
         Debug_print("Write error\n");
-        fnUartBUS.write(0xF5);
+        fnDwCom.write(0xF5);
         return;
     }
 
-    fnUartBUS.write(0x00); // success
+    fnDwCom.write(0x00); // success
 }
 
 void systemBus::op_fuji()
@@ -235,7 +235,7 @@ void systemBus::op_cpm()
 void systemBus::op_net()
 {
     // Get device ID
-    uint8_t device_id = (uint8_t)fnUartBUS.read();
+    uint8_t device_id = (uint8_t)fnDwCom.read();
 
     // If device doesn't exist, create it.
     if (!_netDev.contains(device_id))
@@ -253,10 +253,10 @@ void systemBus::op_unhandled(uint8_t c)
 {
     Debug_printv("Unhandled opcode: %02x", c);
 
-    while (fnUartBUS.available())
-        Debug_printf("%02x ", fnUartBUS.read());
+    while (fnDwCom.available())
+        Debug_printf("%02x ", fnDwCom.read());
 
-    fnUartBUS.flush_input();
+    fnDwCom.flush_input();
 }
 
 void systemBus::op_time()
@@ -268,12 +268,12 @@ void systemBus::op_time()
 
     Debug_printf("Returning %02d/%02d/%02d %02d:%02d:%02d\n", now->tm_year, now->tm_mon, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
 
-    fnUartBUS.write(now->tm_year - 1900);
-    fnUartBUS.write(now->tm_mon);
-    fnUartBUS.write(now->tm_mday);
-    fnUartBUS.write(now->tm_hour);
-    fnUartBUS.write(now->tm_min);
-    fnUartBUS.write(now->tm_sec);
+    fnDwCom.write(now->tm_year - 1900);
+    fnDwCom.write(now->tm_mon);
+    fnDwCom.write(now->tm_mday);
+    fnDwCom.write(now->tm_hour);
+    fnDwCom.write(now->tm_min);
+    fnDwCom.write(now->tm_sec);
 }
 
 void systemBus::op_init()
@@ -284,35 +284,35 @@ void systemBus::op_init()
 void systemBus::op_dwinit()
 {
     Debug_printv("OP_DWINIT - Sending feature byte 0x%02x", DWINIT_FEATURES);
-    fnUartBUS.write(DWINIT_FEATURES);
+    fnDwCom.write(DWINIT_FEATURES);
 }
 
 void systemBus::op_getstat()
 {
-    Debug_printv("OP_GETSTAT: 0x%02x", fnUartBUS.read());
+    Debug_printv("OP_GETSTAT: 0x%02x", fnDwCom.read());
 }
 
 void systemBus::op_setstat()
 {
-    Debug_printv("OP_SETSTAT: 0x%02x", fnUartBUS.read());
+    Debug_printv("OP_SETSTAT: 0x%02x", fnDwCom.read());
 }
 
 void systemBus::op_serread()
 {
     // TODO: Temporary until modem and network are working
-    fnUartBUS.write(0x00);
-    fnUartBUS.write(0x00);
+    fnDwCom.write(0x00);
+    fnDwCom.write(0x00);
 }
 
 void systemBus::op_print()
 {
-    _printerdev->write(fnUartBUS.read());
+    _printerdev->write(fnDwCom.read());
 }
 
 // Read and process a command frame from DRIVEWIRE
 void systemBus::_drivewire_process_cmd()
 {
-    uint8_t c = fnUartBUS.read();
+    uint8_t c = fnDwCom.read();
 
     fnLedManager.set(eLed::LED_BUS, true);
 
@@ -411,7 +411,7 @@ void systemBus::service()
         }
     }
 
-    if (fnUartBUS.available())
+    if (fnDwCom.available())
         _drivewire_process_cmd();
 
     // dload.dload_process();
@@ -484,7 +484,7 @@ void systemBus::setup()
     #endif /* FORCE_UART_BAUD */
 #else
     // Setup SIO ports: serial UART and NetSIO
-    fnUartBUS.set_port(Config.get_serial_port().c_str()); // UART
+    fnDwCom.set_serial_port(Config.get_serial_port().c_str()); // UART
     std::string baudString = Config.get_serial_port_baud();
     if (baudString.empty())
     {
@@ -496,8 +496,8 @@ void systemBus::setup()
     }
 #endif
     
-    fnUartBUS.begin(_drivewireBaud);
-    fnUartBUS.flush_input();
+    fnDwCom.begin(_drivewireBaud);
+    fnDwCom.flush_input();
     Debug_printv("DRIVEWIRE MODE");
 }
 
