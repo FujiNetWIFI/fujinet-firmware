@@ -8,6 +8,7 @@ on:
 jobs:
   nightly-release:
     name: "PlatformIO CI"
+    if: ${{ vars.RUN_NIGHTLY == 'true' }}
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
@@ -86,14 +87,31 @@ jobs:
       run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -z -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
 
     - name: Standardize Firmware Name
-      run: mv ./firmware/fujinet*.zip ./firmware/nightly-fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}.${{ steps.short-sha.outputs.sha }}.zip
+      run: mv ./firmware/fujinet*.zip ./firmware/fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}-nightly.zip
 
-    - name: Deploy ${{ matrix.target-platform }} Firmware
-      uses: WebFreak001/deploy-nightly@v3.1.0
-      with:
-        upload_url: https://uploads.github.com/repos/FujiNetWIFI/fujinet-firmware/releases/156608864/assets{?name,label}
-        release_id: 156608864
-        asset_path: ./firmware/nightly-fujinet-${{ matrix.target-platform }}-${{ steps.version.outputs.VERSION }}.${{ steps.short-sha.outputs.sha }}.zip
-        asset_name: fujinet-${{ matrix.target-platform }}-nightly.zip
-        asset_content_type: application/zip
-        max_releases: 1
+    - name: Create Release 
+      id: create-release
+      uses: softprops/action-gh-release@v2 
+      with: 
+#        body_path: ${{ github.workspace }}/.github/nightly-release.txt
+        body: |
+          Nightly builds of the following firmwares:
+
+          - `fujinet-ADAM-*` - Coleco Adam
+          - `fujinet-APPLE-*` - Apple 2
+          - `fujinet-ATARI-*` - Atari 8-bit
+          - `fujinet-IEC-LOLIN-D32-*` - Commodore IEC
+
+          # ⚠️ There is NO guarantee that these builds work!! ⚠️
+
+          These builds are provided 100% ***AS-IS*** with absolutely no guarantee that they will work. Only use these builds if you know what you are doing & are willing to troubleshoot any problems on your own.
+
+          Of course reporting any bugs you run across would be greatly appreciated but they should be accompanied by console logs & any other appropriate details that might help in troubleshooting the issues. Generally the [FujiNet Discord](https://discord.gg/yKtS3fxU) is the best place to discuss any issues you find in these builds.
+
+          Current commit: [${{ steps.short-sha.outputs.sha }}](${{ github.server_url }}/${{ github.repository }}/commits/${{ github.sha }})
+        name: Nightly Builds
+        prerelease: true 
+        files: ${{ github.workspace }}/firmware/fujinet-*-nightly.zip 
+        tag_name: nightly 
+        generate_release_notes: true 
+        make_latest: false
