@@ -71,16 +71,18 @@ public:
     }
 
     virtual void close() {
-        sync();
+        if(_is_open) {
+            sync();
 
-        if(pptr()-pbase() == 1) {
-            char last = data[0];
-            Debug_printv("closing, sending EOI with [%.2X] %c", last, last);
-            m_iec->sendByte(last, true);
-            setp(data, data+IEC_BUFFER_SIZE);
+            if(pptr()-pbase() == 1) {
+                char last = data[0];
+                Debug_printv("closing, sending EOI with [%.2X] %c", last, last);
+                m_iec->sendByte(last, true);
+                setp(data, data+IEC_BUFFER_SIZE);
+            }
+
+            _is_open = false;
         }
-
-        _is_open = false;
     }
 
     bool is_open() const {
