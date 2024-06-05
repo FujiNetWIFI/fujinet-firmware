@@ -365,7 +365,7 @@ void iecFuji::process_raw_commands()
 }
 
 
-// Reset FujiNet
+// Reset Device
 void iecFuji::reset_device()
 {
     fnSystem.reboot();
@@ -444,16 +444,18 @@ net_config_t iecFuji::net_get_ssid()
 
 void iecFuji::net_set_ssid_basic(bool store)
 {
-    if (pt.size() != 3)
+    if (pt.size() != 2)
     {
         Debug_printv("error: bad args");
         response = "BAD SSID ARGS";
         return;
     }
 
-    if (mstr::isNumeric(pt[1])) {
+    // Strip off the SETSSID: part of the command
+    pt[0] = pt[0].substr(8, std::string::npos);
+    if (mstr::isNumeric(pt[0])) {
         // Find SSID by CRC8 Number
-        pt[1] = fnWiFi.get_network_name_by_crc8(std::stoi(pt[1]));
+        pt[0] = fnWiFi.get_network_name_by_crc8(std::stoi(pt[0]));
     }
 
     // Debug_printv("pt1[%s] pt2[%s]", pt[1].c_str(), pt[2].c_str());
@@ -462,8 +464,8 @@ void iecFuji::net_set_ssid_basic(bool store)
     // It does NOT replace '+' with a space as that's frankly just insane.
     // NOTE: if your password or username has a deliberate % followed by 2 digits, (e.g. the literal string "%69") you will have to type "%2569" to "escape" the percentage.
     // but that's the price you pay for using urlencoding without asking the user if they want it!
-    std::string ssid = mstr::urlDecode(pt[1], false);
-    std::string passphrase = mstr::urlDecode(pt[2], false);
+    std::string ssid = mstr::urlDecode(pt[0], false);
+    std::string passphrase = mstr::urlDecode(pt[1], false);
 
     if (ssid.length() > MAX_SSID_LEN || passphrase.length() > MAX_PASSPHRASE_LEN || ssid.length() == 0 || passphrase.length() == 0) {
         response = "ERROR: BAD SSID/PASSPHRASE";
