@@ -164,7 +164,26 @@ def makezip(source, target, env):
     ]
 }
 """
-
+        elif config[environment]['board'] == "fujinet-iec-nugget":
+            json_contents += """        {
+            "filename": "bootloader.bin",
+            "offset": "0x1000"
+        },
+        {
+            "filename": "partitions.bin",
+            "offset": "0x8000"
+        },
+        {
+            "filename": "firmware.bin",
+            "offset": "0x10000"
+        },
+        {
+            "filename": "littlefs.bin",
+            "offset": "0x910000"
+        }
+    ]
+}
+"""
         # Save Release JSON
         with open('firmware/release.json', 'w') as f:
             f.write(json_contents)
