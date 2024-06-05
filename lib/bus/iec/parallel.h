@@ -120,7 +120,7 @@ class parallelBus
         uint8_t flags = 0x00;
         uint8_t data = 0;
         parallel_mode_t mode = MODE_RECEIVE;
-        pbus_state_t bus_state;
+        pbus_state_t state;
         bool enabled = true;
 };
 
