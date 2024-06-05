@@ -177,10 +177,12 @@ int8_t CPBStandardSerial::receiveBits ()
         bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_PROTOCOL_DETECT, false );
         //IEC.release ( PIN_IEC_SRQ );
 
-        // If there is a 218us delay before the last bit, the controller uses SauceDOS/JiffyDOS
-        if ( (n == 3 || n == 7) && bit_time >= TIMING_PROTOCOL_DETECT )
+        // If there is a 218us delay before bit 7, the controller uses SauceDOS/JiffyDOS
+        if ( bit_time >= TIMING_PROTOCOL_DETECT )
         {
-            if ( (IEC.flags & ATN_PULLED) )
+#ifdef JIFFYDOS
+            IEC.pull ( PIN_IEC_SRQ );
+            if ( n == 7 && IEC.status( PIN_IEC_ATN ) )
             {
                 // Check LISTEN & TALK
                 uint8_t device = (data >> 1) & 0x1F; // LISTEN
@@ -191,7 +193,6 @@ int8_t CPBStandardSerial::receiveBits ()
                 {
                     if ( IEC.isDeviceEnabled ( device ) )
                     {
-#ifdef JIFFYDOS
                         // acknowledge we support SauceDOS/JiffyDOS
                         IEC.pull(PIN_IEC_DATA_OUT);
                         wait( TIMING_PROTOCOL_ACK, false );
@@ -207,11 +208,11 @@ int8_t CPBStandardSerial::receiveBits ()
                         {
                             IEC.flags |= JIFFYDOS_ACTIVE;
                         }
-#endif
                     }
                 }
             }
-
+            IEC.release ( PIN_IEC_SRQ );
+#endif
             // wait for bit to be ready to read
             //IEC.pull ( PIN_IEC_SRQ );
             if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED ) == TIMED_OUT )
@@ -322,7 +323,7 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
         }
     }
 
-    // IMPORTANT!!!
+    // *** IMPORTANT!!!
     // Delay before byte
     // ATN might get pulled here
     if ( !wait ( TIMING_Tne, true ) ) return false;
