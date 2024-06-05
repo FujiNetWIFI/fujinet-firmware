@@ -109,7 +109,7 @@ jobs:
       run: git fetch --prune --unshallow --tags
 
     - name: Install Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       id: cp310
       with:
         python-version: '3.10'
@@ -155,7 +155,7 @@ jobs:
         tar -cvf fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}.tar fujinet-pc-${{ matrix.fujinet_target }}
 
     - name: Upload build artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}
         path: build/fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}.tar

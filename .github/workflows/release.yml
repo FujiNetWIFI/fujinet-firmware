@@ -107,13 +107,13 @@ jobs:
       shell: bash
 
     - name: Upload Release ZIP
-      uses: actions/upload-artifact@v2.3.1
+      uses: actions/upload-artifact@v4
       with:
         name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
         path: firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
 
     - name: Upload Releases JSON
-      uses: actions/upload-artifact@v2.3.1
+      uses: actions/upload-artifact@v4
       with:
         name: releases-${{ matrix.target-platform }}.json
         path: firmware/releases-${{ matrix.target-platform }}.json
@@ -147,7 +147,7 @@ jobs:
       - name: Save commits to change log
         run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > CHANGE.log
       - name: Upload Change Log
-        uses: actions/upload-artifact@v2.3.1
+        uses: actions/upload-artifact@v4
         with:
           name: CHANGE.log
           path: CHANGE.log
