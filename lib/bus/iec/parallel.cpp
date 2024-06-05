@@ -43,11 +43,11 @@ static void ml_parallel_intr_task(void* arg)
 
 void parallelBus::service()
 {
-    PARALLEL.bus_state = PBUS_IDLE;
+    PARALLEL.state = PBUS_IDLE;
 
     Debug_printv( "User Port Data Interrupt Received!" );
 
-    //Debug_printv("bus_state[%d]", IEC.state);
+    //Debug_printv("state[%d]", IEC.state);
     if ( IEC.state > BUS_OFFLINE ) // Is C64 is powered on?
     {
         // Update flags and data
@@ -57,7 +57,7 @@ void parallelBus::service()
         // If PC2 is set then parallel is active and a byte is ready to be read!
         if ( PARALLEL.status( PC2 ) )
         {
-            PARALLEL.bus_state = PBUS_PROCESS;
+            PARALLEL.state = PBUS_PROCESS;
             //Debug_printv("receive <<< " BYTE_TO_BINARY_PATTERN " (%0.2d) " BYTE_TO_BINARY_PATTERN " (%0.2d)", BYTE_TO_BINARY(PARALLEL.flags), PARALLEL.flags, BYTE_TO_BINARY(PARALLEL.data), PARALLEL.data);
         }
 
@@ -143,7 +143,7 @@ void parallelBus::reset()
     // Debug_printv("flag2");
     // GPIOX.pinMode( FLAG2, GPIOX_MODE_OUTPUT );
 
-    //Debug_printv("reset! bus_state[%d]", IEC.state);
+    //Debug_printv("reset! state[%d]", IEC.state);
 
     //Debug_printv("userport flags");
     GPIOX.portMode( USERPORT_FLAGS, 0x05 ); // Set PA2 & PC2 to INPUT
