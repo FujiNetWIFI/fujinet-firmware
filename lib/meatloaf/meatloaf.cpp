@@ -6,6 +6,15 @@
 #include <vector>
 #include <sstream>
 
+#ifdef FLASH_SPIFFS
+#include "esp_spiffs.h"
+#endif
+
+#ifdef FLASH_LITTLEFS
+#include "esp_littlefs.h"
+#endif
+
+
 //#include "meat_broker.h"
 #include "meat_buffer.h"
 //#include "wrappers/directory_stream.h"
@@ -592,16 +601,15 @@ uint64_t MFile::getAvailableSpace()
     }
     else
     {
-#ifdef FLASH_SPIFFS
         size_t total = 0, used = 0;
+#ifdef FLASH_SPIFFS
         esp_spiffs_info("flash", &total, &used);
+#elif FLASH_LITTLEFS
+        esp_littlefs_info("flash", &total, &used);
+#endif
         size_t free = total - used;
         //Debug_printv("total[%d] used[%d] free[%d]", total, used, free);
         return free;
-#elif FLASH_LITTLEFS
-        // TODO: Implement for LITTLEFS
-        Debug_printv("LITTLEFS getAvailableSpace()");
-#endif
     }
 
     return 65535;
