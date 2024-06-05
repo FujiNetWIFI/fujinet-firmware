@@ -9,7 +9,7 @@
 
 using namespace Protocol;
 
-int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
+int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
 {
     uint64_t start = 0;
     uint64_t current = 0;
@@ -80,7 +80,7 @@ int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us
     return elapsed;
 }
 
-bool IECProtocol::wait(size_t wait_us, bool watch_atn)
+bool IRAM_ATTR IECProtocol::wait(size_t wait_us, bool watch_atn)
 {
     return wait(wait_us, 0, watch_atn);
 }
