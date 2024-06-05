@@ -4,10 +4,6 @@
 
 #include "meatloaf.h"
 
-#ifdef FLASH_SPIFFS
-#include "esp_spiffs.h"
-#endif
-
 #include "make_unique.h"
 
 #include <dirent.h>
