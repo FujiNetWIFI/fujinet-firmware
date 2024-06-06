@@ -164,25 +164,29 @@ void fnConfig::save()
     ss << "enable_apetime=" << _denable.apetime << LINETERM;
     ss << "enable_pclink=" << _denable.pclink << LINETERM;
 
+    // Bus Over IP
+    ss << LINETERM << "[BOIP]" << LINETERM;
+    ss << "enabled=" << _boip.boip_enabled << LINETERM;
+    ss << "host=" << _boip.host << LINETERM;
+    ss << "port=" << _boip.port << LINETERM;
+
 #ifndef ESP_PLATFORM
     // SERIAL
     ss << LINETERM << "[Serial]" << LINETERM;
     ss << "port=" << _serial.port << LINETERM;
+#ifdef BUILD_COCO
     ss << "baud=" << _serial.baud << LINETERM;
+#endif
+#ifdef BUILD_ATARI
     ss << "command=" << std::string(_serial_command_pin_names[_serial.command]) << LINETERM;
     ss << "proceed=" << std::string(_serial_proceed_pin_names[_serial.proceed]) << LINETERM;
+#endif
 
     // NETSIO
     ss << LINETERM << "[NetSIO]" << LINETERM;
     ss << "enabled=" << _netsio.netsio_enabled << LINETERM;
     ss << "host=" << _netsio.host << LINETERM;
     ss << "port=" << _netsio.port << LINETERM;
-
-    // Bus Over IP
-    ss << LINETERM << "[BOIP]" << LINETERM;
-    ss << "enabled=" << _boip.boip_enabled << LINETERM;
-    ss << "host=" << _boip.host << LINETERM;
-    ss << "port=" << _boip.port << LINETERM;
 
     // Bus Over IP
     ss << LINETERM << "[BOS]" << LINETERM;
