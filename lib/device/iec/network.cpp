@@ -640,7 +640,6 @@ void iecNetwork::parse_bite()
     //mstr::replaceAll(*receiveBuffer[channel], "\r", "\"\r\"");
     //mstr::replaceAll(*receiveBuffer[channel], "\"", "\"\"");
     mstr::replaceAll(*receiveBuffer[channel], "\"", "");
-    *receiveBuffer[channel] = mstr::toPETSCII2( *receiveBuffer[channel] );
 
     // break up receiveBuffer[channel] into bites less than bite_size bytes
     std::string bites = "\"";
@@ -1271,6 +1270,7 @@ device_state_t iecNetwork::process()
     virtualDevice::process(); // commanddata set here.
     //payload=mstr::toUTF8(payload); // @idolpx? What should I do instead?
 
+    mstr::rtrim(payload);
     Debug_printv("payload[%s]", payload.c_str());
     std::string hex = mstr::toHex(payload);
     Debug_printv("hex[%s]", hex.c_str());
@@ -1366,7 +1366,6 @@ void iecNetwork::process_command()
     }
     else if (commanddata.primary == IEC_UNLISTEN)
     {
-        Debug_printv("Yonkinating to command with: %s\n", payload.c_str());
         iec_command();
     }
 }
