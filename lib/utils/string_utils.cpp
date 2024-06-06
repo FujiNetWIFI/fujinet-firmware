@@ -40,6 +40,11 @@ namespace mstr {
     // trim from end (in place)
     void rtrim(std::string &s)
     {
+        // CR
+        s.erase(
+            std::find_if(s.rbegin(), s.rend(), [](int ch) { return (ch == 0x0D); }).base(), s.end());
+        
+        // SPACE
         s.erase(
             std::find_if(s.rbegin(), s.rend(), [](int ch) { return !std::isspace(ch); }).base(), s.end());
     }
