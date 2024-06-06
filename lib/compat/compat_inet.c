@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <fcntl.h>
 
 #include "compat_inet.h"
 
@@ -33,5 +34,27 @@ const char *compat_sockstrerror(int err)
     return msgbuf;
 #else
     return strerror(err);
+#endif
+}
+
+// Set socket non-blocking, returns true on success
+bool compat_socket_set_nonblocking(int sockfd)
+{
+#if defined(_WIN32)
+    unsigned long nonblocking = 1;
+    return (ioctlsocket(sockfd, FIONBIO, &nonblocking) == 0);
+#else
+    return (fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) | O_NONBLOCK) == 0);
+#endif
+}
+
+// Set socket blocking, returns true on success
+bool compat_socket_set_blocking(int sockfd)
+{
+#if defined(_WIN32)
+    unsigned long nonblocking = 0;
+    return (ioctlsocket(sockfd, FIONBIO, &nonblocking) == 0);
+#else
+    return (fcntl(sockfd, F_SETFL, fcntl(sockfd, F_GETFL, 0) & (~O_NONBLOCK)) == 0);
 #endif
 }

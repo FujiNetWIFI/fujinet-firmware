@@ -2,6 +2,7 @@
 #define COMPAT_INET_H
 
 #include <errno.h>
+#include <stdbool.h>
 
 #if defined(_WIN32)
 
@@ -65,6 +66,12 @@ static inline void compat_setsockerr(int err)
 }
 
 const char *compat_sockstrerror(int err);
+
+// Set socket non-blocking, returns true on success
+bool compat_socket_set_blocking(int sockfd);
+
+// Set socket blocking, returns true on success
+bool compat_socket_set_nonblocking(int sockfd);
 
 #ifdef __cplusplus
 }
