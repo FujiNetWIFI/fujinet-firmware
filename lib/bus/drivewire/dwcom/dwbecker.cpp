@@ -438,12 +438,17 @@ void BeckerPort::suspend_on_disconnect()
 {
     if (_listening && _listen_fd >=0)
     {
+        if (_fd >= 0)
+        {
+            closesocket(_fd);
+            _fd = -1;
+        }
         // go directly into waiting for connection state
         setState(BeckerWaitConn::getInstance());
     }
     else
     {
-        // wait befor reconnecting
+        // wait before reconnecting
         suspend(BECKER_SUSPEND_MS);
     }
 }
