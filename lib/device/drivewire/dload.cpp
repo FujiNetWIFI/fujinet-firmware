@@ -171,7 +171,7 @@ void drivewireDload::send_filetype_binary()
 
 void drivewireDload::pblkr_from_coco()
 {
-    char c = 0;
+    uint8_t c = 0;
 
     if (!fnDwCom.available())
         return;
