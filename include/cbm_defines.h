@@ -143,14 +143,13 @@ typedef enum
 #define ATN_PULLED       (1 << 1)  // might be set by iec_receive
 #define EOI_RECVD        (1 << 2)
 #define EMPTY_STREAM     (1 << 3)
-#define COMMAND_RECVD    (1 << 4)
 
 // Detected Protocols
 #define FAST_SERIAL_ACTIVE  (1 << 8)
 #define PARALLEL_ACTIVE     (1 << 9)
 #define SAUCEDOS_ACTIVE     (1 << 10)
 #define JIFFYDOS_ACTIVE     (1 << 11)
-#define WIC64_ACTIVE        (1 << 13)
+#define WIC64_ACTIVE        (1 << 12)
 
 // IEC protocol timing consts in microseconds (us)
 // IEC-Disected p10-11          // Description              //   1541    C64     min     typical     max         // Notes
