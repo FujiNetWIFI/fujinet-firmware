@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <cstdint>
 #include <cstring>
+#include <errno.h>
 
 #include "../../include/debug.h"
 
