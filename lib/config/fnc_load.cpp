@@ -183,16 +183,16 @@ New behavior: copy from SD first if available, then read FLASH.
         case SECTION_DEVICE_ENABLE: // Thom put this here to handle explicit device enables in adam
             _read_section_device_enable(ss);
             break;
+        // Bus Over IP
+        case SECTION_BOIP:
+            _read_section_boip(ss);
+            break;
 #ifndef ESP_PLATFORM
         case SECTION_SERIAL:
             _read_section_serial(ss);
             break;
         case SECTION_NETSIO:
             _read_section_netsio(ss);
-            break;
-        // Bus Over IP, for APPLE SmartPort over Serial via TCP
-        case SECTION_BOIP:
-            _read_section_boip(ss);
             break;
         // Bus Over Serial, for APPLE SmartPort over Serial via USB/Serial
         case SECTION_BOS:
