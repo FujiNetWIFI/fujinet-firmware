@@ -64,6 +64,7 @@ void NetSioPort::begin(int baud)
         end();
     }
 
+    _baud = baud;
     _resume_time = 0;
 
     _command_asserted = false;
