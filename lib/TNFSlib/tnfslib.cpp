@@ -1509,6 +1509,13 @@ _tnfs_recv_result _tnfs_recv_and_validate(fnUDP &udp, tnfsMountInfo *m_info, tnf
         m_info->protocol = TNFS_PROTOCOL_TCP;
     }
 
+    // Delayed response for the previous request. We should just try to recv the next response.
+    if (res_pkt.sequence_num < req_pkt.sequence_num)
+    {
+        Debug_printf("Received delayed response! Rcvd: %x, Expected: %x\r\n", res_pkt.sequence_num, req_pkt.sequence_num);
+        return NO_RESP;
+    }
+
     // Out of order packet received.
     if (res_pkt.sequence_num != req_pkt.sequence_num)
     {
