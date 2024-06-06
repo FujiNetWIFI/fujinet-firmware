@@ -11,9 +11,21 @@
  * or Becker port (DriveWire over TCP) for use with CoCo Emulators
  */
 
+// global instance
 DwCom fnDwCom;
 
+// ctor
 DwCom::DwCom() : _dw_mode(dw_mode::SERIAL), _dwPort(&_serialDw) {}
+
+// read single byte
+int DwCom::read()
+{
+    uint8_t byte;
+    int result = _dwPort->read(&byte, 1);
+    if (result < 1)
+        return -1;
+    return byte;
+}
 
 // print utility functions
 
@@ -68,7 +80,7 @@ size_t DwCom::print(unsigned long n, int base)
 #ifndef ESP_PLATFORM
 void DwCom::set_serial_port(const char *device)
 {
-    Debug_printf("DwCom::set_serial_port %s", device ? device : "NULL");
+    Debug_printf("DwCom::set_serial_port %s\n", device ? device : "NULL");
     _serialDw.set_port(device);
 };
 
@@ -81,6 +93,7 @@ const char* DwCom::get_serial_port()
 // specific to BeckerPort
 void DwCom::set_becker_host(const char *host, int port) 
 {
+    Debug_printf("DwCom::set_becker_host %s:%d\n", host ? host : "NULL", port);
     _beckerDw.set_host(host, port);
 }
 
@@ -89,8 +102,9 @@ const char* DwCom::get_becker_host(int &port)
     return _beckerDw.get_host(port);
 }
 
-void DwCom::set_dw_mode(dw_mode mode)
+void DwCom::set_drivewire_mode(dw_mode mode)
 {
+    Debug_printf("DwCom::set_drivewire_mode: %s\n", mode == dw_mode::BECKER ? "BECKER" : "SERIAL");
     _dw_mode = mode;
     switch(mode)
     {
@@ -103,11 +117,11 @@ void DwCom::set_dw_mode(dw_mode mode)
 }
 
 // toggle BeckerPort and SerialPort
-void DwCom::reset_dw_port(dw_mode mode)
+void DwCom::reset_drivewire_port(dw_mode mode)
 {
     uint32_t baud = get_baudrate();
     end();
-    set_dw_mode(mode);
+    set_drivewire_mode(mode);
     begin(baud);
 }
 
