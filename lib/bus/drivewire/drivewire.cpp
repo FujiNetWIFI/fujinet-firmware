@@ -312,7 +312,12 @@ void systemBus::op_print()
 // Read and process a command frame from DRIVEWIRE
 void systemBus::_drivewire_process_cmd()
 {
-    uint8_t c = fnDwCom.read();
+    int c = fnDwCom.read();
+    if (c < 0)
+    {
+        Debug_println("Failed to read cmd!");
+        return;
+    }
 
     fnLedManager.set(eLed::LED_BUS, true);
 
@@ -414,6 +419,8 @@ void systemBus::service()
     if (fnDwCom.available())
         _drivewire_process_cmd();
 
+    fnDwCom.poll(1);
+
     // dload.dload_process();
 }
 
@@ -483,18 +490,12 @@ void systemBus::setup()
 
     #endif /* FORCE_UART_BAUD */
 #else
-    // Setup SIO ports: serial UART and NetSIO
+    // FujiNet-PC specific
     fnDwCom.set_serial_port(Config.get_serial_port().c_str()); // UART
-    std::string baudString = Config.get_serial_port_baud();
-    if (baudString.empty())
-    {
-        _drivewireBaud = 57600;
-    }
-    else
-    {
-        _drivewireBaud = std::stoi(baudString);
-    }
+    _drivewireBaud = Config.get_serial_port_baud();
 #endif
+    fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // Becker
+    fnDwCom.set_drivewire_mode(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
     
     fnDwCom.begin(_drivewireBaud);
     fnDwCom.flush_input();

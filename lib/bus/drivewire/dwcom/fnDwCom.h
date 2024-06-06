@@ -52,6 +52,7 @@ public:
     */
     bool poll(int ms) { return _dwPort->poll(ms); }
 
+    // used only by serial port
     void set_baudrate(uint32_t baud) { _dwPort->set_baudrate(baud); }
     uint32_t get_baudrate() { return _dwPort->get_baudrate(); }
 
@@ -60,27 +61,28 @@ public:
     void flush() { _dwPort->flush(); }
     void flush_input() {  _dwPort->flush_input(); }
 
-    // read single byte
-    int read() { return _dwPort->read(); }
     // read bytes into buffer
     size_t read(uint8_t *buffer, size_t length) { return _dwPort->read(buffer, length); }
-    // alias to read
+    // alias to read, mimic UARTManager
     size_t readBytes(uint8_t *buffer, size_t length) { return  _dwPort->read(buffer, length); }
 
-    // write single byte
-    ssize_t write(uint8_t b) { return _dwPort->write(b); }
     // write buffer
     ssize_t write(const uint8_t *buffer, size_t size) { return _dwPort->write(buffer, size); }
     // write C-string
     ssize_t write(const char *str) { return _dwPort->write((const uint8_t *)str, strlen(str)); }
 
-    // mimic UARTManager overloaded write functions
-    size_t write(unsigned long n) { return _dwPort->write((uint8_t)n); }
-    size_t write(long n) { return _dwPort->write((uint8_t)n); }
-    size_t write(unsigned int n) { return _dwPort->write((uint8_t)n); }
-    size_t write(int n) { return _dwPort->write((uint8_t)n); }
+    // read single byte, mimic UARTManager
+    int read();
+    // write single byte, mimic UARTManager
+    ssize_t write(uint8_t b) { return _dwPort->write(&b, 1); }
 
-    // print utility functions
+    // mimic UARTManager overloaded write functions
+    size_t write(unsigned long n) { return write((uint8_t)n); }
+    size_t write(long n) { return write((uint8_t)n); }
+    size_t write(unsigned int n) { return write((uint8_t)n); }
+    size_t write(int n) { return write((uint8_t)n); }
+
+    // print utility functions (used by modem)
     size_t print(const char *str) { return write(str); }
     size_t print(std::string str) { return write(str.c_str()); }
     size_t print(int n, int base = 10) { return print((long) n, base); }
@@ -99,10 +101,10 @@ public:
     const char* get_becker_host(int &port);
 
     // get/set DriveWire mode
-    dw_mode get_dw_mode() {return _dw_mode;}
-    void set_dw_mode(dw_mode mode);
+    dw_mode get_drivewire_mode() {return _dw_mode;}
+    void set_drivewire_mode(dw_mode mode);
 
-    void reset_dw_port(dw_mode mode);
+    void reset_drivewire_port(dw_mode mode);
 };
 
 extern DwCom fnDwCom;
