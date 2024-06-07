@@ -57,7 +57,7 @@ private:
 
 public:
 #ifdef ESP_PLATFORM
-    UARTManager(uart_port_t uart_num=0);
+    UARTManager(uart_port_t uart_num = UART_NUM_0);
 
     void begin(int baud);
     void end();

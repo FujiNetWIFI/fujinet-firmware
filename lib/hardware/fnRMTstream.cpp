@@ -16,6 +16,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Only build for Apple II or Mac
+#if defined(BUILD_APPLE) || defined(BUILD_MAC)
 #include <esp_types.h>
 #include <string.h>
 #include <stdlib.h>
@@ -1124,3 +1127,4 @@ esp_err_t rmtStream::rmt_get_channel_status(rmt_channel_status_result_t *channel
 }
 
 rmtStream fnRMT;
+#endif
