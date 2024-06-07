@@ -539,7 +539,7 @@ extern "C"
 // This is assigned to CPU1; the WiFi task ends up on CPU0
 #define MAIN_STACKSIZE 32768
 #ifdef BUILD_ADAM
-#define MAIN_PRIORITY 30
+#define MAIN_PRIORITY 17
 #else
 #define MAIN_PRIORITY 17
 #endif
