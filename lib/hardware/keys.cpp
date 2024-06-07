@@ -1,7 +1,9 @@
 
 #include "keys.h"
 
+#if CONFIG_IDF_TARGET_ESP32S3 != y
 #include <esp32/himem.h>
+#endif
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
