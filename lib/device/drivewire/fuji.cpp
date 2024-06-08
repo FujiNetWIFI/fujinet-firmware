@@ -1139,6 +1139,8 @@ void drivewireFuji::read_device_slots()
     response.clear();
     response.shrink_to_fit();
 
+    errorCode = 1;
+
     response = std::string((const char *)&diskSlots, returnsize);
 }
 
