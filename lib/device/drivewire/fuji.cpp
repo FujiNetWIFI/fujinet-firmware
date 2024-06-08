@@ -1022,6 +1022,7 @@ void drivewireFuji::new_disk()
     if (host.file_exists(disk.filename))
     {
         Debug_printf("drivewire_new_disk File exists: \"%s\"\n", disk.filename);
+        errorCode = 144;
         return;
     }
 
@@ -1033,6 +1034,8 @@ void drivewireFuji::new_disk()
     }
 
     bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.numDisks);
+
+    errorCode = (ok == NETWORK_ERROR_SUCCESS);
 
     fnio::fclose(disk.fileh);
 }
