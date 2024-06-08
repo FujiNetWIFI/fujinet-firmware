@@ -168,19 +168,20 @@ void drivewireFuji::net_scan_result()
         uint8_t rssi;
     } detail;
 
-    bool err = false;
     if (n < _countScannedSSIDs)
         fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
     else
     {
         memset(&detail, 0, sizeof(detail));
-        err = true;
+        errorCode = 144;
     }
 
     response.clear();
     response.shrink_to_fit();
 
     response = std::string((const char *)&detail, sizeof(detail));
+
+    errorCode = 1;
 }
 
 //  Get SSID
