@@ -1454,6 +1454,7 @@ void drivewireFuji::base64_decode_length()
     response.shrink_to_fit();
 
     response = std::string((const char *)_response, 4);
+    errorCode = 1;
 }
 
 void drivewireFuji::base64_decode_output()
