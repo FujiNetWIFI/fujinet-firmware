@@ -1261,19 +1261,20 @@ void drivewireFuji::set_device_filename()
 void drivewireFuji::get_device_filename()
 {
     char tmp[MAX_FILENAME_LEN];
-    unsigned char err = false;
 
     // AUX1 is the desired device slot
     uint8_t slot = fnDwCom.read();
 
     if (slot > 7)
     {
-        err = true;
+        errorCode = 144;
     }
 
     memcpy(tmp, _fnDisks[slot].filename, MAX_FILENAME_LEN);
     response.clear();
     response.shrink_to_fit();
+
+    errorCode = 1;
 
     response = std::string(tmp, MAX_FILENAME_LEN);
 }
