@@ -1649,6 +1649,9 @@ void drivewireFuji::process()
 
     switch (c)
     {
+    case FUJICMD_SEND_ERROR:
+        send_error();
+        break;
     case FUJICMD_GET_ADAPTERCONFIG:
         get_adapter_config();
         break;
