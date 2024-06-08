@@ -954,6 +954,7 @@ void drivewireFuji::close_directory()
         _fnHosts[_current_open_directory_slot].dir_close();
 
     _current_open_directory_slot = -1;
+    errorCode = 1;
 }
 
 // Get network adapter configuration
