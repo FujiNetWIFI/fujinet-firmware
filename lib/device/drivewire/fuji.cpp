@@ -1081,6 +1081,7 @@ void drivewireFuji::read_host_slots()
     response.shrink_to_fit();
 
     response = std::string((const char *)hostSlots,256);
+    errorCode = 1;
 }
 
 // Read and save host slot data from computer
