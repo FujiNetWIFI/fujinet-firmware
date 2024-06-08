@@ -927,6 +927,8 @@ void drivewireFuji::get_directory_position()
     // Return the value we read
     fnDwCom.write(pos << 8);
     fnDwCom.write(pos & 0xFF);
+
+    errorCode = 1;
 }
 
 void drivewireFuji::set_directory_position()
@@ -944,6 +946,8 @@ void drivewireFuji::set_directory_position()
     uint16_t pos = UINT16_FROM_HILOBYTES(h, l);
 
     bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
+
+    errorCode = (result == true);
 }
 
 void drivewireFuji::close_directory()
