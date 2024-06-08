@@ -215,6 +215,8 @@ void drivewireFuji::net_get_ssid()
     response.shrink_to_fit();
 
     response = std::string((const char *)&cfg, sizeof(cfg));
+
+    errorCode = 1;
 }
 
 // Set SSID
