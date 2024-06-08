@@ -276,6 +276,8 @@ void drivewireFuji::net_get_wifi_enabled()
     response.shrink_to_fit();
 
     response += e;
+
+    errorCode = 1; // Set it anyway.
 }
 
 // Mount Server
