@@ -263,6 +263,8 @@ void drivewireFuji::net_get_wifi_status()
     response.shrink_to_fit();
 
     response += wifiStatus;
+
+    errorCode = 1;
 }
 
 // Check if Wifi is enabled
