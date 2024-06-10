@@ -34,6 +34,7 @@
 
 /* Operation Codes */
 #define		OP_NOP		0
+#define     OP_JEFF     0xA5
 #define     OP_SERREAD  'C'
 #define		OP_GETSTAT	'G'
 #define		OP_SETSTAT	'S'
@@ -215,6 +216,7 @@ private:
     /**
      * @brief NOP command (do nothing)
      */
+    void op_jeff();
     void op_nop();
     void op_reset();
     void op_readex();
