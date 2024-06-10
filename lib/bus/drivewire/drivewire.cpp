@@ -87,6 +87,12 @@ static void drivewire_intr_task(void *arg)
 
 systemBus virtualDevice::get_bus() { return DRIVEWIRE; }
 
+void systemBus::op_jeff()
+{
+    fnDwCom.print("FUJINET");
+    Debug_println("Jeff's op");
+}
+
 void systemBus::op_nop()
 {
 }
@@ -323,7 +329,10 @@ void systemBus::_drivewire_process_cmd()
 
     switch (c)
     {
-    case OP_NOP:
+    case OP_JEFF:
+        op_jeff();
+		break;
+	case OP_NOP:
         op_nop();
         break;
     case OP_RESET1:

@@ -113,8 +113,10 @@ void UARTManager::begin(int baud)
 #endif /* BUILD_ADAM */
 
 #ifdef BUILD_COCO
+#ifndef PINMAP_COCO_CART
     if (_uart_num == 2)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
+#endif
 #endif /* BUILD_COCO */
 
 

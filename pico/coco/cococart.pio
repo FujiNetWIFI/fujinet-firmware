@@ -12,6 +12,106 @@
 .define public ROMWIDTH   14
 .define public DATAWIDTH   8
 
+;.define public BUGPIN     27
+
+;
+;
+; CoCoAddr - decodes the 0xFFxx address space, pushes LSB to FIFO
+;
+;
+
+.program cocoaddr 
+.wrap_target
+start:
+    wait 0 gpio CLKPIN          ; wait until new cycle starts
+    wait 1 gpio CLKPIN          ; valid address surely by rising edge
+    mov osr, ~pins              ; put the inverted address into OUT starting with A8
+    out x, 8                    ; put the inverted 8 MSBs (A8-A15) in X to test
+    jmp x-- start               ; A8-A15 != 0xFF to try again (inverted A != 0)
+    mov osr, pins               ; get the bus but not inverted so easier to compare in the firmware
+    out null, 24                ; remove D0-D7 from OSR
+    in osr, 8                   ; A0-A7 into the input FIFO (via autopush)
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO inputs
+void cocoaddr_program_init(PIO pio, uint sm, uint offset) {
+    pio_sm_config c = cocoaddr_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, PINROMADDR + 8); // start at GPIO 16 for the MSB address
+    sm_config_set_in_shift(&c, false, true, 8); // there are 8 wires to read for the ADDR LSB, shift to the left, autopush
+    sm_config_set_out_shift(&c, true, false, 32); // shift to the right
+
+    // side set for debugging with logic analyzer
+    // sm_config_set_sideset_pins(&c, BUGPIN);
+    // pio_gpio_init(pio, BUGPIN);
+    // pio_sm_set_consecutive_pindirs(pio, sm, BUGPIN, 1, true);
+
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}
+
+;
+;
+; DataRead
+; pico reads 8 bits off the coco data bus
+;
+
+.program dataread
+.wrap_target
+    pull                        ; wait to get triggered
+    ;wait 1 gpio CLKPIN          ; wait for rising edge of E - not needed because will only trigger when CLK is high
+    wait 0 gpio CLKPIN          ; wait for next cycle - DATA is valid on falling edge of CLK
+    in pins 8                   ; get the data and push to the FIFO
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO inputs
+void dataread_program_init(PIO pio, uint sm, uint offset) {
+    pio_sm_config c = dataread_program_get_default_config(offset);
+    sm_config_set_in_pins(&c, PINROMDATA); // start at GPIO 0 for the DATA byte
+    sm_config_set_in_shift(&c, false, true, 8);    // there are 8 wires to read for the DATA byte, shift to the left, autopush
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}
+
+;
+;
+; datawrite
+;
+;
+
+.program datawrite
+.side_set 3 opt pindirs
+.wrap_target
+    out pins, DATAWIDTH                 ; output the rom bit value - stalls when no fifo data
+    wait 1 gpio CLKPIN                  ; on the clock rising edge
+    set pindirs 0b11111 side 0b111      ; turn on data output
+    wait 0 gpio CLKPIN              [1] ; on clock falling edge wait data hold time 
+    nop                             [1] ; complete data hold time
+    set pindirs 0b00000 side 0b000      ; turn off data output
+.wrap
+
+% c-sdk {
+// this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
+void datawrite_program_init(PIO pio, uint sm, uint offset) {
+    pio_sm_config c = datawrite_program_get_default_config(offset);
+    // get 8 bit data values through the OSR and output
+    sm_config_set_out_pins(&c, PINROMDATA, DATAWIDTH);
+    sm_config_set_out_shift(&c, true, true, DATAWIDTH); // autopull
+    sm_config_set_set_pins(&c, PINROMDATA, 5);
+    sm_config_set_sideset_pins(&c, PINROMDATA+5);
+
+    // already set up in rom emulator
+    // set out_pin as a GPIO output connected to this SM
+/*  
+    for (int i = 0; i < DATAWIDTH; i++)
+	    pio_gpio_init(pio, PINROMDATA + i);
+    pio_sm_set_consecutive_pindirs(pio, sm, PINROMDATA, DATAWIDTH, false); 
+*/
+
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}
 
 ;
 ;
@@ -96,6 +196,9 @@ void cocowrite_program_init(PIO pio, uint sm, uint offset) {
     wait 1 gpio CLKPIN
     mov osr, ~null             ; enable the outputs
     out pindirs, DATAWIDTH
+; note: can save 3 PIO instructions by using a set with sideset to switch the 8-bit databus pindirs
+; however, that''s a maximum of 8 bits. For larger, use the "mov osr, null; out pindirs" stucture
+
 
 % c-sdk {
 // this is a raw helper function for use by the user which sets up the GPIO input and output, and configures the SM to output on a particular pin
