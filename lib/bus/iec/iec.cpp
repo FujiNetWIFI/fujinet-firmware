@@ -667,28 +667,10 @@ device_state_t virtualDevice::process()
     return state;
 }
 
+// This is only used in iecDrive, and it has its own implementation
 void virtualDevice::iec_talk_command_buffer_status()
 {
-    char reply[80];
-    std::string s;
-
-    //fnSystem.delay_microseconds(100);
-
-    if (!status_override.empty())
-    {
-        Debug_printv("sending explicit response.");
-        IEC.sendBytes(status_override, true);
-        status_override.clear();
-        status_override.shrink_to_fit();
-    }
-    else
-    {
-        snprintf(reply, 80, "%u,%s,%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
-        s = std::string(reply);
-        // s = mstr::toPETSCII2(s);
-        //Debug_printv("sending status: %s\r\n", reply);
-        IEC.sendBytes(s, true);
-    }
+    // Removed implementation as it wasn't being used
 }
 
 void virtualDevice::dumpData()

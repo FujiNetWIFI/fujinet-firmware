@@ -88,14 +88,18 @@ private:
     std::vector<uint8_t> responseV;
     bool is_raw_command;
 
-    void process_raw_commands();
+    void process_raw_cmd_data();
+    void process_immediate_raw_cmds();
+
     void process_basic_commands();
     vector<string> tokenize_basic_command(string command);
 
     bool validate_parameters_and_setup(uint8_t& maxlen, uint8_t& addtlopts);
     bool validate_directory_slot();
     std::string process_directory_entry(uint8_t maxlen, uint8_t addtlopts);
-    void format_and_set_response(const std::string& entry);
+
+    // track what our current command is, -1 is none being processed.
+    int current_fuji_cmd = -1;
 
 protected:
     // helper functions
@@ -139,50 +143,133 @@ protected:
     void disk_image_mount_basic();
     void disk_image_mount_raw();
 
-    bool open_directory(uint8_t hs, std::string dirpath, std::string pattern); // 0xF7
+    // 0xF7
+    bool open_directory(uint8_t hs, std::string dirpath, std::string pattern);
     void open_directory_basic();
     void open_directory_raw();
 
-    void read_directory_entry();   // 0xF6
-    void close_directory();        // 0xF5
-    void read_host_slots();        // 0xF4
-    void write_host_slots();       // 0xF3
-    void read_device_slots();      // 0xF2
-    void write_device_slots();     // 0xF1
-    
-    void enable_udpstream();       // 0xF0
-    void net_get_wifi_enabled();   // 0xEA
-    
-    void disk_image_umount();      // 0xE9
-    
-    void get_adapter_config();     // 0xE8
-    
-    void new_disk();               // 0xE7
-    void unmount_host();           // 0xE6
+    // 0xF6
+    std::string read_directory_entry(uint8_t maxlen, uint8_t addtlopts);
+    void read_directory_entry_basic();
+    void read_directory_entry_raw();
 
-    void get_directory_position(); // 0xE5
-    void set_directory_position(); // 0xE4
+    // 0xF5
+    void close_directory();
+    void close_directory_basic();
+    void close_directory_raw();
 
-    void set_hindex();             // 0xE3
-    void set_device_filename();    // 0xE2
-    void set_host_prefix();        // 0xE1
-    void get_host_prefix();        // 0xE0
+    // 0xF4
+    // void read_host_slots(); // all handled in the basic/raw versions as they differ in functionality
+    void read_host_slots_basic();
+    void read_host_slots_raw();
+
+    // 0xF3
+    // void write_host_slots(); // all handled in the basic/raw versions as they differ in functionality
+    void write_host_slots_basic();
+    void write_host_slots_raw();
+
+    // 0xF2
+    // void read_device_slots();  // all handled in the basic/raw versions as they differ in functionality
+    void read_device_slots_basic();
+    void read_device_slots_raw();
+
+    // 0xF1
+    void write_device_slots();
+    void write_device_slots_basic();
+    void write_device_slots_raw();
     
-    void set_external_clock();     // 0xDF
+    // 0xF0
+    void enable_udpstream();
+    
+    // 0xEA
+    void net_get_wifi_enabled();
+    
+    // 0xE9
+    bool disk_image_umount(uint8_t deviceSlot);
+    void disk_image_umount_basic();
+    void disk_image_umount_raw();
+    
+    // 0xE8
+    void get_adapter_config();
+    void get_adapter_config_basic();
+    void get_adapter_config_raw();
+    
+    // 0xE7
+    void new_disk();
+
+    // 0xE6
+    bool unmount_host(uint8_t hs);
+    void unmount_host_basic();
+    void unmount_host_raw();
+
+    // 0xE5
+    uint16_t get_directory_position();
+    void get_directory_position_basic();
+    void get_directory_position_raw();
+
+    // 0xE4
+    bool set_directory_position(uint16_t pos);
+    void set_directory_position_basic();
+    void set_directory_position_raw();
+
+    // 0xE3
+    void set_hindex();
+
+    // 0xE2
+    void set_device_filename(uint8_t slot, uint8_t host, uint8_t mode, std::string filename);
+    void set_device_filename_basic();
+    void set_device_filename_raw();
+
+    // 0xE1
+    void set_host_prefix();
+
+    // 0xE0
+    void get_host_prefix();
+    
+    // 0xDF
+    void set_external_clock();
     
     // 0xDE
-    void write_app_key(std::vector<uint8_t>&& value);
+    int write_app_key(std::vector<uint8_t>&& value);
     void write_app_key_basic();
     void write_app_key_raw();
 
-    void read_app_key();           // 0xDD
-    void open_app_key();           // 0xDC
-    void close_app_key();          // 0xDB
+    // 0xDD
+    int read_app_key(char *filename, std::vector<uint8_t>& file_data);
+    void read_app_key_basic();
+    void read_app_key_raw();
+
+    // 0xDC
+    void open_app_key(uint16_t creator, uint8_t app, uint8_t key, appkey_mode mode, uint8_t reserved);
+    void open_app_key_basic();
+    void open_app_key_raw();
+
+    // 0xDB
+    void close_app_key();
+    void close_app_key_basic();
+    void close_app_key_raw();
     
-    void get_device_filename();    // 0xDA
-    void set_boot_config();        // 0xD9
-    void copy_file();              // 0xD8
-    void set_boot_mode();          // 0xD6
+    // 0xDA
+    std::string get_device_filename(uint8_t ds);
+    void get_device_filename_basic();
+    void get_device_filename_raw();
+
+    // 0xD9
+    void set_boot_config(bool should_boot_config);
+    void set_boot_config_basic();
+    void set_boot_config_raw();
+
+    // 0xD8
+    void copy_file();
+
+    // 0xD6
+    void set_boot_mode(uint8_t boot_device, bool should_boot_config);
+    void set_boot_mode_basic();
+    void set_boot_mode_raw();
+
+    // 0x53 'S' Status
+    void get_status_raw();
+    void get_status_basic();
 
     // Commodore specific
     void local_ip();
@@ -197,12 +284,15 @@ protected:
         {2, 256}
     };
     bool check_appkey_creator(bool check_is_write);
-    bool check_sd_running();
 
     /**
      * @brief called to process command either at open or listen
      */
     void iec_command();
+
+    void set_fuji_iec_status(int8_t error, const std::string& msg) {
+        set_iec_status(error, msg, fnWiFi.connected(), 15);
+    }
 
 public:
     bool boot_config = true;
@@ -227,7 +317,8 @@ public:
     void _populate_slots_from_config();
     void _populate_config_from_slots();
 
-    void mount_all();              // 0xD7
+    // 0xD7 - why is this public?
+    void mount_all();
 
     iecFuji();
 };
