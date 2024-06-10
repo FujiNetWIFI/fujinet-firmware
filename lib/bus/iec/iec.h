@@ -233,11 +233,6 @@ protected:
     std::queue<std::string> response_queue;
 
     /**
-     * @brief status override (for binary commands)
-     */
-    std::string status_override;
-
-    /**
      * @brief tokenized payload
      */
     std::vector<std::string> pt;
@@ -245,14 +240,14 @@ protected:
 
     /**
      * @brief The status information to send back on cmd input
-     * @param bw = # of bytes waiting
+     * @param error = the latest error status
      * @param msg = most recent status message
      * @param connected = is most recent channel connected?
      * @param channel = channel of most recent status msg.
      */
     struct _iecStatus
     {
-        uint8_t error;
+        int8_t error;
         std::string msg;
         bool connected;
         int channel;
@@ -325,6 +320,31 @@ public:
      * @brief Get the systemBus object that this virtualDevice is attached to.
      */
     systemBus get_bus();
+
+    void set_iec_status(int8_t error, const std::string& msg, bool connected, int channel) {
+        iecStatus.error = error;
+        iecStatus.msg = msg;
+        iecStatus.connected = connected;
+        iecStatus.channel = channel;
+    }
+
+    // TODO: does this need to translate the message to PETSCII?
+    std::vector<uint8_t> iec_status_to_vector() {
+        std::vector<uint8_t> data;
+        data.push_back(static_cast<uint8_t>(iecStatus.error));
+        data.push_back(iecStatus.connected ? 1 : 0);
+        data.push_back(static_cast<uint8_t>(iecStatus.channel & 0xFF)); // it's only an int because of atoi from some basic commands, but it's never really more than 1 byte
+
+        // max of 41 chars in message including the null terminator. It will simply be truncated, so if we find any that are excessive, should trim them down in firmware
+        size_t actualLength = std::min(iecStatus.msg.length(), static_cast<size_t>(40));
+        for (size_t i = 0; i < actualLength; ++i) {
+            data.push_back(static_cast<uint8_t>(iecStatus.msg[i]));
+        }
+        data.push_back(0); // null terminate the string
+
+        return data;
+    }
+
 };
 
 /**

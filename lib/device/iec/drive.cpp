@@ -3,7 +3,7 @@
 #include "drive.h"
 
 #include <cstring>
-
+#include <sstream>
 #include <unordered_map>
 
 #include "../../include/debug.h"
@@ -322,13 +322,10 @@ void iecDrive::iec_talk_command()
 
 void iecDrive::iec_talk_command_buffer_status()
 {
-    //Debug_printv("here");
-
-    //char reply[80];
+    // std::ostringstream ss;
+    // ss << iecStatus.error << "," << "\"" << iecStatus.msg << "\"" << "," << iecStatus.connected << "," << iecStatus.channel;
+    // std::string s = ss.str();
     std::string s = "00, OK,00,00\r";
-
-    // snprintf(reply, 80, "%u,\"%s\",%u,%u", iecStatus.error, iecStatus.msg.c_str(), iecStatus.connected, iecStatus.channel);
-    // s = string(reply);
     IEC.sendBytes(s, true);
 }
 
