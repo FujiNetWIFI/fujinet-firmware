@@ -611,7 +611,7 @@ int SystemManager::get_sio_voltage()
 {
 #ifdef ESP_PLATFORM
 
-#if !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(PINMAP_A2_REV0)
+#if !defined(CONFIG_IDF_TARGET_ESP32S3) && defined(BUILD_ATARI)
     // Configure ADC1_CH7
     adc1_config_width(ADC_WIDTH_12Bit);
     adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_11db);
@@ -860,14 +860,29 @@ int SystemManager::load_firmware(const char *filename, uint8_t *buffer)
     return bytes_read;
 }
 
+bool SystemManager::has_button_c()
+{
+#ifdef ESP_PLATFORM
+    if(safe_reset_gpio == GPIO_NUM_NC)
+        return false;
+    else
+        return true;
+#else
+    // !ESP_PLATFORM
+    return true;
+#endif
+}
+
 // Return a string with the detected hardware version
 const char *SystemManager::get_hardware_ver_str()
 {
     if (_hardware_version == 0)
-        check_hardware_ver(); // check it
+        check_hardware_ver(); // check it and see, I've got a fever of 103
 
     switch (_hardware_version)
     {
+#if defined(BUILD_ATARI)
+    /* Atari 8-Bit */
     case 1 :
         return "1.0";
         break;
@@ -880,6 +895,71 @@ const char *SystemManager::get_hardware_ver_str()
     case 4:
         return "1.6.1 and up";
         break;
+#elif defined(BUILD_ADAM)
+    /* Coleco ADAM*/
+    case 1 :
+        return "1.0";
+        break;
+#elif defined(BUILD_APPLE)
+    /* Apple II */
+    case 1 :
+        return "Rev0";
+        break;
+    case 2:
+        return "Rev0 SPI Fix";
+        break;
+    case 3:
+        return "Rev1 and up";
+        break;
+    case 4:
+        return "Masteries RevA";
+        break;
+    case 5:
+        return "Masteries RevA SPI Fix";
+        break;
+    case 6:
+        return "Masteries RevB";
+        break;
+#elif defined(BUILD_MAC)
+    /* Mac 68K */
+    case 1 :
+        return "Rev0";
+        break;
+#elif defined(BUILD_IEC)
+    /* Commodore */
+    case 1 :
+        return "FujiLoaf Rev0";
+        break;
+    case 2:
+        return "Nugget";
+        break;
+    case 3:
+        return "Lolin D32 Pro";
+        break;
+#elif defined(BUILD_LYNX)
+    /* Atari Lynx */
+    case 1 :
+        return "Lynx Prototype";
+        break;
+    case 2:
+        return "Lynx DEVKITC";
+        break;
+#elif defined(BUILD_RS232)
+    /* RS232 */
+    case 1 :
+        return "RS232 Prototype";
+        break;
+#elif defined(BUILD_RC2014)
+    /* RC2014 */
+    case 1 :
+        return "RC2014 Prototype";
+        break;
+#elif defined(BUILD_COCO)
+    /* Tandy Color Computer */
+    case 1 :
+        return "Rev0";
+        break;
+#endif
     case -1:
         return "fujinet-pc";
         break;
@@ -890,10 +970,8 @@ const char *SystemManager::get_hardware_ver_str()
     }
 }
 
-/*  Find the FujiNet hardware version by checking the
-    Pull-Up resistors.
-    Check for pullup on IO12 (v1.6 and up), Check for
-    pullup on IO14 (v1.1 and up), else v1.0
+/* Find the FujiNet hardware version by checking the
+   Pull-Up resistors per platform
 */
 void SystemManager::check_hardware_ver()
 {
@@ -905,8 +983,14 @@ void SystemManager::check_hardware_ver()
         setup_card_detect(PIN_CARD_DETECT);
     _hardware_version = 4;
 
-#else /* PINMAP_ESP32S3 */
+#endif /* PINMAP_ESP32S3 */
 
+#if defined(BUILD_ATARI)
+    /*  Atari 8-Bit
+        Check for pullup on IO12 (v1.6 and up), Check for
+        pullup on IO14 (v1.1 and up), else v1.0
+    */
+    /* Check SD Card Detect pull ups */
     int upcheck, downcheck, fixupcheck, fixdowncheck;
 
     fnSystem.set_pin_mode(PIN_CARD_DETECT_FIX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
@@ -921,118 +1005,7 @@ void SystemManager::check_hardware_ver()
     fnSystem.set_pin_mode(PIN_CARD_DETECT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     upcheck = fnSystem.digital_read(PIN_CARD_DETECT);
 
-#ifdef PINMAP_FUJILOAF_REV0
-    /* FujiLoaf has pullup on PIN_GPIOX_INT for GPIO Expander */
-    /*
-    int ledstripupcheck, ledstripdowncheck;
-    fnSystem.set_pin_mode(PIN_GPIOX_INT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-    ledstripupcheck = fnSystem.digital_read(PIN_GPIOX_INT);
-    fnSystem.set_pin_mode(PIN_GPIOX_INT, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-    ledstripdowncheck = fnSystem.digital_read(PIN_GPIOX_INT);
-
-    if(ledstripdowncheck == ledstripupcheck)
-    {
-        ledstrip_found = true;
-        Debug_printf("Enabling LED Strip\r\n");
-    }
-    */
-
-    /* For now, just enable ledstrip for FujiLoaf */
-    ledstrip_found = true;
-    Debug_printf("Enabling LED Strip\r\n");
-
-    /* Change Safe Reset GPIO */
-    safe_reset_gpio = (gpio_num_t)PIN_BUTTON_C;
-#endif
-
-#if defined(PINMAP_A2_REV0) || defined(PINMAP_MAC_REV0)
-    int spifixupcheck, spifixdowncheck, rev1upcheck, rev1downcheck, bufupcheck, bufdowncheck;
-
-#ifndef MASTERIES_SPI_FIX
-#   ifdef REV1DETECT
-    /* For the 3 people on earth who got Rev1 hardware before the proper pullup
-       used for hardware detection was added.
-    */
-    a2spifix = true;
-    a2no3state = true;
-    Debug_printf("Rev1 Hardware Defined\nFujiApple NO3STATE & SPIFIX ENABLED\n");
-
-    safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
-
-#   else
-    /* Apple 2 Rev 1 has pullup on IO4 for Safe Reset
-       If found, enable spifix, no tristate and Safe Reset on GPIO4
-    */
-    fnSystem.set_pin_mode(GPIO_NUM_4, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-    rev1upcheck = fnSystem.digital_read(GPIO_NUM_4);
-    fnSystem.set_pin_mode(GPIO_NUM_4, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-    rev1downcheck = fnSystem.digital_read(GPIO_NUM_4);
-
-    if (rev1upcheck == rev1downcheck && rev1downcheck == DIGI_HIGH)
-    {
-        a2spifix = true;
-        a2no3state = true;
-        Debug_printf("FujiApple NO3STATE & SPIFIX ENABLED\r\n");
-
-        safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
-    }
-
-    /* Apple 2 Rev 1 Latest has pulldown on IO25 for buffer/bus enable line
-       If found, enable the buffer chips
-    */
-    fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-    bufupcheck = fnSystem.digital_read(GPIO_NUM_25);
-    fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-    bufdowncheck = fnSystem.digital_read(GPIO_NUM_25);
-
-    if (bufupcheck == bufdowncheck && bufupcheck == DIGI_LOW)
-    {
-        Debug_printf("FujiApple Rev1 Buffered Bus Enabled\r\n");
-        fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_NONE);
-        fnSystem.digital_write(GPIO_NUM_25, DIGI_HIGH);
-    }
-
-#   endif /* REV1DETECT */
-#endif /* MASTERIES_SPI_FIX */
-
-#ifdef NO3STATE
-    /* For those who have modified their FujiApple to remove the tristate buffer but
-       do not have the pull down on IO21 can use the NO3STATE define
-    */
-    a2no3state = true;
-    Debug_printf("FujiApple NO3STATE define ENABLED\r\n");
-#endif
-
-    /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset (IO14)
-       Apple 2 Rev00 with SPI fix has 10K hardware pullup on IO14
-       Check for pullup and determine if safe reset button or SPI fix
-    */
-    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-    spifixupcheck = fnSystem.digital_read(PIN_BUTTON_C);
-    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-    spifixdowncheck = fnSystem.digital_read(PIN_BUTTON_C);
-
-    if(spifixdowncheck == spifixupcheck)
-    {
-        a2spifix = true;
-#ifdef MASTERIES_SPI_FIX
-        Debug_println("Masteries SPI fix ENABLED");
-    #ifdef PIN_SD_HOST_MOSI
-    #undef PIN_SD_HOST_MOSI
-    #endif
-    #define PIN_SD_HOST_MOSI GPIO_NUM_14
-#else
-        Debug_println("FujiApple SPI fix ENABLED");
-#endif // MASTERIES_SPI_FIX
-    }
-    else
-    {
-        a2spifix = false;
-        Debug_println("FujiApple SPI fix NOT DETECTED");
-    }
-#else
-    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
-#endif
+    safe_reset_gpio = PIN_BUTTON_C;
 
     if(fixupcheck == fixdowncheck)
     {
@@ -1055,18 +1028,193 @@ void SystemManager::check_hardware_ver()
     {
         // v1.0
         _hardware_version = 1;
+        safe_reset_gpio = GPIO_NUM_NC;
+    }
+    
+#elif defined(BUILD_ADAM)
+    /*  Coleco ADAM
+        Only 1.0 version of Coleco ADAM 
+    */  
+    _hardware_version = 1;
+    safe_reset_gpio = PIN_BUTTON_C;
+#elif defined(BUILD_APPLE)
+    /*  Apple II
+        Check all the madness :zany_face:
+    */
+#   if defined(MASTERIES_SPI_FIX)
+    Debug_printf("Masteries RevA SPI fix ENABLED\r\nNO3STATE Disabled\r\n");
+    #ifdef PIN_SD_HOST_MOSI
+    #undef PIN_SD_HOST_MOSI
+    #endif
+    #define PIN_SD_HOST_MOSI GPIO_NUM_14
+    safe_reset_gpio = PIN_BUTTON_C;
+    a2no3state = false;
+    _hardware_version = 5;
+#   elif defined(MASTERIES_REVAB)
+    /* All Masteries boards have Tristate buffer. Check for pullup on IO14 to 
+        determine if it's RevB
+    */
+    int spifixupcheck, spifixdowncheck;
+
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    spifixupcheck = fnSystem.digital_read(PIN_BUTTON_C);
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    spifixdowncheck = fnSystem.digital_read(PIN_BUTTON_C);
+
+    if(spifixdowncheck == spifixupcheck)
+    {
+        a2spifix = true;
+        Debug_printf("Masteries RevB Hardware Detected\r\nNO3STATE Disabled\r\nSPIFIX Enabled\r\n");
+        _hardware_version = 6;
+        safe_reset_gpio = GPIO_NUM_NC; // RevB has a Hard Reset button instead of GPIO connected button
+    }
+    else
+    {
+        a2spifix = false;
+        Debug_printf("Masteries RevA Hardware Detected\r\nNO3STATE Disabled\r\nSPIFIX Disabled\r\n");
+        _hardware_version = 4;
+        safe_reset_gpio = PIN_BUTTON_C;
+    }
+    a2no3state = false;
+#   elif defined(REV1DETECT)
+    /* For the 3 people on earth who got Rev1 hardware before the proper pullup
+    used for hardware detection was added.
+    */
+    a2spifix = true;
+    a2no3state = true;
+    Debug_printf("Rev1 Hardware Defined\r\nFujiApple NO3STATE & SPIFIX Enabled\r\n");
+    safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
+    _hardware_version = 3;
+#   else
+    int spifixupcheck, spifixdowncheck, rev1upcheck, rev1downcheck, bufupcheck, bufdowncheck;
+
+    /* Apple 2 Rev 1 Latest has pulldown on IO25 for buffer/bus enable line
+    If found, enable the buffer chips, spi fix, no tristate and safe reset on GPIO4
+    */
+    fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    bufupcheck = fnSystem.digital_read(GPIO_NUM_25);
+    fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    bufdowncheck = fnSystem.digital_read(GPIO_NUM_25);
+
+    if (bufupcheck == bufdowncheck && bufupcheck == DIGI_LOW)
+    {
+        Debug_printf("FujiApple Rev1 Buffered Bus\r\nFujiApple NO3STATE Enabled\r\n");
+        a2spifix = true;
+        a2no3state = true;
+        safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
+        /* Enabled the buffer */
+        fnSystem.set_pin_mode(GPIO_NUM_25, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_NONE);
+        fnSystem.digital_write(GPIO_NUM_25, DIGI_HIGH);
+        _hardware_version = 3;
+    }
+    else
+    {
+        /* Apple 2 Rev 1 without buffer has pullup on IO4 for Safe Reset
+        If found, enable spi fix, no tristate and Safe Reset on GPIO4
+        */
+        fnSystem.set_pin_mode(GPIO_NUM_4, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+        rev1upcheck = fnSystem.digital_read(GPIO_NUM_4);
+        fnSystem.set_pin_mode(GPIO_NUM_4, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+        rev1downcheck = fnSystem.digital_read(GPIO_NUM_4);
+
+        if (rev1upcheck == rev1downcheck && rev1downcheck == DIGI_HIGH)
+        {
+            a2spifix = true;
+            a2no3state = true;
+            Debug_printf("FujiApple NO3STATE Enabled\r\n");
+            safe_reset_gpio = GPIO_NUM_4; /* Change Safe Reset GPIO for Rev 1 */
+            _hardware_version = 3;
+        }
+    }
+    
+    /* Apple 2 Rev00 original has no hardware pullup for Button C Safe Reset (IO14)
+    Apple 2 Rev00 with SPI fix has 10K hardware pullup on IO14
+    Check for pullup and determine if safe reset button or SPI fix
+    */
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+    spifixupcheck = fnSystem.digital_read(PIN_BUTTON_C);
+    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_DOWN);
+    spifixdowncheck = fnSystem.digital_read(PIN_BUTTON_C);
+
+    if(spifixdowncheck == spifixupcheck)
+    {
+        a2spifix = true;
+        Debug_println("FujiApple SPI fix Enabled");
+        /* If hardware version has not been set yet, it's not a Rev1. Make it Rev00 With SPI fix */
+        if (_hardware_version == 0)
+            _hardware_version = 2;
+    }
+    else
+    {
+        a2spifix = false;
+        Debug_println("FujiApple SPI fix not found");
+        safe_reset_gpio = PIN_BUTTON_C;
+        fnSystem.set_pin_mode(safe_reset_gpio, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+        /* Rev00 */
+        _hardware_version = 1;
     }
 
-    fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+#   endif
 
-#endif /* PINMAP_ESP32S3 */
+#   ifdef NO3STATE
+    /* For those who have modified their FujiApple to remove the tristate buffer but
+    do not have the pull down on IO21 can use the NO3STATE define (which is probably nobody)
+    */
+    a2no3state = true;
+    Debug_printf("FujiApple NO3STATE force enabled\r\n");
+#   endif
+#elif defined(BUILD_MAC)
+/*  Mac 68k
+    Only Rev0
+*/
+    _hardware_version = 1;
+    safe_reset_gpio = PIN_BUTTON_C;
+#elif defined(BUILD_IEC)
+    /*  Commodore
+    */
+#   if defined(PINMAP_FUJILOAF_REV0)
+    /* FujiLoaf has pullup on PIN_GPIOX_INT for GPIO Expander */
+    /* Change Safe Reset GPIO */
+    safe_reset_gpio = PIN_BUTTON_C;
+    _hardware_version = 1;
+#   elif defined(PINMAP_IEC_NUGGET)
+    #define NO_BUTTONS
+    _hardware_version = 2;
+#   elif defined(PINMAP_IEC_D32PRO)
+    #define NO_BUTTONS
+    /* No Safe Reset */
+    _hardware_version = 3;
+#   endif
+#elif defined(BUILD_LYNX)
+    /* Atari Lynx
+    */
+#   if defined(NO_BUTTONS)
+    _hardware_version = 2;
+#   else
+    _hardware_version = 1;
+    safe_reset_gpio = PIN_BUTTON_C;
+#   endif
+#elif defined(BUILD_RS232)
+    /* RS232
+    */
+    _hardware_version = 1;
+    safe_reset_gpio = PIN_BUTTON_C;
+#elif defined(BUILD_RC2014)
+    /* RC2014
+    */
+    _hardware_version = 1;
+    safe_reset_gpio = PIN_BUTTON_C;
+#elif defined(BUILD_COCO)
+    /* Tandy Color Computer
+    */
+    _hardware_version = 1;
+    safe_reset_gpio = PIN_BUTTON_C;
+#endif /* BUILD_COCO */
 
-// ESP_PLATFORM
 #else
-// !ESP_PLATFORM
-    // fujinet-pc
+    /* FujiNet-PC */
     _hardware_version = -1;
-#endif
+#endif /* ESP_PLATFORM end */
 }
 
 // Dumps list of current tasks

@@ -6,11 +6,7 @@
 #define PIN_CARD_DETECT_FIX     GPIO_NUM_15 // fnSystem.h
 #define PIN_SD_HOST_CS          GPIO_NUM_5  // fnFsSD.cpp
 #define PIN_SD_HOST_MISO        GPIO_NUM_19
-#ifdef MASTERIES_SPI_FIX
-#define PIN_SD_HOST_MOSI        GPIO_NUM_14
-#else
 #define PIN_SD_HOST_MOSI        GPIO_NUM_23
-#endif
 #define PIN_SD_HOST_SCK         GPIO_NUM_18
 
 /* UART */
@@ -31,17 +27,6 @@
 #define PIN_LED_BUS             GPIO_NUM_12
 #define PIN_LED_BT              GPIO_NUM_NC // No BT LED
 
-/* LED Strip NEW */
-#define LEDSTRIP_DATA_PIN       GPIO_NUM_4
-#define LEDSTRIP_COUNT          4
-#define LEDSTRIP_BRIGHTNESS     11 // max mA the LED can use determines brightness
-#define LEDSTRIP_TYPE           WS2812B
-#define LEDSTRIP_RGB_ORDER      GRB
-// LED order on the strip starting with 0
-#define LEDSTRIP_WIFI_NUM       0
-#define LEDSTRIP_BUS_NUM        2
-#define LEDSTRIP_BT_NUM         1
-
 /* Audio Output */
 #define PIN_DAC1                GPIO_NUM_25 // samlib.h
 
@@ -61,12 +46,6 @@
 // #define SP_DRIVE2               GPIO_NUM_21
 // #define SP_EN35                 GPIO_NUM_39
 #define MCI_HDSEL                GPIO_NUM_32
-
-#ifdef MASTERIES_SPI_FIX
-#define SP_SPI_FIX_PIN          GPIO_NUM_23 // Pin to use for SmartPort SPI hardware mod Masteries edition
-#else
-#define SP_SPI_FIX_PIN          GPIO_NUM_14 // Pin to use for SmartPort SPI hardware mod FujiApple Rev0
-#endif // MASTERIES_SPI_FIX
 
 #define SP_EXTRA                SP_DRIVE2 // For extra debugging with logic analyzer
 #endif /* PINMAP_MAC_REV0 */

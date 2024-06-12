@@ -37,7 +37,7 @@ private:
     bool a2no3state = false;
     bool ledstrip_found = false;
 #ifdef ESP_PLATFORM
-    gpio_num_t safe_reset_gpio = GPIO_NUM_14; // Default 14 for most boards, can be changed in fnSystem during hardware checks
+    gpio_num_t safe_reset_gpio = GPIO_NUM_NC;
 #else
     char _uname_string[128];
     uint64_t _reboot_at = 0;
@@ -166,6 +166,7 @@ public:
     bool spifix() { return a2spifix; };
     bool no3state() { return a2no3state; };
     bool ledstrip() { return ledstrip_found; };
+    bool has_button_c();
 #ifdef ESP_PLATFORM
     gpio_num_t get_safe_reset_gpio() { return safe_reset_gpio; };
 #endif
