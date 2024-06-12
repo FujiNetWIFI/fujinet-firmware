@@ -165,10 +165,11 @@ uint8_t CPBStandardSerial::receiveBits ()
 {
     // Listening for bits
     uint8_t data = 0;
-    int64_t bit_time = 0;  // Used to detect JiffyDOS
+    int16_t bit_time = 0;  // Used to detect JiffyDOS
 
     //IEC.pull ( PIN_IEC_SRQ );
 #ifndef IEC_SPLIT_LINES
+    IEC.release(PIN_IEC_CLK_IN);
     IEC.release(PIN_IEC_DATA_IN); // Set DATA IN back to input
 #endif
 
@@ -177,7 +178,9 @@ uint8_t CPBStandardSerial::receiveBits ()
     {
         // Time the release of the clock line to detect JiffyDOS
         //IEC.pull ( PIN_IEC_SRQ );
-        bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_PROTOCOL_DETECT, false );
+        //bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_PROTOCOL_DETECT, false );
+        while ( IEC.status(PIN_IEC_CLK_IN) != RELEASED );
+        IEC.pull ( PIN_IEC_SRQ );
         //IEC.release ( PIN_IEC_SRQ );
 
 #ifdef JIFFYDOS
@@ -229,16 +232,18 @@ uint8_t CPBStandardSerial::receiveBits ()
 
         // get bit
         data >>= 1;
-        if ( gpio_get_level ( PIN_IEC_DATA_IN ) ) data |= 0x80;
+        if ( !IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0x80;
         //IEC.release ( PIN_IEC_SRQ );
 
         // wait for talker to finish sending bit
-        if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
-        {
-            Debug_printv ( "wait for talker to finish sending bit n[%d]", n );
-            IEC.flags |= ERROR;
-            return data; // return error because timeout
-        }
+        // if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
+        // {
+        //     Debug_printv ( "wait for talker to finish sending bit n[%d]", n );
+        //     IEC.flags |= ERROR;
+        //     return data; // return error because timeout
+        // }
+        while ( IEC.status(PIN_IEC_CLK_IN) != PULLED );
+        IEC.release ( PIN_IEC_SRQ );
     }
     //IEC.release ( PIN_IEC_SRQ );
 

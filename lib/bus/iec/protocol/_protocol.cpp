@@ -11,7 +11,7 @@
 
 using namespace Protocol;
 
-uint64_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
+int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
 {
     uint64_t start = 0;
     uint64_t current = 0;
@@ -46,13 +46,7 @@ uint64_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, siz
     while ( IEC.status ( pin ) != target_status )
     {
         current = esp_timer_get_time();
-        if ( current < start )
-            // timer overflow
-            elapsed += ( std::numeric_limits<uint64_t>::max() - start ) + current;
-        else
-            elapsed += ( current - start );
-        start = current;
-        //elapsed = ( current - start );
+        elapsed = ( current - start );
 
         if ( elapsed >= wait_us && wait_us != FOREVER )
         {
@@ -74,13 +68,13 @@ uint64_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, siz
             }
         }
 
-        if ( IEC.state < BUS_ACTIVE || elapsed > FOREVER )
-        {
-            // Something is messed up.  Get outta here.
-            Debug_printv("wth? bus_state[%d]", IEC.state);
-            Debug_printv("pin[%d] target_status[%d] wait[%d] elapsed[%d]", pin, target_status, wait_us, elapsed);
-            return -1;
-        }
+        // if ( IEC.state < BUS_ACTIVE || elapsed > FOREVER )
+        // {
+        //     // Something is messed up.  Get outta here.
+        //     Debug_printv("wth? bus_state[%d]", IEC.state);
+        //     Debug_printv("pin[%d] target_status[%d] wait[%d] elapsed[%d]", pin, target_status, wait_us, elapsed);
+        //     return -1;
+        // }
     }
     //IEC.release ( PIN_IEC_SRQ );
 
