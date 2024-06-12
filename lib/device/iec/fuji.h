@@ -271,6 +271,9 @@ protected:
     void get_status_raw();
     void get_status_basic();
 
+    // 0x81 Set Status (DEBUGING)
+    void set_status_raw();
+
     // Commodore specific
     void local_ip();
 

@@ -144,9 +144,9 @@ device_state_t iecFuji::process()
         // Debug_printf("TALK/REOPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
 
         #ifdef DEBUG
-        if (!response.empty() && !is_raw_command) logResponse(response.data(), response.size());
-        if (!responseV.empty() && is_raw_command) logResponse(responseV.data(), responseV.size());
-        Debug_printf("\n");
+        // if (!response.empty() && !is_raw_command) logResponse(response.data(), response.size());
+        // if (!responseV.empty() && is_raw_command) logResponse(responseV.data(), responseV.size());
+        // Debug_printf("\n");
         #endif
 
         // TODO: review everywhere that directly uses IEC.sendBytes and make them all use iec with a common method?
@@ -190,7 +190,7 @@ device_state_t iecFuji::process()
             }
         } else {
             // we're in the middle of some data, let's continue
-            // Debug_printf("IN CMD and have data to process\r\n");
+            // Debug_printf("IN CMD, processing data\r\n");
             process_raw_cmd_data();
         }
 
@@ -414,6 +414,9 @@ void iecFuji::process_immediate_raw_cmds()
     case FUJICMD_STATUS:
         get_status_raw();
         break;
+    case FUJICMD_SET_STATUS:
+        set_status_raw();
+        break;
     case FUJICMD_MOUNT_ALL:
         mount_all();
         break;
@@ -433,11 +436,18 @@ void iecFuji::process_immediate_raw_cmds()
     }
 }
 
+void iecFuji::set_status_raw()
+{
+    // Debug_printf("Setting status to 0x69\r\n");
+    set_fuji_iec_status(0x69, "manually set status");
+}
+
 void iecFuji::get_status_raw()
 {
     // convert iecStatus to a responseV for the host to read
     responseV = std::move(iec_status_to_vector());
-    set_fuji_iec_status(0, "");
+    // don't set the status
+    // set_fuji_iec_status(0, "");
 }
 
 void iecFuji::get_status_basic()
