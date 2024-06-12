@@ -234,7 +234,6 @@ void iecDrive::iec_open()
             if ( !registerStream(commanddata.channel) )
             {
                 Debug_printv("File Doesn't Exist [%s]", payload.c_str());
-                IEC.senderTimeout();
             }
         }
     }
@@ -1076,7 +1075,7 @@ bool iecDrive::sendFile()
     auto istream = retrieveStream(commanddata.channel);
     if ( istream == nullptr )
     {
-        Serial.println("Stream not found!");
+        Serial.println("File/Stream not found!");
         IEC.senderTimeout(); // File Not Found
         _last_file = "";
         _base.reset( MFSOwner::File( _base->base() ) );

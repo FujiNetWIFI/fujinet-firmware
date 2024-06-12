@@ -141,7 +141,7 @@ device_state_t iecFuji::process()
     // Should this be using iec_talk_command_buffer_status instead?
     if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
     {
-        // Debug_printf("TALK/REOPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
+        // Debug_printv("TALK/REOPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
 
         #ifdef DEBUG
         // if (!response.empty() && !is_raw_command) logResponse(response.data(), response.size());
@@ -166,9 +166,9 @@ device_state_t iecFuji::process()
         response = "";
 
     }
-    else if (commanddata.primary == IEC_UNLISTEN)
+    else if (commanddata.primary == IEC_UNLISTEN && commanddata.secondary == IEC_OPEN)
     {
-        // Debug_printf("UNLISTEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
+        // Debug_printv("UNLISTEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
 
         // we assume you can't send BASIC commands and RAW commands at the same time, as RAW will set a cmd to be in,
         // potentially waiting for more data, and if basic commands came at that point, they would be processed as raw.
@@ -194,6 +194,10 @@ device_state_t iecFuji::process()
             process_raw_cmd_data();
         }
 
+    }
+    else if (commanddata.primary == IEC_UNLISTEN && commanddata.secondary == IEC_CLOSE)
+    {
+        state = DEVICE_IDLE;
     }
     // This happens and is repeated by UNLISTEN. Seem to be able to process everything in the UNLISTEN, so didn't work as I expected.
     // else if (commanddata.primary == IEC_LISTEN) {

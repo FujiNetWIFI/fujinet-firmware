@@ -171,7 +171,7 @@ public:
      */
     void init(void)
     {
-        primary = 0;
+        //primary = 0;
         device = 0;
         secondary = 0;
         channel = 0;
@@ -262,8 +262,12 @@ protected:
 
         if (commanddata.primary == IEC_LISTEN)
             state = DEVICE_LISTEN;
+        else if (commanddata.primary == IEC_UNLISTEN)
+            state = DEVICE_PROCESS;
         else if (commanddata.primary == IEC_TALK)
             state = DEVICE_TALK;
+        else if (commanddata.primary == IEC_UNTALK)
+            state = DEVICE_PROCESS;
 
         return state;
     }
@@ -526,7 +530,7 @@ public:
      * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(const char *buf, size_t len, bool eoi = false);
+    bool sendBytes(const char *buf, size_t len, bool eoi = true);
 
     /**
      * @brief Send string to bus
@@ -534,7 +538,7 @@ public:
      * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(std::string s, bool eoi = false);
+    bool sendBytes(std::string s, bool eoi = true);
 
     /**
      * @brief Receive Byte from bus
