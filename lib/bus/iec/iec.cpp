@@ -258,6 +258,11 @@ void IRAM_ATTR systemBus::service()
             //Debug_printv("command");
             read_command();
 
+            if ( state < BUS_IDLE )
+            {
+                releaseLines();
+                Debug_printv("here");
+            }
             //release ( PIN_IEC_SRQ );
         }
 
@@ -298,21 +303,16 @@ void IRAM_ATTR systemBus::service()
 
                 //fnLedManager.set(eLed::LED_BUS, true);
 
-                //Debug_printv("bus[%d] device[%d]", state, device_state);
-                device_state = deviceById(data.device)->process();
-                if ( device_state < DEVICE_ACTIVE )
-                {
-                    // for (auto devicep : _daisyChain)
-                    // {
-                    //     if ( devicep->device_state > DEVICE_IDLE )
-                    //         devicep->process();
-                    // }
-                    if (data.primary == IEC_UNLISTEN)
-                        releaseLines();
-
-                    data.init();
-                    //Debug_printv("bus init");
-                }
+                Debug_printv("bus[%d] device[%d]", state, device_state);
+                // for (auto devicep : _daisyChain)
+                // {
+                    device_state = d->process();
+                    if ( device_state < DEVICE_ACTIVE )
+                    {
+                        // data.init();
+                        // Debug_printv("bus init");
+                    }
+                // }
             }
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", state, device_state, flags);
@@ -330,8 +330,12 @@ void IRAM_ATTR systemBus::service()
     } while( state > BUS_IDLE );
 
     // Cleanup and Re-enable Interrupt
-    // if (data.primary == IEC_UNLISTEN)
-    //     releaseLines();
+    if (data.primary == IEC_UNLISTEN)
+    {
+        releaseLines();
+        data.init();
+        Debug_printv("here");
+    }
     //gpio_intr_enable((gpio_num_t)PIN_IEC_ATN);
 
     //Debug_printv ( "primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", data.primary, data.secondary, state, flags );
@@ -349,13 +353,13 @@ void IRAM_ATTR systemBus::service()
 void systemBus::read_command()
 {
     //pull( PIN_IEC_SRQ );
-    int16_t c = receiveByte();
+    uint8_t c = receiveByte();
     //release( PIN_IEC_SRQ );
 
     // Check for error
     if ( flags & ERROR )
     {
-        Debug_printv("Error reading command. flags[%d] c[%08X]", flags, c);
+        Debug_printv("Error reading command. flags[%d] c[%X]", flags, c);
         if (c == 0xFFFFFFFF)
             state = BUS_OFFLINE;
         else
@@ -489,6 +493,7 @@ void systemBus::read_command()
     {
         data.init();
         releaseLines();
+        Debug_printv("here");
         return;
     }
 
@@ -791,7 +796,8 @@ void IRAM_ATTR systemBus::deviceListen()
     else if (data.secondary == IEC_OPEN || data.secondary == IEC_REOPEN)
     {
         read_payload();
-        Serial.printf("Device #%02d:%02d {%s}\r\n", data.device, data.channel, data.payload.c_str());
+        std::string s = mstr::toHex(data.payload);
+        Serial.printf("Device #%02d:%02d {%s} [%s]\r\n", data.device, data.channel, data.payload.c_str(), s.c_str());
     }
 
     // CLOSE Named Channel
@@ -901,12 +907,14 @@ void IRAM_ATTR systemBus::releaseLines(bool wait)
         protocol->timeoutWait ( PIN_IEC_ATN, RELEASED, TIMEOUT_DEFAULT, false );
     }
 
+    //Debug_printv( "Lines Released!" );
     //release ( PIN_IEC_SRQ );
 }
 
 void IRAM_ATTR systemBus::senderTimeout()
 {
     releaseLines();
+    Debug_printv("here");
     this->state = BUS_ERROR;
 
     protocol->wait( TIMING_EMPTY );

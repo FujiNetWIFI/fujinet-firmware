@@ -46,13 +46,7 @@ uint64_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, siz
     while ( IEC.status ( pin ) != target_status )
     {
         current = esp_timer_get_time();
-        if ( current < start )
-            // timer overflow
-            elapsed += ( std::numeric_limits<uint64_t>::max() - start ) + current;
-        else
-            elapsed += ( current - start );
-        start = current;
-        //elapsed = ( current - start );
+        elapsed = ( current - start );
 
         if ( elapsed >= wait_us && wait_us != FOREVER )
         {
