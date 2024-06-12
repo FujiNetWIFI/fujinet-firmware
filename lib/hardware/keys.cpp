@@ -23,7 +23,6 @@ static int mButtonPin[eKey::KEY_COUNT] = {PIN_BUTTON_A, PIN_BUTTON_B, PIN_BUTTON
 
 void KeyManager::setup()
 {
-    mButtonPin[eKey::BUTTON_C] = fnSystem.get_safe_reset_gpio();
 #ifdef PINMAP_ESP32S3
 
     if (PIN_BUTTON_A != GPIO_NUM_NC)
@@ -42,48 +41,58 @@ void KeyManager::setup()
         _keys[eKey::BUTTON_C].disabled = true;
 
 #else /* PINMAP_ESP32S3 */
+    mButtonPin[eKey::BUTTON_A] = PIN_BUTTON_A;
+    mButtonPin[eKey::BUTTON_B] = PIN_BUTTON_B;
+    mButtonPin[eKey::BUTTON_C] = fnSystem.get_safe_reset_gpio();
 
-#ifdef NO_BUTTONS
-    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-#elif defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC) || defined(PINMAP_MAC_REV0)
-    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-#else
-    fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
-#endif /* NO_BUTTONS */
-
-#if !defined(BUILD_LYNX) && !defined(BUILD_APPLE) && !defined(BUILD_RS232) && !defined(BUILD_RC2014) && !defined(BUILD_IEC) && !defined(BUILD_MAC)
-    fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
-#endif /* NOT LYNX OR A2 */
-
-    // Enable safe reset on Button C if available
-    if (fnSystem.get_hardware_ver() >= 2)
-    {
-#if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJIAPPLE_IEC) || defined(PINMAP_MAC_REV0)
-        /* Check if hardware has SPI fix and thus no safe reset button (_keys[eKey::BUTTON_C].disabled = true) */
-        if (fnSystem.spifix() && fnSystem.get_safe_reset_gpio() == 14)
-        {
-            _keys[eKey::BUTTON_C].disabled = true;
-            Debug_println("Safe Reset Button C: DISABLED due to SPI Fix");
-        }
-        else
-        {
-            fnSystem.set_pin_mode(fnSystem.get_safe_reset_gpio(), gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
-            Debug_printf("Safe Reset button ENABLED on GPIO %d\r\n", fnSystem.get_safe_reset_gpio());
-        }
-#else
-        fnSystem.set_pin_mode(fnSystem.get_safe_reset_gpio(), gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
-        Debug_printf("Safe Reset button ENABLED on GPIO %d\r\n", fnSystem.get_safe_reset_gpio());
-#endif
-    }
-
-#ifdef NO_BUTTONS
+#   ifdef NO_BUTTONS
     _keys[eKey::BUTTON_A].disabled = true;
     _keys[eKey::BUTTON_B].disabled = true;
     _keys[eKey::BUTTON_C].disabled = true;
     Debug_println("NO_BUTTONS: disabled all buttons");
-#endif /* PINMAP_IEC_NUGGET */
+#   else
+    if (PIN_BUTTON_A == GPIO_NUM_NC)
+    {
+        _keys[eKey::BUTTON_A].disabled = true;
+        Debug_printf("Button A Disabled\r\n");
+    }
+    else
+    {
+        fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+        Debug_printf("Button A Enabled on IO%d\r\n",mButtonPin[eKey::BUTTON_A]);
+    }
 
+    if (PIN_BUTTON_B == GPIO_NUM_NC)
+    {
+        _keys[eKey::BUTTON_B].disabled = true;
+        Debug_printf("Button B Disabled\r\n");
+    }
+    else
+    {
+        fnSystem.set_pin_mode(PIN_BUTTON_B, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+        Debug_printf("Button B Enabled on IO%d\r\n", mButtonPin[eKey::BUTTON_B]);
+    }
+
+    if (fnSystem.get_safe_reset_gpio() == GPIO_NUM_NC)
+    {
+        _keys[eKey::BUTTON_C].disabled = true;
+        Debug_printf("Button C (Safe Reset) Disabled\r\n");
+    }
+    else
+    {
+#   ifdef BUILD_APPLE
+        // Rev00 has no pullup for Button C
+        if (fnSystem.get_hardware_ver() == 1)
+            fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+        else
+            fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+#   else
+        fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+#   endif        
+        Debug_printf("Button C (Safe Reset) Enabled on IO%d\r\n", mButtonPin[eKey::BUTTON_C]);
+    }
+
+#   endif /* NO_BUTTONS */
 #endif /* PINMAP_ESP32S3 */
 
     // Start a new task to check the status of the buttons
@@ -262,19 +271,7 @@ void KeyManager::_keystate_task(void *param)
 #endif
 
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
-            if(fnSystem.ledstrip())
-            {
-                // if (fnLedStrip.rainbowTimer > 0)
-                //     fnLedStrip.stopRainbow();
-                // else
-                //     fnLedStrip.startRainbow(10);
-            }
-            else
-            {
-                fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
-            }
-            Debug_println("ACTION: Reboot");
-            //fnSystem.reboot();
+            fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
             // IEC.releaseLines();
 #ifdef BUILD_IEC
             Debug_printf("bus_state[%d]\r\n", IEC.state);
