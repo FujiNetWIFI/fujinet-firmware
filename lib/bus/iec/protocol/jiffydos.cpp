@@ -33,7 +33,7 @@
 using namespace Protocol;
 
 
-int16_t  JiffyDOS::receiveByte ()
+uint8_t  JiffyDOS::receiveByte ()
 {
     uint8_t data = 0;
 
@@ -101,7 +101,7 @@ int16_t  JiffyDOS::receiveByte ()
     //if ( eoi ) IEC.flags |= EOI_RECVD;
     //Debug_printv("data[%02X] eoi[%d]", data, eoi); // $ = 0x24
 
-    return (uint8_t) (data & 0xFF);
+    return data;
 } // receiveByte
 
 

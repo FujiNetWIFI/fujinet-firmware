@@ -704,21 +704,17 @@ void systemBus::assert_interrupt()
         release(PIN_IEC_SRQ);
 }
 
-int16_t systemBus::receiveByte()
+uint8_t systemBus::receiveByte()
 {
     //pull( PIN_IEC_SRQ );
-    int16_t b = protocol->receiveByte();
+    uint8_t b = protocol->receiveByte();
 #ifdef DATA_STREAM
     Serial.printf("%.2X ", (int16_t)b);
 #endif
-    if (b == -1)
+    // Not an error if ATN was pulled
+    if ( flags & ERROR )
     {
-        // Not an error if ATN was pulled
-        if (!( flags & ATN_PULLED))
-        {
-            flags |= ERROR;
-            Debug_printv("error");
-        }
+        Debug_printv("error");
     }
     //release( PIN_IEC_SRQ );
     return b;
@@ -730,8 +726,8 @@ std::string systemBus::receiveBytes()
 
     do
     {
-        int16_t b = receiveByte();
-        if(b > -1)
+        uint8_t b = receiveByte();
+        if ( !(flags & ERROR) )
             s += b;
     }while(!(flags & EOI_RECVD));
     return s;
