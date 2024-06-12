@@ -26,9 +26,9 @@
 #define PIN_UART2_TX            GPIO_NUM_21
 
 /* Buttons */
-#define PIN_BUTTON_A            GPIO_NUM_0  // keys.cpp
+#define PIN_BUTTON_A            GPIO_NUM_NC  // keys.cpp
 #define PIN_BUTTON_B            GPIO_NUM_NC
-#define PIN_BUTTON_C            GPIO_NUM_14
+#define PIN_BUTTON_C            GPIO_NUM_NC
 
 /* LEDs */
 #define PIN_LED_WIFI            GPIO_NUM_2 // led.cpp
