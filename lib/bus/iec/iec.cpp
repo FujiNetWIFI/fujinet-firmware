@@ -307,6 +307,9 @@ void IRAM_ATTR systemBus::service()
                     //     if ( devicep->device_state > DEVICE_IDLE )
                     //         devicep->process();
                     // }
+                    if (data.primary == IEC_UNLISTEN)
+                        releaseLines();
+
                     data.init();
                     //Debug_printv("bus init");
                 }
@@ -327,7 +330,8 @@ void IRAM_ATTR systemBus::service()
     } while( state > BUS_IDLE );
 
     // Cleanup and Re-enable Interrupt
-    releaseLines();
+    // if (data.primary == IEC_UNLISTEN)
+    //     releaseLines();
     //gpio_intr_enable((gpio_num_t)PIN_IEC_ATN);
 
     //Debug_printv ( "primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", data.primary, data.secondary, state, flags );
@@ -484,7 +488,7 @@ void systemBus::read_command()
     if ( state < BUS_ACTIVE )
     {
         data.init();
-        //releaseLines();
+        releaseLines();
         return;
     }
 
