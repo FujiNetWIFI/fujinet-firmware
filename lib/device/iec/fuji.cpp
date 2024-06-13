@@ -25,12 +25,11 @@
 #include "utils.h"
 #include "status_error_codes.h"
 
-iecFuji theFuji; // global fuji device object
-
 #define ADDITIONAL_DETAILS_BYTES 10
 #define FF_DIR 0x01
 #define FF_TRUNC 0x02
 
+iecFuji theFuji; // global fuji device object
 // iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -149,8 +148,6 @@ device_state_t iecFuji::process()
         // Debug_printf("\n");
         #endif
 
-        // TODO: review everywhere that directly uses IEC.sendBytes and make them all use iec with a common method?
-
         // only send raw back for a raw command, thus code can set "response", but we won't send it back as that's BASIC response
         if (!responseV.empty() && is_raw_command) {
             IEC.sendBytes(reinterpret_cast<char*>(responseV.data()), responseV.size());
@@ -166,9 +163,9 @@ device_state_t iecFuji::process()
         response = "";
 
     }
-    else if (commanddata.primary == IEC_UNLISTEN && commanddata.secondary == IEC_OPEN)
+    else if (commanddata.primary == IEC_UNLISTEN && (commanddata.secondary == IEC_OPEN || commanddata.secondary == IEC_REOPEN))
     {
-        // Debug_printv("UNLISTEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
+        // Debug_printv("UNLISTEN/(RE)OPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
 
         // we assume you can't send BASIC commands and RAW commands at the same time, as RAW will set a cmd to be in,
         // potentially waiting for more data, and if basic commands came at that point, they would be processed as raw.
@@ -182,6 +179,7 @@ device_state_t iecFuji::process()
                 // if it is an immediate command (no parameters), current_fuji_cmd will be reset to -1,
                 // otherwise, it stays set until further data is received to process it
                 current_fuji_cmd = payload[1];
+                last_command = current_fuji_cmd;
                 process_immediate_raw_cmds();
             } else if (payload.size() > 0) {
                 // "IEC: [EF] (E0 CLOSE  15 CHANNEL)" happens with an UNLISTEN, which has no payload, so we can skip it to save trying BASIC commands
@@ -197,12 +195,19 @@ device_state_t iecFuji::process()
     }
     else if (commanddata.primary == IEC_UNLISTEN && commanddata.secondary == IEC_CLOSE)
     {
-        state = DEVICE_IDLE;
+        // Debug_printv("UNLISTEN/CLOSE:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
+        // state = DEVICE_IDLE;
+
     }
-    // This happens and is repeated by UNLISTEN. Seem to be able to process everything in the UNLISTEN, so didn't work as I expected.
-    // else if (commanddata.primary == IEC_LISTEN) {
-    //     Debug_printf("LISTEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
-    // }
+    // This happens and is repeated by UNLISTEN. We get our command on OPEN and data on REOPEN
+    else if (commanddata.primary == IEC_LISTEN)
+    {
+        // Debug_printv("LISTEN (Secondary: %02x):\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", commanddata.secondary, current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
+    }
+    else
+    {
+        // Debug_printv("FALL THROUGH, primary:%02x, 2nd:%2x\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", commanddata.primary, commanddata.secondary, current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
+    }
 
     return state;
 }
@@ -365,7 +370,7 @@ void iecFuji::process_raw_cmd_data()
         // Debug_printf("--- Processed! Resetting current_fuji_cmd\r\n");
         current_fuji_cmd = -1;
     // } else {
-    //     Debug_printf("xxx Not Processed :( current_fuji_cmd: %d\r\n", current_fuji_cmd);
+    //     Debug_printf("xxx Not Processed, current_fuji_cmd staying as: %d\r\n", current_fuji_cmd);
     }
 }
 
@@ -450,7 +455,7 @@ void iecFuji::get_status_raw()
 {
     // convert iecStatus to a responseV for the host to read
     responseV = std::move(iec_status_to_vector());
-    // don't set the status
+    // don't set the status!!
     // set_fuji_iec_status(0, "");
 }
 
@@ -2128,7 +2133,9 @@ void iecFuji::net_set_ssid(bool store, net_config_t& net_config)
     fnSystem.delay(4000);
 
     set_fuji_iec_status(
-        test_result == 0 ? NETWORK_ERROR_SUCCESS : NETWORK_ERROR_NOT_CONNECTED,
+        // this was using NETWORK_ERROR_SUCCESS (1) for a success, but in iec_status, 0 is success, anything else is an error
+        // I don't think we should use network codes for FUJI device success status, same goes for the ERROR really...
+        test_result == 0 ? 0 : NETWORK_ERROR_NOT_CONNECTED,
         msg
     );
 }

@@ -100,6 +100,8 @@ private:
 
     // track what our current command is, -1 is none being processed.
     int current_fuji_cmd = -1;
+    // track the last command for the status
+    int last_command = -1;
 
 protected:
     // helper functions
@@ -294,7 +296,7 @@ protected:
     void iec_command();
 
     void set_fuji_iec_status(int8_t error, const std::string& msg) {
-        set_iec_status(error, msg, fnWiFi.connected(), 15);
+        set_iec_status(error, last_command, msg, fnWiFi.connected(), 15);
     }
 
 public:
