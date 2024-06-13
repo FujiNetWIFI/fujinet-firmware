@@ -34,11 +34,14 @@ namespace Protocol
     class CPBStandardSerial : public IECProtocol
     {
         private:
-        uint8_t receiveBits();
+        //uint8_t receiveBits();
         bool sendBits(uint8_t data);
 
 
         public:
+        uint8_t bit_num = 1;
+        uint8_t data = 0;
+
         /**
          * @brief ctor
          */

@@ -27,9 +27,32 @@
 
 using namespace Protocol;
 
+static void IRAM_ATTR receiveBits(void *arg)
+{
+    CPBStandardSerial *p = (CPBStandardSerial *)arg;
+
+    //b->pull(PIN_IEC_SRQ);
+
+    // get bit
+    p->data >>= 1;
+    if ( !IEC.status ( PIN_IEC_DATA_IN ) ) p->data |= 0x80;
+    p->bit_num++;
+
+    //b->release(PIN_IEC_SRQ);
+}
+
 CPBStandardSerial::CPBStandardSerial()
 {
-
+    // Setup interrupt for CLK
+    gpio_config_t io_conf = {
+        .pin_bit_mask = ( 1ULL << PIN_IEC_CLK_IN ),    // bit mask of the pins that you want to set
+        .mode = GPIO_MODE_INPUT,                    // set as input mode
+        .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
+        .intr_type = GPIO_INTR_POSEDGE              // interrupt of rising edge
+    };
+    //configure GPIO with the given settings
+    gpio_config(&io_conf);
 }
 
 CPBStandardSerial::~CPBStandardSerial()
@@ -117,7 +140,15 @@ uint8_t CPBStandardSerial::receiveByte()
 
     // STEP 3: RECEIVING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
-    int8_t data = receiveBits();
+    //int8_t data = receiveBits();
+    data = 0;
+    bit_num = 1;
+    gpio_isr_handler_add((gpio_num_t)PIN_IEC_CLK_IN, receiveBits, this);
+    while ( bit_num < 8 )
+    {
+        esp_rom_delay_us( 4 );
+    }
+    gpio_isr_handler_remove((gpio_num_t)PIN_IEC_CLK_IN);
     //IEC.release ( PIN_IEC_SRQ );
 
     // STEP 4: FRAME HANDSHAKE
@@ -161,94 +192,94 @@ uint8_t CPBStandardSerial::receiveByte()
 // false, it grabs the bit from the Data line and puts it away.  It then waits for the clock line to go true, in order
 // to prepare for the next bit. When the talker figures the data has been held for a sufficient  length  of  time,  it
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
-uint8_t CPBStandardSerial::receiveBits ()
-{
-    // Listening for bits
-    uint8_t data = 0;
-    int16_t bit_time = 0;  // Used to detect JiffyDOS
+// uint8_t CPBStandardSerial::receiveBits ()
+// {
+//     // Listening for bits
+//     uint8_t data = 0;
+//     int16_t bit_time = 0;  // Used to detect JiffyDOS
 
-    //IEC.pull ( PIN_IEC_SRQ );
-#ifndef IEC_SPLIT_LINES
-    IEC.release(PIN_IEC_CLK_IN);
-    IEC.release(PIN_IEC_DATA_IN); // Set DATA IN back to input
-#endif
+//     //IEC.pull ( PIN_IEC_SRQ );
+// #ifndef IEC_SPLIT_LINES
+//     IEC.release(PIN_IEC_CLK_IN);
+//     IEC.release(PIN_IEC_DATA_IN); // Set DATA IN back to input
+// #endif
 
-    uint8_t n = 0;
-    for ( n = 0; n < 8; n++ )
-    {
-        // Time the release of the clock line to detect JiffyDOS
-        //IEC.pull ( PIN_IEC_SRQ );
-        //bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_PROTOCOL_DETECT, false );
-        while ( IEC.status(PIN_IEC_CLK_IN) != RELEASED );
-        IEC.pull ( PIN_IEC_SRQ );
-        //IEC.release ( PIN_IEC_SRQ );
+//     uint8_t n = 0;
+//     for ( n = 0; n < 8; n++ )
+//     {
+//         // Time the release of the clock line to detect JiffyDOS
+//         //IEC.pull ( PIN_IEC_SRQ );
+//         //bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_PROTOCOL_DETECT, false );
+//         while ( IEC.status(PIN_IEC_CLK_IN) != RELEASED );
+//         IEC.pull ( PIN_IEC_SRQ );
+//         //IEC.release ( PIN_IEC_SRQ );
 
-#ifdef JIFFYDOS
-        // If there is a 218us delay before bit 7, the controller uses JiffyDOS
-        if ( bit_time >= TIMING_PROTOCOL_DETECT )
-        {
-            IEC.pull ( PIN_IEC_SRQ );
-            if ( n == 7 && IEC.status( PIN_IEC_ATN ) )
-            {
-                // Check LISTEN & TALK
-                uint8_t device = (data >> 1) & 0x1F; // LISTEN
-                if ( device > 30 )
-                    device = (data >> 1 ) & 0x3F; // TALK
+// #ifdef JIFFYDOS
+//         // If there is a 218us delay before bit 7, the controller uses JiffyDOS
+//         if ( bit_time >= TIMING_PROTOCOL_DETECT )
+//         {
+//             IEC.pull ( PIN_IEC_SRQ );
+//             if ( n == 7 && IEC.status( PIN_IEC_ATN ) )
+//             {
+//                 // Check LISTEN & TALK
+//                 uint8_t device = (data >> 1) & 0x1F; // LISTEN
+//                 if ( device > 30 )
+//                     device = (data >> 1 ) & 0x3F; // TALK
 
-                if ( device < 31 )
-                {
-                    if ( IEC.isDeviceEnabled ( device ) )
-                    {
-                        // acknowledge we support JiffyDOS
-                        IEC.pull(PIN_IEC_DATA_OUT);
-                        wait( TIMING_PROTOCOL_ACK, false );
-                        IEC.release(PIN_IEC_DATA_OUT);
+//                 if ( device < 31 )
+//                 {
+//                     if ( IEC.isDeviceEnabled ( device ) )
+//                     {
+//                         // acknowledge we support JiffyDOS
+//                         IEC.pull(PIN_IEC_DATA_OUT);
+//                         wait( TIMING_PROTOCOL_ACK, false );
+//                         IEC.release(PIN_IEC_DATA_OUT);
 
-                        IEC.flags |= JIFFYDOS_ACTIVE;
-                    }
-                }
-            }
-            IEC.release ( PIN_IEC_SRQ );
+//                         IEC.flags |= JIFFYDOS_ACTIVE;
+//                     }
+//                 }
+//             }
+//             IEC.release ( PIN_IEC_SRQ );
 
-            // wait for bit to be ready to read
-            //IEC.pull ( PIN_IEC_SRQ );
-            if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED ) == TIMED_OUT )
-            {
-                if ( n == 0 )
-                {
-                    Debug_printv ( "empty stream signaled" );
-                    IEC.flags |= EMPTY_STREAM;
-                }
-                else
-                {
-                    Debug_printv ( "bit %d timeout", n );
-                    IEC.flags |= ERROR;
-                }
-                return data;
-            }
-            //IEC.release ( PIN_IEC_SRQ );
-        }
-#endif
+//             // wait for bit to be ready to read
+//             //IEC.pull ( PIN_IEC_SRQ );
+//             if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED ) == TIMED_OUT )
+//             {
+//                 if ( n == 0 )
+//                 {
+//                     Debug_printv ( "empty stream signaled" );
+//                     IEC.flags |= EMPTY_STREAM;
+//                 }
+//                 else
+//                 {
+//                     Debug_printv ( "bit %d timeout", n );
+//                     IEC.flags |= ERROR;
+//                 }
+//                 return data;
+//             }
+//             //IEC.release ( PIN_IEC_SRQ );
+//         }
+// #endif
 
-        // get bit
-        data >>= 1;
-        if ( !IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0x80;
-        //IEC.release ( PIN_IEC_SRQ );
+//         // get bit
+//         data >>= 1;
+//         if ( !IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0x80;
+//         //IEC.release ( PIN_IEC_SRQ );
 
-        // wait for talker to finish sending bit
-        // if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
-        // {
-        //     Debug_printv ( "wait for talker to finish sending bit n[%d]", n );
-        //     IEC.flags |= ERROR;
-        //     return data; // return error because timeout
-        // }
-        while ( IEC.status(PIN_IEC_CLK_IN) != PULLED );
-        IEC.release ( PIN_IEC_SRQ );
-    }
-    //IEC.release ( PIN_IEC_SRQ );
+//         // wait for talker to finish sending bit
+//         // if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED ) == TIMED_OUT )
+//         // {
+//         //     Debug_printv ( "wait for talker to finish sending bit n[%d]", n );
+//         //     IEC.flags |= ERROR;
+//         //     return data; // return error because timeout
+//         // }
+//         while ( IEC.status(PIN_IEC_CLK_IN) != PULLED );
+//         IEC.release ( PIN_IEC_SRQ );
+//     }
+//     //IEC.release ( PIN_IEC_SRQ );
 
-    return data;
-}
+//     return data;
+// }
 
 
 // STEP 1: READY TO SEND
