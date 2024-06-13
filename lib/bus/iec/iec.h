@@ -248,6 +248,7 @@ protected:
     struct _iecStatus
     {
         int8_t error;
+        uint8_t cmd;
         std::string msg;
         bool connected;
         int channel;
@@ -325,8 +326,9 @@ public:
      */
     systemBus get_bus();
 
-    void set_iec_status(int8_t error, const std::string& msg, bool connected, int channel) {
+    void set_iec_status(int8_t error, uint8_t cmd, const std::string& msg, bool connected, int channel) {
         iecStatus.error = error;
+        iecStatus.cmd = cmd;
         iecStatus.msg = msg;
         iecStatus.connected = connected;
         iecStatus.channel = channel;
@@ -336,6 +338,7 @@ public:
     std::vector<uint8_t> iec_status_to_vector() {
         std::vector<uint8_t> data;
         data.push_back(static_cast<uint8_t>(iecStatus.error));
+        data.push_back(iecStatus.cmd);
         data.push_back(iecStatus.connected ? 1 : 0);
         data.push_back(static_cast<uint8_t>(iecStatus.channel & 0xFF)); // it's only an int because of atoi from some basic commands, but it's never really more than 1 byte
 
@@ -348,7 +351,6 @@ public:
 
         return data;
     }
-
 };
 
 /**
@@ -619,6 +621,7 @@ public:
     bool pin_srq = false;
     bool pin_reset = false;
 
+    void init_gpio(gpio_num_t _pin);
     void pull ( uint8_t _pin );
     void release ( uint8_t _pin );
     bool status ( uint8_t _pin );

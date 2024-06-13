@@ -87,7 +87,7 @@ bool IRAM_ATTR IECProtocol::wait(size_t wait_us, bool watch_atn)
     return wait(wait_us, 0, watch_atn);
 }
 
-bool IECProtocol::wait(size_t wait_us, uint64_t start, bool watch_atn)
+bool IRAM_ATTR IECProtocol::wait(size_t wait_us, uint64_t start, bool watch_atn)
 {
     uint64_t current, elapsed;
     current = 0;

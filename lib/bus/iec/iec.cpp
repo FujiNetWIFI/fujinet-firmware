@@ -67,7 +67,7 @@ static void ml_iec_intr_task(void* arg)
     }
 }
 
-void init_gpio(gpio_num_t _pin)
+void systemBus::init_gpio(gpio_num_t _pin)
 {
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[_pin], PIN_FUNC_GPIO);
     gpio_set_direction(_pin, GPIO_MODE_INPUT);
@@ -480,8 +480,7 @@ void systemBus::read_command()
     if ( state < BUS_ACTIVE )
     {
         data.init();
-        releaseLines();
-        Debug_printv("here");
+        //releaseLines();
         return;
     }
 
@@ -895,14 +894,12 @@ void IRAM_ATTR systemBus::releaseLines(bool wait)
         protocol->timeoutWait ( PIN_IEC_ATN, RELEASED, TIMEOUT_DEFAULT, false );
     }
 
-    //Debug_printv( "Lines Released!" );
     //release ( PIN_IEC_SRQ );
 }
 
 void IRAM_ATTR systemBus::senderTimeout()
 {
     releaseLines();
-    Debug_printv("here");
     this->state = BUS_ERROR;
 
     protocol->wait( TIMING_EMPTY );
