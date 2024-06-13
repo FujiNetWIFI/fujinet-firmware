@@ -68,13 +68,13 @@ int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size
             }
         }
 
-        if ( IEC.state < BUS_ACTIVE || elapsed > FOREVER )
-        {
-            // Something is messed up.  Get outta here.
-            Debug_printv("wth? bus_state[%d]", IEC.state);
-            Debug_printv("pin[%d] target_status[%d] wait[%d] elapsed[%d]", pin, target_status, wait_us, elapsed);
-            return -1;
-        }
+        // if ( IEC.state < BUS_ACTIVE || elapsed > FOREVER )
+        // {
+        //     // Something is messed up.  Get outta here.
+        //     Debug_printv("wth? bus_state[%d]", IEC.state);
+        //     Debug_printv("pin[%d] target_status[%d] wait[%d] elapsed[%d]", pin, target_status, wait_us, elapsed);
+        //     return -1;
+        // }
     }
     //IEC.release ( PIN_IEC_SRQ );
 
