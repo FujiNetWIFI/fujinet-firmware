@@ -242,10 +242,6 @@ void IRAM_ATTR systemBus::service()
     // Command or Data Mode
     do
     {
-        // Exit if bus is offline
-        if (state == BUS_OFFLINE)
-            break;
-
         if (state == BUS_ACTIVE)
         {
             //pull ( PIN_IEC_SRQ );
@@ -360,10 +356,7 @@ void systemBus::read_command()
     if ( flags & ERROR )
     {
         Debug_printv("Error reading command. flags[%d] c[%X]", flags, c);
-        if (c == 0xFFFFFFFF)
-            state = BUS_OFFLINE;
-        else
-            state = BUS_ERROR;
+        state = BUS_ERROR;
         
         return;
     }
