@@ -43,7 +43,7 @@ namespace Protocol
          * @return elapsed time in microseconds, or -1 if ATN pulled, or -1 if timeout breached.
          * 
          */
-        virtual uint64_t timeoutWait(uint8_t pin, bool target_status, size_t wait_us = TIMEOUT_DEFAULT, bool watch_atn = true);
+        virtual uint16_t timeoutWait(uint8_t pin, bool target_status, size_t wait_us = TIMEOUT_DEFAULT, bool watch_atn = true);
 
         /**
          * @brief Wait for specified milliseconds, or until ATN status changes

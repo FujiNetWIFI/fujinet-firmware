@@ -11,7 +11,7 @@
 
 using namespace Protocol;
 
-uint64_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
+uint16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
 {
     uint64_t start = 0;
     uint64_t current = 0;

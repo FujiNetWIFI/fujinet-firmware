@@ -165,7 +165,7 @@ uint8_t CPBStandardSerial::receiveBits ()
 {
     // Listening for bits
     uint8_t data = 0;
-    int64_t bit_time = 0;  // Used to detect JiffyDOS
+    uint16_t bit_time = 0;  // Used to detect JiffyDOS
 
     //IEC.pull ( PIN_IEC_SRQ );
 #ifndef IEC_SPLIT_LINES
