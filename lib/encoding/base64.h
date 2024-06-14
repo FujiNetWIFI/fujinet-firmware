@@ -23,9 +23,6 @@ private:
     static std::unique_ptr<unsigned char[]> base64_gen_decode(const char* src, size_t len, size_t* out_len, const char* table);
 
 public:
-
-    std::string base64_buffer;
-
     /**
      * base64_encode - Base64 encode
      * @src: Data to be encoded
@@ -52,6 +49,14 @@ public:
      */
     static std::unique_ptr<unsigned char[]> decode(const char* src, size_t len, size_t* out_len);
     static std::unique_ptr<unsigned char[]> url_decode(const char* src, size_t len, size_t* out_len);
+
+    std::string get_buffer() const { return base64_buffer; }
+    void set_buffer(const std::string& buffer) { base64_buffer = buffer; }
+    void clear_buffer() { base64_buffer.clear(); }
+    void add_buffer(const std::string& extra) { base64_buffer += extra; }
+
+    std::string base64_buffer;
+
 };
 
 extern Base64 base64;

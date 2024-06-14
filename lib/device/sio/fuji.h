@@ -19,6 +19,8 @@
 #include "fujiDisk.h"
 #include "fujiCmd.h"
 
+#include "hash.h"
+
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 8
@@ -111,8 +113,8 @@ private:
     mbedtls_sha256_context _sha256;
     mbedtls_sha512_context _sha512;
 
-    char hash_mode = 0;
-
+    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+    
 protected:
     void sio_reset_fujinet();          // 0xFF
     void sio_net_get_ssid();           // 0xFE
@@ -143,7 +145,6 @@ protected:
     int sio_disk_image_umount(bool siomode=true, int slot=-1);  // 0xE9
 #endif
     void sio_get_adapter_config();     // 0xE8
-    void sio_get_adapter_config_extended(); // 0xE8
     void sio_new_disk();               // 0xE7
     void sio_unmount_host();           // 0xE6
     void sio_get_directory_position(); // 0xE5
@@ -170,9 +171,11 @@ protected:
     void sio_base64_decode_length();   // 0xCA
     void sio_base64_decode_output();   // 0xC9
     void sio_hash_input();             // 0xC8
-    void sio_hash_compute();           // 0xC7
+    void sio_hash_compute(bool clear_data); // 0xC7, 0xC3
     void sio_hash_length();            // 0xC6
     void sio_hash_output();            // 0xC5
+    void sio_get_adapter_config_extended(); // 0xC4
+    void sio_hash_clear();             // 0xC2
 
     void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;

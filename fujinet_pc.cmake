@@ -127,6 +127,7 @@ set(INCLUDE_DIRS include
     lib/fuji lib/bus lib/device lib/media
     lib/encrypt lib/base64
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
+    lib/encoding
     components_pc/mongoose
     components_pc/cJSON
     components_pc/libsmb2/include

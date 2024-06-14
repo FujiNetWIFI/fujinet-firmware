@@ -1176,54 +1176,26 @@ void rc2014Fuji::rc2014_hash_input()
     rc2014_send_ack();
     rc2014_recv_buffer((uint8_t *)p.data(), len);
     rc2014_send_ack();
-    base64.base64_buffer += std::string((const char *)p.data(), len);
+    hasher.add_data(p);
 
     rc2014_send_complete();
 }
 
-void rc2014Fuji::rc2014_hash_compute()
+void rc2014Fuji::rc2014_hash_compute(bool clear_data)
 {
-    uint16_t m = hash_mode = cmdFrame.aux1;
-
     Debug_printf("FUJI: HASH COMPUTE\n");
-
+    algorithm = Hash::to_algorithm(cmdFrame.aux1);
     rc2014_send_ack();
-
-    hasher.compute(m, base64.base64_buffer);
-    base64.base64_buffer.clear();
-    base64.base64_buffer.shrink_to_fit();
-
+    hasher.compute(algorithm, clear_data);
     rc2014_send_complete();
 }
 
 void rc2014Fuji::rc2014_hash_length()
 {
-    unsigned char r = 0;
-    uint16_t m = cmdFrame.aux1;
-
     Debug_printf("FUJI: HASH LENGTH\n");
-
-    switch (hash_mode)
-    {
-        case 0: // MD5
-            r = 16;
-            break;
-        case 1: // SHA1
-            r = 20;
-            break;
-        case 2: // SHA256
-            r = 32;
-            break;
-        case 3: // SHA512
-            r = 64;
-            break;
-    }
-
-    if (m == 1)  // Hex output
-        m <<= 1; // double it.
-
+    bool is_hex = cmdFrame.aux1;
+    uint8_t r = hasher.hash_length(algorithm, is_hex);
     rc2014_send_ack();
-
     rc2014_send_buffer((uint8_t *)r, 1);
     rc2014_flush();
     rc2014_send_complete();
@@ -1231,17 +1203,20 @@ void rc2014Fuji::rc2014_hash_length()
 
 void rc2014Fuji::rc2014_hash_output()
 {
-    uint16_t olen = 0;
-    uint16_t m = cmdFrame.aux1;
-
     Debug_printf("FUJI: HASH OUTPUT\n");
-
-    std::vector<uint8_t> o = hasher.hash_output(m, hash_mode, olen);
+    uint16_t is_hex = cmdFrame.aux1;
+    std::vector<uint8_t> hashed_data = hasher.hash(algorithm, is_hex);
     rc2014_send_ack();
-
-    rc2014_send_buffer(o.data(), olen);
+    rc2014_send_buffer(hashed_data.data(), hashed_data.size());
     rc2014_flush();
+    rc2014_send_complete();
+}
 
+void rc2014Fuji::rc2014_hash_clear()
+{
+    Debug_printf("FUJI: HASH INIT\n");
+    rc2014_send_ack();
+    hasher.init();
     rc2014_send_complete();
 }
 
@@ -1501,13 +1476,19 @@ void rc2014Fuji::rc2014_process(uint32_t commanddata, uint8_t checksum)
         rc2014_hash_input();
         break;
     case FUJICMD_HASH_COMPUTE:
-        rc2014_hash_compute();
+        rc2014_hash_compute(true);
+        break;
+    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
+        rc2014_hash_compute(false);
         break;
     case FUJICMD_HASH_LENGTH:
         rc2014_hash_length();
         break;
     case FUJICMD_HASH_OUTPUT:
         rc2014_hash_output();
+        break;
+    case FUJICMD_HASH_CLEAR:
+        rc2014_hash_clear();
         break;
     default:
         fnUartDebug.printf("rc2014_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);

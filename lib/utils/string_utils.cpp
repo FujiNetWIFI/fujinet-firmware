@@ -269,17 +269,18 @@ namespace mstr {
         return petsciiString;
     }
 
-    // convert string to hex
-    std::string toHex(const char *input, size_t size)
+    // convert bytes to hex
+    std::string toHex(const uint8_t *input, size_t size)
     {
         std::stringstream ss;
         for(int i=0; i<size; ++i)
             ss << std::uppercase << std::setfill('0') << std::setw(2) << std::hex << (int)input[i];
         return ss.str();
     }
+    // convert string to hex
     std::string toHex(const std::string &input)
     {
-        return toHex(input.c_str(), input.size());
+        return toHex((const uint8_t *)input.c_str(), input.size());
     }
 
     // convert hex char to it's integer value
