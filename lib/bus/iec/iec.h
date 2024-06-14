@@ -619,6 +619,7 @@ public:
     bool pin_srq = false;
     bool pin_reset = false;
 
+    void init_gpio(gpio_num_t _pin);
     void pull ( uint8_t _pin );
     void release ( uint8_t _pin );
     bool status ( uint8_t _pin );

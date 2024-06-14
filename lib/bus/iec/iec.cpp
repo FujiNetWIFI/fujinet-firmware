@@ -67,7 +67,7 @@ static void ml_iec_intr_task(void* arg)
     }
 }
 
-void init_gpio(gpio_num_t _pin)
+void systemBus::init_gpio(gpio_num_t _pin)
 {
     PIN_FUNC_SELECT(GPIO_PIN_MUX_REG[_pin], PIN_FUNC_GPIO);
     gpio_set_direction(_pin, GPIO_MODE_INPUT);
