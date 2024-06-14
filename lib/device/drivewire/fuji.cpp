@@ -699,25 +699,16 @@ void drivewireFuji::read_app_key()
         return;
     }
 
-    struct
-    {
-        uint16_t size;
-        uint8_t value[MAX_APPKEY_LEN];
-    } __attribute__((packed)) _response;
-    memset(&_response, 0, sizeof(_response));
-
-    size_t count = fread(_response.value, 1, sizeof(_response.value), fIn);
-
+    std::vector<uint8_t> buffer(MAX_APPKEY_LEN);
+    size_t count = fread(buffer.data(), 1, buffer.size(), fIn);
     fclose(fIn);
     Debug_printf("Read %d bytes from input file\n", count);
+    
+    uint16_t sizeNetOrder = htons(count);
 
-    _response.size = count;
-
-    // Endian flip of size
-    uint16_t tmp = _response.size << 8 | _response.size >> 8;
-    _response.size = tmp;
-
-    response = std::string((const char *)&response);
+    response.clear();
+    response.append(reinterpret_cast<char*>(&sizeNetOrder), sizeof(sizeNetOrder));
+    response.append(reinterpret_cast<char*>(buffer.data()), count);
 
     errorCode = 1;
 }
