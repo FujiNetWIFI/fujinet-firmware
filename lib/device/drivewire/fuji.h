@@ -13,6 +13,8 @@
 #include "fujiDisk.h"
 #include "fujiCmd.h"
 
+#include "hash.h"
+
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 4
 #define MAX_NETWORK_DEVICES 8
@@ -77,7 +79,7 @@ private:
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
-    uint8_t hash_mode = 0;
+    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
 #ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
@@ -117,7 +119,7 @@ protected:
     void unmount_host();           // 0xE6
     void get_directory_position(); // 0xE5
     void set_directory_position(); // 0xE4
-    void set_hdrivewire_index();         // 0xE3
+    void set_hdrivewire_index();   // 0xE3
     void set_device_filename();    // 0xE2
     void set_host_prefix();        // 0xE1
     void get_host_prefix();        // 0xE0
@@ -140,9 +142,12 @@ protected:
     void base64_decode_length();   // 0xCA
     void base64_decode_output();   // 0xC9
     void hash_input();             // 0xC8
-    void hash_compute();           // 0xC7
+    void hash_compute(bool clear_data); // 0xC7, 0xC3
     void hash_length();            // 0xC6
     void hash_output();            // 0xC5
+    // void get_adapter_config_extended(); // 0xC4
+    void hash_clear();             // 0xC2
+
     void send_error();             // 0x02
     void send_response();          // 0x01
     void ready();                  // 0x00

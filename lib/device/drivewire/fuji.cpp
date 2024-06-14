@@ -1505,11 +1505,11 @@ void drivewireFuji::base64_decode_output()
 
 void drivewireFuji::hash_input()
 {
+    Debug_printf("FUJI: HASH INPUT\n");
     uint8_t lenl = fnDwCom.read();
     uint8_t lenh = fnDwCom.read();
     uint16_t len = lenh << 8 | lenl;
 
-   Debug_printf("FUJI: HASH INPUT\n");
 
     if (!len)
     {
@@ -1518,72 +1518,43 @@ void drivewireFuji::hash_input()
         return;
     }
 
-    std::vector<unsigned char> p(len);
-    fnDwCom.readBytes(p.data(),len);
-    base64.base64_buffer += std::string((const char *)p.data(), len);
-
+    std::vector<uint8_t> p(len);
+    fnDwCom.readBytes(p.data(), len);
+    hasher.add_data(p);
     errorCode = 1;
 }
 
-void drivewireFuji::hash_compute()
+void drivewireFuji::hash_compute(bool clear_data)
 {
-    uint8_t m = hash_mode = fnDwCom.read();
-
     Debug_printf("FUJI: HASH COMPUTE\n");
-
-    hasher.compute(m, base64.base64_buffer);
-    base64.base64_buffer.clear();
-    base64.base64_buffer.shrink_to_fit();
-
+    algorithm = Hash::to_algorithm(fnDwCom.read());
+    hasher.compute(algorithm, clear_data);
     errorCode = 1;
 }
 
 void drivewireFuji::hash_length()
 {
-    unsigned char r = 0;
-    uint8_t m = fnDwCom.read();
-
-    switch (hash_mode)
-    {
-    case 0: // MD5
-        r = 16;
-        break;
-    case 1: // SHA1
-        r = 20;
-        break;
-    case 2: // SHA256
-        r = 32;
-        break;
-    case 3: // SHA512
-        r = 64;
-        break;
-    }
-
-    if (m == 1)  // Hex output
-        m <<= 1; // double it.
-
-    response.clear();
-    response.shrink_to_fit();
-
+    Debug_printf("FUJI: HASH LENGTH\n");
+    uint8_t is_hex = fnDwCom.read() == 1;
+    uint8_t r = hasher.hash_length(algorithm, is_hex);
     response = std::string((const char *)&r, 1);
-
     errorCode = 1;
 }
 
 void drivewireFuji::hash_output()
 {
-    uint16_t olen = 0;
-    uint8_t m = fnDwCom.read();
-
     Debug_printf("FUJI: HASH OUTPUT\n");
 
-    std::vector<uint8_t> o = hasher.hash_output(m, hash_mode, olen);
+    uint8_t is_hex = fnDwCom.read() == 1;
+    std::vector<uint8_t> hashed_data = hasher.hash(algorithm, is_hex);
+    response = std::string(hashed_data.begin(), hashed_data.end());
+    errorCode = 1;
+}
 
-    response.clear();
-    response.shrink_to_fit();
-
-    response = std::string((const char *)o.data(), olen);
-
+void drivewireFuji::hash_clear()
+{
+    Debug_printf("FUJI: HASH INIT\n");
+    hasher.init();
     errorCode = 1;
 }
 
@@ -1778,13 +1749,19 @@ void drivewireFuji::process()
         hash_input();
         break;
     case FUJICMD_HASH_COMPUTE:
-        hash_compute();
+        hash_compute(true);
+        break;
+    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
+        hash_compute(false);
         break;
     case FUJICMD_HASH_LENGTH:
         hash_length();
         break;
     case FUJICMD_HASH_OUTPUT:
         hash_output();
+        break;
+    case FUJICMD_HASH_CLEAR:
+        hash_clear();
         break;
     case FUJICMD_SET_BOOT_MODE:
         set_boot_mode();

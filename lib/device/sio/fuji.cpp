@@ -28,8 +28,8 @@
 #include "utils.h"
 #include "string_utils.h"
 
-#include "../../encoding/base64.h"
-#include "../../encoding/hash.h"
+#include "base64.h"
+#include "hash.h"
 
 #define ADDITIONAL_DETAILS_BYTES 10
 
@@ -1496,13 +1496,7 @@ void sioFuji::sio_get_adapter_config_extended()
 // Get network adapter configuration
 void sioFuji::sio_get_adapter_config()
 {
-    Debug_printf("Fuji cmd: GET ADAPTER CONFIG (aux1:%hu)\r\n", cmdFrame.aux1);
-    if (cmdFrame.aux1 == 1)
-    {
-        Debug_println("Returning extended adapter config information");
-        sio_get_adapter_config_extended();
-        return;
-    }
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
 
     // Response to  FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
@@ -2338,10 +2332,8 @@ void sioFuji::sio_base64_decode_output()
 
 void sioFuji::sio_hash_input()
 {
-    uint16_t len = sio_get_aux();
-
     Debug_printf("FUJI: HASH INPUT\n");
-
+    uint16_t len = sio_get_aux();
     if (!len)
     {
         Debug_printf("Invalid length. Aborting");
@@ -2351,60 +2343,39 @@ void sioFuji::sio_hash_input()
 
     std::vector<unsigned char> p(len);
     bus_to_peripheral(p.data(), len);
-    base64.base64_buffer += std::string((const char *)p.data(), len);
-
+    hasher.add_data(p);
     sio_complete();
 }
 
-void sioFuji::sio_hash_compute()
+void sioFuji::sio_hash_compute(bool clear_data)
 {
-    uint16_t m = hash_mode = sio_get_aux();
-
     Debug_printf("FUJI: HASH COMPUTE\n");
-
-    hasher.compute(m, base64.base64_buffer);
-    base64.base64_buffer.clear();
-    base64.base64_buffer.shrink_to_fit();
-
+    algorithm = Hash::to_algorithm(sio_get_aux());
+    hasher.compute(algorithm, clear_data);
     sio_complete();
 }
 
 void sioFuji::sio_hash_length()
 {
-    unsigned char r = 0;
-    uint16_t m = sio_get_aux();
-
-    switch (hash_mode)
-    {
-    case 0: // MD5
-        r = 16;
-        break;
-    case 1: // SHA1
-        r = 20;
-        break;
-    case 2: // SHA256
-        r = 32;
-        break;
-    case 3: // SHA512
-        r = 64;
-        break;
-    }
-
-    if (m == 1)  // Hex output
-        m <<= 1; // double it.
-
+    Debug_printf("FUJI: HASH LENGTH\n");
+    uint16_t is_hex = sio_get_aux() == 1;
+    uint8_t r = hasher.hash_length(algorithm, is_hex);
     bus_to_computer((uint8_t *)&r, 1, false);
 }
 
 void sioFuji::sio_hash_output()
 {
-    uint16_t olen = 0;
-    uint16_t m = sio_get_aux();
-
     Debug_printf("FUJI: HASH OUTPUT\n");
+    uint16_t is_hex = sio_get_aux() == 1;
+    std::vector<uint8_t> hashed_data = hasher.hash(algorithm, is_hex);
+    bus_to_computer(hashed_data.data(), hashed_data.size(), false);
+}
 
-    std::vector<uint8_t> o = hasher.hash_output(m, hash_mode, olen);
-    bus_to_computer(o.data(), olen, false);
+void sioFuji::sio_hash_clear()
+{
+    Debug_printf("FUJI: HASH CLEAR\n");
+    hasher.init();
+    sio_complete();
 }
 
 void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
@@ -2508,6 +2479,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_ack();
         sio_get_adapter_config();
         break;
+    case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
+        sio_ack();
+        sio_get_adapter_config_extended();
+        break;
     case FUJICMD_NEW_DISK:
         sio_late_ack();
         sio_new_disk();
@@ -2610,7 +2585,11 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         break;
     case FUJICMD_HASH_COMPUTE:
         sio_ack();
-        sio_hash_compute();
+        sio_hash_compute(true);
+        break;
+    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
+        sio_ack();
+        sio_hash_compute(false);
         break;
     case FUJICMD_HASH_LENGTH:
         sio_ack();
@@ -2619,6 +2598,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_HASH_OUTPUT:
         sio_ack();
         sio_hash_output();
+        break;
+    case FUJICMD_HASH_CLEAR:
+        sio_ack();
+        sio_hash_clear();
         break;
     default:
         sio_nak();

@@ -20,6 +20,8 @@
 #include "../fuji/fujiDisk.h"
 #include "../fuji/fujiCmd.h"
 
+#include "hash.h"
+
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
@@ -137,6 +139,8 @@ private:
     std::unordered_map<uint8_t, IWMControlHandlers> control_handlers;
     std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
 
+    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+
 protected:
     void iwm_dummy_command();                    // control 0xAA
     void iwm_hello_world();                      // status 0xAA
@@ -192,6 +196,13 @@ protected:
     void iwm_ctrl_enable_device();          // 0xD5
     void iwm_ctrl_disable_device();         // 0xD4
     void send_stat_get_enable();        // 0xD1
+
+    void iwm_ctrl_hash_input();                      // 0xC8
+    void iwm_ctrl_hash_compute(bool clear_data);     // 0xC7, 0xC3
+    void iwm_stat_hash_length();                     // 0xC6
+    void iwm_stat_hash_output();                     // 0xC5
+    void iwm_ctrl_hash_clear();                      // 0xC2
+
     void iwm_stat_fuji_status();        // 0x53
 
     void shutdown() override;

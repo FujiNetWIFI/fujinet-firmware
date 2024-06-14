@@ -15,6 +15,8 @@
 #include "fujiDisk.h"
 #include "fujiCmd.h"
 
+#include "hash.h"
+
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 4
@@ -90,7 +92,7 @@ private:
     mbedtls_sha256_context _sha256;
     mbedtls_sha512_context _sha512;
 
-    char hash_mode = 0;
+    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
 protected:
     void rc2014_reset_fujinet();          // 0xFF
@@ -139,9 +141,13 @@ protected:
     void rc2014_base64_decode_length();   // 0xCA
     void rc2014_base64_decode_output();   // 0xC9
     void rc2014_hash_input();             // 0xC8
-    void rc2014_hash_compute();           // 0xC7
+    void rc2014_hash_compute(bool clear_data); // 0xC7, 0xC3
     void rc2014_hash_length();            // 0xC6
     void rc2014_hash_output();            // 0xC5
+    void rc2014_hash_clear();             // 0xC2
+
+    // TODO
+    // void rc2014_get_adapter_config_extended(); // 0xC4
 
     void rc2014_test_command();
 

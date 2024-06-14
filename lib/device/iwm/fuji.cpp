@@ -1,4 +1,5 @@
 #ifdef BUILD_APPLE
+#include <algorithm>
 #include <array>
 #include <functional>
 #include <memory>
@@ -53,6 +54,14 @@ iwmFuji::iwmFuji()
         { FUJICMD_DISABLE_DEVICE, [this]()             { this->iwm_ctrl_disable_device(); }},           // 0xD4
         { FUJICMD_ENABLE_DEVICE, [this]()              { this->iwm_ctrl_enable_device(); }},            // 0xD5
         { FUJICMD_GET_SCAN_RESULT, [this]()            { this->iwm_ctrl_net_scan_result(); }},          // 0xFC
+
+        { FUJICMD_HASH_INPUT, [this]()                 { this->iwm_ctrl_hash_input(); }},               // 0xC8
+        { FUJICMD_HASH_COMPUTE, [this]()               { this->iwm_ctrl_hash_compute(true); }},         // 0xC7
+        { FUJICMD_HASH_COMPUTE_NO_CLEAR, [this]()      { this->iwm_ctrl_hash_compute(false); }},        // 0xC7
+        { FUJICMD_HASH_LENGTH, [this]()                { this->iwm_stat_hash_length(); }},              // 0xC6
+        { FUJICMD_HASH_OUTPUT, [this]()                { this->iwm_stat_hash_output(); }},              // 0xC5
+        { FUJICMD_HASH_CLEAR, [this]()                 { this->iwm_ctrl_hash_clear(); }},               // 0xC2
+
         { FUJICMD_MOUNT_HOST, [this]()                 { this->iwm_ctrl_mount_host(); }},               // 0xF9
         { FUJICMD_NEW_DISK, [this]()                   { this->iwm_ctrl_new_disk(); }},                 // 0xE7
         { FUJICMD_OPEN_APPKEY, [this]()                { this->iwm_ctrl_open_app_key(); }},             // 0xDC
@@ -1460,4 +1469,47 @@ void iwmFuji::handle_ctl_eject(uint8_t spid)
 		theFuji._populate_slots_from_config();
 	}
 }
+
+void iwmFuji::iwm_ctrl_hash_input()
+{
+    std::vector<uint8_t> data(data_len, 0);
+    std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
+    hasher.add_data(data);
+}
+
+void iwmFuji::iwm_ctrl_hash_compute(bool clear_data)
+{
+    Debug_printf("FUJI: HASH COMPUTE\n");
+    algorithm = Hash::to_algorithm(data_buffer[0]);
+    hasher.compute(algorithm, clear_data);
+}
+
+void iwmFuji::iwm_stat_hash_length()
+{
+    uint8_t is_hex = data_buffer[0] == 1;
+    uint8_t r = hasher.hash_length(algorithm, is_hex);
+
+	memset(data_buffer, 0, sizeof(data_buffer));
+	data_buffer[0] = r;
+	data_len = 1;
+}
+
+void iwmFuji::iwm_stat_hash_output()
+{
+    Debug_printf("FUJI: HASH OUTPUT\n");
+
+    uint8_t is_hex = data_buffer[0] == 1;
+    std::vector<uint8_t> hashed_data = hasher.hash(algorithm, is_hex);
+	memset(data_buffer, 0, sizeof(data_buffer));
+	size_t actual_size = std::min(hashed_data.size(), static_cast<size_t>(MAX_DATA_LEN));
+	std::copy_n(hashed_data.begin(), actual_size, data_buffer);
+	data_len = static_cast<int>(actual_size);
+}
+
+void iwmFuji::iwm_ctrl_hash_clear()
+{
+    hasher.init();
+}
+
+
 #endif /* BUILD_APPLE */
