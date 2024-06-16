@@ -25,7 +25,7 @@ using namespace Protocol;
 
 systemBus IEC;
 
-static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
+static void IRAM_ATTR cbm_on_atn_isr_handler(void *arg)
 {
     systemBus *b = (systemBus *)arg;
 
@@ -34,13 +34,26 @@ static void IRAM_ATTR cbm_on_attention_isr_handler(void *arg)
     // Go to listener mode and get command
     b->release(PIN_IEC_CLK_OUT);
     b->pull(PIN_IEC_DATA_OUT);
-//    b->release(PIN_IEC_SRQ);
 
     b->flags = CLEAR;
     b->flags |= ATN_PULLED;
     b->state = BUS_ACTIVE;
 
     //b->release(PIN_IEC_SRQ);
+}
+
+static void IRAM_ATTR cbm_on_clk_isr_handler(void *arg)
+{
+    systemBus *b = (systemBus *)arg;
+
+    //IEC.pull(PIN_IEC_SRQ);
+
+    // get bit
+    b->byte >>= 1;
+    if ( !IEC.status ( PIN_IEC_DATA_IN ) ) b->byte |= 0x80;
+    b->bit++;
+
+    //IEC.release(PIN_IEC_SRQ);
 }
 
 /**
@@ -182,9 +195,19 @@ void systemBus::setup()
         .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
         .intr_type = GPIO_INTR_NEGEDGE              // interrupt of falling edge
     };
-    //configure GPIO with the given settings
     gpio_config(&io_conf);
-    gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_attention_isr_handler, this);
+    gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_atn_isr_handler, this);
+
+    // Setup interrupt config for CLK
+    io_conf = {
+        .pin_bit_mask = ( 1ULL << PIN_IEC_CLK_IN ),    // bit mask of the pins that you want to set
+        .mode = GPIO_MODE_INPUT,                    // set as input mode
+        .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
+        .intr_type = GPIO_INTR_POSEDGE              // interrupt of rising edge
+    };
+    gpio_config(&io_conf);
+    gpio_isr_handler_add((gpio_num_t)PIN_IEC_CLK_IN, cbm_on_clk_isr_handler, this);
 
     // Start SRQ timer service
     timer_start();
@@ -226,11 +249,11 @@ void IRAM_ATTR systemBus::service()
             return;
         }
 
-        Debug_printf("IEC Reset! reset[%d]\r\n", pin_reset);
+        //Debug_printf("IEC Reset! reset[%d]\r\n", pin_reset);
         data.init(); // Clear bus data
         releaseLines();
         state = BUS_IDLE;
-        Debug_printv("bus init");
+        //Debug_printv("bus init");
 
         // Reset virtual devices
         reset_all_our_devices();
@@ -305,9 +328,7 @@ void IRAM_ATTR systemBus::service()
                     device_state = d->process();
                     if ( device_state < DEVICE_ACTIVE )
                     {
-                        releaseLines();
-                        data.init();
-                        Debug_printv("bus init");
+                        state = BUS_RELEASE;
                     }
                 // }
             }
@@ -326,8 +347,13 @@ void IRAM_ATTR systemBus::service()
 
     } while( state > BUS_IDLE );
 
-    // Cleanup and Re-enable Interrupt
-    //gpio_intr_enable((gpio_num_t)PIN_IEC_ATN);
+     // Clean Up
+    if ( state < BUS_RELEASE )
+    {
+        releaseLines();
+        data.init();
+        Debug_printv("bus init");
+    }
 
     //Debug_printv ( "primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", data.primary, data.secondary, state, flags );
     //Debug_printv ( "device[%d] channel[%d]", data.device, data.channel);
@@ -418,7 +444,7 @@ void systemBus::read_command()
         case IEC_UNTALK:
             data.primary = IEC_UNTALK;
             data.secondary = 0x00;
-            state = BUS_PROCESS;
+            state = BUS_RELEASE;
             Debug_printf(" (5F UNTALK)\r\n");
             break;
 

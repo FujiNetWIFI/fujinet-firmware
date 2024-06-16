@@ -91,6 +91,7 @@ typedef enum
     BUS_IDLE = 0,     // Nothing recieved of our concern
     BUS_ACTIVE = 1,   // ATN is pulled and a command byte is expected
     BUS_PROCESS = 2,  // A command is ready to be processed
+    BUS_RELEASE = 3   // Clean Up
 } bus_state_t;
 
 /**
@@ -264,11 +265,11 @@ protected:
         if (commanddata.primary == IEC_LISTEN)
             state = DEVICE_LISTEN;
         else if (commanddata.primary == IEC_UNLISTEN)
-            state = DEVICE_PROCESS;
+            state = DEVICE_IDLE;
         else if (commanddata.primary == IEC_TALK)
             state = DEVICE_TALK;
         else if (commanddata.primary == IEC_UNTALK)
-            state = DEVICE_PROCESS;
+            state = DEVICE_IDLE;
 
         return state;
     }
@@ -615,6 +616,9 @@ public:
     void senderTimeout();
 
 
+    uint8_t bit = 0;
+    uint8_t byte = 0;
+
     bool pin_atn = false;
     bool pin_clk = false;
     bool pin_data = false;
@@ -626,6 +630,20 @@ public:
     void release ( uint8_t _pin );
     bool status ( uint8_t _pin );
     bool status ();
+
+    uint8_t read()
+    {
+        bit = 0;
+        byte = 0;
+        while ( bit < 8 )
+        {
+            if ( flags & ATN_PULLED )
+                break;
+
+            esp_rom_delay_us( 3 );
+        }
+        return byte;
+    }
 
     void debugTiming();
 };
