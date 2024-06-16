@@ -480,8 +480,7 @@ void systemBus::read_command()
     if ( state < BUS_ACTIVE )
     {
         data.init();
-        releaseLines();
-        Debug_printv("here");
+        //releaseLines();
         return;
     }
 
@@ -895,14 +894,12 @@ void IRAM_ATTR systemBus::releaseLines(bool wait)
         protocol->timeoutWait ( PIN_IEC_ATN, RELEASED, TIMEOUT_DEFAULT, false );
     }
 
-    //Debug_printv( "Lines Released!" );
     //release ( PIN_IEC_SRQ );
 }
 
 void IRAM_ATTR systemBus::senderTimeout()
 {
     releaseLines();
-    Debug_printv("here");
     this->state = BUS_ERROR;
 
     protocol->wait( TIMING_EMPTY );
