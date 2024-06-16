@@ -27,29 +27,6 @@
 
 using namespace Protocol;
 
-// Interrupt config for CLK
-gpio_config_t io_conf = {
-    .pin_bit_mask = ( 1ULL << PIN_IEC_CLK_IN ),    // bit mask of the pins that you want to set
-    .mode = GPIO_MODE_INPUT,                    // set as input mode
-    .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
-    .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
-    .intr_type = GPIO_INTR_POSEDGE              // interrupt of rising edge
-};
-
-
-static void IRAM_ATTR receiveBits(void *arg)
-{
-    CPBStandardSerial *p = (CPBStandardSerial *)arg;
-
-    //IEC.pull(PIN_IEC_SRQ);
-
-    // get bit
-    p->data >>= 1;
-    if ( !IEC.status ( PIN_IEC_DATA_IN ) ) p->data |= 0x80;
-    p->bit_num++;
-
-    //IEC.release(PIN_IEC_SRQ);
-}
 
 CPBStandardSerial::CPBStandardSerial()
 {
@@ -90,10 +67,6 @@ uint8_t CPBStandardSerial::receiveByte()
     // line  to  false.    Suppose  there  is  more  than one listener.  The Data line will go false
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
     // to  accept  data.  What  happens  next  is  variable.
-
-    //configure GPIO with the given settings
-    gpio_config(&io_conf);
-    gpio_isr_handler_add((gpio_num_t)PIN_IEC_CLK_IN, receiveBits, this);
 
     // Wait for all other devices to release the data line
     if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
@@ -146,14 +119,7 @@ uint8_t CPBStandardSerial::receiveByte()
     // STEP 3: RECEIVING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
     //int8_t data = receiveBits();
-    data = 0;
-    bit_num = 0;
-    while ( bit_num < 8 )
-    {
-        esp_rom_delay_us( 4 );
-    }
-    gpio_isr_handler_remove((gpio_num_t)PIN_IEC_CLK_IN);
-    IEC.init_gpio( PIN_IEC_CLK_IN );
+    uint8_t data = IEC.read();
     //IEC.release ( PIN_IEC_SRQ );
 
     // STEP 4: FRAME HANDSHAKE
