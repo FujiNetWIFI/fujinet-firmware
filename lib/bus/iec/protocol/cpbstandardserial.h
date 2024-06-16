@@ -39,8 +39,6 @@ namespace Protocol
 
 
         public:
-        uint8_t bit_num = 0;
-        uint8_t data = 0;
 
         /**
          * @brief ctor
