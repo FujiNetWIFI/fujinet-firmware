@@ -352,6 +352,13 @@ public:
 
         return data;
     }
+
+    void reset_state() {
+        payload.clear();
+        std::queue<std::string>().swap(response_queue);
+        pt.clear();
+        pt.shrink_to_fit();
+    }
 };
 
 /**
