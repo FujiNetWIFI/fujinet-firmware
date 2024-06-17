@@ -123,6 +123,9 @@ private:
     int last_command = -1;
 
 protected:
+    // is the cmd supported by RAW?
+    bool is_supported(uint8_t cmd);
+
     // helper functions
     void net_store_ssid(std::string ssid, std::string password);
 
@@ -203,7 +206,8 @@ protected:
     void enable_udpstream();
     
     // 0xEA
-    void net_get_wifi_enabled();
+    uint8_t net_get_wifi_enabled();
+    void net_get_wifi_enabled_raw();
     
     // 0xE9
     bool disk_image_umount(uint8_t deviceSlot);

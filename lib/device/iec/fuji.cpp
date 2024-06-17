@@ -175,6 +175,14 @@ device_state_t iecFuji::process()
             // this is a new command being sent
             is_raw_command = (payload.size() == 2 && payload[0] == 0x01); // marker byte
             if (is_raw_command) {
+                if (!is_supported(payload[1])) {
+                    Debug_printv("ERROR: Unsupported cmd: x%02x, ignoring\n", payload[1]);
+                    last_command = payload[1];
+                    state = DEVICE_ERROR;
+                    set_fuji_iec_status(DEVICE_ERROR, "Unrecognised command");
+                    // IEC.senderTimeout();
+                    return state;
+                }
                 // Debug_printf("RAW COMMAND - trying immediate action on it\r\n");
                 // if it is an immediate command (no parameters), current_fuji_cmd will be reset to -1,
                 // otherwise, it stays set until further data is received to process it
@@ -302,6 +310,52 @@ void iecFuji::process_basic_commands()
 
 }
 
+bool iecFuji::is_supported(uint8_t cmd)
+{
+    bool result = false;
+
+    switch (cmd)
+    {
+    case FUJICMD_CLOSE_APPKEY:
+    case FUJICMD_CLOSE_DIRECTORY:
+    case FUJICMD_CONFIG_BOOT:
+    case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
+    case FUJICMD_GET_ADAPTERCONFIG:
+    case FUJICMD_GET_DEVICE_FULLPATH:
+    case FUJICMD_GET_DIRECTORY_POSITION:
+    case FUJICMD_GET_SCAN_RESULT:
+    case FUJICMD_GET_SSID:
+    case FUJICMD_GET_WIFI_ENABLED:
+    case FUJICMD_GET_WIFISTATUS:
+    case FUJICMD_MOUNT_ALL:
+    case FUJICMD_MOUNT_HOST:
+    case FUJICMD_MOUNT_IMAGE:
+    case FUJICMD_OPEN_APPKEY:
+    case FUJICMD_OPEN_DIRECTORY:
+    case FUJICMD_READ_APPKEY:
+    case FUJICMD_READ_DEVICE_SLOTS:
+    case FUJICMD_READ_DIR_ENTRY:
+    case FUJICMD_READ_HOST_SLOTS:
+    case FUJICMD_RESET:
+    case FUJICMD_SCAN_NETWORKS:
+    case FUJICMD_SET_BOOT_MODE:
+    case FUJICMD_SET_DEVICE_FULLPATH:
+    case FUJICMD_SET_DIRECTORY_POSITION:
+    case FUJICMD_SET_SSID:
+    case FUJICMD_SET_STATUS:
+    case FUJICMD_STATUS:
+    case FUJICMD_UNMOUNT_HOST:
+    case FUJICMD_UNMOUNT_IMAGE:
+    case FUJICMD_WRITE_APPKEY:
+    case FUJICMD_WRITE_DEVICE_SLOTS:
+    case FUJICMD_WRITE_HOST_SLOTS:
+        result = true;
+        break;
+    }
+
+    return result;
+}
+
 /*
  * During this phase, we will process any data sent to us in the follow up parameter data after the initial "open".
  * At the end, we can unset the current_fuji_cmd to show we have finished, and set any iecStatus value.
@@ -395,6 +449,9 @@ void iecFuji::process_immediate_raw_cmds()
         break;
     case FUJICMD_GET_WIFISTATUS:
         net_get_wifi_status_raw();
+        break;
+    case FUJICMD_GET_WIFI_ENABLED:
+        net_get_wifi_enabled_raw();
         break;
     case FUJICMD_CLOSE_DIRECTORY:
         close_directory_raw();
@@ -594,9 +651,15 @@ void iecFuji::net_get_wifi_status_basic()
     set_fuji_iec_status(0, "ok");
 }
 
-void iecFuji::net_get_wifi_enabled()
+void iecFuji::net_get_wifi_enabled_raw()
 {
-    // Not needed, will remove.
+    responseV.push_back(net_get_wifi_enabled());
+    set_fuji_iec_status(0, "");
+}
+
+uint8_t iecFuji::net_get_wifi_enabled()
+{
+    return Config.get_wifi_enabled() ? 1 : 0;
 }
 
 void iecFuji::unmount_host_basic()
@@ -2035,12 +2098,22 @@ void iecFuji::get_device_filename_raw()
     }
 
     std::string result = get_device_filename(ds);
-    responseV.assign(result.begin(), result.end());
+    Debug_printf("get_device_filename_raw: result = >%s<\r\n", result.c_str());
+    if (result == "") {
+        Debug_printf("Adding zero byte to responseV\r\n");
+        responseV.push_back(0);
+    } else {
+        responseV.assign(result.begin(), result.end());
+    }
     set_fuji_iec_status(0, "");
 }
 
 std::string iecFuji::get_device_filename(uint8_t ds)
 {
+    char *fp = &_fnDisks[ds].filename[0];
+    if (*fp == 0) {
+        return std::string();
+    }
     return std::string(_fnDisks[ds].filename);
 }
 
