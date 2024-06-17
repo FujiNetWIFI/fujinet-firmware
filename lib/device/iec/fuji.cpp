@@ -2382,13 +2382,16 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 {
     // File modified date-time
     struct tm *modtime = localtime(&f->modified_time);
-    modtime->tm_mon++;
-    modtime->tm_year -= 70;
 
-    dest[0] = modtime->tm_year;
-    dest[1] = modtime->tm_mon;
-    dest[2] = modtime->tm_mday;
-    dest[3] = modtime->tm_hour;
+    // std::string fTime = mstr::toHex((const uint8_t *) &(f->modified_time), sizeof(time_t));
+    // std::string mTime = mstr::toHex((const uint8_t *) modtime, sizeof(struct tm));
+
+    // Debug_printf("file: '%s'\r\nfTim: [%s]\r\n mT1: [%s]\r\n", f->filename, fTime.c_str(), mTime.c_str());
+
+    dest[0] = modtime->tm_year;          // +1900 = year
+    dest[1] = modtime->tm_mon + 1;       // month is 0 indexed
+    dest[2] = modtime->tm_mday;          // day of month is 1 indexed
+    dest[3] = modtime->tm_hour;          // the local hour with TZ offset of device applied
     dest[4] = modtime->tm_min;
     dest[5] = modtime->tm_sec;
 
@@ -2407,6 +2410,11 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
     // File type
     dest[9] = MediaType::discover_mediatype(f->filename);
+
+    // what was generated... and altered :(
+    // std::string dData = mstr::toHex((const uint8_t *) dest, 10);
+    // mTime = mstr::toHex((const uint8_t *) modtime, sizeof(struct tm));
+    // Debug_printf(" mT2: [%s]\r\ndata: [%s]\r\n", mTime.c_str(), dData.c_str());
 }
 
 std::string iecFuji::process_directory_entry(uint8_t maxlen, uint8_t addtlopts) {
@@ -2416,7 +2424,7 @@ std::string iecFuji::process_directory_entry(uint8_t maxlen, uint8_t addtlopts) 
         return std::string(2, char(0x7F));
     }
 
-    Debug_printf("::read_direntry \"%s\"\n", f->filename);
+    Debug_printf("::read_direntry \"%s\"\r\n", f->filename);
 
     std::string entry;
     if (addtlopts & 0x80) {

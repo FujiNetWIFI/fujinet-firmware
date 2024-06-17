@@ -318,6 +318,14 @@ void IRAM_ATTR systemBus::service()
             auto d = deviceById(data.device);
             if (d != nullptr)
             {
+                // if (state == BUS_ERROR)
+                // {
+                //     Debug_print("BUS_ERROR detected, aborting main service loop\r\n");
+                //     // will this force a close? I want it to!
+                //     d->reset_state();
+                //     break;
+                // }
+
                 device_state_t device_state = d->queue_command(data);
 
                 //fnLedManager.set(eLed::LED_BUS, true);
@@ -664,10 +672,7 @@ device_state_t virtualDevice::process()
         payload = commanddata.payload;
         break;
     case bus_command_t::IEC_CLOSE:
-        payload.clear();
-        std::queue<std::string>().swap(response_queue);
-        pt.clear();
-        pt.shrink_to_fit();
+        reset_state();
         break;
     case bus_command_t::IEC_REOPEN:
         if (state == DEVICE_TALK)
@@ -869,8 +874,8 @@ bool IRAM_ATTR systemBus::turnAround()
     // Wait for CLK to be released
     if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, TIMEOUT_Ttlta) == TIMEOUT_Ttlta)
     {
-        Debug_printf("Wait until the computer releases the CLK line");
-        Debug_printf("IEC: TURNAROUND TIMEOUT");
+        Debug_printf("Wait until the computer releases the CLK line\r\n");
+        Debug_printf("IEC: TURNAROUND TIMEOUT\r\n");
         flags |= ERROR;
         return false; // return error because timeout
     }
