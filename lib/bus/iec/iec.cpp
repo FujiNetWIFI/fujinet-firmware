@@ -46,14 +46,14 @@ static void IRAM_ATTR cbm_on_clk_isr_handler(void *arg)
 {
     systemBus *b = (systemBus *)arg;
 
-    IEC.pull(PIN_IEC_SRQ);
+    //IEC.pull(PIN_IEC_SRQ);
 
     // get bit
     b->byte >>= 1;
     if ( !IEC.status ( PIN_IEC_DATA_IN ) ) b->byte |= 0x80;
     b->bit++;
 
-    IEC.release(PIN_IEC_SRQ);
+    //IEC.release(PIN_IEC_SRQ);
 }
 
 /**
@@ -249,11 +249,11 @@ void IRAM_ATTR systemBus::service()
             return;
         }
 
-        Debug_printf("IEC Reset! reset[%d]\r\n", pin_reset);
+        //Debug_printf("IEC Reset! reset[%d]\r\n", pin_reset);
         data.init(); // Clear bus data
         releaseLines();
         state = BUS_IDLE;
-        Debug_printv("bus init");
+        //Debug_printv("bus init");
 
         // Reset virtual devices
         reset_all_our_devices();
