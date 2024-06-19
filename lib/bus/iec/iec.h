@@ -60,6 +60,7 @@
 
 #include "../../../include/debug.h"
 #include "../../../include/pinmap.h"
+#include "utils.h"
 
 
 /**
@@ -327,7 +328,7 @@ public:
      */
     systemBus get_bus();
 
-    void set_iec_status(int8_t error, uint8_t cmd, const std::string& msg, bool connected, int channel) {
+    void set_iec_status(int8_t error, uint8_t cmd, const std::string msg, bool connected, int channel) {
         iecStatus.error = error;
         iecStatus.cmd = cmd;
         iecStatus.msg = msg;
@@ -337,6 +338,7 @@ public:
 
     // TODO: does this need to translate the message to PETSCII?
     std::vector<uint8_t> iec_status_to_vector() {
+
         std::vector<uint8_t> data;
         data.push_back(static_cast<uint8_t>(iecStatus.error));
         data.push_back(iecStatus.cmd);
@@ -349,7 +351,6 @@ public:
             data.push_back(static_cast<uint8_t>(iecStatus.msg[i]));
         }
         data.push_back(0); // null terminate the string
-
         return data;
     }
 

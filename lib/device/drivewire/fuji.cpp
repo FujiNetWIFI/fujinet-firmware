@@ -1546,15 +1546,19 @@ void drivewireFuji::hash_output()
     Debug_printf("FUJI: HASH OUTPUT\n");
 
     uint8_t is_hex = fnDwCom.read() == 1;
-    std::vector<uint8_t> hashed_data = hasher.hash(algorithm, is_hex);
-    response = std::string(hashed_data.begin(), hashed_data.end());
+    if (is_hex) {
+        response = hasher.output_hex();
+    } else {
+        std::vector<uint8_t> hashed_data = hasher.output_binary();
+        response = std::string(hashed_data.begin(), hashed_data.end());
+    }
     errorCode = 1;
 }
 
 void drivewireFuji::hash_clear()
 {
     Debug_printf("FUJI: HASH INIT\n");
-    hasher.init();
+    hasher.clear();
     errorCode = 1;
 }
 

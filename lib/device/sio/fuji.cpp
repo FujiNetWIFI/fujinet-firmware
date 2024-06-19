@@ -2367,14 +2367,21 @@ void sioFuji::sio_hash_output()
 {
     Debug_printf("FUJI: HASH OUTPUT\n");
     uint16_t is_hex = sio_get_aux() == 1;
-    std::vector<uint8_t> hashed_data = hasher.hash(algorithm, is_hex);
+
+    std::vector<uint8_t> hashed_data;
+    if (is_hex) {
+        std::string hex = hasher.output_hex();
+        hashed_data.insert(hashed_data.end(), hex.begin(), hex.end());
+    } else {
+        hashed_data = hasher.output_binary();
+    }
     bus_to_computer(hashed_data.data(), hashed_data.size(), false);
 }
 
 void sioFuji::sio_hash_clear()
 {
     Debug_printf("FUJI: HASH CLEAR\n");
-    hasher.init();
+    hasher.clear();
     sio_complete();
 }
 
