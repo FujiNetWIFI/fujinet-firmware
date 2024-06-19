@@ -1409,19 +1409,28 @@ void adamFuji::adamnet_get_time()
 
     struct tm *now = localtime(&tt);
 
-    now->tm_mon++;
-    now->tm_year -= 100;
+	/*
+     NWD order has changed to match apple format
+     Previously:
+        response[0] = now->tm_mday;
+        response[1] = now->tm_mon;
+        response[2] = now->tm_year;
+        response[3] = now->tm_hour;
+        response[4] = now->tm_min;
+        response[5] = now->tm_sec;
+    */
 
-    response[0] = now->tm_mday;
-    response[1] = now->tm_mon;
-    response[2] = now->tm_year;
-    response[3] = now->tm_hour;
-    response[4] = now->tm_min;
-    response[5] = now->tm_sec;
+	response[0] = (now->tm_year) / 100 + 19;
+	response[1] = now->tm_year % 100;
+	response[2] = now->tm_mon + 1;
+	response[3] = now->tm_mday;
+	response[4] = now->tm_hour;
+	response[5] = now->tm_min;
+	response[6] = now->tm_sec;
 
-    response_len = 6;
+	response_len = 7;
 
-    Debug_printf("Sending %02X %02X %02X %02X %02X %02X\n", now->tm_mday, now->tm_mon, now->tm_year, now->tm_hour, now->tm_min, now->tm_sec);
+    Debug_printf("Sending %02X %02X %02X %02X %02X %02X\n", response[0], response[1], response[2], response[3], response[4], response[5], response[6]);
 }
 
 void adamFuji::adamnet_device_enable_status()
