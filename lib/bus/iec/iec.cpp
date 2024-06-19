@@ -280,7 +280,7 @@ void IRAM_ATTR systemBus::service()
             if ( state < BUS_IDLE )
             {
                 releaseLines();
-                Debug_printv("here");
+                //Debug_printv("here");
             }
             //release ( PIN_IEC_SRQ );
         }
@@ -318,14 +318,6 @@ void IRAM_ATTR systemBus::service()
             auto d = deviceById(data.device);
             if (d != nullptr)
             {
-                // if (state == BUS_ERROR)
-                // {
-                //     Debug_print("BUS_ERROR detected, aborting main service loop\r\n");
-                //     // will this force a close? I want it to!
-                //     d->reset_state();
-                //     break;
-                // }
-
                 device_state_t device_state = d->queue_command(data);
 
                 //fnLedManager.set(eLed::LED_BUS, true);
@@ -356,11 +348,10 @@ void IRAM_ATTR systemBus::service()
     } while( state > BUS_IDLE );
 
      // Clean Up
-    if ( state < BUS_RELEASE )
+    if ( state == BUS_RELEASE )
     {
         releaseLines();
         data.init();
-        Debug_printv("bus init");
     }
 
     //Debug_printv ( "primary[%.2X] secondary[%.2X] bus[%d] flags[%d]", data.primary, data.secondary, state, flags );
@@ -491,10 +482,13 @@ void systemBus::read_command()
         }
     }
 
-    // Is this command for us?
-    if ( !isDeviceEnabled( data.device ) )
+    if ( state == BUS_ACTIVE )
     {
-        state = BUS_IDLE; // NOPE!
+        if ( !isDeviceEnabled( data.device ) )
+        {
+            // Is this command for us?
+            state = BUS_IDLE; // NOPE!
+        }
     }
     else if ( state == BUS_PROCESS )
     {
@@ -510,13 +504,13 @@ void systemBus::read_command()
         //release ( PIN_IEC_SRQ );
     }
 
-    // If the bus is NOT ACTIVE then release the lines
-    if ( state < BUS_ACTIVE )
-    {
-        data.init();
-        //releaseLines();
-        return;
-    }
+    // // If the bus is NOT ACTIVE then release the lines
+    // if ( state < BUS_ACTIVE )
+    // {
+    //     data.init();
+    //     //releaseLines();
+    //     return;
+    // }
 
 #ifdef PARALLEL_BUS
     // Switch to Parallel if detected
