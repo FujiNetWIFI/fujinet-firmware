@@ -70,6 +70,8 @@ public:
     //     }; 
     // };
 
+    virtual uint8_t speedZone(uint8_t track) override { return 0; };
+
 protected:
 
 private:

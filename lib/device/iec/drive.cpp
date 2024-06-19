@@ -1056,7 +1056,7 @@ void iecDrive::sendListing()
 
 bool iecDrive::sendFile()
 {
-    size_t count = 0;
+    uint32_t count = 0;
     bool success_rx = true;
     bool success_tx = true;
 
@@ -1086,31 +1086,23 @@ bool iecDrive::sendFile()
 
     if ( !_base->isDirectory() )
     {
-        //_base->dump();
-        _last_file = _base->name;
-        _base.reset( MFSOwner::File( _base->base() ) );
-        //_base->dump();
+        if ( istream->has_subdirs )
+        {
+            // Filesystem supports sub directories
+            auto u = PeoplesUrlParser::parseURL( istream->url );
+            Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u->base().c_str() );
+            _last_file = u->name;
+            _base.reset( MFSOwner::File( u->base() ) );
+        }
+        else
+        {
+            // Handles media files that may have '/' as part of the filename
+            auto f = MFSOwner::File( istream->url );
+            Debug_printv( "Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), f->streamFile->url.c_str() );
+            _base.reset( f->streamFile );
+        }
     }
-
-    // if ( !_base->isDirectory() )
-    // {
-    //     if ( istream->has_subdirs )
-    //     {
-    //         PeoplesUrlParser *u = PeoplesUrlParser::parseURL( istream->url );
-    //         Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u->base().c_str() );
-    //         _last_file = u->name;
-    //         _base.reset( MFSOwner::File( u->base() ) );
-    //         delete(u);
-    //     }
-    //     else
-    //     {
-    //         auto f = MFSOwner::File( istream->url );
-    //         Debug_printv( "Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), f->streamFile->url.c_str() );
-    //         _base.reset( f->streamFile );
-    //     }
-    // }
-
-    // _base->dump();
+    //_base->dump();
 
     bool eoi = false;
     uint32_t size = istream->size();
@@ -1129,13 +1121,13 @@ bool iecDrive::sendFile()
         success_tx = IEC.sendByte(b);
         load_address = load_address | b << 8;  // high byte
         sys_address = load_address;
-        Serial.printf( "load_address[$%.4X] sys_address[%d]\r\n", load_address, sys_address );
+        Serial.printf( "load_address[$%.4X] sys_address[%d]", load_address, sys_address );
 
         // Get SYSLINE
     }
 
 
-    Serial.printf("sendFile: [$%.4X]\r\n=================================\r\n", load_address);
+    Serial.printf("\r\nsendFile: [$%.4X] pos[%d]\r\n=================================\r\n", load_address, istream->position());
     while( success_rx && !istream->error() )
     {
         count = istream->position();
@@ -1166,19 +1158,17 @@ bool iecDrive::sendFile()
 
         // Send Byte
         success_tx = IEC.sendByte(b, eoi);
-        if ( !success_tx )
-        {
-            Debug_printv("tx fail");
-            return false;
-        }
 
         // Exit if ATN is PULLED while sending
-        if ( IEC.flags & ATN_PULLED )
+        if ( IEC.status ( PIN_IEC_ATN ) == PULLED )
         {
+            //IEC.pull ( PIN_IEC_SRQ );
+            Serial.println();
             Debug_printv("ATN pulled while sending. b[%.2X]", b);
 
             // Save file pointer position
             istream->seek( -1, SEEK_CUR);
+            //IEC.release ( PIN_IEC_SRQ );
             break;
         }
 

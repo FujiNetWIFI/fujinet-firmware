@@ -134,7 +134,6 @@ public:
     bool isRandomAccess() override { return true; };
 
     virtual bool seek(uint32_t pos) override;
-    virtual bool seek(uint32_t pos, int mode) override;    
 
     void close() override;
     bool open() override;

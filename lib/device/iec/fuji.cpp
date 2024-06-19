@@ -342,7 +342,6 @@ bool iecFuji::is_supported(uint8_t cmd)
     case FUJICMD_SET_DEVICE_FULLPATH:
     case FUJICMD_SET_DIRECTORY_POSITION:
     case FUJICMD_SET_SSID:
-    case FUJICMD_SET_STATUS:
     case FUJICMD_STATUS:
     case FUJICMD_UNMOUNT_HOST:
     case FUJICMD_UNMOUNT_IMAGE:
@@ -483,9 +482,6 @@ void iecFuji::process_immediate_raw_cmds()
     case FUJICMD_STATUS:
         get_status_raw();
         break;
-    case FUJICMD_SET_STATUS:
-        set_status_raw();
-        break;
     case FUJICMD_MOUNT_ALL:
         mount_all();
         break;
@@ -503,12 +499,6 @@ void iecFuji::process_immediate_raw_cmds()
     // } else {
     //     Debug_printf("Not Immediate command, will wait for more data for cmd: %02x\r\n", current_fuji_cmd);
     }
-}
-
-void iecFuji::set_status_raw()
-{
-    // Debug_printf("Setting status to 0x69\r\n");
-    set_fuji_iec_status(0x69, "manually set status");
 }
 
 void iecFuji::get_status_raw()

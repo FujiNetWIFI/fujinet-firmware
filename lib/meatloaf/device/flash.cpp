@@ -409,15 +409,6 @@ bool FlashMStream::seek(uint32_t pos) {
     return ( fseek( handle->file_h, pos, SEEK_SET ) ) ? false : true;
 };
 
-bool FlashMStream::seek(uint32_t pos, int mode) {
-    // Debug_printv("pos[%d] mode[%d]", pos, mode);
-    if (!isOpen()) {
-        Debug_printv("Not open");
-        return false;
-    }
-    return ( fseek( handle->file_h, pos, mode ) ) ? false : true;
-}
-
 bool FlashMStream::isOpen() {
     // Debug_printv("Inside isOpen, handle notnull:%d", handle != nullptr);
     auto temp = handle != nullptr && handle->file_h != nullptr;
