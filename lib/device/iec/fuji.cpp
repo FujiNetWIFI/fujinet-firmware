@@ -167,11 +167,7 @@ device_state_t iecFuji::process()
     {
         // Debug_printv("UNLISTEN/(RE)OPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
 
-        // we assume you can't send BASIC commands and RAW commands at the same time, as RAW will set a cmd to be in,
-        // potentially waiting for more data, and if basic commands came at that point, they would be processed as raw.
-
         if (current_fuji_cmd == -1) {
-            // Debug_printf("No previous waiting command.\r\n");
             // this is a new command being sent
             is_raw_command = (payload.size() == 2 && payload[0] == 0x01); // marker byte
             if (is_raw_command) {
@@ -327,6 +323,12 @@ bool iecFuji::is_supported(uint8_t cmd)
     case FUJICMD_GET_SSID:
     case FUJICMD_GET_WIFI_ENABLED:
     case FUJICMD_GET_WIFISTATUS:
+    case FUJICMD_HASH_CLEAR:
+    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
+    case FUJICMD_HASH_COMPUTE:
+    case FUJICMD_HASH_INPUT:
+    case FUJICMD_HASH_LENGTH:
+    case FUJICMD_HASH_OUTPUT:
     case FUJICMD_MOUNT_ALL:
     case FUJICMD_MOUNT_HOST:
     case FUJICMD_MOUNT_IMAGE:
@@ -413,6 +415,21 @@ void iecFuji::process_raw_cmd_data()
     case FUJICMD_SET_BOOT_MODE:
         set_boot_mode_raw();
         break;
+    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
+        hash_compute_raw(false);
+        break;
+    case FUJICMD_HASH_COMPUTE:
+        hash_compute_raw(true);
+        break;
+    case FUJICMD_HASH_INPUT:
+        hash_input_raw();
+        break;
+    case FUJICMD_HASH_LENGTH:
+        hash_length_raw();
+        break;
+    case FUJICMD_HASH_OUTPUT:
+        hash_output_raw();
+        break;
     default:
         was_processed = false;
     }
@@ -485,6 +502,9 @@ void iecFuji::process_immediate_raw_cmds()
     case FUJICMD_MOUNT_ALL:
         mount_all();
         break;
+    case FUJICMD_HASH_CLEAR:
+        hash_clear();
+        break;
     default:
         // not an immediate command, so exit without changing current_fuji_cmd, as we need to be sent data
         was_immediate_cmd = false;
@@ -504,7 +524,7 @@ void iecFuji::process_immediate_raw_cmds()
 void iecFuji::get_status_raw()
 {
     // convert iecStatus to a responseV for the host to read
-    responseV = std::move(iec_status_to_vector());
+    responseV = iec_status_to_vector();
     // don't set the status!!
     // set_fuji_iec_status(0, "");
 }
@@ -1608,7 +1628,6 @@ void iecFuji::get_adapter_config_extended_raw()
 void iecFuji::get_adapter_config()
 {
     // This reads the current configuration from the adapter into memory.
-    Debug_printf("get_adapter_config()\r\n");
     memset(&cfg, 0, sizeof(cfg));
 
     strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
@@ -1633,7 +1652,6 @@ void iecFuji::get_adapter_config()
 AdapterConfigExtended iecFuji::get_adapter_config_extended()
 {
     // This reads the current configuration from the adapter into memory.
-    Debug_printf("get_adapter_config_extended()\r\n");
     AdapterConfigExtended cfg;
     memset(&cfg, 0, sizeof(cfg));
 
@@ -1731,7 +1749,7 @@ void iecFuji::write_host_slots_basic()
 
     std::string hostname = (pt.size() == 3) ? pt[2] : "";
 
-    Debug_printf("Setting host slot %u to %s\n", hostSlot, hostname.c_str());
+    // Debug_printf("Setting host slot %u to %s\n", hostSlot, hostname.c_str());
     _fnHosts[hostSlot].set_hostname(hostname.c_str());
 
     _populate_config_from_slots();
@@ -1896,7 +1914,7 @@ void iecFuji::write_device_slots()
 // Temporary(?) function while we move from old config storage to new
 void iecFuji::_populate_slots_from_config()
 {
-    Debug_printf("_populate_slots_from_config()\n");
+    // Debug_printf("_populate_slots_from_config()\n");
     for (int i = 0; i < MAX_HOSTS; i++)
     {
         if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
@@ -2088,7 +2106,7 @@ void iecFuji::get_device_filename_raw()
     }
 
     std::string result = get_device_filename(ds);
-    Debug_printf("get_device_filename_raw: result = >%s<\r\n", result.c_str());
+    Debug_printv("result = >%s<\r\n", result.c_str());
     if (result == "") {
         Debug_printf("Adding zero byte to responseV\r\n");
         responseV.push_back(0);
@@ -2434,6 +2452,80 @@ std::string iecFuji::process_directory_entry(uint8_t maxlen, uint8_t addtlopts) 
 
 std::string iecFuji::read_directory_entry(uint8_t maxlen, uint8_t addtlopts) {
     return process_directory_entry(maxlen, addtlopts);    
+}
+
+void iecFuji::hash_input_raw()
+{
+    hash_input(payload);
+    set_fuji_iec_status(0, "");
+}
+
+void iecFuji::hash_input(std::string input)
+{
+    Debug_printf("FUJI: HASH INPUT\r\n");
+    hasher.add_data(input);
+}
+
+    void iecFuji::hash_compute_raw(bool clear_data)
+    {
+        Hash::Algorithm alg = Hash::to_algorithm(payload[0]);
+        hash_compute(clear_data, alg);
+        set_fuji_iec_status(0, "");
+    }
+
+    void iecFuji::hash_compute(bool clear_data, Hash::Algorithm alg)
+    {
+        Debug_printf("FUJI: HASH COMPUTE\r\n");
+        algorithm = alg;
+        hasher.compute(algorithm, clear_data);
+    }
+
+void iecFuji::hash_length_raw()
+{
+    uint8_t is_hex = payload[0] == 1;
+    uint8_t r = hash_length(is_hex);
+    responseV.push_back(r);
+    set_fuji_iec_status(0, "");
+}
+
+uint8_t iecFuji::hash_length(bool is_hex)
+{
+    Debug_printf("FUJI: HASH LENGTH\n");
+    return hasher.hash_length(algorithm, is_hex);
+}
+
+void iecFuji::hash_output_raw()
+{
+    if (payload.size() != 1) {
+        std::string msg = "Input should be 1 byte, got " + std::to_string(payload.size());
+        set_fuji_iec_status(DEVICE_ERROR, "Input should be 1 byte.");
+        return;
+    }
+    responseV = hash_output(payload[0] == 1);
+    set_fuji_iec_status(0, "");
+}
+
+std::vector<uint8_t> iecFuji::hash_output(bool is_hex)
+{
+    Debug_printf("FUJI: HASH OUTPUT\n");
+    if (is_hex) {
+        std::string data = hasher.output_hex();
+        return std::vector<uint8_t>(data.begin(), data.end());
+    } else {
+        return hasher.output_binary();
+    }
+}
+
+void iecFuji::hash_clear_raw()
+{
+    hash_clear();
+    set_fuji_iec_status(0, "");
+}
+
+void iecFuji::hash_clear()
+{
+    Debug_printf("FUJI: HASH CLEAR\n");
+    hasher.clear();
 }
 
 
