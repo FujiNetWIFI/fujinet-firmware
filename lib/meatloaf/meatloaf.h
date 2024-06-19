@@ -118,17 +118,14 @@ public:
     virtual bool seek(uint32_t pos, int mode) {
         if(mode == SEEK_SET) {
             _position = pos;
-            return seek( _position );
         }
         else if(mode == SEEK_CUR) {
-            if(pos == 0) return true;
-            _position += pos;
-            return seek( _position );
+            _position = _position + pos;
         }
         else {
             _position = _size - pos;
-            return seek( _position );
         }
+        return seek( _position );
     }
     virtual bool seek(uint32_t pos) = 0;
 

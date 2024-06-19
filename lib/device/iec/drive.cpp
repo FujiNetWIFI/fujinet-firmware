@@ -1086,31 +1086,23 @@ bool iecDrive::sendFile()
 
     if ( !_base->isDirectory() )
     {
-        //_base->dump();
-        _last_file = _base->name;
-        _base.reset( MFSOwner::File( _base->base() ) );
-        //_base->dump();
+        if ( istream->has_subdirs )
+        {
+            // Filesystem supports sub directories
+            auto u = PeoplesUrlParser::parseURL( istream->url );
+            Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u->base().c_str() );
+            _last_file = u->name;
+            _base.reset( MFSOwner::File( u->base() ) );
+        }
+        else
+        {
+            // Handles media files that may have '/' as part of the filename
+            auto f = MFSOwner::File( istream->url );
+            Debug_printv( "Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), f->streamFile->url.c_str() );
+            _base.reset( f->streamFile );
+        }
     }
-
-    // if ( !_base->isDirectory() )
-    // {
-    //     if ( istream->has_subdirs )
-    //     {
-    //         PeoplesUrlParser *u = PeoplesUrlParser::parseURL( istream->url );
-    //         Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u->base().c_str() );
-    //         _last_file = u->name;
-    //         _base.reset( MFSOwner::File( u->base() ) );
-    //         delete(u);
-    //     }
-    //     else
-    //     {
-    //         auto f = MFSOwner::File( istream->url );
-    //         Debug_printv( "Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), f->streamFile->url.c_str() );
-    //         _base.reset( f->streamFile );
-    //     }
-    // }
-
-    // _base->dump();
+    //_base->dump();
 
     bool eoi = false;
     uint32_t size = istream->size();
