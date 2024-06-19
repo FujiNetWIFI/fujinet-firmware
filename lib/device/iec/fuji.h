@@ -13,6 +13,8 @@
 #include "../fuji/fujiDisk.h"
 #include "../fuji/fujiCmd.h"
 
+#include "hash.h"
+
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8
 #define MAX_NETWORK_DEVICES 4
@@ -102,6 +104,8 @@ private:
     appkey _current_appkey;
 
     AdapterConfig cfg;
+
+    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
     std::string response;
     std::vector<uint8_t> responseV;
@@ -300,6 +304,26 @@ protected:
     void get_status_raw();
     void get_status_basic();
 
+    // 0xC8
+    void hash_input(std::string input);
+    void hash_input_raw();
+
+    // 0xC7, 0xC3
+    void hash_compute(bool clear_data, Hash::Algorithm alg);
+    void hash_compute_raw(bool clear_data);
+
+    // 0xC6
+    uint8_t hash_length(bool is_hex);
+    void hash_length_raw();
+
+    // 0xC5
+    std::vector<uint8_t> hash_output(bool is_hex);
+    void hash_output_raw();
+
+    // 0xC2
+    void hash_clear();
+    void hash_clear_raw();
+
     // Commodore specific
     void local_ip();
 
@@ -319,7 +343,7 @@ protected:
      */
     void iec_command();
 
-    void set_fuji_iec_status(int8_t error, const std::string& msg) {
+    void set_fuji_iec_status(int8_t error, const std::string msg) {
         set_iec_status(error, last_command, msg, fnWiFi.connected(), 15);
     }
 

@@ -17,7 +17,7 @@
 #include "string_utils.h"
 #include "utils.h"
 
-#define MAIN_STACKSIZE 4096
+// #define MAIN_STACKSIZE 4096
 #define MAIN_PRIORITY 20
 #define MAIN_CPUAFFINITY 1
 

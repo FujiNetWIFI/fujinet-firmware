@@ -8,6 +8,7 @@ UseTab: Always
 IndentWidth: 4
 TabWidth: 4
 AccessModifierOffset: -4
+AlignConsecutiveMacros: true
 AlwaysBreakTemplateDeclarations: Yes
 BreakInheritanceList: AfterColon
 BreakBeforeBraces: Custom

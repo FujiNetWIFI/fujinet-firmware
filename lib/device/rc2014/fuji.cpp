@@ -1205,7 +1205,15 @@ void rc2014Fuji::rc2014_hash_output()
 {
     Debug_printf("FUJI: HASH OUTPUT\n");
     uint16_t is_hex = cmdFrame.aux1;
-    std::vector<uint8_t> hashed_data = hasher.hash(algorithm, is_hex);
+
+    std::vector<uint8_t> hashed_data;
+    if (is_hex) {
+        std::string hex = hasher.output_hex();
+        hashed_data.insert(hex.begin(), hex.end());
+    } else {
+        hashed_data = hasher.output_binary();
+    }
+
     rc2014_send_ack();
     rc2014_send_buffer(hashed_data.data(), hashed_data.size());
     rc2014_flush();
@@ -1216,7 +1224,7 @@ void rc2014Fuji::rc2014_hash_clear()
 {
     Debug_printf("FUJI: HASH INIT\n");
     rc2014_send_ack();
-    hasher.init();
+    hasher.clear();
     rc2014_send_complete();
 }
 

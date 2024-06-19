@@ -1498,17 +1498,17 @@ void iwmFuji::iwm_stat_hash_output()
 {
     Debug_printf("FUJI: HASH OUTPUT\n");
 
-    uint8_t is_hex = data_buffer[0] == 1;
-    std::vector<uint8_t> hashed_data = hasher.hash(algorithm, is_hex);
 	memset(data_buffer, 0, sizeof(data_buffer));
-	size_t actual_size = std::min(hashed_data.size(), static_cast<size_t>(MAX_DATA_LEN));
-	std::copy_n(hashed_data.begin(), actual_size, data_buffer);
-	data_len = static_cast<int>(actual_size);
+    uint8_t is_hex = data_buffer[0] == 1;
+
+	std::vector<uint8_t> hashed_data = is_hex ? hasher.output_hex() : hasher.output_binary();
+	std::copy_n(hashed_data.begin(), hashed_data.size(), data_buffer);
+	data_len = static_cast<int>(hashed_data.size());
 }
 
 void iwmFuji::iwm_ctrl_hash_clear()
 {
-    hasher.init();
+    hasher.clear();
 }
 
 

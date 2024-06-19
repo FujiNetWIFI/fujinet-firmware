@@ -327,6 +327,12 @@ bool iecFuji::is_supported(uint8_t cmd)
     case FUJICMD_GET_SSID:
     case FUJICMD_GET_WIFI_ENABLED:
     case FUJICMD_GET_WIFISTATUS:
+    case FUJICMD_HASH_CLEAR:
+    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
+    case FUJICMD_HASH_COMPUTE:
+    case FUJICMD_HASH_INPUT:
+    case FUJICMD_HASH_LENGTH:
+    case FUJICMD_HASH_OUTPUT:
     case FUJICMD_MOUNT_ALL:
     case FUJICMD_MOUNT_HOST:
     case FUJICMD_MOUNT_IMAGE:
@@ -413,6 +419,21 @@ void iecFuji::process_raw_cmd_data()
     case FUJICMD_SET_BOOT_MODE:
         set_boot_mode_raw();
         break;
+    case FUJICMD_HASH_COMPUTE_NO_CLEAR:
+        hash_compute_raw(false);
+        break;
+    case FUJICMD_HASH_COMPUTE:
+        hash_compute_raw(true);
+        break;
+    case FUJICMD_HASH_INPUT:
+        hash_input_raw();
+        break;
+    case FUJICMD_HASH_LENGTH:
+        hash_length_raw();
+        break;
+    case FUJICMD_HASH_OUTPUT:
+        hash_output_raw();
+        break;
     default:
         was_processed = false;
     }
@@ -485,6 +506,9 @@ void iecFuji::process_immediate_raw_cmds()
     case FUJICMD_MOUNT_ALL:
         mount_all();
         break;
+    case FUJICMD_HASH_CLEAR:
+        hash_clear();
+        break;
     default:
         // not an immediate command, so exit without changing current_fuji_cmd, as we need to be sent data
         was_immediate_cmd = false;
@@ -504,7 +528,7 @@ void iecFuji::process_immediate_raw_cmds()
 void iecFuji::get_status_raw()
 {
     // convert iecStatus to a responseV for the host to read
-    responseV = std::move(iec_status_to_vector());
+    responseV = iec_status_to_vector();
     // don't set the status!!
     // set_fuji_iec_status(0, "");
 }
@@ -2434,6 +2458,83 @@ std::string iecFuji::process_directory_entry(uint8_t maxlen, uint8_t addtlopts) 
 
 std::string iecFuji::read_directory_entry(uint8_t maxlen, uint8_t addtlopts) {
     return process_directory_entry(maxlen, addtlopts);    
+}
+
+void iecFuji::hash_input_raw()
+{
+    hash_input(payload);
+    set_fuji_iec_status(0, "");
+}
+
+void iecFuji::hash_input(std::string input)
+{
+    Debug_printf("FUJI: HASH INPUT\r\n");
+    hasher.add_data(input);
+}
+
+    void iecFuji::hash_compute_raw(bool clear_data)
+    {
+        Hash::Algorithm alg = Hash::to_algorithm(payload[0]);
+        hash_compute(clear_data, alg);
+        set_fuji_iec_status(0, "");
+    }
+
+    void iecFuji::hash_compute(bool clear_data, Hash::Algorithm alg)
+    {
+        Debug_printf("FUJI: HASH COMPUTE\r\n");
+        algorithm = alg;
+        hasher.compute(algorithm, clear_data);
+    }
+
+void iecFuji::hash_length_raw()
+{
+    uint8_t is_hex = payload[0] == 1;
+    uint8_t r = hash_length(is_hex);
+    responseV.push_back(r);
+    set_fuji_iec_status(0, "");
+}
+
+uint8_t iecFuji::hash_length(bool is_hex)
+{
+    // I dislike the design. The algorithm should have been part of the contract, not part of the compute call. But fujinet-lib has made this redundent.
+    Debug_printf("FUJI: HASH LENGTH\n");
+    return hasher.hash_length(algorithm, is_hex);
+}
+
+void iecFuji::hash_output_raw()
+{
+    if (payload.size() != 1) {
+        std::string msg = "Input should be 1 byte, got " + std::to_string(payload.size());
+        set_fuji_iec_status(DEVICE_ERROR, "Input should be 1 byte.");
+        return;
+    }
+    responseV = hash_output(payload[0] == 1);
+    Debug_printv("rV: [%s]\r\n", mstr::toHex(responseV.data(), responseV.size()).c_str());
+    set_fuji_iec_status(0, "");
+}
+
+std::vector<uint8_t> iecFuji::hash_output(bool is_hex)
+{
+    Debug_printf("FUJI: HASH OUTPUT\n");
+    // return std::vector<uint8_t>{0x69, 0x6A, 0};
+    if (is_hex) {
+        std::string data = hasher.output_hex();
+        return std::vector<uint8_t>(data.begin(), data.end());
+    } else {
+        return hasher.output_binary();
+    }
+}
+
+void iecFuji::hash_clear_raw()
+{
+    hash_clear();
+    set_fuji_iec_status(0, "");
+}
+
+void iecFuji::hash_clear()
+{
+    Debug_printf("FUJI: HASH CLEAR\n");
+    hasher.clear();
 }
 
 
