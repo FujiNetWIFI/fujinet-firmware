@@ -1093,10 +1093,9 @@ bool iecDrive::sendFile()
         if ( istream->has_subdirs )
         {
             // Filesystem supports sub directories
-            auto u = PeoplesUrlParser::parseURL( istream->url );
-            Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", istream->url.c_str(), u->base().c_str() );
-            _last_file = u->name;
-            _base.reset( MFSOwner::File( u->base() ) );
+            Debug_printv( "Subdir Change Directory Here! istream[%s] > base[%s]", _base->url.c_str(), _base->base().c_str() );
+            _last_file = _base->name;
+            _base.reset( MFSOwner::File( _base->base() ) );
         }
         else
         {
