@@ -920,6 +920,10 @@ void iecDrive::sendListing()
         }
         else
         {
+            Debug_printv("File Doesn't Exist [%s]", _base->url.c_str());
+            _last_file = "";
+            _base.reset( MFSOwner::File( _base->base() ) );
+            Debug_printv("_base[%s] reset", _base->url.c_str());
             IEC.senderTimeout(); // File Not Found
         }
         
