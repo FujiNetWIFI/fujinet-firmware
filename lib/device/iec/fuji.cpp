@@ -1632,7 +1632,6 @@ void iecFuji::get_adapter_config_extended_raw()
 void iecFuji::get_adapter_config()
 {
     // This reads the current configuration from the adapter into memory.
-    Debug_printf("get_adapter_config()\r\n");
     memset(&cfg, 0, sizeof(cfg));
 
     strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
@@ -1657,7 +1656,6 @@ void iecFuji::get_adapter_config()
 AdapterConfigExtended iecFuji::get_adapter_config_extended()
 {
     // This reads the current configuration from the adapter into memory.
-    Debug_printf("get_adapter_config_extended()\r\n");
     AdapterConfigExtended cfg;
     memset(&cfg, 0, sizeof(cfg));
 
@@ -1755,7 +1753,7 @@ void iecFuji::write_host_slots_basic()
 
     std::string hostname = (pt.size() == 3) ? pt[2] : "";
 
-    Debug_printf("Setting host slot %u to %s\n", hostSlot, hostname.c_str());
+    // Debug_printf("Setting host slot %u to %s\n", hostSlot, hostname.c_str());
     _fnHosts[hostSlot].set_hostname(hostname.c_str());
 
     _populate_config_from_slots();
@@ -1920,7 +1918,7 @@ void iecFuji::write_device_slots()
 // Temporary(?) function while we move from old config storage to new
 void iecFuji::_populate_slots_from_config()
 {
-    Debug_printf("_populate_slots_from_config()\n");
+    // Debug_printf("_populate_slots_from_config()\n");
     for (int i = 0; i < MAX_HOSTS; i++)
     {
         if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
@@ -2112,7 +2110,7 @@ void iecFuji::get_device_filename_raw()
     }
 
     std::string result = get_device_filename(ds);
-    Debug_printf("get_device_filename_raw: result = >%s<\r\n", result.c_str());
+    Debug_printv("result = >%s<\r\n", result.c_str());
     if (result == "") {
         Debug_printf("Adding zero byte to responseV\r\n");
         responseV.push_back(0);
@@ -2496,7 +2494,6 @@ void iecFuji::hash_length_raw()
 
 uint8_t iecFuji::hash_length(bool is_hex)
 {
-    // I dislike the design. The algorithm should have been part of the contract, not part of the compute call. But fujinet-lib has made this redundent.
     Debug_printf("FUJI: HASH LENGTH\n");
     return hasher.hash_length(algorithm, is_hex);
 }
@@ -2509,14 +2506,12 @@ void iecFuji::hash_output_raw()
         return;
     }
     responseV = hash_output(payload[0] == 1);
-    Debug_printv("rV: [%s]\r\n", mstr::toHex(responseV.data(), responseV.size()).c_str());
     set_fuji_iec_status(0, "");
 }
 
 std::vector<uint8_t> iecFuji::hash_output(bool is_hex)
 {
     Debug_printf("FUJI: HASH OUTPUT\n");
-    // return std::vector<uint8_t>{0x69, 0x6A, 0};
     if (is_hex) {
         std::string data = hasher.output_hex();
         return std::vector<uint8_t>(data.begin(), data.end());

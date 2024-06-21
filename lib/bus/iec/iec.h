@@ -351,9 +351,6 @@ public:
             data.push_back(static_cast<uint8_t>(iecStatus.msg[i]));
         }
         data.push_back(0); // null terminate the string
-        Debug_printv("err: %d, cmd: %d, conn: %d, chan: %d, msg: >%s<\r\n", iecStatus.error, iecStatus.cmd, iecStatus.connected, iecStatus.channel, iecStatus.msg.c_str());
-        Debug_printf("data:\r\n%s\r\n", util_hexdump(data.data(), data.size()).c_str());
-
         return data;
     }
 
