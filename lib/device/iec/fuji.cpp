@@ -167,11 +167,7 @@ device_state_t iecFuji::process()
     {
         // Debug_printv("UNLISTEN/(RE)OPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
 
-        // we assume you can't send BASIC commands and RAW commands at the same time, as RAW will set a cmd to be in,
-        // potentially waiting for more data, and if basic commands came at that point, they would be processed as raw.
-
         if (current_fuji_cmd == -1) {
-            // Debug_printf("No previous waiting command.\r\n");
             // this is a new command being sent
             is_raw_command = (payload.size() == 2 && payload[0] == 0x01); // marker byte
             if (is_raw_command) {
