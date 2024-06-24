@@ -1209,7 +1209,7 @@ void rc2014Fuji::rc2014_hash_output()
     std::vector<uint8_t> hashed_data;
     if (is_hex) {
         std::string hex = hasher.output_hex();
-        hashed_data.insert(hex.begin(), hex.end());
+        hashed_data = std::vector<uint8_t>(hex.begin(), hex.end());
     } else {
         hashed_data = hasher.output_binary();
     }

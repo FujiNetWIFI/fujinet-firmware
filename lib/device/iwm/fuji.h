@@ -140,6 +140,7 @@ private:
     std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+    bool hash_is_hex_output = false;
 
 protected:
     void iwm_dummy_command();                    // control 0xAA
@@ -200,7 +201,8 @@ protected:
     void iwm_ctrl_hash_input();                      // 0xC8
     void iwm_ctrl_hash_compute(bool clear_data);     // 0xC7, 0xC3
     void iwm_stat_hash_length();                     // 0xC6
-    void iwm_stat_hash_output();                     // 0xC5
+    void iwm_ctrl_hash_output();                     // 0xC5 set hash_is_hex_output
+    void iwm_stat_hash_output();                     // 0xC5 write response
     void iwm_ctrl_hash_clear();                      // 0xC2
 
     void iwm_stat_fuji_status();        // 0x53
