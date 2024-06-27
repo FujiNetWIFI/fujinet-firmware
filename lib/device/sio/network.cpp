@@ -572,6 +572,11 @@ void sioNetwork::sio_set_prefix()
         else if (prefixSpec_str.find_first_of(":") != string::npos)
         {
             prefix = prefixSpec_str;
+            // Check for trailing slash. Append if missing.
+            if (prefix[prefix.size()-1] != '/')
+            {
+                prefix += "/";
+            }
         }
         else // append to path.
         {
