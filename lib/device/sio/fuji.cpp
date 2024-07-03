@@ -1496,7 +1496,14 @@ void sioFuji::sio_get_adapter_config_extended()
 // Get network adapter configuration
 void sioFuji::sio_get_adapter_config()
 {
-    Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
+    // THIS IS STILL NEEDED FOR BACKWARDS COMPATIBILITY WITH FUJINET-LIB THAT SENDS 0xE8 FOR ADAPTER_CONFIG_EXTENDED WITH 0x01 IN THE AUX1 BYTE
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG (aux1:%hu)\r\n", cmdFrame.aux1);
+    if (cmdFrame.aux1 == 1)
+    {
+        Debug_println("Returning extended adapter config information");
+        sio_get_adapter_config_extended();
+        return;
+    }
 
     // Response to  FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
