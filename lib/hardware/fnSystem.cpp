@@ -1049,6 +1049,7 @@ void SystemManager::check_hardware_ver()
     #define PIN_SD_HOST_MOSI GPIO_NUM_14
     safe_reset_gpio = PIN_BUTTON_C;
     a2no3state = false;
+    a2spifix = true;
     _hardware_version = 5;
 #   elif defined(MASTERIES_REVAB)
     /* All Masteries boards have Tristate buffer. Check for pullup on IO14 to 
