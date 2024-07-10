@@ -91,8 +91,16 @@ void iecFuji::setup(systemBus *bus)
     iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
-    Serial.print("Printer "); bus->addDevice(ptr, 4);                   // 04-07 Printers / Plotters
-    Serial.print("Disk "); bus->addDevice(new iecDrive(), 8);            // 08-16 Drives
+    // 04-07 Printers / Plotters
+    Serial.print("Printer "); bus->addDevice(ptr, 4);
+
+    // 08-15 Drives
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        Serial.print("Disk ");
+        bus->addDevice(&_fnDisks[i].disk_dev, BUS_DEVICEID_DISK + i);
+    }
+
     Serial.print("Network "); bus->addDevice(new iecNetwork(), 16);     // 16-19 Network Devices
     Serial.print("CPM "); bus->addDevice(new iecCpm(), 20);             // 20-29 Other
     Serial.print("Clock "); bus->addDevice(new iecClock(), 29);

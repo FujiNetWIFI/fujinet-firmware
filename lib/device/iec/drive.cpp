@@ -55,9 +55,15 @@ void iecDrive::format()
 */
 mediatype_t iecDrive::mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
-    Debug_printv("disk MOUNT %s\n", filename);
+    std::string url = this->host->get_hostname();
+    mstr::toLower(url);
+    if ( url == "sd" )
+        url = "//sd";
+    url += filename;
 
-    _base.reset( MFSOwner::File(filename) );
+    Debug_printv("DRIVE[#%d] URL[%s] MOUNT[%s]\n", this->_devnum, url.c_str(), filename);
+
+    _base.reset( MFSOwner::File( url ) );
 
     return MediaType::discover_mediatype(filename); // MEDIATYPE_UNKNOWN
 }
@@ -72,7 +78,7 @@ iecDrive::~iecDrive()
 // Unmount disk file
 void iecDrive::unmount()
 {
-    Debug_printv("disk UNMOUNT\r\n");
+    Debug_printv("DRIVE[#%d] UNMOUNT\r\n", this->_devnum);
 
     if (_base != nullptr)
     {
@@ -203,7 +209,7 @@ void iecDrive::iec_open()
         //Debug_printv("filename[%s] type[%s] mode[%s]", pt[0].c_str(), pt[1].c_str(), pt[2].c_str());
     }
 
-    Debug_printv("payload[%s]", payload.c_str());
+    Debug_printv("_base[%s] payload[%s]", _base->url.c_str(), payload.c_str());
 
     if ( mstr::startsWith(payload, "0:") )
     {
