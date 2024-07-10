@@ -51,6 +51,10 @@ uint8_t CPBStandardSerial::receiveByte()
 {
     IEC.flags &= CLEAR_LOW;
 
+    // Sample ATN and set flag to indicate COMMAND or DATA mode
+    if ( IEC.status ( PIN_IEC_ATN ) )
+        IEC.flags |= ATN_PULLED;
+
     // Wait for talker ready
     //IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
@@ -118,8 +122,7 @@ uint8_t CPBStandardSerial::receiveByte()
 
     // STEP 3: RECEIVING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
-    //int8_t data = receiveBits();
-    uint8_t data = IEC.read();
+    uint8_t data = receiveBits();
     //IEC.release ( PIN_IEC_SRQ );
 
     // STEP 4: FRAME HANDSHAKE
@@ -163,6 +166,54 @@ uint8_t CPBStandardSerial::receiveByte()
 // false, it grabs the bit from the Data line and puts it away.  It then waits for the clock line to go true, in order
 // to prepare for the next bit. When the talker figures the data has been held for a sufficient  length  of  time,  it
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
+
+uint8_t CPBStandardSerial::receiveBits ()
+{
+    timer_start( TIMEOUT_DEFAULT );
+
+    IEC.bit = 0;
+    IEC.byte = 0;
+    while ( IEC.bit < 7 )
+    {
+        if ( timer_timedout )
+        {
+            IEC.flags |= ERROR;
+            return 0;
+        }
+
+        usleep( 2 );
+    }
+
+    // If there is a 218us delay before bit 7, the controller uses JiffyDOS
+    timer_start( TIMING_PROTOCOL_DETECT );
+    while ( IEC.bit < 8 )
+    {
+        if ( timer_timedout && ( IEC.flags &  ATN_PULLED ) )
+        {
+            // Check LISTEN & TALK
+            uint8_t device = (IEC.byte >> 1) & 0x1F; // LISTEN
+            if ( device > 30 )
+                device = (IEC.byte >> 1 ) & 0x3F; // TALK
+
+            if ( IEC.isDeviceEnabled ( device ) )
+            {
+                // acknowledge we support JiffyDOS
+                IEC.pull(PIN_IEC_DATA_OUT);
+                wait( TIMING_PROTOCOL_ACK, false );
+                IEC.release(PIN_IEC_DATA_OUT);
+
+                IEC.flags |= JIFFYDOS_ACTIVE;
+            }
+            timer_timedout = false;
+        }
+
+        usleep( 2 );
+    }
+
+    return IEC.byte;
+}
+
+
 // uint8_t CPBStandardSerial::receiveBits ()
 // {
 //     // Listening for bits
@@ -182,14 +233,14 @@ uint8_t CPBStandardSerial::receiveByte()
 //         //IEC.pull ( PIN_IEC_SRQ );
 //         //bit_time = timeoutWait ( PIN_IEC_CLK_IN, RELEASED, TIMING_PROTOCOL_DETECT, false );
 //         while ( IEC.status(PIN_IEC_CLK_IN) != RELEASED );
-//         IEC.pull ( PIN_IEC_SRQ );
+//         //IEC.pull ( PIN_IEC_SRQ );
 //         //IEC.release ( PIN_IEC_SRQ );
 
 // #ifdef JIFFYDOS
 //         // If there is a 218us delay before bit 7, the controller uses JiffyDOS
 //         if ( bit_time >= TIMING_PROTOCOL_DETECT )
 //         {
-//             IEC.pull ( PIN_IEC_SRQ );
+//             //IEC.pull ( PIN_IEC_SRQ );
 //             if ( n == 7 && IEC.status( PIN_IEC_ATN ) )
 //             {
 //                 // Check LISTEN & TALK
@@ -210,7 +261,7 @@ uint8_t CPBStandardSerial::receiveByte()
 //                     }
 //                 }
 //             }
-//             IEC.release ( PIN_IEC_SRQ );
+//             //IEC.release ( PIN_IEC_SRQ );
 
 //             // wait for bit to be ready to read
 //             //IEC.pull ( PIN_IEC_SRQ );

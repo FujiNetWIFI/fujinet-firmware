@@ -9,6 +9,48 @@
 
 using namespace Protocol;
 
+
+/**
+ * Callback function to set timeout 
+ */
+static void onTimer(void *arg)
+{
+    IECProtocol *p = (IECProtocol *)arg;
+    p->timer_timedout = true;
+    //IEC.release( PIN_IEC_SRQ );
+}
+
+IECProtocol::IECProtocol() {
+    esp_timer_create_args_t args = {
+        .callback = onTimer,
+        .arg = this,
+        .name = nullptr
+    };
+    esp_timer_create(&args, &timer_handle);
+};
+
+IECProtocol::~IECProtocol() {
+    esp_timer_stop(timer_handle);
+    esp_timer_delete(timer_handle);
+};
+
+/**
+ * Start the timeout timer
+ */
+void IECProtocol::timer_start(uint64_t timeout_us)
+{
+    timer_timedout = false;
+    esp_timer_stop(timer_handle);
+    esp_timer_start_once(timer_handle, timeout_us);
+    //IEC.pull( PIN_IEC_SRQ );
+}
+void IECProtocol::timer_stop()
+{
+    esp_timer_stop(timer_handle);
+    //IEC.release( PIN_IEC_SRQ );
+}
+
+
 int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
 {
     uint64_t start = 0;
@@ -66,13 +108,13 @@ int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size
             }
         }
 
-        // if ( IEC.state < BUS_ACTIVE || elapsed > FOREVER )
-        // {
-        //     // Something is messed up.  Get outta here.
-        //     Debug_printv("wth? bus_state[%d]", IEC.state);
-        //     Debug_printv("pin[%d] target_status[%d] wait[%d] elapsed[%d]", pin, target_status, wait_us, elapsed);
-        //     return -1;
-        // }
+        if ( IEC.state < BUS_ACTIVE || elapsed > FOREVER )
+        {
+            // Something is messed up.  Get outta here.
+            Debug_printv("wth? bus_state[%d]", IEC.state);
+            Debug_printv("pin[%d] target_status[%d] wait[%d] elapsed[%d]", pin, target_status, wait_us, elapsed);
+            return -1;
+        }
     }
     //IEC.release ( PIN_IEC_SRQ );
 

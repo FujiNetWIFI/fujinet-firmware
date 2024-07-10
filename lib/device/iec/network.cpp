@@ -442,7 +442,7 @@ void iecNetwork::iec_reopen_channel_talk()
 
         if (receiveBuffer[commanddata.channel]->empty())
         {
-            Debug_printv("Receive Buffer Empty.");
+            //Debug_printv("Receive Buffer Empty.");
             set_eoi = true;
         }
 
