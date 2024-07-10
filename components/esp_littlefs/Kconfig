@@ -1,5 +1,12 @@
 menu "LittleFS"
 
+    config LITTLEFS_SDMMC_SUPPORT
+        bool "SDMMC support (requires ESP-IDF v5+)"
+        default n
+        help
+            Toggle SD card support
+            This requires IDF v5+ as older ESP-IDF do not support SD card erase.
+
     config LITTLEFS_MAX_PARTITIONS
         int "Maximum Number of Partitions"
         default 3
@@ -146,5 +153,106 @@ menu "LittleFS"
             In SPIFFS data is written immediately to the flash storage when fflush() function called.
             In LittleFS flush() does not write data to the flash, and fsync() call needed after.
             With this feature fflush() will write data to the storage.
+
+    config LITTLEFS_OPEN_DIR
+        bool "Support opening directory"
+        default "n"
+        depends on !LITTLEFS_USE_ONLY_HASH && LITTLEFS_SPIFFS_COMPAT
+        help
+            Support opening directory by following APIs:
+
+                int fd = open("my_directory", O_DIRECTORY);
+
+    config LITTLEFS_FCNTL_GET_PATH
+        bool "Support get file or directory path"
+        default "n"
+        depends on !LITTLEFS_USE_ONLY_HASH
+        help
+            Support getting directory by following APIs:
+
+                char buffer[MAXPATHLEN];
+
+                int fd = open("my_file", flags);
+                fcntl(fd, F_GETPATH, buffer);
+
+    config LITTLEFS_FCNTL_F_GETPATH_VALUE
+        int "Value of command F_GETPATH"
+        default 20
+        depends on LITTLEFS_FCNTL_GET_PATH
+        help
+            ESP-IDF's header file "fcntl.h" doesn't support macro "F_GETPATH",
+            so we should define this macro here.
+
+    config LITTLEFS_MULTIVERSION
+        bool "Support selecting the LittleFS minor version to write to disk"
+        default "n"
+        help
+            LittleFS 2.6 bumps the on-disk minor version of littlefs from lfs2.0 -> lfs2.1.
+
+            This change is backwards-compatible, but after the first write with the new version,
+            the image on disk will no longer be mountable by older versions of littlefs.
+
+            Enabling LITTLEFS_MULTIVERSION allows to select the On-disk version
+            to use when writing in the form of 16-bit major version
+            + 16-bit minor version. This limiting metadata to what is supported by
+            older minor versions. Note that some features will be lost. Defaults to
+            to the most recent minor version when zero.
+
+    choice LITTLEFS_DISK_VERSION
+        prompt "LITTLEFS_DISK_VERSION"
+        depends on LITTLEFS_MULTIVERSION
+        default LITTLEFS_DISK_VERSION_MOST_RECENT
+        help
+            See LITTLEFS_MULTIVERSION for details.
+
+        config LITTLEFS_DISK_VERSION_MOST_RECENT
+            bool "Write the most recent LittleFS version"
+
+        config LITTLEFS_DISK_VERSION_2_1
+            bool "Write LittleFS 2.1"
+
+        config LITTLEFS_DISK_VERSION_2_0
+            bool "Write LittleFS 2.0 (no forward-looking erase-state CRCs)"
+
+    endchoice
+
+    choice LITTLEFS_MALLOC_STRATEGY
+        prompt "Buffer allocation strategy"
+        default LITTLEFS_MALLOC_STRATEGY_DEFAULT
+        help
+            Maps lfs_malloc to ESP-IDF capabilities-based memory allocator or
+            disables dynamic allocation in favour of user-provided static buffers.
+
+        config LITTLEFS_MALLOC_STRATEGY_DISABLE
+            bool "Static buffers only"
+            help
+                Disallow dynamic allocation, static buffers must be provided by the calling application.
+
+        config LITTLEFS_MALLOC_STRATEGY_DEFAULT
+            bool "Default heap selection"
+            help
+                Uses an automatic allocation strategy. On systems with heap in SPIRAM, if
+                the allocation size does not exceed SPIRAM_MALLOC_ALWAYSINTERNAL then internal
+                heap allocation if preferred, otherwise allocation will be attempted from SPIRAM
+                heap.
+
+        config LITTLEFS_MALLOC_STRATEGY_INTERNAL
+            bool "Internal heap"
+            help
+                Uses ESP-IDF heap_caps_malloc to allocate from internal heap.
+
+        config LITTLEFS_MALLOC_STRATEGY_SPIRAM
+            bool "SPIRAM heap"
+            depends on SPIRAM_USE_MALLOC && ESP32_SPIRAM_SUPPORT
+            help
+                Uses ESP-IDF heap_caps_malloc to allocate from SPIRAM heap.
+
+    endchoice
+
+    config LITTLEFS_ASSERTS
+        bool "Enable asserts"
+        default "y"
+        help
+            Selects whether littlefs performs runtime assert checks.
 
 endmenu
