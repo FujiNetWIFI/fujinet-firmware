@@ -3,6 +3,10 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <vector>
+
+#include <esp_timer.h>
+
 #include "../../include/cbm_defines.h"
 
 namespace Protocol
@@ -15,10 +19,22 @@ namespace Protocol
         public:
 
         // 2bit Fast Loader Pair Timing
-        uint8_t bit_pair_timing[2][4] = {
-            {13, 11, 13, 13},    // Receive
-            {14, 10, 11, 11}     // Send
+        std::vector<std::vector<uint8_t>> bit_pair_timing = {
+            {0, 0, 0, 0},    // Receive
+            {0, 0, 0, 0}     // Send
         };
+
+        bool timer_timedout = false;
+        uint64_t timer_elapsed = 0;
+
+
+        IECProtocol();
+        ~IECProtocol();
+
+        /**
+         * ESP timer handle for the Interrupt rate limiting timer
+         */
+        esp_timer_handle_t timer_handle = nullptr;
 
         /**
          * @brief receive byte from bus
@@ -33,6 +49,12 @@ namespace Protocol
          * @return true if send was successful.
         */
         virtual bool sendByte(uint8_t b, bool signalEOI) = 0;
+
+        /*
+         * @brief Start timer
+        */
+        void timer_start(uint64_t timeout);
+        void timer_stop();
 
         /**
          * @brief Wait until target status, or timeout is reached.

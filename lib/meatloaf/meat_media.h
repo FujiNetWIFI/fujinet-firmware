@@ -45,6 +45,7 @@ public:
     virtual uint8_t read() {
         uint8_t b = 0;
         containerStream->read( &b, 1 );
+        _position++;
         return b;
     }
     // readUntil = (delimiter = 0x00) => this.containerStream.readUntil(delimiter);
@@ -56,7 +57,10 @@ public:
         {
             r = containerStream->read( &b, 1 );
             if ( b != delimiter )
+            {
                 bytes += b;
+                _position++;
+            }
             else
                 break;
         } while ( r );
@@ -67,9 +71,11 @@ public:
     virtual std::string readString( uint8_t size )
     {
         uint8_t b[size];
-        if ( containerStream->read( b, size ) )
+        if ( auto s = containerStream->read( b, size ) )
+        {
+            _position += s;
             return std::string((char *)b);
-        
+        }
         return std::string();
     }
     // readStringUntil = (delimiter = 0x00) => this.containerStream.readStringUntil(delimiter);
@@ -148,6 +154,7 @@ protected:
     virtual uint16_t readContainer(uint8_t *buf, uint16_t size);
     virtual uint16_t readFile(uint8_t* buf, uint16_t size) = 0;
     virtual std::string decodeType(uint8_t file_type, bool show_hidden = false);
+    virtual std::string decodeType(std::string file_type);
 
 private:
 

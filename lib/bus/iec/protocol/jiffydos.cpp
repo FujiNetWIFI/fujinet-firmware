@@ -32,16 +32,46 @@
 
 using namespace Protocol;
 
+/**
+ * Callback function to set timeout 
+ */
+static void onTimer(void *arg)
+{
+    IECProtocol *p = (IECProtocol *)arg;
+    p->timer_timedout = true;
+}
+
+JiffyDOS::JiffyDOS() {
+    // 2bit Fast Loader Pair Timing
+    bit_pair_timing.clear();
+    bit_pair_timing = {
+        {13, 9, 5, 5},       // Receive -2us for overhead
+        {10, 10, 11, 10}     // Send
+    };
+
+    esp_timer_create_args_t args = {
+        .callback = onTimer,
+        .arg = this,
+        .name = nullptr
+    };
+    esp_timer_create(&args, &timer_handle);
+};
+
+JiffyDOS::~JiffyDOS() {
+    esp_timer_stop(timer_handle);
+    esp_timer_delete(timer_handle);
+};
+
 
 uint8_t  JiffyDOS::receiveByte ()
 {
     uint8_t data = 0;
 
-    IEC.flags and_eq CLEAR_LOW;
+    IEC.flags &= CLEAR_LOW;
 
     // Release the Data line to signal we are ready
 #ifndef IEC_SPLIT_LINE
-    IEC.release(PIN_IEC_CLK_IN);
+    //IEC.release(PIN_IEC_CLK_IN);
     IEC.release(PIN_IEC_DATA_IN);
 #endif
 
@@ -52,53 +82,46 @@ uint8_t  JiffyDOS::receiveByte ()
     // As soon as the talker releases the Clock line we are expected to receive the bits
     // Bits are inverted so use IEC.status() to get pulled/released status
 
-    IEC.pull ( PIN_IEC_SRQ );
-
-    // Setup Delay
-    //uint64_t cur_time = esp_timer_get_time();
-    //uint64_t exp_time = 11;
-    esp_rom_delay_us ( 11 );
+    //IEC.pull ( PIN_IEC_SRQ );
 
     // get bits 4,5
-    //IEC.pull ( PIN_IEC_SRQ );
-    if ( IEC.status ( PIN_IEC_CLK_IN ) )  data |= 0b00010000; // 1
-    if ( IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0b00100000; // 0
-    //IEC.release ( PIN_IEC_SRQ );
-    esp_rom_delay_us ( bit_pair_timing[0][0] );
+    usleep ( bit_pair_timing[0][0] ); // Includes setup delay
+    if ( IEC.status ( PIN_IEC_CLK_IN ) )  data |= 0b00010000; // 0
+    if ( IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0b00100000; // 1
+    IEC.pull ( PIN_IEC_SRQ );
 
     // get bits 6,7
-    //IEC.pull ( PIN_IEC_SRQ );
+    usleep ( bit_pair_timing[0][1] );
     if ( IEC.status ( PIN_IEC_CLK_IN ) ) data |=  0b01000000; // 0
     if ( IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0b10000000; // 0
-    //IEC.release ( PIN_IEC_SRQ );
-    esp_rom_delay_us ( bit_pair_timing[1][1] );
+    IEC.release ( PIN_IEC_SRQ );
 
     // get bits 3,1
-    //IEC.pull ( PIN_IEC_SRQ );
+    usleep ( bit_pair_timing[0][2] );
     if ( IEC.status ( PIN_IEC_CLK_IN ) )  data |= 0b00001000; // 0
     if ( IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0b00000010; // 0
-    //IEC.release ( PIN_IEC_SRQ );
-    esp_rom_delay_us ( bit_pair_timing[0][2] );
+    IEC.pull ( PIN_IEC_SRQ );
 
     // get bits 2,0
-    //IEC.pull ( PIN_IEC_SRQ );
+    usleep ( bit_pair_timing[0][3] );
     if ( IEC.status ( PIN_IEC_CLK_IN ) )  data |= 0b00000100; // 1
     if ( IEC.status ( PIN_IEC_DATA_IN ) ) data |= 0b00000001; // 0
-    //IEC.release ( PIN_IEC_SRQ );
-    esp_rom_delay_us ( bit_pair_timing[0][3] );
+    IEC.release ( PIN_IEC_SRQ );
+
+    // Check CLK for EOI
+    usleep ( 12 );
+    if ( IEC.status ( PIN_IEC_CLK_IN ) )
+        IEC.flags |= EOI_RECVD;
+    IEC.pull ( PIN_IEC_SRQ );
 
     // Acknowledge byte received
     // If we want to indicate an error we can release DATA
+    usleep ( 60 );
     IEC.pull ( PIN_IEC_DATA_OUT );
+    usleep ( 10 );
 
-    // Check CLK for EOI
-    //bool eoi = gpio_get_level ( PIN_IEC_CLK_IN );
-    //esp_rom_delay_us ( 15 );
+    //IEC.release ( PIN_IEC_SRQ );
 
-    IEC.release ( PIN_IEC_SRQ );
-    esp_rom_delay_us ( 158 );
-
-    //if ( eoi ) IEC.flags |= EOI_RECVD;
     //Debug_printv("data[%02X] eoi[%d]", data, eoi); // $ = 0x24
 
     return data;
@@ -119,61 +142,58 @@ bool JiffyDOS::sendByte ( uint8_t data, bool signalEOI )
 
     // Release the Data line to signal we are ready
 #ifndef IEC_SPLIT_LINE
-    IEC.pull(PIN_IEC_CLK_IN);
-    IEC.pull(PIN_IEC_DATA_IN);
+    IEC.release(PIN_IEC_CLK_IN);
+    IEC.release(PIN_IEC_DATA_IN);
 #endif
 
     // Wait for listener ready
-    esp_rom_delay_us ( 10 );
-    IEC.release ( PIN_IEC_CLK_OUT );
-    esp_rom_delay_us ( 10 );
-    IEC.release ( PIN_IEC_CLK_OUT );
+    while ( IEC.status( PIN_IEC_DATA_IN ) == PULLED );
 
     // STEP 2: SENDING THE BITS
     // As soon as the listener releases the DATA line we are expected to send the bits
     // Bits are inverted so use IEC.status() to get pulled/released status
 
-    //IEC.pull ( PIN_IEC_SRQ );
+    IEC.pull ( PIN_IEC_SRQ );
 
     // Start timer
-    esp_rom_delay_us ( 37 );
+    usleep ( bit_pair_timing[1][0] );
 
     // set bits 0,1
     //IEC.pull ( PIN_IEC_SRQ );
     ( data & 1 ) ? IEC.release ( PIN_IEC_CLK_OUT ) : IEC.pull ( PIN_IEC_CLK_OUT );
     data >>= 1; // shift to next bit
     ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
-    esp_rom_delay_us ( bit_pair_timing[1][0] );
+    usleep ( bit_pair_timing[1][1] );
 
     // set bits 2,3
     data >>= 1; // shift to next bit
     ( data & 1 ) ? IEC.release ( PIN_IEC_CLK_OUT ) : IEC.pull ( PIN_IEC_CLK_OUT );
     data >>= 1; // shift to next bit
     ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
-    esp_rom_delay_us ( bit_pair_timing[1][1] );
+    usleep ( bit_pair_timing[1][2] );
 
     // set bits 4,5
     data >>= 1; // shift to next bit
     ( data & 1 ) ? IEC.release ( PIN_IEC_CLK_OUT ) : IEC.pull ( PIN_IEC_CLK_OUT );
     data >>= 1; // shift to next bit
     ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
-    esp_rom_delay_us ( bit_pair_timing[1][2] );
+    usleep ( bit_pair_timing[1][3] );
 
     // set bits 6,7
     data >>= 1; // shift to next bit
     ( data & 1 ) ? IEC.release ( PIN_IEC_CLK_OUT ) : IEC.pull ( PIN_IEC_CLK_OUT );
     data >>= 1; // shift to next bit
     ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
-    esp_rom_delay_us ( bit_pair_timing[1][3] );
+    usleep ( bit_pair_timing[1][4] );
+
+    // Check CLK for EOI
+    ( signalEOI ) ? IEC.pull ( PIN_IEC_CLK_OUT ) : IEC.release ( PIN_IEC_CLK_OUT );
+    usleep ( 13 );
+    //IEC.release ( PIN_IEC_SRQ );
 
     // Acknowledge byte received
     // If we want to indicate an error we can release DATA
 //    bool error = IEC.status ( PIN_IEC_DATA_IN );
-
-    // Check CLK for EOI
-    ( signalEOI ) ? IEC.pull ( PIN_IEC_CLK_OUT ) : IEC.release ( PIN_IEC_CLK_OUT );
-    esp_rom_delay_us ( 13 );
-    //IEC.release ( PIN_IEC_SRQ );
 
     return true;
 } // sendByte

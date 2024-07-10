@@ -48,6 +48,7 @@
 #include <queue>
 #include <memory>
 #include <driver/gpio.h>
+#include <esp_timer.h>
 #include "fnSystem.h"
 
 #include "protocol/_protocol.h"
@@ -60,7 +61,6 @@
 
 #include "../../../include/debug.h"
 #include "../../../include/pinmap.h"
-#include "utils.h"
 
 
 /**
@@ -338,7 +338,6 @@ public:
 
     // TODO: does this need to translate the message to PETSCII?
     std::vector<uint8_t> iec_status_to_vector() {
-
         std::vector<uint8_t> data;
         data.push_back(static_cast<uint8_t>(iecStatus.error));
         data.push_back(iecStatus.cmd);
@@ -351,6 +350,7 @@ public:
             data.push_back(static_cast<uint8_t>(iecStatus.msg[i]));
         }
         data.push_back(0); // null terminate the string
+
         return data;
     }
 
@@ -638,20 +638,6 @@ public:
     void release ( uint8_t _pin );
     bool status ( uint8_t _pin );
     bool status ();
-
-    uint8_t read()
-    {
-        bit = 0;
-        byte = 0;
-        while ( bit < 8 )
-        {
-            if ( flags & ATN_PULLED )
-                break;
-
-            esp_rom_delay_us( 3 );
-        }
-        return byte;
-    }
 
     void debugTiming();
 };

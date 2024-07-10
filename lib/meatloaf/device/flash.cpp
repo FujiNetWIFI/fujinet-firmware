@@ -406,6 +406,7 @@ bool FlashMStream::seek(uint32_t pos) {
         Debug_printv("Not open");
         return false;
     }
+    _position = pos;
     return ( fseek( handle->file_h, pos, SEEK_SET ) ) ? false : true;
 };
 

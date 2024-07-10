@@ -57,7 +57,6 @@
 #include "network/http.h"
 #include "network/tnfs.h"
 // #include "network/ipfs.h"
-// #include "network/tnfs.h"
 // #include "network/smb.h"
 // #include "network/ws.h"
 
@@ -108,7 +107,6 @@ DNPMFileSystem dnpFS;
 HttpFileSystem httpFS;
 TNFSFileSystem tnfsFS;
 // IPFSFileSystem ipfsFS;
-//TNFSFileSystem tnfsFS;
 // TcpFileSystem tcpFS;
 //WSFileSystem wsFS;
 
@@ -132,7 +130,7 @@ std::vector<MFileSystem*> MFSOwner::availableFS {
     &d64FS, &d71FS, &d80FS, &d81FS, &d82FS, &d90FS, &dnpFS,
     &d8bFS, &dfiFS,
     &p00FS,
-    &httpFS, //&tnfsFS,
+    &httpFS, &tnfsFS,
     &mlFS,
     &t64FS, &tcrtFS
 //    &ipfsFS, &tcpFS,
