@@ -62,6 +62,9 @@
 #include "../../../include/debug.h"
 #include "../../../include/pinmap.h"
 
+#define BUS_DEVICEID_PRINTER 4
+#define BUS_DEVICEID_DISK 8
+#define BUS_DEVICEID_NETWORK 16
 
 /**
  * @brief The command frame
