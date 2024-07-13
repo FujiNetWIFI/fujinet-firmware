@@ -57,7 +57,15 @@ fsdir_entry &DirCache::new_entry()
 
 void DirCache::apply_filter(const char *pattern, uint16_t diropts)
 {
+	char realpat[MAX_PATHLEN];
+	char *thepat = nullptr;
     bool have_pattern = pattern != nullptr && pattern[0] != '\0';
+	bool filter_dirs = have_pattern && pattern[strlen(pattern)-1] == '/';
+	if (filter_dirs) {
+		strlcpy (realpat, pattern, sizeof (realpat));
+		realpat[strlen(realpat)-1] = '\0';
+	}
+	thepat = filter_dirs ? realpat : (char *)pattern;
     fsdir_entry entry;
 
     // Filter directory entries
@@ -66,7 +74,10 @@ void DirCache::apply_filter(const char *pattern, uint16_t diropts)
     {
         entry = _entries[i];
         // Skip this entry if we have a search filter and it doesn't match it
-        if(!entry.isDir && have_pattern && util_wildcard_match(entry.filename, pattern) == false)
+		// HCGIII: Include directory filtering if specified
+        if(have_pattern && (
+			!entry.isDir || (entry.isDir && filter_dirs)
+		) && util_wildcard_match(entry.filename, pattern) == false)
             continue;
         _entries_filtered.push_back(entry);
     }

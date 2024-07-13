@@ -185,7 +185,25 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         return false;
 #endif
 
+	char realpat[MAX_PATHLEN];
+	char *thepat = nullptr;
     bool have_pattern = pattern != nullptr && pattern[0] != '\0';
+	Debug_printf (
+		"FileSystemSDFAT::dir_open I%s have a pattern.\n",
+		have_pattern ? "" : " do not"
+	);
+	bool filter_dirs = have_pattern && pattern[strlen(pattern)-1] == '/';
+	if (filter_dirs) {
+		Debug_printf (
+			"FileSystemSDFAT::dir_open I am filtering directories.\n",
+			have_pattern ? "" : " do not"
+		);
+		strlcpy (realpat, pattern, sizeof (realpat));
+		realpat[strlen(realpat)-1] = '\0';
+	}
+	thepat = filter_dirs ? realpat : (char *)pattern;
+
+	
 
     // Read all the directory entries and store them
     // We temporarily keep separate lists of files and directories so we can sort them separately
@@ -217,6 +235,10 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         // Determine which list to put this in
         if(finfo.fattrib & AM_DIR)
         {
+			// Skip this entry if we're filtering directories and it doesn't match
+			if (filter_dirs && util_wildcard_match(finfo.fname, thepat) == false)
+				continue;
+
             store_directories.push_back(fsdir_entry());
             entry = &store_directories.back();
             entry->isDir = true;
@@ -224,7 +246,7 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         else
         {
             // Skip this entry if we have a search filter and it doesn't match it
-            if(have_pattern && util_wildcard_match(finfo.fname, pattern) == false)
+            if(have_pattern && util_wildcard_match(finfo.fname, thepat) == false)
                 continue;
 
             store_files.push_back(fsdir_entry());
@@ -258,6 +280,10 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         // Determine which list to put this in
         if(d->d_type == DT_DIR || d->d_type == DT_LNK) // well, assume symlinks points to directories only
         {
+			// Skip this entry if we're filtering directories and it doesn't match
+			if (filter_dirs && util_wildcard_match(d->d_name, thepat) == false)
+				continue;
+				
             store_directories.push_back(fsdir_entry());
             entry = &store_directories.back();
             entry->isDir = true;
@@ -265,7 +291,7 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
         else
         {
             // Skip this entry if we have a search filter and it doesn't match it
-            if(have_pattern && util_wildcard_match(d->d_name, pattern) == false)
+            if(have_pattern && util_wildcard_match(d->d_name, thepat) == false)
                 continue;
 
             store_files.push_back(fsdir_entry());
