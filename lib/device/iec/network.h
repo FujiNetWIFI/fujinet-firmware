@@ -32,7 +32,7 @@ using namespace std;
 
 class iecNetwork : public virtualDevice
 {    
-    public:
+public:
 
     /**
      * @brief CTOR
@@ -76,7 +76,11 @@ class iecNetwork : public virtualDevice
      */
     virtual void poll_interrupt(unsigned char c) override;
 
-    private:
+private:
+    /**
+     * @brief flag to indicate if the status result should be binary or string
+     */
+    bool is_binary_status = false;
 
     /**
      * @brief the active URL for each channel
@@ -178,7 +182,7 @@ class iecNetwork : public virtualDevice
     /**
      * @brief Set channel to retrieve status from.
      */
-    void set_status();
+    void set_status(bool is_binary);
 
     /**
      * @brief Set desired prefix for channel
