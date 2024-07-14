@@ -741,7 +741,6 @@ void iecNetwork::iec_listen_command()
 
 void iecNetwork::iec_talk_command()
 {
-    char tmp[32];
     NetworkStatus ns;
 
     if (!active_status_channel)
@@ -759,12 +758,27 @@ void iecNetwork::iec_talk_command()
 
     protocol[active_status_channel]->status(&ns);
 
-    memset(tmp, 0, sizeof(tmp));
-    sprintf(tmp, "%u,%u,%u", ns.rxBytesWaiting, ns.connected, ns.error);
+    if (is_binary_status) {
+        uint8_t binaryStatus[4];
 
-    Debug_printf("Sending status %s\n", tmp);
+        binaryStatus[0] = (ns.rxBytesWaiting >> 8) & 0xFF; // High byte of ns.rxBytesWaiting
+        binaryStatus[1] = ns.rxBytesWaiting & 0xFF;        // Low byte of ns.rxBytesWaiting
 
-    IEC.sendBytes(tmp, strlen(tmp), true);
+        binaryStatus[2] = ns.connected;
+        binaryStatus[3] = ns.error;
+
+        Debug_printf("Sending status binary data: %s\n", mstr::toHex(binaryStatus, 4).c_str());
+
+        IEC.sendBytes((const char *)binaryStatus, sizeof(binaryStatus), true);
+    } else {
+        char tmp[32];
+        memset(tmp, 0, sizeof(tmp));
+        sprintf(tmp, "%u,%u,%u", ns.rxBytesWaiting, ns.connected, ns.error);
+
+        Debug_printf("Sending status %s\n", tmp);
+
+        IEC.sendBytes(tmp, strlen(tmp), true);
+    }
 }
 
 void iecNetwork::iec_command()
@@ -779,7 +793,9 @@ void iecNetwork::iec_command()
     if (pt[0] == "cd")
         set_prefix();
     else if (pt[0] == "status")
-        set_status();
+        set_status(false);
+    else if (pt[0] == "statusb")
+        set_status(true);
     else if (pt[0] == "id")
         set_device_id();
     else if (pt[0] == "jsonparse")
@@ -1067,8 +1083,9 @@ void iecNetwork::get_prefix()
     iecStatus.channel = channel;
 }
 
-void iecNetwork::set_status()
+void iecNetwork::set_status(bool is_binary)
 {
+    is_binary_status = is_binary;
     if (pt.size() < 2)
     {
         Debug_printf("Channel # Required\n");
@@ -1267,7 +1284,7 @@ void iecNetwork::fsop(unsigned char comnd)
 device_state_t iecNetwork::process()
 {
     // Call base class
-    virtualDevice::process(); // commanddata set here.
+    virtualDevice::process();
     //payload=mstr::toUTF8(payload); // @idolpx? What should I do instead?
 
     mstr::rtrim(payload);
