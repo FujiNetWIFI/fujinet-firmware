@@ -7,7 +7,7 @@
 #include <esp_mac.h>
 #endif
 #include <esp_event.h>
-//#include <mdns.h>
+#include <mdns.h>
 #include <esp_crc.h>
 
 #include <cstring>
@@ -630,9 +630,9 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             if (Config.get_general_config_enabled() == false)
                 theFuji.mount_all();
 #endif /* BUILD_ATARI */
-            //mdns_init();
-            //mdns_hostname_set(Config.get_general_devicename().c_str());
-            //mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+            mdns_init();
+            mdns_hostname_set(Config.get_general_devicename().c_str());
+            mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
             break;
         case IP_EVENT_STA_LOST_IP:
             Debug_println("IP_EVENT_STA_LOST_IP");
@@ -658,7 +658,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
             Debug_println("WIFI_EVENT_STA_START");
             break;
         case WIFI_EVENT_STA_STOP:
-            //mdns_free();
+            mdns_free();
             Debug_println("WIFI_EVENT_STA_STOP");
             break;
         case WIFI_EVENT_STA_CONNECTED:
