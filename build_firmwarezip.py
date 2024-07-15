@@ -6,6 +6,7 @@ Import("env")
 platform = env.PioPlatform()
 
 import sys, os, configparser, shutil, re, subprocess
+import json
 from os.path import join
 from datetime import datetime
 from zipfile import ZipFile
@@ -94,99 +95,94 @@ def makezip(source, target, env):
             print('Failed to delete %s. Reason: %s' % (firmwarezip, e))
 
         # Create release JSON
-        json_contents = """{
-    "version": "%s",
-    "version_date": "%s",
-    "build_date": "%s",
-    "description": "%s",
-    "git_commit": "%s",
-    "files":
-    [
-""" % (version['FN_VERSION_FULL'], version['FN_VERSION_DATE'], version['BUILD_DATE'], version['FN_VERSION_DESC'], version['FN_VERSION_BUILD'])
+        json_contents = {
+            "version": version['FN_VERSION_FULL'],
+            "version_date": version['FN_VERSION_DATE'],
+            "build_date": version['BUILD_DATE'],
+            "description": version['FN_VERSION_DESC'],
+            "git_commit": version['FN_VERSION_BUILD'],
+            "files": []
+        }
 
         if config[environment]['board'] == "fujinet-v1":
-            json_contents += """        {
-            "filename": "bootloader.bin",
-            "offset": "0x1000"
-        },
-        {
-            "filename": "partitions.bin",
-            "offset": "0x8000"
-        },
-        {
-            "filename": "firmware.bin",
-            "offset": "0x10000"
-        },
-        {
-            "filename": "littlefs.bin",
-            "offset": "0x910000"
-        }
-    ]
-}
-"""
+            json_contents['files'] += [
+                {
+                    "filename": "bootloader.bin",
+                    "offset": "0x1000"
+                },
+                {
+                    "filename": "partitions.bin",
+                    "offset": "0x8000"
+                },
+                {
+                    "filename": "firmware.bin",
+                    "offset": "0x10000"
+                },
+                {
+                    "filename": "littlefs.bin",
+                    "offset": "0x910000"
+                }
+            ]
         elif config[environment]['board'] == "fujinet-v1-8mb":
-            json_contents += """        {
-            "filename": "bootloader.bin",
-            "offset": "0x1000"
-        },
-        {
-            "filename": "partitions.bin",
-            "offset": "0x8000"
-        },
-        {
-            "filename": "firmware.bin",
-            "offset": "0x10000"
-        },
-        {
-            "filename": "littlefs.bin",
-            "offset": "0x600000"
-        }
-    ]
-}
-"""
+            json_contents['files'] += [
+                {
+                    "filename": "bootloader.bin",
+                    "offset": "0x1000"
+                },
+                {
+                    "filename": "partitions.bin",
+                    "offset": "0x8000"
+                },
+                {
+                    "filename": "firmware.bin",
+                    "offset": "0x10000"
+                },
+                {
+                    "filename": "littlefs.bin",
+                    "offset": "0x600000"
+                }
+            ]
         elif config[environment]['board'] == "fujinet-v1-4mb":
-            json_contents += """        {
-            "filename": "bootloader.bin",
-            "offset": "0x1000"
-        },
-        {
-            "filename": "partitions.bin",
-            "offset": "0x8000"
-        },
-        {
-            "filename": "firmware.bin",
-            "offset": "0x10000"
-        },
-        {
-            "filename": "littlefs.bin",
-            "offset": "0x250000"
-        }
-    ]
-}
-"""
+            json_contents['files'] += [
+                {
+                    "filename": "bootloader.bin",
+                    "offset": "0x1000"
+                },
+                {
+                    "filename": "partitions.bin",
+                    "offset": "0x8000"
+                },
+                {
+                    "filename": "firmware.bin",
+                    "offset": "0x10000"
+                },
+                {
+                    "filename": "littlefs.bin",
+                    "offset": "0x250000"
+                }
+            ]
         elif config[environment]['board'] == "fujinet-iec-nugget":
-            json_contents += """        {
-            "filename": "bootloader.bin",
-            "offset": "0x1000"
-        },
-        {
-            "filename": "partitions.bin",
-            "offset": "0x8000"
-        },
-        {
-            "filename": "firmware.bin",
-            "offset": "0x10000"
-        },
-        {
-            "filename": "littlefs.bin",
-            "offset": "0x910000"
-        }
-    ]
-}
-"""
+            json_contents['files'] += [
+                {
+                    "filename": "bootloader.bin",
+                    "offset": "0x1000"
+                },
+                {
+                    "filename": "partitions.bin",
+                    "offset": "0x8000"
+                },
+                {
+                    "filename": "firmware.bin",
+                    "offset": "0x10000"
+                },
+                {
+                    "filename": "littlefs.bin",
+                    "offset": "0x910000"
+                }
+            ]
         # Save Release JSON
         with open('firmware/release.json', 'w') as f:
-            f.write(json_contents)
+            f.write(json.dumps(json_contents, indent=4))
 
         # Create the ZIP File
         try:
@@ -196,14 +192,14 @@ def makezip(source, target, env):
                 zip_object.write(env.subst("$BUILD_DIR/firmware.bin"), "firmware.bin")
                 zip_object.write(env.subst("$BUILD_DIR/littlefs.bin"), "littlefs.bin")
                 zip_object.write("firmware/release.json", "release.json")
-        finally: 
+        finally:
             print("*" * 80)
             print("*")
             print("*   FIRMWARE ZIP CREATED AT: " + firmwarezip)
             print("*")
             print("*" * 80)
- 
-	
+
+
     else:
         print("Skipping making firmware ZIP due to error")
 
