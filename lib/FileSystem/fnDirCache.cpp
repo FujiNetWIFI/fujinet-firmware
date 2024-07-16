@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <algorithm>
+#include "compat_string.h"
 
 #include "utils.h"
 
