@@ -17,36 +17,40 @@ char * ape_timezone = NULL;
 
 void sioApeTime::_sio_get_time(bool use_timezone)
 {
+    char *tz_env = nullptr;
     char old_tz[64];
 #if defined(_WIN32)
     // We have to use putenv() on Windows/MinGW/MSYS2
-    char new_tz_eq[64+3] = "TZ="; // prepare for putenv()
+    static char tz_eq_str[64+3] = "TZ="; // prepare for putenv()
 #endif
 
-    if (use_timezone) {
-      Debug_println("APETIME time query (timezone)");
-    } else {
-      Debug_println("APETIME time query (classic)");
+    if (use_timezone) 
+    {
+        Debug_println("APETIME time query (timezone)");
+    }
+    else 
+    {
+        Debug_println("APETIME time query (classic)");
     }
 
     uint8_t sio_reply[6] = { 0 };
 
     time_t tt = time(nullptr);
 
-    if (ape_timezone != NULL && use_timezone) {
+    if (ape_timezone != NULL && use_timezone) 
+    {
         Debug_printf("Using time zone %s\n", ape_timezone);
-#ifdef ESP_PLATFORM // TODO: any reason for strncpy()?
-        strncpy(old_tz, getenv("TZ"), sizeof(old_tz));
-#else
-        strlcpy(old_tz, getenv("TZ"), sizeof(old_tz));
-#endif
-
-// TODO: use putenv on all platforms?
+        // Save current TZ env. variable
+        tz_env = getenv("TZ");
+        if (tz_env)
+        {
+            strlcpy(old_tz, tz_env, sizeof(old_tz));
+        }
+        // Set our TZ
 #if defined(_WIN32)
-        // We have to use putenv() on Windows/MinGW/MSYS2
-        strlcpy(new_tz_eq+3, ape_timezone, sizeof(new_tz_eq)-3);
-        putenv(new_tz_eq);
-
+        // Use putenv() on Windows/MinGW/MSYS2
+        strlcpy(tz_eq_str+3, ape_timezone, sizeof(tz_eq_str)-3);
+        putenv(tz_eq_str);
 #else
         setenv("TZ", ape_timezone, 1);
 #endif
@@ -55,13 +59,28 @@ void sioApeTime::_sio_get_time(bool use_timezone)
 
     struct tm * now = localtime(&tt);
 
-    if (ape_timezone != NULL && use_timezone) {
+    if (ape_timezone != NULL && use_timezone) 
+    {
+        // Restore TZ env. variable
+        Debug_printf("Restoring TZ to: %s\n", tz_env ? old_tz : "<unset>");
+        if (tz_env)
+        {
 #if defined(_WIN32)
-        strlcpy(new_tz_eq+3, old_tz, sizeof(new_tz_eq)-3);
-        putenv(new_tz_eq);
+            strcpy(tz_eq_str+3, old_tz); // "TZ=..."
+            putenv(tz_eq_str);
 #else
-        setenv("TZ", old_tz, 1);
+            setenv("TZ", old_tz, 1);
 #endif
+        }
+        else
+        {
+#if defined(_WIN32)
+            tz_eq_str[3] = '\0'; // "TZ="
+            putenv(tz_eq_str);
+#else
+            unsetenv("TZ");
+#endif
+        }
         tzset();
     }
 
@@ -86,26 +105,31 @@ void sioApeTime::_sio_set_tz()
 
     Debug_println("APETIME set TZ request");
 
-    if (ape_timezone != NULL) {
-      free(ape_timezone);
+    if (ape_timezone != NULL) 
+    {
+        free(ape_timezone);
     }
 
     bufsz = sio_get_aux();
-    if (bufsz > 0) {
-      ape_timezone = (char *) malloc((bufsz + 1) * sizeof(char));
+    if (bufsz > 0) 
+    {
+        ape_timezone = (char *) malloc((bufsz + 1) * sizeof(char));
 
-      uint8_t ck = bus_to_peripheral((uint8_t *) ape_timezone, bufsz);
-      if (sio_checksum((uint8_t *) ape_timezone, bufsz) != ck) {
-        sio_error();
-      } else {
-        ape_timezone[bufsz] = '\0';
-
-        sio_complete();
-
-        Debug_printf("TZ set to <%s>\n", ape_timezone); 
-      }
-    } else {
-      Debug_printf("TZ unset\n");
+        uint8_t ck = bus_to_peripheral((uint8_t *) ape_timezone, bufsz);
+        if (sio_checksum((uint8_t *) ape_timezone, bufsz) != ck) 
+        {
+            sio_error();
+        } 
+        else
+        {
+            ape_timezone[bufsz] = '\0';
+            sio_complete();
+            Debug_printf("TZ set to <%s>\n", ape_timezone); 
+        }
+    }
+    else
+    {
+        Debug_printf("TZ unset\n");
     }
 }
 
