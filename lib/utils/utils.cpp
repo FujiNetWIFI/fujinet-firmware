@@ -7,6 +7,7 @@
 #include <map>
 #include <sstream>
 #include <stack>
+#include <string>
 
 #include "compat_string.h"
 
@@ -588,6 +589,36 @@ void util_devicespec_fix_9b(uint8_t *buf, unsigned short len)
     for (int i = 0; i < len; i++)
         if (buf[i] == 0x9b)
             buf[i] = 0x00;
+}
+
+void fix_petscii_data(std::string* dataPtr)
+{
+    if (dataPtr == nullptr) {
+        // Handle null pointer if necessary
+        return;
+    }
+
+    std::string &data = *dataPtr;
+
+    // 1. Replace all chars of value 0xa4 to 0x5f
+    std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) {
+        return c == 0xa4 ? 0x5f : c;
+    });
+
+    // 2. Remove any trailing 0x9b chars
+    // This operation assumes 0x9b chars are only at the end. If they can be anywhere,
+    // you might want to remove all 0x9b chars instead.
+    data.erase(std::find(data.rbegin(), data.rend(), 0x9b).base(), data.end());
+
+    // 3. Convert the characters from PETSCII to ASCII
+    std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) -> char {
+        if ((c > 0x40) && (c < 0x5B)) {
+            return static_cast<char>(c + 0x20);
+        } else if ((c > 0x60) && (c < 0x7B)) {
+            return static_cast<char>(c - 0x20);
+        }
+        return static_cast<char>(c);
+    });
 }
 
 // Non-mutating

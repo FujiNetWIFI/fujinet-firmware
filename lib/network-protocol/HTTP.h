@@ -19,6 +19,15 @@
 #undef DELETE
 #endif
 
+
+#define OPEN_MODE_HTTP_GET      (0x04)
+#define OPEN_MODE_HTTP_PUT      (0x08)
+#define OPEN_MODE_HTTP_GET_H    (0x0C)
+#define OPEN_MODE_HTTP_POST     (0x0D)
+#define OPEN_MODE_HTTP_PUT_H    (0x0E)
+#define OPEN_MODE_HTTP_DELETE   (0x05)
+#define OPEN_MODE_HTTP_DELETE_H (0x09)
+
 class NetworkProtocolHTTP : public NetworkProtocolFS
 {
 public:
