@@ -300,6 +300,11 @@ private:
      */
     void process_channel();
 
+    /**
+     * @brief changes the open mode for the channel (e.g. to DELETE)
+     */
+    void set_open_params();
+
 };
 
 #endif /* NETWORK_H */

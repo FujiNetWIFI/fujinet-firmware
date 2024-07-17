@@ -76,6 +76,8 @@ void util_strip_nonascii(std::string &s);
 void util_devicespec_fix_9b(uint8_t* buf, unsigned short len);
 std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string prefix, bool is_directory_read, bool process_fs_dot);
 
+void fix_petscii_data(std::string* dataPtr);
+
 bool util_string_value_is_true(std::string value);
 bool util_string_value_is_true(const char *value);
 

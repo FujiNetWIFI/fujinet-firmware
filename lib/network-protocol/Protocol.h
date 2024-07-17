@@ -175,6 +175,11 @@ public:
     virtual void errno_to_error();
 
     /**
+     * @brief change the values passed to open for platforms that need to do it after the open (looking at you IEC)
+     */
+    virtual void set_open_params(uint8_t p1, uint8_t p2);
+
+    /**
      * Pointer to current login;
      */
     std::string *login;

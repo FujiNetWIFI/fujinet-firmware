@@ -78,6 +78,13 @@ void iecNetwork::poll_interrupt(unsigned char c)
 
 void iecNetwork::iec_open()
 {
+    bool is_raw_open = false;
+    uint8_t channel_aux1 = 12;
+    uint8_t channel_aux2 = translationMode[commanddata.channel]; // not sure about this, you can't set this unless you send a command for the channel first, I think it relies on the array being init to 0s
+
+    Debug_printf("DOING OPEN\r\n");
+    Debug_printv("commanddata: prim:%02x, dev:%02x, 2nd:%02x, chan:%02x\r\n", commanddata.primary, commanddata.device, commanddata.secondary, commanddata.channel);
+
     file_not_found = false;
     deviceSpec[commanddata.channel].clear();
     deviceSpec[commanddata.channel].shrink_to_fit();
@@ -86,8 +93,28 @@ void iecNetwork::iec_open()
     if (!prefix[commanddata.channel].empty())
         deviceSpec[commanddata.channel] += prefix[commanddata.channel];
 
-    if (payload != "$")
-        deviceSpec[commanddata.channel] += mstr::toUTF8(payload);
+    // Check if the payload is RAW (i.e. from fujinet-lib) by the presence of "01" as the first byte, which can't happen for BASIC.
+    // If it is, then the next 2 bytes are the aux1/aux2 values (mode and trans), and the rest is the actual URL.
+    // This is an efficiency so we don't have to send a 2nd command to tell it what the parameters should have been. BASIC will still need to use "openparams" command, as the OPEN line doesn't have capacity for the parameters (can't use a "," as that's a valid URL character)
+    if (payload[0] == 0x01) {
+        Debug_printf("RAW!\r\n");
+        is_raw_open = true;
+        channel_aux1 = payload[1];
+        channel_aux2 = payload[2];
+        payload = payload.substr(3); // remove the marker bytes so the payload can continue as with BASIC setup
+    }
+    Debug_printv("payload: [%s]\r\n", mstr::toHex(payload).c_str());
+
+    if (payload != "$") {
+        // fix underscores as they don't translate well to UTF8
+        std::replace(payload.begin(), payload.end(), static_cast<char>(0xA4), static_cast<char>(0x5F));
+
+        // convert to utf8. this should be ascii though. UTF will crap all over non-ascii chars
+        Debug_printv("CONVERTING PAYLOAD TO UTF8\r\n");
+        payload = mstr::toUTF8(payload);
+        Debug_printv("payload: [%s]\r\n", mstr::toHex(payload).c_str());
+        deviceSpec[commanddata.channel] += payload;
+    }
 
     channelMode[commanddata.channel] = PROTOCOL;
 
@@ -102,9 +129,9 @@ void iecNetwork::iec_open()
         cmdFrame.aux2 = 0; // no translation
         break;
     default:
-        cmdFrame.aux1 = 12;                                    // default read/write
-        cmdFrame.aux2 = translationMode[commanddata.channel];  // now used
-        Debug_printf("translation mode: %u\r\n", cmdFrame.aux2);
+        cmdFrame.aux1 = channel_aux1;
+        cmdFrame.aux2 = channel_aux2;
+        Debug_printf("mode: %u, translation mode: %u\r\n", cmdFrame.aux1, cmdFrame.aux2);
         break;
     }
 
@@ -119,13 +146,13 @@ void iecNetwork::iec_open()
     urlParser[commanddata.channel] = PeoplesUrlParser::parseURL(deviceSpec[commanddata.channel]);
 
     // This is unbelievably stupid, but here we are.
-    for (int i = 0; i < urlParser[commanddata.channel]->query.size(); i++)
-        if (urlParser[commanddata.channel]->query[i]==0xa4) // underscore
-            urlParser[commanddata.channel]->query[i]=0x5F;
+    // for (int i = 0; i < urlParser[commanddata.channel]->query.size(); i++)
+    //     if (urlParser[commanddata.channel]->query[i]==0xa4) // underscore
+    //         urlParser[commanddata.channel]->query[i]=0x5F;
 
-    for (int i = 0; i < urlParser[commanddata.channel]->path.size(); i++)
-        if (urlParser[commanddata.channel]->path[i]==0xa4) // underscore
-            urlParser[commanddata.channel]->path[i]=0x5F;
+    // for (int i = 0; i < urlParser[commanddata.channel]->path.size(); i++)
+    //     if (urlParser[commanddata.channel]->path[i]==0xa4) // underscore
+    //         urlParser[commanddata.channel]->path[i]=0x5F;
 
     // Convert scheme to uppercase
     std::transform(urlParser[commanddata.channel]->scheme.begin(), urlParser[commanddata.channel]->scheme.end(), urlParser[commanddata.channel]->scheme.begin(), ::toupper);
@@ -400,7 +427,11 @@ void iecNetwork::iec_reopen_channel_listen()
         transmitBuffer[commanddata.channel]->push_back(b);
     }
 
+    // ok, we need to convert the data to a format the rest of the world can use. e.g. remove any trailing 0x9b from ends, and convert to ascii/utf8 and fix the underscore... sigh
+    fix_petscii_data(transmitBuffer[commanddata.channel]);
+
     Debug_printf("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
+    Debug_printv("DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
 
     protocol[commanddata.channel]->write(transmitBuffer[commanddata.channel]->length());
     transmitBuffer[commanddata.channel]->clear();
@@ -567,9 +598,9 @@ void iecNetwork::query_json()
     s = pt[2];
 
     Debug_printf("Channel: %u\r\n", channel);
-    for (int i = 0; i < s.length(); i++)
-        if (s[i] == 0xA4)
-            s[i] = 0x5F; // wtf?
+
+    // SIGH. Convert petscii underscore graphic to true underscore ascii char
+    std::replace(s.begin(), s.end(), static_cast<char>(0xA4), static_cast<char>(0x5F));
 
     json[channel]->setReadQuery(s, 0);
 
@@ -756,18 +787,22 @@ void iecNetwork::iec_talk_command()
         return;
     }
 
-    protocol[active_status_channel]->status(&ns);
+    if (channelMode[active_status_channel] == PROTOCOL) {
+        protocol[active_status_channel]->status(&ns);
+    } else {
+        json[active_status_channel]->status(&ns);
+    }
 
     if (is_binary_status) {
         uint8_t binaryStatus[4];
 
-        binaryStatus[0] = (ns.rxBytesWaiting >> 8) & 0xFF; // High byte of ns.rxBytesWaiting
-        binaryStatus[1] = ns.rxBytesWaiting & 0xFF;        // Low byte of ns.rxBytesWaiting
+        binaryStatus[0] = ns.rxBytesWaiting & 0xFF;        // Low byte of ns.rxBytesWaiting
+        binaryStatus[1] = (ns.rxBytesWaiting >> 8) & 0xFF; // High byte of ns.rxBytesWaiting
 
         binaryStatus[2] = ns.connected;
         binaryStatus[3] = ns.error;
 
-        Debug_printf("Sending status binary data: %s\n", mstr::toHex(binaryStatus, 4).c_str());
+        Debug_printf("Sending status binary data for active channel: %d, %s\n", active_status_channel, mstr::toHex(binaryStatus, 4).c_str());
 
         IEC.sendBytes((const char *)binaryStatus, sizeof(binaryStatus), true);
     } else {
@@ -792,6 +827,10 @@ void iecNetwork::iec_command()
     Debug_printf("pt[0]=='%s'\n", pt[0].c_str());
     if (pt[0] == "cd")
         set_prefix();
+    else if (pt[0] == "chmode")
+        set_channel_mode();
+    else if (pt[0] == "openparams")
+        set_open_params();
     else if (pt[0] == "status")
         set_status(false);
     else if (pt[0] == "statusb")
@@ -833,6 +872,12 @@ void iecNetwork::iec_command()
             if (!channel)
                 return;
 
+            if (!protocol[channel])
+            {
+                Debug_printv("ERROR: trying to perform command on channel without a protocol. channel = %d, payload = >%s<\r\n", channel, payload.c_str());
+                return;
+            }
+
             Debug_printv("pt[0][0]=[%2X] pt[1]=[%d] aux1[%d] aux2[%d]", pt[0][0], channel, cmdFrame.aux1, cmdFrame.aux2);
 
             if (protocol[channel]->special_inquiry(pt[0][0]) == 0x00)
@@ -856,10 +901,10 @@ void iecNetwork::perform_special_00()
         channel = atoi(pt[1].c_str());
 
     if (pt.size() > 2)
-        cmdFrame.aux1 = atoi(pt[1].c_str());
+        cmdFrame.aux1 = atoi(pt[2].c_str());
 
     if (pt.size() > 3)
-        cmdFrame.aux2 = atoi(pt[2].c_str());
+        cmdFrame.aux2 = atoi(pt[3].c_str());
 
     if (protocol[channel]->special_00(&cmdFrame))
     {
@@ -1104,14 +1149,16 @@ void iecNetwork::set_status(bool is_binary)
 
     if (protocol[commanddata.channel] == nullptr)
     {
+        Debug_printv("protocol for channel %d is null, setting iecStatus.connected to 0\r\n", commanddata.channel);
         iecStatus.connected = 0;
     }
     else
     {
-        NetworkStatus ns;
 
+        NetworkStatus ns;
         protocol[commanddata.channel]->status(&ns);
         iecStatus.connected = ns.connected;
+        Debug_printv("protocol for channel %d is set, got status bw: %d, conn: %d, err: %d:\r\n", commanddata.channel, ns.rxBytesWaiting, ns.connected, ns.error);
     }
 
     iecStatus.channel = atoi(pt[1].c_str());
@@ -1281,6 +1328,31 @@ void iecNetwork::fsop(unsigned char comnd)
     iec_close();
 }
 
+void iecNetwork::set_open_params()
+{
+    // openparams,<channel>,<mode>,<trans>
+    if (pt.size() < 3)
+    {
+        iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
+        iecStatus.channel = commanddata.channel;
+        iecStatus.connected = 0;
+        iecStatus.msg = "invalid # of parameters";
+        return;
+    }
+    
+    int channel = atoi(pt[1].c_str());
+    int mode = atoi(pt[2].c_str());
+    int trans = atoi(pt[3].c_str());
+
+    protocol[channel]->set_open_params(mode, trans);
+
+    iecStatus.error = 0;
+    iecStatus.msg = "ok";
+    iecStatus.connected = 0;
+    iecStatus.channel = channel;
+
+}
+
 device_state_t iecNetwork::process()
 {
     // Call base class
@@ -1288,23 +1360,30 @@ device_state_t iecNetwork::process()
     //payload=mstr::toUTF8(payload); // @idolpx? What should I do instead?
 
     mstr::rtrim(payload);
-    Debug_printv("payload[%s]", payload.c_str());
-    std::string hex = mstr::toHex(payload);
-    Debug_printv("hex[%s]", hex.c_str());
+    // Debug_printv("payload[%s]", payload.c_str());
+    // std::string hex = mstr::toHex(payload);
+    // Debug_printv("hex[%s]", hex.c_str());
+
+    Debug_printf("DOING PROCESS\r\n");
+    Debug_printv("commanddata: prim:%02x, dev:%02x, 2nd:%02x, chan:%02x\r\n", commanddata.primary, commanddata.device, commanddata.secondary, commanddata.channel);
 
     // fan out to appropriate process routine
     switch (commanddata.channel)
     {
     case CHANNEL_LOAD:
+        Debug_printv("[CHANNEL_LOAD]");
         process_load();
         break;
     case CHANNEL_SAVE:
+        Debug_printv("[CHANNEL_SAVE]");
         process_save();
         break;
     case CHANNEL_COMMAND:
+        Debug_printv("[CHANNEL_COMMAND]");
         process_command();
         break;
     default:
+        Debug_printv("[DEFAULT - PROCESS_CHANNEL]");
         process_channel();
         break;
     }
@@ -1318,12 +1397,15 @@ void iecNetwork::process_load()
     switch (commanddata.secondary)
     {
     case IEC_OPEN:
+        Debug_printv("[IEC_OPEN (LOAD)]");
         iec_open();
         break;
     case IEC_CLOSE:
+        Debug_printv("[IEC_CLOSE (LOAD)]");
         iec_close();
         break;
     case IEC_REOPEN:
+        Debug_printv("[IEC_REOPEN (LOAD)]");
         iec_reopen_load();
         break;
     default:
@@ -1337,12 +1419,15 @@ void iecNetwork::process_save()
     switch (commanddata.secondary)
     {
     case IEC_OPEN:
+        Debug_printv("[IEC_OPEN (SAVE)]");
         iec_open();
         break;
     case IEC_CLOSE:
+        Debug_printv("[IEC_CLOSE (SAVE)]");
         iec_close();
         break;
     case IEC_REOPEN:
+        Debug_printv("[IEC_REOPEN (SAVE)]");
         iec_reopen_save();
         break;
     default:
@@ -1353,38 +1438,56 @@ void iecNetwork::process_save()
 void iecNetwork::process_channel()
 {
     Debug_printv("secondary[%2X]", commanddata.secondary);
-    switch (commanddata.secondary)
-    {
-    case IEC_OPEN:
-        iec_open();
-        break;
-    case IEC_CLOSE:
-        iec_close();
-        break;
-    case IEC_REOPEN:
-        iec_reopen_channel();
-        break;
-    default:
-        break;
+
+    // we're double processing on the IEC_LISTEN and IEC_UNLISTEN phases
+    if (!(commanddata.primary == IEC_LISTEN && commanddata.secondary == IEC_OPEN)) {
+    // if (commanddata.primary == IEC_UNLISTEN || (commanddata.primary == IEC_LISTEN && commanddata.secondary == IEC_REOPEN)) {
+        switch (commanddata.secondary)
+        {
+        case IEC_OPEN:
+            Debug_printv("[IEC_OPEN (CHANNEL)]");
+            iec_open();
+            break;
+        case IEC_CLOSE:
+            Debug_printv("[IEC_CLOSE (CHANNEL)]");
+            iec_close();
+            break;
+        case IEC_REOPEN:
+            Debug_printv("[IEC_REOPEN (CHANNEL)]");
+            iec_reopen_channel();
+            break;
+        default:
+            break;
+        }
+    } else {
+        Debug_printv("SKIPPING process_channel prim: %02x, 2nd: %02x", commanddata.primary, commanddata.secondary);
+        return;
     }
 }
 
 void iecNetwork::process_command()
 {
     Debug_printv("primary[%2X]", commanddata.primary);
-    if (commanddata.primary == IEC_LISTEN)
+    switch (commanddata.primary)
     {
+    case IEC_LISTEN:
+        Debug_printv("[IEC_LISTEN]");
+        Debug_printv("CONVERTING PAYLOAD TO UTF8\r\n");
         payload=mstr::toUTF8(payload);
         pt = util_tokenize(payload, ',');
-    }
-    else if (commanddata.primary == IEC_TALK)
-    {
+        break;
+    case IEC_TALK:
+        Debug_printv("[IEC_TALK]");
         iec_talk_command();
-    }
-    else if (commanddata.primary == IEC_UNLISTEN)
-    {
+        break;
+    case IEC_UNLISTEN:
+        Debug_printv("[IEC_UNLISTEN - CALLING iec_command()]");
         iec_command();
+        break;
+    default:
+        break;
     }
+
 }
 
 #endif /* BUILD_IEC */
