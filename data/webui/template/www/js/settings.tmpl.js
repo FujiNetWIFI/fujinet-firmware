@@ -1,3 +1,19 @@
+function setupExperimentalToggle() {
+  const experimentalCheckbox = document.getElementById('experimental');
+  const experimentalEnabled = JSON.parse(localStorage.getItem('fujinet.experimental') || 'false');
+
+  if (experimentalEnabled) {
+    experimentalCheckbox.checked = true;
+    document.body.classList.add('show-experimental');
+  }
+  experimentalCheckbox.addEventListener('change', toggleExperimental);
+}
+
+function toggleExperimental(evt) {
+  document.body.classList.toggle('show-experimental');
+  localStorage.setItem('fujinet.experimental', evt.target.checked);
+}
+
 function changeTz() {
 	const selElement = document.getElementById("select_tz");
 	const setElement = document.getElementById("txt_timezone")
@@ -148,3 +164,5 @@ setInputValue(current_netsio_enabled == 1, "netsio-yes", "netsio-no");
 {% if components.pclink %}
 setInputValue(current_pclink == 1, "pclink-yes", "pclink-no");
 {% endif %}
+
+setupExperimentalToggle();
