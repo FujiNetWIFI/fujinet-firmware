@@ -277,7 +277,7 @@
 			</div>
 			{% endif %}
 			{% if components.hosts_list %}
-			<div class="module">
+			<div class="module" {% if components.hosts_lists == "experimental" %}data-experimental{% endif %}>
 				<header class="module-header">HOSTS<span class="logowob"></span>LIST</header>
 				{% for hs in range(1, 9) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
@@ -292,7 +292,7 @@
 			</div>
 			{% endif %}
 			{% if components.mount_list %}
-			<div class="module">
+			<div class="module" {% if components.mount_list == "experimental" %}data-experimental{% endif %}>
 				<header class="module-header">MOUNT<span class="logowob"></span>LIST</header>
 				{% if not tweaks.fujinet_pc %}
 				<div class="detline alt">
@@ -339,7 +339,7 @@
 			</div>
 			{% endif %}
 			{% if components.printer_settings %}
-			<div class="module">
+			<div class="module" {% if components.printer_settings == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">Printer<span class="logowob"></span>Settings</div>
@@ -464,7 +464,7 @@
 			</div>
 			{% endif %}
 			{% if components.modem_settings %}
-			<div class="module">
+			<div class="module" {% if components.modem_settings == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
@@ -544,7 +544,7 @@
 			</div>
 			{% endif %}
 			{% if components.hsio_settings %}
-			<div class="module">
+			<div class="module" {% if components.hsio_settings == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
@@ -645,7 +645,7 @@
 			</div>
 			{% endif %}
 			{% if components.timezone %}
-			<div class="module">
+			<div class="module" {% if components.timezone == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
@@ -744,7 +744,7 @@
 			</div>
 			{% endif %}
 			{% if components.udp_stream %}
-			<div class="module">
+			<div class="module" {% if components.udp_stream == "experimental" %}data-experimental{% endif %}>
 				<div class="settings">
 					<div class="settings-header">
 						UDP<span class="logowob"></span>Stream
@@ -805,7 +805,7 @@
 			</div>
 			{% endif %}
 			{% if components.program_recorder %}
-			<div class="module">
+			<div class="module" {% if components.program_recorder == "experimental" %}data-experimental{% endif %}>
 				<div class="settings">
 					<div class="settings-header">
 						Program<span class="logowob"></span>Recorder
@@ -913,7 +913,7 @@
 			</div>
 			{% endif %}
 			{% if components.cpm_settings %}
-			<div class="module">
+			<div class="module" {% if components.cpm_settings == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
@@ -986,7 +986,7 @@
 			</div>
 			{% endif %}
 			{% if components.pclink %}
-			<div class="module">
+			<div class="module" {% if components.pclink == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
@@ -1066,7 +1066,7 @@
 			</div>
 			{% endif %}
 			{% if components.disk_swap %}
-			<div class="module">
+			<div class="module" {% if components.disk_swap == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
@@ -1166,7 +1166,7 @@
 			</div>
 			{% endif %}
 			{% if components.serial_port %}
-			<div class="module">
+			<div class="module" {% if components.serial_port == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">Serial<span class="logowob"></span>Port</div>
@@ -1252,7 +1252,7 @@
 			</div>
 			{% endif %}
 			{% if components.emulator_settings %}
-			<div class="module">
+			<div class="module" {% if components.emulator_settings == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">Emulator<span class="logowob"></span>Settings</div>
@@ -1317,7 +1317,7 @@
 			</div>
 			{% endif %}
 			{% if components.boot_settings %}
-			<div class="module">
+			<div class="module" {% if components.boot_settings == "experimental" %}data-experimental{% endif %}>
 				<form action="/config" method="post">
 				<div class="settings">
 					<div class="settings-header">
@@ -1520,6 +1520,14 @@
 			{% endif %}
 		</div>
 	</div>
+
+	<hr />
+
+	<label class="experimental-toggle">
+	  <input type="checkbox" id="experimental"/>
+	  Show experimental features
+	</label>
+
 	<script type="text/javascript" src="{{ paths.js_path }}/settings.js"></script>
 	<script type="text/javascript" src="{{ paths.js_path }}/select.js"></script>
 </body>
