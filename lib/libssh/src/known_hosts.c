@@ -29,10 +29,11 @@
 #include <stdio.h>
 
 #include "libssh/priv.h"
+#include "libssh/dh.h" //MYM
 #include "libssh/session.h"
 #include "libssh/buffer.h"
 #include "libssh/misc.h"
-#include "libssh/dh.h"
+//#include "libssh/dh.h" //MYM
 #include "libssh/pki.h"
 #include "libssh/options.h"
 #include "libssh/knownhosts.h"

@@ -33,8 +33,9 @@
 #include "libssh/ssh2.h"
 #include "libssh/buffer.h"
 #include "libssh/priv.h"
+#include "libssh/crypto.h" //MYM
 #include "libssh/session.h"
-#include "libssh/crypto.h"
+//#include "libssh/crypto.h" //MYM
 #include "libssh/dh.h"
 #include "libssh/pki.h"
 #include "libssh/bignum.h"

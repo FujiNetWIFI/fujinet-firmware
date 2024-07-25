@@ -24,13 +24,17 @@
 #include "libssh/config.h"
 
 #ifdef HAVE_LIBMBEDCRYPTO
-#include <mbedtls/pk.h>
-#include <mbedtls/error.h>
-#include "mbedcrypto-compat.h"
+//#include <mbedtls/pk.h> //MYM
+//#include <mbedtls/error.h> //MYM
+//#include "mbedcrypto-compat.h" //MYM
 
 #include "libssh/priv.h"
 #include "libssh/pki.h"
 #include "libssh/pki_priv.h"
+#include <mbedtls/pk.h> //MYM
+#include <mbedtls/error.h> //MYM
+#include "mbedcrypto-compat.h" //MYM
+
 #include "libssh/buffer.h"
 #include "libssh/bignum.h"
 #include "libssh/misc.h"

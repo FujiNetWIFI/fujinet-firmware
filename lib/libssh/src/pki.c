@@ -55,10 +55,11 @@
 #endif
 
 #include "libssh/libssh.h"
-#include "libssh/session.h"
+//#include "libssh/session.h" //MYM
 #include "libssh/priv.h"
 #include "libssh/pki.h"
 #include "libssh/pki_priv.h"
+#include "libssh/session.h" //MYM
 #include "libssh/keys.h"
 #include "libssh/buffer.h"
 #include "libssh/misc.h"

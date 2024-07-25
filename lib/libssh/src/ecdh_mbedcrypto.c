@@ -23,11 +23,12 @@
 
 #include "libssh/config.h"
 
+#include "libssh/dh.h" //MYM
 #include "libssh/session.h"
 #include "libssh/ecdh.h"
 #include "libssh/buffer.h"
 #include "libssh/ssh2.h"
-#include "libssh/dh.h"
+//#include "libssh/dh.h" //MYM
 #include "libssh/pki.h"
 #include "libssh/bignum.h"
 #include "libssh/libmbedcrypto.h"

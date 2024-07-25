@@ -33,11 +33,12 @@
 #include "libssh/priv.h"
 #include "libssh/ssh2.h"
 #include "libssh/buffer.h"
+#include "libssh/dh.h" //MYM
 #include "libssh/packet.h"
 #include "libssh/options.h"
 #include "libssh/socket.h"
 #include "libssh/session.h"
-#include "libssh/dh.h"
+//#include "libssh/dh.h" //MYM
 #ifdef WITH_GEX
 #include "libssh/dh-gex.h"
 #endif /* WITH_GEX */

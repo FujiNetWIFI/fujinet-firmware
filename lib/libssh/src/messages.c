@@ -35,11 +35,12 @@
 #include "libssh/priv.h"
 #include "libssh/ssh2.h"
 #include "libssh/buffer.h"
+#include "libssh/pki.h" //MYM
 #include "libssh/packet.h"
 #include "libssh/channels.h"
 #include "libssh/session.h"
 #include "libssh/misc.h"
-#include "libssh/pki.h"
+//#include "libssh/pki.h" //MYM
 #include "libssh/dh.h"
 #include "libssh/messages.h"
 #ifdef WITH_SERVER
