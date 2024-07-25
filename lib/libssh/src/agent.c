@@ -53,9 +53,10 @@
 #include "libssh/priv.h"
 #include "libssh/socket.h"
 #include "libssh/buffer.h"
+#include "libssh/pki.h" //MYM
 #include "libssh/session.h"
 #include "libssh/poll.h"
-#include "libssh/pki.h"
+//#include "libssh/pki.h" //MYM
 #include "libssh/bytearray.h"
 
 /* macro to check for "agent failure" message */

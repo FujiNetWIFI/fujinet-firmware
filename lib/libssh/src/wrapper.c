@@ -43,8 +43,9 @@
 #endif
 
 #include "libssh/priv.h"
+#include "libssh/crypto.h" //MYM
 #include "libssh/session.h"
-#include "libssh/crypto.h"
+//#include "libssh/crypto.h" //MYM
 #include "libssh/wrapper.h"
 #include "libssh/pki.h"
 #include "libssh/poly1305.h"

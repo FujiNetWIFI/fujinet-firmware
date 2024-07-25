@@ -31,10 +31,11 @@
 #include <stdlib.h>
 
 #include "libssh/priv.h"
+#include "libssh/pki.h" //MYM
 #include "libssh/bind.h"
 #include "libssh/libssh.h"
 #include "libssh/server.h"
-#include "libssh/pki.h"
+//#include "libssh/pki.h" //MYM
 #include "libssh/buffer.h"
 #include "libssh/socket.h"
 #include "libssh/session.h"

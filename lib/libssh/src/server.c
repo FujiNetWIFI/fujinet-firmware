@@ -49,12 +49,13 @@
 #include "libssh/server.h"
 #include "libssh/ssh2.h"
 #include "libssh/buffer.h"
+#include "libssh/pki.h" //MYM
 #include "libssh/packet.h"
 #include "libssh/socket.h"
 #include "libssh/session.h"
 #include "libssh/kex.h"
 #include "libssh/misc.h"
-#include "libssh/pki.h"
+//#include "libssh/pki.h" //MYM
 #include "libssh/dh.h"
 #include "libssh/messages.h"
 #include "libssh/options.h"

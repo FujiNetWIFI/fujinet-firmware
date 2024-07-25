@@ -23,8 +23,9 @@
 
 #include "libssh/config.h"
 
+#include "libssh/crypto.h" //MYM
 #include "libssh/wrapper.h"
-#include "libssh/crypto.h"
+//#include "libssh/crypto.h" //MYM
 #include "libssh/priv.h"
 #include "libssh/misc.h"
 #include "mbedcrypto-compat.h"

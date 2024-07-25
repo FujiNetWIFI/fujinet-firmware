@@ -21,7 +21,7 @@
 #include "libssh/config.h"
 
 #include "libssh/priv.h"
-#include "libssh/wrapper.h"
+//#include "libssh/wrapper.h" //MYM
 #include <stdlib.h>
 #include <sys/types.h>
 #ifdef HAVE_SYS_PARAM_H
@@ -30,6 +30,7 @@
 
 #include "libssh/blf.h"
 #include "libssh/pki_priv.h"
+#include "libssh/wrapper.h" //MYM
 #ifndef SHA512_DIGEST_LENGTH
 #define SHA512_DIGEST_LENGTH SHA512_DIGEST_LEN
 #endif
