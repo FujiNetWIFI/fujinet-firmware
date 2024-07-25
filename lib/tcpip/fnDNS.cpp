@@ -2,14 +2,21 @@
 
 #include "../../include/debug.h"
 
+static const char *normalize_hostname(const char *hostname) {
+    std::string normalized(hostname);
+    std::transform(normalized.begin(), normalized.end(), normalized.begin(),
+        [](unsigned char c){ return std::tolower(c); });
+    return normalized.c_str();
+}
 
 // Return a single IP4 address given a hostname
 in_addr_t get_ip4_addr_by_name(const char *hostname)
 {
     in_addr_t result = IPADDR_NONE;
 
-    Debug_printf("Resolving hostname \"%s\"\r\n", hostname);
-    struct hostent *info = gethostbyname(hostname);
+    const char *normalized = normalize_hostname(hostname);
+    Debug_printf("Resolving hostname \"%s\"\r\n", normalized);
+    struct hostent *info = gethostbyname(normalized);
 
     if(info == nullptr)
     {
