@@ -10,6 +10,7 @@
 
 #ifdef ESP_PLATFORM
 #include <driver/gpio.h>
+#include <esp_timer.h>
 #else
 #include <signal.h>
 #endif
