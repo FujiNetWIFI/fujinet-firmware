@@ -3,6 +3,7 @@
 
 #include "fnFS.h"
 #include "tnfslib.h"
+#include "esp_timer.h"
 
 class FileSystemTNFS : public FileSystem
 {

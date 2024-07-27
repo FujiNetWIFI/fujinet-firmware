@@ -853,7 +853,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 #ifdef ESP_PLATFORM
         ledc_channel_config_t ledc_channel_sio_ckin;
         ledc_channel_sio_ckin.gpio_num = PIN_CKI;
-        ledc_channel_sio_ckin.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_channel_sio_ckin.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
         ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
         ledc_channel_sio_ckin.intr_type = LEDC_INTR_DISABLE;
         ledc_channel_sio_ckin.timer_sel = LEDC_TIMER_1;
@@ -863,7 +863,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
         // Setup PWM timer for CLOCK IN
         ledc_timer_config_t ledc_timer;
         ledc_timer.clk_cfg = LEDC_AUTO_CLK;
-        ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_timer.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
         ledc_timer.duty_resolution = LEDC_TIMER_1_BIT;
         ledc_timer.timer_num = LEDC_TIMER_1;
         ledc_timer.freq_hz = _ultraHighBaud;
@@ -887,7 +887,8 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
         Debug_printf("Disabling SIO clock.\n");
         _sioBaudUltraHigh = 0;
 #ifdef ESP_PLATFORM
-        ledc_stop(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
+        ledc_stop(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 0);
+        ledc_stop(LEDC_SPEED_MODE_MAX, LEDC_CHANNEL_1, 0);
         _modemDev->get_uart()->set_baudrate(SIO_STANDARD_BAUDRATE);
 #else
         fnSioCom.set_baudrate(SIO_STANDARD_BAUDRATE);
