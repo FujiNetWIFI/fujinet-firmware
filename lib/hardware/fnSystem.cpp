@@ -5,6 +5,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <freertos/task.h>
 #include <esp_system.h>
 #include <driver/gpio.h>
 #if CONFIG_IDF_TARGET_ESP32S3

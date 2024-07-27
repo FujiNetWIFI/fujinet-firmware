@@ -24,7 +24,7 @@ void sioUDPStream::sio_enable_udpstream()
         // Setup PWM channel for CLOCK IN
         ledc_channel_config_t ledc_channel_sio_ckin;
         ledc_channel_sio_ckin.gpio_num = PIN_CKI;
-        ledc_channel_sio_ckin.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_channel_sio_ckin.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
         ledc_channel_sio_ckin.channel = LEDC_CHANNEL_1;
         ledc_channel_sio_ckin.intr_type = LEDC_INTR_DISABLE;
         ledc_channel_sio_ckin.timer_sel = LEDC_TIMER_1;
@@ -34,7 +34,7 @@ void sioUDPStream::sio_enable_udpstream()
         // Setup PWM timer for CLOCK IN
         ledc_timer_config_t ledc_timer;
         ledc_timer.clk_cfg = LEDC_AUTO_CLK;
-        ledc_timer.speed_mode = LEDC_HIGH_SPEED_MODE;
+        ledc_timer.speed_mode = LEDC_ESP32XX_HIGH_SPEED;
         ledc_timer.duty_resolution = LEDC_TIMER_RESOLUTION;
         ledc_timer.timer_num = LEDC_TIMER_1;
         ledc_timer.freq_hz = MIDI_BAUDRATE;
@@ -61,7 +61,7 @@ void sioUDPStream::sio_disable_udpstream()
     if (udpstream_port == MIDI_PORT)
     {
 #ifdef ESP_PLATFORM
-        ledc_stop(LEDC_HIGH_SPEED_MODE, LEDC_CHANNEL_1, 0);
+        ledc_stop(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 0);
 #endif
         FN_BUS_LINK.set_baudrate(SIO_STANDARD_BAUDRATE);
     }
