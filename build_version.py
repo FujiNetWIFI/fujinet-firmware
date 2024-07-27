@@ -31,7 +31,7 @@ else:
 
     ver_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-    rxs = ['^#define FN_VERSION_MAJOR (\w+)', '^#define FN_VERSION_MINOR (\w+)',
+    rxs = ['^#define FN_VERSION_MAJOR (\\w)', '^#define FN_VERSION_MINOR (\\w)',
            '^(#define FN_VERSION_BUILD)', '^(#define FN_VERSION_DATE)', '^(#define FN_VERSION_FULL)']
 
     ver_maj = ""
