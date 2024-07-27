@@ -49,3 +49,5 @@ platformio.iniwow
 
 # for external library source code
 .external/
+
+data/webui/device_specific/BUILD_ATARI/fnconfig.ini

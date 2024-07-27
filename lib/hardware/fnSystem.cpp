@@ -5,6 +5,7 @@
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <freertos/task.h>
 #include <esp_system.h>
 #include <driver/gpio.h>
 #if CONFIG_IDF_TARGET_ESP32S3
@@ -1222,6 +1223,7 @@ void SystemManager::check_hardware_ver()
 void SystemManager::debug_print_tasks()
 {
 #ifdef DEBUG
+#if 0
 #ifdef ESP_PLATFORM
 
     static const char *status[] = {"Running", "Ready", "Blocked", "Suspened", "Deleted"};
@@ -1245,5 +1247,6 @@ void SystemManager::debug_print_tasks()
     }
     Debug_printf("\nCPU MHz: %d\r\n", fnSystem.get_cpu_frequency());
 #endif // ESP_PLATFORM
+#endif
 #endif // DEBUG
 }
