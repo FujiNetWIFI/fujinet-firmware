@@ -78,7 +78,6 @@ void iecNetwork::poll_interrupt(unsigned char c)
 
 void iecNetwork::iec_open()
 {
-    bool is_raw_open = false;
     uint8_t channel_aux1 = 12;
     uint8_t channel_aux2 = translationMode[commanddata.channel]; // not sure about this, you can't set this unless you send a command for the channel first, I think it relies on the array being init to 0s
 
@@ -98,20 +97,20 @@ void iecNetwork::iec_open()
     // This is an efficiency so we don't have to send a 2nd command to tell it what the parameters should have been. BASIC will still need to use "openparams" command, as the OPEN line doesn't have capacity for the parameters (can't use a "," as that's a valid URL character)
     if (payload[0] == 0x01) {
         Debug_printf("RAW!\r\n");
-        is_raw_open = true;
         channel_aux1 = payload[1];
         channel_aux2 = payload[2];
-        payload = payload.substr(3); // remove the marker bytes so the payload can continue as with BASIC setup
+
+        // capture the trans mode as though "settrans" had been invoked
+        translationMode[commanddata.channel] = channel_aux2;
+        
+        // remove the marker bytes so the payload can continue as with BASIC setup
+        payload = payload.substr(3);
     }
     Debug_printv("payload: [%s]\r\n", mstr::toHex(payload).c_str());
 
     if (payload != "$") {
-        // fix underscores as they don't translate well to UTF8
-        std::replace(payload.begin(), payload.end(), static_cast<char>(0xA4), static_cast<char>(0x5F));
-
-        // convert to utf8. this should be ascii though. UTF will crap all over non-ascii chars
-        Debug_printv("CONVERTING PAYLOAD TO UTF8\r\n");
-        payload = mstr::toUTF8(payload);
+        Debug_printv("FIXING PAYLOAD DATA TO ASCII\r\n");
+        clean_transform_petscii_to_ascii(&payload);
         Debug_printv("payload: [%s]\r\n", mstr::toHex(payload).c_str());
         deviceSpec[commanddata.channel] += payload;
     }
@@ -144,15 +143,6 @@ void iecNetwork::iec_open()
     }
 
     urlParser[commanddata.channel] = PeoplesUrlParser::parseURL(deviceSpec[commanddata.channel]);
-
-    // This is unbelievably stupid, but here we are.
-    // for (int i = 0; i < urlParser[commanddata.channel]->query.size(); i++)
-    //     if (urlParser[commanddata.channel]->query[i]==0xa4) // underscore
-    //         urlParser[commanddata.channel]->query[i]=0x5F;
-
-    // for (int i = 0; i < urlParser[commanddata.channel]->path.size(); i++)
-    //     if (urlParser[commanddata.channel]->path[i]==0xa4) // underscore
-    //         urlParser[commanddata.channel]->path[i]=0x5F;
 
     // Convert scheme to uppercase
     std::transform(urlParser[commanddata.channel]->scheme.begin(), urlParser[commanddata.channel]->scheme.end(), urlParser[commanddata.channel]->scheme.begin(), ::toupper);
@@ -357,7 +347,7 @@ void iecNetwork::iec_reopen_save()
         return;
     }
 
-    Debug_printf("Receiving data from computer...\r\n");
+    Debug_printv("Receiving data from computer...");
 
     while (!(IEC.flags & EOI_RECVD))
     {
@@ -372,7 +362,11 @@ void iecNetwork::iec_reopen_save()
         transmitBuffer[commanddata.channel]->push_back(b);
     }
 
-    Debug_printf("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
+    // Debug_printv("[1] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
+    // clean_transform_petscii_to_ascii(transmitBuffer[commanddata.channel]);
+    // Debug_printv("[2] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
+
+    Debug_printv("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
 
     if (protocol[commanddata.channel]->write(transmitBuffer[commanddata.channel]->length()))
     {
@@ -412,7 +406,7 @@ void iecNetwork::iec_reopen_channel_listen()
         return;
     }
 
-    Debug_printf("Receiving data from computer...\r\n");
+    Debug_printv("Receiving data from computer...\r\n");
 
     while (!(IEC.flags & EOI_RECVD))
     {
@@ -427,11 +421,11 @@ void iecNetwork::iec_reopen_channel_listen()
         transmitBuffer[commanddata.channel]->push_back(b);
     }
 
-    // ok, we need to convert the data to a format the rest of the world can use. e.g. remove any trailing 0x9b from ends, and convert to ascii/utf8 and fix the underscore... sigh
-    fix_petscii_data(transmitBuffer[commanddata.channel]);
+    // Debug_printv("[1] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
+    // clean_transform_petscii_to_ascii(transmitBuffer[commanddata.channel]);
+    // Debug_printv("[2] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
 
-    Debug_printf("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
-    Debug_printv("DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
+    Debug_printv("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
 
     protocol[commanddata.channel]->write(transmitBuffer[commanddata.channel]->length());
     transmitBuffer[commanddata.channel]->clear();
@@ -467,6 +461,19 @@ void iecNetwork::iec_reopen_channel_talk()
         return;
     }
 
+    // check if the client wanted PET translation back to them.
+    // if (protocol[commanddata.channel]->translation_mode == 4) {
+    //     std::string& sref = *receiveBuffer[commanddata.channel];
+    //     util_devicespec_fix_9b((uint8_t *) sref.data(), sref.length());
+    //     sref = mstr::toPETSCII2(sref);
+    // }
+
+    // ALWAYS translate the data to PETSCII towards the host. Translation mode needs rewriting.
+    std::string& sref = *receiveBuffer[commanddata.channel];
+    util_devicespec_fix_9b((uint8_t *) sref.data(), sref.length());
+    sref = mstr::toPETSCII2(sref);
+
+    Debug_printv("TALK: sending data to host: >%s< [%s]", receiveBuffer[commanddata.channel]->c_str(), mstr::toHex(*receiveBuffer[commanddata.channel]).c_str());
     do
     {
         char b = receiveBuffer[commanddata.channel]->front();
@@ -583,7 +590,7 @@ void iecNetwork::query_json()
 
     Debug_printf("query_json(%s)\r\n", payload.c_str());
 
-    if (pt.size() < 3)
+    if (pt.size() < 2)
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.msg = "invalid # of parameters";
@@ -594,13 +601,13 @@ void iecNetwork::query_json()
     }
 
     channel = atoi(pt[1].c_str());
-
-    s = pt[2];
+    s = pt.size() == 2 ? "" : pt[2];  // allow empty string if there aren't enough args
 
     Debug_printf("Channel: %u\r\n", channel);
+    Debug_printv("HAVE WE ALREADY TRANSLATED TO ASCII?");
 
-    // SIGH. Convert petscii underscore graphic to true underscore ascii char
-    std::replace(s.begin(), s.end(), static_cast<char>(0xA4), static_cast<char>(0x5F));
+    // fix_petscii_data()
+    // std::replace(s.begin(), s.end(), static_cast<char>(0xA4), static_cast<char>(0x5F));
 
     json[channel]->setReadQuery(s, 0);
 
@@ -1472,8 +1479,8 @@ void iecNetwork::process_command()
     {
     case IEC_LISTEN:
         Debug_printv("[IEC_LISTEN]");
-        Debug_printv("CONVERTING PAYLOAD TO UTF8\r\n");
-        payload=mstr::toUTF8(payload);
+        Debug_printv("FIXING PAYLOAD DATA TO ASCII\r\n");
+        clean_transform_petscii_to_ascii(&payload);
         pt = util_tokenize(payload, ',');
         break;
     case IEC_TALK:

@@ -17,6 +17,7 @@
 #endif
 
 #include "../../include/debug.h"
+#include "string_utils.h"
 
 #include "samlib.h"
 
@@ -591,34 +592,31 @@ void util_devicespec_fix_9b(uint8_t *buf, unsigned short len)
             buf[i] = 0x00;
 }
 
-void fix_petscii_data(std::string* dataPtr)
+// does 3 things:
+// 1. replace 0xa4 with 0x5f (underscore char)
+// 2. removes final 0x9b chars that may be coming out the host because of x-platform code
+// 3. converts petscii to ascii
+void clean_transform_petscii_to_ascii(std::string* dataPtr)
 {
     if (dataPtr == nullptr) {
-        // Handle null pointer if necessary
         return;
     }
 
     std::string &data = *dataPtr;
 
-    // 1. Replace all chars of value 0xa4 to 0x5f
+    // 1. Replace all chars of value 0xa4 to 0x5f (the dreaded underscore)
+    // This is mostly because of CC65 performing several character changes to make "look alike" characters. Here we're only going to fix _
+    // Fujinet-lib has a fix for this by not converting underscore chars in "code" to 0xa4, but BASIC and "typed" strings in applications
+    // may still use the graphic directly.
     std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) {
         return c == 0xa4 ? 0x5f : c;
     });
 
     // 2. Remove any trailing 0x9b chars
-    // This operation assumes 0x9b chars are only at the end. If they can be anywhere,
-    // you might want to remove all 0x9b chars instead.
-    data.erase(std::find(data.rbegin(), data.rend(), 0x9b).base(), data.end());
+    util_devicespec_fix_9b((uint8_t *)data.data(), data.length());
 
-    // 3. Convert the characters from PETSCII to ASCII
-    std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) -> char {
-        if ((c > 0x40) && (c < 0x5B)) {
-            return static_cast<char>(c + 0x20);
-        } else if ((c > 0x60) && (c < 0x7B)) {
-            return static_cast<char>(c - 0x20);
-        }
-        return static_cast<char>(c);
-    });
+    // 3. Convert the characters from PETSCII to UTF8, under the hood this uses u8char class, which for 0x00-0x7F range converts straight to petscii with no UTF8ing
+    data = mstr::toUTF8(data);
 }
 
 // Non-mutating
