@@ -81,7 +81,6 @@ void iecNetwork::iec_open()
     uint8_t channel_aux1 = 12;
     uint8_t channel_aux2 = translationMode[commanddata.channel]; // not sure about this, you can't set this unless you send a command for the channel first, I think it relies on the array being init to 0s
 
-    Debug_printf("DOING OPEN\r\n");
     Debug_printv("commanddata: prim:%02x, dev:%02x, 2nd:%02x, chan:%02x\r\n", commanddata.primary, commanddata.device, commanddata.secondary, commanddata.channel);
 
     file_not_found = false;
@@ -96,7 +95,6 @@ void iecNetwork::iec_open()
     // If it is, then the next 2 bytes are the aux1/aux2 values (mode and trans), and the rest is the actual URL.
     // This is an efficiency so we don't have to send a 2nd command to tell it what the parameters should have been. BASIC will still need to use "openparams" command, as the OPEN line doesn't have capacity for the parameters (can't use a "," as that's a valid URL character)
     if (payload[0] == 0x01) {
-        Debug_printf("RAW!\r\n");
         channel_aux1 = payload[1];
         channel_aux2 = payload[2];
 
@@ -106,12 +104,10 @@ void iecNetwork::iec_open()
         // remove the marker bytes so the payload can continue as with BASIC setup
         payload = payload.substr(3);
     }
-    Debug_printv("payload: [%s]\r\n", mstr::toHex(payload).c_str());
 
     if (payload != "$") {
-        Debug_printv("FIXING PAYLOAD DATA TO ASCII\r\n");
         clean_transform_petscii_to_ascii(&payload);
-        Debug_printv("payload: [%s]\r\n", mstr::toHex(payload).c_str());
+        // Debug_printv("payload: [%s]\r\n", mstr::toHex(payload).c_str());
         deviceSpec[commanddata.channel] += payload;
     }
 
@@ -130,7 +126,6 @@ void iecNetwork::iec_open()
     default:
         cmdFrame.aux1 = channel_aux1;
         cmdFrame.aux2 = channel_aux2;
-        Debug_printf("mode: %u, translation mode: %u\r\n", cmdFrame.aux1, cmdFrame.aux2);
         break;
     }
 
@@ -347,8 +342,6 @@ void iecNetwork::iec_reopen_save()
         return;
     }
 
-    Debug_printv("Receiving data from computer...");
-
     while (!(IEC.flags & EOI_RECVD))
     {
         int16_t b = IEC.receiveByte();
@@ -362,11 +355,12 @@ void iecNetwork::iec_reopen_save()
         transmitBuffer[commanddata.channel]->push_back(b);
     }
 
+    // force incoming data from HOST to fixed ascii
     // Debug_printv("[1] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
-    // clean_transform_petscii_to_ascii(transmitBuffer[commanddata.channel]);
+    clean_transform_petscii_to_ascii(transmitBuffer[commanddata.channel]);
     // Debug_printv("[2] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
 
-    Debug_printv("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
+    // Debug_printv("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
 
     if (protocol[commanddata.channel]->write(transmitBuffer[commanddata.channel]->length()))
     {
@@ -406,7 +400,7 @@ void iecNetwork::iec_reopen_channel_listen()
         return;
     }
 
-    Debug_printv("Receiving data from computer...\r\n");
+    // Debug_printv("Receiving data from computer...\r\n");
 
     while (!(IEC.flags & EOI_RECVD))
     {
@@ -421,11 +415,12 @@ void iecNetwork::iec_reopen_channel_listen()
         transmitBuffer[commanddata.channel]->push_back(b);
     }
 
+    // force incoming data from HOST to fixed ascii
     // Debug_printv("[1] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
-    // clean_transform_petscii_to_ascii(transmitBuffer[commanddata.channel]);
+    clean_transform_petscii_to_ascii(transmitBuffer[commanddata.channel]);
     // Debug_printv("[2] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
 
-    Debug_printv("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
+    // Debug_printv("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
 
     protocol[commanddata.channel]->write(transmitBuffer[commanddata.channel]->length());
     transmitBuffer[commanddata.channel]->clear();
@@ -461,19 +456,12 @@ void iecNetwork::iec_reopen_channel_talk()
         return;
     }
 
-    // check if the client wanted PET translation back to them.
-    // if (protocol[commanddata.channel]->translation_mode == 4) {
-    //     std::string& sref = *receiveBuffer[commanddata.channel];
-    //     util_devicespec_fix_9b((uint8_t *) sref.data(), sref.length());
-    //     sref = mstr::toPETSCII2(sref);
-    // }
-
     // ALWAYS translate the data to PETSCII towards the host. Translation mode needs rewriting.
     std::string& sref = *receiveBuffer[commanddata.channel];
     util_devicespec_fix_9b((uint8_t *) sref.data(), sref.length());
     sref = mstr::toPETSCII2(sref);
 
-    Debug_printv("TALK: sending data to host: >%s< [%s]", receiveBuffer[commanddata.channel]->c_str(), mstr::toHex(*receiveBuffer[commanddata.channel]).c_str());
+    // Debug_printv("TALK: sending data to host: >%s< [%s]", receiveBuffer[commanddata.channel]->c_str(), mstr::toHex(*receiveBuffer[commanddata.channel]).c_str());
     do
     {
         char b = receiveBuffer[commanddata.channel]->front();
@@ -604,7 +592,6 @@ void iecNetwork::query_json()
     s = pt.size() == 2 ? "" : pt[2];  // allow empty string if there aren't enough args
 
     Debug_printf("Channel: %u\r\n", channel);
-    Debug_printv("HAVE WE ALREADY TRANSLATED TO ASCII?");
 
     // fix_petscii_data()
     // std::replace(s.begin(), s.end(), static_cast<char>(0xA4), static_cast<char>(0x5F));
@@ -1154,21 +1141,23 @@ void iecNetwork::set_status(bool is_binary)
     iecStatus.error = NETWORK_ERROR_SUCCESS;
     iecStatus.msg = "Active status channel set.";
 
+    // The original here makes no sense to me, do you ever open a protocol on the command channel??
+    // We're after the status of the active_status_channel usually, and this function is about setting which one is active.
+    // FujiNet-Lib issues a status command via "status" or "statusb" to fetch the active channels status. Why is it done here to ?
     if (protocol[commanddata.channel] == nullptr)
     {
-        Debug_printv("protocol for channel %d is null, setting iecStatus.connected to 0\r\n", commanddata.channel);
+        // Debug_printv("WARNING! protocol for channel %d is null, setting iecStatus.connected to 0\r\n", commanddata.channel);
         iecStatus.connected = 0;
     }
     else
     {
-
         NetworkStatus ns;
         protocol[commanddata.channel]->status(&ns);
         iecStatus.connected = ns.connected;
-        Debug_printv("protocol for channel %d is set, got status bw: %d, conn: %d, err: %d:\r\n", commanddata.channel, ns.rxBytesWaiting, ns.connected, ns.error);
+        // Debug_printv("protocol for channel %d is set, got status bw: %d, conn: %d, err: %d:\r\n", commanddata.channel, ns.rxBytesWaiting, ns.connected, ns.error);
     }
 
-    iecStatus.channel = atoi(pt[1].c_str());
+    iecStatus.channel = active_status_channel;
 }
 
 void iecNetwork::set_prefix()
@@ -1367,30 +1356,26 @@ device_state_t iecNetwork::process()
     //payload=mstr::toUTF8(payload); // @idolpx? What should I do instead?
 
     mstr::rtrim(payload);
-    // Debug_printv("payload[%s]", payload.c_str());
-    // std::string hex = mstr::toHex(payload);
-    // Debug_printv("hex[%s]", hex.c_str());
 
-    Debug_printf("DOING PROCESS\r\n");
-    Debug_printv("commanddata: prim:%02x, dev:%02x, 2nd:%02x, chan:%02x\r\n", commanddata.primary, commanddata.device, commanddata.secondary, commanddata.channel);
+    // Debug_printv("commanddata: prim:%02x, dev:%02x, 2nd:%02x, chan:%02x\r\n", commanddata.primary, commanddata.device, commanddata.secondary, commanddata.channel);
 
     // fan out to appropriate process routine
     switch (commanddata.channel)
     {
     case CHANNEL_LOAD:
-        Debug_printv("[CHANNEL_LOAD]");
+        // Debug_printv("[CHANNEL_LOAD]");
         process_load();
         break;
     case CHANNEL_SAVE:
-        Debug_printv("[CHANNEL_SAVE]");
+        // Debug_printv("[CHANNEL_SAVE]");
         process_save();
         break;
     case CHANNEL_COMMAND:
-        Debug_printv("[CHANNEL_COMMAND]");
+        // Debug_printv("[CHANNEL_COMMAND]");
         process_command();
         break;
     default:
-        Debug_printv("[DEFAULT - PROCESS_CHANNEL]");
+        // Debug_printv("[DEFAULT - PROCESS_CHANNEL]");
         process_channel();
         break;
     }
@@ -1404,15 +1389,15 @@ void iecNetwork::process_load()
     switch (commanddata.secondary)
     {
     case IEC_OPEN:
-        Debug_printv("[IEC_OPEN (LOAD)]");
+        // Debug_printv("[IEC_OPEN (LOAD)]");
         iec_open();
         break;
     case IEC_CLOSE:
-        Debug_printv("[IEC_CLOSE (LOAD)]");
+        // Debug_printv("[IEC_CLOSE (LOAD)]");
         iec_close();
         break;
     case IEC_REOPEN:
-        Debug_printv("[IEC_REOPEN (LOAD)]");
+        // Debug_printv("[IEC_REOPEN (LOAD)]");
         iec_reopen_load();
         break;
     default:
@@ -1426,15 +1411,15 @@ void iecNetwork::process_save()
     switch (commanddata.secondary)
     {
     case IEC_OPEN:
-        Debug_printv("[IEC_OPEN (SAVE)]");
+        // Debug_printv("[IEC_OPEN (SAVE)]");
         iec_open();
         break;
     case IEC_CLOSE:
-        Debug_printv("[IEC_CLOSE (SAVE)]");
+        // Debug_printv("[IEC_CLOSE (SAVE)]");
         iec_close();
         break;
     case IEC_REOPEN:
-        Debug_printv("[IEC_REOPEN (SAVE)]");
+        // Debug_printv("[IEC_REOPEN (SAVE)]");
         iec_reopen_save();
         break;
     default:
@@ -1446,21 +1431,20 @@ void iecNetwork::process_channel()
 {
     Debug_printv("secondary[%2X]", commanddata.secondary);
 
-    // we're double processing on the IEC_LISTEN and IEC_UNLISTEN phases
+    // we're double processing on the IEC_LISTEN and IEC_UNLISTEN phases for an OPEN. Only do the open on the UNLISTEN
     if (!(commanddata.primary == IEC_LISTEN && commanddata.secondary == IEC_OPEN)) {
-    // if (commanddata.primary == IEC_UNLISTEN || (commanddata.primary == IEC_LISTEN && commanddata.secondary == IEC_REOPEN)) {
         switch (commanddata.secondary)
         {
         case IEC_OPEN:
-            Debug_printv("[IEC_OPEN (CHANNEL)]");
+            // Debug_printv("[IEC_OPEN (CHANNEL)]");
             iec_open();
             break;
         case IEC_CLOSE:
-            Debug_printv("[IEC_CLOSE (CHANNEL)]");
+            // Debug_printv("[IEC_CLOSE (CHANNEL)]");
             iec_close();
             break;
         case IEC_REOPEN:
-            Debug_printv("[IEC_REOPEN (CHANNEL)]");
+            // Debug_printv("[IEC_REOPEN (CHANNEL)]");
             iec_reopen_channel();
             break;
         default:
@@ -1478,17 +1462,17 @@ void iecNetwork::process_command()
     switch (commanddata.primary)
     {
     case IEC_LISTEN:
-        Debug_printv("[IEC_LISTEN]");
-        Debug_printv("FIXING PAYLOAD DATA TO ASCII\r\n");
+        // Debug_printv("[IEC_LISTEN]");
+        // Debug_printv("FIXING PAYLOAD DATA TO ASCII\r\n");
         clean_transform_petscii_to_ascii(&payload);
         pt = util_tokenize(payload, ',');
         break;
     case IEC_TALK:
-        Debug_printv("[IEC_TALK]");
+        // Debug_printv("[IEC_TALK]");
         iec_talk_command();
         break;
     case IEC_UNLISTEN:
-        Debug_printv("[IEC_UNLISTEN - CALLING iec_command()]");
+        // Debug_printv("[IEC_UNLISTEN - CALLING iec_command()]");
         iec_command();
         break;
     default:
