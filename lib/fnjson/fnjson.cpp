@@ -108,7 +108,6 @@ std::string replaceAccentedCharactersInMap(const std::string& input, const std::
  */
 std::string FNJSON::processString(std::string in)
 {
-    Debug_printv("-+-+-+-+-+-+-+-+-+ translation_mode = %u", _protocol->translation_mode);
     while (in.find("<") != std::string::npos)
     {
         auto startpos = in.find("<");
@@ -338,7 +337,7 @@ bool FNJSON::parse()
 #endif
     }
 
-    Debug_printf("S: %s\r\n", _parseBuffer.c_str());
+    // Debug_printf("S: %s\r\n", _parseBuffer.c_str());
     // only try and parse the buffer if it has data. Empty response doesn't need parsing.
     if (!_parseBuffer.empty())
     {
@@ -356,7 +355,7 @@ bool FNJSON::parse()
 
 bool FNJSON::status(NetworkStatus *s)
 {
-    Debug_printf("FNJSON::status(%u) %s\r\n", json_bytes_remaining, getValue(_item).c_str());
+    // Debug_printf("FNJSON::status(%u) %s\r\n", json_bytes_remaining, getValue(_item).c_str());
     s->connected = true;
     s->rxBytesWaiting = json_bytes_remaining;
     s->error = json_bytes_remaining == 0 ? 136 : 0;
