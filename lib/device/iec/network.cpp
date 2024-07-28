@@ -3,10 +3,11 @@
  * N: Firmware
  */
 
-#include "network.h"
-
-#include <cstring>
 #include <algorithm>
+#include <cstring>
+#include <cstdint>
+
+#include "network.h"
 
 #include "../../include/debug.h"
 #include "../../hardware/led.h"
@@ -14,6 +15,7 @@
 #include "utils.h"
 
 #include "status_error_codes.h"
+#include "npf.h"
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -26,16 +28,6 @@
 
 iecNetwork::iecNetwork()
 {
-    for (int i = 0; i < NUM_CHANNELS; i++)
-    {
-        channelMode[i] = PROTOCOL;
-        protocol[i] = nullptr;
-        json[i] = nullptr;
-        receiveBuffer[i] = new string();
-        transmitBuffer[i] = new string();
-        specialBuffer[i] = new string();
-    }
-
     iecStatus.channel = CHANNEL_COMMAND;
     iecStatus.connected = 0;
     iecStatus.msg = "fujinet network device";
@@ -44,32 +36,20 @@ iecNetwork::iecNetwork()
 
 iecNetwork::~iecNetwork()
 {
-    for (int i = 0; i < NUM_CHANNELS; i++)
-    {
-        delete protocol[i];
-        delete json[i];
-        delete receiveBuffer[i];
-        delete transmitBuffer[i];
-        delete specialBuffer[i];
-        protocol[i] = nullptr;
-        json[i] = nullptr;
-        receiveBuffer[i] = nullptr;
-        transmitBuffer[i] = nullptr;
-        specialBuffer[i] = nullptr;
-    }
 }
 
-void iecNetwork::poll_interrupt(unsigned char c)
+void iecNetwork::poll_interrupt(uint8_t c)
 {
     NetworkStatus ns;
-    if (protocol[c] != nullptr)
+    auto& protocol = network_data_map[c].protocol;
+    if (protocol != nullptr)
     {
-        if (protocol[c]->interruptEnable == false)
+        if (!protocol->interruptEnable)
             return;
 
-        protocol[c]->fromInterrupt = true;
-        protocol[c]->status(&ns);
-        protocol[c]->fromInterrupt = false;
+        protocol->fromInterrupt = true;
+        protocol->status(&ns);
+        protocol->fromInterrupt = false;
 
         if (ns.rxBytesWaiting > 0 || ns.connected == 0)
             IEC.assert_interrupt();
@@ -78,20 +58,23 @@ void iecNetwork::poll_interrupt(unsigned char c)
 
 void iecNetwork::iec_open()
 {
+    int channelId = commanddata.channel;
+    auto& channel_data = network_data_map[channelId]; // This will create the channel if it doesn't exist
+
     uint8_t channel_aux1 = 12;
-    uint8_t channel_aux2 = translationMode[commanddata.channel]; // not sure about this, you can't set this unless you send a command for the channel first, I think it relies on the array being init to 0s
+    uint8_t channel_aux2 = channel_data.translationMode; // not sure about this, you can't set this unless you send a command for the channel first, I think it relies on the array being init to 0s
 
     Debug_printv("commanddata: prim:%02x, dev:%02x, 2nd:%02x, chan:%02x\r\n", commanddata.primary, commanddata.device, commanddata.secondary, commanddata.channel);
 
     file_not_found = false;
-    deviceSpec[commanddata.channel].clear();
-    deviceSpec[commanddata.channel].shrink_to_fit();
 
-    // Prepend prefix, if available.
-    if (!prefix[commanddata.channel].empty())
-        deviceSpec[commanddata.channel] += prefix[commanddata.channel];
 
-    // Check if the payload is RAW (i.e. from fujinet-lib) by the presence of "01" as the first byte, which can't happen for BASIC.
+    channel_data.deviceSpec.clear();
+    if (!channel_data.prefix.empty()) {
+        channel_data.deviceSpec += channel_data.prefix;
+    }
+
+        // Check if the payload is RAW (i.e. from fujinet-lib) by the presence of "01" as the first byte, which can't happen for BASIC.
     // If it is, then the next 2 bytes are the aux1/aux2 values (mode and trans), and the rest is the actual URL.
     // This is an efficiency so we don't have to send a 2nd command to tell it what the parameters should have been. BASIC will still need to use "openparams" command, as the OPEN line doesn't have capacity for the parameters (can't use a "," as that's a valid URL character)
     if (payload[0] == 0x01) {
@@ -99,113 +82,55 @@ void iecNetwork::iec_open()
         channel_aux2 = payload[2];
 
         // capture the trans mode as though "settrans" had been invoked
-        translationMode[commanddata.channel] = channel_aux2;
+        channel_data.translationMode = channel_aux2;
+        // translationMode[commanddata.channel] = channel_aux2;
         
         // remove the marker bytes so the payload can continue as with BASIC setup
         payload = payload.substr(3);
     }
 
     if (payload != "$") {
-        clean_transform_petscii_to_ascii(&payload);
-        // Debug_printv("payload: [%s]\r\n", mstr::toHex(payload).c_str());
-        deviceSpec[commanddata.channel] += payload;
+        clean_transform_petscii_to_ascii(payload);
+        Debug_printv("transformed payload to %s\r\n", payload.c_str());
+        channel_data.deviceSpec += payload;
     }
 
-    channelMode[commanddata.channel] = PROTOCOL;
+    channel_data.channelMode = NetworkData::PROTOCOL;
 
-    switch (commanddata.channel)
-    {
-    case CHANNEL_LOAD:     // load
-        cmdFrame.aux1 = 4; // read
-        cmdFrame.aux2 = 0; // no translation
-        break;
-    case CHANNEL_SAVE:     // save
-        cmdFrame.aux1 = 8; // write
-        cmdFrame.aux2 = 0; // no translation
-        break;
-    default:
-        cmdFrame.aux1 = channel_aux1;
-        cmdFrame.aux2 = channel_aux2;
-        break;
-    }
+    cmdFrame.aux1 = (channelId == CHANNEL_LOAD) ? 4 : (channelId == CHANNEL_SAVE) ? 8 : channel_aux1;
+    cmdFrame.aux2 = (channelId == CHANNEL_LOAD || channelId == CHANNEL_SAVE) ? 0 : channel_aux2;
 
-    // Shut down protocol if we are sending another open before we close.
-    if (protocol[commanddata.channel] != nullptr)
-    {
-        protocol[commanddata.channel]->close();
-        delete protocol[commanddata.channel];
-        protocol[commanddata.channel] = nullptr;
-    }
+    // Reset protocol if it exists
+    channel_data.protocol.reset();
+    channel_data.urlParser = PeoplesUrlParser::parseURL(channel_data.deviceSpec);
 
-    urlParser[commanddata.channel] = PeoplesUrlParser::parseURL(deviceSpec[commanddata.channel]);
 
     // Convert scheme to uppercase
-    std::transform(urlParser[commanddata.channel]->scheme.begin(), urlParser[commanddata.channel]->scheme.end(), urlParser[commanddata.channel]->scheme.begin(), ::toupper);
+    std::transform(channel_data.urlParser->scheme.begin(), channel_data.urlParser->scheme.end(), channel_data.urlParser->scheme.begin(), 
+                   [](unsigned char c) { return std::toupper(c); });
 
-    // Instantiate based on scheme
-    if (urlParser[commanddata.channel]->scheme == "TCP")
-    {
-        protocol[commanddata.channel] = new NetworkProtocolTCP(receiveBuffer[commanddata.channel], transmitBuffer[commanddata.channel], specialBuffer[commanddata.channel]);
-    }
-    else if (urlParser[commanddata.channel]->scheme == "UDP")
-    {
-        protocol[commanddata.channel] = new NetworkProtocolUDP(receiveBuffer[commanddata.channel], transmitBuffer[commanddata.channel], specialBuffer[commanddata.channel]);
-    }
-    else if (urlParser[commanddata.channel]->scheme == "TEST")
-    {
-        protocol[commanddata.channel] = new NetworkProtocolTest(receiveBuffer[commanddata.channel], transmitBuffer[commanddata.channel], specialBuffer[commanddata.channel]);
-    }
-    else if (urlParser[commanddata.channel]->scheme == "TELNET")
-    {
-        protocol[commanddata.channel] = new NetworkProtocolTELNET(receiveBuffer[commanddata.channel], transmitBuffer[commanddata.channel], specialBuffer[commanddata.channel]);
-    }
-    else if (urlParser[commanddata.channel]->scheme == "TNFS")
-    {
-        protocol[commanddata.channel] = new NetworkProtocolTNFS(receiveBuffer[commanddata.channel], transmitBuffer[commanddata.channel], specialBuffer[commanddata.channel]);
-    }
-    else if (urlParser[commanddata.channel]->scheme == "FTP")
-    {
-        protocol[commanddata.channel] = new NetworkProtocolFTP(receiveBuffer[commanddata.channel], transmitBuffer[commanddata.channel], specialBuffer[commanddata.channel]);
-    }
-    else if (urlParser[commanddata.channel]->scheme == "HTTP" || urlParser[commanddata.channel]->scheme == "HTTPS")
-    {
-        protocol[commanddata.channel] = new NetworkProtocolHTTP(receiveBuffer[commanddata.channel], transmitBuffer[commanddata.channel], specialBuffer[commanddata.channel]);
-    }
-    else if (urlParser[commanddata.channel]->scheme == "SSH")
-    {
-        protocol[commanddata.channel] = new NetworkProtocolSSH(receiveBuffer[commanddata.channel], transmitBuffer[commanddata.channel], specialBuffer[commanddata.channel]);
-    }
-    else if (urlParser[commanddata.channel]->scheme == "SMB")
-    {
-        protocol[commanddata.channel] = new NetworkProtocolSMB(receiveBuffer[commanddata.channel], transmitBuffer[commanddata.channel], specialBuffer[commanddata.channel]);
-    }
-    else
-    {
-        Debug_printf("Invalid protocol: %s\r\n", urlParser[commanddata.channel]->scheme.c_str());
-        file_not_found = true;
+    // Instantiate protocol based on the scheme
+    Debug_printv("Creating protocol for chema %s\r\n", channel_data.urlParser->scheme.c_str());
+    channel_data.protocol = NetworkProtocolFactory::createProtocol(channel_data.urlParser->scheme, channel_data);
+
+    if (!channel_data.protocol) {
+        Debug_printf("Invalid protocol: %s\r\n", channel_data.urlParser->scheme.c_str());
+        file_not_found = true; // Assuming file_not_found is accessible here
         return;
     }
 
-    if (protocol[commanddata.channel] == nullptr)
-    {
-        Debug_printf("iecNetwork::open_protocol() - Could not open protocol.\r\n");
-        file_not_found = true;
+    // Set login and password if they exist
+    if (!channel_data.login.empty()) {
+        // TODO: Change the NetworkProtocol password and login to STRINGS FFS
+        channel_data.protocol->login = &channel_data.login;
+        channel_data.protocol->password = &channel_data.password;
     }
 
-    if (!login[commanddata.channel].empty())
-    {
-        protocol[commanddata.channel]->login = &login[commanddata.channel];
-        protocol[commanddata.channel]->password = &password[commanddata.channel];
-    }
+    Debug_printv("Protocol %s opened.\r\n", channel_data.urlParser->scheme.c_str());
 
-    Debug_printf("iecNetwork::open_protocol() - Protocol %s opened.\r\n", urlParser[commanddata.channel]->scheme.c_str());
-
-    // Attempt protocol open
-    if (protocol[commanddata.channel]->open(urlParser[commanddata.channel].get(), &cmdFrame) == true)
-    {
+    if (channel_data.protocol->open(channel_data.urlParser.get(), &cmdFrame)) {
         Debug_printv("Protocol unable to make connection.\r\n");
-        delete protocol[commanddata.channel];
-        protocol[commanddata.channel] = nullptr;
+        channel_data.protocol.reset(); // Clean up the protocol
         file_not_found = true;
         return;
     }
@@ -213,43 +138,34 @@ void iecNetwork::iec_open()
     // assert SRQ
     IEC.assert_interrupt();
 
-    // Associate channel mode
-    json[commanddata.channel] = new FNJSON();
-    json[commanddata.channel]->setProtocol(protocol[commanddata.channel]);
+    channel_data.json = std::make_unique<FNJSON>();
+    channel_data.json->setProtocol(channel_data.protocol.get());
+
 }
 
 void iecNetwork::iec_close()
 {
-    Debug_printf("iecNetwork::close()\r\n");
+    Debug_printf("iecNetwork::iec_close()\r\n");
+
+    int channelId = commanddata.channel;
+    auto& channel_data = network_data_map[channelId];
 
     iecStatus.channel = commanddata.channel;
     iecStatus.error = NETWORK_ERROR_SUCCESS;
     iecStatus.connected = 0;
     iecStatus.msg = "closed";
 
-    if (json[commanddata.channel] != nullptr)
-    {
-        delete json[commanddata.channel];
-        json[commanddata.channel] = nullptr;
-    }
+    channel_data.json.reset();
 
     // If no protocol enabled, we just signal complete, and return.
-    if (protocol[commanddata.channel] == nullptr)
-    {
-        return;
-    }
-    // Ask the protocol to close
-    protocol[commanddata.channel]->close();
+    if (channel_data.protocol == nullptr) return;
 
-    // Delete the protocol object
-    delete protocol[commanddata.channel];
-    protocol[commanddata.channel] = nullptr;
-    receiveBuffer[commanddata.channel]->clear();
-    receiveBuffer[commanddata.channel]->shrink_to_fit();
-    transmitBuffer[commanddata.channel]->clear();
-    transmitBuffer[commanddata.channel]->shrink_to_fit();
-    specialBuffer[commanddata.channel]->clear();
-    specialBuffer[commanddata.channel]->shrink_to_fit();
+    // Close protocol and clean up
+    channel_data.protocol->close();
+    channel_data.protocol = nullptr;
+    channel_data.receiveBuffer.clear();
+    channel_data.transmitBuffer.clear();
+    channel_data.specialBuffer.clear();
 
     commanddata.init();
     state = DEVICE_IDLE;
@@ -261,11 +177,12 @@ void iecNetwork::iec_reopen_load()
     NetworkStatus ns;
     bool eoi = false;
 
-    if ((protocol[commanddata.channel] == nullptr) || (receiveBuffer[commanddata.channel] == nullptr))
-    {
-        Debug_printv("nullptr");
-        IEC.senderTimeout();
-        return; // Punch out.
+    int channelId = commanddata.channel;
+    auto& channel_data = network_data_map[channelId];
+
+    if (!channel_data.protocol) {
+        Debug_printv("No protocol set\r\n");
+        return;
     }
 
     if (file_not_found)
@@ -276,7 +193,7 @@ void iecNetwork::iec_reopen_load()
     }
 
     // Get status
-    protocol[commanddata.channel]->status(&ns);
+    channel_data.protocol->status(&ns);
 
     if (!ns.rxBytesWaiting)
     {
@@ -301,44 +218,47 @@ void iecNetwork::iec_reopen_load()
 
         Debug_printf("Reading %u bytes from stream\r\n", blockSize);
 
-        if (protocol[commanddata.channel]->read(blockSize)) // protocol adapter returned error
+        if (channel_data.protocol->read(blockSize)) // protocol adapter returned error
         {
             iecStatus.error = NETWORK_ERROR_GENERAL;
             iecStatus.msg = "read error";
             iecStatus.connected = ns.connected;
-            iecStatus.channel = commanddata.channel;
+            iecStatus.channel = channelId;
             Debug_printv("Read Error");
             IEC.senderTimeout();
             return;
         }
 
         // Do another status
-        protocol[commanddata.channel]->status(&ns);
+        channel_data.protocol->status(&ns);
 
         if ((!ns.connected) || ns.error == 136) // EOF
             eoi = true;
 
-        IEC.sendBytes(*receiveBuffer[commanddata.channel], true);
-        receiveBuffer[commanddata.channel]->erase(0, blockSize);
+        IEC.sendBytes(channel_data.receiveBuffer, true);
+        channel_data.receiveBuffer.erase(0, blockSize);
     }
 
     iecStatus.error = NETWORK_ERROR_END_OF_FILE;
     iecStatus.msg = "eof";
     iecStatus.connected = ns.connected;
-    iecStatus.channel = commanddata.channel;
+    iecStatus.channel = channelId;
 }
 
 void iecNetwork::iec_reopen_save()
 {
+    int channelId = commanddata.channel;
+    auto& channel_data = network_data_map[channelId];
+
     // If protocol isn't connected, then return not connected.
-    if (protocol[commanddata.channel] == nullptr)
+    if (!channel_data.protocol)
     {
         iecStatus.error = NETWORK_ERROR_NOT_CONNECTED;
-        iecStatus.channel = commanddata.channel;
+        iecStatus.channel = channelId;
         iecStatus.msg = "not connected";
         iecStatus.connected = 0;
 
-        Debug_printf("iec_open_save() - Not connected\r\n");
+        Debug_printf("iec_reopen_save() - Not connected\r\n");
         return;
     }
 
@@ -352,26 +272,25 @@ void iecNetwork::iec_reopen_save()
             return;
         }
 
-        transmitBuffer[commanddata.channel]->push_back(b);
+        channel_data.transmitBuffer.push_back(b);
     }
 
     // force incoming data from HOST to fixed ascii
-    // Debug_printv("[1] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
-    clean_transform_petscii_to_ascii(transmitBuffer[commanddata.channel]);
-    // Debug_printv("[2] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
+    // Debug_printv("[1] DATA: >%s< [%s]", channel_data.transmitBuffer.c_str(), mstr::toHex(channel_data.transmitBuffer).c_str());
+    clean_transform_petscii_to_ascii(channel_data.transmitBuffer);
+    // Debug_printv("[2] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(channel_data.transmitBuffer).c_str());
 
-    // Debug_printv("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
+    Debug_printf("Received %u bytes. Transmitting.\r\n", channel_data.transmitBuffer.length());
 
-    if (protocol[commanddata.channel]->write(transmitBuffer[commanddata.channel]->length()))
+    if (channel_data.protocol->write(channel_data.transmitBuffer.length()))
     {
         iecStatus.error = NETWORK_ERROR_GENERAL;
         iecStatus.msg = "write error";
         iecStatus.connected = 0;
-        iecStatus.channel = commanddata.channel;
+        iecStatus.channel = channelId;
     }
 
-    transmitBuffer[commanddata.channel]->clear();
-    transmitBuffer[commanddata.channel]->shrink_to_fit();
+    channel_data.transmitBuffer.clear();
 }
 
 void iecNetwork::iec_reopen_channel()
@@ -390,10 +309,12 @@ void iecNetwork::iec_reopen_channel()
 
 void iecNetwork::iec_reopen_channel_listen()
 {
-    Debug_printv("channel[%2X]", commanddata.channel);
+    int channelId = commanddata.channel;
+    auto& channel_data = network_data_map[channelId];
 
-    // If protocol isn't connected, then return not connected.
-    if (protocol[commanddata.channel] == nullptr)
+    Debug_printv("channel[%2X]", channelId);
+
+    if (!channel_data.protocol)
     {
         Debug_printf("iec_reopen_channel_listen() - Not connected\r\n");
         IEC.senderTimeout();
@@ -412,44 +333,47 @@ void iecNetwork::iec_reopen_channel_listen()
             return;
         }
 
-        transmitBuffer[commanddata.channel]->push_back(b);
+        channel_data.transmitBuffer.push_back(b);
     }
 
     // force incoming data from HOST to fixed ascii
-    // Debug_printv("[1] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
-    clean_transform_petscii_to_ascii(transmitBuffer[commanddata.channel]);
-    // Debug_printv("[2] DATA: >%s< [%s]", transmitBuffer[commanddata.channel]->c_str(), mstr::toHex(*transmitBuffer[commanddata.channel]).c_str());
+    // Debug_printv("[1] DATA: >%s< [%s]", channel_data.transmitBuffer.c_str(), mstr::toHex(channel_data.transmitBuffer).c_str());
+    clean_transform_petscii_to_ascii(channel_data.transmitBuffer);
+    // Debug_printv("[2] DATA: >%s< [%s]", channel_data.transmitBuffer.c_str(), mstr::toHex(channel_data.transmitBuffer).c_str());
 
-    // Debug_printv("Received %u bytes. Transmitting.\r\n", transmitBuffer[commanddata.channel]->length());
+    Debug_printf("Received %u bytes. Transmitting.\r\n", channel_data.transmitBuffer.length());
 
-    protocol[commanddata.channel]->write(transmitBuffer[commanddata.channel]->length());
-    transmitBuffer[commanddata.channel]->clear();
-    transmitBuffer[commanddata.channel]->shrink_to_fit();
+    channel_data.protocol->write(channel_data.transmitBuffer.length());
+    channel_data.transmitBuffer.clear();
+    channel_data.transmitBuffer.shrink_to_fit();
 }
 
 void iecNetwork::iec_reopen_channel_talk()
 {
+    int channelId = commanddata.channel;
+    auto& channel_data = network_data_map[channelId];
+
     bool set_eoi = false;
     NetworkStatus ns;
 
-    Debug_printv("channel[%2X]", commanddata.channel);
+    Debug_printv("channel[%2X]", channelId);
 
     // If protocol isn't connected, then return not connected.
-    if (protocol[commanddata.channel] == nullptr)
+    if (!channel_data.protocol)
     {
         Debug_printf("iec_reopen_channel_talk() - Not connected\r\n");
         return;
     }
 
-    if (receiveBuffer[commanddata.channel]->empty())
+    if (channel_data.receiveBuffer.empty())
     {
-        protocol[commanddata.channel]->status(&ns);
+        channel_data.protocol->status(&ns);
 
         if (ns.rxBytesWaiting)
-            protocol[commanddata.channel]->read(ns.rxBytesWaiting);
+            channel_data.protocol->read(ns.rxBytesWaiting);
     }
 
-    if (receiveBuffer[commanddata.channel]->empty())
+    if (channel_data.receiveBuffer.empty())
     {
         Debug_printv("Receive Buffer Empty.");
         IEC.senderTimeout();
@@ -457,16 +381,15 @@ void iecNetwork::iec_reopen_channel_talk()
     }
 
     // ALWAYS translate the data to PETSCII towards the host. Translation mode needs rewriting.
-    std::string& sref = *receiveBuffer[commanddata.channel];
-    util_devicespec_fix_9b((uint8_t *) sref.data(), sref.length());
-    sref = mstr::toPETSCII2(sref);
+    util_devicespec_fix_9b((uint8_t *) channel_data.receiveBuffer.data(), channel_data.receiveBuffer.length());
+    channel_data.receiveBuffer = mstr::toPETSCII2(channel_data.receiveBuffer);
 
     // Debug_printv("TALK: sending data to host: >%s< [%s]", receiveBuffer[commanddata.channel]->c_str(), mstr::toHex(*receiveBuffer[commanddata.channel]).c_str());
     do
     {
-        char b = receiveBuffer[commanddata.channel]->front();
+        char b = channel_data.receiveBuffer.front();
 
-        if (receiveBuffer[commanddata.channel]->empty())
+        if (channel_data.receiveBuffer.empty())
         {
             //Debug_printv("Receive Buffer Empty.");
             set_eoi = true;
@@ -481,7 +404,7 @@ void iecNetwork::iec_reopen_channel_talk()
         }
 
         if ( !(IEC.flags & ATN_PULLED) )
-            receiveBuffer[commanddata.channel]->erase(0, 1);
+            channel_data.receiveBuffer.erase(0, 1);
 
     } while( !(IEC.flags & ATN_PULLED) && !set_eoi );
 }
@@ -504,32 +427,34 @@ void iecNetwork::set_login_password()
         char reply[40];
 
         channel = atoi(pt[1].c_str());
+        auto& channel_data = network_data_map[channel];
 
-        login[channel].clear();
-        login[channel].shrink_to_fit();
+        channel_data.login.clear();
+        channel_data.login.shrink_to_fit();
 
         snprintf(reply, 40, "login cleared for channel %u", channel);
 
         iecStatus.error = NETWORK_ERROR_SUCCESS;
         iecStatus.msg = string(reply);
         iecStatus.connected = 0;
-        iecStatus.channel = commanddata.channel;
+        iecStatus.channel = channel;
     }
     else
     {
         char reply[40];
 
         channel = atoi(pt[1].c_str());
+        auto& channel_data = network_data_map[channel];
 
-        login[channel] = pt[2];
-        password[channel] = pt[3];
+        channel_data.login = pt[2];
+        channel_data.password = pt[3];
 
         snprintf(reply, 40, "login set for channel %u", channel);
 
         iecStatus.error = NETWORK_ERROR_SUCCESS;
         iecStatus.msg = string(reply);
         iecStatus.connected = 0;
-        iecStatus.channel = commanddata.channel;
+        iecStatus.channel = channel;
     }
 }
 
@@ -549,9 +474,11 @@ void iecNetwork::parse_json()
     }
 
     channel = atoi(pt[1].c_str());
-    protocol[channel]->status(&ns);
+    auto& channel_data = network_data_map[channel];
 
-    if (!json[channel]->parse())
+    channel_data.protocol->status(&ns);
+
+    if (!channel_data.json->parse())
     {
         Debug_printf("could not parse json\r\n");
         iecStatus.error = NETWORK_ERROR_GENERAL;
@@ -571,7 +498,6 @@ void iecNetwork::parse_json()
 
 void iecNetwork::query_json()
 {
-    uint8_t *tmp;
     int channel = 0;
     char reply[80];
     string s;
@@ -582,23 +508,22 @@ void iecNetwork::query_json()
     {
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.msg = "invalid # of parameters";
-        iecStatus.channel = channel;
+        iecStatus.channel = 0;
         iecStatus.connected = 0;
         Debug_printf("Invalid # of parameters to set_json_query()\r\n");
         return;
     }
 
     channel = atoi(pt[1].c_str());
+    auto& channel_data = network_data_map[channel];
+
     s = pt.size() == 2 ? "" : pt[2];  // allow empty string if there aren't enough args
 
     Debug_printf("Channel: %u\r\n", channel);
 
-    // fix_petscii_data()
-    // std::replace(s.begin(), s.end(), static_cast<char>(0xA4), static_cast<char>(0x5F));
+    channel_data.json->setReadQuery(s, 0);
 
-    json[channel]->setReadQuery(s, 0);
-
-    if (!json[channel]->readValueLen())
+    if (!channel_data.json->readValueLen())
     {
         iecStatus.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
         iecStatus.channel = channel;
@@ -607,24 +532,11 @@ void iecNetwork::query_json()
         return;
     }
 
-    tmp = (uint8_t *)malloc(json[channel]->readValueLen());
+    size_t len = channel_data.json->readValueLen();
+    std::vector<uint8_t> buffer(len);
+    channel_data.json->readValue(buffer.data(), buffer.size());
+    channel_data.receiveBuffer += std::string(buffer.begin(), buffer.end());
 
-    if (!tmp)
-    {
-        snprintf(reply, 80, "could not allocate %u bytes for json return value", json[channel]->readValueLen());
-        iecStatus.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
-        iecStatus.channel = channel;
-        iecStatus.connected = 0;
-        iecStatus.msg = string(reply);
-        Debug_printf("Could not allocate %u bytes for JSON return value.\r\n", json[channel]->readValueLen());
-        return;
-    }
-
-    json_bytes_remaining[channel] = json[channel]->readValueLen();
-    json[channel]->readValue(tmp, json_bytes_remaining[channel]);
-    *receiveBuffer[channel] += string((const char *)tmp, json_bytes_remaining[channel]);
-
-    free(tmp);
     snprintf(reply, 80, "query set to %s", s.c_str());
     iecStatus.error = NETWORK_ERROR_SUCCESS;
     iecStatus.channel = channel;
@@ -649,6 +561,7 @@ void iecNetwork::parse_bite()
         return;
     }
     channel = atoi(pt[1].c_str());
+    auto& channel_data = network_data_map[channel];
 
     if (pt.size() == 3)
     {
@@ -656,7 +569,7 @@ void iecNetwork::parse_bite()
         Debug_printv("bite_size[%d]", bite_size);
     }
 
-    protocol[channel]->status(&ns);
+    channel_data.protocol->status(&ns);
 
     // escape chars that would break up INPUT#
     //mstr::replaceAll(*receiveBuffer[channel], ",", "\",\"");
@@ -664,11 +577,11 @@ void iecNetwork::parse_bite()
     //mstr::replaceAll(*receiveBuffer[channel], ":", "\":\"");
     //mstr::replaceAll(*receiveBuffer[channel], "\r", "\"\r\"");
     //mstr::replaceAll(*receiveBuffer[channel], "\"", "\"\"");
-    mstr::replaceAll(*receiveBuffer[channel], "\"", "");
+    mstr::replaceAll(channel_data.receiveBuffer, "\"", "");
 
     // break up receiveBuffer[channel] into bites less than bite_size bytes
     std::string bites = "\"";
-    bites.reserve(receiveBuffer[channel]->size() + (receiveBuffer[channel]->size() / bite_size ));
+    bites.reserve(channel_data.receiveBuffer.size() + (channel_data.receiveBuffer.size() / bite_size));
 
     int start = 0;
     int end = 0;
@@ -679,18 +592,18 @@ void iecNetwork::parse_bite()
         start = end;
 
         // Set remaining length
-        len = receiveBuffer[channel]->size() - start;
+        len = channel_data.receiveBuffer.size() - start;
         if ( len > bite_size )
             len = bite_size;
 
         // Don't make extra bites!
-        end = receiveBuffer[channel]->find('\r', start);
+        end = channel_data.receiveBuffer.find('\r', start);
         if ( end == std::string::npos )
             end = start + len; // None found so set end
 
         // Take a bite
         Debug_printv("start[%d] end[%d] len[%d] bite_size[%d]", start, end, len, bite_size);
-        std::string bite = receiveBuffer[channel]->substr(start, len);
+        std::string bite = channel_data.receiveBuffer.substr(start, len);
         bites += bite;
         Debug_printv("bite[%s]", bite.c_str());
 
@@ -699,11 +612,11 @@ void iecNetwork::parse_bite()
              bites += "\r\"";
 
         count++;
-    } while ( end < receiveBuffer[channel]->size() );
+    } while ( end < channel_data.receiveBuffer.size() );
  
     //bites += "\"";
     //Debug_printv("[%s]", bites.c_str());
-    *receiveBuffer[channel] = bites;
+    channel_data.receiveBuffer = bites;
 }
 
 void iecNetwork::set_translation_mode()
@@ -727,10 +640,11 @@ void iecNetwork::set_translation_mode()
     }
 
     int channel = atoi(pt[1].c_str());
+    auto& channel_data = network_data_map[channel];
 
-    translationMode[channel] = atoi(pt[2].c_str());
+    channel_data.translationMode = atoi(pt[2].c_str());
 
-    if (protocol[channel] == nullptr)
+    if (!channel_data.protocol)
     {
         iecStatus.error = NETWORK_ERROR_NOT_CONNECTED;
         iecStatus.connected = 0;
@@ -738,7 +652,7 @@ void iecNetwork::set_translation_mode()
 
     iecStatus.channel = channel;
 
-    switch (translationMode[channel])
+    switch (channel_data.translationMode)
     {
     case 0:
         iecStatus.msg = "no translation";
@@ -757,7 +671,7 @@ void iecNetwork::set_translation_mode()
         break;
     }
 
-    Debug_printf("Translation mode for channel %u is now %u\r\n", channel, translationMode[channel]);
+    Debug_printf("Translation mode for channel %u is now %u\r\n", channel, channel_data.translationMode);
 }
 
 void iecNetwork::iec_listen_command()
@@ -774,17 +688,19 @@ void iecNetwork::iec_talk_command()
         IEC.senderTimeout();
         return;
     }
-    else if (protocol[active_status_channel] == nullptr)
+    else if (!network_data_map[active_status_channel].protocol)
     {
         Debug_printf("No active protocol\n");
         IEC.senderTimeout();
         return;
     }
 
-    if (channelMode[active_status_channel] == PROTOCOL) {
-        protocol[active_status_channel]->status(&ns);
+    auto& channel_data = network_data_map[active_status_channel];
+
+    if (channel_data.channelMode == NetworkData::PROTOCOL) {
+        channel_data.protocol->status(&ns);
     } else {
-        json[active_status_channel]->status(&ns);
+        channel_data.json->status(&ns);
     }
 
     if (is_binary_status) {
@@ -866,7 +782,9 @@ void iecNetwork::iec_command()
             if (!channel)
                 return;
 
-            if (!protocol[channel])
+            auto& channel_data = network_data_map[channel];
+
+            if (!channel_data.protocol)
             {
                 Debug_printv("ERROR: trying to perform command on channel without a protocol. channel = %d, payload = >%s<\r\n", channel, payload.c_str());
                 return;
@@ -874,11 +792,11 @@ void iecNetwork::iec_command()
 
             Debug_printv("pt[0][0]=[%2X] pt[1]=[%d] aux1[%d] aux2[%d]", pt[0][0], channel, cmdFrame.aux1, cmdFrame.aux2);
 
-            if (protocol[channel]->special_inquiry(pt[0][0]) == 0x00)
+            if (channel_data.protocol->special_inquiry(pt[0][0]) == 0x00)
                 perform_special_00();
-            else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x40)
+            else if (channel_data.protocol->special_inquiry(pt[0][0]) == 0x40)
                 perform_special_40();
-            else if (protocol[channel]->special_inquiry(pt[0][0]) == 0x80)
+            else if (channel_data.protocol->special_inquiry(pt[0][0]) == 0x80)
                 perform_special_80();
         }
     }
@@ -900,16 +818,18 @@ void iecNetwork::perform_special_00()
     if (pt.size() > 3)
         cmdFrame.aux2 = atoi(pt[3].c_str());
 
-    if (protocol[channel]->special_00(&cmdFrame))
+    auto& channel_data = network_data_map[channel];
+
+    if (channel_data.protocol->special_00(&cmdFrame))
     {
         NetworkStatus ns;
         char reply[80];
         string s;
 
-        protocol[channel]->status(&ns);
+        channel_data.protocol->status(&ns);
         snprintf(reply, 80, "protocol error #%u", ns.error);
         iecStatus.error = ns.error;
-        iecStatus.channel = commanddata.channel;
+        iecStatus.channel = commanddata.channel; // shouldn't this be "channel"
         iecStatus.connected = ns.connected;
         s = string(reply);
         iecStatus.msg = s; // mstr::toPETSCII2(s);
@@ -932,6 +852,8 @@ void iecNetwork::perform_special_40()
     }
 
     channel = atoi(pt[1].c_str());
+    auto& channel_data = network_data_map[channel];
+
     cmdFrame.comnd = pt[0][0];
 
     if (pt.size() < 3)
@@ -954,7 +876,7 @@ void iecNetwork::perform_special_40()
 
     cmdFrame.aux2 = atoi(pt[3].c_str());
 
-    if (protocol[channel] != nullptr)
+    if (!channel_data.protocol)
     {
         iecStatus.error = NETWORK_ERROR_NOT_CONNECTED;
         iecStatus.channel = 15;
@@ -963,9 +885,9 @@ void iecNetwork::perform_special_40()
         return;
     }
 
-    if (protocol[channel]->special_40((uint8_t *)&sp_buf, sizeof(sp_buf), &cmdFrame))
+    if (channel_data.protocol->special_40((uint8_t *)&sp_buf, sizeof(sp_buf), &cmdFrame))
     {
-        protocol[channel]->status(&ns);
+        channel_data.protocol->status(&ns);
         iecStatus.error = ns.error;
         iecStatus.connected = ns.connected;
         iecStatus.channel = channel;
@@ -974,7 +896,7 @@ void iecNetwork::perform_special_40()
     }
     else
     {
-        protocol[channel]->status(&ns);
+        channel_data.protocol->status(&ns);
         iecStatus.error = ns.error;
         iecStatus.channel = channel;
         iecStatus.connected = ns.connected;
@@ -1000,6 +922,7 @@ void iecNetwork::perform_special_80()
     }
 
     channel = atoi(pt[1].c_str());
+    auto& channel_data = network_data_map[channel];
 
     if (pt.size() < 3)
     {
@@ -1025,9 +948,9 @@ void iecNetwork::perform_special_80()
 
     if (pt.size() < 5)
     {
-        if (protocol[channel] != nullptr)
+        if (channel_data.protocol)
         {
-            protocol[channel]->status(&ns);
+            channel_data.protocol->status(&ns);
             iecStatus.error = ns.error;
             iecStatus.connected = ns.connected;
         }
@@ -1044,9 +967,9 @@ void iecNetwork::perform_special_80()
     cmdFrame.comnd = pt[0][0];
     sp_buf += pt[4];
 
-    if (protocol[channel]->special_80((uint8_t *)sp_buf.c_str(), sp_buf.length(), &cmdFrame))
+    if (channel_data.protocol->special_80((uint8_t *)sp_buf.c_str(), sp_buf.length(), &cmdFrame))
     {
-        protocol[channel]->status(&ns);
+        channel_data.protocol->status(&ns);
         iecStatus.error = ns.error;
         iecStatus.channel = channel;
         iecStatus.connected = ns.connected;
@@ -1054,7 +977,7 @@ void iecNetwork::perform_special_80()
     }
     else
     {
-        protocol[channel]->status(&ns);
+        channel_data.protocol->status(&ns);
         iecStatus.error = ns.error;
         iecStatus.channel = channel;
         iecStatus.connected = ns.connected;
@@ -1086,14 +1009,16 @@ void iecNetwork::set_channel_mode()
     else
     {
         int channel = atoi(pt[1].c_str());
+        auto& channel_data = network_data_map[channel];
+
         string newMode = pt[2];
 
         if (newMode == "json")
-            channelMode[channel] = JSON;
+            channel_data.channelMode = NetworkData::JSON;
         else if (newMode == "protocol")
-            channelMode[channel] = PROTOCOL;
+            channel_data.channelMode = NetworkData::PROTOCOL;
 
-        Debug_printf("Channel mode set to %s %u\r\n", newMode.c_str(), channelMode[channel]);
+        Debug_printf("Channel mode set to %s %u\r\n", newMode.c_str(), channel_data.channelMode);
         iecStatus.error = ns.error;
         iecStatus.channel = channel;
         iecStatus.connected = ns.connected;
@@ -1115,9 +1040,10 @@ void iecNetwork::get_prefix()
     }
 
     channel = atoi(pt[1].c_str());
+    auto& channel_data = network_data_map[channel];
 
     iecStatus.error = NETWORK_ERROR_SUCCESS;
-    iecStatus.msg = prefix[channel];
+    iecStatus.msg = channel_data.prefix;
     iecStatus.connected = 0;
     iecStatus.channel = channel;
 }
@@ -1136,27 +1062,10 @@ void iecNetwork::set_status(bool is_binary)
     }
 
     active_status_channel = atoi(pt[1].c_str());
-
     Debug_printf("Active status channel now: %u\n", active_status_channel);
+
     iecStatus.error = NETWORK_ERROR_SUCCESS;
     iecStatus.msg = "Active status channel set.";
-
-    // The original here makes no sense to me, do you ever open a protocol on the command channel??
-    // We're after the status of the active_status_channel usually, and this function is about setting which one is active.
-    // FujiNet-Lib issues a status command via "status" or "statusb" to fetch the active channels status. Why is it done here to ?
-    if (protocol[commanddata.channel] == nullptr)
-    {
-        // Debug_printv("WARNING! protocol for channel %d is null, setting iecStatus.connected to 0\r\n", commanddata.channel);
-        iecStatus.connected = 0;
-    }
-    else
-    {
-        NetworkStatus ns;
-        protocol[commanddata.channel]->status(&ns);
-        iecStatus.connected = ns.connected;
-        // Debug_printv("protocol for channel %d is set, got status bw: %d, conn: %d, err: %d:\r\n", commanddata.channel, ns.rxBytesWaiting, ns.connected, ns.error);
-    }
-
     iecStatus.channel = active_status_channel;
 }
 
@@ -1183,8 +1092,10 @@ void iecNetwork::set_prefix()
     {
         Debug_printf("Prefix cleared\r\n");
         channel = atoi(pt[1].c_str());
-        prefix[channel].clear();
-        prefix[channel].shrink_to_fit();
+        auto& channel_data = network_data_map[channel];
+
+        channel_data.prefix.clear();
+        channel_data.prefix.shrink_to_fit();
         iecStatus.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         iecStatus.msg = "prefix cleared";
         iecStatus.connected = 0;
@@ -1202,79 +1113,81 @@ void iecNetwork::set_prefix()
     prefixSpec_str = string((const char *)prefixSpec);
     Debug_printf("iecNetwork::set_prefix(%s)\r\n", prefixSpec_str.c_str());
 
+    auto& channel_data = network_data_map[channel];
+
     if (prefixSpec_str == "..") // Devance path N:..
     {
         std::vector<int> pathLocations;
-        for (int i = 0; i < prefix[channel].size(); i++)
+        for (int i = 0; i < channel_data.prefix.size(); i++)
         {
-            if (prefix[channel][i] == '/')
+            if (channel_data.prefix[i] == '/')
             {
                 pathLocations.push_back(i);
             }
         }
 
-        if (prefix[channel][prefix[channel].size() - 1] == '/')
+        if (channel_data.prefix[channel_data.prefix.size() - 1] == '/')
         {
             // Get rid of last path segment.
             pathLocations.pop_back();
         }
 
         // truncate to that location.
-        prefix[channel] = prefix[channel].substr(0, pathLocations.back() + 1);
+        channel_data.prefix = channel_data.prefix.substr(0, pathLocations.back() + 1);
     }
     else if (prefixSpec_str == "/") // Go back to hostname.
     {
         // TNFS://foo.com/path
-        size_t pos = prefix[channel].find("/");
+        size_t pos = channel_data.prefix.find("/");
 
         if (pos == string::npos)
         {
-            prefix[channel].clear();
-            prefix[channel].shrink_to_fit();
+            channel_data.prefix.clear();
+            channel_data.prefix.shrink_to_fit();
         }
 
-        pos = prefix[channel].find("/", ++pos);
+        pos = channel_data.prefix.find("/", ++pos);
 
         if (pos == string::npos)
         {
-            prefix[channel].clear();
-            prefix[channel].shrink_to_fit();
+            channel_data.prefix.clear();
+            channel_data.prefix.shrink_to_fit();
         }
 
-        pos = prefix[channel].find("/", ++pos);
+        pos = channel_data.prefix.find("/", ++pos);
 
         if (pos == string::npos)
-            prefix[channel] += "/";
+            channel_data.prefix += "/";
 
-        pos = prefix[channel].find("/", ++pos);
+        pos = channel_data.prefix.find("/", ++pos);
 
-        prefix[channel] = prefix[channel].substr(0, pos);
+        channel_data.prefix = channel_data.prefix.substr(0, pos);
     }
     else if (prefixSpec_str[0] == '/') // N:/DIR
     {
-        prefix[channel] = prefixSpec_str;
+        channel_data.prefix = prefixSpec_str;
     }
     else if (prefixSpec_str.empty())
     {
-        prefix[channel].clear();
+        channel_data.prefix.clear();
     }
     else if (prefixSpec_str.find_first_of(":") != string::npos)
     {
-        prefix[channel] = prefixSpec_str;
+        channel_data.prefix = prefixSpec_str;
     }
     else // append to path.
     {
-        prefix[channel] += prefixSpec_str;
+        channel_data.prefix += prefixSpec_str;
     }
 
-    prefix[channel] = util_get_canonical_path(prefix[channel]);
+    channel_data.prefix = util_get_canonical_path(channel_data.prefix);
 
     iecStatus.error = NETWORK_ERROR_SUCCESS;
-    iecStatus.msg = prefix[channel];
+    iecStatus.msg = channel_data.prefix;
     iecStatus.connected = 0;
     iecStatus.channel = channel;
 
-    Debug_printf("Prefix now: %s\r\n", prefix[channel].c_str());
+    Debug_printf("Prefix now: %s\r\n", channel_data.prefix.c_str());
 }
 
 void iecNetwork::set_device_id()
@@ -1318,8 +1231,11 @@ void iecNetwork::fsop(unsigned char comnd)
 
     cmdFrame.comnd = comnd;
 
-    if (protocol[commanddata.channel] != nullptr)
-        protocol[commanddata.channel]->perform_idempotent_80(urlParser[commanddata.channel].get(), &cmdFrame);
+    int channel = commanddata.channel;
+    auto& channel_data = network_data_map[channel];
+
+    if (channel_data.protocol)
+        channel_data.protocol->perform_idempotent_80(channel_data.urlParser.get(), &cmdFrame);
 
     iec_close();
 }
@@ -1340,7 +1256,9 @@ void iecNetwork::set_open_params()
     int mode = atoi(pt[2].c_str());
     int trans = atoi(pt[3].c_str());
 
-    protocol[channel]->set_open_params(mode, trans);
+    auto& channel_data = network_data_map[channel];
+
+    channel_data.protocol->set_open_params(mode, trans);
 
     iecStatus.error = 0;
     iecStatus.msg = "ok";
@@ -1464,7 +1382,7 @@ void iecNetwork::process_command()
     case IEC_LISTEN:
         // Debug_printv("[IEC_LISTEN]");
         // Debug_printv("FIXING PAYLOAD DATA TO ASCII\r\n");
-        clean_transform_petscii_to_ascii(&payload);
+        clean_transform_petscii_to_ascii(payload);
         pt = util_tokenize(payload, ',');
         break;
     case IEC_TALK:

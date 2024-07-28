@@ -596,26 +596,18 @@ void util_devicespec_fix_9b(uint8_t *buf, unsigned short len)
 // 1. replace 0xa4 with 0x5f (underscore char)
 // 2. removes final 0x9b chars that may be coming out the host because of x-platform code
 // 3. converts petscii to ascii
-void clean_transform_petscii_to_ascii(std::string* dataPtr)
-{
-    if (dataPtr == nullptr) {
-        return;
-    }
-
-    std::string &data = *dataPtr;
-
+void clean_transform_petscii_to_ascii(std::string& data) {
     // 1. Replace all chars of value 0xa4 to 0x5f (the dreaded underscore)
-    // This is mostly because of CC65 performing several character changes to make "look alike" characters. Here we're only going to fix _
-    // Fujinet-lib has a fix for this by not converting underscore chars in "code" to 0xa4, but BASIC and "typed" strings in applications
-    // may still use the graphic directly.
     std::transform(data.begin(), data.end(), data.begin(), [](unsigned char c) {
         return c == 0xa4 ? 0x5f : c;
     });
 
     // 2. Remove any trailing 0x9b chars
-    util_devicespec_fix_9b((uint8_t *)data.data(), data.length());
+    while (!data.empty() && static_cast<unsigned char>(data.back()) == 0x9b) {
+        data.pop_back();
+    }
 
-    // 3. Convert the characters from PETSCII to UTF8, under the hood this uses u8char class, which for 0x00-0x7F range converts straight to petscii with no UTF8ing
+    // 3. Convert the characters from PETSCII to UTF8
     data = mstr::toUTF8(data);
 }
 
