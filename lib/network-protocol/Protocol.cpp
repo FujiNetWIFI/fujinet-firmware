@@ -192,6 +192,7 @@ bool NetworkProtocol::status(NetworkStatus *status)
   */
 void NetworkProtocol::translate_receive_buffer()
 {
+    Debug_printf("#### Translating receive buffer, mode: %u\r\n", translation_mode);
     if (translation_mode == 0)
         return;
 
@@ -231,6 +232,7 @@ void NetworkProtocol::translate_receive_buffer()
  */
 unsigned short NetworkProtocol::translate_transmit_buffer()
 {
+    Debug_printf("#### Translating transmit buffer, mode: %u\r\n", translation_mode);
     if (translation_mode == 0)
         return transmitBuffer->length();
 

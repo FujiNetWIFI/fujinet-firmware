@@ -84,11 +84,31 @@ cJSON *FNJSON::resolveQuery()
     return cJSONUtils_GetPointer(_json, _queryString.c_str());
 }
 
+
+
+#ifdef BUILD_ATARI
+
+std::string replaceAccentedCharactersInMap(const std::string& input, const std::unordered_map<char, std::string>& charMap) {
+    std::string result;
+    for (char ch : input) {
+        auto it = charMap.find(ch);
+        if (it != charMap.end()) {
+            result += it->second;
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+
+#endif
+
 /**
  * Process string, strip out HTML tags if needed
  */
 std::string FNJSON::processString(std::string in)
 {
+    Debug_printv("-+-+-+-+-+-+-+-+-+ translation_mode = %u", _protocol->translation_mode);
     while (in.find("<") != std::string::npos)
     {
         auto startpos = in.find("<");
@@ -101,10 +121,30 @@ std::string FNJSON::processString(std::string in)
     }
 
 #ifdef BUILD_IEC
-    in = mstr::toPETSCII2(in);
+    // TODO: fix translations. There needs to be the ability to decide if we translate the TRANSMIT to internet and RECEIVE back to the host separately.
+    // Can't set _protocol->translation_mode to PETSCII to mark the incoming for changes, as that affects outgoing chars too. They need to be split
+    // if (_protocol->translation_mode == 4) {
+        // removing this, and doing it in the TALK phase instead
+        // in = mstr::toPETSCII2(in);
+    // }
 #endif
 
 #ifdef BUILD_ATARI
+    std::unordered_map<std::string, std::string> simplerChars = {
+        {'Ä', "Ae"}, {'Ö', "Oe"}, {'Ü', "Ue"},
+        {'ä', "ae"}, {'ö', "oe"}, {'ü', "ue"}, {'ß', "ss"},
+        {'é', "e"},  {'è', "e"},  {'á', "a"},  {'à', "a"},
+        {'ó', "o"},  {'ò', "o"},  {'ú', "u"},  {'ù', "u"}
+    };
+
+    std::unordered_map<char, std::string> internationalMap = {
+        {'á', "\x00"}, {'ù', "\x01"}, {'Ñ', "\x02"}, {'É', "\x03"}, {'ç', "\x04"}, {'ô', "\x05"}, 
+        {'ò', "\x06"}, {'ì', "\x07"}, {'£', "\x08"}, {'ï', "\x09"}, {'ü', "\x0a"}, {'ä', "\x0b"}, 
+        {'Ö', "\x0c"}, {'ú', "\x0d"}, {'ó', "\x0e"}, {'ö', "\x0f"}, {'Ü', "\x10"}, {'â', "\x11"}, 
+        {'û', "\x12"}, {'î', "\x13"}, {'é', "\x14"}, {'è', "\x15"}, {'ñ', "\x16"}, {'ê', "\x17"}, 
+        {'å', "\x18"}, {'à', "\x19"}, {'Å', "\x1a"}, {'¡', "\x60"}, {'Ä', "\x7b"}, {'ß', "ss"}
+    };
+
     // SIO AUX bits 0+1 control the mapping
     //   Bit 0=0 - don't touch the characters
     //   Bit 0=1 - convert the characters when possible
@@ -121,23 +161,12 @@ std::string FNJSON::processString(std::string in)
         if ((_queryParam & 2) != 0)
         {
             // yes, mapping to international charset
-            std::string mapFrom[] = {"á", "ù", "Ñ", "É", "ç", "ô", "ò", "ì", "£", "ï", "ü", "ä", "Ö", "ú", "ó", "ö", "Ü", "â", "û", "î", "é", "è", "ñ", "ê", "å", "à", "Å", "¡", "Ä", "ß"};
-            std::string mapTo[] = {"\x00", "\x01", "\x02", "\x03", "\x04", "\x05", "\x06", "\x07", "\x08", "\x09", "\x0a", "\x0b", "\x0c", "\x0d", "\x0e", "\x0f", "\x10", "\x11", "\x12", "\x13", "\x14", "\x15", "\x16", "\x17", "\x18", "\x19", "\x1a", "\x60", "\x7b", "ss"};
-            int elementCount = sizeof(mapFrom) / sizeof(mapFrom[0]);
-            for (int elementIndex = 0; elementIndex < elementCount; elementIndex++)
-                if (in.find(mapFrom[elementIndex]) != std::string::npos)
-                    in.replace(in.find(mapFrom[elementIndex]), std::string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
+            replaceAccentedCharactersInMap(in, internationalMap);
         }
         else
         {
-            // no, mapping to normal ASCI (workaround)
-            std::string mapFrom[] = {"Ä", "Ö", "Ü", "ä", "ö", "ü", "ß", "é", "è", "á", "à", "ó", "ò", "ú", "ù"};
-            std::string mapTo[] = {"Ae", "Oe", "Ue", "ae", "oe", "ue", "ss", "e", "e", "a", "a", "o", "o", "u", "u"};
-            int elementCount = sizeof(mapFrom) / sizeof(mapFrom[0]);
-            for (int elementIndex = 0; elementIndex < elementCount; elementIndex++)
-                if (in.find(mapFrom[elementIndex]) != std::string::npos)
-                    in.replace(in.find(mapFrom[elementIndex]), std::string(mapFrom[elementIndex]).size(), mapTo[elementIndex]);
-        }
+            // no, mapping to normal ASCII (workaround)
+            replaceAccentedCharactersInMap(in, simplerChars);        }
 
     }
 #endif

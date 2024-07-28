@@ -120,7 +120,7 @@ void sioNetwork::sio_open()
     // Delete timer if already extant.
     timer_stop();
 
-    // persist aux1/aux2 values
+    // persist aux1/aux2 values - NOTHING USES THEM!
     open_aux1 = cmdFrame.aux1;
     open_aux2 = cmdFrame.aux2;
     open_aux2 |= trans_aux2;
