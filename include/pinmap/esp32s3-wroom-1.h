@@ -12,10 +12,10 @@
 /* UART */
 #define PIN_UART0_RX            GPIO_NUM_44  // fnUART.cpp
 #define PIN_UART0_TX            GPIO_NUM_43
-#define PIN_UART1_RX            GPIO_NUM_18
-#define PIN_UART1_TX            GPIO_NUM_17
-#define PIN_UART2_RX            GPIO_NUM_19
-#define PIN_UART2_TX            GPIO_NUM_20
+#define PIN_UART1_RX            GPIO_NUM_NC
+#define PIN_UART1_TX            GPIO_NUM_NC
+#define PIN_UART2_RX            GPIO_NUM_18
+#define PIN_UART2_TX            GPIO_NUM_17
 
 /* Buttons */
 //#define PIN_BUTTON_A            GPIO_NUM_45 // keys.cpp
