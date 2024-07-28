@@ -2,18 +2,16 @@
 #define NETWORK_H
 
 #include <array>
+#include <cstdint>
 #include <esp_timer.h>
 #include <memory>
 #include <string>
 
-#include "../../bus/bus.h"
-
+#include "bus.h"
+#include "fnjson.h"
+#include "network_data.h"
 #include "peoples_url_parser.h"
-
-#include "../network-protocol/Protocol.h"
-
-#include "../fnjson/fnjson.h"
-
+#include "Protocol.h"
 #include "string_utils.h"
 
 /**
@@ -40,29 +38,32 @@ public:
     iecNetwork();
 
     /**
-     * @brief the Receive buffers, for each channel
-     */
-    string *receiveBuffer[NUM_CHANNELS];
-    
-    /**
-     * @brief the Transmit buffers, one for each channel.
-     */
-    string *transmitBuffer[NUM_CHANNELS];
-
-    /**
-     * @brief the Special buffers, one for each channel.
-     */
-    string *specialBuffer[NUM_CHANNELS];
-
-    /**
-     * @brief the protocol instance for given channel
-    */
-    NetworkProtocol *protocol[NUM_CHANNELS];
-
-    /**
      * @brief DTOR
      */
     virtual ~iecNetwork();
+
+    std::unordered_map<uint8_t, NetworkData> network_data_map;
+
+    // /**
+    //  * @brief the Receive buffers, for each channel
+    //  */
+    // string *receiveBuffer[NUM_CHANNELS];
+    
+    // /**
+    //  * @brief the Transmit buffers, one for each channel.
+    //  */
+    // string *transmitBuffer[NUM_CHANNELS];
+
+    // /**
+    //  * @brief the Special buffers, one for each channel.
+    //  */
+    // string *specialBuffer[NUM_CHANNELS];
+
+    // /**
+    //  * @brief the protocol instance for given channel
+    // */
+    // NetworkProtocol *protocol[NUM_CHANNELS];
+
 
     /**
      * @brief Process command fanned out from bus
@@ -82,72 +83,72 @@ private:
      */
     bool is_binary_status = false;
 
-    /**
-     * @brief the active URL for each channel
-     */
-    string deviceSpec[NUM_CHANNELS];
+    // /**
+    //  * @brief the active URL for each channel
+    //  */
+    // string deviceSpec[NUM_CHANNELS];
 
-    /**
-     * @brief the URL parser for each channel
-     */
-    std::array<std::unique_ptr<PeoplesUrlParser>, NUM_CHANNELS> urlParser;
+    // /**
+    //  * @brief the URL parser for each channel
+    //  */
+    // std::array<std::unique_ptr<PeoplesUrlParser>, NUM_CHANNELS> urlParser;
 
-    /**
-     * @brief the prefix for each channel
-     */
-    string prefix[NUM_CHANNELS];
+    // /**
+    //  * @brief the prefix for each channel
+    //  */
+    // string prefix[NUM_CHANNELS];
 
-    /**
-     * @brief the active Channel mode for each channel
-     */
-        enum _channel_mode
-    {
-        PROTOCOL,
-        JSON
-    } channelMode[NUM_CHANNELS] =
-        {
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL,
-            PROTOCOL
-        };
+    // /**
+    //  * @brief the active Channel mode for each channel
+    //  */
+    // enum _channel_mode
+    // {
+    //     PROTOCOL,
+    //     JSON
+    // } channelMode[NUM_CHANNELS] =
+    //     {
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL,
+    //         PROTOCOL
+    //     };
 
-    /**
-     * @brief the active translation mode for each channel 
-     */
-    uint8_t translationMode[NUM_CHANNELS];
+    // /**
+    //  * @brief the active translation mode for each channel 
+    //  */
+    // uint8_t translationMode[NUM_CHANNELS];
 
-    /**
-     * @brief the login (username) for each channel
-     */
-    string login[NUM_CHANNELS];
+    // /**
+    //  * @brief the login (username) for each channel
+    //  */
+    // string login[NUM_CHANNELS];
 
-    /**
-     * @brief the password for each channel
-     */
-    string password[NUM_CHANNELS];
+    // /**
+    //  * @brief the password for each channel
+    //  */
+    // string password[NUM_CHANNELS];
 
-    /**
-     * @brief the JSON object for each channel
-     */
-    FNJSON *json[NUM_CHANNELS];
+    // /**
+    //  * @brief the JSON object for each channel
+    //  */
+    // FNJSON *json[NUM_CHANNELS];
 
-    /**
-     * @brief # of bytes remaining in json query/channel
-     */
-    int json_bytes_remaining[NUM_CHANNELS];
+    // /**
+    //  * @brief # of bytes remaining in json query/channel
+    //  */
+    // int json_bytes_remaining[NUM_CHANNELS];
 
     /**
      * @brief signal file not found
