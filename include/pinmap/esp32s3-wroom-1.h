@@ -34,7 +34,7 @@
 #if !defined(JTAG)
 #define PIN_LED_BT              GPIO_NUM_3
 #else
-#define PIN_LED_BT              GPIO_NUM_8
+#define PIN_LED_BT              GPIO_NUM_NC
 #endif
 
 /* Atari SIO Pins */
