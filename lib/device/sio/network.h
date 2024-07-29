@@ -2,7 +2,6 @@
 #define NETWORK_H
 
 #ifdef ESP_PLATFORM
-#include <driver/timer.h>
 #include <esp_timer.h>
 #endif
 
