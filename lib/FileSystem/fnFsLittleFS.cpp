@@ -1,5 +1,7 @@
 #ifdef FLASH_LITTLEFS
 
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+
 #include "fnFsLittleFS.h"
 #include "fnFileLocal.h"
 
