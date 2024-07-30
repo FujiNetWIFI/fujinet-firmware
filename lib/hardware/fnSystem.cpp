@@ -16,13 +16,19 @@
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include <esp_chip_info.h>
-#include <driver/adc.h>
 #include <hal/gpio_ll.h>
+#include "esp_adc/adc_oneshot.h"
+#include "esp_adc/adc_cali.h"
+#include "esp_adc/adc_cali_scheme.h"
+#define ADC_WIDTH_12Bit ADC_BITWIDTH_12
+#define ADC_ATTEN_11db ADC_ATTEN_DB_11
+#else
+#include <driver/adc.h>
+#include <esp_adc_cal.h>
 #define ADC_WIDTH_12Bit ADC_WIDTH_BIT_12
 #define ADC_ATTEN_11db ADC_ATTEN_DB_11
 #endif
 #include <soc/rtc.h>
-#include <esp_adc_cal.h>
 
 // ESP_PLATFORM
 #else
@@ -612,7 +618,8 @@ int SystemManager::get_sio_voltage()
 {
 #ifdef ESP_PLATFORM
 
-#if !defined(CONFIG_IDF_TARGET_ESP32S3) && defined(BUILD_ATARI)
+#if defined(BUILD_ATARI)
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
     // Configure ADC1_CH7
     adc1_config_width(ADC_WIDTH_12Bit);
     adc1_config_channel_atten(ADC1_CHANNEL_7, ADC_ATTEN_11db);
@@ -628,17 +635,66 @@ int SystemManager::get_sio_voltage()
     } else {
         Debug_println("SIO VREF: Default");
     }
+#else
+    adc_oneshot_unit_handle_t adc1_handle;
+    adc_oneshot_unit_init_cfg_t init_config1 = {
+         .unit_id = ADC_UNIT_1,
+         .ulp_mode = ADC_ULP_MODE_DISABLE,
+    };
+
+    adc_oneshot_chan_cfg_t config = {
+         .atten = ADC_ATTEN_11db,
+         .bitwidth = ADC_WIDTH_12Bit,
+    };
+
+    adc_cali_handle_t adc_cali_handle = nullptr;
+
+    adc_oneshot_new_unit(&init_config1, &adc1_handle);
+    adc_oneshot_config_channel(adc1_handle, ADC_CHANNEL_7, &config);
+
+#if ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+    adc_cali_curve_fitting_config_t cali_config = {
+         .unit_id = ADC_UNIT_1,
+         .atten = ADC_ATTEN_11db,
+         .bitwidth = ADC_WIDTH_12Bit,
+    };
+    adc_cali_create_scheme_curve_fitting(&cali_config, &adc_cali_handle);
+#endif
+
+#if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
+    adc_cali_line_fitting_config_t cali_config = {
+       .unit_id = ADC_UNIT_1,
+       .atten = ADC_ATTEN_11db,
+       .bitwidth = ADC_WIDTH_12Bit,
+    };
+    adc_cali_create_scheme_line_fitting(&cali_config, &adc_cali_handle);
+#endif
+
+#endif      // ESP_IDF_VERSION
 
     int samples = 10;
     uint32_t avgV = 0;
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
     uint32_t vcc = 0;
+#else
+    int vcc_raw = 0;
+    int vcc = 0;
+#endif
 
     for (int i = 0; i < samples; i++)
     {
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
         esp_adc_cal_get_voltage(ADC_CHANNEL_7, &adc_chars, &vcc);
+#else
+        adc_oneshot_read(adc1_handle, ADC_CHANNEL_7, &vcc_raw);
+        adc_cali_raw_to_voltage(adc_cali_handle, vcc_raw, &vcc);
+#endif
         avgV += vcc;
-        //delayMicroseconds(5);
     }
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    adc_oneshot_del_unit(adc1_handle);
+#endif
 
     avgV /= samples;
 
@@ -649,15 +705,12 @@ int SystemManager::get_sio_voltage()
         return (avgV * 3200 / 2000); // v1.6 and up (R1=1200, R2=2000)
     else
         return (avgV * 5900 / 3900); // (R1=2000, R2=3900)
-#else
-    return 0;
-#endif
 
-// ESP_PLATFORM
-#else
-// !ESP_PLATFORM
+#endif      // BUILD_ATARI
+
+#endif      // ESP_PLATFORM
+
     return 0;
-#endif
 }
 
 /*
