@@ -1,6 +1,8 @@
 /* TODO: Check why using the SD/FAT routines takes up a large amount of the stack (around 4.5K)
 */
 
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+
 #include "fnFsSD.h"
 #include "fnFileLocal.h"
 
