@@ -1,4 +1,6 @@
 
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+
 #include "httpService.h"
 
 #include <sstream>
