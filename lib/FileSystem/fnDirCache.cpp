@@ -59,14 +59,14 @@ fsdir_entry &DirCache::new_entry()
 void DirCache::apply_filter(const char *pattern, uint16_t diropts)
 {
 	char realpat[MAX_PATHLEN];
-	char *thepat = nullptr;
+	//char *thepat = nullptr;
     bool have_pattern = pattern != nullptr && pattern[0] != '\0';
 	bool filter_dirs = have_pattern && pattern[strlen(pattern)-1] == '/';
 	if (filter_dirs) {
 		strlcpy (realpat, pattern, sizeof (realpat));
 		realpat[strlen(realpat)-1] = '\0';
 	}
-	thepat = filter_dirs ? realpat : (char *)pattern;
+	//thepat = filter_dirs ? realpat : (char *)pattern;
     fsdir_entry entry;
 
     // Filter directory entries

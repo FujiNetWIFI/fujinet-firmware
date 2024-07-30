@@ -306,7 +306,7 @@ char *ssh_get_local_username(void)
     int rc;
 
     rc = getpwuid_r(getuid(), &pwd, buf, NSS_BUFLEN_PASSWD, &pwdbuf);
-    if (rc != 0 || pwdbuf == NULL) {
+    if (rc != 0 || pwdbuf == NULL || strlen(buf) == 0) {
         return NULL;
     }
 
