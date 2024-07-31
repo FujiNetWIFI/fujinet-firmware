@@ -15,7 +15,7 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO]
+        target-platform: [ATARI, ATARI-esp32-s3-wroom-1-n16r8, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO]
 
     steps:
     - name: Checkout Source
