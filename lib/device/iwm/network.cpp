@@ -13,8 +13,11 @@
 #include "../../hardware/led.h"
 
 #include "utils.h"
+#include "string_utils.h"
 
 #include "status_error_codes.h"
+#include "NetworkProtocolFactory.h"
+#include "network_data.h"
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -35,15 +38,6 @@
 iwmNetwork::iwmNetwork()
 {
     Debug_printf("iwmNetwork::iwmNetwork()\n");
-    receiveBuffer = new string();
-    transmitBuffer = new string();
-    specialBuffer = new string();
-
-    receiveBuffer->clear();
-    transmitBuffer->clear();
-    specialBuffer->clear();
-
-    json.setLineEnding("\x0a");
 }
 
 /**
@@ -51,33 +45,13 @@ iwmNetwork::iwmNetwork()
  */
 iwmNetwork::~iwmNetwork()
 {
-    Debug_printf("iwmNetwork::~iwmNetwork()\n");
-    receiveBuffer->clear();
-    transmitBuffer->clear();
-    specialBuffer->clear();
-
-    specialBuffer->shrink_to_fit();
-    transmitBuffer->shrink_to_fit();
-    receiveBuffer->shrink_to_fit();
-
-    delete receiveBuffer;
-    delete transmitBuffer;
-    delete specialBuffer;
-
-    receiveBuffer = nullptr;
-    transmitBuffer = nullptr;
-    specialBuffer = nullptr;
-
-    if (protocol != nullptr)
-        delete protocol;
-
-    protocol = nullptr;
 }
 
 /** iwm COMMANDS ***************************************************************/
 
 void iwmNetwork::shutdown()
 {
+    // If I had a penny for every TODO that was never TODONE
     // TODO: come back here and make shutdown() close all connections.
 }
 
@@ -113,6 +87,12 @@ void iwmNetwork::send_status_dib_reply_packet()
  */
 void iwmNetwork::open()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
+
+    // NEW WORK: we can store this in our network_data_map by looking at the Nx: device number.
+    // However, subsequent requests to the network device need to tell us which deviceId to use.
+    // Or we use separate SP devices per network device.
+
     uint8_t _aux1 = data_buffer[0];
     uint8_t _aux2 = data_buffer[1];
 
@@ -125,9 +105,9 @@ void iwmNetwork::open()
 
     Debug_printf("\naux1: %u aux2: %u path %s", _aux1, _aux2, d.c_str());
 
-    channelMode = PROTOCOL;
+    current_network_data.channelMode = NetworkData::PROTOCOL;
 
-    // persist aux1/aux2 values
+    // persist aux1/aux2 values - this is a smell
     cmdFrame.aux1 = _aux1;
     cmdFrame.aux2 = _aux2;
 
@@ -135,49 +115,34 @@ void iwmNetwork::open()
     open_aux2 = cmdFrame.aux2;
 
     // Shut down protocol if we are sending another open before we close.
-    if (protocol != nullptr)
+    if (current_network_data.protocol)
     {
-        protocol->close();
-        delete protocol;
-        protocol = nullptr;
+        current_network_data.protocol->close();
     }
 
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
-    }
-
-    // Reset status buffer
-    statusByte.byte = 0x00;
+    err = 0;
 
     Debug_printf("\nopen()\n");
 
     // Parse and instantiate protocol
     parse_and_instantiate_protocol(d);
 
-    if (protocol == nullptr)
+    if (!current_network_data.protocol)
     {
         return;
     }
 
     // Attempt protocol open
-    if (protocol->open(urlParser.get(), &cmdFrame) == true)
+    if (current_network_data.protocol->open(current_network_data.urlParser.get(), &cmdFrame))
     {
-        statusByte.bits.client_error = true;
         Debug_printf("Protocol unable to make connection. Error: %d\n", err);
-        delete protocol;
-        protocol = nullptr;
-        if (protocolParser != nullptr)
-        {
-            delete protocolParser;
-            protocolParser = nullptr;
-        }
+        current_network_data.protocol.reset();
         return;
     }
 
     // Associate channel mode
-    json.setProtocol(protocol);
+    current_network_data.json = std::make_shared<FNJSON>();
+    current_network_data.json->setProtocol(current_network_data.protocol.get());
 }
 
 /**
@@ -186,31 +151,25 @@ void iwmNetwork::open()
  */
 void iwmNetwork::close()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
+
     Debug_printf("iwmNetwork::close()\n");
+    err = 0;
 
-    statusByte.byte = 0x00;
-
-    if (protocolParser != nullptr)
-    {
-        delete protocolParser;
-        protocolParser = nullptr;
-    }
-    // If no protocol enabled, we just signal complete, and return.
-    if (protocol == nullptr)
+    if (!current_network_data.protocol)
     {
         return;
     }
 
-    receiveBuffer->shrink_to_fit();
-    transmitBuffer->shrink_to_fit();
-    specialBuffer->shrink_to_fit();
+    current_network_data.receiveBuffer.clear();
+    current_network_data.transmitBuffer.clear();
+    current_network_data.specialBuffer.clear();
     
     // Ask the protocol to close
-    protocol->close();
+    current_network_data.protocol->close();
 
     // Delete the protocol object
-    delete protocol;
-    protocol = nullptr;
+    current_network_data.protocol.reset();
 }
 
 /**
@@ -218,10 +177,12 @@ void iwmNetwork::close()
  */
 void iwmNetwork::get_prefix()
 {
-    Debug_printf("iwmNetwork::get_prefix(%s)\n",prefix.c_str());
-    memset(data_buffer,0,sizeof(data_buffer));
-    memcpy(data_buffer,prefix.c_str(),prefix.length());
-    data_len = prefix.length();
+    auto& current_network_data = network_data_map[current_network_unit];
+
+    Debug_printf("iwmNetwork::get_prefix(%s)\n", current_network_data.prefix.c_str());
+    memset(data_buffer, 0, sizeof(data_buffer));
+    memcpy(data_buffer, current_network_data.prefix.c_str(), current_network_data.prefix.length());
+    data_len = current_network_data.prefix.length();
 }
 
 /**
@@ -229,6 +190,8 @@ void iwmNetwork::get_prefix()
  */
 void iwmNetwork::set_prefix()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
+
     string prefixSpec_str = string((const char *)data_buffer);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
     Debug_printf("iwmNetwork::iwmnet_set_prefix(%s)\n", prefixSpec_str.c_str());
@@ -236,41 +199,41 @@ void iwmNetwork::set_prefix()
     if (prefixSpec_str == "..") // Devance path N:..
     {
         std::vector<int> pathLocations;
-        for (int i = 0; i < prefix.size(); i++)
+        for (int i = 0; i < current_network_data.prefix.size(); i++)
         {
-            if (prefix[i] == '/')
+            if (current_network_data.prefix[i] == '/')
             {
                 pathLocations.push_back(i);
             }
         }
 
-        if (prefix[prefix.size() - 1] == '/')
+        if (current_network_data.prefix[current_network_data.prefix.size() - 1] == '/')
         {
             // Get rid of last path segment.
             pathLocations.pop_back();
         }
 
         // truncate to that location.
-        prefix = prefix.substr(0, pathLocations.back() + 1);
+        current_network_data.prefix = current_network_data.prefix.substr(0, pathLocations.back() + 1);
     }
     else if (prefixSpec_str[0] == '/') // N:/DIR
     {
-        prefix = prefixSpec_str;
+        current_network_data.prefix = prefixSpec_str;
     }
     else if (prefixSpec_str.empty())
     {
-        prefix.clear();
+        current_network_data.prefix.clear();
     }
     else if (prefixSpec_str.find_first_of(":") != string::npos)
     {
-        prefix = prefixSpec_str;
+        current_network_data.prefix = prefixSpec_str;
     }
     else // append to path.
     {
-        prefix += prefixSpec_str;
+        current_network_data.prefix += prefixSpec_str;
     }
 
-    Debug_printf("Prefix now: %s\n", prefix.c_str());
+    Debug_printf("Prefix now: %s\n", current_network_data.prefix.c_str());
 }
 
 /**
@@ -278,9 +241,10 @@ void iwmNetwork::set_prefix()
  */
 void iwmNetwork::set_login()
 {
-    login.clear();
-    login = string((char *)data_buffer, 256);
-    Debug_printf("Login is %s\n",login.c_str());
+    auto& current_network_data = network_data_map[current_network_unit];
+
+    current_network_data.login = string((char *)data_buffer, 256); // STAB STAB STAB
+    Debug_printf("Login is %s\n", current_network_data.login.c_str());
 }
 
 /**
@@ -288,73 +252,78 @@ void iwmNetwork::set_login()
  */
 void iwmNetwork::set_password()
 {
-    password.clear();
-    password = string((char *)data_buffer, 256);
-    Debug_printf("Password is %s\n",password.c_str());
+    auto& current_network_data = network_data_map[current_network_unit];
+
+    current_network_data.password = string((char *)data_buffer, 256); // LOOK INTO THEIR POOR DEAD EYES
+    Debug_printf("Password is %s\n", current_network_data.password.c_str()); // GREAT LOGGING
 }
 
 void iwmNetwork::del()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     string d;
 
-    d = string((char *)data_buffer, 256);
+    d = string((char *)data_buffer, 256); // MORE PUPPIES
     parse_and_instantiate_protocol(d);
 
-    if (protocol == nullptr)
+    if (!current_network_data.protocol)
         return;
 
     cmdFrame.comnd = '!';
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
     {
-        statusByte.bits.client_error = true;
+        err = SP_ERR_IOERROR;
         return;
     }
 }
 
 void iwmNetwork::rename()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     string d;
 
-    d = string((char *)data_buffer, 256);
+    d = string((char *)data_buffer, 256); // a puppy dies when you use strings as buffers. A GODDAMN PUPPY JUST DIED
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = ' ';
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
     {
-        statusByte.bits.client_error = true;
+        err = SP_ERR_IOERROR;
         return;
     }
 }
 
 void iwmNetwork::mkdir()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     string d;
 
-    d = string((char *)data_buffer, 256);
+    d = string((char *)data_buffer, 256); // IT'S A FUCKING PUPPY MASSACRE HERE
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = '*';
 
-    if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame))
+    if (current_network_data.protocol->perform_idempotent_80(current_network_data.urlParser.get(), &cmdFrame))
     {
-        statusByte.bits.client_error = true;
+        err = SP_ERR_IOERROR;
         return;
     }
 }
 
 void iwmNetwork::channel_mode()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     switch (data_buffer[0])
     {
     case 0:
         Debug_printf("channelMode = PROTOCOL\n");
-        channelMode = PROTOCOL;
+        current_network_data.channelMode = NetworkData::PROTOCOL;
         break;
     case 1:
         Debug_printf("channelMode = JSON\n");
-        channelMode = JSON;
+        current_network_data.channelMode = NetworkData::JSON;
         break;
     default:
         Debug_printf("INVALID MODE = %02x\r\n", data_buffer[0]);
@@ -364,22 +333,19 @@ void iwmNetwork::channel_mode()
 
 void iwmNetwork::json_query(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest; // we are the destination and will become the source // data_buffer[6];
+    auto& current_network_data = network_data_map[current_network_unit];
 
     uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
     // numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
 
-    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
-    // addy |= ((cmd.g7byte6 & 0x7f) | ((cmd.grp7msb << 6) & 0x80)) << 8;
-    // addy |= ((cmd.g7byte7 & 0x7f) | ((cmd.grp7msb << 7) & 0x80)) << 16;
-
     Debug_printf("\r\nQuery set to: %s, data_len: %d\r\n", string((char *)data_buffer, data_len).c_str(), data_len);
-    json.setReadQuery(string((char *)data_buffer, data_len),cmdFrame.aux2);
+    current_network_data.json->setReadQuery(string((char *)data_buffer, data_len), cmdFrame.aux2);
 }
 
 void iwmNetwork::json_parse()
 {
-    json.parse();
+    auto& current_network_data = network_data_map[current_network_unit];
+    current_network_data.json->parse();
 }
 
 /**
@@ -394,14 +360,15 @@ void iwmNetwork::iwmnet_special_inquiry()
 
 void iwmNetwork::do_inquiry(unsigned char inq_cmd)
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     // Reset inq_dstats
     inq_dstats = 0xff;
 
     cmdFrame.comnd = inq_cmd;
 
     // Ask protocol for dstats, otherwise get it locally.
-    if (protocol != nullptr)
-        inq_dstats = protocol->special_inquiry(inq_cmd);
+    if (current_network_data.protocol != nullptr)
+        inq_dstats = current_network_data.protocol->special_inquiry(inq_cmd);
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
     if (inq_dstats == 0xFF)
@@ -450,10 +417,11 @@ void iwmNetwork::do_inquiry(unsigned char inq_cmd)
  */
 void iwmNetwork::special_00()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     cmdFrame.aux1 = data_buffer[0];
     cmdFrame.aux2 = data_buffer[1];
 
-    protocol->special_00(&cmdFrame);
+    current_network_data.protocol->special_00(&cmdFrame);
 }
 
 /**
@@ -464,10 +432,11 @@ void iwmNetwork::special_00()
  */
 void iwmNetwork::special_40()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     cmdFrame.aux1 = data_buffer[0];
     cmdFrame.aux2 = data_buffer[1];
 
-    if (protocol->special_40(data_buffer, 256, &cmdFrame) == false)
+    if (!current_network_data.protocol->special_40(data_buffer, 256, &cmdFrame))
     {
         data_len = 256;
         //send_data_packet(data_len);
@@ -487,6 +456,7 @@ void iwmNetwork::special_40()
  */
 void iwmNetwork::special_80()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     // Get special (devicespec) from computer
     cmdFrame.aux1 = data_buffer[0];
     cmdFrame.aux2 = data_buffer[1];
@@ -494,19 +464,21 @@ void iwmNetwork::special_80()
     Debug_printf("iwmNetwork::iwmnet_special_80() - %s\n", &data_buffer[2]);
 
     // Do protocol action and return
-    if (protocol->special_80(&data_buffer[2], SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
+    if (!current_network_data.protocol->special_80(&data_buffer[2], SPECIAL_BUFFER_SIZE, &cmdFrame))
     {
-        // GOOD
+        // GOOD - LOL
     }
     else
     {
-        // BAD
+        // BAD - STILL LOL
     }
 }
 
 void iwmNetwork::iwm_open(iwm_decoded_cmd_t cmd)
 {
     //Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
+    // the N: drive is in the payload from 4th byte onwards, but data_buffer already removes the top 2 bytes, so the Nx: part is contained from data_buffer[2] onwards
+
     send_reply_packet(SP_ERR_NOERROR);
 }
 
@@ -520,25 +492,26 @@ void iwmNetwork::iwm_close(iwm_decoded_cmd_t cmd)
 
 void iwmNetwork::status()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     NetworkStatus s;
 
-    switch (channelMode)
+    switch (current_network_data.channelMode)
     {
-    case PROTOCOL:
-        if (protocol == nullptr) {
+    case NetworkData::PROTOCOL:
+        if (!current_network_data.protocol) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
             err = true;
             s.error = true;
         } else {
-            err = protocol->status(&s);
+            err = current_network_data.protocol->status(&s);
         }
         break;
-    case JSON:
-        err = json.status(&s);
+    case NetworkData::JSON:
+        err = current_network_data.json->status(&s);
         break;
     }
 
-    Debug_printf("Bytes Waiting: %u, Connected: %u, Error: %u\n",s.rxBytesWaiting,s.connected,s.error);
+    Debug_printf("Bytes Waiting: %u, Connected: %u, Error: %u\n",s.rxBytesWaiting, s.connected, s.error);
 
     if (s.rxBytesWaiting > 512)
         s.rxBytesWaiting = 512;
@@ -552,10 +525,13 @@ void iwmNetwork::status()
 
 void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
 {
-    // uint8_t source = cmd.dest;                                                // we are the destination and will become the source // data_buffer[6];
     uint8_t status_code = get_status_code(cmd); //(cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x\r\n", id(), status_code);
     //Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+
+    // get the "param count" value, and if it's "4", we have a network unit in byte after the control code.
+    current_network_unit = 1; // fallback version if nothing specified, or old code
+    auto& current_network_data = network_data_map[current_network_unit];
 
     switch (status_code)
     {
@@ -584,7 +560,7 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     //send_data_packet(data_len);
     IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     data_len = 0;
-    memset(data_buffer,0,sizeof(data_buffer));
+    memset(data_buffer, 0, sizeof(data_buffer));
 }
 
 void iwmNetwork::net_read()
@@ -593,20 +569,21 @@ void iwmNetwork::net_read()
 
 bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
-    Debug_printf("read_channel_json - num_bytes: %02x, json_bytes_remaining: %02x\n", num_bytes, json.json_bytes_remaining);
-    if (json.json_bytes_remaining == 0) // if no bytes, we just return with no data
+    auto& current_network_data = network_data_map[current_network_unit];
+    Debug_printf("read_channel_json - num_bytes: %02x, json_bytes_remaining: %02x\n", num_bytes, current_network_data.json->json_bytes_remaining);
+    if (current_network_data.json->json_bytes_remaining == 0) // if no bytes, we just return with no data
     {
         data_len = 0;
     }
-    else if (num_bytes > json.json_bytes_remaining)
+    else if (num_bytes > current_network_data.json->json_bytes_remaining)
     {
-        data_len = json.readValueLen();
-        json.readValue(data_buffer, data_len);
-        json.json_bytes_remaining -= data_len;
+        data_len = current_network_data.json->readValueLen();
+        current_network_data.json->readValue(data_buffer, data_len);
+        current_network_data.json->json_bytes_remaining -= data_len;
 
-        Debug_printf("read_channel_json(1) - data_len: %02x, json_bytes_remaining: %02x\n", data_len, json.json_bytes_remaining);
-        int print_len = data_len;
-        if (print_len > 16) print_len = 16;
+        Debug_printf("read_channel_json(1) - data_len: %02x, json_bytes_remaining: %02x\n", data_len, current_network_data.json->json_bytes_remaining);
+        // int print_len = data_len;
+        // if (print_len > 16) print_len = 16;
         //std::string msg = util_hexdump(data_buffer, print_len);
         //Debug_printf("%s\n", msg.c_str());
         //if (print_len != data_len) {
@@ -615,14 +592,14 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
     }
     else
     {
-        json.json_bytes_remaining -= num_bytes;
+        current_network_data.json->json_bytes_remaining -= num_bytes;
 
-        json.readValue(data_buffer, num_bytes);
-        data_len = json.readValueLen();
+        current_network_data.json->readValue(data_buffer, num_bytes);
+        data_len = current_network_data.json->readValueLen();
 
-        Debug_printf("read_channel_json(2) - data_len: %02x, json_bytes_remaining: %02x\n", num_bytes, json.json_bytes_remaining);
-        int print_len = num_bytes;
-        if (print_len > 16) print_len = 16;
+        Debug_printf("read_channel_json(2) - data_len: %02x, json_bytes_remaining: %02x\n", num_bytes, current_network_data.json->json_bytes_remaining);
+        // int print_len = num_bytes;
+        // if (print_len > 16) print_len = 16;
         //std::string msg = util_hexdump(data_buffer, print_len);
         //Debug_printf("%s\n", msg.c_str());
         //if (print_len != num_bytes) {
@@ -636,12 +613,13 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
 bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 {
     NetworkStatus ns;
+    auto& current_network_data = network_data_map[current_network_unit];
 
-    if (protocol == nullptr)
+    if (!current_network_data.protocol)
         return true; // Punch out.
 
     // Get status
-    protocol->status(&ns);
+    current_network_data.protocol->status(&ns);
 
     if (ns.rxBytesWaiting == 0) // if no bytes, we just return with no data
     {
@@ -662,29 +640,27 @@ bool iwmNetwork::read_channel(unsigned short num_bytes, iwm_decoded_cmd_t cmd)
 
     //Debug_printf("\r\nAvailable bytes %04x\n", data_len);
 
-    if (protocol->read(data_len)) // protocol adapter returned error
+    if (current_network_data.protocol->read(data_len)) // protocol adapter returned error
     {
-        statusByte.bits.client_error = true;
-        err = protocol->error;
+        err = current_network_data.protocol->error;
         return true;
     }
     else // everything ok
     {
-        statusByte.bits.client_error = 0;
-        statusByte.bits.client_data_available = data_len > 0;
-        memcpy(data_buffer, receiveBuffer->data(), data_len);
-        receiveBuffer->erase(0, data_len);
+        memcpy(data_buffer, current_network_data.receiveBuffer.data(), data_len);
+        current_network_data.receiveBuffer.erase(0, data_len);
     }
     return false;
 }
 
 bool iwmNetwork::write_channel(unsigned short num_bytes)
 {
-    switch (channelMode)
+    auto& current_network_data = network_data_map[current_network_unit];
+    switch (current_network_data.channelMode)
     {
-    case PROTOCOL:
-        protocol->write(num_bytes);
-    case JSON:
+    case NetworkData::PROTOCOL:
+        current_network_data.protocol->write(num_bytes);
+    case NetworkData::JSON:
         break;
     }
     return false;
@@ -692,22 +668,22 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
 
 void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     bool error = false;
 
     uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
 
-    Debug_printf("\r\nDevice %02x Read %04x bytes from address %06x\n", id(), numbytes, addy);
+    Debug_printf("\r\nDevice %02x Read %04x bytes\n", id(), numbytes);
 
     data_len = 0;
-    memset(data_buffer,0,sizeof(data_buffer));
+    memset(data_buffer, 0, sizeof(data_buffer));
 
-    switch (channelMode)
+    switch (current_network_data.channelMode)
     {
-    case PROTOCOL:
+    case NetworkData::PROTOCOL:
         error = read_channel(numbytes, cmd);
         break;
-    case JSON:
+    case NetworkData::JSON:
         error = read_channel_json(numbytes, cmd);
         break;
     }
@@ -727,17 +703,18 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 
 void iwmNetwork::net_write()
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     // TODO: Handle errors.
-    *transmitBuffer += string((char *)data_buffer, data_len);
+    current_network_data.transmitBuffer += string((char *)data_buffer, data_len);
     write_channel(data_len);
 }
 
 void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     Debug_printf("\r\nNet# %02x ", id());
 
     uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    uint32_t addy = get_address(cmd); // (cmd.g7byte5 & 0x7f) | ((cmd.grp7msb << 5) & 0x80);
 
     Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
 
@@ -755,7 +732,7 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
         iwm_return_ioerror();
     else
     {
-        *transmitBuffer += string((char *)data_buffer, num_bytes);
+        current_network_data.transmitBuffer += string((char *)data_buffer, num_bytes);
         if (write_channel(num_bytes))
         {
             send_reply_packet(SP_ERR_IOERROR);
@@ -767,7 +744,7 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
     }
 
     data_len = 0;
-    memset(data_buffer,0,sizeof(data_buffer));
+    memset(data_buffer, 0, sizeof(data_buffer));
 }
 
 void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -782,6 +759,13 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
     IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
     // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", data_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
     print_packet((uint8_t *)data_buffer);
+
+    // read the network unit id from the payload. at the moment, ctrl/status only set cmd.decoded[0] to seq
+    // TODO: move this into each function as its own copy? would allow async connections.
+    current_network_unit = 1; // fallback version if nothing specified, or old code
+    auto& current_network_data = network_data_map[current_network_unit];
+
+    Debug_printv("XXXXX cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());
 
     switch (control_code)
     {
@@ -819,9 +803,9 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
         set_password();
         break;
     default:
-        switch (channelMode)
+        switch (current_network_data.channelMode)
         {
-        case PROTOCOL:
+        case NetworkData::PROTOCOL:
             do_inquiry(control_code);
             if (inq_dstats == 0x00)
                 special_00();
@@ -832,7 +816,7 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
             else
                 Debug_printf("iwmnet_control_send() - Unknown Command: %02x\n", control_code);
             break;
-        case JSON:
+        case NetworkData::JSON:
             switch (control_code)
             {
             case 'P':
@@ -849,13 +833,13 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
         }
     }
 
-    if (statusByte.bits.client_error == true)
+    if (err != 0)
         err_result = SP_ERR_IOERROR;
 
     send_reply_packet(err_result);
 
     data_len = 0;
-    memset(data_buffer,0,sizeof(data_buffer));
+    memset(data_buffer, 0, sizeof(data_buffer));
 }
 
 void iwmNetwork::process(iwm_decoded_cmd_t cmd)
@@ -902,28 +886,22 @@ void iwmNetwork::process(iwm_decoded_cmd_t cmd)
     fnLedManager.set(LED_BUS, false);
 }
 
-/** PRIVATE METHODS ************************************************************/
-
 /**
  * Instantiate protocol object
- * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open
+ * @return bool TRUE if protocol successfully called open(), FALSE if protocol could not open - WHY IS SUCCESS true HERE AND ERROR true MOST OTHER PLACES? :hair_pull:
  */
 bool iwmNetwork::instantiate_protocol()
 {
-    if (!protocolParser)
-    {
-        protocolParser = new ProtocolParser();
-    }
-    
-    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
+    auto& current_network_data = network_data_map[current_network_unit];
+    current_network_data.protocol = NetworkProtocolFactory::createProtocol(current_network_data.urlParser->scheme, current_network_data);
 
-    if (protocol == nullptr)
+    if (!current_network_data.protocol)
     {
         Debug_printf("iwmNetwork::instantiate_protocol() - Could not create protocol.\n");
         return false;
     }
 
-    Debug_printf("iwmNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
+    Debug_printf("iwmNetwork::instantiate_protocol() - Protocol %s created.\n", current_network_data.urlParser->scheme.c_str());
     return true;
 }
 
@@ -933,7 +911,8 @@ bool iwmNetwork::instantiate_protocol()
  */
 void iwmNetwork::create_devicespec(string d)
 {
-    deviceSpec = util_devicespec_fix_for_parsing(d, prefix, cmdFrame.aux1 == 6, false);
+    auto& current_network_data = network_data_map[current_network_unit];
+    current_network_data.deviceSpec = util_devicespec_fix_for_parsing(d, current_network_data.prefix, cmdFrame.aux1 == 6, false);
 }
 
 /*
@@ -942,33 +921,31 @@ void iwmNetwork::create_devicespec(string d)
 */
 void iwmNetwork::create_url_parser()
 {
-    std::string url = deviceSpec.substr(deviceSpec.find(":") + 1);
-    urlParser = PeoplesUrlParser::parseURL(url);
+    auto& current_network_data = network_data_map[current_network_unit];
+    std::string url = current_network_data.deviceSpec.substr(current_network_data.deviceSpec.find(":") + 1);
+    current_network_data.urlParser = PeoplesUrlParser::parseURL(url);
 }
 
 void iwmNetwork::parse_and_instantiate_protocol(string d)
 {
+    auto& current_network_data = network_data_map[current_network_unit];
     create_devicespec(d);
     create_url_parser();
 
     // Invalid URL returns error 165 in status.
-    if (!urlParser->isValidUrl())
+    if (!current_network_data.urlParser->isValidUrl())
     {
-        Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
-        statusByte.byte = 0x00;
-        statusByte.bits.client_error = true;
+        Debug_printf("Invalid devicespec: %s\n", current_network_data.deviceSpec.c_str());
         err = NETWORK_ERROR_INVALID_DEVICESPEC;
         return;
     }
 
-    Debug_printf("::parse_and_instantiate_protocol transformed to (%s, %s)\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+    Debug_printf("::parse_and_instantiate_protocol transformed to (%s, %s)\n", current_network_data.deviceSpec.c_str(), current_network_data.urlParser->mRawUrl.c_str());
 
     // Instantiate protocol object.
     if (!instantiate_protocol())
     {
         Debug_printf("Could not open protocol.\n");
-        statusByte.byte = 0x00;
-        statusByte.bits.client_error = true;
         err = NETWORK_ERROR_GENERAL;
         return;
     }
@@ -976,22 +953,10 @@ void iwmNetwork::parse_and_instantiate_protocol(string d)
 
 void iwmNetwork::iwmnet_set_translation()
 {
-    // trans_aux2 = cmdFrame.aux2;
-    // iwmnet_complete();
 }
 
 void iwmNetwork::iwmnet_set_timer_rate()
 {
-    // timerRate = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
-
-    // // Stop extant timer
-    // timer_stop();
-
-    // // Restart timer if we're running a protocol.
-    // if (protocol != nullptr)
-    //     timer_start();
-
-    // iwmnet_complete();
 }
 
 #endif /* BUILD_APPLE */

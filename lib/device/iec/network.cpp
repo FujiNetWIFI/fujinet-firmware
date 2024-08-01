@@ -15,7 +15,7 @@
 #include "utils.h"
 
 #include "status_error_codes.h"
-#include "npf.h"
+#include "NetworkProtocolFactory.h"
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -42,7 +42,7 @@ void iecNetwork::poll_interrupt(uint8_t c)
 {
     NetworkStatus ns;
     auto& protocol = network_data_map[c].protocol;
-    if (protocol != nullptr)
+    if (protocol)
     {
         if (!protocol->interruptEnable)
             return;
