@@ -10,6 +10,8 @@
 class NetworkProtocol
 {
 public:
+    std::string name = "UNKNOWN";
+
     /**
      * Pointer to the receive buffer
      */

@@ -5,23 +5,24 @@
 #include <esp_timer.h>
 #endif
 
+#include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
-#include "../../bus/bus.h"
-
+#include "bus.h"
+#include "fnjson.h"
+#include "network_data.h"
 #include "peoples_url_parser.h"
+#include "Protocol.h"
+// #include "ProtocolParser.h"
 
-#include "../network-protocol/Protocol.h"
-
-#include "../fnjson/fnjson.h"
-
-#include "../network-protocol/ProtocolParser.h"
 
 /**
- * Number of devices to expose via APPLE2, becomes 0x71 to 0x70 + NUM_DEVICES - 1
+ * Number of devices to expose via APPLE2
  */
-#define NUM_DEVICES 8
+#define NUM_DEVICES 4
 
 /**
  * The size of rx and tx buffers
@@ -154,61 +155,48 @@ public:
     virtual void rename();
     virtual void mkdir();
 
+    std::unordered_map<uint8_t, NetworkData> network_data_map;
+    uint8_t current_network_unit = 1;
 
 private:
-    /**
-     * JSON Object
-     */
-    FNJSON json;
+
+    // /**
+    //  * JSON Object
+    //  */
+    // FNJSON json;
+
+    // /**
+    //  * The Receive buffer for this N: device
+    //  */
+    // std::string *receiveBuffer = nullptr;
+
+    // /**
+    //  * The transmit buffer for this N: device
+    //  */
+    // std::string *transmitBuffer = nullptr;
+
+    // /**
+    //  * The special buffer for this N: device
+    //  */
+    // std::string *specialBuffer = nullptr;
+
+    // /**
+    //  * The PeoplesUrlParser object used to hold/process a URL
+    //  */
+    // std::unique_ptr<PeoplesUrlParser> urlParser = nullptr;
+
+    // /**
+    //  * Instance of currently open network protocol
+    //  */
+    // NetworkProtocol *protocol = nullptr;
+
+    // /**
+    //  * @brief Factory that creates protocol from urls
+    // */
+    // ProtocolParser *protocolParser = nullptr;
 
     /**
-     * The Receive buffer for this N: device
-     */
-    std::string *receiveBuffer = nullptr;
-
-    /**
-     * The transmit buffer for this N: device
-     */
-    std::string *transmitBuffer = nullptr;
-
-    /**
-     * The special buffer for this N: device
-     */
-    std::string *specialBuffer = nullptr;
-
-    /**
-     * The PeoplesUrlParser object used to hold/process a URL
-     */
-    std::unique_ptr<PeoplesUrlParser> urlParser = nullptr;
-
-    /**
-     * Instance of currently open network protocol
-     */
-    NetworkProtocol *protocol = nullptr;
-
-    /**
-     * @brief Factory that creates protocol from urls
-    */
-    ProtocolParser *protocolParser = nullptr;
-
-    /**
-     * Network Status object
-     */
-    union _status
-    {
-        struct _statusbits
-        {
-            bool client_data_available : 1;
-            bool client_connected : 1;
-            bool client_error : 1;
-            bool server_connection_available : 1;
-            bool server_error : 1;
-        } bits;
-        unsigned char byte;
-    } statusByte;
-
-    /**
-     * Error number, if status.bits.client_error is set.
+     * Error number when there's an ... error!
      */
     uint8_t err; 
 
@@ -219,15 +207,15 @@ private:
     esp_timer_handle_t rateTimerHandle = nullptr;
 #endif
 
-    /**
-     * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
-     */
-    std::string deviceSpec;
+    // /**
+    //  * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
+    //  */
+    // std::string deviceSpec;
 
-    /**
-     * The currently set Prefix for this N: device, set by iwm call 0x2C
-     */
-    std::string prefix;
+    // /**
+    //  * The currently set Prefix for this N: device, set by iwm call 0x2C
+    //  */
+    // std::string prefix;
 
     /**
      * The AUX1 value used for OPEN.
@@ -253,12 +241,12 @@ private:
     /**
      * The login to use for a protocol action
      */
-    std::string login;
+    // std::string login;
 
     /**
      * The password to use for a protocol action
      */
-    std::string password;
+    // std::string password;
 
     /**
      * Timer Rate for interrupt timer
@@ -273,11 +261,11 @@ private:
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
      */
-    enum _channel_mode
-    {
-        PROTOCOL,
-        JSON
-    } channelMode;
+    // enum _channel_mode
+    // {
+    //     PROTOCOL,
+    //     JSON
+    // } channelMode;
 
     /**
      * The current receive state, are we sending channel or status data?
