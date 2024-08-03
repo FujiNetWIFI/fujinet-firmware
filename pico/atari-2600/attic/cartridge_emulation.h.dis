@@ -1,0 +1,174 @@
+#ifndef CARTRIDGE_EMULATION_H
+#define CARTRIDGE_EMULATION_H
+
+#include <stdint.h>
+#include <stdbool.h>
+#include <WiFiEspAT.h>
+#include "global.h"
+#include "hardware/sync.h"
+#include "dmauart.h"
+
+#define RESET_ADDR addr = addr_prev = 0xffff;
+
+#define SWCHA          0x280
+
+enum Transmission_State {
+   No_Transmission,
+   Send_Start,
+   Send_Prepare_Header,
+   Send_Header,
+   Send_Content,
+   Send_Finished,
+   Receive_Header,
+   Receive_Length,
+   Receive_Content,
+   Receive_Finished
+};
+
+#if USE_WIFI
+#define setup_plus_rom_functions() \
+   uint8_t receive_buffer_write_pointer = 0, receive_buffer_read_pointer = 0, content_counter = 0; \
+   uint8_t out_buffer_write_pointer = 0, out_buffer_send_pointer = 0; \
+   uint8_t receive_buffer[256], out_buffer[256]; \
+   uint8_t prev_c = 0, prev_prev_c = 0, i, c, len; \
+   uint16_t content_len; \
+   int content_length_pos = header_length - 5; \
+   enum Transmission_State uart_state = No_Transmission;
+#else //Todo make setup_plus_rom_functions empty if no WiFi
+#define setup_plus_rom_functions()
+#endif
+
+#if USE_WIFI
+#define process_transmission() \
+        switch(uart_state){ \
+          case Send_Start: { \
+        	   content_len = out_buffer_write_pointer; \
+            /* content_len++; \ */ \
+            i = content_length_pos; \
+            uart_state = Send_Prepare_Header; \
+            break; \
+          } \
+          case Send_Prepare_Header: { \
+            c = (uint8_t) (content_len % 10); \
+            http_request_header[i--] = (char) (c + '0'); \
+            content_len = content_len/10; \
+            if (content_len == 0) { \
+              i = 0; \
+              uart_state = Send_Header; \
+            } \
+            break; \
+          } \
+          case Send_Header: { \
+            /*dbg("http_request_header: %s, len: %d\r\n", http_request_header, strlen(http_request_header));\*/\
+            /*dmauart_set_txbuf((uint8_t *)http_request_header, strlen(http_request_header));\*/\
+            /*dbg("http_request_header: %s, len: %d\r\n", http_request_header, strlen(http_request_header));\*/\
+            dmauart_write((uint8_t *)http_request_header, strlen(http_request_header));\
+            uart_state = Send_Content; \
+            break; \
+          } \
+          case Send_Content: { \
+            /*dmauart_set_txbuf((uint8_t *)out_buffer, out_buffer_write_pointer); \*/\
+            dmauart_write_and_flush((uint8_t *)out_buffer, out_buffer_write_pointer);\
+            uart_state = Send_Finished; \
+            break; \
+          } \
+          case Send_Finished: { \
+            out_buffer_write_pointer = 0; \
+            out_buffer_send_pointer = 0; \
+            uart_state = Receive_Header; \
+            /*dbg("\r\nheader\r\n"); \*/\
+            break; \
+          } \
+          case Receive_Header: { \
+            if(dmauart_read(&c)) { \
+              /*dbg("%c", c); \*/\
+              if(c == '\n' && c == prev_prev_c){ \
+                uart_state = Receive_Length; \
+                /*dbg("\r\nlength\r\n"); \*/\
+              }else{ \
+                prev_prev_c = prev_c; \
+                prev_c = c; \
+              } \
+            } \
+            break; \
+          } \
+          case Receive_Length: { \
+            if(dmauart_read(&len)) { \
+              /*dbg("0x%X", len); \*/\
+              uart_state = Receive_Content; \
+              /*dbg("\r\ncontent\r\n"); \*/\
+              if(len == 0) { \
+                uart_state = Receive_Finished; \
+              }\
+            } \
+            break; \
+          } \
+          case Receive_Content: { \
+            if(dmauart_read(&c)){ \
+              /*dbg("0x%X", c); \*/\
+              receive_buffer[receive_buffer_write_pointer++] = (uint8_t) c; \
+              if(++content_counter == len){ \
+                uart_state = Receive_Finished; \
+              } \
+            } \
+            break; \
+          } \
+          case Receive_Finished:{ \
+            http_request_header[content_length_pos - 1] = ' '; \
+            http_request_header[content_length_pos - 2] = ' '; \
+            content_counter = 0; \
+            uart_state = No_Transmission; \
+            break; \
+          } \
+          case No_Transmission: \
+          default: \
+            break; \
+        }
+#else
+#define process_transmission()
+#endif
+
+void exit_cartridge(uint16_t, uint16_t);
+
+/* 'Standard' Bankswitching */
+void __time_critical_func(emulate_standard_cartridge)(int, bool, uint16_t, uint16_t, int);
+
+/* UA Bankswitching */
+void emulate_UA_cartridge();
+
+/* FA (CBS RAM plus) Bankswitching */
+void emulate_FA_cartridge(int, bool);
+
+/* FE Bankswitching */
+void emulate_FE_cartridge();
+
+/* 3F (Tigervision) Bankswitching */
+void emulate_3F_cartridge();
+
+/* 3E (3F + RAM) Bankswitching */
+void emulate_3E_cartridge(int, bool);
+
+/* 3E+ Bankswitching by Thomas Jentzsch */
+void emulate_3EPlus_cartridge(int, bool);
+
+/* E0 Bankswitching */
+void emulate_E0_cartridge();
+
+void emulate_0840_cartridge();
+
+/* CommaVid Cartridge*/
+void emulate_CV_cartridge();
+
+/* F0 Bankswitching */
+void emulate_F0_cartridge();
+
+/* E7 Bankswitching */
+void emulate_E7_cartridge(int, bool);
+
+/* DPC (Pitfall II) Bankswitching */
+void emulate_DPC_cartridge(uint32_t);
+
+/* Pink Panther */
+void emulate_pp_cartridge(uint8_t* ram);
+
+#endif // CARTRIDGE_EMULATION_H

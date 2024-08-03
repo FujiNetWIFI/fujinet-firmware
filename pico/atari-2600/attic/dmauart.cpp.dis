@@ -1,0 +1,180 @@
+#include <hardware/gpio.h>
+#include <hardware/dma.h>
+#include <hardware/irq.h>
+#include <hardware/uart.h>
+#include <string.h>
+
+#include "dmauart.h"
+
+int rxchan, txchan;
+uint16_t rxbuf_wp = 0, rxbuf_rp = 0;
+uint16_t txbuf_wp = 0, txbuf_rp = 0;
+
+__attribute__((aligned(RXBUF_LENGTH))) uint8_t rxbuf[RXBUF_LENGTH] = {0};
+__attribute__((aligned(TXBUF_LENGTH))) uint8_t txbuf[TXBUF_LENGTH] = {0};
+
+void dmauart_init(const uint baudrate) {
+
+   uart_deinit(DMAUART_ID);
+   uart_init(DMAUART_ID, 115200);
+   gpio_set_function(DMAUART_RX_PIN, GPIO_FUNC_UART);
+   gpio_set_function(DMAUART_TX_PIN, GPIO_FUNC_UART);
+
+   uart_set_format(DMAUART_ID, 8, 1, UART_PARITY_NONE);
+   uart_set_hw_flow(DMAUART_ID, false, false);
+   uart_set_fifo_enabled(DMAUART_ID, false);
+}
+
+static void __time_critical_func(dma_irq_handler)(void) {
+
+   dma_channel_acknowledge_irq0(rxchan);
+   dma_channel_set_trans_count(rxchan, RXBUF_LENGTH, true);
+}
+
+void dmauart_init_txchan(void) {
+
+   txchan = dma_claim_unused_channel(true);
+
+   dma_channel_config tx_config = dma_channel_get_default_config(txchan);
+   channel_config_set_transfer_data_size(&tx_config, DMA_SIZE_8);
+   channel_config_set_read_increment(&tx_config, true);
+   channel_config_set_write_increment(&tx_config, false);
+   //FIXME
+   channel_config_set_ring(&tx_config, false, TXBUF_LENGTH_POW);
+   channel_config_set_dreq(&tx_config, uart_get_dreq(DMAUART_ID, true));
+   dma_channel_set_config(txchan, &tx_config, false);
+
+   dma_channel_set_write_addr(txchan, &uart_get_hw(DMAUART_ID)->dr, false);
+}
+
+bool dmauart_set_txbuf(const uint8_t* data, uint16_t length) {
+
+   //dma_channel_set_read_addr(txchan, data, false);
+   // FIXME
+   dma_channel_transfer_from_buffer_now(txchan, data, length);
+   // last DMA call with true triggers DMA transfer
+   dma_channel_set_trans_count(txchan, length, true);
+
+   return true;
+}
+
+void dmauart_init_rxchan(void) {
+
+   rxbuf_wp = rxbuf_rp = 0;
+
+   rxchan = dma_claim_unused_channel(true);
+
+   dma_channel_config rx_config = dma_channel_get_default_config(rxchan);
+   channel_config_set_transfer_data_size(&rx_config, DMA_SIZE_8);
+   channel_config_set_read_increment(&rx_config, false);
+   channel_config_set_write_increment(&rx_config, true);
+   channel_config_set_ring(&rx_config, true, RXBUF_LENGTH_POW);
+   channel_config_set_dreq(&rx_config, uart_get_dreq(DMAUART_ID, false));
+   channel_config_set_enable(&rx_config, true);
+   dma_channel_set_config(rxchan, &rx_config, false);
+
+   dma_channel_configure(rxchan, &rx_config, rxbuf, &uart_get_hw(DMAUART_ID)->dr,
+                         RXBUF_LENGTH, true);
+
+   dma_channel_set_irq0_enabled(rxchan, true);
+   irq_set_exclusive_handler(DMA_IRQ_0, dma_irq_handler);
+   irq_set_enabled(DMA_IRQ_0, true);
+}
+
+void dmauart_stop_txchan(void) {
+
+   dma_channel_cleanup(txchan);
+   dma_channel_unclaim(txchan);
+}
+
+void dmauart_stop_rxchan(void) {
+
+   dma_channel_cleanup(rxchan);
+   dma_channel_unclaim(rxchan);
+
+   dma_channel_set_irq0_enabled(rxchan, false);
+   irq_set_enabled(DMA_IRQ_0, false);
+   irq_remove_handler(DMA_IRQ_0, dma_irq_handler);
+}
+
+bool __time_critical_func(dmauart_read)(uint8_t* data) {
+
+   if(rxbuf == NULL)
+      return false;
+
+   // Update dma index
+   rxbuf_wp = RXBUF_LENGTH - dma_channel_hw_addr(rxchan)->transfer_count;
+
+   if(rxbuf_wp == rxbuf_rp)
+      return false;
+
+   *data = rxbuf[rxbuf_rp];
+   rxbuf_rp = (rxbuf_rp + 1) % RXBUF_LENGTH;
+
+   return true;
+}
+
+uint16_t __time_critical_func(dmauart_write)(const uint8_t* data, uint16_t length) {
+   if(length == 0) {
+      return 0;
+   }
+
+   uint16_t available =
+      (txbuf_rp <= txbuf_wp)
+      ? (TXBUF_LENGTH - 1 + txbuf_rp - txbuf_wp)
+      : (txbuf_rp - txbuf_wp);
+
+   if(length <= available) {
+      if(txbuf_rp < txbuf_wp) {
+         if((TXBUF_LENGTH - 1) < txbuf_wp + length) {
+            memcpy(&txbuf[txbuf_wp], data,
+                   TXBUF_LENGTH - txbuf_wp);
+            memcpy(txbuf, &data[TXBUF_LENGTH - txbuf_wp],
+                   length - (TXBUF_LENGTH - txbuf_wp));
+         } else {
+            memcpy(&txbuf[txbuf_wp], data, length);
+         }
+
+      } else {
+         if((TXBUF_LENGTH - 1) < txbuf_wp + length) {
+            memcpy(&txbuf[txbuf_wp], data,
+                   TXBUF_LENGTH - txbuf_wp);
+            memcpy(txbuf, &data[TXBUF_LENGTH - txbuf_wp],
+                   length - (TXBUF_LENGTH - txbuf_wp));
+         } else {
+            memcpy(&txbuf[txbuf_wp], data, length);
+         }
+      }
+
+      txbuf_wp = (txbuf_wp + length) & (TXBUF_LENGTH - 1);
+   } else {  // no enougth space to write
+      // TODO: write as much data as possible
+      return 0;
+   }
+
+   return length;
+}
+
+void __time_critical_func(dmauart_flush)(void) {
+   uint size = (txbuf_rp < txbuf_wp)
+               ? (txbuf_wp - txbuf_rp)
+               : (TXBUF_LENGTH + txbuf_wp - txbuf_rp);
+
+   // Size check
+   if(size == 0) {
+      return;
+   }
+
+   // Busy check
+   while(dma_channel_is_busy(txchan))
+      ;
+
+   uint8_t* start = &txbuf[txbuf_rp];
+   dma_channel_transfer_from_buffer_now(txchan, start, size);
+   txbuf_rp = (txbuf_rp + size) & (TXBUF_LENGTH - 1);
+}
+
+void __time_critical_func(dmauart_write_and_flush)(const uint8_t* data, uint16_t length) {
+   dmauart_write(data, length);
+   dmauart_flush();
+}
