@@ -1,0 +1,34 @@
+#ifndef DMAUART_H_
+#define DMAUART_H_
+
+#include "hardware/uart.h"
+
+#define DMAUART_ID      uart0
+#define DMAUART_TX_PIN  0
+#define DMAUART_RX_PIN  1
+
+#define RXBUF_LENGTH_POW   10
+#define RXBUF_LENGTH       (1 << RXBUF_LENGTH_POW)    // 1024
+
+#define TXBUF_LENGTH_POW   10
+#define TXBUF_LENGTH       (1 << TXBUF_LENGTH_POW)    // 1024
+
+void dmauart_init(const uint baudrate);
+
+bool dmauart_tx_busy(void);
+bool dmauart_rx_busy(void);
+
+void dmauart_init_txchan(void);
+void dmauart_init_rxchan(void);
+
+void dmauart_stop_txchan(void);
+void dmauart_stop_rxchan(void);
+
+bool dmauart_set_txbuf(const uint8_t* data, uint16_t length);
+
+bool dmauart_read(uint8_t* data);
+uint16_t dmauart_write(const uint8_t* data, uint16_t length);
+void dmauart_flush();
+void dmauart_write_and_flush(const uint8_t* data, uint16_t length);
+
+#endif
