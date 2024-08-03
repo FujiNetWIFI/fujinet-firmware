@@ -23,11 +23,6 @@
 #include "uart_rx.pio.h"
 #include "uart_tx.pio.h"
 
-PIO pioblk_ro = pio0;
-#define SM_ADDR 0
-#define SM_READ 1
-#define SM_UART_RX 2
-
 /**
  * put the output SM's in PIO1: data write and rom emulator
  *
@@ -40,6 +35,11 @@ PIO pioblk_ro = pio0;
  * SET and side-set), or for one state  machine to change a GPIO’s
  * direction while another changes that GPIO’s level.
  */
+PIO pioblk_ro = pio0;
+#define SM_ADDR 0
+#define SM_READ 1
+#define SM_UART_RX 2
+
 PIO pioblk_rw = pio1;
 #define SM_ROM 3
 #define SM_WRITE 2
@@ -139,6 +139,65 @@ void initio()
 
 }
 
+/*
+ring fifo buffers to feed uart and becker port
+
+array of bytes
+pointer to next byte
+pointer to end of buffer
+
+push bytes to end of buffer and inc pointer
+pull bytes from next byte and inc buffer
+don't pull if next byte pointer == end of buffer pointer
+
+need "becker to uart" and "uart to becker" buffers
+
+ */
+
+// brute force the storage and pointers
+#define BUFFERSIZE 2048
+char fifo_becker_to_uart[BUFFERSIZE];
+char fifo_uart_to_becker[BUFFERSIZE];
+uint16_t b2u_end, b2u_next, u2b_end, u2b_next;
+
+static inline bool becker_to_uart_available()
+{
+  return b2u_next != b2u_end;
+}
+
+static inline bool uart_to_becker_available()
+{
+  return u2b_next != u2b_end;
+}
+
+static inline void push_byte_from_becker_into_fifo(char c)
+{
+	fifo_becker_to_uart[b2u_end++] = c;
+	b2u_end %= BUFFERSIZE;
+	// assert(b2u_end != b2u_next);
+}
+
+static inline char pull_byte_from_fifo_send_to_becker()
+{
+	char c = fifo_uart_to_becker[u2b_next++];
+	u2b_next %= BUFFERSIZE;
+	return c;
+}
+
+static inline void push_byte_from_uart_into_fifo(char c)
+{
+  fifo_uart_to_becker[u2b_end++] = c;
+  u2b_end %= BUFFERSIZE;
+  // assert(u2b_end != u2b_next);
+}
+
+static inline char pull_byte_from_fifo_send_to_uart()
+{
+  char c = fifo_becker_to_uart[b2u_next++];
+  b2u_next %= BUFFERSIZE;
+  return c;
+}
+
 /* 
 
   Becker port   http://www.davebiz.com/wiki/CoCo3FPGA#Becker_port
@@ -178,27 +237,27 @@ void setup_becker_port()
   pio_sm_set_enabled(pioblk_rw, SM_WRITE, true);
 }
 
-static bool becker_data_available = false;
+// static bool becker_data_available = false;
 static inline uint8_t becker_get_status()
 {
-  return becker_data_available ? 0b10 : 0;
+  return uart_to_becker_available() ? 0b10 : 0;
 }
 
-static inline void becker_set_status(bool s)
-{
-  becker_data_available = s;
-}
+// static inline void becker_set_status(bool s)
+// {
+//   becker_data_available = s;
+// }
 
-static inline uint8_t becker_get_char()
-{
-  becker_set_status(false);
-  return ccc;
-}
+// static inline uint8_t becker_get_char()
+// {
+//   becker_set_status(false);
+//   return ccc;
+// }
 
-static inline uint8_t becker_put_char(uint8_t c)
-{
-  uart_tx_program_putc(pioblk_rw, SM_UART_TX, c);
-}
+// static inline uint8_t becker_put_char(uint8_t c)
+// {
+//   uart_tx_program_putc(pioblk_rw, SM_UART_TX, c);
+// }
 
 void __time_critical_func(cococart)()
 {
@@ -213,12 +272,13 @@ void __time_critical_func(cococart)()
 			switch (addr)
 			{
 			case 0x41:
-				// return a byte ...
+				// return status byte ...
 				pio_sm_put(pioblk_rw, SM_WRITE, becker_get_status());
 				// printf("read %02x\n", addr);
 				break;
 			case 0x42:
-        pio_sm_put(pioblk_rw, SM_WRITE, becker_get_char());
+        // return data byte ...
+        pio_sm_put(pioblk_rw, SM_WRITE, pull_byte_from_fifo_send_to_becker());
 				// printf("read %02x\n", addr);
 				break;
 			default:
@@ -232,7 +292,7 @@ void __time_critical_func(cococart)()
 			  {
 				  pio_sm_put(pioblk_ro, SM_READ, 0);
 				  uint32_t b = pio_sm_get_blocking(pioblk_ro, SM_READ);
-				  becker_put_char(b);
+				  push_byte_from_becker_into_fifo(b);
           // printf("write %02x = %03d\n", addr, b);
 			  }
 			  break;
@@ -249,22 +309,28 @@ int main()
 	
   stdio_init_all(); // enable USB serial I/O as specified in cmakelists
 	initio();
-	busy_wait_ms(2000); // wait for minicom to connect so I can see message
-	printf("\nwelcome to cococart\n");
+	// busy_wait_ms(2000); // wait for minicom to connect so I can see message
+	// printf("\nwelcome to cococart\n");
 
   setup_pio_uart();
   setup_becker_port();
 	setup_rom_emulator();
 
 	// talk to serial fujinet
+  // might need to spin lock these buffer accesses?
 	while (true)
 	{
-		if (becker_get_status() == 0)
+		if (uart_rx_program_available(pioblk_ro, SM_UART_RX))
 		{
-			ccc = uart_rx_program_getc(pioblk_ro, SM_UART_RX);
-			becker_set_status(true);
-      printf("%02x",ccc);
+			char c = uart_rx_program_getc(pioblk_ro, SM_UART_RX);
+      push_byte_from_uart_into_fifo(c);
+			// printf("%02x",c);
 	  }
+    if (becker_to_uart_available())
+    {
+      char c = pull_byte_from_fifo_send_to_uart();
+      uart_tx_program_putc(pioblk_rw, SM_UART_TX, c);
+    }
 	}
 
 }

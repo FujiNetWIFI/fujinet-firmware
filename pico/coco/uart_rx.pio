@@ -91,4 +91,9 @@ static inline char uart_rx_program_getc(PIO pio, uint sm) {
     return (char)*rxfifo_shift;
 }
 
+static inline bool uart_rx_program_available(PIO pio, uint sm) {
+    return !pio_sm_is_rx_fifo_empty(pio, sm);
+}
+
+
 %}
