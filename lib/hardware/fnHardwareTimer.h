@@ -2,11 +2,13 @@
 #define FNHWTIMER_H
 
 #include "esp_idf_version.h"
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
-#include "driver/timer.h"
-#else
+
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
 #include "driver/gptimer.h"
+#else
+#include "driver/timer.h"
 #endif
+
 #include "soc/soc.h"
 #include "soc/timer_group_struct.h"
 #include "soc/clk_tree_defs.h"
@@ -36,17 +38,20 @@ private:
     uint32_t t0;
   } fn_timer;
 
+
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
 gptimer_handle_t gptimer;
 gptimer_config_t fn_config;
 //gptimer_alarm_config_t alarm_config;
+#else
+timer_config_t fn_config;
+#endif
 
 public:
   void config();
-#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(5, 0, 0)
-  void reset() { TIMERG1.hw_timer[TIMER_1].load_low = 0; TIMERG1.hw_timer[TIMER_1].reload = 0; };
-  void latch() { TIMERG1.hw_timer[TIMER_1].update = 0; };
-  void read() { fn_timer.t0 = TIMERG1.hw_timer[TIMER_1].cnt_low; };
-#else
+
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+
   void reset() { gptimer_set_raw_count(gptimer, 0); };
   void latch() {};
   void read() { 
@@ -54,7 +59,21 @@ public:
     gptimer_get_raw_count(gptimer, &count);
     fn_timer.t0 = count & 0xFFFFFFFF;
   };
+
+#else
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  void reset() { TIMERG1.hw_timer[TIMER_1].loadlo.val = 0; TIMERG1.hw_timer[TIMER_1].load.val = 0; };
+  void latch() { TIMERG1.hw_timer[TIMER_1].update.val = 0; };
+  void read() { fn_timer.t0 = TIMERG1.hw_timer[TIMER_1].lo.val; };
+#else
+  void reset() { TIMERG1.hw_timer[TIMER_1].load_low = 0; TIMERG1.hw_timer[TIMER_1].reload = 0; };
+  void latch() { TIMERG1.hw_timer[TIMER_1].update = 0; };
+  void read() { fn_timer.t0 = TIMERG1.hw_timer[TIMER_1].cnt_low; };
 #endif
+
+#endif
+
   bool timeout() { return (fn_timer.t0 > fn_timer.tn); };
   void wait() { do{latch(); read();} while (!timeout()); };
   void alarm_set(int s) { fn_timer.tn = fn_timer.t0 + s * TIMER_100NS_FACTOR - TIMER_ADJUST; };
