@@ -2,11 +2,14 @@
 #define FNHWTIMER_H
 
 #include "esp_idf_version.h"
+#include "sdkconfig.h"
 
-#if defined(CONFIG_IDF_TARGET_ESP32S3)
+#if defined(CONFIG_IDF_TARGET_ESP32)
+#include "driver/timer.h"
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
 #include "driver/gptimer.h"
 #else
-#include "driver/timer.h"
+#error "neither esp32 or s3"
 #endif
 
 #include "soc/soc.h"
