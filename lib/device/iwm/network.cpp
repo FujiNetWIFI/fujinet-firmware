@@ -243,7 +243,7 @@ void iwmNetwork::set_login()
 {
     auto& current_network_data = network_data_map[current_network_unit];
 
-    current_network_data.login = string((char *)data_buffer, 256); // STAB STAB STAB
+    current_network_data.login = string((char *)data_buffer, 256);
     Debug_printf("Login is %s\n", current_network_data.login.c_str());
 }
 
@@ -254,7 +254,7 @@ void iwmNetwork::set_password()
 {
     auto& current_network_data = network_data_map[current_network_unit];
 
-    current_network_data.password = string((char *)data_buffer, 256); // LOOK INTO THEIR POOR DEAD EYES
+    current_network_data.password = string((char *)data_buffer, 256);
     Debug_printf("Password is %s\n", current_network_data.password.c_str()); // GREAT LOGGING
 }
 
@@ -263,7 +263,7 @@ void iwmNetwork::del()
     auto& current_network_data = network_data_map[current_network_unit];
     string d;
 
-    d = string((char *)data_buffer, 256); // MORE PUPPIES
+    d = string((char *)data_buffer, 256);
     parse_and_instantiate_protocol(d);
 
     if (!current_network_data.protocol)
@@ -283,7 +283,7 @@ void iwmNetwork::rename()
     auto& current_network_data = network_data_map[current_network_unit];
     string d;
 
-    d = string((char *)data_buffer, 256); // a puppy dies when you use strings as buffers. A GODDAMN PUPPY JUST DIED
+    d = string((char *)data_buffer, 256);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = ' ';
@@ -300,7 +300,7 @@ void iwmNetwork::mkdir()
     auto& current_network_data = network_data_map[current_network_unit];
     string d;
 
-    d = string((char *)data_buffer, 256); // IT'S A FUCKING PUPPY MASSACRE HERE
+    d = string((char *)data_buffer, 256);
     parse_and_instantiate_protocol(d);
 
     cmdFrame.comnd = '*';
@@ -335,8 +335,7 @@ void iwmNetwork::json_query(iwm_decoded_cmd_t cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
 
-    uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-    // numbytes |= ((cmd.g7byte4 & 0x7f) | ((cmd.grp7msb << 4) & 0x80)) << 8;
+    uint16_t numbytes = get_numbytes(cmd);
 
     Debug_printf("\r\nQuery set to: %s, data_len: %d\r\n", string((char *)data_buffer, data_len).c_str(), data_len);
     current_network_data.json->setReadQuery(string((char *)data_buffer, data_len), cmdFrame.aux2);
@@ -476,16 +475,15 @@ void iwmNetwork::special_80()
 
 void iwmNetwork::iwm_open(iwm_decoded_cmd_t cmd)
 {
-    //Debug_printf("\r\nOpen Network Unit # %02x\n", cmd.g7byte1);
-    // the N: drive is in the payload from 4th byte onwards, but data_buffer already removes the top 2 bytes, so the Nx: part is contained from data_buffer[2] onwards
-
+    // nothing in fujinet-lib calls this, it does a control with open command, so something else called it, let's ensure the default N device is used
+    current_network_unit = 1;
     send_reply_packet(SP_ERR_NOERROR);
 }
 
 void iwmNetwork::iwm_close(iwm_decoded_cmd_t cmd)
 {
-    // Probably need to send close command here.
-    //Debug_printf("\r\nClose Network Unit # %02x\n", cmd.g7byte1);
+    // nothing in fujinet-lib calls this, it does a control with close command, so something else called it, let's ensure the default N device is used
+    current_network_unit = 1;
     send_reply_packet(SP_ERR_NOERROR);
     close();
 }
@@ -526,11 +524,11 @@ void iwmNetwork::status()
 void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
 {
     uint8_t status_code = get_status_code(cmd); //(cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-    Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x\r\n", id(), status_code);
-    //Debug_printf("\r\nStatus List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
+    current_network_unit = cmd.params[3];
 
-    // get the "param count" value, and if it's "4", we have a network unit in byte after the control code.
-    current_network_unit = 1; // fallback version if nothing specified, or old code
+    Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x net_unit %02x\r\n", id(), status_code, current_network_unit);
+
+    if (current_network_unit == 0) current_network_unit = 1; // fallback version if it went wrong, or unset
     auto& current_network_data = network_data_map[current_network_unit];
 
     switch (status_code)
@@ -669,7 +667,7 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
 void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 {
     bool error = false;
-    uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
+    uint16_t numbytes = get_numbytes(cmd);
 
     // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
     current_network_unit = cmd.params[4];
