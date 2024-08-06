@@ -9,11 +9,12 @@
 class StatusRequest : public Request
 {
 public:
-	StatusRequest(uint8_t request_sequence_number, uint8_t device_id, uint8_t status_code);
+	StatusRequest(uint8_t request_sequence_number, uint8_t device_id, uint8_t status_code, uint8_t network_unit);
 	virtual std::vector<uint8_t> serialize() const override;
 	std::unique_ptr<Response> deserialize(const std::vector<uint8_t> &data) const override;
 
 	uint8_t get_status_code() const { return status_code_; }
+	uint8_t get_network_unit() const { return network_unit_; }
 
 	void create_command(uint8_t* output_data) const override;
 	void copy_payload(uint8_t* data) const override {}
@@ -22,6 +23,7 @@ public:
 
 private:
 	uint8_t status_code_;
+	uint8_t network_unit_;
 };
 
 
