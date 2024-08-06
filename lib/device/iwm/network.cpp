@@ -668,12 +668,18 @@ bool iwmNetwork::write_channel(unsigned short num_bytes)
 
 void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
 {
-    auto& current_network_data = network_data_map[current_network_unit];
     bool error = false;
-
     uint16_t numbytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
 
-    Debug_printf("\r\nDevice %02x Read %04x bytes\n", id(), numbytes);
+    // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
+    current_network_unit = cmd.params[4];
+    Debug_printf("\r\nDevice %02x Read %04x bytes, net_unit %02x\n", id(), numbytes, current_network_unit);
+
+    if (current_network_unit == 0) {
+        // backwards compatibility
+        current_network_unit = 1;
+    }
+    auto& current_network_data = network_data_map[current_network_unit];
 
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
@@ -711,23 +717,22 @@ void iwmNetwork::net_write()
 
 void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 {
+    // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
+    current_network_unit = cmd.params[4];
+
+    uint16_t num_bytes = get_numbytes(cmd);
+    Debug_printf("\r\nDevice %02x Write %04x bytes, net_unit %02x\n", id(), num_bytes, current_network_unit);
+
+    if (current_network_unit == 0) {
+        // backwards compatibility
+        current_network_unit = 1;
+    }
+
     auto& current_network_data = network_data_map[current_network_unit];
-    Debug_printf("\r\nNet# %02x ", id());
-
-    uint16_t num_bytes = get_numbytes(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80);
-
-    Debug_printf("\nWrite %u bytes to address %04x\n", num_bytes);
 
     // get write data packet, keep trying until no timeout
-    //  to do - this blows up - check handshaking
-    data_len = BLOCK_DATA_LEN;
     IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
-    // if (IWM.iwm_decode_data_packet(100, (unsigned char *)data_buffer, data_len)) // write data packet now read in ISR
-    // {
-    //     Debug_printf("\r\nTIMEOUT in read packet!");
-    //     return;
-    // }
-    // partition number indicates which 32mb block we access
+
     if (data_len == -1)
         iwm_return_ioerror();
     else
@@ -751,21 +756,18 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
     uint8_t err_result = SP_ERR_NOERROR;
 
-    // uint8_t source = cmd.dest;                                                 // we are the destination and will become the source // data_buffer[6];
-    uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
-    Debug_printf("\r\nNet Device %02x Control Code %02x", id(), control_code);
-    // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
-    data_len = BLOCK_DATA_LEN;
-    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-    // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", data_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
-    print_packet((uint8_t *)data_buffer);
+    uint8_t control_code = get_status_code(cmd);
+    current_network_unit = cmd.params[3];
 
-    // read the network unit id from the payload. at the moment, ctrl/status only set cmd.decoded[0] to seq
-    // TODO: move this into each function as its own copy? would allow async connections.
-    current_network_unit = 1; // fallback version if nothing specified, or old code
+    Debug_printf("\r\nNet Device %02x Control Code %02x net_unit %02x", id(), control_code, current_network_unit);
+
+    if (current_network_unit == 0) current_network_unit = 1; // fallback version if it went wrong, or unset
     auto& current_network_data = network_data_map[current_network_unit];
 
-    Debug_printv("XXXXX cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());
+    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+    print_packet((uint8_t *)data_buffer);
+
+    Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());
 
     switch (control_code)
     {
