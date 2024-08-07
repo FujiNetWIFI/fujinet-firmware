@@ -5,7 +5,6 @@
 #include <string>
 #include <vector>
 
-
 #include "iwm.h"
 #include "fnSystem.h"
 
@@ -702,10 +701,6 @@ void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
     _modemDev = (iwmModem *)pDevice;
     break;
   case iwm_fujinet_type_t::Network:
-    // todo: work out how to assign different network devices - idea:
-    // include a number in the DIB name, e.g., "NETWORK 1"
-    // and extract that number from the DIB and use it as the index
-    //_netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (iwmNetwork *)pDevice;
     break;
   case iwm_fujinet_type_t::CPM:
     _cpmDev = (iwmCPM *)pDevice;

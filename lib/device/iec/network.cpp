@@ -102,8 +102,7 @@ void iecNetwork::iec_open()
 
     // Reset protocol if it exists
     channel_data.protocol.reset();
-    channel_data.urlParser = PeoplesUrlParser::parseURL(channel_data.deviceSpec);
-
+    channel_data.urlParser = std::move(PeoplesUrlParser::parseURL(channel_data.deviceSpec));
 
     // Convert scheme to uppercase
     std::transform(channel_data.urlParser->scheme.begin(), channel_data.urlParser->scheme.end(), channel_data.urlParser->scheme.begin(), 
@@ -111,7 +110,7 @@ void iecNetwork::iec_open()
 
     // Instantiate protocol based on the scheme
     Debug_printv("Creating protocol for chema %s\r\n", channel_data.urlParser->scheme.c_str());
-    channel_data.protocol = NetworkProtocolFactory::createProtocol(channel_data.urlParser->scheme, channel_data);
+    channel_data.protocol = std::move(NetworkProtocolFactory::createProtocol(channel_data.urlParser->scheme, channel_data));
 
     if (!channel_data.protocol) {
         Debug_printf("Invalid protocol: %s\r\n", channel_data.urlParser->scheme.c_str());

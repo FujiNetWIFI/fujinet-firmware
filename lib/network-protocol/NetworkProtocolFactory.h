@@ -24,19 +24,19 @@
 class NetworkProtocolFactory
 {
 public:
-	static std::shared_ptr<NetworkProtocol> createProtocol(const std::string &scheme, NetworkData &data)
+	static std::unique_ptr<NetworkProtocol> createProtocol(const std::string &scheme, NetworkData &data)
 	{
-		static const std::unordered_map<std::string, std::function<std::shared_ptr<NetworkProtocol>(NetworkData &)>> constructors = {
-			{"FTP",    [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolFTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"HTTP",   [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"HTTPS",  [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"SSH",    [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolSSH>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"SMB",    [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolSMB>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"TCP",    [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolTCP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"TELNET", [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolTELNET>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"TEST",   [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolTest>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"TNFS",   [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolTNFS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
-			{"UDP",    [](NetworkData &d) -> std::shared_ptr<NetworkProtocol> { return std::make_shared<NetworkProtocolUDP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+		static const std::unordered_map<std::string, std::function<std::unique_ptr<NetworkProtocol>(NetworkData &)>> constructors = {
+			{"FTP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolFTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"HTTP",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"HTTPS",  [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolHTTP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"SSH",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSSH>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"SMB",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolSMB>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"TCP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTCP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"TELNET", [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTELNET>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"TEST",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTest>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"TNFS",   [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolTNFS>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
+			{"UDP",    [](NetworkData &d) -> std::unique_ptr<NetworkProtocol> { return std::make_unique<NetworkProtocolUDP>(&d.receiveBuffer, &d.transmitBuffer, &d.specialBuffer); }},
 		};
 
 		std::string scheme_upper = scheme;
