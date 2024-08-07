@@ -51,7 +51,6 @@ iwmNetwork::~iwmNetwork()
 
 void iwmNetwork::shutdown()
 {
-    // If I had a penny for every TODO that was never TODONE
     // TODO: come back here and make shutdown() close all connections.
 }
 
@@ -87,12 +86,8 @@ void iwmNetwork::send_status_dib_reply_packet()
  */
 void iwmNetwork::open()
 {
+    // This will create the entry if one doesn't exist yet.
     auto& current_network_data = network_data_map[current_network_unit];
-
-    // NEW WORK: we can store this in our network_data_map by looking at the Nx: device number.
-    // However, subsequent requests to the network device need to tell us which deviceId to use.
-    // Or we use separate SP devices per network device.
-
     uint8_t _aux1 = data_buffer[0];
     uint8_t _aux2 = data_buffer[1];
 
@@ -118,6 +113,10 @@ void iwmNetwork::open()
     if (current_network_data.protocol)
     {
         current_network_data.protocol->close();
+        // manually force the memory out
+        current_network_data.protocol.reset();
+        current_network_data.json.reset();
+        current_network_data.urlParser.reset();
     }
 
     err = 0;
@@ -141,35 +140,39 @@ void iwmNetwork::open()
     }
 
     // Associate channel mode
-    current_network_data.json = std::make_shared<FNJSON>();
+    current_network_data.json = std::make_unique<FNJSON>();
     current_network_data.json->setProtocol(current_network_data.protocol.get());
 }
 
 /**
  * iwm Close command
- * Tear down everything set up by open(), as well as RX interrupt.
  */
 void iwmNetwork::close()
 {
-    auto& current_network_data = network_data_map[current_network_unit];
-
     Debug_printf("iwmNetwork::close()\n");
     err = 0;
-
-    if (!current_network_data.protocol)
-    {
+    if (network_data_map.find(current_network_unit) == network_data_map.end()) {
+        Debug_printf("No network_data for unit: %d, exiting close\r\n", current_network_unit);
         return;
     }
 
+    auto& current_network_data = network_data_map[current_network_unit];
+
+    // close before doing anything to the buffers
+    if (current_network_data.protocol) current_network_data.protocol->close();
+
+    // belt and bracers! the erase from the map will delete the object and clean up any managed data, including strings.
     current_network_data.receiveBuffer.clear();
     current_network_data.transmitBuffer.clear();
     current_network_data.specialBuffer.clear();
     
-    // Ask the protocol to close
-    current_network_data.protocol->close();
 
-    // Delete the protocol object
-    current_network_data.protocol.reset();
+    // technically not required as removing the item from the map will also remove the value
+    if (current_network_data.protocol) current_network_data.protocol.reset();
+    if (current_network_data.json) current_network_data.json.reset();
+    if (current_network_data.urlParser) current_network_data.urlParser.reset();
+
+    network_data_map.erase(current_network_unit);
 }
 
 /**
@@ -334,9 +337,6 @@ void iwmNetwork::channel_mode()
 void iwmNetwork::json_query(iwm_decoded_cmd_t cmd)
 {
     auto& current_network_data = network_data_map[current_network_unit];
-
-    uint16_t numbytes = get_numbytes(cmd);
-
     Debug_printf("\r\nQuery set to: %s, data_len: %d\r\n", string((char *)data_buffer, data_len).c_str(), data_len);
     current_network_data.json->setReadQuery(string((char *)data_buffer, data_len), cmdFrame.aux2);
 }
@@ -529,7 +529,7 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x net_unit %02x\r\n", id(), status_code, current_network_unit);
 
     if (current_network_unit == 0) current_network_unit = 1; // fallback version if it went wrong, or unset
-    auto& current_network_data = network_data_map[current_network_unit];
+    // auto& current_network_data = network_data_map[current_network_unit];
 
     switch (status_code)
     {
@@ -893,7 +893,7 @@ void iwmNetwork::process(iwm_decoded_cmd_t cmd)
 bool iwmNetwork::instantiate_protocol()
 {
     auto& current_network_data = network_data_map[current_network_unit];
-    current_network_data.protocol = NetworkProtocolFactory::createProtocol(current_network_data.urlParser->scheme, current_network_data);
+    current_network_data.protocol = std::move(NetworkProtocolFactory::createProtocol(current_network_data.urlParser->scheme, current_network_data));
 
     if (!current_network_data.protocol)
     {
@@ -923,7 +923,7 @@ void iwmNetwork::create_url_parser()
 {
     auto& current_network_data = network_data_map[current_network_unit];
     std::string url = current_network_data.deviceSpec.substr(current_network_data.deviceSpec.find(":") + 1);
-    current_network_data.urlParser = PeoplesUrlParser::parseURL(url);
+    current_network_data.urlParser = std::move(PeoplesUrlParser::parseURL(url));
 }
 
 void iwmNetwork::parse_and_instantiate_protocol(string d)

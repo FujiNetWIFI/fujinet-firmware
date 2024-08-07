@@ -259,7 +259,7 @@ private:
 
   iwmFuji *_fujiDev = nullptr;
   iwmModem *_modemDev = nullptr;
-  iwmNetwork *_netDev[4] = {nullptr};
+  // iwmNetwork *_netDev[4] = {nullptr};
   //sioMIDIMaze *_midiDev = nullptr;
   //sioCassette *_cassetteDev = nullptr;
   iwmCPM *_cpmDev = nullptr;

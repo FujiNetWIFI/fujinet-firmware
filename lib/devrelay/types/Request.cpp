@@ -1,7 +1,6 @@
 #ifdef DEV_RELAY_SLIP
 
 #include <sstream>
-#include <iostream>
 
 #include "Request.h"
 
@@ -17,8 +16,6 @@
 #include "../commands/Write.h"
 #include "../commands/WriteBlock.h"
 
-#include "utils.h"
-
 Request::Request(const uint8_t request_sequence_number, const uint8_t command_number, const uint8_t device_id) : Command(request_sequence_number), command_number_(command_number), device_id_(device_id) {}
 
 uint8_t Request::get_command_number() const { return command_number_; }
@@ -33,9 +30,6 @@ void Request::init_command(uint8_t* cmd_data) const {
 }
 
 std::unique_ptr<Request> Request::from_packet(const std::vector<uint8_t>& packet) {
-  auto hd = util_hexdump(packet.data(), packet.size());
-  std::cout << "----- Creating Request from packet data:" << std::endl << hd << std::endl;
-
 	std::unique_ptr<Request> request;
   uint8_t command = packet[1];
   switch(command) {
