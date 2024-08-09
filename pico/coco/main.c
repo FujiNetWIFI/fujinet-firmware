@@ -266,6 +266,8 @@ void __time_critical_func(cococart)()
 	while (true)
 	{
 
+    // assume that the RWPIN is valid and associated with the ADDR state machine output
+    // and the DATA output or input is close enough to be synched
 		uint32_t addr = pio_sm_get_blocking(pioblk_ro, SM_ADDR);
 
 		if (gpio_get(RWPIN)) // coco MC6809 is in read mode
@@ -302,6 +304,26 @@ void __time_critical_func(cococart)()
 	}
 }
 
+void __time_critical_func(mainloop)()
+{
+	// talk to serial fujinet
+  // might need to spin lock these buffer accesses?
+	while (true)
+	{
+    while (becker_to_uart_available())
+    {
+      char c = pull_byte_from_fifo_send_to_uart();
+      uart_tx_program_putc(pioblk_rw, SM_UART_TX, c);
+    }
+    if (uart_rx_program_available(pioblk_ro, SM_UART_RX))
+		{
+			char c = uart_rx_program_getc(pioblk_ro, SM_UART_RX);
+      push_byte_from_uart_into_fifo(c);
+			// printf("%02x",c);
+	  }
+	}
+}
+
 int main()
 {
 	
@@ -316,22 +338,7 @@ int main()
   setup_becker_port();
 	setup_rom_emulator();
 
-	// talk to serial fujinet
-  // might need to spin lock these buffer accesses?
-	while (true)
-	{
-		if (uart_rx_program_available(pioblk_ro, SM_UART_RX))
-		{
-			char c = uart_rx_program_getc(pioblk_ro, SM_UART_RX);
-      push_byte_from_uart_into_fifo(c);
-			// printf("%02x",c);
-	  }
-    if (becker_to_uart_available())
-    {
-      char c = pull_byte_from_fifo_send_to_uart();
-      uart_tx_program_putc(pioblk_rw, SM_UART_TX, c);
-    }
-	}
+  mainloop();
 
 }
 
