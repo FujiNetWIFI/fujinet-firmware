@@ -243,22 +243,6 @@ static inline uint8_t becker_get_status()
   return uart_to_becker_available() ? 0b10 : 0;
 }
 
-// static inline void becker_set_status(bool s)
-// {
-//   becker_data_available = s;
-// }
-
-// static inline uint8_t becker_get_char()
-// {
-//   becker_set_status(false);
-//   return ccc;
-// }
-
-// static inline uint8_t becker_put_char(uint8_t c)
-// {
-//   uart_tx_program_putc(pioblk_rw, SM_UART_TX, c);
-// }
-
 void __time_critical_func(cococart)()
 {
   // need a ring buffer for the output data. set the status flag value based on head and tail pointers == or !=
