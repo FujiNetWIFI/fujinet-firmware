@@ -986,8 +986,8 @@ void sioNetwork::create_url_parser()
 
 void sioNetwork::parse_and_instantiate_protocol()
 {
-    create_url_parser();
     create_devicespec();
+    create_url_parser();
 
     // Invalid URL returns error 165 in status.
     if (!urlParser->isValidUrl())
