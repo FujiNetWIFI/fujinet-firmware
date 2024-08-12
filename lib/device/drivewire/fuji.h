@@ -45,6 +45,25 @@ typedef struct
     char fn_version[15];
 } AdapterConfig;
 
+typedef struct
+{
+    char ssid[33];
+    char hostname[64];
+    unsigned char localIP[4];
+    unsigned char gateway[4];
+    unsigned char netmask[4];
+    unsigned char dnsIP[4];
+    unsigned char macAddress[6];
+    unsigned char bssid[6];
+    char fn_version[15];
+    char sLocalIP[16];
+    char sGateway[16];
+    char sNetmask[16];
+    char sDnsIP[16];
+    char sMacAddress[18];
+    char sBssid[18];
+} AdapterConfigExtended;
+
 enum appkey_mode : int8_t
 {
     APPKEYMODE_INVALID = -1,
@@ -145,7 +164,7 @@ protected:
     void hash_compute(bool clear_data); // 0xC7, 0xC3
     void hash_length();            // 0xC6
     void hash_output();            // 0xC5
-    // void get_adapter_config_extended(); // 0xC4
+    void get_adapter_config_extended(); // 0xC4
     void hash_clear();             // 0xC2
 
     void send_error();             // 0x02
