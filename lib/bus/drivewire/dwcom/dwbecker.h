@@ -7,7 +7,7 @@
 #include "dwport.h"
 #include "fnDNS.h"
 
-#define BECKER_DEFAULT_PORT     9997
+#define BECKER_DEFAULT_PORT     65504
 #define BECKER_IOWAIT_MS        500
 #define BECKER_CONNECT_TMOUT    2000
 #define BECKER_SUSPEND_MS       5000
