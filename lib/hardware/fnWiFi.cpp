@@ -603,6 +603,12 @@ void WiFiManager::handle_station_stop()
     fnSystem.Net.stop_sntp_client();
 }
 
+void add_mdns_services()
+{
+    mdns_txt_item_t wdi[2] = {{"path","/dav"}, {"u","fujinet"}};
+    mdns_service_add(NULL,"_webdav","_tcp",80,wdi,2);
+}
+
 void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
                                       int32_t event_id, void *event_data)
 {
@@ -632,7 +638,7 @@ void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
 #endif /* BUILD_ATARI */
             mdns_init();
             mdns_hostname_set(Config.get_general_devicename().c_str());
-            mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
+            add_mdns_services();
             break;
         case IP_EVENT_STA_LOST_IP:
             Debug_println("IP_EVENT_STA_LOST_IP");
