@@ -3,6 +3,7 @@
 
 #ifdef ESP_PLATFORM
 #include <driver/ledc.h>
+#include "sdkconfig.h"
 #endif
 
 #include "bus.h"
