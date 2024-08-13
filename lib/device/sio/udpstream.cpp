@@ -42,6 +42,8 @@ void sioUDPStream::sio_enable_udpstream()
         // Enable PWM on CLOCK IN
         ledc_channel_config(&ledc_channel_sio_ckin);
         ledc_timer_config(&ledc_timer);
+        ledc_set_duty(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 1);
+        ledc_update_duty(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1);
 #endif
 
         // Change baud rate
@@ -65,6 +67,11 @@ void sioUDPStream::sio_disable_udpstream()
 #endif
         FN_BUS_LINK.set_baudrate(SIO_STANDARD_BAUDRATE);
     }
+#ifdef ESP_PLATFORM
+    // Reset CKI pin back to output open drain high
+    fnSystem.set_pin_mode(PIN_CKI, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
+    fnSystem.digital_write(PIN_CKI, DIGI_HIGH);
+#endif
     udpstreamActive = false;
     Debug_println("UDPSTREAM mode DISABLED");
 }
