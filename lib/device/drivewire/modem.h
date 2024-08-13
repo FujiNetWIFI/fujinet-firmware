@@ -219,7 +219,6 @@ public:
     drivewireModem(FileSystem *_fs, bool snifferEnable);
     virtual ~drivewireModem();
 
-    UARTManager* get_uart() { return uart; }
     void set_uart(UARTManager *_uart) { uart = _uart; }
 
 

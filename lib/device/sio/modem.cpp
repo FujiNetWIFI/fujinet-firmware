@@ -60,7 +60,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     switch (ev->type)
     {
     case TELNET_EV_DATA:
-        if (ev->data.size && m->get_uart()->write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+        if (ev->data.size && SYSTEM_BUS.uart->write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
             Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SIO.\n", ev->type);
         break;
     case TELNET_EV_SEND:
@@ -574,7 +574,7 @@ void modem::sio_stream()
     bus_to_computer((uint8_t *)response, sizeof(response), false);
     
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY); // macOS workaround (flush on uart was not working)
-    get_uart()->set_baudrate(modemBaud);
+    SYSTEM_BUS.uart->set_baudrate(modemBaud);
     modemActive = true;
     Debug_printf("Modem streaming at %u baud\n", modemBaud);
 }
@@ -681,8 +681,8 @@ void modem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
-    get_uart()->print(resultCode);
-    get_uart()->write(ASCII_CR);
+    SYSTEM_BUS.uart->print(resultCode);
+    SYSTEM_BUS.uart->write(ASCII_CR);
 }
 
 /**
@@ -691,9 +691,9 @@ void modem::at_connect_resultCode(int modemBaud)
  */
 void modem::at_cmd_resultCode(int resultCode)
 {
-    get_uart()->print(resultCode);
-    get_uart()->write(ASCII_CR);
-    get_uart()->write(ASCII_LF);
+    SYSTEM_BUS.uart->print(resultCode);
+    SYSTEM_BUS.uart->write(ASCII_CR);
+    SYSTEM_BUS.uart->write(ASCII_LF);
 }
 
 /**
@@ -708,14 +708,14 @@ void modem::at_cmd_println()
 
     if (cmdAtascii == true)
     {
-        get_uart()->write(ATASCII_EOL);
+        SYSTEM_BUS.uart->write(ATASCII_EOL);
     }
     else
     {
-        get_uart()->write(ASCII_CR);
-        get_uart()->write(ASCII_LF);
+        SYSTEM_BUS.uart->write(ASCII_CR);
+        SYSTEM_BUS.uart->write(ASCII_LF);
     }
-    get_uart()->flush();
+    SYSTEM_BUS.uart->flush();
 
     fnLedManager.set(LED_BT,false);
 }
@@ -727,20 +727,20 @@ void modem::at_cmd_println(const char *s, bool addEol)
 
     fnLedManager.set(LED_BT,true);
 
-    get_uart()->print(s);
+    SYSTEM_BUS.uart->print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            get_uart()->write(ATASCII_EOL);
+            SYSTEM_BUS.uart->write(ATASCII_EOL);
         }
         else
         {
-            get_uart()->write(ASCII_CR);
-            get_uart()->write(ASCII_LF);
+            SYSTEM_BUS.uart->write(ASCII_CR);
+            SYSTEM_BUS.uart->write(ASCII_LF);
         }
     }
-    get_uart()->flush();
+    SYSTEM_BUS.uart->flush();
 
     fnLedManager.set(LED_BT,false);
 }
@@ -752,20 +752,20 @@ void modem::at_cmd_println(int i, bool addEol)
 
     fnLedManager.set(LED_BT,true);
 
-    get_uart()->print(i);
+    SYSTEM_BUS.uart->print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            get_uart()->write(ATASCII_EOL);
+            SYSTEM_BUS.uart->write(ATASCII_EOL);
         }
         else
         {
-            get_uart()->write(ASCII_CR);
-            get_uart()->write(ASCII_LF);
+            SYSTEM_BUS.uart->write(ASCII_CR);
+            SYSTEM_BUS.uart->write(ASCII_LF);
         }
     }
-    get_uart()->flush();
+    SYSTEM_BUS.uart->flush();
 
     fnLedManager.set(LED_BT,false);
 }
@@ -777,20 +777,20 @@ void modem::at_cmd_println(std::string s, bool addEol)
 
     fnLedManager.set(LED_BT,true);
 
-    get_uart()->print(s);
+    SYSTEM_BUS.uart->print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            get_uart()->write(ATASCII_EOL);
+            SYSTEM_BUS.uart->write(ATASCII_EOL);
         }
         else
         {
-            get_uart()->write(ASCII_CR);
-            get_uart()->write(ASCII_LF);
+            SYSTEM_BUS.uart->write(ASCII_CR);
+            SYSTEM_BUS.uart->write(ASCII_LF);
         }
     }
-    get_uart()->flush();
+    SYSTEM_BUS.uart->flush();
 
     fnLedManager.set(LED_BT,false);
 }
@@ -1067,7 +1067,7 @@ void modem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        get_uart()->flush();
+        SYSTEM_BUS.uart->flush();
         answerHack = false;
     }
 }
@@ -1636,11 +1636,11 @@ void modem::sio_handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-        if (get_uart()->available() > 0)
+        if (SYSTEM_BUS.uart->available() > 0)
         {
             // get char from Atari SIO
             //char chr = SIO_UART.read();
-            int intchr = get_uart()->read();
+            int intchr = SYSTEM_BUS.uart->read();
             if (intchr < 0)
             {
                 // read error or timeout
@@ -1671,9 +1671,9 @@ void modem::sio_handle_modem()
                     // Clear with a space
                     if (commandEcho == true)
                     {
-                        get_uart()->write(ASCII_BACKSPACE);
-                        get_uart()->write(' ');
-                        get_uart()->write(ASCII_BACKSPACE);
+                        SYSTEM_BUS.uart->write(ASCII_BACKSPACE);
+                        SYSTEM_BUS.uart->write(' ');
+                        SYSTEM_BUS.uart->write(ASCII_BACKSPACE);
                     }
                 }
             }
@@ -1686,7 +1686,7 @@ void modem::sio_handle_modem()
                 {
                     cmd.erase(len - 1);
                     if (commandEcho == true)
-                        get_uart()->write(ATASCII_BACKSPACE);
+                        SYSTEM_BUS.uart->write(ATASCII_BACKSPACE);
                 }
             }
             // Take into account arrow key movement and clear screen
@@ -1694,7 +1694,7 @@ void modem::sio_handle_modem()
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 if (commandEcho == true)
-                    get_uart()->write(chr);
+                    SYSTEM_BUS.uart->write(chr);
             }
             else
             {
@@ -1704,7 +1704,7 @@ void modem::sio_handle_modem()
                     cmd += chr;
                 }
                 if (commandEcho == true)
-                    get_uart()->write(chr);
+                    SYSTEM_BUS.uart->write(chr);
             }
         }
     }
@@ -1736,8 +1736,8 @@ void modem::sio_handle_modem()
             }
         }
 
-        int sioBytesAvail = get_uart()->available();
-        //int sioBytesAvail = std::min(0, get_uart()->available());
+        int sioBytesAvail = SYSTEM_BUS.uart->available();
+        //int sioBytesAvail = std::min(0, SYSTEM_BUS.uart->available());
 
         // send from Atari to Fujinet
         if (sioBytesAvail && tcpClient.connected())
@@ -1754,7 +1754,7 @@ void modem::sio_handle_modem()
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int sioBytesRead = get_uart()->readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
+            int sioBytesRead = SYSTEM_BUS.uart->readBytes(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
                                                    (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
@@ -1809,8 +1809,8 @@ void modem::sio_handle_modem()
             }
             else
             {
-                get_uart()->write(buf, bytesRead);
-                get_uart()->flush();
+                SYSTEM_BUS.uart->write(buf, bytesRead);
+                SYSTEM_BUS.uart->flush();
             }
 
             fnLedManager.set(eLed::LED_BT,false);

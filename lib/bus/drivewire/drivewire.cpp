@@ -553,7 +553,7 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _drivewireBaud, baud);
     _drivewireBaud = baud;
-    _modemDev->get_uart()->set_baudrate(baud);
+    //_modemDev->get_uart()->set_baudrate(baud); // TODO COME BACK HERE.
 }
 
 systemBus DRIVEWIRE; // Global DRIVEWIRE object

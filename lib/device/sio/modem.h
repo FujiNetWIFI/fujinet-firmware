@@ -6,13 +6,7 @@
 #include "bus.h"
 #include "fnTcpClient.h"
 #include "fnTcpServer.h"
-#ifdef ESP_PLATFORM
-#include "fnUART.h"
-#define MODEM_UART_T UARTManager
-#else
-// fnSioCom.h is included from bus.h
-#define MODEM_UART_T SioCom
-#endif
+
 #include "modem-sniffer.h"
 #include "libtelnet.h"
 
@@ -197,7 +191,6 @@ private:
     std::string term_type;               // telnet terminal type.
     long answerTimer;
     bool answered=false;
-    MODEM_UART_T* uart;             // UART manager to use.
     int ringCount;                  // Keep track of how many incoming RINGs
 
     void sio_send_firmware(uint8_t loadcommand); // $21 and $26: Booter/Relocator download; Handler download
@@ -258,9 +251,6 @@ public:
     void set_do_echo(bool _do_echo) { do_echo = _do_echo; }
     std::string get_term_type() {return term_type; }
     void set_term_type(std::string _term_type) { term_type = _term_type; }
-    MODEM_UART_T* get_uart() { return uart; }
-    void set_uart(MODEM_UART_T *_uart) { uart = _uart; }
-
 };
 
 #endif
