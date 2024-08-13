@@ -10,6 +10,14 @@
 #include "sio/siocom/fnSioCom.h"
 #endif
 
+#ifdef ESP_PLATFORM
+#include "fnUART.h"
+#define MODEM_UART_T UARTManager
+#else
+// fnSioCom.h is included from bus.h
+#define MODEM_UART_T SioCom
+#endif
+
 #define DELAY_T4 850
 #define DELAY_T5 250
 
@@ -328,6 +336,10 @@ public:
 #ifdef ESP_PLATFORM
     QueueHandle_t qSioMessages = nullptr;
 #endif
+
+    MODEM_UART_T* uart;             // UART manager to use.
+    void set_uart(MODEM_UART_T* _uart) { uart = _uart; }
+
 };
 
 extern systemBus SIO;
