@@ -249,9 +249,9 @@ void main_setup(int argc, char *argv[])
 
     sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
 #ifdef ESP_PLATFORM
-    sioR->set_uart(&fnUartBUS);
+    SYSTEM_BUS.set_uart(&fnUartBUS);
 #else
-    sioR->set_uart(&fnSioCom);
+    SYSTEM_BUS.set_uart(&fnSioCom);
 #endif
 
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
