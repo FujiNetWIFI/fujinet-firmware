@@ -605,8 +605,10 @@ void WiFiManager::handle_station_stop()
 
 void add_mdns_services()
 {
-    mdns_txt_item_t wdi[2] = {{"path","/dav"}, {"u","fujinet"}};
-    mdns_service_add(NULL,"_webdav","_tcp",80,wdi,2);
+    mdns_txt_item_t wdi[3] = {{"path","/dav"}, {"u","fujinet"}, {"p",""}};
+    mdns_txt_item_t hti[3] = {{"u",""},{"p",""}, {"path","/"}};
+    mdns_service_add(NULL,"_webdav","_tcp",80,wdi,3);
+    mdns_service_add(NULL,"_http","_tcp",80,hti,3);
 }
 
 void WiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
