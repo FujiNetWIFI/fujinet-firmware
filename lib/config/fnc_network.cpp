@@ -12,6 +12,11 @@ void fnConfig::store_udpstream_port(int port)
     _network.udpstream_port = port;
 }
 
+void fnConfig::store_udpstream_servermode(bool mode)
+{
+    _network.udpstream_servermode = mode;
+}
+
 void fnConfig::_read_section_network(std::stringstream &ss)
 {
     std::string line;

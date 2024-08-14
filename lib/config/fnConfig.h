@@ -106,6 +106,7 @@ public:
     bool get_general_rotation_sounds() { return _general.rotation_sounds; };
     std::string get_network_udpstream_host() { return _network.udpstream_host; };
     int get_network_udpstream_port() { return _network.udpstream_port; };
+    bool get_network_udpstream_servermode() { return _network.udpstream_servermode; };
     bool get_general_config_enabled() { return _general.config_enabled; };
     void store_general_devicename(const char *devicename);
     void store_general_hsioindex(int hsio_index);
@@ -118,6 +119,7 @@ public:
     void store_general_boot_mode(uint8_t boot_mode);
     void store_udpstream_host(const char host_ip[64]);
     void store_udpstream_port(int port);
+    void store_udpstream_servermode(bool mode);
     bool get_general_fnconfig_spifs() { return _general.fnconfig_spifs; };
     void store_general_fnconfig_spifs(bool fnconfig_spifs);
     bool get_general_status_wait_enabled() { return _general.status_wait_enabled; }
@@ -429,6 +431,7 @@ private:
         char sntpserver [40];
         char udpstream_host [64];
         int udpstream_port;
+        bool udpstream_servermode;
     };
 
     struct general_info
