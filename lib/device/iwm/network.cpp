@@ -847,36 +847,27 @@ void iwmNetwork::process(iwm_decoded_cmd_t cmd)
     fnLedManager.set(LED_BUS, true);
     switch (cmd.command)
     {
-    case 0x00: // status
+    case SP_CMD_STATUS:
         Debug_printf("\r\nhandling status command");
         iwm_status(cmd);
         break;
-    case 0x01: // read block
-        iwm_return_badcmd(cmd);
-        break;
-    case 0x02: // write block
-        iwm_return_badcmd(cmd);
-        break;
-    case 0x03: // format
-        iwm_return_badcmd(cmd);
-        break;
-    case 0x04: // control
+    case SP_CMD_CONTROL:
         Debug_printf("\r\nhandling control command");
         iwm_ctrl(cmd);
         break;
-    case 0x06: // open
+    case SP_CMD_OPEN:
         Debug_printf("\r\nhandling open command");
         iwm_open(cmd);
         break;
-    case 0x07: // close
+    case SP_CMD_CLOSE:
         Debug_printf("\r\nhandling close command");
         iwm_close(cmd);
         break;
-    case 0x08: // read
+    case SP_CMD_READ:
         Debug_printf("\r\nhandling read command");
         iwm_read(cmd);
         break;
-    case 0x09: // write
+    case SP_CMD_WRITE:
         iwm_write(cmd);
         break;
     default:

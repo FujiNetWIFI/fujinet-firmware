@@ -242,7 +242,7 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
   fnLedManager.set(LED_BUS, true);
   switch (cmd.command)
   {
-  case 0x00: // status
+  case SP_CMD_STATUS:
     Debug_printf("\r\nhandling status command");
     status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x00); // status codes 00-FF
     if (disk_num == '0' && status_code > 0x05) // max regular status code is 0x05 to UniDisk
@@ -250,35 +250,23 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
     else  
       iwm_status(cmd);
     break;
-  case 0x01: // read block
+  case SP_CMD_READBLOCK:
     Debug_printf("\r\nhandling read block command");
     iwm_readblock(cmd);
     break;
-  case 0x02: // write block
+  case SP_CMD_WRITEBLOCK:
     Debug_printf("\r\nhandling write block command");
     iwm_writeblock(cmd);
     break;
-  case 0x03: // format
+  case SP_CMD_FORMAT:
     iwm_return_noerror();
     break;
-  case 0x04: // control
+  case SP_CMD_CONTROL:
     status_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     if (disk_num == '0' && status_code > 0x0A) // max regular control code is 0x0A to 3.5" disk
       theFuji.FujiControl(cmd); // NEED TO FIX THIS IN CONFIG
    else
       iwm_ctrl(cmd);
-    break;
-  case 0x06: // open
-    iwm_return_badcmd(cmd);
-    break;
-  case 0x07: // close
-    iwm_return_badcmd(cmd);
-    break;
-  case 0x08: // read
-    iwm_return_badcmd(cmd);
-    break;
-  case 0x09: // write
-    iwm_return_badcmd(cmd);
     break;
   default:
     iwm_return_badcmd(cmd);
