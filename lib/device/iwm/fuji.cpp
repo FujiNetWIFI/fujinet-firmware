@@ -31,16 +31,16 @@ iwmFuji::iwmFuji()
 		_fnHosts[i].slotid = i;
 	
     command_handlers = {
-        { 0x00, [this](iwm_decoded_cmd_t cmd) { iwm_status(cmd); }},          // status
-        { 0x04, [this](iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }},            // control
-        { 0x06, [this](iwm_decoded_cmd_t cmd) { iwm_open(cmd); }},            // open
-        { 0x07, [this](iwm_decoded_cmd_t cmd) { iwm_close(cmd); }},           // close
-        { 0x08, [this](iwm_decoded_cmd_t cmd) { iwm_read(cmd); }},            // read
+        { SP_CMD_STATUS, [this](iwm_decoded_cmd_t cmd) { iwm_status(cmd); }},                           // 0x00
+        { SP_CMD_CONTROL, [this](iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }},                            // 0x04
+        { SP_CMD_OPEN, [this](iwm_decoded_cmd_t cmd) { iwm_open(cmd); }},                               // 0x06
+        { SP_CMD_CLOSE, [this](iwm_decoded_cmd_t cmd) { iwm_close(cmd); }},                              // 0x07
+        { SP_CMD_READ, [this](iwm_decoded_cmd_t cmd) { iwm_read(cmd); }},                               // 0x08
 
-        { 0x01, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},   // read block
-        { 0x02, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},   // write block
-        { 0x03, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},   // format
-        { 0x09, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }}    // write
+        { SP_CMD_READBLOCK, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},                 // 0x01
+        { SP_CMD_WRITEBLOCK, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},                // 0x02
+        { SP_CMD_FORMAT, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }},                    // 0x03
+        { SP_CMD_WRITE, [this](iwm_decoded_cmd_t cmd) { iwm_return_badcmd(cmd); }}                      // 0x09
     };
 
     control_handlers = {

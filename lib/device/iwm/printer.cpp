@@ -143,16 +143,16 @@ void iwmPrinter::process(iwm_decoded_cmd_t cmd)
     fnLedManager.set(LED_BUS, true);
     switch (cmd.command)
     {
-    case 0x00: // status
+    case SP_CMD_STATUS:
         iwm_status(cmd);
         break;
-    case 0x06: // open
+    case SP_CMD_OPEN:
         iwm_open(cmd);
         break;
-    case 0x07: // close
+    case SP_CMD_CLOSE:
         iwm_close(cmd);
         break;
-    case 0x09: // write
+    case SP_CMD_WRITE:
         iwm_write(cmd);
         break;
     default:

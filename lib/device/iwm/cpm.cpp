@@ -292,29 +292,29 @@ void iwmCPM::process(iwm_decoded_cmd_t cmd)
 
     switch (cmd.command)
     {
-    case 0x00: // status
+    case SP_CMD_STATUS:
         Debug_printf("\r\nhandling status command");
         iwm_status(cmd);
         break;
-    case 0x04: // control
+    case SP_CMD_CONTROL:
         Debug_printf("\r\nhandling control command");
         iwm_ctrl(cmd);
         break;
-    case 0x06: // open
+    case SP_CMD_OPEN:
         Debug_printf("\r\nhandling open command");
         iwm_open(cmd);
         break;
-    case 0x07: // close
+    case SP_CMD_CLOSE:
         Debug_printf("\r\nhandling close command");
         iwm_close(cmd);
         break;
-    case 0x08: // read
+    case SP_CMD_READ:
         fnLedManager.set(LED_BUS, true);
         Debug_printf("\r\nhandling read command");
         iwm_read(cmd);
         fnLedManager.set(LED_BUS, false);
         break;
-    case 0x09: // write
+    case SP_CMD_WRITE:
         fnLedManager.set(LED_BUS, true);
         Debug_printf("\r\nHandling write command");
         iwm_write(cmd);
