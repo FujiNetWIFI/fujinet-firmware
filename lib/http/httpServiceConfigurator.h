@@ -16,6 +16,7 @@ class fnHttpServiceConfigurator
     static void config_timezone(std::string timezone);
     static void config_hostname(std::string hostname);
     static void config_udpstream(std::string host_ip);
+    static void config_udpstream_servermode(std::string mode);
     static void config_cassette_play(std::string play_record);
     static void config_cassette_resistor(std::string resistor);
     static void config_cassette_rewind();

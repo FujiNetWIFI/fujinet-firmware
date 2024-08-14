@@ -21,6 +21,8 @@
 extern iwmFuji theFuji;
 #endif /* BUILD_APPLE */
 
+bool udpactivate = false;
+
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
 {
@@ -126,6 +128,16 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
     return results;
 }
 
+/* Activate UDPStream mode after all settings saved */
+void udpstream_activate()
+{
+#ifdef BUILD_ATARI
+    SIO.setUDPHost(Config.get_network_udpstream_host().c_str(), Config.get_network_udpstream_port());
+#endif /* ATARI */
+#ifdef BUILD_LYNX
+    ComLynx.setUDPHost(Config.get_network_udpstream_host().c_str(), Config.get_network_udpstream_port());
+#endif /* LYNX */
+}
 
 void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
 {
@@ -319,6 +331,7 @@ void fnHttpServiceConfigurator::config_udpstream(std::string hostname)
 #endif /* LYNX */
         Config.store_udpstream_host("");
         Config.store_udpstream_port(0);
+        Config.store_udpstream_servermode(false);
         Config.save();
 
         return;
@@ -336,16 +349,23 @@ void fnHttpServiceConfigurator::config_udpstream(std::string hostname)
     Debug_printf("Set UDPStream port: %d\n", port);
 
     // Update the host ip variable
-#ifdef BUILD_ATARI
-    SIO.setUDPHost(newhostname.c_str(), port);
-#endif /* ATARI */
-#ifdef BUILD_LYNX
-    ComLynx.setUDPHost(newhostname.c_str(), port);
-#endif /* LYNX */
-    // Save change
     Config.store_udpstream_host(newhostname.c_str());
     Config.store_udpstream_port(port);
     Config.save();
+    udpactivate = true;
+}
+
+void fnHttpServiceConfigurator::config_udpstream_servermode(std::string mode)
+{
+    if (util_string_value_is_true(mode))
+    {
+        Debug_printf("UDPStream Server Mode Enabled\n");
+    }
+    // Store our change in Config
+    Config.store_udpstream_servermode(util_string_value_is_true(mode));
+    // Save change
+    Config.save();
+
 }
 
 int printer_number_from_string(std::string printernumber)
@@ -633,6 +653,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         {
             config_hostname(i->second);
         }
+        else if (i->first.compare("udpstream_servermode") == 0)
+        {
+            config_udpstream_servermode(i->second);
+        }
         else if (i->first.compare("udpstream_host") == 0)
         {
             config_udpstream(i->second);
@@ -730,6 +754,12 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
             config_pclink_enabled(i->second);
         }
     } // end for loop
+
+    if (udpactivate)
+    {
+        udpactivate = false;
+        udpstream_activate();
+    }
 
 #ifndef ESP_PLATFORM
     if (update_netsio)

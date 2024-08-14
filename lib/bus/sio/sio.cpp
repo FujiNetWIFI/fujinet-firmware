@@ -835,6 +835,9 @@ void systemBus::setUDPHost(const char *hostname, int port)
         Debug_printf("UDPStream port not provided or invalid (%d), setting to 5004\n", port);
     }
 
+    // Set if server mode or not
+    _udpDev->udpstreamIsServer = Config.get_network_udpstream_servermode();
+
     // Restart UDP Stream mode if needed
     if (_udpDev->udpstreamActive)
         _udpDev->sio_disable_udpstream();

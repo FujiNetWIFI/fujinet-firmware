@@ -767,7 +767,32 @@
 					</div>
 					<div class="settings-content settings-45-55">
 						<form action="/config" method="post" id="udp-server">
-						<div class="set">
+							<div class="set">
+								<div class="settings-label">
+									<label for="udpstream_servermode">
+										Server or Ring Network?
+										<div class="tooltip">&#9432;
+											<span class="tooltiptext small-text">
+												In server mode, each Fujinet connects
+												to the server which forwards packets
+												in a ring. In Ring Net mode, each
+												Fujinet must connect to another and
+												the last one connects to the first
+												forming a virtual ring network.
+											</span>
+										</div>
+									</label>
+								</div>
+								<div class="settings-value">
+									<div class="radio-container">
+										<input checked="" id="udpstream_servermode_yes" name="udpstream_servermode" type="radio" value="1">
+										<label for="udpstream_servermode_yes" class="r-yes-no">Server</label>
+										<input checked="" id="udpstream_servermode_no" name="udpstream_servermode" type="radio" value="0">
+										<label for="udpstream_servermode_no" class="r-yes-no">Ring</label>
+									</div>
+								</div>
+							</div>
+							<div class="set">
 							<div class="settings-label">
 								<label for="udpstream_host">UDPStream: (Hostname or IP:Port)</label>
 							</div>
