@@ -21,6 +21,18 @@
 
 #include "fnFS.h"
 
+enum {
+  SP_CMD_STATUS	= 0x00,
+  SP_CMD_READBLOCK	= 0x01,
+  SP_CMD_WRITEBLOCK	= 0x02,
+  SP_CMD_FORMAT	= 0x03,
+  SP_CMD_CONTROL	= 0x04,
+  SP_CMD_OPEN	= 0x06,
+  SP_CMD_CLOSE	= 0x07,
+  SP_CMD_READ	= 0x08,
+  SP_CMD_WRITE	= 0x09,
+};
+
 // see page 81-82 in Apple IIc ROM reference and Table 7-5 in IIgs firmware ref
 #define SP_ERR_NOERROR 0x00    // no error
 #define SP_ERR_BADCMD 0x01     // invalid command
