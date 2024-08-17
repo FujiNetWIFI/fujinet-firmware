@@ -489,7 +489,7 @@ bool MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTra
         return true;
     
     // Attempt to the sector data
-    track.data = new uint8_t[data_size];
+    track.data = (uint8_t *)heap_caps_malloc(data_size * sizeof(uint8_t), MALLOC_CAP_DEFAULT);
 
     int i;
     if ((i = fnio::fread(track.data, 1, data_size, _disk_fileh)) != data_size)
@@ -535,8 +535,9 @@ bool MediaTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTra
     }
 
     // Attempt to read sector_header * sector_count
-    sector_header_t *sector_list = new sector_header_t[track.sector_count];
+    sector_header_t *sector_list = (sector_header_t *)heap_caps_malloc(track.sector_count * sizeof(sector_header_t), MALLOC_CAP_DEFAULT);
     int i;
+
     if ((i = fnio::fread(sector_list, 1, readz, _disk_fileh)) != readz)
     {
         Debug_printf("failed reading sector list chunk bytes (%d, %d)\r\n", i, errno);
@@ -872,6 +873,8 @@ mediatype_t MediaTypeATX::mount(fnFile *f, uint32_t disksize)
     }
 
     _disk_num_sectors = 720;
+
+    Debug_printv("Heap free: %lu",esp_get_free_internal_heap_size());
     
     return _disktype = MEDIATYPE_ATX;
 }
