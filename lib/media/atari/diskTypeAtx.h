@@ -3,6 +3,7 @@
 
 #ifdef ESP_PLATFORM
 #include <esp_timer.h>
+#include "../../include/PSRAMAllocator.h"
 #endif
 
 #include <vector>
@@ -156,7 +157,7 @@ public:
     uint8_t * data = nullptr;
 
     // Actual sectors
-    std::vector<AtxSector> sectors;
+    std::vector<AtxSector,PSRAMAllocator<AtxSector>> sectors;
 
     ~AtxTrack();
     AtxTrack();
@@ -188,7 +189,7 @@ private:
     esp_timer_handle_t _atx_timer = nullptr;
 #endif
 
-    std::vector<AtxTrack> _tracks;
+    std::vector<AtxTrack,PSRAMAllocator<AtxTrack>> _tracks;
 
     // ATX header.density
     uint8_t _atx_density = ATX_DENSITY_SINGLE;
