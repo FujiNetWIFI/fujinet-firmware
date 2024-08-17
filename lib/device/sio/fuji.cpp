@@ -17,6 +17,7 @@
 #include "compat_string.h"
 
 #include "../../../include/debug.h"
+#include "../../../include/PSRAMAllocator.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -36,7 +37,7 @@
 sioFuji theFuji; // global fuji device object
 
 // sioDisk sioDiskDevs[MAX_HOSTS];
-sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
+sioNetwork *sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -127,6 +128,21 @@ sioFuji::sioFuji()
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+
+    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+    {
+        void *p = heap_caps_malloc(sizeof(sioNetwork), MALLOC_CAP_DEFAULT);
+        sioNetDevs[i] = new(p) sioNetwork();
+    }
+}
+
+void sioFuji::~sioFuji()
+{
+    for (int i=0; i < MAX_NETWORK_DEVICES; i++)
+    {
+        if (sioNetDevs[i] != nullptr)
+            delete sioNetDevs[i];
+    }
 }
 
 // Status
@@ -2139,7 +2155,9 @@ void sioFuji::setup(systemBus *siobus)
         _sio_bus->addDevice(&_fnDisks[i].disk_dev, SIO_DEVICEID_DISK + i);
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        _sio_bus->addDevice(&sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
+    {
+        _sio_bus->addDevice(sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
+    }
 
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
