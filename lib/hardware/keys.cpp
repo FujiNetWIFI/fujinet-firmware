@@ -339,10 +339,7 @@ void KeyManager::_keystate_task(void *param)
         case eKeyStatus::SHORT_PRESS:
             Debug_println("BUTTON_B: SHORT PRESS");
 #ifdef BUILD_ATARI
-            Debug_println("ACTION: Send debug_tape message to SIO queue");
-            sio_message_t msg;
-            msg.message_id = SIOMSG_DEBUG_TAPE;
-            xQueueSend(SIO.qSioMessages, &msg, 0);
+            Debug_printv("Free Internal Heap: %lu\nFree Total Heap: %lu",esp_get_free_internal_heap_size(),esp_get_free_heap_size());
 #endif /* BUILD_ATARI */
             break;
         case eKeyStatus::DOUBLE_TAP:
