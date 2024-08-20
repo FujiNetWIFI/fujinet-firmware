@@ -1,34 +1,31 @@
 /* FujiNet Hardware Pin Mapping */
 #ifdef PINMAP_COCO_S3
 
-/* SD Card - fnFsSD.cpp */
-#define PIN_CARD_DETECT         GPIO_NUM_12 // fnSystem.h
-#define PIN_CARD_DETECT_FIX     GPIO_NUM_15 // fnSystem.h
+#include "common.h"
+
+#undef PIN_SD_HOST_SCK
+#undef PIN_SD_HOST_MOSI
+#undef PIN_SD_HOST_MISO
+#undef PIN_SD_HOST_CS
 #define PIN_SD_HOST_SCK         GPIO_NUM_4
 #define PIN_SD_HOST_MOSI        GPIO_NUM_5
 #define PIN_SD_HOST_MISO        GPIO_NUM_6
 #define PIN_SD_HOST_CS          GPIO_NUM_7
 
-/* UART - fnuart.cpp */
-#define PIN_UART0_RX            GPIO_NUM_3  // USB Serial
-#define PIN_UART0_TX            GPIO_NUM_1  // USB Serial
+#undef PIN_UART1_RX
+#undef PIN_UART1_TX
+#undef PIN_UART2_RX
+#undef PIN_UART2_TX
 #define PIN_UART1_RX            GPIO_NUM_13 // RS232
 #define PIN_UART1_TX            GPIO_NUM_21 // RS232
-#define PIN_UART2_RX          GPIO_NUM_33
-#define PIN_UART2_TX          GPIO_NUM_21
+#define PIN_UART2_RX            GPIO_NUM_33
+#define PIN_UART2_TX            GPIO_NUM_21
 
-/* Buttons - keys.cpp */
-#define PIN_BUTTON_A            GPIO_NUM_0  // Button 0 on DEVKITC-VE
+#undef PIN_BUTTON_B
 #define PIN_BUTTON_B            GPIO_NUM_NC // No Button B
-#define PIN_BUTTON_C            GPIO_NUM_14 // Safe reset
 
-/* LEDs - leds.cpp */
-#define PIN_LED_WIFI            GPIO_NUM_2
-#define PIN_LED_BUS             GPIO_NUM_4
+#undef PIN_LED_BT
 #define PIN_LED_BT              GPIO_NUM_NC // No BT LED
-
-/* Audio Output - samlib.h */
-#define PIN_DAC1                GPIO_NUM_25 // not connected
 
 /* Coco */
 #define PIN_CASS_MOTOR          GPIO_NUM_34 // Second motor pin is tied to +3V

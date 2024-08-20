@@ -2,32 +2,20 @@
 #ifndef PINMAP_FUJILOAF_REV0_H
 #define PINMAP_FUJILOAF_REV0_H
 
+#include "common.h"
+
 #ifdef PINMAP_FUJILOAF_REV0
-/* SD Card */
+#undef PIN_CARD_DETECT
+#undef PIN_CARD_DETECT_FIX
 #define PIN_CARD_DETECT         GPIO_NUM_35 // fnSystem.h
 #define PIN_CARD_DETECT_FIX     GPIO_NUM_35 // fnSystem.h
 
-#define PIN_SD_HOST_CS          GPIO_NUM_5
-#define PIN_SD_HOST_MISO        GPIO_NUM_19
-#define PIN_SD_HOST_MOSI        GPIO_NUM_23
-#define PIN_SD_HOST_SCK         GPIO_NUM_18
-
-/* UART */
-#define PIN_UART0_RX            GPIO_NUM_3  // fnUART.cpp
-#define PIN_UART0_TX            GPIO_NUM_1
-#define PIN_UART1_RX            GPIO_NUM_9
-#define PIN_UART1_TX            GPIO_NUM_10
-#define PIN_UART2_RX            GPIO_NUM_33
-#define PIN_UART2_TX            GPIO_NUM_21
-
-/* Buttons */
-#define PIN_BUTTON_A            GPIO_NUM_0  // keys.cpp
+#undef PIN_BUTTON_B
+#undef PIN_BUTTON_C
 #define PIN_BUTTON_B            GPIO_NUM_NC // No Button B
 #define PIN_BUTTON_C            GPIO_NUM_36
 
-/* LEDs */
-#define PIN_LED_WIFI            GPIO_NUM_2  // led.cpp
-#define PIN_LED_BUS             GPIO_NUM_12 // 4 FN
+#undef PIN_LED_BT
 #define PIN_LED_BT              GPIO_NUM_NC // No BT LED
 
 /* LED Strip NEW */
