@@ -1053,10 +1053,16 @@ void drivewireNetwork::send_error()
 
 void drivewireNetwork::send_response()
 {
-    // Send body
-    fnDwCom.write((uint8_t *)response.c_str(),response.length());
+    uint16_t len = cmdFrame.aux1 << 8 | cmdFrame.aux2; // big endian
 
-    Debug_printf("drivewireNetwork::send_response(%s)",response.c_str());
+    // Pad to requested response length. Thanks apc!
+    if (response.length() < len)
+        response.insert(0, len - response.length(), '\0');
+
+    // Send body
+    fnDwCom.write((uint8_t *)response.c_str(), len);
+
+    Debug_printf("drivewireNetwork::send_response[%d]:%s", len, response.c_str());
 
     // Clear the response
     response.clear();
