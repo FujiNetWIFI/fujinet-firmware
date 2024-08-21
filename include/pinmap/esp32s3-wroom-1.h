@@ -21,7 +21,7 @@
 //#define PIN_BUTTON_A            GPIO_NUM_45 // keys.cpp
 //#define PIN_BUTTON_B            GPIO_NUM_47
 //#define PIN_BUTTON_C            GPIO_NUM_48
-#define PIN_BUTTON_A            GPIO_NUM_NC
+#define PIN_BUTTON_A            GPIO_NUM_0
 #define PIN_BUTTON_B            GPIO_NUM_NC
 #define PIN_BUTTON_C            GPIO_NUM_NC
 
