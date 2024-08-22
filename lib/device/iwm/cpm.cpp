@@ -97,10 +97,10 @@ void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
 
     Debug_printf("\r\nCP/M: Open\n");
 #ifdef ESP_PLATFORM // OS
-    if (!fnSystem.spifix())
+    if (!fnSystem.hasbuffer())
     {
         err_result = SP_ERR_OFFLINE;
-    Debug_printf("FujiApple SPI Fix Missing, not starting CP/M\n");
+    Debug_printf("FujiApple HASBUFFER Missing, not starting CP/M\n");
     }
     else
     {
@@ -256,10 +256,10 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
         {
         case 'B': // Boot
 #ifdef ESP_PLATFORM // OS
-            if (!fnSystem.spifix())
+            if (!fnSystem.hasbuffer())
             {
                 err_result = SP_ERR_OFFLINE;
-                Debug_printf("FujiApple SPI Fix Missing, not starting CP/M\n");
+                Debug_printf("FujiApple HASBUFFER Missing, not starting CP/M\n");
             }
             else
 #endif

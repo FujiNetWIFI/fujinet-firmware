@@ -6,11 +6,11 @@
 #define PIN_CARD_DETECT_FIX     GPIO_NUM_15 // fnSystem.h
 #define PIN_SD_HOST_CS          GPIO_NUM_5 //fnFsSD.cpp
 #define PIN_SD_HOST_MISO        GPIO_NUM_19
-#ifdef MASTERIES_SPI_FIX
+#ifdef MASTERIES_REV0
 #define PIN_SD_HOST_MOSI        GPIO_NUM_14
 #else
 #define PIN_SD_HOST_MOSI        GPIO_NUM_23
-#endif
+#endif // MASTERIES_REV0
 #define PIN_SD_HOST_SCK         GPIO_NUM_18
 
 /* UART */
@@ -35,14 +35,16 @@
 #define PIN_DAC1                GPIO_NUM_25 // samlib.h
 
 /* IWM Bus Pins */
-#define SP_REQ                  GPIO_NUM_32
 #define SP_PHI0                 GPIO_NUM_32
 #define SP_PHI1                 GPIO_NUM_33
 #define SP_PHI2                 GPIO_NUM_34
 #define SP_PHI3                 GPIO_NUM_35
 #define SP_WRPROT               GPIO_NUM_27
-#define SP_ACK                  GPIO_NUM_27
-#define SP_RDDATA               GPIO_NUM_4 // tri-state gate enable line
+#ifdef MASTERIES_REV0
+#define SP_RDDATA               GPIO_NUM_23 // Pin to use for SmartPort SPI hardware mod Masteries edition
+#else
+#define SP_RDDATA               GPIO_NUM_14 // Pin to use for SmartPort SPI hardware mod FujiApple Rev0
+#endif // MASTERIES_REV0
 #define SP_WRDATA               GPIO_NUM_22
 // TODO: go through each line and make sure the code is OK for each one before moving to next
 #define SP_WREQ                 GPIO_NUM_26
@@ -51,11 +53,11 @@
 #define SP_EN35                 GPIO_NUM_39
 #define SP_HDSEL                GPIO_NUM_13
 
-#ifdef MASTERIES_SPI_FIX
-#define SP_SPI_FIX_PIN          GPIO_NUM_23 // Pin to use for SmartPort SPI hardware mod Masteries edition
-#else
-#define SP_SPI_FIX_PIN          GPIO_NUM_14 // Pin to use for SmartPort SPI hardware mod FujiApple Rev0
-#endif // MASTERIES_SPI_FIX
+/* Aliases of other pins */
+#define SP_REQ                  SP_PHI0
+#define SP_ACK                  SP_WRPROT
+
+#define SP_RD_BUFFER            GPIO_NUM_4 // tri-state gate enable line
 
 #define SP_EXTRA                SP_DRIVE2 // For extra debugging with logic analyzer
 #endif /* PINMAP_A2_REV0 */
