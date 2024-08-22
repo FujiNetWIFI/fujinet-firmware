@@ -1057,7 +1057,7 @@ void drivewireNetwork::send_response()
 
     // Pad to requested response length. Thanks apc!
     if (response.length() < len)
-        response.insert(0, len - response.length(), '\0');
+        response.insert(response.length(), len - response.length(), '\0');
 
     // Send body
     fnDwCom.write((uint8_t *)response.c_str(), len);
