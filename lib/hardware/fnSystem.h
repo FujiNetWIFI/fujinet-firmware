@@ -165,6 +165,7 @@ public:
     const char *get_target_platform_str();
 
     bool hasbuffer() { return a2hasbuffer; };
+    bool spishared() { return !a2hasbuffer; };
     bool no3state() { return a2no3state; };
     bool ledstrip() { return ledstrip_found; };
     bool has_button_c();

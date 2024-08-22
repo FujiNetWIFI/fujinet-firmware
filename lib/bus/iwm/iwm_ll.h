@@ -32,6 +32,43 @@ extern volatile int isrctr;
 #define COMMAND_PACKET_LEN  27 //28     - max length changes suggested by robj
 // to do - make block packet compatible up to 767 data bytes?
 
+#define IWM_BIT(pin) ({						  \
+      uint32_t _pin = pin;					  \
+      (_pin >= 32 ? GPIO.in1.val : GPIO.in) & (1 << (_pin % 32)); \
+    })
+#define IWM_BIT_CLEAR(pin) ({			\
+      uint32_t _pin = pin;			\
+      uint32_t _mask = 1 << (_pin % 32);	\
+      if (_pin >= 32)				\
+	GPIO.out1_w1tc.val = _mask;		\
+      else					\
+	GPIO.out_w1tc = _mask;			\
+    })
+#define IWM_BIT_SET(pin) ({			\
+      uint32_t _pin = pin;			\
+      uint32_t _mask = 1 << (_pin % 32);	\
+      if (_pin >= 32)				\
+	GPIO.out1_w1ts.val = _mask;		\
+      else					\
+	GPIO.out_w1ts = _mask;			\
+    })
+#define IWM_BIT_INPUT(pin) ({			\
+      uint32_t _pin = pin;			\
+      uint32_t _mask = 1 << (_pin % 32);	\
+      if (_pin >= 32)				\
+	GPIO.enable1_w1tc.val = _mask;		\
+      else					\
+	GPIO.enable_w1tc = _mask;		\
+    })
+#define IWM_BIT_OUTPUT(pin) ({			\
+      uint32_t _pin = pin;			\
+      uint32_t _mask = 1 << (_pin % 32);	\
+      if (_pin >= 32)				\
+	GPIO.enable1_w1ts.val = _mask;		\
+      else					\
+	GPIO.enable_w1ts = _mask;		\
+    })
+
 union cmdPacket_t
 {
 /*
@@ -149,7 +186,7 @@ class iwm_ll
 {
 protected:
   // low level bit-banging i/o functions
-  bool iwm_req_val() { return (GPIO.in1.val & (0x01 << (SP_REQ-32))); };
+  bool iwm_req_val() { return (IWM_BIT(SP_REQ)); };
   void iwm_extra_set();
   void iwm_extra_clr();
   void disable_output();
@@ -193,11 +230,11 @@ private:
 public:
   SemaphoreHandle_t spiMutex;
   // Phase lines and ACK handshaking
-  void iwm_ack_set() { GPIO.enable_w1tc = ((uint32_t)0x01 << SP_ACK); }; // disable the line so it goes hi-z
-  void iwm_ack_clr() { GPIO.enable_w1ts = ((uint32_t)0x01 << SP_ACK); };  // enable the line already set to low
+  void iwm_ack_set() { IWM_BIT_INPUT(SP_ACK); }; // disable the line so it goes hi-z
+  void iwm_ack_clr() { IWM_BIT_OUTPUT(SP_ACK); };  // enable the line already set to low
   bool req_wait_for_falling_timeout(int t);
   bool req_wait_for_rising_timeout(int t);
-  uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
+  uint8_t iwm_phase_vector() { return IWM_PHASE_COMBINE(); };
 
   // Smartport Bus handling by SPI interface
   void encode_spi_packet();

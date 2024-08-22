@@ -33,7 +33,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   int error; // checksum error return
   uint8_t c;
 
-  _phases = (uint8_t)(GPIO.in1.val & (uint32_t)0b1111);
+  _phases = IWM_PHASE_COMBINE();
 
   //if ((sp_command_mode == sp_cmd_state_t::standby) && (_phases == 0b1011))
   if (_phases == 0b1011)
@@ -133,14 +133,14 @@ void IRAM_ATTR phi_isr_handler(void *arg)
 inline void iwm_ll::iwm_extra_set()
 {
 #ifdef EXTRA
-  GPIO.out_w1ts = ((uint32_t)1 << SP_EXTRA);
+  IWM_BIT_SET(SP_EXTRA);
 #endif
 }
 
 inline void iwm_ll::iwm_extra_clr()
 {
 #ifdef EXTRA
-  GPIO.out_w1tc = ((uint32_t)1 << SP_EXTRA);
+  IWM_BIT_CLEAR(SP_EXTRA);
 #endif
 }
 
@@ -525,7 +525,7 @@ void iwm_sp_ll::setup_spi()
 
   spi_buffer = (uint8_t *)heap_caps_malloc(SPI_SP_LEN, MALLOC_CAP_DMA);
 
-  if(fnSystem.hasbuffer())
+  if (!fnSystem.spishared())
     spirx_mosi_pin = SP_RDDATA;
 
   // SPI for receiving packets - sprirx
@@ -585,7 +585,7 @@ void iwm_sp_ll::setup_spi()
     .post_cb = 0,
   };
 
-  if(fnSystem.hasbuffer())
+  if (!fnSystem.spishared())
   {
     // use different SPI than SDCARD
     ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
@@ -624,7 +624,6 @@ void iwm_ll::setup_gpio()
     disable_output();
   }
 
-
   fnSystem.set_pin_mode(SP_PHI0, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE); // REQ line
   fnSystem.set_pin_mode(SP_PHI1, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
   fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
@@ -636,11 +635,13 @@ void iwm_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_HDSEL, gpio_mode_t::GPIO_MODE_INPUT);
 
+#ifdef SP_RD_BUFFER
   if (!fnSystem.no3state())
   {
     fnSystem.set_pin_mode(SP_RD_BUFFER, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
     fnSystem.digital_write(SP_RD_BUFFER, DIGI_HIGH); // Turn tristate buffer off by default
   }
+#endif
 
 #ifdef EXTRA
   fnSystem.set_pin_mode(SP_EXTRA, gpio_mode_t::GPIO_MODE_OUTPUT);
@@ -797,7 +798,7 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
 
 void iwm_sp_ll::set_output_to_spi()
 {
-  if(fnSystem.hasbuffer())
+  if (!fnSystem.spishared())
   {
     esp_rom_gpio_connect_out_signal(SP_RDDATA, spi_periph_signal[VSPI_HOST].spid_out, false, false);
   }
@@ -846,12 +847,12 @@ void iwm_diskii_ll::stop()
 void iwm_diskii_ll::set_output_to_rmt()
 {
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-  if(fnSystem.hasbuffer())
+  if (!fnSystem.spishared())
     esp_rom_gpio_connect_out_signal(SP_RDDATA, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
   else
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
 #else
-  if(fnSystem.hasbuffer())
+  if (!fnSystem.spishared())
     esp_rom_gpio_connect_out_signal(SP_RDDATA, rmt_periph_signals.channels[0].tx_sig, false, false);
   else
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
@@ -861,9 +862,11 @@ void iwm_diskii_ll::set_output_to_rmt()
 void iwm_ll::enable_output()
 {
   if(fnSystem.no3state())
-    GPIO.enable_w1ts = ((uint32_t)0x01 << SP_RDDATA); // enable output
+    IWM_BIT_OUTPUT(SP_RDDATA); // enable output
+#ifdef SP_RD_BUFFER
   else
-    GPIO.out_w1tc = ((uint32_t)1 << SP_RD_BUFFER); //  enable the tri-state buffer activating RDDATA
+    IWM_BIT_CLEAR(SP_RD_BUFFER); //  enable the tri-state buffer
+#endif
 }
 
 void iwm_ll::disable_output()
@@ -871,10 +874,12 @@ void iwm_ll::disable_output()
   if(fnSystem.no3state())
   {
     GPIO.func_out_sel_cfg[SP_RDDATA].oen_sel = 1;     // let me control the enable register
-    GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA); // go hi-z with disabled output
+    IWM_BIT_INPUT(SP_RDDATA); // go hi-z with disabled output
   }
+#ifdef SP_RD_BUFFER
   else
-    GPIO.out_w1ts = ((uint32_t)1 << SP_RD_BUFFER); // make RDDATA go hi-z through the tri-state
+    IWM_BIT_SET(SP_RD_BUFFER); // disable the tri-state buffer
+#endif
 }
 
 // KEEEEEEEEEEEEEEEEEEP FOR A WHILE UNTIL ALL TECHNIQUES LEARNED ARE USED OR NO LONGER NEEDED
@@ -991,7 +996,7 @@ void iwm_diskii_ll::setup_rmt()
 #ifdef RMTTEST
   config.gpio_num = (gpio_num_t)SP_EXTRA;
 #else
-  if(fnSystem.hasbuffer())
+  if (!fnSystem.spishared())
     config.gpio_num = (gpio_num_t)SP_RDDATA; //SP_WRDATA; // SP_RDDATA ; //PIN_SD_HOST_MOSI;
   else
     config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; //SP_WRDATA; // SP_RDDATA ; //PIN_SD_HOST_MOSI;
@@ -1074,11 +1079,11 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
   uint8_t states = 0;
 
   // only enable diskII if we are either not on an en35 capable host, or we are on an en35host and /EN35=high
-  if (!IWM.en35Host || (IWM.en35Host && (GPIO.in1.val & (0x01 << (SP_EN35 - 32)))))
+  if (!IWM.en35Host || (IWM.en35Host && IWM_BIT(SP_EN35)))
   {
-    if (!(states |= (GPIO.in1.val & (0x01 << (SP_DRIVE1 - 32))) ? 0b00 : 0b01))
+    if (!(states |= IWM_BIT(SP_DRIVE1) ? 0b00 : 0b01))
     {
-        states |= (GPIO.in & (0x01 << SP_DRIVE2)) ? 0b00 : 0b10;
+      states |= IWM_BIT(SP_DRIVE2) ? 0b00 : 0b10;
     }
   }
 
