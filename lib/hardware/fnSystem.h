@@ -34,7 +34,7 @@ private:
     char _uptime_string[24];
     char _currenttime_string[40];
     int _hardware_version = 0; // unknown
-    bool a2spifix = false;
+    bool a2hasbuffer = false;
     bool a2no3state = false;
     bool ledstrip_found = false;
 #ifdef ESP_PLATFORM
@@ -164,7 +164,7 @@ public:
     const char *get_hardware_ver_str();
     const char *get_target_platform_str();
 
-    bool spifix() { return a2spifix; };
+    bool hasbuffer() { return a2hasbuffer; };
     bool no3state() { return a2no3state; };
     bool ledstrip() { return ledstrip_found; };
     bool has_button_c();
