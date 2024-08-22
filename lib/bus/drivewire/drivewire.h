@@ -29,6 +29,7 @@
 // fnUartBUS (Serial only) was replaced with fnDwCom (Serial|TCP/Becker)
 //#include <fnUART.h>
 #include "drivewire/dwcom/fnDwCom.h"
+#include "media.h"
 
 #define DRIVEWIRE_BAUDRATE 57600
 
@@ -211,7 +212,7 @@ private:
     /**
      * @brief Sector data (256 bytes)
      */
-    uint8_t sector_data[256];
+    uint8_t sector_data[MEDIA_BLOCK_SIZE];
 
     /**
      * @brief NOP command (do nothing)
