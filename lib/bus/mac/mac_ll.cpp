@@ -519,8 +519,8 @@
 
 //   spi_buffer = (uint8_t *)heap_caps_malloc(SPI_SP_LEN, MALLOC_CAP_DMA);
 
-//   if(fnSystem.spifix())
-//     spirx_mosi_pin = SP_SPI_FIX_PIN;
+//   if(fnSystem.hasbuffer())
+//     spirx_mosi_pin = SP_RDDATA;
 
 //   // SPI for receiving packets - sprirx
 //   bus_cfg = {
@@ -564,13 +564,13 @@
 //     .queue_size = 2                    // We want to be able to queue 7 transactions at a time
 //   };
 
-//   if(fnSystem.spifix())
+//   if(fnSystem.hasbuffer())
 //   {
 //     // use different SPI than SDCARD
 //     ret = spi_bus_add_device(VSPI_HOST, &devcfg, &spi);
 //     assert(ret == ESP_OK);
 //     // connect peripheral to GPIO because RMT screwed it up
-//     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[VSPI_HOST].spid_out, false, false);
+//     esp_rom_gpio_connect_out_signal(SP_RDDATA, spi_periph_signal[VSPI_HOST].spid_out, false, false);
 //   }
 //   else
 //   {
@@ -598,8 +598,8 @@ void mac_ll::setup_gpio()
   // if (fnSystem.no3state())
   // {
   //   // set up the output pin as IO (like SPI does) and set to low, then to hi-z
-  //   fnSystem.set_pin_mode(SP_SPI_FIX_PIN, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-  //   fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
+  //   fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
+  //   fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
   //   disable_output();
   // }
 
@@ -616,8 +616,8 @@ void mac_ll::setup_gpio()
 
   if (!fnSystem.no3state())
   {
-    fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
-    fnSystem.digital_write(SP_RDDATA, DIGI_LOW); // Turn tristate buffer ON by default
+    fnSystem.set_pin_mode(SP_RD_BUFFER, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
+    fnSystem.digital_write(SP_RD_BUFFER, DIGI_LOW); // Turn tristate buffer ON by default
   }
 
 #ifdef EXTRA
@@ -775,9 +775,9 @@ void mac_ll::setup_gpio()
 
 // void iwm_sp_ll::set_output_to_spi()
 // {
-//   if(fnSystem.spifix())
+//   if(fnSystem.hasbuffer())
 //   {
-//     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, spi_periph_signal[VSPI_HOST].spid_out, false, false);
+//     esp_rom_gpio_connect_out_signal(SP_RDDATA, spi_periph_signal[VSPI_HOST].spid_out, false, false);
 //   }
 //   else
 //   {
@@ -787,10 +787,10 @@ void mac_ll::setup_gpio()
 
 // void iwm_diskii_ll::set_output_to_low()
 // {
-//   if(fnSystem.spifix())
+//   if(fnSystem.hasbuffer())
 //   {
-//     fnSystem.digital_write(SP_SPI_FIX_PIN, DIGI_LOW);
-//     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, SIG_GPIO_OUT_IDX, false, false);
+//     fnSystem.digital_write(SP_RDDATA, DIGI_LOW);
+//     esp_rom_gpio_connect_out_signal(SP_RDDATA, SIG_GPIO_OUT_IDX, false, false);
 //     enable_output();
 //   }
 // }
@@ -824,13 +824,13 @@ void mac_floppy_ll::stop()
 // void iwm_diskii_ll::set_output_to_rmt()
 // {
 // #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-//   if(fnSystem.spifix())
-//     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
+//   if(fnSystem.hasbuffer())
+//     esp_rom_gpio_connect_out_signal(SP_RDDATA, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
 //   else
 //     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
 // #else
-//   if(fnSystem.spifix())
-//     esp_rom_gpio_connect_out_signal(SP_SPI_FIX_PIN, rmt_periph_signals.channels[0].tx_sig, false, false);
+//   if(fnSystem.hasbuffer())
+//     esp_rom_gpio_connect_out_signal(SP_RDDATA, rmt_periph_signals.channels[0].tx_sig, false, false);
 //   else
 //     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
 // #endif
@@ -839,20 +839,20 @@ void mac_floppy_ll::stop()
 // void iwm_ll::enable_output()
 // {
 //   if(fnSystem.no3state())
-//     GPIO.enable_w1ts = ((uint32_t)0x01 << SP_SPI_FIX_PIN); // enable output
+//     GPIO.enable_w1ts = ((uint32_t)0x01 << SP_RDDATA); // enable output
 //   else
-//     GPIO.out_w1tc = ((uint32_t)1 << SP_RDDATA); //  enable the tri-state buffer activating RDDATA
+//     GPIO.out_w1tc = ((uint32_t)1 << SP_RD_BUFFER); //  enable the tri-state buffer activating RDDATA
 // }
 
 // void iwm_ll::disable_output()
 // {
 //   if(fnSystem.no3state())
 //   {
-//     GPIO.func_out_sel_cfg[SP_SPI_FIX_PIN].oen_sel = 1;     // let me control the enable register
-//     GPIO.enable_w1tc = ((uint32_t)0x01 << SP_SPI_FIX_PIN); // go hi-z with disabled output
+//     GPIO.func_out_sel_cfg[SP_RDDATA].oen_sel = 1;     // let me control the enable register
+//     GPIO.enable_w1tc = ((uint32_t)0x01 << SP_RDDATA); // go hi-z with disabled output
 //   }
 //   else
-//     GPIO.out_w1ts = ((uint32_t)1 << SP_RDDATA); // make RDDATA go hi-z through the tri-state
+//     GPIO.out_w1ts = ((uint32_t)1 << SP_RD_BUFFER); // make RDDATA go hi-z through the tri-state
 // }
 
 //Convert track data to rmt format data.
@@ -926,8 +926,8 @@ void mac_floppy_ll::setup_rmt()
 // #ifdef RMTTEST
 //   config.gpio_num = (gpio_num_t)SP_EXTRA;
 // #else
-//   if(fnSystem.spifix())
-//     config.gpio_num = (gpio_num_t)SP_SPI_FIX_PIN; 
+//   if(fnSystem.hasbuffer())
+//     config.gpio_num = (gpio_num_t)SP_RDDATA; 
 //   else
 //     config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; 
 // #endif
