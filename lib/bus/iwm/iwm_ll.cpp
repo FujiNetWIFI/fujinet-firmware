@@ -58,7 +58,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       c = IWM.command_packet.command & 0x0f;
       if (!error) // packet received ok and checksum good
       {
-        if (c == 0x05)
+        if (c == SP_CMD_INIT)
         {
           smartport.iwm_ack_clr();
           sp_command_mode = sp_cmd_state_t::command;
@@ -73,11 +73,9 @@ void IRAM_ATTR phi_isr_handler(void *arg)
               // look for CTRL command
               //  Debug_printf("\nhello from ISR - looking for control command!");
 
-              if ((c == 0x02) ||
-                  (c == 0x04) ||
-                  (c == 0x09) ||
-                  (c == 0x0a) ||
-                  (c == 0x0b))
+              if ((c == SP_CMD_WRITEBLOCK) ||
+                  (c == SP_CMD_CONTROL) ||
+                  (c == SP_CMD_WRITE))
               {
                 // Debug_printf("\nhello from ISR - control command!");
                 if (smartport.req_wait_for_falling_timeout(5500))
