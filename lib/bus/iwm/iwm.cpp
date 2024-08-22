@@ -461,7 +461,7 @@ void IRAM_ATTR iwmBus::service()
 
     // if /EN35 is high, we must be on a host that supports 3.5 dumb drives
     // lets sample it here in case the host is not on when the FN is powered on/reset
-    (GPIO.in1.val & (0x01 << (SP_EN35 - 32))) ? en35Host = true : en35Host = false;
+    IWM_BIT(SP_EN35) ? en35Host = true : en35Host = false;
     Debug_printf("\r\nen35Host = %d",en35Host);
 #endif /* !SLIP */
 
