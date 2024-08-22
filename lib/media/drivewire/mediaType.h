@@ -14,6 +14,7 @@ enum mediatype_t
 {
     MEDIATYPE_UNKNOWN = 0,
     MEDIATYPE_DSK,
+    MEDIATYPE_MRM,
     MEDIATYPE_COUNT
 };
 
@@ -62,6 +63,8 @@ public:
     virtual bool read(uint32_t blockNum, uint16_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
     virtual bool write(uint32_t blockNum, bool verify);
+
+    virtual void get_block_buffer(uint8_t **p_buffer, uint16_t *p_blk_size);
     
     virtual uint8_t status() = 0;
 

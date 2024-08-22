@@ -24,6 +24,9 @@ public:
 
     bool read(uint32_t sector, uint8_t *buf);
     bool write(uint32_t sector, uint8_t *buf);
+
+    void get_media_buffer(uint8_t **p_buffer, uint16_t *p_blk_size);
+    uint8_t get_media_status();
 };
 
 #endif

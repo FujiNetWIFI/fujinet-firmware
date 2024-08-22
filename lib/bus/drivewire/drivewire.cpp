@@ -111,6 +111,11 @@ void systemBus::op_readex()
     drivewireDisk *d = nullptr;
     uint16_t c1 = 0, c2 = 0;
 
+    uint8_t *blk_buffer = sector_data;
+    uint16_t blk_size = MEDIA_BLOCK_SIZE;
+
+    uint8_t rc = DISK_CTRL_STATUS_CLEAR;
+
     drive_num = fnDwCom.read();
 
     lsn = fnDwCom.read() << 16;
@@ -127,42 +132,68 @@ void systemBus::op_readex()
     if (!d)
     {
         Debug_printv("Invalid drive #%3u", drive_num);
-        fnDwCom.write(0xF6);
-        fnDwCom.flush();
-        fnDwCom.flush_input();
-        
-        return;
+        rc = 0xF6;
     }
 
-    if (!d->device_active)
+    if (rc == DISK_CTRL_STATUS_CLEAR && !d->device_active)
     {
         Debug_printv("Device not active.");
-        fnDwCom.write(0xF6);
-        fnDwCom.flush();
-        fnDwCom.flush_input();
-        return;
+        rc = 0xF6;
     }
 
-    if (d->read(lsn, sector_data))
+    if (rc == DISK_CTRL_STATUS_CLEAR)
     {
-        Debug_printf("Read error\n");
-        fnDwCom.write(0xF4);
-        fnDwCom.flush();
-        fnDwCom.flush_input();
-        return;
+        bool use_media_buffer = true;
+        d->get_media_buffer(&blk_buffer, &blk_size);
+        if (blk_buffer == nullptr || blk_size == 0)
+        {
+            // no media buffer, use "bus buffer" with default block size
+            blk_buffer = sector_data;
+            blk_size = MEDIA_BLOCK_SIZE;
+            use_media_buffer = false;
+        }
+
+        if (d->read(lsn, use_media_buffer ? nullptr : sector_data))
+        {
+            if (d->get_media_status() == 2)
+            {
+                Debug_printf("EOF\n");
+                rc = 211;
+            }
+            else
+            {
+                Debug_printf("Read error\n");
+                rc = 0xF4;
+            }
+        }
     }
 
-    fnDwCom.write(sector_data, MEDIA_BLOCK_SIZE);
+    // send zeros on error
+    if (rc != DISK_CTRL_STATUS_CLEAR)
+        memset(blk_buffer, 0x00, blk_size);
 
+    // send sector data
+    fnDwCom.write(blk_buffer, blk_size);
+
+    // receive checksum
     c1 = (fnDwCom.read()) << 8;
     c1 |= fnDwCom.read();
 
-    c2 = drivewire_checksum(sector_data, MEDIA_BLOCK_SIZE);
+    // test checksum
+    if (rc == DISK_CTRL_STATUS_CLEAR)
+    {
+        c2 = drivewire_checksum(blk_buffer, blk_size);
 
-    if (c1 != c2)
-        fnDwCom.write(243);
-    else
-        fnDwCom.write(0x00);
+        if (c1 != c2)
+        {
+            Debug_printf("Checksum error: expected %d, got %d\n", c2, c1);
+            rc = 243;
+        }
+    }
+
+    // finally, send the transaction status
+    fnDwCom.write(rc);
+    fnDwCom.flush();
 }
 
 void systemBus::op_write()
