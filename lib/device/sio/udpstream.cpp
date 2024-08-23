@@ -102,18 +102,21 @@ void sioUDPStream::sio_handle_udpstream()
         udpStream.read(buf_net, UDPSTREAM_BUFFER_SIZE);
         // Send to Atari UART
         FN_BUS_LINK.write(buf_net, packetSize);
-    if (udpstreamIsServer)
-    {
-        // Reset the timer
-        start = (uint32_t)esp_timer_get_time();
-    }
+#ifdef ESP_PLATFORM
+        if (udpstreamIsServer)
+        {
+            // Reset the timer
+            start = (uint32_t)esp_timer_get_time();
+        }
+#endif
 #ifdef DEBUG_UDPSTREAM
         Debug_print("UDP-IN: ");
         util_dump_bytes(buf_net, packetSize);
 #endif
     }
 
- /*   // Send a fake keep alive packet if it's taking too long
+#ifdef ESP_PLATFORM
+/*   // Send a fake keep alive packet if it's taking too long. This isn't working
     if ((uint32_t)esp_timer_get_time() - start >= UDPSTREAM_KEEPALIVE_TIMEOUT
         && fnSystem.digital_read(PIN_MTR) == DIGI_HIGH) // only if MTR line is on
     {
@@ -122,6 +125,7 @@ void sioUDPStream::sio_handle_udpstream()
         start = (uint32_t)esp_timer_get_time();
     }
 */
+#endif
 
     // Read the data until there's a pause in the incoming stream
     if (FN_BUS_LINK.available() > 0)

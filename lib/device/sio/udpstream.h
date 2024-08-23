@@ -37,9 +37,9 @@ private:
     uint8_t buf_stream_index=0;
 
     uint16_t packet_seq = 0;
-
+#ifdef ESP_PLATFORM
     uint32_t start = (uint32_t)esp_timer_get_time(); // Keep alive timer
-
+#endif
     void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
 
