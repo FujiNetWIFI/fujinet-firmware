@@ -507,6 +507,7 @@ static void smb2_set_password_from_file(struct smb2_context *smb2)
                         switch (buf[strlen(buf) - 1]) {
                         case '\n':
                                 buf[strlen(buf) - 1] = 0;
+                                [[fallthrough]];
                         default:
                                 finished = 1;
                         }

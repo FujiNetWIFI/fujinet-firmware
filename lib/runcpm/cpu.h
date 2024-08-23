@@ -3144,6 +3144,7 @@ static inline void Z80run(void) {
 
 			case 0x94:      /* SUB IXH */
 				SETFLAG(C, 0);/* fall through, a bit less efficient but smaller code */
+				[[fallthrough]];
 
 			case 0x9c:      /* SBC A,IXH */
 				temp = HIGH_REGISTER(IX);
@@ -3154,6 +3155,7 @@ static inline void Z80run(void) {
 
 			case 0x95:      /* SUB IXL */
 				SETFLAG(C, 0);/* fall through, a bit less efficient but smaller code */
+				[[fallthrough]];
 
 			case 0x9d:      /* SBC A,IXL */
 				temp = LOW_REGISTER(IX);
@@ -4391,6 +4393,7 @@ static inline void Z80run(void) {
 
 			case 0x94:      /* SUB IYH */
 				SETFLAG(C, 0);/* fall through, a bit less efficient but smaller code */
+				[[fallthrough]];
 
 			case 0x9c:      /* SBC A,IYH */
 				temp = HIGH_REGISTER(IY);
@@ -4401,6 +4404,7 @@ static inline void Z80run(void) {
 
 			case 0x95:      /* SUB IYL */
 				SETFLAG(C, 0);/* fall through, a bit less efficient but smaller code */
+				[[fallthrough]];
 
 			case 0x9d:      /* SBC A,IYL */
 				temp = LOW_REGISTER(IY);

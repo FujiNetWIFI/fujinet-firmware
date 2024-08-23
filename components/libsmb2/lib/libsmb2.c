@@ -1169,6 +1169,7 @@ smb2_open_async(struct smb2_context *smb2, const char *path, int flags,
                                 SMB2_FILE_WRITE_ATTRIBUTES;
                         if ((flags & O_ACCMODE) == O_WRONLY)
                                 break;
+                        [[fallthrough]];
                 case O_RDONLY:
                         desired_access |= SMB2_FILE_READ_DATA |
                                 SMB2_FILE_READ_EA |
