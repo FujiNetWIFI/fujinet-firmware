@@ -34,7 +34,6 @@
 #include "soc/rmt_struct.h"
 #include "hal/rmt_types.h"
 #include "driver/periph_ctrl.h"
-#include "driver/rmt.h"
 #include "rom/gpio.h"
 #include "fnRMTstream.h"
 
@@ -352,14 +351,14 @@ rmt_data_mode_t rmtStream::rmt_get_data_mode()
 void rmtStream::rmt_set_intr_enable_mask(uint32_t mask)
 {
     portENTER_CRITICAL(&rmt_spinlock);
-    RMT.int_ena.val |= mask;
+    RMT.int_ena.val = RMT.int_ena.val | mask;
     portEXIT_CRITICAL(&rmt_spinlock);
 }
 
 void rmtStream::rmt_clr_intr_enable_mask(uint32_t mask)
 {
     portENTER_CRITICAL(&rmt_spinlock);
-    RMT.int_ena.val &= (~mask);
+    RMT.int_ena.val = RMT.int_ena.val & (~mask);
     portEXIT_CRITICAL(&rmt_spinlock);
 }
 
@@ -645,7 +644,7 @@ esp_err_t rmtStream::rmt_isr_deregister(rmt_isr_handle_t handle)
                     case 2:
                         ESP_EARLY_LOGE(RMT_TAG, "RMT[%d] ERR", channel);
                         ESP_EARLY_LOGE(RMT_TAG, "status: 0x%08x", RMT.status_ch[channel]);
-                        RMT.int_ena.val &= (~(BIT(i)));
+                        RMT.int_ena.val = RMT.int_ena.val & (~(BIT(i)));
                         break;
                     default:
                         break;
