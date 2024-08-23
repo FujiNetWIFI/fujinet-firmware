@@ -120,11 +120,11 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // add extra condition here to stop edge case where on softsp, the disk is stepping inadvertantly when SP bus is
   // disabled. PH1 gets set low first, then PH3 follows a very short time after. We look for the interrupt on PH1 (33)
   // and then PH1 = 0 (going low) and PH3 = 1 (still high)
-  else if ((diskii_xface.iwm_enable_states() & 0b11) && !((int_gpio_num == 33 && _phases == 0b1000)))
+  else if ((diskii_xface.iwm_enable_states() & 0b11) && !((int_gpio_num == SP_PHI1 && _phases == 0b1000)))
   {
     if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
     {
-      isrctr++;
+      isrctr = isrctr + 1;
       theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(isrctr);
     }
   }
@@ -535,6 +535,10 @@ void iwm_sp_ll::setup_spi()
     .sclk_io_num = -1,
     .quadwp_io_num = -1,
     .quadhd_io_num = -1,
+    .data4_io_num = -1,
+    .data5_io_num = -1,
+    .data6_io_num = -1,
+    .data7_io_num = -1,
     .max_transfer_sz = TRACK_LEN, // SPI_II_LEN,
     .flags = SPICOMMON_BUSFLAG_MASTER,
     .intr_flags = 0
@@ -544,6 +548,9 @@ void iwm_sp_ll::setup_spi()
   assert(ret == ESP_OK);
 
   spi_device_interface_config_t rxcfg = {
+    .command_bits = 0,
+    .address_bits = 0,
+    .dummy_bits = 0,
     .mode = 0,                      // SPI mode 0
     .duty_cycle_pos = 0,            ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
     .cs_ena_pretrans = 0,
@@ -552,7 +559,9 @@ void iwm_sp_ll::setup_spi()
     .input_delay_ns = 0,
     .spics_io_num = -1,             // CS pin
     .flags = SPI_DEVICE_HALFDUPLEX,
-    .queue_size = 1                 // We want to be able to queue 7 transactions at a time
+    .queue_size = 1,                // We want to be able to queue 7 transactions at a time
+    .pre_cb = 0,
+    .post_cb = 0,
   };
 
   ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
@@ -560,6 +569,9 @@ void iwm_sp_ll::setup_spi()
 
 
   spi_device_interface_config_t devcfg = {
+    .command_bits = 0,
+    .address_bits = 0,
+    .dummy_bits = 0,
     .mode = 0,                   // SPI mode 0
     .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
     .cs_ena_pretrans = 0,        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
@@ -567,7 +579,10 @@ void iwm_sp_ll::setup_spi()
     .clock_speed_hz = 1 * MHZ, // Clock out at 1 MHz
     .input_delay_ns = 0,
     .spics_io_num = -1,                // CS pin
-    .queue_size = 2                    // We want to be able to queue 7 transactions at a time
+    .flags = 0,
+    .queue_size = 2,                   // We want to be able to queue 7 transactions at a time
+    .pre_cb = 0,
+    .post_cb = 0,
   };
 
   if(fnSystem.hasbuffer())
