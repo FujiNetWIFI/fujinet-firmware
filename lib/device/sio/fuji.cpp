@@ -17,7 +17,9 @@
 #include "compat_string.h"
 
 #include "../../../include/debug.h"
+#ifdef ESP_PLATFORM
 #include "../../../include/PSRAMAllocator.h"
+#endif
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -131,7 +133,11 @@ sioFuji::sioFuji()
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
     {
+#ifdef ESP_PLATFORM
         void *p = heap_caps_malloc(sizeof(sioNetwork), MALLOC_CAP_DEFAULT);
+#else
+        void *p = malloc(sizeof(sioNetwork));
+#endif
         sioNetDevs[i] = new(p) sioNetwork();
     }
 }
