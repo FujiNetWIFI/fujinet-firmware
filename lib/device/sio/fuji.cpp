@@ -138,6 +138,9 @@ sioFuji::sioFuji()
 #else
         void *p = malloc(sizeof(sioNetwork));
 #endif
+        if (p == nullptr)
+            Debug_printf("sioFuji::sioFuji - Unable to allocate memory.\n");
+
         sioNetDevs[i] = new(p) sioNetwork();
     }
 }
@@ -147,7 +150,15 @@ sioFuji::~sioFuji()
     for (int i=0; i < MAX_NETWORK_DEVICES; i++)
     {
         if (sioNetDevs[i] != nullptr)
-            delete sioNetDevs[i];
+        {
+            sioNetDevs[i]->~sioNetwork(); // call destructor
+#ifdef ESP_PLATFORM
+            heap_caps_free(sioNetDevs[i]);
+#else
+            free(sioNetDevs[i]);
+#endif
+            sioNetDevs[i] = nullptr;
+        }
     }
 }
 
