@@ -108,24 +108,42 @@ jobs:
     - name: Fetch tags
       run: git fetch --prune --unshallow --tags
 
-    - name: Install Python
+    - name: 'Install Python'
+      # if: ${{ !startsWith(matrix.os.target, 'windows') }}
       uses: actions/setup-python@v5
       id: cp310
       with:
         python-version: '3.10'
 
-    - name: Check Python version
+    - name: Check Python version (default)
       run: |
         which python
         python --version
+        printenv PATH
+        printenv pythonLocation
+
+    - name: Check Python version (from setup-python)
+      run: |
         echo '${{ steps.cp310.outputs.python-path }}'
         '${{ steps.cp310.outputs.python-path }}' --version
-  
-    - name: Install Python packages
-      run: pip install -U Jinja2 pyyaml
-  
-    - name: '🚧 Build FujiNet-PC (matrix.fujinet_target)'
-      run: ./build.sh -p ${{ matrix.fujinet_target }}
+
+    - name: 'Install Python packages'
+      run: |
+        '${{ steps.cp310.outputs.python-path }}' -m pip install -U Jinja2 pyyaml
+
+    - name: '[regular OS] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
+      if: ${{ !startsWith(matrix.os.target, 'windows') }}
+      run: |
+        ./build.sh -p ${{ matrix.fujinet_target }}
+
+    # For MSYS tune PATH variable for PYTHON:
+    # add 'C:\hostedtoolcache\windows\Python\3.10.11\x64' as '/c/hostedtoolcache/windows/Python/3.10.11/x64'
+    - name: '[Windows MSYS2] 🚧 Build FujiNet-PC (matrix.fujinet_target)'
+      if: ${{ startsWith(matrix.os.target, 'windows') }}
+      run: |
+        export PATH=$(printenv pythonLocation | sed 's@\\@/@g' | sed 's@^c:/@/c/@i'):$PATH
+        printenv PATH
+        ./build.sh -p ${{ matrix.fujinet_target }}
 
     # - name: Configure CMake
     #   #run: cmake -B build -DFUJINET_TARGET=${{matrix.fujinet_target}} -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
