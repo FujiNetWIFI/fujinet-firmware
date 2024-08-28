@@ -661,6 +661,11 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
         {
             fujiDisk *disk = theFuji.get_disks(ds);
             fujiHost *host = theFuji.get_hosts(hs);
+#ifdef BUILD_APPLE
+            DEVICE_TYPE *disk_dev = theFuji.get_disk_dev(ds);
+#else
+	    DEVICE_TYPE *disk_dev = &disk->disk_dev;
+#endif
 
             disk->fileh = host->fnfile_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
 
@@ -677,14 +682,14 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 #endif
                 strcpy(disk->filename,qp.query_parsed["filename"].c_str());
                 disk->disk_size = host->file_size(disk->fileh);
-                disk->disk_type = disk->disk_dev.mount(disk->fileh, disk->filename, disk->disk_size);
+                disk->disk_type = disk_dev->mount(disk->fileh, disk->filename, disk->disk_size);
                 #ifdef BUILD_APPLE
-                if(mode == fnConfig::mount_modes::MOUNTMODE_WRITE) {disk->disk_dev.readonly = false;}
+                if(mode == fnConfig::mount_modes::MOUNTMODE_WRITE) {disk_dev->readonly = false;}
                 #endif
                 Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
                 Config.save();
                 theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
-                disk->disk_dev.device_active = true;
+                disk_dev->device_active = true;
             }
         }
         else
@@ -728,11 +733,14 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     {
         fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
     }
-    #ifdef BUILD_APPLE
-    if(theFuji.get_disks(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted. 
-        theFuji.get_disks(ds)->disk_dev.switched = true;
-    #endif
-    theFuji.get_disks(ds)->disk_dev.unmount();
+#ifdef BUILD_APPLE
+    DEVICE_TYPE *disk_dev = theFuji.get_disk_dev(ds);
+    if(disk_dev->device_active) //set disk switched only if device was previosly mounted.
+        disk_dev->switched = true;
+#else
+    DEVICE_TYPE *disk_dev = &theFuji.get_disks(ds)->disk_dev;
+#endif
+    disk_dev->unmount();
 #ifdef BUILD_ATARI
     if (theFuji.get_disks(ds)->disk_type == MEDIATYPE_CAS || theFuji.get_disks(ds)->disk_type == MEDIATYPE_WAV)
     {
@@ -744,7 +752,7 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     Config.clear_mount(ds);
     Config.save();
     theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
-    theFuji.get_disks(ds)->disk_dev.device_active = false;
+    disk_dev->device_active = false;
 
     // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
     if (Config.get_general_config_enabled())

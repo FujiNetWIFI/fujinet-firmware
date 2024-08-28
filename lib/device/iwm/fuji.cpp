@@ -356,10 +356,11 @@ uint8_t iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 	// A couple of reference variables to make things much easier to read...
 	fujiDisk &disk = _fnDisks[deviceSlot];
 	fujiHost &host = _fnHosts[disk.host_slot];
+	DEVICE_TYPE *disk_dev = get_disk_dev(deviceSlot);
 
 	Debug_printf("\r\nSelecting '%s' from host #%u as %s on D%u:\n", disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-	disk.disk_dev.host = &host;
+	disk_dev->host = &host;
 	disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
 	if (disk.fileh == nullptr)
@@ -378,11 +379,11 @@ uint8_t iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 	// mediatype_t mt = MediaType::discover_mediatype(disk.filename);
 	// if (mt == mediatype_t::MEDIATYPE_PO)
 	// { // And now mount it
-	disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+	disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
 
 	if (options == DISK_ACCESS_MODE_WRITE)
 	{
-		disk.disk_dev.readonly = false;
+		disk_dev->readonly = false;
 	}
 
 	return SP_ERR_NOERROR;
@@ -398,7 +399,7 @@ void iwmFuji::iwm_ctrl_set_boot_config() // SP CTRL command
 		fujiDisk &disk = _fnDisks[0];
 		if (disk.host_slot == INVALID_HOST_SLOT)
 		{
-			_fnDisks[0].disk_dev.unmount();
+			get_disk_dev(0)->unmount();
 			_fnDisks[0].reset();
 		}
 	}
@@ -464,6 +465,7 @@ bool iwmFuji::mount_all()
 	{
 		fujiDisk &disk = _fnDisks[i];
 		fujiHost &host = _fnHosts[disk.host_slot];
+		DEVICE_TYPE *disk_dev = get_disk_dev(i);
 		char flag[4] = {'r', 'b', 0, 0};
 		if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
 			flag[2] = '+';
@@ -493,10 +495,10 @@ bool iwmFuji::mount_all()
 			disk.disk_size = host.file_size(disk.fileh);
 
 			// And now mount it
-			disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
+			disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
 			if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
 			{
-				disk.disk_dev.readonly = false;
+				disk_dev->readonly = false;
 			}
 		}
 	}
@@ -615,9 +617,10 @@ void iwmFuji::debug_tape() {}
 void iwmFuji::iwm_ctrl_disk_image_umount()
 {
 	unsigned char ds = data_buffer[0]; // adamnet_recv();
-	if (_fnDisks[ds].disk_dev.device_active)
-		_fnDisks[ds].disk_dev.switched = true;
-	_fnDisks[ds].disk_dev.unmount();
+	DEVICE_TYPE *disk_dev = get_disk_dev(ds);
+	if (disk_dev->device_active)
+		disk_dev->switched = true;
+	disk_dev->unmount();
 	_fnDisks[ds].reset();
 }
 
@@ -642,17 +645,17 @@ void iwmFuji::image_rotate()
 		count--;
 
 		// Save the device ID of the disk in the last slot
-		int last_id = _fnDisks[count].disk_dev.id();
+		int last_id = get_disk_dev(count)->id();
 
 		for (int n = count; n > 0; n--)
 		{
-			int swap = _fnDisks[n - 1].disk_dev.id();
+			int swap = get_disk_dev(n - 1)->id();
 			Debug_printf("setting slot %d to ID %hx\n", n, swap);
-			_iwm_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap); // to do!
+			_iwm_bus->changeDeviceId(get_disk_dev(n), swap); // to do!
 		}
 
 		// The first slot gets the device ID of the last slot
-		_iwm_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+		_iwm_bus->changeDeviceId(get_disk_dev(0), last_id);
 	}
 }
 
@@ -660,7 +663,7 @@ void iwmFuji::image_rotate()
 void iwmFuji::shutdown()
 {
 	for (int i = 0; i < MAX_DISK_DEVICES; i++)
-		_fnDisks[i].disk_dev.unmount();
+		get_disk_dev(i)->unmount();
 }
 
 uint8_t iwmFuji::iwm_ctrl_open_directory()
@@ -995,8 +998,9 @@ void iwmFuji::iwm_ctrl_new_disk()
 
 	Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
-	disk.disk_dev.blank_header_type = t;
-	disk.disk_dev.write_blank(disk.fileh, numBlocks);
+	DEVICE_TYPE *disk_dev = get_disk_dev(ds);
+	disk_dev->blank_header_type = t;
+	disk_dev->write_blank(disk.fileh, numBlocks);
 
 	fnio::fclose(disk.fileh);
 }
@@ -1231,12 +1235,12 @@ void iwmFuji::insert_boot_device(uint8_t d)
 	{
 	case 0:
 		fBoot = fsFlash.fnfile_open(config_atr);
-		_fnDisks[0].disk_dev.mount(fBoot, config_atr, 143360, MEDIATYPE_PO);
+		get_disk_dev(0)->mount(fBoot, config_atr, 143360, MEDIATYPE_PO);
 		break;
 	case 1:
 
 		fBoot = fsFlash.fnfile_open(mount_all_atr);
-		_fnDisks[0].disk_dev.mount(fBoot, mount_all_atr, 143360, MEDIATYPE_PO);
+		get_disk_dev(0)->mount(fBoot, mount_all_atr, 143360, MEDIATYPE_PO);
 		break;
 	}
 #else
@@ -1267,8 +1271,9 @@ void iwmFuji::insert_boot_device(uint8_t d)
 	_fnDisks[0].disk_dev.mount(fBoot, boot_img, 143360, MEDIATYPE_PO);
 #endif
 
-	_fnDisks[0].disk_dev.is_config_device = true;
-	_fnDisks[0].disk_dev.device_active = true;
+	DEVICE_TYPE *disk_dev = get_disk_dev(0);
+	disk_dev->is_config_device = true;
+	disk_dev->device_active = true;
 }
 
 void iwmFuji::iwm_ctrl_enable_device()
@@ -1312,10 +1317,11 @@ void iwmFuji::setup(iwmBus *iwmbus)
 	theCPM = new iwmCPM();
 	_iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
 
-	for (int i = MAX_DISK_DEVICES - MAX_DISK2_DEVICES - 1; i >= 0; i--)
+	for (int i = MAX_SP_DEVICES - 1; i >= 0; i--)
 	{
-		_fnDisks[i].disk_dev.set_disk_number('0' + i);
-		_iwm_bus->addDevice(&_fnDisks[i].disk_dev, iwm_fujinet_type_t::BlockDisk);
+		DEVICE_TYPE *disk_dev = get_disk_dev(i);
+		disk_dev->set_disk_number('0' + i);
+		_iwm_bus->addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
 	}
 
 	Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
@@ -1323,12 +1329,12 @@ void iwmFuji::setup(iwmBus *iwmbus)
 	if (Config.get_general_boot_mode() == 0)
 	{
 		fnFile *f = fsFlash.fnfile_open("/autorun.po");
-		_fnDisks[0].disk_dev.mount(f, "/autorun.po", 140 * 1024, MEDIATYPE_PO);
+		get_disk_dev(0)->mount(f, "/autorun.po", 140 * 1024, MEDIATYPE_PO);
 	}
 	else
 	{
 		fnFile *f = fsFlash.fnfile_open("/mount-and-boot.po");
-		_fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 140 * 1024, MEDIATYPE_PO);
+		get_disk_dev(0)->mount(f, "/mount-and-boot.po", 140 * 1024, MEDIATYPE_PO);
 	}
 #else
 	insert_boot_device(Config.get_general_boot_mode());
@@ -1456,7 +1462,7 @@ void iwmFuji::handle_ctl_eject(uint8_t spid)
 	int ds = 255;
 	for (int i = 0; i < MAX_DISK_DEVICES; i++)
 	{
-		if (theFuji.get_disks(i)->disk_dev.id() == spid)
+		if (theFuji.get_disk_dev(i)->id() == spid)
 		{
 			ds = i;
 		}
