@@ -546,12 +546,12 @@ void IRAM_ATTR iwmBus::service()
     break;
   case iwm_enable_state_t::off2on:
     // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
+    if (IWM_ACTIVE_DISK2->device_active)
     {
       fnSystem.delay(1); // need a better way to figure out persistence
       if (iwm_drive_enabled() == iwm_enable_state_t::on)
       {
-        theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(0); // copy current track in for this drive
+        IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
         diskii_xface.start(diskii_xface.iwm_enable_states() - 1); // start it up
       }
     } // make a call to start the RMT stream
@@ -564,7 +564,7 @@ void IRAM_ATTR iwmBus::service()
     return; // return so the SP code doesn't get checked
   case iwm_enable_state_t::on:
 #ifdef DEBUG
-    new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
+    new_track = IWM_ACTIVE_DISK2->get_track_pos();
     if (old_track != new_track)
     {
       Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());

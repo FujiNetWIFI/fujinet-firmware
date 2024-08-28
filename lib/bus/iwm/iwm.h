@@ -340,5 +340,6 @@ public:
 
 extern iwmBus IWM;
 
+#define IWM_ACTIVE_DISK2 ((iwmDisk2 *) theFuji.get_disk_dev(MAX_SP_DEVICES + diskii_xface.iwm_enable_states() - 1))
 #endif // guard
 #endif /* BUILD_APPLE */
