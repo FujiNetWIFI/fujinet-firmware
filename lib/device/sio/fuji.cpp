@@ -2278,6 +2278,12 @@ void sioFuji::sio_base64_encode_output()
     bus_to_computer(p.data(), len, false);
 }
 
+void sioFuji::sio_random_number()
+{
+    int r = rand();
+    bus_to_computer((uint8_t *)&r,sizeof(int),true);
+}
+
 void sioFuji::sio_base64_decode_input()
 {
     uint16_t len = sio_get_aux();
@@ -2651,6 +2657,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_HASH_CLEAR:
         sio_ack();
         sio_hash_clear();
+        break;
+    case FUJICMD_RANDOM_NUMBER:
+        sio_ack();
+        sio_random_number();
         break;
     default:
         sio_nak();
