@@ -162,6 +162,7 @@ protected:
     void sio_set_boot_config();        // 0xD9
     void sio_copy_file();              // 0xD8
     void sio_set_boot_mode();          // 0xD6
+    void sio_random_number();          // 0xD3
     void sio_base64_encode_input();    // 0xD0
     void sio_base64_encode_compute();  // 0xCF
     void sio_base64_encode_length();   // 0xCE
