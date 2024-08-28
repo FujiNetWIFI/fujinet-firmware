@@ -26,6 +26,7 @@
 #define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
 #define MAX_NETWORK_DEVICES 4
+#define MAX_SP_DEVICES (MAX_DISK_DEVICES - MAX_DISK2_DEVICES)
 
 #define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
@@ -113,6 +114,9 @@ private:
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
+#ifndef DEV_RELAY_SLIP
+    iwmDisk2 _fnDisk2s[MAX_DISK2_DEVICES];
+#endif
 
     iwmNetwork *theNetwork;
 
@@ -253,9 +257,11 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
-#ifndef DEV_RELAY_SLIP
-    iwmDisk2 _fnDisk2s[MAX_DISK2_DEVICES];
-#endif
+    DEVICE_TYPE *get_disk_dev(int i) {
+      return i < MAX_SP_DEVICES
+	? (DEVICE_TYPE *) &_fnDisks[i].disk_dev
+	: (DEVICE_TYPE *) &_fnDisk2s[i - MAX_SP_DEVICES];
+    }
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();

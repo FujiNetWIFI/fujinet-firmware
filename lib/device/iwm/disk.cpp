@@ -445,7 +445,7 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
       mt = MediaType::discover_dsk_mediatype(f, disksize);
   }
 
-  if (deviceSlot < 4) // SP drive
+  if (deviceSlot < MAX_SP_DEVICES) // SP drive
   {    
     switch (mt)
     {
@@ -487,8 +487,11 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
       case MEDIATYPE_DO:
       case MEDIATYPE_PO:
       case MEDIATYPE_WOZ:
-          theFuji._fnDisk2s[deviceSlot - 4].init();
-          mt = theFuji._fnDisk2s[deviceSlot - 4].mount(f, disksize, mt);
+	{
+          iwmDisk2 *dev = (iwmDisk2 *) theFuji.get_disk_dev(deviceSlot);
+          dev->init();
+          mt = dev->mount(f, disksize, mt);
+	}
       break;
     default:
         Debug_printf("\r\nUnsupported Media Type for DiskII");

@@ -122,10 +122,10 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // and then PH1 = 0 (going low) and PH3 = 1 (still high)
   else if ((diskii_xface.iwm_enable_states() & 0b11) && !((int_gpio_num == SP_PHI1 && _phases == 0b1000)))
   {
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].move_head())
+    if (IWM_ACTIVE_DISK2->move_head())
     {
       isrctr = isrctr + 1;
-      theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].change_track(isrctr);
+      IWM_ACTIVE_DISK2->change_track(isrctr);
     }
   }
 }

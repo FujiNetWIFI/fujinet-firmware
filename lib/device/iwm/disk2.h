@@ -2,10 +2,10 @@
 #ifndef DISK2_H
 #define DISK2_H
 
-#include "bus.h"
+#include "disk.h"
 #include "../media/media.h"
 
-class iwmDisk2 : public iwmDevice
+class iwmDisk2 : public iwmDisk
 {
 
 protected:
@@ -52,7 +52,6 @@ public:
     bool isDrive2Enabled() { return enabledD2; };
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
-    mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
 
     ~iwmDisk2();
 };
