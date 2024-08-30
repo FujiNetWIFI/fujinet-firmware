@@ -53,20 +53,18 @@ void IECProtocol::timer_stop()
 
 int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
 {
-    portDISABLE_INTERRUPTS();
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     uint64_t start = esp_timer_get_time();
     uint64_t current = 0;
     timer_start( wait_us );
     while ( !timer_timedout )
     {
-        IEC.pull ( PIN_IEC_SRQ );
+        //IEC.pull ( PIN_IEC_SRQ );
         if ( IEC.status ( pin ) == target_status )
         {
             timer_stop();
             current = esp_timer_get_time();
-            IEC.release ( PIN_IEC_SRQ );
-            portENABLE_INTERRUPTS();
+            //IEC.release ( PIN_IEC_SRQ );
             return ( current - start );
         }
         usleep( 2 );
@@ -74,16 +72,14 @@ int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us
         {
             if ( IEC.status ( PIN_IEC_ATN ) )
             {
-                IEC.release ( PIN_IEC_SRQ );
-                portENABLE_INTERRUPTS();
+                //IEC.release ( PIN_IEC_SRQ );
                 return -1;
             }
         }
-        IEC.release ( PIN_IEC_SRQ );
+        //IEC.release ( PIN_IEC_SRQ );
         usleep( 2 );
     }
 //    IEC.release ( PIN_IEC_SRQ );
-    portENABLE_INTERRUPTS();
     return wait_us;
 }
 
