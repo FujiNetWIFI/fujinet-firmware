@@ -33,9 +33,8 @@ using namespace Protocol;
  */
 static void onSendBits(void *arg)
 {
-    IECProtocol *p = (CPBStandardSerial *)arg;
+//    IECProtocol *p = (CPBStandardSerial *)arg;
 
-    //portDISABLE_INTERRUPTS();
     uint8_t Tv = TIMING_Tv64; // C64 data valid timing
 
     // We can send faster if in VIC20 Mode
@@ -54,13 +53,13 @@ static void onSendBits(void *arg)
         usleep ( TIMING_Ts1 );
 
         // tell listener bit is ready to read
-        //IEC.pull ( PIN_IEC_SRQ );
+        IEC.pull ( PIN_IEC_SRQ );
         IEC.release ( PIN_IEC_CLK_OUT );
         usleep ( Tv );
 
         // tell listener to wait for next bit
         IEC.pull ( PIN_IEC_CLK_OUT );
-        //IEC.release ( PIN_IEC_SRQ );
+        IEC.release ( PIN_IEC_SRQ );
         IEC.bit++;
     }
     IEC.bit++;
@@ -107,12 +106,22 @@ uint8_t CPBStandardSerial::receiveByte()
 
     // Wait for talker ready
     //IEC.pull ( PIN_IEC_SRQ );
-    if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER ) == TIMED_OUT )
-    {
-        Debug_printv ( "Wait for talker ready" );
-        IEC.flags |= ERROR;
-        return 0; // return error because timeout
-    }
+    // if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER, false ) == TIMED_OUT )
+    // {
+    //     Debug_printv ( "Wait for talker ready" );
+    //     IEC.flags |= ERROR;
+    //     return 0; // return error because timeout
+    // }
+    //timer_start( FOREVER );
+    while ( IEC.status ( PIN_IEC_CLK_IN ) != RELEASED );
+    // {
+    //     if ( timer_timedout )
+    //     {
+    //         Debug_printv ( "Wait for talker ready" );
+    //         IEC.flags |= ERROR;
+    //         return 0; // return error because timeout
+    //     }
+    // }
     //IEC.release ( PIN_IEC_SRQ );
 
     // Say we're ready
@@ -123,12 +132,13 @@ uint8_t CPBStandardSerial::receiveByte()
     // to  accept  data.  What  happens  next  is  variable.
 
     // Wait for all other devices to release the data line
-    if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
-    {
-        Debug_printv ( "Wait for all other devices to release the data line" );
-        IEC.flags |= ERROR;
-        return 0; // return error because timeout
-    }
+    IEC.release ( PIN_IEC_DATA_IN );
+    // if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
+    // {
+    //     Debug_printv ( "Wait for all other devices to release the data line" );
+    //     IEC.flags |= ERROR;
+    //     return 0; // return error because timeout
+    // }
 
     // Either  the  talker  will pull the
     // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
@@ -136,7 +146,9 @@ uint8_t CPBStandardSerial::receiveByte()
     // without  the Clock line going to true, it has a special task to perform: note EOI.
 
     //IEC.pull ( PIN_IEC_SRQ );
-    if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMING_Tye, false ) == TIMING_Tye )
+    //if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMING_Tye, false ) == TIMING_Tye )
+    timer_start( TIMING_Tye );
+    while ( IEC.status ( PIN_IEC_CLK_IN ) != PULLED )
     {
         // INTERMISSION: EOI
         // If the Ready for Data signal isn't acknowledged by the talker within 200 microseconds, the
@@ -152,21 +164,22 @@ uint8_t CPBStandardSerial::receiveByte()
         // line  is  true  whether  or  not  we have gone through the EOI sequence; we're back to a common
         // transmission sequence.
 
-        IEC.flags |= EOI_RECVD;
+        IEC.pull ( PIN_IEC_SRQ );
 
-        // Acknowledge by pull down data more than 60us
-        wait ( TIMING_Th );
-        IEC.pull ( PIN_IEC_DATA_OUT );
-        wait ( TIMING_Tei );
-        IEC.release ( PIN_IEC_DATA_OUT );
-
-        // wait for talker to pull clock line
-        if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, FOREVER ) == TIMED_OUT )
+        if ( timer_timedout )
         {
-            Debug_printv ( "Wait for talker after EOI" );
-            IEC.flags |= ERROR;
-            return 0; // return error because timeout
+            timer_timedout = false;
+            IEC.flags |= EOI_RECVD;
+
+            // Acknowledge by pull down data more than 60us
+            wait ( TIMING_Th );
+            IEC.pull ( PIN_IEC_DATA_OUT );
+            wait ( TIMING_Tei );
+            IEC.release ( PIN_IEC_DATA_OUT );
         }
+        usleep( 2 );
+        IEC.release ( PIN_IEC_SRQ );
+        usleep( 2 );
     }
     //IEC.release ( PIN_IEC_SRQ );
 
@@ -231,7 +244,7 @@ uint8_t CPBStandardSerial::receiveBits ()
             return 0;
         }
 
-        usleep( 10 );
+        usleep( 2 );
     }
 
     // If there is a 218us delay before bit 7, the controller uses JiffyDOS
@@ -257,7 +270,7 @@ uint8_t CPBStandardSerial::receiveBits ()
             timer_timedout = false;
         }
 
-        usleep( 10 );
+        usleep( 2 );
     }
 
     return IEC.byte;

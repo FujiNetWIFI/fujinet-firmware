@@ -874,7 +874,7 @@ bool IRAM_ATTR systemBus::turnAround()
     */
 
     // Wait for CLK to be released
-    if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, TIMEOUT_Ttlta) == TIMEOUT_Ttlta)
+    if (protocol->timeoutWait(PIN_IEC_CLK_IN, RELEASED, TIMEOUT_Ttlta, false) == TIMEOUT_Ttlta)
     {
         Debug_printv("Wait until the computer releases the CLK line\r\n");
         Debug_printv("IEC: TURNAROUND TIMEOUT\r\n");
