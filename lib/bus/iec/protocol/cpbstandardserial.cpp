@@ -28,14 +28,64 @@
 using namespace Protocol;
 
 
+/**
+ * Callback function to sendbits 
+ */
+static void onSendBits(void *arg)
+{
+    IECProtocol *p = (CPBStandardSerial *)arg;
+
+    //portDISABLE_INTERRUPTS();
+    uint8_t Tv = TIMING_Tv64; // C64 data valid timing
+
+    // We can send faster if in VIC20 Mode
+    if ( IEC.vic20_mode )
+    {
+        Tv = TIMING_Tv; // VIC-20 data valid timing
+    }
+
+    // Send bits
+    for ( uint8_t n = 0; n < 8; n++ )
+    {
+        // set bit
+        usleep ( TIMING_Ts0 );
+        ( IEC.byte & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
+        IEC.byte >>= 1; // shift to next bit
+        usleep ( TIMING_Ts1 );
+
+        // tell listener bit is ready to read
+        //IEC.pull ( PIN_IEC_SRQ );
+        IEC.release ( PIN_IEC_CLK_OUT );
+        usleep ( Tv );
+
+        // tell listener to wait for next bit
+        IEC.pull ( PIN_IEC_CLK_OUT );
+        //IEC.release ( PIN_IEC_SRQ );
+        IEC.bit++;
+    }
+    IEC.bit++;
+
+    // Release DATA after byte sent
+    IEC.release ( PIN_IEC_DATA_OUT );
+}
+
 CPBStandardSerial::CPBStandardSerial()
 {
-
-}
+    const esp_timer_create_args_t args = {
+        .callback = onSendBits,
+        .arg = this,
+        .dispatch_method = ESP_TIMER_ISR,
+        .name = "Send"
+    };
+    esp_timer_create(&args, &timer_send_h);
+    //Debug_printv("send_timer_create");
+};
 
 CPBStandardSerial::~CPBStandardSerial()
 {
-
+    esp_timer_stop(timer_send_h);
+    esp_timer_delete(timer_send_h);
+    //Debug_printv("send_timer_delete");
 }
 
 
@@ -181,7 +231,7 @@ uint8_t CPBStandardSerial::receiveBits ()
             return 0;
         }
 
-        usleep( 2 );
+        usleep( 20 );
     }
 
     // If there is a 218us delay before bit 7, the controller uses JiffyDOS
@@ -207,7 +257,7 @@ uint8_t CPBStandardSerial::receiveBits ()
             timer_timedout = false;
         }
 
-        usleep( 2 );
+        usleep( 20 );
     }
 
     return IEC.byte;
@@ -444,37 +494,65 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
 // to prepare for the next bit. When the talker figures the data has been held for a sufficient  length  of  time,  it
 // pulls  the  Clock  line true  and  releases  the  Data  line  to  false.    Then  it starts to prepare the next bit.
 
+
 bool CPBStandardSerial::sendBits ( uint8_t data )
 {
-    uint8_t Tv = TIMING_Tv64; // C64 data valid timing
+//    uint8_t b = 255;
+//    timer_start( TIMEOUT_DEFAULT );
+//    IEC.pull ( PIN_IEC_SRQ );
+    IEC.bit = 0;
+    IEC.byte = data;
 
-    // We can send faster if in VIC20 Mode
-    if ( IEC.vic20_mode )
+    esp_timer_start_once(timer_send_h, 5);
+    while ( IEC.bit < 8 )
     {
-        Tv = TIMING_Tv; // VIC-20 data valid timing
+        // if ( timer_timedout )
+        // {
+        //     IEC.flags |= ERROR;
+        //     return false;
+        // }
+
+        usleep( 20 );
     }
 
-    // Send bits
-    for ( uint8_t n = 0; n < 8; n++ )
-    {
-        // set bit
-        wait ( TIMING_Ts0 );
-        ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
-        data >>= 1; // shift to next bit
-        wait ( TIMING_Ts1 );
-
-        // tell listener bit is ready to read
-        IEC.release ( PIN_IEC_CLK_OUT );
-        wait ( Tv );
-
-        // tell listener to wait for next bit
-        IEC.pull ( PIN_IEC_CLK_OUT );
-    }
-
-    // Release DATA after byte sent
-    IEC.release ( PIN_IEC_DATA_OUT );
-
+    // IEC.release ( PIN_IEC_SRQ );
+    esp_intr_enable_source( PIN_IEC_CLK_IN );
     return true;
-} // sendBits
+}
+
+// bool CPBStandardSerial::sendBits ( uint8_t data )
+// {
+//     //portDISABLE_INTERRUPTS();
+//     uint8_t Tv = TIMING_Tv64; // C64 data valid timing
+
+//     // We can send faster if in VIC20 Mode
+//     if ( IEC.vic20_mode )
+//     {
+//         Tv = TIMING_Tv; // VIC-20 data valid timing
+//     }
+
+//     // Send bits
+//     for ( uint8_t n = 0; n < 8; n++ )
+//     {
+//         // set bit
+//         usleep ( TIMING_Ts0 );
+//         ( data & 1 ) ? IEC.release ( PIN_IEC_DATA_OUT ) : IEC.pull ( PIN_IEC_DATA_OUT );
+//         data >>= 1; // shift to next bit
+//         usleep ( TIMING_Ts1 );
+
+//         // tell listener bit is ready to read
+//         IEC.release ( PIN_IEC_CLK_OUT );
+//         usleep ( Tv );
+
+//         // tell listener to wait for next bit
+//         IEC.pull ( PIN_IEC_CLK_OUT );
+//     }
+
+//     // Release DATA after byte sent
+//     IEC.release ( PIN_IEC_DATA_OUT );
+
+//     //portENABLE_INTERRUPTS();
+//     return true;
+// } // sendBits
 
 #endif // BUILD_IEC
