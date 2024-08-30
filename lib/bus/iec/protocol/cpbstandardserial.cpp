@@ -231,7 +231,7 @@ uint8_t CPBStandardSerial::receiveBits ()
             return 0;
         }
 
-        usleep( 20 );
+        usleep( 10 );
     }
 
     // If there is a 218us delay before bit 7, the controller uses JiffyDOS
@@ -257,7 +257,7 @@ uint8_t CPBStandardSerial::receiveBits ()
             timer_timedout = false;
         }
 
-        usleep( 20 );
+        usleep( 10 );
     }
 
     return IEC.byte;
@@ -512,7 +512,7 @@ bool CPBStandardSerial::sendBits ( uint8_t data )
         //     return false;
         // }
 
-        usleep( 20 );
+        usleep( 10 );
     }
 
     // IEC.release ( PIN_IEC_SRQ );
