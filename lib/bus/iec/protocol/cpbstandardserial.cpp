@@ -145,6 +145,14 @@ uint8_t CPBStandardSerial::receiveByte()
     // will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass
     // without  the Clock line going to true, it has a special task to perform: note EOI.
 
+    // **** HACK
+    // NOTE: RESET bit counter and data byte here because sometimes 
+    //       a delay happens that causes the first bit to be skipped
+    //       before we detect that PIN_IEC_CLK_IN is PULLED
+    IEC.bit = 0;
+    IEC.byte = 0;
+    // **** HACK
+
     //IEC.pull ( PIN_IEC_SRQ );
     //if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMING_Tye, false ) == TIMING_Tye )
     timer_start( TIMING_Tye );
@@ -234,8 +242,8 @@ uint8_t CPBStandardSerial::receiveBits ()
 {
     timer_start( TIMEOUT_DEFAULT );
 
-    IEC.bit = 0;
-    IEC.byte = 0;
+    // IEC.bit = 0;
+    // IEC.byte = 0;
     while ( IEC.bit < 7 )
     {
         if ( timer_timedout )
