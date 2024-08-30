@@ -41,6 +41,11 @@ namespace Protocol
         public:
 
         /**
+         * ESP timer handle for the Interrupt rate limiting timer
+         */
+        esp_timer_handle_t timer_send_h = nullptr;
+
+        /**
          * @brief ctor
          */
         CPBStandardSerial();

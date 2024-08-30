@@ -739,12 +739,14 @@ std::string systemBus::receiveBytes()
 
 bool systemBus::sendByte(const char c, bool eoi)
 {
+    gpio_intr_disable( PIN_IEC_CLK_IN );
     if (!protocol->sendByte(c, eoi))
     {
         if (!(IEC.status ( PIN_IEC_ATN )))
         {
             flags |= ERROR;
             Debug_printv("error");
+            gpio_intr_enable( PIN_IEC_CLK_IN );
             return false;
         }
     }
@@ -755,7 +757,7 @@ bool systemBus::sendByte(const char c, bool eoi)
     else
         Serial.printf("%.2X ", c);
 #endif
-
+    gpio_intr_enable( PIN_IEC_CLK_IN );
     return true;
 }
 

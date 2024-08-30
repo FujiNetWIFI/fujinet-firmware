@@ -28,13 +28,21 @@ namespace Protocol
         uint64_t timer_elapsed = 0;
 
 
-        IECProtocol();
-        ~IECProtocol();
 
         /**
          * ESP timer handle for the Interrupt rate limiting timer
          */
         esp_timer_handle_t timer_handle = nullptr;
+
+        /**
+         * @brief ctor
+         */
+        IECProtocol();
+
+        /**
+         * @brief dtor
+         */
+        ~IECProtocol();
 
         /**
          * @brief receive byte from bus
