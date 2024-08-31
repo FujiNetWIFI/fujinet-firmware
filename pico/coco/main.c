@@ -47,7 +47,7 @@ PIO pioblk_rw = pio1;
 
 uint8_t ccc, fff;
 
-#define SERIAL_BAUD 38400
+#define SERIAL_BAUD 1000000
 #define PIO_RX_PIN 28 //A2
 #define PIO_TX_PIN 29 //A3
 void setup_pio_uart()
