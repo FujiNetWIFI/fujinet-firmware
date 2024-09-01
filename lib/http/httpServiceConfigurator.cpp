@@ -26,7 +26,7 @@ bool udpactivate = false;
 // TODO: This was copied from another source and needs some bounds-checking!
 char *fnHttpServiceConfigurator::url_decode(char *dst, const char *src, size_t dstsize)
 {
-    char a, b;
+    char a = 0, b = 0;
     size_t i = 0;
 #ifdef ESP_PLATFORM // TODO merge
 
