@@ -106,25 +106,12 @@ uint8_t CPBStandardSerial::receiveByte()
 
     // Wait for talker ready
     //IEC.pull ( PIN_IEC_SRQ );
-    // if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER, false ) == TIMED_OUT )
-    // {
-    //     Debug_printv ( "Wait for talker ready" );
-    //     IEC.flags |= ERROR;
-    //     return 0; // return error because timeout
-    // }
-    //timer_start( FOREVER );
-#ifndef IEC_SPLIT_LINES
-    IEC.release ( PIN_IEC_CLK_IN );
-#endif
-    while ( IEC.status ( PIN_IEC_CLK_IN ) != RELEASED );
-    // {
-    //     if ( timer_timedout )
-    //     {
-    //         Debug_printv ( "Wait for talker ready" );
-    //         IEC.flags |= ERROR;
-    //         return 0; // return error because timeout
-    //     }
-    // }
+    if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER, false ) == TIMED_OUT )
+    {
+        Debug_printv ( "Wait for talker ready" );
+        IEC.flags |= ERROR;
+        return 0; // return error because timeout
+    }
     //IEC.release ( PIN_IEC_SRQ );
 
     // Say we're ready
@@ -135,13 +122,12 @@ uint8_t CPBStandardSerial::receiveByte()
     // to  accept  data.  What  happens  next  is  variable.
 
     // Wait for all other devices to release the data line
-    IEC.release ( PIN_IEC_DATA_IN );
-    // if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
-    // {
-    //     Debug_printv ( "Wait for all other devices to release the data line" );
-    //     IEC.flags |= ERROR;
-    //     return 0; // return error because timeout
-    // }
+    if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER, false ) == TIMED_OUT )
+    {
+        Debug_printv ( "Wait for all other devices to release the data line" );
+        IEC.flags |= ERROR;
+        return 0; // return error because timeout
+    }
 
     // Either  the  talker  will pull the
     // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
@@ -402,20 +388,16 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
     // only when all listeners have RELEASED it - in other words, when  all  listeners  are  ready
     // to  accept  data.
     //IEC.pull ( PIN_IEC_SRQ );
-    // if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
-    // {
-    //     if ( !(IEC.flags & ATN_PULLED) )
-    //     {
-    //         Debug_printv ( "Wait for listener to be ready [%02X]", data );
-    //         IEC.flags |= ERROR;
-    //     }
+    if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED, FOREVER ) == TIMED_OUT )
+    {
+        if ( !(IEC.flags & ATN_PULLED) )
+        {
+            Debug_printv ( "Wait for listener to be ready [%02X]", data );
+            IEC.flags |= ERROR;
+        }
 
-    //     return false; // return error because of ATN or timeout
-    // }
-#ifndef IEC_SPLIT_LINES
-    IEC.release ( PIN_IEC_DATA_IN );
-#endif
-    while ( IEC.status ( PIN_IEC_DATA_IN ) != RELEASED );
+        return false; // return error because of ATN or timeout
+    }
     //IEC.release ( PIN_IEC_SRQ );
 
     // What  happens  next  is  variable. Either  the  talker  will pull the
@@ -551,7 +533,6 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
 
 bool CPBStandardSerial::sendBits ( uint8_t data )
 {
-    //portDISABLE_INTERRUPTS();
     uint8_t Tv = TIMING_Tv64; // C64 data valid timing
 
     // We can send faster if in VIC20 Mode
@@ -580,7 +561,6 @@ bool CPBStandardSerial::sendBits ( uint8_t data )
     // Release DATA after byte sent
     IEC.release ( PIN_IEC_DATA_OUT );
 
-    //portENABLE_INTERRUPTS();
     return true;
 } // sendBits
 

@@ -51,20 +51,25 @@ void IECProtocol::timer_stop()
 }
 
 
-int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
+int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
 {
-    //IEC.pull ( PIN_IEC_SRQ );
+    IEC.pull ( PIN_IEC_SRQ );
     uint64_t start = esp_timer_get_time();
     uint64_t current = 0;
     timer_start( wait_us );
+
+#ifndef IEC_SPLIT_LINES
+    IEC.release ( pin );
+#endif
+
     while ( !timer_timedout )
     {
-        //IEC.pull ( PIN_IEC_SRQ );
+        IEC.pull ( PIN_IEC_SRQ );
         if ( IEC.status ( pin ) == target_status )
         {
             timer_stop();
             current = esp_timer_get_time();
-            //IEC.release ( PIN_IEC_SRQ );
+            IEC.release ( PIN_IEC_SRQ );
             return ( current - start );
         }
         usleep( 2 );
@@ -72,14 +77,14 @@ int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us
         {
             if ( IEC.status ( PIN_IEC_ATN ) )
             {
-                //IEC.release ( PIN_IEC_SRQ );
+                IEC.release ( PIN_IEC_SRQ );
                 return -1;
             }
         }
-        //IEC.release ( PIN_IEC_SRQ );
+        IEC.release ( PIN_IEC_SRQ );
         usleep( 2 );
     }
-//    IEC.release ( PIN_IEC_SRQ );
+    IEC.release ( PIN_IEC_SRQ );
     return wait_us;
 }
 
@@ -113,7 +118,7 @@ int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us
 //         //if ( atn_status ) IEC.flags |= ATN_PULLED;
 //     }
 
-//     //IEC.pull ( PIN_IEC_SRQ );
+//     IEC.pull ( PIN_IEC_SRQ );
 //     start = esp_timer_get_time();
 //     while ( IEC.status ( pin ) != target_status )
 //     {
@@ -122,7 +127,7 @@ int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us
 
 //         if ( elapsed >= wait_us && wait_us != FOREVER )
 //         {
-//             //IEC.release ( PIN_IEC_SRQ );
+//             IEC.release ( PIN_IEC_SRQ );
 //             if ( wait_us == TIMEOUT_DEFAULT )
 //                 return -1;
             
@@ -134,7 +139,7 @@ int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us
 //             bool atn_check = IEC.status ( PIN_IEC_ATN );
 //             if ( atn_check != atn_status )
 //             {
-//                 //IEC.release ( PIN_IEC_SRQ );
+//                 IEC.release ( PIN_IEC_SRQ );
 //                 //Debug_printv("pin[%d] state[%d] wait[%d] elapsed[%d]", pin, target_status, wait, elapsed);
 //                 return -1;
 //             }
@@ -148,18 +153,18 @@ int16_t IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us
 //             return -1;
 //         }
 //     }
-//     //IEC.release ( PIN_IEC_SRQ );
+//     IEC.release ( PIN_IEC_SRQ );
 
 //     // Debug_printv("pin[%d] state[%d] wait[%d] step[%d] t[%d]", pin, target_status, wait, elapsed);
 //     return elapsed;
 // }
 
-bool IECProtocol::wait(size_t wait_us, bool watch_atn)
+bool IRAM_ATTR IECProtocol::wait(size_t wait_us, bool watch_atn)
 {
     return wait(wait_us, 0, watch_atn);
 }
 
-bool IECProtocol::wait(size_t wait_us, uint64_t start, bool watch_atn)
+bool IRAM_ATTR IECProtocol::wait(size_t wait_us, uint64_t start, bool watch_atn)
 {
     uint64_t current, elapsed;
     current = 0;
