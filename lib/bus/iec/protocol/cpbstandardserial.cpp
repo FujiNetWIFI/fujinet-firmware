@@ -53,13 +53,13 @@ static void onSendBits(void *arg)
         usleep ( TIMING_Ts1 );
 
         // tell listener bit is ready to read
-        IEC.pull ( PIN_IEC_SRQ );
+        //IEC.pull ( PIN_IEC_SRQ );
         IEC.release ( PIN_IEC_CLK_OUT );
         usleep ( Tv );
 
         // tell listener to wait for next bit
         IEC.pull ( PIN_IEC_CLK_OUT );
-        IEC.release ( PIN_IEC_SRQ );
+        //IEC.release ( PIN_IEC_SRQ );
         IEC.bit++;
     }
     IEC.bit++;
@@ -100,10 +100,6 @@ uint8_t CPBStandardSerial::receiveByte()
 {
     IEC.flags &= CLEAR_LOW;
 
-    // Sample ATN and set flag to indicate COMMAND or DATA mode
-    if ( IEC.status ( PIN_IEC_ATN ) )
-        IEC.flags |= ATN_PULLED;
-
     // Wait for talker ready
     //IEC.pull ( PIN_IEC_SRQ );
     if ( timeoutWait ( PIN_IEC_CLK_IN, RELEASED, FOREVER, false ) == TIMED_OUT )
@@ -133,14 +129,6 @@ uint8_t CPBStandardSerial::receiveByte()
     // Clock line back to true in less than 200 microseconds - usually within 60 microseconds - or it
     // will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass
     // without  the Clock line going to true, it has a special task to perform: note EOI.
-
-    // **** HACK
-    // NOTE: RESET bit counter and data byte here because sometimes 
-    //       a delay happens that causes the first bit to be skipped
-    //       before we detect that PIN_IEC_CLK_IN is PULLED
-    IEC.bit = 0;
-    IEC.byte = 0;
-    // **** HACK
 
     //IEC.pull ( PIN_IEC_SRQ );
     //if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMING_Tye, false ) == TIMING_Tye )
@@ -174,11 +162,16 @@ uint8_t CPBStandardSerial::receiveByte()
             wait ( TIMING_Tei );
             IEC.release ( PIN_IEC_DATA_OUT );
         }
+
         usleep( 2 );
         IEC.release ( PIN_IEC_SRQ );
         usleep( 2 );
     }
     //IEC.release ( PIN_IEC_SRQ );
+
+    // Sample ATN and set flag to indicate COMMAND or DATA mode
+    if ( IEC.status ( PIN_IEC_ATN ) )
+        IEC.flags |= ATN_PULLED;
 
     // STEP 3: RECEIVING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
@@ -229,10 +222,10 @@ uint8_t CPBStandardSerial::receiveByte()
 
 uint8_t CPBStandardSerial::receiveBits ()
 {
+    IEC.bit = 0;
+    IEC.byte = 0;
     timer_start( TIMEOUT_DEFAULT );
 
-    // IEC.bit = 0;
-    // IEC.byte = 0;
     while ( IEC.bit < 7 )
     {
         if ( timer_timedout )
@@ -248,23 +241,28 @@ uint8_t CPBStandardSerial::receiveBits ()
     timer_start( TIMING_PROTOCOL_DETECT );
     while ( IEC.bit < 8 )
     {
-        if ( timer_timedout && ( IEC.flags &  ATN_PULLED ) )
+        // Are we in COMMAND mode?
+        if ( IEC.flags &  ATN_PULLED )
         {
-            // Check LISTEN & TALK
-            uint8_t device = (IEC.byte >> 1) & 0x1F; // LISTEN
-            if ( device > 30 )
-                device = (IEC.byte >> 1 ) & 0x3F; // TALK
-
-            if ( IEC.isDeviceEnabled ( device ) )
+            // Have we timed out?
+            if ( timer_timedout )
             {
-                // acknowledge we support JiffyDOS
-                IEC.pull(PIN_IEC_DATA_OUT);
-                wait( TIMING_PROTOCOL_ACK, false );
-                IEC.release(PIN_IEC_DATA_OUT);
+                // Check LISTEN & TALK
+                uint8_t device = (IEC.byte >> 1) & 0x1F; // LISTEN
+                if ( device > 30 )
+                    device = (IEC.byte >> 1 ) & 0x3F; // TALK
 
-                IEC.flags |= JIFFYDOS_ACTIVE;
+                if ( IEC.isDeviceEnabled ( device ) )
+                {
+                    // acknowledge we support JiffyDOS
+                    IEC.pull(PIN_IEC_DATA_OUT);
+                    wait( TIMING_PROTOCOL_ACK, false );
+                    IEC.release(PIN_IEC_DATA_OUT);
+
+                    IEC.flags |= JIFFYDOS_ACTIVE;
+                }
+                timer_timedout = false;
             }
-            timer_timedout = false;
         }
 
         usleep( 2 );
@@ -431,7 +429,7 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
 
         // Sender ACK?
         // 1541 release CLK in the middle of the EOI ACK
-        wait ( TIMING_Tpr );
+        usleep ( TIMING_Tpr );
         IEC.pull ( PIN_IEC_CLK_OUT );
 
         if ( timeoutWait ( PIN_IEC_DATA_IN, RELEASED ) == TIMED_OUT )

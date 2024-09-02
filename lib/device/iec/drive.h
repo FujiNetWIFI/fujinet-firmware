@@ -47,15 +47,16 @@ protected:
     void flushLastByte( uint8_t channel );
 
     // Directory
-	uint16_t sendHeader(std::string header, std::string id);
-	uint16_t sendLine(uint16_t blocks, char *text);
-	uint16_t sendLine(uint16_t blocks, const char *format, ...);
-	uint16_t sendFooter();
-	void sendListing();
+    uint16_t sendHeader(std::string header, std::string id);
+    uint16_t sendLine(uint16_t blocks, char *text);
+    uint16_t sendLine(uint16_t blocks, const char *format, ...);
+    uint16_t sendFooter();
+    void sendListing();
 
     // File
-	bool sendFile();
-	bool saveFile();
+    bool sendFile();
+    bool saveFile();
+    void sendFileNotFound();
 
     struct _error_response
     {

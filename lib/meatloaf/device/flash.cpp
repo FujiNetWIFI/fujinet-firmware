@@ -312,25 +312,6 @@ bool FlashMFile::seekEntry( std::string filename )
 /********************************************************
  * MStream implementations
  ********************************************************/
-uint32_t FlashMStream::write(const uint8_t *buf, uint32_t size) {
-    if (!isOpen() || !buf) {
-        return 0;
-    }
-
-    Debug_printv("in byteWrite '%c', handle->file_h is null=[%d]\r\n", buf[0], handle->file_h == nullptr);
-
-    // buffer, element size, count, handle
-    int result = fwrite((void*) buf, 1, size, handle->file_h );
-
-    Debug_printv("after write rc=%d\r\n", result);
-    return result;
-};
-
-
-/********************************************************
- * MIStreams implementations
- ********************************************************/
-
 
 bool FlashMStream::open() {
     if(isOpen())
@@ -397,6 +378,21 @@ uint32_t FlashMStream::read(uint8_t* buf, uint32_t size) {
     }
 
     return bytesRead;
+};
+
+uint32_t FlashMStream::write(const uint8_t *buf, uint32_t size) {
+    if (!isOpen() || !buf) {
+        Debug_printv("Not open");
+        return 0;
+    }
+
+    Debug_printv("buf[%02X] size[%d] handle->file_h[%d]", buf[0], size, handle->file_h);
+
+    // buffer, element size, count, handle
+    int result = fwrite((void*) buf, 1, size, handle->file_h );
+
+    Debug_printv("result[%d]", result);
+    return result;
 };
 
 
