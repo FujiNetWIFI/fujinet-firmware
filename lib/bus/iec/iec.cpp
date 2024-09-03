@@ -46,14 +46,14 @@ static void IRAM_ATTR cbm_on_clk_isr_handler(void *arg)
 {
     systemBus *b = (systemBus *)arg;
 
-    //IEC.pull(PIN_IEC_SRQ);
+    IEC.pull(PIN_IEC_SRQ);
 
     // get bit
     b->byte >>= 1;
     if ( !IEC.status ( PIN_IEC_DATA_IN ) ) b->byte |= 0x80;
     b->bit++;
 
-    //IEC.release(PIN_IEC_SRQ);
+    IEC.release(PIN_IEC_SRQ);
 }
 
 /**

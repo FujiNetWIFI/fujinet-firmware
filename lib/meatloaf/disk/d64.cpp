@@ -206,7 +206,9 @@ bool D64MStream::seekEntry(std::string filename)
         while (seekEntry(index))
         {
             std::string entryFilename = entry.filename;
-            mstr::rtrimA0(entryFilename);
+            uint8_t i = entryFilename.find_first_of(0xA0);
+            entryFilename = entryFilename.substr(0, i);
+            //mstr::rtrimA0(entryFilename);
             entryFilename = mstr::toUTF8(entryFilename);
 
             Debug_printv("index[%d] track[%d] sector[%d] filename[%s] entry.filename[%.16s]", index, track, sector, filename.c_str(), entryFilename.c_str());
@@ -506,6 +508,8 @@ MFile *D64MFile::getNextFileInDir()
     if (r)
     {
         std::string fileName = image->entry.filename;
+        uint8_t i = fileName.find_first_of(0xA0);
+        fileName = fileName.substr(0, i);
         // mstr::rtrimA0(fileName);
         mstr::replaceAll(fileName, "/", "\\");
         // Debug_printv( "entry[%s]", (streamFile->url + "/" + fileName).c_str() );
