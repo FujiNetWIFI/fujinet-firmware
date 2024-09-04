@@ -155,17 +155,18 @@ typedef enum
 // IEC-Disected p10-11          // Description              //   1541    C64     min     typical     max         // Notes
 // TALKER
 #define TIMEOUT_Tat     1000    // ATN RESPONSE (REQUIRED)                       -       -           1000us      (If maximum time exceeded, device not present error.)
-#define TIMING_Tne      40      // NON-EOI RESPONSE TO RFD                       -       40us        200us       (If maximum time exceeded, EOI response required.)
+#define TIMING_Tne      55      // NON-EOI RESPONSE TO RFD                       -       40us        200us       (If maximum time exceeded, EOI response required.)
+#define TIMING_Tna      32      // Extra delay before first bit is sent
 #define TIMEOUT_Tne     250
 
 #define TIMING_Ts       70      // BIT SET-UP TALKER                     71us    20us    70us        -           
-#define TIMING_Ts0      75      // BIT SET-UP LISTENER PRE       57us    47us
-#define TIMING_Ts1      17      // BIT SET-UP LISTENER POST      18us    24us
+#define TIMING_Ts0      40      // BIT SET-UP LISTENER PRE       57us    47us
+#define TIMING_Ts1      35      // BIT SET-UP LISTENER POST      18us    24us
 #define TIMING_Tv       20      // DATA VALID VIC20              76us    26us    20us    20us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker. )
-#define TIMING_Tv64     70      // DATA VALID C64
+#define TIMING_Tv64     80      // DATA VALID C64
 
 #define TIMING_Tr       20      // FRAME TO RELEASE OF ATN                       20us    -           -
-#define TIMING_Tbb      100     // BETWEEN BYTES TIME                            100us   -           -
+#define TIMING_Tbb      200     // BETWEEN BYTES TIME                            100us   -           -
 #define TIMING_Tye      250     // EOI RESPONSE TIME                             200us   250us       -
 
 #define TIMING_Try      30      // TALKER RESPONSE LIMIT                         0       30us        60us
@@ -173,7 +174,7 @@ typedef enum
 
 // LISTENER
 #define TIMING_Th       60      // LISTENER HOLD-OFF             65us    39us    0       -           infinte
-#define TIMING_Tf       64      // FRAME HANDSHAKE                               0       20us        1000us      (If maximum time exceeded, frame error.)
+#define TIMING_Tf       20      // FRAME HANDSHAKE                               0       20us        1000us      (If maximum time exceeded, frame error.)
 #define TIMEOUT_Tf      1000
 
 #define TIMING_Tei      80      // EOI RESPONSE HOLD TIME                        60us    -           -           (Tei minimum must be 80μ s for external device to be a listener.)
