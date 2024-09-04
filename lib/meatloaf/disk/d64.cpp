@@ -507,13 +507,13 @@ MFile *D64MFile::getNextFileInDir()
 
     if (r)
     {
-        std::string fileName = image->entry.filename;
-        uint8_t i = fileName.find_first_of(0xA0);
-        fileName = fileName.substr(0, i);
-        // mstr::rtrimA0(fileName);
-        mstr::replaceAll(fileName, "/", "\\");
-        // Debug_printv( "entry[%s]", (streamFile->url + "/" + fileName).c_str() );
-        auto file = MFSOwner::File(streamFile->url + "/" + fileName);
+        std::string filename = image->entry.filename;
+        uint8_t i = filename.find_first_of(0xA0);
+        filename = filename.substr(0, i);
+        // mstr::rtrimA0(filename);
+        mstr::replaceAll(filename, "/", "\\");
+        // Debug_printv( "entry[%s]", (streamFile->url + "/" + filename).c_str() );
+        auto file = MFSOwner::File(streamFile->url + "/" + filename);
         file->extension = image->decodeType(image->entry.file_type);
         return file;
     }
