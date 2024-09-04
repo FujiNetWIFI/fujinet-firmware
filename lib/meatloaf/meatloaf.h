@@ -93,7 +93,7 @@ public:
     }
 
     virtual bool eos()  {
-//        Debug_printv("_size[%d] m_bytesAvailable[%d] _position[%d]", _size, available(), _position);
+        //Debug_printv("_size[%d] m_bytesAvailable[%d] _position[%d]", _size, available(), _position);
         if ( available() == 0 )
             return true;
         

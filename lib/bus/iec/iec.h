@@ -21,6 +21,7 @@
 
 //
 // https://www.pagetable.com/?p=1135
+// https://pagetable.com/c64ref/c64disasm/#ED40
 // http://unusedino.de/ec64/technical/misc/c1541/romlisting.html#E85B
 // https://eden.mose.org.uk/gitweb/?p=rom-reverse.git;a=blob;f=src/vic-1541-sfd.asm;hb=HEAD
 // https://www.pagetable.com/docs/Inside%20Commodore%20DOS.pdf
@@ -168,9 +169,12 @@ public:
     std::string payload = "";
     /**
      * @brief the raw bytes received for the command
-    */
+     */
     std::vector<uint8_t> payload_raw;
-
+    /**
+     * @brief secondary action description
+     */
+    std::string action ="";
     /**
      * @brief clear and initialize IEC command data
      */
@@ -182,6 +186,7 @@ public:
         channel = 0;
         payload = "";
         payload_raw.clear();
+        action = "";
     }
 };
 

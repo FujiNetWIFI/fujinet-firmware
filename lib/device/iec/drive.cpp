@@ -798,7 +798,7 @@ uint16_t iecDrive::sendLine(uint16_t blocks, char *text)
 
     // Exit if ATN is PULLED while sending
     // Exit if there is an error while sending
-    if ( IEC.flags & ERROR ) return 0;
+    if ( IEC.flags & ERROR ) {Debug_printv("line[%s]", text); return 0;};
 
     // Get text length
     uint8_t len = strlen(text);
@@ -806,20 +806,26 @@ uint16_t iecDrive::sendLine(uint16_t blocks, char *text)
     // Send that pointer
     // No basic line pointer is used in the directory listing set to 0x0101
     IEC.sendByte(0x01);		// IEC.sendByte(basicPtr bitand 0xFF);
+    if ( IEC.flags & ERROR ) {Debug_printv("line[%s]", text); return 0;};
     IEC.sendByte(0x01);		// IEC.sendByte(basicPtr >> 8);
+    if ( IEC.flags & ERROR ) {Debug_printv("line[%s]", text); return 0;};
 
     // Send blocks
     IEC.sendByte(blocks bitand 0xFF);
+    if ( IEC.flags & ERROR ) {Debug_printv("line[%s]", text); return 0;};
     IEC.sendByte(blocks >> 8);
+    if ( IEC.flags & ERROR ) {Debug_printv("line[%s]", text); return 0;};
 
     // Send line contents
     for (uint8_t i = 0; i < len; i++)
     {
-        if ( !IEC.sendByte(text[i]) ) return 0;
+        IEC.sendByte(text[i]);
+        if ( IEC.flags & ERROR ) {Debug_printv("line[%s]", text); return 0;};
     }
 
     // Finish line
     IEC.sendByte(0);
+    if ( IEC.flags & ERROR ) {Debug_printv("line[%s]", text); return 0;};
 
     Serial.println("");
     
@@ -1130,7 +1136,7 @@ bool iecDrive::sendFile()
 
     //fnLedStrip.startRainbow(300);
 
-    if( commanddata.channel == CHANNEL_LOAD )
+    if( commanddata.channel == CHANNEL_LOAD && istream->position() == 0 )
     {
         // Get/Send file load address
         istream->read(&b, 1);
@@ -1149,9 +1155,6 @@ bool iecDrive::sendFile()
     Serial.printf("\r\nsendFile: [$%.4X] pos[%d]\r\n=================================\r\n", load_address, istream->position());
     while( success_rx && !istream->error() )
     {
-        // count = istream->position() + 1; // position starts at 0 so add 1
-        // avail = istream->available();
-
         //Debug_printv("b[%02X] nb[%02X] success_rx[%d] error[%d] count[%d] avail[%d]", b, nb, success_rx, istream->error(), count, avail);
 #ifdef DATA_STREAM
         if (bi == 0)
@@ -1180,6 +1183,11 @@ bool iecDrive::sendFile()
 
         // Send Byte
         success_tx = IEC.sendByte(b, eoi);
+        if ( !success_tx )
+        {
+            Debug_printv("Error sending byte.")
+            break;
+        }
 
         // Exit if ATN is PULLED while sending
         if ( !eoi && IEC.flags & ATN_PULLED )
@@ -1237,7 +1245,7 @@ bool iecDrive::sendFile()
     //fnLedManager.set(eLed::LED_BUS, false);
     //fnLedStrip.stopRainbow();
 
-    if ( istream->error() )
+    if ( istream->error() || !success_tx )
     {
         Serial.println("sendFile: Transfer aborted!");
         IEC.senderTimeout();
