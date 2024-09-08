@@ -142,6 +142,7 @@ void iwmNetwork::open()
     // Associate channel mode
     current_network_data.json = std::make_unique<FNJSON>();
     current_network_data.json->setProtocol(current_network_data.protocol.get());
+    current_network_data.json->setLineEnding("\x0a");
 }
 
 /**
