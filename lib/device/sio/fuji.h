@@ -226,7 +226,6 @@ public:
 #endif
 
     sioFuji();
-    ~sioFuji();
 };
 
 extern sioFuji theFuji;

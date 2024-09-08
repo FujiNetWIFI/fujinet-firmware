@@ -17,9 +17,6 @@
 #include "compat_string.h"
 
 #include "../../../include/debug.h"
-#ifdef ESP_PLATFORM
-#include "../../../include/PSRAMAllocator.h"
-#endif
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -39,7 +36,7 @@
 sioFuji theFuji; // global fuji device object
 
 // sioDisk sioDiskDevs[MAX_HOSTS];
-sioNetwork *sioNetDevs[MAX_NETWORK_DEVICES];
+sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -130,36 +127,6 @@ sioFuji::sioFuji()
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
-
-    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    {
-#ifdef ESP_PLATFORM
-        void *p = heap_caps_malloc(sizeof(sioNetwork), MALLOC_CAP_DEFAULT);
-#else
-        void *p = malloc(sizeof(sioNetwork));
-#endif
-        if (p == nullptr)
-            Debug_printf("sioFuji::sioFuji - Unable to allocate memory.\n");
-
-        sioNetDevs[i] = new(p) sioNetwork();
-    }
-}
-
-sioFuji::~sioFuji()
-{
-    for (int i=0; i < MAX_NETWORK_DEVICES; i++)
-    {
-        if (sioNetDevs[i] != nullptr)
-        {
-            sioNetDevs[i]->~sioNetwork(); // call destructor
-#ifdef ESP_PLATFORM
-            heap_caps_free(sioNetDevs[i]);
-#else
-            free(sioNetDevs[i]);
-#endif
-            sioNetDevs[i] = nullptr;
-        }
-    }
 }
 
 // Status
@@ -2172,9 +2139,7 @@ void sioFuji::setup(systemBus *siobus)
         _sio_bus->addDevice(&_fnDisks[i].disk_dev, SIO_DEVICEID_DISK + i);
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-    {
-        _sio_bus->addDevice(sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
-    }
+        _sio_bus->addDevice(&sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
 
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
