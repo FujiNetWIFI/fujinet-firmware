@@ -170,8 +170,10 @@ void systemBus::op_readex()
 
     // send zeros on error
     if (rc != DISK_CTRL_STATUS_CLEAR)
+    {
+        Debug_printf("RC not clear, sending zeroes.\n");
         memset(blk_buffer, 0x00, blk_size);
-
+    }
     // send sector data
     fnDwCom.write(blk_buffer, blk_size);
 
@@ -542,12 +544,13 @@ void systemBus::setup()
     fnDwCom.set_serial_port(Config.get_serial_port().c_str()); // UART
     _drivewireBaud = Config.get_serial_port_baud();
 #endif
-    fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // Becker
-    fnDwCom.set_drivewire_mode(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
-    fnDwCom.set_drivewire_mode(DwCom::dw_mode::SERIAL);
+    //fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // Becker
+    //fnDwCom.set_drivewire_mode(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
+    //fnDwCom.set_drivewire_mode(DwCom::dw_mode::SERIAL);
     fnDwCom.begin(_drivewireBaud);
     fnDwCom.flush_input();
     Debug_printv("DRIVEWIRE MODE");
+    Debug_printv("FOENIX HACK");
 }
 
 // Give devices an opportunity to clean up before a reboot
