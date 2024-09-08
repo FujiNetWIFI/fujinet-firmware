@@ -326,12 +326,12 @@ void systemBus::op_dwinit()
 
 void systemBus::op_getstat()
 {
-    Debug_printv("OP_GETSTAT: 0x%02x", fnDwCom.read());
+    Debug_printv("OP_GETSTAT: 0x%02x 0x%02x", fnDwCom.read(),fnDwCom.read());
 }
 
 void systemBus::op_setstat()
 {
-    Debug_printv("OP_SETSTAT: 0x%02x", fnDwCom.read());
+    Debug_printv("OP_SETSTAT: 0x%02x 0x%02x", fnDwCom.read(),fnDwCom.read());
 }
 
 void systemBus::op_serread()
@@ -395,13 +395,15 @@ void systemBus::_drivewire_process_cmd()
     case OP_PRINTFLUSH:
         // Not needed.
         break;
-        // case OP_GETSTAT:
-        //     op_getstat();
-        //     break;
-        // case OP_SETSTAT:
-        //     op_setstat();
-        //     break;
-
+    case OP_GETSTAT:
+        op_getstat();
+        break;
+    case OP_SETSTAT:
+        op_setstat();
+        break;
+    case OP_TERM:
+        Debug_printf("OP_TERM!\n");
+        break;
     case OP_FUJI:
         op_fuji();
         break;
