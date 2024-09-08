@@ -222,12 +222,12 @@ void systemBus::op_write()
 
     c2 = drivewire_checksum(sector_data, MEDIA_BLOCK_SIZE);
 
-    // if (c1 != c2)
-    // {
-    //     Debug_printf("Checksum error\n");
-    //     fnDwCom.write(243);
-    //     return;
-    // }
+    if (c1 != c2)
+    {
+         Debug_printf("Checksum error\n");
+         fnDwCom.write(243);
+         return;
+    }
 
     Debug_printf("OP_WRITE DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
@@ -326,12 +326,16 @@ void systemBus::op_dwinit()
 
 void systemBus::op_getstat()
 {
-    Debug_printv("OP_GETSTAT: 0x%02x", fnDwCom.read());
+    Debug_printv("OP_GETSTAT");
+    fnDwCom.read();
+    fnDwCom.read();
 }
 
 void systemBus::op_setstat()
 {
-    Debug_printv("OP_SETSTAT: 0x%02x", fnDwCom.read());
+    Debug_printv("OP_SETSTAT");
+    fnDwCom.read();
+    fnDwCom.read();
 }
 
 void systemBus::op_serread()
@@ -350,6 +354,7 @@ void systemBus::op_print()
 void systemBus::_drivewire_process_cmd()
 {
     int c = fnDwCom.read();
+    Debug_printf("C: %02x\n",c);
     if (c < 0)
     {
         Debug_println("Failed to read cmd!");
@@ -395,12 +400,12 @@ void systemBus::_drivewire_process_cmd()
     case OP_PRINTFLUSH:
         // Not needed.
         break;
-        // case OP_GETSTAT:
-        //     op_getstat();
-        //     break;
-        // case OP_SETSTAT:
-        //     op_setstat();
-        //     break;
+         case OP_GETSTAT:
+             op_getstat();
+             break;
+        case OP_SETSTAT:
+             op_setstat();
+             break;
 
     case OP_FUJI:
         op_fuji();
@@ -410,6 +415,9 @@ void systemBus::_drivewire_process_cmd()
         break;
     case OP_CPM:
         op_cpm();
+        break;
+    case OP_TERM:
+        Debug_printf("OP_TERM!\n");
         break;
     default:
         op_unhandled(c);
@@ -484,7 +492,7 @@ void systemBus::setup()
         .intr_type = GPIO_INTR_POSEDGE            // interrupt on positive edge
     };
 
-    _cassetteDev = new drivewireCassette();
+    // _cassetteDev = new drivewireCassette();
 
     // configure GPIO with the given settings
     gpio_config(&io_conf);
@@ -536,7 +544,7 @@ void systemBus::setup()
 #endif
     fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // Becker
     fnDwCom.set_drivewire_mode(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
-    
+    fnDwCom.set_drivewire_mode(DwCom::dw_mode::SERIAL);
     fnDwCom.begin(_drivewireBaud);
     fnDwCom.flush_input();
     Debug_printv("DRIVEWIRE MODE");

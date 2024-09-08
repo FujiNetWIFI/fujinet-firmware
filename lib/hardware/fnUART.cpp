@@ -83,6 +83,9 @@ void UARTManager::begin(int baud)
 // #endif
 
     int tx, rx;
+
+    Debug_printf("UART #%02x\n",_uart_num);
+
     if (_uart_num == 0)
     {
         rx = PIN_UART0_RX;
@@ -98,6 +101,9 @@ void UARTManager::begin(int baud)
     {
         rx = PIN_UART2_RX;
         tx = PIN_UART2_TX;
+
+        Debug_printf("RX is pin %02u\n",PIN_UART2_RX);
+        Debug_printf("TX is pin %02u\n",PIN_UART2_TX);
     }
 #endif /* BUILD_RS232 */
     else
@@ -112,12 +118,10 @@ void UARTManager::begin(int baud)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
 #endif /* BUILD_ADAM */
 
-#ifdef BUILD_COCO
-#ifndef PINMAP_COCO_CART
+#ifdef INVERT_SERIAL
     if (_uart_num == 2)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
-#endif
-#endif /* BUILD_COCO */
+#endif /* INVERT_SERIAL */
 
 
     // Arduino default buffer size is 256
