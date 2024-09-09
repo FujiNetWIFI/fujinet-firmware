@@ -21,10 +21,9 @@ struct NetworkData {
     std::unique_ptr<PeoplesUrlParser> urlParser;
     std::string prefix;
     enum _channel_mode { PROTOCOL, JSON } channelMode = PROTOCOL;
-    uint8_t translationMode;
+    uint8_t translationMode = 0;
     std::string login;
     std::string password;
-    // int json_bytes_remaining; // ?? there's also a json.json_bytes_remaining
 };
 
 #endif // NETWORK_DATA_H
