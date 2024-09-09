@@ -13,6 +13,7 @@
 #include <libgen.h>
 #endif
 #include <map>
+#include <new>
 #include <vector>
 #include "compat_string.h"
 
@@ -30,13 +31,13 @@
 
 #include "base64.h"
 #include "hash.h"
+#include "../../../include/PSRAMAllocator.h"
 
 #define ADDITIONAL_DETAILS_BYTES 10
 
 sioFuji theFuji; // global fuji device object
 
-// sioDisk sioDiskDevs[MAX_HOSTS];
-sioNetwork sioNetDevs[MAX_NETWORK_DEVICES];
+std::unique_ptr<sioNetwork, PSRAMDeleter<sioNetwork>> sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -127,6 +128,17 @@ sioFuji::sioFuji()
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+
+    for (int i = 0; i < MAX_NETWORK_DEVICES; ++i) {
+        PSRAMAllocator<sioNetwork> allocator;
+        sioNetwork* ptr = allocator.allocate(1); // Allocate memory for one sioNetwork object
+        
+        if (ptr != nullptr) {
+            new (ptr) sioNetwork(); // Construct the object using placement new
+            sioNetDevs[i] = std::unique_ptr<sioNetwork, PSRAMDeleter<sioNetwork>>(ptr); // Store in smart pointer
+        }
+    }
+
 }
 
 // Status
@@ -2139,7 +2151,7 @@ void sioFuji::setup(systemBus *siobus)
         _sio_bus->addDevice(&_fnDisks[i].disk_dev, SIO_DEVICEID_DISK + i);
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        _sio_bus->addDevice(&sioNetDevs[i], SIO_DEVICEID_FN_NETWORK + i);
+        _sio_bus->addDevice(sioNetDevs[i].get(), SIO_DEVICEID_FN_NETWORK + i);
 
     _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());

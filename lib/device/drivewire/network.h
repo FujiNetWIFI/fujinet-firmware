@@ -282,7 +282,7 @@ private:
     /**
      * Bytes sent of current JSON query object.
      */
-    unsigned short json_bytes_remaining=0;
+    unsigned short json_bytes_remaining = 0;
 
     /**
      * Called to pulse the CD interrupt, rate limited by the interrupt timer.

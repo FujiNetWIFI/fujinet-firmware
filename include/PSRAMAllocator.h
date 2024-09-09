@@ -40,9 +40,7 @@ public:
     {
 #if CONFIG_SPIRAM
         // attempt to allocate in PSRAM first
-        auto p =
-            static_cast<value_type*>(
-                heap_caps_malloc(n * sizeof(value_type), MALLOC_CAP_SPIRAM));
+        auto p = static_cast<value_type*>(heap_caps_malloc(n * sizeof(value_type), MALLOC_CAP_SPIRAM));
         if (p)
         {
             return p;
@@ -51,9 +49,7 @@ public:
 
         // If the allocation in PSRAM failed (or PSRAM not enabled), try to
         // allocate from the default memory pool.
-        auto p2 =
-            static_cast<value_type*>(
-                heap_caps_malloc(n * sizeof(value_type), MALLOC_CAP_DEFAULT));
+        auto p2 = static_cast<value_type*>(heap_caps_malloc(n * sizeof(value_type), MALLOC_CAP_DEFAULT));
         if (p2)
         {
             return p2;
@@ -77,3 +73,19 @@ bool operator!=(const PSRAMAllocator<T>& x, const PSRAMAllocator<U>& y)
 {
     return !(x == y);
 }
+
+#include <memory> // For std::unique_ptr
+
+// Custom deleter
+template <class T>
+struct PSRAMDeleter
+{
+    void operator()(T* ptr) const
+    {
+        if (ptr) {
+            ptr->~T(); // Call the destructor manually for the object
+            PSRAMAllocator<T> allocator;
+            allocator.deallocate(ptr, 1);
+        }
+    }
+};
