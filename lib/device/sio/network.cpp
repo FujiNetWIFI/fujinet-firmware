@@ -140,6 +140,15 @@ void sioNetwork::sio_open()
         protocolParser = nullptr;
     }
 
+    if (json != nullptr) {
+        delete json;
+        json = nullptr;
+    }
+
+    if (urlParser != nullptr) {
+        urlParser = nullptr;
+    }
+
     // Reset status buffer
     status.reset();
 
