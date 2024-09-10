@@ -36,6 +36,7 @@ protected:
 public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
     virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
+    virtual bool write_sector(int track, int sector, uint8_t *buffer) override;
 
     virtual bool format(uint16_t *responsesize) override { return false; };
 

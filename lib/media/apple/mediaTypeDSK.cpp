@@ -15,12 +15,67 @@
 // #include <string.h>
 
 #define BYTES_PER_TRACK 4096
+#define BYTES_PER_SECTOR 256
 
 // routines to convert DSK to WOZ stolen from DSK2WOZ by Tom Harte 
 // https://github.com/TomHarte/dsk2woz
 
 // forward reference
 static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
+
+bool MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer)
+{
+  size_t offset, size;
+  size_t sectors_per_track = 16; // FIXME - what about 13 sector disks?
+  uint8_t *trackbuf;
+  int track = tmap[qtrack];
+  const int phys2log[] = {0, 7, 14, 6, 13, 5, 12, 4, 11, 3, 10, 2, 9, 1, 8, 15};
+  const int prodos[] = {0, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 15};
+
+
+  if (_mediatype != MEDIATYPE_DO &&
+      _mediatype != MEDIATYPE_DSK &&
+      _mediatype != MEDIATYPE_PO) {
+    Debug_printf("\r\nDon't know how to write sector");
+    return true;
+  }
+
+  sector = phys2log[sector];
+  if (_mediatype == MEDIATYPE_PO)
+    sector = prodos[sector];
+
+  Debug_printf("\r\nDSK writing track %i sector %i ", track, sector);
+
+  offset = (track * sectors_per_track + sector) * BYTES_PER_SECTOR;
+  if (fnio::fseek(_media_fileh, offset, SEEK_SET) != 0)
+    return true;
+  size = fnio::fwrite(buffer, 1, BYTES_PER_SECTOR, _media_fileh);
+  if (size != BYTES_PER_SECTOR)
+    return true;
+
+  offset = track * sectors_per_track * BYTES_PER_SECTOR;
+  if (fnio::fseek(_media_fileh, offset, SEEK_SET) != 0)
+    return true;
+
+  size = sectors_per_track * BYTES_PER_SECTOR;
+  trackbuf = (uint8_t *) malloc(size);
+  if (!trackbuf)
+    return true;
+
+  offset = fnio::fread(trackbuf, 1, size, _media_fileh);
+  if (offset != size)
+    return true;
+
+  offset = sector * BYTES_PER_SECTOR;
+  memcpy(&trackbuf[offset], buffer, BYTES_PER_SECTOR);
+
+  memset(trk_ptrs[track], 0, WOZ1_NUM_BLKS * 512);
+  serialise_track(trk_ptrs[track], trackbuf, track, _mediatype == MEDIATYPE_PO);
+
+  free(trackbuf);
+
+  return false;
+}
 
 mediatype_t MediaTypeDSK::mount(fnFile *f, uint32_t disksize)
 {
@@ -399,6 +454,48 @@ static void encode_6_and_2(uint8_t *dest, const uint8_t *src) {
 	for(size_t c = 0; c < 343; ++c) {
 		dest[c] = six_and_two_mapping[dest[c]];
 	}
+}
+
+uint16_t decode_6_and_2(uint8_t *dest, const uint8_t *src)
+{
+  int idx, step;
+  uint8_t bits;
+  uint16_t checksum;
+  const uint8_t bit_reverse[] = {0, 2, 1, 3};
+  const uint8_t six_and_two_unmapping[] = {
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+    0x00, 0x00, 0x02, 0x03, 0x00, 0x04, 0x05, 0x06,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x07, 0x08,
+    0x00, 0x00, 0x00, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+    0x00, 0x00, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13,
+    0x00, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x1b, 0x00, 0x1c, 0x1d, 0x1e,
+    0x00, 0x00, 0x00, 0x1f, 0x00, 0x00, 0x20, 0x21,
+    0x00, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x29, 0x2a, 0x2b,
+    0x00, 0x2c, 0x2d, 0x2e, 0x2f, 0x30, 0x31, 0x32,
+    0x00, 0x00, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
+    0x00, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+  };
+
+
+  for (idx = 0; idx < 343; idx++)
+    dest[idx] = six_and_two_unmapping[src[idx] - 144];
+  for (idx = 0; idx < 341; idx++)
+    dest[idx + 1] ^= dest[idx];
+
+  checksum = (dest[341] << 8) | dest[342];
+
+  for (idx = 85; idx >= 0; idx--) {
+    bits = dest[idx];
+    for (step = 0; step < 3; step++) {
+      dest[idx + step * 86] = (dest[idx + (step + 1) * 86] << 2)
+	| bit_reverse[(bits >> step * 2) & 0x3];
+    }
+  }
+
+  return checksum;
 }
 
 /*!

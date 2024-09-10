@@ -53,6 +53,8 @@ public:
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
 
+    bool write_sector(int track, int sector, uint8_t* buffer);
+
     ~iwmDisk2();
 };
 

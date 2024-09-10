@@ -10,6 +10,12 @@
 #define WOZ1 '1'
 #define WOZ2 '2'
 
+bool MediaTypeWOZ::write_sector(int track, int sector, uint8_t *buffer)
+{
+  Debug_printf("\r\nWOZ disk needs to write sector!");
+  return false;
+}
+
 mediatype_t MediaTypeWOZ::mount(fnFile *f, uint32_t disksize)
 {
     _media_fileh = f;

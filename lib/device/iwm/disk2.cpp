@@ -161,5 +161,10 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
 }
 
+bool iwmDisk2::write_sector(int track, int sector, uint8_t* buffer)
+{
+  return _disk->write_sector(track, sector, buffer);
+}
+
 #endif /* !SLIP */
 #endif /* BUILD_APPLE */
