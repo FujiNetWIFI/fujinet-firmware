@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -e
+
 # an interface to running pio builds
 # args can be combined, e.g. '-cbufm' and in any order.
 # SEE build-sh.md FOR ADDITIONAL IMPORTANT INFORMATION ABOUT
