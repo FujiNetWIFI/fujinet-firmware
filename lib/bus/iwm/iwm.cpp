@@ -439,11 +439,19 @@ std::vector<uint8_t> iwmDevice::create_dib_reply_packet(const std::string& devic
 void IRAM_ATTR iwmBus::service()
 {
   // process smartport before diskII
+  if (!serviceSmartPort())
+    serviceDiskII();
+}
+
+// Returns true if SmartPort was handled
+bool IRAM_ATTR iwmBus::serviceSmartPort()
+{
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
   {
   case iwm_phases_t::idle:
-    break;
+    return false;
+
   case iwm_phases_t::reset:
     Debug_printf("\r\nReset");
 
@@ -466,6 +474,7 @@ void IRAM_ATTR iwmBus::service()
 #endif /* !SLIP */
 
     break;
+
   case iwm_phases_t::enable:
     // expect a command packet
     // should not ACK unless we know this is our Command
@@ -482,7 +491,7 @@ void IRAM_ATTR iwmBus::service()
     if (sp_command_mode != sp_cmd_state_t::command)
     {
       // iwm_ack_deassert(); // go hi-Z
-      return;
+      return true;
     }
 
     if ((command_packet.command & 0x7f) == 0x05)
@@ -491,7 +500,7 @@ void IRAM_ATTR iwmBus::service()
       if (iwm_req_deassert_timeout(50000))
       {
         // iwm_ack_deassert(); // go hi-Z
-        return;
+        return true;
       }
 
 #ifdef DEBUG
@@ -512,7 +521,7 @@ void IRAM_ATTR iwmBus::service()
           {
             Debug_printf("\nREQ timeout in command processing");
             iwm_ack_deassert(); // go hi-Z
-            return;
+            return true;
           }
 #ifndef DEV_RELAY_SLIP
           // need to take time here to service other ESP processes so they can catch up
@@ -538,12 +547,19 @@ void IRAM_ATTR iwmBus::service()
     iwm_ack_deassert(); // go hi-Z
   }                     // switch (phasestate)
 
+  return true;
+}
+
+// Returns true if Disk II was handled
+bool IRAM_ATTR iwmBus::serviceDiskII()
+{
 #ifndef DEV_RELAY_SLIP
   // check on the diskii status
   switch (iwm_drive_enabled())
   {
   case iwm_enable_state_t::off:
-    break;
+    return false;
+
   case iwm_enable_state_t::off2on:
     // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
     if (IWM_ACTIVE_DISK2->device_active)
@@ -561,7 +577,8 @@ void IRAM_ATTR iwmBus::service()
       // alternative approach is to enable RMT to spit out PRN bits
     }
     // make sure the state machine moves on to iwm_enable_state_t::on
-    return; // return so the SP code doesn't get checked
+    break;
+
   case iwm_enable_state_t::on:
 #ifdef DEBUG
     new_track = IWM_ACTIVE_DISK2->get_track_pos();
@@ -571,14 +588,17 @@ void IRAM_ATTR iwmBus::service()
       old_track = new_track;
     }
 #endif
-    return;
+    break;
+
   case iwm_enable_state_t::on2off:
     fnSystem.delay(1); // need a better way to figure out persistence
     diskii_xface.stop();
     iwm_ack_deassert();
-    return;
+    break;
   }
 #endif /* !SLIP */
+
+  return true;
 }
 
 #ifndef DEV_RELAY_SLIP
