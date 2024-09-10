@@ -17,6 +17,11 @@
 #include "led.h"
 
 #define MHZ (1000*1000)
+#define CELL_US 4 // microseconds
+#define IWM_SAMPLES_PER_CELL(freq) ((CELL_US * (freq)) / MHZ)
+#define IWM_BITLEN_FOR_BYTES(bytecount, freq, buffer) ({ \
+      (bytecount) * 8 * IWM_SAMPLES_PER_CELL(freq);      \
+    })
 
 volatile uint8_t _phases = 0;
 volatile sp_cmd_state_t sp_command_mode = sp_cmd_state_t::standby;
@@ -144,7 +149,7 @@ inline void iwm_ll::iwm_extra_clr()
 #endif
 }
 
-void IRAM_ATTR iwm_sp_ll::encode_spi_packet()
+int IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
   memset(spi_buffer, 0, SPI_SP_LEN);
@@ -172,7 +177,7 @@ void IRAM_ATTR iwm_sp_ll::encode_spi_packet()
     }
     i++;
   }
-  spi_len = --j;
+  return j - 1;
 }
 
 
@@ -190,17 +195,16 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
 
   portDISABLE_INTERRUPTS();
   set_output_to_spi();
-  encode_spi_packet();
+  int spi_len = encode_spi_packet();
 
   // send data stream using SPI
   esp_err_t ret;
   spi_transaction_t trans;
   memset(&trans, 0, sizeof(spi_transaction_t));
-  trans.tx_buffer = spi_buffer; // finally send the line data
+  trans.tx_buffer = spi_buffer;
   trans.length = spi_len * 8;   // Data length, in bits
-  trans.flags = 0;              // undo SPI_TRANS_USE_TXDATA flag
 
-  iwm_ack_set(); // go hi-z - signal ready to send data
+  iwm_ack_set(); // signal ready to send data
 
   // wait for req line to go high
   if (req_wait_for_rising_timeout(300000))
@@ -231,23 +235,74 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   return 0;
 }
 
-bool IRAM_ATTR iwm_sp_ll::spirx_get_next_sample()
+#define IWM_NEXT_BIT() ({bool _v = ((src[offset / 8] << (offset % 8)) & 0x80) == 0x80; \
+      offset++; _v;})
+uint8_t iwm_ll::iwm_decode_byte(uint8_t *src, size_t src_size, unsigned int sample_frequency,
+                                int timeout, size_t *bit_offset, bool *more_avail)
 {
-  if (spirx_bit_ctr > 7)
-  {
-    spirx_bit_ctr = 0;
-    spirx_byte_ctr++;
+  unsigned int numbits, idx;
+  uint8_t byte;
+  bool bit, current_level;
+  const int spi_samples_per_cell = (CELL_US * sample_frequency) / MHZ;
+  const int half_samples = spi_samples_per_cell / 2;
+  size_t offset = *bit_offset;
+  static bool prev_level = true;
+
+  // ((f_nyquist * f_over) * 18) / (1000 * 1000);
+  int timeout_ctr = (sample_frequency * timeout) / MHZ;
+
+
+  *more_avail = true;
+  for (numbits = 8, byte = 0; numbits; numbits--) {
+    for (idx = bit = 0; idx < spi_samples_per_cell; idx++) {
+      if (offset / 8 >= src_size) {
+        // out of spi data, abort
+        numbits = 1;
+        *more_avail = false;
+        break;
+      }
+
+      current_level = IWM_NEXT_BIT();
+
+      // loop through 4 usec worth of samples looking for an edge
+      // if found, jump forward 2 usec and set bit = 1;
+      // otherwise, bit = 0;
+      if (prev_level != current_level) {
+        bit = true;
+        // resync the receiver - must be halfway through 4-us period at an edge
+        idx = half_samples;
+      }
+
+      prev_level = current_level;
+    }
+
+    byte <<= 1;
+    byte |= bit;
   }
-  return (((spi_buffer[spirx_byte_ctr] << spirx_bit_ctr++) & 0x80) == 0x80);
+
+  // See if there are more 1 bits
+  for (; timeout_ctr; timeout_ctr--) {
+    if (offset / 8 >= src_size) {
+      *more_avail = false;
+      break;
+    }
+    current_level = IWM_NEXT_BIT();
+    if (prev_level != current_level)
+      break;
+  }
+  if (!timeout_ctr)
+    *more_avail = false;
+
+  *bit_offset = offset;
+  return byte;
 }
 
-
-int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(int n)
+int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(int packet_len)
 {
-  return iwm_read_packet_spi(packet_buffer, n);
+  return iwm_read_packet_spi(packet_buffer, packet_len);
 }
 
-int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
+int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int packet_len)
 { // read data stream using SPI
 
   // these are for the on the fly checksum decode
@@ -287,18 +342,15 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
 
   */
 
-  spi_len = n * pulsewidth * 11 / 10 ; //add 10% for overhead to accomodate YS command packet
-
   // comment this out, trying to minimise the time from REQ interrupt to start the SPI polling
   // helps the IIgs get in sync to the bitstream quicker
   //memset(spi_buffer, 0xff, SPI_SP_LEN);
 
   memset(&rxtrans, 0, sizeof(spi_transaction_t));
-  rxtrans.flags = 0;
-  rxtrans.length = 0; //spi_len * 8;   // Data length, in bits
-  rxtrans.rxlength = spi_len * 8;   // Data length, in bits
-  rxtrans.tx_buffer = nullptr;
-  rxtrans.rx_buffer = spi_buffer; // finally send the line data
+  rxtrans.rx_buffer = spi_buffer;
+
+  // add 10% for overhead to accomodate YS command packet
+  rxtrans.rxlength = IWM_BITLEN_FOR_BYTES(packet_len * 11 / 10, f_spirx, spi_buffer);
 
   // setup a timeout counter to wait for REQ response
   if (req_wait_for_rising_timeout(10000))
@@ -316,22 +368,14 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   iwm_extra_clr();
 
   // decode the packet here
-  spirx_byte_ctr = 0; // initialize the SPI buffer sampler
-  spirx_bit_ctr = 0;
-
-  bool have_data = true;
+  size_t spirx_bit_ctr = 0; // initialize the SPI buffer sampler
+  bool more_data, have_data = true;
   bool synced = false;
   int idx = 0;             // index into *buffer
-  bool bit = false; // = 0;        // logical bit value
 
   uint8_t rxbyte = 0;      // r23 received byte being built bit by bit
-  int numbits = 8;             // number of bits left to read into the rxbyte
-
-  bool prev_level = true;
-  bool current_level; // level is signal value (fast time), bits are decoded data values (slow time)
 
   //for tracking the number of samples
-  int bit_position;
   int last_bit_pos = 0;
   int samples;
   bool start_packet = true;
@@ -345,9 +389,8 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
   {
     iwm_extra_set(); // signal to LA we're in the nested loop
 
-    bit_position = spirx_byte_ctr * 8 + spirx_bit_ctr; // current bit positon
-    samples = bit_position - last_bit_pos; // difference since last time
-    last_bit_pos = bit_position;
+    samples = spirx_bit_ctr - last_bit_pos; // difference since last time
+    last_bit_pos = spirx_bit_ctr;
 
     // calc checksum as we go
     // note: idx is pointing to the next byte to be read at this point
@@ -402,64 +445,17 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int n)
       fnTimer.alarm_snooze( (samples * 10 * 1000 * 1000) / f_spirx); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
     }
 
-    iwm_extra_clr();
-    do
-    {
-      bit = false; // assume no edge in this next bit
-#ifdef VERBOSE_IWM
-      Debug_printf("\npulsewidth = %d, halfwidth = %d",pulsewidth,halfwidth);
-      Debug_printf("\nspibyte spibit intctr sampval preval rxbit rxbyte");
-#endif
-      int i = 0;
-      while (i < pulsewidth)
-      {
-        current_level = spirx_get_next_sample();
-        current_level ? iwm_extra_clr() : iwm_extra_set();
-#ifdef VERBOSE_IWM
-        Debug_printf("\n%7d %6d %6d %7d %6d %5d %6d", spirx_byte_ctr, spirx_bit_ctr, i, current_level, prev_level, bit, rxbyte);
-#endif
-        // sprix:
-        // loop through 4 usec worth of samples looking for an edge
-        // if found, jump forward 2 usec and set bit = 1;
-        // otherwise, bit = 0;
-        if ((prev_level != current_level))
-        {
-          i = halfwidth; // resync the receiver - must be halfway through 4-us period at an edge
-          bit = true;
-        }
-        prev_level = current_level;
-        i++;
-      }
-      rxbyte <<= 1;
-      rxbyte |= bit;
-      iwm_extra_set(); // signal to LA we're done with this bit
-    } while (--numbits > 0);
+    rxbyte = iwm_decode_byte(spi_buffer, SPI_SP_LEN, f_spirx, 19, &spirx_bit_ctr, &more_data);
+
     if ((rxbyte == 0xc3) && (!synced))
     {
       synced = true;
       idx = 5;
     }
     buffer[idx++] = rxbyte;
-    // wait for leading edge of next byte or timeout for end of packet
-    int timeout_ctr = (f_spirx * 19) / (1000 * 1000); //((f_nyquist * f_over) * 18) / (1000 * 1000);
-#ifdef VERBOSE_IWM
-    Debug_printf("%02x ", rxbyte);
-#endif
-    // now wait for leading edge of next byte
-    iwm_extra_clr();
-    if (idx > n)
+    if (idx > packet_len || !more_data)
       have_data = false;
-    else
-      do
-      {
-        if (--timeout_ctr < 1)
-        { // end of packet
-          have_data = false;
-          break;
-        }
-      } while (spirx_get_next_sample() == prev_level);
-    numbits = 8;
-  } while (have_data); // while have_data
+  } while (have_data);
 
   // keep this so we can print them later for debug
   smartport.calc_checksum = checksum;
