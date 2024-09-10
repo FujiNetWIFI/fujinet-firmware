@@ -416,7 +416,7 @@ void systemBus::toggleBaudrate()
     if (useUltraHigh == true)
         baudrate = _rs232Baud == RS232_BAUDRATE ? _rs232BaudUltraHigh : RS232_BAUDRATE;
 
-    Debug_printf("Toggling baudrate from %d to %d\n", _rs232Baud, baudrate);
+    // Debug_printf("Toggling baudrate from %d to %d\n", _rs232Baud, baudrate);
     _rs232Baud = baudrate;
     fnUartBUS.set_baudrate(_rs232Baud);
 }

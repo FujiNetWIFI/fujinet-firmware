@@ -902,18 +902,20 @@ void rs232Network::parse_and_instantiate_protocol()
     // Invalid URL returns error 165 in status.
     if (!urlParser->isValidUrl())
     {
-        Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
+        Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         rs232_error();
         return;
     }
 
-    Debug_printf("::parse_and_instantiate_protocol transformed to (%s, %s)\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+#endif
 
     // Instantiate protocol object.
     if (!instantiate_protocol())
     {
-        Debug_printf("Could not open protocol.\n");
+        Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         status.error = NETWORK_ERROR_GENERAL;
         rs232_error();
         return;
