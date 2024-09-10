@@ -614,11 +614,18 @@ void clean_transform_petscii_to_ascii(std::string& data) {
 // Non-mutating
 std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string prefix, bool is_directory_read, bool process_fs_dot)
 {
+    if (deviceSpec.length() == 0) {
+        Debug_printv("ERROR: deviceSpec is empty, returning empty string");
+        return "";
+    }
+
     string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
     // if prefix is empty, the concatenation is still valid
     deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
 
-    Debug_printf("util_devicespec_fix_for_parsing(%s, %s, %s, %s)\n", deviceSpec.c_str(), prefix.c_str(), is_directory_read ? "true" : "false", process_fs_dot ? "true" : "false");
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("util_devicespec_fix_for_parsing, spec: >%s<, prefix: >%s<, dir_read?: %s, fs_dot?: %s)\n", deviceSpec.c_str(), prefix.c_str(), is_directory_read ? "true" : "false", process_fs_dot ? "true" : "false");
+#endif
 
     util_strip_nonascii(deviceSpec);
 

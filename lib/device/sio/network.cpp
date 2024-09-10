@@ -207,8 +207,11 @@ void sioNetwork::sio_open()
  */
 void sioNetwork::sio_close()
 {
-    Debug_printf("sioNetwork::sio_close()\n");
+    // Debug_printf("sioNetwork::sio_close()\n");
 
+#ifdef ESP_PLATFORM
+    long before_heap = esp_get_free_internal_heap_size();
+#endif
     sio_ack();
 
     status.reset();
@@ -232,9 +235,6 @@ void sioNetwork::sio_close()
     else
         sio_complete();
 
-#ifdef ESP_PLATFORM
-    Debug_printv("Before protocol delete %lu\n",esp_get_free_internal_heap_size());
-#endif
     // Delete the protocol object
     delete protocol;
     protocol = nullptr;
@@ -246,7 +246,8 @@ void sioNetwork::sio_close()
     }
 
 #ifdef ESP_PLATFORM
-    Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
+    long after_heap = esp_get_free_internal_heap_size();
+    Debug_printv("Before/After deleting: %lu/%lu (diff: %lu)", before_heap, after_heap, after_heap - before_heap);
 #endif
 }
 
@@ -262,7 +263,9 @@ void sioNetwork::sio_read()
     unsigned short num_bytes = sio_get_aux();
     bool err = false;
 
-    Debug_printf("sioNetwork::sio_read( %d bytes)\n", num_bytes);
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("sioNetwork::sio_read(%d bytes)\n", num_bytes);
+#endif
 
     sio_ack();
 
@@ -342,7 +345,9 @@ void sioNetwork::sio_write()
     unsigned short num_bytes = sio_get_aux();
     bool err = false;
 
-    Debug_printf("sioNetwork::sio_write( %d bytes)\n", num_bytes);
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("sioNetwork::sio_write(%d bytes)\n", num_bytes);
+#endif
 
     // sio_ack(); // apc: not yet
 
@@ -429,7 +434,9 @@ void sioNetwork::sio_status_local()
     uint8_t ipDNS[4];
     uint8_t default_status[4] = {0, 0, 0, 0};
 
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_status_local(%u)\n", cmdFrame.aux2);
+#endif
 
     fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
     fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
@@ -437,19 +444,27 @@ void sioNetwork::sio_status_local()
     switch (cmdFrame.aux2)
     {
     case 1: // IP Address
+#ifdef VERBOSE_PROTOCOL
         Debug_printf("IP Address: %u.%u.%u.%u\n", ipAddress[0], ipAddress[1], ipAddress[2], ipAddress[3]);
+#endif
         bus_to_computer(ipAddress, 4, false);
         break;
     case 2: // Netmask
+#ifdef VERBOSE_PROTOCOL
         Debug_printf("Netmask: %u.%u.%u.%u\n", ipNetmask[0], ipNetmask[1], ipNetmask[2], ipNetmask[3]);
+#endif
         bus_to_computer(ipNetmask, 4, false);
         break;
     case 3: // Gatway
+#ifdef VERBOSE_PROTOCOL
         Debug_printf("Gateway: %u.%u.%u.%u\n", ipGateway[0], ipGateway[1], ipGateway[2], ipGateway[3]);
+#endif
         bus_to_computer(ipGateway, 4, false);
         break;
     case 4: // DNS
+#ifdef VERBOSE_PROTOCOL
         Debug_printf("DNS: %u.%u.%u.%u\n", ipDNS[0], ipDNS[1], ipDNS[2], ipDNS[3]);
+#endif
         bus_to_computer(ipDNS, 4, false);
         break;
     default:
@@ -475,7 +490,9 @@ void sioNetwork::sio_status_channel()
     uint8_t serialized_status[4] = {0, 0, 0, 0};
     bool err = false;
 
-    Debug_printf("sioNetwork::sio_status_channel(%u)\n", channelMode);
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("sioNetwork::sio_status_channel(mode: %u)\n", channelMode);
+#endif
 
     switch (channelMode)
     {
@@ -501,8 +518,8 @@ void sioNetwork::sio_status_channel()
     serialized_status[2] = status.connected;
     serialized_status[3] = status.error;
 
-    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
-                 status.rxBytesWaiting, status.connected, status.error);
+    // leaving this one to print
+    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n", status.rxBytesWaiting, status.connected, status.error);
 
     // and send to computer
     bus_to_computer(serialized_status, sizeof(serialized_status), err);
@@ -539,7 +556,9 @@ void sioNetwork::sio_set_prefix()
 
     prefixSpec_str = string((const char *)prefixSpec);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
+#endif
 
     // If "NCD Nn:" then prefix is cleared completely
     if (prefixSpec_str.empty())
@@ -594,7 +613,9 @@ void sioNetwork::sio_set_prefix()
     }
 
     prefix = util_get_canonical_path(prefix);
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("Prefix now: %s\n", prefix.c_str());
+#endif
 
     // We are okay, signal complete.
     sio_complete();
@@ -691,7 +712,9 @@ void sioNetwork::sio_special_inquiry()
     // Acknowledge
     sio_ack();
 
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_special_inquiry(%02x)\n", cmdFrame.aux1);
+#endif
 
     do_inquiry(cmdFrame.aux1);
 
@@ -708,7 +731,9 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
     if (protocol != nullptr)
     {
         inq_dstats = protocol->special_inquiry(inq_cmd);
+#ifdef VERBOSE_PROTOCOL
         Debug_printf("protocol special_inquiry returned %d\r\n", inq_dstats);
+#endif
     }
 
     // If we didn't get one from protocol, or unsupported, see if supported globally.
@@ -757,7 +782,9 @@ void sioNetwork::do_inquiry(unsigned char inq_cmd)
         }
     }
 
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("inq_dstats = %u\n", inq_dstats);
+#endif
 }
 
 /**
@@ -856,7 +883,9 @@ void sioNetwork::sio_special_80()
     // Get special (devicespec) from computer
     bus_to_peripheral(spData, SPECIAL_BUFFER_SIZE); // TODO test checksum
 
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_special_80() - %s\n", spData);
+#endif
 
     // Do protocol action and return
     if (protocol->special_80(spData, SPECIAL_BUFFER_SIZE, &cmdFrame) == false)
@@ -875,8 +904,8 @@ void sioNetwork::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    Debug_printf("sioNetwork::sio_process 0x%02hx '%c': 0x%02hx, 0x%02hx\n",
-                 cmdFrame.comnd, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
+    // leaving this one to print
+    Debug_printf("sioNetwork::sio_process 0x%02hx '%c': 0x%02hx, 0x%02hx\n", cmdFrame.comnd, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
 
     switch (cmdFrame.comnd)
     {
@@ -962,6 +991,7 @@ bool sioNetwork::instantiate_protocol()
         return false;
     }
 
+    // leaving this one to print
     Debug_printf("sioNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
 }
@@ -979,7 +1009,6 @@ void sioNetwork::create_devicespec()
     bus_to_peripheral(devicespecBuf, sizeof(devicespecBuf)); // TODO test checksum
     util_devicespec_fix_9b(devicespecBuf, sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
-
     deviceSpec = util_devicespec_fix_for_parsing(deviceSpec, prefix, cmdFrame.aux1 == 6, true);
 }
 
@@ -1001,18 +1030,20 @@ void sioNetwork::parse_and_instantiate_protocol()
     // Invalid URL returns error 165 in status.
     if (!urlParser->isValidUrl())
     {
-        Debug_printf("Invalid devicespec: %s\n", deviceSpec.c_str());
+        Debug_printf("Invalid devicespec: >%s<\n", deviceSpec.c_str());
         status.error = NETWORK_ERROR_INVALID_DEVICESPEC;
         sio_error();
         return;
     }
 
-    Debug_printf("::parse_and_instantiate_protocol transformed to (%s, %s)\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("::parse_and_instantiate_protocol -> spec: >%s<, url: >%s<\r\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
+#endif
 
     // Instantiate protocol object.
     if (!instantiate_protocol())
     {
-        Debug_printf("Could not open protocol.\n");
+        Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         status.error = NETWORK_ERROR_GENERAL;
         sio_error();
         return;

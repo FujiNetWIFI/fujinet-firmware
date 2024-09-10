@@ -220,7 +220,9 @@ void fnHttpService::send_header_footer(httpd_req_t *req, int headfoot)
 void fnHttpService::send_file_parsed(httpd_req_t *req, const char *filename)
 {
     // Note that we don't add FNWS_FILE_ROOT as it should've been done in send_file()
+#ifdef VERBOSE_HTTP
     Debug_printf("Opening file for parsing: '%s'\n", filename);
+#endif
 
     _fnwserr err = fnwserr_noerrr;
 
@@ -341,7 +343,9 @@ void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
 
     while (token != NULL)
     {
+#ifdef VERBOSE_HTTP
         Debug_printf("Item: %s\n", token);
+#endif
         vItems.push_back(string(token));
         token = strtok(NULL, "&");
     }
@@ -363,7 +367,9 @@ void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
         key = it->substr(0, it->find_first_of("="));
         value = it->substr(it->find_first_of("=") + 1);
 
+#ifdef VERBOSE_HTTP
         Debug_printf("Key %s : Value %s\n", key.c_str(), value.c_str());
+#endif
 
         results->query_parsed.insert(make_pair(key, value));
     }
@@ -373,7 +379,9 @@ void fnHttpService::parse_query(httpd_req_t *req, queryparts *results)
 
 esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
 {
+#ifdef VERBOSE_HTTP
     Debug_printf("Index request handler %p\n", xTaskGetCurrentTaskHandle());
+#endif
 
     send_file(req, "index.html");
     return ESP_OK;
@@ -382,7 +390,9 @@ esp_err_t fnHttpService::get_handler_index(httpd_req_t *req)
 esp_err_t fnHttpService::get_handler_test(httpd_req_t *req)
 {
     TaskHandle_t task = xTaskGetCurrentTaskHandle();
+#ifdef VERBOSE_HTTP
     Debug_printf("Test request handler %p\n", task);
+#endif
 
     // Debug_printf("WiFI handle %p\n", handle_WiFi);
     // vTaskPrioritySet(handle_WiFi, 5);
@@ -535,7 +545,9 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
         httpd_resp_send_chunk(req, buf, count);
     } while (count > 0);
 
+#ifdef VERBOSE_HTTP
     Debug_printf("Sent %u bytes total from print file\n", total);
+#endif
 
     free(buf);
     fclose(poutput);
@@ -550,12 +562,16 @@ esp_err_t fnHttpService::get_handler_print(httpd_req_t *req)
 
 esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
 {
+#ifdef VERBOSE_HTTP
     Debug_printf("Modem Sniffer output request handler\n");
+#endif
 
     fnHTTPD.clearErrMsg();
 
     ModemSniffer *modemSniffer = sioR->get_modem_sniffer();
+#ifdef VERBOSE_HTTP
     Debug_printf("Got modem Sniffer.\n");
+#endif
     time_t now = fnSystem.millis();
 
     if (now - sioR->get_last_activity_time() < PRINTER_BUSY_TIME) // re-using printer timeout constant.
@@ -566,7 +582,9 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
     }
 
     FILE *sOutput = modemSniffer->closeOutputAndProvideReadHandle();
+#ifdef VERBOSE_HTTP
     Debug_printf("Got file handle %p\n", sOutput);
+#endif
     if (sOutput == nullptr)
     {
         fnHTTPD.addToErrMsg("Unable to open modem sniffer output.\n");
@@ -589,12 +607,16 @@ esp_err_t fnHttpService::get_handler_modem_sniffer(httpd_req_t *req)
         httpd_resp_send_chunk(req, buf, count);
     } while (count > 0);
 
+#ifdef VERBOSE_HTTP
     Debug_printf("Sent %u bytes total from sniffer file\n", total);
+#endif
 
     free(buf);
     fclose(sOutput);
 
+#ifdef VERBOSE_HTTP
     Debug_printf("Sniffer dump completed.\n");
+#endif
 
     return ESP_OK;
 }
@@ -1163,8 +1185,9 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
 
 esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
 {
-
+#ifdef VERBOSE_HTTP
     Debug_printf("Post_config request handler '%s'\n", req->uri);
+#endif
 
     _fnwserr err = fnwserr_noerrr;
 
@@ -1172,7 +1195,6 @@ esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
     char *buf = (char *)calloc(FNWS_RECV_BUFF_SIZE, 1);
     if (buf == NULL)
     {
-
         Debug_printf("Couldn't allocate %u bytes to store POST contents\n", FNWS_RECV_BUFF_SIZE);
 
         err = fnwserr_memory;

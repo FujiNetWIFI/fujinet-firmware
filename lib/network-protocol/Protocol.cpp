@@ -74,8 +74,9 @@ NetworkProtocol::NetworkProtocol(std::string *rx_buf,
                                  std::string *tx_buf,
                                  std::string *sp_buf)
 {
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocol::ctor()\r\n");
-
+#endif
     receiveBuffer = rx_buf;
     transmitBuffer = tx_buf;
     specialBuffer = sp_buf;
@@ -88,7 +89,9 @@ NetworkProtocol::NetworkProtocol(std::string *rx_buf,
  */
 NetworkProtocol::~NetworkProtocol()
 {
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocol::dtor()\r\n");
+#endif
     receiveBuffer->clear();
     transmitBuffer->clear();
     specialBuffer->clear();
@@ -107,8 +110,6 @@ bool NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
     // Set translation mode, Bits 0-1 of aux2
     translation_mode = cmdFrame->aux2 & 0x7F; // we now have more xlation modes.
 
-    Debug_printf("translation mode = %u\r\n",translation_mode);
-
     // Persist aux1/aux2 values for later.
     aux1_open = cmdFrame->aux1;
     aux2_open = cmdFrame->aux2;
@@ -123,7 +124,9 @@ void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
     aux1_open = p1;
     aux2_open = p2;
     translation_mode = p2 & 0x7F;
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("Changed open params to aux1_open = %d, aux2_open = %d. Set translation_mode to %d\r\n", p1, p2, translation_mode);
+#endif
 }
 
 /**
@@ -152,7 +155,9 @@ bool NetworkProtocol::close()
  */
 bool NetworkProtocol::read(unsigned short len)
 {
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocol::read(%u)\r\n", len);
+#endif
     translate_receive_buffer();
     error = 1;
     return false;
@@ -192,7 +197,9 @@ bool NetworkProtocol::status(NetworkStatus *status)
   */
 void NetworkProtocol::translate_receive_buffer()
 {
-    // Debug_printf("#### Translating receive buffer, mode: %u\r\n", translation_mode);
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("#### Translating receive buffer, mode: %u\r\n", translation_mode);
+#endif
     if (translation_mode == 0)
         return;
 
@@ -217,7 +224,9 @@ void NetworkProtocol::translate_receive_buffer()
     #endif
         break;
     case TRANSLATION_MODE_PETSCII:
+#ifdef VERBOSE_PROTOCOL
         Debug_printf("!!! PETSCII !!!\r\n");
+#endif
         *receiveBuffer = mstr::toUTF8(*receiveBuffer);
         break;
     }
@@ -232,7 +241,9 @@ void NetworkProtocol::translate_receive_buffer()
  */
 unsigned short NetworkProtocol::translate_transmit_buffer()
 {
-    // Debug_printf("#### Translating transmit buffer, mode: %u\r\n", translation_mode);
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("#### Translating transmit buffer, mode: %u\r\n", translation_mode);
+#endif
     if (translation_mode == 0)
         return transmitBuffer->length();
 
@@ -323,7 +334,9 @@ void NetworkProtocol::errno_to_error()
         break;
 #endif
     default:
+#ifdef VERBOSE_PROTOCOL
         Debug_printf("errno_to_error() - Uncaught errno = %u, returning 144.\r\n", err);
+#endif
         error = NETWORK_ERROR_GENERAL;
         break;
     }

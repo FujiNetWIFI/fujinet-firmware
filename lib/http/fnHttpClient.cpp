@@ -30,22 +30,23 @@ fnHttpClient::~fnHttpClient()
 {
     close();
 
+    Debug_printv("BEFORE free heap/low: %lu/%lu", esp_get_free_heap_size(), esp_get_free_internal_heap_size());
     if (_handle != nullptr)
     {
-        Debug_printf("esp_http_client_cleanup(%p)\r\n", _handle);
-        Debug_printf("free heap: %lu\r\n", esp_get_free_heap_size());
-        Debug_printv("free low heap: %lu\r\n",esp_get_free_internal_heap_size());
         esp_http_client_cleanup(_handle);
     }
 
     free(_buffer);
     _buffer = nullptr;
+    Debug_printv("AFTER free heap/low: %lu/%lu", esp_get_free_heap_size(), esp_get_free_internal_heap_size());
 }
 
 // Start an HTTP client session to the given URL
 bool fnHttpClient::begin(const std::string &url)
 {
+#ifdef VERBOSE_HTTP
     Debug_printf("fnHttpClient::begin \"%s\"\r\n", url.c_str());
+#endif
 
     esp_http_client_config_t cfg;
     memset(&cfg, 0, sizeof(cfg));
@@ -69,13 +70,17 @@ int fnHttpClient::available()
 {
     if (_handle == nullptr)
     {
+#ifdef VERBOSE_HTTP
         Debug_printf("fnHttpClient::available() _handle is null\r\n");
+#endif
         return 0;
     }
 
     if (_handle->response == nullptr)
     {
+#ifdef VERBOSE_HTTP
         Debug_printf("fnHttpClient::available() _handle->response is null\r\n");
+#endif
         return 0;
     }
 
@@ -122,7 +127,9 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         bytes_left = _buffer_len - _buffer_pos;
         bytes_to_copy = dest_bufflen > bytes_left ? bytes_left : dest_bufflen;
 
+#ifdef VERBOSE_HTTP
         Debug_printf("::read from buffer %d\r\n", bytes_to_copy);
+#endif
         memcpy(dest_buffer, _buffer + _buffer_pos, bytes_to_copy);
         _buffer_pos += bytes_to_copy;
         _buffer_total_read += bytes_to_copy;
@@ -147,7 +154,9 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
     // Our HTTP subtask is gone - say there's nothing left to read...
     if (_taskh_subtask == nullptr)
     {
+#ifdef VERBOSE_HTTP
         Debug_println("::read subtask gone");
+#endif
         return bytes_copied;
     }
 
@@ -161,7 +170,9 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) != 1)
         {
             // Abort if we timed-out receiving the data
+#ifdef VERBOSE_HTTP
             Debug_println("::read time-out");
+#endif
             return -1;
         }
         // Debug_println("::read got notification");
@@ -174,8 +185,9 @@ int fnHttpClient::read(uint8_t *dest_buffer, int dest_bufflen)
         int dest_size = dest_bufflen - bytes_copied;
         bytes_to_copy = dest_size > _buffer_len ? _buffer_len : dest_size;
 
-        Debug_printf("dest_size=%d, dest_bufflen=%d, bytes_copied=%d, bytes_to_copy=%d\r\n",
-        dest_size, dest_bufflen, bytes_copied, bytes_to_copy);
+#ifdef VERBOSE_HTTP
+        Debug_printf("dest_size=%d, dest_bufflen=%d, bytes_copied=%d, bytes_to_copy=%d\r\n", dest_size, dest_bufflen, bytes_copied, bytes_to_copy);
+#endif
 
         memcpy(dest_buffer + bytes_copied, _buffer, bytes_to_copy);
         _buffer_pos += bytes_to_copy;
@@ -346,7 +358,9 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
     case HTTP_EVENT_ON_FINISH: // Occurs when finish a HTTP session
     {
         // This may get called more than once if esp_http_client decides to retry in order to handle a redirect or auth response
+#ifdef VERBOSE_HTTP
         // Debug_printf("HTTP_EVENT_ON_FINISH %u\r\n", uxTaskGetStackHighWaterMark(nullptr));
+#endif
         // Keep track of how many times we "finish" reading a response from the server
         client->_redirect_count++;
         break;
@@ -354,7 +368,9 @@ esp_err_t fnHttpClient::_httpevent_handler(esp_http_client_event_t *evt)
 
     case HTTP_EVENT_DISCONNECTED: // The connection has been disconnected
         client->connected = false;
+#ifdef VERBOSE_HTTP
         // Debug_printf("HTTP_EVENT_DISCONNECTED %p:\"%s\":%u\r\n", xTaskGetCurrentTaskHandle(), pcTaskGetTaskName(nullptr), uxTaskGetStackHighWaterMark(nullptr));
+#endif
         break;
     }
     return ESP_OK;
@@ -373,7 +389,9 @@ void fnHttpClient::_perform_subtask(void *param)
     // Debug_printf("esp_http_client_perform start\r\n");
 
     esp_err_t e = esp_http_client_perform(parent->_handle);
+#ifdef VERBOSE_HTTP
     Debug_printf("esp_http_client_perform returned %d, stack HWM %u\r\n", e, uxTaskGetStackHighWaterMark(nullptr));
+#endif
 
     // Save error
     parent->_client_err = e;
@@ -399,7 +417,9 @@ void fnHttpClient::_perform_subtask(void *param)
         xTaskNotifyGive(parent->_taskh_consumer);
     }
 
+#ifdef VERBOSE_HTTP
     Debug_printv("_perform_subtask_exiting");
+#endif
     TaskHandle_t tmp = parent->_taskh_subtask;
     parent->_taskh_subtask = nullptr;
     vTaskDelete(tmp);
@@ -422,7 +442,9 @@ void fnHttpClient::_delete_subtask_if_running()
 */
 int fnHttpClient::_perform()
 {
+#ifdef VERBOSE_HTTP
     Debug_printf("%08lx _perform\r\n", fnSystem.millis());
+#endif
 
     _buffer_total_read = 0;
 
@@ -435,12 +457,16 @@ int fnHttpClient::_perform()
     // Start a new task to perform the http client work
     _delete_subtask_if_running();
     xTaskCreate(_perform_subtask, "perform_subtask", 4096, this, 5, &_taskh_subtask);
+#ifdef VERBOSE_HTTP
     // Debug_printf("%08lx _perform subtask created\r\n", fnSystem.millis());
+#endif
 
     // Wait until we have headers returned
     if (ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(HTTPCLIENT_WAIT_FOR_HTTP_TASK)) == 0)
     {
+#ifdef VERBOSE_HTTP
         Debug_printf("Timed-out waiting for headers to load\r\n");
+#endif
         //_delete_subtask_if_running();
         return -1;
     }
@@ -464,13 +490,17 @@ int fnHttpClient::_perform()
         break;
     default:
         status = esp_http_client_get_status_code(_handle);
+#ifdef VERBOSE_HTTP
         Debug_printf("esp_http_client_get_status_code = %u\r\n", status);
+#endif
         // Other error, use fake HTTP status code 900
         // it will be translated to NETWORK_ERROR_GENERAL (144) in NetworkProtocolHTTP::fserror_to_error()
         if (status < 0)
             status = 900;
     }
+#ifdef VERBOSE_HTTP
     Debug_printf("%08lx _perform status = %d, length = %d, chunked = %d\r\n", fnSystem.millis(), status, length, chunked ? 1 : 0);
+#endif
     return status;
 }
 
@@ -482,7 +512,9 @@ int fnHttpClient::_perform()
 */
 int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size)
 {
+#ifdef VERBOSE_HTTP
     Debug_printf("%08lx _perform_stream\r\n", fnSystem.millis());
+#endif
 
     if (_handle == nullptr)
         return -1;
@@ -507,7 +539,9 @@ int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *writ
         set_header("Content-Length", buff);
     }
 
+#ifdef VERBOSE_HTTP
     Debug_printf("%08lx _perform_write open+write\r\n", fnSystem.millis());
+#endif
     e = esp_http_client_open(_handle, write_size);
     if (e != ESP_OK)
     {
@@ -533,14 +567,18 @@ int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *writ
     bool chunked = esp_http_client_is_chunked_response(_handle);
     int status = esp_http_client_get_status_code(_handle);
     int length = esp_http_client_get_content_length(_handle);
+#ifdef VERBOSE_HTTP
     Debug_printf("status = %d, length = %d, chunked = %d\r\n", status, length, chunked ? 1 : 0);
+#endif
 
     // Read any returned data
     int r = esp_http_client_read(_handle, _buffer, DEFAULT_HTTP_BUF_SIZE);
     if (r > 0)
     {
         _buffer_len = r;
+#ifdef VERBOSE_HTTP
         Debug_printf("_perform_write read %d bytes\r\n", r);
+#endif
     }
 
     return status;
@@ -548,8 +586,9 @@ int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *writ
 
 int fnHttpClient::PUT(const char *put_data, int put_datalen)
 {
+#ifdef VERBOSE_HTTP
     Debug_println("fnHttpClient::PUT");
-
+#endif
     if (_handle == nullptr || put_data == nullptr || put_datalen < 1)
         return -1;
 
@@ -572,7 +611,9 @@ int fnHttpClient::PUT(const char *put_data, int put_datalen)
 
 int fnHttpClient::PROPFIND(webdav_depth depth, const char *properties_xml)
 {
+#ifdef VERBOSE_HTTP
     Debug_println("fnHttpClient::PROPFIND");
+#endif
     if (_handle == nullptr)
         return -1;
 
@@ -600,7 +641,9 @@ int fnHttpClient::PROPFIND(webdav_depth depth, const char *properties_xml)
 
 int fnHttpClient::DELETE()
 {
+#ifdef VERBOSE_HTTP
     Debug_println("fnHttpClient::DELETE");
+#endif
     if (_handle == nullptr)
         return -1;
 
@@ -615,7 +658,9 @@ int fnHttpClient::DELETE()
 
 int fnHttpClient::MKCOL()
 {
+#ifdef VERBOSE_HTTP
     Debug_println("fnHttpClient::MKCOL");
+#endif
     if (_handle == nullptr)
         return -1;
 
@@ -630,7 +675,9 @@ int fnHttpClient::MKCOL()
 
 int fnHttpClient::COPY(const char *destination, bool overwrite, bool move)
 {
+#ifdef VERBOSE_HTTP
     Debug_println("fnHttpClient::COPY");
+#endif
     if (_handle == nullptr || destination == nullptr)
         return -1;
 
@@ -649,7 +696,9 @@ int fnHttpClient::COPY(const char *destination, bool overwrite, bool move)
 
 int fnHttpClient::MOVE(const char *destination, bool overwrite)
 {
+#ifdef VERBOSE_HTTP
     Debug_println("fnHttpClient::MOVE");
+#endif
     return COPY(destination, overwrite, true);
 }
 
@@ -662,7 +711,9 @@ int fnHttpClient::MOVE(const char *destination, bool overwrite)
 */
 int fnHttpClient::POST(const char *post_data, int post_datalen)
 {
+#ifdef VERBOSE_HTTP
     Debug_println("fnHttpClient::POST");
+#endif
     if (_handle == nullptr || post_data == nullptr || post_datalen < 1)
         return -1;
 
@@ -679,7 +730,9 @@ int fnHttpClient::POST(const char *post_data, int post_datalen)
 // Execute an HTTP GET against current URL.  Returns HTTP result code
 int fnHttpClient::GET()
 {
+#ifdef VERBOSE_HTTP
     Debug_println("fnHttpClient::GET");
+#endif
     if (_handle == nullptr)
         return -1;
 
@@ -694,7 +747,9 @@ int fnHttpClient::GET()
 
 int fnHttpClient::HEAD()
 {
+#ifdef VERBOSE_HTTP
     Debug_println("fnHttpClient::HEAD");
+#endif
     if (_handle == nullptr)
         return -1;
 

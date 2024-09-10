@@ -80,7 +80,9 @@ bool NetworkProtocolFS::open_dir()
     if (filename.empty())
         filename = "*";
 
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolFS::open_dir(%s)\r\n", opened_url->url.c_str());
+#endif
 
     if (opened_url->path.empty())
     {
@@ -199,14 +201,18 @@ bool NetworkProtocolFS::read_file(unsigned short len)
 {
     std::vector<uint8_t> buf = std::vector<uint8_t>(len);
 
+#ifdef VERBOSE_HTTP
     Debug_printf("NetworkProtocolFS::read_file(%u)\r\n", len);
+#endif
 
     if (receiveBuffer->length() == 0)
     {
         // Do block read.
         if (read_file_handle(buf.data(), len) == true)
         {
+#ifdef VERBOSE_PROTOCOL
             Debug_printf("Nothing new from adapter, bailing.\n");
+#endif
             return true;
         }
 
@@ -342,7 +348,9 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
 
 void NetworkProtocolFS::resolve()
 {
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolFS::resolve(%s,%s,%s)\r\n", opened_url->path.c_str(), dir.c_str(), filename.c_str());
+#endif
 
     if (stat() == true) // true = error.
     {
@@ -364,7 +372,9 @@ void NetworkProtocolFS::resolve()
             std::string current_entry = std::string(e);
             std::string crunched_entry = util_crunch(current_entry);
 
+#ifdef VERBOSE_PROTOCOL
             Debug_printf("current entry \"%s\" crunched entry \"%s\"\r\n", current_entry.c_str(), crunched_entry.c_str());
+#endif
 
             if (crunched_filename == crunched_entry)
             {
@@ -377,7 +387,9 @@ void NetworkProtocolFS::resolve()
         close_dir_handle();
     }
 
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("Resolved to %s\r\n", opened_url->url.c_str());
+#endif
 
     // Clear file size, if resolved to write and not append.
     if (aux1_open == 8)
@@ -387,7 +399,9 @@ void NetworkProtocolFS::resolve()
 
 bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolFS::perform_idempotent_80, url: %s cmd: 0x%02X\r\n", url->url.c_str(), cmdFrame->comnd);
+#endif
     switch (cmdFrame->comnd)
     {
     case 0x20:
@@ -403,7 +417,9 @@ bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t 
     case 0x2B:
         return rmdir(url, cmdFrame);
     default:
+#ifdef VERBOSE_PROTOCOL
         Debug_printf("Uncaught idempotent command: 0x%02X\r\n", cmdFrame->comnd);
+#endif
         return true;
     }
 }
@@ -426,7 +442,9 @@ bool NetworkProtocolFS::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     destFilename = dir + filename.substr(comma_pos + 1);
     filename = dir + filename.substr(0, comma_pos);
 
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("RENAME destfilename, %s, filename, %s\r\n", destFilename.c_str(), filename.c_str());
+#endif
 
     return false;
 }

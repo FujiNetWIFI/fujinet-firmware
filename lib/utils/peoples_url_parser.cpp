@@ -288,6 +288,8 @@ std::string PeoplesUrlParser::rebuildUrl(void)
 
 bool PeoplesUrlParser::isValidUrl()
 {
+#ifdef VERBOSE_HTTP
     dump();
+#endif
     return !scheme.empty() && !(path.empty() && port.empty());
 }

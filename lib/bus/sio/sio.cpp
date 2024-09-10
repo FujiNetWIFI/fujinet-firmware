@@ -682,7 +682,7 @@ void systemBus::toggleBaudrate()
     if (useUltraHigh == true)
         baudrate = _sioBaud == SIO_STANDARD_BAUDRATE ? _sioBaudUltraHigh : SIO_STANDARD_BAUDRATE;
 
-    Debug_printf("Toggling baudrate from %d to %d\n", _sioBaud, baudrate);
+    // Debug_printf("Toggling baudrate from %d to %d\n", _sioBaud, baudrate);
     _sioBaud = baudrate;
 #ifdef ESP_PLATFORM
     SYSTEM_BUS.uart->set_baudrate(_sioBaud);
