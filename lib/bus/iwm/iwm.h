@@ -322,6 +322,7 @@ public:
   void service();
   bool serviceSmartPort();
   bool serviceDiskII();
+  bool serviceDiskIIWrite();
   void shutdown();
 
   int numDevices();

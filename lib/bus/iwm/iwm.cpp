@@ -443,6 +443,8 @@ void IRAM_ATTR iwmBus::service()
   // process smartport before diskII
   if (!serviceSmartPort())
     serviceDiskII();
+
+  serviceDiskIIWrite();
 }
 
 // Returns true if SmartPort was handled
@@ -570,7 +572,8 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
       if (iwm_drive_enabled() == iwm_enable_state_t::on)
       {
         IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
-        diskii_xface.start(diskii_xface.iwm_enable_states() - 1); // start it up
+        diskii_xface.start(diskii_xface.iwm_enable_states() - 1,
+                           IWM_ACTIVE_DISK2->readonly); // start it up
       }
     } // make a call to start the RMT stream
     else
@@ -599,6 +602,93 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     break;
   }
 #endif /* !SLIP */
+
+  return true;
+}
+
+// Returns true if a Disk II write was received
+bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
+{
+  iwm_write_data item;
+  int sector_num;
+  uint8_t *decoded;
+  size_t decode_len;
+  size_t sector_start, sector_end;
+  bool found_start, found_end;
+  size_t bitlen, used;
+
+
+  if (!xQueueReceive(diskii_xface.iwm_write_queue, &item, 0))
+    return false;
+
+  Debug_printf("\r\nDisk II iwm queue receive %u %u %u %u",
+	       item.length, item.track_begin, item.track_end, item.track_numbits);
+  // gap 1            = 16 * 10
+  // sector header    = 10 * 8          [D5 AA 96] + 4 + [DE AA EB]
+  // gap 2            = 7 * 10
+  // sector data      = (6 + 343) * 8   [D5 AA AD] + 343 + [DE AA EB]
+  // gap 3            = 16 * 10
+  // per sector bits  = 3102
+
+  // Take advantage of fixed sector positions of mediaTypeDSK serialise_track()
+  // (as listed above)
+  sector_num = (item.track_begin - 16 * 10) / 3102;
+
+  bitlen = (item.track_end + item.track_numbits - item.track_begin) % item.track_numbits;
+  Debug_printf("\r\nDisk II write Qtrack/sector: %i/%i  bit_len: %i",
+	       item.quarter_track, sector_num, bitlen);
+  decoded = (uint8_t *) malloc(item.length);
+  decode_len = diskii_xface.iwm_decode_buffer(item.buffer, item.length,
+					      smartport.f_spirx, D2W_CHUNK_SIZE * 2 * 8,
+					      decoded, &used);
+  Debug_printf("\r\nDisk II used: %u", used);
+
+  // Find start of sector: D5 AA AD
+  for (sector_start = 0; sector_start <= decode_len - 349; sector_start++)
+    if (decoded[sector_start]      == 0xD5
+	&& decoded[sector_start+1] == 0xAA
+	&& decoded[sector_start+2] == 0xAD)
+      break;
+  found_start = sector_start <= decode_len - 349;
+
+  // Find end of sector too: DE AA EB
+  for (sector_end = 0; sector_end <= decode_len - 3; sector_end++)
+    if (decoded[sector_end]      == 0xDE
+	&& decoded[sector_end+1] == 0xAA
+	&& decoded[sector_end+2] == 0xEB)
+      break;
+  found_end = sector_end <= decode_len - 3;
+
+  if (!found_start && found_end) {
+    Debug_printf("\r\nDisk II no prologue found");
+#if 0
+    sector_start = sector_end - 346;
+    found_start = true;
+#endif
+  }
+
+  if (found_start && found_end && sector_end - sector_start == 346) {
+    uint8_t sector_data[343]; // Need enough room to demap and de-xor
+    uint16_t checksum;
+
+
+    Debug_printf("\r\nDisk II sector data: %i", sector_start + 3);
+    checksum = decode_6_and_2(sector_data, &decoded[sector_start + 3]);
+    if ((checksum >> 8) != (checksum & 0xff))
+      Debug_printf("\r\nDisk II checksum mismatch: %04x", checksum);
+
+    iwmDisk2 *disk_dev = IWM_ACTIVE_DISK2;
+    disk_dev->write_sector(item.quarter_track, sector_num, sector_data);
+    disk_dev->change_track(0);
+  }
+  else {
+    Debug_printf("\r\nDisk II sector not found");
+  }
+
+  // FIXME - is there another sector to decode?
+
+  free(decoded);
+  free(item.buffer);
 
   return true;
 }

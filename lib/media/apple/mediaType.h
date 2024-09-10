@@ -81,6 +81,7 @@ public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) = 0;
     // Returns TRUE if an error condition occurred
     virtual bool write(uint32_t blockNum, uint16_t *count, uint8_t* buffer) = 0;
+    virtual bool write_sector(int track, int sector, uint8_t *buffer) = 0;
 
     // virtual uint16_t sector_size(uint16_t sectornum);
     

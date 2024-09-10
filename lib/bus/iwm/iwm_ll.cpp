@@ -4,8 +4,8 @@
 
 #include <string.h>
 
-#include "esp_rom_gpio.h"
-#include "soc/spi_periph.h"
+#include <esp_rom_gpio.h>
+#include <soc/spi_periph.h>
 
 #include "iwm_ll.h"
 #include "iwm.h"
@@ -15,12 +15,20 @@
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
 #include "led.h"
+#include "spi_continuous.h"
 
 #define MHZ (1000*1000)
 #define CELL_US 4 // microseconds
 #define IWM_SAMPLES_PER_CELL(freq) ((CELL_US * (freq)) / MHZ)
 #define IWM_BITLEN_FOR_BYTES(bytecount, freq, buffer) ({ \
       (bytecount) * 8 * IWM_SAMPLES_PER_CELL(freq);      \
+    })
+#define IWM_NUMBYTES_FOR_BITS(bitcount, buffer) ({      \
+      size_t bufbits = sizeof(*(buffer)) * 8;           \
+      size_t blen = (bitcount) *                        \
+        IWM_SAMPLES_PER_CELL(smartport.f_spirx);        \
+      blen = (blen + bufbits - 1) / bufbits;            \
+      blen;                                             \
     })
 
 volatile uint8_t _phases = 0;
@@ -297,6 +305,21 @@ uint8_t iwm_ll::iwm_decode_byte(uint8_t *src, size_t src_size, unsigned int samp
   return byte;
 }
 
+size_t iwm_ll::iwm_decode_buffer(uint8_t *src, size_t src_size, unsigned int sample_frequency,
+                                 int timeout, uint8_t *dest, size_t *used)
+{
+  bool more_data = true;
+  size_t offset = 0;
+  uint8_t *output;
+
+
+  for (output = dest, offset = 0; more_data; output++)
+    *output = iwm_decode_byte(src, src_size, sample_frequency, timeout, &offset, &more_data);
+
+  *used = (offset + 7) / 8;
+  return output - dest;
+}
+
 int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(int packet_len)
 {
   return iwm_read_packet_spi(packet_buffer, packet_len);
@@ -525,7 +548,7 @@ void iwm_sp_ll::setup_spi()
     spirx_mosi_pin = SP_RDDATA;
 
   // SPI for receiving packets - sprirx
-  bus_cfg = {
+  spi_bus_config_t bus_cfg = {
     .mosi_io_num = spirx_mosi_pin,
     .miso_io_num = SP_WRDATA,
     .sclk_io_num = -1,
@@ -625,7 +648,10 @@ void iwm_ll::setup_gpio()
   fnSystem.set_pin_mode(SP_PHI2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
   fnSystem.set_pin_mode(SP_PHI3, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, gpio_int_type_t::GPIO_INTR_ANYEDGE);
 
-  fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT);
+  fnSystem.set_pin_mode(SP_WREQ, gpio_mode_t::GPIO_MODE_INPUT,
+                        SystemManager::pull_updown_t::PULL_UP,
+                        gpio_int_type_t::GPIO_INTR_ANYEDGE);
+
   fnSystem.set_pin_mode(SP_DRIVE1, gpio_mode_t::GPIO_MODE_INPUT);
   fnSystem.set_pin_mode(SP_DRIVE2, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
   fnSystem.set_pin_mode(SP_EN35, gpio_mode_t::GPIO_MODE_INPUT);
@@ -823,8 +849,86 @@ void iwm_diskii_ll::set_output_to_low()
 #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 #define RMT_USEC (APB_CLK_FREQ / MHZ)
 
-void iwm_diskii_ll::start(uint8_t drive)
+// enable/disable capturing write signal from Disk II
+void IRAM_ATTR diskii_write_handler_forwarder(void *arg)
 {
+  iwm_diskii_ll *d2i = (iwm_diskii_ll *) arg;
+  d2i->diskii_write_handler();
+  return;
+}
+
+void IRAM_ATTR iwm_diskii_ll::diskii_write_handler()
+{
+  bool doCapture = !IWM_BIT(SP_WREQ);
+
+
+  //Debug_printf("\r\nDisk II write state: %i", doCapture);
+
+  if (doCapture) {
+    d2w_begin = track_location;
+    d2w_position = cspi_current_pos(smartport.spirx);
+    d2w_writing = true;
+  }
+  else if (d2w_writing) {
+    BaseType_t woken;
+    iwm_write_data item = {
+      .quarter_track = IWM_ACTIVE_DISK2->get_track_pos(),
+      .track_begin = d2w_begin,
+      .track_end = track_location,
+      .track_numbits = track_numbits,
+      .buffer = NULL,
+      .length = 0,
+    };
+
+    {
+      size_t offset;
+
+      // Rewind pointer to make sure to get sync bytes
+      d2w_position = (d2w_position + d2w_buflen - D2W_CHUNK_SIZE * 2) % d2w_buflen;
+
+      offset = cspi_current_pos(smartport.spirx);
+      item.length = (offset + d2w_buflen - d2w_position) % d2w_buflen;
+    }
+
+    item.buffer = (decltype(item.buffer)) heap_caps_malloc(item.length, MALLOC_CAP_8BIT);
+    if (!item.buffer)
+      Debug_printf("\r\nDisk II unable to allocate buffer! %u %u %u",
+                   item.length, item.track_begin, item.track_end);
+    else {
+      size_t end1, end2;
+
+
+      end1 = d2w_position + item.length;
+      end2 = 0;
+      if (end1 >= d2w_buflen) {
+        end2 = end1 - d2w_buflen;
+        end1 = d2w_buflen;
+      }
+
+      end1 -= d2w_position;
+      memcpy(item.buffer, &d2w_buffer[d2w_position], end1);
+      if (end2)
+        memcpy(&item.buffer[end1], d2w_buffer, end2);
+      xQueueSendFromISR(iwm_write_queue, &item, &woken);
+    }
+    d2w_writing = false;
+  }
+
+  return;
+}
+
+void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
+{
+  if (write_protect)
+    smartport.iwm_ack_set();
+  else {
+    smartport.iwm_ack_clr();
+    gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
+
+    cspi_begin_continuous(smartport.spirx, d2w_desc);
+    d2w_started = true;
+  }
+
   diskii_xface.set_output_to_rmt();
   diskii_xface.enable_output();
   ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
@@ -836,6 +940,12 @@ void iwm_diskii_ll::stop()
 {
   fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
   diskii_xface.disable_output();
+  if (d2w_started) {
+    cspi_end_continuous(smartport.spirx);
+    d2w_started = false;
+  }
+  smartport.iwm_ack_set();
+  gpio_isr_handler_remove(SP_WREQ);
   fnLedManager.set(LED_BUS, false);
   Debug_printf("\nstop diskII");
 }
@@ -978,11 +1088,15 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
 
 
 /*
- * Initialize the RMT Tx channel
+ * Initialize the RMT Tx channel and SPI Rx channel
  */
 void iwm_diskii_ll::setup_rmt()
 {
-#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
+  // SPI continuous
+  d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
+                                     D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
+  iwm_write_queue = xQueueCreate(10, sizeof(iwm_write_data));
+
   track_buffer = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (track_buffer == NULL)
     Debug_println("could not allocate track buffer");
