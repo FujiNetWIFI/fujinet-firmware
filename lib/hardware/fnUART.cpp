@@ -113,10 +113,13 @@ void UARTManager::begin(int baud)
 #endif /* BUILD_ADAM */
 
 #ifdef BUILD_COCO
-#ifndef PINMAP_COCO_CART
+    Debug_printv("SKIPPING TX-RX INVERT FOR FOENIX");
+#ifndef PINMAP_COCO_CART     // do not invert for coco cart
+#ifndef FOENIX_BUILD        // do not invert for Foenix with real D32 lolin
     if (_uart_num == 2)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
-#endif
+#endif /* FOENIX_BUILD */
+#endif /* PINMAP_COCO_CART */
 #endif /* BUILD_COCO */
 
 
