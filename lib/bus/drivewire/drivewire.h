@@ -37,8 +37,13 @@
 #define		OP_NOP		0
 #define     OP_JEFF     0xA5
 #define     OP_SERREAD  'C'
+#define     OP_SERREADM  'c'
+#define     OP_SERWRITE  0xC3
+#define     OP_SERWRITEM  0x64
 #define		OP_GETSTAT	'G'
 #define		OP_SETSTAT	'S'
+#define		OP_SERGETSTAT	'D'
+#define		OP_SERSETSTAT	'D'+128
 #define		OP_READ		'R'
 #define		OP_READEX	'R'+128
 #define		OP_WRITE	'W'
@@ -46,6 +51,8 @@
 #define		OP_REREADEX	'r'+128
 #define		OP_REWRITE	'w'
 #define		OP_INIT		'I'
+#define		OP_SERINIT	'E'
+#define		OP_SERTERM	'E'+128
 #define     OP_DWINIT   'Z'
 #define		OP_TERM		'T'
 #define		OP_TIME		'#'
@@ -227,11 +234,18 @@ private:
     void op_write();
     void op_time();
     void op_init();
+    void op_serinit();
+    void op_serterm();
     void op_dwinit();
     void op_unhandled(uint8_t c);
     void op_getstat();
     void op_setstat();
+    void op_sergetstat();
+    void op_sersetstat();
     void op_serread();
+    void op_serreadm();
+    void op_serwrite();
+    void op_serwritem();
     void op_print();
 
     // int readSector(struct dwTransferData *dp);

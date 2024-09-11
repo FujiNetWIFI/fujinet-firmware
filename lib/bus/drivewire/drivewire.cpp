@@ -1,5 +1,7 @@
 #ifdef BUILD_COCO
 
+#include <queue>
+
 #include "drivewire.h"
 
 #include "../../include/debug.h"
@@ -31,6 +33,10 @@ static QueueHandle_t drivewire_evt_queue = NULL;
 #endif
 
 drivewireDload dload;
+
+// Host & client channel queues
+std::queue<char> outgoingChannel[16];
+std::queue<char> incomingChannel[16];
 
 #define DEBOUNCE_THRESHOLD_US 50000ULL
 
@@ -318,10 +324,27 @@ void systemBus::op_init()
     Debug_printv("OP_INIT");
 }
 
+void systemBus::op_serinit()
+{
+    Debug_printv("OP_SERINIT");
+    fnDwCom.read();
+}
+
+void systemBus::op_serterm()
+{
+    Debug_printv("OP_SERTERM");
+    fnDwCom.read();
+}
+
 void systemBus::op_dwinit()
 {
     Debug_printv("OP_DWINIT - Sending feature byte 0x%02x", DWINIT_FEATURES);
+#define OS9 1
+#ifdef OS9
+    fnDwCom.write(0x04);
+#else
     fnDwCom.write(DWINIT_FEATURES);
+#endif    
 }
 
 void systemBus::op_getstat()
@@ -334,11 +357,85 @@ void systemBus::op_setstat()
     Debug_printv("OP_SETSTAT: 0x%02x 0x%02x", fnDwCom.read(),fnDwCom.read());
 }
 
+void systemBus::op_sergetstat()
+{
+    unsigned char vchan = fnDwCom.read();
+    unsigned char code = fnDwCom.read();
+    Debug_printv("OP_SERGETSTAT: 0x%02x 0x%02x", vchan, code);
+}
+
+void systemBus::op_sersetstat()
+{
+    unsigned char vchan = fnDwCom.read();
+    unsigned char code = fnDwCom.read();
+    Debug_printv("OP_SERSETSTAT: 0x%02x 0x%02x", vchan, code);
+    if (code == 0x28) {
+        for (int i = 0; i < 26; i++) {
+            fnDwCom.read();
+        }
+    }
+}
+
 void systemBus::op_serread()
 {
-    // TODO: Temporary until modem and network are working
-    fnDwCom.write(0x00);
-    fnDwCom.write(0x00);
+    unsigned char vchan = 0;
+    unsigned char response = 0x00;
+
+    // scan client channels for first that has available data    
+    for (int i = 0; i < 16; i++) {
+        if (outgoingChannel[i].empty() == false) {
+            response = outgoingChannel[i].front();
+            outgoingChannel[i].pop();
+            vchan = i;
+            break;
+        }
+    }
+    
+    fnDwCom.write(vchan);
+    fnDwCom.write(response);
+
+    Debug_printv("OP_SERREAD: vchan $%02x - response $%02x\n", vchan, response);
+}
+
+void systemBus::op_serreadm()
+{
+    unsigned char vchan = fnDwCom.read();
+    unsigned char count = fnDwCom.read();
+    
+    // scan client channels for first that has available data    
+    for (vchan = 0; vchan < 16; vchan++) {
+        if (outgoingChannel[vchan].empty() == false) {
+            if (outgoingChannel[vchan].size() < count) count = outgoingChannel[vchan].size();
+            for (int i = 0; i < count; i++) {
+                int response = outgoingChannel[vchan].front();
+                outgoingChannel[vchan].pop();
+                fnDwCom.write(response);
+                Debug_printv("OP_SERREADM: vchan $%02x - response $%02x\n", vchan, response);
+            }
+            break;
+        }
+    }
+}
+
+void systemBus::op_serwrite()
+{
+    unsigned char vchan = fnDwCom.read();
+    unsigned char byte = fnDwCom.read();
+    incomingChannel[vchan].push(byte);
+    Debug_printv("OP_SERWRITE: vchan $%02x - byte $%02x\n", vchan, byte);
+}
+
+void systemBus::op_serwritem()
+{
+    unsigned char vchan = fnDwCom.read();
+    unsigned char byte = fnDwCom.read();
+    unsigned char count = fnDwCom.read();
+    
+    for (int i = 0; i < count; i++) {
+        int byte = fnDwCom.read();
+        incomingChannel[vchan].push(byte);
+        Debug_printv("OP_SERWRITE: vchan $%02x - byte $%02x\n", vchan, byte);
+    }
 }
 
 void systemBus::op_print()
@@ -358,66 +455,94 @@ void systemBus::_drivewire_process_cmd()
 
     fnLedManager.set(eLed::LED_BUS, true);
 
-    switch (c)
-    {
-    case OP_JEFF:
-        op_jeff();
-		break;
-	case OP_NOP:
-        op_nop();
-        break;
-    case OP_RESET1:
-    case OP_RESET2:
-    case OP_RESET3:
-        op_reset();
-        break;
-    case OP_READEX:
-        op_readex();
-        break;
-    case OP_WRITE:
-        op_write();
-        break;
-    case OP_TIME:
-        op_time();
-        break;
-    case OP_INIT:
-        op_init();
-        break;
-    case OP_DWINIT:
-        op_dwinit();
-        break;
-    case OP_SERREAD:
-        op_serread();
-        break;
-    case OP_PRINT:
-        op_print();
-        break;
-    case OP_PRINTFLUSH:
-        // Not needed.
-        break;
-    case OP_GETSTAT:
-        op_getstat();
-        break;
-    case OP_SETSTAT:
-        op_setstat();
-        break;
-    case OP_TERM:
-        Debug_printf("OP_TERM!\n");
-        break;
-    case OP_FUJI:
-        op_fuji();
-        break;
-    case OP_NET:
-        op_net();
-        break;
-    case OP_CPM:
-        op_cpm();
-        break;
-    default:
-        op_unhandled(c);
-        break;
+    if (c >= 0x80 && c <= 0x8F) {
+        // handle FASTWRITE here
+        int vchan = c & 0xF;
+        int byte = fnDwCom.read();
+        incomingChannel[vchan].push(byte);
+    } else {
+        switch (c)
+        {
+        case OP_JEFF:
+            op_jeff();
+		    break;
+	    case OP_NOP:
+            op_nop();
+            break;
+        case OP_RESET1:
+        case OP_RESET2:
+        case OP_RESET3:
+            op_reset();
+            break;
+        case OP_READEX:
+            op_readex();
+            break;
+        case OP_WRITE:
+            op_write();
+            break;
+        case OP_TIME:
+            op_time();
+            break;
+        case OP_INIT:
+            op_init();
+            break;
+        case OP_SERINIT:
+            op_serinit();
+            break;
+        case OP_DWINIT:
+            op_dwinit();
+            break;
+        case OP_SERREAD:
+            op_serread();
+            break;
+        case OP_SERREADM:
+            op_serreadm();
+            break;
+        case OP_SERWRITE:
+            op_serwrite();
+            break;
+        case OP_SERWRITEM:
+            op_serwritem();
+            break;
+        case OP_PRINT:
+            op_print();
+            break;
+        case OP_PRINTFLUSH:
+            // Not needed.
+            break;
+        case OP_GETSTAT:
+            op_getstat();
+            break;
+        case OP_SETSTAT:
+            op_setstat();
+            break;
+        case OP_SERGETSTAT:
+            op_sergetstat();
+            break;
+        case OP_SERSETSTAT:
+            op_sersetstat();
+            break;
+        case OP_TERM:
+            Debug_printf("OP_TERM!\n");
+            break;
+        case OP_SERTERM:
+            op_serterm();
+            break;
+        case OP_FUJI:
+            op_fuji();
+            break;
+        case OP_NET:
+            op_net();
+            break;
+        case OP_CPM:
+            op_cpm();
+            break;
+        default:
+            op_unhandled(c);
+            break;
+        }
     }
-
+    
     fnLedManager.set(eLed::LED_BUS, false);
 }
 
