@@ -100,7 +100,7 @@ void systemBus::op_nop()
 void systemBus::op_reset()
 {
     Debug_printv("op_reset()");
-    
+
     // When a reset transaction occurs, set the mounted disk image to the CONFIG disk image.
     theFuji.boot_config = true;
     theFuji.insert_boot_device(Config.get_general_boot_mode());
@@ -124,7 +124,7 @@ void systemBus::op_readex()
 
     Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
-    if (theFuji.boot_config)
+    if (theFuji.boot_config && drive_num == 0)
         d = theFuji.bootdisk();
     else
         d = &theFuji.get_disks(drive_num)->disk_dev;
@@ -283,7 +283,7 @@ void systemBus::op_net()
 
     // And pass control to it
     Debug_printf("OP_NET: %u\n",device_id);
-    _netDev[device_id]->process();    
+    _netDev[device_id]->process();
 }
 
 void systemBus::op_unhandled(uint8_t c)
@@ -451,7 +451,7 @@ void systemBus::service()
     // check and assert interrupts if needed for any open
     // network device.
     if (!_netDev.empty())
-    {    
+    {
         for (auto it=_netDev.begin(); it != _netDev.end(); ++it)
         {
             it->second->poll_interrupt();
@@ -501,10 +501,10 @@ void systemBus::setup()
     // If using an older Rev0 or Rev00 board, you will need to pull PIN_EPROM_A14 (IO36) up to 3.3V or 5V via a 10K
     // resistor to have it default to the previous default of 57600 baud otherwise they will both read as low and you
     // will get 38400 baud.
-    
+
     fnSystem.set_pin_mode(PIN_EPROM_A14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
     fnSystem.set_pin_mode(PIN_EPROM_A15, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
-    
+
     #ifdef FORCE_UART_BAUD
         Debug_printv("FORCE_UART_BAUD set to %u",FORCE_UART_BAUD);
         _drivewireBaud = FORCE_UART_BAUD;
@@ -516,8 +516,8 @@ void systemBus::setup()
     }
     else if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_HIGH && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
     {
-        _drivewireBaud = 57600; //Coco2 ROM Image 
-        Debug_printv("A14 High, A15 Low, 57600 baud");  
+        _drivewireBaud = 57600; //Coco2 ROM Image
+        Debug_printv("A14 High, A15 Low, 57600 baud");
     }
     else if  (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_HIGH)
     {
@@ -538,7 +538,7 @@ void systemBus::setup()
 #endif
     fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // Becker
     fnDwCom.set_drivewire_mode(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
-    
+
     fnDwCom.begin(_drivewireBaud);
     fnDwCom.flush_input();
     Debug_printv("DRIVEWIRE MODE");
