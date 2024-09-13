@@ -73,17 +73,10 @@ void print_packet(uint8_t *data)
 #ifdef DEV_RELAY_SLIP
   for (int i = 0; i < COMMAND_LEN; i++)
     Debug_printf("%02x ", data[i]);
+  Debug_printf("\r\n");
 #else
-  Debug_printv("packet:\r\n%s\r\n", mstr::toHex(data, 16).c_str());
-  // for (int i = 0; i < 40; i++)
-  // {
-  //   if (data[i] != 0 || i == 0)
-  //     Debug_printf("%02x ", data[i]);
-  //   else
-  //     break;
-  // }
+  // Debug_printf("packet: %s\r\n", mstr::toHex(data, 16).c_str());
 #endif
-  // Debug_printf("\r\n");
 }
 
 void print_packet_wave(uint8_t *data, int bytes)
@@ -351,21 +344,26 @@ void iwmDevice::iwm_return_noerror()
 void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 {
   uint8_t status_code = cmd.params[2];
-  Debug_printf("\r\nTarget Device: %02x", id());
 
   if (status_code == 0x03)
   {
-    Debug_printf("\r\nSending **DIB** Status");
+    Debug_printf("\r\nSending DIB Status for device 0x%02x", id());
     send_status_dib_reply_packet();
   }
   else
   {
-    Debug_printf("\r\nSending Device Status");
+    Debug_printf("\r\nSending Device Status for device 0x%02x", id());
     send_status_reply_packet();
   }
 }
 
 // Create a vector from the input for the various send_status_dib_reply_packet routines to call
+// data[0]                = status
+// data[1..1+block_size]  = block bytes - 3 bytes except in some unused code!! 
+// data[..1 byte ]        = name real size
+// data[..16 bytes ]      = name padded with spaces to 16 bytes
+// data[..2 bytes]        = device type
+// data[..2 byte]         = device version
 std::vector<uint8_t> iwmDevice::create_dib_reply_packet(const std::string& device_name, uint8_t status, const std::vector<uint8_t>& block_size, const std::array<uint8_t, 2>& type, const std::array<uint8_t, 2>& version)
 {
     std::vector<uint8_t> data;
@@ -381,6 +379,10 @@ std::vector<uint8_t> iwmDevice::create_dib_reply_packet(const std::string& devic
 
     data.insert(data.end(), type.begin(), type.end());
     data.insert(data.end(), version.begin(), version.end());
+
+    // std::string ddump = util_hexdump(data.data(), data.size());
+    // Debug_printv("DIB DATA");
+    // Debug_printf("%s\r\n", ddump.c_str());
 
     return data;
 }
@@ -650,11 +652,6 @@ void iwmBus::handle_init()
   // to do - get the next device in the daisy chain and assign ID
   for (auto it = _daisyChain.begin(); it != _daisyChain.end(); ++it)
   {
-    // tell the Fuji it's device no.
-    if (it == _daisyChain.begin())
-    {
-      theFuji._devnum = command_packet.dest;
-    }
     // assign dev numbers
     pDevice = (*it);
     pDevice->switched = false; //reset switched condition on init
