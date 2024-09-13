@@ -154,7 +154,7 @@ if [ ! -z "$PC_TARGET" ] ; then
   if [ $DO_CLEAN -eq 1 ] ; then
     echo "Removing old build artifacts"
     rm -rf $SCRIPT_DIR/build/*
-    rm $SCRIPT_DIR/build/.ninja* 2>/dev/null
+    rm -f $SCRIPT_DIR/build/.ninja* 2>/dev/null
   fi
 
   cd $SCRIPT_DIR/build
@@ -187,7 +187,7 @@ if [ ! -z "$PC_TARGET" ] ; then
   python -c "import importlib.util, sys; sys.exit(0 if all(importlib.util.find_spec(mod.strip()) for mod in '''$MOD_LIST'''.split()) else 1)"
   if [ $? -eq 1 ] ; then
     echo "At least one of the required python modules is missing"
-    sh ${SCRIPT_DIR}/install_python_modules.sh
+    bash ${SCRIPT_DIR}/install_python_modules.sh
   fi
 
   cmake --build .
