@@ -445,7 +445,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int packet_len)
       fnTimer.alarm_snooze( (samples * 10 * 1000 * 1000) / f_spirx); // samples * 10 /2 ); // snooze the timer based on the previous number of samples
     }
 
-    rxbyte = iwm_decode_byte(spi_buffer, SPI_SP_LEN, f_spirx, 19, &spirx_bit_ctr, &more_data);
+    rxbyte = iwm_decode_byte(spi_buffer, SPI_SP_LEN, f_spirx, 23, &spirx_bit_ctr, &more_data);
 
     if ((rxbyte == 0xc3) && (!synced))
     {
