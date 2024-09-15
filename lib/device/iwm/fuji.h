@@ -258,9 +258,13 @@ public:
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
     DEVICE_TYPE *get_disk_dev(int i) {
+#ifndef DEV_RELAY_SLIP
       return i < MAX_SP_DEVICES
 	? (DEVICE_TYPE *) &_fnDisks[i].disk_dev
 	: (DEVICE_TYPE *) &_fnDisk2s[i - MAX_SP_DEVICES];
+#else
+      return &_fnDisks[i].disk_dev;
+#endif
     }
 
     void _populate_slots_from_config();

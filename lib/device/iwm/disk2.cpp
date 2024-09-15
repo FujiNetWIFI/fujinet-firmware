@@ -42,11 +42,9 @@ void iwmDisk2::init()
   device_active = false;
 }
 
-mediatype_t iwmDisk2::mount(fnFile *f, uint32_t disksize, mediatype_t disk_type)//, const char *filename), uint32_t disksize, mediatype_t disk_type)
+mediatype_t iwmDisk2::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_type)
 {
-
   mediatype_t mt = MEDIATYPE_UNKNOWN;
- // mediatype_t disk_type = MEDIATYPE_WOZ;
 
   // Debug_printf("disk MOUNT %s\n", filename);
 
@@ -57,7 +55,7 @@ mediatype_t iwmDisk2::mount(fnFile *f, uint32_t disksize, mediatype_t disk_type)
     _disk = nullptr;
   }
 
-    switch (disk_type)
+  switch (disk_type)
     {
     case MEDIATYPE_WOZ:
         Debug_printf("\nMounting Media Type WOZ");
@@ -74,6 +72,8 @@ mediatype_t iwmDisk2::mount(fnFile *f, uint32_t disksize, mediatype_t disk_type)
         mt = ((MediaTypeDSK *)_disk)->mount(f, disksize);
         break;
     default:
+        Debug_printf("\r\nUnsupported Media Type for DiskII");
+        mt = MEDIATYPE_UNKNOWN;
         break;
     }
 

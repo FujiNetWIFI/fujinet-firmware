@@ -7,6 +7,7 @@
 #include "network.h"
 
 #include <cstring>
+#include <ctype.h>
 #include <algorithm>
 
 #include "../../include/debug.h"
@@ -510,7 +511,7 @@ void iwmNetwork::status()
         break;
     }
 
-    Debug_printf("Bytes Waiting: %u, Connected: %u, Error: %u\n",s.rxBytesWaiting, s.connected, s.error);
+    Debug_printf("Bytes Waiting: 0x%02x, Connected: %u, Error: %u\n", s.rxBytesWaiting, s.connected, s.error);
 
     if (s.rxBytesWaiting > 512)
         s.rxBytesWaiting = 512;
@@ -527,7 +528,10 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
     uint8_t status_code = get_status_code(cmd); //(cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
     current_network_unit = cmd.params[3];
 
-    Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x net_unit %02x\r\n", id(), status_code, current_network_unit);
+#ifdef DEBUG
+    char as_char = (char) status_code;
+    Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x('%c') net_unit %02x\r\n", id(), status_code, isprint(as_char) ? as_char : '.', current_network_unit);
+#endif
 
     if (current_network_unit == 0) current_network_unit = 1; // fallback version if it went wrong, or unset
     // auto& current_network_data = network_data_map[current_network_unit];
@@ -580,7 +584,7 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
         current_network_data.json->readValue(data_buffer, data_len);
         current_network_data.json->json_bytes_remaining -= data_len;
 
-        Debug_printf("read_channel_json(1) - data_len: %02x, json_bytes_remaining: %02x\n", data_len, current_network_data.json->json_bytes_remaining);
+        // Debug_printf("read_channel_json(1) - data_len: %02x, json_bytes_remaining: %02x\n", data_len, current_network_data.json->json_bytes_remaining);
         // int print_len = data_len;
         // if (print_len > 16) print_len = 16;
         //std::string msg = util_hexdump(data_buffer, print_len);
@@ -596,7 +600,7 @@ bool iwmNetwork::read_channel_json(unsigned short num_bytes, iwm_decoded_cmd_t c
         current_network_data.json->readValue(data_buffer, num_bytes);
         data_len = current_network_data.json->readValueLen();
 
-        Debug_printf("read_channel_json(2) - data_len: %02x, json_bytes_remaining: %02x\n", num_bytes, current_network_data.json->json_bytes_remaining);
+        // Debug_printf("read_channel_json(2) - data_len: %02x, json_bytes_remaining: %02x\n", num_bytes, current_network_data.json->json_bytes_remaining);
         // int print_len = num_bytes;
         // if (print_len > 16) print_len = 16;
         //std::string msg = util_hexdump(data_buffer, print_len);
@@ -758,15 +762,23 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
     uint8_t control_code = get_status_code(cmd);
     current_network_unit = cmd.params[3];
 
-    Debug_printf("\r\nNet Device %02x Control Code %02x net_unit %02x", id(), control_code, current_network_unit);
+#ifdef DEBUG
+    char as_char = (char) control_code;
+    Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), control_code, isprint(as_char) ? as_char : '.', current_network_unit);
+#endif
 
-    if (current_network_unit == 0) current_network_unit = 1; // fallback version if it went wrong, or unset
+
+    if (current_network_unit == 0) current_network_unit = 1; // default to network unit 1 when unset (old code)
     auto& current_network_data = network_data_map[current_network_unit];
 
     IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
     print_packet((uint8_t *)data_buffer);
 
-    Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());
+    // Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());
+
+    if (control_code != 'O' && current_network_data.json == nullptr) {
+        Debug_printv("control should not be called on a non-open channel - FN was probably reset");
+    }
 
     switch (control_code)
     {
@@ -818,14 +830,23 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
                 Debug_printf("iwmnet_control_send() - Unknown Command: %02x\n", control_code);
             break;
         case NetworkData::JSON:
-            switch (control_code)
-            {
-            case 'P':
-                json_parse();
-                break;
-            case 'Q':
-                json_query(cmd);
-                break;
+            // every open channel creates a json object, so if it's not set, we received a command on non-open network.
+            // This can happen is fuji reset but host application doesn't handle it gracefully.
+            // without this check, the json object usage causes FN to crash. Let's try and warn the app with an IO ERROR
+            if (current_network_data.json == nullptr) {
+                Debug_printv("ERROR: control command on non opened network channel");
+                err_result = SP_ERR_IOERROR;
+                send_reply_packet(err_result);
+            } else {
+                switch (control_code)
+                {
+                case 'P':
+                    json_parse();
+                    break;
+                case 'Q':
+                    json_query(cmd);
+                    break;
+                }
             }
             break;
         default:

@@ -1,5 +1,7 @@
 #ifdef BUILD_COCO
 
+#include <queue>
+
 #include "drivewire.h"
 
 #include "../../include/debug.h"
@@ -31,6 +33,10 @@ static QueueHandle_t drivewire_evt_queue = NULL;
 #endif
 
 drivewireDload dload;
+
+// Host & client channel queues
+std::queue<char> outgoingChannel[16];
+std::queue<char> incomingChannel[16];
 
 #define DEBOUNCE_THRESHOLD_US 50000ULL
 

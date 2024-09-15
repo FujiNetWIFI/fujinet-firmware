@@ -769,7 +769,7 @@ size_t iwm_sp_ll::decode_data_packet(uint8_t* input_data, uint8_t* output_data)
   numodd = input_data[11] & 0x7f;
   numgrps = input_data[12] & 0x7f;
   numdata = numodd + numgrps * 7;
-  Debug_printf("\nDecoding %d bytes",numdata);
+  // Debug_printf("\nDecoding %d bytes",numdata);
 
   // decode oddbyte(s), 1 in a 512 data packet
   for(int i = 0; i < numodd; i++){

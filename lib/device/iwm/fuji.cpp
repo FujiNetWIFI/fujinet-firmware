@@ -1308,6 +1308,9 @@ void iwmFuji::setup(iwmBus *iwmbus)
 	// Disable status_wait if our settings say to turn it off
 	status_wait_enabled = false; // to do - understand?
 
+	// add ourselves as a device
+	_iwm_bus->addDevice(this, iwm_fujinet_type_t::FujiNet);
+
 	theNetwork = new iwmNetwork();
 	_iwm_bus->addDevice(theNetwork, iwm_fujinet_type_t::Network);
 
@@ -1340,18 +1343,6 @@ void iwmFuji::setup(iwmBus *iwmbus)
 	insert_boot_device(Config.get_general_boot_mode());
 #endif
 
-	// theNetwork = new adamNetwork();
-	// theSerial = new adamSerial();
-	// _iwm_bus->addDevice(theNetwork, 0x09); // temporary.
-	// _iwm_bus->addDevice(theSerial, 0x0e);  // Serial port
-	// _iwm_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
-
-	// Add our devices to the AdamNet bus
-	// for (int i = 0; i < 4; i++)
-	//    _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
-
-	// for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-	//     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
 }
 
 int iwmFuji::get_disk_id(int drive_slot) { return 0; }
@@ -1425,7 +1416,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 	err_result = SP_ERR_NOERROR;
 	data_len = 512;
 
-	Debug_printf("\nDecoding Control Data Packet for code: %02X\r\n", control_code);
+	Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", control_code);
 	IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
 	print_packet((uint8_t *)data_buffer, data_len);
 
@@ -1446,11 +1437,11 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
 	fnLedManager.set(LED_BUS, true);
 
     auto it = command_handlers.find(cmd.command);
-	Debug_printf("\n----- iwmFuji::process handling command: %02X\r\n", cmd.command);
+	// Debug_printf("\r\n----- iwmFuji::process handling command: %02X\r\n", cmd.command);
     if (it != command_handlers.end()) {
         it->second(cmd);
     } else {
-        Debug_printf("\nUnknown command: %02X\r\n", cmd.command);
+        Debug_printv("\r\nUnknown command: %02X\r\n", cmd.command);
 		iwm_return_badcmd(cmd);
     }
 

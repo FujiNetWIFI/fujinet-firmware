@@ -4,6 +4,7 @@
 
 #ifdef ESP_PLATFORM
 #include <driver/ledc.h>
+#include "../../../include/PSRAMAllocator.h"
 #endif
 
 #include <cstdint>
@@ -31,13 +32,16 @@
 
 #include "base64.h"
 #include "hash.h"
-#include "../../../include/PSRAMAllocator.h"
 
 #define ADDITIONAL_DETAILS_BYTES 10
 
 sioFuji theFuji; // global fuji device object
 
+#ifdef ESP_PLATFORM
 std::unique_ptr<sioNetwork, PSRAMDeleter<sioNetwork>> sioNetDevs[MAX_NETWORK_DEVICES];
+#else
+std::unique_ptr<sioNetwork> sioNetDevs[MAX_NETWORK_DEVICES];
+#endif
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
@@ -129,15 +133,28 @@ sioFuji::sioFuji()
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
 
-    for (int i = 0; i < MAX_NETWORK_DEVICES; ++i) {
+#ifdef ESP_PLATFORM
+    for (int i = 0; i < MAX_NETWORK_DEVICES; ++i)
+    {
         PSRAMAllocator<sioNetwork> allocator;
         sioNetwork* ptr = allocator.allocate(1); // Allocate memory for one sioNetwork object
-        
-        if (ptr != nullptr) {
+
+        if (ptr != nullptr)
+        {
             new (ptr) sioNetwork(); // Construct the object using placement new
             sioNetDevs[i] = std::unique_ptr<sioNetwork, PSRAMDeleter<sioNetwork>>(ptr); // Store in smart pointer
         }
     }
+#else
+    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+    {
+        sioNetwork *ptr = (sioNetwork *) malloc(sizeof(sioNetwork));
+        if (ptr != nullptr) {
+            new (ptr) sioNetwork();
+            sioNetDevs[i] = std::unique_ptr<sioNetwork>(ptr);
+        }
+    }
+#endif
 
 }
 
