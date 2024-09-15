@@ -47,7 +47,7 @@ static void IRAM_ATTR drivewire_isr_handler(void *arg)
  * Static callback function for the DriveWire state machine.
  */
 #ifdef ESP_PLATFORM
-void onTimer(void *info)
+void onDriveWireStateMachineTimer(void *info)
 {
     systemBus *parent = (systemBus *)info;
     parent->resetState();
@@ -62,7 +62,7 @@ void systemBus::timer_start()
 #ifdef ESP_PLATFORM
     esp_timer_create_args_t tcfg;
     tcfg.arg = this;
-    tcfg.callback = onTimer;
+    tcfg.callback = onDriveWireStateMachineTimer;
     tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
     tcfg.name = nullptr;
     esp_timer_create(&tcfg, &stateMachineRecoveryTimerHandle);
@@ -942,7 +942,7 @@ void systemBus::service()
 #ifdef ESP_PLATFORM
 #else
     uint64_t ms = fnSystem.millis();
-#if 0
+#ifdef SUPER_DEBUGGING
     if (ms % 100 == 0) {
         Debug_printv("MS = %ld, lastInterruptMs = %ld, TIMER = %ld\n", ms, lastInterruptMs, (timerActive == true && ms - lastInterruptMs >= timerRate));
     }
@@ -954,6 +954,7 @@ void systemBus::service()
     }
 #endif
 
+#ifdef SUPER_DEBUGING
     if (gotNewData == 1 && showDump == 1 && serialBuffer.size() > 0)
     {
         for (int i = 0; i < serialBuffer.size(); i++)
@@ -963,7 +964,8 @@ void systemBus::service()
         
         Debug_printf("=====================================\n");    
     }
-    
+#endif
+
     if (gotNewData == 1)
     {
         int bytesConsumed = 0;
