@@ -1000,6 +1000,10 @@ void systemBus::setup()
     // xTaskCreate(drivewire_intr_task, "drivewire_intr_task", 2048, NULL, 10, NULL);
     // xTaskCreatePinnedToCore(drivewire_intr_task, "drivewire_intr_task", 4096, this, 10, NULL, 0);
 
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+    // Configure UART to RP2040
+    _drivewireBaud = 115200;
+#else
     // Setup interrupt for cassette motor pin
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << PIN_CASS_MOTOR), // bit mask of the pins that you want to set
@@ -1054,6 +1058,7 @@ void systemBus::setup()
     }
 
     #endif /* FORCE_UART_BAUD */
+#endif /* CONFIG_IDF_TARGET_ESP32S3 */
 #else
     // FujiNet-PC specific
     fnDwCom.set_serial_port(Config.get_serial_port().c_str()); // UART

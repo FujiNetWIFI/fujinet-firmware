@@ -5,7 +5,9 @@
 #include <cstring>
 
 #ifdef ESP_PLATFORM
+#ifndef CONFIG_IDF_TARGET_ESP32S3
 #include <driver/dac.h>
+#endif
 #endif
 
 #include "../../include/debug.h"
