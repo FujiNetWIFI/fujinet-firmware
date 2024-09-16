@@ -9,10 +9,9 @@
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include <hal/gpio_ll.h>
 #endif
-#include <driver/spi_master.h>
-#include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
+#include "spi_extensions.h"
 #include "fnRMTstream.h"
 
 // #define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
@@ -187,8 +186,6 @@ class iwm_ll
 protected:
   // low level bit-banging i/o functions
   bool iwm_req_val() { return (IWM_BIT(SP_REQ)); };
-  void iwm_extra_set();
-  void iwm_extra_clr();
   void disable_output();
   void enable_output();
 
@@ -219,15 +216,11 @@ private:
   // const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz - works for NTSC but ...
   const int f_spirx = APB_CLK_FREQ / 40; // 2 MHz - need slower rate for PAL
 
-  // SPI receiver data stream counters
-  int spirx_byte_ctr = 0;
   int spirx_bit_ctr = 0;
-
-  //uint8_t packet_buffer[BLOCK_PACKET_LEN]; //smartport packet buffer
   uint16_t packet_len = 0;
+  lldesc_t *sp_command_desc, *sp_block_desc;
 
 public:
-  SemaphoreHandle_t spiMutex;
   // Phase lines and ACK handshaking
   void iwm_ack_set() { IWM_BIT_INPUT(SP_ACK); }; // disable the line so it goes hi-z
   void iwm_ack_clr() { IWM_BIT_OUTPUT(SP_ACK); };  // enable the line already set to low

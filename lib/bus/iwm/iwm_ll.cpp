@@ -4,8 +4,8 @@
 
 #include <string.h>
 
-#include "esp_rom_gpio.h"
-#include "soc/spi_periph.h"
+#include <esp_rom_gpio.h>
+#include <soc/spi_periph.h>
 
 #include "iwm_ll.h"
 #include "iwm.h"
@@ -22,6 +22,15 @@
 #define IWM_BITLEN_FOR_BYTES(bytecount, freq, buffer) ({ \
       (bytecount) * 8 * IWM_SAMPLES_PER_CELL(freq);      \
     })
+#define IWM_NUMBYTES_FOR_BITS(bitcount, buffer) ({      \
+  size_t bufbits = sizeof(*(buffer)) * 8;           \
+  size_t blen = (bitcount) *                        \
+    IWM_SAMPLES_PER_CELL(smartport.f_spirx);        \
+  blen = (blen + bufbits - 1) / bufbits;            \
+  blen;                                             \
+    })
+
+#define IWM_CHUNK_SIZE 128
 
 volatile uint8_t _phases = 0;
 volatile sp_cmd_state_t sp_command_mode = sp_cmd_state_t::standby;
@@ -135,20 +144,6 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   }
 }
 
-inline void iwm_ll::iwm_extra_set()
-{
-#ifdef EXTRA
-  IWM_BIT_SET(SP_EXTRA);
-#endif
-}
-
-inline void iwm_ll::iwm_extra_clr()
-{
-#ifdef EXTRA
-  IWM_BIT_CLEAR(SP_EXTRA);
-#endif
-}
-
 int IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
   // clear out spi buffer
@@ -179,7 +174,6 @@ int IRAM_ATTR iwm_sp_ll::encode_spi_packet()
   }
   return j - 1;
 }
-
 
 int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
 {
@@ -218,7 +212,9 @@ int IRAM_ATTR iwm_sp_ll::iwm_send_packet_spi()
   // send the data
   // TODO - enable / disable output using hasbuffer - no external tristate
   enable_output(); // enable the tri-state buffer
+  spi_end();
   ret = spi_device_polling_transmit(spi, &trans);
+  spi_open_receive(spirx);
   disable_output(); // make rddata hi-z
   iwm_ack_clr();
   assert(ret == ESP_OK);
@@ -315,9 +311,6 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int packet_len)
 
   fnTimer.reset();
 
-  // signal the logic analyzer
-  iwm_extra_set();
-
   /* calculations for determining array sizes
   int numsamples = pulsewidth * (n + 2) * 8;
   command packet on DIY SP is 872 us long
@@ -346,12 +339,6 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int packet_len)
   // helps the IIgs get in sync to the bitstream quicker
   //memset(spi_buffer, 0xff, SPI_SP_LEN);
 
-  memset(&rxtrans, 0, sizeof(spi_transaction_t));
-  rxtrans.rx_buffer = spi_buffer;
-
-  // add 10% for overhead to accomodate YS command packet
-  rxtrans.rxlength = IWM_BITLEN_FOR_BYTES(packet_len * 11 / 10, f_spirx, spi_buffer);
-
   // setup a timeout counter to wait for REQ response
   if (req_wait_for_rising_timeout(10000))
   { // timeout!
@@ -359,13 +346,14 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int packet_len)
     // timeout
     Debug_print("t");
 #endif
-    iwm_extra_clr();
     return 1; // timeout waiting for REQ
   }
 
-  esp_err_t ret = spi_device_polling_start(spirx, &rxtrans, portMAX_DELAY);
-  assert(ret == ESP_OK);
-  iwm_extra_clr();
+  lldesc_t *desc = sp_command_desc;
+  if (packet_len > COMMAND_PACKET_LEN)
+    desc = sp_block_desc;
+  spi_trigger_receive(spirx, desc,
+		      IWM_BITLEN_FOR_BYTES(packet_len * 11 / 10, f_spirx, spi_buffer) - 1);
 
   // decode the packet here
   size_t spirx_bit_ctr = 0; // initialize the SPI buffer sampler
@@ -387,8 +375,6 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int packet_len)
 
   do // have_data
   {
-    iwm_extra_set(); // signal to LA we're in the nested loop
-
     samples = spirx_bit_ctr - last_bit_pos; // difference since last time
     last_bit_pos = spirx_bit_ctr;
 
@@ -476,7 +462,7 @@ int IRAM_ATTR iwm_sp_ll::iwm_read_packet_spi(uint8_t* buffer, int packet_len)
   }
 }
 
-void IRAM_ATTR iwm_sp_ll::spi_end() { spi_device_polling_end(spirx, portMAX_DELAY); };
+void IRAM_ATTR iwm_sp_ll::spi_end() { spi_close_receive(spirx); };
 
 bool iwm_sp_ll::req_wait_for_falling_timeout(int t)
 {
@@ -598,11 +584,22 @@ void iwm_sp_ll::setup_spi()
     esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
   }
 
-  if (smartport.spiMutex == NULL)
   {
-    smartport.spiMutex = xSemaphoreCreateMutex();
+    size_t length;
+
+
+    spi_open_receive(spirx);
+
+    /* Setup linked lists for receiving the two different packet sizes */
+    length = COMMAND_PACKET_LEN * 11 / 10;
+    length = IWM_NUMBYTES_FOR_BITS(length * 8, spi_buffer);
+    sp_command_desc = fspi_alloc_linked_list(spi_buffer, length, IWM_CHUNK_SIZE);
+    length = BLOCK_PACKET_LEN * 11 / 10;
+    length = IWM_NUMBYTES_FOR_BITS(length * 8, spi_buffer);
+    sp_block_desc = fspi_alloc_linked_list(spi_buffer, length, IWM_CHUNK_SIZE);
   }
 
+  return;
 }
 
 void iwm_ll::setup_gpio()
@@ -648,7 +645,6 @@ void iwm_ll::setup_gpio()
   fnSystem.digital_write(SP_EXTRA, DIGI_LOW);
   Debug_printf("\nEXTRA signaling line configured");
 #endif
-
 
   // attach the interrupt service routine
   gpio_isr_handler_add((gpio_num_t)SP_PHI0, phi_isr_handler, (void*) (gpio_num_t)SP_PHI0);
