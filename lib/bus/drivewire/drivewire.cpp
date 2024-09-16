@@ -198,6 +198,7 @@ int systemBus::op_readex(std::vector<uint8_t> *q)
 {
     int result = 0;
     readexChecksum = 0;
+    readexError = 0;
     
     if (q->size() >= 5) {
         uint8_t drive_num = q->at(1);
@@ -944,15 +945,10 @@ void systemBus::service()
     }
     
     int showDump = 1;
-    
+        
 #ifdef ESP_PLATFORM
 #else
     uint64_t ms = fnSystem.millis();
-#ifdef SUPER_DEBUGGING
-    if (ms % 100 == 0) {
-        Debug_printv("MS = %ld, lastInterruptMs = %ld, TIMER = %ld\n", ms, lastInterruptMs, (timerActive == true && ms - lastInterruptMs >= timerRate));
-    }
-#endif
     if (timerActive == true && ms - lastInterruptMs >= timerRate)
     {
         Debug_printv("State Reset Timer INVOKED!\n");

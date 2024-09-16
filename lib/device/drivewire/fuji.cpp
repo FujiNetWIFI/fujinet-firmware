@@ -231,7 +231,7 @@ int drivewireFuji::net_get_ssid(std::vector<uint8_t> *q)
     memset(&cfg, 0, sizeof(cfg));
 
     /*
-     We memcpy instead of strcpy because technically the SSID and phasephras aren't strings and aren't null terminated,
+     We memcpy instead of strcpy because technically the SSID and phasephrase aren't strings and aren't null terminated,
      they're arrays of bytes officially and can contain any byte value - including a zero - at any point in the array.
      However, we're not consistent about how we treat this in the different parts of the code.
     */
