@@ -24,7 +24,7 @@ void iwmClock::send_status_reply_packet()
 
 void iwmClock::send_status_dib_reply_packet()
 {
-	Debug_printf("\r\nCLOCK: Sending DIB reply\r\n");
+	Debug_printf("CLOCK: Sending DIB reply\r\n");
 	std::vector<uint8_t> data = create_dib_reply_packet(
 		"FN_CLOCK",                                                     // name
 		STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,                 // status
@@ -35,14 +35,50 @@ void iwmClock::send_status_dib_reply_packet()
 	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
+void iwmClock::set_tz()
+{
+    if (data_len <= 0) return;
+
+    // Ensure there's room for a null terminator if one is not already present
+    if (data_buffer[data_len - 1] != '\0' && data_len < MAX_DATA_LEN) {
+        data_buffer[data_len] = '\0';
+    } else if (data_len == MAX_DATA_LEN && data_buffer[MAX_DATA_LEN - 1] != '\0') {
+        // If the buffer is full and the last character is not a null terminator,
+        // safely truncate the string to make room for a null terminator.
+        data_buffer[MAX_DATA_LEN - 1] = '\0';
+    }
+
+    Config.store_general_timezone(reinterpret_cast<const char*>(data_buffer));
+}
+
+void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
+{
+    uint8_t control_code = get_status_code(cmd);
+#ifdef DEBUG
+    auto as_char = (char) control_code;
+    Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), control_code, isprint(as_char) ? as_char : '.');
+#endif
+
+    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+
+    switch (control_code)
+    {
+        case 'T':
+            set_tz();
+            break;
+        default:
+            break;
+    }
+
+}
+
 void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
 {
-    time_t tt;
-    struct tm *now;
-
     uint8_t status_code = get_status_code(cmd);
-    Debug_printf("\r\n[CLOCK] Device %02x Status Code %02x\r\n", id(), status_code);
-
+#ifdef DEBUG
+    auto as_char = (char) status_code;
+    Debug_printf("[CLOCK] Device %02x Status Code %02x('%c')\r\n", id(), status_code, isprint(as_char) ? as_char : '.');
+#endif
     switch (status_code)
     {
     case IWM_STATUS_STATUS: // 0x00
@@ -53,70 +89,60 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         send_status_dib_reply_packet();
         return;
         break;
-    case 'T': // Date and time, easy to be used by general programs
-        tt = time(nullptr);
-#ifdef ESP_PLATFORM
-        setenv("TZ",Config.get_general_timezone().c_str(),1);
-#endif
-        tzset();
-        now = localtime(&tt);
-
-        data_buffer[0] = (now->tm_year)/100 + 19;
-        data_buffer[1] = now->tm_year%100;
-        data_buffer[2] = now->tm_mon + 1;
-        data_buffer[3] = now->tm_mday;
-        data_buffer[4] = now->tm_hour;
-        data_buffer[5] = now->tm_min;
-        data_buffer[6] = now->tm_sec;
-        data_len = 7;
-        break;
-    case 'P': // Date and time, to be used by a ProDOS driver
-        tt = time(nullptr);
-#ifdef ESP_PLATFORM
-        setenv("TZ",Config.get_general_timezone().c_str(),1);
-#endif
-        tzset();
-        now = localtime(&tt);
-
-        // See format in 6.1 of https://prodos8.com/docs/techref/adding-routines-to-prodos/
-        data_buffer[0] = now->tm_mday + ((now->tm_mon + 1)<<5);
-        data_buffer[1] = ((now->tm_year%100)<<1) + ((now->tm_mon + 1)>>3);
-        data_buffer[2] = now->tm_min;
-        data_buffer[3] = now->tm_hour;
-        data_len = 4;
-        break;
-    case 'S': // Date and time, ASCII string in SOS set_time format YYYYMMDDxHHMMSSxxx
-        tt = time(nullptr);
-#ifdef ESP_PLATFORM
-        setenv("TZ",Config.get_general_timezone().c_str(),1);
-#endif
-        tzset();
-        now = localtime(&tt);
-
-        data_buffer[0] = (((now->tm_year)/100 + 19) / 10) + 0x30;
-        data_buffer[1] = (((now->tm_year)/100 + 19) % 10) + 0x30;
-        data_buffer[2] = ((now->tm_year%100) / 10) + 0x30;
-        data_buffer[3] = ((now->tm_year%100) % 10) + 0x30;
-        data_buffer[4] = ((now->tm_mon + 1)  / 10) + 0x30;
-        data_buffer[5] = ((now->tm_mon + 1) % 10) + 0x30;
-        data_buffer[6] = (now->tm_mday / 10) + 0x30;
-        data_buffer[7] = (now->tm_mday % 10) + 0x30;
-        data_buffer[8] = '0';
-        data_buffer[9] = (now->tm_hour / 10) + 0x30;
-        data_buffer[10] = (now->tm_hour % 10) + 0x30;
-        data_buffer[11] = (now->tm_min / 10) + 0x30;
-        data_buffer[12] = (now->tm_min %10) + 0x30;
-        data_buffer[13] = (now->tm_sec / 10) + 0x30;
-        data_buffer[14] = (now->tm_sec % 10) + 0x30;
-        data_buffer[15] = '0';
-        data_buffer[16] = '0';
-        data_buffer[17] = '0';
-        
-        data_len = 18;
+    case 'T': {
+        // Date and time, easy to be used by general programs
+        auto simpleTime = Clock::get_current_time_simple(Config.get_general_timezone());
+        std::copy(simpleTime.begin(), simpleTime.end(), data_buffer);
+        data_len = simpleTime.size();
         break;
     }
+    case 'P': {
+        // Date and time, to be used by a ProDOS driver
+        auto prodosTime = Clock::get_current_time_prodos(Config.get_general_timezone());
+        std::copy(prodosTime.begin(), prodosTime.end(), data_buffer);
+        data_len = prodosTime.size();
+        break;
+    }
+    case 'S': {
+        // Date and time, ASCII string in ISO format - This is a change from the original format: YYYYMMDDxHHMMSSxxx with 0 for every 'x' value, which was not TZ friendly, and I found no references to
+        std::string utcTime = Clock::get_current_time_iso(Config.get_general_timezone());
+        std::copy(utcTime.begin(), utcTime.end(), data_buffer);
+        data_buffer[utcTime.size()] = '\0';         // this is a string in a buffer, we will null terminate it (this is also a change to the original that sent the char bytes without a null)
+        data_len = utcTime.size() + 1;              // and ensure the size reflects the null terminator
+        break;
+    }
+    case 'Z': {
+        // utc (zulu)
+        std::string isoTime = Clock::get_current_time_iso("UTC+0");
+        std::copy(isoTime.begin(), isoTime.end(), data_buffer);
+        data_buffer[isoTime.size()] = '\0';         // this is a string in a buffer, we will null terminate it
+        data_len = isoTime.size() + 1;              // and ensure the size reflects the null terminator
+        break;
+    }
+    case 'A': {
+        // Apetime (Atari, but why not eh?) with TZ
+        auto apeTime = Clock::get_current_time_apetime(Config.get_general_timezone());
+        std::copy(apeTime.begin(), apeTime.end(), data_buffer);
+        data_len = apeTime.size();
+        break;
+    }
+    case 'B': {
+        // Apetime (Atari, but why not eh?) UTC
+        auto apeTime = Clock::get_current_time_apetime("UTC+0");
+        std::copy(apeTime.begin(), apeTime.end(), data_buffer);
+        data_len = apeTime.size();
+        break;
+    }
+    case 'G': {
+        // Get current system timezone
+        std::string curr = Config.get_general_timezone();
+        std::copy(curr.begin(), curr.end(), data_buffer);
+        data_len = curr.size();
+        break;
+    }
+    }
 
-    Debug_printf("\r\nStatus code complete, sending response");
+    // Debug_printf("Clock: Status code complete, sending response\r\n");
     IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
@@ -139,15 +165,19 @@ void iwmClock::process(iwm_decoded_cmd_t cmd)
     switch (cmd.command)
     {
     case SP_CMD_STATUS:
-        Debug_printf("\r\nhandling status command");
+        Debug_printf("\r\nclock: handling status command\r\n");
         iwm_status(cmd);
         break;
+    case SP_CMD_CONTROL:
+        Debug_printf("\r\nclock: handling control command");
+        iwm_ctrl(cmd);
+        break;
     case SP_CMD_OPEN:
-        Debug_printf("\r\nhandling open command");
+        Debug_printf("\r\nclock: handling open command");
         iwm_open(cmd);
         break;
     case SP_CMD_CLOSE:
-        Debug_printf("\r\nhandling close command");
+        Debug_printf("\r\nclock: handling close command");
         iwm_close(cmd);
         break;
     default:

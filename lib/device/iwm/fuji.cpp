@@ -1441,7 +1441,7 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
     if (it != command_handlers.end()) {
         it->second(cmd);
     } else {
-        Debug_printv("\r\nUnknown command: %02X\r\n", cmd.command);
+        Debug_printv("\r\nUnknown command: %02x\r\n", cmd.command);
 		iwm_return_badcmd(cmd);
     }
 

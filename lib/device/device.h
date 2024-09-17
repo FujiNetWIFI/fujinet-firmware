@@ -2,7 +2,7 @@
 #define DEVICE_H
 
 #ifdef BUILD_ATARI
-# include "sio/apetime.h"
+# include "sio/clock.h"
 # include "sio/cassette.h"
 # include "sio/disk.h"
 # include "sio/pclink.h"
@@ -17,7 +17,7 @@
 # endif
 # include "sio/fuji.h"
 
-    sioApeTime apeTime;
+    sioClock clockDevice;
 # ifdef ESP_PLATFORM
     sioVoice sioV;
 # endif
