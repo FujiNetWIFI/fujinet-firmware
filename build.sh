@@ -32,9 +32,8 @@ LOCAL_INI_VALUES_FILE="${SCRIPT_DIR}/platformio.local.ini"
 
 function display_board_names {
   while IFS= read -r piofile; do
-    BASE_NAME=$(basename $piofile)
-    BOARD_NAME=$(echo ${BASE_NAME//.ini} | cut -d\- -f2-)
-    echo "$(basename $piofile)"
+    BOARD_NAME=$(echo $(basename $piofile) | sed 's#^platformio-##;s#.ini$##')
+    echo "$BOARD_NAME"
   done < <(find "$SCRIPT_DIR/build-platforms" -name 'platformio-*.ini' -print | sort)
 }
 
