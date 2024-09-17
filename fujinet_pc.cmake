@@ -118,12 +118,12 @@ if(DEFINED DEBUG_NO_REBOOT)
 endif()
 
 set(INCLUDE_DIRS include
-    lib/compat lib/config lib/utils lib/hardware
+    lib/compat lib/config lib/utils lib/hardware lib/clock
     lib/FileSystem
     lib/tcpip lib/ftp lib/TNFSlib lib/telnet lib/fnjson
     lib/webdav lib/http lib/sam lib/task
     lib/modem-sniffer lib/printer-emulator
-    lib/network-protocol 
+    lib/network-protocol
     lib/fuji lib/bus lib/device lib/media
     lib/encrypt lib/base64
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
@@ -152,7 +152,8 @@ set(SOURCES src/main.cpp
     lib/config/fnc_serial.cpp
     lib/config/fnc_util.cpp
     lib/config/fnc_wifi.cpp
-    include/debug.h 
+    include/debug.h
+    lib/clock/Clock.h lib/clock/Clock.cpp
     lib/utils/utils.h lib/utils/utils.cpp
     lib/utils/cbuf.h lib/utils/cbuf.cpp
     lib/utils/string_utils.h lib/utils/string_utils.cpp
@@ -273,7 +274,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/network.h lib/device/sio/network.cpp
     lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
     #lib/device/sio/voice.h lib/device/sio/voice.cpp
-    lib/device/sio/apetime.h lib/device/sio/apetime.cpp
+    lib/device/sio/clock.h lib/device/sio/clock.cpp
     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
     lib/device/sio/modem.h lib/device/sio/modem.cpp
