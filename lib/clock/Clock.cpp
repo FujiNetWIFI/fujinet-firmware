@@ -30,7 +30,7 @@ std::string Clock::get_current_time_iso(const std::string& posixTimeZone) {
     std::tm* localTime = std::localtime(&now);
 
     std::string isoString = format_iso8601(*localTime);
-    Debug_printf("isoStringTZ time: %s, %s\r\n", isoString.c_str(), posixTimeZone.c_str());
+    // Debug_printf("isoStringTZ time: %s, %s\r\n", isoString.c_str(), posixTimeZone.c_str());
 
     return isoString;
 }
@@ -50,8 +50,8 @@ std::vector<uint8_t> Clock::get_current_time_simple(const std::string& posixTime
     simpleTime[5] = static_cast<uint8_t>(localTime->tm_min);
     simpleTime[6] = static_cast<uint8_t>(localTime->tm_sec);
 
-    std::string dstring = util_hexdump(simpleTime.data(), 7);
-    Debug_printf("simple time: %s, %s\r\n", dstring.c_str(), posixTimeZone.c_str());
+    // std::string dstring = util_hexdump(simpleTime.data(), 7);
+    // Debug_printf("simple time: %s, %s\r\n", dstring.c_str(), posixTimeZone.c_str());
 
     return simpleTime;
 }
@@ -78,8 +78,8 @@ std::vector<uint8_t> Clock::get_current_time_prodos(const std::string& posixTime
     prodosTime[2] = static_cast<uint8_t>(localTime->tm_min);
     prodosTime[3] = static_cast<uint8_t>(localTime->tm_hour);
 
-    std::string dstring = util_hexdump(prodosTime.data(), 4);
-    Debug_printf("prodos time: %s, %s\r\n", dstring.c_str(), posixTimeZone.c_str());
+    // std::string dstring = util_hexdump(prodosTime.data(), 4);
+    // Debug_printf("prodos time: %s, %s\r\n", dstring.c_str(), posixTimeZone.c_str());
 
     return prodosTime;
 }
@@ -98,8 +98,8 @@ std::vector<uint8_t> Clock::get_current_time_apetime(const std::string& posixTim
     apeTime[4] = static_cast<uint8_t>(localTime->tm_min);
     apeTime[5] = static_cast<uint8_t>(localTime->tm_sec);
 
-    std::string dstring = util_hexdump(apeTime.data(), 6);
-    Debug_printf("apetime: %s, %s\r\n", dstring.c_str(), posixTimeZone.c_str());
+    // std::string dstring = util_hexdump(apeTime.data(), 6);
+    // Debug_printf("apetime: %s, %s\r\n", dstring.c_str(), posixTimeZone.c_str());
 
     return apeTime;
 }
