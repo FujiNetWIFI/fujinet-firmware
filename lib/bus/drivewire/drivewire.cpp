@@ -1001,19 +1001,25 @@ void systemBus::setup()
     // xTaskCreatePinnedToCore(drivewire_intr_task, "drivewire_intr_task", 4096, this, 10, NULL, 0);
 
 #ifdef CONFIG_IDF_TARGET_ESP32S3
-    // Configure UART to RP2040
-    _drivewireBaud = 115200;
+// Configure UART to RP2040
+#ifdef FORCE_UART_BAUD
+	Debug_printv("FORCE_UART_BAUD set to %u", FORCE_UART_BAUD);
+	_drivewireBaud = FORCE_UART_BAUD;
 #else
-    // Setup interrupt for cassette motor pin
-    gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << PIN_CASS_MOTOR), // bit mask of the pins that you want to set
+	_drivewireBaud = 115200;
+#endif
+
+#else
+	// Setup interrupt for cassette motor pin
+	gpio_config_t io_conf = {
+		.pin_bit_mask = (1ULL << PIN_CASS_MOTOR), // bit mask of the pins that you want to set
         .mode = GPIO_MODE_INPUT,                  // set as input mode
         .pull_up_en = GPIO_PULLUP_DISABLE,        // disable pull-up mode
         .pull_down_en = GPIO_PULLDOWN_ENABLE,     // enable pull-down mode
         .intr_type = GPIO_INTR_POSEDGE            // interrupt on positive edge
-    };
+	};
 
-    _cassetteDev = new drivewireCassette();
+	_cassetteDev = new drivewireCassette();
 
     // configure GPIO with the given settings
     gpio_config(&io_conf);
@@ -1032,10 +1038,10 @@ void systemBus::setup()
     fnSystem.set_pin_mode(PIN_EPROM_A14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
     fnSystem.set_pin_mode(PIN_EPROM_A15, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 
-    #ifdef FORCE_UART_BAUD
+#ifdef FORCE_UART_BAUD
         Debug_printv("FORCE_UART_BAUD set to %u",FORCE_UART_BAUD);
         _drivewireBaud = FORCE_UART_BAUD;
-    #else
+#else
     if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
     {
         _drivewireBaud = 38400; //Coco1 ROM Image
@@ -1057,7 +1063,7 @@ void systemBus::setup()
         Debug_printv("A14 and A15 High, defaulting to 57600 baud");
     }
 
-    #endif /* FORCE_UART_BAUD */
+#endif /* FORCE_UART_BAUD */
 #endif /* CONFIG_IDF_TARGET_ESP32S3 */
 #else
     // FujiNet-PC specific
