@@ -1101,10 +1101,6 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
 void iwm_diskii_ll::setup_rmt()
 {
   // SPI continuous
-#if 0
-  d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
-                                     D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
-#endif
   iwm_write_queue = xQueueCreate(10, sizeof(iwm_write_data));
 
   track_buffer = (uint8_t *)heap_caps_malloc(TRACK_LEN, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
