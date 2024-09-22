@@ -1074,6 +1074,20 @@ void systemBus::setup()
     fnDwCom.begin(_drivewireBaud);
     fnDwCom.flush_input();
     Debug_printv("DRIVEWIRE MODE");
+
+// jeff hack to see if the S3 is getting serial data    
+    // Debug_println("now receiving data...");
+    // uint8_t b[] = {' '};
+    // while(1)
+    // {
+    //     while (fnDwCom.available())
+    //     {
+    //         fnDwCom.read(b,1);
+    //         Debug_printf("%c\n",b[0]);
+    //     }
+    // }
+// end jeff hack
+
 }
 
 // Give devices an opportunity to clean up before a reboot
