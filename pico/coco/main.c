@@ -319,6 +319,16 @@ int main()
 	// printf("\nwelcome to cococart\n");
 
   setup_pio_uart();
+
+// begin jeff hack to send data to S3
+  // char c = ' ' + 1;
+  // while(1)
+  // {
+  //   uart_tx_program_putc(pioblk_rw, SM_UART_TX, c++);
+  //   busy_wait_ms(1000);
+  // }
+// end jeff hack
+
   setup_becker_port();
 	setup_rom_emulator();
 
