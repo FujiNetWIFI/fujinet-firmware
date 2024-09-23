@@ -947,10 +947,8 @@ void iwm_diskii_ll::stop()
   if (d2w_started) {
     cspi_end_continuous(smartport.spirx);
     d2w_started = false;
-    free(d2w_desc);
-    free(d2w_buffer);
-    d2w_desc = nullptr;
-    d2w_buffer = nullptr;
+    heap_caps_free(d2w_desc);
+    heap_caps_free(d2w_buffer);
   }
   smartport.iwm_ack_set();
   gpio_isr_handler_remove(SP_WREQ);
