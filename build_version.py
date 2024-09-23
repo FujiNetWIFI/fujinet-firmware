@@ -14,7 +14,7 @@ if cmdline.find('buildfs') or cmdline.find('uploadfs'):
         #env.Replace (MKSPIFFSTOOL = "mklittlefs")
 
 # Disable automatic versioning
-if 0:
+if 1:
     print("Automatic versioning disabled")
 
 # Don't do anything if nothing has changed
@@ -23,30 +23,19 @@ elif len(subprocess.check_output(["git", "diff", "--name-only"], universal_newli
 
 else:
     try:
-        ver_commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], universal_newlines=True).strip()
-        ver_build = subprocess.check_output(["git", "describe", "HEAD"], universal_newlines=True).strip()
+        ver_build = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], universal_newlines=True).strip()
     except subprocess.CalledProcessError as e:
         ver_build = "NOGIT"
 
     header_file = "include/version.h"
 
-    # FIXME - only use current date if there are uncommitted changes
     ver_date = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
-    rxs = {
-        'MAJOR': r'^#define FN_VERSION_MAJOR (\w)',
-        'MINOR': r'^#define FN_VERSION_MINOR (\w)',
-        'BUILD': r'^(#define FN_VERSION_BUILD)',
-        'DATE': r'^(#define FN_VERSION_DATE)',
-        'FULL': r'^(#define FN_VERSION_FULL)',
-    }
+    rxs = ['^#define FN_VERSION_MAJOR (\\w)', '^#define FN_VERSION_MINOR (\\w)',
+           '^(#define FN_VERSION_BUILD)', '^(#define FN_VERSION_DATE)', '^(#define FN_VERSION_FULL)']
 
     ver_maj = ""
     ver_min = ""
-    m = re.match(r"^v([0-9]+)[.]([0-9]+)[.]", ver_build)
-    if m:
-        ver_maj = m.group(1)
-        ver_min = m.group(2)
 
     txt = [line for line in open(header_file)]
 
@@ -54,27 +43,29 @@ else:
 
     for line in txt:
 
-        for key in rxs:
-            m = re.match(rxs[key], line)
+        for i in range(len(rxs)):
+            m = re.match(rxs[i], line)
             if m is not None:
                 break
 
         if m is not None:
-            if key == 'MAJOR':
-                if not ver_maj:
-                    ver_maj = m.groups(0)[0]
-                line = line[:m.span(1)[0]] + ver_maj + "\n"
-            elif key == 'MINOR':
-                if not ver_min:
-                    ver_min = m.groups(0)[0]
-                line = line[:m.span(1)[0]] + ver_min + "\n"
-            elif key == 'BUILD':
-                line = m.groups(0)[0] + " \"" + ver_commit + "\"\n"
-            elif key == 'DATE':
-                line = m.groups(0)[0] + " \"" + ver_date + "\"\n"
-            elif key == 'FULL':
+            if i == 0:
+                ver_maj = m.groups(0)[0]
+                fout.write(line)
+            elif i == 1:
+                ver_min = m.groups(0)[0]
+                fout.write(line)
+            elif i == 2:
                 line = m.groups(0)[0] + " \"" + ver_build + "\"\n"
-
-        fout.write(line)
+                fout.write(line)
+            elif i == 3:
+                line = m.groups(0)[0] + " \"" + ver_date + "\"\n"
+                fout.write(line)
+            elif i == 4:
+                line = m.groups(0)[0] + " \"" + ver_maj + "." + \
+                    ver_min + "." + ver_build + "\"\n"
+                fout.write(line)
+        else:
+            fout.write(line)
 
     fout.close()
