@@ -4,7 +4,9 @@
 #include "esp_idf_version.h"
 #include "sdkconfig.h"
 
-#if defined(CONFIG_IDF_TARGET_ESP32) || defined(CONFIG_IDF_TARGET_ESP32S3)
+#if defined(CONFIG_IDF_TARGET_ESP32)
+#include "driver/timer.h"
+#elif defined(CONFIG_IDF_TARGET_ESP32S3)
 #include "driver/gptimer.h"
 #else
 #error "neither esp32 or s3"
@@ -40,12 +42,19 @@ private:
   } fn_timer;
 
 
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
 gptimer_handle_t gptimer;
 gptimer_config_t fn_config;
 //gptimer_alarm_config_t alarm_config;
+#else
+timer_config_t fn_config;
+#endif
 
 public:
   void config();
+
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+
   void reset() { gptimer_set_raw_count(gptimer, 0); };
   void latch() {};
   void read() { 
@@ -53,6 +62,20 @@ public:
     gptimer_get_raw_count(gptimer, &count);
     fn_timer.t0 = count & 0xFFFFFFFF;
   };
+
+#else
+
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  void reset() { TIMERG1.hw_timer[TIMER_1].loadlo.val = 0; TIMERG1.hw_timer[TIMER_1].load.val = 0; };
+  void latch() { TIMERG1.hw_timer[TIMER_1].update.val = 0; };
+  void read() { fn_timer.t0 = TIMERG1.hw_timer[TIMER_1].lo.val; };
+#else
+  void reset() { TIMERG1.hw_timer[TIMER_1].load_low = 0; TIMERG1.hw_timer[TIMER_1].reload = 0; };
+  void latch() { TIMERG1.hw_timer[TIMER_1].update = 0; };
+  void read() { fn_timer.t0 = TIMERG1.hw_timer[TIMER_1].cnt_low; };
+#endif
+
+#endif
 
   bool timeout() { return (fn_timer.t0 > fn_timer.tn); };
   void wait() { do{latch(); read();} while (!timeout()); };
