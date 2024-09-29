@@ -500,14 +500,14 @@ void iwmNetwork::status()
     case NetworkData::PROTOCOL:
         if (!current_network_data.protocol) {
             Debug_printf("ERROR: Calling status on a null protocol.\r\n");
-            err = true;
-            s.error = true;
+            err = NETWORK_ERROR_INVALID_COMMAND;
+            s.error = NETWORK_ERROR_INVALID_COMMAND;
         } else {
             err = current_network_data.protocol->status(&s);
         }
         break;
     case NetworkData::JSON:
-        err = current_network_data.json->status(&s);
+        err = (current_network_data.json->status(&s) == false) ? 0 : NETWORK_ERROR_GENERAL;
         break;
     }
 
