@@ -74,7 +74,7 @@ NetPresenz (Mac).
 NetWare.
 MSDOS.
 
-Definitely not covered: 
+Definitely not covered:
 Long VMS filenames, with information split across two lines.
 NCSA Telnet FTP server. Has LIST = NLST (and bad NLST for directories).
 */
@@ -696,26 +696,25 @@ bool fnFTP::login(const string &_username, const string &_password, const string
 
     if (parse_response())
     {
-        Debug_printf("Timed out waiting for 331.\r\n");
+        Debug_printf("Timed out waiting for 331 or 230.\r\n");
         return true;
     }
-
-    Debug_printf("Sending PASS.\r\n");
 
     if (is_positive_intermediate_reply() && is_authentication())
     {
+        Debug_printf("Sending PASS.\r\n");
         // Send password
         PASS();
+
+        if (parse_response())
+        {
+            Debug_printf("Timed out waiting for 230.\r\n");
+            return true;
+        }
     }
     else
     {
-        Debug_printf("Could not send password. Response was: %s\r\n", controlResponse.c_str());
-    }
-
-    if (parse_response())
-    {
-        Debug_printf("Timed out waiting for 230.\r\n");
-        return true;
+        Debug_printf("Will not send password. Response was: %s\r\n", controlResponse.c_str());
     }
 
     if (is_positive_completion_reply() && is_authentication())

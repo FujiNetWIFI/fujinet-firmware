@@ -13,7 +13,7 @@
 #include "pinmap/iec-d32pro.h"
 #include "pinmap/coco_devkitc.h"
 #include "pinmap/coco_cart.h"
-#include "pinmap/coco_s3.h"
+#include "pinmap/coco_esp32s3.h"
 #include "pinmap/foenix_os9_d32pro.h"
 #include "pinmap/iec-nugget.h"
 #include "pinmap/fujiloaf-rev0.h"

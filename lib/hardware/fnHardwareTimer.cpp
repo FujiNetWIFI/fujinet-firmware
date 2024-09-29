@@ -77,17 +77,33 @@ void HardwareTimer::config()
   //     uint32_t divider;               /*!< Counter clock divider */
   // } timer_config_t;
 
+#if defined(CONFIG_IDF_TARGET_ESP32S3)
+
 fn_config.direction = GPTIMER_COUNT_UP,
 fn_config.clk_src = GPTIMER_CLK_SRC_APB;
-#if defined(CONFIG_IDF_TARGET_ESP32)
-fn_config.resolution_hz = APB_CLK_FREQ / TIMER_DIVIDER;
-#else
 fn_config.resolution_hz = 10000000;
-#endif
 
 gptimer_new_timer(&fn_config, &gptimer);
 gptimer_enable(gptimer);
 gptimer_start(gptimer);
+
+#else
+
+fn_config.alarm_en = TIMER_ALARM_DIS;
+fn_config.counter_en = TIMER_PAUSE;
+fn_config.intr_type = TIMER_INTR_LEVEL;
+fn_config.counter_dir = TIMER_COUNT_UP;
+fn_config.auto_reload = TIMER_AUTORELOAD_DIS;
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+fn_config.clk_src = TIMER_SRC_CLK_APB;
+#endif
+fn_config.divider = TIMER_DIVIDER; // default clock source is APB
+
+timer_init(TIMER_GROUP_1, TIMER_1, &fn_config);
+timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
+timer_start(TIMER_GROUP_1, TIMER_1);
+
+#endif
 
 }
 

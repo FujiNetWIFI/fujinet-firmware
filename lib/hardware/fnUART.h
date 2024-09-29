@@ -6,7 +6,7 @@
 #ifdef ESP_PLATFORM
 #  include <driver/uart.h>
 #  define FN_UART_DEBUG   UART_NUM_0
-#  ifdef BUILD_RS232
+#  if defined(BUILD_RS232) || defined(PINMAP_COCO_ESP32S3)
 #    define FN_UART_BUS   UART_NUM_1
 #  else
 #    define FN_UART_BUS   UART_NUM_2
