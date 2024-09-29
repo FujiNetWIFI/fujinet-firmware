@@ -919,9 +919,12 @@ void IRAM_ATTR iwm_diskii_ll::diskii_write_handler()
 
 void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
 {
-  if (write_protect)
+  if (write_protect) {
+    // Signal that disk is write protected
     smartport.iwm_ack_set();
+  }
   else {
+    // Signal that disk can be written to
     smartport.iwm_ack_clr();
 
     d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
@@ -949,8 +952,9 @@ void iwm_diskii_ll::stop()
     d2w_started = false;
     heap_caps_free(d2w_desc);
     heap_caps_free(d2w_buffer);
+    // Let SmartPort use write protect as ACK line again
+    smartport.iwm_ack_set();
   }
-  smartport.iwm_ack_set();
   gpio_isr_handler_remove(SP_WREQ);
   fnLedManager.set(LED_BUS, false);
   Debug_printf("\nstop diskII");
