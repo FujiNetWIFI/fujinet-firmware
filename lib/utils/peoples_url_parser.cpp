@@ -92,7 +92,8 @@ void PeoplesUrlParser::cleanPath() {
     // while(mstr::endsWith(path,"/")) {
     //     path=mstr::dropLast(path, 1);
     // }
-    mstr::replaceAll(path, "//", "/");
+    //mstr::replaceAll(path, "//", "/");
+    path = util_get_canonical_path(path);
 }
 
 void PeoplesUrlParser::processPath() {

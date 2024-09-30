@@ -796,10 +796,12 @@ void util_replaceAll(std::string &str, const std::string &from, const std::strin
  */
 std::string util_get_canonical_path(std::string prefix)
 {
+    bool is_last_slash = (prefix.back() == '/') ? true : false;
+
     std::size_t proto_host_len;
 
     // stack to store the file's names.
-    std::stack<string> st;
+    std::stack<std::string> st;
 
     // temporary string which stores the extracted
     // directory name or commands("." / "..")
@@ -813,13 +815,20 @@ std::string util_get_canonical_path(std::string prefix)
     // advance beyond protocol and hostname
     proto_host_len = prefix.find("://");
 
-    if (proto_host_len > 0)
+    // If protocol delimiter "://" is found, skip over the protocol
+    if (proto_host_len < std::string::npos)
     {
-        proto_host_len += 3;
+        proto_host_len += 3; // "://" is 3 chars
         proto_host_len = prefix.find("/", proto_host_len) + 1;
+        res.append(prefix.substr(0, proto_host_len));
     }
-
-    res.append(prefix.substr(0, proto_host_len));
+    else
+    {
+        proto_host_len = 0; // no protocol prefix and hostname
+        // Preserve an absolute path if one is provided in the input
+        if (!prefix.empty() && prefix[0] == '/')
+            res = "/";
+    }
 
     int len_prefix = prefix.length();
 
@@ -865,7 +874,7 @@ std::string util_get_canonical_path(std::string prefix)
 
     // a temporary stack  (st1) which will contain
     // the reverse of original stack(st).
-    std::stack<string> st1;
+    std::stack<std::string> st1;
     while (!st.empty())
     {
         st1.push(st.top());
@@ -888,7 +897,7 @@ std::string util_get_canonical_path(std::string prefix)
     }
 
     // Append trailing slash if not already there
-    if ((res.length() > 0) && (res[res.length() - 1] != '/'))
+    if ((res.length() > 0) && (res.back() != '/') && is_last_slash)
         res.append("/");
 
     return res;
