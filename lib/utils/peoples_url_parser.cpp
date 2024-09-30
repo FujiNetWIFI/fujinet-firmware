@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "../../include/debug.h"
+#include "utils.h"
 
 #include "string_utils.h"
 
