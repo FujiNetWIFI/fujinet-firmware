@@ -14,6 +14,7 @@
 #include "led.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
+#include "fnFsTNFS.h"
 #include "utils.h"
 #include "string_utils.h"
 
@@ -1238,10 +1239,18 @@ void iwmFuji::insert_boot_device(uint8_t d)
 		get_disk_dev(0)->mount(fBoot, config_atr, 143360, MEDIATYPE_PO);
 		break;
 	case 1:
-
 		fBoot = fsFlash.fnfile_open(mount_all_atr);
 		get_disk_dev(0)->mount(fBoot, mount_all_atr, 143360, MEDIATYPE_PO);
 		break;
+    case 2:
+        Debug_printf("Mounting lobby server\n");
+        if (fnTNFS.start("tnfs.fujinet.online"))
+        {
+            Debug_printf("opening lobby.\n");
+            fBoot = fnTNFS.fnfile_open("/APPLE2/_lobby.po");
+			get_disk_dev(0)->mount(fBoot, "/APPLE2/_lobby.po", 143360, MEDIATYPE_PO);
+        }
+        break;
 	}
 #else
 	const char *boot_img;
@@ -1257,6 +1266,15 @@ void iwmFuji::insert_boot_device(uint8_t d)
 		boot_img = mount_all_atr;
 		fBoot = fsFlash.fnfile_open(boot_img);
 		break;
+    case 2:
+        Debug_printf("Mounting lobby server\n");
+        if (fnTNFS.start("tnfs.fujinet.online"))
+        {
+            Debug_printf("opening lobby.\n");
+			boot_img = "/APPLE2/_lobby.po";
+            fBoot = fnTNFS.fnfile_open(boot_img);
+        }
+        break;
 	default:
 		Debug_printf("Invalid boot mode: %d\n", d);
 		return;
