@@ -333,7 +333,9 @@ public:
   void service();
   bool serviceSmartPort();
   bool serviceDiskII();
+#ifndef DEV_RELAY_SLIP
   bool serviceDiskIIWrite();
+#endif
   void shutdown();
 
   int numDevices();

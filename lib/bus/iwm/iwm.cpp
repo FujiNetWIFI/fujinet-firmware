@@ -436,7 +436,9 @@ void IRAM_ATTR iwmBus::service()
   if (!serviceSmartPort())
     serviceDiskII();
 
+#ifndef DEV_RELAY_SLIP
   serviceDiskIIWrite();
+#endif
 }
 
 // Returns true if SmartPort was handled
@@ -598,6 +600,7 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
   return true;
 }
 
+#ifndef DEV_RELAY_SLIP
 // Returns true if a Disk II write was received
 bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
 {
@@ -685,7 +688,6 @@ bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
   return true;
 }
 
-#ifndef DEV_RELAY_SLIP
 iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
 {
   uint8_t phases = smartport.iwm_phase_vector();
