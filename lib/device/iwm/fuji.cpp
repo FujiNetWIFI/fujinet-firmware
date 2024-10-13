@@ -80,6 +80,7 @@ iwmFuji::iwmFuji()
 
         { FUJICMD_RESET,  [this]()                     { this->send_reply_packet(err_result); this->iwm_ctrl_reset_fujinet(); }},   // 0xFF
         { IWM_CTRL_RESET, [this]()                     { this->send_reply_packet(err_result); this->iwm_ctrl_reset_fujinet(); }},   // 0x00
+	{ IWM_CTRL_CLEAR_ENSEEN, [this]()	       { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR_NOERROR; }},
 
         { FUJICMD_MOUNT_ALL, [&]()                     { err_result = (mount_all() ? SP_ERR_IOERROR : SP_ERR_NOERROR); }},          // 0xD7
         { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = iwm_ctrl_disk_image_mount(); }},  // 0xF8
@@ -91,6 +92,7 @@ iwmFuji::iwmFuji()
         
         { IWM_STATUS_DIB, [this]()                     { this->send_status_dib_reply_packet(); status_completed = true; }},     // 0x03
         { IWM_STATUS_STATUS, [this]()                  { this->send_status_reply_packet(); status_completed = true; }},         // 0x00
+	{ IWM_STATUS_ENSEEN, [this]()		       { data_len = 1; data_buffer[0] = diskii_xface.d2_enable_seen; }},
         
         { FUJICMD_DEVICE_ENABLE_STATUS, [this]()       { this->send_stat_get_enable(); }},                      // 0xD1
         { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() { this->iwm_stat_get_adapter_config_extended(); }},      // 0xC4

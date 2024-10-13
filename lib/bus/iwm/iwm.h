@@ -107,12 +107,14 @@ enum {
 #define IWM_CTRL_RUN_ROUTINE 0x05
 #define IWM_CTRL_DWNLD_ADDRESS 0x06
 #define IWM_CTRL_DOWNLOAD 0x07
+#define IWM_CTRL_CLEAR_ENSEEN 0x08
 
 #define IWM_STATUS_STATUS 0x00
 #define IWM_STATUS_DCB 0x01
 #define IWM_STATUS_NEWLINE 0x02
 #define IWM_STATUS_DIB 0x03
 #define IWM_STATUS_UNI35 0x05
+#define IWM_STATUS_ENSEEN 0x08
 
 // class def'ns
 class iwmFuji;     // declare here so can reference it, but define in fuji.h

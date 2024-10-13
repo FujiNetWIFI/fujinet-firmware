@@ -579,6 +579,7 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     break;
 
   case iwm_enable_state_t::on:
+    diskii_xface.d2_enable_seen |= diskii_xface.iwm_enable_states();
 #ifdef DEBUG
     new_track = IWM_ACTIVE_DISK2->get_track_pos();
     if (old_track != new_track)
