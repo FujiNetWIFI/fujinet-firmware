@@ -293,6 +293,7 @@ private:
 
 public:
   QueueHandle_t iwm_write_queue;
+  uint8_t d2_enable_seen = 0;
 
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
