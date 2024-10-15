@@ -7,6 +7,9 @@
  as needed.
 */
 
+#ifndef _VERSION_H
+#define _VERSION_H
+
 #define FN_VERSION_MAJOR 1
 #define FN_VERSION_MINOR 4
 
@@ -15,3 +18,5 @@
 #define FN_VERSION_DATE "2024-08-07 20:49:13"
 
 #define FN_VERSION_FULL "v1.4"
+
+#endif /* _VERSION_H */
