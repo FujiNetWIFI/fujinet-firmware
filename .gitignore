@@ -55,3 +55,6 @@ data/webui/device_specific/BUILD_ATARI/fnconfig.ini
 # ignore any releases downloaded via fujinet_firware_uploader
 fujinet_releases/*
 
+*~
+*.orig
+*.rej

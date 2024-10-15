@@ -18,6 +18,7 @@ def create_local_ini(board_name, local_file_name):
     config.set('fujinet', 'build_board', board_name)
     with open(local_file_name, 'w') as configfile:
         config.write(configfile)
+        configfile.write("[env]\n;build_flags += !python3 debug_version.py\n")
     print(f"{local_file_name} file created with build_board = {board_name}")
 
 def merge_ini_files(base_file, local_file, output_file):
@@ -120,7 +121,7 @@ def main():
     parser.add_argument("-l", "--local-file", metavar="local_file", help="Use specified local_file instead of platformio.local.ini")
     parser.add_argument("-o", "--output-file", metavar="output_file", help="write to output_file instead of default platformio-generated.ini")
     parser.add_argument("-f", "--add-files", metavar="add_files", action="append", help="include additional ini file changes, can be specified multiple times")
-    
+
     args = parser.parse_args()
     local_file = "platformio.local.ini"
     output_file = "platformio-generated.ini"
