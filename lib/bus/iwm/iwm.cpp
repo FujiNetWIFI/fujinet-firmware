@@ -432,12 +432,14 @@ std::vector<uint8_t> iwmDevice::create_dib_reply_packet(const std::string& devic
 //*****************************************************************************
 void IRAM_ATTR iwmBus::service()
 {
+#ifndef DEV_RELAY_SLIP
   // process smartport before diskII
   if (!serviceSmartPort())
     serviceDiskII();
 
-#ifndef DEV_RELAY_SLIP
   serviceDiskIIWrite();
+#else
+  serviceSmartPort();
 #endif
 }
 
@@ -548,10 +550,10 @@ bool IRAM_ATTR iwmBus::serviceSmartPort()
   return true;
 }
 
+#ifndef DEV_RELAY_SLIP
 // Returns true if Disk II was handled
 bool IRAM_ATTR iwmBus::serviceDiskII()
 {
-#ifndef DEV_RELAY_SLIP
   // check on the diskii status
   switch (iwm_drive_enabled())
   {
@@ -596,12 +598,10 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     iwm_ack_deassert();
     break;
   }
-#endif /* !SLIP */
 
   return true;
 }
 
-#ifndef DEV_RELAY_SLIP
 // Returns true if a Disk II write was received
 bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
 {
@@ -723,7 +723,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
     return iwm_enable_state_t::off;
   }
 }
-#endif /* !SLIP */
+#endif /* !DEV_RELAY_SLIP */
 
 void iwmBus::handle_init()
 {
