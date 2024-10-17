@@ -392,20 +392,19 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
         return 0;
 
     mstr::replaceAll(url, " ", "%20");
-    esp_http_client_config_t config = {
-        .url = url.c_str(),
-        .auth_type = HTTP_AUTH_TYPE_BASIC,
-        .user_agent = USER_AGENT,
-        .method = meth,
-        .timeout_ms = 10000,
-        .max_redirection_count = 10,
-        .event_handler = _http_event_handler,
-        .user_data = this,
-        .keep_alive_enable = true,
-        .keep_alive_idle = 10,
-        .keep_alive_interval = 1
-    };
-
+    esp_http_client_config_t config;
+    memset(&config, 0, sizeof(config));
+    config.url = url.c_str();
+    config.auth_type = HTTP_AUTH_TYPE_BASIC;
+    config.user_agent = USER_AGENT;
+    config.method = meth;
+    config.timeout_ms = 10000;
+    config.max_redirection_count = 10;
+    config.event_handler = _http_event_handler;
+    config.user_data = this;
+    config.keep_alive_enable = true;
+    config.keep_alive_idle = 10;
+    config.keep_alive_interval = 1;
     //Debug_printv("HTTP Init url[%s]", url.c_str());
     _http = esp_http_client_init(&config);
 

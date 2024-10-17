@@ -636,7 +636,9 @@ bool iecDrive::registerStream ( uint8_t channel )
     // Debug_printv("_file[%s]", _file.c_str());
 
     // TODO: Determine mode and create the proper stream
+#if 0
     std::ios_base::openmode mode = std::ios_base::in;
+#endif
 
     Debug_printv("_base[%s]", _base->url.c_str());
     _base.reset( MFSOwner::File( _base->url ) );
@@ -1085,7 +1087,9 @@ bool iecDrive::sendFile()
 
     uint8_t b;  // byte
 //    uint8_t nb; // next byte
+#if 0
     uint8_t bi = 0;
+#endif
     uint16_t load_address = 0;
     uint16_t sys_address = 0;
 
@@ -1255,7 +1259,9 @@ bool iecDrive::saveFile()
     bool success = true;
     bool done = false;
 
+#if 0
     size_t bi = 0;
+#endif
     size_t load_address = 0;
     size_t b_len = 1;
     uint8_t b[b_len];

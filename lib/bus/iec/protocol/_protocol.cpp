@@ -24,8 +24,9 @@ IECProtocol::IECProtocol() {
     esp_timer_create_args_t args = {
         .callback = onTimer,
         .arg = this,
-        .dispatch_method = ESP_TIMER_ISR,
-        .name = "onTimer"
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "onTimer",
+        .skip_unhandled_events = 0,
     };
     esp_timer_create(&args, &timer_handle);
 };
