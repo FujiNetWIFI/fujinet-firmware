@@ -68,6 +68,7 @@ static void onTimer(void *info)
     //portEXIT_CRITICAL_ISR(&parent->timerMux);
 }
 
+#if 0
 static void ml_iec_intr_task(void* arg)
 {
     while ( true ) 
@@ -79,6 +80,7 @@ static void ml_iec_intr_task(void* arg)
             taskYIELD();
     }
 }
+#endif
 
 void systemBus::init_gpio(gpio_num_t _pin)
 {
@@ -898,7 +900,7 @@ void systemBus::reset_all_our_devices()
 void systemBus::setBitTiming(std::string set, int p1, int p2, int p3, int p4)
 {
      uint8_t i = 0; // Send
-    if (mstr::equals(set, "r")) i = 1;
+     if (mstr::equals(set, (char *) "r")) i = 1;
     if (p1) protocol->bit_pair_timing[i][0] = p1;
     if (p2) protocol->bit_pair_timing[i][1] = p2;
     if (p3) protocol->bit_pair_timing[i][2] = p3;

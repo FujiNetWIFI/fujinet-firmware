@@ -24,7 +24,9 @@ IECProtocol::IECProtocol() {
     esp_timer_create_args_t args = {
         .callback = onTimer,
         .arg = this,
-        .name = nullptr
+	.dispatch_method = ESP_TIMER_TASK,
+        .name = nullptr,
+	.skip_unhandled_events = 0,
     };
     esp_timer_create(&args, &timer_handle);
 };
@@ -93,7 +95,9 @@ int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size
     uint64_t start = 0;
     uint64_t current = 0;
     uint64_t elapsed = 0;
+#if 0
     bool atn_status = false;
+#endif
 
 #ifndef IEC_SPLIT_LINES
     IEC.release ( pin );
