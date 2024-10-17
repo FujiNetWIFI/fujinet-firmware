@@ -135,7 +135,7 @@ void oiecstream::putUtf8(U8Char* codePoint) {
     //Serial.printf("%c",codePoint->toPetscii());
     //Debug_printv("oiecstream calling put");
     auto c = codePoint->toPetscii();
-    put(codePoint->toPetscii());        
+    put(c);
 }
 
     // void oiecstream::writeLn(std::string line) {

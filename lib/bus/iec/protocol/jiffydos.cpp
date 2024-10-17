@@ -52,7 +52,9 @@ JiffyDOS::JiffyDOS() {
     esp_timer_create_args_t args = {
         .callback = onTimer,
         .arg = this,
-        .name = nullptr
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = nullptr,
+        .skip_unhandled_events = 0,
     };
     esp_timer_create(&args, &timer_handle);
 };
