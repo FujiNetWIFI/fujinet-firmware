@@ -49,18 +49,16 @@ std::unique_ptr<Request> Request::from_packet(const std::vector<uint8_t>& packet
   }
 
   case CMD_READ_BLOCK: {
-    auto bs = (packet[4] << 8) | packet[3];
-    auto readBlockRequest = std::make_unique<ReadBlockRequest>(packet[0], packet[2], bs);
-    readBlockRequest->set_block_number_from_ptr(packet.data(), 5);
+    auto readBlockRequest = std::make_unique<ReadBlockRequest>(packet[0], packet[2]);
+    readBlockRequest->set_block_number_from_ptr(packet.data(), 3);
     request = std::move(readBlockRequest);
     break;
   }
 
   case CMD_WRITE_BLOCK: {
-    auto bs = (packet[4] << 8) | packet[3];
-    auto writeBlockRequest = std::make_unique<WriteBlockRequest>(packet[0], packet[2], bs);
-    writeBlockRequest->set_block_number_from_ptr(packet.data(), 5);
-    writeBlockRequest->set_block_data_from_ptr(packet.data(), 8);
+    auto writeBlockRequest = std::make_unique<WriteBlockRequest>(packet[0], packet[2]);
+    writeBlockRequest->set_block_number_from_ptr(packet.data(), 3);
+    writeBlockRequest->set_block_data_from_ptr(packet.data(), 6);
 		request = std::move(writeBlockRequest);
     break;
   }
