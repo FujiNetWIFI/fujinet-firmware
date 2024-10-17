@@ -473,8 +473,10 @@ int fnHttpClient::_perform()
     // Debug_printf("%08lx _perform notified\r\n", fnSystem.millis());
     // Debug_printf("Notification of headers loaded\r\n");
 
+#if 0
     bool chunked = esp_http_client_is_chunked_response(_handle);
     int length = esp_http_client_get_content_length(_handle);
+#endif
     int status;
     switch (_client_err)
     {
@@ -564,9 +566,11 @@ int fnHttpClient::_perform_stream(esp_http_client_method_t method, uint8_t *writ
     }
 
     // Collect results
+#if 0
     bool chunked = esp_http_client_is_chunked_response(_handle);
-    int status = esp_http_client_get_status_code(_handle);
     int length = esp_http_client_get_content_length(_handle);
+#endif
+    int status = esp_http_client_get_status_code(_handle);
 #ifdef VERBOSE_HTTP
     Debug_printf("status = %d, length = %d, chunked = %d\r\n", status, length, chunked ? 1 : 0);
 #endif

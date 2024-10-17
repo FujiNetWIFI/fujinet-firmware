@@ -74,7 +74,8 @@ CPBStandardSerial::CPBStandardSerial()
         .callback = onSendBits,
         .arg = this,
         .dispatch_method = ESP_TIMER_ISR,
-        .name = "onSendBits"
+        .name = "onSendBits",
+        .skip_unhandled_events = 0,
     };
     esp_timer_create(&args, &timer_send_h);
     //Debug_printv("send_timer_create");
