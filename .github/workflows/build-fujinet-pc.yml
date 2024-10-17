@@ -37,23 +37,23 @@ jobs:
             runner: ubuntu-22.04
             target: ubuntu-22.04-amd64
             default-shell: bash
-          # - name: Ubuntu 24.04
-          #   runner: ubuntu-24.04
-          #   target: ubuntu-24.04-amd64
-          #   default-shell: bash
-          # - name: macOS 13
-          #   target: macos-13
-          #   runner: macos-13
-          #   default-shell: bash
+          - name: Ubuntu 24.04
+            runner: ubuntu-24.04
+            target: ubuntu-24.04-amd64
+            default-shell: bash
+          - name: macOS 13
+            target: macos-13
+            runner: macos-13
+            default-shell: bash
           - name: macOS 14
             target: macos-14
             runner: macos-14
             default-shell: bash
-          # - name: Windows
-          #   target: windows-x64
-          #   runner: windows-latest
-          #   sys: clang64
-          #   default-shell: msys2 {0}
+          - name: Windows
+            target: windows-x64
+            runner: windows-latest
+            sys: clang64
+            default-shell: msys2 {0}
           # # mbedtls not available anymore for clang32 :-(
           # - name: Windows x86
           #   target: windows-x86
@@ -61,9 +61,9 @@ jobs:
           #   sys: clang32
           #   default-shell: msys2 {0}
         fujinet_target:
-          # - APPLE
+          - APPLE
           - ATARI
-          # - COCO
+          - COCO
 
     # continue-on-error: true
     name: "${{ matrix.os.name }}: Target ${{ matrix.fujinet_target }}"
@@ -207,7 +207,7 @@ jobs:
       working-directory: release
       run: |
         for D in fujinet-pc-*_*ubuntu* fujinet-pc-*_*macos*; do gzip -9v $D/fujinet-pc-*_*.tar; done
-#        for D in fujinet-pc-*_*windows*; do (cd $D; F=(fujinet-pc-*_*.tar); tar -xvf $F; rm -f $F; zip -r ${F%.*}.zip fujinet-pc-*); done
+        for D in fujinet-pc-*_*windows*; do (cd $D; F=(fujinet-pc-*_*.tar); tar -xvf $F; rm -f $F; zip -r ${F%.*}.zip fujinet-pc-*); done
         
     - name: Create Nightly Build Release
       # if: ${{ github.event_name == 'schedule' }}
@@ -222,7 +222,7 @@ jobs:
           make_latest: false
           files: |
             release/fujinet-pc-*_*/fujinet-pc-*_*.tar.gz
-#            release/fujinet-pc-*_*/fujinet-pc-*_*.zip
+            release/fujinet-pc-*_*/fujinet-pc-*_*.zip
 
     # - name: Prepare Release Draft
     #   if: ${{ github.event.inputs.prepRelease == 'true' }}
@@ -251,6 +251,6 @@ jobs:
       run: |
         gh release list --json tagName,createdAt \
           --jq 'map(select(.tagName | test("^nightly_fn_pc"))) | sort_by(.createdAt)[0:-3][].tagName' |\
-          xargs -I% sh -c 'echo Deleting release %i; gh release delete % --cleanup-tag'
+          xargs -I% sh -c 'echo Deleting release %; gh release delete % --cleanup-tag'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
