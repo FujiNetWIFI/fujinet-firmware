@@ -209,8 +209,19 @@ jobs:
         for D in fujinet-pc-*_*ubuntu* fujinet-pc-*_*macos*; do gzip -9v $D/fujinet-pc-*_*.tar; done
         for D in fujinet-pc-*_*windows*; do (cd $D; F=(fujinet-pc-*_*.tar); tar -xvf $F; rm -f $F; zip -r ${F%.*}.zip fujinet-pc-*); done
         
+    - name: Prepare Release Draft
+      if: ${{ github.event.inputs.prepRelease == 'true' }}
+      uses: softprops/action-gh-release@v2
+      with:
+          name: "FujiNet-PC ${{ needs.build.outputs.fujinet_version }}"
+          tag_name: ${{ needs.build.outputs.fujinet_version }}
+          draft: true
+          files: |
+            release/fujinet-pc-*_*/fujinet-pc-*_*.tar.gz
+            release/fujinet-pc-*_*/fujinet-pc-*_*.zip
+
     - name: Create Nightly Build Release
-      # if: ${{ github.event_name == 'schedule' }}
+      if: ${{ github.event_name == 'schedule' }}
       uses: softprops/action-gh-release@v2
       with:
           name: "FujiNet-PC Nightly ${{ needs.build.outputs.build_date }}"
@@ -224,27 +235,16 @@ jobs:
             release/fujinet-pc-*_*/fujinet-pc-*_*.tar.gz
             release/fujinet-pc-*_*/fujinet-pc-*_*.zip
 
-    # - name: Prepare Release Draft
-    #   if: ${{ github.event.inputs.prepRelease == 'true' }}
-    #   uses: softprops/action-gh-release@v2
-    #   with:
-    #       name: "FujiNet-PC ${{ needs.build.outputs.fujinet_version }}"
-    #       tag_name: ${{ needs.build.outputs.fujinet_version }}
-    #       draft: true
-    #       files: |
-    #         release/fujinet-pc-*_*/fujinet-pc-*_*.tar.gz
-    #         release/fujinet-pc-*_*/fujinet-pc-*_*.zip
-
   postrelease:
-    if: ${{ github.event_name == 'schedule' || github.event.inputs.prepRelease == 'true' }}
+    if: ${{ github.event_name == 'schedule' }}
     # Delete old nightly releases
     runs-on: ubuntu-latest
     name: Post-Release
     needs: release
 
     steps:
-    # Checkout, to make "gh" command working
     - name: 'Checkout'
+      # Checkout, to make "gh" command working
       uses: actions/checkout@v4
 
     - name: Delete old nightly releases
