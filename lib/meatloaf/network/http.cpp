@@ -394,6 +394,7 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
     mstr::replaceAll(url, " ", "%20");
     esp_http_client_config_t config = {
         .url = url.c_str(),
+        .auth_type = HTTP_AUTH_TYPE_BASIC,
         .user_agent = USER_AGENT,
         .method = meth,
         .timeout_ms = 10000,

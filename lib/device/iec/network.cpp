@@ -109,7 +109,7 @@ void iecNetwork::iec_open()
                    [](unsigned char c) { return std::toupper(c); });
 
     // Instantiate protocol based on the scheme
-    Debug_printv("Creating protocol for chema %s\r\n", channel_data.urlParser->scheme.c_str());
+    Debug_printv("Creating protocol for schema %s\r\n", channel_data.urlParser->scheme.c_str());
     channel_data.protocol = std::move(NetworkProtocolFactory::createProtocol(channel_data.urlParser->scheme, channel_data));
 
     if (!channel_data.protocol) {
@@ -311,7 +311,7 @@ void iecNetwork::iec_reopen_channel_listen()
     int channelId = commanddata.channel;
     auto& channel_data = network_data_map[channelId];
 
-    Debug_printv("channel[%2X]", channelId);
+    Debug_printv("channel[%02X]", channelId);
 
     if (!channel_data.protocol)
     {
@@ -355,7 +355,7 @@ void iecNetwork::iec_reopen_channel_talk()
     bool set_eoi = false;
     NetworkStatus ns;
 
-    Debug_printv("channel[%2X]", channelId);
+    Debug_printv("channel[%02X]", channelId);
 
     // If protocol isn't connected, then return not connected.
     if (!channel_data.protocol)
@@ -733,7 +733,7 @@ void iecNetwork::iec_command()
         return;
     }
 
-    Debug_printf("pt[0]=='%s'\n", pt[0].c_str());
+    Debug_printv("pt[0]=='%s'\n", pt[0].c_str());
     if (pt[0] == "cd")
         set_prefix();
     else if (pt[0] == "chmode")
@@ -789,13 +789,13 @@ void iecNetwork::iec_command()
                 return;
             }
 
-            Debug_printv("pt[0][0]=[%2X] pt[1]=[%d] aux1[%d] aux2[%d]", pt[0][0], channel, cmdFrame.aux1, cmdFrame.aux2);
-
-            if (channel_data.protocol->special_inquiry(pt[0][0]) == 0x00)
+            uint8_t m = channel_data.protocol->special_inquiry(pt[0][0]);
+            Debug_printv("pt[0][0]=[%2X] pt[1]=[%d] size[%d] m[%d]", pt[0][0], channel, pt.size(), m);
+            if (m == 0x00)
                 perform_special_00();
-            else if (channel_data.protocol->special_inquiry(pt[0][0]) == 0x40)
+            else if (m == 0x40)
                 perform_special_40();
-            else if (channel_data.protocol->special_inquiry(pt[0][0]) == 0x80)
+            else if (m == 0x80)
                 perform_special_80();
         }
     }

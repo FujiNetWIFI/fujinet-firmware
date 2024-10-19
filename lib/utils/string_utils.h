@@ -55,6 +55,8 @@ namespace mstr {
     void urlDecode(char *s, size_t size, bool alter_pluses);
     void urlDecode(char *s, size_t size);
 
+    std::string sha1(const std::string &s);
+
     // void toASCII(std::string &s);
     // void toPETSCII(std::string &s);
     std::string toUTF8(const std::string &petsciiInput);
@@ -65,6 +67,7 @@ namespace mstr {
     bool isText(std::string &s);
     bool isNumeric(std::string &s);
     bool isA0Space(int ch);
+    bool isJunk(std::string &s);
     void A02Space(std::string &s);
 
     std::string format(const char *format, ...);
