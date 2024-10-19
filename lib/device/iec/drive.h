@@ -37,14 +37,9 @@ protected:
     std::unique_ptr<MFile> _base;   // Always points to current directory/image
     std::string _last_file;         // Always points to last loaded file
 
-    // Named Channel functions
-    //std::shared_ptr<MStream> currentStream;
-    bool registerStream (uint8_t channel);
-    std::shared_ptr<MStream> retrieveStream ( uint8_t channel );
-    bool closeStream ( uint8_t channel, bool close_all = false );
-    uint16_t retrieveLastByte ( uint8_t channel );
-    void storeLastByte( uint8_t channel, char last);
-    void flushLastByte( uint8_t channel );
+    // RAM/ROM
+//    std::streambuf ram;
+    std::unique_ptr<MFile> rom;     // ROM File for current drive model if available
 
     // Directory
     uint16_t sendHeader(std::string header, std::string id);
@@ -57,6 +52,14 @@ protected:
     bool sendFile();
     bool saveFile();
     void sendFileNotFound();
+
+    // Named Channel functions
+    bool registerStream (uint8_t channel);
+    std::shared_ptr<MStream> retrieveStream ( uint8_t channel );
+    bool closeStream ( uint8_t channel, bool close_all = false );
+    uint16_t retrieveLastByte ( uint8_t channel );
+    void storeLastByte( uint8_t channel, char last);
+    void flushLastByte( uint8_t channel );
 
     struct _error_response
     {

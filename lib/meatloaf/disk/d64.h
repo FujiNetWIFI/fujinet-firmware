@@ -1,6 +1,6 @@
 // .D64, .D41 - 1541 disk image format
 //
-// https://vice-emu.sourceforge.io/vice_17.html#SEC345
+// https://vice-emu.sourceforge.io/vice_16.html#SEC408
 // https://ist.uwaterloo.ca/~schepers/formats/D64.TXT
 // https://ist.uwaterloo.ca/~schepers/formats/GEOS.TXT
 // https://www.lemon64.com/forum/viewtopic.php?t=70024&start=0 (File formats = Why is D64 not called D40/D41)

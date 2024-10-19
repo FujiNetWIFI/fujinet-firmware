@@ -355,15 +355,8 @@ void iecDrive::iec_command()
 {
     Debug_printv("command[%s]", payload.c_str());
 
-    // if (mstr::startsWith(payload, "cd"))
-    // 	set_prefix();
-    // else if (pt[0] == "pwd")
-    // 	get_prefix();
-    // else if (pt[0] == "id")
-    // 	set_device_id();
-
     // Drive level commands
-    // CBM DOS 2.5
+    // CBM DOS 2.6
     switch ( payload[0] )
     {
         case 'B':

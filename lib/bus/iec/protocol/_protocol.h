@@ -25,6 +25,7 @@ namespace Protocol
         };
 
         bool timer_timedout = false;
+        uint64_t timer_started = 0;
         uint64_t timer_elapsed = 0;
 
 

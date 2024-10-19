@@ -395,6 +395,7 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
     esp_http_client_config_t config;
     memset(&config, 0, sizeof(config));
     config.url = url.c_str();
+    config.auth_type = HTTP_AUTH_TYPE_BASIC;
     config.user_agent = USER_AGENT;
     config.method = meth;
     config.timeout_ms = 10000;

@@ -242,7 +242,7 @@ int vfs_tnfs_fstat(void* ctx, int fd, struct stat * st)
 // New basepath will be stored in basepath
 esp_err_t vfs_tnfs_register(tnfsMountInfo &m_info, char *basepath, int basepathlen)
 {
-    // Trying to initialze the struct as coumented (e.g. ".write_p = &function")
+    // Trying to initialze the struct as docoumented (e.g. ".write_p = &function")
     // results in compiloer error "non-trivial desginated initializers not supported"
     esp_vfs_t vfs;
     memset(&vfs, 0, sizeof(vfs));
@@ -258,7 +258,7 @@ esp_err_t vfs_tnfs_register(tnfsMountInfo &m_info, char *basepath, int basepathl
     vfs.rename_p = &vfs_tnfs_rename;
 
     // We'll use the address of our tnfsMountInfo to provide a unique base path
-    // for this instance wihtout keeping track of how many we create
+    // for this instance without keeping track of how many we create
     snprintf(basepath, basepathlen, "/tnfs%p", &m_info);
     esp_err_t e = esp_vfs_register(basepath, &vfs, &m_info);
 
