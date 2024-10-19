@@ -3,7 +3,10 @@
 #include <string>
 #include <esp_http_server.h>
 
+#include "string_utils.h"
 #include "../../include/debug.h"
+
+#define HTTPD_100      "100 Continue"
 
 namespace WebDav
 {
@@ -24,6 +27,10 @@ namespace WebDav
             path = httpd_req->uri;
             depth = DEPTH_INFINITY;
             overwrite = true;
+
+            // Drop trailing slash from path
+            if (mstr::endsWith(path, "/"))
+                mstr::drop(path, 1);
         }
 
         bool parseRequest();
@@ -45,6 +52,12 @@ namespace WebDav
             httpd_req_get_hdr_value_str(req, name.c_str(), &s[0], len + 1);
 
             return s;
+        }
+
+        void sendContinue()
+        {
+            std::string c = "HTTP/1.1 " HTTPD_100 "\r\n\r\n";
+            httpd_send(req, c.c_str(), c.length());
         }
 
         size_t getContentLength()

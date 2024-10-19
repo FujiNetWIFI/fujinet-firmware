@@ -6,6 +6,8 @@
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include <mbedtls/sha1.h>
+#include <mbedtls/base64.h>
 
 //#include "../../include/petscii.h"
 #include "../../include/debug.h"
@@ -67,6 +69,31 @@ namespace mstr {
         return ch == '\xA0' || std::isspace(ch);
     }
 
+    // is OSX/Windows junk system file
+    bool isJunk(std::string &s)
+    {
+        std::vector<std::string> names = {
+            // OSX
+            "/._",
+            "/.DS_Store",
+            "/.fseventsd",
+            "/.Spotlight-V",
+            "/.TemporaryItems",
+            "/.Trashes",
+            "/.VolumeIcon.icns",
+
+            // Windows
+            "/Desktop.ini",
+            "/Thumbs.ini"
+        };
+
+        for (auto it = begin (names); it != end (names); ++it) {
+            if (s.contains(it->c_str()))
+                return true;
+        }
+        
+        return false;
+    }
 
 
     std::string drop(std::string str, size_t count) {
@@ -489,6 +516,17 @@ namespace mstr {
         std::string result(buffer);
         delete[] buffer;
         return result;
+    }
+
+    std::string sha1(const std::string &s)
+    {
+        unsigned char hash[21] = { 0x00 };
+        mbedtls_sha1((const unsigned char *)s.c_str(), s.length(), hash);
+        // unsigned char output[64];
+        // size_t outlen;
+        // mbedtls_base64_encode(output, 64, &outlen, hash, 20);
+        std::string o(reinterpret_cast< char const* >(hash));
+        return toHex(o);
     }
 
     std::string urlDecode(const std::string& s)
