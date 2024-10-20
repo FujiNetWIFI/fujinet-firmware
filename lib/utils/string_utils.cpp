@@ -88,7 +88,7 @@ namespace mstr {
         };
 
         for (auto it = begin (names); it != end (names); ++it) {
-            if (s.contains(it->c_str()))
+            if (contains(s, it->c_str()))
                 return true;
         }
         
