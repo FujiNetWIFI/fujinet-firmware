@@ -88,7 +88,7 @@ namespace mstr {
         };
 
         for (auto it = begin (names); it != end (names); ++it) {
-            if (s.find(it->c_str()) != std::string::npos)
+            if (contains(s, it->c_str()))
                 return true;
         }
         
