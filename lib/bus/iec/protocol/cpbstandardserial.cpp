@@ -98,7 +98,13 @@ CPBStandardSerial::~CPBStandardSerial()
 // it might holdback for quite a while; there's no time limit.
 uint8_t CPBStandardSerial::receiveByte()
 {
+    bool atn_status = false;
     IEC.flags &= CLEAR_LOW;
+
+    // Sample ATN and set flag to indicate COMMAND or DATA mode
+    atn_status = IEC.status ( PIN_IEC_ATN );
+    if ( atn_status )
+        IEC.flags |= ATN_PULLED;
 
     // Wait for talker ready
     //IEC.pull ( PIN_IEC_SRQ );
@@ -165,9 +171,15 @@ uint8_t CPBStandardSerial::receiveByte()
     }
     IEC.release ( PIN_IEC_SRQ );
 
-    // // Sample ATN and set flag to indicate COMMAND or DATA mode
-    // if ( IEC.status ( PIN_IEC_ATN ) )
-    //     IEC.flags |= ATN_PULLED;
+
+    // Has ATN status changed?
+    if ( atn_status != IEC.status ( PIN_IEC_ATN ) )
+    {
+        Debug_printv ( "ATN status changed!" );
+        IEC.flags |= ATN_PULLED;
+        return 0; // return error because timeout
+    }
+
 
     // STEP 3: RECEIVING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );
