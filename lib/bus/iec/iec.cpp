@@ -266,6 +266,13 @@ void IRAM_ATTR systemBus::service()
         {
             //pull ( PIN_IEC_SRQ );
 
+            // Switch to standard serial protocol
+            if ( detected_protocol != PROTOCOL_SERIAL)
+            {
+                detected_protocol = PROTOCOL_SERIAL;
+                protocol = selectProtocol();
+            }
+
             // *** IMPORTANT! This helps keep us in sync!
             // Sometimes the C64 pulls ATN but doesn't pull CLOCK right away
             protocol->timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMEOUT_ATNCLK, false );
@@ -311,7 +318,10 @@ void IRAM_ATTR systemBus::service()
             if (data.secondary == IEC_OPEN || data.secondary == IEC_REOPEN)
             {
                 //pull ( PIN_IEC_SRQ );
-                protocol = selectProtocol();
+                if ( detected_protocol != PROTOCOL_SERIAL)
+                {
+                    protocol = selectProtocol();
+                }
                 //release ( PIN_IEC_SRQ );
             }
 
@@ -328,20 +338,19 @@ void IRAM_ATTR systemBus::service()
                 // for (auto devicep : _daisyChain)
                 // {
                     device_state = d->process();
-                    if ( device_state < DEVICE_ACTIVE || device_state == DEVICE_TALK )
-                    {
-                        state = BUS_RELEASE;
-                    }
+                    if ( data.primary == IEC_TALK )
+                        data.init();
                 // }
             }
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", state, device_state, flags);
 
-            // Switch back to standard serial
-            detected_protocol = PROTOCOL_SERIAL;
-            protocol = selectProtocol();
+
             //release ( PIN_IEC_SRQ );
         }
+
+        if ( state == BUS_RELEASE )
+            break;
 
         // Let's check ATN again before we exit and clean up
         if ( status ( PIN_IEC_ATN ) )
@@ -838,14 +847,14 @@ void IRAM_ATTR systemBus::deviceListen()
 void IRAM_ATTR systemBus::deviceTalk()
 {
     // Now do bus turnaround
-    pull(PIN_IEC_SRQ);
+    //pull(PIN_IEC_SRQ);
     if (!turnAround())
     {
         Debug_printv("error flags[%d]", flags);
         state = BUS_ERROR;
         return;
     }
-    release(PIN_IEC_SRQ);
+    //release(PIN_IEC_SRQ);
 
     // We have recieved a CMD and we should talk now:
     state = BUS_PROCESS;
@@ -883,12 +892,13 @@ bool IRAM_ATTR systemBus::turnAround()
         return false; // return error because timeout
     }
     release ( PIN_IEC_DATA_OUT );
+    protocol->wait( TIMING_Ttcp );
     pull ( PIN_IEC_CLK_OUT );
     //release ( PIN_IEC_SRQ );
 
     // 80us minimum delay after TURNAROUND
     // *** IMPORTANT!
-    protocol->wait( TIMING_Tda, false );
+    protocol->wait( TIMING_Tda );
 
     return true;
 } // turnAround
