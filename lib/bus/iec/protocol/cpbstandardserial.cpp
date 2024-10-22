@@ -138,8 +138,9 @@ uint8_t CPBStandardSerial::receiveByte()
     // will  do  nothing.    The  listener  should  be  watching,  and  if  200  microseconds  pass
     // without  the Clock line going to true, it has a special task to perform: note EOI.
 
-    IEC.pull ( PIN_IEC_SRQ );
+    //IEC.pull ( PIN_IEC_SRQ );
     //if ( timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMING_Tye, false ) == TIMING_Tye )
+    portDISABLE_INTERRUPTS();
     timer_start( TIMING_Tye );
     while ( IEC.status(PIN_IEC_CLK_IN) != PULLED )
     {
@@ -173,10 +174,14 @@ uint8_t CPBStandardSerial::receiveByte()
 
         // Wait for clock line to be pulled
         //timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMING_Tye, false );
-        //usleep( 2 );
+        // IEC.pull( PIN_IEC_SRQ );
+        // usleep( 1 );
+        // IEC.release( PIN_IEC_SRQ );
+        // usleep( 1 );
     }
     timer_stop();
-    IEC.release ( PIN_IEC_SRQ );
+    portENABLE_INTERRUPTS();
+    //IEC.release ( PIN_IEC_SRQ );
 
 
     // Has ATN status changed?
@@ -184,7 +189,7 @@ uint8_t CPBStandardSerial::receiveByte()
     {
         Debug_printv ( "ATN status changed!" );
         IEC.flags |= ATN_PULLED;
-        return 0; // return error because timeout
+        return 0;
     }
 
 
