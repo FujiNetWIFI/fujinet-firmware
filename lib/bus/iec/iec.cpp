@@ -336,6 +336,8 @@ void IRAM_ATTR systemBus::service()
                 // for (auto devicep : _daisyChain)
                 // {
                     device_state = d->process();
+                    if ( data.primary == IEC_TALK )
+                        data.init();
                 // }
             }
 
