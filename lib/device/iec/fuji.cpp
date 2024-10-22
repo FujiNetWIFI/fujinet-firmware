@@ -139,9 +139,8 @@ device_state_t iecFuji::process()
 
     if (commanddata.channel != CHANNEL_COMMAND)
     {
-        Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
+        Debug_printf("Meatloaf device only accepts communications on channel 15.\r\n");
         state = DEVICE_ERROR;
-        IEC.senderTimeout();
         return state;
     }
 
