@@ -183,7 +183,6 @@ uint8_t CPBStandardSerial::receiveByte()
     portENABLE_INTERRUPTS();
     //IEC.release ( PIN_IEC_SRQ );
 
-
     // Has ATN status changed?
     if ( atn_status != IEC.status ( PIN_IEC_ATN ) )
     {
@@ -191,7 +190,6 @@ uint8_t CPBStandardSerial::receiveByte()
         IEC.flags |= ATN_PULLED;
         return 0;
     }
-
 
     // STEP 3: RECEIVING THE BITS
     //IEC.pull ( PIN_IEC_SRQ );

@@ -264,6 +264,13 @@ void IRAM_ATTR systemBus::service()
         {
             //pull ( PIN_IEC_SRQ );
 
+            // Switch to standard serial protocol
+            if ( detected_protocol != PROTOCOL_SERIAL)
+            {
+                detected_protocol = PROTOCOL_SERIAL;
+                protocol = selectProtocol();
+            }
+
             // *** IMPORTANT! This helps keep us in sync!
             // Sometimes the C64 pulls ATN but doesn't pull CLOCK right away
             protocol->timeoutWait ( PIN_IEC_CLK_IN, PULLED, TIMEOUT_ATNCLK, false );
@@ -329,23 +336,17 @@ void IRAM_ATTR systemBus::service()
                 // for (auto devicep : _daisyChain)
                 // {
                     device_state = d->process();
-                    if ( device_state < DEVICE_ACTIVE || device_state == DEVICE_TALK )
-                    {
-                        state = BUS_RELEASE;
-                    }
                 // }
             }
 
             //Debug_printv("bus[%d] device[%d] flags[%d]", state, device_state, flags);
 
-            // Switch back to standard serial
-            if ( detected_protocol != PROTOCOL_SERIAL)
-            {
-                detected_protocol = PROTOCOL_SERIAL;
-                protocol = selectProtocol();
-            }
+
             //release ( PIN_IEC_SRQ );
         }
+
+        if ( state == BUS_RELEASE )
+            break;
 
         // Let's check ATN again before we exit and clean up
         if ( status ( PIN_IEC_ATN ) )
