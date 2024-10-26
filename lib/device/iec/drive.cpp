@@ -1130,6 +1130,7 @@ bool iecDrive::sendFile()
     bool eoi = false;
     uint32_t size = istream->size();
     uint32_t avail = istream->available();
+    uint64_t t_start = esp_timer_get_time(), t_end;
 
     //fnLedStrip.startRainbow(300);
 
@@ -1235,7 +1236,11 @@ bool iecDrive::sendFile()
     }
 
 
-    Serial.printf("=================================\r\n%d bytes sent of %d [SYS%d]\r\n\r\n", count, size, sys_address);
+    t_end = esp_timer_get_time();
+    t_end -= t_start;
+    double seconds = t_end / 1000000.0;
+    double cps = count / seconds;
+    Serial.printf("=================================\r\n%d bytes sent of %d @ %0.2fcps[SYS%d]\r\n\r\n", count, size, cps, sys_address);
 
     //Debug_printv("len[%d] avail[%d] success_rx[%d]", len, avail, success_rx);
 
