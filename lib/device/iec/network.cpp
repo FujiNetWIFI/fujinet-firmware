@@ -402,10 +402,10 @@ void iecNetwork::iec_reopen_channel_talk()
             return;
         }
 
-        if ( !(IEC.flags & ATN_PULLED) )
+        if ( !(IEC.flags & ATN_ASSERTED) )
             channel_data.receiveBuffer.erase(0, 1);
 
-    } while( !(IEC.flags & ATN_PULLED) && !set_eoi );
+    } while( !(IEC.flags & ATN_ASSERTED) && !set_eoi );
 }
 
 void iecNetwork::set_login_password()

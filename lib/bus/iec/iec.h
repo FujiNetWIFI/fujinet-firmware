@@ -43,6 +43,7 @@
 #include <forward_list>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <soc/gpio_struct.h>
 #include <utility>
 #include <string>
 #include <map>
@@ -95,7 +96,7 @@ typedef enum
     BUS_ERROR = -2,     // A problem occoured, reset communication
     BUS_RELEASE = -1,   // Clean Up
     BUS_IDLE = 0,       // Nothing recieved of our concern
-    BUS_ACTIVE = 1,     // ATN is pulled and a command byte is expected
+    BUS_ACTIVE = 1,     // ATN is asserted and a command byte is expected
     BUS_PROCESS = 2,    // A command is ready to be processed
 } bus_state_t;
 
@@ -642,9 +643,11 @@ public:
     bool pin_reset = false;
 
     void init_gpio(gpio_num_t _pin);
-    void pull ( uint8_t _pin );
+#if IEC_ASSERT_RELEASE_AS_FUNCTIONS
+    void assert ( uint8_t _pin );
     void release ( uint8_t _pin );
     bool status ( uint8_t _pin );
+#endif
     bool status ();
 
     void debugTiming();
@@ -653,5 +656,41 @@ public:
  * @brief Return
  */
 extern systemBus IEC;
+
+#ifndef IEC_ASSERT_RELEASE_AS_FUNCTIONS
+#define IEC_RELEASE(pin) ({			\
+      uint32_t _pin = pin;			\
+      uint32_t _mask = 1 << (_pin % 32);	\
+      if (_pin >= 32)				\
+	GPIO.enable1_w1tc.val = _mask;		\
+      else					\
+	GPIO.enable_w1tc = _mask;		\
+    })
+#define IEC_ASSERT(pin) ({			\
+      uint32_t _pin = pin;			\
+      uint32_t _mask = 1 << (_pin % 32);	\
+      if (_pin >= 32)				\
+	GPIO.enable1_w1ts.val = _mask;		\
+      else					\
+	GPIO.enable_w1ts = _mask;		\
+    })
+
+#ifndef IEC_INVERTED_LINES
+#define IEC_IS_ASSERTED(pin) ({						\
+      uint32_t _pin = pin;						\
+      !((_pin >= 32 ? GPIO.in1.val : GPIO.in) & (1 << (_pin % 32)));	\
+    })
+#else
+#define IEC_IS_ASSERTED(pin) ({						\
+      uint32_t _pin = pin;						\
+      !!(_pin >= 32 ? GPIO.in1.val : GPIO.in) & (1 << (_pin % 32));	\
+    })
+#endif /* !IEC_INVERTED_LINES */
+
+#else
+#define IEC_IS_ASSERTED(x)  status(x)
+#define IEC_ASSERT(x)       pull(x)
+#define IEC_RELEASE(x)      release(x)
+#endif
 
 #endif /* IEC_H */

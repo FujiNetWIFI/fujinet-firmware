@@ -14,7 +14,7 @@ oiecstream iecStream;
  * SAVE ops, pipe mode = _S_out, uses get area
  ********************************************************/
 size_t oiecstream::receiveBytesViaIEC() {
-    // we are in a SAVE operation here, so we are pulling bytes from C64 to file, by reading from IEC
+    // we are in a SAVE operation here, so we are moving bytes from C64 to file, by reading from IEC
     // underflow happened to our get buffer and this function was called, it has to read bytes from IEC
     // put them in gbuff and setg to point to them
 
@@ -58,7 +58,7 @@ size_t oiecstream::sendBytesViaIEC() {
         //Serial.printf("%c[%.2X]",*b, *b);
         bool sendSuccess = m_iec->sendByte(*b);
         //bool sendSuccess = true;
-        if(sendSuccess && !(IEC.flags bitand ATN_PULLED) ) written++;
+        if(sendSuccess && !(IEC.flags bitand ATN_ASSERTED) ) written++;
         else if(!sendSuccess) {
             // JAIME: what should happen here? should the badbit be set when send returns false?
             setstate(badbit);
@@ -67,9 +67,9 @@ size_t oiecstream::sendBytesViaIEC() {
             return written;
         }
         else {
-            // ATN was pulled
+            // ATN was asserted
             setp(data+written, data+IEC_BUFFER_SIZE); // set pbase to point to next unwritten char
-            Debug_printv("IEC acknowledged %d bytes, then ATN was pulled\n", written);
+            Debug_printv("IEC acknowledged %d bytes, then ATN was asserted\n", written);
             return written;
         }
     }

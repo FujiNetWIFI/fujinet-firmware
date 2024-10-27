@@ -140,7 +140,7 @@ typedef enum
 #define CLEAR            0x0000    // clear all flags
 #define CLEAR_LOW        0xFF00    // clear low byte
 #define ERROR            (1 << 0)  // if this flag is set, something went wrong
-#define ATN_PULLED       (1 << 1)  // might be set by iec_receive
+#define ATN_ASSERTED     (1 << 1)  // might be set by iec_receive
 #define EOI_RECVD        (1 << 2)
 #define EMPTY_STREAM     (1 << 3)
 
@@ -187,9 +187,9 @@ typedef enum
 
 // OTHER
 #define TIMING_EMPTY    512     // SIGNAL EMPTY STREAM
-#define TIMEOUT_ATNCLK  70      // WAIT FOR CLK AFTER ATN IS PULLED
+#define TIMEOUT_ATNCLK  70      // WAIT FOR CLK AFTER ATN IS ASSERTED
 #define TIMEOUT_Ttlta   65      // TALKER/LISTENER TURNAROUND TIMEOUT
-#define TIMING_Ttcp     13      // TALKER TURNAROUND CLOCK PULL
+#define TIMING_Ttcp     13      // TALKER TURNAROUND CLOCK ASSERT
 
 // SPECIAL
 #define TIMING_PROTOCOL_DETECT   218  // SAUCEDOS/JIFFYDOS CAPABLE DELAY
@@ -200,18 +200,7 @@ typedef enum
 #define TIMED_OUT -1
 #define FOREVER 5000000 // 0
 
-#ifndef IEC_INVERTED_LINES
-// Not Inverted
-#define PULLED    true
-#define RELEASED  false
-#define LOW 0x00
-#define HIGH 0x01
-#else
-// Inverted
-#define PULLED    false
-#define RELEASED  true
-#define LOW 0x01
-#define HIGH 0x00
-#endif
+#define IEC_ASSERTED  true
+#define IEC_RELEASED  false
 
 #endif // CBMDEFINES_H

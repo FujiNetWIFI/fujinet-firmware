@@ -767,7 +767,7 @@ uint16_t iecDrive::sendLine(uint16_t blocks, const char *format, ...)
 {
     // Debug_printv("bus[%d]", IEC.state);
 
-    // Exit if ATN is PULLED while sending
+    // Exit if ATN is ASSERTED while sending
     // Exit if there is an error while sending
     if ( IEC.state == BUS_ERROR )
     {
@@ -791,7 +791,7 @@ uint16_t iecDrive::sendLine(uint16_t blocks, char *text)
 {
     Serial.printf("%d %s ", blocks, text);
 
-    // Exit if ATN is PULLED while sending
+    // Exit if ATN is ASSERTED while sending
     // Exit if there is an error while sending
     if ( IEC.flags & ERROR ) {Debug_printv("line[%s]", text); return 0;};
 
@@ -1044,7 +1044,7 @@ void iecDrive::sendListing()
 
         if (name[0]!='.')
         {
-            // Exit if ATN is PULLED while sending
+            // Exit if ATN is ASSERTED while sending
             // Exit if there is an error while sending
             if ( IEC.state == BUS_ERROR )
             {
@@ -1187,19 +1187,19 @@ bool iecDrive::sendFile()
             break;
         }
 
-        // Exit if ATN is PULLED while sending
-        if ( !eoi && IEC.flags & ATN_PULLED )
+        // Exit if ATN is ASSERTED while sending
+        if ( !eoi && IEC.flags & ATN_ASSERTED )
         {
-            //IEC.pull ( PIN_IEC_SRQ );
+            //IEC_ASSERT( PIN_IEC_SRQ );
             //Serial.println();
-            //Debug_printv("ATN pulled while sending. b[%.2X]", b);
+            //Debug_printv("ATN asserted while sending. b[%.2X]", b);
 #ifdef DATA_STREAM
             Serial.printf("[atn]\r\n");
 #endif
 
             // Save file pointer position
             istream->seek( -1, SEEK_CUR);
-            //IEC.release ( PIN_IEC_SRQ );
+            //IEC_RELEASE( PIN_IEC_SRQ );
             break;
         }
 
@@ -1331,8 +1331,8 @@ bool iecDrive::saveFile()
             uint16_t f = IEC.flags;
             done = (f & EOI_RECVD) or (f & ERROR);
 
-            // Exit if ATN is PULLED while sending
-            if ( f & ATN_PULLED )
+            // Exit if ATN is ASSERTED while sending
+            if ( f & ATN_ASSERTED )
             {
                 // Save file pointer position
                 // streamUpdate(ostream->position());

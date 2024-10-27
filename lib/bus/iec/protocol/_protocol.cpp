@@ -98,11 +98,11 @@ int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size
     uint64_t elapsed = 0;
 
 #ifndef IEC_SPLIT_LINES
-    IEC.release ( pin );
+    IEC_RELEASE ( pin );
 #endif
 
     // Quick check to see if the target status is already set
-    if ( IEC.status ( pin ) == target_status )
+    if ( IEC_IS_ASSERTED( pin ) == target_status )
         return elapsed;
 
     if ( pin == PIN_IEC_ATN )
@@ -112,24 +112,24 @@ int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size
     else
     {
 #ifndef IEC_SPLIT_LINES
-        IEC.release ( PIN_IEC_ATN );
+        IEC_RELEASE( PIN_IEC_ATN );
 #endif
 
         // Sample ATN and set flag to indicate COMMAND or DATA mode
-        if( IEC.status ( PIN_IEC_ATN ) )
-            IEC.flags |= ATN_PULLED;
+        if( IEC_IS_ASSERTED( PIN_IEC_ATN ) )
+            IEC.flags |= ATN_ASSERTED;
     }
 
-    //IEC.pull ( PIN_IEC_SRQ );
+    //IEC_PULL( PIN_IEC_SRQ );
     start = esp_timer_get_time();
-    while ( IEC.status ( pin ) != target_status )
+    while ( IEC_IS_ASSERTED( pin ) != target_status )
     {
         current = esp_timer_get_time();
         elapsed = ( current - start );
 
         if ( elapsed >= wait_us && wait_us != FOREVER )
         {
-            //IEC.release ( PIN_IEC_SRQ );
+            //IEC_RELEASE( PIN_IEC_SRQ );
             if ( wait_us == TIMEOUT_DEFAULT )
                 return -1;
             
@@ -138,7 +138,7 @@ int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size
 
         if ( watch_atn )
         {
-            if ( IEC.flags & ATN_PULLED )
+            if ( IEC.flags & ATN_ASSERTED )
                 return -1;
         }
 
@@ -151,7 +151,7 @@ int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size
             return -1;
         }
     }
-    //IEC.release ( PIN_IEC_SRQ );
+    //IEC_RELEASE( PIN_IEC_SRQ );
 
     // Debug_printv("pin[%d] state[%d] wait[%d] step[%d] t[%d]", pin, target_status, wait, elapsed);
     return elapsed;
@@ -171,7 +171,7 @@ bool IRAM_ATTR IECProtocol::wait(size_t wait_us, uint64_t start, bool watch_atn)
     if ( wait_us == 0 ) return true;
     wait_us--; // Shave 1us for overhead
 
-    //IEC.pull ( PIN_IEC_SRQ );
+    //IEC_PULL( PIN_IEC_SRQ );
     if ( start == 0 ) start = esp_timer_get_time();
     while ( elapsed <= wait_us )
     {
@@ -180,16 +180,16 @@ bool IRAM_ATTR IECProtocol::wait(size_t wait_us, uint64_t start, bool watch_atn)
 
         if ( watch_atn )
         {
-            if ( IEC.status ( PIN_IEC_ATN ) )
+            if ( IEC_IS_ASSERTED( PIN_IEC_ATN ) )
             {
-                IEC.flags |= ATN_PULLED;
-                //IEC.release ( PIN_IEC_SRQ );
+                IEC.flags |= ATN_ASSERTED;
+                //IEC_RELEASE( PIN_IEC_SRQ );
                 //Debug_printv("wait[%d] elapsed[%d] start[%d] current[%d]", wait, elapsed, start, current);
                 return false;
             }
         }
     }
-    //IEC.release ( PIN_IEC_SRQ );
+    //IEC_RELEASE( PIN_IEC_SRQ );
 
     return true;
 }
