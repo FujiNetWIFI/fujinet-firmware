@@ -147,6 +147,31 @@ void iecCpm::iec_reopen()
     }
 }
 
+#if 1
+device_state_t iecCpm::openChannel(/*int chan, IECPayload &payload*/)
+{
+  iec_open();
+  return state;
+}
+
+device_state_t iecCpm::closeChannel(/*int chan*/)
+{
+  iec_close();
+  return state;
+}
+
+device_state_t iecCpm::readChannel(/*int chan*/)
+{
+  iec_reopen();
+  return state;
+}
+
+device_state_t iecCpm::writeChannel(/*int chan, IECPayload &payload*/)
+{
+  iec_reopen();
+  return state;
+}
+#else
 device_state_t iecCpm::process()
 {
     // Call base class
@@ -169,5 +194,6 @@ device_state_t iecCpm::process()
 
     return state;
 }
+#endif
 
 #endif /* BUILD_IEC */

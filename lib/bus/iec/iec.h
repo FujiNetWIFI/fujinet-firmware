@@ -203,6 +203,12 @@ class systemBus;
 class virtualDevice
 {
 private:
+    /**
+     * @brief All IEC devices repeatedly call this routine to fan out to other methods for each command.
+     *        This is typcially implemented as a switch() statement.
+     * @return new device state.
+     */
+    virtual device_state_t process();
 
 protected:
     friend systemBus; /* Because we connect to it. */
@@ -284,12 +290,10 @@ protected:
         return state;
     }
 
-    /**
-     * @brief All IEC devices repeatedly call this routine to fan out to other methods for each command.
-     *        This is typcially implemented as a switch() statement.
-     * @return new device state.
-     */
-    virtual device_state_t process();
+    virtual device_state_t openChannel(/*int chan, IECPayload &payload*/) = 0;
+    virtual device_state_t closeChannel(/*int chan*/) = 0;
+    virtual device_state_t readChannel(/*int chan*/) = 0;
+    virtual device_state_t writeChannel(/*int chan, IECPayload &payload*/) = 0;
 
     /**
      * @brief poll whether interrupt should be wiggled

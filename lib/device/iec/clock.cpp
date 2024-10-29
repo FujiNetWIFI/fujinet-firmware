@@ -25,6 +25,31 @@ void iecClock::set_timestamp_format(std::string s)
     tf = s;
 }
 
+#if 1
+device_state_t iecClock::openChannel(/*int chan, IECPayload &payload*/)
+{
+  iec_open();
+  return state;
+}
+
+device_state_t iecClock::closeChannel(/*int chan*/)
+{
+  iec_close();
+  return state;
+}
+
+device_state_t iecClock::readChannel(/*int chan*/)
+{
+  iec_reopen();
+  return state;
+}
+
+device_state_t iecClock::writeChannel(/*int chan, IECPayload &payload*/)
+{
+  iec_reopen();
+  return state;
+}
+#else
 device_state_t iecClock::process()
 {
     virtualDevice::process();
@@ -46,6 +71,7 @@ device_state_t iecClock::process()
 
     return state;
 }
+#endif
 
 void iecClock::iec_open()
 {

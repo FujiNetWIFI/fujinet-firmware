@@ -74,11 +74,18 @@ protected:
     void format();
 
 protected:
+#if 0
     /**
      * @brief Process command fanned out from bus
      * @return new device state
      */
     device_state_t process() override;
+#else
+    virtual device_state_t openChannel(/*int chan, IECPayload &payload*/) override;
+    virtual device_state_t closeChannel(/*int chan*/) override;
+    virtual device_state_t readChannel(/*int chan*/) override;
+    virtual device_state_t writeChannel(/*int chan, IECPayload &payload*/) override;
+#endif
 
     /**
      * @brief process command for channel 0 (load)

@@ -133,6 +133,98 @@ void logResponse(const void* data, size_t length)
 
 }
 
+#if 1
+device_state_t iecFuji::openChannel(/*int chan, IECPayload &payload*/)
+{
+  writeChannel();
+  return state;
+}
+
+device_state_t iecFuji::closeChannel(/*int chan*/)
+{
+  return state;
+}
+
+device_state_t iecFuji::readChannel(/*int chan*/)
+{
+  if (commanddata.channel != CHANNEL_COMMAND) {
+    Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
+    IEC.senderTimeout();
+    return state;
+  }
+
+  {
+    // Debug_printv("TALK/REOPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
+
+#ifdef DEBUG
+    // if (!response.empty() && !is_raw_command) logResponse(response.data(), response.size());
+    // if (!responseV.empty() && is_raw_command) logResponse(responseV.data(), responseV.size());
+    // Debug_printf("\n");
+#endif
+
+    // only send raw back for a raw command, thus code can set "response", but we won't send it back as that's BASIC response
+    if (!responseV.empty() && is_raw_command) {
+      IEC.sendBytes(reinterpret_cast<char*>(responseV.data()), responseV.size());
+    }
+
+    // only send string response back for basic command
+    if(!response.empty() && !is_raw_command) {
+      IEC.sendBytes(const_cast<char*>(response.c_str()), response.size());
+    }
+
+    // ensure responses are cleared for next command in case they were set but didn't match the command type (i.e. basic or raw)
+    responseV.clear();
+    response = "";
+  }
+
+  return state;
+}
+
+device_state_t iecFuji::writeChannel(/*int chan, IECPayload &payload*/)
+{
+  if (commanddata.channel != CHANNEL_COMMAND) {
+    Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
+    IEC.senderTimeout();
+    return state;
+  }
+
+  {
+    // Debug_printv("UNLISTEN/(RE)OPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
+
+    if (current_fuji_cmd == -1) {
+      // this is a new command being sent
+      is_raw_command = (payload.size() == 2 && payload[0] == 0x01); // marker byte
+      if (is_raw_command) {
+        if (!is_supported(payload[1])) {
+          Debug_printv("ERROR: Unsupported cmd: x%02x, ignoring\n", payload[1]);
+          last_command = payload[1];
+          set_fuji_iec_status(DEVICE_ERROR, "Unrecognised command");
+          // IEC.senderTimeout();
+          return state;
+        }
+        // Debug_printf("RAW COMMAND - trying immediate action on it\r\n");
+        // if it is an immediate command (no parameters), current_fuji_cmd will be reset to -1,
+        // otherwise, it stays set until further data is received to process it
+        current_fuji_cmd = payload[1];
+        last_command = current_fuji_cmd;
+        process_immediate_raw_cmds();
+      } else if (payload.size() > 0) {
+        // "IEC: [EF] (E0 CLOSE  15 CHANNEL)" happens with an UNLISTEN, which has no payload, so we can skip it to save trying BASIC commands
+        // Debug_printf("BASIC COMMAND\r\n");
+        process_basic_commands();
+      }
+    }
+    else {
+      // we're in the middle of some data, let's continue
+      // Debug_printf("IN CMD, processing data\r\n");
+      process_raw_cmd_data();
+    }
+
+  }
+
+  return state;
+}
+#else
 device_state_t iecFuji::process()
 {
     virtualDevice::process();
@@ -222,6 +314,7 @@ device_state_t iecFuji::process()
 
     return state;
 }
+#endif
 
 // COMMODORE SPECIFIC CONVENIENCE COMMANDS /////////////////////
 

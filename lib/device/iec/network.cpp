@@ -1266,6 +1266,33 @@ void iecNetwork::set_open_params()
 
 }
 
+#if 1
+device_state_t iecNetwork::openChannel(/*int chan, IECPayload &payload*/)
+{
+  process_channel();
+  return state;
+}
+
+device_state_t iecNetwork::closeChannel(/*int chan*/)
+{
+  return state;
+}
+
+device_state_t iecNetwork::readChannel(/*int chan*/)
+{
+  if (commanddata.channel == CHANNEL_COMMAND)
+    process_command();
+  else
+    process_load();
+  return state;
+}
+
+device_state_t iecNetwork::writeChannel(/*int chan, IECPayload &payload*/)
+{
+  process_save();
+  return state;
+}
+#else
 device_state_t iecNetwork::process()
 {
     // Call base class
@@ -1299,6 +1326,7 @@ device_state_t iecNetwork::process()
 
     return state;
 }
+#endif
 
 void iecNetwork::process_load()
 {

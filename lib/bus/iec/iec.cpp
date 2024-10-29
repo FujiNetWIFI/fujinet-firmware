@@ -648,6 +648,40 @@ systemBus virtualDevice::get_bus()
     return IEC;
 }
 
+#if 1
+device_state_t virtualDevice::process()
+{
+    switch ((bus_command_t)commanddata.primary)
+    {
+    case bus_command_t::IEC_LISTEN:
+        switch (commanddata.secondary)
+        {
+        case bus_command_t::IEC_OPEN:
+            payload = commanddata.payload;
+            state = openChannel(/*commanddata.channel, payload*/);
+            break;
+        case bus_command_t::IEC_CLOSE:
+            state = closeChannel(/*commanddata.channel*/);
+            break;
+        case bus_command_t::IEC_REOPEN:
+            payload = commanddata.payload;
+            state = writeChannel(/*commanddata.channel*/);
+            break;
+        }
+        break;
+
+    case bus_command_t::IEC_TALK:
+        if (commanddata.secondary == bus_command_t::IEC_REOPEN)
+            state = readChannel(/*commanddata.channel*/);
+        break;
+
+    default:
+        break;
+    }
+
+    return state;
+}
+#else
 device_state_t virtualDevice::process()
 {
     switch ((bus_command_t)commanddata.primary)
@@ -688,6 +722,7 @@ device_state_t virtualDevice::process()
 
     return state;
 }
+#endif
 
 // This is only used in iecDrive, and it has its own implementation
 void virtualDevice::iec_talk_command_buffer_status()

@@ -94,7 +94,56 @@ bool iecDrive::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
     return false;
 }
 
+#if 1
+device_state_t iecDrive::openChannel(/*int chan, IECPayload &payload*/)
+{
+  if (commanddata.channel == CHANNEL_COMMAND)
+    iec_command();
+  else
+    iec_open();
 
+  return state;
+}
+
+device_state_t iecDrive::closeChannel(/*int chan*/)
+{
+  if (_base == nullptr) {
+    IEC.senderTimeout();
+    return state;
+  }
+
+  closeStream(commanddata.channel);
+  return state;
+}
+
+device_state_t iecDrive::readChannel(/*int chan*/)
+{
+  if (commanddata.channel == CHANNEL_COMMAND)
+    iec_talk_command_buffer_status();
+  else {
+    Debug_printv( "_base[%s] _last_file[%s]", _base->url.c_str(), _last_file.c_str() );
+
+    if (commanddata.channel == CHANNEL_LOAD && _base->isDirectory())
+      sendListing();
+    else
+      sendFile();
+  }
+
+  return state;
+}
+
+device_state_t iecDrive::writeChannel(/*int chan, IECPayload &payload*/)
+{
+  if (_base == nullptr) {
+    IEC.senderTimeout();
+    return state;
+  }
+  Debug_printv("url[%s]", _base->url.c_str());
+
+  saveFile();
+  return state;
+}
+#else
 // Process command
 device_state_t iecDrive::process()
 {
@@ -122,6 +171,7 @@ device_state_t iecDrive::process()
 //    Debug_printv("url[%s] file[%s] state[%d]", _base->url.c_str(), _last_file.c_str(), state);
     return state;
 }
+#endif
 
 void iecDrive::process_load()
 {
