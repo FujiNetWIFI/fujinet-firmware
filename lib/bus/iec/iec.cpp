@@ -13,7 +13,9 @@
 #include "../../include/pinmap.h"
 #include "../../include/cbm_defines.h"
 #include "led.h"
+#include "protocol/_protocol.h"
 #include "protocol/cpbstandardserial.h"
+#include "protocol/jiffydos.h"
 #include "string_utils.h"
 #include "utils.h"
 
@@ -25,33 +27,43 @@ using namespace Protocol;
 
 systemBus IEC;
 
-static void IRAM_ATTR cbm_on_atn_isr_handler(void *arg)
+static void IRAM_ATTR cbm_on_atn_isr_forwarder(void *arg)
 {
     systemBus *b = (systemBus *)arg;
 
+    b->cbm_on_atn_isr_handler();
+}
+
+void IRAM_ATTR systemBus::cbm_on_atn_isr_handler()
+{
     //IEC_ASSERT(PIN_IEC_SRQ);
 
     // Go to listener mode and get command
     IEC_RELEASE(PIN_IEC_CLK_OUT);
     IEC_ASSERT(PIN_IEC_DATA_OUT);
 
-    b->flags = CLEAR;
-    b->flags |= ATN_ASSERTED;
-    b->state = BUS_ACTIVE;
+    flags = CLEAR;
+    flags |= ATN_ASSERTED;
+    state = BUS_ACTIVE;
 
     //IEC_RELEASE(PIN_IEC_SRQ);
 }
 
-static void IRAM_ATTR cbm_on_clk_isr_handler(void *arg)
+static void IRAM_ATTR cbm_on_clk_isr_forwarder(void *arg)
 {
     systemBus *b = (systemBus *)arg;
 
+    b->cbm_on_clk_isr_handler();
+}
+
+void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
+{
     //IEC_ASSERT(PIN_IEC_SRQ);
 
     // get bit
-    b->byte >>= 1;
-    if ( !IEC_IS_ASSERTED( PIN_IEC_DATA_IN ) ) b->byte |= 0x80;
-    b->bit++;
+    byte >>= 1;
+    if ( !IEC_IS_ASSERTED( PIN_IEC_DATA_IN ) ) byte |= 0x80;
+    bit++;
 
     //IEC_RELEASE(PIN_IEC_SRQ);
 }
@@ -195,7 +207,7 @@ void systemBus::setup()
         .intr_type = GPIO_INTR_NEGEDGE              // interrupt of falling edge
     };
     gpio_config(&io_conf);
-    gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_atn_isr_handler, this);
+    gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_atn_isr_forwarder, this);
 
     // Setup interrupt config for CLK
     io_conf = {
@@ -206,7 +218,7 @@ void systemBus::setup()
         .intr_type = GPIO_INTR_POSEDGE              // interrupt of rising edge
     };
     gpio_config(&io_conf);
-    gpio_isr_handler_add((gpio_num_t)PIN_IEC_CLK_IN, cbm_on_clk_isr_handler, this);
+    gpio_isr_handler_add((gpio_num_t)PIN_IEC_CLK_IN, cbm_on_clk_isr_forwarder, this);
 
     // Start SRQ timer service
     timer_start();
@@ -778,54 +790,23 @@ std::string systemBus::receiveBytes()
 
 bool systemBus::sendByte(const char c, bool eoi)
 {
-    gpio_intr_disable( PIN_IEC_CLK_IN );
-    if (!protocol->sendByte(c, eoi))
-    {
-        if (!(flags & ATN_ASSERTED))
-        {
-            flags |= ERROR;
-            Debug_printv("error");
-            gpio_intr_enable( PIN_IEC_CLK_IN );
-            return false;
-        }
-    }
-
-#ifdef DATA_STREAM
-    if (eoi)
-    {
-        Serial.printf("%.2X [eoi]\r\n", c);
-    }
-    else
-    {
-        if (!(flags & ATN_ASSERTED))
-            Serial.printf("%.2X ", c);
-    }
-#endif
-    gpio_intr_enable( PIN_IEC_CLK_IN );
-    return true;
+    return protocol->sendByte(c, eoi);
 }
 
-bool systemBus::sendBytes(const char *buf, size_t len, bool eoi)
+size_t systemBus::sendBytes(const char *buf, size_t len, bool eoi)
 {
-    bool success = false;
+    size_t i;
 
-    for (size_t i = 0; i < len; i++)
+    for (i = 0; i < len; i++)
     {
-        if (i == (len - 1) && eoi)
-            success = sendByte(buf[i], true);
-        else
-            success = sendByte(buf[i], false);
-
-        if ( IEC_IS_ASSERTED( PIN_IEC_ATN ) )
-        {
-            return true;
-        }
+        if (!sendByte(buf[i], eoi && i == (len - 1)))
+	    break;
     }
 
-    return success;
+    return i;
 }
 
-bool systemBus::sendBytes(std::string s, bool eoi)
+size_t systemBus::sendBytes(std::string s, bool eoi)
 {
     return sendBytes(s.c_str(), s.size(), eoi);
 }

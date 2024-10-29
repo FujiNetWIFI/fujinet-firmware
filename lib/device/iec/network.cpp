@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "network.h"
+#include "../../include/cbm_defines.h"
 
 #include "../../include/debug.h"
 #include "../../hardware/led.h"
@@ -261,6 +262,7 @@ void iecNetwork::iec_reopen_save()
         return;
     }
 
+#if 0
     while (!(IEC.flags & EOI_RECVD))
     {
         int16_t b = IEC.receiveByte();
@@ -273,6 +275,9 @@ void iecNetwork::iec_reopen_save()
 
         channel_data.transmitBuffer.push_back(b);
     }
+#else
+#warning FIXME - use payload
+#endif
 
     // force incoming data from HOST to fixed ascii
     // Debug_printv("[1] DATA: >%s< [%s]", channel_data.transmitBuffer.c_str(), mstr::toHex(channel_data.transmitBuffer).c_str());
@@ -322,6 +327,7 @@ void iecNetwork::iec_reopen_channel_listen()
 
     // Debug_printv("Receiving data from computer...\r\n");
 
+#if 0
     while (!(IEC.flags & EOI_RECVD))
     {
         int16_t b = IEC.receiveByte();
@@ -334,6 +340,9 @@ void iecNetwork::iec_reopen_channel_listen()
 
         channel_data.transmitBuffer.push_back(b);
     }
+#else
+#warning FIXME - use payload
+#endif
 
     // force incoming data from HOST to fixed ascii
     // Debug_printv("[1] DATA: >%s< [%s]", channel_data.transmitBuffer.c_str(), mstr::toHex(channel_data.transmitBuffer).c_str());
@@ -394,18 +403,18 @@ void iecNetwork::iec_reopen_channel_talk()
             set_eoi = true;
         }
 
-        IEC.sendByte(b, set_eoi);
-
-        if ( IEC.flags & ERROR )
+        if (!IEC.sendByte(b, set_eoi))
         {
-            Debug_printv("TALK ERROR! flags[%d]\n", IEC.flags);
+	    //Debug_printv("TALK ERROR! flags[%d]\n", IEC.flags);
             return;
         }
 
+#if 0
         if ( !(IEC.flags & ATN_ASSERTED) )
             channel_data.receiveBuffer.erase(0, 1);
+#endif
 
-    } while( !(IEC.flags & ATN_ASSERTED) && !set_eoi );
+    } while( /*!(IEC.flags & ATN_ASSERTED) &&*/ !set_eoi );
 }
 
 void iecNetwork::set_login_password()

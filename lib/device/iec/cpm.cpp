@@ -120,6 +120,7 @@ void iecCpm::iec_reopen_listen()
         return;
     }
 
+#if 0
     while (!(IEC.flags & EOI_RECVD))
     {
         int16_t b = IEC.receiveByte();
@@ -132,6 +133,9 @@ void iecCpm::iec_reopen_listen()
 
         xQueueSend(txq,&b,portMAX_DELAY);
     }
+#else
+#warning FIXME - use payload
+#endif
 }
 
 void iecCpm::iec_reopen()

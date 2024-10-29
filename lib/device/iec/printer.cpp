@@ -28,6 +28,7 @@ iecPrinter::~iecPrinter()
 // write for W commands
 void iecPrinter::write(uint8_t channel)
 {
+#if 0
     // Receive data from computer
     while (!(IEC.flags & EOI_RECVD))
     {
@@ -41,6 +42,9 @@ void iecPrinter::write(uint8_t channel)
         _pptr->process(1, commanddata.channel, 0);
         _last_ms = fnSystem.millis();
     }
+#else
+#warning FIXME - use paylaod
+#endif
 }
 
 /**

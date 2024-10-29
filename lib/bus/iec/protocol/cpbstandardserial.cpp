@@ -341,9 +341,13 @@ uint8_t CPBStandardSerial::receiveBits ()
 // quite a while; there's no time limit.
 bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
 {
+    bool success = true;
+
     //IEC_ASSERT( PIN_IEC_SRQ );
 
     IEC.flags &= CLEAR_LOW;
+
+    portDISABLE_INTERRUPTS();
 
     // Say we're ready
     IEC_RELEASE ( PIN_IEC_CLK_OUT );
@@ -363,7 +367,8 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
             IEC.flags |= ERROR;
         }
 
-        return false; // return error because of ATN or timeout
+        success = false; // return error because of ATN or timeout
+        goto done;
     }
     //IEC_RELEASE( PIN_IEC_SRQ );
 
@@ -400,7 +405,8 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
         {
             Debug_printv ( "EOI ACK: Listener didn't ASSERT DATA [%02X]", data );
             IEC.flags |= ERROR;
-            return false; // return error because timeout
+            success = false; // return error because timeout
+            goto done;
         }
 
         // Sender ACK?
@@ -412,14 +418,19 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
         {
             Debug_printv ( "EOI ACK: Listener didn't RELEASE DATA [%02X]", data );
             IEC.flags |= ERROR;
-            return false; // return error because timeout
+            success = false; // return error because timeout
+            goto done;
         }
     }
 
     // *** IMPORTANT!!!
     // Delay before sending bits
     // ATN might get asserted here
-    if ( !wait ( TIMING_Tne, true ) ) return false;
+    if ( !wait ( TIMING_Tne, true ) )
+    {
+        success = false;
+        goto done;
+    }
     IEC_ASSERT( PIN_IEC_CLK_OUT );
     usleep ( TIMING_Tna );
 
@@ -449,7 +460,8 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
         Debug_printv ( "RECEIVER TIMEOUT" );
         IEC.flags |= ERROR;
         //IEC_RELEASE( PIN_IEC_SRQ );
-        return false; // return error because timeout
+        success = false; // return error because timeout
+        goto done;
     }
     //IEC_RELEASE( PIN_IEC_SRQ );
     //IEC_ASSERT( PIN_IEC_SRQ );
@@ -466,7 +478,8 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
     //         Debug_printv ( "RECEIVER TIMEOUT" );
     //         IEC.flags |= ERROR;
     //         //IEC_RELEASE( PIN_IEC_SRQ );
-    //         return false; // return error because timeout
+    //         success = false; // return error because timeout
+    //         goto done;
     //     }
     // }
     //IEC_RELEASE( PIN_IEC_SRQ );
@@ -483,7 +496,9 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
     // Lines will be released when exiting the service loop
     usleep ( TIMING_Tbb );
 
-    return true;
+ done:
+    portENABLE_INTERRUPTS();
+    return success;
 }
 
 bool CPBStandardSerial::sendBits ( uint8_t data )

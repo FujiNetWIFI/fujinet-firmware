@@ -53,12 +53,6 @@
 #include <esp_timer.h>
 #include "fnSystem.h"
 
-#include "protocol/_protocol.h"
-#include "protocol/jiffydos.h"
-#ifdef PARALLEL_BUS
-#include "protocol/dolphindos.h"
-#endif
-
 #include <soc/gpio_reg.h>
 
 #include "../../../include/debug.h"
@@ -138,8 +132,6 @@ typedef enum {
     PROTOCOL_WIC64,
     PROTOCOL_IEEE488
 } bus_protocol_t;
-
-using namespace Protocol;
 
 /**
  * @class IECData
@@ -375,12 +367,24 @@ public:
     }
 };
 
+namespace Protocol {
+  class IECProtocol;
+  class CPBStandardSerial;
+  class JiffyDOS;
+}
+class oiecstream;
+
 /**
  * @class systemBus
  * @brief the system bus that all virtualDevices attach to.
  */
 class systemBus
 {
+friend Protocol::IECProtocol;
+friend Protocol::CPBStandardSerial;
+friend Protocol::JiffyDOS;
+friend oiecstream;
+
 private:
     /**
      * @brief The chain of devices on the bus.
@@ -410,12 +414,17 @@ private:
     /**
      * @brief the active bus protocol
      */
-    std::shared_ptr<IECProtocol> protocol = nullptr;
+    std::shared_ptr<Protocol::IECProtocol> protocol = nullptr;
 
     /**
      * @brief Switch to detected bus protocol
      */
-    std::shared_ptr<IECProtocol> selectProtocol();
+    std::shared_ptr<Protocol::IECProtocol> selectProtocol();
+
+    /**
+     * @brief bus flags
+     */
+    uint16_t flags = 0;//CLEAR;
 
     /**
      * IEC LISTEN received
@@ -472,12 +481,13 @@ private:
      */
     void timer_stop();
 
-public:
     /**
-     * @brief bus flags
+     * @brief Receive Byte from bus
+     * @return Byte received from bus, or -1 for error
      */
-    uint16_t flags = CLEAR;
+    uint8_t receiveByte();
 
+public:
     /**
      * @brief bus enabled
      */
@@ -497,7 +507,7 @@ public:
      * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
      * be pulsed.
      */
-    bool interruptSRQ = false;    
+    bool interruptSRQ = false;
 
     /**
      * @brief data about current bus transaction
@@ -554,7 +564,7 @@ public:
      * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(const char *buf, size_t len, bool eoi = true);
+    size_t sendBytes(const char *buf, size_t len, bool eoi = true);
 
     /**
      * @brief Send string to bus
@@ -562,13 +572,7 @@ public:
      * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(std::string s, bool eoi = true);
-
-    /**
-     * @brief Receive Byte from bus
-     * @return Byte received from bus, or -1 for error
-     */
-    uint8_t receiveByte();
+    size_t sendBytes(std::string s, bool eoi = true);
 
     /**
      * @brief Receive String from bus
@@ -636,6 +640,9 @@ public:
      */
     void senderTimeout();
 
+    // FIXME - these should be private
+    void cbm_on_atn_isr_handler();
+    void cbm_on_clk_isr_handler();
 
     uint8_t bit = 0;
     uint8_t byte = 0;
@@ -660,41 +667,5 @@ public:
  * @brief Return
  */
 extern systemBus IEC;
-
-#ifndef IEC_ASSERT_RELEASE_AS_FUNCTIONS
-#define IEC_RELEASE(pin) ({			\
-      uint32_t _pin = pin;			\
-      uint32_t _mask = 1 << (_pin % 32);	\
-      if (_pin >= 32)				\
-	GPIO.enable1_w1tc.val = _mask;		\
-      else					\
-	GPIO.enable_w1tc = _mask;		\
-    })
-#define IEC_ASSERT(pin) ({			\
-      uint32_t _pin = pin;			\
-      uint32_t _mask = 1 << (_pin % 32);	\
-      if (_pin >= 32)				\
-	GPIO.enable1_w1ts.val = _mask;		\
-      else					\
-	GPIO.enable_w1ts = _mask;		\
-    })
-
-#ifndef IEC_INVERTED_LINES
-#define IEC_IS_ASSERTED(pin) ({						\
-      uint32_t _pin = pin;						\
-      !((_pin >= 32 ? GPIO.in1.val : GPIO.in) & (1 << (_pin % 32)));	\
-    })
-#else
-#define IEC_IS_ASSERTED(pin) ({						\
-      uint32_t _pin = pin;						\
-      !!(_pin >= 32 ? GPIO.in1.val : GPIO.in) & (1 << (_pin % 32));	\
-    })
-#endif /* !IEC_INVERTED_LINES */
-
-#else
-#define IEC_IS_ASSERTED(x)  status(x)
-#define IEC_ASSERT(x)       pull(x)
-#define IEC_RELEASE(x)      release(x)
-#endif
 
 #endif /* IEC_H */

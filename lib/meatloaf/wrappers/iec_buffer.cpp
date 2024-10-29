@@ -1,5 +1,6 @@
 #ifdef BUILD_IEC
 #include "iec_buffer.h"
+#include "../../../include/cbm_defines.h"
 
 oiecstream iecStream;
 

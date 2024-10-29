@@ -9,6 +9,42 @@
 
 #include "../../include/cbm_defines.h"
 
+#ifndef IEC_ASSERT_RELEASE_AS_FUNCTIONS
+#define IEC_RELEASE(pin) ({			\
+      uint32_t _pin = pin;			\
+      uint32_t _mask = 1 << (_pin % 32);	\
+      if (_pin >= 32)				\
+	GPIO.enable1_w1tc.val = _mask;		\
+      else					\
+	GPIO.enable_w1tc = _mask;		\
+    })
+#define IEC_ASSERT(pin) ({			\
+      uint32_t _pin = pin;			\
+      uint32_t _mask = 1 << (_pin % 32);	\
+      if (_pin >= 32)				\
+	GPIO.enable1_w1ts.val = _mask;		\
+      else					\
+	GPIO.enable_w1ts = _mask;		\
+    })
+
+#ifndef IEC_INVERTED_LINES
+#define IEC_IS_ASSERTED(pin) ({						\
+      uint32_t _pin = pin;						\
+      !((_pin >= 32 ? GPIO.in1.val : GPIO.in) & (1 << (_pin % 32)));	\
+    })
+#else
+#define IEC_IS_ASSERTED(pin) ({						\
+      uint32_t _pin = pin;						\
+      !!(_pin >= 32 ? GPIO.in1.val : GPIO.in) & (1 << (_pin % 32));	\
+    })
+#endif /* !IEC_INVERTED_LINES */
+
+#else
+#define IEC_IS_ASSERTED(x)  status(x)
+#define IEC_ASSERT(x)       pull(x)
+#define IEC_RELEASE(x)      release(x)
+#endif
+
 namespace Protocol
 {
     /**
