@@ -494,7 +494,7 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
     // RELEASED and transmission stops.
 
     // Lines will be released when exiting the service loop
-    usleep ( TIMING_Tbb );
+    //usleep ( TIMING_Tbb );
 
  done:
     portENABLE_INTERRUPTS();
