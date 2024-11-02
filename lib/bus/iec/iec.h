@@ -160,26 +160,17 @@ public:
      * @brief the device command
      */
     std::string payload = "";
-    /**
-     * @brief the raw bytes received for the command
-     */
-    std::vector<uint8_t> payload_raw;
-    /**
-     * @brief secondary action description
-     */
-    std::string action ="";
+
     /**
      * @brief clear and initialize IEC command data
      */
     void init(void)
     {
-        //primary = 0;
+        primary = 0;
         device = 0;
         secondary = 0;
         channel = 0;
         payload = "";
-        payload_raw.clear();
-        action = "";
     }
 };
 
@@ -387,6 +378,17 @@ friend oiecstream;
 
 private:
     /**
+     * @brief current bus state
+     */
+    bus_state_t _state;
+
+    /**
+     * @brief data about current bus transaction
+     */
+    IECData *iec_curCommand;
+    QueueHandle_t iec_commandQueue;
+
+    /**
      * @brief The chain of devices on the bus.
      */
     std::forward_list<virtualDevice *> _daisyChain;
@@ -426,40 +428,14 @@ private:
      */
     uint16_t flags = 0;//CLEAR;
 
-    /**
-     * IEC LISTEN received
-     */
-    void deviceListen();
-
-    /**
-     * IEC TALK requested
-     */
-    void deviceTalk();
+    void newIO(int val);
+    void channelIO(int val);
+    void sendInput();
 
     /**
      * BUS TURNAROUND (switch from listener to talker)
      */
     bool turnAround();
-
-    /**
-     * @brief called to process the next command
-     */
-    void process_cmd();
-
-    /**
-     * @brief called to process a queue item (such as disk swap)
-     */
-    void process_queue();
-
-    /**
-     * @brief called to read bus command bytes
-    */
-    void read_command();
-
-    /**
-     * @brief called to read bus payload bytes
-    */
-    void read_payload();
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer
@@ -481,22 +457,11 @@ private:
      */
     void timer_stop();
 
-    /**
-     * @brief Receive Byte from bus
-     * @return Byte received from bus, or -1 for error
-     */
-    uint8_t receiveByte();
-
 public:
     /**
      * @brief bus enabled
      */
     bool enabled = true;
-
-    /**
-     * @brief current bus state
-     */
-    bus_state_t state;
 
     /**
      * @brief vic20 mode enables faster valid bit timing
@@ -508,11 +473,6 @@ public:
      * be pulsed.
      */
     bool interruptSRQ = false;
-
-    /**
-     * @brief data about current bus transaction
-     */
-    IECData data;
 
     /**
      * @brief Enabled device bits
@@ -573,12 +533,6 @@ public:
      * @return true on success, false on error
      */
     size_t sendBytes(std::string s, bool eoi = true);
-
-    /**
-     * @brief Receive String from bus
-     * @return std::string received from bus
-     */
-    std::string receiveBytes();
 
     /**
      * @brief called in response to RESET pin being asserted.
@@ -643,15 +597,6 @@ public:
     // FIXME - these should be private
     void cbm_on_atn_isr_handler();
     void cbm_on_clk_isr_handler();
-
-    uint8_t bit = 0;
-    uint8_t byte = 0;
-
-    bool pin_atn = false;
-    bool pin_clk = false;
-    bool pin_data = false;
-    bool pin_srq = false;
-    bool pin_reset = false;
 
     void init_gpio(gpio_num_t _pin);
 #if IEC_ASSERT_RELEASE_AS_FUNCTIONS

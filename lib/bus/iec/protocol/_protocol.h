@@ -101,6 +101,7 @@ namespace Protocol
         void timer_start(uint64_t timeout);
         void timer_stop();
 
+#ifdef COMPLEX_WAIT
         /**
          * @brief Wait until target status, or timeout is reached.
          * @param pin IEC pin to watch
@@ -120,6 +121,9 @@ namespace Protocol
          */
         virtual bool wait(size_t wait_us, bool watch_atn = false);
         virtual bool wait(size_t wait_us, uint64_t start, bool watch_atn = false);
+#else // !COMPLEX_WAIT
+      int waitForSignals(int pin1, int state1, int pin2, int state2, int delay);
+#endif // COMPLEX_WAIT
     };
 };
 

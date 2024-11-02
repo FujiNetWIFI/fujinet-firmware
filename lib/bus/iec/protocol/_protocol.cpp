@@ -53,44 +53,7 @@ void IECProtocol::timer_stop()
     //IEC.release( PIN_IEC_SRQ );
 }
 
-
-// int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
-// {
-//     IEC.pull ( PIN_IEC_SRQ );
-//     uint64_t start = esp_timer_get_time();
-//     uint64_t current = 0;
-//     timer_start( wait_us );
-
-// #ifndef IEC_SPLIT_LINES
-//     IEC.release ( pin );
-// #endif
-
-//     while ( !timer_timedout )
-//     {
-//         IEC.pull ( PIN_IEC_SRQ );
-//         if ( IEC.status ( pin ) == target_status )
-//         {
-//             timer_stop();
-//             current = esp_timer_get_time();
-//             IEC.release ( PIN_IEC_SRQ );
-//             return ( current - start );
-//         }
-//         usleep( 2 );
-//         if ( watch_atn )
-//         {
-//             if ( IEC.status ( PIN_IEC_ATN ) )
-//             {
-//                 IEC.release ( PIN_IEC_SRQ );
-//                 return -1;
-//             }
-//         }
-//         IEC.release ( PIN_IEC_SRQ );
-//         usleep( 2 );
-//     }
-//     IEC.release ( PIN_IEC_SRQ );
-//     return wait_us;
-// }
-
+#ifdef COMPLEX_WAIT
 int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
 {
     uint64_t start = 0;
@@ -142,11 +105,11 @@ int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size
                 return -1;
         }
 
-        if ( IEC.state < BUS_ACTIVE || elapsed > FOREVER )
+        if ( /*IEC.state < BUS_ACTIVE ||*/ elapsed > FOREVER )
         {
             // Something is messed up.  Get outta here.
             // FOREVER really isn't forever
-            Debug_printv("wth? bus_state[%d]", IEC.state);
+            //Debug_printv("wth? bus_state[%d]", IEC.state);
             Debug_printv("pin[%d] target_status[%d] wait[%d] elapsed[%d]", pin, target_status, wait_us, elapsed);
             return -1;
         }
@@ -193,5 +156,32 @@ bool IRAM_ATTR IECProtocol::wait(size_t wait_us, uint64_t start, bool watch_atn)
 
     return true;
 }
+#else // !COMPLEX_WAIT
+int IRAM_ATTR IECProtocol::waitForSignals(int pin1, int state1,
+					  int pin2, int state2,
+					  int delay)
+{
+  uint64_t start, now, elapsed;
+  int abort = 0;
+
+
+  start = esp_timer_get_time();
+  for (;;) {
+    if (IEC_IS_ASSERTED(pin1) == state1)
+      break;
+    if (pin2 && IEC_IS_ASSERTED(pin2) == state2)
+      break;
+
+    now = esp_timer_get_time();
+    elapsed = now - start;
+    if (elapsed >= delay) {
+      abort = 1;
+      break;
+    }
+  }
+
+  return abort ? TIMED_OUT : 0;
+}
+#endif // COMPLEX_WAIT
 
 #endif /* BUILD_IEC */

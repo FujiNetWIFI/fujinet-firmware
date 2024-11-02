@@ -227,6 +227,7 @@ void iecDrive::process_command()
     }
 }
 
+#if 0
 void iecDrive::process_channel()
 {
     //Debug_printv("secondary[%.2X]", commanddata.secondary);
@@ -245,7 +246,7 @@ void iecDrive::process_channel()
         break;
     }
 }
-
+#endif
 
 void iecDrive::iec_open()
 {
@@ -352,6 +353,7 @@ void iecDrive::iec_reopen_save()
     saveFile();
 }
 
+#if 0
 void iecDrive::iec_reopen_channel()
 {
     //Debug_printv("primary[%.2X]", commanddata.primary);
@@ -366,12 +368,12 @@ void iecDrive::iec_reopen_channel()
     }
 }
 
-
 void iecDrive::iec_reopen_channel_listen()
 {
     std::string s = IEC.receiveBytes();
     Debug_printv("{%s}", s.c_str() );
 }
+#endif
 
 void iecDrive::iec_reopen_channel_talk()
 {
@@ -817,6 +819,7 @@ uint16_t iecDrive::sendLine(uint16_t blocks, const char *format, ...)
 {
     // Debug_printv("bus[%d]", IEC.state);
 
+#if 0
     // Exit if ATN is ASSERTED while sending
     // Exit if there is an error while sending
     if ( IEC.state == BUS_ERROR )
@@ -826,6 +829,7 @@ uint16_t iecDrive::sendLine(uint16_t blocks, const char *format, ...)
         //setDeviceStatus(74);
         return 0;
     }
+#endif
 
     // Format our string
     va_list args;

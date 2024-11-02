@@ -102,10 +102,12 @@ protected:
      */
     void process_command();
 
+#if 0
     /**
      * @brief process every other channel (2-14)
      */
     void process_channel();
+#endif
 
     /**
      * @brief called to open a connection to a protocol
@@ -127,6 +129,7 @@ protected:
      */
     void iec_reopen_save();
 
+#if 0
     /**
      * @brief called when REOPEN (to send/receive data)
      */
@@ -136,6 +139,7 @@ protected:
      * @brief called when channel needs to listen for data from c=
      */
     void iec_reopen_channel_listen();
+#endif
 
     /**
      * @brief called when channel needs to talk data to c=
