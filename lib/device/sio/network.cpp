@@ -557,12 +557,6 @@ void sioNetwork::sio_set_prefix()
     prefixSpec_str = string((const char *)prefixSpec);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
 
-    // Append trailing slash if not found
-    if (prefixSpec_str.back() != '/')
-    {
-        prefixSpec_str += "/";
-    }
-
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
 #endif
@@ -574,6 +568,12 @@ void sioNetwork::sio_set_prefix()
     }
     else 
     {
+        // Append trailing slash if not found
+        if (prefixSpec_str.back() != '/')
+        {
+            prefixSpec_str += "/";
+        }
+
         // For the remaining cases, append trailing slash if not found
         if (prefix.back() != '/')
         {
