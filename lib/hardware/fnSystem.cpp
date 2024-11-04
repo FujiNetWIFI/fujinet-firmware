@@ -367,7 +367,7 @@ void SystemManager::delay_microseconds(uint32_t us)
             LARGE_INTEGER freq;
             if (!QueryPerformanceFrequency (&freq))
             {
-                Debug_println("QueryPerformanceCounter failed");
+                Debug_println("QueryPerformanceFrequency failed");
                 // Cannot use QueryPerformanceCounter.
                 Sleep (us / 1000);
                 return;
