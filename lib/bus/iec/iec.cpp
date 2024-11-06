@@ -83,7 +83,7 @@ static void onTimer(void *info)
 #if 0
 static void ml_iec_intr_task(void* arg)
 {
-    while ( true ) 
+    while ( true )
     {
         if ( IEC.enabled )
             IEC.service();
@@ -109,10 +109,10 @@ void systemBus::init_gpio(gpio_num_t _pin)
 void IRAM_ATTR systemBus::pull ( uint8_t _pin )
 {
     int _reg = GPIO_ENABLE_REG;
-    if (_pin > 31) 
-    { 
+    if (_pin > 31)
+    {
         _reg = GPIO_ENABLE1_REG, _pin -= 32;
-    } 
+    }
     REG_SET_BIT(_reg, 1ULL << _pin); // GPIO_MODE_OUTPUT
 }
 
@@ -120,20 +120,20 @@ void IRAM_ATTR systemBus::pull ( uint8_t _pin )
 void IRAM_ATTR systemBus::release ( uint8_t _pin )
 {
     int _reg = GPIO_ENABLE_REG;
-    if (_pin > 31) 
-    { 
+    if (_pin > 31)
+    {
         _reg = GPIO_ENABLE1_REG, _pin -= 32;
-    } 
+    }
     REG_CLR_BIT(_reg, 1ULL << _pin); // GPIO_MODE_INPUT
 }
 
 bool IRAM_ATTR systemBus::status ( uint8_t _pin )
 {
     int _reg = GPIO_IN_REG;
-    if (_pin > 31) 
-    { 
+    if (_pin > 31)
+    {
         _reg = GPIO_IN1_REG, _pin -= 32;
-    } 
+    }
     return (REG_READ(_reg) & BIT(_pin)) ? RELEASED : ASSERTED;
 }
 #endif
@@ -401,7 +401,7 @@ void systemBus::read_command()
     {
         Debug_printv("Error reading command. flags[%d] c[%X]", flags, c);
         state = BUS_ERROR;
-        
+
         return;
     }
     else if ( flags & EMPTY_STREAM)
@@ -521,7 +521,7 @@ void systemBus::read_command()
     {
         // *** IMPORTANT! This helps keep us in sync!
         // Sometimes ATN isn't released immediately. Wait for ATN to be
-        // released before trying to process the command. 
+        // released before trying to process the command.
         // Long ATN delay (>1.5ms) seems to occur more frequently with VIC-20.
         //IEC_ASSERT( PIN_IEC_SRQ );
         protocol->timeoutWait ( PIN_IEC_ATN, IEC_RELEASED, TIMEOUT_DEFAULT, false );
@@ -626,10 +626,10 @@ void systemBus::timer_stop()
     }
 }
 
-std::shared_ptr<IECProtocol> systemBus::selectProtocol() 
+std::shared_ptr<IECProtocol> systemBus::selectProtocol()
 {
     //Debug_printv("protocol[%d]", detected_protocol);
-    
+
     switch(detected_protocol)
     {
         case PROTOCOL_JIFFYDOS:
@@ -885,16 +885,16 @@ bool IRAM_ATTR systemBus::turnAround()
     Immediately after ATN is RELEASED, the selected device will be behaving like a listener. After all, it's
     been listening during the ATN cycle, and the computer has been a talker. At this instant, we
     have "wrong way" logic; the device is holding down the Data line, and the computer is holding the
-    Clock line. We must turn this around. 
-    
+    Clock line. We must turn this around.
+
     Here's the sequence:
-    1. The computer asserts the Data line (it's already there), as well as releases the Clock line. 
-    2. When the device sees the Clock line is releaseed, it releases the Data line (which stays true anyway since 
-    the computer is asserting it) and then asserts the Clock line. 
-    
-    We're now in our starting position, with the talker (that's the device) holding the Clock true, and 
-    the listener (the computer) holding the Data line true. The computer watches for this state; only when it has 
-    gone through the cycle correctly will it be ready to receive data. And data will be signalled, of course, with 
+    1. The computer asserts the Data line (it's already there), as well as releases the Clock line.
+    2. When the device sees the Clock line is releaseed, it releases the Data line (which stays true anyway since
+    the computer is asserting it) and then asserts the Clock line.
+
+    We're now in our starting position, with the talker (that's the device) holding the Clock true, and
+    the listener (the computer) holding the Data line true. The computer watches for this state; only when it has
+    gone through the cycle correctly will it be ready to receive data. And data will be signalled, of course, with
     the usual sequence: the talker releases the Clock line to signal that it's ready to send.
     */
 
@@ -933,9 +933,9 @@ void systemBus::setBitTiming(std::string set, int p1, int p2, int p3, int p4)
     if (p4) protocol->bit_pair_timing[i][3] = p4;
 
     Debug_printv("i[%d] timing[%d][%d][%d][%d]", i,
-                    protocol->bit_pair_timing[i][0], 
-                    protocol->bit_pair_timing[i][1], 
-                    protocol->bit_pair_timing[i][2], 
+                    protocol->bit_pair_timing[i][0],
+                    protocol->bit_pair_timing[i][1],
+                    protocol->bit_pair_timing[i][2],
                     protocol->bit_pair_timing[i][3]);
 }
 
