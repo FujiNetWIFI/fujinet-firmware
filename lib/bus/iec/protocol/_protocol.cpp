@@ -159,7 +159,7 @@ bool IRAM_ATTR IECProtocol::wait(size_t wait_us, uint64_t start, bool watch_atn)
 #else // !COMPLEX_WAIT
 int IRAM_ATTR IECProtocol::waitForSignals(int pin1, int state1,
 					  int pin2, int state2,
-					  int delay)
+					  int timeout)
 {
   uint64_t start, now, elapsed;
   int abort = 0;
@@ -174,7 +174,7 @@ int IRAM_ATTR IECProtocol::waitForSignals(int pin1, int state1,
 
     now = esp_timer_get_time();
     elapsed = now - start;
-    if (elapsed >= delay) {
+    if (elapsed >= timeout) {
       abort = 1;
       break;
     }
@@ -183,5 +183,24 @@ int IRAM_ATTR IECProtocol::waitForSignals(int pin1, int state1,
   return abort ? TIMED_OUT : 0;
 }
 #endif // COMPLEX_WAIT
+
+void IECProtocol::transferDelaySinceLast(size_t minimumDelay)
+{
+  uint64_t now, remaining;
+  uint64_t ended = 0;
+
+
+  now = esp_timer_get_time();
+  if (minimumDelay > 0) {
+    remaining = now - (ended + minimumDelay);
+    if (remaining > 0) {
+      usleep(remaining);
+      now = esp_timer_get_time();
+    }
+  }
+
+  ended = now;
+  return;
+}
 
 #endif /* BUILD_IEC */

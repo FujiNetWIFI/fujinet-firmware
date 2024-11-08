@@ -101,30 +101,11 @@ namespace Protocol
         void timer_start(uint64_t timeout);
         void timer_stop();
 
-#ifdef COMPLEX_WAIT
-        /**
-         * @brief Wait until target status, or timeout is reached.
-         * @param pin IEC pin to watch
-         * @param target_status break if target state reached
-         * @param wait_us timeout period in microseconds (default is 1 millisecond)
-         * @param watch_atn also abort if ATN status changes (default is true)
-         * @return elapsed time in microseconds, or -1 if ATN pulled, or -1 if timeout breached.
-         * 
-         */
-        virtual int16_t timeoutWait(uint8_t pin, bool target_status, size_t wait_us = TIMEOUT_DEFAULT, bool watch_atn = true);
-
-        /**
-         * @brief Wait for specified milliseconds, or until ATN status changes
-         * @param wait_us # of milliseconds to wait
-         * @param start The previously set start millisecond time.
-         * @param watch_atn also abort if ATN status changes? (default is false)
-         */
-        virtual bool wait(size_t wait_us, bool watch_atn = false);
-        virtual bool wait(size_t wait_us, uint64_t start, bool watch_atn = false);
-#else // !COMPLEX_WAIT
-      int waitForSignals(int pin1, int state1, int pin2, int state2, int delay);
-#endif // COMPLEX_WAIT
+        int waitForSignals(int pin1, int state1, int pin2, int state2, int timeout);
+        void transferDelaySinceLast(size_t minimumDelay);
     };
 };
+
+#define transferEnd() transferDelaySinceLast(0)
 
 #endif /* IECPROTOCOLBASE_H */

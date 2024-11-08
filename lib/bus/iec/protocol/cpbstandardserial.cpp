@@ -17,6 +17,8 @@
 
 #ifdef BUILD_IEC
 
+#define DYMANIC_DELAY
+
 #include "cpbstandardserial.h"
 
 #include "bus.h"
@@ -53,6 +55,10 @@ uint8_t CPBStandardSerial::receiveByte()
 
   portDISABLE_INTERRUPTS();
 
+#ifdef DYNAMIC_DELAY
+  transferDelaySinceLast(TIMING_Tf);
+#endif
+
   // STEP 2: READY FOR DATA
   // line. Suppose there is more than one listener. The Data line
   // will be reelased only when all listeners have RELEASED it - in
@@ -60,6 +66,7 @@ uint8_t CPBStandardSerial::receiveByte()
   // happens next is variable.
 
   // Release Data and wait for all other devices to release the data line too
+
   IEC_RELEASE(PIN_IEC_DATA_OUT);
 
   // Either the talker will assert the Clock line back to asserted
@@ -157,7 +164,11 @@ uint8_t CPBStandardSerial::receiveByte()
   // will know that something's wrong and may alarm appropriately.
   IEC_ASSERT(PIN_IEC_DATA_OUT);
 
- usleep(TIMING_Tf);
+#ifdef DYNAMIC_DELAY
+  transferEnd();
+#else
+  //usleep(TIMING_Tf);
+#endif
 
   // STEP 5: START OVER
   // We're finished, and back where we started. The talker is
@@ -202,6 +213,10 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
   //IEC_ASSERT(PIN_IEC_SRQ);//Debug
   gpio_intr_disable(PIN_IEC_CLK_IN);
   portDISABLE_INTERRUPTS();
+
+#ifdef DYNAMIC_DELAY
+  transferDelaySinceLast(TIMING_Tbb);
+#endif
 
   IEC_RELEASE(PIN_IEC_CLK_OUT);
 
@@ -309,6 +324,9 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
   gpio_intr_enable(PIN_IEC_CLK_IN);
   //IEC_RELEASE(PIN_IEC_SRQ);//Debug
 
+#ifdef DYNAMIC_DELAY
+  transferEnd();
+#else
   //usleep(TIMING_Tbb);
 #endif
 
