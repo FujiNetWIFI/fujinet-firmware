@@ -128,8 +128,6 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
     if (flags & EOI_RECVD)
       sendInput();
   }
-  else
-    IEC_SET_STATE(BUS_IDLE);
 
  done:
   gpio_intr_enable(PIN_IEC_CLK_IN);
