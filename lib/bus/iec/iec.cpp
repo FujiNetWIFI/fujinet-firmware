@@ -526,32 +526,14 @@ bool IRAM_ATTR systemBus::turnAround()
     */
 
     // Wait for ATN to be released
-#ifdef COMPLEX_WAIT
-    if (protocol->timeoutWait(PIN_IEC_ATN, IEC_RELEASED, FOREVER) == TIMED_OUT)
-    {
-        Debug_printv("ATN failed to release");
-	flags |= ERROR;
-	return false;
-    }
-#else
     if (protocol->waitForSignals(PIN_IEC_ATN, IEC_RELEASED, 0, 0, FOREVER) == TIMED_OUT)
     {
         Debug_printv("ATN failed to release");
 	flags |= ERROR;
 	return false;
     }
-#endif
 
     // Wait for CLK to be released
-#ifdef COMPLEX_WAIT
-    if (protocol->timeoutWait(PIN_IEC_CLK_IN, IEC_RELEASED, TIMEOUT_Ttlta, false) == TIMEOUT_Ttlta)
-    {
-        Debug_printv("Wait until the computer releases the CLK line\r\n");
-        Debug_printv("IEC: TURNAROUND TIMEOUT\r\n");
-        flags |= ERROR;
-        return false; // return error because timeout
-    }
-#else
     if (protocol->waitForSignals(PIN_IEC_CLK_IN, IEC_RELEASED, 0, 0, TIMEOUT_Ttlta) == TIMED_OUT)
     {
         Debug_printv("Wait until the computer releases the CLK line\r\n");
@@ -559,18 +541,13 @@ bool IRAM_ATTR systemBus::turnAround()
         flags |= ERROR;
         return false; // return error because timeout
     }
-#endif
 
     IEC_RELEASE( PIN_IEC_DATA_OUT );
     IEC_ASSERT( PIN_IEC_CLK_OUT );
 
     // 80us minimum delay after TURNAROUND
     // *** IMPORTANT!
-#ifdef COMPLEX_WAIT
-    protocol->wait( TIMING_Tda );
-#else
     usleep(TIMING_Tda);
-#endif
 
     return true;
 } // turnAround

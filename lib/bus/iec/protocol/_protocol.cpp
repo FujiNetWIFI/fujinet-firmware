@@ -53,110 +53,6 @@ void IECProtocol::timer_stop()
     //IEC.release( PIN_IEC_SRQ );
 }
 
-#ifdef COMPLEX_WAIT
-int16_t IRAM_ATTR IECProtocol::timeoutWait(uint8_t pin, bool target_status, size_t wait_us, bool watch_atn)
-{
-    uint64_t start = 0;
-    uint64_t current = 0;
-    uint64_t elapsed = 0;
-
-#ifndef IEC_SPLIT_LINES
-    IEC_RELEASE ( pin );
-#endif
-
-    // Quick check to see if the target status is already set
-    if ( IEC_IS_ASSERTED( pin ) == target_status )
-        return elapsed;
-
-    if ( pin == PIN_IEC_ATN )
-    {
-        watch_atn = false;
-    }
-    else
-    {
-#ifndef IEC_SPLIT_LINES
-        IEC_RELEASE( PIN_IEC_ATN );
-#endif
-
-        // Sample ATN and set flag to indicate COMMAND or DATA mode
-        if( IEC_IS_ASSERTED( PIN_IEC_ATN ) )
-            IEC.flags |= ATN_ASSERTED;
-    }
-
-    //IEC_PULL( PIN_IEC_SRQ );
-    start = esp_timer_get_time();
-    while ( IEC_IS_ASSERTED( pin ) != target_status )
-    {
-        current = esp_timer_get_time();
-        elapsed = ( current - start );
-
-        if ( elapsed >= wait_us && wait_us != FOREVER )
-        {
-            //IEC_RELEASE( PIN_IEC_SRQ );
-            if ( wait_us == TIMEOUT_DEFAULT )
-                return -1;
-            
-            return wait_us;
-        }
-
-        if ( watch_atn )
-        {
-            if ( IEC.flags & ATN_ASSERTED )
-                return -1;
-        }
-
-        if ( /*IEC.state < BUS_ACTIVE ||*/ elapsed > FOREVER )
-        {
-            // Something is messed up.  Get outta here.
-            // FOREVER really isn't forever
-            //Debug_printv("wth? bus_state[%d]", IEC.state);
-            Debug_printv("pin[%d] target_status[%d] wait[%d] elapsed[%d]", pin, target_status, wait_us, elapsed);
-            return -1;
-        }
-    }
-    //IEC_RELEASE( PIN_IEC_SRQ );
-
-    // Debug_printv("pin[%d] state[%d] wait[%d] step[%d] t[%d]", pin, target_status, wait, elapsed);
-    return elapsed;
-}
-
-bool IRAM_ATTR IECProtocol::wait(size_t wait_us, bool watch_atn)
-{
-    return wait(wait_us, 0, watch_atn);
-}
-
-bool IRAM_ATTR IECProtocol::wait(size_t wait_us, uint64_t start, bool watch_atn)
-{
-    uint64_t current, elapsed;
-    current = 0;
-    elapsed = 0;
-
-    if ( wait_us == 0 ) return true;
-    wait_us--; // Shave 1us for overhead
-
-    //IEC_PULL( PIN_IEC_SRQ );
-    if ( start == 0 ) start = esp_timer_get_time();
-    while ( elapsed <= wait_us )
-    {
-        current = esp_timer_get_time();
-        elapsed = current - start;
-
-        if ( watch_atn )
-        {
-            if ( IEC_IS_ASSERTED( PIN_IEC_ATN ) )
-            {
-                IEC.flags |= ATN_ASSERTED;
-                //IEC_RELEASE( PIN_IEC_SRQ );
-                //Debug_printv("wait[%d] elapsed[%d] start[%d] current[%d]", wait, elapsed, start, current);
-                return false;
-            }
-        }
-    }
-    //IEC_RELEASE( PIN_IEC_SRQ );
-
-    return true;
-}
-#else // !COMPLEX_WAIT
 int IRAM_ATTR IECProtocol::waitForSignals(int pin1, int state1,
 					  int pin2, int state2,
 					  int timeout)
@@ -182,7 +78,6 @@ int IRAM_ATTR IECProtocol::waitForSignals(int pin1, int state1,
 
   return abort ? TIMED_OUT : 0;
 }
-#endif // COMPLEX_WAIT
 
 void IECProtocol::transferDelaySinceLast(size_t minimumDelay)
 {
