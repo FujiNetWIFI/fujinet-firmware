@@ -48,6 +48,12 @@ void IRAM_ATTR systemBus::cbm_on_atn_isr_handler()
     flags = CLEAR;
     flags |= ATN_ASSERTED;
     IEC_SET_STATE(BUS_ACTIVE);
+
+    // Commands are always sent using standard serial
+    if (detected_protocol != PROTOCOL_SERIAL) {
+      detected_protocol = PROTOCOL_SERIAL;
+      protocol = selectProtocol();
+    }
   }
 }
 
@@ -89,8 +95,14 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
 	releaseLines();
 	sendInput();
       }
-      else
+      else {
 	newIO(val);
+        if (flags & JIFFYDOS_ACTIVE) {
+	  Debug_printf("   IEC: [JD][%.2X]", val);
+	  detected_protocol = PROTOCOL_JIFFYDOS;
+	  protocol = selectProtocol();
+	}
+      }
       break;
 
     case IEC_REOPEN:
