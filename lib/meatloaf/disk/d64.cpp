@@ -382,6 +382,9 @@ uint16_t D64MStream::readFile(uint8_t *buf, uint16_t size)
 
     if (size > 0)
     {
+        // Only read up to the bytes remaining in this sector
+        size = std::min(size, (uint16_t) (block_size - sector_offset % block_size));
+
         bytesRead += readContainer(buf, size);
         sector_offset += bytesRead;
 
