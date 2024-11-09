@@ -200,40 +200,6 @@ void systemBus::init_gpio(gpio_num_t _pin)
     return;
 }
 
-#ifdef IEC_ASSERT_RELEASE_AS_FUNCTIONS
-// true => ASSERT => LOW
-void IRAM_ATTR systemBus::pull ( uint8_t _pin )
-{
-    int _reg = GPIO_ENABLE_REG;
-    if (_pin > 31)
-    {
-        _reg = GPIO_ENABLE1_REG, _pin -= 32;
-    }
-    REG_SET_BIT(_reg, 1ULL << _pin); // GPIO_MODE_OUTPUT
-}
-
-// false => RELEASE => HIGH
-void IRAM_ATTR systemBus::release ( uint8_t _pin )
-{
-    int _reg = GPIO_ENABLE_REG;
-    if (_pin > 31)
-    {
-        _reg = GPIO_ENABLE1_REG, _pin -= 32;
-    }
-    REG_CLR_BIT(_reg, 1ULL << _pin); // GPIO_MODE_INPUT
-}
-
-bool IRAM_ATTR systemBus::status ( uint8_t _pin )
-{
-    int _reg = GPIO_IN_REG;
-    if (_pin > 31)
-    {
-        _reg = GPIO_IN1_REG, _pin -= 32;
-    }
-    return (REG_READ(_reg) & BIT(_pin)) ? RELEASED : ASSERTED;
-}
-#endif
-
 bool IRAM_ATTR systemBus::status ()
 {
     // uint64_t pin_states;
