@@ -582,11 +582,7 @@ void IRAM_ATTR systemBus::releaseLines(bool wait)
     if (wait)
     {
         Debug_printv("Waiting for ATN to release");
-#ifdef COMPLEX_WAIT
-        protocol->timeoutWait ( PIN_IEC_ATN, IEC_RELEASED, TIMEOUT_DEFAULT, false );
-#else
 	protocol->waitForSignals(PIN_IEC_ATN, IEC_RELEASED, 0, 0, TIMEOUT_DEFAULT);
-#endif
     }
 }
 
@@ -595,11 +591,7 @@ void IRAM_ATTR systemBus::senderTimeout()
     releaseLines();
     IEC_SET_STATE(BUS_ERROR);
 
-#ifdef COMPLEX_WAIT
-    protocol->wait( TIMING_EMPTY );
-#else
     usleep(TIMING_EMPTY);
-#endif
     IEC_ASSERT( PIN_IEC_DATA_OUT );
 } // senderTimeout
 
