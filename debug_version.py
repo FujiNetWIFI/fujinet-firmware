@@ -16,6 +16,8 @@ MACRO_PATTERN = r"^\s*#define\s+(.*?)\s+(.*?)\s*(?://.*|/\*[\s\S]*?\*/)?$"
 
 def build_argparser():
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+  parser.add_argument("--use_modified_date", action="store_true",
+                      help="use date of newest modified file instead of commit date")
   parser.add_argument("--update_version_h", action="store_true",
                       help="update include/version.h with current commit information")
   return parser
@@ -70,11 +72,12 @@ def main():
   commit_id_long = run_command(["git", "rev-parse", "HEAD"])
 
   mtime = int(run_command(["git", "show", "--no-patch", "--format=%ct", "HEAD"]))
-  for path in modified:
-    if os.path.exists(path):
-      mt = os.path.getmtime(path)
-      if not mtime or mt > mtime:
-        mtime = mt
+  if args.use_modified_date:
+    for path in modified:
+      if os.path.exists(path):
+        mt = os.path.getmtime(path)
+        if not mtime or mt > mtime:
+          mtime = mt
 
   macros = {
     'FN_VERSION_BUILD': commit_id_long,
