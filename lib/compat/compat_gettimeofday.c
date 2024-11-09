@@ -2,29 +2,79 @@
 
 #include <sys/time.h>
 
-// precise gettimeofday on Windows
 #if defined(_WIN32)
+// precise gettimeofday on Windows
 
-
-// a) use GetSystemTimePreciseAsFileTime
+// a) use GetSystemTimePreciseAsFileTime (not available on Windows 7)
 #include <windows.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#define FILETIME2US(FT) ((((uint64_t)FT.dwHighDateTime) << 32 | ((uint64_t)FT.dwLowDateTime)) / 10 - (int64_t)11644473600000000)
+#define PERFCOUNT2US(PC, FREQ) (PC.QuadPart / 1000.0 / FREQ)
+
 int compat_gettimeofday(struct timeval *tv, struct timezone* tz)
 {
-    FILETIME ft;
-    unsigned __int64 tmpres = 0;
+    uint64_t tmpres = 0;
+    FILETIME ft; // 100-nanosecond intervals since January 1, 1601
+
+#ifndef USE_GETSYSTEMTIMEPRECISEASFILETIME
+    // Workaround for missing GetSystemTimePreciseAsFileTime
+    // This should work on Windows Xp and above
+    static uint64_t tmref = 0; // reference time (microseconds)
+    static int64_t pcref = -3600000000L; // reference counter (microseconds)
+    static double frequency = -1.0; // performance frequency (GHz)
+
+    // Obtain performance frequency
+    if (frequency == -1.0)
+    {
+        LARGE_INTEGER freq;
+        if (!QueryPerformanceFrequency(&freq))
+        {
+            // Cannot use QueryPerformanceCounter
+            frequency = 0.0;
+        }
+        else
+        {
+            frequency = (double) freq.QuadPart / 1000000000.0; // GHz
+        }
+    }
+#endif
 
     if (tv != NULL)
     {
-#if !defined(_UCRT)
-        GetSystemTimeAsFileTime(&ft); // low precision (16ms)
+#ifdef USE_GETSYSTEMTIMEPRECISEASFILETIME
+        GetSystemTimePreciseAsFileTime(&ft);        // high precision wall time (<1 ms)
+        tmpres = FILETIME2US(ft);
 #else
-        GetSystemTimePreciseAsFileTime(&ft); // high precision (1<ms)
+        if (frequency == 0.0)
+        {
+            // Cannot use QueryPerformanceCounter, only low precision time is available
+            GetSystemTimeAsFileTime(&ft);           // low precision wall time
+            tmpres = FILETIME2US(ft);               // to us
+        }
+        else
+        {
+            // Combine low precision wall time with high precision counter
+            int64_t pcpres;
+            int64_t pcdelta;
+            LARGE_INTEGER pc;
+            QueryPerformanceCounter(&pc);           // high precision counter
+            pcpres = PERFCOUNT2US(pc, frequency);   // to us
+            pcdelta = pcpres - pcref;
+            if (pcdelta >= 3600000000L) // sync low precision time at start and then once per hour
+            {
+                printf("time sync\n");
+                // obtain new reference time
+                GetSystemTimeAsFileTime(&ft);       // low precision wall time
+                tmref = FILETIME2US(ft);            // to us
+                pcref = pcpres;
+                pcdelta = 0;
+            }
+            // Current time as low precision reference time + high precision counter delta
+            tmpres = tmref + pcdelta;
+        }
 #endif
-        tmpres |= ft.dwHighDateTime;
-        tmpres <<= 32;
-        tmpres |= ft.dwLowDateTime;
-        tmpres /= 10;  // convert into microseconds
-        tmpres -= (__int64) 11644473600000000;
         tv->tv_sec = (long) (tmpres / 1000000UL);
         tv->tv_usec = (long) (tmpres % 1000000UL);
     }
@@ -32,8 +82,7 @@ int compat_gettimeofday(struct timeval *tv, struct timezone* tz)
     return 0;
 }
 
-
-// // b) use C++ chrono (portable, slower) (rename file to .cpp)
+// // b) use C++ chrono (portable, slower, MSYS2/CLANG64: fatal error: 'chrono' file not found)
 // #include <chrono>
 // int compat_gettimeofday(struct timeval* tp, struct timezone* tzp) 
 // {

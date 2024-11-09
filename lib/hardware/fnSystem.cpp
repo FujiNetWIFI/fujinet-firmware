@@ -93,7 +93,7 @@
 
 
 #ifdef ESP_PLATFORM
-#if 0
+#if defined(BUILD_ATARI) || defined(PINMAP_ESP32S3)
 static QueueHandle_t card_detect_evt_queue = NULL;
 
 static void IRAM_ATTR card_detect_isr_handler(void *arg)
@@ -142,7 +142,8 @@ static void setup_card_detect(gpio_num_t pin)
     // Add the card detect handler
     gpio_isr_handler_add(pin, card_detect_isr_handler, (void *)pin);
 }
-#endif
+#endif // PINMAP_ESP32S3
+
 // ESP_PLATFORM
 #else
 // !ESP_PLATFORM
@@ -369,7 +370,7 @@ void SystemManager::delay_microseconds(uint32_t us)
             LARGE_INTEGER freq;
             if (!QueryPerformanceFrequency (&freq))
             {
-                Debug_println("QueryPerformanceCounter failed");
+                Debug_println("QueryPerformanceFrequency failed");
                 // Cannot use QueryPerformanceCounter.
                 Sleep (us / 1000);
                 return;
