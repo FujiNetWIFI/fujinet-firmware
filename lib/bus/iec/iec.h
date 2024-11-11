@@ -172,6 +172,9 @@ public:
         channel = 0;
         payload = "";
     }
+
+    int channelCommand();
+    void debugPrint();
 };
 
 /**

@@ -91,38 +91,38 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
     case IEC_LISTEN:
     case IEC_TALK:
       if (dev == IEC_ALLDEV || !isDeviceEnabled(dev)) {
-	IEC_ASSERT(PIN_DEBUG);
-	// Handle releaseLines() when ATN is released outside of this
-	// interrupt to prevent watchdog timeout
-	IEC_SET_STATE(BUS_RELEASE);
-	sendInput();
-	IEC_RELEASE(PIN_DEBUG);
+        // Handle releaseLines() when ATN is released outside of this
+        // interrupt to prevent watchdog timeout
+        IEC_SET_STATE(BUS_RELEASE);
+        sendInput();
       }
       else {
-	newIO(val);
+        newIO(val);
         if (flags & JIFFYDOS_ACTIVE) {
-	  Debug_printf("   IEC: [JD][%.2X]", val);
-	  detected_protocol = PROTOCOL_JIFFYDOS;
-	  protocol = selectProtocol();
-	}
+          Debug_printf("   IEC: [JD][%.2X]", val);
+          detected_protocol = PROTOCOL_JIFFYDOS;
+          protocol = selectProtocol();
+        }
       }
       break;
 
     case IEC_REOPEN:
       /* Take a break driver 8. We can reach our destination, but we're still a ways away */
-      IEC_SET_STATE(BUS_IDLE);
       if (iec_curCommand) {
-	channelIO(val);
-	turnAround();
-	sendInput();
+        channelIO(val);
+        if (iec_curCommand->primary == IEC_TALK) {
+          IEC_SET_STATE(BUS_IDLE);
+          turnAround();
+          sendInput();
+        }
       }
       break;
 
     case IEC_CLOSE:
       if (iec_curCommand) {
-	channelIO(val);
-	if (dev == 0x00)
-	  sendInput();
+        channelIO(val);
+        if (dev == 0x00)
+          sendInput();
       }
       break;
 
@@ -160,9 +160,11 @@ void IRAM_ATTR systemBus::sendInput(void)
   BaseType_t woken;
 
 
+  //IEC_ASSERT(PIN_DEBUG);
   if (iec_curCommand)
     xQueueSendFromISR(iec_commandQueue, &iec_curCommand, &woken);
   iec_curCommand = nullptr;
+  //IEC_RELEASE(PIN_DEBUG);
 
   return;
 }
@@ -303,10 +305,7 @@ void IRAM_ATTR systemBus::service()
   if (!xQueueReceive(iec_commandQueue, &received, 0))
     return;
 
-  Debug_printv("IEC %i COMMAND %02x %02x %i STATE %i \"%s\"",
-	       received->device,
-	       received->primary, received->secondary,
-	       received->channel, _state, received->payload.c_str());
+  received->debugPrint();
 
   auto d = deviceById(received->device);
   if (d != nullptr) {
@@ -385,9 +384,6 @@ systemBus virtualDevice::get_bus()
 
 device_state_t virtualDevice::process()
 {
-    Debug_printv("IEC COMMAND %02x %02x %i \"%s\"",
-		 commanddata.primary, commanddata.secondary,
-		 commanddata.channel, commanddata.payload.c_str());
     switch ((bus_command_t)commanddata.primary)
     {
     case bus_command_t::IEC_LISTEN:
@@ -454,7 +450,7 @@ size_t systemBus::sendBytes(const char *buf, size_t len, bool eoi)
     for (i = 0; i < len; i++)
     {
         if (!sendByte(buf[i], eoi && i == (len - 1)))
-	    break;
+            break;
     }
 
     return i;
@@ -499,8 +495,8 @@ bool IRAM_ATTR systemBus::turnAround()
     // Wait for ATN to be released
     if (protocol->waitForSignals(PIN_IEC_ATN, IEC_RELEASED, 0, 0, FOREVER) == TIMED_OUT)
     {
-	flags |= ERROR;
-	return false;
+        flags |= ERROR;
+        return false;
     }
 
     // Wait for CLK to be released
@@ -552,7 +548,7 @@ void IRAM_ATTR systemBus::releaseLines(bool wait)
     if (wait)
     {
         Debug_printv("Waiting for ATN to release");
-	protocol->waitForSignals(PIN_IEC_ATN, IEC_RELEASED, 0, 0, TIMEOUT_DEFAULT);
+        protocol->waitForSignals(PIN_IEC_ATN, IEC_RELEASED, 0, 0, TIMEOUT_DEFAULT);
     }
 }
 
@@ -635,6 +631,48 @@ void systemBus::shutdown()
         devicep->shutdown();
     }
     Debug_printf("All devices shut down.\r\n");
+}
+
+enum {
+  IECOpenChannel = 0,
+  IECCloseChannel,
+  IECReadChannel,
+  IECWriteChannel,
+};
+
+static const char *IECCommandNames[] = {
+  "UNKNOWN", "LISTEN", "TALK", "REOPEN",
+  "OPEN", "CLOSE", "READ", "WRITE",
+};
+
+int IECData::channelCommand()
+{
+  switch (primary) {
+    case IEC_LISTEN:
+    switch (secondary) {
+    case IEC_OPEN:
+      return IECOpenChannel;
+    case IEC_CLOSE:
+      return IECCloseChannel;
+    case IEC_REOPEN:
+      return IECWriteChannel;
+    }
+    break;
+
+  case IEC_TALK:
+    return IECReadChannel;
+  }
+
+  return 0;
+}
+
+void IECData::debugPrint()
+{
+  Debug_printf("IEC %2i %-5s %2i: %-6s [%02X %02X]\r\n",
+               device, IECCommandNames[channelCommand() + 4], channel,
+               IECCommandNames[primary >> 5], primary, secondary);
+  if (payload.size())
+    Debug_printf("%s", util_hexdump(payload.data(), payload.size()).c_str());
 }
 
 #endif /* BUILD_IEC */
