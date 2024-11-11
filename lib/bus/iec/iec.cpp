@@ -39,7 +39,6 @@ static void IRAM_ATTR cbm_on_atn_isr_forwarder(void *arg)
 
 void IRAM_ATTR systemBus::cbm_on_atn_isr_handler()
 {
-  // Sometimes the ISR gets called when ATN isn't asserted, double check it
   if (IEC_IS_ASSERTED(PIN_IEC_ATN)) {
     // Go to listener mode and get command
     IEC_RELEASE(PIN_IEC_CLK_OUT);
@@ -54,6 +53,10 @@ void IRAM_ATTR systemBus::cbm_on_atn_isr_handler()
       detected_protocol = PROTOCOL_SERIAL;
       protocol = selectProtocol();
     }
+  }
+  else if (_state == BUS_RELEASE) {
+    releaseLines();
+    IEC_SET_STATE(BUS_IDLE);
   }
 }
 
@@ -76,7 +79,6 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
   atn = IEC_IS_ASSERTED(PIN_IEC_ATN);
   gpio_intr_disable(PIN_IEC_CLK_IN);
 
-  //IEC_ASSERT(PIN_IEC_SRQ);//Debug
   val = protocol->receiveByte();
   if (flags & ERROR)
     goto done;
@@ -89,11 +91,12 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
     case IEC_LISTEN:
     case IEC_TALK:
       if (dev == IEC_ALLDEV || !isDeviceEnabled(dev)) {
-	if (dev == IEC_ALLDEV)
-	  IEC_SET_STATE(BUS_IDLE);
-	usleep(TIMING_Tda);
-	releaseLines();
+	IEC_ASSERT(PIN_DEBUG);
+	// Handle releaseLines() when ATN is released outside of this
+	// interrupt to prevent watchdog timeout
+	IEC_SET_STATE(BUS_RELEASE);
 	sendInput();
+	IEC_RELEASE(PIN_DEBUG);
       }
       else {
 	newIO(val);
@@ -128,7 +131,6 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
 
  done:
   gpio_intr_enable(PIN_IEC_CLK_IN);
-  //IEC_RELEASE(PIN_IEC_SRQ);//Debug
   return;
 }
 
@@ -254,6 +256,10 @@ void systemBus::setup()
     init_gpio(PIN_IEC_RESET);
 #endif
 
+#ifdef IEC_INVERTED_LINES
+#warning intr_type likely needs to be fixed!
+#endif
+
     // Start task
 //    xTaskCreatePinnedToCore(ml_iec_intr_task, "ml_iec_intr_task", 4096, NULL, 20, NULL, 1);
 
@@ -263,7 +269,7 @@ void systemBus::setup()
         .mode = GPIO_MODE_INPUT,                    // set as input mode
         .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
         .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
-        .intr_type = GPIO_INTR_NEGEDGE              // interrupt of falling edge
+        .intr_type = GPIO_INTR_ANYEDGE              // interrupt of any edge
     };
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_IEC_ATN, cbm_on_atn_isr_forwarder, this);

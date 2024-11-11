@@ -198,7 +198,7 @@ uint8_t CPBStandardSerial::receiveByte()
   // received in this last transmission, both talker and listener
   // "letgo."  After a suitable pause, the Clock and Data lines are
   // RELEASED and transmission stops.
-  
+
   if (abort)
     return -1;
 
@@ -246,6 +246,14 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
   // will be released only when ALL listeners have RELEASED it - in
   // other words, when all listeners are ready to accept data.
   // IEC_ASSERT( PIN_IEC_SRQ );
+
+  // FIXME - Can't wait FOREVER because watchdog will get
+  //         mad. Probably need to configure DATA GPIO with POSEDGE
+  //         interrupt and not do portDISABLE_INTERRUPTS(). Without
+  //         interrupts disabled though there is a big risk of false
+  //         EOI being sent. Maybe the DATA ISR needs to handle EOI
+  //         signaling too?
+
   if ((abort = waitForSignals(PIN_IEC_DATA_IN, IEC_RELEASED, PIN_IEC_ATN, IEC_ASSERTED, FOREVER))) {
     Debug_printv("data released abort");
   }
