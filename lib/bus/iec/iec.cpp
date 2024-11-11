@@ -109,17 +109,21 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
       break;
 
     case IEC_REOPEN:
-      channelIO(val);
       /* Take a break driver 8. We can reach our destination, but we're still a ways away */
       IEC_SET_STATE(BUS_IDLE);
-      turnAround();
-      sendInput();
+      if (iec_curCommand) {
+	channelIO(val);
+	turnAround();
+	sendInput();
+      }
       break;
 
     case IEC_CLOSE:
-      channelIO(val);
-      if (dev == 0x00)
-	sendInput();
+      if (iec_curCommand) {
+	channelIO(val);
+	if (dev == 0x00)
+	  sendInput();
+      }
       break;
 
     default:
@@ -495,7 +499,6 @@ bool IRAM_ATTR systemBus::turnAround()
     // Wait for ATN to be released
     if (protocol->waitForSignals(PIN_IEC_ATN, IEC_RELEASED, 0, 0, FOREVER) == TIMED_OUT)
     {
-        Debug_printv("ATN failed to release");
 	flags |= ERROR;
 	return false;
     }
@@ -503,8 +506,6 @@ bool IRAM_ATTR systemBus::turnAround()
     // Wait for CLK to be released
     if (protocol->waitForSignals(PIN_IEC_CLK_IN, IEC_RELEASED, 0, 0, TIMEOUT_Ttlta) == TIMED_OUT)
     {
-        Debug_printv("Wait until the computer releases the CLK line\r\n");
-        Debug_printv("IEC: TURNAROUND TIMEOUT\r\n");
         flags |= ERROR;
         return false; // return error because timeout
     }
