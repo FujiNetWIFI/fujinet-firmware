@@ -123,11 +123,8 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
       break;
     }
   }
-  else if (iec_curCommand) {
+  else if (iec_curCommand)
     iec_curCommand->payload += val & 0xff;
-    if (flags & EOI_RECVD)
-      sendInput();
-  }
 
  done:
   gpio_intr_enable(PIN_IEC_CLK_IN);

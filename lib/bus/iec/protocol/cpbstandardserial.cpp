@@ -284,12 +284,12 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
 
     // Wait for EOI ACK
     // This will happen after appx 250us
-    if ((abort = waitForSignals(PIN_IEC_DATA_IN, IEC_ASSERTED, PIN_IEC_ATN, IEC_ASSERTED, FOREVER))) {
+    if ((abort = waitForSignals(PIN_IEC_DATA_IN, IEC_ASSERTED, PIN_IEC_ATN, IEC_ASSERTED, TIMEOUT_Tf))) {
       Debug_printv("EOI ack abort");
     }
 
     if (!abort &&
-        (abort = waitForSignals(PIN_IEC_DATA_IN, IEC_RELEASED, PIN_IEC_ATN, IEC_ASSERTED, FOREVER))) {
+        (abort = waitForSignals(PIN_IEC_DATA_IN, IEC_RELEASED, PIN_IEC_ATN, IEC_ASSERTED, TIMEOUT_Tne))) {
       Debug_printv("EOI ackack abort");
     }
   }
