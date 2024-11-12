@@ -96,8 +96,10 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
 	  // interrupt to prevent watchdog timeout
 	  IEC_SET_STATE(BUS_RELEASE);
 	}
-	else
+	else {
+	  IEC_SET_STATE(BUS_IDLE);
 	  releaseLines();
+	}
         sendInput();
       }
       else {
