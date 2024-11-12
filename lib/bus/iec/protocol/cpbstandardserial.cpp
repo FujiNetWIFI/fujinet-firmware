@@ -17,7 +17,7 @@
 
 #ifdef BUILD_IEC
 
-#define DYMANIC_DELAY
+#define DYNAMIC_DELAY
 
 #include "cpbstandardserial.h"
 

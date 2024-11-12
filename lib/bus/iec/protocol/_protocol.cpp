@@ -81,20 +81,22 @@ int IRAM_ATTR IECProtocol::waitForSignals(int pin1, int state1,
 
 void IECProtocol::transferDelaySinceLast(size_t minimumDelay)
 {
-  uint64_t now, remaining;
-  uint64_t ended = 0;
+  uint64_t now, elapsed;
+  int64_t remaining;
 
 
   now = esp_timer_get_time();
+  elapsed = now - _transferEnded;
   if (minimumDelay > 0) {
-    remaining = now - (ended + minimumDelay);
+    remaining = minimumDelay;
+    remaining -= elapsed;
     if (remaining > 0) {
       usleep(remaining);
       now = esp_timer_get_time();
     }
   }
 
-  ended = now;
+  _transferEnded = now;
   return;
 }
 
