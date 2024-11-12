@@ -91,9 +91,13 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
     case IEC_LISTEN:
     case IEC_TALK:
       if (dev == IEC_ALLDEV || !isDeviceEnabled(dev)) {
-        // Handle releaseLines() when ATN is released outside of this
-        // interrupt to prevent watchdog timeout
-        IEC_SET_STATE(BUS_RELEASE);
+	if (cmd == IEC_TALK) {
+	  // Handle releaseLines() when ATN is released outside of this
+	  // interrupt to prevent watchdog timeout
+	  IEC_SET_STATE(BUS_RELEASE);
+	}
+	else
+	  releaseLines();
         sendInput();
       }
       else {
