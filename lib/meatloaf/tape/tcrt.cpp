@@ -130,8 +130,8 @@ bool TCRTMStream::seekEntry( uint16_t index )
         return true;
 }
 
-uint16_t TCRTMStream::readFile(uint8_t* buf, uint16_t size) {
-    uint16_t bytesRead = 0;
+uint32_t TCRTMStream::readFile(uint8_t* buf, uint32_t size) {
+    uint32_t bytesRead = 0;
 
     if ( _position < 2)
     {

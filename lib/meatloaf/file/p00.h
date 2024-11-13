@@ -56,7 +56,7 @@ protected:
         return "";
     };
 
-    uint16_t readFile(uint8_t* buf, uint16_t size) override;
+    uint32_t readFile(uint8_t* buf, uint32_t size) override;
 
     Header header;
 

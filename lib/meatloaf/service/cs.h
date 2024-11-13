@@ -277,9 +277,6 @@ public:
 protected:
     std::string url;
     bool _is_open;
-    // uint32_t _size;
-    // uint32_t m_bytesAvailable = 0;
-    // uint32_t _position = 0;
 };
 
 

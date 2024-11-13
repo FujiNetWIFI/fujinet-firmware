@@ -6,22 +6,28 @@ std::unordered_map<std::string, MMediaStream*> ImageBroker::repo;
 
 std::string MMediaStream::decodeType(uint8_t file_type, bool show_hidden)
 {
-    //bool hide = false;
-    std::string type = file_type_label[ file_type & 0b00000111 ];
+    //bool hidden = false;
+    std::string type = "";
+
+    // Check if splat file
+    // Bit 7: Closed flag  (Not  set  produces  "*", or "splat" files)
+    if (!(file_type >> 7 & 1)) {
+        type += "*";
+        //hidden = true;
+    } else {
+        type += " ";
+    }
+
+    type += file_type_label[ file_type & 0b00000111 ];
     //if ( file_type == 0 )
-    //    hide = true;
+    //    hidden = true;
 
-    switch ( file_type & 0b11000000 )
-    {
-        case 0xC0:			// Bit 6: Locked flag (Set produces "<" locked files)
-            type += "<";
-            //hide = false;
-            break;
-
-        case 0x00:
-            type += "*";	// Bit 7: Closed flag  (Not  set  produces  "*", or "splat" files)
-            //hide = true;
-            break;
+    // Bit 6: Locked flag (Set produces ">" locked files)
+    if ((file_type >> 6 & 1)) {
+        type += "<";
+        //hidden = false;
+    } else {
+        type += " ";
     }
 
     return type;
@@ -29,16 +35,16 @@ std::string MMediaStream::decodeType(uint8_t file_type, bool show_hidden)
 
 std::string MMediaStream::decodeType(std::string file_type)
 {
-    std::string type = "PRG";
+    std::string type = " PRG";
 
     if (file_type == "P")
-        type += "PRG";
+        type = " PRG";
     else if (file_type == "S")
-        type += "SEQ";
+        type = " SEQ";
     else if (file_type == "U")
-        type += "USR";
+        type = " USR";
     else if (file_type == "R")
-        type += "REL";
+        type = " REL";
 
     return type;
 }
@@ -67,7 +73,6 @@ bool MMediaStream::open()
 void MMediaStream::close()
 {
     Debug_printv("url[%s]", url.c_str());
-    ImageBroker::dispose(url);
 };
 
 uint32_t MMediaStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
@@ -91,7 +96,7 @@ uint32_t MMediaStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
 };
 
 
-uint16_t MMediaStream::readContainer(uint8_t *buf, uint16_t size)
+uint32_t MMediaStream::readContainer(uint8_t *buf, uint32_t size)
 {
     return containerStream->read(buf, size);
 }

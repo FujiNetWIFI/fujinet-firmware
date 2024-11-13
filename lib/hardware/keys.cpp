@@ -273,9 +273,6 @@ void KeyManager::_keystate_task(void *param)
 #if defined(PINMAP_A2_REV0) || defined(PINMAP_FUJILOAF_REV0)
             fnLedManager.blink(LED_BUS, 2); // blink to confirm a button press
             // IEC.releaseLines();
-#ifdef BUILD_IEC
-            Debug_printf("bus_state[%d]\r\n", IEC.state);
-#endif
             Debug_printf("Heap: %lu\r\n",esp_get_free_internal_heap_size());
             // Debug_printf("PsramSize: %u\r\n", fnSystem.get_psram_size());
             // Debug_printf("himem phys: %u\r\n", esp_himem_get_phys_size());

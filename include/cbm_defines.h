@@ -163,10 +163,10 @@ typedef enum
 #define TIMING_Ts0      40      // BIT SET-UP LISTENER PRE       57us    47us
 #define TIMING_Ts1      30      // BIT SET-UP LISTENER POST      18us    24us
 #define TIMING_Tv       20      // DATA VALID VIC20              76us    26us    20us    20us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker. )
-#define TIMING_Tv64     80      // DATA VALID C64
+#define TIMING_Tv64     60      // DATA VALID C64
 
 #define TIMING_Tr       20      // FRAME TO RELEASE OF ATN                       20us    -           -
-#define TIMING_Tbb      200     // BETWEEN BYTES TIME                            100us   -           -
+#define TIMING_Tbb      100     // BETWEEN BYTES TIME                            100us   -           -
 #define TIMING_Tye      250     // EOI RESPONSE TIME                             200us   250us       -
 
 #define TIMING_Try      30      // TALKER RESPONSE LIMIT                         0       30us        60us
@@ -178,7 +178,7 @@ typedef enum
 #define TIMEOUT_Tf      1000
 
 #define TIMING_Tei      80      // EOI RESPONSE HOLD TIME                        60us    -           -           (Tei minimum must be 80μ s for external device to be a listener.)
-#define TIMING_Tpr      60      // BYTE-ACKNOWLEDGE                              20us    30us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker.)
+#define TIMING_Tpr      30      // BYTE-ACKNOWLEDGE                              20us    30us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker.)
 #define TIMING_Ttk      20      // TALK-ATTENTION RELEASE        20us            20us    30us        100us
 #define TIMEOUT_Ttk     100
 #define TIMING_Tdc      20      // TALK-ATTENTION ACKNOWLEDGE    20us            0       -           -
@@ -189,18 +189,29 @@ typedef enum
 #define TIMING_EMPTY    512     // SIGNAL EMPTY STREAM
 #define TIMEOUT_ATNCLK  70      // WAIT FOR CLK AFTER ATN IS ASSERTED
 #define TIMEOUT_Ttlta   65      // TALKER/LISTENER TURNAROUND TIMEOUT
-#define TIMING_Ttcp     13      // TALKER TURNAROUND CLOCK ASSERT
+#define TIMING_Ttca     13      // TALKER TURNAROUND CLOCK ASSERT
 
 // SPECIAL
-#define TIMING_PROTOCOL_DETECT   218  // SAUCEDOS/JIFFYDOS CAPABLE DELAY
-#define TIMING_PROTOCOL_ACK      100  // SAUCEDOS/JIFFYDOS ACK RESPONSE
+#define TIMING_PROTOCOL_DETECT   200  // SAUCEDOS/JIFFYDOS CAPABLE DELAY
+#define TIMING_PROTOCOL_ACK      80   // SAUCEDOS/JIFFYDOS ACK RESPONSE
 
 // See timeoutWait
 #define TIMEOUT_DEFAULT 1000 // 1ms
 #define TIMED_OUT -1
 #define FOREVER 5000000 // 0
 
+#ifndef IEC_INVERTED_LINES
+// Not Inverted
 #define IEC_ASSERTED  true
 #define IEC_RELEASED  false
+#define LOW 0x00
+#define HIGH 0x01
+#else
+// Inverted
+#define IEC_ASSERTED  false
+#define IEC_RELEASED  true
+#define LOW 0x01
+#define HIGH 0x00
+#endif
 
 #endif // CBMDEFINES_H
