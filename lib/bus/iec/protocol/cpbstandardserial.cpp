@@ -350,7 +350,7 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
   }
   portENABLE_INTERRUPTS();
   gpio_intr_enable(PIN_IEC_CLK_IN);
-  //IEC_RELEASE(PIN_IEC_SRQ);//Debug
+  //IEC_RELEASE(PIN_DEBUG);//Debug
 
 #ifdef DYNAMIC_DELAY
   transferEnd();
