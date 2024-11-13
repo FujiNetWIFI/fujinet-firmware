@@ -43,6 +43,7 @@
 #include <forward_list>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#include <soc/gpio_struct.h>
 #include <utility>
 #include <string>
 #include <map>
@@ -51,12 +52,6 @@
 #include <driver/gpio.h>
 #include <esp_timer.h>
 #include "fnSystem.h"
-
-#include "protocol/_protocol.h"
-#include "protocol/jiffydos.h"
-#ifdef PARALLEL_BUS
-#include "protocol/dolphindos.h"
-#endif
 
 #include <soc/gpio_reg.h>
 
@@ -95,7 +90,7 @@ typedef enum
     BUS_ERROR = -2,     // A problem occoured, reset communication
     BUS_RELEASE = -1,   // Clean Up
     BUS_IDLE = 0,       // Nothing recieved of our concern
-    BUS_ACTIVE = 1,     // ATN is pulled and a command byte is expected
+    BUS_ACTIVE = 1,     // ATN is asserted and a command byte is expected
     BUS_PROCESS = 2,    // A command is ready to be processed
 } bus_state_t;
 
@@ -138,8 +133,6 @@ typedef enum {
     PROTOCOL_IEEE488
 } bus_protocol_t;
 
-using namespace Protocol;
-
 /**
  * @class IECData
  * @brief the IEC command data passed to devices
@@ -167,27 +160,21 @@ public:
      * @brief the device command
      */
     std::string payload = "";
-    /**
-     * @brief the raw bytes received for the command
-     */
-    std::vector<uint8_t> payload_raw;
-    /**
-     * @brief secondary action description
-     */
-    std::string action ="";
+
     /**
      * @brief clear and initialize IEC command data
      */
     void init(void)
     {
-        //primary = 0;
+        primary = 0;
         device = 0;
         secondary = 0;
         channel = 0;
         payload = "";
-        payload_raw.clear();
-        action = "";
     }
+
+    int channelCommand();
+    void debugPrint();
 };
 
 /**
@@ -202,6 +189,12 @@ class systemBus;
 class virtualDevice
 {
 private:
+    /**
+     * @brief All IEC devices repeatedly call this routine to fan out to other methods for each command.
+     *        This is typcially implemented as a switch() statement.
+     * @return new device state.
+     */
+    virtual device_state_t process();
 
 protected:
     friend systemBus; /* Because we connect to it. */
@@ -283,12 +276,10 @@ protected:
         return state;
     }
 
-    /**
-     * @brief All IEC devices repeatedly call this routine to fan out to other methods for each command.
-     *        This is typcially implemented as a switch() statement.
-     * @return new device state.
-     */
-    virtual device_state_t process();
+    virtual device_state_t openChannel(/*int chan, IECPayload &payload*/) = 0;
+    virtual device_state_t closeChannel(/*int chan*/) = 0;
+    virtual device_state_t readChannel(/*int chan*/) = 0;
+    virtual device_state_t writeChannel(/*int chan, IECPayload &payload*/) = 0;
 
     /**
      * @brief poll whether interrupt should be wiggled
@@ -370,13 +361,36 @@ public:
     }
 };
 
+namespace Protocol {
+  class IECProtocol;
+  class CPBStandardSerial;
+  class JiffyDOS;
+}
+class oiecstream;
+
 /**
  * @class systemBus
  * @brief the system bus that all virtualDevices attach to.
  */
 class systemBus
 {
+friend Protocol::IECProtocol;
+friend Protocol::CPBStandardSerial;
+friend Protocol::JiffyDOS;
+friend oiecstream;
+
 private:
+    /**
+     * @brief current bus state
+     */
+    bus_state_t _state;
+
+    /**
+     * @brief data about current bus transaction
+     */
+    IECData *iec_curCommand;
+    QueueHandle_t iec_commandQueue;
+
     /**
      * @brief The chain of devices on the bus.
      */
@@ -405,47 +419,26 @@ private:
     /**
      * @brief the active bus protocol
      */
-    std::shared_ptr<IECProtocol> protocol = nullptr;
+    std::shared_ptr<Protocol::IECProtocol> protocol = nullptr;
 
     /**
      * @brief Switch to detected bus protocol
      */
-    std::shared_ptr<IECProtocol> selectProtocol();
+    std::shared_ptr<Protocol::IECProtocol> selectProtocol();
 
     /**
-     * IEC LISTEN received
+     * @brief bus flags
      */
-    void deviceListen();
+    uint16_t flags = 0;//CLEAR;
 
-    /**
-     * IEC TALK requested
-     */
-    void deviceTalk();
+    void newIO(int val);
+    void channelIO(int val);
+    void sendInput();
 
     /**
      * BUS TURNAROUND (switch from listener to talker)
      */
     bool turnAround();
-
-    /**
-     * @brief called to process the next command
-     */
-    void process_cmd();
-
-    /**
-     * @brief called to process a queue item (such as disk swap)
-     */
-    void process_queue();
-
-    /**
-     * @brief called to read bus command bytes
-    */
-    void read_command();
-
-    /**
-     * @brief called to read bus payload bytes
-    */
-    void read_payload();
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer
@@ -469,19 +462,9 @@ private:
 
 public:
     /**
-     * @brief bus flags
-     */
-    uint16_t flags = CLEAR;
-
-    /**
      * @brief bus enabled
      */
     bool enabled = true;
-
-    /**
-     * @brief current bus state
-     */
-    bus_state_t state;
 
     /**
      * @brief vic20 mode enables faster valid bit timing
@@ -492,12 +475,7 @@ public:
      * Toggled by the rate limiting timer to indicate that the SRQ interrupt should
      * be pulsed.
      */
-    bool interruptSRQ = false;    
-
-    /**
-     * @brief data about current bus transaction
-     */
-    IECData data;
+    bool interruptSRQ = false;
 
     /**
      * @brief Enabled device bits
@@ -549,7 +527,7 @@ public:
      * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(const char *buf, size_t len, bool eoi = true);
+    size_t sendBytes(const char *buf, size_t len, bool eoi = true);
 
     /**
      * @brief Send string to bus
@@ -557,19 +535,7 @@ public:
      * @param eoi Send EOI?
      * @return true on success, false on error
      */
-    bool sendBytes(std::string s, bool eoi = true);
-
-    /**
-     * @brief Receive Byte from bus
-     * @return Byte received from bus, or -1 for error
-     */
-    uint8_t receiveByte();
-
-    /**
-     * @brief Receive String from bus
-     * @return std::string received from bus
-     */
-    std::string receiveBytes();
+    size_t sendBytes(std::string s, bool eoi = true);
 
     /**
      * @brief called in response to RESET pin being asserted.
@@ -631,20 +597,16 @@ public:
      */
     void senderTimeout();
 
-
-    uint8_t bit = 0;
-    uint8_t byte = 0;
-
-    bool pin_atn = false;
-    bool pin_clk = false;
-    bool pin_data = false;
-    bool pin_srq = false;
-    bool pin_reset = false;
+    // FIXME - these should be private
+    void cbm_on_atn_isr_handler();
+    void cbm_on_clk_isr_handler();
 
     void init_gpio(gpio_num_t _pin);
-    void pull ( uint8_t _pin );
+#if IEC_ASSERT_RELEASE_AS_FUNCTIONS
+    void assert ( uint8_t _pin );
     void release ( uint8_t _pin );
     bool status ( uint8_t _pin );
+#endif
     bool status ();
 
     void debugTiming();

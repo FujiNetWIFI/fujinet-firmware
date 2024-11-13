@@ -3,6 +3,8 @@
 #define PINMAP_H
 
 #ifdef ESP_PLATFORM
+#include <hal/gpio_types.h>
+
 #include "pinmap/a2_fn10.h"
 #include "pinmap/a2_rev0.h"
 #include "pinmap/a2_d32pro.h"

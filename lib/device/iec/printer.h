@@ -20,7 +20,14 @@ protected:
     std::string buffer;
     void write(uint8_t channel);
     void status();
+#if 0
     device_state_t process() override;
+#else
+    virtual device_state_t openChannel(/*int chan, IECPayload &payload*/) override;
+    virtual device_state_t closeChannel(/*int chan*/) override;
+    virtual device_state_t readChannel(/*int chan*/) override;
+    virtual device_state_t writeChannel(/*int chan, IECPayload &payload*/) override;
+#endif
     void shutdown() override;
 
     printer_emu *_pptr = nullptr;

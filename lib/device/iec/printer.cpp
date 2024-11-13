@@ -28,6 +28,7 @@ iecPrinter::~iecPrinter()
 // write for W commands
 void iecPrinter::write(uint8_t channel)
 {
+#if 0
     // Receive data from computer
     while (!(IEC.flags & EOI_RECVD))
     {
@@ -41,6 +42,9 @@ void iecPrinter::write(uint8_t channel)
         _pptr->process(1, commanddata.channel, 0);
         _last_ms = fnSystem.millis();
     }
+#else
+#warning FIXME - use paylaod
+#endif
 }
 
 /**
@@ -140,6 +144,28 @@ iecPrinter::printer_type iecPrinter::match_modelname(std::string model_name)
     return (printer_type)i;
 }
 
+#if 1
+device_state_t iecPrinter::openChannel(/*int chan, IECPayload &payload*/)
+{
+  return state;
+}
+
+device_state_t iecPrinter::closeChannel(/*int chan*/)
+{
+  return state;
+}
+
+device_state_t iecPrinter::readChannel(/*int chan*/)
+{
+  return state;
+}
+
+device_state_t iecPrinter::writeChannel(/*int chan, IECPayload &payload*/)
+{
+  write(commanddata.channel);
+  return state;
+}
+#else
 // Process command
 device_state_t iecPrinter::process()
 {
@@ -152,5 +178,6 @@ device_state_t iecPrinter::process()
 
     return state;
 }
+#endif
 
 #endif /* BUILD_IEC */
