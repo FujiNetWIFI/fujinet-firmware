@@ -153,7 +153,7 @@ bool HttpIStream::open() {
 }
 
 void HttpIStream::close() {
-    //Debug_printv("CLOSE called explicitly on this HTTP stream!");    
+    //Debug_printv("CLOSE called explicitly on this HTTP stream!");
     _http.close();
 }
 
@@ -170,11 +170,12 @@ bool HttpIStream::seek(uint32_t pos) {
 
 uint32_t HttpIStream::read(uint8_t* buf, uint32_t size) {
     uint32_t bytesRead = 0;
-    if ( size > available() )
-        size = available();
-    
+
     if ( size > 0 )
     {
+        if ( size > available() )
+            size = available();
+
         bytesRead = _http.read(buf, size);
         _position += bytesRead;
         _error = _http._error;
@@ -190,26 +191,10 @@ uint32_t HttpIStream::write(const uint8_t *buf, uint32_t size) {
 }
 
 
-
 bool HttpIStream::isOpen() {
     return _http._is_open;
 };
 
-// uint32_t HttpIStream::size() {
-//     return _http._size;
-// };
-
-// uint32_t HttpIStream::available() {
-//     return _http.m_bytesAvailable;
-// };
-
-// uint32_t HttpIStream::position() {
-//     return _http._position;
-// }
-
-// size_t HttpIStream::error() {
-//     return _http.m_error;
-// }
 
 /********************************************************
  * Meat HTTP client impls
@@ -232,7 +217,6 @@ bool MeatHttpClient::PUT(std::string dstUrl) {
 bool MeatHttpClient::HEAD(std::string dstUrl) {
     Debug_printv("HEAD");
     bool rc = open(dstUrl, HTTP_METHOD_HEAD);
-    close();
     return rc;
 }
 
@@ -240,13 +224,12 @@ bool MeatHttpClient::processRedirectsAndOpen(int range) {
     wasRedirected = false;
     _size = -1;
 
-    Debug_printv("reopening url[%s] from position:%d", url.c_str(), range);
+    //Debug_printv("reopening url[%s] from position:%d", url.c_str(), range);
     lastRC = openAndFetchHeaders(lastMethod, range);
 
     while(lastRC == HttpStatus_MovedPermanently || lastRC == HttpStatus_Found || lastRC == 303)
     {
-        Debug_printv("--- Page moved, doing redirect to [%s]", url.c_str());
-        close();
+        //Debug_printv("--- Page moved, doing redirect to [%s]", url.c_str());
         lastRC = openAndFetchHeaders(lastMethod, range);
         wasRedirected = true;
     }
@@ -254,7 +237,6 @@ bool MeatHttpClient::processRedirectsAndOpen(int range) {
     if(lastRC != HttpStatus_Ok && lastRC != 301 && lastRC != 206) {
         Debug_printv("opening stream failed, httpCode=%d", lastRC);
         _error = lastRC;
-        close();
         return false;
     }
 
@@ -361,11 +343,15 @@ uint32_t MeatHttpClient::read(uint8_t* buf, uint32_t size) {
     }
 
     if (_is_open) {
+        //Debug_printv("Reading HTTP Stream!");
         auto bytesRead= esp_http_client_read(_http, (char *)buf, size );
         
         if(bytesRead>0) {
             _position+=bytesRead;
         }
+        if(bytesRead<0)
+            return 0;
+
         return bytesRead;        
     }
     return 0;
@@ -391,28 +377,21 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
     if ( url.size() < 5)
         return 0;
 
+    // Set URL and Method
     mstr::replaceAll(url, " ", "%20");
-    esp_http_client_config_t config;
-    memset(&config, 0, sizeof(config));
-    config.url = url.c_str();
-    config.auth_type = HTTP_AUTH_TYPE_BASIC;
-    config.user_agent = USER_AGENT;
-    config.method = meth;
-    config.timeout_ms = 10000;
-    config.max_redirection_count = 10;
-    config.event_handler = _http_event_handler;
-    config.user_data = this;
-    config.keep_alive_enable = true;
-    config.keep_alive_idle = 10;
-    config.keep_alive_interval = 1;
-    //Debug_printv("HTTP Init url[%s]", url.c_str());
-    _http = esp_http_client_init(&config);
+    esp_http_client_set_url(_http, url.c_str());
+    esp_http_client_set_method(_http, meth);
 
     // Set Headers
     for (const auto& pair : headers) {
         std::cout << pair.first << ": " << pair.second << std::endl;
         esp_http_client_set_header(_http, pair.first.c_str(), pair.second.c_str());
     }
+
+    // POST
+    // const char *post_data = "{\"field1\":\"value1\"}";
+    // esp_http_client_set_post_field(client, post_data, strlen(post_data));
+
 
     if(resume > 0) {
         char str[40];
@@ -421,7 +400,6 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
     }
 
     //Debug_printv("--- PRE OPEN");
-
     esp_err_t initOk = esp_http_client_open(_http, 0); // or open? It's not entirely clear...
 
     if(initOk == ESP_FAIL)
@@ -429,7 +407,7 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
 
     //Debug_printv("--- PRE FETCH HEADERS");
 
-    int lengthResp = esp_http_client_fetch_headers(_http);
+    int64_t lengthResp = esp_http_client_fetch_headers(_http);
     if(_size == -1 && lengthResp > 0) {
         // only if we aren't chunked!
         _size = lengthResp;

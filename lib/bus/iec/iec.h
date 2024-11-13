@@ -457,12 +457,12 @@ private:
     /**
      * @brief Start the Interrupt rate limiting timer
      */
-    void timer_start();
+    void timer_start_srq();
 
     /**
      * @brief Stop the Interrupt rate limiting timer
      */
-    void timer_stop();
+    void timer_stop_srq();
 
 public:
     /**

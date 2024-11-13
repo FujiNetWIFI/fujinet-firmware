@@ -22,7 +22,6 @@
 #define HTTP_BLOCK_SIZE 256
 
 #define PRODUCT_ID "MEATLOAF CBM"
-//#define FW_VERSION "20220422.1" // Dynamically set at compile time in "platformio.ini"
 #define PLATFORM_DETAILS "C64; 6510; 2; NTSC; EN;" // Make configurable. This will help server side to select appropriate content.
 #define USER_AGENT "MEATLOAF/" FN_VERSION_FULL " (" PLATFORM_DETAILS ")"
 
@@ -41,6 +40,22 @@ class MeatHttpClient {
 public:
 
     MeatHttpClient() {
+        esp_http_client_config_t config;
+        memset(&config, 0, sizeof(config));
+        config.url = "https://api.meatloaf.cc/?$";
+        config.auth_type = HTTP_AUTH_TYPE_BASIC;
+        config.user_agent = USER_AGENT;
+        config.method = HTTP_METHOD_GET;
+        config.timeout_ms = 10000;
+        config.max_redirection_count = 10;
+        config.event_handler = _http_event_handler;
+        config.user_data = this;
+        config.keep_alive_enable = true;
+        config.keep_alive_idle = 5;
+        config.keep_alive_interval = 5;
+
+        //Debug_printv("HTTP Init url[%s]", url.c_str());
+        _http = esp_http_client_init(&config);
     }
     
     ~MeatHttpClient() {
@@ -82,7 +97,6 @@ public:
     }
 
     uint32_t _size = 0;
-    // uint32_t m_bytesAvailable = 0;
     uint32_t _position = 0;
     size_t _error = 0;
 
@@ -153,12 +167,6 @@ public:
         close();
     };
 
-    // MStream methods
-    // uint32_t size() override;
-    // uint32_t available() override;     
-    // uint32_t position() override;
-    // size_t error() override;
-
     virtual bool seek(uint32_t pos);
 
     void close() override;
@@ -172,7 +180,6 @@ public:
 
 protected:
     MeatHttpClient _http;
-
 };
 
 

@@ -80,7 +80,6 @@ namespace Protocol {
 class JiffyDOS : public IECProtocol {
    public:
     JiffyDOS();
-	~JiffyDOS();
 
    protected:
     uint8_t loadmode = 0;

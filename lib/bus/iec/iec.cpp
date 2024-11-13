@@ -116,11 +116,13 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
             else
             {
                 newIO(val);
+#ifdef JIFFYDOS
                 if (flags & JIFFYDOS_ACTIVE)
                 {
                     detected_protocol = PROTOCOL_JIFFYDOS;
                     protocol = selectProtocol();
                 }
+#endif
             }
             break;
 
@@ -210,8 +212,7 @@ static void ml_iec_intr_task(void* arg)
         if ( IEC.enabled )
             IEC.service();
 
-        if ( IEC.state < BUS_ACTIVE )
-            taskYIELD();
+        taskYIELD();
     }
 }
 #endif
@@ -225,43 +226,6 @@ void systemBus::init_gpio(gpio_num_t _pin)
     gpio_set_level(_pin, 0);
     return;
 }
-
-bool IRAM_ATTR systemBus::status()
-{
-    // uint64_t pin_states;
-    // pin_states = REG_READ(GPIO_IN1_REG);
-    // pin_states << 32 & REG_READ(GPIO_IN_REG);
-    // pin_atn = pin_states & BIT(PIN_IEC_ATN);
-    // pin_clk = pin_states & BIT(PIN_IEC_CLK_IN);
-    // pin_data = pin_states & BIT(PIN_IEC_DATA_IN);
-    // pin_srq = pin_states & BIT(PIN_IEC_SRQ);
-    // pin_reset = pin_states & BIT(PIN_IEC_RESET);
-    return true;
-};
-
-// uint8_t IRAM_ATTR systemBus::status()
-// {
-//     int data = 0;
-
-//     // gpio_config_t io_config =
-//     // {
-//     //     .pin_bit_mask = BIT(PIN_IEC_CLK_IN) | BIT(PIN_IEC_CLK_OUT) |BIT(PIN_IEC_DATA_IN) | BIT(PIN_IEC_DATA_OUT) | BIT(PIN_IEC_SRQ) | BIT(PIN_IEC_RESET),
-//     //     .mode = GPIO_MODE_INPUT,
-//     //     .pull_up_en = GPIO_PULLUP_ENABLE,
-//     //     .intr_type = GPIO_INTR_DISABLE,
-//     // };
-
-//     // ESP_ERROR_CHECK(gpio_config(&io_config));
-//     uint64_t io_data = REG_READ(GPIO_IN_REG);
-
-//     //data |= (0 & (io_data & (1 << PIN_IEC_ATN)));
-//     data |= (1 & (io_data & (1 << PIN_IEC_CLK_IN)));
-//     data |= (2 & (io_data & (1 << PIN_IEC_DATA_IN)));
-//     data |= (3 & (io_data & (1 << PIN_IEC_SRQ)));
-//     data |= (4 & (io_data & (1 << PIN_IEC_RESET)));
-
-//     return data;
-// }
 
 void systemBus::setup()
 {
@@ -285,6 +249,8 @@ void systemBus::setup()
 #warning intr_type likely needs to be fixed!
 #endif
 
+    iec_commandQueue = xQueueCreate(10, sizeof(IECData *));
+
     // Start task
     //    xTaskCreatePinnedToCore(ml_iec_intr_task, "ml_iec_intr_task", 4096, NULL, 20, NULL, 1);
 
@@ -301,19 +267,21 @@ void systemBus::setup()
 
     // Setup interrupt config for CLK
     io_conf = {
-        .pin_bit_mask = (1ULL << PIN_IEC_CLK_IN), // bit mask of the pins that you want to set
-        .mode = GPIO_MODE_INPUT,				  // set as input mode
-        .pull_up_en = GPIO_PULLUP_DISABLE,		  // disable pull-up mode
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,	  // disable pull-down mode
-        .intr_type = GPIO_INTR_POSEDGE			  // interrupt of rising edge
+        .pin_bit_mask = (1ULL << PIN_IEC_CLK_IN),   // bit mask of the pins that you want to set
+        .mode = GPIO_MODE_INPUT,                    // set as input mode
+        .pull_up_en = GPIO_PULLUP_DISABLE,          // disable pull-up mode
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,      // disable pull-down mode
+#ifdef IEC_INVERTED_LINES
+        .intr_type = GPIO_INTR_NEGEDGE              // interrupt of falling edge
+#else
+        .intr_type = GPIO_INTR_POSEDGE              // interrupt of rising edge
+#endif
     };
     gpio_config(&io_conf);
     gpio_isr_handler_add((gpio_num_t)PIN_IEC_CLK_IN, cbm_on_clk_isr_forwarder, this);
 
-    iec_commandQueue = xQueueCreate(10, sizeof(IECData *));
-
     // Start SRQ timer service
-    timer_start();
+    //timer_start_srq();
 }
 
 void IRAM_ATTR systemBus::service()
@@ -341,7 +309,7 @@ void IRAM_ATTR systemBus::service()
 /**
  * Start the Interrupt rate limiting timer
  */
-void systemBus::timer_start()
+void systemBus::timer_start_srq()
 {
     esp_timer_create_args_t tcfg;
     tcfg.arg = this;
@@ -355,7 +323,7 @@ void systemBus::timer_start()
 /**
  * Stop the Interrupt rate limiting timer
  */
-void systemBus::timer_stop()
+void systemBus::timer_stop_srq()
 {
     // Delete existing timer
     if (rateTimerHandle != nullptr)
@@ -373,23 +341,28 @@ std::shared_ptr<IECProtocol> systemBus::selectProtocol()
 
     switch (detected_protocol)
     {
-    case PROTOCOL_JIFFYDOS: {
-        auto p = std::make_shared<JiffyDOS>();
-        return std::static_pointer_cast<IECProtocol>(p);
-    }
-#ifdef PARALLEL_BUS
-    case PROTOCOL_DOLPHINDOS: {
-        auto p = std::make_shared<DolphinDOS>();
-        return std::static_pointer_cast<IECProtocol>(p);
-    }
+#ifdef JIFFYDOS
+        case PROTOCOL_JIFFYDOS:
+        {
+            auto p = std::make_shared<JiffyDOS>();
+            return std::static_pointer_cast<IECProtocol>(p);
+        }
 #endif
-    default: {
 #ifdef PARALLEL_BUS
-        PARALLEL.state = PBUS_IDLE;
+        case PROTOCOL_DOLPHINDOS:
+        {
+            auto p = std::make_shared<DolphinDOS>();
+            return std::static_pointer_cast<IECProtocol>(p);
+        }
 #endif
-        auto p = std::make_shared<CPBStandardSerial>();
-        return std::static_pointer_cast<IECProtocol>(p);
-    }
+        default:
+        {
+#ifdef PARALLEL_BUS
+            PARALLEL.state = PBUS_IDLE;
+#endif
+            auto p = std::make_shared<CPBStandardSerial>();
+            return std::static_pointer_cast<IECProtocol>(p);
+        }
     }
 }
 
@@ -448,7 +421,7 @@ void systemBus::assert_interrupt()
     if (interruptSRQ)
         IEC_ASSERT(PIN_IEC_SRQ);
     else
-        IEC_RELEASE(PIN_DEBUG);
+        IEC_RELEASE(PIN_IEC_SRQ);
 }
 
 bool systemBus::sendByte(const char c, bool eoi) { return protocol->sendByte(c, eoi); }
@@ -530,19 +503,18 @@ void systemBus::reset_all_our_devices()
 
 void systemBus::setBitTiming(std::string set, int p1, int p2, int p3, int p4)
 {
-    uint8_t i = 0; // Send
-    if (mstr::equals(set, (char *)"r"))
-        i = 1;
-    if (p1)
-        protocol->bit_pair_timing[i][0] = p1;
-    if (p2)
-        protocol->bit_pair_timing[i][1] = p2;
-    if (p3)
-        protocol->bit_pair_timing[i][2] = p3;
-    if (p4)
-        protocol->bit_pair_timing[i][3] = p4;
+     uint8_t i = 0; // Send
+     if (mstr::equals(set, (char *) "r")) i = 1;
+    if (p1) protocol->bit_pair_timing[i][0] = p1;
+    if (p2) protocol->bit_pair_timing[i][1] = p2;
+    if (p3) protocol->bit_pair_timing[i][2] = p3;
+    if (p4) protocol->bit_pair_timing[i][3] = p4;
 
-    Debug_printv("i[%d] timing[%d][%d][%d][%d]", i, protocol->bit_pair_timing[i][0], protocol->bit_pair_timing[i][1], protocol->bit_pair_timing[i][2], protocol->bit_pair_timing[i][3]);
+    Debug_printv("i[%d] timing[%d][%d][%d][%d]", i,
+                    protocol->bit_pair_timing[i][0], 
+                    protocol->bit_pair_timing[i][1], 
+                    protocol->bit_pair_timing[i][2], 
+                    protocol->bit_pair_timing[i][3]);
 }
 
 void IRAM_ATTR systemBus::releaseLines(bool wait)

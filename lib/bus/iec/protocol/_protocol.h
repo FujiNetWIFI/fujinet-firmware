@@ -38,6 +38,12 @@
     })
 #endif /* !IEC_INVERTED_LINES */
 
+static uint64_t timer_start_us;
+#define timer_start()       timer_start_us = esp_timer_get_time()
+#define timer_elapsed()     esp_timer_get_time() - timer_start_us
+#define timer_wait(us)      while( (esp_timer_get_time()-timer_start_us) < ((int) (us+0.5)) )
+#define timer_timeout(us)   (esp_timer_get_time() - timer_start_us > us) 
+
 namespace Protocol
 {
     /**
@@ -50,32 +56,12 @@ namespace Protocol
 
         public:
 
-        // 2bit Fast Loader Pair Timing
+        // Fast Loader Pair Timing
         std::vector<std::vector<uint8_t>> bit_pair_timing = {
             {0, 0, 0, 0},    // Receive
             {0, 0, 0, 0}     // Send
         };
 
-        bool timer_timedout = false;
-        uint64_t timer_started = 0;
-        uint64_t timer_elapsed = 0;
-
-
-
-        /**
-         * ESP timer handle for the Interrupt rate limiting timer
-         */
-        esp_timer_handle_t timer_handle = nullptr;
-
-        /**
-         * @brief ctor
-         */
-        IECProtocol();
-
-        /**
-         * @brief dtor
-         */
-        ~IECProtocol();
 
         /**
          * @brief receive byte from bus
@@ -90,12 +76,6 @@ namespace Protocol
          * @return true if send was successful.
         */
         virtual bool sendByte(uint8_t b, bool signalEOI) = 0;
-
-        /*
-         * @brief Start timer
-        */
-        void timer_start(uint64_t timeout);
-        void timer_stop();
 
         int waitForSignals(int pin1, int state1, int pin2, int state2, int timeout);
         void transferDelaySinceLast(size_t minimumDelay);
