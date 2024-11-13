@@ -139,7 +139,12 @@ uint8_t CPBStandardSerial::receiveByte()
   // bit. When the talker figures the data has been held for a
   // sufficient length of time, it asserts the Clock line and releases
   // the Data line. Then it starts to prepare the next bit.
+
+#ifndef JIFFYDOS
+  for (idx = data = 0; !abort && idx < 8; idx++) {
+#else
   for (idx = data = 0; !abort && idx < 7; idx++) {
+#endif
     if ((abort = waitForSignals(PIN_IEC_CLK_IN, IEC_RELEASED, 0, 0, TIMEOUT_DEFAULT)))
       break;
 
@@ -152,6 +157,7 @@ uint8_t CPBStandardSerial::receiveByte()
     }
   }
 
+#ifdef JIFFYDOS
   // If there is a 218us delay before bit 7, the controller uses JiffyDOS
   if (waitForSignals(PIN_IEC_CLK_IN, IEC_RELEASED, 0, 0,
 		     TIMING_PROTOCOL_DETECT) == TIMED_OUT) {
@@ -163,6 +169,7 @@ uint8_t CPBStandardSerial::receiveByte()
 
     abort = waitForSignals(PIN_IEC_CLK_IN, IEC_RELEASED, 0, 0, TIMEOUT_DEFAULT);
   }
+#endif
 
   if (!abort) {
     // JiffyDOS check complete, Get last bit
