@@ -51,19 +51,19 @@ public:
     // readUntil = (delimiter = 0x00) => this.containerStream.readUntil(delimiter);
     virtual std::string readUntil( uint8_t delimiter = 0x00 )
     {
-        uint8_t b = 0, r = 0;
+        uint8_t b = 0, s = 0;
         std::string bytes = "";
         do
         {
-            r = containerStream->read( &b, 1 );
+            s = containerStream->read( &b, 1 );
+            _position += s;
             if ( b != delimiter )
             {
                 bytes += b;
-                _position++;
             }
             else
                 break;
-        } while ( r );
+        } while ( s );
 
         return bytes;
     }
@@ -81,20 +81,27 @@ public:
     // readStringUntil = (delimiter = 0x00) => this.containerStream.readStringUntil(delimiter);
     virtual std::string readStringUntil( uint8_t delimiter = '\0' )
     {
-        uint8_t b[1];
+        uint8_t b = 0;
         std::stringstream ss;
-        while( containerStream->read( b, 1 ) )
+        while( containerStream->read( &b, 1 ) )
         {
-            if ( b[0] == delimiter )
+            _position++;
+            if ( b == delimiter )
                 ss << b;
         }
         return ss.str();
     }
 
     // seek = (offset) => this.containerStream.seek(offset + this.media_header_size);
-    bool seek(uint32_t offset) override { return containerStream->seek(offset + media_header_size); }
+    bool seek(uint32_t offset) override {
+        _position = media_header_size + offset;
+        return containerStream->seek( _position ); 
+    }
     // seekCurrent = (offset) => this.containerStream.seekCurrent(offset);
-    bool seekCurrent(uint32_t offset) { return containerStream->seek(offset); }
+    bool seekCurrent(uint32_t offset) {
+        _position += offset;
+        return containerStream->seek( _position );
+    }
 
     bool seekPath(std::string path) override { return false; };
     std::string seekNextEntry() override { return ""; };
@@ -151,8 +158,8 @@ protected:
     virtual bool seekEntry( std::string filename ) { return false; };
     virtual bool seekEntry( uint16_t index ) { return false; };
 
-    virtual uint16_t readContainer(uint8_t *buf, uint16_t size);
-    virtual uint16_t readFile(uint8_t* buf, uint16_t size) = 0;
+    virtual uint32_t readContainer(uint8_t *buf, uint32_t size);
+    virtual uint32_t readFile(uint8_t* buf, uint32_t size) = 0;
     virtual std::string decodeType(uint8_t file_type, bool show_hidden = false);
     virtual std::string decodeType(std::string file_type);
 
@@ -193,7 +200,10 @@ private:
 class ImageBroker {
     static std::unordered_map<std::string, MMediaStream*> repo;
 public:
-    template<class T> static T* obtain(std::string url) {
+    template<class T> static T* obtain(std::string url) 
+    {
+        //Debug_printv("streams[%d] url[%s]", repo.size(), url.c_str());
+
         // obviously you have to supply STREAMFILE.url to this function!
         if(repo.find(url)!=repo.end()) {
             return (T*)repo.at(url);
@@ -201,21 +211,27 @@ public:
 
         // create and add stream to broker if not found
         auto newFile = MFSOwner::File(url);
+
         T* newStream = (T*)newFile->getSourceStream();
 
-        // Are we at the root of the pathInStream?
-        if ( newFile->pathInStream == "")
+        if ( newStream != nullptr )
         {
-            Debug_printv("DIRECTORY [%s]", url.c_str());
-        }
-        else
-        {
-            Debug_printv("SINGLE FILE [%s]", url.c_str());
+            // Are we at the root of the pathInStream?
+            if ( newFile->pathInStream == "")
+            {
+                Debug_printv("DIRECTORY [%s]", url.c_str());
+            }
+            else
+            {
+                Debug_printv("SINGLE FILE [%s]", url.c_str());
+            }
+
+            repo.insert(std::make_pair(url, newStream));
+            return newStream;
         }
 
-        repo.insert(std::make_pair(url, newStream));
         delete newFile;
-        return newStream;
+        return nullptr;
     }
 
     static MMediaStream* obtain(std::string url) {
@@ -228,6 +244,11 @@ public:
             repo.erase(url);
             delete toDelete;
         }
+        Debug_printv("streams[%d]", repo.size());
+    }
+
+    static void validate() {
+        
     }
 };
 

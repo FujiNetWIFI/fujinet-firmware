@@ -21,6 +21,7 @@
 
 #include "../meat_media.h"
 #include "string_utils.h"
+#include "utils.h"
 
 
 /********************************************************
@@ -226,7 +227,7 @@ public:
             partitions[partition].header_sector, 
             partitions[partition].header_offset 
         );
-        containerStream->read((uint8_t*)&header, sizeof(header));
+        readContainer((uint8_t*)&header, sizeof(header));
     }
     uint16_t getSectorCount( uint16_t track )
     {
@@ -242,7 +243,7 @@ public:
     }
 
     virtual bool seekPath(std::string path) override;
-    uint16_t readFile(uint8_t* buf, uint16_t size) override;
+    uint32_t readFile(uint8_t* buf, uint32_t size) override;
 
     Header header;      // Directory header data
     Entry entry;        // Directory entry data

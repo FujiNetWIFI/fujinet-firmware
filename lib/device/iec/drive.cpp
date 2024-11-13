@@ -1,3 +1,21 @@
+// Meatloaf - A Commodore 64/128 multi-device emulator
+// https://github.com/idolpx/meatloaf
+// Copyright(C) 2020 James Johnston
+//
+// Meatloaf is free software : you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Meatloaf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
+
+
 #ifdef BUILD_IEC
 
 #include "drive.h"
@@ -11,15 +29,12 @@
 
 #include "make_unique.h"
 
-#include "fuji.h"
 #include "fnFsSD.h"
 #include "led.h"
 #include "utils.h"
 
 #include "meat_media.h"
 
-// External ref to fuji object.
-extern iecFuji theFuji;
 
 iecDrive::iecDrive()
 {
@@ -28,6 +43,12 @@ iecDrive::iecDrive()
 
     _base.reset( MFSOwner::File("/") );
     _last_file = "";
+}
+
+iecDrive::~iecDrive()
+{
+    // if (_base != nullptr)
+    //     delete _base;
 }
 
 // Read disk data and send to computer
@@ -68,12 +89,6 @@ mediatype_t iecDrive::mount(FILE *f, const char *filename, uint32_t disksize, me
     return MediaType::discover_mediatype(filename); // MEDIATYPE_UNKNOWN
 }
 
-// Destructor
-iecDrive::~iecDrive()
-{
-    // if (_base != nullptr)
-    //     delete _base;
-}
 
 // Unmount disk file
 void iecDrive::unmount()
@@ -134,14 +149,21 @@ device_state_t iecDrive::readChannel(/*int chan*/)
 
 device_state_t iecDrive::writeChannel(/*int chan, IECPayload &payload*/)
 {
-  if (_base == nullptr) {
-    IEC.senderTimeout();
-    return state;
-  }
-  Debug_printv("url[%s]", _base->url.c_str());
+    if (_base == nullptr) {
+        IEC.senderTimeout();
+        return state;
+    }
+    Debug_printv("url[%s]", _base->url.c_str());
 
-  saveFile();
-  return state;
+    if (commanddata.channel == CHANNEL_COMMAND)
+    {
+        iec_command();
+    }
+    else
+    {
+        saveFile();
+    }
+    return state;
 }
 #else
 // Process command
@@ -250,9 +272,6 @@ void iecDrive::process_channel()
 
 void iecDrive::iec_open()
 {
-    if ( commanddata.primary == IEC_UNLISTEN )
-        return;
-
     pt = util_tokenize(payload, ',');
     if ( pt.size() > 1 )
     {
@@ -262,6 +281,11 @@ void iecDrive::iec_open()
 
     Debug_printv("_base[%s] payload[%s]", _base->url.c_str(), payload.c_str());
 
+    if ( mstr::startsWith(payload, "@") )
+    {
+        // Remove @? [blueangels-xiphoid.d64]
+        payload = mstr::drop(payload, 1);
+    }
     if ( mstr::startsWith(payload, "0:") )
     {
         // Remove media ID from command string
@@ -753,17 +777,17 @@ bool iecDrive::registerStream ( uint8_t channel )
     auto newPair = std::make_pair ( channel, new_stream );
     streams.insert ( newPair );
 
-    Debug_printv("Stream created. key[%d] count[%d]", channel, streams.bucket_count());
+    Debug_printv("Stream created. key[%d] count[%d]", channel, streams.size());
     return true;
 }
 
 std::shared_ptr<MStream> iecDrive::retrieveStream ( uint8_t channel )
 {
-    Debug_printv("Stream key[%d]", channel);
+    //Debug_printv("Stream key[%d]", channel);
 
     if ( streams.find ( channel ) != streams.end() )
     {
-        Debug_printv("Stream retrieved. key[%d] count[%d]", channel, streams.bucket_count());
+        Debug_printv("Stream retrieved. key[%d] count[%d]", channel, streams.size());
         return streams.at ( channel );
     }
     else
@@ -779,9 +803,9 @@ bool iecDrive::closeStream ( uint8_t channel, bool close_all )
 
     if ( found != streams.end() )
     {
-        Debug_printv("Stream closed. key[%d] count[%d]", channel, streams.bucket_count());
         auto closingStream = (*found).second;
-        closingStream->close();
+        ImageBroker::dispose(closingStream->url);
+        Debug_printv("Stream closed. key[%d] count[%d] url[%s]", channel, streams.size(), closingStream->url.c_str());
         return streams.erase ( channel );
     }
 
@@ -884,6 +908,10 @@ uint16_t iecDrive::sendHeader(std::string header, std::string id)
     archive = mstr::toPETSCII2(archive);
     std::string image = _base->media_image;
     image = mstr::toPETSCII2(image);
+
+    if ( image.size() )
+        mstr::replaceAll(path, image, "");
+
     //Debug_printv("path[%s] size[%d]", path.c_str(), path.size());
 
     // Send List HEADER
@@ -1048,7 +1076,7 @@ void iecDrive::sendListing()
         if (!entry->isDirectory())
         {
             // Get extension
-            if (entry->extension.length())
+            if (entry->extension.size() > 1)
             {
                 extension = entry->extension;
 
@@ -1060,12 +1088,12 @@ void iecDrive::sendListing()
             }
             else
             {
-                extension = "prg";
+                extension = " prg";
             }
         }
         else
         {
-            extension = "dir";
+            extension = " dir";
         }
 
         // Don't show hidden folders or files
@@ -1100,7 +1128,7 @@ void iecDrive::sendListing()
 
         if (name[0]!='.')
         {
-            byte_count += sendLine(block_cnt, "%*s\"%s\"%*s %s", block_spc, "", name.c_str(), space_cnt, "", extension.c_str());
+            byte_count += sendLine(block_cnt, "%*s\"%s\"%*s%s", block_spc, "", name.c_str(), space_cnt, "", extension.c_str());
         }
 
         entry.reset(_base->getNextFileInDir());
@@ -1126,7 +1154,6 @@ void iecDrive::sendListing()
 bool iecDrive::sendFile()
 {
     uint32_t count = 0, startpos;
-    bool success_rx = true;
 
     uint8_t buf[128];
     uint16_t load_address = 0;
@@ -1145,6 +1172,7 @@ bool iecDrive::sendFile()
         return false;
     }
 
+    Debug_printv("stream_url[%s]", istream->url.c_str());
     Debug_printv("size[%d] avail[%d] pos[%d]", istream->size(), istream->available(), istream->position());
 
     if ( !_base->isDirectory() )
@@ -1189,9 +1217,9 @@ bool iecDrive::sendFile()
 
     startpos = istream->position();
     Serial.printf("\r\nsendFile: [$%.4X] pos[%d]\r\n=================================\r\n", load_address, startpos);
-    while( success_rx && !istream->error() )
+    while( !istream->error() )
     {
-        //Debug_printv("b[%02X] nb[%02X] success_rx[%d] error[%d] count[%d] avail[%d]", b, nb, success_rx, istream->error(), count, avail);
+        //Debug_printv("b[%02X] nb[%02X] error[%d] count[%d] avail[%d]", b, nb, istream->error(), count, avail);
 #ifdef DATA_STREAM
         if (bi == 0)
         {
@@ -1214,6 +1242,8 @@ bool iecDrive::sendFile()
         {
             eoi = true;
         }
+
+        //Debug_printv("size[%d] avail[%d] pos[%d] len[%d] eoi[%d]", istream->size(), istream->available(), istream->position(), len, eoi);
 
         // Send Bytes
         written = IEC.sendBytes((const char *) buf, len, eoi);
@@ -1260,9 +1290,9 @@ bool iecDrive::sendFile()
     t_end -= t_start;
     double seconds = t_end / 1000000.0;
     double cps = (count - startpos) / seconds;
-    Serial.printf("=================================\r\n%d bytes sent of %d @ %0.2fcps[SYS%d]\r\n\r\n", count, size, cps, sys_address);
+    Serial.printf("\r\n=================================\r\n%d bytes sent of %d @ %0.2fcps [SYS%d]\r\n\r\n", count, size, cps, sys_address);
 
-    //Debug_printv("len[%d] avail[%d] success_rx[%d]", len, avail, success_rx);
+    //Debug_printv("len[%d] avail[%d]", len, avail);
 
     //fnLedManager.set(eLed::LED_BUS, false);
     //fnLedStrip.stopRainbow();
@@ -1272,9 +1302,10 @@ bool iecDrive::sendFile()
         Serial.println("sendFile: Transfer aborted!");
         IEC.senderTimeout();
         closeStream(commanddata.channel);
+        return false;
     }
 
-    return success_rx;
+    return true;
 } // sendFile
 
 

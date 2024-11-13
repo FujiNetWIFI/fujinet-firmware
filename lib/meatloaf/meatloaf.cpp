@@ -198,7 +198,8 @@ MFile* MFSOwner::File(std::string path) {
 
     auto foundFS = testScan(begin, end, pathIterator);
 
-    if(foundFS != nullptr) {
+    if ( foundFS != nullptr )
+    {
         //Debug_printv("PATH: '%s' is in FS [%s]", path.c_str(), foundFS->symbol);
         auto newFile = foundFS->getFile(path);
         //Debug_printv("newFile: '%s'", newFile->url.c_str());
@@ -222,7 +223,8 @@ MFile* MFSOwner::File(std::string path) {
 
             auto upperFS = testScan(begin, end, pathIterator);
 
-            if(upperFS != nullptr) {
+            if ( upperFS != nullptr )
+            {
                 auto wholePath = mstr::joinToString(&begin, &endHere, "/");
 
                 //auto cp = mstr::joinToString(&begin, &pathIterator, "/");
@@ -230,13 +232,16 @@ MFile* MFSOwner::File(std::string path) {
                 newFile->streamFile = upperFS->getFile(wholePath); // skończy się na d64
                 //Debug_printv("CONTAINER: '%s' is in FS [%s]", newFile->streamFile->url.c_str(), upperFS->symbol);
             }
-            else {
-                Debug_printv("WARNING!!!! CONTAINER FAILED FOR: '%s'", upperPath.c_str());
+            else
+            {
+                //Debug_printv("WARNING!!!! CONTAINER FAILED FOR: '%s'", upperPath.c_str());
             }
         }
 
         return newFile;
     }
+
+    Debug_printv("Not Found! path[%s]", path.c_str());
 
     return nullptr;
 }
@@ -351,27 +356,37 @@ bool MFile::operator!=(nullptr_t ptr) {
 }
 
 MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
+
+    if ( streamFile == nullptr )
+        return nullptr;
+
     // has to return OPENED stream
-    Debug_printv("pathInStream[%s] streamFile[%s]", pathInStream.c_str(), streamFile->url.c_str());
+    //Debug_printv("pathInStream[%s] streamFile[%s]", pathInStream.c_str(), streamFile->url.c_str());
     //std::shared_ptr<MFile> containerFile(MFSOwner::File(streamPath)); // get the base file that knows how to handle this kind of container, i.e 7z
 
+
+    auto sourceStream = streamFile->getSourceStream(mode);
+    if ( sourceStream == nullptr )
+        return nullptr;
+
     // will be replaced by streamBroker->getSourceStream(streamFile, mode)
-    std::shared_ptr<MStream> containerStream(streamFile->getSourceStream(mode)); // get its base stream, i.e. zip raw file contents
-    Debug_printv("containerStream isRandomAccess[%d] isBrowsable[%d]", containerStream->isRandomAccess(), containerStream->isBrowsable());
+    std::shared_ptr<MStream> containerStream(sourceStream); // get its base stream, i.e. zip raw file contents
+
+    //Debug_printv("containerStream isRandomAccess[%d] isBrowsable[%d]", containerStream->isRandomAccess(), containerStream->isBrowsable());
 
     // will be replaced by streamBroker->getDecodedStream(this, mode, containerStream)
     MStream* decodedStream(getDecodedStream(containerStream)); // wrap this stream into decoded stream, i.e. unpacked zip files
     decodedStream->url = this->url;
-    Debug_printv("decodedStream isRandomAccess[%d] isBrowsable[%d]", decodedStream->isRandomAccess(), decodedStream->isBrowsable());
+    //Debug_printv("decodedStream isRandomAccess[%d] isBrowsable[%d]", decodedStream->isRandomAccess(), decodedStream->isBrowsable());
 
-    Debug_printv("pathInStream [%s]", pathInStream.c_str());
+    //Debug_printv("pathInStream [%s]", pathInStream.c_str());
 
     if(decodedStream->isRandomAccess() && pathInStream != "") {
         bool foundIt = decodedStream->seekPath(this->pathInStream);
 
         if(!foundIt)
         {
-            Debug_printv("path in stream not found");
+            //Debug_printv("path in stream not found");
             return nullptr;
         }        
     }
@@ -383,14 +398,14 @@ MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
             if(mstr::compare(this->pathInStream, pointedFile))
             {
                 //Debug_printv("returning decodedStream");
-                return decodedStream;                
+                return decodedStream;
             }
 
             pointedFile = decodedStream->seekNextEntry();
         }
-        Debug_printv("path in stream not found!");
+        //Debug_printv("path in stream not found!");
         if(pointedFile.empty())
-            return nullptr;        
+            return nullptr;
     }
 
     //Debug_printv("returning decodedStream");
@@ -399,9 +414,7 @@ MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
 
 MFile* MFile::cd(std::string newDir) 
 {
-    Debug_printv("cd requested: [%s]", newDir.c_str());
-    if ( streamFile != nullptr)
-        Debug_printv("streamFile[%s]", streamFile->url.c_str());
+    Debug_printv("cd[%s]", newDir.c_str());
 
     // OK to clarify - coming here there should be ONLY path or magicSymbol-path combo!
     // NO "cd:xxxxx", no "/cd:xxxxx" ALLOWED here! ******************
@@ -457,7 +470,7 @@ MFile* MFile::cd(std::string newDir)
     {
         // user entered: CD:^ or CD^ 
         // means: change to flash root
-        return MFSOwner::File("/");
+        return cdRoot(mstr::drop(newDir,1));
     }
     else 
     {
@@ -466,8 +479,6 @@ MFile* MFile::cd(std::string newDir)
         // Add new directory to path
         if ( !mstr::endsWith(url, "/") && newDir.size() )
             url.push_back('/');
-
-        Debug_printv("> url[%s] newDir[%s]", url.c_str(), newDir.c_str());
 
         // Add new directory to path
         MFile* newPath = MFSOwner::File(url + newDir);
@@ -478,7 +489,6 @@ MFile* MFile::cd(std::string newDir)
             //auto reader = Meat::New<MFile>(newDir);
             //auto istream = reader->getSourceStream();
             Meat::iostream reader(newPath);
-
 
             //uint8_t url[istream->size()]; // NOPE, streams have no size!
             //istream->read(url, istream->size());
@@ -491,9 +501,11 @@ MFile* MFile::cd(std::string newDir)
             delete newPath;
             newPath = MFSOwner::File(url);
         }
-        
+
         return newPath;
     }
+
+    return nullptr;
 };
 
 
@@ -580,6 +592,11 @@ MFile* MFile::cdLocalRoot(std::string plus)
 
 //     return true;
 // };
+
+bool MFile::exists() { 
+    Debug_printv("here!");
+    return _exists; 
+};
 
 uint64_t MFile::getAvailableSpace()
 {

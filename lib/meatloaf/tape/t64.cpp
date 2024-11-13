@@ -89,8 +89,8 @@ bool T64MStream::seekEntry( uint16_t index )
 }
 
 
-uint16_t T64MStream::readFile(uint8_t* buf, uint16_t size) {
-    uint16_t bytesRead = 0;
+uint32_t T64MStream::readFile(uint8_t* buf, uint32_t size) {
+    uint32_t bytesRead = 0;
 
     if ( _position < 2)
     {

@@ -77,6 +77,9 @@ public:
     };
 
     virtual uint32_t available() {
+        if ( _position > _size )
+            return 0;
+
         return _size - _position;
     };
 
@@ -93,8 +96,8 @@ public:
     }
 
     virtual bool eos()  {
-        //Debug_printv("_size[%d] m_bytesAvailable[%d] _position[%d]", _size, available(), _position);
-        if ( available() == 0 )
+        //Debug_printv("_size[%d] _available[%d] _position[%d]", _size, available(), _position);
+        if ( available() <= 0 )
             return true;
         
         return false;
@@ -194,8 +197,7 @@ public:
     virtual bool rewindDirectory() = 0 ;
     virtual MFile* getNextFileInDir() = 0 ;
     virtual bool mkDir() = 0 ;    
-
-    virtual bool exists() { return _exists; };
+    virtual bool exists();
     virtual bool remove() = 0;
     virtual bool rename(std::string dest) = 0;    
     virtual time_t getLastWrite() = 0 ;
