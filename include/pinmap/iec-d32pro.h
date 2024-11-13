@@ -42,28 +42,18 @@
 #define PIN_LED_BT              GPIO_NUM_5  // LOLIN D32 PRO
 #endif
 
-/* Audio Output */
-#define PIN_DAC1                GPIO_NUM_25 // samlib.h
-
 /* Commodore IEC Pins */
 #define IEC_HAS_RESET // Reset line is available
 
 #define PIN_IEC_RESET           GPIO_NUM_34
 #define PIN_IEC_ATN             GPIO_NUM_32
 #define PIN_IEC_CLK_IN          GPIO_NUM_33
-#define PIN_IEC_CLK_OUT         GPIO_NUM_33
+#define PIN_IEC_CLK_OUT         PIN_IEC_CLK_IN
 #define PIN_IEC_DATA_IN         GPIO_NUM_25
-#define PIN_IEC_DATA_OUT        GPIO_NUM_25
+#define PIN_IEC_DATA_OUT        PIN_IEC_DATA_IN
 #define PIN_IEC_SRQ             GPIO_NUM_26
 
-/* Color Computer */
-#define PIN_CASS_MOTOR          GPIO_NUM_34 // Second motor pin is tied to +3V
-#define PIN_CASS_DATA_IN        GPIO_NUM_33
-#define PIN_CASS_DATA_OUT       GPIO_NUM_26
-
-#define PIN_SERIAL_CD           GPIO_NUM_32
-#define PIN_SERIAL_RX           GPIO_NUM_9  // fnUartBUS
-#define PIN_SERIAL_TX           GPIO_NUM_10
+#define PIN_DEBUG		PIN_IEC_SRQ
 
 #endif // PINMAP_IEC_D32PRO
 #endif // PINMAP_LOLIN_D32_PRO_H

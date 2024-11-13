@@ -24,13 +24,19 @@ class iecCpm : public virtualDevice
      */
     ~iecCpm();
 
+#if 0
     /**
      * @brief Process command fanned out from bus
      * @return new device state
      */
     device_state_t process() override;
+#endif
 
     protected:
+    virtual device_state_t openChannel(/*int chan, IECPayload &payload*/) override;
+    virtual device_state_t closeChannel(/*int chan*/) override;
+    virtual device_state_t readChannel(/*int chan*/) override;
+    virtual device_state_t writeChannel(/*int chan, IECPayload &payload*/) override;
 
     private:
 
