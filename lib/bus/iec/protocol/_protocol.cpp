@@ -60,7 +60,6 @@ int IRAM_ATTR IECProtocol::waitForSignals(int pin1, int state1,
   uint64_t start, now, elapsed;
   int abort = 0;
 
-
   start = esp_timer_get_time();
   for (;;) {
     if (IEC_IS_ASSERTED(pin1) == state1)
