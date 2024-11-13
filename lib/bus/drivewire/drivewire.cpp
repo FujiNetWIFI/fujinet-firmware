@@ -53,7 +53,7 @@ static void IRAM_ATTR drivewire_isr_handler(void *arg)
  * Static callback function for the DriveWire state machine.
  */
 #ifdef ESP_PLATFORM
-void onDriveWireStateMachineTimer(void *info)
+void onTimer(void *info)
 {
     systemBus *parent = (systemBus *)info;
     parent->resetState();
@@ -68,7 +68,7 @@ void systemBus::timer_start()
 #ifdef ESP_PLATFORM
     esp_timer_create_args_t tcfg;
     tcfg.arg = this;
-    tcfg.callback = onDriveWireStateMachineTimer;
+    tcfg.callback = onTimer;
     tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
     tcfg.name = nullptr;
     esp_timer_create(&tcfg, &stateMachineRecoveryTimerHandle);
@@ -949,6 +949,11 @@ void systemBus::service()
 #ifdef ESP_PLATFORM
 #else
     uint64_t ms = fnSystem.millis();
+#if 0
+    if (ms % 100 == 0) {
+        Debug_printv("MS = %ld, lastInterruptMs = %ld, TIMER = %ld\n", ms, lastInterruptMs, (timerActive == true && ms - lastInterruptMs >= timerRate));
+    }
+#endif
     if (timerActive == true && ms - lastInterruptMs >= timerRate)
     {
         Debug_printv("State Reset Timer INVOKED!\n");
