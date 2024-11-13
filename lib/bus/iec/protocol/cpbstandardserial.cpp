@@ -318,7 +318,7 @@ bool CPBStandardSerial::sendByte(uint8_t data, bool eoi)
     else
       IEC_ASSERT(PIN_IEC_DATA_OUT);
 
-    usleep(TIMING_Ts0 + TIMING_Ts1);
+    usleep(TIMING_Ts);
     IEC_RELEASE(PIN_IEC_CLK_OUT);
     usleep(Tv);
     IEC_RELEASE(PIN_IEC_DATA_OUT);
