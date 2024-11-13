@@ -96,7 +96,7 @@ uint8_t  JiffyDOS::receiveByte ()
     usleep ( bit_pair_timing[0][1] );
     if ( IEC_IS_ASSERTED( PIN_IEC_CLK_IN ) ) data |=  0b01000000; // 0
     if ( IEC_IS_ASSERTED( PIN_IEC_DATA_IN ) ) data |= 0b10000000; // 0
-    IEC_RELEASE( PIN_IEC_SRQ );
+    IEC_RELEASE(PIN_DEBUG);
 
     // get bits 3,1
     usleep ( bit_pair_timing[0][2] );
@@ -108,7 +108,7 @@ uint8_t  JiffyDOS::receiveByte ()
     usleep ( bit_pair_timing[0][3] );
     if ( IEC_IS_ASSERTED( PIN_IEC_CLK_IN ) )  data |= 0b00000100; // 1
     if ( IEC_IS_ASSERTED( PIN_IEC_DATA_IN ) ) data |= 0b00000001; // 0
-    IEC_RELEASE( PIN_IEC_SRQ );
+    IEC_RELEASE(PIN_DEBUG);
 
     // Check CLK for EOI
     usleep ( 12 );
@@ -122,7 +122,7 @@ uint8_t  JiffyDOS::receiveByte ()
     IEC_ASSERT( PIN_IEC_DATA_OUT );
     usleep ( 10 );
 
-    //IEC_RELEASE( PIN_IEC_SRQ );
+    //IEC_RELEASE(PIN_DEBUG);
 
     //Debug_printv("data[%02X] eoi[%d]", data, eoi); // $ = 0x24
 
@@ -191,7 +191,7 @@ bool JiffyDOS::sendByte ( uint8_t data, bool signalEOI )
     // Check CLK for EOI
     ( signalEOI ) ? IEC_ASSERT( PIN_IEC_CLK_OUT ) : IEC_RELEASE( PIN_IEC_CLK_OUT );
     usleep ( 13 );
-    //IEC_RELEASE( PIN_IEC_SRQ );
+    //IEC_RELEASE(PIN_DEBUG);
 
     // Acknowledge byte received
     // If we want to indicate an error we can release DATA

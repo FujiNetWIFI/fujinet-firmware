@@ -62,7 +62,7 @@ void IRAM_ATTR systemBus::cbm_on_atn_isr_handler()
         releaseLines();
         IEC_SET_STATE(BUS_IDLE);
     }
-    //IEC_RELEASE(PIN_IEC_SRQ);
+    //IEC_RELEASE(PIN_DEBUG);
 }
 
 static void IRAM_ATTR cbm_on_clk_isr_forwarder(void *arg)
@@ -77,15 +77,6 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
     //IEC_ASSERT(PIN_IEC_SRQ);
     int atn, val;
     int cmd, dev;
-    static bool skip = false;
-
-    if (skip)
-    {
-        skip = false;
-        IEC_SET_STATE(BUS_IDLE);
-        //IEC_RELEASE(PIN_IEC_SRQ);
-        return;
-    }
 
     if (_state < BUS_ACTIVE)
         return;
@@ -113,7 +104,6 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
                     // Handle releaseLines() when ATN is released outside of this
                     // interrupt to prevent watchdog timeout
                     IEC_SET_STATE(BUS_RELEASE);
-                    skip = true;
                 }
                 else
                 {
@@ -166,7 +156,7 @@ void IRAM_ATTR systemBus::cbm_on_clk_isr_handler()
 
 done:
     gpio_intr_enable(PIN_IEC_CLK_IN);
-    //IEC_RELEASE(PIN_IEC_SRQ);
+    //IEC_RELEASE(PIN_DEBUG);
     return;
 }
 
@@ -458,7 +448,7 @@ void systemBus::assert_interrupt()
     if (interruptSRQ)
         IEC_ASSERT(PIN_IEC_SRQ);
     else
-        IEC_RELEASE(PIN_IEC_SRQ);
+        IEC_RELEASE(PIN_DEBUG);
 }
 
 bool systemBus::sendByte(const char c, bool eoi) { return protocol->sendByte(c, eoi); }
