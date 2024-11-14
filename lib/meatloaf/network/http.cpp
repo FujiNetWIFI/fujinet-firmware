@@ -282,13 +282,13 @@ bool MeatHttpClient::seek(uint32_t pos) {
         if (_is_open) {
             // Read to end of the stream
             //Debug_printv("Skipping to end!");
-            char c[255];
-            while( esp_http_client_read(_http, c, 255) );
+            char c[256];
+            while( esp_http_client_read(_http, c, 256) > 0 );
         }
 
         bool op = processRedirectsAndOpen(pos);
 
-        Debug_printv("SEEK in HttpIStream %s: range request RC=%d", url.c_str(), lastRC);
+        //Debug_printv("SEEK in HttpIStream %s: range request RC=%d", url.c_str(), lastRC);
         
         if(!op)
             return false;
@@ -296,7 +296,7 @@ bool MeatHttpClient::seek(uint32_t pos) {
          // 200 = range not supported! according to https://developer.mozilla.org/en-US/docs/Web/HTTP/Range_requests
         if(lastRC == 206)
         {
-            Debug_printv("Seek successful");
+            //Debug_printv("Seek successful");
 
             _position = pos;
             return true;
@@ -401,8 +401,9 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
 
     if(resume > 0) {
         char str[40];
-        snprintf(str, sizeof str, "bytes=%lu-%lu", (unsigned long)resume, ((unsigned long)resume + HTTP_BLOCK_SIZE));
+        snprintf(str, sizeof str, "bytes=%lu-", (unsigned long)resume);
         esp_http_client_set_header(_http, "range", str);
+        //Debug_printv("seeking range[%s]", str);
     }
 
     //Debug_printv("--- PRE OPEN");
