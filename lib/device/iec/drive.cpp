@@ -1155,7 +1155,7 @@ bool iecDrive::sendFile()
 {
     uint32_t count = 0, startpos;
 
-    uint8_t buf[128];
+    uint8_t buf[256];
     uint16_t load_address = 0;
     uint16_t sys_address = 0;
 
