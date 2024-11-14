@@ -278,7 +278,13 @@ bool MeatHttpClient::seek(uint32_t pos) {
         return true;
 
     if(isFriendlySkipper) {
-        esp_http_client_close(_http);
+
+        if (_is_open) {
+            // Read to end of the stream
+            //Debug_printv("Skipping to end!");
+            char c[255];
+            while( esp_http_client_read(_http, c, 255) );
+        }
 
         bool op = processRedirectsAndOpen(pos);
 
@@ -395,27 +401,26 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t meth, int resum
 
     if(resume > 0) {
         char str[40];
-        snprintf(str, sizeof str, "bytes=%lu-", (unsigned long)resume);
+        snprintf(str, sizeof str, "bytes=%lu-%lu", (unsigned long)resume, ((unsigned long)resume + HTTP_BLOCK_SIZE));
         esp_http_client_set_header(_http, "range", str);
     }
 
     //Debug_printv("--- PRE OPEN");
-    esp_err_t initOk = esp_http_client_open(_http, 0); // or open? It's not entirely clear...
+    esp_err_t rc = esp_http_client_open(_http, 0); // or open? It's not entirely clear...
 
-    if(initOk == ESP_FAIL)
-        return 0;
+    if (rc == ESP_OK)
+    {
+        //Debug_printv("--- PRE FETCH HEADERS");
 
-    //Debug_printv("--- PRE FETCH HEADERS");
-
-    int64_t lengthResp = esp_http_client_fetch_headers(_http);
-    if(_size == -1 && lengthResp > 0) {
-        // only if we aren't chunked!
-        _size = lengthResp;
-        _position = 0;
+        int64_t lengthResp = esp_http_client_fetch_headers(_http);
+        if(_size == -1 && lengthResp > 0) {
+            // only if we aren't chunked!
+            _size = lengthResp;
+            _position = 0;
+        }
     }
 
     //Debug_printv("--- PRE GET STATUS CODE");
-
     return esp_http_client_get_status_code(_http);
 }
 
