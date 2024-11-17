@@ -1,5 +1,6 @@
-#include "cs.h"
+#include "csip.h"
 
+#include "meatloaf.h"
 #include "make_unique.h"
 
 /********************************************************
@@ -8,9 +9,9 @@
 // fajna sciezka do sprawdzenia:
 // utilities/disk tools/cie.d64
 
-CServerSessionMgr CServerFileSystem::session;
+CSIPMSessionMgr CSIPMFileSystem::session;
 
-bool CServerSessionMgr::establishSession() {
+bool CSIPMSessionMgr::establishSession() {
     if(!buf.is_open()) {
         currentDir = "cs:/";
         buf.open();
@@ -19,7 +20,7 @@ bool CServerSessionMgr::establishSession() {
     return buf.is_open();
 }
 
-std::string CServerSessionMgr::readLn() {
+std::string CSIPMSessionMgr::readLn() {
     char buffer[80];
     // telnet line ends with 10;
     getline(buffer, 80, 10);
@@ -27,11 +28,11 @@ std::string CServerSessionMgr::readLn() {
     return std::string((char *)buffer);
 }
 
-bool CServerSessionMgr::sendCommand(std::string command) {
+bool CSIPMSessionMgr::sendCommand(std::string command) {
     std::string c = mstr::toPETSCII2(command);
     // 13 (CR) sends the command
     if(establishSession()) {
-        Serial.printf("CServer: send command: %s\r\n", c.c_str());
+        Serial.printf("CSIP: send command: %s\r\n", c.c_str());
         (*this) << (c+'\r');
         (*this).flush();
         return true;
@@ -40,7 +41,7 @@ bool CServerSessionMgr::sendCommand(std::string command) {
         return false;
 }
 
-bool CServerSessionMgr::isOK() {
+bool CSIPMSessionMgr::isOK() {
     // auto a = readLn();
 
     auto reply = readLn();
@@ -54,7 +55,7 @@ bool CServerSessionMgr::isOK() {
     return equals;
 }
 
-bool CServerSessionMgr::traversePath(MFile* path) {
+bool CSIPMSessionMgr::traversePath(MFile* path) {
     // tricky. First we have to
     // CF / - to go back to root
 
@@ -132,38 +133,38 @@ bool CServerSessionMgr::traversePath(MFile* path) {
  ********************************************************/
 
 
-void CServerIStream::close() {
+void CSIPMStream::close() {
     _is_open = false;
 };
 
-bool CServerIStream::open() {
-    auto file = std::make_unique<CServerFile>(url);
+bool CSIPMStream::open(std::ios_base::openmode mode) {
+    auto file = std::make_unique<CSIPMFile>(url);
     _is_open = false;
 
     if(file->isDirectory())
         return false; // or do we want to stream whole d64 image? :D
 
-    if(CServerFileSystem::session.traversePath(file.get())) {
+    if(CSIPMFileSystem::session.traversePath(file.get())) {
         // should we allow loading of * in any directory?
         // then we can LOAD and get available count from first 2 bytes in (LH) endian
         // name here MUST BE UPPER CASE
         // trim spaces from right of name too
         mstr::rtrimA0(file->name);
         //mstr::toPETSCII2(file->name);
-        CServerFileSystem::session.sendCommand("load "+file->name);
+        CSIPMFileSystem::session.sendCommand("load "+file->name);
         // read first 2 bytes with size, low first, but may also reply with: ?500 - ERROR
         uint8_t buffer[2] = { 0, 0 };
         read(buffer, 2);
         // hmmm... should we check if they're "?5" for error?!
         if(buffer[0]=='?' && buffer[1]=='5') {
-            Debug_printv("CServer: open file failed");
-            CServerFileSystem::session.readLn();
+            Debug_printv("CSIP: open file failed");
+            CSIPMFileSystem::session.readLn();
             _is_open = false;
         }
         else {
             _size = buffer[0] + buffer[1]*256; // put len here
             // if everything was ok
-            Serial.printf("CServer: file open, size: %d\r\n", _size);
+            Serial.printf("CSIP: file open, size: %d\r\n", _size);
             _is_open = true;
         }
     }
@@ -173,19 +174,19 @@ bool CServerIStream::open() {
 
 // MStream methods
 
-uint32_t CServerIStream::write(const uint8_t *buf, uint32_t size) {
+uint32_t CSIPMStream::write(const uint8_t *buf, uint32_t size) {
     return -1;
 }
 
-uint32_t CServerIStream::read(uint8_t* buf, uint32_t size)  {
-    //Debug_printv("CServerIStream::read");
-    auto bytesRead = CServerFileSystem::session.receive(buf, size);
+uint32_t CSIPMStream::read(uint8_t* buf, uint32_t size)  {
+    //Debug_printv("CSIPMStream::read");
+    auto bytesRead = CSIPMFileSystem::session.receive(buf, size);
     _position+=bytesRead;
     //ledTogg(true);
     return bytesRead;
 };
 
-bool CServerIStream::isOpen() {
+bool CSIPMStream::isOpen() {
     return _is_open;
 }
 
@@ -195,7 +196,7 @@ bool CServerIStream::isOpen() {
  ********************************************************/
 
 
-// MFile* CServerFile::cd(std::string newDir) {
+// MFile* CSIPMFile::cd(std::string newDir) {
 //     // maah - don't really know how to handle this!
 
 //     // Drop the : if it is included
@@ -204,7 +205,7 @@ bool CServerIStream::isOpen() {
 //         newDir = mstr::drop(newDir,1);
 //     }
 
-//     Debug_printv("cd in CServerFile! New dir [%s]\r\n", newDir.c_str());
+//     Debug_printv("cd in CSIPMFile! New dir [%s]\r\n", newDir.c_str());
 //     if(newDir[0]=='/' && newDir[1]=='/') {
 //         if(newDir.size()==2) {
 //             // user entered: CD:// or CD//
@@ -293,7 +294,7 @@ bool CServerIStream::isOpen() {
 // };
 
 
-bool CServerFile::isDirectory() {
+bool CSIPMFile::isDirectory() {
     // if penultimate part is .d64 - it is a file
     // otherwise - false
 
@@ -322,13 +323,22 @@ bool CServerFile::isDirectory() {
     return false;
 };
 
-MStream* CServerFile::getSourceStream(std::ios_base::openmode mode) {
-    MStream* istream = new CServerIStream(url);
-    istream->open();   
+MStream* CSIPMFile::getSourceStream(std::ios_base::openmode mode) {
+    //MStream* istream = new CSIPMStream(url);
+    auto istream = StreamBroker::obtain<CSIPMStream>(url, mode);
+    istream->open(mode);   
     return istream;
-}; 
+};
 
-bool CServerFile::rewindDirectory() {    
+
+
+MStream* CSIPMFile::createStream(std::ios_base::openmode mode)
+{
+    MStream* istream = new CSIPMStream(url);
+    return istream;
+}
+
+bool CSIPMFile::rewindDirectory() {    
     dirIsOpen = false;
 
     if(!isDirectory())
@@ -337,7 +347,7 @@ bool CServerFile::rewindDirectory() {
 
     Debug_printv("pre traverse path");
 
-    if(!CServerFileSystem::session.traversePath(this)) return false;
+    if(!CSIPMFileSystem::session.traversePath(this)) return false;
 
     Debug_printv("post traverse path");
 
@@ -346,12 +356,12 @@ bool CServerFile::rewindDirectory() {
         dirIsImage = true;
         // to list image contents we have to run
         Debug_printv("cserver: this is a d64 img, sending $ command!");
-        CServerFileSystem::session.sendCommand("$");
-        auto line = CServerFileSystem::session.readLn(); // mounted image name
-        if(CServerFileSystem::session.is_open()) {
+        CSIPMFileSystem::session.sendCommand("$");
+        auto line = CSIPMFileSystem::session.readLn(); // mounted image name
+        if(CSIPMFileSystem::session.is_open()) {
             dirIsOpen = true;
             media_image = line.substr(5);
-            line = CServerFileSystem::session.readLn(); // dir header
+            line = CSIPMFileSystem::session.readLn(); // dir header
             media_header = line.substr(2, line.find_last_of("\""));
             media_id = line.substr(line.find_last_of("\"")+2);
             return true;
@@ -364,9 +374,9 @@ bool CServerFile::rewindDirectory() {
         dirIsImage = false;
         // to list directory contents we use
         //Debug_printv("cserver: this is a directory!");
-        CServerFileSystem::session.sendCommand("disks");
-        auto line = CServerFileSystem::session.readLn(); // dir header
-        if(CServerFileSystem::session.is_open()) {
+        CSIPMFileSystem::session.sendCommand("disks");
+        auto line = CSIPMFileSystem::session.readLn(); // dir header
+        if(CSIPMFileSystem::session.is_open()) {
             media_header = line.substr(2, line.find_last_of("]")-1);
             media_id = "C=SVR";
             dirIsOpen = true;
@@ -378,7 +388,7 @@ bool CServerFile::rewindDirectory() {
     }
 };
 
-MFile* CServerFile::getNextFileInDir() {
+MFile* CSIPMFile::getNextFileInDir() {
 
     Debug_printv("pre rewind");
 
@@ -400,7 +410,7 @@ MFile* CServerFile::getNextFileInDir() {
     Debug_printv("pre dir is image");
 
     if(dirIsImage) {
-        auto line = CServerFileSystem::session.readLn();
+        auto line = CSIPMFileSystem::session.readLn();
         Debug_printv("next file in dir got %s", line.c_str());
         // 'ot line:'0 ␒"CIE�������������" 00�2A�
         // 'ot line:'2   "CIE+SERIAL      " PRG   2049
@@ -425,12 +435,12 @@ MFile* CServerFile::getNextFileInDir() {
             size = atoi(line.substr(0, line.find_first_of(" ")).c_str());
             mstr::rtrim(name);
             Debug_printv("xx: %s -- %s %d", line.c_str(), name.c_str(), size);
-            //return new CServerFile(path() +"/"+ name);
+            //return new CSIPMFile(path() +"/"+ name);
             new_url += name;
-            return new CServerFile(new_url, size);
+            return new CSIPMFile(new_url, size);
         }
     } else {
-        auto line = CServerFileSystem::session.readLn();
+        auto line = CSIPMFileSystem::session.readLn();
         // Got line:''
         // Got line:''
         // 'ot line:'FAST-TESTER DELUXE EXCESS.D64
@@ -467,7 +477,7 @@ MFile* CServerFile::getNextFileInDir() {
             if(name.size() > 0)
             {
                 new_url += name;
-                return new CServerFile(new_url, size);                
+                return new CSIPMFile(new_url, size);                
             }
             else
                 return nullptr;
@@ -475,20 +485,20 @@ MFile* CServerFile::getNextFileInDir() {
     }
 };
 
-bool CServerFile::exists() {
+bool CSIPMFile::exists() {
     return true;
 } ;
 
-uint32_t CServerFile::size() {
+uint32_t CSIPMFile::size() {
     return m_size;
 };
 
-bool CServerFile::mkDir() { 
+bool CSIPMFile::mkDir() { 
     // but it does support creating dirs = MD FOLDER
     return false; 
 };
 
-bool CServerFile::remove() { 
+bool CSIPMFile::remove() { 
     // but it does support remove = SCRATCH FILENAME
     return false; 
 };

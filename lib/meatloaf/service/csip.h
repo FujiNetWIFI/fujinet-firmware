@@ -1,9 +1,9 @@
-// CS:/ - a scheme for handling CommodoreServer Internet Protocol
+// CSIP:/ - a scheme for handling CommodoreServer Internet Protocol
 // see: https://www.commodoreserver.com/BlogEntryView.asp?EID=9D133160E7C344A398EC1F45AEF4BF32
 //
 
-#ifndef MEATLOAF_SCHEME_CS
-#define MEATLOAF_SCHEME_CS
+#ifndef MEATLOAF_SCHEME_CSIP
+#define MEATLOAF_SCHEME_CSIP
 
 #include "meatloaf.h"
 #include "network/tcp.h"
@@ -146,14 +146,14 @@ public:
         }  
     };
 
-    friend class CServerSessionMgr;
+    friend class CSIPMSessionMgr;
 };
 
 /********************************************************
  * Session manager
  ********************************************************/
 
-class CServerSessionMgr : public std::iostream {
+class CSIPMSessionMgr : public std::iostream {
     std::string m_user;
     std::string m_pass;
     csstreambuf buf;
@@ -172,10 +172,10 @@ protected:
     std::string readLn();
 
 public:
-    CServerSessionMgr(std::string user = "", std::string pass = "") : std::iostream(&buf), m_user(user), m_pass(pass)
+    CSIPMSessionMgr(std::string user = "", std::string pass = "") : std::iostream(&buf), m_user(user), m_pass(pass)
     {};
 
-    ~CServerSessionMgr() {
+    ~CSIPMSessionMgr() {
         sendCommand("quit");
     };
 
@@ -199,18 +199,18 @@ public:
         return buf.is_open();
     }
 
-    friend class CServerFile;
-    friend class CServerIStream;
-    friend class CServerOStream;
+    friend class CSIPMFile;
+    friend class CSIPMStream;
+    friend class CSIPOStream;
 };
 
 /********************************************************
  * File implementations
  ********************************************************/
-class CServerFile: public MFile {
+class CSIPMFile: public MFile {
 
 public:
-    CServerFile(std::string path, size_t size = 0): MFile(path), m_size(size) 
+    CSIPMFile(std::string path, size_t size = 0): MFile(path), m_size(size) 
     {
         media_blocks_free = 65535;
         media_block_size = 1; // blocks are already calculated
@@ -219,8 +219,9 @@ public:
         isPETSCII = true;
     };
 
-    MStream* getDecodedStream(std::shared_ptr<MStream> src) { return src.get(); };
     MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override ; // has to return OPENED stream
+    MStream* getDecodedStream(std::shared_ptr<MStream> src) { return src.get(); };
+    MStream* createStream(std::ios_base::openmode mode) override;
 
     //MFile* cd(std::string newDir);
     bool isDirectory() override;
@@ -248,31 +249,30 @@ private:
  ********************************************************/
 
 //
-class CServerIStream: public MStream {
+class CSIPMStream: public MStream {
 
 public:
-    CServerIStream(std::string path) {
+    CSIPMStream(std::string path) {
         url = path;
     }
-    ~CServerIStream() {
+    ~CSIPMStream() {
         close();
     }
     // MStream methods
-    bool open() override;
+    bool isOpen() override;
+    bool isBrowsable() override { return false; };
+    bool isRandomAccess() override { return true; };
+
+    bool open(std::ios_base::openmode mode) override;
     void close() override;
 
-    uint32_t available() override;
-    uint32_t size() override;
-    uint32_t position() override;
-    size_t error() override;
+    uint32_t read(uint8_t* buf, uint32_t size) override;
+    uint32_t write(const uint8_t *buf, uint32_t size) override;
 
     virtual bool seek(uint32_t pos) {
         return false;
     };
 
-    uint32_t read(uint8_t* buf, uint32_t size) override;
-    uint32_t write(const uint8_t *buf, uint32_t size) override;
-    bool isOpen() override;
 
 protected:
     std::string url;
@@ -285,17 +285,17 @@ protected:
  * FS
  ********************************************************/
 
-class CServerFileSystem: public MFileSystem 
+class CSIPMFileSystem: public MFileSystem 
 {
     bool handles(std::string name) {
-        return name == "cs:";
+        return name == "csip:";
     }
     
 public:
-    CServerFileSystem(): MFileSystem("c=server") {};
-    static CServerSessionMgr session;
+    CSIPMFileSystem(): MFileSystem("c=server") {};
+    static CSIPMSessionMgr session;
     MFile* getFile(std::string path) override {
-        return new CServerFile(path);
+        return new CSIPMFile(path);
     }
 
 };
@@ -303,4 +303,4 @@ public:
 
 
 
-#endif /* MEATLOAF_SCHEME_CS */
+#endif /* MEATLOAF_SCHEME_CSIP */

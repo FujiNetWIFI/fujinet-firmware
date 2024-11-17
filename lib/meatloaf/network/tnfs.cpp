@@ -1,5 +1,6 @@
 #include "tnfs.h"
 
+#include "../meatloaf.h"
 #include "../../../include/debug.h"
 
 #include <sys/stat.h>
@@ -11,7 +12,7 @@
  * MFile implementations
  ********************************************************/
 
-bool TNFSFile::pathValid(std::string path) 
+bool TNFSMFile::pathValid(std::string path) 
 {
     auto apath = std::string(basepath + path).c_str();
     while (*apath) {
@@ -33,7 +34,7 @@ bool TNFSFile::pathValid(std::string path)
     return true;
 }
 
-bool TNFSFile::isDirectory()
+bool TNFSMFile::isDirectory()
 {
     if(path=="/" || path=="")
         return true;
@@ -43,21 +44,30 @@ bool TNFSFile::isDirectory()
     return S_ISDIR(info.st_mode);
 }
 
-MStream* TNFSFile::getDecodedStream(std::shared_ptr<MStream> is) {
-    return is.get(); // we don't have to process this stream in any way, just return the original stream
-}
-
-MStream* TNFSFile::getSourceStream(std::ios_base::openmode mode)
+MStream* TNFSMFile::getSourceStream(std::ios_base::openmode mode)
 {
     std::string full_path = basepath + path;
-    MStream* istream = new TNFSIStream(full_path);
-    //Debug_printv("TNFSFile::getSourceStream() 3, not null=%d", istream != nullptr);
-    istream->open();   
-    //Debug_printv("TNFSFile::getSourceStream() 4");
+    //MStream* istream = new TNFSMStream(full_path);
+    auto istream = StreamBroker::obtain<TNFSMStream>(full_path, mode);
+    //Debug_printv("TNFSMFile::getSourceStream() 3, not null=%d", istream != nullptr);
+    istream->open(mode);   
+    //Debug_printv("TNFSMFile::getSourceStream() 4");
     return istream;
 }
 
-time_t TNFSFile::getLastWrite()
+MStream* TNFSMFile::getDecodedStream(std::shared_ptr<MStream> is) {
+    return is.get(); // we don't have to process this stream in any way, just return the original stream
+}
+
+MStream* TNFSMFile::createStream(std::ios_base::openmode mode)
+{
+    std::string full_path = basepath + path;
+    MStream* istream = new TNFSMStream(full_path);
+    istream->open(mode);
+    return istream;
+}
+
+time_t TNFSMFile::getLastWrite()
 {
     struct stat info;
     stat( std::string(basepath + path).c_str(), &info);
@@ -66,7 +76,7 @@ time_t TNFSFile::getLastWrite()
     return ftime;
 }
 
-time_t TNFSFile::getCreationTime()
+time_t TNFSMFile::getCreationTime()
 {
     struct stat info;
     stat( std::string(basepath + path).c_str(), &info);
@@ -75,7 +85,7 @@ time_t TNFSFile::getCreationTime()
     return ftime;
 }
 
-bool TNFSFile::mkDir()
+bool TNFSMFile::mkDir()
 {
     if (m_isNull) {
         return false;
@@ -84,7 +94,7 @@ bool TNFSFile::mkDir()
     return (rc==0);
 }
 
-bool TNFSFile::exists()
+bool TNFSMFile::exists()
 {
     if (m_isNull) {
         return false;
@@ -101,7 +111,7 @@ bool TNFSFile::exists()
     return (i == 0);
 }
 
-uint32_t TNFSFile::size() {
+uint32_t TNFSMFile::size() {
     if (m_isNull || path=="/" || path=="")
         return 0;
     else if(isDirectory()) {
@@ -115,7 +125,7 @@ uint32_t TNFSFile::size() {
     }
 }
 
-bool TNFSFile::remove() {
+bool TNFSMFile::remove() {
     // musi obslugiwac usuwanie plikow i katalogow!
     if(path.empty())
         return false;
@@ -130,7 +140,7 @@ bool TNFSFile::remove() {
 }
 
 
-bool TNFSFile::rename(std::string pathTo) {
+bool TNFSMFile::rename(std::string pathTo) {
     if(pathTo.empty())
         return false;
 
@@ -142,7 +152,7 @@ bool TNFSFile::rename(std::string pathTo) {
 }
 
 
-void TNFSFile::openDir(std::string apath) 
+void TNFSMFile::openDir(std::string apath) 
 {
     if (!isDirectory()) { 
         dirOpened = false;
@@ -170,7 +180,7 @@ void TNFSFile::openDir(std::string apath)
 }
 
 
-void TNFSFile::closeDir() 
+void TNFSMFile::closeDir() 
 {
     if(dirOpened) {
         closedir( dir );
@@ -179,7 +189,7 @@ void TNFSFile::closeDir()
 }
 
 
-bool TNFSFile::rewindDirectory()
+bool TNFSMFile::rewindDirectory()
 {
     _valid = false;
     rewinddir( dir );
@@ -193,7 +203,7 @@ bool TNFSFile::rewindDirectory()
 }
 
 
-MFile* TNFSFile::getNextFileInDir()
+MFile* TNFSMFile::getNextFileInDir()
 {
     // Debug_printv("base[%s] path[%s]", basepath.c_str(), path.c_str());
     if(!dirOpened)
@@ -207,7 +217,7 @@ MFile* TNFSFile::getNextFileInDir()
     if((dirent = readdir( dir )) != NULL)
     {
         // Debug_printv("path[%s] name[%s]", this->path, dirent->d_name);
-        return new TNFSFile(this->path + ((this->path == "/") ? "" : "/") + std::string(dirent->d_name));
+        return new TNFSMFile(this->path + ((this->path == "/") ? "" : "/") + std::string(dirent->d_name));
     }
     else
     {
@@ -217,7 +227,7 @@ MFile* TNFSFile::getNextFileInDir()
 }
 
 
-bool TNFSFile::seekEntry( std::string filename )
+bool TNFSMFile::seekEntry( std::string filename )
 {
     DIR* d;
     std::string apath = (basepath + pathToFile()).c_str();
@@ -275,7 +285,7 @@ bool TNFSFile::seekEntry( std::string filename )
 /********************************************************
  * MStream implementations
  ********************************************************/
-uint32_t TNFSIStream::write(const uint8_t *buf, uint32_t size) {
+uint32_t TNFSMStream::write(const uint8_t *buf, uint32_t size) {
     if (!isOpen() || !buf) {
         return 0;
     }
@@ -299,7 +309,7 @@ uint32_t TNFSIStream::write(const uint8_t *buf, uint32_t size) {
  ********************************************************/
 
 
-bool TNFSIStream::open() {
+bool TNFSMStream::open(std::ios_base::openmode mode) {
     if(isOpen())
         return true;
 
@@ -322,11 +332,11 @@ bool TNFSIStream::open() {
     return false;
 };
 
-void TNFSIStream::close() {
+void TNFSMStream::close() {
     if(isOpen()) handle->dispose();
 };
 
-uint32_t TNFSIStream::read(uint8_t* buf, uint32_t size) {
+uint32_t TNFSMStream::read(uint8_t* buf, uint32_t size) {
     if (!isOpen() || !buf) {
         Debug_printv("Not open");
         return 0;
@@ -342,7 +352,7 @@ uint32_t TNFSIStream::read(uint8_t* buf, uint32_t size) {
     return bytesRead;
 };
 
-bool TNFSIStream::seek(uint32_t pos) {
+bool TNFSMStream::seek(uint32_t pos) {
     // Debug_printv("pos[%d]", pos);
         if (!isOpen()) {
         Debug_printv("Not open");
@@ -351,7 +361,7 @@ bool TNFSIStream::seek(uint32_t pos) {
     return ( fseek( handle->file_h, pos, SEEK_SET ) ) ? true : false;
 };
 
-bool TNFSIStream::seek(uint32_t pos, int mode) {
+bool TNFSMStream::seek(uint32_t pos, int mode) {
     // Debug_printv("pos[%d] mode[%d]", pos, mode);
     if (!isOpen()) {
         Debug_printv("Not open");
@@ -360,7 +370,7 @@ bool TNFSIStream::seek(uint32_t pos, int mode) {
     return ( fseek( handle->file_h, pos, mode ) ) ? true: false;
 }
 
-bool TNFSIStream::isOpen() {
+bool TNFSMStream::isOpen() {
     // Debug_printv("Inside isOpen, handle notnull:%d", handle != nullptr);
     auto temp = handle != nullptr && handle->file_h != nullptr;
     // Debug_printv("returning");
@@ -420,9 +430,9 @@ void TNFSHandle::obtain(std::string m_path, std::string mode) {
 //         // To support the SD.openNextFile, a null FD indicates to the FlashFSFile this is just
 //         // a directory whose name we are carrying around but which cannot be read or written
 //     } else if (rc == 0) {
-// //        lfs_file_sync(&TNFSFileSystem::lfsStruct, &file_h);
+// //        lfs_file_sync(&TNFSMFileSystem::lfsStruct, &file_h);
 //     } else {
-//         Debug_printv("TNFSFile::open: unknown return code rc=%d path=`%s`\r\n",
+//         Debug_printv("TNFSMFile::open: unknown return code rc=%d path=`%s`\r\n",
 //                rc, m_path.c_str());
 //     }
 }
