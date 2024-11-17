@@ -2,6 +2,7 @@
 
 #include <esp_idf_version.h>
 
+#include "../meatloaf.h"
 #include "../../../include/debug.h"
 //#include "../../../include/global_defines.h"
 
@@ -9,7 +10,7 @@
  * File impls
  ********************************************************/
 
-MeatHttpClient* HttpFile::fromHeader() {
+MeatHttpClient* HTTPMFile::fromHeader() {
     if(client == nullptr) {
         //Debug_printv("Client was not present, creating");
         client = new MeatHttpClient();
@@ -24,7 +25,7 @@ MeatHttpClient* HttpFile::fromHeader() {
     return client;
 }
 
-bool HttpFile::isDirectory() {
+bool HTTPMFile::isDirectory() {
     if(fromHeader()->m_isDirectory)
         return true;
 
@@ -37,7 +38,7 @@ bool HttpFile::isDirectory() {
         return false;
 }
 
-MStream* HttpFile::getSourceStream(std::ios_base::openmode mode) {
+MStream* HTTPMFile::getSourceStream(std::ios_base::openmode mode) {
     // has to return OPENED stream
     //Debug_printv("Input stream requested: [%s]", url.c_str());
 
@@ -50,17 +51,25 @@ MStream* HttpFile::getSourceStream(std::ios_base::openmode mode) {
     // headers["Accept"] = "*/*";
     // headers["Accept-Encoding"] = "gzip, deflate";
     // etc.
-    MStream* istream = new HttpIStream(url, mode);
-    istream->open();
+    MStream* istream = new HTTPMStream(url, mode);
+    //auto istream = StreamBroker::obtain<HTTPMStream>(url, mode);
+    istream->open(mode);
 
     return istream;
 }
 
-MStream* HttpFile::getDecodedStream(std::shared_ptr<MStream> is) {
+MStream* HTTPMFile::getDecodedStream(std::shared_ptr<MStream> is) {
     return is.get(); // DUMMY return value - we've overriden istreamfunction, so this one won't be used
 }
 
-time_t HttpFile::getLastWrite() {
+MStream* HTTPMFile::createStream(std::ios_base::openmode mode)
+{
+    MStream* istream = new HTTPMStream(url);
+    istream->open(mode);
+    return istream;
+}
+
+time_t HTTPMFile::getLastWrite() {
     if(fromHeader()->m_isWebDAV) {
         return 0;
     }
@@ -69,7 +78,7 @@ time_t HttpFile::getLastWrite() {
         return 0; 
 }
 
-time_t HttpFile::getCreationTime() {
+time_t HTTPMFile::getCreationTime() {
     if(fromHeader()->m_isWebDAV) {
         return 0;
     }
@@ -78,11 +87,11 @@ time_t HttpFile::getCreationTime() {
         return 0; 
 }
 
-bool HttpFile::exists() {
+bool HTTPMFile::exists() {
     return fromHeader()->_exists;
 }
 
-uint32_t HttpFile::size() {
+uint32_t HTTPMFile::size() {
     if(fromHeader()->m_isWebDAV) {
         // take from webdav PROPFIND
         return 0;
@@ -92,7 +101,7 @@ uint32_t HttpFile::size() {
         return fromHeader()->_size;
 }
 
-bool HttpFile::remove() {
+bool HTTPMFile::remove() {
     if(fromHeader()->m_isWebDAV) {
         // PROPPATCH allows deletion
         return false;
@@ -100,7 +109,7 @@ bool HttpFile::remove() {
     return false;
 }
 
-bool HttpFile::mkDir() {
+bool HTTPMFile::mkDir() {
     if(fromHeader()->m_isWebDAV) {
         // MKCOL creates dir
         return false;
@@ -108,7 +117,7 @@ bool HttpFile::mkDir() {
     return false;
 }
 
-bool HttpFile::rewindDirectory() {
+bool HTTPMFile::rewindDirectory() {
     if(fromHeader()->m_isWebDAV) { 
         // we can try if this is webdav, then
         // PROPFIND allows listing dir
@@ -117,7 +126,7 @@ bool HttpFile::rewindDirectory() {
     return false; 
 };
 
-MFile* HttpFile::getNextFileInDir() { 
+MFile* HTTPMFile::getNextFileInDir() { 
     Debug_printv("");
     if(fromHeader()->m_isWebDAV) {
         // we can try if this is webdav, then
@@ -128,14 +137,14 @@ MFile* HttpFile::getNextFileInDir() {
 };
 
 
-bool HttpFile::isText() {
+bool HTTPMFile::isText() {
     return fromHeader()->isText;
 }
 
 /********************************************************
  * Istream impls
  ********************************************************/
-bool HttpIStream::open() {
+bool HTTPMStream::open(std::ios_base::openmode mode) {
     bool r = false;
 
     if(mode == (std::ios_base::out | std::ios_base::app))
@@ -152,12 +161,12 @@ bool HttpIStream::open() {
     return r;
 }
 
-void HttpIStream::close() {
+void HTTPMStream::close() {
     //Debug_printv("CLOSE called explicitly on this HTTP stream!");
     _http.close();
 }
 
-bool HttpIStream::seek(uint32_t pos) {
+bool HTTPMStream::seek(uint32_t pos) {
     if ( !_http._is_open )
     {
         Debug_printv("error");
@@ -168,7 +177,7 @@ bool HttpIStream::seek(uint32_t pos) {
     return _http.seek(pos);
 }
 
-uint32_t HttpIStream::read(uint8_t* buf, uint32_t size) {
+uint32_t HTTPMStream::read(uint8_t* buf, uint32_t size) {
     uint32_t bytesRead = 0;
 
     if ( size > 0 )
@@ -184,14 +193,14 @@ uint32_t HttpIStream::read(uint8_t* buf, uint32_t size) {
     return bytesRead;
 };
 
-uint32_t HttpIStream::write(const uint8_t *buf, uint32_t size) {
+uint32_t HTTPMStream::write(const uint8_t *buf, uint32_t size) {
     uint32_t bytesWritten = _http.write(buf, size);
     _position += bytesWritten;
     return bytesWritten;
 }
 
 
-bool HttpIStream::isOpen() {
+bool HTTPMStream::isOpen() {
     return _http._is_open;
 };
 
@@ -293,7 +302,7 @@ bool MeatHttpClient::seek(uint32_t pos) {
 
         bool op = processRedirectsAndOpen(pos);
 
-        //Debug_printv("SEEK in HttpIStream %s: range request RC=%d", url.c_str(), lastRC);
+        //Debug_printv("SEEK in HTTPMStream %s: range request RC=%d", url.c_str(), lastRC);
 
         if(!op)
             return false;

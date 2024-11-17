@@ -8,7 +8,7 @@
 #include <ctime>
 //#include <unordered_map>
 
-//#include "../../include/debug.h"
+#include "../../include/debug.h"
 
 //#include "wrappers/iec_buffer.h"
 
@@ -112,11 +112,11 @@ public:
     virtual bool isBrowsable() { return false; };
     virtual bool isRandomAccess() { return false; };
 
+    virtual bool open(std::ios_base::openmode mode) = 0;
     virtual void close() = 0;
-    virtual bool open() = 0;
 
-    virtual uint32_t write(const uint8_t *buf, uint32_t size) = 0;
     virtual uint32_t read(uint8_t* buf, uint32_t size) = 0;
+    virtual uint32_t write(const uint8_t *buf, uint32_t size) = 0;
 
     virtual bool seek(uint32_t pos, int mode) {
         if(mode == SEEK_SET) {
@@ -147,6 +147,19 @@ public:
     virtual bool seekBlock( uint64_t index, uint8_t offset = 0 ) { return false; };
     virtual bool seekSector( uint8_t track, uint8_t sector, uint8_t offset = 0 ) { return false; };
     virtual bool seekSector( std::vector<uint8_t> trackSectorOffset ) { return false; };
+
+private:
+
+    // DEVICE
+    friend class FlashMFile;
+
+    // NETWORK
+    friend class HTTPMFile;
+    friend class TNFSMFile;
+
+    // SERVICE
+    friend class CSIPMFile;
+    friend class TCPMFile;
 };
 
 
@@ -187,6 +200,7 @@ public:
     // has to return OPENED stream
     virtual MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in);
     virtual MStream* getDecodedStream(std::shared_ptr<MStream> src) = 0;
+    virtual MStream* createStream(std::ios_base::openmode) { return nullptr; };
 
     MFile* cd(std::string newDir);
     MFile* cdParent(std::string = "");
@@ -350,4 +364,122 @@ namespace Meat {
 
 }
 
+
+/********************************************************
+ * Utility implementations
+ ********************************************************/
+
+class FileBroker {
+    static std::unordered_map<std::string, MFile*> file_repo;
+public:
+    template<class T> static T* obtain(std::string url, MFile* sourceFile) 
+    {
+        //Debug_printv("streams[%d] url[%s]", file_repo.size(), url.c_str());
+
+        // obviously you have to supply STREAMFILE.url to this function!
+        if(file_repo.find(url)!=file_repo.end())
+        {
+            Debug_printv("Reusing Existing MFile url[%s]", url.c_str());
+            return (T*)file_repo.at(url);
+        }
+
+        // create and add stream to broker if not found
+        Debug_printv("Creating New Stream url[%s]", url.c_str());
+        auto newFile = MFSOwner::File(url);
+
+        if ( newFile != nullptr )
+        {
+            // Are we at the root of the filesystem?
+            if ( newFile->pathInStream == "")
+            {
+                Debug_printv("ROOT FILESYSTEM... CACHING [%s]", url.c_str());
+                file_repo.insert(std::make_pair(url, newFile));
+            }
+            else
+            {
+                Debug_printv("SINGLE FILE... DON'T CACHE [%s]", url.c_str());
+            }
+            
+            return newFile;
+        }
+
+        delete newFile;
+        return nullptr;
+    }
+
+    static MFile* obtain(std::string url, MFile* sourceFile) {
+        return obtain<MFile>(url, sourceFile);
+    }
+
+    static void dispose(std::string url) {
+        if(file_repo.find(url)!=file_repo.end()) {
+            auto toDelete = file_repo.at(url);
+            file_repo.erase(url);
+            delete toDelete;
+        }
+        Debug_printv("streams[%d]", file_repo.size());
+    }
+
+    static void validate() {
+        
+    }
+};
+
+class StreamBroker {
+    static std::unordered_map<std::string, MStream*> stream_repo;
+public:
+    template<class T> static T* obtain(std::string url, std::ios_base::openmode mode) 
+    {
+        //Debug_printv("streams[%d] url[%s]", stream_repo.size(), url.c_str());
+
+        // obviously you have to supply STREAMFILE.url to this function!
+        if(stream_repo.find(url)!=stream_repo.end())
+        {
+            Debug_printv("Reusing Existing Stream url[%s]", url.c_str());
+            return (T*)stream_repo.at(url);
+        }
+
+        // create and add stream to broker if not found
+        Debug_printv("Creating New Stream url[%s]", url.c_str());
+        auto newFile = MFSOwner::File(url);
+
+        T* newStream = (T*)newFile->createStream(mode);
+
+        if ( newStream != nullptr )
+        {
+            // Are we at the root of the filesystem?
+            if ( newFile->pathInStream == "")
+            {
+                Debug_printv("ROOT FILESYSTEM... CACHING [%s]", url.c_str());
+                stream_repo.insert(std::make_pair(url, newStream));
+            }
+            else
+            {
+                Debug_printv("SINGLE FILE... DON'T CACHE [%s]", url.c_str());
+            }
+            
+            return newStream;
+        }
+
+        delete newFile;
+        return nullptr;
+    }
+
+    static MStream* obtain(std::string url, std::ios_base::openmode mode) {
+        return obtain<MStream>(url, mode);
+    }
+
+    static void dispose(std::string url) {
+        if(stream_repo.find(url)!=stream_repo.end()) {
+            auto toDelete = stream_repo.at(url);
+            stream_repo.erase(url);
+            delete toDelete;
+        }
+        Debug_printv("streams[%d]", stream_repo.size());
+    }
+
+    static void validate() {
+        
+    }
+};
 #endif // MEATLOAF_FILE

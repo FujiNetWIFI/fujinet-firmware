@@ -5,6 +5,7 @@
 #include <sstream>
 #include <iomanip>
 
+#include "../meatloaf.h"
 #include "../../../include/debug.h"
 #include "peoples_url_parser.h"
 #include "string_utils.h"
@@ -66,14 +67,22 @@ MStream* FlashMFile::getSourceStream(std::ios_base::openmode mode)
 {
     std::string full_path = basepath + path;
     MStream* istream = new FlashMStream(full_path, mode);
+    //auto istream = StreamBroker::obtain<FlashMStream>(full_path, mode);
     //Debug_printv("FlashMFile::getSourceStream() 3, not null=%d", istream != nullptr);
-    istream->open();   
+    istream->open(mode);   
     //Debug_printv("FlashMFile::getSourceStream() 4");
     return istream;
 }
 
 MStream* FlashMFile::getDecodedStream(std::shared_ptr<MStream> is) {
     return is.get(); // we don't have to process this stream in any way, just return the original stream
+}
+
+MStream* FlashMFile::createStream(std::ios_base::openmode mode)
+{
+    std::string full_path = basepath + path;
+    MStream* istream = new FlashMStream(full_path, mode);
+    return istream;
 }
 
 time_t FlashMFile::getLastWrite()
@@ -316,7 +325,7 @@ bool FlashMFile::seekEntry( std::string filename )
  * MStream implementations
  ********************************************************/
 
-bool FlashMStream::open() {
+bool FlashMStream::open(std::ios_base::openmode mode) {
     if(isOpen())
         return true;
 

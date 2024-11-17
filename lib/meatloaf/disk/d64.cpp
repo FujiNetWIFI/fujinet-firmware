@@ -2,6 +2,7 @@
 #include "d64.h"
 
 //#include "meat_broker.h"
+#include "../meat_media.h"
 #include "endianness.h"
 
 // D64 Utility Functions

@@ -47,6 +47,7 @@ public:
     void set_hostname(const char *hostname);
     const char* get_hostname(char *buffer, size_t buffersize);
     const char* get_hostname();
+    const char* get_basepath();
 
     bool mount();
     bool umount();

@@ -88,7 +88,7 @@ public:
     bool error_info = false;
     std::string bam_message = "";
 
-    D64MStream(std::shared_ptr<MStream> is) : MMediaStream(is) 
+    D64MStream(std::shared_ptr<MStream> is) : MMediaStream(is)
     {
         // D64 Partition Info
         std::vector<BlockAllocationMap> b = { 

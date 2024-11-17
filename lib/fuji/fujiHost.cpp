@@ -270,6 +270,13 @@ const char *fujiHost::get_hostname()
     return get_hostname(NULL, 0);
 }
 
+/* Returns pointer to current basepath
+*/
+const char *fujiHost::get_basepath()
+{
+    return _fs->basepath();
+}
+
 /* Returns pointer to current hostname and, if provided, fills buffer with that string
 */
 const char *fujiHost::get_prefix(char *buffer, size_t buffersize)
