@@ -7,16 +7,19 @@ components:
   hardware: true
   hosts_list: true
   mount_list: true
-  printer_settings: true
-  modem_settings: true
+  printer_settings: experimental
+  modem_settings: experimental
   hsio_settings: false
   timezone: false
   apetime: false
   udp_stream: true
-  program_recorder: false
-  disk_swap: true
+  program_recorder: experimental
+  disk_swap: false
+  serial_port: true
+  emulator_settings: true
   boot_settings: true
-  cpm_settings: true
+  cpm_settings: experimental
 tweaks:
   # webui tweaks, if any
   fujinet_pc: true
+  platform: COCO
