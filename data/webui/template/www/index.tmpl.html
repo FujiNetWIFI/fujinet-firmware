@@ -1235,6 +1235,7 @@
 								<input type="text" name="serial_port" id="serial_port" value="<%FN_SERIAL_PORT%>">
 							</div>
 						</div>
+						{% if tweaks.platform == "ATARI" %}
 						<div class="set">
 							<div class="settings-label">
 								<label>COMMAND on</label>
@@ -1267,6 +1268,38 @@
 							var current_serial_command = "<%FN_SERIAL_COMMAND%>";
 							var current_serial_proceed = "<%FN_SERIAL_PROCEED%>";
 						</script>
+						{% elif tweaks.platform == "COCO" %}
+						<div class="set">
+							<div class="settings-label">
+								<label>Baud Rate</label>
+							</div>
+							<div class="settings-value select">
+								<select name="serial_baud" id="select_serial_baud">
+									<option value="38400">38400</option>
+									<option value="57600">57600</option>
+									<option value="115200">115200</option>
+								</select>
+								<span class="focus"></span>
+							</div>
+						</div>
+						<script>
+							var current_serial_baud = "<%FN_SERIAL_PORT_BAUD%>";
+						</script>
+						{% endif %}
+						<hr>
+						<div class="settings-text">
+							<div>
+								{% if tweaks.platform == "ATARI" %}
+								Serial port for communication with an Atari computer.
+								{% elif tweaks.platform == "COCO" %}
+								Serial port for communication with a CoCo computer.
+								{% else %}
+								Serial port for communication with a real computer.
+								{% endif %}
+								<br>
+								Note: To use it, configure above settings and disable communication with emulator.
+							</div>
+						</div>
 					</div>
 					<div class="settings-footer">
 						<div class="save-button">
@@ -1302,35 +1335,51 @@
 					<div class="settings-content settings-45-55">
 						<div class="set">
 							<div class="settings-label">
-								<label for="">Enable SIO over Network</label>
+								<label for="">
+									{% if tweaks.platform == "ATARI" %}
+										Enable SIO over Network
+									{% elif tweaks.platform == "COCO" %}
+										Enable Becker Port
+									{% else %}
+										Enable emulator connection
+									{% endif %}
+								</label>
 							</div>
 							<div class="settings-value">
 								<div class="radio-container">
-									<input checked="" id="netsio-yes" name="netsio_enable" type="radio" value="1">
-									<label for="netsio-yes" class="r-yes-no">Yes</label>
-									<input checked="" id="netsio-no" name="netsio_enable" type="radio" value="0">
-									<label for="netsio-no" class="r-yes-no">No</label>
+									<input checked="" id="boip-yes" name="boip_enable" type="radio" value="1">
+									<label for="boip-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="boip-no" name="boip_enable" type="radio" value="0">
+									<label for="boip-no" class="r-yes-no">No</label>
 								</div>
 							</div>
 						</div>
 						<div class="set">
 							<div class="settings-label">
-								<label for="netsio_host">Hostname or IP [:port]</label>
+								<label for="boip_host">Hostname or IP [:port]</label>
 							</div>
 							<div class="settings-value">
-								<input type="text" name="netsio_host" id="netsio_host" value="<%FN_NETSIO_HOST%>">
+								<input type="text" name="boip_host" id="boip_host" value="<%FN_BOIP_HOST%>">
 							</div>
 						</div>
 						<hr>
 						<div class="settings-text">
 							<div>
-								When enabled, FujiNet will not use the physical serial port to transmit
+							{% if tweaks.platform == "ATARI" %}
+								When enabled, FujiNet will not use the serial port to transmit
 								SIO data and signals. Instead, it will communicate over the network with
 								an Atari emulator. Port is optional (defaults to 9997).
+							{% elif tweaks.platform == "COCO" %}
+								When enabled, FujiNet will not use the serial port for DriveWire
+								communication. Instead, it will use TCP to communicate with
+								a CoCo emulator. Port is optional (defaults to 65504).
+							{% else %}
+								When enabled, FujiNet will communicate with an emulator over network.
+							{% endif %}
 							</div>
 						</div>
 						<script>
-							var current_netsio_enabled = "<%FN_NETSIO_ENABLED%>";
+							var current_boip_enabled = "<%FN_BOIP_ENABLED%>";
 						</script>
 					</div>
 					<div class="settings-footer">
@@ -1489,6 +1538,7 @@
 								</div>
 							</div>
 						</div>
+						{% if tweaks.platform == "ATARI" %}
 						<div class="set">
 							<div class="settings-label">
 								<label>
@@ -1513,6 +1563,7 @@
 								</div>
 							</div>
 						</div>
+						{% endif %}
 						<div class="set">
 							<div class="settings-label">
 								<label>
