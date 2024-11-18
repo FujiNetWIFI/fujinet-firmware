@@ -7,9 +7,7 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
-#ifndef ESP_PLATFORM
 #include "bus.h"
-#endif
 
 #include "utils.h"
 
@@ -504,93 +502,118 @@ void fnHttpServiceConfigurator::config_alt_filename(std::string alt_cfg)
 }
 
 #ifndef ESP_PLATFORM
-void fnHttpServiceConfigurator::config_serial(std::string port, std::string command, std::string proceed)
+void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud, std::string command, std::string proceed)
 {
-    Debug_printf("Set Serial: %s,%s,%s\n", port.c_str(), command.c_str(), proceed.c_str());
+    Debug_printf("Set serial: %s,%s,%s,%s\n", port.c_str(), baud.c_str(), command.c_str(), proceed.c_str());
 
-    // current settings
-    const char *devname;
-    int command_pin;
-    int proceed_pin;
-#ifdef BUILD_ATARI // OS
-    devname = fnSioCom.get_serial_port(command_pin, proceed_pin);
-#endif
+    bool update_serial = false;
 
     // update settings
     if (!port.empty())
     {
         Config.store_serial_port(port.c_str());
-
-#ifdef BUILD_ATARI // OS
-        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
-        {
-            fnSioCom.end();
-        }
-#endif
-
-        // re-set serial port
-#ifdef BUILD_ATARI // OS
-        fnSioCom.set_serial_port(Config.get_serial_port().c_str(), command_pin, proceed_pin);
-    
-        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
-        {
-            fnSioCom.begin();
-        }
-#endif
+        update_serial = true;
+    }
+    if (!baud.empty())
+    {
+        Config.store_serial_baud((fnConfig::serial_command_pin)atoi(baud.c_str()));
+        update_serial = true;
     }
     if (!command.empty())
     {
         Config.store_serial_command((fnConfig::serial_command_pin)atoi(command.c_str()));
-#ifdef BUILD_ATARI // OS
-        fnSioCom.set_serial_port(nullptr, Config.get_serial_command(), proceed_pin);
-#endif
+        update_serial = true;
     }
     if (!proceed.empty())
     {
         Config.store_serial_proceed((fnConfig::serial_proceed_pin)atoi(proceed.c_str()));
-#ifdef BUILD_ATARI // OS
-        fnSioCom.set_serial_port(nullptr, command_pin, Config.get_serial_proceed());
+        update_serial = true;
+    }
+
+    if (update_serial)
+    {
+        Config.save();
+
+#if defined(BUILD_ATARI)
+        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
+        {
+            fnSioCom.end();
+        }
+
+        fnSioCom.set_serial_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed());
+
+        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
+        {
+            fnSioCom.begin();
+        }
+
+#elif defined(BUILD_COCO)
+        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
+        {
+            fnDwCom.end();
+        }
+
+        fnDwCom.set_serial_port(Config.get_serial_port().c_str());
+
+        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
+        {
+            fnDwCom.begin(Config.get_serial_baud());
+        }
 #endif
     }
-    Config.save();
-}
-
-void fnHttpServiceConfigurator::config_netsio(std::string enable_netsio, std::string netsio_host_port)
-{
-#ifdef BUILD_ATARI // OS
-    Debug_printf("Set NetSIO: %s, %s\n", enable_netsio.c_str(), netsio_host_port.c_str());
-
-    // Store our change in Config
-    if (!netsio_host_port.empty())
-    {
-        // TODO parse netsio_host_port, detect if host part is followed by :port
-        std::size_t found = netsio_host_port.find(':');
-        std::string host = netsio_host_port;
-        int port = CONFIG_DEFAULT_NETSIO_PORT;
-        if (found != std::string::npos)
-        {
-            host = netsio_host_port.substr(0, found);
-            if (host.empty())
-                host = "localhost";
-            port = std::atoi(netsio_host_port.substr(found+1).c_str());
-            if (port < 1 || port > 65535)
-                port = CONFIG_DEFAULT_NETSIO_PORT;
-        }
-        Config.store_netsio_port(port);
-        Config.store_netsio_host(host.c_str());
-        fnSioCom.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port());
-    }
-    if (!enable_netsio.empty())
-    {
-        Config.store_netsio_enabled(util_string_value_is_true(enable_netsio));
-    }
-    fnSioCom.reset_sio_port(Config.get_netsio_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
-
-    // Save change
-    Config.save();
-#endif /* ATARI */
 }
 #endif // !ESP_PLATFORM
+
+void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string boip_host_port)
+{
+    Debug_printf("Set Bus Over IP: %s,%s\n", enable_boip.c_str(), boip_host_port.c_str());
+
+    // Store our change in Config
+    if (!boip_host_port.empty())
+    {
+        std::size_t found = boip_host_port.find(':');
+        std::string host = boip_host_port;
+        int port = CONFIG_DEFAULT_BOIP_PORT;
+        if (found != std::string::npos)
+        {
+            host = boip_host_port.substr(0, found);
+            if (host.empty())
+                host = "localhost";
+            port = std::atoi(boip_host_port.substr(found+1).c_str());
+            if (port < 1 || port > 65535)
+                port = CONFIG_DEFAULT_BOIP_PORT;
+        }
+        Config.store_boip_port(port);
+        Config.store_boip_host(host.c_str());
+
+        // Update settings
+#if defined(BUILD_ATARI)
+#  ifndef ESP_PLATFORM
+        // fnSioCom is not available on Atari FN-ESP
+        fnSioCom.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port());
+#  endif
+#elif defined(BUILD_COCO)
+        fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port());
+#endif
+    }
+    if (!enable_boip.empty())
+    {
+        Config.store_boip_enabled(util_string_value_is_true(enable_boip));
+    }
+    // Save changes
+    Config.save();
+
+    // Apply settings
+#if defined(BUILD_ATARI)
+#  ifndef ESP_PLATFORM
+    // fnSioCom is not available on Atari FN-ESP
+    fnSioCom.reset_sio_port(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
+#  endif
+#elif defined(BUILD_COCO)
+    fnDwCom.reset_drivewire_port(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
+#endif
+
+}
 
 void fnHttpServiceConfigurator::config_pclink_enabled(std::string enabled)
 {
@@ -619,10 +642,15 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
     free(decoded_buf);
 
 #ifndef ESP_PLATFORM
-    bool update_netsio = false;
-    std::string str_netsio_enable;
-    std::string str_netsio_host;
+    bool update_serial = false;
+    std::string str_serial_port;
+    std::string str_serial_baud;
+    std::string str_serial_command;
+    std::string str_serial_proceed;
 #endif
+    bool update_boip = false;
+    std::string str_boip_enable;
+    std::string str_boip_host;
 
     for (std::map<std::string, std::string>::iterator i = postvals.begin(); i != postvals.end(); ++i)
     {
@@ -728,27 +756,35 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
 #ifndef ESP_PLATFORM
         else if (i->first.compare("serial_port") == 0)
         {
-            config_serial(i->second, std::string(), std::string());
+            str_serial_port = i->second;
+            update_serial = true;
+        }
+        else if (i->first.compare("serial_baud") == 0)
+        {
+            str_serial_baud = i->second;
+            update_serial = true;
         }
         else if (i->first.compare("serial_command") == 0)
         {
-            config_serial(std::string(), i->second, std::string());
+            str_serial_command = i->second;
+            update_serial = true;
         }
         else if (i->first.compare("serial_proceed") == 0)
         {
-            config_serial(std::string(), std::string(), i->second);
-        }
-        else if (i->first.compare("netsio_enable") == 0)
-        {
-            str_netsio_enable = i->second;
-            update_netsio = true;
-        }
-        else if (i->first.compare("netsio_host") == 0)
-        {
-            str_netsio_host = i->second;
-            update_netsio = true;
+            str_serial_proceed = i->second;
+            update_serial = true;
         }
 #endif
+        else if (i->first.compare("boip_enable") == 0)
+        {
+            str_boip_enable = i->second;
+            update_boip = true;
+        }
+        else if (i->first.compare("boip_host") == 0)
+        {
+            str_boip_host = i->second;
+            update_boip = true;
+        }
         else if (i->first.compare("pclink_enabled") == 0)
         {
             config_pclink_enabled(i->second);
@@ -762,11 +798,15 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
     }
 
 #ifndef ESP_PLATFORM
-    if (update_netsio)
+    if (update_serial)
     {
-        config_netsio(str_netsio_enable, str_netsio_host);
+        config_serial(str_serial_port, str_serial_baud, str_serial_command, str_serial_proceed);
     }
 #endif
+    if (update_boip)
+    {
+        config_boip(str_boip_enable, str_boip_host);
+    }
 
     return 0;
 }

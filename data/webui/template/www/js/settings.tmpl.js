@@ -153,12 +153,16 @@ setInputValue(current_cpm_enabled == 1, "cpm-virt-yes", "cpm-virt-no");
 {% endif %}
 
 {% if components.serial_port %}
+{% if tweaks.platform == "ATARI" %}
 setSerialCommand(current_serial_command);
 setSerialProceed(current_serial_proceed);
+{% elif tweaks.platform == "COCO" %}
+selectListValue("select_serial_baud", current_serial_baud);
+{% endif %}
 {% endif %}
 
 {% if components.emulator_settings %}
-setInputValue(current_netsio_enabled == 1, "netsio-yes", "netsio-no");
+setInputValue(current_boip_enabled == 1, "boip-yes", "boip-no");
 {% endif %}
 
 {% if components.pclink %}

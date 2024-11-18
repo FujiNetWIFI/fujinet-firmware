@@ -168,7 +168,14 @@ void fnConfig::save()
     ss << LINETERM << "[BOIP]" << LINETERM;
     ss << "enabled=" << _boip.boip_enabled << LINETERM;
     ss << "host=" << _boip.host << LINETERM;
-    ss << "port=" << _boip.port << LINETERM;
+    if (_boip.port != CONFIG_DEFAULT_BOIP_PORT)
+    {
+        ss << "port=" << _boip.port << LINETERM;
+    }
+    else
+    {
+        ss << "port=" << LINETERM;
+    }
 
 #ifndef ESP_PLATFORM
     // SERIAL
@@ -182,13 +189,8 @@ void fnConfig::save()
     ss << "proceed=" << std::string(_serial_proceed_pin_names[_serial.proceed]) << LINETERM;
 #endif
 
-    // NETSIO
-    ss << LINETERM << "[NetSIO]" << LINETERM;
-    ss << "enabled=" << _netsio.netsio_enabled << LINETERM;
-    ss << "host=" << _netsio.host << LINETERM;
-    ss << "port=" << _netsio.port << LINETERM;
-
-    // Bus Over IP
+#ifdef BUILD_APPLE
+    // Bus Over Serial - not used, yet
     ss << LINETERM << "[BOS]" << LINETERM;
     ss << "enabled=" << _bos.bos_enabled << LINETERM;
     ss << "port_name=" << _bos.port_name.c_str() << LINETERM;
@@ -197,6 +199,7 @@ void fnConfig::save()
     ss << "parity=" << _bos.parity << LINETERM;
     ss << "stop_bits=" << _bos.stop_bits << LINETERM;
     ss << "flowcontrol=" << _bos.flowcontrol << LINETERM;
+#endif
 #endif
 
 #ifdef ESP_PLATFORM

@@ -198,7 +198,7 @@ void SioCom::bus_idle(uint16_t ms)
 // specific to SerialSioPort
 void SioCom::set_serial_port(const char *device, int command_pin, int proceed_pin)
 {
-    Debug_printf("SioCom::set_serial_port %s, %d, %d", device ? device : "NULL", command_pin, proceed_pin);
+    Debug_printf("SioCom::set_serial_port %s,%d,%d\n", device ? device : "NULL", command_pin, proceed_pin);
     _serialSio.set_port(device, command_pin, proceed_pin);
 };
 

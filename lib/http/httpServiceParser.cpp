@@ -70,9 +70,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_SERIAL_COMMAND,
         FN_SERIAL_PROCEED,
         FN_SIO_HSTEXT,
-        FN_NETSIO_ENABLED,
-        FN_NETSIO_HOST,
 #endif
+        FN_BOIP_ENABLED,
+        FN_BOIP_HOST,
         FN_DRIVE1HOST,
         FN_DRIVE2HOST,
         FN_DRIVE3HOST,
@@ -187,9 +187,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_SERIAL_COMMAND",
         "FN_SERIAL_PROCEED",
         "FN_SIO_HSTEXT",
-        "FN_NETSIO_ENABLED",
-        "FN_NETSIO_HOST",
 #endif
+        "FN_BOIP_ENABLED",
+        "FN_BOIP_HOST",
         "FN_DRIVE1HOST",
         "FN_DRIVE2HOST",
         "FN_DRIVE3HOST",
@@ -393,7 +393,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << Config.get_serial_port();
         break;
     case FN_SERIAL_PORT_BAUD:
-        resultstream << Config.get_serial_port_baud();
+        resultstream << Config.get_serial_baud();
         break;
     case FN_SERIAL_COMMAND:
         resultstream << Config.get_serial_command();
@@ -473,16 +473,14 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
     case FN_MODEM_SNIFFER_ENABLED:
         resultstream << Config.get_modem_sniffer_enabled();
         break;
-#ifndef ESP_PLATFORM
-    case FN_NETSIO_ENABLED:
-        resultstream << Config.get_netsio_enabled();
+    case FN_BOIP_ENABLED:
+        resultstream << Config.get_boip_enabled();
         break;
-    case FN_NETSIO_HOST:
-        resultstream << Config.get_netsio_host();
-        if (Config.get_netsio_port() != CONFIG_DEFAULT_NETSIO_PORT)
-            resultstream << ":" << Config.get_netsio_port();
+    case FN_BOIP_HOST:
+        resultstream << Config.get_boip_host();
+        if (Config.get_boip_port() != CONFIG_DEFAULT_BOIP_PORT)
+            resultstream << ":" << Config.get_boip_port();
         break;
-#endif
     case FN_DRIVE1HOST:
     case FN_DRIVE2HOST:
     case FN_DRIVE3HOST:

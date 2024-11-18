@@ -130,10 +130,6 @@ fnConfig::section_match fnConfig::_find_section_in_line(std::string &line, int &
             {
                 return SECTION_SERIAL;
             }
-            else if (strncasecmp("NetSIO", s1.c_str(), 6) == 0)
-            {
-                return SECTION_NETSIO;
-            }
             else if (strncasecmp("BOS", s1.c_str(), 3) == 0)
             {
                 return SECTION_BOS;

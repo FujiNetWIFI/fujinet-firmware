@@ -670,7 +670,7 @@ void systemBus::setup()
 #else
     // FujiNet-PC specific
     fnDwCom.set_serial_port(Config.get_serial_port().c_str()); // UART
-    _drivewireBaud = Config.get_serial_port_baud();
+    _drivewireBaud = Config.get_serial_baud();
 #endif
     fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // Becker
     fnDwCom.set_drivewire_mode(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
