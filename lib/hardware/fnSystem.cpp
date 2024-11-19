@@ -93,7 +93,6 @@
 
 
 #ifdef ESP_PLATFORM
-#if defined(BUILD_ATARI) || defined(PINMAP_ESP32S3)
 static QueueHandle_t card_detect_evt_queue = NULL;
 
 static void IRAM_ATTR card_detect_isr_handler(void *arg)
@@ -142,8 +141,6 @@ static void setup_card_detect(gpio_num_t pin)
     // Add the card detect handler
     gpio_isr_handler_add(pin, card_detect_isr_handler, (void *)pin);
 }
-#endif // PINMAP_ESP32S3
-
 // ESP_PLATFORM
 #else
 // !ESP_PLATFORM
@@ -1221,12 +1218,14 @@ void SystemManager::check_hardware_ver()
     a2no3state = true;
     Debug_printf("FujiApple NO3STATE force enabled\r\n");
 #   endif
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_MAC)
 /*  Mac 68k
     Only Rev0
 */
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_IEC)
     /*  Commodore
     */
@@ -1243,6 +1242,7 @@ void SystemManager::check_hardware_ver()
     /* No Safe Reset */
     _hardware_version = 3;
 #   endif
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_LYNX)
     /* Atari Lynx
     */
@@ -1252,11 +1252,13 @@ void SystemManager::check_hardware_ver()
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
 #   endif
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_RS232)
     /* RS232
     */
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_RC2014)
     /* RC2014
     */
@@ -1267,6 +1269,7 @@ void SystemManager::check_hardware_ver()
     */
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #endif /* BUILD_COCO */
 
 #else
