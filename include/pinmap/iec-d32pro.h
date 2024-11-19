@@ -8,7 +8,7 @@
 // pins 12-15 are used to interface with the JTAG debugger
 // so leave them alone if we're using JTAG
 #ifndef JTAG
-#define PIN_CARD_DETECT         GPIO_NUM_12 // fnSystem.h
+#define PIN_CARD_DETECT         GPIO_NUM_15 // fnSystem.h
 #define PIN_CARD_DETECT_FIX     GPIO_NUM_15 // fnSystem.h
 #endif
 

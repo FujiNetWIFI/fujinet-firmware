@@ -2,7 +2,7 @@
 #ifdef PINMAP_A2_REV0
 
 /* SD Card */
-#define PIN_CARD_DETECT         GPIO_NUM_12 // fnSystem.h
+#define PIN_CARD_DETECT         GPIO_NUM_15 // fnSystem.h
 #define PIN_CARD_DETECT_FIX     GPIO_NUM_15 // fnSystem.h
 #define PIN_SD_HOST_CS          GPIO_NUM_5 //fnFsSD.cpp
 #define PIN_SD_HOST_MISO        GPIO_NUM_19
