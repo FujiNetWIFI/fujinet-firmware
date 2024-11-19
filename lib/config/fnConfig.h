@@ -459,7 +459,14 @@ private:
     struct boip_info
     {
         bool boip_enabled = false;
+#ifdef ESP_PLATFORM
+        // CoCo: DriveWire server (listen) -> listen on all IPs by default
+        // Atari: NetSIO hub (connect to)  -> hub host/IP must be specified
+        std::string host = "";
+#else
+        // On PC, limit connections to/from local machine by default
         std::string host = "localhost";
+#endif
         int port = CONFIG_DEFAULT_BOIP_PORT;
     };
 

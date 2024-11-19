@@ -1343,6 +1343,13 @@
 									{% else %}
 										Enable emulator connection
 									{% endif %}
+									{% if not tweaks.fujinet_pc %}
+									<div class="tooltip">&#9432;
+										<span class="tooltiptext small-text">
+											Reboot FujiNet after changing this value.
+										</span>
+									</div>
+									{% endif %}
 								</label>
 							</div>
 							<div class="settings-value">
@@ -1354,6 +1361,7 @@
 								</div>
 							</div>
 						</div>
+						{% if tweaks.fujinet_pc %}
 						<div class="set">
 							<div class="settings-label">
 								<label for="boip_host">Hostname or IP [:port]</label>
@@ -1362,6 +1370,7 @@
 								<input type="text" name="boip_host" id="boip_host" value="<%FN_BOIP_HOST%>">
 							</div>
 						</div>
+						{% endif %}
 						<hr>
 						<div class="settings-text">
 							<div>

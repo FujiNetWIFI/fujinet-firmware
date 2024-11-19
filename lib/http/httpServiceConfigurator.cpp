@@ -569,7 +569,12 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
     Debug_printf("Set Bus Over IP: %s,%s\n", enable_boip.c_str(), boip_host_port.c_str());
 
     // Store our change in Config
-    if (!boip_host_port.empty())
+    if (boip_host_port.empty())
+    {
+        Config.store_boip_host("");
+        Config.store_boip_port(CONFIG_DEFAULT_BOIP_PORT);
+    }
+    else
     {
         std::size_t found = boip_host_port.find(':');
         std::string host = boip_host_port;
@@ -577,42 +582,39 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
         if (found != std::string::npos)
         {
             host = boip_host_port.substr(0, found);
-            if (host.empty())
-                host = "localhost";
             port = std::atoi(boip_host_port.substr(found+1).c_str());
             if (port < 1 || port > 65535)
                 port = CONFIG_DEFAULT_BOIP_PORT;
         }
-        Config.store_boip_port(port);
         Config.store_boip_host(host.c_str());
-
-        // Update settings
-#if defined(BUILD_ATARI)
-#  ifndef ESP_PLATFORM
-        // fnSioCom is not available on Atari FN-ESP
-        fnSioCom.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port());
-#  endif
-#elif defined(BUILD_COCO)
-        fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port());
-#endif
+        Config.store_boip_port(port);
     }
+
+    // Update settings (on ESP reboot is needed)
+#ifndef ESP_PLATFORM
+#if defined(BUILD_ATARI)
+    fnSioCom.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port());
+#elif defined(BUILD_COCO)
+    fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port());
+#endif
+#endif
+
     if (!enable_boip.empty())
     {
         Config.store_boip_enabled(util_string_value_is_true(enable_boip));
     }
-    // Save changes
-    Config.save();
 
-    // Apply settings
+    // Apply settings (on ESP reboot is needed)
+#ifndef ESP_PLATFORM
 #if defined(BUILD_ATARI)
-#  ifndef ESP_PLATFORM
-    // fnSioCom is not available on Atari FN-ESP
     fnSioCom.reset_sio_port(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
-#  endif
 #elif defined(BUILD_COCO)
     fnDwCom.reset_drivewire_port(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
 #endif
+#endif
 
+    // Save changes
+    Config.save();
 }
 
 void fnHttpServiceConfigurator::config_pclink_enabled(std::string enabled)
