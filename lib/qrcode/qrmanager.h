@@ -14,10 +14,16 @@
 #include <vector>
 #include <memory>
 
+#include "qrcode.h"
+
+#define QR_OUTPUT_MODE_BYTES   0
+#define QR_OUTPUT_MODE_BITS    1
+#define QR_OUTPUT_MODE_ATASCII 2
+
 class QRManager {
 public:
     /**
-    * encode - generate QR code as bits
+    * encode - generate QR code as bytes
     * @src: Data to be encoded
     * @len: Length of the data to be encoded
     * @version: 1-40 (Size=17+4*Version)
@@ -30,13 +36,20 @@ public:
     * whether it is on (black) or off (white).
     */
     static std::vector<uint8_t> encode(const void* src, size_t len, size_t version, size_t ecc, size_t* out_len);
+    static std::vector<uint8_t> to_bits(void);
+    static std::vector<uint8_t> to_atascii(void);
 
-    void set_buffer(const std::string& buffer) { qr_buffer = buffer; }
-    void clear_buffer() { qr_buffer.clear(); }
-    void add_buffer(const std::string& extra) { qr_buffer += extra; }
+    size_t size() { return version * 4 + 17; }
+    void set_buffer(const std::string& buffer) { in_buf = buffer; }
+    void clear_buffer() { in_buf.clear(); }
+    void add_buffer(const std::string& extra) { in_buf += extra; }
 
-    std::string qr_buffer;
-    std::vector<uint8_t> qr_output;
+    std::string in_buf;
+    std::vector<uint8_t> out_buf;
+
+    uint8_t version = 1;
+    uint8_t ecc_mode = ECC_LOW;
+    uint8_t output_mode = QR_OUTPUT_MODE_BYTES;
 };
 
 extern QRManager qrManager;
