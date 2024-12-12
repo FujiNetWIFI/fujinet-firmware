@@ -37,20 +37,20 @@ endif()
 if(FUJINET_TARGET STREQUAL "APPLE")
     ######################## SLIP PROTOCOL PROCESSING
     set(SLIP_PROTOCOL "NET" CACHE STRING "Select the protocol type (NET or COM)")
-    
+
     set_property(CACHE SLIP_PROTOCOL PROPERTY STRINGS "NET" "COM")
-    
+
     if(NOT SLIP_PROTOCOL STREQUAL "NET" AND NOT SLIP_PROTOCOL STREQUAL "COM")
       message(FATAL_ERROR "Invalid value for SLIP_PROTOCOL: ${SLIP_PROTOCOL}. Please choose either NET or COM.")
     endif()
-    
+
     # convert to values for C++ code to use as macros
     if(SLIP_PROTOCOL STREQUAL "NET")
         add_compile_definitions(SLIP_PROTOCOL_NET=1)
     elseif(SLIP_PROTOCOL STREQUAL "COM")
         add_compile_definitions(SLIP_PROTOCOL_COM=1)
     endif()
-    
+
     message(STATUS "SLIP_PROTOCOL is ${SLIP_PROTOCOL}")
     ################################################
 endif()
@@ -248,6 +248,8 @@ set(SOURCES src/main.cpp
     lib/media/media.h
     lib/encoding/base64.h lib/encoding/base64.cpp
     lib/encoding/hash.h lib/encoding/hash.cpp
+    lib/qrcode/qrcode.h lib/qrcode/qrcode.c
+    lib/qrcode/qrmanager.h lib/qrcode/qrmanager.cpp
     lib/encrypt/crypt.h lib/encrypt/crypt.cpp
     lib/compat/compat_inet.c
     lib/compat/compat_gettimeofday.h lib/compat/compat_gettimeofday.c
@@ -263,7 +265,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
     lib/media/atari/diskType.h lib/media/atari/diskType.cpp
     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
-    lib/media/atari/diskTypeAtx.h 
+    lib/media/atari/diskTypeAtx.h
     lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
 
     lib/device/sio/disk.h lib/device/sio/disk.cpp
@@ -352,7 +354,7 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
     lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
     lib/media/drivewire/mediaTypeMRM.h lib/media/drivewire/mediaTypeMRM.cpp
-    
+
     lib/device/drivewire/fuji.h lib/device/drivewire/fuji.cpp
     lib/device/drivewire/network.h lib/device/drivewire/network.cpp
     lib/device/drivewire/dload.h lib/device/drivewire/dload.cpp
@@ -497,7 +499,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
         COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:fujinet> dist
         COMMAND ${CMAKE_COMMAND} -E copy_directory ${BUILD_DATA_DIR} dist/data
         # DLL's TODO how to make this using cmake?
-        COMMAND ldd $<TARGET_FILE:fujinet> | grep -v -i '/windows' 
+        COMMAND ldd $<TARGET_FILE:fujinet> | grep -v -i '/windows'
         | awk '{print $$3}' | xargs -I {} cp -p {} dist
     )
 else()
