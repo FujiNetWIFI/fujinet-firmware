@@ -1,5 +1,3 @@
-#include <_stdio.h>
-#include <_types/_uint8_t.h>
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
@@ -31,6 +29,9 @@ std::vector<uint8_t> QRManager::encode(const void* src, size_t len, size_t versi
             }
         }
     }
+
+    qrManager.version = version;
+    qrManager.ecc_mode = ecc;
 
     return qrManager.out_buf;
 }
@@ -71,7 +72,7 @@ uint8_t atascii[16] = {32,  12,  11,  149, 15,  25,  6,   137, 9,   7,   153, 14
 
 void QRManager::to_atascii(void) {
     auto bytes = qrManager.out_buf;
-    size_t size = sqrt(bytes.size()); // TODO: Pass through/store?
+    size_t size = qrManager.size();
     std::vector<uint8_t> out;
 
     for (auto y = 0; y < size; y += 2) {
