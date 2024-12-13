@@ -36,8 +36,24 @@ public:
     * whether it is on (black) or off (white).
     */
     static std::vector<uint8_t> encode(const void* src, size_t len, size_t version, size_t ecc, size_t* out_len);
-    static std::vector<uint8_t> to_bits(void);
-    static std::vector<uint8_t> to_atascii(void);
+
+    /**
+    * to_bits - Convert QR code in out_buf to compact binary format
+    *
+    * Replaces data in out_buf, where each byte is 0x00 or 0x01 with, with
+    * compact data where each bit represents a single QR module (pixel).
+    * So a 21x21 QR code will be 56 bytes (21*21/8). Data is returned LSB->MSB.
+    */
+    void to_bits(void);
+
+    /**
+    * to_atascii - Convert QR code in out_buf to ATASCII
+    *
+    * Replaces bytes in out_buf with vector of ATASCII characters. Each
+    * ATASCII character can represent 4 bits. Atari newlines (0x9B) are
+    * added at the end of each row to facilitate printing direct to screen.
+    */
+    void to_atascii(void);
 
     size_t size() { return version * 4 + 17; }
     void set_buffer(const std::string& buffer) { in_buf = buffer; }
