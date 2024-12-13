@@ -65,7 +65,7 @@ std::vector<uint8_t> QRManager::to_bits(void) {
                [21]           ?    [9]       ?    [25] [15]      [11] [12] [32]
 */
 //                     0    1    2    3    4    5    6    7    8    9    10   11   12   13   14   15
-uint8_t atascii[16] = {32,  12,  11,  149, 15,  25,  11,  137, 9,   12,  153, 143, 21,  139, 140, 160};
+uint8_t atascii[16] = {32,  12,  11,  149, 15,  25,  6,   137, 9,   7,   153, 143, 21,  139, 140, 160};
 
 std::vector<uint8_t> QRManager::to_atascii(void) {
     auto bytes = qrManager.out_buf;
