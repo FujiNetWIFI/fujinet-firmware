@@ -1,5 +1,4 @@
 #include "fujiCmd.h"
-#include <_types/_uint8_t.h>
 #ifdef BUILD_ATARI
 
 #include "fuji.h"
