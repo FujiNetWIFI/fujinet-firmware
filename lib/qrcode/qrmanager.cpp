@@ -15,7 +15,7 @@ std::vector<uint8_t> QRManager::encode(const void* src, size_t len, size_t versi
     QRCode qr_code;
     uint8_t qr_bytes[qrcode_getBufferSize(version)];
 
-    bool err = qrcode_initText(&qr_code, qr_bytes, version, ecc, (const char*)src);
+    uint8_t err = qrcode_initText(&qr_code, qr_bytes, version, ecc, (const char*)src);
 
     size_t size = qr_code.size;
     *out_len = size*size;
@@ -23,21 +23,19 @@ std::vector<uint8_t> QRManager::encode(const void* src, size_t len, size_t versi
     qrManager.out_buf.clear();
     qrManager.out_buf.shrink_to_fit();
 
-    if (err) {
-        return qrManager.out_buf;
-    }
-
-    for (uint8_t x = 0; x < size; x++) {
-        for (uint8_t y = 0; y < size; y++) {
-            uint8_t on = qrcode_getModule(&qr_code, x, y);
-            qrManager.out_buf.push_back(on);
+    if (err == 0) {
+        for (uint8_t x = 0; x < size; x++) {
+            for (uint8_t y = 0; y < size; y++) {
+                uint8_t on = qrcode_getModule(&qr_code, x, y);
+                qrManager.out_buf.push_back(on);
+            }
         }
     }
 
     return qrManager.out_buf;
 }
 
-std::vector<uint8_t> QRManager::to_bits(void) {
+void QRManager::to_bits(void) {
     auto bytes = qrManager.out_buf;
     size_t len = bytes.size();
     std::vector<uint8_t> out;
@@ -54,10 +52,14 @@ std::vector<uint8_t> QRManager::to_bits(void) {
     out.push_back(val);
 
     qrManager.out_buf = out;
-    return qrManager.out_buf;
 }
 
 /*
+This collapses each 2x2 groups of modules (pixels) into a single ATASCII character.
+Values for ATASCII look up are as calculated as follows. Note that 6 and 9 have no
+suitable ATASCII character, so diagonal lines are used instead. These seem to work
+in most cases, but for best results you may want to use custom characters for those.
+
 0    1    2    3    4    5    6*   7    8    9*   10   11   12   13   14   15
 - -  x -  - x  x x  - -  x -  - x  x x  - -  x -  - x  x x  - -  x -  - x  x x
 - -  - -  - -  - -  x -  x -  x -  x -  - x  - x  - x  - x  x x  x x  x x  x x
@@ -67,7 +69,7 @@ std::vector<uint8_t> QRManager::to_bits(void) {
 //                     0    1    2    3    4    5    6    7    8    9    10   11   12   13   14   15
 uint8_t atascii[16] = {32,  12,  11,  149, 15,  25,  6,   137, 9,   7,   153, 143, 21,  139, 140, 160};
 
-std::vector<uint8_t> QRManager::to_atascii(void) {
+void QRManager::to_atascii(void) {
     auto bytes = qrManager.out_buf;
     size_t size = sqrt(bytes.size()); // TODO: Pass through/store?
     std::vector<uint8_t> out;
@@ -75,6 +77,7 @@ std::vector<uint8_t> QRManager::to_atascii(void) {
     for (auto y = 0; y < size; y += 2) {
         for (auto x = 0; x < size; x += 2) {
             uint8_t val = bytes[y*size+x];
+            // QR Codes have odd number of rows/columns, so last ATASCII char is only half full
             if (x+1 < size) val |= bytes[y*size+x+1] << 1;
             if (y+1 < size) val |= bytes[(y+1)*size+x] << 2;
             if (y+1 < size && x+1 < size) val |= bytes[(y+1)*size+x+1] << 3;
@@ -84,5 +87,4 @@ std::vector<uint8_t> QRManager::to_atascii(void) {
     }
 
     qrManager.out_buf = out;
-    return qrManager.out_buf;
 }
