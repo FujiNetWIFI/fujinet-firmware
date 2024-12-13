@@ -6,7 +6,6 @@
 #ifndef QRCODE_MANAGER_H
 #define QRCODE_MANAGER_H
 
-#include <_types/_uint8_t.h>
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
