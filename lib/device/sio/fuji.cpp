@@ -1,4 +1,5 @@
 #include "fujiCmd.h"
+#include "httpService.h"
 #ifdef BUILD_ATARI
 
 #include "fuji.h"
@@ -2212,14 +2213,21 @@ void sioFuji::sio_qrcode_encode()
 
     uint16_t aux = sio_get_aux();
     qrManager.version = aux;
-    qrManager.ecc_mode = aux >> 8;
+    qrManager.ecc_mode = (aux >> 8) & 0b00000011;
+    bool shorten = (aux >> 12) & 0b00000001;
 
     Debug_printf("FUJI: QRCODE ENCODE\n");
-    Debug_printf("QR Version: %d, ECC: %d\n", qrManager.version, qrManager.ecc_mode);
+    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", qrManager.version, qrManager.ecc_mode, shorten ? "Y" : "N");
+
+    std::string url = qrManager.in_buf;
+
+    if (shorten) {
+        url = fnHTTPD.shorten_url(url);
+    }
 
     std::vector<uint8_t> p = QRManager::encode(
-        qrManager.in_buf.c_str(),
-        qrManager.in_buf.size(),
+        url.c_str(),
+        url.size(),
         qrManager.version,
         qrManager.ecc_mode,
         &out_len
