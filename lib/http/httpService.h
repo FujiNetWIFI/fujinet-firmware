@@ -21,7 +21,7 @@ If a file has an extention pre-determined to support parsing (see/update
 
     * The entire file contents are loaded into an in-memory string.
     * Anything with the pattern <%PARSE_TAG%> is replaced with an
-    * appropriate value as determined by the 
+    * appropriate value as determined by the
     *       string substitute_tag(const string &tag)
     * function.
 */
@@ -31,7 +31,6 @@ If a file has an extention pre-determined to support parsing (see/update
 
 #include <map>
 #include <string>
-
 
 #include "fnFS.h"
 
@@ -60,7 +59,7 @@ If a file has an extention pre-determined to support parsing (see/update
 
 #define PRINTER_BUSY_TIME 2000 // milliseconds to wait until printer is done
 
-class fnHttpService 
+class fnHttpService
 {
     struct serverstate {
 #ifdef ESP_PLATFORM
@@ -79,12 +78,14 @@ class fnHttpService
         fnwserr_post_fail
     };
 
+    std::vector<std::string> shortURLs;
+
 #ifdef ESP_PLATFORM
     struct queryparts {
         std::string full_uri;
         std::string path;
         std::string query;
-        std::map<std::string, std::string> query_parsed; 
+        std::map<std::string, std::string> query_parsed;
     };
 
     static void custom_global_ctx_free(void * ctx);
@@ -120,7 +121,7 @@ class fnHttpService
 
 public:
 
-    std::string errMsg; 
+    std::string errMsg;
 
     std::string getErrMsg() { return errMsg; }
     void clearErrMsg() { errMsg.clear(); }
@@ -138,6 +139,7 @@ public:
     static esp_err_t get_handler_eject(httpd_req_t *req);
     static esp_err_t get_handler_dir(httpd_req_t *req);
     static esp_err_t get_handler_slot(httpd_req_t *req);
+    static esp_err_t get_handler_shorturl(httpd_req_t *req);
 
 #ifdef BUILD_ADAM
     static esp_err_t get_handler_term(httpd_req_t *req);
@@ -156,10 +158,13 @@ public:
     static int post_handler_config(struct mg_connection *c, struct mg_http_message *hm);
 
     static int get_handler_browse(mg_connection *c, mg_http_message *hm);
+    static int get_handler_shorturl(mg_connection *c, mg_http_message *hm);
 
     void service();
 // !ESP_PLATFORM
 #endif
+
+    std::string shorten_url(std::string url);
 
     void start();
     void stop();
