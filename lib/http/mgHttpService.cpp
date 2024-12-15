@@ -6,6 +6,7 @@
 #include <sstream>
 #include <vector>
 #include <map>
+#include <algorithm>
 
 #include "fnSystem.h"
 #include "fnConfig.h"
