@@ -41,6 +41,7 @@ If a file has an extention pre-determined to support parsing (see/update
 #else
 #include "mongoose.h"
 #undef mkdir
+#undef poll
 #endif
 
 // FNWS_FILE_ROOT should end in a slash '/'
