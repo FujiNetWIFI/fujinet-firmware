@@ -1381,7 +1381,7 @@
 							{% elif tweaks.platform == "COCO" %}
 								When enabled, FujiNet will not use the serial port for DriveWire
 								communication. Instead, it will use TCP to communicate with
-								a CoCo emulator. Port is optional (defaults to 65504).
+								a CoCo emulator.{% if tweaks.fujinet_pc %} Port is optional (defaults to 65504).{% endif %}
 							{% else %}
 								When enabled, FujiNet will communicate with an emulator over network.
 							{% endif %}
