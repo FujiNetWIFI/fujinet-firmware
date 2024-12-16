@@ -31,6 +31,7 @@ If a file has an extention pre-determined to support parsing (see/update
 
 #include <map>
 #include <string>
+#include <vector>
 
 #include "fnFS.h"
 
