@@ -302,6 +302,9 @@ void main_setup(int argc, char *argv[])
     theFuji.setup(&RS232);
     RS232.setup();
     RS232.addDevice(&theFuji,0x70);
+    if (Config.get_apetime_enabled() == true)
+        RS232.addDevice(&apeTime, RS232_DEVICEID_APETIME); // Clock for Atari, APETime compatible, but extended for additional return types
+
 #endif
 
 #ifdef BUILD_RC2014

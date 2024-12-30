@@ -297,11 +297,11 @@ void systemBus::setup()
     // Set up UART
     fnUartBUS.begin(_rs232Baud);
 
-    // INT PIN
-    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
+    // // INT PIN
+    // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
     // PROC PIN
-    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
     // INVALID PIN
     //fnSystem.set_pin_mode(PIN_RS232_INVALID, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
