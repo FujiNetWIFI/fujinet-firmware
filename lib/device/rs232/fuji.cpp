@@ -1470,9 +1470,11 @@ rs232Disk *rs232Fuji::bootdisk()
 
 void rs232Fuji::rs232_test()
 {
+    uint8_t buf[512];
+
     Debug_printf("rs232_test()\n");
-    vTaskDelay(1);
-    rs232_complete();
+    memset(buf,'A',512);
+    bus_to_computer(buf,512,false);
 }
 
 void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
@@ -1623,6 +1625,11 @@ void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_ENABLE_UDPSTREAM:
         rs232_ack();
         rs232_enable_udpstream();
+        break;
+    case FUJICMD_DEVICE_READY:
+        Debug_printf("FUJICMD DEVICE TEST\n");
+        rs232_ack();
+        rs232_test();
         break;
     default:
         rs232_nak();

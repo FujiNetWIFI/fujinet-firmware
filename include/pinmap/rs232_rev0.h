@@ -14,8 +14,6 @@
 #define PIN_UART0_TX            GPIO_NUM_1  // USB Serial
 #define PIN_UART1_RX            GPIO_NUM_13 // RS232
 #define PIN_UART1_TX            GPIO_NUM_21 // RS232
-//#define PIN_UART2_RX          GPIO_NUM_33
-//#define PIN_UART2_TX          GPIO_NUM_21
 
 /* Buttons - keys.cpp */
 #define PIN_BUTTON_A            GPIO_NUM_0  // Button 0 on DEVKITC-VE
