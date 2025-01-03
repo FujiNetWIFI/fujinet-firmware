@@ -687,6 +687,10 @@ void systemBus::toggleBaudrate()
 #ifdef ESP_PLATFORM
     SYSTEM_BUS.uart->set_baudrate(_sioBaud);
 #else
+    fnSioCom.flush_input();
+    fnSioCom.flush();
+    // hmm, calling flush() may not be enough to empty TX buffer
+    fnSystem.delay_microseconds(2000);
     fnSioCom.set_baudrate(_sioBaud);
 #endif
 }
