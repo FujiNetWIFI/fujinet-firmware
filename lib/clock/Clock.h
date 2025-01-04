@@ -20,6 +20,9 @@ public:
     // current local time in ApeTime format
     static std::vector<uint8_t> get_current_time_apetime(const std::string& posixTimeZone);
 
+    // current local time in SOS set_time format
+    static std::string get_current_time_sos(const std::string& posixTimeZone);
+
 };
 
 #endif // CLASS_CLOCK_H

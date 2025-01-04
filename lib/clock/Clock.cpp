@@ -24,6 +24,15 @@ static std::string format_iso8601(const std::tm& time) {
     return std::string(buffer);
 }
 
+// Helper function to format time into SOS set_time string
+static std::string format_sos(const std::tm& time) {
+    char buffer[30];
+    // Format: YYYYMMDD0HHMMSS000 - raw time, no timezone info supported.
+    // ref SOS Reference Manual: https://archive.org/details/apple-iii-sos-reference-manual-volume-2/page/94/mode/2up
+    std::strftime(buffer, sizeof(buffer), "%Y%m%d0%H%M%S000", &time);
+    return std::string(buffer);
+}
+
 std::string Clock::get_current_time_iso(const std::string& posixTimeZone) {
     set_timezone_env("TZ", posixTimeZone);
     std::time_t now = std::time(nullptr);
@@ -102,4 +111,16 @@ std::vector<uint8_t> Clock::get_current_time_apetime(const std::string& posixTim
     // Debug_printf("apetime: %s, %s\r\n", dstring.c_str(), posixTimeZone.c_str());
 
     return apeTime;
+}
+
+std::string Clock::get_current_time_sos(const std::string& posixTimeZone) {
+    set_timezone_env("TZ", posixTimeZone);
+    std::time_t now = std::time(nullptr);
+    std::tm* localTime = std::localtime(&now);
+
+    // Format the time into Apple /// SOS set_time format YYYYMMDD0HHMMSS000
+    std::string sosString = format_sos(*localTime);
+    //Debug_printf("SOS set_time format time: %s\r\n", sosString.c_str());
+
+    return sosString;
 }

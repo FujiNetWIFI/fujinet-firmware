@@ -104,7 +104,15 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
         break;
     }
     case 'S': {
-        // Date and time, ASCII string in ISO format - This is a change from the original format: YYYYMMDDxHHMMSSxxx with 0 for every 'x' value, which was not TZ friendly, and I found no references to
+        // Date and time, ASCII string in Apple /// SOS format: YYYYMMDD0HHMMSS000
+        std::string sosTime = Clock::get_current_time_sos(Config.get_general_timezone());
+        std::copy(sosTime.begin(), sosTime.end(), data_buffer);
+        data_buffer[sosTime.size()] = '\0';         // this is a string in a buffer, we will null terminate it (this is also a change to the original that sent the char bytes without a null)
+        data_len = sosTime.size() + 1;              // and ensure the size reflects the null terminator
+        break;
+    }
+    case 'I': {
+        // Date and time, ASCII string in ISO format
         std::string utcTime = Clock::get_current_time_iso(Config.get_general_timezone());
         std::copy(utcTime.begin(), utcTime.end(), data_buffer);
         data_buffer[utcTime.size()] = '\0';         // this is a string in a buffer, we will null terminate it (this is also a change to the original that sent the char bytes without a null)
