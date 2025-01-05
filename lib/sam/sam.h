@@ -12,6 +12,7 @@ extern "C"
     void SetMouth(unsigned char _mouth);
     void SetThroat(unsigned char _throat);
     void EnableSingmode();
+    void DisableSingmode();
     void EnableDebug();
 
     int SAMMain();
