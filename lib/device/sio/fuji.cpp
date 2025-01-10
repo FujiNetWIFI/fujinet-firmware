@@ -554,6 +554,9 @@ void sioFuji::sio_copy_file()
     char *dataBuf;
     unsigned char sourceSlot;
     unsigned char destSlot;
+#ifndef ESP_PLATFORM
+    uint64_t poll_ts = fnSystem.millis();
+#endif
 
     dataBuf = (char *)malloc(532);
 
@@ -648,6 +651,13 @@ void sioFuji::sio_copy_file()
     bool err = false;
     do
     {
+#ifndef ESP_PLATFORM
+        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::NETSIO && fnSystem.millis() - poll_ts > 1000)
+        {
+            fnSioCom.poll(1);
+            poll_ts = fnSystem.millis();
+        }
+#endif
         readCount = fnio::fread(dataBuf, 1, 532, sourceFile);
         readTotal += readCount;
         // Check if we got enough bytes on the read

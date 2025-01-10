@@ -168,7 +168,11 @@ void NetSioPort::end()
 bool NetSioPort::poll(int ms)
 {
     if (_initialized)
-        return wait_sock_readable(ms);
+    {
+        if (handle_netsio() > 0)
+            return true;
+        return (wait_sock_readable(ms));
+    }
     fnSystem.delay(ms);
     return false;
 }
