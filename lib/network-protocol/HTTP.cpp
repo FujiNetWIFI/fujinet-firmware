@@ -174,6 +174,13 @@ bool NetworkProtocolHTTP::open_dir_handle()
     "<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /><D:resourcetype /></D:prop>\r\n"
     "</D:propfind>\r\n");
 
+    // If Method not allowed, try GET.
+    if (resultCode == 405)
+    {
+        httpOpenMode = GET;
+        return false;
+    }
+
     if (resultCode > 399)
     {
 #ifdef VERBOSE_PROTOCOL
