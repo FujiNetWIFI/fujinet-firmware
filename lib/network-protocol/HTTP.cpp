@@ -178,6 +178,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
     if (resultCode == 405 || resultCode == 408)
     {
         httpOpenMode = GET;
+        http_transaction();
         return false;
     }
 
