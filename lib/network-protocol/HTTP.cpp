@@ -175,7 +175,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
     "</D:propfind>\r\n");
 
     // If Method not allowed, try GET.
-    if (resultCode == 405)
+    if (resultCode == 405 || resultCode == 408)
     {
         httpOpenMode = GET;
         return false;
