@@ -172,6 +172,11 @@ void atari1025::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
     }
     else if (c == 27)
         escMode = true;
+    else if (c == 12) // form feed.
+    {
+        pdf_end_page();
+        pdf_new_page();
+    }
     else
     { // maybe printable character
         print_char(c);
