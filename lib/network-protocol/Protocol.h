@@ -11,7 +11,11 @@ class NetworkProtocol
 {
 public:
     std::string name = "UNKNOWN";
-
+    /**
+     * Was the last command a write?
+     */
+    bool is_write = false;
+    
     /**
      * Pointer to the receive buffer
      */

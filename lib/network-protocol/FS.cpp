@@ -58,6 +58,8 @@ bool NetworkProtocolFS::open_file()
 
     if (aux1_open == 4 || aux1_open == 8)
         resolve();
+    else
+        stat();
 
     update_dir_filename(opened_url);
 
@@ -182,6 +184,8 @@ bool NetworkProtocolFS::read(unsigned short len)
 {
     bool ret;
 
+    is_write = false;
+    
     switch (openMode)
     {
     case FILE:
@@ -245,6 +249,7 @@ bool NetworkProtocolFS::read_dir(unsigned short len)
 
 bool NetworkProtocolFS::write(unsigned short len)
 {
+    is_write = true;
     len = translate_transmit_buffer();
     return write_file(len); // Do more here? not sure.
 }
@@ -285,7 +290,10 @@ bool NetworkProtocolFS::status_file(NetworkStatus *status)
 #endif
 
     status->connected = fileSize > 0 ? 1 : 0;
-    status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+    if (is_write)
+        status->error = 1;
+    else
+        status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
 
     NetworkProtocol::status(status);
 
