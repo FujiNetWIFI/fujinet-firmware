@@ -185,6 +185,10 @@ void atari825::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
             pdf_dY -= lineHeight; // set pdf_dY and rise to N1/216.
             pdf_set_rise();
             break;
+        case 12: // Form feed
+            pdf_end_page();
+            pdf_new_page();
+            break;
         case 13: // Carriage Return.
             // Prints buffer contents and resets buffer character count to zero
             // Implemented outside in pdf_printer()
