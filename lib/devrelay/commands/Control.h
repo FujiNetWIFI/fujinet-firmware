@@ -9,7 +9,7 @@
 class ControlRequest : public Request
 {
 public:
-	ControlRequest(const uint8_t request_sequence_number, const uint8_t device_id, const uint8_t control_code, const uint8_t network_unit, std::vector<uint8_t> &data);
+	ControlRequest(const uint8_t request_sequence_number, const uint8_t param_count, const uint8_t device_id, const uint8_t control_code, const uint8_t network_unit, std::vector<uint8_t> &data);
 	std::vector<uint8_t> serialize() const override;
 	std::unique_ptr<Response> deserialize(const std::vector<uint8_t> &data) const override;
 

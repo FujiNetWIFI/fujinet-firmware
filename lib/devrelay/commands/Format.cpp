@@ -2,14 +2,16 @@
 
 #include "Format.h"
 
-FormatRequest::FormatRequest(const uint8_t request_sequence_number, const uint8_t device_id) : Request(request_sequence_number, CMD_FORMAT, device_id) {}
+FormatRequest::FormatRequest(const uint8_t request_sequence_number, const uint8_t param_count, const uint8_t device_id) : Request(request_sequence_number, CMD_FORMAT, param_count, device_id) {}
 
 std::vector<uint8_t> FormatRequest::serialize() const
 {
 	std::vector<uint8_t> request_data;
 	request_data.push_back(this->get_request_sequence_number());
 	request_data.push_back(this->get_command_number());
+	request_data.push_back(this->get_param_count());
 	request_data.push_back(this->get_device_id());
+	request_data.resize(11);
 	return request_data;
 }
 

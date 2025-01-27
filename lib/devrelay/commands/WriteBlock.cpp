@@ -1,19 +1,20 @@
 #ifdef DEV_RELAY_SLIP
 
 #include "WriteBlock.h"
-#include <cstdint>
 
-WriteBlockRequest::WriteBlockRequest(const uint8_t request_sequence_number, const uint8_t device_id) : Request(request_sequence_number, CMD_WRITE_BLOCK, device_id), block_number_{}, block_data_{} {}
+WriteBlockRequest::WriteBlockRequest(const uint8_t request_sequence_number, const uint8_t param_count, const uint8_t device_id) : Request(request_sequence_number, CMD_WRITE_BLOCK, param_count, device_id), block_number_{}, block_data_{} {}
 
 std::vector<uint8_t> WriteBlockRequest::serialize() const
 {
 	std::vector<uint8_t> request_data;
 	request_data.push_back(this->get_request_sequence_number());
 	request_data.push_back(this->get_command_number());
+	request_data.push_back(this->get_param_count());
 	request_data.push_back(this->get_device_id());
+	request_data.resize(6);
 	request_data.insert(request_data.end(), block_number_.begin(), block_number_.end());
+	request_data.resize(11);
 	request_data.insert(request_data.end(), block_data_.begin(), block_data_.end());
-
 	return request_data;
 }
 

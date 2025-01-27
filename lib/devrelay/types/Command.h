@@ -14,8 +14,7 @@ enum
 	CMD_OPEN = 6,
 	CMD_CLOSE = 7,
 	CMD_READ = 8,
-	CMD_WRITE = 9,
-	CMD_RESET = 10
+	CMD_WRITE = 9
 };
 
 class Command

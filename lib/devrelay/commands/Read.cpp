@@ -2,16 +2,19 @@
 
 #include "Read.h"
 
-ReadRequest::ReadRequest(const uint8_t request_sequence_number, const uint8_t device_id) : Request(request_sequence_number, CMD_READ, device_id), byte_count_(), address_() {}
+ReadRequest::ReadRequest(const uint8_t request_sequence_number, const uint8_t param_count, const uint8_t device_id) : Request(request_sequence_number, CMD_READ, param_count, device_id), byte_count_(), address_() {}
 
 std::vector<uint8_t> ReadRequest::serialize() const
 {
 	std::vector<uint8_t> request_data;
 	request_data.push_back(this->get_request_sequence_number());
 	request_data.push_back(this->get_command_number());
+	request_data.push_back(this->get_param_count());
 	request_data.push_back(this->get_device_id());
+	request_data.resize(6);
 	request_data.insert(request_data.end(), get_byte_count().begin(), get_byte_count().end());
 	request_data.insert(request_data.end(), get_address().begin(), get_address().end());
+	request_data.resize(11);
 	return request_data;
 }
 
