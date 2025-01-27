@@ -28,8 +28,8 @@ uint8_t Request::get_device_id() const { return device_id_; }
 void Request::init_command(uint8_t* cmd_data) const {
 	std::fill(cmd_data, cmd_data + 9, 0);
 	cmd_data[0] = get_command_number();
-  cmd_data[1] = get_param_count();
-  cmd_data[2] = get_device_id();
+	cmd_data[1] = get_param_count();
+	cmd_data[2] = get_device_id();
 }
 
 std::unique_ptr<Request> Request::from_packet(const std::vector<uint8_t>& packet) {
