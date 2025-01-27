@@ -23,7 +23,7 @@
 #include "connector_com.h"
 #endif
 
-#define COMMAND_LEN 8	   // Read Request / Write Request
+#define COMMAND_LEN 11	   // Read Request / Write Request
 #define PACKET_LEN 2 + 767 // Read Response
 
 union cmdPacket_t
@@ -32,6 +32,7 @@ union cmdPacket_t
 	{
 		uint8_t seqno;
 		uint8_t command;
+		uint8_t params;
 		uint8_t dest;
 	};
 	uint8_t data[COMMAND_LEN];

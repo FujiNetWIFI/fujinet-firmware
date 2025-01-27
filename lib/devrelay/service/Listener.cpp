@@ -194,7 +194,7 @@ void Listener::create_connection(unsigned int socket)
 	while (still_scanning && connection_info_map_.size() < 254)
 	{
 		LogFileOutput("SmartPortOverSlip listener sending request for device_id: %d\n", device_id);
-		InitRequest request(Requestor::next_request_number(), device_id);
+		InitRequest request(Requestor::next_request_number(), 1, device_id);
 		const auto response = Requestor::send_request(request, conn.get());
 		const auto init_response = dynamic_cast<InitResponse *>(response.get());
 		if (init_response == nullptr)
@@ -293,7 +293,7 @@ std::pair<int, int> Listener::first_two_disk_devices(std::function<bool(const st
 		const uint8_t unit_number = id_and_connection.first;
 
 		// DIB request to get information block. We need the device id the target understands here, not the unit_number from the ids maintained by host
-		const StatusRequest request(Requestor::next_request_number(), id_and_connection.first, 3, 0); // no network unit here
+		const StatusRequest request(Requestor::next_request_number(), 3, id_and_connection.first, 3, 0); // no network unit here
 
 		std::unique_ptr<Response> response = Requestor::send_request(request, id_and_connection.second);
 

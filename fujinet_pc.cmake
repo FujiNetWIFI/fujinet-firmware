@@ -303,7 +303,6 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/devrelay/commands/Close.h lib/devrelay/commands/Close.cpp
     lib/devrelay/commands/ReadBlock.h lib/devrelay/commands/ReadBlock.cpp
     lib/devrelay/commands/Read.h lib/devrelay/commands/Read.cpp
-    lib/devrelay/commands/Reset.h lib/devrelay/commands/Reset.cpp
     lib/devrelay/commands/Open.h lib/devrelay/commands/Open.cpp
     lib/devrelay/commands/Format.h lib/devrelay/commands/Format.cpp
     lib/devrelay/commands/Write.h lib/devrelay/commands/Write.cpp
