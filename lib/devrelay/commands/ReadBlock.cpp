@@ -2,15 +2,18 @@
 
 #include "ReadBlock.h"
 
-ReadBlockRequest::ReadBlockRequest(const uint8_t request_sequence_number, const uint8_t device_id) : Request(request_sequence_number, CMD_READ_BLOCK, device_id), block_number_{} {}
+ReadBlockRequest::ReadBlockRequest(const uint8_t request_sequence_number, const uint8_t param_count, const uint8_t device_id) : Request(request_sequence_number, CMD_READ_BLOCK, param_count, device_id), block_number_{} {}
 
 std::vector<uint8_t> ReadBlockRequest::serialize() const
 {
 	std::vector<uint8_t> request_data;
 	request_data.push_back(this->get_request_sequence_number());
 	request_data.push_back(this->get_command_number());
+	request_data.push_back(this->get_param_count());
 	request_data.push_back(this->get_device_id());
+	request_data.resize(6);
 	request_data.insert(request_data.end(), block_number_.begin(), block_number_.end());
+	request_data.resize(11);
 	return request_data;
 }
 
