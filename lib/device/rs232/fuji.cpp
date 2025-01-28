@@ -1393,6 +1393,8 @@ void rs232Fuji::insert_boot_device(uint8_t d)
     const char *mount_all_atr = "/mount-and-boot.img";
     FILE *fBoot;
 
+    Debug_printf("rs232Fuji::insert_boot_device(%u)\n",d);
+
     _bootDisk.unmount();
 
     switch (d)
@@ -1406,6 +1408,8 @@ void rs232Fuji::insert_boot_device(uint8_t d)
         _bootDisk.mount(fBoot, mount_all_atr, 0);
         break;
     }
+
+    Debug_printf("Mounted.\n");
 
     _bootDisk.is_config_device = true;
     _bootDisk.device_active = false;
