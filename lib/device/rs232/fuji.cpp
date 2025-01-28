@@ -1389,8 +1389,8 @@ void rs232Fuji::rs232_set_rs232_external_clock()
 // Mounts the desired boot disk number
 void rs232Fuji::insert_boot_device(uint8_t d)
 {
-    const char *config_atr = "/autorun.atr";
-    const char *mount_all_atr = "/mount-and-boot.atr";
+    const char *config_atr = "/autorun.img";
+    const char *mount_all_atr = "/mount-and-boot.img";
     FILE *fBoot;
 
     _bootDisk.unmount();
