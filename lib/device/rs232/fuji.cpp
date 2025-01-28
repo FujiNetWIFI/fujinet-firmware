@@ -1401,11 +1401,11 @@ void rs232Fuji::insert_boot_device(uint8_t d)
     {
     case 0:
         fBoot = fsFlash.file_open(config_atr);
-        _bootDisk.mount(fBoot, config_atr, 0);
+        _bootDisk.mount(fBoot, config_atr, 368640);
         break;
     case 1:
         fBoot = fsFlash.file_open(mount_all_atr);
-        _bootDisk.mount(fBoot, mount_all_atr, 0);
+        _bootDisk.mount(fBoot, mount_all_atr, 368640);
         break;
     }
 

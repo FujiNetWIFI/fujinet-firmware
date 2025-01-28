@@ -184,18 +184,10 @@ void systemBus::_rs232_process_cmd()
         if (tempFrame.device == RS232_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = _fujiDev->bootdisk();
-            if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R' && _fujiDev->status_wait_enabled)
-            {
-                Debug_printf("Disabling CONFIG boot.\n");
-                _fujiDev->boot_config = false;
-                return;
-            }
-            else
-            {
-                Debug_println("FujiNet CONFIG boot");
-                // handle command
-                _activeDev->rs232_process(tempFrame.commanddata, tempFrame.checksum);
-            }
+
+            Debug_println("FujiNet CONFIG boot");
+            // handle command
+            _activeDev->rs232_process(tempFrame.commanddata, tempFrame.checksum);
         }
         else
         {
