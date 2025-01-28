@@ -19,10 +19,7 @@
 // SectorNum is 1-based
 uint16_t MediaType::sector_size(uint16_t sectornum)
 {
-    if (_disk_sector_size == 512)
-        return 512;
-    else
-        return sectornum <= 3 ? 128 : _disk_sector_size;
+    return 512;
 }
 
 // Default WRITE is not implemented

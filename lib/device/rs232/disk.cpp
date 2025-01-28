@@ -266,12 +266,12 @@ void rs232Disk::rs232_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
-        return;
+    // if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
+    //     return;
 
-    if (device_active == false &&
-        (cmdFrame.comnd != RS232_DISKCMD_STATUS && cmdFrame.comnd != RS232_DISKCMD_HRS232_INDEX))
-        return;
+    // if (device_active == false &&
+    //    (cmdFrame.comnd != RS232_DISKCMD_STATUS && cmdFrame.comnd != RS232_DISKCMD_HRS232_INDEX))
+    //    return;
 
     Debug_print("disk rs232_process()\n");
 
