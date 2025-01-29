@@ -139,6 +139,22 @@ int fnHttpServiceBrowser::browse_html_escape(const char *src, size_t src_len, ch
     return i >= src_len ? (int) j : -1;
 }
 
+int fnHttpServiceBrowser::validate_path(const char *path, size_t path_len)
+{
+    char tokenized[path_len+1];
+    char *segment;
+    strlcpy(tokenized, path, sizeof(tokenized));
+    segment = strtok(tokenized, "/");
+    while (segment != NULL)
+    {
+        if (strcmp(segment, "..") == 0)
+        {
+            return -1;
+        }
+        segment = strtok(NULL, "/");
+    }
+    return 0;
+}
 
 int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, FileSystem *fs, int slot, const char *host_path, unsigned pathlen)
 {
@@ -160,6 +176,11 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
         {
             // enc_path =  host_path + '\0'
             strlcpy(enc_path, host_path, pathlen+1);
+        }
+        if (validate_path(path, strlen(path)) < 0)
+        {
+            mg_http_reply(c, 403, "", "Path is invalid\n");
+            return -1;
         }
     }
     else
