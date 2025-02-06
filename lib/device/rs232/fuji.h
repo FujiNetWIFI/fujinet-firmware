@@ -23,6 +23,9 @@
 #define READ_DEVICE_SLOTS_DISKS1 0x00
 #define READ_DEVICE_SLOTS_TAPE 0x10
 
+#define STATUS_MOUNT_TIME_L     0x01
+#define STATUS_MOUNT_TIME_H     0x00
+
 typedef struct
 {
     char ssid[33];
