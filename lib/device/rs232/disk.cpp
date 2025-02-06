@@ -50,13 +50,6 @@ void rs232Disk::rs232_read()
     uint16_t readcount;
 
     bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
-
-    for (int i=0;i<512;i++)
-    {
-        Debug_printf("%02X ",_disk->_disk_sectorbuff[i]);
-    }
-
-    Debug_printf("\n\n");
     
     // Send result to Atari
     bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
