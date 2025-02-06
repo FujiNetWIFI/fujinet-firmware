@@ -21,6 +21,8 @@ private:
     void dump_percom_block();
 
 public:
+    time_t mount_time = 0;
+
     rs232Disk();
     mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
     void unmount();

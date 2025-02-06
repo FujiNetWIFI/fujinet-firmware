@@ -88,9 +88,24 @@ void rs232Fuji::rs232_status()
 {
     Debug_println("Fuji cmd: STATUS");
 
-    char ret[4] = {0};
+    if (cmdFrame.aux1 == STATUS_MOUNT_TIME_L && cmdFrame.aux2 == STATUS_MOUNT_TIME_H)
+    {
+	// Return drive slot mount status: 0 if unmounted, otherwise time when mounted
+        time_t mount_status[MAX_DISK_DEVICES];
+	int idx;
 
-    bus_to_computer((uint8_t *)ret, sizeof(ret), false);
+
+	for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
+	    mount_status[idx] = _fnDisks[idx].disk_dev.mount_time;
+
+	bus_to_computer((uint8_t *) mount_status, sizeof(mount_status), false);
+    }
+    else
+    {
+	char ret[4] = {0};
+
+	bus_to_computer((uint8_t *)ret, sizeof(ret), false);
+    }
     return;
 }
 
