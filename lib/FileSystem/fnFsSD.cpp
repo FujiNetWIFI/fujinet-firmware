@@ -685,9 +685,6 @@ bool FileSystemSDFAT::start()
         Debug_printf("  partition type: %s\r\n", partition_type());
         Debug_printf("  partition size: %llu, used: %llu\r\n", total_bytes(), used_bytes());
     */
-
-        // Create SYSTEM DIR if it doesn't exist
-        //create_path( SYSTEM_DIR );
     }
     else 
     {

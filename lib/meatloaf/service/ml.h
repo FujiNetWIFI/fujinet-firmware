@@ -26,6 +26,10 @@ class MLMFileSystem: public MFileSystem
 
         //Debug_printv("url[%s]", urlParser.name.c_str());
         std::string ml_url = "https://api.meatloaf.cc/?" + urlParser->name;
+        if ( urlParser->query.size() > 0)
+            ml_url += "&" + urlParser->query;
+        if ( urlParser->fragment.size() > 0)
+            ml_url += "#" + urlParser->fragment;
         //Debug_printv("ml_url[%s]", ml_url.c_str());
         
         //Debug_printv("url[%s]", ml_url.c_str());

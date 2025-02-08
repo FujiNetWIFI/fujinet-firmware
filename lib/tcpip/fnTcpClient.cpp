@@ -308,7 +308,7 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
     // Timeout reached
     else if (res == 0)
     {
-        Debug_printf("select returned due to timeout %d ms for fd %d\r\n", timeout, sockfd);
+        Debug_printf("select returned due to timeout %lu ms for fd %d\r\n", timeout, sockfd);
         closesocket(sockfd);
 #if defined(_WIN32)
         err = WSAETIMEDOUT;

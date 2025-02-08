@@ -5,6 +5,7 @@
 #include "lwip/netdb.h"
 
 #include "meatloaf.h"
+
 #include "../../include/debug.h"
 
 //
@@ -289,8 +290,8 @@ public:
     // We are overriding getSourceStream, because obviously - TCP scheme won't be wrapped in anything
     MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override {
         // has to return OPENED streamm
-        //MStream* istream = new TCPMStream(url);
-        auto istream = StreamBroker::obtain<TCPMStream>(url, mode);
+        MStream* istream = new TCPMStream(url);
+        //auto istream = StreamBroker::obtain<TCPMStream>(url, mode);
         //istream->open(std::ios_base::openmode mode);
         return istream;
     } 
@@ -325,9 +326,7 @@ public:
     bool exists() override {
         return true;
     }
-    uint32_t size() override {
-        return -1;
-    }
+
     bool remove() override {
         return false;
     }

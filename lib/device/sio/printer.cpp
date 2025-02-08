@@ -283,7 +283,9 @@ void sioPrinter::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.checksum = checksum;
 
     if (!Config.get_printer_enabled())
+    {
         Debug_println("sioPrinter::disabled, ignoring");
+    }
     else
     {
         switch (cmdFrame.comnd)

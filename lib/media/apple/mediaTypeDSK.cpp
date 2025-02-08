@@ -190,7 +190,7 @@ bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
 			// if (bytes_used % 512)
 			// 	trks[c].block_count++;
 			trks[c].bit_count = bit_count;
-			Debug_printf("\nStored %d bytes containing %d bits of track %d into location %lu", bytes_used, bit_count, c, trk_ptrs[c]);
+			Debug_printf("\nStored %d bytes containing %d bits of track %d into location %hhn", bytes_used, bit_count, c, trk_ptrs[c]);
 			Debug_printf(" -- %02x %02x %02x %02x %02x", trk_ptrs[c][0], trk_ptrs[c][1], trk_ptrs[c][2], trk_ptrs[c][3], trk_ptrs[c][4] );
 		}
 		else

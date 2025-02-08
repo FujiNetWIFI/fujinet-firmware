@@ -1,6 +1,7 @@
 #include "tnfs.h"
 
-#include "../meatloaf.h"
+#include "meatloaf.h"
+
 #include "../../../include/debug.h"
 
 #include <sys/stat.h>
@@ -47,8 +48,8 @@ bool TNFSMFile::isDirectory()
 MStream* TNFSMFile::getSourceStream(std::ios_base::openmode mode)
 {
     std::string full_path = basepath + path;
-    //MStream* istream = new TNFSMStream(full_path);
-    auto istream = StreamBroker::obtain<TNFSMStream>(full_path, mode);
+    MStream* istream = new TNFSMStream(full_path);
+    //auto istream = StreamBroker::obtain<TNFSMStream>(full_path, mode);
     //Debug_printv("TNFSMFile::getSourceStream() 3, not null=%d", istream != nullptr);
     istream->open(mode);   
     //Debug_printv("TNFSMFile::getSourceStream() 4");
@@ -111,19 +112,6 @@ bool TNFSMFile::exists()
     return (i == 0);
 }
 
-uint32_t TNFSMFile::size() {
-    if (m_isNull || path=="/" || path=="")
-        return 0;
-    else if(isDirectory()) {
-        return 0;
-    }
-    else {
-        struct stat info;
-        stat( std::string(basepath + path).c_str(), &info);
-        // Debug_printv( "size[%d]", info.st_size );
-        return info.st_size;
-    }
-}
 
 bool TNFSMFile::remove() {
     // musi obslugiwac usuwanie plikow i katalogow!
@@ -132,7 +120,7 @@ bool TNFSMFile::remove() {
 
     int rc = ::remove( std::string(basepath + path).c_str() );
     if (rc != 0) {
-        Debug_printv("remove: rc=%d path=`%s`\r\n", rc, path);
+        Debug_printv("remove: rc=%d path=`%s`\r\n", rc, path.c_str());
         return false;
     }
 
@@ -212,12 +200,30 @@ MFile* TNFSMFile::getNextFileInDir()
     if(dir == nullptr)
         return nullptr;
 
-    // Debug_printv("before readdir(), dir not null:%d", dir != nullptr);
     struct dirent* dirent = NULL;
-    if((dirent = readdir( dir )) != NULL)
+    do
     {
-        // Debug_printv("path[%s] name[%s]", this->path, dirent->d_name);
-        return new TNFSMFile(this->path + ((this->path == "/") ? "" : "/") + std::string(dirent->d_name));
+        dirent = readdir( dir );
+    } while ( dirent != NULL && mstr::startsWith(dirent->d_name, ".") ); // Skip hidden files
+
+    if ( dirent != NULL )
+    {
+        //Debug_printv("path[%s] name[%s]", this->path.c_str(), dirent->d_name);
+        std::string entry_name = this->path + ((this->path == "/") ? "" : "/") + std::string(dirent->d_name);
+
+        auto file = new TNFSMFile(entry_name);
+        file->extension = " " + file->extension;
+
+        if(file->isDirectory()) {
+            file->size = 0;
+        }
+        else {
+            struct stat info;
+            stat( std::string(entry_name).c_str(), &info);
+            file->size = info.st_size;
+        }
+
+        return file;
     }
     else
     {
@@ -227,7 +233,7 @@ MFile* TNFSMFile::getNextFileInDir()
 }
 
 
-bool TNFSMFile::seekEntry( std::string filename )
+bool TNFSMFile::readEntry( std::string filename )
 {
     DIR* d;
     std::string apath = (basepath + pathToFile()).c_str();
@@ -398,7 +404,7 @@ void TNFSHandle::dispose() {
 
 void TNFSHandle::obtain(std::string m_path, std::string mode) {
 
-    //Serial.printf("*** Atempting opening flash  handle'%s'\r\n", m_path.c_str());
+    //printf("*** Atempting opening flash  handle'%s'\r\n", m_path.c_str());
 
     if ((mode[0] == 'w') && strchr(m_path.c_str(), '/')) {
         // For file creation, silently make subdirs as needed.  If any fail,
@@ -424,7 +430,7 @@ void TNFSHandle::obtain(std::string m_path, std::string mode) {
     file_h = fopen( m_path.c_str(), mode.c_str());
     // rc = 1;
 
-    //Serial.printf("FSTEST: lfs_file_open file rc:%d\r\n",rc);
+    //printf("FSTEST: lfs_file_open file rc:%d\r\n",rc);
 
 //     if (rc == LFS_ERR_ISDIR) {
 //         // To support the SD.openNextFile, a null FD indicates to the FlashFSFile this is just

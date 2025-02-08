@@ -16,16 +16,3 @@ uint32_t P00MStream::readFile(uint8_t* buf, uint32_t size) {
 }
 
 
-
-/********************************************************
- * File implementations
- ********************************************************/
-
-uint32_t P00MFile::size() {
-    // Debug_printv("[%s]", streamFile->url.c_str());
-    // use P00 to get size of the file in image
-    auto image = ImageBroker::obtain<P00MStream>(streamFile->url);
-
-    return image->size();
-}
-

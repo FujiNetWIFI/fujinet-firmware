@@ -49,6 +49,81 @@ std::string MMediaStream::decodeType(std::string file_type)
     return type;
 }
 
+std::string MMediaStream::decodeGEOSType(uint8_t geos_file_structure, uint8_t geos_file_type)
+{
+    // Decode geos_file_type
+    std::string geos_type;
+    if ( geos_file_type )
+    {
+        if ( geos_file_structure == 0x00 )
+            geos_type = "SEQ ";
+        else
+            geos_type = "VLIR ";
+
+        switch (geos_file_type) {
+            case 0x01:
+                geos_type += "BASIC";
+                break;
+
+            case 0x02:
+                geos_type += "Assembler";
+                break;
+
+            case 0x03:
+                geos_type += "Data file";
+                break;
+
+            case 0x04:
+                geos_type += "System File";
+                break;
+
+            case 0x05:
+                geos_type += "Desk Accessory";
+                break;
+
+            case 0x06:
+                geos_type += "Application";
+                break;
+
+            case 0x07:
+                geos_type += "Application Data"; // (user-created documents)
+                break;
+
+            case 0x08:
+                geos_type += "Font File";
+                break;
+
+            case 0x09:
+                geos_type += "Printer Driver";
+                break;
+
+            case 0x0A:
+                geos_type += "Input Driver";
+                break;
+
+            case 0x0B:
+                geos_type += "Disk Driver"; // (or Disk Device)
+                break;
+
+            case 0x0C:
+                geos_type += "System Boot File";
+                break;
+
+            case 0x0D:
+                geos_type += "Temporary";
+                break;
+
+            case 0x0E:
+                geos_type += "Auto-Execute File";
+                break;
+            
+            default:
+                geos_type += "Undefined";
+        }
+    }
+    return geos_type;
+}
+
 /********************************************************
  * Istream impls
  ********************************************************/
@@ -65,6 +140,8 @@ bool MMediaStream::isOpen() {
     return _is_open;
 };
 
+
+
 bool MMediaStream::open(std::ios_base::openmode mode) 
 {
     // return true if we were able to read the image and confirmed it is valid.
@@ -77,7 +154,7 @@ bool MMediaStream::open(std::ios_base::openmode mode)
 
 void MMediaStream::close()
 {
-    Debug_printv("url[%s]", url.c_str());
+    //Debug_printv("Heap[%lu]", esp_get_free_heap_size());
 };
 
 
@@ -85,7 +162,10 @@ uint32_t MMediaStream::readContainer(uint8_t *buf, uint32_t size)
 {
     return containerStream->read(buf, size);
 }
-
+uint32_t MMediaStream::writeContainer(uint8_t *buf, uint32_t size)
+{
+    return containerStream->read(buf, size);
+}
 
 uint8_t MMediaStream::read() 
 {
@@ -167,7 +247,7 @@ uint32_t MMediaStream::write(const uint8_t *buf, uint32_t size) {
 
 // seek = (offset) => this.containerStream.seek(offset + this.media_header_size);
 bool MMediaStream::seek(uint32_t offset) {
-    _position = media_header_size + offset;
+    _position = media_data_offset + offset;
     return containerStream->seek( _position ); 
 }
 // seekCurrent = (offset) => this.containerStream.seekCurrent(offset);
@@ -185,7 +265,7 @@ uint32_t MMediaStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
     size_t blocks = 0; 
     do
     {
-        Serial.printf("t[%d] s[%d] b[%d]\r", start_track, start_sector, blocks);
+        printf("t[%d] s[%d] b[%d]\r", start_track, start_sector, blocks);
         readContainer(&start_track, 1);
         readContainer(&start_sector, 1);
         blocks++;
@@ -195,6 +275,6 @@ uint32_t MMediaStream::seekFileSize( uint8_t start_track, uint8_t start_sector )
     } while ( start_track > 0 );
     blocks--;
     uint32_t size = (blocks * (block_size - 2)) + start_sector - 1;
-    Serial.printf("File size is [%d] bytes...\r\n", size);
+    printf("File size is [%lu] bytes...\r\n", size);
     return size;
 };

@@ -535,9 +535,9 @@ void util_dump_bytes(const uint8_t *buff, uint32_t buff_size)
     {
         for (int k = 0; (k + j) < buff_size && k < bytes_per_line; k++)
             Debug_printf("%02X ", buff[k + j]);
-        Debug_println("");
+        Debug_println("\r\n");
     }
-    Debug_println("");
+    Debug_println("\r\n");
 }
 
 vector<string> util_tokenize(string s, char c)

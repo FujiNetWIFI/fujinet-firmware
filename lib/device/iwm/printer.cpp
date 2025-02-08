@@ -92,7 +92,7 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
 {
     uint16_t num_bytes = get_numbytes(cmd);
 
-    Debug_printf("\nPrinter: Write %u bytes to address %04x\n", num_bytes);
+    Debug_printf("\nPrinter: Write %u bytes\n", num_bytes);
 
     data_len = num_bytes;
     IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);

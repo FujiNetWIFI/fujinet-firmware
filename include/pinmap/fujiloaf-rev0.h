@@ -2,7 +2,14 @@
 #ifndef PINMAP_FUJILOAF_REV0_H
 #define PINMAP_FUJILOAF_REV0_H
 
+// https://www.espressif.com.cn/sites/default/files/documentation/esp32-wrover-e_esp32-wrover-ie_datasheet_en.pdf
+
 #ifdef PINMAP_FUJILOAF_REV0
+
+// ESP32-WROVER-E-N16R8
+#define FLASH_SIZE              16
+#define PSRAM_SIZE              8
+
 /* SD Card */
 #define PIN_CARD_DETECT         GPIO_NUM_35 // fnSystem.h
 #define PIN_CARD_DETECT_FIX     GPIO_NUM_35 // fnSystem.h
@@ -29,20 +36,11 @@
 #define PIN_LED_WIFI            GPIO_NUM_2  // led.cpp
 #define PIN_LED_BUS             GPIO_NUM_12 // 4 FN
 #define PIN_LED_BT              GPIO_NUM_NC // No BT LED
-
-/* LED Strip NEW */
-#define LEDSTRIP_DATA_PIN       GPIO_NUM_4
-#define LEDSTRIP_COUNT          5
-#define LEDSTRIP_BRIGHTNESS     15 // max mA the LED can use determines brightness
-#define LEDSTRIP_TYPE           WS2812B
-#define LEDSTRIP_RGB_ORDER      GRB
-// LED order on the strip starting with 0
-#define LEDSTRIP_WIFI_NUM       0
-#define LEDSTRIP_BUS_NUM        4
-#define LEDSTRIP_BT_NUM         2
+#define PIN_LED_RGB             GPIO_NUM_4
 
 /* Audio Output */
 #define PIN_DAC1                GPIO_NUM_25 // samlib.h
+#define PIN_I2S                 GPIO_NUM_25
 
 // Reset line is available
 #define IEC_HAS_RESET

@@ -44,7 +44,7 @@ public:
             return true;
 
         int rc = m_wifi.open("commodoreserver.com", 1541);
-        Serial.printf("csstreambuf: connect to cserver returned: %d\r\n", rc);
+        printf("csstreambuf: connect to cserver returned: %d\r\n", rc);
 
         if(rc == 1) {
             if(gbuf == nullptr)
@@ -59,7 +59,7 @@ public:
     }
 
     void close() {
-        Serial.printf("csstreambuf: closing\r\n");
+        printf("csstreambuf: closing\r\n");
         if(m_wifi.isOpen()) {
             m_wifi.close();
         }
@@ -93,7 +93,7 @@ public:
             this->setg(gbuf, gbuf, gbuf + readCount);
         }
         else {
-            Debug_printv("else: %d - %d, (%d)", this->gptr(), this->egptr(), this->gbuf);
+            //Debug_printv("else: %d - %d, (%d)", this->gptr(), this->egptr(), this->gbuf);
         }
 
         return this->gptr() == this->egptr()
@@ -201,7 +201,6 @@ public:
 
     friend class CSIPMFile;
     friend class CSIPMStream;
-    friend class CSIPOStream;
 };
 
 /********************************************************
@@ -213,7 +212,7 @@ public:
     CSIPMFile(std::string path, size_t size = 0): MFile(path), m_size(size) 
     {
         media_blocks_free = 65535;
-        media_block_size = 1; // blocks are already calculated
+        //media_block_size = 1; // blocks are already calculated
         //parseUrl(path);
         // Debug_printv("path[%s] size[%d]", path.c_str(), size);
         isPETSCII = true;
@@ -234,7 +233,6 @@ public:
     bool rename(std::string dest) { return false; };
     time_t getLastWrite() override { return 0; };
     time_t getCreationTime() override { return 0; };
-    uint32_t size() override;     
 
     bool isDir = true;
     bool dirIsOpen = false;
@@ -292,7 +290,7 @@ class CSIPMFileSystem: public MFileSystem
     }
     
 public:
-    CSIPMFileSystem(): MFileSystem("c=server") {};
+    CSIPMFileSystem(): MFileSystem("csip") {};
     static CSIPMSessionMgr session;
     MFile* getFile(std::string path) override {
         return new CSIPMFile(path);

@@ -43,11 +43,11 @@ bool _validate_host_slot(uint8_t slot, const char *dmsg)
 
     if (dmsg == NULL)
     {
-        Debug_printf("!! Invalid host slot %hu\n", slot);
+        Debug_printf("!! Invalid host slot %hu\r\n", slot);
     }
     else
     {
-        Debug_printf("!! Invalid host slot %hu @ %s\n", slot, dmsg);
+        Debug_printf("!! Invalid host slot %hu @ %s\r\n", slot, dmsg);
     }
 
     return false;
@@ -60,28 +60,45 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
 
     if (dmsg == NULL)
     {
-        Debug_printf("!! Invalid device slot %hu\n", slot);
+        Debug_printf("!! Invalid device slot %hu\r\n", slot);
     }
     else
     {
-        Debug_printf("!! Invalid device slot %hu @ %s\n", slot, dmsg);
+        Debug_printf("!! Invalid device slot %hu @ %s\r\n", slot, dmsg);
     }
 
     return false;
 }
 
+static std::string dataToHexString(uint8_t *data, size_t len)
+{
+  std::string res;
+  char buf[10];
+  
+  for(size_t i=0; i<len; i++)
+    {
+      sprintf(buf, "%02X ", data[i]);
+      res += buf;
+    }
+  
+  return res;
+}
+
+
 // Constructor
-iecFuji::iecFuji()
+iecFuji::iecFuji() : IECDevice()
 {
     // Helpful for debugging
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].slotid = i;
+
+    state = DEVICE_IDLE;
 }
 
 // Initializes base settings and adds our devices to the SIO bus
 void iecFuji::setup(systemBus *bus)
 {
-    Debug_printf("iecFuji::setup()\n");
+    //Debug_printf("iecFuji::setup()\r\n");
 
     _populate_slots_from_config();
 
@@ -89,23 +106,33 @@ void iecFuji::setup(systemBus *bus)
 //    iecPrinter::printer_type ptype = Config.get_printer_type(0);
     iecPrinter::printer_type ptype = iecPrinter::printer_type::PRINTER_COMMODORE_MPS803; // temporary
     Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
-    iecPrinter *ptr = new iecPrinter(ptrfs, ptype);
+    iecPrinter *ptr = new iecPrinter(4, ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
     // 04-07 Printers / Plotters
-    Serial.print("Printer "); bus->addDevice(ptr, 4);
+    if (bus->attachDevice(ptr))
+        Debug_printf("Attached printer device #%d\r\n", 4);
 
     // 08-15 Drives
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
-        Serial.print("Disk ");
-        bus->addDevice(&_fnDisks[i].disk_dev, BUS_DEVICEID_DISK + i);
+        _fnDisks[i].disk_dev.setDeviceNumber(BUS_DEVICEID_DISK+i);
+        if (bus->attachDevice(&_fnDisks[i].disk_dev))
+            Debug_printf("Attached drive device #%d\r\n", BUS_DEVICEID_DISK+i);
     }
 
-    Serial.print("Network "); bus->addDevice(new iecNetwork(), 16);     // 16-19 Network Devices
-    Serial.print("CPM "); bus->addDevice(new iecCpm(), 20);             // 20-29 Other
-    Serial.print("Clock "); bus->addDevice(new iecClock(), 29);
-    Serial.print("FujiNet "); bus->addDevice(this, 30);                 // 30    FujiNet
+    // 16-19 Network Devices
+    if (bus->attachDevice(new iecNetwork(16)))     // 16-19 Network Devices
+        Debug_printf("Attached network device #%d\r\n", 16);
+
+    //Serial.print("CPM "); bus->addDevice(new iecCpm(), 20);             // 20-29 Other
+    if (bus->attachDevice(new iecClock(29)))
+        Debug_printf("Attached clock device #%d\r\n", 29);
+
+    // FujiNet
+    setDeviceNumber(30); 
+    if (bus->attachDevice(this))
+        Debug_printf("Attached Meatloaf device #%d\r\n", 30);
 }
 
 void logResponse(const void* data, size_t length)
@@ -119,9 +146,9 @@ void logResponse(const void* data, size_t length)
     }
 
     std::string msg = util_hexdump(data, debug_len);
-    Debug_printf("Sending:\n%s\n", msg.c_str());
+    Debug_printf("Sending:\r\n%s\r\n", msg.c_str());
     if (is_truncated) {
-        Debug_printf("[truncated from %d]\n", length);
+        Debug_printf("[truncated from %d]\r\n", length);
     }
 
     // Debug_printf("  ");
@@ -134,188 +161,148 @@ void logResponse(const void* data, size_t length)
 
 }
 
-#if 1
-device_state_t iecFuji::openChannel(/*int chan, IECPayload &payload*/)
+
+void iecFuji::talk(uint8_t secondary)
 {
-  writeChannel();
-  return state;
-}
-
-device_state_t iecFuji::closeChannel(/*int chan*/)
-{
-  return state;
-}
-
-device_state_t iecFuji::readChannel(/*int chan*/)
-{
-  if (commanddata.channel != CHANNEL_COMMAND) {
-    Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
-    IEC.senderTimeout();
-    return state;
-  }
-
-  {
-    // Debug_printv("TALK/REOPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
-
-#ifdef DEBUG
-    // if (!response.empty() && !is_raw_command) logResponse(response.data(), response.size());
-    // if (!responseV.empty() && is_raw_command) logResponse(responseV.data(), responseV.size());
-    // Debug_printf("\n");
-#endif
-
-    // only send raw back for a raw command, thus code can set "response", but we won't send it back as that's BASIC response
-    if (!responseV.empty() && is_raw_command) {
-      IEC.sendBytes(reinterpret_cast<char*>(responseV.data()), responseV.size());
+  // only talk on channel 15
+  if( (secondary & 0x0F)==15 )
+    {
+      state = DEVICE_TALK;
+      responsePtr = 0;
     }
-
-    // only send string response back for basic command
-    if(!response.empty() && !is_raw_command) {
-      IEC.sendBytes(const_cast<char*>(response.c_str()), response.size());
-    }
-
-    // ensure responses are cleared for next command in case they were set but didn't match the command type (i.e. basic or raw)
-    responseV.clear();
-    response = "";
-  }
-
-  return state;
 }
 
-device_state_t iecFuji::writeChannel(/*int chan, IECPayload &payload*/)
+
+void iecFuji::listen(uint8_t secondary)
 {
-  if (commanddata.channel != CHANNEL_COMMAND) {
-    Debug_printf("Meatloaf device only accepts on channel 15. Sending NOTFOUND.\r\n");
-    IEC.senderTimeout();
-    return state;
-  }
+  // only listen on channel 15
+  if( (secondary & 0x0F)==15 )
+    {
+      state = DEVICE_LISTEN;
+      payload.clear();
+    }
+}
 
-  {
-    // Debug_printv("UNLISTEN/(RE)OPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
 
-    if (current_fuji_cmd == -1) {
-      // this is a new command being sent
-      is_raw_command = (payload.size() == 2 && payload[0] == 0x01); // marker byte
-      if (is_raw_command) {
-        if (!is_supported(payload[1])) {
-          Debug_printv("ERROR: Unsupported cmd: x%02x, ignoring\n", payload[1]);
-          last_command = payload[1];
-          set_fuji_iec_status(DEVICE_ERROR, "Unrecognised command");
-          // IEC.senderTimeout();
-          return state;
-        }
-        // Debug_printf("RAW COMMAND - trying immediate action on it\r\n");
-        // if it is an immediate command (no parameters), current_fuji_cmd will be reset to -1,
-        // otherwise, it stays set until further data is received to process it
-        current_fuji_cmd = payload[1];
-        last_command = current_fuji_cmd;
-        process_immediate_raw_cmds();
-      } else if (payload.size() > 0) {
-        // "IEC: [EF] (E0 CLOSE  15 CHANNEL)" happens with an UNLISTEN, which has no payload, so we can skip it to save trying BASIC commands
-        // Debug_printf("BASIC COMMAND\r\n");
-        process_basic_commands();
+void iecFuji::untalk()
+{
+  state = DEVICE_IDLE;
+}
+
+
+void iecFuji::unlisten()
+{
+  if( state == DEVICE_LISTEN )
+    state = DEVICE_ACTIVE;
+}
+
+
+int8_t iecFuji::canWrite()
+{
+  return state==DEVICE_LISTEN ? 1 : 0;
+}
+
+
+int8_t iecFuji::canRead()
+{
+  if( state == DEVICE_TALK )
+    return std::min((size_t) 2, responseV.size()-responsePtr);
+  else
+    return 0;
+}
+
+
+void iecFuji::write(uint8_t data, bool eoi)
+{
+  payload += char(data);
+}
+
+
+uint8_t iecFuji::read()
+{
+  // we should never get here if responsePtr>=responseV.size() because
+  // then canRead would have returned 0, but better safe than sorry
+  return responsePtr < responseV.size() ? responseV[responsePtr++] : 0;
+}
+
+
+void iecFuji::task()
+{
+  // this gets called whenever the IEC bus is NOT in a time-sensitive state.
+  // Any possibly time-comsuming tasks should be processed within here.
+
+  // first call the underlying class task function
+  IECDevice::task();
+  
+  if( state==DEVICE_ACTIVE )
+    {
+      if( payload.size()>0 ) process_cmd();
+      state = DEVICE_IDLE;
+    }
+}
+
+
+void iecFuji::reset()
+{
+  IECDevice::reset();
+  current_fuji_cmd = -1;
+  last_command = -1;
+  response.clear();
+  responseV.clear();
+  state = DEVICE_IDLE;
+}
+
+
+void iecFuji::process_cmd()
+{
+  responseV.clear();
+  response.clear();
+  is_raw_command = false;
+  if (current_fuji_cmd == -1) {
+    // this is a new command being sent
+    is_raw_command = (payload.size() == 2 && payload[0] == 0x01); // marker uint8_t
+    if (is_raw_command) {
+      Debug_printv("RAW command: %s", dataToHexString((uint8_t *) payload.data(), payload.size()).c_str());
+      
+      if (!is_supported(payload[1])) {
+        Debug_printv("ERROR: Unsupported cmd: x%02x, ignoring\r\n", payload[1]);
+        last_command = payload[1];
+        set_fuji_iec_status(DEVICE_ERROR, "Unrecognised command");
+        return;
       }
+      // Debug_printf("RAW COMMAND - trying immediate action on it\r\n");
+      // if it is an immediate command (no parameters), current_fuji_cmd will be reset to -1,
+      // otherwise, it stays set until further data is received to process it
+      current_fuji_cmd = payload[1];
+      last_command = current_fuji_cmd;
+      process_immediate_raw_cmds();
+    } else if (payload.size() > 0) {
+      // "IEC: [EF] (E0 CLOSE  15 CHANNEL)" happens with an UNLISTEN, which has no command, so we can skip it to save trying BASIC commands
+      Debug_printv("BASIC command: %s", payload.c_str());
+      process_basic_commands();
     }
-    else {
-      // we're in the middle of some data, let's continue
-      // Debug_printf("IN CMD, processing data\r\n");
-      process_raw_cmd_data();
-    }
-
+  } else {
+    // we're in the middle of some data, let's continue
+    // Debug_printf("IN CMD, processing data\r\n");
+    Debug_printv("RAW data: %s", dataToHexString((uint8_t *) payload.data(), payload.size()).c_str());
+    process_raw_cmd_data();
   }
 
-  return state;
+  if (!responseV.empty() && is_raw_command) {
+    // only send raw back for a raw command, thus code can set "response", but we won't send it back as that's BASIC response
+    Debug_printv("RAW response: %s", dataToHexString(responseV.data(), responseV.size()).c_str());
+  }
+  else if(!response.empty() && !is_raw_command) {
+    // only send string response back for basic command
+    Debug_printv("BASIC response: %s", response.c_str());
+    responseV.assign(response.begin(), response.end());
+    response.clear();
+  }
+  else {
+    Debug_printv("NO response");
+  }
 }
-#else
-device_state_t iecFuji::process()
-{
-    virtualDevice::process();
 
-    if (commanddata.channel != CHANNEL_COMMAND)
-    {
-        Debug_printf("Meatloaf device only accepts communications on channel 15.\r\n");
-        state = DEVICE_ERROR;
-        return state;
-    }
-
-    // Should this be using iec_talk_command_buffer_status instead?
-    if (commanddata.primary == IEC_TALK && commanddata.secondary == IEC_REOPEN)
-    {
-        // Debug_printv("TALK/REOPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
-
-        #ifdef DEBUG
-        // if (!response.empty() && !is_raw_command) logResponse(response.data(), response.size());
-        // if (!responseV.empty() && is_raw_command) logResponse(responseV.data(), responseV.size());
-        // Debug_printf("\n");
-        #endif
-
-        // only send raw back for a raw command, thus code can set "response", but we won't send it back as that's BASIC response
-        if (!responseV.empty() && is_raw_command) {
-            IEC.sendBytes(reinterpret_cast<char*>(responseV.data()), responseV.size());
-        }
-
-        // only send string response back for basic command        
-        if(!response.empty() && !is_raw_command) {
-            IEC.sendBytes(const_cast<char*>(response.c_str()), response.size());
-        }
-
-        // ensure responses are cleared for next command in case they were set but didn't match the command type (i.e. basic or raw)
-        responseV.clear();
-        response = "";
-
-    }
-    else if (commanddata.primary == IEC_UNLISTEN && (commanddata.secondary == IEC_OPEN || commanddata.secondary == IEC_REOPEN))
-    {
-        // Debug_printv("UNLISTEN/(RE)OPEN:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
-
-        if (current_fuji_cmd == -1) {
-            // this is a new command being sent
-            is_raw_command = (payload.size() == 2 && payload[0] == 0x01); // marker byte
-            if (is_raw_command) {
-                if (!is_supported(payload[1])) {
-                    Debug_printv("ERROR: Unsupported cmd: x%02x, ignoring\n", payload[1]);
-                    last_command = payload[1];
-                    state = DEVICE_ERROR;
-                    set_fuji_iec_status(DEVICE_ERROR, "Unrecognised command");
-                    // IEC.senderTimeout();
-                    return state;
-                }
-                // Debug_printf("RAW COMMAND - trying immediate action on it\r\n");
-                // if it is an immediate command (no parameters), current_fuji_cmd will be reset to -1,
-                // otherwise, it stays set until further data is received to process it
-                current_fuji_cmd = payload[1];
-                last_command = current_fuji_cmd;
-                process_immediate_raw_cmds();
-            } else if (payload.size() > 0) {
-                // "IEC: [EF] (E0 CLOSE  15 CHANNEL)" happens with an UNLISTEN, which has no payload, so we can skip it to save trying BASIC commands
-                // Debug_printf("BASIC COMMAND\r\n");
-                process_basic_commands();
-            }
-        } else {
-            // we're in the middle of some data, let's continue
-            // Debug_printf("IN CMD, processing data\r\n");
-            process_raw_cmd_data();
-        }
-
-    }
-    else if (commanddata.primary == IEC_UNLISTEN && commanddata.secondary == IEC_CLOSE)
-    {
-        // Debug_printv("UNLISTEN/CLOSE:\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
-        // state = DEVICE_IDLE;
-
-    }
-    // This happens and is repeated by UNLISTEN. We get our command on OPEN and data on REOPEN
-    else if (commanddata.primary == IEC_LISTEN)
-    {
-        // Debug_printv("LISTEN (Secondary: %02x):\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", commanddata.secondary, current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
-    }
-    else
-    {
-        // Debug_printv("FALL THROUGH, primary:%02x, 2nd:%2x\r\ncurrent_fuji_cmd: %02x\r\n%s\r\n", commanddata.primary, commanddata.secondary, current_fuji_cmd, util_hexdump(&payload.c_str()[0], payload.size()).c_str());
-    }
-
-    return state;
-}
-#endif
 
 // COMMODORE SPECIFIC CONVENIENCE COMMANDS /////////////////////
 
@@ -347,14 +334,18 @@ void iecFuji::process_basic_commands()
         net_scan_result_basic();
     else if (payload.find("scan") != std::string::npos)
         net_scan_networks_basic();
+    else if (payload.find("wifienable") != std::string::npos)
+      { Config.store_wifi_enabled(true); Config.save(); }
+    else if (payload.find("wifidisable") != std::string::npos)
+      { Config.store_wifi_enabled(false); Config.save(); }
     else if (payload.find("wifistatus") != std::string::npos)
         net_get_wifi_status_basic();
     else if (payload.find("mounthost") != std::string::npos)
         mount_host_basic();
-    else if (payload.find("mountdrive") != std::string::npos)
-        disk_image_mount_basic();
     else if (payload.find("unmountdrive") != std::string::npos)
         disk_image_umount_basic();
+    else if (payload.find("mountdrive") != std::string::npos)
+        disk_image_mount_basic();
     else if (payload.find("opendir") != std::string::npos)
         open_directory_basic();
     else if (payload.find("readdir") != std::string::npos)
@@ -397,12 +388,16 @@ void iecFuji::process_basic_commands()
         get_status_basic();
     else if (payload.find("localip") != std::string::npos)
         local_ip();
+    else if (payload.find("enable") != std::string::npos)
+        enable_device_basic();
+    else if (payload.find("disable") != std::string::npos)
+        disable_device_basic();
     else if (payload.find("bptiming") != std::string::npos)
     {
         if ( pt.size() < 3 ) 
             return;
 
-        IEC.setBitTiming(pt[1], atoi(pt[2].c_str()), atoi(pt[3].c_str()), atoi(pt[4].c_str()), atoi(pt[5].c_str()));
+        //IEC.setBitTiming(pt[1], atoi(pt[2].c_str()), atoi(pt[3].c_str()), atoi(pt[4].c_str()), atoi(pt[5].c_str()));
     }
 
 }
@@ -661,7 +656,6 @@ void iecFuji::net_scan_networks_raw()
 void iecFuji::net_scan_result_basic()
 {
     if (pt.size() != 2) {
-        state = DEVICE_ERROR;
         return;
     }
     util_remove_spaces(pt[1]);
@@ -734,6 +728,38 @@ void iecFuji::net_set_ssid_basic(bool store)
     net_set_ssid(store, net_config);
 }
 
+void iecFuji::enable_device_basic()
+{
+    // Strip off the ENABLE: part of the command
+    pt[0] = pt[0].substr(7, std::string::npos);
+
+    // Enable devices
+    for (int i = 0; i < pt.size(); i++) {
+        uint8_t device = atoi(pt[i].c_str());
+        auto d = IEC.findDevice(device, true);
+        if (d) {
+            d->setActive(true);
+            Debug_printv("Enable Device #%d [%d]", device, d->isActive());
+        }
+    }
+}
+
+void iecFuji::disable_device_basic()
+{
+    // Strip off the DISABLE: part of the command
+    pt[0] = pt[0].substr(8, std::string::npos);
+
+    // Disable devices
+    for (int i = 0; i < pt.size(); i++) {
+        uint8_t device = atoi(pt[i].c_str());
+        auto d = IEC.findDevice(device, true);
+        if (d) {
+            d->setActive(false);
+            Debug_printv("Disable Device #%d [%d]", device, d->isActive());
+        }
+    }
+}
+
 void iecFuji::net_set_ssid_raw(bool store)
 {
     net_config_t net_config;
@@ -744,7 +770,8 @@ void iecFuji::net_set_ssid_raw(bool store)
     uint8_t sent_ssid_len = strlen(&payload[0]);
     uint8_t sent_pass_len = strlen(&payload[1 + sent_ssid_len]);
     strncpy((char *)&net_config.ssid[0], (const char *) &payload[0], sent_ssid_len);
-    strncpy((char *)&net_config.password[0], (const char *) &payload[1 + sent_ssid_len], sent_pass_len);
+    std::string password = mstr::toPETSCII2((const char *) &payload[1 + sent_ssid_len]);
+    strncpy((char *)&net_config.password[0], (const char *) &password[0], sent_pass_len);
     Debug_printv("ssid[%s] pass[%s]", net_config.ssid, net_config.password);
 
     net_set_ssid(store, net_config);
@@ -779,7 +806,6 @@ void iecFuji::unmount_host_basic()
     {
         response = "invalid # of parameters";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -789,13 +815,11 @@ void iecFuji::unmount_host_basic()
     {
         response = "invalid host slot";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
     if (!unmount_host(hs)) {
         response = "error unmounting host";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -809,12 +833,10 @@ void iecFuji::unmount_host_raw()
     if (!_validate_host_slot(hs, "unmount_host"))
     {
         set_fuji_iec_status(DEVICE_ERROR, "invalid host slot");
-        IEC.senderTimeout();
         return;
     }
     if (!unmount_host(hs)) {
         set_fuji_iec_status(DEVICE_ERROR, "error unmounting host");
-        IEC.senderTimeout();
         return;
     }
 
@@ -832,14 +854,12 @@ void iecFuji::mount_host_raw()
     if (hs < 0 || hs >= MAX_HOSTS)
     {
         set_fuji_iec_status(DEVICE_ERROR, "Invalid host slot parameter");
-        IEC.senderTimeout();
         return;
     }
 
     if (!mount_host(hs))
     {
         set_fuji_iec_status(DEVICE_ERROR, "Failed to mount host slot");
-        IEC.senderTimeout();
     }
 }
 
@@ -855,19 +875,17 @@ void iecFuji::mount_host_basic()
     if (hs < 0 || hs >= MAX_HOSTS) {
         response = "INVALID HOST #";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
     if (mount_host(hs)) {
-        string hns = _fnHosts[hs].get_hostname();
+      std::string hns = _fnHosts[hs].get_hostname();
         hns = mstr::toPETSCII2(hns);
         response = hns + " MOUNTED.";
         set_fuji_iec_status(0, response);
     } else {
         response = "UNABLE TO MOUNT HOST SLOT #";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
     }
 }
 
@@ -880,7 +898,6 @@ void iecFuji::disk_image_mount_basic()
     {
         response = "invalid # of parameters";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -890,7 +907,6 @@ void iecFuji::disk_image_mount_basic()
     if (!disk_image_mount(ds, mode))
     {
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
     set_fuji_iec_status(0, response);
@@ -902,7 +918,6 @@ void iecFuji::disk_image_mount_raw()
     if (!disk_image_mount(payload[0], payload[1]))
     {
         set_fuji_iec_status(DEVICE_ERROR, "Failed to mount disk image");
-        IEC.senderTimeout();
     }
     set_fuji_iec_status(0, "");
 }
@@ -915,7 +930,6 @@ void iecFuji::set_boot_config_basic()
         Debug_printf("Invalid # of parameters.\r\n");
         response = "invalid # of parameters";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -964,12 +978,12 @@ void iecFuji::mount_all()
             if (!host.mount())
             {
                 std::string slotno = std::to_string(i);
-                response = "error: unable to mount slot " + slotno + "\r";
+                response = "error: unable to mount slot " + slotno + "\r\n";
                 set_fuji_iec_status(DEVICE_ERROR, response);
                 return;
             }
 
-            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                          disk.filename, disk.host_slot, flag, i + 1);
 
             disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
@@ -977,7 +991,7 @@ void iecFuji::mount_all()
             if (disk.fileh == nullptr)
             {
                 std::string slotno = std::to_string(i);
-                response = "error: invalid file handle for slot " + slotno + "\r";
+                response = "error: invalid file handle for slot " + slotno + "\r\n";
                 set_fuji_iec_status(DEVICE_ERROR, response);
                 return;
             }
@@ -990,7 +1004,7 @@ void iecFuji::mount_all()
 
             // Set the host slot for high score mode
             // TODO: Refactor along with mount disk image.
-            disk.disk_dev.host = &host;
+            disk.disk_dev.m_host = &host;
 
             // And now mount it
             disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
@@ -1019,7 +1033,6 @@ void iecFuji::set_boot_mode_basic()
         Debug_printf("SET BOOT CONFIG MODE - Invalid # of parameters.\r\n");
         response = "invalid # of parameters";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1065,7 +1078,6 @@ void iecFuji::open_app_key_basic()
         Debug_printf("Incorrect number of parameters in open_app_key_basic.\r\n");
         response = "invalid # of parameters";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1075,7 +1087,6 @@ void iecFuji::open_app_key_basic()
         Debug_println("No SD mounted - returning error");
         response = "no sd card mounted";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1094,7 +1105,6 @@ void iecFuji::open_app_key_basic()
         Debug_println("Invalid app key data");
         response = "invalid app key data";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1111,7 +1121,6 @@ void iecFuji::open_app_key_raw()
     {
         Debug_println("No SD mounted - returning error");
         set_fuji_iec_status(DEVICE_ERROR, "no sd card mounted");
-        IEC.senderTimeout();
         return;
     }
     
@@ -1175,7 +1184,6 @@ void iecFuji::write_app_key_basic()
     {
         response = "invalid # of parameters";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1184,7 +1192,6 @@ void iecFuji::write_app_key_basic()
         Debug_println("Invalid app key metadata - aborting");
         response = "malformed appkey data.";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1193,7 +1200,6 @@ void iecFuji::write_app_key_basic()
         Debug_println("No SD mounted - can't write app key");
         response = "no sd card mounted";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1218,7 +1224,6 @@ void iecFuji::write_app_key_basic()
         oss << "error: only wrote " << count << " bytes of expected " << write_size << ", errno=" << e;
         response = oss.str();
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1232,13 +1237,11 @@ void iecFuji::write_app_key_raw()
     if (!check_appkey_creator(true))
     {
         set_fuji_iec_status(DEVICE_ERROR, "creator information missing");
-        IEC.senderTimeout();
         return;
     }
     if (!fnSDFAT.running())
     {
         set_fuji_iec_status(DEVICE_ERROR, "sd filesystem not running");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1249,7 +1252,6 @@ void iecFuji::write_app_key_raw()
     {
         Debug_printf("ERROR: key data sent was larger than keysize. Aborting rather than potentially corrupting existing data.");
         set_fuji_iec_status(DEVICE_ERROR, "too much data for appkey");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1261,7 +1263,6 @@ void iecFuji::write_app_key_raw()
         std::ostringstream oss;
         oss << "error: only wrote " << count << " bytes of expected " << write_size << ", errno=" << e;
         set_fuji_iec_status(DEVICE_ERROR, oss.str());
-        IEC.senderTimeout();
         return;
     }
 
@@ -1284,7 +1285,7 @@ int iecFuji::write_app_key(std::vector<uint8_t>&& value)
     FILE *fOut = fnSDFAT.file_open(filename, FILE_WRITE);
     if (fOut == nullptr)
     {
-        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
+        Debug_printf("Failed to open/create output file: errno=%d\r\n", errno);
         return -1;
     }
     size_t count = fwrite(value.data(), 1, value.size(), fOut);
@@ -1305,7 +1306,6 @@ void iecFuji::read_app_key_basic()
         Debug_println("No SD mounted - can't read app key");
         response = "no sd mounted";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1315,7 +1315,6 @@ void iecFuji::read_app_key_basic()
         Debug_println("Invalid app key metadata - aborting");
         response = "invalid appkey metadata";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1327,7 +1326,6 @@ void iecFuji::read_app_key_basic()
         Debug_println("Failed to read appkey file");
         response = "failed to read appkey file";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1347,7 +1345,6 @@ void iecFuji::read_app_key_raw()
     {
         Debug_println("No SD mounted - can't read app key");
         set_fuji_iec_status(DEVICE_ERROR, "sd card not mounted");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1356,7 +1353,6 @@ void iecFuji::read_app_key_raw()
     {
         Debug_println("Invalid app key metadata - aborting");
         set_fuji_iec_status(DEVICE_ERROR, "invalid appkey meta data");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1366,7 +1362,6 @@ void iecFuji::read_app_key_raw()
     if (read_app_key(filename, responseV) == -1) {
         Debug_println("Failed to read appkey file");
         set_fuji_iec_status(DEVICE_ERROR, "failed to read appkey file");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1387,14 +1382,13 @@ int iecFuji::read_app_key(char *filename, std::vector<uint8_t>& file_data)
         oss << "Failed to open input file: errno=" << errno;
         response = oss.str();
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return -1;
     }
 
     file_data.resize(appkey_size);
     size_t count = fread(file_data.data(), 1, file_data.size(), fIn);
     file_data.resize(count);
-    Debug_printf("Read %u bytes from input file\n", (unsigned)count);
+    Debug_printf("Read %u bytes from input file\r\n", (unsigned)count);
     fclose(fIn);
 
     return count;
@@ -1406,7 +1400,6 @@ void iecFuji::disk_image_umount_basic()
     if (!disk_image_umount(deviceSlot)) {
         response = "invalid device slot";
         set_fuji_iec_status(DEVICE_ERROR, "invalid device slot");
-        IEC.senderTimeout();
     } else {
         response = "ok";
         set_fuji_iec_status(0, "");
@@ -1418,7 +1411,6 @@ void iecFuji::disk_image_umount_raw()
     uint8_t deviceSlot = payload[0];
     if (!disk_image_umount(deviceSlot)) {
         set_fuji_iec_status(DEVICE_ERROR, "invalid device slot");
-        IEC.senderTimeout();
     } else {
         set_fuji_iec_status(0, "");
     }
@@ -1426,13 +1418,13 @@ void iecFuji::disk_image_umount_raw()
 
 bool iecFuji::disk_image_umount(uint8_t deviceSlot)
 {
-    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
+    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\r\n", deviceSlot);
 
     bool is_success = false;
     if (deviceSlot < MAX_DISK_DEVICES)
     {
         _fnDisks[deviceSlot].disk_dev.unmount();
-        _fnDisks[deviceSlot].disk_dev.device_active = false;
+        //_fnDisks[deviceSlot].disk_dev.device_active = false;
         _fnDisks[deviceSlot].reset();
         is_success = true;
     }
@@ -1445,12 +1437,6 @@ bool iecFuji::disk_image_umount(uint8_t deviceSlot)
   us from having to unmount and re-mount devices.
 */
 void iecFuji::image_rotate()
-{
-    // TODO IMPLEMENT
-}
-
-// This gets called when we're about to shutdown/reboot
-void iecFuji::shutdown()
 {
     // TODO IMPLEMENT
 }
@@ -1495,7 +1481,6 @@ void iecFuji::open_directory_basic()
 
     if (!open_directory(host_slot, dirpath, pattern)) {
         set_fuji_iec_status(DEVICE_ERROR, "");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1509,7 +1494,6 @@ void iecFuji::open_directory_raw()
     {
         Debug_printf("ERROR: open_directory_raw, payload too short\r\n");
         set_fuji_iec_status(DEVICE_ERROR, "Bad parameters to open directory");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1518,7 +1502,6 @@ void iecFuji::open_directory_raw()
 
     if (!open_directory(host_slot, dirpath, pattern)) {
         set_fuji_iec_status(DEVICE_ERROR, "Failed to open directory");
-        IEC.senderTimeout();
         return;
     }
     set_fuji_iec_status(0, "");
@@ -1543,13 +1526,11 @@ void iecFuji::read_directory_entry_basic() {
     if (!validate_parameters_and_setup(maxlen, addtlopts)) {
         response = "invalid # of parameters";
         set_fuji_iec_status(DEVICE_ERROR, "Invalid parameters");
-        IEC.senderTimeout();
         return;
     }
     if (!validate_directory_slot()) {
         response = "no currently open directory";
         set_fuji_iec_status(DEVICE_ERROR, "No currently open directory");
-        IEC.senderTimeout();
         return;
     }
     std::string entry = read_directory_entry(maxlen, addtlopts);
@@ -1560,7 +1541,6 @@ void iecFuji::read_directory_entry_basic() {
 void iecFuji::read_directory_entry_raw() {
     if (!validate_directory_slot()) {
         set_fuji_iec_status(DEVICE_ERROR, "No current open directory");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1580,9 +1560,8 @@ void iecFuji::get_directory_position_basic()
     if (!validate_directory_slot())
     {
         response = "no currently open directory";
-        Debug_println(response);
+        Debug_println(response.c_str());
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1590,9 +1569,8 @@ void iecFuji::get_directory_position_basic()
     if (pos == FNFS_INVALID_DIRPOS)
     {
         response = "invalid directory position";
-        Debug_println(response);
+        Debug_println(response.c_str());
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1605,7 +1583,6 @@ void iecFuji::get_directory_position_raw()
     if (!validate_directory_slot())
     {
         set_fuji_iec_status(DEVICE_ERROR, "no currently open directory");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1627,7 +1604,6 @@ void iecFuji::set_directory_position_basic()
     {
         response = "error: invalid directory position";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1635,10 +1611,9 @@ void iecFuji::set_directory_position_basic()
 
     if (!validate_directory_slot())
     {
-        Debug_print("No currently open directory\n");
+        Debug_print("No currently open directory\r\n");
         response = "error: no currently open directory";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1647,7 +1622,6 @@ void iecFuji::set_directory_position_basic()
     {
         response = "error: unable to perform directory seek";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
     response = "ok";
@@ -1660,9 +1634,8 @@ void iecFuji::set_directory_position_raw()
 
     if (!validate_directory_slot())
     {
-        Debug_print("No currently open directory\n");
+        Debug_print("No currently open directory\r\n");
         set_fuji_iec_status(DEVICE_ERROR, "error: no currently open directory");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1671,7 +1644,6 @@ void iecFuji::set_directory_position_raw()
     if (!result)
     {
         set_fuji_iec_status(DEVICE_ERROR, "error: unable to perform directory seek");
-        IEC.senderTimeout();
         return;
     }
     set_fuji_iec_status(0, "");
@@ -1800,7 +1772,6 @@ void iecFuji::read_host_slots_basic()
     {
         response = "host slot # required";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1835,7 +1806,6 @@ void iecFuji::write_host_slots_basic()
     {
         response = "no host slot #";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1844,13 +1814,12 @@ void iecFuji::write_host_slots_basic()
     {
         response = "invalid host slot #";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
     std::string hostname = (pt.size() == 3) ? pt[2] : "";
 
-    // Debug_printf("Setting host slot %u to %s\n", hostSlot, hostname.c_str());
+    // Debug_printf("Setting host slot %u to %s\r\n", hostSlot, hostname.c_str());
     _fnHosts[hostSlot].set_hostname(hostname.c_str());
 
     _populate_config_from_slots();
@@ -1865,7 +1834,6 @@ void iecFuji::write_host_slots_raw()
     if (payload.size() != MAX_HOSTS * MAX_HOSTNAME_LEN) {
         Debug_printv("Did not receive correct payload size, was %d, expected %d\r\n", payload.size(), MAX_HOSTS * MAX_HOSTNAME_LEN);
         set_fuji_iec_status(DEVICE_ERROR, "payload size incorrect");
-        IEC.senderTimeout();
         return;
     }
 
@@ -1899,7 +1867,6 @@ void iecFuji::read_device_slots_basic()
     {
         response = "device slot # required";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -1945,34 +1912,30 @@ void iecFuji::write_device_slots_basic()
     {
         response = "need file mode";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
     else if (pt.size() < 3)
     {
         response = "need filename";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
     else if (pt.size() < 2)
     {
         response = "need host slot";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
     else if (pt.size() < 1)
     {
         response = "need device slot";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
     unsigned char ds = atoi(pt[1].c_str());
     unsigned char hs = atoi(pt[2].c_str());
-    string filename = pt[3];
+    std::string filename = pt[3];
     unsigned char m = atoi(pt[4].c_str());
 
     _fnDisks[ds].reset(filename.c_str(),hs,m);
@@ -2015,7 +1978,7 @@ void iecFuji::write_device_slots()
 // Temporary(?) function while we move from old config storage to new
 void iecFuji::_populate_slots_from_config()
 {
-    // Debug_printf("_populate_slots_from_config()\n");
+    // Debug_printf("_populate_slots_from_config()\r\n");
     for (int i = 0; i < MAX_HOSTS; i++)
     {
         if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
@@ -2079,10 +2042,9 @@ void iecFuji::set_device_filename_basic()
 {
     if (pt.size() < 4)
     {
-        Debug_printf("not enough parameters.\n");
+        Debug_printf("not enough parameters.\r\n");
         response = "error: invalid # of parameters";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -2094,25 +2056,22 @@ void iecFuji::set_device_filename_basic()
     if (!_validate_device_slot(slot, "set_device_filename_basic")) {
         response = "invalid device slot";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
     if (!_validate_host_slot(host, "set_device_filename_basic")) {
         response = "invalid host slot";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
     if (filename.size() > MAX_FILENAME_LEN) {
         response = "invalid filename - too long";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
-    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, filename.c_str());
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\r\n", slot, host, mode, filename.c_str());
 
     set_device_filename(slot, host, mode, filename);
     response = "ok";
@@ -2130,23 +2089,20 @@ void iecFuji::set_device_filename_raw()
 
     if (!_validate_device_slot(slot, "set_device_filename_raw")) {
         set_fuji_iec_status(DEVICE_ERROR, "invalid device slot");
-        IEC.senderTimeout();
         return;
     }
 
     if (!_validate_host_slot(host, "set_device_filename_raw")) {
         set_fuji_iec_status(DEVICE_ERROR, "invalid host slot");
-        IEC.senderTimeout();
         return;
     }
 
     if (filename.size() > MAX_FILENAME_LEN) {
         set_fuji_iec_status(DEVICE_ERROR, "invalid filename - too long");
-        IEC.senderTimeout();
         return;
     }
 
-    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, filename.c_str());
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\r\n", slot, host, mode, filename.c_str());
 
     set_device_filename(slot, host, mode, filename);
     set_fuji_iec_status(0, "");
@@ -2174,20 +2130,18 @@ void iecFuji::get_device_filename_basic()
     Debug_println("Fuji CMD: get device filename");
     if (pt.size() < 2)
     {
-        Debug_printf("Incorrect # of parameters.\n");
+        Debug_printf("Incorrect # of parameters.\r\n");
         response = "invalid # of parameters";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
     uint8_t ds = atoi(pt[1].c_str());
     if (!_validate_device_slot(ds, "get_device_filename"))
     {
-        Debug_printf("Invalid device slot: %u\n", ds);
+        Debug_printf("Invalid device slot: %u\r\n", ds);
         response = "invalid device slot";
         set_fuji_iec_status(DEVICE_ERROR, response);
-        IEC.senderTimeout();
         return;
     }
 
@@ -2200,9 +2154,8 @@ void iecFuji::get_device_filename_raw()
     uint8_t ds = payload[0];
     if (!_validate_device_slot(ds, "get_device_filename"))
     {
-        Debug_printf("Invalid device slot: %u\n", ds);
+        Debug_printf("Invalid device slot: %u\r\n", ds);
         set_fuji_iec_status(DEVICE_ERROR, "Invalid device slot");
-        IEC.senderTimeout();
         return;
     }
 
@@ -2252,9 +2205,9 @@ std::string iecFuji::get_host_prefix(int host_slot)
  Example: "COMMAND:Param1,Param2" will return a vector of [0]="COMMAND", [1]="Param1",[2]="Param2"
  Also supports "COMMAND,Param1,Param2"
 */
-vector<string> iecFuji::tokenize_basic_command(string command)
+std::vector<std::string> iecFuji::tokenize_basic_command(std::string command)
 {
-    Debug_printf("Tokenizing basic command: %s\n", command.c_str());
+    Debug_printf("Tokenizing basic command: %s\r\n", command.c_str());
 
     // Replace the first ":" with "," for easy tokenization. 
     // Assume it is fine to change the payload at this point.
@@ -2263,74 +2216,9 @@ vector<string> iecFuji::tokenize_basic_command(string command)
     if (endOfCommand != std::string::npos)
         command.replace(endOfCommand,1,",");
     
-    vector<string> result =  util_tokenize(command, ',');
+    std::vector<std::string> result =  util_tokenize(command, ',');
     return result;
 
-}
-
-
-
-void iecFuji::net_store_ssid(std::string ssid, std::string password)
-{
-    // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
-    // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
-    // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
-
-    int ssid_in_stored = -1;
-
-    for (int i = 0; i < MAX_WIFI_STORED; i++)
-    {
-        std::string stored = Config.get_wifi_stored_ssid(i);
-        std::string ithConfig = Config.get_wifi_stored_ssid(i);
-        if (!ithConfig.empty() && ithConfig == ssid)
-        {
-            ssid_in_stored = i;
-            break;
-        }
-    }
-
-    // case 1
-    if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != ssid) {
-        Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
-        // Move enabled stored down one, last one will drop off
-        for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
-        {
-            bool enabled = Config.get_wifi_stored_enabled(j - 1);
-            if (!enabled) continue;
-
-            Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
-            Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
-            Config.store_wifi_stored_enabled(j, true); // already confirmed this is enabled
-        }
-        // push the current to the top of stored
-        Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
-        Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
-        Config.store_wifi_stored_enabled(0, true);
-    }
-
-    // case 2
-    if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != ssid) {
-        Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\r\n", ssid_in_stored);
-        // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
-        for (int j = ssid_in_stored; j > 0; j--)
-        {
-            Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
-            Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
-            Config.store_wifi_stored_enabled(j, true);
-        }
-
-        // push the current to the top of stored
-        Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
-        Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
-        Config.store_wifi_stored_enabled(0, true);
-    }
-
-    // save the new SSID as current
-    Config.store_wifi_ssid(ssid.c_str(), ssid.size());
-    // Clear text here, it will be encrypted internally if enabled for encryption
-    Config.store_wifi_passphrase(password.c_str(), password.size());
-
-    Config.save();
 }
 
 
@@ -2348,7 +2236,7 @@ void iecFuji::net_set_ssid(bool store, net_config_t& net_config)
     else {
         // Only save these if we're asked to, otherwise assume it was a test for connectivity
         if (store) {
-            net_store_ssid(net_config.ssid, net_config.password);
+            fnWiFi.store_wifi(net_config.ssid, net_config.password);
         }
         msg = "ssid set";
     }
@@ -2429,11 +2317,11 @@ bool iecFuji::disk_image_mount(uint8_t ds, uint8_t mode)
     fujiDisk &disk = _fnDisks[ds];
     fujiHost &host = _fnHosts[disk.host_slot];
 
-    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                  disk.filename, disk.host_slot, flag, ds + 1);
 
     // TODO: Refactor along with mount disk image.
-    disk.disk_dev.host = &host;
+    disk.disk_dev.m_host = &host;
 
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
@@ -2466,12 +2354,12 @@ bool iecFuji::open_directory(uint8_t hs, std::string dirpath, std::string patter
     // If we already have a directory open, close it first
     if (_current_open_directory_slot != -1)
     {
-        Debug_print("Directory was already open - closing it first\n");
+        Debug_print("Directory was already open - closing it first\r\n");
         _fnHosts[_current_open_directory_slot].dir_close();
         _current_open_directory_slot = -1;
     }
 
-    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath.c_str(), pattern.c_str());
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\r\n", dirpath.c_str(), pattern.c_str());
 
     if (_fnHosts[hs].dir_open(dirpath.data(), pattern.empty() ? nullptr : pattern.c_str(), 0))
     {
@@ -2591,7 +2479,7 @@ void iecFuji::hash_length_raw()
 
 uint8_t iecFuji::hash_length(bool is_hex)
 {
-    Debug_printf("FUJI: HASH LENGTH\n");
+    Debug_printf("FUJI: HASH LENGTH\r\n");
     return hasher.hash_length(algorithm, is_hex);
 }
 
@@ -2599,7 +2487,7 @@ void iecFuji::hash_output_raw()
 {
     if (payload.size() != 1) {
         std::string msg = "Input should be 1 byte, got " + std::to_string(payload.size());
-        set_fuji_iec_status(DEVICE_ERROR, "Input should be 1 byte.");
+        set_fuji_iec_status(DEVICE_ERROR, "Input should be 1 uint8_t.");
         return;
     }
     responseV = hash_output(payload[0] == 1);
@@ -2608,7 +2496,7 @@ void iecFuji::hash_output_raw()
 
 std::vector<uint8_t> iecFuji::hash_output(bool is_hex)
 {
-    Debug_printf("FUJI: HASH OUTPUT\n");
+    Debug_printf("FUJI: HASH OUTPUT\r\n");
     if (is_hex) {
         std::string data = hasher.output_hex();
         return std::vector<uint8_t>(data.begin(), data.end());
@@ -2625,7 +2513,7 @@ void iecFuji::hash_clear_raw()
 
 void iecFuji::hash_clear()
 {
-    Debug_printf("FUJI: HASH CLEAR\n");
+    Debug_printf("FUJI: HASH CLEAR\r\n");
     hasher.clear();
 }
 

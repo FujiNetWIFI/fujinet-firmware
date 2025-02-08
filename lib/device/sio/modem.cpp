@@ -1891,7 +1891,9 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.checksum = checksum;
 
     if (!Config.get_modem_enabled())
+    {
         Debug_println("modem::disabled, ignoring");
+    }
     else
     {
         Debug_println("modem::sio_process() called");

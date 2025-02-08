@@ -64,11 +64,12 @@ private:
     uint16_t _common_index = 0;
     std::vector<stored_wifi> _matched_wifis;
 
+public:
     std::vector<std::string> get_network_names();
     std::vector<stored_wifi> get_stored_wifis();
     std::vector<stored_wifi> match_stored_with_network_wifis(std::vector<std::string> network_names, std::vector<stored_wifi> stored_wifis);
+    void store_wifi(std::string ssid, std::string password);
 
-public:
     int retries;
 
     int start();

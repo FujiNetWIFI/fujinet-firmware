@@ -255,7 +255,7 @@ namespace Meat
 
             char *end = this->pptr();
 
-            Debug_printv("before write call, ch=%d [%c], buffer contains:%lu", ch, (char)ch, this->pptr() - this->pbase());
+            Debug_printv("before write call, ch=%d [%c], buffer contains:%d", ch, (char)ch, this->pptr() - this->pbase());
 
             if (ch != EOF)
             {
@@ -263,7 +263,7 @@ namespace Meat
                 this->pbump(1);
             }
 
-            Debug_printv("%lu bytes in buffer will be written", end - this->pbase());
+            Debug_printv("%d bytes in buffer will be written", end - this->pbase());
 
             const uint8_t *pBase = (uint8_t *)this->pbase();
 

@@ -74,7 +74,10 @@ private:
 
 class D80MFile: public D64MFile {
 public:
-    D80MFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) {};
+    D80MFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) 
+    {
+        size = 533248; // Default - 77 tracks no errors
+    };
 
     MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
     {

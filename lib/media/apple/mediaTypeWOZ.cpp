@@ -76,9 +76,13 @@ bool MediaTypeWOZ::wozX_check_header()
     }
     // check for file integrity
     if ((unsigned char)(hdr[4]) == 0xFF && hdr[5] == 0x0A && hdr[6] == 0x0D && hdr[7] == 0x0A)
+    {
         Debug_printf("\n8-bit binary file verified");
+    }
     else
+    {
         return true;
+    }
 
     // could check CRC if one wanted
     
@@ -94,10 +98,10 @@ bool MediaTypeWOZ::wozX_read_info()
     }
     uint32_t chunk_id, chunk_size;
     fnio::fread(&chunk_id, sizeof(chunk_id), 1, _media_fileh);
-    Debug_printf("\nINFO Chunk ID: %08x", chunk_id);
+    Debug_printf("\nINFO Chunk ID: %08lx", chunk_id);
     fnio::fread(&chunk_size, sizeof(chunk_size), 1, _media_fileh);
-    Debug_printf("\nINFO Chunk size: %d", chunk_size);
-    Debug_printf("\nNow at byte %d", fnio::ftell(_media_fileh));
+    Debug_printf("\nINFO Chunk size: %lu", chunk_size);
+    Debug_printf("\nNow at byte %lu", fnio::ftell(_media_fileh));
     // could read a whole bunch of other stuff  ...
 
     switch (woz_version)
@@ -140,10 +144,10 @@ bool MediaTypeWOZ::wozX_read_tmap()
 
     uint32_t chunk_id, chunk_size;
     fnio::fread(&chunk_id, sizeof(chunk_id), 1, _media_fileh);
-    Debug_printf("\nTMAP Chunk ID: %08x", chunk_id);
+    Debug_printf("\nTMAP Chunk ID: %08lx", chunk_id);
     fnio::fread(&chunk_size, sizeof(chunk_size), 1, _media_fileh);
-    Debug_printf("\nTMAP Chunk size: %d", chunk_size);
-    Debug_printf("\nNow at byte %d", fnio::ftell(_media_fileh));
+    Debug_printf("\nTMAP Chunk size: %lu", chunk_size);
+    Debug_printf("\nNow at byte %lu", fnio::ftell(_media_fileh));
 
     fnio::fread(&tmap, sizeof(tmap[0]), MAX_TRACKS, _media_fileh);
 #ifdef DEBUG
@@ -199,7 +203,7 @@ bool MediaTypeWOZ::woz1_read_tracks()
 #endif
             if (trk_ptrs[i] != nullptr)
             {
-                Debug_printf("\nStoring %d bytes of track %d into location %lu", bytes_used, i, trk_ptrs[i]);
+                Debug_printf("\nStoring %d bytes of track %d into location %hhn", bytes_used, i, trk_ptrs[i]);
                 memset(trk_ptrs[i],0,s);
                 memcpy(trk_ptrs[i], temp_ptr, bytes_used);
             }
@@ -243,7 +247,7 @@ bool MediaTypeWOZ::woz2_read_tracks()
 #endif
             if (trk_ptrs[i] != nullptr)
             {
-                Debug_printf("\nReading %d bytes of track %d into location %lu", s, i, trk_ptrs[i]);
+                Debug_printf("\nReading %d bytes of track %d into location %hhn", s, i, trk_ptrs[i]);
                 fnio::fseek(_media_fileh, trks[i].start_block * 512, SEEK_SET);
                 fnio::fread(trk_ptrs[i], 1, s, _media_fileh);
                 Debug_printf("\n%d, %d, %lu", trks[i].start_block, trks[i].block_count, trks[i].bit_count);

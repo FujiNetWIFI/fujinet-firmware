@@ -159,7 +159,7 @@ typedef enum
 #define TIMING_Tna      32      // Extra delay before first bit is sent
 #define TIMEOUT_Tne     250
 
-#define TIMING_Ts       70      // BIT SET-UP TALKER                     71us    20us    70us        -           
+#define TIMING_Ts       80      // BIT SET-UP TALKER                     71us    20us    70us        -           
 #define TIMING_Ts0      40      // BIT SET-UP LISTENER PRE       57us    47us
 #define TIMING_Ts1      30      // BIT SET-UP LISTENER POST      18us    24us
 #define TIMING_Tv       20      // DATA VALID VIC20              76us    26us    20us    20us        -           (Tv and Tpr minimum must be 60μ s for external device to be a talker. )
@@ -204,14 +204,10 @@ typedef enum
 // Not Inverted
 #define IEC_ASSERTED  true
 #define IEC_RELEASED  false
-#define LOW 0x00
-#define HIGH 0x01
 #else
 // Inverted
 #define IEC_ASSERTED  false
 #define IEC_RELEASED  true
-#define LOW 0x01
-#define HIGH 0x00
 #endif
 
 #endif // CBMDEFINES_H

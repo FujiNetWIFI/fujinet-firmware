@@ -1803,7 +1803,9 @@ void rs232Modem::rs232_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.checksum = checksum;
 
     if (!Config.get_modem_enabled())
+    {
         Debug_println("rs232Modem::disabled, ignoring");
+    }
     else
     {
         Debug_println("rs232Modem::rs232_process() called");
