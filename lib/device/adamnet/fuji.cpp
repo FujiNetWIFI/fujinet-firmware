@@ -1430,7 +1430,7 @@ void adamFuji::adamnet_get_time()
 
 	response_len = 7;
 
-    Debug_printf("Sending %02X %02X %02X %02X %02X %02X\n", response[0], response[1], response[2], response[3], response[4], response[5], response[6]);
+    Debug_printf("Sending %02X %02X %02X %02X %02X %02X %02X\n", response[0], response[1], response[2], response[3], response[4], response[5], response[6]);
 }
 
 void adamFuji::adamnet_device_enable_status()

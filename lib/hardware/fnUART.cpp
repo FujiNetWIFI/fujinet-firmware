@@ -218,14 +218,20 @@ int UARTManager::read(void)
     {
 #ifdef DEBUG
         if (result == 0)
+        {
             Debug_println("### UART read() TIMEOUT ###");
+        }
         else
+        {
             Debug_printf("### UART read() ERROR %d ###\r\n", result);
+        }
 #endif
         return -1;
     }
     else
+    {
         return byte;
+    }
 }
 
 /* Since the underlying Stream calls this Read() multiple times to get more than one

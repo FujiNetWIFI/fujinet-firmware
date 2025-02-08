@@ -144,7 +144,7 @@ namespace mstr {
     /*
     * String Comparision
     */
-    bool compare_char(char &c1, char &c2)
+    bool compare_char(const char &c1, const char &c2)
     {
         if (c1 == c2)
             return true;
@@ -152,7 +152,7 @@ namespace mstr {
         return false;
     }
 
-    bool compare_char_insensitive(char &c1, char &c2)
+    bool compare_char_insensitive(const char &c1, const char &c2)
     {
         if (c1 == c2)
             return true;
@@ -191,7 +191,7 @@ namespace mstr {
     }
 
 
-    bool equals(std::string &s1, char *s2, bool case_sensitive)
+    bool equals(std::string &s1, const char *s2, bool case_sensitive)
     {
         if(case_sensitive)
             return ( (s1.size() == strlen(s2) ) &&
@@ -358,6 +358,12 @@ namespace mstr {
     {
         return std::all_of(s.begin(), s.end(), 
                         [](unsigned char c) { return ::isdigit(c); });
+    }
+
+    bool isNumeric(char *s)
+    {
+        std::string s2 = s;
+        return isNumeric(s2);
     }
 
     void replaceAll(std::string &s, const std::string &search, const std::string &replace) 

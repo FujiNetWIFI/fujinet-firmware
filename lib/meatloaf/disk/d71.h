@@ -54,6 +54,7 @@ public:
         partitions.clear();
         partitions.push_back(p);
         sectorsPerTrack = { 17, 18, 19, 21 };
+
         dos_rom = "dos1571";
 
         uint32_t size = containerStream->size();
@@ -89,7 +90,10 @@ private:
 
 class D71MFile: public D64MFile {
 public:
-    D71MFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) {};
+    D71MFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) 
+    {
+        size = 349696; // Default - 70 tracks no errors
+    };
 
     MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
     {

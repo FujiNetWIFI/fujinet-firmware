@@ -225,7 +225,7 @@ void rc2014Disk::get_size()
     sectors[2] = (disk_size >> 16) & 0xFF;
     sectors[3] = (disk_size >> 24) & 0xFF;
 
-    Debug_printf("number of sectors: %d\n", disk_size);
+    Debug_printf("number of sectors: %lu\n", disk_size);
 
     rc2014_send_buffer(sectors, sizeof(sectors));
     rc2014_flush();

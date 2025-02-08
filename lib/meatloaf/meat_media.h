@@ -87,16 +87,26 @@ protected:
     bool show_hidden = false;
 
     size_t media_header_size = 0x00;
-    size_t entry_index = 0;  // Currently selected directory entry
+    size_t media_data_offset = 0x00;
+    size_t entry_index = 0;  // Currently selected directory entry (0 no selection)
     size_t entry_count = -1; // Directory list entry count (-1 unknown)
 
     enum open_modes { OPEN_READ, OPEN_WRITE, OPEN_APPEND, OPEN_MODIFY };
     std::string file_type_label[12] = { "DEL", "SEQ", "PRG", "USR", "REL", "CBM", "DIR", "SUS", "NAT", "CMD", "CFS", "???" };
 
-    virtual void seekHeader() = 0;
-    virtual bool seekNextImageEntry() = 0;
+    virtual bool readHeader() = 0;
+    virtual bool writeHeader() { return false; };
+
+    virtual bool seekEntry( std::string filename ) { return false; };
+    virtual bool seekEntry( uint16_t index ) { return false; };
+    virtual bool readEntry( uint16_t index ) { return false; };
+    virtual bool writeEntry( uint16_t index ) { return false; };
+
     void resetEntryCounter() {
         entry_index = 0;
+    }
+    virtual bool getNextImageEntry() {
+        return seekEntry(entry_index + 1);
     }
 
     // Disks
@@ -110,13 +120,13 @@ protected:
             return ( _size / block_size );
     }
 
-    virtual bool seekEntry( std::string filename ) { return false; };
-    virtual bool seekEntry( uint16_t index ) { return false; };
-
     virtual uint32_t readContainer(uint8_t *buf, uint32_t size);
+    virtual uint32_t writeContainer(uint8_t *buf, uint32_t size);
     virtual uint32_t readFile(uint8_t* buf, uint32_t size) = 0;
+    virtual uint32_t writeFile(uint8_t* buf, uint32_t size) = 0;
     virtual std::string decodeType(uint8_t file_type, bool show_hidden = false);
     virtual std::string decodeType(std::string file_type);
+    virtual std::string decodeGEOSType(uint8_t geos_file_structure, uint8_t geos_file_type);
 
 private:
 
@@ -204,6 +214,13 @@ public:
 
     static void validate() {
         
+    }
+
+    static void clear() {
+        std::for_each(image_repo.begin(), image_repo.end(), [](auto& pair) {
+            delete pair.second;
+        });
+        image_repo.clear();
     }
 };
 

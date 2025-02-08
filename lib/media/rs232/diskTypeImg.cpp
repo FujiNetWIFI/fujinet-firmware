@@ -29,7 +29,7 @@ bool MediaTypeImg::read(uint16_t sectornum, uint16_t *readcount)
     // Return an error if we're trying to read beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::read sector %d > %d\r\n", sectornum, _disk_num_sectors);
+        Debug_printf("::read sector %d > %lu\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 
@@ -61,12 +61,12 @@ bool MediaTypeImg::read(uint16_t sectornum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool MediaTypeImg::write(uint16_t sectornum, bool verify)
 {
-    Debug_printf("IMG WRITE\r\n", sectornum, _disk_num_sectors);
+    Debug_printf("IMG WRITE\r\n");
 
     // Return an error if we're trying to write beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::write sector %d > %d\r\n", sectornum, _disk_num_sectors);
+        Debug_printf("::write sector %d > %lu\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 

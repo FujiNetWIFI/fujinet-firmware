@@ -55,7 +55,7 @@ std::vector<uint8_t> iwmDisk::create_blocksize(bool is_32_bits)
         block_size.push_back(static_cast<uint8_t>((_disk->num_blocks >> 24) & 0xff));
     }
 
-    Debug_printf("\r\nDIB number of blocks %d\r\n", _disk->num_blocks);
+    Debug_printf("\r\nDIB number of blocks %lu\r\n", _disk->num_blocks);
   }
   else
   {
@@ -307,7 +307,7 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   // block_num = block_num + (((LBL & 0x7f) | (((unsigned short)LBH << 4) & 0x80)) << 8);
   // block_num = block_num + (((LBT & 0x7f) | (((unsigned short)LBH << 5) & 0x80)) << 16);
   block_num = get_block_number(cmd);
-  Debug_printf(" Read block %06x\r\n", block_num);
+  Debug_printf(" Read block %06lx\r\n", block_num);
   if (!(_disk != nullptr))
   {
     Debug_printf(" - ERROR - No image mounted");
@@ -355,7 +355,7 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
   // block num second byte
   //Added (unsigned short) cast to ensure calculated block is not underflowing.
   // block_num = block_num + (((cmd.g7byte4 & 0x7f) | (((unsigned short)cmd.grp7msb << 4) & 0x80)) * 256);
-  Debug_printf("Write block %06x", block_num);
+  Debug_printf("Write block %06lx", block_num);
   //get write data packet, keep trying until no timeout
   // to do - this blows up - check handshaking
   data_len = BLOCK_DATA_LEN;

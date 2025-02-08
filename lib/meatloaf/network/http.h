@@ -13,7 +13,6 @@
 #include <esp_http_client.h>
 #include <functional>
 #include <map>
-#include <ios>
 
 #include "../../../include/debug.h"
 //#include "../../include/global_defines.h"
@@ -72,7 +71,7 @@ public:
         }
         return false;
     }
-    std::string getHeader(std::string header)
+    std::string readHeader(std::string header)
     {
         return headers[header];
     }
@@ -98,6 +97,7 @@ public:
     }
 
     uint32_t _size = 0;
+    uint32_t _range_size = 0;
     uint32_t _position = 0;
     size_t _error = 0;
 
@@ -144,7 +144,7 @@ public:
     MFile* getNextFileInDir() override ;
     bool mkDir() override ;
     bool exists() override ;
-    uint32_t size() override ;
+
     bool remove() override ;
     bool isText() override ;
     bool rename(std::string dest) { return false; };
@@ -172,7 +172,7 @@ public:
         close();
     };
 
-
+protected:
     // MStream methods
     bool isOpen() override;
     bool isBrowsable() override { return false; };
@@ -191,9 +191,10 @@ public:
         return false;
     }
 
-
-protected:
     MeatHttpClient _http;
+
+private:
+    friend class HTTPMFile;
 };
 
 

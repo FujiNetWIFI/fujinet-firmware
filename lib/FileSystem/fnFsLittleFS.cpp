@@ -249,9 +249,6 @@ bool FileSystemLittleFS::start()
         Debug_printv("  partition size: %u, used: %u, free: %u\r\n", total, used, total-used);
         */
     #endif
-
-        // Create SYSTEM DIR if it doesn't exist
-        //create_path( SYSTEM_DIR );
     }
 
     return _started;

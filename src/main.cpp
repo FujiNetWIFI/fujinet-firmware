@@ -28,6 +28,16 @@
 
 #include "httpService.h"
 
+#ifdef ENABLE_CONSOLE
+#include "../lib/console/ESP32Console.h"
+using namespace ESP32Console;
+Console console;
+#endif
+
+#ifdef ENABLE_DISPLAY
+#include "display.h"
+#endif
+
 #ifndef ESP_PLATFORM
 #include "fnTaskManager.h"
 #include "version.h"
@@ -127,11 +137,22 @@ void main_setup(int argc, char *argv[])
 
     // Startup messages
 #ifdef ESP_PLATFORM
-  #ifdef DEBUG
-    fnUartDebug.begin(DEBUG_SPEED);
+
     unsigned long startms = fnSystem.millis();
+
+#ifdef ENABLE_CONSOLE
+    //You can change the console prompt before calling begin(). By default it is "ESP32>"
+    console.setPrompt("fujinet[%pwd%]# ");
+
+    //You can change the baud rate and pin numbers similar to Serial.begin() here.
+    console.begin(DEBUG_SPEED);
+#else
+    Serial.begin(DEBUG_SPEED);
+#endif
+
+#ifdef DEBUG
     Debug_printf("\r\n\r\n--~--~--~--\nFujiNet %s Started @ %lu\r\n", fnSystem.get_fujinet_version(), startms);
-    Debug_printf("Starting heap: %u\r\n", fnSystem.get_free_heap_size());
+    Debug_printf("Starting heap: %lu\r\n", fnSystem.get_free_heap_size());
     Debug_printv("Heap: %lu\r\n",esp_get_free_internal_heap_size());
     #ifdef ATARI
     Debug_printf("PsramSize %u\r\n", fnSystem.get_psram_size());
@@ -435,9 +456,31 @@ void main_setup(int argc, char *argv[])
 #ifdef ESP_PLATFORM
   #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
-    Debug_printf("\r\nAvailable heap: %u\r\nSetup complete @ %lu (%lums)\r\n", fnSystem.get_free_heap_size(), endms, endms - startms);
+    Debug_printf("\r\nAvailable heap: %lu\r\nSetup complete @ %lu (%lums)\r\n", fnSystem.get_free_heap_size(), endms, endms - startms);
     Debug_printv("Low Heap: %lu",esp_get_free_internal_heap_size());
   #endif // DEBUG
+
+#ifdef ENABLE_DISPLAY
+    DISPLAY.start();
+#endif
+
+#ifdef ENABLE_CONSOLE
+    //Register builtin commands like 'reboot', 'version', or 'meminfo'
+    console.registerSystemCommands();
+
+    //Register network commands
+    console.registerNetworkCommands();
+
+    //Register the VFS specific commands
+    console.registerVFSCommands();
+
+    //Register GPIO commands
+    console.registerGPIOCommands();
+
+    //Register XFER commands
+    console.registerXFERCommands();
+#endif
+
 #else
 // !ESP_PLATFORM
     unsigned long endms = fnSystem.millis();

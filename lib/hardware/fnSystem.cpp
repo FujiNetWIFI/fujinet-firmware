@@ -1293,7 +1293,7 @@ void SystemManager::debug_print_tasks()
     for (int i = 0; i < n; i++)
     {
         // Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\r\n",
-        Debug_printf("T%02d %p (%2d,%2d) %4dh %10dr %8s: %s\r\n",
+        Debug_printf("T%02d %p (%2d,%2d) %4luh %10lur %8s: %s\r\n",
                      i + 1,
                      pTasks[i].xHandle,
                      //pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
@@ -1303,7 +1303,7 @@ void SystemManager::debug_print_tasks()
                      status[pTasks[i].eCurrentState],
                      pTasks[i].pcTaskName);
     }
-    Debug_printf("\nCPU MHz: %d\r\n", fnSystem.get_cpu_frequency());
+    Debug_printf("\nCPU MHz: %lu\r\n", fnSystem.get_cpu_frequency());
 #endif // ESP_PLATFORM
 #endif // DEBUG
 }

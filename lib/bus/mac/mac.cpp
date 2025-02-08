@@ -116,7 +116,7 @@ void macBus::service(void)
         // fnUartBUS.flush();
         break;
       default:
-        Debug_printf("%03d");
+        //Debug_printf("%03d");
         fnUartBUS.write('X');
         // fnUartBUS.flush();
         break;

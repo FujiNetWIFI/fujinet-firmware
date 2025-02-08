@@ -28,7 +28,7 @@ public:
 
         // Find full filename for wildcard
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
-            seekEntry( name );
+            readEntry( name );
 
         if (!pathValid(path.c_str()))
             m_isNull = true;
@@ -38,7 +38,7 @@ public:
         //Debug_printv("basepath[%s] path[%s] valid[%d]", basepath.c_str(), this->path.c_str(), m_isNull);
     };
     ~TNFSMFile() {
-        //Serial.printf("*** Destroying flashfile %s\r\n", url.c_str());
+        //printf("*** Destroying flashfile %s\r\n", url.c_str());
         closeDir();
     }
 
@@ -55,12 +55,12 @@ public:
     MFile* getNextFileInDir() override ;
     bool mkDir() override ;
     bool exists() override ;
-    uint32_t size() override ;
+
     bool remove() override ;
     bool rename(std::string dest);
 
 
-    bool seekEntry( std::string filename );
+    bool readEntry( std::string filename );
 
 protected:
     DIR* dir;
@@ -91,7 +91,7 @@ public:
 
     TNFSHandle() 
     {
-        Debug_printv("*** Creating flash handle");
+        //Debug_printv("*** Creating flash handle");
         memset(&file_h, 0, sizeof(file_h));
     };
     ~TNFSHandle();

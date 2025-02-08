@@ -283,7 +283,9 @@ void rs232Printer::rs232_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.checksum = checksum;
 
     if (!Config.get_printer_enabled())
+    {
         Debug_println("rs232Printer::disabled, ignoring");
+    }
     else
     {
         switch (cmdFrame.comnd)

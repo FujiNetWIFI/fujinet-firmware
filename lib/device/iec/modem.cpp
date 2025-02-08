@@ -17,10 +17,10 @@ iecModem::~iecModem()
     }
 }
 
-device_state_t iecModem::process()
-{
-    // TODO IMPLEMENT
-    return DEVICE_IDLE;
-}
+// device_state_t iecModem::process()
+// {
+//     // TODO IMPLEMENT
+//     return DEVICE_IDLE;
+// }
 
 #endif /* BUILD_IEC */

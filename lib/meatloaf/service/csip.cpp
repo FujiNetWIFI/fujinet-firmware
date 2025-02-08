@@ -1,6 +1,7 @@
 #include "csip.h"
 
 #include "meatloaf.h"
+
 #include "make_unique.h"
 
 /********************************************************
@@ -24,6 +25,7 @@ std::string CSIPMSessionMgr::readLn() {
     char buffer[80];
     // telnet line ends with 10;
     getline(buffer, 80, 10);
+
     Debug_printv("Inside readln got: '%s'", buffer);
     return std::string((char *)buffer);
 }
@@ -32,7 +34,7 @@ bool CSIPMSessionMgr::sendCommand(std::string command) {
     std::string c = mstr::toPETSCII2(command);
     // 13 (CR) sends the command
     if(establishSession()) {
-        Serial.printf("CSIP: send command: %s\r\n", c.c_str());
+        printf("CSIP: send command: %s\r\n", c.c_str());
         (*this) << (c+'\r');
         (*this).flush();
         return true;
@@ -164,7 +166,7 @@ bool CSIPMStream::open(std::ios_base::openmode mode) {
         else {
             _size = buffer[0] + buffer[1]*256; // put len here
             // if everything was ok
-            Serial.printf("CSIP: file open, size: %d\r\n", _size);
+            printf("CSIP: file open, size: %lu\r\n", _size);
             _is_open = true;
         }
     }
@@ -324,8 +326,8 @@ bool CSIPMFile::isDirectory() {
 };
 
 MStream* CSIPMFile::getSourceStream(std::ios_base::openmode mode) {
-    //MStream* istream = new CSIPMStream(url);
-    auto istream = StreamBroker::obtain<CSIPMStream>(url, mode);
+    MStream* istream = new CSIPMStream(url);
+    //auto istream = StreamBroker::obtain<CSIPMStream>(url, mode);
     istream->open(mode);   
     return istream;
 };
@@ -489,9 +491,9 @@ bool CSIPMFile::exists() {
     return true;
 } ;
 
-uint32_t CSIPMFile::size() {
-    return m_size;
-};
+// uint32_t CSIPMFile::size() {
+//     return m_size;
+// };
 
 bool CSIPMFile::mkDir() { 
     // but it does support creating dirs = MD FOLDER

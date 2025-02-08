@@ -890,8 +890,10 @@ void IRAM_ATTR iwm_diskii_ll::diskii_write_handler()
 
     item.buffer = (decltype(item.buffer)) heap_caps_malloc(item.length, MALLOC_CAP_8BIT);
     if (!item.buffer)
+    {
       Debug_printf("\r\nDisk II unable to allocate buffer! %u %u %u",
                    item.length, item.track_begin, item.track_end);
+    }
     else {
       size_t end1, end2;
 
@@ -906,7 +908,9 @@ void IRAM_ATTR iwm_diskii_ll::diskii_write_handler()
       end1 -= d2w_position;
       memcpy(item.buffer, &d2w_buffer[d2w_position], end1);
       if (end2)
+      {
         memcpy(&item.buffer[end1], d2w_buffer, end2);
+      }
       xQueueSendFromISR(iwm_write_queue, &item, &woken);
     }
     d2w_writing = false;

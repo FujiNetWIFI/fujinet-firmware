@@ -243,9 +243,13 @@ bool FileSystemSMB::dir_open(const char  *path, const char *pattern, uint16_t di
             fs_de->modified_time = (time_t)smb_de->st.smb2_mtime;
 
             if (fs_de->isDir)
+            {
                 Debug_printf(" add entry: \"%s\"\tDIR\n", fs_de->filename);
+            }
             else
+            {
                 Debug_printf(" add entry: \"%s\"\t%lu\n", fs_de->filename, fs_de->size);
+            }
         }
         smb2_closedir(_smb, smb_dir);
     }

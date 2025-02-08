@@ -147,7 +147,7 @@ void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
         index = pc - '0';
     else
     {
-        Debug_printf("Bad HSIO index value: %s\n", hsioindex);
+        Debug_printf("Bad HSIO index value: %s\n", hsioindex.c_str());
         return;
     }
 #else

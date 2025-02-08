@@ -2,7 +2,8 @@
 
 #include <esp_idf_version.h>
 
-#include "../meatloaf.h"
+#include "meatloaf.h"
+
 #include "../../../include/debug.h"
 //#include "../../../include/global_defines.h"
 
@@ -17,10 +18,11 @@ MeatHttpClient* HTTPMFile::fromHeader() {
 
         // let's just get the headers so we have some info
         //Debug_printv("Client requesting head");
-        //Debug_printv("before head url[%s]", url.c_str());
+        Debug_printv("before head url[%s]", url.c_str());
         client->HEAD(url);
-        //Debug_printv("after head url[%s]", client->url.c_str());
-        resetURL(client->url);
+        Debug_printv("after head url[%s]", client->url.c_str());
+        if (client->wasRedirected)
+            resetURL(client->url);
     }
     return client;
 }
@@ -54,6 +56,8 @@ MStream* HTTPMFile::getSourceStream(std::ios_base::openmode mode) {
     MStream* istream = new HTTPMStream(url, mode);
     //auto istream = StreamBroker::obtain<HTTPMStream>(url, mode);
     istream->open(mode);
+    resetURL(istream->url);
+    size = istream->size();
 
     return istream;
 }
@@ -89,16 +93,6 @@ time_t HTTPMFile::getCreationTime() {
 
 bool HTTPMFile::exists() {
     return fromHeader()->_exists;
-}
-
-uint32_t HTTPMFile::size() {
-    if(fromHeader()->m_isWebDAV) {
-        // take from webdav PROPFIND
-        return 0;
-    }
-    else
-        // fallback to what we had from the header
-        return fromHeader()->_size;
 }
 
 bool HTTPMFile::remove() {
@@ -155,7 +149,9 @@ bool HTTPMStream::open(std::ios_base::openmode mode) {
         r = _http.GET(url);
 
     if ( r ) {
-        _size = _http._size;
+        _size = ( _http._range_size > 0) ? _http._range_size : _http._size;
+        if ( _http.wasRedirected )
+            url = _http.url;
     }
 
     return r;
@@ -232,7 +228,7 @@ bool MeatHttpClient::HEAD(std::string dstUrl) {
 bool MeatHttpClient::processRedirectsAndOpen(uint32_t position, uint32_t size) {
     wasRedirected = false;
 
-    //Debug_printv("reopening url[%s] from position:%d", url.c_str(), range);
+    //Debug_printv("reopening url[%s] from position:%lu", url.c_str(), position);
     lastRC = openAndFetchHeaders(lastMethod, position, size);
 
     if (lastRC == 206)
@@ -248,6 +244,7 @@ bool MeatHttpClient::processRedirectsAndOpen(uint32_t position, uint32_t size) {
     if(lastRC != HttpStatus_Ok && lastRC != 301 && lastRC != 206) {
         Debug_printv("opening stream failed, httpCode=%d", lastRC);
         _error = lastRC;
+        _is_open = false;
         return false;
     }
 
@@ -255,7 +252,7 @@ bool MeatHttpClient::processRedirectsAndOpen(uint32_t position, uint32_t size) {
     _exists = true;
     _position = position;
 
-    //Debug_printv("size[%d] avail[%d] isFriendlySkipper[%d] isText[%d] httpCode[%d] method[%d]", _size, available(), isFriendlySkipper, isText, lastRC, lastMethod);
+    //Debug_printv("size[%lu] avail[%lu] isFriendlySkipper[%d] isText[%d] httpCode[%d] method[%d]", _size, available(), isFriendlySkipper, isText, lastRC, lastMethod);
 
     return true;
 }
@@ -407,6 +404,7 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t method, uint32_
 
     // Set Headers
     for (const auto& pair : headers) {
+        Debug_printv("%s:%s", pair.first.c_str(), pair.second.c_str());
         std::cout << pair.first << ": " << pair.second << std::endl;
         esp_http_client_set_header(_http, pair.first.c_str(), pair.second.c_str());
     }
@@ -422,22 +420,38 @@ int MeatHttpClient::openAndFetchHeaders(esp_http_client_method_t method, uint32_
     // esp_http_client_set_post_field(client, post_data, strlen(post_data));
 
     //Debug_printv("--- PRE OPEN");
-    esp_err_t rc = esp_http_client_open(_http, 0); // or open? It's not entirely clear...
-
-    if (rc == ESP_OK)
+    int status = 0;
+    esp_err_t rc;
+    int retry = 5;
+    do
     {
-        //Debug_printv("--- PRE FETCH HEADERS");
+        rc = esp_http_client_open(_http, 0); // or open? It's not entirely clear...
 
-        int64_t lengthResp = esp_http_client_fetch_headers(_http);
-        if(_size == -1 && lengthResp > 0) {
-            // only if we aren't chunked!
-            _size = lengthResp;
-            _position = position;
+        if (rc == ESP_OK)
+        {
+            //Debug_printv("--- PRE FETCH HEADERS");
+
+            int64_t lengthResp = esp_http_client_fetch_headers(_http);
+            if(_size == -1 && lengthResp > 0) {
+                // only if we aren't chunked!
+                _size = lengthResp;
+                _position = position;
+            }
         }
-    }
+
+        status = esp_http_client_get_status_code(_http);
+        //Debug_printv("after open rc[%d] status[%d]", rc, status);
+        if ( status < 0 )
+        {
+            Debug_printv("Connection failed... retrying... [%d]", retry);
+            esp_http_client_close(_http);
+        }
+
+        retry--;
+    } while ( status < 0 && retry > 0 );
 
     //Debug_printv("--- PRE GET STATUS CODE");
-    return esp_http_client_get_status_code(_http);
+    return status;
 }
 
 esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
@@ -448,7 +462,7 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
         case HTTP_EVENT_ERROR: // This event occurs when there are any errors during execution
             Debug_printv("HTTP_EVENT_ERROR");
             meatClient->_error = 1;
-            meatClient->close();
+            //meatClient->close();
             break;
 
         case HTTP_EVENT_ON_CONNECTED: // Once the HTTP has been connected to the server, no data exchange has been performed
@@ -477,8 +491,9 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
                     meatClient->isFriendlySkipper = true;
                     auto cr = util_tokenize(evt->header_value, '/');
                     if( cr.size() > 1 )
-                        meatClient->_size = std::stoi(cr[1]);
+                        meatClient->_range_size = std::stoi(cr[1]);
                 }
+                //Debug_printv("size[%lu] isFriendlySkipper[%d]", meatClient->_range_size, meatClient->isFriendlySkipper);
             }
             // what can we do UTF8<->PETSCII on this stream?
             if (mstr::equals("Content-Type", evt->header_key, false))
@@ -502,7 +517,7 @@ esp_err_t MeatHttpClient::_http_event_handler(esp_http_client_event_t *evt)
                 std::string value = evt->header_value;
                 if ( mstr::contains( value, (char *)"index.prg" ) )
                 {
-                    Debug_printv("HTTP Directory Listing [%s]", meatClient->url.c_str());
+                    //Debug_printv("HTTP Directory Listing [%s]", meatClient->url.c_str());
                     meatClient->m_isDirectory = true;
                 }
             }

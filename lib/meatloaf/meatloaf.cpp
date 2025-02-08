@@ -2,6 +2,7 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <algorithm>
 #include <vector>
 #include <sstream>
@@ -73,6 +74,8 @@ std::unordered_map<std::string, MStream*> StreamBroker::stream_repo;
 #include "tape/t64.h"
 #include "tape/tcrt.h"
 
+//std::unordered_map<std::string, MFile*> FileBroker::file_repo;
+//std::unordered_map<std::string, MStream*> StreamBroker::stream_repo;
 
 /********************************************************
  * MFSOwner implementations
@@ -187,7 +190,7 @@ MFile* MFSOwner::File(std::shared_ptr<MFile> file) {
 
 MFile* MFSOwner::File(std::string path) {
     // if(mstr::startsWith(path,"cs:", false)) {
-    //     //Serial.printf("CServer path found!\r\n");
+    //     //printf("CServer path found!\r\n");
     //     return csFS.getFile(path);
     // }
 
@@ -248,6 +251,23 @@ MFile* MFSOwner::File(std::string path) {
 
     return nullptr;
 }
+
+MFile* MFSOwner::NewFile(std::string path) {
+
+    auto newFile = File(path);
+    if ( newFile != nullptr )
+        return nullptr;
+    
+    if (newFile->exists()) {
+        Debug_printv("File already exists [%s]", path.c_str());
+        return nullptr;
+    }
+
+
+
+    return newFile;
+}
+
 
 std::string MFSOwner::existsLocal( std::string path )
 {
@@ -338,6 +358,7 @@ MFile::MFile(std::string path) {
     //     Debug_printv("Create directory stream here!");
     //     path = "";
     // }
+    //Debug_printv("ctor path[%s]", path.c_str());
 
     resetURL(path);
 }
@@ -361,16 +382,20 @@ bool MFile::operator!=(nullptr_t ptr) {
 MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
 
     if ( streamFile == nullptr )
+    {
+        Debug_printv("null streamFile");
         return nullptr;
+    }
 
     // has to return OPENED stream
     //Debug_printv("pathInStream[%s] streamFile[%s]", pathInStream.c_str(), streamFile->url.c_str());
-    //std::shared_ptr<MFile> containerFile(MFSOwner::File(streamPath)); // get the base file that knows how to handle this kind of container, i.e 7z
-
 
     auto sourceStream = streamFile->getSourceStream(mode);
     if ( sourceStream == nullptr )
+    {
+        Debug_printv("null sourceStream");
         return nullptr;
+    }
 
     // will be replaced by streamBroker->getSourceStream(streamFile, mode)
     std::shared_ptr<MStream> containerStream(sourceStream); // get its base stream, i.e. zip raw file contents
@@ -384,7 +409,10 @@ MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
 
     //Debug_printv("pathInStream [%s]", pathInStream.c_str());
 
-    if(decodedStream->isRandomAccess() && pathInStream != "") {
+    if(decodedStream->isRandomAccess() && pathInStream != "")
+    {
+        // For files with a browsable random access directory structure
+        // d64, d74, d81, dnp, etc.
         bool foundIt = decodedStream->seekPath(this->pathInStream);
 
         if(!foundIt)
@@ -393,14 +421,17 @@ MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
             return nullptr;
         }        
     }
-    else if(decodedStream->isBrowsable() && pathInStream != "") {
+    else if(decodedStream->isBrowsable() && pathInStream != "")
+    {
+        // For files with no directory structure
+        // tap, crt, tar
         auto pointedFile = decodedStream->seekNextEntry();
 
         while (!pointedFile.empty())
         {
             if(mstr::compare(this->pathInStream, pointedFile))
             {
-                //Debug_printv("returning decodedStream");
+                //Debug_printv("returning decodedStream 1");
                 return decodedStream;
             }
 
@@ -411,9 +442,36 @@ MStream* MFile::getSourceStream(std::ios_base::openmode mode) {
             return nullptr;
     }
 
-    //Debug_printv("returning decodedStream");
+    //Debug_printv("returning decodedStream 2");
     return decodedStream;
 };
+
+bool MFile::format(std::string header, std::string id)
+{
+    // Open the file in write mode
+    int fd = open(path.c_str(), O_WRONLY | O_CREAT, 0644);
+
+    if (fd == -1) {
+        // Handle file opening error
+        return false;
+    }
+
+    // Truncate the file to the desired size
+    if (ftruncate(fd, size) == -1) {
+        // Handle file truncation error
+        close(fd);
+        return false;
+    }
+
+    // Write the header to the file
+
+    // Clear directory track
+
+
+    close(fd);
+    return true;
+}
+
 
 MFile* MFile::cd(std::string newDir) 
 {

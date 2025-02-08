@@ -877,7 +877,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 
         _sioBaudUltraHigh = _ultraHighBaud;
 
-        Debug_printf("Enabling SIO clock, rate: %lu\n", _ultraHighBaud);
+        Debug_printf("Enabling SIO clock, rate: %u\n", _ultraHighBaud);
 
         // Enable PWM on CLOCK IN
 #ifdef ESP_PLATFORM
