@@ -161,8 +161,7 @@ void systemBus::_rs232_process_cmd()
 
     // Read CMD frame
     cmdFrame_t tempFrame;
-    tempFrame.commanddata = 0;
-    tempFrame.checksum = 0;
+    memset(&tempFrame, 0, sizeof(tempFrame));
 
     if (fnUartBUS.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
@@ -172,14 +171,16 @@ void systemBus::_rs232_process_cmd()
     // Turn on the RS232 indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
 
-    Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
-                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+    Debug_printf("\nCF: %02x %02x %02x %02x %02x %02x %02x\n",
+                 tempFrame.device, tempFrame.comnd,
+                 tempFrame.aux1, tempFrame.aux2, tempFrame.aux3, tempFrame.aux4,
+                 tempFrame.cksum);
     // Wait for CMD line to raise again
     while (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
         vTaskDelay(1);
 
-    uint8_t ck = rs232_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
-    if (ck == tempFrame.checksum)
+    uint8_t ck = rs232_checksum((uint8_t *)&tempFrame, sizeof(tempFrame) - sizeof(tempFrame.cksum)); // Calculate Checksum
+    if (ck == tempFrame.cksum)
     {
         if (tempFrame.device == RS232_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
@@ -187,7 +188,7 @@ void systemBus::_rs232_process_cmd()
 
             Debug_println("FujiNet CONFIG boot");
             // handle command
-            _activeDev->rs232_process(tempFrame.commanddata, tempFrame.checksum);
+            _activeDev->rs232_process(&tempFrame);
         }
         else
         {
@@ -200,7 +201,7 @@ void systemBus::_rs232_process_cmd()
                     {
                         _activeDev = devicep;
                         // handle command
-                        _activeDev->rs232_process(tempFrame.commanddata, tempFrame.checksum);
+                        _activeDev->rs232_process(&tempFrame);
                     }
                 }
             }

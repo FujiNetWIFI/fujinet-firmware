@@ -1797,17 +1797,15 @@ void rs232Modem::shutdown()
 /*
   Process command
 */
-void rs232Modem::rs232_process(uint32_t commanddata, uint8_t checksum)
+void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     if (!Config.get_modem_enabled())
         Debug_println("rs232Modem::disabled, ignoring");
     else
     {
         Debug_println("rs232Modem::rs232_process() called");
 
+        cmdFrame = *cmd_ptr;
         switch (cmdFrame.comnd)
         {
         case RS232_MODEMCMD_LOAD_RELOCATOR:

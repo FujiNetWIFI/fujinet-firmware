@@ -85,11 +85,9 @@ void rs232ApeTime::_rs232_set_tz()
     }
 }
 
-void rs232ApeTime::rs232_process(uint32_t commanddata, uint8_t checksum)
+void rs232ApeTime::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
+    cmdFrame = *cmd_ptr;
     switch (cmdFrame.comnd)
     {
     case RS232_APETIMECMD_GETTIME:
