@@ -7,6 +7,7 @@
 #include <forward_list>
 
 #define RS232_BAUDRATE 9600
+//#define RS232_BAUDRATE 115200
 
 #define RS232_DEVICEID_DISK 0x31
 #define RS232_DEVICEID_DISK_LAST 0x3F
@@ -32,22 +33,25 @@
 #define DELAY_T4 800
 #define DELAY_T5 800
 
-union cmdFrame_t
+typedef struct
 {
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
+    uint8_t device;
+    uint8_t comnd;
+    union {
+        struct {
+            uint8_t aux1;
+            uint8_t aux2;
+            uint8_t aux3;
+            uint8_t aux4;
+        };
+        struct {
+            uint16_t aux12;
+            uint16_t aux34;
+        };
+        uint32_t aux;
     };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
+    uint8_t cksum;
+} __attribute__((packed)) cmdFrame_t;
 
 // helper functions
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len);
@@ -136,7 +140,7 @@ protected:
      * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command. 
      * This is typcially implemented as a switch() statement.
      */
-    virtual void rs232_process(uint32_t commanddata, uint8_t checksum) = 0;
+    virtual void rs232_process(cmdFrame_t *cmd_ptr) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};

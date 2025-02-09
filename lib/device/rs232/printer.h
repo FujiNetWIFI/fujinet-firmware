@@ -17,7 +17,7 @@ protected:
     uint8_t _buffer[40];
     void rs232_write(uint8_t aux1, uint8_t aux2);
     void rs232_status() override;
-    void rs232_process(uint32_t commanddata, uint8_t checksum) override;
+    void rs232_process(cmdFrame_t *cmd_ptr) override;
     void shutdown() override;
 
     printer_emu *_pptr = nullptr;

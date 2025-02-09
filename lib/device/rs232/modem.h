@@ -190,7 +190,7 @@ private:
     void rs232_status() override;                  // $53, 'S', Status
     void rs232_write();                            // $57, 'W', Write
     void rs232_stream();                           // $58, 'X', Concurrent/Stream
-    void rs232_process(uint32_t commanddata, uint8_t checksum) override;
+    void rs232_process(cmdFrame_t *cmd_ptr) override;
     
     void crx_toggle(bool toggle);                // CRX active/inactive?
 

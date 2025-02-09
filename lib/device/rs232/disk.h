@@ -13,7 +13,7 @@ private:
     void rs232_write(bool verify);
     void rs232_format();
     void rs232_status() override;
-    void rs232_process(uint32_t commanddata, uint8_t checksum) override;
+    void rs232_process(cmdFrame_t *cmd_ptr) override;
 
     void derive_percom_block(uint16_t numSectors);
     void rs232_read_percom_block();
