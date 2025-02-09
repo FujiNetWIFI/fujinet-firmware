@@ -277,23 +277,21 @@ rs232Printer::printer_type rs232Printer::match_modelname(const std::string &mode
 }
 
 // Process command
-void rs232Printer::rs232_process(uint32_t commanddata, uint8_t checksum)
+void rs232Printer::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     if (!Config.get_printer_enabled())
     {
         Debug_println("rs232Printer::disabled, ignoring");
     }
     else
     {
+        cmdFrame = *cmd_ptr;
         switch (cmdFrame.comnd)
         {
         case RS232_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
         case RS232_PRINTERCMD_WRITE:
-            _lastaux1 = cmdFrame.aux1;
-            _lastaux2 = cmdFrame.aux2;
+            _lastaux1 = cmd_ptr->aux1;
+            _lastaux2 = cmd_ptr->aux2;
             _last_ms = fnSystem.millis();
             rs232_ack();
             rs232_write(_lastaux1, _lastaux2);

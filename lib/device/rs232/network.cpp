@@ -782,14 +782,12 @@ void rs232Network::rs232_special_80()
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
  */
-void rs232Network::rs232_process(uint32_t commanddata, uint8_t checksum)
+void rs232Network::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     Debug_printf("rs232Network::rs232_process 0x%02hx '%c': 0x%02hx, 0x%02hx\n",
-                 cmdFrame.comnd, cmdFrame.comnd, cmdFrame.aux1, cmdFrame.aux2);
+                 cmd_ptr->comnd, cmd_ptr->comnd, cmd_ptr->aux1, cmd_ptr->aux2);
 
+    cmdFrame = *cmd_ptr;
     switch (cmdFrame.comnd)
     {
     case 0x3F:

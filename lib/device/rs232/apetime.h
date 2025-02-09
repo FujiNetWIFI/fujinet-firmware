@@ -10,7 +10,7 @@ private:
     void _rs232_set_tz();
 
 public:
-    void rs232_process(uint32_t commanddata, uint8_t checksum) override;
+    void rs232_process(cmdFrame_t *cmd_ptr) override;
     virtual void rs232_status() override {};
 };
 

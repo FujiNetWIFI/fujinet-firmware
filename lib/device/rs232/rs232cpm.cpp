@@ -69,11 +69,9 @@ void rs232CPM::init_cpm(int baud)
     memset(pattern, 0, sizeof(pattern));
 }
 
-void rs232CPM::rs232_process(uint32_t commanddata, uint8_t checksum)
+void rs232CPM::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
+    cmdFrame = *cmd_ptr;
     switch (cmdFrame.comnd)
     {
     case 'G':

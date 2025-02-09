@@ -23,8 +23,7 @@
 #define READ_DEVICE_SLOTS_DISKS1 0x00
 #define READ_DEVICE_SLOTS_TAPE 0x10
 
-#define STATUS_MOUNT_TIME_L     0x01
-#define STATUS_MOUNT_TIME_H     0x00
+#define STATUS_MOUNT_TIME       0x01
 
 typedef struct
 {
@@ -115,7 +114,7 @@ protected:
     void rs232_test();                   // 0x00
 
     void rs232_status() override;
-    void rs232_process(uint32_t commanddata, uint8_t checksum) override;
+    void rs232_process(cmdFrame_t *cmd_ptr) override;
 
     void shutdown() override;
 

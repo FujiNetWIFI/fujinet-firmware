@@ -88,7 +88,7 @@ void rs232Fuji::rs232_status()
 {
     Debug_println("Fuji cmd: STATUS");
 
-    if (cmdFrame.aux1 == STATUS_MOUNT_TIME_L && cmdFrame.aux2 == STATUS_MOUNT_TIME_H)
+    if (cmdFrame.aux == STATUS_MOUNT_TIME)
     {
 	// Return drive slot mount status: 0 if unmounted, otherwise time when mounted
         time_t mount_status[MAX_DISK_DEVICES];
@@ -104,6 +104,7 @@ void rs232Fuji::rs232_status()
     {
 	char ret[4] = {0};
 
+        Debug_printf("Status for what? %08x\n", cmdFrame.aux);
 	bus_to_computer((uint8_t *)ret, sizeof(ret), false);
     }
     return;
@@ -949,7 +950,7 @@ void rs232Fuji::rs232_set_directory_position()
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    uint16_t pos = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+    uint16_t pos = cmdFrame.aux;
 
     // Make sure we have a current open directory
     if (_current_open_directory_slot == -1)
@@ -1496,13 +1497,11 @@ void rs232Fuji::rs232_test()
     bus_to_computer(buf,512,false);
 }
 
-void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
+void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     Debug_println("rs232Fuji::rs232_process() called");
 
+    cmdFrame = *cmd_ptr;
     switch (cmdFrame.comnd)
     {
     case FUJICMD_STATUS:

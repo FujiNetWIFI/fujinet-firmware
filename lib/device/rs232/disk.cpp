@@ -39,7 +39,7 @@ rs232Disk::rs232Disk()
 // Read disk data and send to computer
 void rs232Disk::rs232_read()
 {
-    Debug_printf("disk READ %u\n",UINT16_FROM_HILOBYTES(cmdFrame.aux2,cmdFrame.aux1));
+    Debug_printf("disk READ %u\n", cmdFrame.aux);
 
     if (_disk == nullptr)
     {
@@ -49,8 +49,8 @@ void rs232Disk::rs232_read()
 
     uint16_t readcount;
 
-    bool err = _disk->read(UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1), &readcount);
-    
+    bool err = _disk->read(cmdFrame.aux, &readcount);
+
     // Send result to Atari
     bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
 }
@@ -62,7 +62,7 @@ void rs232Disk::rs232_write(bool verify)
 
     if (_disk != nullptr)
     {
-        uint16_t sectorNum = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+        uint16_t sectorNum = cmdFrame.aux;
         uint16_t sectorSize = _disk->sector_size(sectorNum);
 
         memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
@@ -257,11 +257,8 @@ bool rs232Disk::write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors)
 }
 
 // Process command
-void rs232Disk::rs232_process(uint32_t commanddata, uint8_t checksum)
+void rs232Disk::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     // if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
     //     return;
 
@@ -271,6 +268,7 @@ void rs232Disk::rs232_process(uint32_t commanddata, uint8_t checksum)
 
     Debug_print("disk rs232_process()\n");
 
+    cmdFrame = *cmd_ptr;
     switch (cmdFrame.comnd)
     {
     case RS232_DISKCMD_READ:

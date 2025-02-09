@@ -131,7 +131,7 @@ public:
      * @param comanddata incoming 4 bytes containing command and aux bytes
      * @param checksum 8 bit checksum
      */
-    virtual void rs232_process(uint32_t commanddata, uint8_t checksum);
+    virtual void rs232_process(cmdFrame_t *cmd_ptr);
 
 private:
     /**
