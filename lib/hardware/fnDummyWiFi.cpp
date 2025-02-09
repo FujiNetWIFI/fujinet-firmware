@@ -173,6 +173,11 @@ void DummyWiFiManager::handle_station_stop()
     // fnSystem.Net.stop_sntp_client();
 }
 
+void DummyWiFiManager::store_wifi(std::string ssid, std::string password)
+{
+    Debug_printf("DummyWiFiManager::store_wifi(%s, ****) - skipped\n",ssid.c_str());
+}
+
 // void DummyWiFiManager::_wifi_event_handler(void *arg, esp_event_base_t event_base,
 //                                       int32_t event_id, void *event_data)
 // {

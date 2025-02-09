@@ -46,6 +46,8 @@ private:
     // EventGroupHandle_t _wifi_event_group;
 
 public:
+    void store_wifi(std::string ssid, std::string password);
+
     int retries;
 
     int start();
