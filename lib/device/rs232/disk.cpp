@@ -39,9 +39,9 @@ rs232Disk::rs232Disk()
 // Read disk data and send to computer
 void rs232Disk::rs232_read()
 {
-    Debug_printf("disk READ %u\n", cmdFrame.aux);
+	Debug_printf("disk READ %lu\n", cmdFrame.aux);
 
-    if (_disk == nullptr)
+	if (_disk == nullptr)
     {
         rs232_error();
         return;
