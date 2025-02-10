@@ -104,7 +104,7 @@ void rs232Fuji::rs232_status()
     {
 	char ret[4] = {0};
 
-        Debug_printf("Status for what? %08x\n", cmdFrame.aux);
+	Debug_printf("Status for what? %08lx\n", cmdFrame.aux);
 	bus_to_computer((uint8_t *)ret, sizeof(ret), false);
     }
     return;
