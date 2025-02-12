@@ -39,6 +39,7 @@ enum fsType
     FSTYPE_TNFS,
     FSTYPE_SMB,
     FSTYPE_FTP,
+    FSTYPE_HTTP,
     FSTYPE_COUNT
 };
 

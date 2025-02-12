@@ -12,7 +12,7 @@
 #define MAX_CACHE_MEMFILE_SIZE  204800
 
 #include "mbedtls/md5.h"
-void get_md5_string(const unsigned char *buf, size_t size, char *result)
+static void get_md5_string(const unsigned char *buf, size_t size, char *result)
 {
     unsigned char md5_result[16];
     mbedtls_md5(buf, size, md5_result);
