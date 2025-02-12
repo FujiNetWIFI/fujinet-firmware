@@ -951,11 +951,11 @@ std::string util_hexdump(const void *buf, size_t len)
                 snprintf(line, sizeof(line), "  %s\n", ascii);
                 result += line;
             }
-            snprintf(line, sizeof(line), "%04x ", (unsigned int)i);
+            snprintf(line, sizeof(line), "%04X ", (unsigned int)i);
             result += line;
         }
 
-        snprintf(line, sizeof(line), " %02x", p[i]);
+        snprintf(line, sizeof(line), " %02X", p[i]);
         result += line;
 
         ascii[idx] = (isprint(p[i]) ? p[i] : '.');
