@@ -122,9 +122,22 @@ void sioNetwork::sio_open()
 
     // persist aux1/aux2 values - NOTHING USES THEM!
     open_aux1 = cmdFrame.aux1;
-    open_aux2 = cmdFrame.aux2;
-    open_aux2 |= trans_aux2;
-    cmdFrame.aux2 |= trans_aux2;
+
+    // Ignore aux2 value if NTRANS set 0xFF, for ACTION!
+    if (trans_aux2 == 0xFF)
+    {
+        open_aux2 = cmdFrame.aux2 = 0;
+    }
+    else if (cmdFrame.aux1 == 6) // don't xlate dir listings.
+    {
+        open_aux2 = cmdFrame.aux2;
+    }
+    else
+    {
+        open_aux2 = cmdFrame.aux2;
+        open_aux2 |= trans_aux2;
+        cmdFrame.aux2 |= trans_aux2;
+    }
 
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
