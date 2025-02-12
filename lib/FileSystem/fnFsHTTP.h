@@ -1,37 +1,48 @@
-#ifndef FN_FSFTP_H
-#define FN_FSFTP_H
+#ifndef FN_FSHTTP_H
+#define FN_FSHTTP_H
 
 #include <cstddef>
 #include <memory>
 #include <stdint.h>
 
+#ifdef ESP_PLATFORM
+#include "fnHttpClient.h"
+#define HTTP_CLIENT_CLASS fnHttpClient
+#else
+#include "mgHttpClient.h"
+#define HTTP_CLIENT_CLASS mgHttpClient
+#endif
+
 #include "peoples_url_parser.h"
-#include "fnFTP.h"
 #include "fnFS.h"
 #include "fnDirCache.h"
+#include "IndexParser.h"
 
 
-class FileSystemFTP : public FileSystem
+class FileSystemHTTP : public FileSystem
 {
 private:
-    // parsed FTP URL
+    // parsed HTTP URL
     std::unique_ptr<PeoplesUrlParser> _url;
 
-    // FTP client
-    fnFTP *_ftp;
+    // HTTP client
+    HTTP_CLIENT_CLASS *_http;
+
+    // directory index parser
+    IndexParser _parser;
 
     // directory cache
     char _last_dir[MAX_PATHLEN];
     DirCache _dircache;
 
 public:
-    FileSystemFTP();
-    ~FileSystemFTP();
+    FileSystemHTTP();
+    ~FileSystemHTTP();
 
     bool start(const char *url, const char *user=nullptr, const char *password=nullptr);
 
-    fsType type() override { return FSTYPE_FTP; };
-    const char *typestring() override { return type_to_string(FSTYPE_FTP); };
+    fsType type() override { return FSTYPE_HTTP; };
+    const char *typestring() override { return type_to_string(FSTYPE_HTTP); };
 
     FILE *file_open(const char *path, const char *mode = FILE_READ) override;
 #ifndef FNIO_IS_STDIO
@@ -61,4 +72,4 @@ public:
 
 };
 
-#endif // FN_FSFTP_H
+#endif // FN_FSHTTP_H

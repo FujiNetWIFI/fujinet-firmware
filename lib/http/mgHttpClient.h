@@ -5,6 +5,7 @@
 #include <map>
 #include <memory>
 #include <cstdint>
+#include <vector>
 
 #include "mongoose.h"
 #undef mkdir
