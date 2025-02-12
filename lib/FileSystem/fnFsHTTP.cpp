@@ -2,6 +2,9 @@
 #include "fnFsHTTP.h"
 
 #include <ctime>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
 
 #include "compat_string.h"
 
@@ -143,7 +146,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path)
     bool cancel = false;
 
     // Process all response chunks
-    Debug_println("Reading HTTP data");
+    Debug_println("Retrieving HTTP data");
     while ( !_http->is_transaction_done() || _http->available() > 0)
     {
         int available = _http->available();
@@ -214,6 +217,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path)
                     }
 
                     // copy from memory to SD file
+                    Debug_println("Copy memory file to SD file");
                     size_t count = 0;
                     fh->seek(0, SEEK_SET);
                     do
@@ -225,6 +229,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path)
                     // switch to file on SD
                     fh = fh_sd;
                     use_memfile = false;
+                    Debug_println("Copy completed");
                 }
 
                 // next batch
@@ -233,6 +238,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path)
             tmout_counter = 1 + HTTP_GET_TIMEOUT / 50; // reset timeout counter
         }
     }
+    Debug_println("HTTP data retrieved");
     _http->close();
 
     if (cancel)
@@ -384,6 +390,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         // Parsed entries to dircache
         fsdir_entry *fs_de;
         std::vector<IndexParser::IndexEntry>::iterator dirEntryCursor = _parser.rewind();
+        struct tm tm;
         while (dirEntryCursor != _parser.entries.end())
         {
             // new dir entry
@@ -395,9 +402,13 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
             fs_de->size = (uint32_t)atoi(dirEntryCursor->fileSize.c_str());
             // attempt to get file modification time
             fs_de->modified_time = 0;
-            struct tm tm;
             memset(&tm, 0, sizeof(struct tm));
-            if (strptime(dirEntryCursor->mTime.c_str(), "%d-%b-%Y %H:%M", &tm) != nullptr)
+            // strptime is not available on Windows ... grh
+            // if (strptime(dirEntryCursor->mTime.c_str(), "%d-%b-%Y %H:%M", &tm) != nullptr)
+            // use std::get_time instead
+            std::istringstream ss(dirEntryCursor->mTime);
+            ss >> std::get_time(&tm, "%d-%b-%Y %H:%M");
+            if (!ss.fail()) 
             {
                 tm.tm_isdst = -1;
                 fs_de->modified_time = mktime(&tm);
