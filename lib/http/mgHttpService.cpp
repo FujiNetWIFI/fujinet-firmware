@@ -484,6 +484,7 @@ int fnHttpService::get_handler_eject(mg_connection *c, mg_http_message *hm)
     return 0;
 }
 
+#ifdef BUILD_ATARI
 int fnHttpService::get_handler_hosts(mg_connection *c, mg_http_message *hm)
 {
     std::string response = "";
@@ -510,6 +511,7 @@ int fnHttpService::post_handler_hosts(mg_connection *c, mg_http_message *hm)
     mg_http_reply(c, 200, "", "%s", response.c_str());
     return 0;
 }
+#endif
 
 std::string fnHttpService::shorten_url(std::string url)
 {
@@ -631,12 +633,14 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
                 fnSystem.reboot(500, true); // deferred exit with code 75 -> should be started again
             }
         }
+#ifdef BUILD_ATARI
         else if (mg_http_match_uri(hm, "/hosts")) {
             if (mg_vcasecmp(&hm->method, "POST") == 0)
                 post_handler_hosts(c, hm);
             else
                 get_handler_hosts(c, hm);
         }
+#endif
         else if (mg_http_match_uri(hm, "/url/*"))
         {
             get_handler_shorturl(c, hm);
