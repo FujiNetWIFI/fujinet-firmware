@@ -141,6 +141,8 @@ public:
     static esp_err_t get_handler_eject(httpd_req_t *req);
     static esp_err_t get_handler_dir(httpd_req_t *req);
     static esp_err_t get_handler_slot(httpd_req_t *req);
+    static esp_err_t get_handler_hosts(httpd_req_t *req);
+    static esp_err_t post_handler_hosts(httpd_req_t *req);
     static esp_err_t get_handler_shorturl(httpd_req_t *req);
 
 #ifdef BUILD_ADAM
@@ -155,6 +157,8 @@ public:
     // static esp_err_t get_handler_modem_sniffer(httpd_req_t *req);
     static int get_handler_swap(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_mount(struct mg_connection *c, struct mg_http_message *hm);
+    static int get_handler_hosts(struct mg_connection *c, struct mg_http_message *hm);
+    static int post_handler_hosts(struct mg_connection *c, struct mg_http_message *hm);
     static int get_handler_eject(mg_connection *c, mg_http_message *hm);
 
     static int post_handler_config(struct mg_connection *c, struct mg_http_message *hm);

@@ -484,6 +484,33 @@ int fnHttpService::get_handler_eject(mg_connection *c, mg_http_message *hm)
     return 0;
 }
 
+int fnHttpService::get_handler_hosts(mg_connection *c, mg_http_message *hm)
+{
+    std::string response = "";
+    for (int hs = 0; hs < 8; hs++) {
+        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+    }
+    mg_http_reply(c, 200, "", "%s", response.c_str());
+    return 0;
+}
+
+int fnHttpService::post_handler_hosts(mg_connection *c, mg_http_message *hm)
+{
+    char hostslot[2] = "";
+    mg_http_get_var(&hm->query, "hostslot", hostslot, sizeof(hostslot));
+    char hostname[256] = "";
+    mg_http_get_var(&hm->query, "hostname", hostname, sizeof(hostname));
+
+    theFuji.set_slot_hostname(atoi(hostslot), hostname);
+
+    std::string response = "";
+    for (int hs = 0; hs < 8; hs++) {
+        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+    }
+    mg_http_reply(c, 200, "", "%s", response.c_str());
+    return 0;
+}
+
 std::string fnHttpService::shorten_url(std::string url)
 {
     int id = shortURLs.size();
@@ -603,6 +630,12 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
                 // keep running for a while to transfer restart.html page
                 fnSystem.reboot(500, true); // deferred exit with code 75 -> should be started again
             }
+        }
+        else if (mg_http_match_uri(hm, "/hosts")) {
+            if (mg_vcasecmp(&hm->method, "POST") == 0)
+                post_handler_hosts(c, hm);
+            else
+                get_handler_hosts(c, hm);
         }
         else if (mg_http_match_uri(hm, "/url/*"))
         {
