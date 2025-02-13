@@ -2778,4 +2778,10 @@ std::string sioFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
+fujiHost *sioFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    return &_fnHosts[host_slot];
+}
+
 #endif /* BUILD_ATARI */
