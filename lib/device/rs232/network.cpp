@@ -897,6 +897,7 @@ bool rs232Network::instantiate_protocol()
         return false;
     }
 
+    protocol->setLineEnding("\r\n");
     Debug_printf("rs232Network::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
 }
