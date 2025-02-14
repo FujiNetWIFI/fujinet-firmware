@@ -74,13 +74,13 @@ static std::string dataToHexString(uint8_t *data, size_t len)
 {
   std::string res;
   char buf[10];
-  
+
   for(size_t i=0; i<len; i++)
     {
       sprintf(buf, "%02X ", data[i]);
       res += buf;
     }
-  
+
   return res;
 }
 
@@ -130,7 +130,7 @@ void iecFuji::setup(systemBus *bus)
         Debug_printf("Attached clock device #%d\r\n", 29);
 
     // FujiNet
-    setDeviceNumber(30); 
+    setDeviceNumber(30);
     if (bus->attachDevice(this))
         Debug_printf("Attached Meatloaf device #%d\r\n", 30);
 }
@@ -233,7 +233,7 @@ void iecFuji::task()
 
   // first call the underlying class task function
   IECDevice::task();
-  
+
   if( state==DEVICE_ACTIVE )
     {
       if( payload.size()>0 ) process_cmd();
@@ -263,7 +263,7 @@ void iecFuji::process_cmd()
     is_raw_command = (payload.size() == 2 && payload[0] == 0x01); // marker uint8_t
     if (is_raw_command) {
       Debug_printv("RAW command: %s", dataToHexString((uint8_t *) payload.data(), payload.size()).c_str());
-      
+
       if (!is_supported(payload[1])) {
         Debug_printv("ERROR: Unsupported cmd: x%02x, ignoring\r\n", payload[1]);
         last_command = payload[1];
@@ -394,7 +394,7 @@ void iecFuji::process_basic_commands()
         disable_device_basic();
     else if (payload.find("bptiming") != std::string::npos)
     {
-        if ( pt.size() < 3 ) 
+        if ( pt.size() < 3 )
             return;
 
         //IEC.setBitTiming(pt[1], atoi(pt[2].c_str()), atoi(pt[3].c_str()), atoi(pt[4].c_str()), atoi(pt[5].c_str()));
@@ -893,7 +893,7 @@ void iecFuji::mount_host_basic()
 void iecFuji::disk_image_mount_basic()
 {
     _populate_slots_from_config();
-    
+
     if (pt.size() < 3)
     {
         response = "invalid # of parameters";
@@ -1123,7 +1123,7 @@ void iecFuji::open_app_key_raw()
         set_fuji_iec_status(DEVICE_ERROR, "no sd card mounted");
         return;
     }
-    
+
     uint16_t creator = payload[0] | (payload[1] << 8);
     uint8_t app = payload[2];
     uint8_t key = payload[3];
@@ -1209,7 +1209,7 @@ void iecFuji::write_app_key_basic()
 
     // do we need keylen anymore?
     int keylen = atoi(pt[1].c_str());
-    
+
     // Bounds check
     if (keylen > MAX_APPKEY_LEN)
         keylen = MAX_APPKEY_LEN;
@@ -1859,6 +1859,13 @@ void iecFuji::get_host_prefix()
     // TODO IMPLEMENT
 }
 
+// Public method to update host in specific slot
+fujiHost *iecFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    return &_fnHosts[host_slot];
+}
+
 void iecFuji::read_device_slots_basic()
 {
     Debug_println("Fuji cmd: READ DEVICE SLOT");
@@ -2021,7 +2028,7 @@ void iecFuji::_populate_config_from_slots()
         else
         {
             Config.store_host(
-                i, 
+                i,
                 hname,
                 htype == HOSTTYPE_TNFS ? fnConfig::host_types::HOSTTYPE_TNFS : fnConfig::host_types::HOSTTYPE_SD
             );
@@ -2209,13 +2216,13 @@ std::vector<std::string> iecFuji::tokenize_basic_command(std::string command)
 {
     Debug_printf("Tokenizing basic command: %s\r\n", command.c_str());
 
-    // Replace the first ":" with "," for easy tokenization. 
+    // Replace the first ":" with "," for easy tokenization.
     // Assume it is fine to change the payload at this point.
     // Technically, "COMMAND,Param1,Param2" will work the smae, if ":" is not in a param value
     size_t endOfCommand = command.find(':');
     if (endOfCommand != std::string::npos)
         command.replace(endOfCommand,1,",");
-    
+
     std::vector<std::string> result =  util_tokenize(command, ',');
     return result;
 
@@ -2440,7 +2447,7 @@ std::string iecFuji::process_directory_entry(uint8_t maxlen, uint8_t addtlopts) 
 }
 
 std::string iecFuji::read_directory_entry(uint8_t maxlen, uint8_t addtlopts) {
-    return process_directory_entry(maxlen, addtlopts);    
+    return process_directory_entry(maxlen, addtlopts);
 }
 
 void iecFuji::hash_input_raw()

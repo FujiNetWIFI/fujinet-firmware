@@ -536,7 +536,7 @@ void lynxFuji::comlynx_read_app_key()
         response_len = 1; // if no file found set return length to 1 or lynx hangs waiting for response
         return;
     }
-    
+
     response_len = fread(response, sizeof(char), 64, fp);
     fclose(fp);
 
@@ -948,6 +948,13 @@ void lynxFuji::comlynx_get_host_prefix()
 {
 }
 
+// Public method to update host in specific slot
+fujiHost *lynxFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    return &_fnHosts[host_slot];
+}
+
 // Send device slot data to computer
 void lynxFuji::comlynx_read_device_slots()
 {
@@ -1193,7 +1200,7 @@ void lynxFuji::comlynx_disable_device()
     }
 
     Config.save();
-    
+
     ComLynx.disableDevice(d);
 
     comlynx_response_ack();
@@ -1226,7 +1233,7 @@ void lynxFuji::comlynx_random_number()
 
     response_len = sizeof(int);
     *p = rand();
-    
+
     comlynx_response_ack();
 }
 
@@ -1460,7 +1467,7 @@ void lynxFuji::comlynx_process(uint8_t b)
 {
     unsigned char c = b >> 4;
     Debug_printf("%02x \n",c);
-    
+
     switch (c)
     {
     case MN_STATUS:

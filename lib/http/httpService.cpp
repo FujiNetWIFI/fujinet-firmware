@@ -1184,7 +1184,6 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
     return ESP_OK;
 }
 
-#ifdef BUILD_ATARI
 esp_err_t fnHttpService::get_handler_hosts(httpd_req_t *req)
 {
     std::string response = "";
@@ -1212,7 +1211,6 @@ esp_err_t fnHttpService::post_handler_hosts(httpd_req_t *req)
     httpd_resp_send(req, response.c_str(), response.length());
     return ESP_OK;
 }
-#endif
 
 std::string fnHttpService::shorten_url(std::string url)
 {
@@ -1510,7 +1508,6 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .is_websocket = false,
          .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},
-#ifdef BUILD_ATARI
         {.uri = "/hosts",
          .method = HTTP_GET,
          .handler = get_handler_hosts,
@@ -1525,7 +1522,6 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .is_websocket = false,
          .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},
-#endif
         {.uri = "/url/*",
          .method = HTTP_GET,
          .handler = get_handler_shorturl,

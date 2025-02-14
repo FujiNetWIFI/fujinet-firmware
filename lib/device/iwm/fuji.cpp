@@ -30,7 +30,7 @@ iwmFuji::iwmFuji()
 	Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
 	for (int i = 0; i < MAX_HOSTS; i++)
 		_fnHosts[i].slotid = i;
-	
+
     command_handlers = {
         { SP_CMD_STATUS, [this](iwm_decoded_cmd_t cmd) { iwm_status(cmd); }},                           // 0x00
         { SP_CMD_CONTROL, [this](iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }},                            // 0x04
@@ -91,13 +91,13 @@ iwmFuji::iwmFuji()
 
     status_handlers = {
         { 0xAA, [this]()                               { this->iwm_hello_world(); }},
-        
+
         { IWM_STATUS_DIB, [this]()                     { this->send_status_dib_reply_packet(); status_completed = true; }},     // 0x03
         { IWM_STATUS_STATUS, [this]()                  { this->send_status_reply_packet(); status_completed = true; }},         // 0x00
 #ifndef DEV_RELAY_SLIP
 	{ IWM_STATUS_ENSEEN, [this]()		       { data_len = 1; data_buffer[0] = diskii_xface.d2_enable_seen; }},
 #endif
-        
+
         { FUJICMD_DEVICE_ENABLE_STATUS, [this]()       { this->send_stat_get_enable(); }},                      // 0xD1
         { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() { this->iwm_stat_get_adapter_config_extended(); }},      // 0xC4
         { FUJICMD_GET_ADAPTERCONFIG, [this]()          { this->iwm_stat_get_adapter_config(); }},               // 0xE8
@@ -546,9 +546,9 @@ void iwmFuji::iwm_ctrl_open_app_key()
 	int idx = 0;
 	FILE *fp;
 	uint8_t creatorL = data_buffer[idx++];
-	uint8_t creatorM = data_buffer[idx++]; 
-	uint8_t app = data_buffer[idx++]; 
-	uint8_t key = data_buffer[idx++]; 
+	uint8_t creatorM = data_buffer[idx++];
+	uint8_t app = data_buffer[idx++];
+	uint8_t key = data_buffer[idx++];
 	uint8_t mode = data_buffer[idx++];
 
 	snprintf(_appkeyfilename, sizeof(_appkeyfilename), "/FujiNet/%02hhx%02hhx%02hhx%02hhx.key", creatorM, creatorL, app, key);
@@ -573,7 +573,7 @@ void iwmFuji::iwm_ctrl_open_app_key()
 	// don't need to do this if we're returning exact number of bytes
 	// // Clear out stat buffer before reading into it
 	// memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
-	
+
 	// Read in the app key file data, to be sent in read_app_key call
 	ctrl_stat_len = fread(ctrl_stat_buffer, sizeof(char), appkey_size, fp);
 	fclose(fp);
@@ -612,7 +612,7 @@ void iwmFuji::iwm_ctrl_write_app_key()
 void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the open() control command
 {
 	Debug_printf("\r\nFuji cmd: READ APP KEY");
-	
+
 	memset(data_buffer, 0, sizeof(data_buffer));
 	memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
 	data_len = ctrl_stat_len;
@@ -936,7 +936,7 @@ void iwmFuji::iwm_stat_fuji_status()
 {
 	// Place holder for 4 bytes to fill the Fuji device status.
 	// TODO: decide what we want to tell the host.
-	// e.g. 
+	// e.g.
 	// - are all devices working? maybe some bitmap
 	// - how many devices do we have?
 	char ret[4] = {0};
@@ -1372,6 +1372,13 @@ void iwmFuji::setup(iwmBus *iwmbus)
 
 int iwmFuji::get_disk_id(int drive_slot) { return 0; }
 std::string iwmFuji::get_host_prefix(int host_slot) { return std::string(); }
+
+// Public method to update host in specific slot
+fujiHost *iwmFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    return &_fnHosts[host_slot];
+}
 
 void iwmFuji::send_status_reply_packet()
 {

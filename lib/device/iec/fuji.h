@@ -174,7 +174,7 @@ protected:
     scan_result_t net_scan_result(int scan_num);
     void net_scan_result_basic();
     void net_scan_result_raw();
-    
+
     // 0xFB
     void net_set_ssid(bool store, net_config_t& net_config);
     void net_set_ssid_basic(bool store = true);
@@ -184,7 +184,7 @@ protected:
     uint8_t net_get_wifi_status();
     void net_get_wifi_status_basic();
     void net_get_wifi_status_raw();
-    
+
     // 0xF9
     bool mount_host(int hs);
     void mount_host_basic();
@@ -229,19 +229,19 @@ protected:
     void write_device_slots();
     void write_device_slots_basic();
     void write_device_slots_raw();
-    
+
     // 0xF0
     void enable_udpstream();
-    
+
     // 0xEA
     uint8_t net_get_wifi_enabled();
     void net_get_wifi_enabled_raw();
-    
+
     // 0xE9
     bool disk_image_umount(uint8_t deviceSlot);
     void disk_image_umount_basic();
     void disk_image_umount_raw();
-    
+
     // 0xE8
     void get_adapter_config();
     void get_adapter_config_basic();
@@ -250,7 +250,7 @@ protected:
     // 0xC4
     AdapterConfigExtended get_adapter_config_extended();
     void get_adapter_config_extended_raw();
-    
+
     // 0xE7
     void new_disk();
 
@@ -282,10 +282,10 @@ protected:
 
     // 0xE0
     void get_host_prefix();
-    
+
     // 0xDF
     void set_external_clock();
-    
+
     // 0xDE
     int write_app_key(std::vector<uint8_t>&& value);
     void write_app_key_basic();
@@ -305,7 +305,7 @@ protected:
     void close_app_key();
     void close_app_key_basic();
     void close_app_key_raw();
-    
+
     // 0xDA
     std::string get_device_filename(uint8_t ds);
     void get_device_filename_basic();
@@ -412,7 +412,7 @@ public:
     bool boot_config = true;
 
     bool status_wait_enabled = true;
-    
+
     //iecNetwork *network();
 
     iecDrive *bootdisk();
@@ -427,6 +427,7 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *set_slot_hostname(int host_slot, char *hostname);
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();
