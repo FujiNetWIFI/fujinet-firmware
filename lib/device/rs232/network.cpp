@@ -914,6 +914,12 @@ void rs232Network::create_devicespec()
     bus_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
     util_devicespec_fix_9b(devicespecBuf, sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
+    
+    /* Clear Prefix if a full URL with Protocol is specified. */
+    if (deviceSpec.find("://") != string::npos)
+    {
+        prefix.clear();
+    }
 
     deviceSpec = util_devicespec_fix_for_parsing(deviceSpec, prefix, cmdFrame.aux1 == 6, true);
 }
