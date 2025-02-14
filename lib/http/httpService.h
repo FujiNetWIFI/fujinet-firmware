@@ -141,10 +141,8 @@ public:
     static esp_err_t get_handler_eject(httpd_req_t *req);
     static esp_err_t get_handler_dir(httpd_req_t *req);
     static esp_err_t get_handler_slot(httpd_req_t *req);
-#ifdef BUILD_ATARI
     static esp_err_t get_handler_hosts(httpd_req_t *req);
     static esp_err_t post_handler_hosts(httpd_req_t *req);
-#endif
     static esp_err_t get_handler_shorturl(httpd_req_t *req);
 
 #ifdef BUILD_ADAM

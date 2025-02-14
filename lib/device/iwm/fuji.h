@@ -257,6 +257,7 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *set_slot_hostname(int host_slot, char *hostname);
     DEVICE_TYPE *get_disk_dev(int i) {
 #ifndef DEV_RELAY_SLIP
       return i < MAX_SP_DEVICES
