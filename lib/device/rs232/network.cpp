@@ -154,6 +154,8 @@ void rs232Network::rs232_open()
 
     // TODO: Finally, go ahead and let the parsers know
     json.setProtocol(protocol);
+    json.setLineEnding("\r\n");
+    protocol->setLineEnding("\r\n");
     channelMode = PROTOCOL;
 
     // And signal complete!
@@ -897,7 +899,6 @@ bool rs232Network::instantiate_protocol()
         return false;
     }
 
-    protocol->setLineEnding("\r\n");
     Debug_printf("rs232Network::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
 }
