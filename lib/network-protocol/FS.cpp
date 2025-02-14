@@ -74,6 +74,9 @@ bool NetworkProtocolFS::open_file()
 bool NetworkProtocolFS::open_dir()
 {
     openMode = DIR;
+#ifndef BUILD_ATARI
+    this->setLineEnding("\r\n");
+#endif /* BUILD_RS232 */
     dirBuffer.clear();
     dirBuffer.shrink_to_fit();
     update_dir_filename(opened_url);
