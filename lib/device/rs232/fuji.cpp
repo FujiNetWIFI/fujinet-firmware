@@ -288,13 +288,13 @@ void rs232Fuji::rs232_disk_image_mount()
         rs232_error();
         return;
     }
-    
+
     if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
     {
         rs232_error();
         return;
     }
-    
+
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
@@ -1470,7 +1470,7 @@ void rs232Fuji::setup(systemBus *rs232bus)
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
-    
+
     //Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
 
@@ -1662,6 +1662,13 @@ int rs232Fuji::get_disk_id(int drive_slot)
 std::string rs232Fuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
+}
+
+// Public method to update host in specific slot
+fujiHost *rs232Fuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    return &_fnHosts[host_slot];
 }
 
 #endif /* BUILD_RS232 */
