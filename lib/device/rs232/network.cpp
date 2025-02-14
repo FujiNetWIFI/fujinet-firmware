@@ -472,51 +472,73 @@ void rs232Network::rs232_set_prefix()
 
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
-    bus_to_peripheral(prefixSpec, sizeof(prefixSpec));
+    bus_to_peripheral(prefixSpec, sizeof(prefixSpec)); // TODO test checksum
     util_devicespec_fix_9b(prefixSpec, sizeof(prefixSpec));
 
     prefixSpec_str = string((const char *)prefixSpec);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
-    Debug_printf("rs232Network::rs232_set_prefix(%s)\n", prefixSpec_str.c_str());
 
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
+#endif
+
+    // If "NCD Nn:" then prefix is cleared completely
     if (prefixSpec_str.empty())
     {
         prefix.clear();
     }
-    else if (prefixSpec_str == "..") // Devance path N:..
+    else 
     {
-        std::vector<int> pathLocations;
-        for (int i = 0; i < prefix.size(); i++)
+        // Append trailing slash if not found
+        if (prefixSpec_str.back() != '/')
         {
-            if (prefix[i] == '/')
-            {
-                pathLocations.push_back(i);
-            }
+            prefixSpec_str += "/";
         }
 
-        if (prefix[prefix.size() - 1] == '/')
+        // For the remaining cases, append trailing slash if not found
+        if (prefix.back() != '/')
         {
-            // Get rid of last path segment.
-            pathLocations.pop_back();
+            prefix += "/";
         }
 
-        // truncate to that location.
-        prefix = prefix.substr(0, pathLocations.back() + 1);
-    }
-    else if (prefixSpec_str[0] == '/') // N:/DIR
-    {
-        prefix = prefixSpec_str;
-    }
-    else if (prefixSpec_str.find_first_of(":") != string::npos)
-    {
-        prefix = prefixSpec_str;
-    }
-    else // append to path.
-    {
-        prefix += prefixSpec_str;
+        // Find pos of 3rd "/" in prefix
+        size_t pos = prefix.find("/");
+        pos = prefix.find("/",++pos);
+        pos = prefix.find("/",++pos);
+
+        // If "NCD Nn:.."" or "NCD .." then devance prefix
+        if (prefixSpec_str == ".." || prefixSpec_str == "<")
+        {
+            prefix += ".."; // call to canonical path later will resolve
+        }
+        // If "NCD Nn:/" or "NCD /" then truncate to hostname (e.g. TNFS://hostname/)
+        else if (prefixSpec_str == "/" || prefixSpec_str == ">")
+        {
+            // truncate at pos of 3rd slash
+            prefix = prefix.substr(0,pos+1);
+        }
+        // If "NCD Nn:/path/to/dir/" then concatenate hostname and prefix
+        else if (prefixSpec_str[0] == '/') // N:/DIR
+        {
+            // append at pos of 3rd slash
+            prefix = prefix.substr(0,pos);
+            prefix += prefixSpec_str;
+        }
+        // If "NCD TNFS://foo.com/" then reset entire prefix
+        else if (prefixSpec_str.find_first_of(":") != string::npos)
+        {
+            prefix = prefixSpec_str;
+        }
+        else // append to path.
+        {
+            prefix += prefixSpec_str;
+        }
     }
 
+    prefix = util_get_canonical_path(prefix);
+#ifdef VERBOSE_PROTOCOL
     Debug_printf("Prefix now: %s\n", prefix.c_str());
+#endif
 
     // We are okay, signal complete.
     rs232_complete();
