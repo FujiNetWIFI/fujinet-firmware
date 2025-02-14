@@ -55,7 +55,7 @@ rs232Network::rs232Network()
     transmitBuffer->clear();
     specialBuffer->clear();
 
-    json.setLineEnding("\x9B"); // use ATASCII EOL for JSON records
+    json.setLineEnding("\r\n"); // use ATASCII EOL for JSON records
 }
 
 /**
