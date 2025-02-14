@@ -220,7 +220,54 @@ std::string util_crunch(std::string filename)
 
     return basename + ext;
 }
+#ifdef BUILD_RS232
+std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked)
+{
+    size_t ext_pos = crunched.find(".");
+    std::string basename = crunched.substr(0, ext_pos);
+    std::string ext = crunched.substr(ext_pos + 1);
+    char e[80];
+    unsigned char month = 1;
+    unsigned char day = 1;
+    unsigned int year = 24;
+    unsigned char hour = 12;
+    unsigned char minutes = 0;
+    char ampm = 'p';
 
+    memset(e,0,sizeof(e));
+
+    if (is_dir)
+    {
+        sprintf(e,
+            "%-8s %-3s %-10s  %2u-%02u-%02u  %2u:%02u%c",
+        basename.c_str(),
+        ext.c_str(),
+        "<DIR>",
+        month,
+        day,
+        year,
+        hour,
+        minutes,
+        ampm);
+    }
+    else
+    {
+        sprintf(e,
+            "%-8s %-3s %10u  %2u-%02u-%02u  %2u:%02u%c",
+            basename.c_str(),
+            ext.c_str(),
+            fileSize,
+            month,
+            day,
+            year,
+            hour,
+            minutes,
+            ampm);
+    }
+
+    return std::string(e);
+}
+#else
 std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked)
 {
     std::string returned_entry = "                 ";
@@ -265,6 +312,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
 
     return returned_entry;
 }
+#endif /* !defined BUILD_RS232 */
 
 std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 {
