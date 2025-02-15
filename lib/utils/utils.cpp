@@ -236,9 +236,10 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
 
     if (ext_pos == string::npos)
         ext.clear();
-        
+
     // Constrain to 8 characters 
     basename = basename.substr(0,8);
+    basename = basename.substr(0,basename.find_first_of('.'));
     ext = ext.substr(0,3);
 
     memset(e,0,sizeof(e));
