@@ -234,6 +234,9 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
     unsigned char minutes = 0;
     char ampm = 'p';
 
+    if (ext_pos == string::npos)
+        ext.clear();
+        
     // Constrain to 8 characters 
     basename = basename.substr(0,8);
     ext = ext.substr(0,3);
