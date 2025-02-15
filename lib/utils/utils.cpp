@@ -223,7 +223,7 @@ std::string util_crunch(std::string filename)
 #ifdef BUILD_RS232
 std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked)
 {
-    size_t ext_pos = crunched.find(".");
+    size_t ext_pos = crunched.find_last_of(".");
     std::string basename = crunched.substr(0, ext_pos);
     std::string ext = crunched.substr(ext_pos + 1);
     char e[80];
@@ -233,6 +233,10 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
     unsigned char hour = 12;
     unsigned char minutes = 0;
     char ampm = 'p';
+
+    // Constrain to 8 characters 
+    basename = basename.substr(0,8);
+    ext = ext.substr(0,3);
 
     memset(e,0,sizeof(e));
 
