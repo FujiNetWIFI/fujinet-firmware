@@ -281,7 +281,10 @@
 				<header class="module-header">HOSTS<span class="logowob"></span>LIST</header>
 				{% for hs in range(1, 9) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
-					<div class="deth detlinecol">Host {{ hs }}</div>
+					<div class="deth detlinecol">
+						Host {{ hs }}
+						<a href="#" class="edit-host" data-hostslot="{{ hs }}" data-hostname="<%FN_HOST{{ hs }}%>">[EDIT]</a>
+					</div>
 					{% if tweaks.fujinet_pc %}
 					<div class="det detlinecol"><a href="/browse/host/{{ hs }}"><%FN_HOST{{ hs }}%> :: <%FN_HOST{{ hs }}PREFIX%></a></div>
 					{% else %}

@@ -14,6 +14,32 @@ function toggleExperimental(evt) {
   localStorage.setItem('fujinet.experimental', evt.target.checked);
 }
 
+function setupHostEditing() {
+  const editLinks = document.querySelectorAll('a.edit-host');
+  editLinks.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      const hs = Number(link.dataset.hostslot) - 1;
+      const currentHostname = link.dataset.hostname;
+
+      const updatedHostname = prompt(`Enter hostname for slot ${hs + 1}`, currentHostname);
+
+      // Abort on [Cancel]
+      if (updatedHostname === null) {
+        return;
+      }
+
+      fetch(`/hosts?hostslot=${hs}&hostname=${updatedHostname}`, { method: 'POST' })
+        .then(() => {
+          location.reload();
+        })
+        .catch(e => {
+          alert("Error: Could not update host");
+        });
+    });
+  });
+}
+
 function changeTz() {
 	const selElement = document.getElementById("select_tz");
 	const setElement = document.getElementById("txt_timezone")
@@ -170,3 +196,4 @@ setInputValue(current_pclink == 1, "pclink-yes", "pclink-no");
 {% endif %}
 
 setupExperimentalToggle();
+setupHostEditing();
