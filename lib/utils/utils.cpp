@@ -244,9 +244,6 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
 
     memset(e,0,sizeof(e));
 
-    // TODO: fix this ugly ass hack.
-    if (fileSize > (size_t)4294967295)
-        fileSize = (size_t)4294967295;
 
     if (is_dir)
     {
