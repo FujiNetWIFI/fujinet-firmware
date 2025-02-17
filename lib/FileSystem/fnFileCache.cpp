@@ -1,5 +1,7 @@
 #include "fnFileCache.h"
 
+#ifndef FNIO_IS_STDIO
+
 #include <cstring>
 
 #include <iostream>
@@ -9,11 +11,6 @@
 
 // TODO: Replace MD5 with some simple non-crypto hash function producing 128+ bit hash ...
 #include <mbedtls/md5.h>
-#ifdef ESP_PLATFORM
-  #ifndef mbedtls_md5_ret
-  #define mbedtls_md5_ret mbedtls_md5
-  #endif
-#endif
 
 #include "../../include/debug.h"
 
@@ -64,10 +61,10 @@ static std::string encode_host_path(const char *host, const char *path)
     unsigned char md5_result[16];
     std::string result;
     // host part
-    mbedtls_md5_ret((const unsigned char *)host, strlen(host), md5_result);
+    mbedtls_md5((const unsigned char *)host, strlen(host), md5_result);
     result = encode_base32(std::string((char *)md5_result, 5)) + '-';
     // path part
-    mbedtls_md5_ret((const unsigned char *)path, strlen(path), md5_result);
+    mbedtls_md5((const unsigned char *)path, strlen(path), md5_result);
     result += encode_base32(std::string((char *)md5_result, 15));
     return result;
 }
@@ -243,3 +240,5 @@ void FileCache::remove(fc_handle *fc)
     }
     delete fc;
 }
+
+#endif //!FNIO_IS_STDIO

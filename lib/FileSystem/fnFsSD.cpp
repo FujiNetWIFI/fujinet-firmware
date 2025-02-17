@@ -447,7 +447,7 @@ long FileSystemSDFAT::mtime(const char *path)
     char * fpath = _make_fullpath(path);
     struct stat st;
     int i = stat(fpath, &st);
-    long res = (0 == i) ? st.st_mtim.tv_sec : -1;
+    long res = (0 == i) ? st.st_mtime : -1;
     //Debug_printf("FileSystemSDFAT::mtime returned %ld on \"%s\" (\"%s\")\r\n", res, path, fpath);
     free(fpath);
     return res;

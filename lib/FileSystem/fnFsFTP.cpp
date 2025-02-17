@@ -8,6 +8,7 @@
 #include "fnSystem.h"
 #include "fnFileCache.h"
 
+#define COPY_BLK_SIZE 4096
 
 FileSystemFTP::FileSystemFTP()
 {
@@ -108,7 +109,6 @@ FileHandler *FileSystemFTP::filehandler_open(const char *path, const char *mode)
 
 // Read file from FTP path and write it to cache file
 // Return FileHandler* on success (memory or SD file), nullptr on error
-#define COPY_BLK_SIZE 4096
 FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
 {
     // Try SD cache first
