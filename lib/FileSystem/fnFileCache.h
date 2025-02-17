@@ -1,9 +1,11 @@
 #ifndef FN_FILECACHE_H
 #define FN_FILECACHE_H
 
-#include <string>
+#include "fnio.h"
 
-#include "fnFile.h"
+#ifndef FNIO_IS_STDIO
+
+#include <string>
 
 typedef struct fc_handle
 {
@@ -63,5 +65,7 @@ public:
     */
    static void remove(fc_handle *fc);
 };
+
+#endif //!FNIO_IS_STDIO
 
 #endif // FN_FILECACHE_H

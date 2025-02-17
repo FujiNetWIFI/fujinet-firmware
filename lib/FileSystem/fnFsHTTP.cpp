@@ -17,6 +17,8 @@
 // http timeout in ms
 #define HTTP_GET_TIMEOUT 7000
 
+#define COPY_BLK_SIZE 4096
+
 FileSystemHTTP::FileSystemHTTP()
 {
     Debug_printf("FileSystemHTTP::ctor\n");
@@ -99,7 +101,6 @@ FileHandler *FileSystemHTTP::filehandler_open(const char *path, const char *mode
 
 // Read file from HTTP path and write it to cache file
 // Return FileHandler* on success (memory or SD file), nullptr on error
-#define COPY_BLK_SIZE 4096
 FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
 {
     // Try SD cache first
