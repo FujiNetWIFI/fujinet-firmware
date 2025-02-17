@@ -59,6 +59,9 @@ public:
     uint64_t total_bytes();
     uint64_t used_bytes();
     const char *partition_type();
+
+    // TODO: make it part of base FileSystem class (similar to filesize)
+    long mtime(const char *path);
 };
 
 extern FileSystemSDFAT fnSDFAT;
