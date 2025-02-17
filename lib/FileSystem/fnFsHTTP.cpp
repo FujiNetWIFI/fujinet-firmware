@@ -11,26 +11,11 @@
 #include "../../include/debug.h"
 
 #include "fnSystem.h"
-#include "fnFileMem.h"
-#include "fnFsSD.h"
+#include "fnFileCache.h"
 #include "string_utils.h"
-
-#define MAX_CACHE_MEMFILE_SIZE  204800
 
 // http timeout in ms
 #define HTTP_GET_TIMEOUT 7000
-
-// TODO: create global utility function
-#include "mbedtls/md5.h"
-static void get_md5_string(const unsigned char *buf, size_t size, char *result)
-{
-    unsigned char md5_result[16];
-    mbedtls_md5(buf, size, md5_result);
-    for (int i=0; i < 16; i++)
-    {
-        sprintf(&result[i * 2], "%02x",  md5_result[i]);
-    }
-}
 
 FileSystemHTTP::FileSystemHTTP()
 {
@@ -108,27 +93,31 @@ FILE  *FileSystemHTTP::file_open(const char *path, const char *mode)
 #ifndef FNIO_IS_STDIO
 FileHandler *FileSystemHTTP::filehandler_open(const char *path, const char *mode)
 {
-    FileHandler *fh = cache_file(path);
+    FileHandler *fh = cache_file(path, mode);
     return fh;
 }
 
-// read file from HTTP path and write it to cache file
-// return FileHandler* on success (memory or SD file), nullptr on error
-FileHandler *FileSystemHTTP::cache_file(const char *path)
+// Read file from HTTP path and write it to cache file
+// Return FileHandler* on success (memory or SD file), nullptr on error
+#define COPY_BLK_SIZE 4096
+FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
 {
+    // Try SD cache first
+    FileHandler *fh = FileCache::open(_url->mRawUrl.c_str(), path, mode);
+    if (fh != nullptr)
+        return fh; // cache hit, done
+
+    // Create new cache file (starts in memory)
+    fc_handle *fc = FileCache::create(_url->mRawUrl.c_str(), path);
+    if (fc == nullptr)
+        return nullptr;
+
+    // Setup HTTP client
 	if (!_http->begin(_url->url + mstr::urlEncode(path)))
     {
-        Debug_println("FileSystemHTTP::cache_file() - failed to start HTTP client");
+        Debug_println("FileSystemHTTP::cache_file - failed to start HTTP client");
         return nullptr;
 	}
-
-    // open cache memory file
-    FileHandler *fh = new FileHandlerMem;
-    if (fh == nullptr)
-    {
-        Debug_println("FileSystemHTTP::cache_file - failed to open memory file");
-        return nullptr;
-    }
 
     // GET request
     Debug_println("Initiating GET request");
@@ -138,121 +127,92 @@ FileHandler *FileSystemHTTP::cache_file(const char *path)
         return nullptr;
     }
 
-    // copy HTTP to file
-    uint8_t buf[1024];
+    // Retrieve HTTP data
     int tmout_counter = 1 + HTTP_GET_TIMEOUT / 50;
-    size_t bytes_read = 0;
-    bool use_memfile = true;
     bool cancel = false;
+    int available;
+
+    // Allocate copy buffer
+    // uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    uint8_t *buf = (uint8_t *)malloc(COPY_BLK_SIZE);
+    if (buf == nullptr)
+    {
+        Debug_println("FileSystemHTTP::cache_file - failed to allocate buffer");
+        return nullptr;
+    }
 
     // Process all response chunks
-    Debug_println("Retrieving HTTP data");
-    while ( !_http->is_transaction_done() || _http->available() > 0)
+    Debug_println("Retrieving file data");
+    while ( !cancel )
     {
-        int available = _http->available();
-        if (available == 0)
+        available = _http->available();
+        if (_http->is_transaction_done() && available == 0) // done
+            break;
+
+        if (available == 0) // http transaction not completed, wait for data
         {
             if (--tmout_counter == 0)
             {
-                // no new data
+                // no new data in time
                 Debug_println("FileSystemHTTP::cache_file - Timeout");
                 cancel = true;
                 break;
             }
-            fnSystem.delay(50); // wait for more data
-            available = _http->available();
+            fnSystem.delay(50); // wait
         }
-
-        if (available > 0)
+        else if (available > 0)
         {
-            Debug_printf("data available %d ...\n", available);
+            Debug_printf("data available: %d\n", available);
             while (available > 0)
             {
-                // read HTTP data
-                int to_read = available > sizeof(buf) ? sizeof(buf) : available;
+                // Read HTTP data
+                int to_read = (available > COPY_BLK_SIZE) ? COPY_BLK_SIZE : available;
                 int from_read = _http->read(buf, to_read);
                 if (from_read != to_read) // TODO: is it really an error?
                 {
+                    Debug_println("FileSystemHTTP::cache_file - HTTP read failed");
                     Debug_printf("Expected %d bytes, actually got %d bytes.\r\n", to_read, from_read);
                     cancel = true;
                     break;
                 }
-                // write cache file
-                if (fh->write(buf, 1, to_read) < to_read)
+                // Write cache file
+                if (FileCache::write(fc, buf, to_read) < to_read)
                 {
-                    Debug_printf("FileSystemHTTP::cache_file - write failed\n");
+                    Debug_printf("FileSystemHTTP::cache_file - Cache write failed\n");
                     cancel = true;
                     break;
                 }
-                bytes_read += to_read;
-
-                // check if memory file is over limit
-                if (use_memfile && bytes_read > MAX_CACHE_MEMFILE_SIZE)
-                {
-                    // for large files switch from memory to SD card
-                    if (!fnSDFAT.running())
-                    {
-                        Debug_println("FileSystemHTTP::cache_file - SD Filesystem is not running");
-                        cancel = true;
-                        break;
-                    }
-
-                    // SD file path, use MD5 of host url and MD5 of file path
-                    char cache_path[] = "/FujiNet/cache/........-................................";
-                    get_md5_string((const unsigned char *)(_url->mRawUrl.c_str()), _url->mRawUrl.length(), cache_path + 15);
-                    get_md5_string((const unsigned char *)path, strlen(path), cache_path + 15 + 9);
-                    cache_path[15 + 8] = '-';
-                    Debug_printf("Using SD cache file: %s\n", cache_path);
-
-                    // ensure cache directory exists
-                    fnSDFAT.create_path("/FujiNet/cache");
-
-                    // open SD file
-                    FileHandler *fh_sd = fnSDFAT.filehandler_open(cache_path, "wb+");
-                    if (fh_sd == nullptr)
-                    {
-                        Debug_println("FileSystemHTTP::cache_file - failed to open SD file");
-                        cancel = true;
-                        break;
-                    }
-
-                    // copy from memory to SD file
-                    Debug_println("Copy memory file to SD file");
-                    size_t count = 0;
-                    fh->seek(0, SEEK_SET);
-                    do
-                    {
-                        count = fh->read(buf, 1, sizeof(buf));
-                        fh_sd->write(buf, 1, count);
-                    } while (count > 0);
-                    fh->close();
-                    // switch to file on SD
-                    fh = fh_sd;
-                    use_memfile = false;
-                    Debug_println("Copy completed");
-                }
-
-                // next batch
+                // Next chunk
                 available = _http->available();
             }
             tmout_counter = 1 + HTTP_GET_TIMEOUT / 50; // reset timeout counter
         }
+        else if (available < 0)
+        {
+            Debug_println("FileSystemHTTP::cache_file - something went wrong");
+            cancel = true;
+        }
     }
-    Debug_println("HTTP data retrieved");
+    // Release copy buffer
+    free(buf);
+
+    // Close HTTP client
     _http->close();
 
     if (cancel)
     {
-        fh->close();
+        Debug_println("Cancelled");
+        FileCache::remove(fc);
         fh = nullptr;
     }
     else
     {
-        fh->seek(0, SEEK_SET);
+        Debug_println("File data retrieved");
+        fh = FileCache::reopen(fc, mode);
     }
     return fh;
 }
-#endif
+#endif //!FNIO_IS_STDIO
 
 bool FileSystemHTTP::is_dir(const char *path)
 {
@@ -301,7 +261,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
             return false;
         }
     
-        // Setup XML IndexParser parser
+        // Setup HTML Index parser
         if (_parser.begin_parser())
         {
             Debug_printf("Failed to setup parser.\r\n");
@@ -319,33 +279,42 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         // Remember last visited directory
         strlcpy(_last_dir, path, MAX_PATHLEN);
 
-        // read & parse Index of directory
-        uint8_t buf[1024];
+        // Read & parse Index of directory
         int tmout_counter = 1 + HTTP_GET_TIMEOUT / 50;
-        size_t bytes_read = 0;
         bool cancel = false;
-    
-        // Process all response chunks
-        Debug_println("Reading HTTP data");
-        while ( !_http->is_transaction_done() || _http->available() > 0)
+        int available;
+
+        // Allocate copy buffer
+        // uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+        uint8_t *buf = (uint8_t *)malloc(COPY_BLK_SIZE);
+        if (buf == nullptr)
         {
-            int available = _http->available();
-            if (available == 0)
+            Debug_println("FileSystemHTTP::dir_open - failed to allocate buffer");
+            return false;
+        }
+
+        // Process all response chunks
+        Debug_println("Retrieving directory data");
+        while ( !cancel )
+        {
+            available = _http->available();
+            if (_http->is_transaction_done() && available == 0) // done
+                break;
+
+            if (available == 0) // http transaction not completed, wait for data
             {
                 if (--tmout_counter == 0)
                 {
-                    // no new data
+                    // no new data in time
                     Debug_println("FileSystemHTTP::dir_open - Timeout");
                     cancel = true;
                     break;
                 }
-                fnSystem.delay(50); // wait for more data
-                available = _http->available();
+                fnSystem.delay(50); // wait
             }
-    
-            if (available > 0)
+            else if (available > 0)
             {
-                Debug_printf("data available %d ...\n", available);
+                Debug_printf("data available: %d\n", available);
                 while (available > 0)
                 {
                     // read HTTP data
@@ -353,11 +322,11 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
                     int from_read = _http->read(buf, to_read);
                     if (from_read != to_read) // TODO: is it really an error?
                     {
+                        Debug_println("FileSystemHTTP::dir_open - HTTP read failed");
                         Debug_printf("Expected %d bytes, actually got %d bytes.\r\n", to_read, from_read);
                         cancel = true;
                         break;
                     }
-                    bytes_read += to_read;
     
                     // Parse the buffer
                     if (_parser.parse((char *)buf, from_read, false))
@@ -367,19 +336,34 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
                         break;
                     }
 
-                    // next batch
+                    // next chunk
                     available = _http->available();
                 }
                 tmout_counter = 1 + HTTP_GET_TIMEOUT / 50; // reset timeout counter
             }
+            else if (available < 0)
+            {
+                Debug_println("FileSystemHTTP::cache_file - something went wrong");
+                cancel = true;
+            }
         }
+        // release copy buffer
+        free(buf);
+
+        // close http client
         _http->close();
 
         if (cancel)
         {
+            Debug_println("Cancelled");
             _parser.clear();
             return false;
         }
+        else
+        {
+            Debug_println("Directory data retrieved");
+        }
+
 
         // finish parsing (not sure if this is necessary)
         _parser.parse(nullptr, 0, true);
