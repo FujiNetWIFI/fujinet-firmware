@@ -249,6 +249,7 @@ void H89Fuji::H89_get_host_prefix()
 fujiHost *H89Fuji::set_slot_hostname(int host_slot, char *hostname)
 {
     _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
     return &_fnHosts[host_slot];
 }
 
