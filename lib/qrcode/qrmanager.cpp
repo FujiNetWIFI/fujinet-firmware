@@ -36,7 +36,7 @@ std::vector<uint8_t> QRManager::encode(const void* src, size_t len, size_t versi
     return qrManager.out_buf;
 }
 
-void QRManager::to_bits(void) {
+void QRManager::to_binary(void) {
     auto bytes = qrManager.out_buf;
     size_t len = bytes.size();
     std::vector<uint8_t> out;
@@ -51,6 +51,41 @@ void QRManager::to_bits(void) {
         val |= bytes[i+bit] << bit;
     }
     out.push_back(val);
+
+    qrManager.out_buf = out;
+}
+
+void QRManager::to_bitmap(void) {
+    auto bytes = qrManager.out_buf;
+    size_t size = 17 + 4 * qrManager.version;
+    size_t len = bytes.size();
+    size_t bytes_per_row = ceil(size / 8.0);
+    std::vector<uint8_t> out;
+
+    uint8_t val = 0;
+    uint8_t x = 0;
+    uint8_t y = 0;
+    for (auto i = 0; i < len; i++) {
+        val |= bytes[i];
+        x++;
+        if (x == size) {
+            val = val << (bytes_per_row * 8 - x);
+            out.push_back(val);
+            val = 0;
+            x = 0;
+            y++;
+        }
+        else if (x % 8 == 0 && i > 0) {
+            out.push_back(val);
+            val = 0;
+        }
+        else {
+            val = val << 1;
+        }
+        if (y == size) {
+            break;
+        }
+    }
 
     qrManager.out_buf = out;
 }
