@@ -254,7 +254,6 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
         }
         return _disk->mount(f, disksize);
     case MEDIATYPE_ATX:
-#ifdef ESP_PLATFORM
         device_active = true;
         _disk = new MediaTypeATX();
         if (host != nullptr)
@@ -263,9 +262,6 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
             strcpy(_disk->_disk_filename, filename);
         }
         return _disk->mount(f, disksize);
-#else
-        Debug_println("ATX is not yet supported");
-#endif
     case MEDIATYPE_ATR:
     case MEDIATYPE_UNKNOWN:
     default:
