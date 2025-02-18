@@ -10,6 +10,12 @@
 
 #include "../../include/debug.h"
 
+#ifdef ESP_PLATFORM
+#define MAX_DIR_ENTRIES 1000
+#else
+#define MAX_DIR_ENTRIES 5000
+#endif
+
 // // check if element el is matching pattern *:pat (i.e. ends with ":"+pat)
 // #define IS_ANYNS_ELEMENT(pat, el, el_len) (el_len >= sizeof(pat) && strcmp(el+el_len-sizeof(pat), ":" pat) == 0)
 
@@ -162,10 +168,10 @@ void IndexParser::Start(const XML_Char *el, const XML_Char **attr)
         bool store = true;
         entriesCounter++;
         // skip entries over limit
-        if (entriesCounter >= 1000)
+        if (entriesCounter > MAX_DIR_ENTRIES)
         {
             store = false;
-            if (entriesCounter == 1000)
+            if (entriesCounter == MAX_DIR_ENTRIES+1)
                 Debug_println("Too many directory entries");
         }
         // skip noname entries
