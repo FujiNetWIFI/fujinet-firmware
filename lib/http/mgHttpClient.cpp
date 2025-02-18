@@ -749,7 +749,7 @@ int mgHttpClient::_perform()
             else 
             {
                 // no progress, check for timeout
-                if ((fnSystem.millis() - ms_update) > HTTP_TIMEOUT)
+                if ((fnSystem.millis() - ms_update) > HTTP_CLIENT_TIMEOUT)
                     break;
             }
         }

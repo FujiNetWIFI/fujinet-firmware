@@ -15,7 +15,7 @@
 #include "string_utils.h"
 
 // http timeout in ms
-#define HTTP_GET_TIMEOUT 7000
+#define HTTP_GET_TIMEOUT 20000
 
 #define COPY_BLK_SIZE 4096
 
