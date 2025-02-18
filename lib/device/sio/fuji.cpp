@@ -2136,10 +2136,6 @@ sioDisk *sioFuji::bootdisk()
 }
 
 
-
-
-
-
 void sioFuji::sio_qrcode_input()
 {
     uint16_t len = sio_get_aux();
@@ -2207,11 +2203,14 @@ void sioFuji::sio_qrcode_length()
     // to specify version, ecc, *and* output mode for the encode command. Also can't
     // just wait for output command, because output mode determines buffer length,
     if (output_mode != qrManager.output_mode) {
-        if (output_mode == QR_OUTPUT_MODE_BITS) {
-            qrManager.to_bits();
+        if (output_mode == QR_OUTPUT_MODE_BINARY) {
+            qrManager.to_binary();
         }
-        if (output_mode == QR_OUTPUT_MODE_ATASCII) {
+        else if (output_mode == QR_OUTPUT_MODE_ATASCII) {
             qrManager.to_atascii();
+        }
+        else if (output_mode == QR_OUTPUT_MODE_BITMAP) {
+            qrManager.to_bitmap();
         }
         qrManager.output_mode = output_mode;
     }
@@ -2263,12 +2262,6 @@ void sioFuji::sio_qrcode_output()
     qrManager.out_buf.shrink_to_fit();
 
 }
-
-
-
-
-
-
 
 
 void sioFuji::sio_base64_encode_input()
