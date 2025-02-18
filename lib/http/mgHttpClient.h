@@ -11,9 +11,9 @@
 #undef mkdir
 
 // http timeout in ms
-#define HTTP_TIMEOUT 7000
+#define HTTP_CLIENT_TIMEOUT 20000 // 20 s
 // while debugging, increase timeout
-// #define HTTP_TIMEOUT 600000
+// #define HTTP_CLIENT_TIMEOUT 600000
 
 // using namespace fujinet;
 
