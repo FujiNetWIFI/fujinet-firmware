@@ -1003,6 +1003,7 @@ void adamFuji::adamnet_get_host_prefix()
 fujiHost *adamFuji::set_slot_hostname(int host_slot, char *hostname)
 {
     _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
     return &_fnHosts[host_slot];
 }
 
