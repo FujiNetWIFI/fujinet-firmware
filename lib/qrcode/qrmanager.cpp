@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cstdlib>
+#include <cmath>
 #include <memory>
 #include <vector>
 #include "../../include/debug.h"
