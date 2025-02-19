@@ -11,18 +11,26 @@
 QRManager qrManager;
 
 std::vector<uint8_t> QRManager::encode(const void* src, size_t len, size_t version, size_t ecc, size_t *out_len) {
+    qrManager.version = version;
+    qrManager.ecc_mode = ecc;
+
+    *out_len = 0;
+    qrManager.out_buf.clear();
+    qrManager.out_buf.shrink_to_fit();
+
+    if (version < 1 || version > 40 || ecc < 0 || ecc > 3) {
+        return qrManager.out_buf;
+    }
+
     QRCode qr_code;
     uint8_t qr_bytes[qrcode_getBufferSize(version)];
 
     uint8_t err = qrcode_initText(&qr_code, qr_bytes, version, ecc, (const char*)src);
 
-    size_t size = qr_code.size;
-    *out_len = size*size;
-
-    qrManager.out_buf.clear();
-    qrManager.out_buf.shrink_to_fit();
-
     if (err == 0) {
+        size_t size = qr_code.size;
+        *out_len = size*size;
+
         for (uint8_t x = 0; x < size; x++) {
             for (uint8_t y = 0; y < size; y++) {
                 uint8_t on = qrcode_getModule(&qr_code, x, y);
@@ -30,9 +38,6 @@ std::vector<uint8_t> QRManager::encode(const void* src, size_t len, size_t versi
             }
         }
     }
-
-    qrManager.version = version;
-    qrManager.ecc_mode = ecc;
 
     return qrManager.out_buf;
 }

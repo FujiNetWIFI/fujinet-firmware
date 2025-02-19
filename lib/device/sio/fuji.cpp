@@ -2201,10 +2201,12 @@ void sioFuji::sio_qrcode_length()
     uint8_t output_mode = sio_get_aux();
     Debug_printf("Output mode: %i\n", output_mode);
 
+    size_t len = qrManager.out_buf.size();
+
     // A bit gross to have a side effect from length command, but not enough aux bytes
     // to specify version, ecc, *and* output mode for the encode command. Also can't
     // just wait for output command, because output mode determines buffer length,
-    if (output_mode != qrManager.output_mode) {
+    if (len && (output_mode != qrManager.output_mode)) {
         if (output_mode == QR_OUTPUT_MODE_BINARY) {
             qrManager.to_binary();
         }
@@ -2215,24 +2217,23 @@ void sioFuji::sio_qrcode_length()
             qrManager.to_bitmap();
         }
         qrManager.output_mode = output_mode;
+        len = qrManager.out_buf.size();
     }
 
-    size_t l = qrManager.out_buf.size();
-
     uint8_t response[4] = {
-        (uint8_t)(l >>  0),
-        (uint8_t)(l >>  8),
-        (uint8_t)(l >>  16),
-        (uint8_t)(l >>  24)
+        (uint8_t)(len >> 0),
+        (uint8_t)(len >> 8),
+        (uint8_t)(len >> 16),
+        (uint8_t)(len >> 24)
     };
 
-    if (!l)
+    if (!len)
     {
         Debug_printf("QR code buffer is 0 bytes, sending error.\n");
         bus_to_computer(response, sizeof(response), true);
     }
 
-    Debug_printf("QR code buffer length: %u bytes\n", l);
+    Debug_printf("QR code buffer length: %u bytes\n", len);
 
     bus_to_computer(response, sizeof(response), false);
 }
