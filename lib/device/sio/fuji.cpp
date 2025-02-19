@@ -2159,6 +2159,7 @@ void sioFuji::sio_qrcode_encode()
 {
     size_t out_len = 0;
 
+    qrManager.output_mode = 0;
     uint16_t aux = sio_get_aux();
     qrManager.version = aux;
     qrManager.ecc_mode = (aux >> 8) & 0b00000011;
@@ -2198,6 +2199,7 @@ void sioFuji::sio_qrcode_length()
 {
     Debug_printf("FUJI: QRCODE LENGTH\n");
     uint8_t output_mode = sio_get_aux();
+    Debug_printf("Output mode: %i\n", output_mode);
 
     // A bit gross to have a side effect from length command, but not enough aux bytes
     // to specify version, ecc, *and* output mode for the encode command. Also can't
