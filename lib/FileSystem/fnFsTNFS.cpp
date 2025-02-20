@@ -3,6 +3,7 @@
 
 #include <sys/stat.h>
 #include <errno.h>
+#include <libgen.h>
 
 #ifdef ESP_PLATFORM
 #include "fnFsTNFSvfs.h"
@@ -262,22 +263,28 @@ bool FileSystemTNFS::dir_open(const char * path, const char *pattern, uint16_t d
     if(!_started)
         return false;
 
-    uint8_t d_opt = 0;
+    uint8_t d_opt = TNFS_DIROPT_IGNORE_CASE;
     uint8_t s_opt = 0;
-	char realpat[TNFS_MAX_FILELEN];
-	char *thepat = 0;
+    char realpat[TNFS_MAX_FILELEN];
+    char *thepat = 0;
 
-	if (!!pattern) {
-		thepat = realpat;
-		strlcpy (realpat, pattern, sizeof (realpat));
-		if (realpat[strlen(realpat)-1] == '/') {
-			Debug_print (
-				"FileSystemTNFS::dir_open applying pattern to directories\n"
-			);
-			realpat[strlen(realpat)-1] = '\0';
-			d_opt |= TNFS_DIROPT_DIR_PATTERN;
-		}
-	}
+    if (!!pattern) {
+        thepat = realpat;
+        strlcpy (realpat, pattern, sizeof (realpat));
+        if (realpat[strlen(realpat)-1] == '/') {
+            Debug_print (
+                "FileSystemTNFS::dir_open applying pattern to directories\n"
+            );
+            realpat[strlen(realpat)-1] = '\0';
+            d_opt |= TNFS_DIROPT_DIR_PATTERN;
+        }
+        if (strstr(realpat, "**")) {
+            Debug_print (
+                "FileSystemTNFS::dir_open enabling recursive pattern\n"
+            );
+            d_opt |= TNFS_DIROPT_TRAVERSE | TNFS_DIROPT_NO_FOLDERS;
+        }
+    }
     if(diropts & DIR_OPTION_DESCENDING)
         s_opt |= TNFS_DIRSORT_DESCENDING;
     if(diropts & DIR_OPTION_FILEDATE)
