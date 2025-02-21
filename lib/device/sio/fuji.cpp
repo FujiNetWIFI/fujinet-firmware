@@ -2182,14 +2182,14 @@ void sioFuji::sio_qrcode_encode()
         &out_len
     );
 
+    qrManager.in_buf.clear();
+
     if (!out_len)
     {
         Debug_printf("QR code encoding failed\n");
         sio_error();
         return;
     }
-
-    qrManager.in_buf.clear();
 
     Debug_printf("Resulting QR code is: %u modules\n", out_len);
     sio_complete();
