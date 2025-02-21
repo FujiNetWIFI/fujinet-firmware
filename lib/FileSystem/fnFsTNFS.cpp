@@ -263,7 +263,7 @@ bool FileSystemTNFS::dir_open(const char * path, const char *pattern, uint16_t d
     if(!_started)
         return false;
 
-    uint8_t d_opt = TNFS_DIROPT_IGNORE_CASE;
+    uint8_t d_opt = 0;
     uint8_t s_opt = 0;
     char realpat[TNFS_MAX_FILELEN];
     char *thepat = 0;
