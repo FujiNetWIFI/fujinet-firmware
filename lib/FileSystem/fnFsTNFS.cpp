@@ -270,19 +270,25 @@ bool FileSystemTNFS::dir_open(const char * path, const char *pattern, uint16_t d
 
     if (!!pattern) {
         thepat = realpat;
-        strlcpy (realpat, pattern, sizeof (realpat));
-        if (realpat[strlen(realpat)-1] == '/') {
-            Debug_print (
-                "FileSystemTNFS::dir_open applying pattern to directories\n"
-            );
-            realpat[strlen(realpat)-1] = '\0';
-            d_opt |= TNFS_DIROPT_DIR_PATTERN;
+        if (pattern[0] == '!')
+        {
+            strlcpy (realpat, "**/", sizeof(realpat));
+            int patlen = strlcpy (realpat + 3, pattern + 1, sizeof(realpat) - 4) + 3;
+            realpat[patlen] = '*';
+            realpat[patlen+1] = '\0';
+            d_opt |= TNFS_DIROPT_NO_FOLDERS;
+            d_opt |= TNFS_DIROPT_TRAVERSE;
         }
-        if (strstr(realpat, "**")) {
-            Debug_print (
-                "FileSystemTNFS::dir_open enabling recursive pattern\n"
-            );
-            d_opt |= TNFS_DIROPT_TRAVERSE | TNFS_DIROPT_NO_FOLDERS;
+        else
+        {
+            strlcpy (realpat, pattern, sizeof (realpat));
+            if (realpat[strlen(realpat)-1] == '/') {
+                Debug_print (
+                    "FileSystemTNFS::dir_open applying pattern to directories\n"
+                );
+                realpat[strlen(realpat)-1] = '\0';
+                d_opt |= TNFS_DIROPT_DIR_PATTERN;
+            }
         }
     }
     if(diropts & DIR_OPTION_DESCENDING)
