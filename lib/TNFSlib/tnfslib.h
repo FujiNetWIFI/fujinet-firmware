@@ -63,8 +63,7 @@
 #define TNFS_DIROPT_NO_SKIPSPECIAL 0x04  // Don't skip special files
 #define TNFS_DIROPT_DIR_PATTERN 0x08     // Apply wildcard pattern to directories, too
 #define TNFS_DIROPT_TRAVERSE 0x10        // Traverse all directories recursively
-#define TNFS_DIROPT_IGNORE_CASE 0x20     // Ignore case
-#define TNFS_DIROPT_NO_FOLDERS 0x40      // Skip folders
+#define TNFS_DIROPT_NO_FOLDERS 0x20      // Skip folders
 
 #define TNFS_DIRSORT_NONE 0x01       // Do not perform any sorting
 #define TNFS_DIRSORT_CASE 0x02       // Perform case-sensitve sort
