@@ -272,10 +272,7 @@ bool FileSystemTNFS::dir_open(const char * path, const char *pattern, uint16_t d
         thepat = realpat;
         if (pattern[0] == '!')
         {
-            strlcpy (realpat, "**/", sizeof(realpat));
-            int patlen = strlcpy (realpat + 3, pattern + 1, sizeof(realpat) - 4) + 3;
-            realpat[patlen] = '*';
-            realpat[patlen+1] = '\0';
+            snprintf(realpat, sizeof(realpat), "**/%s*", pattern+1);
             d_opt |= TNFS_DIROPT_NO_FOLDERS;
             d_opt |= TNFS_DIROPT_TRAVERSE;
         }
