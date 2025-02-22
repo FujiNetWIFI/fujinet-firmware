@@ -21,6 +21,7 @@
 #include "../fuji/fujiCmd.h"
 
 #include "hash.h"
+#include "../../qrcode/qrmanager.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices
@@ -208,6 +209,12 @@ protected:
     void iwm_ctrl_hash_output();                     // 0xC5 set hash_is_hex_output
     void iwm_stat_hash_output();                     // 0xC5 write response
     void iwm_ctrl_hash_clear();                      // 0xC2
+
+    void iwm_ctrl_qrcode_input();           // 0xBC
+    void iwm_ctrl_qrcode_encode();          // 0xBD
+    void iwm_stat_qrcode_length();          // OxBE
+    void iwm_ctrl_qrcode_output();          // 0xBF
+    void iwm_stat_qrcode_output();          // 0xBF
 
     void iwm_stat_fuji_status();        // 0x53
 
