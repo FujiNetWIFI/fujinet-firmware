@@ -107,8 +107,10 @@ bool NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         openURL[2] = 'b';
     }
 
+#if 0
     if (aux1_open == 6) // temporary
         openURL = openURL.substr(0, openURL.find_last_of("/"));
+#endif
 
     Debug_printf("NetworkProtocolSMB::mount() - openURL: %s\r\n", openURL.c_str());
     smb_url = smb2_parse_url(smb, openURL.c_str());
