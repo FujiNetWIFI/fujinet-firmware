@@ -383,18 +383,19 @@ int util_ellipsize(const char *src, char *dst, int dstsize)
         {
             basename++; // skip slash
 
-            int result = 4;
-            dst[0] = dst[1] = dst[2] = '.';
-            if (strlen(basename) < dstsize - 3 - 1)
+            int copied = strlcpy(dst, "...", dstsize);
+            int remaining = dstsize - copied - 1;
+            if (strlen(basename) < remaining)
             {
-                strlcpy(dst + 3, src + srclen - dstsize + 4, dstsize - 3);
+                return strlcat(dst, src + (srclen - remaining), dstsize);
             }
             else
             {
-                dst[3] = '/';
-                result += util_ellipsize(basename, dst+4, dstsize-4);
+                char tmp[dstsize];
+                copied = strlcat(dst, "/", dstsize);
+                util_ellipsize(basename, tmp, dstsize-copied);
+                return strlcat(dst, tmp, dstsize);
             }
-            return result;
         }
     }
 
