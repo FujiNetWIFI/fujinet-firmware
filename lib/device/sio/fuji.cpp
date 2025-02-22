@@ -1,5 +1,3 @@
-#include "fujiCmd.h"
-#include "httpService.h"
 #ifdef BUILD_ATARI
 
 #include "fuji.h"
@@ -22,6 +20,8 @@
 
 #include "../../../include/debug.h"
 
+#include "fujiCmd.h"
+#include "httpService.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fsFlash.h"
