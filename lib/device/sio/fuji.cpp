@@ -1979,6 +1979,7 @@ void sioFuji::insert_boot_device(uint8_t d)
 {
     const char *config_atr = "/autorun.atr";
     std::string altconfigfile = Config.get_config_filename();
+    bool config_ng = Config.get_general_config_ng();
     const char *alt_config_atr = altconfigfile.c_str();
     const char *mount_all_atr = "/mount-and-boot.atr";
 #ifdef ESP_PLATFORM // TODO merge
@@ -1999,6 +2000,11 @@ void sioFuji::insert_boot_device(uint8_t d)
                 Debug_printf("Mounted Alternate CONFIG %s\n", alt_config_atr);
                 break;
             }
+        }
+        else if (config_ng)
+        {
+            config_atr = "/autorun-cng.atr";
+            Debug_printf("Mounted CONFIG-NG\n");
         }
         fBoot = fsFlash.fnfile_open(config_atr);
         _bootDisk.mount(fBoot, config_atr, 0);
@@ -2039,6 +2045,11 @@ void sioFuji::insert_boot_device(uint8_t d)
                 boot_img = alt_config_atr;
                 break;
             }
+        }
+        else if (config_ng)
+        {
+            config_atr = "/autorun-cng.atr";
+            Debug_printf("Mounted CONFIG-NG\n");
         }
         boot_img = config_atr;
         fBoot = fsFlash.fnfile_open(boot_img);

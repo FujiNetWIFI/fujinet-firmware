@@ -168,6 +168,7 @@ setInputValue(current_boot_mode == 0, "boot-config-mode-config", "boot-config-mo
 setInputValue(current_status_wait_enabled == 1, "boot-sio-wait-yes", "boot-sio-wait-no");
 setInputValue(current_config_enabled == 1, "boot-config-disk-yes", "boot-config-disk-no");
 setInputValue(current_encrypt_passphrase_enabled == 1, "encrypt-passphrase-yes", "encrypt-passphrase-no");
+setInputValue(current_config_ng == 1, "config-ng-yes", "config-ng-no");
 {% endif %}
 
 {% if components.apetime %}

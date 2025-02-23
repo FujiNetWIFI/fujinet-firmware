@@ -115,6 +115,8 @@ public:
     void store_general_timezone(const char *timezone);
     void store_general_rotation_sounds(bool rotation_sounds);
     void store_general_config_enabled(bool config_enabled);
+    void store_general_config_ng(bool config_ng);
+    bool get_general_config_ng(){ return _general.config_ng; };
     std::string get_config_filename(){ return _general.config_filename; };
     void store_config_filename(const std::string &filename);
     bool get_general_boot_mode() { return _general.boot_mode; }
@@ -438,6 +440,7 @@ private:
         std::string timezone;
         bool rotation_sounds = true;
         bool config_enabled = true;
+        bool config_ng = false;
         std::string config_filename;
         int boot_mode = 0;
         bool fnconfig_spifs = true;
