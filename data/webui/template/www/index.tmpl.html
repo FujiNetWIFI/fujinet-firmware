@@ -1415,6 +1415,7 @@
 						var current_status_wait_enabled = "<%FN_STATUS_WAIT_ENABLED%>";
 						var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
 						var current_encrypt_passphrase_enabled = "<%FN_ENCRYPT_PASSPHRASE_ENABLED%>";
+						var current_config_ng = "<%FN_CONFIG_NG%>";
 					</script>
 					<div class="settings-left">
 						<div class="svgicon">
@@ -1512,6 +1513,29 @@
 								</div>
 							</div>
 						</div>
+						{% if tweaks.config_ng %}
+						<div class="set">
+							<div class="settings-label">
+								<label>
+									Use CONFIG-NG Boot Disk
+									<div class="tooltip">&#9432;
+										<span class="tooltiptext small-text">
+											Use CONFIG "Next Generation" boot disk which has a prettier
+											user interface for configuring FujiNet
+										</span>
+									</div>
+								</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="config-ng-yes" name="config_ng" type="radio" value="1">
+									<label for="config-ng-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="config-ng-no" name="config_ng" type="radio" value="0">
+									<label for="config-ng-no" class="r-yes-no">No</label>
+								</div>
+							</div>
+						</div>
+						{% endif %}
 						<div class="set">
 							<div class="settings-label">
 								<label>Set alternate CONFIG boot disk

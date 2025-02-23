@@ -25,3 +25,4 @@ tweaks:
   # webui tweaks, if any
   fujinet_pc: true
   platform: ATARI
+  config_ng: true
