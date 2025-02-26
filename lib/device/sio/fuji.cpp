@@ -2172,7 +2172,7 @@ void sioFuji::sio_qrcode_encode()
 
     qrManager.output_mode = 0;
     uint16_t aux = sio_get_aux();
-    qrManager.version = aux;
+    qrManager.version = aux & 0b01111111;
     qrManager.ecc_mode = (aux >> 8) & 0b00000011;
     bool shorten = (aux >> 12) & 0b00000001;
 
