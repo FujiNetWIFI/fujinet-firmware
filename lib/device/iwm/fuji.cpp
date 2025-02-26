@@ -1573,7 +1573,7 @@ void iwmFuji::iwm_ctrl_qrcode_encode()
     size_t out_len = 0;
 
     qrManager.output_mode = 0;
-    qrManager.version = data_buffer[0];
+    qrManager.version = data_buffer[0] & 0b01111111;
     qrManager.ecc_mode = data_buffer[1];
     bool shorten = data_buffer[2];
 
