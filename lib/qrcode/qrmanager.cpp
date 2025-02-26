@@ -58,7 +58,7 @@ void QRManager::to_binary(void) {
             out.push_back(val);
             val = 0;
         }
-        val |= bytes[i+bit] << bit;
+        val |= bytes[1+i+bit] << bit;
     }
     out.push_back(val);
 
@@ -78,7 +78,7 @@ void QRManager::to_bitmap(void) {
     uint8_t x = 0;
     uint8_t y = 0;
     for (auto i = 0; i < len; i++) {
-        val |= bytes[i];
+        val |= bytes[1+i];
         x++;
         if (x == size) {
             val = val << (bytes_per_row * 8 - x);
@@ -126,11 +126,11 @@ void QRManager::to_atascii(void) {
 
     for (auto y = 0; y < size; y += 2) {
         for (auto x = 0; x < size; x += 2) {
-            uint8_t val = bytes[y*size+x];
+            uint8_t val = bytes[1+y*size+x];
             // QR Codes have odd number of rows/columns, so last ATASCII char is only half full
-            if (x+1 < size) val |= bytes[y*size+x+1] << 1;
-            if (y+1 < size) val |= bytes[(y+1)*size+x] << 2;
-            if (y+1 < size && x+1 < size) val |= bytes[(y+1)*size+x+1] << 3;
+            if (x+1 < size) val |= bytes[1+y*size+x+1] << 1;
+            if (y+1 < size) val |= bytes[1+(y+1)*size+x] << 2;
+            if (y+1 < size && x+1 < size) val |= bytes[1+(y+1)*size+x+1] << 3;
             out.push_back(atascii[val]);
         }
         out.push_back(155); // Atari newline
