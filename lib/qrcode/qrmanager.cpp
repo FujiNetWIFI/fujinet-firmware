@@ -138,3 +138,49 @@ void QRManager::to_atascii(void) {
 
     qrManager.out_buf = out;
 }
+
+/*
+This collapses each 2x2 groups of modules (pixels) into a single PETSCII character.
+Values for PETSCII look up are as calculated as follows. Some characters need to be
+reversed to get the correct glyph.
+
+0    1    2    3    4    5    6*   7    8    9*   10   11   12   13   14   15
+- -  x -  - x  x x  - -  x -  - x  x x  - -  x -  - x  x x  - -  x -  - x  x x
+- -  - -  - -  - -  x -  x -  x -  x -  - x  - x  - x  - x  x x  x x  x x  x x
+32   190  188  18   187  161  18   18   172  191  18   18   162  18   18   18
+               162            191  172            161  187       188  190  32
+               146            146  146            146  146       146  146  146
+*/
+
+uint8_t petscii[2][16] = {
+//   0    1    2    3    4    5    6    7    8    9    10   11   12   13   14   15
+    {32,  190, 188, 162, 187, 161, 191, 172, 172, 191, 161, 187, 162, 188, 190, 32},
+    {0,   0,   0,   1,   0,   0,   1,   1,   0,   0,   1,   1,   0,   1,   1,   1}   // reverse on?
+};
+
+void QRManager::to_petscii(void) {
+    auto bytes = qrManager.out_buf;
+    size_t size = qrManager.size();
+    std::vector<uint8_t> out;
+    bool reverse = false;
+
+    out.push_back(size);
+
+    for (auto y = 0; y < size; y += 2) {
+        for (auto x = 0; x < size; x += 2) {
+            uint8_t val = bytes[1+y*size+x];
+            // QR Codes have odd number of rows/columns, so last PETSCII char is only half full
+            if (x+1 < size) val |= bytes[1+y*size+x+1] << 1;
+            if (y+1 < size) val |= bytes[1+(y+1)*size+x] << 2;
+            if (y+1 < size && x+1 < size) val |= bytes[1+(y+1)*size+x+1] << 3;
+            if (reverse != petscii[1][val]) {
+                reverse = !reverse;
+                out.push_back(((reverse) ? 18 : 146)); // 18 Reverse On / 146 Reverse Off
+            }
+            out.push_back(petscii[0][val]);
+        }
+        out.push_back(13); // Carriage return
+    }
+
+    qrManager.out_buf = out;
+}
