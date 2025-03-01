@@ -4,10 +4,16 @@
 
 #include <memory.h>
 #include <string.h>
-#include <esp_timer.h>
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-#include <esp_random.h>
+#ifdef ESP_PLATFORM
+  #include <esp_timer.h>
+  #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+  #include <esp_random.h>
+  #endif
+#else
+  #include <cstdlib>
+  #include <ctime>
 #endif
+
 
 #include "../../include/debug.h"
 
@@ -92,12 +98,14 @@ AtxSector::AtxSector(sector_header_t &header)
 
 MediaTypeATX::~MediaTypeATX()
 {
+#ifdef ESP_PLATFORM
     // Destory any timer we may have
     if (_atx_timer != nullptr)
     {
         esp_timer_stop(_atx_timer);
         esp_timer_delete(_atx_timer);
     }
+#endif
 }
 
 // Constructor initializes the AtxTrack vector to assume we have 40 tracks
@@ -111,6 +119,7 @@ MediaTypeATX::MediaTypeATX()
     // Disallow HSIO
     _allow_hsio = false;
 
+#ifdef ESP_PLATFORM
     // Create a timer to track our fake disk rotating
     esp_timer_create_args_t tcfg;
     tcfg.arg = this;
@@ -120,6 +129,10 @@ MediaTypeATX::MediaTypeATX()
     esp_timer_create(&tcfg, &_atx_timer);
     ESP_ERROR_CHECK(esp_timer_start_periodic(_atx_timer,
         US_ANGULAR_UNIT_TIME * ANGULAR_POSITION_UPDATE_FREQ));
+#else
+    srand((unsigned)time(0));
+    __atx_position_time = fnSystem.micros();
+#endif
 }
 
 /*
@@ -131,6 +144,7 @@ MediaTypeATX::MediaTypeATX()
     * is thread safe
     * takes less than 1 microsecond to execute
 */
+#ifdef ESP_PLATFORM
 void MediaTypeATX::on_timer(void *info)
 {
     MediaTypeATX *pAtx = (MediaTypeATX *)info;
@@ -148,7 +162,9 @@ void MediaTypeATX::on_timer(void *info)
 
     portEXIT_CRITICAL(&pAtx->__atx_timerMux);
 }
+#endif
 
+#ifdef ESP_PLATFORM
 uint16_t MediaTypeATX::_get_head_position()
 {
     uint64_t us_now = esp_timer_get_time();
@@ -180,6 +196,17 @@ uint16_t MediaTypeATX::_get_head_position()
 
     return pos;
 }
+#else
+uint16_t MediaTypeATX::_get_head_position()
+{
+    uint64_t us_now = fnSystem.micros();
+    uint64_t us_diff = us_now - __atx_position_time;
+    uint64_t unit = us_diff / US_ANGULAR_UNIT_TIME;
+    uint16_t pos = unit % ANGULAR_UNIT_TOTAL;
+    _atx_total_rotations = unit / ANGULAR_UNIT_TOTAL;
+    return pos;
+}
+#endif
 
 void MediaTypeATX::_wait_full_rotation()
 {
@@ -244,10 +271,14 @@ void MediaTypeATX::_process_sector(AtxTrack &track, AtxSector *psector, uint16_t
         if (psector->weakoffset != ATX_WEAKOFFSET_NONE)
         {
             Debug_printf("## Weak sector data starting at offset %u\r\n", psector->weakoffset);
-            uint32_t rand = esp_random();
+#ifdef ESP_PLATFORM
+            uint32_t rnd = esp_random();
+#else
+            uint32_t rnd = rand();
+#endif
             // Fill the buffer from the offset position to the end with our random 32 bit value
             for (int x = psector->weakoffset; x < sectorsize; x += sizeof(uint32_t))
-                *((uint32_t *)(_disk_sectorbuff + x)) = rand;
+                *((uint32_t *)(_disk_sectorbuff + x)) = rnd;
         }
     }
     else
@@ -361,7 +392,12 @@ bool MediaTypeATX::_copy_track_sector_data(uint8_t tracknum, uint8_t sectornum, 
 // Returns TRUE if an error condition occurred
 bool MediaTypeATX::read(uint16_t sectornum, uint16_t *readcount)
 {
+#ifdef ESP_PLATFORM
     Debug_printf("ATX READ (%d) rots=%lu\r\n", sectornum, _atx_total_rotations);
+#else
+    unsigned int pos = _get_head_position();
+    Debug_printf("ATX READ (%d) rots=%lu pos=%u\r\n", sectornum, _atx_total_rotations, pos);
+#endif
 
     *readcount = 0;
 
@@ -489,7 +525,11 @@ bool MediaTypeATX::_load_atx_chunk_sector_data(chunk_header_t &chunk_hdr, AtxTra
         return true;
     
     // Attempt to the sector data
+#ifdef ESP_PLATFORM
     track.data = (uint8_t *)heap_caps_malloc(data_size * sizeof(uint8_t), MALLOC_CAP_DEFAULT);
+#else
+    track.data = new uint8_t[data_size];
+#endif
 
     int i;
     if ((i = fnio::fread(track.data, 1, data_size, _disk_fileh)) != data_size)
@@ -535,7 +575,11 @@ bool MediaTypeATX::_load_atx_chunk_sector_list(chunk_header_t &chunk_hdr, AtxTra
     }
 
     // Attempt to read sector_header * sector_count
+#ifdef ESP_PLATFORM
     sector_header_t *sector_list = (sector_header_t *)heap_caps_malloc(track.sector_count * sizeof(sector_header_t), MALLOC_CAP_DEFAULT);
+#else
+    sector_header_t *sector_list = new sector_header_t[track.sector_count];
+#endif
     int i;
 
     if ((i = fnio::fread(sector_list, 1, readz, _disk_fileh)) != readz)
@@ -874,7 +918,9 @@ mediatype_t MediaTypeATX::mount(fnFile *f, uint32_t disksize)
 
     _disk_num_sectors = 720;
 
+#ifdef ESP_PLATFORM
     Debug_printv("Heap free: %lu",esp_get_free_internal_heap_size());
+#endif
     
     return _disktype = MEDIATYPE_ATX;
 }

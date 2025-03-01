@@ -375,6 +375,30 @@ int util_ellipsize(const char *src, char *dst, int dstsize)
         return strlcpy(dst, src, dstsize);
     }
 
+    // Replace directories with .../ and only leave the basename.
+    const char *basename = strrchr(src, '/');
+    if (basename != NULL)
+    {
+        if (strlen(basename) > 1 && dstsize >= 5)
+        {
+            basename++; // skip slash
+
+            int copied = strlcpy(dst, "...", dstsize);
+            int remaining = dstsize - copied - 1;
+            if (strlen(basename) < remaining)
+            {
+                return strlcat(dst, src + (srclen - remaining), dstsize);
+            }
+            else
+            {
+                char tmp[dstsize];
+                copied = strlcat(dst, "/", dstsize);
+                util_ellipsize(basename, tmp, dstsize-copied);
+                return strlcat(dst, tmp, dstsize);
+            }
+        }
+    }
+
     // Account for both the 3-character ellipses and the null character that needs to fit in the destination
     int rightlen = (dstsize - 4) / 2;
     // The left side gets one more character if the destination is odd
@@ -951,11 +975,11 @@ std::string util_hexdump(const void *buf, size_t len)
                 snprintf(line, sizeof(line), "  %s\n", ascii);
                 result += line;
             }
-            snprintf(line, sizeof(line), "%04x ", (unsigned int)i);
+            snprintf(line, sizeof(line), "%04X ", (unsigned int)i);
             result += line;
         }
 
-        snprintf(line, sizeof(line), " %02x", p[i]);
+        snprintf(line, sizeof(line), " %02X", p[i]);
         result += line;
 
         ascii[idx] = (isprint(p[i]) ? p[i] : '.');

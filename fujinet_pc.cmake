@@ -166,12 +166,14 @@ set(SOURCES src/main.cpp
     lib/hardware/fnUARTUnix.cpp lib/hardware/fnUARTWindows.cpp
     lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
     lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
+    lib/FileSystem/fnFileCache.h lib/FileSystem/fnFileCache.cpp
     lib/FileSystem/fnFS.h lib/FileSystem/fnFS.cpp
     lib/FileSystem/fnFsSPIFFS.h lib/FileSystem/fnFsSPIFFS.cpp
     lib/FileSystem/fnFsSD.h lib/FileSystem/fnFsSD.cpp
     lib/FileSystem/fnFsTNFS.h lib/FileSystem/fnFsTNFS.cpp
     lib/FileSystem/fnFsSMB.h lib/FileSystem/fnFsSMB.cpp
     lib/FileSystem/fnFsFTP.h lib/FileSystem/fnFsFTP.cpp
+    lib/FileSystem/fnFsHTTP.h lib/FileSystem/fnFsHTTP.cpp
     lib/FileSystem/fnFile.h lib/FileSystem/fnFile.cpp
     lib/FileSystem/fnFileLocal.h lib/FileSystem/fnFileLocal.cpp
     lib/FileSystem/fnFileTNFS.h lib/FileSystem/fnFileTNFS.cpp
@@ -190,6 +192,7 @@ set(SOURCES src/main.cpp
     lib/fnjson/fnjson.h lib/fnjson/fnjson.cpp
     components_pc/mongoose/mongoose.h components_pc/mongoose/mongoose.c
     lib/webdav/WebDAV.h lib/webdav/WebDAV.cpp
+    lib/webdav/IndexParser.h lib/webdav/IndexParser.cpp
     lib/http/httpService.h lib/http/mgHttpService.cpp
     lib/http/httpServiceParser.h lib/http/httpServiceParser.cpp
     lib/http/httpServiceConfigurator.h lib/http/httpServiceConfigurator.cpp
@@ -265,7 +268,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
     lib/media/atari/diskType.h lib/media/atari/diskType.cpp
     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
-    lib/media/atari/diskTypeAtx.h
+    lib/media/atari/diskTypeAtx.h lib/media/atari/diskTypeAtx.cpp
     lib/media/atari/diskTypeXex.h lib/media/atari/diskTypeXex.cpp
 
     lib/device/sio/disk.h lib/device/sio/disk.cpp

@@ -703,7 +703,7 @@ void drivewireFuji::read_app_key()
     size_t count = fread(buffer.data(), 1, buffer.size(), fIn);
     fclose(fIn);
     Debug_printf("Read %d bytes from input file\n", count);
-    
+
     uint16_t sizeNetOrder = htons(count);
 
     response.clear();
@@ -909,7 +909,7 @@ void drivewireFuji::read_directory_entry()
             current_entry[filelen + 1] = '\0';
         }
     }
-    
+
     response.clear();
     response.shrink_to_fit();
 
@@ -959,7 +959,7 @@ void drivewireFuji::close_directory()
     errorCode = 1;
 }
 
-// Get network adapter configuration 
+// Get network adapter configuration
 void drivewireFuji::get_adapter_config()
 {
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
@@ -1401,7 +1401,7 @@ void drivewireFuji::base64_encode_compute()
 void drivewireFuji::base64_encode_length()
 {
     size_t l = base64.base64_buffer.length();
-    uint8_t o[4] = 
+    uint8_t o[4] =
     {
         (uint8_t)(l >> 24),
         (uint8_t)(l >> 16),
@@ -1426,7 +1426,7 @@ void drivewireFuji::base64_encode_output()
     if (!len)
     {
         Debug_printf("Refusing to send zero byte buffer. Exiting.");
-        errorCode = 144; 
+        errorCode = 144;
         return;
     }
 
@@ -1436,7 +1436,7 @@ void drivewireFuji::base64_encode_output()
     base64.base64_buffer.shrink_to_fit();
 
     response = std::string((const char *)p.data(), len);
-    errorCode = 1;    
+    errorCode = 1;
 }
 
 void drivewireFuji::base64_decode_input()
@@ -1637,6 +1637,14 @@ std::string drivewireFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
+// Public method to update host in specific slot
+fujiHost *drivewireFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
+}
+
 void drivewireFuji::send_error()
 {
     Debug_printf("drivewireFuji::send_error(%u)\n",errorCode);
@@ -1662,7 +1670,7 @@ void drivewireFuji::send_response()
 
     // Clear the response
     response.clear();
-    response.shrink_to_fit();    
+    response.shrink_to_fit();
 }
 
 void drivewireFuji::ready()

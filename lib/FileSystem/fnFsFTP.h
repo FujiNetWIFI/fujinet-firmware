@@ -17,7 +17,7 @@ private:
     // parsed FTP URL
     std::unique_ptr<PeoplesUrlParser> _url;
 
-    // fnFTP instance
+    // FTP client
     fnFTP *_ftp;
 
     // directory cache
@@ -56,7 +56,7 @@ public:
     bool dir_seek(uint16_t pos) override;
 
 #ifndef FNIO_IS_STDIO
-    FileHandler *cache_file(const char *path);
+    FileHandler *cache_file(const char *path, const char *mode);
 #endif
 
 };

@@ -281,7 +281,10 @@
 				<header class="module-header">HOSTS<span class="logowob"></span>LIST</header>
 				{% for hs in range(1, 9) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
-					<div class="deth detlinecol">Host {{ hs }}</div>
+					<div class="deth detlinecol">
+						Host {{ hs }}
+						<a href="#" class="edit-host" data-hostslot="{{ hs }}" data-hostname="<%FN_HOST{{ hs }}%>">[EDIT]</a>
+					</div>
 					{% if tweaks.fujinet_pc %}
 					<div class="det detlinecol"><a href="/browse/host/{{ hs }}"><%FN_HOST{{ hs }}%> :: <%FN_HOST{{ hs }}PREFIX%></a></div>
 					{% else %}
@@ -304,9 +307,15 @@
 				{% for ds in range(1, 7) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
 					{% if ds < 5 %}
-					<div class="deth detlinecol">SmartPort Drive {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%> <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a></div>
+					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="SmartPort Drive {{ ds }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>>">
+					    SmartPort Drive {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%>
+						<a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
+					</div>
 					{% else %}
-					<div class="deth detlinecol">Disk ][ Drive {{ ds - 4 }}<%FN_DRIVE{{ ds }}DEVICE%> <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a></div>
+					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="Disk ][ Drive {{ ds - 4 }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>>">
+					    Disk ][ Drive {{ ds - 4 }}<%FN_DRIVE{{ ds }}DEVICE%>
+						<a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
+					</div>
 					{% endif %}
 					{% if tweaks.fujinet_pc %}
 					<div class="det detlinecol"><a href="<%FN_DRIVE{{ ds }}BROWSER%>"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></a></div>
@@ -318,9 +327,14 @@
 				{% else %}
 				{% for ds in range(1, 9) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
-					<div class="deth detlinecol">Drive Slot {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%> <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a></div>
+					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="Drive Slot {{ ds }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>">
+					   Drive Slot {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%>
+					   <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
+					</div>
 					{% if tweaks.fujinet_pc %}
-					<div class="det detlinecol"><a href="<%FN_DRIVE{{ ds }}BROWSER%>"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></a></div>
+					<div class="det detlinecol">
+					   <a href="<%FN_DRIVE{{ ds }}BROWSER%>"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></a>
+					</div>
 					{% else %}
 					<div class="det detlinecol"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></div>
 					{% endif %}
@@ -1412,6 +1426,7 @@
 						var current_status_wait_enabled = "<%FN_STATUS_WAIT_ENABLED%>";
 						var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
 						var current_encrypt_passphrase_enabled = "<%FN_ENCRYPT_PASSPHRASE_ENABLED%>";
+						var current_config_ng = "<%FN_CONFIG_NG%>";
 					</script>
 					<div class="settings-left">
 						<div class="svgicon">
@@ -1509,6 +1524,29 @@
 								</div>
 							</div>
 						</div>
+						{% if tweaks.config_ng %}
+						<div class="set">
+							<div class="settings-label">
+								<label>
+									Use CONFIG-NG Boot Disk
+									<div class="tooltip">&#9432;
+										<span class="tooltiptext small-text">
+											Use CONFIG "Next Generation" boot disk which has a prettier
+											user interface for configuring FujiNet
+										</span>
+									</div>
+								</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="config-ng-yes" name="config_ng" type="radio" value="1">
+									<label for="config-ng-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="config-ng-no" name="config_ng" type="radio" value="0">
+									<label for="config-ng-no" class="r-yes-no">No</label>
+								</div>
+							</div>
+						</div>
+						{% endif %}
 						<div class="set">
 							<div class="settings-label">
 								<label>Set alternate CONFIG boot disk

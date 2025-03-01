@@ -21,6 +21,7 @@
 #include "../fuji/fujiCmd.h"
 
 #include "hash.h"
+#include "../../qrcode/qrmanager.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices
@@ -209,6 +210,12 @@ protected:
     void iwm_stat_hash_output();                     // 0xC5 write response
     void iwm_ctrl_hash_clear();                      // 0xC2
 
+    void iwm_ctrl_qrcode_input();           // 0xBC
+    void iwm_ctrl_qrcode_encode();          // 0xBD
+    void iwm_stat_qrcode_length();          // OxBE
+    void iwm_ctrl_qrcode_output();          // 0xBF
+    void iwm_stat_qrcode_output();          // 0xBF
+
     void iwm_stat_fuji_status();        // 0x53
 
     void shutdown() override;
@@ -257,6 +264,7 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *set_slot_hostname(int host_slot, char *hostname);
     DEVICE_TYPE *get_disk_dev(int i) {
 #ifndef DEV_RELAY_SLIP
       return i < MAX_SP_DEVICES

@@ -10,6 +10,7 @@
 
 #include "status_error_codes.h"
 #include "utils.h"
+#include "string_utils.h"
 #include "compat_string.h"
 
 #include <vector>
@@ -20,12 +21,12 @@
 Aux1 values
 ===========
 
-4 = GET, no headers, just grab data.
+4 = GET, with filename translation, URL encoding.
 5 = DELETE, no headers
 6 = PROPFIND, WebDAV directory
 8 = PUT, write data to server, XIO used to toggle headers to get versus data write
 9 = DELETE, with headers
-12 = GET, write sets headers to fetch, read grabs data
+12 = GET, pure and unmolested
 13 = POST, write sends post data to server, read grabs response, XIO used to change write behavior, toggle headers to get or headers to set.
 14 = PUT, write sends post data to server, read grabs response, XIO used to change write behavior, toggle headers to get or headers to set.
 DELETE, MKCOL, RMCOL, COPY, MOVE, are all handled via idempotent XIO commands.
@@ -318,14 +319,13 @@ bool NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
         url->rebuildUrl();
     }
 
-#if 0
-    // this would allow to make path like "Homesoft Collection" (entered by user, not encoded) working
-    // but it currently breaks any URL using query component (e.g. query from lobby client: ?platform=atari)
-    // the issue is in url parser as it leaves query part in path component, it needs to be fixed first
-    std::string encoded = mstr::urlEncode(url->path);
-    url->path = encoded;
-    url->rebuildUrl();
-#endif
+    if (aux1_open == 4 || aux1_open == 8)
+    {
+        // We are opening a file, URL encode the path.
+        std::string encoded = mstr::urlEncode(url->path);
+        url->path = encoded;
+        url->rebuildUrl();
+    }
 
     return !client->begin(url->url);
 }

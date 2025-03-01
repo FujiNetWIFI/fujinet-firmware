@@ -1184,6 +1184,34 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t fnHttpService::get_handler_hosts(httpd_req_t *req)
+{
+    std::string response = "";
+    for (int hs = 0; hs < 8; hs++) {
+        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+    }
+    httpd_resp_send(req, response.c_str(), response.length());
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::post_handler_hosts(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
+
+    int hostslot = atoi(qp.query_parsed["hostslot"].c_str());
+    char *hostname = (char *)qp.query_parsed["hostname"].c_str();
+
+    theFuji.set_slot_hostname(hostslot, hostname);
+
+    std::string response = "";
+    for (int hs = 0; hs < 8; hs++) {
+        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+    }
+    httpd_resp_send(req, response.c_str(), response.length());
+    return ESP_OK;
+}
+
 std::string fnHttpService::shorten_url(std::string url)
 {
     int id = shortURLs.size();
@@ -1480,13 +1508,27 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
          .is_websocket = false,
          .handle_ws_control_frames = false,
          .supported_subprotocol = nullptr},
+        {.uri = "/hosts",
+         .method = HTTP_GET,
+         .handler = get_handler_hosts,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/hosts",
+         .method = HTTP_POST,
+         .handler = post_handler_hosts,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
         {.uri = "/url/*",
-        .method = HTTP_GET,
-        .handler = get_handler_shorturl,
-        .user_ctx = NULL,
-        .is_websocket = false,
-        .handle_ws_control_frames = false,
-        .supported_subprotocol = nullptr},
+         .method = HTTP_GET,
+         .handler = get_handler_shorturl,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
 #ifdef BUILD_ADAM
         {.uri = "/term",
          .method = HTTP_GET,

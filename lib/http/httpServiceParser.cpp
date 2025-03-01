@@ -59,6 +59,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PULLDOWN,
         FN_CASSETTE_ENABLED,
         FN_CONFIG_ENABLED,
+        FN_CONFIG_NG,
         FN_STATUS_WAIT_ENABLED,
         FN_BOOT_MODE,
         FN_PRINTER_ENABLED,
@@ -176,6 +177,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PULLDOWN",
         "FN_CASSETTE_ENABLED",
         "FN_CONFIG_ENABLED",
+        "FN_CONFIG_NG",
         "FN_STATUS_WAIT_ENABLED",
         "FN_BOOT_MODE",
         "FN_PRINTER_ENABLED",
@@ -453,6 +455,9 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
     case FN_CASSETTE_ENABLED:
         resultstream << Config.get_cassette_enabled();
+        break;
+    case FN_CONFIG_NG:
+        resultstream << Config.get_general_config_ng();
         break;
 #endif /* BUILD_ATARI */
     case FN_CONFIG_ENABLED:

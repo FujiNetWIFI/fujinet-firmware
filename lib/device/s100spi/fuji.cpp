@@ -136,7 +136,7 @@ void s100spiFuji::s100spi_net_scan_result()
     memcpy(response, &detail, sizeof(detail));
     response_len = 33;
 
-    
+
     s100spi_response_ack();
 }
 
@@ -173,7 +173,7 @@ void s100spiFuji::s100spi_net_get_ssid()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 
-    
+
     s100spi_response_ack();
 }
 
@@ -197,7 +197,7 @@ void s100spiFuji::s100spi_net_set_ssid(uint16_t s)
 
         uint8_t ck = s100spi_recv();
 
-        
+
         s100spi_response_ack();
 
         bool save = true;
@@ -229,7 +229,7 @@ void s100spiFuji::s100spi_net_get_wifi_status()
     response[0] = wifiStatus;
     response_len = 1;
 
-    
+
     s100spi_response_ack();
 }
 
@@ -248,7 +248,7 @@ void s100spiFuji::s100spi_mount_host()
         hostMounted[hostSlot] = true;
     }
 
-    
+
     s100spi_response_ack();
 }
 
@@ -274,7 +274,7 @@ void s100spiFuji::s100spi_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    
+
     s100spi_response_ack();
 
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
@@ -295,7 +295,7 @@ void s100spiFuji::s100spi_set_boot_config()
     boot_config = s100spi_recv();
     s100spi_recv();
 
-    
+
     s100spi_response_ack();
 }
 
@@ -361,7 +361,7 @@ void s100spiFuji::s100spi_disk_image_umount()
     unsigned char ds = s100spi_recv();
     s100spi_recv();
 
-    
+
     s100spi_response_ack();
 
     _fnDisks[ds].disk_dev.unmount();
@@ -423,7 +423,7 @@ void s100spiFuji::s100spi_open_directory(uint16_t s)
 
     s100spi_recv(); // Grab checksum
 
-    
+
 
     if (_current_open_directory_slot == -1)
     {
@@ -451,7 +451,7 @@ void s100spiFuji::s100spi_open_directory(uint16_t s)
     }
     else
     {
-        
+
         s100spi_response_ack();
     }
 
@@ -592,7 +592,7 @@ void s100spiFuji::s100spi_read_directory_entry()
     }
     else
     {
-        
+
         s100spi_response_ack();
     }
 }
@@ -608,7 +608,7 @@ void s100spiFuji::s100spi_get_directory_position()
     response_len = sizeof(pos);
     memcpy(response, &pos, sizeof(pos));
 
-    
+
     s100spi_response_ack();
 }
 
@@ -625,7 +625,7 @@ void s100spiFuji::s100spi_set_directory_position()
 
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     _fnHosts[_current_open_directory_slot].dir_seek(pos);
@@ -637,7 +637,7 @@ void s100spiFuji::s100spi_close_directory()
 
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     if (_current_open_directory_slot != -1)
@@ -654,7 +654,7 @@ void s100spiFuji::s100spi_get_adapter_config()
 
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     // Response to FUJICMD_GET_ADAPTERCONFIG
@@ -703,7 +703,7 @@ void s100spiFuji::s100spi_new_disk()
 
     if (host.file_exists((const char *)p))
     {
-        
+
         s100spi_response_ack();
         return;
     }
@@ -718,7 +718,7 @@ void s100spiFuji::s100spi_new_disk()
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
-    
+
     s100spi_response_ack();
 
     fclose(disk.fileh);
@@ -740,7 +740,7 @@ void s100spiFuji::s100spi_read_host_slots()
     memcpy(response, hostSlots, sizeof(hostSlots));
     response_len = sizeof(hostSlots);
 
-    
+
     s100spi_response_ack();
 }
 
@@ -754,7 +754,7 @@ void s100spiFuji::s100spi_write_host_slots()
 
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -774,6 +774,14 @@ void s100spiFuji::s100spi_set_host_prefix()
 // Retrieve host path prefix
 void s100spiFuji::s100spi_get_host_prefix()
 {
+}
+
+// Public method to update host in specific slot
+fujiHost *s100spiFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
 }
 
 // Send device slot data to computer
@@ -805,7 +813,7 @@ void s100spiFuji::s100spi_read_device_slots()
 
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     memcpy(response, &diskSlots, returnsize);
@@ -828,7 +836,7 @@ void s100spiFuji::s100spi_write_device_slots()
 
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     // Load the data into our current device array
@@ -917,7 +925,7 @@ void s100spiFuji::s100spi_set_device_filename(uint16_t s)
 
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
@@ -931,7 +939,7 @@ void s100spiFuji::s100spi_get_device_filename()
 
     s100spi_recv();
 
-    
+
     s100spi_response_ack();
 
     memcpy(response, _fnDisks[ds].filename, 256);
@@ -968,7 +976,7 @@ void s100spiFuji::s100spi_enable_device()
 
     s100spi_recv();
 
-    
+
     s100spi_response_ack();
 
     s100Bus.enableDevice(d);
@@ -980,7 +988,7 @@ void s100spiFuji::s100spi_disable_device()
 
     s100spi_recv();
 
-    
+
     s100spi_response_ack();
 
     s100Bus.disableDevice(d);

@@ -114,7 +114,7 @@ void rc2014Fuji::rc2014_net_scan_networks()
     rc2014_send_buffer(response, response_len);
     // rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
-    
+
     rc2014_send_complete();
 }
 
@@ -145,11 +145,11 @@ void rc2014Fuji::rc2014_net_scan_result()
     memset(response, 0, sizeof(response));
     memcpy(response, &detail, sizeof(detail));
     response_len = 33;
-    
+
     rc2014_send_buffer(response, response_len);
     // rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
-    
+
     rc2014_send_complete();
 }
 
@@ -189,7 +189,7 @@ void rc2014Fuji::rc2014_net_get_ssid()
     rc2014_send_buffer(response, response_len);
     // rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
-    
+
     rc2014_send_complete();
 }
 
@@ -287,7 +287,7 @@ void rc2014Fuji::rc2014_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    
+
     rc2014_send_complete();
 
     disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
@@ -308,7 +308,7 @@ void rc2014Fuji::rc2014_set_boot_config()
     Debug_println("Fuji cmd: SET BOOT CONFIG");
     rc2014_send_ack();
     boot_config = cmdFrame.aux1;
-    
+
     rc2014_send_complete();
 }
 
@@ -375,7 +375,7 @@ void rc2014Fuji::rc2014_disk_image_umount()
     rc2014_send_ack();
 
     unsigned char ds = cmdFrame.aux1;
-    
+
     _fnDisks[ds].disk_dev.unmount();
     _fnDisks[ds].reset();
 
@@ -583,7 +583,7 @@ void rc2014Fuji::rc2014_get_directory_position()
     response[0] = pos & 0xff;
     response[1] = (pos & 0xff00) >> 8;
     response_len = 2;
-    
+
     rc2014_send_buffer(response, response_len);
     // rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
@@ -656,7 +656,7 @@ void rc2014Fuji::rc2014_get_adapter_config()
     rc2014_send_buffer(response, response_len);
     //rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
-    
+
     rc2014_send_complete();
 
 }
@@ -682,7 +682,7 @@ void rc2014Fuji::rc2014_new_disk()
 
     if (host.file_exists((const char *)p))
     {
-        
+
         rc2014_send_ack();
         return;
     }
@@ -697,7 +697,7 @@ void rc2014Fuji::rc2014_new_disk()
 
     disk.disk_dev.write_blank(disk.fileh, numBlocks);
 
-    
+
     rc2014_send_complete();
 
     fclose(disk.fileh);
@@ -721,7 +721,7 @@ void rc2014Fuji::rc2014_read_host_slots()
     rc2014_send_buffer(response, response_len);
     // rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
-    
+
     rc2014_send_complete();
 }
 
@@ -735,7 +735,7 @@ void rc2014Fuji::rc2014_write_host_slots()
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     rc2014_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
     rc2014_send_ack();
-    
+
     for (int i = 0; i < MAX_HOSTS; i++)
     {
         hostMounted[i] = false;
@@ -755,6 +755,14 @@ void rc2014Fuji::rc2014_set_host_prefix()
 // Retrieve host path prefix
 void rc2014Fuji::rc2014_get_host_prefix()
 {
+}
+
+// Public method to update host in specific slot
+fujiHost *rc2014Fuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
 }
 
 // Send device slot data to computer
@@ -791,7 +799,7 @@ void rc2014Fuji::rc2014_read_device_slots()
     rc2014_send_buffer(response, response_len);
     // rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
-    
+
     rc2014_send_complete();
 }
 
@@ -810,7 +818,7 @@ void rc2014Fuji::rc2014_write_device_slots()
 
     rc2014_recv_buffer((uint8_t *)&diskSlots, sizeof(diskSlots));
     rc2014_send_ack();
-    
+
 
     // Load the data into our current device array
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -921,7 +929,7 @@ void rc2014Fuji::rc2014_get_device_filename()
     rc2014_send_buffer(response, response_len);
     // rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
-    
+
     rc2014_send_complete();
 }
 
@@ -929,7 +937,7 @@ void rc2014Fuji::rc2014_get_device_filename()
 void rc2014Fuji::rc2014_enable_device()
 {
     unsigned char d = cmdFrame.aux1;
-    
+
     rc2014_send_ack();
 
     rc2014Bus.enableDevice(d);
@@ -960,7 +968,7 @@ void rc2014Fuji::rc2014_device_enabled_status()
     rc2014_send_buffer(response, response_len);
     // rc2014_send(rc2014_checksum(response, response_len));
     rc2014_flush();
-    
+
     rc2014_send_complete();
 }
 

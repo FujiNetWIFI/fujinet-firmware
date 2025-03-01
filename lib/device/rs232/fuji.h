@@ -122,7 +122,7 @@ public:
     bool boot_config = true;
 
     bool status_wait_enabled = true;
-    
+
     rs232Disk *bootdisk();
 
     rs232Network *network();
@@ -139,6 +139,7 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *set_slot_hostname(int host_slot, char *hostname);
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();
