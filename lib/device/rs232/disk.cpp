@@ -47,7 +47,7 @@ void rs232Disk::rs232_read()
         return;
     }
 
-    uint16_t readcount;
+    uint32_t readcount;
 
     bool err = _disk->read(cmdFrame.aux, &readcount);
 
@@ -146,7 +146,7 @@ void rs232Disk::rs232_format()
         return;
     }
 
-    uint16_t responsesize;
+    uint32_t responsesize;
     bool err = _disk->format(&responsesize);
 
     // Send to computer

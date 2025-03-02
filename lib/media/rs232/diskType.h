@@ -43,7 +43,7 @@ protected:
     FILE *_disk_fileh = nullptr;
     uint32_t _disk_image_size = 0;
     uint32_t _disk_num_sectors = 0;
-    uint16_t _disk_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
+    uint32_t _disk_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
     int32_t _disk_last_sector = INVALID_SECTOR_VALUE;
     uint8_t _disk_controller_status = DISK_CTRL_STATUS_CLEAR;
 
@@ -72,22 +72,22 @@ public:
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred
-    virtual bool format(uint16_t *responsesize);
+    virtual bool format(uint32_t *responsesize);
 
     // Returns TRUE if an error condition occurred
-    virtual bool read(uint16_t sectornum, uint16_t *readcount) = 0;
+    virtual bool read(uint32_t sectornum, uint32_t *readcount) = 0;
     // Returns TRUE if an error condition occurred
-    virtual bool write(uint16_t sectornum, bool verify);
+    virtual bool write(uint32_t sectornum, bool verify);
 
     // Always returns 128 for the first 3 sectors, otherwise _sectorSize
-    virtual uint16_t sector_size(uint16_t sectornum);
+    virtual uint16_t sector_size(uint32_t sectornum);
     
     virtual void status(uint8_t statusbuff[4]) = 0;
 
     static mediatype_t discover_disktype(const char *filename);
 
     void dump_percom_block();
-    void derive_percom_block(uint16_t numSectors);
+    void derive_percom_block(uint32_t numSectors);
 
     virtual ~MediaType();
 };
