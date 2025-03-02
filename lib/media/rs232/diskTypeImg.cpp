@@ -14,13 +14,13 @@
 
 
 // Returns byte offset of given sector number (1-based)
-uint32_t MediaTypeImg::_sector_to_offset(uint16_t sectorNum)
+uint32_t MediaTypeImg::_sector_to_offset(uint32_t sectorNum)
 {
     return (uint32_t )sectorNum * 512;
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeImg::read(uint16_t sectornum, uint16_t *readcount)
+bool MediaTypeImg::read(uint32_t sectornum, uint32_t *readcount)
 {
     Debug_print("IMG READ\r\n");
 
@@ -29,7 +29,7 @@ bool MediaTypeImg::read(uint16_t sectornum, uint16_t *readcount)
     // Return an error if we're trying to read beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::read sector %d > %lu\r\n", sectornum, _disk_num_sectors);
+        Debug_printf("::read sector %ld > %lu\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 
@@ -59,14 +59,14 @@ bool MediaTypeImg::read(uint16_t sectornum, uint16_t *readcount)
 }
 
 // Returns TRUE if an error condition occurred
-bool MediaTypeImg::write(uint16_t sectornum, bool verify)
+bool MediaTypeImg::write(uint32_t sectornum, bool verify)
 {
     Debug_printf("IMG WRITE\r\n");
 
     // Return an error if we're trying to write beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::write sector %d > %lu\r\n", sectornum, _disk_num_sectors);
+        Debug_printf("::write sector %ld > %lu\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 
@@ -126,7 +126,7 @@ void MediaTypeImg::status(uint8_t statusbuff[4])
     a sector-sized buffer containing a list of 16-bit bad sector numbers terminated by $FFFF.
 */
 // Returns TRUE if an error condition occurred
-bool MediaTypeImg::format(uint16_t *responsesize)
+bool MediaTypeImg::format(uint32_t *responsesize)
 {
     Debug_print("IMG FORMAT\r\n");
 
@@ -165,7 +165,7 @@ mediatype_t MediaTypeImg::mount(FILE *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-bool MediaTypeImg::create(FILE *f, uint16_t sectorSize, uint16_t numSectors)
+bool MediaTypeImg::create(FILE *f, uint16_t sectorSize, uint32_t numSectors)
 {
     return true;
 }
