@@ -52,7 +52,7 @@ void MediaType::unmount()
 {
     if (_disk_fileh != nullptr)
     {
-        fclose(_disk_fileh);
+        fnio::fclose(_disk_fileh);
         _disk_fileh = nullptr;
     }
 }
