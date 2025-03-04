@@ -42,11 +42,11 @@ bool MediaTypeImg::read(uint32_t sectornum, uint32_t *readcount)
     if (sectornum != _disk_last_sector + 1)
     {
         uint32_t offset = _sector_to_offset(sectornum);
-        err = fseek(_disk_fileh, offset, SEEK_SET) != 0;
+        err = fnio::fseek(_disk_fileh, offset, SEEK_SET) != 0;
     }
 
     if (err == false)
-        err = fread(_disk_sectorbuff, 1, sectorSize, _disk_fileh) != sectorSize;
+        err = fnio::fread(_disk_sectorbuff, 1, sectorSize, _disk_fileh) != sectorSize;
 
     if (err == false)
         _disk_last_sector = sectornum;
@@ -79,7 +79,7 @@ bool MediaTypeImg::write(uint32_t sectornum, bool verify)
     int e;
     if (sectornum != _disk_last_sector + 1)
     {
-        e = fseek(_disk_fileh, offset, SEEK_SET);
+        e = fnio::fseek(_disk_fileh, offset, SEEK_SET);
         if (e != 0)
         {
             Debug_printf("::write seek error %d\r\n", e);
@@ -87,16 +87,15 @@ bool MediaTypeImg::write(uint32_t sectornum, bool verify)
         }
     }
     // Write the data
-    e = fwrite(_disk_sectorbuff, 1, sectorSize, _disk_fileh);
+    e = fnio::fwrite(_disk_sectorbuff, 1, sectorSize, _disk_fileh);
     if (e != sectorSize)
     {
         Debug_printf("::write error %d, %d\r\n", e, errno);
         return true;
     }
 
-    int ret = fflush(_disk_fileh);    // This doesn't seem to be connected to anything in ESP-IDF VF, so it may not do anything
-    ret = fsync(fileno(_disk_fileh)); // Since we might get reset at any moment, go ahead and sync the file (not clear if fflush does this)
-    Debug_printf("IMG::write fsync:%d\r\n", ret);
+    int ret = fnio::fflush(_disk_fileh); // Since we might get reset at any moment, go ahead and sync the file
+    Debug_printf("IMG::write fflush:%d\r\n", ret);
 
     _disk_last_sector = sectornum;
 
@@ -153,7 +152,7 @@ bool MediaTypeImg::format(uint32_t *responsesize)
  
  07-0F have two possible interpretations but are no critical for our use
 */
-mediatype_t MediaTypeImg::mount(FILE *f, uint32_t disksize)
+mediatype_t MediaTypeImg::mount(fnFile *f, uint32_t disksize)
 {
     Debug_print("IMG MOUNT\r\n");
 
@@ -165,7 +164,7 @@ mediatype_t MediaTypeImg::mount(FILE *f, uint32_t disksize)
 }
 
 // Returns FALSE on error
-bool MediaTypeImg::create(FILE *f, uint16_t sectorSize, uint32_t numSectors)
+bool MediaTypeImg::create(fnFile *f, uint16_t sectorSize, uint32_t numSectors)
 {
     return true;
 }

@@ -1,7 +1,8 @@
 #ifndef _MEDIATYPE_RS232
 #define _MEDIATYPE_RS232
 
-#include <stdio.h>
+#include <stdint.h>
+#include "fnio.h"
 
 #define INVALID_SECTOR_VALUE 65536
 
@@ -40,7 +41,7 @@ enum mediatype_t
 class MediaType
 {
 protected:
-    FILE *_disk_fileh = nullptr;
+    fnFile *_disk_fileh = nullptr;
     uint32_t _disk_image_size = 0;
     uint32_t _disk_num_sectors = 0;
     uint32_t _disk_sector_size = DISK_BYTES_PER_SECTOR_SINGLE;
@@ -68,7 +69,7 @@ public:
 
     mediatype_t _disktype = MEDIATYPE_UNKNOWN;
 
-    virtual mediatype_t mount(FILE *f, uint32_t disksize) = 0;
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) = 0;
     virtual void unmount();
 
     // Returns TRUE if an error condition occurred

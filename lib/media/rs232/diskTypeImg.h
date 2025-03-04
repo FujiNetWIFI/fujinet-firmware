@@ -14,11 +14,11 @@ public:
 
     virtual bool format(uint32_t *responsesize) override;
 
-    virtual mediatype_t mount(FILE *f, uint32_t disksize) override;
+    virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
 
     virtual void status(uint8_t statusbuff[4]) override;
 
-    static bool create(FILE *f, uint16_t sectorSize, uint32_t numSectors);
+    static bool create(fnFile *f, uint16_t sectorSize, uint32_t numSectors);
 };
 
 
