@@ -701,8 +701,10 @@ std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string 
     }
 
     string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
+    string path = deviceSpec.substr(unit.length());
+
     // if prefix is empty, the concatenation is still valid
-    deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
+    deviceSpec = unit + prefix + path;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("util_devicespec_fix_for_parsing, spec: >%s<, prefix: >%s<, dir_read?: %s, fs_dot?: %s)\n", deviceSpec.c_str(), prefix.c_str(), is_directory_read ? "true" : "false", process_fs_dot ? "true" : "false");

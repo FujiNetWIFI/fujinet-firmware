@@ -284,24 +284,35 @@ bool NetworkProtocolFS::status(NetworkStatus *status)
     }
 }
 
-bool NetworkProtocolFS::status_file(NetworkStatus *status)
-{
-    if (aux1_open == 8)
-        status->rxBytesWaiting = 0;
-    else
 #ifdef BUILD_ATARI
-        status->rxBytesWaiting = fileSize > 512 ? 512 : fileSize;
+#define WAITING_CAP 512
 #else
-        status->rxBytesWaiting = fileSize > 65534 ? 65534 : fileSize;
+#define WAITING_CAP 65534
 #endif
 
-    status->connected = fileSize > 0 ? 1 : 0;
+bool NetworkProtocolFS::status_file(NetworkStatus *status)
+{
+    unsigned int remaining;
+
+    if (aux1_open == 8) {
+        status->rxBytesWaiting = 0;
+        remaining = fileSize;
+    }
+    else {
+        remaining = fileSize + receiveBuffer->length();
+        status->rxBytesWaiting = remaining > WAITING_CAP ? WAITING_CAP : remaining;
+    }
+
+    status->connected = remaining > 0 ? 1 : 0;
     if (is_write)
         status->error = 1;
     else
-        status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+        status->error = remaining > 0 ? error : NETWORK_ERROR_END_OF_FILE;
 
+#if 0
+    // This will reset the status->rxBytesWaiting that we just calculated above
     NetworkProtocol::status(status);
+#endif
 
     return false;
 }
