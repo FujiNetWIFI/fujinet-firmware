@@ -7,6 +7,7 @@
 #include <cstring>
 #include <iostream>
 #include <sstream>
+#include "string_utils.h"
 
 #include "../../include/debug.h"
 
@@ -16,69 +17,10 @@
 #define MAX_DIR_ENTRIES 5000
 #endif
 
-// // check if element el is matching pattern *:pat (i.e. ends with ":"+pat)
-// #define IS_ANYNS_ELEMENT(pat, el, el_len) (el_len >= sizeof(pat) && strcmp(el+el_len-sizeof(pat), ":" pat) == 0)
-
-// check if element el is pat
-#define IS_ELEMENT(pat, el, el_len) (el_len == sizeof(pat)-1 && strcmp(el, pat) == 0)
-
-
-/**
-     * @brief Template to wrap Start call.
-     * @param data pointer to parent class
-     * @param El the current element being parsed
-     * @param attr the array of attributes attached to element
-     */
-template <class T>
-void call_start(void *data, const XML_Char *El, const XML_Char **attr)
-{
-    T *handler = static_cast<T *>(data);
-    handler->Start(El, attr);
-}
-
-/**
- * @brief Template to wrap End call
- * @param data pointer to parent class.
- * @param El the current element being parsed.
- **/
-template <class T>
-void call_end(void *data, const XML_Char *El)
-{
-    T *handler = static_cast<T *>(data);
-    handler->End(El);
-}
-
-/**
- * @brief template to wrap character data.
- * @param data pointer to parent class
- * @param s pointer to the character data
- * @param len length of character data at pointer
- **/
-template <class T>
-void call_char(void *data, const XML_Char *s, int len)
-{
-    T *handler = static_cast<T *>(data);
-    handler->Char(s, len);
-}
 
 bool IndexParser::begin_parser()
 {
-    // Create XML parser
-    parser = XML_ParserCreate(NULL);
-    if (parser == nullptr)
-    {
-        Debug_printf("IndexParser::init() - could not create expat parser.\r\n");
-        return true;
-    }
-    // Set it up
-    XML_SetUserData(parser, this);
-    XML_SetElementHandler(parser, call_start<IndexParser>, call_end<IndexParser>);
-    XML_SetCharacterDataHandler(parser, call_char<IndexParser>);
-
-    collectingText = false;
-    // insideResponse = false;
-    // insideDisplayName = false;
-    // insideGetContentLength = false;
+    isIndexOf = false;
     entriesCounter = 0;
 
     // Clear result storage
@@ -88,41 +30,151 @@ bool IndexParser::begin_parser()
 
 void IndexParser::end_parser(bool clear_entries)
 {
-    if (parser != nullptr)
-    {
-        XML_ParserFree(parser);
-        parser = nullptr;
-    }
     if (clear_entries)
         clear();
 }
 
 bool IndexParser::parse(const char *buf, int len, int isFinal)
 {
-    if (parser == nullptr)
-    {
-        Debug_printf("IndexParser::parse() - no parser!\r\n");
-        return true;
-    }
-
     // Debug_printf("IndexParser::parse data (%d bytes):\r\n", len);
     // if (len > 0)
     //     Debug_printf("%.*s\r\n", len, buf);
 
-    // Parse the damned buffer
-    XML_Status xs = XML_Parse(parser, buf, len, isFinal);
+    // Append input to line buffer
+    lineBuffer += std::string(buf, len);
 
-    if (xs == XML_STATUS_ERROR)
+    // Process lines
+    size_t pos = lineBuffer.find('\n');
+    while (pos != std::string::npos)
     {
-        Debug_printf("Index Parse Error! %d msg: %s line: %lu\r\n",
-            XML_GetErrorCode(parser), XML_ErrorString(XML_GetErrorCode(parser)), XML_GetCurrentLineNumber(parser));
-        // Ignore errors if we parsed some data and return what we have
-        if (entriesCounter > 3 || (XML_GetErrorCode(parser) == XML_ERROR_TAG_MISMATCH && entriesCounter > 0))
-            return false;
-        return true;
+        std::string line = lineBuffer.substr(0, pos);
+        lineBuffer.erase(0, pos + 1);
+        // Debug_printf("Line: %s\n", line.c_str());
+
+        if (!isIndexOf)
+        {
+            // Check for "Index of /..." in title
+            size_t index_pos = line.find("<title>Index of /");
+            if (index_pos != std::string::npos)
+                isIndexOf = true;
+        }
+        else 
+        {
+            // Extract directory entry, if any
+            if (entriesCounter < MAX_DIR_ENTRIES && parse_line(line))
+            {
+                // store entry
+                entries.push_back(currentEntry);
+                // reset currentEntry
+                currentEntry.filename.clear();
+                currentEntry.fileSize.clear();
+                currentEntry.mTime.clear();
+                currentEntry.isDir = false;
+                if (++entriesCounter == MAX_DIR_ENTRIES)
+                    Debug_println("Too many directory entries");
+            }
+        }
+        // Next line
+        pos = lineBuffer.find('\n');
     }
+
     return false;
 }
+
+bool IndexParser::parse_line(std::string &line)
+{
+    bool match = false;
+
+    std::string lline = line;
+    mstr::toLower(lline);
+
+    // Check for (last) href on line
+    size_t pos = lline.rfind("<a href=\"");
+    if (pos == std::string::npos)
+        return false;
+
+    // Extract href link
+    pos += 9; // Move past '<a href="'
+    size_t end_pos = lline.find("\"", pos);
+    if (end_pos != std::string::npos) 
+    {
+        std::string link = line.substr(pos, end_pos - pos);
+        // Debug_printf("Link: %s\n", link.c_str());
+        // Skip blank, hidden, absolute, query and section links
+        if (link.size() > 0  && link[0] != '.' && link[0] != '/' && link[0] != '#' && link[0] != '?')
+        {
+            match = true;
+            if (link[link.size()-1] == '/')
+            {
+                currentEntry.isDir = true;
+                currentEntry.filename = link.substr(0, link.size()-1);
+            }
+            else
+            {
+                currentEntry.isDir = false;
+                currentEntry.filename = link;
+            }
+            // Extract date time and size - Apache mod_dir format
+            //   <tr><td valign="top"><img src="/icons/unknown.gif" alt="[   ]"></td><td><a href="_lobby.xex">_lobby.xex</a></td><td align="right">2025-02-23 15:33  </td><td align="right">7.4K</td><td>&nbsp;</td></tr>
+            pos = lline.find("<td align=\"right\">", end_pos);
+            if (pos != std::string::npos) 
+            {
+                pos += 18; // Move past '<td align="right">'
+                end_pos = lline.find("</td>", pos);
+                if (end_pos != std::string::npos) 
+                {
+                    std::string date_time = line.substr(pos, end_pos - pos);
+                    currentEntry.mTime = date_time;
+                    // Debug_printf("Extracted date and time: %s\n", date_time.c_str());
+                }    
+                // Extract size, Apache format
+                pos = lline.find("<td align=\"right\">", end_pos);
+                if (pos != std::string::npos) 
+                {
+                    pos += 18; // Move past '<td align="right">'
+                    end_pos = lline.find("</td>", pos);
+                    if (end_pos != std::string::npos) 
+                    {
+                        std::string file_size = line.substr(pos, end_pos - pos);
+                        currentEntry.fileSize = file_size;
+                        // Debug_printf("Extracted size: %s\n", file_size.c_str());
+                    }
+                }
+            }
+            else
+            {
+                // Extract date time and size - Nginx format
+                //   <a href="plato.tap">plato.tap</a>               19-Mar-2024 17:33               26841
+                pos = lline.find("</a>", end_pos);
+                if (pos != std::string::npos) 
+                {
+                    pos += 4; // Move past '</a>'
+                    std::istringstream stream(line.substr(pos));
+                    std::string token;
+                    std::vector<std::string> tokens;
+                    while (stream >> token) tokens.push_back(token);
+                    if (tokens.size() == 3)
+                    {
+                        // Debug_printf("  mtime: %s %s size: %s\n", tokens[0].c_str(), tokens[1].c_str(), tokens[2].c_str());
+                        currentEntry.mTime = tokens[0] + " " + tokens[1];
+                        currentEntry.fileSize = tokens[2];
+                    }
+            
+                }
+            }
+            // Skip entries without mTime and fileSize
+            if (currentEntry.mTime.empty() && currentEntry.fileSize.empty())
+            {
+                currentEntry.filename.clear();
+                currentEntry.fileSize.clear();
+                currentEntry.mTime.clear();
+                match = false;
+            }
+        }
+    }
+    return match;
+}
+
 
 void IndexParser::clear()
 {
@@ -132,108 +184,5 @@ void IndexParser::clear()
     currentEntry.fileSize.clear();
     currentEntry.mTime.clear();
     currentEntry.isDir = false;
-    entryText.clear();
-}
-
-void IndexParser::Start(const XML_Char *el, const XML_Char **attr)
-{
-    // Debug_printf("IndexParser::Start(%s)\n", el);
-    // for (int i = 0; attr[i]; i += 2)
-    // {
-    //     Debug_printf("  %s=%s\n", attr[i], attr[i + 1]);
-    // }
-
-    if (collectingText)
-    {
-        collectingText = false;
-
-        // New tag started, store previous entry
-
-        // get date, time and size from entry text
-        //Debug_printf("entry text: %s\n", entryText.c_str());
-        std::istringstream stream(entryText);
-        std::string token;
-        std::vector<std::string> tokens;
-        while (stream >> token) {
-            //Debug_printf("  %s\n", token.c_str());
-            tokens.push_back(token);
-        }
-        if (tokens.size() == 3)
-        {
-            // Debug_printf("  mtime: %s %s size: %s\n", tokens[0].c_str(), tokens[1].c_str(), tokens[2].c_str());
-            currentEntry.mTime = tokens[0] + " " + tokens[1];
-            currentEntry.fileSize = tokens[2];
-        }
-
-        bool store = true;
-        entriesCounter++;
-        // skip entries over limit
-        if (entriesCounter > MAX_DIR_ENTRIES)
-        {
-            store = false;
-            if (entriesCounter == MAX_DIR_ENTRIES+1)
-                Debug_println("Too many directory entries");
-        }
-        // skip noname entries
-        else if (currentEntry.filename.empty())
-            store = false;
-        // skip hidden entries
-        else if (currentEntry.filename[0] == '.')
-            store = false;
-
-        // store directory entry
-        if (store)
-            entries.push_back(currentEntry);
-
-        // reset currentEntry
-        currentEntry.filename.clear();
-        currentEntry.fileSize.clear();
-        currentEntry.mTime.clear();
-        currentEntry.isDir = false;
-        entryText.clear();
-    }
-
-    size_t el_len = strlen(el);
-    if (IS_ELEMENT("a", el, el_len))
-    {
-        for (int i = 0; attr[i]; i += 2) 
-        {
-            if (strcmp(attr[i], "href") == 0)
-            {
-                const char *name = attr[i+1];
-                int name_len = strlen(name);
-                if (name_len > 0 && name[name_len-1] == '/')
-                {
-                    currentEntry.isDir = true;
-                    currentEntry.filename = std::string(name, name_len-1);
-                }
-                else
-                {
-                    currentEntry.isDir = false;
-                    currentEntry.filename = std::string(name, name_len);
-                }
-            }
-        }
-    }
-}
-
-void IndexParser::End(const XML_Char *el)
-{
-    // Debug_printf("IndexParser::End(%s)\n", el);
-
-    size_t el_len = strlen(el);
-    if (IS_ELEMENT("a", el, el_len))
-    {
-        collectingText = true;
-    }
-}
-
-void IndexParser::Char(const XML_Char *s, int len)
-{
-    // Debug_printf("IndexParser::Char(%.*s)\n", len, s);
-
-    if (collectingText)
-    {
-        entryText += std::string(s, len);
-    }
+    lineBuffer.clear();
 }
