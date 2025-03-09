@@ -8,6 +8,10 @@
 #include <string>
 #include <vector>
 
+#ifdef ESP_PLATFORM
+#include "../../include/PSRAMAllocator.h"
+#endif
+
 // using namespace std;
 
 /**
@@ -53,7 +57,11 @@ public:
 	/**
      * @brief Called to scoot to beginning of directory entries
      */
-    std::vector<IndexParser::IndexEntry>::iterator rewind() {return entries.begin();};
+#ifdef ESP_PLATFORM
+    std::vector<IndexEntry,PSRAMAllocator<IndexEntry>>::iterator rewind() {return entries.begin();};
+#else
+    std::vector<IndexEntry>::iterator rewind() {return entries.begin();};
+#endif
 
     /**
      * @brief Called to remove all stored directory entries
@@ -63,7 +71,12 @@ public:
     /**
      * @brief collection of directory entries.
      */
+#ifdef ESP_PLATFORM
+    std::vector<IndexEntry,PSRAMAllocator<IndexEntry>> entries;
+#else
     std::vector<IndexEntry> entries;
+#endif
+
 
 protected:
     /**

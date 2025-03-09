@@ -46,7 +46,9 @@ typedef bool (*sort_fn_t)(fsdir_entry &left, fsdir_entry &right);
 void DirCache::clear()
 {
     _entries.clear();
+    _entries.shrink_to_fit();
     _entries_filtered.clear();
+    _entries_filtered.shrink_to_fit();
     _current = 0;
 }
 
