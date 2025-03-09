@@ -19,6 +19,13 @@
 
 #define COPY_BLK_SIZE 4096
 
+
+#ifdef ESP_PLATFORM
+#define HEAP_DEBUG() Debug_printv("free heap/low: %lu/%lu", esp_get_free_heap_size(), esp_get_free_internal_heap_size())
+#else
+#define HEAP_DEBUG()
+#endif
+
 FileSystemHTTP::FileSystemHTTP()
 {
     Debug_printf("FileSystemHTTP::ctor\n");
@@ -49,19 +56,22 @@ bool FileSystemHTTP::start(const char *url, const char *user, const char *passwo
         return false;
 
     if (_http != nullptr)
-        delete _http;
-
-    _http = new HTTP_CLIENT_CLASS();
-    if (_http == nullptr)
     {
-        Debug_println("FileSystemHTTP::start() - failed to create HTTP client\n");
-        return false;
+        delete _http;
+        _http = nullptr;
     }
+
+    // _http = new HTTP_CLIENT_CLASS();
+    // if (_http == nullptr)
+    // {
+    //     Debug_println("FileSystemHTTP::start() - failed to create HTTP client\n");
+    //     return false;
+    // }
 
     _url = PeoplesUrlParser::parseURL(url);
     if (!_url->isValidUrl())
     {
-        Debug_printf("FileSystemHTTP::cache_file() - failed to parse URL \"%s\"\n", _url->url.c_str());
+        Debug_printf("FileSystemHTTP::start() - failed to parse URL \"%s\"\n", _url->url.c_str());
         return false;
     }
 
@@ -108,6 +118,8 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
     if (fh != nullptr)
         return fh; // cache hit, done
 
+    HEAP_DEBUG();
+
     // Create new cache file (starts in memory)
     fc_handle *fc = FileCache::create(_url->mRawUrl.c_str(), path);
     if (fc == nullptr)
@@ -142,8 +154,11 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
     int available;
 
     // Allocate copy buffer
-    // uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#ifdef ESP_PLATFORM
+    uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
     uint8_t *buf = (uint8_t *)malloc(COPY_BLK_SIZE);
+#endif
     if (buf == nullptr)
     {
         Debug_println("FileSystemHTTP::cache_file - failed to allocate buffer");
@@ -221,6 +236,8 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
         Debug_println("File data retrieved");
         fh = FileCache::reopen(fc, mode);
     }
+
+    HEAP_DEBUG();
     return fh;
 }
 #endif //!FNIO_IS_STDIO
@@ -237,15 +254,12 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         return false;
 
     Debug_printf("FileSystemHTTP::dir_open(\"%s\", \"%s\", %u)\n", path ? path : "", pattern ? pattern : "", diropts);
+    HEAP_DEBUG();
 
     if (_http != nullptr)
-        delete _http;
-
-    _http = new HTTP_CLIENT_CLASS();
-    if (_http == nullptr)
     {
-        Debug_println("FileSystemHTTP::dir_open() - failed to create HTTP client\n");
-        return false;
+        delete _http;
+        _http = nullptr;
     }
 
     if (path == nullptr)
@@ -263,6 +277,13 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         // invalidate _last_dir
         _last_dir[0] = '\0';
 
+        // Setup HTTP client
+        _http = new HTTP_CLIENT_CLASS();
+        if (_http == nullptr)
+        {
+            Debug_println("FileSystemHTTP::dir_open() - failed to create HTTP client\n");
+            return false;
+        }
         if (!_http->begin(_url->url + mstr::urlEncode(path)))
         {
             Debug_println("FileSystemHTTP::dir_open - failed to start HTTP client");
@@ -293,8 +314,11 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         int available;
 
         // Allocate copy buffer
-        // uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#ifdef ESP_PLATFORM
+        uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
         uint8_t *buf = (uint8_t *)malloc(COPY_BLK_SIZE);
+#endif
         if (buf == nullptr)
         {
             Debug_println("FileSystemHTTP::dir_open - failed to allocate buffer");
@@ -383,7 +407,11 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
 
         // Parsed entries to dircache
         fsdir_entry *fs_de;
+#ifdef ESP_PLATFORM
+        std::vector<IndexParser::IndexEntry,PSRAMAllocator<IndexParser::IndexEntry>>::iterator dirEntryCursor = _parser.rewind();
+#else
         std::vector<IndexParser::IndexEntry>::iterator dirEntryCursor = _parser.rewind();
+#endif
         struct tm tm;
         while (dirEntryCursor != _parser.entries.end())
         {
@@ -467,6 +495,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
     // Apply pattern matching filter and sort entries
     _dircache.apply_filter(pattern, diropts);
 
+    HEAP_DEBUG();
     return true;
 }
 

@@ -41,10 +41,17 @@ bool IndexParser::parse(const char *buf, int len, int isFinal)
     //     Debug_printf("%.*s\r\n", len, buf);
 
     // Append input to line buffer
-    lineBuffer += std::string(buf, len);
+    if (buf != nullptr && len > 0)
+        lineBuffer += std::string(buf, len);
 
     // Process lines
     size_t pos = lineBuffer.find('\n');
+    if (isFinal && pos == std::string::npos)
+    {
+        // ensure last line is processed, even if no newline
+        pos = lineBuffer.size();
+        isFinal = false;
+    }
     while (pos != std::string::npos)
     {
         std::string line = lineBuffer.substr(0, pos);
@@ -76,6 +83,12 @@ bool IndexParser::parse(const char *buf, int len, int isFinal)
         }
         // Next line
         pos = lineBuffer.find('\n');
+        if (isFinal && pos == std::string::npos)
+        {
+            // ensure last line is processed, even if no newline
+            pos = lineBuffer.size();
+            isFinal = false;
+        }
     }
 
     return false;
@@ -181,8 +194,12 @@ void IndexParser::clear()
     entries.clear();
     entries.shrink_to_fit();
     currentEntry.filename.clear();
+    currentEntry.filename.shrink_to_fit();
     currentEntry.fileSize.clear();
+    currentEntry.fileSize.shrink_to_fit();
     currentEntry.mTime.clear();
-    currentEntry.isDir = false;
+    currentEntry.mTime.shrink_to_fit();
     lineBuffer.clear();
+    lineBuffer.shrink_to_fit();
+    currentEntry.isDir = false;
 }
