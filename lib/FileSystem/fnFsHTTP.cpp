@@ -421,7 +421,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
             // Set entry members
 
             // file name
-            strlcpy(fs_de->filename, mstr::urlDecode(dirEntryCursor->filename).c_str(), sizeof(fs_de->filename));
+            strlcpy(fs_de->filename, mstr::urlDecode(dirEntryCursor->filename, false).c_str(), sizeof(fs_de->filename));
             fs_de->isDir = dirEntryCursor->isDir;
 
             // file size
