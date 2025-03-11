@@ -64,6 +64,7 @@ printf "Start Time: $NOW\nRunning Builds\n\n" >> "$RESULTS_OUTPUT_FILE"
 
 # loop over every platformio-XXX.ini file, and use it to create a test platformio file
 
+FAILED=""
 while IFS= read -r piofile; do
     BASE_NAME=$(basename $piofile)
     BOARD_NAME=$(echo ${BASE_NAME//.ini} | cut -d\- -f2-)
@@ -76,7 +77,10 @@ while IFS= read -r piofile; do
      # 2. - echo a line in results file, find firmware.bin
      # 3. - now call build but just to clean
 
-    ./build.sh -y -s ${BOARD_NAME} -l $LOCAL_INI -i $SCRIPT_DIR/test.ini -b > /dev/null 2>&1
+    if ! ./build.sh -y -s ${BOARD_NAME} -l $LOCAL_INI -i $SCRIPT_DIR/test.ini -b > /dev/null 2>&1 ; then
+	echo ${BOARD_NAME} failed
+	FAILED="${BOARD_NAME} ${FAILED}"
+    fi
 
     # first determine if there is a firmware bin which means a good build
     NOW=$(date +"%Y-%m-%d %H:%M:%S")
@@ -102,3 +106,7 @@ OUTPUT_STRING="Results
 
 $(cat $RESULTS_OUTPUT_FILE)"
 print_with_border "$OUTPUT_STRING"
+
+if [ -n "${FAILED}" ] ; then
+    exit 1
+fi
