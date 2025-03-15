@@ -24,18 +24,12 @@
 #include "pinmap/esp32s3-wroom-1.h"
 #include "pinmap/lynx.h"
 #include "pinmap/rs232_rev0.h"
+#include "pinmap/rs232_s3.h"
 #include "pinmap/cx16.h"
 #include "pinmap/rc2014spi_rev0.h"
 #include "pinmap/heathkit_h89.h"
 #include "pinmap/atari2600.h"
 
-
-/* LED Strip NEW */
-#define RGB_LED_DATA_PIN        PIN_LED_RGB
-#define RGB_LED_BRIGHTNESS      15 // max mA the LED can use determines brightness
-#define RGB_LED_COUNT           5
-#define RGB_LED_TYPE            WS2812B
-#define RGB_LED_ORDER           GRB
 
 #ifndef PIN_DEBUG
 #define PIN_DEBUG		PIN_IEC_SRQ
