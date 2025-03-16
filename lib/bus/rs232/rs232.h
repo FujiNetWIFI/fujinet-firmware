@@ -30,6 +30,17 @@
 
 #define RS232_DEVICEID_CPM             0x5A
 
+enum {
+    RS232_OPEN_READ        = 4,
+    RS232_OPEN_HTTP_DELETE = 5,
+    RS232_OPEN_DIRECTORY   = 6,
+    RS232_OPEN_WRITE       = 8,
+    RS232_OPEN_APPEND      = 9,
+    RS232_OPEN_READWRITE   = 12,
+    RS232_OPEN_HTTP_POST   = 13,
+    RS232_OPEN_HTTP_PUT    = 14,
+};
+
 #define DELAY_T4 800
 #define DELAY_T5 800
 
