@@ -72,14 +72,15 @@ size_t cspi_alloc_continuous(size_t length, size_t chunk_size,
   length = num_chunks * chunk_size;
   newbuf = (uint8_t *) heap_caps_malloc(length, MALLOC_CAP_DMA);
   if (!newbuf) {
-    ESP_LOGE("SPI_DMA", "Failed to allocate DMA descriptor");
+    ESP_LOGE("SPI_DMA", "Failed to allocate DMA descriptor 1: %i", length);
     return 0;
   }
   *buffer = newbuf;
 
   llfirst = (lldesc_t *) heap_caps_malloc(sizeof(lldesc_t) * num_chunks, MALLOC_CAP_DMA);
   if (!llfirst) {
-    ESP_LOGE("SPI_DMA", "Failed to allocate DMA descriptor");
+    ESP_LOGE("SPI_DMA", "Failed to allocate DMA descriptor 2: %lu",
+             sizeof(lldesc_t) * num_chunks);
     return 0;
   }
   *desc = llfirst;
