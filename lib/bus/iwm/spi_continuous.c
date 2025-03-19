@@ -62,6 +62,7 @@ size_t cspi_alloc_continuous(size_t length, size_t chunk_size,
   uint32_t num_chunks, idx;
   lldesc_t *llfirst, *llcur;
   uint8_t *newbuf;
+  size_t length2, avail;
 
 
   *buffer = NULL;
@@ -70,22 +71,28 @@ size_t cspi_alloc_continuous(size_t length, size_t chunk_size,
   /* Make sure it's an even multiple of chunk_size */
   num_chunks = (length + chunk_size - 1) / chunk_size;
   length = num_chunks * chunk_size;
-  newbuf = (uint8_t *) heap_caps_malloc(length, MALLOC_CAP_DMA);
+  length2 = sizeof(lldesc_t) * num_chunks;
+  avail = heap_caps_get_free_size(MALLOC_CAP_DMA);
+  if (avail < length + length2) {
+    ESP_LOGE("SPI_SMA", "Insuffucient RAM %u < %u + %u", avail, length, length2);
+    return 0;
+  }
+
+  newbuf = (uint8_t *) heap_caps_realloc(*buffer, length, MALLOC_CAP_DMA);
   if (!newbuf) {
-    ESP_LOGE("SPI_DMA", "Failed to allocate DMA descriptor 1: %i", length);
+    ESP_LOGE("SPI_DMA", "Failed to allocate DMA descriptor 1: %u", length);
     return 0;
   }
   *buffer = newbuf;
 
-  llfirst = (lldesc_t *) heap_caps_malloc(sizeof(lldesc_t) * num_chunks, MALLOC_CAP_DMA);
+  llfirst = (lldesc_t *) heap_caps_realloc(*desc, length2, MALLOC_CAP_DMA);
   if (!llfirst) {
-    ESP_LOGE("SPI_DMA", "Failed to allocate DMA descriptor 2: %lu",
-             sizeof(lldesc_t) * num_chunks);
+    ESP_LOGE("SPI_DMA", "Failed to allocate DMA descriptor 2: %u", length2);
     return 0;
   }
   *desc = llfirst;
 
-  memset(llfirst, 0, sizeof(lldesc_t) * num_chunks);
+  memset(llfirst, 0, length2);
   for (idx = 0; idx < num_chunks; idx++) {
     llcur = &llfirst[idx];
     llcur->size = chunk_size;
