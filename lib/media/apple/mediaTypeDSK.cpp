@@ -17,11 +17,11 @@
 #define BYTES_PER_TRACK 4096
 #define BYTES_PER_SECTOR 256
 
-// routines to convert DSK to WOZ stolen from DSK2WOZ by Tom Harte 
+// routines to convert DSK to WOZ stolen from DSK2WOZ by Tom Harte
 // https://github.com/TomHarte/dsk2woz
 
 // forward reference
-static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
+static void serialise_track(TRK_bitstream *dest, const uint8_t *src, uint8_t track_number, bool is_prodos);
 
 bool MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer)
 {
@@ -69,8 +69,8 @@ bool MediaTypeDSK::write_sector(int qtrack, int sector, uint8_t *buffer)
   offset = sector * BYTES_PER_SECTOR;
   memcpy(&trackbuf[offset], buffer, BYTES_PER_SECTOR);
 
-  memset(trk_ptrs[track], 0, WOZ1_NUM_BLKS * 512);
-  serialise_track(trk_ptrs[track], trackbuf, track, _mediatype == MEDIATYPE_PO);
+  memset(trk_data[track], 0, BITSTREAM_ALLOC_SIZE(WOZ1_TRACK_LEN));
+  serialise_track(trk_data[track], trackbuf, track, _mediatype == MEDIATYPE_PO);
 
   free(trackbuf);
 
@@ -135,7 +135,7 @@ void MediaTypeDSK::dsk2woz_tmap()
 	// Let's start by filling the entire TMAP with empty tracks.
 	memset(tmap, 0xff, 160);
 	// Then we will add in the mappings.
-	for(size_t c = 0; c < num_tracks; ++c) 
+	for(size_t c = 0; c < num_tracks; ++c)
     {
 		size_t track_position = c << 2;
         if (c > 0)
@@ -163,40 +163,30 @@ bool MediaTypeDSK::dsk2woz_tracks(uint8_t *dsk)
     // +6654	uint16		Reserved for future use.
 
     // Debug_printf("\nStart Block, Block Count, Bit Count");
-    
+
 	Debug_printf("\nMediaTypeDSK is_prodos: %s", _mediatype == MEDIATYPE_PO ? "Y" : "N");
 
 	// TODO: adapt this to that
 	// Write out all tracks.
 	for (size_t c = 0; c < num_tracks; c++)
 	{
-		uint16_t bytes_used;
-		uint16_t bit_count;
 #ifdef ESP_PLATFORM
-		uint8_t* temp_ptr = (uint8_t *)heap_caps_malloc(WOZ1_NUM_BLKS * 512, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
+		TRK_bitstream *bitstream = (TRK_bitstream *) heap_caps_malloc(BITSTREAM_ALLOC_SIZE(WOZ1_TRACK_LEN), MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
 #else
-		uint8_t* temp_ptr = (uint8_t *)malloc(WOZ1_NUM_BLKS * 512);
+		TRK_bitstream *bitstream = (TRK_bitstream *)malloc(BITSTREAM_ALLOC_SIZE(WOZ1_TRACK_LEN));
 #endif
-		if (temp_ptr != nullptr)
+		if (bitstream != nullptr)
 		{
-			trk_ptrs[c] = temp_ptr;
-			memset(trk_ptrs[c], 0, WOZ1_NUM_BLKS * 512);
-			serialise_track(trk_ptrs[c], &dsk[c * 16 * 256], c, _mediatype == MEDIATYPE_PO);
-			temp_ptr += WOZ1_TRACK_LEN;
-			bytes_used = temp_ptr[0] + (temp_ptr[1] << 8);
-			temp_ptr += sizeof(uint16_t);
-			bit_count = temp_ptr[0] + (temp_ptr[1] << 8);
-			trks[c].block_count = WOZ1_NUM_BLKS; //bytes_used / 512;
-			// if (bytes_used % 512)
-			// 	trks[c].block_count++;
-			trks[c].bit_count = bit_count;
-			Debug_printf("\nStored %d bytes containing %d bits of track %d into location %hhn", bytes_used, bit_count, c, trk_ptrs[c]);
-			Debug_printf(" -- %02x %02x %02x %02x %02x", trk_ptrs[c][0], trk_ptrs[c][1], trk_ptrs[c][2], trk_ptrs[c][3], trk_ptrs[c][4] );
+			trk_data[c] = bitstream;
+			memset(bitstream, 0, BITSTREAM_ALLOC_SIZE(WOZ1_TRACK_LEN));
+			serialise_track(bitstream, &dsk[c * 16 * 256], c, _mediatype == MEDIATYPE_PO);
+                        bitstream->len_blocks = (bitstream->len_bytes + 511) / 512; //  WOZ1_NUM_BLKS;
+			Debug_printf("\nStored %d bytes containing %d bits of track %d into location %lx", bitstream->len_bytes, bitstream->len_bits, c, trk_data[c]);
+			Debug_printf(" -- %02x %02x %02x %02x %02x", bitstream->data[0], bitstream->data[1], bitstream->data[2], bitstream->data[3], bitstream->data[4] );
 		}
 		else
 		{
 			Debug_printf("\nNo RAM allocated!");
-			free(temp_ptr);
 			return true;
             }
 	}
@@ -391,13 +381,12 @@ uint16_t decode_6_and_2(uint8_t *dest, const uint8_t *src)
 	@param track_number The track number to encode into this track.
 	@param is_prodos @c true if the DSK image is in Pro-DOS order; @c false if it is in DOS 3.3 order.
 */
-static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_number, bool is_prodos) {
+static void serialise_track(TRK_bitstream *dest, const uint8_t *src, uint8_t track_number, bool is_prodos) {
 	size_t track_position = 0;	// This is the track position **in bits**.
-	memset(dest, 0, 6646);
 
 	// Write gap 1.
 	for(size_t c = 0; c < 16; ++c) {
-		track_position = write_sync(dest, track_position);
+		track_position = write_sync(dest->data, track_position);
 	}
 
 	// Step through the sectors in physical order.
@@ -407,25 +396,25 @@ static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_num
 		*/
 
 		// Prologue.
-		track_position = write_byte(dest, track_position, 0xd5);
-		track_position = write_byte(dest, track_position, 0xaa);
-		track_position = write_byte(dest, track_position, 0x96);
+		track_position = write_byte(dest->data, track_position, 0xd5);
+		track_position = write_byte(dest->data, track_position, 0xaa);
+		track_position = write_byte(dest->data, track_position, 0x96);
 
 		// Volume, track, setor and checksum, all in 4-and-4 format.
-		track_position = write_4_and_4(dest, track_position, 254);
-		track_position = write_4_and_4(dest, track_position, track_number);
-		track_position = write_4_and_4(dest, track_position, sector);
-		track_position = write_4_and_4(dest, track_position, 254 ^ track_number ^ sector);
+		track_position = write_4_and_4(dest->data, track_position, 254);
+		track_position = write_4_and_4(dest->data, track_position, track_number);
+		track_position = write_4_and_4(dest->data, track_position, sector);
+		track_position = write_4_and_4(dest->data, track_position, 254 ^ track_number ^ sector);
 
 		// Epilogue.
-		track_position = write_byte(dest, track_position, 0xde);
-		track_position = write_byte(dest, track_position, 0xaa);
-		track_position = write_byte(dest, track_position, 0xeb);
+		track_position = write_byte(dest->data, track_position, 0xde);
+		track_position = write_byte(dest->data, track_position, 0xaa);
+		track_position = write_byte(dest->data, track_position, 0xeb);
 
 
 		// Write gap 2.
 		for(size_t c = 0; c < 7; ++c) {
-			track_position = write_sync(dest, track_position);
+			track_position = write_sync(dest->data, track_position);
 		}
 
 		/*
@@ -433,9 +422,9 @@ static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_num
 		*/
 
 		// Prologue.
-		track_position = write_byte(dest, track_position, 0xd5);
-		track_position = write_byte(dest, track_position, 0xaa);
-		track_position = write_byte(dest, track_position, 0xad);
+		track_position = write_byte(dest->data, track_position, 0xd5);
+		track_position = write_byte(dest->data, track_position, 0xaa);
+		track_position = write_byte(dest->data, track_position, 0xad);
 
 		// Map from this physical sector to a logical sector.
 		const int logical_sector = (sector == 15) ? 15 : ((sector * (is_prodos ? 8 : 7)) % 15);
@@ -444,28 +433,23 @@ static void serialise_track(uint8_t *dest, const uint8_t *src, uint8_t track_num
 		uint8_t contents[343];
 		encode_6_and_2(contents, &src[logical_sector * 256]);
 		for(size_t c = 0; c < sizeof(contents); ++c) {
-			track_position = write_byte(dest, track_position, contents[c]);			
+			track_position = write_byte(dest->data, track_position, contents[c]);
 		}
 
 		// Epilogue.
-		track_position = write_byte(dest, track_position, 0xde);
-		track_position = write_byte(dest, track_position, 0xaa);
-		track_position = write_byte(dest, track_position, 0xeb);
+		track_position = write_byte(dest->data, track_position, 0xde);
+		track_position = write_byte(dest->data, track_position, 0xaa);
+		track_position = write_byte(dest->data, track_position, 0xeb);
 
 		// Write gap 3.
 		for(size_t c = 0; c < 16; ++c) {
-			track_position = write_sync(dest, track_position);
+			track_position = write_sync(dest->data, track_position);
 		}
 	}
 
 	// Add the track suffix.
-	dest[6646] = ((track_position + 7) >> 3) & 0xff;
-	dest[6647] = ((track_position + 7) >> 11) & 0xff;	// Byte count.
-	dest[6648] = track_position & 0xff;
-	dest[6649] = (track_position >> 8) & 0xff;	// Bit count.
-	dest[6650] = dest[6651] = 0x00;				// Splice information.
-	dest[6652] = 0xff;
-	dest[6653] = 10;
+        dest->len_bytes = (track_position + 7) >> 3;
+        dest->len_bits = track_position;
 }
 
 #endif // BUILD_APPLE
