@@ -195,7 +195,7 @@ bool MediaTypeMOOF::moof_read_tracks()
             trk_ptrs[i] = (uint8_t *)heap_caps_malloc(s, MALLOC_CAP_8BIT | MALLOC_CAP_SPIRAM);
             if (trk_ptrs[i] != nullptr)
             {
-                Debug_printf("\nReading %d bytes of track %d into location %hhn", s, i, trk_ptrs[i]);
+                Debug_printf("\nReading %d bytes of track %d into location %lx", s, i, trk_ptrs[i]);
                 fseek(_media_fileh, trks[i].start_block * 512, SEEK_SET);
                 fread(trk_ptrs[i], 1, s, _media_fileh);
                 Debug_printf("\n%d, %d, %lu", trks[i].start_block, trks[i].block_count, trks[i].bit_count);
