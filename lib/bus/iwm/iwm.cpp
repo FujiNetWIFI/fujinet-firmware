@@ -351,7 +351,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 
 // Create a vector from the input for the various send_status_dib_reply_packet routines to call
 // data[0]                = status
-// data[1..1+block_size]  = block bytes - 3 bytes except in some unused code!! 
+// data[1..1+block_size]  = block bytes - 3 bytes except in some unused code!!
 // data[..1 byte ]        = name real size
 // data[..16 bytes ]      = name padded with spaces to 16 bytes
 // data[..2 bytes]        = device type
@@ -633,57 +633,60 @@ bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
   bitlen = (item.track_end + item.track_numbits - item.track_begin) % item.track_numbits;
   Debug_printf("\r\nDisk II write Qtrack/sector: %i/%i  bit_len: %i",
 	       item.quarter_track, sector_num, bitlen);
-  decoded = (uint8_t *) malloc(item.length);
-  decode_len = diskii_xface.iwm_decode_buffer(item.buffer, item.length,
-					      smartport.f_spirx, D2W_CHUNK_SIZE * 2 * 8,
-					      decoded, &used);
-  Debug_printf("\r\nDisk II used: %u", used);
+  if (bitlen) {
+    decoded = (uint8_t *) malloc(item.length);
+    decode_len = diskii_xface.iwm_decode_buffer(item.buffer, item.length,
+                                                smartport.f_spirx, D2W_CHUNK_SIZE * 2 * 8,
+                                                decoded, &used);
+    Debug_printf("\r\nDisk II used: %u %lx", used, decoded);
 
-  // Find start of sector: D5 AA AD
-  for (sector_start = 0; sector_start <= decode_len - 349; sector_start++)
-    if (decoded[sector_start]      == 0xD5
-	&& decoded[sector_start+1] == 0xAA
-	&& decoded[sector_start+2] == 0xAD)
-      break;
-  found_start = sector_start <= decode_len - 349;
+    // Find start of sector: D5 AA AD
+    for (sector_start = 0; sector_start <= decode_len - 349; sector_start++)
+      if (decoded[sector_start]      == 0xD5
+          && decoded[sector_start+1] == 0xAA
+          && decoded[sector_start+2] == 0xAD)
+        break;
+    found_start = sector_start <= decode_len - 349;
 
-  // Find end of sector too: DE AA EB
-  for (sector_end = 0; sector_end <= decode_len - 3; sector_end++)
-    if (decoded[sector_end]      == 0xDE
-	&& decoded[sector_end+1] == 0xAA
-	&& decoded[sector_end+2] == 0xEB)
-      break;
-  found_end = sector_end <= decode_len - 3;
+    // Find end of sector too: DE AA EB
+    for (sector_end = 0; sector_end <= decode_len - 3; sector_end++)
+      if (decoded[sector_end]      == 0xDE
+          && decoded[sector_end+1] == 0xAA
+          && decoded[sector_end+2] == 0xEB)
+        break;
+    found_end = sector_end <= decode_len - 3;
 
-  if (!found_start && found_end) {
-    Debug_printf("\r\nDisk II no prologue found");
+    if (!found_start && found_end) {
+      Debug_printf("\r\nDisk II no prologue found");
 #if 0
-    sector_start = sector_end - 346;
-    found_start = true;
+      sector_start = sector_end - 346;
+      found_start = true;
 #endif
+    }
+
+    if (found_start && found_end && sector_end - sector_start == 346) {
+      uint8_t sector_data[343]; // Need enough room to demap and de-xor
+      uint16_t checksum;
+
+      // This printf nudges timing too much
+      // Debug_printf("\r\nDisk II sector data: %i", sector_start + 3);
+      checksum = decode_6_and_2(sector_data, &decoded[sector_start + 3]);
+      if ((checksum >> 8) != (checksum & 0xff))
+        Debug_printf("\r\nDisk II checksum mismatch: %04x", checksum);
+
+      iwmDisk2 *disk_dev = IWM_ACTIVE_DISK2;
+      disk_dev->write_sector(item.quarter_track, sector_num, sector_data);
+      disk_dev->change_track(0);
+    }
+    else {
+      Debug_printf("\r\nDisk II sector not found");
+    }
+
+    // FIXME - is there another sector to decode?
+
+    free(decoded);
   }
 
-  if (found_start && found_end && sector_end - sector_start == 346) {
-    uint8_t sector_data[343]; // Need enough room to demap and de-xor
-    uint16_t checksum;
-
-    // This printf nudges timing too much
-    // Debug_printf("\r\nDisk II sector data: %i", sector_start + 3);
-    checksum = decode_6_and_2(sector_data, &decoded[sector_start + 3]);
-    if ((checksum >> 8) != (checksum & 0xff))
-      Debug_printf("\r\nDisk II checksum mismatch: %04x", checksum);
-
-    iwmDisk2 *disk_dev = IWM_ACTIVE_DISK2;
-    disk_dev->write_sector(item.quarter_track, sector_num, sector_data);
-    disk_dev->change_track(0);
-  }
-  else {
-    Debug_printf("\r\nDisk II sector not found");
-  }
-
-  // FIXME - is there another sector to decode?
-
-  free(decoded);
   free(item.buffer);
 
   return true;
