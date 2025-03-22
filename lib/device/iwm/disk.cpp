@@ -543,13 +543,13 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
 
     while (!feof(sf))
     {
-      if (fread(buf,sizeof(buf),1,sf) != sizeof(buf))
+      if (fread(buf,sizeof(unsigned char),sizeof(buf),sf) != sizeof(buf))
       {
         Debug_printf("Short read of blank.do, aborting.\n");
         fclose(sf);
         return true;
       }
-      if (fnio::fwrite(buf,sizeof(buf),1,f) != sizeof(buf))
+      if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
       {
         Debug_printf("Short write to destination image. Aborting.\n");
         fclose(sf);
