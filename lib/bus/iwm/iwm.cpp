@@ -585,8 +585,11 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     if (current_disk2 != diskii_xface.iwm_active_drive())
     {
       current_disk2 = diskii_xface.iwm_active_drive();
-      if (IWM_ACTIVE_DISK2->device_active)
+      if (IWM_ACTIVE_DISK2->device_active) {
         IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
+        diskii_xface.start(diskii_xface.iwm_active_drive() - 1,
+                           IWM_ACTIVE_DISK2->readonly); // start it up
+      }
     }
     diskii_xface.d2_enable_seen |= diskii_xface.iwm_active_drive();
 #ifdef DEBUG
