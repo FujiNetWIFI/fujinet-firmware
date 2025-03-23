@@ -1023,6 +1023,7 @@ void iwmFuji::iwm_ctrl_new_disk()
 
 	// Persist slots
 	_populate_config_from_slots();
+	Config.mark_dirty();
 	Config.save();
 }
 
