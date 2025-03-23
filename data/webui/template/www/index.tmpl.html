@@ -166,9 +166,7 @@
 				<header class="module-header">
 					HARD<span class="logowob"></span>WARE
 					<span style="float: right">
-						{% if tweaks.fujinet_pc %}
-						<input type="button" id="restartButton" value="Restart..." onclick="restartButton()" style="width: 7em">
-						{% else %}
+						{% if not tweaks.fujinet_pc %}
 						<form action="/config" method="post">
 							<input type="hidden" name="resetfuji" value="resetfuji">
 							<button type="submit" value="Reset FujiNet">Reset FujiNet</button>
@@ -176,7 +174,7 @@
 						{% endif %}
 					</span>
 				</header>
-				{% if tweaks.fujinet_pc %}
+			{% if tweaks.fujinet_pc %}
 				<div class="detline">
 					<div class="deth detlinecol">Detected Hardware Version</div>
 					<div class="det detlinecol"><%FN_HARDWARE_VER%></div>
@@ -208,7 +206,7 @@
 					<div class="deth detlinecol">Restart FujiNet</div>
 					<div class="det detlinecol"><input type="button" id="restartButton" value="Restart..." onclick="restartButton()" style="width: 7em"></div>
 				</div>
-				{% else %}
+			{% else %}
 				<div class="detline">
 					<div class="deth detlinecol">Detected Hardware Version</div>
 					<div class="det detlinecol"><%FN_HARDWARE_VER%></div>
@@ -273,7 +271,7 @@
 					</div>
 				</div>
 				{% endif %}
-				{% endif %}
+			{% endif %}
 			</div>
 			{% endif %}
 			{% if components.hosts_list %}

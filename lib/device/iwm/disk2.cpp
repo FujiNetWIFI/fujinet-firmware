@@ -149,7 +149,8 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
         ((MediaTypeWOZ *)_disk)->track_len(track_pos),
         ((MediaTypeWOZ *)_disk)->num_bits(track_pos),
         NS_PER_BIT_TIME * ((MediaTypeWOZ *)_disk)->optimal_bit_timing);
-    Debug_printf("\nCopy track: %d", track_pos);
+    // This printf nudges timing too much.
+    // Debug_printf("\nCopy track: %d", track_pos);
   }
   else
     diskii_xface.copy_track(
