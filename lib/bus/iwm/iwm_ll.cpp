@@ -1158,12 +1158,6 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
     }
   }
 
-  // Check if Drive 2 is being accessed but disabled
-  if ((states == 0x02) && !isDrive2Enabled()) {
-    // Drive is disabled, return 0
-    return 0;
-  }
-
   return states;
 }
 

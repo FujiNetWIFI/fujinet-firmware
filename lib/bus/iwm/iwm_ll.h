@@ -282,8 +282,6 @@ private:
 
   void set_output_to_rmt();
 
-  bool enabledD2 = true;
-
   // write state
   bool d2w_writing = false, d2w_started = false;
   uint8_t *d2w_buffer;
@@ -311,10 +309,6 @@ public:
   void copy_track(uint8_t *track, size_t tracklen, size_t trackbits, int bitperiod);
 
   void set_output_to_low();
-
-  void enableD2(){ enabledD2 = true; };
-  void disableD2(){ enabledD2 = false; };
-  bool isDrive2Enabled(){ return enabledD2; };
 };
 
 extern iwm_sp_ll smartport;
