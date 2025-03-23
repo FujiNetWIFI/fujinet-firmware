@@ -131,7 +131,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // add extra condition here to stop edge case where on softsp, the disk is stepping inadvertantly when SP bus is
   // disabled. PH1 gets set low first, then PH3 follows a very short time after. We look for the interrupt on PH1 (33)
   // and then PH1 = 0 (going low) and PH3 = 1 (still high)
-  else if ((diskii_xface.iwm_enable_states() & 0b11) && !((int_gpio_num == SP_PHI1 && _phases == 0b1000)))
+  else if (diskii_xface.iwm_active_drive() && !((int_gpio_num == SP_PHI1 && _phases == 0b1000)))
   {
     if (IWM_ACTIVE_DISK2->move_head())
     {
@@ -1145,26 +1145,26 @@ void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t
   track_bit_period = bitperiod;
 }
 
-uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
+uint8_t IRAM_ATTR iwm_diskii_ll::iwm_active_drive()
 {
-  uint8_t states = 0;
+  uint8_t drive = 0;
 
   // only enable diskII if we are either not on an en35 capable host, or we are on an en35host and /EN35=high
   if (!IWM.en35Host || (IWM.en35Host && IWM_BIT(SP_EN35)))
   {
-    if (!(states |= IWM_BIT(SP_DRIVE1) ? 0b00 : 0b01))
+    if (!(drive |= IWM_BIT(SP_DRIVE1) ? 0 : 1))
     {
-      states |= IWM_BIT(SP_DRIVE2) ? 0b00 : 0b10;
+      drive |= IWM_BIT(SP_DRIVE2) ? 0 : 2;
     }
   }
 
   // Check if Drive 2 is being accessed but disabled
-  if ((states == 0x02) && !isDrive2Enabled()) {
+  if ((drive == 0x02) && !isDrive2Enabled()) {
     // Drive is disabled, return 0
-    return 0;
+    drive = 0;
   }
 
-  return states;
+  return drive;
 }
 
 iwm_sp_ll smartport;
