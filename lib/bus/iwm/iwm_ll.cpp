@@ -929,28 +929,36 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
     // Signal that disk can be written to
     smartport.iwm_ack_clr();
 
-    d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
-				       D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
-
-    if (d2w_desc) {
-      gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
-      cspi_begin_continuous(smartport.spirx, d2w_desc);
-      d2w_started = true;
+    if (!d2w_started) {
+      d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
+                                         D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
+      if (d2w_desc) {
+        gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
+        cspi_begin_continuous(smartport.spirx, d2w_desc);
+        d2w_started = true;
+      }
+      else if (d2w_buffer)
+        heap_caps_free(d2w_buffer);
     }
-    else if (d2w_buffer)
-      heap_caps_free(d2w_buffer);
   }
 
-  diskii_xface.set_output_to_rmt();
-  diskii_xface.enable_output();
-  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
+  if (!rmt_started) {
+    diskii_xface.set_output_to_rmt();
+    diskii_xface.enable_output();
+    ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
+    rmt_started = true;
+  }
+
   fnLedManager.set(LED_BUS, true);
   Debug_printf("\nstart diskII d%d",drive+1);
 }
 
 void iwm_diskii_ll::stop()
 {
-  fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+  if (rmt_started) {
+    fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+    rmt_started = false;
+  }
   diskii_xface.disable_output();
   if (d2w_started) {
     cspi_end_continuous(smartport.spirx);
