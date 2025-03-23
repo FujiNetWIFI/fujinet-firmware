@@ -101,7 +101,8 @@ void PeoplesUrlParser::cleanPath() {
     path = util_get_canonical_path(path);
 }
 
-void PeoplesUrlParser::processPath() {
+void PeoplesUrlParser::processPath()
+{
     if(path.size() == 0)
         return;
 
@@ -146,7 +147,9 @@ void PeoplesUrlParser::processPath() {
     // file base name
     if (extension.size() > 0)
         base_name = name.substr(0, name.size() - extension.size() - 1);
-    }
+    else
+        base_name = name;
+}
 
 
 std::string PeoplesUrlParser::pathToFile(void)
