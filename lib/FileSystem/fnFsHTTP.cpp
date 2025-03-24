@@ -134,7 +134,13 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
         Debug_println("FileSystemHTTP::cache_file() - failed to create HTTP client\n");
         return nullptr;
     }
-    if (!_http->begin(_url->url + mstr::urlEncode(path)))
+    // url + '/' + path
+    std::string url_str = _url->url;
+    std::string path_str = mstr::urlEncode(path);
+    if (url_str.back() != '/') url_str.push_back('/');
+    if (path_str.front() == '/') path_str.erase(0, 1);
+    url_str += path_str;
+    if (!_http->begin(url_str))
     {
         Debug_println("FileSystemHTTP::cache_file - failed to start HTTP client");
         return nullptr;
@@ -220,8 +226,7 @@ FileHandler *FileSystemHTTP::cache_file(const char *path, const char *mode)
     // Release copy buffer
     free(buf);
 
-    // Close HTTP client
-    _http->close();
+    // Dispose HTTP client
     delete _http;
     _http = nullptr;
 
@@ -284,7 +289,14 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
             Debug_println("FileSystemHTTP::dir_open() - failed to create HTTP client\n");
             return false;
         }
-        if (!_http->begin(_url->url + mstr::urlEncode(path)))
+        // url + '/' + path + '/'
+        std::string url_str = _url->url;
+        std::string path_str = mstr::urlEncode(path);
+        if (url_str.back() != '/') url_str.push_back('/');
+        if (path_str.front() == '/') path_str.erase(0, 1);
+        url_str += path_str;
+        if (url_str.back() != '/') url_str.push_back('/');
+        if (!_http->begin(url_str))
         {
             Debug_println("FileSystemHTTP::dir_open - failed to start HTTP client");
             return false;
@@ -350,7 +362,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
                 while (available > 0)
                 {
                     // read HTTP data
-                    int to_read = available > sizeof(buf) ? sizeof(buf) : available;
+                    int to_read = available > COPY_BLK_SIZE ? COPY_BLK_SIZE : available;
                     int from_read = _http->read(buf, to_read);
                     if (from_read != to_read) // TODO: is it really an error?
                     {
@@ -382,8 +394,7 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
         // release copy buffer
         free(buf);
 
-        // close http client
-        _http->close();
+        // Dispose http client
         delete _http;
         _http = nullptr;
 
@@ -430,7 +441,11 @@ bool FileSystemHTTP::dir_open(const char  *path, const char *pattern, uint16_t d
             mstr::toUpper(fileSize);
             double sizeValue = std::atof(fileSize.c_str());
             size_t pos = fileSize.find_last_of("KMGTP"); // fs_de->size is uint32_t, up to 4GB
-            if (pos != std::string::npos)
+            if (pos == std::string::npos)
+            {
+                fs_de->size = static_cast<uint32_t>(sizeValue);
+            }
+            else
             {
                 // convert size with suffix to bytes
                 switch (fileSize[pos])
