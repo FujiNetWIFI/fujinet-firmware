@@ -181,8 +181,8 @@ enum class iwm_enable_state_t
 {
   off,
   off2on,
+  on2off,
   on,
-  on2off
 };
 
 struct iwm_device_info_block_t
@@ -307,7 +307,7 @@ private:
 #endif
   uint8_t current_disk2 = 0;
 
-  iwm_enable_state_t iwm_drive_enabled();
+  iwm_enable_state_t iwm_motor_state();
   iwm_enable_state_t _old_enable_state;
   iwm_enable_state_t _new_enable_state;
   // uint8_t enable_values;
@@ -359,6 +359,6 @@ public:
 
 extern iwmBus IWM;
 
-#define IWM_ACTIVE_DISK2 ((iwmDisk2 *) theFuji.get_disk_dev(MAX_SP_DEVICES + diskii_xface.iwm_enable_states() - 1))
+#define IWM_ACTIVE_DISK2 ((iwmDisk2 *) theFuji.get_disk_dev(MAX_SP_DEVICES + diskii_xface.iwm_active_drive() - 1))
 #endif // guard
 #endif /* BUILD_APPLE */
