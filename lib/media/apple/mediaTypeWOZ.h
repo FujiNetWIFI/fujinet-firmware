@@ -9,15 +9,13 @@
 #define WOZ1_TRACK_LEN 6646
 #define WOZ1_NUM_BLKS 13
 #define WOZ1_BIT_TIME 32
-struct TRK_bitstream
+struct TRK_t
 {
-    uint16_t len_blocks;
-    uint16_t len_bytes;
-    uint32_t len_bits;
-    uint8_t data[];
+    uint16_t start_block;
+    uint16_t block_count;
+    uint32_t bit_count;
 };
 
-#define BITSTREAM_ALLOC_SIZE(x) (sizeof(TRK_bitstream) + x)
 
 class MediaTypeWOZ : public MediaType
 {
@@ -32,7 +30,8 @@ private:
 
 protected:
     uint8_t tmap[MAX_TRACKS];
-    TRK_bitstream *trk_data[MAX_TRACKS];
+    TRK_t trks[MAX_TRACKS];
+    uint8_t *trk_ptrs[MAX_TRACKS] = { };
 
 public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override { return false; };
@@ -47,7 +46,9 @@ public:
     virtual bool status() override {return (_media_fileh != nullptr);}
 
     uint8_t trackmap(uint8_t t) { return tmap[t]; };
-    TRK_bitstream *get_track(int t) { return trk_data[tmap[t]]; };
+    uint8_t *get_track(int t) { return trk_ptrs[tmap[t]]; };
+    int track_len(int t) { return trks[tmap[t]].block_count * 512; };
+    int num_bits(int t) { return trks[tmap[t]].bit_count; };
     uint8_t optimal_bit_timing;
     // static bool create(FILE *f, uint32_t numBlock);
 };
