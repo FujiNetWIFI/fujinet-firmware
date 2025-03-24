@@ -1020,11 +1020,6 @@ void iwmFuji::iwm_ctrl_new_disk()
 	disk_dev->write_blank(disk.fileh, numBlocks);
 
 	fnio::fclose(disk.fileh);
-
-	// Persist slots
-	_populate_config_from_slots();
-	Config.mark_dirty();
-	Config.save();
 }
 
 // Send host slot data to computer
