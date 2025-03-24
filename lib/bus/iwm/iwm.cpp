@@ -667,8 +667,8 @@ bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
     uint8_t sector_data[343]; // Need enough room to demap and de-xor
     uint16_t checksum;
 
-    // This printf nudges timing too much
-    // Debug_printf("\r\nDisk II sector data: %i", sector_start + 3);
+
+    Debug_printf("\r\nDisk II sector data: %i", sector_start + 3);
     checksum = decode_6_and_2(sector_data, &decoded[sector_start + 3]);
     if ((checksum >> 8) != (checksum & 0xff))
       Debug_printf("\r\nDisk II checksum mismatch: %04x", checksum);
