@@ -18,7 +18,7 @@ std::vector<uint8_t> QRManager::encode(const void* src, size_t len, size_t versi
     qrManager.out_buf.clear();
     qrManager.out_buf.shrink_to_fit();
 
-    if (version < 1 || version > 40 || ecc > 3) {
+    if (version < 1 || version > 40 || ecc < 0 || ecc > 3) {
         return qrManager.out_buf;
     }
 
