@@ -280,6 +280,7 @@ private:
   size_t track_location = 0;
   int track_bit_period = 4000;
 
+  bool rmt_started = false;
   void set_output_to_rmt();
 
   // write state
@@ -295,7 +296,7 @@ public:
 
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
-  uint8_t iwm_enable_states();
+  uint8_t iwm_active_drive();
 
   // Disk II handling by RMT peripheral
   void setup_rmt(); // install the RMT device

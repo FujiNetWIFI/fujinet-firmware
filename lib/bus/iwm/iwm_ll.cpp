@@ -131,7 +131,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // add extra condition here to stop edge case where on softsp, the disk is stepping inadvertantly when SP bus is
   // disabled. PH1 gets set low first, then PH3 follows a very short time after. We look for the interrupt on PH1 (33)
   // and then PH1 = 0 (going low) and PH3 = 1 (still high)
-  else if ((diskii_xface.iwm_enable_states() & 0b11) && !((int_gpio_num == SP_PHI1 && _phases == 0b1000)))
+  else if (diskii_xface.iwm_active_drive() && !((int_gpio_num == SP_PHI1 && _phases == 0b1000)))
   {
     if (IWM_ACTIVE_DISK2->move_head())
     {
@@ -929,28 +929,36 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
     // Signal that disk can be written to
     smartport.iwm_ack_clr();
 
-    d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
-				       D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
-
-    if (d2w_desc) {
-      gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
-      cspi_begin_continuous(smartport.spirx, d2w_desc);
-      d2w_started = true;
+    if (!d2w_started) {
+      d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
+                                         D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
+      if (d2w_desc) {
+        gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
+        cspi_begin_continuous(smartport.spirx, d2w_desc);
+        d2w_started = true;
+      }
+      else if (d2w_buffer)
+        heap_caps_free(d2w_buffer);
     }
-    else if (d2w_buffer)
-      heap_caps_free(d2w_buffer);
   }
 
-  diskii_xface.set_output_to_rmt();
-  diskii_xface.enable_output();
-  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
+  if (!rmt_started) {
+    diskii_xface.set_output_to_rmt();
+    diskii_xface.enable_output();
+    ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
+    rmt_started = true;
+  }
+
   fnLedManager.set(LED_BUS, true);
   Debug_printf("\nstart diskII d%d",drive+1);
 }
 
 void iwm_diskii_ll::stop()
 {
-  fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+  if (rmt_started) {
+    fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+    rmt_started = false;
+  }
   diskii_xface.disable_output();
   if (d2w_started) {
     cspi_end_continuous(smartport.spirx);
@@ -1145,20 +1153,20 @@ void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t
   track_bit_period = bitperiod;
 }
 
-uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
+uint8_t IRAM_ATTR iwm_diskii_ll::iwm_active_drive()
 {
-  uint8_t states = 0;
+  uint8_t drive = 0;
 
   // only enable diskII if we are either not on an en35 capable host, or we are on an en35host and /EN35=high
   if (!IWM.en35Host || (IWM.en35Host && IWM_BIT(SP_EN35)))
   {
-    if (!(states |= IWM_BIT(SP_DRIVE1) ? 0b00 : 0b01))
+    if (!(drive |= IWM_BIT(SP_DRIVE1) ? 0 : 1))
     {
-      states |= IWM_BIT(SP_DRIVE2) ? 0b00 : 0b10;
+      drive |= IWM_BIT(SP_DRIVE2) ? 0 : 2;
     }
   }
 
-  return states;
+  return drive;
 }
 
 iwm_sp_ll smartport;

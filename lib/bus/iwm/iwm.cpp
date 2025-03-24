@@ -555,7 +555,7 @@ bool IRAM_ATTR iwmBus::serviceSmartPort()
 bool IRAM_ATTR iwmBus::serviceDiskII()
 {
   // check on the diskii status
-  switch (iwm_drive_enabled())
+  switch (iwm_motor_state())
   {
   case iwm_enable_state_t::off:
     return false;
@@ -565,11 +565,11 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     if (IWM_ACTIVE_DISK2->device_active)
     {
       fnSystem.delay(1); // need a better way to figure out persistence
-      if (iwm_drive_enabled() == iwm_enable_state_t::on)
+      if (iwm_motor_state() == iwm_enable_state_t::on)
       {
-        current_disk2 = diskii_xface.iwm_enable_states();
+        current_disk2 = diskii_xface.iwm_active_drive();
         IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
-        diskii_xface.start(diskii_xface.iwm_enable_states() - 1,
+        diskii_xface.start(diskii_xface.iwm_active_drive() - 1,
                            IWM_ACTIVE_DISK2->readonly); // start it up
       }
     } // make a call to start the RMT stream
@@ -582,18 +582,21 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     break;
 
   case iwm_enable_state_t::on:
-    if (current_disk2 != diskii_xface.iwm_enable_states())
+    if (current_disk2 != diskii_xface.iwm_active_drive())
     {
-      current_disk2 = diskii_xface.iwm_enable_states();
-      if (IWM_ACTIVE_DISK2->device_active)
+      current_disk2 = diskii_xface.iwm_active_drive();
+      if (IWM_ACTIVE_DISK2->device_active) {
         IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
+        diskii_xface.start(diskii_xface.iwm_active_drive() - 1,
+                           IWM_ACTIVE_DISK2->readonly); // start it up
+      }
     }
-    diskii_xface.d2_enable_seen |= diskii_xface.iwm_enable_states();
+    diskii_xface.d2_enable_seen |= diskii_xface.iwm_active_drive();
 #ifdef DEBUG
     new_track = IWM_ACTIVE_DISK2->get_track_pos();
     if (old_track != new_track)
     {
-      Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());
+      Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_active_drive());
       old_track = new_track;
     }
 #endif
@@ -699,10 +702,10 @@ bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
   return true;
 }
 
-iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
+iwm_enable_state_t IRAM_ATTR iwmBus::iwm_motor_state()
 {
   uint8_t phases = smartport.iwm_phase_vector();
-  uint8_t newstate = diskii_xface.iwm_enable_states();
+  uint8_t newstate = diskii_xface.iwm_active_drive();
 
   if (!((phases & 0b1000) && (phases & 0b0010))) // SP bus not enabled
   {
@@ -722,7 +725,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
       break;
     }
     if (_old_enable_state != _new_enable_state)
-      Debug_printf("\ndisk ii enable states: %02x", newstate);
+      Debug_printf("\ndisk ii [%i] enable states: %02x", newstate, _new_enable_state);
 
     _old_enable_state = _new_enable_state;
 
