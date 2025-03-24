@@ -306,8 +306,6 @@ void drivewireFuji::disk_image_mount()
     uint8_t deviceSlot = fnDwCom.read();
     uint8_t options = fnDwCom.read(); // DISK_ACCESS_MODE
 
-    errorCode = 1;
-
     // TODO: Implement FETCH?
     char flag[3] = {'r', 0, 0};
     if (options == DISK_ACCESS_MODE_WRITE)
@@ -324,12 +322,6 @@ void drivewireFuji::disk_image_mount()
     disk.disk_dev.host = &host;
 
     disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-    if (disk.fileh == nullptr)
-    {
-        Debug_printf("disk_image_mount Couldn't open file: \"%s\"\n", disk.filename);
-        errorCode = 144;
-        return;
-    }
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
@@ -795,8 +787,6 @@ void drivewireFuji::open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
 
-    errorCode = 1;
-
     uint8_t hostSlot = fnDwCom.read();
 
     fnDwCom.readBytes((uint8_t *)&dirpath, 256);
@@ -823,10 +813,6 @@ void drivewireFuji::open_directory()
         if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
         {
             _current_open_directory_slot = hostSlot;
-        }
-        else
-        {
-            errorCode = 144;
         }
     }
 }
