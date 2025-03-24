@@ -280,7 +280,6 @@ private:
   size_t track_location = 0;
   int track_bit_period = 4000;
 
-  bool rmt_started = false;
   void set_output_to_rmt();
 
   bool enabledD2 = true;
