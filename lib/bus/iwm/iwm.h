@@ -305,7 +305,6 @@ private:
 #ifdef DEBUG
   iwm_phases_t oldphase;
 #endif
-  uint8_t current_disk2 = 0;
 
   iwm_enable_state_t iwm_drive_enabled();
   iwm_enable_state_t _old_enable_state;
