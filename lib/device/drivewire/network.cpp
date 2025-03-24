@@ -130,9 +130,9 @@ void drivewireNetwork::open()
     Debug_printf("drivewireNetwork::sio_open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
 
     char tmp[256];
+    memset(tmp,0,sizeof(tmp));
 
     size_t bytes_read = fnDwCom.readBytes((uint8_t *)tmp, 256);
-    tmp[sizeof(tmp)-1] = '\0';
 
     Debug_printf("tmp = %s\n",tmp);
 
@@ -142,7 +142,7 @@ void drivewireNetwork::open()
         return;
     }
 
-    deviceSpec = std::string(tmp);
+    deviceSpec = std::string(tmp,256);
     
     channelMode = PROTOCOL;
 
@@ -1260,7 +1260,7 @@ void drivewireNetwork::json_query()
     *receiveBuffer += std::string(tmp.begin(), null_pos);
 
     for (int i=0;i<in_string.length();i++)
-        Debug_printf("%02X ",(unsigned char)in_string[i]);
+        Debug_printf("%02X ",in_string[i]);
     
     Debug_printf("\n");
 
