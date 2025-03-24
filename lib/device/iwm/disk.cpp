@@ -8,7 +8,6 @@
 #include "fnSystem.h"
 // #include "fnFsTNFS.h"
 // #include "fnFsSD.h"
-#include "fsFlash.h"
 #include "led.h"
 #include "fuji.h"
 
@@ -530,38 +529,6 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
   unsigned char buf[512];
 
   memset(&buf,0,sizeof(buf));
-
-  if (blank_header_type == 2) // DO
-  {
-    FILE *sf = fsFlash.file_open("/blank.do","rb");
-    if (!sf)
-    {
-      Debug_printf("Could not open /blank.do. Aborting.\n");
-      fclose(sf);
-      return true;
-    }
-
-    while (!feof(sf))
-    {
-      if (fread(buf,sizeof(unsigned char),sizeof(buf),sf) != sizeof(buf))
-      {
-        Debug_printf("Short read of blank.do, aborting.\n");
-        fclose(sf);
-        return true;
-      }
-      if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
-      {
-        Debug_printf("Short write to destination image. Aborting.\n");
-        fclose(sf);
-        return true;
-      }
-    }
-
-    fclose(sf);
-    Debug_printf("Creation of new DOS 3.3 disk successful.\n");
-    blank_header_type=0; // Set to unadorned.
-    return false;
-  }
 
   if (blank_header_type == 1) // 2MG
   {
