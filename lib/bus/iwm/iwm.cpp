@@ -567,7 +567,6 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
       fnSystem.delay(1); // need a better way to figure out persistence
       if (iwm_drive_enabled() == iwm_enable_state_t::on)
       {
-        current_disk2 = diskii_xface.iwm_enable_states();
         IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
         diskii_xface.start(diskii_xface.iwm_enable_states() - 1,
                            IWM_ACTIVE_DISK2->readonly); // start it up
@@ -582,12 +581,6 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     break;
 
   case iwm_enable_state_t::on:
-    if (current_disk2 != diskii_xface.iwm_enable_states())
-    {
-      current_disk2 = diskii_xface.iwm_enable_states();
-      if (IWM_ACTIVE_DISK2->device_active)
-        IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
-    }
     diskii_xface.d2_enable_seen |= diskii_xface.iwm_enable_states();
 #ifdef DEBUG
     new_track = IWM_ACTIVE_DISK2->get_track_pos();
