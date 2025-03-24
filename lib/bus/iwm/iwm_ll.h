@@ -297,7 +297,7 @@ public:
 
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
-  uint8_t iwm_active_drive();
+  uint8_t iwm_enable_states();
 
   // Disk II handling by RMT peripheral
   void setup_rmt(); // install the RMT device
