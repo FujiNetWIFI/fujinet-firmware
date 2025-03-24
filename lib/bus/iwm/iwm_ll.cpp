@@ -931,14 +931,11 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
 
     d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
 				       D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
+        
+    gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
 
-    if (d2w_desc) {
-      gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
-      cspi_begin_continuous(smartport.spirx, d2w_desc);
-      d2w_started = true;
-    }
-    else if (d2w_buffer)
-      heap_caps_free(d2w_buffer);
+    cspi_begin_continuous(smartport.spirx, d2w_desc);
+    d2w_started = true;
   }
 
   diskii_xface.set_output_to_rmt();
