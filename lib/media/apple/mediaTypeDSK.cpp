@@ -232,11 +232,128 @@ SOFTWARE.
 	woz[location + 2] = ((value) >> 16) & 0xff; \
 	woz[location + 3] = (value) >> 24;
 
+// 	/*
+// 		WOZ image item 1: an INFO chunk.
+// 	*/
+// 	strcpy((char *)&woz[0], "INFO");	// Chunk ID.
+// 	set_int32(4, 60);					// Chunk size.
+// 	woz[8] = 1;							// INFO version: 1.
+// 	woz[9] = 1;							// Disk type: 5.25".
+// 	woz[10] = 0;						// Write protection: disabled.
+// 	woz[11] = 0;						// Cross-track synchronised image: no.
+// 	woz[12] = 1;						// MC3470 fake bits have been removed: yes.
+// 										// (or, rather, were never inserted)
+															
+// 	// Append creator, which needs to be padded out to 32
+// 	// bytes with space characters.
+// 	const char creator[] = "dsk2woz 1.0";
+// 	const size_t creator_length = strlen(creator);
+// 	assert(creator_length < 32);
+
+// 	strcpy((char *)&woz[13], creator);
+// 	memset(&woz[13 + strlen(creator)], 32 - strlen(creator), ' ');
+
+// 	// Chunk should be padded with 0s to reach 60 bytes in length;
+// 	// the buffer was memset to 0 at initialisation so that's implicit.
+
+
+
+// 	/*
+// 		WOZ image item 2: a TMAP chunk.
+// 	*/
+// 	strcpy((char *)&woz[68], "TMAP");		// Chunk ID.
+// 	set_int32(72, 160);						// Chunk size.
+
+// 	// This is a DSK conversion, so the TMAP table simply maps every
+// 	// track that exists to:
+// 	// (i) its integral position;
+// 	// (ii) the quarter-track position before its integral position; and
+// 	// (iii) the quarter-track position after its integral position.
+// 	//
+// 	// The remaining quarter-track position maps to nothing, which in
+// 	// WOZ is indicated with a value of 255.
+
+// 	// Let's start by filling the entire TMAP with empty tracks.
+// 	memset(&woz[76], 0xff, 160);
+// 	// Then we will add in the mappings.
+// 	for(size_t c = 0; c < 35; ++c) {
+// 		const size_t track_position = 76 + (c << 2);
+// 		if(c > 0) woz[track_position - 1] = c;
+// 		woz[track_position] = woz[track_position + 1] = c;
+// 	}
+
+
+
+// 	/*
+// 		WOZ image item 3: a TRKS chunk.
+// 	*/
+// 	strcpy((char *)&woz[236], "TRKS");	// Chunk ID.
+// 	set_int32(240, 35*6656);			// Chunk size.
+
+// 	// The output pointer holds a byte position into the WOZ buffer.
+// 	size_t output_pointer = 244;
+
+// 	// Write out all 35 tracks.
+// 	for(size_t c = 0; c < 35; ++c) {
+// 		serialise_track(&woz[output_pointer], &dsk[c * 16 * 256], c, is_prodos);
+// 		output_pointer += 6656;
+// 	}
+// #undef set_int32
+
+
+
+// 	/*
+// 		WOZ image output.
+// 	*/
+// 	FILE *const woz_file = fopen(argv[2], "wb");
+// 	if(!woz_file) {
+// 		printf("ERROR: Could not open %s for writing\r\n", argv[2]);
+// 		return -5;
+// 	}
+// 	fputs("WOZ1", woz_file);
+// 	fputc(0xff, woz_file);
+// 	fputs("\r\n\r\n", woz_file);
+
+// 	const uint32_t crc = crc32(woz, sizeof(woz));
+// 	fputc(crc & 0xff, woz_file);
+// 	fputc((crc >> 8) & 0xff, woz_file);
+// 	fputc((crc >> 16) & 0xff, woz_file);
+// 	fputc(crc >> 24, woz_file);
+
+// 	const size_t length_written = fwrite(woz, 1, sizeof(woz), woz_file);
+// 	fclose(woz_file);
+
+// 	if(length_written != sizeof(woz)) {
+// 		printf("ERROR: Could not write full WOZ image\r\n");
+// 		return -6;
+// 	}
+
+// 	return 0;
+// }
+
+
+
 
 /*
 	DSK sector serialiser. Constructs the 6-and-2 DOS 3.3-style on-disk
 	representation of a DOS logical-order sector dump.
 */
+
+/*!
+	Appends a bit to a buffer at a supplied position, returning the
+	position immediately after the bit. The first bit added to a buffer
+	will be stored in the MSB of the first byte. The second will be stored in
+	bit 6. The eighth will be stored in the MSB of the second byte. Etc.
+
+	@param buffer The buffer to write into.
+	@param position The position to write at.
+	@param value An indicator of the bit to write. If this is zero then a 0 is written; otherwise a 1 is written.
+	@return The position immediately after the bit.
+*/
+static size_t write_bit(uint8_t *buffer, size_t position, int value) {
+	buffer[position >> 3] |= (value ? 0x80 : 0x00) >> (position & 7);
+	return position + 1;
+}
 
 /*!
 	Appends a byte to a buffer at a supplied position, returning the
