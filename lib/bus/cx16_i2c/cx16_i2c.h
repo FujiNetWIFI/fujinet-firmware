@@ -7,6 +7,7 @@
 #include <freertos/queue.h>
 #include <utility>
 #include <string>
+#include <driver/i2c.h>
 
 #define CX16_DEVICEID_DISK 0x31
 #define CX16_DEVICEID_DISK_LAST 0x3F
@@ -258,7 +259,7 @@ private:
     /**
      * @brief I²C slave port
      */
-    int i2c_slave_port = 0;
+    i2c_port_t i2c_slave_port = I2C_NUM_0;
 
     /**
      * @brief I²C receive buffer

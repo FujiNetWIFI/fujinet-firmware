@@ -3,6 +3,7 @@
 #include "apetime.h"
 
 #include <cstring>
+#include <ctime>
 
 #include "../../include/debug.h"
 
