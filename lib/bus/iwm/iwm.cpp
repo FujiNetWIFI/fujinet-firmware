@@ -596,7 +596,9 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     new_track = IWM_ACTIVE_DISK2->get_track_pos();
     if (old_track != new_track)
     {
-      Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_active_drive());
+      Debug_printf("\ntrk pos %02i.%i/Q%03d on d%d",
+                   new_track / 4, new_track % 4,
+                   new_track, diskii_xface.iwm_active_drive());
       old_track = new_track;
     }
 #endif
@@ -651,7 +653,7 @@ bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
     Debug_printf("\r\nDisk II used: %u %lx", used, decoded);
 
     // Find start of sector: D5 AA AD
-    for (sector_start = 0; sector_start <= decode_len - 349; sector_start++)
+    for (sector_start = 0; decode_len > 349 && sector_start <= decode_len - 349; sector_start++)
       if (decoded[sector_start]      == 0xD5
           && decoded[sector_start+1] == 0xAA
           && decoded[sector_start+2] == 0xAD)
@@ -659,7 +661,7 @@ bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
     found_start = sector_start <= decode_len - 349;
 
     // Find end of sector too: DE AA EB
-    for (sector_end = 0; sector_end <= decode_len - 3; sector_end++)
+    for (sector_end = 0; decode_len > 3 && sector_end <= decode_len - 3; sector_end++)
       if (decoded[sector_end]      == 0xDE
           && decoded[sector_end+1] == 0xAA
           && decoded[sector_end+2] == 0xEB)
