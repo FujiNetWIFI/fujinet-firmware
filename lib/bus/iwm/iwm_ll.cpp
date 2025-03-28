@@ -1139,10 +1139,13 @@ bool IRAM_ATTR iwm_diskii_ll::fakebit()
 void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t trackbits, int bitperiod)
 {
   // copy track from SPIRAM to INTERNAL RAM
-  if (track != nullptr)
+  if (track != nullptr && trackbits)
     memcpy(track_buffer, track, tracklen);
   else
     memset(track_buffer, 0, tracklen);
+
+  if (!trackbits)
+    return;
 
   // new_position = current_position * new_track_length / current_track_length
   track_location *= trackbits;
