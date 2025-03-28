@@ -130,7 +130,8 @@ iwmFuji::iwmFuji()
         { FUJICMD_SCAN_NETWORKS, [this]()              { this->iwm_stat_net_scan_networks(); }},                // 0xFD
         { FUJICMD_QRCODE_LENGTH, [this]()              { this->iwm_stat_qrcode_length(); }},                    // 0xBE
         { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_stat_qrcode_output(); }},                    // 0xBE
-        { FUJICMD_STATUS, [this]()                     { this->iwm_stat_fuji_status(); }}                       // 0x53
+        { FUJICMD_STATUS, [this]()                     { this->iwm_stat_fuji_status(); }},                      // 0x53
+        { FUJICMD_GET_HEAP, [this]()                   { this->iwm_stat_get_heap(); }},                         // 0xC1
     };
 
 }
@@ -951,6 +952,16 @@ void iwmFuji::iwm_stat_fuji_status()
 	char ret[4] = {0};
 	memcpy(data_buffer, &ret[0], 4);
 	data_len = 4;
+}
+
+void iwmFuji::iwm_stat_get_heap()
+{
+    uint32_t avail = esp_get_free_internal_heap_size();
+
+
+    memcpy(data_buffer, &avail, sizeof(avail));
+    data_len = sizeof(avail);
+    return;
 }
 
 // Get network adapter configuration
