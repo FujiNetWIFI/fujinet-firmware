@@ -459,7 +459,7 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
       Debug_printf("\r\nMedia Type UNKNOWN - no mount in disk.cpp");
       device_active = false;
   }
-  else if (_disk && _disk->_disk_filename)
+  else if (_disk && strlen(_disk->_disk_filename))
       strcpy(_disk->_disk_filename, filename);
 
   return disk_type;

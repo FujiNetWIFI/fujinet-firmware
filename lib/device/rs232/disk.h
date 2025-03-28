@@ -1,6 +1,8 @@
 #ifndef DISK_H
 #define DISK_H
 
+#include <ctime>
+
 #include "bus.h"
 #include "media.h"
 
