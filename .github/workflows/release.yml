@@ -86,7 +86,7 @@ jobs:
     - name: Rename firmware file if needed
       shell: bash
       run: |
-        mv firmware/fujinet-*.zip firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        [ ! -f firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip ] && mv firmware/fujinet-*.zip firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
 
     - name: Fetch Tag Info
       run: git fetch --tags --force
