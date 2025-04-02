@@ -92,7 +92,12 @@ jobs:
     - name: Rename firmware file if needed
       shell: bash
       run: |
-        [ ! -f firmware/fujinet-${{ matrix.target-platform }}-${{ env.TAG_NAME }}.zip ] && mv firmware/fujinet-*.zip firmware/fujinet-${{ matrix.target-platform }}-${{ env.TAG_NAME }}.zip
+        shopt -s nullglob
+        dest="firmware/fujinet-${{ matrix.target-platform }}-${{ env.TAG_NAME }}.zip"
+        files=(firmware/fujinet-*.zip)
+        if [[ ! -f "$dest" && ${#files[@]} -gt 0 ]]; then
+          mv "${files[0]}" "$dest"
+        fi
 
     - name: Fetch Tag Info
       run: git fetch --tags --force
@@ -144,6 +149,8 @@ jobs:
     name: "Push Change Log"
     needs: tagged-release
     runs-on: ubuntu-latest
+    env:
+      TAG_NAME: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
