@@ -956,8 +956,11 @@ void iwmFuji::iwm_stat_fuji_status()
 
 void iwmFuji::iwm_stat_get_heap()
 {
-    uint32_t avail = esp_get_free_internal_heap_size();
-
+#ifdef ESP_PLATFORM
+	uint32_t avail = esp_get_free_internal_heap_size();
+#else
+	uint32_t avail = 0;
+#endif
 
     memcpy(data_buffer, &avail, sizeof(avail));
     data_len = sizeof(avail);
