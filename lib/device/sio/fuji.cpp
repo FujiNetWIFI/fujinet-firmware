@@ -20,6 +20,7 @@
 
 #include "../../../include/debug.h"
 
+#include "directoryPageGroup.h"
 #include "fujiCmd.h"
 #include "httpService.h"
 #include "fnSystem.h"
@@ -37,6 +38,8 @@
 #include "../../qrcode/qrmanager.h"
 
 #define ADDITIONAL_DETAILS_BYTES 10
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
 
 sioFuji theFuji; // global fuji device object
 
@@ -957,7 +960,7 @@ void sioFuji::sio_read_app_key()
 
 #ifdef DEBUG
 	std::string msg = util_hexdump(response_data.data(), appkey_size);
-	Debug_printf("%s\n", msg.c_str());
+	Debug_printf("\n%s\n", msg.c_str());
 #endif
 
     bus_to_computer(response_data.data(), response_data.size(), false);
@@ -1196,202 +1199,181 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[9] = MediaType::discover_disktype(f->filename);
 }
 
-// TODO: VERIFY THIS CODE. THE STASH SEEMED CORRUPT
+/*
+ * Read directory entries in block mode
+ * 
+ * Input parameters:
+ * aux1: Number of 256-byte pages to return (determines maximum response size)
+ * aux2: Lower 6 bits define the number of entries per page group
+ * 
+ * Response format:
+ * Overall response header:
+ * Byte  0    : 'M' (Magic number byte 1)
+ * Byte  1    : 'F' (Magic number byte 2)
+ * Byte  2    : Header size (4)
+ * Byte  3    : Number of page groups that follow
+ * 
+ * Followed by one or more complete PageGroups, padded to aux1 * 256 bytes.
+ * Each PageGroup must fit entirely within the response - partial groups are not allowed.
+ * If a PageGroup would exceed the remaining space, the directory position is rewound
+ * and that group is not included.
+ * 
+ * PageGroup structure:
+ * Byte  0    : Flags
+ *              - Bit 7: Last group (1=yes, 0=no)
+ *              - Bits 6-0: Reserved
+ * Byte  1    : Number of directory entries in this group
+ * Bytes 2-3  : Group data size (16-bit little-endian, excluding header)
+ * Byte  4    : Group index (0-based, calculated as dir_pos/group_size)
+ * Bytes 5+   : File/Directory entries for this group
+ *              Each entry:
+ *              - Bytes 0-3: Packed timestamp and flags
+ *                          - Byte 0: Years since 1970 (0-255)
+ *                          - Byte 1: FFFF MMMM (4 bits flags, 4 bits month 1-12)
+ *                                   Flags: bit 7 = directory, bits 6-4 reserved
+ *                          - Byte 2: DDDDD HHH (5 bits day 1-31, 3 high bits of hour)
+ *                          - Byte 3: HH mmmmmm (2 low bits hour 0-23, 6 bits minute 0-59)
+ *              - Bytes 4-6: File size (24-bit little-endian, 0 for directories)
+ *              - Byte  7  : Media type (0-255, with 0=unknown)
+ *              - Bytes 8+ : Null-terminated filename
+ * 
+ * The last PageGroup in the response will have its last_group flag set if:
+ * a) There are no more directory entries to process, or
+ * b) The next PageGroup would exceed the maximum response size
+ */
 void sioFuji::sio_read_directory_block()
 {
-    // aux1 holds entry size for each record
-    uint8_t maxlen = cmdFrame.aux1;
+    Debug_println("Fuji cmd: READ DIRECTORY BLOCK");
 
-    // aux2:
-    // b0-2 = number of pages - 1 (i.e. 1 to 8)
-    // b3,4 = not used
-    // b5   = extended entry information (as per normal, adds 10 bytes of information to each entry at start)
-    // b6,7 = block mode marker already checked.
+    uint8_t num_pages = cmdFrame.aux1;
+    uint8_t group_size = cmdFrame.aux2 & 0x3F; // Lower 6 bits define group size
+    size_t max_block_size = num_pages * 256;
 
-    bool is_extended = ((cmdFrame.aux2 & 0x20) == 0x20);
-    uint8_t pages = (cmdFrame.aux2 & 0x07) + 1;
+    // Debug_printf("Parameters: aux1=$%02X (pages=%d), aux2=$%02X (group_size=%d), max_block_size=%d\n",
+    //              cmdFrame.aux1, num_pages, cmdFrame.aux2, group_size, max_block_size);
 
-    Debug_printf("Fuji cmd: READ DIRECTORY BLOCK (pages=%d, maxlen=%d, extended: %d)\n", pages, maxlen, is_extended);
+    // Save current directory position in case we need to rewind
+    uint16_t starting_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+    // Debug_printf("Starting directory position: %d\n", starting_pos);
+    
+    std::vector<DirectoryPageGroup> page_groups;
+    size_t total_size = 0;
+    bool is_last_entry = false;
 
-    std::vector<uint8_t> response;
-    std::vector<uint8_t> start_offsets; // holds all the offsets for each dir entry in the response
-    std::vector<uint8_t> data_block;    // the data for each dir entry. no terminator char needed as we track the offsets. Double 0x7f is end of dir, and no more entries will come
+    while (!is_last_entry) {
+        // Create a new page group
+        DirectoryPageGroup group;
+        uint16_t group_start_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+        
+        // Calculate group index (0-based)
+        group.index = group_start_pos / group_size;
+        
+        // Debug_printf("Starting new group at directory position: %d (index=%d)\n", 
+        //              group_start_pos, group.index);
+        
+        // Fill the group with entries
+        for (int i = 0; i < group_size && !is_last_entry; i++) {
+            fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+            
+            if (f == nullptr) {
+                // Debug_println("Reached end of directory");
+                is_last_entry = true;
+                group.is_last_group = true;
+                break;
+            }
 
-    uint16_t response_max = pages * 256;
+            // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n", 
+            //             i, f->filename, f->size);
+            
+            if (!group.add_entry(f)) {
+                // Debug_println("Failed to add entry to group");
+                break;
+            }
+        }
 
-    if (_current_open_directory_slot == -1)
-    {
-        Debug_print("No currently open directory\n");
+        // If this is the last group, mark its last entry as the last one
+        if (is_last_entry) {
+            Debug_println("This is the last group in the directory");
+            group.is_last_group = true;
+        }
+
+        // this sets all the data for the group up correctly for us to insert into the block
+        group.finalize();
+
+        // Check if adding this group would exceed max_block_size
+        size_t new_total = total_size + group.data.size();
+        // Debug_printf("Group stats: entries=%d, size=%d, new_total=%d/%d\n",
+        //             group.entry_count, group.data.size(), new_total, max_block_size);
+        
+        if (new_total > max_block_size) {
+            // Debug_printf("Group would exceed max_block_size (%d > %d), rewinding to pos %d\n",
+            //            new_total, max_block_size, group_start_pos);
+            // Rewind to start of this group and break
+            _fnHosts[_current_open_directory_slot].dir_seek(group_start_pos);
+            break;
+        }
+        
+        // Add group to our collection
+        total_size = new_total;
+        page_groups.push_back(std::move(group));
+        // Debug_printf("Added group %d, total_size now %d\n", 
+        //             page_groups.size(), total_size);
+    }
+
+    // If we couldn't fit any groups, return error
+    if (page_groups.empty()) {
+        Debug_println("No page groups fit in requested size");
+        Debug_printf("Final stats: total_size=%d, max_block_size=%d\n",
+                    total_size, max_block_size);
         sio_error();
         return;
     }
 
-    bool is_eod = false;
-    char current_entry[256];
-    uint16_t num_entries = 0;
-    uint16_t total_size = 9; // header bytes
+    // Create final response buffer
+    std::vector<uint8_t> response(max_block_size, 0);  // Initialize with zeros at full size
 
-    uint16_t initial_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+    // Add response header
+    response[0] = 'M';  // Magic byte 1
+    response[1] = 'F';  // Magic byte 2
+    response[2] = 4;    // Header size (magic + size + count)
+    response[3] = page_groups.size(); // Number of page groups that follow
 
-    // keep filling buffers up until it can't fit another maxlen (plus header bytes etc)
-    // or we hit end of dir
-    while ( !is_eod && num_entries < 256 )
-    {
-        uint16_t additional_size = 0;
-        uint16_t pos_before_next = _fnHosts[_current_open_directory_slot].dir_tell();
-        fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-        if (f == nullptr)
-        {
-            // reached end of dir
-            is_eod = true;
-            current_entry[0] = 0x7F;
-            current_entry[1] = 0x7F;
-            current_entry[2] = 0;
-            additional_size = 2;
+    // Copy all page groups to response
+    size_t current_pos = 4;  // Start after header
+    for (const auto& group : page_groups) {
+        if (current_pos + group.data.size() <= max_block_size) {
+            std::copy(group.data.begin(), group.data.end(), response.begin() + current_pos);
+            current_pos += group.data.size();
         }
-        else
-        {
-            Debug_printf("::read_direntry \"%s\"\n", f->filename);
-
-            int bufsize;
-            char *filenamedest = current_entry;
-
-            // If 0x80 is set on AUX2, send back additional information
-            if (is_extended)
-            {
-                _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
-                // Adjust remaining size of buffer and file path destination
-                bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
-                filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
-            }
-            else
-            {
-                bufsize = maxlen;
-            }
-
-            int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
-            additional_size = filelen + (is_extended ? ADDITIONAL_DETAILS_BYTES : 0);
-
-            // Add a slash at the end of directory entries
-            if (f->isDir && filelen < (bufsize - 2))
-            {
-                current_entry[filelen] = '/';
-                current_entry[filelen + 1] = '\0';
-                additional_size++;
-            }
-
-        }
-
-        // would this take us over the limit? 2 for start_offset bytes.
-        uint16_t new_size = total_size + 2 + additional_size;
-
-        if (new_size > response_max) {
-            Debug_printf("skipping add, would have taken us to %d size. additional was: %d\n", new_size, additional_size);
-            // reset to previous pos, and exit loop
-            _fnHosts[_current_open_directory_slot].dir_seek(pos_before_next);
-            break;
-        } else {
-            Debug_printf("adding additional entry with size: %d\n", additional_size);
-        }
-
-
-        start_offsets.push_back(static_cast<uint8_t>(data_block.size() & 0xFF)); // lo byte of current size (which is same as offset)
-        start_offsets.push_back(static_cast<uint8_t>((data_block.size() >> 8) & 0xFF)); // high byte
-
-        // add the string to the data block without the terminating null
-        if (is_extended)
-        {
-            // strlen doesn't work as we have prepended some additional information
-            // add the additional bytes first
-            for(int i=0; i < ADDITIONAL_DETAILS_BYTES; i++)
-            {
-                data_block.push_back(static_cast<uint8_t>(current_entry[i]));
-            }
-            // Then add the string part
-            //int s_len = std::strlen(current_entry + ADDITIONAL_DETAILS_BYTES);
-            data_block.insert(data_block.end(), current_entry + ADDITIONAL_DETAILS_BYTES, current_entry + ADDITIONAL_DETAILS_BYTES + std::strlen(current_entry + ADDITIONAL_DETAILS_BYTES));
-        } else {
-            data_block.insert(data_block.end(), current_entry, current_entry + std::strlen(current_entry));
-        }
-
-        total_size = 9 + data_block.size() + start_offsets.size();
-        Debug_printf("current sizes, data: %d, offsets: %d, total: %d\n", data_block.size(), start_offsets.size(), data_block.size() + start_offsets.size());
-
-
-        num_entries++;
     }
 
-    // ###################################################################
-    // CREATE THE RESPONSE BLOCK:
-    // ###################################################################
-    // byte 0-1 = "MF" (Multi-File, take your pick :D )
-    // byte 2   = Flags (currently 0x80 = Extended Information)
-    // byte 3   = Max Size Per Entry (maxlen from input)
-    // byte 4   = Num Entries in block (max 255)
-    // byte 5-6 = Total size of block (i.e. size without padding)
-    // byte 7-8 = First Position in block (i.e. dir pos value at start), allows up to 64k entries over all blocks
-    // Num Entries x 2 = Offsets in Data for each entry
-    // Data x Num Entries = data for each dir.
-    //
-    // All above is < pages x 256 in size
+    // Debug_printf("Directory block stats:\n");
+    // Debug_printf("  Number of groups: %d\n", page_groups.size());
+    // Debug_printf("  Total data size: %d bytes\n", total_size);
+    // Debug_printf("  Last group: %s\n", (page_groups.back().is_last_group ? "Yes" : "No"));
+    // Debug_printf("Full response block:\n%s\n", util_hexdump(response.data(), response.size()).c_str());
 
-    // HEADER BYTES
-    std::string headerBytes = "MF";
-    response.insert(response.end(), headerBytes.begin(), headerBytes.end());
-
-    // FLAGS
-    uint8_t header_flags = is_extended ? 0x80 : 0;  // more flags may come
-    response.push_back(header_flags);
-
-    // MAX SIZE PER ENTRY
-    response.push_back(maxlen);
-
-    // NUM ENTRIES
-    response.push_back(static_cast<uint8_t>(num_entries));
-
-    // Total size
-    int final_size = 9 + data_block.size() + start_offsets.size();
-    response.push_back(static_cast<uint8_t>(final_size & 0xFF));
-    response.push_back(static_cast<uint8_t>((final_size >> 8) & 0xFF));
-
-    // INITIAL POS VALUE
-    response.push_back(static_cast<uint8_t>(initial_pos & 0xFF));
-    response.push_back(static_cast<uint8_t>((initial_pos >> 8) & 0xFF));
-
-    // OFFSETS
-    response.insert(response.end(), start_offsets.begin(), start_offsets.end());
-
-    // DATA
-    response.insert(response.end(), data_block.begin(), data_block.end());
-
-    Debug_printf("Actual data size: %d to atari\n", response.size());
-    std::string s = util_hexdump(response.data(), response.size());
-    Debug_printf("dump: \n%s\n", s.c_str());
-
-    // buffer with 0s to requested size
-    response.resize(response_max, 0);
-
-    bus_to_computer(response.data(), response_max, false);
+    bus_to_computer(response.data(), response.size(), false);
 }
 
 void sioFuji::sio_read_directory_entry()
 {
-     if ((cmdFrame.aux2 & 0xC0) == 0xC0) {
-        // Block mode directory entry
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("READ DIRECTORY ENTRY: No currently open directory\n");
+        sio_error();
+        return;
+    }
+    
+    // detect block mode in request
+    if ((cmdFrame.aux2 & 0xC0) == 0xC0) {
         sio_read_directory_block();
         return;
     }
 
     uint8_t maxlen = cmdFrame.aux1;
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
-
-    // Make sure we have a current open directory
-    if (_current_open_directory_slot == -1)
-    {
-        Debug_print("No currently open directory\n");
-        sio_error();
-        return;
-    }
 
     char current_entry[256];
 
