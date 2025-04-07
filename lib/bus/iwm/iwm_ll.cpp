@@ -157,6 +157,9 @@ inline void iwm_ll::iwm_extra_clr()
 
 int IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
+  if (!spi_buffer)
+    return 0;
+
   // clear out spi buffer
   memset(spi_buffer, 0, SPI_SP_LEN);
   // loop through "l" bytes of the buffer "packet_buffer"
