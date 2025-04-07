@@ -459,6 +459,7 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
   if (disk_type == MEDIATYPE_UNKNOWN) {
       Debug_printf("\r\nMedia Type UNKNOWN - no mount in disk.cpp");
       device_active = false;
+      is_config_device = false;
   }
   else if (_disk && _disk->_disk_filename)
       strcpy(_disk->_disk_filename, filename);
@@ -497,6 +498,7 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
       readonly = false;
 
     device_active = true; //change status only after we are mounted
+    is_config_device = false;
   }
 
   return disk_type;
@@ -510,6 +512,7 @@ void iwmDisk::unmount()
         delete _disk;
         _disk = nullptr;
         device_active = false;
+	is_config_device = false;
         readonly = true;
         Debug_printf("Disk UNMOUNTED!!!!\r\n");
     }

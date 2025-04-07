@@ -1105,6 +1105,10 @@ void iwmFuji::iwm_stat_read_device_slots()
 		diskSlots[i].mode = _fnDisks[i].access_mode;
 		diskSlots[i].hostSlot = _fnDisks[i].host_slot;
 		strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+
+                DEVICE_TYPE *disk_dev = get_disk_dev(i);
+                if (disk_dev->device_active && !disk_dev->is_config_device)
+                    diskSlots[i].mode |= DISK_ACCESS_MODE_MOUNTED;
 	}
 
 	returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
@@ -1326,7 +1330,6 @@ void iwmFuji::insert_boot_device(uint8_t d)
 
 	DEVICE_TYPE *disk_dev = get_disk_dev(0);
 	disk_dev->is_config_device = true;
-	disk_dev->device_active = true;
 }
 
 void iwmFuji::iwm_ctrl_enable_device()
@@ -1381,20 +1384,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
 	}
 
 	Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
-#ifdef ESP_PLATFORM
-	if (Config.get_general_boot_mode() == 0)
-	{
-		fnFile *f = fsFlash.fnfile_open("/autorun.po");
-		get_disk_dev(0)->mount(f, "/autorun.po", 140 * 1024, MEDIATYPE_PO);
-	}
-	else
-	{
-		fnFile *f = fsFlash.fnfile_open("/mount-and-boot.po");
-		get_disk_dev(0)->mount(f, "/mount-and-boot.po", 140 * 1024, MEDIATYPE_PO);
-	}
-#else
 	insert_boot_device(Config.get_general_boot_mode());
-#endif
 
 }
 
