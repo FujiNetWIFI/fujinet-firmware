@@ -540,7 +540,6 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
     if (!sf)
     {
       Debug_printf("Could not open /blank.do. Aborting.\n");
-      fclose(sf);
       return true;
     }
 

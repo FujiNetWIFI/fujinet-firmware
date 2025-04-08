@@ -115,6 +115,7 @@ New behavior: copy from SD first if available, then read FLASH.
     char *inibuffer = (char *)malloc(CONFIG_FILEBUFFSIZE);
     if (inibuffer == nullptr)
     {
+        fclose(fin);
         Debug_printf("Failed to allocate %d bytes to read config file\r\n", CONFIG_FILEBUFFSIZE);
         return;
     }

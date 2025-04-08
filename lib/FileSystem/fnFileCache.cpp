@@ -121,6 +121,7 @@ fc_handle *FileCache::create(const char *host, const char *path, int threshold, 
     fc = new fc_handle;
     if (fc == nullptr)
     {
+        delete fh;
         Debug_println("FileCache::create - failed to get fc_handle");
         fh->close();
         return nullptr;
