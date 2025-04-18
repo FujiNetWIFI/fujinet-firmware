@@ -12,15 +12,11 @@
 # include "sio/printer.h"
 # include "sio/printerlist.h"
 # include "sio/siocpm.h"
-# ifdef ESP_PLATFORM
-#  include "sio/voice.h"
-# endif
+# include "sio/voice.h"
 # include "sio/fuji.h"
 
     sioClock clockDevice;
-# ifdef ESP_PLATFORM
     sioVoice sioV;
-# endif
     sioUDPStream udpDev;
     // sioCassette sioC; // now part of sioFuji theFuji object
     modem *sioR;

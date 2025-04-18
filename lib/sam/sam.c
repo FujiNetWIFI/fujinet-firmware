@@ -1,7 +1,9 @@
 
 #include "sam.h"
 
+#ifdef ESP_PLATFORM
 #include <esp_heap_caps.h>
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -101,7 +103,11 @@ void Init()
     // TODO, check for free the memory, 10 seconds of output should be more than enough
     //buffer = (char*)ps_malloc(22050 * 5);
     // switch to ESP-IDF equivalent
+#ifdef ESP_PLATFORM
     buffer = (char *)heap_caps_malloc(22050 * 10, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
+    buffer = (char *)malloc(22050 * 10);
+#endif
     /*
     Due to a technical limitation, the maximum statically allocated DRAM usage is 160KB. 
     The remaining 160KB (for a total of 320KB of DRAM) can only be allocated at runtime as heap.

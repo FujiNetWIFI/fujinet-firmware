@@ -1,13 +1,19 @@
 
 #include "samlib.h"
 
-#include <freertos/FreeRTOS.h>
-#include <freertos/timers.h>
-#include <driver/gpio.h>
-#ifndef CONFIG_IDF_TARGET_ESP32S3
-#include <driver/dac.h>
+#ifdef ESP_PLATFORM
+  #include <freertos/FreeRTOS.h>
+  #include <freertos/timers.h>
+  #include <driver/gpio.h>
+  #ifndef CONFIG_IDF_TARGET_ESP32S3
+  #include <driver/dac.h>
+  #endif
+#else
+  #define MA_NO_DECODING
+  #define MA_NO_ENCODING
+  #include "miniaudio.c"
+  #include "compat_string.h"
 #endif
-
 
 #include "fnSystem.h"
 
@@ -210,6 +216,29 @@ void OutputSound()
 
 #else //Not def USESDL
 
+#ifndef ESP_PLATFORM
+static int pos = 0;
+void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
+{
+    int bufferpos = GetBufferLength() / 50;
+    char *buffer = GetBuffer();
+    int i;
+    bool *done_ptr = static_cast<bool *>(pDevice->pUserData);
+    if (pos >= bufferpos)
+    {
+        *done_ptr = true;
+        return;
+    }
+    if ((bufferpos - pos) < frameCount)
+        frameCount = (bufferpos - pos);
+    for (i = 0; i < frameCount; i++)
+    {
+        ((char *)pOutput)[i] = buffer[pos];
+        pos++;
+    }
+}
+#endif
+
 void OutputSound()
 {
 #ifdef ESP_PLATFORM
@@ -368,7 +397,33 @@ void OutputSound()
 
 
 #endif //CONFIG_IDF_TARGET_ESP32S3
-#endif //ESP_PLATFORM
+// end of ESP_PLATFORM
+#else
+// !ESP_PLATFORM
+    pos = 0;
+    bool done = false;
+    ma_device_config config = ma_device_config_init(ma_device_type_playback);
+    config.playback.format   = ma_format_u8;    // Set to ma_format_unknown to use the device's native format.
+    config.playback.channels = 1;               // Set to 0 to use the device's native channel count.
+    config.sampleRate        = sample_rate;     // Set to 0 to use the device's native sample rate.
+    config.dataCallback      = data_callback;   // This function will be called when miniaudio needs more data.
+    config.pUserData         = &done;           // Can be accessed from the device object (device.pUserData).
+
+    ma_device device;
+    if (ma_device_init(NULL, &config, &device) != MA_SUCCESS) {
+        return;  // Failed to initialize the device.
+    }
+
+    ma_device_start(&device);     // The device is sleeping by default so you'll need to start it manually.
+
+    // Do something here.
+    while (!done) {
+        fnSystem.delay(100);
+    }
+
+    ma_device_uninit(&device);
+// end of !ESP_PLATFORM
+#endif
 }
 
 #endif //USESDL
