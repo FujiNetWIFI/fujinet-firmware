@@ -129,6 +129,7 @@ set(INCLUDE_DIRS include
     lib/devrelay/commands lib/devrelay/service lib/devrelay/slip lib/devrelay/types
     lib/encoding
     components_pc/mongoose
+    components_pc/miniaudio
     components_pc/cJSON
     components_pc/libsmb2/include
     components_pc/libssh/include ${CMAKE_CURRENT_BINARY_DIR}/components_pc/libssh/include
@@ -278,7 +279,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/fuji.h lib/device/sio/fuji.cpp
     lib/device/sio/network.h lib/device/sio/network.cpp
     lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
-    #lib/device/sio/voice.h lib/device/sio/voice.cpp
+    lib/device/sio/voice.h lib/device/sio/voice.cpp
     lib/device/sio/clock.h lib/device/sio/clock.cpp
     lib/device/sio/siocpm.h lib/device/sio/siocpm.cpp
     lib/device/sio/pclink.h lib/device/sio/pclink.cpp
@@ -286,6 +287,18 @@ if(FUJINET_TARGET STREQUAL "ATARI")
 
     )
 endif()
+
+# support for SAM audio playback
+list(APPEND SOURCES
+    lib/sam/ReciterTabs.h
+    lib/sam/reciter.h lib/sam/reciter.c
+    lib/sam/RenderTabs.h
+    lib/sam/render.h lib/sam/render.c
+    lib/sam/SamTabs.h
+    lib/sam/sam.h lib/sam/sam.c
+    lib/sam/samdebug.h lib/sam/samdebug.c
+    lib/sam/samlib.h lib/sam/samlib.cpp
+)
 
 if(FUJINET_TARGET STREQUAL "APPLE")
     list(APPEND SOURCES

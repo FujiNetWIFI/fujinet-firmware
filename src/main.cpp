@@ -277,9 +277,7 @@ void main_setup(int argc, char *argv[])
 
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
-#ifdef ESP_PLATFORM
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
-#endif
 
     SIO.addDevice(&sioZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
 
