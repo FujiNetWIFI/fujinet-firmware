@@ -216,32 +216,9 @@ void OutputSound()
 
 #else //Not def USESDL
 
-#ifndef ESP_PLATFORM
-static int pos = 0;
-void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
-{
-    int bufferpos = GetBufferLength() / 50;
-    char *buffer = GetBuffer();
-    int i;
-    bool *done_ptr = static_cast<bool *>(pDevice->pUserData);
-    if (pos >= bufferpos)
-    {
-        *done_ptr = true;
-        return;
-    }
-    if ((bufferpos - pos) < frameCount)
-        frameCount = (bufferpos - pos);
-    for (i = 0; i < frameCount; i++)
-    {
-        ((char *)pOutput)[i] = buffer[pos];
-        pos++;
-    }
-}
-#endif
-
+#ifdef ESP_PLATFORM
 void OutputSound()
 {
-#ifdef ESP_PLATFORM
 #ifndef CONFIG_IDF_TARGET_ESP32S3
     int n = GetBufferLength() / 50;
     char *s = GetBuffer();
@@ -263,7 +240,6 @@ void OutputSound()
     //fnSystem.dac_output_disable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
     dac_output_disable(DAC_CHANNEL_1);
 
-    FreeBuffer();
 #else //Defined CONFIG_IDF_TARGET_ESP32S3
 //SampleRate = 22050
 //8 Bits
@@ -393,16 +369,39 @@ void OutputSound()
     }
 #endif    //ESP32S3_I2S_OUT
 
-    FreeBuffer();    
-
-
 #endif //CONFIG_IDF_TARGET_ESP32S3
+}
+
 // end of ESP_PLATFORM
 #else
 // !ESP_PLATFORM
+
+static int pos = 0;
+void data_callback(ma_device* pDevice, void* pOutput, const void* pInput, ma_uint32 frameCount)
+{
+    int bufferpos = GetBufferLength() / 50;
+    char *buffer = GetBuffer();
+    int i;
+    bool *done_ptr = static_cast<bool *>(pDevice->pUserData);
+    if (pos >= bufferpos)
+    {
+        *done_ptr = true;
+        return;
+    }
+    if ((bufferpos - pos) < frameCount)
+        frameCount = (bufferpos - pos);
+    for (i = 0; i < frameCount; i++)
+    {
+        ((char *)pOutput)[i] = buffer[pos];
+        pos++;
+    }
+}
+
+void OutputSound()
+{
     pos = 0;
     bool done = false;
-    ma_device_config config = ma_device_config_init(ma_device_type_playback);
+    ma_device_config config  = ma_device_config_init(ma_device_type_playback);
     config.playback.format   = ma_format_u8;    // Set to ma_format_unknown to use the device's native format.
     config.playback.channels = 1;               // Set to 0 to use the device's native channel count.
     config.sampleRate        = sample_rate;     // Set to 0 to use the device's native sample rate.
@@ -422,9 +421,10 @@ void OutputSound()
     }
 
     ma_device_uninit(&device);
-// end of !ESP_PLATFORM
-#endif
 }
+
+    // end of !ESP_PLATFORM
+#endif
 
 #endif //USESDL
 
@@ -568,19 +568,22 @@ int sam(int argc, char **argv)
 
     // printf("right before SAMMain");
 
-    if (!SAMMain())
+    if (!SAMMain()) // buffer is allocated in SAMMain, used by OutputSound and WriteWav
     {
         PrintUsage();
         return 1;
     }
     // printf("right after SAMMain");
 
-#ifndef ESP_PLATFORM
-    if (wavfilename != NULL)
-        WriteWav(wavfilename, GetBuffer(), GetBufferLength() / 50);
-    else
-#endif // ESP_PLATFORM
+// apc: any use of WriteWav on fujinet-pc?
+// #ifndef ESP_PLATFORM
+    
+//     if (wavfilename != NULL)
+//         WriteWav(wavfilename, GetBuffer(), GetBufferLength() / 50);
+//     else
+// #endif // ESP_PLATFORM
         OutputSound();
 
+    FreeBuffer();
     return 0;
 }
