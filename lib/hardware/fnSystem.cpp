@@ -1102,6 +1102,7 @@ void SystemManager::check_hardware_ver()
     */  
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT);
 #elif defined(BUILD_APPLE)
     /*  Apple II
         Check all the madness :zany_face:
