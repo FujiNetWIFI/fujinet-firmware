@@ -12,7 +12,7 @@
 #include <cstring>
 #include "fuji.h"
 
-#define IDLE_TIME 180 // Idle tolerance in microseconds
+#define IDLE_TIME 160 // Idle tolerance in microseconds
 
 static QueueHandle_t reset_evt_queue = NULL;
 
@@ -192,7 +192,7 @@ void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
 
 void virtualDevice::adamnet_control_ready()
 {
-    adamnet_response_ack();
+    adamnet_send(0x90 | _devnum);
 }
 
 void systemBus::wait_for_idle()
