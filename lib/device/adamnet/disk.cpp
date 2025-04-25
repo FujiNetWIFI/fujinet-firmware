@@ -129,10 +129,22 @@ void adamDisk::adamnet_control_receive()
     if (_media == nullptr)
         return;
 
-    if (_media->read(blockNum, nullptr))
-        adamnet_response_nack();
+    if (blockNum != blockNum_sent)
+    {
+        if (_media->read(blockNum, nullptr))
+        {
+            media_error=true;
+        }
+        else
+        {
+            media_error=false;
+            blockNum_sent = blockNum;
+        }
+    }
+    else if (media_error)
+        fnUartBUS.write(0xC0 | _devnum);
     else
-        adamnet_response_ack();
+        fnUartBUS.write(0x90 | _devnum);
 }
 
 void adamDisk::adamnet_control_send_block_num()
@@ -154,9 +166,12 @@ void adamDisk::adamnet_control_send_block_num()
         _media->format(NULL);
     }
 
-    AdamNet.start_time=esp_timer_get_time();
+    int chk = adamnet_recv();
     
-    adamnet_response_ack();
+    if (adamnet_checksum(x,5) != chk)
+        adamnet_send(0xC0 | _devnum);
+    else
+        adamnet_send(0x90 | _devnum);
 
     Debug_printf("BLOCK: %lu\n", blockNum);
 }
@@ -217,6 +232,7 @@ void adamDisk::adamnet_response_send()
     b[2] = 0x00;
     b[1027] = c;
     adamnet_send_buffer(b, sizeof(b));
+    blockNum_sent = INVALID_SECTOR_VALUE;
 }
 
 void adamDisk::adamnet_process(uint8_t b)
