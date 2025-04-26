@@ -47,7 +47,7 @@ adamNetwork::adamNetwork()
 
     protocol = nullptr;
 
-    json.setLineEnding("\x00");
+    json.setLineEnding("\x0a");
 }
 
 /**
@@ -249,7 +249,6 @@ bool adamNetwork::read_channel(unsigned short num_bytes)
  */
 void adamNetwork::write(uint16_t num_bytes)
 {
-    Debug_printf("!!! WRITE\n");
     memset(response, 0, sizeof(response));
 
     adamnet_recv_buffer(response, num_bytes);
@@ -560,6 +559,7 @@ void adamNetwork::json_query(unsigned short s)
 
     json.setReadQuery(std::string((char *)response, s), cmdFrame.aux2);
 
+    memset(response, 0, sizeof(response));
     Debug_printv("adamNetwork::json_query(%s)\n", response);
 }
 
@@ -841,6 +841,7 @@ void adamNetwork::adamnet_control_receive_channel_json()
         json.readValue(response, response_len);
         jsonRecvd = true;
         adamnet_response_ack();
+        Debug_printf("RESP: %s\n",response);
     }
     else
     {
