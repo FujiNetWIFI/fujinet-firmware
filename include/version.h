@@ -17,6 +17,6 @@
 
 #define FN_VERSION_DATE "2025-04-02 10:07:01"
 
-#define FN_VERSION_FULL "v1.5.0"
+#define FN_VERSION_FULL "v1.5.1"
 
 #endif /* _VERSION_H */
