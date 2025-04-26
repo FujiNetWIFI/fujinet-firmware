@@ -184,6 +184,7 @@ void adamDisk::adamnet_control_send_block_data()
         return;
 
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
+    chksum = adamnet_recv(); // Get checksum byte.
 
     if (adamnet_checksum(_media->_media_blockbuff,1024) != chksum)
     {
