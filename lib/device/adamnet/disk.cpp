@@ -178,16 +178,24 @@ void adamDisk::adamnet_control_send_block_num()
 
 void adamDisk::adamnet_control_send_block_data()
 {
+    uint8_t chksum=0;
+
     if (_media == nullptr)
         return;
 
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
-    AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
-    Debug_printf("Block Data Write\n");
 
-    _media->write(blockNum, false);
+    if (adamnet_checksum(_media->_media_blockbuff,1024) != chksum)
+    {
+        adamnet_send(0xC0 | _devnum); // NACK
+    }
+    else
+    {
+        adamnet_send(0x90 | _devnum); // ACK
+        _media->write(blockNum, false);
+    }
 
+    // In any case, invalidate the block.
     blockNum = 0xFFFFFFFF;
     _media->_media_last_block = 0xFFFFFFFE;
 }
