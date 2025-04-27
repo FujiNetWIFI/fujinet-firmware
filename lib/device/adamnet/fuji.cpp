@@ -1598,7 +1598,7 @@ void adamFuji::adamnet_process(uint8_t b)
         adamnet_control_clr();
         break;
     case MN_RECEIVE:
-        adamnet_response_ack();
+        adamnet_send(0x9f); // ACK.
         break;
     case MN_SEND:
         adamnet_control_send();
