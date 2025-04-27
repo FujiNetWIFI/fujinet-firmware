@@ -841,7 +841,6 @@ void adamNetwork::adamnet_control_receive_channel_json()
         json.readValue(response, response_len);
         jsonRecvd = true;
         adamnet_response_ack();
-        Debug_printf("RESP: %s\n",response);
     }
     else
     {
@@ -905,7 +904,7 @@ inline void adamNetwork::adamnet_control_receive()
     // Data is waiting, go ahead and send it off.
     if (response_len > 0)
     {
-        adamnet_response_ack();
+        adamnet_send(0x90 | _devnum);
         return;
     }
 
