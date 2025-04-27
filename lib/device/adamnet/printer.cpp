@@ -100,13 +100,16 @@ void adamPrinter::adamnet_control_status()
 void adamPrinter::adamnet_control_send()
 {
     PrintItem pi;
+    uint8_t cksum=0;
 
     pi.len = adamnet_recv_length();
     adamnet_recv_buffer(pi.buf, pi.len);
-    adamnet_recv(); // ck
+    cksum = adamnet_recv(); // ck
 
-    // AdamNet.start_time = esp_timer_get_time();
-    adamnet_response_ack();
+    if (adamnet_checksum(pi.buf,pi.len) != cksum)
+        fnUartBUS.write(0xc2); // NACK
+    else
+        fnUartBUS.write(0x92); // ACK
 
     xQueueSend(pxq, &pi, portMAX_DELAY);
 
@@ -118,11 +121,15 @@ void adamPrinter::adamnet_control_ready()
     AdamNet.start_time = esp_timer_get_time();
 
     if (getPrinterPtr()->is_printing)
-        adamnet_response_nack();
+    {
+        fnUartBUS.write(0xC2); // NACK
+    }
     else if (!uxQueueSpacesAvailable(pxq))
-        adamnet_response_nack();
+    {
+        fnUartBUS.write(0xC2); // NACK
+    }
     else
-        adamnet_response_ack();
+        fnUartBUS.write(0x92); // ACK
 }
 
 void adamPrinter::adamnet_process(uint8_t b)
