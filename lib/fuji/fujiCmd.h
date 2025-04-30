@@ -21,6 +21,7 @@
 #define FUJICMD_WRITE_DEVICE_SLOTS         0xF1
 #define FUJICMD_ENABLE_UDPSTREAM           0xF0
 #define FUJICMD_GET_WIFI_ENABLED           0xEA
+#define FUJICMD_SET_BAUDRATE               0xEB
 #define FUJICMD_UNMOUNT_IMAGE              0xE9
 #define FUJICMD_GET_ADAPTERCONFIG          0xE8
 #define FUJICMD_NEW_DISK                   0xE7
