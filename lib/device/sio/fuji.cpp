@@ -252,7 +252,6 @@ void sioFuji::sio_net_get_ssid()
 void sioFuji::sio_net_set_ssid()
 {
     Debug_println("Fuji cmd: SET SSID");
-    int i;
 
     // Data for  FUJICMD_SET_SSID
     struct
@@ -310,6 +309,60 @@ void sioFuji::sio_net_get_wifi_enabled()
     uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
     Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n", e);
     bus_to_computer(&e, sizeof(e), false);
+}
+
+// Set SIO baudrate
+void sioFuji::sio_set_baudrate()
+{
+   
+    int br = 0;
+
+    switch(cmdFrame.aux1) {
+
+        case 0:
+            br = 19200;
+            break;
+
+        case 1:
+            br = 38400;
+            break;
+
+        case 2:
+            br = 57600;
+            break;
+
+        case 3:
+            br = 115200;
+            break;
+
+        case 4:
+            br = 230400;
+            break;
+
+        case 5:
+            br = 460800;
+            break;
+
+        case 6:
+            br = 921600;
+            break;
+
+        default:
+            sio_error();
+            return;
+    }
+  
+    // send complete with current baudrate
+    sio_complete();
+
+#ifdef ESP_PLATFORM
+    SYSTEM_BUS.uart->flush();
+    SYSTEM_BUS.uart->set_baudrate(br);
+#else
+    fnSioCom.flush();
+    fnSystem.delay_microseconds(2000);
+    fnSioCom.set_baudrate(br);
+#endif
 }
 
 // Mount Server
@@ -2617,6 +2670,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     case FUJICMD_GET_WIFI_ENABLED:
         sio_ack();
         sio_net_get_wifi_enabled();
+        break;
+    case FUJICMD_SET_BAUDRATE:
+        sio_ack();
+        sio_set_baudrate();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         sio_ack();

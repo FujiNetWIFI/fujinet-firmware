@@ -139,6 +139,7 @@ protected:
     void sio_write_device_slots();     // 0xF1
     void sio_enable_udpstream();       // 0xF0
     void sio_net_get_wifi_enabled();   // 0xEA
+    void sio_set_baudrate();           // 0xEB
 #ifdef ESP_PLATFORM
     void sio_disk_image_umount();      // 0xE9
 #else
