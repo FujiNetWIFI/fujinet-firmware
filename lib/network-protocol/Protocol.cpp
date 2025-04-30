@@ -181,6 +181,9 @@ bool NetworkProtocol::write(unsigned short len)
  */
 bool NetworkProtocol::status(NetworkStatus *status)
 {
+    if (fromInterrupt)   
+        return false;
+ 
     if (!is_write && receiveBuffer->length() == 0 && status->rxBytesWaiting > 0)
         read(status->rxBytesWaiting);
 
