@@ -356,8 +356,11 @@ void sioFuji::sio_set_baudrate()
     sio_complete();
 
 #ifdef ESP_PLATFORM
+    SYSTEM_BUS.uart->flush();
     SYSTEM_BUS.uart->set_baudrate(br);
 #else
+    fnSioCom.flush();
+    fnSystem.delay_microseconds(2000);
     fnSioCom.set_baudrate(br);
 #endif
 }
