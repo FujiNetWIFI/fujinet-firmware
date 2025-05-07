@@ -8,6 +8,7 @@
 #include <bitset>
 #include <unordered_map>
 #include <sstream>
+#include <algorithm>
 
 #include "../../include/debug.h"
 

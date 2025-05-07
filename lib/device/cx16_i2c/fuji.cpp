@@ -1127,7 +1127,7 @@ void cx16Fuji::get_host_prefix()
 }
 
 // Public method to update host in specific slot
-fujiHost *cx16_i2c::set_slot_hostname(int host_slot, char *hostname)
+fujiHost *cx16Fuji::set_slot_hostname(int host_slot, char *hostname)
 {
     _fnHosts[host_slot].set_hostname(hostname);
     _populate_config_from_slots();
