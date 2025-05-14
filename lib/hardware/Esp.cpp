@@ -151,7 +151,7 @@ uint32_t EspClass::getMaxAllocHeap(void) {
 }
 
 uint32_t EspClass::getPsramSize(void) {
-#ifdef PSRAM_SIZE
+#ifdef BOARD_HAS_PSRAM
     if (esp_psram_is_initialized()) {
         return heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
     }
@@ -160,7 +160,7 @@ uint32_t EspClass::getPsramSize(void) {
 }
 
 uint32_t EspClass::getFreePsram(void) {
-#ifdef PSRAM_SIZE
+#ifdef BOARD_HAS_PSRAM
     if (esp_psram_is_initialized()) {
         return heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
     }
@@ -169,7 +169,7 @@ uint32_t EspClass::getFreePsram(void) {
 }
 
 uint32_t EspClass::getMinFreePsram(void) {
-#ifdef PSRAM_SIZE
+#ifdef BOARD_HAS_PSRAM
     if (esp_psram_is_initialized()) {
         return heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM);
     }
@@ -178,7 +178,7 @@ uint32_t EspClass::getMinFreePsram(void) {
 }
 
 uint32_t EspClass::getMaxAllocPsram(void) {
-#ifdef PSRAM_SIZE
+#ifdef BOARD_HAS_PSRAM
     if (esp_psram_is_initialized()) {
         return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
     }
@@ -195,7 +195,8 @@ uint16_t EspClass::getChipRevision(void) {
 const char *EspClass::getChipModel(void) {
 #if CONFIG_IDF_TARGET_ESP32
     uint32_t chip_ver =
-        REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
+        //REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_VER_PKG);
+        REG_GET_FIELD(EFUSE_BLK0_RDATA3_REG, EFUSE_RD_CHIP_PACKAGE);
     uint32_t pkg_ver = chip_ver & 0x7;
     switch (pkg_ver) {
         case EFUSE_RD_CHIP_VER_PKG_ESP32D0WDQ6:

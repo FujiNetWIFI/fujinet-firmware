@@ -5,6 +5,10 @@
 #include <cstdint>
 #include <cstring>
 
+#ifdef ESP_PLATFORM
+#include <unistd.h>  // for fsync
+#endif
+
 #include "../../include/debug.h"
 
 
