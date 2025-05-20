@@ -333,9 +333,9 @@ void main_setup(int argc, char *argv[])
     Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
 
     rs232Printer *ptr = new rs232Printer(ptrfs, ptype);
-    fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
+    fnPrinters.set_entry(0, ptr, ptype, 0);
 
-    RS232.addDevice(ptr, RS232_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
+    RS232.addDevice(ptr, RS232_DEVICEID_PRINTER); // P:
 #endif
 
 #ifdef BUILD_RC2014
