@@ -73,7 +73,7 @@ void rs232Printer::rs232_write(uint8_t aux1, uint8_t aux2)
         linelen = 20;
         break;
     default:
-        linelen = 40;
+        linelen = 1;
     }
 
     memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
