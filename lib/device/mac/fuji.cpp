@@ -237,6 +237,14 @@ std::string macFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
+// Public method to update host in specific slot
+fujiHost *macFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
+}
+
 // This gets called when we're about to shutdown/reboot
 void macFuji::shutdown()
 {

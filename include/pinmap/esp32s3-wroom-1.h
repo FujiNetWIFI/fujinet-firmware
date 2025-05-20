@@ -18,11 +18,6 @@
 #define PIN_UART2_TX            GPIO_NUM_17
 
 /* Buttons */
-//#define PIN_BUTTON_A            GPIO_NUM_45 // keys.cpp
-//#define PIN_BUTTON_B            GPIO_NUM_47
-//#define PIN_BUTTON_C            GPIO_NUM_48
-#define PIN_BUTTON_A            GPIO_NUM_0
-#define PIN_BUTTON_B            GPIO_NUM_NC
 #define PIN_BUTTON_C            GPIO_NUM_NC
 
 /* LEDs */
@@ -56,16 +51,12 @@
 #define PIN_MTR                 GPIO_NUM_42
 #define PIN_CMD                 GPIO_NUM_2
 
-
 /* Audio Output */
 #define PIN_DAC1                GPIO_NUM_21 //GPIO_NUM_NC
 
-/* I2S Audio Output */
-#ifdef ESP32S3_I2S_OUT
-    #define PIN_I2S_SCK                GPIO_NUM_6
-    #define PIN_I2S_WS                 GPIO_NUM_5
-    #define PIN_I2S_SDO                GPIO_NUM_4
-#endif
+#include "iec-common.h"
+#include "atari-common.h"
+#include "common.h"
 
 #endif /* PINMAP_ESP32S3_WROOM_1 */
 
