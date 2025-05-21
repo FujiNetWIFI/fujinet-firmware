@@ -564,6 +564,8 @@ void xmm801::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
 void xmm801::post_new_file()
 {
     epson80::post_new_file();
+#ifdef BUILD_ATARI
     translate850 = false;
     _eol = ATASCII_EOL;
+#endif
 }
