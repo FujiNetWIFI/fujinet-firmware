@@ -229,7 +229,7 @@ void rs232Printer::set_printer_type(rs232Printer::printer_type printer_type)
         break;
     }
 
-    _pptr->setEOL(0x0D);
+    _pptr->setEOL('\r');
     _pptr->setTranslate850(true);
     _pptr->initPrinter(_storage);
 }

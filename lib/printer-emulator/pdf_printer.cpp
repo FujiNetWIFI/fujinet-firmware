@@ -366,7 +366,7 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
         else
         {
 #ifdef BUILD_RS232
-            if (c == 0x0A)
+            if (c == '\n')
                 continue;
 #endif
             // Temporarily bypass eol handling if required.
