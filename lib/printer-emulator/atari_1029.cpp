@@ -268,8 +268,8 @@ void atari1029::pdf_clear_modes()
 
 void atari1029::post_new_file()
 {
-    translate850 = false;
-    _eol = ATASCII_EOL;
+    //translate850 = false;
+    //_eol = ATASCII_EOL;
 
     shortname = "a1029";
 
