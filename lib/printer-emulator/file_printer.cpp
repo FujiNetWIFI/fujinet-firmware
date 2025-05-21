@@ -48,6 +48,12 @@ bool filePrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
                 fputs(ASCII_CRLF, _file);
                 break;
             }
+#ifdef BUILD_RS232
+            if (buffer[i] == '\n')
+                fputc('\n',_file);
+            else if (buffer[i] =='\r')
+                fputc('\r',_file);
+#endif
             // If it's an inverse character, convert to normal
             char c = ATASCII_REMOVE_INVERSE(buffer[i]);
             // If it's a printable character, just copy it
