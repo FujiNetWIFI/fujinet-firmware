@@ -342,7 +342,6 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
     // loop through string
     do
     {
-
 // 
 #ifdef BUILD_APPLE // move this inside the loop incase the buffer has more than one line (SP packet buffering)
         if (TOPflag)
@@ -366,6 +365,10 @@ bool pdfPrinter::process_buffer(uint8_t n, uint8_t aux1, uint8_t aux2)
         }
         else
         {
+#ifdef BUILD_RS232
+            if (c == '\n')
+                continue;
+#endif
             // Temporarily bypass eol handling if required.
             // The real fix is to split CR/LF handling.
             if (_eol_bypass == false)

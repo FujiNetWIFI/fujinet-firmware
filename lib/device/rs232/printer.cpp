@@ -73,7 +73,7 @@ void rs232Printer::rs232_write(uint8_t aux1, uint8_t aux2)
         linelen = 20;
         break;
     default:
-        linelen = 40;
+        linelen = 1;
     }
 
     memset(_buffer, 0, sizeof(_buffer)); // clear _buffer
@@ -229,6 +229,8 @@ void rs232Printer::set_printer_type(rs232Printer::printer_type printer_type)
         break;
     }
 
+    _pptr->setEOL('\r');
+    _pptr->setTranslate850(true);
     _pptr->initPrinter(_storage);
 }
 
