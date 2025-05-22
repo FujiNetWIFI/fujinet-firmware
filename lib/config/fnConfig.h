@@ -42,6 +42,10 @@
 #  define CONFIG_DEFAULT_BOIP_PORT 1985
 #endif
 
+#ifdef BUILD_RS232
+#define CONFIG_DEFAULT_RS232_BAUD 115200
+#endif
+
 #define CONFIG_FILEBUFFSIZE 2048
 
 #define CONFIG_DEFAULT_SNTPSERVER "pool.ntp.org"
@@ -270,6 +274,12 @@ public:
     void store_boip_host(const char *host);
     void store_boip_port(int port);
 
+#ifdef BUILD_RS232
+    // RS232
+    int get_rs232_baud() { return _rs232.baud; }
+    void store_rs232_baud(int baud);
+#endif
+
 #ifndef ESP_PLATFORM
     // BUS over Serial
     bool get_bos_enabled() { return _bos.bos_enabled; } // unused
@@ -321,6 +331,7 @@ private:
     void _read_section_serial(std::stringstream &ss);
     void _read_section_bos(std::stringstream &ss);
 #endif
+    void _read_section_rs232(std::stringstream &ss);
 
     enum section_match
     {
@@ -342,6 +353,9 @@ private:
 #ifndef ESP_PLATFORM
         SECTION_SERIAL,
         SECTION_BOS,
+#endif
+#ifdef BUILD_RS232
+        SECTION_RS232,
 #endif
         SECTION_UNKNOWN
     };
@@ -495,6 +509,13 @@ private:
     };
 #endif
 
+#ifdef BUILD_RS232
+    struct rs232_info
+    {
+        int baud = 115200;
+    };
+#endif
+
     struct modem_info
     {
         bool modem_enabled = true;
@@ -555,6 +576,9 @@ private:
     cpm_info _cpm;
     device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
+#ifdef BUILD_RS232
+    rs232_info _rs232;
+#endif
 };
 
 extern fnConfig Config;

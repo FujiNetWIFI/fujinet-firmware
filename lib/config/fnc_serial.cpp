@@ -67,6 +67,38 @@ void fnConfig::_read_section_boip(std::stringstream &ss)
     }
 }
 
+#ifdef BUILD_RS232
+void fnConfig::_read_section_rs232(std::stringstream &ss)
+{
+    std::string line;
+
+    while (_read_line(ss,line,'[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line,name,value))
+        {
+            if (strcasecmp(name.c_str(),"baud") == 0)
+            {
+                int baud = atoi(value.c_str());
+                if (baud<=0 || baud>= INT_MAX)
+                {
+                    baud = CONFIG_DEFAULT_RS232_BAUD;
+                }
+                    _rs232.baud = baud;
+            }
+        }
+    }
+}
+
+void fnConfig::store_rs232_baud(int _baud) {
+    if (_baud == _rs232.baud)
+        return;
+
+    _rs232.baud = _baud;
+    _dirty = true;
+}
+#endif
 
 #ifndef ESP_PLATFORM
 

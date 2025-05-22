@@ -285,10 +285,10 @@ void systemBus::service()
 // Setup RS232 bus
 void systemBus::setup()
 {
-    Debug_println("RS232 SETUP");
+    Debug_printf("RS232 SETUP: Baud rate: %u\n",Config.get_rs232_baud());
 
     // Set up UART
-    fnUartBUS.begin(_rs232Baud);
+    fnUartBUS.begin(Config.get_rs232_baud());
 
     // // INT PIN
     // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
