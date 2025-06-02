@@ -206,7 +206,7 @@ void rs232Network::rs232_close()
  */
 void rs232Network::rs232_read()
 {
-    unsigned short num_bytes = rs232_get_aux();
+    unsigned short num_bytes = rs232_get_aux16_lo();
     bool err = false;
 
     Debug_printf("rs232Network::rs232_read( %d bytes)\n", num_bytes);
@@ -279,7 +279,7 @@ bool rs232Network::rs232_read_channel(unsigned short num_bytes)
  */
 void rs232Network::rs232_write()
 {
-    unsigned short num_bytes = rs232_get_aux();
+    unsigned short num_bytes = rs232_get_aux16_lo();
     uint8_t *newData;
     bool err = false;
 
