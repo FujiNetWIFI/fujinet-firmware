@@ -123,19 +123,19 @@ bool NetworkProtocolHTTP::open_file_handle()
 
     switch (aux1_open)
     {
-    case 4:  // GET with no headers, filename resolve
-    case 12: // GET with ability to set headers, no filename resolve.
+    case PROTOCOL_OPEN_READ:        // GET with no headers, filename resolve
+    case PROTOCOL_OPEN_READWRITE:   // GET with ability to set headers, no filename resolve.
         httpOpenMode = GET;
         break;
-    case 8: // WRITE, filename resolve, ignored if not found.
+    case PROTOCOL_OPEN_WRITE:       // WRITE, filename resolve, ignored if not found.
         httpOpenMode = PUT;
         break;
-    case 5: // DELETE with no headers
-    case 9: // DELETE with ability to set headers
+    case PROTOCOL_OPEN_HTTP_DELETE: // DELETE with no headers
+    case PROTOCOL_OPEN_APPEND:      // DELETE with ability to set headers
         httpOpenMode = DELETE;
         break;
-    case 13: // POST can set headers, also no filename resolve
-    case 14: // PUT with ability to set headers, no filename resolve
+    case PROTOCOL_OPEN_HTTP_POST:   // POST can set headers, also no filename resolve
+    case PROTOCOL_OPEN_HTTP_PUT:    // PUT with ability to set headers, no filename resolve
         httpOpenMode = POST;
         break;
     default:
