@@ -227,6 +227,8 @@ public:
      */
     virtual void set_open_params(uint8_t p1, uint8_t p2);
 
+    virtual off_t seek(off_t offset, int whence);
+
     /**
      * Pointer to current login;
      */

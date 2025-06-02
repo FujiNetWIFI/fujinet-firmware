@@ -311,3 +311,21 @@ bool NetworkProtocolSMB::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
 }
+
+off_t NetworkProtocolSMB::seek(off_t position, int whence)
+{
+    // fileSize isn't fileSize, it's bytes remaining. Call stat() to fix fileSize
+    stat();
+
+    if (whence == SEEK_SET)
+        offset = position;
+    else if (whence == SEEK_CUR)
+        offset += position;
+    else if (whence == SEEK_END)
+        offset = fileSize - position;
+
+    fileSize -= offset;
+    receiveBuffer->clear();
+
+    return offset;
+}

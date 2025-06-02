@@ -186,6 +186,7 @@ protected:
      */
     virtual bool close_dir_handle() override;
 
+    virtual off_t seek(off_t offset, int whence) override;
 
 private:
 

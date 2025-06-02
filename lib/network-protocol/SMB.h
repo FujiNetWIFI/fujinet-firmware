@@ -98,6 +98,8 @@ public:
      */
     virtual bool unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
 
+    virtual off_t seek(off_t offset, int whence) override;
+
 protected:
 
     /**
