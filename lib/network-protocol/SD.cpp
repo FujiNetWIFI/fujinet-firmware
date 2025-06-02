@@ -41,16 +41,16 @@ bool NetworkProtocolSD::open_file_handle()
     // Map aux1 to mode
     switch (aux1_open)
     {
-    case 4:
+    case PROTOCOL_OPEN_READ:
         mode = FILE_READ;
         break;
-    case 8:
+    case PROTOCOL_OPEN_WRITE:
         mode = FILE_WRITE;
         break;
-    case 9:
+    case PROTOCOL_OPEN_APPEND:
         mode = FILE_APPEND;
         break;
-    case 12:
+    case PROTOCOL_OPEN_READWRITE:
         mode = FILE_READ_WRITE;
         break;
     }
