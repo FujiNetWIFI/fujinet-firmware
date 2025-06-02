@@ -51,16 +51,16 @@ bool NetworkProtocolSMB::open_file_handle()
 
     switch (aux1_open)
     {
-    case 4:
+    case PROTOCOL_OPEN_READ:
         flags = O_RDONLY;
         break;
-    case 8:
+    case PROTOCOL_OPEN_WRITE:
         flags = O_WRONLY | O_CREAT;
         break;
-    case 9:
+    case PROTOCOL_OPEN_APPEND:
         flags = O_APPEND | O_CREAT;
         break;
-    case 12:
+    case PROTOCOL_OPEN_READWRITE:
         flags = O_RDWR;
         break;
     default:
