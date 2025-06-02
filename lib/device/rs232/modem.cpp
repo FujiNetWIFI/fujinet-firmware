@@ -611,7 +611,7 @@ void rs232Modem::rs232_baudlock()
 {
     rs232_ack();
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
-    modemBaud = rs232_get_aux();
+    modemBaud = rs232_get_aux16_lo();
 
     Debug_printf("baudLock: %d\n", baudLock);
 

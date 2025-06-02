@@ -14,13 +14,23 @@
 #include "fnDNS.h"
 #include "led.h"
 #include "utils.h"
+#include <endian.h>
 
 // Helper functions outside the class defintions
 
-// Get requested buffer length from command frame
-unsigned short virtualDevice::rs232_get_aux()
+uint16_t virtualDevice::rs232_get_aux16_lo()
 {
-    return (cmdFrame.aux2 * 256) + cmdFrame.aux1;
+    return le16toh(cmdFrame.aux12);
+}
+
+uint16_t virtualDevice::rs232_get_aux16_hi()
+{
+    return le16toh(cmdFrame.aux34);
+}
+
+uint32_t virtualDevice::rs232_get_aux32()
+{
+    return le32toh(cmdFrame.aux);
 }
 
 // Calculate 8-bit checksum
