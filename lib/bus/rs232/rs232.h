@@ -127,12 +127,15 @@ protected:
     void rs232_error();
 
     /**
-     * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
-     * a sector number, for disk, or a number of bytes waiting for the rs232Network device.
-     * 
-     * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
+     * @brief Return the aux bytes in cmdFrame as a single 16-bit or
+     * 32-bit value, commonly used, for example to retrieve a sector
+     * number, for disk, or a number of bytes waiting for the
+     * rs232Network device.
      */
-    unsigned short rs232_get_aux();
+    // FIXME - these should probably be macros
+    uint16_t rs232_get_aux16_lo();
+    uint16_t rs232_get_aux16_hi();
+    uint32_t rs232_get_aux32();
 
     /**
      * @brief All RS232 commands by convention should return a status command, using bus_to_computer() to return
