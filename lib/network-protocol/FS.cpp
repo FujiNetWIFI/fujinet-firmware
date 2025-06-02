@@ -106,7 +106,7 @@ bool NetworkProtocolFS::open_dir()
     {
         if (entryBuffer.at(0) == '.' || entryBuffer.at(0) == '/')
             continue;
-            
+
         if (aux2_open & 0x80)
         {
             // Long entry
@@ -191,7 +191,7 @@ bool NetworkProtocolFS::read(unsigned short len)
     bool ret;
 
     is_write = false;
-    
+
     switch (openMode)
     {
     case FILE:
