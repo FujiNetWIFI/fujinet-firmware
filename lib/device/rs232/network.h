@@ -133,6 +133,9 @@ public:
      */
     virtual void rs232_process(cmdFrame_t *cmd_ptr);
 
+    void rs232_seek();
+    void rs232_tell();
+
 private:
     /**
      * Buffer for holding devicespec
