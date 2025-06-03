@@ -350,3 +350,20 @@ bool NetworkProtocolTNFS::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
 }
+
+off_t NetworkProtocolTNFS::seek(off_t offset, int whence)
+{
+    int err;
+    uint32_t new_offset;
+
+
+    err = tnfs_lseek(&mountInfo, fd, offset, whence, &new_offset, false);
+    if (err)
+        return -1;
+
+    // fileSize isn't fileSize, it's bytes remaining. Call stat() to fix fileSize
+    stat();
+    fileSize -= new_offset;
+    receiveBuffer->clear();
+    return new_offset;
+}
