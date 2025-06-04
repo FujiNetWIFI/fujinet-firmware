@@ -280,9 +280,8 @@ private:
   size_t track_location = 0;
   int track_bit_period = 4000;
 
+  bool rmt_started = false;
   void set_output_to_rmt();
-
-  bool enabledD2 = true;
 
   // write state
   bool d2w_writing = false, d2w_started = false;
@@ -297,7 +296,7 @@ public:
 
   // Phase lines and ACK handshaking
   uint8_t iwm_phase_vector() { return (uint8_t)(GPIO.in1.val & (uint32_t)0b1111); };
-  uint8_t iwm_enable_states();
+  uint8_t iwm_active_drive();
 
   // Disk II handling by RMT peripheral
   void setup_rmt(); // install the RMT device
@@ -311,10 +310,6 @@ public:
   void copy_track(uint8_t *track, size_t tracklen, size_t trackbits, int bitperiod);
 
   void set_output_to_low();
-
-  void enableD2(){ enabledD2 = true; };
-  void disableD2(){ enabledD2 = false; };
-  bool isDrive2Enabled(){ return enabledD2; };
 };
 
 extern iwm_sp_ll smartport;

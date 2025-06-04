@@ -1,6 +1,6 @@
 /**
  * NetworkProtocolFS
- * 
+ *
  * Implementation
  */
 
@@ -408,7 +408,7 @@ void NetworkProtocolFS::resolve()
     // Clear file size, if resolved to write and not append.
     if (aux1_open == 8)
         fileSize = 0;
-    
+
 }
 
 bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
@@ -418,17 +418,17 @@ bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t 
 #endif
     switch (cmdFrame->comnd)
     {
-    case 0x20:
+    case FUJI_CMD_RENAME:
         return rename(url, cmdFrame);
-    case 0x21:
+    case FUJI_CMD_DELETE:
         return del(url, cmdFrame);
-    case 0x23:
+    case FUJI_CMD_LOCK:
         return lock(url, cmdFrame);
-    case 0x24:
+    case FUJI_CMD_UNLOCK:
         return unlock(url, cmdFrame);
-    case 0x2A:
+    case FUJI_CMD_MKDIR:
         return mkdir(url, cmdFrame);
-    case 0x2B:
+    case FUJI_CMD_RMDIR:
         return rmdir(url, cmdFrame);
     default:
 #ifdef VERBOSE_PROTOCOL

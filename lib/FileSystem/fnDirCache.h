@@ -3,13 +3,22 @@
 
 #include <vector>
 
+#ifdef ESP_PLATFORM
+#include "../../include/PSRAMAllocator.h"
+#endif
+
 #include "fnFS.h"
 
 class DirCache
 {
 private:
+#ifdef ESP_PLATFORM
+    std::vector<fsdir_entry,PSRAMAllocator<fsdir_entry>> _entries;
+    std::vector<fsdir_entry *,PSRAMAllocator<fsdir_entry *>> _entries_filtered;
+#else
     std::vector<fsdir_entry> _entries;
-    std::vector<fsdir_entry> _entries_filtered;
+    std::vector<fsdir_entry *> _entries_filtered;
+#endif
     uint16_t _current = 0;
 
 public:

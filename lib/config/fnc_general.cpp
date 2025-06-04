@@ -43,6 +43,16 @@ void fnConfig::store_general_config_enabled(bool config_enabled)
     _dirty = true;
 }
 
+// Saves config-ng boot setting
+void fnConfig::store_general_config_ng(bool config_ng)
+{
+    if (_general.config_ng == config_ng)
+        return;
+
+    _general.config_ng = config_ng;
+    _dirty = true;
+}
+
 // Saves alternative config boot disk filename
 void fnConfig::store_config_filename(const std::string &filename)
 {
@@ -201,6 +211,10 @@ void fnConfig::_read_section_general(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "configenabled") == 0)
             {
                 _general.config_enabled = util_string_value_is_true(value);
+            }
+            else if (strcasecmp(name.c_str(), "config_ng") == 0)
+            {
+                _general.config_ng = util_string_value_is_true(value);
             }
             else if (strcasecmp(name.c_str(), "altconfigfile") == 0)
             {

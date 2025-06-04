@@ -761,6 +761,7 @@ void rc2014Fuji::rc2014_get_host_prefix()
 fujiHost *rc2014Fuji::set_slot_hostname(int host_slot, char *hostname)
 {
     _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
     return &_fnHosts[host_slot];
 }
 

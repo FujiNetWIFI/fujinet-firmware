@@ -31,6 +31,10 @@
       blen;                                             \
     })
 
+#define PREALLOC_D2W_BUFFER
+#define D2W_MAXSECTORS 1
+#define D2W_MAXBUF (TRACK_LEN * IWM_SAMPLES_PER_CELL(smartport.f_spirx) * D2W_MAXSECTORS / 16)
+
 volatile uint8_t _phases = 0;
 volatile sp_cmd_state_t sp_command_mode = sp_cmd_state_t::standby;
 volatile int isrctr = 0;
@@ -131,7 +135,7 @@ void IRAM_ATTR phi_isr_handler(void *arg)
   // add extra condition here to stop edge case where on softsp, the disk is stepping inadvertantly when SP bus is
   // disabled. PH1 gets set low first, then PH3 follows a very short time after. We look for the interrupt on PH1 (33)
   // and then PH1 = 0 (going low) and PH3 = 1 (still high)
-  else if ((diskii_xface.iwm_enable_states() & 0b11) && !((int_gpio_num == SP_PHI1 && _phases == 0b1000)))
+  else if (diskii_xface.iwm_active_drive() && !((int_gpio_num == SP_PHI1 && _phases == 0b1000)))
   {
     if (IWM_ACTIVE_DISK2->move_head())
     {
@@ -157,6 +161,9 @@ inline void iwm_ll::iwm_extra_clr()
 
 int IRAM_ATTR iwm_sp_ll::encode_spi_packet()
 {
+  if (!spi_buffer)
+    return 0;
+
   // clear out spi buffer
   memset(spi_buffer, 0, SPI_SP_LEN);
   // loop through "l" bytes of the buffer "packet_buffer"
@@ -929,31 +936,46 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
     // Signal that disk can be written to
     smartport.iwm_ack_clr();
 
-    d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
-				       D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
-        
-    gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
-
-    cspi_begin_continuous(smartport.spirx, d2w_desc);
-    d2w_started = true;
+    if (!d2w_started) {
+#ifndef PREALLOC_D2W_BUFFER
+      d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(D2W_MAXBUF, d2w_buffer),
+                                         D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
+#endif
+      if (d2w_desc) {
+        gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
+        cspi_begin_continuous(smartport.spirx, d2w_desc);
+        d2w_started = true;
+      }
+      else if (d2w_buffer)
+        heap_caps_free(d2w_buffer);
+    }
   }
 
-  diskii_xface.set_output_to_rmt();
-  diskii_xface.enable_output();
-  ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
+  if (!rmt_started) {
+    diskii_xface.set_output_to_rmt();
+    diskii_xface.enable_output();
+    ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
+    rmt_started = true;
+  }
+
   fnLedManager.set(LED_BUS, true);
   Debug_printf("\nstart diskII d%d",drive+1);
 }
 
 void iwm_diskii_ll::stop()
 {
-  fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+  if (rmt_started) {
+    fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+    rmt_started = false;
+  }
   diskii_xface.disable_output();
   if (d2w_started) {
     cspi_end_continuous(smartport.spirx);
     d2w_started = false;
+#ifndef PREALLOC_D2W_BUFFER
     heap_caps_free(d2w_desc);
     heap_caps_free(d2w_buffer);
+#endif
     // Let SmartPort use write protect as ACK line again
     smartport.iwm_ack_set();
   }
@@ -999,58 +1021,6 @@ void iwm_ll::disable_output()
     IWM_BIT_SET(SP_RD_BUFFER); // disable the tri-state buffer
 #endif
 }
-
-// KEEEEEEEEEEEEEEEEEEP FOR A WHILE UNTIL ALL TECHNIQUES LEARNED ARE USED OR NO LONGER NEEDED
-// void IRAM_ATTR iwm_diskii_ll::rmttest(void)
-// {
-//  iwm_rddata_clr(); // enable the tri-state buffer
-
-// size_t num_samples = 512*12;
-// uint8_t* sample = (uint8_t*)heap_caps_malloc(num_samples, MALLOC_CAP_8BIT | MALLOC_CAP_INTERNAL);
-// if (sample == NULL)
-//     Debug_println("could not allocate sample buffer");
-
-// memset(sample, 0xff, num_samples);
-// sample[1]=0;
-// sample[num_samples-2]=0;
-// sample[num_samples-1]=0b01111111;
-// copy_track(sample, num_samples, num_samples * 8 - 2);
-// Debug_printf("\nSending %d items", num_samples);//number_of_items);
-//   //ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
-//   esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
-  // ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits));
-//   // fnSystem.delay(100);
-//   // fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
-//   // fnSystem.delay(50);
-//   // ESP_ERROR_CHECK(fnRMT.rmt_write_sample(RMT_TX_CHANNEL, sample, num_samples, false));
-// fnSystem.delay(2000);
-// Debug_printf ("\nSample transmission complete");
-// //gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT);
-// Debug_printf("\r\ngpio set to input");
-// GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].oen_sel = 1; // let me control the enable register
-// GPIO.enable_w1tc = ((uint32_t)0x01 << PIN_SD_HOST_MOSI);
-
-//     // Ensure no other output signal is routed via GPIO matrix to this pin
-// // REG_WRITE(GPIO_FUNC0_OUT_SEL_CFG_REG + (SP_WRDATA * 4),SIG_GPIO_OUT_IDX);
-
-// // GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].func_sel = .....;
-
-// fnSystem.delay(1000);
-// // gpio_matrix_out(gpio_num_t(SP_WRDATA), RMT_SIG_OUT0_IDX + RMT_TX_CHANNEL, 0, 0);
-// //gpio_set_direction(gpio_num_t(PIN_SD_HOST_MOSI),gpio_mode_t::GPIO_MODE_INPUT_OUTPUT);
-// //fnRMT.rmt_set_pin(RMT_TX_CHANNEL,RMT_MODE_TX, (gpio_num_t)SP_WRDATA );
-// GPIO.enable_w1ts = ((uint32_t)0x01 << PIN_SD_HOST_MOSI);
-// Debug_printf("\r\ngpio back to out");
-
-// fnSystem.delay(1000);
-// fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
-
-// //GPIO.func_out_sel_cfg[PIN_SD_HOST_MOSI].func_sel = 0;
-// esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, spi_periph_signal[HSPI_HOST].spid_out, false, false);
-
-// Debug_printf("\r\nconnect to SPI");
-
-// }
 
 //Convert track data to rmt format data.
 void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t src_size,
@@ -1104,6 +1074,11 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
  */
 void iwm_diskii_ll::setup_rmt()
 {
+#ifdef PREALLOC_D2W_BUFFER
+    d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(D2W_MAXBUF, d2w_buffer),
+                                       D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
+#endif
+
   // SPI continuous
   iwm_write_queue = xQueueCreate(10, sizeof(iwm_write_data));
 
@@ -1180,10 +1155,13 @@ bool IRAM_ATTR iwm_diskii_ll::fakebit()
 void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t trackbits, int bitperiod)
 {
   // copy track from SPIRAM to INTERNAL RAM
-  if (track != nullptr)
+  if (track != nullptr && trackbits)
     memcpy(track_buffer, track, tracklen);
   else
     memset(track_buffer, 0, tracklen);
+
+  if (!trackbits)
+    return;
 
   // new_position = current_position * new_track_length / current_track_length
   track_location *= trackbits;
@@ -1194,26 +1172,20 @@ void IRAM_ATTR iwm_diskii_ll::copy_track(uint8_t *track, size_t tracklen, size_t
   track_bit_period = bitperiod;
 }
 
-uint8_t IRAM_ATTR iwm_diskii_ll::iwm_enable_states()
+uint8_t IRAM_ATTR iwm_diskii_ll::iwm_active_drive()
 {
-  uint8_t states = 0;
+  uint8_t drive = 0;
 
   // only enable diskII if we are either not on an en35 capable host, or we are on an en35host and /EN35=high
   if (!IWM.en35Host || (IWM.en35Host && IWM_BIT(SP_EN35)))
   {
-    if (!(states |= IWM_BIT(SP_DRIVE1) ? 0b00 : 0b01))
+    if (!(drive |= IWM_BIT(SP_DRIVE1) ? 0 : 1))
     {
-      states |= IWM_BIT(SP_DRIVE2) ? 0b00 : 0b10;
+      drive |= IWM_BIT(SP_DRIVE2) ? 0 : 2;
     }
   }
 
-  // Check if Drive 2 is being accessed but disabled
-  if ((states == 0x02) && !isDrive2Enabled()) {
-    // Drive is disabled, return 0
-    return 0;
-  }
-
-  return states;
+  return drive;
 }
 
 iwm_sp_ll smartport;

@@ -18,8 +18,6 @@
 #define PIN_UART2_TX            GPIO_NUM_17
 
 /* Buttons */
-#define PIN_BUTTON_A            GPIO_NUM_0
-#define PIN_BUTTON_B            GPIO_NUM_NC
 #define PIN_BUTTON_C            GPIO_NUM_NC
 
 /* LEDs */
@@ -37,6 +35,9 @@
 
 /* Audio Output */
 #define PIN_DAC1                GPIO_NUM_NC
+
+#include "coco-common.h"
+#include "common.h"
 
 #endif /* PINMAP_COCO_ESP32S3 */
 

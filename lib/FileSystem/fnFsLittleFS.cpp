@@ -131,7 +131,7 @@ bool FileSystemLittleFS::create_path(const char *fullpath)
                is (end - fullpath) + 2
             */
             strlcpy(segment, fullpath, end - fullpath + (done ? 2 : 1));
-            Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
+            //Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
             if ( !exists(segment) )
             {
                 if( !std::filesystem::create_directory(segment) )

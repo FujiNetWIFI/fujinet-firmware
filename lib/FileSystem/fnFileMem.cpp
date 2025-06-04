@@ -140,7 +140,11 @@ int FileHandlerMem::grow(long filesize)
             errno = EFBIG;
             return -1;
         }
+#ifdef ESP_PLATFORM
+        void *new_buf = heap_caps_realloc(_buffer, bufsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
         void *new_buf = realloc(_buffer, bufsize);
+#endif
         if (new_buf == nullptr) 
         {
             Debug_println("FileHandlerMem::grow - failed to reallocate buffer");

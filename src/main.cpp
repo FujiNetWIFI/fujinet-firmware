@@ -201,7 +201,7 @@ void main_setup(int argc, char *argv[])
     // Initialize Winsock
     WSADATA wsaData;
     int result = WSAStartup(MAKEWORD(2,2), &wsaData);
-    if (result != 0) 
+    if (result != 0)
     {
         Debug_printf("WSAStartup failed: %d\n", result);
         exit(EXIT_FAILURE);
@@ -277,9 +277,7 @@ void main_setup(int argc, char *argv[])
 
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
-#ifdef ESP_PLATFORM
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
-#endif
 
     SIO.addDevice(&sioZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
 
@@ -326,6 +324,18 @@ void main_setup(int argc, char *argv[])
     if (Config.get_apetime_enabled() == true)
         RS232.addDevice(&apeTime, RS232_DEVICEID_APETIME); // Clock for Atari, APETime compatible, but extended for additional return types
 
+    // Create a new printer object, setting its output depending on whether we have SD or not
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    rs232Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == rs232Printer::printer_type::PRINTER_INVALID)
+        ptype = rs232Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+
+    rs232Printer *ptr = new rs232Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, 0);
+
+    RS232.addDevice(ptr, RS232_DEVICEID_PRINTER); // P:
 #endif
 
 #ifdef BUILD_RC2014

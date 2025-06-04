@@ -108,12 +108,20 @@ static void card_detect_intr_task(void *arg)
     // Assert valid initial card status
     vTaskDelay(1);
     // Set card status before we enter the infinite loop
+#ifdef CARD_DETECT_HIGH
+    int card_detect_status = !gpio_get_level((gpio_num_t)(int)arg);
+#else
     int card_detect_status = gpio_get_level((gpio_num_t)(int)arg);
+#endif
 
     for (;;) {
         gpio_num_t gpio_num;
         if(xQueueReceive(card_detect_evt_queue, &gpio_num, portMAX_DELAY)) {
+#ifdef CARD_DETECT_HIGH
+            int level = !gpio_get_level(gpio_num);
+#else
             int level = gpio_get_level(gpio_num);
+#endif
             if (card_detect_status == level) {
                 printf("SD Card detect ignored (debounce)\r\n");
             }
@@ -1003,6 +1011,9 @@ const char *SystemManager::get_hardware_ver_str()
     case 1 :
         return "RS232 Prototype";
         break;
+    case 2 :
+        return "RS232 Rev1 ESP32S3";
+        break;
 #elif defined(BUILD_RC2014)
     /* RC2014 */
     case 1 :
@@ -1091,6 +1102,7 @@ void SystemManager::check_hardware_ver()
     */  
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT);
 #elif defined(BUILD_APPLE)
     /*  Apple II
         Check all the madness :zany_face:
@@ -1256,9 +1268,15 @@ void SystemManager::check_hardware_ver()
 #elif defined(BUILD_RS232)
     /* RS232
     */
+#if CONFIG_IDF_TARGET_ESP32S3
+    _hardware_version = 2;
+    safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+#else
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
     setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+#endif
 #elif defined(BUILD_RC2014)
     /* RC2014
     */

@@ -7,6 +7,10 @@
 #include <map>
 #include <utility>
 
+#ifdef ESP_PLATFORM
+#include <unistd.h>  // for fsync
+#endif
+
 #include "../../include/debug.h"
 
 // From https://github.com/wwarthen/RomWBW/blob/master/Source/CPM3/biosldr.z80

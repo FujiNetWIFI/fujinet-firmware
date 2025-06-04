@@ -8,6 +8,7 @@
 #include "fnSystem.h"
 // #include "fnFsTNFS.h"
 // #include "fnFsSD.h"
+#include "fsFlash.h"
 #include "led.h"
 #include "fuji.h"
 
@@ -458,8 +459,9 @@ mediatype_t iwmDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
   if (disk_type == MEDIATYPE_UNKNOWN) {
       Debug_printf("\r\nMedia Type UNKNOWN - no mount in disk.cpp");
       device_active = false;
+      is_config_device = false;
   }
-  else if (_disk && _disk->_disk_filename)
+  else if (_disk && strlen(_disk->_disk_filename))
       strcpy(_disk->_disk_filename, filename);
 
   return disk_type;
@@ -496,6 +498,7 @@ mediatype_t iwmDisk::mount_file(fnFile *f, uint32_t disksize, mediatype_t disk_t
       readonly = false;
 
     device_active = true; //change status only after we are mounted
+    is_config_device = false;
   }
 
   return disk_type;
@@ -509,6 +512,7 @@ void iwmDisk::unmount()
         delete _disk;
         _disk = nullptr;
         device_active = false;
+	is_config_device = false;
         readonly = true;
         Debug_printf("Disk UNMOUNTED!!!!\r\n");
     }
@@ -529,6 +533,38 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
   unsigned char buf[512];
 
   memset(&buf,0,sizeof(buf));
+
+  if (blank_header_type == 2) // DO
+  {
+    FILE *sf = fsFlash.file_open("/blank.do","rb");
+    if (!sf)
+    {
+      Debug_printf("Could not open /blank.do. Aborting.\n");
+      fclose(sf);
+      return true;
+    }
+
+    while (!feof(sf))
+    {
+      if (fread(buf,sizeof(unsigned char),sizeof(buf),sf) != sizeof(buf))
+      {
+        Debug_printf("Short read of blank.do, aborting.\n");
+        fclose(sf);
+        return true;
+      }
+      if (fnio::fwrite(buf,sizeof(unsigned char),sizeof(buf),f) != sizeof(buf))
+      {
+        Debug_printf("Short write to destination image. Aborting.\n");
+        fclose(sf);
+        return true;
+      }
+    }
+
+    fclose(sf);
+    Debug_printf("Creation of new DOS 3.3 disk successful.\n");
+    blank_header_type=0; // Set to unadorned.
+    return false;
+  }
 
   if (blank_header_type == 1) // 2MG
   {

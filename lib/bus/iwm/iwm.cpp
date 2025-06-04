@@ -351,7 +351,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 
 // Create a vector from the input for the various send_status_dib_reply_packet routines to call
 // data[0]                = status
-// data[1..1+block_size]  = block bytes - 3 bytes except in some unused code!! 
+// data[1..1+block_size]  = block bytes - 3 bytes except in some unused code!!
 // data[..1 byte ]        = name real size
 // data[..16 bytes ]      = name padded with spaces to 16 bytes
 // data[..2 bytes]        = device type
@@ -555,7 +555,7 @@ bool IRAM_ATTR iwmBus::serviceSmartPort()
 bool IRAM_ATTR iwmBus::serviceDiskII()
 {
   // check on the diskii status
-  switch (iwm_drive_enabled())
+  switch (iwm_motor_state())
   {
   case iwm_enable_state_t::off:
     return false;
@@ -565,10 +565,11 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     if (IWM_ACTIVE_DISK2->device_active)
     {
       fnSystem.delay(1); // need a better way to figure out persistence
-      if (iwm_drive_enabled() == iwm_enable_state_t::on)
+      if (iwm_motor_state() == iwm_enable_state_t::on)
       {
+        current_disk2 = diskii_xface.iwm_active_drive();
         IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
-        diskii_xface.start(diskii_xface.iwm_enable_states() - 1,
+        diskii_xface.start(diskii_xface.iwm_active_drive() - 1,
                            IWM_ACTIVE_DISK2->readonly); // start it up
       }
     } // make a call to start the RMT stream
@@ -581,12 +582,23 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     break;
 
   case iwm_enable_state_t::on:
-    diskii_xface.d2_enable_seen |= diskii_xface.iwm_enable_states();
+    if (current_disk2 != diskii_xface.iwm_active_drive())
+    {
+      current_disk2 = diskii_xface.iwm_active_drive();
+      if (IWM_ACTIVE_DISK2->device_active) {
+        IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
+        diskii_xface.start(diskii_xface.iwm_active_drive() - 1,
+                           IWM_ACTIVE_DISK2->readonly); // start it up
+      }
+    }
+    diskii_xface.d2_enable_seen |= diskii_xface.iwm_active_drive();
 #ifdef DEBUG
     new_track = IWM_ACTIVE_DISK2->get_track_pos();
     if (old_track != new_track)
     {
-      Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());
+      Debug_printf("\ntrk pos %02i.%i/Q%03d on d%d",
+                   new_track / 4, new_track % 4,
+                   new_track, diskii_xface.iwm_active_drive());
       old_track = new_track;
     }
 #endif
@@ -633,66 +645,69 @@ bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
   bitlen = (item.track_end + item.track_numbits - item.track_begin) % item.track_numbits;
   Debug_printf("\r\nDisk II write Qtrack/sector: %i/%i  bit_len: %i",
 	       item.quarter_track, sector_num, bitlen);
-  decoded = (uint8_t *) malloc(item.length);
-  decode_len = diskii_xface.iwm_decode_buffer(item.buffer, item.length,
-					      smartport.f_spirx, D2W_CHUNK_SIZE * 2 * 8,
-					      decoded, &used);
-  Debug_printf("\r\nDisk II used: %u", used);
+  if (bitlen) {
+    decoded = (uint8_t *) malloc(item.length);
+    decode_len = diskii_xface.iwm_decode_buffer(item.buffer, item.length,
+                                                smartport.f_spirx, D2W_CHUNK_SIZE * 2 * 8,
+                                                decoded, &used);
+    Debug_printf("\r\nDisk II used: %u %lx", used, decoded);
 
-  // Find start of sector: D5 AA AD
-  for (sector_start = 0; sector_start <= decode_len - 349; sector_start++)
-    if (decoded[sector_start]      == 0xD5
-	&& decoded[sector_start+1] == 0xAA
-	&& decoded[sector_start+2] == 0xAD)
-      break;
-  found_start = sector_start <= decode_len - 349;
+    // Find start of sector: D5 AA AD
+    for (sector_start = 0; decode_len > 349 && sector_start <= decode_len - 349; sector_start++)
+      if (decoded[sector_start]      == 0xD5
+          && decoded[sector_start+1] == 0xAA
+          && decoded[sector_start+2] == 0xAD)
+        break;
+    found_start = sector_start <= decode_len - 349;
 
-  // Find end of sector too: DE AA EB
-  for (sector_end = 0; sector_end <= decode_len - 3; sector_end++)
-    if (decoded[sector_end]      == 0xDE
-	&& decoded[sector_end+1] == 0xAA
-	&& decoded[sector_end+2] == 0xEB)
-      break;
-  found_end = sector_end <= decode_len - 3;
+    // Find end of sector too: DE AA EB
+    for (sector_end = 0; decode_len > 3 && sector_end <= decode_len - 3; sector_end++)
+      if (decoded[sector_end]      == 0xDE
+          && decoded[sector_end+1] == 0xAA
+          && decoded[sector_end+2] == 0xEB)
+        break;
+    found_end = sector_end <= decode_len - 3;
 
-  if (!found_start && found_end) {
-    Debug_printf("\r\nDisk II no prologue found");
+    if (!found_start && found_end) {
+      Debug_printf("\r\nDisk II no prologue found");
 #if 0
-    sector_start = sector_end - 346;
-    found_start = true;
+      sector_start = sector_end - 346;
+      found_start = true;
 #endif
+    }
+
+    if (found_start && found_end && sector_end - sector_start == 346) {
+      uint8_t sector_data[343]; // Need enough room to demap and de-xor
+      uint16_t checksum;
+
+      // This printf nudges timing too much
+      // Debug_printf("\r\nDisk II sector data: %i", sector_start + 3);
+      checksum = decode_6_and_2(sector_data, &decoded[sector_start + 3]);
+      if ((checksum >> 8) != (checksum & 0xff))
+        Debug_printf("\r\nDisk II checksum mismatch: %04x", checksum);
+
+      iwmDisk2 *disk_dev = IWM_ACTIVE_DISK2;
+      disk_dev->write_sector(item.quarter_track, sector_num, sector_data);
+      disk_dev->change_track(0);
+    }
+    else {
+      Debug_printf("\r\nDisk II sector not found");
+    }
+
+    // FIXME - is there another sector to decode?
+
+    free(decoded);
   }
 
-  if (found_start && found_end && sector_end - sector_start == 346) {
-    uint8_t sector_data[343]; // Need enough room to demap and de-xor
-    uint16_t checksum;
-
-
-    Debug_printf("\r\nDisk II sector data: %i", sector_start + 3);
-    checksum = decode_6_and_2(sector_data, &decoded[sector_start + 3]);
-    if ((checksum >> 8) != (checksum & 0xff))
-      Debug_printf("\r\nDisk II checksum mismatch: %04x", checksum);
-
-    iwmDisk2 *disk_dev = IWM_ACTIVE_DISK2;
-    disk_dev->write_sector(item.quarter_track, sector_num, sector_data);
-    disk_dev->change_track(0);
-  }
-  else {
-    Debug_printf("\r\nDisk II sector not found");
-  }
-
-  // FIXME - is there another sector to decode?
-
-  free(decoded);
   free(item.buffer);
 
   return true;
 }
 
-iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
+iwm_enable_state_t IRAM_ATTR iwmBus::iwm_motor_state()
 {
   uint8_t phases = smartport.iwm_phase_vector();
-  uint8_t newstate = diskii_xface.iwm_enable_states();
+  uint8_t newstate = diskii_xface.iwm_active_drive();
 
   if (!((phases & 0b1000) && (phases & 0b0010))) // SP bus not enabled
   {
@@ -712,7 +727,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
       break;
     }
     if (_old_enable_state != _new_enable_state)
-      Debug_printf("\ndisk ii enable states: %02x", newstate);
+      Debug_printf("\ndisk ii [%i] enable states: %02x", newstate, _new_enable_state);
 
     _old_enable_state = _new_enable_state;
 

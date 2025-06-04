@@ -5,9 +5,12 @@
 #ifndef INDEXPARSER_H
 #define INDEXPARSER_H
 
-#include <expat.h>
 #include <string>
 #include <vector>
+
+#ifdef ESP_PLATFORM
+#include "../../include/PSRAMAllocator.h"
+#endif
 
 // using namespace std;
 
@@ -49,10 +52,16 @@ public:
      */
     bool parse(const char *buf, int len, int isFinal);
 
-    /**
+	bool parse_line(std::string &line);
+
+	/**
      * @brief Called to scoot to beginning of directory entries
      */
-    std::vector<IndexParser::IndexEntry>::iterator rewind() {return entries.begin();};
+#ifdef ESP_PLATFORM
+    std::vector<IndexEntry,PSRAMAllocator<IndexEntry>>::iterator rewind() {return entries.begin();};
+#else
+    std::vector<IndexEntry>::iterator rewind() {return entries.begin();};
+#endif
 
     /**
      * @brief Called to remove all stored directory entries
@@ -60,29 +69,14 @@ public:
     void clear();
 
     /**
-     * @brief Called when start tag is encountered.
-     * @param el element to be processed
-     * @param attr array of attributes attached to element
+     * @brief collection of directory entries.
      */
-    void Start(const XML_Char *el, const XML_Char **attr);
-
-    /**
-     * @brief called when end tag is encountered
-     * @param el element to be processed
-     */
-    void End(const XML_Char *el);
-
-    /**
-     * @brief called when character data needs to be processed.
-     * @param s pointer to character data
-     * @param len length of character data
-     */
-    void Char(const XML_Char *s, int len);
-
-    /**
-     * @brief collection of DAV entries.
-     */
+#ifdef ESP_PLATFORM
+    std::vector<IndexEntry,PSRAMAllocator<IndexEntry>> entries;
+#else
     std::vector<IndexEntry> entries;
+#endif
+
 
 protected:
     /**
@@ -90,31 +84,8 @@ protected:
      */
     IndexEntry currentEntry;
 
-    /**
-     * Are we collecting text between elements?
-     */
-    bool collectingText;
-    std::string entryText;
-
-    // /**
-    //  * Are we inside D:response?
-    //  */
-    // bool insideResponse;
-
-    // /**
-    //  * Are we inside D:displayname?
-    //  */
-    // bool insideDisplayName;
-
-    // /**
-    //  * Are we inside D:getcontentlength?
-    //  */
-    // bool insideGetContentLength;
-
-    /**
-     * Expat XML parser
-     */
-    XML_Parser parser;
+    bool isIndexOf;
+    std::string lineBuffer;
 
     /*
      * Parsed entries counter

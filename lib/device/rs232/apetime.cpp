@@ -3,6 +3,7 @@
 #include "apetime.h"
 
 #include <cstring>
+#include <ctime>
 
 #include "../../include/debug.h"
 
@@ -66,7 +67,7 @@ void rs232ApeTime::_rs232_set_tz()
       free(ape_timezone);
     }
 
-    bufsz = rs232_get_aux();
+    bufsz = rs232_get_aux16_lo();
     if (bufsz > 0) {
       ape_timezone = (char *) malloc((bufsz + 1) * sizeof(char));
 

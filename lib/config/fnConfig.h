@@ -42,6 +42,10 @@
 #  define CONFIG_DEFAULT_BOIP_PORT 1985
 #endif
 
+#ifdef BUILD_RS232
+#define CONFIG_DEFAULT_RS232_BAUD 115200
+#endif
+
 #define CONFIG_FILEBUFFSIZE 2048
 
 #define CONFIG_DEFAULT_SNTPSERVER "pool.ntp.org"
@@ -115,6 +119,8 @@ public:
     void store_general_timezone(const char *timezone);
     void store_general_rotation_sounds(bool rotation_sounds);
     void store_general_config_enabled(bool config_enabled);
+    void store_general_config_ng(bool config_ng);
+    bool get_general_config_ng(){ return _general.config_ng; };
     std::string get_config_filename(){ return _general.config_filename; };
     void store_config_filename(const std::string &filename);
     bool get_general_boot_mode() { return _general.boot_mode; }
@@ -268,6 +274,12 @@ public:
     void store_boip_host(const char *host);
     void store_boip_port(int port);
 
+#ifdef BUILD_RS232
+    // RS232
+    int get_rs232_baud() { return _rs232.baud; }
+    void store_rs232_baud(int baud);
+#endif
+
 #ifndef ESP_PLATFORM
     // BUS over Serial
     bool get_bos_enabled() { return _bos.bos_enabled; } // unused
@@ -319,6 +331,7 @@ private:
     void _read_section_serial(std::stringstream &ss);
     void _read_section_bos(std::stringstream &ss);
 #endif
+    void _read_section_rs232(std::stringstream &ss);
 
     enum section_match
     {
@@ -340,6 +353,9 @@ private:
 #ifndef ESP_PLATFORM
         SECTION_SERIAL,
         SECTION_BOS,
+#endif
+#ifdef BUILD_RS232
+        SECTION_RS232,
 #endif
         SECTION_UNKNOWN
     };
@@ -438,6 +454,7 @@ private:
         std::string timezone;
         bool rotation_sounds = true;
         bool config_enabled = true;
+        bool config_ng = false;
         std::string config_filename;
         int boot_mode = 0;
         bool fnconfig_spifs = true;
@@ -489,6 +506,13 @@ private:
         int parity = 0; // SP_PARITY_NONE
         int stop_bits = 1;
         int flowcontrol = 0; // SP_FLOWCONTROL_NONE
+    };
+#endif
+
+#ifdef BUILD_RS232
+    struct rs232_info
+    {
+        int baud = 115200;
     };
 #endif
 
@@ -552,6 +576,9 @@ private:
     cpm_info _cpm;
     device_enable_info _denable;
     phbook_info _phonebook_slots[MAX_PB_SLOTS];
+#ifdef BUILD_RS232
+    rs232_info _rs232;
+#endif
 };
 
 extern fnConfig Config;

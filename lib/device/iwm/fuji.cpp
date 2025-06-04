@@ -6,9 +6,12 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <cstring>
 
 #include "fuji.h"
 
+#include "fujiCmd.h"
+#include "httpService.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "led.h"
@@ -62,6 +65,10 @@ iwmFuji::iwmFuji()
         { FUJICMD_HASH_LENGTH, [this]()                { this->iwm_stat_hash_length(); }},              // 0xC6
         { FUJICMD_HASH_OUTPUT, [this]()                { this->iwm_stat_hash_output(); }},              // 0xC5
         { FUJICMD_HASH_CLEAR, [this]()                 { this->iwm_ctrl_hash_clear(); }},               // 0xC2
+
+        { FUJICMD_QRCODE_INPUT, [this]()               { this->iwm_ctrl_qrcode_input(); }},             // 0xBC
+        { FUJICMD_QRCODE_ENCODE, [this]()              { this->iwm_ctrl_qrcode_encode(); }},            // 0xBD
+        { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_ctrl_qrcode_output(); }},            // 0xBF
 
         { FUJICMD_MOUNT_HOST, [this]()                 { this->iwm_ctrl_mount_host(); }},               // 0xF9
         { FUJICMD_NEW_DISK, [this]()                   { this->iwm_ctrl_new_disk(); }},                 // 0xE7
@@ -121,7 +128,10 @@ iwmFuji::iwmFuji()
         { FUJICMD_READ_DIR_ENTRY, [this]()             { this->iwm_stat_read_directory_entry(); }},             // 0xF6
         { FUJICMD_READ_HOST_SLOTS, [this]()            { this->iwm_stat_read_host_slots(); }},                  // 0xF4
         { FUJICMD_SCAN_NETWORKS, [this]()              { this->iwm_stat_net_scan_networks(); }},                // 0xFD
-        { FUJICMD_STATUS, [this]()                     { this->iwm_stat_fuji_status(); }}                       // 0x53
+        { FUJICMD_QRCODE_LENGTH, [this]()              { this->iwm_stat_qrcode_length(); }},                    // 0xBE
+        { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_stat_qrcode_output(); }},                    // 0xBE
+        { FUJICMD_STATUS, [this]()                     { this->iwm_stat_fuji_status(); }},                      // 0x53
+        { FUJICMD_GET_HEAP, [this]()                   { this->iwm_stat_get_heap(); }},                         // 0xC1
     };
 
 }
@@ -944,6 +954,19 @@ void iwmFuji::iwm_stat_fuji_status()
 	data_len = 4;
 }
 
+void iwmFuji::iwm_stat_get_heap()
+{
+#ifdef ESP_PLATFORM
+	uint32_t avail = esp_get_free_internal_heap_size();
+#else
+	uint32_t avail = 0;
+#endif
+
+    memcpy(data_buffer, &avail, sizeof(avail));
+    data_len = sizeof(avail);
+    return;
+}
+
 // Get network adapter configuration
 void iwmFuji::iwm_stat_get_adapter_config()
 {
@@ -1011,6 +1034,11 @@ void iwmFuji::iwm_ctrl_new_disk()
 	disk_dev->write_blank(disk.fileh, numBlocks);
 
 	fnio::fclose(disk.fileh);
+
+	// Persist slots
+	_populate_config_from_slots();
+	Config.mark_dirty();
+	Config.save();
 }
 
 // Send host slot data to computer
@@ -1077,6 +1105,10 @@ void iwmFuji::iwm_stat_read_device_slots()
 		diskSlots[i].mode = _fnDisks[i].access_mode;
 		diskSlots[i].hostSlot = _fnDisks[i].host_slot;
 		strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+
+                DEVICE_TYPE *disk_dev = get_disk_dev(i);
+                if (disk_dev->device_active && !disk_dev->is_config_device)
+                    diskSlots[i].mode |= DISK_ACCESS_MODE_MOUNTED;
 	}
 
 	returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
@@ -1298,7 +1330,6 @@ void iwmFuji::insert_boot_device(uint8_t d)
 
 	DEVICE_TYPE *disk_dev = get_disk_dev(0);
 	disk_dev->is_config_device = true;
-	disk_dev->device_active = true;
 }
 
 void iwmFuji::iwm_ctrl_enable_device()
@@ -1353,20 +1384,7 @@ void iwmFuji::setup(iwmBus *iwmbus)
 	}
 
 	Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
-#ifdef ESP_PLATFORM
-	if (Config.get_general_boot_mode() == 0)
-	{
-		fnFile *f = fsFlash.fnfile_open("/autorun.po");
-		get_disk_dev(0)->mount(f, "/autorun.po", 140 * 1024, MEDIATYPE_PO);
-	}
-	else
-	{
-		fnFile *f = fsFlash.fnfile_open("/mount-and-boot.po");
-		get_disk_dev(0)->mount(f, "/mount-and-boot.po", 140 * 1024, MEDIATYPE_PO);
-	}
-#else
 	insert_boot_device(Config.get_general_boot_mode());
-#endif
 
 }
 
@@ -1377,6 +1395,7 @@ std::string iwmFuji::get_host_prefix(int host_slot) { return std::string(); }
 fujiHost *iwmFuji::set_slot_hostname(int host_slot, char *hostname)
 {
     _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
     return &_fnHosts[host_slot];
 }
 
@@ -1550,5 +1569,93 @@ void iwmFuji::iwm_ctrl_hash_clear()
     hasher.clear();
 }
 
+void iwmFuji::iwm_ctrl_qrcode_input()
+{
+    Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", data_len);
+    std::vector<uint8_t> data(data_len, 0);
+    std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
+    qrManager.in_buf += std::string((const char *)data.data(), data_len);
+}
+
+void iwmFuji::iwm_ctrl_qrcode_encode()
+{
+    size_t out_len = 0;
+
+    qrManager.output_mode = 0;
+    qrManager.version = data_buffer[0] & 0b01111111;
+    qrManager.ecc_mode = data_buffer[1];
+    bool shorten = data_buffer[2];
+
+    Debug_printf("FUJI: QRCODE ENCODE\n");
+    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", qrManager.version, qrManager.ecc_mode, shorten ? "Y" : "N");
+
+    std::string url = qrManager.in_buf;
+
+    if (shorten) {
+        url = fnHTTPD.shorten_url(url);
+    }
+
+    std::vector<uint8_t> p = QRManager::encode(
+        url.c_str(),
+        url.size(),
+        qrManager.version,
+        qrManager.ecc_mode,
+        &out_len
+    );
+
+    qrManager.in_buf.clear();
+
+    if (!out_len)
+    {
+        Debug_printf("QR code encoding failed\n");
+        return;
+    }
+
+    Debug_printf("Resulting QR code is: %u modules\n", out_len);
+}
+
+void iwmFuji::iwm_stat_qrcode_length()
+{
+    Debug_printf("FUJI: QRCODE LENGTH\n");
+    size_t len = qrManager.out_buf.size();
+	data_buffer[0] = (uint8_t)(len >> 0);
+    data_buffer[1] = (uint8_t)(len >> 8);
+	data_len = 2;
+}
+
+void iwmFuji::iwm_ctrl_qrcode_output()
+{
+    Debug_printf("FUJI: QRCODE OUTPUT CONTROL\n");
+
+    uint8_t output_mode = data_buffer[0];
+    Debug_printf("Output mode: %i\n", output_mode);
+
+    size_t len = qrManager.out_buf.size();
+
+    if (len && (output_mode != qrManager.output_mode)) {
+        if (output_mode == QR_OUTPUT_MODE_BINARY) {
+            qrManager.to_binary();
+        }
+        else if (output_mode == QR_OUTPUT_MODE_ATASCII) {
+            qrManager.to_atascii();
+        }
+        else if (output_mode == QR_OUTPUT_MODE_BITMAP) {
+            qrManager.to_bitmap();
+        }
+        qrManager.output_mode = output_mode;
+    }
+}
+
+void iwmFuji::iwm_stat_qrcode_output()
+{
+    Debug_printf("FUJI: QRCODE OUTPUT STAT\n");
+	memset(data_buffer, 0, sizeof(data_buffer));
+
+	data_len = qrManager.out_buf.size();
+	memcpy(data_buffer, &qrManager.out_buf[0], data_len);
+
+	qrManager.out_buf.erase(qrManager.out_buf.begin(), qrManager.out_buf.begin() + data_len);
+    qrManager.out_buf.shrink_to_fit();
+}
 
 #endif /* BUILD_APPLE */

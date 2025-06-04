@@ -432,6 +432,30 @@ int util_ellipsize(const char *src, char *dst, int dstsize)
         return strlcpy(dst, src, dstsize);
     }
 
+    // Replace directories with .../ and only leave the basename.
+    const char *basename = strrchr(src, '/');
+    if (basename != NULL)
+    {
+        if (strlen(basename) > 1 && dstsize >= 5)
+        {
+            basename++; // skip slash
+
+            int copied = strlcpy(dst, "...", dstsize);
+            int remaining = dstsize - copied - 1;
+            if (strlen(basename) < remaining)
+            {
+                return strlcat(dst, src + (srclen - remaining), dstsize);
+            }
+            else
+            {
+                char tmp[dstsize];
+                copied = strlcat(dst, "/", dstsize);
+                util_ellipsize(basename, tmp, dstsize-copied);
+                return strlcat(dst, tmp, dstsize);
+            }
+        }
+    }
+
     // Account for both the 3-character ellipses and the null character that needs to fit in the destination
     int rightlen = (dstsize - 4) / 2;
     // The left side gets one more character if the destination is odd
@@ -782,9 +806,7 @@ void util_sam_say(const char *p,
 
     // Append the phrase to say.
     a[n++] = (char *)p;
-#ifdef ESP_PLATFORM
     sam(n, a);
-#endif
 }
 
 /**

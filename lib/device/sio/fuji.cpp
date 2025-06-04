@@ -1,5 +1,3 @@
-#include "fujiCmd.h"
-#include "httpService.h"
 #ifdef BUILD_ATARI
 
 #include "fuji.h"
@@ -22,6 +20,8 @@
 
 #include "../../../include/debug.h"
 
+#include "fujiCmd.h"
+#include "httpService.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fsFlash.h"
@@ -252,7 +252,6 @@ void sioFuji::sio_net_get_ssid()
 void sioFuji::sio_net_set_ssid()
 {
     Debug_println("Fuji cmd: SET SSID");
-    int i;
 
     // Data for  FUJICMD_SET_SSID
     struct
@@ -310,6 +309,60 @@ void sioFuji::sio_net_get_wifi_enabled()
     uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
     Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n", e);
     bus_to_computer(&e, sizeof(e), false);
+}
+
+// Set SIO baudrate
+void sioFuji::sio_set_baudrate()
+{
+   
+    int br = 0;
+
+    switch(cmdFrame.aux1) {
+
+        case 0:
+            br = 19200;
+            break;
+
+        case 1:
+            br = 38400;
+            break;
+
+        case 2:
+            br = 57600;
+            break;
+
+        case 3:
+            br = 115200;
+            break;
+
+        case 4:
+            br = 230400;
+            break;
+
+        case 5:
+            br = 460800;
+            break;
+
+        case 6:
+            br = 921600;
+            break;
+
+        default:
+            sio_error();
+            return;
+    }
+  
+    // send complete with current baudrate
+    sio_complete();
+
+#ifdef ESP_PLATFORM
+    SYSTEM_BUS.uart->flush();
+    SYSTEM_BUS.uart->set_baudrate(br);
+#else
+    fnSioCom.flush();
+    fnSystem.delay_microseconds(2000);
+    fnSioCom.set_baudrate(br);
+#endif
 }
 
 // Mount Server
@@ -1979,6 +2032,7 @@ void sioFuji::insert_boot_device(uint8_t d)
 {
     const char *config_atr = "/autorun.atr";
     std::string altconfigfile = Config.get_config_filename();
+    bool config_ng = Config.get_general_config_ng();
     const char *alt_config_atr = altconfigfile.c_str();
     const char *mount_all_atr = "/mount-and-boot.atr";
 #ifdef ESP_PLATFORM // TODO merge
@@ -1999,6 +2053,11 @@ void sioFuji::insert_boot_device(uint8_t d)
                 Debug_printf("Mounted Alternate CONFIG %s\n", alt_config_atr);
                 break;
             }
+        }
+        else if (config_ng)
+        {
+            config_atr = "/autorun-cng.atr";
+            Debug_printf("Mounted CONFIG-NG\n");
         }
         fBoot = fsFlash.fnfile_open(config_atr);
         _bootDisk.mount(fBoot, config_atr, 0);
@@ -2039,6 +2098,11 @@ void sioFuji::insert_boot_device(uint8_t d)
                 boot_img = alt_config_atr;
                 break;
             }
+        }
+        else if (config_ng)
+        {
+            config_atr = "/autorun-cng.atr";
+            Debug_printf("Mounted CONFIG-NG\n");
         }
         boot_img = config_atr;
         fBoot = fsFlash.fnfile_open(boot_img);
@@ -2136,10 +2200,6 @@ sioDisk *sioFuji::bootdisk()
 }
 
 
-
-
-
-
 void sioFuji::sio_qrcode_input()
 {
     uint16_t len = sio_get_aux();
@@ -2163,8 +2223,9 @@ void sioFuji::sio_qrcode_encode()
 {
     size_t out_len = 0;
 
+    qrManager.output_mode = 0;
     uint16_t aux = sio_get_aux();
-    qrManager.version = aux;
+    qrManager.version = aux & 0b01111111;
     qrManager.ecc_mode = (aux >> 8) & 0b00000011;
     bool shorten = (aux >> 12) & 0b00000001;
 
@@ -2185,14 +2246,14 @@ void sioFuji::sio_qrcode_encode()
         &out_len
     );
 
+    qrManager.in_buf.clear();
+
     if (!out_len)
     {
         Debug_printf("QR code encoding failed\n");
         sio_error();
         return;
     }
-
-    qrManager.in_buf.clear();
 
     Debug_printf("Resulting QR code is: %u modules\n", out_len);
     sio_complete();
@@ -2202,36 +2263,41 @@ void sioFuji::sio_qrcode_length()
 {
     Debug_printf("FUJI: QRCODE LENGTH\n");
     uint8_t output_mode = sio_get_aux();
+    Debug_printf("Output mode: %i\n", output_mode);
+
+    size_t len = qrManager.out_buf.size();
 
     // A bit gross to have a side effect from length command, but not enough aux bytes
     // to specify version, ecc, *and* output mode for the encode command. Also can't
     // just wait for output command, because output mode determines buffer length,
-    if (output_mode != qrManager.output_mode) {
-        if (output_mode == QR_OUTPUT_MODE_BITS) {
-            qrManager.to_bits();
+    if (len && (output_mode != qrManager.output_mode)) {
+        if (output_mode == QR_OUTPUT_MODE_BINARY) {
+            qrManager.to_binary();
         }
-        if (output_mode == QR_OUTPUT_MODE_ATASCII) {
+        else if (output_mode == QR_OUTPUT_MODE_ATASCII) {
             qrManager.to_atascii();
         }
+        else if (output_mode == QR_OUTPUT_MODE_BITMAP) {
+            qrManager.to_bitmap();
+        }
         qrManager.output_mode = output_mode;
+        len = qrManager.out_buf.size();
     }
 
-    size_t l = qrManager.out_buf.size();
-
     uint8_t response[4] = {
-        (uint8_t)(l >>  0),
-        (uint8_t)(l >>  8),
-        (uint8_t)(l >>  16),
-        (uint8_t)(l >>  24)
+        (uint8_t)(len >> 0),
+        (uint8_t)(len >> 8),
+        (uint8_t)(len >> 16),
+        (uint8_t)(len >> 24)
     };
 
-    if (!l)
+    if (!len)
     {
         Debug_printf("QR code buffer is 0 bytes, sending error.\n");
         bus_to_computer(response, sizeof(response), true);
     }
 
-    Debug_printf("QR code buffer length: %u bytes\n", l);
+    Debug_printf("QR code buffer length: %u bytes\n", len);
 
     bus_to_computer(response, sizeof(response), false);
 }
@@ -2263,12 +2329,6 @@ void sioFuji::sio_qrcode_output()
     qrManager.out_buf.shrink_to_fit();
 
 }
-
-
-
-
-
-
 
 
 void sioFuji::sio_base64_encode_input()
@@ -2611,6 +2671,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_ack();
         sio_net_get_wifi_enabled();
         break;
+    case FUJICMD_SET_BAUDRATE:
+        sio_ack();
+        sio_set_baudrate();
+        break;
     case FUJICMD_UNMOUNT_IMAGE:
         sio_ack();
         sio_disk_image_umount();
@@ -2781,6 +2845,7 @@ std::string sioFuji::get_host_prefix(int host_slot)
 fujiHost *sioFuji::set_slot_hostname(int host_slot, char *hostname)
 {
     _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
     return &_fnHosts[host_slot];
 }
 

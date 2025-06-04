@@ -485,6 +485,16 @@ void fnHttpServiceConfigurator::config_cpm_ccp(std::string cpm_ccp)
     Config.save();
 }
 
+void fnHttpServiceConfigurator::config_ng(std::string config_ng)
+{
+    Debug_printf("New CONFIG-NG value: %s\n", config_ng.c_str());
+
+    // Store our change in Config
+    Config.store_general_config_ng(atoi(config_ng.c_str()));
+    // Save change
+    Config.save();
+}
+
 void fnHttpServiceConfigurator::config_alt_filename(std::string alt_cfg)
 {
     // Use $ as a flag to reset to default since empty field never gets to here
@@ -754,6 +764,10 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         else if (i->first.compare("alt_cfg") == 0)
         {
             config_alt_filename(i->second);
+        }
+        else if (i->first.compare("config_ng") == 0)
+        {
+            config_ng(i->second);
         }
 #ifndef ESP_PLATFORM
         else if (i->first.compare("serial_port") == 0)

@@ -37,6 +37,7 @@ void fnConfig::save()
     ss << "hsioindex=" << _general.hsio_index << LINETERM;
     ss << "rotationsounds=" << _general.rotation_sounds << LINETERM;
     ss << "configenabled=" << _general.config_enabled << LINETERM;
+    ss << "config_ng=" << _general.config_ng << LINETERM;
     ss << "altconfigfile=" << _general.config_filename << LINETERM;
     ss << "boot_mode=" << _general.boot_mode << LINETERM;
     if (_general.timezone.empty() == false)
@@ -176,6 +177,11 @@ void fnConfig::save()
     {
         ss << "port=" << LINETERM;
     }
+
+#ifdef BUILD_RS232
+    ss << LINETERM << "[RS232]" << LINETERM;
+    ss << "baud=" << _rs232.baud << LINETERM;
+#endif
 
 #ifndef ESP_PLATFORM
     // SERIAL
