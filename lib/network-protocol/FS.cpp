@@ -104,6 +104,9 @@ bool NetworkProtocolFS::open_dir()
 
     while (read_dir_entry((char *)entryBuffer.data(), ENTRY_BUFFER_SIZE - 1) == false)
     {
+        if (entryBuffer.at(0) == '.' || entryBuffer.at(0) == '/')
+            continue;
+            
         if (aux2_open & 0x80)
         {
             // Long entry
