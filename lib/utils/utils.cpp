@@ -237,7 +237,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
     if (ext_pos == string::npos)
         ext.clear();
 
-    // Constrain to 8 characters 
+    // Constrain to 8 characters
     basename = basename.substr(0,8);
     basename = basename.substr(0,basename.find_first_of('.'));
     ext = ext.substr(0,3);
@@ -360,7 +360,7 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
     returned_entry.replace(returned_entry.length() - stylized_filesize.length() - 1, stylized_filesize.length(), stylized_filesize);
 
     returned_entry.shrink_to_fit();
-    
+
     return returned_entry;
 }
 
@@ -474,7 +474,7 @@ std::string util_ellipsize_string(const std::string& src, size_t maxSize) {
     if (src.length() <= maxSize) {
         return src;
     }
-    
+
     if (maxSize < 6) { // Not enough space for ellipsis in the middle
         return src.substr(0, maxSize);
     }
@@ -701,8 +701,10 @@ std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string 
     }
 
     string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
+    string path = deviceSpec.substr(unit.length());
+
     // if prefix is empty, the concatenation is still valid
-    deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
+    deviceSpec = unit + prefix + path;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("util_devicespec_fix_for_parsing, spec: >%s<, prefix: >%s<, dir_read?: %s, fs_dot?: %s)\n", deviceSpec.c_str(), prefix.c_str(), is_directory_read ? "true" : "false", process_fs_dot ? "true" : "false");
@@ -1092,7 +1094,7 @@ void util_debug_printf(const char *fmt, ...)
             printf("\n");
     }
 
-    if (print_ts) 
+    if (print_ts)
     {
         // printf("DEBUG > ");
         timeval tv;
