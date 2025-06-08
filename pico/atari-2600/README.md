@@ -1,5 +1,7 @@
 # Atari 2600 PlusCart-Pico
 
+Latest version of this code is now here: https://github.com/gtortone/PlusCart-Pico
+
 ## Description
 Atari 2600 PlusCart-Pico is a porting on Al-Nafuur [PlusCart](https://github.com/Al-Nafuur/United-Carts-of-Atari) to Raspberry Pi Pico platform. 
 
