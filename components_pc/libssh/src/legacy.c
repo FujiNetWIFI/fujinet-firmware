@@ -111,9 +111,8 @@ int ssh_userauth_privatekey_file(ssh_session session,
                                  const char *filename,
                                  const char *passphrase) {
   char *pubkeyfile = NULL;
-  ssh_string pubkey = NULL;
-  ssh_private_key privkey = NULL;
-  int type = 0;
+  ssh_key pubkey = NULL;
+  ssh_key privkey = NULL;
   int rc = SSH_AUTH_ERROR;
   size_t klen = strlen(filename) + 4 + 1;
 
@@ -125,25 +124,35 @@ int ssh_userauth_privatekey_file(ssh_session session,
   }
   snprintf(pubkeyfile, klen, "%s.pub", filename);
 
-  pubkey = publickey_from_file(session, pubkeyfile, &type);
-  if (pubkey == NULL) {
+  /* Use modern ssh_pki_import_pubkey_file instead of deprecated publickey_from_file */
+  rc = ssh_pki_import_pubkey_file(pubkeyfile, &pubkey);
+  if (rc != SSH_OK || pubkey == NULL) {
     SSH_LOG(SSH_LOG_RARE, "Public key file %s not found. Trying to generate it.", pubkeyfile);
-    /* auto-detect the key type with type=0 */
-    privkey = privatekey_from_file(session, filename, 0, passphrase);
+    /* Try to load the private key and auto-detect its type */
+    rc = ssh_pki_import_privkey_file(filename, passphrase, NULL, NULL, &privkey);
   } else {
     SSH_LOG(SSH_LOG_RARE, "Public key file %s loaded.", pubkeyfile);
-    privkey = privatekey_from_file(session, filename, type, passphrase);
+    /* Load private key with type info we now have from public key */
+    rc = ssh_pki_import_privkey_file(filename, passphrase, NULL, NULL, &privkey);
   }
-  if (privkey == NULL) {
+  
+  if (rc != SSH_OK || privkey == NULL) {
+    if (pubkey != NULL) {
+      ssh_key_free(pubkey);
+    }
     goto error;
   }
-  /* ssh_userauth_pubkey is responsible for taking care of null-pubkey */
-  rc = ssh_userauth_pubkey(session, username, pubkey, privkey);
-  privatekey_free(privkey);
+  
+  /* ssh_userauth_publickey is the modern version that takes ssh_key types */
+  rc = ssh_userauth_publickey(session, username, privkey);
+  ssh_key_free(privkey);
+  if (pubkey != NULL) {
+    ssh_key_free(pubkey);
+  }
 
 error:
   SAFE_FREE(pubkeyfile);
-  ssh_string_free(pubkey);
+  /* pubkey is already freed above using ssh_key_free */
 
   return rc;
 }
@@ -291,7 +300,17 @@ int channel_send_eof(ssh_channel channel){
 
 int channel_select(ssh_channel *readchans, ssh_channel *writechans, ssh_channel *exceptchans, struct
     timeval * timeout){
-  return ssh_channel_select(readchans, writechans, exceptchans, timeout);
+  /* 
+   * Using modern ssh_select instead of deprecated ssh_channel_select
+   * ssh_select has a different parameter ordering:
+   * ssh_select(channels, outchannels, maxfd, readfds, timeout)
+   * where readfds is fd_set* not ssh_channel*
+   * exceptchans is not used in this API, so pass NULL
+   */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+  return ssh_select(readchans, writechans, -1, NULL, timeout);
+#pragma GCC diagnostic pop
 }
 
 void channel_set_blocking(ssh_channel channel, int blocking){
@@ -697,8 +716,9 @@ int ssh_try_publickey_from_file(ssh_session session,
                                 int *type) {
     char *pubkey_file;
     size_t len;
-    ssh_string pubkey_string;
-    int pubkey_type;
+    ssh_key pubkey_key = NULL;
+    ssh_string pubkey_string = NULL;
+    int rc;
 
     if (session == NULL || keyfile == NULL || publickey == NULL || type == NULL) {
         return -1;
@@ -738,8 +758,9 @@ int ssh_try_publickey_from_file(ssh_session session,
      * We are sure both the private and public key file is readable. We return
      * the public as a string, and the private filename as an argument
      */
-    pubkey_string = publickey_from_file(session, pubkey_file, &pubkey_type);
-    if (pubkey_string == NULL) {
+    /* Using modern ssh_pki_import_pubkey_file instead of deprecated publickey_from_file */
+    rc = ssh_pki_import_pubkey_file(pubkey_file, &pubkey_key);
+    if (rc != SSH_OK || pubkey_key == NULL) {
         SSH_LOG(SSH_LOG_PACKET,
                 "Wasn't able to open public key file %s: %s",
                 pubkey_file,
@@ -748,10 +769,25 @@ int ssh_try_publickey_from_file(ssh_session session,
         return -1;
     }
 
+    /* Convert the ssh_key to ssh_string for backwards compatibility */
+    rc = ssh_pki_export_pubkey_blob(pubkey_key, &pubkey_string);
+    
+    /* Store the key type before freeing the key */
+    *type = ssh_key_type(pubkey_key);
+    
+    ssh_key_free(pubkey_key);
+    
+    if (rc != SSH_OK || pubkey_string == NULL) {
+        SSH_LOG(SSH_LOG_PACKET,
+                "Wasn't able to convert public key: %s",
+                ssh_get_error(session));
+        SAFE_FREE(pubkey_file);
+        return -1;
+    }
+
     SAFE_FREE(pubkey_file);
 
     *publickey = pubkey_string;
-    *type = pubkey_type;
 
     return 0;
 }

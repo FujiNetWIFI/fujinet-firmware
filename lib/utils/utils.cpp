@@ -393,7 +393,7 @@ const char *apple2_filesize(size_t fileSize)
     return apple2_fs;
 }
 
-char tmp[81];
+char tmp[90]; // Increased buffer size to prevent truncation warnings
 
 std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, bool is_dir)
 {
@@ -402,11 +402,13 @@ std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, 
 
     memset(tmp, 0, sizeof(tmp));
 
-    snprintf(tmp, sizeof(tmp), "%s %-70s %5s",
+    // Adjusted to prevent format truncation while still creating an 80-column output
+    snprintf(tmp, sizeof(tmp), "%s %-69s %5s", // Reduced field width from 70 to 69
             apple2_folder_icon(is_dir),
             apple2_filename(filename),
             apple2_filesize(fileSize));
 
+    // Still trim to 80 columns for the returned value
     returned_entry = string(tmp, 80);
     return returned_entry;
 }
