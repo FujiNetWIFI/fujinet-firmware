@@ -106,28 +106,32 @@ void Hash::compute_sha1() {
     mbedtls_sha1_context ctx;
     mbedtls_sha1_init(&ctx);
     
-    // Use newer API that returns status code
     int ret = 0;
     
-    // Replace deprecated mbedtls_sha1_starts with mbedtls_sha1_starts_ret
+    hash_output.resize(20);
+    
+#if defined(mbedtls_sha1_starts_ret) && defined(mbedtls_sha1_update_ret) && defined(mbedtls_sha1_finish_ret)
+    // Use newer API that returns status code
     if ((ret = mbedtls_sha1_starts_ret(&ctx)) != 0) {
         mbedtls_sha1_free(&ctx);
         return; // Handle error appropriately
     }
     
-    // Replace deprecated mbedtls_sha1_update with mbedtls_sha1_update_ret
     if ((ret = mbedtls_sha1_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
         mbedtls_sha1_free(&ctx);
         return; // Handle error appropriately
     }
     
-    hash_output.resize(20);
-    
-    // Replace deprecated mbedtls_sha1_finish with mbedtls_sha1_finish_ret
     if ((ret = mbedtls_sha1_finish_ret(&ctx, hash_output.data())) != 0) {
         mbedtls_sha1_free(&ctx);
         return; // Handle error appropriately
     }
+#else
+    // Use legacy API
+    mbedtls_sha1_starts(&ctx);
+    mbedtls_sha1_update(&ctx, accumulated_data.data(), accumulated_data.size());
+    mbedtls_sha1_finish(&ctx, hash_output.data());
+#endif
     
     mbedtls_sha1_free(&ctx);
 }
@@ -136,28 +140,32 @@ void Hash::compute_sha256() {
     mbedtls_sha256_context ctx;
     mbedtls_sha256_init(&ctx);
     
-    // Use newer API that returns status code
     int ret = 0;
     
-    // Replace deprecated mbedtls_sha256_starts with mbedtls_sha256_starts_ret
+    hash_output.resize(32);
+    
+#if defined(mbedtls_sha256_starts_ret) && defined(mbedtls_sha256_update_ret) && defined(mbedtls_sha256_finish_ret)
+    // Use newer API that returns status code
     if ((ret = mbedtls_sha256_starts_ret(&ctx, 0)) != 0) {
         mbedtls_sha256_free(&ctx);
         return; // Handle error appropriately
     }
     
-    // Replace deprecated mbedtls_sha256_update with mbedtls_sha256_update_ret
     if ((ret = mbedtls_sha256_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
         mbedtls_sha256_free(&ctx);
         return; // Handle error appropriately
     }
     
-    hash_output.resize(32);
-    
-    // Replace deprecated mbedtls_sha256_finish with mbedtls_sha256_finish_ret
     if ((ret = mbedtls_sha256_finish_ret(&ctx, hash_output.data())) != 0) {
         mbedtls_sha256_free(&ctx);
         return; // Handle error appropriately
     }
+#else
+    // Use legacy API
+    mbedtls_sha256_starts(&ctx, 0);
+    mbedtls_sha256_update(&ctx, accumulated_data.data(), accumulated_data.size());
+    mbedtls_sha256_finish(&ctx, hash_output.data());
+#endif
     
     mbedtls_sha256_free(&ctx);
 }
@@ -166,28 +174,32 @@ void Hash::compute_sha512() {
     mbedtls_sha512_context ctx;
     mbedtls_sha512_init(&ctx);
     
-    // Use newer API that returns status code
     int ret = 0;
     
-    // Replace deprecated mbedtls_sha512_starts with mbedtls_sha512_starts_ret
+    hash_output.resize(64);
+    
+#if defined(mbedtls_sha512_starts_ret) && defined(mbedtls_sha512_update_ret) && defined(mbedtls_sha512_finish_ret)
+    // Use newer API that returns status code
     if ((ret = mbedtls_sha512_starts_ret(&ctx, 0)) != 0) {
         mbedtls_sha512_free(&ctx);
         return; // Handle error appropriately
     }
     
-    // Replace deprecated mbedtls_sha512_update with mbedtls_sha512_update_ret
     if ((ret = mbedtls_sha512_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
         mbedtls_sha512_free(&ctx);
         return; // Handle error appropriately
     }
     
-    hash_output.resize(64);
-    
-    // Replace deprecated mbedtls_sha512_finish with mbedtls_sha512_finish_ret
     if ((ret = mbedtls_sha512_finish_ret(&ctx, hash_output.data())) != 0) {
         mbedtls_sha512_free(&ctx);
         return; // Handle error appropriately
     }
+#else
+    // Use legacy API
+    mbedtls_sha512_starts(&ctx, 0);
+    mbedtls_sha512_update(&ctx, accumulated_data.data(), accumulated_data.size());
+    mbedtls_sha512_finish(&ctx, hash_output.data());
+#endif
     
     mbedtls_sha512_free(&ctx);
 }

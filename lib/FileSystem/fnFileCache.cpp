@@ -61,18 +61,26 @@ static std::string encode_host_path(const char *host, const char *path)
     unsigned char md5_result[16];
     std::string result;
     // host part
-    // Using the newer non-deprecated mbedtls_md5_ret function
+    #ifdef mbedtls_md5_ret
     int ret = mbedtls_md5_ret((const unsigned char *)host, strlen(host), md5_result);
     if (ret != 0) {
         Debug_printf("mbedtls_md5_ret failed with error code %d\n", ret);
     }
+    #else
+    mbedtls_md5((const unsigned char *)host, strlen(host), md5_result);
+    int ret = 0; // legacy function does not return error
+    #endif
     result = encode_base32(std::string((char *)md5_result, 5)) + '-';
     // path part
-    // Using the newer non-deprecated mbedtls_md5_ret function
+    #ifdef mbedtls_md5_ret
     ret = mbedtls_md5_ret((const unsigned char *)path, strlen(path), md5_result);
     if (ret != 0) {
         Debug_printf("mbedtls_md5_ret failed with error code %d\n", ret);
     }
+    #else
+    mbedtls_md5((const unsigned char *)path, strlen(path), md5_result);
+    ret = 0; // legacy function does not return error
+    #endif
     result += encode_base32(std::string((char *)md5_result, 15));
     return result;
 }

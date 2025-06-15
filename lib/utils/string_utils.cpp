@@ -527,35 +527,46 @@ namespace mstr {
     std::string sha1(const std::string &s)
     {
         unsigned char hash[21] = { 0x00 };
-        
-        // Using the newer non-deprecated mbedtls_sha1_ret function
         mbedtls_sha1_context ctx;
         mbedtls_sha1_init(&ctx);
-        
         int ret = 0;
-        
-        // Replace deprecated mbedtls_sha1 with proper initialization,
-        // update, and finalization using the newer API
+
+        #if defined(mbedtls_sha1_starts_ret) && defined(mbedtls_sha1_update_ret) && defined(mbedtls_sha1_finish_ret)
+        // Use the newer mbedtls API
         if ((ret = mbedtls_sha1_starts_ret(&ctx)) != 0) {
             Debug_printf("mbedtls_sha1_starts_ret failed with error code %d\n", ret);
             mbedtls_sha1_free(&ctx);
             return "";
         }
-        
         if ((ret = mbedtls_sha1_update_ret(&ctx, (const unsigned char *)s.c_str(), s.length())) != 0) {
             Debug_printf("mbedtls_sha1_update_ret failed with error code %d\n", ret);
             mbedtls_sha1_free(&ctx);
             return "";
         }
-        
         if ((ret = mbedtls_sha1_finish_ret(&ctx, hash)) != 0) {
             Debug_printf("mbedtls_sha1_finish_ret failed with error code %d\n", ret);
             mbedtls_sha1_free(&ctx);
             return "";
         }
-        
+        #else
+        // Use the legacy mbedtls API
+        if ((ret = mbedtls_sha1_starts(&ctx)) != 0) {
+            Debug_printf("mbedtls_sha1_starts failed with error code %d\n", ret);
+            mbedtls_sha1_free(&ctx);
+            return "";
+        }
+        if ((ret = mbedtls_sha1_update(&ctx, (const unsigned char *)s.c_str(), s.length())) != 0) {
+            Debug_printf("mbedtls_sha1_update failed with error code %d\n", ret);
+            mbedtls_sha1_free(&ctx);
+            return "";
+        }
+        if ((ret = mbedtls_sha1_finish(&ctx, hash)) != 0) {
+            Debug_printf("mbedtls_sha1_finish failed with error code %d\n", ret);
+            mbedtls_sha1_free(&ctx);
+            return "";
+        }
+        #endif
         mbedtls_sha1_free(&ctx);
-        
         // These lines were commented in the original code
         // unsigned char output[64];
         // size_t outlen;
