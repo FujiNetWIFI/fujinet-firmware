@@ -393,6 +393,11 @@ endif()
 
 add_executable(fujinet ${SOURCES})
 
+# Explicitly link dl for Linux (needed for dlopen/dlsym/dlclose)
+if(UNIX AND NOT APPLE)
+    target_link_libraries(fujinet dl)
+endif()
+
 # Libraries
 # build and link static libs
 option(BUILD_SHARED_LIBS "Build shared libraries" OFF)

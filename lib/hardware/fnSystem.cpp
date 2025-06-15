@@ -741,7 +741,7 @@ FILE *SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
     else
         fname = buff;
 
-    sprintf(fname, "%08u", (unsigned)ms);
+    snprintf(fname, 9, "%08u", (unsigned)ms);
     return fs->file_open(fname, "wb+");
 }
 

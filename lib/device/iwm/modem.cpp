@@ -173,7 +173,7 @@ unsigned short iwmModem::modem_print(int i)
 #ifdef ESP_PLATFORM
     itoa(i, out, 10);
 #else
-    sprintf(out, "%d", i);
+    snprintf(out, sizeof(out), "%d", i);
 #endif
 
     return modem_print(out);

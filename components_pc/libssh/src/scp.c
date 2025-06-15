@@ -107,7 +107,11 @@ ssh_scp ssh_scp_new(ssh_session session, int mode, const char *location)
     return scp;
 
 error:
+    /* Using deprecated function within deprecated API is acceptable */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     ssh_scp_free(scp);
+#pragma GCC diagnostic pop
     return NULL;
 }
 
@@ -300,7 +304,11 @@ void ssh_scp_free(ssh_scp scp)
     }
 
     if (scp->state != SSH_SCP_NEW) {
+        /* Using deprecated function within deprecated API is acceptable */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         ssh_scp_close(scp);
+#pragma GCC diagnostic pop
     }
 
     if (scp->channel) {
@@ -574,7 +582,12 @@ error:
  */
 int ssh_scp_push_file(ssh_scp scp, const char *filename, size_t size, int mode)
 {
-    return ssh_scp_push_file64(scp, filename, (uint64_t) size, mode);
+    /* Using deprecated function within deprecated API is acceptable */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+    int ret = ssh_scp_push_file64(scp, filename, (uint64_t) size, mode);
+#pragma GCC diagnostic pop
+    return ret;
 }
 
 /**
@@ -1006,7 +1019,11 @@ int ssh_scp_read(ssh_scp scp, void *buffer, size_t size)
     if (scp->state == SSH_SCP_READ_REQUESTED &&
         scp->request_type == SSH_SCP_REQUEST_NEWFILE)
     {
+        /* Using deprecated function within deprecated API is acceptable */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         rc = ssh_scp_accept_request(scp);
+#pragma GCC diagnostic pop
         if (rc == SSH_ERROR) {
             return rc;
         }
