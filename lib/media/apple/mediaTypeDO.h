@@ -9,7 +9,7 @@ class MediaTypeDO : public MediaType
 {
 private:
     bool read_sector(int track, int sector, uint8_t* buffer);
-    bool write_sector(int track, int sector, uint8_t* buffer);
+    bool write_sector(int track, int sector, uint8_t* buffer) override;
 
 public:
     virtual bool read(uint32_t blockNum, uint16_t *count, uint8_t* buffer) override;
