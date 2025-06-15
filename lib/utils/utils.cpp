@@ -213,7 +213,7 @@ std::string util_crunch(std::string filename)
     if (basename_long.length() > 8)
     {
         cksum = util_checksum(basename_long.c_str(), basename_long.length());
-        sprintf(cksum_txt, "%02X", cksum);
+        snprintf(cksum_txt, sizeof(cksum_txt), "%02X", cksum);
         basename[basename.length() - 2] = cksum_txt[0];
         basename[basename.length() - 1] = cksum_txt[1];
     }
@@ -247,7 +247,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
 
     if (is_dir)
     {
-        sprintf(e,
+        snprintf(e, sizeof(e),
             "%-8s %-3s %-10s  %2u-%02u-%02u  %2u:%02u%c",
         basename.c_str(),
         ext.c_str(),
@@ -261,7 +261,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
     }
     else
     {
-        sprintf(e,
+        snprintf(e, sizeof(e),
             "%-8s %-3s %10u  %2u-%02u-%02u  %2u:%02u%c",
             basename.c_str(),
             ext.c_str(),
@@ -309,7 +309,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
             sectors = 1; // at least 1 sector.
     }
 
-    sprintf(tmp, "%03d", sectors);
+    snprintf(tmp, sizeof(tmp), "%03d", sectors);
     sectorStr = tmp;
 
     returned_entry.replace(14, 3, sectorStr);
@@ -349,11 +349,11 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
     returned_entry.replace(0, filename.length(), filename);
 
     if (fileSize > 1048576)
-        sprintf(tmp, "%2uM", (unsigned int)(fileSize >> 20));
+        snprintf(tmp, sizeof(tmp), "%2uM", (unsigned int)(fileSize >> 20));
     else if (fileSize > 1024)
-        sprintf(tmp, "%4uK", (unsigned int)(fileSize >> 10));
+        snprintf(tmp, sizeof(tmp), "%4uK", (unsigned int)(fileSize >> 10));
     else
-        sprintf(tmp, "%4u", (unsigned int)fileSize);
+        snprintf(tmp, sizeof(tmp), "%4u", (unsigned int)fileSize);
 
     stylized_filesize = tmp;
 
@@ -388,7 +388,7 @@ const char *apple2_filesize(size_t fileSize)
 #ifdef ESP_PLATFORM
      itoa(fs, apple2_fs, 10);
 #else
-    sprintf(apple2_fs, "%u", fs);
+    snprintf(apple2_fs, sizeof(apple2_fs), "%u", fs);
 #endif
     return apple2_fs;
 }
@@ -402,7 +402,7 @@ std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, 
 
     memset(tmp, 0, sizeof(tmp));
 
-    sprintf(tmp, "%s %-70s %5s",
+    snprintf(tmp, sizeof(tmp), "%s %-70s %5s",
             apple2_folder_icon(is_dir),
             apple2_filename(filename),
             apple2_filesize(fileSize));
@@ -779,10 +779,10 @@ void util_sam_say(const char *p,
     itoa(mouth, mouths, 10);
     itoa(throat, throats, 10);
 #else
-    sprintf(pitchs, "%u", pitch);
-    sprintf(speeds, "%u", speed);
-    sprintf(mouths, "%u", mouth);
-    sprintf(throats, "%u", throat);
+    snprintf(pitchs, sizeof(pitchs), "%u", pitch);
+    snprintf(speeds, sizeof(speeds), "%u", speed);
+    snprintf(mouths, sizeof(mouths), "%u", mouth);
+    snprintf(throats, sizeof(throats), "%u", throat);
 #endif
 
     memset(a, 0, sizeof(a));

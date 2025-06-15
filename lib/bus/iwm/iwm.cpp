@@ -87,7 +87,7 @@ void print_packet_wave(uint8_t *data, int bytes)
   Debug_printf("\n");
   for (int count = 0; count < bytes; count = count + 12)
   {
-    sprintf(tbs, "%04X: ", count);
+    snprintf(tbs, sizeof(tbs), "%04X: ", count);
     Debug_print(tbs);
     for (row = 0; row < 12; row++)
     {

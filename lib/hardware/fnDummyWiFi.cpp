@@ -85,7 +85,7 @@ int DummyWiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rss
 
     if (ssid != nullptr) {
         memset(ssid, 0, 32);
-        sprintf(ssid, "Dummy Cafe %d", index);
+        snprintf(ssid, 32, "Dummy Cafe %d", index);
     }
 
     if (bssid != nullptr)
