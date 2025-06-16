@@ -224,7 +224,7 @@ bool FileSystemLittleFS::start()
 
     esp_vfs_littlefs_conf_t conf = {
       .base_path = "",
-      .partition_label = "flash",
+      .partition_label = "storage",
       .format_if_mount_failed = false,
       .dont_mount = false
     };
