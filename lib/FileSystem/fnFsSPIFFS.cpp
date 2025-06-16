@@ -175,7 +175,7 @@ bool FileSystemSPIFFS::start()
 #ifdef ESP_PLATFORM
     esp_vfs_spiffs_conf_t conf = {
       .base_path = _basepath,
-      .partition_label = "flash",
+      .partition_label = "storage",
       .max_files = 10, // from SPIFFS.h
       .format_if_mount_failed = false
     };
