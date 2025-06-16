@@ -1,6 +1,6 @@
 /**
  * NetworkProtocolFS
- * 
+ *
  * Implementation
  */
 
@@ -104,6 +104,9 @@ bool NetworkProtocolFS::open_dir()
 
     while (read_dir_entry((char *)entryBuffer.data(), ENTRY_BUFFER_SIZE - 1) == false)
     {
+        if (entryBuffer.at(0) == '.' || entryBuffer.at(0) == '/')
+            continue;
+
         if (aux2_open & 0x80)
         {
             // Long entry
@@ -188,7 +191,7 @@ bool NetworkProtocolFS::read(unsigned short len)
     bool ret;
 
     is_write = false;
-    
+
     switch (openMode)
     {
     case FILE:
@@ -281,24 +284,35 @@ bool NetworkProtocolFS::status(NetworkStatus *status)
     }
 }
 
-bool NetworkProtocolFS::status_file(NetworkStatus *status)
-{
-    if (aux1_open == 8)
-        status->rxBytesWaiting = 0;
-    else
 #ifdef BUILD_ATARI
-        status->rxBytesWaiting = fileSize > 512 ? 512 : fileSize;
+#define WAITING_CAP 512
 #else
-        status->rxBytesWaiting = fileSize > 65534 ? 65534 : fileSize;
+#define WAITING_CAP 65534
 #endif
 
-    status->connected = fileSize > 0 ? 1 : 0;
+bool NetworkProtocolFS::status_file(NetworkStatus *status)
+{
+    unsigned int remaining;
+
+    if (aux1_open == 8) {
+        status->rxBytesWaiting = 0;
+        remaining = fileSize;
+    }
+    else {
+        remaining = fileSize + receiveBuffer->length();
+        status->rxBytesWaiting = remaining > WAITING_CAP ? WAITING_CAP : remaining;
+    }
+
+    status->connected = remaining > 0 ? 1 : 0;
     if (is_write)
         status->error = 1;
     else
-        status->error = fileSize > 0 ? error : NETWORK_ERROR_END_OF_FILE;
+        status->error = remaining > 0 ? error : NETWORK_ERROR_END_OF_FILE;
 
+#if 0
+    // This will reset the status->rxBytesWaiting that we just calculated above
     NetworkProtocol::status(status);
+#endif
 
     return false;
 }
@@ -405,7 +419,7 @@ void NetworkProtocolFS::resolve()
     // Clear file size, if resolved to write and not append.
     if (aux1_open == 8)
         fileSize = 0;
-    
+
 }
 
 bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
@@ -415,17 +429,17 @@ bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t 
 #endif
     switch (cmdFrame->comnd)
     {
-    case 0x20:
+    case FUJI_CMD_RENAME:
         return rename(url, cmdFrame);
-    case 0x21:
+    case FUJI_CMD_DELETE:
         return del(url, cmdFrame);
-    case 0x23:
+    case FUJI_CMD_LOCK:
         return lock(url, cmdFrame);
-    case 0x24:
+    case FUJI_CMD_UNLOCK:
         return unlock(url, cmdFrame);
-    case 0x2A:
+    case FUJI_CMD_MKDIR:
         return mkdir(url, cmdFrame);
-    case 0x2B:
+    case FUJI_CMD_RMDIR:
         return rmdir(url, cmdFrame);
     default:
 #ifdef VERBOSE_PROTOCOL

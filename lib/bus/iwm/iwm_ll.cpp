@@ -31,6 +31,10 @@
       blen;                                             \
     })
 
+#define PREALLOC_D2W_BUFFER
+#define D2W_MAXSECTORS 1
+#define D2W_MAXBUF (TRACK_LEN * IWM_SAMPLES_PER_CELL(smartport.f_spirx) * D2W_MAXSECTORS / 16)
+
 volatile uint8_t _phases = 0;
 volatile sp_cmd_state_t sp_command_mode = sp_cmd_state_t::standby;
 volatile int isrctr = 0;
@@ -933,8 +937,10 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
     smartport.iwm_ack_clr();
 
     if (!d2w_started) {
-      d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(TRACK_LEN * 8, d2w_buffer),
+#ifndef PREALLOC_D2W_BUFFER
+      d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(D2W_MAXBUF, d2w_buffer),
                                          D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
+#endif
       if (d2w_desc) {
         gpio_isr_handler_add(SP_WREQ, diskii_write_handler_forwarder, (void *) this);
         cspi_begin_continuous(smartport.spirx, d2w_desc);
@@ -966,8 +972,10 @@ void iwm_diskii_ll::stop()
   if (d2w_started) {
     cspi_end_continuous(smartport.spirx);
     d2w_started = false;
+#ifndef PREALLOC_D2W_BUFFER
     heap_caps_free(d2w_desc);
     heap_caps_free(d2w_buffer);
+#endif
     // Let SmartPort use write protect as ACK line again
     smartport.iwm_ack_set();
   }
@@ -1066,6 +1074,11 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
  */
 void iwm_diskii_ll::setup_rmt()
 {
+#ifdef PREALLOC_D2W_BUFFER
+    d2w_buflen = cspi_alloc_continuous(IWM_NUMBYTES_FOR_BITS(D2W_MAXBUF, d2w_buffer),
+                                       D2W_CHUNK_SIZE, &d2w_buffer, &d2w_desc);
+#endif
+
   // SPI continuous
   iwm_write_queue = xQueueCreate(10, sizeof(iwm_write_data));
 

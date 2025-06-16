@@ -6,32 +6,36 @@
 
 #include <forward_list>
 
-//#define RS232_BAUDRATE 9600
-#define RS232_BAUDRATE 115200
+#define RS232_BAUDRATE 9600
+//#define RS232_BAUDRATE 115200
 
-#define RS232_DEVICEID_DISK 0x31
-#define RS232_DEVICEID_DISK_LAST 0x3F
+#define RS232_DEVICEID_DISK            0x31
+#define RS232_DEVICEID_DISK_LAST       0x3F
 
-#define RS232_DEVICEID_PRINTER 0x40
-#define RS232_DEVICEID_PRINTER_LAST 0x43
+#define RS232_DEVICEID_PRINTER         0x40
+#define RS232_DEVICEID_PRINTER_LAST    0x43
 
-#define RS232_DEVICEID_FN_VOICE 0x43
+#define RS232_DEVICEID_FN_VOICE        0x43
 
-#define RS232_DEVICEID_APETIME 0x45
+#define RS232_DEVICEID_APETIME         0x45
 
-#define RS232_DEVICEID_RS232 0x50
-#define RS232_DEVICEID_RS2323_LAST 0x53
+#define RS232_DEVICEID_RS232           0x50
+#define RS232_DEVICEID_RS2323_LAST     0x53
 
-#define RS232_DEVICEID_FUJINET 0x70
-#define RS232_DEVICEID_FN_NETWORK 0x71
+#define RS232_DEVICEID_FUJINET         0x70
+#define RS232_DEVICEID_FN_NETWORK      0x71
 #define RS232_DEVICEID_FN_NETWORK_LAST 0x78
 
-#define RS232_DEVICEID_MIDI 0x99
+#define RS232_DEVICEID_MIDI            0x99
 
-#define RS232_DEVICEID_CPM 0x5A
+#define RS232_DEVICEID_CPM             0x5A
 
 #define DELAY_T4 800
 #define DELAY_T5 800
+
+#define DIRECTION_NONE    0x00
+#define DIRECTION_READ    0x40
+#define DIRECTION_WRITE   0x80
 
 typedef struct
 {
@@ -123,12 +127,15 @@ protected:
     void rs232_error();
 
     /**
-     * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
-     * a sector number, for disk, or a number of bytes waiting for the rs232Network device.
-     * 
-     * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
+     * @brief Return the aux bytes in cmdFrame as a single 16-bit or
+     * 32-bit value, commonly used, for example to retrieve a sector
+     * number, for disk, or a number of bytes waiting for the
+     * rs232Network device.
      */
-    unsigned short rs232_get_aux();
+    // FIXME - these should probably be macros
+    uint16_t rs232_get_aux16_lo();
+    uint16_t rs232_get_aux16_hi();
+    uint32_t rs232_get_aux32();
 
     /**
      * @brief All RS232 commands by convention should return a status command, using bus_to_computer() to return

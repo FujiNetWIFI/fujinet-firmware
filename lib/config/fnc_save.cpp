@@ -178,6 +178,11 @@ void fnConfig::save()
         ss << "port=" << LINETERM;
     }
 
+#ifdef BUILD_RS232
+    ss << LINETERM << "[RS232]" << LINETERM;
+    ss << "baud=" << _rs232.baud << LINETERM;
+#endif
+
 #ifndef ESP_PLATFORM
     // SERIAL
     ss << LINETERM << "[Serial]" << LINETERM;

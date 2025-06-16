@@ -28,29 +28,6 @@
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
 
-enum {
-  CMD_SEEK              = 0x25,
-  CMD_TELL              = 0x26,
-  CMD_CHDIR             = 0x2c,
-  CMD_GETCWD            = 0x30,
-  CMD_HIGHSPEED         = 0x3F,
-  CMD_OPEN              = 'O',
-  CMD_CLOSE             = 'C',
-  CMD_READ              = 'R',
-  CMD_WRITE             = 'W',
-  CMD_STATUS            = 'S',
-  CMD_PARSE             = 'P',
-  CMD_QUERY             = 'Q',
-  CMD_APETIME_GETTIME   = 0x93,
-  CMD_APETIME_SETTZ     = 0x99,
-  CMD_APETIME_GETTZTIME = 0x9A,
-  CMD_READ_DEVICE_SLOTS = 0xF2,
-  CMD_JSON              = 0xFC,
-  CMD_USERNAME          = 0xFD,
-  CMD_PASSWORD          = 0xFE,
-  CMD_SPECIAL_QUERY     = 0xFF,
-};
-
 class rs232Network : public virtualDevice
 {
 
@@ -155,6 +132,9 @@ public:
      * @param checksum 8 bit checksum
      */
     virtual void rs232_process(cmdFrame_t *cmd_ptr);
+
+    void rs232_seek();
+    void rs232_tell();
 
 private:
     /**

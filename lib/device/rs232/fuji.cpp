@@ -950,7 +950,7 @@ void rs232Fuji::rs232_set_directory_position()
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    uint16_t pos = cmdFrame.aux;
+    uint16_t pos = rs232_get_aux16_lo();
 
     // Make sure we have a current open directory
     if (_current_open_directory_slot == -1)
@@ -1385,7 +1385,7 @@ void rs232Fuji::rs232_get_device_filename()
 // Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
 void rs232Fuji::rs232_set_rs232_external_clock()
 {
-    unsigned short speed = rs232_get_aux();
+    unsigned short speed = rs232_get_aux16_lo();
     int baudRate = speed * 1000;
 
     Debug_printf("rs232Fuji::rs232_set_external_clock(%u)\n", baudRate);

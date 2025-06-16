@@ -149,7 +149,10 @@ void fnHttpService::send_file_parsed(struct mg_connection *c, const char *filena
         }
         else
         {
-            fread(buf, 1, sz, fInput);
+            size_t bytes_read = fread(buf, 1, sz - 1, fInput); // sz - 1 because we added 1 for null terminator
+            if (bytes_read < (sz - 1)) {
+                Debug_printf("Warning: Only read %u of %u bytes from file\n", (unsigned)bytes_read, (unsigned)(sz - 1));
+            }
             string contents(buf);
             free(buf);
             contents = fnHttpServiceParser::parse_contents(contents);

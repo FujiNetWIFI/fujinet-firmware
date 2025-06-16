@@ -7,6 +7,48 @@
 #include "networkStatus.h"
 #include "peoples_url_parser.h"
 
+enum {
+    PROTOCOL_OPEN_READ          = 4,
+    PROTOCOL_OPEN_HTTP_DELETE   = 5,
+    PROTOCOL_OPEN_DIRECTORY     = 6,
+    PROTOCOL_OPEN_WRITE         = 8,
+    PROTOCOL_OPEN_APPEND        = 9,
+    PROTOCOL_OPEN_READWRITE     = 12,
+    PROTOCOL_OPEN_HTTP_POST     = 13,
+    PROTOCOL_OPEN_HTTP_PUT      = 14,
+};
+
+enum {
+  FUJI_CMD_RENAME            = 0x20,
+  FUJI_CMD_DELETE            = 0x21,
+  FUJI_CMD_LOCK              = 0x23,
+  FUJI_CMD_UNLOCK            = 0x24,
+  FUJI_CMD_SEEK              = 0x25,
+  FUJI_CMD_TELL              = 0x26,
+  FUJI_CMD_MKDIR             = 0x2A,
+  FUJI_CMD_RMDIR             = 0x2B,
+  FUJI_CMD_CHDIR             = 0x2C,
+  FUJI_CMD_GETCWD            = 0x30,
+  FUJI_CMD_HIGHSPEED         = 0x3F,
+  FUJI_CMD_OPEN              = 'O',
+  FUJI_CMD_CLOSE             = 'C',
+  FUJI_CMD_READ              = 'R',
+  FUJI_CMD_WRITE             = 'W',
+  FUJI_CMD_STATUS            = 'S',
+  FUJI_CMD_PARSE             = 'P',
+  FUJI_CMD_QUERY             = 'Q',
+  FUJI_CMD_TRANSLATION       = 'T',
+  FUJI_CMD_TIMER             = 'Z',
+  FUJI_CMD_APETIME_GETTIME   = 0x93,
+  FUJI_CMD_APETIME_SETTZ     = 0x99,
+  FUJI_CMD_APETIME_GETTZTIME = 0x9A,
+  FUJI_CMD_READ_DEVICE_SLOTS = 0xF2,
+  FUJI_CMD_JSON              = 0xFC,
+  FUJI_CMD_USERNAME          = 0xFD,
+  FUJI_CMD_PASSWORD          = 0xFE,
+  FUJI_CMD_SPECIAL_QUERY     = 0xFF,
+};
+
 class NetworkProtocol
 {
 public:
@@ -15,7 +57,7 @@ public:
      * Was the last command a write?
      */
     bool is_write = false;
-    
+
     /**
      * Pointer to the receive buffer
      */
@@ -185,6 +227,8 @@ public:
      */
     virtual void set_open_params(uint8_t p1, uint8_t p2);
 
+    virtual off_t seek(off_t offset, int whence);
+
     /**
      * Pointer to current login;
      */
@@ -196,7 +240,7 @@ public:
     std::string *password;
 
 protected:
-    
+
     /**
      * AUX1 value from open
      */

@@ -196,6 +196,11 @@ New behavior: copy from SD first if available, then read FLASH.
             _read_section_bos(ss);
             break;
 #endif
+#ifdef BUILD_RS232
+        case SECTION_RS232:
+            _read_section_rs232(ss);
+            break;
+#endif
         case SECTION_UNKNOWN:
             break;
         }

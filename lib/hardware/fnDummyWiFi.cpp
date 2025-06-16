@@ -85,7 +85,7 @@ int DummyWiFiManager::get_scan_result(uint8_t index, char ssid[32], uint8_t *rss
 
     if (ssid != nullptr) {
         memset(ssid, 0, 32);
-        sprintf(ssid, "Dummy Cafe %d", index);
+        snprintf(ssid, 32, "Dummy Cafe %d", index);
     }
 
     if (bssid != nullptr)
@@ -119,7 +119,8 @@ std::string DummyWiFiManager::get_mac_str()
 
 const char *_wifi_country_string()
 {
-    static char buff[100];
+    // Increased buffer size to ensure no truncation when used in get_current_detail_str()
+    static char buff[160];
 
     snprintf(buff, sizeof(buff), "ccode=0x%02hx%02hx%02hx, firstchan=%hu, numchan=%hu, maxpwr=%hd, policy=%s",
              uint8_t(0), uint8_t(0), uint8_t(0), uint8_t(1), uint8_t(11), uint8_t(1),
@@ -130,9 +131,16 @@ const char *_wifi_country_string()
 
 const char *DummyWiFiManager::get_current_detail_str()
 {
-    static char buff[256];
+    // Increased buffer size to avoid truncation warnings
+    static char buff[350];
     buff[0] = '\0';
+    
+    // Get the country string separately and limit its length if needed
+    const char* country_str = _wifi_country_string();
+    char country_buff[100];
+    snprintf(country_buff, sizeof(country_buff), "%.90s", country_str); // Limit to 90 chars max
 
+    // Now use the limited country string in the main format
     snprintf(buff, sizeof(buff),
                 "chan=%hu, chan2=%s, rssi=%hd, auth=%s, paircipher=%s, groupcipher=%s, ant=%u "
                 "11b=%c, 11g=%c, 11n=%c, lowr=%c, wps=%c, (%s)",
@@ -144,7 +152,7 @@ const char *DummyWiFiManager::get_current_detail_str()
                 'y', 'y', 'y',
                 'y',
                 'n',
-                _wifi_country_string());
+                country_buff);
 
     return buff;
 }
