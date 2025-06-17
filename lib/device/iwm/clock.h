@@ -8,6 +8,8 @@ class iwmClock : public iwmDevice
 {
 private:
     void set_tz();
+    void set_alternate_tz();
+    std::string alternate_tz = "";
 public:
     iwmClock();
 
