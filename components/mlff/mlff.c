@@ -197,7 +197,8 @@ static esp_err_t flash_write_file(const char *sd_file_path, const char *partitio
     esp_err_t ret = ESP_OK;
     FILE *sd_file = NULL;
     uint8_t *buffer = NULL;
-    esp_partition_t *partition = NULL;
+    const esp_partition_t *existing_part = NULL;
+    esp_partition_t partition;
     unsigned char sd_sha256[32], flash_sha256[32];
     char sha256_str[65];
 
@@ -214,57 +215,61 @@ static esp_err_t flash_write_file(const char *sd_file_path, const char *partitio
     size_t file_size = ftell(sd_file);
     rewind(sd_file);
 
-    partition = esp_partition_find_first(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, NULL);
-    if (strcasecmp(partition_name, "bootloader") == 0)
+    existing_part = esp_partition_find_first(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, NULL);
+    if (existing_part && strcasecmp(partition_name, "bootloader") == 0)
     {
         // Set bootloader partition
-        partition->address = 0x1000;
-        partition->size = 0x7000;
-        partition->erase_size = 0x1000;
-        partition->type = ESP_PARTITION_TYPE_BOOTLOADER;
-        partition->subtype = ESP_PARTITION_SUBTYPE_BOOTLOADER_PRIMARY;
-        strcpy(partition->label, partition_name);
+        partition = *existing_part;
+        partition.address = 0x1000;
+        partition.size = 0x7000;
+        partition.erase_size = 0x1000;
+        partition.type = ESP_PARTITION_TYPE_BOOTLOADER;
+        partition.subtype = ESP_PARTITION_SUBTYPE_BOOTLOADER_PRIMARY;
+        strcpy(partition.label, partition_name);
     }
-    else if (strcasecmp(partition_name, "partitions") == 0)
+    else if (existing_part && strcasecmp(partition_name, "partitions") == 0)
     {
         // Set partition table partition
-        partition->address = 0x8000;
-        partition->size = 0x1000;
-        partition->erase_size = 0x1000;
-        partition->type = ESP_PARTITION_TYPE_PARTITION_TABLE;
-        partition->subtype = ESP_PARTITION_SUBTYPE_PARTITION_TABLE_PRIMARY;
-        strcpy(partition->label, partition_name);
+        partition = *existing_part;
+        partition.address = 0x8000;
+        partition.size = 0x1000;
+        partition.erase_size = 0x1000;
+        partition.type = ESP_PARTITION_TYPE_PARTITION_TABLE;
+        partition.subtype = ESP_PARTITION_SUBTYPE_PARTITION_TABLE_PRIMARY;
+        strcpy(partition.label, partition_name);
     }
     else
     {
         // Find partition by name
-        partition = esp_partition_find_first(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, partition_name);
+        existing_part = esp_partition_find_first(ESP_PARTITION_TYPE_ANY, ESP_PARTITION_SUBTYPE_ANY, partition_name);
+        if (existing_part)
+            partition = *existing_part;
     }
 
-    if (!partition) {
+    if (!existing_part) {
         printf("Partition '%s' not found\r\n", partition_name);
         ret = ESP_ERR_NOT_FOUND;
         goto cleanup;
     }
 
     // Partition details
-    printf("Partition Label: %s\r\n", partition->label);
-    printf("Partition Type: 0x%02x\r\n", partition->type);
-    printf("Partition Subtype: 0x%02x\r\n", partition->subtype);
-    printf("Partition Address: 0x%08lx\r\n", partition->address);
-    printf("Partition Size: 0x%08lx\r\n", partition->size);
-    printf("Partition Erase Size: 0x%08lx\r\n", partition->erase_size);
+    printf("Partition Label: %s\r\n", partition.label);
+    printf("Partition Type: 0x%02x\r\n", partition.type);
+    printf("Partition Subtype: 0x%02x\r\n", partition.subtype);
+    printf("Partition Address: 0x%08lx\r\n", partition.address);
+    printf("Partition Size: 0x%08lx\r\n", partition.size);
+    printf("Partition Erase Size: 0x%08lx\r\n", partition.erase_size);
 
     // Validate file size against partition
-    if (file_size > partition->size) {
-        printf("File size (%zu) exceeds partition size (%lu) for %s\r\n", file_size, partition->size, partition_name);
+    if (file_size > partition.size) {
+        printf("File size (%zu) exceeds partition size (%lu) for %s\r\n", file_size, partition.size, partition_name);
         ret = ESP_ERR_INVALID_SIZE;
         goto cleanup;
     }
 
     // Compare File & Partition SHA256
     //ESP_LOGI(TAG, "Compare File & Partition SHA256...");
-    if ( partition->type > ESP_PARTITION_TYPE_APP )
+    if ( partition.type > ESP_PARTITION_TYPE_APP )
     {
         ret = get_file_sha256(sd_file, file_size, sd_sha256, false);
     } else {
@@ -274,9 +279,9 @@ static esp_err_t flash_write_file(const char *sd_file_path, const char *partitio
         printf("Failed to get file SHA256: %s\r\n", esp_err_to_name(ret));
         goto cleanup;
     }
-    if ( partition->type == ESP_PARTITION_TYPE_APP )
+    if ( partition.type == ESP_PARTITION_TYPE_APP )
     {
-        ret = esp_partition_get_sha256(partition, flash_sha256);
+        ret = esp_partition_get_sha256(&partition, flash_sha256);
         if (ret != ESP_OK) {
             printf("Failed to get partition SHA256: %s\r\n", esp_err_to_name(ret));
             goto write_bin;
@@ -303,11 +308,11 @@ write_bin:
 
     // Erase partition
     printf("Erasing partition '%s'...\r\n", partition_name);
-    // if ( partition->type < ESP_PARTITION_TYPE_BOOTLOADER )
+    // if ( partition.type < ESP_PARTITION_TYPE_BOOTLOADER )
     // {
-         ret = esp_partition_erase_range(partition, 0, partition->size);
+         ret = esp_partition_erase_range(&partition, 0, partition.size);
     // } else {
-    //    ret = esp_flash_erase_region(partition->flash_chip, partition->address, partition->size);
+    //    ret = esp_flash_erase_region(partition.flash_chip, partition.address, partition.size);
     //}
     if (ret != ESP_OK) {
         printf("Failed to erase partition %s: %s\r\n", partition_name, esp_err_to_name(ret));
@@ -323,15 +328,15 @@ write_bin:
         size_t bytes_read = fread(buffer, 1, BUFFER_SIZE, sd_file);
         if (bytes_read == 0) break;
 
-        // if ( partition->type < ESP_PARTITION_TYPE_BOOTLOADER )
+        // if ( partition.type < ESP_PARTITION_TYPE_BOOTLOADER )
         // {
-            ret = esp_partition_write(partition, total_written, buffer, bytes_read);
+            ret = esp_partition_write(&partition, total_written, buffer, bytes_read);
             if (ret != ESP_OK) {
                 printf("Failed to write to partition %s: %s\r\n", partition_name, esp_err_to_name(ret));
                 goto cleanup;
             }
         // } else {
-        //     ret = esp_flash_write(partition->flash_chip, buffer, partition->address + total_written, bytes_read);
+        //     ret = esp_flash_write(partition.flash_chip, buffer, partition.address + total_written, bytes_read);
         //     if (ret != ESP_OK) {
         //         printf("Failed to write to flash: %s\r\n", esp_err_to_name(ret));
         //         goto cleanup;
@@ -347,11 +352,11 @@ write_bin:
         }
     }
 
-    if ( partition->type < ESP_PARTITION_TYPE_BOOTLOADER )
+    if ( partition.type < ESP_PARTITION_TYPE_BOOTLOADER )
     {
         // Verify partition data with progress
         printf("Verifying partition '%s'...\r\n", partition_name);
-        ret = esp_partition_get_sha256(partition, flash_sha256);
+        ret = esp_partition_get_sha256(&partition, flash_sha256);
         if (ret != ESP_OK) {
             printf("Failed to get partition SHA256: %s\r\n", esp_err_to_name(ret));
             goto cleanup;
