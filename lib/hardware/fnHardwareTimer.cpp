@@ -124,26 +124,20 @@ HardwareTimer::HardwareTimer()
     espTimer = new HideESPDetails();
 
 #ifdef FN_USE_GPTIMER
-    espTimer->fn_config = {
-        .clk_src = GPTIMER_CLK_SRC_APB,
-        .direction = GPTIMER_COUNT_UP,
-        .resolution_hz = 1000000,
-    };
+    espTimer->fn_config.clk_src = GPTIMER_CLK_SRC_APB;
+    espTimer->fn_config.direction = GPTIMER_COUNT_UP;
+    espTimer->fn_config.resolution_hz = 1000000;
 #else /* !FN_USE_GPTIMER */
-    espTimer->fn_config = {
-        .alarm_en = TIMER_ALARM_DIS,
-        .counter_en = TIMER_PAUSE,
-        .intr_type = TIMER_INTR_LEVEL,
-        .counter_dir = TIMER_COUNT_UP,
-        .auto_reload = TIMER_AUTORELOAD_DIS,
+    espTimer->fn_config.alarm_en = TIMER_ALARM_DIS;
+    espTimer->fn_config.counter_en = TIMER_PAUSE;
+    espTimer->fn_config.intr_type = TIMER_INTR_LEVEL;
+    espTimer->fn_config.counter_dir = TIMER_COUNT_UP;
+    espTimer->fn_config.auto_reload = TIMER_AUTORELOAD_DIS;
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-        .clk_src = TIMER_SRC_CLK_APB,
+    espTimer->fn_config.clk_src = TIMER_SRC_CLK_APB;
 #endif
-        .divider = TIMER_DIVIDER,
-    };
+    espTimer->fn_config.divider = TIMER_DIVIDER;
     timer_init(TIMER_GROUP_1, TIMER_1, &espTimer->fn_config);
-    timer_set_counter_value(TIMER_GROUP_1, TIMER_1, 0);
-    timer_start(TIMER_GROUP_1, TIMER_1);
 #endif /* FN_USE_GPTIMER */
 }
 
@@ -173,7 +167,7 @@ void HardwareTimer::config()
 
 void HardwareTimer::reset()
 {
-    gptimer_set_raw_count(gptimer, 0);
+    gptimer_set_raw_count(espTimer->gptimer, 0);
 }
 
 void HardwareTimer::latch()
@@ -183,7 +177,7 @@ void HardwareTimer::latch()
 void HardwareTimer::read()
 {
     uint64_t count;
-    gptimer_get_raw_count(gptimer, &count);
+    gptimer_get_raw_count(espTimer->gptimer, &count);
     fn_timer.t0 = count & 0xFFFFFFFF;
 }
 
