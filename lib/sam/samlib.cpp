@@ -259,51 +259,39 @@ void OutputSound()
 //Init/Config
         i2s_chan_handle_t tx_handle;
         /* Allocate an I2S tx channel */
-        i2s_chan_config_t chan_cfg = //I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
-                    { 
-                    .id = I2S_NUM_0, 
-                    .role = I2S_ROLE_MASTER, 
-                    .dma_desc_num = 4,//6, 
-                    .dma_frame_num = 1024,//240, 
-                    .auto_clear = false, 
-                };
+        i2s_chan_config_t chan_cfg;
+        chan_cfg.id = I2S_NUM_0;
+        chan_cfg.role = I2S_ROLE_MASTER;
+        chan_cfg.dma_desc_num = 4; //6
+        chan_cfg.dma_frame_num = 1024; //240
+        chan_cfg.auto_clear = false;
         i2s_new_channel(&chan_cfg, &tx_handle, NULL);
 
         /* Init the channel into PDM TX mode */
-        i2s_pdm_tx_config_t pdm_tx_cfg = {
-            .clk_cfg = //I2S_PDM_TX_CLK_DEFAULT_CONFIG(sample_rate),
-                     { 
-                    .sample_rate_hz = sample_rate, 
-                    .clk_src = I2S_CLK_SRC_DEFAULT, 
-                    .mclk_multiple = I2S_MCLK_MULTIPLE_256, 
-                    .up_sample_fp = 960, 
-                    .up_sample_fs = 480  
-                },
+        i2s_pdm_tx_config_t pdm_tx_cfg;
+        pdm_tx_cfg.clk_cfg.sample_rate_hz = sample_rate;
+        pdm_tx_cfg.clk_cfg.clk_src = I2S_CLK_SRC_DEFAULT;
+        pdm_tx_cfg.clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;
+        pdm_tx_cfg.clk_cfg.up_sample_fp = 960;
+        pdm_tx_cfg.clk_cfg.up_sample_fs = 480;
 
-            .slot_cfg = //I2S_PDM_TX_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
-                    { 
-                    .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT, 
-                    .slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO, 
-                    .slot_mode = I2S_SLOT_MODE_MONO, //I2S_SLOT_MODE_STEREO,
-                    .sd_prescale = 0, 
-                    .sd_scale = I2S_PDM_SIG_SCALING_MUL_1, 
-                    .hp_scale = I2S_PDM_SIG_SCALING_MUL_1, //I2S_PDM_SIG_SCALING_DIV_2, 
-                    .lp_scale = I2S_PDM_SIG_SCALING_MUL_1, 
-                    .sinc_scale = I2S_PDM_SIG_SCALING_MUL_1, 
-                    .line_mode = I2S_PDM_TX_ONE_LINE_DAC, //I2S_PDM_TX_ONE_LINE_CODEC
-                    .hp_en = true, 
-                    .hp_cut_off_freq_hz = 49, // 35.5, 
-                    .sd_dither = 0, 
-                    .sd_dither2 = 1, 
-                },
-            .gpio_cfg = {
-                .clk = GPIO_NUM_NC,//(gpio_num_t) I2S_PIN_NO_CHANGE, //GPIO_NUM_5,
-                .dout = PIN_DAC1,//GPIO_NUM_18,
-                .invert_flags = {
-                    .clk_inv = false,
-                },
-            },
-        };
+        pdm_tx_cfg.slot_cfg.data_bit_width = I2S_DATA_BIT_WIDTH_16BIT;
+        pdm_tx_cfg.slot_cfg.slot_bit_width = I2S_SLOT_BIT_WIDTH_AUTO;
+        pdm_tx_cfg.slot_cfg.slot_mode = I2S_SLOT_MODE_MONO; //I2S_SLOT_MODE_STEREO
+        pdm_tx_cfg.slot_cfg.sd_prescale = 0;
+        pdm_tx_cfg.slot_cfg.sd_scale = I2S_PDM_SIG_SCALING_MUL_1;
+        pdm_tx_cfg.slot_cfg.hp_scale = I2S_PDM_SIG_SCALING_MUL_1; //I2S_PDM_SIG_SCALING_DIV_2
+        pdm_tx_cfg.slot_cfg.lp_scale = I2S_PDM_SIG_SCALING_MUL_1;
+        pdm_tx_cfg.slot_cfg.sinc_scale = I2S_PDM_SIG_SCALING_MUL_1;
+        pdm_tx_cfg.slot_cfg.line_mode = I2S_PDM_TX_ONE_LINE_DAC; //I2S_PDM_TX_ONE_LINE_CODEC
+        pdm_tx_cfg.slot_cfg.hp_en = true;
+        pdm_tx_cfg.slot_cfg.hp_cut_off_freq_hz = 49; // 35.5
+        pdm_tx_cfg.slot_cfg.sd_dither = 0;
+        pdm_tx_cfg.slot_cfg.sd_dither2 = 1;
+
+        pdm_tx_cfg.gpio_cfg.clk = GPIO_NUM_NC; //(gpio_num_t) I2S_PIN_NO_CHANGE; //GPIO_NUM_5
+        pdm_tx_cfg.gpio_cfg.dout = PIN_DAC1; //GPIO_NUM_18
+        pdm_tx_cfg.gpio_cfg.invert_flags.clk_inv = false;
 
         i2s_channel_init_pdm_tx_mode(tx_handle, &pdm_tx_cfg);
         i2s_channel_enable(tx_handle);
