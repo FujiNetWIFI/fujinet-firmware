@@ -11,7 +11,7 @@
 #if CONFIG_IDF_TARGET_ESP32S3
 # include <hal/gpio_ll.h>
 #else
-# include <driver/dac.h>
+//# include <driver/dac.h>
 #endif
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -21,7 +21,7 @@
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #define ADC_WIDTH_12Bit ADC_BITWIDTH_12
-#define ADC_ATTEN_11db ADC_ATTEN_DB_11
+#define ADC_ATTEN_11db ADC_ATTEN_DB_12
 #else
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
@@ -645,10 +645,9 @@ int SystemManager::get_sio_voltage()
     }
 #else
     adc_oneshot_unit_handle_t adc1_handle;
-    adc_oneshot_unit_init_cfg_t init_config1 = {
-         .unit_id = ADC_UNIT_1,
-         .ulp_mode = ADC_ULP_MODE_DISABLE,
-    };
+    adc_oneshot_unit_init_cfg_t init_config1;
+    init_config1.unit_id = ADC_UNIT_1;
+    init_config1.ulp_mode = ADC_ULP_MODE_DISABLE;
 
     adc_oneshot_chan_cfg_t config = {
          .atten = ADC_ATTEN_11db,
@@ -670,11 +669,10 @@ int SystemManager::get_sio_voltage()
 #endif
 
 #if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
-    adc_cali_line_fitting_config_t cali_config = {
-       .unit_id = ADC_UNIT_1,
-       .atten = ADC_ATTEN_11db,
-       .bitwidth = ADC_WIDTH_12Bit,
-    };
+    adc_cali_line_fitting_config_t cali_config;
+    cali_config.unit_id = ADC_UNIT_1;
+    cali_config.atten = ADC_ATTEN_11db;
+    cali_config.bitwidth = ADC_WIDTH_12Bit;
     adc_cali_create_scheme_line_fitting(&cali_config, &adc_cali_handle);
 #endif
 
