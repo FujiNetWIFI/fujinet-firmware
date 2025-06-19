@@ -555,61 +555,57 @@ void iwm_sp_ll::setup_spi()
     spirx_mosi_pin = SP_RDDATA;
 
   // SPI for receiving packets - sprirx
-  spi_bus_config_t bus_cfg = {
-    .mosi_io_num = spirx_mosi_pin,
-    .miso_io_num = SP_WRDATA,
-    .sclk_io_num = -1,
-    .quadwp_io_num = -1,
-    .quadhd_io_num = -1,
-    .data4_io_num = -1,
-    .data5_io_num = -1,
-    .data6_io_num = -1,
-    .data7_io_num = -1,
-    .max_transfer_sz = TRACK_LEN, // SPI_II_LEN,
-    .flags = SPICOMMON_BUSFLAG_MASTER,
-    .intr_flags = 0
-  };
+  spi_bus_config_t bus_cfg;
+  bus_cfg.mosi_io_num = spirx_mosi_pin;
+  bus_cfg.miso_io_num = SP_WRDATA;
+  bus_cfg.sclk_io_num = -1;
+  bus_cfg.quadwp_io_num = -1;
+  bus_cfg.quadhd_io_num = -1;
+  bus_cfg.data4_io_num = -1;
+  bus_cfg.data5_io_num = -1;
+  bus_cfg.data6_io_num = -1;
+  bus_cfg.data7_io_num = -1;
+  bus_cfg.max_transfer_sz = TRACK_LEN; // SPI_II_LEN
+  bus_cfg.flags = SPICOMMON_BUSFLAG_MASTER;
+  bus_cfg.intr_flags = 0;
 
   ret = spi_bus_initialize(VSPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
   assert(ret == ESP_OK);
 
-  spi_device_interface_config_t rxcfg = {
-    .command_bits = 0,
-    .address_bits = 0,
-    .dummy_bits = 0,
-    .mode = 0,                      // SPI mode 0
-    .duty_cycle_pos = 0,            ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-    .cs_ena_pretrans = 0,
-    .cs_ena_posttrans = 0,
-    .clock_speed_hz = f_spirx,      // f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
-    .input_delay_ns = 0,
-    .spics_io_num = -1,             // CS pin
-    .flags = SPI_DEVICE_HALFDUPLEX,
-    .queue_size = 1,                // We want to be able to queue 7 transactions at a time
-    .pre_cb = 0,
-    .post_cb = 0,
-  };
+  spi_device_interface_config_t rxcfg;
+  rxcfg.command_bits = 0;
+  rxcfg.address_bits = 0;
+  rxcfg.dummy_bits = 0;
+  rxcfg.mode = 0;                      // SPI mode 0
+  rxcfg.duty_cycle_pos = 0;            ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+  rxcfg.cs_ena_pretrans = 0;
+  rxcfg.cs_ena_posttrans = 0;
+  rxcfg.clock_speed_hz = f_spirx;      // f_over * f_nyquist, // Clock at 500 kHz x oversampling factor
+  rxcfg.input_delay_ns = 0;
+  rxcfg.spics_io_num = -1;             // CS pin
+  rxcfg.flags = SPI_DEVICE_HALFDUPLEX;
+  rxcfg.queue_size = 1;                // We want to be able to queue 7 transactions at a time
+  rxcfg.pre_cb = 0;
+  rxcfg.post_cb = 0;
 
   ret = spi_bus_add_device(VSPI_HOST, &rxcfg, &spirx);
   assert(ret == ESP_OK);
 
-
-  spi_device_interface_config_t devcfg = {
-    .command_bits = 0,
-    .address_bits = 0,
-    .dummy_bits = 0,
-    .mode = 0,                   // SPI mode 0
-    .duty_cycle_pos = 0,         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
-    .cs_ena_pretrans = 0,        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
-    .cs_ena_posttrans = 0,       ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
-    .clock_speed_hz = 1 * MHZ, // Clock out at 1 MHz
-    .input_delay_ns = 0,
-    .spics_io_num = -1,                // CS pin
-    .flags = 0,
-    .queue_size = 2,                   // We want to be able to queue 7 transactions at a time
-    .pre_cb = 0,
-    .post_cb = 0,
-  };
+  spi_device_interface_config_t devcfg;
+  devcfg.command_bits = 0;
+  devcfg.address_bits = 0;
+  devcfg.dummy_bits = 0;
+  devcfg.mode = 0;                   // SPI mode 0
+  devcfg.duty_cycle_pos = 0;         ///< Duty cycle of positive clock, in 1/256th increments (128 = 50%/50% duty). Setting this to 0 (=not setting it) is equivalent to setting this to 128.
+  devcfg.cs_ena_pretrans = 0;        ///< Amount of SPI bit-cycles the cs should be activated before the transmission (0-16). This only works on half-duplex transactions.
+  devcfg.cs_ena_posttrans = 0;       ///< Amount of SPI bit-cycles the cs should stay active after the transmission (0-16)
+  devcfg.clock_speed_hz = 1 * MHZ; // Clock out at 1 MHz
+  devcfg.input_delay_ns = 0;
+  devcfg.spics_io_num = -1;                // CS pin
+  devcfg.flags = 0;
+  devcfg.queue_size = 2;                   // We want to be able to queue 7 transactions at a time
+  devcfg.pre_cb = 0;
+  devcfg.post_cb = 0;
 
   if (!fnSystem.spishared())
   {
