@@ -119,7 +119,8 @@ class IECFileDevice : public IECDevice
   uint8_t m_writeBuffer[IECFILEDEVICE_WRITE_BUFFER_SIZE];
 
   uint8_t m_readBuffer[15][2];
-  int8_t  m_statusBufferLen, m_statusBufferPtr, m_writeBufferLen, m_readBufferLen[15];
+  uint8_t m_statusBufferLen, m_statusBufferPtr, m_writeBufferLen;
+  int8_t m_readBufferLen[15];
   char    m_statusBuffer[IECFILEDEVICE_STATUS_BUFFER_SIZE];
 
 #ifdef SUPPORT_EPYX

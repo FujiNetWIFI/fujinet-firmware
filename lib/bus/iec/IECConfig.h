@@ -44,7 +44,7 @@
 // protocols can only be used if the IECBusHandler::setBuffer() function is
 // called to define the buffer.
 #if defined(SUPPORT_JIFFY) || defined(SUPPORT_DOLPHIN) || defined(SUPPORT_EPYX)
-#define IEC_DEFAULT_FASTLOAD_BUFFER_SIZE 128
+#define IEC_DEFAULT_FASTLOAD_BUFFER_SIZE 255
 #endif
 
 // buffer size for IECFileDevice when receiving data. On channel 15, any command
@@ -52,12 +52,12 @@
 // For other channels, the device's write() function will be called once the
 // buffer is full. Every instance of IECFileDevice will allocate this buffer
 // so it should be kept small on platforms with little RAM (e.g. Arduino UNO)
-#define IECFILEDEVICE_WRITE_BUFFER_SIZE  128
+#define IECFILEDEVICE_WRITE_BUFFER_SIZE  255
 
 // buffer size for IECFileDevice transmitting data on channel 15, if
 // IECFileDevice::setStatus() is called with data longer than this it will be clipped.
 // every instance of IECFileDevice will allocate this buffer so it should be
 // kept small on platforms with little RAM (e.g. Arduino UNO)
-#define IECFILEDEVICE_STATUS_BUFFER_SIZE 128
+#define IECFILEDEVICE_STATUS_BUFFER_SIZE 255
 
 #endif
