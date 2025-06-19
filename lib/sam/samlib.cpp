@@ -6,7 +6,7 @@
   #include <freertos/timers.h>
   #include <driver/gpio.h>
   #ifndef CONFIG_IDF_TARGET_ESP32S3
-  #include <driver/dac.h>
+  #include <driver/dac_oneshot.h>
   #endif
 #else
   #define MA_NO_DECODING
@@ -223,23 +223,18 @@ void OutputSound()
     int n = GetBufferLength() / 50;
     char *s = GetBuffer();
 
-    //fnSystem.dac_output_enable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
-    //fnSystem.dac_output_voltage(SystemManager::dac_channel_t::DAC_CHANNEL_1, 100);
+    dac_oneshot_handle_t dac_handle;
+    dac_oneshot_config_t config = {
+      .chan_id = DAC_CHAN_0
+    };
 
-    dac_output_enable(DAC_CHANNEL_1);
-
-    for (int i = 0; i < n; i++)
-    {
-        //dacWrite(DAC1, s[i]);
-        // fnSystem.dac_write(PIN_DAC1, s[i]);
-        dac_output_voltage(DAC_CHANNEL_1, s[i]);
-        //delayMicroseconds(40);
-        fnSystem.delay_microseconds(40);
+    if (dac_oneshot_new_channel(&config, &dac_handle) == ESP_OK) {
+        for (int i = 0; i < n; i++) {
+            dac_oneshot_output_voltage(dac_handle, (uint8_t)s[i]); // ensure unsigned
+            fnSystem.delay_microseconds(40);
+        }
+        dac_oneshot_del_channel(dac_handle);
     }
-
-    //fnSystem.dac_output_disable(SystemManager::dac_channel_t::DAC_CHANNEL_1);
-    dac_output_disable(DAC_CHANNEL_1);
-
 #else //Defined CONFIG_IDF_TARGET_ESP32S3
 //SampleRate = 22050
 //8 Bits
