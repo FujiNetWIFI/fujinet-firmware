@@ -219,7 +219,7 @@ static esp_err_t flash_write_file(const char *sd_file_path, const char *partitio
     {
         // Set bootloader partition
         partition->address = 0x1000;
-        partition->size = 0x8000;
+        partition->size = 0x7000;
         partition->erase_size = 0x1000;
         partition->type = ESP_PARTITION_TYPE_BOOTLOADER;
         partition->subtype = ESP_PARTITION_SUBTYPE_BOOTLOADER_PRIMARY;
@@ -393,37 +393,67 @@ cleanup:
     return ret;
 }
 
-void mlff_update(void) {
+void mlff_update(uint8_t sd_cs, uint8_t sd_miso, uint8_t sd_mosi, uint8_t sd_sck) {
+    nvs_handle_t _nvs_handle;
+    sdcard_pins_t sdcard_pins_c = {0}, sdcard_pins_nvs = {0};
+    size_t length = sizeof(sdcard_pins_c);
+
+    sdcard_pins_c.gpio_cs = sd_cs;
+    sdcard_pins_c.gpio_miso = sd_miso;
+    sdcard_pins_c.gpio_mosi = sd_mosi;
+    sdcard_pins_c.gpio_sck = sd_sck;
+
     // Initialize NVS
-    // ESP_LOGI(TAG, "Initializing NVS...");
-    // esp_err_t ret = nvs_flash_init();
-    // if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-    //     ESP_LOGW(TAG, "Erasing NVS flash...");
-    //     ret = nvs_flash_erase();
-    //     if (ret == ESP_OK) {
-    //         ret = nvs_flash_init();
-    //     }
-    // }
-    // if (ret != ESP_OK) {
-    //     ESP_LOGE(TAG, "Failed to initialize NVS: %s", esp_err_to_name(ret));
-    //     goto fail_exit;
-    // }
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        ret = nvs_flash_erase();
+        if (ret == ESP_OK) {
+            ret = nvs_flash_init();
+        }
+    }
+    if (ret != ESP_OK) {
+        printf("Failed to initialize NVS: %s\r\n", esp_err_to_name(ret));
+        goto fail_exit;
+    }
 
     // Open NVS
-    // ESP_LOGI(TAG, "Opening NVS namespace...");
-    // ret = nvs_open(NVS_NAMESPACE, NVS_READWRITE, &_nvs_handle);
-    // if (ret != ESP_OK) {
-    //     ESP_LOGE(TAG, "Failed to open NVS namespace: %s", esp_err_to_name(ret));
-    //     goto fail_exit;
-    // }
+    printf("Opening NVS namespace...\r\n");
+    ret = nvs_open((const char *)"system", NVS_READWRITE, &_nvs_handle);
+    if (ret != ESP_OK) {
+        printf("Failed to open NVS namespace: %s\r\n", esp_err_to_name(ret));
+        goto fail_exit;
+    }
 
-    // Mount SD card
-    // ESP_LOGI(TAG, "Mounting SD card...");
-    // ret = mount_sdcard();
-    // if (ret != ESP_OK) {
-    //     ESP_LOGE(TAG, "Failed to mount SD card: %s", esp_err_to_name(ret));
-    //     goto fail_exit;
-    // }
+    ret = nvs_set_u8(_nvs_handle, (const char *)"update", 1);
+    if (ret != ESP_OK) {
+        printf("Failed to set NVS update key: %s\r\n", esp_err_to_name(ret));
+        goto fail_exit;
+    }
+
+    // Check to make sure SD card pins are set in NVS
+    ret = nvs_get_blob(_nvs_handle, "sdcard_pins", &sdcard_pins_nvs, &length);
+    if (ret != ESP_OK) {
+        printf("Failed to get sdcard_pins from NVS: %s\r\n", esp_err_to_name(ret));
+    }
+    printf("CUR cs[%d] mosi[%d] miso[%d] sck[%d]\r\n", sdcard_pins_c.gpio_cs, sdcard_pins_c.gpio_mosi, sdcard_pins_c.gpio_miso, sdcard_pins_c.gpio_sck);
+    printf("NVS cs[%d] mosi[%d] miso[%d] sck[%d]\r\n", sdcard_pins_nvs.gpio_cs, sdcard_pins_nvs.gpio_mosi, sdcard_pins_nvs.gpio_miso, sdcard_pins_nvs.gpio_sck);
+
+    // Update SD card pins in NVS if they are different
+    if (memcmp(&sdcard_pins_c, &sdcard_pins_nvs, sizeof(sdcard_pins_c)) != 0) {
+        printf("sdcard_pins changed, writing to NVS...\r\n");
+        ret = nvs_set_blob(_nvs_handle, "sdcard_pins", &sdcard_pins_c, sizeof(sdcard_pins_c));
+        if (ret != ESP_OK) {
+            printf("Failed to set sdcard_pins to NVS: %s\r\n", esp_err_to_name(ret));
+            goto fail_exit;
+        }
+    }
+
+    ret = nvs_commit(_nvs_handle);
+    if (ret != ESP_OK) {
+        printf("Failed to commit NVS: %s\r\n", esp_err_to_name(ret));
+        goto fail_exit;
+    }
+    nvs_close(_nvs_handle);
 
     DIR *dir = opendir(FIRMWARE_PATH);
     if (!dir) {

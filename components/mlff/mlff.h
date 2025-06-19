@@ -38,19 +38,19 @@ extern "C" {
 #define NVS_NAMESPACE "system"
 #define NVS_UPDATE_KEY "update"
 
-// typedef struct {
-//     uint8_t gpio_miso;
-//     uint8_t gpio_mosi;
-//     uint8_t gpio_sck;
-//     uint8_t gpio_cs;
-// } sdcard_pins_t;
+typedef struct {
+    uint8_t gpio_miso;
+    uint8_t gpio_mosi;
+    uint8_t gpio_sck;
+    uint8_t gpio_cs;
+} sdcard_pins_t;
 
 // static esp_err_t clear_nvs_update(void);
 // static esp_err_t mount_sdcard();
 static void get_partition_name_from_path(const char *path, char *out_name, size_t max_len);
 static esp_err_t get_file_sha256(FILE *file, size_t file_size, unsigned char *sha256, bool compare_stored);
 static esp_err_t flash_write_file(const char *sd_file_path, const char *partition_name);
-void mlff_update(void);
+void mlff_update(uint8_t sd_cs, uint8_t sd_miso, uint8_t sd_mosi, uint8_t sd_sck);
 
 #ifdef __cplusplus
 }
