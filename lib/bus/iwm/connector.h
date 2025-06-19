@@ -2,7 +2,6 @@
 #ifdef DEV_RELAY_SLIP
 
 #pragma once
-#include <cstdbool>
 #include <memory>
 #include "Connection.h"
 

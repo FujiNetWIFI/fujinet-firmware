@@ -153,6 +153,12 @@ uint8_t iwm_slip::iwm_phase_vector()
 	request_queue_.pop();
 	current_request = Request::from_packet(request_data);
 
+	// If we got an invalid request, return to idle
+	if (current_request == nullptr) {
+		sp_command_mode = sp_cmd_state_t::standby;
+		return PHASE_IDLE;
+	}
+
 	std::fill(std::begin(IWM.command_packet.data), std::end(IWM.command_packet.data), 0);
 	// The request data is the raw bytes of the request object, we're only really interested in the header part
 	std::copy(request_data.begin(), request_data.begin() + 8, IWM.command_packet.data);
@@ -240,16 +246,6 @@ void iwm_slip::wait_for_requests()
 		auto request_data = connection_->wait_for_request();
 		if (!request_data.empty())
 		{
-			// int chars_to_print = request_data.size();
-			// if (chars_to_print > 32)
-			// 	chars_to_print = 32;
-			// std::string msg = util_hexdump(request_data.data(), chars_to_print);
-			// printf("\nNEW Request data:\n%s\n", msg.c_str());
-			// if (chars_to_print != request_data.size())
-			// {
-			// 	printf("... truncated\n");
-			// }
-
 			std::lock_guard<std::mutex> lock(queue_mutex_);
 			request_queue_.push(request_data);
 		}

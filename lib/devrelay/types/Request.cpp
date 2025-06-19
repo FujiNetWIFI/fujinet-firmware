@@ -1,8 +1,11 @@
 #ifdef DEV_RELAY_SLIP
 
+#include <iostream>
+#include <ostream>
 #include <sstream>
 
 #include "Request.h"
+#include "../../utils/utils.h"
 
 #include "../commands/Close.h"
 #include "../commands/Control.h"
@@ -103,9 +106,10 @@ std::unique_ptr<Request> Request::from_packet(const std::vector<uint8_t>& packet
 
   default: {
     std::ostringstream oss;
-    oss << "Unknown command: %d" << command;
-    throw std::runtime_error(oss.str());
-    break;
+    oss << "Unknown command: " << static_cast<int>(command) << "\n"
+        << "Full packet dump:\n" << util_hexdump(packet.data(), packet.size());
+    std::cerr << oss.str() << std::endl;
+    return nullptr;
   }
 
   }
