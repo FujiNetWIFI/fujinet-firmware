@@ -106,23 +106,23 @@ void Hash::compute_sha1() {
     mbedtls_sha1_context ctx;
     mbedtls_sha1_init(&ctx);
     
+    int ret = 0;
+    
     hash_output.resize(20);
     
 #if defined(mbedtls_sha1_starts_ret) && defined(mbedtls_sha1_update_ret) && defined(mbedtls_sha1_finish_ret)
-    int err = 0;
-
     // Use newer API that returns status code
-    if ((err = mbedtls_sha1_starts_ret(&ctx)) != 0) {
+    if ((ret = mbedtls_sha1_starts_ret(&ctx)) != 0) {
         mbedtls_sha1_free(&ctx);
         return; // Handle error appropriately
     }
     
-    if ((err = mbedtls_sha1_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
+    if ((ret = mbedtls_sha1_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
         mbedtls_sha1_free(&ctx);
         return; // Handle error appropriately
     }
     
-    if ((err = mbedtls_sha1_finish_ret(&ctx, hash_output.data())) != 0) {
+    if ((ret = mbedtls_sha1_finish_ret(&ctx, hash_output.data())) != 0) {
         mbedtls_sha1_free(&ctx);
         return; // Handle error appropriately
     }
@@ -140,23 +140,23 @@ void Hash::compute_sha256() {
     mbedtls_sha256_context ctx;
     mbedtls_sha256_init(&ctx);
     
+    int ret = 0;
+    
     hash_output.resize(32);
     
 #if defined(mbedtls_sha256_starts_ret) && defined(mbedtls_sha256_update_ret) && defined(mbedtls_sha256_finish_ret)
-    int err = 0;
-
     // Use newer API that returns status code
-    if ((err = mbedtls_sha256_starts_ret(&ctx, 0)) != 0) {
+    if ((ret = mbedtls_sha256_starts_ret(&ctx, 0)) != 0) {
         mbedtls_sha256_free(&ctx);
         return; // Handle error appropriately
     }
     
-    if ((err = mbedtls_sha256_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
+    if ((ret = mbedtls_sha256_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
         mbedtls_sha256_free(&ctx);
         return; // Handle error appropriately
     }
     
-    if ((err = mbedtls_sha256_finish_ret(&ctx, hash_output.data())) != 0) {
+    if ((ret = mbedtls_sha256_finish_ret(&ctx, hash_output.data())) != 0) {
         mbedtls_sha256_free(&ctx);
         return; // Handle error appropriately
     }
@@ -174,23 +174,23 @@ void Hash::compute_sha512() {
     mbedtls_sha512_context ctx;
     mbedtls_sha512_init(&ctx);
     
+    int ret = 0;
+    
     hash_output.resize(64);
     
 #if defined(mbedtls_sha512_starts_ret) && defined(mbedtls_sha512_update_ret) && defined(mbedtls_sha512_finish_ret)
-    int err = 0;
-
     // Use newer API that returns status code
-    if ((err = mbedtls_sha512_starts_ret(&ctx, 0)) != 0) {
+    if ((ret = mbedtls_sha512_starts_ret(&ctx, 0)) != 0) {
         mbedtls_sha512_free(&ctx);
         return; // Handle error appropriately
     }
     
-    if ((err = mbedtls_sha512_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
+    if ((ret = mbedtls_sha512_update_ret(&ctx, accumulated_data.data(), accumulated_data.size())) != 0) {
         mbedtls_sha512_free(&ctx);
         return; // Handle error appropriately
     }
     
-    if ((err = mbedtls_sha512_finish_ret(&ctx, hash_output.data())) != 0) {
+    if ((ret = mbedtls_sha512_finish_ret(&ctx, hash_output.data())) != 0) {
         mbedtls_sha512_free(&ctx);
         return; // Handle error appropriately
     }
