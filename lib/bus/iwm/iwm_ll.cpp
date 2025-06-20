@@ -6,6 +6,8 @@
 
 #include <esp_rom_gpio.h>
 #include <soc/spi_periph.h>
+#include <driver/rmt_tx.h>
+#include <driver/rmt_encoder.h>
 
 #include "iwm_ll.h"
 #include "iwm.h"
@@ -851,7 +853,6 @@ void iwm_diskii_ll::set_output_to_low()
 // =========================================================================================
 
 // https://docs.espressif.com/projects/esp-idf/en/v3.3.5/api-reference/peripherals/rmt.html
-#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 #define RMT_USEC (APB_CLK_FREQ / MHZ)
 
 // enable/disable capturing write signal from Disk II
@@ -952,9 +953,45 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
   }
 
   if (!rmt_started) {
-    diskii_xface.set_output_to_rmt();
     diskii_xface.enable_output();
-    ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer, track_numbits, track_bit_period));
+
+    rmt_tx_channel_config_t tx_chan_config = {
+      .gpio_num = SP_RDDATA,
+      .clk_src = RMT_CLK_SRC_APB,
+      .resolution_hz = APB_CLK_FREQ,
+      .mem_block_symbols = 64 * 8,
+      .trans_queue_depth = 4,
+      .intr_priority = 0,
+      .flags = {
+        .invert_out = false,
+        .with_dma = false,
+        .io_loop_back = false,
+        .io_od_mode = false,
+      },
+    };
+
+#if defined(RMTTEST)
+    tx_config.gpio_num = (gpio_num_t)SP_EXTRA;
+#elif defined(SP_SPI_FIX_PIN)
+    if (fnSystem.spifix())
+      tx_config.gpio_num = (gpio_num_t)SP_SPI_FIX_PIN; //SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
+    else
+      tx_config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; //SP_WRDATA; // SP_SPI_FIX_PIN ; //PIN_SD_HOST_MOSI;
+#endif /* RMTTEST */
+
+    ESP_ERROR_CHECK(rmt_new_tx_channel(&tx_chan_config, &RMT_TX_CHANNEL));
+
+    rmt_transmit_config_t tx_config = {
+      .loop_count = 0,//-1,
+      .flags = {
+        .eot_level = 0,
+        .queue_nonblocking = false,
+      },
+    };
+
+    ESP_ERROR_CHECK(rmt_enable(RMT_TX_CHANNEL));
+    ESP_ERROR_CHECK(rmt_transmit(RMT_TX_CHANNEL, tx_encoder,
+                                 track_buffer, track_numbits, &tx_config));
     rmt_started = true;
   }
 
@@ -965,7 +1002,8 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
 void iwm_diskii_ll::stop()
 {
   if (rmt_started) {
-    fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+    ESP_ERROR_CHECK(rmt_disable(RMT_TX_CHANNEL));
+    ESP_ERROR_CHECK(rmt_del_channel(RMT_TX_CHANNEL));
     rmt_started = false;
   }
   diskii_xface.disable_output();
@@ -982,21 +1020,6 @@ void iwm_diskii_ll::stop()
   gpio_isr_handler_remove(SP_WREQ);
   fnLedManager.set(LED_BUS, false);
   Debug_printf("\nstop diskII");
-}
-
-void iwm_diskii_ll::set_output_to_rmt()
-{
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-  if (!fnSystem.spishared())
-    esp_rom_gpio_connect_out_signal(SP_RDDATA, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
-  else
-    esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.groups[0].channels[0].tx_sig, false, false);
-#else
-  if (!fnSystem.spishared())
-    esp_rom_gpio_connect_out_signal(SP_RDDATA, rmt_periph_signals.channels[0].tx_sig, false, false);
-  else
-    esp_rom_gpio_connect_out_signal(PIN_SD_HOST_MOSI, rmt_periph_signals.channels[0].tx_sig, false, false);
-#endif
 }
 
 void iwm_ll::enable_output()
@@ -1022,52 +1045,83 @@ void iwm_ll::disable_output()
 #endif
 }
 
-//Convert track data to rmt format data.
-void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t src_size,
-                         size_t wanted_num, size_t* translated_size, size_t* item_num, int bit_period)
+size_t IRAM_ATTR encode_rmt_bitstream_forwarder(const void *src, size_t src_size,
+				      size_t symbols_written, size_t symbols_free,
+				      rmt_symbol_word_t *dest, bool *done, void *arg)
 {
-    // *src is equal to *track_buffer
-    // src_size is equal to numbits
-    // translated_size is not used
-    // item_num will equal wanted_num at end
-
-    if (src == NULL || dest == NULL)
-    {
-      *translated_size = 0;
-      *item_num = 0;
-      return;
-    }
-
-    // TODO: allow adjustment of bit timing per WOZ optimal bit timing
-    //
-    uint32_t bit_ticks = RMT_USEC; // ticks per microsecond (1000 ns)
-    bit_ticks *= bit_period; // now units are ticks * ns /us
-    bit_ticks /= 1000; // now units are ticks
-
-    const rmt_item32_t bit0 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 0 }}}; //Logical 0
-    const rmt_item32_t bit1 = {{{ (3 * bit_ticks) / 4, 0, bit_ticks / 4, 1 }}}; //Logical 1
-    static uint8_t window = 0;
-    uint8_t outbit = 0;
-    size_t num = 0;
-    rmt_item32_t* pdest = dest;
-    while (num < wanted_num)
-    {
-        // move this to nextbit()
-        // MC34780 behavior for random bit insertion
-      // https://applesaucefdc.com/woz/reference2/
-      window <<= 1;
-      window |= (uint8_t)diskii_xface.nextbit();
-      window &= 0x0f;
-      outbit = (window != 0) ? window & 0x02 : diskii_xface.fakebit();
-      pdest->val = (outbit != 0) ? bit1.val : bit0.val;
-
-      num++;
-      pdest++;
-    }
-    *translated_size = wanted_num;
-    *item_num = wanted_num;
+  iwm_diskii_ll *d2i = (iwm_diskii_ll *) arg;
+  return d2i->encode_rmt_bitstream(src, src_size, symbols_written, symbols_free, dest, done);
 }
 
+//Convert track data to rmt format data.
+size_t IRAM_ATTR iwm_diskii_ll::encode_rmt_bitstream(const void *src, size_t src_size,
+				      size_t symbols_written, size_t symbols_free,
+				      rmt_symbol_word_t *dest, bool *done)
+{
+  // *src is equal to *track_buffer
+  // src_size is equal to track_numbits
+  // arg is pointer to track_enc_vars;
+
+  //IWM_BIT_SET(SP_ACK);
+  if (src == NULL || dest == NULL)
+    return 0;
+
+  // TODO: allow adjustment of bit timing per WOZ optimal bit timing
+  //
+  uint32_t bit_ticks = RMT_USEC; // ticks per microsecond (1000 ns)
+  bit_ticks *= track_bit_period; // now units are ticks * ns /us
+  bit_ticks /= 1000; // now units are ticks
+
+#define BIT_TICK_34 ((uint16_t) ((3 * bit_ticks) / 4))
+#define BIT_TICK_14 ((uint16_t) (bit_ticks / 4))
+
+  const rmt_symbol_word_t bits[] = {
+    {{ BIT_TICK_34, 0, BIT_TICK_14, 0 }},
+    {{ BIT_TICK_34, 0, BIT_TICK_14, 1 }},
+  };
+  static uint8_t window = 0;
+  uint8_t outbit = 0;
+  size_t num = 0;
+  uint8_t *trk_buf = (uint8_t *) src;
+
+  for (num = 0; num < symbols_free; num++, dest++)
+    {
+      // MC34780 behavior for random bit insertion
+      // https://applesaucefdc.com/woz/reference2/
+
+      int track_byte_ctr = track_location / 8;
+      int track_bit_ctr = track_location % 8;
+
+      // bits go MSB first
+      outbit = (trk_buf[track_byte_ctr] & (0x80 >> track_bit_ctr)) != 0;
+      track_location = (track_location + 1) % src_size;
+
+      window <<= 1;
+      window |= outbit;
+      window &= 0x0f;
+      if (window != 0)
+	outbit = window & 0x02;
+      else
+	{
+	  const uint8_t MC3470[] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
+
+	  static int MC3470_byte_ctr;
+	  static int MC3470_bit_ctr;
+
+	  ++MC3470_bit_ctr %= 8;
+	  if (MC3470_bit_ctr == 0)
+	    ++MC3470_byte_ctr %= sizeof(MC3470);
+
+	  outbit = (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
+	}
+
+      dest->val = bits[!!outbit].val;
+    }
+
+  *done = false;
+  //IWM_BIT_CLEAR(SP_ACK);
+  return num;
+}
 
 /*
  * Initialize the RMT Tx channel and SPI Rx channel
@@ -1086,26 +1140,14 @@ void iwm_diskii_ll::setup_rmt()
   if (track_buffer == NULL)
     Debug_println("could not allocate track buffer");
 
-  config.rmt_mode = rmt_mode_t::RMT_MODE_TX;
-  config.channel = RMT_TX_CHANNEL;
-#ifdef RMTTEST
-  config.gpio_num = (gpio_num_t)SP_EXTRA;
-#else
-  if (!fnSystem.spishared())
-    config.gpio_num = (gpio_num_t)SP_RDDATA; //SP_WRDATA; // SP_RDDATA ; //PIN_SD_HOST_MOSI;
-  else
-    config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI; //SP_WRDATA; // SP_RDDATA ; //PIN_SD_HOST_MOSI;
-#endif
-  config.mem_block_num = 8;
-  config.tx_config.loop_en = false;
-  config.tx_config.carrier_en = false;
-  config.tx_config.idle_output_en = true;
-  config.tx_config.idle_level = rmt_idle_level_t::RMT_IDLE_LEVEL_LOW;
-  config.clk_div = 1; // use full 80 MHz resolution of APB clock
+  rmt_simple_encoder_config_t tx_encoder_config = {
+    .callback = encode_rmt_bitstream_forwarder,
+    .arg = (void *) this,
+    .min_chunk_size = 0,
+  };
 
-  ESP_ERROR_CHECK(fnRMT.rmt_config(&config));
-  ESP_ERROR_CHECK(fnRMT.rmt_driver_install(config.channel, 0, ESP_INTR_FLAG_IRAM));
-  ESP_ERROR_CHECK(fnRMT.rmt_translator_init(config.channel, encode_rmt_bitstream));
+  ESP_ERROR_CHECK(rmt_new_simple_encoder(&tx_encoder_config, &tx_encoder));
+  
 }
 
 bool IRAM_ATTR iwm_diskii_ll::nextbit()
