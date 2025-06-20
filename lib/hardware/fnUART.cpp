@@ -47,6 +47,7 @@ void UARTManager::begin(int baud)
     }
 
     uart_config_t uart_config;
+    memset(&uart_config, 0, sizeof(uart_config));
     uart_config.baud_rate = baud;
     uart_config.data_bits = UART_DATA_8_BITS;
 #ifdef BUILD_LYNX

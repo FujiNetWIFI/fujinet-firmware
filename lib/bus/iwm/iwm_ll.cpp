@@ -556,6 +556,7 @@ void iwm_sp_ll::setup_spi()
 
   // SPI for receiving packets - sprirx
   spi_bus_config_t bus_cfg;
+  memset(&bus_cfg, 0, sizeof(bus_cfg));
   bus_cfg.mosi_io_num = spirx_mosi_pin;
   bus_cfg.miso_io_num = SP_WRDATA;
   bus_cfg.sclk_io_num = -1;
@@ -573,6 +574,7 @@ void iwm_sp_ll::setup_spi()
   assert(ret == ESP_OK);
 
   spi_device_interface_config_t rxcfg;
+  memset(&rxcfg, 0, sizeof(rxcfg));
   rxcfg.command_bits = 0;
   rxcfg.address_bits = 0;
   rxcfg.dummy_bits = 0;
@@ -592,6 +594,7 @@ void iwm_sp_ll::setup_spi()
   assert(ret == ESP_OK);
 
   spi_device_interface_config_t devcfg;
+  memset(&devcfg, 0, sizeof(devcfg));
   devcfg.command_bits = 0;
   devcfg.address_bits = 0;
   devcfg.dummy_bits = 0;
