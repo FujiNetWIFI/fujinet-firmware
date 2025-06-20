@@ -1252,10 +1252,8 @@ void sioFuji::sio_read_directory_block()
     // Debug_printf("Parameters: aux1=$%02X (pages=%d), aux2=$%02X (group_size=%d), max_block_size=%d\n",
     //              cmdFrame.aux1, num_pages, cmdFrame.aux2, group_size, max_block_size);
 
-#ifdef WE_NEED_TO_REWIND
     // Save current directory position in case we need to rewind
     uint16_t starting_pos = _fnHosts[_current_open_directory_slot].dir_tell();
-#endif /* WE_NEED_TO_REWIND */
     // Debug_printf("Starting directory position: %d\n", starting_pos);
     
     std::vector<DirectoryPageGroup> page_groups;

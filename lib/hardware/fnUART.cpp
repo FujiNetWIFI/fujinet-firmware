@@ -46,22 +46,24 @@ void UARTManager::begin(int baud)
         end();
     }
 
-    uart_config_t uart_config;
-    uart_config.baud_rate = baud;
-    uart_config.data_bits = UART_DATA_8_BITS;
+    uart_config_t uart_config =
+        {
+            .baud_rate = baud,
+            .data_bits = UART_DATA_8_BITS,
 #ifdef BUILD_LYNX
-    uart_config.parity = UART_PARITY_ODD;
+            .parity = UART_PARITY_ODD,
 #else
-    uart_config.parity = UART_PARITY_DISABLE;
+            .parity = UART_PARITY_DISABLE,
 #endif /* BUILD_LYNX */
-    uart_config.stop_bits = UART_STOP_BITS_1;
-    uart_config.flow_ctrl = UART_HW_FLOWCTRL_DISABLE;
-    uart_config.rx_flow_ctrl_thresh = 122; // No idea what this is for, but shouldn't matter if flow ctrl is disabled?
+            .stop_bits = UART_STOP_BITS_1,
+            .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+            .rx_flow_ctrl_thresh = 122, // No idea what this is for, but shouldn't matter if flow ctrl is disabled?
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
-    uart_config.source_clk = UART_SCLK_DEFAULT;
+            .source_clk = UART_SCLK_DEFAULT
 #else
-    uart_config.use_ref_tick = false;       // ?
+            .use_ref_tick = false       // ?
 #endif
+        };
 
     // This works around an obscure hardware bug where resetting UART2 causes the TX to become corrupted
     // when the FIFO is reset by this function. Blame me for it -Thom
