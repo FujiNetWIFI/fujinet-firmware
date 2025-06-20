@@ -3,8 +3,8 @@
 #define IWM_LL_H
 
 #include <queue>
-// #include <driver/gpio.h>
 #include <driver/gpio.h>
+#include <driver/rmt_types.h>
 #include <soc/lldesc.h>
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -14,7 +14,6 @@
 #include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
-#include "fnRMTstream.h"
 
 // #define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
 #define TRACK_LEN 6646          // https://applesaucefdc.com/woz/reference2/
@@ -25,7 +24,7 @@
 #define PACKET_TYPE_STATUS 0x81
 #define PACKET_TYPE_DATA 0x82
 
-#define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
+#define RMT_TX_CHANNEL tx_chan
 
 extern volatile uint8_t _phases;
 extern volatile int isrctr;
@@ -271,7 +270,8 @@ class iwm_diskii_ll : public iwm_ll
 {
 private:
   // RMT data handling
-  fn_rmt_config_t config;
+  rmt_channel_handle_t tx_chan;
+  rmt_encoder_handle_t tx_encoder;
 
   // track bit information
   uint8_t* track_buffer = nullptr; //
@@ -281,7 +281,6 @@ private:
   int track_bit_period = 4000;
 
   bool rmt_started = false;
-  void set_output_to_rmt();
 
   // write state
   bool d2w_writing = false, d2w_started = false;
@@ -299,6 +298,9 @@ public:
   uint8_t iwm_active_drive();
 
   // Disk II handling by RMT peripheral
+  size_t encode_rmt_bitstream(const void *src, size_t src_size,
+			      size_t symbols_written, size_t symbols_free,
+			      rmt_symbol_word_t *dest, bool *done);
   void setup_rmt(); // install the RMT device
   void diskii_write_handler();
   void start(uint8_t drive, bool write_protect);
