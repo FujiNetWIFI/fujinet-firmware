@@ -1266,46 +1266,70 @@ void iwmFuji::iwm_stat_get_device_filename(uint8_t s)
 // Mounts the desired boot disk number
 void iwmFuji::insert_boot_device(uint8_t d)
 {
-    const char *config_atr = "/autorun.po";
-    const char *mount_all_atr = "/mount-and-boot.po";
-    const char *boot_img = nullptr;
-    fnFile *fBoot;
+	const char *config_atr = "/autorun.po";
+	const char *mount_all_atr = "/mount-and-boot.po";
+#ifdef ESP_PLATFORM
+	fnFile *fBoot;
 
-    switch (d)
-    {
-    case 0:
-        boot_img = config_atr;
-        break;
-
-    case 1:
-        boot_img = mount_all_atr;
-        break;
-
+	switch (d)
+	{
+	case 0:
+		fBoot = fsFlash.fnfile_open(config_atr);
+		get_disk_dev(0)->mount(fBoot, config_atr, 143360, MEDIATYPE_PO);
+		break;
+	case 1:
+		fBoot = fsFlash.fnfile_open(mount_all_atr);
+		get_disk_dev(0)->mount(fBoot, mount_all_atr, 143360, MEDIATYPE_PO);
+		break;
     case 2:
         Debug_printf("Mounting lobby server\n");
         if (fnTNFS.start("tnfs.fujinet.online"))
         {
             Debug_printf("opening lobby.\n");
-            boot_img = "/APPLE2/_lobby.po";
+            fBoot = fnTNFS.fnfile_open("/APPLE2/_lobby.po");
+			get_disk_dev(0)->mount(fBoot, "/APPLE2/_lobby.po", 143360, MEDIATYPE_PO);
         }
         break;
+	}
+#else
+	const char *boot_img;
+	fnFile *fBoot;
 
-    default:
-        Debug_printf("Invalid boot mode: %d\n", d);
-        return;
-    }
+	switch (d)
+	{
+	case 0:
+		boot_img = config_atr;
+		fBoot = fsFlash.fnfile_open(boot_img);
+		break;
+	case 1:
+		boot_img = mount_all_atr;
+		fBoot = fsFlash.fnfile_open(boot_img);
+		break;
+    case 2:
+        Debug_printf("Mounting lobby server\n");
+        if (fnTNFS.start("tnfs.fujinet.online"))
+        {
+            Debug_printf("opening lobby.\n");
+			boot_img = "/APPLE2/_lobby.po";
+            fBoot = fnTNFS.fnfile_open(boot_img);
+        }
+        break;
+	default:
+		Debug_printf("Invalid boot mode: %d\n", d);
+		return;
+	}
 
-    fBoot = fnTNFS.fnfile_open(boot_img);
-    if (fBoot == nullptr)
-    {
-        Debug_printf("Failed to open boot disk image: %s\n", boot_img);
-        return;
-    }
+	if (fBoot == nullptr)
+	{
+		Debug_printf("Failed to open boot disk image: %s\n", boot_img);
+		return;
+	}
 
-    get_disk_dev(0)->mount(fBoot, mount_all_atr, 143360, MEDIATYPE_PO);
+	_fnDisks[0].disk_dev.mount(fBoot, boot_img, 143360, MEDIATYPE_PO);
+#endif
 
-    DEVICE_TYPE *disk_dev = get_disk_dev(0);
-    disk_dev->is_config_device = true;
+	DEVICE_TYPE *disk_dev = get_disk_dev(0);
+	disk_dev->is_config_device = true;
 }
 
 void iwmFuji::iwm_ctrl_enable_device()
