@@ -954,20 +954,18 @@ void iwm_diskii_ll::start(uint8_t drive, bool write_protect)
   if (!rmt_started) {
     diskii_xface.enable_output();
 
-    rmt_tx_channel_config_t tx_chan_config = {
-      .gpio_num = SP_RDDATA,
-      .clk_src = RMT_CLK_SRC_APB,
-      .resolution_hz = APB_CLK_FREQ,
-      .mem_block_symbols = 64 * 8,
-      .trans_queue_depth = 4,
-      .intr_priority = 0,
-      .flags = {
-        .invert_out = false,
-        .with_dma = false,
-        .io_loop_back = false,
-        .io_od_mode = false,
-      },
-    };
+    rmt_tx_channel_config_t tx_chan_config;
+    memset(&tx_chan_config, 0, sizeof(tx_chan_config));
+    tx_chan_config.gpio_num = SP_RDDATA;
+    tx_chan_config.clk_src = RMT_CLK_SRC_APB;
+    tx_chan_config.resolution_hz = APB_CLK_FREQ;
+    tx_chan_config.mem_block_symbols = 64 * 8;
+    tx_chan_config.trans_queue_depth = 4;
+    tx_chan_config.intr_priority = 0;
+    tx_chan_config.flags.invert_out = false;
+    tx_chan_config.flags.with_dma = false;
+    tx_chan_config.flags.io_loop_back = false;
+    tx_chan_config.flags.io_od_mode = false;
 
 #if defined(RMTTEST)
     tx_config.gpio_num = (gpio_num_t)SP_EXTRA;
