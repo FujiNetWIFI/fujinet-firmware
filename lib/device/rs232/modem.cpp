@@ -242,16 +242,22 @@ void rs232Modem::rs232_poll_1()
 // 0x26 / '&' - HANDLER DOWNLOAD
 void rs232Modem::rs232_send_firmware(uint8_t loadcommand)
 {
+#ifdef FIRMWARE_VARIABLE_IS_USED
     const char *firmware;
+#endif
     if (loadcommand == RS232_MODEMCMD_LOAD_RELOCATOR)
     {
+#ifdef FIRMWARE_VARIABLE_IS_USED
         firmware = FIRMWARE_850RELOCATOR;
+#endif
     }
     else
     {
         if (loadcommand == RS232_MODEMCMD_LOAD_HANDLER)
         {
+#ifdef FIRMWARE_VARIABLE_IS_USED
             firmware = FIRMWARE_850HANDLER;
+#endif
         }
         else
             return;
