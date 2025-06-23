@@ -6,7 +6,7 @@
 
 #include "../../include/debug.h"
 
-#include "fuji.h"
+#include "cx16Fuji.h"
 #include "utils.h"
 
 #define SIO_DISKCMD_FORMAT 0x21

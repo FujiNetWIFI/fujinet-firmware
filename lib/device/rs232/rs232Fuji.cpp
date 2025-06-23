@@ -1,6 +1,6 @@
 #ifdef BUILD_RS232
 
-#include "fuji.h"
+#include "rs232Fuji.h"
 
 #include <driver/ledc.h>
 

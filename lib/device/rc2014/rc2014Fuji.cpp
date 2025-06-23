@@ -1,6 +1,6 @@
 #ifdef BUILD_RC2014
 
-#include "fuji.h"
+#include "rc2014Fuji.h"
 
 #include <cstring>
 

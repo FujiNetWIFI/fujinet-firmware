@@ -12,7 +12,7 @@
 
 #include "make_unique.h"
 
-#include "fuji.h"
+#include "iecFuji.h"
 #include "fnFsSD.h"
 #include "led.h"
 #include "utils.h"

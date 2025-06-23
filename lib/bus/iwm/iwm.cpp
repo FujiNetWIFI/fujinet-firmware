@@ -20,7 +20,7 @@
 
 #include "../device/iwm/disk.h"
 #include "../device/iwm/disk2.h"
-#include "../device/iwm/fuji.h"
+#include "../device/iwm/iwmFuji.h"
 #include "../device/iwm/cpm.h"
 #include "../device/iwm/clock.h"
 

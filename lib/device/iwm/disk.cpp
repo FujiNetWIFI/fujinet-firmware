@@ -10,7 +10,7 @@
 // #include "fnFsSD.h"
 #include "fsFlash.h"
 #include "led.h"
-#include "fuji.h"
+#include "iwmFuji.h"
 
 // #define LOCAL_TNFS
 

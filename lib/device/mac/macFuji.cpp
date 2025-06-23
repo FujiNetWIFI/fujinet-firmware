@@ -1,6 +1,6 @@
 #ifdef BUILD_MAC
 
-#include "fuji.h"
+#include "macFuji.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"

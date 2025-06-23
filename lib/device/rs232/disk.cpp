@@ -6,7 +6,7 @@
 
 #include "../../include/debug.h"
 
-#include "fuji.h"
+#include "rs232Fuji.h"
 #include "utils.h"
 
 #define RS232_DISKCMD_FORMAT 0x21

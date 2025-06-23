@@ -12,7 +12,7 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fnBluetooth.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 
 #include "led.h"
 

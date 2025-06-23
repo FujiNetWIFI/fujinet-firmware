@@ -4,7 +4,7 @@
 
 #include "../../include/debug.h"
 
-#include "fuji.h"
+#include "sio/sioFuji.h"
 #include "udpstream.h"
 #include "modem.h"
 #include "siocpm.h"

@@ -4,7 +4,7 @@
 #include "disk2.h"
 
 #include "fnSystem.h"
-#include "fuji.h"
+#include "iwmFuji.h"
 #ifdef ESP_PLATFORM
 #include "fnHardwareTimer.h"
 #endif

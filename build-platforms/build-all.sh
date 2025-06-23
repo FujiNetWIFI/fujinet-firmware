@@ -1,5 +1,7 @@
 #!/bin/bash -e
 
+LAST_FAILED=.last-failed
+
 # This script will build the platform target file for all targets found with name platform-<TARGET>
 # which the build.sh script will run a clean build against.
 
@@ -63,9 +65,30 @@ NOW=$(date +"%Y-%m-%d %H:%M:%S")
 printf "Start Time: $NOW\nRunning Builds\n\n" >> "$RESULTS_OUTPUT_FILE"
 
 # loop over every platformio-XXX.ini file, and use it to create a test platformio file
+mapfile -t piofiles < <(find "$SCRIPT_DIR" -name 'platformio-*.ini' -print)
+BOARDS=()
+for piofile in "${piofiles[@]}"; do
+    BASE_NAME=$(basename $piofile)
+    BOARD_NAME=$(echo ${BASE_NAME//.ini} | cut -d\- -f2-)
+    BOARDS+=("${BOARD_NAME}")
+done
+
+LAST_FAILED="${SCRIPT_DIR}/.last-failed"
+if [[ -f "${LAST_FAILED}" ]]; then
+    last_fail=$(awk '{print $1}' "${LAST_FAILED}")
+    for idx in "${!BOARDS[@]}"; do
+	if [[ "${BOARDS[$idx]}" == "$last_fail" ]]; then
+	    RESUME_INDEX=$idx
+	    break
+	fi
+    done
+
+    piofiles=("${piofiles[@]:RESUME_INDEX}" "${piofiles[@]:1:RESUME_INDEX}")
+fi
 
 FAILED=""
-while IFS= read -r piofile; do
+TMPLOG=/tmp/results.log.$$
+for piofile in "${piofiles[@]}"; do
     BASE_NAME=$(basename $piofile)
     BOARD_NAME=$(echo ${BASE_NAME//.ini} | cut -d\- -f2-)
     echo "Testing $(basename $piofile), please wait..."
@@ -77,9 +100,12 @@ while IFS= read -r piofile; do
      # 2. - echo a line in results file, find firmware.bin
      # 3. - now call build but just to clean
 
-    if ! ./build.sh -y -s ${BOARD_NAME} -l $LOCAL_INI -i $SCRIPT_DIR/test.ini -b > /dev/null 2>&1 ; then
+    if ! ./build.sh -y -s ${BOARD_NAME} -l $LOCAL_INI -i $SCRIPT_DIR/test.ini -b > ${TMPLOG} 2>&1 ; then
+	echo ${BOARD_NAME} failed
+	cat ${TMPLOG}
 	echo ${BOARD_NAME} failed
 	FAILED="${BOARD_NAME} ${FAILED}"
+	break
     fi
 
     # first determine if there is a firmware bin which means a good build
@@ -100,13 +126,15 @@ while IFS= read -r piofile; do
     ./build.sh -c -l $LOCAL_INI -i $SCRIPT_DIR/test.ini > /dev/null 2>&1
 
     popd > /dev/null
-done < <(find "$SCRIPT_DIR" -name 'platformio-*.ini' -print)
+done
 
+rm -f ${TMPLOG}
 OUTPUT_STRING="Results
 
 $(cat $RESULTS_OUTPUT_FILE)"
 print_with_border "$OUTPUT_STRING"
 
 if [ -n "${FAILED}" ] ; then
+    echo "${FAILED}" > "${LAST_FAILED}"
     exit 1
 fi

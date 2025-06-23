@@ -1,6 +1,6 @@
 #ifdef BUILD_ATARI
 
-#include "fuji.h"
+#include "sioFuji.h"
 
 #ifdef ESP_PLATFORM
 #include <driver/ledc.h>

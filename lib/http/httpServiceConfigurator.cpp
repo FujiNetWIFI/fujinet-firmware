@@ -3,7 +3,7 @@
 #include "../../include/debug.h"
 
 #include "printer.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -14,7 +14,7 @@
 
 #ifdef BUILD_APPLE
 #include "iwm/printerlist.h"
-#include "iwm/fuji.h"
+#include "iwm/iwmFuji.h"
 #define PRINTER_CLASS iwmPrinter
 extern iwmFuji theFuji;
 #endif /* BUILD_APPLE */
