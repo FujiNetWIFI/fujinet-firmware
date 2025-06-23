@@ -236,24 +236,26 @@ void SystemManager::_net::start_sntp_client()
     // Update system timezone data
     fnSystem.update_timezone(Config.get_general_timezone().c_str());
 
-    sntp_setoperatingmode(SNTP_OPMODE_POLL);
+    esp_sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
     // Set a server if we have one defined, otherwise try DHCP
     const char * sntpserver = Config.get_network_sntpserver();
     // sntp_setservername does NOT copy the string passed, so it must be in a static buffer
     if (sntpserver != nullptr && sntpserver[0] != '\0')
-        sntp_setservername(0, sntpserver); 
+        esp_sntp_setservername(0, sntpserver);
     else
     {
         Debug_print("No SNTP server defined - attempting DHCP setting\r\n");
         // This will only do something if SNTP_GET_SERVERS_FROM_DHCP is set in the LWIP library
-        sntp_servermode_dhcp(1);
+#if LWIP_DHCP_GET_NTP_SRV
+        esp_sntp_servermode_dhcp(1);
+#endif /* LWIP_DHCP_GET_NTP_SRV */
     }
 
     // Set a notification callback function
     sntp_set_time_sync_notification_cb(_sntp_time_sync_notification);
 
-    sntp_init();
+    esp_sntp_init();
 #endif
     _sntp_initialized = true;
 }
