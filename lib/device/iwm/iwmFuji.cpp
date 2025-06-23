@@ -26,7 +26,8 @@
 #define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40
 
-iwmFuji theFuji; // Global fuji object.
+iwmFuji platformFuji;
+fujiDevice *theFuji = &platformFuji; // Global fuji object.
 
 iwmFuji::iwmFuji()
 {
@@ -1036,7 +1037,7 @@ void iwmFuji::iwm_ctrl_new_disk()
 	fnio::fclose(disk.fileh);
 
 	// Persist slots
-	_populate_config_from_slots();
+	populate_config_from_slots();
 	Config.mark_dirty();
 	Config.save();
 }
@@ -1072,7 +1073,7 @@ void iwmFuji::iwm_ctrl_write_host_slots()
 		hostMounted[i] = false;
 		_fnHosts[i].set_hostname(hostSlots[i]);
 	}
-	_populate_config_from_slots();
+	populate_config_from_slots();
 	Config.save();
 }
 
@@ -1146,66 +1147,8 @@ void iwmFuji::iwm_ctrl_write_device_slots()
 		_fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
 
 	// Save the data to disk
-	_populate_config_from_slots();
+	populate_config_from_slots();
 	Config.save();
-}
-
-// Temporary(?) function while we move from old config storage to new
-void iwmFuji::_populate_slots_from_config()
-{
-	for (int i = 0; i < MAX_HOSTS; i++)
-	{
-		if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
-			_fnHosts[i].set_hostname("");
-		else
-			_fnHosts[i].set_hostname(Config.get_host_name(i).c_str());
-	}
-
-	for (int i = 0; i < MAX_DISK_DEVICES; i++)
-	{
-		_fnDisks[i].reset();
-
-		if (Config.get_mount_host_slot(i) != HOST_SLOT_INVALID)
-		{
-			if (Config.get_mount_host_slot(i) >= 0 && Config.get_mount_host_slot(i) <= MAX_HOSTS)
-			{
-				strlcpy(_fnDisks[i].filename, Config.get_mount_path(i).c_str(), sizeof(fujiDisk::filename));
-				_fnDisks[i].host_slot = Config.get_mount_host_slot(i);
-				if (Config.get_mount_mode(i) == fnConfig::mount_modes::MOUNTMODE_WRITE)
-					_fnDisks[i].access_mode = DISK_ACCESS_MODE_WRITE;
-				else
-					_fnDisks[i].access_mode = DISK_ACCESS_MODE_READ;
-			}
-		}
-	}
-}
-
-// Temporary(?) function while we move from old config storage to new
-void iwmFuji::_populate_config_from_slots()
-{
-	for (int i = 0; i < MAX_HOSTS; i++)
-	{
-		fujiHostType htype = _fnHosts[i].get_type();
-		const char *hname = _fnHosts[i].get_hostname();
-
-		if (hname[0] == '\0')
-		{
-			Config.clear_host(i);
-		}
-		else
-		{
-			Config.store_host(i, hname, htype == HOSTTYPE_TNFS ? fnConfig::host_types::HOSTTYPE_TNFS : fnConfig::host_types::HOSTTYPE_SD);
-		}
-	}
-
-	for (int i = 0; i < MAX_DISK_DEVICES; i++)
-	{
-		if (_fnDisks[i].host_slot >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
-			Config.clear_mount(i);
-		else
-			Config.store_mount(i, _fnDisks[i].host_slot, _fnDisks[i].filename,
-							   _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
-	}
 }
 
 // Write a 256 byte filename to the device slot
@@ -1237,7 +1180,7 @@ uint8_t iwmFuji::iwm_ctrl_set_device_filename()
         }
 
 		_fnDisks[deviceSlot].access_mode = mode;
-		_populate_config_from_slots();
+		populate_config_from_slots();
 	}
 	else
 	{
@@ -1323,12 +1266,12 @@ void iwmFuji::iwm_ctrl_disable_device()
 iwmDisk *iwmFuji::bootdisk() { return _bootDisk; }
 
 // Initializes base settings and adds our devices to the SIO bus
-void iwmFuji::setup(iwmBus *iwmbus)
+void iwmFuji::setup(systemBus *iwmbus)
 {
 	// set up Fuji device
 	_iwm_bus = iwmbus;
 
-	_populate_slots_from_config();
+	populate_slots_from_config();
 
 	// Disable booting from CONFIG if our settings say to turn it off
 	boot_config = false; // to do - understand?
@@ -1367,7 +1310,7 @@ std::string iwmFuji::get_host_prefix(int host_slot) { return std::string(); }
 fujiHost *iwmFuji::set_slot_hostname(int host_slot, char *hostname)
 {
     _fnHosts[host_slot].set_hostname(hostname);
-    _populate_config_from_slots();
+    populate_config_from_slots();
     return &_fnHosts[host_slot];
 }
 
@@ -1476,17 +1419,17 @@ void iwmFuji::handle_ctl_eject(uint8_t spid)
 	int ds = 255;
 	for (int i = 0; i < MAX_DISK_DEVICES; i++)
 	{
-		if (theFuji.get_disk_dev(i)->id() == spid)
+		if (theFuji->get_disk_dev(i)->id() == spid)
 		{
 			ds = i;
 		}
 	}
 	if (ds != 255)
 	{
-		theFuji.get_disks(ds)->reset();
+		theFuji->get_disk(ds)->reset();
 		Config.clear_mount(ds);
 		Config.save();
-		theFuji._populate_slots_from_config();
+		theFuji->populate_slots_from_config();
 	}
 }
 

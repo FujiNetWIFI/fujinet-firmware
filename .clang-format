@@ -1,12 +1,11 @@
 BasedOnStyle: LLVM
-ColumnLimit: 200
+ColumnLimit: 95
 AllowShortBlocksOnASingleLine: true
 AlwaysBreakAfterReturnType: None
 IncludeBlocks: Preserve
 SortIncludes: false
-UseTab: Always
 IndentWidth: 4
-TabWidth: 4
+UseTab: Never
 AccessModifierOffset: -4
 AlignConsecutiveMacros: true
 AlwaysBreakTemplateDeclarations: Yes
@@ -29,3 +28,4 @@ BraceWrapping:
   SplitEmptyRecord: false
   SplitEmptyNamespace: false
 IndentPPDirectives: None
+ReflowComments: true

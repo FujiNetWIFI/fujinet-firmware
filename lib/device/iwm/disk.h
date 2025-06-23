@@ -5,7 +5,7 @@
 #include "bus.h"
 #include "../media/media.h"
 
-class iwmDisk : public iwmDevice
+class iwmDisk : public virtualDevice
 {
 private:
     uint8_t err_result = SP_ERR_NOERROR;

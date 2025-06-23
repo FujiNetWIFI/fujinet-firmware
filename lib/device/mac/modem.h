@@ -100,7 +100,7 @@ public:
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 
-class iwmModem : public iwmDevice
+class iwmModem : public virtualDevice
 {
 private:
 
