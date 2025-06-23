@@ -680,12 +680,12 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
             mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
         }
 
-        if (theFuji.get_hosts(hs)->mount() == true)
+        if (theFuji->get_host(hs)->mount() == true)
         {
-            fujiDisk *disk = theFuji.get_disks(ds);
-            fujiHost *host = theFuji.get_hosts(hs);
+            fujiDisk *disk = theFuji->get_disk(ds);
+            fujiHost *host = theFuji->get_host(hs);
 #ifdef BUILD_APPLE
-            DEVICE_TYPE *disk_dev = theFuji.get_disk_dev(ds);
+            DEVICE_TYPE *disk_dev = theFuji->get_disk_dev(ds);
 #else
 	    DEVICE_TYPE *disk_dev = &disk->disk_dev;
 #endif
@@ -699,9 +699,9 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
             else
             {
                 // Make sure CONFIG boot is disabled.
-                theFuji.boot_config = false;
+                theFuji->boot_config = false;
 #ifdef BUILD_ATARI
-                theFuji.status_wait_count = 0;
+                theFuji->status_wait_count = 0;
 #endif
                 strcpy(disk->filename,qp.query_parsed["filename"].c_str());
                 disk->disk_size = host->file_size(disk->fileh);
@@ -711,7 +711,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
                 #endif
                 Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
                 Config.save();
-                theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
+                theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
                 disk_dev->device_active = true;
             }
         }
@@ -724,7 +724,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
     {
         // Mount all the things
         Debug_printf("Mount all slots from webui\n");
-        theFuji.mount_all();
+        theFuji->fujicmd_mount_all();
     }
 
     if (!fnHTTPD.errMsgEmpty())
@@ -757,43 +757,43 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
         fnHTTPD.addToErrMsg("<li>deviceslot should be between 0 and 7</li>");
     }
 #ifdef BUILD_APPLE
-    DEVICE_TYPE *disk_dev = theFuji.get_disk_dev(ds);
+    DEVICE_TYPE *disk_dev = theFuji->get_disk_dev(ds);
     if(disk_dev->device_active) //set disk switched only if device was previosly mounted.
         disk_dev->switched = true;
 #else
-    DEVICE_TYPE *disk_dev = &theFuji.get_disks(ds)->disk_dev;
+    DEVICE_TYPE *disk_dev = &theFuji->get_disk(ds)->disk_dev;
 #endif
     disk_dev->unmount();
 #ifdef BUILD_ATARI
-    if (theFuji.get_disks(ds)->disk_type == MEDIATYPE_CAS || theFuji.get_disks(ds)->disk_type == MEDIATYPE_WAV)
+    if (theFuji->get_disk(ds)->disk_type == MEDIATYPE_CAS || theFuji->get_disk(ds)->disk_type == MEDIATYPE_WAV)
     {
-        theFuji.cassette()->umount_cassette_file();
-        theFuji.cassette()->sio_disable_cassette();
+        theFuji->cassette()->umount_cassette_file();
+        theFuji->cassette()->sio_disable_cassette();
     }
 #endif
-    theFuji.get_disks(ds)->reset();
+    theFuji->get_disk(ds)->reset();
     Config.clear_mount(ds);
     Config.save();
-    theFuji._populate_slots_from_config(); // otherwise they don't show up in config.
+    theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
     disk_dev->device_active = false;
 
     // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
     if (Config.get_general_config_enabled())
     {
-        if ((theFuji.get_disks(0)->host_slot == 0xFF) &&
-            (theFuji.get_disks(1)->host_slot == 0xFF) &&
-            (theFuji.get_disks(2)->host_slot == 0xFF) &&
-            (theFuji.get_disks(3)->host_slot == 0xFF) &&
-            (theFuji.get_disks(4)->host_slot == 0xFF) &&
-            (theFuji.get_disks(5)->host_slot == 0xFF) &&
-            (theFuji.get_disks(6)->host_slot == 0xFF) &&
-            (theFuji.get_disks(7)->host_slot == 0xFF))
+        if ((theFuji->get_disk(0)->host_slot == 0xFF) &&
+            (theFuji->get_disk(1)->host_slot == 0xFF) &&
+            (theFuji->get_disk(2)->host_slot == 0xFF) &&
+            (theFuji->get_disk(3)->host_slot == 0xFF) &&
+            (theFuji->get_disk(4)->host_slot == 0xFF) &&
+            (theFuji->get_disk(5)->host_slot == 0xFF) &&
+            (theFuji->get_disk(6)->host_slot == 0xFF) &&
+            (theFuji->get_disk(7)->host_slot == 0xFF))
         {
-            theFuji.boot_config = true;
+            theFuji->boot_config = true;
 #ifdef BUILD_ATARI
-            theFuji.status_wait_count = 5;
+            theFuji->status_wait_count = 5;
 #endif
-            theFuji.device_active = true;
+            theFuji->device_active = true;
         }
     }
 
@@ -947,7 +947,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DISK TO MOUNT<span class=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) +
+        string(theFuji->get_host(hs)->get_hostname()) +
         qp.query_parsed["path"] +
         "</header>\n"
         "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
@@ -957,9 +957,9 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();
 
-    theFuji._populate_slots_from_config();
+    theFuji->populate_slots_from_config();
 
-    if ((theFuji.get_hosts(hs)->mount() == true) && (theFuji.get_hosts(hs)->dir_open(qp.query_parsed["path"].c_str(), pattern.c_str())))
+    if ((theFuji->get_host(hs)->mount() == true) && (theFuji->get_host(hs)->dir_open(qp.query_parsed["path"].c_str(), pattern.c_str())))
     {
         fsdir_entry_t *f;
         string parent;
@@ -973,7 +973,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
             free(free_me);
         }
 
-        while ((f = theFuji.get_hosts(hs)->dir_nextfile()) != nullptr)
+        while ((f = theFuji->get_host(hs)->dir_nextfile()) != nullptr)
         {
             chunk += "                          <li>";
 
@@ -1049,7 +1049,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
             chunk.clear();
         }
 
-        theFuji.get_hosts(hs)->dir_close();
+        theFuji->get_host(hs)->dir_close();
 
         chunk +=
             "                      </ul>\r\n"
@@ -1124,7 +1124,7 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
         "        <div class=\"fileflex\">\n"
         "            <div class=\"filechild\">\n"
         "               <header>SELECT DRIVE SLOT<span class=\"logowob\"></span>" +
-        string(theFuji.get_hosts(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] +
+        string(theFuji->get_host(hs)->get_hostname()) + " :: " + qp.query_parsed["filename"] +
         "</header>\n"
         "               <div class=\"abortline\"><a href=\"/\">ABORT</a></div>\n"
         "               <div class=\"fileline\">\n"
@@ -1145,17 +1145,17 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
 
         chunk += "<strong>" + ss2.str() + "</strong>: ";
 
-        if (theFuji.get_disks(i)->host_slot == 0xFF)
+        if (theFuji->get_disk(i)->host_slot == 0xFF)
         {
             chunk += " :: (Empty)";
         }
         else
         {
-            chunk += string(theFuji.get_hosts(theFuji.get_disks(i)->host_slot)->get_hostname());
+            chunk += string(theFuji->get_host(theFuji->get_disk(i)->host_slot)->get_hostname());
             chunk += " :: ";
-            chunk += string(theFuji.get_disks(i)->filename);
+            chunk += string(theFuji->get_disk(i)->filename);
             chunk += " (";
-            if (theFuji.get_disks(i)->access_mode == 2)
+            if (theFuji->get_disk(i)->access_mode == 2)
             {
                 chunk += "W";
             }
@@ -1188,7 +1188,7 @@ esp_err_t fnHttpService::get_handler_hosts(httpd_req_t *req)
 {
     std::string response = "";
     for (int hs = 0; hs < 8; hs++) {
-        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+        response += std::string(theFuji->get_host(hs)->get_hostname()) + "\n";
     }
     httpd_resp_send(req, response.c_str(), response.length());
     return ESP_OK;
@@ -1202,11 +1202,11 @@ esp_err_t fnHttpService::post_handler_hosts(httpd_req_t *req)
     int hostslot = atoi(qp.query_parsed["hostslot"].c_str());
     char *hostname = (char *)qp.query_parsed["hostname"].c_str();
 
-    theFuji.set_slot_hostname(hostslot, hostname);
+    theFuji->set_slot_hostname(hostslot, hostname);
 
     std::string response = "";
     for (int hs = 0; hs < 8; hs++) {
-        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+        response += std::string(theFuji->get_host(hs)->get_hostname()) + "\n";
     }
     httpd_resp_send(req, response.c_str(), response.length());
     return ESP_OK;

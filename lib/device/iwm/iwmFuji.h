@@ -24,11 +24,9 @@
 #include "hash.h"
 #include "../../qrcode/qrmanager.h"
 
-#define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices
+#define MAX_SP_DEVICES 4
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
-#define MAX_NETWORK_DEVICES 4
-#define MAX_SP_DEVICES (MAX_DISK_DEVICES - MAX_DISK2_DEVICES)
+#define MAX_A2DISK_DEVICES (MAX_SP_DEVICES + MAX_DISK2_DEVICES)
 
 #define MAX_SSID_LEN 32
 #define MAX_WIFI_PASS_LEN 64
@@ -37,56 +35,6 @@
 
 #define READ_DEVICE_SLOTS_DISKS1 0x00
 #define READ_DEVICE_SLOTS_TAPE 0x10
-
-typedef struct
-{
-    char ssid[MAX_SSID_LEN + 1];
-    char hostname[64];
-    unsigned char localIP[4];
-    unsigned char gateway[4];
-    unsigned char netmask[4];
-    unsigned char dnsIP[4];
-    unsigned char macAddress[6];
-    unsigned char bssid[6];
-    char fn_version[15];
-} AdapterConfig;
-
-typedef struct
-{
-    char ssid[33];
-    char hostname[64];
-    unsigned char localIP[4];
-    unsigned char gateway[4];
-    unsigned char netmask[4];
-    unsigned char dnsIP[4];
-    unsigned char macAddress[6];
-    unsigned char bssid[6];
-    char fn_version[15];
-    char sLocalIP[16];
-    char sGateway[16];
-    char sNetmask[16];
-    char sDnsIP[16];
-    char sMacAddress[18];
-    char sBssid[18];
-} AdapterConfigExtended;
-
-enum appkey_mode : int8_t
-{
-    APPKEYMODE_INVALID = -1,
-    APPKEYMODE_READ = 0,
-    APPKEYMODE_WRITE,
-    APPKEYMODE_READ_256
-};
-
-struct appkey
-{
-    uint16_t creator = 0;
-    uint8_t app = 0;
-    uint8_t key = 0;
-    appkey_mode mode = APPKEYMODE_INVALID;
-    uint8_t reserved = 0;
-} __attribute__((packed));
-
 
 using IWMCmdHandlers = std::function<void(iwm_decoded_cmd_t)>;
 using IWMControlHandlers = std::function<void()>;
@@ -111,7 +59,7 @@ private:
         uint8_t rssi;
     } detail;
 
-    iwmBus *_iwm_bus;
+    systemBus *_iwm_bus;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -149,6 +97,20 @@ private:
     bool hash_is_hex_output = false;
 
 protected:
+    void transaction_complete() override {}
+    void transaction_error() override {}
+    bool transaction_get(void *data, size_t len) override {
+        if (len > sizeof(data_buffer))
+            return false;
+        memcpy((uint8_t *) data, data_buffer, len);
+        return true;
+    }
+    void transaction_put(void *data, size_t len, bool err) override {
+        // Move into response.
+        memcpy(data_buffer, data, len);
+        data_len = len;
+    }
+
     void iwm_dummy_command();                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
     void iwm_ctrl_reset_fujinet();                // control 0xFF
@@ -257,7 +219,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(iwmBus *iwmbus);
+    void setup(systemBus *iwmbus);
 
     void image_rotate();
     int get_disk_id(int drive_slot);
@@ -277,9 +239,6 @@ public:
 #endif
     }
 
-    void _populate_slots_from_config();
-    void _populate_config_from_slots();
-
     bool mount_all();              // 0xD7
 
     void FujiStatus(iwm_decoded_cmd_t cmd) { iwm_status(cmd); }
@@ -290,7 +249,7 @@ public:
     // virtual void startup_hack() override { Debug_printf("\n Fuji startup hack"); }
 };
 
-extern iwmFuji theFuji;
+extern iwmFuji platformFuji;
 
 #endif // IWMFUJI_H
 #endif /* BUILD_APPLE */

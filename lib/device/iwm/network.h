@@ -31,7 +31,7 @@
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
 
-class iwmNetwork : public iwmDevice
+class iwmNetwork : public virtualDevice
 {
 
 public:

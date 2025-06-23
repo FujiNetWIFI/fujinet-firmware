@@ -85,7 +85,7 @@ public:
 #include "bus.h"
 #include "../media/media.h"
 
-class iwmDisk2 : public iwmDevice
+class iwmDisk2 : public virtualDevice
 {
 
 protected:

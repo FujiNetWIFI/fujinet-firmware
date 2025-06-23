@@ -228,7 +228,7 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
     Debug_printf("Handling Eject command\r\n");
     unmount();
     switched = false; //force switched = false when ejected from host.
-    theFuji.handle_ctl_eject(_devnum);
+    platformFuji.handle_ctl_eject(_devnum);
     break;
   default:
     err_result = SP_ERR_BADCTL;
@@ -250,7 +250,7 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
     if (disk_num == '0' && status_code > 0x05) {
       // THIS IS AN OLD HACK FOR CALLING STATUS ON THE FUJI DEVICE INSTEAD OF ADDING THE_FUJI AS A DEVICE.
       Debug_printf("\r\nUsing DISK_0 for FUJI device\r\n");
-      theFuji.FujiStatus(cmd);
+      platformFuji.FujiStatus(cmd);
     }
     else {
       iwm_status(cmd);
@@ -273,7 +273,7 @@ void iwmDisk::process(iwm_decoded_cmd_t cmd)
     if (disk_num == '0' && status_code > 0x0A) {
       // THIS IS AN OLD HACK FOR CALLING CONTROL ON THE FUJI DEVICE INSTEAD OF ADDING THE_FUJI AS A DEVICE.
       Debug_printf("\r\nUsing DISK_0 for FUJI device\r\n");
-      theFuji.FujiControl(cmd);
+      platformFuji.FujiControl(cmd);
     }
     else {
       iwm_ctrl(cmd);
