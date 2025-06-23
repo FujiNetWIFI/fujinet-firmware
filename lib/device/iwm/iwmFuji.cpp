@@ -669,8 +669,6 @@ void iwmFuji::iwm_ctrl_disable_device()
 	IWM.disableDevice(d);
 }
 
-iwmDisk *iwmFuji::bootdisk() { return _bootDisk; }
-
 // Initializes base settings and adds our devices to the SIO bus
 void iwmFuji::setup(systemBus *sysbus)
 {
