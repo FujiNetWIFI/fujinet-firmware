@@ -1,6 +1,6 @@
 #ifdef BUILD_S100
 
-#include "fuji.h"
+#include "s100spiFuji.h"
 
 #include <cstring>
 

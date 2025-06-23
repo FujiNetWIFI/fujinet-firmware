@@ -1,6 +1,6 @@
 #ifdef BUILD_COCO
 
-#include "fuji.h"
+#include "drivewireFuji.h"
 
 #ifdef ESP_PLATFORM
 #include <driver/ledc.h>

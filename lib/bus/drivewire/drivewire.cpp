@@ -6,7 +6,7 @@
 
 #include "../../include/debug.h"
 
-#include "fuji.h"
+#include "drivewire/drivewireFuji.h"
 #include "udpstream.h"
 #include "modem.h"
 #include "cassette.h"

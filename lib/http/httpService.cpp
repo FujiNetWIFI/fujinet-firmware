@@ -22,7 +22,7 @@
 #include "printer.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 
 using namespace std;
 

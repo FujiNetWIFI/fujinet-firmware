@@ -22,7 +22,7 @@
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
 
-#include "fuji.h"
+#include "rs232/rs232Fuji.h"
 
 #ifdef ESP_PLATFORM
 #define FN_CPM_LINK fnUartBUS

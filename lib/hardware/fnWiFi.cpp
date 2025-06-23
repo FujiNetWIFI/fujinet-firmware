@@ -16,7 +16,7 @@
 
 #include "../../include/debug.h"
 
-#include "fuji.h"
+#include "fujiDevice.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "httpService.h"

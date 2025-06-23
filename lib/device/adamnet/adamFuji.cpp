@@ -1,6 +1,6 @@
 #ifdef BUILD_ADAM
 
-#include "fuji.h"
+#include "adamFuji.h"
 
 #include <cstring>
 

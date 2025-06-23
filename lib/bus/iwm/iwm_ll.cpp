@@ -12,7 +12,7 @@
 #include "iwm_ll.h"
 #include "iwm.h"
 #include "../device/iwm/disk2.h"
-#include "../device/iwm/fuji.h"
+#include "../device/iwm/iwmFuji.h"
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"

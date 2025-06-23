@@ -1,7 +1,7 @@
 #ifdef BUILD_MAC
 #include "mac.h"
 #include "../../include/debug.h"
-#include "../device/mac/fuji.h"
+#include "mac/macFuji.h"
 
 #include "mac_ll.h"
 
@@ -15,8 +15,10 @@ void macBus::setup(void)
   floppy_ll.setup_gpio();
   Debug_printf("\r\nGPIO configured");
   
+#ifdef NOT_IWM_LL_SUBCLASS
   floppy_ll.setup_rmt();
   Debug_printf("\r\nRMT configured for Floppy Output");
+#endif /* NOT_IWM_LL_SUBCLASS */
 }
 
 /**

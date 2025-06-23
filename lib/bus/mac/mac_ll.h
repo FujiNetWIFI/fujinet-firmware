@@ -12,7 +12,9 @@
 // #include <freertos/semphr.h> 
 
 #include "../../include/pinmap.h"
+#ifdef NOT_IWM_LL_SUBCLASSS
 #include "fnRMTstream.h"
+#endif /* NOT_IWM_LL_SUBCLASS */
 
 // // #define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
 #define TRACK_LEN 10000              // guess for MOOF - should probably read it from MOOF file          
@@ -170,7 +172,9 @@ class mac_floppy_ll : public mac_ll
 {
 private:
   // RMT data handling
+#ifdef NOT_IWM_LL_SUBCLASSS
   fn_rmt_config_t config;
+#endif /* NOT_IWM_LL_SUBCLASS */
 
   // track bit information
   uint8_t *track_buffer[2] = {nullptr, nullptr}; //

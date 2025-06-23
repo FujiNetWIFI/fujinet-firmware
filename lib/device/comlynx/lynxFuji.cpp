@@ -1,6 +1,6 @@
 #ifdef BUILD_LYNX
 
-#include "fuji.h"
+#include "lynxFuji.h"
 
 #include <cstring>
 

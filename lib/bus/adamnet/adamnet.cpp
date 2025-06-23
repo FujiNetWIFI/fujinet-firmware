@@ -10,7 +10,7 @@
 #include "fnSystem.h"
 #include "led.h"
 #include <cstring>
-#include "fuji.h"
+#include "adamnet/adamFuji.h"
 
 #define IDLE_TIME 180 // Idle tolerance in microseconds
 
