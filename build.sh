@@ -57,6 +57,34 @@ if ! check_python_version "${PYTHON}" ; then
   fi
 fi
 
+# Function to check if we're in the PlatformIO virtual environment
+check_pio_venv() {
+  # Check if VIRTUAL_ENV variable exists and contains platformio
+  if [[ -z "${VIRTUAL_ENV}" || ! "${VIRTUAL_ENV}" == *".platformio/venv"* ]]; then
+    return 1
+  fi
+  return 0
+}
+
+# Check if we're in the PlatformIO virtual environment
+if ! check_pio_venv; then
+  echo "Not running in PlatformIO virtual environment."
+  echo "Activating PlatformIO environment..."
+  
+  # Check if the activation file exists - try different paths
+  if [ -f ~/.platformio/penv/bin/activate ]; then
+    source ~/.platformio/penv/bin/activate
+    echo "Environment activated, continuing with build..."
+  elif [ -f "${HOME}/.platformio/penv/bin/activate" ]; then
+    source "${HOME}/.platformio/penv/bin/activate"
+    echo "Environment activated, continuing with build..."
+  else
+    echo "Could not find PlatformIO environment activation file."
+    echo "Please check if PlatformIO is correctly installed."
+    exit 1
+  fi
+fi
+
 function display_board_names {
   while IFS= read -r piofile; do
     BOARD_NAME=$(echo $(basename $piofile) | sed 's#^platformio-##;s#.ini$##')
