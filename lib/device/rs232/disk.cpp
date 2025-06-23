@@ -27,9 +27,6 @@
 #define RS232_DISKCMD_PERCOM_READ 0x4E
 #define RS232_DISKCMD_PERCOM_WRITE 0x4F
 
-// External ref to fuji object.
-extern rs232Fuji theFuji;
-
 rs232Disk::rs232Disk()
 {
     device_active = false;

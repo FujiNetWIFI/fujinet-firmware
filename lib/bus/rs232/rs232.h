@@ -174,6 +174,7 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
+    bool readonly = false;  //write protected
 
     /**
      * @brief status wait counter

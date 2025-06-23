@@ -8,6 +8,7 @@
 #include "udpstream.h"
 #include "modem.h"
 #include "siocpm.h"
+#include "network.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -194,7 +195,7 @@ void systemBus::_rs232_process_cmd()
     {
         if (tempFrame.device == RS232_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
-            _activeDev = _fujiDev->bootdisk();
+            _activeDev = &_fujiDev->bootdisk;
 
             Debug_println("FujiNet CONFIG boot");
             // handle command
