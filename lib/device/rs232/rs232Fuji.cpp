@@ -1,86 +1,41 @@
 #ifdef BUILD_RS232
-
 #include "rs232Fuji.h"
-
-#include <driver/ledc.h>
-
-#include <cstdint>
-#include <cstring>
-
-#include "../../../include/debug.h"
+#include "network.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fsFlash.h"
 #include "fnWiFi.h"
-
-#include "led.h"
 #include "utils.h"
-#include "string_utils.h"
 
-rs232Fuji theFuji; // global fuji device object
+#define IMAGE_EXTENSION ".img"
 
-//rs232Disk rs232DiskDevs[MAX_HOSTS];
+rs232Fuji platformFuji;
+fujiDevice *theFuji = &platformFuji;
 rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];
 
-bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
-bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
-
-bool _validate_host_slot(uint8_t slot, const char *dmsg)
+// Initializes base settings and adds our devices to the RS232 bus
+void rs232Fuji::setup(systemBus *sysbus)
 {
-    if (slot < MAX_HOSTS)
-        return true;
+    // set up Fuji device
+    _bus = sysbus;
 
-    if (dmsg == NULL)
-    {
-        Debug_printf("!! Invalid host slot %hu\n", slot);
-    }
-    else
-    {
-        Debug_printf("!! Invalid host slot %hu @ %s\n", slot, dmsg);
-    }
+    populate_slots_from_config();
 
-    return false;
-}
+    insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN);
 
-bool _validate_device_slot(uint8_t slot, const char *dmsg)
-{
-    if (slot < MAX_DISK_DEVICES)
-        return true;
+    // Disable booting from CONFIG if our settings say to turn it off
+    boot_config = Config.get_general_config_enabled();
 
-    if (dmsg == NULL)
-    {
-        Debug_printf("!! Invalid device slot %hu\n", slot);
-    }
-    else
-    {
-        Debug_printf("!! Invalid device slot %hu @ %s\n", slot, dmsg);
-    }
+    // Disable status_wait if our settings say to turn it off
+    status_wait_enabled = Config.get_general_status_wait_enabled();
 
-    return false;
-}
+    // Add our devices to the RS232 bus
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        _bus->addDevice(&_fnDisks[i].disk_dev, RS232_DEVICEID_DISK + i);
 
-/**
- * Say the numbers 1-8 using phonetic tweaks.
- * @param n The number to say.
- */
-void say_number(unsigned char n)
-{
-}
-
-/**
- * Say swap label
- */
-void say_swap_label()
-{
-}
-
-// Constructor
-rs232Fuji::rs232Fuji()
-{
-    // Helpful for debugging
-    for (int i = 0; i < MAX_HOSTS; i++)
-        _fnHosts[i].slotid = i;
+    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
+        _bus->addDevice(&rs232NetDevs[i], RS232_DEVICEID_FN_NETWORK + i);
 }
 
 // Status
@@ -90,429 +45,63 @@ void rs232Fuji::rs232_status()
 
     if (cmdFrame.aux == STATUS_MOUNT_TIME)
     {
-	// Return drive slot mount status: 0 if unmounted, otherwise time when mounted
+        // Return drive slot mount status: 0 if unmounted, otherwise time when mounted
         time_t mount_status[MAX_DISK_DEVICES];
-	int idx;
+        int idx;
 
+        for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
+            mount_status[idx] = _fnDisks[idx].disk_dev.mount_time;
 
-	for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
-	    mount_status[idx] = _fnDisks[idx].disk_dev.mount_time;
-
-	bus_to_computer((uint8_t *) mount_status, sizeof(mount_status), false);
+        transaction_put((uint8_t *)mount_status, sizeof(mount_status), false);
     }
     else
     {
-	char ret[4] = {0};
+        char ret[4] = {0};
 
-	Debug_printf("Status for what? %08lx\n", cmdFrame.aux);
-	bus_to_computer((uint8_t *)ret, sizeof(ret), false);
+        Debug_printf("Status for what? %08lx\n", cmdFrame.aux);
+        transaction_put((uint8_t *)ret, sizeof(ret), false);
     }
     return;
-}
-
-// Reset FujiNet
-void rs232Fuji::rs232_reset_fujinet()
-{
-    Debug_println("Fuji cmd: REBOOT");
-    rs232_complete();
-    fnSystem.reboot();
-}
-
-// Scan for networks
-void rs232Fuji::rs232_net_scan_networks()
-{
-    Debug_println("Fuji cmd: SCAN NETWORKS");
-
-    char ret[4] = {0};
-
-    _countScannedSSIDs = fnWiFi.scan_networks();
-
-    ret[0] = _countScannedSSIDs;
-
-    bus_to_computer((uint8_t *)ret, 4, false);
-}
-
-// Return scanned network entry
-void rs232Fuji::rs232_net_scan_result()
-{
-    Debug_println("Fuji cmd: GET SCAN RESULT");
-
-    // Response to  FUJICMD_GET_SCAN_RESULT
-    struct
-    {
-        char ssid[MAX_SSID_LEN+1];
-        uint8_t rssi;
-    } detail;
-
-    bool err = false;
-    if (cmdFrame.aux1 < _countScannedSSIDs)
-        fnWiFi.get_scan_result(cmdFrame.aux1, detail.ssid, &detail.rssi);
-    else
-    {
-        memset(&detail, 0, sizeof(detail));
-        err = true;
-    }
-
-    bus_to_computer((uint8_t *)&detail, sizeof(detail), err);
-}
-
-//  Get SSID
-void rs232Fuji::rs232_net_get_ssid()
-{
-    Debug_println("Fuji cmd: GET SSID");
-
-    // Response to  FUJICMD_GET_SSID
-    struct
-    {
-        char ssid[MAX_SSID_LEN+1];
-        char password[MAX_WIFI_PASS_LEN];
-    } cfg;
-
-    memset(&cfg, 0, sizeof(cfg));
-
-    /*
-     We memcpy instead of strcpy because technically the SSID and phasephras aren't std::strings and aren't null terminated,
-     they're arrays of bytes officially and can contain any byte value - including a zero - at any point in the array.
-     However, we're not consistent about how we treat this in the different parts of the code.
-    */
-    std::string s = Config.get_wifi_ssid();
-    memcpy(cfg.ssid, s.c_str(),
-           s.length() > sizeof(cfg.ssid) ? sizeof(cfg.ssid) : s.length());
-
-    s = Config.get_wifi_passphrase();
-    memcpy(cfg.password, s.c_str(),
-           s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
-
-    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
 }
 
 // Set SSID
 void rs232Fuji::rs232_net_set_ssid()
 {
-    Debug_println("Fuji cmd: SET SSID");
-
-    // Data for  FUJICMD_SET_SSID
-    struct
-    {
-        char ssid[MAX_SSID_LEN+1];
-        char password[MAX_WIFI_PASS_LEN];
-    } cfg;
-
-    uint8_t ck = bus_to_peripheral((uint8_t *)&cfg, sizeof(cfg));
-
-    if (rs232_checksum((uint8_t *)&cfg, sizeof(cfg)) != ck)
-        rs232_error();
+    SSIDConfig cfg;
+    if (!transaction_get((uint8_t *)&cfg, sizeof(cfg)))
+        transaction_error();
     else
-    {
-        bool save = cmdFrame.aux1 != 0;
-
-        // URL Decode SSID/PASSWORD to handle special chars
-        //mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
-        //mstr::urlDecode(cfg.password, sizeof(cfg.password));
-
-        Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
-
-        fnWiFi.connect(cfg.ssid, cfg.password);
-
-        // Only save these if we're asked to, otherwise assume it was a test for connectivity
-        if (save)
-        {
-            Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-            Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-            Config.save();
-        }
-
-        rs232_complete();
-    }
-}
-
-// Get WiFi Status
-void rs232Fuji::rs232_net_get_wifi_status()
-{
-    Debug_println("Fuji cmd: GET WIFI STATUS");
-    // WL_CONNECTED = 3, WL_DISCONNECTED = 6
-    uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
-    bus_to_computer(&wifiStatus, sizeof(wifiStatus), false);
+        fujicmd_net_set_ssid(cfg.ssid, cfg.password, cmdFrame.aux1);
 }
 
 // Check if Wifi is enabled
 void rs232Fuji::rs232_net_get_wifi_enabled()
 {
     uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
-    Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n",e);
-    bus_to_computer(&e, sizeof(e), false);
-}
-
-// Mount Server
-void rs232Fuji::rs232_mount_host()
-{
-    Debug_println("Fuji cmd: MOUNT HOST");
-
-    unsigned char hostSlot = cmdFrame.aux1;
-
-    // Make sure we weren't given a bad hostSlot
-    if (!_validate_host_slot(hostSlot, "rs232_tnfs_mount_hosts"))
-    {
-        rs232_error();
-        return;
-    }
-
-    if (!_fnHosts[hostSlot].mount())
-        rs232_error();
-    else
-        rs232_complete();
-}
-
-// Disk Image Mount
-void rs232Fuji::rs232_disk_image_mount()
-{
-    // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
-    // to the C: device. Everything stays the same here and the mounting
-    // where all the magic happens is done in the rs232Disk::mount() function.
-    // This function opens the file, so cassette does not need to open the file.
-    // Cassette needs the file pointer and file size.
-
-    Debug_println("Fuji cmd: MOUNT IMAGE");
-
-    uint8_t deviceSlot = cmdFrame.aux1;
-    uint8_t options = cmdFrame.aux2; // DISK_ACCESS_MODE
-
-    // TODO: Implement FETCH?
-    char flag[3] = {'r', 0, 0};
-    if (options == DISK_ACCESS_MODE_WRITE)
-        flag[1] = '+';
-
-    // Make sure we weren't given a bad hostSlot
-    if (!_validate_device_slot(deviceSlot))
-    {
-        rs232_error();
-        return;
-    }
-
-    if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
-    {
-        rs232_error();
-        return;
-    }
-
-    // A couple of reference variables to make things much easier to read...
-    fujiDisk &disk = _fnDisks[deviceSlot];
-    fujiHost &host = _fnHosts[disk.host_slot];
-
-    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-                 disk.filename, disk.host_slot, flag, deviceSlot + 1);
-
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-    if (disk.fileh == nullptr)
-    {
-        rs232_error();
-        return;
-    }
-
-    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-    boot_config = false;
-    status_wait_count = 0;
-
-    // We need the file size for loading XEX files and for CASSETTE, so get that too
-    disk.disk_size = host.file_size(disk.fileh);
-
-    // And now mount it
-    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-
-    rs232_complete();
-}
-
-// Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
-void rs232Fuji::rs232_set_boot_config()
-{
-    boot_config = cmdFrame.aux1;
-    rs232_complete();
+    Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n", e);
+    transaction_put(&e, sizeof(e), false);
 }
 
 // Do RS232 copy
 void rs232Fuji::rs232_copy_file()
 {
     uint8_t csBuf[256];
-    std::string copySpec;
-    std::string sourcePath;
-    std::string destPath;
-    uint8_t ck;
-    fnFile *sourceFile;
-    fnFile *destFile;
-    char *dataBuf;
-    unsigned char sourceSlot;
-    unsigned char destSlot;
 
-    dataBuf = (char *)malloc(532);
-
-    if (dataBuf == nullptr)
+    if (!transaction_get(csBuf, sizeof(csBuf)))
     {
-        rs232_error();
+        transaction_error();
         return;
     }
 
-    memset(&csBuf, 0, sizeof(csBuf));
-
-    ck = bus_to_peripheral(csBuf, sizeof(csBuf));
-
-    if (ck != rs232_checksum(csBuf, sizeof(csBuf)))
-    {
-        rs232_error();
-        free(dataBuf);
-        return;
-    }
-
-    copySpec = std::string((char *)csBuf);
-
-    Debug_printf("copySpec: %s\n", copySpec.c_str());
-
-    // Check for malformed copyspec.
-    if (copySpec.empty() || copySpec.find_first_of("|") == std::string::npos)
-    {
-        rs232_error();
-        free(dataBuf);
-        return;
-    }
-
-    if (cmdFrame.aux1 < 1 || cmdFrame.aux1 > 8)
-    {
-        rs232_error();
-        free(dataBuf);
-        return;
-    }
-
-    if (cmdFrame.aux2 < 1 || cmdFrame.aux2 > 8)
-    {
-        rs232_error();
-        free(dataBuf);
-        return;
-    }
-
-    sourceSlot = cmdFrame.aux1 - 1;
-    destSlot = cmdFrame.aux2 - 1;
-
-    // All good, after this point...
-
-    // Chop up copyspec.
-    sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
-    destPath = copySpec.substr(copySpec.find_first_of("|") + 1);
-
-    // At this point, if last part of dest path is / then copy filename from source.
-    if (destPath.back() == '/')
-    {
-        Debug_printf("append source file\n");
-        std::string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
-        destPath += sourceFilename;
-    }
-
-    // Mount hosts, if needed.
-    _fnHosts[sourceSlot].mount();
-    _fnHosts[destSlot].mount();
-
-    // Open files...
-    sourceFile = _fnHosts[sourceSlot].fnfile_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
-
-    if (sourceFile == nullptr)
-    {
-        rs232_error();
-        free(dataBuf);
-        return;
-    }
-
-    destFile = _fnHosts[destSlot].fnfile_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
-
-    if (destFile == nullptr)
-    {
-        rs232_error();
-        fnio::fclose(sourceFile);
-        free(dataBuf);
-        return;
-    }
-
-    size_t count = 0;
-    do
-    {
-        count = fnio::fread(dataBuf, 1, 532, sourceFile);
-        fnio::fwrite(dataBuf, 1, count, destFile);
-    } while (count > 0);
-
-    rs232_complete();
-
-    // copyEnd:
-    fnio::fclose(sourceFile);
-    fnio::fclose(destFile);
-    free(dataBuf);
-}
-
-// Mount all
-void rs232Fuji::mount_all()
-{
-    bool nodisks = true; // Check at the end if no disks are in a slot and disable config
-
-    for (int i = 0; i < 8; i++)
-    {
-        fujiDisk &disk = _fnDisks[i];
-        fujiHost &host = _fnHosts[disk.host_slot];
-        char flag[3] = {'r', 0, 0};
-
-        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-            flag[1] = '+';
-
-        if (disk.host_slot != INVALID_HOST_SLOT && strlen(disk.filename) > 0)
-        {
-            nodisks = false; // We have a disk in a slot
-
-            if (host.mount() == false)
-            {
-                rs232_error();
-                return;
-            }
-
-            Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-                         disk.filename, disk.host_slot, flag, i + 1);
-
-            disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-            if (disk.fileh == nullptr)
-            {
-                rs232_error();
-                return;
-            }
-
-            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-            boot_config = false;
-            status_wait_count = 0;
-
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
-
-            // And now mount it
-            disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-        }
-    }
-
-    if (nodisks){
-        // No disks in a slot, disable config
-        boot_config = false;
-    }
-
-    rs232_complete();
-}
-
-// Set boot mode
-void rs232Fuji::rs232_set_boot_mode()
-{
-    insert_boot_device(cmdFrame.aux1);
-    boot_config = true;
-    rs232_complete();
+    fujicmd_copy_file(cmdFrame.aux1, cmdFrame.aux2, (char *) csBuf);
 }
 
 char *_generate_appkey_filename(appkey *info)
 {
     static char filenamebuf[30];
 
-    snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
+    snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator,
+             info->app, info->key);
     return filenamebuf;
 }
 
@@ -528,11 +117,9 @@ void rs232Fuji::rs232_open_app_key()
     Debug_print("Fuji cmd: OPEN APPKEY\n");
 
     // The data expected for this command
-    uint8_t ck = bus_to_peripheral((uint8_t *)&_current_appkey, sizeof(_current_appkey));
-
-    if (rs232_checksum((uint8_t *)&_current_appkey, sizeof(_current_appkey)) != ck)
+    if (!transaction_get((uint8_t *)&_current_appkey, sizeof(_current_appkey)))
     {
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -540,7 +127,7 @@ void rs232Fuji::rs232_open_app_key()
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - returning error");
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -548,27 +135,29 @@ void rs232Fuji::rs232_open_app_key()
     if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
     {
         Debug_println("Invalid app key data");
-        rs232_error();
+        transaction_error();
         return;
     }
 
-    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
-                 _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
-                 _generate_appkey_filename(&_current_appkey));
+    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, "
+                 "filename = \"%s\"\n",
+                 _current_appkey.creator, _current_appkey.app, _current_appkey.key,
+                 _current_appkey.mode, _generate_appkey_filename(&_current_appkey));
 
-    rs232_complete();
+    transaction_complete();
 }
 
 /*
   The app key close operation is a placeholder in case we want to provide more robust file
-  read/write operations. Currently, the file is closed immediately after the read or write operation.
+  read/write operations. Currently, the file is closed immediately after the read or write
+  operation.
 */
 void rs232Fuji::rs232_close_app_key()
 {
     Debug_print("Fuji cmd: CLOSE APPKEY\n");
     _current_appkey.creator = 0;
     _current_appkey.mode = APPKEYMODE_INVALID;
-    rs232_complete();
+    transaction_complete();
 }
 
 /*
@@ -576,18 +165,16 @@ void rs232Fuji::rs232_close_app_key()
 */
 void rs232Fuji::rs232_write_app_key()
 {
-    uint16_t keylen = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+    uint16_t keylen = cmdFrame.aux12;
 
     Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
 
     // Data for  FUJICMD_WRITE_APPKEY
     uint8_t value[MAX_APPKEY_LEN];
 
-    uint8_t ck = bus_to_peripheral((uint8_t *)value, sizeof(value));
-
-    if (rs232_checksum((uint8_t *)value, sizeof(value)) != ck)
+    if (!transaction_get((uint8_t *)value, sizeof(value)))
     {
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -595,7 +182,7 @@ void rs232Fuji::rs232_write_app_key()
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
     {
         Debug_println("Invalid app key metadata - aborting");
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -603,7 +190,7 @@ void rs232Fuji::rs232_write_app_key()
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - can't write app key");
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -622,7 +209,7 @@ void rs232Fuji::rs232_write_app_key()
     if (fOut == nullptr)
     {
         Debug_printf("Failed to open/create output file: errno=%d\n", errno);
-        rs232_error();
+        transaction_error();
         return;
     }
     size_t count = fwrite(value, 1, keylen, fOut);
@@ -633,10 +220,10 @@ void rs232Fuji::rs232_write_app_key()
     if (count != keylen)
     {
         Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
-        rs232_error();
+        transaction_error();
     }
 
-    rs232_complete();
+    transaction_complete();
 }
 
 /*
@@ -651,7 +238,7 @@ void rs232Fuji::rs232_read_app_key()
     if (fnSDFAT.running() == false)
     {
         Debug_println("No SD mounted - can't read app key");
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -659,7 +246,7 @@ void rs232Fuji::rs232_read_app_key()
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_READ)
     {
         Debug_println("Invalid app key metadata - aborting");
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -671,7 +258,7 @@ void rs232Fuji::rs232_read_app_key()
     if (fIn == nullptr)
     {
         Debug_printf("Failed to open input file: errno=%d\n", errno);
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -689,92 +276,7 @@ void rs232Fuji::rs232_read_app_key()
 
     response.size = count;
 
-    bus_to_computer((uint8_t *)&response, sizeof(response), false);
-}
-
-// DEBUG TAPE
-void rs232Fuji::debug_tape()
-{
-}
-
-// Disk Image Unmount
-void rs232Fuji::rs232_disk_image_umount()
-{
-    uint8_t deviceSlot = cmdFrame.aux1;
-
-    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
-
-    // Handle disk slots
-    if (deviceSlot < MAX_DISK_DEVICES)
-    {
-        _fnDisks[deviceSlot].disk_dev.unmount();
-        _fnDisks[deviceSlot].reset();
-    }
-    // Handle tape
-    // else if (deviceSlot == BASE_TAPE_SLOT)
-    // {
-    // }
-    // Invalid slot
-    else
-    {
-        rs232_error();
-        return;
-    }
-
-    rs232_complete();
-}
-
-// Disk Image Rotate
-/*
-  We rotate disks my changing their disk device ID's. That prevents
-  us from having to unmount and re-mount devices.
-*/
-void rs232Fuji::image_rotate()
-{
-    Debug_println("Fuji cmd: IMAGE ROTATE");
-
-    int count = 0;
-    // Find the first empty slot
-    while (_fnDisks[count].fileh != nullptr)
-        count++;
-
-    if (count > 1)
-    {
-        count--;
-
-        // Save the device ID of the disk in the last slot
-        int last_id = _fnDisks[count].disk_dev.id();
-
-        for (int n = count; n > 0; n--)
-        {
-            int swap = _fnDisks[n - 1].disk_dev.id();
-            Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            _rs232_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
-        }
-
-        // The first slot gets the device ID of the last slot
-        _rs232_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
-
-        // Say whatever disk is in D1:
-        if (Config.get_general_rotation_sounds())
-        {
-            for (int i = 0; i <= count; i++)
-            {
-                if (_fnDisks[i].disk_dev.id() == 0x31)
-                {
-                    say_swap_label();
-                    say_number(i + 1); // because i starts from 0
-                }
-            }
-        }
-    }
-}
-
-// This gets called when we're about to shutdown/reboot
-void rs232Fuji::shutdown()
-{
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _fnDisks[i].disk_dev.unmount();
+    transaction_put((uint8_t *)&response, sizeof(response), false);
 }
 
 void rs232Fuji::rs232_open_directory()
@@ -783,16 +285,14 @@ void rs232Fuji::rs232_open_directory()
 
     char dirpath[256];
     uint8_t hostSlot = cmdFrame.aux1;
-    uint8_t ck = bus_to_peripheral((uint8_t *)&dirpath, sizeof(dirpath));
-
-    if (rs232_checksum((uint8_t *)&dirpath, sizeof(dirpath)) != ck)
+    if (!transaction_get((uint8_t *)&dirpath, sizeof(dirpath)))
     {
-        rs232_error();
+        transaction_error();
         return;
     }
-    if (!_validate_host_slot(hostSlot))
+    if (!validate_host_slot(hostSlot))
     {
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -819,15 +319,16 @@ void rs232Fuji::rs232_open_directory()
     if (pathlen > 1 && dirpath[pathlen - 1] == '/')
         dirpath[pathlen - 1] = '\0';
 
-    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath,
+                 pattern ? pattern : "");
 
     if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
     {
         _current_open_directory_slot = hostSlot;
-        rs232_complete();
+        transaction_complete();
     }
     else
-        rs232_error();
+        transaction_error();
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -850,12 +351,13 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[7] = HIBYTE_FROM_UINT16(fsize);
 
     // File flags
-#define FF_DIR 0x01
+#define FF_DIR   0x01
 #define FF_TRUNC 0x02
 
     dest[8] = f->isDir ? FF_DIR : 0;
 
-    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
+    maxlen -=
+        10; // Adjust the max return value with the number of additional bytes we're copying
     if (f->isDir) // Also subtract a byte for a terminating slash on directories
         maxlen--;
     if (strlen(f->filename) >= maxlen)
@@ -874,7 +376,7 @@ void rs232Fuji::rs232_read_directory_entry()
     if (_current_open_directory_slot == -1)
     {
         Debug_print("No currently open directory\n");
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -909,7 +411,7 @@ void rs232Fuji::rs232_read_directory_entry()
             bufsize = maxlen;
         }
 
-        //int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        // int filelen = strlcpy(filenamedest, f->filename, bufsize);
         int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
 
         // Add a slash at the end of directory entries
@@ -920,94 +422,7 @@ void rs232Fuji::rs232_read_directory_entry()
         }
     }
 
-    bus_to_computer((uint8_t *)current_entry, maxlen, false);
-}
-
-void rs232Fuji::rs232_get_directory_position()
-{
-    Debug_println("Fuji cmd: GET DIRECTORY POSITION");
-
-    // Make sure we have a current open directory
-    if (_current_open_directory_slot == -1)
-    {
-        Debug_print("No currently open directory\n");
-        rs232_error();
-        return;
-    }
-
-    uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
-    if (pos == FNFS_INVALID_DIRPOS)
-    {
-        rs232_error();
-        return;
-    }
-    // Return the value we read
-    bus_to_computer((uint8_t *)&pos, sizeof(pos), false);
-}
-
-void rs232Fuji::rs232_set_directory_position()
-{
-    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
-
-    // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    uint16_t pos = rs232_get_aux16_lo();
-
-    // Make sure we have a current open directory
-    if (_current_open_directory_slot == -1)
-    {
-        Debug_print("No currently open directory\n");
-        rs232_error();
-        return;
-    }
-
-    bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
-    if (result == false)
-    {
-        rs232_error();
-        return;
-    }
-    rs232_complete();
-}
-
-void rs232Fuji::rs232_close_directory()
-{
-    Debug_println("Fuji cmd: CLOSE DIRECTORY");
-
-    if (_current_open_directory_slot != -1)
-        _fnHosts[_current_open_directory_slot].dir_close();
-
-    _current_open_directory_slot = -1;
-    rs232_complete();
-}
-
-// Get network adapter configuration
-void rs232Fuji::rs232_get_adapter_config()
-{
-    Debug_println("Fuji cmd: GET ADAPTER CONFIG");
-
-    // Response to  FUJICMD_GET_ADAPTERCONFIG
-    AdapterConfig cfg;
-
-    memset(&cfg, 0, sizeof(cfg));
-
-    strlcpy(cfg.fn_verrs232n, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_verrs232n));
-
-    if (!fnWiFi.connected())
-    {
-        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-    }
-    else
-    {
-        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-        fnWiFi.get_current_bssid(cfg.bssid);
-        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    }
-
-    fnWiFi.get_mac(cfg.macAddress);
-
-    bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
+    transaction_put((uint8_t *)current_entry, maxlen, false);
 }
 
 //  Make new disk and shove into device slot
@@ -1025,18 +440,16 @@ void rs232Fuji::rs232_new_disk()
     } newDisk;
 
     // Ask for details on the new disk to create
-    uint8_t ck = bus_to_peripheral((uint8_t *)&newDisk, sizeof(newDisk));
-
-    if (ck != rs232_checksum((uint8_t *)&newDisk, sizeof(newDisk)))
+    if (!transaction_get((uint8_t *)&newDisk, sizeof(newDisk)))
     {
         Debug_print("rs232_new_disk Bad checksum\n");
-        rs232_error();
+        transaction_error();
         return;
     }
     if (newDisk.deviceSlot >= MAX_DISK_DEVICES || newDisk.hostSlot >= MAX_HOSTS)
     {
         Debug_print("rs232_new_disk Bad disk or host slot parameter\n");
-        rs232_error();
+        transaction_error();
         return;
     }
     // A couple of reference variables to make things much easier to read...
@@ -1050,7 +463,7 @@ void rs232Fuji::rs232_new_disk()
     if (host.file_exists(disk.filename))
     {
         Debug_printf("rs232_new_disk File exists: \"%s\"\n", disk.filename);
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -1058,7 +471,7 @@ void rs232Fuji::rs232_new_disk()
     if (disk.fileh == nullptr)
     {
         Debug_printf("rs232_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-        rs232_error();
+        transaction_error();
         return;
     }
 
@@ -1068,48 +481,12 @@ void rs232Fuji::rs232_new_disk()
     if (ok == false)
     {
         Debug_print("rs232_new_disk Data write failed\n");
-        rs232_error();
+        transaction_error();
         return;
     }
 
     Debug_print("rs232_new_disk succeeded\n");
-    rs232_complete();
-}
-
-// Send host slot data to computer
-void rs232Fuji::rs232_read_host_slots()
-{
-    Debug_println("Fuji cmd: READ HOST SLOTS");
-
-    char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    memset(hostSlots, 0, sizeof(hostSlots));
-
-    for (int i = 0; i < MAX_HOSTS; i++)
-        strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
-
-    bus_to_computer((uint8_t *)&hostSlots, sizeof(hostSlots), false);
-}
-
-// Read and save host slot data from computer
-void rs232Fuji::rs232_write_host_slots()
-{
-    Debug_println("Fuji cmd: WRITE HOST SLOTS");
-
-    char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    uint8_t ck = bus_to_peripheral((uint8_t *)&hostSlots, sizeof(hostSlots));
-
-    if (rs232_checksum((uint8_t *)hostSlots, sizeof(hostSlots)) == ck)
-    {
-        for (int i = 0; i < MAX_HOSTS; i++)
-            _fnHosts[i].set_hostname(hostSlots[i]);
-
-        _populate_config_from_slots();
-        Config.save();
-
-        rs232_complete();
-    }
-    else
-        rs232_error();
+    transaction_complete();
 }
 
 // Store host path prefix
@@ -1118,195 +495,13 @@ void rs232Fuji::rs232_set_host_prefix()
     char prefix[MAX_HOST_PREFIX_LEN];
     uint8_t hostSlot = cmdFrame.aux1;
 
-    uint8_t ck = bus_to_peripheral((uint8_t *)prefix, MAX_HOST_PREFIX_LEN);
-
-    Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
-
-    if (rs232_checksum((uint8_t *)prefix, sizeof(prefix)) != ck)
+    if (!transaction_get(prefix, sizeof(prefix)))
     {
-        rs232_error();
+        transaction_error();
         return;
     }
 
-    if (!_validate_host_slot(hostSlot))
-    {
-        rs232_error();
-        return;
-    }
-
-    _fnHosts[hostSlot].set_prefix(prefix);
-    rs232_complete();
-}
-
-// Retrieve host path prefix
-void rs232Fuji::rs232_get_host_prefix()
-{
-    uint8_t hostSlot = cmdFrame.aux1;
-    Debug_printf("Fuji cmd: GET HOST PREFIX %uh\n", hostSlot);
-
-    if (!_validate_host_slot(hostSlot))
-    {
-        rs232_error();
-        return;
-    }
-    char prefix[MAX_HOST_PREFIX_LEN];
-    _fnHosts[hostSlot].get_prefix(prefix, sizeof(prefix));
-
-    bus_to_computer((uint8_t *)prefix, sizeof(prefix), false);
-}
-
-// Send device slot data to computer
-void rs232Fuji::rs232_read_device_slots()
-{
-    Debug_println("Fuji cmd: READ DEVICE SLOTS");
-
-    struct disk_slot
-    {
-        uint8_t hostSlot;
-        uint8_t mode;
-        char filename[MAX_DISPLAY_FILENAME_LEN];
-    };
-    disk_slot diskSlots[MAX_DISK_DEVICES];
-
-    int returnsize;
-    char *filename;
-
-    // AUX1 specifies which slots to return
-    // Handle disk slots
-    if (cmdFrame.aux1 == READ_DEVICE_SLOTS_DISKS1)
-    {
-        // Load the data from our current device array
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        {
-            diskSlots[i].mode = _fnDisks[i].access_mode;
-            diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-            if ( _fnDisks[i].filename[0] == '\0' )
-            {
-                strlcpy(diskSlots[i].filename, "", MAX_DISPLAY_FILENAME_LEN);
-            }
-            else
-            {
-                // Just use the basename of the image, no path. The full path+filename is
-                // usually too long for the Atari to show anyway, so the image name is more important.
-                // Note: Basename can modify the input, so use a copy of the filename
-                filename = strdup(_fnDisks[i].filename);
-                strlcpy ( diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN );
-                free(filename);
-            }
-        }
-
-        returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
-    }
-    // Handle tape slot
-    // else if (cmdFrame.aux1 == READ_DEVICE_SLOTS_TAPE)
-    // {
-    //     // TODO: Populate this with real values
-    //     // TODO: allow read and write
-    //     // TODO: why [0] and not [8] (device 9)?
-    //     diskSlots[0].mode = 0; // Always READ
-    //     diskSlots[0].hostSlot = 0;
-    //     strlcpy(diskSlots[0].filename, "TAPETEST.CAS", MAX_DISPLAY_FILENAME_LEN);
-
-    //     returnsize = sizeof(disk_slot);
-    // }
-    // Bad AUX1 value
-    else
-    {
-        rs232_error();
-        return;
-    }
-
-    bus_to_computer((uint8_t *)&diskSlots, returnsize, false);
-}
-
-// Read and save disk slot data from computer
-void rs232Fuji::rs232_write_device_slots()
-{
-    Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
-
-    struct
-    {
-        uint8_t hostSlot;
-        uint8_t mode;
-        char filename[MAX_DISPLAY_FILENAME_LEN];
-    } diskSlots[MAX_DISK_DEVICES];
-
-    uint8_t ck = bus_to_peripheral((uint8_t *)&diskSlots, sizeof(diskSlots));
-
-    if (ck == rs232_checksum((uint8_t *)&diskSlots, sizeof(diskSlots)))
-    {
-        // Load the data into our current device array
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
-            _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
-
-        // Save the data to disk
-        _populate_config_from_slots();
-        Config.save();
-
-        rs232_complete();
-    }
-    else
-        rs232_error();
-}
-
-// Temporary(?) function while we move from old config storage to new
-void rs232Fuji::_populate_slots_from_config()
-{
-    for (int i = 0; i < MAX_HOSTS; i++)
-    {
-        if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
-            _fnHosts[i].set_hostname("");
-        else
-            _fnHosts[i].set_hostname(Config.get_host_name(i).c_str());
-    }
-
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    {
-        _fnDisks[i].reset();
-
-        if (Config.get_mount_host_slot(i) != HOST_SLOT_INVALID)
-        {
-            if (Config.get_mount_host_slot(i) >= 0 && Config.get_mount_host_slot(i) <= MAX_HOSTS)
-            {
-                strlcpy(_fnDisks[i].filename,
-                        Config.get_mount_path(i).c_str(), sizeof(fujiDisk::filename));
-                _fnDisks[i].host_slot = Config.get_mount_host_slot(i);
-                if (Config.get_mount_mode(i) == fnConfig::mount_modes::MOUNTMODE_WRITE)
-                    _fnDisks[i].access_mode = DISK_ACCESS_MODE_WRITE;
-                else
-                    _fnDisks[i].access_mode = DISK_ACCESS_MODE_READ;
-            }
-        }
-    }
-}
-
-// Temporary(?) function while we move from old config storage to new
-void rs232Fuji::_populate_config_from_slots()
-{
-    for (int i = 0; i < MAX_HOSTS; i++)
-    {
-        fujiHostType htype = _fnHosts[i].get_type();
-        const char *hname = _fnHosts[i].get_hostname();
-
-        if (hname[0] == '\0')
-        {
-            Config.clear_host(i);
-        }
-        else
-        {
-            Config.store_host(i, hname,
-                              htype == HOSTTYPE_TNFS ? fnConfig::host_types::HOSTTYPE_TNFS : fnConfig::host_types::HOSTTYPE_SD);
-        }
-    }
-
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-    {
-        if (_fnDisks[i].host_slot >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
-            Config.clear_mount(i);
-        else
-            Config.store_mount(i, _fnDisks[i].host_slot, _fnDisks[i].filename,
-                               _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
-    }
+    fujicmd_set_host_prefix(hostSlot, prefix);
 }
 
 // Write a 256 byte filename to the device slot
@@ -1320,66 +515,53 @@ void rs232Fuji::rs232_set_device_filename()
     uint8_t host = cmdFrame.aux2 >> 4;
     uint8_t mode = cmdFrame.aux2 & 0x0F;
 
-    uint8_t ck = bus_to_peripheral((uint8_t *)tmp, MAX_FILENAME_LEN);
-
-    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
-
-    if (rs232_checksum((uint8_t *)tmp, MAX_FILENAME_LEN) != ck)
+    if (!transaction_get((uint8_t *)tmp, MAX_FILENAME_LEN))
     {
-        rs232_error();
+        transaction_error();
         return;
     }
+
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode,
+                 tmp);
 
     // Handle DISK slots
     if (slot < MAX_DISK_DEVICES)
     {
         memcpy(_fnDisks[cmdFrame.aux1].filename, tmp, MAX_FILENAME_LEN);
 
-        // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
-        if (strlen(_fnDisks[cmdFrame.aux1].filename) == 0) {
+        // If the filename is empty, mark this as an invalid host, so that mounting will ignore
+        // it too
+        if (strlen(_fnDisks[cmdFrame.aux1].filename) == 0)
+        {
             _fnDisks[cmdFrame.aux1].host_slot = INVALID_HOST_SLOT;
-        } else {
+        }
+        else
+        {
             _fnDisks[cmdFrame.aux1].host_slot = host;
         }
 
         _fnDisks[cmdFrame.aux1].access_mode = mode;
-        _populate_config_from_slots();
+        populate_config_from_slots();
     }
     // Handle TAPE slots
-    // else if (slot == BASE_TAPE_SLOT) // TODO? currently do not use this option for CAS image filenames
+    // else if (slot == BASE_TAPE_SLOT) // TODO? currently do not use this option for CAS image
+    // filenames
     // {
     //     // Just save the filename until we need it mount the tape
     //     // TODO: allow read and write options
-    //     Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ, fnConfig::MOUNTTYPE_TAPE);
+    //     Config.store_mount(0, host, tmp, fnConfig::mount_mode_t::MOUNTMODE_READ,
+    //     fnConfig::MOUNTTYPE_TAPE);
     // }
     // Bad slot
     else
     {
         Debug_println("BAD DEVICE SLOT");
-        rs232_error();
+        transaction_error();
         return;
     }
 
     Config.save();
-    rs232_complete();
-}
-
-// Get a 256 byte filename from device slot
-void rs232Fuji::rs232_get_device_filename()
-{
-    char tmp[MAX_FILENAME_LEN];
-    unsigned char err = false;
-
-    // AUX1 is the desired device slot
-    uint8_t slot = cmdFrame.aux1;
-
-    if (slot > 7)
-    {
-        err = true;
-    }
-
-    memcpy(tmp, _fnDisks[cmdFrame.aux1].filename, MAX_FILENAME_LEN);
-    bus_to_computer((uint8_t *)tmp, MAX_FILENAME_LEN, err);
+    transaction_complete();
 }
 
 // Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
@@ -1399,36 +581,7 @@ void rs232Fuji::rs232_set_rs232_external_clock()
         RS232.setUltraHigh(true, baudRate);
     }
 
-    rs232_complete();
-}
-
-// Mounts the desired boot disk number
-void rs232Fuji::insert_boot_device(uint8_t d)
-{
-    const char *config_atr = "/autorun.img";
-    const char *mount_all_atr = "/mount-and-boot.img";
-    fnFile *fBoot = nullptr;
-
-    Debug_printf("rs232Fuji::insert_boot_device(%u)\n",d);
-
-    _bootDisk.unmount();
-
-    switch (d)
-    {
-    case 0:
-        fBoot = fsFlash.fnfile_open(config_atr);
-        _bootDisk.mount(fBoot, config_atr, 368640);
-        break;
-    case 1:
-        fBoot = fsFlash.fnfile_open(mount_all_atr);
-        _bootDisk.mount(fBoot, mount_all_atr, 368640);
-        break;
-    }
-
-    Debug_printf("Mounted.\n");
-
-    _bootDisk.is_config_device = true;
-    _bootDisk.device_active = false;
+    transaction_complete();
 }
 
 // Set UDP Stream HOST & PORT and start it
@@ -1436,10 +589,8 @@ void rs232Fuji::rs232_enable_udpstream()
 {
     char host[64];
 
-    uint8_t ck = bus_to_peripheral((uint8_t *)&host, sizeof(host));
-
-    if (rs232_checksum((uint8_t *)&host, sizeof(host)) != ck)
-        rs232_error();
+    if (!transaction_get((uint8_t *)&host, sizeof(host)))
+        transaction_error();
     else
     {
         int port = (cmdFrame.aux1 << 8) | cmdFrame.aux2;
@@ -1451,41 +602,11 @@ void rs232Fuji::rs232_enable_udpstream()
         Config.store_udpstream_port(port);
         Config.save();
 
-        rs232_complete();
+        transaction_complete();
 
         // Start the UDP Stream
         RS232.setUDPHost(host, port);
     }
-}
-
-// Initializes base settings and adds our devices to the RS232 bus
-void rs232Fuji::setup(systemBus *rs232bus)
-{
-    // set up Fuji device
-    _rs232_bus = rs232bus;
-
-    _populate_slots_from_config();
-
-    insert_boot_device(Config.get_general_boot_mode());
-
-    // Disable booting from CONFIG if our settings say to turn it off
-    boot_config = Config.get_general_config_enabled();
-
-    //Disable status_wait if our settings say to turn it off
-    status_wait_enabled = Config.get_general_status_wait_enabled();
-
-    // Add our devices to the RS232 bus
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _rs232_bus->addDevice(&_fnDisks[i].disk_dev, RS232_DEVICEID_DISK + i);
-
-    for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        _rs232_bus->addDevice(&rs232NetDevs[i], RS232_DEVICEID_FN_NETWORK + i);
-
-}
-
-rs232Disk *rs232Fuji::bootdisk()
-{
-    return &_bootDisk;
 }
 
 void rs232Fuji::rs232_test()
@@ -1493,8 +614,8 @@ void rs232Fuji::rs232_test()
     uint8_t buf[512];
 
     Debug_printf("rs232_test()\n");
-    memset(buf,'A',512);
-    bus_to_computer(buf,512,false);
+    memset(buf, 'A', 512);
+    transaction_put(buf, 512, false);
 }
 
 void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
@@ -1510,15 +631,15 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_RESET:
         rs232_ack();
-        rs232_reset_fujinet();
+        fujicmd_reset();
         break;
     case FUJICMD_SCAN_NETWORKS:
         rs232_ack();
-        rs232_net_scan_networks();
+        fujicmd_net_scan_networks();
         break;
     case FUJICMD_GET_SCAN_RESULT:
         rs232_ack();
-        rs232_net_scan_result();
+        fujicmd_net_scan_result(cmdFrame.aux1);
         break;
     case FUJICMD_SET_SSID:
         rs232_ack();
@@ -1526,19 +647,19 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_GET_SSID:
         rs232_ack();
-        rs232_net_get_ssid();
+        fujicmd_net_get_ssid();
         break;
     case FUJICMD_GET_WIFISTATUS:
         rs232_ack();
-        rs232_net_get_wifi_status();
+        fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
         rs232_ack();
-        rs232_mount_host();
+        fujicmd_mount_host(cmdFrame.aux1);
         break;
     case FUJICMD_MOUNT_IMAGE:
         rs232_ack();
-        rs232_disk_image_mount();
+        fujicmd_disk_image_mount(cmdFrame.aux1, cmdFrame.aux2);
         break;
     case FUJICMD_OPEN_DIRECTORY:
         rs232_ack();
@@ -1550,31 +671,31 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_CLOSE_DIRECTORY:
         rs232_ack();
-        rs232_close_directory();
+        fujicmd_close_directory();
         break;
     case FUJICMD_GET_DIRECTORY_POSITION:
         rs232_ack();
-        rs232_get_directory_position();
+        fujicmd_get_directory_position();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
         rs232_ack();
-        rs232_set_directory_position();
+        fujicmd_set_directory_position(rs232_get_aux16_lo());
         break;
     case FUJICMD_READ_HOST_SLOTS:
         rs232_ack();
-        rs232_read_host_slots();
+        fujicmd_read_host_slots();
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
         rs232_ack();
-        rs232_write_host_slots();
+        fujicmd_write_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
         rs232_ack();
-        rs232_read_device_slots();
+        fujicmd_read_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
         rs232_ack();
-        rs232_write_device_slots();
+        fujicmd_write_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_GET_WIFI_ENABLED:
         rs232_ack();
@@ -1582,11 +703,11 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         rs232_ack();
-        rs232_disk_image_umount();
+        fujicmd_disk_image_umount(cmdFrame.aux1);
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
         rs232_ack();
-        rs232_get_adapter_config();
+        fujicmd_get_adapter_config();
         break;
     case FUJICMD_NEW_DISK:
         rs232_ack();
@@ -1602,7 +723,7 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_GET_HOST_PREFIX:
         rs232_ack();
-        rs232_get_host_prefix();
+        fujicmd_get_host_prefix(cmdFrame.aux1);
         break;
     case FUJICMD_WRITE_APPKEY:
         rs232_ack();
@@ -1622,11 +743,11 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
         rs232_ack();
-        rs232_get_device_filename();
+        fujicmd_get_device_filename(cmdFrame.aux1);
         break;
     case FUJICMD_CONFIG_BOOT:
         rs232_ack();
-        rs232_set_boot_config();
+        fujicmd_set_boot_config(cmdFrame.aux1);
         break;
     case FUJICMD_COPY_FILE:
         rs232_ack();
@@ -1634,11 +755,11 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_MOUNT_ALL:
         rs232_ack();
-        mount_all();
+        fujicmd_mount_all();
         break;
     case FUJICMD_SET_BOOT_MODE:
         rs232_ack();
-        rs232_set_boot_mode();
+        fujicmd_set_boot_mode(cmdFrame.aux1, IMAGE_EXTENSION, MEDIATYPE_UNKNOWN);
         break;
     case FUJICMD_ENABLE_UDPSTREAM:
         rs232_ack();
@@ -1652,24 +773,6 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
     default:
         rs232_nak();
     }
-}
-
-int rs232Fuji::get_disk_id(int drive_slot)
-{
-    return _fnDisks[drive_slot].disk_dev.id();
-}
-
-std::string rs232Fuji::get_host_prefix(int host_slot)
-{
-    return _fnHosts[host_slot].get_prefix();
-}
-
-// Public method to update host in specific slot
-fujiHost *rs232Fuji::set_slot_hostname(int host_slot, char *hostname)
-{
-    _fnHosts[host_slot].set_hostname(hostname);
-    _populate_config_from_slots();
-    return &_fnHosts[host_slot];
 }
 
 #endif /* BUILD_RS232 */
