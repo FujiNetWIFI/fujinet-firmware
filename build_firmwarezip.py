@@ -137,11 +137,57 @@ def makezip(source, target, env):
                     "offset": "0xA70000"
                 }
             ]
+        elif config[environment]['board'] == "esp32-s3-wroom-1-n16r8":
+            json_contents['files'] += [
+                {
+                    "filename": "bootloader.bin",
+                    "offset": "0x0000"
+                },
+                {
+                    "filename": "partitions.bin",
+                    "offset": "0x8000"
+                },
+                {
+                    "filename": "firmware.bin",
+                    "offset": "0x10000"
+                },
+                {
+                    "filename": "update.bin",
+                    "offset": "0xA10000"
+                },
+                {
+                    "filename": "littlefs.bin",
+                    "offset": "0xA70000"
+                }
+            ]
         elif config[environment]['board'] == "fujinet-v1-8mb":
             json_contents['files'] += [
                 {
                     "filename": "bootloader.bin",
                     "offset": "0x1000"
+                },
+                {
+                    "filename": "partitions.bin",
+                    "offset": "0x8000"
+                },
+                {
+                    "filename": "firmware.bin",
+                    "offset": "0x10000"
+                },
+                {
+                    "filename": "update.bin",
+                    "offset": "0x510000"
+                },
+                {
+                    "filename": "littlefs.bin",
+                    "offset": "0x570000"
+                }
+            ]
+        elif config[environment]['board'] == "esp32-s3-wroom-1-n16r8":
+            json_contents['files'] += [
+                {
+                    "filename": "bootloader.bin",
+                    "offset": "0x0000"
                 },
                 {
                     "filename": "partitions.bin",
