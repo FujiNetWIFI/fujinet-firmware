@@ -1,27 +1,11 @@
 #ifdef BUILD_APPLE
-#include <algorithm>
-#include <array>
-#include <functional>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-#include <cstring>
 
 #include "iwmFuji.h"
-
-#include "fujiCmd.h"
 #include "httpService.h"
 #include "fnSystem.h"
-#include "fnConfig.h"
 #include "led.h"
-#include "fnWiFi.h"
-#include "fsFlash.h"
-#include "fnFsTNFS.h"
 #include "utils.h"
-#include "string_utils.h"
-
-#include "compat_string.h"
+#include "../../qrcode/qrmanager.h"
 
 #include <endian.h>
 
@@ -58,7 +42,7 @@ iwmFuji::iwmFuji()
 
         { FUJICMD_CLOSE_DIRECTORY, [this]()            { this->fujicmd_close_directory(); }},          // 0xF5
         { FUJICMD_CONFIG_BOOT, [this]()                { this->fujicmd_set_boot_config(data_buffer[0]); }},          // 0xD9
-        { FUJICMD_COPY_FILE, [this]()                  { this->fujicmd_copy_file(data_buffer[0], data_buffer[1], (char *)&data_buffer[2]); }},                // 0xD8
+        { FUJICMD_COPY_FILE, [this]()                  { this->fujicmd_copy_file_success(data_buffer[0], data_buffer[1], (char *)&data_buffer[2]); }},                // 0xD8
         { FUJICMD_DISABLE_DEVICE, [this]()             { this->iwm_ctrl_disable_device(); }},           // 0xD4
         { FUJICMD_ENABLE_DEVICE, [this]()              { this->iwm_ctrl_enable_device(); }},            // 0xD5
         { FUJICMD_GET_SCAN_RESULT, [this]()            { this->fujicmd_net_scan_result(data_buffer[0]); }},          // 0xFC
@@ -74,18 +58,18 @@ iwmFuji::iwmFuji()
         { FUJICMD_QRCODE_ENCODE, [this]()              { this->iwm_ctrl_qrcode_encode(); }},            // 0xBD
         { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_ctrl_qrcode_output(); }},            // 0xBF
 
-        { FUJICMD_MOUNT_HOST, [this]()                 { this->fujicmd_mount_host(data_buffer[0]); }},               // 0xF9
+        { FUJICMD_MOUNT_HOST, [this]()                 { this->fujicmd_mount_host_success(data_buffer[0]); }},               // 0xF9
         { FUJICMD_NEW_DISK, [this]()                   { this->iwm_ctrl_new_disk(); }},                 // 0xE7
-        { FUJICMD_OPEN_APPKEY, [this]()                { this->iwm_ctrl_open_app_key(); }},             // 0xDC
-        { FUJICMD_READ_DIR_ENTRY, [this]()             { this->iwm_ctrl_read_directory_entry(); }},     // 0xF6
-        { FUJICMD_SET_BOOT_MODE, [this]()              { this->fujicmd_set_boot_mode(data_buffer[0], IMAGE_EXTENSION, MEDIATYPE_PO); }},            // 0xD6
-        { FUJICMD_SET_DEVICE_FULLPATH, [this]()        { this->iwm_ctrl_set_device_filename(); }},      // 0xE2
+        { FUJICMD_OPEN_APPKEY, [this]()                { this->fujicmd_open_app_key(); }},             // 0xDC
+        { FUJICMD_READ_DIR_ENTRY, [this]()             { this->fujicmd_read_directory_entry(data_buffer[0], data_buffer[1]); }},     // 0xF6
+        { FUJICMD_SET_BOOT_MODE, [this]()              { this->fujicmd_set_boot_mode(data_buffer[0], IMAGE_EXTENSION, MEDIATYPE_PO, get_disk_dev(0)); }},            // 0xD6
+        { FUJICMD_SET_DEVICE_FULLPATH, [this]()        { this->fujicmd_set_device_filename_success(data_buffer[0], data_buffer[1], data_buffer[2]); }},      // 0xE2
         { FUJICMD_SET_DIRECTORY_POSITION, [this]()     { this->fujicmd_set_directory_position(le16toh(*((uint16_t *) &data_buffer))); }},   // 0xE4
         { FUJICMD_SET_HOST_PREFIX, [this]()            { /* this->fujicmd_set_host_prefix(); */ }},          // 0xE1
-        { FUJICMD_SET_SSID, [this]()                   { this->fujicmd_net_set_ssid((const char *) data_buffer, (const char *) &data_buffer[MAX_SSID_LEN + 1], false); }},             // 0xFB
+        { FUJICMD_SET_SSID, [this]()                   { this->fujicmd_net_set_ssid_success((const char *) data_buffer, (const char *) &data_buffer[MAX_SSID_LEN + 1], false); }},             // 0xFB
         { FUJICMD_UNMOUNT_HOST, [this]()               { this->fujicmd_unmount_host(data_buffer[0]); }},             // 0xE6
         { FUJICMD_UNMOUNT_IMAGE, [this]()              { this->fujicmd_disk_image_umount(data_buffer[0]); }},        // 0xE9
-        { FUJICMD_WRITE_APPKEY, [this]()               { this->iwm_ctrl_write_app_key(); }},            // 0xDE
+        { FUJICMD_WRITE_APPKEY, [this]()               { this->fujicmd_write_app_key(data_len); }},            // 0xDE
         { FUJICMD_WRITE_DEVICE_SLOTS, [this]()         { this->fujicmd_write_device_slots(MAX_A2DISK_DEVICES); }},       // 0xF1
         { FUJICMD_WRITE_HOST_SLOTS, [this]()           { this->fujicmd_write_host_slots(); }},         // 0xF3
 
@@ -102,10 +86,10 @@ iwmFuji::iwmFuji()
 #endif
 
         { FUJICMD_MOUNT_ALL, [&]()                     {
-             err_result = (fujicmd_mount_all() ? SP_ERR_NOERROR : SP_ERR_IOERROR);
+             err_result = fujicmd_mount_all_success() ? SP_ERR_NOERROR : SP_ERR_IOERROR;
          }},          // 0xD7
-        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_disk_image_mount(data_buffer[0], data_buffer[1]) ? SP_ERR_NOERROR : SP_ERR_NODRIVE; }},  // 0xF8
-        { FUJICMD_OPEN_DIRECTORY, [&]()                { err_result = iwm_ctrl_open_directory(); }}     // 0xF7
+        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_disk_image_mount_success(data_buffer[0], data_buffer[1]) ? SP_ERR_NOERROR : SP_ERR_NODRIVE; }},  // 0xF8
+        { FUJICMD_OPEN_DIRECTORY, [&]()                { err_result = fujicmd_open_directory_success(data_buffer[0], (char *) &data_buffer[1], sizeof(data_buffer) - 1) ? SP_ERR_NOERROR : SP_ERR_IOERROR; }}     // 0xF7
     };
 
     status_handlers = {
@@ -129,20 +113,20 @@ iwmFuji::iwmFuji()
         { FUJICMD_GET_DEVICE6_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA5
         { FUJICMD_GET_DEVICE7_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA6
         { FUJICMD_GET_DEVICE8_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA7
-        { FUJICMD_GET_DIRECTORY_POSITION, [this]()     { this->iwm_stat_get_directory_position(); }},           // 0xE5
+        { FUJICMD_GET_DIRECTORY_POSITION, [this]()     { this->fujicmd_get_directory_position(); }},           // 0xE5
         { FUJICMD_GET_HOST_PREFIX, [this]()            { /* this->fujicmd_get_host_prefix(); */ }},                  // 0xE0
         { FUJICMD_GET_SCAN_RESULT, [this]()            { this->iwm_stat_net_scan_result(); }},                  // 0xFC
         { FUJICMD_GET_SSID, [this]()                   { this->fujicmd_net_get_ssid(); }},                     // 0xFE
         { FUJICMD_GET_WIFI_ENABLED, [this]()           { this->iwm_stat_get_wifi_enabled(); }},                 // 0xEA
         { FUJICMD_GET_WIFISTATUS, [this]()             { this->fujicmd_net_get_wifi_status(); }},              // 0xFA
-        { FUJICMD_READ_APPKEY, [this]()                { this->iwm_stat_read_app_key(); }},                     // 0xDD
+        { FUJICMD_READ_APPKEY, [this]()                { this->fujicmd_read_app_key(); }},                     // 0xDD
         { FUJICMD_READ_DEVICE_SLOTS, [this]()          { this->fujicmd_read_device_slots(MAX_A2DISK_DEVICES); }},                // 0xF2
-        { FUJICMD_READ_DIR_ENTRY, [this]()             { this->iwm_stat_read_directory_entry(); }},             // 0xF6
+        { FUJICMD_READ_DIR_ENTRY, [this]()             { /* this->iwm_stat_read_directory_entry(); */ }},             // 0xF6
         { FUJICMD_READ_HOST_SLOTS, [this]()            { this->fujicmd_read_host_slots(); }},                  // 0xF4
         { FUJICMD_SCAN_NETWORKS, [this]()              { this->fujicmd_net_scan_networks(); }},                // 0xFD
         { FUJICMD_QRCODE_LENGTH, [this]()              { this->iwm_stat_qrcode_length(); }},                    // 0xBE
         { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_stat_qrcode_output(); }},                    // 0xBE
-        { FUJICMD_STATUS, [this]()                     { this->iwm_stat_fuji_status(); }},                      // 0x53
+        { FUJICMD_STATUS, [this]()                     { this->fujicmd_status(); }},                      // 0x53
         { FUJICMD_GET_HEAP, [this]()                   { this->iwm_stat_get_heap(); }},                         // 0xC1
     };
 
@@ -212,279 +196,25 @@ void iwmFuji::iwm_stat_net_scan_result() // SP STATUS command
 	data_len = sizeof(detail);
 } // 0xFC
 
-char *_generate_appkey_filename(appkey *info)
-{
-	static char filenamebuf[30];
-
-	snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
-	return filenamebuf;
-}
-
-#error "Why isn't this using fujiDevice app_key methods?"
-/*
- Opens an "app key" for reading/writing - stores appkey name for subsequent read/write calls
-*/
-void iwmFuji::iwm_ctrl_open_app_key()
-{
-	int idx = 0;
-	FILE *fp;
-	uint8_t creatorL = data_buffer[idx++];
-	uint8_t creatorM = data_buffer[idx++];
-	uint8_t app = data_buffer[idx++];
-	uint8_t key = data_buffer[idx++];
-	uint8_t mode = data_buffer[idx++];
-
-	snprintf(_appkeyfilename, sizeof(_appkeyfilename), "/FujiNet/%02hhx%02hhx%02hhx%02hhx.key", creatorM, creatorL, app, key);
-	Debug_printf("\r\nFuji Cmd: OPEN APPKEY %s in mode %i\n", _appkeyfilename, mode);
-
-	// If reading, we will update the control stat length for the subsequent read_app_key status call
-	if (mode == 1) return;	// write mode
-
-	// set the appkey_size according to the mode, if mode is unknown, default to 64
-	appkey_size = get_value_or_default(mode_to_keysize, mode, 64);
-
-	fp = fnSDFAT.file_open(_appkeyfilename, "r");
-	if (fp == nullptr)
-	{
-		Debug_printf("iwm_ctrl_open_app_key ERROR: Could not read from SD Card.\r\n");
-
-		// Set stat buffer to 0 to signify the app key was not found
-		ctrl_stat_len=0;
-		return;
-	}
-
-	// don't need to do this if we're returning exact number of bytes
-	// // Clear out stat buffer before reading into it
-	// memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
-
-	// Read in the app key file data, to be sent in read_app_key call
-	ctrl_stat_len = fread(ctrl_stat_buffer, sizeof(char), appkey_size, fp);
-	fclose(fp);
-
-}
-
-/*
- Write an "app key" to SD (ONLY!) storage.
-*/
-void iwmFuji::iwm_ctrl_write_app_key()
-{
-	FILE *fp;
-    std::vector<uint8_t> data(appkey_size, 0);
-    std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
-
-	Debug_printf("\r\nFuji Cmd: WRITE APPKEY\n");
-
-
-	// Make sure we have a "/FujiNet" directory, since that's where we're putting these files
-	fnSDFAT.create_path("/FujiNet");
-
-	fp = fnSDFAT.file_open(_appkeyfilename, "w");
-	if (fp == nullptr)
-	{
-		Debug_printf("iwm_ctrl_write_app_key ERROR: Could not write to SD Card.\r\n");
-		return;
-	}
-
-	fwrite(data.data(), sizeof(uint8_t), data_len, fp);
-	fclose(fp);
-}
-
-/*
- Read an "app key" from SD (ONLY!) storage
-*/
-void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the open() control command
-{
-	Debug_printf("\r\nFuji cmd: READ APP KEY");
-
-	memset(data_buffer, 0, sizeof(data_buffer));
-	memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
-	data_len = ctrl_stat_len;
-}
-
 //==============================================================================================================================
 
-uint8_t iwmFuji::iwm_ctrl_open_directory()
+void iwmFuji::fujicmd_read_directory_entry(uint8_t maxlen, uint8_t addtl)
 {
-	Debug_printf("\r\nFuji cmd: OPEN DIRECTORY");
+    fujiDevice::fujicmd_read_directory_entry(maxlen, addtl);
 
-	uint8_t err_result = SP_ERR_NOERROR;
+    // Hack-o-rama to add file type character to beginning of
+    // path. - this was for Adam, but must keep for CONFIG
+    // compatability; in Apple 2 config will somehow have to work
+    // around these extra chars
 
-	int idx = 0;
-	uint8_t hostSlot = data_buffer[idx++]; // adamnet_recv();
+    // NOTE: Atari *does not* need this hack! Maybe Apple II CONFIG
+    // should be fixed instead?
 
-	uint16_t s = data_len - 1; // two strings but not the slot number
-
-	memcpy((uint8_t *)&dirpath, (uint8_t *)&data_buffer[idx], s); // adamnet_recv_buffer((uint8_t *)&dirpath, s);
-
-	if (_current_open_directory_slot == -1)
-	{
-		// See if there's a search pattern after the directory path
-		const char *pattern = nullptr;
-		int pathlen = strnlen(dirpath, s);
-		if (pathlen < s - 3) // Allow for two NULLs and a 1-char pattern
-		{
-			pattern = dirpath + pathlen + 1;
-			int patternlen = strnlen(pattern, s - pathlen - 1);
-			if (patternlen < 1)
-				pattern = nullptr;
-		}
-
-		// Remove trailing slash
-		if (pathlen > 1 && dirpath[pathlen - 1] == '/')
-			dirpath[pathlen - 1] = '\0';
-
-		Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
-
-		if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-			_current_open_directory_slot = hostSlot;
-		else
-			err_result = SP_ERR_IOERROR;
-	}
-	return err_result;
-}
-
-void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
-{
-	// File modified date-time
-	struct tm *modtime = localtime(&f->modified_time);
-	modtime->tm_mon++;
-	modtime->tm_year -= 100;
-
-	dest[0] = modtime->tm_year;
-	dest[1] = modtime->tm_mon;
-	dest[2] = modtime->tm_mday;
-	dest[3] = modtime->tm_hour;
-	dest[4] = modtime->tm_min;
-	dest[5] = modtime->tm_sec;
-
-	// File size
-	uint32_t fsize = f->size;
-	dest[6] = fsize & 0xFF;
-	dest[7] = (fsize >> 8) & 0xFF;
-	dest[8] = (fsize >> 16) & 0xFF;
-	dest[9] = (fsize >> 24) & 0xFF;
-
-	// File flags
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
-
-	dest[10] = f->isDir ? FF_DIR : 0;
-
-	maxlen -= ADDITIONAL_DETAILS_BYTES; // Adjust the max return value with the number of additional bytes we're copying
-	if (f->isDir)						// Also subtract a byte for a terminating slash on directories
-		maxlen--;
-	if (strlen(f->filename) >= maxlen)
-		dest[11] |= FF_TRUNC;
-
-	// File type
-	dest[12] = MediaType::discover_mediatype(f->filename);
-
-	Debug_printf("Addtl: ");
-	for (int i = 0; i < ADDITIONAL_DETAILS_BYTES; i++)
-		Debug_printf("%02x ", dest[i]);
-	Debug_printf("\n");
-}
-
-void iwmFuji::iwm_ctrl_read_directory_entry()
-{
-	uint8_t maxlen = data_buffer[0];
-	uint8_t addtl = data_buffer[1];
-
-	// if (response[0] == 0x00) // to do - figure out the logic here?
-	// {
-	Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
-
-	fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-
-	if (f != nullptr)
-	{
-		Debug_printf("::read_direntry \"%s\"\n", f->filename);
-
-		int bufsize = sizeof(dirpath);
-		char *filenamedest = dirpath;
-
-		// If 0x80 is set on AUX2, send back additional information
-		if (addtl & 0x80)
-		{
-			_set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
-			// Adjust remaining size of buffer and file path destination
-			bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
-			filenamedest = dirpath + ADDITIONAL_DETAILS_BYTES;
-		}
-		else
-		{
-			bufsize = maxlen;
-		}
-
-		int filelen;
-		// int filelen = strlcpy(filenamedest, f->filename, bufsize);
-		if (maxlen < 128)
-		{
-			filelen = util_ellipsize(f->filename, filenamedest, bufsize - 1);
-		}
-		else
-		{
-			filelen = strlcpy(filenamedest, f->filename, bufsize);
-		}
-
-		// Add a slash at the end of directory entries
-		if (f->isDir && filelen < (bufsize - 2))
-		{
-			dirpath[filelen] = '/';
-			dirpath[filelen + 1] = '\0';
-			Debug_printf("::entry is dir - %s\n", dirpath);
-		}
-		// Hack-o-rama to add file type character to beginning of path. - this was for Adam, but must keep for CONFIG compatability
-		// in Apple 2 config will somehow have to work around these extra char's
-		if (maxlen == DIR_MAX_LEN)
-		{
-			memmove(&dirpath[2], dirpath, 254);
-			// if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
-			// {
-			//     dirpath[0] = 0x85;
-			//     dirpath[1] = 0x86;
-			// }
-			// else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
-			// {
-			//     dirpath[0] = 0x87;
-			//     dirpath[1] = 0x88;
-			// }
-			// else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
-			// {
-			//     dirpath[0] = 0x89;
-			//     dirpath[1] = 0x8a;
-			// }
-			// else if (strstr(dirpath, "/"))
-			// {
-			//     dirpath[0] = 0x83;
-			//     dirpath[1] = 0x84;
-			// }
-			// else
-			dirpath[0] = dirpath[1] = 0x20;
-		}
-	}
-	else
-	{
-		Debug_println("Reached end of of directory");
-		dirpath[0] = 0x7F;
-		dirpath[1] = 0x7F;
-	}
-	memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
-	memcpy(ctrl_stat_buffer, dirpath, maxlen);
-	ctrl_stat_len = maxlen;
-	// }
-	// else
-	// {
-	//     AdamNet.start_time = esp_timer_get_time();
-	//     adamnet_response_ack();
-	// }
-}
-
-void iwmFuji::iwm_stat_read_directory_entry()
-{
-	Debug_printf("\r\nFuji cmd: READ DIRECTORY ENTRY");
-	memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
-	data_len = ctrl_stat_len;
+    if (data_buffer[0] != 0x7F && data_buffer[1] != 0x7F && maxlen == DIR_MAX_LEN)
+    {
+        memmove(&data_buffer[2], data_buffer, maxlen - 2);
+        data_buffer[0] = data_buffer[1] = 0x20;
+    }
 }
 
 void iwmFuji::iwm_stat_get_heap()
@@ -605,7 +335,8 @@ void iwmFuji::setup(systemBus *sysbus)
 	}
 
 	Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
-        insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_PO);
+        insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION,
+                           MEDIATYPE_PO, get_disk_dev(0));
 
 }
 

@@ -46,11 +46,6 @@ private:
         {2, 256}
     };
 
-    uint8_t ctrl_stat_buffer[767]; // what is proper length
-    size_t ctrl_stat_len = 0; // max payload length is 767
-
-    char dirpath[256];
-
     std::unordered_map<uint8_t, IWMCmdHandlers> command_handlers;
     std::unordered_map<uint8_t, IWMControlHandlers> control_handlers;
     std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
@@ -75,18 +70,8 @@ protected:
     void iwm_dummy_command();                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
     void iwm_stat_net_scan_result();              // status 0xFC
-    uint8_t iwm_ctrl_open_directory();            // 0xF7
-    void iwm_ctrl_read_directory_entry();         // 0xF6
-    void iwm_stat_read_directory_entry();         // 0xF6
-
     void iwm_stat_get_wifi_enabled();             // 0xEA
     void iwm_ctrl_new_disk();                     // 0xE7
-
-    void iwm_ctrl_write_app_key();                // 0xDE
-    void iwm_ctrl_read_app_key();                 // 0xDD - control
-    void iwm_stat_read_app_key();                 // 0xDD - status
-    void iwm_ctrl_open_app_key();                 // 0xDC
-
     void iwm_ctrl_enable_device();                // 0xD5
     void iwm_ctrl_disable_device();               // 0xD4
     void send_stat_get_enable();                  // 0xD1
@@ -105,14 +90,13 @@ protected:
     void iwm_ctrl_qrcode_output();                // 0xBF
     void iwm_stat_qrcode_output();                // 0xBF
 
-    void iwm_stat_fuji_status();                  // 0x53
-
     void process(iwm_decoded_cmd_t cmd) override;
 
     void iwm_ctrl(iwm_decoded_cmd_t cmd) override;
     void iwm_open(iwm_decoded_cmd_t cmd) override;
     void iwm_close(iwm_decoded_cmd_t cmd) override;
     void iwm_read(iwm_decoded_cmd_t cmd) override;
+    void iwm_status(iwm_decoded_cmd_t cmd) override;
 
     void send_status_reply_packet() override;
     void send_status_dib_reply_packet() override;
@@ -145,6 +129,7 @@ public:
     // ============ Wrapped Fuji commands ============
     void fujicmd_reset() override;
     void fujicmd_close_directory() override;
+    void fujicmd_read_directory_entry(uint8_t maxlen, uint8_t addtl) override;
 };
 
 extern iwmFuji platformFuji;

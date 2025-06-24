@@ -256,6 +256,8 @@ protected:
 
 public:
   bool device_active;
+  bool switched = false; //indicate disk switched condition
+  bool readonly = true;  //write protected
   uint8_t prevtype = SP_TYPE_BYTE_HARDDISK; //preserve previous device type when offline
   bool is_config_device;
   /**
@@ -355,6 +357,9 @@ public:
   bool getShuttingDown() { return shuttingDown; };
   bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
 
+  // For compatibility with other platforms, used by fujiDevice.cpp
+  void setUDPHost(const char *newhost, int port);
+  void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 };
 
 extern systemBus IWM;
