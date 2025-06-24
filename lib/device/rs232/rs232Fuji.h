@@ -1,5 +1,7 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifdef BUILD_RS232
+#ifndef RS232_FUJI_H
+#define RS232_FUJI_H
+#include "fujiDevice.h"
 
 #include <cstdint>
 #include <cstring>
@@ -25,37 +27,7 @@
 
 #define STATUS_MOUNT_TIME       0x01
 
-typedef struct
-{
-    char ssid[33];
-    char hostname[64];
-    unsigned char localIP[4];
-    unsigned char gateway[4];
-    unsigned char netmask[4];
-    unsigned char dnsIP[4];
-    unsigned char macAddress[6];
-    unsigned char bssid[6];
-    char fn_verrs232n[15];
-} AdapterConfig;
-
-enum appkey_mode : int8_t
-{
-    APPKEYMODE_INVALID = -1,
-    APPKEYMODE_READ = 0,
-    APPKEYMODE_WRITE,
-    APPKEYMODE_READ_256
-};
-
-struct appkey
-{
-    uint16_t creator = 0;
-    uint8_t app = 0;
-    uint8_t key = 0;
-    appkey_mode mode = APPKEYMODE_INVALID;
-    uint8_t reserved = 0;
-} __attribute__((packed));
-
-class rs232Fuji : public virtualDevice
+class rs232Fuji : public fujiDevice
 {
 private:
     systemBus *_rs232_bus;
@@ -151,4 +123,5 @@ public:
 
 extern rs232Fuji theFuji;
 
-#endif // FUJI_H
+#endif /* RS232_FUJI_H */
+#endif /* BUILD_RS232 */

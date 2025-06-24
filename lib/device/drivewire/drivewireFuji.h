@@ -1,5 +1,7 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef DRIVEWIREFUJI_H
+#define DRIVEWIREFUJI_H
+
+#include "fujiDevice.h"
 
 #include <cstdint>
 #include <cstring>
@@ -81,7 +83,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class drivewireFuji : public virtualDevice
+class drivewireFuji : public fujiDevice
 {
 private:
     systemBus *_drivewire_bus = nullptr;
@@ -210,4 +212,4 @@ public:
 
 extern drivewireFuji theFuji;
 
-#endif // FUJI_H
+#endif // DRIVEWIREFUJI_H
