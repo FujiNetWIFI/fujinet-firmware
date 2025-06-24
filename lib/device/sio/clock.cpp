@@ -58,7 +58,7 @@ void sioClock::set_alternate_tz()
 void sioClock::sio_process(uint32_t commanddata, uint8_t checksum)
 {
     cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
+    cmdFrame.cksum = checksum;
 
     // cmdFrame.aux1 = 0x01 means use alternate TZ if it exists, any other value would use system TZ
     bool use_alternate_tz = cmdFrame.aux1 == 0x01;

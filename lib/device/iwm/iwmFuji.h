@@ -11,8 +11,6 @@
 #include "iwm/cpm.h"
 #include "iwm/clock.h"
 
-#include "hash.h"
-
 #define MAX_SPDISK_DEVICES 4
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
 #define MAX_A2DISK_DEVICES (MAX_SPDISK_DEVICES + MAX_DISK2_DEVICES)
@@ -57,7 +55,6 @@ private:
     std::unordered_map<uint8_t, IWMControlHandlers> control_handlers;
     std::unordered_map<uint8_t, IWMStatusHandlers> status_handlers;
 
-    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
     bool hash_is_hex_output = false;
 
 protected:
@@ -83,11 +80,7 @@ protected:
     void iwm_stat_read_directory_entry();         // 0xF6
 
     void iwm_stat_get_wifi_enabled();             // 0xEA
-    void iwm_stat_get_adapter_config_extended();  // 0xC4 (additional cmd data)
     void iwm_ctrl_new_disk();                     // 0xE7
-
-    void iwm_stat_get_directory_position();       // 0xE5
-    uint8_t iwm_ctrl_set_device_filename();       // 0xE2
 
     void iwm_ctrl_write_app_key();                // 0xDE
     void iwm_ctrl_read_app_key();                 // 0xDD - control
@@ -120,7 +113,6 @@ protected:
     void iwm_open(iwm_decoded_cmd_t cmd) override;
     void iwm_close(iwm_decoded_cmd_t cmd) override;
     void iwm_read(iwm_decoded_cmd_t cmd) override;
-    void iwm_status(iwm_decoded_cmd_t cmd) override;
 
     void send_status_reply_packet() override;
     void send_status_dib_reply_packet() override;

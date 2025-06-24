@@ -6,7 +6,47 @@
 #include "fsFlash.h"
 #include "fnFsTNFS.h"
 
+#include "utils.h"
+#include "directoryPageGroup.h"
+
 #include <endian.h>
+
+#define ADDITIONAL_DETAILS_BYTES 10
+
+void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+{
+    // File modified date-time
+    struct tm *modtime = localtime(&f->modified_time);
+    modtime->tm_mon++;
+    modtime->tm_year -= 70;
+
+    dest[0] = modtime->tm_year;
+    dest[1] = modtime->tm_mon;
+    dest[2] = modtime->tm_mday;
+    dest[3] = modtime->tm_hour;
+    dest[4] = modtime->tm_min;
+    dest[5] = modtime->tm_sec;
+
+    // File size
+    uint16_t fsize = f->size;
+    dest[6] = LOBYTE_FROM_UINT16(fsize);
+    dest[7] = HIBYTE_FROM_UINT16(fsize);
+
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
+
+    dest[8] = f->isDir ? FF_DIR : 0;
+
+    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
+    if (f->isDir) // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    if (strlen(f->filename) >= maxlen)
+        dest[8] |= FF_TRUNC;
+
+    // File type
+    dest[9] = MediaType::discover_disktype(f->filename);
+}
 
 // Constructor
 fujiDevice::fujiDevice()
@@ -156,11 +196,6 @@ void fujiDevice::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
-// DEBUG TAPE
-void fujiDevice::debug_tape()
-{
-}
-
 // Disk Image Rotate
 /*
   We rotate disks my changing their disk device ID's. That prevents
@@ -172,7 +207,7 @@ void fujiDevice::fujicmd_image_rotate()
 
     int count = 0;
     // Find the first empty slot
-    while (_fnDisks[count].fileh != nullptr)
+    while (_fnDisks[count].fileh != nullptr && count < MAX_DISK_DEVICES)
         count++;
 
     if (count > 1)
@@ -370,16 +405,22 @@ bool fujiDevice::fujicmd_net_set_ssid(const char *ssid, const char *password, bo
     return true;
 }
 
+// Check if Wifi is enabled
+void fujiDevice::fujicmd_net_get_wifi_enabled()
+{
+    uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
+    Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n", e);
+    transaction_put(&e, sizeof(e), false);
+}
+
 // Disk Image Mount
 bool fujiDevice::fujicmd_disk_image_mount(uint8_t deviceSlot, uint8_t options)
 {
-#ifdef BUILD_RS232
     // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
     // to the C: device. Everything stays the same here and the mounting
     // where all the magic happens is done in the rs232Disk::mount() function.
     // This function opens the file, so cassette does not need to open the file.
     // Cassette needs the file pointer and file size.
-#endif /* BUILD_RS232 */
 
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
@@ -408,6 +449,9 @@ bool fujiDevice::fujicmd_disk_image_mount(uint8_t deviceSlot, uint8_t options)
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
+
+    // TODO: Refactor along with mount disk image.
+    disk.disk_dev.host = &host;
 
     disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
@@ -479,6 +523,58 @@ void fujiDevice::insert_boot_device(uint8_t image_id, std::string extension,
     disk_dev->is_config_device = true;
 }
 
+void fujiDevice::fujicmd_open_directory()
+{
+    Debug_println("Fuji cmd: OPEN DIRECTORY");
+
+    char dirpath[256];
+    uint8_t hostSlot = cmdFrame.aux1;
+    if (!transaction_get(&dirpath, sizeof(dirpath)))
+    {
+        transaction_error();
+        return;
+    }
+    if (!validate_host_slot(hostSlot))
+    {
+        transaction_error();
+        return;
+    }
+
+    // If we already have a directory open, close it first
+    if (_current_open_directory_slot != -1)
+    {
+        Debug_print("Directory was already open - closing it first\n");
+        _fnHosts[_current_open_directory_slot].dir_close();
+        _current_open_directory_slot = -1;
+    }
+
+    // See if there's a search pattern after the directory path
+    const char *pattern = nullptr;
+    int pathlen = strnlen(dirpath, sizeof(dirpath));
+    if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
+    {
+        pattern = dirpath + pathlen + 1;
+        int patternlen = strnlen(pattern, sizeof(dirpath) - pathlen - 1);
+        if (patternlen < 1)
+            pattern = nullptr;
+    }
+
+    // Remove trailing slash
+    if (pathlen > 1 && dirpath[pathlen - 1] == '/')
+        dirpath[pathlen - 1] = '\0';
+
+    Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath,
+                 pattern ? pattern : "");
+
+    if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
+    {
+        _current_open_directory_slot = hostSlot;
+        transaction_complete();
+    }
+    else
+        transaction_error();
+}
+
 void fujiDevice::fujicmd_close_directory()
 {
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
@@ -488,6 +584,231 @@ void fujiDevice::fujicmd_close_directory()
 
     _current_open_directory_slot = -1;
     transaction_complete();
+}
+
+/*
+ * Read directory entries in block mode
+ * 
+ * Input parameters:
+ * aux1: Number of 256-byte pages to return (determines maximum response size)
+ * aux2: Lower 6 bits define the number of entries per page group
+ * 
+ * Response format:
+ * Overall response header:
+ * Byte  0    : 'M' (Magic number byte 1)
+ * Byte  1    : 'F' (Magic number byte 2)
+ * Byte  2    : Header size (4)
+ * Byte  3    : Number of page groups that follow
+ * 
+ * Followed by one or more complete PageGroups, padded to aux1 * 256 bytes.
+ * Each PageGroup must fit entirely within the response - partial groups are not allowed.
+ * If a PageGroup would exceed the remaining space, the directory position is rewound
+ * and that group is not included.
+ * 
+ * PageGroup structure:
+ * Byte  0    : Flags
+ *              - Bit 7: Last group (1=yes, 0=no)
+ *              - Bits 6-0: Reserved
+ * Byte  1    : Number of directory entries in this group
+ * Bytes 2-3  : Group data size (16-bit little-endian, excluding header)
+ * Byte  4    : Group index (0-based, calculated as dir_pos/group_size)
+ * Bytes 5+   : File/Directory entries for this group
+ *              Each entry:
+ *              - Bytes 0-3: Packed timestamp and flags
+ *                          - Byte 0: Years since 1970 (0-255)
+ *                          - Byte 1: FFFF MMMM (4 bits flags, 4 bits month 1-12)
+ *                                   Flags: bit 7 = directory, bits 6-4 reserved
+ *                          - Byte 2: DDDDD HHH (5 bits day 1-31, 3 high bits of hour)
+ *                          - Byte 3: HH mmmmmm (2 low bits hour 0-23, 6 bits minute 0-59)
+ *              - Bytes 4-6: File size (24-bit little-endian, 0 for directories)
+ *              - Byte  7  : Media type (0-255, with 0=unknown)
+ *              - Bytes 8+ : Null-terminated filename
+ * 
+ * The last PageGroup in the response will have its last_group flag set if:
+ * a) There are no more directory entries to process, or
+ * b) The next PageGroup would exceed the maximum response size
+ */
+void fujiDevice::fujicmd_read_directory_block()
+{
+    Debug_println("Fuji cmd: READ DIRECTORY BLOCK");
+
+    uint8_t num_pages = cmdFrame.aux1;
+    uint8_t group_size = cmdFrame.aux2 & 0x3F; // Lower 6 bits define group size
+    size_t max_block_size = num_pages * 256;
+
+    // Debug_printf("Parameters: aux1=$%02X (pages=%d), aux2=$%02X (group_size=%d), max_block_size=%d\n",
+    //              cmdFrame.aux1, num_pages, cmdFrame.aux2, group_size, max_block_size);
+
+#ifdef WE_NEED_TO_REWIND
+    // Save current directory position in case we need to rewind
+    uint16_t starting_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+#endif /* WE_NEED_TO_REWIND */
+    // Debug_printf("Starting directory position: %d\n", starting_pos);
+    
+    std::vector<DirectoryPageGroup> page_groups;
+    size_t total_size = 0;
+    bool is_last_entry = false;
+
+    while (!is_last_entry) {
+        // Create a new page group
+        DirectoryPageGroup group;
+        uint16_t group_start_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+        
+        // Calculate group index (0-based)
+        group.index = group_start_pos / group_size;
+        
+        // Debug_printf("Starting new group at directory position: %d (index=%d)\n", 
+        //              group_start_pos, group.index);
+        
+        // Fill the group with entries
+        for (int i = 0; i < group_size && !is_last_entry; i++) {
+            fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+            
+            if (f == nullptr) {
+                // Debug_println("Reached end of directory");
+                is_last_entry = true;
+                group.is_last_group = true;
+                break;
+            }
+
+            // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n", 
+            //             i, f->filename, f->size);
+            
+            if (!group.add_entry(f)) {
+                // Debug_println("Failed to add entry to group");
+                break;
+            }
+        }
+
+        // If this is the last group, mark its last entry as the last one
+        if (is_last_entry) {
+            Debug_println("This is the last group in the directory");
+            group.is_last_group = true;
+        }
+
+        // this sets all the data for the group up correctly for us to insert into the block
+        group.finalize();
+
+        // Check if adding this group would exceed max_block_size
+        size_t new_total = total_size + group.data.size();
+        // Debug_printf("Group stats: entries=%d, size=%d, new_total=%d/%d\n",
+        //             group.entry_count, group.data.size(), new_total, max_block_size);
+        
+        if (new_total > max_block_size) {
+            // Debug_printf("Group would exceed max_block_size (%d > %d), rewinding to pos %d\n",
+            //            new_total, max_block_size, group_start_pos);
+            // Rewind to start of this group and break
+            _fnHosts[_current_open_directory_slot].dir_seek(group_start_pos);
+            break;
+        }
+        
+        // Add group to our collection
+        total_size = new_total;
+        page_groups.push_back(std::move(group));
+        // Debug_printf("Added group %d, total_size now %d\n", 
+        //             page_groups.size(), total_size);
+    }
+
+    // If we couldn't fit any groups, return error
+    if (page_groups.empty()) {
+        Debug_println("No page groups fit in requested size");
+        Debug_printf("Final stats: total_size=%d, max_block_size=%d\n",
+                    total_size, max_block_size);
+        transaction_error();
+        return;
+    }
+
+    // Create final response buffer
+    std::vector<uint8_t> response(max_block_size, 0);  // Initialize with zeros at full size
+
+    // Add response header
+    response[0] = 'M';  // Magic byte 1
+    response[1] = 'F';  // Magic byte 2
+    response[2] = 4;    // Header size (magic + size + count)
+    response[3] = page_groups.size(); // Number of page groups that follow
+
+    // Copy all page groups to response
+    size_t current_pos = 4;  // Start after header
+    for (const auto& group : page_groups) {
+        if (current_pos + group.data.size() <= max_block_size) {
+            std::copy(group.data.begin(), group.data.end(), response.begin() + current_pos);
+            current_pos += group.data.size();
+        }
+    }
+
+    // Debug_printf("Directory block stats:\n");
+    // Debug_printf("  Number of groups: %d\n", page_groups.size());
+    // Debug_printf("  Total data size: %d bytes\n", total_size);
+    // Debug_printf("  Last group: %s\n", (page_groups.back().is_last_group ? "Yes" : "No"));
+    // Debug_printf("Full response block:\n%s\n", util_hexdump(response.data(), response.size()).c_str());
+
+    transaction_put(response.data(), response.size(), false);
+}
+
+void fujiDevice::fujicmd_read_directory_entry(uint8_t maxlen, uint8_t aux2)
+{
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
+
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("READ DIRECTORY ENTRY: No currently open directory\n");
+        transaction_error();
+        return;
+    }
+    
+    // detect block mode in request
+    if ((aux2 & 0xC0) == 0xC0) {
+        fujicmd_read_directory_block();
+        return;
+    }
+
+    char current_entry[256];
+
+    fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+
+    if (f == nullptr)
+    {
+        Debug_println("Reached end of of directory");
+        current_entry[0] = 0x7F;
+        current_entry[1] = 0x7F;
+    }
+    else
+    {
+        Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+        int bufsize = sizeof(current_entry);
+        char *filenamedest = current_entry;
+
+        // If 0x80 is set on AUX2, send back additional information
+        if (cmdFrame.aux2 & 0x80)
+        {
+            _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+            // Adjust remaining size of buffer and file path destination
+#ifndef BUILD_SIO
+            bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
+#else /* BUILD_SIO */
+            bufsize = maxlen - ADDITIONAL_DETAILS_BYTES;
+#endif /* BUILD_SIO */
+            filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
+        }
+        else
+        {
+            bufsize = maxlen;
+        }
+
+        // int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
+
+        // Add a slash at the end of directory entries
+        if (f->isDir && filelen < (bufsize - 2))
+        {
+            current_entry[filelen] = '/';
+            current_entry[filelen + 1] = '\0';
+        }
+    }
+
+    transaction_put((uint8_t *)current_entry, maxlen, false);
 }
 
 bool fujiDevice::fujicmd_copy_file(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec)
@@ -628,6 +949,45 @@ void fujiDevice::fujicmd_get_adapter_config()
     transaction_put(&cfg, sizeof(cfg));
 }
 
+void fujiDevice::fujicmd_get_adapter_config_extended()
+{
+    // also return string versions of the data to save the host some computing
+    Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
+    AdapterConfigExtended cfg;
+    memset(&cfg, 0, sizeof(cfg)); // ensures all strings are null terminated
+
+    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
+
+    if (!fnWiFi.connected())
+    {
+        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
+    }
+    else
+    {
+        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
+        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
+        fnWiFi.get_current_bssid(cfg.bssid);
+        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
+    }
+
+    fnWiFi.get_mac(cfg.macAddress);
+
+    // convert fields to strings
+    strlcpy(cfg.sLocalIP, fnSystem.Net.get_ip4_address_str().c_str(), 16);
+    strlcpy(cfg.sGateway, fnSystem.Net.get_ip4_gateway_str().c_str(), 16);
+    strlcpy(cfg.sDnsIP, fnSystem.Net.get_ip4_dns_str().c_str(), 16);
+    strlcpy(cfg.sNetmask, fnSystem.Net.get_ip4_mask_str().c_str(), 16);
+
+    snprintf(cfg.sMacAddress, sizeof(cfg.sMacAddress), "%02X:%02X:%02X:%02X:%02X:%02X",
+             cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3],
+             cfg.macAddress[4], cfg.macAddress[5]);
+    snprintf(cfg.sBssid, sizeof(cfg.sBssid), "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0],
+             cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
+
+    transaction_put((uint8_t *)&cfg, sizeof(cfg), false);
+}
+
 // Get a 256 byte filename from device slot
 void fujiDevice::fujicmd_get_device_filename(uint8_t slot)
 {
@@ -644,6 +1004,49 @@ void fujiDevice::fujicmd_get_device_filename(uint8_t slot)
         err = true;
 
     transaction_put(buf, buflen, err);
+}
+
+// Write a 256 byte filename to the device slot
+bool fujiDevice::fujicmd_set_device_filename(uint8_t deviceSlot, uint8_t host, uint8_t mode)
+{
+    char tmp[MAX_FILENAME_LEN];
+
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n",
+                 deviceSlot, host, mode, tmp);
+
+    if (!transaction_get(tmp, MAX_FILENAME_LEN))
+    {
+        transaction_error();
+        return false;
+    }
+
+    // Handle DISK slots
+    if (deviceSlot < MAX_DISK_DEVICES)
+    {
+        memcpy(_fnDisks[deviceSlot].filename, tmp, MAX_FILENAME_LEN);
+        // If the filename is empty, mark this as an invalid host, so
+        // that mounting will ignore it too
+        if (strlen(_fnDisks[deviceSlot].filename) == 0) {
+            _fnDisks[deviceSlot].host_slot = INVALID_HOST_SLOT;
+        }
+        else
+        {
+            _fnDisks[deviceSlot].host_slot = host;
+        }
+
+        _fnDisks[deviceSlot].access_mode = mode;
+        populate_config_from_slots();
+    }
+    else
+    {
+        Debug_println("BAD DEVICE SLOT");
+        transaction_error();
+        return false;
+    }
+
+    Config.save();
+    transaction_complete();
+    return true;
 }
 
 void fujiDevice::fujicmd_get_directory_position()
@@ -664,9 +1067,8 @@ void fujiDevice::fujicmd_get_directory_position()
         transaction_error();
         return;
     }
-
-    pos = htole16(pos);
-    transaction_put((uint8_t *)&pos, sizeof(pos));
+    // Return the value we read
+    transaction_put((uint8_t *)&pos, sizeof(pos), false);
 }
 
 // Retrieve host path prefix
@@ -713,7 +1115,7 @@ void fujiDevice::fujicmd_write_host_slots()
     Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-    if (!transaction_get((uint8_t *)&hostSlots, sizeof(hostSlots)))
+    if (!transaction_get(&hostSlots, sizeof(hostSlots)))
         transaction_error();
 
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -772,8 +1174,16 @@ void fujiDevice::fujicmd_set_directory_position(uint16_t pos)
 }
 
 // Store host path prefix
-void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
+void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot)
 {
+    char prefix[MAX_HOST_PREFIX_LEN];
+
+    if (!transaction_get(prefix, MAX_FILENAME_LEN))
+    {
+        transaction_error();
+        return;
+    }
+
     Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
 
     if (!validate_host_slot(hostSlot))
@@ -786,16 +1196,47 @@ void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
     transaction_complete();
 }
 
-// UnMount Server
+// Unmount specified host
 void fujiDevice::fujicmd_unmount_host(uint8_t hostSlot)
 {
     Debug_printf("\r\nFuji cmd: MOUNT HOST no. %d", hostSlot);
 
-    if ((hostSlot < MAX_HOST_SLOTS) && (hostMounted[hostSlot] == false))
+    if (!validate_host_slot(hostSlot, "sio_tnfs_mount_hosts")
+        || (hostMounted[hostSlot] == false))
     {
-        _fnHosts[hostSlot].umount();
-        hostMounted[hostSlot] = true;
+        transaction_error();
+        return;
     }
+
+    // Unmount any disks associated with host slot
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        if (_fnDisks[i].host_slot == hostSlot)
+        {
+            _fnDisks[i].disk_dev.unmount();
+#warning "ifdefs don't belong here!"
+#ifdef CASSETTES_ARE_STANDARD
+            if (_fnDisks[i].disk_type == MEDIATYPE_CAS
+                || _fnDisks[i].disk_type == MEDIATYPE_WAV)
+            {
+                // tell cassette it unmount
+                _cassetteDev.umount_cassette_file();
+                _cassetteDev.sio_disable_cassette();
+            }
+#endif /* CASSETTES_ARE_STANDARD */
+            _fnDisks[i].disk_dev.device_active = false;
+            _fnDisks[i].reset();
+        }
+    }
+
+    // Unmount the host
+    if (!_fnHosts[hostSlot].umount_success())
+    {
+        transaction_error();
+        return;
+    }
+
+    transaction_complete();
 }
 
 // Send device slot data to computer
@@ -843,3 +1284,235 @@ void fujiDevice::fujicmd_write_device_slots(uint8_t numDevices)
     Config.save();
     transaction_complete();
 }
+
+void fujiDevice::fujicmd_status()
+{
+    Debug_println("Fuji cmd: STATUS");
+
+    char ret[4] = {0};
+
+    transaction_put((uint8_t *)ret, sizeof(ret), false);
+    return;
+}
+
+char *_generate_appkey_filename(appkey *info)
+{
+    static char filenamebuf[30];
+
+    snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator,
+             info->app, info->key);
+    return filenamebuf;
+}
+
+/*
+ Opens an "app key".  This just sets the needed app key parameters (creator, app, key, mode)
+ for the subsequent expected read/write command. We could've added this information as part
+ of the payload in a WRITE_APPKEY command, but there was no way to do this for READ_APPKEY.
+ Requiring a separate OPEN command makes both the read and write commands behave similarly
+ and leaves the possibity for a more robust/general file read/write function later.
+*/
+void fujiDevice::fujicmd_open_app_key()
+{
+    Debug_print("Fuji cmd: OPEN APPKEY\n");
+
+    // The data expected for this command
+    if (!transaction_get(&_current_appkey, sizeof(_current_appkey)))
+    {
+        transaction_error();
+        return;
+    }
+
+    // We're only supporting writing to SD, so return an error if there's no SD mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - returning error");
+        transaction_error();
+        return;
+    }
+
+    // Basic check for valid data
+    if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
+    {
+        Debug_println("Invalid app key data");
+        transaction_error();
+        return;
+    }
+
+    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, "
+                 "filename = \"%s\"\n",
+                 _current_appkey.creator, _current_appkey.app, _current_appkey.key,
+                 _current_appkey.mode, _generate_appkey_filename(&_current_appkey));
+
+    transaction_complete();
+}
+
+/*
+  The app key close operation is a placeholder in case we want to provide more robust file
+  read/write operations. Currently, the file is closed immediately after the read or write
+  operation.
+*/
+void fujiDevice::fujicmd_close_app_key()
+{
+    Debug_print("Fuji cmd: CLOSE APPKEY\n");
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+    transaction_complete();
+}
+
+/*
+ Write an "app key" to SD (ONLY!) storage.
+*/
+void fujiDevice::fujicmd_write_app_key(uint16_t keylen)
+{
+    Debug_printf("Fuji cmd: WRITE APPKEY (keylen = %hu)\n", keylen);
+
+    // Data for  FUJICMD_WRITE_APPKEY
+    uint8_t value[MAX_APPKEY_LEN];
+
+    if (!transaction_get(value, sizeof(value)))
+    {
+        transaction_error();
+        return;
+    }
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
+    {
+        Debug_println("Invalid app key metadata - aborting");
+        transaction_error();
+        return;
+    }
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't write app key");
+        transaction_error();
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    // Reset the app key data so we require calling APPKEY OPEN before another attempt
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+
+    Debug_printf("Writing appkey to \"%s\"\n", filename);
+
+    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+    fnSDFAT.create_path("/FujiNet");
+
+    FILE *fOut = fnSDFAT.file_open(filename, "w");
+    if (fOut == nullptr)
+    {
+        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
+        transaction_error();
+        return;
+    }
+    size_t count = fwrite(value, 1, keylen, fOut);
+    int e = errno;
+
+    fclose(fOut);
+
+    if (count != keylen)
+    {
+        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, e);
+        transaction_error();
+    }
+
+    transaction_complete();
+}
+
+/*
+ Read an "app key" from SD (ONLY!) storage
+*/
+void fujiDevice::fujicmd_read_app_key()
+{
+    Debug_println("Fuji cmd: IMAGE ROTATE");
+
+    int count = 0;
+    // Find the first empty slot
+    while (_fnDisks[count].fileh != nullptr && count < MAX_DISK_DEVICES)
+        count++;
+
+    if (count > 1)
+    {
+        count--;
+
+        // Save the device ID of the disk in the last slot
+        int last_id = get_disk_dev(count)->id();
+
+        for (int n = count; n > 0; n--)
+        {
+            int swap = get_disk_dev(n - 1)->id();
+            Debug_printf("setting slot %d to ID %hx\n", n, swap);
+            _bus->changeDeviceId(get_disk_dev(n), swap); // to do!
+        }
+
+        // The first slot gets the device ID of the last slot
+        _bus->changeDeviceId(get_disk_dev(0), last_id);
+
+#if ENABLE_SPEECH
+        // FIXME - make this work
+        Debug_printf("setting slot %d to ID %x\n", 0, last_id);
+        _bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+
+        // Say whatever disk is in D1:
+        if (Config.get_general_rotation_sounds())
+        {
+            for (int i = 0; i <= count; i++)
+            {
+                if (_fnDisks[i].disk_dev.id() == 0x31)
+                {
+                    say_swap_label();
+                    say_number(i + 1); // because i starts from 0
+                }
+            }
+        }
+#endif /* ENABLE_SPEECH */
+    }
+}
+
+// Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
+void fujiDevice::fujicmd_set_sio_external_clock(uint16_t speed)
+{
+    int baudRate = speed * 1000;
+
+    Debug_printf("sioFuji::fujicmd_set_external_clock(%u)\n", baudRate);
+
+    if (speed == 0)
+    {
+        _bus->setUltraHigh(false, 0);
+    }
+    else
+    {
+        _bus->setUltraHigh(true, baudRate);
+    }
+
+    transaction_complete();
+}
+
+// Set UDP Stream HOST & PORT and start it
+void fujiDevice::fujicmd_enable_udpstream(int port)
+{
+    char host[64];
+
+    if (!transaction_get(&host, sizeof(host)))
+    {
+        transaction_error();
+        return;
+    }
+
+    Debug_printf("Fuji cmd ENABLE UDPSTREAM: HOST:%s PORT: %d\n", host, port);
+
+    // Save the host and port
+    Config.store_udpstream_host(host);
+    Config.store_udpstream_port(port);
+    Config.save();
+
+    transaction_complete();
+
+    // Start the UDP Stream
+    _bus->setUDPHost(host, port);
+}
+
