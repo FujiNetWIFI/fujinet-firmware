@@ -728,7 +728,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
     {
         // Mount all the things
         Debug_printf("Mount all slots from webui\n");
-        theFuji->fujicmd_mount_all();
+        theFuji->fujicmd_mount_all_success();
     }
 
     if (!fnHTTPD.errMsgEmpty())

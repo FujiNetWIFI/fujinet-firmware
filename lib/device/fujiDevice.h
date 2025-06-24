@@ -96,7 +96,7 @@ class fujiDevice : public virtualDevice
 private:
     bool hostMounted[MAX_HOSTS];
 
-    void fujicmd_read_directory_block();
+    void fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_size);
     
 protected:
     fujiHost _fnHosts[MAX_HOSTS];
@@ -118,7 +118,8 @@ protected:
     bool validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
     bool validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
 
-    void insert_boot_device(uint8_t image_id, std::string extension, mediatype_t disk_type);
+    void insert_boot_device(uint8_t image_id, std::string extension,
+                            mediatype_t disk_type, DEVICE_TYPE *disk_dev);
 
 public:
     bool boot_config = true;
@@ -140,32 +141,33 @@ public:
     fujiHost *set_slot_hostname(int host_slot, char *hostname);
 
     // ============ Standard Fuji commands ============
-    virtual bool fujicmd_mount_all();
+    virtual bool fujicmd_mount_all_success();
     virtual void fujicmd_reset();
-    bool fujicmd_mount_host(unsigned hostSlot);
+    bool fujicmd_mount_host_success(unsigned hostSlot);
     void fujicmd_net_scan_networks();
     void fujicmd_net_scan_result(uint8_t index);
     void fujicmd_net_get_ssid();
-    bool fujicmd_net_set_ssid(const char *ssid, const char *password, bool save);
+    bool fujicmd_net_set_ssid_success(const char *ssid, const char *password, bool save);
     void fujicmd_net_get_wifi_enabled();
-    bool fujicmd_disk_image_mount(uint8_t deviceSlot, uint8_t options);
+    bool fujicmd_disk_image_mount_success(uint8_t deviceSlot, uint8_t options);
     void fujicmd_image_rotate();
-    void fujicmd_open_directory();
+    bool fujicmd_open_directory_success(uint8_t hostSlot, char *dirpath, uint16_t bufsize);
     virtual void fujicmd_close_directory();
-    void fujicmd_read_directory_entry(uint8_t maxlen, uint8_t aux2);
-    bool fujicmd_copy_file(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
+    virtual void fujicmd_read_directory_entry(uint8_t maxlen, uint8_t addtl);
+    bool fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     void fujicmd_disk_image_umount(uint8_t deviceSlot);
     void fujicmd_get_adapter_config();
     void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
-    bool fujicmd_set_device_filename(uint8_t deviceSlot, uint8_t host, uint8_t mode);
+    bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host, uint8_t mode);
     void fujicmd_get_directory_position();
     void fujicmd_get_host_prefix(uint8_t hostSlot);
     void fujicmd_net_get_wifi_status();
     void fujicmd_read_host_slots();
     void fujicmd_write_host_slots();
     void fujicmd_set_boot_config(bool enable);
-    void fujicmd_set_boot_mode(uint8_t bootMode, std::string extension, mediatype_t disk_type);
+    void fujicmd_set_boot_mode(uint8_t bootMode, std::string extension,
+                               mediatype_t disk_type, DEVICE_TYPE *disk_dev);
     void fujicmd_set_directory_position(uint16_t pos);
     void fujicmd_set_host_prefix(uint8_t hostSlot);
     void fujicmd_unmount_host(uint8_t hostSlot);

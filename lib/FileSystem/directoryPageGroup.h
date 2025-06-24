@@ -105,7 +105,7 @@ private:
         }
 
         // Media type (full byte)
-        uint8_t media_type = MediaType::discover_disktype(f->filename);
+        uint8_t media_type = MediaType::discover_mediatype(f->filename);
         dest[bytes_written++] = media_type;
 
         // Debug_printf("Entry: %s\n", f->filename);
