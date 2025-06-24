@@ -1,7 +1,8 @@
 #ifdef BUILD_APPLE
-#ifndef FUJI_H
-#define FUJI_H
-#include <cstdint>
+#ifndef IWMFUJI_H
+#define IWMFUJI_H
+#include "fujiDevice.h"
+
 #include <functional>
 #include <map>
 #include <memory>
@@ -91,7 +92,7 @@ using IWMCmdHandlers = std::function<void(iwm_decoded_cmd_t)>;
 using IWMControlHandlers = std::function<void()>;
 using IWMStatusHandlers = std::function<void()>;
 
-class iwmFuji : public iwmDevice
+class iwmFuji : public fujiDevice
 {
 private:
     bool isReady = false;
@@ -291,5 +292,5 @@ public:
 
 extern iwmFuji theFuji;
 
-#endif // FUJI_H
+#endif // IWMFUJI_H
 #endif /* BUILD_APPLE */

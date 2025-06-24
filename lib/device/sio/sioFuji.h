@@ -1,5 +1,6 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef SIOFUJI_H
+#define SIOFUJI_H
+#include "fujiDevice.h"
 
 #include <cstdint>
 #include <cstring>
@@ -82,7 +83,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class sioFuji : public virtualDevice
+class sioFuji : public fujiDevice
 {
 private:
     systemBus *_sio_bus;
@@ -236,4 +237,4 @@ public:
 
 extern sioFuji theFuji;
 
-#endif // FUJI_H
+#endif // SIOFUJI_H

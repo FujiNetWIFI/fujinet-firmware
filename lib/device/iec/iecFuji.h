@@ -1,6 +1,8 @@
 #ifdef BUILD_IEC
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef IECFUJI_H
+#define IECFUJI_H
+
+#include "fujiDevice.h"
 
 #include <cstdint>
 #include <cstring>
@@ -96,7 +98,7 @@ typedef enum
 } device_state_t;
 
 
-class iecFuji : public IECDevice
+class iecFuji : public fujiDevice
 {
 //private:
 protected:
@@ -445,5 +447,5 @@ public:
 
 extern iecFuji theFuji;
 
-#endif // FUJI_H
-#endif
+#endif // IECFUJI_H
+#endif /* BUILD_IEC */

@@ -1,5 +1,7 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef ADAMFUJI_H
+#define ADAMFUJI_H
+
+#include "fujiDevice.h"
 
 #include <cstdint>
 
@@ -52,7 +54,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class adamFuji : public virtualDevice
+class adamFuji : public fujiDevice
 {
 private:
     bool new_disk_completed = false;
@@ -178,4 +180,4 @@ public:
 extern adamFuji theFuji;
 extern adamSerial *theSerial;
 
-#endif // FUJI_H
+#endif // ADAMFUJI_H

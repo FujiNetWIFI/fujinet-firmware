@@ -1,5 +1,7 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef H89FUJI_H
+#define H89FUJI_H
+
+#include "fujiDevice.h"
 
 #include <cstdint>
 
@@ -52,7 +54,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class H89Fuji : public virtualDevice
+class H89Fuji : public fujiDevice
 {
 private:
     bool isReady = false;
@@ -158,4 +160,4 @@ public:
 
 extern H89Fuji theFuji;
 
-#endif // FUJI_H
+#endif // H89FUJI_H

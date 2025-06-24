@@ -1,5 +1,5 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef LYNXFUJI_H
+#define LYNXFUJI_H
 
 #include <cstdint>
 
@@ -52,7 +52,7 @@ struct appkey
     uint8_t reserved = 0;
 } __attribute__((packed));
 
-class lynxFuji : public virtualDevice
+class lynxFuji : public fujiDevice
 {
 private:
     bool isReady = false;
@@ -179,4 +179,4 @@ public:
 extern lynxFuji theFuji;
 extern lynxSerial *theSerial;
 
-#endif // FUJI_H
+#endif // LYNXFUJI_H
