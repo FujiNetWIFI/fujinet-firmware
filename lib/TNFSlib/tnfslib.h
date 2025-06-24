@@ -146,6 +146,8 @@ struct tnfsStat
     uint16_t mode;
 };
 
+#ifndef USE_ENDIAN_H
+//#warning Use endian.h
 // Retruns a uint16 value given two bytes in high-low order
 #define TNFS_UINT16_FROM_HILOBYTES(high, low) ((uint16_t)high << 8 | low)
 
@@ -167,6 +169,7 @@ struct tnfsStat
 #define TNFS_HIBYTE_FROM_UINT16(value) ((uint8_t)((value >> 8) & 0xFF))
 // Returns the low byte (LSB) of a uint16 value
 #define TNFS_LOBYTE_FROM_UINT16(value) ((uint8_t)(value & 0xFF))
+#endif /* USE_ENDIAN_H */
 
 // Checks that value is >= 0 and <= 255
 #define TNFS_VALID_AS_UINT8(value) (value >= 0 && value <= 255)

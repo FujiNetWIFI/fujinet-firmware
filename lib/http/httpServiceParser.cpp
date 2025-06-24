@@ -12,6 +12,10 @@
 #include "httpService.h"
 #include "fujiDevice.h"
 
+#ifdef BUILD_ATARI
+#include "sio/sioFuji.h"
+#endif /* BUILD_ATARI */
+
 using namespace std;
 
 #define MAX_PRINTER_LIST_BUFFER (2048)
@@ -442,13 +446,13 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #ifdef BUILD_ATARI
     case FN_PLAY_RECORD:
-        if (theFuji.cassette()->get_buttons())
+        if (platformFuji.cassette()->get_buttons())
             resultstream << "0 PLAY";
         else
             resultstream << "1 RECORD";
         break;
     case FN_PULLDOWN:
-        if (theFuji.cassette()->has_pulldown())
+        if (platformFuji.cassette()->has_pulldown())
             resultstream << "1 Pulldown Resistor";
         else
             resultstream << "0 B Button Press";

@@ -1888,7 +1888,7 @@ void modem::shutdown()
 void modem::sio_process(uint32_t commanddata, uint8_t checksum)
 {
     cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
+    cmdFrame.cksum = checksum;
 
     if (!Config.get_modem_enabled())
     {

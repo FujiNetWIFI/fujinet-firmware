@@ -2683,7 +2683,7 @@ void sioPCLink::sio_status()
 void sioPCLink::sio_process(uint32_t commanddata, uint8_t checksum)
 {
     cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
+    cmdFrame.cksum = checksum;
 
     uchar cunit = cmdFrame.aux2 & 0x0f;	/* PCLink ignores DUNIT */
     uchar cdev = SIO_DEVICEID_PCLINK;

@@ -1,5 +1,5 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef FUJIDEVICE_H
+#define FUJIDEVICE_H
 
 #include "fnConfig.h"
 
@@ -7,7 +7,7 @@
 #include "../fuji/fujiDisk.h"
 #include "../fuji/fujiCmd.h"
 
-#include "../qrcode/qrmanager.h"
+#include "hash.h"
 
 #include <string>
 
@@ -94,21 +94,21 @@ struct disk_slot
 class fujiDevice : public virtualDevice
 {
 private:
-
-protected:
-    // FIXME - move back to private when unmount_host() is added
     bool hostMounted[MAX_HOSTS];
 
+    void fujicmd_read_directory_block();
+    
+protected:
     fujiHost _fnHosts[MAX_HOSTS];
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
     systemBus *_bus;
-    bool status_wait_enabled = true;
     appkey _current_appkey;
     int _current_open_directory_slot = -1;
     uint8_t _countScannedSSIDs = 0;
 
-    void debug_tape();
+    Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+
     virtual void transaction_complete() = 0;
     virtual void transaction_error() = 0;
     virtual bool transaction_get(void *data, size_t len) = 0;
@@ -147,13 +147,18 @@ public:
     void fujicmd_net_scan_result(uint8_t index);
     void fujicmd_net_get_ssid();
     bool fujicmd_net_set_ssid(const char *ssid, const char *password, bool save);
+    void fujicmd_net_get_wifi_enabled();
     bool fujicmd_disk_image_mount(uint8_t deviceSlot, uint8_t options);
     void fujicmd_image_rotate();
+    void fujicmd_open_directory();
     virtual void fujicmd_close_directory();
+    void fujicmd_read_directory_entry(uint8_t maxlen, uint8_t aux2);
     bool fujicmd_copy_file(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
     void fujicmd_disk_image_umount(uint8_t deviceSlot);
     void fujicmd_get_adapter_config();
+    void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
+    bool fujicmd_set_device_filename(uint8_t deviceSlot, uint8_t host, uint8_t mode);
     void fujicmd_get_directory_position();
     void fujicmd_get_host_prefix(uint8_t hostSlot);
     void fujicmd_net_get_wifi_status();
@@ -162,12 +167,24 @@ public:
     void fujicmd_set_boot_config(bool enable);
     void fujicmd_set_boot_mode(uint8_t bootMode, std::string extension, mediatype_t disk_type);
     void fujicmd_set_directory_position(uint16_t pos);
-    void fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix);
+    void fujicmd_set_host_prefix(uint8_t hostSlot);
     void fujicmd_unmount_host(uint8_t hostSlot);
     void fujicmd_read_device_slots(uint8_t numDevices);
     void fujicmd_write_device_slots(uint8_t numDevices);
+    void fujicmd_status();
+    void fujicmd_set_sio_external_clock(uint16_t speed);
+    void fujicmd_enable_udpstream(int port);
+
+    // Move appkey stuff to its own file?
+    void fujicmd_open_app_key();
+    void fujicmd_close_app_key();
+    void fujicmd_write_app_key(uint16_t keylen);
+    void fujicmd_read_app_key();
+
+    // Should be protected but directly accessed by sio.cpp
+    bool status_wait_enabled = true;
 };
 
 extern fujiDevice *theFuji;
 
-#endif // FUJI_H
+#endif // FUJIDEVICE_H

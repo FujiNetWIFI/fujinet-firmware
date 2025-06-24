@@ -24,14 +24,10 @@ protected:
     }
 
     void rs232_net_set_ssid();           // 0xFB
-    void rs232_open_directory();         // 0xF7
     void rs232_read_directory_entry();   // 0xF6
-    void rs232_enable_udpstream();       // 0xF0
-    void rs232_net_get_wifi_enabled();   // 0xEA
     void rs232_new_disk();               // 0xE7
     void rs232_get_directory_position(); // 0xE5
     void rs232_set_hrs232_index();         // 0xE3
-    void rs232_set_device_filename();    // 0xE2
     void rs232_set_host_prefix();        // 0xE1
     void rs232_get_host_prefix();        // 0xE0
     void rs232_set_rs232_external_clock(); // 0xDF

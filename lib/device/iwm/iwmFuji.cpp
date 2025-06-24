@@ -118,7 +118,7 @@ iwmFuji::iwmFuji()
 #endif
 
         { FUJICMD_DEVICE_ENABLE_STATUS, [this]()       { this->send_stat_get_enable(); }},                      // 0xD1
-        { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() { this->iwm_stat_get_adapter_config_extended(); }},      // 0xC4
+        { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() { this->fujicmd_get_adapter_config_extended(); }},      // 0xC4
         { FUJICMD_GET_ADAPTERCONFIG, [this]()          { this->fujicmd_get_adapter_config(); }},               // 0xE8
         { FUJICMD_GET_DEVICE_FULLPATH, [this]()        { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xDA
         { FUJICMD_GET_DEVICE1_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA0
@@ -220,6 +220,7 @@ char *_generate_appkey_filename(appkey *info)
 	return filenamebuf;
 }
 
+#error "Why isn't this using fujiDevice app_key methods?"
 /*
  Opens an "app key" for reading/writing - stores appkey name for subsequent read/write calls
 */
@@ -486,66 +487,6 @@ void iwmFuji::iwm_stat_read_directory_entry()
 	data_len = ctrl_stat_len;
 }
 
-void iwmFuji::iwm_stat_get_directory_position()
-{
-	Debug_printf("\r\nFuji cmd: GET DIRECTORY POSITION");
-
-	uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
-
-	data_len = sizeof(pos);
-	memcpy(data_buffer, &pos, sizeof(pos));
-}
-
-void iwmFuji::iwm_stat_get_adapter_config_extended()
-{
-    // also return string versions of the data to save the host some computing
-	Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
-    AdapterConfigExtended cfg;
-    memset(&cfg, 0, sizeof(cfg));       // ensures all strings are null terminated
-
-    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
-
-    if (!fnWiFi.connected())
-    {
-        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-    }
-    else
-    {
-        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-        fnWiFi.get_current_bssid(cfg.bssid);
-        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    }
-
-    fnWiFi.get_mac(cfg.macAddress);
-
-    // convert fields to strings
-    strlcpy(cfg.sLocalIP, fnSystem.Net.get_ip4_address_str().c_str(), 16);
-    strlcpy(cfg.sGateway, fnSystem.Net.get_ip4_gateway_str().c_str(), 16);
-    strlcpy(cfg.sDnsIP,   fnSystem.Net.get_ip4_dns_str().c_str(),     16);
-    strlcpy(cfg.sNetmask, fnSystem.Net.get_ip4_mask_str().c_str(),    16);
-
-    snprintf(cfg.sMacAddress, sizeof(cfg.sMacAddress), "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
-    snprintf(cfg.sBssid, sizeof(cfg.sBssid), "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
-
-	memcpy(data_buffer, &cfg, sizeof(cfg));
-	data_len = sizeof(cfg);
-
-}
-
-void iwmFuji::iwm_stat_fuji_status()
-{
-	// Place holder for 4 bytes to fill the Fuji device status.
-	// TODO: decide what we want to tell the host.
-	// e.g.
-	// - are all devices working? maybe some bitmap
-	// - how many devices do we have?
-	char ret[4] = {0};
-	memcpy(data_buffer, &ret[0], 4);
-	data_len = 4;
-}
-
 void iwmFuji::iwm_stat_get_heap()
 {
 #ifdef ESP_PLATFORM
@@ -612,45 +553,6 @@ void iwmFuji::iwm_stat_get_wifi_enabled()
 	Debug_printf("\nFuji cmd: GET WIFI ENABLED: %d", e);
 	data_buffer[0] = e;
 	data_len = 1;
-}
-
-// Write a 256 byte filename to the device slot
-uint8_t iwmFuji::iwm_ctrl_set_device_filename()
-{
-	uint8_t err_return = SP_ERR_NOERROR;
-	char f[MAX_FILENAME_LEN];
-	int idx = 0;
-	uint8_t deviceSlot = data_buffer[idx++];
-	uint8_t host = data_buffer[idx++];
-	uint8_t mode = data_buffer[idx++];
-
-	uint16_t s = data_len;
-	s -= 3; 	// remove 3 bytes for other args
-
-	Debug_printf("\nSET DEVICE SLOT: %d, HOST: %d, MODE: %d", deviceSlot, host, mode);
-
-	memcpy((uint8_t *)&f, &data_buffer[idx], s);
-	Debug_printf("\nfilename: %s", f);
-
-	if (deviceSlot < MAX_A2DISK_DEVICES) {
-		memcpy(_fnDisks[deviceSlot].filename, f, MAX_FILENAME_LEN);
-
-        // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
-        if (strlen(_fnDisks[deviceSlot].filename) == 0) {
-            _fnDisks[deviceSlot].host_slot = INVALID_HOST_SLOT;
-        } else {
-            _fnDisks[deviceSlot].host_slot = host;
-        }
-
-		_fnDisks[deviceSlot].access_mode = mode;
-		populate_config_from_slots();
-	}
-	else
-	{
-		Debug_println("\nBAD DEVICE SLOT");
-		err_return = SP_ERR_BADCTL;
-	}
-	return err_return;
 }
 
 void iwmFuji::iwm_ctrl_enable_device()

@@ -71,7 +71,7 @@ void sioCPM::init_cpm(int baud)
 void sioCPM::sio_process(uint32_t commanddata, uint8_t checksum)
 {
     cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
+    cmdFrame.cksum = checksum;
 
     switch (cmdFrame.comnd)
     {

@@ -95,22 +95,24 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 
 #define SIO_DEVICEID_CPM 0x5A
 
-union cmdFrame_t
+typedef struct
 {
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
-    };
-    struct
-    {
+    union {
+        struct {
+            uint8_t device;
+            uint8_t comnd;
+            union {
+                struct {
+                    uint8_t aux1;
+                    uint8_t aux2;
+                };
+                uint16_t aux12;
+            };
+        };
         uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
+    };
+    uint8_t cksum;
+} __attribute__((packed)) cmdFrame_t;
 
 // helper functions
 uint8_t sio_checksum(uint8_t *buf, unsigned short len);
@@ -238,7 +240,9 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
-
+    bool switched = false; //indicate disk switched condition
+    bool readonly = true;  //write protected
+    
     /**
      * @brief status wait counter
      */

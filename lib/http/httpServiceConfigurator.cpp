@@ -11,6 +11,9 @@
 
 #include "utils.h"
 
+#ifdef BUILD_ATARI
+#include "sio/sioFuji.h"
+#endif /* BUILD_ATARI */
 
 #ifdef BUILD_APPLE
 #include "iwm/printerlist.h"
@@ -284,7 +287,7 @@ void fnHttpServiceConfigurator::config_cassette_play(std::string play_record)
     // find cassette via thefuji object?
     Debug_printf("New play/record button value: %s\n", play_record.c_str());
     bool isRecord = util_string_value_is_true(play_record);
-    theFuji.cassette()->set_buttons(isRecord);
+    platformFuji.cassette()->set_buttons(isRecord);
     Config.store_cassette_buttons(isRecord);
 
     Config.save();
@@ -295,7 +298,7 @@ void fnHttpServiceConfigurator::config_cassette_resistor(std::string resistor)
 {
 #ifdef BUILD_ATARI
     bool isPullDown = util_string_value_is_true(resistor);
-    theFuji.cassette()->set_pulldown(isPullDown);
+    platformFuji.cassette()->set_pulldown(isPullDown);
     Config.store_cassette_pulldown(isPullDown);
 
     Config.save();

@@ -250,7 +250,7 @@ void sioVoice::sio_status()
 void sioVoice::sio_process(uint32_t commanddata, uint8_t checksum)
 {
     cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
+    cmdFrame.cksum = checksum;
 
     // act like a printer for POC
     switch (cmdFrame.comnd)

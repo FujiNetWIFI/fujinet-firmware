@@ -234,7 +234,7 @@ void main_setup(int argc, char *argv[])
 
 #ifdef BUILD_ATARI
     theFuji->setup(&SIO);
-    SIO.addDevice(&theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
+    SIO.addDevice(theFuji, SIO_DEVICEID_FUJINET); // the FUJINET!
 
     if (Config.get_apetime_enabled() == true)
         SIO.addDevice(&clockDevice, SIO_DEVICEID_APETIME); // Clock for Atari, APETime compatible, but extended for additional return types

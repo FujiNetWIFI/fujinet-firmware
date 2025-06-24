@@ -532,7 +532,7 @@ bool fujiHost::mount()
 
 /* Returns true if successful
 */
-bool fujiHost::umount()
+bool fujiHost::umount_success()
 {
     Debug_printf("::unmount {%d} \"%s\"\n", slotid+1, _hostname);
 

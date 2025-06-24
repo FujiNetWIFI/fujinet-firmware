@@ -24,6 +24,10 @@
 #include "httpServiceParser.h"
 #include "fujiDevice.h"
 
+#ifdef BUILD_ATARI
+#include "sio/sioFuji.h"
+#endif /* BUILD_ATARI */
+
 using namespace std;
 
 // Global HTTPD
@@ -767,8 +771,8 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
 #ifdef BUILD_ATARI
     if (theFuji->get_disk(ds)->disk_type == MEDIATYPE_CAS || theFuji->get_disk(ds)->disk_type == MEDIATYPE_WAV)
     {
-        theFuji->cassette()->umount_cassette_file();
-        theFuji->cassette()->sio_disable_cassette();
+        platformFuji.cassette()->umount_cassette_file();
+        platformFuji.cassette()->sio_disable_cassette();
     }
 #endif
     theFuji->get_disk(ds)->reset();
