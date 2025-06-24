@@ -486,7 +486,7 @@ void fujiDevice::insert_boot_device(uint8_t image_id, std::string extension,
     std::string boot_img;
     fnFile *fBoot = nullptr;
     size_t image_size;
-    DEVICE_TYPE *disk_dev = get_disk_dev(0);
+    DEVICE_TYPE *disk_dev = &bootdisk; //get_disk_dev(0);
 
     switch (image_id)
     {
