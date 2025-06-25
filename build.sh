@@ -118,7 +118,7 @@ if [ $# -eq 0 ] ; then
   show_help
 fi
 
-while getopts "abcde:fgG:hi:l:mnp:s:St:uyzV:N" flag
+while getopts "abcde:fgG:hi:l:mnp:s:St:uyzV:" flag
 do
   case "$flag" in
     a) BUILD_ALL=1 ;;
@@ -165,8 +165,7 @@ if [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" != "$PIO_VENV_ROOT" ]] ; then
   [[ -z "$VIRTUAL_ENV" ]] && deactivate &>/dev/null
   source "$PIO_VENV_ROOT/bin/activate"
 else
-  echo "Error: Virtual environment not found in $PIO_VENV_ROOT."
-  exit 1
+  echo "Warning: Virtual environment not found in $PIO_VENV_ROOT. Continuing without it."
 fi
 
 ##############################################################
