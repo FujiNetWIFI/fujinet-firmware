@@ -162,7 +162,7 @@ fi
 # Set up the virtual environment if it exists
 if [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" != "$PIO_VENV_ROOT" ]] ; then
   echo "Activating virtual environment"
-  deactivate &>/dev/null
+  [[ -z "$VIRTUAL_ENV" ]] && deactivate &>/dev/null
   source "$PIO_VENV_ROOT/bin/activate"
 else
   echo "Error: Virtual environment not found in $PIO_VENV_ROOT."
