@@ -85,7 +85,7 @@ public:
     
     virtual void status(uint8_t statusbuff[4]) = 0;
 
-    static mediatype_t discover_disktype(const char *filename);
+    static mediatype_t discover_mediatype(const char *filename);
 
     void dump_percom_block();
     void derive_percom_block(uint32_t numSectors);

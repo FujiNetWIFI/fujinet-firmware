@@ -23,20 +23,14 @@ protected:
         bus_to_computer((uint8_t *) data, len, err);
     }
 
-    void rs232_net_set_ssid();           // 0xFB
-    void rs232_read_directory_entry();   // 0xF6
-    void rs232_new_disk();               // 0xE7
-    void rs232_get_directory_position(); // 0xE5
+    void rs232_net_set_ssid();             // 0xFB
+    void rs232_open_directory();           // 0xF7
+    void rs232_new_disk();                 // 0xE7
     void rs232_set_hrs232_index();         // 0xE3
-    void rs232_set_host_prefix();        // 0xE1
-    void rs232_get_host_prefix();        // 0xE0
+    void rs232_get_host_prefix();          // 0xE0
     void rs232_set_rs232_external_clock(); // 0xDF
-    void rs232_write_app_key();          // 0xDE
-    void rs232_read_app_key();           // 0xDD
-    void rs232_open_app_key();           // 0xDC
-    void rs232_close_app_key();          // 0xDB
-    void rs232_copy_file();              // 0xD8
-    void rs232_test();                   // 0x00
+    void rs232_copy_file();                // 0xD8
+    void rs232_test();                     // 0x00
 
 public:
     void setup(systemBus *sysbus) override;

@@ -126,7 +126,6 @@ protected:
      */
     void rs232_error();
 
-#if 0
     /**
      * @brief Return the aux bytes in cmdFrame as a single 16-bit or
      * 32-bit value, commonly used, for example to retrieve a sector
@@ -137,7 +136,6 @@ protected:
     uint16_t rs232_get_aux16_lo();
     uint16_t rs232_get_aux16_hi();
     uint32_t rs232_get_aux32();
-#endif
 
     /**
      * @brief All RS232 commands by convention should return a status command, using bus_to_computer() to return
@@ -176,6 +174,7 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
+    bool switched = false; //indicate disk switched condition
     bool readonly = false;  //write protected
 
     /**
