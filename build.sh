@@ -6,6 +6,7 @@
 # CONFIGURATION INI FILE USAGE
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+PIO_VENV_ROOT="${HOME}/.platformio/penv"
 
 BUILD_ALL=0
 RUN_BUILD=0
@@ -96,6 +97,7 @@ function show_help {
   echo "other options:"  
   echo "   -y       # answers any questions with Y automatically, for unattended builds"
   echo "   -h       # this help"
+  echo "   -V       # Override default Python virtual environment location (e.g. \"-V ~/.platformio/penv\")"
   echo ""
   echo "Additional Args can be accepted to pass values onto sub processes where supported."
   echo "  e.g. ./build.sh -p APPLE -- -DFOO=BAR"
@@ -116,7 +118,7 @@ if [ $# -eq 0 ] ; then
   show_help
 fi
 
-while getopts "abcde:fgG:hi:l:mnp:s:St:uyz" flag
+while getopts "abcde:fgG:hi:l:mnp:s:St:uyzV:" flag
 do
   case "$flag" in
     a) BUILD_ALL=1 ;;
@@ -138,6 +140,7 @@ do
     G) CMAKE_GENERATOR=${OPTARG} ;;
     y) ANSWER_YES=1  ;;
     z) ZIP_MODE=1 ;;
+    V) PIO_VENV_ROOT=${OPTARG} ;;
     h) show_help ;;
     *) show_help ;;
   esac
@@ -154,6 +157,15 @@ if [ $BUILD_ALL -eq 1 ] ; then
   chmod 755 $SCRIPT_DIR/build-platforms/build-all.sh
   $SCRIPT_DIR/build-platforms/build-all.sh
   exit $?
+fi
+
+# Set up the virtual environment if it exists
+if [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" != "$PIO_VENV_ROOT" ]] ; then
+  echo "Activating virtual environment"
+  [[ -z "$VIRTUAL_ENV" ]] && deactivate &>/dev/null
+  source "$PIO_VENV_ROOT/bin/activate"
+else
+  echo "Warning: Virtual environment not found in $PIO_VENV_ROOT. Continuing without it."
 fi
 
 ##############################################################
