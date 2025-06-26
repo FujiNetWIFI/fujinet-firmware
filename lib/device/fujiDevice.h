@@ -141,6 +141,10 @@ public:
     fujiHost *set_slot_hostname(int host_slot, char *hostname);
 
     // ============ Standard Fuji commands ============
+    // fujicmd_ methods are the public entry points for handling
+    // commands received over the bus. Intended for ease of calling by
+    // process() because they validate inputs, call the matching
+    // fujicore_ logic, and send the result back via transaction_*.
     virtual bool fujicmd_mount_all_success();
     virtual void fujicmd_reset();
     bool fujicmd_mount_host_success(unsigned hostSlot);
@@ -150,17 +154,18 @@ public:
     bool fujicmd_net_set_ssid_success(const char *ssid, const char *password, bool save);
     void fujicmd_net_get_wifi_enabled();
     bool fujicmd_disk_image_mount_success(uint8_t deviceSlot, uint8_t options);
+    bool fujicmd_disk_image_unmount_success(uint8_t deviceSlot);
     void fujicmd_image_rotate();
     bool fujicmd_open_directory_success(uint8_t hostSlot, char *dirpath, uint16_t bufsize);
     virtual void fujicmd_close_directory();
-    virtual void fujicmd_read_directory_entry(uint8_t maxlen, uint8_t addtl);
+    virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);
+    void fujicmd_get_directory_position();
+    void fujicmd_set_directory_position(uint16_t pos);
     bool fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot, std::string copySpec);
-    void fujicmd_disk_image_umount(uint8_t deviceSlot);
     void fujicmd_get_adapter_config();
     void fujicmd_get_adapter_config_extended();
     void fujicmd_get_device_filename(uint8_t slot);
     bool fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t host, uint8_t mode);
-    void fujicmd_get_directory_position();
     void fujicmd_get_host_prefix(uint8_t hostSlot);
     void fujicmd_net_get_wifi_status();
     void fujicmd_read_host_slots();
@@ -168,9 +173,8 @@ public:
     void fujicmd_set_boot_config(bool enable);
     void fujicmd_set_boot_mode(uint8_t bootMode, std::string extension,
                                mediatype_t disk_type, DEVICE_TYPE *disk_dev);
-    void fujicmd_set_directory_position(uint16_t pos);
     void fujicmd_set_host_prefix(uint8_t hostSlot);
-    void fujicmd_unmount_host(uint8_t hostSlot);
+    bool fujicmd_unmount_host_success(uint8_t hostSlot);
     void fujicmd_read_device_slots(uint8_t numDevices);
     void fujicmd_write_device_slots(uint8_t numDevices);
     void fujicmd_status();
@@ -183,6 +187,26 @@ public:
     void fujicmd_write_app_key(uint16_t keylen);
     void fujicmd_read_app_key();
 
+    // ============ Implementations by fujicmd_ methods ============
+    // These are safe to call directly if the bus abstraction
+    // (transaction_) doesn't suit the platform.
+    void fujicore_open_app_key(uint16_t creator, uint8_t app, uint8_t key,
+                               appkey_mode mode, uint8_t reserved);
+    SSIDInfo fujicore_net_scan_result(uint8_t index, bool *err=nullptr);
+    SSIDConfig fujicore_net_get_ssid();
+    uint8_t fujicore_net_get_wifi_status();
+    uint8_t fujicore_net_get_wifi_enabled();
+    int fujicore_write_app_key(std::vector<uint8_t>&& value, int *err=nullptr);
+    std::optional<std::vector<uint8_t>> fujicore_read_app_key();
+    bool fujicore_open_directory_success(uint8_t hostSlot, std::string dirpath,
+                                         std::string pattern);
+    std::optional<std::string> fujicore_read_directory_entry(size_t maxlen, uint8_t addtl);
+    uint16_t fujicore_get_directory_position();
+    AdapterConfigExtended fujicore_get_adapter_config_extended();
+    bool fujicore_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
+                                              uint8_t mode, std::string filename);
+    std::optional<std::string> fujicore_get_device_filename(uint8_t slot);
+    
     // Should be protected but directly accessed by sio.cpp
     bool status_wait_enabled = true;
 };

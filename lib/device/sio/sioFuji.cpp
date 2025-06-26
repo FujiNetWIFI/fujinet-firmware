@@ -198,16 +198,6 @@ void sioFuji::sio_set_baudrate()
 #endif
 }
 
-size_t read_file_into_vector(FILE* fIn, std::vector<uint8_t>& response_data, size_t size) {
-    response_data.resize(size + 2);
-    size_t bytes_read = fread(response_data.data() + 2, 1, size, fIn);
-
-    // Insert the size at the beginning of the vector
-    response_data[0] = static_cast<uint8_t>(bytes_read & 0xFF); // Low byte of the size
-    response_data[1] = static_cast<uint8_t>((bytes_read >> 8) & 0xFF); // High byte of the size
-    return bytes_read;
-}
-
 // DEBUG TAPE
 void sioFuji::debug_tape()
 {
