@@ -817,7 +817,7 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
     fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
     if (f == nullptr)
-        return std::nullopt;
+        return std::string(2, char(0x7F));
 
     Debug_printf("::read_direntry \"%s\"\n", f->filename);
 
