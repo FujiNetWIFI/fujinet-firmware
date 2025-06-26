@@ -617,7 +617,7 @@ bool fujiDevice::fujicmd_open_directory_success(uint8_t hostSlot, char *dirpath,
     if (pathlen > 1 && dirpath[pathlen - 1] == '/')
         dirpath[pathlen - 1] = '\0';
 
-    if (!fujicore_open_directory_success(hostSlot, dirpath, pattern))
+    if (!fujicore_open_directory_success(hostSlot, dirpath, pattern ? pattern : ""))
     {
         transaction_error();
         return false;
@@ -812,44 +812,42 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
         return std::nullopt;
     }
 
-    char current_entry[DIR_BLOCK_SIZE];
+    char filename[DIR_BLOCK_SIZE] {};
 
-    fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+    fsdir_entry_t *entry = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
-    if (f == nullptr)
+    if (entry == nullptr)
         return std::string(2, char(0x7F));
 
-    Debug_printf("::read_direntry \"%s\"\n", f->filename);
+    Debug_printf("::read_direntry \"%s\"\n", entry->filename);
 
-    int bufsize = sizeof(current_entry);
-    char *filenamedest = current_entry;
+    char *filenamedest = filename;
+    maxlen = std::min(maxlen, sizeof(filename));
 
     // If 0x80 is set on ADDTL, send back additional information
     if (addtl & 0x80)
     {
-        _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+        _set_additional_direntry_details(entry, (uint8_t *)filename, maxlen);
         // Adjust remaining size of buffer and file path destination
-        bufsize = maxlen - ADDITIONAL_DETAILS_BYTES;
-        filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
+        maxlen -= ADDITIONAL_DETAILS_BYTES;
+        filenamedest = filename + ADDITIONAL_DETAILS_BYTES;
     }
-    else
-        bufsize = maxlen;
 
     int filelen;
 
-    if (maxlen < 128)
-        filelen = util_ellipsize(f->filename, filenamedest, bufsize - 1);
+    if (strlen(entry->filename) >= maxlen)
+        filelen = util_ellipsize(entry->filename, filenamedest, maxlen - 1);
     else
-        filelen = strlcpy(filenamedest, f->filename, bufsize);
+        filelen = strlcpy(filenamedest, entry->filename, maxlen);
 
     // Add a slash at the end of directory entries
-    if (f->isDir && filelen < (bufsize - 2))
+    if (entry->isDir && filelen < (maxlen - 2))
     {
-        current_entry[filelen] = '/';
-        current_entry[filelen + 1] = '\0';
+        filename[filelen] = '/';
+        filename[filelen + 1] = '\0';
     }
 
-    return std::string(current_entry, filelen);
+    return std::string(filename);
 }
 
 void fujiDevice::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
@@ -857,16 +855,17 @@ void fujiDevice::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
 
     char buffer[DIR_BLOCK_SIZE];
+    size_t entrylen;
     auto current_entry = fujicore_read_directory_entry(maxlen, addtl);
     if (!current_entry)
     {
-        Debug_println("Reached end of of directory");
-        buffer[0] = 0x7F;
-        buffer[1] = 0x7F;
+        transaction_error();
+        return;
     }
-    else
-        memcpy(buffer, current_entry->data(), std::min(maxlen, current_entry->size()));
 
+    entrylen = std::min(maxlen, current_entry->size() + 1);
+    Debug_printv("entry: \"%s\" len:%d maxlen:%d", current_entry->c_str(), entrylen, maxlen);
+    memcpy(buffer, current_entry->data(), entrylen);
     transaction_put(buffer, maxlen, false);
 }
 
