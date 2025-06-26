@@ -238,6 +238,11 @@ class iecDrive : public IECFileDevice
   //bool device_active = true;
   //virtual bool isActive() { return device_active; }
 
+  // needed for fujiDevice compatibility
+  bool switched = false; //indicate disk switched condition
+  bool readonly = true;  //write protected
+  fujiHost *host = nullptr;
+  bool is_config_device = false;
 
  private:
   // open file "name" on channel

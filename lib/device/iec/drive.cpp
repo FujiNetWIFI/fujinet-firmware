@@ -20,6 +20,7 @@
 
 #include "meat_media.h"
 
+using std::string;
 
 // Buffering data when reading/writing streams because during regular (non-fastloader)
 // tranmissions, the read/write functions are called for each single byte at a time and

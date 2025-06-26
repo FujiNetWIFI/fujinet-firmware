@@ -193,5 +193,15 @@ class IECDevice
   IECBusHandler *m_handler;
 };
 
+/* Compatibility with how devices work on other platforms, needed for fujiDevice */
+class virtualDevice : public IECDevice
+{
+protected:
+    uint8_t status_wait_count = 5;
+
+    virtual void shutdown() {};
+    
+};
+
 #endif
 

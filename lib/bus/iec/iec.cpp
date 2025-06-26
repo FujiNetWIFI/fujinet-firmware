@@ -102,7 +102,7 @@ void systemBus::service()
   bool error = false, active = false;
   for(int i = 0; i < MAX_DISK_DEVICES; i++)
     {
-      iecDrive *d = &(theFuji.get_disks(i)->disk_dev);
+      iecDrive *d = &(theFuji->get_disk(i)->disk_dev);
       error  |= d->hasError();
       active |= d->getNumOpenChannels()>0;
     }
