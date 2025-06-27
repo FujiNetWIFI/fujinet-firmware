@@ -160,6 +160,18 @@ if [ $BUILD_ALL -eq 1 ] ; then
 fi
 
 ##############################################################
+# Set up the virtual environment if it exists
+if [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" != "$PIO_VENV_ROOT" ]] ; then
+  echo "Activating virtual environment"
+  [[ -z "$VIRTUAL_ENV" ]] && deactivate &>/dev/null
+  source "$PIO_VENV_ROOT/bin/activate"
+elif [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" == "$PIO_VENV_ROOT" ]] ; then
+  echo "Virtual environment already activated at $PIO_VENV_ROOT"
+else
+  echo "Warning: Virtual environment not found in $PIO_VENV_ROOT. Continuing without it."
+fi
+
+##############################################################
 # PC BUILD using cmake
 if [ ! -z "$PC_TARGET" ] ; then
   echo "PC Build Mode"
@@ -293,18 +305,6 @@ if [ $create_result -ne 0 ] ; then
 fi
 
 BUILD_BOARD=$(grep '^build_board = ' $INI_FILE | cut -d" " -f 3)
-
-##############################################################
-# Set up the virtual environment if it exists
-if [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" != "$PIO_VENV_ROOT" ]] ; then
-  echo "Activating virtual environment"
-  [[ -z "$VIRTUAL_ENV" ]] && deactivate &>/dev/null
-  source "$PIO_VENV_ROOT/bin/activate"
-elif [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" == "$PIO_VENV_ROOT" ]] ; then
-  echo "Virtual environment already activated at $PIO_VENV_ROOT"
-else
-  echo "Warning: Virtual environment not found in $PIO_VENV_ROOT. Continuing without it."
-fi
 
 ##############################################################
 # ZIP MODE for building firmware zip file.
