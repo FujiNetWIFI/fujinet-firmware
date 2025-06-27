@@ -260,7 +260,7 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         rs232_ack();
-        fujicmd_disk_image_umount(cmdFrame.aux1);
+        fujicmd_disk_image_unmount_success(cmdFrame.aux1);
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
         rs232_ack();
