@@ -166,9 +166,7 @@
 				<header class="module-header">
 					HARD<span class="logowob"></span>WARE
 					<span style="float: right">
-						{% if tweaks.fujinet_pc %}
-						<input type="button" id="restartButton" value="Restart..." onclick="restartButton()" style="width: 7em">
-						{% else %}
+						{% if not tweaks.fujinet_pc %}
 						<form action="/config" method="post">
 							<input type="hidden" name="resetfuji" value="resetfuji">
 							<button type="submit" value="Reset FujiNet">Reset FujiNet</button>
@@ -176,7 +174,7 @@
 						{% endif %}
 					</span>
 				</header>
-				{% if tweaks.fujinet_pc %}
+			{% if tweaks.fujinet_pc %}
 				<div class="detline">
 					<div class="deth detlinecol">Detected Hardware Version</div>
 					<div class="det detlinecol"><%FN_HARDWARE_VER%></div>
@@ -208,7 +206,7 @@
 					<div class="deth detlinecol">Restart FujiNet</div>
 					<div class="det detlinecol"><input type="button" id="restartButton" value="Restart..." onclick="restartButton()" style="width: 7em"></div>
 				</div>
-				{% else %}
+			{% else %}
 				<div class="detline">
 					<div class="deth detlinecol">Detected Hardware Version</div>
 					<div class="det detlinecol"><%FN_HARDWARE_VER%></div>
@@ -273,7 +271,7 @@
 					</div>
 				</div>
 				{% endif %}
-				{% endif %}
+			{% endif %}
 			</div>
 			{% endif %}
 			{% if components.hosts_list %}
@@ -281,7 +279,10 @@
 				<header class="module-header">HOSTS<span class="logowob"></span>LIST</header>
 				{% for hs in range(1, 9) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
-					<div class="deth detlinecol">Host {{ hs }}</div>
+					<div class="deth detlinecol">
+						Host {{ hs }}
+						<a href="#" class="edit-host" data-hostslot="{{ hs }}" data-hostname="<%FN_HOST{{ hs }}%>">[EDIT]</a>
+					</div>
 					{% if tweaks.fujinet_pc %}
 					<div class="det detlinecol"><a href="/browse/host/{{ hs }}"><%FN_HOST{{ hs }}%> :: <%FN_HOST{{ hs }}PREFIX%></a></div>
 					{% else %}
@@ -304,9 +305,15 @@
 				{% for ds in range(1, 7) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
 					{% if ds < 5 %}
-					<div class="deth detlinecol">SmartPort Drive {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%> <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a></div>
+					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="SmartPort Drive {{ ds }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>>">
+					    SmartPort Drive {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%>
+						<a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
+					</div>
 					{% else %}
-					<div class="deth detlinecol">Disk ][ Drive {{ ds - 4 }}<%FN_DRIVE{{ ds }}DEVICE%> <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a></div>
+					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="Disk ][ Drive {{ ds - 4 }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>>">
+					    Disk ][ Drive {{ ds - 4 }}<%FN_DRIVE{{ ds }}DEVICE%>
+						<a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
+					</div>
 					{% endif %}
 					{% if tweaks.fujinet_pc %}
 					<div class="det detlinecol"><a href="<%FN_DRIVE{{ ds }}BROWSER%>"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></a></div>
@@ -318,9 +325,14 @@
 				{% else %}
 				{% for ds in range(1, 9) %}
 				<div class="{{ loop.cycle('detline', 'detline alt') }}">
-					<div class="deth detlinecol">Drive Slot {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%> <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a></div>
+					<div class="deth detlinecol" data-mountslot="{{ ds-1 }}" data-mountslotname="Drive Slot {{ ds }}" data-mount="<%FN_DRIVE{{ ds }}MOUNT%>">
+					   Drive Slot {{ ds }}<%FN_DRIVE{{ ds }}DEVICE%>
+					   <a href="/unmount?deviceslot={{ ds-1 }}">[EJECT]</a>
+					</div>
 					{% if tweaks.fujinet_pc %}
-					<div class="det detlinecol"><a href="<%FN_DRIVE{{ ds }}BROWSER%>"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></a></div>
+					<div class="det detlinecol">
+					   <a href="<%FN_DRIVE{{ ds }}BROWSER%>"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></a>
+					</div>
 					{% else %}
 					<div class="det detlinecol"><%FN_DRIVE{{ ds }}HOST%> :: <%FN_DRIVE{{ ds }}MOUNT%></div>
 					{% endif %}
@@ -1235,6 +1247,7 @@
 								<input type="text" name="serial_port" id="serial_port" value="<%FN_SERIAL_PORT%>">
 							</div>
 						</div>
+						{% if tweaks.platform == "ATARI" %}
 						<div class="set">
 							<div class="settings-label">
 								<label>COMMAND on</label>
@@ -1267,6 +1280,38 @@
 							var current_serial_command = "<%FN_SERIAL_COMMAND%>";
 							var current_serial_proceed = "<%FN_SERIAL_PROCEED%>";
 						</script>
+						{% elif tweaks.platform == "COCO" %}
+						<div class="set">
+							<div class="settings-label">
+								<label>Baud Rate</label>
+							</div>
+							<div class="settings-value select">
+								<select name="serial_baud" id="select_serial_baud">
+									<option value="38400">38400</option>
+									<option value="57600">57600</option>
+									<option value="115200">115200</option>
+								</select>
+								<span class="focus"></span>
+							</div>
+						</div>
+						<script>
+							var current_serial_baud = "<%FN_SERIAL_PORT_BAUD%>";
+						</script>
+						{% endif %}
+						<hr>
+						<div class="settings-text">
+							<div>
+								{% if tweaks.platform == "ATARI" %}
+								Serial port for communication with an Atari computer.
+								{% elif tweaks.platform == "COCO" %}
+								Serial port for communication with a CoCo computer.
+								{% else %}
+								Serial port for communication with a real computer.
+								{% endif %}
+								<br>
+								Note: To use it, configure above settings and disable communication with emulator.
+							</div>
+						</div>
 					</div>
 					<div class="settings-footer">
 						<div class="save-button">
@@ -1302,35 +1347,60 @@
 					<div class="settings-content settings-45-55">
 						<div class="set">
 							<div class="settings-label">
-								<label for="">Enable SIO over Network</label>
+								<label for="">
+									{% if tweaks.platform == "ATARI" %}
+										Enable SIO over Network
+									{% elif tweaks.platform == "COCO" %}
+										Enable Becker Port
+									{% else %}
+										Enable emulator connection
+									{% endif %}
+									{% if not tweaks.fujinet_pc %}
+									<div class="tooltip">&#9432;
+										<span class="tooltiptext small-text">
+											Reboot FujiNet after changing this value.
+										</span>
+									</div>
+									{% endif %}
+								</label>
 							</div>
 							<div class="settings-value">
 								<div class="radio-container">
-									<input checked="" id="netsio-yes" name="netsio_enable" type="radio" value="1">
-									<label for="netsio-yes" class="r-yes-no">Yes</label>
-									<input checked="" id="netsio-no" name="netsio_enable" type="radio" value="0">
-									<label for="netsio-no" class="r-yes-no">No</label>
+									<input checked="" id="boip-yes" name="boip_enable" type="radio" value="1">
+									<label for="boip-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="boip-no" name="boip_enable" type="radio" value="0">
+									<label for="boip-no" class="r-yes-no">No</label>
 								</div>
 							</div>
 						</div>
+						{% if tweaks.fujinet_pc %}
 						<div class="set">
 							<div class="settings-label">
-								<label for="netsio_host">Hostname or IP [:port]</label>
+								<label for="boip_host">Hostname or IP [:port]</label>
 							</div>
 							<div class="settings-value">
-								<input type="text" name="netsio_host" id="netsio_host" value="<%FN_NETSIO_HOST%>">
+								<input type="text" name="boip_host" id="boip_host" value="<%FN_BOIP_HOST%>">
 							</div>
 						</div>
+						{% endif %}
 						<hr>
 						<div class="settings-text">
 							<div>
-								When enabled, FujiNet will not use the physical serial port to transmit
+							{% if tweaks.platform == "ATARI" %}
+								When enabled, FujiNet will not use the serial port to transmit
 								SIO data and signals. Instead, it will communicate over the network with
 								an Atari emulator. Port is optional (defaults to 9997).
+							{% elif tweaks.platform == "COCO" %}
+								When enabled, FujiNet will not use the serial port for DriveWire
+								communication. Instead, it will use TCP to communicate with
+								a CoCo emulator.{% if tweaks.fujinet_pc %} Port is optional (defaults to 65504).{% endif %}
+							{% else %}
+								When enabled, FujiNet will communicate with an emulator over network.
+							{% endif %}
 							</div>
 						</div>
 						<script>
-							var current_netsio_enabled = "<%FN_NETSIO_ENABLED%>";
+							var current_boip_enabled = "<%FN_BOIP_ENABLED%>";
 						</script>
 					</div>
 					<div class="settings-footer">
@@ -1354,6 +1424,7 @@
 						var current_status_wait_enabled = "<%FN_STATUS_WAIT_ENABLED%>";
 						var current_config_enabled = "<%FN_CONFIG_ENABLED%>";
 						var current_encrypt_passphrase_enabled = "<%FN_ENCRYPT_PASSPHRASE_ENABLED%>";
+						var current_config_ng = "<%FN_CONFIG_NG%>";
 					</script>
 					<div class="settings-left">
 						<div class="svgicon">
@@ -1451,6 +1522,29 @@
 								</div>
 							</div>
 						</div>
+						{% if tweaks.config_ng %}
+						<div class="set">
+							<div class="settings-label">
+								<label>
+									Use CONFIG-NG Boot Disk
+									<div class="tooltip">&#9432;
+										<span class="tooltiptext small-text">
+											Use CONFIG "Next Generation" boot disk which has a prettier
+											user interface for configuring FujiNet
+										</span>
+									</div>
+								</label>
+							</div>
+							<div class="settings-value">
+								<div class="radio-container">
+									<input checked="" id="config-ng-yes" name="config_ng" type="radio" value="1">
+									<label for="config-ng-yes" class="r-yes-no">Yes</label>
+									<input checked="" id="config-ng-no" name="config_ng" type="radio" value="0">
+									<label for="config-ng-no" class="r-yes-no">No</label>
+								</div>
+							</div>
+						</div>
+						{% endif %}
 						<div class="set">
 							<div class="settings-label">
 								<label>Set alternate CONFIG boot disk
@@ -1489,6 +1583,7 @@
 								</div>
 							</div>
 						</div>
+						{% if tweaks.platform == "ATARI" %}
 						<div class="set">
 							<div class="settings-label">
 								<label>
@@ -1513,6 +1608,7 @@
 								</div>
 							</div>
 						</div>
+						{% endif %}
 						<div class="set">
 							<div class="settings-label">
 								<label>

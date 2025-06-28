@@ -144,12 +144,14 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
   // and where the track data is located so it can convert it
   if (((MediaTypeWOZ *)_disk)->trackmap(track_pos) != 255)
   {
+    TRK_bitstream *bitstream = ((MediaTypeWOZ *)_disk)->get_track(track_pos);
     diskii_xface.copy_track(
-        ((MediaTypeWOZ *)_disk)->get_track(track_pos),
-        ((MediaTypeWOZ *)_disk)->track_len(track_pos),
-        ((MediaTypeWOZ *)_disk)->num_bits(track_pos),
+        bitstream->data,
+        bitstream->len_bytes,
+        bitstream->len_bits,
         NS_PER_BIT_TIME * ((MediaTypeWOZ *)_disk)->optimal_bit_timing);
-    Debug_printf("\nCopy track: %d", track_pos);
+    // This printf nudges timing too much.
+    // Debug_printf("\nCopy track: %d", track_pos);
   }
   else
     diskii_xface.copy_track(
@@ -159,6 +161,11 @@ void IRAM_ATTR iwmDisk2::change_track(int indicator)
         NS_PER_BIT_TIME * ((MediaTypeWOZ *)_disk)->optimal_bit_timing);
 #endif // !SLIP
   // Since the empty track has no data, and therefore no length, using a fake length of 51,200 bits (6400 bytes) works very well.
+}
+
+bool iwmDisk2::write_sector(int track, int sector, uint8_t* buffer)
+{
+  return _disk->write_sector(track, sector, buffer);
 }
 
 #endif /* !SLIP */

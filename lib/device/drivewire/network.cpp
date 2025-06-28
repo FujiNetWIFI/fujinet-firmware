@@ -130,19 +130,19 @@ void drivewireNetwork::open()
     Debug_printf("drivewireNetwork::sio_open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
 
     char tmp[256];
-    memset(tmp,0,sizeof(tmp));
 
     size_t bytes_read = fnDwCom.readBytes((uint8_t *)tmp, 256);
+    tmp[sizeof(tmp)-1] = '\0';
 
     Debug_printf("tmp = %s\n",tmp);
 
     if (bytes_read != 256)
     {
-        Debug_printf("Short read of %lu bytes. Exiting.",bytes_read);
+        Debug_printf("Short read of %u bytes. Exiting.", bytes_read);
         return;
     }
 
-    deviceSpec = std::string(tmp,256);
+    deviceSpec = std::string(tmp);
     
     channelMode = PROTOCOL;
 
@@ -377,7 +377,7 @@ void drivewireNetwork::write()
 
     if (!txbuf)
     {
-        Debug_printf("drivewireNetwork::write() - could not allocate %u bytes.\n");
+        Debug_printf("drivewireNetwork::write() - could not allocate %u bytes.\n", num_bytes);
         return;
     }
 
@@ -573,7 +573,7 @@ void drivewireNetwork::set_prefix()
 
     if (read_bytes != 256)
     {
-        Debug_printf("Short read by %lu bytes. Exiting.",read_bytes);
+        Debug_printf("Short read by %u bytes. Exiting.", read_bytes);
         return;
     }
 
@@ -670,7 +670,7 @@ void drivewireNetwork::set_login()
 
     if (bytes_read != 256)
     {
-        Debug_printf("Short read of %lu bytes. Exiting.\n",bytes_read);
+        Debug_printf("Short read of %u bytes. Exiting.\n", bytes_read);
         return;
     }
 
@@ -691,13 +691,13 @@ void drivewireNetwork::set_password()
 
     if (bytes_read != 256)
     {
-        Debug_printf("Short read of %lu bytes. Exiting.\n",bytes_read);
+        Debug_printf("Short read of %u bytes. Exiting.\n", bytes_read);
         return;
     }
 
     password = std::string(tmp,256);
 
-    Debug_printf("drivewireNetwork::set_password(%s)\n",password.c_str());
+    Debug_printf("drivewireNetwork::set_password(%s)\n", password.c_str());
 }
 
 /**
@@ -1232,7 +1232,7 @@ void drivewireNetwork::json_query()
     // why does it need to be 256 bytes?
     if (bytes_read != 256)
     {
-        Debug_printf("Short read of %lu bytes. Exiting\n",bytes_read);
+        Debug_printf("Short read of %u bytes. Exiting\n", bytes_read);
         return;
     }
 
@@ -1260,7 +1260,7 @@ void drivewireNetwork::json_query()
     *receiveBuffer += std::string(tmp.begin(), null_pos);
 
     for (int i=0;i<in_string.length();i++)
-        Debug_printf("%02X ",in_string[i]);
+        Debug_printf("%02X ",(unsigned char)in_string[i]);
     
     Debug_printf("\n");
 

@@ -6,6 +6,10 @@
 #include <cstring>
 #include <utility>
 
+#ifdef ESP_PLATFORM
+#include <unistd.h>  // for fsync
+#endif
+
 #include "../../include/debug.h"
 
 #define INTERLEAVE 5 // 5:1 sector layout in image files (WHY?!?!!?)

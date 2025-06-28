@@ -7,6 +7,7 @@
 #include "fnFsTNFS.h"
 #include "fnFsSMB.h"
 #include "fnFsFTP.h"
+#include "fnFsHTTP.h"
 #include "fnTaskManager.h"
 #include "fnConfig.h"
 #include "fnio.h"
@@ -139,6 +140,22 @@ int fnHttpServiceBrowser::browse_html_escape(const char *src, size_t src_len, ch
     return i >= src_len ? (int) j : -1;
 }
 
+int fnHttpServiceBrowser::validate_path(const char *path, size_t path_len)
+{
+    char tokenized[path_len+1];
+    char *segment;
+    strlcpy(tokenized, path, sizeof(tokenized));
+    segment = strtok(tokenized, "/");
+    while (segment != NULL)
+    {
+        if (strcmp(segment, "..") == 0)
+        {
+            return -1;
+        }
+        segment = strtok(NULL, "/");
+    }
+    return 0;
+}
 
 int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, FileSystem *fs, int slot, const char *host_path, unsigned pathlen)
 {
@@ -160,6 +177,11 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
         {
             // enc_path =  host_path + '\0'
             strlcpy(enc_path, host_path, pathlen+1);
+        }
+        if (validate_path(path, strlen(path)) < 0)
+        {
+            mg_http_reply(c, 403, "", "Path is invalid\n");
+            return -1;
         }
     }
     else
@@ -302,7 +324,7 @@ int fnHttpServiceBrowser::browse_listdir(mg_connection *c, mg_http_message *hm, 
         c,
         "<table cellpadding=\"0\"><thead>"
         "<tr><th>Size</th><th>Modified</th><th>Name</th></tr>"
-        "<tr><td colspan=\"3\"><hr></td></tr></thead><tbody>");
+        "<tr><td colspan=\"3\"><hr></td></tr></thead><tbody>\r\n");
 
     // list directory
     fsdir_entry *dp;
@@ -334,7 +356,7 @@ int fnHttpServiceBrowser::browse_listdrives(mg_connection *c, int slot, const ch
         c,
         "<table cellpadding=\"0\"><thead>"
         "<tr><th>Slot</th><th>Action</th><th>Current disk image (Mode)</th></tr>"
-        "<tr><td colspan=\"3\"><hr></td></tr></thead><tbody>");
+        "<tr><td colspan=\"3\"><hr></td></tr></thead><tbody>\r\n");
 
     // list drive slots
     char disk_id;
@@ -357,7 +379,7 @@ int fnHttpServiceBrowser::browse_listdrives(mg_connection *c, int slot, const ch
                 "<a title=\"Mount Read-Write\" href=\"?action=newmount&slot=%d&mode=w\">[ W ]</a> "
                 "<a title=\"%s\" href=\"?action=%s&slot=%d\">[ %s ]</a></td>"
                 "<td>%s (%s)</td>"
-            "</tr>",
+            "</tr>\r\n",
             drive_slot+1, slot_disk,
             // action=newmount&slot=..
             drive_slot+1, drive_slot+1,
@@ -407,7 +429,7 @@ void fnHttpServiceBrowser::print_navi(mg_connection *c, int slot, const char *es
     const char *p_enc = enc_path;
 
     mg_http_printf_chunk(c,
-        "<h2><a href=\"/browse/host/%d\">%s</a>:", slot+1, theFuji.get_hosts(slot)->get_hostname()); // TODO escape hostname
+        "<h2><a href=\"/browse/host/%d\">%s</a>", slot+1, theFuji.get_hosts(slot)->get_hostname()); // TODO escape hostname
 
     for(;;)
     {
@@ -487,7 +509,7 @@ void fnHttpServiceBrowser::print_dentry(mg_connection *c, fsdir_entry *dp, int s
     }
     strftime(mod, sizeof(mod), "%d-%b-%Y %H:%M", localtime(&dp->modified_time));
     mg_http_printf_chunk(c,
-        "<tr><td>%s</td><td>%s</td><td><a href=\"/browse/host/%d%s%s%s%s\">%s%s</a></td></tr>",
+        "<tr><td>%s</td><td>%s</td><td><a href=\"/browse/host/%d%s%s%s%s\">%s%s</a></td></tr>\r\n",
         size, mod, slot+1, enc_path, sep, enc_filename, form, esc_filename, slash);
 }
 
@@ -520,7 +542,7 @@ int fnHttpServiceBrowser::process_browse_get(mg_connection *c, mg_http_message *
     int host_type;
     bool started = false;
 
-    Debug_printf("Browse host %d (%s)\n", host_slot, fnHost.get_hostname());
+    Debug_printf("Browse host %d (%s) host_path=\"%.*s\"\n", host_slot, fnHost.get_hostname(), pathlen, host_path);
 
     char hostname[MAX_HOSTNAME_LEN];
     fnHost.get_hostname(hostname, MAX_HOSTNAME_LEN);
@@ -549,6 +571,11 @@ int fnHttpServiceBrowser::process_browse_get(mg_connection *c, mg_http_message *
         fs = new FileSystemFTP;
         host_type = HOSTTYPE_FTP;
     }
+    else if (strncasecmp("http://", hostname, 7) == 0 || strncasecmp("https://", hostname, 8) == 0)
+    {
+        fs = new FileSystemHTTP;
+        host_type = HOSTTYPE_HTTP;
+    }
     else
     {
         fs = new FileSystemTNFS;
@@ -573,6 +600,9 @@ int fnHttpServiceBrowser::process_browse_get(mg_connection *c, mg_http_message *
         break;
     case HOSTTYPE_FTP:
         started = ((FileSystemFTP *)fs)->start(hostname);
+        break;
+    case HOSTTYPE_HTTP:
+        started = ((FileSystemHTTP *)fs)->start(hostname);
         break;
     case HOSTTYPE_TNFS:
         started = ((FileSystemTNFS *)fs)->start(hostname);

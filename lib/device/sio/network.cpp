@@ -122,9 +122,22 @@ void sioNetwork::sio_open()
 
     // persist aux1/aux2 values - NOTHING USES THEM!
     open_aux1 = cmdFrame.aux1;
-    open_aux2 = cmdFrame.aux2;
-    open_aux2 |= trans_aux2;
-    cmdFrame.aux2 |= trans_aux2;
+
+    // Ignore aux2 value if NTRANS set 0xFF, for ACTION!
+    if (trans_aux2 == 0xFF)
+    {
+        open_aux2 = cmdFrame.aux2 = 0;
+    }
+    else if (cmdFrame.aux1 == 6) // don't xlate dir listings.
+    {
+        open_aux2 = cmdFrame.aux2;
+    }
+    else
+    {
+        open_aux2 = cmdFrame.aux2;
+        open_aux2 |= trans_aux2;
+        cmdFrame.aux2 |= trans_aux2;
+    }
 
     // Shut down protocol if we are sending another open before we close.
     if (protocol != nullptr)
@@ -556,6 +569,7 @@ void sioNetwork::sio_set_prefix()
 
     prefixSpec_str = string((const char *)prefixSpec);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
+
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
 #endif
@@ -567,8 +581,14 @@ void sioNetwork::sio_set_prefix()
     }
     else 
     {
+        // Append trailing slash if not found
+        if (prefixSpec_str.back() != '/')
+        {
+            prefixSpec_str += "/";
+        }
+
         // For the remaining cases, append trailing slash if not found
-        if (prefix[prefix.size()-1] != '/')
+        if (prefix.back() != '/')
         {
             prefix += "/";
         }
@@ -600,11 +620,6 @@ void sioNetwork::sio_set_prefix()
         else if (prefixSpec_str.find_first_of(":") != string::npos)
         {
             prefix = prefixSpec_str;
-            // Check for trailing slash. Append if missing.
-            if (prefix[prefix.size()-1] != '/')
-            {
-                prefix += "/";
-            }
         }
         else // append to path.
         {
@@ -1193,7 +1208,10 @@ void sioNetwork::sio_set_json_query()
 
     std::string inp_string;
     if (last_colon_pos != std::string::npos) {
-        Debug_printf("sioNetwork::sio_set_json_query - skipped device spec. Application should be updated to remove it from query (%s)\r\n", in_string.c_str());
+        // Skip the device spec. There was a debug message here,
+        // but it was removed, because there are cases where
+        // removing the devicespec isn't possible, e.g. accessing
+        // via CIO (as an XIO). -thom
         inp_string = in_string.substr(last_colon_pos + 1);
     } else {
         inp_string = in_string;

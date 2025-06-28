@@ -118,7 +118,7 @@ bool drivewireDisk::write_blank(fnFile *f, uint8_t numDisks)
     uint8_t b[512];
     size_t n = numDisks * 315;
 
-    Debug_printf("write_blank num_disks: %lu\n",n);
+    Debug_printf("write_blank num_disks: %u\n", n);
 
     memset(b,0xFF,sizeof(b));
 

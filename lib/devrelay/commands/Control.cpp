@@ -1,10 +1,8 @@
 #ifdef DEV_RELAY_SLIP
-
-#include <iostream>
 #include "Control.h"
 
-ControlRequest::ControlRequest(const uint8_t request_sequence_number, const uint8_t device_id, const uint8_t control_code, const uint8_t network_unit, std::vector<uint8_t> &data)
-	: Request(request_sequence_number, CMD_CONTROL, device_id), control_code_(control_code), network_unit_(network_unit), data_(std::move(data))
+ControlRequest::ControlRequest(const uint8_t request_sequence_number, const uint8_t param_count, const uint8_t device_id, const uint8_t control_code, const uint8_t network_unit, std::vector<uint8_t> &data)
+	: Request(request_sequence_number, CMD_CONTROL, param_count, device_id), control_code_(control_code), network_unit_(network_unit), data_(std::move(data))
 {
 }
 
@@ -13,9 +11,12 @@ std::vector<uint8_t> ControlRequest::serialize() const
 	std::vector<uint8_t> request_data;
 	request_data.push_back(this->get_request_sequence_number());
 	request_data.push_back(this->get_command_number());
+	request_data.push_back(this->get_param_count());
 	request_data.push_back(this->get_device_id());
+	request_data.resize(6);
 	request_data.push_back(this->get_control_code());
 	request_data.push_back(this->get_network_unit());
+	request_data.resize(11);
 	request_data.insert(request_data.end(), get_data().begin(), get_data().end());
 	return request_data;
 }
@@ -24,8 +25,7 @@ std::unique_ptr<Response> ControlRequest::deserialize(const std::vector<uint8_t>
 {
 	if (data.size() < 2)
 	{
-		std::cerr << "Not enough data to deserialize ControlResponse" << std::endl;
-		return nullptr;
+		throw std::runtime_error("Not enough data to deserialize ControlResponse");
 	}
 
 	auto response = std::make_unique<ControlResponse>(data[0], data[1]);

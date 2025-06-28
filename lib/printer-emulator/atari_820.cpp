@@ -41,6 +41,12 @@ void atari820::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
         // could increase charWidth, but not necessary to make this work. I force EOL.
     }
 
+    if (c == 12)
+    {
+        pdf_end_page();
+        pdf_new_page();
+    }
+
     // maybe printable character
     if (c > 31 && c < 127)
     {

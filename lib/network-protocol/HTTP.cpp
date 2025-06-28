@@ -10,6 +10,7 @@
 
 #include "status_error_codes.h"
 #include "utils.h"
+#include "string_utils.h"
 #include "compat_string.h"
 
 #include <vector>
@@ -20,12 +21,12 @@
 Aux1 values
 ===========
 
-4 = GET, no headers, just grab data.
+4 = GET, with filename translation, URL encoding.
 5 = DELETE, no headers
 6 = PROPFIND, WebDAV directory
 8 = PUT, write data to server, XIO used to toggle headers to get versus data write
 9 = DELETE, with headers
-12 = GET, write sets headers to fetch, read grabs data
+12 = GET, pure and unmolested
 13 = POST, write sends post data to server, read grabs response, XIO used to change write behavior, toggle headers to get or headers to set.
 14 = PUT, write sends post data to server, read grabs response, XIO used to change write behavior, toggle headers to get or headers to set.
 DELETE, MKCOL, RMCOL, COPY, MOVE, are all handled via idempotent XIO commands.
@@ -122,19 +123,19 @@ bool NetworkProtocolHTTP::open_file_handle()
 
     switch (aux1_open)
     {
-    case 4:  // GET with no headers, filename resolve
-    case 12: // GET with ability to set headers, no filename resolve.
+    case PROTOCOL_OPEN_READ:        // GET with no headers, filename resolve
+    case PROTOCOL_OPEN_READWRITE:   // GET with ability to set headers, no filename resolve.
         httpOpenMode = GET;
         break;
-    case 8: // WRITE, filename resolve, ignored if not found.
+    case PROTOCOL_OPEN_WRITE:       // WRITE, filename resolve, ignored if not found.
         httpOpenMode = PUT;
         break;
-    case 5: // DELETE with no headers
-    case 9: // DELETE with ability to set headers
+    case PROTOCOL_OPEN_HTTP_DELETE: // DELETE with no headers
+    case PROTOCOL_OPEN_APPEND:      // DELETE with ability to set headers
         httpOpenMode = DELETE;
         break;
-    case 13: // POST can set headers, also no filename resolve
-    case 14: // PUT with ability to set headers, no filename resolve
+    case PROTOCOL_OPEN_HTTP_POST:   // POST can set headers, also no filename resolve
+    case PROTOCOL_OPEN_HTTP_PUT:    // PUT with ability to set headers, no filename resolve
         httpOpenMode = POST;
         break;
     default:
@@ -173,6 +174,14 @@ bool NetworkProtocolHTTP::open_dir_handle()
     "<D:propfind xmlns:D=\"DAV:\">\r\n"
     "<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /><D:resourcetype /></D:prop>\r\n"
     "</D:propfind>\r\n");
+
+    // If Method not allowed, try GET.
+    if (resultCode == 405 || resultCode == 408)
+    {
+        httpOpenMode = GET;
+        http_transaction();
+        return false;
+    }
 
     if (resultCode > 399)
     {
@@ -310,14 +319,13 @@ bool NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
         url->rebuildUrl();
     }
 
-#if 0
-    // this would allow to make path like "Homesoft Collection" (entered by user, not encoded) working
-    // but it currently breaks any URL using query component (e.g. query from lobby client: ?platform=atari)
-    // the issue is in url parser as it leaves query part in path component, it needs to be fixed first
-    std::string encoded = mstr::urlEncode(url->path);
-    url->path = encoded;
-    url->rebuildUrl();
-#endif
+    if (aux1_open == 4 || aux1_open == 8)
+    {
+        // We are opening a file, URL encode the path.
+        std::string encoded = mstr::urlEncode(url->path);
+        url->path = encoded;
+        url->rebuildUrl();
+    }
 
     return !client->begin(url->url);
 }
@@ -432,11 +440,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     {
     case DATA:
     {
-#ifdef ESP_PLATFORM
         if (!fromInterrupt && resultCode == 0)
-#else
-        if (!fromInterrupt && (resultCode == 0 || (!client->is_transaction_done() && client->available() == 0)))
-#endif
         {
 #ifdef VERBOSE_PROTOCOL
             Debug_printf("calling http_transaction\r\n");

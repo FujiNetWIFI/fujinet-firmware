@@ -10,17 +10,87 @@ using namespace std;
 
 #define EOL 0x9B
 
+
+void sioVoice::sio_sam_presets(int pr)
+{
+//	DESCRIPTION          SPEED     PITCH     THROAT    MOUTH
+//	SAM                   72        64        128       128
+//	Elf                   72        64        110       160
+//	Little Robot          92        60        190       190
+//	Stuffy Guy            82        72        110       105
+//	Little Old Lady       82        32        145       145
+//	Extra-Terrestrial    100        64        150       200
+
+    switch (pr)
+    {
+        case 0: //SAM
+            speed = "72";
+            pitch = "64";
+            throat = "128";
+            mouth = "128";
+            break;
+        case 1: //Elf
+            speed = "72";
+            pitch = "64";
+            throat = "110";
+            mouth = "160";
+            break;
+        case 2: //Little Robot
+            speed = "92";
+            pitch = "60";
+            throat = "190";
+            mouth = "190";
+            break;
+        case 3: //Stuffy Guy
+            speed = "82";
+            pitch = "72";
+            throat = "110";
+            mouth = "105";
+            break;
+        case 4: //Little Old Lady
+            speed = "82";
+            pitch = "32";
+            throat = "145";
+            mouth = "145";
+            break;
+        case 5: //Extra-Terrestrial
+            speed = "100";
+            pitch = "64";
+            throat = "150";
+            mouth = "200";
+            break;
+        default:
+            break;
+    }
+
+
+}
+
 void sioVoice::sio_sam_parameters()
 {
     string s = string((char *)lineBuffer); // change to lineBuffer
     vector<string> tokens = util_tokenize(s, ' ');
 
+
+
     for (vector<string>::iterator it = tokens.begin(); it != tokens.end(); ++it)
     {
         string t = *it;
 
+        
         switch (t[0])
         {
+#ifdef ESP32S3_I2S_OUT
+        case 0x01: // ^A i2sOut
+            i2sOut = *(++it);
+            break;
+#endif            
+//        case 0x02: // ^B SampleRate
+//            samplerate = *(++it);
+//            break;
+        case 0x03: // ^C Preset
+            sio_sam_presets(atoi((*(++it)).c_str()));
+            break;
         case 0x07: // ^G SING
             sing = true;
             break;
@@ -35,11 +105,8 @@ void sioVoice::sio_sam_parameters()
             break;
         case 0x12: // ^R RESET
             sing = false;
-            pitch.clear();
-            mouth.clear();
             phonetic = false;
-            speed.clear();
-            throat.clear();
+            sio_sam_presets(0);
             break;
         case 0x13: // ^S Speed
             speed = *(++it);
@@ -71,8 +138,25 @@ void sioVoice::sio_sam()
 
     sio_sam_parameters();
 
+
+//    if (!samplerate.empty())
+//    {
+//        a[n++] = (char *)("-samplerate");
+//        a[n++] = (char *)(samplerate.c_str());
+//    }
+
+#ifdef ESP32S3_I2S_OUT
+    if (!i2sOut.empty())
+    {
+        a[n++] = (char *)("-i2sOut");
+        a[n++] = (char *)(i2sOut.c_str());
+    }
+#endif
+
     if (sing == true)
         a[n++] = (char *)("-sing");
+    else 
+        a[n++] = (char *)("-no-sing");
 
     if (!pitch.empty())
     {
@@ -88,12 +172,9 @@ void sioVoice::sio_sam()
 
     if (phonetic == true)
         a[n++] = (char *)("-phonetic");
+//    else
+//        a[n++] = (char *)("-no-phonetic");
 
-    if (!pitch.empty())
-    {
-        a[n++] = (char *)("-pitch");
-        a[n++] = (char *)(pitch.c_str());
-    }
 
     if (!speed.empty())
     {

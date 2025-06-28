@@ -37,19 +37,19 @@ protected:
         char filename[16];
     };
 
-    void seekHeader() override {
+    bool readHeader() override {
         containerStream->seek(0x28);
-        containerStream->read((uint8_t*)&header, 24);
-    }
-
-    bool seekNextImageEntry() override {
-        return seekEntry(entry_index + 1);
+        if (containerStream->read((uint8_t*)&header, 24))
+            return true;
+        
+        return false;
     }
 
     bool seekEntry( std::string filename ) override;
     bool seekEntry( uint16_t index ) override;
 
-    uint16_t readFile(uint8_t* buf, uint16_t size) override;
+    uint32_t readFile(uint8_t* buf, uint32_t size) override;
+    uint32_t writeFile(uint8_t* buf, uint32_t size) override { return 0; };
     bool seekPath(std::string path) override;
 
     Header header;
@@ -97,7 +97,6 @@ public:
     bool rename(std::string dest) override { return false; };
     time_t getLastWrite() override { return 0; };
     time_t getCreationTime() override { return 0; };
-    uint32_t size() override;
 
     bool isDir = true;
     bool dirIsOpen = false;

@@ -28,6 +28,16 @@
 
 #include "httpService.h"
 
+#ifdef ENABLE_CONSOLE
+#include "../lib/console/ESP32Console.h"
+using namespace ESP32Console;
+Console console;
+#endif
+
+#ifdef ENABLE_DISPLAY
+#include "display.h"
+#endif
+
 #ifndef ESP_PLATFORM
 #include "fnTaskManager.h"
 #include "version.h"
@@ -127,11 +137,22 @@ void main_setup(int argc, char *argv[])
 
     // Startup messages
 #ifdef ESP_PLATFORM
-  #ifdef DEBUG
-    fnUartDebug.begin(DEBUG_SPEED);
+
     unsigned long startms = fnSystem.millis();
+
+#ifdef ENABLE_CONSOLE
+    //You can change the console prompt before calling begin(). By default it is "ESP32>"
+    console.setPrompt("fujinet[%pwd%]# ");
+
+    //You can change the baud rate and pin numbers similar to Serial.begin() here.
+    console.begin(DEBUG_SPEED);
+#else
+    Serial.begin(DEBUG_SPEED);
+#endif
+
+#ifdef DEBUG
     Debug_printf("\r\n\r\n--~--~--~--\nFujiNet %s Started @ %lu\r\n", fnSystem.get_fujinet_version(), startms);
-    Debug_printf("Starting heap: %u\r\n", fnSystem.get_free_heap_size());
+    Debug_printf("Starting heap: %lu\r\n", fnSystem.get_free_heap_size());
     Debug_printv("Heap: %lu\r\n",esp_get_free_internal_heap_size());
     #ifdef ATARI
     Debug_printf("PsramSize %u\r\n", fnSystem.get_psram_size());
@@ -180,7 +201,7 @@ void main_setup(int argc, char *argv[])
     // Initialize Winsock
     WSADATA wsaData;
     int result = WSAStartup(MAKEWORD(2,2), &wsaData);
-    if (result != 0) 
+    if (result != 0)
     {
         Debug_printf("WSAStartup failed: %d\n", result);
         exit(EXIT_FAILURE);
@@ -256,9 +277,7 @@ void main_setup(int argc, char *argv[])
 
     SIO.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 
-#ifdef ESP_PLATFORM
     SIO.addDevice(&sioV, SIO_DEVICEID_FN_VOICE); // P3:
-#endif
 
     SIO.addDevice(&sioZ, SIO_DEVICEID_CPM); // (ATR8000 CPM)
 
@@ -302,6 +321,21 @@ void main_setup(int argc, char *argv[])
     theFuji.setup(&RS232);
     RS232.setup();
     RS232.addDevice(&theFuji,0x70);
+    if (Config.get_apetime_enabled() == true)
+        RS232.addDevice(&apeTime, RS232_DEVICEID_APETIME); // Clock for Atari, APETime compatible, but extended for additional return types
+
+    // Create a new printer object, setting its output depending on whether we have SD or not
+    FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
+    rs232Printer::printer_type ptype = Config.get_printer_type(0);
+    if (ptype == rs232Printer::printer_type::PRINTER_INVALID)
+        ptype = rs232Printer::printer_type::PRINTER_FILE_TRIM;
+
+    Debug_printf("Creating a default printer using %s storage and type %d\r\n", ptrfs->typestring(), ptype);
+
+    rs232Printer *ptr = new rs232Printer(ptrfs, ptype);
+    fnPrinters.set_entry(0, ptr, ptype, 0);
+
+    RS232.addDevice(ptr, RS232_DEVICEID_PRINTER); // P:
 #endif
 
 #ifdef BUILD_RC2014
@@ -432,9 +466,31 @@ void main_setup(int argc, char *argv[])
 #ifdef ESP_PLATFORM
   #ifdef DEBUG
     unsigned long endms = fnSystem.millis();
-    Debug_printf("\r\nAvailable heap: %u\r\nSetup complete @ %lu (%lums)\r\n", fnSystem.get_free_heap_size(), endms, endms - startms);
+    Debug_printf("\r\nAvailable heap: %lu\r\nSetup complete @ %lu (%lums)\r\n", fnSystem.get_free_heap_size(), endms, endms - startms);
     Debug_printv("Low Heap: %lu",esp_get_free_internal_heap_size());
   #endif // DEBUG
+
+#ifdef ENABLE_DISPLAY
+    DISPLAY.start();
+#endif
+
+#ifdef ENABLE_CONSOLE
+    //Register builtin commands like 'reboot', 'version', or 'meminfo'
+    console.registerSystemCommands();
+
+    //Register network commands
+    console.registerNetworkCommands();
+
+    //Register the VFS specific commands
+    console.registerVFSCommands();
+
+    //Register GPIO commands
+    console.registerGPIOCommands();
+
+    //Register XFER commands
+    console.registerXFERCommands();
+#endif
+
 #else
 // !ESP_PLATFORM
     unsigned long endms = fnSystem.millis();

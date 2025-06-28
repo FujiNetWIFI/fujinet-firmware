@@ -1,29 +1,35 @@
 #ifndef IECCLOCK_H
 #define IECCLOCK_H
 
-#include "../../bus/bus.h"
+#include "bus.h"
+#include "../../bus/iec/IECFileDevice.h"
 
 #define TC_SIZE 256 // size of returned time string.
 
-class iecClock : public virtualDevice
+class iecClock : public IECDevice
 {
     private:
-    
+
     time_t ts;
-    std::string tf;
+    std::string tf, payload, response;
+    size_t responsePtr;
+
+protected:
+    virtual void talk(uint8_t secondary) override;
+    virtual void listen(uint8_t secondary) override;
+    virtual void untalk() override;
+    virtual void unlisten() override;
+    virtual int8_t canWrite() override;
+    virtual int8_t canRead() override;
+    virtual void write(uint8_t data, bool eoi) override;
+    virtual uint8_t read() override;
+    virtual void task() override;
+    virtual void reset() override;
 
     public:
 
-    iecClock();
+    iecClock(uint8_t devnr);
     ~iecClock();
-
-    device_state_t process();
-
-    void iec_open();
-    void iec_close();
-    void iec_reopen();
-    void iec_reopen_talk();
-    void iec_reopen_listen();
 
     void set_timestamp(std::string s);
     void set_timestamp_format(std::string s);

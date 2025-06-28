@@ -1,5 +1,9 @@
-# Name,   Type, SubType, Offset,   Size, Flags
-nvs,      data, nvs,     0x9000,   0x5000,
-phy_init, data, phy,     0xf000,   0x1000,
-fujinet,  app,  factory, 0x10000,  0x240000,
-flash,    data, spiffs,  0x250000, 0x1B0000,
+# Name,  Type, SubType,  Offset,   Size,    Flags
+# Non-Volitile Storage
+nvs,     data, nvs,      0x9000,   28K,
+# Main Application
+main,    app,  factory,  0x10000,  2880K,
+# Update Application
+update,  app,  ota_0,    0x2E0000, 384K,
+# Flash Storage
+storage, data, littlefs, 0x340000, 768K,

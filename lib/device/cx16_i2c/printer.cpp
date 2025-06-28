@@ -284,7 +284,9 @@ void cx16Printer::process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.checksum = checksum;
 
     if (!Config.get_printer_enabled())
+    {
         Debug_println("cx16Printer::disabled, ignoring");
+    }
     else
     {
         switch (cmdFrame.comnd)

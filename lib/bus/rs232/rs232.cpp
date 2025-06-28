@@ -14,13 +14,23 @@
 #include "fnDNS.h"
 #include "led.h"
 #include "utils.h"
+#include <endian.h>
 
 // Helper functions outside the class defintions
 
-// Get requested buffer length from command frame
-unsigned short virtualDevice::rs232_get_aux()
+uint16_t virtualDevice::rs232_get_aux16_lo()
 {
-    return (cmdFrame.aux2 * 256) + cmdFrame.aux1;
+    return le16toh(cmdFrame.aux12);
+}
+
+uint16_t virtualDevice::rs232_get_aux16_hi()
+{
+    return le16toh(cmdFrame.aux34);
+}
+
+uint32_t virtualDevice::rs232_get_aux32()
+{
+    return le32toh(cmdFrame.aux);
 }
 
 // Calculate 8-bit checksum
@@ -161,8 +171,7 @@ void systemBus::_rs232_process_cmd()
 
     // Read CMD frame
     cmdFrame_t tempFrame;
-    tempFrame.commanddata = 0;
-    tempFrame.checksum = 0;
+    memset(&tempFrame, 0, sizeof(tempFrame));
 
     if (fnUartBUS.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
@@ -172,30 +181,24 @@ void systemBus::_rs232_process_cmd()
     // Turn on the RS232 indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
 
-    Debug_printf("\nCF: %02x %02x %02x %02x %02x\n",
-                 tempFrame.device, tempFrame.comnd, tempFrame.aux1, tempFrame.aux2, tempFrame.cksum);
+    Debug_printf("\nCF: %02x %02x %02x %02x %02x %02x %02x\n",
+                 tempFrame.device, tempFrame.comnd,
+                 tempFrame.aux1, tempFrame.aux2, tempFrame.aux3, tempFrame.aux4,
+                 tempFrame.cksum);
     // Wait for CMD line to raise again
     while (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
         vTaskDelay(1);
 
-    uint8_t ck = rs232_checksum((uint8_t *)&tempFrame.commanddata, sizeof(tempFrame.commanddata)); // Calculate Checksum
-    if (ck == tempFrame.checksum)
+    uint8_t ck = rs232_checksum((uint8_t *)&tempFrame, sizeof(tempFrame) - sizeof(tempFrame.cksum)); // Calculate Checksum
+    if (ck == tempFrame.cksum)
     {
         if (tempFrame.device == RS232_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = _fujiDev->bootdisk();
-            if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R' && _fujiDev->status_wait_enabled)
-            {
-                Debug_printf("Disabling CONFIG boot.\n");
-                _fujiDev->boot_config = false;
-                return;
-            }
-            else
-            {
-                Debug_println("FujiNet CONFIG boot");
-                // handle command
-                _activeDev->rs232_process(tempFrame.commanddata, tempFrame.checksum);
-            }
+
+            Debug_println("FujiNet CONFIG boot");
+            // handle command
+            _activeDev->rs232_process(&tempFrame);
         }
         else
         {
@@ -208,7 +211,7 @@ void systemBus::_rs232_process_cmd()
                     {
                         _activeDev = devicep;
                         // handle command
-                        _activeDev->rs232_process(tempFrame.commanddata, tempFrame.checksum);
+                        _activeDev->rs232_process(&tempFrame);
                     }
                 }
             }
@@ -292,16 +295,16 @@ void systemBus::service()
 // Setup RS232 bus
 void systemBus::setup()
 {
-    Debug_println("RS232 SETUP");
+    Debug_printf("RS232 SETUP: Baud rate: %u\n",Config.get_rs232_baud());
 
     // Set up UART
-    fnUartBUS.begin(_rs232Baud);
+    fnUartBUS.begin(Config.get_rs232_baud());
 
-    // INT PIN
-    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
+    // // INT PIN
+    // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
     // PROC PIN
-    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_UP);
     fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
     // INVALID PIN
     //fnSystem.set_pin_mode(PIN_RS232_INVALID, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39

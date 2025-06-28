@@ -32,13 +32,14 @@ class fnHttpServiceConfigurator
     static void config_apetime_enabled(std::string apetime_enabled);
     static void config_cpm_enabled(std::string cpm_enabled);
     static void config_cpm_ccp(std::string cpm_ccp);
+    static void config_ng(std::string config_ng);
     static void config_alt_filename(std::string alt_cfg);
     static void config_pclink_enabled(std::string pclink_enabled);
 
 #ifndef ESP_PLATFORM
-    static void config_serial(std::string port, std::string command, std::string proceed);
-    static void config_netsio(std::string enable_netsio, std::string netsio_host_port);
+    static void config_serial(std::string port, std::string baud, std::string command, std::string proceed);
 #endif
+    static void config_boip(std::string enable_boip, std::string boip_host_port);
 
 public:
     static char * url_decode(char * dst, const char * src, size_t dstsize);

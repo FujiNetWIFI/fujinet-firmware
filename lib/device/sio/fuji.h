@@ -114,7 +114,7 @@ private:
     mbedtls_sha512_context _sha512;
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
-    
+
 protected:
     void sio_reset_fujinet();          // 0xFF
     void sio_net_get_ssid();           // 0xFE
@@ -139,6 +139,7 @@ protected:
     void sio_write_device_slots();     // 0xF1
     void sio_enable_udpstream();       // 0xF0
     void sio_net_get_wifi_enabled();   // 0xEA
+    void sio_set_baudrate();           // 0xEB
 #ifdef ESP_PLATFORM
     void sio_disk_image_umount();      // 0xE9
 #else
@@ -177,6 +178,10 @@ protected:
     void sio_hash_output();            // 0xC5
     void sio_get_adapter_config_extended(); // 0xC4
     void sio_hash_clear();             // 0xC2
+    void sio_qrcode_input();           // 0xBC
+    void sio_qrcode_encode();          // 0xBD
+    void sio_qrcode_length();          // OxBE
+    void sio_qrcode_output();          // 0xBF
 
     void sio_status() override;
     void sio_process(uint32_t commanddata, uint8_t checksum) override;
@@ -215,6 +220,7 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *set_slot_hostname(int host_slot, char *hostname);
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();

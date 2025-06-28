@@ -4,182 +4,284 @@
 #include "../fuji/fujiHost.h"
 
 #include <string>
+#include <cstring>
 #include <unordered_map>
+#include <esp_rom_crc.h>
 
-#include "../../bus/bus.h"
+#include "../../bus/iec/IECFileDevice.h"
 #include "../../media/media.h"
 #include "../meatloaf/meatloaf.h"
 #include "../meatloaf/meat_buffer.h"
 #include "../meatloaf/wrappers/iec_buffer.h"
 #include "../meatloaf/wrappers/directory_stream.h"
+#include "utils.h"
+
+#ifdef USE_VDRIVE
+#include "../vdrive/VDriveClass.h"
+#endif
 
 //#include "dos/_dos.h"
 //#include "dos/cbmdos.2.5.h"
 
 #define PRODUCT_ID "MEATLOAF CBM"
 
-class iecDrive : public virtualDevice
+class iecDrive;
+
+class iecChannelHandler
 {
-private:
-    // /**
-    //  * @brief the active bus protocol
-    //  */
-    // std::shared_ptr<DOS> _dos = nullptr;
+ public:
+  iecChannelHandler(iecDrive *drive);
+  virtual ~iecChannelHandler();
 
-    // /**
-    //  * @brief Switch to detected bus protocol
-    //  */
-    // std::shared_ptr<DOS> selectDOS();
+  uint8_t read(uint8_t *data, uint8_t n);
+  uint8_t write(uint8_t *data, uint8_t n);
 
-protected:
-    //MediaType *_disk = nullptr;
+  virtual uint8_t writeBufferData() = 0;
+  virtual uint8_t readBufferData()  = 0;
+  virtual MStream *getStream() { return nullptr; };
 
-    std::unique_ptr<MFile> _base;   // Always points to current directory/image
-    std::string _last_file;         // Always points to last loaded file
+ protected:
+  iecDrive *m_drive;
+  uint8_t  *m_data;
+  size_t    m_len, m_ptr;
+};
 
-    // Named Channel functions
-    //std::shared_ptr<MStream> currentStream;
-    bool registerStream (uint8_t channel);
-    std::shared_ptr<MStream> retrieveStream ( uint8_t channel );
-    bool closeStream ( uint8_t channel, bool close_all = false );
-    uint16_t retrieveLastByte ( uint8_t channel );
-    void storeLastByte( uint8_t channel, char last);
-    void flushLastByte( uint8_t channel );
 
-    // Directory
-    uint16_t sendHeader(std::string header, std::string id);
-    uint16_t sendLine(uint16_t blocks, char *text);
-    uint16_t sendLine(uint16_t blocks, const char *format, ...);
-    uint16_t sendFooter();
-    void sendListing();
+class iecChannelHandlerFile : public iecChannelHandler
+{
+ public: 
+  iecChannelHandlerFile(iecDrive *drive, MStream *stream, int fixLoadAddress = -1);
+  virtual ~iecChannelHandlerFile();
 
-    // File
-    bool sendFile();
-    bool saveFile();
-    void sendFileNotFound();
+  virtual uint8_t readBufferData();
+  virtual uint8_t writeBufferData();
+  virtual MStream *getStream() override { return m_stream; };
 
-    struct _error_response
+ private:
+  MStream  *m_stream;
+  int       m_fixLoadAddress;
+  uint32_t  m_byteCount;
+  uint64_t  m_timeStart, m_transportTimeUS;
+};
+
+
+class iecChannelHandlerDir : public iecChannelHandler
+{
+ public: 
+  iecChannelHandlerDir(iecDrive *drive, MFile *dir);
+  virtual ~iecChannelHandlerDir();
+
+  virtual uint8_t readBufferData();
+  virtual uint8_t writeBufferData();
+
+ private:
+  void addExtraInfo(std::string title, std::string text);
+  
+  MFile   *m_dir;
+  uint8_t  m_headerLine;
+  std::vector<std::string> m_headers;
+};
+
+
+class driveMemory
+{
+ private:
+  // TODO: Utilize ESP32 HighMemory API to access unused 4MB of PSRAM
+  std::vector<uint8_t> ram;         // 0000-07FF  RAM
+  // uint8_t via1[1024] = { 0x00 }; // 1800-1BFF  6522 VIA1
+  // uint8_t via2[1024] = { 0x00 }; // 1C00-1FFF  6522 VIA2
+  std::unique_ptr<MStream> rom;     // C000-FFFF  ROM 16KB
+
+ public:
+   driveMemory(size_t ramSize = 2048) : ram(ramSize, 0x00) {
+    setROM("dos1541"); // Default to 1541 ROM
+  }
+  ~driveMemory() = default;
+
+  uint16_t mw_hash = 0;
+
+  bool setRAM(size_t ramSize) {
+    ram.resize(ramSize, 0x00);
+    return true;
+  }
+
+  bool setROM(std::string filename) { 
+    // Check for ROM file in SD Card then Flash
+    auto rom_file = MFSOwner::File("/sd/.rom/" + filename);
+    if (rom_file == nullptr) {
+      rom_file = MFSOwner::File("/.rom/" + filename);
+    }
+    if (rom_file == nullptr) {
+      return false;
+    }
+
+    rom.reset(rom_file->getSourceStream());
+    if (!rom) {
+      return false;
+    }
+    Debug_printv("Drive ROM Loaded file[%s] stream[%s] size[%lu]", rom_file->url.c_str(), rom->url.c_str(), rom->size());
+    return true;
+  }
+
+  size_t read(uint16_t addr, uint8_t *data, size_t len) 
+  {
+    // RAM
+    if ( addr < 0x0FFF )
     {
-        unsigned char errnum = 73;
-        std::string msg = "CBM DOS V2.6 1541";
-        unsigned char track = 0;
-        unsigned char sector = 0;
-    } error_response;
-
-    void read();
-    void write(bool verify);
-    void format();
-
-protected:
-    /**
-     * @brief Process command fanned out from bus
-     * @return new device state
-     */
-    device_state_t process() override;
-
-    /**
-     * @brief process command for channel 0 (load)
-     */
-    void process_load();
-
-    /**
-     * @brief process command for channel 1 (save)
-     */
-    void process_save();
-
-    /**
-     * @brief process command channel
-     */
-    void process_command();
-
-    /**
-     * @brief process every other channel (2-14)
-     */
-    void process_channel();
-
-    /**
-     * @brief called to open a connection to a protocol
-     */
-    void iec_open();
-
-    /**
-     * @brief called to close a connection.
-     */
-    void iec_close();
+      if ( addr >= 0x0800 )
+        addr -= 0x0800; // RAM Mirror
     
-    /**
-     * @brief called when a TALK, then REOPEN happens on channel 0
-     */
-    void iec_reopen_load();
+      if (addr + len > ram.size()) {
+        // Handle bounds error
+        return 0;
+      }
 
-    /**
-     * @brief called when TALK, then REOPEN happens on channel 1
-     */
-    void iec_reopen_save();
+      memcpy(data, &ram[addr], len);
+      Debug_printv("RAM read %04X:%s", addr, mstr::toHex(data, len).c_str());
+      printf("%s",util_hexdump((const uint8_t *)ram.data(), ram.size()).c_str());
+      return len;
+    }
 
-    /**
-     * @brief called when REOPEN (to send/receive data)
-     */
-    void iec_reopen_channel();
+    // ROM
+    if ( rom )
+    {
+      if ( addr >= 0x8000 )
+      {
+        if ( addr >= 0xC000 )
+          addr -= 0xC000;
+        else if ( addr >= 0x8000 )
+          addr -= 0x8000; // ROM Mirror
+      
+        rom->seek(addr, SEEK_SET);
+        return rom->read(data, len);
+      }
+    }
 
-    /**
-     * @brief called when channel needs to listen for data from c=
-     */
-    void iec_reopen_channel_listen();
+    return 0;
+  }
 
-    /**
-     * @brief called when channel needs to talk data to c=
-     */
-    void iec_reopen_channel_talk();
+  void write(uint16_t addr, const uint8_t *data, size_t len)
+  {
+    // RAM
+    if ( addr < 0x0FFF )
+    {
+      if ( addr >= 0x0800 )
+        addr -= 0x0800; // RAM Mirror
+    
+      if (addr + len > ram.size()) {
+        // Handle bounds error
+        return;
+      }
+      memcpy(&ram[addr], data, len);
+      Debug_printv("RAM write %04X:%s [%d]", addr, mstr::toHex(data, len).c_str(), len);
+      printf("%s",util_hexdump((const uint8_t *)ram.data(), ram.size()).c_str());
 
-    /**
-     * @brief called when LISTEN happens on command channel (15).
-     */
-    void iec_listen_command();
+      mw_hash = esp_rom_crc16_le(mw_hash, data, len);
+    }
+  }
 
-    /**
-     * @brief called when TALK happens on command channel (15).
-     */
-    void iec_talk_command();
+  void execute(uint16_t addr)
+  {
+    // RAM
+    if ( addr < 0x0FFF )
+    {
+      if ( addr >= 0x0800 )
+        addr -= 0x0800; // RAM Mirror
 
-    /**
-     * @brief called to process command either at open or listen
-     */
-    void iec_command();
+      // ram + addr
+      Debug_printv("RAM execute %04X", addr);
+      mw_hash = 0;
+    }
 
-    /**
-     * @brief Set device ID from dos command
-     */
-    void set_device_id();
+    // ROM
+    if ( rom )
+    {
+      if ( addr >= 0x8000 )
+      {
+        if ( addr >= 0xC000 )
+          addr -= 0xC000;
+        else if ( addr >= 0x8000 )
+          addr -= 0x8000; // ROM Mirror
+      
+        //rom->seek(addr, SEEK_SET);
 
-    /**
-     * @brief Set desired prefix for channel
-     */
-    void set_prefix();
+        // Translate ROM functions to virtual drive functions
+        Debug_printv("ROM execute %04X", addr);
+      }
+    }
+  }
 
-    /**
-     * @brief Get prefix for channel
-     */
-    void get_prefix();
+  void reset() {
+    ram.assign(ram.size(), 0x00);
+  }
+};
 
-    /**
-     * @brief If response queue is empty, Return 1 if ANY receive buffer has data in it, else 0
-     */
-    void iec_talk_command_buffer_status() override;
+class iecDrive : public IECFileDevice
+{
+ public:
+  iecDrive(uint8_t devnum = 0xFF);
+  ~iecDrive();
 
-public:
-    iecDrive();
-    fujiHost *host;
-    mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
-    void unmount();
-    bool write_blank(FILE *f, uint16_t sectorSize, uint16_t numSectors);
+  mediatype_t mount(FILE *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);
+  void unmount();
 
-    //mediatype_t disktype() { return _disk == nullptr ? MEDIATYPE_UNKNOWN : _disk->_mediatype; };
+  int     id() { return m_devnr; };
+  uint8_t getNumOpenChannels();
+  uint8_t getStatusCode() { return m_statusCode; }
+  void    setStatusCode(uint8_t code, uint8_t trk = 0);
+  bool    hasError();
 
-    std::unordered_map<uint16_t, std::shared_ptr<MStream>> streams;
-    std::unordered_map<uint16_t, uint16_t> streamLastByte;
+  fujiHost *m_host;
 
-    ~iecDrive();
+  // overriding the IECDevice isActive() function because device_active
+  // must be a global variable
+  //bool device_active = true;
+  //virtual bool isActive() { return device_active; }
+
+
+ private:
+  // open file "name" on channel
+  virtual bool open(uint8_t channel, const char *name);
+
+  // close file on channel
+  virtual void close(uint8_t channel);
+
+  // write bufferSize bytes to file on channel, returning the number of bytes written
+  // Returning less than bufferSize signals "cannot receive more data" for this file
+  virtual uint8_t write(uint8_t channel, uint8_t *buffer, uint8_t bufferSize, bool eoi);
+
+  // read up to bufferSize bytes from file in channel, returning the number of bytes read
+  // returning 0 will signal end-of-file to the receiver. Returning 0
+  // for the FIRST call after open() signals an error condition
+  // (e.g. C64 load command will show "file not found")
+  virtual uint8_t read(uint8_t channel, uint8_t *buffer, uint8_t bufferSize, bool *eoi);
+
+  // called when the bus master reads from channel 15 and the status
+  // buffer is currently empty. this should populate buffer with an appropriate 
+  // status message bufferSize is the maximum allowed length of the message
+  virtual void getStatus(char *buffer, uint8_t bufferSize);
+
+  // called when the bus master sends data (i.e. a command) to channel 15
+  // command is a 0-terminated string representing the command to execute
+  // commandLen contains the full length of the received command (useful if
+  // the command itself may contain zeros)
+  virtual void execute(const char *command, uint8_t cmdLen);
+
+  // called on falling edge of RESET line
+  virtual void reset();
+
+  void set_cwd(std::string path);
+
+  std::unique_ptr<MFile> m_cwd;   // current working directory
+  iecChannelHandler *m_channels[16];
+  uint8_t m_statusCode, m_statusTrk, m_numOpenChannels;
+#ifdef USE_VDRIVE
+  VDrive   *m_vdrive;
+#endif
+  uint32_t  m_byteCount;
+  uint64_t  m_timeStart;
+
+  driveMemory m_memory;
 };
 
 #endif // DRIVE_H

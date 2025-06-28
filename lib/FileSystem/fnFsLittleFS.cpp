@@ -131,7 +131,7 @@ bool FileSystemLittleFS::create_path(const char *fullpath)
                is (end - fullpath) + 2
             */
             strlcpy(segment, fullpath, end - fullpath + (done ? 2 : 1));
-            Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
+            //Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
             if ( !exists(segment) )
             {
                 if( !std::filesystem::create_directory(segment) )
@@ -224,7 +224,7 @@ bool FileSystemLittleFS::start()
 
     esp_vfs_littlefs_conf_t conf = {
       .base_path = "",
-      .partition_label = "flash",
+      .partition_label = "storage",
       .format_if_mount_failed = false,
       .dont_mount = false
     };
@@ -249,9 +249,6 @@ bool FileSystemLittleFS::start()
         Debug_printv("  partition size: %u, used: %u, free: %u\r\n", total, used, total-used);
         */
     #endif
-
-        // Create SYSTEM DIR if it doesn't exist
-        //create_path( SYSTEM_DIR );
     }
 
     return _started;

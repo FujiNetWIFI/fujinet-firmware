@@ -6,6 +6,7 @@
 
 
 #include "../../bus/bus.h"
+#include "../../bus/iec/IECDevice.h"
 #include "../printer-emulator/printer_emulator.h"
 
 #include "fnFS.h"
@@ -13,22 +14,14 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-class iecPrinter : public virtualDevice
+class iecPrinter : public IECDevice
 {
 protected:
-    // SIO THINGS
-    std::string buffer;
-    void write(uint8_t channel);
-    void status();
-    device_state_t process() override;
-    void shutdown() override;
-
     printer_emu *_pptr = nullptr;
     FileSystem *_storage = nullptr;
-
     time_t _last_ms;
-    uint8_t _lastaux1;
-    uint8_t _lastaux2;
+
+    void shutdown();
 
 public:
     // todo: reconcile printer_type with paper_t
@@ -81,7 +74,7 @@ public:
     };
     
 
-    iecPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
+    iecPrinter(uint8_t devnum, FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~iecPrinter();
 
     static printer_type match_modelname(std::string model_name);
@@ -92,9 +85,34 @@ public:
 
     printer_emu *getPrinterPtr() { return _pptr; };
 
+    // overriding the IECDevice isActive() function because device_active
+    // must be a global variable
+    bool device_active = true;
+    virtual bool isActive() { return device_active; }
 
 private:
-    printer_type _ptype;
+  // called before a write() call to determine whether the device
+  // is ready to receive data.
+  // canWrite() is allowed to take an indefinite amount of time
+  // canWrite() should return:
+  //  <0 if more time is needed before data can be accepted (call again later), blocks IEC bus
+  //   0 if no data can be accepted (error)
+  //  >0 if at least one uint8_t of data can be accepted
+  virtual int8_t canWrite();
+    
+  // called when the device received data
+  // write() will only be called if the last call to canWrite() returned >0
+  // write() must return within 1 millisecond
+  // the "eoi" parameter will be "true" if sender signaled that this is the last 
+  // data uint8_t of a transmission
+  virtual void write(uint8_t data, bool eoi);
+
+  // called when bus master sends LISTEN command
+  // listen() must return within 1 millisecond
+  virtual void listen(uint8_t channel);
+
+  uint8_t _channel;
+  printer_type _ptype;
 };
 
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # fujinet_firmware_uploader
 # Aug2024 - use this script to select and upload released artifacts for fujinet
 # check the fujinet_firmware_uploader.md for more detailed information
@@ -84,7 +85,7 @@ def detect_usb_port():
     return usb_port
 
 # Function to generate esptool commands
-def generate_esptool_commands(json_file, usb_port):
+def generate_esptool_commands(json_file, usb_port, esptool="esptool.py"):
     with open(json_file, 'r') as f:
         release_info = json.load(f)
     
@@ -114,8 +115,8 @@ def generate_esptool_commands(json_file, usb_port):
     firmware_path = f'"{firmware_path}"'
     filesystem_path = f'"{filesystem_path}"'
     
-    return (f"esptool.py --port {usb_port} --baud {UPLOAD_BAUDRATE} write_flash {firmware_offset} {firmware_path}",
-            f"esptool.py --port {usb_port} --baud {UPLOAD_BAUDRATE} write_flash {filesystem_offset} {filesystem_path}")
+    return (f"{esptool} --port {usb_port} --baud {UPLOAD_BAUDRATE} write_flash {firmware_offset} {firmware_path}",
+            f"{esptool} --port {usb_port} --baud {UPLOAD_BAUDRATE} write_flash {filesystem_offset} {filesystem_path}")
 
 # Function to upload firmware using esptool commands
 def upload_firmware(esptool_commands):
@@ -134,41 +135,45 @@ def monitor_device(usb_port):
 
 def main():
     parser = argparse.ArgumentParser(description="Firmware uploader for FujiNet")
+    parser.add_argument('firmware', nargs='?', help="Already downloaded firmware.zip")
     parser.add_argument('-l', '--latest', action='store_true', help="Automatically select the latest release")
+    parser.add_argument('-p', '--port', help="Port to use to upload firmware")
 
     args = parser.parse_args()
+    if args.firmware:
+        selected_zip_file = args.firmware
+    else:
+        create_releases_dir()
+        releases_data = fetch_releases()
 
-    create_releases_dir()
-    releases_data = fetch_releases()
-    
-    if args.latest:
-        selected_release = releases_data[0]  # The latest release is the first in the list
-        print(f"Automatically selected the latest release: {selected_release['name']}")
-    else:
-        releases = [release["name"] for release in releases_data]
-        selected_release_name = present_menu(releases)
-        selected_release = next(release for release in releases_data if release["name"] == selected_release_name)
-    
-    assets = selected_release.get("assets", [])
-    
-    release_dir = os.path.join(RELEASES_DIR, selected_release['name'].replace('/', '_'))
-    if not os.path.exists(release_dir):
-        os.makedirs(release_dir)
-    
-    zip_files = []
-    for asset in assets:
-        if asset["name"].endswith(".zip"):
-            name = asset["name"]
-            url = asset["browser_download_url"]
-            zip_path = os.path.join(release_dir, name)
-            zip_files.append(zip_path)
-            if not os.path.exists(zip_path):
-                download_zip(url, zip_path)
-    
-    if not args.latest:
-        selected_zip_file = present_menu(zip_files)
-    else:
-        selected_zip_file = zip_files[0]  # Automatically select the first zip file if latest is chosen
+        if args.latest:
+            selected_release = releases_data[0]  # The latest release is the first in the list
+            print(f"Automatically selected the latest release: {selected_release['name']}")
+        else:
+            releases = [release["name"] for release in releases_data]
+            selected_release_name = present_menu(releases)
+            selected_release = next(release for release in releases_data if release["name"] == selected_release_name)
+
+        assets = selected_release.get("assets", [])
+
+        release_dir = os.path.join(RELEASES_DIR, selected_release['name'].replace('/', '_'))
+        if not os.path.exists(release_dir):
+            os.makedirs(release_dir)
+
+        zip_files = []
+        for asset in assets:
+            if asset["name"].endswith(".zip"):
+                name = asset["name"]
+                url = asset["browser_download_url"]
+                zip_path = os.path.join(release_dir, name)
+                zip_files.append(zip_path)
+                if not os.path.exists(zip_path):
+                    download_zip(url, zip_path)
+
+        if not args.latest:
+            selected_zip_file = present_menu(zip_files)
+        else:
+            selected_zip_file = zip_files[0]  # Automatically select the first zip file if latest is chosen
     
     if not os.path.exists(selected_zip_file):
         print(f"Selected zip file not found: {selected_zip_file}")
@@ -183,14 +188,17 @@ def main():
     if not os.path.exists(json_file):
         print(f"release.json not found in the selected zip file directory: {selected_dir}")
         exit(1)
-    
-    try:
-        usb_port = detect_usb_port()
-    except OSError as e:
-        print(e)
-        exit(1)
-    
-    esptool_commands = generate_esptool_commands(json_file, usb_port)
+
+    usb_port = args.port
+    if not usb_port:
+        try:
+            usb_port = detect_usb_port()
+        except OSError as e:
+            print(e)
+            exit(1)
+
+    esptool_path = os.path.expanduser("~/.platformio/packages/tool-esptoolpy/esptool.py")
+    esptool_commands = generate_esptool_commands(json_file, usb_port, esptool=esptool_path)
     upload_firmware(esptool_commands)
 
     # Start monitoring the device after flashing

@@ -177,7 +177,7 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
     unsigned short mw;
 #endif
 
-    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06x\n", id(), numbytes, addy);
+    Debug_printf("\r\nDevice %02x READ %04x bytes from address %06lx\n", id(), numbytes, addy);
 
     memset(data_buffer, 0, sizeof(data_buffer));
 

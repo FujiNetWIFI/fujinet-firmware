@@ -114,76 +114,63 @@ private:
 
     appkey _current_appkey;
 
-    void resetState();
-    uint16_t base64_encode_length_var;
-    uint16_t base64_decode_length_var;
-    uint16_t hash_length_var;
-
-    
 protected:
-    int reset_fujinet(std::vector<uint8_t> *);          // 0xFF
-    int net_get_ssid(std::vector<uint8_t> *);           // 0xFE
-    int net_scan_networks(std::vector<uint8_t> *);      // 0xFD
-    int net_scan_result(std::vector<uint8_t> *);        // 0xFC
-    int net_set_ssid(std::vector<uint8_t> *);           // 0xFB
-    int net_get_wifi_status(std::vector<uint8_t> *);    // 0xFA
-    int mount_host(std::vector<uint8_t> *);             // 0xF9
-    int disk_image_mount(std::vector<uint8_t> *);       // 0xF8
-    int open_directory(std::vector<uint8_t> *);         // 0xF7
-    int read_directory_entry(std::vector<uint8_t> *);   // 0xF6
-    int close_directory(std::vector<uint8_t> *);        // 0xF5
-    int read_host_slots(std::vector<uint8_t> *);        // 0xF4
-    int write_host_slots(std::vector<uint8_t> *);       // 0xF3
-    int read_device_slots(std::vector<uint8_t> *);      // 0xF2
-    int write_device_slots(std::vector<uint8_t> *);     // 0xF1
-    int enable_udpstream(std::vector<uint8_t> *);       // 0xF0
-    int net_get_wifi_enabled(std::vector<uint8_t> *);   // 0xEA
-    int disk_image_umount(std::vector<uint8_t> *);      // 0xE9
-    int get_adapter_config(std::vector<uint8_t> *);     // 0xE8
-    int new_disk(std::vector<uint8_t> *);               // 0xE7
-    int unmount_host(std::vector<uint8_t> *);           // 0xE6
-    int get_directory_position(std::vector<uint8_t> *); // 0xE5
-    int set_directory_position(std::vector<uint8_t> *); // 0xE4
-    int set_hdrivewire_index(std::vector<uint8_t> *);   // 0xE3
-    int set_device_filename(std::vector<uint8_t> *);    // 0xE2
-    int set_host_prefix(std::vector<uint8_t> *);        // 0xE1
-    int get_host_prefix(std::vector<uint8_t> *);        // 0xE0
-    int set_drivewire_external_clock(std::vector<uint8_t> *); // 0xDF
-    int write_app_key(std::vector<uint8_t> *);          // 0xDE
-    int read_app_key(std::vector<uint8_t> *);           // 0xDD
-    int open_app_key(std::vector<uint8_t> *);           // 0xDC
-    int close_app_key(std::vector<uint8_t> *);          // 0xDB
-    int get_device_filename(std::vector<uint8_t> *);    // 0xDA
-    int set_boot_config(std::vector<uint8_t> *);        // 0xD9
-    int copy_file(std::vector<uint8_t> *);              // 0xD8
-    int set_boot_mode(std::vector<uint8_t> *);          // 0xD6
-    int random(std::vector<uint8_t> *);                 // 0xD3
-    int base64_encode_input(std::vector<uint8_t> *);    // 0xD0
-    int base64_encode_input_p2(std::vector<uint8_t> *q);
-    int base64_encode_compute(std::vector<uint8_t> *);  // 0xCF
-    int base64_encode_length(std::vector<uint8_t> *);   // 0xCE
-    int base64_encode_output(std::vector<uint8_t> *);   // 0xCD
-    int base64_decode_input(std::vector<uint8_t> *);    // 0xCC
-    int base64_decode_input_p2(std::vector<uint8_t> *);    // 0xCC
-    int base64_decode_compute(std::vector<uint8_t> *);  // 0xCB
-    int base64_decode_length(std::vector<uint8_t> *);   // 0xCA
-    int base64_decode_output(std::vector<uint8_t> *);   // 0xC9
-    int hash_input(std::vector<uint8_t> *);             // 0xC8
-    int hash_input_p2(std::vector<uint8_t> *);             // 0xC8
-    int state_hash_compute_true(std::vector<uint8_t> *); // 0xC7, 0xC3
-    int state_hash_compute_false(std::vector<uint8_t> *); // 0xC7, 0xC3
-    int hash_length(std::vector<uint8_t> *);            // 0xC6
-    int hash_output(std::vector<uint8_t> *);            // 0xC5
-    int get_adapter_config_extended(std::vector<uint8_t> *); // 0xC4
-    int hash_clear(std::vector<uint8_t> *);             // 0xC2
-    int op_unhandled(std::vector<uint8_t> *q);
+    void reset_fujinet();          // 0xFF
+    void net_get_ssid();           // 0xFE
+    void net_scan_networks();      // 0xFD
+    void net_scan_result();        // 0xFC
+    void net_set_ssid();           // 0xFB
+    void net_get_wifi_status();    // 0xFA
+    void mount_host();             // 0xF9
+    void disk_image_mount();       // 0xF8
+    void open_directory();         // 0xF7
+    void read_directory_entry();   // 0xF6
+    void close_directory();        // 0xF5
+    void read_host_slots();        // 0xF4
+    void write_host_slots();       // 0xF3
+    void read_device_slots();      // 0xF2
+    void write_device_slots();     // 0xF1
+    void enable_udpstream();       // 0xF0
+    void net_get_wifi_enabled();   // 0xEA
+    void disk_image_umount();      // 0xE9
+    void get_adapter_config();     // 0xE8
+    void new_disk();               // 0xE7
+    void unmount_host();           // 0xE6
+    void get_directory_position(); // 0xE5
+    void set_directory_position(); // 0xE4
+    void set_hdrivewire_index();   // 0xE3
+    void set_device_filename();    // 0xE2
+    void set_host_prefix();        // 0xE1
+    void get_host_prefix();        // 0xE0
+    void set_drivewire_external_clock(); // 0xDF
+    void write_app_key();          // 0xDE
+    void read_app_key();           // 0xDD
+    void open_app_key();           // 0xDC
+    void close_app_key();          // 0xDB
+    void get_device_filename();    // 0xDA
+    void set_boot_config();        // 0xD9
+    void copy_file();              // 0xD8
+    void set_boot_mode();          // 0xD6
+    void random();                 // 0xD3
+    void base64_encode_input();    // 0xD0
+    void base64_encode_compute();  // 0xCF
+    void base64_encode_length();   // 0xCE
+    void base64_encode_output();   // 0xCD
+    void base64_decode_input();    // 0xCC
+    void base64_decode_compute();  // 0xCB
+    void base64_decode_length();   // 0xCA
+    void base64_decode_output();   // 0xC9
+    void hash_input();             // 0xC8
+    void hash_compute(bool clear_data); // 0xC7, 0xC3
+    void hash_length();            // 0xC6
+    void hash_output();            // 0xC5
+    void get_adapter_config_extended(); // 0xC4
+    void hash_clear();             // 0xC2
 
-    int send_error(std::vector<uint8_t> *q);             // 0x02
-    int send_response(std::vector<uint8_t> *);          // 0x01
-    int ready(std::vector<uint8_t> *);                  // 0x00
-    void shutdown(void) override;
-
-    void hash_compute(uint8_t value, bool clear_data); // 0xC7, 0xC3
+    void send_error();             // 0x02
+    void send_response();          // 0x01
+    void ready();                  // 0x00
+    void shutdown() override;
 
 public:
     bool boot_config = true;
@@ -209,13 +196,12 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *set_slot_hostname(int host_slot, char *hostname);
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();
 
-    int process(std::vector<uint8_t> *q);
-
-    int local_mount_all(std::vector<uint8_t> *q);              // 0xD7
+    void process();
 
     void mount_all();              // 0xD7
 
@@ -225,4 +211,3 @@ public:
 extern drivewireFuji theFuji;
 
 #endif // FUJI_H
-

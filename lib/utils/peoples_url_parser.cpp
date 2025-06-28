@@ -43,14 +43,19 @@ void PeoplesUrlParser::processAuthorityPath(std::string authorityPath) {
     // authority:80/path
     // authority:100
     // authority
-    auto bySlash = mstr::split(authorityPath,'/',2);
-
-    processHostPort(bySlash[0]);
-    if(bySlash.size()>1) {
-        // hasPath
-        path = bySlash[1];
+    auto pos = authorityPath.find('/');
+    if (pos == std::string::npos) {
+        pos = authorityPath.find('?');
+        if (pos == std::string::npos) {
+            pos = authorityPath.find('#');
+        }
     }
 
+    processHostPort(authorityPath.substr(0, pos));
+    if(pos != std::string::npos) {
+        // keep the rest (incl. query) in path, it will be processed by processPath()
+        path = authorityPath.substr(pos);
+    }
 }
 
 void PeoplesUrlParser::processUserPass(std::string userPass) {
@@ -96,48 +101,61 @@ void PeoplesUrlParser::cleanPath() {
     path = util_get_canonical_path(path);
 }
 
-void PeoplesUrlParser::processPath() {
+void PeoplesUrlParser::processPath()
+{
     if(path.size() == 0)
         return;
 
-    auto pathParts = mstr::split(path, '/');
-    auto queryParts = mstr::split(*(--pathParts.end()), '?');
-    auto fragmentParts = mstr::split(*(--queryParts.end()), '#');
+    // find path end
+    auto pos = path.find('?');
+    if (pos == std::string::npos) {
+        pos = path.find('#');
+    }
 
-    // path
+    if (pos != std::string::npos)
+    {
+        // ?query#fragment
+        // ?query
+        // #fragment
+        auto queryParts = mstr::split(path.substr(pos), '?', 2);
+        auto fragmentParts = mstr::split(*(--queryParts.end()), '#', 2);
+
+        // query
+        if(queryParts.size() > 1)
+            query = fragmentParts[0];
+        
+        // fragment
+        if(fragmentParts.size() > 1)
+            fragment = fragmentParts[1];
+    }
+
+    // remove query and fragment part from path
+    path = path.substr(0, pos);
+
+    // file name (without path), empty for directory
+    auto pathParts = mstr::split(path, '/');
     if(pathParts.size() > 1)
         name = *(--pathParts.end());
     else
         name = path;
 
-    // filename
-    if(queryParts.size() > 1)
-        name = queryParts.front();
-
+    // file extension
     auto nameParts = mstr::split(name, '.');
-
-    // base name
-    if(nameParts.size() > 1)
-        base_name = nameParts.front();
-
-    // extension
     if(nameParts.size() > 1)
         extension = *(--nameParts.end());
 
-    // query
-    if(queryParts.size() > 1)
-        query = *(fragmentParts.begin());
-    
-    // fragment
-    if(fragmentParts.size() > 1)
-        fragment = *(--fragmentParts.end());
+    // file base name
+    if (extension.size() > 0)
+        base_name = name.substr(0, name.size() - extension.size() - 1);
+    else
+        base_name = name;
 }
 
 
 std::string PeoplesUrlParser::pathToFile(void)
 {
     if (name.size() > 0)
-        return path.substr(0, path.size() - name.size() - 1);
+        return path.substr(0, path.size() - name.size());
     else
         return path;
 }
@@ -216,37 +234,42 @@ void PeoplesUrlParser::resetURL(const std::string u) {
     password = "";
     host = "";
     port = "";
+    name = "";
+    base_name = "";
+    extension = "";
+    query = "";
+    fragment = "";
 
+    std::string pastTheScheme;
     if(byColon.size()==1) {
-        // no scheme, good old local path
-        path = byColon[0];
+        // no scheme
+        pastTheScheme = byColon[0];
     }
-    else
-    {
+    else {
         scheme = byColon[0];
-
-        auto pastTheColon = byColon[1]; // don't visualise!
-
-        if(pastTheColon[0]=='/' && pastTheColon[1]=='/') {
-            // //user:pass@/path
-            // //user:pass@authority:80/path
-            // //authority:100
-            // //authority:30/path            
-
-            processAuthority(pastTheColon);
-        }
-        else {
-            // we have just a plain old path
-            // /path
-            // user@server
-            // etc.
-            path = pastTheColon;
-        }            
+        pastTheScheme = byColon[1];
     }
+
+    if(pastTheScheme[0]=='/' && pastTheScheme[1]=='/') {
+        // //user:pass@/path
+        // //user:pass@authority:80/path
+        // //authority:100
+        // //authority:30/path            
+
+        processAuthority(pastTheScheme);
+    }
+    else {
+        // we have just a plain old path
+        // /path
+        // user@server
+        // etc.
+        path = pastTheScheme;
+    }
+
+    processPath();
 
     // Clean things up before exiting
     cleanPath();
-    processPath();
     rebuildUrl();
 
     //dump();
@@ -266,10 +289,10 @@ std::string PeoplesUrlParser::rebuildUrl(void)
     //Debug_printv("url[%s]", url.c_str());
     // url += name;
     // Debug_printv("url[%s]", url.c_str());
-    // if ( query.size() )
-    //     url += '?' + query;
-    // if ( fragment.size() )
-    //     url += '#' + fragment;
+    if ( query.size() )
+        url += '?' + query;
+    if ( fragment.size() )
+        url += '#' + fragment;
 
     return url;
 }

@@ -571,8 +571,8 @@ void systemBus::setup()
 #else
     // Setup SIO ports: serial UART and NetSIO
     fnSioCom.set_serial_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed()); // UART
-    fnSioCom.set_netsio_host(Config.get_netsio_host().c_str(), Config.get_netsio_port()); // NetSIO
-    fnSioCom.set_sio_mode(Config.get_netsio_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
+    fnSioCom.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // NetSIO
+    fnSioCom.set_sio_mode(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
     fnSioCom.begin(_sioBaud);
 
     fnSioCom.set_interrupt(false);
@@ -687,6 +687,10 @@ void systemBus::toggleBaudrate()
 #ifdef ESP_PLATFORM
     SYSTEM_BUS.uart->set_baudrate(_sioBaud);
 #else
+    fnSioCom.flush_input();
+    fnSioCom.flush();
+    // hmm, calling flush() may not be enough to empty TX buffer
+    fnSystem.delay_microseconds(2000);
     fnSioCom.set_baudrate(_sioBaud);
 #endif
 }
@@ -873,7 +877,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 
         _sioBaudUltraHigh = _ultraHighBaud;
 
-        Debug_printf("Enabling SIO clock, rate: %lu\n", _ultraHighBaud);
+        Debug_printf("Enabling SIO clock, rate: %u\n", _ultraHighBaud);
 
         // Enable PWM on CLOCK IN
 #ifdef ESP_PLATFORM

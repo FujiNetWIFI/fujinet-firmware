@@ -7,47 +7,55 @@
 #include <forward_list>
 
 #define RS232_BAUDRATE 9600
+//#define RS232_BAUDRATE 115200
 
-#define RS232_DEVICEID_DISK 0x31
-#define RS232_DEVICEID_DISK_LAST 0x3F
+#define RS232_DEVICEID_DISK            0x31
+#define RS232_DEVICEID_DISK_LAST       0x3F
 
-#define RS232_DEVICEID_PRINTER 0x40
-#define RS232_DEVICEID_PRINTER_LAST 0x43
+#define RS232_DEVICEID_PRINTER         0x40
+#define RS232_DEVICEID_PRINTER_LAST    0x43
 
-#define RS232_DEVICEID_FN_VOICE 0x43
+#define RS232_DEVICEID_FN_VOICE        0x43
 
-#define RS232_DEVICEID_APETIME 0x45
+#define RS232_DEVICEID_APETIME         0x45
 
-#define RS232_DEVICEID_RS232 0x50
-#define RS232_DEVICEID_RS2323_LAST 0x53
+#define RS232_DEVICEID_RS232           0x50
+#define RS232_DEVICEID_RS2323_LAST     0x53
 
-#define RS232_DEVICEID_FUJINET 0x70
-#define RS232_DEVICEID_FN_NETWORK 0x71
+#define RS232_DEVICEID_FUJINET         0x70
+#define RS232_DEVICEID_FN_NETWORK      0x71
 #define RS232_DEVICEID_FN_NETWORK_LAST 0x78
 
-#define RS232_DEVICEID_MIDI 0x99
+#define RS232_DEVICEID_MIDI            0x99
 
-#define RS232_DEVICEID_CPM 0x5A
+#define RS232_DEVICEID_CPM             0x5A
 
 #define DELAY_T4 800
 #define DELAY_T5 800
 
-union cmdFrame_t
+#define DIRECTION_NONE    0x00
+#define DIRECTION_READ    0x40
+#define DIRECTION_WRITE   0x80
+
+typedef struct
 {
-    struct
-    {
-        uint8_t device;
-        uint8_t comnd;
-        uint8_t aux1;
-        uint8_t aux2;
-        uint8_t cksum;
+    uint8_t device;
+    uint8_t comnd;
+    union {
+        struct {
+            uint8_t aux1;
+            uint8_t aux2;
+            uint8_t aux3;
+            uint8_t aux4;
+        };
+        struct {
+            uint16_t aux12;
+            uint16_t aux34;
+        };
+        uint32_t aux;
     };
-    struct
-    {
-        uint32_t commanddata;
-        uint8_t checksum;
-    } __attribute__((packed));
-};
+    uint8_t cksum;
+} __attribute__((packed)) cmdFrame_t;
 
 // helper functions
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len);
@@ -119,12 +127,15 @@ protected:
     void rs232_error();
 
     /**
-     * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
-     * a sector number, for disk, or a number of bytes waiting for the rs232Network device.
-     * 
-     * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
+     * @brief Return the aux bytes in cmdFrame as a single 16-bit or
+     * 32-bit value, commonly used, for example to retrieve a sector
+     * number, for disk, or a number of bytes waiting for the
+     * rs232Network device.
      */
-    unsigned short rs232_get_aux();
+    // FIXME - these should probably be macros
+    uint16_t rs232_get_aux16_lo();
+    uint16_t rs232_get_aux16_hi();
+    uint32_t rs232_get_aux32();
 
     /**
      * @brief All RS232 commands by convention should return a status command, using bus_to_computer() to return
@@ -136,7 +147,7 @@ protected:
      * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command. 
      * This is typcially implemented as a switch() statement.
      */
-    virtual void rs232_process(uint32_t commanddata, uint8_t checksum) = 0;
+    virtual void rs232_process(cmdFrame_t *cmd_ptr) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};

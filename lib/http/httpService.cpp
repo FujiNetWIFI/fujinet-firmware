@@ -1,4 +1,5 @@
 
+#include "fnHttpClient.h"
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 
 #include "httpService.h"
@@ -1183,6 +1184,72 @@ esp_err_t fnHttpService::get_handler_slot(httpd_req_t *req)
     return ESP_OK;
 }
 
+esp_err_t fnHttpService::get_handler_hosts(httpd_req_t *req)
+{
+    std::string response = "";
+    for (int hs = 0; hs < 8; hs++) {
+        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+    }
+    httpd_resp_send(req, response.c_str(), response.length());
+    return ESP_OK;
+}
+
+esp_err_t fnHttpService::post_handler_hosts(httpd_req_t *req)
+{
+    queryparts qp;
+    parse_query(req, &qp);
+
+    int hostslot = atoi(qp.query_parsed["hostslot"].c_str());
+    char *hostname = (char *)qp.query_parsed["hostname"].c_str();
+
+    theFuji.set_slot_hostname(hostslot, hostname);
+
+    std::string response = "";
+    for (int hs = 0; hs < 8; hs++) {
+        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+    }
+    httpd_resp_send(req, response.c_str(), response.length());
+    return ESP_OK;
+}
+
+std::string fnHttpService::shorten_url(std::string url)
+{
+    int id = shortURLs.size();
+    shortURLs.push_back(url);
+
+    // Ideally would use hostname, but it doesn't include .local needed for mDNS devices
+    std::string shortened = "http://" + fnSystem.Net.get_ip4_address_str() + "/url/" + std::to_string(id);
+    Debug_printf("Short URL /url/%d registered for URL: %s\n", id, url.c_str());
+    return shortened;
+}
+
+esp_err_t fnHttpService::get_handler_shorturl(httpd_req_t *req)
+{
+    // Strip the /url/ from the path
+    std::string id_str = std::string(req->uri).substr(5);
+    Debug_printf("Short URL handler: %s\n", id_str.c_str());
+
+    if (!std::all_of(id_str.begin(), id_str.end(), ::isdigit)) {
+        httpd_resp_set_status(req, "400 Bad Request");
+        httpd_resp_send(req, NULL, 0);
+        return ESP_FAIL;
+    }
+
+    int id = std::stoi(id_str);
+    if (id > fnHTTPD.shortURLs.size())
+    {
+        httpd_resp_set_status(req, "404 Not Found");
+        httpd_resp_send(req, NULL, 0);
+    }
+    else
+    {
+        httpd_resp_set_status(req, "303 See Other");
+        httpd_resp_set_hdr(req, "Location", fnHTTPD.shortURLs[id].c_str());
+        httpd_resp_send(req, NULL, 0);
+    }
+    return ESP_OK;
+}
+
 esp_err_t fnHttpService::post_handler_config(httpd_req_t *req)
 {
 #ifdef VERBOSE_HTTP
@@ -1437,6 +1504,27 @@ httpd_handle_t fnHttpService::start_server(serverstate &state)
         {.uri = "/unmount",
          .method = HTTP_GET,
          .handler = get_handler_eject,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/hosts",
+         .method = HTTP_GET,
+         .handler = get_handler_hosts,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/hosts",
+         .method = HTTP_POST,
+         .handler = post_handler_hosts,
+         .user_ctx = NULL,
+         .is_websocket = false,
+         .handle_ws_control_frames = false,
+         .supported_subprotocol = nullptr},
+        {.uri = "/url/*",
+         .method = HTTP_GET,
+         .handler = get_handler_shorturl,
          .user_ctx = NULL,
          .is_websocket = false,
          .handle_ws_control_frames = false,

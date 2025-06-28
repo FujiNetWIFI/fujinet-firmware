@@ -999,6 +999,14 @@ void adamFuji::adamnet_get_host_prefix()
 {
 }
 
+// Public method to update host in specific slot
+fujiHost *adamFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
+}
+
 // Send device slot data to computer
 void adamFuji::adamnet_read_device_slots()
 {
@@ -1430,7 +1438,7 @@ void adamFuji::adamnet_get_time()
 
 	response_len = 7;
 
-    Debug_printf("Sending %02X %02X %02X %02X %02X %02X\n", response[0], response[1], response[2], response[3], response[4], response[5], response[6]);
+    Debug_printf("Sending %02X %02X %02X %02X %02X %02X %02X\n", response[0], response[1], response[2], response[3], response[4], response[5], response[6]);
 }
 
 void adamFuji::adamnet_device_enable_status()

@@ -1,7 +1,9 @@
 
 #include "sam.h"
 
+#ifdef ESP_PLATFORM
 #include <esp_heap_caps.h>
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -63,9 +65,10 @@ void SetPitch(unsigned char _pitch) { pitch = _pitch; }
 void SetMouth(unsigned char _mouth) { mouth = _mouth; }
 void SetThroat(unsigned char _throat) { throat = _throat; }
 void EnableSingmode() { singmode = 1; }
+void DisableSingmode() { singmode = 0; }
 char *GetBuffer() { return buffer; }
 int GetBufferLength() { return bufferpos; }
-void FreeBuffer() { free(buffer); }
+void FreeBuffer() { if (buffer) {free(buffer); buffer = NULL;} }
 
 void Init();
 int Parser1();
@@ -100,7 +103,11 @@ void Init()
     // TODO, check for free the memory, 10 seconds of output should be more than enough
     //buffer = (char*)ps_malloc(22050 * 5);
     // switch to ESP-IDF equivalent
+#ifdef ESP_PLATFORM
     buffer = (char *)heap_caps_malloc(22050 * 10, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
+    buffer = (char *)malloc(22050 * 10);
+#endif
     /*
     Due to a technical limitation, the maximum statically allocated DRAM usage is 160KB. 
     The remaining 160KB (for a total of 320KB of DRAM) can only be allocated at runtime as heap.
@@ -150,11 +157,14 @@ void Init()
 //int Code39771()
 int SAMMain()
 {
-    Init();
+    Init(); // buffer is allocated here
     phonemeindex[255] = 32; //to prevent buffer overflow
 
     if (!Parser1())
+    {
+        FreeBuffer();
         return 0;
+    }
     if (debug)
         PrintPhonemes(phonemeindex, phonemeLength, stress);
     Parser2();

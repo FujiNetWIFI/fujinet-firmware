@@ -5,6 +5,10 @@
 #include <cstdint>
 #include <cstring>
 
+#ifdef ESP_PLATFORM
+#include <unistd.h>  // for fsync
+#endif
+
 #include "../../include/debug.h"
 
 
@@ -25,7 +29,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks-1)
     {
-        Debug_printf("::read block %d > %d\r\n", blockNum, _media_num_blocks);
+        Debug_printf("::read block %lu > %lu\r\n", blockNum, _media_num_blocks);
         _media_controller_status=2;
         return true;
     }
@@ -63,7 +67,7 @@ bool MediaTypeDDP::read(uint32_t blockNum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool MediaTypeDDP::write(uint32_t blockNum, bool verify)
 {
-    Debug_printf("DDP WRITE\r\n", blockNum, _media_num_blocks);
+    Debug_printf("DDP WRITE [%lu/%lu]\r\n", blockNum, _media_num_blocks);
 
     uint32_t offset = _block_to_offset(blockNum);
 

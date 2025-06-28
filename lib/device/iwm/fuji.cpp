@@ -6,14 +6,18 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <cstring>
 
 #include "fuji.h"
 
+#include "fujiCmd.h"
+#include "httpService.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "led.h"
 #include "fnWiFi.h"
 #include "fsFlash.h"
+#include "fnFsTNFS.h"
 #include "utils.h"
 #include "string_utils.h"
 
@@ -29,7 +33,7 @@ iwmFuji::iwmFuji()
 	Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
 	for (int i = 0; i < MAX_HOSTS; i++)
 		_fnHosts[i].slotid = i;
-	
+
     command_handlers = {
         { SP_CMD_STATUS, [this](iwm_decoded_cmd_t cmd) { iwm_status(cmd); }},                           // 0x00
         { SP_CMD_CONTROL, [this](iwm_decoded_cmd_t cmd) { iwm_ctrl(cmd); }},                            // 0x04
@@ -62,6 +66,10 @@ iwmFuji::iwmFuji()
         { FUJICMD_HASH_OUTPUT, [this]()                { this->iwm_stat_hash_output(); }},              // 0xC5
         { FUJICMD_HASH_CLEAR, [this]()                 { this->iwm_ctrl_hash_clear(); }},               // 0xC2
 
+        { FUJICMD_QRCODE_INPUT, [this]()               { this->iwm_ctrl_qrcode_input(); }},             // 0xBC
+        { FUJICMD_QRCODE_ENCODE, [this]()              { this->iwm_ctrl_qrcode_encode(); }},            // 0xBD
+        { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_ctrl_qrcode_output(); }},            // 0xBF
+
         { FUJICMD_MOUNT_HOST, [this]()                 { this->iwm_ctrl_mount_host(); }},               // 0xF9
         { FUJICMD_NEW_DISK, [this]()                   { this->iwm_ctrl_new_disk(); }},                 // 0xE7
         { FUJICMD_OPEN_APPKEY, [this]()                { this->iwm_ctrl_open_app_key(); }},             // 0xDC
@@ -79,6 +87,9 @@ iwmFuji::iwmFuji()
 
         { FUJICMD_RESET,  [this]()                     { this->send_reply_packet(err_result); this->iwm_ctrl_reset_fujinet(); }},   // 0xFF
         { IWM_CTRL_RESET, [this]()                     { this->send_reply_packet(err_result); this->iwm_ctrl_reset_fujinet(); }},   // 0x00
+#ifndef DEV_RELAY_SLIP
+	{ IWM_CTRL_CLEAR_ENSEEN, [this]()	       { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR_NOERROR; }},
+#endif
 
         { FUJICMD_MOUNT_ALL, [&]()                     { err_result = (mount_all() ? SP_ERR_IOERROR : SP_ERR_NOERROR); }},          // 0xD7
         { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = iwm_ctrl_disk_image_mount(); }},  // 0xF8
@@ -87,10 +98,13 @@ iwmFuji::iwmFuji()
 
     status_handlers = {
         { 0xAA, [this]()                               { this->iwm_hello_world(); }},
-        
+
         { IWM_STATUS_DIB, [this]()                     { this->send_status_dib_reply_packet(); status_completed = true; }},     // 0x03
         { IWM_STATUS_STATUS, [this]()                  { this->send_status_reply_packet(); status_completed = true; }},         // 0x00
-        
+#ifndef DEV_RELAY_SLIP
+	{ IWM_STATUS_ENSEEN, [this]()		       { data_len = 1; data_buffer[0] = diskii_xface.d2_enable_seen; }},
+#endif
+
         { FUJICMD_DEVICE_ENABLE_STATUS, [this]()       { this->send_stat_get_enable(); }},                      // 0xD1
         { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() { this->iwm_stat_get_adapter_config_extended(); }},      // 0xC4
         { FUJICMD_GET_ADAPTERCONFIG, [this]()          { this->iwm_stat_get_adapter_config(); }},               // 0xE8
@@ -114,7 +128,10 @@ iwmFuji::iwmFuji()
         { FUJICMD_READ_DIR_ENTRY, [this]()             { this->iwm_stat_read_directory_entry(); }},             // 0xF6
         { FUJICMD_READ_HOST_SLOTS, [this]()            { this->iwm_stat_read_host_slots(); }},                  // 0xF4
         { FUJICMD_SCAN_NETWORKS, [this]()              { this->iwm_stat_net_scan_networks(); }},                // 0xFD
-        { FUJICMD_STATUS, [this]()                     { this->iwm_stat_fuji_status(); }}                       // 0x53
+        { FUJICMD_QRCODE_LENGTH, [this]()              { this->iwm_stat_qrcode_length(); }},                    // 0xBE
+        { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_stat_qrcode_output(); }},                    // 0xBE
+        { FUJICMD_STATUS, [this]()                     { this->iwm_stat_fuji_status(); }},                      // 0x53
+        { FUJICMD_GET_HEAP, [this]()                   { this->iwm_stat_get_heap(); }},                         // 0xC1
     };
 
 }
@@ -379,12 +396,13 @@ uint8_t iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 	// mediatype_t mt = MediaType::discover_mediatype(disk.filename);
 	// if (mt == mediatype_t::MEDIATYPE_PO)
 	// { // And now mount it
-	disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
 
 	if (options == DISK_ACCESS_MODE_WRITE)
 	{
 		disk_dev->readonly = false;
 	}
+
+	disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
 
 	return SP_ERR_NOERROR;
 }
@@ -538,9 +556,9 @@ void iwmFuji::iwm_ctrl_open_app_key()
 	int idx = 0;
 	FILE *fp;
 	uint8_t creatorL = data_buffer[idx++];
-	uint8_t creatorM = data_buffer[idx++]; 
-	uint8_t app = data_buffer[idx++]; 
-	uint8_t key = data_buffer[idx++]; 
+	uint8_t creatorM = data_buffer[idx++];
+	uint8_t app = data_buffer[idx++];
+	uint8_t key = data_buffer[idx++];
 	uint8_t mode = data_buffer[idx++];
 
 	snprintf(_appkeyfilename, sizeof(_appkeyfilename), "/FujiNet/%02hhx%02hhx%02hhx%02hhx.key", creatorM, creatorL, app, key);
@@ -565,7 +583,7 @@ void iwmFuji::iwm_ctrl_open_app_key()
 	// don't need to do this if we're returning exact number of bytes
 	// // Clear out stat buffer before reading into it
 	// memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
-	
+
 	// Read in the app key file data, to be sent in read_app_key call
 	ctrl_stat_len = fread(ctrl_stat_buffer, sizeof(char), appkey_size, fp);
 	fclose(fp);
@@ -604,7 +622,7 @@ void iwmFuji::iwm_ctrl_write_app_key()
 void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the open() control command
 {
 	Debug_printf("\r\nFuji cmd: READ APP KEY");
-	
+
 	memset(data_buffer, 0, sizeof(data_buffer));
 	memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
 	data_len = ctrl_stat_len;
@@ -916,8 +934,8 @@ void iwmFuji::iwm_stat_get_adapter_config_extended()
     strlcpy(cfg.sDnsIP,   fnSystem.Net.get_ip4_dns_str().c_str(),     16);
     strlcpy(cfg.sNetmask, fnSystem.Net.get_ip4_mask_str().c_str(),    16);
 
-    sprintf(cfg.sMacAddress, "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
-    sprintf(cfg.sBssid,      "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
+    snprintf(cfg.sMacAddress, sizeof(cfg.sMacAddress), "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
+    snprintf(cfg.sBssid, sizeof(cfg.sBssid), "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
 
 	memcpy(data_buffer, &cfg, sizeof(cfg));
 	data_len = sizeof(cfg);
@@ -928,12 +946,25 @@ void iwmFuji::iwm_stat_fuji_status()
 {
 	// Place holder for 4 bytes to fill the Fuji device status.
 	// TODO: decide what we want to tell the host.
-	// e.g. 
+	// e.g.
 	// - are all devices working? maybe some bitmap
 	// - how many devices do we have?
 	char ret[4] = {0};
 	memcpy(data_buffer, &ret[0], 4);
 	data_len = 4;
+}
+
+void iwmFuji::iwm_stat_get_heap()
+{
+#ifdef ESP_PLATFORM
+	uint32_t avail = esp_get_free_internal_heap_size();
+#else
+	uint32_t avail = 0;
+#endif
+
+    memcpy(data_buffer, &avail, sizeof(avail));
+    data_len = sizeof(avail);
+    return;
 }
 
 // Get network adapter configuration
@@ -1003,6 +1034,11 @@ void iwmFuji::iwm_ctrl_new_disk()
 	disk_dev->write_blank(disk.fileh, numBlocks);
 
 	fnio::fclose(disk.fileh);
+
+	// Persist slots
+	_populate_config_from_slots();
+	Config.mark_dirty();
+	Config.save();
 }
 
 // Send host slot data to computer
@@ -1069,6 +1105,10 @@ void iwmFuji::iwm_stat_read_device_slots()
 		diskSlots[i].mode = _fnDisks[i].access_mode;
 		diskSlots[i].hostSlot = _fnDisks[i].host_slot;
 		strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+
+                DEVICE_TYPE *disk_dev = get_disk_dev(i);
+                if (disk_dev->device_active && !disk_dev->is_config_device)
+                    diskSlots[i].mode |= DISK_ACCESS_MODE_MOUNTED;
 	}
 
 	returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
@@ -1226,36 +1266,28 @@ void iwmFuji::iwm_stat_get_device_filename(uint8_t s)
 // Mounts the desired boot disk number
 void iwmFuji::insert_boot_device(uint8_t d)
 {
-	const char *config_atr = "/autorun.po";
-	const char *mount_all_atr = "/mount-and-boot.po";
-#ifdef ESP_PLATFORM
-	fnFile *fBoot;
+	const char *boot_img = nullptr;
+	fnFile *fBoot = nullptr;
+	DEVICE_TYPE *disk_dev = get_disk_dev(0);
 
 	switch (d)
 	{
 	case 0:
-		fBoot = fsFlash.fnfile_open(config_atr);
-		get_disk_dev(0)->mount(fBoot, config_atr, 143360, MEDIATYPE_PO);
-		break;
-	case 1:
-
-		fBoot = fsFlash.fnfile_open(mount_all_atr);
-		get_disk_dev(0)->mount(fBoot, mount_all_atr, 143360, MEDIATYPE_PO);
-		break;
-	}
-#else
-	const char *boot_img;
-	fnFile *fBoot;
-
-	switch (d)
-	{
-	case 0:
-		boot_img = config_atr;
+		boot_img = "/autorun.po";
 		fBoot = fsFlash.fnfile_open(boot_img);
 		break;
 	case 1:
-		boot_img = mount_all_atr;
+		boot_img = "/mount-and-boot.po";
 		fBoot = fsFlash.fnfile_open(boot_img);
+		break;
+	case 2:
+		Debug_printf("Mounting lobby server\n");
+		if (fnTNFS.start("tnfs.fujinet.online"))
+		{
+			Debug_printf("opening lobby.\n");
+			boot_img = "/APPLE2/_lobby.po";
+			fBoot = fnTNFS.fnfile_open(boot_img);
+		}
 		break;
 	default:
 		Debug_printf("Invalid boot mode: %d\n", d);
@@ -1268,12 +1300,8 @@ void iwmFuji::insert_boot_device(uint8_t d)
 		return;
 	}
 
-	_fnDisks[0].disk_dev.mount(fBoot, boot_img, 143360, MEDIATYPE_PO);
-#endif
-
-	DEVICE_TYPE *disk_dev = get_disk_dev(0);
+	disk_dev->mount(fBoot, boot_img, 143360, MEDIATYPE_PO);
 	disk_dev->is_config_device = true;
-	disk_dev->device_active = true;
 }
 
 void iwmFuji::iwm_ctrl_enable_device()
@@ -1328,25 +1356,20 @@ void iwmFuji::setup(iwmBus *iwmbus)
 	}
 
 	Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
-#ifdef ESP_PLATFORM
-	if (Config.get_general_boot_mode() == 0)
-	{
-		fnFile *f = fsFlash.fnfile_open("/autorun.po");
-		get_disk_dev(0)->mount(f, "/autorun.po", 140 * 1024, MEDIATYPE_PO);
-	}
-	else
-	{
-		fnFile *f = fsFlash.fnfile_open("/mount-and-boot.po");
-		get_disk_dev(0)->mount(f, "/mount-and-boot.po", 140 * 1024, MEDIATYPE_PO);
-	}
-#else
 	insert_boot_device(Config.get_general_boot_mode());
-#endif
 
 }
 
 int iwmFuji::get_disk_id(int drive_slot) { return 0; }
 std::string iwmFuji::get_host_prefix(int host_slot) { return std::string(); }
+
+// Public method to update host in specific slot
+fujiHost *iwmFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
+}
 
 void iwmFuji::send_status_reply_packet()
 {
@@ -1518,5 +1541,93 @@ void iwmFuji::iwm_ctrl_hash_clear()
     hasher.clear();
 }
 
+void iwmFuji::iwm_ctrl_qrcode_input()
+{
+    Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", data_len);
+    std::vector<uint8_t> data(data_len, 0);
+    std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
+    qrManager.in_buf += std::string((const char *)data.data(), data_len);
+}
+
+void iwmFuji::iwm_ctrl_qrcode_encode()
+{
+    size_t out_len = 0;
+
+    qrManager.output_mode = 0;
+    qrManager.version = data_buffer[0] & 0b01111111;
+    qrManager.ecc_mode = data_buffer[1];
+    bool shorten = data_buffer[2];
+
+    Debug_printf("FUJI: QRCODE ENCODE\n");
+    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", qrManager.version, qrManager.ecc_mode, shorten ? "Y" : "N");
+
+    std::string url = qrManager.in_buf;
+
+    if (shorten) {
+        url = fnHTTPD.shorten_url(url);
+    }
+
+    std::vector<uint8_t> p = QRManager::encode(
+        url.c_str(),
+        url.size(),
+        qrManager.version,
+        qrManager.ecc_mode,
+        &out_len
+    );
+
+    qrManager.in_buf.clear();
+
+    if (!out_len)
+    {
+        Debug_printf("QR code encoding failed\n");
+        return;
+    }
+
+    Debug_printf("Resulting QR code is: %u modules\n", out_len);
+}
+
+void iwmFuji::iwm_stat_qrcode_length()
+{
+    Debug_printf("FUJI: QRCODE LENGTH\n");
+    size_t len = qrManager.out_buf.size();
+	data_buffer[0] = (uint8_t)(len >> 0);
+    data_buffer[1] = (uint8_t)(len >> 8);
+	data_len = 2;
+}
+
+void iwmFuji::iwm_ctrl_qrcode_output()
+{
+    Debug_printf("FUJI: QRCODE OUTPUT CONTROL\n");
+
+    uint8_t output_mode = data_buffer[0];
+    Debug_printf("Output mode: %i\n", output_mode);
+
+    size_t len = qrManager.out_buf.size();
+
+    if (len && (output_mode != qrManager.output_mode)) {
+        if (output_mode == QR_OUTPUT_MODE_BINARY) {
+            qrManager.to_binary();
+        }
+        else if (output_mode == QR_OUTPUT_MODE_ATASCII) {
+            qrManager.to_atascii();
+        }
+        else if (output_mode == QR_OUTPUT_MODE_BITMAP) {
+            qrManager.to_bitmap();
+        }
+        qrManager.output_mode = output_mode;
+    }
+}
+
+void iwmFuji::iwm_stat_qrcode_output()
+{
+    Debug_printf("FUJI: QRCODE OUTPUT STAT\n");
+	memset(data_buffer, 0, sizeof(data_buffer));
+
+	data_len = qrManager.out_buf.size();
+	memcpy(data_buffer, &qrManager.out_buf[0], data_len);
+
+	qrManager.out_buf.erase(qrManager.out_buf.begin(), qrManager.out_buf.begin() + data_len);
+    qrManager.out_buf.shrink_to_fit();
+}
 
 #endif /* BUILD_APPLE */

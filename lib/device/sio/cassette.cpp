@@ -635,7 +635,7 @@ uint8_t sioCassette::decode_fsk()
 
     if (delta > 0)
     {
-        Debug_printf("%u ", delta);
+        Debug_printf("%lu ", delta);
         if (delta > 90 && delta < 97)
             out = 0;
         if (delta > 119 && delta < 130)

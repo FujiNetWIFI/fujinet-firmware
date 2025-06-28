@@ -12,7 +12,7 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX]
+        target-platform: [ATARI, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232]
 
     steps:
     - name: Checkout Source
@@ -91,7 +91,7 @@ jobs:
 
     - name: Create Release 
       id: create-release
-      uses: softprops/action-gh-release@v2 
+      uses: softprops/action-gh-release@v2.2.2 
       with: 
 #        body_path: ${{ github.workspace }}/.github/nightly-release.txt
         body: |

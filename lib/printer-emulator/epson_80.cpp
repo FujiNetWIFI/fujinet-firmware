@@ -439,6 +439,7 @@ void epson80::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
             break;
         case 12: // Advances paper to next logical TOF (top of form)
             pdf_end_page();
+            pdf_new_page();
             break;
         case 13: // Carriage Return.
             // Prints buffer contents and resets buffer character count to zero

@@ -7,9 +7,10 @@
 using namespace WebDav;
 
 void Response::setDavHeaders() {
-    setHeader("DAV", "1");
+    setHeader("DAV", "1,2");
     setHeader("Allow", "COPY,DELETE,GET,HEAD,LOCK,MKCOL,MOVE,OPTIONS,PROPFIND,PROPPATCH,PUT,UNLOCK");
-    setHeader("Connection", "close");
+    setHeader("Keep-Alive", "timeout=5, max=100");
+    setHeader("Connection", "Keep-Alive");
 }
 
 void Response::setHeader(std::string header, std::string value) {

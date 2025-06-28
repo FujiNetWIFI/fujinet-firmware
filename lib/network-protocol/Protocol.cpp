@@ -181,7 +181,10 @@ bool NetworkProtocol::write(unsigned short len)
  */
 bool NetworkProtocol::status(NetworkStatus *status)
 {
-    if (receiveBuffer->length() == 0 && status->rxBytesWaiting > 0)
+    if (fromInterrupt)   
+        return false;
+ 
+    if (!is_write && receiveBuffer->length() == 0 && status->rxBytesWaiting > 0)
         read(status->rxBytesWaiting);
 
     status->rxBytesWaiting = receiveBuffer->length();
@@ -340,4 +343,9 @@ void NetworkProtocol::errno_to_error()
         error = NETWORK_ERROR_GENERAL;
         break;
     }
+}
+
+off_t NetworkProtocol::seek(off_t offset, int whence)
+{
+    return -1;
 }

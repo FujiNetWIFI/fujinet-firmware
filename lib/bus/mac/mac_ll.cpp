@@ -616,8 +616,8 @@ void mac_ll::setup_gpio()
 
   if (!fnSystem.no3state())
   {
-    fnSystem.set_pin_mode(SP_RD_BUFFER, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
-    fnSystem.digital_write(SP_RD_BUFFER, DIGI_LOW); // Turn tristate buffer ON by default
+    fnSystem.set_pin_mode(SP_RDDATA, gpio_mode_t::GPIO_MODE_OUTPUT); // tri-state buffer control
+    fnSystem.digital_write(SP_RDDATA, DIGI_LOW); // Turn tristate buffer ON by default
   }
 
 #ifdef EXTRA

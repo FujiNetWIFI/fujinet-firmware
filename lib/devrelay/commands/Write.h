@@ -11,7 +11,7 @@
 class WriteRequest : public Request
 {
 public:
-	WriteRequest(const uint8_t request_sequence_number, const uint8_t device_id);
+	WriteRequest(const uint8_t request_sequence_number, const uint8_t param_count, const uint8_t device_id);
 	std::vector<uint8_t> serialize() const override;
 	std::unique_ptr<Response> deserialize(const std::vector<uint8_t> &data) const override;
 

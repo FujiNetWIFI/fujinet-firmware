@@ -12,6 +12,8 @@
 #include <cctype>
 #include <iomanip>
 
+#include <esp_http_server.h>
+
 #include "file-utils.h"
 #include "string_utils.h"
 
@@ -21,19 +23,29 @@ Server::Server(std::string rootURI, std::string rootPath) : rootURI(rootURI), ro
 
 std::string Server::uriToPath(std::string uri)
 {
+    if ( rootURI == rootPath )
+    return mstr::urlDecode(uri);
+
     if (uri.find(rootURI) != 0)
         return rootPath;
 
     std::string path = rootPath + uri.substr(rootURI.length());
-    while (path.substr(path.length() - 1, 1) == "/")
-        path = path.substr(0, path.length() - 1);
     mstr::replaceAll(path, "//", "/");
+    //Debug_printv("uri[%s] path[%s]", uri.c_str(), path.c_str());
+    if ( path.length() > 1 )
+    {
+        while (path.substr(path.length() - 1, 1) == "/")
+            path = path.substr(0, path.length() - 1);
+    }
     //Debug_printv("uri[%s] path[%s]", uri.c_str(), path.c_str());
     return mstr::urlDecode(path);
 }
 
 std::string Server::pathToURI(std::string path)
 {
+    if ( rootURI == rootPath )
+        return mstr::urlEncode(path);;
+
     if (path.find(rootPath) != 0)
         return "";
 
@@ -63,7 +75,7 @@ void Server::sendMultiStatusResponse(Response &resp, MultiStatusResponse &msr)
 {
     std::ostringstream s;
 
-    s << "<D:response xmlns:esp=\"DAV:\">\r\n";
+    s << "<D:response>\r\n";
     xmlElement(s, "D:href", msr.href.c_str());
     s << "<D:propstat>\r\n";
     xmlElement(s, "D:status", msr.status.c_str());
@@ -72,7 +84,7 @@ void Server::sendMultiStatusResponse(Response &resp, MultiStatusResponse &msr)
     for (const auto &p : msr.props)
         xmlElement(s, p.first.c_str(), p.second.c_str());
 
-    xmlElement(s, "esp:resourcetype", msr.isCollection ? "<D:collection/>" : "");
+    xmlElement(s, "D:resourcetype", msr.isCollection ? "<D:collection/>" : "");
     s << "</D:prop>\r\n";
 
     s << "</D:propstat>\r\n";
@@ -85,11 +97,15 @@ void Server::sendMultiStatusResponse(Response &resp, MultiStatusResponse &msr)
 
 int Server::sendPropResponse(Response &resp, std::string path, int recurse)
 {
+    mstr::replaceAll(path, "//", "/");
     std::string uri = pathToURI(path);
     //Debug_printv("uri[%s] path[%s] recurse[%d]", uri.c_str(), path.c_str(), recurse);
 
-    bool exists = (path == rootPath) ||
-                  (access(path.c_str(), R_OK) == 0);
+    // bool exists = (path == rootPath) ||
+    //               (access(path.c_str(), R_OK) == 0);
+    struct stat sb;
+    int i = stat(path.c_str(), &sb);
+    bool exists (i == 0);
 
     MultiStatusResponse r;
 
@@ -99,21 +115,18 @@ int Server::sendPropResponse(Response &resp, std::string path, int recurse)
     {
         r.status = "HTTP/1.1 200 OK";
 
-        struct stat sb;
-        int ret = stat(path.c_str(), &sb);
-        if (ret < 0)
-            return -errno;
+        r.props["D:creationdate"] = formatTime(sb.st_ctime);
+        r.props["D:getlastmodified"] = formatTime(sb.st_mtime);
+        //r.props["D:displayname"] = mstr::urlEncode(basename(path.c_str()));
 
-        r.props["esp:creationdate"] = formatTime(sb.st_ctime);
-        r.props["esp:getlastmodified"] = formatTime(sb.st_mtime);
-        r.props["esp:displayname"] = mstr::urlEncode(basename(path.c_str()));
+        std::string s = path + std::to_string(sb.st_mtime);
+        r.props["D:getetag"] = mstr::sha1(s);
 
         r.isCollection = ((sb.st_mode & S_IFMT) == S_IFDIR);
         if ( !r.isCollection )
         {
-            r.props["esp:getcontentlength"] = std::to_string(sb.st_size);
-            r.props["esp:getcontenttype"] = HTTPD_TYPE_OCTET;
-            r.props["esp:getetag"] = std::to_string(sb.st_ino);
+            r.props["D:getcontentlength"] = std::to_string(sb.st_size);
+            r.props["D:getcontenttype"] = HTTPD_TYPE_OCTET;
         }
         //Debug_printv("Found!");
     }
@@ -141,9 +154,17 @@ int Server::sendPropResponse(Response &resp, std::string path, int recurse)
                 std::string rpath = path + "/" + de->d_name;
                 sendPropResponse(resp, rpath, recurse - 1);
             }
-
             closedir(dir);
         }
+
+        // If we are at root and SD card is mounted send entry
+        if (path == "/")
+        {
+            i = stat("/sd", &sb);
+            if (i == 0)
+                sendPropResponse(resp, "/sd", recurse - 1);
+        }
+
     }
 
     return 0;
@@ -158,7 +179,7 @@ int Server::doCopy(Request &req, Response &resp)
     std::string source = uriToPath(req.getPath());
     std::string destination = uriToPath(req.getDestination());
 
-    //Debug_printv("req[%s] source[%s]", req.getPath().c_str(), source.c_str());
+    Debug_printv("req[%s] source[%s]", req.getPath().c_str(), source.c_str());
 
     if (source == destination)
         return 403;
@@ -233,10 +254,11 @@ int Server::doGet(Request &req, Response &resp)
     if (!f)
         return 404;
 
+    std::string s = path + std::to_string(sb.st_mtime);
+
     resp.setHeader("Content-Length", sb.st_size);
-    resp.setHeader("ETag", sb.st_ino);
+    resp.setHeader("ETag", mstr::sha1(s));
     resp.setHeader("Last-Modified", formatTime(sb.st_mtime));
-    resp.setHeader("Connection","close");
 
     ret = 0;
 
@@ -277,8 +299,10 @@ int Server::doHead(Request &req, Response &resp)
     if (ret < 0)
         return 404;
 
+    std::string s = path + std::to_string(sb.st_mtime);
+
     resp.setHeader("Content-Length", sb.st_size);
-    resp.setHeader("ETag", sb.st_ino);
+    resp.setHeader("ETag", mstr::sha1(s));
     resp.setHeader("Last-Modified", formatTime(sb.st_mtime));
 
     return 200;
@@ -286,7 +310,38 @@ int Server::doHead(Request &req, Response &resp)
 
 int Server::doLock(Request &req, Response &resp)
 {
-    return 501;
+    Debug_printv("req[%s]", req.getPath().c_str());
+
+    resp.setStatus(200);
+    resp.setContentType("application/xml;charset=utf-8");
+    resp.setHeader("Lock-Token", "urn:uuid:26e57cb3-834d-191a-00de-000042bdecf9");
+    resp.flushHeaders();
+
+    resp.sendChunk("<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n");
+
+    std::ostringstream s;
+
+    s << "<D:prop xmls:D=\"DAV:\">\r\n";
+    s << "<D:lockdiscovery>\r\n";
+    s << "<D:activelock>\r\n";
+    s << "<D:locktype><D:write/></D:locktype>\r\n";
+    s << "<D:lockscope><D:exclusive/></D:lockscope>\r\n";
+    s << "<D:depth>0</D:depth>\r\n";
+    s << "<D:owner><a:href xmlns:a=\"DAV:\">http://meatloaf.cc</a:href></D:owner>\r\n";
+    s << "<D:timeout>Second-600</D:timeout>\r\n";
+    s << "<D:locktoken>\r\n";
+    s << "<D:href>opaquelocktoken:89f0e324-e19d-4efd-bafe-e383829cf5a8</D:href>\r\n";
+    s << "</D:locktoken>\r\n";
+    s << "</D:activelock>\r\n";
+    s << "</D:lockdiscovery>\r\n";
+    s << "</D:prop>";
+
+    //Debug_printv("[%s]", s.str().c_str());
+
+    resp.sendChunk(s.str().c_str());
+    resp.closeChunk();
+
+    return 200;
 }
 
 int Server::doMkcol(Request &req, Response &resp)
@@ -378,9 +433,12 @@ int Server::doPropfind(Request &req, Response &resp)
 
     //Debug_printv("req[%s] path[%s]", req.getPath().c_str(), path.c_str());
 
-    bool exists = (path == rootPath) ||
-                  (access(path.c_str(), R_OK) == 0);
-    
+    // bool exists = (path == rootPath) ||
+    //               (access(path.c_str(), R_OK) == 0);
+    struct stat sb;
+    int i = stat(path.c_str(), &sb);
+    bool exists (i == 0);
+
     if (!exists)
         return 404;
 
@@ -394,7 +452,6 @@ int Server::doPropfind(Request &req, Response &resp)
 
     resp.sendChunk("<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n");
     resp.sendChunk("<D:multistatus xmlns:D=\"DAV:\">\r\n");
-
     sendPropResponse(resp, path, recurse);
     resp.sendChunk("</D:multistatus>\r\n");
     resp.closeChunk();
@@ -423,10 +480,20 @@ int Server::doPut(Request &req, Response &resp)
 
     //Debug_printv("req[%s] path[%s]", req.getPath().c_str(), path.c_str());
 
-    bool exists = access(path.c_str(), R_OK) == 0;
+    struct stat sb;
+    int i = stat(path.c_str(), &sb);
+    bool exists (i == 0);
+
     FILE *f = fopen(path.c_str(), "w");
     if (!f)
         return 404;
+
+    // // Do we need to continue to get the data?
+    // if (req.getHeader("Expect").contains("100-continue") )
+    // {
+    //     Debug_printv("continue");
+    //     req.sendContinue();
+    // }
 
     int remaining = req.getContentLength();
 
@@ -454,9 +521,6 @@ int Server::doPut(Request &req, Response &resp)
 
     free(chunk);
     fclose(f);
-    resp.closeChunk();
-
-    resp.setHeader("Connection","close");
 
     if (ret < 0)
         return 500;
@@ -469,5 +533,7 @@ int Server::doPut(Request &req, Response &resp)
 
 int Server::doUnlock(Request &req, Response &resp)
 {
-    return 501;
+    Debug_printv("req[%s]", req.getPath().c_str());
+    resp.setHeader("Lock-Token", "urn:uuid:26e57cb3-834d-191a-00de-000042bdecf9");
+    return 204;
 }

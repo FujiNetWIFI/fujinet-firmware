@@ -261,13 +261,13 @@ void cx16Fuji::disk_image_mount()
         cx16_error();
         return;
     }
-    
+
     if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
     {
         cx16_error();
         return;
     }
-    
+
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
@@ -1126,6 +1126,14 @@ void cx16Fuji::get_host_prefix()
     bus_to_computer((uint8_t *)prefix, sizeof(prefix), false);
 }
 
+// Public method to update host in specific slot
+fujiHost *cx16Fuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
+}
+
 // Send device slot data to computer
 void cx16Fuji::read_device_slots()
 {
@@ -1379,9 +1387,9 @@ void cx16Fuji::setup(systemBus *siobus)
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
-    
+
     //Disable status_wait if our settings say to turn it off
-    status_wait_enabled = Config.get_general_status_wait_enabled();    
+    status_wait_enabled = Config.get_general_status_wait_enabled();
 }
 
 void cx16Fuji::process(uint32_t commanddata, uint8_t checksum)

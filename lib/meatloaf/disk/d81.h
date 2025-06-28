@@ -54,8 +54,9 @@ public:
         partitions.clear();
         partitions.push_back(p);
         sectorsPerTrack = { 40 };
-        dos_rom = "dos1581";
         has_subdirs = true;
+
+        dos_rom = "dos1581";
 
         uint32_t size = containerStream->size();
         switch (size + media_header_size) 
@@ -65,6 +66,11 @@ public:
 
             case 822400:  // 80 w/ errors
                 error_info = true;
+                break;
+
+            // https://sourceforge.net/p/vice-emu/bugs/1890/
+            case 829440:  // 81 tracks no errors
+                partitions[partition].block_allocation_map[1].end_track = 81;
                 break;
         }
     };
@@ -84,14 +90,20 @@ private:
 
 class D81MFile: public D64MFile {
 public:
-    D81MFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) {};
+    D81MFile(std::string path, bool is_dir = true) : D64MFile(path, is_dir) 
+    {
+        size = 819200; // Default - 80 tracks no errors
+    };
 
     MStream* getDecodedStream(std::shared_ptr<MStream> containerIstream) override
     {
-        Debug_printv("[%s]", url.c_str());
+        //Debug_printv("[%s]", url.c_str());
 
         return new D81MStream(containerIstream);
     }
+
+    bool mkDir() override { return false; };
+    bool rmDir() override { return false; };
 };
 
 

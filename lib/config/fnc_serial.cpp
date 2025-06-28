@@ -67,6 +67,38 @@ void fnConfig::_read_section_boip(std::stringstream &ss)
     }
 }
 
+#ifdef BUILD_RS232
+void fnConfig::_read_section_rs232(std::stringstream &ss)
+{
+    std::string line;
+
+    while (_read_line(ss,line,'[') >= 0)
+    {
+        std::string name;
+        std::string value;
+        if (_split_name_value(line,name,value))
+        {
+            if (strcasecmp(name.c_str(),"baud") == 0)
+            {
+                int baud = atoi(value.c_str());
+                if (baud<=0 || baud>= INT_MAX)
+                {
+                    baud = CONFIG_DEFAULT_RS232_BAUD;
+                }
+                    _rs232.baud = baud;
+            }
+        }
+    }
+}
+
+void fnConfig::store_rs232_baud(int _baud) {
+    if (_baud == _rs232.baud)
+        return;
+
+    _rs232.baud = _baud;
+    _dirty = true;
+}
+#endif
 
 #ifndef ESP_PLATFORM
 
@@ -80,6 +112,15 @@ void fnConfig::store_serial_port(const char *port)
         return;
 
     _serial.port = port;
+    _dirty = true;
+}
+
+void fnConfig::store_serial_baud(int baud)
+{
+    if (_serial.baud == baud)
+        return;
+
+    _serial.baud = baud;
     _dirty = true;
 }
 
@@ -100,33 +141,6 @@ void fnConfig::store_serial_proceed(serial_proceed_pin proceed_pin)
         return;
 
     _serial.proceed = proceed_pin;
-    _dirty = true;
-}
-
-// ATARI specific - TODO consider to replace with more generic bus over IP (boip)
-void fnConfig::store_netsio_enabled(bool enabled) {
-    if (_netsio.netsio_enabled == enabled)
-        return;
-
-    _netsio.netsio_enabled = enabled;
-    _dirty = true;
-}
-
-// ATARI specific - TODO consider to replace with more generic bus over IP (boip)
-void fnConfig::store_netsio_host(const char *host) {
-    if (_netsio.host.compare(host) == 0)
-        return;
-
-    _netsio.host = host;
-    _dirty = true;
-}
-
-// ATARI specific - TODO consider to replace with more generic Bus Over IP (boip)
-void fnConfig::store_netsio_port(int port) {
-    if (_netsio.port == port)
-        return;
-
-    _netsio.port = port;
     _dirty = true;
 }
 
@@ -212,35 +226,6 @@ void fnConfig::_read_section_serial(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "proceed") == 0)
             {
                 _serial.proceed = serial_proceed_from_string(value.c_str());
-            }
-        }
-    }
-}
-
-void fnConfig::_read_section_netsio(std::stringstream &ss)
-{
-    std::string line;
-    // Read lines until one starts with '[' which indicates a new section
-    while (_read_line(ss, line, '[') >= 0)
-    {
-        std::string name;
-        std::string value;
-        if (_split_name_value(line, name, value))
-        {
-            if (strcasecmp(name.c_str(), "enabled") == 0)
-            {
-                _netsio.netsio_enabled = util_string_value_is_true(value);
-            }
-            else if (strcasecmp(name.c_str(), "host") == 0)
-            {
-                _netsio.host = value;
-            }
-            else if (strcasecmp(name.c_str(), "port") == 0)
-            {
-                int port = atoi(value.c_str());
-                if (port <= 0 || port > 65535) 
-                    port = CONFIG_DEFAULT_NETSIO_PORT;
-                _netsio.port = port;
             }
         }
     }

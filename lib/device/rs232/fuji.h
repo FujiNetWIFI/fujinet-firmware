@@ -23,6 +23,8 @@
 #define READ_DEVICE_SLOTS_DISKS1 0x00
 #define READ_DEVICE_SLOTS_TAPE 0x10
 
+#define STATUS_MOUNT_TIME       0x01
+
 typedef struct
 {
     char ssid[33];
@@ -112,7 +114,7 @@ protected:
     void rs232_test();                   // 0x00
 
     void rs232_status() override;
-    void rs232_process(uint32_t commanddata, uint8_t checksum) override;
+    void rs232_process(cmdFrame_t *cmd_ptr) override;
 
     void shutdown() override;
 
@@ -120,7 +122,7 @@ public:
     bool boot_config = true;
 
     bool status_wait_enabled = true;
-    
+
     rs232Disk *bootdisk();
 
     rs232Network *network();
@@ -137,6 +139,7 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *set_slot_hostname(int host_slot, char *hostname);
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();

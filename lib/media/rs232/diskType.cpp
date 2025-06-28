@@ -17,30 +17,27 @@
 
 // Returns sector size taking into account that the first 3 sectors are always 128-byte
 // SectorNum is 1-based
-uint16_t MediaType::sector_size(uint16_t sectornum)
+uint16_t MediaType::sector_size(uint32_t sectornum)
 {
-    if (_disk_sector_size == 512)
-        return 512;
-    else
-        return sectornum <= 3 ? 128 : _disk_sector_size;
+    return 512;
 }
 
 // Default WRITE is not implemented
-bool MediaType::write(uint16_t sectornum, bool verify)
+bool MediaType::write(uint32_t sectornum, bool verify)
 {
     Debug_print("DISK WRITE NOT IMPLEMENTED\r\n");
     return true;
 }
 
 // Default FORMAT is not implemented
-bool MediaType::format(uint16_t *responsesize)
+bool MediaType::format(uint32_t *responsesize)
 {
     Debug_print("DISK FORMAT NOT IMPLEMENTED\r\n");
     return true;
 }
 
 // Update PERCOM block from the total # of sectors
-void MediaType::derive_percom_block(uint16_t numSectors)
+void MediaType::derive_percom_block(uint32_t numSectors)
 {
 
 }
@@ -55,7 +52,7 @@ void MediaType::unmount()
 {
     if (_disk_fileh != nullptr)
     {
-        fclose(_disk_fileh);
+        fnio::fclose(_disk_fileh);
         _disk_fileh = nullptr;
     }
 }

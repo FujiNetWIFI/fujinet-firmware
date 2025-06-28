@@ -21,6 +21,7 @@
 #include "../fuji/fujiCmd.h"
 
 #include "hash.h"
+#include "../../qrcode/qrmanager.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices
@@ -147,69 +148,76 @@ private:
     bool hash_is_hex_output = false;
 
 protected:
-    void iwm_dummy_command();                    // control 0xAA
-    void iwm_hello_world();                      // status 0xAA
-    void iwm_ctrl_reset_fujinet();               // control 0xFF
-    void iwm_stat_net_get_ssid();                // status 0xFE
-    void iwm_stat_net_scan_networks();           // status 0xFD
-    void iwm_ctrl_net_scan_result();             // control 0xFC
-    void iwm_stat_net_scan_result();             // status 0xFC
-    void iwm_ctrl_net_set_ssid();                // control 0xFB
-    void iwm_stat_net_get_wifi_status();         // status 0xFA
-    void iwm_ctrl_mount_host();                  // 0xF9
-    uint8_t iwm_ctrl_disk_image_mount();         // 0xF8
-    uint8_t iwm_ctrl_open_directory();           // 0xF7
-    void iwm_ctrl_read_directory_entry();        // 0xF6
-    void iwm_stat_read_directory_entry();        // 0xF6
+    void iwm_dummy_command();                     // control 0xAA
+    void iwm_hello_world();                       // status 0xAA
+    void iwm_ctrl_reset_fujinet();                // control 0xFF
+    void iwm_stat_net_get_ssid();                 // status 0xFE
+    void iwm_stat_net_scan_networks();            // status 0xFD
+    void iwm_ctrl_net_scan_result();              // control 0xFC
+    void iwm_stat_net_scan_result();              // status 0xFC
+    void iwm_ctrl_net_set_ssid();                 // control 0xFB
+    void iwm_stat_net_get_wifi_status();          // status 0xFA
+    void iwm_ctrl_mount_host();                   // 0xF9
+    uint8_t iwm_ctrl_disk_image_mount();          // 0xF8
+    uint8_t iwm_ctrl_open_directory();            // 0xF7
+    void iwm_ctrl_read_directory_entry();         // 0xF6
+    void iwm_stat_read_directory_entry();         // 0xF6
 
-    void iwm_ctrl_close_directory();        // 0xF5
-    void iwm_stat_read_host_slots();        // 0xF4
-    void iwm_ctrl_write_host_slots();       // 0xF3
-    void iwm_stat_read_device_slots();      // 0xF2
-    void iwm_ctrl_write_device_slots();     // 0xF1
-    void iwm_stat_get_wifi_enabled();       // 0xEA
-    void iwm_ctrl_disk_image_umount();      // 0xE9
-    void iwm_stat_get_adapter_config();     // 0xE8
-    void iwm_stat_get_adapter_config_extended(); // 0xE8 (additional cmd data)
-    void iwm_ctrl_new_disk();               // 0xE7
-    void iwm_ctrl_unmount_host();           // 0xE6
+    void iwm_ctrl_close_directory();              // 0xF5
+    void iwm_stat_read_host_slots();              // 0xF4
+    void iwm_ctrl_write_host_slots();             // 0xF3
+    void iwm_stat_read_device_slots();            // 0xF2
+    void iwm_ctrl_write_device_slots();           // 0xF1
+    void iwm_stat_get_wifi_enabled();             // 0xEA
+    void iwm_ctrl_disk_image_umount();            // 0xE9
+    void iwm_stat_get_adapter_config();           // 0xE8
+    void iwm_stat_get_adapter_config_extended();  // 0xC4 (additional cmd data)
+    void iwm_ctrl_new_disk();                     // 0xE7
+    void iwm_ctrl_unmount_host();                 // 0xE6
 
-    void iwm_stat_get_directory_position(); // 0xE5
-    void iwm_ctrl_set_directory_position(); // 0xE4
+    void iwm_stat_get_directory_position();       // 0xE5
+    void iwm_ctrl_set_directory_position();       // 0xE4
 /*
-    void adamnet_set_hadamnet_index();         // 0xE3
+    void adamnet_set_hadamnet_index();            // 0xE3
 */
-    uint8_t iwm_ctrl_set_device_filename(); // 0xE2
+    uint8_t iwm_ctrl_set_device_filename();       // 0xE2
 
-    void iwm_ctrl_set_host_prefix();        // 0xE1
-    void iwm_stat_get_host_prefix();        // 0xE0
+    void iwm_ctrl_set_host_prefix();              // 0xE1
+    void iwm_stat_get_host_prefix();              // 0xE0
 /*
-    void adamnet_set_adamnet_external_clock(); // 0xDF
+    void adamnet_set_adamnet_external_clock();    // 0xDF
 */
-    void iwm_ctrl_write_app_key();          // 0xDE
-    void iwm_ctrl_read_app_key();           // 0xDD - control
-    void iwm_stat_read_app_key();           // 0xDD - status
-    void iwm_ctrl_open_app_key();           // 0xDC
+    void iwm_ctrl_write_app_key();                // 0xDE
+    void iwm_ctrl_read_app_key();                 // 0xDD - control
+    void iwm_stat_read_app_key();                 // 0xDD - status
+    void iwm_ctrl_open_app_key();                 // 0xDC
 
-/*  void adamnet_close_app_key();          // 0xDB
+/*  void adamnet_close_app_key();                 // 0xDB
 */
-    void iwm_stat_get_device_filename(uint8_t s);    // 0xDA, 0xA0 thru 0xA7
+    void iwm_stat_get_device_filename(uint8_t s); // 0xDA, 0xA0 thru 0xA7
 
-    void iwm_ctrl_set_boot_config();            // 0xD9
-    void iwm_ctrl_copy_file();                  // 0xD8
-    void iwm_ctrl_set_boot_mode();              // 0xD6
-    void iwm_ctrl_enable_device();          // 0xD5
-    void iwm_ctrl_disable_device();         // 0xD4
-    void send_stat_get_enable();        // 0xD1
+    void iwm_ctrl_set_boot_config();              // 0xD9
+    void iwm_ctrl_copy_file();                    // 0xD8
+    void iwm_ctrl_set_boot_mode();                // 0xD6
+    void iwm_ctrl_enable_device();                // 0xD5
+    void iwm_ctrl_disable_device();               // 0xD4
+    void send_stat_get_enable();                  // 0xD1
 
-    void iwm_ctrl_hash_input();                      // 0xC8
-    void iwm_ctrl_hash_compute(bool clear_data);     // 0xC7, 0xC3
-    void iwm_stat_hash_length();                     // 0xC6
-    void iwm_ctrl_hash_output();                     // 0xC5 set hash_is_hex_output
-    void iwm_stat_hash_output();                     // 0xC5 write response
-    void iwm_ctrl_hash_clear();                      // 0xC2
+    void iwm_ctrl_hash_input();                   // 0xC8
+    void iwm_ctrl_hash_compute(bool clear_data);  // 0xC7, 0xC3
+    void iwm_stat_hash_length();                  // 0xC6
+    void iwm_ctrl_hash_output();                  // 0xC5 set hash_is_hex_output
+    void iwm_stat_hash_output();                  // 0xC5 write response
+    void iwm_ctrl_hash_clear();                   // 0xC2
+    void iwm_stat_get_heap();                     // 0xC1
 
-    void iwm_stat_fuji_status();        // 0x53
+    void iwm_ctrl_qrcode_input();                 // 0xBC
+    void iwm_ctrl_qrcode_encode();                // 0xBD
+    void iwm_stat_qrcode_length();                // OxBE
+    void iwm_ctrl_qrcode_output();                // 0xBF
+    void iwm_stat_qrcode_output();                // 0xBF
+
+    void iwm_stat_fuji_status();                  // 0x53
 
     void shutdown() override;
     void process(iwm_decoded_cmd_t cmd) override;
@@ -257,11 +265,12 @@ public:
 
     fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
     fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *set_slot_hostname(int host_slot, char *hostname);
     DEVICE_TYPE *get_disk_dev(int i) {
 #ifndef DEV_RELAY_SLIP
       return i < MAX_SP_DEVICES
-	? (DEVICE_TYPE *) &_fnDisks[i].disk_dev
-	: (DEVICE_TYPE *) &_fnDisk2s[i - MAX_SP_DEVICES];
+        ? (DEVICE_TYPE *) &_fnDisks[i].disk_dev
+        : (DEVICE_TYPE *) &_fnDisk2s[i - MAX_SP_DEVICES];
 #else
       return &_fnDisks[i].disk_dev;
 #endif

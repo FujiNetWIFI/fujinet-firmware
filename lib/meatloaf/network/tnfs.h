@@ -17,18 +17,18 @@
  * MFile
  ********************************************************/
 
-class TNFSFile: public MFile
+class TNFSMFile: public MFile
 {
-friend class TNFSIStream;
+friend class TNFSMStream;
 
 public:
     std::string basepath = "";
     
-    TNFSFile(std::string path) {
+    TNFSMFile(std::string path) {
 
         // Find full filename for wildcard
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
-            seekEntry( name );
+            readEntry( name );
 
         if (!pathValid(path.c_str()))
             m_isNull = true;
@@ -37,26 +37,30 @@ public:
 
         //Debug_printv("basepath[%s] path[%s] valid[%d]", basepath.c_str(), this->path.c_str(), m_isNull);
     };
-    ~TNFSFile() {
-        //Serial.printf("*** Destroying flashfile %s\r\n", url.c_str());
+    ~TNFSMFile() {
+        //printf("*** Destroying flashfile %s\r\n", url.c_str());
         closeDir();
     }
 
     //MFile* cd(std::string newDir);
-    bool isDirectory() override;
+
     MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override ; // has to return OPENED stream
+    MStream* getDecodedStream(std::shared_ptr<MStream> src);
+    MStream* createStream(std::ios_base::openmode mode) override;
+
+    bool isDirectory() override;
     time_t getLastWrite() override ;
     time_t getCreationTime() override ;
     bool rewindDirectory() override ;
     MFile* getNextFileInDir() override ;
     bool mkDir() override ;
     bool exists() override ;
-    uint32_t size() override ;
+
     bool remove() override ;
     bool rename(std::string dest);
-    MStream* getDecodedStream(std::shared_ptr<MStream> src);
 
-    bool seekEntry( std::string filename );
+
+    bool readEntry( std::string filename );
 
 protected:
     DIR* dir;
@@ -103,37 +107,36 @@ private:
  * MStream I
  ********************************************************/
 
-class TNFSIStream: public MStream {
+class TNFSMStream: public MStream {
 public:
-    TNFSIStream(std::string& path) {
+    TNFSMStream(std::string& path) {
         localPath = path;
         handle = std::make_unique<TNFSHandle>();
         url = path;
     }
-    ~TNFSIStream() override {
+    ~TNFSMStream() override {
         close();
     }
 
+    // MStream methods
+    bool isOpen();
     bool isBrowsable() override { return false; };
     bool isRandomAccess() override { return true; };
 
-    virtual bool seek(uint32_t pos) override;
-    virtual bool seek(uint32_t pos, int mode) override;    
-
+    bool open(std::ios_base::openmode mode) override;
     void close() override;
-    bool open() override;
 
-    // MStream methods
-    //uint8_t read() override;
     uint32_t read(uint8_t* buf, uint32_t size) override;
     uint32_t write(const uint8_t *buf, uint32_t size) override;
+
+    virtual bool seek(uint32_t pos) override;
+    virtual bool seek(uint32_t pos, int mode) override;    
 
     virtual bool seekPath(std::string path) override {
         Debug_printv( "path[%s]", path.c_str() );
         return false;
     }
 
-    bool isOpen();
 
 protected:
     std::string localPath;
@@ -146,10 +149,10 @@ protected:
  * MFileSystem
  ********************************************************/
 
-class TNFSFileSystem: public MFileSystem 
+class TNFSMFileSystem: public MFileSystem 
 {
     MFile* getFile(std::string path) override {
-        return new TNFSFile(path);
+        return new TNFSMFile(path);
     }
 
     bool handles(std::string name) {
@@ -159,7 +162,7 @@ class TNFSFileSystem: public MFileSystem
         return false;
     }
 public:
-    TNFSFileSystem(): MFileSystem("tnfs") {};
+    TNFSMFileSystem(): MFileSystem("tnfs") {};
 
 };
 

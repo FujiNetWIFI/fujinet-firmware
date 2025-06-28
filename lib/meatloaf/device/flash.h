@@ -43,37 +43,39 @@ public:
 
         // Find full filename for wildcard
         if (mstr::contains(name, "?") || mstr::contains(name, "*"))
-            seekEntry( name );
+            readEntry( name );
 
         if (!pathValid(path.c_str()))
             m_isNull = true;
         else
             m_isNull = false;
 
+        isWritable = true;
         //Debug_printv("basepath[%s] path[%s] valid[%d]", basepath.c_str(), this->path.c_str(), m_isNull);
     };
     ~FlashMFile() {
-        //Serial.printf("*** Destroying flashfile %s\r\n", url.c_str());
+        //printf("*** Destroying flashfile %s\r\n", url.c_str());
         closeDir();
     }
 
     //MFile* cd(std::string newDir);
     bool isDirectory() override;
     MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override ; // has to return OPENED stream
-    MStream* getDecodedStream(std::shared_ptr<MStream> src) override;
+    MStream* getDecodedStream(std::shared_ptr<MStream> src);
+    MStream* createStream(std::ios_base::openmode mode) override;
 
     bool rewindDirectory() override;
     MFile* getNextFileInDir() override;
     bool mkDir() override;
+    bool rmDir() override;
     bool exists() override;
     bool remove() override;
     bool rename(std::string dest) override;
 
     time_t getLastWrite() override;
     time_t getCreationTime() override;
-    uint32_t size() override;
 
-    bool seekEntry( std::string filename );
+    bool readEntry( std::string filename );
 
 protected:
     DIR* dir;
@@ -130,29 +132,26 @@ public:
     }
 
     // MStream methods
+    bool isOpen() override;
     bool isBrowsable() override { return false; };
     bool isRandomAccess() override { return true; };
 
-    virtual bool seek(uint32_t pos) override;
-
+    bool open(std::ios_base::openmode mode) override;
     void close() override;
-    bool open() override;
 
-    // MStream methods
-    //uint8_t read() override;
     uint32_t read(uint8_t* buf, uint32_t size) override;
     uint32_t write(const uint8_t *buf, uint32_t size) override;
+
+    virtual bool seek(uint32_t pos) override;
 
     virtual bool seekPath(std::string path) override {
         Debug_printv( "path[%s]", path.c_str() );
         return false;
     }
 
-    bool isOpen() override;
 
 protected:
     std::string localPath;
-
     std::unique_ptr<FlashHandle> handle;
 };
 

@@ -35,12 +35,6 @@ drivewireNetwork drivewireNetDevs[MAX_NETWORK_DEVICES];
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
 
-void drivewireFuji::resetState(void)
-{
-    _drivewire_bus->fnStateMethod = &drivewireFuji::process;
-    _drivewire_bus->resetState();
-}
-
 bool _validate_host_slot(uint8_t slot, const char *dmsg)
 {
     if (slot < MAX_HOSTS)
@@ -134,24 +128,16 @@ drivewireFuji::drivewireFuji()
 }
 
 // Reset FujiNet
-int drivewireFuji::reset_fujinet(std::vector<uint8_t> *q)
+void drivewireFuji::reset_fujinet()
 {
-    int result = 1;
-    
     Debug_println("Fuji cmd: REBOOT");
     // drivewire_complete();
     fnSystem.reboot();
-    
-    resetState();
-    
-    return result;
 }
 
 // Scan for networks
-int drivewireFuji::net_scan_networks(std::vector<uint8_t> *q)
+void drivewireFuji::net_scan_networks()
 {
-    int result = 1;
-    
     Debug_println("Fuji cmd: SCAN NETWORKS");
 
     if (!wifiScanStarted)
@@ -164,61 +150,43 @@ int drivewireFuji::net_scan_networks(std::vector<uint8_t> *q)
     response.shrink_to_fit();
 
     response += _countScannedSSIDs;
-    
-    resetState();
-    
-    return result;
 }
 
 // Return scanned network entry
-int drivewireFuji::net_scan_result(std::vector<uint8_t> *q)
+void drivewireFuji::net_scan_result()
 {
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
+    Debug_println("Fuji cmd: GET SCAN RESULT");
+
+    uint8_t n = fnDwCom.read();
+
+    wifiScanStarted = false;
+
+    // Response to  FUJICMD_GET_SCAN_RESULT
+    struct
     {
-      result = expectedResult;
-      
-      Debug_println("Fuji cmd: GET SCAN RESULT");
-  
-      uint8_t n = q->at(1);
-  
-      wifiScanStarted = false;
-  
-      // Response to FUJICMD_GET_SCAN_RESULT
-      struct
-      {
-          char ssid[MAX_SSID_LEN + 1];
-          uint8_t rssi;
-      } detail;
-  
-      if (n < _countScannedSSIDs)
-          fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
-      else
-      {
-          memset(&detail, 0, sizeof(detail));
-          errorCode = 144;
-      }
-  
-      response.clear();
-      response.shrink_to_fit();
-  
-      response = std::string((const char *)&detail, sizeof(detail));
-  
-      errorCode = 1;
-      
-      resetState();
+        char ssid[MAX_SSID_LEN + 1];
+        uint8_t rssi;
+    } detail;
+
+    if (n < _countScannedSSIDs)
+        fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
+    else
+    {
+        memset(&detail, 0, sizeof(detail));
+        errorCode = 144;
     }
-    
-    return result;
+
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)&detail, sizeof(detail));
+
+    errorCode = 1;
 }
 
 //  Get SSID
-int drivewireFuji::net_get_ssid(std::vector<uint8_t> *q)
+void drivewireFuji::net_get_ssid()
 {
-    int result = 1;
-    
     Debug_println("Fuji cmd: GET SSID");
 
     // Response to  FUJICMD_GET_SSID
@@ -249,66 +217,45 @@ int drivewireFuji::net_get_ssid(std::vector<uint8_t> *q)
     response = std::string((const char *)&cfg, sizeof(cfg));
 
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
 // Set SSID
-int drivewireFuji::net_set_ssid(std::vector<uint8_t> *q)
+void drivewireFuji::net_set_ssid()
 {
+    Debug_printf("\r\nFuji cmd: SET SSID");
     struct
     {
         char ssid[MAX_SSID_LEN + 1];
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
-    int result = 0;
-    int expectedResult = 1 + sizeof(cfg);
-    
-    if (q->size() >= expectedResult)
+    fnDwCom.readBytes((uint8_t *)&cfg, sizeof(cfg));
+
+    bool save = false; // for now don't save - to do save if connection was succesful
+
+    // URL Decode SSID/PASSWORD to handle special chars (FIXME)
+    //mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
+    //mstr::urlDecode(cfg.password, sizeof(cfg.password));
+
+    Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
+
+    if (fnWiFi.connect(cfg.ssid, cfg.password) == ESP_OK)
     {
-      result = expectedResult;
-      
-      Debug_printf("\r\nFuji cmd: SET SSID");
-  
-      std::vector<uint8_t> buff(sizeof(cfg));
-      std::copy(q->begin() + 1, q->begin() + expectedResult, buff.begin());
-      memcpy((uint8_t *)&cfg, buff.data(), sizeof(cfg));
-  
-      bool save = false; // for now don't save - to do save if connection was succesful
-  
-      // URL Decode SSID/PASSWORD to handle special chars (FIXME)
-      //mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
-      //mstr::urlDecode(cfg.password, sizeof(cfg.password));
-  
-      Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
-  
-      if (fnWiFi.connect(cfg.ssid, cfg.password) == ESP_OK)
-      {
-          Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-          Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-      }
-  
-      // Only save these if we're asked to, otherwise assume it was a test for connectivity
-      // should only save if connection was successful - i think
-      if (save)
-      {
-          Config.save();
-      }
-    
-      resetState();
+        Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+        Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
     }
-        
-    return result;
+
+    // Only save these if we're asked to, otherwise assume it was a test for connectivity
+    // should only save if connection was successful - i think
+    if (save)
+    {
+        Config.save();
+    }
 }
 
 // Get WiFi Status
-int drivewireFuji::net_get_wifi_status(std::vector<uint8_t> *q)
+void drivewireFuji::net_get_wifi_status()
 {
-    int result = 1;
-    
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     Debug_printv("Fuji cmd: GET WIFI STATUS: %u", wifiStatus);
 
@@ -318,17 +265,11 @@ int drivewireFuji::net_get_wifi_status(std::vector<uint8_t> *q)
     response += wifiStatus;
 
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
 // Check if Wifi is enabled
-int drivewireFuji::net_get_wifi_enabled(std::vector<uint8_t> *q)
+void drivewireFuji::net_get_wifi_enabled()
 {
-    int result = 1;
-    
     uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
 
     Debug_printv("Fuji cmd: GET WIFI ENABLED: %u", e);
@@ -339,103 +280,77 @@ int drivewireFuji::net_get_wifi_enabled(std::vector<uint8_t> *q)
     response += e;
 
     errorCode = 1; // Set it anyway.
-    
-    resetState();
-    
-    return result;
 }
 
 // Mount Server
-int drivewireFuji::mount_host(std::vector<uint8_t> *q)
+void drivewireFuji::mount_host()
 {
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      Debug_println("Fuji cmd: MOUNT HOST");
+    Debug_println("Fuji cmd: MOUNT HOST");
 
-      unsigned char hostSlot = q->at(1);
+    unsigned char hostSlot = fnDwCom.read();
 
-      _fnHosts[hostSlot].mount();
-      
-      resetState();
-    }
-    
-    return result;
+    _fnHosts[hostSlot].mount();
 }
 
 // Disk Image Mount
-int drivewireFuji::disk_image_mount(std::vector<uint8_t> *q)
+void drivewireFuji::disk_image_mount()
 {
-    int result = 0;
-    int expectedResult = 3;
-    
-    if (q->size() >= expectedResult)
+    // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
+    // to the C: device. Everything stays the same here and the mounting
+    // where all the magic happens is done in the drivewireDisk::mount() function.
+    // This function opens the file, so cassette does not need to open the file.
+    // Cassette needs the file pointer and file size.
+
+    Debug_println("Fuji cmd: MOUNT IMAGE");
+
+    uint8_t deviceSlot = fnDwCom.read();
+    uint8_t options = fnDwCom.read(); // DISK_ACCESS_MODE
+
+    errorCode = 1;
+
+    // TODO: Implement FETCH?
+    char flag[3] = {'r', 0, 0};
+    if (options == DISK_ACCESS_MODE_WRITE)
+        flag[1] = '+';
+
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[deviceSlot];
+    fujiHost &host = _fnHosts[disk.host_slot];
+
+    Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
+                 disk.filename, disk.host_slot, flag, deviceSlot + 1);
+
+    // TODO: Refactor along with mount disk image.
+    disk.disk_dev.host = &host;
+
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+    if (disk.fileh == nullptr)
     {
-      // TAPE or CASSETTE handling: this function can also mount CAS and WAV files
-      // to the C: device. Everything stays the same here and the mounting
-      // where all the magic happens is done in the drivewireDisk::mount() function.
-      // This function opens the file, so cassette does not need to open the file.
-      // Cassette needs the file pointer and file size.
-      result = expectedResult;
-  
-      Debug_println("Fuji cmd: MOUNT IMAGE");
-  
-      uint8_t deviceSlot = q->at(1);
-      uint8_t options = q->at(2); // DISK_ACCESS_MODE
-  
-      // TODO: Implement FETCH?
-      char flag[3] = {'r', 0, 0};
-      if (options == DISK_ACCESS_MODE_WRITE)
-          flag[1] = '+';
-  
-      // A couple of reference variables to make things much easier to read...
-      fujiDisk &disk = _fnDisks[deviceSlot];
-      fujiHost &host = _fnHosts[disk.host_slot];
-  
-      Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
-                   disk.filename, disk.host_slot, flag, deviceSlot + 1);
-  
-      // TODO: Refactor along with mount disk image.
-      disk.disk_dev.host = &host;
-  
-      disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-  
-      // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-      boot_config = false;
-  
-      // We need the file size for loading XEX files and for CASSETTE, so get that too
-      disk.disk_size = host.file_size(disk.fileh);
-  
-      // And now mount it
-      disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
-      
-      resetState();
-    }    
-    
-    return result;
+        Debug_printf("disk_image_mount Couldn't open file: \"%s\"\n", disk.filename);
+        errorCode = 144;
+        return;
+    }
+
+    // We've gotten this far, so make sure our bootable CONFIG disk is disabled
+    boot_config = false;
+
+    // We need the file size for loading XEX files and for CASSETTE, so get that too
+    disk.disk_size = host.file_size(disk.fileh);
+
+    // And now mount it
+    disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 }
 
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
-int drivewireFuji::set_boot_config(std::vector<uint8_t> *q)
+void drivewireFuji::set_boot_config()
 {
-    int result = 1;
-    
     // boot_config = cmdFrame.aux1;
     // drivewire_complete();
-    
-    resetState();
-    
-    return result;
 }
 
 // Do DRIVEWIRE copy
-int drivewireFuji::copy_file(std::vector<uint8_t> *q)
+void drivewireFuji::copy_file()
 {
-    int result = 1;
-    
     // uint8_t csBuf[256];
     // string copySpec;
     // string sourcePath;
@@ -567,26 +482,11 @@ int drivewireFuji::copy_file(std::vector<uint8_t> *q)
     // fclose(sourceFile);
     // fclose(destFile);
     // free(dataBuf);
-    
-    resetState();
-    
-    return result;
 }
 
 // Mount all
-int drivewireFuji::local_mount_all(std::vector<uint8_t> *q)
-{
-    int result = 1;
-    
-    mount_all();
-    
-    resetState();
-    
-    return result;
-}
-      
 void drivewireFuji::mount_all()
-{    
+{
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
     Debug_printf("drivewireFuji::mount_all()\n");
@@ -642,24 +542,14 @@ void drivewireFuji::mount_all()
     }
 
     Debug_printf("drivewireFuji::mount_all() done.\n");
+
 }
 
 // Set boot mode
-int drivewireFuji::set_boot_mode(std::vector<uint8_t> *q)
+void drivewireFuji::set_boot_mode()
 {
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      insert_boot_device(q->at(1));
-      boot_config = true;
-      
-      resetState();
-    }
-    
-    return result;
+    insert_boot_device(fnDwCom.read());
+    boot_config = true;
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -677,148 +567,116 @@ char *_generate_appkey_filename(appkey *info)
  Requiring a separate OPEN command makes both the read and write commands behave similarly
  and leaves the possibity for a more robust/general file read/write function later.
 */
-int drivewireFuji::open_app_key(std::vector<uint8_t> *q)
+void drivewireFuji::open_app_key()
 {
-    int result = 0;
-    int expectedResult = sizeof(_current_appkey) + 1;
+    Debug_print("Fuji cmd: OPEN APPKEY\n");
 
-    if (q->size() >= expectedResult) {
-      result = expectedResult;
-      Debug_print("Fuji cmd: OPEN APPKEY\n");
-  
-      std::vector<uint8_t> app_key(256);
-      std::copy(q->begin() + 1, q->begin() + expectedResult, app_key.begin());
-      memcpy((uint8_t *)&_current_appkey, app_key.data(), sizeof(_current_appkey));
+    fnDwCom.readBytes((uint8_t *)&_current_appkey, sizeof(_current_appkey));
 
-      // Endian swap
-      uint16_t tmp = _current_appkey.creator;
-      _current_appkey.creator = tmp >> 8 | tmp << 8;
-      
-      // Basic check for valid data
-      if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
-      {
-          Debug_println("Invalid app key data");
-          errorCode = 144;
-      }
-      else if (fnSDFAT.running() == false)
-      {
-          Debug_println("No SD mounted - returning error");
-          errorCode = 144;
-      }
-      else
-      {
-        errorCode = 1;
-        
-        Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
-                    _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
-                    _generate_appkey_filename(&_current_appkey));
-      }
-      
-      resetState();
+    // Endian swap
+    uint16_t tmp = _current_appkey.creator;
+    _current_appkey.creator = tmp >> 8 | tmp << 8;
+
+    // Basic check for valid data
+    if (_current_appkey.creator == 0 || _current_appkey.mode == APPKEYMODE_INVALID)
+    {
+        Debug_println("Invalid app key data");
+        errorCode = 144;
+        return;
     }
-    
-    return result;
+
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - returning error");
+        errorCode = 144;
+        return;
+    }
+
+    errorCode = 1;
+
+    Debug_printf("App key creator = 0x%04hx, app = 0x%02hhx, key = 0x%02hhx, mode = %hhu, filename = \"%s\"\n",
+                _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
+                _generate_appkey_filename(&_current_appkey));
 }
 
 /*
   The app key close operation is a placeholder in case we want to provide more robust file
   read/write operations. Currently, the file is closed immediately after the read or write operation.
 */
-int drivewireFuji::close_app_key(std::vector<uint8_t> *q)
+void drivewireFuji::close_app_key()
 {
-    int result = 1;
-    
     Debug_print("Fuji cmd: CLOSE APPKEY\n");
     _current_appkey.creator = 0;
     _current_appkey.mode = APPKEYMODE_INVALID;
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
 /*
  Write an "app key" to SD (ONLY!) storage.
 */
-int drivewireFuji::write_app_key(std::vector<uint8_t> *q)
+void drivewireFuji::write_app_key()
 {
-    int result = 0;
-    int expectedResult = 3 + MAX_APPKEY_LEN;
-    
-    if (q->size() >= expectedResult)
+    uint8_t lenh = fnDwCom.read();
+    uint8_t lenl = fnDwCom.read();
+    uint16_t len = lenh << 8 | lenl;
+    uint8_t value[MAX_APPKEY_LEN];
+
+    memset(value,0,sizeof(value));
+
+    fnDwCom.readBytes(value, len);
+
+    // Make sure we have valid app key information
+    if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
     {
-      result = expectedResult;
-      uint8_t lenh = q->at(1);
-      uint8_t lenl = q->at(2);
-      uint16_t len = lenh << 8 | lenl;
-      uint8_t value[MAX_APPKEY_LEN];
-  
-      memset(value,0,sizeof(value));
-  
-      std::vector<uint8_t> buff(256);
-      std::copy(q->begin() + 3, q->begin() + 3 + MAX_APPKEY_LEN, buff.begin());
-      memcpy((uint8_t *)value, buff.data(), MAX_APPKEY_LEN);
-  
-      // Make sure we have valid app key information
-      if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
-      {
-          Debug_println("Invalid app key metadata - aborting");
-          errorCode = 144;
-          return result;
-      }
-  
-      // Make sure we have an SD card mounted
-      if (fnSDFAT.running() == false)
-      {
-          Debug_println("No SD mounted - can't write app key");
-          errorCode = 144;
-          return result;
-      }
-  
-      char *filename = _generate_appkey_filename(&_current_appkey);
-  
-      // Reset the app key data so we require calling APPKEY OPEN before another attempt
-      _current_appkey.creator = 0;
-      _current_appkey.mode = APPKEYMODE_INVALID;
-  
-      Debug_printf("Writing appkey to \"%s\"\n", filename);
-  
-      // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
-      fnSDFAT.create_path("/FujiNet");
-  
-      FILE *fOut = fnSDFAT.file_open(filename, "w");
-      if (fOut == nullptr)
-      {
-          Debug_printf("Failed to open/create output file: errno=%d\n", errno);
-          errorCode = 144;
-          return result;
-      }
-      size_t count = fwrite(value, 1, len, fOut);
-      int e = errno;
-  
-      fclose(fOut);
-  
-      if (count != len)
-      {
-          Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, len, e);
-          errorCode = 144;
-      }
-      errorCode = 1;
-      
-      resetState();
+        Debug_println("Invalid app key metadata - aborting");
+        errorCode = 144;
+        return;
     }
-        
-    return result;
+
+    // Make sure we have an SD card mounted
+    if (fnSDFAT.running() == false)
+    {
+        Debug_println("No SD mounted - can't write app key");
+        errorCode = 144;
+        return;
+    }
+
+    char *filename = _generate_appkey_filename(&_current_appkey);
+
+    // Reset the app key data so we require calling APPKEY OPEN before another attempt
+    _current_appkey.creator = 0;
+    _current_appkey.mode = APPKEYMODE_INVALID;
+
+    Debug_printf("Writing appkey to \"%s\"\n", filename);
+
+    // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
+    fnSDFAT.create_path("/FujiNet");
+
+    FILE *fOut = fnSDFAT.file_open(filename, "w");
+    if (fOut == nullptr)
+    {
+        Debug_printf("Failed to open/create output file: errno=%d\n", errno);
+        errorCode = 144;
+        return;
+    }
+    size_t count = fwrite(value, 1, len, fOut);
+    int e = errno;
+
+    fclose(fOut);
+
+    if (count != len)
+    {
+        Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, len, e);
+        errorCode = 144;
+    }
+    errorCode = 1;
 }
 
 /*
  Read an "app key" from SD (ONLY!) storage
 */
-int drivewireFuji::read_app_key(std::vector<uint8_t> *q)
+void drivewireFuji::read_app_key()
 {
-    int result = 1;
-    
     Debug_println("Fuji cmd: READ APPKEY");
 
     // Make sure we have an SD card mounted
@@ -826,7 +684,7 @@ int drivewireFuji::read_app_key(std::vector<uint8_t> *q)
     {
         Debug_println("No SD mounted - can't read app key");
         errorCode = 144;
-        return result;
+        return;
     }
 
     // Make sure we have valid app key information
@@ -834,7 +692,7 @@ int drivewireFuji::read_app_key(std::vector<uint8_t> *q)
     {
         Debug_println("Invalid app key metadata - aborting");
         errorCode = 144;
-        return result;
+        return;
     }
 
     char *filename = _generate_appkey_filename(&_current_appkey);
@@ -846,14 +704,14 @@ int drivewireFuji::read_app_key(std::vector<uint8_t> *q)
     {
         Debug_printf("Failed to open input file: errno=%d\n", errno);
         errorCode = 144;
-        return result;
+        return;
     }
 
     std::vector<uint8_t> buffer(MAX_APPKEY_LEN);
     size_t count = fread(buffer.data(), 1, buffer.size(), fIn);
     fclose(fIn);
     Debug_printf("Read %d bytes from input file\n", count);
-    
+
     uint16_t sizeNetOrder = htons(count);
 
     response.clear();
@@ -861,36 +719,22 @@ int drivewireFuji::read_app_key(std::vector<uint8_t> *q)
     response.append(reinterpret_cast<char*>(buffer.data()), count);
 
     errorCode = 1;
-
-    resetState();
-    
-    return result;
 }
 
 // Disk Image Unmount
-int drivewireFuji::disk_image_umount(std::vector<uint8_t> *q)
+void drivewireFuji::disk_image_umount()
 {
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
+    uint8_t deviceSlot = fnDwCom.read();
+
+    Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
+
+    // Handle disk slots
+    if (deviceSlot < MAX_DISK_DEVICES)
     {
-      result = expectedResult;
-      uint8_t deviceSlot = q->at(1);
-  
-      Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
-  
-      // Handle disk slots
-      if (deviceSlot < MAX_DISK_DEVICES)
-      {
-          _fnDisks[deviceSlot].disk_dev.unmount();
-          _fnDisks[deviceSlot].disk_dev.device_active = false;
-          _fnDisks[deviceSlot].reset();
-      }
-      
-      resetState();
-    }    
-    return result;
+        _fnDisks[deviceSlot].disk_dev.unmount();
+        _fnDisks[deviceSlot].disk_dev.device_active = false;
+        _fnDisks[deviceSlot].reset();
+    }
 }
 
 // Disk Image Rotate
@@ -941,30 +785,24 @@ void drivewireFuji::image_rotate()
 }
 
 // This gets called when we're about to shutdown/reboot
-void drivewireFuji::shutdown(void)
+void drivewireFuji::shutdown()
 {
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
- }
+}
 
-int drivewireFuji::open_directory(std::vector<uint8_t> *q)
+void drivewireFuji::open_directory()
 {
-    int result = 0;
-    int expectedResult = 2 + 256;
-    
-    if (q->size() >= expectedResult)
+    Debug_println("Fuji cmd: OPEN DIRECTORY");
+
+    errorCode = 1;
+
+    uint8_t hostSlot = fnDwCom.read();
+
+    fnDwCom.readBytes((uint8_t *)&dirpath, 256);
+
+    if (_current_open_directory_slot == -1)
     {
-      result = expectedResult;
-      Debug_println("Fuji cmd: OPEN DIRECTORY");
-
-      uint8_t hostSlot = q->at(1);
-
-      std::vector<uint8_t> buff(256);
-      std::copy(q->begin() + 2, q->begin() + 2 + 256, buff.begin());
-      memcpy((uint8_t *)dirpath, buff.data(), 256);
-  
-      if (_current_open_directory_slot == -1)
-      {
         // See if there's a search pattern after the directory path
         const char *pattern = nullptr;
         int pathlen = strnlen(dirpath, sizeof(dirpath));
@@ -975,23 +813,22 @@ int drivewireFuji::open_directory(std::vector<uint8_t> *q)
             if (patternlen < 1)
                 pattern = nullptr;
         }
-  
+
         // Remove trailing slash
         if (pathlen > 1 && dirpath[pathlen - 1] == '/')
             dirpath[pathlen - 1] = '\0';
-  
+
         Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
-  
+
         if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
         {
             _current_open_directory_slot = hostSlot;
         }
-      }
-      
-      resetState();
+        else
+        {
+            errorCode = 144;
+        }
     }
-    
-    return result;
 }
 
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -1038,127 +875,95 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
 char current_entry[256];
 
-int drivewireFuji::read_directory_entry(std::vector<uint8_t> *q)
+void drivewireFuji::read_directory_entry()
 {
-    int result = 0;
-    int expectedResult = 3;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-    
-      uint8_t maxlen = q->at(1);
-      uint8_t addtl = q->at(2);
+    uint8_t maxlen = fnDwCom.read();
+    uint8_t addtl = fnDwCom.read();
 
-      Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
-  
-      memset(current_entry, 0, sizeof(current_entry));
-  
-      fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-  
-      if (f == nullptr)
-      {
-          Debug_println("Reached end of of directory");
-          current_entry[0] = 0x7F;
-          current_entry[1] = 0x7F;
-      }
-      else
-      {
-          Debug_printf("::read_direntry \"%s\"\n", f->filename);
-  
-          int bufsize = sizeof(current_entry);
-          int fno=0;
-  
-          // If 0x80 is set on AUX2, send back additional information
-          if (addtl & 0x80)
-          {
-              Debug_printf("Add additional info.\n");
-              _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
-              // Adjust remaining size of buffer and file path destination
-              bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
-              fno += ADDITIONAL_DETAILS_BYTES;
-          }
-          else
-          {
-              bufsize = maxlen;
-          }
-  
-          // int filelen = strlcpy(filenamedest, f->filename, bufsize);
-          int filelen = util_ellipsize(f->filename, &current_entry[fno], bufsize);
-  
-          // Add a slash at the end of directory entries
-          if (f->isDir && filelen < (bufsize - 2))
-          {
-              current_entry[filelen] = '/';
-              current_entry[filelen + 1] = '\0';
-          }
-      }
-      
-      response.clear();
-      response.shrink_to_fit();
-  
-      response = std::string((const char *)current_entry, maxlen);
-    
-      resetState();
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
+
+    memset(current_entry, 0, sizeof(current_entry));
+
+    fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+
+    if (f == nullptr)
+    {
+        Debug_println("Reached end of of directory");
+        current_entry[0] = 0x7F;
+        current_entry[1] = 0x7F;
     }
-    
-    return result;
+    else
+    {
+        Debug_printf("::read_direntry \"%s\"\n", f->filename);
+
+        int bufsize = sizeof(current_entry);
+        int fno=0;
+
+        // If 0x80 is set on AUX2, send back additional information
+        if (addtl & 0x80)
+        {
+            Debug_printf("Add additional info.\n");
+            _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
+            // Adjust remaining size of buffer and file path destination
+            bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
+            fno += ADDITIONAL_DETAILS_BYTES;
+        }
+        else
+        {
+            bufsize = maxlen;
+        }
+
+        // int filelen = strlcpy(filenamedest, f->filename, bufsize);
+        int filelen = util_ellipsize(f->filename, &current_entry[fno], bufsize);
+
+        // Add a slash at the end of directory entries
+        if (f->isDir && filelen < (bufsize - 2))
+        {
+            current_entry[filelen] = '/';
+            current_entry[filelen + 1] = '\0';
+        }
+    }
+
+    response.clear();
+    response.shrink_to_fit();
+
+    response = std::string((const char *)current_entry, maxlen);
 }
 
-int drivewireFuji::get_directory_position(std::vector<uint8_t> *q)
+void drivewireFuji::get_directory_position()
 {
-    int result = 1;
-    
     Debug_println("Fuji cmd: GET DIRECTORY POSITION");
 
     uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
 
     // Return the value we read
-    fnDwCom.writeToFNChannel(0, pos << 8);
-    fnDwCom.writeToFNChannel(0, pos & 0xFF);
+    fnDwCom.write(pos << 8);
+    fnDwCom.write(pos & 0xFF);
 
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
-int drivewireFuji::set_directory_position(std::vector<uint8_t> *q)
+void drivewireFuji::set_directory_position()
 {
-    int result = 0;
-    int expectedResult = 3;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-    
-      uint8_t h, l;
-  
-      Debug_println("Fuji cmd: SET DIRECTORY POSITION");
-  
-      // DAUX1 and DAUX2 hold the position to seek to in low/high order
-      h = q->at(1);
-      l = q->at(2);
-  
-      Debug_printf("H: %02x L: %02x", h, l);
-  
-      uint16_t pos = UINT16_FROM_HILOBYTES(h, l);
-  
-      bool seekResult = _fnHosts[_current_open_directory_slot].dir_seek(pos);
-  
-      errorCode = (seekResult == true);
-      
-      resetState();
-    }
-        
-    return result;
+    uint8_t h, l;
+
+    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
+
+    // DAUX1 and DAUX2 hold the position to seek to in low/high order
+    h = fnDwCom.read();
+    l = fnDwCom.read();
+
+    Debug_printf("H: %02x L: %02x", h, l);
+
+    uint16_t pos = UINT16_FROM_HILOBYTES(h, l);
+
+    bool result = _fnHosts[_current_open_directory_slot].dir_seek(pos);
+
+    errorCode = (result == true);
 }
 
-int drivewireFuji::close_directory(std::vector<uint8_t> *q)
+void drivewireFuji::close_directory()
 {
-    int result = 1;
-    
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
 
     if (_current_open_directory_slot != -1)
@@ -1166,17 +971,11 @@ int drivewireFuji::close_directory(std::vector<uint8_t> *q)
 
     _current_open_directory_slot = -1;
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
-// Get network adapter configuration 
-int drivewireFuji::get_adapter_config(std::vector<uint8_t> *q)
+// Get network adapter configuration
+void drivewireFuji::get_adapter_config()
 {
-    int result = 1;
-    
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
     // Response to  FUJICMD_GET_ADAPTERCONFIG
@@ -1206,17 +1005,11 @@ int drivewireFuji::get_adapter_config(std::vector<uint8_t> *q)
 
     errorCode = 1;
     response = std::string((const char *)&cfg, sizeof(cfg));
-    
-    resetState();
-    
-    return result;
 }
 
 // Get network adapter configuration - extended
-int drivewireFuji::get_adapter_config_extended(std::vector<uint8_t> *q)
+void drivewireFuji::get_adapter_config_extended()
 {
-    int result = 1;
-    
     // also return string versions of the data to save the host some computing
     Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
     AdapterConfigExtended cfg;
@@ -1253,15 +1046,13 @@ int drivewireFuji::get_adapter_config_extended(std::vector<uint8_t> *q)
 
     errorCode = 1;
     response = std::string((const char *)&cfg, sizeof(cfg));
-    
-    resetState();
-    
-    return result;
 }
 
 //  Make new disk and shove into device slot
-int drivewireFuji::new_disk(std::vector<uint8_t> *q)
+void drivewireFuji::new_disk()
 {
+    Debug_println("Fuji cmd: NEW DISK");
+
     struct
     {
         unsigned char numDisks;
@@ -1270,95 +1061,67 @@ int drivewireFuji::new_disk(std::vector<uint8_t> *q)
         char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
     } newDisk;
 
-    int result = 0;
-    int expectedResult = 1 + sizeof(newDisk);
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      Debug_println("Fuji cmd: NEW DISK");
+    fnDwCom.readBytes((uint8_t *)&newDisk, sizeof(newDisk));
 
-      std::vector<uint8_t> buff(256);
-      std::copy(q->begin() + 1, q->begin() + 1 + sizeof(newDisk), buff.begin());
-      memcpy((uint8_t *)&newDisk, buff.data(), sizeof(newDisk));
-  
-      Debug_printf("numDisks: %u\n",newDisk.numDisks);
-      Debug_printf("hostSlot: %u\n",newDisk.hostSlot);
-      Debug_printf("deviceSl: %u\n",newDisk.deviceSlot);
-      Debug_printf("filename: %s\n",newDisk.filename);
-  
-      // A couple of reference variables to make things much easier to read...
-      fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
-      fujiHost &host = _fnHosts[newDisk.hostSlot];
-  
-      disk.host_slot = newDisk.hostSlot;
-      disk.access_mode = DISK_ACCESS_MODE_WRITE;
-      strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
-  
-      if (host.file_exists(disk.filename))
-      {
-          Debug_printf("drivewire_new_disk File exists: \"%s\"\n", disk.filename);
-          errorCode = 144;
-          return result;
-      }
-  
-      disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
-      if (disk.fileh == nullptr)
-      {
-          Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
-          return result;
-      }
-  
-      bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.numDisks);
-  
-      errorCode = (ok == NETWORK_ERROR_SUCCESS);
-  
-      fnio::fclose(disk.fileh);
-      
-      resetState();
+    Debug_printf("numDisks: %u\n",newDisk.numDisks);
+    Debug_printf("hostSlot: %u\n",newDisk.hostSlot);
+    Debug_printf("deviceSl: %u\n",newDisk.deviceSlot);
+    Debug_printf("filename: %s\n",newDisk.filename);
+
+    // A couple of reference variables to make things much easier to read...
+    fujiDisk &disk = _fnDisks[newDisk.deviceSlot];
+    fujiHost &host = _fnHosts[newDisk.hostSlot];
+
+    disk.host_slot = newDisk.hostSlot;
+    disk.access_mode = DISK_ACCESS_MODE_WRITE;
+    strlcpy(disk.filename, newDisk.filename, sizeof(disk.filename));
+
+    if (host.file_exists(disk.filename))
+    {
+        Debug_printf("drivewire_new_disk File exists: \"%s\"\n", disk.filename);
+        errorCode = 144;
+        return;
     }
-    
-    return result;
+
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+    if (disk.fileh == nullptr)
+    {
+        Debug_printf("drivewire_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
+        return;
+    }
+
+    bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.numDisks);
+
+    errorCode = (ok == NETWORK_ERROR_SUCCESS);
+
+    fnio::fclose(disk.fileh);
 }
 
 // Unmount specified host
-int drivewireFuji::unmount_host(std::vector<uint8_t> *q)
+void drivewireFuji::unmount_host()
 {
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      Debug_println("Fuji cmd: UNMOUNT HOST");
-  
-      unsigned char hostSlot = q->at(1);
-  
-      // Unmount any disks associated with host slot
-      for (int i = 0; i < MAX_DISK_DEVICES; i++)
-      {
-          if (_fnDisks[i].host_slot == hostSlot)
-          {
-              _fnDisks[i].disk_dev.unmount();
-              _fnDisks[i].disk_dev.device_active = false;
-              _fnDisks[i].reset();
-          }
-      }
-  
-      // Unmount the host
-      _fnHosts[hostSlot].umount();
+    Debug_println("Fuji cmd: UNMOUNT HOST");
 
-      resetState();
+    unsigned char hostSlot = fnDwCom.read();
+
+    // Unmount any disks associated with host slot
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    {
+        if (_fnDisks[i].host_slot == hostSlot)
+        {
+            _fnDisks[i].disk_dev.unmount();
+            _fnDisks[i].disk_dev.device_active = false;
+            _fnDisks[i].reset();
+        }
     }
-        
-    return result;
+
+    // Unmount the host
+    _fnHosts[hostSlot].umount();
 }
 
 // Send host slot data to computer
-int drivewireFuji::read_host_slots(std::vector<uint8_t> *q)
+void drivewireFuji::read_host_slots()
 {
-    int result = 1;
-    
     Debug_println("Fuji cmd: READ HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
@@ -1372,46 +1135,26 @@ int drivewireFuji::read_host_slots(std::vector<uint8_t> *q)
 
     response = std::string((const char *)hostSlots,256);
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
 // Read and save host slot data from computer
-int drivewireFuji::write_host_slots(std::vector<uint8_t> *q)
+void drivewireFuji::write_host_slots()
 {
+    Debug_println("Fuji cmd: WRITE HOST SLOTS");
+
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
+    fnDwCom.readBytes((uint8_t *)&hostSlots, sizeof(hostSlots));
 
-    int result = 0;
-    int expectedResult = 1 + sizeof(hostSlots);
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      Debug_println("Fuji cmd: WRITE HOST SLOTS");
-  
-      std::vector<uint8_t> buff(256);
-      std::copy(q->begin() + 1, q->begin() + 1 + sizeof(hostSlots), buff.begin());
-      memcpy((uint8_t *)&hostSlots, buff.data(), sizeof(hostSlots));
-  
-      for (int i = 0; i < MAX_HOSTS; i++)
-          _fnHosts[i].set_hostname(hostSlots[i]);
-  
-      _populate_config_from_slots();
-      Config.save();
+    for (int i = 0; i < MAX_HOSTS; i++)
+        _fnHosts[i].set_hostname(hostSlots[i]);
 
-      resetState();
-    }
-        
-    return result;
+    _populate_config_from_slots();
+    Config.save();
 }
 
 // Send device slot data to computer
-int drivewireFuji::read_device_slots(std::vector<uint8_t> *q)
+void drivewireFuji::read_device_slots()
 {
-    int result = 1;
-    
     Debug_println("Fuji cmd: READ DEVICE SLOTS");
 
     struct disk_slot
@@ -1457,15 +1200,13 @@ int drivewireFuji::read_device_slots(std::vector<uint8_t> *q)
     errorCode = 1;
 
     response = std::string((const char *)&diskSlots, returnsize);
-    
-    resetState();
-    
-    return result;
 }
 
 // Read and save disk slot data from computer
-int drivewireFuji::write_device_slots(std::vector<uint8_t> *q)
+void drivewireFuji::write_device_slots()
 {
+    Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
+
     struct
     {
         uint8_t hostSlot;
@@ -1473,30 +1214,15 @@ int drivewireFuji::write_device_slots(std::vector<uint8_t> *q)
         char filename[MAX_DISPLAY_FILENAME_LEN];
     } diskSlots[MAX_DISK_DEVICES];
 
-    int result = 0;
-    int expectedResult = 1 + sizeof(diskSlots);
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      Debug_println("Fuji cmd: WRITE DEVICE SLOTS");
-  
-      std::vector<uint8_t> buff(256);
-      std::copy(q->begin() + 1, q->begin() + 1 + sizeof(diskSlots), buff.begin());
-      memcpy((uint8_t *)&diskSlots, buff.data(), sizeof(diskSlots));
-  
-      // Load the data into our current device array
-      for (int i = 0; i < MAX_DISK_DEVICES; i++)
-          _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
-  
-      // Save the data to disk
-      _populate_config_from_slots();
-      Config.save();
+    fnDwCom.readBytes((uint8_t *)&diskSlots, sizeof(diskSlots));
 
-      resetState();
-    }
-        
-    return result;
+    // Load the data into our current device array
+    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
+
+    // Save the data to disk
+    _populate_config_from_slots();
+    Config.save();
 }
 
 // Temporary(?) function while we move from old config storage to new
@@ -1560,86 +1286,57 @@ void drivewireFuji::_populate_config_from_slots()
 }
 
 // Write a 256 byte filename to the device slot
-int drivewireFuji::set_device_filename(std::vector<uint8_t> *q)
+void drivewireFuji::set_device_filename()
 {
-    int result = 0;
-    int expectedResult = 4 + MAX_FILENAME_LEN;
-    
-    if (q->size() >= expectedResult)
+    char tmp[MAX_FILENAME_LEN];
+
+    // AUX1 is the desired device slot
+    uint8_t slot = fnDwCom.read();
+    // AUX2 contains the host slot and the mount mode (READ/WRITE)
+    uint8_t host = fnDwCom.read();
+    uint8_t mode = fnDwCom.read();
+
+    fnDwCom.readBytes((uint8_t *)tmp, MAX_FILENAME_LEN);
+
+    Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
+
+    // Handle DISK slots
+    if (slot < MAX_DISK_DEVICES)
     {
-      result = expectedResult;
-  
-      char tmp[MAX_FILENAME_LEN];
-  
-      // AUX1 is the desired device slot
-      uint8_t slot = q->at(1);
-      // AUX2 contains the host slot and the mount mode (READ/WRITE)
-      uint8_t host = q->at(2);
-      uint8_t mode = q->at(3);
-  
-      std::vector<uint8_t> buff(256);
-      std::copy(q->begin() + 4, q->begin() + 4 + MAX_FILENAME_LEN, buff.begin());
-      memcpy((uint8_t *)&tmp, buff.data(), MAX_FILENAME_LEN);
-    
-      Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
-  
-      // Handle DISK slots
-      if (slot < MAX_DISK_DEVICES)
-      {
-          memcpy(_fnDisks[slot].filename, tmp, MAX_FILENAME_LEN);
-          // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
-          if (strlen(_fnDisks[slot].filename) == 0) {
-              _fnDisks[slot].host_slot = INVALID_HOST_SLOT;
-          } else {
-              _fnDisks[slot].host_slot = host;
-          }
-          _fnDisks[slot].access_mode = mode;
-          _populate_config_from_slots();
-      }
-  
-      Config.save();
-    
-      resetState();
+        memcpy(_fnDisks[slot].filename, tmp, MAX_FILENAME_LEN);
+        // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
+        if (strlen(_fnDisks[slot].filename) == 0) {
+            _fnDisks[slot].host_slot = INVALID_HOST_SLOT;
+        } else {
+            _fnDisks[slot].host_slot = host;
+        }
+        _fnDisks[slot].access_mode = mode;
+        _populate_config_from_slots();
     }
-        
-    return result;
+
+    Config.save();
 }
 
 // Get a 256 byte filename from device slot
-int drivewireFuji::get_device_filename(std::vector<uint8_t> *q)
+void drivewireFuji::get_device_filename()
 {
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      char tmp[MAX_FILENAME_LEN] = {0};
-  
-      // AUX1 is the desired device slot
-      uint8_t slot = q->at(1);
-  
-      if (slot > 7)
-      {
-          errorCode = 144;
-      }
-      else
-      {  
-          memcpy(tmp, _fnDisks[slot].filename, MAX_FILENAME_LEN);
-      }
-      response.clear();
-      response.shrink_to_fit();
-  
-      Debug_printf("Fuji cmd: GET DEVICE SLOT 0x%02X FILENAME: %s\n", slot, tmp);
+    char tmp[MAX_FILENAME_LEN];
 
-      errorCode = 1;
-  
-      response = std::string(tmp, MAX_FILENAME_LEN);
-      
-      resetState();
-    } 
-       
-    return result;
+    // AUX1 is the desired device slot
+    uint8_t slot = fnDwCom.read();
+
+    if (slot > 7)
+    {
+        errorCode = 144;
+    }
+
+    memcpy(tmp, _fnDisks[slot].filename, MAX_FILENAME_LEN);
+    response.clear();
+    response.shrink_to_fit();
+
+    errorCode = 1;
+
+    response = std::string(tmp, MAX_FILENAME_LEN);
 }
 
 // Mounts the desired boot disk number
@@ -1677,56 +1374,27 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     }
 }
 
-int drivewireFuji::base64_encode_input(std::vector<uint8_t> *q)
+void drivewireFuji::base64_encode_input()
 {
-    int result = 0;
-    int expectedResult = 3;
-    
-    if (q->size() >= expectedResult)
+    uint8_t lenh = fnDwCom.read();
+    uint8_t lenl = fnDwCom.read();
+    uint16_t len = lenh << 8 | lenl;
+
+    if (!len)
     {
-      result = expectedResult;
-      uint8_t lenh = q->at(1);
-      uint8_t lenl = q->at(2);
-      base64_encode_length_var = lenh << 8 | lenl;
-
-      if (!base64_encode_length_var)
-      {
-          Debug_printf("Zero length. Aborting.\n");
-          errorCode = 144;
-          resetState();
-          return result;
-      }
-
-      _drivewire_bus->fnStateMethod = &drivewireFuji::base64_encode_input_p2;
+        Debug_printf("Zero length. Aborting.\n");
+        errorCode = 144;
+        return;
     }
-        
-    return result;
+
+    std::vector<unsigned char> p(len);
+    fnDwCom.readBytes(p.data(), len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
+    errorCode = 1;
 }
 
-int drivewireFuji::base64_encode_input_p2(std::vector<uint8_t> *q)
+void drivewireFuji::base64_encode_compute()
 {
-    int result = 0;
-    int expectedResult = base64_encode_length_var;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-
-      std::vector<unsigned char> p(base64_encode_length_var);
-      std::copy(q->begin(), q->begin() + base64_encode_length_var - 1, p.begin());
-      base64.base64_buffer += std::string((const char *)p.data(), base64_encode_length_var);
-      errorCode = 1;
-      
-      resetState();
-    }
-      
-    return result;
-}
-
-int drivewireFuji::base64_encode_compute(std::vector<uint8_t> *q)
-{
-    int result = 1;
-    
     size_t out_len;
 
     std::unique_ptr<char[]> p = Base64::encode(base64.base64_buffer.c_str(), base64.base64_buffer.size(), &out_len);
@@ -1735,25 +1403,19 @@ int drivewireFuji::base64_encode_compute(std::vector<uint8_t> *q)
     {
         Debug_printf("base64_encode_compute() failed.\n");
         errorCode = 144;
-        return result;
+        return;
     }
 
     base64.base64_buffer.clear();
     base64.base64_buffer = std::string(p.get(), out_len);
 
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
-int drivewireFuji::base64_encode_length(std::vector<uint8_t> *q)
+void drivewireFuji::base64_encode_length()
 {
-    int result = 1;
-    
     size_t l = base64.base64_buffer.length();
-    uint8_t o[4] = 
+    uint8_t o[4] =
     {
         (uint8_t)(l >> 24),
         (uint8_t)(l >> 16),
@@ -1767,95 +1429,52 @@ int drivewireFuji::base64_encode_length(std::vector<uint8_t> *q)
     response = std::string((const char *)&o, 4);
 
     errorCode = 1;
-
-    resetState();
-        
-    return result;
 }
 
-int drivewireFuji::base64_encode_output(std::vector<uint8_t> *q)
+void drivewireFuji::base64_encode_output()
 {
-    int result = 0;
-    int expectedResult = 3;
-    
-    if (q->size() >= expectedResult)
+    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = fnDwCom.read();
+    uint16_t len = lenh << 8 | lenl;
+
+    if (!len)
     {
-      result = expectedResult;
-      uint8_t lenl = q->at(1);
-      uint8_t lenh = q->at(2);
-      uint16_t len = lenh << 8 | lenl;
-  
-      if (!len)
-      {
-          Debug_printf("Refusing to send zero byte buffer. Exiting.");
-          errorCode = 144; 
-          return result;
-      }
-  
-      std::vector<unsigned char> p(len);
-      std::memcpy(p.data(), base64.base64_buffer.data(), len);
-      base64.base64_buffer.erase(0, len);
-      base64.base64_buffer.shrink_to_fit();
-  
-      response = std::string((const char *)p.data(), len);
-      errorCode = 1; 
-    
-      resetState();
+        Debug_printf("Refusing to send zero byte buffer. Exiting.");
+        errorCode = 144;
+        return;
     }
-        
-    return result;   
+
+    std::vector<unsigned char> p(len);
+    std::memcpy(p.data(), base64.base64_buffer.data(), len);
+    base64.base64_buffer.erase(0, len);
+    base64.base64_buffer.shrink_to_fit();
+
+    response = std::string((const char *)p.data(), len);
+    errorCode = 1;
 }
 
-int drivewireFuji::base64_decode_input(std::vector<uint8_t> *q)
+void drivewireFuji::base64_decode_input()
 {
-    int result = 0;
-    int expectedResult = 3;
-    
-    if (q->size() >= expectedResult)
+    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = fnDwCom.read();
+    uint16_t len = lenh << 8 | lenl;
+
+    if (!len)
     {
-      result = expectedResult;
-      uint8_t lenh = q->at(1);
-      uint8_t lenl = q->at(2);
-      base64_decode_length_var = lenh << 8 | lenl;
-
-      if (!base64_decode_length_var)
-      {
-          Debug_printf("Refusing to input zero length. Exiting.\n");
-          errorCode = 144;
-          resetState();
-          return result;
-      }
-
-      _drivewire_bus->fnStateMethod = &drivewireFuji::base64_decode_input_p2;
+        Debug_printf("Refusing to input zero length. Exiting.\n");
+        errorCode = 144;
+        return;
     }
-        
-    return result;
+
+    std::vector<unsigned char> p(len);
+    fnDwCom.readBytes(p.data(), len);
+    base64.base64_buffer += std::string((const char *)p.data(), len);
+
+    errorCode = 1;
 }
 
-int drivewireFuji::base64_decode_input_p2(std::vector<uint8_t> *q)
+void drivewireFuji::base64_decode_compute()
 {
-    int result = 0;
-    int expectedResult = base64_decode_length_var;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-
-      std::vector<unsigned char> p(base64_decode_length_var);
-      std::copy(q->begin(), q->begin() + base64_decode_length_var - 1, p.begin());
-      base64.base64_buffer += std::string((const char *)p.data(), base64_decode_length_var);
-      errorCode = 1;
-      
-      resetState();
-    }
-    
-    return result;
-}
-
-int drivewireFuji::base64_decode_compute(std::vector<uint8_t> *q)
-{
-    int result = 1;
-    
     size_t out_len;
 
     Debug_printf("FUJI: BASE64 DECODE COMPUTE\n");
@@ -1865,7 +1484,7 @@ int drivewireFuji::base64_decode_compute(std::vector<uint8_t> *q)
     {
         Debug_printf("base64_encode compute failed\n");
         errorCode = 144;
-        return result;
+        return;
     }
 
     base64.base64_buffer.clear();
@@ -1873,16 +1492,10 @@ int drivewireFuji::base64_decode_compute(std::vector<uint8_t> *q)
 
     Debug_printf("Resulting BASE64 encoded data is: %u bytes\n", out_len);
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
-int drivewireFuji::base64_decode_length(std::vector<uint8_t> *q)
+void drivewireFuji::base64_decode_length()
 {
-    int result = 1;
-    
     Debug_printf("FUJI: BASE64 DECODE LENGTH\n");
 
     size_t len = base64.base64_buffer.length();
@@ -1897,7 +1510,7 @@ int drivewireFuji::base64_decode_length(std::vector<uint8_t> *q)
     {
         Debug_printf("BASE64 buffer is 0 bytes, sending error.\n");
         errorCode = 144;
-        return result;
+        return;
     }
 
     Debug_printf("base64 buffer length: %u bytes\n", len);
@@ -1907,202 +1520,101 @@ int drivewireFuji::base64_decode_length(std::vector<uint8_t> *q)
 
     response = std::string((const char *)_response, 4);
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
-int drivewireFuji::base64_decode_output(std::vector<uint8_t> *q)
+void drivewireFuji::base64_decode_output()
 {
-    int result = 0;
-    int expectedResult = 3;
-    
-    if (q->size() >= expectedResult)
+    Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
+
+    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = fnDwCom.read();
+    uint16_t len = lenh << 8 | lenl;
+
+    if (!len)
     {
-      result = expectedResult;
-      Debug_printf("FUJI: BASE64 DECODE OUTPUT\n");
-  
-      uint8_t lenl = q->at(1);
-      uint8_t lenh = q->at(2);
-      uint16_t len = lenh << 8 | lenl;
-  
-      if (!len)
-      {
-          Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
-          errorCode = 144;
-          return result;
-      }
-      else if (len > base64.base64_buffer.length())
-      {
-          Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, base64.base64_buffer.length());
-          errorCode = 144;
-          return result;
-      }
-      else
-      {
-          Debug_printf("Requested %u bytes\n", len);
-      }
-  
-      std::vector<unsigned char> p(len);
-      memcpy(p.data(), base64.base64_buffer.data(), len);
-      base64.base64_buffer.erase(0, len);
-      base64.base64_buffer.shrink_to_fit();
-      response.clear();
-      response.shrink_to_fit();
-      response = std::string((const char *)p.data(), len);
-  
-      errorCode = 1;
-      
-      resetState();
+        Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
+        errorCode = 144;
+        return;
     }
-        
-    return result;
+    else if (len > base64.base64_buffer.length())
+    {
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, base64.base64_buffer.length());
+        errorCode = 144;
+        return;
+    }
+    else
+    {
+        Debug_printf("Requested %u bytes\n", len);
+    }
+
+    std::vector<unsigned char> p(len);
+    memcpy(p.data(), base64.base64_buffer.data(), len);
+    base64.base64_buffer.erase(0, len);
+    base64.base64_buffer.shrink_to_fit();
+    response.clear();
+    response.shrink_to_fit();
+    response = std::string((const char *)p.data(), len);
+
+    errorCode = 1;
 }
 
-int drivewireFuji::hash_input(std::vector<uint8_t> *q)
+void drivewireFuji::hash_input()
 {
-    int result = 0;
-    int expectedResult = 3;
-    
-    if (q->size() >= expectedResult)
+    Debug_printf("FUJI: HASH INPUT\n");
+    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = fnDwCom.read();
+    uint16_t len = lenh << 8 | lenl;
+
+
+    if (!len)
     {
-      Debug_printf("FUJI: HASH INPUT\n");
-      result = expectedResult;
-      uint8_t lenh = q->at(1);
-      uint8_t lenl = q->at(2);
-      hash_length_var = lenh << 8 | lenl;
-
-      if (!hash_length_var)
-      {
-          Debug_printf("Invalid length. Aborting");
-          errorCode = 144;
-          resetState();
-          return result;
-      }
-
-      _drivewire_bus->fnStateMethod = &drivewireFuji::hash_input_p2;
+        Debug_printf("Invalid length. Aborting");
+        errorCode = 144;
+        return;
     }
-        
-    return result;
+
+    std::vector<uint8_t> p(len);
+    fnDwCom.readBytes(p.data(), len);
+    hasher.add_data(p);
+    errorCode = 1;
 }
 
-int drivewireFuji::hash_input_p2(std::vector<uint8_t> *q)
-{
-    int result = 0;
-    int expectedResult = hash_length_var;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-
-      std::vector<unsigned char> p(hash_length_var);
-      std::copy(q->begin(), q->begin() + hash_length_var - 1, p.begin());
-      hasher.add_data(p);
-      errorCode = 1;
-      
-      resetState();
-    }
-    
-    return result;
-}
-
-int drivewireFuji::state_hash_compute_true(std::vector<uint8_t> *q)
-{
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      hash_compute(q->at(1), true);
-
-      resetState();
-    }
-        
-    return result;
-}
-
-int drivewireFuji::state_hash_compute_false(std::vector<uint8_t> *q)
-{
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      hash_compute(q->at(1), false);
-
-      resetState();
-    }
-        
-    return result;
-}
-
-void drivewireFuji::hash_compute(uint8_t value, bool clear_data)
+void drivewireFuji::hash_compute(bool clear_data)
 {
     Debug_printf("FUJI: HASH COMPUTE\n");
-    algorithm = Hash::to_algorithm(value);
+    algorithm = Hash::to_algorithm(fnDwCom.read());
     hasher.compute(algorithm, clear_data);
     errorCode = 1;
 }
 
-int drivewireFuji::hash_length(std::vector<uint8_t> *q)
+void drivewireFuji::hash_length()
 {
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      Debug_printf("FUJI: HASH LENGTH\n");
-      uint8_t is_hex = q->at(1) == 1;
-      uint8_t r = hasher.hash_length(algorithm, is_hex);
-      response = std::string((const char *)&r, 1);
-      errorCode = 1;
-    
-      resetState();
+    Debug_printf("FUJI: HASH LENGTH\n");
+    uint8_t is_hex = fnDwCom.read() == 1;
+    uint8_t r = hasher.hash_length(algorithm, is_hex);
+    response = std::string((const char *)&r, 1);
+    errorCode = 1;
+}
+
+void drivewireFuji::hash_output()
+{
+    Debug_printf("FUJI: HASH OUTPUT\n");
+
+    uint8_t is_hex = fnDwCom.read() == 1;
+    if (is_hex) {
+        response = hasher.output_hex();
+    } else {
+        std::vector<uint8_t> hashed_data = hasher.output_binary();
+        response = std::string(hashed_data.begin(), hashed_data.end());
     }
-        
-    return result;
+    errorCode = 1;
 }
 
-int drivewireFuji::hash_output(std::vector<uint8_t> *q)
+void drivewireFuji::hash_clear()
 {
-    int result = 0;
-    int expectedResult = 2;
-    
-    if (q->size() >= expectedResult)
-    {
-      result = expectedResult;
-      Debug_printf("FUJI: HASH OUTPUT\n");
-  
-      uint8_t is_hex = q->at(1) == 1;
-      if (is_hex) {
-          response = hasher.output_hex();
-      } else {
-          std::vector<uint8_t> hashed_data = hasher.output_binary();
-          response = std::string(hashed_data.begin(), hashed_data.end());
-      }
-      errorCode = 1;
-      
-      resetState();
-    }      
-    
-    return result;
-}
-
-int drivewireFuji::hash_clear(std::vector<uint8_t> *q)
-{
-    int result = 1;
-    
     Debug_printf("FUJI: HASH INIT\n");
     hasher.clear();
     errorCode = 1;
-    
-    resetState();
-    
-    return result;
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
@@ -2139,22 +1651,22 @@ std::string drivewireFuji::get_host_prefix(int host_slot)
     return _fnHosts[host_slot].get_prefix();
 }
 
-int drivewireFuji::send_error(std::vector<uint8_t> *q)
+// Public method to update host in specific slot
+fujiHost *drivewireFuji::set_slot_hostname(int host_slot, char *hostname)
 {
-    int result = 1;
-    
-    Debug_printf("drivewireFuji::send_error(%u)\n",errorCode);
-    fnDwCom.writeToFNChannel(0, errorCode);
-    
-    resetState();
-    
-    return result;
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
 }
 
-int drivewireFuji::random(std::vector<uint8_t> *q)
+void drivewireFuji::send_error()
 {
-    int result = 1;
-    
+    Debug_printf("drivewireFuji::send_error(%u)\n",errorCode);
+    fnDwCom.write(errorCode);
+}
+
+void drivewireFuji::random()
+{
     int r = rand();
     Debug_printf("drivewireFuji::random(%u)\n",r);
 
@@ -2163,210 +1675,173 @@ int drivewireFuji::random(std::vector<uint8_t> *q)
 
     // Endianness does not matter, so long as it is random.
     response = std::string((const char *)&r,sizeof(r));
-    
-    resetState();
-    
-    return result;
 }
 
-int drivewireFuji::send_response(std::vector<uint8_t> *q)
+void drivewireFuji::send_response()
 {
-    int result = 1;
-    
     // Send body
-    fnDwCom.writeToFNChannel(0, (uint8_t *)response.c_str(),response.length());
+    fnDwCom.write((uint8_t *)response.c_str(),response.length());
 
     // Clear the response
     response.clear();
     response.shrink_to_fit();
-    
-    Debug_println("Fuji cmd: SEND_RESPONSE");
-    
-    resetState();
-    
-    return result;    
 }
 
-int drivewireFuji::ready(std::vector<uint8_t> *q)
+void drivewireFuji::ready()
 {
-    int result = 1;
-    
-    fnDwCom.writeToFNChannel(0, 0x01); // Yes, ready.
-    
-    resetState();
-    
-    return result;
+    fnDwCom.write(0x01); // Yes, ready.
 }
 
-int drivewireFuji::process(std::vector<uint8_t> *q)
+void drivewireFuji::process()
 {
-    int result = 0;
-    
-    uint8_t c = q->at(0);
+    uint8_t c = fnDwCom.read();
 
     switch (c)
     {
     case FUJICMD_SEND_ERROR:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::send_error;
+        send_error();
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::get_adapter_config;
+        get_adapter_config();
         break;
     case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::get_adapter_config_extended;
+        get_adapter_config_extended();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::net_scan_result;
+        net_scan_result();
         break;
     case FUJICMD_SCAN_NETWORKS:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::net_scan_networks;
+        net_scan_networks();
         break;
     case FUJICMD_SET_SSID:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::net_set_ssid;
+        net_set_ssid();
         break;
     case FUJICMD_GET_SSID:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::net_get_ssid;
+        net_get_ssid();
         break;
     case FUJICMD_READ_HOST_SLOTS:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::read_host_slots;
+        read_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::read_device_slots;
+        read_device_slots();
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::write_device_slots;
+        write_device_slots();
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::write_host_slots;
+        write_host_slots();
         break;
     case FUJICMD_GET_WIFI_ENABLED:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::net_get_wifi_enabled;
+        net_get_wifi_enabled();
         break;
     case FUJICMD_GET_WIFISTATUS:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::net_get_wifi_status;
+        net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::mount_host;
+        mount_host();
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::open_directory;
+        open_directory();
         break;
     case FUJICMD_CLOSE_DIRECTORY:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::close_directory;
+        close_directory();
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::read_directory_entry;
+        read_directory_entry();
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::set_directory_position;
+        set_directory_position();
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::set_device_filename;
+        set_device_filename();
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::get_device_filename;
+        get_device_filename();
         break;
     case FUJICMD_MOUNT_IMAGE:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::disk_image_mount;
+        disk_image_mount();
         break;
     case FUJICMD_UNMOUNT_HOST:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::unmount_host;
+        unmount_host();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::disk_image_umount;
+        disk_image_umount();
         break;
     case FUJICMD_NEW_DISK:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::new_disk;
+        new_disk();
         break;
     case FUJICMD_SEND_RESPONSE:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::send_response;
+        send_response();
         break;
     case FUJICMD_DEVICE_READY:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::ready;
+        ready();
         break;
     case FUJICMD_OPEN_APPKEY:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::open_app_key;
+        open_app_key();
         break;
     case FUJICMD_CLOSE_APPKEY:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::close_app_key;
+        close_app_key();
         break;
     case FUJICMD_READ_APPKEY:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::read_app_key;
+        read_app_key();
         break;
     case FUJICMD_WRITE_APPKEY:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::write_app_key;
+        write_app_key();
         break;
     case FUJICMD_RANDOM_NUMBER:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::random;
+        random();
         break;
     case FUJICMD_BASE64_ENCODE_INPUT:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::base64_encode_input;
+        base64_encode_input();
         break;
     case FUJICMD_BASE64_ENCODE_COMPUTE:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::base64_encode_compute;
+        base64_encode_compute();
         break;
     case FUJICMD_BASE64_ENCODE_LENGTH:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::base64_encode_length;
+        base64_encode_length();
         break;
     case FUJICMD_BASE64_ENCODE_OUTPUT:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::base64_encode_output;
+        base64_encode_output();
         break;
     case FUJICMD_BASE64_DECODE_INPUT:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::base64_decode_input;
+        base64_decode_input();
         break;
     case FUJICMD_BASE64_DECODE_COMPUTE:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::base64_decode_compute;
+        base64_decode_compute();
         break;
     case FUJICMD_BASE64_DECODE_LENGTH:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::base64_decode_length;
+        base64_decode_length();
         break;
     case FUJICMD_BASE64_DECODE_OUTPUT:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::base64_decode_output;
+        base64_decode_output();
         break;
     case FUJICMD_HASH_INPUT:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::hash_input;
+        hash_input();
         break;
     case FUJICMD_HASH_COMPUTE:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::state_hash_compute_true;
+        hash_compute(true);
         break;
     case FUJICMD_HASH_COMPUTE_NO_CLEAR:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::state_hash_compute_false;
+        hash_compute(false);
         break;
     case FUJICMD_HASH_LENGTH:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::hash_length;
+        hash_length();
         break;
     case FUJICMD_HASH_OUTPUT:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::hash_output;
+        hash_output();
         break;
     case FUJICMD_HASH_CLEAR:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::hash_clear;
+        hash_clear();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::set_boot_mode;
+        set_boot_mode();
         break;
     case FUJICMD_MOUNT_ALL:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::local_mount_all;
+        mount_all();
         break;
     default:
-        _drivewire_bus->fnStateMethod = &drivewireFuji::op_unhandled;
-        _drivewire_bus->resetState();
         break;
     }
-    
-    result = (this->*_drivewire_bus->fnStateMethod)(q);
-
-    return result;
 }
-
-int drivewireFuji::op_unhandled(std::vector<uint8_t> *q)
-{
-    int result = 1;
-    
-    resetState();
-    Debug_printv("Unhandled opcode: %02x", q->at(0));
-    
-    return result;
-}
-
 
 #endif /* BUILD_COCO */

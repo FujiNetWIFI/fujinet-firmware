@@ -1,4 +1,3 @@
-#ifdef BUILD_ATARI
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -1169,4 +1168,3 @@ unsigned char trans(unsigned char mem39212, unsigned char mem39213)
 
     return mem39215;
 }
-#endif /* BUILD_ATARI */

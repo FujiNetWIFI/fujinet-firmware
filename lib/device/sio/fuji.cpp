@@ -20,6 +20,9 @@
 
 #include "../../../include/debug.h"
 
+#include "directoryPageGroup.h"
+#include "fujiCmd.h"
+#include "httpService.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fsFlash.h"
@@ -32,8 +35,11 @@
 
 #include "base64.h"
 #include "hash.h"
+#include "../../qrcode/qrmanager.h"
 
 #define ADDITIONAL_DETAILS_BYTES 10
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
 
 sioFuji theFuji; // global fuji device object
 
@@ -249,7 +255,6 @@ void sioFuji::sio_net_get_ssid()
 void sioFuji::sio_net_set_ssid()
 {
     Debug_println("Fuji cmd: SET SSID");
-    int i;
 
     // Data for  FUJICMD_SET_SSID
     struct
@@ -280,65 +285,7 @@ void sioFuji::sio_net_set_ssid()
     // Only save these if we're asked to, otherwise assume it was a test for connectivity
     if (save)
     {
-        // 1. if this is a new SSID and not in the old stored, we should push the current one to the top of the stored configs, and everything else down.
-        // 2. If this was already in the stored configs, push the stored one to the top, remove the new one from stored so it becomes current only.
-        // 3. if this is same as current, then just save it again. User reconnected to current, nothing to change in stored. This is default if above don't happen
-
-        int ssid_in_stored = -1;
-        for (i = 0; i < MAX_WIFI_STORED; i++)
-        {
-            if (Config.get_wifi_stored_ssid(i) == cfg.ssid)
-            {
-                ssid_in_stored = i;
-                break;
-            }
-        }
-
-        // case 1
-        if (ssid_in_stored == -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
-        {
-            Debug_println("Case 1: Didn't find new ssid in stored, and it's new. Pushing everything down 1 and old current to 0");
-            // Move enabled stored down one, last one will drop off
-            for (int j = MAX_WIFI_STORED - 1; j > 0; j--)
-            {
-                bool enabled = Config.get_wifi_stored_enabled(j - 1);
-                if (!enabled)
-                    continue;
-
-                Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
-                Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
-                Config.store_wifi_stored_enabled(j, true); // already confirmed this is enabled
-            }
-            // push the current to the top of stored
-            Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
-            Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
-            Config.store_wifi_stored_enabled(0, true);
-        }
-
-        // case 2
-        if (ssid_in_stored != -1 && Config.have_wifi_info() && Config.get_wifi_ssid() != cfg.ssid)
-        {
-            Debug_printf("Case 2: Found new ssid in stored at %d, and it's not current (should never happen). Pushing everything down 1 and old current to 0\n", ssid_in_stored);
-            // found the new SSID at ssid_in_stored, so move everything above it down one slot, and store the current at 0
-            for (int j = ssid_in_stored; j > 0; j--)
-            {
-                Config.store_wifi_stored_ssid(j, Config.get_wifi_stored_ssid(j - 1));
-                Config.store_wifi_stored_passphrase(j, Config.get_wifi_stored_passphrase(j - 1));
-                Config.store_wifi_stored_enabled(j, true);
-            }
-
-            // push the current to the top of stored
-            Config.store_wifi_stored_ssid(0, Config.get_wifi_ssid());
-            Config.store_wifi_stored_passphrase(0, Config.get_wifi_passphrase());
-            Config.store_wifi_stored_enabled(0, true);
-        }
-
-        // save the new SSID as current
-        Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-        // Clear text here, it will be encrypted internally if enabled for encryption
-        Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-
-        Config.save();
+        fnWiFi.store_wifi(cfg.ssid, cfg.password);
     }
     Debug_println("Restarting WiFiManager");
     fnWiFi.start();
@@ -365,6 +312,60 @@ void sioFuji::sio_net_get_wifi_enabled()
     uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
     Debug_printf("Fuji cmd: GET WIFI ENABLED: %d\n", e);
     bus_to_computer(&e, sizeof(e), false);
+}
+
+// Set SIO baudrate
+void sioFuji::sio_set_baudrate()
+{
+   
+    int br = 0;
+
+    switch(cmdFrame.aux1) {
+
+        case 0:
+            br = 19200;
+            break;
+
+        case 1:
+            br = 38400;
+            break;
+
+        case 2:
+            br = 57600;
+            break;
+
+        case 3:
+            br = 115200;
+            break;
+
+        case 4:
+            br = 230400;
+            break;
+
+        case 5:
+            br = 460800;
+            break;
+
+        case 6:
+            br = 921600;
+            break;
+
+        default:
+            sio_error();
+            return;
+    }
+  
+    // send complete with current baudrate
+    sio_complete();
+
+#ifdef ESP_PLATFORM
+    SYSTEM_BUS.uart->flush();
+    SYSTEM_BUS.uart->set_baudrate(br);
+#else
+    fnSioCom.flush();
+    fnSystem.delay_microseconds(2000);
+    fnSioCom.set_baudrate(br);
+#endif
 }
 
 // Mount Server
@@ -551,6 +552,9 @@ void sioFuji::sio_copy_file()
     char *dataBuf;
     unsigned char sourceSlot;
     unsigned char destSlot;
+#ifndef ESP_PLATFORM
+    uint64_t poll_ts = fnSystem.millis();
+#endif
 
     dataBuf = (char *)malloc(532);
 
@@ -645,6 +649,13 @@ void sioFuji::sio_copy_file()
     bool err = false;
     do
     {
+#ifndef ESP_PLATFORM
+        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::NETSIO && fnSystem.millis() - poll_ts > 1000)
+        {
+            fnSioCom.poll(1);
+            poll_ts = fnSystem.millis();
+        }
+#endif
         readCount = fnio::fread(dataBuf, 1, 532, sourceFile);
         readTotal += readCount;
         // Check if we got enough bytes on the read
@@ -949,7 +960,7 @@ void sioFuji::sio_read_app_key()
 
 #ifdef DEBUG
 	std::string msg = util_hexdump(response_data.data(), appkey_size);
-	Debug_printf("%s\n", msg.c_str());
+	Debug_printf("\n%s\n", msg.c_str());
 #endif
 
     bus_to_computer(response_data.data(), response_data.size(), false);
@@ -1188,202 +1199,183 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[9] = MediaType::discover_disktype(f->filename);
 }
 
-// TODO: VERIFY THIS CODE. THE STASH SEEMED CORRUPT
+/*
+ * Read directory entries in block mode
+ * 
+ * Input parameters:
+ * aux1: Number of 256-byte pages to return (determines maximum response size)
+ * aux2: Lower 6 bits define the number of entries per page group
+ * 
+ * Response format:
+ * Overall response header:
+ * Byte  0    : 'M' (Magic number byte 1)
+ * Byte  1    : 'F' (Magic number byte 2)
+ * Byte  2    : Header size (4)
+ * Byte  3    : Number of page groups that follow
+ * 
+ * Followed by one or more complete PageGroups, padded to aux1 * 256 bytes.
+ * Each PageGroup must fit entirely within the response - partial groups are not allowed.
+ * If a PageGroup would exceed the remaining space, the directory position is rewound
+ * and that group is not included.
+ * 
+ * PageGroup structure:
+ * Byte  0    : Flags
+ *              - Bit 7: Last group (1=yes, 0=no)
+ *              - Bits 6-0: Reserved
+ * Byte  1    : Number of directory entries in this group
+ * Bytes 2-3  : Group data size (16-bit little-endian, excluding header)
+ * Byte  4    : Group index (0-based, calculated as dir_pos/group_size)
+ * Bytes 5+   : File/Directory entries for this group
+ *              Each entry:
+ *              - Bytes 0-3: Packed timestamp and flags
+ *                          - Byte 0: Years since 1970 (0-255)
+ *                          - Byte 1: FFFF MMMM (4 bits flags, 4 bits month 1-12)
+ *                                   Flags: bit 7 = directory, bits 6-4 reserved
+ *                          - Byte 2: DDDDD HHH (5 bits day 1-31, 3 high bits of hour)
+ *                          - Byte 3: HH mmmmmm (2 low bits hour 0-23, 6 bits minute 0-59)
+ *              - Bytes 4-6: File size (24-bit little-endian, 0 for directories)
+ *              - Byte  7  : Media type (0-255, with 0=unknown)
+ *              - Bytes 8+ : Null-terminated filename
+ * 
+ * The last PageGroup in the response will have its last_group flag set if:
+ * a) There are no more directory entries to process, or
+ * b) The next PageGroup would exceed the maximum response size
+ */
 void sioFuji::sio_read_directory_block()
 {
-    // aux1 holds entry size for each record
-    uint8_t maxlen = cmdFrame.aux1;
+    Debug_println("Fuji cmd: READ DIRECTORY BLOCK");
 
-    // aux2:
-    // b0-2 = number of pages - 1 (i.e. 1 to 8)
-    // b3,4 = not used
-    // b5   = extended entry information (as per normal, adds 10 bytes of information to each entry at start)
-    // b6,7 = block mode marker already checked.
+    uint8_t num_pages = cmdFrame.aux1;
+    uint8_t group_size = cmdFrame.aux2 & 0x3F; // Lower 6 bits define group size
+    size_t max_block_size = num_pages * 256;
 
-    bool is_extended = ((cmdFrame.aux2 & 0x20) == 0x20);
-    uint8_t pages = (cmdFrame.aux2 & 0x07) + 1;
+    // Debug_printf("Parameters: aux1=$%02X (pages=%d), aux2=$%02X (group_size=%d), max_block_size=%d\n",
+    //              cmdFrame.aux1, num_pages, cmdFrame.aux2, group_size, max_block_size);
 
-    Debug_printf("Fuji cmd: READ DIRECTORY BLOCK (pages=%d, maxlen=%d, extended: %d)\n", pages, maxlen, is_extended);
+#ifdef WE_NEED_TO_REWIND
+    // Save current directory position in case we need to rewind
+    uint16_t starting_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+#endif /* WE_NEED_TO_REWIND */
+    // Debug_printf("Starting directory position: %d\n", starting_pos);
+    
+    std::vector<DirectoryPageGroup> page_groups;
+    size_t total_size = 0;
+    bool is_last_entry = false;
 
-    std::vector<uint8_t> response;
-    std::vector<uint8_t> start_offsets; // holds all the offsets for each dir entry in the response
-    std::vector<uint8_t> data_block;    // the data for each dir entry. no terminator char needed as we track the offsets. Double 0x7f is end of dir, and no more entries will come
+    while (!is_last_entry) {
+        // Create a new page group
+        DirectoryPageGroup group;
+        uint16_t group_start_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+        
+        // Calculate group index (0-based)
+        group.index = group_start_pos / group_size;
+        
+        // Debug_printf("Starting new group at directory position: %d (index=%d)\n", 
+        //              group_start_pos, group.index);
+        
+        // Fill the group with entries
+        for (int i = 0; i < group_size && !is_last_entry; i++) {
+            fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
+            
+            if (f == nullptr) {
+                // Debug_println("Reached end of directory");
+                is_last_entry = true;
+                group.is_last_group = true;
+                break;
+            }
 
-    uint16_t response_max = pages * 256;
+            // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n", 
+            //             i, f->filename, f->size);
+            
+            if (!group.add_entry(f)) {
+                // Debug_println("Failed to add entry to group");
+                break;
+            }
+        }
 
-    if (_current_open_directory_slot == -1)
-    {
-        Debug_print("No currently open directory\n");
+        // If this is the last group, mark its last entry as the last one
+        if (is_last_entry) {
+            Debug_println("This is the last group in the directory");
+            group.is_last_group = true;
+        }
+
+        // this sets all the data for the group up correctly for us to insert into the block
+        group.finalize();
+
+        // Check if adding this group would exceed max_block_size
+        size_t new_total = total_size + group.data.size();
+        // Debug_printf("Group stats: entries=%d, size=%d, new_total=%d/%d\n",
+        //             group.entry_count, group.data.size(), new_total, max_block_size);
+        
+        if (new_total > max_block_size) {
+            // Debug_printf("Group would exceed max_block_size (%d > %d), rewinding to pos %d\n",
+            //            new_total, max_block_size, group_start_pos);
+            // Rewind to start of this group and break
+            _fnHosts[_current_open_directory_slot].dir_seek(group_start_pos);
+            break;
+        }
+        
+        // Add group to our collection
+        total_size = new_total;
+        page_groups.push_back(std::move(group));
+        // Debug_printf("Added group %d, total_size now %d\n", 
+        //             page_groups.size(), total_size);
+    }
+
+    // If we couldn't fit any groups, return error
+    if (page_groups.empty()) {
+        Debug_println("No page groups fit in requested size");
+        Debug_printf("Final stats: total_size=%d, max_block_size=%d\n",
+                    total_size, max_block_size);
         sio_error();
         return;
     }
 
-    bool is_eod = false;
-    char current_entry[256];
-    uint16_t num_entries = 0;
-    uint16_t total_size = 9; // header bytes
+    // Create final response buffer
+    std::vector<uint8_t> response(max_block_size, 0);  // Initialize with zeros at full size
 
-    uint16_t initial_pos = _fnHosts[_current_open_directory_slot].dir_tell();
+    // Add response header
+    response[0] = 'M';  // Magic byte 1
+    response[1] = 'F';  // Magic byte 2
+    response[2] = 4;    // Header size (magic + size + count)
+    response[3] = page_groups.size(); // Number of page groups that follow
 
-    // keep filling buffers up until it can't fit another maxlen (plus header bytes etc)
-    // or we hit end of dir
-    while ( !is_eod && num_entries < 256 )
-    {
-        uint16_t additional_size = 0;
-        uint16_t pos_before_next = _fnHosts[_current_open_directory_slot].dir_tell();
-        fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-        if (f == nullptr)
-        {
-            // reached end of dir
-            is_eod = true;
-            current_entry[0] = 0x7F;
-            current_entry[1] = 0x7F;
-            current_entry[2] = 0;
-            additional_size = 2;
+    // Copy all page groups to response
+    size_t current_pos = 4;  // Start after header
+    for (const auto& group : page_groups) {
+        if (current_pos + group.data.size() <= max_block_size) {
+            std::copy(group.data.begin(), group.data.end(), response.begin() + current_pos);
+            current_pos += group.data.size();
         }
-        else
-        {
-            Debug_printf("::read_direntry \"%s\"\n", f->filename);
-
-            int bufsize;
-            char *filenamedest = current_entry;
-
-            // If 0x80 is set on AUX2, send back additional information
-            if (is_extended)
-            {
-                _set_additional_direntry_details(f, (uint8_t *)current_entry, maxlen);
-                // Adjust remaining size of buffer and file path destination
-                bufsize = sizeof(current_entry) - ADDITIONAL_DETAILS_BYTES;
-                filenamedest = current_entry + ADDITIONAL_DETAILS_BYTES;
-            }
-            else
-            {
-                bufsize = maxlen;
-            }
-
-            int filelen = util_ellipsize(f->filename, filenamedest, bufsize);
-            additional_size = filelen + (is_extended ? ADDITIONAL_DETAILS_BYTES : 0);
-
-            // Add a slash at the end of directory entries
-            if (f->isDir && filelen < (bufsize - 2))
-            {
-                current_entry[filelen] = '/';
-                current_entry[filelen + 1] = '\0';
-                additional_size++;
-            }
-
-        }
-
-        // would this take us over the limit? 2 for start_offset bytes.
-        uint16_t new_size = total_size + 2 + additional_size;
-
-        if (new_size > response_max) {
-            Debug_printf("skipping add, would have taken us to %d size. additional was: %d\n", new_size, additional_size);
-            // reset to previous pos, and exit loop
-            _fnHosts[_current_open_directory_slot].dir_seek(pos_before_next);
-            break;
-        } else {
-            Debug_printf("adding additional entry with size: %d\n", additional_size);
-        }
-
-
-        start_offsets.push_back(static_cast<uint8_t>(data_block.size() & 0xFF)); // lo byte of current size (which is same as offset)
-        start_offsets.push_back(static_cast<uint8_t>((data_block.size() >> 8) & 0xFF)); // high byte
-
-        // add the string to the data block without the terminating null
-        if (is_extended)
-        {
-            // strlen doesn't work as we have prepended some additional information
-            // add the additional bytes first
-            for(int i=0; i < ADDITIONAL_DETAILS_BYTES; i++)
-            {
-                data_block.push_back(static_cast<uint8_t>(current_entry[i]));
-            }
-            // Then add the string part
-            //int s_len = std::strlen(current_entry + ADDITIONAL_DETAILS_BYTES);
-            data_block.insert(data_block.end(), current_entry + ADDITIONAL_DETAILS_BYTES, current_entry + ADDITIONAL_DETAILS_BYTES + std::strlen(current_entry + ADDITIONAL_DETAILS_BYTES));
-        } else {
-            data_block.insert(data_block.end(), current_entry, current_entry + std::strlen(current_entry));
-        }
-
-        total_size = 9 + data_block.size() + start_offsets.size();
-        Debug_printf("current sizes, data: %d, offsets: %d, total: %d\n", data_block.size(), start_offsets.size(), data_block.size() + start_offsets.size());
-
-
-        num_entries++;
     }
 
-    // ###################################################################
-    // CREATE THE RESPONSE BLOCK:
-    // ###################################################################
-    // byte 0-1 = "MF" (Multi-File, take your pick :D )
-    // byte 2   = Flags (currently 0x80 = Extended Information)
-    // byte 3   = Max Size Per Entry (maxlen from input)
-    // byte 4   = Num Entries in block (max 255)
-    // byte 5-6 = Total size of block (i.e. size without padding)
-    // byte 7-8 = First Position in block (i.e. dir pos value at start), allows up to 64k entries over all blocks
-    // Num Entries x 2 = Offsets in Data for each entry
-    // Data x Num Entries = data for each dir.
-    //
-    // All above is < pages x 256 in size
+    // Debug_printf("Directory block stats:\n");
+    // Debug_printf("  Number of groups: %d\n", page_groups.size());
+    // Debug_printf("  Total data size: %d bytes\n", total_size);
+    // Debug_printf("  Last group: %s\n", (page_groups.back().is_last_group ? "Yes" : "No"));
+    // Debug_printf("Full response block:\n%s\n", util_hexdump(response.data(), response.size()).c_str());
 
-    // HEADER BYTES
-    std::string headerBytes = "MF";
-    response.insert(response.end(), headerBytes.begin(), headerBytes.end());
-
-    // FLAGS
-    uint8_t header_flags = is_extended ? 0x80 : 0;  // more flags may come
-    response.push_back(header_flags);
-
-    // MAX SIZE PER ENTRY
-    response.push_back(maxlen);
-
-    // NUM ENTRIES
-    response.push_back(static_cast<uint8_t>(num_entries));
-
-    // Total size
-    int final_size = 9 + data_block.size() + start_offsets.size();
-    response.push_back(static_cast<uint8_t>(final_size & 0xFF));
-    response.push_back(static_cast<uint8_t>((final_size >> 8) & 0xFF));
-
-    // INITIAL POS VALUE
-    response.push_back(static_cast<uint8_t>(initial_pos & 0xFF));
-    response.push_back(static_cast<uint8_t>((initial_pos >> 8) & 0xFF));
-
-    // OFFSETS
-    response.insert(response.end(), start_offsets.begin(), start_offsets.end());
-
-    // DATA
-    response.insert(response.end(), data_block.begin(), data_block.end());
-
-    Debug_printf("Actual data size: %d to atari\n", response.size());
-    std::string s = util_hexdump(response.data(), response.size());
-    Debug_printf("dump: \n%s\n", s.c_str());
-
-    // buffer with 0s to requested size
-    response.resize(response_max, 0);
-
-    bus_to_computer(response.data(), response_max, false);
+    bus_to_computer(response.data(), response.size(), false);
 }
 
 void sioFuji::sio_read_directory_entry()
 {
-     if ((cmdFrame.aux2 & 0xC0) == 0xC0) {
-        // Block mode directory entry
+    // Make sure we have a current open directory
+    if (_current_open_directory_slot == -1)
+    {
+        Debug_print("READ DIRECTORY ENTRY: No currently open directory\n");
+        sio_error();
+        return;
+    }
+    
+    // detect block mode in request
+    if ((cmdFrame.aux2 & 0xC0) == 0xC0) {
         sio_read_directory_block();
         return;
     }
 
     uint8_t maxlen = cmdFrame.aux1;
     Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
-
-    // Make sure we have a current open directory
-    if (_current_open_directory_slot == -1)
-    {
-        Debug_print("No currently open directory\n");
-        sio_error();
-        return;
-    }
 
     char current_entry[256];
 
@@ -2024,6 +2016,7 @@ void sioFuji::insert_boot_device(uint8_t d)
 {
     const char *config_atr = "/autorun.atr";
     std::string altconfigfile = Config.get_config_filename();
+    bool config_ng = Config.get_general_config_ng();
     const char *alt_config_atr = altconfigfile.c_str();
     const char *mount_all_atr = "/mount-and-boot.atr";
 #ifdef ESP_PLATFORM // TODO merge
@@ -2044,6 +2037,11 @@ void sioFuji::insert_boot_device(uint8_t d)
                 Debug_printf("Mounted Alternate CONFIG %s\n", alt_config_atr);
                 break;
             }
+        }
+        else if (config_ng)
+        {
+            config_atr = "/autorun-cng.atr";
+            Debug_printf("Mounted CONFIG-NG\n");
         }
         fBoot = fsFlash.fnfile_open(config_atr);
         _bootDisk.mount(fBoot, config_atr, 0);
@@ -2084,6 +2082,11 @@ void sioFuji::insert_boot_device(uint8_t d)
                 boot_img = alt_config_atr;
                 break;
             }
+        }
+        else if (config_ng)
+        {
+            config_atr = "/autorun-cng.atr";
+            Debug_printf("Mounted CONFIG-NG\n");
         }
         boot_img = config_atr;
         fBoot = fsFlash.fnfile_open(boot_img);
@@ -2179,6 +2182,138 @@ sioDisk *sioFuji::bootdisk()
 {
     return &_bootDisk;
 }
+
+
+void sioFuji::sio_qrcode_input()
+{
+    uint16_t len = sio_get_aux();
+
+    Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", len);
+
+    if (!len)
+    {
+        Debug_printf("Invalid length. Aborting");
+        sio_error();
+        return;
+    }
+
+    std::vector<unsigned char> p(len);
+    bus_to_peripheral(p.data(), len);
+    qrManager.in_buf += std::string((const char *)p.data(), len);
+    sio_complete();
+}
+
+void sioFuji::sio_qrcode_encode()
+{
+    size_t out_len = 0;
+
+    qrManager.output_mode = 0;
+    uint16_t aux = sio_get_aux();
+    qrManager.version = aux & 0b01111111;
+    qrManager.ecc_mode = (aux >> 8) & 0b00000011;
+    bool shorten = (aux >> 12) & 0b00000001;
+
+    Debug_printf("FUJI: QRCODE ENCODE\n");
+    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", qrManager.version, qrManager.ecc_mode, shorten ? "Y" : "N");
+
+    std::string url = qrManager.in_buf;
+
+    if (shorten) {
+        url = fnHTTPD.shorten_url(url);
+    }
+
+    std::vector<uint8_t> p = QRManager::encode(
+        url.c_str(),
+        url.size(),
+        qrManager.version,
+        qrManager.ecc_mode,
+        &out_len
+    );
+
+    qrManager.in_buf.clear();
+
+    if (!out_len)
+    {
+        Debug_printf("QR code encoding failed\n");
+        sio_error();
+        return;
+    }
+
+    Debug_printf("Resulting QR code is: %u modules\n", out_len);
+    sio_complete();
+}
+
+void sioFuji::sio_qrcode_length()
+{
+    Debug_printf("FUJI: QRCODE LENGTH\n");
+    uint8_t output_mode = sio_get_aux();
+    Debug_printf("Output mode: %i\n", output_mode);
+
+    size_t len = qrManager.out_buf.size();
+
+    // A bit gross to have a side effect from length command, but not enough aux bytes
+    // to specify version, ecc, *and* output mode for the encode command. Also can't
+    // just wait for output command, because output mode determines buffer length,
+    if (len && (output_mode != qrManager.output_mode)) {
+        if (output_mode == QR_OUTPUT_MODE_BINARY) {
+            qrManager.to_binary();
+        }
+        else if (output_mode == QR_OUTPUT_MODE_ATASCII) {
+            qrManager.to_atascii();
+        }
+        else if (output_mode == QR_OUTPUT_MODE_BITMAP) {
+            qrManager.to_bitmap();
+        }
+        qrManager.output_mode = output_mode;
+        len = qrManager.out_buf.size();
+    }
+
+    uint8_t response[4] = {
+        (uint8_t)(len >> 0),
+        (uint8_t)(len >> 8),
+        (uint8_t)(len >> 16),
+        (uint8_t)(len >> 24)
+    };
+
+    if (!len)
+    {
+        Debug_printf("QR code buffer is 0 bytes, sending error.\n");
+        bus_to_computer(response, sizeof(response), true);
+    }
+
+    Debug_printf("QR code buffer length: %u bytes\n", len);
+
+    bus_to_computer(response, sizeof(response), false);
+}
+
+void sioFuji::sio_qrcode_output()
+{
+    Debug_printf("FUJI: QRCODE OUTPUT\n");
+
+    size_t len = sio_get_aux();
+
+    if (!len)
+    {
+        Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
+        return;
+    }
+    else if (len > qrManager.out_buf.size())
+    {
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, qrManager.out_buf.size());
+        return;
+    }
+    else
+    {
+        Debug_printf("Requested %u bytes\n", len);
+    }
+
+    bus_to_computer(&qrManager.out_buf[0], len, false);
+
+    qrManager.out_buf.erase(qrManager.out_buf.begin(), qrManager.out_buf.begin()+len);
+    qrManager.out_buf.shrink_to_fit();
+
+}
+
 
 void sioFuji::sio_base64_encode_input()
 {
@@ -2520,6 +2655,10 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_ack();
         sio_net_get_wifi_enabled();
         break;
+    case FUJICMD_SET_BAUDRATE:
+        sio_ack();
+        sio_set_baudrate();
+        break;
     case FUJICMD_UNMOUNT_IMAGE:
         sio_ack();
         sio_disk_image_umount();
@@ -2596,6 +2735,22 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
         sio_late_ack();
         sio_enable_udpstream();
         break;
+    case FUJICMD_QRCODE_INPUT:
+        sio_ack();
+        sio_qrcode_input();
+        break;
+    case FUJICMD_QRCODE_ENCODE:
+        sio_ack();
+        sio_qrcode_encode();
+        break;
+    case FUJICMD_QRCODE_LENGTH:
+        sio_ack();
+        sio_qrcode_length();
+        break;
+    case FUJICMD_QRCODE_OUTPUT:
+        sio_ack();
+        sio_qrcode_output();
+        break;
     case FUJICMD_BASE64_ENCODE_INPUT:
         sio_late_ack();
         sio_base64_encode_input();
@@ -2669,6 +2824,13 @@ int sioFuji::get_disk_id(int drive_slot)
 std::string sioFuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
+}
+
+fujiHost *sioFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
 }
 
 #endif /* BUILD_ATARI */

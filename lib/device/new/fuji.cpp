@@ -780,6 +780,14 @@ void adamFuji::adamnet_get_host_prefix()
 {
 }
 
+// Public method to update host in specific slot
+fujiHost *adamFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
+}
+
 // Send device slot data to computer
 void adamFuji::adamnet_read_device_slots()
 {

@@ -13,29 +13,66 @@
 #include "peoples_url_parser.h"
 #include "Protocol.h"
 #include "string_utils.h"
-
-/**
- * The size of rx and tx buffers
- */
-#define INPUT_BUFFER_SIZE 65535
-#define OUTPUT_BUFFER_SIZE 65535
-#define SPECIAL_BUFFER_SIZE 256
-
-/**
- * The number of IEC secondary addresses (16)
- */
-#define NUM_CHANNELS 16
+#include "../../bus/iec/IECFileDevice.h"
 
 using namespace std;
 
-class iecNetwork : public virtualDevice
+/**
+ * @class IECData
+ * @brief the IEC command data passed to devices
+ */
+class IECData
+{
+public:
+    /**
+     * @brief the primary command byte
+     */
+    uint8_t primary = 0;
+    /**
+     * @brief the secondary command byte
+     */
+    uint8_t secondary = 0;
+    /**
+     * @brief the primary device number
+     */
+    uint8_t device = 0;
+    /**
+     * @brief the secondary command channel
+     */
+    uint8_t channel = 0;
+    /**
+     * @brief the device command
+     */
+    std::string payload = "";
+    /**
+     * @brief the raw bytes received for the command
+     */
+    std::vector<uint8_t> payload_raw;
+    /**
+     * @brief clear and initialize IEC command data
+     */
+    void init(void)
+    {
+        primary = 0;
+        device = 0;
+        secondary = 0;
+        channel = 0;
+        payload.clear();
+        payload_raw.clear();
+    }
+
+    int channelCommand();
+    void debugPrint();
+};
+
+class iecNetwork : public IECFileDevice
 {    
 public:
 
     /**
      * @brief CTOR
      */
-    iecNetwork();
+    iecNetwork(uint8_t devnr);
 
     /**
      * @brief DTOR
@@ -44,111 +81,21 @@ public:
 
     std::unordered_map<uint8_t, NetworkData> network_data_map;
 
-    // /**
-    //  * @brief the Receive buffers, for each channel
-    //  */
-    // string *receiveBuffer[NUM_CHANNELS];
-    
-    // /**
-    //  * @brief the Transmit buffers, one for each channel.
-    //  */
-    // string *transmitBuffer[NUM_CHANNELS];
-
-    // /**
-    //  * @brief the Special buffers, one for each channel.
-    //  */
-    // string *specialBuffer[NUM_CHANNELS];
-
-    // /**
-    //  * @brief the protocol instance for given channel
-    // */
-    // NetworkProtocol *protocol[NUM_CHANNELS];
-
-
-    /**
-     * @brief Process command fanned out from bus
-     * @return new device state
-     */
-    device_state_t process() override;
-
-    /**
-     * @brief Check to see if SRQ needs to be asserted.
-     * @param c Secondary channel # (0-15)
-     */
-    virtual void poll_interrupt(unsigned char c) override;
+protected:
+    virtual void task() override;
+    virtual bool open(uint8_t channel, const char *name) override;
+    virtual void close(uint8_t channel) override;
+    virtual uint8_t write(uint8_t channel, uint8_t *buffer, uint8_t bufferSize, bool eoi) override;
+    virtual uint8_t read(uint8_t channel, uint8_t *buffer, uint8_t bufferSize, bool *eoi) override;
+    virtual void execute(const char *command, uint8_t cmdLen) override;
+    virtual uint8_t getStatusData(char *buffer, uint8_t bufferSize) override;
+    virtual void reset() override;
 
 private:
     /**
      * @brief flag to indicate if the status result should be binary or string
      */
     bool is_binary_status = false;
-
-    // /**
-    //  * @brief the active URL for each channel
-    //  */
-    // string deviceSpec[NUM_CHANNELS];
-
-    // /**
-    //  * @brief the URL parser for each channel
-    //  */
-    // std::array<std::unique_ptr<PeoplesUrlParser>, NUM_CHANNELS> urlParser;
-
-    // /**
-    //  * @brief the prefix for each channel
-    //  */
-    // string prefix[NUM_CHANNELS];
-
-    // /**
-    //  * @brief the active Channel mode for each channel
-    //  */
-    // enum _channel_mode
-    // {
-    //     PROTOCOL,
-    //     JSON
-    // } channelMode[NUM_CHANNELS] =
-    //     {
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL,
-    //         PROTOCOL
-    //     };
-
-    // /**
-    //  * @brief the active translation mode for each channel 
-    //  */
-    // uint8_t translationMode[NUM_CHANNELS];
-
-    // /**
-    //  * @brief the login (username) for each channel
-    //  */
-    // string login[NUM_CHANNELS];
-
-    // /**
-    //  * @brief the password for each channel
-    //  */
-    // string password[NUM_CHANNELS];
-
-    // /**
-    //  * @brief the JSON object for each channel
-    //  */
-    // FNJSON *json[NUM_CHANNELS];
-
-    // /**
-    //  * @brief # of bytes remaining in json query/channel
-    //  */
-    // int json_bytes_remaining[NUM_CHANNELS];
 
     /**
      * @brief signal file not found
@@ -227,41 +174,6 @@ private:
     void iec_close();
     
     /**
-     * @brief called when a TALK, then REOPEN happens on channel 0
-     */
-    void iec_reopen_load();
-
-    /**
-     * @brief called when TALK, then REOPEN happens on channel 1
-     */
-    void iec_reopen_save();
-
-    /**
-     * @brief called when REOPEN (to send/receive data)
-     */
-    void iec_reopen_channel();
-
-    /**
-     * @brief called when channel needs to listen for data from c=
-     */
-    void iec_reopen_channel_listen();
-
-    /**
-     * @brief called when channel needs to talk data to c=
-     */
-    void iec_reopen_channel_talk();
-
-    /**
-     * @brief called when LISTEN happens on command channel (15).
-     */
-    void iec_listen_command();
-
-    /**
-     * @brief called when TALK happens on command channel (15).
-     */
-    void iec_talk_command();
-
-    /**
      * @brief called to process command either at open or listen
      */
     void iec_command();
@@ -282,30 +194,34 @@ private:
     void perform_special_80();
 
     /**
-     * @brief process command for channel 0 (load)
-     */
-    void process_load();
-
-    /**
-     * @brief process command for channel 1 (save)
-     */
-    void process_save();
-
-    /**
-     * @brief process command channel
-     */
-    void process_command();
-
-    /**
-     * @brief process every other channel (2-14)
-     */
-    void process_channel();
-
-    /**
      * @brief changes the open mode for the channel (e.g. to DELETE)
      */
     void set_open_params();
 
+    void init();
+    bool transmit(NetworkData &channel_data);
+    bool receive(NetworkData &channel_data, uint16_t rxBytes);
+
+    /**
+     * @brief The status information to send back on cmd input
+     * @param error = the latest error status
+     * @param msg = most recent status message
+     * @param connected = is most recent channel connected?
+     * @param channel = channel of most recent status msg.
+     */
+    struct _iecStatus
+    {
+        int8_t error;
+        uint8_t cmd;
+        std::string msg;
+        bool connected;
+        int channel;
+    } iecStatus;
+
+    std::vector<std::string> pt;
+    IECData commanddata;
+    std::string payload;
+    cmdFrame_t cmdFrame;
 };
 
 #endif /* NETWORK_H */

@@ -255,8 +255,8 @@ mediatype_t MediaTypeXEX::mount(fnFile *f, uint32_t disksize)
     if (_disk_num_sectors < 720)
         _disk_num_sectors = 720;
 
-    Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%d\r\n", _xex_bootloadersize, _disk_image_size);
-    Debug_printf("disk sectors = %d\r\n", _disk_num_sectors);
+    Debug_printf("mounted XEX with %d-byte bootloader; XEX size=%lu\r\n", _xex_bootloadersize, _disk_image_size);
+    Debug_printf("disk sectors = %lu\r\n", _disk_num_sectors);
 
     return _disktype;
 }

@@ -16,13 +16,16 @@ on:
       #   - Release
       #   default: 'Debug'
       prepRelease:
-        description: 'Prepare GitHub Release (Draft)'
+        description: 'Prepare GitHub Release Draft'
         type: boolean
         default: false
-        
-env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: ${{ github.event.inputs.buildType }}
+
+  schedule:
+    - cron: '12 3 * * *'
+
+# env:
+#   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+#   BUILD_TYPE: ${{ github.event.inputs.buildType }}
 
 jobs:
   build:
@@ -34,13 +37,17 @@ jobs:
             runner: ubuntu-22.04
             target: ubuntu-22.04-amd64
             default-shell: bash
-          # - name: Ubuntu 20.04
-          #   target: ubuntu-20.04-amd64
-          #   runner: ubuntu-20.04
-          #   default-shell: bash
-          - name: macOS 12
-            target: macos-12
-            runner: macos-12
+          - name: Ubuntu 24.04
+            runner: ubuntu-24.04
+            target: ubuntu-24.04-amd64
+            default-shell: bash
+          - name: macOS 13
+            target: macos-13
+            runner: macos-13
+            default-shell: bash
+          - name: macOS 14
+            target: macos-14
+            runner: macos-14
             default-shell: bash
           - name: Windows
             target: windows-x64
@@ -66,6 +73,7 @@ jobs:
         shell: ${{ matrix.os.default-shell }}
     outputs:
       fujinet_version: ${{ steps.version.outputs.fujinet }}
+      build_date: ${{ steps.version.outputs.build_date }}
 
     steps:
     # Setup MSYS2 on Windows
@@ -165,6 +173,7 @@ jobs:
       run: |
         ./fujinet -V
         echo "fujinet=$(./fujinet -V | awk '{if(tolower($1)=="fujinet-pc") print $2}')" >> $GITHUB_OUTPUT
+        echo "build_date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
     - name: 'Tar dist files'
       working-directory: build
@@ -179,7 +188,7 @@ jobs:
         path: build/fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}.tar
         
   release:
-    if: ${{ github.event.inputs.prepRelease == 'true' }}
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.prepRelease == 'true' }}
     # Create GitHub release
     runs-on: ubuntu-latest
     name: Release
@@ -187,7 +196,7 @@ jobs:
 
     steps:
     - name: Download build artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         path: release
 
@@ -200,8 +209,9 @@ jobs:
         for D in fujinet-pc-*_*ubuntu* fujinet-pc-*_*macos*; do gzip -9v $D/fujinet-pc-*_*.tar; done
         for D in fujinet-pc-*_*windows*; do (cd $D; F=(fujinet-pc-*_*.tar); tar -xvf $F; rm -f $F; zip -r ${F%.*}.zip fujinet-pc-*); done
         
-    - name: Release
-      uses: softprops/action-gh-release@v1
+    - name: Prepare Release Draft
+      if: ${{ github.event.inputs.prepRelease == 'true' }}
+      uses: softprops/action-gh-release@v2
       with:
           name: "FujiNet-PC ${{ needs.build.outputs.fujinet_version }}"
           tag_name: ${{ needs.build.outputs.fujinet_version }}
@@ -209,3 +219,38 @@ jobs:
           files: |
             release/fujinet-pc-*_*/fujinet-pc-*_*.tar.gz
             release/fujinet-pc-*_*/fujinet-pc-*_*.zip
+
+    - name: Create Nightly Build Release
+      if: ${{ github.event_name == 'schedule' }}
+      uses: softprops/action-gh-release@v2
+      with:
+          name: "FujiNet-PC Nightly ${{ needs.build.outputs.build_date }}"
+          body: |
+            FujiNet-PC **${{ needs.build.outputs.fujinet_version }}** nightly builds for: Apple 2, Atari 8-bit and Tandy Color Computer
+            ⚠️ There is NO guarantee that these builds work!! ⚠️
+          tag_name: nightly_fn_pc_${{ needs.build.outputs.fujinet_version }}
+          prerelease: true 
+          make_latest: false
+          files: |
+            release/fujinet-pc-*_*/fujinet-pc-*_*.tar.gz
+            release/fujinet-pc-*_*/fujinet-pc-*_*.zip
+
+  postrelease:
+    if: ${{ github.event_name == 'schedule' }}
+    # Delete old nightly releases
+    runs-on: ubuntu-latest
+    name: Post-Release
+    needs: release
+
+    steps:
+    - name: 'Checkout'
+      # Checkout, to make "gh" command working
+      uses: actions/checkout@v4
+
+    - name: Delete old nightly releases
+      run: |
+        gh release list --json tagName,createdAt \
+          --jq 'map(select(.tagName | test("^nightly_fn_pc"))) | sort_by(.createdAt)[0:-3][].tagName' |\
+          xargs -I% sh -c 'echo Deleting release %; gh release delete % --cleanup-tag'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

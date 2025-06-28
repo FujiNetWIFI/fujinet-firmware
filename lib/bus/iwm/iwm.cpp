@@ -87,7 +87,7 @@ void print_packet_wave(uint8_t *data, int bytes)
   Debug_printf("\n");
   for (int count = 0; count < bytes; count = count + 12)
   {
-    sprintf(tbs, "%04X: ", count);
+    snprintf(tbs, sizeof(tbs), "%04X: ", count);
     Debug_print(tbs);
     for (row = 0; row < 12; row++)
     {
@@ -257,16 +257,12 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
   //Handle possible data packet to avoid crash extended and non-extended
   switch(cmd.command)
   {
-    case 0x42:
-    case 0x44:
-    case 0x49:
-    case 0x4a:
-    case 0x4b:
-    case 0x02:
-    case 0x04:
-    case 0x09:
-    case 0x0a:
-    case 0x0b:
+    case SP_ECMD_WRITEBLOCK:
+    case SP_ECMD_CONTROL:
+    case SP_ECMD_WRITE:
+    case SP_CMD_WRITEBLOCK:
+    case SP_CMD_CONTROL:
+    case SP_CMD_WRITE:
       data_len = 512;
       IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
       Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
@@ -278,7 +274,7 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
       return;
   }
 
-  if(cmd.command == 0x04) //Decode command control code
+  if(cmd.command == SP_CMD_CONTROL) //Decode command control code
   {
     send_reply_packet(SP_ERR_BADCTL); //we may be required to accept some control commands
                                       // but for now just report bad control if it's a control
@@ -297,16 +293,12 @@ void iwmDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
   //Handle possible data packet to avoid crash extended and non-extended
   switch(cmd.command)
   {
-    case 0x42:
-    case 0x44:
-    case 0x49:
-    case 0x4a:
-    case 0x4b:
-    case 0x02:
-    case 0x04:
-    case 0x09:
-    case 0x0a:
-    case 0x0b:
+    case SP_ECMD_WRITEBLOCK:
+    case SP_ECMD_CONTROL:
+    case SP_ECMD_WRITE:
+    case SP_CMD_WRITEBLOCK:
+    case SP_CMD_CONTROL:
+    case SP_CMD_WRITE:
       data_len = 512;
       IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
       Debug_printf("\r\nUnit %02x Offline, Command with data packet %02x\r\n", id(), cmd.command);
@@ -318,7 +310,7 @@ void iwmDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
       return;
   }
 
-  if(cmd.command == 0x04) //Decode command control code
+  if(cmd.command == SP_CMD_CONTROL) //Decode command control code
   {
     send_reply_packet(SP_ERR_OFFLINE);
     uint8_t control_code = get_status_code(cmd);
@@ -345,7 +337,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 {
   uint8_t status_code = cmd.params[2];
 
-  if (status_code == 0x03)
+  if (status_code == SP_CMD_FORMAT)
   {
     Debug_printf("\r\nSending DIB Status for device 0x%02x", id());
     send_status_dib_reply_packet();
@@ -359,7 +351,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
 
 // Create a vector from the input for the various send_status_dib_reply_packet routines to call
 // data[0]                = status
-// data[1..1+block_size]  = block bytes - 3 bytes except in some unused code!! 
+// data[1..1+block_size]  = block bytes - 3 bytes except in some unused code!!
 // data[..1 byte ]        = name real size
 // data[..16 bytes ]      = name padded with spaces to 16 bytes
 // data[..2 bytes]        = device type
@@ -440,9 +432,15 @@ std::vector<uint8_t> iwmDevice::create_dib_reply_packet(const std::string& devic
 //*****************************************************************************
 void IRAM_ATTR iwmBus::service()
 {
+#ifndef DEV_RELAY_SLIP
   // process smartport before diskII
   if (!serviceSmartPort())
     serviceDiskII();
+
+  serviceDiskIIWrite();
+#else
+  serviceSmartPort();
+#endif
 }
 
 // Returns true if SmartPort was handled
@@ -552,12 +550,12 @@ bool IRAM_ATTR iwmBus::serviceSmartPort()
   return true;
 }
 
+#ifndef DEV_RELAY_SLIP
 // Returns true if Disk II was handled
 bool IRAM_ATTR iwmBus::serviceDiskII()
 {
-#ifndef DEV_RELAY_SLIP
   // check on the diskii status
-  switch (iwm_drive_enabled())
+  switch (iwm_motor_state())
   {
   case iwm_enable_state_t::off:
     return false;
@@ -567,10 +565,12 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     if (IWM_ACTIVE_DISK2->device_active)
     {
       fnSystem.delay(1); // need a better way to figure out persistence
-      if (iwm_drive_enabled() == iwm_enable_state_t::on)
+      if (iwm_motor_state() == iwm_enable_state_t::on)
       {
+        current_disk2 = diskii_xface.iwm_active_drive();
         IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
-        diskii_xface.start(diskii_xface.iwm_enable_states() - 1); // start it up
+        diskii_xface.start(diskii_xface.iwm_active_drive() - 1,
+                           IWM_ACTIVE_DISK2->readonly); // start it up
       }
     } // make a call to start the RMT stream
     else
@@ -582,11 +582,23 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     break;
 
   case iwm_enable_state_t::on:
+    if (current_disk2 != diskii_xface.iwm_active_drive())
+    {
+      current_disk2 = diskii_xface.iwm_active_drive();
+      if (IWM_ACTIVE_DISK2->device_active) {
+        IWM_ACTIVE_DISK2->change_track(0); // copy current track in for this drive
+        diskii_xface.start(diskii_xface.iwm_active_drive() - 1,
+                           IWM_ACTIVE_DISK2->readonly); // start it up
+      }
+    }
+    diskii_xface.d2_enable_seen |= diskii_xface.iwm_active_drive();
 #ifdef DEBUG
     new_track = IWM_ACTIVE_DISK2->get_track_pos();
     if (old_track != new_track)
     {
-      Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());
+      Debug_printf("\ntrk pos %02i.%i/Q%03d on d%d",
+                   new_track / 4, new_track % 4,
+                   new_track, diskii_xface.iwm_active_drive());
       old_track = new_track;
     }
 #endif
@@ -598,16 +610,104 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
     iwm_ack_deassert();
     break;
   }
-#endif /* !SLIP */
 
   return true;
 }
 
-#ifndef DEV_RELAY_SLIP
-iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
+// Returns true if a Disk II write was received
+bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
+{
+  iwm_write_data item;
+  int sector_num;
+  uint8_t *decoded;
+  size_t decode_len;
+  size_t sector_start, sector_end;
+  bool found_start, found_end;
+  size_t bitlen, used;
+
+
+  if (!xQueueReceive(diskii_xface.iwm_write_queue, &item, 0))
+    return false;
+
+  Debug_printf("\r\nDisk II iwm queue receive %u %u %u %u",
+	       item.length, item.track_begin, item.track_end, item.track_numbits);
+  // gap 1            = 16 * 10
+  // sector header    = 10 * 8          [D5 AA 96] + 4 + [DE AA EB]
+  // gap 2            = 7 * 10
+  // sector data      = (6 + 343) * 8   [D5 AA AD] + 343 + [DE AA EB]
+  // gap 3            = 16 * 10
+  // per sector bits  = 3102
+
+  // Take advantage of fixed sector positions of mediaTypeDSK serialise_track()
+  // (as listed above)
+  sector_num = (item.track_begin - 16 * 10) / 3102;
+
+  bitlen = (item.track_end + item.track_numbits - item.track_begin) % item.track_numbits;
+  Debug_printf("\r\nDisk II write Qtrack/sector: %i/%i  bit_len: %i",
+	       item.quarter_track, sector_num, bitlen);
+  if (bitlen) {
+    decoded = (uint8_t *) malloc(item.length);
+    decode_len = diskii_xface.iwm_decode_buffer(item.buffer, item.length,
+                                                smartport.f_spirx, D2W_CHUNK_SIZE * 2 * 8,
+                                                decoded, &used);
+    Debug_printf("\r\nDisk II used: %u %lx", used, decoded);
+
+    // Find start of sector: D5 AA AD
+    for (sector_start = 0; decode_len > 349 && sector_start <= decode_len - 349; sector_start++)
+      if (decoded[sector_start]      == 0xD5
+          && decoded[sector_start+1] == 0xAA
+          && decoded[sector_start+2] == 0xAD)
+        break;
+    found_start = sector_start <= decode_len - 349;
+
+    // Find end of sector too: DE AA EB
+    for (sector_end = 0; decode_len > 3 && sector_end <= decode_len - 3; sector_end++)
+      if (decoded[sector_end]      == 0xDE
+          && decoded[sector_end+1] == 0xAA
+          && decoded[sector_end+2] == 0xEB)
+        break;
+    found_end = sector_end <= decode_len - 3;
+
+    if (!found_start && found_end) {
+      Debug_printf("\r\nDisk II no prologue found");
+#if 0
+      sector_start = sector_end - 346;
+      found_start = true;
+#endif
+    }
+
+    if (found_start && found_end && sector_end - sector_start == 346) {
+      uint8_t sector_data[343]; // Need enough room to demap and de-xor
+      uint16_t checksum;
+
+      // This printf nudges timing too much
+      // Debug_printf("\r\nDisk II sector data: %i", sector_start + 3);
+      checksum = decode_6_and_2(sector_data, &decoded[sector_start + 3]);
+      if ((checksum >> 8) != (checksum & 0xff))
+        Debug_printf("\r\nDisk II checksum mismatch: %04x", checksum);
+
+      iwmDisk2 *disk_dev = IWM_ACTIVE_DISK2;
+      disk_dev->write_sector(item.quarter_track, sector_num, sector_data);
+      disk_dev->change_track(0);
+    }
+    else {
+      Debug_printf("\r\nDisk II sector not found");
+    }
+
+    // FIXME - is there another sector to decode?
+
+    free(decoded);
+  }
+
+  free(item.buffer);
+
+  return true;
+}
+
+iwm_enable_state_t IRAM_ATTR iwmBus::iwm_motor_state()
 {
   uint8_t phases = smartport.iwm_phase_vector();
-  uint8_t newstate = diskii_xface.iwm_enable_states();
+  uint8_t newstate = diskii_xface.iwm_active_drive();
 
   if (!((phases & 0b1000) && (phases & 0b0010))) // SP bus not enabled
   {
@@ -627,7 +727,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
       break;
     }
     if (_old_enable_state != _new_enable_state)
-      Debug_printf("\ndisk ii enable states: %02x", newstate);
+      Debug_printf("\ndisk ii [%i] enable states: %02x", newstate, _new_enable_state);
 
     _old_enable_state = _new_enable_state;
 
@@ -638,7 +738,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_drive_enabled()
     return iwm_enable_state_t::off;
   }
 }
-#endif /* !SLIP */
+#endif /* !DEV_RELAY_SLIP */
 
 void iwmBus::handle_init()
 {

@@ -55,23 +55,23 @@ std::string TCRTMStream::decodeType(uint8_t file_type, bool show_hidden)
     // 0xff: Marker for the first free entry.
 
     // All types not mentioned above are reserved.
-    return type;
+    return " " + type;
 }
 
 bool TCRTMStream::seekEntry( std::string filename )
 {
-    size_t index = 1;
-    mstr::replaceAll(filename, "\\", "/");
-    bool wildcard =  ( mstr::contains(filename, "*") || mstr::contains(filename, "?") );
-
     // Read Directory Entries
     if ( filename.size() )
     {
+        size_t index = 1;
+        mstr::replaceAll(filename, "\\", "/");
+        bool wildcard =  ( mstr::contains(filename, "*") || mstr::contains(filename, "?") );
         while ( seekEntry( index ) )
         {
-            std::string entryFilename = mstr::format("%.16s", entry.filename);
-            mstr::replaceAll(entryFilename, "/", "\\");
-            //mstr::trim(entryFilename);
+            std::string entryFilename = entry.filename;
+            //uint8_t i = entryFilename.find_first_of(0x00); // padded with NUL (0x00)
+            entryFilename = entryFilename.substr(0, 16);
+            //mstr::rtrimA0(entryFilename);
             entryFilename = mstr::toUTF8(entryFilename);
 
             //Debug_printv("index[%d] filename[%s] entry.filename[%s] entry.file_type[%d]", index, filename.c_str(), entryFilename.c_str(), entry.file_type);
@@ -130,8 +130,8 @@ bool TCRTMStream::seekEntry( uint16_t index )
         return true;
 }
 
-uint16_t TCRTMStream::readFile(uint8_t* buf, uint16_t size) {
-    uint16_t bytesRead = 0;
+uint32_t TCRTMStream::readFile(uint8_t* buf, uint32_t size) {
+    uint32_t bytesRead = 0;
 
     if ( _position < 2)
     {
@@ -180,7 +180,7 @@ bool TCRTMStream::seekPath(std::string path) {
         uint32_t file_start_address = (0xD8 + (entry.file_start_address[0] << 8 | entry.file_start_address[1] << 16));
         containerStream->seek(file_start_address);
 
-        Debug_printv("File Size: size[%d] available[%d]", _size, available());
+        Debug_printv("File Size: size[%ld] available[%ld]", _size, available());
         
         return true;
     }
@@ -214,7 +214,7 @@ bool TCRTMFile::rewindDirectory() {
     image->resetEntryCounter();
 
     // Read Header
-    image->seekHeader();
+    image->readHeader();
 
     // Set Media Info Fields
     media_header = mstr::format("%.16s", image->header.disk_name);
@@ -229,50 +229,42 @@ bool TCRTMFile::rewindDirectory() {
     return true;
 }
 
-MFile* TCRTMFile::getNextFileInDir() {
+MFile* TCRTMFile::getNextFileInDir() 
+{
+    bool r = false;
 
     if(!dirIsOpen)
         rewindDirectory();
 
     // Get entry pointed to by containerStream
     auto image = ImageBroker::obtain<TCRTMStream>(streamFile->url);
+    if ( image == nullptr )
+        goto exit;
 
-    bool r = false;
     do
     {
-        r = image->seekNextImageEntry();
+        r = image->getNextImageEntry();
     } while ( r && image->entry.file_type >= 0xFE); // Skip SYSTEM files
     
     if ( r )
     {
-        std::string fileName = mstr::format("%.16s", image->entry.filename);
-        mstr::replaceAll(fileName, "/", "\\");
-        //Debug_printv( "entry[%s]", (streamFile->url + "/" + fileName).c_str() );
-        auto file = MFSOwner::File(streamFile->url + "/" + fileName);
+        std::string filename = image->entry.filename;
+        //uint8_t i = filename.find_first_of(0x00); // padded with NUL (0x00)
+        filename = filename.substr(0, 16);
+        // mstr::rtrimA0(filename);
+        mstr::replaceAll(filename, "/", "\\");
+        //Debug_printv( "entry[%s]", (streamFile->url + "/" + filename).c_str() );
+        auto file = MFSOwner::File(streamFile->url + "/" + filename);
         file->extension = image->decodeType(image->entry.file_type);
+        file->size = (image->entry.file_size[0] | (image->entry.file_size[1] << 8) | (image->entry.file_size[2] << 16)) + 2; // 2 bytes for load address
+
         return file;
     }
-    else
-    {
-        //Debug_printv( "END OF DIRECTORY");
-        dirIsOpen = false;
-        return nullptr;
-    }
+
+exit:
+    //Debug_printv( "END OF DIRECTORY");
+    dirIsOpen = false;
+    return nullptr;
 }
 
 
-uint32_t TCRTMFile::size() {
-    //Debug_printv("[%s]", streamFile->url.c_str());
-    // use TCRT to get size of the file in image
-    auto entry = ImageBroker::obtain<TCRTMStream>(streamFile->url)->entry;
-
-    //size_t blocks = (UINT16_FROM_LE_UINT16(image->entry.load_address) + image->entry.file_size)) / image->block_size;
-    //size_t blocks = 1;
-
-    // 9E 60 00
-    // 158 96 0
-
-    size_t bytes = (entry.file_size[0] | (entry.file_size[1] << 8) | (entry.file_size[2] << 16)) + 2; // 2 bytes for load address
-
-    return bytes;
-}

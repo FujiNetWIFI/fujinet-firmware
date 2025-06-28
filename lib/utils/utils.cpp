@@ -213,14 +213,70 @@ std::string util_crunch(std::string filename)
     if (basename_long.length() > 8)
     {
         cksum = util_checksum(basename_long.c_str(), basename_long.length());
-        sprintf(cksum_txt, "%02X", cksum);
+        snprintf(cksum_txt, sizeof(cksum_txt), "%02X", cksum);
         basename[basename.length() - 2] = cksum_txt[0];
         basename[basename.length() - 1] = cksum_txt[1];
     }
 
     return basename + ext;
 }
+#ifdef BUILD_RS232
+std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked)
+{
+    size_t ext_pos = crunched.find_last_of(".");
+    std::string basename = crunched.substr(0, ext_pos);
+    std::string ext = crunched.substr(ext_pos + 1);
+    char e[80];
+    unsigned char month = 1;
+    unsigned char day = 1;
+    unsigned int year = 24;
+    unsigned char hour = 12;
+    unsigned char minutes = 0;
+    char ampm = 'p';
 
+    if (ext_pos == string::npos)
+        ext.clear();
+
+    // Constrain to 8 characters
+    basename = basename.substr(0,8);
+    basename = basename.substr(0,basename.find_first_of('.'));
+    ext = ext.substr(0,3);
+
+    memset(e,0,sizeof(e));
+
+
+    if (is_dir)
+    {
+        snprintf(e, sizeof(e),
+            "%-8s %-3s %-10s  %2u-%02u-%02u  %2u:%02u%c",
+        basename.c_str(),
+        ext.c_str(),
+        "<DIR>",
+        month,
+        day,
+        year,
+        hour,
+        minutes,
+        ampm);
+    }
+    else
+    {
+        snprintf(e, sizeof(e),
+            "%-8s %-3s %10u  %2u-%02u-%02u  %2u:%02u%c",
+            basename.c_str(),
+            ext.c_str(),
+            fileSize,
+            month,
+            day,
+            year,
+            hour,
+            minutes,
+            ampm);
+    }
+
+    return std::string(e);
+}
+#else
 std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool is_locked)
 {
     std::string returned_entry = "                 ";
@@ -253,7 +309,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
             sectors = 1; // at least 1 sector.
     }
 
-    sprintf(tmp, "%03d", sectors);
+    snprintf(tmp, sizeof(tmp), "%03d", sectors);
     sectorStr = tmp;
 
     returned_entry.replace(14, 3, sectorStr);
@@ -265,6 +321,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
 
     return returned_entry;
 }
+#endif /* !defined BUILD_RS232 */
 
 std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
 {
@@ -292,18 +349,18 @@ std::string util_long_entry(std::string filename, size_t fileSize, bool is_dir)
     returned_entry.replace(0, filename.length(), filename);
 
     if (fileSize > 1048576)
-        sprintf(tmp, "%2uM", (unsigned int)(fileSize >> 20));
+        snprintf(tmp, sizeof(tmp), "%2uM", (unsigned int)(fileSize >> 20));
     else if (fileSize > 1024)
-        sprintf(tmp, "%4uK", (unsigned int)(fileSize >> 10));
+        snprintf(tmp, sizeof(tmp), "%4uK", (unsigned int)(fileSize >> 10));
     else
-        sprintf(tmp, "%4u", (unsigned int)fileSize);
+        snprintf(tmp, sizeof(tmp), "%4u", (unsigned int)fileSize);
 
     stylized_filesize = tmp;
 
     returned_entry.replace(returned_entry.length() - stylized_filesize.length() - 1, stylized_filesize.length(), stylized_filesize);
 
     returned_entry.shrink_to_fit();
-    
+
     return returned_entry;
 }
 
@@ -331,12 +388,12 @@ const char *apple2_filesize(size_t fileSize)
 #ifdef ESP_PLATFORM
      itoa(fs, apple2_fs, 10);
 #else
-    sprintf(apple2_fs, "%u", fs);
+    snprintf(apple2_fs, sizeof(apple2_fs), "%u", fs);
 #endif
     return apple2_fs;
 }
 
-char tmp[81];
+char tmp[90]; // Increased buffer size to prevent truncation warnings
 
 std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, bool is_dir)
 {
@@ -345,11 +402,13 @@ std::string util_long_entry_apple2_80col(std::string filename, size_t fileSize, 
 
     memset(tmp, 0, sizeof(tmp));
 
-    sprintf(tmp, "%s %-70s %5s",
+    // Adjusted to prevent format truncation while still creating an 80-column output
+    snprintf(tmp, sizeof(tmp), "%s %-69s %5s", // Reduced field width from 70 to 69
             apple2_folder_icon(is_dir),
             apple2_filename(filename),
             apple2_filesize(fileSize));
 
+    // Still trim to 80 columns for the returned value
     returned_entry = string(tmp, 80);
     return returned_entry;
 }
@@ -375,6 +434,30 @@ int util_ellipsize(const char *src, char *dst, int dstsize)
         return strlcpy(dst, src, dstsize);
     }
 
+    // Replace directories with .../ and only leave the basename.
+    const char *basename = strrchr(src, '/');
+    if (basename != NULL)
+    {
+        if (strlen(basename) > 1 && dstsize >= 5)
+        {
+            basename++; // skip slash
+
+            int copied = strlcpy(dst, "...", dstsize);
+            int remaining = dstsize - copied - 1;
+            if (strlen(basename) < remaining)
+            {
+                return strlcat(dst, src + (srclen - remaining), dstsize);
+            }
+            else
+            {
+                char tmp[dstsize];
+                copied = strlcat(dst, "/", dstsize);
+                util_ellipsize(basename, tmp, dstsize-copied);
+                return strlcat(dst, tmp, dstsize);
+            }
+        }
+    }
+
     // Account for both the 3-character ellipses and the null character that needs to fit in the destination
     int rightlen = (dstsize - 4) / 2;
     // The left side gets one more character if the destination is odd
@@ -393,7 +476,7 @@ std::string util_ellipsize_string(const std::string& src, size_t maxSize) {
     if (src.length() <= maxSize) {
         return src;
     }
-    
+
     if (maxSize < 6) { // Not enough space for ellipsis in the middle
         return src.substr(0, maxSize);
     }
@@ -535,9 +618,9 @@ void util_dump_bytes(const uint8_t *buff, uint32_t buff_size)
     {
         for (int k = 0; (k + j) < buff_size && k < bytes_per_line; k++)
             Debug_printf("%02X ", buff[k + j]);
-        Debug_println("");
+        Debug_println("\r\n");
     }
-    Debug_println("");
+    Debug_println("\r\n");
 }
 
 vector<string> util_tokenize(string s, char c)
@@ -620,8 +703,10 @@ std::string util_devicespec_fix_for_parsing(std::string deviceSpec, std::string 
     }
 
     string unit = deviceSpec.substr(0, deviceSpec.find_first_of(":") + 1);
+    string path = deviceSpec.substr(unit.length());
+
     // if prefix is empty, the concatenation is still valid
-    deviceSpec = unit + prefix + deviceSpec.substr(deviceSpec.find(":") + 1);
+    deviceSpec = unit + prefix + path;
 
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("util_devicespec_fix_for_parsing, spec: >%s<, prefix: >%s<, dir_read?: %s, fs_dot?: %s)\n", deviceSpec.c_str(), prefix.c_str(), is_directory_read ? "true" : "false", process_fs_dot ? "true" : "false");
@@ -696,10 +781,10 @@ void util_sam_say(const char *p,
     itoa(mouth, mouths, 10);
     itoa(throat, throats, 10);
 #else
-    sprintf(pitchs, "%u", pitch);
-    sprintf(speeds, "%u", speed);
-    sprintf(mouths, "%u", mouth);
-    sprintf(throats, "%u", throat);
+    snprintf(pitchs, sizeof(pitchs), "%u", pitch);
+    snprintf(speeds, sizeof(speeds), "%u", speed);
+    snprintf(mouths, sizeof(mouths), "%u", mouth);
+    snprintf(throats, sizeof(throats), "%u", throat);
 #endif
 
     memset(a, 0, sizeof(a));
@@ -725,9 +810,7 @@ void util_sam_say(const char *p,
 
     // Append the phrase to say.
     a[n++] = (char *)p;
-#ifdef ESP_PLATFORM
     sam(n, a);
-#endif
 }
 
 /**
@@ -951,11 +1034,11 @@ std::string util_hexdump(const void *buf, size_t len)
                 snprintf(line, sizeof(line), "  %s\n", ascii);
                 result += line;
             }
-            snprintf(line, sizeof(line), "%04x ", (unsigned int)i);
+            snprintf(line, sizeof(line), "%04X ", (unsigned int)i);
             result += line;
         }
 
-        snprintf(line, sizeof(line), " %02x", p[i]);
+        snprintf(line, sizeof(line), " %02X", p[i]);
         result += line;
 
         ascii[idx] = (isprint(p[i]) ? p[i] : '.');
@@ -1013,7 +1096,7 @@ void util_debug_printf(const char *fmt, ...)
             printf("\n");
     }
 
-    if (print_ts) 
+    if (print_ts)
     {
         // printf("DEBUG > ");
         timeval tv;

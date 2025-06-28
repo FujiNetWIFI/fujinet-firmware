@@ -3,9 +3,12 @@
 #include "clock.h"
 #include "string_utils.h"
 
-iecClock::iecClock()
+iecClock::iecClock(uint8_t devnr) : IECDevice(devnr)
 {
     ts = 0;
+    payload.clear();
+    response.clear();
+    responsePtr = 0;
 }
 
 iecClock::~iecClock()
@@ -14,106 +17,125 @@ iecClock::~iecClock()
 
 void iecClock::set_timestamp(std::string s)
 {
-    Debug_printf("set_timestamp(%s)\n",s.c_str());
+    Debug_printf("set_timestamp(%s)\r\n",s.c_str());
     ts = atoi(payload.c_str());
 }
 
 void iecClock::set_timestamp_format(std::string s)
 {
-    Debug_printf("set_timestamp_format(%s)\n",s.c_str());
+    Debug_printf("set_timestamp_format(%s)\r\n",s.c_str());
     s = mstr::toUTF8(s);
     tf = s;
 }
 
-device_state_t iecClock::process()
+void iecClock::talk(uint8_t secondary)
 {
-    virtualDevice::process();
-
-    switch (commanddata.secondary)
-    {
-    case IEC_OPEN:
-        iec_open();
-        break;
-    case IEC_CLOSE:
-        iec_close();
-        break;
-    case IEC_REOPEN:
-        iec_reopen();
-        break;
-    default:
-        break;
-    }
-
-    return state;
+  // get current time in task() function, can't do it here 
+  // since we are in timing-sensitive code
+  responsePtr = 0xFFFFFFFF;
 }
 
-void iecClock::iec_open()
+
+void iecClock::untalk()
 {
-    if (mstr::isNumeric(payload))
+  responsePtr = 0;
+  response.clear();
+}
+
+
+void iecClock::listen(uint8_t secondary)
+{
+  payload.clear();
+}
+
+
+void iecClock::unlisten()
+{
+  if( !payload.empty() )
+    {
+      if (mstr::isNumeric(payload))
         set_timestamp(payload);
-    else
+      else
         set_timestamp_format(payload);
-}
 
-void iecClock::iec_close()
-{
-
-}
-
-void iecClock::iec_reopen()
-{
-    switch (commanddata.primary)
-    {
-    case IEC_TALK:
-        iec_reopen_talk();
-        break;
-    case IEC_LISTEN:
-        iec_reopen_listen();
-        break;
+      payload.clear();
     }
 }
 
-void iecClock::iec_reopen_listen()
+
+int8_t iecClock::canWrite()
 {
-    Debug_printf("IEC REOPEN LISTEN\n");
-
-    //mstr::toASCII(payload);
-
-    Debug_printf("Sending over %s\n",payload.c_str());
-
-    if (mstr::isNumeric(payload))
-        set_timestamp(payload);
-    else
-        set_timestamp_format(payload);
+  return 1;
 }
 
-void iecClock::iec_reopen_talk()
-{
-    struct tm *info;
-    char output[128];
-    std::string s;
 
-    if (!ts) // ts == 0, get current time
+int8_t iecClock::canRead()
+{
+  if( responsePtr==0xFFFFFFFF )
+    return -1; // response not yet set
+  else
+    return std::min((size_t) 2, response.size()-responsePtr);
+}
+
+
+void iecClock::write(uint8_t data, bool eoi)
+{
+  payload += char(data);
+}
+
+
+uint8_t iecClock::read()
+{
+  // we should never get here if responsePtr>=response.size() because
+  // then canRead would have returned 0, but better safe than sorry
+  return responsePtr < response.size() ? response[responsePtr++] : 0;
+}
+
+
+void iecClock::task()
+{
+  if( responsePtr==0xFFFFFFFF )
+    {
+      struct tm *info;
+      char output[128];
+      std::string s;
+
+      if (!ts) // ts == 0, get current time
         time(&ts);
+      else
+        Debug_printf("using set time: %llu", ts);
     
-    info = localtime(&ts);
+      info = localtime(&ts);
 
-    if (tf.empty())
-    {
-        Debug_printf("sending default time string.\n");
-        s = std::string(asctime(info));
-        mstr::replaceAll(s,":",".");
+      if (tf.empty())
+        {
+          Debug_printf("sending default time string.\r\n");
+          s = std::string(asctime(info));
+          mstr::replaceAll(s,":",".");
+        }
+      else
+        {
+          Debug_printf("Sending strftime of format %s\r\n",tf.c_str());
+          strftime(output,sizeof(output),tf.c_str(),info);
+          s = std::string(output);
+        }
+
+      mstr::toUpper(s);
+      response = s;
+      responsePtr = 0;
+      ts = 0;
     }
-    else
-    {
-        Debug_printf("Sending strftime of format %s\n",tf.c_str());
-        strftime(output,sizeof(output),tf.c_str(),info);
-        s = std::string(output);
-    }
-    
-    mstr::toUpper(s);
-    
-    IEC.sendBytes(s, true);
 }
+
+
+void iecClock::reset()
+{
+  ts = 0;
+  tf.clear();
+  payload.clear();
+  response.clear();
+  responsePtr = 0;
+}
+
 
 #endif /* BUILD_IEC */

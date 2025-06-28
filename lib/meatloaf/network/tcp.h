@@ -3,6 +3,9 @@
 
 #include "lwip/sockets.h"
 #include "lwip/netdb.h"
+
+#include "meatloaf.h"
+
 #include "../../include/debug.h"
 
 //
@@ -208,13 +211,13 @@ class MeatSocketServer {
 
 
 
-class TcpStream: public MStream {
+class TCPMStream: public MStream {
 
 public:
-    TcpStream(std::string path) {
+    TCPMStream(std::string path) {
         url = path;
     };
-    ~TcpStream() {
+    ~TCPMStream() {
         close();
     };
 
@@ -240,7 +243,7 @@ public:
         socket.close();
     }
 
-    bool open() override {
+    bool open(std::ios_base::openmode mode) override {
         auto p = PeoplesUrlParser::parseURL( url );
         return socket.open(p->host.c_str(), p->getPort());
     }
@@ -268,17 +271,17 @@ protected:
  ********************************************************/
 
 
-class TcpFile: public MFile {
+class TCPMFile: public MFile {
 
 public:
-    TcpFile() {
+    TCPMFile() {
         Debug_printv("C++, if you try to call this, be damned!");
     };
-    TcpFile(std::string path): MFile(path) { 
+    TCPMFile(std::string path): MFile(path) { 
         Debug_printv("constructing tcp file from url [%s]", url.c_str());
      };
-    TcpFile(std::string path, std::string filename): MFile(path) {};
-    ~TcpFile() override {
+    TCPMFile(std::string path, std::string filename): MFile(path) {};
+    ~TCPMFile() override {
     }
     bool isDirectory() override {
         return false;
@@ -287,14 +290,22 @@ public:
     // We are overriding getSourceStream, because obviously - TCP scheme won't be wrapped in anything
     MStream* getSourceStream(std::ios_base::openmode mode=std::ios_base::in) override {
         // has to return OPENED streamm
-        MStream* istream = new TcpStream(url);
-        istream->open();
+        MStream* istream = new TCPMStream(url);
+        //auto istream = StreamBroker::obtain<TCPMStream>(url, mode);
+        //istream->open(std::ios_base::openmode mode);
         return istream;
     } 
 
     // DUMMY return value - we've overriden getSourceStream, so this one won't be even called!
-    MStream* getDecodedStream(std::shared_ptr<MStream> src) {
+    MStream* getDecodedStream(std::shared_ptr<MStream> src)
+    {
         return nullptr; 
+    }
+
+    MStream* createStream(std::ios_base::openmode mode) override
+    {
+        MStream* istream = new TCPMStream(url);
+        return istream;
     }
 
     time_t getLastWrite() override {
@@ -315,9 +326,7 @@ public:
     bool exists() override {
         return true;
     }
-    uint32_t size() override {
-        return -1;
-    }
+
     bool remove() override {
         return false;
     }
@@ -333,10 +342,10 @@ public:
  * FS
  ********************************************************/
 
-class TcpFileSystem: public MFileSystem 
+class TCPMFileSystem: public MFileSystem 
 {
     MFile* getFile(std::string path) override {
-        return new TcpFile(path);
+        return new TCPMFile(path);
     }
 
     bool handles(std::string name) {
@@ -346,7 +355,7 @@ class TcpFileSystem: public MFileSystem
         return false;
     }
 public:
-    TcpFileSystem(): MFileSystem("tcp") {};
+    TCPMFileSystem(): MFileSystem("tcp") {};
 };
 
 

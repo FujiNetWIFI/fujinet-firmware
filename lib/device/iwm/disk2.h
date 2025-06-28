@@ -22,7 +22,6 @@ protected:
 
     void shutdown() override;
     char disk_num;
-    bool enabledD2 = true;
     int track_pos;
     int old_pos;
     uint8_t oldphases;
@@ -37,21 +36,10 @@ public:
     bool phases_valid(uint8_t phases);
     bool move_head();
     void change_track(int indicator);
-    void disableD2() { 
-        enabledD2 = false;
-#ifndef DEV_RELAY_SLIP
-        diskii_xface.enableD2();
-#endif
-    };
-    void enableD2() {
-        enabledD2 = true;
-#ifndef DEV_RELAY_SLIP
-        diskii_xface.disableD2();
-#endif
-    };
-    bool isDrive2Enabled() { return enabledD2; };
     // void set_disk_number(char c) { disk_num = c; }
     // char get_disk_number() { return disk_num; };
+
+    bool write_sector(int track, int sector, uint8_t* buffer);
 
     ~iwmDisk2();
 };

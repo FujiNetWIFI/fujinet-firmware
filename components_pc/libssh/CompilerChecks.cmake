@@ -85,7 +85,7 @@ if (UNIX)
         endif()
     endif (WITH_STACK_PROTECTOR_STRONG)
 
-    if (NOT WINDOWS AND NOT CYGWIN)
+    if (NOT WINDOWS AND NOT CYGWIN AND NOT APPLE)
         check_c_compiler_flag_ssp("-fstack-clash-protection" WITH_STACK_CLASH_PROTECTION)
         if (WITH_STACK_CLASH_PROTECTION)
             list(APPEND SUPPORTED_COMPILER_FLAGS "-fstack-clash-protection")

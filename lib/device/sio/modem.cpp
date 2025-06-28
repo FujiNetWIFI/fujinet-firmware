@@ -162,8 +162,7 @@ void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
         return;
 
     // Get size of handler
-    int filesize = 1282;
-    // int filesize = fnSystem.load_firmware(FIRMWARE_850HANDLER, NULL);
+    int filesize = fnSystem.load_firmware(FIRMWARE_850HANDLER, NULL);
 
     // Simply return (without ACK) if we failed to get this
     if (filesize < 0)
@@ -206,8 +205,8 @@ void modem::sio_poll_1()
     */
 
     // Get size of relocator
-    // int filesize = fnSystem.load_firmware(FIRMWARE_850RELOCATOR, NULL);
-    int filesize = 333;
+    int filesize = fnSystem.load_firmware(FIRMWARE_850RELOCATOR, NULL);
+
     // Simply return (without ACK) if we failed to get this
     if (filesize < 0)
         return;
@@ -250,14 +249,14 @@ void modem::sio_send_firmware(uint8_t loadcommand)
     if (loadcommand == SIO_MODEMCMD_LOAD_RELOCATOR)
     {
         firmware = FIRMWARE_850RELOCATOR;
-        firmware_size = 333;
+        firmware_size = fnSystem.load_firmware(firmware, NULL);
     }
     else
     {
         if (loadcommand == SIO_MODEMCMD_LOAD_HANDLER)
         {
             firmware = FIRMWARE_850HANDLER;
-            firmware_size = 1282;
+            firmware_size = fnSystem.load_firmware(firmware, NULL);
         }
         else
             return;
@@ -1892,7 +1891,9 @@ void modem::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.checksum = checksum;
 
     if (!Config.get_modem_enabled())
+    {
         Debug_println("modem::disabled, ignoring");
+    }
     else
     {
         Debug_println("modem::sio_process() called");

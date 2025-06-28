@@ -157,7 +157,11 @@ public:
     uint8_t * data = nullptr;
 
     // Actual sectors
+#ifdef ESP_PLATFORM
     std::vector<AtxSector,PSRAMAllocator<AtxSector>> sectors;
+#else
+    std::vector<AtxSector> sectors;
+#endif
 
     ~AtxTrack();
     AtxTrack();
@@ -189,7 +193,11 @@ private:
     esp_timer_handle_t _atx_timer = nullptr;
 #endif
 
+#ifdef ESP_PLATFORM
     std::vector<AtxTrack,PSRAMAllocator<AtxTrack>> _tracks;
+#else
+    std::vector<AtxTrack> _tracks;
+#endif
 
     // ATX header.density
     uint8_t _atx_density = ATX_DENSITY_SINGLE;

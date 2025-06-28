@@ -6,21 +6,9 @@
 #include "../../include/debug.h"
 
 #include "fnSystem.h"
-#include "fnFileMem.h"
-#include "fnFsSD.h"
+#include "fnFileCache.h"
 
-#define MAX_CACHE_MEMFILE_SIZE  204800
-
-#include "mbedtls/md5.h"
-void get_md5_string(const unsigned char *buf, size_t size, char *result)
-{
-    unsigned char md5_result[16];
-    mbedtls_md5(buf, size, md5_result);
-    for (int i=0; i < 16; i++)
-    {
-        sprintf(&result[i * 2], "%02x",  md5_result[i]);
-    }
-}
+#define COPY_BLK_SIZE 4096
 
 FileSystemFTP::FileSystemFTP()
 {
@@ -115,138 +103,115 @@ FILE  *FileSystemFTP::file_open(const char *path, const char *mode)
 #ifndef FNIO_IS_STDIO
 FileHandler *FileSystemFTP::filehandler_open(const char *path, const char *mode)
 {
-    FileHandler *fh = cache_file(path);
+    FileHandler *fh = cache_file(path, mode);
     return fh;
 }
 
-// read file from FTP path and write it to cache file
-// return FileHandler* on success (memory or SD file), nullptr on error
-FileHandler *FileSystemFTP::cache_file(const char *path)
+// Read file from FTP path and write it to cache file
+// Return FileHandler* on success (memory or SD file), nullptr on error
+FileHandler *FileSystemFTP::cache_file(const char *path, const char *mode)
 {
-    // open FTP file
+    // Try SD cache first
+    FileHandler *fh = FileCache::open(_url->mRawUrl.c_str(), path, mode);
+    if (fh != nullptr)
+        return fh; // cache hit, done
+
+    // Create new cache file (starts in memory)
+    fc_handle *fc = FileCache::create(_url->mRawUrl.c_str(), path);
+    if (fc == nullptr)
+        return nullptr;
+
+    // Open FTP file
+    Debug_println("Initiating file RETR");
     if (_ftp->open_file(path, false))
     {
-        Debug_printf("FileSystemFTP::cache_file - Failed to open file\n");
+        Debug_println("FileSystemFTP::cache_file - RETR failed");
         return nullptr;
     }
 
-    // open cache memory file
-    FileHandler *fh = new FileHandlerMem;
-    if (fh == nullptr)
-    {
-        Debug_println("FileSystemFTP::cache_file - failed to open memory file");
-        return nullptr;
-    }
-
-    // copy FTP to file
-
-    uint8_t buf[1024];
+    // Retrieve FTP data
     int tmout_counter = 1 + FTP_TIMEOUT / 50;
-    size_t bytes_read = 0;
-    bool use_memfile = true;
     bool cancel = false;
+    int available;
 
-    do
+    // Allocate copy buffer
+    // uint8_t *buf = (uint8_t *)heap_caps_malloc(COPY_BLK_SIZE, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    uint8_t *buf = (uint8_t *)malloc(COPY_BLK_SIZE);
+    if (buf == nullptr)
     {
-        int available = _ftp->data_available();
+        Debug_println("FileSystemFTP::cache_file - failed to allocate buffer");
+        return nullptr;
+    }
+
+    Debug_println("Retrieving file data");
+    while ( !cancel )
+    {
+        available = _ftp->data_available();
+        if (!_ftp->data_connected()) // done
+            break;
+
         if (available == 0)
         {
             if (--tmout_counter == 0)
             {
                 // no data & no control message
-                Debug_printf("FileSystemFTP::cache_file - Timeout\n");
+                Debug_println("FileSystemFTP::cache_file - Timeout");
                 cancel = true;
                 break;
             }
             fnSystem.delay(50); // wait for more data or control message
-            available = _ftp->data_available();
         }
-        
-        if (available > 0)
+        else if (available > 0)
         {
-            Debug_printf("Reading FTP data\n");
+            Debug_printf("data available: %d\n", available);
             while (available > 0)
             {
-                // read FTP data
+                // Read FTP data
                 int to_read = available > sizeof(buf) ? sizeof(buf) : available;
                 if (_ftp->read_file(buf, to_read))
                 {
-                    Debug_printf("FileSystemFTP::cache_file - read failed\n");
+                    Debug_println("FileSystemFTP::cache_file - FTP read failed");
                     cancel = true;
                     break;
                 }
-                // write cache file
-                if (fh->write(buf, 1, to_read) < to_read)
+                // Write cache file
+                if (FileCache::write(fc, buf, to_read) < to_read)
                 {
-                    Debug_printf("FileSystemFTP::cache_file - write failed\n");
+                    Debug_printf("FileSystemFTP::cache_file - Cache write failed\n");
                     cancel = true;
                     break;
                 }
-                bytes_read += to_read;
-
-                // check if memory file is over limit
-                if (use_memfile && bytes_read > MAX_CACHE_MEMFILE_SIZE)
-                {
-                    // for large files switch from memory to SD card
-                    if (!fnSDFAT.running())
-                    {
-                        Debug_println("FileSystemFTP::cache_file - SD Filesystem is not running");
-                        cancel = true;
-                        break;
-                    }
-
-                    // SD file path, use MD5 of host url and MD5 of file path
-                    char cache_path[] = "/FujiNet/cache/........-................................";
-                    get_md5_string((const unsigned char *)(_url->mRawUrl.c_str()), _url->mRawUrl.length(), cache_path + 15);
-                    get_md5_string((const unsigned char *)path, strlen(path), cache_path + 15 + 9);
-                    cache_path[15 + 8] = '-';
-                    Debug_printf("SD cache file: %s\n", cache_path);
-
-                    // ensure cache directory exists
-                    fnSDFAT.create_path("/FujiNet/cache");
-
-                    // open SD file
-                    FileHandler *fh_sd = fnSDFAT.filehandler_open(cache_path, "wb+");
-                    if (fh_sd == nullptr)
-                    {
-                        Debug_println("FileSystemFTP::cache_file - failed to open SD file");
-                        cancel = true;
-                        break;
-                    }
-
-                    // copy from memory to SD file
-                    size_t count = 0;
-                    fh->seek(0, SEEK_SET);
-                    do
-                    {
-                        count = fh->read(buf, 1, sizeof(buf));
-                        fh_sd->write(buf, 1, count);
-                    } while (count > 0);
-                    fh->close();
-                    // switch to file on SD
-                    fh = fh_sd;
-                    use_memfile = false;
-                }
-                // next batch
+                // Next chunk
                 available = _ftp->data_available();
             }
             tmout_counter = 1 + FTP_TIMEOUT / 50; // reset timeout counter
         }
-    } while (!cancel && _ftp->data_connected());
+        else if (available < 0)
+        {
+            Debug_println("FileSystemFTP::cache_file - something went wrong");
+            cancel = true;
+        }
+    }
+    // Release copy buffer
+    free(buf);
+
+    // Close FTP client
     _ftp->close();
 
     if (cancel)
     {
-        fh->close();
+        Debug_println("Cancelled");
+        FileCache::remove(fc);
         fh = nullptr;
     }
     else
     {
-        fh->seek(0, SEEK_SET);
+        Debug_println("File data retrieved");
+        fh = FileCache::reopen(fc, mode);
     }
     return fh;
 }
-#endif
+#endif //!FNIO_IS_STDIO
 
 bool FileSystemFTP::is_dir(const char *path)
 {

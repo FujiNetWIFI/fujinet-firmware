@@ -88,6 +88,8 @@ const char * FileSystem::type_to_string(fsType type)
             return "FS_SMB";
         case FSTYPE_FTP:
             return "FS_FTP";
+        case FSTYPE_HTTP:
+            return "FS_HTTP";
         default:
             return "UNKNOWN FS TYPE";
     }

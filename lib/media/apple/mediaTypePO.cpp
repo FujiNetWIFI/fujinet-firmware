@@ -68,6 +68,12 @@ bool MediaTypePO::write(uint32_t blockNum, uint16_t *count, uint8_t* buffer)
     return false;
 }
 
+bool MediaTypePO::write_sector(int track, int sector, uint8_t *buffer)
+{
+  Debug_printf("\r\nProDOS disk needs to write sector!");
+  return false;
+}
+
 bool MediaTypePO::format(uint16_t *responsesize)
 {
     return false;

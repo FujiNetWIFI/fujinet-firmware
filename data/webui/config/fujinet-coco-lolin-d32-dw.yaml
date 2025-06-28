@@ -7,14 +7,18 @@ components:
   hardware: true
   hosts_list: true
   mount_list: true
-  printer_settings: true
-  modem_settings: false
+  printer_settings: experimental
+  modem_settings: experimental
   hsio_settings: false
   timezone: true
-  udp_stream: true
-  program_recorder: false
-  disk_swap: true
-  boot_settings: true
   apetime: false
+  udp_stream: true
+  program_recorder: experimental
+  disk_swap: false
+  emulator_settings: true
+  boot_settings: true
+  cpm_settings: experimental
+  pclink: false
 tweaks:
   # webui tweaks, if any
+  platform: COCO

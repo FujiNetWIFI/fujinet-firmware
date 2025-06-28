@@ -51,16 +51,16 @@ bool NetworkProtocolSMB::open_file_handle()
 
     switch (aux1_open)
     {
-    case 4:
+    case PROTOCOL_OPEN_READ:
         flags = O_RDONLY;
         break;
-    case 8:
+    case PROTOCOL_OPEN_WRITE:
         flags = O_WRONLY | O_CREAT;
         break;
-    case 9:
+    case PROTOCOL_OPEN_APPEND:
         flags = O_APPEND | O_CREAT;
         break;
-    case 12:
+    case PROTOCOL_OPEN_READWRITE:
         flags = O_RDWR;
         break;
     default:
@@ -107,8 +107,10 @@ bool NetworkProtocolSMB::mount(PeoplesUrlParser *url)
         openURL[2] = 'b';
     }
 
+#if 0
     if (aux1_open == 6) // temporary
         openURL = openURL.substr(0, openURL.find_last_of("/"));
+#endif
 
     Debug_printf("NetworkProtocolSMB::mount() - openURL: %s\r\n", openURL.c_str());
     smb_url = smb2_parse_url(smb, openURL.c_str());
@@ -310,4 +312,22 @@ bool NetworkProtocolSMB::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 bool NetworkProtocolSMB::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
     return false;
+}
+
+off_t NetworkProtocolSMB::seek(off_t position, int whence)
+{
+    // fileSize isn't fileSize, it's bytes remaining. Call stat() to fix fileSize
+    stat();
+
+    if (whence == SEEK_SET)
+        offset = position;
+    else if (whence == SEEK_CUR)
+        offset += position;
+    else if (whence == SEEK_END)
+        offset = fileSize - position;
+
+    fileSize -= offset;
+    receiveBuffer->clear();
+
+    return offset;
 }

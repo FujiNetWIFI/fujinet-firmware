@@ -38,7 +38,7 @@ bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks - 1)
     {
-        Debug_printf("::read block %d > %d\r\n", blockNum, _media_num_blocks);
+        Debug_printf("::read block %lu > %lu\r\n", blockNum, _media_num_blocks);
         _media_controller_status = 2;
         return true;
     }

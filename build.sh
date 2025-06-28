@@ -6,6 +6,7 @@
 # CONFIGURATION INI FILE USAGE
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+PIO_VENV_ROOT="${HOME}/.platformio/penv"
 
 BUILD_ALL=0
 RUN_BUILD=0
@@ -27,6 +28,35 @@ ANSWER_YES=0
 CMAKE_GENERATOR=""
 INI_FILE="${SCRIPT_DIR}/platformio-generated.ini"
 LOCAL_INI_VALUES_FILE="${SCRIPT_DIR}/platformio.local.ini"
+
+# Function to check if the specified Python version is 3
+check_python_version() {
+  local python_bin=$1
+
+  if ! command -v "${python_bin}" &> /dev/null; then
+    return 1
+  fi
+
+  # Extract the major version number
+  local major_version="$(${python_bin} --version 2>&1 | cut -d' ' -f2 | cut -d'.' -f1)"
+
+  # Verify if it's Python 3
+  if [ "${major_version}" -eq 3 ]; then
+    return 0
+  else
+    return 1
+  fi
+}
+
+# Check if "python" exists first since that's what PlatformIO names it
+PYTHON=python
+if ! check_python_version "${PYTHON}" ; then
+  PYTHON=python3
+  if ! check_python_version "${PYTHON}" ; then
+    echo "Python 3 is not installed"
+    exit 1
+  fi
+fi
 
 function display_board_names {
   while IFS= read -r piofile; do
@@ -67,6 +97,7 @@ function show_help {
   echo "other options:"  
   echo "   -y       # answers any questions with Y automatically, for unattended builds"
   echo "   -h       # this help"
+  echo "   -V       # Override default Python virtual environment location (e.g. \"-V ~/.platformio/penv\")"
   echo ""
   echo "Additional Args can be accepted to pass values onto sub processes where supported."
   echo "  e.g. ./build.sh -p APPLE -- -DFOO=BAR"
@@ -87,7 +118,7 @@ if [ $# -eq 0 ] ; then
   show_help
 fi
 
-while getopts "abcde:fgG:hi:l:mnp:s:St:uyz" flag
+while getopts "abcde:fgG:hi:l:mnp:s:St:uyzV:" flag
 do
   case "$flag" in
     a) BUILD_ALL=1 ;;
@@ -109,6 +140,7 @@ do
     G) CMAKE_GENERATOR=${OPTARG} ;;
     y) ANSWER_YES=1  ;;
     z) ZIP_MODE=1 ;;
+    V) PIO_VENV_ROOT=${OPTARG} ;;
     h) show_help ;;
     *) show_help ;;
   esac
@@ -125,6 +157,15 @@ if [ $BUILD_ALL -eq 1 ] ; then
   chmod 755 $SCRIPT_DIR/build-platforms/build-all.sh
   $SCRIPT_DIR/build-platforms/build-all.sh
   exit $?
+fi
+
+# Set up the virtual environment if it exists
+if [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" != "$PIO_VENV_ROOT" ]] ; then
+  echo "Activating virtual environment"
+  [[ -z "$VIRTUAL_ENV" ]] && deactivate &>/dev/null
+  source "$PIO_VENV_ROOT/bin/activate"
+else
+  echo "Warning: Virtual environment not found in $PIO_VENV_ROOT. Continuing without it."
 fi
 
 ##############################################################
@@ -186,7 +227,7 @@ if [ ! -z "$PC_TARGET" ] ; then
   # python_modules.txt contains pairs of module name and installable package names, separated by pipe symbol
   MOD_LIST=$(sed '/^#/d' < "${SCRIPT_DIR}/python_modules.txt" | cut -d\| -f1 | tr '\n' ' ' | sed 's# *$##;s# \{1,\}# #g')
   echo "Checking python modules installed: $MOD_LIST"
-  python -c "import importlib.util, sys; sys.exit(0 if all(importlib.util.find_spec(mod.strip()) for mod in '''$MOD_LIST'''.split()) else 1)"
+  ${PYTHON} -c "import importlib.util, sys; sys.exit(0 if all(importlib.util.find_spec(mod.strip()) for mod in '''$MOD_LIST'''.split()) else 1)"
   if [ $? -eq 1 ] ; then
     echo "At least one of the required python modules is missing"
     bash ${SCRIPT_DIR}/install_python_modules.sh
@@ -230,14 +271,14 @@ if [ -z "$SETUP_NEW_BOARD" ] ; then
   fi
 
   if [ ${ZIP_MODE} -eq 1 ] ; then
-    python create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio-ini-files/platformio.zip-options.ini
+    ${PYTHON} create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio-ini-files/platformio.zip-options.ini
   else
-    python create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
+    ${PYTHON} create-platformio-ini.py -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
   fi
   create_result=$?
 else
   # this will create a clean platformio INI file, but honours the command line args
-  if [ $ANSWER_YES -eq 0 ] ; then
+  if [ -e ${LOCAL_INI_VALUES_FILE} -a $ANSWER_YES -eq 0 ] ; then
     echo "WARNING! This will potentially overwrite any local changes in $LOCAL_INI_VALUES_FILE"
     echo -n "Do you want to proceed? (y|N) "
     read answer
@@ -248,9 +289,9 @@ else
     fi
   fi
   if [ ${ZIP_MODE} -eq 1 ] ; then
-    python create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio-ini-files/platformio.zip-options.ini
+    ${PYTHON} create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE -f platformio-ini-files/platformio.zip-options.ini
   else
-    python create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
+    ${PYTHON} create-platformio-ini.py -n $SETUP_NEW_BOARD -o $INI_FILE -l $LOCAL_INI_VALUES_FILE
   fi
 
   create_result=$?

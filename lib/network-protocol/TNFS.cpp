@@ -35,19 +35,19 @@ bool NetworkProtocolTNFS::open_file_handle()
     // Map aux1 to mode and perms for tnfs_open()
     switch (aux1_open)
     {
-    case 4:
+    case PROTOCOL_OPEN_READ:
         mode = TNFS_OPENMODE_READ;
         perms = 0;
         break;
-    case 8:
+    case PROTOCOL_OPEN_WRITE:
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE_TRUNCATE | TNFS_OPENMODE_WRITE;
         perms = 0x1FF;
         break;
-    case 9:
+    case PROTOCOL_OPEN_APPEND:
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_WRITE | TNFS_OPENMODE_WRITE_APPEND; // 0x10B
         perms = 0x1FF;
         break;
-    case 12:
+    case PROTOCOL_OPEN_READWRITE:
         mode = TNFS_OPENMODE_WRITE_CREATE | TNFS_OPENMODE_READWRITE;
         perms = 0x1FF;
         break;
@@ -138,7 +138,7 @@ bool NetworkProtocolTNFS::read_file_handle(uint8_t *buf, unsigned short len)
         else
             block_len = total_len;
 
-        Debug_printf("NetworkProtocolTNFS::read_file_handle - read block size %u\r\n",block_len);
+        //Debug_printf("NetworkProtocolTNFS::read_file_handle - read block size %u\r\n",block_len);
 
         tnfs_error = tnfs_read(&mountInfo, fd, buf, block_len, &actual_len);
         if (tnfs_error != 0)
@@ -349,4 +349,21 @@ bool NetworkProtocolTNFS::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
         fserror_to_error();
 
     return tnfs_error != TNFS_RESULT_SUCCESS;
+}
+
+off_t NetworkProtocolTNFS::seek(off_t offset, int whence)
+{
+    int err;
+    uint32_t new_offset;
+
+
+    err = tnfs_lseek(&mountInfo, fd, offset, whence, &new_offset, false);
+    if (err)
+        return -1;
+
+    // fileSize isn't fileSize, it's bytes remaining. Call stat() to fix fileSize
+    stat();
+    fileSize -= new_offset;
+    receiveBuffer->clear();
+    return new_offset;
 }

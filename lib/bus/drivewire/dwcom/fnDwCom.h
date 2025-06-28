@@ -25,14 +25,6 @@ public:
         BECKER
     };
 
-    bool pollingMode;
-    
-    // Host & client channel queues
-    std::vector<char> outgoingChannel[16];
-    std::vector<char> incomingChannel[16];
-    std::vector<char> incomingScreen[16];
-    
-
 private:
     dw_mode _dw_mode;
     DwPort *_dwPort;
@@ -76,75 +68,13 @@ public:
 
     // write buffer
     ssize_t write(const uint8_t *buffer, size_t size) { return _dwPort->write(buffer, size); }
-
-    // write buffer to FN channel
-    ssize_t writeToFNChannel(int channel, const uint8_t *buffer, size_t size)
-    {
-        int result = 0;
-        
-        if (pollingMode == true)
-        {
-            for (int i = 0; i < size; i++)
-            {
-                outgoingChannel[channel].push_back(buffer[i]);
-            }
-            result = size;
-        }
-        else
-        {
-            result = write(buffer, size);
-        }
-        
-        return result;
-    }
-    
     // write C-string
     ssize_t write(const char *str) { return _dwPort->write((const uint8_t *)str, strlen(str)); }
 
-    // write C-string to FN channel
-    ssize_t writeToFNChannel(int channel, const char *str)
-    {
-        int result = 0;
-        
-        if (pollingMode == true)
-        {
-            result = strlen(str);
-            for (int i = 0; i < result; i++)
-            {
-                outgoingChannel[channel].push_back(str[i]);
-            }
-        }
-        else
-        {
-            result = write(str);
-        }
-        
-        return result;
-    }
-    
     // read single byte, mimic UARTManager
     int read();
-
     // write single byte, mimic UARTManager
     ssize_t write(uint8_t b) { return _dwPort->write(&b, 1); }
-
-    // write C-string to FN channel
-    ssize_t writeToFNChannel(int channel, uint8_t b)
-    {
-        int result = 0;
-        
-        if (pollingMode == true)
-        {
-            result = 1;
-            outgoingChannel[channel].push_back(b);
-        }
-        else
-        {
-            result = write(b);
-        }
-        
-        return result;
-    }
 
     // mimic UARTManager overloaded write functions
     size_t write(unsigned long n) { return write((uint8_t)n); }

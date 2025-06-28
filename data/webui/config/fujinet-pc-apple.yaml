@@ -20,3 +20,4 @@ components:
 tweaks:
   # webui tweaks, if any
   fujinet_pc: true
+  fujiapple: true

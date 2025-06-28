@@ -24,10 +24,6 @@
 #include <freertos/queue.h>
 #endif
 
-#include <chrono>
-#include <future>
-
-#include <vector>
 #include <forward_list>
 #include <map>
 // fnUartBUS (Serial only) was replaced with fnDwCom (Serial|TCP/Becker)
@@ -192,10 +188,6 @@ struct drivewire_message_t
 
 class systemBus
 {
-public:
-    int (drivewireFuji::*fnStateMethod)(std::vector<uint8_t> *);
-    void resetState(void);
-
 private:
     virtualDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
@@ -206,11 +198,9 @@ private:
     drivewireCPM *_cpmDev = nullptr;
     drivewirePrinter *_printerdev = nullptr;
 
-    int _drivewire_process_cmd(std::vector<uint8_t> *q);
+    void _drivewire_process_cmd();
     void _drivewire_process_queue();
 
-    int guestCapabilityByte;
-    
     /**
      * @brief Current Baud Rate
      */
@@ -231,69 +221,32 @@ private:
      */
     uint8_t sector_data[MEDIA_BLOCK_SIZE];
 
-    int (systemBus::*dwStateMethod)(std::vector<uint8_t> *);
-    std::vector<uint8_t> serialBuffer;    
-
-    /**
-     * Timer Rate for interrupt timer (ms)
-     */
-#ifdef ESP_PLATFORM
-    int timerRate = 2000;
-#else
-    int timerRate = 2000;
-    bool timerActive = false;
-#endif
-
-    /**
-     * Timer handle for the DriveWire state machine recovery timer
-     */
-#ifdef ESP_PLATFORM
-    esp_timer_handle_t stateMachineRecoveryTimerHandle = nullptr;
-#else
-    uint64_t lastInterruptMs;
-#endif
-    /**
-     * Start the Interrupt rate limiting timer
-     */
-    void timer_start();
-
-    /**
-     * Stop the Interrupt rate limiting timer
-     */
-    void timer_stop();
-
     /**
      * @brief NOP command (do nothing)
      */
-    int op_jeff(std::vector<uint8_t> *q);
-    int op_nop(std::vector<uint8_t> *q);
-    int op_reset(std::vector<uint8_t> *q);
-    int op_readex(std::vector<uint8_t> *q);
-    int op_readex_p2(std::vector<uint8_t> *q);
-    int op_fuji(std::vector<uint8_t> *q);
-    int op_net(std::vector<uint8_t> *q);
-    int op_cpm(std::vector<uint8_t> *q);
-    int op_write(std::vector<uint8_t> *q);
-    int op_time(std::vector<uint8_t> *q);
-    int op_init(std::vector<uint8_t> *q);
-    int op_term(std::vector<uint8_t> *q);
-    int op_fastwrite_serial(std::vector<uint8_t> *q);
-    int op_fastwrite_screen(std::vector<uint8_t> *q);
-    int op_serinit(std::vector<uint8_t> *q);
-    int op_serterm(std::vector<uint8_t> *q);
-    int op_dwinit(std::vector<uint8_t> *q);
-    int op_unhandled(std::vector<uint8_t> *q);
-    int op_getstat(std::vector<uint8_t> *q);
-    int op_setstat(std::vector<uint8_t> *q);
-    int op_sergetstat(std::vector<uint8_t> *q);
-    int op_sersetstat(std::vector<uint8_t> *q);
-    int op_sersetstat_comstat(std::vector<uint8_t> *q);
-    int op_serread(std::vector<uint8_t> *q);
-    int op_serreadm(std::vector<uint8_t> *q);
-    int op_serwrite(std::vector<uint8_t> *q);
-    int op_serwritem(std::vector<uint8_t> *q);
-    int op_print(std::vector<uint8_t> *q);
-    int op_printflush(std::vector<uint8_t> *q);
+    void op_jeff();
+    void op_nop();
+    void op_reset();
+    void op_readex();
+    void op_fuji();
+    void op_net();
+    void op_cpm();
+    void op_write();
+    void op_time();
+    void op_init();
+    void op_serinit();
+    void op_serterm();
+    void op_dwinit();
+    void op_unhandled(uint8_t c);
+    void op_getstat();
+    void op_setstat();
+    void op_sergetstat();
+    void op_sersetstat();
+    void op_serread();
+    void op_serreadm();
+    void op_serwrite();
+    void op_serwritem();
+    void op_print();
 
     // int readSector(struct dwTransferData *dp);
     // int writeSector(struct dwTransferData *dp);

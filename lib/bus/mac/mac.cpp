@@ -116,7 +116,7 @@ void macBus::service(void)
         // fnUartBUS.flush();
         break;
       default:
-        Debug_printf("%03d");
+        //Debug_printf("%03d");
         fnUartBUS.write('X');
         // fnUartBUS.flush();
         break;
@@ -528,16 +528,12 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
   // Handle possible data packet to avoid crash extended and non-extended
   switch (cmd.command)
   {
-  case 0x42:
-  case 0x44:
-  case 0x49:
-  case 0x4a:
-  case 0x4b:
-  case 0x02:
-  case 0x04:
-  case 0x09:
-  case 0x0a:
-  case 0x0b:
+  case SP_ECMD_WRITEBLOCK:
+  case SP_ECMD_CONTROL:
+  case SP_ECMD_WRITE:
+  case SP_CMD_WRITEBLOCK:
+  case SP_CMD_CONTROL:
+  case SP_CMD_WRITE:
     data_len = 512;
     IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
     Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
@@ -548,7 +544,7 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
     Debug_printf("\r\nUnit %02x Bad Command %02x", id(), cmd.command);
     return;
   }
-  if (cmd.command == 0x04) // Decode command control code
+  if (cmd.command == SP_CMD_CONTROL) // Decode command control code
   {
     send_reply_packet(SP_ERR_BADCTL); // we may be required to accept some control commands
                                       //  but for now just report bad control if it's a control
@@ -578,7 +574,7 @@ void iwmDevice::iwm_status(iwm_decoded_cmd_t cmd) // override;
   uint8_t status_code = cmd.params[2]; // cmd.g7byte3 & 0x7f; // (packet_buffer[19] & 0x7f); // | (((unsigned short)packet_buffer[16] << 3) & 0x80);
   Debug_printf("\r\nTarget Device: %02x", id());
   // add a switch case statement for ALL THE STATUSESESESESS
-  if (status_code == 0x03)
+  if (status_code == SP_CMD_FORMAT)
   { // if statcode=3, then status with device info block
     Debug_printf("\r\n******** Sending DIB! ********");
     send_status_dib_reply_packet();

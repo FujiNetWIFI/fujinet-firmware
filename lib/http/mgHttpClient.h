@@ -5,16 +5,15 @@
 #include <map>
 #include <memory>
 #include <cstdint>
+#include <vector>
 
 #include "mongoose.h"
 #undef mkdir
 
 // http timeout in ms
-#define HTTP_TIMEOUT 7000
+#define HTTP_CLIENT_TIMEOUT 20000 // 20 s
 // while debugging, increase timeout
-// #define HTTP_TIMEOUT 600000
-
-// using namespace fujinet;
+// #define HTTP_CLIENT_TIMEOUT 600000
 
 // on Windows/MinGW DELETE is defined already ...
 #if defined(_WIN32) && defined(DELETE)
@@ -38,28 +37,16 @@ private:
 
     std::string _url;
 
-    char *_buffer; // Will be allocated to hold message received by mongoose
+    std::string _buffer_str; // Will be used to hold the received message
 
-    // char *_dechunk_buffer; // allocated to handle dechunking
-    // will the read keep returning the old data? or can we detect and move on? the service won't be repeating, so we need to reset buffer correctly after dechunking
-    // uint16_t old_chunk_length = 0;
+    bool _processed = false;
+    bool _progressed = false;
 
-    int _buffer_pos;
-    int _buffer_len;
-    int _buffer_total_read;
-
-    // TaskHandle_t _taskh_consumer = nullptr;
-    // TaskHandle_t _taskh_subtask = nullptr;
-    bool _processed;
-    bool _progressed;
-
-    // bool _chunked;
-
-    bool _ignore_response_body = false;
-    bool _transaction_begin;
-    bool _transaction_done = true;
-    int _redirect_count;
-    int _max_redirects;
+    // bool _ignore_response_body = false;
+    bool _transaction_begin = false; // true indicates we're waiting for the response headers
+    bool _transaction_done = false;  // true indicates that entire response was received or error occurred
+    int _redirect_count = 0;
+    int _max_redirects = 0;
     bool connected = false;
     // esp_http_client_auth_type_t _auth_type;
 
@@ -71,8 +58,11 @@ private:
     std::unique_ptr<mg_mgr, MgMgrDeleter> _handle;
 
     // http response status code and content length
-    int _status_code;
-    int _content_length;
+    int _status_code = -1;
+    int _content_length = 0;
+
+    // chunked transfer encoding
+    bool _is_chunked = false;
 
     // authentication
     std::string _username;
@@ -95,33 +85,28 @@ private:
         HTTP_PROPFIND,
     };
     HttpMethod _method;
+	static const char *method_to_string(HttpMethod method);
 
     // data to send to server
-    const char *_post_data;
-    int _post_datalen;
+    const char *_post_data = nullptr;
+    int _post_datalen = 0;
 
-    // static void _perform_subtask(void *param);
-    // static esp_err_t _httpevent_handler(esp_http_client_event_t *evt);
     static void _httpevent_handler(struct mg_connection *c, int ev, void *ev_data);
 
-    // void _delete_subtask_if_running();
+	void _flush_response();
 
-    void _flush_response();
-
-    int _perform();
+	int _perform();
     void _perform_connect();
-    // int _perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size);
+	void _perform_fetch();
+	bool _perform_redirect();
+	// int _perform_stream(esp_http_client_method_t method, uint8_t *write_data, int write_size);
 
-    bool is_chunked = false;
-    size_t process_chunked_data_in_place(char* data, size_t upper_bound);
     void handle_connect(struct mg_connection *c);
     void handle_http_msg(struct mg_connection *c, struct mg_http_message *hm);
     void handle_read(struct mg_connection *c);
-    void send_data(struct mg_http_message *hm, int status_code);
+	void process_response_headers(mg_connection *c, mg_http_message &hm, int hdrs_len);
+	void process_body_data(mg_connection *c, char *data, int len);
 
-    void deepCopyHttpMessage(const struct mg_http_message *src, struct mg_http_message *dest);
-    void freeHttpMessage(struct mg_http_message *msg);
-    struct mg_http_message *current_message = nullptr;
     std::string certDataStorage; // Store the processed certificate data
 
 public:
@@ -139,7 +124,7 @@ public:
     bool begin(std::string url);
     void close();
 
-    int GET();
+	int GET();
     int HEAD();
     int POST(const char *post_data, int post_datalen);
     int PUT(const char *put_data, int put_datalen);
@@ -158,7 +143,9 @@ public:
 
     bool set_url(const char *url);
 
-    bool set_header(const char *header_key, const char *header_value);
+	bool set_post_data(const char *post_data, int post_datalen);
+
+	bool set_header(const char *header_key, const char *header_value);
     
     const std::string get_header(const char *header);
     const std::string get_header(int index);
@@ -171,8 +158,6 @@ public:
     const std::map<std::string, std::string>& get_stored_headers() const {
         return _stored_headers;
     }
-
-    //const char * buffer_contents(int *buffer_len);
 
     // Certificate handling
     void load_system_certs();

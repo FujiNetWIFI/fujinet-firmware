@@ -3,6 +3,8 @@
 #define PINMAP_H
 
 #ifdef ESP_PLATFORM
+#include <hal/gpio_types.h>
+
 #include "pinmap/a2_fn10.h"
 #include "pinmap/a2_rev0.h"
 #include "pinmap/a2_d32pro.h"
@@ -22,10 +24,17 @@
 #include "pinmap/esp32s3-wroom-1.h"
 #include "pinmap/lynx.h"
 #include "pinmap/rs232_rev0.h"
+#include "pinmap/rs232_s3.h"
 #include "pinmap/cx16.h"
 #include "pinmap/rc2014spi_rev0.h"
 #include "pinmap/heathkit_h89.h"
 #include "pinmap/atari2600.h"
+
+
+#ifndef PIN_DEBUG
+#define PIN_DEBUG		PIN_IEC_SRQ
+#endif
+
 #endif // ESP_PLATFORM
 
 #endif /* PINMAP_H */

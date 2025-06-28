@@ -6,6 +6,8 @@
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include <mbedtls/sha1.h>
+#include <mbedtls/base64.h>
 
 //#include "../../include/petscii.h"
 #include "../../include/debug.h"
@@ -67,6 +69,31 @@ namespace mstr {
         return ch == '\xA0' || std::isspace(ch);
     }
 
+    // is OSX/Windows junk system file
+    bool isJunk(std::string &s)
+    {
+        std::vector<std::string> names = {
+            // OSX
+            "/._",
+            "/.DS_Store",
+            "/.fseventsd",
+            "/.Spotlight-V",
+            "/.TemporaryItems",
+            "/.Trashes",
+            "/.VolumeIcon.icns",
+
+            // Windows
+            "/Desktop.ini",
+            "/Thumbs.ini"
+        };
+
+        for (auto it = begin (names); it != end (names); ++it) {
+            if (contains(s, it->c_str()))
+                return true;
+        }
+        
+        return false;
+    }
 
 
     std::string drop(std::string str, size_t count) {
@@ -117,7 +144,7 @@ namespace mstr {
     /*
     * String Comparision
     */
-    bool compare_char(char &c1, char &c2)
+    bool compare_char(const char &c1, const char &c2)
     {
         if (c1 == c2)
             return true;
@@ -125,7 +152,7 @@ namespace mstr {
         return false;
     }
 
-    bool compare_char_insensitive(char &c1, char &c2)
+    bool compare_char_insensitive(const char &c1, const char &c2)
     {
         if (c1 == c2)
             return true;
@@ -164,7 +191,7 @@ namespace mstr {
     }
 
 
-    bool equals(std::string &s1, char *s2, bool case_sensitive)
+    bool equals(std::string &s1, const char *s2, bool case_sensitive)
     {
         if(case_sensitive)
             return ( (s1.size() == strlen(s2) ) &&
@@ -333,6 +360,12 @@ namespace mstr {
                         [](unsigned char c) { return ::isdigit(c); });
     }
 
+    bool isNumeric(char *s)
+    {
+        std::string s2 = s;
+        return isNumeric(s2);
+    }
+
     void replaceAll(std::string &s, const std::string &search, const std::string &replace) 
     {
         const size_t size = search.size();
@@ -489,6 +522,58 @@ namespace mstr {
         std::string result(buffer);
         delete[] buffer;
         return result;
+    }
+
+    std::string sha1(const std::string &s)
+    {
+        unsigned char hash[21] = { 0x00 };
+        mbedtls_sha1_context ctx;
+        mbedtls_sha1_init(&ctx);
+        int ret = 0;
+
+        #if defined(mbedtls_sha1_starts_ret) && defined(mbedtls_sha1_update_ret) && defined(mbedtls_sha1_finish_ret)
+        // Use the newer mbedtls API
+        if ((ret = mbedtls_sha1_starts_ret(&ctx)) != 0) {
+            Debug_printf("mbedtls_sha1_starts_ret failed with error code %d\n", ret);
+            mbedtls_sha1_free(&ctx);
+            return "";
+        }
+        if ((ret = mbedtls_sha1_update_ret(&ctx, (const unsigned char *)s.c_str(), s.length())) != 0) {
+            Debug_printf("mbedtls_sha1_update_ret failed with error code %d\n", ret);
+            mbedtls_sha1_free(&ctx);
+            return "";
+        }
+        if ((ret = mbedtls_sha1_finish_ret(&ctx, hash)) != 0) {
+            Debug_printf("mbedtls_sha1_finish_ret failed with error code %d\n", ret);
+            mbedtls_sha1_free(&ctx);
+            return "";
+        }
+        #else
+        // Use the legacy mbedtls API
+        if ((ret = mbedtls_sha1_starts(&ctx)) != 0) {
+            Debug_printf("mbedtls_sha1_starts failed with error code %d\n", ret);
+            mbedtls_sha1_free(&ctx);
+            return "";
+        }
+        if ((ret = mbedtls_sha1_update(&ctx, (const unsigned char *)s.c_str(), s.length())) != 0) {
+            Debug_printf("mbedtls_sha1_update failed with error code %d\n", ret);
+            mbedtls_sha1_free(&ctx);
+            return "";
+        }
+        if ((ret = mbedtls_sha1_finish(&ctx, hash)) != 0) {
+            Debug_printf("mbedtls_sha1_finish failed with error code %d\n", ret);
+            mbedtls_sha1_free(&ctx);
+            return "";
+        }
+        #endif
+        mbedtls_sha1_free(&ctx);
+        // These lines were commented in the original code
+        // unsigned char output[64];
+        // size_t outlen;
+        // mbedtls_base64_encode(output, 64, &outlen, hash, 20);
+        
+        std::string o(reinterpret_cast< char const* >(hash));
+        return toHex(o);
     }
 
     std::string urlDecode(const std::string& s)

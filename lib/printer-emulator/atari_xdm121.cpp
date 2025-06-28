@@ -220,6 +220,7 @@ void xdm121::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
                 break;
             case 12: // XDM Advances paper to next logical TOF (top of form)
                 pdf_end_page();
+                pdf_new_page();
                 // XMM
                 break;
             case 13: // XDM Carriage Return.

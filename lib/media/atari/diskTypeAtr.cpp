@@ -54,14 +54,14 @@ uint32_t MediaTypeATR::_sector_to_offset(uint16_t sectorNum)
 // Returns TRUE if an error condition occurred
 bool MediaTypeATR::read(uint16_t sectornum, uint16_t *readcount)
 {
-    Debug_printf("ATR READ %d / %d\r\n", sectornum, _disk_num_sectors);
+    Debug_printf("ATR READ %d / %lu\r\n", sectornum, _disk_num_sectors);
 
     *readcount = 0;
 
     // Return an error if we're trying to read beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::read sector %d > %d\r\n", sectornum, _disk_num_sectors);
+        Debug_printf("::read sector %d > %lu\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 
@@ -103,12 +103,12 @@ bool MediaTypeATR::write(uint16_t sectornum, bool verify)
     oldFileh = nullptr;
     hsFileh = nullptr;
 
-    Debug_printf("ATR WRITE %d / %d\r\n", sectornum, _disk_num_sectors);
+    Debug_printf("ATR WRITE %d / %lu\r\n", sectornum, _disk_num_sectors);
 
     // Return an error if we're trying to write beyond the end of the disk
     if (sectornum > _disk_num_sectors)
     {
-        Debug_printf("::write sector %d > %d\r\n", sectornum, _disk_num_sectors);
+        Debug_printf("::write sector %d > %lu\r\n", sectornum, _disk_num_sectors);
         return true;
     }
 
@@ -273,7 +273,7 @@ mediatype_t MediaTypeATR::mount(fnFile *f, uint32_t disksize)
     if (_high_score_sector > 0)
         Debug_printf("High Score Sector Specified: %u\r\n", _high_score_sector);
 
-    Debug_printf("mounted ATR: paragraphs=%d, sect_size=%d, sect_count=%d, disk_size=%d\r\n",
+    Debug_printf("mounted ATR: paragraphs=%lu, sect_size=%d, sect_count=%lu, disk_size=%lu\r\n",
                  num_paragraphs, num_bytes_sector, _disk_num_sectors, disksize);
 
     _disktype = MEDIATYPE_ATR;
@@ -327,7 +327,7 @@ bool MediaTypeATR::create(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
     atrHeader.secsizeL = LOBYTE_FROM_UINT16(sectorSize);
     atrHeader.secsizeH = HIBYTE_FROM_UINT16(sectorSize);
 
-    Debug_printf("Write header to ATR: sec_size=%d, sectors=%d, paragraphs=%d, bytes=%d\r\n",
+    Debug_printf("Write header to ATR: sec_size=%d, sectors=%d, paragraphs=%lu, bytes=%lu\r\n",
                  sectorSize, numSectors, num_paragraphs, total_size);
 
     uint32_t offset = fnio::fwrite(&atrHeader, 1, sizeof(atrHeader), f);

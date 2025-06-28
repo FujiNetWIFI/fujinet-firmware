@@ -526,14 +526,20 @@ void iwmNetwork::status()
 void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
 {
     uint8_t status_code = get_status_code(cmd); //(cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
-    current_network_unit = cmd.params[3];
+
+    // fujinet-lib (with unit-id support) sends the count of bytes for a status as 4 to cater for the network unit.
+    // Older code sends 3 as the count, so we can detect if the network unit byte is there or not.
+    if (cmd.count != 4) {
+        current_network_unit = 1;
+    } else {
+        current_network_unit = cmd.params[3];
+    }
 
 #ifdef DEBUG
     char as_char = (char) status_code;
     Debug_printf("\r\n[NETWORK] Device %02x Status Code %02x('%c') net_unit %02x\r\n", id(), status_code, isprint(as_char) ? as_char : '.', current_network_unit);
 #endif
 
-    if (current_network_unit == 0) current_network_unit = 1; // fallback version if it went wrong, or unset
     // auto& current_network_data = network_data_map[current_network_unit];
 
     switch (status_code)
@@ -674,14 +680,17 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
     bool error = false;
     uint16_t numbytes = get_numbytes(cmd);
 
-    // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
-    current_network_unit = cmd.params[4];
+    // fujinet-lib (with unit-id support) sends the count of bytes for a read as 5 to cater for the network unit.
+    // Older code sends 4 as the count, so we can detect if the network unit byte is there or not.
+    if (cmd.count != 5) {
+        current_network_unit = 1;
+    } else {
+        // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
+        current_network_unit = cmd.params[4];
+    }
+
     Debug_printf("\r\nDevice %02x Read %04x bytes, net_unit %02x\n", id(), numbytes, current_network_unit);
 
-    if (current_network_unit == 0) {
-        // backwards compatibility
-        current_network_unit = 1;
-    }
     auto& current_network_data = network_data_map[current_network_unit];
 
     data_len = 0;
@@ -720,16 +729,18 @@ void iwmNetwork::net_write()
 
 void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
 {
-    // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
-    current_network_unit = cmd.params[4];
-
     uint16_t num_bytes = get_numbytes(cmd);
-    Debug_printf("\r\nDevice %02x Write %04x bytes, net_unit %02x\n", id(), num_bytes, current_network_unit);
 
-    if (current_network_unit == 0) {
-        // backwards compatibility
+    // fujinet-lib (with unit-id support) sends the count of bytes for a write as 5 to cater for the network unit.
+    // Older code sends 4 as the count, so we can detect if the network unit byte is there or not.
+    if (cmd.count != 5) {
         current_network_unit = 1;
+    } else {
+        // in a network device, there is no "address" value, this is hijacked by fujinet-lib to pass the network unit in first byte
+        current_network_unit = cmd.params[4];
     }
+
+    Debug_printf("\r\nDevice %02x Write %04x bytes, net_unit %02x\n", id(), num_bytes, current_network_unit);
 
     auto& current_network_data = network_data_map[current_network_unit];
 
@@ -760,15 +771,20 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
     uint8_t err_result = SP_ERR_NOERROR;
 
     uint8_t control_code = get_status_code(cmd);
-    current_network_unit = cmd.params[3];
+
+    // fujinet-lib (with unit-id support) sends the count of bytes for a control as 4 to cater for the network unit.
+    // Older code sends 3 as the count, so we can detect if the network unit byte is there or not.
+    if (cmd.count != 4) {
+        current_network_unit = 1;
+    } else {
+        current_network_unit = cmd.params[3];
+    }
 
 #ifdef DEBUG
     char as_char = (char) control_code;
     Debug_printf("\r\nNet Device %02x Control Code %02x('%c') net_unit %02x", id(), control_code, isprint(as_char) ? as_char : '.', current_network_unit);
 #endif
 
-
-    if (current_network_unit == 0) current_network_unit = 1; // default to network unit 1 when unset (old code)
     auto& current_network_data = network_data_map[current_network_unit];
 
     IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);

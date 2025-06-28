@@ -1,11 +1,8 @@
 #ifdef DEV_RELAY_SLIP
 
-#include <iostream>
-#include <stdexcept>
-
 #include "Status.h"
 
-StatusRequest::StatusRequest(const uint8_t request_sequence_number, const uint8_t device_id, const uint8_t status_code, const uint8_t network_unit) : Request(request_sequence_number, CMD_STATUS, device_id), status_code_(status_code), network_unit_(network_unit)
+StatusRequest::StatusRequest(const uint8_t request_sequence_number, const uint8_t param_count, const uint8_t device_id, const uint8_t status_code, const uint8_t network_unit) : Request(request_sequence_number, CMD_STATUS, param_count, device_id), status_code_(status_code), network_unit_(network_unit)
 {
 }
 
@@ -14,10 +11,12 @@ std::vector<uint8_t> StatusRequest::serialize() const
 	std::vector<uint8_t> request_data;
 	request_data.push_back(this->get_request_sequence_number());
 	request_data.push_back(this->get_command_number());
+	request_data.push_back(this->get_param_count());
 	request_data.push_back(this->get_device_id());
+	request_data.resize(6);
 	request_data.push_back(this->get_status_code());
 	request_data.push_back(this->get_network_unit());
-
+	request_data.resize(11);
 	return request_data;
 }
 
@@ -25,8 +24,7 @@ std::unique_ptr<Response> StatusRequest::deserialize(const std::vector<uint8_t> 
 {
 	if (data.size() < 2)
 	{
-		std::cerr << "Not enough data to deserialize StatusResponse" << std::endl;
-        return nullptr;
+		throw std::runtime_error("Not enough data to deserialize StatusResponse");
 	}
 
 	auto response = std::make_unique<StatusResponse>(data[0], data[1]);

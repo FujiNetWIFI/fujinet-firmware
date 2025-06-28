@@ -39,6 +39,7 @@ enum fsType
     FSTYPE_TNFS,
     FSTYPE_SMB,
     FSTYPE_FTP,
+    FSTYPE_HTTP,
     FSTYPE_COUNT
 };
 
@@ -93,12 +94,12 @@ public:
 
     virtual FILE * file_open(const char* path, const char* mode = FILE_READ) = 0;
 #ifdef FNIO_IS_STDIO
-    virtual fnFile * fnfile_open(const char* path, const char* mode = FILE_READ) {
+    fnFile * fnfile_open(const char* path, const char* mode = FILE_READ) {
         return file_open(path, mode);
     }
 #else
     virtual FileHandler * filehandler_open(const char* path, const char* mode = FILE_READ) = 0;
-    virtual fnFile * fnfile_open(const char* path, const char* mode = FILE_READ) {
+    fnFile * fnfile_open(const char* path, const char* mode = FILE_READ) {
         return filehandler_open(path, mode);
     }
 #endif

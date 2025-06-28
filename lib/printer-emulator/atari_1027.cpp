@@ -39,6 +39,11 @@ void atari1027::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
         uscoreFlag = false;
     else if (c == 27)
         escMode = true;
+    else if (c == 12)
+    {
+        pdf_end_page();
+        pdf_new_page();
+    }
     else
     { // maybe printable character
         //printable characters for 1027 Standard Set + a few more >123 -- see mapping atari on ATASCII

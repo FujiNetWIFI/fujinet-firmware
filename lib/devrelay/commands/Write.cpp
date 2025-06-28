@@ -2,16 +2,19 @@
 
 #include "Write.h"
 
-WriteRequest::WriteRequest(const uint8_t request_sequence_number, const uint8_t device_id) : Request(request_sequence_number, CMD_WRITE, device_id), byte_count_(), address_() {}
+WriteRequest::WriteRequest(const uint8_t request_sequence_number, const uint8_t param_count, const uint8_t device_id) : Request(request_sequence_number, CMD_WRITE, param_count, device_id), byte_count_(), address_() {}
 
 std::vector<uint8_t> WriteRequest::serialize() const
 {
 	std::vector<uint8_t> request_data;
 	request_data.push_back(this->get_request_sequence_number());
 	request_data.push_back(this->get_command_number());
+	request_data.push_back(this->get_param_count());
 	request_data.push_back(this->get_device_id());
+	request_data.resize(6);
 	request_data.insert(request_data.end(), get_byte_count().begin(), get_byte_count().end());
 	request_data.insert(request_data.end(), get_address().begin(), get_address().end());
+	request_data.resize(11);
 	request_data.insert(request_data.end(), get_data().begin(), get_data().end());
 	return request_data;
 }

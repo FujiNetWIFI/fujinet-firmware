@@ -242,16 +242,22 @@ void rs232Modem::rs232_poll_1()
 // 0x26 / '&' - HANDLER DOWNLOAD
 void rs232Modem::rs232_send_firmware(uint8_t loadcommand)
 {
+#ifdef FIRMWARE_VARIABLE_IS_USED
     const char *firmware;
+#endif
     if (loadcommand == RS232_MODEMCMD_LOAD_RELOCATOR)
     {
+#ifdef FIRMWARE_VARIABLE_IS_USED
         firmware = FIRMWARE_850RELOCATOR;
+#endif
     }
     else
     {
         if (loadcommand == RS232_MODEMCMD_LOAD_HANDLER)
         {
+#ifdef FIRMWARE_VARIABLE_IS_USED
             firmware = FIRMWARE_850HANDLER;
+#endif
         }
         else
             return;
@@ -611,7 +617,7 @@ void rs232Modem::rs232_baudlock()
 {
     rs232_ack();
     baudLock = (cmdFrame.aux1 > 0 ? true : false);
-    modemBaud = rs232_get_aux();
+    modemBaud = rs232_get_aux16_lo();
 
     Debug_printf("baudLock: %d\n", baudLock);
 
@@ -1797,17 +1803,17 @@ void rs232Modem::shutdown()
 /*
   Process command
 */
-void rs232Modem::rs232_process(uint32_t commanddata, uint8_t checksum)
+void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     if (!Config.get_modem_enabled())
+    {
         Debug_println("rs232Modem::disabled, ignoring");
+    }
     else
     {
         Debug_println("rs232Modem::rs232_process() called");
 
+        cmdFrame = *cmd_ptr;
         switch (cmdFrame.comnd)
         {
         case RS232_MODEMCMD_LOAD_RELOCATOR:

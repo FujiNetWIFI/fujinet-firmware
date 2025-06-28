@@ -1,7 +1,6 @@
 #ifndef NETWORK_H
 #define NETWORK_H
 
-#include <driver/timer.h>
 #include <memory>
 #include <string>
 #include <vector>
@@ -131,7 +130,10 @@ public:
      * @param comanddata incoming 4 bytes containing command and aux bytes
      * @param checksum 8 bit checksum
      */
-    virtual void rs232_process(uint32_t commanddata, uint8_t checksum);
+    virtual void rs232_process(cmdFrame_t *cmd_ptr);
+
+    void rs232_seek();
+    void rs232_tell();
 
 private:
     /**

@@ -9,6 +9,7 @@
 #include "fnFsTNFS.h"
 #include "fnFsSMB.h"
 #include "fnFsFTP.h"
+#include "fnFsHTTP.h"
 
 #include "utils.h"
 
@@ -46,6 +47,7 @@ void fujiHost::set_type(fujiHostType type)
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
+    case HOSTTYPE_HTTP:
         cleanup();
         break;
     }
@@ -108,6 +110,7 @@ uint16_t fujiHost::dir_tell()
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
+    case HOSTTYPE_HTTP:
         result = _fs->dir_tell();
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -129,6 +132,7 @@ bool fujiHost::dir_seek(uint16_t pos)
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
+    case HOSTTYPE_HTTP:
         result = _fs->dir_seek(pos);
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -160,6 +164,7 @@ bool fujiHost::dir_open(const char *path, const char *pattern, uint16_t options)
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
+    case HOSTTYPE_HTTP:
         result = _fs->dir_open(realpath, pattern, options);
         break;
     case HOSTTYPE_UNINITIALIZED:
@@ -178,6 +183,7 @@ fsdir_entry_t *fujiHost::dir_nextfile()
     case HOSTTYPE_TNFS:
     case HOSTTYPE_SMB:
     case HOSTTYPE_FTP:
+    case HOSTTYPE_HTTP:
         return _fs->dir_read();
     case HOSTTYPE_UNINITIALIZED:
         break;
@@ -270,6 +276,13 @@ const char *fujiHost::get_hostname()
     return get_hostname(NULL, 0);
 }
 
+/* Returns pointer to current basepath
+*/
+const char *fujiHost::get_basepath()
+{
+    return _fs->basepath();
+}
+
 /* Returns pointer to current hostname and, if provided, fills buffer with that string
 */
 const char *fujiHost::get_prefix(char *buffer, size_t buffersize)
@@ -345,11 +358,11 @@ int fujiHost::mount_tnfs()
 
     if (_fs == nullptr)
     {
-        Debug_println("Couldn't create a new TNFSFS in fujiHost::mount_tnfs!");
+        Debug_println("Couldn't create a new FileSystemTNFS in fujiHost::mount_tnfs!");
     }
     else
     {
-        Debug_println("Calling TNFS::begin");
+        Debug_printf("Starting FileSystemTNFS(\"%s\")\n", _hostname);
         if (((FileSystemTNFS *)_fs)->start(_hostname))
         {
             return 0;
@@ -379,11 +392,11 @@ int fujiHost::mount_smb()
 
     if (_fs == nullptr)
     {
-        Debug_println("Couldn't create a new FsSMB in fujiHost::mount_smb!");
+        Debug_println("Couldn't create a new FileSystemSMB in fujiHost::mount_smb!");
     }
     else
     {
-        Debug_println("Calling SMB::begin");
+        Debug_printf("Starting FileSystemSMB(\"%s\")\n", _hostname);
         // ensure URL starts with lowercase 'smb'
         char url[MAX_HOSTNAME_LEN];
         strcpy(url, _hostname);
@@ -409,7 +422,7 @@ int fujiHost::mount_ftp()
     {
         if (_fs != nullptr && _fs->running())
         {
-            Debug_printf("::mount_ftp Currently connected to share \"%s\"\n", _hostname);
+            Debug_printf("::mount_ftp Currently connected to host \"%s\"\n", _hostname);
             return 0;
         }
     }
@@ -420,13 +433,48 @@ int fujiHost::mount_ftp()
 
     if (_fs == nullptr)
     {
-        Debug_println("Couldn't create a new FsFTP in fujiHost::mount_ftp!");
+        Debug_println("Couldn't create a new FileSystemFTP in fujiHost::mount_ftp!");
     }
     else
     {
-        Debug_println("Calling FTP::begin");
+        Debug_printf("Starting FileSystemFTP(\"%s\")\n", _hostname);
 
         if (((FileSystemFTP *)_fs)->start(_hostname))
+        {
+            return 0;
+        }
+    }
+
+    return -1;
+}
+
+int fujiHost::mount_http()
+{
+    Debug_printf("::mount_http {%d:%d} \"%s\"\n", slotid, _type, _hostname);
+
+    // Don't do anything if that's already what's set
+    if (_type == HOSTTYPE_HTTP)
+    {
+        if (_fs != nullptr && _fs->running())
+        {
+            Debug_printf("::mount_http Currently connected to \"%s\"\n", _hostname);
+            return 0;
+        }
+    }
+    else
+        set_type(HOSTTYPE_HTTP); // Only start fresh if not HOSTTYPE_HTTP
+
+    _fs = new FileSystemHTTP;
+
+    if (_fs == nullptr)
+    {
+        Debug_println("Couldn't create a new FileSystemHTTP in fujiHost::mount_http!");
+    }
+    else
+    {
+        Debug_printf("Starting FileSystemHTTP(\"%s\")\n", _hostname);
+
+        if (((FileSystemHTTP *)_fs)->start(_hostname))
         {
             return 0;
         }
@@ -451,6 +499,9 @@ int fujiHost::unmount_fs()
 /* Returns true if successful
 *  We expect a valid devicename, currently:
 *  "SD" = local
+*  "smb://" = SMB share
+*  "ftp://" = FTP server
+*  "http://" or "https://" = Web server with file/dir-like access
 *  anything else = TNFS
 */
 bool fujiHost::mount()
@@ -472,14 +523,14 @@ bool fujiHost::mount()
     if (0 == strncasecmp("ftp://", _hostname, 6))
         return 0 == mount_ftp();
 
+    if (0 == strncasecmp("http://", _hostname, 7) || 0 == strncasecmp("https://", _hostname, 8))
+        return 0 == mount_http();
+
     // Try mounting TNFS last
     return 0 == mount_tnfs();
 }
 
 /* Returns true if successful
-*  We expect a valid devicename, currently:
-*  "SD" = local
-*  anything else = TNFS
 */
 bool fujiHost::umount()
 {
@@ -491,6 +542,6 @@ bool fujiHost::umount()
         return 0;
     }
 
-    // Try unmounting TNFS/SMB/FTP
+    // Try unmounting TNFS/SMB/FTP/HTTP/...
     return 0 == unmount_fs();
 }

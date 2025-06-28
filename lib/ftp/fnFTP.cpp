@@ -943,19 +943,19 @@ bool fnFTP::read_directory(string &name, long &filesize, bool &is_dir)
     if (line.empty())
         return true;
 
-    Debug_printf("fnFTP::read_directory - %s\r\n",line.c_str());
+    //Debug_printf("fnFTP::read_directory - %s\r\n",line.c_str());
     line = line.substr(0, line.size() - 1);
     ftpparse(&parse, (char *)line.c_str(), line.length());
     name = string(parse.name ? parse.name : "???");
     filesize = parse.size;
     is_dir = (parse.flagtrycwd == 1);
-    Debug_printf("Name: %s filesize: %lu\r\n", name.c_str(), filesize);
+    Debug_printf("Name: \"%s\" size: %lu\r\n", name.c_str(), filesize);
     return dirBuffer.eof();
 }
 
 bool fnFTP::read_file(uint8_t *buf, unsigned short len)
 {
-    Debug_printf("fnFTP::read_file(%p, %u)\r\n", buf, len);
+    //Debug_printf("fnFTP::read_file(%p, %u)\r\n", buf, len);
     if (!data->connected() && data->available() == 0)
     {
         Debug_printf("fnFTP::read_file(%p,%u) - data socket not connected, aborting.\r\n", buf, len);
@@ -966,7 +966,7 @@ bool fnFTP::read_file(uint8_t *buf, unsigned short len)
 
 bool fnFTP::write_file(uint8_t *buf, unsigned short len)
 {
-    Debug_printf("fnFTP::write_file(%p,%u)\r\n", buf, len);
+    //Debug_printf("fnFTP::write_file(%p,%u)\r\n", buf, len);
     if (!data->connected())
     {
         Debug_printf("fnFTP::write_file(%p,%u) - data socket not connected, aborting.\r\n", buf, len);

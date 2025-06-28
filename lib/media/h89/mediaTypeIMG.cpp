@@ -7,6 +7,10 @@
 #include <map>
 #include <utility>
 
+#ifdef ESP_PLATFORM
+#include <unistd.h>  // for fsync
+#endif
+
 #include "../../include/debug.h"
 
 // From https://github.com/wwarthen/RomWBW/blob/master/Source/CPM3/biosldr.z80
@@ -157,7 +161,7 @@ bool MediaTypeIMG::read(uint16_t sectornum, uint16_t *readcount)
     // Return an error if we're trying to read beyond the end of the disk
     if (sectornum > _media_num_sectors)
     {
-        Debug_printf("::read sector %d > %d\n", sectornum, _media_num_sectors);
+        Debug_printf("::read sector %u > %lu\n", sectornum, _media_num_sectors);
         return true;
     }
 
@@ -189,12 +193,12 @@ bool MediaTypeIMG::read(uint16_t sectornum, uint16_t *readcount)
 // Returns TRUE if an error condition occurred
 bool MediaTypeIMG::write(uint16_t sectornum, bool verify)
 {
-    Debug_printf("IMG WRITE %u of %u\n", sectornum, _media_num_sectors);
+    Debug_printf("IMG WRITE %u of %lu\n", sectornum, _media_num_sectors);
 
     // Return an error if we're trying to write beyond the end of the disk
     if (sectornum > _media_num_sectors)
     {
-        Debug_printf("::write sector %d > %d\n", sectornum, _media_num_sectors);
+        Debug_printf("::write sector %u > %lu\n", sectornum, _media_num_sectors);
         _media_controller_status=2;
         return true;
     }

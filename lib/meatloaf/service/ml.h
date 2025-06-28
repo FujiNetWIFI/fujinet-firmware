@@ -14,7 +14,7 @@
  * FS
  ********************************************************/
 
-class MLFileSystem: public MFileSystem
+class MLMFileSystem: public MFileSystem
 {
     MFile* getFile(std::string path) override {
         if ( path.size() == 0 )
@@ -26,11 +26,15 @@ class MLFileSystem: public MFileSystem
 
         //Debug_printv("url[%s]", urlParser.name.c_str());
         std::string ml_url = "https://api.meatloaf.cc/?" + urlParser->name;
+        if ( urlParser->query.size() > 0)
+            ml_url += "&" + urlParser->query;
+        if ( urlParser->fragment.size() > 0)
+            ml_url += "#" + urlParser->fragment;
         //Debug_printv("ml_url[%s]", ml_url.c_str());
         
         //Debug_printv("url[%s]", ml_url.c_str());
 
-        return new HttpFile(ml_url);
+        return new HTTPMFile(ml_url);
     }
 
     bool handles(std::string name) {
@@ -39,7 +43,7 @@ class MLFileSystem: public MFileSystem
     }
 
 public:
-    MLFileSystem(): MFileSystem("meatloaf") {};
+    MLMFileSystem(): MFileSystem("meatloaf") {};
 };
 
 

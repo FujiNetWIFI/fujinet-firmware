@@ -88,9 +88,25 @@ void rs232Fuji::rs232_status()
 {
     Debug_println("Fuji cmd: STATUS");
 
-    char ret[4] = {0};
+    if (cmdFrame.aux == STATUS_MOUNT_TIME)
+    {
+	// Return drive slot mount status: 0 if unmounted, otherwise time when mounted
+        time_t mount_status[MAX_DISK_DEVICES];
+	int idx;
 
-    bus_to_computer((uint8_t *)ret, sizeof(ret), false);
+
+	for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
+	    mount_status[idx] = _fnDisks[idx].disk_dev.mount_time;
+
+	bus_to_computer((uint8_t *) mount_status, sizeof(mount_status), false);
+    }
+    else
+    {
+	char ret[4] = {0};
+
+	Debug_printf("Status for what? %08lx\n", cmdFrame.aux);
+	bus_to_computer((uint8_t *)ret, sizeof(ret), false);
+    }
     return;
 }
 
@@ -272,13 +288,13 @@ void rs232Fuji::rs232_disk_image_mount()
         rs232_error();
         return;
     }
-    
+
     if (!_validate_host_slot(_fnDisks[deviceSlot].host_slot))
     {
         rs232_error();
         return;
     }
-    
+
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
     fujiHost &host = _fnHosts[disk.host_slot];
@@ -286,7 +302,7 @@ void rs232Fuji::rs232_disk_image_mount()
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                  disk.filename, disk.host_slot, flag, deviceSlot + 1);
 
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
     if (disk.fileh == nullptr)
     {
@@ -322,8 +338,8 @@ void rs232Fuji::rs232_copy_file()
     std::string sourcePath;
     std::string destPath;
     uint8_t ck;
-    FILE *sourceFile;
-    FILE *destFile;
+    fnFile *sourceFile;
+    fnFile *destFile;
     char *dataBuf;
     unsigned char sourceSlot;
     unsigned char destSlot;
@@ -395,7 +411,7 @@ void rs232Fuji::rs232_copy_file()
     _fnHosts[destSlot].mount();
 
     // Open files...
-    sourceFile = _fnHosts[sourceSlot].file_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
+    sourceFile = _fnHosts[sourceSlot].fnfile_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "r");
 
     if (sourceFile == nullptr)
     {
@@ -404,12 +420,12 @@ void rs232Fuji::rs232_copy_file()
         return;
     }
 
-    destFile = _fnHosts[destSlot].file_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
+    destFile = _fnHosts[destSlot].fnfile_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "w");
 
     if (destFile == nullptr)
     {
         rs232_error();
-        fclose(sourceFile);
+        fnio::fclose(sourceFile);
         free(dataBuf);
         return;
     }
@@ -417,15 +433,15 @@ void rs232Fuji::rs232_copy_file()
     size_t count = 0;
     do
     {
-        count = fread(dataBuf, 1, 532, sourceFile);
-        fwrite(dataBuf, 1, count, destFile);
+        count = fnio::fread(dataBuf, 1, 532, sourceFile);
+        fnio::fwrite(dataBuf, 1, count, destFile);
     } while (count > 0);
 
     rs232_complete();
 
     // copyEnd:
-    fclose(sourceFile);
-    fclose(destFile);
+    fnio::fclose(sourceFile);
+    fnio::fclose(destFile);
     free(dataBuf);
 }
 
@@ -456,7 +472,7 @@ void rs232Fuji::mount_all()
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n",
                          disk.filename, disk.host_slot, flag, i + 1);
 
-            disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+            disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
 
             if (disk.fileh == nullptr)
             {
@@ -934,7 +950,7 @@ void rs232Fuji::rs232_set_directory_position()
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
 
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
-    uint16_t pos = UINT16_FROM_HILOBYTES(cmdFrame.aux2, cmdFrame.aux1);
+    uint16_t pos = rs232_get_aux16_lo();
 
     // Make sure we have a current open directory
     if (_current_open_directory_slot == -1)
@@ -1038,7 +1054,7 @@ void rs232Fuji::rs232_new_disk()
         return;
     }
 
-    disk.fileh = host.file_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "w");
     if (disk.fileh == nullptr)
     {
         Debug_printf("rs232_new_disk Couldn't open file for writing: \"%s\"\n", disk.filename);
@@ -1047,7 +1063,7 @@ void rs232Fuji::rs232_new_disk()
     }
 
     bool ok = disk.disk_dev.write_blank(disk.fileh, newDisk.sectorSize, newDisk.numSectors);
-    fclose(disk.fileh);
+    fnio::fclose(disk.fileh);
 
     if (ok == false)
     {
@@ -1369,7 +1385,7 @@ void rs232Fuji::rs232_get_device_filename()
 // Set an external clock rate in kHz defined by aux1/aux2, aux2 in steps of 2kHz.
 void rs232Fuji::rs232_set_rs232_external_clock()
 {
-    unsigned short speed = rs232_get_aux();
+    unsigned short speed = rs232_get_aux16_lo();
     int baudRate = speed * 1000;
 
     Debug_printf("rs232Fuji::rs232_set_external_clock(%u)\n", baudRate);
@@ -1389,23 +1405,27 @@ void rs232Fuji::rs232_set_rs232_external_clock()
 // Mounts the desired boot disk number
 void rs232Fuji::insert_boot_device(uint8_t d)
 {
-    const char *config_atr = "/autorun.atr";
-    const char *mount_all_atr = "/mount-and-boot.atr";
-    FILE *fBoot;
+    const char *config_atr = "/autorun.img";
+    const char *mount_all_atr = "/mount-and-boot.img";
+    fnFile *fBoot = nullptr;
+
+    Debug_printf("rs232Fuji::insert_boot_device(%u)\n",d);
 
     _bootDisk.unmount();
 
     switch (d)
     {
     case 0:
-        fBoot = fsFlash.file_open(config_atr);
-        _bootDisk.mount(fBoot, config_atr, 0);
+        fBoot = fsFlash.fnfile_open(config_atr);
+        _bootDisk.mount(fBoot, config_atr, 368640);
         break;
     case 1:
-        fBoot = fsFlash.file_open(mount_all_atr);
-        _bootDisk.mount(fBoot, mount_all_atr, 0);
+        fBoot = fsFlash.fnfile_open(mount_all_atr);
+        _bootDisk.mount(fBoot, mount_all_atr, 368640);
         break;
     }
+
+    Debug_printf("Mounted.\n");
 
     _bootDisk.is_config_device = true;
     _bootDisk.device_active = false;
@@ -1450,7 +1470,7 @@ void rs232Fuji::setup(systemBus *rs232bus)
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
-    
+
     //Disable status_wait if our settings say to turn it off
     status_wait_enabled = Config.get_general_status_wait_enabled();
 
@@ -1470,18 +1490,18 @@ rs232Disk *rs232Fuji::bootdisk()
 
 void rs232Fuji::rs232_test()
 {
+    uint8_t buf[512];
+
     Debug_printf("rs232_test()\n");
-    vTaskDelay(1);
-    rs232_complete();
+    memset(buf,'A',512);
+    bus_to_computer(buf,512,false);
 }
 
-void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
+void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    cmdFrame.commanddata = commanddata;
-    cmdFrame.checksum = checksum;
-
     Debug_println("rs232Fuji::rs232_process() called");
 
+    cmdFrame = *cmd_ptr;
     switch (cmdFrame.comnd)
     {
     case FUJICMD_STATUS:
@@ -1624,6 +1644,11 @@ void rs232Fuji::rs232_process(uint32_t commanddata, uint8_t checksum)
         rs232_ack();
         rs232_enable_udpstream();
         break;
+    case FUJICMD_DEVICE_READY:
+        Debug_printf("FUJICMD DEVICE TEST\n");
+        rs232_ack();
+        rs232_test();
+        break;
     default:
         rs232_nak();
     }
@@ -1637,6 +1662,14 @@ int rs232Fuji::get_disk_id(int drive_slot)
 std::string rs232Fuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
+}
+
+// Public method to update host in specific slot
+fujiHost *rs232Fuji::set_slot_hostname(int host_slot, char *hostname)
+{
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+    return &_fnHosts[host_slot];
 }
 
 #endif /* BUILD_RS232 */

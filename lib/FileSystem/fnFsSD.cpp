@@ -196,10 +196,7 @@ bool FileSystemSDFAT::dir_open(const char * path, const char * pattern, uint16_t
 	);
 	bool filter_dirs = have_pattern && pattern[strlen(pattern)-1] == '/';
 	if (filter_dirs) {
-		Debug_printf (
-			"FileSystemSDFAT::dir_open I am filtering directories.\n",
-			have_pattern ? "" : " do not"
-		);
+		Debug_printf ("FileSystemSDFAT::dir_open I am filtering directories.\n");
 		strlcpy (realpat, pattern, sizeof (realpat));
 		realpat[strlen(realpat)-1] = '\0';
 	}
@@ -390,14 +387,14 @@ FILE * FileSystemSDFAT::file_open(const char* path, const char* mode)
     FILE * result = fopen(fpath, mode);
     free(fpath);
     //Debug_printf("sdfileopen2: task hwm %u, %p\r\n", uxTaskGetStackHighWaterMark(NULL), pxTaskGetStackStart(NULL));
-    Debug_printf("fopen = %s : %s\r\n", path, result == nullptr ? "err" : "ok");
+    Debug_printf("fopen = %s %s : %s\r\n", path, mode, result == nullptr ? "err" : "ok");
     return result;
 }
 
 #ifndef FNIO_IS_STDIO
 FileHandler * FileSystemSDFAT::filehandler_open(const char* path, const char* mode)
 {
-    Debug_printf("FileSystemSDFAT::filehandler_open %s %s\r\n", path, mode);
+    //Debug_printf("FileSystemSDFAT::filehandler_open %s %s\r\n", path, mode);
     FILE * fh = file_open(path, mode);
     return (fh == nullptr) ? nullptr : new FileHandlerLocal(fh);
 }
@@ -443,6 +440,17 @@ bool FileSystemSDFAT::remove(const char* path)
     free(fpath);
     return (0 == result);
 #endif
+}
+
+long FileSystemSDFAT::mtime(const char *path)
+{
+    char * fpath = _make_fullpath(path);
+    struct stat st;
+    int i = stat(fpath, &st);
+    long res = (0 == i) ? st.st_mtime : -1;
+    //Debug_printf("FileSystemSDFAT::mtime returned %ld on \"%s\" (\"%s\")\r\n", res, path, fpath);
+    free(fpath);
+    return res;
 }
 
 /* Checks that path exists and creates if it doesn't including any parent directories
@@ -492,7 +500,7 @@ bool FileSystemSDFAT::create_path(const char *path)
                is (end - fullpath) + 2
             */
             strlcpy(segment, fullpath, end - fullpath + (done ? 2 : 1));
-            Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
+            //Debug_printf("Checking/creating directory: \"%s\"\r\n", segment);
 #ifdef ESP_PLATFORM
             if ( !exists(segment) )
             {
@@ -688,9 +696,6 @@ bool FileSystemSDFAT::start()
         Debug_printf("  partition type: %s\r\n", partition_type());
         Debug_printf("  partition size: %llu, used: %llu\r\n", total_bytes(), used_bytes());
     */
-
-        // Create SYSTEM DIR if it doesn't exist
-        //create_path( SYSTEM_DIR );
     }
     else 
     {

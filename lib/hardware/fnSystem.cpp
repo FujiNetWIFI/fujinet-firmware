@@ -11,7 +11,7 @@
 #if CONFIG_IDF_TARGET_ESP32S3
 # include <hal/gpio_ll.h>
 #else
-# include <driver/dac.h>
+//# include <driver/dac.h>
 #endif
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
@@ -21,7 +21,7 @@
 #include "esp_adc/adc_cali.h"
 #include "esp_adc/adc_cali_scheme.h"
 #define ADC_WIDTH_12Bit ADC_BITWIDTH_12
-#define ADC_ATTEN_11db ADC_ATTEN_DB_11
+#define ADC_ATTEN_11db ADC_ATTEN_DB_12
 #else
 #include <driver/adc.h>
 #include <esp_adc_cal.h>
@@ -108,12 +108,20 @@ static void card_detect_intr_task(void *arg)
     // Assert valid initial card status
     vTaskDelay(1);
     // Set card status before we enter the infinite loop
+#ifdef CARD_DETECT_HIGH
+    int card_detect_status = !gpio_get_level((gpio_num_t)(int)arg);
+#else
     int card_detect_status = gpio_get_level((gpio_num_t)(int)arg);
+#endif
 
     for (;;) {
         gpio_num_t gpio_num;
         if(xQueueReceive(card_detect_evt_queue, &gpio_num, portMAX_DELAY)) {
+#ifdef CARD_DETECT_HIGH
+            int level = !gpio_get_level(gpio_num);
+#else
             int level = gpio_get_level(gpio_num);
+#endif
             if (card_detect_status == level) {
                 printf("SD Card detect ignored (debounce)\r\n");
             }
@@ -367,7 +375,7 @@ void SystemManager::delay_microseconds(uint32_t us)
             LARGE_INTEGER freq;
             if (!QueryPerformanceFrequency (&freq))
             {
-                Debug_println("QueryPerformanceCounter failed");
+                Debug_println("QueryPerformanceFrequency failed");
                 // Cannot use QueryPerformanceCounter.
                 Sleep (us / 1000);
                 return;
@@ -637,10 +645,9 @@ int SystemManager::get_sio_voltage()
     }
 #else
     adc_oneshot_unit_handle_t adc1_handle;
-    adc_oneshot_unit_init_cfg_t init_config1 = {
-         .unit_id = ADC_UNIT_1,
-         .ulp_mode = ADC_ULP_MODE_DISABLE,
-    };
+    adc_oneshot_unit_init_cfg_t init_config1;
+    init_config1.unit_id = ADC_UNIT_1;
+    init_config1.ulp_mode = ADC_ULP_MODE_DISABLE;
 
     adc_oneshot_chan_cfg_t config = {
          .atten = ADC_ATTEN_11db,
@@ -662,11 +669,10 @@ int SystemManager::get_sio_voltage()
 #endif
 
 #if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
-    adc_cali_line_fitting_config_t cali_config = {
-       .unit_id = ADC_UNIT_1,
-       .atten = ADC_ATTEN_11db,
-       .bitwidth = ADC_WIDTH_12Bit,
-    };
+    adc_cali_line_fitting_config_t cali_config;
+    cali_config.unit_id = ADC_UNIT_1;
+    cali_config.atten = ADC_ATTEN_11db;
+    cali_config.bitwidth = ADC_WIDTH_12Bit;
     adc_cali_create_scheme_line_fitting(&cali_config, &adc_cali_handle);
 #endif
 
@@ -733,7 +739,7 @@ FILE *SystemManager::make_tempfile(FileSystem *fs, char *result_filename)
     else
         fname = buff;
 
-    sprintf(fname, "%08u", (unsigned)ms);
+    snprintf(fname, 9, "%08u", (unsigned)ms);
     return fs->file_open(fname, "wb+");
 }
 
@@ -1003,6 +1009,9 @@ const char *SystemManager::get_hardware_ver_str()
     case 1 :
         return "RS232 Prototype";
         break;
+    case 2 :
+        return "RS232 Rev1 ESP32S3";
+        break;
 #elif defined(BUILD_RC2014)
     /* RC2014 */
     case 1 :
@@ -1091,6 +1100,7 @@ void SystemManager::check_hardware_ver()
     */  
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT);
 #elif defined(BUILD_APPLE)
     /*  Apple II
         Check all the madness :zany_face:
@@ -1218,12 +1228,14 @@ void SystemManager::check_hardware_ver()
     a2no3state = true;
     Debug_printf("FujiApple NO3STATE force enabled\r\n");
 #   endif
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_MAC)
 /*  Mac 68k
     Only Rev0
 */
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_IEC)
     /*  Commodore
     */
@@ -1240,6 +1252,7 @@ void SystemManager::check_hardware_ver()
     /* No Safe Reset */
     _hardware_version = 3;
 #   endif
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_LYNX)
     /* Atari Lynx
     */
@@ -1249,11 +1262,19 @@ void SystemManager::check_hardware_ver()
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
 #   endif
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #elif defined(BUILD_RS232)
     /* RS232
     */
+#if CONFIG_IDF_TARGET_ESP32S3
+    _hardware_version = 2;
+    safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+#else
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
+#endif
 #elif defined(BUILD_RC2014)
     /* RC2014
     */
@@ -1264,6 +1285,7 @@ void SystemManager::check_hardware_ver()
     */
     _hardware_version = 1;
     safe_reset_gpio = PIN_BUTTON_C;
+    setup_card_detect((gpio_num_t)PIN_CARD_DETECT); // enable SD card detect
 #endif /* BUILD_COCO */
 
 #else
@@ -1287,7 +1309,7 @@ void SystemManager::debug_print_tasks()
     for (int i = 0; i < n; i++)
     {
         // Debug_printf("T%02d %p c%c (%2d,%2d) %4dh %10dr %8s: %s\r\n",
-        Debug_printf("T%02d %p (%2d,%2d) %4dh %10dr %8s: %s\r\n",
+        Debug_printf("T%02d %p (%2d,%2d) %4luh %10lur %8s: %s\r\n",
                      i + 1,
                      pTasks[i].xHandle,
                      //pTasks[i].xCoreID == tskNO_AFFINITY ? '_' : ('0' + pTasks[i].xCoreID),
@@ -1297,7 +1319,7 @@ void SystemManager::debug_print_tasks()
                      status[pTasks[i].eCurrentState],
                      pTasks[i].pcTaskName);
     }
-    Debug_printf("\nCPU MHz: %d\r\n", fnSystem.get_cpu_frequency());
+    Debug_printf("\nCPU MHz: %lu\r\n", fnSystem.get_cpu_frequency());
 #endif // ESP_PLATFORM
 #endif // DEBUG
 }

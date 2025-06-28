@@ -8,20 +8,20 @@
 
 FileHandlerMem::FileHandlerMem() : _buffer(nullptr), _size(0), _filesize(0), _position(0)
 {
-    Debug_println("new FileHandlerMem");
+//    Debug_println("new FileHandlerMem");
 };
 
 
 FileHandlerMem::~FileHandlerMem()
 {
-    Debug_println("delete FileHandlerMem");
+//    Debug_println("delete FileHandlerMem");
     free(_buffer);
 }
 
 
 int FileHandlerMem::close(bool destroy)
 {
-    Debug_println("FileHandlerMem::close");
+//    Debug_println("FileHandlerMem::close");
     int result = 0;
     if (destroy) delete this;
     return result;
@@ -30,7 +30,7 @@ int FileHandlerMem::close(bool destroy)
 
 int FileHandlerMem::seek(long int off, int whence)
 {
-    Debug_println("FileHandlerMem::seek");
+//    Debug_println("FileHandlerMem::seek");
     long int new_pos;
     switch (whence)
     {
@@ -61,21 +61,21 @@ int FileHandlerMem::seek(long int off, int whence)
         return -1;
 
     _position = new_pos;
-    Debug_printf("new pos is %lu\n", new_pos);
+//    Debug_printf("new pos is %lu\n", new_pos);
     return 0;
 }
 
 
 long int FileHandlerMem::tell()
 {
-    Debug_println("FileHandlerMem::tell");
+//    Debug_println("FileHandlerMem::tell");
     return _position;
 }
 
 
 size_t FileHandlerMem::read(void *ptr, size_t size, size_t count)
 {
-    Debug_println("FileHandlerMem::read");
+//    Debug_println("FileHandlerMem::read");
 
     size_t requested = size * count;
     size_t available = _filesize - _position;
@@ -93,7 +93,7 @@ size_t FileHandlerMem::read(void *ptr, size_t size, size_t count)
 
 size_t FileHandlerMem::write(const void *ptr, size_t size, size_t count)
 {
-    Debug_println("FileHandlerMem::write");
+//    Debug_println("FileHandlerMem::write");
 
     size_t requested = size * count;
     size_t available = _size - _position;
@@ -120,7 +120,7 @@ size_t FileHandlerMem::write(const void *ptr, size_t size, size_t count)
 
 int FileHandlerMem::flush()
 {
-    Debug_println("FileHandlerMem::flush");
+//    Debug_println("FileHandlerMem::flush");
     return 0;
 }
 
@@ -130,7 +130,7 @@ int FileHandlerMem::flush()
 int FileHandlerMem::grow(long filesize)
 {
     long bufsize = 1024 * ((filesize + 1023) / 1024);
-    Debug_printf("FileHandlerMem::grow - file size / buffer size: %ld / %ld\n", filesize, bufsize > _size ? bufsize : _size);
+//    Debug_printf("FileHandlerMem::grow - file size / buffer size: %ld / %ld\n", filesize, bufsize > _size ? bufsize : _size);
     // grow buffer, if needed
     if (bufsize > _size)
     {
@@ -140,7 +140,11 @@ int FileHandlerMem::grow(long filesize)
             errno = EFBIG;
             return -1;
         }
+#ifdef ESP_PLATFORM
+        void *new_buf = heap_caps_realloc(_buffer, bufsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
         void *new_buf = realloc(_buffer, bufsize);
+#endif
         if (new_buf == nullptr) 
         {
             Debug_println("FileHandlerMem::grow - failed to reallocate buffer");

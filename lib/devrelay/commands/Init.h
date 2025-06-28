@@ -9,7 +9,7 @@
 class InitRequest : public Request
 {
 public:
-	InitRequest(uint8_t request_sequence_number, uint8_t device_id);
+	InitRequest(uint8_t request_sequence_number, uint8_t param_count, uint8_t device_id);
 	std::vector<uint8_t> serialize() const override;
 	std::unique_ptr<Response> deserialize(const std::vector<uint8_t> &data) const override;
 	void create_command(uint8_t* output_data) const override;

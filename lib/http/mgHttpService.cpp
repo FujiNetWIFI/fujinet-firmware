@@ -3,11 +3,10 @@
  */
 
 #ifndef ESP_PLATFORM
-
 #include <sstream>
 #include <vector>
 #include <map>
-
+#include <algorithm>
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -17,6 +16,7 @@
 #include "printer.h"
 #include "fuji.h"
 
+#include "mongoose.h"
 #include "httpService.h"
 #include "httpServiceConfigurator.h"
 #include "httpServiceParser.h"
@@ -149,7 +149,10 @@ void fnHttpService::send_file_parsed(struct mg_connection *c, const char *filena
         }
         else
         {
-            fread(buf, 1, sz, fInput);
+            size_t bytes_read = fread(buf, 1, sz - 1, fInput); // sz - 1 because we added 1 for null terminator
+            if (bytes_read < (sz - 1)) {
+                Debug_printf("Warning: Only read %u of %u bytes from file\n", (unsigned)bytes_read, (unsigned)(sz - 1));
+            }
             string contents(buf);
             free(buf);
             contents = fnHttpServiceParser::parse_contents(contents);
@@ -391,7 +394,7 @@ int fnHttpService::get_handler_browse(mg_connection *c, mg_http_message *hm)
     {
         mg_http_reply(c, 403, "", "Bad browse request\n");
     }
-    
+
     return 0;
 }
 
@@ -411,7 +414,7 @@ int fnHttpService::get_handler_mount(mg_connection *c, mg_http_message *hm)
     {
         // Mount all the things
         Debug_printf("Mount all from webui\n");
-#ifdef BUILD_ATARI        
+#ifdef BUILD_ATARI
         theFuji.mount_all(false);
 #else
         theFuji.mount_all();
@@ -436,7 +439,7 @@ int fnHttpService::get_handler_eject(mg_connection *c, mg_http_message *hm)
     else
     {
 #ifdef BUILD_APPLE
-        if(theFuji.get_disks(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted. 
+        if(theFuji.get_disks(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted.
             theFuji.get_disks(ds)->disk_dev.switched = true;
 #endif
         theFuji.get_disks(ds)->disk_dev.unmount();
@@ -480,6 +483,66 @@ int fnHttpService::get_handler_eject(mg_connection *c, mg_http_message *hm)
     else
     {
         send_file(c, "redirect_to_index.html");
+    }
+    return 0;
+}
+
+int fnHttpService::get_handler_hosts(mg_connection *c, mg_http_message *hm)
+{
+    std::string response = "";
+    for (int hs = 0; hs < 8; hs++) {
+        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+    }
+    mg_http_reply(c, 200, "", "%s", response.c_str());
+    return 0;
+}
+
+int fnHttpService::post_handler_hosts(mg_connection *c, mg_http_message *hm)
+{
+    char hostslot[2] = "";
+    mg_http_get_var(&hm->query, "hostslot", hostslot, sizeof(hostslot));
+    char hostname[256] = "";
+    mg_http_get_var(&hm->query, "hostname", hostname, sizeof(hostname));
+
+    theFuji.set_slot_hostname(atoi(hostslot), hostname);
+
+    std::string response = "";
+    for (int hs = 0; hs < 8; hs++) {
+        response += std::string(theFuji.get_hosts(hs)->get_hostname()) + "\n";
+    }
+    mg_http_reply(c, 200, "", "%s", response.c_str());
+    return 0;
+}
+
+std::string fnHttpService::shorten_url(std::string url)
+{
+    int id = shortURLs.size();
+    shortURLs.push_back(url);
+
+    std::string shortened = "http://" + fnSystem.Net.get_hostname() + ":8000/url/" + std::to_string(id);
+    Debug_printf("Short URL /url/%d registered for URL: %s\n", id, url.c_str());
+    return shortened;
+}
+
+int fnHttpService::get_handler_shorturl(mg_connection *c, mg_http_message *hm)
+{
+    // Strip the /url/ from the path
+    std::string id_str = std::string(hm->uri.ptr).substr(5, hm->uri.len-5);
+    Debug_printf("Short URL handler: %s\n", id_str.c_str());
+
+    if (!std::all_of(id_str.begin(), id_str.end(), ::isdigit)) {
+        mg_http_reply(c, 400, "", "Bad Request");
+        return 0;
+    }
+
+    int id = std::stoi(id_str);
+    if (id > fnHTTPD.shortURLs.size())
+    {
+        mg_http_reply(c, 404, "", "Not Found");
+    }
+    else
+    {
+        mg_printf(c, "HTTP/1.1 303 See Other\r\nLocation: %s\r\nContent-Length: 0\r\n\r\n", fnHTTPD.shortURLs[id].c_str());
     }
     return 0;
 }
@@ -558,7 +621,7 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
             // get "exit" query variable
             char exit[10] = "";
             mg_http_get_var(&hm->query, "exit", exit, sizeof(exit));
-            if (atoi(exit)) 
+            if (atoi(exit))
             {
                 mg_http_reply(c, 200, "", "{\"result\": %d}\n", 1); // send reply
                 fnSystem.reboot(500, false); // deferred exit with code 0
@@ -570,6 +633,16 @@ void fnHttpService::cb(struct mg_connection *c, int ev, void *ev_data)
                 // keep running for a while to transfer restart.html page
                 fnSystem.reboot(500, true); // deferred exit with code 75 -> should be started again
             }
+        }
+        else if (mg_http_match_uri(hm, "/hosts")) {
+            if (mg_vcasecmp(&hm->method, "POST") == 0)
+                post_handler_hosts(c, hm);
+            else
+                get_handler_hosts(c, hm);
+        }
+        else if (mg_http_match_uri(hm, "/url/*"))
+        {
+            get_handler_shorturl(c, hm);
         }
         else
         // default handler, serve static content of www firectory

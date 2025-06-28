@@ -211,7 +211,7 @@ std::string FNJSON::getValue(cJSON *item)
         {
             // yes, return as 64 bit integer
 #ifdef VERBOSE_PROTOCOL
-            Debug_printf("S: [cJSON_IsNumber INT] %d\r\n", (int64_t)num);
+            Debug_printf("S: [cJSON_IsNumber INT] %llu\r\n", (int64_t)num);
 #endif
             ss << (int64_t)num;
         }

@@ -42,7 +42,6 @@ namespace WebDav
     public:
         Response(httpd_req_t *httpd_req) {
             req = httpd_req;
-            setDavHeaders();
         }
         ~Response() {}
 
@@ -108,6 +107,7 @@ namespace WebDav
 
             //Debug_printv("status[%s]", status);
             httpd_resp_set_status(req, status);
+            setDavHeaders();
         }
 
         void setContentType(const char *ct)
@@ -141,9 +141,7 @@ namespace WebDav
 
         void closeBody()
         {
-            //Debug_printv("chunked[%d]", chunked);
-            //if (!chunked)
-                httpd_resp_send(req, "", 0);
+            httpd_resp_send(req, "", 0);
         }
 
 private:

@@ -2,10 +2,14 @@ name: "FujiNet Tagged Version Release"
 
 on:
   push:
-#    branches:
-#      - release
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name to use (e.g., v1.0.0)"
+        required: true
+        type: string
 
 jobs:
   tagged-release:
@@ -14,11 +18,14 @@ jobs:
     strategy:
       matrix:
         target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, COCO, IEC-LOLIN-D32, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX]
+    env:
+      TAG_NAME: ${{ github.event.inputs.tag || github.ref_name }}
 
     steps:
     - name: Checkout Source
       uses: actions/checkout@v4
       with:
+        ref: ${{ env.TAG_NAME }}
         fetch-depth: 0
 
     - name: Cache pip
@@ -85,7 +92,12 @@ jobs:
     - name: Rename firmware file if needed
       shell: bash
       run: |
-        mv firmware/fujinet-*.zip firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        shopt -s nullglob
+        dest="firmware/fujinet-${{ matrix.target-platform }}-${{ env.TAG_NAME }}.zip"
+        files=(firmware/fujinet-*.zip)
+        if [[ ! -f "$dest" && ${#files[@]} -gt 0 ]]; then
+          mv "${files[0]}" "$dest"
+        fi
 
     - name: Fetch Tag Info
       run: git fetch --tags --force
@@ -97,20 +109,19 @@ jobs:
     - name: Show Tag Annotation
       run: echo ${{ steps.tag-data.outputs.git-tag-annotation }}
 
-    # Grab tag message to use for platform release json description if available
     - name: Create JSON Description from Tag Annotation if Available
       if: ${{ steps.tag-data.outputs.git-tag-annotation != '' }}
       run: echo "${{ steps.tag-data.outputs.git-tag-annotation }}" > firmware/annotation.txt
 
     - name: Prepare platform release JSON
-      run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ github.ref_name }} ${{ github.repository_owner }}
+      run: .github/workflows/preprelease.sh ${{ matrix.target-platform }} ${{ env.TAG_NAME }} ${{ github.repository_owner }}
       shell: bash
 
     - name: Upload Release ZIP
       uses: actions/upload-artifact@v4
       with:
-        name: fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
-        path: firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+        name: fujinet-${{ matrix.target-platform }}-${{ env.TAG_NAME }}.zip
+        path: firmware/fujinet-${{ matrix.target-platform }}-${{ env.TAG_NAME }}.zip
 
     - name: Upload Releases JSON
       uses: actions/upload-artifact@v4
@@ -121,9 +132,9 @@ jobs:
     - name: Push Files to Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.ref_name }}
+        tag_name: ${{ env.TAG_NAME }}
         files: |
-          firmware/fujinet-${{ matrix.target-platform }}-${{ github.ref_name }}.zip
+          firmware/fujinet-${{ matrix.target-platform }}-${{ env.TAG_NAME }}.zip
           firmware/releases-${{ matrix.target-platform }}.json
 
     - name: Get Git Short SHA
@@ -131,28 +142,32 @@ jobs:
       run: |
         echo "SHORTSHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-    # Notify fujinet.online to add the new firmware to FujiNet-flasher
     - name: Notify FujiNet server
-      run: wget "https://fujinet.online/newfirmware.php?version=${{ github.ref_name }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.SHORTSHA }}"
+      run: wget "https://fujinet.online/newfirmware.php?version=${{ env.TAG_NAME }}&platform=${{ matrix.target-platform }}&githash=${{ steps.shortsha.outputs.SHORTSHA }}"
 
   push-changelog:
     name: "Push Change Log"
     needs: tagged-release
     runs-on: ubuntu-latest
+    env:
+      TAG_NAME: ${{ github.event.inputs.tag || github.ref_name }}
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Save commits to change log
         run: git log $(git describe --tags --abbrev=0 @^ 2> /dev/null)..@ --oneline > CHANGE.log
+
       - name: Upload Change Log
         uses: actions/upload-artifact@v4
         with:
           name: CHANGE.log
           path: CHANGE.log
+
       - name: Push Change log to Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ github.ref_name }}
+          tag_name: ${{ env.TAG_NAME }}
           files: CHANGE.log

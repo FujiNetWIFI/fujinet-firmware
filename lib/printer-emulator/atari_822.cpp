@@ -82,6 +82,12 @@ void atari822::pdf_handle_char(uint16_t c, uint8_t aux1, uint8_t aux2)
 
     // TODO: looks like auto wrapped lines are 1 dot apart and EOL lines are 3 dots apart
 
+    if (textMode && c == 12)
+    {
+        pdf_end_page();
+        pdf_new_page();
+    }
+
     // simple ASCII printer
     if (textMode && c > 31 && c < 127)
     {
