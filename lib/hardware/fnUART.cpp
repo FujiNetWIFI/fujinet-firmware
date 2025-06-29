@@ -111,7 +111,6 @@ void UARTManager::begin(int baud)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
 #endif /* BUILD_ADAM */
 
-#if 0
 #ifdef BUILD_COCO                   // do invert for coco builds
 #ifndef PINMAP_COCO_CART           // do not invert for coco carts
 #ifndef PINMAP_FOENIX_OS9_D32PRO  // do not invert for Foenix
@@ -120,7 +119,6 @@ void UARTManager::begin(int baud)
 #endif /* PINMAP_FOENIX_OS9_D32PRO */
 #endif /* PINMAP_COCO_CART */
 #endif /* BUILD_COCO */
-#endif
 
     // Arduino default buffer size is 256
     int uart_buffer_size = 256;

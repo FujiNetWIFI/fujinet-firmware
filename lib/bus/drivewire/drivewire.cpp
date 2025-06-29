@@ -675,7 +675,7 @@ void systemBus::setup()
     _drivewireBaud = Config.get_serial_baud();
 #endif
     fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // Becker
-    fnDwCom.set_drivewire_mode(0 && Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
+    fnDwCom.set_drivewire_mode(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
 
     fnDwCom.begin(_drivewireBaud);
     fnDwCom.flush_input();
