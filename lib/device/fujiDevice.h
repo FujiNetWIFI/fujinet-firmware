@@ -10,6 +10,7 @@
 #include "hash.h"
 
 #include <string>
+#include <optional>
 
 #define MAX_HOSTS MAX_HOST_SLOTS
 #define MAX_DISK_DEVICES MAX_MOUNT_SLOTS

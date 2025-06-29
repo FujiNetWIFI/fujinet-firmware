@@ -6,7 +6,7 @@
 
 #ifdef ESP_PLATFORM
 #ifndef CONFIG_IDF_TARGET_ESP32S3
-#include <driver/dac.h>
+#include <driver/dac_oneshot.h>
 #endif
 #endif
 

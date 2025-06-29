@@ -21,5 +21,8 @@ all:
 pc:
 	$(call builder, -p APPLE)
 
+pico-de-coco:
+	make -C pico/coco/build
+
 clean:
 	$(call builder, -c)

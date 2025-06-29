@@ -111,8 +111,8 @@ void systemBus::op_reset()
     Debug_printv("op_reset()");
 
     // When a reset transaction occurs, set the mounted disk image to the CONFIG disk image.
-    theFuji.boot_config = true;
-    theFuji.insert_boot_device(Config.get_general_boot_mode());
+    platformFuji.boot_config = true;
+    platformFuji.insert_boot_device(Config.get_general_boot_mode());
 }
 
 void systemBus::op_readex()
@@ -133,10 +133,10 @@ void systemBus::op_readex()
 
     Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
-    if (theFuji.boot_config && drive_num == 0)
-        d = theFuji.bootdisk();
+    if (platformFuji.boot_config && drive_num == 0)
+        d = platformFuji.bootdisk();
     else
-        d = &theFuji.get_disks(drive_num)->disk_dev;
+        d = &platformFuji.get_disks(drive_num)->disk_dev;
 
     if (!d)
     {
@@ -240,7 +240,7 @@ void systemBus::op_write()
 
     Debug_printf("OP_WRITE DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
-    d = &theFuji.get_disks(drive_num)->disk_dev;
+    d = &platformFuji.get_disks(drive_num)->disk_dev;
 
     if (!d)
     {
@@ -268,7 +268,7 @@ void systemBus::op_write()
 
 void systemBus::op_fuji()
 {
-    theFuji.process();
+    platformFuji.process();
 }
 
 void systemBus::op_cpm()

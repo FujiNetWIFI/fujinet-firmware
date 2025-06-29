@@ -151,6 +151,9 @@ protected:
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
+
+    // Unused, for compatibility with fujiDevice.cpp
+    uint8_t status_wait_count = 5;
     
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
@@ -170,6 +173,12 @@ public:
      * @brief Get the systemBus object that this virtualDevice is attached to.
      */
     systemBus get_bus();
+
+    int id() { return _devnum; };
+
+    // Unused, for compatibility with fujiDevice.cpp
+    bool readonly = false;  //write protected
+    bool switched = false; //indicate disk switched condition
 };
 
 enum drivewire_message : uint16_t
@@ -321,6 +330,11 @@ public:
 #ifdef ESP32_PLATFORM
     QueueHandle_t qDrivewireMessages = nullptr;
 #endif
+
+    // Unused, for compatibility with fujiDevice.cpp
+    void changeDeviceId(void *pDevice, int device_id);
+    void setUDPHost(const char *newhost, int port);
+    void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 };
 
 extern systemBus DRIVEWIRE;

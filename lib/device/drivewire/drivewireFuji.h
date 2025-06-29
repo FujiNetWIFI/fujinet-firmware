@@ -17,6 +17,7 @@
 
 #include "hash.h"
 
+#ifdef UNUSED
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 4
 #define MAX_NETWORK_DEVICES 8
@@ -82,6 +83,7 @@ struct appkey
     appkey_mode mode = APPKEYMODE_INVALID;
     uint8_t reserved = 0;
 } __attribute__((packed));
+#endif /* UNUSED */
 
 class drivewireFuji : public fujiDevice
 {
@@ -117,6 +119,11 @@ private:
     appkey _current_appkey;
 
 protected:
+    void transaction_complete() override {}
+    void transaction_error() override {}
+    bool transaction_get(void *data, size_t len) override {return false;}
+    void transaction_put(void *data, size_t len, bool err) override {}
+
     void reset_fujinet();          // 0xFF
     void net_get_ssid();           // 0xFE
     void net_scan_networks();      // 0xFD
@@ -145,10 +152,12 @@ protected:
     void set_host_prefix();        // 0xE1
     void get_host_prefix();        // 0xE0
     void set_drivewire_external_clock(); // 0xDF
+#ifdef NOT_SUBCLASS
     void write_app_key();          // 0xDE
     void read_app_key();           // 0xDD
     void open_app_key();           // 0xDC
     void close_app_key();          // 0xDB
+#endif /* NOT_SUBCLASS */
     void get_device_filename();    // 0xDA
     void set_boot_config();        // 0xD9
     void copy_file();              // 0xD8
@@ -210,6 +219,6 @@ public:
     drivewireFuji();
 };
 
-extern drivewireFuji theFuji;
+extern drivewireFuji platformFuji;
 
 #endif // DRIVEWIREFUJI_H
