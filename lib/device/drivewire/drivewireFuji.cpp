@@ -1,7 +1,12 @@
 #ifdef BUILD_COCO
 
 #include "drivewireFuji.h"
+#include "network.h"
+#include "fnWiFi.h"
+#include "base64.h"
+#include "utils.h"
 
+#ifdef UNUSED
 #ifdef ESP_PLATFORM
 #include <driver/ledc.h>
 #else
@@ -16,16 +21,15 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fsFlash.h"
-#include "fnWiFi.h"
 
 #include "led.h"
-#include "utils.h"
 #include "string_utils.h"
 
 #include "../../encoding/base64.h"
 #include "../../encoding/hash.h"
 
 #define ADDITIONAL_DETAILS_BYTES 13
+#endif /* UNUSED */
 
 drivewireFuji platformFuji;
 fujiDevice *theFuji = &platformFuji; // Global fuji object.
@@ -33,6 +37,7 @@ fujiDevice *theFuji = &platformFuji; // Global fuji object.
 // drivewireDisk drivewireDiskDevs[MAX_HOSTS];
 drivewireNetwork drivewireNetDevs[MAX_NETWORK_DEVICES];
 
+#ifdef NOT_SUBCLASS
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);
 bool _validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
 
@@ -69,6 +74,7 @@ bool _validate_device_slot(uint8_t slot, const char *dmsg)
 
     return false;
 }
+#endif /* NOT_SUBCLASS */
 
 /**
  * Say the numbers 1-8 using phonetic tweaks.
@@ -128,6 +134,7 @@ drivewireFuji::drivewireFuji()
         _fnHosts[i].slotid = i;
 }
 
+#ifdef NOT_SUBCLASS
 // Reset FujiNet
 void drivewireFuji::reset_fujinet()
 {
@@ -135,7 +142,9 @@ void drivewireFuji::reset_fujinet()
     // drivewire_complete();
     fnSystem.reboot();
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Scan for networks
 void drivewireFuji::net_scan_networks()
 {
@@ -156,7 +165,9 @@ void drivewireFuji::net_scan_networks()
     transaction_put(&_countScannedSSIDs, 1);
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Return scanned network entry
 void drivewireFuji::net_scan_result()
 {
@@ -196,7 +207,9 @@ void drivewireFuji::net_scan_result()
     transaction_put(&detail, sizeof(detail));
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 //  Get SSID
 void drivewireFuji::net_get_ssid()
 {
@@ -235,7 +248,9 @@ void drivewireFuji::net_get_ssid()
     transaction_put(&cfg, sizeof(cfg));
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Set SSID
 void drivewireFuji::net_set_ssid()
 {
@@ -273,7 +288,9 @@ void drivewireFuji::net_set_ssid()
         Config.save();
     }
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Get WiFi Status
 void drivewireFuji::net_get_wifi_status()
 {
@@ -291,7 +308,9 @@ void drivewireFuji::net_get_wifi_status()
     transaction_put(&wifiStatus, 1);
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Check if Wifi is enabled
 void drivewireFuji::net_get_wifi_enabled()
 {
@@ -310,7 +329,9 @@ void drivewireFuji::net_get_wifi_enabled()
     transaction_put(&e, 1);
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Mount Server
 void drivewireFuji::mount_host()
 {
@@ -320,7 +341,9 @@ void drivewireFuji::mount_host()
 
     _fnHosts[hostSlot].mount();
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Disk Image Mount
 void drivewireFuji::disk_image_mount()
 {
@@ -377,14 +400,18 @@ void drivewireFuji::disk_image_mount()
     // And now mount it
     disk.disk_type = disk.disk_dev.mount(disk.fileh, disk.filename, disk.disk_size);
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void drivewireFuji::set_boot_config()
 {
     // boot_config = cmdFrame.aux1;
     // drivewire_complete();
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Do DRIVEWIRE copy
 void drivewireFuji::copy_file()
 {
@@ -520,7 +547,9 @@ void drivewireFuji::copy_file()
     // fclose(destFile);
     // free(dataBuf);
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Mount all
 void drivewireFuji::mount_all()
 {
@@ -581,13 +610,16 @@ void drivewireFuji::mount_all()
     Debug_printf("drivewireFuji::mount_all() done.\n");
 
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Set boot mode
 void drivewireFuji::set_boot_mode()
 {
     insert_boot_device(fnDwCom.read());
     boot_config = true;
 }
+#endif /* NOT_SUBCLASS */
 
 #ifdef NOT_SUBCLASS
 char *_generate_appkey_filename(appkey *info)
@@ -776,6 +808,7 @@ void drivewireFuji::read_app_key()
 }
 #endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Disk Image Unmount
 void drivewireFuji::disk_image_umount()
 {
@@ -791,7 +824,9 @@ void drivewireFuji::disk_image_umount()
         _fnDisks[deviceSlot].reset();
     }
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Disk Image Rotate
 /*
   We rotate disks my changing their disk device ID's. That prevents
@@ -838,6 +873,7 @@ void drivewireFuji::image_rotate()
     //     }
     // }
 }
+#endif /* NOT_SUBCLASS */
 
 // This gets called when we're about to shutdown/reboot
 void drivewireFuji::shutdown()
@@ -846,6 +882,7 @@ void drivewireFuji::shutdown()
         _fnDisks[i].disk_dev.unmount();
 }
 
+#ifdef NOT_SUBCLASS
 void drivewireFuji::open_directory()
 {
     Debug_println("Fuji cmd: OPEN DIRECTORY");
@@ -897,6 +934,7 @@ void drivewireFuji::open_directory()
         }
     }
 }
+#endif /* NOT_SUBCLASS */
 
 #ifdef NOT_SUBCLASS
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
@@ -1005,6 +1043,7 @@ void drivewireFuji::read_directory_entry()
 #endif /* NOT_TRANSACTION */
 }
 
+#ifdef NOT_SUBCLASS
 void drivewireFuji::get_directory_position()
 {
     Debug_println("Fuji cmd: GET DIRECTORY POSITION");
@@ -1021,7 +1060,9 @@ void drivewireFuji::get_directory_position()
     transaction_complete();
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 void drivewireFuji::set_directory_position()
 {
     uint8_t h, l;
@@ -1047,7 +1088,9 @@ void drivewireFuji::set_directory_position()
         transaction_error();
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 void drivewireFuji::close_directory()
 {
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
@@ -1062,7 +1105,9 @@ void drivewireFuji::close_directory()
     transaction_complete();
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Get network adapter configuration
 void drivewireFuji::get_adapter_config()
 {
@@ -1100,6 +1145,7 @@ void drivewireFuji::get_adapter_config()
     transaction_put(&cfg, sizeof(cfg));
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
 // Get network adapter configuration - extended
 void drivewireFuji::get_adapter_config_extended()
@@ -1210,6 +1256,7 @@ void drivewireFuji::new_disk()
     fnio::fclose(disk.fileh);
 }
 
+#ifdef NOT_SUBCLASS
 // Unmount specified host
 void drivewireFuji::unmount_host()
 {
@@ -1231,7 +1278,9 @@ void drivewireFuji::unmount_host()
     // Unmount the host
     _fnHosts[hostSlot].unmount_success();
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Send host slot data to computer
 void drivewireFuji::read_host_slots()
 {
@@ -1253,7 +1302,9 @@ void drivewireFuji::read_host_slots()
     transaction_put(hostSlots, 256);
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Read and save host slot data from computer
 void drivewireFuji::write_host_slots()
 {
@@ -1272,7 +1323,9 @@ void drivewireFuji::write_host_slots()
     _populate_config_from_slots();
     Config.save();
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Send device slot data to computer
 void drivewireFuji::read_device_slots()
 {
@@ -1326,7 +1379,9 @@ void drivewireFuji::read_device_slots()
     transaction_put(&diskSlots, returnsize);
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Read and save disk slot data from computer
 void drivewireFuji::write_device_slots()
 {
@@ -1353,7 +1408,9 @@ void drivewireFuji::write_device_slots()
     _populate_config_from_slots();
     Config.save();
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Temporary(?) function while we move from old config storage to new
 void drivewireFuji::_populate_slots_from_config()
 {
@@ -1413,7 +1470,9 @@ void drivewireFuji::_populate_config_from_slots()
                                _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
     }
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Write a 256 byte filename to the device slot
 void drivewireFuji::set_device_filename()
 {
@@ -1449,7 +1508,9 @@ void drivewireFuji::set_device_filename()
 
     Config.save();
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Get a 256 byte filename from device slot
 void drivewireFuji::get_device_filename()
 {
@@ -1479,7 +1540,9 @@ void drivewireFuji::get_device_filename()
     transaction_put(tmp, MAX_FILENAME_LEN);
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Mounts the desired boot disk number
 void drivewireFuji::insert_boot_device(uint8_t d)
 {
@@ -1514,6 +1577,7 @@ void drivewireFuji::insert_boot_device(uint8_t d)
         _bootDisk.device_active = true;
     }
 }
+#endif /* NOT_SUBCLASS */
 
 void drivewireFuji::base64_encode_input()
 {
@@ -1872,9 +1936,9 @@ void drivewireFuji::setup(systemBus *drivewirebus)
     // set up Fuji device
     _drivewire_bus = drivewirebus;
 
-    _populate_slots_from_config();
+    populate_slots_from_config();
 
-    insert_boot_device(Config.get_general_boot_mode());
+    insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
 
     // Disable booting from CONFIG if our settings say to turn it off
     boot_config = Config.get_general_config_enabled();
@@ -1883,29 +1947,37 @@ void drivewireFuji::setup(systemBus *drivewirebus)
     status_wait_enabled = Config.get_general_status_wait_enabled();
 }
 
+#ifdef NOT_SUBCLASS
 drivewireDisk *drivewireFuji::bootdisk()
 {
     return &_bootDisk;
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 int drivewireFuji::get_disk_id(int drive_slot)
 {
     return drive_slot; // silly
     // return _fnDisks[drive_slot].disk_dev.id();
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 std::string drivewireFuji::get_host_prefix(int host_slot)
 {
     return _fnHosts[host_slot].get_prefix();
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 // Public method to update host in specific slot
 fujiHost *drivewireFuji::set_slot_hostname(int host_slot, char *hostname)
 {
     _fnHosts[host_slot].set_hostname(hostname);
-    _populate_config_from_slots();
+    populate_config_from_slots();
     return &_fnHosts[host_slot];
 }
+#endif /* NOT_SUBCLASS */
 
 void drivewireFuji::send_error()
 {
@@ -1948,76 +2020,91 @@ void drivewireFuji::process()
 {
     uint8_t c = fnDwCom.read();
 
+    errorCode = 1;
     switch (c)
     {
     case FUJICMD_SEND_ERROR:
         send_error();
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
-        get_adapter_config();
+        fujicmd_get_adapter_config();
         break;
     case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
         get_adapter_config_extended();
         break;
     case FUJICMD_GET_SCAN_RESULT:
-        net_scan_result();
+        fujicmd_net_scan_result(fnDwCom.read());
         break;
     case FUJICMD_SCAN_NETWORKS:
-        net_scan_networks();
+        fujicmd_net_scan_networks();
         break;
     case FUJICMD_SET_SSID:
-        net_set_ssid();
+        {
+            SSIDConfig cfg;
+            if (!transaction_get(&cfg, sizeof(cfg)))
+                transaction_error();
+            else
+                fujicmd_net_set_ssid_success(cfg.ssid, cfg.password, false);
+        }
         break;
     case FUJICMD_GET_SSID:
-        net_get_ssid();
+        fujicmd_net_get_ssid();
         break;
     case FUJICMD_READ_HOST_SLOTS:
-        read_host_slots();
+        fujicmd_read_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        read_device_slots();
+        fujicmd_read_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        write_device_slots();
+        fujicmd_write_device_slots(MAX_DISK_DEVICES);
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
-        write_host_slots();
+        fujicmd_write_host_slots();
         break;
     case FUJICMD_GET_WIFI_ENABLED:
-        net_get_wifi_enabled();
+        fujicmd_net_get_wifi_enabled();
         break;
     case FUJICMD_GET_WIFISTATUS:
-        net_get_wifi_status();
+        fujicmd_net_get_wifi_status();
         break;
     case FUJICMD_MOUNT_HOST:
-        mount_host();
+        fujicmd_mount_host_success(fnDwCom.read());
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        open_directory();
+        fnDwCom.readBytes((uint8_t *)&dirpath, sizeof(dirpath));
+        fujicmd_open_directory_success(fnDwCom.read(), dirpath, sizeof(dirpath));
         break;
     case FUJICMD_CLOSE_DIRECTORY:
-        close_directory();
+        fujicmd_close_directory();
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        read_directory_entry();
+        fujicmd_read_directory_entry(fnDwCom.read(), fnDwCom.read());
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
-        set_directory_position();
+        {
+            uint8_t h, l;
+            h = fnDwCom.read();
+            l = fnDwCom.read();
+            uint16_t pos = UINT16_FROM_HILOBYTES(h, l);
+            
+            fujicmd_set_directory_position(pos);
+        }
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        set_device_filename();
+        fujicmd_set_device_filename_success(fnDwCom.read(), fnDwCom.read(), fnDwCom.read());
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
-        get_device_filename();
+        fujicmd_get_device_filename(fnDwCom.read());
         break;
     case FUJICMD_MOUNT_IMAGE:
-        disk_image_mount();
+        fujicmd_disk_image_mount_success(fnDwCom.read(), fnDwCom.read());
         break;
     case FUJICMD_UNMOUNT_HOST:
-        unmount_host();
+        fujicmd_unmount_host_success(fnDwCom.read());
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        disk_image_umount();
+        fujicmd_disk_image_unmount_success(fnDwCom.read());
         break;
     case FUJICMD_NEW_DISK:
         new_disk();
@@ -2091,10 +2178,10 @@ void drivewireFuji::process()
         hash_clear();
         break;
     case FUJICMD_SET_BOOT_MODE:
-        set_boot_mode();
+        fujicmd_set_boot_mode(fnDwCom.read(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
     case FUJICMD_MOUNT_ALL:
-        mount_all();
+        fujicmd_mount_all_success();
         break;
     default:
         break;

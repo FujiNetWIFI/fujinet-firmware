@@ -3,87 +3,25 @@
 
 #include "fujiDevice.h"
 
+#ifdef UNUSED
 #include <cstdint>
 #include <cstring>
 #include <compat_string.h>
 #include "bus.h"
 #include "disk.h"
 #include "network.h"
+#endif /* UNUSED */
 #include "cassette.h"
 
+#ifdef UNUSED
 #include "fujiHost.h"
 #include "fujiDisk.h"
 #include "fujiCmd.h"
 
 #include "hash.h"
-
-#ifdef UNUSED
-#define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 4
-#define MAX_NETWORK_DEVICES 8
-
-#ifdef ESP32_PLATFORM
-#else
-#define ESP_OK  0
-#endif
-
-#define MAX_SSID_LEN 32
-#define MAX_WIFI_PASS_LEN 64
-
-#define MAX_APPKEY_LEN 64
-
-#define READ_DEVICE_SLOTS_DISKS1 0x00
-#define READ_DEVICE_SLOTS_TAPE 0x10
-
-typedef struct
-{
-    char ssid[33];
-    char hostname[64];
-    unsigned char localIP[4];
-    unsigned char gateway[4];
-    unsigned char netmask[4];
-    unsigned char dnsIP[4];
-    unsigned char macAddress[6];
-    unsigned char bssid[6];
-    char fn_version[15];
-} AdapterConfig;
-
-typedef struct
-{
-    char ssid[33];
-    char hostname[64];
-    unsigned char localIP[4];
-    unsigned char gateway[4];
-    unsigned char netmask[4];
-    unsigned char dnsIP[4];
-    unsigned char macAddress[6];
-    unsigned char bssid[6];
-    char fn_version[15];
-    char sLocalIP[16];
-    char sGateway[16];
-    char sNetmask[16];
-    char sDnsIP[16];
-    char sMacAddress[18];
-    char sBssid[18];
-} AdapterConfigExtended;
-
-enum appkey_mode : int8_t
-{
-    APPKEYMODE_INVALID = -1,
-    APPKEYMODE_READ = 0,
-    APPKEYMODE_WRITE,
-    APPKEYMODE_READ_256
-};
-
-struct appkey
-{
-    uint16_t creator = 0;
-    uint8_t app = 0;
-    uint8_t key = 0;
-    appkey_mode mode = APPKEYMODE_INVALID;
-    uint8_t reserved = 0;
-} __attribute__((packed));
 #endif /* UNUSED */
+
+#define IMAGE_EXTENSION ".dsk"
 
 class drivewireFuji : public fujiDevice
 {
@@ -110,8 +48,6 @@ private:
 
     int _current_open_directory_slot = -1;
 
-    drivewireDisk _bootDisk; // special disk drive just for configuration
-
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
 
     uint8_t _countScannedSSIDs = 0;
@@ -137,6 +73,7 @@ protected:
             transaction_error();
     }
 
+#ifdef NOT_SUBCLASS
     void reset_fujinet();          // 0xFF
     void net_get_ssid();           // 0xFE
     void net_scan_networks();      // 0xFD
@@ -156,7 +93,9 @@ protected:
     void net_get_wifi_enabled();   // 0xEA
     void disk_image_umount();      // 0xE9
     void get_adapter_config();     // 0xE8
+#endif /* NOT_SUBCLASS */
     void new_disk();               // 0xE7
+#ifdef NOT_SUBCLASS
     void unmount_host();           // 0xE6
     void get_directory_position(); // 0xE5
     void set_directory_position(); // 0xE4
@@ -165,16 +104,15 @@ protected:
     void set_host_prefix();        // 0xE1
     void get_host_prefix();        // 0xE0
     void set_drivewire_external_clock(); // 0xDF
-#ifdef NOT_SUBCLASS
     void write_app_key();          // 0xDE
     void read_app_key();           // 0xDD
     void open_app_key();           // 0xDC
     void close_app_key();          // 0xDB
-#endif /* NOT_SUBCLASS */
     void get_device_filename();    // 0xDA
     void set_boot_config();        // 0xD9
     void copy_file();              // 0xD8
     void set_boot_mode();          // 0xD6
+#endif /* NOT_SUBCLASS */
     void random();                 // 0xD3
     void base64_encode_input();    // 0xD0
     void base64_encode_compute();  // 0xCF
@@ -197,11 +135,11 @@ protected:
     void shutdown() override;
 
 public:
+    drivewireDisk bootdisk; // special disk drive just for configuration
+
     bool boot_config = true;
 
     bool status_wait_enabled = true;
-
-    drivewireDisk *bootdisk();
 
     drivewireNetwork *network();
 
@@ -210,10 +148,13 @@ public:
 #endif
     void debug_tape();
 
+#ifdef NOT_SUBCLASS
     void insert_boot_device(uint8_t d);
+#endif /* NOT_SUBCLASS */
 
     void setup(systemBus *drivewirebus);
 
+#ifdef NOT_SUBCLASS
     void image_rotate();
     int get_disk_id(int drive_slot);
     std::string get_host_prefix(int host_slot);
@@ -224,10 +165,13 @@ public:
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();
+#endif /* NOT_SUBCLASS */
 
     void process();
 
+#ifdef NOT_SUBCLASS
     void mount_all();              // 0xD7
+#endif /* NOT_SUBCLASS */
 
     drivewireFuji();
 };

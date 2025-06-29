@@ -13,6 +13,7 @@
 #include "modem.h"
 #include "cassette.h"
 #include "printer.h"
+#include "network.h"
 #include "drivewire/dload.h"
 #include "../../lib/device/drivewire/cpm.h"
 
@@ -112,7 +113,7 @@ void systemBus::op_reset()
 
     // When a reset transaction occurs, set the mounted disk image to the CONFIG disk image.
     platformFuji.boot_config = true;
-    platformFuji.insert_boot_device(Config.get_general_boot_mode());
+    platformFuji.insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &platformFuji.bootdisk);
 }
 
 void systemBus::op_readex()
@@ -134,9 +135,9 @@ void systemBus::op_readex()
     Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
     if (platformFuji.boot_config && drive_num == 0)
-        d = platformFuji.bootdisk();
+        d = &platformFuji.bootdisk;
     else
-        d = &platformFuji.get_disks(drive_num)->disk_dev;
+        d = &platformFuji.get_disk(drive_num)->disk_dev;
 
     if (!d)
     {
@@ -240,7 +241,7 @@ void systemBus::op_write()
 
     Debug_printf("OP_WRITE DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
-    d = &platformFuji.get_disks(drive_num)->disk_dev;
+    d = &platformFuji.get_disk(drive_num)->disk_dev;
 
     if (!d)
     {

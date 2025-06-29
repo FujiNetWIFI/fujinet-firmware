@@ -119,9 +119,6 @@ protected:
     bool validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
     bool validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
 
-    void insert_boot_device(uint8_t image_id, std::string extension,
-                            mediatype_t disk_type, DEVICE_TYPE *disk_dev);
-
 public:
     bool boot_config = true;
     DEVICE_TYPE bootdisk; // special disk drive just for configuration
@@ -210,6 +207,10 @@ public:
     
     // Should be protected but directly accessed by sio.cpp
     bool status_wait_enabled = true;
+
+    // Should be protected but being called by drivewire.cpp
+    void insert_boot_device(uint8_t image_id, std::string extension,
+                            mediatype_t disk_type, DEVICE_TYPE *disk_dev);
 };
 
 extern fujiDevice *theFuji;
