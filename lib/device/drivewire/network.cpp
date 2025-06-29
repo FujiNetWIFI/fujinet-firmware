@@ -857,7 +857,6 @@ void drivewireNetwork::special_40()
 void drivewireNetwork::special_80()
 {
     uint8_t spData[SPECIAL_BUFFER_SIZE];
-    int i=0;
 
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
