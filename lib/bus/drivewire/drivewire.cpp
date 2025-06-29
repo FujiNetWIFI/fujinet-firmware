@@ -60,11 +60,11 @@ inline uint16_t drivewire_checksum(uint8_t *buf, unsigned short len)
     return chk;
 }
 
+#ifdef ENABLE_DRIVEWIRE_INTR_TASK
 #ifdef ESP_PLATFORM
 static void drivewire_intr_task(void *arg)
 {
     uint32_t gpio_num;
-    int64_t d;
 
     systemBus *bus = (systemBus *)arg;
 
@@ -87,7 +87,8 @@ static void drivewire_intr_task(void *arg)
         vTaskDelay(10 / portTICK_PERIOD_MS); // avoid spinning too fast...
     }
 }
-#endif
+#endif /* ESP_PLATFORM */
+#endif /* ENABLE_DRIVEWIRE_INTR_TASK */
 
 // Helper functions outside the class defintions
 
@@ -205,7 +206,7 @@ void systemBus::op_readex()
 void systemBus::op_write()
 {
     drivewireDisk *d = nullptr;
-    uint16_t c1 = 0, c2 = 0;
+    uint16_t c1 = 0;
 
     drive_num = fnDwCom.read();
 
@@ -226,7 +227,7 @@ void systemBus::op_write()
     c1 = fnDwCom.read();
     c1 |= fnDwCom.read() << 8;
 
-    c2 = drivewire_checksum(sector_data, MEDIA_BLOCK_SIZE);
+    drivewire_checksum(sector_data, MEDIA_BLOCK_SIZE);
 
     // if (c1 != c2)
     // {
@@ -427,9 +428,11 @@ void systemBus::op_serwrite()
 
 void systemBus::op_serwritem()
 {
-    unsigned char vchan = fnDwCom.read();
-    unsigned char byte = fnDwCom.read();
-    unsigned char count = fnDwCom.read();
+    unsigned char vchan, count;
+
+    vchan = fnDwCom.read();
+    fnDwCom.read(); // discard
+    count = fnDwCom.read();
     
     for (int i = 0; i < count; i++) {
         int byte = fnDwCom.read();
