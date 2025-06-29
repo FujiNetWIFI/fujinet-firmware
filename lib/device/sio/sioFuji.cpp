@@ -138,7 +138,7 @@ sioFuji::sioFuji()
 void sioFuji::sio_net_set_ssid()
 {
     SSIDConfig cfg;
-    if (!transaction_get((uint8_t *)&cfg, sizeof(cfg)))
+    if (!transaction_get(&cfg, sizeof(cfg)))
         transaction_error();
     else
         fujicmd_net_set_ssid(cfg.ssid, cfg.password, cmdFrame.aux1);
@@ -255,7 +255,7 @@ void sioFuji::sio_new_disk()
     } newDisk;
 
     // Ask for details on the new disk to create
-    if (!transaction_get((uint8_t *)&newDisk, sizeof(newDisk)))
+    if (!transaction_get(&newDisk, sizeof(newDisk)))
     {
         Debug_print("sio_new_disk Bad checksum\n");
         transaction_error();
@@ -590,7 +590,7 @@ void sioFuji::sio_base64_encode_output()
 void sioFuji::sio_random_number()
 {
     int r = rand();
-    transaction_put((uint8_t *)&r,sizeof(int),true);
+    transaction_put(&r,sizeof(int),true);
 }
 
 void sioFuji::sio_base64_decode_input()
@@ -717,7 +717,7 @@ void sioFuji::sio_hash_length()
     Debug_printf("FUJI: HASH LENGTH\n");
     uint16_t is_hex = sio_get_aux() == 1;
     uint8_t r = hasher.hash_length(algorithm, is_hex);
-    transaction_put((uint8_t *)&r, 1, false);
+    transaction_put(&r, 1, false);
 }
 
 void sioFuji::sio_hash_output()
