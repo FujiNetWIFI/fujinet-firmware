@@ -72,6 +72,7 @@
 #ifdef FN_USE_GPTIMER
 #include "driver/gptimer.h"
 #else /* !FN_USE_GPTIMER */
+#define CONFIG_GPTIMER_SUPPRESS_DEPRECATE_WARN 1
 #include "driver/timer.h"
 #endif /* FN_USE_GPTIMER */
 

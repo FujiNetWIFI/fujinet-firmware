@@ -130,7 +130,11 @@ void drivewireModem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
+#ifdef RESULT_CODE_USED
     // drivewire_send_int(resultCode);
+#else /* RESULT_CODE_USED */
+    (void) resultCode; // silence unused warning
+#endif /* RESULT_CODE_USED */
     // fnDwCom.write(ASCII_CR);
 }
 
