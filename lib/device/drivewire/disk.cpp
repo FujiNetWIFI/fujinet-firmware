@@ -9,9 +9,6 @@
 #include "drivewireFuji.h"
 #include "utils.h"
 
-// External ref to fuji object.
-extern drivewireFuji theFuji;
-
 drivewireDisk::drivewireDisk()
 {
     device_active = false;

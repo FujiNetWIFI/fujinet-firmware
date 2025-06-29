@@ -27,7 +27,8 @@
 
 #define ADDITIONAL_DETAILS_BYTES 13
 
-drivewireFuji theFuji; // global fuji device object
+drivewireFuji platformFuji;
+fujiDevice *theFuji = &platformFuji; // Global fuji object.
 
 // drivewireDisk drivewireDiskDevs[MAX_HOSTS];
 drivewireNetwork drivewireNetDevs[MAX_NETWORK_DEVICES];
@@ -552,6 +553,7 @@ void drivewireFuji::set_boot_mode()
     boot_config = true;
 }
 
+#ifdef NOT_SUBCLASS
 char *_generate_appkey_filename(appkey *info)
 {
     static char filenamebuf[30];
@@ -559,7 +561,9 @@ char *_generate_appkey_filename(appkey *info)
     snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
     return filenamebuf;
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 /*
  Opens an "app key".  This just sets the needed app key parameters (creator, app, key, mode)
  for the subsequent expected read/write command. We could've added this information as part
@@ -598,7 +602,9 @@ void drivewireFuji::open_app_key()
                 _current_appkey.creator, _current_appkey.app, _current_appkey.key, _current_appkey.mode,
                 _generate_appkey_filename(&_current_appkey));
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 /*
   The app key close operation is a placeholder in case we want to provide more robust file
   read/write operations. Currently, the file is closed immediately after the read or write operation.
@@ -610,7 +616,9 @@ void drivewireFuji::close_app_key()
     _current_appkey.mode = APPKEYMODE_INVALID;
     errorCode = 1;
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 /*
  Write an "app key" to SD (ONLY!) storage.
 */
@@ -671,7 +679,9 @@ void drivewireFuji::write_app_key()
     }
     errorCode = 1;
 }
+#endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 /*
  Read an "app key" from SD (ONLY!) storage
 */
@@ -720,6 +730,7 @@ void drivewireFuji::read_app_key()
 
     errorCode = 1;
 }
+#endif /* NOT_SUBCLASS */
 
 // Disk Image Unmount
 void drivewireFuji::disk_image_umount()
@@ -831,6 +842,7 @@ void drivewireFuji::open_directory()
     }
 }
 
+#ifdef NOT_SUBCLASS
 void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
 {
     // File modified date-time
@@ -872,6 +884,9 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
         Debug_printf("%02x ", dest[i]);
     Debug_printf("\n");
 }
+#else
+extern void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen);
+#endif /* NOT_SUBCLASS */
 
 char current_entry[256];
 
@@ -1116,7 +1131,7 @@ void drivewireFuji::unmount_host()
     }
 
     // Unmount the host
-    _fnHosts[hostSlot].umount();
+    _fnHosts[hostSlot].unmount_success();
 }
 
 // Send host slot data to computer
@@ -1777,16 +1792,21 @@ void drivewireFuji::process()
         ready();
         break;
     case FUJICMD_OPEN_APPKEY:
-        open_app_key();
+        fujicmd_open_app_key();
         break;
     case FUJICMD_CLOSE_APPKEY:
-        close_app_key();
+        fujicmd_close_app_key();
         break;
     case FUJICMD_READ_APPKEY:
-        read_app_key();
+        fujicmd_read_app_key();
         break;
     case FUJICMD_WRITE_APPKEY:
-        write_app_key();
+        {
+            uint8_t lenh = fnDwCom.read();
+            uint8_t lenl = fnDwCom.read();
+            uint16_t len = lenh << 8 | lenl;
+            fujicmd_write_app_key(len);
+        }
         break;
     case FUJICMD_RANDOM_NUMBER:
         random();
