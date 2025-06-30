@@ -982,6 +982,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 extern void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen);
 #endif /* NOT_SUBCLASS */
 
+#ifdef NOT_SUBCLASS
 char current_entry[256];
 
 void drivewireFuji::read_directory_entry()
@@ -1042,6 +1043,7 @@ void drivewireFuji::read_directory_entry()
     transaction_put(current_entry, maxlen);
 #endif /* NOT_TRANSACTION */
 }
+#endif /* NOT_SUBCLASS */
 
 #ifdef NOT_SUBCLASS
 void drivewireFuji::get_directory_position()
@@ -2020,7 +2022,7 @@ void drivewireFuji::process()
 {
     uint8_t c = fnDwCom.read();
 
-    errorCode = 1;
+    _errorCode = 1;
     switch (c)
     {
     case FUJICMD_SEND_ERROR:
@@ -2072,7 +2074,7 @@ void drivewireFuji::process()
         fujicmd_mount_host_success(fnDwCom.read());
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        fnDwCom.readBytes((uint8_t *)&dirpath, sizeof(dirpath));
+        transaction_get(dirpath, sizeof(dirpath));
         fujicmd_open_directory_success(fnDwCom.read(), dirpath, sizeof(dirpath));
         break;
     case FUJICMD_CLOSE_DIRECTORY:

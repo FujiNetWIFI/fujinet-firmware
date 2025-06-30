@@ -817,7 +817,10 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
     fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
     if (f == nullptr)
+    {
+        Debug_printv("No next entry");
         return std::string(2, char(0x7F));
+    }
 
     Debug_printf("::read_direntry \"%s\"\n", f->filename);
 
@@ -854,7 +857,7 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
 
 void fujiDevice::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 {
-    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
+    Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu) (addtl=%02x)\n", maxlen, addtl);
 
     char buffer[DIR_BLOCK_SIZE];
     auto current_entry = fujicore_read_directory_entry(maxlen, addtl);
