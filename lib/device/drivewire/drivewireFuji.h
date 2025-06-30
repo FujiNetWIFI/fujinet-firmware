@@ -124,8 +124,12 @@ protected:
         _response.clear();
         _response.shrink_to_fit();
     }
-    void transaction_error() override { _errorCode = 144; }
-    bool transaction_get(void *data, size_t len) override {return false;}
+    void transaction_error() override {
+        _errorCode = 144;
+    }
+    bool transaction_get(void *data, size_t len) override {
+        return fnDwCom.readBytes((uint8_t *) data, len) == len;
+    }
     void transaction_put(const void *data, size_t len, bool err=false) override {
         transaction_complete();
         _response.append((char *) data, len);
