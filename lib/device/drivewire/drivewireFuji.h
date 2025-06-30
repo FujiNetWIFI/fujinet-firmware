@@ -94,9 +94,9 @@ private:
 
     char dirpath[256];
 
-    std::string response;
+    std::string _response;
 
-    uint8_t errorCode;
+    uint8_t _errorCode;
 
     fujiHost _fnHosts[MAX_HOSTS];
 
@@ -119,10 +119,19 @@ private:
     appkey _current_appkey;
 
 protected:
-    void transaction_complete() override {}
-    void transaction_error() override {}
+    void transaction_complete() override {
+        _errorCode = 1;
+        _response.clear();
+        _response.shrink_to_fit();
+    }
+    void transaction_error() override { _errorCode = 144; }
     bool transaction_get(void *data, size_t len) override {return false;}
-    void transaction_put(void *data, size_t len, bool err) override {}
+    void transaction_put(const void *data, size_t len, bool err=false) override {
+        transaction_complete();
+        _response.append((char *) data, len);
+        if (err)
+            transaction_error();
+    }
 
     void reset_fujinet();          // 0xFF
     void net_get_ssid();           // 0xFE
