@@ -246,7 +246,11 @@ void drivewireFuji::net_set_ssid()
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes((uint8_t *)&cfg, sizeof(cfg));
+#else
+    transaction_get(&cfg, sizeof(cfg));
+#endif /* NOT_SUBCLASS */
 
     bool save = false; // for now don't save - to do save if connection was succesful
 
@@ -607,7 +611,11 @@ void drivewireFuji::open_app_key()
 {
     Debug_print("Fuji cmd: OPEN APPKEY\n");
 
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes((uint8_t *)&_current_appkey, sizeof(_current_appkey));
+#else
+    transaction_get(&_current_appkey, sizeof(_current_appkey));
+#endif /* NOT_SUBCLASS */
 
     // Endian swap
     uint16_t tmp = _current_appkey.creator;
@@ -663,7 +671,11 @@ void drivewireFuji::write_app_key()
 
     memset(value,0,sizeof(value));
 
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes(value, len);
+#else
+    transaction_get(value, len);
+#endif /* NOT_SUBCLASS */
 
     // Make sure we have valid app key information
     if (_current_appkey.creator == 0 || _current_appkey.mode != APPKEYMODE_WRITE)
@@ -846,7 +858,11 @@ void drivewireFuji::open_directory()
 
     uint8_t hostSlot = fnDwCom.read();
 
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes((uint8_t *)&dirpath, 256);
+#else
+    transaction_get(&dirpath, 256);
+#endif /* NOT_SUBCLASS */
 
     if (_current_open_directory_slot == -1)
     {
@@ -1143,7 +1159,11 @@ void drivewireFuji::new_disk()
         char filename[MAX_FILENAME_LEN]; // WIll set this to MAX_FILENAME_LEN, later.
     } newDisk;
 
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes((uint8_t *)&newDisk, sizeof(newDisk));
+#else
+    transaction_get(&newDisk, sizeof(newDisk));
+#endif /* NOT_SUBCLASS */
 
     Debug_printf("numDisks: %u\n",newDisk.numDisks);
     Debug_printf("hostSlot: %u\n",newDisk.hostSlot);
@@ -1240,7 +1260,11 @@ void drivewireFuji::write_host_slots()
     Debug_println("Fuji cmd: WRITE HOST SLOTS");
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes((uint8_t *)&hostSlots, sizeof(hostSlots));
+#else
+    transaction_get(&hostSlots, sizeof(hostSlots));
+#endif /* NOT_SUBCLASS */
 
     for (int i = 0; i < MAX_HOSTS; i++)
         _fnHosts[i].set_hostname(hostSlots[i]);
@@ -1315,7 +1339,11 @@ void drivewireFuji::write_device_slots()
         char filename[MAX_DISPLAY_FILENAME_LEN];
     } diskSlots[MAX_DISK_DEVICES];
 
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes((uint8_t *)&diskSlots, sizeof(diskSlots));
+#else
+    transaction_get(&diskSlots, sizeof(diskSlots));
+#endif /* NOT_SUBCLASS */
 
     // Load the data into our current device array
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
@@ -1397,7 +1425,11 @@ void drivewireFuji::set_device_filename()
     uint8_t host = fnDwCom.read();
     uint8_t mode = fnDwCom.read();
 
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes((uint8_t *)tmp, MAX_FILENAME_LEN);
+#else
+    transaction_get(tmp, MAX_FILENAME_LEN);
+#endif /* NOT_SUBCLASS */
 
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
@@ -1501,7 +1533,11 @@ void drivewireFuji::base64_encode_input()
     }
 
     std::vector<unsigned char> p(len);
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes(p.data(), len);
+#else
+    transaction_get(p.data(), len);
+#endif /* NOT_SUBCLASS */
     base64.base64_buffer += std::string((const char *)p.data(), len);
 #ifdef NOT_SUBCLASS
     errorCode = 1;
@@ -1608,7 +1644,11 @@ void drivewireFuji::base64_decode_input()
     }
 
     std::vector<unsigned char> p(len);
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes(p.data(), len);
+#else
+    transaction_get(p.data(), len);
+#endif /* NOT_SUBCLASS */
     base64.base64_buffer += std::string((const char *)p.data(), len);
 
 #ifdef NOT_SUBCLASS
@@ -1751,7 +1791,11 @@ void drivewireFuji::hash_input()
     }
 
     std::vector<uint8_t> p(len);
+#ifdef NOT_SUBCLASS
     fnDwCom.readBytes(p.data(), len);
+#else
+    transaction_get(p.data(), len);
+#endif /* NOT_SUBCLASS */
     hasher.add_data(p);
 #ifdef NOT_SUBCLASS
     errorCode = 1;
