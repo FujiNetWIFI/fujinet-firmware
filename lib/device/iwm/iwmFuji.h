@@ -129,7 +129,7 @@ public:
     // ============ Wrapped Fuji commands ============
     void fujicmd_reset() override;
     void fujicmd_close_directory() override;
-    void fujicmd_read_directory_entry(uint8_t maxlen, uint8_t addtl) override;
+    void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl) override;
 };
 
 extern iwmFuji platformFuji;
