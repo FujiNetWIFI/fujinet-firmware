@@ -113,7 +113,7 @@ protected:
     virtual void transaction_complete() = 0;
     virtual void transaction_error() = 0;
     virtual bool transaction_get(void *data, size_t len) = 0;
-    virtual void transaction_put(void *data, size_t len, bool err=false) = 0;
+    virtual void transaction_put(const void *data, size_t len, bool err=false) = 0;
 
     // ============ Validation of inputs ============
     bool validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
