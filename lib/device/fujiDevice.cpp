@@ -612,6 +612,8 @@ bool fujiDevice::fujicmd_open_directory_success(uint8_t hostSlot, char *dirpath,
         if (patternlen < 1)
             pattern = nullptr;
     }
+    if (!pattern)
+        pattern = "";
 
     // Remove trailing slash
     if (pathlen > 1 && dirpath[pathlen - 1] == '/')
@@ -817,10 +819,7 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
     fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
 
     if (f == nullptr)
-    {
-        Debug_printv("No next entry");
         return std::string(2, char(0x7F));
-    }
 
     Debug_printf("::read_direntry \"%s\"\n", f->filename);
 

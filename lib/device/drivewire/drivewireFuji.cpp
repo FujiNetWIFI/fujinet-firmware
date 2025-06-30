@@ -2074,8 +2074,11 @@ void drivewireFuji::process()
         fujicmd_mount_host_success(fnDwCom.read());
         break;
     case FUJICMD_OPEN_DIRECTORY:
-        transaction_get(dirpath, sizeof(dirpath));
-        fujicmd_open_directory_success(fnDwCom.read(), dirpath, sizeof(dirpath));
+        {
+            uint8_t hostSlot = fnDwCom.read();
+            transaction_get(dirpath, sizeof(dirpath));
+            fujicmd_open_directory_success(hostSlot, dirpath, sizeof(dirpath));
+        }
         break;
     case FUJICMD_CLOSE_DIRECTORY:
         fujicmd_close_directory();
