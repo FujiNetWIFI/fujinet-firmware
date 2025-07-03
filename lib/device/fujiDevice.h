@@ -171,7 +171,7 @@ public:
     void fujicmd_set_boot_config(bool enable);
     void fujicmd_set_boot_mode(uint8_t bootMode, std::string extension,
                                mediatype_t disk_type, DEVICE_TYPE *disk_dev);
-    void fujicmd_set_host_prefix(uint8_t hostSlot);
+    void fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix=nullptr);
     bool fujicmd_unmount_host_success(uint8_t hostSlot);
     void fujicmd_read_device_slots(uint8_t numDevices);
     void fujicmd_write_device_slots(uint8_t numDevices);

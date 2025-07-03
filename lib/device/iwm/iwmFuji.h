@@ -61,7 +61,7 @@ protected:
         memcpy((uint8_t *) data, data_buffer, len);
         return true;
     }
-    void transaction_put(void *data, size_t len, bool err) override {
+    void transaction_put(const void *data, size_t len, bool err) override {
         // Move into response.
         memcpy(data_buffer, data, len);
         data_len = len;

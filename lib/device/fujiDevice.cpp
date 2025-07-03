@@ -1265,14 +1265,18 @@ void fujiDevice::fujicmd_set_directory_position(uint16_t pos)
 }
 
 // Store host path prefix
-void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot)
+void fujiDevice::fujicmd_set_host_prefix(uint8_t hostSlot, const char *prefix)
 {
-    char prefix[MAX_HOST_PREFIX_LEN];
+    char buffer[MAX_HOST_PREFIX_LEN];
 
-    if (!transaction_get(prefix, MAX_FILENAME_LEN))
+    if (!prefix)
     {
-        transaction_error();
-        return;
+        if (!transaction_get(buffer, MAX_FILENAME_LEN))
+        {
+            transaction_error();
+            return;
+        }
+        prefix = buffer;
     }
 
     Debug_printf("Fuji cmd: SET HOST PREFIX %uh \"%s\"\n", hostSlot, prefix);
