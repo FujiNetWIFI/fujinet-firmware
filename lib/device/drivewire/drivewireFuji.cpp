@@ -1601,7 +1601,7 @@ void drivewireFuji::base64_encode_input()
 
     std::vector<unsigned char> p(len);
 #ifdef NOT_TRANSACTION
-    SYSTEM_BUS.readBytes(p.data(), len);
+    SYSTEM_BUS.read(p.data(), len);
 #else
     transaction_get(p.data(), len);
 #endif /* NOT_TRANSACTION */
@@ -1712,7 +1712,7 @@ void drivewireFuji::base64_decode_input()
 
     std::vector<unsigned char> p(len);
 #ifdef NOT_TRANSACTION
-    SYSTEM_BUS.readBytes(p.data(), len);
+    SYSTEM_BUS.read(p.data(), len);
 #else
     transaction_get(p.data(), len);
 #endif /* NOT_TRANSACTION */
@@ -1859,7 +1859,7 @@ void drivewireFuji::hash_input()
 
     std::vector<uint8_t> p(len);
 #ifdef NOT_TRANSACTION
-    SYSTEM_BUS.readBytes(p.data(), len);
+    SYSTEM_BUS.read(p.data(), len);
 #else
     transaction_get(p.data(), len);
 #endif /* NOT_TRANSACTION */
@@ -2188,6 +2188,12 @@ void drivewireFuji::process()
         break;
     case FUJICMD_MOUNT_ALL:
         fujicmd_mount_all_success();
+        break;
+    case FUJICMD_GET_HOST_PREFIX:
+        fujicmd_get_host_prefix(SYSTEM_BUS.read());
+        break;
+    case FUJICMD_SET_HOST_PREFIX:
+        fujicmd_set_host_prefix(SYSTEM_BUS.read());
         break;
     default:
         break;

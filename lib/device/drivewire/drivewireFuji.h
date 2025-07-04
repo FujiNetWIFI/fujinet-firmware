@@ -28,24 +28,29 @@ class drivewireFuji : public fujiDevice
 private:
     systemBus *_drivewire_bus = nullptr;
 
+#ifdef NOT_SUBCLASS
     bool wifiScanStarted = false;
 
     char dirpath[256];
+#endif /* NOT_SUBCLASS */
 
     std::string _response;
 
     uint8_t _errorCode;
 
+#ifdef NOT_SUBCLASS
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+#endif /* NOT_SUBCLASS */
 
 #ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
 #endif
 
+#ifdef NOT_SUBCLASS
     int _current_open_directory_slot = -1;
 
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
@@ -53,6 +58,7 @@ private:
     uint8_t _countScannedSSIDs = 0;
 
     appkey _current_appkey;
+#endif /* NOT_SUBCLASS */
 
 protected:
     void transaction_complete() override {
@@ -135,11 +141,13 @@ protected:
     void shutdown() override;
 
 public:
+#ifdef NOT_SUBCLASS
     drivewireDisk bootdisk; // special disk drive just for configuration
 
     bool boot_config = true;
 
     bool status_wait_enabled = true;
+#endif /* NOT_SUBCLASS */
 
     drivewireNetwork *network();
 
