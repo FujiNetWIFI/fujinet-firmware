@@ -1,3 +1,20 @@
+// Meatloaf - A Commodore 64/128 multi-device emulator
+// https://github.com/idolpx/meatloaf
+// Copyright(C) 2020 James Johnston
+//
+// Meatloaf is free software : you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Meatloaf is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Meatloaf. If not, see <http://www.gnu.org/licenses/>.
+
 #include "string_utils.h"
 
 #include <algorithm>
@@ -211,6 +228,12 @@ namespace mstr {
             it = ( std::search(s1.begin(), s1.end(), sn.begin(), sn.end(), &compare_char_insensitive) );
 
         return ( it != s1.end() );
+    }
+
+    bool contains(const char *s1, const char *s2, bool case_sensitive)
+    {
+        std::string ss1 = s1;
+        return contains(ss1, s2, case_sensitive);
     }
 
     bool compare(std::string &s1, std::string &s2, bool case_sensitive)
@@ -432,7 +455,11 @@ namespace mstr {
         }
         //Debug_printv("res[%s] length[%d] size[%d]", res.c_str(), res.length(), res.size());
 
-        return res.erase(res.length()-1,1);
+        //Debug_printv("res[%s] length[%d] size[%d]", res.c_str(), res.length(), res.size());
+        if ( res.length() > 1)
+            res.erase(res.length()-1);
+
+        return res;
     }
 
     std::string joinToString(std::vector<std::string> strings, std::string separator) {
@@ -527,46 +554,22 @@ namespace mstr {
     std::string sha1(const std::string &s)
     {
         unsigned char hash[21] = { 0x00 };
-        mbedtls_sha1_context ctx;
-        mbedtls_sha1_init(&ctx);
-        int ret = 0;
 
-        #if defined(mbedtls_sha1_starts_ret) && defined(mbedtls_sha1_update_ret) && defined(mbedtls_sha1_finish_ret)
+#if defined(mbedtls_sha1_ret)
         // Use the newer mbedtls API
-        if ((ret = mbedtls_sha1_starts_ret(&ctx)) != 0) {
-            Debug_printf("mbedtls_sha1_starts_ret failed with error code %d\n", ret);
-            mbedtls_sha1_free(&ctx);
+        int ret = mbedtls_sha1_ret((const unsigned char *)s.c_str(), s.length(), hash);
+        if (ret != 0) {
+            Debug_printf("mbedtls_sha1 failed with error code %d\n", ret);
             return "";
         }
-        if ((ret = mbedtls_sha1_update_ret(&ctx, (const unsigned char *)s.c_str(), s.length())) != 0) {
-            Debug_printf("mbedtls_sha1_update_ret failed with error code %d\n", ret);
-            mbedtls_sha1_free(&ctx);
-            return "";
-        }
-        if ((ret = mbedtls_sha1_finish_ret(&ctx, hash)) != 0) {
-            Debug_printf("mbedtls_sha1_finish_ret failed with error code %d\n", ret);
-            mbedtls_sha1_free(&ctx);
-            return "";
-        }
-        #else
+#else
         // Use the legacy mbedtls API
-        if ((ret = mbedtls_sha1_starts(&ctx)) != 0) {
-            Debug_printf("mbedtls_sha1_starts failed with error code %d\n", ret);
-            mbedtls_sha1_free(&ctx);
+        int ret = mbedtls_sha1((const unsigned char *)s.c_str(), s.length(), hash);
+        if (ret != 0) {
+            Debug_printf("mbedtls_sha1 failed with error code %d\n", ret);
             return "";
         }
-        if ((ret = mbedtls_sha1_update(&ctx, (const unsigned char *)s.c_str(), s.length())) != 0) {
-            Debug_printf("mbedtls_sha1_update failed with error code %d\n", ret);
-            mbedtls_sha1_free(&ctx);
-            return "";
-        }
-        if ((ret = mbedtls_sha1_finish(&ctx, hash)) != 0) {
-            Debug_printf("mbedtls_sha1_finish failed with error code %d\n", ret);
-            mbedtls_sha1_free(&ctx);
-            return "";
-        }
-        #endif
-        mbedtls_sha1_free(&ctx);
+#endif
         // These lines were commented in the original code
         // unsigned char output[64];
         // size_t outlen;
@@ -716,15 +719,15 @@ namespace mstr {
     {
         //Debug_printv("url[%s] path[%s]", url.c_str(), path.c_str());
         // drop last dir
-        // check if it isn't shorter than streamFile
+        // check if it isn't shorter than sourceFile
         // add plus
         int lastSlash = path.find_last_of('/');
         if ( lastSlash == path.size() - 1 ) {
             lastSlash = path.find_last_of('/', path.size() - 2);
         }
         std::string parent = mstr::dropLast(path, path.size() - lastSlash);
-        // if(parent.length()-streamFile->url.length()>1)
-        //     parent = streamFile->url;
+        // if(parent.length()-sourceFile->url.length()>1)
+        //     parent = sourceFile->url;
         return parent + "/" + plus;
     }
 
