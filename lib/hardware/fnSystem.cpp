@@ -645,7 +645,7 @@ int SystemManager::get_sio_voltage()
     }
 #else
     adc_oneshot_unit_handle_t adc1_handle;
-    adc_oneshot_unit_init_cfg_t init_config1;
+    adc_oneshot_unit_init_cfg_t init_config1 {};
     init_config1.unit_id = ADC_UNIT_1;
     init_config1.ulp_mode = ADC_ULP_MODE_DISABLE;
 
@@ -669,7 +669,7 @@ int SystemManager::get_sio_voltage()
 #endif
 
 #if ADC_CALI_SCHEME_LINE_FITTING_SUPPORTED
-    adc_cali_line_fitting_config_t cali_config;
+    adc_cali_line_fitting_config_t cali_config {};
     cali_config.unit_id = ADC_UNIT_1;
     cali_config.atten = ADC_ATTEN_11db;
     cali_config.bitwidth = ADC_WIDTH_12Bit;
