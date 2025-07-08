@@ -1,0 +1,30 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/usb_host_cdc_acm:
+    version: "2.1.0"
+    rules:
+      - if: 'target in ["esp32s3"]'
+  espressif/usb_host_vcp:
+    version: "1.0.0~5"
+    rules:
+      - if: 'target in ["esp32s3"]'
+  espressif/usb_host_msc:
+    version: "1.1.3"
+    rules:
+      - if: 'target in ["esp32s3"]'
+  espressif/usb_host_ch34x_vcp:
+    version: "2.1.0"
+    rules:
+      - if: 'target in ["esp32s3"]'
+  espressif/usb_host_cp210x_vcp:
+    version: "2.1.0"
+    rules:
+      - if: 'target in ["esp32s3"]'
+  espressif/usb_host_ftdi_vcp:
+    version: "2.0.0"
+    rules:
+      - if: 'target in ["esp32s3"]'
+  espressif/esp_modem_usb_dte:
+    version: "1.2.1"
+    rules:
+      - if: 'target in ["esp32s3"]'
