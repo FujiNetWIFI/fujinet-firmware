@@ -18,6 +18,7 @@ jobs:
   tagged-release:
     name: "PlatformIO CI"
     runs-on: "ubuntu-latest"
+
     strategy:
       matrix:
         target-platform: [ATARI, ATARI-esp32-s3-wroom-1-n16r8, ADAM, APPLE, IEC-LOLIN-D32, IEC-NUGGET, COCO]
@@ -72,3 +73,24 @@ jobs:
 
     - name: Build release
       run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -z -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
+
+    - name: Upload releases
+      if: ${{ github.event_name == 'pull_request' }}
+      uses: actions/upload-artifact@v4 
+      with: 
+        name: fujinet-${{ matrix.target-platform }}.zip
+        path: ./firmware/*.zip
+        compression-level: 0
+
+  link:
+    if: ${{ github.event_name == 'pull_request' }}
+    needs: tagged-release
+    runs-on: ubuntu-latest 
+
+    permissions: write-all
+        #contents: write # for commenting on your commit
+        #pull-requests: write # for commenting on your pr
+    steps:
+      - uses: beni69/artifact-link@v1
+        with:
+          token: ${{ github.token }}
