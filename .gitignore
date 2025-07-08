@@ -58,3 +58,6 @@ fujinet_releases/*
 *~
 *.orig
 *.rej
+
+# ignore managed components added by idf
+managed_components/
