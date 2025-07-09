@@ -70,17 +70,6 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[9] = MediaType::discover_mediatype(f->filename);
 }
 
-size_t read_file_into_vector(FILE* fIn, std::vector<uint8_t>& response_data, size_t size)
-{
-    response_data.resize(size + 2);
-    size_t bytes_read = fread(response_data.data() + 2, 1, size, fIn);
-
-    // Insert the size at the beginning of the vector
-    response_data[0] = static_cast<uint8_t>(bytes_read & 0xFF); // Low byte of the size
-    response_data[1] = static_cast<uint8_t>((bytes_read >> 8) & 0xFF); // High byte of the size
-    return bytes_read;
-}
-
 // Constructor
 fujiDevice::fujiDevice()
 {
@@ -1515,8 +1504,7 @@ void fujiDevice::fujicmd_write_app_key(uint16_t keylen)
     }
 
     int err;
-    int count = fujicore_write_app_key(std::vector<uint8_t>(value,
-                                                            value + sizeof(value)), &err);
+    int count = fujicore_write_app_key(std::vector<uint8_t>(value, value + keylen), &err);
     if (count < 0)
     {
         transaction_error();
@@ -1537,7 +1525,7 @@ void fujiDevice::fujicmd_write_app_key(uint16_t keylen)
 */
 std::optional<std::vector<uint8_t>> fujiDevice::fujicore_read_app_key()
 {
-    std::vector<uint8_t> response_data(MAX_APPKEY_LEN + 2);
+    std::vector<uint8_t> response_data(MAX_APPKEY_LEN);
 
     // Make sure we have an SD card mounted
     if (fnSDFAT.running() == false)
@@ -1563,7 +1551,8 @@ std::optional<std::vector<uint8_t>> fujiDevice::fujicore_read_app_key()
         return std::nullopt;
     }
 
-    size_t count = read_file_into_vector(fIn, response_data, MAX_APPKEY_LEN);
+    size_t count = fread(response_data.data(), 1, MAX_APPKEY_LEN, fIn);
+    response_data.resize(count);
     Debug_printf("Read %u bytes from input file\n", (unsigned)count);
     fclose(fIn);
 
