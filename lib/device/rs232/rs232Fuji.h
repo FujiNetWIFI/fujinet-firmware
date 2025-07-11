@@ -13,13 +13,13 @@ private:
 protected:
     void transaction_complete() override { rs232_complete(); }
     void transaction_error() override { rs232_error(); }
-    bool transaction_get(void *data, size_t len) {
+    bool transaction_get(void *data, size_t len) override {
         uint8_t ck = bus_to_peripheral((uint8_t *) data, len);
         if (rs232_checksum((uint8_t *) data, len) != ck)
             return false;
         return true;
     }
-    void transaction_put(void *data, size_t len, bool err) override {
+    void transaction_put(const void *data, size_t len, bool err) override {
         bus_to_computer((uint8_t *) data, len, err);
     }
 
