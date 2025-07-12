@@ -3,6 +3,10 @@
 #ifndef FNUART_H
 #define FNUART_H
 
+#ifdef FUJINET_OVER_USB
+#include "USBHostSerial.h"
+#endif // FUJINET_OVER_USB
+
 #ifdef ESP_PLATFORM
 #  include <driver/uart.h>
 #  define FN_UART_DEBUG   UART_NUM_0
@@ -160,9 +164,15 @@ public:
   // Serial "debug port" for FN-ESP (not available on FN-PC)
   extern UARTManager fnUartDebug;
   // Serial "bus port" (CoCo uses fnDwCom - configurable serial or TCP (Becker) drivewire port)
+
+  #ifdef FUJINET_OVER_USB
+    extern USBHostSerial fnUartBUS;
+#else
   #ifndef BUILD_COCO
     extern UARTManager fnUartBUS;
   #endif
 #endif
+
+#endif /* ESP_PLATFORM */
 
 #endif //FNUART_H

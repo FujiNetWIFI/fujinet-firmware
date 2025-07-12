@@ -267,6 +267,13 @@ void systemBus::service()
         return; // break!
     }    
 
+    // Temp 
+    while (fnUartBUS.available())
+    {
+        Debug_printf("%c", fnUartBUS.read()); // Echo any data received on RS232
+    }
+
+#ifndef FUJINET_OVER_USB
     // Go process a command frame if the RS232 CMD line is asserted
     if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
     {
@@ -290,6 +297,7 @@ void systemBus::service()
         if (_netDev[i] != nullptr)
             _netDev[i]->rs232_poll_interrupt();
     }
+#endif // FUJINET_OVER_USB
 }
 
 // Setup RS232 bus
@@ -300,6 +308,7 @@ void systemBus::setup()
     // Set up UART
     fnUartBUS.begin(Config.get_rs232_baud());
 
+/*
     // // INT PIN
     // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
@@ -321,12 +330,12 @@ void systemBus::setup()
 
     fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
-    
+*/    
     // Create a message queue
     qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
 
     Debug_println("RS232 Setup Flush");
-    fnUartBUS.flush_input();
+    //fnUartBUS.flush_input();
 }
 
 // Add device to RS232 bus

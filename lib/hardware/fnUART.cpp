@@ -4,6 +4,7 @@
 
 
 #include "fnUART.h"
+#include "USBHostSerial.h"
 
 #include <soc/uart_reg.h>
 #include <hal/gpio_types.h>
@@ -25,7 +26,11 @@ UARTManager fnUartDebug(FN_UART_DEBUG);
 
 // Serial "bus port" (CoCo uses fnDwCom - configurable serial or TCP (Becker) drivewire port)
 #ifndef BUILD_COCO
-UARTManager fnUartBUS(FN_UART_BUS);
+    #ifdef FUJINET_OVER_USB
+    USBHostSerial fnUartBUS;
+    #else
+    UARTManager fnUartBUS(FN_UART_BUS);
+    #endif // FUJINET_OVER_USB
 #endif
 
 // Constructor

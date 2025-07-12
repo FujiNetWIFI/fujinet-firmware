@@ -49,7 +49,7 @@ Console console;
 #endif
 
 #ifdef FUJINET_OVER_USB
-#include "fnUSBHost.h"
+#include "USBHostSerial.h"
 #endif
 
 // fnSystem is declared and defined in fnSystem.h/cpp
@@ -106,7 +106,6 @@ void main_shutdown_handler()
 
 #ifdef FUJINET_OVER_USB
     Debug_println("Shutting down USB Host");
-    fnUSBHost.deinit();
 #endif
 
     SYSTEM_BUS.shutdown();
@@ -329,8 +328,9 @@ void main_setup(int argc, char *argv[])
 #ifdef BUILD_RS232
 
 #if FUJINET_OVER_USB
-    fnUSBHost.init();
+    // Just in case.
 #endif
+
     theFuji.setup(&RS232);
     RS232.setup();
     RS232.addDevice(&theFuji,0x70);
