@@ -105,7 +105,7 @@ iwmFuji::iwmFuji()
         { FUJICMD_DEVICE_ENABLE_STATUS, [this]()       { this->send_stat_get_enable(); }},                      // 0xD1
         { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() { this->fujicmd_get_adapter_config_extended(); }},      // 0xC4
         { FUJICMD_GET_ADAPTERCONFIG, [this]()          { this->fujicmd_get_adapter_config(); }},               // 0xE8
-        { FUJICMD_GET_DEVICE_FULLPATH, [this]()        { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xDA
+        { FUJICMD_GET_DEVICE_FULLPATH, [this]()        { this->fujicmd_get_device_filename(data_buffer[0]); }},   // 0xDA
         { FUJICMD_GET_DEVICE1_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA0
         { FUJICMD_GET_DEVICE2_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA1
         { FUJICMD_GET_DEVICE3_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA2
