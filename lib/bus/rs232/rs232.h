@@ -1,6 +1,8 @@
 #ifndef RS232_H
 #define RS232_H
 
+#include "SerialACM.h"
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -227,6 +229,15 @@ private:
     /* void _rs232_process_queue(); */
 
 public:
+    // FIXME - things should be calling the systemBus to use the bus,
+    //         not directly doing things behind its back
+    friend virtualDevice;
+#if FUJINET_OVER_USB
+    SerialACM fnUartBUS;
+#elif !defined(BUILD_COCO)
+    UARTManager fnUartBUS(FN_UART_BUS);
+#endif /* FUJINET_OVER_USB */
+
     void setup();
     void service();
     void shutdown();

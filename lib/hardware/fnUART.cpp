@@ -23,10 +23,12 @@
 // Serial "debug port"
 UARTManager fnUartDebug(FN_UART_DEBUG);
 
+#if 0
 // Serial "bus port" (CoCo uses fnDwCom - configurable serial or TCP (Becker) drivewire port)
 #ifndef BUILD_COCO
 UARTManager fnUartBUS(FN_UART_BUS);
 #endif
+#endif /* 0 */
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}

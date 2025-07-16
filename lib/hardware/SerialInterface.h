@@ -1,0 +1,55 @@
+#ifndef SERIALINTERFACE_H
+#define SERIALINTERFACE_H
+
+#include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include <string>
+
+class SerialInterface
+{
+private:
+    size_t _print_number(unsigned long n, uint8_t base);
+    
+public:
+    virtual void begin(int baud) = 0;
+    virtual void end() = 0;
+    virtual size_t read(void *buffer, size_t length) = 0;
+    virtual size_t write(const void *buffer, size_t length) = 0;
+
+    virtual size_t available() = 0;
+    virtual void flush() = 0;
+    virtual void flush_input() = 0;
+    
+    virtual uint32_t get_baudrate() = 0;
+    virtual void set_baudrate(uint32_t baud) = 0;
+
+    virtual bool dtrState() = 0;
+
+    /* Convenience methods, just wrappers for methods above */
+    int read(void);
+    size_t write(uint8_t c);
+    size_t write(const char *s);
+    size_t write(unsigned long n);
+    size_t write(long n);
+    size_t write(unsigned int n);
+    size_t write(int n);
+
+    size_t printf(const char *format, ...);
+
+    //size_t println(const char *format, ...);
+    size_t println(const char *str);
+    size_t println() { return print("\r\n"); };
+    size_t println(std::string str);
+    size_t println(int num, int base = 10);
+
+    //size_t print(const char *format, ...);
+    size_t print(const char *str);
+    size_t print(const std::string &str);
+    size_t print(int n, int base = 10);
+    size_t print(unsigned int n, int base = 10);
+    size_t print(long n, int base = 10);
+    size_t print(unsigned long n, int base = 10);    
+};
+
+#endif /* SERIALINTERFACE_H */

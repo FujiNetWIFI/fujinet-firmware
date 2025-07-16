@@ -25,7 +25,7 @@
 #include "fujiDevice.h"
 
 #ifdef ESP_PLATFORM
-#define FN_CPM_LINK fnUartBUS
+#define FN_CPM_LINK RS232.fnUartBUS
 #else
 #define FN_CPM_LINK fnSioCom
 #endif

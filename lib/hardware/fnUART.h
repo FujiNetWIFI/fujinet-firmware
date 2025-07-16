@@ -159,10 +159,12 @@ public:
 #ifdef ESP_PLATFORM
   // Serial "debug port" for FN-ESP (not available on FN-PC)
   extern UARTManager fnUartDebug;
+#if 0
   // Serial "bus port" (CoCo uses fnDwCom - configurable serial or TCP (Becker) drivewire port)
   #ifndef BUILD_COCO
     extern UARTManager fnUartBUS;
   #endif
+#endif /* 0 */
 #endif
 
 #endif //FNUART_H

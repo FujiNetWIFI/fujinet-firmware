@@ -17,7 +17,9 @@
 #define PIN_RS232_DCD           GPIO_NUM_22 // (OUT) Data Carrier Detect
 #define PIN_RS232_RTS           GPIO_NUM_33 // (IN) Request to Send
 #define PIN_RS232_CTS           GPIO_NUM_26 // (OUT) Clear to Send
+#ifdef COMMAND_SYNC_DTR
 #define PIN_RS232_DTR           GPIO_NUM_27 // (IN) Data Terminal Ready
+#endif /* COMMAND_SYNC_DTR */
 #define PIN_RS232_DSR           GPIO_NUM_4  // (OUT) Data Set Ready
 #define PIN_RS232_INVALID       GPIO_NUM_36 // (IN) RS232 Invalid Data (from TRS3238E)
 
