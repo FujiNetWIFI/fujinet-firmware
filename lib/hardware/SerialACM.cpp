@@ -17,6 +17,12 @@
 
 #define DEBUG_TAG "SerialACM"
 
+#define MAX_FIFO_PAYLOAD 32
+typedef struct {
+    size_t length;
+    uint8_t data[MAX_FIFO_PAYLOAD];
+} FIFOPacket;
+
 static void usb_lib_task(void *arg)
 {
     while (1) {
@@ -33,27 +39,40 @@ static void usb_lib_task(void *arg)
     }
 }
 
-static bool handle_rx(const uint8_t *data, size_t data_len, void *arg)
+static bool rxForwarder(const uint8_t *data, size_t length, void *arg)
 {
-    SerialACM *serial = (SerialACM *) arg;
+    SerialACM *instance = (SerialACM *) arg;
 
-    
-#if 1
-    Debug_printv("ACM Data received: %.*s", data_len, data);
-    ESP_LOG_BUFFER_HEXDUMP(DEBUG_TAG, data, data_len, ESP_LOG_INFO);
-#endif
-    //serial->write(data, data_len);
+    instance->dataReceived(data, length);
     return true;
 }
 
-static void handle_event_forwarder(const cdc_acm_host_dev_event_data_t *event, void *user_ctx)
+void SerialACM::dataReceived(const uint8_t *data, size_t length)
 {
-    SerialACM *instance = (SerialACM *) user_ctx;
-    instance->handle_event(event);
+    size_t offset;
+    FIFOPacket pkt;
+    BaseType_t woken;
+
+
+    Debug_printv("received %i", length);
+    for (offset = 0; length; offset += pkt.length, length -= pkt.length)
+    {
+        pkt.length = std::min(length, (size_t) MAX_FIFO_PAYLOAD);
+        memcpy(pkt.data, data + offset, pkt.length);
+        xQueueSendFromISR(rxQueue, &pkt, &woken);
+    }
+
     return;
 }
 
-void SerialACM::handle_event(const cdc_acm_host_dev_event_data_t *event)
+static void eventForwarder(const cdc_acm_host_dev_event_data_t *event, void *user_ctx)
+{
+    SerialACM *instance = (SerialACM *) user_ctx;
+    instance->eventReceived(event);
+    return;
+}
+
+void SerialACM::eventReceived(const cdc_acm_host_dev_event_data_t *event)
 {
     switch (event->type) {
     case CDC_ACM_HOST_ERROR:
@@ -76,8 +95,8 @@ void SerialACM::handle_event(const cdc_acm_host_dev_event_data_t *event)
 
 void SerialACM::begin(int baud)
 {
-    if (_initialized)
-        abort();
+    rxQueue = xQueueCreate(1024 / MAX_FIFO_PAYLOAD, sizeof(FIFOPacket));
+    
     device_disconnected_sem = xSemaphoreCreateBinary();
     assert(device_disconnected_sem);
 
@@ -102,8 +121,8 @@ void SerialACM::begin(int baud)
     dev_config.out_buffer_size = 512;
     dev_config.in_buffer_size = 512;
     dev_config.user_arg = this;
-    dev_config.event_cb = handle_event_forwarder;
-    dev_config.data_cb = handle_rx;
+    dev_config.event_cb = eventForwarder;
+    dev_config.data_cb = rxForwarder;
 
     while (true) {
         // Open USB device from tusb_serial_device example
@@ -172,7 +191,6 @@ void SerialACM::begin(int baud)
         break;
     }
 
-    _initialized = true;
     return;
 }
 
@@ -180,26 +198,61 @@ void SerialACM::end()
 {
 }
 
-uint32_t SerialACM::get_baudrate()
+uint32_t SerialACM::getBaudrate()
 {
     return 0;
 }
 
-void SerialACM::set_baudrate(uint32_t baud)
+void SerialACM::setBaudrate(uint32_t baud)
 {
+}
+
+void SerialACM::checkRXQueue()
+{
+    FIFOPacket pkt;
+    size_t old_len;
+
+    while (xQueueReceive(rxQueue, &pkt, 0))
+    {
+        Debug_printv("packet %i", pkt.length);
+        old_len = fifo.size();
+        fifo.resize(old_len + pkt.length);
+        memcpy(&fifo[old_len], pkt.data, pkt.length);
+        Debug_printv("fifo %i", fifo.size());
+    }
+
+    return;
 }
 
 size_t SerialACM::available()
 {
-    return 0;
+    checkRXQueue();
+    return fifo.size();
 }
 
-size_t SerialACM::read(void *buffer, size_t length)
+size_t SerialACM::recv(void *buffer, size_t length)
 {
-    return 0;
+    size_t rlen, total = 0;
+    uint8_t *ptr;
+
+    Debug_printv("want %i", length);
+    ptr = (uint8_t *) buffer;
+    while (length - total)
+    {
+        rlen = std::min(length, available());
+        if (!rlen)
+            continue;
+
+        memcpy(&ptr[total], fifo.data(), rlen);
+        fifo.erase(0, rlen);
+        total += rlen;
+    }
+
+    Debug_printv("read %i", total);
+    return total;
 }
 
-size_t SerialACM::write(const void *buffer, size_t length)
+size_t SerialACM::send(const void *buffer, size_t length)
 {
     cdc_acm_host_data_tx_blocking(cdc_dev,
                                   (const uint8_t *) buffer,
@@ -218,8 +271,20 @@ void SerialACM::flush()
     return;
 }
 
-void SerialACM::flush_input()
+void SerialACM::discardInput()
 {
+    uint64_t now, start;
+
+    now = start = esp_timer_get_time();
+    while (now - start < 10000)
+    {
+        now = esp_timer_get_time();
+        if (fifo.size())
+        {
+            fifo.clear();
+            start = now;
+        }
+    }
     return;
 }
 

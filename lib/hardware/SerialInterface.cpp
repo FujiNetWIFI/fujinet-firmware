@@ -2,24 +2,34 @@
 
 #include <stdarg.h>
 
+size_t SerialInterface::read(void *buffer, size_t length)
+{
+    return recv(buffer, length);
+}
+
 int SerialInterface::read(void)
 {
-        uint8_t buf[1];
-        int result = read(buf, 1);
+    uint8_t buf[1];
+    int result = read(buf, 1);
 
-        if (result < 1)
-            return result;
-        return buf[0];
-    }
+    if (result < 1)
+        return result;
+    return buf[0];
+}
+
+size_t SerialInterface::write(const void *buffer, size_t length)
+{
+    return send(buffer, length);
+}
 
 size_t SerialInterface::write(uint8_t c)
 {
-        uint8_t buf[1];
+    uint8_t buf[1];
 
 
-        buf[0] = c;
-        return write(buf, 1);
-    }
+    buf[0] = c;
+    return write(buf, 1);
+}
 
 size_t SerialInterface::write(const char *s)
 {

@@ -167,7 +167,7 @@ void systemBus::_rs232_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting RS232 baud");
-        RS232.fnUartBUS.set_baudrate(_rs232Baud);
+        RS232.fnUartBUS.setBaudrate(_rs232Baud);
     }
 
     // Read CMD frame
@@ -293,7 +293,7 @@ void systemBus::service()
     // Neither CMD nor active modem, so throw out any stray input data
     {
         //Debug_println("RS232 Srvc Flush");
-        RS232.fnUartBUS.flush_input();
+        RS232.fnUartBUS.discardInput();
     }
 
     // Handle interrupts from network protocols
@@ -340,7 +340,7 @@ void systemBus::setup()
     qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
 
     Debug_println("RS232 Setup Flush");
-    RS232.fnUartBUS.flush_input();
+    RS232.fnUartBUS.discardInput();
 }
 
 // Add device to RS232 bus
@@ -435,7 +435,7 @@ void systemBus::toggleBaudrate()
 
     // Debug_printf("Toggling baudrate from %d to %d\n", _rs232Baud, baudrate);
     _rs232Baud = baudrate;
-    RS232.fnUartBUS.set_baudrate(_rs232Baud);
+    RS232.fnUartBUS.setBaudrate(_rs232Baud);
 }
 
 int systemBus::getBaudrate()
@@ -453,7 +453,7 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _rs232Baud, baud);
     _rs232Baud = baud;
-    RS232.fnUartBUS.set_baudrate(baud);
+    RS232.fnUartBUS.setBaudrate(baud);
 }
 
 // Set HRS232 index. Sets high speed RS232 baud and also returns that value.

@@ -570,7 +570,7 @@ void rs232Modem::rs232_stream()
 
     bus_to_computer((uint8_t *)response, sizeof(response), false);
 
-    RS232.fnUartBUS.set_baudrate(modemBaud);
+    RS232.fnUartBUS.setBaudrate(modemBaud);
     modemActive = true;
     Debug_printf("Modem streaming at %u baud\n", modemBaud);
 }
