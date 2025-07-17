@@ -29,15 +29,15 @@
 /* RS232 Pins */
 #define PIN_UART1_RX            GPIO_NUM_41 // (IN) ESP32S3 RX
 #define PIN_UART1_TX            GPIO_NUM_42 // (OUT) ESP32S3 TX
+#ifndef FUJINET_OVER_USB
 #define PIN_RS232_RI            GPIO_NUM_16 // (OUT) Ring Indicator
 #define PIN_RS232_DCD           GPIO_NUM_4  // (OUT) Data Carrier Detect
 #define PIN_RS232_RTS           GPIO_NUM_15 // (IN) Request to Send
 #define PIN_RS232_CTS           GPIO_NUM_7  // (OUT) Clear to Send
-#ifndef FUJINET_OVER_USB
 #define PIN_RS232_DTR           GPIO_NUM_6  // (IN) Data Terminal Ready
-#endif /* FUJINET_OVER_USB */
 #define PIN_RS232_DSR           GPIO_NUM_5  // (OUT) Data Set Ready
 #define PIN_RS232_INVALID       GPIO_NUM_18 // (IN) RS232 Invalid Data (from TRS3238E)
+#endif /* FUJINET_OVER_USB */
 
 #include "common.h"
 

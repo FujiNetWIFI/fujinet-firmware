@@ -264,7 +264,9 @@ public:
     rs232Printer *getPrinter() { return _printerdev; }
     rs232CPM *getCPM() { return _cpmDev; }
 
+#ifdef KEEP_BUT_UNUSED
     QueueHandle_t qRs232Messages = nullptr;
+#endif /* KEEP_BUT_UNUSED */
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };

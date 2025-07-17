@@ -186,11 +186,11 @@ void systemBus::_rs232_process_cmd()
                  tempFrame.device, tempFrame.comnd,
                  tempFrame.aux1, tempFrame.aux2, tempFrame.aux3, tempFrame.aux4,
                  tempFrame.cksum);
-#ifdef PIN_RS232_DTR
+#ifndef FUJINET_OVER_USB
     // Wait for CMD line to raise again
     while (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
         vTaskDelay(1);
-#endif /* PIN_RS232_DTR */
+#endif /* FUJINET_OVER_USB */
 
     uint8_t ck = rs232_checksum((uint8_t *)&tempFrame, sizeof(tempFrame) - sizeof(tempFrame.cksum)); // Calculate Checksum
     if (ck == tempFrame.cksum)
@@ -270,20 +270,19 @@ void systemBus::service()
         return; // break!
     }    
 
-#ifdef PIN_RS232_DTR
-    #error "No DTR!"
+#ifndef FUJINET_OVER_USB
     // Go process a command frame if the RS232 CMD line is asserted
     if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
     {
         _rs232_process_cmd();
     }
-#else /* !PIN_RS232_DTR */
+#else /* !FUJINET_OVER_USB */
     // Go process a command frame if the RS232 CMD line is asserted
     if (RS232.fnUartBUS.available())
     {
         _rs232_process_cmd();
     }
-#endif /* PIN_RS232_DTR */
+#endif /* FUJINET_OVER_USB */
     // Go check if the modem needs to read data if it's active
     else if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
@@ -312,6 +311,7 @@ void systemBus::setup()
     // Set up UART
     RS232.fnUartBUS.begin(Config.get_rs232_baud());
 
+#ifndef FUJINET_OVER_USB
     // // INT PIN
     // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
@@ -323,9 +323,7 @@ void systemBus::setup()
     fnSystem.set_pin_mode(PIN_RS232_INVALID, gpio_mode_t::GPIO_MODE_INPUT);
     // CMD PIN
     //fnSystem.set_pin_mode(PIN_RS232_DTR, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
-#ifdef PN_RS232_DTR
     fnSystem.set_pin_mode(PIN_RS232_DTR, gpio_mode_t::GPIO_MODE_INPUT);
-#endif /* PIN_RS232_DTR */
     // CKI PIN
     //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
     // CKO PIN
@@ -335,9 +333,12 @@ void systemBus::setup()
 
     fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
-    
+#endif /* FUJINET_OVER_USB */
+
+#ifdef KEEP_BUT_UNUSED
     // Create a message queue
     qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
+#endif /* KEEP_BUT_UNUSED */
 
     Debug_println("RS232 Setup Flush");
     RS232.fnUartBUS.discardInput();
