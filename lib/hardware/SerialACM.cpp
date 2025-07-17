@@ -235,7 +235,7 @@ size_t SerialACM::recv(void *buffer, size_t length)
     size_t rlen, total = 0;
     uint8_t *ptr;
 
-    Debug_printv("want %i", length);
+    Debug_printv("want %i have %i", length, available());
     ptr = (uint8_t *) buffer;
     while (length - total)
     {
