@@ -226,34 +226,6 @@ void SerialACM::checkRXQueue()
     return;
 }
 
-size_t SerialACM::available()
-{
-    checkRXQueue();
-    return fifo.size();
-}
-
-size_t SerialACM::recv(void *buffer, size_t length)
-{
-    size_t rlen, total = 0;
-    uint8_t *ptr;
-
-    Debug_printv("want %i have %i", length, available());
-    ptr = (uint8_t *) buffer;
-    while (length - total)
-    {
-        rlen = std::min(length, available());
-        if (!rlen)
-            continue;
-
-        memcpy(&ptr[total], fifo.data(), rlen);
-        fifo.erase(0, rlen);
-        total += rlen;
-    }
-
-    Debug_printv("read %i", total);
-    return total;
-}
-
 size_t SerialACM::send(const void *buffer, size_t length)
 {
     cdc_acm_host_data_tx_blocking(cdc_dev,
@@ -270,23 +242,6 @@ bool SerialACM::dtrState()
 
 void SerialACM::flush()
 {
-    return;
-}
-
-void SerialACM::discardInput()
-{
-    uint64_t now, start;
-
-    now = start = esp_timer_get_time();
-    while (now - start < 10000)
-    {
-        now = esp_timer_get_time();
-        if (fifo.size())
-        {
-            fifo.clear();
-            start = now;
-        }
-    }
     return;
 }
 

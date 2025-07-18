@@ -55,22 +55,22 @@ struct SerialUARTConfig
 class SerialUART : public SerialInterface
 {
 private:
-    std::string fifo;
-    //size_t fifo_avail;
     uart_port_t _uart_num;
     QueueHandle_t _uart_q;
 
-    void checkRXQueue();;
+protected:
+    void checkRXQueue() override;
     
 public:
     void begin(uart_port_t uart_num, const SerialUARTConfig& conf);
     void end() override;
-    size_t recv(void *buffer, size_t length) override;
     size_t send(const void *buffer, size_t length) override;
 
-    size_t available() override;
+    // Reference only — inherited from base class, do not override.
+    // Provided here for visibility; this is NOT a declaration.
+    // size_t recv(void *buffer, size_t length) override;
+
     void flush() override;
-    void discardInput() override;
     
     uint32_t getBaudrate() override;
     void setBaudrate(uint32_t baud) override;

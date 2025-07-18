@@ -10,21 +10,28 @@ class SerialInterface
 {
 private:
     size_t _print_number(unsigned long n, uint8_t base);
-    
+
+protected:
+    std::string fifo;
+
+    virtual void checkRXQueue() = 0;
+
 public:
     // begin() and arguments vary by subclass so not declared here
     virtual void end() = 0;
-    virtual size_t recv(void *buffer, size_t length) = 0;
     virtual size_t send(const void *buffer, size_t length) = 0;
 
-    virtual size_t available() = 0;
     virtual void flush() = 0;
-    virtual void discardInput() = 0;
-    
+
     virtual uint32_t getBaudrate() = 0;
     virtual void setBaudrate(uint32_t baud) = 0;
 
     virtual bool dtrState() = 0;
+
+    // Handled here, not implemented by subclass
+    size_t recv(void *buffer, size_t length);
+    size_t available();
+    void discardInput();
 
     /* Convenience methods, just wrappers for recv()/send() methods above */
     size_t read(void *buffer, size_t length);
@@ -50,7 +57,7 @@ public:
     size_t print(int n, int base = 10);
     size_t print(unsigned int n, int base = 10);
     size_t print(long n, int base = 10);
-    size_t print(unsigned long n, int base = 10);    
+    size_t print(unsigned long n, int base = 10);
 };
 
 #endif /* SERIALINTERFACE_H */

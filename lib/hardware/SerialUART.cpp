@@ -6,11 +6,7 @@
 #include <soc/uart_reg.h>
 #include <hal/gpio_types.h>
 
-// Number of RTOS ticks to wait for data in TX buffer to complete sending
 #define MAX_FLUSH_WAIT_TICKS 200
-#define MAX_READ_WAIT_TICKS 200
-#define MAX_WRITE_BYTE_TICKS 100
-#define MAX_WRITE_BUFFER_TICKS 1000
 
 // Serial "debug port"
 SerialUART fnDebugConsole;
@@ -72,72 +68,28 @@ void SerialUART::begin(uart_port_t uart_num, const SerialUARTConfig& conf)
 void SerialUART::checkRXQueue()
 {
     uart_event_t event;
-    size_t old_len;
-    int result;
 
-    while (xQueueReceive(_uart_q, &event, 10))
+    while (xQueueReceive(_uart_q, &event, 1))
     {
         Debug_printf("UART EVENT: %i size: %i\r\n", event.type, event.size);
         if (event.type == UART_DATA)
         {
-#if 1
-            old_len = fifo.size();
+            size_t old_len = fifo.size();
             fifo.resize(old_len + event.size);
-            result = uart_read_bytes(_uart_num, &fifo[old_len], event.size,
-                                     MAX_READ_WAIT_TICKS);
+            int result = uart_read_bytes(_uart_num, &fifo[old_len], event.size, 0);
             Debug_printf("UART READ: %i\n", result);
             if (result < 0)
                 result = 0;
             fifo.resize(old_len + result);
-#else
-            fifo_avail += event.size;
-#endif
         }
     }
 
-    uart_get_buffered_data_len(_uart_num, &old_len);
-    if (old_len)
-        Debug_printf("IZ BYTES! %i\r\n", old_len);
-
-    return;
-}
-
-void SerialUART::discardInput()
-{
-#if 1
-    uint64_t now, start;
-
-    now = start = esp_timer_get_time();
-    while (now - start < 10000)
-    {
-        now = esp_timer_get_time();
-        if (fifo.size())
-        {
-            fifo.clear();
-            start = now;
-        }
-    }
-#else
-    uart_flush_input(_uart_num);
-#endif
     return;
 }
 
 void SerialUART::flush()
 {
     uart_wait_tx_done(_uart_num, MAX_FLUSH_WAIT_TICKS);
-}
-
-/* Returns number of bytes available in receive buffer or -1 on error
- */
-size_t SerialUART::available()
-{
-    checkRXQueue();
-#if 1
-    return fifo.size();
-#else
-    return fifo_avail;
-#endif
 }
 
 uint32_t SerialUART::getBaudrate()
@@ -157,34 +109,6 @@ void SerialUART::setBaudrate(uint32_t baud)
 #ifdef DEBUG
     Debug_printf("set_baudrate change from %d to %d\r\n", before, baud);
 #endif
-}
-
-size_t SerialUART::recv(void *buffer, size_t length)
-{
-    size_t rlen, total = 0;
-    uint8_t *ptr;
-
-    Debug_printv("want %i have %i", length, available());
-    ptr = (uint8_t *) buffer;
-    while (length - total)
-    {
-#if 1
-        rlen = std::min(length, available());
-        memcpy(&ptr[total], fifo.data(), rlen);
-        fifo.erase(0, rlen);
-#else
-        Debug_printv("getting %i", length);
-        rlen = uart_read_bytes(_uart_num, &ptr[total], length, MAX_READ_WAIT_TICKS);
-        Debug_printv("got %i", rlen);
-        fifo_avail -= std::min(rlen, fifo_avail);
-#endif
-        if (!rlen)
-            break;
-        total += rlen;
-    }
-
-    Debug_printv("read %i", total);
-    return total;
 }
 
 size_t SerialUART::send(const void *buffer, size_t size)

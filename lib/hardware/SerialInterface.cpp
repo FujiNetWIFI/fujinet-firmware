@@ -1,6 +1,63 @@
 #include "SerialInterface.h"
 
 #include <stdarg.h>
+#include <esp_timer.h>
+
+#define MAX_READ_TIMEOUT 10000
+
+size_t SerialInterface::available()
+{
+    checkRXQueue();
+    //Debug_printf("FN AVAIL: %i\r\n", fifo.size());
+    return fifo.size();
+}
+
+size_t SerialInterface::recv(void *buffer, size_t length)
+{
+    size_t rlen, total = 0;
+    uint8_t *ptr;
+    uint64_t now, start;
+
+    //Debug_printv("want %i have %i", length, available());
+    ptr = (uint8_t *) buffer;
+    now = start = esp_timer_get_time();
+    while (length)
+    {
+        now = esp_timer_get_time();
+        if (now - start > MAX_READ_TIMEOUT)
+            break;
+        rlen = std::min(length, available());
+        if (!rlen)
+            continue;
+        memcpy(&ptr[total], fifo.data(), rlen);
+        fifo.erase(0, rlen);
+        total += rlen;
+        length -= rlen;
+
+        // We received data, reset timeout
+        start = now;
+    }
+
+    //Debug_printv("read %i", total);
+    return total;
+}
+
+void SerialInterface::discardInput()
+{
+    uint64_t now, start;
+
+    now = start = esp_timer_get_time();
+    while (now - start < MAX_READ_TIMEOUT)
+    {
+        now = esp_timer_get_time();
+        if (fifo.size())
+        {
+            fifo.clear();
+            start = now;
+        }
+    }
+    return;
+}
 
 size_t SerialInterface::read(void *buffer, size_t length)
 {

@@ -15,20 +15,21 @@ private:
     SemaphoreHandle_t device_disconnected_sem;
     cdc_acm_dev_hdl_t cdc_dev = NULL;
     QueueHandle_t rxQueue;
-    std::string fifo;
 
-    void checkRXQueue();;
-    
+protected:
+    void checkRXQueue() override;
+
 public:
     void begin();
     void end() override;
-    size_t recv(void *buffer, size_t length) override;
     size_t send(const void *buffer, size_t length) override;
 
-    size_t available() override;
+    // Reference only — inherited from base class, do not override.
+    // Provided here for visibility; this is NOT a declaration.
+    // size_t recv(void *buffer, size_t length) override;
+
     void flush() override;
-    void discardInput() override;
-    
+
     uint32_t getBaudrate() override;
     void setBaudrate(uint32_t baud) override;
 
