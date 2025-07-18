@@ -2,6 +2,7 @@
 #define RS232_H
 
 #include "SerialACM.h"
+#include "SerialUART.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -235,7 +236,7 @@ public:
 #if FUJINET_OVER_USB
     SerialACM fnUartBUS;
 #elif !defined(BUILD_COCO)
-    SerialUART fnUartBUS(FN_UART_BUS);
+    SerialUART fnUartBUS;
 #endif /* FUJINET_OVER_USB */
 
     void setup();

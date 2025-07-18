@@ -1,6 +1,8 @@
 #ifndef SERIALACM_H
 #define SERIALACM_H
 
+#ifdef CONFIG_USB_CDC_ACM_HOST_ENABLED
+
 #include "SerialInterface.h"
 
 #include <freertos/FreeRTOS.h>
@@ -36,5 +38,7 @@ public:
     void eventReceived(const cdc_acm_host_dev_event_data_t *event);
     void dataReceived(const uint8_t *data, size_t length);
 };
+
+#endif /* CONFIG_USB_CDC_ACM_HOST_ENABLED */
 
 #endif /* SERIALACM_H */

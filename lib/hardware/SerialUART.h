@@ -6,6 +6,8 @@
 #include "SerialInterface.h"
 
 #include <driver/uart.h>
+#include <hal/uart_types.h>
+
 #define FN_UART_DEBUG   UART_NUM_0
 #if defined(BUILD_RS232) || defined(PINMAP_COCO_ESP32S3) || defined(PINMAP_COCO_RS232)
 #  define FN_UART_BUS   UART_NUM_1
@@ -54,15 +56,14 @@ class SerialUART : public SerialInterface
 {
 private:
     std::string fifo;
+    //size_t fifo_avail;
     uart_port_t _uart_num;
     QueueHandle_t _uart_q;
 
     void checkRXQueue();;
     
 public:
-    SerialUART(uart_port_t uart_num = UART_NUM_0);
-
-    void begin(const SerialUARTConfig& conf);
+    void begin(uart_port_t uart_num, const SerialUARTConfig& conf);
     void end() override;
     size_t recv(void *buffer, size_t length) override;
     size_t send(const void *buffer, size_t length) override;

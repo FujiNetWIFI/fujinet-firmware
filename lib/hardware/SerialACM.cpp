@@ -1,5 +1,7 @@
 #include "SerialACM.h"
 
+#ifdef CONFIG_USB_CDC_ACM_HOST_ENABLED
+
 #include <usb/usb_host.h>
 
 #include "../../include/debug.h"
@@ -288,3 +290,4 @@ void SerialACM::discardInput()
     return;
 }
 
+#endif /* CONFIG_USB_CDC_ACM_HOST_ENABLED */

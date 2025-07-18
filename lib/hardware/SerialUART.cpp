@@ -13,10 +13,7 @@
 #define MAX_WRITE_BUFFER_TICKS 1000
 
 // Serial "debug port"
-SerialUART fnDebugConsole(FN_UART_DEBUG);
-
-// Constructor
-SerialUART::SerialUART(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
+SerialUART fnDebugConsole;
 
 void SerialUART::end()
 {
@@ -26,13 +23,14 @@ void SerialUART::end()
     _uart_q = NULL;
 }
 
-void SerialUART::begin(const SerialUARTConfig& conf)
+void SerialUART::begin(uart_port_t uart_num, const SerialUARTConfig& conf)
 {
     if (_uart_q)
     {
         end();
     }
 
+    _uart_num = uart_num;
     uart_param_config(_uart_num, &conf.uart_config);
     
     int tx, rx;
@@ -62,7 +60,7 @@ void SerialUART::begin(const SerialUARTConfig& conf)
         uart_set_line_inverse(_uart_num, UART_SIGNAL_TXD_INV | UART_SIGNAL_RXD_INV);
 
     // Arduino default buffer size is 256
-    int uart_buffer_size = 256;
+    int uart_buffer_size = UART_HW_FIFO_LEN(uart_num) * 2;
     int uart_queue_size = 10;
     int intr_alloc_flags = 0;
 
@@ -82,6 +80,7 @@ void SerialUART::checkRXQueue()
         Debug_printf("UART EVENT: %i size: %i\r\n", event.type, event.size);
         if (event.type == UART_DATA)
         {
+#if 1
             old_len = fifo.size();
             fifo.resize(old_len + event.size);
             result = uart_read_bytes(_uart_num, &fifo[old_len], event.size,
@@ -90,14 +89,22 @@ void SerialUART::checkRXQueue()
             if (result < 0)
                 result = 0;
             fifo.resize(old_len + result);
+#else
+            fifo_avail += event.size;
+#endif
         }
     }
+
+    uart_get_buffered_data_len(_uart_num, &old_len);
+    if (old_len)
+        Debug_printf("IZ BYTES! %i\r\n", old_len);
 
     return;
 }
 
 void SerialUART::discardInput()
 {
+#if 1
     uint64_t now, start;
 
     now = start = esp_timer_get_time();
@@ -110,6 +117,9 @@ void SerialUART::discardInput()
             start = now;
         }
     }
+#else
+    uart_flush_input(_uart_num);
+#endif
     return;
 }
 
@@ -123,7 +133,11 @@ void SerialUART::flush()
 size_t SerialUART::available()
 {
     checkRXQueue();
+#if 1
     return fifo.size();
+#else
+    return fifo_avail;
+#endif
 }
 
 uint32_t SerialUART::getBaudrate()
@@ -154,12 +168,18 @@ size_t SerialUART::recv(void *buffer, size_t length)
     ptr = (uint8_t *) buffer;
     while (length - total)
     {
+#if 1
         rlen = std::min(length, available());
-        if (!rlen)
-            continue;
-
         memcpy(&ptr[total], fifo.data(), rlen);
         fifo.erase(0, rlen);
+#else
+        Debug_printv("getting %i", length);
+        rlen = uart_read_bytes(_uart_num, &ptr[total], length, MAX_READ_WAIT_TICKS);
+        Debug_printv("got %i", rlen);
+        fifo_avail -= std::min(rlen, fifo_avail);
+#endif
+        if (!rlen)
+            break;
         total += rlen;
     }
 
@@ -177,6 +197,6 @@ bool SerialUART::dtrState()
 #ifdef FUJINET_OVER_USB
     return 0;
 #else /* FUJINET_OVER_USB */
-    return fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW);
+    return fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW;
 #endif /* FUJINET_OVER_USB */
 }
