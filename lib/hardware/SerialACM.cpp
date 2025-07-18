@@ -93,7 +93,7 @@ void SerialACM::eventReceived(const cdc_acm_host_dev_event_data_t *event)
     }
 }
 
-void SerialACM::begin(int baud)
+void SerialACM::begin()
 {
     rxQueue = xQueueCreate(1024 / MAX_FIFO_PAYLOAD, sizeof(FIFOPacket));
     

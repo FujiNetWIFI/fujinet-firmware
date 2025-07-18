@@ -18,7 +18,7 @@ private:
     void checkRXQueue();;
     
 public:
-    void begin(int baud) override;
+    void begin();
     void end() override;
     size_t recv(void *buffer, size_t length) override;
     size_t send(const void *buffer, size_t length) override;

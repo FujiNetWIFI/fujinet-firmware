@@ -12,7 +12,7 @@ private:
     size_t _print_number(unsigned long n, uint8_t base);
     
 public:
-    virtual void begin(int baud) = 0;
+    // begin() and arguments vary by subclass so not declared here
     virtual void end() = 0;
     virtual size_t recv(void *buffer, size_t length) = 0;
     virtual size_t send(const void *buffer, size_t length) = 0;

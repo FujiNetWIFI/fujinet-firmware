@@ -235,7 +235,7 @@ public:
 #if FUJINET_OVER_USB
     SerialACM fnUartBUS;
 #elif !defined(BUILD_COCO)
-    UARTManager fnUartBUS(FN_UART_BUS);
+    SerialUART fnUartBUS(FN_UART_BUS);
 #endif /* FUJINET_OVER_USB */
 
     void setup();

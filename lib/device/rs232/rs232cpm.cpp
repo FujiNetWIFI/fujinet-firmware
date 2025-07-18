@@ -5,7 +5,7 @@
 #include "rs232cpm.h"
 
 #include "fnSystem.h"
-#include "fnUART.h"
+#include "SerialInterface.h"
 #include "fnWiFi.h"
 #include "rs232Fuji.h"
 #include "fnFS.h"

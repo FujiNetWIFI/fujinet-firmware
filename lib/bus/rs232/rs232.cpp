@@ -309,9 +309,9 @@ void systemBus::setup()
     Debug_printf("RS232 SETUP: Baud rate: %u\n",Config.get_rs232_baud());
 
     // Set up UART
-    RS232.fnUartBUS.begin(Config.get_rs232_baud());
-
 #ifndef FUJINET_OVER_USB
+    fnUartBUS.begin(FN_UART_BUS, SerialUARTConfig().baud(Config.get_rs232_baud()));
+
     // // INT PIN
     // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
@@ -333,6 +333,8 @@ void systemBus::setup()
 
     fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
+#else
+    fnUartBUS.begin();
 #endif /* FUJINET_OVER_USB */
 
 #ifdef KEEP_BUT_UNUSED
