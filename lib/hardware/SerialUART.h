@@ -5,6 +5,8 @@
 
 #include "SerialInterface.h"
 
+#ifdef ESP_PLATFORM
+
 #include <driver/uart.h>
 #include <hal/uart_types.h>
 
@@ -15,7 +17,7 @@
 #  define FN_UART_BUS   UART_NUM_2
 #endif
 
-struct SerialUARTConfig
+struct SerialConfig
 {
     uart_config_t uart_config = {
         .baud_rate = 115200,
@@ -31,24 +33,28 @@ struct SerialUARTConfig
         }
     };
     bool isInverted = false;
+    uart_port_t device;
     
-    SerialUARTConfig& baud(int baud) {
+    SerialConfig& baud(int baud) {
         uart_config.baud_rate = baud; return *this;
     }
-    SerialUARTConfig& dataBits(uart_word_length_t bits) {
+    SerialConfig& dataBits(uart_word_length_t bits) {
         uart_config.data_bits = bits; return *this;
     }
-    SerialUARTConfig& parity(uart_parity_t par) {
+    SerialConfig& parity(uart_parity_t par) {
         uart_config.parity = par; return *this;
     }
-    SerialUARTConfig& stopBits(uart_stop_bits_t bits) {
+    SerialConfig& stopBits(uart_stop_bits_t bits) {
         uart_config.stop_bits = bits; return *this;
     }
-    SerialUARTConfig& flowControl(uart_hw_flowcontrol_t flow) {
+    SerialConfig& flowControl(uart_hw_flowcontrol_t flow) {
         uart_config.flow_ctrl = flow; return *this;
     }
-    SerialUARTConfig& inverted(bool inv) {
+    SerialConfig& inverted(bool inv) {
         isInverted = inv; return *this;
+    }
+    SerialConfig& deviceID(uart_port_t num) {
+        device = num; return *this;
     }
 };
 
@@ -63,7 +69,7 @@ protected:
     size_t si_send(const void *buffer, size_t length) override;
     
 public:
-    void begin(uart_port_t uart_num, const SerialUARTConfig& conf);
+    void begin(const SerialConfig& conf);
     void end() override;
 
     void flush() override;
@@ -77,4 +83,6 @@ public:
 
 extern SerialUART fnDebugConsole;
 
-#endif //FNUART_H
+#endif /* ESP_PLATFORM */
+
+#endif /* SERIALUART_H */

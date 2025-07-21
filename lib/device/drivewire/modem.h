@@ -206,7 +206,7 @@ private:
     void at_handle_pb();
     void at_handle_pbclear();
 
-    SerialUART* uart;              // UART manager to use.
+    SerialInterface* uart;              // UART manager to use.
 
 protected:
     void shutdown();
@@ -218,7 +218,7 @@ public:
     drivewireModem(FileSystem *_fs, bool snifferEnable);
     virtual ~drivewireModem();
 
-    void set_uart(SerialUART *_uart) { uart = _uart; }
+    void set_uart(SerialInterface *_uart) { uart = _uart; }
 
 
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.

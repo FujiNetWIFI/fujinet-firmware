@@ -1,7 +1,14 @@
 #include "SerialInterface.h"
 
 #include <stdarg.h>
+#if defined(ESP_PLATFORM)
 #include <esp_timer.h>
+#define GET_TIMESTAMP() esp_timer_get_time()
+#elif defined(ITS_A_UNIX_SYSTEM_I_KNOW_THIS)
+#include <sys/time.h>
+#define GET_TIMESTAMP() ({ struct timeval _tv; gettimeofday(&_tv, NULL); \
+            _tv.tv_sec * ((uint64_t) 1000000) + _tv.tv_usec; })
+#endif /* ESP_PLATFORM */
 
 #include "../../include/debug.h"
 
@@ -22,12 +29,15 @@ size_t SerialInterface::si_recv(void *buffer, size_t length)
 
     Debug_printv("want %i have %i", length, available());
     ptr = (uint8_t *) buffer;
-    now = start = esp_timer_get_time();
+    now = start = GET_TIMESTAMP();
     while (length)
     {
-        now = esp_timer_get_time();
+        now = GET_TIMESTAMP();
         if (now - start > MAX_READ_TIMEOUT)
+        {
+            Debug_printv("timeout");
             break;
+        }
         rlen = std::min(length, available());
         if (!rlen)
             continue;
@@ -48,10 +58,10 @@ void SerialInterface::discardInput()
 {
     uint64_t now, start;
 
-    now = start = esp_timer_get_time();
+    now = start = GET_TIMESTAMP();
     while (now - start < MAX_READ_TIMEOUT)
     {
-        now = esp_timer_get_time();
+        now = GET_TIMESTAMP();
         if (_fifo.size())
         {
             _fifo.clear();

@@ -1,6 +1,14 @@
 #ifndef SERIALINTERFACE_H
 #define SERIALINTERFACE_H
 
+#ifndef ESP_PLATFORM
+#ifndef _WIN32
+#define ITS_A_UNIX_SYSTEM_I_KNOW_THIS
+#else /* _WIN32 */
+#define HELLO_IM_A_PC
+#endif /* _WIN32 */
+#endif /* ESP_PLATFORM */
+
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>

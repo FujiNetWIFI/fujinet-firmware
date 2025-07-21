@@ -11,22 +11,14 @@
 // Serial "debug port"
 SerialUART fnDebugConsole;
 
-void SerialUART::end()
-{
-    uart_driver_delete(_uart_num);
-    if (_uart_q)
-        vQueueDelete(_uart_q);
-    _uart_q = NULL;
-}
-
-void SerialUART::begin(uart_port_t uart_num, const SerialUARTConfig& conf)
+void SerialUART::begin(const SerialUARTConfig& conf)
 {
     if (_uart_q)
     {
         end();
     }
 
-    _uart_num = uart_num;
+    _uart_num = conf.device;
     Debug_printv("speed: %i", conf.uart_config.baud_rate);
     uart_param_config(_uart_num, &conf.uart_config);
     
@@ -64,6 +56,14 @@ void SerialUART::begin(uart_port_t uart_num, const SerialUARTConfig& conf)
     // Install UART driver using an event queue here
     uart_driver_install(_uart_num, uart_buffer_size, 0, uart_queue_size, &_uart_q,
                         intr_alloc_flags);
+}
+
+void SerialUART::end()
+{
+    uart_driver_delete(_uart_num);
+    if (_uart_q)
+        vQueueDelete(_uart_q);
+    _uart_q = NULL;
 }
 
 void SerialUART::update_fifo()

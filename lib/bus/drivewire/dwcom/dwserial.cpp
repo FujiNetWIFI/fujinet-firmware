@@ -7,7 +7,7 @@
 void SerialDwPort::begin(int baud)
 {
     Debug_printf("SerialDwPort: begin @ %d\n", baud);
-    _uart.begin(FN_UART_BUS, SerialUARTConfig().baud(baud));
+    _uart.begin(SerialConfig().baud(baud) /* .deviceID(FN_UART_BUS) */);
 }
 
 // read bytes into buffer

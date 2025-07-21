@@ -3,18 +3,24 @@
 
 #include <stdio.h>
 
+#ifdef ESP_PLATFORM
 #include "SerialUART.h"
+#define SerialDW SerialUART
+#else
+#include "SerialTTY.h"
+#define SerialDW SerialTTY
+#endif
 #include "dwport.h"
 
 /*
  * Implementation of DriveWire Port using UART serial port
- * wrapper around existing SerialUART
+ * wrapper around existing SerialInterface
  */
 
 class SerialDwPort : public DwPort
 {
 private:
-    SerialUART _uart;
+    SerialDW _uart;
 
 public:
     SerialDwPort() {}
@@ -25,7 +31,7 @@ public:
 #ifdef ESP_PLATFORM
         return false;
 #else
-        return _uart.poll(ms); 
+        return false; // _uart.poll(ms); 
 #endif
     }
 
@@ -42,8 +48,8 @@ public:
     void set_baudrate(uint32_t baud) override { _uart.setBaudrate(baud); }
     uint32_t get_baudrate() override { return _uart.getBaudrate(); }
 #ifndef ESP_PLATFORM
-    void set_port(const char *device) { _uart.set_port(device); }
-    const char* get_port() { return _uart.get_port(); }
+    void set_port(const char *device) { _uart.setPort(device); }
+    const char* get_port() { return _uart.getPort().c_str(); }
 #endif
 };
 
