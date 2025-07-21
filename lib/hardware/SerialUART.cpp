@@ -11,7 +11,7 @@
 // Serial "debug port"
 SerialUART fnDebugConsole;
 
-void SerialUART::begin(const SerialUARTConfig& conf)
+void SerialUART::begin(const SerialConfig& conf)
 {
     if (_uart_q)
     {

@@ -62,7 +62,7 @@ static std::string encode_host_path(const char *host, const char *path)
     unsigned char md5_result[16];
     std::string result;
     // host part
-    #if MBEDTLS_VERSION_NUMBER >= 0x02070000
+    #if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = mbedtls_md5_ret((const unsigned char *)host, strlen(host), md5_result);
     if (err != 0) {
         Debug_printf("mbedtls_md5_ret failed with error code %d\n", err);
@@ -72,7 +72,7 @@ static std::string encode_host_path(const char *host, const char *path)
     #endif
     result = encode_base32(std::string((char *)md5_result, 5)) + '-';
     // path part
-    #if MBEDTLS_VERSION_NUMBER >= 0x02070000
+    #if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     err = mbedtls_md5_ret((const unsigned char *)path, strlen(path), md5_result);
     if (err != 0) {
         Debug_printf("mbedtls_md5_ret failed with error code %d\n", err);

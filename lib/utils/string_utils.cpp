@@ -532,7 +532,7 @@ namespace mstr {
         mbedtls_sha1_init(&ctx);
         int ret = 0;
 
-        #if MBEDTLS_VERSION_NUMBER >= 0x02070000
+        #if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
         // Use the newer mbedtls API
         if ((ret = mbedtls_sha1_starts_ret(&ctx)) != 0) {
             Debug_printf("mbedtls_sha1_starts_ret failed with error code %d\n", ret);
