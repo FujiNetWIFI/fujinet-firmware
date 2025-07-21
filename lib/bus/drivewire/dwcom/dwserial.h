@@ -40,9 +40,11 @@ public:
     virtual void flush_input() override { _uart.discardInput(); }
 
     // read bytes into buffer
-    virtual size_t read(uint8_t *buffer, size_t size) override;
+    virtual size_t read(uint8_t *buffer, size_t size) override {
+        return _uart.read(buffer, size); }
     // write buffer
-    virtual ssize_t write(const uint8_t *buffer, size_t size) override;
+    virtual ssize_t write(const uint8_t *buffer, size_t size) override {
+        return _uart.write(buffer, size); }
 
     // specific to SerialDwPort/UART
     void set_baudrate(uint32_t baud) override { _uart.setBaudrate(baud); }

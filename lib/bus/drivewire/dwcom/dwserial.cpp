@@ -10,6 +10,7 @@ void SerialDwPort::begin(int baud)
     _uart.begin(SerialConfig().baud(baud) /* .deviceID(FN_UART_BUS) */);
 }
 
+#ifdef UNUSED
 // read bytes into buffer
 size_t SerialDwPort::read(uint8_t *buffer, size_t size)
 {
@@ -36,5 +37,6 @@ ssize_t SerialDwPort::write(const uint8_t *buffer, size_t size)
     }
     return _uart.write(buffer, size);
 }
+#endif /* UNUSED */
 
 #endif // BUILD_COCO

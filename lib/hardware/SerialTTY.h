@@ -40,9 +40,16 @@ public:
     uint32_t getBaudrate() override { return _baud; }
     void setBaudrate(uint32_t baud) override;
 
+#ifdef UNUSED
+    size_t available() override;
+    size_t si_recv(void *buffer, size_t length) override;
+    bool waitReadable(uint32_t timeout_ms);
+#endif /* UNUSED */
+    
     bool dtrState();
     void setPort(std::string device);
     std::string getPort();
+
 };
 
 #endif /* ITS_A_UNIX_SYSTEM_I_KNOW_THIS */

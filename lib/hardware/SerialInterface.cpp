@@ -33,7 +33,7 @@ size_t SerialInterface::si_recv(void *buffer, size_t length)
     while (length)
     {
         now = GET_TIMESTAMP();
-        if (now - start > MAX_READ_TIMEOUT)
+        if (now - start > 500000) //MAX_READ_TIMEOUT)
         {
             Debug_printv("timeout");
             break;

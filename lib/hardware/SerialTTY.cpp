@@ -139,10 +139,94 @@ void SerialTTY::update_fifo()
     return;
 }
 
+timeval timeval_from_ms(const uint32_t millis)
+{
+  timeval tv;
+  tv.tv_sec = millis / 1000;
+  tv.tv_usec = (millis - (tv.tv_sec * 1000)) * 1000;
+  return tv;
+}
+
 size_t SerialTTY::si_send(const void *buffer, size_t length)
+{
+#ifdef UNUSED
+    if (!_initialized)
+        return 0;
+#endif /* UNUSED */
+
+    int result;
+    int txbytes;
+    fd_set writefds;
+    timeval timeout_tv(timeval_from_ms(500));
+
+    for (txbytes=0; txbytes<length;)
+    {
+        FD_ZERO(&writefds);
+        FD_SET(_fd, &writefds);
+
+        // Debug_printf("select(%lu)\n", timeout_tv.tv_sec*1000+timeout_tv.tv_usec/1000);
+        int result = select(_fd + 1, NULL, &writefds, NULL, &timeout_tv);
+
+        if (result < 0) 
+        {
+            // Select was interrupted, try again
+            if (errno == EINTR) 
+            {
+                continue;
+            }
+            // Otherwise there was some error
+            Debug_printf("UART write() select error %d: %s\n", errno, strerror(errno));
+            break;
+        }
+
+        // Timeout
+        if (result == 0)
+        {
+            Debug_println("UART write() TIMEOUT");
+            break;
+        }
+
+        if (result > 0) 
+        {
+            // Make sure our file descriptor is in the ready to write list
+            if (FD_ISSET(_fd, &writefds))
+            {
+                // This will write some
+                result = ::write(_fd, &((uint8_t *)buffer)[txbytes], length-txbytes);
+                // Debug_printf("write: %d\n", result);
+                if (result < 1)
+                {
+                    Debug_printf("UART write() write error %d: %s\n", errno, strerror(errno));
+                    break;
+                }
+
+                txbytes += result;
+                if (txbytes == length)
+                {
+                    // TODO is flush missing somewhere else?
+                    // wait UART is writable again before return
+                    timeout_tv = timeval_from_ms(1000 + result * 12500 / _baud);
+                    select(_fd + 1, NULL, &writefds, NULL, &timeout_tv);
+                    // done
+                    break;
+                }
+                if (txbytes < length)
+                {
+                    timeout_tv = timeval_from_ms(1000 + result * 12500 / _baud);
+                    continue;
+                }
+            }
+            // This shouldn't happen, if r > 0 our fd has to be in the list!
+            Debug_println("UART write() unexpected select result");
+        }
+    }
+    return txbytes;
+}
+#ifdef UNUSED
 {
     return ::write(_fd, buffer, length);
 }
+#endif /* UNUSED */
 
 void SerialTTY::flush()
 {
@@ -253,5 +337,84 @@ std::string SerialTTY::getPort()
 {
     return _device;
 }
+
+#ifdef UNUSED
+size_t SerialTTY::available()
+{
+    int result;
+    if (ioctl(_fd, FIONREAD, &result) < 0)
+        return 0;
+    return result;
+}
+
+bool SerialTTY::waitReadable(uint32_t timeout_ms)
+{
+    // Setup a select call to block for serial data or a timeout
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(_fd, &readfds);
+    timeval timeout_tv(timeval_from_ms(timeout_ms));
+
+    int result = select(_fd + 1, &readfds, nullptr, nullptr, &timeout_tv);
+
+    if (result < 0) 
+    {
+        if (errno != EINTR)
+        {
+            Debug_printf("UART waitReadable() select error %d: %s\n", errno, strerror(errno));
+        }
+        return false;
+    }
+    // Timeout occurred
+    if (result == 0)
+    {
+        return false;
+    }
+    // This shouldn't happen, if result > 0 our fd has to be in the list!
+    if (!FD_ISSET (_fd, &readfds)) 
+    {
+        Debug_println("UART waitReadable() unexpected select result");
+    }
+    // Data available to read.
+    return true;
+}
+
+size_t SerialTTY::si_recv(void *buffer, size_t length)
+{
+    int result;
+    int rxbytes;
+    for (rxbytes=0; rxbytes<length;)
+    {
+        result = ::read(_fd, &((uint8_t *) buffer)[rxbytes], length-rxbytes);
+        // Debug_printf("read: %d\n", result);
+        if (result < 0)
+        {
+            if (errno == EAGAIN)
+            {
+                result = 0;
+            }
+            else
+            {
+                Debug_printf("UART readBytes() read error %d: %s\n", errno, strerror(errno));
+                break;
+            }
+        }
+
+        rxbytes += result;
+        if (rxbytes == length)
+        {
+            // done
+            break;
+        }
+
+        if (!waitReadable(500)) // 500 ms timeout
+        {
+            Debug_println("UART readBytes() TIMEOUT");
+            break;
+        }
+    }
+    return rxbytes;
+}
+#endif /* UNUSED */
 
 #endif /* ITS_A_UNIX_SYSTEM_I_KNOW_THIS */
