@@ -64,7 +64,7 @@ protected:
         _errorCode = 144;
     }
     bool transaction_get(void *data, size_t len) override {
-        return _bus->read((uint8_t *) data, len) == len;
+        return SYSTEM_BUS.read((uint8_t *) data, len) == len;
     }
     void transaction_put(const void *data, size_t len, bool err=false) override {
         transaction_complete();

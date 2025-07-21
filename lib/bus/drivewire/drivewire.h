@@ -20,6 +20,7 @@
 #define COCO_H
 
 #include "SerialUART.h"
+#include "SerialTTY.h"
 #include "BeckerSocket.h"
 
 #ifdef ESP32_PLATFORM
@@ -193,7 +194,11 @@ class systemBus
 {
 private:
     SerialInterface *_port;
+#if defined(ESP_PLATFORM)
     SerialUART _serial;
+#elif defined(ITS_A_UNIX_SYSTEM_I_KNOW_THIS)
+    SerialTTY _serial;
+#endif
     BeckerSocket _becker;
     
     virtualDevice *_activeDev = nullptr;

@@ -35,6 +35,12 @@
 static QueueHandle_t drivewire_evt_queue = NULL;
 #endif
 
+#ifdef ESP_PLATFORM
+#define DW_UART_DEVICE FN_UART_BUS
+#else /* !ESP_PLATFORM */
+#define DW_UART_DEVICE Config.get_serial_port()
+#endif /* ESP_PLATFORM */
+
 drivewireDload dload;
 
 // Host & client channel queues
@@ -674,9 +680,7 @@ void systemBus::setup()
 #endif /* FORCE_UART_BAUD */
 #endif /* CONFIG_IDF_TARGET_ESP32S3 */
 #else /* !ESP_PLATFORM */
-    #warning "FIXME - use a subclass!"
     // FujiNet-PC specific
-    _port->set_serial_port(Config.get_serial_port().c_str()); // UART
     _drivewireBaud = Config.get_serial_baud();
 #endif /* !ESP_PLATFORM */
     if (Config.get_boip_enabled())
@@ -687,7 +691,7 @@ void systemBus::setup()
     }
     else
     {
-        _serial.begin(FN_UART_BUS, SerialUARTConfig().baud(_drivewireBaud));
+        _serial.begin(SerialConfig().baud(_drivewireBaud).deviceID(DW_UART_DEVICE));
         _port = &_serial;
     }
 

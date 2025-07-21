@@ -18,7 +18,7 @@
 
 void SerialTTY::begin(const SerialConfig& conf)
 {
-    // FIXME - use device passed in conf
+    _device = conf.device;
     if (_device.empty())
     {
         bool found = false;
