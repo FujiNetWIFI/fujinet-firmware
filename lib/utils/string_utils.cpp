@@ -6,6 +6,7 @@
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include <mbedtls/version.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/base64.h>
 
@@ -531,7 +532,7 @@ namespace mstr {
         mbedtls_sha1_init(&ctx);
         int ret = 0;
 
-        #if defined(mbedtls_sha1_starts_ret) && defined(mbedtls_sha1_update_ret) && defined(mbedtls_sha1_finish_ret)
+        #if MBEDTLS_VERSION_NUMBER >= 0x02070000
         // Use the newer mbedtls API
         if ((ret = mbedtls_sha1_starts_ret(&ctx)) != 0) {
             Debug_printf("mbedtls_sha1_starts_ret failed with error code %d\n", ret);

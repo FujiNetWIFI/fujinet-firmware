@@ -29,6 +29,7 @@
 
 #include "utils.h"
 #include "directoryPageGroup.h"
+#include "compat_string.h"
 
 #include <endian.h>
 

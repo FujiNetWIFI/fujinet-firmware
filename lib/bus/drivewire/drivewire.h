@@ -331,8 +331,8 @@ public:
     QueueHandle_t qDrivewireMessages = nullptr;
 #endif
 
-    // Unused, for compatibility with fujiDevice.cpp
-    void changeDeviceId(void *pDevice, int device_id);
+    // For compatibility with fujiDevice.cpp
+    void changeDeviceId(virtualDevice *p, int device_id);
     void setUDPHost(const char *newhost, int port);
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 };

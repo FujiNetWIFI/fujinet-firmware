@@ -745,5 +745,20 @@ void systemBus::setBaudrate(int baud)
     //_modemDev->get_uart()->set_baudrate(baud); // TODO COME BACK HERE.
 }
 
+void systemBus::changeDeviceId(virtualDevice *p, int device_id)
+{
+    return;
+}
+
+void systemBus::setUDPHost(const char *newhost, int port)
+{
+    return;
+}
+
+void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
+{
+    return;
+}
+
 systemBus DRIVEWIRE; // Global DRIVEWIRE object
 #endif               /* BUILD_COCO */

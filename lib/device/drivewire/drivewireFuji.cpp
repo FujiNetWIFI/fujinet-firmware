@@ -5,6 +5,7 @@
 #include "fnWiFi.h"
 #include "base64.h"
 #include "utils.h"
+#include "compat_string.h"
 
 #ifdef UNUSED
 #ifdef ESP_PLATFORM
