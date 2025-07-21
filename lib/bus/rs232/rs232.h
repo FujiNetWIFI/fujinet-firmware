@@ -230,12 +230,12 @@ private:
     /* void _rs232_process_queue(); */
 
 public:
-    // FIXME - things should be calling the systemBus to use the bus,
-    //         not directly doing things behind its back
+    // Everybody thinks "oh I know how a serial port works, I'll just
+    // access it directly and bypass the bus!" ಠ_ಠ
     friend virtualDevice;
 #if FUJINET_OVER_USB
     SerialACM fnUartBUS;
-#elif !defined(BUILD_COCO)
+#else /* !FUJINET_OVER_USB */
     SerialUART fnUartBUS;
 #endif /* FUJINET_OVER_USB */
 
@@ -273,6 +273,6 @@ public:
     bool getShuttingDown() { return shuttingDown; };
 };
 
-extern systemBus RS232;
+extern systemBus SYSTEM_BUS;
 
 #endif // guard

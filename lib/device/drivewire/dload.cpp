@@ -53,9 +53,9 @@ void drivewireDload::pfilr_from_coco()
 {
     blockNum = 0;
 
-    if (fnDwCom.available())
+    if (SYSTEM_BUS.available())
     {
-        switch (fnDwCom.read())
+        switch (SYSTEM_BUS.read())
         {
         case P_FILR:
             Debug_printv("P.FILR");
@@ -72,7 +72,7 @@ void drivewireDload::pfilr_from_coco()
 void drivewireDload::pfilr_to_coco()
 {
     Debug_printv("Replying P_FILR");
-    fnDwCom.write(P_FILR);
+    SYSTEM_BUS.write(P_FILR);
     dState = GET_FILENAME;
 }
 
@@ -82,11 +82,11 @@ void drivewireDload::get_filename()
 
     memset(fn, 0x00, sizeof(fn));
 
-    fnDwCom.readBytes((uint8_t *)fn, 8);
+    SYSTEM_BUS.read((uint8_t *)fn, 8);
 
     Debug_printv("Requested Filename %s", fn);
 
-    sum_from_host = fnDwCom.read();
+    sum_from_host = SYSTEM_BUS.read();
 
     if (xor_sum((uint8_t *)fn, 8) == sum_from_host)
     {
@@ -101,14 +101,14 @@ void drivewireDload::get_filename()
 void drivewireDload::invalid_filename()
 {
     Debug_printv("Invalid Filename");
-    fnDwCom.write(P_NAK);
+    SYSTEM_BUS.write(P_NAK);
     dState = PFILR_FROM_COCO;
 }
 
 void drivewireDload::valid_filename()
 {
     Debug_printv("Valid Filename");
-    fnDwCom.write(P_ACK);
+    SYSTEM_BUS.write(P_ACK);
     dState = SEND_FILETYPE_TO_COCO;
 }
 
@@ -150,9 +150,9 @@ void drivewireDload::send_filetype_file_not_found()
 {
     Debug_printv("Sending file not found response.");
 
-    fnDwCom.write(0xFF); // File type
-    fnDwCom.write(0x00); // ASCII flag
-    fnDwCom.write(0xFF); // XOR byte
+    SYSTEM_BUS.write(0xFF); // File type
+    SYSTEM_BUS.write(0x00); // ASCII flag
+    SYSTEM_BUS.write(0xFF); // XOR byte
 
     // Return to initial state.
     dState = PFILR_FROM_COCO;
@@ -161,9 +161,9 @@ void drivewireDload::send_filetype_file_not_found()
 void drivewireDload::send_filetype_binary()
 {
     Debug_printv("Sending binary filetype");
-    fnDwCom.write(0x02); // Binary file
-    fnDwCom.write(0x00); // ASCII flag = 0
-    fnDwCom.write(0x02); // XOR value :)
+    SYSTEM_BUS.write(0x02); // Binary file
+    SYSTEM_BUS.write(0x00); // ASCII flag = 0
+    SYSTEM_BUS.write(0x02); // XOR value :)
 
     dState = P_BLKR_FROM_COCO;
 }
@@ -172,10 +172,10 @@ void drivewireDload::pblkr_from_coco()
 {
     uint8_t c = 0;
 
-    if (!fnDwCom.available())
+    if (!SYSTEM_BUS.available())
         return;
 
-    c = fnDwCom.read();
+    c = SYSTEM_BUS.read();
 
     if (c != P_BLKR)
     {
@@ -187,7 +187,7 @@ void drivewireDload::pblkr_from_coco()
 
 void drivewireDload::pblkr_to_coco()
 {
-    fnDwCom.write(P_BLKR);
+    SYSTEM_BUS.write(P_BLKR);
     dState = GET_BLOCK_NUMBER;
 }
 
@@ -197,11 +197,11 @@ void drivewireDload::get_block_number()
     uint8_t s = 0;         // XOR sum
 
     // Read block bytes
-    b[0] = fnDwCom.read();
-    b[1] = fnDwCom.read();
+    b[0] = SYSTEM_BUS.read();
+    b[1] = SYSTEM_BUS.read();
 
     // Go ahead and get sum byte
-    s = fnDwCom.read();
+    s = SYSTEM_BUS.read();
 
     // quickly check bit MSB of each block byte and bail if set.
     if ((b[0] & 0x80) || (b[1] & 0x80))
@@ -232,14 +232,14 @@ void drivewireDload::get_block_number()
 void drivewireDload::get_p_nak()
 {
     Debug_printv("Sending NAK");
-    fnDwCom.write(P_NAK);
+    SYSTEM_BUS.write(P_NAK);
     dState = P_BLKR_FROM_COCO;
 }
 
 void drivewireDload::get_p_ack()
 {
     Debug_printv("Sending ACK");
-    fnDwCom.write(P_ACK);
+    SYSTEM_BUS.write(P_ACK);
     dState = PUT_BLOCK;
 }
 
@@ -265,9 +265,9 @@ void drivewireDload::put_block()
     }
 
     // And spit out block length, block data and XOR sum.
-    fnDwCom.write(len);
-    fnDwCom.write(b, sizeof(b));
-    fnDwCom.write(xor_sum(b, sizeof(b)));
+    SYSTEM_BUS.write(len);
+    SYSTEM_BUS.write(b, sizeof(b));
+    SYSTEM_BUS.write(xor_sum(b, sizeof(b)));
 
     // Return to P.BLKR
     dState = P_BLKR_FROM_COCO;
