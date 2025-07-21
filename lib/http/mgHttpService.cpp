@@ -415,7 +415,7 @@ int fnHttpService::get_handler_mount(mg_connection *c, mg_http_message *hm)
         // Mount all the things
         Debug_printf("Mount all from webui\n");
 #ifdef BUILD_ATARI
-        theFuji->mount_all(false);
+        theFuji->fujicmd_mount_all_success(false);
 #else
         theFuji->fujicmd_mount_all_success();
 #endif
@@ -439,12 +439,12 @@ int fnHttpService::get_handler_eject(mg_connection *c, mg_http_message *hm)
     else
     {
 #ifdef BUILD_APPLE
-        if(theFuji->get_disks(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted.
-            theFuji->get_disks(ds)->disk_dev.switched = true;
+        if(theFuji->get_disk(ds)->disk_dev.device_active) //set disk switched only if device was previosly mounted.
+            theFuji->get_disk(ds)->disk_dev.switched = true;
 #endif
         theFuji->get_disk(ds)->disk_dev.unmount();
 #ifdef BUILD_ATARI
-        if (theFuji->get_disks(ds)->disk_type == MEDIATYPE_CAS || theFuji->get_disks(ds)->disk_type == MEDIATYPE_WAV)
+        if (theFuji->get_disk(ds)->disk_type == MEDIATYPE_CAS || theFuji->get_disk(ds)->disk_type == MEDIATYPE_WAV)
         {
             theFuji->cassette()->umount_cassette_file();
             theFuji->cassette()->sio_disable_cassette();

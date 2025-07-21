@@ -332,7 +332,7 @@ public:
 #endif
 
     // For compatibility with fujiDevice.cpp
-    void changeDeviceId(virtualDevice *p, int device_id);
+    void changeDeviceId(void *pDevice, int device_id);
     void setUDPHost(const char *newhost, int port);
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 };
