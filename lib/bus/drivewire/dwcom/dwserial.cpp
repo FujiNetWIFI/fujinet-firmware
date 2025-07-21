@@ -7,13 +7,13 @@
 void SerialDwPort::begin(int baud)
 {
     Debug_printf("SerialDwPort: begin @ %d\n", baud);
-     _uart.begin(baud);
+    _uart.begin(FN_UART_BUS, SerialUARTConfig().baud(baud));
 }
 
 // read bytes into buffer
 size_t SerialDwPort::read(uint8_t *buffer, size_t size)
 {
-    // for UARTManager there is separate read() and readBytes(uint8_t *buffer, size_t size) ...
+    // for UARTManager there is separate read() and read(uint8_t *buffer, size_t size) ...
     // TODO is there any reason to do special call to UARTManager for single byte?
     if (size == 1)
     {
@@ -23,7 +23,7 @@ size_t SerialDwPort::read(uint8_t *buffer, size_t size)
         *buffer = b;
         return 1; // 1 byte was read
     }
-    return _uart.readBytes(buffer, size);
+    return _uart.read(buffer, size);
 }
 
 ssize_t SerialDwPort::write(const uint8_t *buffer, size_t size) 

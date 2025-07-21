@@ -1,7 +1,6 @@
 #ifdef BUILD_COCO
 
 #include <cstring>
-#include "fnUART.h"
 #include "dload.h"
 #include "fnFsSPIFFS.h"
 #include "../../include/debug.h"

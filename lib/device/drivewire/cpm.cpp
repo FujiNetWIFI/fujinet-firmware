@@ -7,7 +7,6 @@
 #include "cpm.h"
 
 #include "fnSystem.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 #include "drivewireFuji.h"
 #include "fnFS.h"

@@ -17,23 +17,17 @@ private:
     QueueHandle_t rxQueue;
 
 protected:
-    void checkRXQueue() override;
+    void update_fifo() override;
+    size_t si_send(const void *buffer, size_t length) override;
 
 public:
     void begin();
     void end() override;
-    size_t send(const void *buffer, size_t length) override;
-
-    // Reference only — inherited from base class, do not override.
-    // Provided here for visibility; this is NOT a declaration.
-    // size_t recv(void *buffer, size_t length) override;
 
     void flush() override;
 
-    uint32_t getBaudrate() override;
-    void setBaudrate(uint32_t baud) override;
-
-    bool dtrState() override;
+    uint32_t getBaudrate() override { return 0; }
+    void setBaudrate(uint32_t baud) override { return }
 
     // public because forwarder function needs it
     void eventReceived(const cdc_acm_host_dev_event_data_t *event);

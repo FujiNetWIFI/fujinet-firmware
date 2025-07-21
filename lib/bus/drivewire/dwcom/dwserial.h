@@ -3,22 +3,19 @@
 
 #include <stdio.h>
 
-#include "fnUART.h"
+#include "SerialUART.h"
 #include "dwport.h"
 
 /*
  * Implementation of DriveWire Port using UART serial port
- * wrapper around existing UARTManager
+ * wrapper around existing SerialUART
  */
 
 class SerialDwPort : public DwPort
 {
 private:
-#ifdef ESP_PLATFORM
-    UARTManager _uart = UARTManager(FN_UART_BUS);
-#else
-    UARTManager _uart;
-#endif
+    SerialUART _uart;
+
 public:
     SerialDwPort() {}
     virtual void begin(int baud) override;
@@ -34,7 +31,7 @@ public:
 
     virtual int available() override { return _uart.available(); }
     virtual void flush() override { _uart.flush(); }
-    virtual void flush_input() override { _uart.flush_input(); }
+    virtual void flush_input() override { _uart.discardInput(); }
 
     // read bytes into buffer
     virtual size_t read(uint8_t *buffer, size_t size) override;
@@ -42,8 +39,8 @@ public:
     virtual ssize_t write(const uint8_t *buffer, size_t size) override;
 
     // specific to SerialDwPort/UART
-    void set_baudrate(uint32_t baud) override { _uart.set_baudrate(baud); }
-    uint32_t get_baudrate() override { return _uart.get_baudrate(); }
+    void set_baudrate(uint32_t baud) override { _uart.setBaudrate(baud); }
+    uint32_t get_baudrate() override { return _uart.getBaudrate(); }
 #ifndef ESP_PLATFORM
     void set_port(const char *device) { _uart.set_port(device); }
     const char* get_port() { return _uart.get_port(); }

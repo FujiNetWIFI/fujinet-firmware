@@ -12,28 +12,28 @@ private:
     size_t _print_number(unsigned long n, uint8_t base);
 
 protected:
-    std::string fifo;
+    std::string _fifo;
 
-    virtual void checkRXQueue() = 0;
+    virtual size_t si_recv(void *buffer, size_t length);
+
+    // Must be implemented by subclass
+    virtual size_t si_send(const void *buffer, size_t length) = 0;
+    virtual void update_fifo() = 0;
 
 public:
     // begin() and arguments vary by subclass so not declared here
     virtual void end() = 0;
-    virtual size_t send(const void *buffer, size_t length) = 0;
 
     virtual void flush() = 0;
 
     virtual uint32_t getBaudrate() = 0;
     virtual void setBaudrate(uint32_t baud) = 0;
 
-    virtual bool dtrState() = 0;
-
     // Handled here, not implemented by subclass
-    size_t recv(void *buffer, size_t length);
-    size_t available();
-    void discardInput();
+    virtual size_t available();
+    virtual void discardInput();
 
-    /* Convenience methods, just wrappers for recv()/send() methods above */
+    /* Convenience methods, just wrappers for si_recv()/si_send() methods above */
     size_t read(void *buffer, size_t length);
     int read(void);
 

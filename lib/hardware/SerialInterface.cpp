@@ -3,22 +3,24 @@
 #include <stdarg.h>
 #include <esp_timer.h>
 
-#define MAX_READ_TIMEOUT 10000
+#include "../../include/debug.h"
+
+#define MAX_READ_TIMEOUT 10000 // microseconds
 
 size_t SerialInterface::available()
 {
-    checkRXQueue();
-    //Debug_printf("FN AVAIL: %i\r\n", fifo.size());
-    return fifo.size();
+    update_fifo();
+    //Debug_printf("FN AVAIL: %i\r\n", _fifo.size());
+    return _fifo.size();
 }
 
-size_t SerialInterface::recv(void *buffer, size_t length)
+size_t SerialInterface::si_recv(void *buffer, size_t length)
 {
     size_t rlen, total = 0;
     uint8_t *ptr;
     uint64_t now, start;
 
-    //Debug_printv("want %i have %i", length, available());
+    Debug_printv("want %i have %i", length, available());
     ptr = (uint8_t *) buffer;
     now = start = esp_timer_get_time();
     while (length)
@@ -29,8 +31,8 @@ size_t SerialInterface::recv(void *buffer, size_t length)
         rlen = std::min(length, available());
         if (!rlen)
             continue;
-        memcpy(&ptr[total], fifo.data(), rlen);
-        fifo.erase(0, rlen);
+        memcpy(&ptr[total], _fifo.data(), rlen);
+        _fifo.erase(0, rlen);
         total += rlen;
         length -= rlen;
 
@@ -38,7 +40,7 @@ size_t SerialInterface::recv(void *buffer, size_t length)
         start = now;
     }
 
-    //Debug_printv("read %i", total);
+    Debug_printv("read %i", total);
     return total;
 }
 
@@ -50,9 +52,9 @@ void SerialInterface::discardInput()
     while (now - start < MAX_READ_TIMEOUT)
     {
         now = esp_timer_get_time();
-        if (fifo.size())
+        if (_fifo.size())
         {
-            fifo.clear();
+            _fifo.clear();
             start = now;
         }
     }
@@ -61,7 +63,7 @@ void SerialInterface::discardInput()
 
 size_t SerialInterface::read(void *buffer, size_t length)
 {
-    return recv(buffer, length);
+    return si_recv(buffer, length);
 }
 
 int SerialInterface::read(void)
@@ -76,7 +78,7 @@ int SerialInterface::read(void)
 
 size_t SerialInterface::write(const void *buffer, size_t length)
 {
-    return send(buffer, length);
+    return si_send(buffer, length);
 }
 
 size_t SerialInterface::write(uint8_t c)

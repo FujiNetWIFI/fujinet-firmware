@@ -12,7 +12,6 @@
 #include "fnTcpClient.h"
 #include "modem-sniffer.h"
 #include "libtelnet.h"
-#include "fnUART.h"
 
 /* Keep strings under 40 characters, for the benefit of 40-column users! */
 #define HELPL01 "       FujiNet Virtual RC2014 Modem"
@@ -207,7 +206,7 @@ private:
     void at_handle_pb();
     void at_handle_pbclear();
 
-    UARTManager* uart;              // UART manager to use.
+    SerialUART* uart;              // UART manager to use.
 
 protected:
     void shutdown();
@@ -219,7 +218,7 @@ public:
     drivewireModem(FileSystem *_fs, bool snifferEnable);
     virtual ~drivewireModem();
 
-    void set_uart(UARTManager *_uart) { uart = _uart; }
+    void set_uart(SerialUART *_uart) { uart = _uart; }
 
 
     time_t get_last_activity_time() { return _lasttime; } // timestamp of last input or output.

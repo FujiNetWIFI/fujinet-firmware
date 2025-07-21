@@ -200,16 +200,7 @@ void SerialACM::end()
 {
 }
 
-uint32_t SerialACM::getBaudrate()
-{
-    return 0;
-}
-
-void SerialACM::setBaudrate(uint32_t baud)
-{
-}
-
-void SerialACM::checkRXQueue()
+void SerialACM::update_fifo()
 {
     FIFOPacket pkt;
     size_t old_len;
@@ -226,18 +217,13 @@ void SerialACM::checkRXQueue()
     return;
 }
 
-size_t SerialACM::send(const void *buffer, size_t length)
+size_t SerialACM::si_send(const void *buffer, size_t length)
 {
     cdc_acm_host_data_tx_blocking(cdc_dev,
                                   (const uint8_t *) buffer,
                                   length,
                                   TX_TIMEOUT_MS);
     return length;
-}
-
-bool SerialACM::dtrState()
-{
-    return 0;
 }
 
 void SerialACM::flush()

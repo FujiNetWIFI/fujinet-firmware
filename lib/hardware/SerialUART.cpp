@@ -27,6 +27,7 @@ void SerialUART::begin(uart_port_t uart_num, const SerialUARTConfig& conf)
     }
 
     _uart_num = uart_num;
+    Debug_printv("speed: %i", conf.uart_config.baud_rate);
     uart_param_config(_uart_num, &conf.uart_config);
     
     int tx, rx;
@@ -65,7 +66,7 @@ void SerialUART::begin(uart_port_t uart_num, const SerialUARTConfig& conf)
                         intr_alloc_flags);
 }
 
-void SerialUART::checkRXQueue()
+void SerialUART::update_fifo()
 {
     uart_event_t event;
 
@@ -74,13 +75,13 @@ void SerialUART::checkRXQueue()
         Debug_printf("UART EVENT: %i size: %i\r\n", event.type, event.size);
         if (event.type == UART_DATA)
         {
-            size_t old_len = fifo.size();
-            fifo.resize(old_len + event.size);
-            int result = uart_read_bytes(_uart_num, &fifo[old_len], event.size, 0);
+            size_t old_len = _fifo.size();
+            _fifo.resize(old_len + event.size);
+            int result = uart_read_bytes(_uart_num, &_fifo[old_len], event.size, 0);
             Debug_printf("UART READ: %i\n", result);
             if (result < 0)
                 result = 0;
-            fifo.resize(old_len + result);
+            _fifo.resize(old_len + result);
         }
     }
 
@@ -111,14 +112,14 @@ void SerialUART::setBaudrate(uint32_t baud)
 #endif
 }
 
-size_t SerialUART::send(const void *buffer, size_t size)
+size_t SerialUART::si_send(const void *buffer, size_t size)
 {
     return uart_write_bytes(_uart_num, (const char *)buffer, size);
 }
 
 bool SerialUART::dtrState()
 {
-#ifdef FUJINET_OVER_USB
+#if defined(FUJINET_OVER_USB) || !defined(PIN_RS232_DTR)
     return 0;
 #else /* FUJINET_OVER_USB */
     return fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW;
