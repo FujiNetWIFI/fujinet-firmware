@@ -5,7 +5,7 @@
 #include "rs232cpm.h"
 
 #include "fnSystem.h"
-#include "fnUART.h"
+#include "IOChannel.h"
 #include "fnWiFi.h"
 #include "rs232Fuji.h"
 #include "fnFS.h"
@@ -58,7 +58,7 @@ void rs232CPM::rs232_handle_cpm()
 
 void rs232CPM::init_cpm(int baud)
 {
-    fnUartBUS.set_baudrate(baud);
+    RS232.fnUartBUS.setBaudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);

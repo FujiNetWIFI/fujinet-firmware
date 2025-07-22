@@ -26,6 +26,7 @@
 #include "pinmap/lynx.h"
 #include "pinmap/rs232_rev0.h"
 #include "pinmap/rs232_s3.h"
+#include "pinmap/rs232_freenove.h"
 #include "pinmap/cx16.h"
 #include "pinmap/rc2014spi_rev0.h"
 #include "pinmap/heathkit_h89.h"

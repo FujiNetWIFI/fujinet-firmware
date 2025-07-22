@@ -561,18 +561,20 @@ void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud
         }
 
 #elif defined(BUILD_COCO)
-        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
+#ifdef NOT_SUBCLASS
+        if (_bus.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
         {
-            fnDwCom.end();
+            _bus.end();
         }
 
-        fnDwCom.set_serial_port(Config.get_serial_port().c_str());
+        _bus.set_serial_port(Config.get_serial_port().c_str());
 
-        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
+        if (_bus.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
         {
-            fnDwCom.begin(Config.get_serial_baud());
+            _bus.begin(Config.get_serial_baud());
         }
 #endif
+#endif /* NOT_SUBCLASS */
     }
 }
 #endif // !ESP_PLATFORM
@@ -608,7 +610,9 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
 #if defined(BUILD_ATARI)
     fnSioCom.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port());
 #elif defined(BUILD_COCO)
-    fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port());
+#ifdef NOT_SUBCLASS
+    _bus.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port());
+#endif /* NOT_SUBCLASS */
 #endif
 #endif
 
@@ -622,7 +626,9 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
 #if defined(BUILD_ATARI)
     fnSioCom.reset_sio_port(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
 #elif defined(BUILD_COCO)
-    fnDwCom.reset_drivewire_port(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
+#ifdef NOT_SUBCLASS
+    _bus.reset_drivewire_port(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
+#endif /* NOT_SUBCLASS */
 #endif
 #endif
 

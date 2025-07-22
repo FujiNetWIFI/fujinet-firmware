@@ -906,8 +906,10 @@ void rs232Network::rs232_poll_interrupt()
 
         if (status.rxBytesWaiting > 0 || status.connected == 0)
             rs232_assert_interrupt();
+#ifndef FUJINET_OVER_USB
         else
             fnSystem.digital_write(PIN_RS232_RI,DIGI_HIGH);
+#endif /* FUJINET_OVER_USB */
 
         reservedSave = status.connected;
         errorSave = status.error;
@@ -1074,8 +1076,10 @@ void rs232Network::processCommaFromDevicespec()
  * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
  */
 void rs232Network::rs232_assert_interrupt()
-{ 
+{
+#ifndef FUJINET_OVER_USB
     fnSystem.digital_write(PIN_RS232_RI, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+#endif /* FUJINET_OVER_USB */
 }
 
 void rs232Network::rs232_set_translation()

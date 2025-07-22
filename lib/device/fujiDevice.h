@@ -103,7 +103,6 @@ protected:
     fujiHost _fnHosts[MAX_HOSTS];
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
 
-    systemBus *_bus;
     appkey _current_appkey;
     int _current_open_directory_slot = -1;
     uint8_t _countScannedSSIDs = 0;

@@ -186,9 +186,11 @@ void systemBus::_rs232_process_cmd()
                  tempFrame.device, tempFrame.comnd,
                  tempFrame.aux1, tempFrame.aux2, tempFrame.aux3, tempFrame.aux4,
                  tempFrame.cksum);
+#if 0 && !defined(FUJINET_OVER_USB)
     // Wait for CMD line to raise again
-    while (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
+    while (dsrState())
         vTaskDelay(1);
+#endif /* FUJINET_OVER_USB */
 
     uint8_t ck = rs232_checksum((uint8_t *)&tempFrame, sizeof(tempFrame) - sizeof(tempFrame.cksum)); // Calculate Checksum
     if (ck == tempFrame.cksum)
@@ -268,11 +270,21 @@ void systemBus::service()
         return; // break!
     }    
 
+#if 0 && !defined(FUJINET_OVER_USB)
     // Go process a command frame if the RS232 CMD line is asserted
-    if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
+vvvvvvvvvvvvvvvvvvvv
+    if (fnUartBUS.dsrState())
+^^^^^^^^^^^^^^^^^^^^
     {
         _rs232_process_cmd();
     }
+#else /* FUJINET_OVER_USB */
+    // Go process a command frame if the RS232 CMD line is asserted
+    if (RS232.fnUartBUS.available())
+    {
+        _rs232_process_cmd();
+    }
+#endif /* FUJINET_OVER_USB */
     // Go check if the modem needs to read data if it's active
     else if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
@@ -299,7 +311,8 @@ void systemBus::setup()
     Debug_printf("RS232 SETUP: Baud rate: %u\n",Config.get_rs232_baud());
 
     // Set up UART
-    fnUartBUS.begin(Config.get_rs232_baud());
+#ifndef FUJINET_OVER_USB
+    fnUartBUS.begin(FN_UART_BUS, SerialUARTConfig().baud(Config.get_rs232_baud()));
 
     // // INT PIN
     // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
@@ -322,9 +335,9 @@ void systemBus::setup()
 
     fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
-    
-    // Create a message queue
-    qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
+#else
+    fnUartBUS.begin();
+#endif /* FUJINET_OVER_USB */
 
     Debug_println("RS232 Setup Flush");
     fnUartBUS.flush_input();

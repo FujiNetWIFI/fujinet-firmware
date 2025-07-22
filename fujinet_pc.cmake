@@ -163,8 +163,8 @@ set(SOURCES src/main.cpp
     lib/utils/U8Char.h lib/utils/U8Char.cpp
     lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
     lib/hardware/led.h lib/hardware/led.cpp
-    lib/hardware/fnUART.h lib/hardware/fnUART.cpp
-    lib/hardware/fnUARTUnix.cpp lib/hardware/fnUARTWindows.cpp
+    lib/hardware/IOChannel.h lib/hardware/IOChannel.cpp
+    lib/hardware/TTYChannel.h lib/hardware/TTYChannel.cpp
     lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
     lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
     lib/FileSystem/fnFileCache.h lib/FileSystem/fnFileCache.cpp
@@ -244,7 +244,7 @@ set(SOURCES src/main.cpp
     lib/device/printer.h
     lib/device/modem.h
     lib/device/cassette.h
-    lib/device/fuji.h
+    lib/device/fujiDevice.h lib/device/fujiDevice.cpp
     lib/device/network.h
     lib/device/udpstream.h
     lib/device/siocpm.h
@@ -276,7 +276,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     lib/device/sio/printer.h lib/device/sio/printer.cpp
     lib/device/sio/printerlist.h lib/device/sio/printerlist.cpp
     lib/device/sio/cassette.h lib/device/sio/cassette.cpp
-    lib/device/sio/fuji.h lib/device/sio/fuji.cpp
+    lib/device/sio/sioFuji.h lib/device/sio/sioFuji.cpp
     lib/device/sio/network.h lib/device/sio/network.cpp
     lib/device/sio/udpstream.h lib/device/sio/udpstream.cpp
     lib/device/sio/voice.h lib/device/sio/voice.cpp
@@ -336,7 +336,7 @@ if(FUJINET_TARGET STREQUAL "APPLE")
     lib/device/iwm/printer.h lib/device/iwm/printer.cpp
     lib/device/iwm/printerlist.h lib/device/iwm/printerlist.cpp
     lib/device/iwm/modem.h lib/device/iwm/modem.cpp
-    lib/device/iwm/fuji.h lib/device/iwm/fuji.cpp
+    lib/device/iwm/iwmFuji.h lib/device/iwm/iwmFuji.cpp
     lib/device/iwm/network.h lib/device/iwm/network.cpp
     lib/device/iwm/clock.h lib/device/iwm/clock.cpp
     lib/device/iwm/cpm.h lib/device/iwm/cpm.cpp
@@ -361,16 +361,13 @@ if(FUJINET_TARGET STREQUAL "COCO")
     list(APPEND SOURCES
 
     lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
-    lib/bus/drivewire/dwcom/fnDwCom.h lib/bus/drivewire/dwcom/fnDwCom.cpp
-    lib/bus/drivewire/dwcom/dwport.h lib/bus/drivewire/dwcom/dwport.cpp
-    lib/bus/drivewire/dwcom/dwserial.h lib/bus/drivewire/dwcom/dwserial.cpp
-    lib/bus/drivewire/dwcom/dwbecker.h lib/bus/drivewire/dwcom/dwbecker.cpp
+    lib/bus/drivewire/BeckerSocket.h lib/bus/drivewire/BeckerSocket.cpp
 
     lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
     lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
     lib/media/drivewire/mediaTypeMRM.h lib/media/drivewire/mediaTypeMRM.cpp
 
-    lib/device/drivewire/fuji.h lib/device/drivewire/fuji.cpp
+    lib/device/drivewire/drivewireFuji.h lib/device/drivewire/drivewireFuji.cpp
     lib/device/drivewire/network.h lib/device/drivewire/network.cpp
     lib/device/drivewire/dload.h lib/device/drivewire/dload.cpp
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
