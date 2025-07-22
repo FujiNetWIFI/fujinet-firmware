@@ -13,6 +13,7 @@
 #define BECKER_CONNECT_TMOUT    2000
 #define BECKER_SUSPEND_MS       5000
 
+#ifdef UNUSED
 class BeckerSocket;
 
 class BeckerState
@@ -77,7 +78,14 @@ private:
     BeckerSuspended(const BeckerSuspended& other);
     BeckerSuspended& operator=(const BeckerSuspended& other);
 };
-
+#else /* !UNUSED */
+enum BeckerState {
+    BeckerStopped,
+    BeckerWaitConn,
+    BeckerConnected,
+    BeckerSuspended,
+};    
+#endif /* UNUSED */
 
 class BeckerSocket : public SerialInterface
 {
@@ -96,7 +104,7 @@ private:
     int _listen_fd;
 
     // state machine handlers for poll(), read() and write()
-    BeckerState *_state;
+    BeckerState _state;
 
     // error counter
     int _errcount;
@@ -136,9 +144,9 @@ protected:
 
     void update_fifo() override;
     size_t si_recv(void *buffer, size_t size) override {
-        return _state->read(this, (uint8_t *) buffer, size); }
+        return do_read((uint8_t *) buffer, size); }
     size_t si_send(const void *buffer, size_t size) override {
-        return _state->write(this, (uint8_t *) buffer, size); }
+        return do_write((uint8_t *) buffer, size); }
     
 public:
     BeckerSocket();
@@ -154,22 +162,26 @@ public:
     void discardInput() override;
     void flush() override;
 
+#ifdef UNUSED
     // keep BeckerSocket alive
     bool poll(int ms) { return _state->poll(this, ms); }
     // read bytes into buffer
+#endif /* UNUSED */
 
     // specific to BeckerSocket
     void set_host(const char *host, int port);
     const char* get_host(int &port);
 
-    inline BeckerState* getState() const { return _state; }
-    void setState(BeckerState& state) { _state = &state; }
+    inline BeckerState getState() const { return _state; }
+    void setState(BeckerState state) { _state = state; }
 
+#ifdef NOT_SUBCLASS
     // friends, state handlers
     friend class BeckerStopped;
     friend class BeckerWaitConn;
     friend class BeckerConnected;
     friend class BeckerSuspended;
+#endif /* NOT_SUBCLASS */
 };
 
 
