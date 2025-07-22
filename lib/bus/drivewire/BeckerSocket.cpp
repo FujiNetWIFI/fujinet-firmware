@@ -1,15 +1,11 @@
 #ifdef BUILD_COCO
 
 #include "BeckerSocket.h"
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include "fnSystem.h"
+#include "fnWiFi.h"
 #include "compat_string.h"
-#include <sys/time.h>
-#include <unistd.h> // write(), read(), close()
-#include <errno.h> // Error integer and strerror() function
-#include <fcntl.h> // Contains file controls like O_RDWR
+
+#include "../../include/debug.h"
 
 #ifndef ESP_PLATFORM
 
@@ -27,12 +23,6 @@
 #endif
 
 #endif // !ESP_PLATFORM
-
-#include "../../include/debug.h"
-
-#include "fnSystem.h"
-#include "fnWiFi.h"
-
 
 #define DW_DEFAULT_BAUD         57600
 
