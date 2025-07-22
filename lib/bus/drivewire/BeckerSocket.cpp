@@ -26,10 +26,21 @@
 
 #define DW_DEFAULT_BAUD         57600
 
+#if defined(_WIN32)
+#define DW_CONNECT_ERR WSAEWOULDBLOCK
+#define DW_EINTR WSAEINTR
+#define DW_ETIMEDOUT WSAETIMEDOUT
+#define DW_REUSEADDR SO_EXCLUSIVEADDRUSE
+#else
+#define DW_CONNECT_ERR EINPROGRESS
+#define DW_EINTR EINTR
+#define DW_ETIMEDOUT ETIMEDOUT
+#define DW_REUSEADDR SO_REUSEADDR
+#endif
 
 // Constructor
 BeckerSocket::BeckerSocket() :
-    _host{0},
+    _host(""),
     _ip(IPADDR_NONE),
     _port(BECKER_DEFAULT_PORT),
     _baud(DW_DEFAULT_BAUD),     // not used by Becker
@@ -101,7 +112,6 @@ void BeckerSocket::start_connection()
 
 void BeckerSocket::listen_for_connection()
 {
-
     // Wait for WiFi
     if (!fnWiFi.connected())
     {
@@ -125,19 +135,16 @@ void BeckerSocket::listen_for_connection()
 
     // Set socket option
     int enable = 1;
-#if defined(_WIN32)
-    if (setsockopt(_listen_fd, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (char *) &enable, sizeof(enable)) != 0)
-#else
-        if (setsockopt(_listen_fd, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(enable)) != 0)
-#endif
-        {
-            Debug_printf("BeckerSocket: setsockopt failed: %d - %s\n",
-                         compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
-            closesocket(_listen_fd);
-            _listen_fd = -1;
-            suspend(BECKER_SUSPEND_MS);
-            return;
-        }
+    if (setsockopt(_listen_fd, SOL_SOCKET, DW_REUSEADDR, (char *) &enable,
+                   sizeof(enable)) != 0)
+    {
+        Debug_printf("BeckerSocket: setsockopt failed: %d - %s\n",
+                     compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
+        closesocket(_listen_fd);
+        _listen_fd = -1;
+        suspend(BECKER_SUSPEND_MS);
+        return;
+    }
 
     // Local address to listen on
     if (_host.empty() || _host == "*")
@@ -203,27 +210,26 @@ void BeckerSocket::listen_for_connection()
 
 void BeckerSocket::make_connection()
 {
-
     // Wait for WiFi
     if (!fnWiFi.connected())
     {
         Debug_println("BeckerSocket: No WiFi!");
         // suspend for 0.5 or 2 sec, depending on _errcount
         suspend(1000, 5000, 5);
-		return;
-	}
+        return;
+    }
 
-    Debug_printf("Setting up BeckerSocket: connecting to %s:%d\n", _host, _port);
+    Debug_printf("Setting up BeckerSocket: connecting to %s:%d\n", _host.c_str(), _port);
 
     // Create connection socket
     _fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
     if (_fd < 0)
     {
         Debug_printf("BeckerSocket: failed to create socket: %d - %s\n",
-            compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
+                     compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
         suspend(BECKER_SUSPEND_MS);
-		return;
-	}
+        return;
+    }
 
 #ifdef USE_SO_NOSIGPIPE
     // Set NOSIGPIPE socket option (old macOS)
@@ -231,7 +237,7 @@ void BeckerSocket::make_connection()
     if (setsockopt(_fd, SOL_SOCKET, SO_NOSIGPIPE, (char *)&enable, sizeof(enable)) < 0)
     {
         Debug_printf("BeckerSocket: setsockopt failed: %d - %s\n",
-            compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
+                     compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
         suspend(BECKER_SUSPEND_MS);
         return;
     }
@@ -241,13 +247,13 @@ void BeckerSocket::make_connection()
     if (!compat_socket_set_nonblocking(_fd))
     {
         Debug_printf("BeckerSocket: failed to set non-blocking mode: %d - %s\n",
-            compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
+                     compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
         suspend(BECKER_SUSPEND_MS);
         return;
     }
 
     // Remote address
-    if (_host[0] == '\0')
+    if (_host.empty())
     {
         _ip = IPADDR_LOOPBACK;
     }
@@ -271,14 +277,10 @@ void BeckerSocket::make_connection()
     int res = connect(_fd, (struct sockaddr *)&addr, sizeof(addr));
     int err = compat_getsockerr();
 
-#if defined(_WIN32)
-    if (res < 0 && err != WSAEWOULDBLOCK)
-#else
-    if (res < 0 && err != EINPROGRESS)
-#endif
+    if (res < 0 && err != DW_CONNECT_ERR)
     {
         Debug_printf("BeckerSocket: connect failed: %d - %s\n",
-            compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
+                     compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
         suspend(BECKER_SUSPEND_MS);
         return;
     }
@@ -296,13 +298,11 @@ void BeckerSocket::make_connection()
     Debug_print("### BeckerSocket connected ###\n");
 }
 
-
 bool BeckerSocket::accept_pending_connection(int ms)
 {
     // if listening socket has new connection accept it
     return(wait_sock_readable(ms, true) && accept_connection());
 }
-
 
 bool BeckerSocket::accept_connection()
 {
@@ -314,7 +314,7 @@ bool BeckerSocket::accept_connection()
     if (_fd < 0)
     {
         Debug_printf("BeckerSocket: accept failed: %d - %s\n",
-            compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
+                     compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
         return false;
     }
     Debug_printf("BeckerSocket: connection from: %s\r\n", inet_ntoa(addr.sin_addr));
@@ -334,7 +334,7 @@ bool BeckerSocket::accept_connection()
     if (!compat_socket_set_nonblocking(_fd))
     {
         Debug_printf("BeckerSocket: failed to set non-blocking connection: %d - %s\n",
-            compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
+                     compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
         shutdown(_fd, 0);
         closesocket(_fd);
         _fd = -1;
@@ -433,7 +433,7 @@ bool BeckerSocket::connected()
             break;
         default:
             Debug_printf("BeckerSocket: connection error: %d - %s\n",
-                compat_getsockerr(), compat_sockstrerror(err));
+                         compat_getsockerr(), compat_sockstrerror(err));
             break;
         }
     }
@@ -480,10 +480,10 @@ bool BeckerSocket::poll_connection(int ms)
 
 timeval BeckerSocket::timeval_from_ms(const uint32_t millis)
 {
-  timeval tv;
-  tv.tv_sec = millis / 1000;
-  tv.tv_usec = (millis - (tv.tv_sec * 1000)) * 1000;
-  return tv;
+    timeval tv;
+    tv.tv_sec = millis / 1000;
+    tv.tv_usec = (millis - (tv.tv_sec * 1000)) * 1000;
+    return tv;
 }
 
 bool BeckerSocket::wait_sock_readable(uint32_t timeout_ms, bool listener)
@@ -505,11 +505,7 @@ bool BeckerSocket::wait_sock_readable(uint32_t timeout_ms, bool listener)
         if (result < 0)
         {
             int err = compat_getsockerr();
-#if defined(_WIN32)
-            if (err == WSAEINTR)
-#else
-            if (err == EINTR)
-#endif
+            if (err == DW_EINTR)
             {
                 // TODO adjust timeout_tv
                 continue;
@@ -556,15 +552,11 @@ bool BeckerSocket::wait_sock_writable(uint32_t timeout_ms)
         if (result < 0)
         {
             int err = compat_getsockerr();
-#if defined(_WIN32)
-            if (err == WSAEINTR)
-#else
-                if (err == EINTR)
-#endif
-                {
-                    // TODO adjust timeout_tv
-                    continue;
-                }
+            if (err == DW_EINTR)
+            {
+                // TODO adjust timeout_tv
+                continue;
+            }
             Debug_printf("BeckerSocket wait_sock_writable() select error %d: %s\n", err, compat_sockstrerror(err));
             return false;
         }
@@ -572,11 +564,7 @@ bool BeckerSocket::wait_sock_writable(uint32_t timeout_ms)
         // select timeout
         if (result == 0)
         {
-#if defined(_WIN32)
-            int err = WSAETIMEDOUT;
-#else
-            int err = ETIMEDOUT;
-#endif
+            int err = DW_ETIMEDOUT;
             // set errno
             compat_setsockerr(err);
             return false;
@@ -661,11 +649,7 @@ size_t BeckerSocket::si_send(const void *buffer, size_t size)
     if (!wait_sock_writable(timeout_ms))
     {
         int err = compat_getsockerr();
-#if defined(_WIN32)
-        if (err == WSAETIMEDOUT)
-#else
-        if (err == ETIMEDOUT)
-#endif
+        if (err == DW_ETIMEDOUT)
         {
             Debug_printf("BeckerSocket: write_sock() TIMEOUT\n");
         }
@@ -680,7 +664,7 @@ size_t BeckerSocket::si_send(const void *buffer, size_t size)
     if (result < 0)
     {
         Debug_printf("BeckerSocket write_sock() error %d: %s\n",
-            compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
+                     compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
         suspend_on_disconnect();
     }
     return result;
