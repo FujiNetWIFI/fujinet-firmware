@@ -13,79 +13,12 @@
 #define BECKER_CONNECT_TMOUT    2000
 #define BECKER_SUSPEND_MS       5000
 
-#ifdef UNUSED
-class BeckerSocket;
-
-class BeckerState
-{
-public:
-    virtual bool poll(BeckerSocket *port, int ms) = 0;
-    virtual size_t read(BeckerSocket *port, uint8_t *buffer, size_t size) = 0;
-    virtual ssize_t write(BeckerSocket *port, const uint8_t *buffer, size_t size) = 0;
-    virtual ~BeckerState() {}
-};
-
-class BeckerStopped : public BeckerState
-{
-public:
-    virtual bool poll(BeckerSocket *port, int ms) override;
-    virtual size_t read(BeckerSocket *port, uint8_t *buffer, size_t size) override;
-    virtual ssize_t write(BeckerSocket *port, const uint8_t *buffer, size_t size) override;
-    static BeckerStopped& getInstance() { static BeckerStopped instance; return instance; }
-
-private:
-    BeckerStopped() {}
-    BeckerStopped(const BeckerStopped& other);
-    BeckerStopped& operator=(const BeckerStopped& other);
-};
-
-class BeckerWaitConn : public BeckerState
-{
-public:
-    virtual bool poll(BeckerSocket *port, int ms) override;
-    virtual size_t read(BeckerSocket *port, uint8_t *buffer, size_t size) override;
-    virtual ssize_t write(BeckerSocket *port, const uint8_t *buffer, size_t size) override;
-    static BeckerWaitConn& getInstance() { static BeckerWaitConn instance; return instance; }
-
-private:
-    BeckerWaitConn() {}
-    BeckerWaitConn(const BeckerWaitConn& other);
-    BeckerWaitConn& operator=(const BeckerWaitConn& other);
-};
-
-class BeckerConnected : public BeckerState
-{
-public:
-    virtual bool poll(BeckerSocket *port, int ms) override;
-    virtual size_t read(BeckerSocket *port, uint8_t *buffer, size_t size) override;
-    virtual ssize_t write(BeckerSocket *port, const uint8_t *buffer, size_t size) override;
-    static BeckerConnected& getInstance() { static BeckerConnected instance; return instance; }
-private:
-    BeckerConnected() {}
-    BeckerConnected(const BeckerConnected& other);
-    BeckerConnected& operator=(const BeckerConnected& other);
-};
-
-class BeckerSuspended : public BeckerState
-{
-public:
-    virtual bool poll(BeckerSocket *port, int ms) override;
-    virtual size_t read(BeckerSocket *port, uint8_t *buffer, size_t size) override;
-    virtual ssize_t write(BeckerSocket *port, const uint8_t *buffer, size_t size) override;
-    static BeckerSuspended& getInstance() { static BeckerSuspended instance; return instance; }
-private:
-    BeckerSuspended() {}
-    BeckerSuspended(const BeckerSuspended& other);
-    BeckerSuspended& operator=(const BeckerSuspended& other);
-};
-#else /* !UNUSED */
 enum BeckerState {
     BeckerStopped,
     BeckerWaitConn,
     BeckerConnected,
     BeckerSuspended,
 };    
-#endif /* UNUSED */
 
 class BeckerSocket : public SerialInterface
 {
@@ -133,20 +66,26 @@ protected:
 
     static timeval timeval_from_ms(const uint32_t millis);
 
+#ifdef NOT_SUBCLASS
     size_t do_read(uint8_t *buffer, size_t size);
     ssize_t do_write(const uint8_t *buffer, size_t size);
 
     ssize_t read_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms=BECKER_IOWAIT_MS);
     ssize_t write_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms=BECKER_IOWAIT_MS);
+#endif /* NOT_SUBCLASS */
 
     bool wait_sock_readable(uint32_t timeout_ms, bool listener=false);
     bool wait_sock_writable(uint32_t timeout_ms);
 
     void update_fifo() override;
+#ifdef NOT_SUBCLASS
     size_t si_recv(void *buffer, size_t size) override {
         return do_read((uint8_t *) buffer, size); }
     size_t si_send(const void *buffer, size_t size) override {
         return do_write((uint8_t *) buffer, size); }
+#else
+    size_t si_send(const void *buffer, size_t size) override;
+#endif /* NOT_SUBCLASS */
     
 public:
     BeckerSocket();
@@ -158,15 +97,11 @@ public:
     void setBaudrate(uint32_t baud) override { _baud = baud; }
     uint32_t getBaudrate() override { return _baud; }
 
+#ifdef NOT_SUBCLASS
     size_t available() override;
     void discardInput() override;
+#endif /* NOT_SUBCLASS */
     void flush() override;
-
-#ifdef UNUSED
-    // keep BeckerSocket alive
-    bool poll(int ms) { return _state->poll(this, ms); }
-    // read bytes into buffer
-#endif /* UNUSED */
 
     // specific to BeckerSocket
     void set_host(const char *host, int port);
@@ -174,14 +109,6 @@ public:
 
     inline BeckerState getState() const { return _state; }
     void setState(BeckerState state) { _state = state; }
-
-#ifdef NOT_SUBCLASS
-    // friends, state handlers
-    friend class BeckerStopped;
-    friend class BeckerWaitConn;
-    friend class BeckerConnected;
-    friend class BeckerSuspended;
-#endif /* NOT_SUBCLASS */
 };
 
 

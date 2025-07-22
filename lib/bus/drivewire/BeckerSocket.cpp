@@ -46,11 +46,7 @@ BeckerSocket::BeckerSocket() :
     _listening(true),
     _fd(-1),
     _listen_fd(-1),
-#ifdef NOT_SUBCLASS
-    _state(&BeckerStopped::getInstance()),
-#else
     _state(BeckerStopped),
-#endif /* NOT_SUBCLASS */
     _errcount(0)
 {}
 
@@ -61,13 +57,8 @@ BeckerSocket::~BeckerSocket()
 
 void BeckerSocket::begin(int baud)
 {
-#ifdef NOT_SUBCLASS
-    if (_state != &BeckerStopped::getInstance())
-        end();
-#else
     if (_state != BeckerStopped)
         end();
-#endif /* NOT_SUBCLASS */
 
     _baud = baud;
 
@@ -94,13 +85,10 @@ void BeckerSocket::end()
     // wait a while, otherwise wifi may turn off too quickly (during shutdown)
     fnSystem.delay(50);
 
-#ifdef NOT_SUBCLASS
-    setState(BeckerStopped::getInstance());
-#else
     setState(BeckerStopped);
-#endif /* NOT_SUBCLASS */
 }
 
+#ifdef NOT_SUBCLASS
 /* Returns number of bytes available in receive buffer or -1 on error
 */
 size_t BeckerSocket::available()
@@ -108,13 +96,8 @@ size_t BeckerSocket::available()
     poll_connection(1);
 
     // only in connected state
-#ifdef NOT_SUBCLASS
-    if (_state != &BeckerConnected::getInstance())
-        return 0;
-#else
     if (_state != BeckerConnected)
         return 0;
-#endif /* NOT_SUBCLASS */
 
     // check if socket is still connected
     if (!connected())
@@ -141,13 +124,8 @@ size_t BeckerSocket::available()
 void BeckerSocket::discardInput()
 {
     // only in connected state
-#ifdef NOT_SUBCLASS
-    if (_state != &BeckerConnected::getInstance())
-        return;
-#else
     if (_state != BeckerConnected)
         return;
-#endif /* NOT_SUBCLASS */
 
     // waste all input data
     uint8_t rxbuf[256];
@@ -157,6 +135,7 @@ void BeckerSocket::discardInput()
         recv(_fd, (char *)rxbuf, avail > sizeof(rxbuf) ? sizeof(rxbuf) : avail, 0);
     }
 }
+#endif /* NOT_SUBCLASS */
 
 /* Clears input buffer and flushes out transmit buffer waiting at most
    waiting MAX_FLUSH_WAIT_TICKS until all sends are completed
@@ -164,13 +143,8 @@ void BeckerSocket::discardInput()
 void BeckerSocket::flush()
 {
     // only in connected state
-#ifdef NOT_SUBCLASS
-    if (_state != &BeckerConnected::getInstance())
-        return;
-#else
     if (_state != BeckerConnected)
         return;
-#endif /* NOT_SUBCLASS */
 
     wait_sock_writable(250);
 }
@@ -298,11 +272,7 @@ void BeckerSocket::listen_for_connection()
 
     // Finally setup
     _errcount = 0; // used by suspend()
-#ifdef NOT_SUBCLASS
-    setState(BeckerWaitConn::getInstance());
-#else
     setState(BeckerWaitConn);
-#endif /* NOT_SUBCLASS */
     Debug_printf("### BeckerSocket accepting connections ###\n");
 }
 
@@ -397,11 +367,7 @@ void BeckerSocket::make_connection()
 
     // Finally setup
     _errcount = 0;
-#ifdef NOT_SUBCLASS
-    setState(BeckerConnected::getInstance());
-#else
     setState(BeckerConnected);
-#endif /* NOT_SUBCLASS */
     Debug_print("### BeckerSocket connected ###\n");
 }
 
@@ -452,11 +418,7 @@ bool BeckerSocket::accept_connection()
 
     // We are connected !
     Debug_print("### BeckerSocket connected ###\n");
-#ifdef NOT_SUBCLASS
-    setState(BeckerConnected::getInstance());
-#else
     setState(BeckerConnected);
-#endif /* NOT_SUBCLASS */
     return true;
 }
 
@@ -473,11 +435,7 @@ void BeckerSocket::suspend(int short_ms, int long_ms, int threshold)
     if (threshold > 0 && _errcount > threshold && long_ms > 0)
         _suspend_period = long_ms;
     Debug_printf("Suspending BeckerSocket for %d ms\n", _suspend_period);
-#ifdef NOT_SUBCLASS
-    setState(BeckerSuspended::getInstance());
-#else
     setState(BeckerSuspended);
-#endif /* NOT_SUBCLASS */
 }
 
 void BeckerSocket::suspend_on_disconnect()
@@ -490,11 +448,7 @@ void BeckerSocket::suspend_on_disconnect()
             _fd = -1;
         }
         // go directly into waiting for connection state
-#ifdef NOT_SUBCLASS
-        setState(BeckerWaitConn::getInstance());
-#else
         setState(BeckerWaitConn);
-#endif /* NOT_SUBCLASS */
     }
     else
     {
@@ -511,22 +465,14 @@ bool BeckerSocket::resume()
         if (_listen_fd >= 0)
         {
             // go directly into waiting for connection state
-#ifdef NOT_SUBCLASS
-            setState(BeckerWaitConn::getInstance());
-#else
             setState(BeckerWaitConn);
-#endif /* NOT_SUBCLASS */
             return true;
         }
 
     }
     // listen or connect
     start_connection();
-#ifdef NOT_SUBCLASS
-    return (_state != &BeckerSuspended::getInstance());
-#else
     return (_state != BeckerSuspended);
-#endif /* NOT_SUBCLASS */
 }
 
 bool BeckerSocket::suspend_period_expired()
@@ -615,6 +561,7 @@ timeval BeckerSocket::timeval_from_ms(const uint32_t millis)
   return tv;
 }
 
+#ifdef NOT_SUBCLASS
 size_t BeckerSocket::do_read(uint8_t *buffer, size_t size)
 {
     int result;
@@ -703,6 +650,7 @@ ssize_t BeckerSocket::write_sock(const uint8_t *buffer, size_t size, uint32_t ti
     }
     return result;
 }
+#endif /* NOT_SUBCLASS */
 
 bool BeckerSocket::wait_sock_readable(uint32_t timeout_ms, bool listener)
 {
@@ -829,131 +777,83 @@ bool BeckerSocket::wait_sock_writable(uint32_t timeout_ms)
 
 void BeckerSocket::update_fifo()
 {
+    poll_connection(1);
+
+    // only in connected state
+    if (_state != BeckerConnected)
+        return;
+
+    // check if socket is still connected
+    if (!connected())
+    {
+        // connection was closed or it has an error
+        suspend_on_disconnect();
+        return;
+    }
+
+#if defined(_WIN32)
+    unsigned long count;
+    int res = ioctlsocket(_fd, FIONREAD, &count);
+    res = res != 0 ? -1 : count;
+#else
+    int count;
+    int res = ioctl(_fd, FIONREAD, &count);
+    res = res < 0 ? -1 : count;
+#endif
+
+    if (res > 0)
+    {
+        size_t result;
+
+        for (count = res; count; count -= result)
+        {
+            size_t old_len = _fifo.size();
+            _fifo.resize(old_len + count);
+            result = recv(_fd, &_fifo[old_len], count, 0);
+            if (result < 0)
+                result = 0;
+            _fifo.resize(old_len + result);
+        }
+
+    }
+
     return;
+}
+
+size_t BeckerSocket::si_send(const void *buffer, size_t size)
+{
+    uint32_t timeout_ms=BECKER_IOWAIT_MS;
+
+    if (!wait_sock_writable(timeout_ms))
+    {
+        int err = compat_getsockerr();
+#if defined(_WIN32)
+        if (err == WSAETIMEDOUT)
+#else
+        if (err == ETIMEDOUT)
+#endif
+        {
+            Debug_printf("BeckerSocket: write_sock() TIMEOUT\n");
+        }
+        else
+        {
+            suspend_on_disconnect();
+        }
+        return -1;
+    }
+
+    ssize_t result = send(_fd, (char *)buffer, size, 0);
+    if (result < 0)
+    {
+        Debug_printf("BeckerSocket write_sock() error %d: %s\n",
+            compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
+        suspend_on_disconnect();
+    }
+    return result;
 }
 
 //
 // Becker state handlers
 //
-
-#ifdef NOT_SUBCLASS
-// Stopped state
-
-bool BeckerStopped::poll(BeckerSocket *port, int ms)
-{
-#ifndef ESP_PLATFORM
-    fnSystem.delay(ms); // be nice to CPU
-#endif
-    return false;
-}
-
-size_t BeckerStopped::read(BeckerSocket *port, uint8_t *buffer, size_t size)
-{
-    // read timeout
-    fnSystem.delay(BECKER_IOWAIT_MS);
-    return 0;
-}
-
-ssize_t BeckerStopped::write(BeckerSocket *port, const uint8_t *buffer, size_t size)
-{
-    // write timeout
-    fnSystem.delay(BECKER_IOWAIT_MS);
-    return 0;
-}
-
-// Suspended state
-
-bool BeckerSuspended::poll(BeckerSocket *port, int ms)
-{
-    if (!port->suspend_period_expired())
-    {
-        // still suspended
-#ifndef ESP_PLATFORM
-        fnSystem.delay(ms); // be nice to CPU
-#endif
-        return false;
-    }
-    // resume
-    return port->resume();
-}
-
-size_t BeckerSuspended::read(BeckerSocket *port, uint8_t *buffer, size_t size)
-{
-    if (!port->suspend_period_expired())
-    {
-        // still suspended, read timeout
-        fnSystem.delay(BECKER_IOWAIT_MS);
-        return 0;
-    }
-    // resume
-    if (port->resume())
-    {
-        // connection was resumed, we can proceed with read
-        return port->getState()->read(port, buffer, size);
-    }
-    return 0;
-}
-
-ssize_t BeckerSuspended::write(BeckerSocket *port, const uint8_t *buffer, size_t size)
-{
-    if (!port->suspend_period_expired())
-    {
-        // still suspended, read timeout
-        fnSystem.delay(BECKER_IOWAIT_MS);
-        return 0;
-    }
-    // resume
-    if (port->resume())
-    {
-        // connection was resumed, we can proceed with write
-        return port->getState()->write(port, buffer, size);
-    }
-    return 0;
-}
-
-// Waiting for connection
-
-bool BeckerWaitConn::poll(BeckerSocket *port, int ms)
-{
-    return port->accept_pending_connection(ms); // true if new connection was accepted
-}
-
-size_t BeckerWaitConn::read(BeckerSocket *port, uint8_t *buffer, size_t size)
-{
-    if (port->accept_pending_connection(BECKER_IOWAIT_MS))
-    {
-        // connection was accepted, we can proceed with read
-        return port->getState()->read(port, buffer, size);
-    }
-    return 0;
-}
-
-ssize_t BeckerWaitConn::write(BeckerSocket *port, const uint8_t *buffer, size_t size)
-{
-    if (port->accept_pending_connection(BECKER_IOWAIT_MS))
-    {
-        // connection was accepted, we can proceed with write
-        return port->getState()->write(port, buffer, size);
-    }
-    return 0;
-}
-
-// Connected
-
-bool BeckerConnected::poll(BeckerSocket *port, int ms)
-{
-    return port->poll_connection(ms);
-}
-
-size_t BeckerConnected::read(BeckerSocket *port, uint8_t *buffer, size_t size)
-{
-    return port->do_read(buffer, size);
-}
-
-ssize_t BeckerConnected::write(BeckerSocket *port, const uint8_t *buffer, size_t size)
-{
-    return port->do_write(buffer, size);
-}
-#endif /* NOT_SUBCLASS */
 
 #endif // BUILD_COCO
