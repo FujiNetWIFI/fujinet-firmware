@@ -2,10 +2,6 @@
 #define BECKERSOCKET_H
 
 #include "SerialInterface.h"
-
-#include <sys/time.h>
-#include <vector>
-
 #include "fnDNS.h"
 
 #define BECKER_DEFAULT_PORT     65504
@@ -23,7 +19,7 @@ enum BeckerState {
 class BeckerSocket : public SerialInterface
 {
 private:
-    char _host[64]; // TODO change to std::string
+    std::string _host;
     in_addr_t _ip;
     uint16_t _port;
 
@@ -66,46 +62,23 @@ protected:
 
     static timeval timeval_from_ms(const uint32_t millis);
 
-#ifdef NOT_SUBCLASS
-    size_t do_read(uint8_t *buffer, size_t size);
-    ssize_t do_write(const uint8_t *buffer, size_t size);
-
-    ssize_t read_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms=BECKER_IOWAIT_MS);
-    ssize_t write_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms=BECKER_IOWAIT_MS);
-#endif /* NOT_SUBCLASS */
-
     bool wait_sock_readable(uint32_t timeout_ms, bool listener=false);
     bool wait_sock_writable(uint32_t timeout_ms);
 
     void update_fifo() override;
-#ifdef NOT_SUBCLASS
-    size_t si_recv(void *buffer, size_t size) override {
-        return do_read((uint8_t *) buffer, size); }
-    size_t si_send(const void *buffer, size_t size) override {
-        return do_write((uint8_t *) buffer, size); }
-#else
     size_t si_send(const void *buffer, size_t size) override;
-#endif /* NOT_SUBCLASS */
     
 public:
     BeckerSocket();
     virtual ~BeckerSocket();
-    void begin(int baud);
+    void begin(std::string host, int baud);
     void end() override;
 
     // mimic UARTManager, baudrate is not used by BeckerSocket
     void setBaudrate(uint32_t baud) override { _baud = baud; }
     uint32_t getBaudrate() override { return _baud; }
 
-#ifdef NOT_SUBCLASS
-    size_t available() override;
-    void discardInput() override;
-#endif /* NOT_SUBCLASS */
     void flush() override;
-
-    // specific to BeckerSocket
-    void set_host(const char *host, int port);
-    const char* get_host(int &port);
 
     inline BeckerState getState() const { return _state; }
     void setState(BeckerState state) { _state = state; }

@@ -685,8 +685,7 @@ void systemBus::setup()
 #endif /* !ESP_PLATFORM */
     if (Config.get_boip_enabled())
     {
-        _becker.set_host(Config.get_boip_host().c_str(), Config.get_boip_port());
-        _becker.begin(_drivewireBaud);
+        _becker.begin(Config.get_boip_host(), _drivewireBaud);
         _port = &_becker;
     }
     else

@@ -23,7 +23,7 @@ protected:
     std::string _fifo;
 
     // Handled by SerialInterface, not implemented by subclass
-    virtual size_t si_recv(void *buffer, size_t length);
+    size_t si_recv(void *buffer, size_t length);
 
     // Must be implemented by subclass
     virtual size_t si_send(const void *buffer, size_t length) = 0;
@@ -39,8 +39,8 @@ public:
     virtual void setBaudrate(uint32_t baud) = 0;
 
     // Handled by SerialInterface, not implemented by subclass
-    virtual size_t available();
-    virtual void discardInput();
+    size_t available();
+    void discardInput();
 
     /* Convenience methods, just wrappers for si_recv()/si_send() methods above */
     size_t read(void *buffer, size_t length);

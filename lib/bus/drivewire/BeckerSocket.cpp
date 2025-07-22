@@ -55,11 +55,12 @@ BeckerSocket::~BeckerSocket()
     end();
 }
 
-void BeckerSocket::begin(int baud)
+void BeckerSocket::begin(std::string host, int baud)
 {
     if (_state != BeckerStopped)
         end();
 
+    _host = host;
     _baud = baud;
 
     // listen or connect
@@ -149,23 +150,6 @@ void BeckerSocket::flush()
     wait_sock_writable(250);
 }
 
-// specific to BeckerSocket
-void BeckerSocket::set_host(const char *host, int port)
-{
-    if (host != nullptr)
-        strlcpy(_host, host, sizeof(_host));
-    else
-        _host[0] = 0;
-
-    _port = port;
-}
-
-const char* BeckerSocket::get_host(int &port)
-{
-    port = _port;
-    return _host;
-}
-
 void BeckerSocket::start_connection()
 {
     if (_listening)
@@ -186,7 +170,7 @@ void BeckerSocket::listen_for_connection()
         return;
     }
 
-    Debug_printf("Setting up BeckerSocket: listening on %s:%d\n", _host, _port);
+    Debug_printf("Setting up BeckerSocket: listening on %s:%d\n", _host.c_str(), _port);
 
     // Create listening socket
     _listen_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
@@ -215,13 +199,13 @@ void BeckerSocket::listen_for_connection()
         }
 
     // Local address to listen on
-    if (_host[0] == '\0' || !strcmp(_host, "*"))
+    if (_host.empty() || _host == "*")
     {
         _ip = IPADDR_ANY;
     }
     else
     {
-        _ip = get_ip4_addr_by_name(_host);
+        _ip = get_ip4_addr_by_name(_host.c_str());
         if (_ip == IPADDR_NONE)
         {
             Debug_println("BeckerSocket: failed to resolve host name");
@@ -328,7 +312,7 @@ void BeckerSocket::make_connection()
     }
     else
     {
-        _ip = get_ip4_addr_by_name(_host);
+        _ip = get_ip4_addr_by_name(_host.c_str());
         if (_ip == IPADDR_NONE)
         {
             Debug_println("BeckerSocket: failed to resolve host name");
