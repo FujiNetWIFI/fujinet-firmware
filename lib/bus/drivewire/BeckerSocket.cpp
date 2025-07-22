@@ -86,7 +86,7 @@ void BeckerSocket::end()
     // wait a while, otherwise wifi may turn off too quickly (during shutdown)
     fnSystem.delay(50);
 
-    setState(BeckerStopped);
+    _state = BeckerStopped;
 }
 
 #ifdef NOT_SUBCLASS
@@ -256,7 +256,7 @@ void BeckerSocket::listen_for_connection()
 
     // Finally setup
     _errcount = 0; // used by suspend()
-    setState(BeckerWaitConn);
+    _state = BeckerWaitConn;
     Debug_printf("### BeckerSocket accepting connections ###\n");
 }
 
@@ -351,7 +351,7 @@ void BeckerSocket::make_connection()
 
     // Finally setup
     _errcount = 0;
-    setState(BeckerConnected);
+    _state = BeckerConnected;
     Debug_print("### BeckerSocket connected ###\n");
 }
 
@@ -402,7 +402,7 @@ bool BeckerSocket::accept_connection()
 
     // We are connected !
     Debug_print("### BeckerSocket connected ###\n");
-    setState(BeckerConnected);
+    _state = BeckerConnected;
     return true;
 }
 
@@ -419,7 +419,7 @@ void BeckerSocket::suspend(int short_ms, int long_ms, int threshold)
     if (threshold > 0 && _errcount > threshold && long_ms > 0)
         _suspend_period = long_ms;
     Debug_printf("Suspending BeckerSocket for %d ms\n", _suspend_period);
-    setState(BeckerSuspended);
+    _state = BeckerSuspended;
 }
 
 void BeckerSocket::suspend_on_disconnect()
@@ -432,7 +432,7 @@ void BeckerSocket::suspend_on_disconnect()
             _fd = -1;
         }
         // go directly into waiting for connection state
-        setState(BeckerWaitConn);
+        _state = BeckerWaitConn;
     }
     else
     {
@@ -449,7 +449,7 @@ bool BeckerSocket::resume()
         if (_listen_fd >= 0)
         {
             // go directly into waiting for connection state
-            setState(BeckerWaitConn);
+            _state = BeckerWaitConn;
             return true;
         }
 

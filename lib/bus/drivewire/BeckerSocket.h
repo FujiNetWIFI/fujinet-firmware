@@ -79,9 +79,6 @@ public:
     uint32_t getBaudrate() override { return _baud; }
 
     void flush() override;
-
-    inline BeckerState getState() const { return _state; }
-    void setState(BeckerState state) { _state = state; }
 };
 
 
