@@ -1,7 +1,7 @@
-#ifndef SERIALTTY_H
-#define SERIALTTY_H
+#ifndef TTYCHANNEL_H
+#define TTYCHANNEL_H
 
-#include "SerialInterface.h"
+#include "IOChannel.h"
 
 #ifdef ITS_A_UNIX_SYSTEM_I_KNOW_THIS
 
@@ -20,7 +20,7 @@ struct SerialConfig
     }
 };
 
-class SerialTTY : public SerialInterface
+class TTYChannel : public IOChannel
 {
 private:
     int _fd;
@@ -29,7 +29,7 @@ private:
 
 protected:
     void update_fifo() override;
-    size_t si_send(const void *buffer, size_t length) override;
+    size_t dataOut(const void *buffer, size_t length) override;
     
 public:
     void begin(const SerialConfig& conf);

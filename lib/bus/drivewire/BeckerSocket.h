@@ -1,7 +1,7 @@
 #ifndef BECKERSOCKET_H
 #define BECKERSOCKET_H
 
-#include "SerialInterface.h"
+#include "IOChannel.h"
 #include "fnDNS.h"
 
 #define BECKER_DEFAULT_PORT     65504
@@ -16,7 +16,7 @@ enum BeckerState {
     BeckerSuspended,
 };    
 
-class BeckerSocket : public SerialInterface
+class BeckerSocket : public IOChannel
 {
 private:
     std::string _host;
@@ -66,7 +66,7 @@ protected:
     bool wait_sock_writable(uint32_t timeout_ms);
 
     void update_fifo() override;
-    size_t si_send(const void *buffer, size_t size) override;
+    size_t dataOut(const void *buffer, size_t size) override;
     
 public:
     BeckerSocket();

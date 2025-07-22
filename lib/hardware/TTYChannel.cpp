@@ -1,4 +1,4 @@
-#include "SerialTTY.h"
+#include "TTYChannel.h"
 
 #ifdef ITS_A_UNIX_SYSTEM_I_KNOW_THIS
 
@@ -16,7 +16,7 @@
 #define UART_PROBE_DEV1 "/dev/ttyUSB0"
 #define UART_PROBE_DEV2 "/dev/ttyS0"
 
-void SerialTTY::begin(const SerialConfig& conf)
+void TTYChannel::begin(const SerialConfig& conf)
 {
     _device = conf.device;
     if (_device.empty())
@@ -107,7 +107,7 @@ void SerialTTY::begin(const SerialConfig& conf)
     return;
 }
 
-void SerialTTY::end()
+void TTYChannel::end()
 {
     if (_fd >= 0)
     {
@@ -119,7 +119,7 @@ void SerialTTY::end()
     return;
 }
 
-void SerialTTY::update_fifo()
+void TTYChannel::update_fifo()
 {
     int avail = 0;
 
@@ -147,7 +147,7 @@ timeval timeval_from_ms(const uint32_t millis)
   return tv;
 }
 
-size_t SerialTTY::si_send(const void *buffer, size_t length)
+size_t TTYChannel::dataOut(const void *buffer, size_t length)
 {
 #ifdef UNUSED
     if (!_initialized)
@@ -228,13 +228,13 @@ size_t SerialTTY::si_send(const void *buffer, size_t length)
 }
 #endif /* UNUSED */
 
-void SerialTTY::flush()
+void TTYChannel::flush()
 {
     tcdrain(_fd);
     return;
 }
 
-void SerialTTY::setBaudrate(uint32_t baud)
+void TTYChannel::setBaudrate(uint32_t baud)
 {
     Debug_printf("UART set_baudrate: %d\n", baud);
 
@@ -326,20 +326,20 @@ void SerialTTY::setBaudrate(uint32_t baud)
 }
 
 // FIXME - why does this function exist? Shouldn't the caller use begin()?
-void SerialTTY::setPort(std::string device)
+void TTYChannel::setPort(std::string device)
 {
     Debug_printv("%s", device.c_str());
     _device = device;
     return;
 }
 
-std::string SerialTTY::getPort()
+std::string TTYChannel::getPort()
 {
     return _device;
 }
 
 #ifdef UNUSED
-size_t SerialTTY::available()
+size_t TTYChannel::available()
 {
     int result;
     if (ioctl(_fd, FIONREAD, &result) < 0)
@@ -347,7 +347,7 @@ size_t SerialTTY::available()
     return result;
 }
 
-bool SerialTTY::waitReadable(uint32_t timeout_ms)
+bool TTYChannel::waitReadable(uint32_t timeout_ms)
 {
     // Setup a select call to block for serial data or a timeout
     fd_set readfds;
@@ -379,7 +379,7 @@ bool SerialTTY::waitReadable(uint32_t timeout_ms)
     return true;
 }
 
-size_t SerialTTY::si_recv(void *buffer, size_t length)
+size_t TTYChannel::si_recv(void *buffer, size_t length)
 {
     int result;
     int rxbytes;

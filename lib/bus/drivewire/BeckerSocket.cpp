@@ -625,7 +625,7 @@ void BeckerSocket::update_fifo()
 
     if (res > 0)
     {
-        size_t result;
+        ssize_t result;
 
         for (count = res; count; count -= result)
         {
@@ -642,7 +642,7 @@ void BeckerSocket::update_fifo()
     return;
 }
 
-size_t BeckerSocket::si_send(const void *buffer, size_t size)
+size_t BeckerSocket::dataOut(const void *buffer, size_t size)
 {
     uint32_t timeout_ms=BECKER_IOWAIT_MS;
 

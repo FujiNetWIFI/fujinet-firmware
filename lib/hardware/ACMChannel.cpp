@@ -1,4 +1,4 @@
-#include "SerialACM.h"
+#include "ACMChannel.h"
 
 #ifdef CONFIG_USB_CDC_ACM_HOST_ENABLED
 

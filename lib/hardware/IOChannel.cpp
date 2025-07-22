@@ -1,4 +1,4 @@
-#include "SerialInterface.h"
+#include "IOChannel.h"
 
 #include <stdarg.h>
 #if defined(ESP_PLATFORM)
@@ -14,14 +14,14 @@
 
 #define MAX_READ_TIMEOUT 10000 // microseconds
 
-size_t SerialInterface::available()
+size_t IOChannel::available()
 {
     update_fifo();
     //Debug_printf("FN AVAIL: %i\r\n", _fifo.size());
     return _fifo.size();
 }
 
-size_t SerialInterface::si_recv(void *buffer, size_t length)
+size_t IOChannel::dataIn(void *buffer, size_t length)
 {
     size_t rlen, total = 0;
     uint8_t *ptr;
@@ -54,7 +54,7 @@ size_t SerialInterface::si_recv(void *buffer, size_t length)
     return total;
 }
 
-void SerialInterface::discardInput()
+void IOChannel::discardInput()
 {
     uint64_t now, start;
 
@@ -71,12 +71,12 @@ void SerialInterface::discardInput()
     return;
 }
 
-size_t SerialInterface::read(void *buffer, size_t length)
+size_t IOChannel::read(void *buffer, size_t length)
 {
-    return si_recv(buffer, length);
+    return dataIn(buffer, length);
 }
 
-int SerialInterface::read(void)
+int IOChannel::read(void)
 {
     uint8_t buf[1];
     int result = read(buf, 1);
@@ -86,12 +86,12 @@ int SerialInterface::read(void)
     return buf[0];
 }
 
-size_t SerialInterface::write(const void *buffer, size_t length)
+size_t IOChannel::write(const void *buffer, size_t length)
 {
-    return si_send(buffer, length);
+    return dataOut(buffer, length);
 }
 
-size_t SerialInterface::write(uint8_t c)
+size_t IOChannel::write(uint8_t c)
 {
     uint8_t buf[1];
 
@@ -100,32 +100,32 @@ size_t SerialInterface::write(uint8_t c)
     return write(buf, 1);
 }
 
-size_t SerialInterface::write(const char *s)
+size_t IOChannel::write(const char *s)
 {
     return write(s, strlen(s));
 }
 
-size_t SerialInterface::write(unsigned long n)
+size_t IOChannel::write(unsigned long n)
 {
     return write((uint8_t) n);
 }
 
-size_t SerialInterface::write(long n)
+size_t IOChannel::write(long n)
 {
     return write((uint8_t) n);
 }
 
-size_t SerialInterface::write(unsigned int n)
+size_t IOChannel::write(unsigned int n)
 {
     return write((uint8_t) n);
 }
 
-size_t SerialInterface::write(int n)
+size_t IOChannel::write(int n)
 {
     return write((uint8_t) n);
 }
 
-size_t SerialInterface::printf(const char *fmt...)
+size_t IOChannel::printf(const char *fmt...)
 {
     char *result = nullptr;
     va_list vargs;
@@ -145,7 +145,7 @@ size_t SerialInterface::printf(const char *fmt...)
     return z >= 0 ? z : 0;
 }
 
-size_t SerialInterface::_print_number(unsigned long n, uint8_t base)
+size_t IOChannel::_print_number(unsigned long n, uint8_t base)
 {
     char buf[8 * sizeof(long) + 1]; // Assumes 8-bit chars plus zero byte.
     char *str = &buf[sizeof(buf) - 1];
@@ -167,7 +167,7 @@ size_t SerialInterface::_print_number(unsigned long n, uint8_t base)
     return write(str);
 }
 
-size_t SerialInterface::print(const char *str)
+size_t IOChannel::print(const char *str)
 {
     int z = strlen(str);
 
@@ -175,22 +175,22 @@ size_t SerialInterface::print(const char *str)
     ;
 }
 
-size_t SerialInterface::print(const std::string &str)
+size_t IOChannel::print(const std::string &str)
 {
     return print(str.c_str());
 }
 
-size_t SerialInterface::print(int n, int base)
+size_t IOChannel::print(int n, int base)
 {
     return print((long)n, base);
 }
 
-size_t SerialInterface::print(unsigned int n, int base)
+size_t IOChannel::print(unsigned int n, int base)
 {
     return print((unsigned long)n, base);
 }
 
-size_t SerialInterface::print(long n, int base)
+size_t IOChannel::print(long n, int base)
 {
     if (base == 0)
     {
@@ -212,7 +212,7 @@ size_t SerialInterface::print(long n, int base)
     }
 }
 
-size_t SerialInterface::print(unsigned long n, int base)
+size_t IOChannel::print(unsigned long n, int base)
 {
     if (base == 0)
     {
@@ -224,21 +224,21 @@ size_t SerialInterface::print(unsigned long n, int base)
     }
 }
 
-size_t SerialInterface::println(const char *str)
+size_t IOChannel::println(const char *str)
 {
     size_t n = print(str);
     n += println();
     return n;
 }
 
-size_t SerialInterface::println(std::string str)
+size_t IOChannel::println(std::string str)
 {
     size_t n = print(str);
     n += println();
     return n;
 }
 
-size_t SerialInterface::println(int num, int base)
+size_t IOChannel::println(int num, int base)
 {
     size_t n = print(num, base);
     n += println();

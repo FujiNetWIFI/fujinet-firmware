@@ -1,5 +1,5 @@
-#ifndef SERIALINTERFACE_H
-#define SERIALINTERFACE_H
+#ifndef IOCHANNEL_H
+#define IOCHANNEL_H
 
 #ifndef ESP_PLATFORM
 #ifndef _WIN32
@@ -14,7 +14,7 @@
 #include <string.h>
 #include <string>
 
-class SerialInterface
+class IOChannel
 {
 private:
     size_t _print_number(unsigned long n, uint8_t base);
@@ -22,11 +22,11 @@ private:
 protected:
     std::string _fifo;
 
-    // Handled by SerialInterface, not implemented by subclass
-    size_t si_recv(void *buffer, size_t length);
+    // Handled by IOChannel, not implemented by subclass
+    size_t dataIn(void *buffer, size_t length);
 
     // Must be implemented by subclass
-    virtual size_t si_send(const void *buffer, size_t length) = 0;
+    virtual size_t dataOut(const void *buffer, size_t length) = 0;
     virtual void update_fifo() = 0;
 
 public:
@@ -38,11 +38,11 @@ public:
     virtual uint32_t getBaudrate() = 0;
     virtual void setBaudrate(uint32_t baud) = 0;
 
-    // Handled by SerialInterface, not implemented by subclass
+    // Handled by IOChannel, not implemented by subclass
     size_t available();
     void discardInput();
 
-    /* Convenience methods, just wrappers for si_recv()/si_send() methods above */
+    /* Convenience methods, just wrappers for dataIn()/dataOut() methods above */
     size_t read(void *buffer, size_t length);
     int read(void);
 
@@ -69,4 +69,4 @@ public:
     size_t print(unsigned long n, int base = 10);
 };
 
-#endif /* SERIALINTERFACE_H */
+#endif /* IOCHANNEL_H */

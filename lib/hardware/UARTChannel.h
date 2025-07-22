@@ -1,9 +1,9 @@
 /* Basically a simplified copy of the ESP Arduino library in HardwareSerial.h/HardwareSerial.cpp
 */
-#ifndef SERIALUART_H
-#define SERIALUART_H
+#ifndef UARTCHANNEL_H
+#define UARTCHANNEL_H
 
-#include "SerialInterface.h"
+#include "IOChannel.h"
 
 #ifdef ESP_PLATFORM
 
@@ -58,7 +58,7 @@ struct SerialConfig
     }
 };
 
-class SerialUART : public SerialInterface
+class UARTChannel : public IOChannel
 {
 private:
     uart_port_t _uart_num;
@@ -66,7 +66,7 @@ private:
 
 protected:
     void update_fifo() override;
-    size_t si_send(const void *buffer, size_t length) override;
+    size_t dataOut(const void *buffer, size_t length) override;
     
 public:
     void begin(const SerialConfig& conf);
@@ -81,8 +81,8 @@ public:
 
 };
 
-extern SerialUART fnDebugConsole;
+extern UARTChannel fnDebugConsole;
 
 #endif /* ESP_PLATFORM */
 
-#endif /* SERIALUART_H */
+#endif /* UARTCHANNEL_H */

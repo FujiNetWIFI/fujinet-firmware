@@ -19,8 +19,8 @@
 #ifndef COCO_H
 #define COCO_H
 
-#include "SerialUART.h"
-#include "SerialTTY.h"
+#include "UARTChannel.h"
+#include "TTYChannel.h"
 #include "BeckerSocket.h"
 
 #ifdef ESP32_PLATFORM
@@ -193,11 +193,11 @@ struct drivewire_message_t
 class systemBus
 {
 private:
-    SerialInterface *_port;
+    IOChannel *_port;
 #if defined(ESP_PLATFORM)
-    SerialUART _serial;
+    UARTChannel _serial;
 #elif defined(ITS_A_UNIX_SYSTEM_I_KNOW_THIS)
-    SerialTTY _serial;
+    TTYChannel _serial;
 #endif
     BeckerSocket _becker;
     

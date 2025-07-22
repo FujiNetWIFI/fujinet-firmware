@@ -1,15 +1,15 @@
-#ifndef SERIALACM_H
-#define SERIALACM_H
+#ifndef ACMCHANNEL_H
+#define ACMCHANNEL_H
 
 #ifdef CONFIG_USB_CDC_ACM_HOST_ENABLED
 
-#include "SerialInterface.h"
+#include "IOChannel.h"
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <usb/cdc_acm_host.h>
 
-class SerialACM : public SerialInterface
+class ACMChannel : public IOChannel
 {
 private:
     SemaphoreHandle_t device_disconnected_sem;
@@ -36,4 +36,4 @@ public:
 
 #endif /* CONFIG_USB_CDC_ACM_HOST_ENABLED */
 
-#endif /* SERIALACM_H */
+#endif /* ACMCHANNEL_H */

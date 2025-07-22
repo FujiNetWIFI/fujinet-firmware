@@ -1,4 +1,4 @@
-#include "SerialUART.h"
+#include "UARTChannel.h"
 #include "fnSystem.h"
 #include "../../include/pinmap.h"
 #include "../../include/debug.h"
@@ -9,9 +9,9 @@
 #define MAX_FLUSH_WAIT_TICKS 200
 
 // Serial "debug port"
-SerialUART fnDebugConsole;
+UARTChannel fnDebugConsole;
 
-void SerialUART::begin(const SerialConfig& conf)
+void UARTChannel::begin(const SerialConfig& conf)
 {
     if (_uart_q)
     {
@@ -58,7 +58,7 @@ void SerialUART::begin(const SerialConfig& conf)
                         intr_alloc_flags);
 }
 
-void SerialUART::end()
+void UARTChannel::end()
 {
     uart_driver_delete(_uart_num);
     if (_uart_q)
@@ -66,7 +66,7 @@ void SerialUART::end()
     _uart_q = NULL;
 }
 
-void SerialUART::update_fifo()
+void UARTChannel::update_fifo()
 {
     uart_event_t event;
 
@@ -88,19 +88,19 @@ void SerialUART::update_fifo()
     return;
 }
 
-void SerialUART::flush()
+void UARTChannel::flush()
 {
     uart_wait_tx_done(_uart_num, MAX_FLUSH_WAIT_TICKS);
 }
 
-uint32_t SerialUART::getBaudrate()
+uint32_t UARTChannel::getBaudrate()
 {
     uint32_t baud;
     uart_get_baudrate(_uart_num, &baud);
     return baud;
 }
 
-void SerialUART::setBaudrate(uint32_t baud)
+void UARTChannel::setBaudrate(uint32_t baud)
 {
 #ifdef DEBUG
     uint32_t before;
@@ -112,12 +112,12 @@ void SerialUART::setBaudrate(uint32_t baud)
 #endif
 }
 
-size_t SerialUART::si_send(const void *buffer, size_t size)
+size_t UARTChannel::dataOut(const void *buffer, size_t size)
 {
     return uart_write_bytes(_uart_num, (const char *)buffer, size);
 }
 
-bool SerialUART::dtrState()
+bool UARTChannel::dtrState()
 {
 #if defined(FUJINET_OVER_USB) || !defined(PIN_RS232_DTR)
     return 0;
