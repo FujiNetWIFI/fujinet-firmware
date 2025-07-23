@@ -83,9 +83,9 @@ function show_help {
   echo "   -c       # run clean before build"
   echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI)"
   echo "   -g       # enable debug in generated fujinet-pc exe"
-  echo "   -G GEN   # Use GEN as the Generator for cmake (e.g. -G \"Unix Makefiles\" )"  
+  echo "   -G GEN   # Use GEN as the Generator for cmake (e.g. -G \"Unix Makefiles\" )"
   echo ""
-  echo "other options:"  
+  echo "other options:"
   echo "   -y       # answers any questions with Y automatically, for unattended builds"
   echo "   -h       # this help"
   echo "   -V       # Override default Python virtual environment location (e.g. \"-V ~/.platformio/penv\")"
@@ -218,6 +218,22 @@ if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
         exit 1
     fi
 fi
+
+# If pio is the one installed by the system it runs the system
+# python instead of the penv python, blocking pip from installing
+# packages
+if [ -z "${PC_BUILD}" ] ; then
+    PIO=$(command -v pio)
+    if [ "${PIO}" != "${VENV_ROOT}/bin/pio" ] ; then
+        pip install platformio
+    fi
+fi
+
+echo Virtual env: "${VIRTUAL_ENV}"
+echo venv root: "${VENV_ROOT}"
+echo Activate: "${ACTIVATE}"
+echo PATH: "${PATH}"
+command -v pio
 
 if [ $SHOW_BOARDS -eq 1 ] ; then
   display_board_names
@@ -432,7 +448,7 @@ if [ ${SHOW_MONITOR} -eq 1 ] ; then
   # device monitor hard codes to using platformio.ini, let's grab all the data it would use directly from our generated ini.
   MONITOR_PORT=$(grep ^monitor_port $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
   MONITOR_SPEED=$(grep ^monitor_speed $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
-  MONITOR_FILTERS=$(grep ^monitor_filters $INI_FILE | cut -d= -f2 | cut -d\; -f1 | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')  
+  MONITOR_FILTERS=$(grep ^monitor_filters $INI_FILE | cut -d= -f2 | cut -d\; -f1 | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')
 
   # warn the user if the build_board in platformio.ini (if exists) is not the same as INI_FILE version, as that means stacktrace will not work correctly
   # because the monitor does not allow an INI file to be set!!
