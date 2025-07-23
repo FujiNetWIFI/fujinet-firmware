@@ -147,7 +147,7 @@ void main_setup(int argc, char *argv[])
     //You can change the baud rate and pin numbers similar to Serial.begin() here.
     console.begin(DEBUG_SPEED);
 #else
-    Serial.begin(DEBUG_SPEED);
+    Serial.begin(SerialConfig().baud(DEBUG_SPEED).deviceID(FN_UART_DEBUG));
 #endif
 
 #ifdef DEBUG
@@ -286,7 +286,7 @@ void main_setup(int argc, char *argv[])
 #endif // BUILD_ATARI
 
 #ifdef BUILD_COCO
-    theFuji->setup(&DRIVEWIRE);
+    theFuji->setup(&SYSTEM_BUS);
 
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     drivewirePrinter::printer_type ptype = Config.get_printer_type(0);
@@ -297,9 +297,9 @@ void main_setup(int argc, char *argv[])
 
     drivewirePrinter *ptr = new drivewirePrinter(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
-    DRIVEWIRE.setPrinter(ptr);
+    SYSTEM_BUS.setPrinter(ptr);
 
-    DRIVEWIRE.setup();
+    SYSTEM_BUS.setup();
 #endif
 
 #ifdef BUILD_IEC

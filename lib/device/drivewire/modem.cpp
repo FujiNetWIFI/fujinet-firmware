@@ -8,7 +8,6 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 
 #include "utils.h"
@@ -144,9 +143,6 @@ void drivewireModem::at_connect_resultCode(int modemBaud)
  */
 void drivewireModem::at_cmd_resultCode(int resultCode)
 {
-    // drivewire_send_int(resultCode);
-    // drivewire_send(ASCII_CR);
-    // drivewire_send(ASCII_LF);
 }
 
 /**
@@ -156,52 +152,18 @@ void drivewireModem::at_cmd_println()
 {
     if (cmdOutput == false)
         return;
-
-    // drivewire_send(ASCII_CR);
-    // drivewire_send(ASCII_LF);
-    // drivewire_flush();
 }
 
 void drivewireModem::at_cmd_println(const char *s, bool addEol)
 {
-    // if (cmdOutput == false)
-    //     return;
-
-    // drivewire_send_string(s);
-    // if (addEol)
-    // {
-    //     drivewire_send(ASCII_CR);
-    //     drivewire_send(ASCII_LF);
-    // }
-    // drivewire_flush();
 }
 
 void drivewireModem::at_cmd_println(int i, bool addEol)
 {
-    // if (cmdOutput == false)
-    //     return;
-
-    // drivewire_send_int(i);
-    // if (addEol)
-    // {
-    //     drivewire_send(ASCII_CR);
-    //     drivewire_send(ASCII_LF);
-    // }
-    // drivewire_flush();
 }
 
 void drivewireModem::at_cmd_println(std::string s, bool addEol)
 {
-    // if (cmdOutput == false)
-    //     return;
-
-    // drivewire_send_string(s);
-    // if (addEol)
-    // {
-    //     drivewire_send(ASCII_CR);
-    //     drivewire_send(ASCII_LF);
-    // }
-    // drivewire_flush();
 }
 
 void drivewireModem::at_handle_wificonnect()
@@ -211,12 +173,10 @@ void drivewireModem::at_handle_wificonnect()
     if (keyIndex != std::string::npos)
     {
         ssid = cmd.substr(13, keyIndex - 13 + 1);
-        //key = cmd.substring(keyIndex + 1, cmd.length());
         key = cmd.substr(keyIndex + 1);
     }
     else
     {
-        //ssid = cmd.substring(6, cmd.length());
         ssid = cmd.substr(6);
         key = "";
     }
@@ -261,7 +221,6 @@ void drivewireModem::at_handle_wificonnect()
 
 void drivewireModem::at_handle_port()
 {
-    //int port = cmd.substring(6).toInt();
     int port = std::stoi(cmd.substr(6));
     if (port > 65535 || port < 0)
     {
@@ -307,12 +266,9 @@ void drivewireModem::at_handle_get()
     }
     else
     {
-        //port = cmd.substring(portIndex + 1, pathIndex).toInt();
         port = std::stoi(cmd.substr(portIndex + 1, pathIndex - (portIndex + 1) + 1));
     }
-    //host = cmd.substring(12, portIndex);
     host = cmd.substr(12, portIndex - 12 + 1);
-    //path = cmd.substring(pathIndex, cmd.length());
     path = cmd.substr(pathIndex);
     if (path.empty())
         path = "/";
@@ -467,7 +423,7 @@ void drivewireModem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnDwCom.flush();
+        SYSTEM_BUS.flush();
         answerHack = false;
     }
 }
@@ -693,13 +649,11 @@ void drivewireModem::modemCommand()
             "ATPB",
             "ATO"};
 
-    //cmd.trim();
     util_string_trim(cmd);
     if (cmd.empty())
         return;
 
     std::string upperCaseCmd = cmd;
-    //upperCaseCmd.toUpperCase();
     util_string_toupper(upperCaseCmd);
 
     if (commandEcho == true)
@@ -708,8 +662,6 @@ void drivewireModem::modemCommand()
     Debug_printf("AT Cmd: %s\n", upperCaseCmd.c_str());
 
     // Replace EOL with CR
-    //if (upperCaseCmd.indexOf(ATASCII_EOL) != 0)
-    //    upperCaseCmd[upperCaseCmd.indexOf(ATASCII_EOL)] = ASCII_CR;
     int eol1 = upperCaseCmd.find(ATASCII_EOL);
     if (eol1 != std::string::npos)
         upperCaseCmd[eol1] = ASCII_CR;
@@ -757,8 +709,6 @@ void drivewireModem::modemCommand()
 
             if (listenPort > 0)
             {
-                //                tcpServer.stop();
-                //                tcpServer.begin(listenPort);
             }
         }
         else
@@ -967,252 +917,6 @@ void drivewireModem::modemCommand()
 
     cmd = "";
 }
-
-/*
-  Handle incoming & outgoing data for modem
-*/
-// void drivewireModem::drivewire_handle_stream()
-// {
-//     /**** AT command mode ****/
-//     if (cmdMode == true)
-//     {
-//         if (answerHack == true)
-//         {
-//             Debug_printf("XXX ANSWERHACK !!! SENDING ATA! ");
-//             cmd = "ATA";
-//             modemCommand();
-//             answerHack = false;
-//             return;
-//         }
-
-//         // In command mode but new unanswered incoming connection on server listen socket
-//         if ((listenPort > 0) && (tcpServer.hasClient()))
-//         {
-//             if (autoAnswer == true)
-//             {
-//                 at_handle_answer();
-//             }
-//             else
-//             {
-//                 // Print RING every now and then while the new incoming connection exists
-//                 if ((fnSystem.millis() - lastRingMs) > RING_INTERVAL)
-//                 {
-//                     if (numericResultCode == true)
-//                         at_cmd_resultCode(RESULT_CODE_RING);
-//                     else
-//                         at_cmd_println("RING");
-//                     lastRingMs = fnSystem.millis();
-//                 }
-//             }
-//         }
-
-//         // In command mode - don't exchange with TCP but gather characters to a string
-//         //if (SIO_UART.available() /*|| blockWritePending == true */ )
-//         if (fnDwCom.available() > 0)
-//         {
-//             // get char from Atari SIO
-//             //char chr = SIO_UART.read();
-//             char chr = fnDwCom.read();
-
-//             // Return, enter, new line, carriage return.. anything goes to end the command
-//             if ((chr == ASCII_LF) || (chr == ASCII_CR))
-//             {
-//                 modemCommand();
-//             }
-//             // Backspace or delete deletes previous character
-//             else if ((chr == ASCII_BACKSPACE) || (chr == ASCII_DELETE))
-//             {
-//                 size_t len = cmd.length();
-
-//                 if (len > 0)
-//                 {
-//                     cmd.erase(len - 1);
-//                     // We don't assume that backspace is destructive
-//                     // Clear with a space
-//                     if (commandEcho == true)
-//                     {
-//                         // drivewire_send(ASCII_BACKSPACE);
-//                         // drivewire_send(' ');
-//                         // drivewire_send(ASCII_BACKSPACE);
-//                     }
-//                 }
-//             }
-//             // Take into account arrow key movement and clear screen
-//             else if (chr == ATASCII_CLEAR_SCREEN ||
-//                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
-//             {
-//                 // if (commandEcho == true)
-//                 //     drivewire_send(chr);
-//             }
-//             else
-//             {
-//                 if (cmd.length() < MAX_CMD_LENGTH)
-//                 {
-//                     //cmd.concat(chr);
-//                     cmd += chr;
-//                 }
-//                 // if (commandEcho == true)
-//                 //     drivewire_send(chr);
-//             }
-//         }
-//     }
-//     // Connected mode
-//     else
-//     {
-//         // If another client is waiting, accept and turn away.
-//         if (tcpServer.hasClient())
-//         {
-//             fnTcpClient c = tcpServer.accept();
-//             c.write("The MODEM is currently serving another caller. Please try again later.\x0d\x0a\x9b");
-//             c.stop();
-//         }
-
-//         // Emit a CONNECT if we're connected, and a few seconds have passed.
-//         if ((answered == false) && (answerTimer > 0) && ((fnSystem.millis() - answerTimer) > ANSWER_TIMER_MS))
-//         {
-//             answered = true;
-//             answerTimer = 0;
-//             if (numericResultCode == true)
-//             {
-//                 at_cmd_resultCode(modemBaud);
-//             }
-//             else
-//             {
-//                 at_cmd_println("CONNECT ", false);
-//                 at_cmd_println(modemBaud);
-//             }
-//         }
-
-//         // //int sioBytesAvail = SIO_UART.available();
-//         // int sioBytesAvail = drivewire_recv_available();
-
-//         // // send from Atari to Fujinet
-//         // if (sioBytesAvail && tcpClient.connected())
-//         // {
-//         //     // In telnet in worst case we have to escape every uint8_t
-//         //     // so leave half of the buffer always free
-//         //     //int max_buf_size;
-//         //     //if (telnet == true)
-//         //     //  max_buf_size = TX_BUF_SIZE / 2;
-//         //     //else
-//         //     //  max_buf_size = TX_BUF_SIZE;
-
-//         //     // Read from serial, the amount available up to
-//         //     // maximum size of the buffer
-//         //     // int sioBytesRead = drivewire_recv_buffer(&txBuf[0], //SIO_UART.readBytes(&txBuf[0],
-//         //     //                                        (sioBytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : sioBytesAvail);
-
-//         //     // Disconnect if going to AT mode with "+++" sequence
-//         //     // for (int i = 0; i < (int)sioBytesRead; i++)
-//         //     // {
-//         //     //     if (txBuf[i] == '+')
-//         //     //         plusCount++;
-//         //     //     else
-//         //     //         plusCount = 0;
-//         //     //     if (plusCount >= 3)
-//         //     //     {
-//         //     //         plusTime = fnSystem.millis();
-//         //     //     }
-//         //     //     if (txBuf[i] != '+')
-//         //     //     {
-//         //     //         plusCount = 0;
-//         //     //     }
-//         //     // }
-
-//         //     // Write the buffer to TCP finally
-//         //     if (use_telnet == true)
-//         //     {
-//         //         // telnet_send(telnet, (const char *)txBuf, sioBytesRead);
-//         //     }
-//         //     // else
-//         //     //     tcpClient.write(&txBuf[0], sioBytesRead);
-
-//         //     // And send it off to the sniffer, if enabled.
-//         //     // modemSniffer->dumpOutput(&txBuf[0], sioBytesRead);
-//         //     // _lasttime = fnSystem.millis();
-//         // }
-
-//         // read from Fujinet to Atari
-//         unsigned char buf[RECVBUFSIZE];
-//         int bytesAvail = 0;
-
-//         // check to see how many bytes are avail to read
-//         while ((bytesAvail = tcpClient.available()) > 0)
-//         {
-//             // read as many as our buffer size will take (RECVBUFSIZE)
-//             unsigned int bytesRead =
-//                 tcpClient.read(buf, (bytesAvail > RECVBUFSIZE) ? RECVBUFSIZE : bytesAvail);
-
-//             if (use_telnet == true)
-//             {
-//                 telnet_recv(telnet, (const char *)buf, bytesRead);
-//             }
-//             else
-//             {
-//                 // drivewire_send_buffer(buf, bytesRead);
-//                 // drivewire_flush();
-//             }
-
-//             // And dump to sniffer, if enabled.
-//             modemSniffer->dumpInput(buf, bytesRead);
-//             _lasttime = fnSystem.millis();
-//         }
-//     }
-
-//     // If we have received "+++" as last bytes from serial port and there
-//     // has been over a second without any more bytes, go back to command mode.
-//     if (plusCount >= 3)
-//     {
-//         if (fnSystem.millis() - plusTime > 1000)
-//         {
-//             Debug_println("Going back to command mode");
-
-//             at_cmd_println("OK");
-    
-//             cmdMode = true;
-
-//             plusCount = 0;
-//         }
-//     }
-
-//     // Go to command mode if TCP disconnected and not in command mode
-//     if (!tcpClient.connected() && (cmdMode == false) && (DTR == 0))
-//     {
-//         tcpClient.flush();
-//         tcpClient.stop();
-//         cmdMode = true;
-//         if (numericResultCode == true)
-//             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
-//         else
-//             at_cmd_println("NO CARRIER");
-//         telnet_free(telnet);
-//         telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
-//         CRX = false;
-//         if (listenPort > 0)
-//         {
-//             // tcpServer.stop();
-//             // tcpServer.begin(listenPort);
-//         }
-//     }
-//     else if ((!tcpClient.connected()) && (cmdMode == false))
-//     {
-//         cmdMode = true;
-//         telnet_free(telnet);
-//         telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
-//         if (numericResultCode == true)
-//             at_cmd_resultCode(RESULT_CODE_NO_CARRIER);
-//         else
-//             at_cmd_println("NO CARRIER");
-//         telnet_free(telnet);
-//         telnet = telnet_init(telopts, _telnet_event_handler, 0, this);
-//         CRX = false;
-//         if (listenPort > 0)
-//         {
-//             // tcpServer.stop();
-//             // tcpServer.begin(listenPort);
-//         }
-//     }
-// }
 
 void drivewireModem::shutdown()
 {

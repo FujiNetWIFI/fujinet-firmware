@@ -29,6 +29,7 @@
 
 #include "utils.h"
 #include "directoryPageGroup.h"
+#include "compat_string.h"
 
 #include <endian.h>
 
@@ -243,11 +244,11 @@ void fujiDevice::fujicmd_image_rotate()
         {
             int swap = get_disk_dev(n - 1)->id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            _bus->changeDeviceId(get_disk_dev(n), swap); // to do!
+            SYSTEM_BUS.changeDeviceId(get_disk_dev(n), swap); // to do!
         }
 
         // The first slot gets the device ID of the last slot
-        _bus->changeDeviceId(get_disk_dev(0), last_id);
+        SYSTEM_BUS.changeDeviceId(get_disk_dev(0), last_id);
 
 #if ENABLE_SPEECH
         // FIXME - make this work
@@ -1588,11 +1589,11 @@ void fujiDevice::fujicmd_set_sio_external_clock(uint16_t speed)
 
     if (speed == 0)
     {
-        _bus->setUltraHigh(false, 0);
+        SYSTEM_BUS.setUltraHigh(false, 0);
     }
     else
     {
-        _bus->setUltraHigh(true, baudRate);
+        SYSTEM_BUS.setUltraHigh(true, baudRate);
     }
 
     transaction_complete();
@@ -1619,6 +1620,6 @@ void fujiDevice::fujicmd_enable_udpstream(int port)
     transaction_complete();
 
     // Start the UDP Stream
-    _bus->setUDPHost(host, port);
+    SYSTEM_BUS.setUDPHost(host, port);
 }
 

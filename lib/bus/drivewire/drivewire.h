@@ -19,6 +19,10 @@
 #ifndef COCO_H
 #define COCO_H
 
+#include "UARTChannel.h"
+#include "TTYChannel.h"
+#include "BeckerSocket.h"
+
 #ifdef ESP32_PLATFORM
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -26,45 +30,42 @@
 
 #include <forward_list>
 #include <map>
-// fnUartBUS (Serial only) was replaced with fnDwCom (Serial|TCP/Becker)
-//#include <fnUART.h>
-#include "drivewire/dwcom/fnDwCom.h"
 #include "media.h"
 
 #define DRIVEWIRE_BAUDRATE 57600
 
 /* Operation Codes */
-#define		OP_NOP		0
-#define     OP_JEFF     0xA5
-#define     OP_SERREAD  'C'
-#define     OP_SERREADM  'c'
-#define     OP_SERWRITE  0xC3
-#define     OP_SERWRITEM  0x64
-#define		OP_GETSTAT	'G'
-#define		OP_SETSTAT	'S'
-#define		OP_SERGETSTAT	'D'
-#define		OP_SERSETSTAT	'D'+128
-#define		OP_READ		'R'
-#define		OP_READEX	'R'+128
-#define		OP_WRITE	'W'
-#define		OP_REREAD	'r'
-#define		OP_REREADEX	'r'+128
-#define		OP_REWRITE	'w'
-#define		OP_INIT		'I'
-#define		OP_SERINIT	'E'
-#define		OP_SERTERM	'E'+128
-#define     OP_DWINIT   'Z'
-#define		OP_TERM		'T'
-#define		OP_TIME		'#'
-#define     OP_RESET3   0xF8
-#define		OP_RESET2	0xFE
-#define		OP_RESET1	0xFF
-#define		OP_PRINT	'P'
-#define		OP_PRINTFLUSH	'F'
-#define     OP_VPORT_READ    'C'
-#define     OP_FUJI 0xE2
-#define     OP_NET 0xE3
-#define     OP_CPM 0xE4
+#define OP_NOP        0
+#define OP_JEFF       0xA5
+#define OP_SERREAD    'C'
+#define OP_SERREADM   'c'
+#define OP_SERWRITE   0xC3
+#define OP_SERWRITEM  0x64
+#define OP_GETSTAT    'G'
+#define OP_SETSTAT    'S'
+#define OP_SERGETSTAT 'D'
+#define OP_SERSETSTAT 'D'+128
+#define OP_READ       'R'
+#define OP_READEX     'R'+128
+#define OP_WRITE      'W'
+#define OP_REREAD     'r'
+#define OP_REREADEX   'r'+128
+#define OP_REWRITE    'w'
+#define OP_INIT       'I'
+#define OP_SERINIT    'E'
+#define OP_SERTERM    'E'+128
+#define OP_DWINIT     'Z'
+#define OP_TERM       'T'
+#define OP_TIME       '#'
+#define OP_RESET3     0xF8
+#define OP_RESET2     0xFE
+#define OP_RESET1     0xFF
+#define OP_PRINT      'P'
+#define OP_PRINTFLUSH 'F'
+#define OP_VPORT_READ 'C'
+#define OP_FUJI       0xE2
+#define OP_NET        0xE3
+#define OP_CPM        0xE4
 
 #define FEATURE_EMCEE    0x01
 #define FEATURE_DLOAD    0x02
@@ -112,7 +113,6 @@
 // EXTERN WINDOW *window0, *window1, *window2, *window3;
 // EXTERN struct dwTransferData datapack;
 // EXTERN int interactive;
-
 
 // This is here because the network protocol adapters speak this
 union cmdFrame_t
@@ -169,11 +169,6 @@ public:
      */
     bool device_active = true;
 
-    /**
-     * @brief Get the systemBus object that this virtualDevice is attached to.
-     */
-    systemBus get_bus();
-
     int id() { return _devnum; };
 
     // Unused, for compatibility with fujiDevice.cpp
@@ -198,6 +193,14 @@ struct drivewire_message_t
 class systemBus
 {
 private:
+    IOChannel *_port;
+#if defined(ESP_PLATFORM)
+    UARTChannel _serial;
+#elif defined(ITS_A_UNIX_SYSTEM_I_KNOW_THIS)
+    TTYChannel _serial;
+#endif
+    BeckerSocket _becker;
+    
     virtualDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
@@ -327,16 +330,25 @@ public:
     // I wish this codebase would make up its mind to use camel or snake casing.
     drivewireModem *get_modem() { return _modemDev; }
 
+    // Everybody thinks "oh I know how a serial port works, I'll just
+    // access it directly and bypass the bus!" ಠ_ಠ
+    size_t read(void *buffer, size_t length) { return _port->read(buffer, length); }
+    size_t read() { return _port->read(); }
+    size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
+    size_t write(int n) { return _port->write(n); }
+    size_t available() { return _port->available(); }
+    void flush() { _port->flush(); }
+    
 #ifdef ESP32_PLATFORM
     QueueHandle_t qDrivewireMessages = nullptr;
 #endif
 
-    // Unused, for compatibility with fujiDevice.cpp
+    // For compatibility with fujiDevice.cpp
     void changeDeviceId(void *pDevice, int device_id);
     void setUDPHost(const char *newhost, int port);
     void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 };
 
-extern systemBus DRIVEWIRE;
+extern systemBus SYSTEM_BUS;
 
 #endif // guard
