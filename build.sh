@@ -179,13 +179,7 @@ if [ -z "${PC_TARGET}" ] ; then
     fi
     PIO=$(command -v pio)
     if [[ -n "${PIO}" && ! -e "$ACTIVATE" ]] ; then
-        PIO_PYTHON="$(${PIO} system info | sed -nE -e '/Python (Executable|location)/s,^[^/]*/,/,p')"
-        if [ -z "${PIO_PYTHON}" ] ; then
-            # FIXME - get pio to setup penv
-            echo Unable to locate pio penv
-            exit 1
-        fi
-        ACTIVATE="$(dirname ${PIO_PYTHON})/activate"
+        ACTIVATE="$(dirname ${PIO})/activate"
     fi
 
     if [ -z "${PIO}" ] ; then
