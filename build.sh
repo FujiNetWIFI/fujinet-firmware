@@ -151,8 +151,8 @@ PYTHON=python
 if ! check_python_version "${PYTHON}" ; then
     PYTHON=python3
     if ! check_python_version "${PYTHON}" ; then
-	echo "Python 3 is not installed"
-	exit 1
+        echo "Python 3 is not installed"
+        exit 1
     fi
 fi
 
@@ -163,9 +163,9 @@ fi
 
 if [ -z "${VENV_ROOT}" ] ; then
     if [ -n "${PC_TARGET}" ] ; then
-	VENV_ROOT="${PC_VENV_ROOT}"
+        VENV_ROOT="${PC_VENV_ROOT}"
     else
-	VENV_ROOT="${PIO_VENV_ROOT}"
+        VENV_ROOT="${PIO_VENV_ROOT}"
     fi
 fi
 
@@ -175,24 +175,24 @@ if [ -z "${PC_TARGET}" ] ; then
     PIO=$(command -v pio)
     ACTIVATE="${VENV_ROOT}/bin/activate"
     if [ -n "${PIO}" ] ; then
-	PIO_PYTHON="$(${PIO} system info | grep -E 'Python (Executable|location)' | awk '{print $NF; exit}')"
-	if [ -z "${PIO_PYTHON}" ] ; then
-	    # FIXME - get pio to setup penv
-	    echo Unable to locate pio penv
-	    exit 1
-	fi
-	ACTIVATE="$(dirname ${PIO_PYTHON})/activate"
+        PIO_PYTHON="$(${PIO} system info | sed -nE -e '/Python (Executable|location)/s,^[^/]*/,/,p')"
+        if [ -z "${PIO_PYTHON}" ] ; then
+            # FIXME - get pio to setup penv
+            echo Unable to locate pio penv
+            exit 1
+        fi
+        ACTIVATE="$(dirname ${PIO_PYTHON})/activate"
     else
-	# PlatformIO isn't in our path but maybe it has already been installed with a penv?
-	if [ -e "${ACTIVATE}" ] ; then
-	    source "${ACTIVATE}"
-	    PIO=$(command -v pio)
-	fi
+        # PlatformIO isn't in our path but maybe it has already been installed with a penv?
+        if [ -e "${ACTIVATE}" ] ; then
+            source "${ACTIVATE}"
+            PIO=$(command -v pio)
+        fi
     fi
 
     if [ -z "${PIO}" ] ; then
-	echo Please install platformio
-	exit 1
+        echo Please install platformio
+        exit 1
     fi
 fi
 
@@ -200,9 +200,9 @@ fi
 MISSING=""
 if [ -n "${PC_TARGET}" ] ; then
     for REQUIRED in g++ make cmake ; do
-	if ! command -v ${REQUIRED} > /dev/null ; then
-	    MISSING="${REQUIRED} ${MISSING}"
-	fi
+        if ! command -v ${REQUIRED} > /dev/null ; then
+            MISSING="${REQUIRED} ${MISSING}"
+        fi
     done
 fi
 if [ -n "${MISSING}" ] ; then
@@ -213,9 +213,9 @@ fi
 if [ -z "${ACTIVATE}" -a -n "${PC_TARGET}" ] ; then
     ACTIVATE="${VENV_ROOT}/bin/activate"
     if [ ! -e "${ACTIVATE}" ]; then
-	# Create the venv if it doesn't exist
-	mkdir -p $(dirname "${VENV_ROOT}")
-	${PYTHON} -m venv "${VENV_ROOT}" || exit 1
+        # Create the venv if it doesn't exist
+        mkdir -p $(dirname "${VENV_ROOT}")
+        ${PYTHON} -m venv "${VENV_ROOT}" || exit 1
     fi
 fi
 
