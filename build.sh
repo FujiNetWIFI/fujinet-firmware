@@ -162,6 +162,11 @@ if ! ${PYTHON} -c "import venv, ensurepip" 2>/dev/null ; then
     exit 1
 fi
 
+# if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
+#     echo Error: pip is not installed.
+#     exit 1
+# fi
+
 if [ -z "${VENV_ROOT}" ] ; then
     if [ -n "${PC_TARGET}" ] ; then
         VENV_ROOT="${PC_VENV_ROOT}"
@@ -170,19 +175,15 @@ if [ -z "${VENV_ROOT}" ] ; then
     fi
 fi
 
+ACTIVATE="${VENV_ROOT}/bin/activate"
 if [ -z "${PC_TARGET}" ] ; then
     # Doing a PlatformIO build, locate PlatformIO. It may or may not
     # already be in the users' path.
-    ACTIVATE="${VENV_ROOT}/bin/activate"
     if [ -e "${ACTIVATE}" ] ; then
         # Activate now in case pio isn't already in PATH
         source "${ACTIVATE}"
     fi
     PIO=$(command -v pio)
-    if [[ -n "${PIO}" && ! -e "$ACTIVATE" ]] ; then
-        ACTIVATE="$(dirname ${PIO})/activate"
-    fi
-
     if [ -z "${PIO}" ] ; then
         echo Please install platformio
         exit 1
@@ -203,20 +204,20 @@ if [ -n "${MISSING}" ] ; then
     exit 1
 fi
 
-if [ -z "${ACTIVATE}" -a -n "${PC_TARGET}" ] ; then
-    ACTIVATE="${VENV_ROOT}/bin/activate"
-    if [ ! -e "${ACTIVATE}" ]; then
-        # Create the venv if it doesn't exist
+if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
+    if [ ! -e "${ACTIVATE}" ] ; then
+        echo Creating venv at "${VENV_ROOT}"
         mkdir -p $(dirname "${VENV_ROOT}")
         ${PYTHON} -m venv "${VENV_ROOT}" || exit 1
     fi
+    if [ -e "${ACTIVATE}" ] ; then
+        source "${ACTIVATE}"
+    fi
+    if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
+        echo Unable to activate penv/venv
+        exit 1
+    fi
 fi
-
-if [ ! -e "${ACTIVATE}" ] ; then
-    echo Unable to setup venv/penv
-    exit 1
-fi
-source "${ACTIVATE}"
 
 if [ $SHOW_BOARDS -eq 1 ] ; then
   display_board_names
