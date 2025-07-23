@@ -7,6 +7,7 @@
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 PIO_VENV_ROOT="${HOME}/.platformio/penv"
+PC_VENV_ROOT="${SCRIPT_DIR}/build/.venv"
 
 BUILD_ALL=0
 RUN_BUILD=0
@@ -47,16 +48,6 @@ check_python_version() {
     return 1
   fi
 }
-
-# Check if "python" exists first since that's what PlatformIO names it
-PYTHON=python
-if ! check_python_version "${PYTHON}" ; then
-  PYTHON=python3
-  if ! check_python_version "${PYTHON}" ; then
-    echo "Python 3 is not installed"
-    exit 1
-  fi
-fi
 
 function display_board_names {
   while IFS= read -r piofile; do
@@ -140,12 +131,99 @@ do
     G) CMAKE_GENERATOR=${OPTARG} ;;
     y) ANSWER_YES=1  ;;
     z) ZIP_MODE=1 ;;
-    V) PIO_VENV_ROOT=${OPTARG} ;;
+    V) VENV_ROOT=${OPTARG} ;;
     h) show_help ;;
     *) show_help ;;
   esac
 done
 shift $((OPTIND - 1))
+
+# Requirements:
+#   - python3
+#   - python3 can create venv - PlatformIO also needs this to install penv
+#   - if doing ESP32 build:
+#     - PlatformIO
+#   - not ESP32 build:
+#     - cmake
+
+# Make sure we have python3 and it has the ability to create venvs
+PYTHON=python
+if ! check_python_version "${PYTHON}" ; then
+    PYTHON=python3
+    if ! check_python_version "${PYTHON}" ; then
+	echo "Python 3 is not installed"
+	exit 1
+    fi
+fi
+
+if ! ${PYTHON} -c "import venv, ensurepip" 2>/dev/null ; then
+    echo "Error: Python venv module is not installed."
+    exit 1
+fi
+
+if [ -z "${VENV_ROOT}" ] ; then
+    if [ -n "${PC_TARGET}" ] ; then
+	VENV_ROOT="${PC_VENV_ROOT}"
+    else
+	VENV_ROOT="${PIO_VENV_ROOT}"
+    fi
+fi
+
+if [ -z "${PC_TARGET}" ] ; then
+    # Doing a PlatformIO build, locate PlatformIO. It may or may not
+    # already be in the users' path.
+    PIO=$(command -v pio)
+    ACTIVATE="${VENV_ROOT}/bin/activate"
+    if [ -n "${PIO}" ] ; then
+	PIO_PYTHON="$(${PIO} system info | grep -E 'Python (Executable|location)' | awk '{print $NF; exit}')"
+	if [ -z "${PIO_PYTHON}" ] ; then
+	    # FIXME - get pio to setup penv
+	    echo Unable to locate pio penv
+	    exit 1
+	fi
+	ACTIVATE="$(dirname ${PYTHON_PATH})/activate"
+    else
+	# PlatformIO isn't in our path but maybe it has already been installed with a penv?
+	if [ -e "${ACTIVATE}" ] ; then
+	    source "${ACTIVATE}"
+	    PIO=$(command -v pio)
+	fi
+    fi
+
+    if [ -z "${PIO}" ] ; then
+	echo Please install platformio
+	exit 1
+    fi
+fi
+
+# Let the user know about any required packages they need to install
+MISSING=""
+if [ -n "${PC_TARGET}" ] ; then
+    for REQUIRED in g++ make cmake ; do
+	if ! command -v ${REQUIRED} > /dev/null ; then
+	    MISSING="${REQUIRED} ${MISSING}"
+	fi
+    done
+fi
+if [ -n "${MISSING}" ] ; then
+    echo The following commands need to be installed: ${MISSING}
+    exit 1
+fi
+
+if [ -z "${ACTIVATE}" -a -n "${PC_TARGET}" ] ; then
+    ACTIVATE="${VENV_ROOT}/bin/activate"
+    if [ ! -e "${ACTIVATE}" ]; then
+	# Create the venv if it doesn't exist
+	mkdir -p $(dirname "${VENV_ROOT}")
+	${PYTHON} -m venv "${VENV_ROOT}" || exit 1
+    fi
+fi
+
+if [ ! -e "${ACTIVATE}" ] ; then
+    echo Unable to setup venv/penv
+    exit 1
+fi
+source "${ACTIVATE}"
 
 if [ $SHOW_BOARDS -eq 1 ] ; then
   display_board_names
@@ -157,18 +235,6 @@ if [ $BUILD_ALL -eq 1 ] ; then
   chmod 755 $SCRIPT_DIR/build-platforms/build-all.sh
   $SCRIPT_DIR/build-platforms/build-all.sh
   exit $?
-fi
-
-##############################################################
-# Set up the virtual environment if it exists
-if [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" != "$PIO_VENV_ROOT" ]] ; then
-  echo "Activating virtual environment"
-  [[ -z "$VIRTUAL_ENV" ]] && deactivate &>/dev/null
-  source "$PIO_VENV_ROOT/bin/activate"
-elif [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" == "$PIO_VENV_ROOT" ]] ; then
-  echo "Virtual environment already activated at $PIO_VENV_ROOT"
-else
-  echo "Warning: Virtual environment not found in $PIO_VENV_ROOT. Continuing without it."
 fi
 
 ##############################################################
