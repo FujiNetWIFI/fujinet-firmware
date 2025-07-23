@@ -172,9 +172,13 @@ fi
 if [ -z "${PC_TARGET}" ] ; then
     # Doing a PlatformIO build, locate PlatformIO. It may or may not
     # already be in the users' path.
-    PIO=$(command -v pio)
     ACTIVATE="${VENV_ROOT}/bin/activate"
-    if [ -n "${PIO}" ] ; then
+    if [ -e "${ACTIVATE}" ] ; then
+        # Activate now in case pio isn't already in PATH
+        source "${ACTIVATE}"
+    fi
+    PIO=$(command -v pio)
+    if [[ -n "${PIO}" && ! -e "$ACTIVATE" ]] ; then
         PIO_PYTHON="$(${PIO} system info | sed -nE -e '/Python (Executable|location)/s,^[^/]*/,/,p')"
         if [ -z "${PIO_PYTHON}" ] ; then
             # FIXME - get pio to setup penv
@@ -182,12 +186,6 @@ if [ -z "${PC_TARGET}" ] ; then
             exit 1
         fi
         ACTIVATE="$(dirname ${PIO_PYTHON})/activate"
-    else
-        # PlatformIO isn't in our path but maybe it has already been installed with a penv?
-        if [ -e "${ACTIVATE}" ] ; then
-            source "${ACTIVATE}"
-            PIO=$(command -v pio)
-        fi
     fi
 
     if [ -z "${PIO}" ] ; then
