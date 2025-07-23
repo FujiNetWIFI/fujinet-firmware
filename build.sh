@@ -89,6 +89,7 @@ function show_help {
   echo "   -y       # answers any questions with Y automatically, for unattended builds"
   echo "   -h       # this help"
   echo "   -V       # Override default Python virtual environment location (e.g. \"-V ~/.platformio/penv\")"
+  echo "            # Alternatively, this can be set with the shell env var VENV_ROOT"
   echo ""
   echo "Additional Args can be accepted to pass values onto sub processes where supported."
   echo "  e.g. ./build.sh -p APPLE -- -DFOO=BAR"
