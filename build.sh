@@ -181,7 +181,7 @@ if [ -z "${PC_TARGET}" ] ; then
 	    echo Unable to locate pio penv
 	    exit 1
 	fi
-	ACTIVATE="$(dirname ${PYTHON_PATH})/activate"
+	ACTIVATE="$(dirname ${PIO_PYTHON})/activate"
     else
 	# PlatformIO isn't in our path but maybe it has already been installed with a penv?
 	if [ -e "${ACTIVATE}" ] ; then
