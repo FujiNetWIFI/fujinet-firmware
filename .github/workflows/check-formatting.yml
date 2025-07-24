@@ -18,7 +18,7 @@ jobs:
           python-version: '3.x'
 
       - name: Install your formatter
-        run: pip install -r .github/workflows/check-format-requirements.txt
+        run: pip install -r .github/workflows/coding-standard-requirements.txt
 
       - name: Run formatting check
         run: ./coding-standard.py --against origin/${{ github.base_ref || 'master' }}
