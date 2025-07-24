@@ -63,6 +63,7 @@ void BeckerSocket::begin(std::string host, int baud)
 
     _host = host;
     _baud = baud;
+    read_timeout_ms = 500;
 
     // listen or connect
     start_connection();

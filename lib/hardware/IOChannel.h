@@ -21,6 +21,8 @@ private:
 
 protected:
     std::string _fifo;
+    uint32_t read_timeout_ms = 10;
+    uint32_t discard_timeout_ms = 10;
 
     // Handled by IOChannel, not implemented by subclass
     size_t dataIn(void *buffer, size_t length);

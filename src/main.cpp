@@ -147,7 +147,7 @@ void main_setup(int argc, char *argv[])
     //You can change the baud rate and pin numbers similar to Serial.begin() here.
     console.begin(DEBUG_SPEED);
 #else
-    Serial.begin(SerialConfig().baud(DEBUG_SPEED).deviceID(FN_UART_DEBUG));
+    Serial.begin(ChannelConfig().baud(DEBUG_SPEED).deviceID(FN_UART_DEBUG));
 #endif
 
 #ifdef DEBUG
