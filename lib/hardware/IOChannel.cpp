@@ -12,8 +12,6 @@
 
 #include "../../include/debug.h"
 
-#define MAX_READ_TIMEOUT 10000 // microseconds
-
 size_t IOChannel::available()
 {
     update_fifo();
@@ -33,7 +31,7 @@ size_t IOChannel::dataIn(void *buffer, size_t length)
     while (length)
     {
         now = GET_TIMESTAMP();
-        if (now - start > 500000) //MAX_READ_TIMEOUT)
+        if (now - start > read_timeout_ms * 1000)
         {
             Debug_printv("timeout");
             break;
@@ -59,7 +57,7 @@ void IOChannel::discardInput()
     uint64_t now, start;
 
     now = start = GET_TIMESTAMP();
-    while (now - start < MAX_READ_TIMEOUT)
+    while (now - start < discard_timeout_ms * 1000)
     {
         now = GET_TIMESTAMP();
         if (_fifo.size())

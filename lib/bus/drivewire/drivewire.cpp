@@ -352,7 +352,7 @@ void systemBus::op_dwinit()
     _port->write(0x04);
 #else
     _port->write(DWINIT_FEATURES);
-#endif    
+#endif
 }
 
 void systemBus::op_getstat()
@@ -389,7 +389,7 @@ void systemBus::op_serread()
     unsigned char vchan = 0;
     unsigned char response = 0x00;
 
-    // scan client channels for first that has available data    
+    // scan client channels for first that has available data
     for (int i = 0; i < 16; i++) {
         if (outgoingChannel[i].empty() == false) {
             response = outgoingChannel[i].front();
@@ -398,7 +398,7 @@ void systemBus::op_serread()
             break;
         }
     }
-    
+
     _port->write(vchan);
     _port->write(response);
 
@@ -409,8 +409,8 @@ void systemBus::op_serreadm()
 {
     unsigned char vchan = _port->read();
     unsigned char count = _port->read();
-    
-    // scan client channels for first that has available data    
+
+    // scan client channels for first that has available data
     for (vchan = 0; vchan < 16; vchan++) {
         if (outgoingChannel[vchan].empty() == false) {
             if (outgoingChannel[vchan].size() < count) count = outgoingChannel[vchan].size();
@@ -440,7 +440,7 @@ void systemBus::op_serwritem()
     vchan = _port->read();
     _port->read(); // discard
     count = _port->read();
-    
+
     for (int i = 0; i < count; i++) {
         int byte = _port->read();
         incomingChannel[vchan].push(byte);
@@ -475,8 +475,8 @@ void systemBus::_drivewire_process_cmd()
         {
         case OP_JEFF:
             op_jeff();
-		    break;
-	    case OP_NOP:
+                    break;
+            case OP_NOP:
             op_nop();
             break;
         case OP_RESET1:
@@ -552,7 +552,7 @@ void systemBus::_drivewire_process_cmd()
             break;
         }
     }
-    
+
     fnLedManager.set(eLed::LED_BUS, false);
 }
 
@@ -614,23 +614,23 @@ void systemBus::setup()
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 // Configure UART to RP2040
 #ifdef FORCE_UART_BAUD
-	Debug_printv("FORCE_UART_BAUD set to %u", FORCE_UART_BAUD);
-	_drivewireBaud = FORCE_UART_BAUD;
+        Debug_printv("FORCE_UART_BAUD set to %u", FORCE_UART_BAUD);
+        _drivewireBaud = FORCE_UART_BAUD;
 #else /* !FORCE_UART_BAUD */
-	_drivewireBaud = 115200;
+        _drivewireBaud = 115200;
 #endif /* FORCE_UART_BAUD */
 
 #else /* !CONFIG_IDF_TARGET_ESP32S3 */
-	// Setup interrupt for cassette motor pin
-	gpio_config_t io_conf = {
-		.pin_bit_mask = (1ULL << PIN_CASS_MOTOR), // bit mask of the pins that you want to set
+        // Setup interrupt for cassette motor pin
+        gpio_config_t io_conf = {
+                .pin_bit_mask = (1ULL << PIN_CASS_MOTOR), // bit mask of the pins that you want to set
         .mode = GPIO_MODE_INPUT,                  // set as input mode
         .pull_up_en = GPIO_PULLUP_DISABLE,        // disable pull-up mode
         .pull_down_en = GPIO_PULLDOWN_ENABLE,     // enable pull-down mode
         .intr_type = GPIO_INTR_POSEDGE            // interrupt on positive edge
-	};
+        };
 
-	_cassetteDev = new drivewireCassette();
+        _cassetteDev = new drivewireCassette();
 
     // configure GPIO with the given settings
     gpio_config(&io_conf);
@@ -687,14 +687,14 @@ void systemBus::setup()
     }
     else
     {
-        _serial.begin(SerialConfig().baud(_drivewireBaud).deviceID(DW_UART_DEVICE));
+        _serial.begin(ChannelConfig().baud(_drivewireBaud).deviceID(DW_UART_DEVICE));
         _port = &_serial;
     }
 
     _port->discardInput();
     Debug_printv("DRIVEWIRE MODE");
 
-// jeff hack to see if the S3 is getting serial data    
+// jeff hack to see if the S3 is getting serial data
     // Debug_println("now receiving data...");
     // uint8_t b[] = {' '};
     // while(1)

@@ -19,6 +19,8 @@
 void TTYChannel::begin(const SerialConfig& conf)
 {
     _device = conf.device;
+    read_timeout_ms = conf.read_timeout_ms;
+    discard_timeout_ms = discard.read_timeout_ms;
     if (_device.empty())
     {
         bool found = false;
@@ -167,10 +169,10 @@ size_t TTYChannel::dataOut(const void *buffer, size_t length)
         // Debug_printf("select(%lu)\n", timeout_tv.tv_sec*1000+timeout_tv.tv_usec/1000);
         int result = select(_fd + 1, NULL, &writefds, NULL, &timeout_tv);
 
-        if (result < 0) 
+        if (result < 0)
         {
             // Select was interrupted, try again
-            if (errno == EINTR) 
+            if (errno == EINTR)
             {
                 continue;
             }
@@ -186,7 +188,7 @@ size_t TTYChannel::dataOut(const void *buffer, size_t length)
             break;
         }
 
-        if (result > 0) 
+        if (result > 0)
         {
             // Make sure our file descriptor is in the ready to write list
             if (FD_ISSET(_fd, &writefds))
@@ -294,18 +296,18 @@ void TTYChannel::setBaudrate(uint32_t baud)
 #elif defined(__linux__)
         // Linux Support
 
-		struct termios2 tios2;
+                struct termios2 tios2;
 
-		if (-1 == ioctl(_fd, TCGETS2, &tios2))
+                if (-1 == ioctl(_fd, TCGETS2, &tios2))
         {
             Debug_printf("TCGETS2 error %d: %s\n", errno, strerror(errno));
             return;
-		}
-		tios2.c_cflag &= ~(CBAUD | CBAUD << LINUX_IBSHIFT);
-		tios2.c_cflag |= BOTHER | BOTHER << LINUX_IBSHIFT;
-		tios2.c_ispeed = baud;
-		tios2.c_ospeed = baud;
-		if (-1 == ioctl(_fd, TCSETS2, &tios2))
+                }
+                tios2.c_cflag &= ~(CBAUD | CBAUD << LINUX_IBSHIFT);
+                tios2.c_cflag |= BOTHER | BOTHER << LINUX_IBSHIFT;
+                tios2.c_ispeed = baud;
+                tios2.c_ospeed = baud;
+                if (-1 == ioctl(_fd, TCSETS2, &tios2))
             Debug_printf("TCSETS2 error %d: %s\n", errno, strerror(errno));
 #else
         Debug_println("Custom baud rate is not implemented");
@@ -357,7 +359,7 @@ bool TTYChannel::waitReadable(uint32_t timeout_ms)
 
     int result = select(_fd + 1, &readfds, nullptr, nullptr, &timeout_tv);
 
-    if (result < 0) 
+    if (result < 0)
     {
         if (errno != EINTR)
         {
@@ -371,7 +373,7 @@ bool TTYChannel::waitReadable(uint32_t timeout_ms)
         return false;
     }
     // This shouldn't happen, if result > 0 our fd has to be in the list!
-    if (!FD_ISSET (_fd, &readfds)) 
+    if (!FD_ISSET (_fd, &readfds))
     {
         Debug_println("UART waitReadable() unexpected select result");
     }

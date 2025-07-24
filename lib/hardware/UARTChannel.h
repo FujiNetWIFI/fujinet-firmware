@@ -17,7 +17,7 @@
 #  define FN_UART_BUS   UART_NUM_2
 #endif
 
-struct SerialConfig
+struct ChannelConfig
 {
     uart_config_t uart_config = {
         .baud_rate = 115200,
@@ -34,27 +34,35 @@ struct SerialConfig
     };
     bool isInverted = false;
     uart_port_t device;
-    
-    SerialConfig& baud(int baud) {
+    uint32_t read_timeout_ms = 10;
+    uint32_t discard_timeout_ms = 10;
+
+    ChannelConfig& baud(int baud) {
         uart_config.baud_rate = baud; return *this;
     }
-    SerialConfig& dataBits(uart_word_length_t bits) {
+    ChannelConfig& dataBits(uart_word_length_t bits) {
         uart_config.data_bits = bits; return *this;
     }
-    SerialConfig& parity(uart_parity_t par) {
+    ChannelConfig& parity(uart_parity_t par) {
         uart_config.parity = par; return *this;
     }
-    SerialConfig& stopBits(uart_stop_bits_t bits) {
+    ChannelConfig& stopBits(uart_stop_bits_t bits) {
         uart_config.stop_bits = bits; return *this;
     }
-    SerialConfig& flowControl(uart_hw_flowcontrol_t flow) {
+    ChannelConfig& flowControl(uart_hw_flowcontrol_t flow) {
         uart_config.flow_ctrl = flow; return *this;
     }
-    SerialConfig& inverted(bool inv) {
+    ChannelConfig& inverted(bool inv) {
         isInverted = inv; return *this;
     }
-    SerialConfig& deviceID(uart_port_t num) {
+    ChannelConfig& deviceID(uart_port_t num) {
         device = num; return *this;
+    }
+    ChannelConfig& readTimeout(uint32_t millis) {
+        read_timeout_ms = millis; return *this;
+    }
+    ChannelConfig& discardTimeout(uint32_t millis) {
+        discard_timeout_ms = millis; return *this;
     }
 };
 
@@ -67,13 +75,13 @@ private:
 protected:
     void update_fifo() override;
     size_t dataOut(const void *buffer, size_t length) override;
-    
+
 public:
-    void begin(const SerialConfig& conf);
+    void begin(const ChannelConfig& conf);
     void end() override;
 
     void flush() override;
-    
+
     uint32_t getBaudrate() override;
     void setBaudrate(uint32_t baud) override;
 

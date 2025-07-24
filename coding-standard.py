@@ -135,7 +135,7 @@ def get_staged_files(extension=None):
       stderr=subprocess.PIPE,
       universal_newlines=True,
     )
-    files = result.stdout.strip().split("\n")
+    files = result.stdout.splitlines()
   except subprocess.CalledProcessError as e:
     print(f"Error getting staged files: {e.stderr}", file=sys.stderr)
     exit(1)

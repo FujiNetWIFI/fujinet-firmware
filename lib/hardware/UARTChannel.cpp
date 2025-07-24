@@ -11,7 +11,7 @@
 // Serial "debug port"
 UARTChannel fnDebugConsole;
 
-void UARTChannel::begin(const SerialConfig& conf)
+void UARTChannel::begin(const ChannelConfig& conf)
 {
     if (_uart_q)
     {
@@ -19,9 +19,11 @@ void UARTChannel::begin(const SerialConfig& conf)
     }
 
     _uart_num = conf.device;
+    read_timeout_ms = conf.read_timeout_ms;
+    discard_timeout_ms = conf.discard_timeout_ms;
     Debug_printv("speed: %i", conf.uart_config.baud_rate);
     uart_param_config(_uart_num, &conf.uart_config);
-    
+
     int tx, rx;
     if (_uart_num == 0)
     {
