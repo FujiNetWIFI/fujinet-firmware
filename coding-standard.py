@@ -349,6 +349,7 @@ def main():
   if err_count:
     exit(1)
 
+  # Line with trailing whitespace    
   return
 
 if __name__ == "__main__":
