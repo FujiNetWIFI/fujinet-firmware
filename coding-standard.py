@@ -8,6 +8,7 @@ from pathlib import Path
 import mimetypes
 from enum import Enum, auto
 import termcolor
+import shlex
 
 USE_COLOR = sys.stdout.isatty()
 
@@ -26,11 +27,19 @@ class FormatError(Enum):
   IllegalTabs = auto()
   IncorrectFormatting = auto()
 
+ErrorStrings = {
+  FormatError.TrailingWhitespace: "Trailing Whitespace",
+  FormatError.IllegalTabs: "Tab Characters",
+  FormatError.IncorrectFormatting: "Incorrect Formatting",
+}
+
 TERMCAP_TAB_COLUMNS = 8
 
 def build_argparser():
   parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument("file", nargs="*", help="input file")
+  parser.add_argument("--against",
+                      help="Compare staged files to base branch (e.g., origin/main)")
   parser.add_argument("--fix", action="store_true", help="rewrite improperly formatted files")
   parser.add_argument("--show", action="store_true", help="print reformatted file on stdout")
   return parser
@@ -81,7 +90,12 @@ def clang_format(path):
   inline_style = serialize_flat_style(config)
 
   cmd = ["clang-format", f"--style={inline_style}", str(path)]
-  result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+  try:
+    result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+  except:
+    print("Failed to format")
+    print(" ".join([shlex.quote(x) for x in cmd]))
+    exit(1)
 
   return result.stdout.splitlines()
 
@@ -141,6 +155,13 @@ def get_staged_files(extension=None):
     exit(1)
   return [f for f in files if extension is None or f.endswith(extension)]
 
+def get_changed_files(base_ref):
+  result = subprocess.run(
+    ['git', 'diff', '--name-only', '--diff-filter=ACMR', f'{base_ref}...HEAD'],
+    capture_output=True, text=True, check=True
+  )
+  return result.stdout.splitlines()
+
 def is_makefile(path):
   for pattern in MAKEFILE_TYPES:
     if re.match(pattern, path):
@@ -163,11 +184,30 @@ def is_python(path):
 
   return False
 
-def is_text(path):
-  mime, _ = mimetypes.guess_type(path)
-  if mime and mime.startswith("text/"):
-    return True
-  return False
+def is_text(path, blocksize=512):
+  try:
+    with open(path, 'rb') as f:
+      chunk = f.read(blocksize)
+  except Exception:
+    return False
+
+  if not chunk:
+    return True  # empty file = text
+
+  if b'\0' in chunk:
+    return False  # null bytes = binary
+
+  # Mostly printable ASCII or common control chars
+  text_characters = bytes(range(32, 127)) + b'\n\r\t\f\b'
+  nontext = chunk.translate(None, text_characters)
+  return len(nontext) / len(chunk) < 0.30
+
+# def is_text(path):
+#   mime, _ = mimetypes.guess_type(path)
+#   print("MIME", mime, path)
+#   if mime and mime.startswith("text/"):
+#     return True
+#   return False
 
 def classify_errors(original, allow_leading_tabs=False):
   errors = set()
@@ -233,6 +273,16 @@ def previous_file_contents(path):
 
   return result.stdout
 
+def display_errors(path, errs, original, formatted):
+  print(f"{path}:")
+  print(f"  {', '.join(ErrorStrings[x] for x in errs)}")
+  for idx in range(min(len(original), len(formatted))):
+    if original[idx] != formatted[idx]:
+      print("  First line with error:")
+      print(f"  {idx+1}: {visualize_whitespace(original[idx])}")
+      break
+  return
+
 def check_file(path, display_only=False, fix_in_place=False):
   _, ext = os.path.splitext(path)
   allow_leading_tabs = False
@@ -271,12 +321,7 @@ def check_file(path, display_only=False, fix_in_place=False):
       update_file(path, formatted)
     else:
       errs = classify_errors(original, allow_leading_tabs)
-      print(f"{path} has errors:", errs)
-      for idx in range(min(len(original), len(formatted))):
-        if original[idx] != formatted[idx]:
-          print("  First line with error:")
-          print(f"  {idx+1}: {visualize_whitespace(original[idx])}")
-          break
+      display_errors(path, errs, original, formatted)
       return errs
   return None
 
@@ -288,6 +333,8 @@ def main():
     to_check = get_staged_files()
     if not to_check:
       sys.exit(0)
+  elif args.against:
+    to_check = get_changed_files(args.against)
   else:
     to_check = args.file
 
