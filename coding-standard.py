@@ -1,4 +1,28 @@
 #!/usr/bin/env python3
+"""Pre-commit hook and PR checker for enforcing basic coding standards.
+
+This script serves dual purposes:
+  1. As a Git pre-commit hook: it runs automatically when committing, and only
+     checks files staged for commit. It verifies that:
+       - No lines have trailing whitespace
+       - Tabs are not used for alignment (except leading tabs in Makefiles)
+       - C/C++ files are formatted according to `.clang-format`
+  2. As a GitHub Actions PR check: it compares the PR branch against its base
+     and verifies all modified files conform to the same standards.
+
+Only **changed or staged files** are checked, to allow incremental
+cleanup in legacy code.
+
+To install as a pre-commit hook, run:
+    coding-standard.py --addhook
+
+To use as a PR check, add it as a GitHub Action and pass:
+    --against ${{ github.base_ref }}
+
+Exit code is nonzero if any violations are found.
+
+"""
+
 import argparse
 import os, sys
 import subprocess
@@ -9,6 +33,7 @@ import mimetypes
 from enum import Enum, auto
 import termcolor
 import shlex
+import tempfile
 
 USE_COLOR = sys.stdout.isatty()
 
@@ -33,8 +58,8 @@ def build_argparser():
   parser.add_argument("file", nargs="*", help="input file")
   parser.add_argument("--against",
                       help="Compare staged files to base branch (e.g., origin/main)")
-  parser.add_argument("--fix", action="store_true", help="rewrite improperly formatted files")
-  parser.add_argument("--show", action="store_true", help="print reformatted file on stdout")
+  parser.add_argument("--addhook", action="store_true",
+                      help="setup git pre-commit hook to use this script")
   return parser
 
 class ClangFormatter:
@@ -277,7 +302,7 @@ class TextFile:
   @staticmethod
   def pathIsText(path, blocksize=512):
     try:
-      with open(path, 'rb') as f:
+      with open(path, "rb") as f:
         chunk = f.read(blocksize)
     except Exception:
       return False
@@ -285,11 +310,11 @@ class TextFile:
     if not chunk:
       return True  # empty file = text
 
-    if b'\0' in chunk:
+    if b"\0" in chunk:
       return False  # null bytes = binary
 
     # Mostly printable ASCII or common control chars
-    text_characters = bytes(range(32, 127)) + b'\n\r\t\f\b'
+    text_characters = bytes(range(32, 127)) + b"\n\r\t\f\b"
     nontext = chunk.translate(None, text_characters)
     return len(nontext) / len(chunk) < 0.30
 
@@ -317,7 +342,7 @@ class GitRepo:
 
   def getChangedFiles(self):
     result = subprocess.run(
-      ['git', 'diff', '--name-only', '--diff-filter=ACMR', f'{self.baseRef}...HEAD'],
+      ["git", "diff", "--name-only", "--diff-filter=ACMR", f"{self.baseRef}...HEAD"],
       capture_output=True, text=True, check=True
     )
     return result.stdout.splitlines()
@@ -325,10 +350,8 @@ class GitRepo:
   def getPreviousContents(self, path):
     try:
       result = subprocess.run(
-        ['git', 'show', f'{self.baseRef}:{path}'],
-        capture_output=True,
-        text=True,
-        check=True
+        ["git", "show", f"{self.baseRef}:{path}"],
+        capture_output=True, text=True, check=True
       )
     except subprocess.CalledProcessError as e:
       # File is probably new or not tracked in HEAD
@@ -336,10 +359,42 @@ class GitRepo:
 
     return result.stdout.splitlines()
 
+  def root(self):
+    result = subprocess.run(
+      ["git", "rev-parse", "--show-toplevel"],
+      capture_output=True, text=True, check=True
+    )
+    return Path(result.stdout.strip())
+
+def setup_hook(repo):
+  hook_dir = repo.root() / ".git" / "hooks"
+  hook_path = hook_dir / "pre-commit"
+  script_path = Path(__file__).absolute()
+
+  if hook_path.exists():
+    if hook_path.is_symlink():
+      if hook_path.resolve() == script_path.resolve():
+        return
+      hook_path.unlink()
+    else:
+      fd, tmp_path = tempfile.mkstemp(prefix=hook_path.name + ".",
+                                      dir=hook_path.parent)
+      os.close(fd)
+      os.unlink(tmp_path)
+      os.link(hook_path, tmp_path)
+      os.unlink(hook_path)
+
+  hook_path.symlink_to(os.path.relpath(script_path, hook_dir))
+  return
+
 def main():
   args = build_argparser().parse_args()
 
   repo = GitRepo(args.against)
+
+  if args.addhook:
+    setup_hook(repo)
+
   script_mode = os.path.basename(sys.argv[0])
   if script_mode == "pre-commit":
     to_check = repo.getStagedFiles()
