@@ -65,10 +65,10 @@ jobs:
       run: pip show platformio
 
     - name: Create PlatformIO INI for Build
-      run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
+      run: cd "$GITHUB_WORKSPACE" && /usr/bin/bash ./build.sh -l "$GITHUB_WORKSPACE"/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i "$GITHUB_WORKSPACE"/platformio-generated.ini
 
     - name: Show platformio.ini
-      run: cat /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
+      run: cat "$GITHUB_WORKSPACE"/platformio-generated.ini
 
     - name: Build release
-      run: cd /home/runner/work/fujinet-firmware/fujinet-firmware && /usr/bin/bash ./build.sh -z -l /home/runner/work/fujinet-firmware/fujinet-firmware/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i /home/runner/work/fujinet-firmware/fujinet-firmware/platformio-generated.ini
+      run: cd "$GITHUB_WORKSPACE" && /usr/bin/bash ./build.sh -z -l "$GITHUB_WORKSPACE"/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i "$GITHUB_WORKSPACE"/platformio-generated.ini
