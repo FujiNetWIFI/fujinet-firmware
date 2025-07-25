@@ -2,6 +2,7 @@
 #include <iomanip>
 
 #include "hash.h"
+#include <mbedtls/version.h>
 
 Hash hasher;
 
@@ -108,7 +109,7 @@ void Hash::compute_sha1() {
     
     hash_output.resize(20);
     
-#if defined(mbedtls_sha1_starts_ret) && defined(mbedtls_sha1_update_ret) && defined(mbedtls_sha1_finish_ret)
+#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = 0;
 
     // Use newer API that returns status code
@@ -142,7 +143,7 @@ void Hash::compute_sha256() {
     
     hash_output.resize(32);
     
-#if defined(mbedtls_sha256_starts_ret) && defined(mbedtls_sha256_update_ret) && defined(mbedtls_sha256_finish_ret)
+#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = 0;
 
     // Use newer API that returns status code
@@ -176,7 +177,7 @@ void Hash::compute_sha512() {
     
     hash_output.resize(64);
     
-#if defined(mbedtls_sha512_starts_ret) && defined(mbedtls_sha512_update_ret) && defined(mbedtls_sha512_finish_ret)
+#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
     int err = 0;
 
     // Use newer API that returns status code
