@@ -23,6 +23,7 @@
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include <mbedtls/version.h>
 #include <mbedtls/sha1.h>
 #include <mbedtls/base64.h>
 
@@ -555,7 +556,7 @@ namespace mstr {
     {
         unsigned char hash[21] = { 0x00 };
 
-#if defined(mbedtls_sha1_ret)
+#if MBEDTLS_VERSION_NUMBER >= 0x02070000 && MBEDTLS_VERSION_NUMBER < 0x03000000
         // Use the newer mbedtls API
         int ret = mbedtls_sha1_ret((const unsigned char *)s.c_str(), s.length(), hash);
         if (ret != 0) {
