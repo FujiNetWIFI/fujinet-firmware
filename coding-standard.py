@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""Pre-commit hook and PR checker for enforcing basic coding standards.
+"""Pre-commit hook and PR checker for maintaining basic coding standards.
 
 This script serves dual purposes:
   1. As a Git pre-commit hook: it runs automatically when committing, and only
      checks files staged for commit. It verifies that:
        - No lines have trailing whitespace
        - Tabs are not used for alignment (except leading tabs in Makefiles)
-       - C/C++ files are formatted according to `.clang-format`
+       - If previous version of C/C++ file was formatted in accordance
+         with `.clang-format` then changes must too
   2. As a GitHub Actions PR check: it compares the PR branch against its base
      and verifies all modified files conform to the same standards.
 
@@ -136,25 +137,23 @@ class TextFile:
       with open(self.path, "r", encoding="utf-8") as f:
         self.contents = f.read().splitlines()
 
-    self.allowLeadingTabs = False
+    self.allowLeadingTab = False
     if self.isMakefile:
-      self.allowLeadingTabs = True
+      self.allowLeadingTab = True
 
     return
 
-  def splitLeadingTabs(self, line):
+  def splitLeadingTab(self, line):
     """Split line into prefix and suffix, with leading tabs in prefix if
     they are allowed (such as in Makefiles), otherwise prefix is empty.
 
     """
     prefix = ""
     suffix = line
-    if self.allowLeadingTabs:
-      idx = 0
-      while idx < len(line) and line[idx] == '\t':
-        idx += 1
-      prefix = line[:idx]
-      suffix = line[idx:]
+    if self.allowLeadingTab:
+      if line and line[0] == '\t':
+        prefix = line[:1]
+        suffix = line[1:]
     return prefix, suffix
 
   @staticmethod
@@ -170,7 +169,7 @@ class TextFile:
     for line in self.contents:
       line = line.rstrip()
       if "\t" in line:
-        prefix, suffix = self.splitLeadingTabs(line)
+        prefix, suffix = self.splitLeadingTab(line)
         while "\t" in suffix:
           column = suffix.index("\t")
           suffix = suffix[:column] \
@@ -243,7 +242,7 @@ class TextFile:
     for line in self.contents:
       trailingStart = len(line.rstrip())
       line = line[:trailingStart]
-      prefix, suffix = self.splitLeadingTabs(line)
+      prefix, suffix = self.splitLeadingTab(line)
       if "\t" in suffix:
         errors.add(FormatError.IllegalTabs)
         break
