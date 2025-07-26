@@ -8,6 +8,11 @@
 #include "../config/fnConfig.h"
 #include "utils.h"
 
+#ifdef _WIN32
+#define setenv(name, value, overwrite) _putenv_s(name, value)
+#define unsetenv(name) _putenv_s(name, "")
+#endif /* _WIN32 */
+
 // Helper function to set timezone and restore it after use
 class ScopedTimezone {
     std::string oldTz;
