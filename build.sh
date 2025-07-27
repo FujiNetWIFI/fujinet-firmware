@@ -176,10 +176,12 @@ if [ -z "${VENV_ROOT}" ] ; then
 fi
 
 ACTIVATE="${VENV_ROOT}/bin/activate"
+# For Windows/MSYS2
+ALT_ACTIVATE="${VENV_ROOT}/Scripts/activate"
 if [ -z "${PC_TARGET}" ] ; then
     # Doing a PlatformIO build, locate PlatformIO. It may or may not
     # already be in the users' path.
-    if [ -e "${ACTIVATE}" ] ; then
+    if [ -f "${ACTIVATE}" ] ; then
         # Activate now in case pio isn't already in PATH
         source "${ACTIVATE}"
     fi
@@ -193,7 +195,11 @@ fi
 # Let the user know about any required packages they need to install
 MISSING=""
 if [ -n "${PC_TARGET}" ] ; then
-    for REQUIRED in g++ make cmake ; do
+    COMPILER=g++
+    if [ "$MSYSTEM" = "CLANG64" ]; then
+	COMPILER=clang++
+    fi
+    for REQUIRED in ${COMPILER} make cmake ; do
         if ! command -v ${REQUIRED} > /dev/null ; then
             MISSING="${REQUIRED} ${MISSING}"
         fi
@@ -204,17 +210,42 @@ if [ -n "${MISSING}" ] ; then
     exit 1
 fi
 
+normalize_path() {
+    case "$OSTYPE" in
+	msys*|cygwin*)
+	    cygpath --unix "$1"
+	    ;;
+	*)
+	    # Already Unix-style, return as-is
+	    echo "$1"
+	    ;;
+    esac
+}
+
 if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
-    if [ ! -e "${ACTIVATE}" ] ; then
+    if [ ! -f "${ACTIVATE}" ] ; then
         echo Creating venv at "${VENV_ROOT}"
         mkdir -p $(dirname "${VENV_ROOT}")
         ${PYTHON} -m venv "${VENV_ROOT}" || exit 1
     fi
-    if [ -e "${ACTIVATE}" ] ; then
+    if [ -f "${ACTIVATE}" ] ; then
         source "${ACTIVATE}"
+    elif [ -f "${ALT_ACTIVATE}" ] ; then
+        source "${ALT_ACTIVATE}"
+	echo "-------------------"
+	cat "${ALT_ACTIVATE}"
+	echo "-------------------"
     fi
-    if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
+    VENV_ACTUAL="$(normalize_path "$VIRTUAL_ENV")"
+    if [[ "${VENV_ACTUAL}" != "${VENV_ROOT}" ]] ; then
         echo Unable to activate penv/venv
+	echo "ACTIVATE = ${ACTIVATE}"
+	echo "ALT_ACTIVATE = ${ALT_ACTIVATE}"
+	echo "VIRTAUL_ENV = ${VIRTUAL_ENV}"
+	echo "VENV_ACTUAL = ${VENV_ACTUAL}"
+	echo "VENV_ROOT = ${VENV_ROOT}"
+	ls -Fla "$(dirname ${ACTIVATE})" || true
+	ls -Fla "$(dirname ${ALT_ACTIVATE})" || true
         exit 1
     fi
 fi
