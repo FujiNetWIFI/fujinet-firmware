@@ -1,0 +1,25 @@
+name: Check Formatting
+
+on:
+  pull_request:
+
+jobs:
+  check-formatting:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed for diffing against base
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install your formatter
+        run: pip install -r .github/workflows/coding-standard-requirements.txt
+
+      - name: Run formatting check
+        run: ./coding-standard.py --against origin/${{ github.base_ref || 'master' }}
+
