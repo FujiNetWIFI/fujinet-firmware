@@ -6,7 +6,7 @@
 # CONFIGURATION INI FILE USAGE
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-PIO_VENV_ROOT="${HOME}/.platformio/penv"
+PIO_VENV_ROOT="${PLATFORMIO_CORE_DIR:-${HOME}/.platformio/penv}"
 PC_VENV_ROOT="${SCRIPT_DIR}/build/.venv"
 
 BUILD_ALL=0
