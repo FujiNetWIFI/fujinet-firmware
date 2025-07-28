@@ -6,7 +6,7 @@
 # CONFIGURATION INI FILE USAGE
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-PIO_VENV_ROOT="${HOME}/.platformio/penv"
+PIO_VENV_ROOT="${PLATFORMIO_CORE_DIR:-${HOME}/.platformio/penv}"
 PC_VENV_ROOT="${SCRIPT_DIR}/build/.venv"
 
 BUILD_ALL=0
@@ -197,7 +197,7 @@ MISSING=""
 if [ -n "${PC_TARGET}" ] ; then
     COMPILER=g++
     if [ "$MSYSTEM" = "CLANG64" ]; then
-	COMPILER=clang++
+        COMPILER=clang++
     fi
     for REQUIRED in ${COMPILER} make cmake ; do
         if ! command -v ${REQUIRED} > /dev/null ; then
@@ -212,13 +212,13 @@ fi
 
 normalize_path() {
     case "$OSTYPE" in
-	msys*|cygwin*)
-	    cygpath --unix "$1"
-	    ;;
-	*)
-	    # Already Unix-style, return as-is
-	    echo "$1"
-	    ;;
+        msys*|cygwin*)
+            cygpath --unix "$1"
+            ;;
+        *)
+            # Already Unix-style, return as-is
+            echo "$1"
+            ;;
     esac
 }
 
@@ -232,20 +232,20 @@ if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
         source "${ACTIVATE}"
     elif [ -f "${ALT_ACTIVATE}" ] ; then
         source "${ALT_ACTIVATE}"
-	echo "-------------------"
-	cat "${ALT_ACTIVATE}"
-	echo "-------------------"
+        echo "-------------------"
+        cat "${ALT_ACTIVATE}"
+        echo "-------------------"
     fi
     VENV_ACTUAL="$(normalize_path "$VIRTUAL_ENV")"
     if [[ "${VENV_ACTUAL}" != "${VENV_ROOT}" ]] ; then
         echo Unable to activate penv/venv
-	echo "ACTIVATE = ${ACTIVATE}"
-	echo "ALT_ACTIVATE = ${ALT_ACTIVATE}"
-	echo "VIRTAUL_ENV = ${VIRTUAL_ENV}"
-	echo "VENV_ACTUAL = ${VENV_ACTUAL}"
-	echo "VENV_ROOT = ${VENV_ROOT}"
-	ls -Fla "$(dirname ${ACTIVATE})" || true
-	ls -Fla "$(dirname ${ALT_ACTIVATE})" || true
+        echo "ACTIVATE = ${ACTIVATE}"
+        echo "ALT_ACTIVATE = ${ALT_ACTIVATE}"
+        echo "VIRTAUL_ENV = ${VIRTUAL_ENV}"
+        echo "VENV_ACTUAL = ${VENV_ACTUAL}"
+        echo "VENV_ROOT = ${VENV_ROOT}"
+        ls -Fla "$(dirname ${ACTIVATE})" || true
+        ls -Fla "$(dirname ${ALT_ACTIVATE})" || true
         exit 1
     fi
 fi
