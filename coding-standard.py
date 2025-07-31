@@ -138,8 +138,7 @@ class TextFile:
     self.path = Path(path)
     self.contents = contents
     if contents is None:
-      with open(self.path, "r", encoding="utf-8") as f:
-        self.contents = f.read().splitlines()
+      raise ValueError("Contents not provided")
 
     self.allowLeadingTab = False
     if self.isMakefile:
@@ -348,9 +347,11 @@ class GitRepo:
     if baseRef is None:
       baseRef = "HEAD"
     self.baseRef = baseRef
+    self.stagedContents = False
     return
 
   def getStagedFiles(self, extension=None):
+    self.stagedContents = True
     try:
       result = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMRT"],
@@ -383,6 +384,27 @@ class GitRepo:
       return None
 
     return result.stdout.splitlines()
+
+  def getContents(self, path):
+    if not self.stagedContents:
+      with open(path, "r", encoding="utf-8") as f:
+        return f.read().splitlines()
+
+    try:
+      cmd = ['git', 'show', f':{path}'] # colon = index
+      result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+      contents = result.stdout.splitlines()
+
+      result = subprocess.run(['git', 'diff', '--quiet', path], capture_output=True)
+      if result.returncode != 0:
+        print("** Warning: file '{path}' was modified after staging."
+              " Re-run git add before committing.")
+
+      return contents
+    except subprocess.CalledProcessError:
+      pass
+
+    return None
 
   def root(self):
     result = subprocess.run(
@@ -447,7 +469,7 @@ def main():
       exit(1)
 
     if TextFile.pathIsText(path):
-      tfile = TextFile(path)
+      tfile = TextFile(path, repo.getContents(path))
       if doShow:
         tfile.show()
       elif doFix:
