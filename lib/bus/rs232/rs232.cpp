@@ -17,6 +17,12 @@
 #include "utils.h"
 #include <endian.h>
 
+#ifdef ESP_PLATFORM
+#define SERIAL_DEVICE FN_UART_BUS
+#else /* !ESP_PLATFORM */
+#define SERIAL_DEVICE Config.get_serial_port()
+#endif /* ESP_PLATFORM */
+
 // Helper functions outside the class defintions
 
 uint16_t virtualDevice::rs232_get_aux16_lo()
@@ -310,7 +316,7 @@ void systemBus::setup()
 
     // Set up UART
 #ifndef FUJINET_OVER_USB
-    _port.begin(ChannelConfig().baud(Config.get_rs232_baud()));
+    _port.begin(ChannelConfig().baud(Config.get_rs232_baud()).deviceID(SERIAL_DEVICE));
 
 #ifdef ESP_PLATFORM
     // // INT PIN
