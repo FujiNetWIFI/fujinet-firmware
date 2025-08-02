@@ -33,7 +33,7 @@ protected:
     void rs232_test();                     // 0x00
 
 public:
-    void setup();
+    void setup() override;
     void rs232_status();
     void rs232_process(cmdFrame_t *cmd_ptr);
 

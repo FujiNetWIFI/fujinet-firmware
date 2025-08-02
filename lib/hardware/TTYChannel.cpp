@@ -26,7 +26,7 @@ void TTYChannel::begin(const ChannelConfig& conf)
         bool found = false;
         for (const auto& probe : {UART_PROBE_DEV1, UART_PROBE_DEV2})
         {
-            Debug_println("Trying %s", probe);
+            Debug_printf("Trying %s\n", probe);
             if ((_fd = open(probe, O_RDWR | O_NOCTTY | O_NONBLOCK)) >= 0)
             {
                 _device = probe;
