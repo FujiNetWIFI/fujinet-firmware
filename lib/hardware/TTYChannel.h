@@ -11,6 +11,8 @@ struct ChannelConfig
 {
     std::string device;
     int baud_rate;
+    uint32_t read_timeout_ms = 10;
+    uint32_t discard_timeout_ms = 10;
 
     ChannelConfig& baud(int baud) {
         baud_rate = baud; return *this;

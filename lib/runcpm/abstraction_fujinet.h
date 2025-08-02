@@ -24,11 +24,8 @@
 
 #include "fujiDevice.h"
 
-#ifdef ESP_PLATFORM
-#define FN_CPM_LINK RS232.fnUartBUS
-#else
-#define FN_CPM_LINK fnSioCom
-#endif
+// Why is CP/M writing directly to the SYSTEM_BUS?
+#define FN_CPM_LINK SYSTEM_BUS
 
 #define HostOS 0x07 // FUJINET
 

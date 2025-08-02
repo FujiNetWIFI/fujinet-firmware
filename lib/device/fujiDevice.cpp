@@ -418,7 +418,7 @@ bool fujiDevice::fujicmd_net_set_ssid_success(const char *ssid, const char *pass
 
     Debug_printf("Connecting to net: %s password: %s\n", ssid, password);
 
-#warning FIXME - why are not using transaction_get() to get ssid & password?
+#warning "FIXME - why are not using transaction_get() to get ssid & password?"
     if (fnWiFi.connect(ssid, password) != 0) {
         transaction_error();
         return false;
@@ -586,7 +586,7 @@ bool fujiDevice::fujicmd_open_directory_success(uint8_t hostSlot, char *dirpath,
         return false;
     }
 
-#warning FIXME - why can't we use transaction_get to get dirpath?
+#warning "FIXME - why can't we use transaction_get to get dirpath?"
     if (_current_open_directory_slot != -1)
     {
         Debug_print("Directory was already open - closing it first\n");

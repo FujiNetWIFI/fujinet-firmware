@@ -318,11 +318,10 @@ void main_setup(int argc, char *argv[])
 #endif
 
 #ifdef BUILD_RS232
-    theFuji->setup(&RS232);
-    RS232.setup();
-    RS232.addDevice(theFuji,0x70);
+    SYSTEM_BUS.setup();
+    SYSTEM_BUS.addDevice(theFuji,0x70);
     if (Config.get_apetime_enabled() == true)
-        RS232.addDevice(&apeTime, RS232_DEVICEID_APETIME); // Clock for Atari, APETime compatible, but extended for additional return types
+        SYSTEM_BUS.addDevice(&apeTime, RS232_DEVICEID_APETIME); // Clock for Atari, APETime compatible, but extended for additional return types
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -335,7 +334,7 @@ void main_setup(int argc, char *argv[])
     rs232Printer *ptr = new rs232Printer(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, 0);
 
-    RS232.addDevice(ptr, RS232_DEVICEID_PRINTER); // P:
+    SYSTEM_BUS.addDevice(ptr, RS232_DEVICEID_PRINTER); // P:
 #endif
 
 #ifdef BUILD_RC2014

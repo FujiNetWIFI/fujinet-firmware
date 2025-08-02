@@ -16,11 +16,11 @@
 #define UART_PROBE_DEV1 "/dev/ttyUSB0"
 #define UART_PROBE_DEV2 "/dev/ttyS0"
 
-void TTYChannel::begin(const SerialConfig& conf)
+void TTYChannel::begin(const ChannelConfig& conf)
 {
     _device = conf.device;
     read_timeout_ms = conf.read_timeout_ms;
-    discard_timeout_ms = discard.read_timeout_ms;
+    discard_timeout_ms = conf.discard_timeout_ms;
     if (_device.empty())
     {
         bool found = false;

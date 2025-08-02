@@ -69,11 +69,11 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
         rs232_complete();
 
     // Write data frame
-    fnUartBUS.write(buf, len);
+    SYSTEM_BUS.write(buf, len);
     // Write checksum
-    fnUartBUS.write(rs232_checksum(buf, len));
+    SYSTEM_BUS.write(rs232_checksum(buf, len));
 
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 }
 
 /*
@@ -88,13 +88,13 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     Debug_printf("<-RS232 read %hu bytes\n", len);
 
     __BEGIN_IGNORE_UNUSEDVARS
-    size_t l = fnUartBUS.readBytes(buf, len);
+    size_t l = SYSTEM_BUS.read(buf, len);
     __END_IGNORE_UNUSEDVARS
 
     // Wait for checksum
-    while (fnUartBUS.available() <= 0)
+    while (SYSTEM_BUS.available() <= 0)
         fnSystem.yield();
-    uint8_t ck_rcv = fnUartBUS.read();
+    uint8_t ck_rcv = SYSTEM_BUS.read();
 
     uint8_t ck_tst = rs232_checksum(buf, len);
 
@@ -121,17 +121,17 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 // RS232 NAK
 void virtualDevice::rs232_nak()
 {
-    fnUartBUS.write('N');
-    fnUartBUS.flush();
+    SYSTEM_BUS.write('N');
+    SYSTEM_BUS.flush();
     Debug_println("NAK!");
 }
 
 // RS232 ACK
 void virtualDevice::rs232_ack()
 {
-    fnUartBUS.write('A');
+    SYSTEM_BUS.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
     Debug_println("ACK!");
 }
 
@@ -139,7 +139,7 @@ void virtualDevice::rs232_ack()
 void virtualDevice::rs232_complete()
 {
     fnSystem.delay_microseconds(DELAY_T5);
-    fnUartBUS.write('C');
+    SYSTEM_BUS.write('C');
     Debug_println("COMPLETE!");
 }
 
@@ -147,7 +147,7 @@ void virtualDevice::rs232_complete()
 void virtualDevice::rs232_error()
 {
     fnSystem.delay_microseconds(DELAY_T5);
-    fnUartBUS.write('E');
+    SYSTEM_BUS.write('E');
     Debug_println("ERROR!");
 }
 
@@ -155,7 +155,7 @@ void virtualDevice::rs232_error()
 void virtualDevice::rs232_high_speed()
 {
     Debug_print("rs232 HRS232 INDEX\n");
-    uint8_t hsd = RS232.getHighSpeedIndex();
+    uint8_t hsd = SYSTEM_BUS.getHighSpeedIndex();
     bus_to_computer((uint8_t *)&hsd, 1, false);
 }
 
@@ -167,14 +167,14 @@ void systemBus::_rs232_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting RS232 baud");
-        fnUartBUS.set_baudrate(_rs232Baud);
+        _port.setBaudrate(_rs232Baud);
     }
 
     // Read CMD frame
     cmdFrame_t tempFrame;
     memset(&tempFrame, 0, sizeof(tempFrame));
 
-    if (fnUartBUS.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
+    if (SYSTEM_BUS.read((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
         Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
@@ -272,15 +272,13 @@ void systemBus::service()
 
 #if 0 && !defined(FUJINET_OVER_USB)
     // Go process a command frame if the RS232 CMD line is asserted
-vvvvvvvvvvvvvvvvvvvv
-    if (fnUartBUS.dsrState())
-^^^^^^^^^^^^^^^^^^^^
+    if (_port.dsrState())
     {
         _rs232_process_cmd();
     }
 #else /* FUJINET_OVER_USB */
     // Go process a command frame if the RS232 CMD line is asserted
-    if (RS232.fnUartBUS.available())
+    if (_port.available())
     {
         _rs232_process_cmd();
     }
@@ -294,7 +292,7 @@ vvvvvvvvvvvvvvvvvvvv
     // Neither CMD nor active modem, so throw out any stray input data
     {
         //Debug_println("RS232 Srvc Flush");
-        fnUartBUS.flush_input();
+        _port.discardInput();
     }
 
     // Handle interrupts from network protocols
@@ -312,8 +310,9 @@ void systemBus::setup()
 
     // Set up UART
 #ifndef FUJINET_OVER_USB
-    fnUartBUS.begin(FN_UART_BUS, SerialUARTConfig().baud(Config.get_rs232_baud()));
+    _port.begin(ChannelConfig().baud(Config.get_rs232_baud()));
 
+#ifdef ESP_PLATFORM
     // // INT PIN
     // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
@@ -335,12 +334,13 @@ void systemBus::setup()
 
     fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
-#else
-    fnUartBUS.begin();
+#endif /* ESP_PLATFORM */
+#else /* FUJINET_OVER_USB */
+    _port.begin();
 #endif /* FUJINET_OVER_USB */
 
     Debug_println("RS232 Setup Flush");
-    fnUartBUS.flush_input();
+    _port.discardInput();
 }
 
 // Add device to RS232 bus
@@ -435,7 +435,7 @@ void systemBus::toggleBaudrate()
 
     // Debug_printf("Toggling baudrate from %d to %d\n", _rs232Baud, baudrate);
     _rs232Baud = baudrate;
-    fnUartBUS.set_baudrate(_rs232Baud);
+    _port.setBaudrate(_rs232Baud);
 }
 
 int systemBus::getBaudrate()
@@ -453,7 +453,7 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _rs232Baud, baud);
     _rs232Baud = baud;
-    fnUartBUS.set_baudrate(baud);
+    _port.setBaudrate(baud);
 }
 
 // Set HRS232 index. Sets high speed RS232 baud and also returns that value.
@@ -480,5 +480,5 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 {
 }
 
-systemBus RS232; // Global RS232 object
+systemBus SYSTEM_BUS; // Global RS232 object
 #endif /* BUILD_RS232 */

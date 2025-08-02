@@ -33,7 +33,7 @@ protected:
     void rs232_test();                     // 0x00
 
 public:
-    void setup(systemBus *sysbus) override;
+    void setup();
     void rs232_status();
     void rs232_process(cmdFrame_t *cmd_ptr);
 

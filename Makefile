@@ -18,8 +18,11 @@ build:
 all:
 	$(call builder, -a)
 
-vcoco:
+coco-lwm:
 	$(call builder, -p COCO -g)
+
+rs232-lwm:
+	$(call builder, -p RS232 -g)
 
 pico-de-coco:
 	make -C pico/coco/build

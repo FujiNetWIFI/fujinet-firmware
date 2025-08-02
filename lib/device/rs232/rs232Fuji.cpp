@@ -7,6 +7,7 @@
 #include "fsFlash.h"
 #include "fnWiFi.h"
 #include "utils.h"
+#include "compat_string.h"
 
 #define IMAGE_EXTENSION ".img"
 
@@ -15,10 +16,9 @@ fujiDevice *theFuji = &platformFuji;
 rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];
 
 // Initializes base settings and adds our devices to the RS232 bus
-void rs232Fuji::setup(systemBus *sysbus)
+void rs232Fuji::setup()
 {
     // set up Fuji device
-    _bus = sysbus;
 
     populate_slots_from_config();
 
@@ -32,10 +32,10 @@ void rs232Fuji::setup(systemBus *sysbus)
 
     // Add our devices to the RS232 bus
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _bus->addDevice(&_fnDisks[i].disk_dev, RS232_DEVICEID_DISK + i);
+        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, RS232_DEVICEID_DISK + i);
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        _bus->addDevice(&rs232NetDevs[i], RS232_DEVICEID_FN_NETWORK + i);
+        SYSTEM_BUS.addDevice(&rs232NetDevs[i], RS232_DEVICEID_FN_NETWORK + i);
 }
 
 // Status

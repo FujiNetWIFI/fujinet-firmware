@@ -153,7 +153,7 @@ public:
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
      */
-#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
+    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
     virtual bool open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame);
 
     /**
@@ -194,7 +194,7 @@ public:
      * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
      * @return error flag. TRUE on error, FALSE on success.
      */
-#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
+    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
     virtual bool special_00(cmdFrame_t *cmdFrame) { return false; };
 
     /**
@@ -203,7 +203,7 @@ public:
      * @param len Length of data to request from protocol. Should not be larger than buffer.
      * @return error flag. TRUE on error, FALSE on success.
      */
-#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
+    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
     virtual bool special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; };
 
     /**
@@ -211,7 +211,7 @@ public:
      * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
-#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
+    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; };
 
     /**
@@ -219,7 +219,7 @@ public:
      * @param url The URL object.
      * @param cmdFrame command frame.
      */
-#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
+    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
     virtual bool perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) { return false; };
 
     /**

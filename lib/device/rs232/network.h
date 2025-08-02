@@ -41,10 +41,12 @@ public:
      */
     virtual ~rs232Network();
 
+#ifdef ESP_PLATFORM
     /**
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
      */
     portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+#endif /* ESP_PLATFORM */
 
     /**
      * Toggled by the rate limiting timer to indicate that the PROCEED interrupt should
@@ -176,10 +178,12 @@ private:
      */
     NetworkStatus status;
 
+#ifdef ESP_PLATFORM
     /**
      * ESP timer handle for the Interrupt rate limiting timer
      */
     esp_timer_handle_t rateTimerHandle = nullptr;
+#endif /* ESP_PLATFORM */
 
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
@@ -273,6 +277,7 @@ private:
     */
    void create_url_parser();
 
+#ifdef ESP_PLATFORM
     /**
      * Start the Interrupt rate limiting timer
      */
@@ -282,6 +287,7 @@ private:
      * Stop the Interrupt rate limiting timer
      */
     void timer_stop();
+#endif /* ESP_PLATFORM */
 
     /**
      * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,

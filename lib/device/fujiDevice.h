@@ -123,7 +123,7 @@ public:
     DEVICE_TYPE bootdisk; // special disk drive just for configuration
 
     fujiDevice();
-    virtual void setup(systemBus *sysbus) = 0;
+    virtual void setup() = 0;
     void shutdown() override;
 
     fujiHost *get_host(int i) { return &_fnHosts[i]; }

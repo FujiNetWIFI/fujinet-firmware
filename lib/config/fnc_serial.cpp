@@ -1,7 +1,8 @@
 #include "fnConfig.h"
-#include <cstring>
 #include "fnSystem.h"
 #include "utils.h"
+#include <cstring>
+#include <climits>
 
 #include "../../include/debug.h"
 
