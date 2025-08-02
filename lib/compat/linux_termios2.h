@@ -25,10 +25,16 @@
 #include <termios.h>
 
 #ifndef BOTHER
-
 #define BOTHER		CBAUDEX
+#endif
+
+#ifndef LINUX_NCCS
 #define LINUX_NCCS	19
+#endif
+
+#ifndef LINUX_IBSHIFT
 #define LINUX_IBSHIFT	16
+#endif
 
 struct termios2 {
         tcflag_t c_iflag;               /* input mode flags */
@@ -40,8 +46,6 @@ struct termios2 {
         speed_t c_ispeed;               /* input speed */
         speed_t c_ospeed;               /* output speed */
 };
-
-#endif
 
 #ifndef TCGETS2
 #define TCGETS2 0x2A
