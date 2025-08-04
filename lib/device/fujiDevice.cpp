@@ -161,7 +161,6 @@ bool fujiDevice::fujicmd_mount_all_success()
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
-        DEVICE_TYPE *disk_dev = get_disk_dev(i);
         char flag[4] = {'r', 'b', 0, 0};
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[2] = '+';
@@ -177,27 +176,10 @@ bool fujiDevice::fujicmd_mount_all_success()
             }
 
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n", disk.filename, disk.host_slot, flag, i + 1);
-
-            disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-            if (disk.fileh == nullptr)
+            if (!fujicore_disk_image_mount_success(i, disk.access_mode))
             {
                 transaction_error();
                 return false;
-            }
-
-            // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-            boot_config = false;
-            status_wait_count = 0;
-
-            // We need the file size for loading XEX files and for CASSETTE, so get that too
-            disk.disk_size = host.file_size(disk.fileh);
-
-            // And now mount it
-            disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
-            if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-            {
-                disk_dev->readonly = false;
             }
         }
     }
@@ -449,27 +431,19 @@ void fujiDevice::fujicmd_net_get_wifi_enabled()
 }
 
 // Disk Image Mount
-bool fujiDevice::fujicmd_disk_image_mount_success(uint8_t deviceSlot, uint8_t options)
+bool fujiDevice::fujicore_disk_image_mount_success(uint8_t deviceSlot, uint8_t access_mode)
 {
-    Debug_println("Fuji cmd: MOUNT IMAGE");
-
     // TODO: Implement FETCH?
-    char flag[4] = {'r', 'b', 0, 0};
-    if (options == DISK_ACCESS_MODE_WRITE)
-        flag[2] = '+';
+    char mode[4] = {'r', 'b', 0, 0};
+    if (access_mode == DISK_ACCESS_MODE_WRITE)
+        mode[2] = '+';
 
     // Make sure we weren't given a bad hostSlot
     if (!validate_device_slot(deviceSlot))
-    {
-        transaction_error();
         return false;
-    }
 
     if (!validate_host_slot(_fnDisks[deviceSlot].host_slot))
-    {
-        transaction_error();
         return false;
-    }
 
     // A couple of reference variables to make things much easier to read...
     fujiDisk &disk = _fnDisks[deviceSlot];
@@ -477,18 +451,15 @@ bool fujiDevice::fujicmd_disk_image_mount_success(uint8_t deviceSlot, uint8_t op
     DEVICE_TYPE *disk_dev = get_disk_dev(deviceSlot);
 
     Debug_printf("Selecting '%s' from host #%u as %s on D%u:\r\n",
-                 disk.filename, disk.host_slot, flag, deviceSlot + 1);
+                 disk.filename, disk.host_slot, mode, deviceSlot + 1);
 
     // TODO: Refactor along with mount disk image.
     disk.disk_dev.host = &host;
 
-    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
+    disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), mode);
 
     if (disk.fileh == nullptr)
-    {
-        transaction_error();
         return false;
-    }
 
     // We've gotten this far, so make sure our bootable CONFIG disk is disabled
     boot_config = false;
@@ -497,12 +468,26 @@ bool fujiDevice::fujicmd_disk_image_mount_success(uint8_t deviceSlot, uint8_t op
     // We need the file size for loading XEX files and for CASSETTE, so get that too
     disk.disk_size = host.file_size(disk.fileh);
 
-    if (options == DISK_ACCESS_MODE_WRITE)
+    // FIXME - access_mode should be an argument to mount()
+    disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
+    if (access_mode == DISK_ACCESS_MODE_WRITE)
     {
+        Debug_printv("Setting disk to read/write");
         disk_dev->readonly = false;
     }
 
-    disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
+    return true;
+}
+
+bool fujiDevice::fujicmd_disk_image_mount_success(uint8_t deviceSlot, uint8_t access_mode)
+{
+    Debug_println("Fuji cmd: MOUNT IMAGE");
+
+    if (!fujicore_disk_image_mount_success(deviceSlot, access_mode))
+    {
+        transaction_error();
+        return false;
+    }
 
     transaction_complete();
     return true;
@@ -634,23 +619,23 @@ void fujiDevice::fujicmd_close_directory()
 
 /*
  * Read directory entries in block mode
- * 
+ *
  * Input parameters:
  * aux1: Number of 256-byte pages to return (determines maximum response size)
  * aux2: Lower 6 bits define the number of entries per page group
- * 
+ *
  * Response format:
  * Overall response header:
  * Byte  0    : 'M' (Magic number byte 1)
  * Byte  1    : 'F' (Magic number byte 2)
  * Byte  2    : Header size (4)
  * Byte  3    : Number of page groups that follow
- * 
+ *
  * Followed by one or more complete PageGroups, padded to aux1 * 256 bytes.
  * Each PageGroup must fit entirely within the response - partial groups are not allowed.
  * If a PageGroup would exceed the remaining space, the directory position is rewound
  * and that group is not included.
- * 
+ *
  * PageGroup structure:
  * Byte  0    : Flags
  *              - Bit 7: Last group (1=yes, 0=no)
@@ -669,7 +654,7 @@ void fujiDevice::fujicmd_close_directory()
  *              - Bytes 4-6: File size (24-bit little-endian, 0 for directories)
  *              - Byte  7  : Media type (0-255, with 0=unknown)
  *              - Bytes 8+ : Null-terminated filename
- * 
+ *
  * The last PageGroup in the response will have its last_group flag set if:
  * a) There are no more directory entries to process, or
  * b) The next PageGroup would exceed the maximum response size
@@ -688,7 +673,7 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
     uint16_t starting_pos = _fnHosts[_current_open_directory_slot].dir_tell();
 #endif /* WE_NEED_TO_REWIND */
     // Debug_printf("Starting directory position: %d\n", starting_pos);
-    
+
     std::vector<DirectoryPageGroup> page_groups;
     size_t total_size = 0;
     bool is_last_entry = false;
@@ -697,17 +682,17 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
         // Create a new page group
         DirectoryPageGroup group;
         uint16_t group_start_pos = _fnHosts[_current_open_directory_slot].dir_tell();
-        
+
         // Calculate group index (0-based)
         group.index = group_start_pos / group_size;
-        
-        // Debug_printf("Starting new group at directory position: %d (index=%d)\n", 
+
+        // Debug_printf("Starting new group at directory position: %d (index=%d)\n",
         //              group_start_pos, group.index);
-        
+
         // Fill the group with entries
         for (int i = 0; i < group_size && !is_last_entry; i++) {
             fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-            
+
             if (f == nullptr) {
                 // Debug_println("Reached end of directory");
                 is_last_entry = true;
@@ -715,9 +700,9 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
                 break;
             }
 
-            // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n", 
+            // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n",
             //             i, f->filename, f->size);
-            
+
             if (!group.add_entry(f)) {
                 // Debug_println("Failed to add entry to group");
                 break;
@@ -737,7 +722,7 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
         size_t new_total = total_size + group.data.size();
         // Debug_printf("Group stats: entries=%d, size=%d, new_total=%d/%d\n",
         //             group.entry_count, group.data.size(), new_total, max_block_size);
-        
+
         if (new_total > max_block_size) {
             // Debug_printf("Group would exceed max_block_size (%d > %d), rewinding to pos %d\n",
             //            new_total, max_block_size, group_start_pos);
@@ -745,11 +730,11 @@ void fujiDevice::fujicmd_read_directory_block(uint8_t num_pages, uint8_t group_s
             _fnHosts[_current_open_directory_slot].dir_seek(group_start_pos);
             break;
         }
-        
+
         // Add group to our collection
         total_size = new_total;
         page_groups.push_back(std::move(group));
-        // Debug_printf("Added group %d, total_size now %d\n", 
+        // Debug_printf("Added group %d, total_size now %d\n",
         //             page_groups.size(), total_size);
     }
 
@@ -798,7 +783,7 @@ std::optional<std::string> fujiDevice::fujicore_read_directory_entry(size_t maxl
         Debug_print("READ DIRECTORY ENTRY: No currently open directory\n");
         return std::nullopt;
     }
-    
+
     // detect block mode in request
     if ((addtl & 0xC0) == 0xC0)
     {
@@ -1113,7 +1098,7 @@ bool fujiDevice::fujicmd_set_device_filename_success(uint8_t deviceSlot, uint8_t
         transaction_error();
         return false;
     }
-        
+
     transaction_complete();
     return true;
 }
@@ -1513,7 +1498,7 @@ void fujiDevice::fujicmd_write_app_key(uint16_t keylen)
         transaction_error();
         return;
     }
-    
+
     if (count != keylen)
     {
         Debug_printf("Only wrote %u bytes of expected %hu, errno=%d\n", count, keylen, err);
@@ -1576,7 +1561,7 @@ void fujiDevice::fujicmd_read_app_key()
         response_data = *result;
     else
         response_data = std::vector<uint8_t>(MAX_APPKEY_LEN + 2, 0);
-        
+
     transaction_put(response_data.data(), response_data.size(), false);
 }
 
@@ -1622,4 +1607,3 @@ void fujiDevice::fujicmd_enable_udpstream(int port)
     // Start the UDP Stream
     SYSTEM_BUS.setUDPHost(host, port);
 }
-
