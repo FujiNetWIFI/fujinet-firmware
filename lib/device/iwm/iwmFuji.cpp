@@ -18,9 +18,9 @@ fujiDevice *theFuji = &platformFuji; // Global fuji object.
 
 iwmFuji::iwmFuji()
 {
-	Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
-	for (int i = 0; i < MAX_HOSTS; i++)
-		_fnHosts[i].slotid = i;
+        Debug_printf("Announcing the iwmFuji::iwmFuji()!!!\n");
+        for (int i = 0; i < MAX_HOSTS; i++)
+                _fnHosts[i].slotid = i;
 
     command_handlers = {
         { SP_CMD_STATUS, [this](iwm_decoded_cmd_t cmd) { iwm_status(cmd); }},                           // 0x00
@@ -83,7 +83,7 @@ iwmFuji::iwmFuji()
              this->fujicmd_reset();
          }},   // 0x00
 #ifndef DEV_RELAY_SLIP
-	{ IWM_CTRL_CLEAR_ENSEEN, [this]()	       { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR_NOERROR; }},
+        { IWM_CTRL_CLEAR_ENSEEN, [this]()              { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR_NOERROR; }},
 #endif
 
         { FUJICMD_MOUNT_ALL, [&]()                     {
@@ -99,7 +99,7 @@ iwmFuji::iwmFuji()
         { IWM_STATUS_DIB, [this]()                     { this->send_status_dib_reply_packet(); status_completed = true; }},     // 0x03
         { IWM_STATUS_STATUS, [this]()                  { this->send_status_reply_packet(); status_completed = true; }},         // 0x00
 #ifndef DEV_RELAY_SLIP
-	{ IWM_STATUS_ENSEEN, [this]()		       { data_len = 1; data_buffer[0] = diskii_xface.d2_enable_seen; }},
+        { IWM_STATUS_ENSEEN, [this]()                  { data_len = 1; data_buffer[0] = diskii_xface.d2_enable_seen; }},
 #endif
 
         { FUJICMD_DEVICE_ENABLE_STATUS, [this]()       { this->send_stat_get_enable(); }},                      // 0xD1
@@ -134,18 +134,18 @@ iwmFuji::iwmFuji()
 }
 
 //// UNHANDLED CONTROL FUNCTIONS
-// case FUJICMD_CLOSE_APPKEY:        	// 0xDB
+// case FUJICMD_CLOSE_APPKEY:           // 0xDB
 // case FUJICMD_GET_ADAPTERCONFIG:      // 0xE8
-// case FUJICMD_GET_DEVICE_FULLPATH:	// 0xDA
+// case FUJICMD_GET_DEVICE_FULLPATH:    // 0xDA
 // case FUJICMD_GET_DIRECTORY_POSITION: // 0xE5
-// case FUJICMD_GET_HOST_PREFIX:     	// 0xE0
+// case FUJICMD_GET_HOST_PREFIX:        // 0xE0
 // case FUJICMD_GET_SSID:               // 0xFE
 // case FUJICMD_GET_WIFISTATUS:         // 0xFA
-// case FUJICMD_READ_APPKEY:	 		// 0xDD
+// case FUJICMD_READ_APPKEY:                    // 0xDD
 // case FUJICMD_READ_DEVICE_SLOTS:      // 0xF2
 // case FUJICMD_READ_HOST_SLOTS:        // 0xF4
 // case FUJICMD_SCAN_NETWORKS:          // 0xFD
-// case FUJICMD_STATUS:              	// 0x53
+// case FUJICMD_STATUS:                 // 0x53
 
 //// Unhandled Status Commands
 // case FUJICMD_CLOSE_APPKEY:           // 0xDB
@@ -160,12 +160,12 @@ iwmFuji::iwmFuji()
 // case FUJICMD_NEW_DISK:               // 0xE7
 // case FUJICMD_OPEN_APPKEY:            // 0xDC
 // case FUJICMD_OPEN_DIRECTORY:         // 0xF7
-// case FUJICMD_RESET:               	// 0xFF
+// case FUJICMD_RESET:                  // 0xFF
 // case FUJICMD_SET_BOOT_MODE:          // 0xD6
 // case FUJICMD_SET_DEVICE_FULLPATH:    // 0xE2
 // case FUJICMD_SET_DIRECTORY_POSITION: // 0xE4
 // case FUJICMD_SET_HOST_PREFIX:        // 0xE1
-// case FUJICMD_SET_SSID:            	// 0xFB
+// case FUJICMD_SET_SSID:               // 0xFB
 // case FUJICMD_UNMOUNT_HOST:           // 0xE6
 // case FUJICMD_UNMOUNT_IMAGE:          // 0xE9
 // case FUJICMD_WRITE_APPKEY:           // 0xDE
@@ -176,25 +176,25 @@ iwmFuji::iwmFuji()
 
 void iwmFuji::iwm_dummy_command() // SP CTRL command
 {
-	Debug_printf("\r\nData Received: ");
-	for (int i = 0; i < data_len; i++)
-		Debug_printf(" %02x", data_buffer[i]);
+        Debug_printf("\r\nData Received: ");
+        for (int i = 0; i < data_len; i++)
+                Debug_printf(" %02x", data_buffer[i]);
 }
 
 void iwmFuji::iwm_hello_world()
 {
-	Debug_printf("\r\nFuji cmd: HELLO WORLD");
-	memcpy(data_buffer, "HELLO WORLD", 11);
-	data_len = 11;
+        Debug_printf("\r\nFuji cmd: HELLO WORLD");
+        memcpy(data_buffer, "HELLO WORLD", 11);
+        data_len = 11;
 }
 
 void iwmFuji::iwm_stat_net_scan_result() // SP STATUS command
 {
-	Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
+        Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
 
-	memset(data_buffer, 0, sizeof(data_buffer));
-	memcpy(data_buffer, &detail, sizeof(detail));
-	data_len = sizeof(detail);
+        memset(data_buffer, 0, sizeof(data_buffer));
+        memcpy(data_buffer, &detail, sizeof(detail));
+        data_len = sizeof(detail);
 } // 0xFC
 
 //==============================================================================================================================
@@ -221,9 +221,9 @@ void iwmFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 void iwmFuji::iwm_stat_get_heap()
 {
 #ifdef ESP_PLATFORM
-	uint32_t avail = esp_get_free_internal_heap_size();
+        uint32_t avail = esp_get_free_internal_heap_size();
 #else
-	uint32_t avail = 0;
+        uint32_t avail = 0;
 #endif
 
     memcpy(data_buffer, &avail, sizeof(avail));
@@ -234,108 +234,105 @@ void iwmFuji::iwm_stat_get_heap()
 //  Make new disk and shove into device slot
 void iwmFuji::iwm_ctrl_new_disk()
 {
-	int idx = 0;
-	uint8_t hs = data_buffer[idx++]; // adamnet_recv();
-	uint8_t ds = data_buffer[idx++]; // adamnet_recv();
-	uint8_t t = data_buffer[idx++];	 // added for apple2;
-	uint32_t numBlocks;
-	uint8_t *c = (uint8_t *)&numBlocks;
-	uint8_t p[256];
+        int idx = 0;
+        uint8_t hs = data_buffer[idx++]; // adamnet_recv();
+        uint8_t ds = data_buffer[idx++]; // adamnet_recv();
+        uint8_t t = data_buffer[idx++];  // added for apple2;
+        uint32_t numBlocks;
+        uint8_t *c = (uint8_t *)&numBlocks;
+        uint8_t p[256];
 
-	// adamnet_recv_buffer(c, sizeof(uint32_t));
-	memcpy((uint8_t *)c, (uint8_t *)&data_buffer[idx], sizeof(uint32_t));
-	idx += sizeof(uint32_t);
+        // adamnet_recv_buffer(c, sizeof(uint32_t));
+        memcpy((uint8_t *)c, (uint8_t *)&data_buffer[idx], sizeof(uint32_t));
+        idx += sizeof(uint32_t);
 
-	memcpy(p, (uint8_t *)&data_buffer[idx], sizeof(p));
-	// adamnet_recv_buffer(p, 256);
+        memcpy(p, (uint8_t *)&data_buffer[idx], sizeof(p));
+        // adamnet_recv_buffer(p, 256);
 
-	fujiDisk &disk = _fnDisks[ds];
-	fujiHost &host = _fnHosts[hs];
+        fujiDisk &disk = _fnDisks[ds];
+        fujiHost &host = _fnHosts[hs];
 
-	if (host.file_exists((const char *)p))
-	{
-		return;
-	}
+        if (host.file_exists((const char *)p))
+        {
+                return;
+        }
 
-	disk.host_slot = hs;
-	disk.access_mode = DISK_ACCESS_MODE_WRITE;
-	strlcpy(disk.filename, (const char *)p, 256);
+        disk.host_slot = hs;
+        disk.access_mode = DISK_ACCESS_MODE_WRITE;
+        strlcpy(disk.filename, (const char *)p, 256);
 
-	disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "wb");
+        disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), "wb");
 
-	Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
+        Debug_printf("Creating file %s on host slot %u mounting in disk slot %u numblocks: %lu\n", disk.filename, hs, ds, numBlocks);
 
-	DEVICE_TYPE *disk_dev = get_disk_dev(ds);
-	disk_dev->blank_header_type = t;
-	disk_dev->write_blank(disk.fileh, numBlocks);
+        DEVICE_TYPE *disk_dev = get_disk_dev(ds);
+        disk_dev->blank_header_type = t;
+        disk_dev->write_blank(disk.fileh, numBlocks);
 
-	fnio::fclose(disk.fileh);
+        fnio::fclose(disk.fileh);
 
-	// Persist slots
-	populate_config_from_slots();
-	Config.mark_dirty();
-	Config.save();
+        // Persist slots
+        populate_config_from_slots();
+        Config.mark_dirty();
+        Config.save();
 }
 
 // Get the wifi enabled value
 void iwmFuji::iwm_stat_get_wifi_enabled()
 {
-	uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
-	Debug_printf("\nFuji cmd: GET WIFI ENABLED: %d", e);
-	data_buffer[0] = e;
-	data_len = 1;
+        uint8_t e = Config.get_wifi_enabled() ? 1 : 0;
+        Debug_printf("\nFuji cmd: GET WIFI ENABLED: %d", e);
+        data_buffer[0] = e;
+        data_len = 1;
 }
 
 void iwmFuji::iwm_ctrl_enable_device()
 {
-	unsigned char d = data_buffer[0]; // adamnet_recv();
+        unsigned char d = data_buffer[0]; // adamnet_recv();
 
-	Debug_printf("\nFuji cmd: ENABLE DEVICE");
-	IWM.enableDevice(d);
+        Debug_printf("\nFuji cmd: ENABLE DEVICE");
+        IWM.enableDevice(d);
 }
 
 void iwmFuji::iwm_ctrl_disable_device()
 {
-	unsigned char d = data_buffer[0]; // adamnet_recv();
+        unsigned char d = data_buffer[0]; // adamnet_recv();
 
-	Debug_printf("\nFuji cmd: DISABLE DEVICE");
-	IWM.disableDevice(d);
+        Debug_printf("\nFuji cmd: DISABLE DEVICE");
+        IWM.disableDevice(d);
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void iwmFuji::setup(systemBus *sysbus)
+void iwmFuji::setup()
 {
-	// set up Fuji device
-	_bus = sysbus;
+        populate_slots_from_config();
 
-	populate_slots_from_config();
+        // Disable booting from CONFIG if our settings say to turn it off
+        boot_config = false; // to do - understand?
 
-	// Disable booting from CONFIG if our settings say to turn it off
-	boot_config = false; // to do - understand?
+        // Disable status_wait if our settings say to turn it off
+        status_wait_enabled = false; // to do - understand?
 
-	// Disable status_wait if our settings say to turn it off
-	status_wait_enabled = false; // to do - understand?
+        // add ourselves as a device
+        SYSTEM_BUS.addDevice(this, iwm_fujinet_type_t::FujiNet);
 
-	// add ourselves as a device
-	_bus->addDevice(this, iwm_fujinet_type_t::FujiNet);
+        theNetwork = new iwmNetwork();
+        SYSTEM_BUS.addDevice(theNetwork, iwm_fujinet_type_t::Network);
 
-	theNetwork = new iwmNetwork();
-	_bus->addDevice(theNetwork, iwm_fujinet_type_t::Network);
+        theClock = new iwmClock();
+        SYSTEM_BUS.addDevice(theClock, iwm_fujinet_type_t::Clock);
 
-	theClock = new iwmClock();
-	_bus->addDevice(theClock, iwm_fujinet_type_t::Clock);
+        theCPM = new iwmCPM();
+        SYSTEM_BUS.addDevice(theCPM, iwm_fujinet_type_t::CPM);
 
-	theCPM = new iwmCPM();
-	_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
+        for (int i = MAX_SPDISK_DEVICES - 1; i >= 0; i--)
+        {
+                DEVICE_TYPE *disk_dev = get_disk_dev(i);
+                disk_dev->set_disk_number('0' + i);
+                SYSTEM_BUS.addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
+        }
 
-	for (int i = MAX_SPDISK_DEVICES - 1; i >= 0; i--)
-	{
-		DEVICE_TYPE *disk_dev = get_disk_dev(i);
-		disk_dev->set_disk_number('0' + i);
-		_bus->addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
-	}
-
-	Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
+        Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
         insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION,
                            MEDIATYPE_PO, get_disk_dev(0));
 
@@ -344,38 +341,38 @@ void iwmFuji::setup(systemBus *sysbus)
 void iwmFuji::send_status_reply_packet()
 {
 
-	uint8_t data[4];
+        uint8_t data[4];
 
-	// Build the contents of the packet
-	data[0] = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
-	data[1] = 0; // block size 1
-	data[2] = 0; // block size 2
-	data[3] = 0; // block size 3
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+        // Build the contents of the packet
+        data[0] = STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE;
+        data[1] = 0; // block size 1
+        data[2] = 0; // block size 2
+        data[3] = 0; // block size 3
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmFuji::send_status_dib_reply_packet()
 {
-	Debug_printf("\r\nTHE_FUJI: Sending DIB reply\r\n");
-	std::vector<uint8_t> data = create_dib_reply_packet(
-		"THE_FUJI",                                             // name
-		STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,         // status
-		{ 0, 0, 0 },                                            // block size
-		{ SP_TYPE_BYTE_FUJINET, SP_SUBTYPE_BYTE_FUJINET },      // type, subtype
-		{ 0x00, 0x01 }                                          // version.
-	);
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+        Debug_printf("\r\nTHE_FUJI: Sending DIB reply\r\n");
+        std::vector<uint8_t> data = create_dib_reply_packet(
+                "THE_FUJI",                                             // name
+                STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,         // status
+                { 0, 0, 0 },                                            // block size
+                { SP_TYPE_BYTE_FUJINET, SP_SUBTYPE_BYTE_FUJINET },      // type, subtype
+                { 0x00, 0x01 }                                          // version.
+        );
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmFuji::send_stat_get_enable()
 {
-	data_len = 1;
-	data_buffer[0] = 1;
+        data_len = 1;
+        data_buffer[0] = 1;
 }
 
 void iwmFuji::iwm_open(iwm_decoded_cmd_t cmd)
 {
-	send_status_reply_packet();
+        send_status_reply_packet();
 }
 
 void iwmFuji::iwm_close(iwm_decoded_cmd_t cmd) {}
@@ -383,81 +380,81 @@ void iwmFuji::iwm_read(iwm_decoded_cmd_t cmd) {}
 
 void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 {
-	status_code = get_status_code(cmd);
-	status_completed = false;
+        status_code = get_status_code(cmd);
+        status_completed = false;
 
-	Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), status_code);
+        Debug_printf("\r\n[Fuji] Device %02x Status Code %02x\r\n", id(), status_code);
 
-	auto it = status_handlers.find(status_code);
+        auto it = status_handlers.find(status_code);
     if (it != status_handlers.end()) {
         it->second();
     } else {
-		Debug_printf("ERROR: Unhandled status code: %02X\n", status_code);
+                Debug_printf("ERROR: Unhandled status code: %02X\n", status_code);
     }
 
-	if (status_completed) return;
+        if (status_completed) return;
 
-	Debug_printf("\nStatus code complete, sending response");
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+        Debug_printf("\nStatus code complete, sending response");
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
 void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
-	uint8_t control_code = get_status_code(cmd);
-	Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), control_code);
+        uint8_t control_code = get_status_code(cmd);
+        Debug_printf("\ntheFuji Device %02x Control Code %02x", id(), control_code);
 
-	err_result = SP_ERR_NOERROR;
-	data_len = 512;
+        err_result = SP_ERR_NOERROR;
+        data_len = 512;
 
-	Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", control_code);
-	IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
-	print_packet((uint8_t *)data_buffer, data_len);
+        Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", control_code);
+        IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+        print_packet((uint8_t *)data_buffer, data_len);
 
-	auto it = control_handlers.find(control_code);
+        auto it = control_handlers.find(control_code);
     if (it != control_handlers.end()) {
         it->second();
     } else {
-		Debug_printf("ERROR: Unhandled control code: %02X\n", control_code);
+                Debug_printf("ERROR: Unhandled control code: %02X\n", control_code);
         err_result = SP_ERR_BADCTL;
     }
 
-	send_reply_packet(err_result);
+        send_reply_packet(err_result);
 }
 
 
 void iwmFuji::process(iwm_decoded_cmd_t cmd)
 {
-	fnLedManager.set(LED_BUS, true);
+        fnLedManager.set(LED_BUS, true);
 
     auto it = command_handlers.find(cmd.command);
-	// Debug_printf("\r\n----- iwmFuji::process handling command: %02X\r\n", cmd.command);
+        // Debug_printf("\r\n----- iwmFuji::process handling command: %02X\r\n", cmd.command);
     if (it != command_handlers.end()) {
         it->second(cmd);
     } else {
         Debug_printv("\r\nUnknown command: %02x\r\n", cmd.command);
-		iwm_return_badcmd(cmd);
+                iwm_return_badcmd(cmd);
     }
 
-	fnLedManager.set(LED_BUS, false);
+        fnLedManager.set(LED_BUS, false);
 }
 
 void iwmFuji::handle_ctl_eject(uint8_t spid)
 {
-	int ds = 255;
-	for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
-	{
-		if (theFuji->get_disk_dev(i)->id() == spid)
-		{
-			ds = i;
-		}
-	}
-	if (ds != 255)
-	{
-		theFuji->get_disk(ds)->reset();
-		Config.clear_mount(ds);
-		Config.save();
-		theFuji->populate_slots_from_config();
-	}
+        int ds = 255;
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
+        {
+                if (theFuji->get_disk_dev(i)->id() == spid)
+                {
+                        ds = i;
+                }
+        }
+        if (ds != 255)
+        {
+                theFuji->get_disk(ds)->reset();
+                Config.clear_mount(ds);
+                Config.save();
+                theFuji->populate_slots_from_config();
+        }
 }
 
 void iwmFuji::iwm_ctrl_hash_input()
@@ -479,9 +476,9 @@ void iwmFuji::iwm_stat_hash_length()
     uint8_t is_hex = data_buffer[0] == 1;
     uint8_t r = hasher.hash_length(algorithm, is_hex);
 
-	memset(data_buffer, 0, sizeof(data_buffer));
-	data_buffer[0] = r;
-	data_len = 1;
+        memset(data_buffer, 0, sizeof(data_buffer));
+        data_buffer[0] = r;
+        data_len = 1;
 }
 
 void iwmFuji::iwm_ctrl_hash_output()
@@ -493,17 +490,17 @@ void iwmFuji::iwm_ctrl_hash_output()
 void iwmFuji::iwm_stat_hash_output()
 {
     Debug_printf("FUJI: HASH OUTPUT STAT\n");
-	memset(data_buffer, 0, sizeof(data_buffer));
+        memset(data_buffer, 0, sizeof(data_buffer));
 
-	if (hash_is_hex_output) {
-		std::string hex_output = hasher.output_hex();
-		std::memcpy(data_buffer, hex_output.c_str(), hex_output.size());
-		data_len = static_cast<int>(hex_output.size());
-	} else {
-		std::vector<uint8_t> binary_output = hasher.output_binary();
-		std::memcpy(data_buffer, binary_output.data(), binary_output.size());
-		data_len = static_cast<int>(binary_output.size());
-	}
+        if (hash_is_hex_output) {
+                std::string hex_output = hasher.output_hex();
+                std::memcpy(data_buffer, hex_output.c_str(), hex_output.size());
+                data_len = static_cast<int>(hex_output.size());
+        } else {
+                std::vector<uint8_t> binary_output = hasher.output_binary();
+                std::memcpy(data_buffer, binary_output.data(), binary_output.size());
+                data_len = static_cast<int>(binary_output.size());
+        }
 }
 
 void iwmFuji::iwm_ctrl_hash_clear()
@@ -560,9 +557,9 @@ void iwmFuji::iwm_stat_qrcode_length()
 {
     Debug_printf("FUJI: QRCODE LENGTH\n");
     size_t len = qrManager.out_buf.size();
-	data_buffer[0] = (uint8_t)(len >> 0);
+        data_buffer[0] = (uint8_t)(len >> 0);
     data_buffer[1] = (uint8_t)(len >> 8);
-	data_len = 2;
+        data_len = 2;
 }
 
 void iwmFuji::iwm_ctrl_qrcode_output()
@@ -591,12 +588,12 @@ void iwmFuji::iwm_ctrl_qrcode_output()
 void iwmFuji::iwm_stat_qrcode_output()
 {
     Debug_printf("FUJI: QRCODE OUTPUT STAT\n");
-	memset(data_buffer, 0, sizeof(data_buffer));
+        memset(data_buffer, 0, sizeof(data_buffer));
 
-	data_len = qrManager.out_buf.size();
-	memcpy(data_buffer, &qrManager.out_buf[0], data_len);
+        data_len = qrManager.out_buf.size();
+        memcpy(data_buffer, &qrManager.out_buf[0], data_len);
 
-	qrManager.out_buf.erase(qrManager.out_buf.begin(), qrManager.out_buf.begin() + data_len);
+        qrManager.out_buf.erase(qrManager.out_buf.begin(), qrManager.out_buf.begin() + data_len);
     qrManager.out_buf.shrink_to_fit();
 }
 

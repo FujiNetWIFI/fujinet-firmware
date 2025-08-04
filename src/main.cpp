@@ -428,7 +428,7 @@ void main_setup(int argc, char *argv[])
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
     IWM.addDevice(ptr, iwm_fujinet_type_t::Printer);
 
-    theFuji->setup(&IWM);
+    theFuji->setup();
     IWM.setup(); // save device unit SP address somewhere and restore it after reboot?
 
 #endif /* BUILD_APPLE */

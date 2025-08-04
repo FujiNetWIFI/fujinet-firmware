@@ -61,6 +61,10 @@ def build_argparser():
                       help="Compare staged files to base branch (e.g., origin/main)")
   parser.add_argument("--addhook", action="store_true",
                       help="setup git pre-commit hook to use this script")
+
+  group = parser.add_mutually_exclusive_group()
+  group.add_argument("--fix", action="store_true", help="rewrite improperly formatted files")
+  group.add_argument("--show", action="store_true", help="print reformatted file on stdout")
   return parser
 
 class ClangFormatter:
@@ -134,8 +138,7 @@ class TextFile:
     self.path = Path(path)
     self.contents = contents
     if contents is None:
-      with open(self.path, "r", encoding="utf-8") as f:
-        self.contents = f.read().splitlines()
+      raise ValueError("Contents not provided")
 
     self.allowLeadingTab = False
     if self.isMakefile:
@@ -158,7 +161,13 @@ class TextFile:
 
   @staticmethod
   def nextTabColumn(column):
-    return ((column + TERMCAP_TAB_STOPS) % TERMCAP_TAB_STOPS) * TERMCAP_TAB_STOPS
+    # Move up by tab stop increment
+    next = column + TextFile.TERMCAP_TAB_STOPS
+    # Make an even multiple of number of tab stops
+    next %= TextFile.TERMCAP_TAB_STOPS
+    # Convert into exact terminal column
+    next *= TextFile.TERMCAP_TAB_STOPS
+    return next
 
   def fixupWhitespace(self):
     """Remove all trailing whitespace and replace tab characters with
@@ -173,7 +182,7 @@ class TextFile:
         while "\t" in suffix:
           column = suffix.index("\t")
           suffix = suffix[:column] \
-            + " " * (nextTabColumn(column) - column) + suffix[column + 1:]
+            + " " * (self.nextTabColumn(column) - column) + suffix[column + 1:]
         line = prefix + suffix
       lines.append(line)
     return lines
@@ -185,10 +194,26 @@ class TextFile:
     # FIXME - do proper Python formatting
     return self.fixupWhitespace()
 
-  def update(self, newContent):
+  def reformatted(self):
+    if self.isClang:
+      formatted = self.formatClang()
+    elif self.isPython:
+      formatted = self.formatPython()
+    else:
+      formatted = self.fixupWhitespace()
+    return formatted
+
+  def show(self):
+    formatted = self.reformatted()
+    for line in formatted:
+      print(line)
+    return
+
+  def update(self):
+    formatted = self.reformatted()
     # FIXME - what if old file used MS-DOS line endings?
-    with open(path, "w", encoding="utf-8") as f:
-      for line in newContent:
+    with open(self.path, "w", encoding="utf-8") as f:
+      for line in formatted:
         f.write(line + "\n")
     return
 
@@ -212,14 +237,14 @@ class TextFile:
       else:
         formatted = self.fixupWhitespace()
 
-    elif self.isMakefile:
-      formatted = self.fixupWhitespace()
-
     elif self.isPython:
       if self.previousIsClean(repo):
         formatted = self.formatPython()
       else:
         formatted = self.fixupWhitespace()
+
+    elif self.isMakefile:
+      formatted = self.fixupWhitespace()
 
     else:
       formatted = self.fixupWhitespace()
@@ -322,9 +347,11 @@ class GitRepo:
     if baseRef is None:
       baseRef = "HEAD"
     self.baseRef = baseRef
+    self.stagedContents = False
     return
 
   def getStagedFiles(self, extension=None):
+    self.stagedContents = True
     try:
       result = subprocess.run(
         ["git", "diff", "--cached", "--name-only", "--diff-filter=ACMRT"],
@@ -357,6 +384,27 @@ class GitRepo:
       return None
 
     return result.stdout.splitlines()
+
+  def getContents(self, path):
+    if not self.stagedContents:
+      with open(path, "r", encoding="utf-8") as f:
+        return f.read().splitlines()
+
+    try:
+      cmd = ['git', 'show', f':{path}'] # colon = index
+      result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+      contents = result.stdout.splitlines()
+
+      result = subprocess.run(['git', 'diff', '--quiet', path], capture_output=True)
+      if result.returncode != 0:
+        print("** Warning: file '{path}' was modified after staging."
+              " Re-run git add before committing.")
+
+      return contents
+    except subprocess.CalledProcessError:
+      pass
+
+    return None
 
   def root(self):
     result = subprocess.run(
@@ -394,6 +442,9 @@ def main():
   if args.addhook:
     setup_hook(repo)
 
+  doFix = False
+  doShow = False
+
   script_mode = os.path.basename(sys.argv[0])
   if script_mode == "pre-commit":
     to_check = repo.getStagedFiles()
@@ -402,17 +453,32 @@ def main():
   elif args.against:
     to_check = repo.getChangedFiles()
   else:
+    doFix = args.fix
+    doShow = args.show
     to_check = args.file
+
+  if doShow and len(to_check) > 1:
+    print("Can only show a single file on stdout")
+    exit(1)
 
   err_count = 0
   failed = []
   for path in to_check:
+    if not os.path.exists(path):
+      print("No such file:", path)
+      exit(1)
+
     if TextFile.pathIsText(path):
-      tfile = TextFile(path)
-      errs = tfile.checkFormatting(repo)
-      if errs is not None:
-        failed.append(path)
-        err_count += 1
+      tfile = TextFile(path, repo.getContents(path))
+      if doShow:
+        tfile.show()
+      elif doFix:
+        tfile.update()
+      else:
+        errs = tfile.checkFormatting(repo)
+        if errs is not None:
+          failed.append(path)
+          err_count += 1
 
   if err_count:
     exit(1)

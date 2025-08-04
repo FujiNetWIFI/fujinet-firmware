@@ -4,7 +4,6 @@
 #include "cpm.h"
 
 #include "fnSystem.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 #include "iwmFuji.h"
 #include "fnFS.h"
@@ -73,15 +72,15 @@ void iwmCPM::send_status_reply_packet()
 
 void iwmCPM::send_status_dib_reply_packet()
 {
-	Debug_printf("\r\nCPM: Sending DIB reply\r\n");
-	std::vector<uint8_t> data = create_dib_reply_packet(
-		"CPM",                                                      // name
-		STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,             // status
-		{ 0, 0, 0 },                                                // block size
-		{ SP_TYPE_BYTE_FUJINET_CPM, SP_SUBTYPE_BYTE_FUJINET_CPM },  // type, subtype
-		{ 0x00, 0x01 }                                              // version.
-	);
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+        Debug_printf("\r\nCPM: Sending DIB reply\r\n");
+        std::vector<uint8_t> data = create_dib_reply_packet(
+                "CPM",                                                      // name
+                STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,             // status
+                { 0, 0, 0 },                                                // block size
+                { SP_TYPE_BYTE_FUJINET_CPM, SP_SUBTYPE_BYTE_FUJINET_CPM },  // type, subtype
+                { 0x00, 0x01 }                                              // version.
+        );
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 
 }
 

@@ -109,7 +109,7 @@ public:
     uint8_t status_code;
 
     iwmFuji();
-    void setup(systemBus *sysbus);
+    void setup() override;
 
     DEVICE_TYPE *get_disk_dev(int i) override {
 #ifndef DEV_RELAY_SLIP

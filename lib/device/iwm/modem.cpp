@@ -5,7 +5,6 @@
 #include "compat_inet.h"
 #include "../../include/atascii.h"
 #include "modem.h"
-#include "../hardware/fnUART.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
 #include "../utils/utils.h"
@@ -1364,14 +1363,14 @@ void iwmModem::send_status_reply_packet()
 void iwmModem::send_status_dib_reply_packet()
 {
     Debug_printf("\r\nMODEM: Sending DIB reply\r\n");
-	std::vector<uint8_t> data = create_dib_reply_packet(
-		"MODEM",                                                        // name
-		STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,                 // status
-		{ 0, 0, 0 },                                                    // block size
-		{ SP_TYPE_BYTE_FUJINET_MODEM, SP_SUBTYPE_BYTE_FUJINET_MODEM },  // type, subtype
-		{ 0x00, 0x01 }                                                  // version.
-	);
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+        std::vector<uint8_t> data = create_dib_reply_packet(
+                "MODEM",                                                        // name
+                STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,                 // status
+                { 0, 0, 0 },                                                    // block size
+                { SP_TYPE_BYTE_FUJINET_MODEM, SP_SUBTYPE_BYTE_FUJINET_MODEM },  // type, subtype
+                { 0x00, 0x01 }                                                  // version.
+        );
+        IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
@@ -1383,13 +1382,13 @@ void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
 void iwmModem::iwm_close(iwm_decoded_cmd_t cmd)
 {
     Debug_printf("\nModem: Close\n");
-    
+
     if (tcpClient.connected() == true)
     {
         tcpClient.flush();
         tcpClient.stop();
     }
-    
+
     send_reply_packet(SP_ERR_NOERROR);
 }
 
@@ -1411,7 +1410,7 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
     {
         if (mw < numbytes) //if there are less than requested, just send what we have
         {
-            numbytes = mw;  
+            numbytes = mw;
         }
 
         data_len = 0;
