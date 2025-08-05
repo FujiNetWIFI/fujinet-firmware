@@ -74,13 +74,11 @@ void UARTChannel::update_fifo()
 
     while (xQueueReceive(_uart_q, &event, 1))
     {
-        Debug_printf("UART EVENT: %i size: %i\r\n", event.type, event.size);
         if (event.type == UART_DATA)
         {
             size_t old_len = _fifo.size();
             _fifo.resize(old_len + event.size);
             int result = uart_read_bytes(_uart_num, &_fifo[old_len], event.size, 0);
-            Debug_printf("UART READ: %i\n", result);
             if (result < 0)
                 result = 0;
             _fifo.resize(old_len + result);

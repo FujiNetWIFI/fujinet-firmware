@@ -10,8 +10,6 @@
             _tv.tv_sec * ((uint64_t) 1000000) + _tv.tv_usec; })
 #endif /* ESP_PLATFORM */
 
-#include "../../include/debug.h"
-
 size_t IOChannel::available()
 {
     update_fifo();
@@ -25,17 +23,13 @@ size_t IOChannel::dataIn(void *buffer, size_t length)
     uint8_t *ptr;
     uint64_t now, start;
 
-    Debug_printv("want %i have %i", length, available());
     ptr = (uint8_t *) buffer;
     now = start = GET_TIMESTAMP();
     while (length)
     {
         now = GET_TIMESTAMP();
         if (now - start > read_timeout_ms * 1000)
-        {
-            Debug_printv("timeout");
             break;
-        }
         rlen = std::min(length, available());
         if (!rlen)
             continue;
@@ -48,7 +42,6 @@ size_t IOChannel::dataIn(void *buffer, size_t length)
         start = now;
     }
 
-    Debug_printv("read %i", total);
     return total;
 }
 

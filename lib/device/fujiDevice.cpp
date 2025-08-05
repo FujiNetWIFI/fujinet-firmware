@@ -356,13 +356,13 @@ bool fujiDevice::fujicmd_mount_host_success(unsigned hostSlot)
 
 void fujiDevice::fujicmd_net_scan_networks()
 {
-    char ret[4];
+    uint8_t ret;
 
     Debug_println("Fuji cmd: SCAN NETWORKS");
 
     _countScannedSSIDs = fnWiFi.scan_networks();
-    ret[0] = _countScannedSSIDs;
-    transaction_put(ret, sizeof(ret));
+    ret = _countScannedSSIDs;
+    transaction_put(&ret, sizeof(ret));
     return;
 }
 
@@ -370,7 +370,7 @@ SSIDInfo fujiDevice::fujicore_net_scan_result(uint8_t index, bool *err)
 {
     SSIDInfo detail {};
 
-    bool is_err = index < _countScannedSSIDs;
+    bool is_err = index >= _countScannedSSIDs;
     if (!is_err)
         fnWiFi.get_scan_result(index, detail.ssid, &detail.rssi);
     if (err)
