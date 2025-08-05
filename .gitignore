@@ -58,3 +58,4 @@ fujinet_releases/*
 *~
 *.orig
 *.rej
+*.lst
