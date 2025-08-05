@@ -10,6 +10,7 @@ import json
 from os.path import join
 from datetime import datetime
 from zipfile import ZipFile
+from pathlib import Path
 
 print("Build firmware ZIP enabled")
 
@@ -35,6 +36,15 @@ def makezip(source, target, env):
     if not os.path.exists(env.subst("$BUILD_DIR/littlefs.bin")):
         print("LittleFS not available to pack in firmware zip, run \"Build Filesystem Image\" first")
         zipit = False
+    if not os.path.exists(env.subst("$BUILD_DIR/update.bin")):
+        # Create temporary update partition file
+        # When mlff is ready it will replace this but we need *something* for now
+        update_path = Path(env.subst("$BUILD_DIR/update.bin"))
+        size = 384 * 1024
+        with open(update_path, "wb") as f:
+            f.seek(size - 1)
+            f.write(b"\0")
+        print(f"Created fake {update_path} with {size} bytes of zeros")
 
     if zipit == True:
         # Get the build_board variable
@@ -119,8 +129,35 @@ def makezip(source, target, env):
                     "offset": "0x10000"
                 },
                 {
+                    "filename": "update.bin",
+                    "offset": "0xA10000"
+                },
+                {
                     "filename": "littlefs.bin",
-                    "offset": "0x910000"
+                    "offset": "0xA70000"
+                }
+            ]
+        elif config[environment]['board'] == "esp32-s3-wroom-1-n16r8":
+            json_contents['files'] += [
+                {
+                    "filename": "bootloader.bin",
+                    "offset": "0x0000"
+                },
+                {
+                    "filename": "partitions.bin",
+                    "offset": "0x8000"
+                },
+                {
+                    "filename": "firmware.bin",
+                    "offset": "0x10000"
+                },
+                {
+                    "filename": "update.bin",
+                    "offset": "0xA10000"
+                },
+                {
+                    "filename": "littlefs.bin",
+                    "offset": "0xA70000"
                 }
             ]
         elif config[environment]['board'] == "fujinet-v1-8mb":
@@ -138,8 +175,35 @@ def makezip(source, target, env):
                     "offset": "0x10000"
                 },
                 {
+                    "filename": "update.bin",
+                    "offset": "0x510000"
+                },
+                {
                     "filename": "littlefs.bin",
-                    "offset": "0x600000"
+                    "offset": "0x570000"
+                }
+            ]
+        elif config[environment]['board'] == "esp32-s3-wroom-1-n16r8":
+            json_contents['files'] += [
+                {
+                    "filename": "bootloader.bin",
+                    "offset": "0x0000"
+                },
+                {
+                    "filename": "partitions.bin",
+                    "offset": "0x8000"
+                },
+                {
+                    "filename": "firmware.bin",
+                    "offset": "0x10000"
+                },
+                {
+                    "filename": "update.bin",
+                    "offset": "0x510000"
+                },
+                {
+                    "filename": "littlefs.bin",
+                    "offset": "0x570000"
                 }
             ]
         elif config[environment]['board'] == "fujinet-v1-4mb":
@@ -157,8 +221,12 @@ def makezip(source, target, env):
                     "offset": "0x10000"
                 },
                 {
+                    "filename": "update.bin",
+                    "offset": "0x2E0000"
+                },
+                {
                     "filename": "littlefs.bin",
-                    "offset": "0x250000"
+                    "offset": "0x340000"
                 }
             ]
         elif config[environment]['board'] == "fujinet-iec-nugget":
@@ -176,8 +244,12 @@ def makezip(source, target, env):
                     "offset": "0x10000"
                 },
                 {
+                    "filename": "update.bin",
+                    "offset": "0xA10000"
+                },
+                {
                     "filename": "littlefs.bin",
-                    "offset": "0x910000"
+                    "offset": "0xA70000"
                 }
             ]
         # Save Release JSON
@@ -190,6 +262,7 @@ def makezip(source, target, env):
                 zip_object.write(env.subst("$BUILD_DIR/bootloader.bin"), "bootloader.bin")
                 zip_object.write(env.subst("$BUILD_DIR/partitions.bin"), "partitions.bin")
                 zip_object.write(env.subst("$BUILD_DIR/firmware.bin"), "firmware.bin")
+                zip_object.write(env.subst("$BUILD_DIR/update.bin"), "update.bin")
                 zip_object.write(env.subst("$BUILD_DIR/littlefs.bin"), "littlefs.bin")
                 zip_object.write("firmware/release.json", "release.json")
         finally:

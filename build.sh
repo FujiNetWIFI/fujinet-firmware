@@ -6,7 +6,8 @@
 # CONFIGURATION INI FILE USAGE
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-PIO_VENV_ROOT="${HOME}/.platformio/penv"
+PIO_VENV_ROOT="${PLATFORMIO_CORE_DIR:-${HOME}/.platformio/penv}"
+PC_VENV_ROOT="${SCRIPT_DIR}/build/.venv"
 
 BUILD_ALL=0
 RUN_BUILD=0
@@ -48,16 +49,6 @@ check_python_version() {
   fi
 }
 
-# Check if "python" exists first since that's what PlatformIO names it
-PYTHON=python
-if ! check_python_version "${PYTHON}" ; then
-  PYTHON=python3
-  if ! check_python_version "${PYTHON}" ; then
-    echo "Python 3 is not installed"
-    exit 1
-  fi
-fi
-
 function display_board_names {
   while IFS= read -r piofile; do
     BOARD_NAME=$(echo $(basename $piofile) | sed 's#^platformio-##;s#.ini$##')
@@ -92,12 +83,13 @@ function show_help {
   echo "   -c       # run clean before build"
   echo "   -p TGT   # perform PC build instead of ESP, for given target (e.g. APPLE|ATARI)"
   echo "   -g       # enable debug in generated fujinet-pc exe"
-  echo "   -G GEN   # Use GEN as the Generator for cmake (e.g. -G \"Unix Makefiles\" )"  
+  echo "   -G GEN   # Use GEN as the Generator for cmake (e.g. -G \"Unix Makefiles\" )"
   echo ""
-  echo "other options:"  
+  echo "other options:"
   echo "   -y       # answers any questions with Y automatically, for unattended builds"
   echo "   -h       # this help"
   echo "   -V       # Override default Python virtual environment location (e.g. \"-V ~/.platformio/penv\")"
+  echo "            # Alternatively, this can be set with the shell env var VENV_ROOT"
   echo ""
   echo "Additional Args can be accepted to pass values onto sub processes where supported."
   echo "  e.g. ./build.sh -p APPLE -- -DFOO=BAR"
@@ -140,12 +132,146 @@ do
     G) CMAKE_GENERATOR=${OPTARG} ;;
     y) ANSWER_YES=1  ;;
     z) ZIP_MODE=1 ;;
-    V) PIO_VENV_ROOT=${OPTARG} ;;
+    V) VENV_ROOT=${OPTARG} ;;
     h) show_help ;;
     *) show_help ;;
   esac
 done
 shift $((OPTIND - 1))
+
+# Requirements:
+#   - python3
+#   - python3 can create venv - PlatformIO also needs this to install penv
+#   - if doing ESP32 build:
+#     - PlatformIO
+#   - not ESP32 build:
+#     - cmake
+
+# Make sure we have python3 and it has the ability to create venvs
+PYTHON=python
+if ! check_python_version "${PYTHON}" ; then
+    PYTHON=python3
+    if ! check_python_version "${PYTHON}" ; then
+        echo "Python 3 is not installed"
+        exit 1
+    fi
+fi
+
+if ! ${PYTHON} -c "import venv, ensurepip" 2>/dev/null ; then
+    echo "Error: Python venv module is not installed."
+    exit 1
+fi
+
+# if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
+#     echo Error: pip is not installed.
+#     exit 1
+# fi
+
+if [ -z "${VENV_ROOT}" ] ; then
+    if [ -n "${PC_TARGET}" ] ; then
+        VENV_ROOT="${PC_VENV_ROOT}"
+    else
+        VENV_ROOT="${PIO_VENV_ROOT}"
+    fi
+fi
+
+ACTIVATE="${VENV_ROOT}/bin/activate"
+# For Windows/MSYS2
+ALT_ACTIVATE="${VENV_ROOT}/Scripts/activate"
+if [ -z "${PC_TARGET}" ] ; then
+    # Doing a PlatformIO build, locate PlatformIO. It may or may not
+    # already be in the users' path.
+    if [ -f "${ACTIVATE}" ] ; then
+        # Activate now in case pio isn't already in PATH
+        source "${ACTIVATE}"
+    fi
+    PIO=$(command -v pio)
+    if [ -z "${PIO}" ] ; then
+        echo Please install platformio
+        exit 1
+    fi
+fi
+
+# Let the user know about any required packages they need to install
+MISSING=""
+if [ -n "${PC_TARGET}" ] ; then
+    COMPILER=g++
+    if [ "$MSYSTEM" = "CLANG64" ]; then
+        COMPILER=clang++
+    fi
+    for REQUIRED in ${COMPILER} make cmake ; do
+        if ! command -v ${REQUIRED} > /dev/null ; then
+            MISSING="${REQUIRED} ${MISSING}"
+        fi
+    done
+fi
+if [ -n "${MISSING}" ] ; then
+    echo The following commands need to be installed: ${MISSING}
+    exit 1
+fi
+
+normalize_path() {
+    case "$OSTYPE" in
+        msys*|cygwin*)
+            cygpath --unix "$1"
+            ;;
+        *)
+            # Already Unix-style, return as-is
+            echo "$1"
+            ;;
+    esac
+}
+
+same_dir() {
+    [ -d "$1" ] && [ -d "$2" ] || return 1
+    stat1=$(stat -c "%d:%i" "$1")
+    stat2=$(stat -c "%d:%i" "$2")
+    [ "$stat1" = "$stat2" ]
+}
+
+if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
+    if [ ! -f "${ACTIVATE}" ] ; then
+        echo Creating venv at "${VENV_ROOT}"
+        mkdir -p $(dirname "${VENV_ROOT}")
+        ${PYTHON} -m venv "${VENV_ROOT}" || exit 1
+    fi
+    if [ -f "${ACTIVATE}" ] ; then
+        source "${ACTIVATE}"
+    elif [ -f "${ALT_ACTIVATE}" ] ; then
+        source "${ALT_ACTIVATE}"
+        echo "-------------------"
+        cat "${ALT_ACTIVATE}"
+        echo "-------------------"
+    fi
+    VENV_ACTUAL="$(normalize_path "$VIRTUAL_ENV")"
+    if ! same_dir "${VENV_ACTUAL}" "${VENV_ROOT}" ; then
+        echo Unable to activate penv/venv
+        echo "ACTIVATE = ${ACTIVATE}"
+        echo "ALT_ACTIVATE = ${ALT_ACTIVATE}"
+        echo "VIRTAUL_ENV = ${VIRTUAL_ENV}"
+        echo "VENV_ACTUAL = ${VENV_ACTUAL}"
+        echo "VENV_ROOT = ${VENV_ROOT}"
+        ls -Fla "$(dirname ${ACTIVATE})" || true
+        ls -Fla "$(dirname ${ALT_ACTIVATE})" || true
+        exit 1
+    fi
+fi
+
+# If pio is the one installed by the system it runs the system
+# python instead of the penv python, blocking pip from installing
+# packages
+if [ -z "${PC_BUILD}" ] ; then
+    PIO=$(command -v pio)
+    if [ "${PIO}" != "${VENV_ROOT}/bin/pio" ] ; then
+        pip install platformio || exit 1
+    fi
+fi
+
+echo Virtual env: "${VIRTUAL_ENV}"
+echo venv root: "${VENV_ROOT}"
+echo Activate: "${ACTIVATE}"
+echo PATH: "${PATH}"
+command -v pio
 
 if [ $SHOW_BOARDS -eq 1 ] ; then
   display_board_names
@@ -157,29 +283,6 @@ if [ $BUILD_ALL -eq 1 ] ; then
   chmod 755 $SCRIPT_DIR/build-platforms/build-all.sh
   $SCRIPT_DIR/build-platforms/build-all.sh
   exit $?
-fi
-
-##############################################################
-# Set up the virtual environment if it exists
-if [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" != "$PIO_VENV_ROOT" ]] ; then
-  echo "Activating virtual environment"
-  [[ -z "$VIRTUAL_ENV" ]] && deactivate &>/dev/null
-  source "$PIO_VENV_ROOT/bin/activate"
-elif [[ -d "$PIO_VENV_ROOT" && "$VIRTUAL_ENV" == "$PIO_VENV_ROOT" ]] ; then
-  echo "Virtual environment already activated at $PIO_VENV_ROOT"
-elif [ -n "${PC_TARGET}" ] ; then
-    VENV_DIR="${SCRIPT_DIR}/.build.venv"
-    # Create the venv if it doesn't exist
-    if [ ! -d "$VENV_DIR" ]; then
-	python3 -m venv "$VENV_DIR" || exit 1
-    fi
-    if [ ! -e "$VENV_DIR/bin/activate" ] ; then
-	echo "No venv found at ${VENV_DIR}"
-	exit 1
-    fi
-    source "$VENV_DIR/bin/activate"
-else
-  echo "Warning: Virtual environment not found in $PIO_VENV_ROOT. Continuing without it."
 fi
 
 ##############################################################
@@ -383,7 +486,7 @@ if [ ${SHOW_MONITOR} -eq 1 ] ; then
   # device monitor hard codes to using platformio.ini, let's grab all the data it would use directly from our generated ini.
   MONITOR_PORT=$(grep ^monitor_port $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
   MONITOR_SPEED=$(grep ^monitor_speed $INI_FILE | cut -d= -f2 | cut -d\; -f1 | awk '{print $1}')
-  MONITOR_FILTERS=$(grep ^monitor_filters $INI_FILE | cut -d= -f2 | cut -d\; -f1 | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')  
+  MONITOR_FILTERS=$(grep ^monitor_filters $INI_FILE | cut -d= -f2 | cut -d\; -f1 | tr ',' '\n' | sed 's/^ *//; s/ *$//' | awk '{printf("-f %s ", $1)}')
 
   # warn the user if the build_board in platformio.ini (if exists) is not the same as INI_FILE version, as that means stacktrace will not work correctly
   # because the monitor does not allow an INI file to be set!!
