@@ -26,8 +26,6 @@
 class drivewireFuji : public fujiDevice
 {
 private:
-    systemBus *_drivewire_bus = nullptr;
-
 #ifdef NOT_SUBCLASS
     bool wifiScanStarted = false;
 
@@ -160,7 +158,7 @@ public:
     void insert_boot_device(uint8_t d);
 #endif /* NOT_SUBCLASS */
 
-    void setup(systemBus *drivewirebus);
+    void setup() override;
 
 #ifdef NOT_SUBCLASS
     void image_rotate();

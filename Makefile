@@ -18,6 +18,9 @@ build:
 all:
 	$(call builder, -a)
 
+zip:
+	$(call builder, -z)
+
 coco-lwm:
 	$(call builder, -p COCO -g)
 

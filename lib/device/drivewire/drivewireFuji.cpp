@@ -1933,11 +1933,10 @@ void drivewireFuji::hash_clear()
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
-void drivewireFuji::setup(systemBus *drivewirebus)
+void drivewireFuji::setup()
 {
     Debug_printf("theFuji.setup()\n");
     // set up Fuji device
-    _drivewire_bus = drivewirebus;
 
     populate_slots_from_config();
 
@@ -2077,6 +2076,7 @@ void drivewireFuji::process()
     case FUJICMD_OPEN_DIRECTORY:
         {
             uint8_t hostSlot = SYSTEM_BUS.read();
+            char dirpath[256];
             transaction_get(dirpath, sizeof(dirpath));
             fujicmd_open_directory_success(hostSlot, dirpath, sizeof(dirpath));
         }

@@ -286,7 +286,7 @@ void main_setup(int argc, char *argv[])
 #endif // BUILD_ATARI
 
 #ifdef BUILD_COCO
-    theFuji->setup(&SYSTEM_BUS);
+    theFuji->setup();
 
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     drivewirePrinter::printer_type ptype = Config.get_printer_type(0);
