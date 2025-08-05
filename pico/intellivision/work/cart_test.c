@@ -3,5 +3,5 @@
 
 void main(void)
 {
-	printf("0x5000 = %04X\n",ROM[0x5000]);
+        printf("0x5000 = %04X\n",ROM[0x5000]);
 }

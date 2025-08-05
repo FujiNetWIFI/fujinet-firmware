@@ -1,193 +1,193 @@
-	;
-	; Prologue for IntyBASIC programs
-	; by Oscar Toledo G.  http://nanochess.org/
-	;
-	; Revision: Jan/30/2014. Spacing adjustment and more comments.
-	; Revision: Apr/01/2014. It now sets the starting screen pos. for PRINT
-	; Revision: Aug/26/2014. Added PAL detection code.
-	; Revision: Dec/12/2014. Added optimized constant multiplication routines.
-	;                        by James Pujals.
-	; Revision: Jan/25/2015. Added marker for automatic title replacement.
-	;                        (option --title of IntyBASIC)
-	; Revision: Aug/06/2015. Turns off ECS sound. Seed random generator using
-	;                        trash in 16-bit RAM. Solved bugs and optimized
-	;                        macro for constant multiplication.
-	; Revision: Jan/12/2016. Solved bug in PAL detection.
-	; Revision: May/03/2016. Changed in _mode_select initialization.
-	; Revision: Jul/31/2016. Solved bug in multiplication by 126 and 127.
-	; Revision: Sep/08/2016. Now CLRSCR initializes screen position for PRINT,
-	;                        this solves bug when user programs goes directly
-	;                        to PRINT.
-	; Revision: Oct/21/2016. Accelerated MEMSET.
-	; Revision: Jan/09/2018. Adjusted PAL/NTSC constant.
-	; Revision: Feb/05/2018. Forces initialization of Intellivoice if included.
-	;                        So VOICE INIT ceases to be dangerous.
-	; Revision: Oct/30/2018. Redesigned PAL/NTSC detection using intvnut code,
-	;                        also now compatible with Tutorvision. Reformatted.
-	; Revision: Jan/10/2018. Added ECS detection.
-	;
+    ;
+    ; Prologue for IntyBASIC programs
+    ; by Oscar Toledo G.  http://nanochess.org/
+    ;
+    ; Revision: Jan/30/2014. Spacing adjustment and more comments.
+    ; Revision: Apr/01/2014. It now sets the starting screen pos. for PRINT
+    ; Revision: Aug/26/2014. Added PAL detection code.
+    ; Revision: Dec/12/2014. Added optimized constant multiplication routines.
+    ;                        by James Pujals.
+    ; Revision: Jan/25/2015. Added marker for automatic title replacement.
+    ;                        (option --title of IntyBASIC)
+    ; Revision: Aug/06/2015. Turns off ECS sound. Seed random generator using
+    ;                        trash in 16-bit RAM. Solved bugs and optimized
+    ;                        macro for constant multiplication.
+    ; Revision: Jan/12/2016. Solved bug in PAL detection.
+    ; Revision: May/03/2016. Changed in _mode_select initialization.
+    ; Revision: Jul/31/2016. Solved bug in multiplication by 126 and 127.
+    ; Revision: Sep/08/2016. Now CLRSCR initializes screen position for PRINT,
+    ;                        this solves bug when user programs goes directly
+    ;                        to PRINT.
+    ; Revision: Oct/21/2016. Accelerated MEMSET.
+    ; Revision: Jan/09/2018. Adjusted PAL/NTSC constant.
+    ; Revision: Feb/05/2018. Forces initialization of Intellivoice if included.
+    ;                        So VOICE INIT ceases to be dangerous.
+    ; Revision: Oct/30/2018. Redesigned PAL/NTSC detection using intvnut code,
+    ;                        also now compatible with Tutorvision. Reformatted.
+    ; Revision: Jan/10/2018. Added ECS detection.
+    ;
 
-	ROMW 16
-	ORG $5000
+    ROMW 16
+    ORG $5000
 
-	; This macro will 'eat' SRCFILE directives if the assembler doesn't support the directive.
-	IF ( DEFINED __FEATURE.SRCFILE ) = 0
-	    MACRO SRCFILE x, y
-	    ; macro must be non-empty, but a comment works fine.
-	    ENDM
-	ENDI
+    ; This macro will 'eat' SRCFILE directives if the assembler doesn't support the directive.
+    IF ( DEFINED __FEATURE.SRCFILE ) = 0
+        MACRO SRCFILE x, y
+        ; macro must be non-empty, but a comment works fine.
+        ENDM
+    ENDI
 
-	;
-	; ROM header
-	;
-	BIDECLE _ZERO		; MOB picture base
-	BIDECLE _ZERO		; Process table
-	BIDECLE _MAIN		; Program start
-	BIDECLE _ZERO		; Background base image
-	BIDECLE _ONES		; GRAM
-	BIDECLE _TITLE		; Cartridge title and date
-	DECLE   $03C0		; No ECS title, jump to code after title,
-				; ... no clicks
-                                
-_ZERO:	DECLE   $0000		; Border control
-	DECLE   $0000		; 0 = color stack, 1 = f/b mode
-        
-_ONES:	DECLE   $0001, $0001	; Initial color stack 0 and 1: Blue
-	DECLE   $0001, $0001	; Initial color stack 2 and 3: Blue
-	DECLE   $0001		; Initial border color: Blue
+    ;
+    ; ROM header
+    ;
+    BIDECLE _ZERO        ; MOB picture base
+    BIDECLE _ZERO        ; Process table
+    BIDECLE _MAIN        ; Program start
+    BIDECLE _ZERO        ; Background base image
+    BIDECLE _ONES        ; GRAM
+    BIDECLE _TITLE        ; Cartridge title and date
+    DECLE   $03C0        ; No ECS title, jump to code after title,
+                ; ... no clicks
 
-CLRSCR:	MVII #$200,R4		; Used also for CLS
-	MVO R4,_screen		; Set up starting screen position for PRINT
-	MVII #$F0,R1
+_ZERO:    DECLE   $0000        ; Border control
+    DECLE   $0000        ; 0 = color stack, 1 = f/b mode
+
+_ONES:    DECLE   $0001, $0001    ; Initial color stack 0 and 1: Blue
+    DECLE   $0001, $0001    ; Initial color stack 2 and 3: Blue
+    DECLE   $0001        ; Initial border color: Blue
+
+CLRSCR:    MVII #$200,R4        ; Used also for CLS
+    MVO R4,_screen        ; Set up starting screen position for PRINT
+    MVII #$F0,R1
 FILLZERO:
-	CLRR R0
+    CLRR R0
 MEMSET:
-	SARC R1,2
-	BNOV $+4
-	MVO@ R0,R4
-	MVO@ R0,R4
-	BNC $+3
-	MVO@ R0,R4
-	BEQ $+7
-	MVO@ R0,R4
-	MVO@ R0,R4
-	MVO@ R0,R4
-	MVO@ R0,R4
-	DECR R1
-	BNE $-5
-	JR R5
+    SARC R1,2
+    BNOV $+4
+    MVO@ R0,R4
+    MVO@ R0,R4
+    BNC $+3
+    MVO@ R0,R4
+    BEQ $+7
+    MVO@ R0,R4
+    MVO@ R0,R4
+    MVO@ R0,R4
+    MVO@ R0,R4
+    DECR R1
+    BNE $-5
+    JR R5
 
-	;
-	; Title, Intellivision EXEC will jump over it and start
-	; execution directly in _MAIN
-	;
-	; Note mark is for automatic replacement by IntyBASIC
+    ;
+    ; Title, Intellivision EXEC will jump over it and start
+    ; execution directly in _MAIN
+    ;
+    ; Note mark is for automatic replacement by IntyBASIC
 _TITLE:
         BYTE 114, 'IntyBASIC program', 0 ;IntyBASIC MARK DON'T CHANGE
-        
-	;
-	; Main program
-	;
+
+    ;
+    ; Main program
+    ;
 _MAIN:
-	DIS			; Disable interrupts
-	MVII #STACK,R6
+    DIS            ; Disable interrupts
+    MVII #STACK,R6
 
-	;
-	; Clean memory
-	;
-	CALL CLRSCR		; Clean up screen, right here to avoid brief
-				; screen display of title in Sears Intellivision.
-	MVII #$00e,R1		; 14 of sound (ECS)
-	MVII #$0f0,R4		; ECS PSG
-	CALL FILLZERO
-	MVII #$0fe,R1		; 240 words of 8 bits plus 14 of sound
-	MVII #$100,R4		; 8-bit scratch RAM
-	CALL FILLZERO
+    ;
+    ; Clean memory
+    ;
+    CALL CLRSCR        ; Clean up screen, right here to avoid brief
+                ; screen display of title in Sears Intellivision.
+    MVII #$00e,R1        ; 14 of sound (ECS)
+    MVII #$0f0,R4        ; ECS PSG
+    CALL FILLZERO
+    MVII #$0fe,R1        ; 240 words of 8 bits plus 14 of sound
+    MVII #$100,R4        ; 8-bit scratch RAM
+    CALL FILLZERO
 
-	; Seed random generator using 16 bit RAM (not cleared by EXEC)
-	CLRR R0
-	MVII #$02F0,R4
-	MVII #$0110/4,R1	; Includes phantom memory for extra randomness
-_MAIN4:				; This loop is courtesy of GroovyBee
-	ADD@ R4,R0
-	ADD@ R4,R0
-	ADD@ R4,R0
-	ADD@ R4,R0
-	DECR R1
-	BNE _MAIN4
-	MVO R0,_rand
+    ; Seed random generator using 16 bit RAM (not cleared by EXEC)
+    CLRR R0
+    MVII #$02F0,R4
+    MVII #$0110/4,R1    ; Includes phantom memory for extra randomness
+_MAIN4:                ; This loop is courtesy of GroovyBee
+    ADD@ R4,R0
+    ADD@ R4,R0
+    ADD@ R4,R0
+    ADD@ R4,R0
+    DECR R1
+    BNE _MAIN4
+    MVO R0,_rand
 
-	MVII #$058,R1		; 88 words of 16 bits
-	MVII #$308,R4		; 16-bit scratch RAM
-	CALL FILLZERO
+    MVII #$058,R1        ; 88 words of 16 bits
+    MVII #$308,R4        ; 16-bit scratch RAM
+    CALL FILLZERO
 
-	; PAL/NTSC detect
-	CALL _set_isr
-	DECLE _pal1
-	EIS
-	DECR PC			; This is a kind of HALT instruction
+    ; PAL/NTSC detect
+    CALL _set_isr
+    DECLE _pal1
+    EIS
+    DECR PC            ; This is a kind of HALT instruction
 
-	; First interrupt may come at a weird time on Tutorvision, or
-	; if other startup timing changes.
-_pal1:	SUBI #8,R6		; Drop interrupt stack.
-	CALL _set_isr
-	DECLE _pal2
-	DECR PC
+    ; First interrupt may come at a weird time on Tutorvision, or
+    ; if other startup timing changes.
+_pal1:    SUBI #8,R6        ; Drop interrupt stack.
+    CALL _set_isr
+    DECLE _pal2
+    DECR PC
 
-	; Second interrupt is safe for initializing MOBs.
-	; We will know the screen is off after this one fires.
-_pal2:	SUBI #8,R6		; Drop interrupt stack.
-	CALL _set_isr
-	DECLE _pal3
-	; clear MOBs
-	CLRR R0
-	CLRR R4
-	MVII #$18,R2
+    ; Second interrupt is safe for initializing MOBs.
+    ; We will know the screen is off after this one fires.
+_pal2:    SUBI #8,R6        ; Drop interrupt stack.
+    CALL _set_isr
+    DECLE _pal3
+    ; clear MOBs
+    CLRR R0
+    CLRR R4
+    MVII #$18,R2
 _pal2_lp:
-	MVO@ R0,R4
-	DECR R2
-	BNE _pal2_lp
-	MVO R0,$30		; Reset horizontal delay register
-	MVO R0,$31		; Reset vertical delay register
+    MVO@ R0,R4
+    DECR R2
+    BNE _pal2_lp
+    MVO R0,$30        ; Reset horizontal delay register
+    MVO R0,$31        ; Reset vertical delay register
 
-	MVII #-1100,R2		; PAL/NTSC threshold
+    MVII #-1100,R2        ; PAL/NTSC threshold
 _pal2_cnt:
-	INCR R2
-	B _pal2_cnt
+    INCR R2
+    B _pal2_cnt
 
-	; The final count in R2 will either be negative or positive.
-	; If R2 is still -ve, NTSC; else PAL.
-_pal3:	SUBI #8,R6		; Drop interrupt stack.
-	RLC R2,1
-	RLC R2,1
-	ANDI #1,R2		; 1 = NTSC, 0 = PAL
+    ; The final count in R2 will either be negative or positive.
+    ; If R2 is still -ve, NTSC; else PAL.
+_pal3:    SUBI #8,R6        ; Drop interrupt stack.
+    RLC R2,1
+    RLC R2,1
+    ANDI #1,R2        ; 1 = NTSC, 0 = PAL
 
-	MVII #$55,R1
-	MVO R1,$4040
-	MVII #$AA,R1
-	MVO R1,$4041
-	MVI $4040,R1
-	CMPI #$55,R1
-	BNE _ecs1
-	MVI $4041,R1
-	CMPI #$AA,R1
-	BNE _ecs1
-	ADDI #2,R2		; ECS detected flag
+    MVII #$55,R1
+    MVO R1,$4040
+    MVII #$AA,R1
+    MVO R1,$4041
+    MVI $4040,R1
+    CMPI #$55,R1
+    BNE _ecs1
+    MVI $4041,R1
+    CMPI #$AA,R1
+    BNE _ecs1
+    ADDI #2,R2        ; ECS detected flag
 _ecs1:
-	MVO R2,_ntsc
+    MVO R2,_ntsc
 
-	CALL _set_isr
-	DECLE _int_vector
+    CALL _set_isr
+    DECLE _int_vector
 
-	CALL CLRSCR		; Because _screen was reset to zero
-	CALL _wait
-	CALL _init_music
-	MVII #2,R0		; Color Stack mode
-	MVO R0,_mode_select
-	MVII #$038,R0
-	MVO R0,$01F8		; Configures sound
-	MVO R0,$00F8		; Configures sound (ECS)
-	CALL IV_INIT_and_wait	; Setup Intellivoice
+    CALL CLRSCR        ; Because _screen was reset to zero
+    CALL _wait
+    CALL _init_music
+    MVII #2,R0        ; Color Stack mode
+    MVO R0,_mode_select
+    MVII #$038,R0
+    MVO R0,$01F8        ; Configures sound
+    MVO R0,$00F8        ; Configures sound (ECS)
+    CALL IV_INIT_and_wait    ; Setup Intellivoice
 
 ;* ======================================================================== *;
 ;*  These routines are placed into the public domain by their author.  All  *;
@@ -522,7 +522,7 @@ _mul.done       QSET    -1
                 MOVR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  2
-		ADDR	%reg%,	%reg%
+        ADDR    %reg%,    %reg%
                 SUBR    %tmp%,  %reg%
         ENDI
 
@@ -531,7 +531,7 @@ _mul.done       QSET    -1
 _mul.done       QSET    -1
                 SLL     %reg%,  2
                 SLL     %reg%,  2
-		ADDR	%reg%,	%reg%
+        ADDR    %reg%,    %reg%
         ENDI
 
         ; Multiply by $21 (33)
@@ -540,7 +540,7 @@ _mul.done       QSET    -1
                 MOVR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  2
-		ADDR	%reg%,	%reg%
+        ADDR    %reg%,    %reg%
                 ADDR    %tmp%,  %reg%
         ENDI
 
@@ -606,7 +606,7 @@ _mul.done       QSET    -1
                 SLL     %reg%,  1
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  2
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $28 (40)
@@ -685,7 +685,7 @@ _mul.done       QSET    -1
                 SLL     %reg%,  1
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  1
-		SUBR	%tmp%,  %reg%
+        SUBR    %tmp%,  %reg%
         ENDI
 
         ; Multiply by $2F (47)
@@ -696,7 +696,7 @@ _mul.done       QSET    -1
                 SLL     %reg%,  2
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  1
-		SUBR	%tmp%,  %reg%
+        SUBR    %tmp%,  %reg%
         ENDI
 
         ; Multiply by $30 (48)
@@ -789,8 +789,8 @@ _mul.done       QSET    -1
                 SLL     %reg%,  1
                 ADDR    %reg%,  %tmp%
                 SLL     %reg%,  2
-		SLL	%reg%,	1
-		SUBR	%tmp%,	%reg%
+        SLL    %reg%,    1
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $38 (56)
@@ -869,7 +869,7 @@ _mul.done       QSET    -1
                 MOVR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  2
-		ADDR	%reg%,	%reg%
+        ADDR    %reg%,    %reg%
                 SUBR    %tmp%,  %reg%
         ENDI
 
@@ -908,7 +908,7 @@ _mul.done       QSET    -1
                 MOVR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  2
-		ADDR	%reg%,	%reg%
+        ADDR    %reg%,    %reg%
                 ADDR    %tmp%,  %reg%
         ENDI
 
@@ -920,7 +920,7 @@ _mul.done       QSET    -1
                 ADDR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  2
-		ADDR	%reg%,	%reg%
+        ADDR    %reg%,    %reg%
                 ADDR    %tmp%,  %reg%
         ENDI
 
@@ -966,7 +966,7 @@ _mul.done       QSET    -1
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  1
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $48 (72)
@@ -1051,7 +1051,7 @@ _mul.done       QSET    -1
                 SLL     %reg%,  1
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  2
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $4F (79)
@@ -1062,7 +1062,7 @@ _mul.done       QSET    -1
                 SLL     %reg%,  2
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  2
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $50 (80)
@@ -1155,9 +1155,9 @@ _mul.done       QSET    -1
                 SLL     %reg%,  1
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  1
-		SUBR    %reg%,	%tmp%
+        SUBR    %reg%,    %tmp%
                 SLL     %reg%,  2
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $58 (88)
@@ -1221,20 +1221,20 @@ _mul.done       QSET    -1
                 SLL     %reg%,  1
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  1
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $5D (93)
         IF (_mul.const = $5D)
 _mul.done       QSET    -1
-		MOVR	%reg%,	%tmp%
+        MOVR    %reg%,    %tmp%
                 SLL     %reg%,  1
                 ADDR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  2
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  1
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $5E (94)
@@ -1246,19 +1246,19 @@ _mul.done       QSET    -1
                 SLL     %reg%,  2
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  1
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $5F (95)
         IF (_mul.const = $5F)
 _mul.done       QSET    -1
                 MOVR    %reg%,  %tmp%
-                ADDR	%reg%,	%reg%
+                ADDR    %reg%,    %reg%
                 SLL     %reg%,  2
                 SLL     %reg%,  2
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  1
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $60 (96)
@@ -1266,7 +1266,7 @@ _mul.done       QSET    -1
 _mul.done       QSET    -1
                 SLL     %reg%,  2
                 SLL     %reg%,  2
-		ADDR	%reg%,	%reg%
+        ADDR    %reg%,    %reg%
                 MOVR    %reg%,  %tmp%
                 SLL     %reg%,  1
                 ADDR    %tmp%,  %reg%
@@ -1450,7 +1450,7 @@ _mul.done       QSET    -1
                 ADDR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  1
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $6F (111)
@@ -1462,7 +1462,7 @@ _mul.done       QSET    -1
                 ADDR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  1
-		SUBR	%tmp%,	%reg%
+        SUBR    %tmp%,    %reg%
         ENDI
 
         ; Multiply by $70 (112)
@@ -1621,7 +1621,7 @@ _mul.done       QSET    -1
                 MOVR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  2
-		ADDR	%reg%,	%reg%
+        ADDR    %reg%,    %reg%
                 SUBR    %tmp%,  %reg%
         ENDI
 
@@ -1633,7 +1633,7 @@ _mul.done       QSET    -1
                 SUBR    %reg%,  %tmp%
                 SLL     %reg%,  2
                 SLL     %reg%,  2
-		ADDR	%reg%,	%reg%
+        ADDR    %reg%,    %reg%
                 ADDR    %tmp%,  %reg%
         ENDI
 

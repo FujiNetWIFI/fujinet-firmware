@@ -19,7 +19,7 @@ int read_into_rom_space(char *fn)
   FILE *fp = fopen(fn,"rb");
   uint8_t col=0;
   uint16_t o=CART_START_ADDRESS;
-  
+
   if (!fp)
     {
       fprintf(stderr,"Could not open file %s. Aborting.\n",fn);
@@ -44,20 +44,20 @@ void output_rom_data(void)
 {
   uint8_t col=0;
   uint32_t o=0x0000;
-  
+
   printf("unsigned short ROM[65536] = {");
 
   for (o=0x0000;o<0x10000;o++)
     {
       if (!col)
-	printf("\n\t");
-      
+        printf("\n\t");
+
       printf("0x%04X, ",ROM[o]);
-      
+
       col++;
       col &= 0x07;
     }
-  
+
   printf("\n};\n");
 }
 

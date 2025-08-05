@@ -50,7 +50,7 @@ void __time_critical_func(bus_adar)(uint16_t data)
 void __time_critical_func(bus_dw)(uint16_t data)
 {
     // Handle DW phase
-}   
+}
 
 void __time_critical_func(bus_dtb)(uint16_t data)
 {
@@ -66,7 +66,7 @@ void __time_critical_func(bus_intak)(uint16_t data)
  * Dispatch function for bus phases.
  * Each function corresponds to a bus phase.
  */
-void (*bus_dispatch_by_state[8])(uint16_t) = 
+void (*bus_dispatch_by_state[8])(uint16_t) =
 {
     bus_nact,  // 0: NACT
     bus_bar,   // 1: BAR
@@ -94,7 +94,7 @@ void init_cp1600_pio(PIO pio, uint sm_rx, uint sm_tx) {
     pio_sm_config c_rx = cp1600_bus_rx_program_get_default_config(offset_rx);
     sm_config_set_in_pins(&c_rx, PIN_DATA_BASE);
     sm_config_set_clkdiv(&c_rx, CLOCK_DIVIDER);  // Full speed
-    sm_config_set_in_shift(&c_rx, true, false, PINS_TO_SAMPLE); 
+    sm_config_set_in_shift(&c_rx, true, false, PINS_TO_SAMPLE);
     pio_sm_init(pio, sm_rx, offset_rx, &c_rx);
     pio_sm_set_enabled(pio, sm_rx, true);
 
@@ -153,7 +153,7 @@ int main() {
         if (read_cp1600(pio, sm_rx, &bus_value)) {
             uint16_t data = bus_value & 0xFFFF;  // Extract data
             uint8_t phase = (bus_value >> 16) & 0x07;  // Extract phase (0-7)
-            
+
             if (phase < 8) {
                 // Call the corresponding bus phase handler
                bus_dispatch_by_state[phase](data);

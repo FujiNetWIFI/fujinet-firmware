@@ -60,7 +60,7 @@ target_include_directories(fuji-intv PRIVATE
 )
 
 # Add any user requested libraries
-target_link_libraries(fuji-intv 
+target_link_libraries(fuji-intv
         hardware_pio
         )
 
