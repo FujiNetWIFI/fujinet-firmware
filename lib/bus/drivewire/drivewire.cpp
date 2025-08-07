@@ -597,18 +597,8 @@ void systemBus::service()
         _port->setDSR(!hasUpdate);
     }
 
-    if (_port->available())
-    {
-#if 0
-        /* CoCo can't monitor state of CD line, only
-           transition. Always set to true when processing data, we'll
-           reset it to false if there's still network data on the next
-           loop. */
-        _port->setDSR(true);
-#endif
-
+    if (fnDwCom.available())
         _drivewire_process_cmd();
-    }
 
     // dload.dload_process();
 }
