@@ -319,7 +319,7 @@ void systemBus::op_time()
 
     Debug_printf("Returning %02d/%02d/%02d %02d:%02d:%02d\n", now->tm_year, now->tm_mon, now->tm_mday, now->tm_hour, now->tm_min, now->tm_sec);
 
-    _port->write(now->tm_year - 1900);
+    _port->write(now->tm_year);
     _port->write(now->tm_mon);
     _port->write(now->tm_mday);
     _port->write(now->tm_hour);
