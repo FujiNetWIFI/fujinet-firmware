@@ -27,6 +27,9 @@ coco-lwm:
 rs232-lwm:
 	$(call builder, -p RS232 -g)
 
+apple-lwm:
+	$(call builder, -p APPLE -g)
+
 pico-de-coco:
 	make -C pico/coco/build
 

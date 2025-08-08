@@ -1565,6 +1565,7 @@ void fujiDevice::fujicmd_read_app_key()
     transaction_put(response_data.data(), response_data.size(), false);
 }
 
+#ifdef SYSTEM_BUS_IS_SERIAL
 // Set an external clock rate in kHz defined by speed in steps of 2kHz.
 void fujiDevice::fujicmd_set_sio_external_clock(uint16_t speed)
 {
@@ -1583,7 +1584,9 @@ void fujiDevice::fujicmd_set_sio_external_clock(uint16_t speed)
 
     transaction_complete();
 }
+#endif /* SYSTEM_BUS_IS_SERIAL */
 
+#ifdef SYSTEM_BUS_IS_UDP
 // Set UDP Stream HOST & PORT and start it
 void fujiDevice::fujicmd_enable_udpstream(int port)
 {
@@ -1607,3 +1610,4 @@ void fujiDevice::fujicmd_enable_udpstream(int port)
     // Start the UDP Stream
     SYSTEM_BUS.setUDPHost(host, port);
 }
+#endif /* SYSTEM_BUS_IS_UDP */

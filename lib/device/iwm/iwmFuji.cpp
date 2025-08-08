@@ -5,6 +5,7 @@
 #include "fnSystem.h"
 #include "led.h"
 #include "utils.h"
+#include "compat_string.h"
 #include "../../qrcode/qrmanager.h"
 
 #include <endian.h>
