@@ -2085,7 +2085,11 @@ void drivewireFuji::process()
         fujicmd_close_directory();
         break;
     case FUJICMD_READ_DIR_ENTRY:
-        fujicmd_read_directory_entry(SYSTEM_BUS.read(), SYSTEM_BUS.read());
+        {
+            uint8_t maxlen = SYSTEM_BUS.read();
+            uint8_t addtl = SYSTEM_BUS.read();
+            fujicmd_read_directory_entry(maxlen, addtl);
+        }
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
         {
@@ -2098,13 +2102,22 @@ void drivewireFuji::process()
         }
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
-        fujicmd_set_device_filename_success(SYSTEM_BUS.read(), SYSTEM_BUS.read(), SYSTEM_BUS.read());
+        {
+            uint8_t slot = SYSTEM_BUS.read();
+            uint8_t host = SYSTEM_BUS.read();
+            uint8_t mode = SYSTEM_BUS.read();
+            fujicmd_set_device_filename_success(slot, host, mode);
+        }
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
         fujicmd_get_device_filename(SYSTEM_BUS.read());
         break;
     case FUJICMD_MOUNT_IMAGE:
-        fujicmd_disk_image_mount_success(SYSTEM_BUS.read(), SYSTEM_BUS.read());
+        {
+            uint8_t slot = SYSTEM_BUS.read();
+            uint8_t mode = SYSTEM_BUS.read();
+            fujicmd_disk_image_mount_success(slot, mode);
+        }
         break;
     case FUJICMD_UNMOUNT_HOST:
         fujicmd_unmount_host_success(SYSTEM_BUS.read());
