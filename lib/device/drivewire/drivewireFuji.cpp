@@ -879,7 +879,7 @@ void drivewireFuji::image_rotate()
 // This gets called when we're about to shutdown/reboot
 void drivewireFuji::shutdown()
 {
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    for (int i = 0; i < MAX_DW_DISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
 }
 
@@ -2056,10 +2056,10 @@ void drivewireFuji::process()
         fujicmd_read_host_slots();
         break;
     case FUJICMD_READ_DEVICE_SLOTS:
-        fujicmd_read_device_slots(MAX_DISK_DEVICES);
+        fujicmd_read_device_slots(MAX_DW_DISK_DEVICES);
         break;
     case FUJICMD_WRITE_DEVICE_SLOTS:
-        fujicmd_write_device_slots(MAX_DISK_DEVICES);
+        fujicmd_write_device_slots(MAX_DW_DISK_DEVICES);
         break;
     case FUJICMD_WRITE_HOST_SLOTS:
         fujicmd_write_host_slots();

@@ -21,6 +21,8 @@
 #include "hash.h"
 #endif /* UNUSED */
 
+#define MAX_DW_DISK_DEVICES 4
+
 #define IMAGE_EXTENSION ".dsk"
 
 class drivewireFuji : public fujiDevice

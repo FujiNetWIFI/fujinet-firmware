@@ -272,6 +272,7 @@ bool fujiDevice::validate_host_slot(uint8_t slot, const char *dmsg)
 
 bool fujiDevice::validate_device_slot(uint8_t slot, const char *dmsg)
 {
+#warning "FIXME - MAX_DISK_DEVICES varies by platform/bus, make fujiDevice member variable"
     if (slot < MAX_DISK_DEVICES)
         return true;
 
