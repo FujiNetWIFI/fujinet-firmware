@@ -3,11 +3,9 @@
 .define PINS_TO_SAMPLE 19 ; # of pins to sample.
 .wrap_target
     wait 1 pin 16        ; Wait for BDIR == 1 (CPU driving bus)
-    nop [31]             ; 279.3ns valid delay
-    nop [31]             ; at 250MHz.
-    nop [5]
+    nop [31]
+    nop [23]
     in pins, PINS_TO_SAMPLE          ; Read pins
-    in null, 13
     push block
     wait 0 pin 16        ; Wait for BDIR == 0 (CPU released bus)
 .wrap
@@ -18,5 +16,10 @@
     wait 0 pin 16        ; BDIR == 0
     wait 1 pin 17        ; BC2 == 1
     wait 1 pin 18        ; BC1 == 1 => DTB
+    pull block
+    out pindirs, 16      ; Set pindirs
+    pull block
     out pins, 16         ; Output data onto DB0–15
+    mov osr, null        ; clear osr
+    out pindirs, 16      ; and set all pins to input
 .wrap
