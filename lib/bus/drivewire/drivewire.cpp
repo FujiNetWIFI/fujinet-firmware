@@ -1,7 +1,5 @@
 #ifdef BUILD_COCO
 
-#define FORCE_UART_BAUD 115200
-
 #include <queue>
 
 #include "drivewire.h"
@@ -687,7 +685,7 @@ void systemBus::setup()
     }
     else
     {
-        _serial.begin(ChannelConfig().baud(_drivewireBaud).deviceID(DW_UART_DEVICE));
+        _serial.begin(ChannelConfig().baud(_drivewireBaud).deviceID(DW_UART_DEVICE).inverted(DW_UART_DEVICE == UART_NUM_2));
         _port = &_serial;
     }
 
