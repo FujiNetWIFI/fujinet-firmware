@@ -13,10 +13,17 @@
 .wrap
 
 // Transmits 16 bits onto DB0–15 during DTB
+// Expects two entries in queue, first pindirs, then pins.
 .program cp1600_bus_tx
 .wrap_target
     wait 0 pin 16        ; BDIR == 0
     wait 1 pin 17        ; BC2 == 1
     wait 1 pin 18        ; BC1 == 1 => DTB
+    out pindirs, 16      ; Set pindirs
     out pins, 16         ; Output data onto DB0–15
+    nop [31]
+    nop [31]
+    nop [5]
+    mov osr, null        ; clear osr
+    out pindirs, 16      ; and set all pins to input
 .wrap

@@ -45,6 +45,7 @@ void __time_critical_func(bus_dws)(uint16_t data)
 void __time_critical_func(bus_adar)(uint16_t data)
 {
     // Handle ADAR phase
+  PC = data;
 }
 
 void __time_critical_func(bus_dw)(uint16_t data)
@@ -129,10 +130,12 @@ bool __time_critical_func(read_cp1600)(PIO pio, uint sm_rx, uint32_t* value) {
 
 // Writing to TX FIFO (to respond to DTB phase)
 bool __time_critical_func(write_cp1600)(PIO pio, uint sm_tx, uint16_t data) {
-    if (!pio_sm_is_tx_fifo_full(pio, sm_tx)) {
+    if (!pio_sm_is_tx_fifo_full(pio, sm_tx))
+      {
+        pio_sm_put(pio, sm_tx, 0xFFFF); // pindirs to output.
         pio_sm_put(pio, sm_tx, data);
         return true;
-    }
+      }
     return false;
 }
 
