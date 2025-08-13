@@ -6,6 +6,8 @@
 #include "bus_decode.pio.h"
 #include "cart.h"
 
+#define DIE() while(1)
+
 // Constants and Macros ///////////////////////////////////////
 
 #define PIN_DATA_BASE 0         // DB0–DB15 = GPIO 0–15
@@ -101,7 +103,7 @@ init_cp1600_pio (PIO pio, uint sm_rx, uint sm_tx)
   pio_sm_config c_rx = cp1600_bus_rx_program_get_default_config (offset_rx);
   sm_config_set_in_pins (&c_rx, PIN_DATA_BASE);
   sm_config_set_clkdiv (&c_rx, CLOCK_DIVIDER);  // Full speed
-  sm_config_set_in_shift (&c_rx, false, false, PINS_TO_SAMPLE);
+  sm_config_set_in_shift (&c_rx, false, true, PINS_TO_SAMPLE);
   pio_sm_init (pio, sm_rx, offset_rx, &c_rx);
   pio_sm_set_enabled (pio, sm_rx, true);
 
@@ -109,7 +111,7 @@ init_cp1600_pio (PIO pio, uint sm_rx, uint sm_tx)
   pio_sm_config c_tx = cp1600_bus_tx_program_get_default_config (offset_tx);
   sm_config_set_out_pins (&c_tx, PIN_DATA_BASE, 16);
   sm_config_set_clkdiv (&c_tx, CLOCK_DIVIDER);
-  sm_config_set_out_shift (&c_tx, false, false, 16);
+  sm_config_set_out_shift (&c_tx, false, true, 16);
   pio_sm_init (pio, sm_tx, offset_tx, &c_tx);
   pio_sm_set_enabled (pio, sm_tx, true);
 }
@@ -173,6 +175,7 @@ main ()
   PIO pio = pio0;
   uint sm_rx = 0, sm_tx = 1;
   init_cp1600_pio (pio, sm_rx, sm_tx);
+  int i=128;
 
   while (1)
     {
@@ -182,8 +185,13 @@ main ()
           uint16_t data = bus_value & 0xFFFF;   // Extract data
           uint8_t phase = (bus_value >> 16) & 0x07;     // Extract phase (0-7)
 
+          printf("%02u: %019b %04x %u\n",i--,bus_value,data,phase);
+
+          if (!i)
+            DIE();
+
           // Call the corresponding bus phase handler
-          bus_dispatch_by_state[phase] (data);
+          // bus_dispatch_by_state[phase] (data);
         }
       else // BDIR = 1, so DTB.
         {
