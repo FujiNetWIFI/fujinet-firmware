@@ -685,7 +685,11 @@ void systemBus::setup()
     }
     else
     {
-        _serial.begin(ChannelConfig().baud(_drivewireBaud).deviceID(DW_UART_DEVICE).inverted(DW_UART_DEVICE == UART_NUM_2));
+        _serial.begin(ChannelConfig().baud(_drivewireBaud).deviceID(DW_UART_DEVICE)
+#ifdef ESP_PLATFORM
+                      .inverted(DW_UART_DEVICE == UART_NUM_2)
+#endif /* ESP_PLATFORM */
+                      );
         _port = &_serial;
     }
 
