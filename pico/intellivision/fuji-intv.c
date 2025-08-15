@@ -17,9 +17,9 @@
 #define PIN_MSYNC     19        // msync
 #define PIN_CTRL_BASE 16        // control pins start at GPIO 16
 
-#define PINS_TO_SAMPLE 19       // also change in bus_decode.pio !
+#define PINS_TO_SAMPLE 19+13       // also change in bus_decode.pio !
 
-#define SYS_CLOCK_KHZ 200000    // 200 MHz for overclocking
+#define SYS_CLOCK_KHZ 270000    // 200 MHz for overclocking
 #define CLOCK_DIVIDER 1.0f      // No clock divider
 
 // Bus variables /////////////////////////////////////////////
@@ -89,7 +89,7 @@ void
 overclock ()
 {
   set_sys_clock_khz (SYS_CLOCK_KHZ, true);
-  vreg_set_voltage (VREG_VOLTAGE_1_30);
+  vreg_set_voltage (VREG_VOLTAGE_1_10);
 }
 
 void
