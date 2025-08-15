@@ -34,8 +34,6 @@ private:
     int _fd;
     std::string _device;
     uint32_t _baud;
-    uint32_t read_timeout_ms = 10;
-    uint32_t discard_timeout_ms = 10;
 
 protected:
     void update_fifo() override;

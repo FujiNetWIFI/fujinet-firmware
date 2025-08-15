@@ -686,6 +686,7 @@ void systemBus::setup()
     else
     {
         _serial.begin(ChannelConfig().baud(_drivewireBaud).deviceID(DW_UART_DEVICE)
+                      .readTimeout(500)
 #ifdef ESP_PLATFORM
                       .inverted(DW_UART_DEVICE == UART_NUM_2)
 #endif /* ESP_PLATFORM */
