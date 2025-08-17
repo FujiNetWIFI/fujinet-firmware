@@ -6,6 +6,7 @@
 #include "base64.h"
 #include "utils.h"
 #include "compat_string.h"
+#include <endian.h>
 
 #ifdef UNUSED
 #ifdef ESP_PLATFORM
