@@ -980,7 +980,52 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     Debug_printf("\n");
 }
 #else
-extern void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen);
+// For some reason the directory entry structure that is sent back
+// isn't standardized across platforms.
+typedef struct {
+    uint8_t year, month, day, hour, minute, second;
+    uint32_t file_size;
+    uint8_t flags, truncated, file_type;
+}  __attribute__((packed)) DirEntAttrib;
+
+size_t drivewireFuji::setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+{
+    int idx;
+    DirEntAttrib *attrib = (DirEntAttrib *) dest;
+
+
+    // File modified date-time
+    struct tm *modtime = localtime(&f->modified_time);
+    attrib->year = modtime->tm_year - 100;
+    attrib->month = modtime->tm_mon + 1;
+    attrib->day = modtime->tm_mday;
+    attrib->hour = modtime->tm_hour;
+    attrib->minute = modtime->tm_min;
+    attrib->second = modtime->tm_sec;
+
+    attrib->file_size = htobe32(f->size);
+
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
+
+    attrib->flags = f->isDir ? FF_DIR : 0;
+
+    maxlen -= sizeof(*attrib); // Adjust the max return value with the number of additional
+                              // bytes we're copying
+    if (f->isDir)             // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    attrib->truncated = strlen(f->filename) >= maxlen ? FF_TRUNC : 0;
+
+    // File type
+    attrib->file_type = MediaType::discover_mediatype(f->filename);
+
+    Debug_printf("Addtl: ");
+    for (int i = 0; i < sizeof(*attrib); i++)
+        Debug_printf("%02x ", dest[i]);
+    Debug_printf("\n");
+    return sizeof(*attrib);
+}
 #endif /* NOT_SUBCLASS */
 
 #ifdef NOT_SUBCLASS
@@ -2097,7 +2142,7 @@ void drivewireFuji::process()
             h = SYSTEM_BUS.read();
             l = SYSTEM_BUS.read();
             uint16_t pos = UINT16_FROM_HILOBYTES(h, l);
-            
+
             fujicmd_set_directory_position(pos);
         }
         break;

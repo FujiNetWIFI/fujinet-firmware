@@ -114,6 +114,8 @@ protected:
     virtual bool transaction_get(void *data, size_t len) = 0;
     virtual void transaction_put(const void *data, size_t len, bool err=false) = 0;
 
+    virtual size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen) = 0;
+
     // ============ Validation of inputs ============
     bool validate_host_slot(uint8_t slot, const char *dmsg=nullptr);
     bool validate_device_slot(uint8_t slot, const char *dmsg = nullptr);
