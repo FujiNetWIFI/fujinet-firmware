@@ -38,11 +38,11 @@ uint32_t MediaTypeATR::_sector_to_offset(uint16_t sectorNum)
         else
             offset = 272;
         break;
-    default:
+    default: // TODO: refactor this to generalize.
         if (_disk_sector_size == 256)
             offset = ((sectorNum - 3) * 256) + 16 + 128;
         else if (_disk_sector_size == 512)
-            offset = (sectorNum * 512) + 16;
+            offset = ((sectorNum - 1) * 512) + 16;
         else
             offset = ((sectorNum - 1) * 128) + 16;
         break;
