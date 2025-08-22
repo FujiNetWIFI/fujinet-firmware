@@ -2,6 +2,9 @@
  * HTTP implementation
  */
 
+#define VERBOSE_PROTOCOL 1
+#define VERBOSE_HTTP 1
+
 #include <cstring>
 
 #include "HTTP.h"
@@ -128,6 +131,7 @@ bool NetworkProtocolHTTP::open_file_handle()
         httpOpenMode = GET;
         break;
     case PROTOCOL_OPEN_WRITE:       // WRITE, filename resolve, ignored if not found.
+    case PROTOCOL_OPEN_HTTP_PUT:    // PUT with ability to set headers, no filename resolve
         httpOpenMode = PUT;
         break;
     case PROTOCOL_OPEN_HTTP_DELETE: // DELETE with no headers
@@ -135,7 +139,6 @@ bool NetworkProtocolHTTP::open_file_handle()
         httpOpenMode = DELETE;
         break;
     case PROTOCOL_OPEN_HTTP_POST:   // POST can set headers, also no filename resolve
-    case PROTOCOL_OPEN_HTTP_PUT:    // PUT with ability to set headers, no filename resolve
         httpOpenMode = POST;
         break;
     default:
@@ -558,8 +561,11 @@ bool NetworkProtocolHTTP::close_file_handle()
 
     if (client != nullptr)
     {
+        if (postData.size())
+            Debug_printf("Post data is: %s\r\n", postData.c_str());
+    
         if (httpOpenMode == PUT)
-            http_transaction();
+        Debug_printf("PUT Close with HTTP result code: %d\n",client->PUT(postData.c_str(), postData.size()));
         client->close();
         fserror_to_error();
     }
@@ -598,6 +604,10 @@ bool NetworkProtocolHTTP::write_file_handle(uint8_t *buf, unsigned short len)
     default:
         return true;
     }
+
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("Leaving write_file_handle\n");
+#endif
 }
 
 bool NetworkProtocolHTTP::write_file_handle_get_header(uint8_t *buf, unsigned short len)
@@ -682,6 +692,7 @@ bool NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short le
     }
 
     postData += std::string((char *)buf, len);
+    Debug_printf("postData contains %s\r\n", postData.c_str());
     return false; // come back here later.
 }
 
@@ -738,18 +749,20 @@ void NetworkProtocolHTTP::http_transaction()
         resultCode = client->GET();
         break;
     case POST:
-        if (aux1_open == 14)
-            resultCode = client->PUT(postData.c_str(), postData.size());
-        else
-            resultCode = client->POST(postData.c_str(), postData.size());
+        resultCode = client->POST(postData.c_str(), postData.size());
         break;
     case PUT:
-        resultCode = client->PUT(postData.c_str(), postData.size());
+        Debug_printf("Avoid PUT until close.\n");
+        //resultCode = client->PUT(postData.c_str(), postData.size());
         break;
     case DELETE:
         resultCode = client->DELETE();
         break;
     }
+
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("HTTP transaction done, result code %d\r\n", resultCode);
+#endif
 
     // the appropriate headers to be collected should have now been done, so let's put their values into returned_headers
     if ((aux1_open != 4) && (aux1_open != 8) && (!collect_headers.empty()))
