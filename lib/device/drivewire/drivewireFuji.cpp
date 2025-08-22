@@ -2254,6 +2254,15 @@ void drivewireFuji::process()
     case FUJICMD_SET_HOST_PREFIX:
         fujicmd_set_host_prefix(SYSTEM_BUS.read());
         break;
+    case FUJICMD_COPY_FILE:
+        {
+            uint8_t source = SYSTEM_BUS.read();
+            uint8_t dest = SYSTEM_BUS.read();
+            char dirpath[256];
+            transaction_get(dirpath, sizeof(dirpath));
+            fujicmd_copy_file_success(source, dest, dirpath);
+        }
+        break;
     default:
         break;
     }

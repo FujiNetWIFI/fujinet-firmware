@@ -1315,6 +1315,7 @@ void fujiDevice::fujicmd_read_device_slots(uint8_t numDevices)
 {
     Debug_println("Fuji cmd: READ DEVICE SLOTS");
 
+    char *filename;
     disk_slot diskSlots[MAX_DISK_DEVICES] {};
 
     // Load the data from our current device array
@@ -1323,6 +1324,20 @@ void fujiDevice::fujicmd_read_device_slots(uint8_t numDevices)
         diskSlots[i].mode = _fnDisks[i].access_mode;
         diskSlots[i].hostSlot = _fnDisks[i].host_slot;
         strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
+
+        if (_fnDisks[i].filename[0] == '\0')
+        {
+            strlcpy(diskSlots[i].filename, "", MAX_DISPLAY_FILENAME_LEN);
+        }
+        else
+        {
+            // Just use the basename of the image, no path. The full path+filename is
+            // usually too long for many platforms to show anyway, so the image name is more important.
+            // Note: Basename can modify the input, so use a copy of the filename
+            filename = strdup(_fnDisks[i].filename);
+            strlcpy(diskSlots[i].filename, basename(filename), MAX_DISPLAY_FILENAME_LEN);
+            free(filename);
+        }
 
         DEVICE_TYPE *disk_dev = get_disk_dev(i);
         if (disk_dev->device_active && !disk_dev->is_config_device)
