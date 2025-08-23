@@ -185,20 +185,15 @@ main ()
           uint16_t data = bus_value & 0xFFFF;   // Extract data
           uint8_t phase = (bus_value >> 16) & 0x07;     // Extract phase (0-7)
 
-          printf("%02u: %019b %04x %u\n",i--,bus_value,data,phase);
-
-          if (!i)
-            DIE();
+	  printf("data: %04x phase: %u\n",data,phase);
 
           // Call the corresponding bus phase handler
           // bus_dispatch_by_state[phase] (data);
         }
       else // BDIR = 1, so DTB.
         {
-          if (PC >= 0x5000 && PC <= 0x6000)
-            {
-              write_cp1600(pio, sm_tx, ROM[PC]);
-            }
-        }
+		write_cp1600(pio, sm_tx, 0xDEAD);
+	}
+
     }
 }

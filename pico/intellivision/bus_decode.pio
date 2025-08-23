@@ -2,13 +2,13 @@
 .program cp1600_bus_rx
 .define PINS_TO_SAMPLE 19 ; # of pins to sample.
 .wrap_target
-    wait 0 pin 16        ; Wait for BDIR == 1 (CPU driving bus)
+    wait 1 pin 16        ; Wait for BDIR == 1 (CPU driving bus)
     nop [31]
     nop [31]
     nop [10]
     in null, 13
     in pins, PINS_TO_SAMPLE          ; Read pins
-    wait 1 pin 16        ; Wait for BDIR == 0 (CPU released bus)
+    wait 0 pin 16        ; Wait for BDIR == 0 (CPU released bus)
 .wrap
 
 // Transmits 16 bits onto DB0–15 during DTB
