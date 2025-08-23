@@ -1198,7 +1198,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
         dest[11] |= FF_TRUNC;
 
     // File type
-    dest[12] = MediaType::discover_mediatype(f->filename);
+    dest[12] = MediaType::discover_disktype(f->filename);
 
     Debug_printf("Addtl: ");
     for (int i = 0; i < ADDITIONAL_DETAILS_BYTES; i++)
