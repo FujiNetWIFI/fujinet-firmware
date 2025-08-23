@@ -1178,7 +1178,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[4] = modtime->tm_min;
     dest[5] = modtime->tm_sec;
 
-        // File size LITTLE ENDIAN for Atari
+    // File size LITTLE ENDIAN for Atari
     uint32_t fsize = f->size;
     dest[6] = value & 0xFF;          // Least significant byte
     dest[7] = (value >> 8) & 0xFF;
