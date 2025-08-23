@@ -1178,12 +1178,12 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[4] = modtime->tm_min;
     dest[5] = modtime->tm_sec;
 
-        // File size
+    // File size LITTLE ENDIAN for Atari
     uint32_t fsize = f->size;
-    dest[6] = (fsize >> 24) & 0xFF;
-    dest[7] = (fsize >> 16) & 0xFF;
-    dest[8] = (fsize >> 8) & 0xFF;
-    dest[9] = fsize & 0xFF;
+    dest[6] = fsize & 0xFF;          // Least significant byte
+    dest[7] = (fsize >> 8) & 0xFF;
+    dest[8] = (fsize >> 16) & 0xFF;
+    dest[9] = (fsize >> 24) & 0xFF;  // Most significant byte
 
     // File flags
 #define FF_DIR 0x01
