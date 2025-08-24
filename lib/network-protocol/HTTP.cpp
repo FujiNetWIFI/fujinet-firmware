@@ -2,6 +2,9 @@
  * HTTP implementation
  */
 
+#define VERBOSE_HTTP 1
+#define VERBOSE_PROTOCOL 1
+
 #include <cstring>
 
 #include "HTTP.h"
@@ -439,7 +442,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     {
     case DATA:
     {
-        if (!fromInterrupt && resultCode == 0)
+        if (!fromInterrupt && resultCode == 0 && aux1_open != OPEN_MODE_HTTP_PUT_H)
         {
 #ifdef VERBOSE_PROTOCOL
             Debug_printf("calling http_transaction\r\n");
@@ -554,7 +557,7 @@ bool NetworkProtocolHTTP::close_file_handle()
 
     if (client != nullptr)
     {
-        if (httpOpenMode == PUT)
+        if (httpOpenMode == PUT || aux1_open == OPEN_MODE_HTTP_PUT_H)
             http_transaction();
         client->close();
         fserror_to_error();
@@ -671,14 +674,14 @@ bool NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigne
 
 bool NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
 {
-    if (httpOpenMode != PUT)
+    if (httpOpenMode == PUT || aux1_open == OPEN_MODE_HTTP_PUT_H)
     {
-        error = NETWORK_ERROR_INVALID_COMMAND;
-        return true;
+        postData += std::string((char *)buf, len);
+        return false; // come back here later.
     }
 
-    postData += std::string((char *)buf, len);
-    return false; // come back here later.
+    error = NETWORK_ERROR_INVALID_COMMAND;
+    return true;
 }
 
 bool NetworkProtocolHTTP::stat()
@@ -734,7 +737,7 @@ void NetworkProtocolHTTP::http_transaction()
         resultCode = client->GET();
         break;
     case POST:
-        if (aux1_open == 14)
+        if (aux1_open == OPEN_MODE_HTTP_PUT_H)
             resultCode = client->PUT(postData.c_str(), postData.size());
         else
             resultCode = client->POST(postData.c_str(), postData.size());
@@ -762,6 +765,9 @@ void NetworkProtocolHTTP::http_transaction()
 
     fserror_to_error();
     fileSize = bodySize = client->available();
+#ifdef VERBOSE_PROTOCOL
+    Debug_printf("NetworkProtocolHTTP::http_transaction() done, resultCode=%d, fileSize=%u\r\n", resultCode, fileSize);
+#endif
 }
 
 bool NetworkProtocolHTTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
