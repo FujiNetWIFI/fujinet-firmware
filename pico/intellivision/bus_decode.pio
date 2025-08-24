@@ -3,11 +3,15 @@
 .define PINS_TO_SAMPLE 19 ; # of pins to sample.
 .wrap_target
     wait 1 pin 16        ; Wait for BDIR == 1 (CPU driving bus)
+    nop [31]            ; 750us delay.
     nop [31]
     nop [31]
-    nop [10]
-    in null, 13
+    nop [31]
+    nop [31]
+    nop [31]
+    nop [9]
     in pins, PINS_TO_SAMPLE          ; Read pins
+    in null, 13
     wait 0 pin 16        ; Wait for BDIR == 0 (CPU released bus)
 .wrap
 
