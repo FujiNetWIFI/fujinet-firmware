@@ -23,6 +23,7 @@
     wait 1 pin 18        ; BC1 == 1 => DTB
     out pindirs, 16      ; Set pindirs
     out pins, 16         ; Output data onto DB0–15
+    wait 1 pin 16        ; wait for BDIR == 1 again.
     mov osr, null        ; clear osr
     out pindirs, 16      ; and set all pins to input
 .wrap
