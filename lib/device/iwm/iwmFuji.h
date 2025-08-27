@@ -67,6 +67,8 @@ protected:
         data_len = len;
     }
 
+    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen);
+
     void iwm_dummy_command();                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
     void iwm_stat_net_scan_result();              // status 0xFC
