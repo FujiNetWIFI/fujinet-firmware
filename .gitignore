@@ -58,3 +58,6 @@ fujinet_releases/*
 *~
 *.orig
 *.rej
+
+# espressif managed components
+managed_components

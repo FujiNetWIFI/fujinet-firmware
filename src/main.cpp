@@ -26,6 +26,8 @@
 #include "fsFlash.h"
 #include "fnFsSD.h"
 
+#include "fnLedStrip.h"
+
 #include "httpService.h"
 
 #ifdef ENABLE_CONSOLE
@@ -214,6 +216,7 @@ void main_setup(int argc, char *argv[])
 
 #ifdef ESP_PLATFORM
     fnKeyManager.setup();
+    fnLedStrip.setup();
 #endif
     fnLedManager.setup();
 

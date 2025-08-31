@@ -25,7 +25,7 @@
     // Use FujiNet debug serial output
     #include "../lib/hardware/fnUART.h"
     #define Serial fnUartDebug
-#ifdef PINMAP_RS232_S3
+#if defined(PINMAP_RS232_S3) /*|| defined(PINMAP_ESP32S3_XDRIVE)*/
     #define Debug_print(...) printf( __VA_ARGS__ )
     #define Debug_printf(...) printf( __VA_ARGS__ )
     #define Debug_println(...) do { printf(__VA_ARGS__); printf("\n"); } while (0)
