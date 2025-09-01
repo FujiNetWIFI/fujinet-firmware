@@ -868,6 +868,7 @@ void iecFuji::net_get_wifi_status_raw()
 void iecFuji::net_get_wifi_status_basic()
 {
     response = net_get_wifi_status() == 3 ? "connected" : "disconnected";
+    response = mstr::toPETSCII2(response);
     set_fuji_iec_status(0, "ok");
 }
 
