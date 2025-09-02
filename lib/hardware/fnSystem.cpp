@@ -57,6 +57,7 @@
 #include "fsFlash.h"
 #include "fnFsSD.h"
 #include "fnWiFi.h"
+#include "fnLedStrip.h"
 
 #ifdef BUILD_APPLE
 #define BUS_CLASS IWM
@@ -173,6 +174,8 @@ SystemManager::SystemManager()
     memset(_currenttime_string,0,sizeof(_currenttime_string));
 #ifndef ESP_PLATFORM
     memset(_uname_string, 0, sizeof(_uname_string));
+#else    
+    ledstrip_found = fnLedStrip.present();
 #endif
     _hardware_version=0;
 }
