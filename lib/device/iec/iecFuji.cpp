@@ -314,12 +314,81 @@ void iecFuji::process_cmd()
 
 void iecFuji::local_ip()
 {
+    char tmp[20];
+    Debug_printv("Getting local IP address");
     fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-    std::ostringstream ss;
-    ss << cfg.localIP[0] << "." << cfg.localIP[1] << "." << cfg.localIP[2] << "." << cfg.localIP[3];
-    set_fuji_iec_status(0, ss.str());
+    snprintf(tmp, sizeof(tmp), "%d.%d.%d.%d", cfg.localIP[0], cfg.localIP[1], cfg.localIP[2], cfg.localIP[3]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
 }
 
+void iecFuji::netmask()
+{
+    char tmp[20];
+    Debug_printv("Getting netmask");
+    fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+    snprintf(tmp, sizeof(tmp), "%d.%d.%d.%d", cfg.netmask[0], cfg.netmask[1], cfg.netmask[2], cfg.netmask[3]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
+}
+
+void iecFuji::gateway()
+{
+    char tmp[20];
+    Debug_printv("Getting gateway");
+    fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+    snprintf((char*)tmp, sizeof(tmp), "%d.%d.%d.%d", cfg.gateway[0], cfg.gateway[1], cfg.gateway[2], cfg.gateway[3]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
+}
+
+void iecFuji::dns_ip()
+{
+    Debug_printv("Getting DNS IP");
+    fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
+    char tmp[20];
+    snprintf((char*)tmp, sizeof(tmp), "%d.%d.%d.%d", cfg.dnsIP[0], cfg.dnsIP[1], cfg.dnsIP[2], cfg.dnsIP[3]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
+}
+
+void iecFuji::mac_address()
+{
+    Debug_printv("Getting MAC address");
+    uint8_t mac[6];
+    fnWiFi.get_mac(mac);
+    char tmp[24];
+
+    snprintf(tmp, sizeof(tmp), "%02X-%02X-%02X-%02X-%02X-%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
+}
+
+void iecFuji::bssid()
+{
+    Debug_printv("Getting BSSID");
+    uint8_t bssid[6];
+    fnWiFi.get_current_bssid(bssid);
+    char tmp[24];
+    snprintf(tmp, sizeof(tmp), "%02X-%02X-%02X-%02X-%02X-%02X", bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+    response = string(tmp);
+    set_fuji_iec_status(0, response);
+    response = mstr::toPETSCII2(response);
+}
+
+void iecFuji::fn_version()
+{
+    Debug_printv("Getting FujiNet version");
+    std::string ver = fnSystem.get_fujinet_version(true);
+    set_fuji_iec_status(0, ver);
+    response = ver;
+    response = mstr::toPETSCII2(response);
+}
 
 void iecFuji::process_basic_commands()
 {
@@ -394,6 +463,18 @@ void iecFuji::process_basic_commands()
         get_status_basic();
     else if (payload.find("localip") != std::string::npos)
         local_ip();
+    else if (payload.find("netmask") != std::string::npos)
+        netmask();
+    else if (payload.find("gateway") != std::string::npos)
+        gateway();
+    else if (payload.find("dnsip") != std::string::npos)
+        dns_ip();
+    else if (payload.find("macaddress") != std::string::npos)
+        mac_address();
+    else if (payload.find("bssid") != std::string::npos)
+        bssid();
+    else if (payload.find("fnversion") != std::string::npos)
+        fn_version();
     else if (payload.find("enable") != std::string::npos)
         enable_device_basic();
     else if (payload.find("disable") != std::string::npos)
@@ -670,6 +751,7 @@ void iecFuji::net_scan_result_basic()
     int i = atoi(pt[1].c_str());
     SSIDInfo result = fujicore_net_scan_result(i);
     response = std::to_string(result.rssi) + ",\"" + std::string(result.ssid) + "\"";
+    response = mstr::toPETSCII2(response);
     set_fuji_iec_status(0, "ok");
 }
 

@@ -432,6 +432,13 @@ protected:
 
     // Commodore specific
     void local_ip();
+    void netmask();
+    void gateway();
+    void dns_ip();
+    void mac_address();
+    void bssid();
+    void fn_version();
+    
     void enable_device_basic();
     void disable_device_basic();
 
