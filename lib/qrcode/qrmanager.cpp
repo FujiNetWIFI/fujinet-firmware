@@ -11,6 +11,10 @@
 QRManager qrManager;
 
 std::vector<uint8_t> QRManager::encode(const void* src, size_t len, size_t version, size_t ecc, size_t *out_len) {
+    // If version is not specified, choose the smallest version that can hold the data
+    if (version < 1) 
+        version = qrcode_minVersion(ecc, (const char*)src);
+
     qrManager.version = version;
     qrManager.ecc_mode = ecc;
 
@@ -18,8 +22,10 @@ std::vector<uint8_t> QRManager::encode(const void* src, size_t len, size_t versi
     qrManager.out_buf.clear();
     qrManager.out_buf.shrink_to_fit();
 
-    if (version < 1 || version > 40 || ecc > 3) {
-        return qrManager.out_buf;
+    //if (version < 1 || version > 40 || ecc < 0 || ecc > 3) {
+    //if (version < 1 || version > 40 || ecc > 3) {
+    if (version > 40 || ecc > 3) {
+        return qrManager.out_buf; // error
     }
 
     QRCode qr_code;
@@ -164,9 +170,14 @@ void QRManager::to_petscii(void) {
     std::vector<uint8_t> out;
     bool reverse = false;
 
-    out.push_back(size);
+//    out.push_back(0x00); // Load Address
+//    out.push_back(0x04); // Screen RAM 0x0400
+
+//    out.push_back(size);
+    out.push_back(13); // Carriage return
 
     for (auto y = 0; y < size; y += 2) {
+        out.push_back(32); // Space
         for (auto x = 0; x < size; x += 2) {
             uint8_t val = bytes[1+y*size+x];
             // QR Codes have odd number of rows/columns, so last PETSCII char is only half full
@@ -181,6 +192,8 @@ void QRManager::to_petscii(void) {
         }
         out.push_back(13); // Carriage return
     }
+//    out.push_back(00);
+//    out.push_back(00);
 
     qrManager.out_buf = out;
 }

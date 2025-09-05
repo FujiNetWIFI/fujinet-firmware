@@ -35,6 +35,7 @@
 
 #include "qrcode.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -843,6 +844,7 @@ int8_t qrcode_initText(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8_
 }
 
 bool qrcode_getModule(QRCode *qrcode, uint8_t x, uint8_t y) {
+    //if (x < 0 || x >= qrcode->size || y < 0 || y >= qrcode->size) {
     if (x >= qrcode->size || y >= qrcode->size) {
         return false;
     }
@@ -860,3 +862,22 @@ void qrcode_getHex(QRCode *qrcode, char *result) {
 
 }
 */
+
+int8_t qrcode_minVersion(uint8_t ecc, const char *data) {
+    uint16_t len = strlen(data);
+
+    int8_t version = 1;
+    uint16_t capacity;
+    do {
+        capacity = NUM_ALPHANUMERIC_CAPACITY[ecc][version-1];
+        printf("Testing version[%d] ecc[%d] len[%d] capacity[%d]\n", version, ecc, len, capacity);
+        if (len > capacity) {
+            version++;
+        } else {
+            break;
+        }
+    } while (version <= 40);
+
+    printf("Set version[%d] ecc[%d] len[%d] capacity[%d]\n", version, ecc, len, capacity);
+    return version;
+}

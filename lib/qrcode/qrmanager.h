@@ -73,7 +73,7 @@ public:
     * PETSCII character can represent 4 bits. Carriage returns (0x0D) are
     * added at the end of each row to facilitate printing direct to screen.
     */
-   void to_petscii(void);
+    void to_petscii(void);
 
     size_t size() { return version * 4 + 17; }
     void set_buffer(const std::string& buffer) { in_buf = buffer; }
