@@ -21,7 +21,7 @@
 #include "../fuji/fujiCmd.h"
 
 #include "hash.h"
-#include "../../qrcode/qrmanager.h"
+#include "qrmanager.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices
@@ -146,6 +146,8 @@ private:
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
     bool hash_is_hex_output = false;
+
+    QRManager _qrManager = QRManager();
 
 protected:
     void iwm_dummy_command();                     // control 0xAA
