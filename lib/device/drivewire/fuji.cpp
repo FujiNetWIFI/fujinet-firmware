@@ -1701,6 +1701,9 @@ void drivewireFuji::process()
     case FUJICMD_SEND_ERROR:
         send_error();
         break;
+    case FUJICMD_RESET:
+        fnSystem.reboot();
+        break;
     case FUJICMD_GET_ADAPTERCONFIG:
         get_adapter_config();
         break;

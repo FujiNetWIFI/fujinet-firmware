@@ -252,6 +252,25 @@ def makezip(source, target, env):
                     "offset": "0xA70000"
                 }
             ]
+        elif config[environment]['board'] == "esp32-s3-xdrive-n4r2":
+            json_contents['files'] += [
+                {
+                    "filename": "bootloader.bin",
+                    "offset": "0x0000"
+                },
+                {
+                    "filename": "partitions.bin",
+                    "offset": "0x8000"
+                },
+                {
+                    "filename": "firmware.bin",
+                    "offset": "0x10000"
+                },
+                {
+                    "filename": "littlefs.bin",
+                    "offset": "0x250000"
+                }
+            ]            
         # Save Release JSON
         with open('firmware/release.json', 'w') as f:
             f.write(json.dumps(json_contents, indent=4))

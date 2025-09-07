@@ -222,6 +222,13 @@ normalize_path() {
     esac
 }
 
+same_dir() {
+    [ -d "$1" ] && [ -d "$2" ] || return 1
+    stat1=$(stat -c "%d:%i" "$1")
+    stat2=$(stat -c "%d:%i" "$2")
+    [ "$stat1" = "$stat2" ]
+}
+
 if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
     if [ ! -f "${ACTIVATE}" ] ; then
         echo Creating venv at "${VENV_ROOT}"
@@ -237,7 +244,7 @@ if [[ "$VIRTUAL_ENV" != "$VENV_ROOT" ]] ; then
         echo "-------------------"
     fi
     VENV_ACTUAL="$(normalize_path "$VIRTUAL_ENV")"
-    if [[ "${VENV_ACTUAL}" != "${VENV_ROOT}" ]] ; then
+    if ! same_dir "${VENV_ACTUAL}" "${VENV_ROOT}" ; then
         echo Unable to activate penv/venv
         echo "ACTIVATE = ${ACTIVATE}"
         echo "ALT_ACTIVATE = ${ALT_ACTIVATE}"
@@ -256,7 +263,7 @@ fi
 if [ -z "${PC_BUILD}" ] ; then
     PIO=$(command -v pio)
     if [ "${PIO}" != "${VENV_ROOT}/bin/pio" ] ; then
-        pip install platformio
+        pip install platformio || exit 1
     fi
 fi
 

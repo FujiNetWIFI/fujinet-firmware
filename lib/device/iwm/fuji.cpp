@@ -396,13 +396,12 @@ uint8_t iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 	// mediatype_t mt = MediaType::discover_mediatype(disk.filename);
 	// if (mt == mediatype_t::MEDIATYPE_PO)
 	// { // And now mount it
+	disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
 
 	if (options == DISK_ACCESS_MODE_WRITE)
 	{
 		disk_dev->readonly = false;
 	}
-
-	disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
 
 	return SP_ERR_NOERROR;
 }

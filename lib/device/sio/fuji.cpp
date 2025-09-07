@@ -37,7 +37,7 @@
 #include "hash.h"
 #include "../../qrcode/qrmanager.h"
 
-#define ADDITIONAL_DETAILS_BYTES 10
+#define ADDITIONAL_DETAILS_BYTES 13
 #define FF_DIR 0x01
 #define FF_TRUNC 0x02
 
@@ -1178,25 +1178,32 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
     dest[4] = modtime->tm_min;
     dest[5] = modtime->tm_sec;
 
-    // File size
-    uint16_t fsize = f->size;
-    dest[6] = LOBYTE_FROM_UINT16(fsize);
-    dest[7] = HIBYTE_FROM_UINT16(fsize);
+    // File size LITTLE ENDIAN for Atari
+    uint32_t fsize = f->size;
+    dest[6] = fsize & 0xFF;          // Least significant byte
+    dest[7] = (fsize >> 8) & 0xFF;
+    dest[8] = (fsize >> 16) & 0xFF;
+    dest[9] = (fsize >> 24) & 0xFF;  // Most significant byte
 
     // File flags
 #define FF_DIR 0x01
 #define FF_TRUNC 0x02
 
-    dest[8] = f->isDir ? FF_DIR : 0;
+    dest[10] = f->isDir ? FF_DIR : 0;
 
-    maxlen -= 10; // Adjust the max return value with the number of additional bytes we're copying
-    if (f->isDir) // Also subtract a byte for a terminating slash on directories
+    maxlen -= ADDITIONAL_DETAILS_BYTES; // Adjust the max return value with the number of additional bytes we're copying
+    if (f->isDir)                       // Also subtract a byte for a terminating slash on directories
         maxlen--;
     if (strlen(f->filename) >= maxlen)
-        dest[8] |= FF_TRUNC;
+        dest[11] |= FF_TRUNC;
 
     // File type
-    dest[9] = MediaType::discover_disktype(f->filename);
+    dest[12] = MediaType::discover_disktype(f->filename);
+
+    Debug_printf("Addtl: ");
+    for (int i = 0; i < ADDITIONAL_DETAILS_BYTES; i++)
+        Debug_printf("%02x ", dest[i]);
+    Debug_printf("\n");
 }
 
 /*
