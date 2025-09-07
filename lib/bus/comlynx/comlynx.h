@@ -235,12 +235,14 @@ private:
     virtualDevice *_activeDev = nullptr;
     lynxFuji *_fujiDev = nullptr;
     lynxPrinter *_printerDev = nullptr;
-    lynxUDPStream *_udpDev = nullptr;
+   
 
     void _comlynx_process_cmd();
     void _comlynx_process_queue();
 
 public:
+    lynxUDPStream *_udpDev = nullptr;
+
     void setup();
     void service();
     void shutdown();
@@ -255,6 +257,7 @@ public:
      * stopwatch
      */
     int64_t start_time;
+    int64_t comlynx_idle_time = 3000;
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, uint8_t device_id);
@@ -268,6 +271,10 @@ public:
     bool deviceEnabled(uint8_t device_id);
     QueueHandle_t qComlynxMessages = nullptr;
     void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
+
+    void setRedeyeMode(bool enable);
+    void setRedeyeGameRemap(uint32_t remap);
+    void setComlynxIdleTime(uint64_t idle_time);
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };

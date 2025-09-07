@@ -226,6 +226,7 @@ void lynxNetwork::write(uint16_t num_bytes)
     err = comlynx_write_channel(num_bytes);
 }
 
+
 /**
  * Perform the correct write based on value of channelMode
  * @param num_bytes Number of bytes to write.

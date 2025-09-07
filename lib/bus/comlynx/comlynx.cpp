@@ -78,8 +78,13 @@ uint8_t comlynx_checksum(uint8_t *buf, unsigned short len)
 
 void virtualDevice::comlynx_send(uint8_t b)
 {
+    Debug_printf("comlynx_send_buffer: %X\n", b);
+    
+    // Wait for idle only when in UDPStream mode
+    if (ComLynx._udpDev->udpstreamActive)
+        ComLynx.wait_for_idle();
+    
     // Write the byte
-    ComLynx.wait_for_idle();
     fnUartBUS.write(b);
     fnUartBUS.flush();
     fnUartBUS.read();
@@ -87,7 +92,13 @@ void virtualDevice::comlynx_send(uint8_t b)
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
-    ComLynx.wait_for_idle();
+    //Debug_printf("comlynx_send_buffer: %d %s\n", len, buf);
+    Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+    
+    // Wait for idle only when in UDPStream mode
+    if (ComLynx._udpDev->udpstreamActive)
+        ComLynx.wait_for_idle();
+    
     fnUartBUS.write(buf,len);
     fnUartBUS.readBytes(buf,len);
 }
@@ -100,6 +111,8 @@ uint8_t virtualDevice::comlynx_recv()
         fnSystem.yield();
 
     b = fnUartBUS.read();
+
+    //Debug_printf("comlynx_recv: %x\n", b);
 
     return b;
 }
@@ -141,7 +154,10 @@ uint16_t virtualDevice::comlynx_recv_length()
 
 void virtualDevice::comlynx_send_length(uint16_t l)
 {
-    ComLynx.wait_for_idle();
+    // Wait for idle only when in UDPStream mode
+    if (ComLynx._udpDev->udpstreamActive)
+        ComLynx.wait_for_idle();
+    
     comlynx_send(l >> 8);
     comlynx_send(l & 0xFF);
 }
@@ -197,6 +213,7 @@ void systemBus::wait_for_idle()
 
         if (trashCount > 0)
             Debug_printf("wait_for_idle() dropped %d bytes\n", trashCount);
+        
 
         start = current = esp_timer_get_time();
 
@@ -204,7 +221,12 @@ void systemBus::wait_for_idle()
         {
             current = esp_timer_get_time();
             dur = current - start;
-            if (dur > IDLE_TIME)
+        //#ifdef DEBUG
+        //    Debug_printf("wait_for_idle() - not idle, dur:%d\n", dur);
+        //#endif
+
+            //if (dur > IDLE_TIME)
+            if (dur > ComLynx.comlynx_idle_time)
                 isIdle = true;
         }
     } while (isIdle == false);
@@ -265,6 +287,8 @@ void systemBus::_comlynx_process_cmd()
     start_time = esp_timer_get_time();
 
     uint8_t d = b & 0x0F;
+
+    Debug_printf("comlynx_process_cmd: dev:%d\n", d);
 
     // Find device ID and pass control to it
     if (_daisyChain.count(d) < 1)
@@ -453,11 +477,56 @@ void systemBus::setUDPHost(const char *hostname, int port)
     }
 
     // Restart UDP Stream mode if needed
-    if (_udpDev->udpstreamActive)
+    if (_udpDev->udpstreamActive) {
         _udpDev->comlynx_disable_udpstream();
-    if (_udpDev->udpstream_host_ip != IPADDR_NONE)
+        _udpDev->comlynx_disable_redeye();
+    }
+    if (_udpDev->udpstream_host_ip != IPADDR_NONE) {
         _udpDev->comlynx_enable_udpstream();
+        if (_udpDev->redeye_mode)
+            _udpDev->comlynx_enable_redeye();
+    }
 }
+
+
+void systemBus::setRedeyeMode(bool enable)
+{
+    Debug_printf("setRedeyeMode, %d\n", enable);
+    _udpDev->redeye_mode = enable;
+    _udpDev->redeye_logon = true;
+}
+
+
+void systemBus::setRedeyeGameRemap(uint32_t remap)
+{
+    Debug_printf("setRedeyeGameRemap, %d\n", remap);
+    
+    // handle pure updstream games
+    if ((remap >> 8) == 0xE1) {
+        _udpDev->redeye_mode = false;           // turn off redeye
+        _udpDev->redeye_logon = true;           // reset logon phase toggle
+        _udpDev->redeye_game = remap;           // set game, since we can't detect it
+    }
+
+    // handle redeye game that need remapping
+    if (remap != 0xFFFF) {
+        _udpDev->remap_game_id = true;              
+        _udpDev->new_game_id = remap;
+    }
+    else {
+        _udpDev->remap_game_id = false;
+        _udpDev->new_game_id = 0xFFFF;
+    }
+}
+
+
+void systemBus::setComlynxIdleTime(uint64_t idle_time)
+{
+   Debug_printf("setComlynxIdleTime, %d\n", idle_time);
+
+   ComLynx.comlynx_idle_time = idle_time; 
+}
+
 
 systemBus ComLynx;
 #endif /* BUILD_LYNX */

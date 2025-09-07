@@ -98,19 +98,22 @@ void lynxFuji::comlynx_net_scan_networks()
 
     comlynx_recv(); // get ck
 
-    isReady = false;
+    //isReady = false;
+    //scanStarted = false;        // testing -SJ
 
-    if (scanStarted == false)
-    {
+    //if (scanStarted == false)
+    //{
         _countScannedSSIDs = fnWiFi.scan_networks();
-        scanStarted = true;
-        setSSIDStarted = false;
-    }
+    //    scanStarted = true;
+    //    setSSIDStarted = false;
+    //}
 
-    isReady = true;
+    //isReady = true;
 
     response[0] = _countScannedSSIDs;
     response_len = 1;
+
+    Debug_printf("comlynx_net_scan_networks, _countScannedSSIDs %d\n", _countScannedSSIDs);
 
     comlynx_response_ack();
 }
@@ -185,7 +188,8 @@ void lynxFuji::comlynx_net_get_ssid()
 // Set SSID
 void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 {
-    if (!fnWiFi.connected() && setSSIDStarted == false)
+    //if (!fnWiFi.connected() && setSSIDStarted == false)
+    if (setSSIDStarted == false)
     {
         Debug_println("Fuji cmd: SET SSID");
 
@@ -223,6 +227,7 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 
     comlynx_response_ack();
 }
+
 // Get WiFi Status
 void lynxFuji::comlynx_net_get_wifi_status()
 {
@@ -406,11 +411,16 @@ void lynxFuji::mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
+
+    Debug_println("fujinet_mount_all()");
+
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
         fujiDisk &disk = _fnDisks[i];
         fujiHost &host = _fnHosts[disk.host_slot];
         char flag[3] = {'r', 0, 0};
+
+        Debug_printf("moun_all %d '%s' from host #%u as %s on D%u:\n", i, disk.filename, disk.host_slot, flag, i + 1);
 
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
@@ -536,7 +546,7 @@ void lynxFuji::comlynx_read_app_key()
         response_len = 1; // if no file found set return length to 1 or lynx hangs waiting for response
         return;
     }
-
+    
     response_len = fread(response, sizeof(char), 64, fp);
     fclose(fp);
 
@@ -609,9 +619,11 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
     uint8_t hostSlot = comlynx_recv();
 
     s--;
-    s--;
+    s--;      
 
     comlynx_recv_buffer((uint8_t *)&dirpath, s);
+
+    Debug_printf("comlynx_open_directory: dirpath: %s\n", dirpath);
 
     comlynx_recv(); // Grab checksum
 
@@ -621,7 +633,7 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
     {
         // See if there's a search pattern after the directory path
         const char *pattern = nullptr;
-        int pathlen = strnlen(dirpath, sizeof(dirpath));
+        /*int pathlen = strnlen(dirpath, sizeof(dirpath));
         if (pathlen < sizeof(dirpath) - 3) // Allow for two NULLs and a 1-char pattern
         {
             pattern = dirpath + pathlen + 1;
@@ -633,7 +645,7 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
         // Remove trailing slash
         if (pathlen > 1 && dirpath[pathlen - 1] == '/')
             dirpath[pathlen - 1] = '\0';
-
+        */
         Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
 
         if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
@@ -694,7 +706,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
 void lynxFuji::comlynx_read_directory_entry()
 {
-    Debug_printf("READ DIR ENTRY");
+    Debug_printf("READ DIR ENTRY\n");
     uint8_t maxlen = comlynx_recv();
     uint8_t addtl = comlynx_recv();
 
@@ -948,14 +960,6 @@ void lynxFuji::comlynx_get_host_prefix()
 {
 }
 
-// Public method to update host in specific slot
-fujiHost *lynxFuji::set_slot_hostname(int host_slot, char *hostname)
-{
-    _fnHosts[host_slot].set_hostname(hostname);
-    _populate_config_from_slots();
-    return &_fnHosts[host_slot];
-}
-
 // Send device slot data to computer
 void lynxFuji::comlynx_read_device_slots()
 {
@@ -1007,12 +1011,15 @@ void lynxFuji::comlynx_write_device_slots()
 
     comlynx_recv(); // ck
 
+    //Debug_printf("comlnyx_write_device_slots, hs:%d m:%d %s\n", diskSlots[0].hostSlot, diskSlots[0].mode, diskSlots[0].filename);
+
     // Load the data into our current device array
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
         _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
 
     // Save the data to disk
     _populate_config_from_slots();
+    Config.mark_dirty();                             // not sure why, but I have to mark as dirty
     Config.save();
 
     comlynx_response_ack();
@@ -1145,7 +1152,7 @@ void lynxFuji::comlynx_enable_device()
 
     Debug_printf("FUJI ENABLE DEVICE %02x\n",d);
 
-    comlynx_recv();
+    comlynx_recv();         // checksum
 
     switch(d)
     {
@@ -1201,7 +1208,7 @@ void lynxFuji::comlynx_disable_device()
     }
 
     Config.save();
-
+    
     ComLynx.disableDevice(d);
 
     comlynx_response_ack();
@@ -1234,7 +1241,7 @@ void lynxFuji::comlynx_random_number()
 
     response_len = sizeof(int);
     *p = rand();
-
+    
     comlynx_response_ack();
 }
 
@@ -1286,6 +1293,17 @@ lynxDisk *lynxFuji::bootdisk()
 {
     return _bootDisk;
 }
+
+
+fujiHost *lynxFuji::set_slot_hostname(int host_slot, char *hostname)
+{
+
+    _fnHosts[host_slot].set_hostname(hostname);
+    _populate_config_from_slots();
+
+    return &_fnHosts[host_slot];
+}
+
 
 void lynxFuji::comlynx_hello()
 {
@@ -1459,7 +1477,7 @@ void lynxFuji::comlynx_control_clr()
     comlynx_send_length(response_len);
     comlynx_send_buffer(response, response_len);
     comlynx_send(comlynx_checksum(response, response_len));
-    comlynx_recv(); // get the ack.
+    comlynx_recv(); // get the ack.         We should probably be checking if we get an ACK or NACK -SJ
     memset(response, 0, sizeof(response));
     response_len = 0;
 }
@@ -1468,7 +1486,7 @@ void lynxFuji::comlynx_process(uint8_t b)
 {
     unsigned char c = b >> 4;
     Debug_printf("%02x \n",c);
-
+    
     switch (c)
     {
     case MN_STATUS:
