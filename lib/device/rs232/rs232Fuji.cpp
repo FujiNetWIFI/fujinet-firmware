@@ -8,6 +8,7 @@
 #include "fnWiFi.h"
 #include "utils.h"
 #include "compat_string.h"
+#include <endian.h>
 
 #define IMAGE_EXTENSION ".img"
 
@@ -318,10 +319,12 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         rs232_ack();
         fujicmd_set_boot_mode(cmdFrame.aux1, IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
+#ifdef SYSTEM_BUS_IS_UDP
     case FUJICMD_ENABLE_UDPSTREAM:
         rs232_ack();
         fujicmd_enable_udpstream(cmdFrame.aux1);
         break;
+#endif /* SYSTEM_BUS_IS_UDP */
     case FUJICMD_DEVICE_READY:
         Debug_printf("FUJICMD DEVICE TEST\n");
         rs232_ack();
@@ -330,6 +333,62 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
     default:
         rs232_nak();
     }
+}
+
+// For some reason the directory entry structure that is sent back
+// isn't standardized across platforms.
+typedef struct {
+    uint8_t year, month, day, hour, minute, second;
+    uint32_t file_size;
+#define DIR_ENTRY_FLAGS
+#ifdef DIR_ENTRY_FLAGS
+    uint8_t flags, truncated;
+#ifdef DIR_ENTRY_TYPE
+    uint8_t file_type;
+#endif /* DIR_ENTRY_TYPE */
+#endif /* DIR_ENTRY_FLAGS */
+}  __attribute__((packed)) DirEntAttrib;
+
+size_t rs232Fuji::setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+{
+    DirEntAttrib *attrib = (DirEntAttrib *) dest;
+
+
+    // File modified date-time
+    struct tm *modtime = localtime(&f->modified_time);
+    attrib->year = modtime->tm_year - 100;
+    attrib->month = modtime->tm_mon + 1;
+    attrib->day = modtime->tm_mday;
+    attrib->hour = modtime->tm_hour;
+    attrib->minute = modtime->tm_min;
+    attrib->second = modtime->tm_sec;
+
+    attrib->file_size = htole32(f->size);
+
+#ifdef DIR_ENTRY_FLAGS
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
+
+    attrib->flags = f->isDir ? FF_DIR : 0;
+
+    maxlen -= sizeof(*attrib); // Adjust the max return value with the number of additional
+                              // bytes we're copying
+    if (f->isDir)             // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    attrib->truncated = strlen(f->filename) >= maxlen ? FF_TRUNC : 0;
+
+#ifdef DIR_ENTRY_TYPE
+    // File type
+    attrib->file_type = MediaType::discover_mediatype(f->filename);
+#endif /* DIR_ENTRY_TYPE */
+#endif /* DIR_ENTRY_FLAGS */
+
+    Debug_printf("Addtl: ");
+    for (int i = 0; i < sizeof(*attrib); i++)
+        Debug_printf("%02x ", dest[i]);
+    Debug_printf("\n");
+    return sizeof(*attrib);
 }
 
 #endif /* BUILD_RS232 */

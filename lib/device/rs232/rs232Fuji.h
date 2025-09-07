@@ -23,6 +23,8 @@ protected:
         bus_to_computer((uint8_t *) data, len, err);
     }
 
+    size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen);
+
     void rs232_net_set_ssid();             // 0xFB
     void rs232_open_directory();           // 0xF7
     void rs232_new_disk();                 // 0xE7

@@ -178,7 +178,9 @@ public:
     void fujicmd_write_device_slots(uint8_t numDevices);
     void fujicmd_status();
     void fujicmd_set_sio_external_clock(uint16_t speed);
+#ifdef SYSTEM_BUS_IS_UDP
     void fujicmd_enable_udpstream(int port);
+#endif /* SYSTEM_BUS_IS_UDP */
 
     // Move appkey stuff to its own file?
     void fujicmd_open_app_key();
