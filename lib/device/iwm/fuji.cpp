@@ -22,6 +22,7 @@
 #include "string_utils.h"
 
 #include "compat_string.h"
+#include "../../qrcode/qrmanager.h"
 
 #define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40

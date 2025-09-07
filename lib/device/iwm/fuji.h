@@ -21,7 +21,7 @@
 #include "../fuji/fujiCmd.h"
 
 #include "hash.h"
-#include "qrmanager.h"
+#include "../../qrcode/qrmanager.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices

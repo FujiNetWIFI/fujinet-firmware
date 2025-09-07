@@ -35,7 +35,7 @@
 
 #include "base64.h"
 #include "hash.h"
-#include "qrmanager.h"
+#include "../../qrcode/qrmanager.h"
 
 #define ADDITIONAL_DETAILS_BYTES 13
 #define FF_DIR 0x01
