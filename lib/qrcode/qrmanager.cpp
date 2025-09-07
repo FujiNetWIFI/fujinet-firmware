@@ -14,36 +14,47 @@
 
 std::vector<uint8_t> QRManager::encode(const void* input, uint16_t length, uint8_t version, qr_ecc_t ecc)
 {
+    code = std::vector<uint8_t>();
+
     if (version)
         qrcode.version = version;
 
     if (ecc)
         qrcode.ecc = ecc;
 
-    int8_t err = 0;
-    if (length)
-    {
-        data = std::string((char*)input, length);
+    if (input == nullptr && data.size() == 0)
+        return code;
 
+    if (input != nullptr)
+    {
+        if (length)
+            data = std::string((char*)input, length);
+        else
+            data = std::string((char*)input);
+
+        //printf("input[%s]\n", (char*)input);
+    }
+    //printf("data[%s]\n", data.c_str());
+
+    int8_t err = 0;
+    if (length > 0)
+    {
         //printf("bytes[%d]\n", length);
         err = qrcode_initBytes(&qrcode, (uint8_t*)data.c_str(), length);
     }
     else
     {
-        if (strlen((char*)input))
-            data = std::string((char*)input);
-
         //printf("text[%s]\n", (char*)data);
         err = qrcode_initText(&qrcode, (char*)data.c_str());
     }
     if (err != 0) {
         // Error!
         //printf("error[%d]\n", err);
-        return std::vector<uint8_t>();
+        return code;
     }
 
-    // auto encoded = to_ansi();
-    // printf("%s\n", encoded.data());
+    auto encoded = to_ansi();
+    printf("%s\n", encoded.data());
 
     //printf("version[%d] ecc[%d] mode[%d] output_mode[%d]\n", qrcode.version, qrcode.ecc, qrcode.mode, output_mode);
     switch (output_mode) {
