@@ -85,8 +85,14 @@ void lynxFuji::comlynx_control_status()
 // Reset FujiNet
 void lynxFuji::comlynx_reset_fujinet()
 {
-    comlynx_recv(); // get ck
     Debug_println("COMLYNX RESET FUJINET");
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
+         
     comlynx_response_ack();
     fnSystem.reboot();
 }
@@ -96,19 +102,13 @@ void lynxFuji::comlynx_net_scan_networks()
 {
     Debug_println("Fuji cmd: SCAN NETWORKS");
 
-    comlynx_recv(); // get ck
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    //isReady = false;
-    //scanStarted = false;        // testing -SJ
-
-    //if (scanStarted == false)
-    //{
-        _countScannedSSIDs = fnWiFi.scan_networks();
-    //    scanStarted = true;
-    //    setSSIDStarted = false;
-    //}
-
-    //isReady = true;
+    _countScannedSSIDs = fnWiFi.scan_networks();
 
     response[0] = _countScannedSSIDs;
     response_len = 1;
@@ -126,7 +126,11 @@ void lynxFuji::comlynx_net_scan_result()
 
     uint8_t n = comlynx_recv();
 
-    comlynx_recv(); // get CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     // Response to FUJICMD_GET_SCAN_RESULT
     struct
@@ -154,7 +158,11 @@ void lynxFuji::comlynx_net_get_ssid()
 {
     Debug_println("Fuji cmd: GET SSID");
 
-    comlynx_recv(); // get CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     // Response to FUJICMD_GET_SSID
     struct
@@ -188,24 +196,27 @@ void lynxFuji::comlynx_net_get_ssid()
 // Set SSID
 void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 {
-    //if (!fnWiFi.connected() && setSSIDStarted == false)
-    if (setSSIDStarted == false)
+    Debug_println("Fuji cmd: SET SSID");
+
+    s--;
+
+    // Data for FUJICMD_SET_SSID
+    struct
     {
-        Debug_println("Fuji cmd: SET SSID");
+        char ssid[MAX_SSID_LEN+1];
+        char password[MAX_WIFI_PASS_LEN];
+    } cfg;
 
-        s--;
+    comlynx_recv_buffer((uint8_t *)&cfg, s);
 
-        // Data for FUJICMD_SET_SSID
-        struct
-        {
-            char ssid[MAX_SSID_LEN+1];
-            char password[MAX_WIFI_PASS_LEN];
-        } cfg;
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-        comlynx_recv_buffer((uint8_t *)&cfg, s);
-
-        comlynx_recv(); // CK
-
+    if (setSSIDStarted == false)                // Do we need this?  Check Atari implementation -SJ
+    {
         bool save = true;
 
         // URL Decode SSID/PASSWORD to handle special chars (FIXME)
@@ -216,6 +227,7 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 
         fnWiFi.connect(cfg.ssid, cfg.password);
         setSSIDStarted = true;
+
         // Only save these if we're asked to, otherwise assume it was a test for connectivity
         if (save)
         {
@@ -231,8 +243,14 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 // Get WiFi Status
 void lynxFuji::comlynx_net_get_wifi_status()
 {
-    comlynx_recv(); // Get CK
     Debug_println("Fuji cmd: GET WIFI STATUS");
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
+
     // WL_CONNECTED = 3, WL_DISCONNECTED = 6
     uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
     response[0] = wifiStatus;
@@ -248,7 +266,11 @@ void lynxFuji::comlynx_mount_host()
 
     unsigned char hostSlot = comlynx_recv();
 
-    comlynx_recv(); // Get CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     if (hostMounted[hostSlot] == false)
     {
@@ -266,7 +288,11 @@ void lynxFuji::comlynx_unmount_host()
 
     unsigned char hostSlot = comlynx_recv();
 
-    comlynx_recv(); // Get CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     if (hostMounted[hostSlot] == false)
     {
@@ -285,7 +311,11 @@ void lynxFuji::comlynx_disk_image_mount()
     uint8_t deviceSlot = comlynx_recv();
     uint8_t options = comlynx_recv(); // DISK_ACCESS_MODE
 
-    comlynx_recv(); // CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     // TODO: Implement FETCH?
     char flag[3] = {'r', 0, 0};
@@ -319,10 +349,15 @@ void lynxFuji::comlynx_disk_image_mount()
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void lynxFuji::comlynx_set_boot_config()
 {
-    boot_config = comlynx_recv();
-    comlynx_recv();
-
     Debug_printf("Boot config is now %d",boot_config);
+
+    boot_config = comlynx_recv();
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     if (_fnDisks[0].disk_dev.is_config_device)
     {
@@ -357,7 +392,12 @@ void lynxFuji::comlynx_copy_file()
     sourceSlot = comlynx_recv();
     destSlot = comlynx_recv();
     comlynx_recv_buffer(csBuf,sizeof(csBuf));
-    ck = comlynx_recv();
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     dataBuf = (char *)malloc(COPY_SIZE);
 
@@ -411,8 +451,13 @@ void lynxFuji::mount_all()
 {
     bool nodisks = true; // Check at the end if no disks are in a slot and disable config
 
-
     Debug_println("fujinet_mount_all()");
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
@@ -420,7 +465,7 @@ void lynxFuji::mount_all()
         fujiHost &host = _fnHosts[disk.host_slot];
         char flag[3] = {'r', 0, 0};
 
-        Debug_printf("moun_all %d '%s' from host #%u as %s on D%u:\n", i, disk.filename, disk.host_slot, flag, i + 1);
+        Debug_printf("mount_all %d '%s' from host #%u as %s on D%u:\n", i, disk.filename, disk.host_slot, flag, i + 1);
 
         if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
             flag[1] = '+';
@@ -471,7 +516,12 @@ void lynxFuji::mount_all()
 void lynxFuji::comlynx_set_boot_mode()
 {
     uint8_t bm = comlynx_recv();
-    comlynx_recv(); // CK
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     insert_boot_device(bm);
     boot_config = true;
@@ -499,15 +549,19 @@ void lynxFuji::comlynx_write_app_key()
     char appkeyfilename[30];
     FILE *fp;
 
+    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n", appkeyfilename);
+
     snprintf(appkeyfilename, sizeof(appkeyfilename), "/FujiNet/%04hx%02hhx%02hhx.key", creator, app, key);
 
     comlynx_recv_buffer(data, 64);
-    comlynx_recv(); // CK
 
-    Debug_printf("Fuji Cmd: WRITE APPKEY %s\n", appkeyfilename);
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     fp = fnSDFAT.file_open(appkeyfilename, "w");
-
     if (fp == nullptr)
     {
         Debug_printf("Could not open.\n");
@@ -529,7 +583,11 @@ void lynxFuji::comlynx_read_app_key()
     uint8_t app = comlynx_recv();
     uint8_t key = comlynx_recv();
 
-    comlynx_recv(); // CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     char appkeyfilename[30];
     FILE *fp;
@@ -562,7 +620,12 @@ void lynxFuji::debug_tape()
 void lynxFuji::comlynx_disk_image_umount()
 {
     unsigned char ds = comlynx_recv();
-    comlynx_recv();
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     _fnDisks[ds].disk_dev.unmount();
     _fnDisks[ds].reset();
@@ -625,7 +688,11 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
 
     Debug_printf("comlynx_open_directory: dirpath: %s\n", dirpath);
 
-    comlynx_recv(); // Grab checksum
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     ComLynx.start_time = esp_timer_get_time();
 
@@ -710,7 +777,11 @@ void lynxFuji::comlynx_read_directory_entry()
     uint8_t maxlen = comlynx_recv();
     uint8_t addtl = comlynx_recv();
 
-    comlynx_recv(); // Checksum
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     if (response[0] == 0x00)
     {
@@ -801,7 +872,11 @@ void lynxFuji::comlynx_get_directory_position()
 
     uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
 
-    comlynx_recv(); // ck
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     response_len = sizeof(pos);
     memcpy(response, &pos, sizeof(pos));
@@ -814,13 +889,18 @@ void lynxFuji::comlynx_set_directory_position()
     // DAUX1 and DAUX2 hold the position to seek to in low/high order
     uint16_t pos = 0;
 
+    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
+
     comlynx_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
 
-    comlynx_recv(); // ck
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     _fnHosts[_current_open_directory_slot].dir_seek(pos);
     comlynx_response_ack();
-    Debug_println("Fuji cmd: SET DIRECTORY POSITION");
     Debug_printf("pos is now %u", pos);
 }
 
@@ -828,7 +908,11 @@ void lynxFuji::comlynx_close_directory()
 {
     Debug_println("Fuji cmd: CLOSE DIRECTORY");
 
-    comlynx_recv(); // ck
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     if (_current_open_directory_slot != -1)
         _fnHosts[_current_open_directory_slot].dir_close();
@@ -843,7 +927,11 @@ void lynxFuji::comlynx_get_adapter_config()
 {
     Debug_println("Fuji cmd: GET ADAPTER CONFIG");
 
-    comlynx_recv(); // ck
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     // Response to FUJICMD_GET_ADAPTERCONFIG
     AdapterConfig cfg;
@@ -885,7 +973,11 @@ void lynxFuji::comlynx_new_disk()
     comlynx_recv_buffer(c, sizeof(uint32_t));
     comlynx_recv_buffer(p, 256);
 
-    comlynx_recv(); // CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     fujiDisk &disk = _fnDisks[ds];
     fujiHost &host = _fnHosts[hs];
@@ -915,7 +1007,11 @@ void lynxFuji::comlynx_read_host_slots()
 {
     Debug_println("Fuji cmd: READ HOST SLOTS");
 
-    comlynx_recv(); // ck
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     memset(hostSlots, 0, sizeof(hostSlots));
@@ -937,7 +1033,11 @@ void lynxFuji::comlynx_write_host_slots()
     char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
     comlynx_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
 
-    comlynx_recv(); // ck
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     for (int i = 0; i < MAX_HOSTS; i++)
     {
@@ -965,6 +1065,12 @@ void lynxFuji::comlynx_read_device_slots()
 {
     Debug_println("Fuji cmd: READ DEVICE SLOTS");
 
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
+
     struct disk_slot
     {
         uint8_t hostSlot;
@@ -987,8 +1093,6 @@ void lynxFuji::comlynx_read_device_slots()
 
     returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
 
-    comlynx_recv(); // ck
-
     memcpy(response, &diskSlots, returnsize);
     response_len = returnsize;
 
@@ -1009,7 +1113,11 @@ void lynxFuji::comlynx_write_device_slots()
 
     comlynx_recv_buffer((uint8_t *)&diskSlots, sizeof(diskSlots));
 
-    comlynx_recv(); // ck
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     //Debug_printf("comlnyx_write_device_slots, hs:%d m:%d %s\n", diskSlots[0].hostSlot, diskSlots[0].mode, diskSlots[0].filename);
 
@@ -1100,7 +1208,11 @@ void lynxFuji::comlynx_set_device_filename(uint16_t s)
 
     Debug_printf("filename: %s\n", f);
 
-    comlynx_recv(); // CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
     _populate_config_from_slots();
@@ -1113,7 +1225,11 @@ void lynxFuji::comlynx_get_device_filename()
 {
     unsigned char ds = comlynx_recv();
 
-    comlynx_recv();
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     memcpy(response, _fnDisks[ds].filename, 256);
     response_len = 256;
@@ -1149,10 +1265,13 @@ void lynxFuji::insert_boot_device(uint8_t d)
 void lynxFuji::comlynx_enable_device()
 {
     unsigned char d = comlynx_recv();
-
     Debug_printf("FUJI ENABLE DEVICE %02x\n",d);
-
-    comlynx_recv();         // checksum
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     switch(d)
     {
@@ -1174,19 +1293,20 @@ void lynxFuji::comlynx_enable_device()
     }
 
     Config.save();
-
     ComLynx.enableDevice(d);
-
     comlynx_response_ack();
 }
 
 void lynxFuji::comlynx_disable_device()
 {
     unsigned char d = comlynx_recv();
-
     Debug_printf("FUJI DISABLE DEVICE %02x\n",d);
 
-    comlynx_recv();
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     switch(d)
     {
@@ -1207,10 +1327,8 @@ void lynxFuji::comlynx_disable_device()
             break;
     }
 
-    Config.save();
-    
+    Config.save();    
     ComLynx.disableDevice(d);
-
     comlynx_response_ack();
 }
 
@@ -1237,7 +1355,11 @@ void lynxFuji::comlynx_random_number()
 {
     int *p = (int *)&response[0];
 
-    comlynx_recv(); // CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     response_len = sizeof(int);
     *p = rand();
@@ -1248,7 +1370,12 @@ void lynxFuji::comlynx_random_number()
 void lynxFuji::comlynx_get_time()
 {
     Debug_println("FUJI GET TIME");
-    comlynx_recv(); // CK
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     time_t tt = time(nullptr);
 
@@ -1276,7 +1403,12 @@ void lynxFuji::comlynx_get_time()
 void lynxFuji::comlynx_device_enable_status()
 {
     uint8_t d = comlynx_recv();
-    comlynx_recv(); // CK
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     ComLynx.start_time = esp_timer_get_time();
 
@@ -1307,6 +1439,12 @@ fujiHost *lynxFuji::set_slot_hostname(int host_slot, char *hostname)
 
 void lynxFuji::comlynx_hello()
 {
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
+
     const char resp[] = "HI FROM FUJINET!\n";
     response_len = strlen(resp);
     memcpy(response,resp,response_len);
@@ -1322,7 +1460,7 @@ void lynxFuji::comlynx_hello()
 void lynxFuji::comlynx_enable_udpstream(uint16_t s)
 {
     char host[128];
-
+    
     s--;
 
     // Receive port #
@@ -1338,8 +1476,11 @@ void lynxFuji::comlynx_enable_udpstream(uint16_t s)
     // Receive host
     comlynx_recv_buffer((uint8_t *)host,s);
 
-    // Receive Checksum.
-    comlynx_recv();
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     // Acknowledge
     comlynx_response_ack();
@@ -1355,6 +1496,9 @@ void lynxFuji::comlynx_enable_udpstream(uint16_t s)
 
 void lynxFuji::comlynx_control_send()
 {
+    // Reset the recvbuffer
+    recvbuffer_len = 0;         // happens in recv_length, but may remove from there -SJ
+    
     uint16_t s = comlynx_recv_length();
     uint8_t c = comlynx_recv();
 

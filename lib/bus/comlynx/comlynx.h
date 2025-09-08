@@ -93,6 +93,12 @@ protected:
     void comlynx_send_buffer(uint8_t *buf, unsigned short len);
 
     /**
+     * @brief Receive checksum byte and compare with checksum calculation
+     * @return true or false
+     */
+    bool comlynx_recv_ck();
+
+    /**
      * @brief Receive byte from Comlynx
      * @return byte received
      */
@@ -203,6 +209,12 @@ protected:
      * Response length
      */
     uint16_t response_len;
+
+    /**
+     * Receive buffer and length
+     */
+    uint8_t recvbuffer[1024];
+    uint16_t recvbuffer_len = 0;
 
 public:
 

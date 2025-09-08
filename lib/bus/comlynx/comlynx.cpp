@@ -103,6 +103,30 @@ void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
     fnUartBUS.readBytes(buf,len);
 }
 
+bool virtualDevice::comlynx_recv_ck()
+{
+    uint8_t recv_ck, ck;
+
+
+    while (fnUartBUS.available() <= 0)
+        fnSystem.yield();
+    
+    // get checksum
+    recv_ck = fnUartBUS.read();
+
+    ck = comlynx_checksum(recvbuffer, recvbuffer_len);
+
+    Debug_printf("comlynx_recv_ck, recv:%02X calc:%02X\n", recv_ck, ck);
+
+    // reset receive buffer
+    recvbuffer_len = 0;
+
+    if (recv_ck == ck)
+        return true;
+    else
+        return false;
+}
+
 uint8_t virtualDevice::comlynx_recv()
 {
     uint8_t b;
@@ -112,8 +136,11 @@ uint8_t virtualDevice::comlynx_recv()
 
     b = fnUartBUS.read();
 
-    //Debug_printf("comlynx_recv: %x\n", b);
+    // Add to receive buffer
+    recvbuffer[recvbuffer_len] = b;
+    recvbuffer_len++;
 
+    //Debug_printf("comlynx_recv: %x\n", b);
     return b;
 }
 
@@ -149,6 +176,9 @@ uint16_t virtualDevice::comlynx_recv_length()
     s = comlynx_recv() << 8;
     s |= comlynx_recv();
 
+    // Reset recv buffer, but maybe we want checksum over the length too? -SJ
+    recvbuffer_len = 0;
+
     return s;
 }
 
@@ -164,7 +194,15 @@ void virtualDevice::comlynx_send_length(uint16_t l)
 
 unsigned short virtualDevice::comlynx_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    return fnUartBUS.readBytes(buf, len);
+    unsigned short b;
+
+    b = fnUartBUS.readBytes(buf, len);
+    
+    // Add to receive buffer
+    memcpy(&recvbuffer[recvbuffer_len], buf, len);
+    recvbuffer_len += len;
+
+    return(b);
 }
 
 uint32_t virtualDevice::comlynx_recv_blockno()
