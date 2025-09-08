@@ -176,6 +176,9 @@ uint16_t virtualDevice::comlynx_recv_length()
     s = comlynx_recv() << 8;
     s |= comlynx_recv();
 
+    if (s > 1024)
+        s = 1024;
+
     // Reset recv buffer, but maybe we want checksum over the length too? -SJ
     recvbuffer_len = 0;
 

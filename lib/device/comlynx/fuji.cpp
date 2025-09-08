@@ -122,7 +122,7 @@ void lynxFuji::comlynx_net_scan_networks()
 void lynxFuji::comlynx_net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
-    scanStarted = false;
+    //scanStarted = false;
 
     uint8_t n = comlynx_recv();
 
@@ -174,7 +174,7 @@ void lynxFuji::comlynx_net_get_ssid()
     memset(&cfg, 0, sizeof(cfg));
 
     /*
-     We memcpy instead of strcpy because technically the SSID and phasephras aren't strings and aren't null terminated,
+     We memcpy instead of strcpy because technically the SSID and phasephrase aren't strings and aren't null terminated,
      they're arrays of bytes officially and can contain any byte value - including a zero - at any point in the array.
      However, we're not consistent about how we treat this in the different parts of the code.
     */
@@ -196,9 +196,11 @@ void lynxFuji::comlynx_net_get_ssid()
 // Set SSID
 void lynxFuji::comlynx_net_set_ssid(uint16_t s)
 {
+    uint8_t save;
+
     Debug_println("Fuji cmd: SET SSID");
 
-    s--;
+    save = comlynx_recv();
 
     // Data for FUJICMD_SET_SSID
     struct
@@ -207,6 +209,8 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
         char password[MAX_WIFI_PASS_LEN];
     } cfg;
 
+    s--;
+    s--;
     comlynx_recv_buffer((uint8_t *)&cfg, s);
 
     // Get packet checksum
@@ -215,26 +219,17 @@ void lynxFuji::comlynx_net_set_ssid(uint16_t s)
         return;
     }
 
-    if (setSSIDStarted == false)                // Do we need this?  Check Atari implementation -SJ
+    Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
+
+    fnWiFi.connect(cfg.ssid, cfg.password);
+    setSSIDStarted = true;
+
+    // Only save these if we're asked to, otherwise assume it was a test for connectivity
+    if (save)
     {
-        bool save = true;
-
-        // URL Decode SSID/PASSWORD to handle special chars (FIXME)
-        //mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
-        //mstr::urlDecode(cfg.password, sizeof(cfg.password));
-
-        Debug_printf("Connecting to net: %s password: %s\n", cfg.ssid, cfg.password);
-
-        fnWiFi.connect(cfg.ssid, cfg.password);
-        setSSIDStarted = true;
-
-        // Only save these if we're asked to, otherwise assume it was a test for connectivity
-        if (save)
-        {
-            Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-            Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-            Config.save();
-        }
+        Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
+        Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
+        Config.save();
     }
 
     comlynx_response_ack();
@@ -349,6 +344,9 @@ void lynxFuji::comlynx_disk_image_mount()
 // Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
 void lynxFuji::comlynx_set_boot_config()
 {
+    // does nothing on Lynx -SJ
+    
+    /*
     Debug_printf("Boot config is now %d",boot_config);
 
     boot_config = comlynx_recv();
@@ -367,7 +365,7 @@ void lynxFuji::comlynx_set_boot_config()
         Debug_printf("Boot config unmounted slot 0");
     }
 
-    comlynx_response_ack();
+    comlynx_response_ack(); */
 }
 
 // Do SIO copy
@@ -515,6 +513,9 @@ void lynxFuji::mount_all()
 // Set boot mode
 void lynxFuji::comlynx_set_boot_mode()
 {
+    // does nothing on Lynx -SJ
+    
+    /*
     uint8_t bm = comlynx_recv();
 
     // Get packet checksum
@@ -527,6 +528,7 @@ void lynxFuji::comlynx_set_boot_mode()
     boot_config = true;
 
     comlynx_response_ack();
+    */
 }
 
 char *_generate_appkey_filename(appkey *info)
@@ -641,6 +643,8 @@ void lynxFuji::comlynx_disk_image_umount()
 void lynxFuji::image_rotate()
 {
     Debug_println("Fuji cmd: IMAGE ROTATE");
+
+    // probably won't be needed on Lynx -SJ    
 
     int count = 0;
     // Find the first empty slot
@@ -835,6 +839,8 @@ void lynxFuji::comlynx_read_directory_entry()
         }
 
         // Hack-o-rama to add file type character to beginning of path.
+        // I don't think we need any of this -SJ
+        /*
         if (maxlen == 38)
         {
             memmove(&dirpath[2], dirpath, 254);
@@ -851,7 +857,7 @@ void lynxFuji::comlynx_read_directory_entry()
             }
             else
                 dirpath[0] = dirpath[1] = 0x20;
-        }
+        }*/
 
         memset(response, 0, sizeof(response));
         memcpy(response, dirpath, maxlen);
@@ -886,7 +892,6 @@ void lynxFuji::comlynx_get_directory_position()
 
 void lynxFuji::comlynx_set_directory_position()
 {
-    // DAUX1 and DAUX2 hold the position to seek to in low/high order
     uint16_t pos = 0;
 
     Debug_println("Fuji cmd: SET DIRECTORY POSITION");
@@ -1240,6 +1245,9 @@ void lynxFuji::comlynx_get_device_filename()
 // Mounts the desired boot disk number
 void lynxFuji::insert_boot_device(uint8_t d)
 {
+    // This isn't needed on Lynx -SJ
+    
+    /*
     // TODO: Change this when CONFIG is ready.
     const char *config_atr = "/autorun.ddp";
     const char *mount_all_atr = "/mount-and-boot.ddp";
@@ -1260,6 +1268,7 @@ void lynxFuji::insert_boot_device(uint8_t d)
 
     _fnDisks[0].disk_dev.is_config_device = true;
     _fnDisks[0].disk_dev.device_active = true;
+    */
 }
 
 void lynxFuji::comlynx_enable_device()
@@ -1617,11 +1626,19 @@ void lynxFuji::comlynx_control_send()
 
 void lynxFuji::comlynx_control_clr()
 {
+    uint8_t b; 
+    
     comlynx_send(0xBF);
     comlynx_send_length(response_len);
     comlynx_send_buffer(response, response_len);
     comlynx_send(comlynx_checksum(response, response_len));
-    comlynx_recv(); // get the ack.         We should probably be checking if we get an ACK or NACK -SJ
+    b = comlynx_recv();             // get the ack or nack
+    // ignore response from Lynx, if they didn't receive the data properly
+    // they should resend the entire command -SJ
+    
+    Debug_printf("comlynx_control_clr: %02X\n", b);
+    
+    // Reset response buffer    
     memset(response, 0, sizeof(response));
     response_len = 0;
 }
@@ -1629,7 +1646,7 @@ void lynxFuji::comlynx_control_clr()
 void lynxFuji::comlynx_process(uint8_t b)
 {
     unsigned char c = b >> 4;
-    Debug_printf("%02x \n",c);
+    //Debug_printf("%02x \n",c);
     
     switch (c)
     {
