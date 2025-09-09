@@ -72,3 +72,9 @@ jobs:
 
     - name: Build release
       run: cd "$GITHUB_WORKSPACE" && /usr/bin/bash ./build.sh -z -l "$GITHUB_WORKSPACE"/.github/workflows/platformio.release-${{ matrix.target-platform }}.ini -i "$GITHUB_WORKSPACE"/platformio-generated.ini
+
+    - name: Upload firmware zip for ${{ matrix.target-platform }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ matrix.target-platform }}
+        path: firmware/**
