@@ -59,7 +59,6 @@ def load_version_macros(path):
 
 def update_version_macros(path, macros):
   txt = [line.rstrip() for line in open(path)]
-  saw_minor = saw_patch = False
   for line in txt:
     m = re.match(MACRO_PATTERN, line)
     if m:
@@ -67,14 +66,6 @@ def update_version_macros(path, macros):
       if name not in macros:
         continue
       line = f"#define {name} {macros[name]}"
-      if name == "FN_VERSION_MINOR":
-        saw_minor = True
-      if name == "FN_VERSION_PATCH":
-        saw_patch = True
-    elif not line.strip() and saw_minor and not saw_patch:
-      name = "FN_VERSION_PATCH"
-      line = f"#define {name} {macros[name]}\n" + line
-      saw_patch = True
     print(line)
   return
 
@@ -105,7 +96,6 @@ def main():
   cur_macros = load_version_macros(version_h_path)
   ver_major = int(cur_macros['FN_VERSION_MAJOR'])
   ver_minor = int(cur_macros['FN_VERSION_MINOR'])
-  ver_patch = int(cur_macros.get('FN_VERSION_PATCH', 0))
 
   if args.set_version:
     version = args.set_version
@@ -118,7 +108,6 @@ def main():
     ver_patch = 0
     cur_macros['FN_VERSION_MAJOR'] = ver_major
     cur_macros['FN_VERSION_MINOR'] = ver_minor
-    cur_macros['FN_VERSION_PATCH'] = ver_patch
     if m.group(4):
       ver_patch = int(m.group(4))
       cur_macros['FN_VERSION_PATCH'] = ver_patch
@@ -126,14 +115,12 @@ def main():
       ver_rc = int(m.group(6))
       cur_macros['FN_VERSION_RC'] = ver_rc
     cur_macros['FN_VERSION_DATE'] = modified
-    version = f"v{ver_major}.{ver_minor}.{ver_patch}"
 
   else:
     m = re.match(r"^v([0-9]+)[.]([0-9]+)[.]([0-9]+)-([0-9]+)-g(.*)", version)
     if m:
       ver_major = macros['FN_VERSION_MAJOR'] = int(m.group(1))
       ver_minor = macros['FN_VERSION_MINOR'] = int(m.group(2))
-      ver_minor = macros['FN_VERSION_PATCH'] = int(m.group(3))
       version = f"v{m.group(1)}.{m.group(2)}-{m.group(5)}"
     else:
       m = re.match(r"^([a-z0-9]{8})$", version)
