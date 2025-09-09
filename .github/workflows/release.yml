@@ -17,7 +17,7 @@ jobs:
     runs-on: "ubuntu-latest"
     strategy:
       matrix:
-        target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, COCO, IEC-LOLIN-D32, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX]
+        target-platform: [ATARI, ATARI-8mb, ADAM, APPLE, COCO, IEC-LOLIN-D32, MASTERIES-REVAB, MASTERIES-REVA-SPIFIX, RS232]
     env:
       TAG_NAME: ${{ github.event.inputs.tag || github.ref_name }}
 
