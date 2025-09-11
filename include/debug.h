@@ -26,10 +26,10 @@
     #include "../lib/hardware/UARTChannel.h"
     #define Serial fnDebugConsole
 #ifdef PINMAP_RS232_S3
-    #define Debug_print(...) fnDebugConsole.printf( __VA_ARGS__ )
-    #define Debug_printf(...) fnDebugConsole.printf( __VA_ARGS__ )
-    #define Debug_println(...) do { fnDebugConsole.printf(__VA_ARGS__); printf("\n"); } while (0)
-    #define Debug_printv(format, ...) { fnDebugConsole.printf( ANSI_YELLOW "[%s:%u] %s(): " ANSI_GREEN_BOLD format ANSI_RESET "\r\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}
+    #define Debug_print(...) printf( __VA_ARGS__ )
+    #define Debug_printf(...) printf( __VA_ARGS__ )
+    #define Debug_println(...) do { printf(__VA_ARGS__); printf("\n"); } while (0)
+    #define Debug_printv(format, ...) { printf( ANSI_YELLOW "[%s:%u] %s(): " ANSI_GREEN_BOLD format ANSI_RESET "\r\n", __FILE__, __LINE__, __FUNCTION__, ##__VA_ARGS__);}
 #else
     #define Debug_print(...) fnDebugConsole.print( __VA_ARGS__ )
     #define Debug_printf(...) fnDebugConsole.printf( __VA_ARGS__ )
