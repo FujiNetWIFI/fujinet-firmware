@@ -42,7 +42,7 @@ bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
      }
 
     if (err == false)
-        err = fread(_media_blockbuff, 1, 256, _media_fileh) != 256;
+        err = fread(_media_blockbuff, 1, 256, _media_fileh) == 0;            // handle potential last block partial read
 
     if (err == false)
     {
@@ -83,7 +83,9 @@ mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_ROM;
-    _media_num_blocks = disksize / 256;
+    _media_num_blocks = disksize / MEDIA_BLOCK_SIZE;
+    if (_media_num_blocks % MEDIA_BLOCK_SIZE)       // handle extra bytes
+        _media_num_blocks++;
 
     return _mediatype;
 }

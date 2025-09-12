@@ -10,6 +10,9 @@
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
 
+// disk block size, on lynx doesn't need to remain 256
+#define BLOCK_SIZE 256   
+
 class lynxDisk : public virtualDevice
 {
 private:

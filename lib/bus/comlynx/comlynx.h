@@ -261,9 +261,9 @@ public:
     void reset();
 
     /**
-     * @brief Wait for Comlynx bus to become idle.
+     * @brief Wait to see if Comlynx bus is idle.
      */
-    void wait_for_idle();
+    bool wait_for_idle();
 
     /**
      * stopwatch

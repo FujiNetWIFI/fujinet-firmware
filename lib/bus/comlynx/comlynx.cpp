@@ -233,11 +233,9 @@ void virtualDevice::comlynx_control_ready()
     comlynx_response_ack();
 }
 
-void systemBus::wait_for_idle()
+bool systemBus::wait_for_idle()
 {
-    bool isIdle = false;
     int64_t start, current, dur;
-    //int trashCount = 0;
 
     // SJ notes: we really don't need to do this unless we are in UDPStream mode
     // Likely we want to just wait until the bus is "idle" for about 3 character times
@@ -245,40 +243,22 @@ void systemBus::wait_for_idle()
     //
     // Check that the bus is truly idle for the whole duration, and then we can start sending?
 
-    //do
-    //{
-        /*
-        // Wait for serial line to quiet down.
-        while (fnUartBUS.available() > 0)
-        {
-            fnUartBUS.read();
-            trashCount++;
-        }
+    start = esp_timer_get_time();
 
-        if (trashCount > 0)
-            Debug_printf("wait_for_idle() dropped %d bytes\n", trashCount);
-        */
+    do {
+        current = esp_timer_get_time();
+        dur = current - start;
 
-        // Wait for serial line to quiet down.
-        while (fnUartBUS.available() > 0);
+        // Did we get any data in the FIFO while waiting?
+        if (fnUartBUS.available() > 0)
+            return false;
 
-        start = current = esp_timer_get_time();
+    } while (dur < IDLE_TIME);
 
-        // Wait for IDLE_TIME duration before calling it idle
-        while ((fnUartBUS.available() <= 0) && (isIdle == false))
-        {
-            current = esp_timer_get_time();
-            dur = current - start;
-        //#ifdef DEBUG
-        //    Debug_printf("wait_for_idle() - not idle, dur:%d\n", dur);
-        //#endif
+    // Must have been idle at least IDLE_TIME to get here
+    return true;
 
-            if (dur > IDLE_TIME)
-            //if (dur > ComLynx.comlynx_idle_time)
-                isIdle = true;
-        }
-    //} while (isIdle == false);
-    fnSystem.yield();
+    //fnSystem.yield();         // not sure if we need to do this, from old function - SJ
 }
 
 void virtualDevice::comlynx_process(uint8_t b)
@@ -332,11 +312,11 @@ void systemBus::_comlynx_process_cmd()
     uint8_t b;
 
     b = fnUartBUS.read();
-    start_time = esp_timer_get_time();
+    //start_time = esp_timer_get_time();
 
     uint8_t d = b & 0x0F;
 
-    Debug_printf("comlynx_process_cmd: dev:%d\n", d);
+    Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0));
 
     // Find device ID and pass control to it
     if (_daisyChain.count(d) < 1)

@@ -899,9 +899,7 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
 
 void lynxNetwork::comlynx_control_receive()
 {
-    //ComLynx.start_time = esp_timer_get_time();
-
-    // Data is waiting, go ahead and send it off.
+     // Data is waiting, go ahead and send it off.
     if (response_len > 0)
     {
         comlynx_response_ack();
