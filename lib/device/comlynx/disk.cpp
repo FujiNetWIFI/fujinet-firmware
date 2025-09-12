@@ -102,16 +102,18 @@ bool lynxDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 
 void lynxDisk::comlynx_control_clr()
 {
-    int64_t t = esp_timer_get_time() - ComLynx.start_time;
+    //int64_t t = esp_timer_get_time() - ComLynx.start_time;
 
-    if (t < 1500)
-    {
+    //if (t < 1500)
+    //{
         comlynx_response_send();
-    }
+    //}
 }
 
 void lynxDisk::comlynx_control_receive()
 {
+    Debug_println("comlynx_control_receive()\n");
+    
     if (_media == nullptr)
         return;
 
@@ -123,11 +125,17 @@ void lynxDisk::comlynx_control_receive()
 
 void lynxDisk::comlynx_control_send_block_num()
 {
-    uint8_t x[8];
+    uint8_t x[5];       // 32-bit block num, plus 1 byte reserved
 
     Debug_printf("comlynx_control_send_block_num()\n");
     for (uint16_t i = 0; i < 5; i++)
         x[i] = comlynx_recv();
+
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     blockNum = x[3] << 24 | x[2] << 16 | x[1] << 8 | x[0];
 
@@ -141,7 +149,7 @@ void lynxDisk::comlynx_control_send_block_num()
         _media->format(NULL);
     }
 
-    ComLynx.start_time=esp_timer_get_time();
+    //ComLynx.start_time=esp_timer_get_time();
     
     comlynx_response_ack();
 
@@ -154,7 +162,14 @@ void lynxDisk::comlynx_control_send_block_data()
         return;
 
     comlynx_recv_buffer(_media->_media_blockbuff, 256);
-    ComLynx.start_time = esp_timer_get_time();
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
+       
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
     Debug_printf("Block Data Write\n");
 
@@ -182,12 +197,12 @@ void lynxDisk::comlynx_response_status()
     else
         status_response[4] = 0x40 | _media->_media_controller_status;
     
-    int64_t t = esp_timer_get_time() - ComLynx.start_time;
+    //int64_t t = esp_timer_get_time() - ComLynx.start_time;
 
-    if (t < 300)
-    {
+    //if (t < 300)
+    //{
         virtualDevice::comlynx_response_status();
-    }
+    //}
 }
 
 void lynxDisk::comlynx_response_send()

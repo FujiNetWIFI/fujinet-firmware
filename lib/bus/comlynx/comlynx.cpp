@@ -13,7 +13,7 @@
 #include "led.h"
 #include <cstring>
 
-#define IDLE_TIME 1000 // Idle tolerance in microseconds
+#define IDLE_TIME 500 // Idle tolerance in microseconds (roughly three characters at 62500 baud)
 
 static QueueHandle_t reset_evt_queue = NULL;
 
@@ -187,10 +187,6 @@ uint16_t virtualDevice::comlynx_recv_length()
 
 void virtualDevice::comlynx_send_length(uint16_t l)
 {
-    // Wait for idle only when in UDPStream mode
-    if (ComLynx._udpDev->udpstreamActive)
-        ComLynx.wait_for_idle();
-    
     comlynx_send(l >> 8);
     comlynx_send(l & 0xFF);
 }
@@ -241,10 +237,17 @@ void systemBus::wait_for_idle()
 {
     bool isIdle = false;
     int64_t start, current, dur;
-    int trashCount = 0;
+    //int trashCount = 0;
 
-    do
-    {
+    // SJ notes: we really don't need to do this unless we are in UDPStream mode
+    // Likely we want to just wait until the bus is "idle" for about 3 character times
+    // which is about 0.5 ms at 62500 baud 8N1
+    //
+    // Check that the bus is truly idle for the whole duration, and then we can start sending?
+
+    //do
+    //{
+        /*
         // Wait for serial line to quiet down.
         while (fnUartBUS.available() > 0)
         {
@@ -254,10 +257,14 @@ void systemBus::wait_for_idle()
 
         if (trashCount > 0)
             Debug_printf("wait_for_idle() dropped %d bytes\n", trashCount);
-        
+        */
+
+        // Wait for serial line to quiet down.
+        while (fnUartBUS.available() > 0);
 
         start = current = esp_timer_get_time();
 
+        // Wait for IDLE_TIME duration before calling it idle
         while ((fnUartBUS.available() <= 0) && (isIdle == false))
         {
             current = esp_timer_get_time();
@@ -266,11 +273,11 @@ void systemBus::wait_for_idle()
         //    Debug_printf("wait_for_idle() - not idle, dur:%d\n", dur);
         //#endif
 
-            //if (dur > IDLE_TIME)
-            if (dur > ComLynx.comlynx_idle_time)
+            if (dur > IDLE_TIME)
+            //if (dur > ComLynx.comlynx_idle_time)
                 isIdle = true;
         }
-    } while (isIdle == false);
+    //} while (isIdle == false);
     fnSystem.yield();
 }
 
@@ -281,7 +288,7 @@ void virtualDevice::comlynx_process(uint8_t b)
 
 void virtualDevice::comlynx_control_status()
 {
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_status();
 }
 
@@ -561,12 +568,12 @@ void systemBus::setRedeyeGameRemap(uint32_t remap)
 }
 
 
-void systemBus::setComlynxIdleTime(uint64_t idle_time)
+/*void systemBus::setComlynxIdleTime(uint64_t idle_time)
 {
    Debug_printf("setComlynxIdleTime, %d\n", idle_time);
 
    ComLynx.comlynx_idle_time = idle_time; 
-}
+}*/
 
 
 systemBus ComLynx;

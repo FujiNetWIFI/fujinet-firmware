@@ -88,9 +88,14 @@ void lynxNetwork::open(unsigned short s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
-    comlynx_recv(); // checksum
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     channelMode = PROTOCOL;
@@ -157,9 +162,13 @@ void lynxNetwork::close()
 {
     Debug_printf("lynxNetwork::close()\n");
 
-    comlynx_recv(); // CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     statusByte.byte = 0x00;
@@ -217,9 +226,14 @@ void lynxNetwork::write(uint16_t num_bytes)
     memset(response, 0, sizeof(response));
 
     comlynx_recv_buffer(response, num_bytes);
-    comlynx_recv(); // CK
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
@@ -257,8 +271,14 @@ bool lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
 void lynxNetwork::status()
 {
     NetworkStatus s;
-    comlynx_recv(); // CK
-    ComLynx.start_time = esp_timer_get_time();
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
+    
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     switch (channelMode)
@@ -290,9 +310,13 @@ void lynxNetwork::status()
  */
 void lynxNetwork::get_prefix()
 {
-    comlynx_recv(); // CK
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     Debug_printf("lynxNetwork::comlynx_getprefix(%s)\n", prefix.c_str());
@@ -311,9 +335,14 @@ void lynxNetwork::set_prefix(unsigned short s)
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
     comlynx_recv_buffer(prefixSpec, s);
-    comlynx_recv(); // CK
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     prefixSpec_str = string((const char *)prefixSpec);
@@ -370,9 +399,14 @@ void lynxNetwork::set_login(uint16_t s)
     memset(loginspec, 0, sizeof(loginspec));
 
     comlynx_recv_buffer(loginspec, s);
-    comlynx_recv(); // ck
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     login = string((char *)loginspec, s);
@@ -388,9 +422,14 @@ void lynxNetwork::set_password(uint16_t s)
     memset(passwordspec, 0, sizeof(passwordspec));
 
     comlynx_recv_buffer(passwordspec, s);
-    comlynx_recv(); // ck
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     password = string((char *)passwordspec, s);
@@ -402,9 +441,14 @@ void lynxNetwork::del(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
-    comlynx_recv(); // CK
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     d = string((char *)response, s);
@@ -428,9 +472,14 @@ void lynxNetwork::rename(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
-    comlynx_recv(); // CK
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     d = string((char *)response, s);
@@ -451,9 +500,14 @@ void lynxNetwork::mkdir(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
-    comlynx_recv(); // CK
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     d = string((char *)response, s);
@@ -471,28 +525,33 @@ void lynxNetwork::mkdir(uint16_t s)
 void lynxNetwork::channel_mode()
 {
     unsigned char m = comlynx_recv();
-    comlynx_recv(); // CK
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
     switch (m)
     {
     case 0:
         channelMode = PROTOCOL;
-        ComLynx.start_time = esp_timer_get_time();
+        //ComLynx.start_time = esp_timer_get_time();
         comlynx_response_ack();
         break;
     case 1:
         channelMode = JSON;
-        ComLynx.start_time = esp_timer_get_time();
+        //ComLynx.start_time = esp_timer_get_time();
         comlynx_response_ack();
         break;
     default:
-        ComLynx.start_time = esp_timer_get_time();
+        //ComLynx.start_time = esp_timer_get_time();
         comlynx_response_nack();
         break;
     }
 
     Debug_printf("lynxNetwork::channel_mode(%u)\n", m);
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 }
 
@@ -501,9 +560,14 @@ void lynxNetwork::json_query(unsigned short s)
     uint8_t *c = (uint8_t *)malloc(s);
 
     comlynx_recv_buffer(c, s);
-    comlynx_recv(); // CK
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     json.setReadQuery(std::string((char *)c, s),cmdFrame.aux2);
@@ -515,8 +579,13 @@ void lynxNetwork::json_query(unsigned short s)
 
 void lynxNetwork::json_parse()
 {
-    comlynx_recv(); // CK
-    ComLynx.start_time = esp_timer_get_time();
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
+    
+    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
     json.parse();
 }
@@ -592,7 +661,7 @@ void lynxNetwork::comlynx_special_00(unsigned short s)
     cmdFrame.aux1 = comlynx_recv();
     cmdFrame.aux2 = comlynx_recv();
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
 
     if (protocol->special_00(&cmdFrame) == false)
         comlynx_response_ack();
@@ -659,9 +728,9 @@ void lynxNetwork::comlynx_response_status()
 
     status_response[4] = statusByte.byte;
 
-    int64_t t = esp_timer_get_time() - ComLynx.start_time;
+    //int64_t t = esp_timer_get_time() - ComLynx.start_time;
 
-    if (t < 300)
+    //if (t < 300)
         virtualDevice::comlynx_response_status();
 }
 
@@ -783,7 +852,7 @@ void lynxNetwork::comlynx_control_receive_channel_json()
     }
     else
     {
-        ComLynx.start_time = esp_timer_get_time();
+        //ComLynx.start_time = esp_timer_get_time();
         if (response_len > 0)
             comlynx_response_ack();
         else
@@ -830,7 +899,7 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
 
 void lynxNetwork::comlynx_control_receive()
 {
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
 
     // Data is waiting, go ahead and send it off.
     if (response_len > 0)

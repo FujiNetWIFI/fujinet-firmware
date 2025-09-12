@@ -269,7 +269,7 @@ public:
      * stopwatch
      */
     int64_t start_time;
-    int64_t comlynx_idle_time = 3000;
+    //int64_t comlynx_idle_time = 1000;
 
     int numDevices();
     void addDevice(virtualDevice *pDevice, uint8_t device_id);
@@ -286,7 +286,7 @@ public:
 
     void setRedeyeMode(bool enable);
     void setRedeyeGameRemap(uint32_t remap);
-    void setComlynxIdleTime(uint64_t idle_time);
+    //void setComlynxIdleTime(uint64_t idle_time);
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };

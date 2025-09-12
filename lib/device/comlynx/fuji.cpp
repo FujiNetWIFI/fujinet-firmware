@@ -698,7 +698,7 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
         return;
     }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
 
     if (_current_open_directory_slot == -1)
     {
@@ -867,7 +867,7 @@ void lynxFuji::comlynx_read_directory_entry()
     else
     {
         Debug_printf("Already filled. response is %s\n",response);
-        ComLynx.start_time = esp_timer_get_time();
+        //ComLynx.start_time = esp_timer_get_time();
         comlynx_response_ack();
     }
 }
@@ -989,7 +989,7 @@ void lynxFuji::comlynx_new_disk()
 
     if (host.file_exists((const char *)p))
     {
-        ComLynx.start_time = esp_timer_get_time();
+        //ComLynx.start_time = esp_timer_get_time();
         comlynx_response_ack();
         return;
     }
@@ -1419,7 +1419,7 @@ void lynxFuji::comlynx_device_enable_status()
         return;
     }
 
-    ComLynx.start_time = esp_timer_get_time();
+    //ComLynx.start_time = esp_timer_get_time();
 
     if (ComLynx.deviceExists(d))
         comlynx_response_ack();
