@@ -117,6 +117,7 @@ void systemBus::op_readex()
 {
     drivewireDisk *d = nullptr;
     uint16_t c1 = 0, c2 = 0;
+    FILE *fp = NULL;
 
     uint8_t *blk_buffer = sector_data;
     uint16_t blk_size = MEDIA_BLOCK_SIZE;
@@ -131,54 +132,112 @@ void systemBus::op_readex()
 
     Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
-    if (theFuji.boot_config && drive_num == 0)
-        d = theFuji.bootdisk();
-    else
-        d = &theFuji.get_disks(drive_num)->disk_dev;
-
-    if (!d)
+    // named object support for dragon
+    if (strlen((const char*)szNamedMount))
     {
-        Debug_printv("Invalid drive #%3u", drive_num);
-        rc = 0xF6;
-    }
+        Debug_printf("op_readex: boot from named object %s\r\n", szNamedMount);
+        Debug_printf("OP_READEX: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
-    if (rc == DISK_CTRL_STATUS_CLEAR && !d->device_active)
-    {
-        Debug_printv("Device not active.");
-        rc = 0xF6;
-    }
-
-    if (rc == DISK_CTRL_STATUS_CLEAR)
-    {
-        bool use_media_buffer = true;
-        d->get_media_buffer(&blk_buffer, &blk_size);
-        if (blk_buffer == nullptr || blk_size == 0)
+        if (NULL==fp)
+            fp = fopen((const char*)szNamedMount, "r");
+        if (NULL==fp)
         {
-            // no media buffer, use "bus buffer" with default block size
-            blk_buffer = sector_data;
-            blk_size = MEDIA_BLOCK_SIZE;
-            use_media_buffer = false;
+            Debug_printf("op_readex: boot from named object %s\r\n", "/AUTOLOAD.DWL");
+            fp = fopen((const char*)"/AUTOLOAD.DWL", "r");
         }
 
-        if (d->read(lsn, use_media_buffer ? nullptr : sector_data))
+        if (fp)
         {
-            if (d->get_media_status() == 2)
+            size_t bytesrd;
+            Debug_printf("op_readex: open successful %s\r\n", szNamedMount);
+            
+            memset(blk_buffer,0,MEDIA_BLOCK_SIZE);
+            bytesrd = fread(blk_buffer,1,MEDIA_BLOCK_SIZE,fp);
+            if (bytesrd!=MEDIA_BLOCK_SIZE || feof(fp))
+            {   
+                Debug_printf("op_readex: closed named object %s\r\n",szNamedMount);
+                fclose(fp);
+                fp = NULL;
+                // serve up named object only one time
+                szNamedMount[0]=(uint8_t)0;
+            }
+        }
+        else
+        {
+            Debug_printf("op_readex: open failed %s\r\n", szNamedMount);
+            fnDwCom.write(0xF4);
+            return;
+        }
+    }
+    else
+    {        
+        if (true==bDragon && drive_num>=5) drive_num = drive_num-5;
+    Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
+
+        if (theFuji.boot_config && drive_num == 0)
+            d = theFuji.bootdisk();
+        else
+            d = &theFuji.get_disks(drive_num)->disk_dev;
+
+        if (!d)
+        {
+            Debug_printv("Invalid drive #%3u", drive_num);
+            rc = 0xF6;
+        }
+
+        if (rc == DISK_CTRL_STATUS_CLEAR && !d->device_active && !bDragon)
+        {
+            Debug_printv("Device not active.");
+            rc = 0xF6;
+        }
+
+        if (rc == DISK_CTRL_STATUS_CLEAR)
+        {
+            bool use_media_buffer = true;
+            d->get_media_buffer(&blk_buffer, &blk_size);
+            if (blk_buffer == nullptr || blk_size == 0)
             {
-                Debug_printf("EOF\n");
-                rc = 211;
+                Debug_printv("No media buffer, using bus buffer.");
+                // no media buffer, use "bus buffer" with default block size
+                blk_buffer = sector_data;
+                blk_size = MEDIA_BLOCK_SIZE;
+                use_media_buffer = false;
+            }
+    
+            if (bDragon)
+            {
+                Debug_printf("dragon read\n");
+                if (d->read(lsn, sector_data))
+                {
+                    Debug_printf("Read error\n");
+                    fnDwCom.write(0xF4);
+                    fnDwCom.flush();
+                    fnDwCom.flush_input();
+                    return;
+                }
             }
             else
             {
-                Debug_printf("Read error\n");
-                rc = 0xF4;
+                Debug_printf("non-dragon read\n");
+                if (d->read(lsn, use_media_buffer ? nullptr : sector_data))
+                {
+                    if (d->get_media_status() == 2)
+                    {
+                        Debug_printf("EOF\n");
+                        rc = 211;
+                    }
+                    else
+                    {
+                        Debug_printf("Read error\n");
+                        rc = 0xF4;
+                    }
+                }
             }
         }
+        // send zeros on error
+        if (rc != DISK_CTRL_STATUS_CLEAR)
+            memset(blk_buffer, 0x00, blk_size);
     }
-
-    // send zeros on error
-    if (rc != DISK_CTRL_STATUS_CLEAR)
-        memset(blk_buffer, 0x00, blk_size);
-
     // send sector data
     fnDwCom.write(blk_buffer, blk_size);
 
@@ -202,6 +261,7 @@ void systemBus::op_readex()
     fnDwCom.write(rc);
     fnDwCom.flush();
 }
+
 
 void systemBus::op_write()
 {
@@ -446,6 +506,23 @@ void systemBus::op_print()
     _printerdev->write(fnDwCom.read());
 }
 
+void systemBus::op_namedobj_mnt()
+{
+    uint8_t namelen;
+    uint16_t i;
+
+    namelen = fnDwCom.read();
+    memset(szNamedMount,0,sizeof(szNamedMount));
+    for (i=0; i<namelen;i++)
+        szNamedMount[i]= fnDwCom.read();
+
+    fnDwCom.write(0x01);
+    Debug_printf("op_namedobj_mnt: %s\r\n", szNamedMount);
+
+    // treat this event as a reset...
+    op_reset();
+}
+
 // Read and process a command frame from DRIVEWIRE
 void systemBus::_drivewire_process_cmd()
 {
@@ -468,8 +545,8 @@ void systemBus::_drivewire_process_cmd()
         {
         case OP_JEFF:
             op_jeff();
-                    break;
-            case OP_NOP:
+            break;
+        case OP_NOP:
             op_nop();
             break;
         case OP_RESET1:
@@ -509,6 +586,9 @@ void systemBus::_drivewire_process_cmd()
             break;
         case OP_PRINT:
             op_print();
+            break;
+        case OP_NAMEOBJ_MNT:
+            op_namedobj_mnt();
             break;
         case OP_PRINTFLUSH:
             // Not needed.
@@ -600,6 +680,7 @@ void systemBus::setup()
 #ifdef ESP_PLATFORM
     // Create a queue to handle parallel event from ISR
     drivewire_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    bDragon = false;
 
     // Start task
     // xTaskCreate(drivewire_intr_task, "drivewire_intr_task", 2048, NULL, 10, NULL);
@@ -664,8 +745,9 @@ void systemBus::setup()
     }
     else
     {
-        _drivewireBaud = 57600; //Default or no switch
-        Debug_printv("A14 and A15 High, defaulting to 57600 baud");
+        _drivewireBaud = 57600; // Dragon
+        bDragon = true;
+        Debug_printv("A14 and A15 High, (DRAGON) 57600 baud");
     }
 
 #endif /* FORCE_UART_BAUD */
@@ -681,6 +763,7 @@ void systemBus::setup()
     fnDwCom.begin(_drivewireBaud);
     fnDwCom.flush_input();
     Debug_printv("DRIVEWIRE MODE");
+    szNamedMount[0]=(uint8_t)0;
 
 // jeff hack to see if the S3 is getting serial data
     // Debug_println("now receiving data...");

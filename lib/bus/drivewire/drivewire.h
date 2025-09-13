@@ -65,6 +65,7 @@
 #define     OP_FUJI 0xE2
 #define     OP_NET 0xE3
 #define     OP_CPM 0xE4
+#define     OP_NAMEOBJ_MNT 0x01
 
 #define FEATURE_EMCEE    0x01
 #define FEATURE_DLOAD    0x02
@@ -197,6 +198,8 @@ private:
     drivewireCassette *_cassetteDev = nullptr;
     drivewireCPM *_cpmDev = nullptr;
     drivewirePrinter *_printerdev = nullptr;
+    uint8_t szNamedMount[256];
+    uint8_t bDragon;
 
     void _drivewire_process_cmd();
     void _drivewire_process_queue();
@@ -247,6 +250,7 @@ private:
     void op_serwrite();
     void op_serwritem();
     void op_print();
+    void op_namedobj_mnt();
 
     // int readSector(struct dwTransferData *dp);
     // int writeSector(struct dwTransferData *dp);
