@@ -46,6 +46,10 @@ class FormatError(Enum):
   IllegalTabs = auto()
   CodingStandardViolation = auto()
 
+class DisplayType(Enum):
+  Reformatted = auto()
+  Diff = auto()
+
 ErrorStrings = {
   FormatError.TrailingWhitespace: "Trailing whitespace",
   FormatError.IllegalTabs: "Tab characters",
@@ -65,6 +69,7 @@ def build_argparser():
   group = parser.add_mutually_exclusive_group()
   group.add_argument("--fix", action="store_true", help="rewrite improperly formatted files")
   group.add_argument("--show", action="store_true", help="print reformatted file on stdout")
+  group.add_argument("--diff", action="store_true", help="diff against reformatted")
   return parser
 
 class ClangFormatter:
@@ -72,7 +77,15 @@ class ClangFormatter:
   FORMAT_OVERRIDES = {
     (".c", ".cpp", ".cc", ".cxx"): {
       'AllowShortBlocksOnASingleLine': "false",
+      'AllowShortFunctionsOnASingleLine': "None",
     },
+    tuple(TYPES): {
+      'SpacesBeforeTrailingComments': "1",
+      'AlignTrailingComments': "false",
+      'ReflowComments': "false",
+      'AlignConsecutiveMacros': "true",
+      'PointerAlignment': "Right",
+    }
   }
 
   @staticmethod
@@ -112,10 +125,11 @@ class ClangFormatter:
 
   @staticmethod
   def overrideOptions(extension):
+    all_flags = {}
     for ext_group, flags in ClangFormatter.FORMAT_OVERRIDES.items():
       if extension in ext_group:
-        return flags
-    return []
+        all_flags.update(flags)
+    return all_flags
 
   @staticmethod
   def dictToStyle(config):
@@ -207,6 +221,12 @@ class TextFile:
     formatted = self.reformatted()
     for line in formatted:
       print(line)
+    return
+
+  def diff(self):
+    formatted = self.reformatted()
+    cmd = ["diff", "-c", self.path, "-"]
+    subprocess.run(cmd, input="\n".join(formatted) + "\n", text=True)
     return
 
   def update(self):
@@ -443,7 +463,7 @@ def main():
     setup_hook(repo)
 
   doFix = False
-  doShow = False
+  doShow = None
 
   script_mode = os.path.basename(sys.argv[0])
   if script_mode == "pre-commit":
@@ -454,7 +474,10 @@ def main():
     to_check = repo.getChangedFiles()
   else:
     doFix = args.fix
-    doShow = args.show
+    if args.show:
+      doShow = DisplayType.Reformatted
+    elif args.diff:
+      doShow = DisplayType.Diff
     to_check = args.file
 
   if doShow and len(to_check) > 1:
@@ -470,8 +493,10 @@ def main():
 
     if TextFile.pathIsText(path):
       tfile = TextFile(path, repo.getContents(path))
-      if doShow:
+      if doShow == DisplayType.Reformatted:
         tfile.show()
+      elif doShow == DisplayType.Diff:
+        tfile.diff()
       elif doFix:
         tfile.update()
       else:

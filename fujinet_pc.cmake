@@ -29,9 +29,16 @@ elseif(FUJINET_TARGET STREQUAL "COCO")
     # fujinet.build_board (used by build_webui.py)
     set(FUJINET_BUILD_BOARD fujinet-pc-coco)
     # fujinet.build_bus
-    set(FUJINET_BUILD_BUS IWM)
+    set(FUJINET_BUILD_BUS DRIVEWIRE)
+elseif(FUJINET_TARGET STREQUAL "RS232")
+    # fujinet.build_platform
+    set(FUJINET_BUILD_PLATFORM BUILD_RS232)
+    # fujinet.build_board (used by build_webui.py)
+    set(FUJINET_BUILD_BOARD fujinet-lwm-rs232)
+    # fujinet.build_bus
+    set(FUJINET_BUILD_BUS RS232)
 else()
-    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'ATARI', 'APPLE', or 'COCO'.")
+    message(FATAL_ERROR "Invalid target: '${FUJINET_TARGET}'. Please choose from 'RS232', 'ATARI', 'APPLE', or 'COCO'.")
 endif()
 
 if(FUJINET_TARGET STREQUAL "APPLE")
@@ -163,8 +170,8 @@ set(SOURCES src/main.cpp
     lib/utils/U8Char.h lib/utils/U8Char.cpp
     lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
     lib/hardware/led.h lib/hardware/led.cpp
-    lib/hardware/fnUART.h lib/hardware/fnUART.cpp
-    lib/hardware/fnUARTUnix.cpp lib/hardware/fnUARTWindows.cpp
+    lib/hardware/IOChannel.h lib/hardware/IOChannel.cpp
+    lib/hardware/TTYChannel.h lib/hardware/TTYChannel.cpp
     lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
     lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
     lib/FileSystem/fnFileCache.h lib/FileSystem/fnFileCache.cpp
@@ -376,6 +383,26 @@ if(FUJINET_TARGET STREQUAL "COCO")
     lib/device/drivewire/disk.h lib/device/drivewire/disk.cpp
     lib/device/drivewire/printer.h lib/device/drivewire/printer.cpp
     lib/device/drivewire/printerlist.h lib/device/drivewire/printerlist.cpp
+
+    )
+endif()
+
+if(FUJINET_TARGET STREQUAL "RS232")
+    list(APPEND SOURCES
+
+    lib/bus/rs232/rs232.h lib/bus/rs232/rs232.cpp
+
+    lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
+    lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
+
+    lib/device/rs232/apetime.cpp lib/device/rs232/apetime.h
+    lib/device/rs232/disk.cpp lib/device/rs232/disk.h
+    lib/device/rs232/modem.cpp lib/device/rs232/modem.h
+    lib/device/rs232/network.cpp lib/device/rs232/network.h
+    lib/device/rs232/printer.cpp lib/device/rs232/printer.h
+    lib/device/rs232/printerlist.cpp lib/device/rs232/printerlist.h
+    lib/device/rs232/fuji.cpp lib/device/rs232/fuji.h
+    lib/device/rs232/rs232cpm.cpp lib/device/rs232/rs232cpm.h
 
     )
 endif()

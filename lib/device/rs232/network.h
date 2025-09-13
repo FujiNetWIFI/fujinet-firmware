@@ -41,10 +41,12 @@ public:
      */
     virtual ~rs232Network();
 
+#ifdef ESP_PLATFORM
     /**
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
      */
     portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+#endif /* ESP_PLATFORM */
 
     /**
      * Toggled by the rate limiting timer to indicate that the PROCEED interrupt should
@@ -68,7 +70,7 @@ public:
      * RS232 Read command
      * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
      * fill the rest with nulls and return ERROR.
-     *  
+     *
      * @note It is the channel's responsibility to pad to required length.
      */
     virtual void rs232_read();
@@ -176,10 +178,12 @@ private:
      */
     NetworkStatus status;
 
+#ifdef ESP_PLATFORM
     /**
      * ESP timer handle for the Interrupt rate limiting timer
      */
     esp_timer_handle_t rateTimerHandle = nullptr;
+#endif /* ESP_PLATFORM */
 
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
@@ -231,7 +235,7 @@ private:
      * The channel mode for the currently open RS232 device. By default, it is PROTOCOL, which passes
      * read/write/status commands to the protocol. Otherwise, it's a special mode, e.g. to pass to
      * the JSON or XML parsers.
-     * 
+     *
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
      */
@@ -273,6 +277,7 @@ private:
     */
    void create_url_parser();
 
+#ifdef ESP_PLATFORM
     /**
      * Start the Interrupt rate limiting timer
      */
@@ -282,15 +287,16 @@ private:
      * Stop the Interrupt rate limiting timer
      */
     void timer_stop();
+#endif /* ESP_PLATFORM */
 
     /**
      * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
      * and figure out one of three states:
-     * 
+     *
      * (1) we were passed D1:FOO.TXT,N:FOO.TXT, the second arg is ours.
      * (2) we were passed N:FOO.TXT,D1:FOO.TXT, the first arg is ours.
      * (3) we were passed N1:FOO.TXT,N2:FOO.TXT, get whichever one corresponds to our device ID.
-     * 
+     *
      * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
      */
     void processCommaFromDevicespec();
@@ -341,7 +347,7 @@ private:
 
     /**
      * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
-     * Essentially, call the protocol action 
+     * Essentially, call the protocol action
      * and based on the return, signal rs232_complete() or error().
      */
     void rs232_special_00();

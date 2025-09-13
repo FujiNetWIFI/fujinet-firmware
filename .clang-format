@@ -1,6 +1,7 @@
 BasedOnStyle: LLVM
 ColumnLimit: 95
 AllowShortBlocksOnASingleLine: true
+AllowShortFunctionsOnASingleLine: None
 AlwaysBreakAfterReturnType: None
 IncludeBlocks: Preserve
 SortIncludes: false

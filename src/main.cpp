@@ -149,7 +149,7 @@ void main_setup(int argc, char *argv[])
     //You can change the baud rate and pin numbers similar to Serial.begin() here.
     console.begin(DEBUG_SPEED);
 #else
-    Serial.begin(DEBUG_SPEED);
+    Serial.begin(ChannelConfig().baud(DEBUG_SPEED).deviceID(FN_UART_DEBUG));
 #endif
 
 #ifdef DEBUG
@@ -310,22 +310,22 @@ void main_setup(int argc, char *argv[])
     // Setup IEC Bus
     IEC.setup();
 
-    theFuji.setup(&IEC);
+    theFuji->setup(&IEC);
     //sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
 
 #endif // BUILD_IEC
 
 #ifdef BUILD_LYNX
-    theFuji.setup(&ComLynx);
+    theFuji->setup(&ComLynx);
     ComLynx.setup();
 #endif
 
 #ifdef BUILD_RS232
-    theFuji.setup(&RS232);
-    RS232.setup();
-    RS232.addDevice(&theFuji,0x70);
+    theFuji.setup();
+    SYSTEM_BUS.setup();
+    SYSTEM_BUS.addDevice(&theFuji, RS232_DEVICEID_FUJINET);
     if (Config.get_apetime_enabled() == true)
-        RS232.addDevice(&apeTime, RS232_DEVICEID_APETIME); // Clock for Atari, APETime compatible, but extended for additional return types
+        SYSTEM_BUS.addDevice(&apeTime, RS232_DEVICEID_APETIME); // Clock for Atari, APETime compatible, but extended for additional return types
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -338,7 +338,7 @@ void main_setup(int argc, char *argv[])
     rs232Printer *ptr = new rs232Printer(ptrfs, ptype);
     fnPrinters.set_entry(0, ptr, ptype, 0);
 
-    RS232.addDevice(ptr, RS232_DEVICEID_PRINTER); // P:
+    SYSTEM_BUS.addDevice(ptr, RS232_DEVICEID_PRINTER); // P:
 #endif
 
 #ifdef BUILD_RC2014
