@@ -185,6 +185,8 @@ setSerialCommand(current_serial_command);
 setSerialProceed(current_serial_proceed);
 {% elif tweaks.platform == "COCO" %}
 selectListValue("select_serial_baud", current_serial_baud);
+{% elif tweaks.platform == "RS232" %}
+selectListValue("select_serial_baud", current_serial_baud);
 {% endif %}
 {% endif %}
 

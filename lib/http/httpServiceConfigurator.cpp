@@ -572,6 +572,17 @@ void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud
 #endif
     }
 }
+#elif defined(BUILD_RS232)
+    // RS232 Baud Rate
+    void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud, std::string command, std::string proceed)
+    {
+        if (!baud.empty())
+        {
+            //Debug_printf("Set RS232 baud: %s\n", atoi(baud.c_str()));
+            Config.store_rs232_baud(atoi(baud.c_str()));
+            Config.save();
+        }
+    }
 #endif // !ESP_PLATFORM
 
 void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string boip_host_port)
@@ -653,7 +664,7 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
 
     free(decoded_buf);
 
-#ifndef ESP_PLATFORM
+#if !defined(ESP_PLATFORM) || defined(BUILD_RS232)
     bool update_serial = false;
     std::string str_serial_port;
     std::string str_serial_baud;
@@ -769,7 +780,7 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         {
             config_ng(i->second);
         }
-#ifndef ESP_PLATFORM
+#if !defined(ESP_PLATFORM) || defined(BUILD_RS232)
         else if (i->first.compare("serial_port") == 0)
         {
             str_serial_port = i->second;
@@ -813,7 +824,7 @@ int fnHttpServiceConfigurator::process_config_post(const char *postdata, size_t 
         udpstream_activate();
     }
 
-#ifndef ESP_PLATFORM
+#if !defined(ESP_PLATFORM) || defined(BUILD_RS232)
     if (update_serial)
     {
         config_serial(str_serial_port, str_serial_baud, str_serial_command, str_serial_proceed);
