@@ -121,7 +121,7 @@ void TTYChannel::end()
     return;
 }
 
-void TTYChannel::update_fifo()
+void TTYChannel::updateFIFO()
 {
     int avail = 0;
 
@@ -418,5 +418,53 @@ size_t TTYChannel::si_recv(void *buffer, size_t length)
     return rxbytes;
 }
 #endif /* UNUSED */
+
+bool TTYChannel::getDTR()
+{
+    int status;
+
+    if (ioctl(_fd, TIOCMGET, &status) == -1)
+        return false;
+
+    return !!(status & TIOCM_DSR);
+}
+
+void TTYChannel::setDSR(bool state)
+{
+    int status;
+
+    if (ioctl(_fd, TIOCMGET, &status) == -1)
+        return;
+
+    status &= ~TIOCM_DTR;
+    if (state)
+        status |= TIOCM_DTR;
+    ioctl(_fd, TIOCMSET, &status);
+    return;
+}
+
+bool TTYChannel::getRTS()
+{
+    int status;
+
+    if (ioctl(_fd, TIOCMGET, &status) == -1)
+        return false;
+
+    return !!(status & TIOCM_CTS);
+}
+
+void TTYChannel::setCTS(bool state)
+{
+    int status;
+
+    if (ioctl(_fd, TIOCMGET, &status) == -1)
+        return;
+
+    status &= ~TIOCM_RTS;
+    if (state)
+        status |= TIOCM_RTS;
+    ioctl(_fd, TIOCMSET, &status);
+    return;
+}
 
 #endif /* ITS_A_UNIX_SYSTEM_I_KNOW_THIS */

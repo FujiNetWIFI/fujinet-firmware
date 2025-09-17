@@ -585,15 +585,20 @@ void systemBus::service()
     // network device.
     if (!_netDev.empty())
     {
+        bool hasUpdate = false;
         for (auto it=_netDev.begin(); it != _netDev.end(); ++it)
         {
-            it->second->poll_interrupt();
+            if (it->second->poll_interrupt())
+            {
+                hasUpdate = true;
+                break;
+            }
         }
+        _port->setDSR(!hasUpdate);
     }
 
     if (_port->available())
         _drivewire_process_cmd();
-
 
     // dload.dload_process();
 }

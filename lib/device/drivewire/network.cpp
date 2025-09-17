@@ -143,7 +143,7 @@ void drivewireNetwork::open()
     }
 
     deviceSpec = std::string(tmp);
-    
+
     channelMode = PROTOCOL;
 
     // Delete timer if already extant.
@@ -266,7 +266,7 @@ void drivewireNetwork::close()
 #ifdef ESP_PLATFORM
     Debug_printv("After protocol delete %lu\n",esp_get_free_internal_heap_size());
 #endif
-    
+
     //SYSTEM_BUS.write(ns.error);
 }
 
@@ -316,7 +316,7 @@ void drivewireNetwork::read()
 
     // And set response buffer.
     response += *receiveBuffer;
- 
+
     // Remove from receive buffer and shrink.
     receiveBuffer->erase(0, num_bytes);
     receiveBuffer->shrink_to_fit();
@@ -586,7 +586,7 @@ void drivewireNetwork::set_prefix()
     {
         prefix.clear();
     }
-    else 
+    else
     {
         // For the remaining cases, append trailing slash if not found
         if (prefix[prefix.size()-1] != '/')
@@ -674,8 +674,8 @@ void drivewireNetwork::set_login()
         return;
     }
 
-    login = std::string(tmp,256);    
-    
+    login = std::string(tmp,256);
+
     Debug_printf("drivewireNetwork::set_login(%s)\n",login.c_str());
 }
 
@@ -1004,8 +1004,11 @@ void drivewireNetwork::assert_interrupt()
 /**
  * Check to see if PROCEED needs to be asserted, and assert if needed (continue toggling PROCEED).
  */
-void drivewireNetwork::poll_interrupt()
+bool drivewireNetwork::poll_interrupt()
 {
+#if 1
+    return ns.rxBytesWaiting > 0 || ns.connected == 0;
+#else
     if (protocol != nullptr)
     {
         if (protocol->interruptEnable == false)
@@ -1034,6 +1037,7 @@ else
         reservedSave = ns.connected;
         errorSave = ns.error;
     }
+#endif // 0
 }
 
 void drivewireNetwork::send_error()
@@ -1104,7 +1108,7 @@ void drivewireNetwork::parse_and_instantiate_protocol()
         Debug_printf("Could not open protocol. spec: >%s<, url: >%s<\n", deviceSpec.c_str(), urlParser->mRawUrl.c_str());
         ns.error = NETWORK_ERROR_GENERAL;
         return;
-    }  
+    }
 }
 
 /**
@@ -1260,7 +1264,7 @@ void drivewireNetwork::json_query()
 
     for (int i=0;i<in_string.length();i++)
         Debug_printf("%02X ",(unsigned char)in_string[i]);
-    
+
     Debug_printf("\n");
 
     Debug_printf("Query set to >%s<\r\n", in_string.c_str());
@@ -1299,7 +1303,7 @@ void drivewireNetwork::process()
     cmdFrame.aux2 = (uint8_t)SYSTEM_BUS.read();
 
     Debug_printf("comnd: '%c' %u,%u,%u\n",cmdFrame.comnd,cmdFrame.comnd,cmdFrame.aux1,cmdFrame.aux2);
-    
+
     switch (cmdFrame.comnd)
     {
     case 0x00: // Ready?

@@ -598,7 +598,7 @@ bool BeckerSocket::wait_sock_writable(uint32_t timeout_ms)
     return true;
 }
 
-void BeckerSocket::update_fifo()
+void BeckerSocket::updateFIFO()
 {
     poll_connection(1);
 

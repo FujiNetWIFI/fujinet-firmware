@@ -14,7 +14,7 @@ enum BeckerState {
     BeckerWaitConn,
     BeckerConnected,
     BeckerSuspended,
-};    
+};
 
 class BeckerSocket : public IOChannel
 {
@@ -65,22 +65,24 @@ protected:
     bool wait_sock_readable(uint32_t timeout_ms, bool listener=false);
     bool wait_sock_writable(uint32_t timeout_ms);
 
-    void update_fifo() override;
+    void updateFIFO() override;
     size_t dataOut(const void *buffer, size_t size) override;
-    
+
 public:
     BeckerSocket();
     virtual ~BeckerSocket();
     void begin(std::string host, int baud);
     void end() override;
 
-    // mimic UARTManager, baudrate is not used by BeckerSocket
     void setBaudrate(uint32_t baud) override { _baud = baud; }
     uint32_t getBaudrate() override { return _baud; }
 
+    bool getDTR() { return false; }
+    void setDSR(bool state) { return; }
+    bool getRTS() { return false; }
+    void setCTS(bool state) { return; }
+
     void flush() override;
 };
-
-
 
 #endif // BECKERSOCKET_H

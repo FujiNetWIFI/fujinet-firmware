@@ -36,7 +36,7 @@ private:
     uint32_t _baud;
 
 protected:
-    void update_fifo() override;
+    void updateFIFO() override;
     size_t dataOut(const void *buffer, size_t length) override;
 
 public:
@@ -54,7 +54,13 @@ public:
     bool waitReadable(uint32_t timeout_ms);
 #endif /* UNUSED */
 
-    bool dtrState();
+    // FujiNet acts as modem (DCE), computer serial ports are DTE.
+    // API names follow the modem (DCE) view, but the actual RS-232 pin differs.
+    bool getDTR();           // modem DTR input  → actually reads RS-232 DSR pin
+    void setDSR(bool state); // modem DSR output → actually drives RS-232 DTR pin
+    bool getRTS();           // modem RTS input  → actually reads RS-232 CTS pin
+    void setCTS(bool state); // modem CTS output → actually drives RS-232 RTS pin
+
     void setPort(std::string device);
     std::string getPort();
 

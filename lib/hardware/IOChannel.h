@@ -29,7 +29,7 @@ protected:
 
     // Must be implemented by subclass
     virtual size_t dataOut(const void *buffer, size_t length) = 0;
-    virtual void update_fifo() = 0;
+    virtual void updateFIFO() = 0;
 
 public:
     // begin() and arguments vary by subclass so not declared here
@@ -39,6 +39,11 @@ public:
 
     virtual uint32_t getBaudrate() = 0;
     virtual void setBaudrate(uint32_t baud) = 0;
+
+    virtual bool getDTR() = 0;
+    virtual void setDSR(bool state) = 0;
+    virtual bool getRTS() = 0;
+    virtual void setCTS(bool state) = 0;
 
     // Handled by IOChannel, not implemented by subclass
     size_t available();
