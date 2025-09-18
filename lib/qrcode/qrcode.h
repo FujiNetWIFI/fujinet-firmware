@@ -56,6 +56,7 @@
 
 // If set to non-zero, this library can ONLY produce QR codes at that version
 // This saves a lot of dynamic memory, as the codeword tables are skipped
+#define VERSION_AUTO       0
 #ifndef LOCK_VERSION
 #define LOCK_VERSION       0
 #endif
@@ -75,16 +76,15 @@ typedef struct QRCode {
 extern "C"{
 #endif  /* __cplusplus */
 
-
-
-uint16_t qrcode_getBufferSize(uint8_t version);
-
-int8_t qrcode_initText(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8_t ecc, const char *data);
-int8_t qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8_t ecc, uint8_t *data, uint16_t length);
+uint8_t qrcode_initText(QRCode *qrcode, const char *data);
+uint8_t qrcode_initBytes(QRCode *qrcode, uint8_t *data, uint16_t length);
 
 bool qrcode_getModule(QRCode *qrcode, uint8_t x, uint8_t y);
-int8_t qrcode_minVersion(uint8_t ecc, const char *data);
 
+uint8_t qrcode_determineMode(const char *data, uint16_t length);
+uint16_t qrcode_dataCapacity(uint8_t version, uint8_t ecc);
+uint8_t qrcode_minVersion(uint8_t ecc, uint8_t mode, const char *data, uint16_t length);
+uint16_t qrcode_encodeBase45(unsigned char * dst, uint16_t *_max_dst_len, const unsigned char * src, uint16_t src_len);
 
 #ifdef __cplusplus
 }
