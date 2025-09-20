@@ -93,14 +93,14 @@ void virtualDevice::comlynx_send(uint8_t b)
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
     //Debug_printf("comlynx_send_buffer: %d %s\n", len, buf);
-    Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]);
+    Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[len-1]);
     
     // Wait for idle only when in UDPStream mode
     if (ComLynx._udpDev->udpstreamActive)
         ComLynx.wait_for_idle();
     
-    fnUartBUS.write(buf,len);
-    fnUartBUS.readBytes(buf,len);
+    fnUartBUS.write(buf, len);
+    fnUartBUS.readBytes(buf, len);
 }
 
 bool virtualDevice::comlynx_recv_ck()

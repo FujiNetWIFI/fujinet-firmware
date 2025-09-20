@@ -122,8 +122,7 @@ void lynxFuji::comlynx_net_scan_networks()
 void lynxFuji::comlynx_net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
-    //scanStarted = false;
-
+  
     uint8_t n = comlynx_recv();
 
     // Get packet checksum
@@ -1418,8 +1417,6 @@ void lynxFuji::comlynx_device_enable_status()
         comlynx_response_nack();
         return;
     }
-
-    //ComLynx.start_time = esp_timer_get_time();
 
     if (ComLynx.deviceExists(d))
         comlynx_response_ack();
