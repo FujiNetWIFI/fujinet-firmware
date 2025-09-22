@@ -316,7 +316,7 @@ void systemBus::_comlynx_process_cmd()
 
     uint8_t d = b & 0x0F;
 
-    Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0));
+    Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0)>>4);
 
     // Find device ID and pass control to it
     if (_daisyChain.count(d) < 1)

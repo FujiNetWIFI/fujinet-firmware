@@ -84,7 +84,7 @@ mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
     _media_fileh = f;
     _mediatype = MEDIATYPE_ROM;
     _media_num_blocks = disksize / MEDIA_BLOCK_SIZE;
-    if (_media_num_blocks % MEDIA_BLOCK_SIZE)       // handle extra bytes
+    if (disksize % MEDIA_BLOCK_SIZE)       // handle extra bytes
         _media_num_blocks++;
 
     return _mediatype;
