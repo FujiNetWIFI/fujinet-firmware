@@ -62,6 +62,7 @@
 # include "drivewire/mediaType.h"
 # include "drivewire/mediaTypeDSK.h"
 # include "drivewire/mediaTypeMRM.h"
+# include "drivewire/mediaTypeVDK.h"
 #endif
 
 #ifdef NEW_TARGET
