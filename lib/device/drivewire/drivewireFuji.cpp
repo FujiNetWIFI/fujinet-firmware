@@ -1597,8 +1597,16 @@ void drivewireFuji::insert_boot_device(uint8_t d)
 {
     Debug_printf("insert_boot_device()\n");
 
-    const char *config_atr = "/autorun.dsk";
+    const char *config_atr_coco = "/autorun.dsk";
+    const char *config_atr_dragon = "/autorund.vdk";
     const char *mount_and_boot_atr = "/mount-and-boot.dsk";
+    bool bIsDragon = false;
+#ifdef ESP_PLATFORM
+
+    fnSystem.set_pin_mode(PIN_EPROM_A14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+    fnSystem.set_pin_mode(PIN_EPROM_A15, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
+    bIsDragon = (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_HIGH && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_HIGH);
+#endif  /* ESP_PLATFORM */
 
     fnFile *fBoot = NULL;
     size_t sz = 0;
@@ -1608,7 +1616,14 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     switch (d)
     {
     case 0:
-        fBoot = fsFlash.fnfile_open(config_atr);
+        if  (bIsDragon)
+        {
+            fBoot = fsFlash.fnfile_open(config_atr_dragon);
+        }
+        else
+        {
+            fBoot = fsFlash.fnfile_open(config_atr_coco);
+        }
         break;
     case 1:
         fBoot = fsFlash.fnfile_open(mount_and_boot_atr);
@@ -1620,7 +1635,7 @@ void drivewireFuji::insert_boot_device(uint8_t d)
         fnio::fseek(fBoot, 0, SEEK_END);
         sz = fnio::ftell(fBoot);
         fnio::fseek(fBoot, 0, SEEK_SET);
-        _bootDisk.mount(fBoot, config_atr, sz);
+        _bootDisk.mount(fBoot, bIsDragon ? config_atr_dragon : config_atr_coco, sz);
 
         _bootDisk.is_config_device = true;
         _bootDisk.device_active = true;

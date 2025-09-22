@@ -209,6 +209,9 @@ private:
     drivewireCassette *_cassetteDev = nullptr;
     drivewireCPM *_cpmDev = nullptr;
     drivewirePrinter *_printerdev = nullptr;
+    FILE *pNamedObjFp;
+    uint8_t szNamedMount[256];
+    uint8_t bDragon;
 
     void _drivewire_process_cmd();
     void _drivewire_process_queue();
@@ -259,6 +262,7 @@ private:
     void op_serwrite();
     void op_serwritem();
     void op_print();
+    void op_namedobj_mnt();
 
     // int readSector(struct dwTransferData *dp);
     // int writeSector(struct dwTransferData *dp);
