@@ -227,6 +227,14 @@ void rc2014Network::write()
     rc2014_recv_buffer(response, num_bytes);
     rc2014_send_ack();
 
+    // If protocol isn't connected, then return not connected.
+    if (protocol == nullptr)
+    {
+        network_status.error = NETWORK_ERROR_NOT_CONNECTED;
+        rc2014_send_error();
+        return;
+    }
+
     *transmitBuffer += string((char *)response, num_bytes);
     err = write_channel(num_bytes);
 
@@ -254,7 +262,7 @@ void rc2014Network::read()
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
     {
-        network_status.error = NETWORK_ERROR_COULD_NOT_ALLOCATE_BUFFERS;
+        network_status.error = NETWORK_ERROR_NOT_CONNECTED;
         rc2014_send_error();
         return;
     }
