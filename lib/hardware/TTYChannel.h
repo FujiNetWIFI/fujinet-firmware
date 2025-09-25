@@ -34,6 +34,7 @@ private:
     int _fd;
     std::string _device;
     uint32_t _baud;
+    bool _dtrState = true, _rtsState = true;
 
 protected:
     void updateFIFO() override;

@@ -14,6 +14,15 @@
 #include <string.h>
 #include <string>
 
+#if defined(ESP_PLATFORM)
+#include <esp_timer.h>
+#define GET_TIMESTAMP() esp_timer_get_time()
+#elif defined(ITS_A_UNIX_SYSTEM_I_KNOW_THIS)
+#include <sys/time.h>
+#define GET_TIMESTAMP() ({ struct timeval _tv; gettimeofday(&_tv, NULL); \
+            _tv.tv_sec * ((uint64_t) 1000000) + _tv.tv_usec; })
+#endif /* ESP_PLATFORM */
+
 class IOChannel
 {
 private:

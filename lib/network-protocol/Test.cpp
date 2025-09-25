@@ -97,7 +97,9 @@ bool NetworkProtocolTest::write(unsigned short len)
 
 bool NetworkProtocolTest::status(NetworkStatus *status)
 {
+#if 0
     status->rxBytesWaiting = test_data.length();
+#endif
     status->connected = 1;
     status->error = error;
 

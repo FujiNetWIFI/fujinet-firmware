@@ -234,6 +234,8 @@ public:
 
     virtual off_t seek(off_t offset, int whence);
 
+    virtual size_t available() { return receiveBuffer->size(); }
+
     /**
      * Pointer to current login;
      */

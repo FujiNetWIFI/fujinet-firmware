@@ -184,10 +184,12 @@ bool NetworkProtocol::status(NetworkStatus *status)
     if (fromInterrupt)   
         return false;
  
-    if (!is_write && receiveBuffer->length() == 0 && status->rxBytesWaiting > 0)
-        read(status->rxBytesWaiting);
+    if (!is_write && receiveBuffer->length() == 0 && available() > 0)
+        read(available());
 
+#if 0
     status->rxBytesWaiting = receiveBuffer->length();
+#endif
 
     return false;
 }

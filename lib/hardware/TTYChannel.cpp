@@ -2,7 +2,6 @@
 
 #ifdef ITS_A_UNIX_SYSTEM_I_KNOW_THIS
 
-#include "../../include/debug.h"
 #include <fcntl.h> // Contains file controls like O_RDWR
 #include <unistd.h>
 
@@ -12,6 +11,8 @@
 #elif defined(__APPLE__)
 #include <IOKit/serial/ioss.h>
 #endif
+
+#include "../../include/debug.h"
 
 #define UART_PROBE_DEV1 "/dev/ttyUSB0"
 #define UART_PROBE_DEV2 "/dev/ttyS0"
@@ -133,7 +134,6 @@ void TTYChannel::updateFIFO()
     size_t old_len = _fifo.size();
     _fifo.resize(old_len + avail);
     int result = ::read(_fd, &_fifo[old_len], avail);
-    Debug_printf("TTY READ: %i\n", result);
     if (result < 0)
         result = 0;
     _fifo.resize(old_len + result);
@@ -433,6 +433,9 @@ void TTYChannel::setDSR(bool state)
 {
     int status;
 
+
+    if (state == _dtrState)
+        return;
     if (ioctl(_fd, TIOCMGET, &status) == -1)
         return;
 
@@ -440,6 +443,8 @@ void TTYChannel::setDSR(bool state)
     if (state)
         status |= TIOCM_DTR;
     ioctl(_fd, TIOCMSET, &status);
+    _dtrState = state;
+    Debug_printf("New DTR: %d\n", state);
     return;
 }
 
@@ -457,6 +462,8 @@ void TTYChannel::setCTS(bool state)
 {
     int status;
 
+    if (state == _rtsState)
+        return;
     if (ioctl(_fd, TIOCMGET, &status) == -1)
         return;
 
@@ -464,6 +471,7 @@ void TTYChannel::setCTS(bool state)
     if (state)
         status |= TIOCM_RTS;
     ioctl(_fd, TIOCMSET, &status);
+    _rtsState = state;
     return;
 }
 

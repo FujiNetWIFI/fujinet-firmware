@@ -133,7 +133,7 @@ private:
      * Return if bytes available by injecting into RX buffer.
      * @return number of bytes available
      */
-    unsigned short available();
+    size_t available() override;
 };
 
 #endif /* NETWORKPROTOCOL_SSH */

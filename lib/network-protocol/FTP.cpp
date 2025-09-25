@@ -213,7 +213,6 @@ bool NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
 
 bool NetworkProtocolFTP::status_file(NetworkStatus *status)
 {
-    status->rxBytesWaiting = ftp->data_available() > 65535 ? 65535 : ftp->data_available();
     status->connected = ftp->data_connected();
     fserror_to_error();
     status->error = error;

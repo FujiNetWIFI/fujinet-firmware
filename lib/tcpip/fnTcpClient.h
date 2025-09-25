@@ -8,12 +8,19 @@
 #include "compat_inet.h"
 
 class fnTcpClientSocketHandle;
+#if 0
 class fnTcpClientRxBuffer;
+#endif
 
 class fnTcpClient
 {
 protected:
+#if 0
     std::shared_ptr<fnTcpClientRxBuffer> _rxBuffer;
+#else
+    std::string _rxBuffer;
+    int _fd;
+#endif
     std::shared_ptr<fnTcpClientSocketHandle> _clientSocketHandle;
     bool _connected = false;
 
@@ -36,7 +43,8 @@ public:
     int read(uint8_t *buf, size_t size);
     int read_until(char terminator, char *buf, size_t size);
 
-    int available();
+    void updateFIFO();
+    size_t available();
     int peek();
     void flush();
     uint8_t connected();

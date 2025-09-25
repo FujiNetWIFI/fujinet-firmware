@@ -242,7 +242,6 @@ bool NetworkProtocolSSH::write(unsigned short len)
 
 bool NetworkProtocolSSH::status(NetworkStatus *status)
 {
-    status->rxBytesWaiting = available();
     bool isEOF = ssh_channel_is_eof(channel) == 0;
     status->connected = isEOF ? 1 : 0;
     status->error = isEOF ? 1 : NETWORK_ERROR_END_OF_FILE;
@@ -270,7 +269,7 @@ bool NetworkProtocolSSH::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
     return false;
 }
 
-unsigned short NetworkProtocolSSH::available()
+size_t NetworkProtocolSSH::available()
 {
     if (receiveBuffer->length() == 0)
     {

@@ -37,6 +37,7 @@
 #define FNTCP_SELECT_TIMEOUT_US (1000000)
 #define FNTCP_FLUSH_BUFFER_SIZE (1024)
 
+#if 0
 class fnTcpClientRxBuffer
 {
 private:
@@ -192,6 +193,7 @@ public:
         return _fill - _pos + r_available();
     }
 };
+#endif
 
 class fnTcpClientSocketHandle
 {
@@ -213,9 +215,14 @@ public:
 
 fnTcpClient::fnTcpClient(int fd)
 {
+    _fd = fd;
     _connected = true;
     _clientSocketHandle.reset(new fnTcpClientSocketHandle(fd));
+#if 0
     _rxBuffer.reset(new fnTcpClientRxBuffer(fd));
+#else
+    _rxBuffer.clear();
+#endif
 }
 
 fnTcpClient::~fnTcpClient()
@@ -226,7 +233,9 @@ fnTcpClient::~fnTcpClient()
 void fnTcpClient::stop()
 {
     _clientSocketHandle = nullptr;
+#if 0
     _rxBuffer = nullptr;
+#endif
     _connected = false;
 }
 
@@ -357,7 +366,11 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
 #endif
     // Create a socket handle and recieve buffer objects
     _clientSocketHandle.reset(new fnTcpClientSocketHandle(sockfd));
+#if 0
     _rxBuffer.reset(new fnTcpClientRxBuffer(sockfd));
+#else
+    _rxBuffer.clear();
+#endif
     _connected = true;
 
     return 1;
@@ -529,6 +542,7 @@ size_t fnTcpClient::write(uint8_t data)
 // Fill buffer with read data
 int fnTcpClient::read(uint8_t *buf, size_t size)
 {
+#if 0
     int res = -1;
     res = _rxBuffer->read(buf, size);
     if (_rxBuffer->failed())
@@ -537,6 +551,17 @@ int fnTcpClient::read(uint8_t *buf, size_t size)
         stop();
     }
     return res;
+#else
+    size_t rlen;
+
+    rlen = std::min(available(), size);
+    if (rlen)
+    {
+        memcpy(buf, _rxBuffer.data(), rlen);
+        _rxBuffer.erase(0, rlen);
+    }
+    return rlen;
+#endif
 }
 
 // Read one byte of data. Return read byte or negative value for error
@@ -571,6 +596,7 @@ int fnTcpClient::read_until(char terminator, char *buf, size_t size)
 // Peek at next byte available for reading
 int fnTcpClient::peek()
 {
+#if 0
     int res = _rxBuffer->peek();
     if (_rxBuffer->failed())
     {
@@ -578,11 +604,55 @@ int fnTcpClient::peek()
         stop();
     }
     return res;
+#else
+    if (_rxBuffer.size())
+        return _rxBuffer[0];
+    return -1;
+#endif
+}
+
+void fnTcpClient::updateFIFO()
+{
+    // check if socket is still connected
+    if (!connected())
+    {
+        // connection was closed or it has an error
+        return;
+    }
+
+#if defined(_WIN32)
+    unsigned long count;
+    int res = ioctlsocket(_fd, FIONREAD, &count);
+    res = res != 0 ? -1 : count;
+#else
+    int count;
+    int res = ioctl(_fd, FIONREAD, &count);
+    res = res < 0 ? -1 : count;
+#endif
+
+    if (res > 0)
+    {
+        ssize_t result;
+
+        for (count = res; count; count -= result)
+        {
+            size_t old_len = _rxBuffer.size();
+            _rxBuffer.resize(old_len + count);
+            result = recv(_fd, &_rxBuffer[old_len], count, 0);
+            if (result < 0)
+                result = 0;
+            _rxBuffer.resize(old_len + result);
+        }
+
+    }
+
+    return;
 }
 
 // Return number of bytes available for reading
-int fnTcpClient::available()
+size_t fnTcpClient::available()
 {
+#if 0
     if (!_rxBuffer)
         return 0;
 
@@ -593,6 +663,10 @@ int fnTcpClient::available()
         stop();
     }
     return res;
+#else
+    updateFIFO();
+    return _rxBuffer.size();
+#endif
 }
 
 // Send all pending data and clear receive buffer

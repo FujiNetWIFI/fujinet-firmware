@@ -161,19 +161,15 @@ bool NetworkProtocolUDP::write(unsigned short len)
 bool NetworkProtocolUDP::status(NetworkStatus *status)
 {
 
-    if (receiveBuffer->length() > 0)
-        status->rxBytesWaiting = receiveBuffer->length();
-    else
+    if (receiveBuffer->length() == 0)
     {
         in_addr_t addr = udp.remoteIP();
 
-        status->rxBytesWaiting = udp.parsePacket();
-        
         // Only change dest if we need to.
 #ifdef ESP_PLATFORM
         if (udp.remoteIP() != IPADDR_NONE)
 #else
-        if (status->rxBytesWaiting > 0 && addr != IPADDR_NONE)
+        if (available() > 0 && addr != IPADDR_NONE)
 #endif
         {
             dest = std::string(compat_inet_ntoa(addr));

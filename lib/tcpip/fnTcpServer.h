@@ -23,14 +23,14 @@ class fnTcpServer
 
     int begin(uint16_t port=0);
 
-    fnTcpClient accept(){ return available(); }
+    fnTcpClient accept(){ return client(); }
     void setNoDelay(bool nodelay) { _noDelay = nodelay; };
     bool getNoDelay() {return _noDelay; };
     int setTimeout(uint32_t seconds);
     void setMaxClients(int maxClients) { _max_clients = maxClients; }
 
     bool hasClient();
-    fnTcpClient available();
+    fnTcpClient client();
 
     void stop();
 

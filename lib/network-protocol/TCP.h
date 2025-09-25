@@ -133,7 +133,8 @@ protected:
      * @param status pointer to destination NetworkStatus object
      */
     void status_client(NetworkStatus* status);
-    
+
+    virtual size_t available() override;
 };
 
 #endif /* NETWORKPROTOCOL_TCP */

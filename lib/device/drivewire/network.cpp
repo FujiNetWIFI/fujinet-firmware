@@ -16,6 +16,8 @@
 #include "utils.h"
 
 #include "status_error_codes.h"
+#include "Protocol.h"
+#ifdef UNUSED
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -25,22 +27,10 @@
 #include "HTTP.h"
 #include "SSH.h"
 #include "SMB.h"
+#endif /* UNUSED */
+#include "IOChannel.h" // for GET_TIMESTAMP()
 
 using namespace std;
-
-/**
- * Static callback function for the interrupt rate limiting timer. It sets the interruptCD
- * flag to true. This is set to false when the interrupt is serviced.
- */
-#ifdef ESP_PLATFORM
-void onTimer(void *info)
-{
-    drivewireNetwork *parent = (drivewireNetwork *)info;
-    portENTER_CRITICAL_ISR(&parent->timerMux);
-    parent->interruptCD = !parent->interruptCD;
-    portEXIT_CRITICAL_ISR(&parent->timerMux);
-}
-#endif
 
 /**
  * Constructor
@@ -78,41 +68,6 @@ drivewireNetwork::~drivewireNetwork()
     protocol = nullptr;
 }
 
-/**
- * Start the Interrupt rate limiting timer
- */
-void drivewireNetwork::timer_start()
-{
-#ifdef ESP_PLATFORM
-    esp_timer_create_args_t tcfg;
-    tcfg.arg = this;
-    tcfg.callback = onTimer;
-    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
-    tcfg.name = nullptr;
-    esp_timer_create(&tcfg, &rateTimerHandle);
-    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
-#else
-    lastInterruptMs = fnSystem.millis() - timerRate;
-#endif
-}
-
-/**
- * Stop the Interrupt rate limiting timer
- */
-void drivewireNetwork::timer_stop()
-{
-#ifdef ESP_PLATFORM
-    // Delete existing timer
-    if (rateTimerHandle != nullptr)
-    {
-        Debug_println("Deleting existing rateTimer\n");
-        esp_timer_stop(rateTimerHandle);
-        esp_timer_delete(rateTimerHandle);
-        rateTimerHandle = nullptr;
-    }
-#endif
-}
-
 /** DRIVEWIRE COMMANDS ***************************************************************/
 
 void drivewireNetwork::ready()
@@ -127,7 +82,7 @@ void drivewireNetwork::ready()
  */
 void drivewireNetwork::open()
 {
-    Debug_printf("drivewireNetwork::sio_open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
+    Debug_printf("drivewireNetwork::open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
 
     char tmp[256];
 
@@ -145,9 +100,6 @@ void drivewireNetwork::open()
     deviceSpec = std::string(tmp);
 
     channelMode = PROTOCOL;
-
-    // Delete timer if already extant.
-    timer_stop();
 
     // persist aux1/aux2 values
     open_aux1 = cmdFrame.aux1;
@@ -206,12 +158,6 @@ void drivewireNetwork::open()
         return;
     }
 
-    // Everything good, start the interrupt timer!
-    timer_start();
-
-    // Go ahead and send an interrupt, so CoCo knows to get ns.
-    protocol->forceStatus = true;
-
     // TODO: Finally, go ahead and let the parsers know
     json = new FNJSON();
     json->setLineEnding("\x0a");
@@ -230,7 +176,7 @@ void drivewireNetwork::open()
  */
 void drivewireNetwork::close()
 {
-    Debug_printf("drivewireNetwork::sio_close()\n");
+    Debug_printf("drivewireNetwork::close()\n");
 
     ns.reset();
 
@@ -282,6 +228,8 @@ void drivewireNetwork::read()
     uint8_t num_bytesh = cmdFrame.aux1;
     uint8_t num_bytesl = cmdFrame.aux2;
     uint16_t num_bytes = (num_bytesh * 256) + num_bytesl;
+
+    readAck = GET_TIMESTAMP();
 
     if (!num_bytes)
     {
@@ -457,9 +405,12 @@ void drivewireNetwork::status_local()
     uint8_t ipNetmask[4];
     uint8_t ipGateway[4];
     uint8_t ipDNS[4];
-    uint8_t default_status[4] = {0, 0, 0, 0};
+    NDeviceStatus status {};
 
-    Debug_printf("drivewireNetwork::sio_status_local(%u)\n", cmdFrame.aux2);
+
+#ifdef TOO_MUCH_DEBUG
+    Debug_printf("drivewireNetwork::status_local(%u)\n", cmdFrame.aux2);
+#endif /* TOO_MUCH_DEBUG */
 
     fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
     fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
@@ -468,38 +419,34 @@ void drivewireNetwork::status_local()
     {
     case 1: // IP Address
         Debug_printf("IP Address: %u.%u.%u.%u\n", ipAddress[0], ipAddress[1], ipAddress[2], ipAddress[3]);
-        memcpy(default_status,ipAddress,sizeof(default_status));
+        memcpy(&status,ipAddress,sizeof(status));
         break;
     case 2: // Netmask
         Debug_printf("Netmask: %u.%u.%u.%u\n", ipNetmask[0], ipNetmask[1], ipNetmask[2], ipNetmask[3]);
-        memcpy(default_status,ipNetmask,sizeof(default_status));
+        memcpy(&status,ipNetmask,sizeof(status));
         break;
     case 3: // Gatway
         Debug_printf("Gateway: %u.%u.%u.%u\n", ipGateway[0], ipGateway[1], ipGateway[2], ipGateway[3]);
-        memcpy(default_status,ipGateway,sizeof(default_status));
+        memcpy(&status,ipGateway,sizeof(status));
         break;
     case 4: // DNS
         Debug_printf("DNS: %u.%u.%u.%u\n", ipDNS[0], ipDNS[1], ipDNS[2], ipDNS[3]);
-        memcpy(default_status,ipDNS,sizeof(default_status));
+        memcpy(&status,ipDNS,sizeof(status));
         break;
     default:
-        default_status[2] = ns.connected;
-        default_status[3] = ns.error;
+        status.conn = ns.connected;
+        status.err = ns.error;
         break;
     }
 
     response.clear();
-    response += default_status[0];
-    response += default_status[1];
-    response += default_status[2];
-    response += default_status[3];
+    response.append((char *) &status, sizeof(status));
 }
 
 bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? 1 : 136;
-    ns->rxBytesWaiting = json_bytes_remaining;
     return false; // for now
 }
 
@@ -508,9 +455,11 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
  */
 void drivewireNetwork::status_channel()
 {
-    uint8_t serialized_status[4] = {0, 0, 0, 0};
+    NDeviceStatus status;
 
-    Debug_printf("drivewireNetwork::sio_status_channel(%u)\n", channelMode);
+#ifdef TOO_MUCH_DEBUG
+    Debug_printf("drivewireNetwork::status_channel(%u)\n", channelMode);
+#endif /* TOO_MUCH_DEBUG */
 
     switch (channelMode)
     {
@@ -526,27 +475,23 @@ void drivewireNetwork::status_channel()
         status_channel_json(&ns);
         break;
     }
-    // clear forced flag (first status after open)
-    protocol->forceStatus = false;
 
     // Serialize status into status bytes (rxBytesWaiting sent big endian!)
-    serialized_status[0] = ns.rxBytesWaiting >> 8;
-    serialized_status[1] = ns.rxBytesWaiting & 0xFF;
-    serialized_status[2] = ns.connected;
-    serialized_status[3] = ns.error;
+    size_t avail = protocol->available();
+    avail = avail > 65535 ? 65535 : avail;
+    status.avail = htobe16(avail);
+    status.conn = ns.connected;
+    status.err = ns.error;
 
-    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
-                 ns.rxBytesWaiting, ns.connected, ns.error);
-
-    Debug_printf("%02X %02X %02X %02X\n",serialized_status[0],serialized_status[1],serialized_status[2],serialized_status[3]);
+#if 1 //def TOO_MUCH_DEBUG
+    Debug_printf("status_channel() - BW: %u C: %u E: %u\n",
+                 avail, ns.connected, ns.error);
+#endif /* TOO_MUCH_DEBUG */
 
     // and fill response.
     response.clear();
     response.shrink_to_fit();
-    response += serialized_status[0];
-    response += serialized_status[1];
-    response += serialized_status[2];
-    response += serialized_status[3];
+    response.append((char *) &status, sizeof(status));
 }
 
 /**
@@ -579,7 +524,7 @@ void drivewireNetwork::set_prefix()
 
     prefixSpec_str = string((const char *)tmp);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
-    Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
+    Debug_printf("sioNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
 
     // If "NCD Nn:" then prefix is cleared completely
     if (prefixSpec_str.empty())
@@ -913,92 +858,21 @@ void drivewireNetwork::special_80()
  */
 bool drivewireNetwork::instantiate_protocol()
 {
-    if (urlParser == nullptr)
+    if (!protocolParser)
     {
-        Debug_printf("drivewireNetwork::open_protocol() - urlParser is NULL. Aborting.\n");
-        return false; // error.
+        protocolParser = new ProtocolParser();
     }
-
-    // Convert to uppercase
-    transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
-
-    if (urlParser->scheme == "TCP")
-    {
-        protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "UDP")
-    {
-        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TEST")
-    {
-        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TELNET")
-    {
-        protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TNFS")
-    {
-        protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "FTP")
-    {
-        protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
-    {
-        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SSH")
-    {
-        protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SMB")
-    {
-        protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else
-    {
-        Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
-        return false; // invalid protocol.
-    }
+    
+    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
-        Debug_printf("drivewireNetwork::open_protocol() - Could not open protocol.\n");
+        Debug_printf("rs232Network::instantiate_protocol() - Could not create protocol.\n");
         return false;
     }
 
-    if (!login.empty())
-    {
-        protocol->login = &login;
-        protocol->password = &password;
-    }
-
-    Debug_printf("drivewireNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
+    Debug_printf("rs232Network::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
-}
-
-/**
- * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
- */
-void drivewireNetwork::assert_interrupt()
-{
-#ifdef ESP_PLATFORM
-    fnSystem.digital_write(PIN_CD, interruptCD == true ? DIGI_HIGH : DIGI_LOW);
-#else
-/* TODO: We'll get to this at a future date.
-
-    uint64_t ms = fnSystem.millis();
-    if (ms - lastInterruptMs >= timerRate)
-    {
-        interruptCD = !interruptCD;
-        fnSioCom.set_proceed(interruptCD);
-        lastInterruptMs = ms;
-    }
-    */
-#endif
 }
 
 /**
@@ -1006,38 +880,12 @@ void drivewireNetwork::assert_interrupt()
  */
 bool drivewireNetwork::poll_interrupt()
 {
-#if 1
-    return ns.rxBytesWaiting > 0 || ns.connected == 0;
-#else
-    if (protocol != nullptr)
-    {
-        if (protocol->interruptEnable == false)
-            return;
-
-        /* assert interrupt if we need Status call from host to arrive */
-        if (protocol->forceStatus == true)
-        {
-            assert_interrupt();
-            return;
-        }
-
-        protocol->fromInterrupt = true;
-        protocol->status(&ns);
-        protocol->fromInterrupt = false;
-
-        if (ns.rxBytesWaiting > 0 || ns.connected == 0)
-            assert_interrupt();
-#ifndef ESP_PLATFORM
-else
-/* TODO: We'll get to this at a future date.
-            sio_clear_interrupt();
- */
-#endif
-
-        reservedSave = ns.connected;
-        errorSave = ns.error;
-    }
-#endif // 0
+    if (!protocol)
+        return false;
+    uint32_t now = GET_TIMESTAMP();
+    if (now - readAck < 5000)
+        return false;
+    return protocol->available() > 0;
 }
 
 void drivewireNetwork::send_error()
@@ -1272,27 +1120,22 @@ void drivewireNetwork::json_query()
 
 void drivewireNetwork::do_idempotent_command_80()
 {
-    Debug_printf("sioNetwork::sio_do_idempotent_command_80()\r\n");
-// #ifdef ESP_PLATFORM // apc: isn't it already ACK'ed?
-//     sio_ack();
-// #endif
+    Debug_printf("sioNetwork::do_idempotent_command_80()\r\n");
 
     parse_and_instantiate_protocol();
 
     if (protocol == nullptr)
     {
         Debug_printf("Protocol = NULL\n");
-        //sio_error();
+        //error();
         return;
     }
 
     if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
     {
         Debug_printf("perform_idempotent_80 failed\n");
-        // sio_error();
+        // error();
     }
-    // else
-    //     sio_complete();
 }
 
 void drivewireNetwork::process()
