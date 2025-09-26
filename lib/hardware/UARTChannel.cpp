@@ -68,7 +68,7 @@ void UARTChannel::end()
     _uart_q = NULL;
 }
 
-void UARTChannel::update_fifo()
+void UARTChannel::updateFIFO()
 {
     uart_event_t event;
 
@@ -117,7 +117,7 @@ size_t UARTChannel::dataOut(const void *buffer, size_t size)
     return uart_write_bytes(_uart_num, (const char *)buffer, size);
 }
 
-bool UARTChannel::dtrState()
+bool UARTChannel::getDTR()
 {
 #if defined(FUJINET_OVER_USB) || !defined(PIN_RS232_DTR)
     return 0;
@@ -125,3 +125,29 @@ bool UARTChannel::dtrState()
     return fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW;
 #endif /* FUJINET_OVER_USB */
 }
+
+void UARTChannel::setDSR(bool state)
+{
+#if !defined(FUJINET_OVER_USB) && !defined(PIN_RS232_DSR)
+    fnSystem.digital_write(PIN_RS232_DSR, !state);
+#endif
+    return;
+}
+
+bool UARTChannel::getRTS()
+{
+#if defined(FUJINET_OVER_USB) || !defined(PIN_RS232_RTS)
+    return 0;
+#else /* FUJINET_OVER_USB */
+    return fnSystem.digital_read(PIN_RS232_RTS) == DIGI_LOW;
+#endif /* FUJINET_OVER_USB */
+}
+
+void UARTChannel::setCTS(bool state)
+{
+#if !defined(FUJINET_OVER_USB) && !defined(PIN_RS232_CTS)
+    fnSystem.digital_write(PIN_RS232_CTS, !state);
+#endif
+    return;
+}
+

@@ -73,7 +73,7 @@ private:
     QueueHandle_t _uart_q;
 
 protected:
-    void update_fifo() override;
+    void updateFIFO() override;
     size_t dataOut(const void *buffer, size_t length) override;
 
 public:
@@ -85,8 +85,12 @@ public:
     uint32_t getBaudrate() override;
     void setBaudrate(uint32_t baud) override;
 
-    bool dtrState();
-
+    // FujiNet acts as modem (DCE), computer serial ports are DTE.
+    // API names follow the modem (DCE) view, but the actual RS-232 pin differs.
+    bool getDTR();           // modem DTR input  → actually reads RS-232 DSR pin
+    void setDSR(bool state); // modem DSR output → actually drives RS-232 DTR pin
+    bool getRTS();           // modem RTS input  → actually reads RS-232 CTS pin
+    void setCTS(bool state); // modem CTS output → actually drives RS-232 RTS pin
 };
 
 extern UARTChannel fnDebugConsole;
