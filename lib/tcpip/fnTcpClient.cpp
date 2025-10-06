@@ -37,164 +37,6 @@
 #define FNTCP_SELECT_TIMEOUT_US (1000000)
 #define FNTCP_FLUSH_BUFFER_SIZE (1024)
 
-#if 0
-class fnTcpClientRxBuffer
-{
-private:
-    size_t _size;
-    uint8_t *_buffer;
-    size_t _pos;
-    size_t _fill;
-    int _fd;
-    bool _failed;
-
-    size_t r_available()
-    {
-        if (_fd < 0)
-        {
-            return 0;
-        }
-#if defined(_WIN32)
-        unsigned long count;
-        int res = ioctlsocket(_fd, FIONREAD, &count);
-        if (res != 0)
-        {
-            _failed = true;
-            return 0;
-        }
-#else
-        int count;
-#ifdef ESP_PLATFORM
-        int res = lwip_ioctl(_fd, FIONREAD, &count);
-#else
-        int res = ioctl(_fd, FIONREAD, &count);
-#endif
-        if (res < 0)
-        {
-            _failed = true;
-            return 0;
-        }
-#endif
-        return count;
-    }
-
-    // Fill our buffer with data from the given socket descriptor
-    // Returns how much data was read
-    size_t fillBuffer()
-    {
-        // Allocate space for the buffer if we haven't already
-        if (!_buffer)
-        {
-            _buffer = (uint8_t *)malloc(_size);
-            if (!_buffer)
-            {
-                Debug_printf("Not enough memory to allocate buffer\r\n");
-                _failed = true;
-                return 0;
-            }
-        }
-
-        if (_fill && _pos == _fill)
-        {
-            _fill = 0;
-            _pos = 0;
-        }
-
-        if (!_buffer || _size <= _fill || !r_available())
-        {
-            return 0;
-        }
-
-        // Read the data
-        int res = recv(_fd, (char *)(_buffer + _fill), _size - _fill, MSG_DONTWAIT);
-        if (res < 0)
-        {
-            int err = compat_getsockerr();
-#if defined(_WIN32)
-            if (err != WSAEWOULDBLOCK)
-#else
-            if (err != EWOULDBLOCK)
-#endif
-            {
-                _failed = true;
-            }
-            return 0;
-        }
-        _fill += res;
-        return res;
-    }
-
-public:
-    fnTcpClientRxBuffer(int fd, size_t size = 1436)
-        : _size(size), _buffer(NULL), _pos(0), _fill(0), _fd(fd), _failed(false) {}
-
-    ~fnTcpClientRxBuffer() { free(_buffer); }
-
-    bool failed() { return _failed; }
-
-    // Read data and return how many bytes were read
-    int read(uint8_t *dst, size_t len)
-    {
-        // Fail if bad param or we're at the end of our buffer and couldn't get more data
-        if (!dst || !len || (_pos == _fill && !fillBuffer()))
-        {
-            return -1;
-        }
-
-        size_t a = _fill - _pos;
-        if (len <= a || ((len - a) <= (_size - _fill) && fillBuffer() >= (len - a)))
-        {
-            if (len == 1)
-            {
-                *dst = _buffer[_pos];
-            }
-            else
-            {
-                memcpy(dst, _buffer + _pos, len);
-            }
-            _pos += len;
-            return len;
-        }
-
-        size_t left = len;
-        size_t toRead = a;
-        uint8_t *buf = dst;
-        memcpy(buf, _buffer + _pos, toRead);
-        _pos += toRead;
-        left -= toRead;
-        buf += toRead;
-        while (left)
-        {
-            if (!fillBuffer())
-                return len - left;
-
-            a = _fill - _pos;
-            toRead = (a > left) ? left : a;
-            memcpy(buf, _buffer + _pos, toRead);
-            _pos += toRead;
-            left -= toRead;
-            buf += toRead;
-        }
-        return len;
-    }
-
-    // Return value at current buffer position
-    int peek()
-    {
-        // Return an error if we don't have any more data in our buffer and couldn't get more
-        if (_pos == _fill && !fillBuffer())
-            return -1;
-
-        return _buffer[_pos];
-    }
-
-    size_t available()
-    {
-        return _fill - _pos + r_available();
-    }
-};
-#endif
-
 class fnTcpClientSocketHandle
 {
 private:
@@ -217,11 +59,7 @@ fnTcpClient::fnTcpClient(int fd)
 {
     _connected = true;
     _clientSocketHandle.reset(new fnTcpClientSocketHandle(fd));
-#if 0
-    _rxBuffer.reset(new fnTcpClientRxBuffer(fd));
-#else
     _rxBuffer.clear();
-#endif
 }
 
 fnTcpClient::~fnTcpClient()
@@ -232,9 +70,6 @@ fnTcpClient::~fnTcpClient()
 void fnTcpClient::stop()
 {
     _clientSocketHandle = nullptr;
-#if 0
-    _rxBuffer = nullptr;
-#endif
     _connected = false;
 }
 
@@ -365,11 +200,7 @@ int fnTcpClient::connect(in_addr_t ip, uint16_t port, int32_t timeout)
 #endif
     // Create a socket handle and recieve buffer objects
     _clientSocketHandle.reset(new fnTcpClientSocketHandle(sockfd));
-#if 0
-    _rxBuffer.reset(new fnTcpClientRxBuffer(sockfd));
-#else
     _rxBuffer.clear();
-#endif
     _connected = true;
 
     return 1;
@@ -541,16 +372,6 @@ size_t fnTcpClient::write(uint8_t data)
 // Fill buffer with read data
 int fnTcpClient::read(uint8_t *buf, size_t size)
 {
-#if 0
-    int res = -1;
-    res = _rxBuffer->read(buf, size);
-    if (_rxBuffer->failed())
-    {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), errno, strerror(errno));
-        stop();
-    }
-    return res;
-#else
     size_t rlen;
 
     rlen = std::min(available(), size);
@@ -560,7 +381,6 @@ int fnTcpClient::read(uint8_t *buf, size_t size)
         _rxBuffer.erase(0, rlen);
     }
     return rlen;
-#endif
 }
 
 // Read one byte of data. Return read byte or negative value for error
@@ -595,19 +415,9 @@ int fnTcpClient::read_until(char terminator, char *buf, size_t size)
 // Peek at next byte available for reading
 int fnTcpClient::peek()
 {
-#if 0
-    int res = _rxBuffer->peek();
-    if (_rxBuffer->failed())
-    {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), errno, strerror(errno));
-        stop();
-    }
-    return res;
-#else
     if (_rxBuffer.size())
         return _rxBuffer[0];
     return -1;
-#endif
 }
 
 void fnTcpClient::updateFIFO()
@@ -651,21 +461,8 @@ void fnTcpClient::updateFIFO()
 // Return number of bytes available for reading
 size_t fnTcpClient::available()
 {
-#if 0
-    if (!_rxBuffer)
-        return 0;
-
-    int res = _rxBuffer->available();
-    if (_rxBuffer->failed())
-    {
-        Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", fd(), errno, strerror(errno));
-        stop();
-    }
-    return res;
-#else
     updateFIFO();
     return _rxBuffer.size();
-#endif
 }
 
 // Send all pending data and clear receive buffer

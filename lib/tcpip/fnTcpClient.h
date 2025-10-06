@@ -4,22 +4,16 @@
 #define _FN_TCPCLIENT_H_
 
 #include <memory>
+#include <string>
 
 #include "compat_inet.h"
 
 class fnTcpClientSocketHandle;
-#if 0
-class fnTcpClientRxBuffer;
-#endif
 
 class fnTcpClient
 {
 protected:
-#if 0
-    std::shared_ptr<fnTcpClientRxBuffer> _rxBuffer;
-#else
     std::string _rxBuffer;
-#endif
     std::shared_ptr<fnTcpClientSocketHandle> _clientSocketHandle;
     bool _connected = false;
 
