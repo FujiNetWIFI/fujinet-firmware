@@ -31,17 +31,6 @@ int fnTcpServer::begin(uint16_t port)
         return 0;
     }
 
-    // Bind socket to our interface
-    struct sockaddr_in server;
-    server.sin_family = AF_INET;
-    server.sin_addr.s_addr = INADDR_ANY;
-    server.sin_port = htons(_port);
-    if (bind(_sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
-    {
-        Debug_printf("fnTcpServer::begin failed to bind socket, err %d\r\n", compat_getsockerr());
-        return 0;
-    }
-
     int enable = 1;
 #if defined(_WIN32)
     if (setsockopt(_sockfd, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, (char *) &enable, sizeof(enable)) != 0)
@@ -58,6 +47,17 @@ int fnTcpServer::begin(uint16_t port)
 #endif
 
     Debug_printf("Max clients is currently %u\r\n",_max_clients);
+
+    // Bind socket to our interface
+    struct sockaddr_in server;
+    server.sin_family = AF_INET;
+    server.sin_addr.s_addr = INADDR_ANY;
+    server.sin_port = htons(_port);
+    if (bind(_sockfd, (struct sockaddr *)&server, sizeof(server)) < 0)
+    {
+        Debug_printf("fnTcpServer::begin failed to bind socket, err %d\r\n", compat_getsockerr());
+        return 0;
+    }
 
     // Now listen in on this socket
     if (listen(_sockfd, _max_clients) < 0)
@@ -107,7 +107,7 @@ bool fnTcpServer::hasClient()
 
 // Returns a new fnTcpClient initialized with the client currently connected to the socket
 // or disconnected (uninitialized) fnTcpClient
-fnTcpClient fnTcpServer::available()
+fnTcpClient fnTcpServer::client()
 {
     // Return initialized fnTcpClient if we're not in listening mode
     if (!_listening)

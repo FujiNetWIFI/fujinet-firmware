@@ -362,7 +362,7 @@ bool NetworkProtocolTCP::special_accept_connection()
         unsigned char remotePort;
         char *remoteIPString;
 
-        client = server->available();
+        client = server->client();
 
         if (client.connected())
         {
