@@ -9,6 +9,18 @@
 #include <cstring>
 #include <algorithm>
 
+#ifdef __APPLE__
+#include <libkern/OSByteOrder.h>
+#define htobe16(x) OSSwapHostToBigInt16(x)
+#else
+#if defined(_WIN16) || defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__)
+#include <winsock2.h>
+#define htobe16(x) htons(x)
+#else
+#include <endian.h>
+#endif // windows
+#endif /* __APPLE__ */
+
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 
