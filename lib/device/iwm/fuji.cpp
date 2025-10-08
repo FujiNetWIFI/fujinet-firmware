@@ -22,6 +22,7 @@
 #include "string_utils.h"
 
 #include "compat_string.h"
+#include "../../qrcode/qrmanager.h"
 
 #define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40
@@ -1545,50 +1546,44 @@ void iwmFuji::iwm_ctrl_qrcode_input()
     Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", data_len);
     std::vector<uint8_t> data(data_len, 0);
     std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
-    qrManager.in_buf += std::string((const char *)data.data(), data_len);
+    _qrManager.data += std::string((const char *)data.data(), data_len);
 }
 
 void iwmFuji::iwm_ctrl_qrcode_encode()
 {
-    size_t out_len = 0;
-
-    qrManager.output_mode = 0;
-    qrManager.version = data_buffer[0] & 0b01111111;
-    qrManager.ecc_mode = data_buffer[1];
+    uint8_t version = data_buffer[0] & 0b01111111;
+    uint8_t ecc_mode = data_buffer[1];
     bool shorten = data_buffer[2];
 
     Debug_printf("FUJI: QRCODE ENCODE\n");
-    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", qrManager.version, qrManager.ecc_mode, shorten ? "Y" : "N");
+    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
 
-    std::string url = qrManager.in_buf;
+    std::string url = _qrManager.data;
 
     if (shorten) {
         url = fnHTTPD.shorten_url(url);
     }
 
-    std::vector<uint8_t> p = QRManager::encode(
-        url.c_str(),
-        url.size(),
-        qrManager.version,
-        qrManager.ecc_mode,
-        &out_len
-    );
+	_qrManager.version(version);
+	_qrManager.ecc((qr_ecc_t)ecc_mode);
+	_qrManager.output_mode = QR_OUTPUT_MODE_BINARY;
+	_qrManager.encode();
 
-    qrManager.in_buf.clear();
+    _qrManager.data.clear();
 
-    if (!out_len)
+    if (!_qrManager.code.size())
     {
         Debug_printf("QR code encoding failed\n");
         return;
     }
 
-    Debug_printf("Resulting QR code is: %u modules\n", out_len);
+    Debug_printf("Resulting QR code is: %u modules\n", _qrManager.code.size());
 }
 
 void iwmFuji::iwm_stat_qrcode_length()
 {
     Debug_printf("FUJI: QRCODE LENGTH\n");
-    size_t len = qrManager.out_buf.size();
+    size_t len = _qrManager.code.size();
 	data_buffer[0] = (uint8_t)(len >> 0);
     data_buffer[1] = (uint8_t)(len >> 8);
 	data_len = 2;
@@ -1601,19 +1596,11 @@ void iwmFuji::iwm_ctrl_qrcode_output()
     uint8_t output_mode = data_buffer[0];
     Debug_printf("Output mode: %i\n", output_mode);
 
-    size_t len = qrManager.out_buf.size();
+    size_t len = _qrManager.code.size();
 
-    if (len && (output_mode != qrManager.output_mode)) {
-        if (output_mode == QR_OUTPUT_MODE_BINARY) {
-            qrManager.to_binary();
-        }
-        else if (output_mode == QR_OUTPUT_MODE_ATASCII) {
-            qrManager.to_atascii();
-        }
-        else if (output_mode == QR_OUTPUT_MODE_BITMAP) {
-            qrManager.to_bitmap();
-        }
-        qrManager.output_mode = output_mode;
+    if (len && (output_mode != _qrManager.output_mode)) {
+		_qrManager.output_mode = (ouput_mode_t)output_mode;
+		_qrManager.encode();
     }
 }
 
@@ -1622,11 +1609,11 @@ void iwmFuji::iwm_stat_qrcode_output()
     Debug_printf("FUJI: QRCODE OUTPUT STAT\n");
 	memset(data_buffer, 0, sizeof(data_buffer));
 
-	data_len = qrManager.out_buf.size();
-	memcpy(data_buffer, &qrManager.out_buf[0], data_len);
+	data_len = _qrManager.code.size();
+	memcpy(data_buffer, &_qrManager.code[0], data_len);
 
-	qrManager.out_buf.erase(qrManager.out_buf.begin(), qrManager.out_buf.begin() + data_len);
-    qrManager.out_buf.shrink_to_fit();
+	_qrManager.code.clear();
+    _qrManager.code.shrink_to_fit();
 }
 
 #endif /* BUILD_APPLE */
