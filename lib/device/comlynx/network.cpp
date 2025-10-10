@@ -33,8 +33,12 @@
  */
 lynxNetwork::lynxNetwork()
 {
-    status_response[1] = 0x00;
-    status_response[2] = 0x04; // 1024 bytes
+    //status_response[1] = 0x00;
+    //status_response[2] = 0x04; // 1024 bytes
+    
+    status_response[1] = SERIAL_PACKET_SIZE % 256;
+    status_response[2] = SERIAL_PACKET_SIZE / 256;
+    
     status_response[3] = 0x00; // Character device
 
     receiveBuffer = new string();
@@ -168,7 +172,6 @@ void lynxNetwork::close()
         return;
     }
 
-    //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     statusByte.byte = 0x00;
@@ -222,7 +225,7 @@ bool lynxNetwork::read_channel(unsigned short num_bytes)
  */
 void lynxNetwork::write(uint16_t num_bytes)
 {
-    Debug_printf("!!! WRITE\n");
+    Debug_printf("lynxNetwork::write\n");
     memset(response, 0, sizeof(response));
 
     comlynx_recv_buffer(response, num_bytes);
@@ -557,7 +560,8 @@ void lynxNetwork::channel_mode()
 
 void lynxNetwork::json_query(unsigned short s)
 {
-    uint8_t *c = (uint8_t *)malloc(s);
+    /*
+    uint8_t *c = (uint8_t *) malloc(s+1);
 
     comlynx_recv_buffer(c, s);
     
@@ -570,11 +574,60 @@ void lynxNetwork::json_query(unsigned short s)
     //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
-    json.setReadQuery(std::string((char *)c, s),cmdFrame.aux2);
+    json.setReadQuery(std::string((char *)c, s), cmdFrame.aux2);
 
     Debug_printf("lynxNetwork::json_query(%s)\n", c);
 
     free(c);
+    */
+
+    uint8_t in[256];
+
+    memset(in, 0, sizeof(in));
+    comlynx_recv_buffer(in, s);
+    
+    // Get packet checksum
+    if (!comlynx_recv_ck()) {
+        comlynx_response_nack();
+        return;
+    }
+
+    comlynx_response_ack();
+
+    // strip away line endings from input spec.
+    for (int i = 0; i < s; i++)
+    {
+        if (in[i] == 0x0A || in[i] == 0x0D || in[i] == 0x9b)
+            in[i] = 0x00;
+    }
+
+    std::string in_string(reinterpret_cast<char*>(in));
+    size_t last_colon_pos = in_string.rfind(':');
+
+    std::string inp_string;
+    if (last_colon_pos != std::string::npos) {
+        // Skip the device spec. There was a debug message here,
+        // but it was removed, because there are cases where
+        // removing the devicespec isn't possible, e.g. accessing
+        // via CIO (as an XIO). -thom
+        inp_string = in_string.substr(last_colon_pos + 1);
+    } else {
+        inp_string = in_string;
+    }
+
+    json.setReadQuery(inp_string, cmdFrame.aux2);
+    
+    /*json_bytes_remaining = json->json_bytes_remaining;
+
+    std::vector<uint8_t> tmp(json_bytes_remaining);
+    json->readValue(tmp.data(), json_bytes_remaining);
+
+    // don't copy past first nul char in tmp
+    auto null_pos = std::find(tmp.begin(), tmp.end(), 0);
+    *receiveBuffer += std::string(tmp.begin(), null_pos);*/
+
+    Debug_printf("lynxNetwork::json_query(%s)\n", inp_string.c_str());
+
 }
 
 void lynxNetwork::json_parse()
@@ -723,15 +776,13 @@ void lynxNetwork::comlynx_response_status()
     statusByte.bits.client_data_available = s.rxBytesWaiting > 0;
     statusByte.bits.client_error = s.error > 1;
 
-    status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
-    status_response[2] = 4;
-
+    //status_response[1] = 2; // max packet size 1026 bytes, maybe larger?
+    //status_response[2] = 4;
+    status_response[1] = (SERIAL_PACKET_SIZE % 256) + 2;        // why +2? -SJ
+    status_response[2] = SERIAL_PACKET_SIZE / 256;
     status_response[4] = statusByte.byte;
 
-    //int64_t t = esp_timer_get_time() - ComLynx.start_time;
-
-    //if (t < 300)
-        virtualDevice::comlynx_response_status();
+    virtualDevice::comlynx_response_status();
 }
 
 void lynxNetwork::comlynx_control_ack()
@@ -879,7 +930,8 @@ void lynxNetwork::comlynx_control_receive_channel_protocol()
     }
 
     // Truncate bytes waiting to response size
-    ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
+    //ns.rxBytesWaiting = (ns.rxBytesWaiting > 1024) ? 1024 : ns.rxBytesWaiting;
+    ns.rxBytesWaiting = (ns.rxBytesWaiting > SERIAL_PACKET_SIZE) ? SERIAL_PACKET_SIZE: ns.rxBytesWaiting;
     response_len = ns.rxBytesWaiting;
 
     if (protocol->read(response_len)) // protocol adapter returned error
@@ -920,12 +972,17 @@ void lynxNetwork::comlynx_response_send()
 {
     uint8_t c = comlynx_checksum(response, response_len);
 
-    comlynx_send(0xB0 | _devnum);
+    //comlynx_send(0xB0 | _devnum);
+    comlynx_send((NM_SEND << 4) | _devnum);
     comlynx_send_length(response_len);
     comlynx_send_buffer(response, response_len);
     comlynx_send(c);
 
+    // print response we're sending
+    response[response_len] = '\0';
     Debug_printf("comlynx_response_send: %s\n",response);
+    
+    // clear response for next time
     memset(response, 0, response_len);
     response_len = 0;
 }

@@ -92,8 +92,9 @@ void virtualDevice::comlynx_send(uint8_t b)
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
-    //Debug_printf("comlynx_send_buffer: %d %s\n", len, buf);
-    Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[len-1]);
+    buf[len] = '\0';
+    Debug_printf("comlynx_send_buffer: %d %s\n", len, buf);
+    //Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[len-1]);
     
     // Wait for idle only when in UDPStream mode
     if (ComLynx._udpDev->udpstreamActive)
@@ -116,7 +117,8 @@ bool virtualDevice::comlynx_recv_ck()
 
     ck = comlynx_checksum(recvbuffer, recvbuffer_len);
 
-    Debug_printf("comlynx_recv_ck, recv:%02X calc:%02X\n", recv_ck, ck);
+    // debugging checksum values
+    //Debug_printf("comlynx_recv_ck, recv:%02X calc:%02X\n", recv_ck, ck);
 
     // reset receive buffer
     recvbuffer_len = 0;
@@ -316,7 +318,14 @@ void systemBus::_comlynx_process_cmd()
 
     uint8_t d = b & 0x0F;
 
-    Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0)>>4);
+    #ifdef DEBUG
+    if ((b & 0xF0) == (MN_ACK<<4))
+        Debug_println("Lynx sent ACK");
+    else { 
+        Debug_println("---");
+        Debug_printf("comlynx_process_cmd: dev:%X cmd:%X\n", d, (b & 0xF0)>>4);
+    }
+    #endif
 
     // Find device ID and pass control to it
     if (_daisyChain.count(d) < 1)
