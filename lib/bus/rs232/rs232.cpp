@@ -61,7 +61,7 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->RS232 write %hu bytes\n", len);
-#ifdef VERBOSE_RS232
+#if 1 //def VERBOSE_RS232
     Debug_printf("SEND <%u> BYTES\n\t", len);
     for (int i = 0; i < len; i++)
         Debug_printf("%02x ", buf[i]);
@@ -221,6 +221,7 @@ void systemBus::_rs232_process_cmd()
                         _activeDev = devicep;
                         // handle command
                         _activeDev->rs232_process(&tempFrame);
+                        break;
                     }
                 }
             }

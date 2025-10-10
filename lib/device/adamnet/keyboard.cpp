@@ -35,7 +35,7 @@ void adamKeyboard::adamnet_control_receive()
     {
         AdamNet.wait_for_idle();
         adamnet_send(0xC1); // NAK
-        client = server->available();
+        client = server->client();
     }
     else if (!client.connected())
     {
