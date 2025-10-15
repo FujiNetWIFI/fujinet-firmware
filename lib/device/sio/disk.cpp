@@ -323,7 +323,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         (device_active == false && theFuji.boot_config == false)) // not active and not config boot
         return;
 
-    Debug_printf("disk sio_process(), baud: %d\n", SIO.getBaudrate());
+    Debug_printf("disk sio_process(), baud: %d\n", SYSTEM_BUS.getBaudrate());
 
     switch (cmdFrame.comnd)
     {
@@ -481,7 +481,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
         {
             sio_ack();
             sio_high_speed();
-            SIO.toggleBaudrate();
+            SYSTEM_BUS.toggleBaudrate();
             return;
         }
         break;

@@ -121,10 +121,10 @@ class iwmFuji;     // declare here so can reference it, but define in fuji.h
 class iwmModem;    // declare here so can reference it, but define in modem.h
 class iwmNetwork;  // declare here so can reference it, but define in network.h
 class iwmPrinter;  // Printer device
-class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for prototyping in iwmBus::service()
+class iwmDisk;     // disk device cause I need to use "iwmDisk smort" for prototyping in systemBus::service()
 class iwmCPM;      // CPM Virtual Device
 class iwmClock;    // Real Time Clock Device
-class iwmBus;      // forward declare bus so can be friend
+class systemBus;      // forward declare bus so can be friend
 
 // Sorry, this  is the protocol adapter's fault. -Thom
 union cmdFrame_t
@@ -201,7 +201,7 @@ struct iwm_device_info_block_t
 
 class iwmDevice
 {
-friend iwmBus; // put here for prototype, not sure if will need to keep it
+friend systemBus; // put here for prototype, not sure if will need to keep it
 
 protected:
   // set these things in constructor or initializer?
@@ -267,15 +267,9 @@ public:
   //void assign_id(uint8_t n) { _devnum = n; };
 
   void assign_name(std::string name) {dib.device_name = name;}
-
-  /**
-   * @brief Get the iwmBus object that this iwmDevice is attached to.
-   */
-  iwmBus iwm_get_bus();
-
 };
 
-class iwmBus
+class systemBus
 {
 private:
 
@@ -357,7 +351,7 @@ public:
 
 };
 
-extern iwmBus IWM;
+extern systemBus SYSTEM_BUS;
 
 #define IWM_ACTIVE_DISK2 ((iwmDisk2 *) theFuji.get_disk_dev(MAX_SP_DEVICES + diskii_xface.iwm_active_drive() - 1))
 #endif // guard

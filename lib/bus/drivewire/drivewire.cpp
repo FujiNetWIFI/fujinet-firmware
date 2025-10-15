@@ -92,8 +92,6 @@ static void drivewire_intr_task(void *arg)
 
 // Helper functions outside the class defintions
 
-systemBus virtualDevice::get_bus() { return DRIVEWIRE; }
-
 void systemBus::op_jeff()
 {
     fnDwCom.print("FUJINET");
@@ -829,6 +827,4 @@ void systemBus::setBaudrate(int baud)
     _drivewireBaud = baud;
     //_modemDev->get_uart()->set_baudrate(baud); // TODO COME BACK HERE.
 }
-
-systemBus DRIVEWIRE; // Global DRIVEWIRE object
 #endif               /* BUILD_COCO */

@@ -59,7 +59,7 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 
     // Write data frame
 #ifdef ESP_PLATFORM
-    UARTManager *uart = sio_get_bus().uart;
+    UARTManager *uart = SYSTEM_BUS.uart;
     uart->write(buf, len);
     // Write checksum
     uart->write(sio_checksum(buf, len));
@@ -87,7 +87,7 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     Debug_printf("<-SIO read %hu bytes\n", len);
 
 #ifdef ESP_PLATFORM
-    UARTManager *uart = sio_get_bus().uart;
+    UARTManager *uart = SYSTEM_BUS.uart;
 
     __BEGIN_IGNORE_UNUSEDVARS
     size_t l = uart->readBytes(buf, len);
@@ -138,13 +138,13 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 void virtualDevice::sio_nak()
 {
 #ifdef ESP_PLATFORM
-    UARTManager *uart = sio_get_bus().uart;
+    UARTManager *uart = SYSTEM_BUS.uart;
     uart->write('N');
     uart->flush();
 #else
     fnSioCom.write('N');
     fnSioCom.flush();
-    SIO.set_command_processed(true);
+    SYSTEM_BUS.set_command_processed(true);
 #endif
     Debug_println("NAK!");
 }
@@ -153,7 +153,7 @@ void virtualDevice::sio_nak()
 void virtualDevice::sio_ack()
 {
 #ifdef ESP_PLATFORM
-    UARTManager *uart = sio_get_bus().uart;
+    UARTManager *uart = SYSTEM_BUS.uart;
     uart->write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
     uart->flush();
@@ -161,7 +161,7 @@ void virtualDevice::sio_ack()
     fnSioCom.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
     fnSioCom.flush();
-    SIO.set_command_processed(true);
+    SYSTEM_BUS.set_command_processed(true);
 #endif
     Debug_println("ACK!");
 }
@@ -173,7 +173,7 @@ void virtualDevice::sio_late_ack()
     if (fnSioCom.get_sio_mode() == SioCom::sio_mode::NETSIO)
     {
         fnSioCom.netsio_late_sync('A');
-        SIO.set_command_processed(true);
+        SYSTEM_BUS.set_command_processed(true);
         Debug_println("ACK+!");
     }
     else
@@ -188,7 +188,7 @@ void virtualDevice::sio_complete()
 {
     fnSystem.delay_microseconds(DELAY_T5);
 #ifdef ESP_PLATFORM
-    sio_get_bus().uart->write('C');
+    SYSTEM_BUS.uart->write('C');
 #else
     fnSioCom.write('C');
 #endif
@@ -200,7 +200,7 @@ void virtualDevice::sio_error()
 {
     fnSystem.delay_microseconds(DELAY_T5);
 #ifdef ESP_PLATFORM
-    sio_get_bus().uart->write('E');
+    SYSTEM_BUS.uart->write('E');
 #else
     fnSioCom.write('E');
 #endif
@@ -212,15 +212,13 @@ void virtualDevice::sio_high_speed()
 {
     Debug_print("sio HSIO INDEX\n");
 #ifdef ESP_PLATFORM
-    uint8_t hsd = SIO.getHighSpeedIndex();
+    uint8_t hsd = SYSTEM_BUS.getHighSpeedIndex();
 #else
-    int index = SIO.getHighSpeedIndex();
+    int index = SYSTEM_BUS.getHighSpeedIndex();
     uint8_t hsd = index == HSIO_DISABLED_INDEX ? 40 : (uint8_t)index;
 #endif
     bus_to_computer((uint8_t *)&hsd, 1, false);
 }
-
-systemBus virtualDevice::sio_get_bus() { return SIO; }
 
 // Read and process a command frame from SIO
 void systemBus::_sio_process_cmd()
@@ -901,6 +899,4 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 #endif
     }
 }
-
-systemBus SIO; // Global SIO object
 #endif /* BUILD_ATARI */

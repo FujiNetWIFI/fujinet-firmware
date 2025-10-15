@@ -669,11 +669,11 @@ void iwmFuji::image_rotate()
 		{
 			int swap = get_disk_dev(n - 1)->id();
 			Debug_printf("setting slot %d to ID %hx\n", n, swap);
-			_iwm_bus->changeDeviceId(get_disk_dev(n), swap); // to do!
+			SYSTEM_BUS.changeDeviceId(get_disk_dev(n), swap); // to do!
 		}
 
 		// The first slot gets the device ID of the last slot
-		_iwm_bus->changeDeviceId(get_disk_dev(0), last_id);
+		SYSTEM_BUS.changeDeviceId(get_disk_dev(0), last_id);
 	}
 }
 
@@ -1309,7 +1309,7 @@ void iwmFuji::iwm_ctrl_enable_device()
 	unsigned char d = data_buffer[0]; // adamnet_recv();
 
 	Debug_printf("\nFuji cmd: ENABLE DEVICE");
-	IWM.enableDevice(d);
+	SYSTEM_BUS.enableDevice(d);
 }
 
 void iwmFuji::iwm_ctrl_disable_device()
@@ -1317,17 +1317,15 @@ void iwmFuji::iwm_ctrl_disable_device()
 	unsigned char d = data_buffer[0]; // adamnet_recv();
 
 	Debug_printf("\nFuji cmd: DISABLE DEVICE");
-	IWM.disableDevice(d);
+	SYSTEM_BUS.disableDevice(d);
 }
 
 iwmDisk *iwmFuji::bootdisk() { return _bootDisk; }
 
 // Initializes base settings and adds our devices to the SIO bus
-void iwmFuji::setup(iwmBus *iwmbus)
+void iwmFuji::setup()
 {
 	// set up Fuji device
-	_iwm_bus = iwmbus;
-
 	_populate_slots_from_config();
 
 	// Disable booting from CONFIG if our settings say to turn it off
@@ -1337,22 +1335,22 @@ void iwmFuji::setup(iwmBus *iwmbus)
 	status_wait_enabled = false; // to do - understand?
 
 	// add ourselves as a device
-	_iwm_bus->addDevice(this, iwm_fujinet_type_t::FujiNet);
+	SYSTEM_BUS.addDevice(this, iwm_fujinet_type_t::FujiNet);
 
 	theNetwork = new iwmNetwork();
-	_iwm_bus->addDevice(theNetwork, iwm_fujinet_type_t::Network);
+	SYSTEM_BUS.addDevice(theNetwork, iwm_fujinet_type_t::Network);
 
 	theClock = new iwmClock();
-	_iwm_bus->addDevice(theClock, iwm_fujinet_type_t::Clock);
+	SYSTEM_BUS.addDevice(theClock, iwm_fujinet_type_t::Clock);
 
 	theCPM = new iwmCPM();
-	_iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
+	SYSTEM_BUS.addDevice(theCPM, iwm_fujinet_type_t::CPM);
 
 	for (int i = MAX_SP_DEVICES - 1; i >= 0; i--)
 	{
 		DEVICE_TYPE *disk_dev = get_disk_dev(i);
 		disk_dev->set_disk_number('0' + i);
-		_iwm_bus->addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
+		SYSTEM_BUS.addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
 	}
 
 	Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
@@ -1381,7 +1379,7 @@ void iwmFuji::send_status_reply_packet()
 	data[1] = 0; // block size 1
 	data[2] = 0; // block size 2
 	data[3] = 0; // block size 3
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmFuji::send_status_dib_reply_packet()
@@ -1394,7 +1392,7 @@ void iwmFuji::send_status_dib_reply_packet()
 		{ SP_TYPE_BYTE_FUJINET, SP_SUBTYPE_BYTE_FUJINET },      // type, subtype
 		{ 0x00, 0x01 }                                          // version.
 	);
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmFuji::send_stat_get_enable()
@@ -1428,7 +1426,7 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 	if (status_completed) return;
 
 	Debug_printf("\nStatus code complete, sending response");
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
 void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -1440,7 +1438,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 	data_len = 512;
 
 	Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", control_code);
-	IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+	SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
 	print_packet((uint8_t *)data_buffer, data_len);
 
 	auto it = control_handlers.find(control_code);

@@ -84,8 +84,6 @@ struct appkey
 class drivewireFuji : public virtualDevice
 {
 private:
-    systemBus *_drivewire_bus = nullptr;
-
     bool wifiScanStarted = false;
 
     char dirpath[256];
@@ -188,7 +186,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(systemBus *drivewirebus);
+    void setup();
 
     void image_rotate();
     int get_disk_id(int drive_slot);

@@ -21,7 +21,7 @@ bool adamQueryDevice::virtualDeviceExists(uint8_t device)
     uint8_t rxbuf[5] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
     unsigned short bytes;
     
-    AdamNet.wait_for_idle();
+    SYSTEM_BUS.wait_for_idle();
     tx = CONTROL_STATUS | device;
     //Debug_printf("CTRL_STATUS TX: %02x\n", tx);
     adamnet_send(tx);

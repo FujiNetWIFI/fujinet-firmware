@@ -18,8 +18,6 @@
 #define MAIN_PRIORITY	 17
 #define MAIN_CPUAFFINITY 1
 
-systemBus IEC;
-
 systemBus::systemBus() : IECBusHandler(PIN_IEC_ATN, PIN_IEC_CLK_OUT, PIN_IEC_DATA_OUT,
                                        PIN_IEC_RESET==GPIO_NUM_NC ? 0xFF : PIN_IEC_RESET,
                                        0xFF,

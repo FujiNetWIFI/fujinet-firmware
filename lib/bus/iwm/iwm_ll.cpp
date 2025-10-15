@@ -60,8 +60,8 @@ void IRAM_ATTR phi_isr_handler(void *arg)
     switch (sp_command_mode)
     {
     case sp_cmd_state_t::standby:
-      error = smartport.iwm_read_packet_spi(IWM.command_packet.data, COMMAND_PACKET_LEN);
-      c = IWM.command_packet.command & 0x0f;
+      error = smartport.iwm_read_packet_spi(SYSTEM_BUS.command_packet.data, COMMAND_PACKET_LEN);
+      c = SYSTEM_BUS.command_packet.command & 0x0f;
       if (!error) // packet received ok and checksum good
       {
         if (c == SP_CMD_INIT)
@@ -71,9 +71,9 @@ void IRAM_ATTR phi_isr_handler(void *arg)
         }
         else
         {
-          for (auto devicep : IWM._daisyChain)
+          for (auto devicep : SYSTEM_BUS._daisyChain)
           {
-            if (IWM.command_packet.dest == devicep->id())
+            if (SYSTEM_BUS.command_packet.dest == devicep->id())
             {
               smartport.iwm_ack_clr();
               // look for CTRL command
@@ -118,9 +118,9 @@ void IRAM_ATTR phi_isr_handler(void *arg)
       }
       else if (error == 2) // checksum error
       {
-        Debug_printf("\r\nISR Data Packet Chksum error, calc %02x, pkt %02x command = %02x", smartport.calc_checksum, smartport.pkt_checksum,IWM.command_packet.command & 0x0f);
+        Debug_printf("\r\nISR Data Packet Chksum error, calc %02x, pkt %02x command = %02x", smartport.calc_checksum, smartport.pkt_checksum,SYSTEM_BUS.command_packet.command & 0x0f);
         /*We sometimes get garbage data packets with control code 0 commands, accept them as-is and go on*/
-        if((IWM.command_packet.command == 0x84) && (IWM.command_packet.data[19] == 0x80)) {
+        if((SYSTEM_BUS.command_packet.command == 0x84) && (SYSTEM_BUS.command_packet.data[19] == 0x80)) {
           Debug_printf("\r\nIgnoring bad data packet");
           smartport.iwm_ack_clr();
           sp_command_mode = sp_cmd_state_t::command;
@@ -1216,7 +1216,7 @@ uint8_t IRAM_ATTR iwm_diskii_ll::iwm_active_drive()
   uint8_t drive = 0;
 
   // only enable diskII if we are either not on an en35 capable host, or we are on an en35host and /EN35=high
-  if (!IWM.en35Host || (IWM.en35Host && IWM_BIT(SP_EN35)))
+  if (!SYSTEM_BUS.en35Host || (SYSTEM_BUS.en35Host && IWM_BIT(SP_EN35)))
   {
     if (!(drive |= IWM_BIT(SP_DRIVE1) ? 0 : 1))
     {

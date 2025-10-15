@@ -273,6 +273,6 @@ public:
     bool getShuttingDown() { return shuttingDown; };
 };
 
-extern systemBus ComLynx;
+extern systemBus SYSTEM_BUS;
 
 #endif /* COMLYNX_H */
