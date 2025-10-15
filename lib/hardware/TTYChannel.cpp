@@ -14,8 +14,8 @@
 
 #include "../../include/debug.h"
 
-#define UART_PROBE_DEV1 "/dev/ttyUSB0"
-#define UART_PROBE_DEV2 "/dev/ttyS0"
+#define TTY_PROBE_DEV1 "/dev/ttyUSB0"
+#define TTY_PROBE_DEV2 "/dev/ttyS0"
 
 void TTYChannel::begin(const ChannelConfig& conf)
 {
@@ -25,7 +25,7 @@ void TTYChannel::begin(const ChannelConfig& conf)
     if (_device.empty())
     {
         bool found = false;
-        for (const auto& probe : {UART_PROBE_DEV1, UART_PROBE_DEV2})
+        for (const auto& probe : {TTY_PROBE_DEV1, TTY_PROBE_DEV2})
         {
             Debug_printf("Trying %s\n", probe);
             if ((_fd = open(probe, O_RDWR | O_NOCTTY | O_NONBLOCK)) >= 0)
@@ -56,13 +56,13 @@ void TTYChannel::begin(const ChannelConfig& conf)
     struct serial_struct ss;
     if (ioctl(_fd, TIOCGSERIAL, &ss) == -1)
     {
-        Debug_printf("UART warning: TIOCGSERIAL failed: %d - %s\n", errno, strerror(errno));
+        Debug_printf("TTY warning: TIOCGSERIAL failed: %d - %s\n", errno, strerror(errno));
     }
     else
     {
         ss.flags |= ASYNC_LOW_LATENCY;
         if (ioctl(_fd, TIOCSSERIAL, &ss) == -1)
-            Debug_printf("UART warning: TIOCSSERIAL failed: %d - %s\n", errno, strerror(errno));
+            Debug_printf("TTY warning: TIOCSSERIAL failed: %d - %s\n", errno, strerror(errno));
     }
 #endif
 
@@ -104,7 +104,7 @@ void TTYChannel::begin(const ChannelConfig& conf)
         return;
     }
 
-    Debug_printf("### UART initialized ###\n");
+    Debug_printf("### TTY initialized ###\n");
     setBaudrate(conf.baud_rate);
 
     return;
@@ -116,7 +116,7 @@ void TTYChannel::end()
     {
         close(_fd);
         _fd  = -1;
-        Debug_printf("### UART stopped ###\n");
+        Debug_printf("### TTY stopped ###\n");
     }
 
     return;
@@ -177,14 +177,14 @@ size_t TTYChannel::dataOut(const void *buffer, size_t length)
                 continue;
             }
             // Otherwise there was some error
-            Debug_printf("UART write() select error %d: %s\n", errno, strerror(errno));
+            Debug_printf("TTY write() select error %d: %s\n", errno, strerror(errno));
             break;
         }
 
         // Timeout
         if (result == 0)
         {
-            Debug_println("UART write() TIMEOUT");
+            Debug_println("TTY write() TIMEOUT");
             break;
         }
 
@@ -198,7 +198,7 @@ size_t TTYChannel::dataOut(const void *buffer, size_t length)
                 // Debug_printf("write: %d\n", result);
                 if (result < 1)
                 {
-                    Debug_printf("UART write() write error %d: %s\n", errno, strerror(errno));
+                    Debug_printf("TTY write() write error %d: %s\n", errno, strerror(errno));
                     break;
                 }
 
@@ -206,7 +206,7 @@ size_t TTYChannel::dataOut(const void *buffer, size_t length)
                 if (txbytes == length)
                 {
                     // TODO is flush missing somewhere else?
-                    // wait UART is writable again before return
+                    // wait TTY is writable again before return
                     timeout_tv = timeval_from_ms(1000 + result * 12500 / _baud);
                     select(_fd + 1, NULL, &writefds, NULL, &timeout_tv);
                     // done
@@ -219,7 +219,7 @@ size_t TTYChannel::dataOut(const void *buffer, size_t length)
                 }
             }
             // This shouldn't happen, if r > 0 our fd has to be in the list!
-            Debug_println("UART write() unexpected select result");
+            Debug_println("TTY write() unexpected select result");
         }
     }
     return txbytes;
@@ -238,7 +238,7 @@ void TTYChannel::flush()
 
 void TTYChannel::setBaudrate(uint32_t baud)
 {
-    Debug_printf("UART set_baudrate: %d\n", baud);
+    Debug_printf("TTY set_baudrate: %d\n", baud);
 
     if (baud == 0)
         baud = 19200;
@@ -363,7 +363,7 @@ bool TTYChannel::waitReadable(uint32_t timeout_ms)
     {
         if (errno != EINTR)
         {
-            Debug_printf("UART waitReadable() select error %d: %s\n", errno, strerror(errno));
+            Debug_printf("TTY waitReadable() select error %d: %s\n", errno, strerror(errno));
         }
         return false;
     }
@@ -375,7 +375,7 @@ bool TTYChannel::waitReadable(uint32_t timeout_ms)
     // This shouldn't happen, if result > 0 our fd has to be in the list!
     if (!FD_ISSET (_fd, &readfds))
     {
-        Debug_println("UART waitReadable() unexpected select result");
+        Debug_println("TTY waitReadable() unexpected select result");
     }
     // Data available to read.
     return true;
@@ -397,7 +397,7 @@ size_t TTYChannel::si_recv(void *buffer, size_t length)
             }
             else
             {
-                Debug_printf("UART readBytes() read error %d: %s\n", errno, strerror(errno));
+                Debug_printf("TTY readBytes() read error %d: %s\n", errno, strerror(errno));
                 break;
             }
         }
@@ -411,7 +411,7 @@ size_t TTYChannel::si_recv(void *buffer, size_t length)
 
         if (!waitReadable(500)) // 500 ms timeout
         {
-            Debug_println("UART readBytes() TIMEOUT");
+            Debug_println("TTY readBytes() TIMEOUT");
             break;
         }
     }
