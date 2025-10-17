@@ -20,6 +20,7 @@
 #include "fujiCmd.h"
 
 #include "hash.h"
+#include "../../qrcode/qrmanager.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8
@@ -114,6 +115,8 @@ private:
     mbedtls_sha512_context _sha512;
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+
+    QRManager _qrManager = QRManager();
 
 protected:
     void sio_reset_fujinet();          // 0xFF

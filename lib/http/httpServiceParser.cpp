@@ -65,9 +65,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PRINTER_ENABLED,
         FN_MODEM_ENABLED,
         FN_MODEM_SNIFFER_ENABLED,
+#if !defined(ESP_PLATFORM) || defined(BUILD_RS232)
+        FN_SERIAL_PORT_BAUD,
+#endif
 #ifndef ESP_PLATFORM
         FN_SERIAL_PORT,
-        FN_SERIAL_PORT_BAUD,
         FN_SERIAL_COMMAND,
         FN_SERIAL_PROCEED,
         FN_SIO_HSTEXT,
@@ -183,9 +185,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PRINTER_ENABLED",
         "FN_MODEM_ENABLED",
         "FN_MODEM_SNIFFER_ENABLED",
+#if !defined(ESP_PLATFORM) || defined(BUILD_RS232)
+        "FN_SERIAL_PORT_BAUD",
+#endif
 #ifndef ESP_PLATFORM
         "FN_SERIAL_PORT",
-        "FN_SERIAL_PORT_BAUD",
         "FN_SERIAL_COMMAND",
         "FN_SERIAL_PROCEED",
         "FN_SIO_HSTEXT",
@@ -390,6 +394,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         resultstream << SIO.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
+#if defined(BUILD_RS232)
+    case FN_SERIAL_PORT_BAUD:
+        resultstream << Config.get_rs232_baud();
+        break;
+#endif
 #ifndef ESP_PLATFORM
     case FN_SERIAL_PORT:
         resultstream << Config.get_serial_port();

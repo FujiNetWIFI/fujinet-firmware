@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <cstring>
 
+#include "../../include/debug.h"
 
 MediaType::~MediaType()
 {
@@ -17,7 +18,9 @@ bool MediaType::format(uint16_t *responsesize)
 }
 
 bool MediaType::read(uint32_t blockNum, uint16_t *readcount)
-{
+{    
+    Debug_printf("DW MediaType baseclass READ file\n");
+
     return true;
 }
 
@@ -55,6 +58,10 @@ mediatype_t MediaType::discover_mediatype(const char *filename)
         else if (strcasecmp(ext, "MRM") == 0 || strcasecmp(ext, "RMM") == 0)
         {
             return MEDIATYPE_MRM;
+        }
+        else if (strcasecmp(ext, "VDK") == 0)
+        {
+            return MEDIATYPE_VDK;
         }
     }
     return MEDIATYPE_UNKNOWN;

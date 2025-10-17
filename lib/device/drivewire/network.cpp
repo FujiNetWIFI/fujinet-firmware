@@ -9,6 +9,18 @@
 #include <cstring>
 #include <algorithm>
 
+#ifdef __APPLE__
+#include <libkern/OSByteOrder.h>
+#define htobe16(x) OSSwapHostToBigInt16(x)
+#else
+#if defined(_WIN16) || defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__)
+#include <winsock2.h>
+#define htobe16(x) htons(x)
+#else
+#include <endian.h>
+#endif // windows
+#endif /* __APPLE__ */
+
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
 
@@ -457,7 +469,8 @@ void drivewireNetwork::status_local()
     uint8_t ipNetmask[4];
     uint8_t ipGateway[4];
     uint8_t ipDNS[4];
-    uint8_t default_status[4] = {0, 0, 0, 0};
+    NDeviceStatus status {};
+
 
     Debug_printf("drivewireNetwork::sio_status_local(%u)\n", cmdFrame.aux2);
 
@@ -468,31 +481,28 @@ void drivewireNetwork::status_local()
     {
     case 1: // IP Address
         Debug_printf("IP Address: %u.%u.%u.%u\n", ipAddress[0], ipAddress[1], ipAddress[2], ipAddress[3]);
-        memcpy(default_status,ipAddress,sizeof(default_status));
+        memcpy(&status,ipAddress,sizeof(status));
         break;
     case 2: // Netmask
         Debug_printf("Netmask: %u.%u.%u.%u\n", ipNetmask[0], ipNetmask[1], ipNetmask[2], ipNetmask[3]);
-        memcpy(default_status,ipNetmask,sizeof(default_status));
+        memcpy(&status,ipNetmask,sizeof(status));
         break;
     case 3: // Gatway
         Debug_printf("Gateway: %u.%u.%u.%u\n", ipGateway[0], ipGateway[1], ipGateway[2], ipGateway[3]);
-        memcpy(default_status,ipGateway,sizeof(default_status));
+        memcpy(&status,ipGateway,sizeof(status));
         break;
     case 4: // DNS
         Debug_printf("DNS: %u.%u.%u.%u\n", ipDNS[0], ipDNS[1], ipDNS[2], ipDNS[3]);
-        memcpy(default_status,ipDNS,sizeof(default_status));
+        memcpy(&status,ipDNS,sizeof(status));
         break;
     default:
-        default_status[2] = ns.connected;
-        default_status[3] = ns.error;
+        status.conn = ns.connected;
+        status.err = ns.error;
         break;
     }
 
     response.clear();
-    response += default_status[0];
-    response += default_status[1];
-    response += default_status[2];
-    response += default_status[3];
+    response.append((char *) &status, sizeof(status));
 }
 
 bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
@@ -508,7 +518,7 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
  */
 void drivewireNetwork::status_channel()
 {
-    uint8_t serialized_status[4] = {0, 0, 0, 0};
+    NDeviceStatus status;
 
     Debug_printf("drivewireNetwork::sio_status_channel(%u)\n", channelMode);
 
@@ -530,23 +540,21 @@ void drivewireNetwork::status_channel()
     protocol->forceStatus = false;
 
     // Serialize status into status bytes (rxBytesWaiting sent big endian!)
-    serialized_status[0] = ns.rxBytesWaiting >> 8;
-    serialized_status[1] = ns.rxBytesWaiting & 0xFF;
-    serialized_status[2] = ns.connected;
-    serialized_status[3] = ns.error;
+    size_t avail = ns.rxBytesWaiting;
+    avail = avail > 65535 ? 65535 : avail;
+    status.avail = htobe16(avail);
+    status.conn = ns.connected;
+    status.err = ns.error;
 
-    Debug_printf("sio_status_channel() - BW: %u C: %u E: %u\n",
-                 ns.rxBytesWaiting, ns.connected, ns.error);
-
-    Debug_printf("%02X %02X %02X %02X\n",serialized_status[0],serialized_status[1],serialized_status[2],serialized_status[3]);
+#if 1 //def TOO_MUCH_DEBUG
+    Debug_printf("status_channel() - BW: %u C: %u E: %u\n",
+                 avail, ns.connected, ns.error);
+#endif /* TOO_MUCH_DEBUG */
 
     // and fill response.
     response.clear();
     response.shrink_to_fit();
-    response += serialized_status[0];
-    response += serialized_status[1];
-    response += serialized_status[2];
-    response += serialized_status[3];
+    response.append((char *) &status, sizeof(status));
 }
 
 /**

@@ -30,6 +30,11 @@
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
 
+typedef struct {
+    uint16_t avail;
+    uint8_t conn, err;
+} NDeviceStatus;
+
 class drivewireNetwork : public virtualDevice
 {
 

@@ -1239,6 +1239,7 @@
 						</div>
 					</div>
 					<div class="settings-content settings-45-55">
+						{% if not tweaks.platform == "RS232" %}
 						<div class="set">
 							<div class="settings-label">
 								<label for="serial_port">Serial Port</label>
@@ -1247,6 +1248,7 @@
 								<input type="text" name="serial_port" id="serial_port" value="<%FN_SERIAL_PORT%>">
 							</div>
 						</div>
+						{% endif %}
 						{% if tweaks.platform == "ATARI" %}
 						<div class="set">
 							<div class="settings-label">
@@ -1297,6 +1299,26 @@
 						<script>
 							var current_serial_baud = "<%FN_SERIAL_PORT_BAUD%>";
 						</script>
+						{% elif tweaks.platform == "RS232" %}
+						<div class="set">
+							<div class="settings-label">
+								<label>Baud Rate</label>
+							</div>
+							<div class="settings-value select">
+								<select name="serial_baud" id="select_serial_baud">
+									<option value="9600">9600</option>
+									<option value="19200">19200</option>
+									<option value="28800">28800</option>
+									<option value="38400">38400</option>
+									<option value="57600">57600</option>
+									<option value="115200">115200</option>
+								</select>
+								<span class="focus"></span>
+							</div>
+						</div>
+						<script>
+							var current_serial_baud = "<%FN_SERIAL_PORT_BAUD%>";
+						</script>
 						{% endif %}
 						<hr>
 						<div class="settings-text">
@@ -1305,11 +1327,17 @@
 								Serial port for communication with an Atari computer.
 								{% elif tweaks.platform == "COCO" %}
 								Serial port for communication with a CoCo computer.
+								{% elif tweaks.platform == "RS232" %}
+								Serial port for communication for RS232.
 								{% else %}
 								Serial port for communication with a real computer.
 								{% endif %}
 								<br>
+								{% if tweaks.platform == "RS232" %}
+								Note: This must match the baud rate set for the FujiNet driver on the host machine
+								{% else %}
 								Note: To use it, configure above settings and disable communication with emulator.
+								{% endif %}
 							</div>
 						</div>
 					</div>

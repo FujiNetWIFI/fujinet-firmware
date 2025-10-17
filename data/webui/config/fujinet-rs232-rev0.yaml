@@ -12,6 +12,7 @@ components:
   hsio_settings: true
   timezone: true
   udp_stream: true
+  serial_port: true
   program_recorder: true
   disk_swap: true
   boot_settings: true
@@ -19,3 +20,4 @@ components:
   pclink: false
 tweaks:
   # webui tweaks, if any
+  platform: RS232
