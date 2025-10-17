@@ -133,7 +133,7 @@ std::map<std::string, std::string> fnHttpServiceConfigurator::parse_postdata(con
 void udpstream_activate()
 {
 #ifdef BUILD_ATARI
-    SIO.setUDPHost(Config.get_network_udpstream_host().c_str(), Config.get_network_udpstream_port());
+    SYSTEM_BUS.setUDPHost(Config.get_network_udpstream_host().c_str(), Config.get_network_udpstream_port());
 #endif /* ATARI */
 #ifdef BUILD_LYNX
     ComLynx.setUDPHost(Config.get_network_udpstream_host().c_str(), Config.get_network_udpstream_port());
@@ -166,7 +166,7 @@ void fnHttpServiceConfigurator::config_hsio(std::string hsioindex)
     }
 #endif
 
-    SIO.setHighSpeedIndex(index);
+    SYSTEM_BUS.setHighSpeedIndex(index);
     // Store our change in Config
     Config.store_general_hsioindex(index);
     Config.save();
@@ -309,7 +309,7 @@ void fnHttpServiceConfigurator::config_cassette_rewind()
 {
 #ifdef BUILD_ATARI
     Debug_printf("Rewinding cassette.\n");
-    SIO.getCassette()->rewind();
+    SYSTEM_BUS.getCassette()->rewind();
 
     Config.save();
 #endif /* ATARI */
@@ -325,7 +325,7 @@ void fnHttpServiceConfigurator::config_udpstream(std::string hostname)
     {
         Debug_println("UDPStream Stop Request");
 #ifdef BUILD_ATARI
-        SIO.setUDPHost("STOP", port);
+        SYSTEM_BUS.setUDPHost("STOP", port);
 #endif /* ATARI */
 #ifdef BUILD_LYNX
         ComLynx.setUDPHost("STOP", port);
@@ -445,7 +445,7 @@ void fnHttpServiceConfigurator::config_printer_port(std::string printernumber, s
     fnPrinters.set_port(0, port);
 #ifdef BUILD_ATARI
     // Tell the SIO daisy chain to change the device ID for this printer
-    SIO.changeDeviceId(fnPrinters.get_ptr(0), SIO_DEVICEID_PRINTER + port);
+    SYSTEM_BUS.changeDeviceId(fnPrinters.get_ptr(0), SIO_DEVICEID_PRINTER + port);
 #endif
 
     Config.save();

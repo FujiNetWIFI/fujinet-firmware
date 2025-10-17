@@ -162,11 +162,11 @@ void virtualDevice::reset()
 
 void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
 {
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
 
     if (!doNotWaitForIdle)
     {
-        AdamNet.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
     }
     
     if (t < 300)
@@ -177,11 +177,11 @@ void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
 
 void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
 {
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
 
     if (!doNotWaitForIdle)
     {
-        AdamNet.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
     }
     
     if (t < 300)
@@ -226,7 +226,7 @@ void virtualDevice::adamnet_process(uint8_t b)
 
 void virtualDevice::adamnet_control_status()
 {
-    AdamNet.start_time=esp_timer_get_time();
+    SYSTEM_BUS.start_time=esp_timer_get_time();
    adamnet_response_status();
 }
 
@@ -434,6 +434,4 @@ void systemBus::disableDevice(uint8_t device_id)
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = false;
 }
-
-systemBus AdamNet;
 #endif /* BUILD_ADAM */

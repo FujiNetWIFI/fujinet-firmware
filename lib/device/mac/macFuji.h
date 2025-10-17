@@ -83,8 +83,6 @@ private:
         uint8_t rssi;
     } detail;
 
-    macBus *_mac_bus;
-
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
@@ -192,7 +190,7 @@ public:
 
     // 27-Aug-23 get it online: void insert_boot_device(uint8_t d) {};
 
-    void setup(macBus *macbus);
+    void setup();
 
     // 27-Aug-23 get it online: void image_rotate() {};
     int get_disk_id(int drive_slot);

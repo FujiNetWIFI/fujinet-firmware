@@ -244,12 +244,12 @@ void systemBus::setup(void)
 //*****************************************************************************
 void virtualDevice::send_init_reply_packet(uint8_t source, uint8_t status)
 {
-  IWM.iwm_send_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
+  SYSTEM_BUS.iwm_send_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
 }
 
 void virtualDevice::send_reply_packet(uint8_t status)
 {
-  IWM.iwm_send_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
 }
 
 void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
@@ -264,7 +264,7 @@ void virtualDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
     case SP_CMD_CONTROL:
     case SP_CMD_WRITE:
       data_len = 512;
-      IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+      SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
       Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
       print_packet((uint8_t *)data_buffer, data_len);
       break;
@@ -300,7 +300,7 @@ void virtualDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
     case SP_CMD_CONTROL:
     case SP_CMD_WRITE:
       data_len = 512;
-      IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+      SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
       Debug_printf("\r\nUnit %02x Offline, Command with data packet %02x\r\n", id(), cmd.command);
       print_packet((uint8_t *)data_buffer, data_len);
       break;
@@ -902,7 +902,4 @@ void systemBus::shutdown()
   }
   Debug_printf("All devices shut down.\n");
 }
-
-systemBus IWM; // global smartport bus variable
-
 #endif /* BUILD_APPLE */

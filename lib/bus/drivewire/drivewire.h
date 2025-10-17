@@ -20,7 +20,6 @@
 #define COCO_H
 
 #include "UARTChannel.h"
-#include "TTYChannel.h"
 #include "BeckerSocket.h"
 
 #ifdef ESP32_PLATFORM
@@ -194,11 +193,7 @@ class systemBus
 {
 private:
     IOChannel *_port;
-#if defined(ESP_PLATFORM)
     UARTChannel _serial;
-#elif defined(ITS_A_UNIX_SYSTEM_I_KNOW_THIS)
-    TTYChannel _serial;
-#endif
     BeckerSocket _becker;
     
     virtualDevice *_activeDev = nullptr;

@@ -118,7 +118,7 @@ void iwmDisk::send_status_reply_packet()
   std::vector<uint8_t> data;
   data.push_back(status);
   data.insert(data.end(), block_size.begin(), block_size.end());
-  IWM.iwm_send_packet(id(), iwm_packet_type_t::status,SP_ERR_NOERROR, data.data(), data.size());
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status,SP_ERR_NOERROR, data.data(), data.size());
 }
 
 //*****************************************************************************
@@ -146,7 +146,7 @@ void iwmDisk::send_extended_status_reply_packet() //XXX! Currently unused
   std::vector<uint8_t> data;
   data.push_back(status);
   data.insert(data.end(), block_size.begin(), block_size.end());
-  IWM.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data.data(), data.size());
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 //*****************************************************************************
@@ -173,7 +173,7 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
     { smartport_device_type(), smartport_device_subtype() },    // type, subtype
     { 0x01, 0x0f }                                              // version.
   );
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 //*****************************************************************************
@@ -207,7 +207,7 @@ void iwmDisk::send_extended_status_dib_reply_packet() //XXX! currently unused
     switched = false;
   }
 
-  IWM.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data.data(), data.size());
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd) 
@@ -218,7 +218,7 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
   // already called by ISR
   data_len = 512;
   Debug_printf("\nDecoding Control Data Packet:");
-  IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+  SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
   // data_len = decode_packet((uint8_t *)data_buffer);
   print_packet((uint8_t *)data_buffer, data_len);
 
@@ -339,7 +339,7 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
   
   // send_data_packet();
   Debug_printf("\r\nsending block packet ...");
-  if (IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, BLOCK_DATA_LEN))
+  if (SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, BLOCK_DATA_LEN))
    ((MediaTypePO*)_disk)->reset_seek_opto();  // force seek next time if send error
 }
 
@@ -360,7 +360,7 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
   //get write data packet, keep trying until no timeout
   // to do - this blows up - check handshaking
   data_len = BLOCK_DATA_LEN;
-  if (IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len))
+  if (SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len))
   {
     Debug_printf("\r\nTIMEOUT in read packet!");
     return;

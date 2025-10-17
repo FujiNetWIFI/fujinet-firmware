@@ -117,6 +117,6 @@ public:
     bool getShuttingDown() { return shuttingDown; };
 };
 
-extern systemBus H89Bus;
+extern systemBus SYSTEM_BUS;
 
 #endif /* H89_H */

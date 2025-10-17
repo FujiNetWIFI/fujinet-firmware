@@ -486,6 +486,4 @@ void systemBus::setUDPHost(const char *hostname, int port)
 void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 {
 }
-
-systemBus SYSTEM_BUS; // Global RS232 object
 #endif /* BUILD_RS232 */

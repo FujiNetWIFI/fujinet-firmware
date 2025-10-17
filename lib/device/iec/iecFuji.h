@@ -512,7 +512,7 @@ public:
     void insert_boot_device(uint8_t d);
 #endif /* UNUSED */
 
-    void setup(systemBus *bus);
+    void setup();
 
 #ifdef UNUSED
     void image_rotate();

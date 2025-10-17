@@ -221,11 +221,6 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
-
-    /**
-     * @brief Get the systemBus object that this virtualDevice is attached to.
-     */
-    systemBus get_bus();
 };
 
 /**
@@ -374,6 +369,6 @@ public:
 /**
  * @brief Return
  */
-extern systemBus CX16;
+extern systemBus SYSTEM_BUS;
 
 #endif /* CX16_I2C_H */

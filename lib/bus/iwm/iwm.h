@@ -256,9 +256,9 @@ protected:
 
 public:
   bool device_active;
+  uint8_t prevtype = SP_TYPE_BYTE_HARDDISK; //preserve previous device type when offline
   bool switched = false; //indicate disk switched condition
   bool readonly = true;  //write protected
-  uint8_t prevtype = SP_TYPE_BYTE_HARDDISK; //preserve previous device type when offline
   bool is_config_device;
   /**
    * @brief get the IWM device Number (1-255)
@@ -269,12 +269,6 @@ public:
   //void assign_id(uint8_t n) { _devnum = n; };
 
   void assign_name(std::string name) {dib.device_name = name;}
-
-  /**
-   * @brief Get the systemBus object that this virtualDevice is attached to.
-   */
-  systemBus iwm_get_bus();
-
 };
 
 class systemBus
@@ -362,7 +356,7 @@ public:
   void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 };
 
-extern systemBus IWM;
+extern systemBus SYSTEM_BUS;
 
 #define IWM_ACTIVE_DISK2 ((iwmDisk2 *) theFuji->get_disk_dev(MAX_SPDISK_DEVICES + diskii_xface.iwm_active_drive() - 1))
 #endif // guard

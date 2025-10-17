@@ -67,20 +67,20 @@ void iwmCPM::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmCPM::send_status_dib_reply_packet()
 {
-        Debug_printf("\r\nCPM: Sending DIB reply\r\n");
-        std::vector<uint8_t> data = create_dib_reply_packet(
-                "CPM",                                                      // name
-                STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,             // status
-                { 0, 0, 0 },                                                // block size
-                { SP_TYPE_BYTE_FUJINET_CPM, SP_SUBTYPE_BYTE_FUJINET_CPM },  // type, subtype
-                { 0x00, 0x01 }                                              // version.
-        );
-        IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+	Debug_printf("\r\nCPM: Sending DIB reply\r\n");
+	std::vector<uint8_t> data = create_dib_reply_packet(
+		"CPM",                                                      // name
+		STATCODE_READ_ALLOWED | STATCODE_DEVICE_ONLINE,             // status
+		{ 0, 0, 0 },                                                // block size
+		{ SP_TYPE_BYTE_FUJINET_CPM, SP_SUBTYPE_BYTE_FUJINET_CPM },  // type, subtype
+		{ 0x00, 0x01 }                                              // version.
+	);
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 
 }
 
@@ -163,7 +163,7 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
 void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
@@ -204,7 +204,7 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nsending CPM read data packet ...");
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
 }
@@ -219,8 +219,8 @@ void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
     //  to do - this blows up - check handshaking
 
     data_len = num_bytes;
-    IWM.iwm_decode_data_packet(data_buffer, data_len); // write data packet now read in ISR
-    // if (IWM.iwm_decode_data_packet(data_buffer, data_len))
+    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len); // write data packet now read in ISR
+    // if (SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len))
     // {
     //     Debug_printf("\r\nTIMEOUT in read packet!");
     //     return;
@@ -246,7 +246,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
     Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), control_code);
     // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
     data_len = 512;
-    IWM.iwm_decode_data_packet(data_buffer, data_len);
+    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
     // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
     print_packet(data_buffer);
 

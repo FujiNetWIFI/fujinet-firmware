@@ -102,7 +102,7 @@ iecFuji::iecFuji() : fujiDevice()
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void iecFuji::setup(systemBus *bus)
+void iecFuji::setup()
 {
     //Debug_printf("iecFuji::setup()\r\n");
 
@@ -116,28 +116,28 @@ void iecFuji::setup(systemBus *bus)
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
     // 04-07 Printers / Plotters
-    if (bus->attachDevice(ptr))
+    if (SYSTEM_BUS.attachDevice(ptr))
         Debug_printf("Attached printer device #%d\r\n", 4);
 
     // 08-15 Drives
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
         _fnDisks[i].disk_dev.setDeviceNumber(BUS_DEVICEID_DISK+i);
-        if (bus->attachDevice(&_fnDisks[i].disk_dev))
+        if (SYSTEM_BUS.attachDevice(&_fnDisks[i].disk_dev))
             Debug_printf("Attached drive device #%d\r\n", BUS_DEVICEID_DISK+i);
     }
 
     // 16-19 Network Devices
-    if (bus->attachDevice(new iecNetwork(16)))     // 16-19 Network Devices
+    if (SYSTEM_BUS.attachDevice(new iecNetwork(16)))     // 16-19 Network Devices
         Debug_printf("Attached network device #%d\r\n", 16);
 
-    //Serial.print("CPM "); bus->addDevice(new iecCpm(), 20);             // 20-29 Other
-    if (bus->attachDevice(new iecClock(29)))
+    //Serial.print("CPM "); SYSTEM_BUS.addDevice(new iecCpm(), 20);             // 20-29 Other
+    if (SYSTEM_BUS.attachDevice(new iecClock(29)))
         Debug_printf("Attached clock device #%d\r\n", 29);
 
     // FujiNet
     setDeviceNumber(30);
-    if (bus->attachDevice(this))
+    if (SYSTEM_BUS.attachDevice(this))
         Debug_printf("Attached Meatloaf device #%d\r\n", 30);
 }
 
@@ -826,7 +826,7 @@ void iecFuji::enable_device_basic()
     // Enable devices
     for (int i = 0; i < pt.size(); i++) {
         uint8_t device = atoi(pt[i].c_str());
-        auto d = IEC.findDevice(device, true);
+        auto d = SYSTEM_BUS.findDevice(device, true);
         if (d) {
             d->setActive(true);
             Debug_printv("Enable Device #%d [%d]", device, d->isActive());
@@ -842,7 +842,7 @@ void iecFuji::disable_device_basic()
     // Disable devices
     for (int i = 0; i < pt.size(); i++) {
         uint8_t device = atoi(pt[i].c_str());
-        auto d = IEC.findDevice(device, true);
+        auto d = SYSTEM_BUS.findDevice(device, true);
         if (d) {
             d->setActive(false);
             Debug_printv("Disable Device #%d [%d]", device, d->isActive());

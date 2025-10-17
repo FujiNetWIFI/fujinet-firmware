@@ -594,6 +594,4 @@ size_t systemBus::busRxBuffer(uint8_t *buf, unsigned short len)
 
     return t.trans_len / 8;
 }
-
-systemBus rc2014Bus;
 #endif /* RC2014_TARGET */

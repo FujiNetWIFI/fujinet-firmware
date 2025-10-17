@@ -419,6 +419,4 @@ void systemBus::streamDeactivate()
 {
     _streamDev = nullptr;
 }
-
-systemBus rc2014Bus;
 #endif /* NEW_TARGET */

@@ -1520,8 +1520,8 @@ void modem::modemCommand()
         if (Config.get_cpm_enabled())
         {
             modemActive = false;
-            SIO.getCPM()->init_cpm(modemBaud);
-            SIO.getCPM()->cpmActive = true;
+            SYSTEM_BUS.getCPM()->init_cpm(modemBaud);
+            SYSTEM_BUS.getCPM()->cpmActive = true;
         }
         else
         {

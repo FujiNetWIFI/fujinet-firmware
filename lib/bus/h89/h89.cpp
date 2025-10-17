@@ -165,6 +165,4 @@ bool systemBus::enabledDeviceStatus(uint8_t device_id)
 
     return false;
 }
-
-systemBus H89Bus;
 #endif /* H89 */

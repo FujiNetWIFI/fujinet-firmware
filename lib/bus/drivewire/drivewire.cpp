@@ -845,6 +845,4 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 {
     return;
 }
-
-systemBus SYSTEM_BUS; // Global DRIVEWIRE object
 #endif               /* BUILD_COCO */

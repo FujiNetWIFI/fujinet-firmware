@@ -425,6 +425,6 @@ public:
     size_t busRxBuffer(uint8_t *buf, unsigned short len);
 };
 
-extern systemBus rc2014Bus;
+extern systemBus SYSTEM_BUS;
 
 #endif /* rc2014_H */
