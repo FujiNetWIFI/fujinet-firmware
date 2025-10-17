@@ -35,7 +35,7 @@ void iwmClock::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    IWM.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(),iwm_packet_type_t::status,SP_ERR_NOERROR, data, 4);
 }
 
 void iwmClock::send_status_dib_reply_packet()
@@ -48,7 +48,7 @@ void iwmClock::send_status_dib_reply_packet()
 		{ SP_TYPE_BYTE_FUJINET_CLOCK, SP_SUBTYPE_BYTE_FUJINET_CLOCK },  // type, subtype
 		{ 0x00, 0x01 }                                                  // version.
 	);
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmClock::set_tz()
@@ -74,7 +74,7 @@ void iwmClock::iwm_ctrl(iwm_decoded_cmd_t cmd)
     Debug_printf("[CLOCK] Device %02x Control Code %02x('%c')\r\n", id(), control_code, isprint(as_char) ? as_char : '.');
 #endif
 
-    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+    SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
 
     uint8_t err_result = SP_ERR_NOERROR;
 
@@ -186,7 +186,7 @@ void iwmClock::iwm_status(iwm_decoded_cmd_t cmd)
     }
 
     // If we got here, we have data to send
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR_NOERROR, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, SP_ERR_NOERROR, data_buffer, data_len);
 }
 
 void iwmClock::iwm_open(iwm_decoded_cmd_t cmd)

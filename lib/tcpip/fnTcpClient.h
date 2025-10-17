@@ -4,16 +4,17 @@
 #define _FN_TCPCLIENT_H_
 
 #include <memory>
+#include <string>
 
 #include "compat_inet.h"
 
 class fnTcpClientSocketHandle;
-class fnTcpClientRxBuffer;
 
 class fnTcpClient
 {
 protected:
-    std::shared_ptr<fnTcpClientRxBuffer> _rxBuffer;
+    std::string _rxBuffer;
+    int _fd;
     std::shared_ptr<fnTcpClientSocketHandle> _clientSocketHandle;
     bool _connected = false;
 
@@ -36,7 +37,8 @@ public:
     int read(uint8_t *buf, size_t size);
     int read_until(char terminator, char *buf, size_t size);
 
-    int available();
+    void updateFIFO();
+    size_t available();
     int peek();
     void flush();
     uint8_t connected();

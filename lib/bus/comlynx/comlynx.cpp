@@ -458,6 +458,4 @@ void systemBus::setUDPHost(const char *hostname, int port)
     if (_udpDev->udpstream_host_ip != IPADDR_NONE)
         _udpDev->comlynx_enable_udpstream();
 }
-
-systemBus ComLynx;
 #endif /* BUILD_LYNX */

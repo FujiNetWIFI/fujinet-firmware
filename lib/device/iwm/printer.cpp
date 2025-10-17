@@ -28,7 +28,7 @@ void iwmPrinter::send_status_reply_packet()
     data[0] = 0b01110000;
     data[1] = data[2] = data[3] = 0;
 
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmPrinter::send_extended_status_reply_packet()
@@ -38,7 +38,7 @@ void iwmPrinter::send_extended_status_reply_packet()
     data[0] = 0b01110000;
     data[1] = data[2] = data[3] = data[4] = 0;
 
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 5);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data, 5);
 }
 
 void iwmPrinter::send_status_dib_reply_packet()
@@ -51,7 +51,7 @@ void iwmPrinter::send_status_dib_reply_packet()
         { SP_TYPE_BYTE_FUJINET_PRINTER, SP_SUBTYPE_BYTE_FUJINET_PRINTER },  // type, subtype
         { 0x00, 0x01 }                                                      // version.
     );
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmPrinter::send_extended_status_dib_reply_packet()
@@ -95,8 +95,8 @@ void iwmPrinter::iwm_write(iwm_decoded_cmd_t cmd)
     Debug_printf("\nPrinter: Write %u bytes\n", num_bytes);
 
     data_len = num_bytes;
-    IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
-    // if (IWM.iwm_decode_data_packet(100, (unsigned char *)data_buffer, data_len)) // write data packet now read in ISR
+    SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
+    // if (SYSTEM_BUS.iwm_decode_data_packet(100, (unsigned char *)data_buffer, data_len)) // write data packet now read in ISR
     // {
     //     Debug_printf("\r\nTIMEOUT in read packet!");
     //     return;

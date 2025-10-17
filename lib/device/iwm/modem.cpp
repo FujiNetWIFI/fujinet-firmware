@@ -565,7 +565,7 @@ void iwmModem::at_handle_answer()
     Debug_printf("HANDLE ANSWER !!!\n");
     if (tcpServer.hasClient())
     {
-        tcpClient = tcpServer.available();
+        tcpClient = tcpServer.client();
         tcpClient.setNoDelay(true); // try to disable naggle
                                     //        tcpServer.stop();
         answerTimer = fnSystem.millis();
@@ -1358,7 +1358,7 @@ void iwmModem::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmModem::send_status_dib_reply_packet()
@@ -1371,7 +1371,7 @@ void iwmModem::send_status_dib_reply_packet()
 		{ SP_TYPE_BYTE_FUJINET_MODEM, SP_SUBTYPE_BYTE_FUJINET_MODEM },  // type, subtype
 		{ 0x00, 0x01 }                                                  // version.
 	);
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmModem::iwm_open(iwm_decoded_cmd_t cmd)
@@ -1431,7 +1431,7 @@ void iwmModem::iwm_read(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nsending Modem read data packet ...");
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
 }
@@ -1446,8 +1446,8 @@ void iwmModem::iwm_write(iwm_decoded_cmd_t cmd)
     //  to do - this blows up - check handshaking
 
     data_len = num_bytes;
-    IWM.iwm_decode_data_packet(data_buffer, data_len);
-    // if (IWM.iwm_decode_data_packet(100, data_buffer, data_len)) // write data packet now read in ISR
+    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
+    // if (SYSTEM_BUS.iwm_decode_data_packet(100, data_buffer, data_len)) // write data packet now read in ISR
     // {
     //     Debug_printf("\r\nTIMEOUT in read packet!");
     //     return;
@@ -1471,7 +1471,7 @@ void iwmModem::iwm_ctrl(iwm_decoded_cmd_t cmd)
     uint8_t control_code = get_status_code(cmd); // (cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // ctrl codes 00-FF
     Debug_printf("\r\nModem Device %02x Control Code %02x", id(), control_code);
     data_len = 512;
-    IWM.iwm_decode_data_packet(data_buffer, data_len);
+    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
     print_packet(data_buffer,data_len);
 
     // if (data_len > 0)
@@ -1525,7 +1525,7 @@ void iwmModem::iwm_status(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
 void iwmModem::process(iwm_decoded_cmd_t cmd)

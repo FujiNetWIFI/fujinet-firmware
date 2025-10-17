@@ -179,11 +179,6 @@ public:
      * @brief status wait counter
      */
     uint8_t status_wait_count = 5;
-
-    /**
-     * @brief Get the systemBus object that this virtualDevice is attached to.
-     */
-    systemBus rs232_get_bus();
 };
 
 enum rs232_message : uint16_t
@@ -257,6 +252,6 @@ public:
     bool getShuttingDown() { return shuttingDown; };
 };
 
-extern systemBus RS232;
+extern systemBus SYSTEM_BUS;
 
 #endif // guard

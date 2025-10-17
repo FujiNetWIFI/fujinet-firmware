@@ -166,11 +166,6 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
-
-    /**
-     * @brief Get the systemBus object that this virtualDevice is attached to.
-     */
-    systemBus get_bus();
 };
 
 enum drivewire_message : uint16_t
@@ -328,6 +323,6 @@ public:
 #endif
 };
 
-extern systemBus DRIVEWIRE;
+extern systemBus SYSTEM_BUS;
 
 #endif // guard

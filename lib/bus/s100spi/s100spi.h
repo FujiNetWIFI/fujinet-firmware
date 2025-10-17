@@ -235,6 +235,6 @@ public:
 
 };
 
-extern systemBus s100Bus;
+extern systemBus SYSTEM_BUS;
 
 #endif /* s100spi_H */
