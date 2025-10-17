@@ -299,10 +299,8 @@ void H89Fuji::H89_device_enabled_status()
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void H89Fuji::setup(systemBus *_bus)
+void H89Fuji::setup()
 {
-    _H89_bus = _bus;
-
     _populate_slots_from_config();
 
     // Disable booting from CONFIG if our settings say to turn it off

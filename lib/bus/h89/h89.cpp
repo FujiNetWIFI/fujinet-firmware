@@ -59,38 +59,38 @@ void IRAM_ATTR quick_delay()
 
 void systemBus::service()
 {
-    printf("Set byte to: 0x%02X\r\n",xbyte);
+    // printf("Set byte to: 0x%02X\r\n",xbyte);
 
-    // This is the transmit routine
-    gpio_set_level(D7,xbyte & 0x80 ? DIGI_HIGH : DIGI_LOW);
-    gpio_set_level(D6,xbyte & 0x40 ? DIGI_HIGH : DIGI_LOW);
-    gpio_set_level(D5,xbyte & 0x20 ? DIGI_HIGH : DIGI_LOW);
-    gpio_set_level(D4,xbyte & 0x10 ? DIGI_HIGH : DIGI_LOW);
-    gpio_set_level(D3,xbyte & 0x08 ? DIGI_HIGH : DIGI_LOW);
-    gpio_set_level(D2,xbyte & 0x04 ? DIGI_HIGH : DIGI_LOW);
-    gpio_set_level(D1,xbyte & 0x02 ? DIGI_HIGH : DIGI_LOW);
-    gpio_set_level(D0,xbyte & 0x01 ? DIGI_HIGH : DIGI_LOW);
+    // // This is the transmit routine
+    // gpio_set_level(D7,xbyte & 0x80 ? DIGI_HIGH : DIGI_LOW);
+    // gpio_set_level(D6,xbyte & 0x40 ? DIGI_HIGH : DIGI_LOW);
+    // gpio_set_level(D5,xbyte & 0x20 ? DIGI_HIGH : DIGI_LOW);
+    // gpio_set_level(D4,xbyte & 0x10 ? DIGI_HIGH : DIGI_LOW);
+    // gpio_set_level(D3,xbyte & 0x08 ? DIGI_HIGH : DIGI_LOW);
+    // gpio_set_level(D2,xbyte & 0x04 ? DIGI_HIGH : DIGI_LOW);
+    // gpio_set_level(D1,xbyte & 0x02 ? DIGI_HIGH : DIGI_LOW);
+    // gpio_set_level(D0,xbyte & 0x01 ? DIGI_HIGH : DIGI_LOW);
 
 
-    // set STB to low
-    printf("Set STB To low \r\n");
-    gpio_set_level(STB,DIGI_LOW);
+    // // set STB to low
+    // printf("Set STB To low \r\n");
+    // gpio_set_level(STB,DIGI_LOW);
 
-    // Wait for IBF to go HIGH
-    printf("Wait for IBF to go HIGH\r\n");
-    while(gpio_get_level(IBF) == DIGI_LOW);
+    // // Wait for IBF to go HIGH
+    // printf("Wait for IBF to go HIGH\r\n");
+    // while(gpio_get_level(IBF) == DIGI_LOW);
 
-    // set STB to high
-    printf("Set STB to HIGH\r\n");
-    gpio_set_level(STB,DIGI_HIGH);
+    // // set STB to high
+    // printf("Set STB to HIGH\r\n");
+    // gpio_set_level(STB,DIGI_HIGH);
 
-    // Wait for IBF to go LOW
-    printf("Wait for IBF to go LOW\r\n");
-    while(gpio_get_level(IBF) == DIGI_HIGH);
+    // // Wait for IBF to go LOW
+    // printf("Wait for IBF to go LOW\r\n");
+    // while(gpio_get_level(IBF) == DIGI_HIGH);
 
-    // Increment xbyte and go again...
-    printf("Increment xbyte and go again...\r\n");
-    xbyte++; 
+    // // Increment xbyte and go again...
+    // printf("Increment xbyte and go again...\r\n");
+    // xbyte++; 
 
 
     ////////////////////////////////////////////////////////////////////////////
