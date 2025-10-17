@@ -642,11 +642,11 @@ void _Bdos(void) {
 			if (LOW_REGISTER(DE) != 0x0A)
 			{
 				trans_ch = LOW_REGISTER(DE) == 0x0D ? 0x9B : LOW_REGISTER(DE);
-				SIO.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
+				SYSTEM_BUS.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
 			}
 #endif /* BUILD_ATARI */
 #ifdef BUILD_APPLE
-			IWM.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
+			SYSTEM_BUS.getPrinter()->print_from_cpm(LOW_REGISTER(DE));
 #endif /* BUILD_APPLE */
 #ifdef USE_LST
 			if (!lst_open) {

@@ -243,11 +243,6 @@ public:
      * @brief status wait counter
      */
     uint8_t status_wait_count = 5;
-
-    /**
-     * @brief Get the systemBus object that this virtualDevice is attached to.
-     */
-    systemBus sio_get_bus();
 };
 
 enum sio_message : uint16_t
@@ -342,6 +337,6 @@ public:
 
 };
 
-extern systemBus SIO;
+extern systemBus SYSTEM_BUS;
 
 #endif // guard

@@ -64,7 +64,7 @@ void iwmNetwork::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmNetwork::send_status_dib_reply_packet()
@@ -77,7 +77,7 @@ void iwmNetwork::send_status_dib_reply_packet()
         { SP_TYPE_BYTE_FUJINET_NETWORK, SP_SUBTYPE_BYTE_FUJINET_NETWORK },  // type, subtype
         { 0x00, 0x01 }                                                      // version.
     );
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 /**
@@ -441,7 +441,7 @@ void iwmNetwork::special_40()
     {
         data_len = 256;
         //send_data_packet(data_len);
-        IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     }
     else
     {
@@ -567,7 +567,7 @@ void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
 
     Debug_printf("\r\nStatus code complete, sending response");
     //send_data_packet(data_len);
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
 }
@@ -713,7 +713,7 @@ void iwmNetwork::iwm_read(iwm_decoded_cmd_t cmd)
     else
     {
         Debug_printf("\r\nsending Network read data packet (%04x bytes)...", data_len);
-        IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
         data_len = 0;
         memset(data_buffer, 0, sizeof(data_buffer));
     }
@@ -745,7 +745,7 @@ void iwmNetwork::iwm_write(iwm_decoded_cmd_t cmd)
     auto& current_network_data = network_data_map[current_network_unit];
 
     // get write data packet, keep trying until no timeout
-    IWM.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
+    SYSTEM_BUS.iwm_decode_data_packet((unsigned char *)data_buffer, data_len);
 
     if (data_len == -1)
         iwm_return_ioerror();
@@ -787,7 +787,7 @@ void iwmNetwork::iwm_ctrl(iwm_decoded_cmd_t cmd)
 
     auto& current_network_data = network_data_map[current_network_unit];
 
-    IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+    SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
     print_packet((uint8_t *)data_buffer);
 
     // Debug_printv("cmd (looking for network_unit in byte 6, i.e. hex[5]):\r\n%s\r\n", mstr::toHex(cmd.decoded, 9).c_str());

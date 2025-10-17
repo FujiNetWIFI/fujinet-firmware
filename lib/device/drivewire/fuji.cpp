@@ -1633,12 +1633,10 @@ void drivewireFuji::hash_clear()
 }
 
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
-void drivewireFuji::setup(systemBus *drivewirebus)
+void drivewireFuji::setup()
 {
     Debug_printf("theFuji.setup()\n");
     // set up Fuji device
-    _drivewire_bus = drivewirebus;
-
     _populate_slots_from_config();
 
     insert_boot_device(Config.get_general_boot_mode());

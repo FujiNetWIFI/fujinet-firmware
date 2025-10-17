@@ -380,6 +380,4 @@ void systemBus::disableDevice(uint8_t device_id)
     if (_daisyChain.find(device_id) != _daisyChain.end())
         _daisyChain[device_id]->device_active = false;
 }
-
-systemBus AdamNet;
 #endif /* NEW_TARGET */

@@ -290,14 +290,14 @@ void KeyManager::_keystate_task(void *param)
                 Debug_println("ACTION: Send image_rotate message to SIO queue");
                 sio_message_t msg;
                 msg.message_id = SIOMSG_DISKSWAP;
-                xQueueSend(SIO.qSioMessages, &msg, 0);
+                xQueueSend(SYSTEM_BUS.qSioMessages, &msg, 0);
                 fnLedManager.blink(BLUETOOTH_LED, 2); // blink to confirm a button press
 #endif /* BUILD_ATARI */
 #ifdef BUILD_ADAM
                 Debug_println("ACTION: Send image_rotate message to SIO queue");
                 adamnet_message_t msg;
                 msg.message_id = ADAMNETMSG_DISKSWAP;
-                xQueueSend(AdamNet.qAdamNetMessages, &msg, 0);
+                xQueueSend(SYSTEM_BUS.qAdamNetMessages, &msg, 0);
 #endif /* BUILD_ADAM*/ 
             }
             break;

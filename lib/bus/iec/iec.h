@@ -89,6 +89,6 @@ public:
 /**
  * @brief Return
  */
-extern systemBus IEC;
+extern systemBus SYSTEM_BUS;
 
 #endif /* IEC_H */

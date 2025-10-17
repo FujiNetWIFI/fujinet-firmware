@@ -1084,12 +1084,12 @@ void sioFuji::image_rotate()
         {
             int swap = _fnDisks[n - 1].disk_dev.id();
             Debug_printf("setting slot %d to ID %x\n", n, swap);
-            _sio_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
+            SYSTEM_BUS.changeDeviceId(&_fnDisks[n].disk_dev, swap);
         }
 
         // The first slot gets the device ID of the last slot
         Debug_printf("setting slot %d to ID %x\n", 0, last_id);
-        _sio_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+        SYSTEM_BUS.changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
         if (Config.get_general_rotation_sounds())
@@ -1917,7 +1917,7 @@ void sioFuji::sio_set_hsio_index()
         return;
     }
 
-    SIO.setHighSpeedIndex(index);
+    SYSTEM_BUS.setHighSpeedIndex(index);
 
     // Go ahead and save it if AUX2 = 1
     if (cmdFrame.aux2 & 1)
@@ -2010,11 +2010,11 @@ void sioFuji::sio_set_sio_external_clock()
 
     if (speed == 0)
     {
-        SIO.setUltraHigh(false, 0);
+        SYSTEM_BUS.setUltraHigh(false, 0);
     }
     else
     {
-        SIO.setUltraHigh(true, baudRate);
+        SYSTEM_BUS.setUltraHigh(true, baudRate);
     }
 
     sio_complete();
@@ -2155,16 +2155,14 @@ void sioFuji::sio_enable_udpstream()
         sio_complete();
 
         // Start the UDP Stream
-        SIO.setUDPHost(host, port);
+        SYSTEM_BUS.setUDPHost(host, port);
     }
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void sioFuji::setup(systemBus *siobus)
+void sioFuji::setup()
 {
     // set up Fuji device
-    _sio_bus = siobus;
-
     _populate_slots_from_config();
 
     insert_boot_device(Config.get_general_boot_mode());
@@ -2177,12 +2175,12 @@ void sioFuji::setup(systemBus *siobus)
 
     // Add our devices to the SIO bus
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _sio_bus->addDevice(&_fnDisks[i].disk_dev, SIO_DEVICEID_DISK + i);
+        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, SIO_DEVICEID_DISK + i);
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        _sio_bus->addDevice(sioNetDevs[i].get(), SIO_DEVICEID_FN_NETWORK + i);
+        SYSTEM_BUS.addDevice(sioNetDevs[i].get(), SIO_DEVICEID_FN_NETWORK + i);
 
-    _sio_bus->addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
+    SYSTEM_BUS.addDevice(&_cassetteDev, SIO_DEVICEID_CASSETTE);
     cassette()->set_buttons(Config.get_cassette_buttons());
     cassette()->set_pulldown(Config.get_cassette_pulldown());
 }
@@ -2561,7 +2559,7 @@ void sioFuji::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    Debug_printf("sioFuji::sio_process() called, baud: %d\n", SIO.getBaudrate());
+    Debug_printf("sioFuji::sio_process() called, baud: %d\n", SYSTEM_BUS.getBaudrate());
 
     switch (cmdFrame.comnd)
     {
