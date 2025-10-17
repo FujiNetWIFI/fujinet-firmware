@@ -3,10 +3,12 @@
 /**
  * H89 Functions
  */
-#include "h89.h"
+#include <bitset>
+ #include "h89.h"
 
 #include "../../include/debug.h"
-#include "driver/spi_slave.h"
+#include "soc/gpio_reg.h"
+#include "soc/gpio_struct.h"
 
 
 #include "fnConfig.h"
@@ -15,7 +17,25 @@
 #include "led.h"
 #include "modem.h" 
 
+#include "driver/gpio.h"
 
+#define ACK_DELAY_US 1
+
+unsigned char xbyte=0xAA;
+
+#define D0 GPIO_NUM_32
+#define D1 GPIO_NUM_33
+#define D2 GPIO_NUM_25
+#define D3 GPIO_NUM_26
+#define D4 GPIO_NUM_27
+#define D5 GPIO_NUM_14
+#define D6 GPIO_NUM_12
+#define D7 GPIO_NUM_13
+
+#define STB GPIO_NUM_4
+#define ACK GPIO_NUM_15
+#define IBF GPIO_NUM_34
+#define OBF GPIO_NUM_35
 
 void virtualDevice::process(uint32_t commanddata, uint8_t checksum)
 {
@@ -26,57 +46,150 @@ void virtualDevice::process(uint32_t commanddata, uint8_t checksum)
     fnUartDebug.printf("process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
 }
 
+#define ACK GPIO_NUM_15
+
+void IRAM_ATTR quick_delay()
+{
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
+    asm volatile("nop");
+}
+
 void systemBus::service()
 {
-    // Listen to the bus, and react here.
+    printf("Set byte to: 0x%02X\r\n",xbyte);
+
+    // This is the transmit routine
+    gpio_set_level(D7,xbyte & 0x80 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D6,xbyte & 0x40 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D5,xbyte & 0x20 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D4,xbyte & 0x10 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D3,xbyte & 0x08 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D2,xbyte & 0x04 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D1,xbyte & 0x02 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D0,xbyte & 0x01 ? DIGI_HIGH : DIGI_LOW);
+
+
+    // set STB to low
+    printf("Set STB To low \r\n");
+    gpio_set_level(STB,DIGI_LOW);
+
+    // Wait for IBF to go HIGH
+    printf("Wait for IBF to go HIGH\r\n");
+    while(gpio_get_level(IBF) == DIGI_LOW);
+
+    // set STB to high
+    printf("Set STB to HIGH\r\n");
+    gpio_set_level(STB,DIGI_HIGH);
+
+    // Wait for IBF to go LOW
+    printf("Wait for IBF to go LOW\r\n");
+    while(gpio_get_level(IBF) == DIGI_HIGH);
+
+    // Increment xbyte and go again...
+    printf("Increment xbyte and go again...\r\n");
+    xbyte++; 
+
+
+    ////////////////////////////////////////////////////////////////////////////
+    // THIS IS THE RECEIVE ROUTINE. IT WORKS!
+    // /STB is set high in ::setup()
+
+    // Wait for /OBF to go high
+    Debug_printf("Wait for OBF to go high.\r\n");
+    while (gpio_get_level(GPIO_NUM_35) == DIGI_HIGH);
+
+    Debug_printf("OBF Low\n Setting ACK LOW\r\n");
+
+    // Set /ACK low.
+    gpio_set_level(ACK,DIGI_LOW);
+    quick_delay();
+
+    Debug_printf("Waited 1us, sampling D0-D7\r\n");
+
+    // sample and output bus state on console.
+    printf("LOW: ");
+    printf("%u",gpio_get_level(GPIO_NUM_13));
+    printf("%u",gpio_get_level(GPIO_NUM_12));
+    printf("%u",gpio_get_level(GPIO_NUM_14));
+    printf("%u",gpio_get_level(GPIO_NUM_27));
+    printf("%u",gpio_get_level(GPIO_NUM_26));
+    printf("%u",gpio_get_level(GPIO_NUM_25));
+    printf("%u",gpio_get_level(GPIO_NUM_33));
+    printf("%u\n",gpio_get_level(GPIO_NUM_32));
+
+    Debug_printf("Setting /ACK high again.\r\n");
+
+    // Set /ACK high again.
+    gpio_set_level(ACK,DIGI_HIGH);
+    quick_delay();
+
+    Debug_printf("Waiting for OBF to go high\r\n");
+
+    // Wait for /OBF to go low
+    while (gpio_get_level(GPIO_NUM_35) == DIGI_LOW);
+    
+    Debug_printf("OBF now high. Sampling bus.\r\n");
+
+    // sample and output bus state on console.
+    printf(" HI: ");
+    printf("%u",gpio_get_level(GPIO_NUM_13));
+    printf("%u",gpio_get_level(GPIO_NUM_12));
+    printf("%u",gpio_get_level(GPIO_NUM_14));
+    printf("%u",gpio_get_level(GPIO_NUM_27));
+    printf("%u",gpio_get_level(GPIO_NUM_26));
+    printf("%u",gpio_get_level(GPIO_NUM_25));
+    printf("%u",gpio_get_level(GPIO_NUM_33));
+    printf("%u\n",gpio_get_level(GPIO_NUM_32));
+
+    Debug_printf("Looping back around...\r\n");
 }
     
 void systemBus::setup()
 {
     Debug_println("H89 SETUP");
 
-    // // Do any first time setup here
-    // fnSystem.set_pin_mode(PIN_CMD, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
-    // fnSystem.set_pin_mode(PIN_DATA, gpio_mode_t::GPIO_MODE_INPUT); // There's no PULLUP/PULLDOWN on pins 34-39
+    // // Reset pins
+    gpio_reset_pin(GPIO_NUM_0);
+    gpio_reset_pin(GPIO_NUM_2);
+    gpio_reset_pin(GPIO_NUM_4);
+    gpio_reset_pin(GPIO_NUM_12);
+    gpio_reset_pin(GPIO_NUM_13);
+    gpio_reset_pin(GPIO_NUM_14);
+    gpio_reset_pin(GPIO_NUM_15);
+    gpio_reset_pin(GPIO_NUM_22);
+    gpio_reset_pin(GPIO_NUM_25);
+    gpio_reset_pin(GPIO_NUM_26);
+    gpio_reset_pin(GPIO_NUM_27);
+    gpio_reset_pin(GPIO_NUM_32);
+    gpio_reset_pin(GPIO_NUM_33);
+    gpio_reset_pin(GPIO_NUM_34);
 
-    // fnSystem.set_pin_mode(PIN_CMD_RDY, gpio_mode_t::GPIO_MODE_OUTPUT);
-    // fnSystem.digital_write(PIN_CMD_RDY, DIGI_HIGH);
+    gpio_set_direction(GPIO_NUM_0,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_2,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_4,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_12,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_13,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_14,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_15,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_22,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_25,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_26,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_27,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_32,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_33,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_34,GPIO_MODE_INPUT);
+    gpio_set_direction(GPIO_NUM_35,GPIO_MODE_INPUT);
 
-    // fnSystem.set_pin_mode(PIN_PROCEED, gpio_mode_t::GPIO_MODE_OUTPUT);
-    // fnSystem.digital_write(PIN_PROCEED, DIGI_HIGH);
+    Debug_printf("Setting GPIO #15 (/ACK) to high.");
+    gpio_set_level(GPIO_NUM_15,DIGI_HIGH);
 
-    // // Set up SPI bus
-    // spi_bus_config_t bus_cfg = 
-    // {
-    //     .mosi_io_num = PIN_BUS_DEVICE_MOSI,
-    //     .miso_io_num = PIN_BUS_DEVICE_MISO,
-    //     .sclk_io_num = PIN_BUS_DEVICE_SCK,
-    //     .quadwp_io_num = -1,
-    //     .quadhd_io_num = -1,
-    //     .max_transfer_sz = 4096,
-    //     .flags=0,
-    //     .intr_flags=0,
-    // };
+    gpio_set_level(GPIO_NUM_4,DIGI_HIGH);
+    Debug_printf("GPIO #4 (/STB) SET HIGH.\n");
 
-    // spi_slave_interface_config_t slave_cfg =
-    // {
-    //     .spics_io_num=PIN_BUS_DEVICE_CS,
-    //     .flags=0,
-    //     .queue_size=1,
-    //     .mode=0,
-    //     .post_setup_cb=my_post_setup_cb,
-    //     .post_trans_cb=my_post_trans_cb
-    // };
-
-    // esp_err_t rc = spi_slave_initialize(RC2014_SPI_HOST, &bus_cfg, &slave_cfg, SPI_DMA_DISABLED);
-    // if (rc != ESP_OK) {
-    //     Debug_println("RC2014 unable to initialise bus SPI Flush");
-    // }
-
-    // // Create a message queue
-    // //qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
-
-    // Debug_println("RC2014 Setup Flush");
+    Debug_printf("GPIO CONFIGURED\n");
 }
 
 void systemBus::shutdown()

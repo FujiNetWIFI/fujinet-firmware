@@ -5,9 +5,9 @@
 #define PIN_CARD_DETECT         GPIO_NUM_12 // fnSystem.h
 
 /* UART - fnuart.cpp */
-#define PIN_UART1_RX            GPIO_NUM_33 // not connected
-#define PIN_UART1_TX            GPIO_NUM_21 // not connected
-#define PIN_UART2_RX            GPIO_NUM_13 // not connected - RC2014 SIO
+#define PIN_UART1_RX            GPIO_NUM_1
+#define PIN_UART1_TX            GPIO_NUM_3
+#define PIN_UART2_RX            GPIO_NUM_13
 
 /* Buttons - keys.cpp */
 #define PIN_BUTTON_C            GPIO_NUM_39 // Safe reset
