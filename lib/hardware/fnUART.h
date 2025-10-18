@@ -71,11 +71,11 @@ public:
     void flush_input();
 
     int read();
-    size_t readBytes(uint8_t *buffer, size_t length);
+    size_t readBytes(void *buffer, size_t length);
     size_t readBytes(char *buffer, size_t length) { return readBytes((uint8_t *)buffer, length); };
 
     size_t write(uint8_t);
-    size_t write(const uint8_t *buffer, size_t size);
+    size_t write(const void *buffer, size_t size);
     size_t write(const char *s);
 
     size_t write(unsigned long n) { return write((uint8_t)n); };
@@ -158,11 +158,7 @@ public:
 
 #ifdef ESP_PLATFORM
   // Serial "debug port" for FN-ESP (not available on FN-PC)
-  extern UARTManager fnUartDebug;
-  // Serial "bus port" (CoCo uses fnDwCom - configurable serial or TCP (Becker) drivewire port)
-  #ifndef BUILD_COCO
-    extern UARTManager fnUartBUS;
-  #endif
+  extern UARTManager fnDebugConsole;
 #endif
 
 #endif //FNUART_H

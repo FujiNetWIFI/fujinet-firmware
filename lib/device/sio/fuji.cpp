@@ -319,7 +319,7 @@ void sioFuji::sio_net_get_wifi_enabled()
 // Set SIO baudrate
 void sioFuji::sio_set_baudrate()
 {
-   
+
     int br = 0;
 
     switch(cmdFrame.aux1) {
@@ -356,18 +356,15 @@ void sioFuji::sio_set_baudrate()
             sio_error();
             return;
     }
-  
+
     // send complete with current baudrate
     sio_complete();
 
-#ifdef ESP_PLATFORM
-    SYSTEM_BUS.uart->flush();
-    SYSTEM_BUS.uart->set_baudrate(br);
-#else
-    fnSioCom.flush();
+    SYSTEM_BUS.flush();
+#ifndef ESP_PLATFORM
     fnSystem.delay_microseconds(2000);
-    fnSioCom.set_baudrate(br);
 #endif
+    SYSTEM_BUS.setBaudrate(br);
 }
 
 // Mount Server
@@ -652,9 +649,9 @@ void sioFuji::sio_copy_file()
     do
     {
 #ifndef ESP_PLATFORM
-        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::NETSIO && fnSystem.millis() - poll_ts > 1000)
+        if (SYSTEM_BUS.get_sio_mode() == SioCom::sio_mode::NETSIO && fnSystem.millis() - poll_ts > 1000)
         {
-            fnSioCom.poll(1);
+            SYSTEM_BUS.poll(1);
             poll_ts = fnSystem.millis();
         }
 #endif
@@ -961,8 +958,8 @@ void sioFuji::sio_read_app_key()
     fclose(fIn);
 
 #ifdef DEBUG
-	std::string msg = util_hexdump(response_data.data(), appkey_size);
-	Debug_printf("\n%s\n", msg.c_str());
+        std::string msg = util_hexdump(response_data.data(), appkey_size);
+        Debug_printf("\n%s\n", msg.c_str());
 #endif
 
     bus_to_computer(response_data.data(), response_data.size(), false);
@@ -1210,23 +1207,23 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
 
 /*
  * Read directory entries in block mode
- * 
+ *
  * Input parameters:
  * aux1: Number of 256-byte pages to return (determines maximum response size)
  * aux2: Lower 6 bits define the number of entries per page group
- * 
+ *
  * Response format:
  * Overall response header:
  * Byte  0    : 'M' (Magic number byte 1)
  * Byte  1    : 'F' (Magic number byte 2)
  * Byte  2    : Header size (4)
  * Byte  3    : Number of page groups that follow
- * 
+ *
  * Followed by one or more complete PageGroups, padded to aux1 * 256 bytes.
  * Each PageGroup must fit entirely within the response - partial groups are not allowed.
  * If a PageGroup would exceed the remaining space, the directory position is rewound
  * and that group is not included.
- * 
+ *
  * PageGroup structure:
  * Byte  0    : Flags
  *              - Bit 7: Last group (1=yes, 0=no)
@@ -1245,7 +1242,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
  *              - Bytes 4-6: File size (24-bit little-endian, 0 for directories)
  *              - Byte  7  : Media type (0-255, with 0=unknown)
  *              - Bytes 8+ : Null-terminated filename
- * 
+ *
  * The last PageGroup in the response will have its last_group flag set if:
  * a) There are no more directory entries to process, or
  * b) The next PageGroup would exceed the maximum response size
@@ -1266,7 +1263,7 @@ void sioFuji::sio_read_directory_block()
     uint16_t starting_pos = _fnHosts[_current_open_directory_slot].dir_tell();
 #endif /* WE_NEED_TO_REWIND */
     // Debug_printf("Starting directory position: %d\n", starting_pos);
-    
+
     std::vector<DirectoryPageGroup> page_groups;
     size_t total_size = 0;
     bool is_last_entry = false;
@@ -1275,17 +1272,17 @@ void sioFuji::sio_read_directory_block()
         // Create a new page group
         DirectoryPageGroup group;
         uint16_t group_start_pos = _fnHosts[_current_open_directory_slot].dir_tell();
-        
+
         // Calculate group index (0-based)
         group.index = group_start_pos / group_size;
-        
-        // Debug_printf("Starting new group at directory position: %d (index=%d)\n", 
+
+        // Debug_printf("Starting new group at directory position: %d (index=%d)\n",
         //              group_start_pos, group.index);
-        
+
         // Fill the group with entries
         for (int i = 0; i < group_size && !is_last_entry; i++) {
             fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-            
+
             if (f == nullptr) {
                 // Debug_println("Reached end of directory");
                 is_last_entry = true;
@@ -1293,9 +1290,9 @@ void sioFuji::sio_read_directory_block()
                 break;
             }
 
-            // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n", 
+            // Debug_printf("Adding entry %d: \"%s\" (size=%lu)\n",
             //             i, f->filename, f->size);
-            
+
             if (!group.add_entry(f)) {
                 // Debug_println("Failed to add entry to group");
                 break;
@@ -1315,7 +1312,7 @@ void sioFuji::sio_read_directory_block()
         size_t new_total = total_size + group.data.size();
         // Debug_printf("Group stats: entries=%d, size=%d, new_total=%d/%d\n",
         //             group.entry_count, group.data.size(), new_total, max_block_size);
-        
+
         if (new_total > max_block_size) {
             // Debug_printf("Group would exceed max_block_size (%d > %d), rewinding to pos %d\n",
             //            new_total, max_block_size, group_start_pos);
@@ -1323,11 +1320,11 @@ void sioFuji::sio_read_directory_block()
             _fnHosts[_current_open_directory_slot].dir_seek(group_start_pos);
             break;
         }
-        
+
         // Add group to our collection
         total_size = new_total;
         page_groups.push_back(std::move(group));
-        // Debug_printf("Added group %d, total_size now %d\n", 
+        // Debug_printf("Added group %d, total_size now %d\n",
         //             page_groups.size(), total_size);
     }
 
@@ -1376,7 +1373,7 @@ void sioFuji::sio_read_directory_entry()
         sio_error();
         return;
     }
-    
+
     // detect block mode in request
     if ((cmdFrame.aux2 & 0xC0) == 0xC0) {
         sio_read_directory_block();

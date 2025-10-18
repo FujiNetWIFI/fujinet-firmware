@@ -12,17 +12,10 @@
 
 #include "led.h"
 
-// TODO: merge/fix this at global level
-#ifdef ESP_PLATFORM
-#define FN_BUS_LINK fnUartBUS
-#else
-#define FN_BUS_LINK fnSioCom
-#endif
-
 /** thinking about state machine
  * boolean states:
  *      file mounted or not
- *      motor activated or not 
+ *      motor activated or not
  *      (play/record button?)
  * state variables:
  *      baud rate
@@ -197,7 +190,7 @@ void sioCassette::mount_cassette_file(fnFile *f, size_t fz)
         // There is no facility to specify an output file for writing to C: or CSAVE
         // so instead of using the file mounted in slot 8 by CONFIG, create an output file with some serial number
         // files are created with the cassette is enabled.
- 
+
     }
 
     _mounted = true;
@@ -208,12 +201,14 @@ void sioCassette::sio_enable_cassette()
     cassetteActive = true;
 
     if (cassetteMode == cassette_mode_t::playback)
-        FN_BUS_LINK.set_baudrate(CASSETTE_BAUDRATE);
+        SYSTEM_BUS.setBaudrate(CASSETTE_BAUDRATE);
 
     if (cassetteMode == cassette_mode_t::record && tape_offset == 0)
     {
         open_cassette_file(&fnSDFAT); // hardcode SD card?
-        FN_BUS_LINK.end();
+#ifdef UNUSED
+        SYSTEM_BUS.end();
+#endif /* UNUSED */
 #ifdef ESP_PLATFORM
         fnSystem.set_pin_mode(UART2_RX, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE, GPIO_INTR_ANYEDGE);
 
@@ -269,12 +264,14 @@ void sioCassette::sio_disable_cassette()
     {
         cassetteActive = false;
         if (cassetteMode == cassette_mode_t::playback)
-            FN_BUS_LINK.set_baudrate(SIO_STANDARD_BAUDRATE);
+            SYSTEM_BUS.setBaudrate(SIO_STANDARD_BAUDRATE);
         else
         {
             close_cassette_file();
             //TODO: gpio_isr_handler_remove((gpio_num_t)UART2_RX);
-            FN_BUS_LINK.begin(SIO_STANDARD_BAUDRATE);
+#ifdef UNUSED
+            SYSTEM_BUS.begin(SIO_STANDARD_BAUDRATE);
+#endif /* UNUSED */
         }
         Debug_println("Cassette Mode disabled");
     }
@@ -342,7 +339,7 @@ size_t sioCassette::send_tape_block(size_t offset)
     unsigned char *p = atari_sector_buffer + BLOCK_LEN - 1;
     unsigned char i, r;
 
-    // if (offset < FileInfo.vDisk->size) {	//data record
+    // if (offset < FileInfo.vDisk->size) {     //data record
     if (offset < filesize)
     { //data record
 #ifdef DEBUG
@@ -384,10 +381,10 @@ size_t sioCassette::send_tape_block(size_t offset)
     atari_sector_buffer[0] = 0x55; //sync marker
     atari_sector_buffer[1] = 0x55;
     // USART_Send_Buffer(atari_sector_buffer, BLOCK_LEN + 3);
-    FN_BUS_LINK.write(atari_sector_buffer, BLOCK_LEN + 3);
+    SYSTEM_BUS.write(atari_sector_buffer, BLOCK_LEN + 3);
     //USART_Transmit_Byte(get_checksum(atari_sector_buffer, BLOCK_LEN + 3));
-    FN_BUS_LINK.write(sio_checksum(atari_sector_buffer, BLOCK_LEN + 3));
-    FN_BUS_LINK.flush(); // wait for all data to be sent just like a tape
+    SYSTEM_BUS.write(sio_checksum(atari_sector_buffer, BLOCK_LEN + 3));
+    SYSTEM_BUS.flush(); // wait for all data to be sent just like a tape
     // _delay_ms(300); //PRG(0-N) + PRWT(0.25s) delay
     fnSystem.delay(300);
     return (offset);
@@ -461,7 +458,7 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             if (tape_flags.turbo) //ignore baud hdr
                 continue;
             baud = hdr->irg_length;
-            FN_BUS_LINK.set_baudrate(baud);
+            SYSTEM_BUS.setBaudrate(baud);
         }
         offset += sizeof(struct tape_FUJI_hdr) + len;
     }
@@ -481,13 +478,13 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
         fnSystem.delay_microseconds(999); // shave off a usec for the MOTOR pin check
 #else
         int step;
-        // FN_BUS_LINK is fnSioCom
-        if (FN_BUS_LINK.get_sio_mode() == SioCom::sio_mode::NETSIO)
+        // SYSTEM_BUS is fnSioCom
+        if (SYSTEM_BUS.get_sio_mode() == SioCom::sio_mode::NETSIO)
             step = gap > 1000 ? 1000 : gap; // step is 1000 ms (NetSIO)
         else
             step = gap > 20 ? 20 : gap; // step is 20 ms (SerialSIO)
         gap -= step;
-        FN_BUS_LINK.bus_idle(step); // idle bus (i.e. delay for SerialSIO, BUS_IDLE message for NetSIO)
+        SYSTEM_BUS.bus_idle(step); // idle bus (i.e. delay for SerialSIO, BUS_IDLE message for NetSIO)
 #endif
         if (has_pulldown() && !motor_line() && gap > 1000)
         {
@@ -526,8 +523,8 @@ size_t sioCassette::send_FUJI_tape_block(size_t offset)
             Debug_printf("Sending %u bytes\r\n", buflen);
             for (int i = 0; i < buflen; i++)
                 Debug_printf("%02x ", atari_sector_buffer[i]);
-            FN_BUS_LINK.write(atari_sector_buffer, buflen);
-            FN_BUS_LINK.flush(); // wait for all data to be sent just like a tape
+            SYSTEM_BUS.write(atari_sector_buffer, buflen);
+            SYSTEM_BUS.flush(); // wait for all data to be sent just like a tape
             Debug_printf("\r\n");
 
             if (first && atari_sector_buffer[2] == 0xfe)

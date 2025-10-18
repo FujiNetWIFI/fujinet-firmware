@@ -367,8 +367,8 @@ void adamFuji::adamnet_copy_file()
     ck = adamnet_recv();
 
     SYSTEM_BUS.wait_for_idle();
-    fnUartBUS.write(0x9f); // ACK.
-    fnUartBUS.flush();
+    SYSTEM_BUS.write(0x9f); // ACK.
+    SYSTEM_BUS.flush();
 
     dataBuf = (char *)malloc(COPY_SIZE);
 
@@ -1415,7 +1415,7 @@ void adamFuji::adamnet_get_time()
 
     struct tm *now = localtime(&tt);
 
-	/*
+        /*
      NWD order has changed to match apple format
      Previously:
         response[0] = now->tm_mday;
@@ -1426,15 +1426,15 @@ void adamFuji::adamnet_get_time()
         response[5] = now->tm_sec;
     */
 
-	response[0] = (now->tm_year) / 100 + 19;
-	response[1] = now->tm_year % 100;
-	response[2] = now->tm_mon + 1;
-	response[3] = now->tm_mday;
-	response[4] = now->tm_hour;
-	response[5] = now->tm_min;
-	response[6] = now->tm_sec;
+        response[0] = (now->tm_year) / 100 + 19;
+        response[1] = now->tm_year % 100;
+        response[2] = now->tm_mon + 1;
+        response[3] = now->tm_mday;
+        response[4] = now->tm_hour;
+        response[5] = now->tm_min;
+        response[6] = now->tm_sec;
 
-	response_len = 7;
+        response_len = 7;
 
     Debug_printf("Sending %02X %02X %02X %02X %02X %02X %02X\n", response[0], response[1], response[2], response[3], response[4], response[5], response[6]);
 }

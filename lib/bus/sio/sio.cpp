@@ -58,20 +58,11 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
         sio_complete();
 
     // Write data frame
-#ifdef ESP_PLATFORM
-    UARTManager *uart = SYSTEM_BUS.uart;
-    uart->write(buf, len);
+    SYSTEM_BUS.write(buf, len);
     // Write checksum
-    uart->write(sio_checksum(buf, len));
+    SYSTEM_BUS.write(sio_checksum(buf, len));
 
-    uart->flush();
-#else
-    fnSioCom.write(buf, len);
-    // Write checksum
-    fnSioCom.write(sio_checksum(buf, len));
-
-    fnSioCom.flush();
-#endif
+    SYSTEM_BUS.flush();
 }
 
 // TODO apc: change return type to indicate valid/invalid checksum
@@ -86,30 +77,21 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     // Retrieve data frame from computer
     Debug_printf("<-SIO read %hu bytes\n", len);
 
-#ifdef ESP_PLATFORM
-    UARTManager *uart = SYSTEM_BUS.uart;
+#ifndef ESP_PLATFORM
+    if (SYSTEM_BUS.get_sio_mode() == SioCom::sio_mode::NETSIO)
+    {
+        SYSTEM_BUS.netsio_write_size(len); // set hint for NetSIO
+    }
+#endif /* ! ESP_PLATFORM */
 
     __BEGIN_IGNORE_UNUSEDVARS
-    size_t l = uart->readBytes(buf, len);
+    size_t l = SYSTEM_BUS.read(buf, len);
     __END_IGNORE_UNUSEDVARS
 
     // Wait for checksum
-    while (uart->available() <= 0)
+    while (SYSTEM_BUS.available() <= 0)
         fnSystem.yield();
-    uint8_t ck_rcv = uart->read();
-#else
-    if (fnSioCom.get_sio_mode() == SioCom::sio_mode::NETSIO)
-    {
-        fnSioCom.netsio_write_size(len); // set hint for NetSIO
-    }
-
-    size_t l = fnSioCom.readBytes(buf, len);
-
-    // Wait for checksum
-    while (0 == fnSioCom.available())
-        fnSystem.yield();
-    uint8_t ck_rcv = fnSioCom.read();
-#endif
+    uint8_t ck_rcv = SYSTEM_BUS.read();
 
     uint8_t ck_tst = sio_checksum(buf, len);
 
@@ -137,13 +119,9 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 // SIO NAK
 void virtualDevice::sio_nak()
 {
-#ifdef ESP_PLATFORM
-    UARTManager *uart = SYSTEM_BUS.uart;
-    uart->write('N');
-    uart->flush();
-#else
-    fnSioCom.write('N');
-    fnSioCom.flush();
+    SYSTEM_BUS.write('N');
+    SYSTEM_BUS.flush();
+#ifndef ESP_PLATFORM
     SYSTEM_BUS.set_command_processed(true);
 #endif
     Debug_println("NAK!");
@@ -152,15 +130,10 @@ void virtualDevice::sio_nak()
 // SIO ACK
 void virtualDevice::sio_ack()
 {
-#ifdef ESP_PLATFORM
-    UARTManager *uart = SYSTEM_BUS.uart;
-    uart->write('A');
+    SYSTEM_BUS.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
-    uart->flush();
-#else
-    fnSioCom.write('A');
-    fnSystem.delay_microseconds(DELAY_T5); //?
-    fnSioCom.flush();
+    SYSTEM_BUS.flush();
+#ifndef ESP_PLATFORM
     SYSTEM_BUS.set_command_processed(true);
 #endif
     Debug_println("ACK!");
@@ -170,9 +143,9 @@ void virtualDevice::sio_ack()
 #ifndef ESP_PLATFORM
 void virtualDevice::sio_late_ack()
 {
-    if (fnSioCom.get_sio_mode() == SioCom::sio_mode::NETSIO)
+    if (SYSTEM_BUS.get_sio_mode() == SioCom::sio_mode::NETSIO)
     {
-        fnSioCom.netsio_late_sync('A');
+        SYSTEM_BUS.netsio_late_sync('A');
         SYSTEM_BUS.set_command_processed(true);
         Debug_println("ACK+!");
     }
@@ -187,11 +160,7 @@ void virtualDevice::sio_late_ack()
 void virtualDevice::sio_complete()
 {
     fnSystem.delay_microseconds(DELAY_T5);
-#ifdef ESP_PLATFORM
-    SYSTEM_BUS.uart->write('C');
-#else
-    fnSioCom.write('C');
-#endif
+    SYSTEM_BUS.write('C');
     Debug_println("COMPLETE!");
 }
 
@@ -199,11 +168,7 @@ void virtualDevice::sio_complete()
 void virtualDevice::sio_error()
 {
     fnSystem.delay_microseconds(DELAY_T5);
-#ifdef ESP_PLATFORM
-    SYSTEM_BUS.uart->write('E');
-#else
-    fnSioCom.write('E');
-#endif
+    SYSTEM_BUS.write('E');
     Debug_println("ERROR!");
 }
 
@@ -231,11 +196,7 @@ void systemBus::_sio_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting SIO baud");
-#ifdef ESP_PLATFORM
-        SYSTEM_BUS.uart->set_baudrate(_sioBaud);
-#else
-        fnSioCom.set_baudrate(_sioBaud);
-#endif
+        SYSTEM_BUS.setBaudrate(_sioBaud);
     }
 
     // Read CMD frame
@@ -243,19 +204,11 @@ void systemBus::_sio_process_cmd()
     tempFrame.commanddata = 0;
     tempFrame.checksum = 0;
 
-#ifdef ESP_PLATFORM
-    if (SYSTEM_BUS.uart->readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
+    if (SYSTEM_BUS.read((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
         // Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
     }
-#else
-    if (fnSioCom.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
-    {
-        Debug_println("Timeout waiting for data after CMD pin asserted");
-        return;
-    }
-#endif
     // Turn on the SIO indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
 
@@ -269,7 +222,7 @@ void systemBus::_sio_process_cmd()
         fnSystem.yield();
 #else
     int i = 0;
-    while (fnSioCom.command_asserted())
+    while (_port.command_asserted())
     {
         fnSystem.delay_microseconds(500);
         if (++i == 100)
@@ -279,12 +232,12 @@ void systemBus::_sio_process_cmd()
         }
     }
 
-    int bytes_pending = fnSioCom.available();
+    int bytes_pending = _port.available();
     if (bytes_pending > 0)
     {
         Debug_printf("!!! Extra bytes pending (%d)\n", bytes_pending);
         // TODO use last 5 received bytes as command frame
-        // fnSioCom.flush_input();
+        // _port.flush_input();
     }
 #endif
 
@@ -413,7 +366,7 @@ void systemBus::service()
 #ifdef ESP_PLATFORM
         if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
 #else
-        if (fnSioCom.command_asserted())
+        if (_port.command_asserted())
 #endif
         {
             Debug_println("CMD Asserted, stopping UDP Stream");
@@ -447,7 +400,7 @@ void systemBus::service()
 #ifdef ESP_PLATFORM
             if (fnSystem.digital_read(PIN_MTR) == DIGI_HIGH) // TODO: use cassette helper function for consistency?
 #else
-            if (fnSioCom.motor_asserted())
+            if (_port.motor_asserted())
 #endif
             {
                 if (_fujiDev->cassette()->is_active() == false) // keep this logic because motor line mode
@@ -481,7 +434,7 @@ void systemBus::service()
 #ifdef ESP_PLATFORM
     if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
 #else
-    if (fnSioCom.command_asserted())
+    if (_port.command_asserted())
 #endif
     {
 #ifndef ESP_PLATFORM
@@ -506,10 +459,10 @@ void systemBus::service()
     {
         // flush UART input
 #ifdef ESP_PLATFORM
-        SYSTEM_BUS.uart->flush_input();
+        SYSTEM_BUS.discardInput();
 #else
-        if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
-            fnSioCom.flush_input();
+        if (_port.get_sio_mode() == SioCom::sio_mode::SERIAL)
+            _port.flush_input();
 #endif
     }
 
@@ -523,7 +476,7 @@ void systemBus::service()
     // loop until all SIO "events" are processed
     //   true  = SIO port needs handling
     //   false = no SIO "event" ocurred within interval
-    } while (fnSioCom.poll(1));
+    } while (_port.poll(1));
 #endif
 }
 
@@ -534,7 +487,7 @@ void systemBus::setup()
 
 #ifdef ESP_PLATFORM
     // Set up UART
-    SYSTEM_BUS.uart->begin(_sioBaud);
+    _port.begin(_sioBaud);
 
     // INT PIN
     fnSystem.set_pin_mode(PIN_INT, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
@@ -565,21 +518,21 @@ void systemBus::setup()
     else
         setHighSpeedIndex(_sioHighSpeedIndex);
 
-    SYSTEM_BUS.uart->flush_input();
+    _port.flush_input();
 #else
     // Setup SIO ports: serial UART and NetSIO
-    fnSioCom.set_serial_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed()); // UART
-    fnSioCom.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // NetSIO
-    fnSioCom.set_sio_mode(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
-    fnSioCom.begin(_sioBaud);
+    _port.set_serial_port(Config.get_serial_port().c_str(), Config.get_serial_command(), Config.get_serial_proceed()); // UART
+    _port.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port()); // NetSIO
+    _port.set_sio_mode(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
+    _port.begin(_sioBaud);
 
-    fnSioCom.set_interrupt(false);
-    fnSioCom.set_proceed(false);
+    _port.set_interrupt(false);
+    _port.set_proceed(false);
 
     // Set the initial HSIO index
     setHighSpeedIndex(Config.get_general_hsioindex());
 
-    fnSioCom.flush_input();
+    _port.flush_input();
 #endif
 }
 
@@ -669,7 +622,7 @@ void systemBus::shutdown()
     }
     Debug_printf("All devices shut down.\n");
 #ifndef ESP_PLATFORM
-    fnSioCom.end();
+    _port.end();
 #endif
 }
 
@@ -682,15 +635,13 @@ void systemBus::toggleBaudrate()
 
     // Debug_printf("Toggling baudrate from %d to %d\n", _sioBaud, baudrate);
     _sioBaud = baudrate;
-#ifdef ESP_PLATFORM
-    SYSTEM_BUS.uart->set_baudrate(_sioBaud);
-#else
-    fnSioCom.flush_input();
-    fnSioCom.flush();
+#ifndef ESP_PLATFORM
+    _port.flush_input();
+    _port.flush();
     // hmm, calling flush() may not be enough to empty TX buffer
     fnSystem.delay_microseconds(2000);
-    fnSioCom.set_baudrate(_sioBaud);
 #endif
+    _port.set_baudrate(_sioBaud);
 }
 
 int systemBus::getBaudrate()
@@ -708,11 +659,7 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _sioBaud, baud);
     _sioBaud = baud;
-#ifdef ESP_PLATFORM
-    SYSTEM_BUS.uart->set_baudrate(baud);
-#else
-    fnSioCom.set_baudrate(baud);
-#endif
+    _port.set_baudrate(baud);
 }
 
 // Set HSIO index. Sets high speed SIO baud and also returns that value.
@@ -736,28 +683,28 @@ int systemBus::setHighSpeedIndex(int hsio_index)
         return _sioBaudHigh;
     }
 
-	switch (hsio_index)
+        switch (hsio_index)
     {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-	case 4:
-		// compensate for late pokey sampling, add 3 cycles to byte time
-		_sioBaudHigh = (SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (hsio_index + 7)) + 3);
+        case 0:
+        case 1:
+        case 2:
+        case 3:
+        case 4:
+                // compensate for late pokey sampling, add 3 cycles to byte time
+                _sioBaudHigh = (SIO_ATARI_PAL_FREQUENCY * 10) / (10 * (2 * (hsio_index + 7)) + 3);
         break;
-	case 8:
-		_sioBaudHigh = 57600;
+        case 8:
+                _sioBaudHigh = 57600;
         break;
-	case 16:
-		_sioBaudHigh = 38400;
+        case 16:
+                _sioBaudHigh = 38400;
         break;
-	case 40:
-		_sioBaudHigh = SIO_STANDARD_BAUDRATE; // 19200
+        case 40:
+                _sioBaudHigh = SIO_STANDARD_BAUDRATE; // 19200
          break;
-	default:
-		_sioBaudHigh = SIO_ATARI_PAL_FREQUENCY / (2 * (hsio_index + 7));
-	}
+        default:
+                _sioBaudHigh = SIO_ATARI_PAL_FREQUENCY / (2 * (hsio_index + 7));
+        }
 
     _sioHighSpeedIndex = hsio_index;
 
@@ -788,9 +735,9 @@ void systemBus::set_command_processed(bool processed)
 // Empty acknowledgment message for NetSIO hub
 void systemBus::sio_empty_ack()
 {
-    if (fnSioCom.get_sio_mode() == SioCom::sio_mode::NETSIO)
+    if (_port.get_sio_mode() == SioCom::sio_mode::NETSIO)
     {
-        fnSioCom.netsio_empty_sync();
+        _port.netsio_empty_sync();
     }
 }
 #endif
@@ -881,10 +828,8 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 #ifdef ESP_PLATFORM
         ledc_channel_config(&ledc_channel_sio_ckin);
         ledc_timer_config(&ledc_timer);
-        SYSTEM_BUS.uart->set_baudrate(_sioBaudUltraHigh);
-#else
-        fnSioCom.set_baudrate(_sioBaudUltraHigh);
 #endif
+        _port.set_baudrate(_sioBaudUltraHigh);
     }
     else
     {
@@ -893,10 +838,17 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 #ifdef ESP_PLATFORM
         ledc_stop(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 0);
         ledc_stop(LEDC_SPEED_MODE_MAX, LEDC_CHANNEL_1, 0);
-        SYSTEM_BUS.uart->set_baudrate(SIO_STANDARD_BAUDRATE);
-#else
-        fnSioCom.set_baudrate(SIO_STANDARD_BAUDRATE);
 #endif
+        _port.set_baudrate(SIO_STANDARD_BAUDRATE);
     }
+}
+
+bool systemBus::motor_asserted()
+{
+#ifdef ESP_PLATFORM
+    return (bool)fnSystem.digital_read(PIN_MTR);
+#else
+    return _port.motor_asserted();
+#endif
 }
 #endif /* BUILD_ATARI */

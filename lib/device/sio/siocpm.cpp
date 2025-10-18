@@ -57,7 +57,7 @@ void sioCPM::sio_handle_cpm()
 
 void sioCPM::init_cpm(int baud)
 {
-    FN_CPM_LINK.set_baudrate(baud);
+    SYSTEM_BUS.setBaudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;
     RAM = (uint8_t *)malloc(MEMSIZE);

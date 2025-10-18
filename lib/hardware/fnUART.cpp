@@ -22,12 +22,7 @@
 #define MAX_WRITE_BUFFER_TICKS 1000
 
 // Serial "debug port"
-UARTManager fnUartDebug(FN_UART_DEBUG);
-
-// Serial "bus port" (CoCo uses fnDwCom - configurable serial or TCP (Becker) drivewire port)
-#ifndef BUILD_COCO
-UARTManager fnUartBUS(FN_UART_BUS);
-#endif
+UARTManager fnDebugConsole(FN_UART_DEBUG);
 
 // Constructor
 UARTManager::UARTManager(uart_port_t uart_num) : _uart_num(uart_num), _uart_q(NULL) {}
@@ -259,7 +254,7 @@ int UARTManager::read(void)
 /* Since the underlying Stream calls this Read() multiple times to get more than one
  *  character for ReadBytes(), we override with a single call to uart_read_bytes
  */
-size_t UARTManager::readBytes(uint8_t *buffer, size_t length)
+size_t UARTManager::readBytes(void *buffer, size_t length)
 {
     int result = uart_read_bytes(_uart_num, buffer, length, MAX_READ_WAIT_TICKS);
 #ifdef DEBUG
@@ -285,7 +280,7 @@ size_t UARTManager::write(uint8_t c)
     return z;
 }
 
-size_t UARTManager::write(const uint8_t *buffer, size_t size)
+size_t UARTManager::write(const void *buffer, size_t size)
 {
     int z = uart_write_bytes(_uart_num, (const char *)buffer, size);
     // uart_wait_tx_done(_uart_num, MAX_WRITE_BUFFER_TICKS);
