@@ -77,7 +77,7 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
     // Write checksum
     SYSTEM_BUS.write(rs232_checksum(buf, len));
 
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 }
 
 /*
@@ -124,7 +124,7 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 void virtualDevice::rs232_nak()
 {
     SYSTEM_BUS.write('N');
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
     Debug_println("NAK!");
 }
 
@@ -133,7 +133,7 @@ void virtualDevice::rs232_ack()
 {
     SYSTEM_BUS.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
     Debug_println("ACK!");
 }
 

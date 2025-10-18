@@ -150,7 +150,7 @@ protected:
     virtual void rs232_status() = 0;
 
     /**
-     * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command. 
+     * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
     virtual void rs232_process(cmdFrame_t *cmd_ptr) = 0;

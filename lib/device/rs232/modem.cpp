@@ -427,7 +427,7 @@ void rs232Modem::rs232_control()
             tcpClient.stop(); // Hang up if DTR drops.
             CRX = false;
             cmdMode = true;
-            
+
             if (listenPort > 0)
             {
                 // tcpServer.stop();
@@ -696,7 +696,7 @@ void rs232Modem::at_cmd_println()
         SYSTEM_BUS.write(ASCII_CR);
         SYSTEM_BUS.write(ASCII_LF);
     }
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 }
 
 void rs232Modem::at_cmd_println(const char *s, bool addEol)
@@ -717,7 +717,7 @@ void rs232Modem::at_cmd_println(const char *s, bool addEol)
             SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 }
 
 void rs232Modem::at_cmd_println(int i, bool addEol)
@@ -738,7 +738,7 @@ void rs232Modem::at_cmd_println(int i, bool addEol)
             SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 }
 
 void rs232Modem::at_cmd_println(std::string s, bool addEol)
@@ -759,7 +759,7 @@ void rs232Modem::at_cmd_println(std::string s, bool addEol)
             SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 }
 
 void rs232Modem::at_handle_wificonnect()
@@ -1025,7 +1025,7 @@ void rs232Modem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        SYSTEM_BUS.flush();
+        SYSTEM_BUS.flushOutput();
         answerHack = false;
     }
 }
@@ -1729,7 +1729,7 @@ void rs232Modem::rs232_handle_modem()
             else
             {
                 SYSTEM_BUS.write(buf, bytesRead);
-                SYSTEM_BUS.flush();
+                SYSTEM_BUS.flushOutput();
             }
 
             // And dump to sniffer, if enabled.
@@ -1747,7 +1747,7 @@ void rs232Modem::rs232_handle_modem()
             Debug_println("Going back to command mode");
 
             at_cmd_println("OK");
-    
+
             cmdMode = true;
 
             plusCount = 0;
