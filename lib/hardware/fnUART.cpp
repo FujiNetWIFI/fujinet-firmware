@@ -122,7 +122,7 @@ void UARTManager::begin(int baud)
         // If using an older Rev0 or Rev00 board, you will need to pull PIN_EPROM_A14 (IO36) up to 3.3V or 5V via a 10K
         // resistor to have it default to the previous default of 57600 baud otherwise they will both read as low and you
         // will get 38400 baud.
-        
+
         fnSystem.set_pin_mode(PIN_EPROM_A14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
         fnSystem.set_pin_mode(PIN_EPROM_A15, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 
