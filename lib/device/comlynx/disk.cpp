@@ -211,9 +211,10 @@ void lynxDisk::comlynx_response_send()
     b[MEDIA_BLOCK_SIZE+3] = c;
     comlynx_send_buffer(b, sizeof(b));
 
-    Debug_println("comlynx_send_buffer from disk block send done");
+    Debug_println("comlynx_send_buffer - disk block sent to Lynx");
 
     // get ACK or NACK from lynx (but don't care, they can request again if needed)
+    recvbuffer_len = 0;         // reset recvbuffer to grab ACK/NACK from Lynx
     c = comlynx_recv();
     Debug_printf("comlynx_disk_send NAK/ACK: %02X\n", c);
 }

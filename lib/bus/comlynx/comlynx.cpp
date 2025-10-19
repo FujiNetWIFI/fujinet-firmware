@@ -94,10 +94,13 @@ void virtualDevice::comlynx_send(uint8_t b)
 
 void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
 {
-    buf[len] = '\0';
-    Debug_printf("comlynx_send_buffer: %d %s\n", len, buf);
-    //Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[len-1]);
     
+    //buf[len] = '\0';
+    //Debug_printf("comlynx_send_buffer: %d %s\n", len, buf);   // causes out of bounds write in disk routines
+
+    //Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[len-1]);
+    Debug_printf("comlynx_send_buffer: len:%d\n", len);
+
     // Wait for idle only when in UDPStream mode
     if (SYSTEM_BUS._udpDev->udpstreamActive)
         SYSTEM_BUS.wait_for_idle();
