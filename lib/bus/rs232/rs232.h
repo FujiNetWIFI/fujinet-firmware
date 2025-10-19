@@ -1,9 +1,7 @@
 #ifndef RS232_H
 #define RS232_H
 
-#include "ACMChannel.h"
 #include "UARTChannel.h"
-#include "TTYChannel.h"
 
 #ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>
@@ -224,13 +222,7 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
-#if FUJINET_OVER_USB
-    ACMChannel _port;
-#elif defined(ITS_A_UNIX_SYSTEM_I_KNOW_THIS)
-    TTYChannel _port;
-#else /* !FUJINET_OVER_USB */
     UARTChannel _port;
-#endif /* FUJINET_OVER_USB */
     
     void _rs232_process_cmd();
     /* void _rs232_process_queue(); */

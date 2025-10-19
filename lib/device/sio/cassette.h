@@ -83,11 +83,7 @@ protected:
     uint8_t decode_fsk();
 
     // helper function to read motor pin
-#ifdef ESP_PLATFORM
-    bool motor_line() { return (bool)fnSystem.digital_read(PIN_MTR); }
-#else
-    bool motor_line() { return fnSioCom.motor_asserted(); }
-#endif
+    bool motor_line() { return SYSTEM_BUS.motor_asserted(); }
 
     // have to populate virtual functions to complete class
     void sio_status() override{}; // $53, 'S', Status

@@ -807,7 +807,7 @@ esp_err_t fnHttpService::get_handler_term(httpd_req_t *req)
 
     if (ws_pkt.len)
     {
-        buf = (uint8_t *)calloc(sizeof(uint8_t), ws_pkt.len + 1);
+        buf = (uint8_t *)calloc(ws_pkt.len + 1, sizeof(uint8_t));
         if (buf == NULL)
             return ESP_ERR_NO_MEM;
         else
@@ -856,7 +856,7 @@ esp_err_t fnHttpService::get_handler_kybd(httpd_req_t *req)
 
     if (ws_pkt.len)
     {
-        buf = (uint8_t *)calloc(sizeof(uint8_t), ws_pkt.len + 1);
+        buf = (uint8_t *)calloc(ws_pkt.len + 1, sizeof(uint8_t));
         if (buf == NULL)
             return ESP_ERR_NO_MEM;
         else

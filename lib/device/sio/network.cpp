@@ -579,7 +579,7 @@ void sioNetwork::sio_set_prefix()
     {
         prefix.clear();
     }
-    else 
+    else
     {
         // Append trailing slash if not found
         if (prefixSpec_str.back() != '/')
@@ -997,7 +997,7 @@ bool sioNetwork::instantiate_protocol()
     {
         protocolParser = new ProtocolParser();
     }
-    
+
     protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
@@ -1154,7 +1154,7 @@ void sioNetwork::sio_assert_interrupt()
     if (ms - lastInterruptMs >= timerRate)
     {
         interruptProceed = !interruptProceed;
-        fnSioCom.set_proceed(interruptProceed);
+        SYSTEM_BUS.set_proceed(interruptProceed);
         lastInterruptMs = ms;
     }
 #endif
@@ -1166,11 +1166,11 @@ void sioNetwork::sio_assert_interrupt()
  */
 void sioNetwork::sio_clear_interrupt()
 {
-    if (interruptProceed) 
+    if (interruptProceed)
     {
         // Debug_println("clear interrupt");
         interruptProceed = false;
-        fnSioCom.set_proceed(interruptProceed);
+        SYSTEM_BUS.set_proceed(interruptProceed);
         lastInterruptMs = fnSystem.millis();
     }
 }

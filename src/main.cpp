@@ -273,11 +273,6 @@ void main_setup(int argc, char *argv[])
     SYSTEM_BUS.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
     sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-#ifdef ESP_PLATFORM
-    SYSTEM_BUS.set_uart(&fnUartBUS);
-#else
-    SYSTEM_BUS.set_uart(&fnSioCom);
-#endif
 
     SYSTEM_BUS.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 

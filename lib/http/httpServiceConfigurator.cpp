@@ -17,9 +17,7 @@
 
 #ifdef BUILD_APPLE
 #include "iwm/printerlist.h"
-//#include "iwm/iwmFuji.h"
 #define PRINTER_CLASS iwmPrinter
-//extern iwmFuji theFuji;
 #endif /* BUILD_APPLE */
 
 bool udpactivate = false;
@@ -547,6 +545,7 @@ void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud
     {
         Config.save();
 
+#ifdef UNUSED
 #if defined(BUILD_ATARI)
         if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
         {
@@ -619,7 +618,7 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
     // Update settings (on ESP reboot is needed)
 #ifndef ESP_PLATFORM
 #if defined(BUILD_ATARI)
-    fnSioCom.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port());
+    SYSTEM_BUS.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port());
 #elif defined(BUILD_COCO)
 #ifdef NOT_SUBCLASS
     _bus.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port());
@@ -635,7 +634,7 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
     // Apply settings (on ESP reboot is needed)
 #ifndef ESP_PLATFORM
 #if defined(BUILD_ATARI)
-    fnSioCom.reset_sio_port(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
+    SYSTEM_BUS.reset_sio_port(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
 #elif defined(BUILD_COCO)
 #ifdef NOT_SUBCLASS
     _bus.reset_drivewire_port(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
