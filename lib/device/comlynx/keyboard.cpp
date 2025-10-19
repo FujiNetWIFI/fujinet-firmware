@@ -35,7 +35,7 @@ void lynxKeyboard::comlynx_control_receive()
     {
         ComLynx.wait_for_idle();
         comlynx_send(0xC1); // NAK
-        client = server->available();
+        client = server->client();
     }
     else if (!client.connected())
     {

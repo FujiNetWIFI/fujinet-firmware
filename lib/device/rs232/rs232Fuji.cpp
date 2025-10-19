@@ -267,6 +267,10 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         rs232_ack();
         fujicmd_get_adapter_config();
         break;
+    case FUJICMD_GET_ADAPTERCONFIG_EXTENDED:
+        rs232_ack();
+        fujicmd_get_adapter_config_extended();
+        break;
     case FUJICMD_NEW_DISK:
         rs232_ack();
         rs232_new_disk();

@@ -68,6 +68,11 @@ typedef struct
     char password[MAX_WIFI_PASS_LEN];
 } SSIDConfig;
 
+typedef struct {
+    uint16_t avail;
+    uint8_t conn, err;
+} NDeviceStatus;
+
 enum appkey_mode : int8_t
 {
     APPKEYMODE_INVALID = -1,

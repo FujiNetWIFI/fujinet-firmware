@@ -1017,7 +1017,7 @@ void rs232Modem::at_handle_answer()
     Debug_printf("HANDLE ANSWER !!!\n");
     if (tcpServer.hasClient())
     {
-        tcpClient = tcpServer.available();
+        tcpClient = tcpServer.client();
         tcpClient.setNoDelay(true); // try to disable naggle
                                     //        tcpServer.stop();
         answerTimer = fnSystem.millis();
