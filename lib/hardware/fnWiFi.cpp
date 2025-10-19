@@ -328,7 +328,6 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
         temporary_disconnect = true;
         _disconnecting = true;
         esp_wifi_disconnect();
-        sleep(2);
         _disconnecting = false;
     }
 
