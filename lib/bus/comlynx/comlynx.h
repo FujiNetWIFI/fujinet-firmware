@@ -286,12 +286,12 @@ public:
 
     void setRedeyeMode(bool enable);
     void setRedeyeGameRemap(uint32_t remap);
-    //void setComlynxIdleTime(uint64_t idle_time);
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 };
 
-extern systemBus ComLynx;
+extern systemBus SYSTEM_BUS;
+//extern systemBus ComLynx;
 
 #endif /* COMLYNX_H */

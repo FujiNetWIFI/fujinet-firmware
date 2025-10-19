@@ -120,19 +120,19 @@ void print_packet_wave(uint8_t *data, int bytes)
 uint8_t iwmDevice::data_buffer[MAX_DATA_LEN] = {0};
 int iwmDevice::data_len = 0;
 
-void iwmBus::iwm_ack_deassert()
+void systemBus::iwm_ack_deassert()
 {
   smartport.iwm_ack_set(); // go hi-z
 }
 
-void iwmBus::iwm_ack_assert()
+void systemBus::iwm_ack_assert()
 {
   smartport.iwm_ack_clr();
   smartport.spi_end();
 }
 
 #ifndef DEV_RELAY_SLIP
-bool iwmBus::iwm_phase_val(uint8_t p)
+bool systemBus::iwm_phase_val(uint8_t p)
 {
   uint8_t phases = _phases; // smartport.iwm_phase_vector();
   if (p < 4)
@@ -142,7 +142,7 @@ bool iwmBus::iwm_phase_val(uint8_t p)
 }
 #endif
 
-iwmBus::iwm_phases_t iwmBus::iwm_phases()
+systemBus::iwm_phases_t systemBus::iwm_phases()
 {
   iwm_phases_t phasestate = iwm_phases_t::idle;
   // phase lines for smartport bus reset
@@ -188,7 +188,7 @@ iwmBus::iwm_phases_t iwmBus::iwm_phases()
 
 //------------------------------------------------------
 
-int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num)
+int systemBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8_t status, const uint8_t *data, uint16_t num)
 {
   int r;
   int retry = 5; // host seems to control the retries, this is here so we don't get stuck
@@ -206,13 +206,13 @@ int iwmBus::iwm_send_packet(uint8_t source, iwm_packet_type_t packet_type, uint8
   return r;
 }
 
-bool iwmBus::iwm_decode_data_packet(uint8_t *data, int &n)
+bool systemBus::iwm_decode_data_packet(uint8_t *data, int &n)
 {
   n = smartport.decode_data_packet(data);
   return false;
 }
 
-void iwmBus::setup(void)
+void systemBus::setup(void)
 {
   Debug_printf("\r\nIWM FujiNet based on SmartportSD v1.15\r\n");
 
@@ -244,12 +244,12 @@ void iwmBus::setup(void)
 //*****************************************************************************
 void iwmDevice::send_init_reply_packet(uint8_t source, uint8_t status)
 {
-  IWM.iwm_send_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
+  SYSTEM_BUS.iwm_send_packet(source, iwm_packet_type_t::status, status, nullptr, 0);
 }
 
 void iwmDevice::send_reply_packet(uint8_t status)
 {
-  IWM.iwm_send_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
+  SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, status, nullptr, 0);
 }
 
 void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
@@ -264,7 +264,7 @@ void iwmDevice::iwm_return_badcmd(iwm_decoded_cmd_t cmd)
     case SP_CMD_CONTROL:
     case SP_CMD_WRITE:
       data_len = 512;
-      IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+      SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
       Debug_printf("\r\nUnit %02x Bad Command with data packet %02x\r\n", id(), cmd.command);
       print_packet((uint8_t *)data_buffer, data_len);
       break;
@@ -300,7 +300,7 @@ void iwmDevice::iwm_return_device_offline(iwm_decoded_cmd_t cmd)
     case SP_CMD_CONTROL:
     case SP_CMD_WRITE:
       data_len = 512;
-      IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+      SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
       Debug_printf("\r\nUnit %02x Offline, Command with data packet %02x\r\n", id(), cmd.command);
       print_packet((uint8_t *)data_buffer, data_len);
       break;
@@ -430,7 +430,7 @@ std::vector<uint8_t> iwmDevice::create_dib_reply_packet(const std::string& devic
  * investigation.
  */
 //*****************************************************************************
-void IRAM_ATTR iwmBus::service()
+void IRAM_ATTR systemBus::service()
 {
 #ifndef DEV_RELAY_SLIP
   // process smartport before diskII
@@ -444,7 +444,7 @@ void IRAM_ATTR iwmBus::service()
 }
 
 // Returns true if SmartPort was handled
-bool IRAM_ATTR iwmBus::serviceSmartPort()
+bool IRAM_ATTR systemBus::serviceSmartPort()
 {
   // read phase lines to check for smartport reset or enable
   switch (iwm_phases())
@@ -552,7 +552,7 @@ bool IRAM_ATTR iwmBus::serviceSmartPort()
 
 #ifndef DEV_RELAY_SLIP
 // Returns true if Disk II was handled
-bool IRAM_ATTR iwmBus::serviceDiskII()
+bool IRAM_ATTR systemBus::serviceDiskII()
 {
   // check on the diskii status
   switch (iwm_motor_state())
@@ -615,7 +615,7 @@ bool IRAM_ATTR iwmBus::serviceDiskII()
 }
 
 // Returns true if a Disk II write was received
-bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
+bool IRAM_ATTR systemBus::serviceDiskIIWrite()
 {
   iwm_write_data item;
   int sector_num;
@@ -704,7 +704,7 @@ bool IRAM_ATTR iwmBus::serviceDiskIIWrite()
   return true;
 }
 
-iwm_enable_state_t IRAM_ATTR iwmBus::iwm_motor_state()
+iwm_enable_state_t IRAM_ATTR systemBus::iwm_motor_state()
 {
   uint8_t phases = smartport.iwm_phase_vector();
   uint8_t newstate = diskii_xface.iwm_active_drive();
@@ -740,7 +740,7 @@ iwm_enable_state_t IRAM_ATTR iwmBus::iwm_motor_state()
 }
 #endif /* !DEV_RELAY_SLIP */
 
-void iwmBus::handle_init()
+void systemBus::handle_init()
 {
   uint8_t status = 0;
   iwmDevice *pDevice = nullptr;
@@ -777,7 +777,7 @@ void iwmBus::handle_init()
 }
 
 // Add device to SIO bus
-void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
+void systemBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
 {
   // SmartPort interface assigns device numbers to the devices in the daisy chain one at a time
   // as opposed to using standard or fixed device ID's like Atari SIO. Therefore, an emulated
@@ -843,13 +843,13 @@ void iwmBus::addDevice(iwmDevice *pDevice, iwm_fujinet_type_t deviceType)
 
 // Removes device from the SIO bus.
 // Note that the destructor is called on the device!
-void iwmBus::remDevice(iwmDevice *p)
+void systemBus::remDevice(iwmDevice *p)
 {
   _daisyChain.remove(p);
 }
 
 // Should avoid using this as it requires counting through the list
-int iwmBus::numDevices()
+int systemBus::numDevices()
 {
   int i = 0;
   __BEGIN_IGNORE_UNUSEDVARS
@@ -859,7 +859,7 @@ int iwmBus::numDevices()
   __END_IGNORE_UNUSEDVARS
 }
 
-void iwmBus::changeDeviceId(iwmDevice *p, int device_id)
+void systemBus::changeDeviceId(iwmDevice *p, int device_id)
 {
   for (auto devicep : _daisyChain)
   {
@@ -868,7 +868,7 @@ void iwmBus::changeDeviceId(iwmDevice *p, int device_id)
   }
 }
 
-iwmDevice *iwmBus::deviceById(int device_id)
+iwmDevice *systemBus::deviceById(int device_id)
 {
   for (auto devicep : _daisyChain)
   {
@@ -878,20 +878,20 @@ iwmDevice *iwmBus::deviceById(int device_id)
   return nullptr;
 }
 
-void iwmBus::enableDevice(uint8_t device_id)
+void systemBus::enableDevice(uint8_t device_id)
 {
   iwmDevice *p = deviceById(device_id);
   p->device_active = true;
 }
 
-void iwmBus::disableDevice(uint8_t device_id)
+void systemBus::disableDevice(uint8_t device_id)
 {
   iwmDevice *p = deviceById(device_id);
   p->device_active = false;
 }
 
 // Give devices an opportunity to clean up before a reboot
-void iwmBus::shutdown()
+void systemBus::shutdown()
 {
   shuttingDown = true;
 
@@ -902,7 +902,4 @@ void iwmBus::shutdown()
   }
   Debug_printf("All devices shut down.\n");
 }
-
-iwmBus IWM; // global smartport bus variable
-
 #endif /* BUILD_APPLE */

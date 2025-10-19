@@ -115,7 +115,7 @@ void adamPrinter::adamnet_control_send()
 
 void adamPrinter::adamnet_control_ready()
 {
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
 
     if (getPrinterPtr()->is_printing)
         adamnet_response_nack();

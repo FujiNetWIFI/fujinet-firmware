@@ -15,6 +15,8 @@
 
 #define IDLE_TIME 500 // Idle tolerance in microseconds (roughly three characters at 62500 baud)
 
+//systemBus SYSTEM_BUS.;
+
 static QueueHandle_t reset_evt_queue = NULL;
 
 static void IRAM_ATTR comlynx_reset_isr_handler(void *arg)
@@ -81,8 +83,8 @@ void virtualDevice::comlynx_send(uint8_t b)
     Debug_printf("comlynx_send_buffer: %X\n", b);
     
     // Wait for idle only when in UDPStream mode
-    if (ComLynx._udpDev->udpstreamActive)
-        ComLynx.wait_for_idle();
+    if (SYSTEM_BUS._udpDev->udpstreamActive)
+        SYSTEM_BUS.wait_for_idle();
     
     // Write the byte
     fnUartBUS.write(b);
@@ -97,8 +99,8 @@ void virtualDevice::comlynx_send_buffer(uint8_t *buf, unsigned short len)
     //Debug_printf("comlynx_send_buffer: len:%d %0X %0X %0X %0X %0X %0X\n", len, buf[0], buf[1], buf[2], buf[3], buf[4], buf[len-1]);
     
     // Wait for idle only when in UDPStream mode
-    if (ComLynx._udpDev->udpstreamActive)
-        ComLynx.wait_for_idle();
+    if (SYSTEM_BUS._udpDev->udpstreamActive)
+        SYSTEM_BUS.wait_for_idle();
     
     fnUartBUS.write(buf, len);
     fnUartBUS.readBytes(buf, len);
@@ -270,7 +272,7 @@ void virtualDevice::comlynx_process(uint8_t b)
 
 void virtualDevice::comlynx_control_status()
 {
-    //ComLynx.start_time = esp_timer_get_time();
+    //SYSTEM_BUS.start_time = esp_timer_get_time();
     comlynx_response_status();
 }
 
@@ -561,9 +563,7 @@ void systemBus::setRedeyeGameRemap(uint32_t remap)
 {
    Debug_printf("setComlynxIdleTime, %d\n", idle_time);
 
-   ComLynx.comlynx_idle_time = idle_time; 
+   SYSTEM_BUS.comlynx_idle_time = idle_time; 
 }*/
 
-
-systemBus ComLynx;
 #endif /* BUILD_LYNX */

@@ -11,7 +11,7 @@
 #include "fnFS.h"
 
 // class def'ns
-class macBus;     // forward declare for macDevice
+class systemBus;     // forward declare for macDevice
 class macFuji;    // declare here so can reference it, but define in fuji.h
 
 typedef char mac_cmd_t;
@@ -50,7 +50,7 @@ enum class mac_fujinet_type_t
 
 class macDevice
 {
-  friend macBus;
+  friend systemBus;
 
 protected:
   char _devnum;             
@@ -65,7 +65,7 @@ public:
   char id() { return _devnum; };
 };
 
-class macBus
+class systemBus
 {
 private:
   macDevice *_activeDev = nullptr;
@@ -116,7 +116,7 @@ public:
   bool track_not_copied;
 };
 
-extern macBus MAC;
+extern systemBus SYSTEM_BUS;
 
 #endif // guard
 #endif // BUILD_MAC
@@ -417,11 +417,6 @@ public:
   // void assign_id(uint8_t n) { _devnum = n; };
 
   void assign_name(std::string name) { dib.device_name = name; }
-
-  /**
-   * @brief Get the iwmBus object that this iwmDevice is attached to.
-   */
-  iwmBus iwm_get_bus();
 };
 
 class iwmBus
@@ -495,7 +490,7 @@ public:
   bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
 };
 
-extern iwmBus IWM;
+extern systemBus SYSTEM_BUS;
 
 #endif // guard
 #endif /* BUILD_APPLE */

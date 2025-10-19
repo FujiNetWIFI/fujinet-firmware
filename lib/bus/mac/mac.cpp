@@ -6,7 +6,7 @@
 #include "mac_ll.h"
 
 
-void macBus::setup(void)
+void systemBus::setup(void)
 {
   Debug_printf(("\r\nMAC FujiNet based on FujiApple\r\n"));
   fnUartBUS.begin(_mac_baud_rate);
@@ -51,7 +51,7 @@ void macBus::setup(void)
 
 uint8_t sector_buffer[512];
 
-void macBus::service(void)
+void systemBus::service(void)
 {
   // todo - figure out two floppies - either on RP2040 or ESP32 side. Use the two enable lines - get_disks(0 or 1)
   if (fnUartBUS.available())
@@ -152,7 +152,7 @@ void macBus::service(void)
   }
 }
 
-char macBus::num_dcd_mounts()
+char systemBus::num_dcd_mounts()
 {
   // find maximum consecutively occupied disk slot
   char d = 0;
@@ -161,7 +161,7 @@ char macBus::num_dcd_mounts()
   return d;
 }
 
-void macBus::add_dcd_mount(char c)
+void systemBus::add_dcd_mount(char c)
 {
   _mounted_dcd_disks |= 1 << (c - '0');
   // find maximum consecutively occupied disk slot
@@ -170,7 +170,7 @@ void macBus::add_dcd_mount(char c)
   fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
 }
 
-void macBus::rem_dcd_mount(char c)
+void systemBus::rem_dcd_mount(char c)
 {
   _mounted_dcd_disks &= ~(1 << (c - '0'));
   char d = num_dcd_mounts();
@@ -178,13 +178,13 @@ void macBus::rem_dcd_mount(char c)
   fnUartBUS.write(d);   // number of DCD's in a contiguous daisy chain
 }
 
-bool macBus::stepper_timeout()
+bool systemBus::stepper_timeout()
 {
   unsigned long tn = fnSystem.micros();
   return ((tn - t0) > 2000);
 }
 
-void macBus::shutdown(void)
+void systemBus::shutdown(void)
 {
   shuttingDown = true;
 

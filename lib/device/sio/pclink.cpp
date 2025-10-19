@@ -2497,7 +2497,7 @@ pclink_read(uint8_t *buf, int len)
     Debug_printf("<-SIO read (PCLINK) %hu bytes\n", len);
 
 #ifdef ESP_PLATFORM
-    UARTManager *uart = pcLink.sio_get_bus().uart;
+    UARTManager *uart = SYSTEM_BUS.uart;
 
     __BEGIN_IGNORE_UNUSEDVARS
     size_t l = uart->readBytes(buf, len);
@@ -2548,7 +2548,7 @@ pclink_write(uint8_t *buf, int len)
 
     // Write data frame
 #ifdef ESP_PLATFORM
-    UARTManager *uart = pcLink.sio_get_bus().uart;
+    UARTManager *uart = SYSTEM_BUS.uart;
     uart->write(buf, len);
     // Write checksum
     uart->write(sio_checksum(buf, len));

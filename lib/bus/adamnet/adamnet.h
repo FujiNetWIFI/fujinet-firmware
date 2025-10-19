@@ -281,6 +281,6 @@ public:
     bool getShuttingDown() { return shuttingDown; };
 };
 
-extern systemBus AdamNet;
+extern systemBus SYSTEM_BUS;
 
 #endif /* ADAMNET_H */

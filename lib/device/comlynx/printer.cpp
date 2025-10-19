@@ -110,7 +110,7 @@ void lynxPrinter::comlynx_control_send()
     comlynx_recv_buffer(pi.buf, pi.len);
     comlynx_recv(); // ck
 
-    ComLynx.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     need_print=true;
@@ -120,7 +120,7 @@ void lynxPrinter::comlynx_control_send()
 
 void lynxPrinter::comlynx_control_ready()
 {
-    ComLynx.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
 
     if (need_print==true)
         comlynx_response_nack();

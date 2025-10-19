@@ -35,7 +35,7 @@ void adamSerial::adamnet_response_status()
 
 void adamSerial::adamnet_control_ready()
 {
-    AdamNet.start_time=esp_timer_get_time();
+    SYSTEM_BUS.start_time=esp_timer_get_time();
 
     if (uxQueueMessagesWaiting(serial_out_queue))
         adamnet_response_nack();
@@ -54,7 +54,7 @@ void adamSerial::adamnet_control_send()
     adamnet_recv_buffer(next.data, next.len);
     adamnet_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     xQueueSend(serial_out_queue,&next,portMAX_DELAY);

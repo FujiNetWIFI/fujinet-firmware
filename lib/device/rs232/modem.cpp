@@ -193,7 +193,7 @@ void rs232Modem::rs232_poll_1()
         Send back RS232 command for booting. This is a 12 uint8_t + chk block that
         is meant to be written to the RS232 parameter block starting at DDEVIC ($0300).
 
-		The boot block MUST start at $0500. There are both BASIC-based and cart-based
+                The boot block MUST start at $0500. There are both BASIC-based and cart-based
         loaders that use JSR $0506 to run the loader.
     */
 
@@ -427,7 +427,7 @@ void rs232Modem::rs232_control()
             tcpClient.stop(); // Hang up if DTR drops.
             CRX = false;
             cmdMode = true;
-            
+
             if (listenPort > 0)
             {
                 // tcpServer.stop();
@@ -1476,8 +1476,8 @@ void rs232Modem::modemCommand()
         break;
     case AT_CPM:
         modemActive = false;
-        RS232.getCPM()->init_cpm(modemBaud);
-        RS232.getCPM()->cpmActive = true;
+        SYSTEM_BUS.getCPM()->init_cpm(modemBaud);
+        SYSTEM_BUS.getCPM()->cpmActive = true;
         break;
     case AT_PHONEBOOKLIST:
         at_handle_pblist();
@@ -1679,7 +1679,7 @@ void rs232Modem::rs232_handle_modem()
             // Read from serial, the amount available up to
             // maximum size of the buffer
             int rs232BytesRead = fnUartBUS.readBytes(&txBuf[0], //RS232_UART.readBytes(&txBuf[0],
-                                                   (rs232BytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : rs232BytesAvail);
+                                                 (rs232BytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : rs232BytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
             for (int i = 0; i < (int)rs232BytesRead; i++)
@@ -1747,7 +1747,7 @@ void rs232Modem::rs232_handle_modem()
             Debug_println("Going back to command mode");
 
             at_cmd_println("OK");
-    
+
             cmdMode = true;
 
             plusCount = 0;

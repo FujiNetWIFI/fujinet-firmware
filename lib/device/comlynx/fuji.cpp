@@ -374,7 +374,7 @@ void lynxFuji::comlynx_copy_file()
     string copySpec;
     string sourcePath;
     string destPath;
-    uint8_t ck;
+    //uint8_t ck;
     FILE *sourceFile;
     FILE *destFile;
     char *dataBuf;
@@ -661,11 +661,11 @@ void lynxFuji::image_rotate()
         {
             int swap = _fnDisks[n - 1].disk_dev.id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            _comlynx_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
+            SYSTEM_BUS.changeDeviceId(&_fnDisks[n].disk_dev, swap);
         }
 
         // The first slot gets the device ID of the last slot
-        _comlynx_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+        SYSTEM_BUS.changeDeviceId(&_fnDisks[0].disk_dev, last_id);
     }
 }
 
@@ -697,7 +697,7 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
         return;
     }
 
-    //ComLynx.start_time = esp_timer_get_time();
+    //SYSTEM_BUS.start_time = esp_timer_get_time();
 
     if (_current_open_directory_slot == -1)
     {
@@ -866,7 +866,7 @@ void lynxFuji::comlynx_read_directory_entry()
     else
     {
         Debug_printf("Already filled. response is %s\n",response);
-        //ComLynx.start_time = esp_timer_get_time();
+        //SYSTEM_BUS.start_time = esp_timer_get_time();
         comlynx_response_ack();
     }
 }
@@ -988,7 +988,7 @@ void lynxFuji::comlynx_new_disk()
 
     if (host.file_exists((const char *)p))
     {
-        //ComLynx.start_time = esp_timer_get_time();
+        //SYSTEM_BUS.start_time = esp_timer_get_time();
         comlynx_response_ack();
         return;
     }
@@ -1301,7 +1301,7 @@ void lynxFuji::comlynx_enable_device()
     }
 
     Config.save();
-    ComLynx.enableDevice(d);
+    SYSTEM_BUS.enableDevice(d);
     comlynx_response_ack();
 }
 
@@ -1336,16 +1336,13 @@ void lynxFuji::comlynx_disable_device()
     }
 
     Config.save();    
-    ComLynx.disableDevice(d);
+    SYSTEM_BUS.disableDevice(d);
     comlynx_response_ack();
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void lynxFuji::setup(systemBus *siobus)
+void lynxFuji::setup()
 {
-    // set up Fuji device
-    _comlynx_bus = siobus;
-
     _populate_slots_from_config();
 
     // Disable booting from CONFIG if our settings say to turn it off
@@ -1353,10 +1350,10 @@ void lynxFuji::setup(systemBus *siobus)
 
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
-    _comlynx_bus->addDevice(&_fnDisks[0].disk_dev, 4);
-    _comlynx_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, 4);
+    SYSTEM_BUS.addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
     theNetwork = new lynxNetwork();
-    _comlynx_bus->addDevice(theNetwork, 0x09); // temporary.
+    SYSTEM_BUS.addDevice(theNetwork, 0x09); // temporary.
 }
 
 void lynxFuji::comlynx_random_number()
@@ -1418,13 +1415,13 @@ void lynxFuji::comlynx_device_enable_status()
         return;
     }
 
-    if (ComLynx.deviceExists(d))
+    if (SYSTEM_BUS.deviceExists(d))
         comlynx_response_ack();
     else
         comlynx_response_nack();
 
     response_len=1;
-    response[0]=ComLynx.deviceEnabled(d);
+    response[0]=SYSTEM_BUS.deviceEnabled(d);
 }
 
 lynxDisk *lynxFuji::bootdisk()
@@ -1497,7 +1494,7 @@ void lynxFuji::comlynx_enable_udpstream(uint16_t s)
     Config.save();
 
     // Start the UDP Stream
-    ComLynx.setUDPHost(host, port);
+    SYSTEM_BUS.setUDPHost(host, port);
 }
 
 void lynxFuji::comlynx_control_send()

@@ -25,7 +25,7 @@ lynxKeyboard::~lynxKeyboard()
 void lynxKeyboard::comlynx_control_status()
 {
     uint8_t r[6] = {0x81, 0x01, 0x00, 0x00, 0x00, 0x01};
-    ComLynx.wait_for_idle();
+    SYSTEM_BUS.wait_for_idle();
     comlynx_send_buffer(r, sizeof(r));
 }
 
@@ -33,29 +33,29 @@ void lynxKeyboard::comlynx_control_receive()
 {
     if (!client.connected() && server->hasClient())
     {
-        ComLynx.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         comlynx_send(0xC1); // NAK
         client = server->client();
     }
     else if (!client.connected())
     {
-        ComLynx.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         comlynx_send(0xC1); // NAK
     }
     else if (!kpQueue.empty())
     {
-        ComLynx.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         comlynx_send(0x91); // ACK
     }
     else if (client.available() > 0)
     {
-        ComLynx.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         comlynx_send(0x91); // ACK
         kpQueue.push(client.read());
     }
     else
     {
-        ComLynx.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         comlynx_send(0xC1); // NAK
     }
 }
@@ -71,7 +71,7 @@ void lynxKeyboard::comlynx_control_clr()
 
 void lynxKeyboard::comlynx_control_ready()
 {
-    ComLynx.wait_for_idle();
+    SYSTEM_BUS.wait_for_idle();
     comlynx_send(0x91); // Ack
 }
 

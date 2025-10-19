@@ -82,7 +82,7 @@ void adamNetwork::get_error()
 
     Debug_printf("Get Error\n");
     adamnet_recv(); // CK
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
     response_len = 1;
 
@@ -114,7 +114,7 @@ void adamNetwork::open(unsigned short s)
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // checksum
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     channelMode = PROTOCOL;
@@ -192,7 +192,7 @@ void adamNetwork::close()
 
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     statusByte.byte = 0x00;
@@ -255,7 +255,7 @@ void adamNetwork::write(uint16_t num_bytes)
     adamnet_recv_buffer(response, num_bytes);
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
@@ -293,7 +293,7 @@ void adamNetwork::status()
 {
     NetworkStatus s;
     adamnet_recv(); // CK
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     if (protocol == nullptr)
@@ -331,7 +331,7 @@ void adamNetwork::get_prefix()
 {
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     Debug_printf("adamNetwork::adamnet_getprefix(%s)\n", prefix.c_str());
@@ -352,7 +352,7 @@ void adamNetwork::set_prefix(unsigned short s)
     adamnet_recv_buffer(prefixSpec, s);
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     prefixSpec_str = string((const char *)prefixSpec);
@@ -414,7 +414,7 @@ void adamNetwork::set_login(uint16_t s)
     adamnet_recv_buffer(loginspec, s);
     adamnet_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     login = string((char *)loginspec, s);
@@ -432,7 +432,7 @@ void adamNetwork::set_password(uint16_t s)
     adamnet_recv_buffer(passwordspec, s);
     adamnet_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     password = string((char *)passwordspec, s);
@@ -446,7 +446,7 @@ void adamNetwork::del(uint16_t s)
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     d = string((char *)response, s);
@@ -475,7 +475,7 @@ void adamNetwork::rename(uint16_t s)
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     d = string((char *)response, s);
@@ -501,7 +501,7 @@ void adamNetwork::mkdir(uint16_t s)
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     d = string((char *)response, s);
@@ -528,16 +528,16 @@ void adamNetwork::channel_mode()
     {
     case 0:
         channelMode = PROTOCOL;
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_ack();
         break;
     case 1:
         channelMode = JSON;
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_ack();
         break;
     default:
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_nack();
         break;
     }
@@ -555,7 +555,7 @@ void adamNetwork::json_query(unsigned short s)
     adamnet_recv_buffer(response, s);
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     json.setReadQuery(std::string((char *)response, s), cmdFrame.aux2);
@@ -566,7 +566,7 @@ void adamNetwork::json_query(unsigned short s)
 void adamNetwork::json_parse()
 {
     adamnet_recv(); // CK
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
     json.parse();
     memset(response, 0, sizeof(response));
@@ -646,7 +646,7 @@ void adamNetwork::adamnet_special_00(unsigned short s)
 
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     protocol->special_00(&cmdFrame);
@@ -728,7 +728,7 @@ void adamNetwork::adamnet_response_status()
 
     status_response[4] = statusByte.byte;
 
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
 
     if (t < 300)
         virtualDevice::adamnet_response_status();
@@ -844,7 +844,7 @@ void adamNetwork::adamnet_control_receive_channel_json()
     }
     else
     {
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         if (response_len > 0)
             adamnet_response_ack();
         else
@@ -867,13 +867,13 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
 
     if (!ns.rxBytesWaiting)
     {
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_nack(true);
         return;
     }
     else
     {
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_ack(true);
     }
 
@@ -899,7 +899,7 @@ inline void adamNetwork::adamnet_control_receive_channel_protocol()
 
 inline void adamNetwork::adamnet_control_receive()
 {
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
 
     // Data is waiting, go ahead and send it off.
     if (response_len > 0)

@@ -379,11 +379,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << SIO.getHighSpeedIndex();
+        resultstream << SYSTEM_BUS.getHighSpeedIndex();
         break;
 #ifndef ESP_PLATFORM
     case FN_SIO_HSTEXT:
-        hsioindex = SIO.getHighSpeedIndex();
+        hsioindex = SYSTEM_BUS.getHighSpeedIndex();
         if (hsioindex == HSIO_DISABLED_INDEX)
             resultstream << "HSIO Disabled";
         else
@@ -391,7 +391,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #endif
     case FN_SIO_HSBAUD:
-        resultstream << SIO.getHighSpeedBaud();
+        resultstream << SYSTEM_BUS.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
 #if defined(BUILD_RS232)

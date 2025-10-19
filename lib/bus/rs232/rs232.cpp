@@ -154,7 +154,7 @@ void virtualDevice::rs232_error()
 void virtualDevice::rs232_high_speed()
 {
     Debug_print("rs232 HRS232 INDEX\n");
-    uint8_t hsd = RS232.getHighSpeedIndex();
+    uint8_t hsd = SYSTEM_BUS.getHighSpeedIndex();
     bus_to_computer((uint8_t *)&hsd, 1, false);
 }
 
@@ -265,7 +265,7 @@ void systemBus::service()
     {
         _cpmDev->rs232_handle_cpm();
         return; // break!
-    }    
+    }
 
     // Go process a command frame if the RS232 CMD line is asserted
     if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
@@ -321,7 +321,7 @@ void systemBus::setup()
 
     fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
-    
+
     // Create a message queue
     qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
 
@@ -465,6 +465,4 @@ void systemBus::setUDPHost(const char *hostname, int port)
 void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 {
 }
-
-systemBus RS232; // Global RS232 object
 #endif /* BUILD_RS232 */

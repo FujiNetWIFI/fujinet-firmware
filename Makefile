@@ -21,6 +21,9 @@ all:
 zip:
 	$(call builder, -z)
 
+atari-lwm:
+	$(call builder, -p ATARI -g)
+
 coco-lwm:
 	$(call builder, -p COCO -g)
 

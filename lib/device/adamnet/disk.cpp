@@ -116,7 +116,7 @@ bool adamDisk::write_blank(FILE *fileh, uint32_t numBlocks)
 
 void adamDisk::adamnet_control_clr()
 {
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
 
     if (t < 1500)
     {
@@ -154,7 +154,7 @@ void adamDisk::adamnet_control_send_block_num()
         _media->format(NULL);
     }
 
-    AdamNet.start_time=esp_timer_get_time();
+    SYSTEM_BUS.start_time=esp_timer_get_time();
     
     adamnet_response_ack();
 
@@ -167,7 +167,7 @@ void adamDisk::adamnet_control_send_block_data()
         return;
 
     adamnet_recv_buffer(_media->_media_blockbuff, 1024);
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
     Debug_printf("Block Data Write\n");
 
@@ -194,7 +194,7 @@ void adamDisk::adamnet_response_status()
     else
         status_response[4] = 0x40 | _media->_media_controller_status;
     
-    int64_t t = esp_timer_get_time() - AdamNet.start_time;
+    int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
 
     if (t < 300)
     {
