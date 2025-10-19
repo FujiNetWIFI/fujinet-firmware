@@ -93,6 +93,4 @@ public:
     void reset_sio_port(sio_mode mode);
 };
 
-extern SioCom fnSioCom;
-
 #endif // SIOCOM_H

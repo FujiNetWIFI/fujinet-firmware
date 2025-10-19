@@ -687,7 +687,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 #ifdef BUILD_APPLE
             DEVICE_TYPE *disk_dev = theFuji.get_disk_dev(ds);
 #else
-	    DEVICE_TYPE *disk_dev = &disk->disk_dev;
+            DEVICE_TYPE *disk_dev = &disk->disk_dev;
 #endif
 
             disk->fileh = host->fnfile_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
@@ -837,7 +837,7 @@ esp_err_t fnHttpService::get_handler_term(httpd_req_t *req)
 
     if (ws_pkt.len)
     {
-        buf = (uint8_t *)calloc(sizeof(uint8_t), ws_pkt.len + 1);
+        buf = (uint8_t *)calloc(ws_pkt.len + 1, sizeof(uint8_t));
         if (buf == NULL)
             return ESP_ERR_NO_MEM;
         else
@@ -886,7 +886,7 @@ esp_err_t fnHttpService::get_handler_kybd(httpd_req_t *req)
 
     if (ws_pkt.len)
     {
-        buf = (uint8_t *)calloc(sizeof(uint8_t), ws_pkt.len + 1);
+        buf = (uint8_t *)calloc(ws_pkt.len + 1, sizeof(uint8_t));
         if (buf == NULL)
             return ESP_ERR_NO_MEM;
         else

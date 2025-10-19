@@ -168,7 +168,7 @@ protected:
 #ifdef ESP_PLATFORM
     inline void sio_late_ack() { sio_ack(); };
 #else
-    void sio_late_ack();   
+    void sio_late_ack();
 #endif
 
     /**
@@ -196,7 +196,7 @@ protected:
     /**
      * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
      * a sector number, for disk, or a number of bytes waiting for the sioNetwork device.
-     * 
+     *
      * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
      */
     unsigned short sio_get_aux();
@@ -208,7 +208,7 @@ protected:
     virtual void sio_status() = 0;
 
     /**
-     * @brief All SIO devices repeatedly call this routine to fan out to other methods for each command. 
+     * @brief All SIO devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
     virtual void sio_process(uint32_t commanddata, uint8_t checksum) = 0;
@@ -282,6 +282,12 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
+#ifdef ESP_PLATFORM
+    MODEM_UART_T _port = MODEM_UART_T(FN_UART_BUS);
+#else
+    MODEM_UART_T _port;
+#endif
+
 #ifndef ESP_PLATFORM
     bool _command_processed = false;
 #endif
@@ -332,9 +338,39 @@ public:
     QueueHandle_t qSioMessages = nullptr;
 #endif
 
-    MODEM_UART_T* uart;             // UART manager to use.
-    void set_uart(MODEM_UART_T* _uart) { uart = _uart; }
+    // Everybody thinks "oh I know how a serial port works, I'll just
+    // access it directly and bypass the bus!" ಠ_ಠ
+    size_t read(void *buffer, size_t length) { return _port.readBytes((uint8_t *) buffer, length); }
+    size_t read() { return _port.read(); }
+    size_t write(const void *buffer, size_t length) { return _port.write((uint8_t *) buffer, length); }
+    size_t write(int n) { return _port.write(n); }
+    size_t available() { return _port.available(); }
+    void flush() { _port.flush(); }
+    void discardInput() { _port.flush_input(); }
+    size_t print(int n, int base = 10) { return _port.print(n, base); }
+    size_t print(const char *str) { return _port.print(str); }
+    size_t print(const std::string &str) { return _port.print(str); }
 
+#ifndef ESP_PLATFORM
+    // specific to NetSioPort
+    void set_netsio_host(const char *host, int port) { _port.set_netsio_host(host, port); }
+    const char* get_netsio_host(int &port) { return _port.get_netsio_host(port); }
+    void netsio_late_sync(uint8_t c) { _port.netsio_late_sync(c); }
+    void netsio_empty_sync() { _port.netsio_empty_sync(); }
+    void netsio_write_size(int write_size) { _port.netsio_write_size(write_size); }
+
+    // get/set SIO mode
+    SioCom::sio_mode get_sio_mode() { return _port.get_sio_mode(); }
+    void set_sio_mode(SioCom::sio_mode mode) { _port.set_sio_mode(mode); }
+    void reset_sio_port(SioCom::sio_mode mode) { _port.reset_sio_port(mode); }
+
+    void set_proceed(bool level) { _port.set_proceed(level); }
+    bool poll(int ms) { return _port.poll(ms); }
+    bool command_asserted() { return _port.command_asserted(); }
+    void bus_idle(uint16_t ms) { _port.bus_idle(ms); }
+#endif /* ESP_PLATFORM */
+
+    bool motor_asserted();
 };
 
 extern systemBus SYSTEM_BUS;

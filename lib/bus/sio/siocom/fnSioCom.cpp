@@ -13,8 +13,6 @@
  * or network SIO (NetSio = SIO over UDP) for use with Altirra Atari Emulator
  */
 
-SioCom fnSioCom;
-
 SioCom::SioCom() : _sio_mode(sio_mode::SERIAL), _sioPort(&_serialSio) {}
 
 void SioCom::begin(int baud)
@@ -25,9 +23,9 @@ void SioCom::begin(int baud)
         _sioPort->begin(get_baudrate());
 }
 
-void SioCom::end() 
-{ 
-    _sioPort->end(); 
+void SioCom::end()
+{
+    _sioPort->end();
 }
 
 /*
@@ -37,25 +35,25 @@ void SioCom::end()
  */
 bool SioCom::poll(int ms)
 {
-    return _sioPort->poll(ms); 
+    return _sioPort->poll(ms);
 }
 
-void SioCom::set_baudrate(uint32_t baud) 
-{ 
-    _sioPort->set_baudrate(baud); 
+void SioCom::set_baudrate(uint32_t baud)
+{
+    _sioPort->set_baudrate(baud);
 }
 
 uint32_t SioCom::get_baudrate()
 {
-    return _sioPort->get_baudrate(); 
+    return _sioPort->get_baudrate();
 }
 
-bool SioCom::command_asserted() 
+bool SioCom::command_asserted()
 {
     return _sioPort->command_asserted();
 }
 
-bool SioCom::motor_asserted() 
+bool SioCom::motor_asserted()
 {
     return _sioPort->motor_asserted();
 }
@@ -70,12 +68,12 @@ void SioCom::set_interrupt(bool level)
     _sioPort->set_interrupt(level);
 }
 
-int SioCom::available() 
+int SioCom::available()
 {
     return _sioPort->available();
 }
 
-void SioCom::flush() 
+void SioCom::flush()
 {
     _sioPort->flush();
 }
@@ -110,7 +108,7 @@ ssize_t SioCom::write(uint8_t b)
 }
 
 // write buffer
-ssize_t SioCom::write(const uint8_t *buffer, size_t size) 
+ssize_t SioCom::write(const uint8_t *buffer, size_t size)
 {
     return _sioPort->write(buffer, size);
 }
@@ -208,12 +206,12 @@ const char* SioCom::get_serial_port(int &command_pin, int &proceed_pin)
 };
 
 // specific to NetSioPort
-void SioCom::set_netsio_host(const char *host, int port) 
+void SioCom::set_netsio_host(const char *host, int port)
 {
     _netSio.set_host(host, port);
 }
 
-const char* SioCom::get_netsio_host(int &port) 
+const char* SioCom::get_netsio_host(int &port)
 {
     return _netSio.get_host(port);
 }

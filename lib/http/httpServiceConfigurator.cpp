@@ -544,6 +544,7 @@ void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud
     {
         Config.save();
 
+#ifdef UNUSED
 #if defined(BUILD_ATARI)
         if (fnSioCom.get_sio_mode() == SioCom::sio_mode::SERIAL)
         {
@@ -570,6 +571,7 @@ void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud
             fnDwCom.begin(Config.get_serial_baud());
         }
 #endif
+#endif /* UNUSED */
     }
 }
 #elif defined(BUILD_RS232)
@@ -614,7 +616,7 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
     // Update settings (on ESP reboot is needed)
 #ifndef ESP_PLATFORM
 #if defined(BUILD_ATARI)
-    fnSioCom.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port());
+    SYSTEM_BUS.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port());
 #elif defined(BUILD_COCO)
     fnDwCom.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port());
 #endif
@@ -628,7 +630,7 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
     // Apply settings (on ESP reboot is needed)
 #ifndef ESP_PLATFORM
 #if defined(BUILD_ATARI)
-    fnSioCom.reset_sio_port(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
+    SYSTEM_BUS.reset_sio_port(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
 #elif defined(BUILD_COCO)
     fnDwCom.reset_drivewire_port(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
 #endif

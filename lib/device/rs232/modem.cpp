@@ -60,7 +60,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     switch (ev->type)
     {
     case TELNET_EV_DATA:
-        if (ev->data.size && fnUartBUS.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
+        if (ev->data.size && SYSTEM_BUS.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
             Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to RS232.\n", ev->type);
         break;
     case TELNET_EV_SEND:
@@ -570,7 +570,7 @@ void rs232Modem::rs232_stream()
 
     bus_to_computer((uint8_t *)response, sizeof(response), false);
 
-    fnUartBUS.set_baudrate(modemBaud);
+    SYSTEM_BUS.setBaudrate(modemBaud);
     modemActive = true;
     Debug_printf("Modem streaming at %u baud\n", modemBaud);
 }
@@ -664,8 +664,8 @@ void rs232Modem::at_connect_resultCode(int modemBaud)
         resultCode = 1;
         break;
     }
-    fnUartBUS.print(resultCode);
-    fnUartBUS.write(ASCII_CR);
+    SYSTEM_BUS.print(resultCode);
+    SYSTEM_BUS.write(ASCII_CR);
 }
 
 /**
@@ -674,9 +674,9 @@ void rs232Modem::at_connect_resultCode(int modemBaud)
  */
 void rs232Modem::at_cmd_resultCode(int resultCode)
 {
-    fnUartBUS.print(resultCode);
-    fnUartBUS.write(ASCII_CR);
-    fnUartBUS.write(ASCII_LF);
+    SYSTEM_BUS.print(resultCode);
+    SYSTEM_BUS.write(ASCII_CR);
+    SYSTEM_BUS.write(ASCII_LF);
 }
 
 /**
@@ -689,14 +689,14 @@ void rs232Modem::at_cmd_println()
 
     if (cmdAtascii == true)
     {
-        fnUartBUS.write(ATASCII_EOL);
+        SYSTEM_BUS.write(ATASCII_EOL);
     }
     else
     {
-        fnUartBUS.write(ASCII_CR);
-        fnUartBUS.write(ASCII_LF);
+        SYSTEM_BUS.write(ASCII_CR);
+        SYSTEM_BUS.write(ASCII_LF);
     }
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 }
 
 void rs232Modem::at_cmd_println(const char *s, bool addEol)
@@ -704,20 +704,20 @@ void rs232Modem::at_cmd_println(const char *s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartBUS.print(s);
+    SYSTEM_BUS.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartBUS.write(ATASCII_EOL);
+            SYSTEM_BUS.write(ATASCII_EOL);
         }
         else
         {
-            fnUartBUS.write(ASCII_CR);
-            fnUartBUS.write(ASCII_LF);
+            SYSTEM_BUS.write(ASCII_CR);
+            SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 }
 
 void rs232Modem::at_cmd_println(int i, bool addEol)
@@ -725,20 +725,20 @@ void rs232Modem::at_cmd_println(int i, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartBUS.print(i);
+    SYSTEM_BUS.print(i);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartBUS.write(ATASCII_EOL);
+            SYSTEM_BUS.write(ATASCII_EOL);
         }
         else
         {
-            fnUartBUS.write(ASCII_CR);
-            fnUartBUS.write(ASCII_LF);
+            SYSTEM_BUS.write(ASCII_CR);
+            SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 }
 
 void rs232Modem::at_cmd_println(std::string s, bool addEol)
@@ -746,20 +746,20 @@ void rs232Modem::at_cmd_println(std::string s, bool addEol)
     if (cmdOutput == false)
         return;
 
-    fnUartBUS.print(s);
+    SYSTEM_BUS.print(s);
     if (addEol)
     {
         if (cmdAtascii == true)
         {
-            fnUartBUS.write(ATASCII_EOL);
+            SYSTEM_BUS.write(ATASCII_EOL);
         }
         else
         {
-            fnUartBUS.write(ASCII_CR);
-            fnUartBUS.write(ASCII_LF);
+            SYSTEM_BUS.write(ASCII_CR);
+            SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    fnUartBUS.flush();
+    SYSTEM_BUS.flush();
 }
 
 void rs232Modem::at_handle_wificonnect()
@@ -1025,7 +1025,7 @@ void rs232Modem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartBUS.flush();
+        SYSTEM_BUS.flush();
         answerHack = false;
     }
 }
@@ -1569,11 +1569,11 @@ void rs232Modem::rs232_handle_modem()
 
         // In command mode - don't exchange with TCP but gather characters to a string
         //if (RS232_UART.available() /*|| blockWritePending == true */ )
-        if (fnUartBUS.available() > 0)
+        if (SYSTEM_BUS.available() > 0)
         {
             // get char from Atari RS232
             //char chr = RS232_UART.read();
-            char chr = fnUartBUS.read();
+            char chr = SYSTEM_BUS.read();
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -1598,9 +1598,9 @@ void rs232Modem::rs232_handle_modem()
                     // Clear with a space
                     if (commandEcho == true)
                     {
-                        fnUartBUS.write(ASCII_BACKSPACE);
-                        fnUartBUS.write(' ');
-                        fnUartBUS.write(ASCII_BACKSPACE);
+                        SYSTEM_BUS.write(ASCII_BACKSPACE);
+                        SYSTEM_BUS.write(' ');
+                        SYSTEM_BUS.write(ASCII_BACKSPACE);
                     }
                 }
             }
@@ -1613,7 +1613,7 @@ void rs232Modem::rs232_handle_modem()
                 {
                     cmd.erase(len - 1);
                     if (commandEcho == true)
-                        fnUartBUS.write(ATASCII_BACKSPACE);
+                        SYSTEM_BUS.write(ATASCII_BACKSPACE);
                 }
             }
             // Take into account arrow key movement and clear screen
@@ -1621,7 +1621,7 @@ void rs232Modem::rs232_handle_modem()
                      ((chr >= ATASCII_CURSOR_UP) && (chr <= ATASCII_CURSOR_RIGHT)))
             {
                 if (commandEcho == true)
-                    fnUartBUS.write(chr);
+                    SYSTEM_BUS.write(chr);
             }
             else
             {
@@ -1631,7 +1631,7 @@ void rs232Modem::rs232_handle_modem()
                     cmd += chr;
                 }
                 if (commandEcho == true)
-                    fnUartBUS.write(chr);
+                    SYSTEM_BUS.write(chr);
             }
         }
     }
@@ -1662,8 +1662,8 @@ void rs232Modem::rs232_handle_modem()
             }
         }
 
-        int rs232BytesAvail = fnUartBUS.available();
-        //int rs232BytesAvail = std::min(0, fnUartBUS.available());
+        int rs232BytesAvail = SYSTEM_BUS.available();
+        //int rs232BytesAvail = std::min(0, SYSTEM_BUS.available());
 
         // send from Atari to Fujinet
         if (rs232BytesAvail && tcpClient.connected())
@@ -1678,7 +1678,7 @@ void rs232Modem::rs232_handle_modem()
 
             // Read from serial, the amount available up to
             // maximum size of the buffer
-            int rs232BytesRead = fnUartBUS.readBytes(&txBuf[0], //RS232_UART.readBytes(&txBuf[0],
+            int rs232BytesRead = SYSTEM_BUS.read(&txBuf[0], //RS232_UART.readBytes(&txBuf[0],
                                                  (rs232BytesAvail > TX_BUF_SIZE) ? TX_BUF_SIZE : rs232BytesAvail);
 
             // Disconnect if going to AT mode with "+++" sequence
@@ -1728,8 +1728,8 @@ void rs232Modem::rs232_handle_modem()
             }
             else
             {
-                fnUartBUS.write(buf, bytesRead);
-                fnUartBUS.flush();
+                SYSTEM_BUS.write(buf, bytesRead);
+                SYSTEM_BUS.flush();
             }
 
             // And dump to sniffer, if enabled.

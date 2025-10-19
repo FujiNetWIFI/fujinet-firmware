@@ -1,6 +1,7 @@
 #ifndef RS232_H
 #define RS232_H
 
+#include "fnUART.h"
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 
@@ -216,6 +217,8 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
+    UARTManager _port = UARTManager(FN_UART_BUS);
+
     void _rs232_process_cmd();
     /* void _rs232_process_queue(); */
 
@@ -250,6 +253,18 @@ public:
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
+
+    // Everybody thinks "oh I know how a serial port works, I'll just
+    // access it directly and bypass the bus!" ಠ_ಠ
+    size_t read(void *buffer, size_t length) { return _port.readBytes(buffer, length); }
+    size_t read() { return _port.read(); }
+    size_t write(const void *buffer, size_t length) { return _port.write(buffer, length); }
+    size_t write(int n) { return _port.write(n); }
+    size_t available() { return _port.available(); }
+    void flush() { _port.flush(); }
+    size_t print(int n, int base = 10) { return _port.print(n, base); }
+    size_t print(const char *str) { return _port.print(str); }
+    size_t print(const std::string &str) { return _port.print(str); }
 };
 
 extern systemBus SYSTEM_BUS;
