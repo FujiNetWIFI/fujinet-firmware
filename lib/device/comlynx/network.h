@@ -20,6 +20,11 @@
  */
 #define NUM_DEVICES 8
 
+/*
+ * Size of the serial packet we can send to Lynx (determined mainly by the Lynx RX buffer)
+ */
+#define SERIAL_PACKET_SIZE 256
+
 /**
  * The size of rx and tx buffers
  */

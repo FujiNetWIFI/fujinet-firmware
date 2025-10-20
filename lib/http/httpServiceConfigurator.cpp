@@ -133,7 +133,7 @@ void udpstream_activate()
     SYSTEM_BUS.setUDPHost(Config.get_network_udpstream_host().c_str(), Config.get_network_udpstream_port());
 #endif /* ATARI */
 #ifdef BUILD_LYNX
-    ComLynx.setUDPHost(Config.get_network_udpstream_host().c_str(), Config.get_network_udpstream_port());
+    SYSTEM_BUS.setUDPHost(Config.get_network_udpstream_host().c_str(), Config.get_network_udpstream_port());
 #endif /* LYNX */
 }
 
@@ -325,7 +325,7 @@ void fnHttpServiceConfigurator::config_udpstream(std::string hostname)
         SYSTEM_BUS.setUDPHost("STOP", port);
 #endif /* ATARI */
 #ifdef BUILD_LYNX
-        ComLynx.setUDPHost("STOP", port);
+        SYSTEM_BUS.setUDPHost("STOP", port);
 #endif /* LYNX */
         Config.store_udpstream_host("");
         Config.store_udpstream_port(0);

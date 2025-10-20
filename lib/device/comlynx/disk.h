@@ -10,6 +10,7 @@
 #define STATUS_NO_MEDIA  3
 #define STATUS_NO_DRIVE  4
 
+
 class lynxDisk : public virtualDevice
 {
 private:
