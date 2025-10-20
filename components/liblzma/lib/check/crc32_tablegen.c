@@ -79,6 +79,7 @@ print_crc32_table(void)
 }
 
 
+#ifdef UNUSED
 static void
 print_lz_table(void)
 {
@@ -100,6 +101,7 @@ print_lz_table(void)
 
 	return;
 }
+#endif /* UNUSED */
 
 
 int
