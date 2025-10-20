@@ -349,7 +349,6 @@ void adamFuji::adamnet_copy_file()
     string copySpec;
     string sourcePath;
     string destPath;
-    uint8_t ck;
     FILE *sourceFile;
     FILE *destFile;
     char *dataBuf;
@@ -364,7 +363,7 @@ void adamFuji::adamnet_copy_file()
     sourceSlot = adamnet_recv();
     destSlot = adamnet_recv();
     adamnet_recv_buffer(csBuf, sizeof(csBuf));
-    ck = adamnet_recv();
+    adamnet_recv();
 
     SYSTEM_BUS.wait_for_idle();
     SYSTEM_BUS.write(0x9f); // ACK.
@@ -590,9 +589,6 @@ void adamFuji::image_rotate()
         fnLedManager.blink(LED_BUS,active_rotate_slot+1);
 
         count--;
-
-        // Save the device ID of the disk in the last slot
-        int last_id = count;
 
         for (int n = 0; n < count; n++)
         {

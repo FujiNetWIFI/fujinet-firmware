@@ -34,7 +34,7 @@ private:
     uint8_t buf_net[UDPSTREAM_BUFFER_SIZE];
     uint8_t buf_stream[UDPSTREAM_BUFFER_SIZE];
 
-    uint8_t buf_stream_index=0;
+    unsigned int buf_stream_index=0;
 
     uint16_t packet_seq = 0;
 #ifdef ESP_PLATFORM
