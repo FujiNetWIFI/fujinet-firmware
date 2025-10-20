@@ -121,6 +121,7 @@ protected:
     void comlynx_device_enable_status();   // 0xD1
     void comlynx_get_copy_status();        // 0xD0
 
+
     void comlynx_hello(); // test
 
     void comlynx_test_command();
@@ -135,9 +136,9 @@ protected:
 
 public:
     bool boot_config = true;
-
+    
     bool status_wait_enabled = true;
-
+    
     lynxDisk *bootdisk();
 
     lynxNetwork *network();

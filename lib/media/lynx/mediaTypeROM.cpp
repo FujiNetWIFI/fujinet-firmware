@@ -11,7 +11,7 @@
 // Returns byte offset of given sector number
 uint32_t MediaTypeROM::_block_to_offset(uint32_t blockNum)
 {
-    return blockNum * 256;
+    return blockNum * MEDIA_BLOCK_SIZE;
 }
 
 // Returns TRUE if an error condition occurred
@@ -20,7 +20,7 @@ bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
     if (blockNum == _media_last_block)
         return false; // We already have block.
 
-    Debug_print("LNX READ\r\n");
+    Debug_print("**DISK READ START**\r\n");
 
     // Return an error if we're trying to read beyond the end of the disk
     if (blockNum > _media_num_blocks-1)
@@ -42,7 +42,7 @@ bool MediaTypeROM::read(uint32_t blockNum, uint16_t *readcount)
      }
 
     if (err == false)
-        err = fread(_media_blockbuff, 1, 256, _media_fileh) != 256;
+        err = fread(_media_blockbuff, 1, MEDIA_BLOCK_SIZE, _media_fileh) == 0;            // handle potential last block partial read
 
     if (err == false)
     {
@@ -79,11 +79,13 @@ bool MediaTypeROM::format(uint16_t *responsesize)
 
 mediatype_t MediaTypeROM::mount(FILE *f, uint32_t disksize)
 {
-    Debug_print("ROM MOUNT\r\n");
+    Debug_print("**FILE MOUNT**\r\n");
 
     _media_fileh = f;
     _mediatype = MEDIATYPE_ROM;
-    _media_num_blocks = disksize / 256;
+    _media_num_blocks = disksize / MEDIA_BLOCK_SIZE;
+    if (disksize % MEDIA_BLOCK_SIZE)       // handle extra bytes
+        _media_num_blocks++;
 
     return _mediatype;
 }
