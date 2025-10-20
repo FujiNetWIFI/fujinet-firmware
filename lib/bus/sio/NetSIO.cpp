@@ -1,24 +1,15 @@
-#ifndef ESP_PLATFORM
-
 #ifdef BUILD_ATARI
 
-#include "netsio.h"
-#include "netsio_proto.h"
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include "compat_string.h"
-#include <sys/time.h>
-#include <unistd.h> // write(), read(), close()
-#include <errno.h> // Error integer and strerror() function
-#include <fcntl.h> // Contains file controls like O_RDWR
-
-#include "../../include/debug.h"
-
+#include "NetSIO.h"
 #include "fnSystem.h"
 #include "fnWiFi.h"
+#include "../../include/debug.h"
 
+#ifdef ITS_A_UNIX_SYSTEM_I_KNOW_THIS
+#include <fcntl.h>
+#endif /* ITS_A_UNIX_SYSTEM_I_KNOW_THIS */
+
+# define SIOPORT_DEFAULT_BAUD   19200
 
 /* alive response timeout in seconds
  *  device sends in regular intervals (2 s) alive messages (NETSIO_ALIVE_REQUEST) to NetSIO HUB
@@ -33,7 +24,7 @@
 // #define ALIVE_TIMEOUT_MS    600000
 
 // Constructor
-NetSioPort::NetSioPort() :
+NetSIO::NetSIO() :
     _host{0},
     _ip(IPADDR_NONE),
     _port(NETSIO_PORT),
@@ -43,33 +34,30 @@ NetSioPort::NetSioPort() :
     _initialized(false),
     _command_asserted(false),
     _motor_asserted(false),
-    _rxhead(0),
-    _rxtail(0),
-    _rxfull(false),
     _sync_request_num(-1),
     _sync_write_size(-1),
     _errcount(0),
     _credit(3)
 {}
 
-NetSioPort::~NetSioPort()
+NetSIO::~NetSIO()
 {
     end();
 }
 
-void NetSioPort::begin(int baud)
+void NetSIO::begin(std::string host, int port, int baud)
 {
-    if (_initialized) 
+    if (_initialized)
     {
         end();
     }
 
     _baud = baud;
     _resume_time = 0;
+    setHost(host, port);
 
     _command_asserted = false;
     _motor_asserted = false;
-    rxbuffer_flush();
 
     // Wait for WiFi
     int suspend_ms = _errcount < 5 ? 400 : 2000;
@@ -78,33 +66,33 @@ void NetSioPort::begin(int baud)
         Debug_println("NetSIO: No WiFi!");
         _errcount++;
         suspend(suspend_ms);
-		return;
-	}
+                return;
+        }
 
     //
     // Connect to hub
     //
 
     suspend_ms = _errcount < 5 ? 1000 : 5000;
-    Debug_printf("Setting up NetSIO (%s:%d)\n", _host, _port);
+    Debug_printf("Setting up NetSIO (%s:%d)\n", _host.c_str(), _port);
     _fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
 
     if (_fd < 0)
     {
-        Debug_printf("Failed to create NetSIO socket: %d, \"%s\"\n", 
+        Debug_printf("Failed to create NetSIO socket: %d, \"%s\"\n",
             compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
         _errcount++;
         suspend(suspend_ms);
-		return;
-	}
-    
-    _ip = get_ip4_addr_by_name(_host);
+                return;
+        }
+
+    _ip = get_ip4_addr_by_name(_host.c_str());
     if (_ip == IPADDR_NONE)
     {
         Debug_println("Failed to resolve NetSIO host name");
         _errcount++;
         suspend(suspend_ms);
-		return;
+                return;
     }
 
     // Set remote IP address (no real connection is created for UDP socket)
@@ -116,11 +104,11 @@ void NetSioPort::begin(int baud)
     if (connect(_fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         // should not happen (UDP)
-        Debug_printf("Failed to connect NetSIO socket: %d, \"%s\"\n", 
+        Debug_printf("Failed to connect NetSIO socket: %d, \"%s\"\n",
             compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
         _errcount++;
         suspend(suspend_ms);
-		return;
+                return;
     }
 
 #if defined(_WIN32)
@@ -148,10 +136,10 @@ void NetSioPort::begin(int baud)
     // Set initialized.
     _initialized = true;
     _errcount = 0;
-    set_baudrate(baud);
+    setBaudrate(baud);
 }
 
-void NetSioPort::end()
+void NetSIO::end()
 {
     if (_fd >= 0)
     {
@@ -165,26 +153,14 @@ void NetSioPort::end()
     _initialized = false;
 }
 
-bool NetSioPort::poll(int ms)
-{
-    if (_initialized)
-    {
-        if (handle_netsio() > 0)
-            return true;
-        return (wait_sock_readable(ms));
-    }
-    fnSystem.delay(ms);
-    return false;
-}
-
-void NetSioPort::suspend(int ms)
+void NetSIO::suspend(int ms)
 {
     Debug_printf("Suspending NetSIO for %d ms\n", ms);
     _resume_time = fnSystem.millis() + ms;
     end();
 }
 
-int NetSioPort::ping(int count, int interval_ms, int timeout_ms, bool fast)
+int NetSIO::ping(int count, int interval_ms, int timeout_ms, bool fast)
 {
     uint8_t ping;
     uint64_t t1, t2;
@@ -203,14 +179,14 @@ int NetSioPort::ping(int count, int interval_ms, int timeout_ms, bool fast)
             ping = NETSIO_PING_REQUEST;
             result = send(_fd, (char *)&ping, 1, 0);
             t1 = fnSystem.micros();
-            do 
+            do
             {
                 wait_ms = timeout_ms - (fnSystem.micros() - t1) / 1000;
                 if (result == 1 && wait_sock_readable(wait_ms))
                 {
                     t2 = fnSystem.micros();
                     result = recv(_fd, (char *)&ping, 1, 0);
-                    if (result == 1 && ping == NETSIO_PING_RESPONSE) 
+                    if (result == 1 && ping == NETSIO_PING_RESPONSE)
                         rtt = (int)(t2 - t1);
                 }
                 wait_ms = timeout_ms - (fnSystem.micros() - t1) / 1000;
@@ -219,7 +195,7 @@ int NetSioPort::ping(int count, int interval_ms, int timeout_ms, bool fast)
 
         if (rtt >= 0)
         {
-            Debug_printf("NetSIO ping %s time=%.3f ms\n", _host, (double)(rtt)/1000.0);
+            Debug_printf("NetSIO ping %s time=%.3f ms\n", _host.c_str(), (double)(rtt)/1000.0);
             rtt_sum += rtt;
             ok_count++;
             if (fast)
@@ -229,7 +205,7 @@ int NetSioPort::ping(int count, int interval_ms, int timeout_ms, bool fast)
         }
         else
         {
-            Debug_printf("NetSIO ping %s timeout\n", _host);
+            Debug_printf("NetSIO ping %s timeout\n", _host.c_str());
             if (i+1 < count && interval_ms - timeout_ms > 0)
                 fnSystem.delay(interval_ms - timeout_ms);
         }
@@ -238,50 +214,7 @@ int NetSioPort::ping(int count, int interval_ms, int timeout_ms, bool fast)
     return ok_count ? rtt_sum / ok_count : -1;
 }
 
-bool NetSioPort::rxbuffer_empty()
-{
-    return (_rxhead == _rxtail && !_rxfull);
-}
-
-bool NetSioPort::rxbuffer_put(uint8_t b) 
-{
-    _rxbuf[_rxhead++] = b;
-    _rxhead %= sizeof(_rxbuf);
-    if (_rxfull) {
-        // tail byte was overwritten / lost
-        _rxtail = _rxhead;
-        return true;
-    }
-    _rxfull = (_rxhead == _rxtail);
-    return false;
-}
-
-int NetSioPort::rxbuffer_get() 
-{
-    int b;
-    if (rxbuffer_empty())
-        return -1;
-    b = _rxbuf[_rxtail++];
-    _rxtail %= sizeof(_rxbuf);
-    _rxfull = false;
-    return b;
-}
-
-int  NetSioPort::rxbuffer_available() 
-{
-    int avail = _rxhead - _rxtail;
-    if ((avail < 0) || (avail == 0 && _rxfull))
-        avail += sizeof(_rxbuf);
-    return avail;
-}
-
-void NetSioPort::rxbuffer_flush() 
-{
-    _rxtail = _rxhead;
-    _rxfull = false;
-}
-
-bool NetSioPort::resume_test()
+bool NetSIO::resume_test()
 {
     if (!_initialized)
     {
@@ -291,15 +224,14 @@ bool NetSioPort::resume_test()
             if (_resume_time > fnSystem.millis())
                 return false;
             // time to resume
-            begin(_baud);
+            begin(_host, _port, _baud);
         }
     }
     return _initialized;
 }
 
-bool NetSioPort::keep_alive()
+bool NetSIO::keep_alive()
 {
-    ssize_t result;
     uint64_t ms = fnSystem.millis();
 
     // if ALIVE_RATE_MS time passed since last alive request was sent
@@ -319,14 +251,14 @@ bool NetSioPort::keep_alive()
             }
             // reconnect on ping response
             end();
-            begin(_baud);
+            begin(_host, _port, _baud);
         }
         // if nothing received for longer than ALIVE_RATE_MS, keep sending alive requests at ALIVE_RATE_MS rate
         else if (ms - _alive_time >= ALIVE_RATE_MS)
         {
             _alive_request = ms;
             uint8_t alive = NETSIO_ALIVE_REQUEST;
-            result = send(_fd, (char *)&alive, 1, 0);
+            send(_fd, (char *)&alive, 1, 0);
             // Debug_printf("Alive %lu %ld\n", ms, result);
         }
     }
@@ -334,7 +266,7 @@ bool NetSioPort::keep_alive()
 }
 
 /* read NetSIO message from socket and update internal variables */
-int NetSioPort::handle_netsio()
+int NetSIO::handle_netsio()
 {
     uint8_t rxbuf[514]; // must be able to hold whole netsio datagram, i.e. >= rxbuffer_len+2 defined in netsio.atdevice
     uint8_t b;
@@ -358,14 +290,13 @@ int NetSioPort::handle_netsio()
             case NETSIO_DATA_BYTE_SYNC:
                 if (received >= 3)
                     _sync_request_num = rxbuf[2];
-                // [[fallthrough]]; // > No warning
+                [[fallthrough]];
 
             case NETSIO_DATA_BYTE:
                 b = rxbuf[1];
                 if (_baud_peer < _baud * 90 / 100 || _baud_peer > _baud * 110 / 100)
                     b ^= (uint8_t)_baud_peer ^ (uint8_t)_baud; // corrupt byte
-                if (rxbuffer_put(b))
-                    Debug_println("NetSIO rxbuffer overrun");
+                _fifo.push_back(b);
                 break;
 
             case NETSIO_DATA_BLOCK:
@@ -377,16 +308,15 @@ int NetSioPort::handle_netsio()
                         b = rxbuf[i];
                         if (_baud_peer < _baud * 90 / 100 || _baud_peer > _baud * 110 / 100)
                             b ^= (uint8_t)_baud_peer ^ (uint8_t)_baud; // corrupt byte
-                        if (rxbuffer_put(b))
-                            Debug_println("NetSIO rxbuffer overrun");
+                        _fifo.push_back(b);
                     }
                 }
                 break;
 
             case NETSIO_COMMAND_OFF_SYNC:
-                if (received >= 2) 
+                if (received >= 2)
                     _sync_request_num = rxbuf[1]; // sync request sequence number
-                // [[fallthrough]]; // > No warning
+                [[fallthrough]];
 
             case NETSIO_COMMAND_OFF:
                 _command_asserted = false;
@@ -396,7 +326,7 @@ int NetSioPort::handle_netsio()
                 _command_asserted = true;
                 _sync_request_num = -1; // cancel any sync request
                 _sync_write_size = -1;
-                rxbuffer_flush();   // flush any stray input data
+                _fifo.clear();   // flush any stray input data
                 break;
 
             case NETSIO_MOTOR_OFF:
@@ -437,7 +367,7 @@ int NetSioPort::handle_netsio()
     return received;
 }
 
-timeval NetSioPort::timeval_from_ms(const uint32_t millis)
+timeval NetSIO::timeval_from_ms(const uint32_t millis)
 {
   timeval tv;
   tv.tv_sec = millis / 1000;
@@ -445,12 +375,12 @@ timeval NetSioPort::timeval_from_ms(const uint32_t millis)
   return tv;
 }
 
-bool NetSioPort::wait_sock_readable(uint32_t timeout_ms)
+bool NetSIO::wait_sock_readable(uint32_t timeout_ms)
 {
     timeval timeout_tv;
     fd_set readfds;
     int result;
-    
+
     for(;;)
     {
         // Setup a select call to block for socket data or a timeout
@@ -466,7 +396,7 @@ bool NetSioPort::wait_sock_readable(uint32_t timeout_ms)
 #if defined(_WIN32)
             if (err == WSAEINTR)
 #else
-            if (err == EINTR) 
+            if (err == EINTR)
 #endif
             {
                 // TODO adjust timeout_tv
@@ -491,7 +421,7 @@ bool NetSioPort::wait_sock_readable(uint32_t timeout_ms)
     return true;
 }
 
-bool NetSioPort::wait_sock_writable(uint32_t timeout_ms)
+bool NetSIO::wait_sock_writable(uint32_t timeout_ms)
 {
     timeval timeout_tv;
     fd_set writefds;
@@ -505,13 +435,13 @@ bool NetSioPort::wait_sock_writable(uint32_t timeout_ms)
         result = select(_fd + 1, nullptr, &writefds, nullptr, &timeout_tv);
 
         // select error
-        if (result < 0) 
+        if (result < 0)
         {
             int err = compat_getsockerr();
 #if defined(_WIN32)
             if (err == WSAEINTR)
 #else
-            if (err == EINTR) 
+            if (err == EINTR)
 #endif
             {
                 // TODO adjust timeout_tv
@@ -526,7 +456,7 @@ bool NetSioPort::wait_sock_writable(uint32_t timeout_ms)
             return false;
 
         // this shouldn't happen, if result > 0 our fd has to be in the list!
-        if (!FD_ISSET(_fd, &writefds)) 
+        if (!FD_ISSET(_fd, &writefds))
         {
             Debug_println("NetSIO wait_sock_writable() unexpected select result");
             return false;
@@ -536,7 +466,7 @@ bool NetSioPort::wait_sock_writable(uint32_t timeout_ms)
     return true;
 }
 
-ssize_t NetSioPort::write_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms)
+ssize_t NetSIO::write_sock(const uint8_t *buffer, size_t size, uint32_t timeout_ms)
 {
     if (!wait_sock_writable(timeout_ms))
     {
@@ -547,26 +477,13 @@ ssize_t NetSioPort::write_sock(const uint8_t *buffer, size_t size, uint32_t time
     ssize_t result = send(_fd, (char *)buffer, size, 0);
     if (result < 0)
     {
-        Debug_printf("NetSIO write_sock() send error %d: %s\n", 
+        Debug_printf("NetSIO write_sock() send error %d: %s\n",
             compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
     }
     return result;
 }
 
-bool NetSioPort::wait_for_data(uint32_t timeout_ms)
-{
-    while (rxbuffer_empty())
-    {
-        if (!wait_sock_readable(timeout_ms))
-            return false;  // timeout
-        handle_netsio();
-        // TODO adjust timeout_ms
-    }
-    // data available for read
-    return true;
-}
-
-bool NetSioPort::wait_for_credit(int needed)
+bool NetSIO::wait_for_credit(int needed)
 {
     uint8_t txbuf[2];
     txbuf[0] = NETSIO_CREDIT_STATUS;
@@ -575,7 +492,7 @@ bool NetSioPort::wait_for_credit(int needed)
     // wait for credit
     while (needed > _credit)
     {
-        if (!_initialized) 
+        if (!_initialized)
             return false; // disconnected
         // inform HUB we need more credit
         send(_fd, (char *)txbuf, sizeof(txbuf), 0);
@@ -589,38 +506,20 @@ bool NetSioPort::wait_for_credit(int needed)
     return true;
 }
 
-/* Discards anything in the input buffer
-*/
-void NetSioPort::flush_input()
-{
-    if (_initialized)
-        rxbuffer_flush();
-}
-
-/* Clears input buffer and flushes out transmit buffer waiting at most
+/* Flushes out transmit buffer waiting at most
    waiting MAX_FLUSH_WAIT_TICKS until all sends are completed
 */
-void NetSioPort::flush()
+void NetSIO::flushOutput()
 {
     if (_initialized)
     {
-        flush_input();
         wait_sock_writable(500);
     }
 }
 
-/* Returns number of bytes available in receive buffer or -1 on error
-*/
-int NetSioPort::available()
-{
-    if (rxbuffer_empty())
-        handle_netsio();
-    return rxbuffer_available();
-}
-
 /* Changes baud rate
 */
-void NetSioPort::set_baudrate(uint32_t baud)
+void NetSIO::setBaudrate(uint32_t baud)
 {
     Debug_printf("NetSIO set_baudrate: %d\n", baud);
 
@@ -638,169 +537,35 @@ void NetSioPort::set_baudrate(uint32_t baud)
     _baud = baud;
 }
 
-uint32_t NetSioPort::get_baudrate()
+uint32_t NetSIO::getBaudrate()
 {
     return _baud;
 }
 
-bool NetSioPort::command_asserted(void)
-{
-    // process NetSIO message, if any
-    handle_netsio();
-    return _command_asserted;
-}
-
-bool NetSioPort::motor_asserted(void)
+bool NetSIO::motorAsserted(void)
 {
     handle_netsio();
     return _motor_asserted;
 }
 
-void NetSioPort::set_proceed(bool level)
+void NetSIO::updateFIFO()
 {
-    static int last_level = -1; // 0,1 or -1 for unknown
-    int new_level = level ? 0 : 1;
+    if (!_fifo.size()) {
+        handle_netsio();
 
-    if (!_initialized)
-        return;
-    if (last_level == new_level)
-        return;
-
-    Debug_print(level ? "_" : "-");
-    last_level = new_level;
-
-    wait_for_credit(1);
-    uint8_t cmd = level ? NETSIO_PROCEED_ON : NETSIO_PROCEED_OFF;
-    write_sock(&cmd, 1);
-}
-
-void NetSioPort::set_interrupt(bool level)
-{
-    static int last_level = -1; // 0,1 or -1 for unknown
-    int new_level = level ? 0 : 1;
-
-    if (!_initialized)
-        return;
-    if (last_level == new_level)
-        return;
-
-    Debug_print(level ? "\\" : "/");
-    last_level = new_level;
-
-    wait_for_credit(1);
-    uint8_t cmd = level ? NETSIO_INTERRUPT_ON : NETSIO_INTERRUPT_OFF;
-    write_sock(&cmd, 1);
-}
-
-void NetSioPort::bus_idle(uint16_t ms)
-{
-    uint8_t cmd[3];
-    cmd[0] = NETSIO_BUS_IDLE;
-    cmd[1] = ms & 0xff;
-    cmd[2] = (ms >> 8) & 0xff;
-
-    wait_for_credit(1);
-    write_sock(cmd, sizeof(cmd));
-}
-
-
-/* Returns a single byte from the incoming stream
-*/
-int NetSioPort::read(void)
-{
-    if (!_initialized)
-        return -1;
-
-    if (!wait_for_data(500))
-    {
-        Debug_println("NetSIO read() - TIMEOUT");
-        return -1;
-    }
-    return rxbuffer_get();
-}
-
-/* Since the underlying Stream calls this Read() multiple times to get more than one
-*  character for ReadBytes(), we override with a single call to uart_read_bytes
-*/
-size_t NetSioPort::read(uint8_t *buffer, size_t length)
-{
-    if (!_initialized)
-        return 0;
-
-    if (_sync_request_num >= 0 && _sync_write_size >= 0)
-    {
-        // handle pending sync request
-        // send late ACK byte
-        send_sync_response(NETSIO_ACK_SYNC, _sync_ack_byte, _sync_write_size);
-        // no delay here, emulator is not running
-        // 850 us pre-ACK delay will be added by netsio.atdevice
-    }
-
-    int result;
-    int rxbytes;
-    for (rxbytes=0; rxbytes<length;)
-    {
-        result = read();
-        // Debug_printf("read: %d\n", result);
-        if (result < 0)
+        if (_sync_request_num >= 0 && _sync_write_size >= 0)
         {
-            break;
-        }
-        else
-        {
-            buffer[rxbytes++] = (uint8_t)result;
-        }
-
-        if (rxbytes == length)
-        {
-            // done
-            break;
-        }
-    }
-    return rxbytes;
-}
-
-/* write single byte via NetSIO */
-ssize_t NetSioPort::write(uint8_t c)
-{
-    uint8_t txbuf[2];
-
-    if (!_initialized)
-        return 0;
-
-    if (_sync_request_num >= 0)
-    {
-        // handle pending sync request
-        if (_sync_write_size < 0)
-        {
-            // SYNC RESPONSE
-            // send byte (should be ACK/NAK) bundled in sync response
-            return send_sync_response(NETSIO_ACK_SYNC, c, 0);
-        }
-        else
-        {
-            // sio_late_ack() was not from whatever reason followed by bus_to_peripheral()
-            Debug_println("Warn: NetSIO late ACK without bus_to_peripheral");
+            // handle pending sync request
             // send late ACK byte
-            send_sync_response(NETSIO_ACK_SYNC, _sync_ack_byte, _sync_write_size);
+            sendSyncResponse(NETSIO_ACK_SYNC, _sync_ack_byte, _sync_write_size);
+            // no delay here, emulator is not running
+            // 850 us pre-ACK delay will be added by netsio.atdevice
         }
     }
-
-
-    // DATA BYTE
-
-    if (!wait_for_credit(1))
-        return 0;
-
-    // send byte as usually
-    txbuf[0] = NETSIO_DATA_BYTE; // byte command
-    txbuf[1] = c;                // value
-    ssize_t result = write_sock(txbuf, sizeof(txbuf));
-
-    return (result > 0) ? 1 : 0; // amount of data bytes written
+    return;
 }
 
-ssize_t NetSioPort::write(const uint8_t *buffer, size_t size)
+size_t NetSIO::dataOut(const void *buffer, size_t size)
 {
     int result;
     int to_send;
@@ -815,7 +580,7 @@ ssize_t NetSioPort::write(const uint8_t *buffer, size_t size)
         // send block
         to_send = ((size-txbytes) > sizeof(txbuf)-1) ? sizeof(txbuf)-1 : (size-txbytes);
         txbuf[0] = NETSIO_DATA_BLOCK;
-        memcpy(txbuf+1, buffer+txbytes, to_send);
+        memcpy(txbuf+1, ((uint8_t *)buffer)+txbytes, to_send);
         // ? calculate credit based on amount of data ?
         if (!wait_for_credit(1))
             break;
@@ -828,35 +593,31 @@ ssize_t NetSioPort::write(const uint8_t *buffer, size_t size)
     return txbytes;
 }
 
-// specific to NetSioPort
-void NetSioPort::set_host(const char *host, int port)
+void NetSIO::setWriteSize(int write_size)
 {
-    if (host != nullptr)
-        strlcpy(_host, host, sizeof(_host));
-    else
-        _host[0] = 0;
+    _sync_write_size = write_size + 1; // data + checksum byte
+}
 
+void NetSIO::setHost(std::string host, int port)
+{
+    _host = host;
     _port = port;
 }
 
-const char* NetSioPort::get_host(int &port)
-{
-    port = _port;
-    return _host;
-}
-
-void NetSioPort::set_sync_ack_byte(int ack_byte)
+void NetSIO::setSyncAckByte(int ack_byte)
 {
     _sync_ack_byte = ack_byte;
     _sync_write_size = 0;
 }
 
-void NetSioPort::set_sync_write_size(int write_size)
+void NetSIO::sendEmptySync()
 {
-    _sync_write_size = write_size;
+    if (_sync_request_num >= 0)
+        sendSyncResponse(NETSIO_EMPTY_SYNC);
 }
 
-ssize_t NetSioPort::send_sync_response(uint8_t response_type, uint8_t ack_byte, uint16_t sync_write_size)
+ssize_t NetSIO::sendSyncResponse(uint8_t response_type, uint8_t ack_byte,
+                                     uint16_t sync_write_size)
 {
     uint8_t txbuf[6];
 
@@ -877,12 +638,40 @@ ssize_t NetSioPort::send_sync_response(uint8_t response_type, uint8_t ack_byte, 
     return (result > 0 && response_type != NETSIO_EMPTY_SYNC) ? 1 : 0; // amount of data bytes written
 }
 
-void NetSioPort::send_empty_sync()
+void NetSIO::busIdle(uint16_t ms)
 {
-    if (_sync_request_num >= 0)
-        send_sync_response(NETSIO_EMPTY_SYNC);
+    uint8_t cmd[3];
+    cmd[0] = NETSIO_BUS_IDLE;
+    cmd[1] = ms & 0xff;
+    cmd[2] = (ms >> 8) & 0xff;
+
+    wait_for_credit(1);
+    write_sock(cmd, sizeof(cmd));
+}
+
+void NetSIO::setProceed(bool level)
+{
+    static int last_level = -1; // 0,1 or -1 for unknown
+    int new_level = level ? 0 : 1;
+
+    if (!_initialized)
+        return;
+    if (last_level == new_level)
+        return;
+
+    Debug_print(level ? "_" : "-");
+    last_level = new_level;
+
+    wait_for_credit(1);
+    uint8_t cmd = level ? NETSIO_PROCEED_ON : NETSIO_PROCEED_OFF;
+    write_sock(&cmd, 1);
+}
+
+bool NetSIO::commandAsserted(void)
+{
+    // process NetSIO message, if any
+    handle_netsio();
+    return _command_asserted;
 }
 
 #endif // BUILD_ATARI
-
-#endif // !ESP_PLATFORM

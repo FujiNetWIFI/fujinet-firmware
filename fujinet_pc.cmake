@@ -163,8 +163,11 @@ set(SOURCES src/main.cpp
     lib/utils/U8Char.h lib/utils/U8Char.cpp
     lib/hardware/fnWiFi.h lib/hardware/fnDummyWiFi.h lib/hardware/fnDummyWiFi.cpp
     lib/hardware/led.h lib/hardware/led.cpp
-    lib/hardware/fnUART.h lib/hardware/fnUART.cpp
-    lib/hardware/fnUARTUnix.cpp lib/hardware/fnUARTWindows.cpp
+    lib/hardware/ACMChannel.cpp lib/hardware/ACMChannel.h
+    lib/hardware/COMChannel.h lib/hardware/COMChannel.cpp
+    lib/hardware/IOChannel.cpp lib/hardware/IOChannel.h
+    lib/hardware/TTYChannel.cpp lib/hardware/TTYChannel.h
+    lib/hardware/UARTChannel.h
     lib/hardware/fnSystem.h lib/hardware/fnSystem.cpp lib/hardware/fnSystemNet.cpp
     lib/FileSystem/fnDirCache.h lib/FileSystem/fnDirCache.cpp
     lib/FileSystem/fnFileCache.h lib/FileSystem/fnFileCache.cpp
@@ -263,10 +266,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     list(APPEND SOURCES
 
     lib/bus/sio/sio.h lib/bus/sio/sio.cpp
-    lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
-    lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
-    lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
-    lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
+    lib/bus/sio/NetSIO.h lib/bus/sio/NetSIO.cpp
     lib/media/atari/diskType.h lib/media/atari/diskType.cpp
     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
     lib/media/atari/diskTypeAtx.h lib/media/atari/diskTypeAtx.cpp
@@ -361,16 +361,13 @@ if(FUJINET_TARGET STREQUAL "COCO")
     list(APPEND SOURCES
 
     lib/bus/drivewire/drivewire.h lib/bus/drivewire/drivewire.cpp
-    lib/bus/drivewire/dwcom/fnDwCom.h lib/bus/drivewire/dwcom/fnDwCom.cpp
-    lib/bus/drivewire/dwcom/dwport.h lib/bus/drivewire/dwcom/dwport.cpp
-    lib/bus/drivewire/dwcom/dwserial.h lib/bus/drivewire/dwcom/dwserial.cpp
-    lib/bus/drivewire/dwcom/dwbecker.h lib/bus/drivewire/dwcom/dwbecker.cpp
+    lib/bus/drivewire/BeckerSocket.h lib/bus/drivewire/BeckerSocket.cpp
 
     lib/media/drivewire/mediaType.h lib/media/drivewire/mediaType.cpp
     lib/media/drivewire/mediaTypeDSK.h lib/media/drivewire/mediaTypeDSK.cpp
     lib/media/drivewire/mediaTypeMRM.h lib/media/drivewire/mediaTypeMRM.cpp
     lib/media/drivewire/mediaTypeVDK.h lib/media/drivewire/mediaTypeVDK.cpp
-    
+
     lib/device/drivewire/fuji.h lib/device/drivewire/fuji.cpp
     lib/device/drivewire/network.h lib/device/drivewire/network.cpp
     lib/device/drivewire/dload.h lib/device/drivewire/dload.cpp
