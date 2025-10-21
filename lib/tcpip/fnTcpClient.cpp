@@ -442,6 +442,7 @@ void fnTcpClient::updateFIFO()
     if (res > 0)
     {
         ssize_t result;
+        unsigned count;
 
         for (count = res; count; count -= result)
         {
