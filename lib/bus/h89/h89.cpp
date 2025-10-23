@@ -167,13 +167,13 @@ void systemBus::setup()
     gpio_reset_pin(GPIO_NUM_33);
     gpio_reset_pin(GPIO_NUM_34);
 
-    gpio_set_direction(GPIO_NUM_0,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_2,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_4,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_0,GPIO_MODE_INPUT);
+    gpio_set_direction(GPIO_NUM_2,GPIO_MODE_INPUT);
+    gpio_set_direction(GPIO_NUM_4,GPIO_MODE_OUTPUT);
     gpio_set_direction(GPIO_NUM_12,GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(GPIO_NUM_13,GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(GPIO_NUM_14,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_15,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(GPIO_NUM_15,GPIO_MODE_OUTPUT);
     gpio_set_direction(GPIO_NUM_22,GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(GPIO_NUM_25,GPIO_MODE_INPUT_OUTPUT);
     gpio_set_direction(GPIO_NUM_26,GPIO_MODE_INPUT_OUTPUT);
