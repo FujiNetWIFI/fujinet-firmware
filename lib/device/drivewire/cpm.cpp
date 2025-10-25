@@ -7,7 +7,6 @@
 #include "cpm.h"
 
 #include "fnSystem.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 #include "fuji.h"
 #include "fnFS.h"
@@ -66,13 +65,13 @@ drivewireCPM::drivewireCPM()
 
 void drivewireCPM::ready()
 {
-    fnDwCom.write(0x01);
+    SYSTEM_BUS.write(0x01);
 }
 
 void drivewireCPM::send_response()
 {
     // Send body
-    fnDwCom.write((uint8_t *)response.c_str(),response.length());
+    SYSTEM_BUS.write((uint8_t *)response.c_str(),response.length());
 
     // Clear the response
     response.clear();
@@ -94,8 +93,8 @@ void drivewireCPM::boot()
 
 void drivewireCPM::read()
 {
-    uint8_t lenh = fnDwCom.read();
-    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = SYSTEM_BUS.read();
+    uint8_t lenl = SYSTEM_BUS.read();
     uint16_t len = (lenh * 256) + lenl;
     uint16_t mw = uxQueueMessagesWaiting(rxq);
 
@@ -121,8 +120,8 @@ void drivewireCPM::read()
 
 void drivewireCPM::write()
 {
-    uint8_t lenh = fnDwCom.read();
-    uint8_t lenl = fnDwCom.read();
+    uint8_t lenh = SYSTEM_BUS.read();
+    uint8_t lenl = SYSTEM_BUS.read();
     uint16_t len = (lenh * 256) + lenl;
 
     if (!len)
@@ -130,7 +129,7 @@ void drivewireCPM::write()
 
     for (uint16_t i=0;i<len;i++)
     {
-        char b = fnDwCom.read();
+        char b = SYSTEM_BUS.read();
 #ifdef ESP_PLATFORM
         xQueueSend(txq, &b, portMAX_DELAY);
 #endif /* ESP_PLATFORM */
@@ -153,7 +152,7 @@ void drivewireCPM::status()
 
 void drivewireCPM::process()
 {
-    uint8_t cmd = fnDwCom.read();
+    uint8_t cmd = SYSTEM_BUS.read();
 
     switch(cmd)
     {

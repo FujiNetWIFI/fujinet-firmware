@@ -7,7 +7,6 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 
 #include "utils.h"

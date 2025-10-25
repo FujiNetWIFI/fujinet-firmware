@@ -384,7 +384,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
 #ifndef ESP_PLATFORM
     case FN_SIO_HSTEXT:
         hsioindex = SYSTEM_BUS.getHighSpeedIndex();
-        if (hsioindex == HSIO_DISABLED_INDEX)
+        if (hsioindex == HSIO_INVALID_INDEX)
             resultstream << "HSIO Disabled";
         else
             resultstream << hsioindex;
@@ -395,6 +395,7 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #endif /* BUILD_ATARI */
 #if defined(BUILD_RS232)
+#warning "Why isn't this using Config.get_serial_baud() below?"
     case FN_SERIAL_PORT_BAUD:
         resultstream << Config.get_rs232_baud();
         break;

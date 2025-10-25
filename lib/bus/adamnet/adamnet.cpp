@@ -332,7 +332,9 @@ void systemBus::setup()
     gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
 
     // Set up UART
-    _port.begin(ADAMNET_BAUDRATE);
+    _port.begin(ChannelConfig()
+                .baud(ADAMNET_BAUDRATE)
+                );
 }
 
 void systemBus::shutdown()

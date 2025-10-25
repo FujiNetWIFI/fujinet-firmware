@@ -18,17 +18,14 @@
 
 #define HOST_SLOT_INVALID -1
 
-#ifdef ESP_PLATFORM
 #  define HSIO_INVALID_INDEX -1
+#ifdef ESP_PLATFORM
 #  define CONFIG_FILENAME "/fnconfig.ini"
-// ESP_PLATFORM
-#else
-// !ESP_PLATFORM
-#  define HSIO_DISABLED_INDEX -1  // HSIO disabled, use standard speed only
+#else /* ! ESP_PLATFORM */
 #  define CONFIG_FILENAME "fnconfig.ini"
 #  define SD_CARD_DIR "SD"
 #  define WEB_SERVER_LISTEN_URL "http://0.0.0.0:8000"
-#endif
+#endif /* ESP_PLATFORM */
 
 // Bus Over IP default port
 #if defined(BUILD_ATARI)
@@ -446,11 +443,7 @@ private:
     struct general_info
     {
         std::string devicename = "FujiNet";
-#ifdef ESP_PLATFORM
         int hsio_index = HSIO_INVALID_INDEX;
-#else
-        int hsio_index = HSIO_DISABLED_INDEX;
-#endif
         std::string timezone;
         bool rotation_sounds = true;
         bool config_enabled = true;
