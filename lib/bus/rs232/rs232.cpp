@@ -61,11 +61,9 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
     Debug_printf("->RS232 write %hu bytes\n", len);
-#if 1 //def VERBOSE_RS232
-    Debug_printf("SEND <%u> BYTES\n\t", len);
-    for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", buf[i]);
-    Debug_print("\n");
+#ifdef VERBOSE_RS232
+    Debug_printf("SEND <%u> BYTES\n", len);
+    Debug_printf("\n%s\n", util_hexdump(buf, len).c_str());
 #endif
 
     // Write ERROR or COMPLETE status
@@ -105,10 +103,8 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
     uint8_t ck_tst = rs232_checksum(buf, len);
 
 #ifdef VERBOSE_RS232
-    Debug_printf("RECV <%u> BYTES, checksum: %hu\n\t", l, ck_rcv);
-    for (int i = 0; i < len; i++)
-        Debug_printf("%02x ", buf[i]);
-    Debug_print("\n");
+    Debug_printf("RECV <%u> BYTES, checksum: %hu\n", l, ck_rcv);
+    Debug_printf("\n%s\n", util_hexdump(buf, len).c_str());
 #endif
 
     fnSystem.delay_microseconds(DELAY_T4);
@@ -275,7 +271,7 @@ void systemBus::service()
     {
         _cpmDev->rs232_handle_cpm();
         return; // break!
-    }    
+    }
 
 #if 0 && !defined(FUJINET_OVER_USB)
     // Go process a command frame if the RS232 CMD line is asserted
@@ -317,7 +313,11 @@ void systemBus::setup()
 
     // Set up UART
 #ifndef FUJINET_OVER_USB
-    _port.begin(ChannelConfig().baud(Config.get_rs232_baud()).deviceID(SERIAL_DEVICE));
+    _port.begin(ChannelConfig()
+                .baud(Config.get_rs232_baud())
+                .readTimeout(5000)
+                .deviceID(SERIAL_DEVICE))
+        ;
 
 #ifdef ESP_PLATFORM
     // // INT PIN

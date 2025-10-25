@@ -215,7 +215,6 @@ public:
 
 fnTcpClient::fnTcpClient(int fd)
 {
-    _fd = fd;
     _connected = true;
     _clientSocketHandle.reset(new fnTcpClientSocketHandle(fd));
 #if 0
@@ -622,11 +621,11 @@ void fnTcpClient::updateFIFO()
 
 #if defined(_WIN32)
     unsigned long count;
-    int res = ioctlsocket(_fd, FIONREAD, &count);
+    int res = ioctlsocket(fd(), FIONREAD, &count);
     res = res != 0 ? -1 : count;
 #else
     int count;
-    int res = ioctl(_fd, FIONREAD, &count);
+    int res = ioctl(fd(), FIONREAD, &count);
     res = res < 0 ? -1 : count;
 #endif
 
@@ -638,7 +637,7 @@ void fnTcpClient::updateFIFO()
         {
             size_t old_len = _rxBuffer.size();
             _rxBuffer.resize(old_len + count);
-            result = recv(_fd, &_rxBuffer[old_len], count, 0);
+            result = recv(fd(), &_rxBuffer[old_len], count, 0);
             if (result < 0)
                 result = 0;
             _rxBuffer.resize(old_len + result);
@@ -687,7 +686,7 @@ void fnTcpClient::flush()
         res = recv(fd(), (char *)buf, toRead, MSG_DONTWAIT);
         if (res < 0)
         {
-            Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n", 
+            Debug_printf("fail on fd %d, errno: %d, \"%s\"\r\n",
                 fd(), compat_getsockerr(), compat_sockstrerror(compat_getsockerr()));
             stop();
             break;

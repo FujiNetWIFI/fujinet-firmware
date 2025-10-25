@@ -19,7 +19,6 @@ protected:
     std::shared_ptr<fnTcpClientRxBuffer> _rxBuffer;
 #else
     std::string _rxBuffer;
-    int _fd;
 #endif
     std::shared_ptr<fnTcpClientSocketHandle> _clientSocketHandle;
     bool _connected = false;
