@@ -2057,7 +2057,6 @@ void sioFuji::insert_boot_device(uint8_t d)
             if (!fnTNFS.start("tnfs.fujinet.online"))
             {
                 Debug_printf("TNFS failed to start.\n");
-                fBoot = NULL;
                 return;
             }
         }
