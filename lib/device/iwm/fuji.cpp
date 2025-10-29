@@ -1290,6 +1290,7 @@ void iwmFuji::insert_boot_device(uint8_t d)
                 Debug_printf("TNFS failed to start.\n");
                 return;
             }
+		}
 		
 		Debug_printf("opening lobby.\n");
 		boot_img = "/APPLE2/_lobby.po";
