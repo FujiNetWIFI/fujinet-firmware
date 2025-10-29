@@ -2051,12 +2051,19 @@ void sioFuji::insert_boot_device(uint8_t d)
         break;
     case 2:
         Debug_printf("Mounting lobby server\n");
-        if (fnTNFS.start("tnfs.fujinet.online"))
+        if (!fnTNFS.is_started())
         {
-            Debug_printf("opening lobby.\n");
-            fBoot = fnTNFS.fnfile_open("/ATARI/_lobby.xex");
-            _bootDisk.mount(fBoot, "/ATARI/_lobby.xex", 0);
+            Debug_printf("Starting TNFS connection\n");
+            if (!fnTNFS.start("tnfs.fujinet.online"))
+            {
+                Debug_printf("TNFS failed to start.\n");
+                return;
+            }
         }
+        
+        Debug_printf("opening lobby.\n");
+        fBoot = fnTNFS.fnfile_open("/ATARI/_lobby.xex");
+        _bootDisk.mount(fBoot, "/ATARI/_lobby.xex", 0);
         break;
     }
 #else
