@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 #include "rs232Fuji.h"
 #include "network.h"
+#include "devices.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -33,10 +34,10 @@ void rs232Fuji::setup()
 
     // Add our devices to the RS232 bus
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, RS232_DEVICEID_DISK + i);
+        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, FUJI_DEVICEID_DISK + i);
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        SYSTEM_BUS.addDevice(&rs232NetDevs[i], RS232_DEVICEID_FN_NETWORK + i);
+        SYSTEM_BUS.addDevice(&rs232NetDevs[i], FUJI_DEVICEID_NETWORK + i);
 }
 
 // Status

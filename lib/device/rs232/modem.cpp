@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #include "modem.h"
+#include "devices.h"
 
 #include "../../../include/debug.h"
 #include "../../../include/atascii.h"
@@ -151,7 +152,7 @@ void rs232Modem::rs232_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
         return;
     }
     // When AUX1 = 0x52 'R' and AUX == 1 or DEVICE == x050, it's a directed poll to "R1:"
-    if ((aux1 == 0x52 && aux2 == 0x01) || device == RS232_DEVICEID_RS232)
+    if ((aux1 == 0x52 && aux2 == 0x01) || device == FUJI_DEVICEID_SERIAL)
     {
         Debug_print("MODEM TYPE 4 \"R1:\" DIRECTED POLL\n");
         respond = true;
@@ -176,7 +177,7 @@ void rs232Modem::rs232_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
     uint8_t type4response[4];
     type4response[0] = LOBYTE_FROM_UINT16(fsize);
     type4response[1] = HIBYTE_FROM_UINT16(fsize);
-    type4response[2] = RS232_DEVICEID_RS232;
+    type4response[2] = FUJI_DEVICEID_SERIAL;
     type4response[3] = 0;
 
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
@@ -193,7 +194,7 @@ void rs232Modem::rs232_poll_1()
         Send back RS232 command for booting. This is a 12 uint8_t + chk block that
         is meant to be written to the RS232 parameter block starting at DDEVIC ($0300).
 
-		The boot block MUST start at $0500. There are both BASIC-based and cart-based
+                The boot block MUST start at $0500. There are both BASIC-based and cart-based
         loaders that use JSR $0506 to run the loader.
     */
 

@@ -13,27 +13,6 @@
 #define RS232_BAUDRATE 9600
 //#define RS232_BAUDRATE 115200
 
-#define RS232_DEVICEID_DISK            0x31
-#define RS232_DEVICEID_DISK_LAST       0x3F
-
-#define RS232_DEVICEID_PRINTER         0x40
-#define RS232_DEVICEID_PRINTER_LAST    0x43
-
-#define RS232_DEVICEID_FN_VOICE        0x43
-
-#define RS232_DEVICEID_APETIME         0x45
-
-#define RS232_DEVICEID_RS232           0x50
-#define RS232_DEVICEID_RS2323_LAST     0x53
-
-#define RS232_DEVICEID_FUJINET         0x70
-#define RS232_DEVICEID_FN_NETWORK      0x71
-#define RS232_DEVICEID_FN_NETWORK_LAST 0x78
-
-#define RS232_DEVICEID_MIDI            0x99
-
-#define RS232_DEVICEID_CPM             0x5A
-
 #define DELAY_T4 800
 #define DELAY_T5 800
 
@@ -223,7 +202,7 @@ private:
     bool useUltraHigh = false; // Use fujinet derived clock.
 
     UARTChannel _port;
-    
+
     void _rs232_process_cmd();
     /* void _rs232_process_queue(); */
 
