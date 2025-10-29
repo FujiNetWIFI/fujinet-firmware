@@ -182,7 +182,7 @@ bool fujiDevice::fujicmd_mount_all_success()
             }
 
             Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n", disk.filename, disk.host_slot, flag, i + 1);
-            if (!fujicore_disk_image_mount_success(i, disk.access_mode))
+            if (!fujicore_mount_disk_image_success(i, disk.access_mode))
             {
                 transaction_error();
                 return false;
@@ -438,7 +438,7 @@ void fujiDevice::fujicmd_net_get_wifi_enabled()
 }
 
 // Disk Image Mount
-bool fujiDevice::fujicore_disk_image_mount_success(uint8_t deviceSlot, uint8_t access_mode)
+bool fujiDevice::fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode)
 {
     // TODO: Implement FETCH?
     char mode[4] = {'r', 'b', 0, 0};
@@ -486,11 +486,11 @@ bool fujiDevice::fujicore_disk_image_mount_success(uint8_t deviceSlot, uint8_t a
     return true;
 }
 
-bool fujiDevice::fujicmd_disk_image_mount_success(uint8_t deviceSlot, uint8_t access_mode)
+bool fujiDevice::fujicmd_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode)
 {
     Debug_println("Fuji cmd: MOUNT IMAGE");
 
-    if (!fujicore_disk_image_mount_success(deviceSlot, access_mode))
+    if (!fujicore_mount_disk_image_success(deviceSlot, access_mode))
     {
         transaction_error();
         return false;
@@ -942,7 +942,7 @@ bool fujiDevice::fujicmd_copy_file_success(uint8_t sourceSlot, uint8_t destSlot,
     return true;
 }
 
-bool fujiDevice::fujicmd_disk_image_unmount_success(uint8_t deviceSlot)
+bool fujiDevice::fujicmd_unmount_disk_image_success(uint8_t deviceSlot)
 {
     DEVICE_TYPE *disk_dev;
 

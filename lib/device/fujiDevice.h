@@ -157,8 +157,8 @@ public:
     void fujicmd_net_get_ssid();
     bool fujicmd_net_set_ssid_success(const char *ssid, const char *password, bool save);
     void fujicmd_net_get_wifi_enabled();
-    bool fujicmd_disk_image_mount_success(uint8_t deviceSlot, uint8_t access_mode);
-    bool fujicmd_disk_image_unmount_success(uint8_t deviceSlot);
+    bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
+    bool fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
     void fujicmd_image_rotate();
     bool fujicmd_open_directory_success(uint8_t hostSlot, char *dirpath, uint16_t bufsize);
     virtual void fujicmd_close_directory();
@@ -212,7 +212,7 @@ public:
     bool fujicore_set_device_filename_success(uint8_t deviceSlot, uint8_t host,
                                               uint8_t mode, std::string filename);
     std::optional<std::string> fujicore_get_device_filename(uint8_t slot);
-    bool fujicore_disk_image_mount_success(uint8_t deviceSlot, uint8_t access_mode);
+    bool fujicore_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
 
     // Should be protected but directly accessed by sio.cpp
     bool status_wait_enabled = true;

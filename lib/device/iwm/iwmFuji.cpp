@@ -70,7 +70,7 @@ iwmFuji::iwmFuji()
         { FUJICMD_SET_HOST_PREFIX, [this]()            { this->fujicmd_set_host_prefix(data_buffer[0], (const char *) &data_buffer[1]); }},          // 0xE1
         { FUJICMD_SET_SSID, [this]()                   { this->fujicmd_net_set_ssid_success((const char *) data_buffer, (const char *) &data_buffer[MAX_SSID_LEN + 1], false); }},             // 0xFB
         { FUJICMD_UNMOUNT_HOST, [this]()               { this->fujicmd_unmount_host_success(data_buffer[0]); }},             // 0xE6
-        { FUJICMD_UNMOUNT_IMAGE, [this]()              { this->fujicmd_disk_image_unmount_success(data_buffer[0]); }},        // 0xE9
+        { FUJICMD_UNMOUNT_IMAGE, [this]()              { this->fujicmd_unmount_disk_image_success(data_buffer[0]); }},        // 0xE9
         { FUJICMD_WRITE_APPKEY, [this]()               { this->fujicmd_write_app_key(data_len); }},            // 0xDE
         { FUJICMD_WRITE_DEVICE_SLOTS, [this]()         { this->fujicmd_write_device_slots(MAX_A2DISK_DEVICES); }},       // 0xF1
         { FUJICMD_WRITE_HOST_SLOTS, [this]()           { this->fujicmd_write_host_slots(); }},         // 0xF3
@@ -90,7 +90,7 @@ iwmFuji::iwmFuji()
         { FUJICMD_MOUNT_ALL, [&]()                     {
              err_result = fujicmd_mount_all_success() ? SP_ERR_NOERROR : SP_ERR_IOERROR;
          }},          // 0xD7
-        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_disk_image_mount_success(data_buffer[0], data_buffer[1]) ? SP_ERR_NOERROR : SP_ERR_NODRIVE; }},  // 0xF8
+        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_mount_disk_image_success(data_buffer[0], data_buffer[1]) ? SP_ERR_NOERROR : SP_ERR_NODRIVE; }},  // 0xF8
         { FUJICMD_OPEN_DIRECTORY, [&]()                { err_result = fujicmd_open_directory_success(data_buffer[0], (char *) &data_buffer[1], sizeof(data_buffer) - 1) ? SP_ERR_NOERROR : SP_ERR_IOERROR; }}     // 0xF7
     };
 

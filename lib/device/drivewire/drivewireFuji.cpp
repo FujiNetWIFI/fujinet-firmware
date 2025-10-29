@@ -2162,14 +2162,14 @@ void drivewireFuji::process()
         {
             uint8_t slot = SYSTEM_BUS.read();
             uint8_t mode = SYSTEM_BUS.read();
-            fujicmd_disk_image_mount_success(slot, mode);
+            fujicmd_mount_disk_image_success(slot, mode);
         }
         break;
     case FUJICMD_UNMOUNT_HOST:
         fujicmd_unmount_host_success(SYSTEM_BUS.read());
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        fujicmd_disk_image_unmount_success(SYSTEM_BUS.read());
+        fujicmd_unmount_disk_image_success(SYSTEM_BUS.read());
         break;
     case FUJICMD_NEW_DISK:
         new_disk();

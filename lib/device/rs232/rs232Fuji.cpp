@@ -217,7 +217,7 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_MOUNT_IMAGE:
         rs232_ack();
-        fujicmd_disk_image_mount_success(cmdFrame.aux1, cmdFrame.aux2);
+        fujicmd_mount_disk_image_success(cmdFrame.aux1, cmdFrame.aux2);
         break;
     case FUJICMD_OPEN_DIRECTORY:
         rs232_ack();
@@ -261,7 +261,7 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         rs232_ack();
-        fujicmd_disk_image_unmount_success(cmdFrame.aux1);
+        fujicmd_unmount_disk_image_success(cmdFrame.aux1);
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
         rs232_ack();

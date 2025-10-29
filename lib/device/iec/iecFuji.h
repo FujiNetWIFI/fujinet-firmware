@@ -173,7 +173,7 @@ protected:
     // 0xFF
     void reset_device();
 #endif /* UNUSED */
-    
+
     // 0xFE
 #ifdef NOT_SUBCLASS
     net_config_t net_get_ssid();
@@ -218,10 +218,10 @@ protected:
 
     // 0xF8
 #ifdef NOT_SUBCLASS
-    bool disk_image_mount(uint8_t ds, uint8_t mode);
+    bool mount_disk_image(uint8_t ds, uint8_t mode);
 #endif /* NOT_SUBCLASS */
-    void disk_image_mount_basic();
-    void disk_image_mount_raw();
+    void mount_disk_image_basic();
+    void mount_disk_image_raw();
 
     // 0xF7
 #ifdef NOT_SUBCLASS
@@ -285,10 +285,10 @@ protected:
 
     // 0xE9
 #ifdef NOT_SUBCLASS
-    bool disk_image_umount(uint8_t deviceSlot);
+    bool unmount_disk_image(uint8_t deviceSlot);
 #endif /* NOT_SUBCLASS */
-    void disk_image_umount_basic();
-    void disk_image_umount_raw();
+    void unmount_disk_image_basic();
+    void unmount_disk_image_raw();
 
     // 0xE8
 #ifdef NOT_SUBCLASS

@@ -349,9 +349,9 @@ void iecFuji::process_basic_commands()
     else if (payload.find("mounthost") != std::string::npos)
         mount_host_basic();
     else if (payload.find("unmountdrive") != std::string::npos)
-        disk_image_umount_basic();
+        unmount_disk_image_basic();
     else if (payload.find("mountdrive") != std::string::npos)
-        disk_image_mount_basic();
+        mount_disk_image_basic();
     else if (payload.find("opendir") != std::string::npos)
         open_directory_basic();
     else if (payload.find("readdir") != std::string::npos)
@@ -479,7 +479,7 @@ void iecFuji::process_raw_cmd_data()
         mount_host_raw();
         break;
     case FUJICMD_MOUNT_IMAGE:
-        disk_image_mount_raw();
+        mount_disk_image_raw();
         break;
     case FUJICMD_OPEN_DIRECTORY:
         open_directory_raw();
@@ -491,7 +491,7 @@ void iecFuji::process_raw_cmd_data()
         write_device_slots_raw();
         break;
     case FUJICMD_UNMOUNT_IMAGE:
-        disk_image_umount_raw();
+        unmount_disk_image_raw();
         break;
     case FUJICMD_UNMOUNT_HOST:
         unmount_host_raw();
@@ -902,7 +902,7 @@ void iecFuji::mount_host_basic()
 }
 
 
-void iecFuji::disk_image_mount_basic()
+void iecFuji::mount_disk_image_basic()
 {
     populate_slots_from_config();
 
@@ -916,7 +916,7 @@ void iecFuji::disk_image_mount_basic()
     uint8_t ds = atoi(pt[1].c_str());
     uint8_t mode = atoi(pt[2].c_str());
 
-    if (!fujicmd_disk_image_mount_success(ds, mode))
+    if (!fujicmd_mount_disk_image_success(ds, mode))
     {
         set_fuji_iec_status(DEVICE_ERROR, response);
         return;
@@ -924,10 +924,10 @@ void iecFuji::disk_image_mount_basic()
     set_fuji_iec_status(0, response);
 }
 
-void iecFuji::disk_image_mount_raw()
+void iecFuji::mount_disk_image_raw()
 {
     populate_slots_from_config();
-    if (!fujicmd_disk_image_mount_success(payload[0], payload[1]))
+    if (!fujicmd_mount_disk_image_success(payload[0], payload[1]))
     {
         set_fuji_iec_status(DEVICE_ERROR, "Failed to mount disk image");
     }
@@ -1349,7 +1349,7 @@ void iecFuji::read_app_key_raw()
         return;
     }
     responseV = *response_data;
-    
+
     // use ifdef to guard against calling hexdump if we're not using debug
 #ifdef DEBUG
     Debug_printf("appkey data:\r\n%s\r\n", util_hexdump(responseV.data(), responseV.size()).c_str());
@@ -1384,7 +1384,7 @@ int iecFuji::read_app_key(char *filename, std::vector<uint8_t>& file_data)
 void iecFuji::disk_image_umount_basic()
 {
     uint8_t deviceSlot = atoi(pt[1].c_str());
-    if (!fujicmd_disk_image_unmount_success(deviceSlot)) {
+    if (!fujicmd_unmount_disk_image_success(deviceSlot)) {
         response = "invalid device slot";
         set_fuji_iec_status(DEVICE_ERROR, "invalid device slot");
     } else {
@@ -1393,10 +1393,10 @@ void iecFuji::disk_image_umount_basic()
     }
 }
 
-void iecFuji::disk_image_umount_raw()
+void iecFuji::unmount_disk_image_raw()
 {
     uint8_t deviceSlot = payload[0];
-    if (!fujicmd_disk_image_unmount_success(deviceSlot)) {
+    if (!fujicmd_unmount_disk_image_success(deviceSlot)) {
         set_fuji_iec_status(DEVICE_ERROR, "invalid device slot");
     } else {
         set_fuji_iec_status(0, "");
@@ -1404,7 +1404,7 @@ void iecFuji::disk_image_umount_raw()
 }
 
 #ifdef NOT_SUBCLASS
-bool iecFuji::disk_image_umount(uint8_t deviceSlot)
+bool iecFuji::unmount_disk_image(uint8_t deviceSlot)
 {
     Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\r\n", deviceSlot);
 
@@ -2340,7 +2340,7 @@ bool iecFuji::mount_host(int hs)
 #endif /* NOT_SUBCLASS */
 
 #ifdef NOT_SUBCLASS
-bool iecFuji::disk_image_mount(uint8_t ds, uint8_t mode)
+bool iecFuji::mount_disk_image(uint8_t ds, uint8_t mode)
 {
     char flag[3] = {'r', 0, 0};
 
