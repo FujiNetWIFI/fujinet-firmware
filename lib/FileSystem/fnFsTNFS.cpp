@@ -135,6 +135,11 @@ bool FileSystemTNFS::start(const char *host, uint16_t port, const char * mountpa
     return true;
 }
 
+bool FileSystemTNFS::is_started()
+{
+    return _started;
+}
+
 bool FileSystemTNFS::exists(const char* path)
 {
     tnfsStat tstat;

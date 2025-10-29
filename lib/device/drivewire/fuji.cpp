@@ -16,6 +16,7 @@
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "fsFlash.h"
+#include "fnFsTNFS.h"
 #include "fnWiFi.h"
 
 #include "led.h"
@@ -1355,6 +1356,7 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     bIsDragon = (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_HIGH && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_HIGH);
 #endif  /* ESP_PLATFORM */
 
+    const char *boot_img = nullptr;
     fnFile *fBoot = NULL;
     size_t sz = 0;
 
@@ -1365,16 +1367,38 @@ void drivewireFuji::insert_boot_device(uint8_t d)
     case 0:
         if  (bIsDragon)
         {
-            fBoot = fsFlash.fnfile_open(config_atr_dragon);
+            boot_img = config_atr_dragon;
         }
         else
         {
-            fBoot = fsFlash.fnfile_open(config_atr_coco);
+            boot_img = config_atr_coco;
         }
+        fBoot = fsFlash.fnfile_open(boot_img);
         break;
     case 1:
-        fBoot = fsFlash.fnfile_open(mount_and_boot_atr);
+        boot_img = mount_and_boot_atr;
+        fBoot = fsFlash.fnfile_open(boot_img);
         break;
+    case 2:
+        Debug_printf("Mounting lobby server\n");
+        if (!fnTNFS.is_started())
+        {
+            Debug_printf("Starting TNFS connection\n");
+            if (!fnTNFS.start("tnfs.fujinet.online"))
+            {
+                Debug_printf("TNFS failed to start.\n");
+                fBoot = NULL;
+                return;
+            }
+        }
+
+        Debug_printf("Opening lobby.\n");
+        boot_img = "/COCO/lobby.dsk";
+        fBoot = fnTNFS.fnfile_open(boot_img);
+        break;
+    default:
+        Debug_printf("Invalid boot mode: %d\n", d);
+        return;
     }
 
     if (fBoot)
@@ -1382,7 +1406,7 @@ void drivewireFuji::insert_boot_device(uint8_t d)
         fnio::fseek(fBoot, 0, SEEK_END);
         sz = fnio::ftell(fBoot);
         fnio::fseek(fBoot, 0, SEEK_SET);
-        _bootDisk.mount(fBoot, bIsDragon ? config_atr_dragon : config_atr_coco, sz);
+        _bootDisk.mount(fBoot, boot_img, sz);
 
         _bootDisk.is_config_device = true;
         _bootDisk.device_active = true;
