@@ -270,10 +270,7 @@ if(FUJINET_TARGET STREQUAL "ATARI")
     list(APPEND SOURCES
 
     lib/bus/sio/sio.h lib/bus/sio/sio.cpp
-    lib/bus/sio/siocom/sioport.h lib/bus/sio/siocom/sioport.cpp
-    lib/bus/sio/siocom/serialsio.h lib/bus/sio/siocom/serialsio.cpp
-    lib/bus/sio/siocom/netsio.h lib/bus/sio/siocom/netsio.cpp
-    lib/bus/sio/siocom/fnSioCom.h lib/bus/sio/siocom/fnSioCom.cpp
+    lib/bus/sio/NetSIO.h lib/bus/sio/NetSIO.cpp
     lib/media/atari/diskType.h lib/media/atari/diskType.cpp
     lib/media/atari/diskTypeAtr.h lib/media/atari/diskTypeAtr.cpp
     lib/media/atari/diskTypeAtx.h lib/media/atari/diskTypeAtx.cpp

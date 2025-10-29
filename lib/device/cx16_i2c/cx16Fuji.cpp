@@ -2,8 +2,6 @@
 
 #include "cx16Fuji.h"
 
-#include <driver/ledc.h>
-
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -19,6 +17,7 @@
 #include "led.h"
 #include "utils.h"
 #include "string_utils.h"
+#include "compat_string.h"
 
 cx16Fuji theFuji; // global fuji device object
 

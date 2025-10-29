@@ -43,7 +43,6 @@ BeckerSocket::BeckerSocket() :
     _host(""),
     _ip(IPADDR_NONE),
     _port(BECKER_DEFAULT_PORT),
-    _baud(DW_DEFAULT_BAUD),     // not used by Becker
     _listening(true),
     _fd(-1),
     _listen_fd(-1),
@@ -62,7 +61,6 @@ void BeckerSocket::begin(std::string host, int baud)
         end();
 
     _host = host;
-    _baud = baud;
     read_timeout_ms = 500;
 
     // listen or connect
@@ -94,7 +92,7 @@ void BeckerSocket::end()
 /* Clears input buffer and flushes out transmit buffer waiting at most
    waiting MAX_FLUSH_WAIT_TICKS until all sends are completed
 */
-void BeckerSocket::flush()
+void BeckerSocket::flushOutput()
 {
     // only in connected state
     if (_state != BeckerConnected)
@@ -671,8 +669,10 @@ size_t BeckerSocket::dataOut(const void *buffer, size_t size)
     return result;
 }
 
-//
-// Becker state handlers
-//
+void BeckerSocket::setHost(std::string host, int port)
+{
+    _host = host;
+    _port = port;
+}
 
 #endif // BUILD_COCO

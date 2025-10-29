@@ -58,6 +58,7 @@ void rs232CPM::rs232_handle_cpm()
 
 void rs232CPM::init_cpm(int baud)
 {
+#warning "Why is CP/M mucking with the bus?"
     SYSTEM_BUS.setBaudrate(baud);
     Status = Debug = 0;
     Break = Step = -1;

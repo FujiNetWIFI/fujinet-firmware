@@ -348,7 +348,7 @@ void drivewireNetwork::write()
         return;
     }
 
-    Debug_printf("sioNetwork::drivewire_write( %u bytes)\n", num_bytes);
+    Debug_printf("drivewireNetwork::drivewire_write( %u bytes)\n", num_bytes);
 
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
@@ -536,7 +536,7 @@ void drivewireNetwork::set_prefix()
 
     prefixSpec_str = string((const char *)tmp);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
-    Debug_printf("sioNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
+    Debug_printf("drivewireNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
 
     // If "NCD Nn:" then prefix is cleared completely
     if (prefixSpec_str.empty())
@@ -879,11 +879,11 @@ bool drivewireNetwork::instantiate_protocol()
 
     if (protocol == nullptr)
     {
-        Debug_printf("rs232Network::instantiate_protocol() - Could not create protocol.\n");
+        Debug_printf("drivewireNetwork::open_protocol() - Could not open protocol.\n");
         return false;
     }
 
-    Debug_printf("rs232Network::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
+    Debug_printf("drivewireNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
 }
 
@@ -1132,7 +1132,7 @@ void drivewireNetwork::json_query()
 
 void drivewireNetwork::do_idempotent_command_80()
 {
-    Debug_printf("sioNetwork::do_idempotent_command_80()\r\n");
+    Debug_printf("drivewireNetwork::do_idempotent_command_80()\r\n");
 
     parse_and_instantiate_protocol();
 

@@ -19,8 +19,8 @@
 #ifndef COCO_H
 #define COCO_H
 
-#include "UARTChannel.h"
 #include "BeckerSocket.h"
+#include "UARTChannel.h"
 
 #ifdef ESP32_PLATFORM
 #include <freertos/FreeRTOS.h>
@@ -81,26 +81,26 @@
 
 // struct dwTransferData
 // {
-// 	int		dw_protocol_vrsn;
-// 	FILE		*devpath;
-// 	FILE		*dskpath[4];
-// 	int		cocoType;
-// 	int		baudRate;
-// 	unsigned char	lastDrive;
-// 	uint32_t	readRetries;
-// 	uint32_t	writeRetries;
-// 	uint32_t	sectorsRead;
-// 	uint32_t	sectorsWritten;
-// 	unsigned char	lastOpcode;
-// 	unsigned char	lastLSN[3];
-// 	unsigned char	lastSector[256];
-// 	unsigned char	lastGetStat;
-// 	unsigned char	lastSetStat;
-// 	uint16_t	lastChecksum;
-// 	unsigned char	lastError;
-// 	FILE	*prtfp;
-// 	unsigned char	lastChar;
-// 	char	prtcmd[80];
+//      int             dw_protocol_vrsn;
+//      FILE            *devpath;
+//      FILE            *dskpath[4];
+//      int             cocoType;
+//      int             baudRate;
+//      unsigned char   lastDrive;
+//      uint32_t        readRetries;
+//      uint32_t        writeRetries;
+//      uint32_t        sectorsRead;
+//      uint32_t        sectorsWritten;
+//      unsigned char   lastOpcode;
+//      unsigned char   lastLSN[3];
+//      unsigned char   lastSector[256];
+//      unsigned char   lastGetStat;
+//      unsigned char   lastSetStat;
+//      uint16_t        lastChecksum;
+//      unsigned char   lastError;
+//      FILE    *prtfp;
+//      unsigned char   lastChar;
+//      char    prtcmd[80];
 // };
 
 // EXTERN char device[256];
@@ -192,10 +192,10 @@ struct drivewire_message_t
 class systemBus
 {
 private:
-    IOChannel *_port;
+    IOChannel *_port = nullptr;
     UARTChannel _serial;
     BeckerSocket _becker;
-    
+
     virtualDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
@@ -210,6 +210,11 @@ private:
 
     void _drivewire_process_cmd();
     void _drivewire_process_queue();
+
+#ifdef ESP_PLATFORM
+    void configureGPIO();
+    int readBaudSwitch();
+#endif /* ESP_PLATFORM */
 
     /**
      * @brief Current Baud Rate
@@ -336,8 +341,8 @@ public:
     size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
     size_t write(int n) { return _port->write(n); }
     size_t available() { return _port->available(); }
-    void flush() { _port->flush(); }
-    
+    void flushOutput() { _port->flushOutput(); }
+
 #ifdef ESP32_PLATFORM
     QueueHandle_t qDrivewireMessages = nullptr;
 #endif

@@ -714,7 +714,7 @@ void modem::at_cmd_println()
         SYSTEM_BUS.write(ASCII_CR);
         SYSTEM_BUS.write(ASCII_LF);
     }
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 
     fnLedManager.set(LED_BT,false);
 }
@@ -739,7 +739,7 @@ void modem::at_cmd_println(const char *s, bool addEol)
             SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 
     fnLedManager.set(LED_BT,false);
 }
@@ -764,7 +764,7 @@ void modem::at_cmd_println(int i, bool addEol)
             SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 
     fnLedManager.set(LED_BT,false);
 }
@@ -789,7 +789,7 @@ void modem::at_cmd_println(std::string s, bool addEol)
             SYSTEM_BUS.write(ASCII_LF);
         }
     }
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 
     fnLedManager.set(LED_BT,false);
 }
@@ -1066,7 +1066,7 @@ void modem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        SYSTEM_BUS.flush();
+        SYSTEM_BUS.flushOutput();
         answerHack = false;
     }
 }
@@ -1809,7 +1809,7 @@ void modem::sio_handle_modem()
             else
             {
                 SYSTEM_BUS.write(buf, bytesRead);
-                SYSTEM_BUS.flush();
+                SYSTEM_BUS.flushOutput();
             }
 
             fnLedManager.set(eLed::LED_BT,false);

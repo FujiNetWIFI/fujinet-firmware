@@ -60,7 +60,7 @@ void fnConfig::_read_section_boip(std::stringstream &ss)
             else if (strcasecmp(name.c_str(), "port") == 0)
             {
                 int port = atoi(value.c_str());
-                if (port <= 0 || port > 65535) 
+                if (port <= 0 || port > 65535)
                     port = CONFIG_DEFAULT_BOIP_PORT;
                 _boip.port = port;
             }
@@ -148,7 +148,7 @@ void fnConfig::store_serial_proceed(serial_proceed_pin proceed_pin)
 void fnConfig::store_bos_enabled(bool bos_enabled) {
     if (_bos.bos_enabled == bos_enabled)
         return;
-    
+
     _bos.bos_enabled = bos_enabled;
     _dirty = true;
 }
@@ -156,7 +156,7 @@ void fnConfig::store_bos_enabled(bool bos_enabled) {
 void fnConfig::store_bos_port_name(char *port_name) {
     if (_bos.port_name.compare(port_name) == 0)
         return;
-    
+
     _bos.port_name = port_name;
     _dirty = true;
 }
@@ -164,7 +164,7 @@ void fnConfig::store_bos_port_name(char *port_name) {
 void fnConfig::store_bos_baud(int baud) {
     if (_bos.baud == baud)
         return;
-    
+
     _bos.baud = baud;
     _dirty = true;
 }
@@ -172,7 +172,7 @@ void fnConfig::store_bos_baud(int baud) {
 void fnConfig::store_bos_bits(int bits) {
     if (_bos.bits == bits)
         return;
-    
+
     _bos.bits = bits;
     _dirty = true;
 }
@@ -180,7 +180,7 @@ void fnConfig::store_bos_bits(int bits) {
 void fnConfig::store_bos_parity(int parity) {
     if (_bos.parity == parity)
         return;
-    
+
     _bos.parity = parity;
     _dirty = true;
 }
@@ -188,7 +188,7 @@ void fnConfig::store_bos_parity(int parity) {
 void fnConfig::store_bos_stop_bits(int stop_bits) {
     if (_bos.stop_bits == stop_bits)
         return;
-    
+
     _bos.stop_bits = stop_bits;
     _dirty = true;
 }
@@ -196,7 +196,7 @@ void fnConfig::store_bos_stop_bits(int stop_bits) {
 void fnConfig::store_bos_flowcontrol(int flowcontrol) {
     if (_bos.flowcontrol == flowcontrol)
         return;
-    
+
     _bos.flowcontrol = flowcontrol;
     _dirty = true;
 }

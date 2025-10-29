@@ -9,7 +9,7 @@
 #include <freertos/semphr.h>
 #include <usb/cdc_acm_host.h>
 
-class ACMChannel : public IOChannel
+class ACMChannel : public IOChannel, public RS232ChannelProtocol
 {
 private:
     SemaphoreHandle_t device_disconnected_sem;
@@ -24,7 +24,7 @@ public:
     void begin();
     void end() override;
 
-    void flush() override;
+    void flushOutput() override;
 
     uint32_t getBaudrate() override { return 0; }
     void setBaudrate(uint32_t baud) override { return }

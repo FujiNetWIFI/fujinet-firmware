@@ -23,8 +23,6 @@ private:
     in_addr_t _ip;
     uint16_t _port;
 
-    uint32_t _baud;     // not used by Becker
-
     // is waiting for connection (listening) or connecting to?
     bool _listening;
 
@@ -74,15 +72,9 @@ public:
     void begin(std::string host, int baud);
     void end() override;
 
-    void setBaudrate(uint32_t baud) override { _baud = baud; }
-    uint32_t getBaudrate() override { return _baud; }
+    void flushOutput() override;
 
-    bool getDTR() { return false; }
-    void setDSR(bool state) { return; }
-    bool getRTS() { return false; }
-    void setCTS(bool state) { return; }
-
-    void flush() override;
+    void setHost(std::string host, int port);
 };
 
 #endif // BECKERSOCKET_H

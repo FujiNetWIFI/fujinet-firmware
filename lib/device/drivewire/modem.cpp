@@ -423,7 +423,7 @@ void drivewireModem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        SYSTEM_BUS.flush();
+        SYSTEM_BUS.flushOutput();
         answerHack = false;
     }
 }

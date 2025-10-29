@@ -158,11 +158,11 @@ void systemBus::op_readex()
         {
             size_t bytesrd;
             Debug_printf("op_readex: open successful %s\r\n", szNamedMount);
-            
+
             memset(blk_buffer,0,MEDIA_BLOCK_SIZE);
             bytesrd = fread(blk_buffer,1,MEDIA_BLOCK_SIZE,pNamedObjFp);
             if (bytesrd!=MEDIA_BLOCK_SIZE || feof(pNamedObjFp))
-            {   
+            {
                 Debug_printf("op_readex: closed named object %s\r\n",szNamedMount);
                 fclose(pNamedObjFp);
                 pNamedObjFp = NULL;
@@ -173,12 +173,12 @@ void systemBus::op_readex()
         else
         {
             Debug_printf("op_readex: open failed %s\r\n", szNamedMount);
-            fnDwCom.write(0xF4);
+            _port->write(0xF4);
             return;
         }
     }
     else
-    {        
+    {
         if (true==bDragon && drive_num>=5) drive_num = drive_num-5;
     Debug_printf("OP_READ: DRIVE %3u - SECTOR %8lu\n", drive_num, lsn);
 
@@ -211,16 +211,16 @@ void systemBus::op_readex()
                 blk_size = MEDIA_BLOCK_SIZE;
                 use_media_buffer = false;
             }
-    
+
             if (bDragon)
             {
                 Debug_printf("dragon read\n");
                 if (d->read(lsn, sector_data))
                 {
                     Debug_printf("Read error\n");
-                    fnDwCom.write(0xF4);
-                    fnDwCom.flush();
-                    fnDwCom.flush_input();
+                    _port->write(0xF4);
+                    _port->flushOutput();
+                    _port->discardInput();
                     return;
                 }
             }
@@ -662,44 +662,25 @@ void systemBus::service()
         _port->setDSR(!hasUpdate);
     }
 
-    if (fnDwCom.available())
+    if (_port->available())
         _drivewire_process_cmd();
 
     // dload.dload_process();
 }
 
-// Setup DRIVEWIRE bus
-void systemBus::setup()
-{
 #ifdef ESP_PLATFORM
-    // Create a queue to handle parallel event from ISR
-    drivewire_evt_queue = xQueueCreate(10, sizeof(uint32_t));
-    bDragon = false;
-
-    // Start task
-    // xTaskCreate(drivewire_intr_task, "drivewire_intr_task", 2048, NULL, 10, NULL);
-    // xTaskCreatePinnedToCore(drivewire_intr_task, "drivewire_intr_task", 4096, this, 10, NULL, 0);
-
-#ifdef CONFIG_IDF_TARGET_ESP32S3
-// Configure UART to RP2040
-#ifdef FORCE_UART_BAUD
-        Debug_printv("FORCE_UART_BAUD set to %u", FORCE_UART_BAUD);
-        _drivewireBaud = FORCE_UART_BAUD;
-#else /* !FORCE_UART_BAUD */
-        _drivewireBaud = 115200;
-#endif /* FORCE_UART_BAUD */
-
-#else /* !CONFIG_IDF_TARGET_ESP32S3 */
-        // Setup interrupt for cassette motor pin
-        gpio_config_t io_conf = {
-                .pin_bit_mask = (1ULL << PIN_CASS_MOTOR), // bit mask of the pins that you want to set
+void systemBus::configureGPIO()
+{
+    // Setup interrupt for cassette motor pin
+    gpio_config_t io_conf = {
+        .pin_bit_mask = (1ULL << PIN_CASS_MOTOR), // bit mask of the pins that you want to set
         .mode = GPIO_MODE_INPUT,                  // set as input mode
         .pull_up_en = GPIO_PULLUP_DISABLE,        // disable pull-up mode
         .pull_down_en = GPIO_PULLDOWN_ENABLE,     // enable pull-down mode
         .intr_type = GPIO_INTR_POSEDGE            // interrupt on positive edge
-        };
+    };
 
-        _cassetteDev = new drivewireCassette();
+    _cassetteDev = new drivewireCassette();
 
     // configure GPIO with the given settings
     gpio_config(&io_conf);
@@ -718,38 +699,68 @@ void systemBus::setup()
     fnSystem.set_pin_mode(PIN_EPROM_A14, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
     fnSystem.set_pin_mode(PIN_EPROM_A15, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 
-#ifdef FORCE_UART_BAUD
-        Debug_printv("FORCE_UART_BAUD set to %u",FORCE_UART_BAUD);
-        _drivewireBaud = FORCE_UART_BAUD;
-#else /* !FORCE_UART_BAUD */
-    if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
+    return;
+}
+
+int systemBus::readBaudSwitch()
+{
+    if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW
+        && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
     {
-        _drivewireBaud = 38400; //Coco1 ROM Image
         Debug_printv("A14 Low, A15 Low, 38400 baud");
-    }
-    else if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_HIGH && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
-    {
-        _drivewireBaud = 57600; //Coco2 ROM Image
-        Debug_printv("A14 High, A15 Low, 57600 baud");
-    }
-    else if  (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_HIGH)
-    {
-        _drivewireBaud = 115200; //Coco3 ROM Image
-        Debug_printv("A14 Low, A15 High, 115200 baud");
-    }
-    else
-    {
-        _drivewireBaud = 57600; // Dragon
-        bDragon = true;
-        Debug_printv("A14 and A15 High, (DRAGON) 57600 baud");
+        return 38400; //Coco1 ROM Image
     }
 
-#endif /* FORCE_UART_BAUD */
+    if (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_HIGH
+             && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_LOW)
+    {
+        Debug_printv("A14 High, A15 Low, 57600 baud");
+        return 57600; //Coco2 ROM Image
+    }
+
+    if  (fnSystem.digital_read(PIN_EPROM_A14) == DIGI_LOW
+              && fnSystem.digital_read(PIN_EPROM_A15) == DIGI_HIGH)
+    {
+        Debug_printv("A14 Low, A15 High, 115200 baud");
+        return 115200; //Coco3 ROM Image
+    }
+
+    Debug_printv("A14 and A15 High, defaulting to 57600 baud");
+    return 57600; //Default or no switch
+}
+#endif /* ESP_PLATFORM */
+
+// Setup DRIVEWIRE bus
+void systemBus::setup()
+{
+#ifdef ESP_PLATFORM
+    // Create a queue to handle parallel event from ISR
+    drivewire_evt_queue = xQueueCreate(10, sizeof(uint32_t));
+    bDragon = false;
+
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+    // Configure UART to RP2040
+  #ifdef FORCE_UART_BAUD
+    Debug_printv("FORCE_UART_BAUD set to %u", FORCE_UART_BAUD);
+    _drivewireBaud = FORCE_UART_BAUD;
+  #else /* !FORCE_UART_BAUD */
+    _drivewireBaud = 115200;
+  #endif /* FORCE_UART_BAUD */
+
+#else /* ! CONFIG_IDF_TARGET_ESP32S3 */
+    configureGPIO();
+  #ifdef FORCE_UART_BAUD
+    Debug_printv("FORCE_UART_BAUD set to %u",FORCE_UART_BAUD);
+    _drivewireBaud = FORCE_UART_BAUD;
+  #else /* !FORCE_UART_BAUD */
+    _drivewireBaud = readBaudSwitch();
+  #endif /* FORCE_UART_BAUD */
 #endif /* CONFIG_IDF_TARGET_ESP32S3 */
 #else /* !ESP_PLATFORM */
     // FujiNet-PC specific
     _drivewireBaud = Config.get_serial_baud();
 #endif /* !ESP_PLATFORM */
+
     if (Config.get_boip_enabled())
     {
         _becker.begin(Config.get_boip_host(), _drivewireBaud);
@@ -757,7 +768,9 @@ void systemBus::setup()
     }
     else
     {
-        _serial.begin(ChannelConfig().baud(_drivewireBaud).deviceID(DW_UART_DEVICE)
+        _serial.begin(ChannelConfig()
+                      .baud(_drivewireBaud)
+                      .deviceID(DW_UART_DEVICE)
                       .readTimeout(500)
 #ifdef ESP_PLATFORM
                       .inverted(DW_UART_DEVICE == UART_NUM_2)
@@ -768,10 +781,8 @@ void systemBus::setup()
 
     _port->discardInput();
     Debug_printv("DRIVEWIRE MODE");
-    szNamedMount[0]=(uint8_t)0;
-    pNamedObjFp = NULL;
 
-// jeff hack to see if the S3 is getting serial data
+    // jeff hack to see if the S3 is getting serial data
     // Debug_println("now receiving data...");
     // uint8_t b[] = {' '};
     // while(1)
@@ -782,7 +793,7 @@ void systemBus::setup()
     //         Debug_printf("%c\n",b[0]);
     //     }
     // }
-// end jeff hack
+    // end jeff hack
 
 }
 

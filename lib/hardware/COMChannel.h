@@ -1,12 +1,13 @@
-#ifndef TTYCHANNEL_H
-#define TTYCHANNEL_H
+#ifndef COMCHANNEL_H
+#define COMCHANNEL_H
 
 #include "IOChannel.h"
 #include "RS232ChannelProtocol.h"
 
-#ifdef ITS_A_UNIX_SYSTEM_I_KNOW_THIS
+#ifdef HELLO_IM_A_PC
 
-#define FN_UART_BUS ""
+#include <winsock2.h>
+#include <windows.h>
 
 struct ChannelConfig
 {
@@ -29,10 +30,10 @@ struct ChannelConfig
     }
 };
 
-class TTYChannel : public IOChannel, public RS232ChannelProtocol
+class COMChannel : public IOChannel, public RS232ChannelProtocol
 {
 private:
-    int _fd = -1;
+    HANDLE _fd = INVALID_HANDLE_VALUE;
     std::string _device;
     uint32_t _baud;
     bool _dtrState = true, _rtsState = true;
@@ -58,10 +59,12 @@ public:
     void setCTS(bool state) override; // modem CTS output → actually drives RS-232 RTS pin
     bool getRI() override;            // Ring Indicator is only an input on DTE :-/
 
+#ifdef UNUSED
     void setPort(std::string device);
     std::string getPort();
+#endif /* UNUSED */
 };
 
-#endif /* ITS_A_UNIX_SYSTEM_I_KNOW_THIS */
+#endif /* HELLO_IM_A_PC */
 
-#endif /* TTYCHANNEL_H */
+#endif /* COMCHANNEL_H */

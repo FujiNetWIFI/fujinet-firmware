@@ -10,6 +10,7 @@
 #include "linux_termios2.h"
 #elif defined(__APPLE__)
 #include <IOKit/serial/ioss.h>
+#include <sys/ioctl.h>
 #endif
 
 #include "../../include/debug.h"
@@ -19,6 +20,9 @@
 
 void TTYChannel::begin(const ChannelConfig& conf)
 {
+    if (_fd >= 0)
+        end();
+
     _device = conf.device;
     read_timeout_ms = conf.read_timeout_ms;
     discard_timeout_ms = conf.discard_timeout_ms;
@@ -115,7 +119,7 @@ void TTYChannel::end()
     if (_fd >= 0)
     {
         close(_fd);
-        _fd  = -1;
+        _fd = -1;
         Debug_printf("### TTY stopped ###\n");
     }
 
@@ -151,11 +155,6 @@ timeval timeval_from_ms(const uint32_t millis)
 
 size_t TTYChannel::dataOut(const void *buffer, size_t length)
 {
-#ifdef UNUSED
-    if (!_initialized)
-        return 0;
-#endif /* UNUSED */
-
     int result;
     int txbytes;
     fd_set writefds;
@@ -224,13 +223,8 @@ size_t TTYChannel::dataOut(const void *buffer, size_t length)
     }
     return txbytes;
 }
-#ifdef UNUSED
-{
-    return ::write(_fd, buffer, length);
-}
-#endif /* UNUSED */
 
-void TTYChannel::flush()
+void TTYChannel::flushOutput()
 {
     tcdrain(_fd);
     return;
@@ -327,97 +321,10 @@ void TTYChannel::setBaudrate(uint32_t baud)
     _baud = baud;
 }
 
-// FIXME - why does this function exist? Shouldn't the caller use begin()?
-void TTYChannel::setPort(std::string device)
-{
-    Debug_printv("%s", device.c_str());
-    _device = device;
-    return;
-}
-
 std::string TTYChannel::getPort()
 {
     return _device;
 }
-
-#ifdef UNUSED
-size_t TTYChannel::available()
-{
-    int result;
-    if (ioctl(_fd, FIONREAD, &result) < 0)
-        return 0;
-    return result;
-}
-
-bool TTYChannel::waitReadable(uint32_t timeout_ms)
-{
-    // Setup a select call to block for serial data or a timeout
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(_fd, &readfds);
-    timeval timeout_tv(timeval_from_ms(timeout_ms));
-
-    int result = select(_fd + 1, &readfds, nullptr, nullptr, &timeout_tv);
-
-    if (result < 0)
-    {
-        if (errno != EINTR)
-        {
-            Debug_printf("TTY waitReadable() select error %d: %s\n", errno, strerror(errno));
-        }
-        return false;
-    }
-    // Timeout occurred
-    if (result == 0)
-    {
-        return false;
-    }
-    // This shouldn't happen, if result > 0 our fd has to be in the list!
-    if (!FD_ISSET (_fd, &readfds))
-    {
-        Debug_println("TTY waitReadable() unexpected select result");
-    }
-    // Data available to read.
-    return true;
-}
-
-size_t TTYChannel::si_recv(void *buffer, size_t length)
-{
-    int result;
-    int rxbytes;
-    for (rxbytes=0; rxbytes<length;)
-    {
-        result = ::read(_fd, &((uint8_t *) buffer)[rxbytes], length-rxbytes);
-        // Debug_printf("read: %d\n", result);
-        if (result < 0)
-        {
-            if (errno == EAGAIN)
-            {
-                result = 0;
-            }
-            else
-            {
-                Debug_printf("TTY readBytes() read error %d: %s\n", errno, strerror(errno));
-                break;
-            }
-        }
-
-        rxbytes += result;
-        if (rxbytes == length)
-        {
-            // done
-            break;
-        }
-
-        if (!waitReadable(500)) // 500 ms timeout
-        {
-            Debug_println("TTY readBytes() TIMEOUT");
-            break;
-        }
-    }
-    return rxbytes;
-}
-#endif /* UNUSED */
 
 bool TTYChannel::getDTR()
 {
@@ -433,18 +340,16 @@ void TTYChannel::setDSR(bool state)
 {
     int status;
 
-
     if (state == _dtrState)
         return;
     if (ioctl(_fd, TIOCMGET, &status) == -1)
         return;
 
+    _dtrState = state;
     status &= ~TIOCM_DTR;
-    if (state)
+    if (_dtrState)
         status |= TIOCM_DTR;
     ioctl(_fd, TIOCMSET, &status);
-    _dtrState = state;
-    Debug_printf("New DTR: %d\n", state);
     return;
 }
 
@@ -467,12 +372,22 @@ void TTYChannel::setCTS(bool state)
     if (ioctl(_fd, TIOCMGET, &status) == -1)
         return;
 
+    _rtsState = state;
     status &= ~TIOCM_RTS;
-    if (state)
+    if (_rtsState)
         status |= TIOCM_RTS;
     ioctl(_fd, TIOCMSET, &status);
-    _rtsState = state;
     return;
+}
+
+bool TTYChannel::getRI()
+{
+    int status;
+
+    if (ioctl(_fd, TIOCMGET, &status) == -1)
+        return false;
+
+    return !!(status & TIOCM_RI);
 }
 
 #endif /* ITS_A_UNIX_SYSTEM_I_KNOW_THIS */

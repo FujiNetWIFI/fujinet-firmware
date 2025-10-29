@@ -231,28 +231,6 @@ void systemBus::_rs232_process_cmd()
     fnLedManager.set(eLed::LED_BUS, false);
 }
 
-// Look to see if we have any waiting messages and process them accordingly
-/*
-void systemBus::_rs232_process_queue()
-{
-    rs232_message_t msg;
-    if (xQueueReceive(qRs232Messages, &msg, 0) == pdTRUE)
-    {
-        switch (msg.message_id)
-        {
-        case RS232MSG_DISKSWAP:
-            if (_fujiDev != nullptr)
-                _fujiDev->image_rotate();
-            break;
-        case RS232MSG_DEBUG_TAPE:
-            if (_fujiDev != nullptr)
-                _fujiDev->debug_tape();
-            break;
-        }
-    }
-}
-*/
-
 /*
  Primary RS232 serivce loop:
  * If MOTOR line asserted, hand RS232 processing over to the TAPE device

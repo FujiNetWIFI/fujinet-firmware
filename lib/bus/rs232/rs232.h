@@ -265,7 +265,7 @@ public:
     size_t write(const void *buffer, size_t length) { return _port.write(buffer, length); }
     size_t write(int n) { return _port.write(n); }
     size_t available() { return _port.available(); }
-    void flush() { _port.flush(); }
+    void flushOutput() { _port.flushOutput(); }
     size_t print(int n, int base = 10) { return _port.print(n, base); }
     size_t print(const char *str) { return _port.print(str); }
     size_t print(const std::string &str) { return _port.print(str); }

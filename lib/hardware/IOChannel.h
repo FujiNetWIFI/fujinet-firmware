@@ -1,12 +1,14 @@
 #ifndef IOCHANNEL_H
 #define IOCHANNEL_H
 
+#define IOCHANNEL_DEFAULT_TIMEOUT 100
+
 #ifndef ESP_PLATFORM
-#ifndef _WIN32
-#define ITS_A_UNIX_SYSTEM_I_KNOW_THIS
-#else /* _WIN32 */
+#if defined(_WIN16) || defined(_WIN32) || defined(_WIN64) || defined(__WINDOWS__)
 #define HELLO_IM_A_PC
-#endif /* _WIN32 */
+#else /* ! (_WIN16 || _WIN32 || _WIN64 || __WINDOWS__ */
+#define ITS_A_UNIX_SYSTEM_I_KNOW_THIS
+#endif /* ! (_WIN16 || _WIN32 || _WIN64 || __WINDOWS__ */
 #endif /* ESP_PLATFORM */
 
 #include <stdint.h>
@@ -14,13 +16,18 @@
 #include <string.h>
 #include <string>
 
-#if defined(ESP_PLATFORM)
+#ifdef ESP_PLATFORM
 #include <esp_timer.h>
 #define GET_TIMESTAMP() esp_timer_get_time()
-#elif defined(ITS_A_UNIX_SYSTEM_I_KNOW_THIS)
-#include <sys/time.h>
-#define GET_TIMESTAMP() ({ struct timeval _tv; gettimeofday(&_tv, NULL); \
-            _tv.tv_sec * ((uint64_t) 1000000) + _tv.tv_usec; })
+#else /* ! ESP_PLATFORM */
+#include <chrono>
+
+inline uint64_t GET_TIMESTAMP() {
+    auto now = std::chrono::steady_clock::now();
+    auto micros =
+        std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch());
+    return micros.count();
+}
 #endif /* ESP_PLATFORM */
 
 class IOChannel
@@ -30,8 +37,8 @@ private:
 
 protected:
     std::string _fifo;
-    uint32_t read_timeout_ms = 10;
-    uint32_t discard_timeout_ms = 10;
+    uint32_t read_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
+    uint32_t discard_timeout_ms = IOCHANNEL_DEFAULT_TIMEOUT;
 
     // Handled by IOChannel, not implemented by subclass
     size_t dataIn(void *buffer, size_t length);
@@ -44,15 +51,7 @@ public:
     // begin() and arguments vary by subclass so not declared here
     virtual void end() = 0;
 
-    virtual void flush() = 0;
-
-    virtual uint32_t getBaudrate() = 0;
-    virtual void setBaudrate(uint32_t baud) = 0;
-
-    virtual bool getDTR() = 0;
-    virtual void setDSR(bool state) = 0;
-    virtual bool getRTS() = 0;
-    virtual void setCTS(bool state) = 0;
+    virtual void flushOutput() = 0;
 
     // Handled by IOChannel, not implemented by subclass
     size_t available();

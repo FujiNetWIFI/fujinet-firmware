@@ -1,22 +1,9 @@
 #ifndef SIO_H
 #define SIO_H
 
+#include "UARTChannel.h"
+#include "NetSIO.h"
 #include <forward_list>
-
-#ifdef ESP_PLATFORM
-#include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
-#else
-#include "sio/siocom/fnSioCom.h"
-#endif
-
-#ifdef ESP_PLATFORM
-#include "fnUART.h"
-#define MODEM_UART_T UARTManager
-#else
-// fnSioCom.h is included from bus.h
-#define MODEM_UART_T SioCom
-#endif
 
 #define DELAY_T4 850
 #define DELAY_T5 250
@@ -286,11 +273,10 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
-#ifdef ESP_PLATFORM
-    MODEM_UART_T _port = MODEM_UART_T(FN_UART_BUS);
-#else
-    MODEM_UART_T _port;
-#endif
+    IOChannel *_port = nullptr;
+    UARTChannel _serial;
+    NetSIO _netsio;
+    int _commandPin;
 
 #ifndef ESP_PLATFORM
     bool _command_processed = false;
@@ -298,6 +284,8 @@ private:
 
     void _sio_process_cmd();
     void _sio_process_queue();
+
+    void configureGPIO();
 
 public:
     void setup();
@@ -326,17 +314,13 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
-#ifndef ESP_PLATFORM
-    void set_command_processed(bool processed);
-    void sio_empty_ack();                                       // for NetSIO, notify hub we are not interested to handle the command
-#endif
-
     sioCassette *getCassette() { return _cassetteDev; }
     sioPrinter *getPrinter() { return _printerdev; }
     sioCPM *getCPM() { return _cpmDev; }
 
     // I wish this codebase would make up its mind to use camel or snake casing.
     modem *get_modem() { return _modemDev; }
+    bool commandAsserted();
 
 #ifdef ESP_PLATFORM
     QueueHandle_t qSioMessages = nullptr;
@@ -344,37 +328,55 @@ public:
 
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ
-    size_t read(void *buffer, size_t length) { return _port.readBytes((uint8_t *) buffer, length); }
-    size_t read() { return _port.read(); }
-    size_t write(const void *buffer, size_t length) { return _port.write((uint8_t *) buffer, length); }
-    size_t write(int n) { return _port.write(n); }
-    size_t available() { return _port.available(); }
-    void flush() { _port.flush(); }
-    void discardInput() { _port.flush_input(); }
-    size_t print(int n, int base = 10) { return _port.print(n, base); }
-    size_t print(const char *str) { return _port.print(str); }
-    size_t print(const std::string &str) { return _port.print(str); }
+    size_t read(void *buffer, size_t length) { return _port->read(buffer, length); }
+    size_t read() { return _port->read(); }
+    size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
+    size_t write(int n) { return _port->write(n); }
+    size_t available() { return _port->available(); }
+    void flushOutput() { _port->flushOutput(); }
+    void discardInput() { _port->discardInput(); }
+    size_t print(int n, int base = 10) { return _port->print(n, base); }
+    size_t print(const char *str) { return _port->print(str); }
+    size_t print(const std::string &str) { return _port->print(str); }
 
 #ifndef ESP_PLATFORM
     // specific to NetSioPort
-    void set_netsio_host(const char *host, int port) { _port.set_netsio_host(host, port); }
-    const char* get_netsio_host(int &port) { return _port.get_netsio_host(port); }
-    void netsio_late_sync(uint8_t c) { _port.netsio_late_sync(c); }
-    void netsio_empty_sync() { _port.netsio_empty_sync(); }
-    void netsio_write_size(int write_size) { _port.netsio_write_size(write_size); }
+#ifdef UNUSED
+    void set_netsio_host(const char *host, int port) { _netsio.set_netsio_host(host, port); }
+    const char* get_netsio_host(int &port) { return _netsio.get_netsio_host(port); }
+#endif /* UNUSED */
+    void netsio_empty_sync() { _netsio.sendEmptySync(); }
+    void netsio_late_sync(uint8_t c) { _netsio.setSyncAckByte(c); }
+    void netsio_write_size(int write_size) { _netsio.setWriteSize(write_size); }
+
+    void set_command_processed(bool processed);
+    void sio_empty_ack();                                       // for NetSIO, notify hub we are not interested to handle the command
+
+#ifdef UNUSED
 
     // get/set SIO mode
-    SioCom::sio_mode get_sio_mode() { return _port.get_sio_mode(); }
-    void set_sio_mode(SioCom::sio_mode mode) { _port.set_sio_mode(mode); }
-    void reset_sio_port(SioCom::sio_mode mode) { _port.reset_sio_port(mode); }
+    SioCom::sio_mode get_sio_mode() { return _netsio.get_sio_mode(); }
+    void set_sio_mode(SioCom::sio_mode mode) { _netsio.set_sio_mode(mode); }
+    void reset_sio_port(SioCom::sio_mode mode) { _netsio.reset_sio_port(mode); }
 
-    void set_proceed(bool level) { _port.set_proceed(level); }
-    bool poll(int ms) { return _port.poll(ms); }
-    bool command_asserted() { return _port.command_asserted(); }
-    void bus_idle(uint16_t ms) { _port.bus_idle(ms); }
+    bool poll(int ms) { return _netsio.poll(ms); }
+    bool command_asserted() { return _netsio.commandAsserted(); }
+#endif /* UNUSED */
+    void set_proceed(bool level) { _netsio.setProceed(level); }
+    void bus_idle(uint16_t ms) { _netsio.busIdle(ms); }
 #endif /* ESP_PLATFORM */
 
     bool motor_asserted();
+
+    /* BoIP things */
+    bool isBoIP() { return _port == &_netsio; }
+    void setHost(const char *host, int port) { _netsio.setHost(host, port); }
+    void selectSerialPort(bool useSerial) {
+        if (useSerial)
+            _port = &_serial;
+        else
+            _port = &_netsio;
+    }
 };
 
 extern systemBus SYSTEM_BUS;
