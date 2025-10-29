@@ -360,7 +360,7 @@ void sioFuji::sio_set_baudrate()
     // send complete with current baudrate
     sio_complete();
 
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 #ifndef ESP_PLATFORM
     fnSystem.delay_microseconds(2000);
 #endif
@@ -648,13 +648,6 @@ void sioFuji::sio_copy_file()
     bool err = false;
     do
     {
-#ifndef ESP_PLATFORM
-        if (SYSTEM_BUS.get_sio_mode() == SioCom::sio_mode::NETSIO && fnSystem.millis() - poll_ts > 1000)
-        {
-            SYSTEM_BUS.poll(1);
-            poll_ts = fnSystem.millis();
-        }
-#endif
         readCount = fnio::fread(dataBuf, 1, 532, sourceFile);
         readTotal += readCount;
         // Check if we got enough bytes on the read
@@ -1513,8 +1506,8 @@ void sioFuji::sio_get_adapter_config_extended()
     strlcpy(cfg.sDnsIP,   fnSystem.Net.get_ip4_dns_str().c_str(),     16);
     strlcpy(cfg.sNetmask, fnSystem.Net.get_ip4_mask_str().c_str(),    16);
 
-    sprintf(cfg.sMacAddress, "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
-    sprintf(cfg.sBssid,      "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
+    snprintf(cfg.sMacAddress, sizeof(cfg.sMacAddress), "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
+    snprintf(cfg.sBssid, sizeof(cfg.sBssid), "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
 
     bus_to_computer((uint8_t *)&cfg, sizeof(cfg), false);
 

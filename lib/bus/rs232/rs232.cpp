@@ -16,6 +16,12 @@
 #include "utils.h"
 #include <endian.h>
 
+#ifdef ESP_PLATFORM
+#define SERIAL_DEVICE FN_UART_BUS
+#else /* !ESP_PLATFORM */
+#define SERIAL_DEVICE Config.get_serial_port()
+#endif /* ESP_PLATFORM */
+
 // Helper functions outside the class defintions
 
 uint16_t virtualDevice::rs232_get_aux16_lo()
@@ -72,7 +78,7 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
     // Write checksum
     SYSTEM_BUS.write(rs232_checksum(buf, len));
 
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 }
 
 /*
@@ -121,7 +127,7 @@ uint8_t virtualDevice::bus_to_peripheral(uint8_t *buf, unsigned short len)
 void virtualDevice::rs232_nak()
 {
     SYSTEM_BUS.write('N');
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
     Debug_println("NAK!");
 }
 
@@ -130,7 +136,7 @@ void virtualDevice::rs232_ack()
 {
     SYSTEM_BUS.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
     Debug_println("ACK!");
 }
 
@@ -166,14 +172,14 @@ void systemBus::_rs232_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting RS232 baud");
-        _port.set_baudrate(_rs232Baud);
+        _port.setBaudrate(_rs232Baud);
     }
 
     // Read CMD frame
     cmdFrame_t tempFrame;
     memset(&tempFrame, 0, sizeof(tempFrame));
 
-    if (_port.readBytes((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
+    if (_port.read((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
         Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
@@ -185,9 +191,11 @@ void systemBus::_rs232_process_cmd()
                  tempFrame.device, tempFrame.comnd,
                  tempFrame.aux1, tempFrame.aux2, tempFrame.aux3, tempFrame.aux4,
                  tempFrame.cksum);
+#if 0 && !defined(FUJINET_OVER_USB)
     // Wait for CMD line to raise again
-    while (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
+    while (dsrState())
         vTaskDelay(1);
+#endif /* FUJINET_OVER_USB */
 
     uint8_t ck = rs232_checksum((uint8_t *)&tempFrame, sizeof(tempFrame) - sizeof(tempFrame.cksum)); // Calculate Checksum
     if (ck == tempFrame.cksum)
@@ -225,28 +233,6 @@ void systemBus::_rs232_process_cmd()
     fnLedManager.set(eLed::LED_BUS, false);
 }
 
-// Look to see if we have any waiting messages and process them accordingly
-/*
-void systemBus::_rs232_process_queue()
-{
-    rs232_message_t msg;
-    if (xQueueReceive(qRs232Messages, &msg, 0) == pdTRUE)
-    {
-        switch (msg.message_id)
-        {
-        case RS232MSG_DISKSWAP:
-            if (_fujiDev != nullptr)
-                _fujiDev->image_rotate();
-            break;
-        case RS232MSG_DEBUG_TAPE:
-            if (_fujiDev != nullptr)
-                _fujiDev->debug_tape();
-            break;
-        }
-    }
-}
-*/
-
 /*
  Primary RS232 serivce loop:
  * If MOTOR line asserted, hand RS232 processing over to the TAPE device
@@ -267,11 +253,19 @@ void systemBus::service()
         return; // break!
     }
 
+#if 0 && !defined(FUJINET_OVER_USB)
     // Go process a command frame if the RS232 CMD line is asserted
-    if (fnSystem.digital_read(PIN_RS232_DTR) == DIGI_LOW)
+    if (_port.dsrState())
     {
         _rs232_process_cmd();
     }
+#else /* FUJINET_OVER_USB */
+    // Go process a command frame if the RS232 CMD line is asserted
+    if (_port.available())
+    {
+        _rs232_process_cmd();
+    }
+#endif /* FUJINET_OVER_USB */
     // Go check if the modem needs to read data if it's active
     else if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {
@@ -281,7 +275,7 @@ void systemBus::service()
     // Neither CMD nor active modem, so throw out any stray input data
     {
         //Debug_println("RS232 Srvc Flush");
-        _port.flush_input();
+        _port.discardInput();
     }
 
     // Handle interrupts from network protocols
@@ -298,8 +292,10 @@ void systemBus::setup()
     Debug_printf("RS232 SETUP: Baud rate: %u\n",Config.get_rs232_baud());
 
     // Set up UART
-    _port.begin(Config.get_rs232_baud());
+#ifndef FUJINET_OVER_USB
+    _port.begin(ChannelConfig().baud(Config.get_rs232_baud()).deviceID(SERIAL_DEVICE));
 
+#ifdef ESP_PLATFORM
     // // INT PIN
     // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
     // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
@@ -321,12 +317,13 @@ void systemBus::setup()
 
     fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
     fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
-
-    // Create a message queue
-    qRs232Messages = xQueueCreate(4, sizeof(rs232_message_t));
+#endif /* ESP_PLATFORM */
+#else /* FUJINET_OVER_USB */
+    _port.begin();
+#endif /* FUJINET_OVER_USB */
 
     Debug_println("RS232 Setup Flush");
-    _port.flush_input();
+    _port.discardInput();
 }
 
 // Add device to RS232 bus
@@ -421,7 +418,7 @@ void systemBus::toggleBaudrate()
 
     // Debug_printf("Toggling baudrate from %d to %d\n", _rs232Baud, baudrate);
     _rs232Baud = baudrate;
-    _port.set_baudrate(_rs232Baud);
+    _port.setBaudrate(_rs232Baud);
 }
 
 int systemBus::getBaudrate()
@@ -439,7 +436,7 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _rs232Baud, baud);
     _rs232Baud = baud;
-    _port.set_baudrate(baud);
+    _port.setBaudrate(baud);
 }
 
 // Set HRS232 index. Sets high speed RS232 baud and also returns that value.

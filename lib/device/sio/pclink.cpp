@@ -453,7 +453,7 @@ check_dos_name(char *newpath, struct dirent *dp, struct stat *sb)
                 return 1;
 
         /* stat() the file (fetches the length) */
-        sprintf(temp_fspec, "%s/%s", newpath, fname);
+        snprintf(temp_fspec, sizeof(temp_fspec), "%s/%s", newpath, fname);
 
         if (log_flag)
                 Debug_printf("%s: stat '%s'\n", __func__, temp_fspec);
@@ -2497,7 +2497,7 @@ pclink_read(uint8_t *buf, int len)
     Debug_printf("<-SIO read (PCLINK) %hu bytes\n", len);
 
 #ifndef ESP_PLATFORM
-    if (SYSTEM_BUS.get_sio_mode() == SioCom::sio_mode::NETSIO)
+    if (SYSTEM_BUS.isBoIP())
     {
         SYSTEM_BUS.netsio_write_size(len); // set hint for NetSIO
     }
@@ -2542,7 +2542,7 @@ pclink_write(uint8_t *buf, int len)
     // Write checksum
     SYSTEM_BUS.write(sio_checksum(buf, len));
 
-    SYSTEM_BUS.flush();
+    SYSTEM_BUS.flushOutput();
 }
 
 
