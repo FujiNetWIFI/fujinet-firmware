@@ -11,13 +11,12 @@
 
 #include "utils.h"
 
-#ifdef BUILD_ATARI
-#include "sio/sioFuji.h"
-#endif /* BUILD_ATARI */
 
 #ifdef BUILD_APPLE
 #include "iwm/printerlist.h"
+#include "iwm/fuji.h"
 #define PRINTER_CLASS iwmPrinter
+extern iwmFuji theFuji;
 #endif /* BUILD_APPLE */
 
 bool udpactivate = false;
@@ -285,7 +284,7 @@ void fnHttpServiceConfigurator::config_cassette_play(std::string play_record)
     // find cassette via thefuji object?
     Debug_printf("New play/record button value: %s\n", play_record.c_str());
     bool isRecord = util_string_value_is_true(play_record);
-    platformFuji.cassette()->set_buttons(isRecord);
+    theFuji.cassette()->set_buttons(isRecord);
     Config.store_cassette_buttons(isRecord);
 
     Config.save();
@@ -296,7 +295,7 @@ void fnHttpServiceConfigurator::config_cassette_resistor(std::string resistor)
 {
 #ifdef BUILD_ATARI
     bool isPullDown = util_string_value_is_true(resistor);
-    platformFuji.cassette()->set_pulldown(isPullDown);
+    theFuji.cassette()->set_pulldown(isPullDown);
     Config.store_cassette_pulldown(isPullDown);
 
     Config.save();
@@ -560,20 +559,19 @@ void fnHttpServiceConfigurator::config_serial(std::string port, std::string baud
         }
 
 #elif defined(BUILD_COCO)
-#ifdef NOT_SUBCLASS
-        if (_bus.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
+        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
         {
-            _bus.end();
+            fnDwCom.end();
         }
 
-        _bus.set_serial_port(Config.get_serial_port().c_str());
+        fnDwCom.set_serial_port(Config.get_serial_port().c_str());
 
-        if (_bus.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
+        if (fnDwCom.get_drivewire_mode() == DwCom::dw_mode::SERIAL)
         {
-            _bus.begin(Config.get_serial_baud());
+            fnDwCom.begin(Config.get_serial_baud());
         }
 #endif
-#endif /* NOT_SUBCLASS */
+#endif /* UNUSED */
     }
 }
 #elif defined(BUILD_RS232)
@@ -617,12 +615,8 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
 
     // Update settings (on ESP reboot is needed)
 #ifndef ESP_PLATFORM
-#if defined(BUILD_ATARI)
-    SYSTEM_BUS.set_netsio_host(Config.get_boip_host().c_str(), Config.get_boip_port());
-#elif defined(BUILD_COCO)
-#ifdef NOT_SUBCLASS
-    _bus.set_becker_host(Config.get_boip_host().c_str(), Config.get_boip_port());
-#endif /* NOT_SUBCLASS */
+#if defined(BUILD_ATARI) || defined(BUILD_COCO)
+    SYSTEM_BUS.setHost(Config.get_boip_host().c_str(), Config.get_boip_port());
 #endif
 #endif
 
@@ -633,12 +627,8 @@ void fnHttpServiceConfigurator::config_boip(std::string enable_boip, std::string
 
     // Apply settings (on ESP reboot is needed)
 #ifndef ESP_PLATFORM
-#if defined(BUILD_ATARI)
-    SYSTEM_BUS.reset_sio_port(Config.get_boip_enabled() ? SioCom::sio_mode::NETSIO : SioCom::sio_mode::SERIAL);
-#elif defined(BUILD_COCO)
-#ifdef NOT_SUBCLASS
-    _bus.reset_drivewire_port(Config.get_boip_enabled() ? DwCom::dw_mode::BECKER : DwCom::dw_mode::SERIAL);
-#endif /* NOT_SUBCLASS */
+#if defined(BUILD_ATARI) ||  defined(BUILD_COCO)
+    SYSTEM_BUS.selectSerialPort(Config.get_boip_enabled() == 0);
 #endif
 #endif
 
