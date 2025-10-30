@@ -278,7 +278,7 @@ void rs232Fuji::rs232_process(cmdFrame_t *cmd_ptr)
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
         rs232_ack();
-        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2 >> 4, cmdFrame.aux2 & 0x0F);
+        fujicmd_set_device_filename_success(cmdFrame.aux1, cmdFrame.aux2, cmdFrame.aux3);
         break;
     case FUJICMD_SET_HOST_PREFIX:
         rs232_ack();
