@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #include "rs232.h"
+#include "FujiBusCommand.h"
 
 #include "../../include/debug.h"
 

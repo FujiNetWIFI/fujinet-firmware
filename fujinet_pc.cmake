@@ -385,6 +385,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     list(APPEND SOURCES
 
     lib/bus/rs232/rs232.h lib/bus/rs232/rs232.cpp
+    lib/bus/rs232/FujiBusCommand.h lib/bus/rs232/FujiBusCommand.cpp
 
     lib/media/rs232/diskType.h lib/media/rs232/diskType.cpp
     lib/media/rs232/diskTypeImg.h lib/media/rs232/diskTypeImg.cpp
@@ -397,7 +398,7 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/device/rs232/printerlist.cpp lib/device/rs232/printerlist.h
     lib/device/rs232/rs232Fuji.cpp lib/device/rs232/rs232Fuji.h
     lib/device/rs232/rs232cpm.cpp lib/device/rs232/rs232cpm.h
-    
+
     )
 endif()
 

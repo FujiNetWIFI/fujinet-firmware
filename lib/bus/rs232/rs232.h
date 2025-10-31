@@ -252,4 +252,4 @@ public:
 
 extern systemBus SYSTEM_BUS;
 
-#endif // guard
+#endif /* RS232_H */
