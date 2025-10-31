@@ -182,16 +182,16 @@ private:
     void rs232_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2); // $40, '@', Type 3 Poll
     void rs232_control();                          // $41, 'A', Control
     void rs232_config();                           // $42, 'B', Configure
-    void rs232_set_dump();                         // $$4, 'D', Dump
-    void rs232_listen();                           // $4C, 'L', Listen
+    void rs232_set_dump(bool enable);              // $$4, 'D', Dump
+    void rs232_listen(unsigned short newPort);     // $4C, 'L', Listen
     void rs232_unlisten();                         // $4D, 'M', Unlisten
-    void rs232_baudlock();                         // $4E, 'N', Baud lock
-    void rs232_autoanswer();                       // $4F, 'O', auto answer
-    void rs232_status() override;                  // $53, 'S', Status
-    void rs232_write();                            // $57, 'W', Write
+    void rs232_baudlock(bool enable, unsigned int newBaud); // $4E, 'N', Baud lock
+    void rs232_autoanswer(bool enable);            // $4F, 'O', auto answer
+    void rs232_status(FujiStatusReq reqType) override;      // $53, 'S', Status
+    void rs232_write(uint8_t ch);                  // $57, 'W', Write
     void rs232_stream();                           // $58, 'X', Concurrent/Stream
-    void rs232_process(cmdFrame_t *cmd_ptr) override;
-    
+    void rs232_process(FujiBusCommand& command) override;
+
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command

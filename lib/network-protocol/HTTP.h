@@ -50,14 +50,16 @@ public:
      * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
      * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
      */
-    virtual uint8_t special_inquiry(uint8_t cmd);
+    FujiDirection special_inquiry(uint8_t cmd) override;
 
+#ifdef OBSOLETE
     /**
      * @brief execute a command that returns no payload
      * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
      * @return error flag. TRUE on error, FALSE on success.
      */
     virtual bool special_00(cmdFrame_t *cmdFrame);
+#endif /* OBSOLETE */
 
 protected:
     /**
@@ -143,7 +145,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool rename(PeoplesUrlParser *url);
 
     /**
      * @brief Delete file specified by incoming devicespec.
@@ -151,7 +153,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool del(PeoplesUrlParser *url);
 
     /**
      * @brief Make directory specified by incoming devicespec.
@@ -159,7 +161,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool mkdir(PeoplesUrlParser *url);
 
     /**
      * @brief Remove directory specified by incoming devicespec.
@@ -167,7 +169,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool rmdir(PeoplesUrlParser *url);
 
 private:
     /**
@@ -254,11 +256,13 @@ private:
      */
     void http_transaction();
 
+#ifdef OBSOLETE
     /**
      * @brief Set Channel mode (DATA, HEADERS, etc.)
      * @param cmdFrame the passed in command frame.
      */
     bool special_set_channel_mode(cmdFrame_t *cmdFrame);
+#endif /* OBSOLETE */
 
     /**
      * @brief header mode - retrieve requested headers previously collected.
@@ -269,7 +273,7 @@ private:
     bool read_file_handle_header(uint8_t *buf, unsigned short len);
 
     /**
-     * @brief data mode - read 
+     * @brief data mode - read
      * @param buf The target buffer
      * @param len The target buffer length
      * @return true on ERROR FALSE on success
@@ -316,45 +320,5 @@ private:
      */
     bool parseDir(char *buf, unsigned short len);
 };
-
-// moved to WebDAV.cpp
-//
-// /**
-//      * @brief Template to wrap Start call.
-//      * @param data pointer to parent class
-//      * @param El the current element being parsed
-//      * @param attr the array of attributes attached to element
-//      */
-// template <class T>
-// void Start(void *data, const XML_Char *El, const XML_Char **attr)
-// {
-//     T *handler = static_cast<T *>(data);
-//     handler->Start(El, attr);
-// }
-
-// /**
-//  * @brief Template to wrap End call
-//  * @param data pointer to parent class.
-//  * @param El the current element being parsed.
-//  **/
-// template <class T>
-// void End(void *data, const XML_Char *El)
-// {
-//     T *handler = static_cast<T *>(data);
-//     handler->End(El);
-// }
-
-// /**
-//  * @brief template to wrap character data.
-//  * @param data pointer to parent class
-//  * @param s pointer to the character data
-//  * @param len length of character data at pointer
-//  **/
-// template <class T>
-// void Char(void *data, const XML_Char *s, int len)
-// {
-//     T *handler = static_cast<T *>(data);
-//     handler->Char(s, len);
-// }
 
 #endif /* NETWORKPROTOCOLHTTP_H */

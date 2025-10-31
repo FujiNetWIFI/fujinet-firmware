@@ -33,9 +33,9 @@ NetworkProtocolSSH::~NetworkProtocolSSH()
 #endif
 }
 
-bool NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, FujiTranslationMode mode)
 {
-    NetworkProtocol::open(urlParser, cmdFrame);
+    NetworkProtocol::open(urlParser, mode);
     int ret;
 
     if (!urlParser->user.empty()) {
@@ -113,7 +113,7 @@ bool NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
         Debug_printf("NetworkProtocolSSH::open() - Could not get server ssh public key hash, error: %s.\r\n", message);
         return true;
     }
-    
+
     // TODO: We really should be first checking this is a known server to stop MITM attacks etc. before continuing
     // Minimally we could check the fingerprint is in a known list, as we don't really have known_hosts file.
     ssh_key_free(srv_pubkey);
@@ -148,7 +148,7 @@ bool NetworkProtocolSSH::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
                  "Password:    %s\r\n"
                  "Public Key:  %s\r\n"
                  "Host Based:  %s\r\n"
-                 "Interactive: %s\r\n", 
+                 "Interactive: %s\r\n",
         allowsPassword ? "true":"false",
         allowsPublicKey ? "true":"false",
         allowsHostBased ? "true":"false",
@@ -249,11 +249,12 @@ bool NetworkProtocolSSH::status(NetworkStatus *status)
     return false;
 }
 
-uint8_t NetworkProtocolSSH::special_inquiry(uint8_t cmd)
+FujiDirection NetworkProtocolSSH::special_inquiry(uint8_t cmd)
 {
-    return 0xFF; // selected command not implemented.
+    return DIRECTION_INVALID; // selected command not implemented.
 }
 
+#ifdef OBSOLETE
 bool NetworkProtocolSSH::special_00(cmdFrame_t *cmdFrame)
 {
     return false;
@@ -268,6 +269,7 @@ bool NetworkProtocolSSH::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
 {
     return false;
 }
+#endif /* OBSOLETE */
 
 size_t NetworkProtocolSSH::available()
 {

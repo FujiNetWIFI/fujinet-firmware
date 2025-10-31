@@ -67,7 +67,9 @@ void rs232ApeTime::_rs232_set_tz()
       free(ape_timezone);
     }
 
+#ifdef OBSOLETE
     bufsz = rs232_get_aux16_lo();
+#endif /* OBSOLETE */
     if (bufsz > 0) {
       ape_timezone = (char *) malloc((bufsz + 1) * sizeof(char));
 
@@ -79,17 +81,16 @@ void rs232ApeTime::_rs232_set_tz()
 
         rs232_complete();
 
-        Debug_printf("TZ set to <%s>\n", ape_timezone); 
+        Debug_printf("TZ set to <%s>\n", ape_timezone);
       }
     } else {
       Debug_printf("TZ unset\n");
     }
 }
 
-void rs232ApeTime::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232ApeTime::rs232_process(FujiBusCommand& command)
 {
-    cmdFrame = *cmd_ptr;
-    switch (cmdFrame.comnd)
+    switch (command.command)
     {
     case RS232_APETIMECMD_GETTIME:
         rs232_ack();

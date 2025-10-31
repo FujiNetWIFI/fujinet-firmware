@@ -24,7 +24,7 @@
 #endif
 
 
-void rs232CPM::rs232_status()
+void rs232CPM::rs232_status(FujiStatusReq reqType)
 {
     // Nothing to do here
     return;
@@ -70,10 +70,9 @@ void rs232CPM::init_cpm(int baud)
     memset(pattern, 0, sizeof(pattern));
 }
 
-void rs232CPM::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232CPM::rs232_process(FujiBusCommand& command)
 {
-    cmdFrame = *cmd_ptr;
-    switch (cmdFrame.comnd)
+    switch (command.command)
     {
     case 'G':
         rs232_ack();

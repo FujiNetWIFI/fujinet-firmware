@@ -160,7 +160,7 @@ public:
     bool fujicmd_mount_disk_image_success(uint8_t deviceSlot, uint8_t access_mode);
     bool fujicmd_unmount_disk_image_success(uint8_t deviceSlot);
     void fujicmd_image_rotate();
-    bool fujicmd_open_directory_success(uint8_t hostSlot, char *dirpath, uint16_t bufsize);
+    bool fujicmd_open_directory_success(uint8_t hostSlot, const std::string &dirpath);
     virtual void fujicmd_close_directory();
     virtual void fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl);
     void fujicmd_get_directory_position();
@@ -204,8 +204,8 @@ public:
     uint8_t fujicore_net_get_wifi_enabled();
     int fujicore_write_app_key(std::vector<uint8_t>&& value, int *err=nullptr);
     std::optional<std::vector<uint8_t>> fujicore_read_app_key();
-    bool fujicore_open_directory_success(uint8_t hostSlot, std::string dirpath,
-                                         std::string pattern);
+    bool fujicore_open_directory_success(uint8_t hostSlot, const std::string &dirpath,
+                                         const std::optional<std::string> &pattern);
     std::optional<std::string> fujicore_read_directory_entry(size_t maxlen, uint8_t addtl);
     uint16_t fujicore_get_directory_position();
     AdapterConfigExtended fujicore_get_adapter_config_extended();

@@ -14,11 +14,11 @@ class rs232Disk : public virtualDevice
 private:
     MediaType *_disk = nullptr;
 
-    void rs232_read();
-    void rs232_write(bool verify);
+    void rs232_read(uint32_t sector);
+    void rs232_write(uint32_t sector, bool verify);
     void rs232_format();
-    void rs232_status() override;
-    void rs232_process(cmdFrame_t *cmd_ptr) override;
+    void rs232_status(FujiStatusReq reqType) override;
+    void rs232_process(FujiBusCommand& command) override;
 
     void derive_percom_block(uint16_t numSectors);
     void rs232_read_percom_block();

@@ -105,25 +105,29 @@ NetworkProtocol::~NetworkProtocol()
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-bool NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocol::open(PeoplesUrlParser *urlParser, FujiTranslationMode mode)
 {
     // Set translation mode, Bits 0-1 of aux2
-    translation_mode = cmdFrame->aux2 & 0x7F; // we now have more xlation modes.
+    translation_mode = mode;
 
+#ifdef OBSOLETE
     // Persist aux1/aux2 values for later.
     aux1_open = cmdFrame->aux1;
     aux2_open = cmdFrame->aux2;
+#endif /* OBSOLETE */
 
     opened_url = urlParser;
 
     return false;
 }
 
-void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
+void NetworkProtocol::set_open_params(FujiTranslationMode mode, uint8_t p1, uint8_t p2)
 {
+#ifdef OBSOLETE
     aux1_open = p1;
     aux2_open = p2;
-    translation_mode = p2 & 0x7F;
+#endif /* OBSOLETE */
+    translation_mode = mode;
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("Changed open params to aux1_open = %d, aux2_open = %d. Set translation_mode to %d\r\n", p1, p2, translation_mode);
 #endif
@@ -143,7 +147,7 @@ bool NetworkProtocol::close()
     receiveBuffer->shrink_to_fit();
     transmitBuffer->shrink_to_fit();
     specialBuffer->shrink_to_fit();
-    
+
     error = 1;
     return false;
 }
@@ -181,9 +185,9 @@ bool NetworkProtocol::write(unsigned short len)
  */
 bool NetworkProtocol::status(NetworkStatus *status)
 {
-    if (fromInterrupt)   
+    if (fromInterrupt)
         return false;
- 
+
     if (!is_write && receiveBuffer->length() == 0 && available() > 0)
         read(available());
 
@@ -212,7 +216,7 @@ void NetworkProtocol::translate_receive_buffer()
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BELL, ATASCII_BUZZER);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BACKSPACE, ATASCII_DEL);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_TAB, ATASCII_TAB);
-    #endif   
+    #endif
 
     switch (translation_mode)
     {

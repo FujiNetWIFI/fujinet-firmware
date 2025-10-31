@@ -174,61 +174,51 @@ void systemBus::_rs232_process_cmd()
     }
 
     // Read CMD frame
-    cmdFrame_t tempFrame;
-    memset(&tempFrame, 0, sizeof(tempFrame));
+    std::string packet;
+    int val;
+    while ((val = _port.read()) > -1)
+        packet.push_back(val);
 
-    if (SYSTEM_BUS.read((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
+    auto tempFrame = FujiBusCommand.fromSerialized(packet);
+    if (!tempFrame)
     {
-        Debug_println("Timeout waiting for data after CMD pin asserted");
+        Debug_printv("packet fail");
         return;
     }
+
     // Turn on the RS232 indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
 
-    Debug_printf("\nCF: %02x %02x %02x %02x %02x %02x %02x\n",
-                 tempFrame.device, tempFrame.comnd,
-                 tempFrame.aux1, tempFrame.aux2, tempFrame.aux3, tempFrame.aux4,
-                 tempFrame.cksum);
-#if 0 && !defined(FUJINET_OVER_USB)
-    // Wait for CMD line to raise again
-    while (dsrState())
-        vTaskDelay(1);
-#endif /* FUJINET_OVER_USB */
+    Debug_printf("\nCF: dev:%02x cmd:%02x fsz:%d fld:%d dlen:%d\n",
+                 tempFrame.device, tempFrame.command,
+                 tempFrame.fieldSize, tempFrame.fields.size(),
+                 tempFrame.data ? tempFrame.data.size() : -1);
 
-    uint8_t ck = rs232_checksum((uint8_t *)&tempFrame, sizeof(tempFrame) - sizeof(tempFrame.cksum)); // Calculate Checksum
-    if (ck == tempFrame.cksum)
+    if (tempFrame.device == RS232_DEVICEID_DISK && _fujiDev != nullptr
+        && _fujiDev->boot_config)
     {
-        if (tempFrame.device == RS232_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
-        {
-            _activeDev = &_fujiDev->bootdisk;
+        _activeDev = &_fujiDev->bootdisk;
 
-            Debug_println("FujiNet CONFIG boot");
-            // handle command
-            _activeDev->rs232_process(&tempFrame);
-        }
-        else
-        {
-            {
-                // find device, ack and pass control
-                // or go back to WAIT
-                for (auto devicep : _daisyChain)
-                {
-                    if (tempFrame.device == devicep->_devnum)
-                    {
-                        _activeDev = devicep;
-                        // handle command
-                        _activeDev->rs232_process(&tempFrame);
-                        break;
-                    }
-                }
-            }
-        }
-    } // valid checksum
+        Debug_println("FujiNet CONFIG boot");
+        // handle command
+        _activeDev->rs232_process(tempFrame);
+    }
     else
     {
-        Debug_printf("CHECKSUM_ERROR: Calc checksum: %02x\n",ck);
-        // Switch to/from hispeed RS232 if we get enough failed frame checksums
+        // find device, ack and pass control
+        // or go back to WAIT
+        for (auto devicep : _daisyChain)
+        {
+            if (tempFrame.device == devicep->_devnum)
+            {
+                _activeDev = devicep;
+                // handle command
+                _activeDev->rs232_process(tempFrame);
+                break;
+            }
+        }
     }
+
     fnLedManager.set(eLed::LED_BUS, false);
 }
 
@@ -252,19 +242,10 @@ void systemBus::service()
         return; // break!
     }
 
-#if 0 && !defined(FUJINET_OVER_USB)
-    // Go process a command frame if the RS232 CMD line is asserted
-    if (_port.dsrState())
-    {
-        _rs232_process_cmd();
-    }
-#else /* FUJINET_OVER_USB */
-    // Go process a command frame if the RS232 CMD line is asserted
     if (_port.available())
     {
         _rs232_process_cmd();
     }
-#endif /* FUJINET_OVER_USB */
     // Go check if the modem needs to read data if it's active
     else if (_modemDev != nullptr && _modemDev->modemActive && Config.get_modem_enabled())
     {

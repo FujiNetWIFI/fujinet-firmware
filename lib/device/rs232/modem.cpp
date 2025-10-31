@@ -295,7 +295,7 @@ void rs232Modem::rs232_send_firmware(uint8_t loadcommand)
 }
 
 // 0x57 / 'W' - WRITE
-void rs232Modem::rs232_write()
+void rs232Modem::rs232_write(uint8_t ch)
 {
     uint8_t ck;
 
@@ -305,7 +305,7 @@ void rs232Modem::rs232_write()
        AUX2: NA
        Payload always padded to 64 bytes
     */
-    if (cmdFrame.aux1 == 0)
+    if (ch == 0)
     {
         rs232_complete();
     }
@@ -324,7 +324,7 @@ void rs232Modem::rs232_write()
             if (cmdMode == true)
             {
                 cmdOutput = false;
-                cmd.assign((char *)txBuf, cmdFrame.aux1);
+                cmd.assign((char *)txBuf, ch);
 
                 if (cmd == "ATA\r")
                     answerHack = true;
@@ -336,7 +336,7 @@ void rs232Modem::rs232_write()
             else
             {
                 if (tcpClient.connected())
-                    tcpClient.write(txBuf, cmdFrame.aux1);
+                    tcpClient.write(txBuf, ch);
             }
 
             rs232_complete();
@@ -345,7 +345,7 @@ void rs232Modem::rs232_write()
 }
 
 // 0x53 / 'S' - STATUS
-void rs232Modem::rs232_status()
+void rs232Modem::rs232_status(FujiStatusReq reqType)
 {
 
     Debug_println("Modem cmd: STATUS");
@@ -405,6 +405,7 @@ void rs232Modem::rs232_control()
 
     Debug_println("Modem cmd: CONTROL");
 
+#ifdef OBSOLETE
     if (cmdFrame.aux1 & 0x02)
     {
         XMT = (cmdFrame.aux1 & 0x01 ? true : false);
@@ -436,6 +437,7 @@ void rs232Modem::rs232_control()
             }
         }
     }
+#endif /* OBSOLETE */
     // for now, just complete
     rs232_complete();
 }
@@ -470,9 +472,13 @@ void rs232Modem::rs232_config()
     // Complete and then set newbaud
     rs232_complete();
 
+#ifdef OBSOLETE
     uint8_t newBaud = 0x0F & cmdFrame.aux1; // Get baud rate
     //uint8_t wordSize = 0x30 & cmdFrame.aux1; // Get word size
     //uint8_t stopBit = (1 << 7) & cmdFrame.aux1; // Get stop bits
+#else
+    uint8_t newBaud = BAUD_9600;
+#endif /* OBSOLETE */
 
     // Do not reset MODEM baud rate if locked.
     if (baudLock == true)
@@ -512,9 +518,9 @@ void rs232Modem::rs232_config()
 }
 
 // 0x44 / 'D' - Dump
-void rs232Modem::rs232_set_dump()
+void rs232Modem::rs232_set_dump(bool enable)
 {
-    modemSniffer->setEnable(cmdFrame.aux1);
+    modemSniffer->setEnable(enable);
     rs232_complete();
 }
 
@@ -579,15 +585,14 @@ void rs232Modem::rs232_stream()
 /**
  * Set listen port
  */
-void rs232Modem::rs232_listen()
+void rs232Modem::rs232_listen(unsigned short newPort)
 {
+    listenPort = newPort;
     if (listenPort != 0)
     {
         tcpClient.stop();
         tcpServer.stop();
     }
-
-    listenPort = cmdFrame.aux2 * 256 + cmdFrame.aux1;
 
     if (listenPort < 1)
         rs232_nak();
@@ -614,11 +619,11 @@ void rs232Modem::rs232_unlisten()
 /**
  * Lock MODEM baud rate to last configured value
  */
-void rs232Modem::rs232_baudlock()
+void rs232Modem::rs232_baudlock(bool enable, unsigned int newBaud)
 {
     rs232_ack();
-    baudLock = (cmdFrame.aux1 > 0 ? true : false);
-    modemBaud = rs232_get_aux16_lo();
+    baudLock = enable;
+    modemBaud = newBaud;
 
     Debug_printf("baudLock: %d\n", baudLock);
 
@@ -628,10 +633,10 @@ void rs232Modem::rs232_baudlock()
 /**
  * enable/disable auto-answer
  */
-void rs232Modem::rs232_autoanswer()
+void rs232Modem::rs232_autoanswer(bool enable)
 {
     rs232_ack();
-    autoAnswer = (cmdFrame.aux1 > 0 ? true : false);
+    autoAnswer = enable;
 
     Debug_printf("autoanswer: %d\n", autoAnswer);
 
@@ -1804,7 +1809,7 @@ void rs232Modem::shutdown()
 /*
   Process command
 */
-void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232Modem::rs232_process(FujiBusCommand& command)
 {
     if (!Config.get_modem_enabled())
     {
@@ -1814,19 +1819,19 @@ void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
     {
         Debug_println("rs232Modem::rs232_process() called");
 
-        cmdFrame = *cmd_ptr;
-        switch (cmdFrame.comnd)
+        switch (command.command)
         {
         case RS232_MODEMCMD_LOAD_RELOCATOR:
             Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
-            rs232_send_firmware(cmdFrame.comnd);
+            rs232_send_firmware(command.command);
             break;
 
         case RS232_MODEMCMD_LOAD_HANDLER:
             Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
-            rs232_send_firmware(cmdFrame.comnd);
+            rs232_send_firmware(command.command);
             break;
 
+#ifdef OBSOLETE
         case RS232_MODEMCMD_TYPE1_POLL:
             Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
             // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
@@ -1840,6 +1845,7 @@ void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
         case RS232_MODEMCMD_TYPE3_POLL:
             rs232_poll_3(cmdFrame.device, cmdFrame.aux1, cmdFrame.aux2);
             break;
+#endif /* OBSOLETE */
 
         case RS232_MODEMCMD_CONTROL:
             rs232_ack();
@@ -1851,27 +1857,27 @@ void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
             break;
         case RS232_MODEMCMD_SET_DUMP:
             rs232_ack();
-            rs232_set_dump();
+            rs232_set_dump(command.fields[0]);
             break;
         case RS232_MODEMCMD_LISTEN:
-            rs232_listen();
+            rs232_listen(command.fields[0]);
             break;
         case RS232_MODEMCMD_UNLISTEN:
             rs232_unlisten();
             break;
         case RS232_MODEMCMD_BAUDRATELOCK:
-            rs232_baudlock();
+            rs232_baudlock(command.fields[0], command.fields[1]);
             break;
         case RS232_MODEMCMD_AUTOANSWER:
-            rs232_autoanswer();
+            rs232_autoanswer(command.fields[0]);
             break;
         case RS232_MODEMCMD_STATUS:
             rs232_ack();
-            rs232_status();
+            rs232_status(static_cast<FujiStatusReq>(command.fields[0]));
             break;
         case RS232_MODEMCMD_WRITE:
             rs232_ack();
-            rs232_write();
+            rs232_write(command.fields[0]);
             break;
         case RS232_MODEMCMD_STREAM:
             rs232_ack();

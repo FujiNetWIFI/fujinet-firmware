@@ -1,6 +1,6 @@
 /**
  * NetworkProtocolSMB
- * 
+ *
  * Implementation
  */
 
@@ -49,6 +49,7 @@ bool NetworkProtocolSMB::open_file_handle()
     // Determine flags
     int flags = 0;
 
+#ifdef OBSOLETE
     switch (aux1_open)
     {
     case PROTOCOL_OPEN_READ:
@@ -66,6 +67,7 @@ bool NetworkProtocolSMB::open_file_handle()
     default:
         Debug_printf("NetworkProtocolSMB::open_file_handle() - Uncaught aux1 %d", aux1_open);
     }
+#endif /* OBSOLETE */
 
     fh = smb2_open(smb, smb_url->path, flags);
 
@@ -114,7 +116,7 @@ bool NetworkProtocolSMB::mount(PeoplesUrlParser *url)
 
     Debug_printf("NetworkProtocolSMB::mount() - openURL: %s\r\n", openURL.c_str());
     smb_url = smb2_parse_url(smb, openURL.c_str());
-    if (smb_url == nullptr) 
+    if (smb_url == nullptr)
     {
         Debug_printf("aNetworkProtocolSMB::mount(%s) - failed to parse URL, SMB2 error: %s\n", openURL.c_str(), smb2_get_error(smb));
         fserror_to_error();
@@ -234,11 +236,12 @@ bool NetworkProtocolSMB::write_file_handle(uint8_t *buf, unsigned short len)
     return false;
 }
 
-uint8_t NetworkProtocolSMB::special_inquiry(uint8_t cmd)
+FujiDirection NetworkProtocolSMB::special_inquiry(uint8_t cmd)
 {
-    return 0xff;
+    return DIRECTION_INVALID;
 }
 
+#ifdef OBSOLETE
 bool NetworkProtocolSMB::special_00(cmdFrame_t *cmdFrame)
 {
     return false;
@@ -253,18 +256,19 @@ bool NetworkProtocolSMB::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
 {
     return false;
 }
+#endif /* OBSOLETE */
 
-bool NetworkProtocolSMB::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::rename(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolSMB::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::del(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolSMB::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::mkdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -279,7 +283,7 @@ bool NetworkProtocolSMB::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     return false;
 }
 
-bool NetworkProtocolSMB::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::rmdir(PeoplesUrlParser *url)
 {
     mount(url);
 
@@ -304,12 +308,12 @@ bool NetworkProtocolSMB::stat()
     return ret != 0;
 }
 
-bool NetworkProtocolSMB::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::lock(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolSMB::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSMB::unlock(PeoplesUrlParser *url)
 {
     return false;
 }

@@ -50,42 +50,43 @@ public:
      * @param cmdFrame pointer to command frame for aux1/aux2/etc values.
      * @return error flag TRUE on error, FALSE on success.
      */
-    virtual bool open(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    bool open(PeoplesUrlParser *url, FujiTranslationMode mode) override;
 
     /**
      * @brief Close the open URL
      * @return error flag TRUE on error, FALSE on success.
      */
-    virtual bool close();
+    bool close() override;
 
     /**
      * @brief Read len bytes from the open URL.
      * @param len Length in bytes.
      * @return error flag TRUE on error, FALSE on success
      */
-    virtual bool read(unsigned short len);
+    bool read(unsigned short len) override;
 
     /**
      * @brief Write len bytes to the open URL.
      * @param len Length in bytes.
      * @return error flag TRUE on error, FALSE on success
      */
-    virtual bool write(unsigned short len);
+    bool write(unsigned short len) override;
 
     /**
      * @brief Return protocol status information in provided NetworkStatus object.
      * @param status a pointer to a NetworkStatus object to receive status information
      * @return error flag. FALSE if successful, TRUE if error.
      */
-    virtual bool status(NetworkStatus *status);
+    bool status(NetworkStatus *status) override;
 
     /**
      * @brief Return a DSTATS byte for a requested COMMAND byte.
      * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
      * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
      */
-    virtual uint8_t special_inquiry(uint8_t cmd);
+    FujiDirection special_inquiry(uint8_t cmd) override;
 
+#ifdef OBSOLETE
     /**
      * @brief execute a command that returns no payload
      * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
@@ -114,6 +115,7 @@ public:
      * @param cmdFrame command frame.
      */
     virtual bool perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+#endif /* OBSOLETE */
 
 protected:
     /**
@@ -154,7 +156,7 @@ protected:
      * Directory buffer
      */
     std::string dirBuffer;
-    
+
     /**
      * Is open file a directory?
      */
@@ -318,7 +320,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool rename(PeoplesUrlParser *url);
 
     /**
      * @brief Delete file specified by incoming devicespec.
@@ -326,7 +328,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool del(PeoplesUrlParser *url);
 
     /**
      * @brief Make directory specified by incoming devicespec.
@@ -334,7 +336,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool mkdir(PeoplesUrlParser *url);
 
     /**
      * @brief Remove directory specified by incoming devicespec.
@@ -342,7 +344,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool rmdir(PeoplesUrlParser *url);
 
     /**
      * @brief lock file specified by incoming devicespec.
@@ -350,7 +352,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool lock(PeoplesUrlParser *url);
 
     /**
      * @brief unlock file specified by incoming devicespec.
@@ -358,7 +360,7 @@ protected:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame);
+    virtual bool unlock(PeoplesUrlParser *url);
 
 };
 

@@ -16,14 +16,14 @@ class rs232CPM : public virtualDevice
 {
 private:
 
-    void rs232_status() override;
-    void rs232_process(cmdFrame_t *cmd_ptr) override;
+    void rs232_status(FujiStatusReq reqType) override;
+    void rs232_process(FujiBusCommand& command) override;
 
 public:
-    bool cpmActive = false; 
+    bool cpmActive = false;
     void init_cpm(int baud);
     void rs232_handle_cpm();
-    
+
 };
 
 #endif /* RS232CPM_H */

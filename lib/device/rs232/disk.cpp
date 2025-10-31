@@ -34,11 +34,11 @@ rs232Disk::rs232Disk()
 }
 
 // Read disk data and send to computer
-void rs232Disk::rs232_read()
+void rs232Disk::rs232_read(uint32_t sector)
 {
-	Debug_printf("disk READ %lu\n", cmdFrame.aux);
+    Debug_printf("disk READ %lu\n", sector);
 
-	if (_disk == nullptr)
+    if (_disk == nullptr)
     {
         rs232_error();
         return;
@@ -46,21 +46,20 @@ void rs232Disk::rs232_read()
 
     uint32_t readcount;
 
-    bool err = _disk->read(cmdFrame.aux, &readcount);
+    bool err = _disk->read(sector, &readcount);
 
     // Send result to Atari
     bus_to_computer(_disk->_disk_sectorbuff, readcount, err);
 }
 
 // Write disk data from computer
-void rs232Disk::rs232_write(bool verify)
+void rs232Disk::rs232_write(uint32_t sector, bool verify)
 {
     //Debug_print("disk WRITE\n");
 
     if (_disk != nullptr)
     {
-        uint16_t sectorNum = cmdFrame.aux;
-        uint16_t sectorSize = _disk->sector_size(sectorNum);
+        uint16_t sectorSize = _disk->sector_size(sector);
 
         memset(_disk->_disk_sectorbuff, 0, DISK_SECTORBUF_SIZE);
 
@@ -68,7 +67,7 @@ void rs232Disk::rs232_write(bool verify)
 
         if (ck == rs232_checksum(_disk->_disk_sectorbuff, sectorSize))
         {
-            if (_disk->write(sectorNum, verify) == false)
+            if (_disk->write(sector, verify) == false)
             {
                 rs232_complete();
                 return;
@@ -80,7 +79,7 @@ void rs232Disk::rs232_write(bool verify)
 }
 
 // Status
-void rs232Disk::rs232_status()
+void rs232Disk::rs232_status(FujiStatusReq reqType)
 {
     Debug_print("disk STATUS\n");
 
@@ -111,7 +110,7 @@ void rs232Disk::rs232_status()
               810 drive: $E0 = 224 vertical blanks (4 mins NTSC)
             XF551 drive: $FE = 254 veritcal blanks (4.5 mins NTSC)
 
-        #3 - Unused ($00)    
+        #3 - Unused ($00)
     */
     // TODO: Why $DF for second byte?
     // TODO: Set bit 4 of drive status and bit 6 of FDC status on read-only disk
@@ -216,7 +215,7 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     case MEDIATYPE_UNKNOWN:
     default:
         device_active = true;
-	mount_time = time(NULL);
+        mount_time = time(NULL);
         _disk = new MediaTypeImg();
         return _disk->mount(f, disksize);
     }
@@ -241,7 +240,7 @@ void rs232Disk::unmount()
     {
         _disk->unmount();
         device_active = false;
-	mount_time = 0;
+        mount_time = 0;
     }
 }
 
@@ -254,7 +253,7 @@ bool rs232Disk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 }
 
 // Process command
-void rs232Disk::rs232_process(cmdFrame_t *cmd_ptr)
+void rs232Disk::rs232_process(FujiBusCommand& command)
 {
     // if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
     //     return;
@@ -265,21 +264,20 @@ void rs232Disk::rs232_process(cmdFrame_t *cmd_ptr)
 
     Debug_print("disk rs232_process()\n");
 
-    cmdFrame = *cmd_ptr;
-    switch (cmdFrame.comnd)
+    switch (command.command)
     {
     case RS232_DISKCMD_READ:
         rs232_ack();
-        rs232_read();
+        rs232_read(command.fields[0]);
         return;
     case RS232_DISKCMD_PUT:
         rs232_ack();
-        rs232_write(false);
+        rs232_write(command.fields[0], false);
         return;
     case RS232_DISKCMD_STATUS:
     case RS232_DISKCMD_WRITE:
         rs232_ack();
-        rs232_write(true);
+        rs232_write(command.fields[0], true);
         return;
     case RS232_DISKCMD_FORMAT:
     case RS232_DISKCMD_FORMAT_MEDIUM:

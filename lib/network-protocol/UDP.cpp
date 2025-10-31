@@ -30,7 +30,7 @@ NetworkProtocolUDP::~NetworkProtocolUDP()
     Debug_printf("NetworkProtocolUDP::dtor\r\n");
 }
 
-bool NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, FujiTranslationMode mode)
 {
     Debug_printf("NetworkProtocolUDP::open(%s:%s)\r\n", urlParser->host.c_str(), urlParser->port.c_str());
 
@@ -78,7 +78,7 @@ bool NetworkProtocolUDP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
     }
 
     // call base class
-    NetworkProtocol::open(urlParser, cmdFrame);
+    NetworkProtocol::open(urlParser, mode);
 
     return false; // all good.
 }
@@ -118,7 +118,7 @@ bool NetworkProtocolUDP::read(unsigned short len)
     // Return success
     Debug_printf("errno = %u\r\n", errno);
     error = 1;
-    
+
     return NetworkProtocol::read(len);
 }
 
@@ -185,23 +185,24 @@ bool NetworkProtocolUDP::status(NetworkStatus *status)
     return false;
 }
 
-uint8_t NetworkProtocolUDP::special_inquiry(uint8_t cmd)
+FujiDirection NetworkProtocolUDP::special_inquiry(uint8_t cmd)
 {
     Debug_printf("NetworkProtocolUDP::special_inquiry(%02x)\r\n", cmd);
 
     switch (cmd)
     {
     case 'D':           // set destination
-        return 0x80;
+        return DIRECTION_WRITE;
 #ifndef ESP_PLATFORM
     case 'r':           // get remote
-        return 0x40;
+        return DIRECTION_READ;
 #endif
     }
 
-    return 0xFF;
+    return DIRECTION_INVALID;
 }
 
+#ifdef OBSOLETE
 bool NetworkProtocolUDP::special_00(cmdFrame_t *cmdFrame)
 {
     return true; // none implemented.
@@ -233,6 +234,7 @@ bool NetworkProtocolUDP::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
     }
     return true;
 }
+#endif /* OBSOLETE */
 
 bool NetworkProtocolUDP::set_destination(uint8_t *sp_buf, unsigned short len)
 {

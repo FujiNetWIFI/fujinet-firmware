@@ -31,10 +31,10 @@ NetworkProtocolFS::~NetworkProtocolFS()
 {
 }
 
-bool NetworkProtocolFS::open(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::open(PeoplesUrlParser *url, FujiTranslationMode mode)
 {
     // Call base class.
-    NetworkProtocol::open(url, cmdFrame);
+    NetworkProtocol::open(url, mode);
     fileSize = 0;
 
     update_dir_filename(opened_url);
@@ -42,11 +42,13 @@ bool NetworkProtocolFS::open(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     if (mount(url) == true)
         return true;
 
+#ifdef OBSOLETE
     if (cmdFrame->aux1 == 6 || cmdFrame->aux1 == 7)
     {
         return open_dir();
     }
     else
+#endif /* OBSOLETE */
     {
         return open_file();
     }
@@ -56,9 +58,11 @@ bool NetworkProtocolFS::open_file()
 {
     update_dir_filename(opened_url);
 
+#ifdef OBSOLETE
     if (aux1_open == 4 || aux1_open == 8)
         resolve();
     else
+#endif /* OBSOLETE */
         stat();
 
     update_dir_filename(opened_url);
@@ -107,6 +111,7 @@ bool NetworkProtocolFS::open_dir()
         if (entryBuffer.at(0) == '.' || entryBuffer.at(0) == '/')
             continue;
 
+#ifdef OBSOLETE
         if (aux2_open & 0x80)
         {
             // Long entry
@@ -116,6 +121,7 @@ bool NetworkProtocolFS::open_dir()
                 dirBuffer += util_long_entry((char *)entryBuffer.data(), fileSize, is_directory) + lineEnding;
         }
         else
+#endif /* OBSOLETE */
         {
             // 8.3 entry
             dirBuffer += util_entry(util_crunch((char *)entryBuffer.data()), fileSize, is_directory, is_locked) + lineEnding;
@@ -294,10 +300,13 @@ bool NetworkProtocolFS::status_file(NetworkStatus *status)
 {
     unsigned int remaining;
 
+#ifdef OBSOLETE
     if (aux1_open == 8) {
         remaining = fileSize;
     }
-    else {
+    else
+#endif /* OBSOLETE */
+    {
         remaining = fileSize + receiveBuffer->length();
     }
 
@@ -325,19 +334,20 @@ bool NetworkProtocolFS::status_dir(NetworkStatus *status)
     return false;
 }
 
-uint8_t NetworkProtocolFS::special_inquiry(uint8_t cmd)
+FujiDirection NetworkProtocolFS::special_inquiry(uint8_t cmd)
 {
-    uint8_t ret;
+    FujiDirection ret;
 
     switch (cmd)
     {
     default:
-        ret = 0xFF; // Not implemented.
+        ret = DIRECTION_INVALID; // Not implemented.
     }
 
     return ret;
 }
 
+#ifdef OBSOLETE
 bool NetworkProtocolFS::special_00(cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
@@ -367,6 +377,7 @@ bool NetworkProtocolFS::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
         return true;
     }
 }
+#endif /* OBSOLETE */
 
 void NetworkProtocolFS::resolve()
 {
@@ -413,12 +424,15 @@ void NetworkProtocolFS::resolve()
     Debug_printf("Resolved to %s\r\n", opened_url->url.c_str());
 #endif
 
+#ifdef OBSOLETE
     // Clear file size, if resolved to write and not append.
     if (aux1_open == 8)
         fileSize = 0;
+#endif /* OBSOLETE */
 
 }
 
+#ifdef OBSOLETE
 bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
 #ifdef VERBOSE_PROTOCOL
@@ -445,8 +459,9 @@ bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t 
         return true;
     }
 }
+#endif /* OBSOLETE */
 
-bool NetworkProtocolFS::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::rename(PeoplesUrlParser *url)
 {
     update_dir_filename(url);
 
@@ -471,27 +486,27 @@ bool NetworkProtocolFS::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     return false;
 }
 
-bool NetworkProtocolFS::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::del(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolFS::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::mkdir(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolFS::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::rmdir(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolFS::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::lock(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolFS::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFS::unlock(PeoplesUrlParser *url)
 {
     return false;
 }

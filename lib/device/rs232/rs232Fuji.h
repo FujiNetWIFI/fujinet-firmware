@@ -4,8 +4,6 @@
 
 #include "fujiDevice.h"
 
-#define STATUS_MOUNT_TIME       0x01
-
 class rs232Fuji : public fujiDevice
 {
 private:
@@ -25,7 +23,7 @@ protected:
 
     size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen);
 
-    void rs232_net_set_ssid();             // 0xFB
+    void rs232_net_set_ssid(bool save);    // 0xFB
     void rs232_open_directory();           // 0xF7
     void rs232_new_disk();                 // 0xE7
     void rs232_set_hrs232_index();         // 0xE3
@@ -36,8 +34,8 @@ protected:
 
 public:
     void setup() override;
-    void rs232_status();
-    void rs232_process(cmdFrame_t *cmd_ptr);
+    void rs232_status(FujiStatusReq reqType) override;
+    void rs232_process(FujiBusCommand& command) override;
 
     // ============ Wrapped Fuji commands ============
 };

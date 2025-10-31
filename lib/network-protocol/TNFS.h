@@ -27,8 +27,9 @@ public:
      * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
      * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
      */
-    virtual uint8_t special_inquiry(uint8_t cmd) override;
+    FujiDirection special_inquiry(uint8_t cmd) override;
 
+#ifdef OBSOLETE
     /**
      * @brief execute a command that returns no payload
      * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
@@ -50,6 +51,7 @@ public:
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) override;
+#endif /* OBSOLETE */
 
     /**
      * @brief Rename file specified by incoming devicespec.
@@ -57,7 +59,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    bool rename(PeoplesUrlParser *url) override;
 
     /**
      * @brief Delete file specified by incoming devicespec.
@@ -65,7 +67,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    bool del(PeoplesUrlParser *url) override;
 
     /**
      * @brief Make directory specified by incoming devicespec.
@@ -73,7 +75,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    bool mkdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief Remove directory specified by incoming devicespec.
@@ -81,7 +83,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    bool rmdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief lock file specified by incoming devicespec.
@@ -89,7 +91,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    bool lock(PeoplesUrlParser *url) override;
 
     /**
      * @brief unlock file specified by incoming devicespec.
@@ -97,9 +99,9 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) override;
+    bool unlock(PeoplesUrlParser *url) override;
 
-    virtual off_t seek(off_t offset, int whence) override;
+    off_t seek(off_t offset, int whence) override;
 
 protected:
 

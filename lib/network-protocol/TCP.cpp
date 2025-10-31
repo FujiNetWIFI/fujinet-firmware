@@ -1,6 +1,6 @@
 /**
  * NetworkProtocolTCP
- * 
+ *
  * TCP Protocol Adapter Implementation
  */
 
@@ -51,7 +51,7 @@ NetworkProtocolTCP::~NetworkProtocolTCP()
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-bool NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, FujiTranslationMode mode)
 {
     bool ret = true; // assume error until proven ok
 
@@ -78,7 +78,7 @@ bool NetworkProtocolTCP::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
     }
 
     // call base class
-    NetworkProtocol::open(urlParser, cmdFrame);
+    NetworkProtocol::open(urlParser, mode);
 
     return ret;
 }
@@ -146,7 +146,7 @@ bool NetworkProtocolTCP::read(unsigned short len)
 
         // Add new data to buffer.
         receiveBuffer->insert(receiveBuffer->end(), newData.begin(), newData.end());
-    }    
+    }
     error = 1;
     return NetworkProtocol::read(len);
 }
@@ -247,21 +247,22 @@ size_t NetworkProtocolTCP::available()
  * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
  * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
  */
-uint8_t NetworkProtocolTCP::special_inquiry(uint8_t cmd)
+FujiDirection NetworkProtocolTCP::special_inquiry(uint8_t cmd)
 {
     Debug_printf("NetworkProtocolTCP::special_inquiry(%02x)\r\n", cmd);
 
     switch (cmd)
     {
     case 'A':
-        return 0x00;
+        return DIRECTION_NONE;
     case 'c':
-        return 0x00;
+        return DIRECTION_NONE;
     }
 
-    return 0xFF;
+    return DIRECTION_INVALID;
 }
 
+#ifdef OBSOLETE
 /**
  * @brief execute a command that returns no payload
  * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
@@ -304,6 +305,7 @@ bool NetworkProtocolTCP::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
 {
     return false;
 }
+#endif /* OBSOLETE */
 
 /**
  * Open a server (listening) connection.

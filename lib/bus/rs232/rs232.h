@@ -2,6 +2,7 @@
 #define RS232_H
 
 #include "UARTChannel.h"
+#include "FujiBusCommand.h"
 
 #ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>
@@ -16,10 +17,25 @@
 #define DELAY_T4 800
 #define DELAY_T5 800
 
-#define DIRECTION_NONE    0x00
-#define DIRECTION_READ    0x40
-#define DIRECTION_WRITE   0x80
+// FIXME - is this a bitmask?
+enum FujiDirection {
+    DIRECTION_NONE    = 0x00,
+    DIRECTION_READ    = 0x40,
+    DIRECTION_WRITE   = 0x80,
+    DIRECTION_INVALID = 0xFF,
+};
 
+enum FujiStatusReq {
+    STATUS_NETWORK_CONNERR = 0,
+    STATUS_NETWORK_IP      = 1,
+    STATUS_NETWORK_NETMASK = 2,
+    STATUS_NETWORK_GATEWAY = 3,
+    STATUS_NETWORK_DNS     = 4,
+
+    STATUS_MOUNT_TIME      = 1,
+};
+
+#ifdef OBSOLETE
 typedef struct
 {
     uint8_t device;
@@ -39,6 +55,7 @@ typedef struct
     };
     uint8_t cksum;
 } __attribute__((packed)) cmdFrame_t;
+#endif /* OBSOLETE */
 
 // helper functions
 uint8_t rs232_checksum(uint8_t *buf, unsigned short len);
@@ -60,7 +77,9 @@ protected:
 
     int _devnum;
 
+#ifdef OBSOLETE
     cmdFrame_t cmdFrame;
+#endif /* OBSOLETE */
     bool listen_to_type3_polls = false;
 
     /**
@@ -109,6 +128,7 @@ protected:
      */
     void rs232_error();
 
+#ifdef OBSOLETE
     /**
      * @brief Return the aux bytes in cmdFrame as a single 16-bit or
      * 32-bit value, commonly used, for example to retrieve a sector
@@ -119,18 +139,19 @@ protected:
     uint16_t rs232_get_aux16_lo();
     uint16_t rs232_get_aux16_hi();
     uint32_t rs232_get_aux32();
+#endif /* OBSOLETE */
 
     /**
      * @brief All RS232 commands by convention should return a status command, using bus_to_computer() to return
      * four bytes of status information to be put into DVSTAT ($02EA)
      */
-    virtual void rs232_status() = 0;
+    virtual void rs232_status(FujiStatusReq reqType) = 0;
 
     /**
      * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
-    virtual void rs232_process(cmdFrame_t *cmd_ptr) = 0;
+    virtual void rs232_process(FujiBusCommand& command) = 0;
 
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};

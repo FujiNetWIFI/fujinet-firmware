@@ -56,18 +56,21 @@ NetworkProtocolHTTP::~NetworkProtocolHTTP()
         delete(client);
 }
 
-uint8_t NetworkProtocolHTTP::special_inquiry(uint8_t cmd)
+FujiDirection NetworkProtocolHTTP::special_inquiry(uint8_t cmd)
 {
 
     switch (cmd)
     {
+#ifdef OBSOLETE
     case 'M':
         return (aux1_open > 8 ? 0x00 : 0xFF);
+#endif /* OBSOLETE */
     default:
-        return 0xFF;
+        return DIRECTION_INVALID;
     }
 }
 
+#ifdef OBSOLETE
 bool NetworkProtocolHTTP::special_00(cmdFrame_t *cmdFrame)
 {
     switch (cmdFrame->comnd)
@@ -116,14 +119,18 @@ bool NetworkProtocolHTTP::special_set_channel_mode(cmdFrame_t *cmdFrame)
 
     return err;
 }
+#endif /* OBSOLETE */
 
 bool NetworkProtocolHTTP::open_file_handle()
 {
+#ifdef OBSOLETE
 #ifdef VERBOSE_PROTOCOL
     Debug_printv("NetworkProtocolHTTP::open_file_handle() aux1[%d]\r\n", aux1_open);
 #endif
+#endif /* OBSOLETE */
     error = NETWORK_ERROR_SUCCESS;
 
+#ifdef OBSOLETE
     switch (aux1_open)
     {
     case PROTOCOL_OPEN_READ:        // GET with no headers, filename resolve
@@ -145,6 +152,7 @@ bool NetworkProtocolHTTP::open_file_handle()
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
         return true;
     }
+#endif /* OBSOLETE */
 
     // This is set IF we came back through here via resolve().
     if (resultCode > 399)
@@ -172,7 +180,7 @@ bool NetworkProtocolHTTP::open_dir_handle()
     }
 
     // client->begin already called in mount()
-    resultCode = client->PROPFIND(HTTP_CLIENT_CLASS::webdav_depth::DEPTH_1, 
+    resultCode = client->PROPFIND(HTTP_CLIENT_CLASS::webdav_depth::DEPTH_1,
     "<?xml version=\"1.0\"?>\r\n"
     "<D:propfind xmlns:D=\"DAV:\">\r\n"
     "<D:prop>\r\n<D:displayname />\r\n<D:getcontentlength /><D:resourcetype /></D:prop>\r\n"
@@ -316,6 +324,7 @@ bool NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
 
     // fileSize = 65535;
 
+#ifdef OBSOLETE
     if (aux1_open == 6)
     {
         util_replaceAll(url->path, "*.*", "");
@@ -329,6 +338,7 @@ bool NetworkProtocolHTTP::mount(PeoplesUrlParser *url)
         url->path = encoded;
         url->rebuildUrl();
     }
+#endif /* OBSOLETE */
 
     return !client->begin(url->url);
 }
@@ -442,6 +452,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
     {
     case DATA:
     {
+#ifdef OBSOLETE
         if (!fromInterrupt && resultCode == 0 && aux1_open != OPEN_MODE_HTTP_PUT_H)
         {
 #ifdef VERBOSE_PROTOCOL
@@ -449,6 +460,7 @@ bool NetworkProtocolHTTP::status_file(NetworkStatus *status)
 #endif
             http_transaction();
         }
+#endif /* OBSOLETE */
         auto available = client->available();
         status->connected = client->is_transaction_done() ? 0 : 1;
 
@@ -557,8 +569,10 @@ bool NetworkProtocolHTTP::close_file_handle()
 
     if (client != nullptr)
     {
+#ifdef OBSOLETE
         if (httpOpenMode == PUT || aux1_open == OPEN_MODE_HTTP_PUT_H)
             http_transaction();
+#endif /* OBSOLETE */
         client->close();
         fserror_to_error();
     }
@@ -674,11 +688,13 @@ bool NetworkProtocolHTTP::write_file_handle_send_post_data(uint8_t *buf, unsigne
 
 bool NetworkProtocolHTTP::write_file_handle_data(uint8_t *buf, unsigned short len)
 {
+#ifdef OBSOLETE
     if (httpOpenMode == PUT || aux1_open == OPEN_MODE_HTTP_PUT_H)
     {
         postData += std::string((char *)buf, len);
         return false; // come back here later.
     }
+#endif /* OBSOLETE */
 
     error = NETWORK_ERROR_INVALID_COMMAND;
     return true;
@@ -693,8 +709,10 @@ bool NetworkProtocolHTTP::stat()
     Debug_printf("NetworkProtocolHTTP::stat(%s)\r\n", opened_url->url.c_str());
 #endif
 
+#ifdef OBSOLETE
     if (aux1_open != 4) // only for READ FILE
         return false;   // We don't care.
+#endif /* OBSOLETE */
 
     // Since we know client is active, we need to destroy it.
     delete client;
@@ -726,10 +744,12 @@ bool NetworkProtocolHTTP::stat()
 
 void NetworkProtocolHTTP::http_transaction()
 {
+#ifdef OBSOLETE
     if ((aux1_open != 4) && (aux1_open != 8) && !collect_headers.empty())
     {
         client->create_empty_stored_headers(collect_headers);
     }
+#endif /* OBSOLETE */
 
     switch (httpOpenMode)
     {
@@ -737,9 +757,11 @@ void NetworkProtocolHTTP::http_transaction()
         resultCode = client->GET();
         break;
     case POST:
+#ifdef OBSOLETE
         if (aux1_open == OPEN_MODE_HTTP_PUT_H)
             resultCode = client->PUT(postData.c_str(), postData.size());
         else
+#endif /* OBSOLETE */
             resultCode = client->POST(postData.c_str(), postData.size());
         break;
     case PUT:
@@ -751,6 +773,7 @@ void NetworkProtocolHTTP::http_transaction()
     }
 
     // the appropriate headers to be collected should have now been done, so let's put their values into returned_headers
+#ifdef OBSOLETE
     if ((aux1_open != 4) && (aux1_open != 8) && (!collect_headers.empty()))
     {
 #ifdef VERBOSE_PROTOCOL
@@ -762,6 +785,7 @@ void NetworkProtocolHTTP::http_transaction()
             returned_headers.push_back(header);
         }
     }
+#endif /* OBSOLETE */
 
     fserror_to_error();
     fileSize = bodySize = client->available();
@@ -770,9 +794,9 @@ void NetworkProtocolHTTP::http_transaction()
 #endif
 }
 
-bool NetworkProtocolHTTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolHTTP::rename(PeoplesUrlParser *url)
 {
-    if (NetworkProtocolFS::rename(url, cmdFrame) == true)
+    if (NetworkProtocolFS::rename(url) == true)
         return true;
 
     url->path = url->path.substr(0, url->path.find(","));
@@ -787,7 +811,7 @@ bool NetworkProtocolHTTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     return resultCode > 399;
 }
 
-bool NetworkProtocolHTTP::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolHTTP::del(PeoplesUrlParser *url)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::del(%s,%s)", url->host.c_str(), url->path.c_str());
@@ -802,7 +826,7 @@ bool NetworkProtocolHTTP::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     return resultCode > 399;
 }
 
-bool NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocolHTTP::mkdir(%s,%s)", url->host.c_str(), url->path.c_str());
@@ -817,7 +841,7 @@ bool NetworkProtocolHTTP::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     return resultCode > 399;
 }
 
-bool NetworkProtocolHTTP::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolHTTP::rmdir(PeoplesUrlParser *url)
 {
-    return del(url, cmdFrame);
+    return del(url);
 }

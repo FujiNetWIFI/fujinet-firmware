@@ -1,6 +1,6 @@
 /**
  * NetworkProtocolFTP
- * 
+ *
  * Implementation
  */
 
@@ -37,6 +37,7 @@ bool NetworkProtocolFTP::open_file_handle()
 {
     bool res;
 
+#ifdef UNUSED
     switch (aux1_open)
     {
     case PROTOCOL_OPEN_READ:
@@ -51,6 +52,7 @@ bool NetworkProtocolFTP::open_file_handle()
         return true;
         break;
     }
+#endif /* UNUSED */
 
     res = ftp->open_file(opened_url->path, stor);
     fserror_to_error();
@@ -206,7 +208,7 @@ bool NetworkProtocolFTP::close_dir_handle()
 bool NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
 {
     bool res;
-    
+
     res = ftp->write_file(buf, len);
     return res;
 }
@@ -221,9 +223,9 @@ bool NetworkProtocolFTP::status_file(NetworkStatus *status)
     return false;
 }
 
-uint8_t NetworkProtocolFTP::special_inquiry(uint8_t cmd)
+FujiDirection NetworkProtocolFTP::special_inquiry(uint8_t cmd)
 {
-    uint8_t ret;
+    FujiDirection ret;
 
     switch (cmd)
     {
@@ -231,7 +233,7 @@ uint8_t NetworkProtocolFTP::special_inquiry(uint8_t cmd)
     case 0x21:      // DELETE
     case 0x2A:      // MKDIR
     case 0x2B:      // RMDIR
-        ret = 0x80; // Atari to peripheral.
+        ret = DIRECTION_WRITE; // Atari to peripheral.
         break;
     default:
         return NetworkProtocolFS::special_inquiry(cmd);
@@ -240,6 +242,7 @@ uint8_t NetworkProtocolFTP::special_inquiry(uint8_t cmd)
     return ret;
 }
 
+#ifdef OBSOLETE
 bool NetworkProtocolFTP::special_00(cmdFrame_t *cmdFrame)
 {
     return false;
@@ -254,33 +257,34 @@ bool NetworkProtocolFTP::special_80(uint8_t *sp_buf, unsigned short len, cmdFram
 {
     return false;
 }
+#endif /* OBSOLETE */
 
-bool NetworkProtocolFTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFTP::rename(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolFTP::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFTP::del(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolFTP::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFTP::mkdir(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolFTP::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFTP::rmdir(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolFTP::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFTP::lock(PeoplesUrlParser *url)
 {
     return false;
 }
 
-bool NetworkProtocolFTP::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolFTP::unlock(PeoplesUrlParser *url)
 {
     return false;
 }

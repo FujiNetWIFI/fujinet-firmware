@@ -131,29 +131,29 @@ bool FujiBusCommand::parse(std::string_view input)
     if (ck1 != ck2)
         return false;
 
-    _device = hdr->device;
-    _command = hdr->command;
+    device = hdr->device;
+    command = hdr->command;
 
     offset = sizeof(*hdr);
     fieldCount = numFieldsTable[hdr->fields & FUJI_FIELD_COUNT_MASK];
     if (fieldCount)
     {
-        _fieldSize = fieldSizeTable[fieldCount];
+        fieldSize = fieldSizeTable[fieldCount];
         for (idx = 0; idx < fieldCount; idx++)
         {
-            for (val = jdx = 0; jdx < _fieldSize; jdx++)
+            for (val = jdx = 0; jdx < fieldSize; jdx++)
             {
-                bt = decoded[offset + idx * _fieldSize + jdx];
+                bt = decoded[offset + idx * fieldSize + jdx];
                 val |= bt << (8 * jdx);
             }
-            _fields.push_back(val);
+            fields.push_back(val);
         }
 
-        offset += idx * _fieldSize;
+        offset += idx * fieldSize;
     }
 
     if (offset < decoded.size())
-        _data = decoded.substr(offset);
+        data = decoded.substr(offset);
 
     return true;
 }
@@ -167,30 +167,30 @@ std::string FujiBusCommand::serialize()
 
     output.resize(sizeof(*hdr));
     hdr = (fujibus_header *) output.data();
-    hdr->device = _device;
-    hdr->command = _command;
+    hdr->device = device;
+    hdr->command = command;
     hdr->checksum = 0;
 
-    if (_fields.size())
+    if (fields.size())
     {
-        hdr->fields = _fields.size() - 1;
-        if (_fieldSize > 1)
+        hdr->fields = fields.size() - 1;
+        if (fieldSize > 1)
         {
             hdr->fields |= FUJI_FIELD_16_OR_32_MASK;
-            if (_fieldSize == 4)
+            if (fieldSize == 4)
                 hdr->fields |= FUJI_FIELD_32_MASK;
             hdr->fields++;
         }
 
-        for (idx = 0; idx < _fields.size(); idx++)
+        for (idx = 0; idx < fields.size(); idx++)
         {
-            for (jdx = 0, val = _fields[idx]; jdx < _fieldSize; jdx++, val >>= 8)
+            for (jdx = 0, val = fields[idx]; jdx < fieldSize; jdx++, val >>= 8)
                 output.push_back(val & 0xFF);
         }
     }
 
-    if (_data)
-        output += *_data;
+    if (data)
+        output += *data;
 
     hdr->checksum = calcChecksum(output);
     return encodeSLIP(output);

@@ -7,6 +7,13 @@
 #include "networkStatus.h"
 #include "peoples_url_parser.h"
 
+enum FujiTranslationMode {
+    TRANS_NONE = 0,
+    TRANS_CR   = 1,
+    TRANS_LF   = 2,
+    TRANS_CRLF = 3, // FIXME - is this a bitmask?
+};
+
 enum {
     PROTOCOL_OPEN_READ          = 4,
     PROTOCOL_OPEN_HTTP_DELETE   = 5,
@@ -109,7 +116,7 @@ public:
     /**
      * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF
      */
-    unsigned char translation_mode = 0;
+    FujiTranslationMode translation_mode = TRANS_NONE;
 
     /**
      * Is this being called from inside an interrupt?
@@ -153,8 +160,7 @@ public:
      * @param urlParser The URL object passed in to open.
      * @param cmdFrame The command frame to extract aux1/aux2/etc.
      */
-    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
-    virtual bool open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame);
+    virtual bool open(PeoplesUrlParser *urlParser, FujiTranslationMode mode);
 
     /**
      * @brief Close connection to the protocol.
@@ -187,14 +193,14 @@ public:
      * @param cmd The Command (0x00-0xFF) for which DSTATS is requested.
      * @return a 0x00 = No payload, 0x40 = Payload to Atari, 0x80 = Payload to FujiNet, 0xFF = Command not supported.
      */
-    virtual uint8_t special_inquiry(uint8_t cmd) { return 0xFF; };
+    virtual FujiDirection special_inquiry(uint8_t cmd) { return DIRECTION_INVALID; };
 
+#ifdef OBSOLETE
     /**
      * @brief execute a command that returns no payload
      * @param cmdFrame a pointer to the passed in command frame for aux1/aux2/etc
      * @return error flag. TRUE on error, FALSE on success.
      */
-    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
     virtual bool special_00(cmdFrame_t *cmdFrame) { return false; };
 
     /**
@@ -203,7 +209,6 @@ public:
      * @param len Length of data to request from protocol. Should not be larger than buffer.
      * @return error flag. TRUE on error, FALSE on success.
      */
-    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
     virtual bool special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; };
 
     /**
@@ -211,7 +216,6 @@ public:
      * @param sp_buf, a pointer to the special buffer, usually a EOL terminated devicespec.
      * @param len length of the special buffer, typically SPECIAL_BUFFER_SIZE
      */
-    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
     virtual bool special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame) { return false; };
 
     /**
@@ -219,8 +223,8 @@ public:
      * @param url The URL object.
      * @param cmdFrame command frame.
      */
-    //#warning "Protocol shouldn't be tied to cmdFrame_t or how bus transactions work"
     virtual bool perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t *cmdFrame) { return false; };
+#endif /* OBSOLETE */
 
     /**
      * @brief return an _atari_ error (>199) based on errno. into error for status reporting.
@@ -230,7 +234,7 @@ public:
     /**
      * @brief change the values passed to open for platforms that need to do it after the open (looking at you IEC)
      */
-    virtual void set_open_params(uint8_t p1, uint8_t p2);
+    virtual void set_open_params(FujiTranslationMode mode, uint8_t p1, uint8_t p2);
 
     virtual off_t seek(off_t offset, int whence);
 
@@ -248,6 +252,7 @@ public:
 
 protected:
 
+#ifdef OBSOLETE
     /**
      * AUX1 value from open
      */
@@ -257,6 +262,7 @@ protected:
      * AUX2 value from open
      */
     unsigned char aux2_open = 0;
+#endif /* OBSOLETE */
 
     /**
      * Perform end of line translation on receive buffer.

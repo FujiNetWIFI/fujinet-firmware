@@ -1,6 +1,6 @@
 /**
  * NetworkProtocolSD
- * 
+ *
  * Implementation
  */
 
@@ -38,6 +38,7 @@ bool NetworkProtocolSD::open_file_handle()
     // return error if SD is not mounted
     if (check_fs()) return true;
 
+#ifdef OBSOLETE
     // Map aux1 to mode
     switch (aux1_open)
     {
@@ -54,6 +55,7 @@ bool NetworkProtocolSD::open_file_handle()
         mode = FILE_READ_WRITE;
         break;
     }
+#endif /* OBSOLETE */
 
     // Do the open.
     if (fh != nullptr)
@@ -94,7 +96,7 @@ bool NetworkProtocolSD::mount(PeoplesUrlParser *url)
 
 bool NetworkProtocolSD::check_fs()
 {
-    if (!fnSDFAT.running()) 
+    if (!fnSDFAT.running())
     {
         error = NETWORK_ERROR_CONNECTION_REFUSED;
         return true; // error
@@ -160,10 +162,10 @@ bool NetworkProtocolSD::read_file_handle(uint8_t *buf, unsigned short len)
 
 bool NetworkProtocolSD::read_dir_entry(char *buf, unsigned short len)
 {
-	fsdir_entry_t *entry;
+        fsdir_entry_t *entry;
     error = NETWORK_ERROR_SUCCESS;
 
-	entry = fnSDFAT.dir_read();
+        entry = fnSDFAT.dir_read();
     if (entry != nullptr)
     {
         strlcpy(buf, entry->filename, len);
@@ -211,9 +213,9 @@ bool NetworkProtocolSD::write_file_handle(uint8_t *buf, unsigned short len)
 }
 
 
-uint8_t NetworkProtocolSD::special_inquiry(uint8_t cmd)
+FujiDirection NetworkProtocolSD::special_inquiry(uint8_t cmd)
 {
-    uint8_t ret;
+    FujiDirection ret;
 
     switch (cmd)
     {
@@ -221,7 +223,7 @@ uint8_t NetworkProtocolSD::special_inquiry(uint8_t cmd)
     case 0x21:      // DELETE
     case 0x2A:      // MKDIR
     case 0x2B:      // RMDIR
-        ret = 0x80; // Atari to peripheral.
+        ret = DIRECTION_WRITE; // Atari to peripheral.
         break;
     default:
         return NetworkProtocolFS::special_inquiry(cmd);
@@ -232,6 +234,7 @@ uint8_t NetworkProtocolSD::special_inquiry(uint8_t cmd)
     return ret;
 }
 
+#ifdef OBSOLETE
 bool NetworkProtocolSD::special_00(cmdFrame_t *cmdFrame)
 {
     return false;
@@ -246,15 +249,16 @@ bool NetworkProtocolSD::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame
 {
     return false;
 }
+#endif /* OBSOLETE */
 
-bool NetworkProtocolSD::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::rename(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
     // return error if SD is not mounted
     if (check_fs()) return true;
 
-    if (NetworkProtocolFS::rename(url, cmdFrame) == true)
+    if (NetworkProtocolFS::rename(url) == true)
         return true;
 
     bool success = fnSDFAT.rename(filename.c_str(), destFilename.c_str());
@@ -267,7 +271,7 @@ bool NetworkProtocolSD::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     return NETWORK_ERROR_SUCCESS != error;
 }
 
-bool NetworkProtocolSD::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::del(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -284,7 +288,7 @@ bool NetworkProtocolSD::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     return NETWORK_ERROR_SUCCESS != error;
 }
 
-bool NetworkProtocolSD::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::mkdir(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -301,7 +305,7 @@ bool NetworkProtocolSD::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     return NETWORK_ERROR_SUCCESS != error;
 }
 
-bool NetworkProtocolSD::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::rmdir(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -338,7 +342,7 @@ bool NetworkProtocolSD::stat()
     return fileSize < 0;
 }
 
-bool NetworkProtocolSD::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::lock(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 
@@ -351,7 +355,7 @@ bool NetworkProtocolSD::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
     return true;
 }
 
-bool NetworkProtocolSD::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+bool NetworkProtocolSD::unlock(PeoplesUrlParser *url)
 {
     interruptEnable = false; // no need for network interrupts
 

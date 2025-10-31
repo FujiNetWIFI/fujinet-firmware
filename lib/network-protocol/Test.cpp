@@ -20,9 +20,9 @@ NetworkProtocolTest::~NetworkProtocolTest()
     test_data.clear();
 }
 
-bool NetworkProtocolTest::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+bool NetworkProtocolTest::open(PeoplesUrlParser *urlParser, FujiTranslationMode mode)
 {
-    NetworkProtocol::open(urlParser, cmdFrame);
+    NetworkProtocol::open(urlParser, mode);
 
     Debug_printf("scheme: %s\r\n", urlParser->scheme.c_str());
     Debug_printf("path: %s\r\n", urlParser->path.c_str());
@@ -108,11 +108,12 @@ bool NetworkProtocolTest::status(NetworkStatus *status)
     return false;
 }
 
-uint8_t NetworkProtocolTest::special_inquiry(uint8_t cmd)
+FujiDirection NetworkProtocolTest::special_inquiry(uint8_t cmd)
 {
-    return 0xFF; // selected command not implemented.
+    return DIRECTION_INVALID; // selected command not implemented.
 }
 
+#ifdef OBSOLETE
 bool NetworkProtocolTest::special_00(cmdFrame_t *cmdFrame)
 {
     return false;
@@ -127,3 +128,4 @@ bool NetworkProtocolTest::special_80(uint8_t *sp_buf, unsigned short len, cmdFra
 {
     return false;
 }
+#endif /* OBSOLETE */
