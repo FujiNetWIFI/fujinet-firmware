@@ -21,4 +21,5 @@ components:
   pclink: true
 tweaks:
   # webui tweaks, if any
+  platform: ATARI
   config_ng: true
