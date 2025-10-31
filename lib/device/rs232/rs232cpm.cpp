@@ -70,9 +70,9 @@ void rs232CPM::init_cpm(int baud)
     memset(pattern, 0, sizeof(pattern));
 }
 
-void rs232CPM::rs232_process(FujiBusCommand& command)
+void rs232CPM::rs232_process(FujiBusPacket &packet)
 {
-    switch (command.command)
+    switch (packet.command)
     {
     case 'G':
         rs232_ack();

@@ -1,5 +1,5 @@
-#ifndef FUJIBUSCOMMAND_H
-#define FUJIBUSCOMMAND_H
+#ifndef FUJIBUSPACKET_H
+#define FUJIBUSPACKET_H
 
 #include <string_view>
 #include <vector>
@@ -7,7 +7,7 @@
 #include <string>
 #include <memory>
 
-class FujiBusCommand
+class FujiBusPacket
 {
 private:
     std::string decodeSLIP(std::string_view input);
@@ -21,9 +21,9 @@ public:
     std::vector<unsigned int> fields;
     std::optional<std::string> data = nullptr;
 
-    FujiBusCommand(std::string_view input);
+    FujiBusPacket(std::string_view input);
     std::string serialize();
-    static std::unique_ptr<FujiBusCommand> fromSerialized(std::string_view input);
+    static std::unique_ptr<FujiBusPacket> fromSerialized(std::string_view input);
 };
 
-#endif /* FUJIBUSCOMMAND_H */
+#endif /* FUJIBUSPACKET_H */

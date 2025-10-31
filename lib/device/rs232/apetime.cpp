@@ -88,9 +88,9 @@ void rs232ApeTime::_rs232_set_tz()
     }
 }
 
-void rs232ApeTime::rs232_process(FujiBusCommand& command)
+void rs232ApeTime::rs232_process(FujiBusPacket &packet)
 {
-    switch (command.command)
+    switch (packet.command)
     {
     case RS232_APETIMECMD_GETTIME:
         rs232_ack();

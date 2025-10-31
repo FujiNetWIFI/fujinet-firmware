@@ -253,7 +253,7 @@ bool rs232Disk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 }
 
 // Process command
-void rs232Disk::rs232_process(FujiBusCommand& command)
+void rs232Disk::rs232_process(FujiBusPacket &packet)
 {
     // if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
     //     return;
@@ -264,20 +264,20 @@ void rs232Disk::rs232_process(FujiBusCommand& command)
 
     Debug_print("disk rs232_process()\n");
 
-    switch (command.command)
+    switch (packet.command)
     {
     case RS232_DISKCMD_READ:
         rs232_ack();
-        rs232_read(command.fields[0]);
+        rs232_read(packet.fields[0]);
         return;
     case RS232_DISKCMD_PUT:
         rs232_ack();
-        rs232_write(command.fields[0], false);
+        rs232_write(packet.fields[0], false);
         return;
     case RS232_DISKCMD_STATUS:
     case RS232_DISKCMD_WRITE:
         rs232_ack();
-        rs232_write(command.fields[0], true);
+        rs232_write(packet.fields[0], true);
         return;
     case RS232_DISKCMD_FORMAT:
     case RS232_DISKCMD_FORMAT_MEDIUM:

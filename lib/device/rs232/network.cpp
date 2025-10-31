@@ -850,28 +850,28 @@ void rs232Network::rs232_tell()
  * @param comanddata incoming 4 bytes containing command and aux bytes
  * @param checksum 8 bit checksum
  */
-void rs232Network::rs232_process(FujiBusCommand &command)
+void rs232Network::rs232_process(FujiBusPacket &packet)
 {
-    switch (command.command)
+    switch (packet.command)
     {
     case FUJI_CMD_HIGHSPEED:
         rs232_ack();
         rs232_high_speed();
         break;
     case FUJI_CMD_OPEN:
-        rs232_open(static_cast<FujiTranslationMode>(command.fields[0]), command.fields[1]);
+        rs232_open(static_cast<FujiTranslationMode>(packet.fields[0]), packet.fields[1]);
         break;
     case FUJI_CMD_CLOSE:
         rs232_close();
         break;
     case FUJI_CMD_READ:
-        rs232_read(command.fields[0]);
+        rs232_read(packet.fields[0]);
         break;
     case FUJI_CMD_WRITE:
-        rs232_write(command.fields[0]);
+        rs232_write(packet.fields[0]);
         break;
     case FUJI_CMD_STATUS:
-        rs232_status(static_cast<FujiStatusReq>(command.fields[0]));
+        rs232_status(static_cast<FujiStatusReq>(packet.fields[0]));
         break;
     case FUJI_CMD_PARSE:
         rs232_ack();
@@ -879,17 +879,17 @@ void rs232Network::rs232_process(FujiBusCommand &command)
         break;
     case FUJI_CMD_QUERY:
         rs232_ack();
-        rs232_set_json_query(static_cast<FujiTranslationMode>(command.fields[1]));
+        rs232_set_json_query(static_cast<FujiTranslationMode>(packet.fields[1]));
         break;
     case FUJI_CMD_JSON:
         rs232_ack();
-        rs232_set_channel_mode(static_cast<FujiChannelMode>(command.fields[0]));
+        rs232_set_channel_mode(static_cast<FujiChannelMode>(packet.fields[0]));
         break;
     case FUJI_CMD_SPECIAL_QUERY:
         rs232_special_inquiry();
         break;
     case FUJI_CMD_SEEK:
-        rs232_seek(command.fields[0]);
+        rs232_seek(packet.fields[0]);
         break;
     case FUJI_CMD_TELL:
         rs232_tell();

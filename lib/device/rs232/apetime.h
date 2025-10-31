@@ -10,7 +10,7 @@ private:
     void _rs232_set_tz();
 
 public:
-    void rs232_process(FujiBusCommand &command) override;
+    void rs232_process(FujiBusPacket &packet) override;
     void rs232_status(FujiStatusReq reqType) override {};
 };
 

@@ -35,7 +35,7 @@ protected:
 public:
     void setup() override;
     void rs232_status(FujiStatusReq reqType) override;
-    void rs232_process(FujiBusCommand& command) override;
+    void rs232_process(FujiBusPacket &packet) override;
 
     // ============ Wrapped Fuji commands ============
 };

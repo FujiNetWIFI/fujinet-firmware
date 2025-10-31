@@ -190,7 +190,7 @@ private:
     void rs232_status(FujiStatusReq reqType) override;      // $53, 'S', Status
     void rs232_write(uint8_t ch);                  // $57, 'W', Write
     void rs232_stream();                           // $58, 'X', Concurrent/Stream
-    void rs232_process(FujiBusCommand& command) override;
+    void rs232_process(FujiBusPacket &packet) override;
 
     void crx_toggle(bool toggle);                // CRX active/inactive?
 

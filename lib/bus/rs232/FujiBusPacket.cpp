@@ -1,4 +1,4 @@
-#include "FujiBusCommand.h"
+#include "FujiBusPacket.h"
 
 enum {
     SLIP_END     = 0xC0,
@@ -22,10 +22,10 @@ typedef struct {
 static uint8_t fieldSizeTable[] = {0, 1, 1, 1, 1, 2, 2, 4};
 static uint8_t numFieldsTable[] = {0, 1, 2, 3, 4, 1, 2, 1};
 
-FujiBusCommand::FujiBusCommand(std::string_view input)
+FujiBusPacket::FujiBusPacket(std::string_view input)
 {
     if (!parse(input))
-        throw std::invalid_argument("Invalid FujiBusCommand data");
+        throw std::invalid_argument("Invalid FujiBusPacket data");
 
     return;
 }
@@ -33,7 +33,7 @@ FujiBusCommand::FujiBusCommand(std::string_view input)
 #include <string>
 #include <string_view>
 
-std::string FujiBusCommand::decodeSLIP(std::string_view input)
+std::string FujiBusPacket::decodeSLIP(std::string_view input)
 {
     unsigned int idx;
     uint8_t val;
@@ -68,7 +68,7 @@ std::string FujiBusCommand::decodeSLIP(std::string_view input)
     return output;
 }
 
-std::string FujiBusCommand::encodeSLIP(std::string_view input)
+std::string FujiBusPacket::encodeSLIP(std::string_view input)
 {
     unsigned int idx;
     uint8_t val;
@@ -95,7 +95,7 @@ std::string FujiBusCommand::encodeSLIP(std::string_view input)
     return output;
 }
 
-uint8_t FujiBusCommand::calcChecksum(std::string_view buf)
+uint8_t FujiBusPacket::calcChecksum(std::string_view buf)
 {
     uint16_t idx, chk;
 
@@ -104,7 +104,7 @@ uint8_t FujiBusCommand::calcChecksum(std::string_view buf)
     return (uint8_t) chk;
 }
 
-bool FujiBusCommand::parse(std::string_view input)
+bool FujiBusPacket::parse(std::string_view input)
 {
     std::string decoded;
     fujibus_header *hdr;
@@ -158,7 +158,7 @@ bool FujiBusCommand::parse(std::string_view input)
     return true;
 }
 
-std::string FujiBusCommand::serialize()
+std::string FujiBusPacket::serialize()
 {
     fujibus_header *hdr;
     std::string output;
@@ -196,10 +196,10 @@ std::string FujiBusCommand::serialize()
     return encodeSLIP(output);
 }
 
-std::unique_ptr<FujiBusCommand> FujiBusCommand::fromSerialized(std::string_view input)
+std::unique_ptr<FujiBusPacket> FujiBusPacket::fromSerialized(std::string_view input)
 {
     try {
-        return std::make_unique<FujiBusCommand>(input);
+        return std::make_unique<FujiBusPacket>(input);
     }
     catch (const std::invalid_argument&) {
         return nullptr;

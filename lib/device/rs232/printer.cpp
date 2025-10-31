@@ -279,7 +279,7 @@ rs232Printer::printer_type rs232Printer::match_modelname(const std::string &mode
 }
 
 // Process command
-void rs232Printer::rs232_process(FujiBusCommand& command)
+void rs232Printer::rs232_process(FujiBusPacket &packet)
 {
     if (!Config.get_printer_enabled())
     {
@@ -287,12 +287,12 @@ void rs232Printer::rs232_process(FujiBusCommand& command)
     }
     else
     {
-        switch (command.command)
+        switch (packet.command)
         {
         case RS232_PRINTERCMD_PUT: // Needed by A822 for graphics mode printing
         case RS232_PRINTERCMD_WRITE:
-            _lastaux1 = command.fields[0];
-            _lastaux2 = command.fields[1];
+            _lastaux1 = packet.fields[0];
+            _lastaux2 = packet.fields[1];
             _last_ms = fnSystem.millis();
             rs232_ack();
             rs232_write(_lastaux1, _lastaux2);
@@ -300,7 +300,7 @@ void rs232Printer::rs232_process(FujiBusCommand& command)
         case RS232_PRINTERCMD_STATUS:
             _last_ms = fnSystem.millis();
             rs232_ack();
-            rs232_status(static_cast<FujiStatusReq>(command.fields[0]));
+            rs232_status(static_cast<FujiStatusReq>(packet.fields[0]));
             break;
         default:
             rs232_nak();

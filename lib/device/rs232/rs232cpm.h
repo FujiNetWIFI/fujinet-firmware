@@ -17,7 +17,7 @@ class rs232CPM : public virtualDevice
 private:
 
     void rs232_status(FujiStatusReq reqType) override;
-    void rs232_process(FujiBusCommand& command) override;
+    void rs232_process(FujiBusPacket &packet) override;
 
 public:
     bool cpmActive = false;

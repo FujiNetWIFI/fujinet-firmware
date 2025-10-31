@@ -1809,7 +1809,7 @@ void rs232Modem::shutdown()
 /*
   Process command
 */
-void rs232Modem::rs232_process(FujiBusCommand& command)
+void rs232Modem::rs232_process(FujiBusPacket &packet)
 {
     if (!Config.get_modem_enabled())
     {
@@ -1819,16 +1819,16 @@ void rs232Modem::rs232_process(FujiBusCommand& command)
     {
         Debug_println("rs232Modem::rs232_process() called");
 
-        switch (command.command)
+        switch (packet.command)
         {
         case RS232_MODEMCMD_LOAD_RELOCATOR:
             Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
-            rs232_send_firmware(command.command);
+            rs232_send_firmware(packet.command);
             break;
 
         case RS232_MODEMCMD_LOAD_HANDLER:
             Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
-            rs232_send_firmware(command.command);
+            rs232_send_firmware(packet.command);
             break;
 
 #ifdef OBSOLETE
@@ -1857,27 +1857,27 @@ void rs232Modem::rs232_process(FujiBusCommand& command)
             break;
         case RS232_MODEMCMD_SET_DUMP:
             rs232_ack();
-            rs232_set_dump(command.fields[0]);
+            rs232_set_dump(packet.fields[0]);
             break;
         case RS232_MODEMCMD_LISTEN:
-            rs232_listen(command.fields[0]);
+            rs232_listen(packet.fields[0]);
             break;
         case RS232_MODEMCMD_UNLISTEN:
             rs232_unlisten();
             break;
         case RS232_MODEMCMD_BAUDRATELOCK:
-            rs232_baudlock(command.fields[0], command.fields[1]);
+            rs232_baudlock(packet.fields[0], packet.fields[1]);
             break;
         case RS232_MODEMCMD_AUTOANSWER:
-            rs232_autoanswer(command.fields[0]);
+            rs232_autoanswer(packet.fields[0]);
             break;
         case RS232_MODEMCMD_STATUS:
             rs232_ack();
-            rs232_status(static_cast<FujiStatusReq>(command.fields[0]));
+            rs232_status(static_cast<FujiStatusReq>(packet.fields[0]));
             break;
         case RS232_MODEMCMD_WRITE:
             rs232_ack();
-            rs232_write(command.fields[0]);
+            rs232_write(packet.fields[0]);
             break;
         case RS232_MODEMCMD_STREAM:
             rs232_ack();

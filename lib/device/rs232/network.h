@@ -137,7 +137,7 @@ public:
      * @param comanddata incoming 4 bytes containing command and aux bytes
      * @param checksum 8 bit checksum
      */
-    void rs232_process(FujiBusCommand& command) override;
+    void rs232_process(FujiBusPacket &packet) override;
 
     void rs232_seek(uint32_t offset);
     void rs232_tell();
