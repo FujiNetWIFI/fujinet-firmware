@@ -177,9 +177,16 @@ void systemBus::_rs232_process_cmd()
 
     // Read CMD frame
     std::string packet;
-    int val;
-    while ((val = _port.read()) > -1)
+    int val, count;
+    for (count = 0; count < 2; )
+    {
+        val = _port.read();
+        if (val < 0)
+            break;
         packet.push_back(val);
+        if (val == SLIP_END)
+            count++;
+    }
 
     auto tempFrame = FujiBusPacket::fromSerialized(packet);
     if (!tempFrame)
@@ -253,12 +260,14 @@ void systemBus::service()
     {
         _modemDev->rs232_handle_modem();
     }
+#ifdef OBSOLETE
     else
     // Neither CMD nor active modem, so throw out any stray input data
     {
         //Debug_println("RS232 Srvc Flush");
         _port.discardInput();
     }
+#endif /* OBSOLETE */
 
     // Handle interrupts from network protocols
     for (int i = 0; i < 8; i++)

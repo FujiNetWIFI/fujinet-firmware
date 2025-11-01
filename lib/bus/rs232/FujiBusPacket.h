@@ -9,6 +9,13 @@
 #include <string>
 #include <memory>
 
+enum {
+    SLIP_END     = 0xC0,
+    SLIP_ESCAPE  = 0xDB,
+    SLIP_ESC_END = 0xDC,
+    SLIP_ESC_ESC = 0xDD,
+};
+
 class FujiBusPacket
 {
 private:
@@ -22,7 +29,7 @@ public:
     FujiCommandID command;
     unsigned int fieldSize;
     std::vector<unsigned int> fields;
-    std::optional<std::string> data = nullptr;
+    std::optional<std::string> data = std::nullopt;
 
     FujiBusPacket(const std::string &input);
     std::string serialize();

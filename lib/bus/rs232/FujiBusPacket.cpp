@@ -1,12 +1,5 @@
 #include "FujiBusPacket.h"
 
-enum {
-    SLIP_END     = 0xC0,
-    SLIP_ESCAPE  = 0xDB,
-    SLIP_ESC_END = 0xDC,
-    SLIP_ESC_ESC = 0xDD,
-};
-
 typedef struct {
     uint8_t device;   /* Destination Device */
     uint8_t command;  /* Command */
@@ -47,7 +40,7 @@ std::string FujiBusPacket::decodeSLIP(const std::string &input)
             break;
     }
 
-    for (idx = 0; idx < input.size(); idx++)
+    for (idx++; idx < input.size(); idx++)
     {
         val = ptr[idx];
         if (val == SLIP_END)
@@ -96,11 +89,12 @@ std::string FujiBusPacket::encodeSLIP(const std::string &input)
     return output;
 }
 
-uint8_t FujiBusPacket::calcChecksum(const std::string &buf)
+uint8_t FujiBusPacket::calcChecksum(const std::string &input)
 {
     uint16_t idx, chk;
+    uint8_t *buf = (uint8_t *) input.data();
 
-    for (idx = chk = 0; idx < buf.size(); idx++)
+    for (idx = chk = 0; idx < input.size(); idx++)
         chk = ((chk + buf[idx]) >> 8) + ((chk + buf[idx]) & 0xFF);
     return (uint8_t) chk;
 }
@@ -121,6 +115,8 @@ bool FujiBusPacket::parse(const std::string &input)
         return false;
 
     decoded = decodeSLIP(input);
+    if (decoded.size() < sizeof(fujibus_header))
+        return false;
     hdr = (fujibus_header *) &decoded[0];
     if (hdr->length != decoded.size())
         return false;
