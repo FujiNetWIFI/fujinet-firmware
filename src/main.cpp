@@ -13,7 +13,6 @@
 #include "debug.h"
 #include "bus.h"
 #include "device.h"
-#include "devices.h"
 #ifdef ESP_PLATFORM
   #include "keys.h"
 #endif

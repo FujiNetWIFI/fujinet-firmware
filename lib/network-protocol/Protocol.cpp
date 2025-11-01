@@ -58,12 +58,6 @@ using namespace std;
 #endif
 
 
-#define TRANSLATION_MODE_NONE 0
-#define TRANSLATION_MODE_CR 1
-#define TRANSLATION_MODE_LF 2
-#define TRANSLATION_MODE_CRLF 3
-#define TRANSLATION_MODE_PETSCII 4
-
 /**
  * ctor - Initialize network protocol object.
  * @param rx_buf pointer to receive buffer
@@ -238,6 +232,8 @@ void NetworkProtocol::translate_receive_buffer()
 #endif
         *receiveBuffer = mstr::toUTF8(*receiveBuffer);
         break;
+    default:
+        break;
     }
 
     if (translation_mode == TRANSLATION_MODE_CRLF)
@@ -275,6 +271,8 @@ unsigned short NetworkProtocol::translate_transmit_buffer()
         break;
     case TRANSLATION_MODE_PETSCII:
         *transmitBuffer = mstr::toUTF8(*transmitBuffer);
+        break;
+    default:
         break;
     }
 

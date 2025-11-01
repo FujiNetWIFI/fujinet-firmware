@@ -8,10 +8,11 @@
 #include "peoples_url_parser.h"
 
 enum FujiTranslationMode {
-    TRANS_NONE = 0,
-    TRANS_CR   = 1,
-    TRANS_LF   = 2,
-    TRANS_CRLF = 3, // FIXME - is this a bitmask?
+    TRANSLATION_MODE_NONE    = 0,
+    TRANSLATION_MODE_CR      = 1,
+    TRANSLATION_MODE_LF      = 2,
+    TRANSLATION_MODE_CRLF    = 3,
+    TRANSLATION_MODE_PETSCII = 4,
 };
 
 enum {
@@ -23,37 +24,6 @@ enum {
     PROTOCOL_OPEN_READWRITE     = 12,
     PROTOCOL_OPEN_HTTP_POST     = 13,
     PROTOCOL_OPEN_HTTP_PUT      = 14,
-};
-
-enum {
-  FUJI_CMD_RENAME            = 0x20,
-  FUJI_CMD_DELETE            = 0x21,
-  FUJI_CMD_LOCK              = 0x23,
-  FUJI_CMD_UNLOCK            = 0x24,
-  FUJI_CMD_SEEK              = 0x25,
-  FUJI_CMD_TELL              = 0x26,
-  FUJI_CMD_MKDIR             = 0x2A,
-  FUJI_CMD_RMDIR             = 0x2B,
-  FUJI_CMD_CHDIR             = 0x2C,
-  FUJI_CMD_GETCWD            = 0x30,
-  FUJI_CMD_HIGHSPEED         = 0x3F,
-  FUJI_CMD_OPEN              = 'O',
-  FUJI_CMD_CLOSE             = 'C',
-  FUJI_CMD_READ              = 'R',
-  FUJI_CMD_WRITE             = 'W',
-  FUJI_CMD_STATUS            = 'S',
-  FUJI_CMD_PARSE             = 'P',
-  FUJI_CMD_QUERY             = 'Q',
-  FUJI_CMD_TRANSLATION       = 'T',
-  FUJI_CMD_TIMER             = 'Z',
-  FUJI_CMD_APETIME_GETTIME   = 0x93,
-  FUJI_CMD_APETIME_SETTZ     = 0x99,
-  FUJI_CMD_APETIME_GETTZTIME = 0x9A,
-  FUJI_CMD_READ_DEVICE_SLOTS = 0xF2,
-  FUJI_CMD_JSON              = 0xFC,
-  FUJI_CMD_USERNAME          = 0xFD,
-  FUJI_CMD_PASSWORD          = 0xFE,
-  FUJI_CMD_SPECIAL_QUERY     = 0xFF,
 };
 
 class NetworkProtocol
@@ -116,7 +86,7 @@ public:
     /**
      * Translation mode: 0=NONE, 1=CR, 2=LF, 3=CR/LF
      */
-    FujiTranslationMode translation_mode = TRANS_NONE;
+    FujiTranslationMode translation_mode = TRANSLATION_MODE_NONE;
 
     /**
      * Is this being called from inside an interrupt?

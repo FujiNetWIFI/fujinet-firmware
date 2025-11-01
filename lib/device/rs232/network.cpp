@@ -6,10 +6,10 @@
 
 #include "network.h"
 #include "fujiDevice.h"
+#include "fuji_endian.h"
 
 #include <cstring>
 #include <algorithm>
-#include <endian.h>
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
@@ -29,6 +29,7 @@
 #include "SMB.h"
 
 #include "ProtocolParser.h"
+#include "fuji_endian.h"
 
 using namespace std;
 
@@ -672,34 +673,34 @@ void rs232Network::do_inquiry(unsigned char inq_cmd)
     {
         switch (inq_cmd)
         {
-        case FUJI_CMD_RENAME:
-        case FUJI_CMD_DELETE:
-        case FUJI_CMD_LOCK:
-        case FUJI_CMD_UNLOCK:
-        case FUJI_CMD_MKDIR:
-        case FUJI_CMD_RMDIR:
-        case FUJI_CMD_CHDIR:
-        case FUJI_CMD_USERNAME:
-        case FUJI_CMD_PASSWORD:
+        case FUJICMD_RENAME:
+        case FUJICMD_DELETE:
+        case FUJICMD_LOCK:
+        case FUJICMD_UNLOCK:
+        case FUJICMD_MKDIR:
+        case FUJICMD_RMDIR:
+        case FUJICMD_CHDIR:
+        case FUJICMD_USERNAME:
+        case FUJICMD_PASSWORD:
             inq_dstats = DIRECTION_WRITE;
             break;
-        case FUJI_CMD_JSON:
+        case FUJICMD_JSON:
             inq_dstats = DIRECTION_NONE;
             break;
-        case FUJI_CMD_GETCWD:
+        case FUJICMD_GETCWD:
             inq_dstats = DIRECTION_READ;
             break;
-        case FUJI_CMD_TIMER: // Set interrupt rate
+        case FUJICMD_TIMER: // Set interrupt rate
             inq_dstats = DIRECTION_NONE;
             break;
-        case FUJI_CMD_TRANSLATION: // Set Translation
+        case FUJICMD_TRANSLATION: // Set Translation
             inq_dstats = DIRECTION_NONE;
             break;
-        case FUJI_CMD_PARSE: // JSON Parse
+        case FUJICMD_PARSE: // JSON Parse
             if (channelMode == JSON)
                 inq_dstats = DIRECTION_NONE;
             break;
-        case FUJI_CMD_QUERY: // JSON Query
+        case FUJICMD_QUERY: // JSON Query
             if (channelMode == JSON)
                 inq_dstats = DIRECTION_NONE;
             break;
@@ -723,17 +724,17 @@ void rs232Network::rs232_special_00()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJI_CMD_PARSE:
+    case FUJICMD_PARSE:
         if (channelMode == JSON)
             rs232_parse_json();
         break;
-    case FUJI_CMD_TRANSLATION:
+    case FUJICMD_TRANSLATION:
         rs232_set_translation();
         break;
-    case FUJI_CMD_TIMER:
+    case FUJICMD_TIMER:
         rs232_set_timer_rate();
         break;
-    case FUJI_CMD_JSON: // SET CHANNEL MODE
+    case FUJICMD_JSON: // SET CHANNEL MODE
         rs232_set_channel_mode();
         break;
     default:
@@ -755,7 +756,7 @@ void rs232Network::rs232_special_40()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJI_CMD_GETCWD:
+    case FUJICMD_GETCWD:
         rs232_get_prefix();
         return;
     }
@@ -778,25 +779,25 @@ void rs232Network::rs232_special_80()
     // Handle commands that exist outside of an open channel.
     switch (cmdFrame.comnd)
     {
-    case FUJI_CMD_RENAME:
-    case FUJI_CMD_DELETE:
-    case FUJI_CMD_LOCK:
-    case FUJI_CMD_UNLOCK:
-    case FUJI_CMD_MKDIR:
-    case FUJI_CMD_RMDIR:
+    case FUJICMD_RENAME:
+    case FUJICMD_DELETE:
+    case FUJICMD_LOCK:
+    case FUJICMD_UNLOCK:
+    case FUJICMD_MKDIR:
+    case FUJICMD_RMDIR:
         rs232_do_idempotent_command_80();
         return;
-    case FUJI_CMD_CHDIR:
+    case FUJICMD_CHDIR:
         rs232_set_prefix();
         return;
-    case FUJI_CMD_QUERY:
+    case FUJICMD_QUERY:
         if (channelMode == JSON)
             rs232_set_json_query();
         return;
-    case FUJI_CMD_USERNAME:
+    case FUJICMD_USERNAME:
         rs232_set_login();
         return;
-    case FUJI_CMD_PASSWORD:
+    case FUJICMD_PASSWORD:
         rs232_set_password();
         return;
     }
@@ -854,51 +855,53 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
 {
     switch (packet.command)
     {
-    case FUJI_CMD_HIGHSPEED:
+    case FUJICMD_HIGHSPEED:
         rs232_ack();
         rs232_high_speed();
         break;
-    case FUJI_CMD_OPEN:
+    case FUJICMD_OPEN:
         rs232_open(static_cast<FujiTranslationMode>(packet.fields[0]), packet.fields[1]);
         break;
-    case FUJI_CMD_CLOSE:
+    case FUJICMD_CLOSE:
         rs232_close();
         break;
-    case FUJI_CMD_READ:
+    case FUJICMD_READ:
         rs232_read(packet.fields[0]);
         break;
-    case FUJI_CMD_WRITE:
+    case FUJICMD_WRITE:
         rs232_write(packet.fields[0]);
         break;
-    case FUJI_CMD_STATUS:
+    case FUJICMD_STATUS:
         rs232_status(static_cast<FujiStatusReq>(packet.fields[0]));
         break;
-    case FUJI_CMD_PARSE:
+    case FUJICMD_PARSE:
         rs232_ack();
         rs232_parse_json();
         break;
-    case FUJI_CMD_QUERY:
+    case FUJICMD_QUERY:
         rs232_ack();
         rs232_set_json_query(static_cast<FujiTranslationMode>(packet.fields[1]));
         break;
-    case FUJI_CMD_JSON:
+    case FUJICMD_JSON:
         rs232_ack();
         rs232_set_channel_mode(static_cast<FujiChannelMode>(packet.fields[0]));
         break;
-    case FUJI_CMD_SPECIAL_QUERY:
+#ifdef OBSOLETE
+    case FUJICMD_SPECIAL_QUERY:
         rs232_special_inquiry();
         break;
-    case FUJI_CMD_SEEK:
+#endif /* OBSOLETE */
+    case FUJICMD_SEEK:
         rs232_seek(packet.fields[0]);
         break;
-    case FUJI_CMD_TELL:
+    case FUJICMD_TELL:
         rs232_tell();
         break;
-#ifdef OBSOLETE
     default:
+#ifdef OBSOLETE
         rs232_special();
-        break;
 #endif /* OBSOLETE */
+        break;
     }
 }
 

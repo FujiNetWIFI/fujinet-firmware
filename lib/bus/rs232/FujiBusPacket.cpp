@@ -22,7 +22,7 @@ typedef struct {
 static uint8_t fieldSizeTable[] = {0, 1, 1, 1, 1, 2, 2, 4};
 static uint8_t numFieldsTable[] = {0, 1, 2, 3, 4, 1, 2, 1};
 
-FujiBusPacket::FujiBusPacket(std::string_view input)
+FujiBusPacket::FujiBusPacket(const std::string &input)
 {
     if (!parse(input))
         throw std::invalid_argument("Invalid FujiBusPacket data");
@@ -33,29 +33,30 @@ FujiBusPacket::FujiBusPacket(std::string_view input)
 #include <string>
 #include <string_view>
 
-std::string FujiBusPacket::decodeSLIP(std::string_view input)
+std::string FujiBusPacket::decodeSLIP(const std::string &input)
 {
     unsigned int idx;
     uint8_t val;
     std::string output;
     output.reserve(input.size());  // worst case, same size
 
+    const uint8_t *ptr = (uint8_t *) input.data();
     for (idx = 0; idx < input.size(); idx++)
     {
-        if (input[idx] == SLIP_END)
+        if (ptr[idx] == SLIP_END)
             break;
     }
 
     for (idx = 0; idx < input.size(); idx++)
     {
-        val = input[idx];
+        val = ptr[idx];
         if (val == SLIP_END)
             break;
 
         if (val == SLIP_ESCAPE)
         {
             idx++;
-            val = input[idx];
+            val = ptr[idx];
             if (val == SLIP_ESC_END)
                 output.push_back(SLIP_END);
             else if (val == SLIP_ESC_ESC)
@@ -68,7 +69,7 @@ std::string FujiBusPacket::decodeSLIP(std::string_view input)
     return output;
 }
 
-std::string FujiBusPacket::encodeSLIP(std::string_view input)
+std::string FujiBusPacket::encodeSLIP(const std::string &input)
 {
     unsigned int idx;
     uint8_t val;
@@ -95,7 +96,7 @@ std::string FujiBusPacket::encodeSLIP(std::string_view input)
     return output;
 }
 
-uint8_t FujiBusPacket::calcChecksum(std::string_view buf)
+uint8_t FujiBusPacket::calcChecksum(const std::string &buf)
 {
     uint16_t idx, chk;
 
@@ -104,7 +105,7 @@ uint8_t FujiBusPacket::calcChecksum(std::string_view buf)
     return (uint8_t) chk;
 }
 
-bool FujiBusPacket::parse(std::string_view input)
+bool FujiBusPacket::parse(const std::string &input)
 {
     std::string decoded;
     fujibus_header *hdr;
@@ -116,7 +117,7 @@ bool FujiBusPacket::parse(std::string_view input)
 
     if (input.size() < sizeof(fujibus_header) + 2)
         return false;
-    if (input[0] != SLIP_END || input.back() != SLIP_END)
+    if (((uint8_t) input[0]) != SLIP_END || ((uint8_t) input.back()) != SLIP_END)
         return false;
 
     decoded = decodeSLIP(input);
@@ -131,8 +132,8 @@ bool FujiBusPacket::parse(std::string_view input)
     if (ck1 != ck2)
         return false;
 
-    device = hdr->device;
-    command = hdr->command;
+    device = static_cast<FujiDeviceID>(hdr->device);
+    command = static_cast<FujiCommandID>(hdr->command);
 
     offset = sizeof(*hdr);
     fieldCount = numFieldsTable[hdr->fields & FUJI_FIELD_COUNT_MASK];
@@ -196,7 +197,7 @@ std::string FujiBusPacket::serialize()
     return encodeSLIP(output);
 }
 
-std::unique_ptr<FujiBusPacket> FujiBusPacket::fromSerialized(std::string_view input)
+std::unique_ptr<FujiBusPacket> FujiBusPacket::fromSerialized(const std::string &input)
 {
     try {
         return std::make_unique<FujiBusPacket>(input);

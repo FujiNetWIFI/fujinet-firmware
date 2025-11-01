@@ -31,7 +31,8 @@
 #include "directoryPageGroup.h"
 #include "compat_string.h"
 
-#include <endian.h>
+#include "fuji_endian.h"
+#include <libgen.h>
 
 #ifdef UNUSED
 #define ADDITIONAL_DETAILS_BYTES 10
@@ -226,11 +227,11 @@ void fujiDevice::fujicmd_image_rotate()
         count--;
 
         // Save the device ID of the disk in the last slot
-        int last_id = get_disk_dev(count)->id();
+        FujiDeviceID last_id = get_disk_dev(count)->id();
 
         for (int n = count; n > 0; n--)
         {
-            int swap = get_disk_dev(n - 1)->id();
+            FujiDeviceID swap = get_disk_dev(n - 1)->id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
             SYSTEM_BUS.changeDeviceId(get_disk_dev(n), swap); // to do!
         }

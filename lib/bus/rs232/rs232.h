@@ -75,7 +75,7 @@ class virtualDevice
 protected:
     friend systemBus;
 
-    int _devnum;
+    FujiDeviceID _devnum;
 
 #ifdef OBSOLETE
     cmdFrame_t cmdFrame;
@@ -161,7 +161,7 @@ public:
      * @brief get the RS232 device Number (1-255)
      * @return The device number registered for this device
      */
-    int id() { return _devnum; };
+    FujiDeviceID id() { return _devnum; };
 
     /**
      * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
@@ -233,10 +233,10 @@ public:
     void shutdown();
 
     int numDevices();
-    void addDevice(virtualDevice *pDevice, int device_id);
+    void addDevice(virtualDevice *pDevice, FujiDeviceID device_id);
     void remDevice(virtualDevice *pDevice);
-    virtualDevice *deviceById(int device_id);
-    void changeDeviceId(virtualDevice *pDevice, int device_id);
+    virtualDevice *deviceById(FujiDeviceID device_id);
+    void changeDeviceId(virtualDevice *pDevice, FujiDeviceID device_id);
 
     int getBaudrate();                                          // Gets current RS232 baud rate setting
     void setBaudrate(int baud);                                 // Sets RS232 to specific baud rate

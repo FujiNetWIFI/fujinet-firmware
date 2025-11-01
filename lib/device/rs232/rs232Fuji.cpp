@@ -1,7 +1,6 @@
 #ifdef BUILD_RS232
 #include "rs232Fuji.h"
 #include "network.h"
-#include "devices.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"
@@ -9,7 +8,7 @@
 #include "fnWiFi.h"
 #include "utils.h"
 #include "compat_string.h"
-#include <endian.h>
+#include "fuji_endian.h"
 
 #define IMAGE_EXTENSION ".img"
 
@@ -34,10 +33,12 @@ void rs232Fuji::setup()
 
     // Add our devices to the RS232 bus
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, FUJI_DEVICEID_DISK + i);
+        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev,
+                             static_cast<FujiDeviceID>(FUJI_DEVICEID_DISK + i));
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        SYSTEM_BUS.addDevice(&rs232NetDevs[i], FUJI_DEVICEID_NETWORK + i);
+        SYSTEM_BUS.addDevice(&rs232NetDevs[i],
+                             static_cast<FujiDeviceID>(FUJI_DEVICEID_NETWORK + i));
 }
 
 // Status

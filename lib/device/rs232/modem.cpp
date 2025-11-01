@@ -1,7 +1,6 @@
 #ifdef BUILD_RS232
 
 #include "modem.h"
-#include "devices.h"
 
 #include "../../../include/debug.h"
 #include "../../../include/atascii.h"
@@ -15,21 +14,6 @@
 #include "utils.h"
 
 #define RECVBUFSIZE 1024
-
-#define RS232_MODEMCMD_LOAD_RELOCATOR 0x21
-#define RS232_MODEMCMD_LOAD_HANDLER 0x26
-#define RS232_MODEMCMD_TYPE1_POLL 0x3F
-#define RS232_MODEMCMD_TYPE3_POLL 0x40
-#define RS232_MODEMCMD_CONTROL 0x41
-#define RS232_MODEMCMD_CONFIGURE 0x42
-#define RS232_MODEMCMD_SET_DUMP 0x44
-#define RS232_MODEMCMD_LISTEN 0x4C
-#define RS232_MODEMCMD_UNLISTEN 0x4D
-#define RS232_MODEMCMD_BAUDRATELOCK 0x4E
-#define RS232_MODEMCMD_AUTOANSWER 0x4F
-#define RS232_MODEMCMD_STATUS 0x53
-#define RS232_MODEMCMD_WRITE 0x57
-#define RS232_MODEMCMD_STREAM 0x58
 
 #define FIRMWARE_850RELOCATOR "/850relocator.bin"
 #define FIRMWARE_850HANDLER "/850handler.bin"
@@ -246,7 +230,7 @@ void rs232Modem::rs232_send_firmware(uint8_t loadcommand)
 #ifdef FIRMWARE_VARIABLE_IS_USED
     const char *firmware;
 #endif
-    if (loadcommand == RS232_MODEMCMD_LOAD_RELOCATOR)
+    if (loadcommand == FUJICMD_LOAD_RELOCATOR)
     {
 #ifdef FIRMWARE_VARIABLE_IS_USED
         firmware = FIRMWARE_850RELOCATOR;
@@ -254,7 +238,7 @@ void rs232Modem::rs232_send_firmware(uint8_t loadcommand)
     }
     else
     {
-        if (loadcommand == RS232_MODEMCMD_LOAD_HANDLER)
+        if (loadcommand == FUJICMD_LOAD_HANDLER)
         {
 #ifdef FIRMWARE_VARIABLE_IS_USED
             firmware = FIRMWARE_850HANDLER;
@@ -285,7 +269,7 @@ void rs232Modem::rs232_send_firmware(uint8_t loadcommand)
     // Send it
 
     Debug_printf("Modem sending %d bytes of %s code\n", codesize,
-                 loadcommand == RS232_MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
+                 loadcommand == FUJICMD_LOAD_RELOCATOR ? "relocator" : "handler");
 
     bus_to_computer(code, codesize, false);
 
@@ -1574,12 +1558,10 @@ void rs232Modem::rs232_handle_modem()
         }
 
         // In command mode - don't exchange with TCP but gather characters to a string
-        //if (RS232_UART.available() /*|| blockWritePending == true */ )
         if (SYSTEM_BUS.available() > 0)
         {
             // get char from Atari RS232
-            //char chr = RS232_UART.read();
-            char chr = SYSTEM_BUS.read();
+            uint8_t chr = SYSTEM_BUS.read();
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))
@@ -1821,18 +1803,18 @@ void rs232Modem::rs232_process(FujiBusPacket &packet)
 
         switch (packet.command)
         {
-        case RS232_MODEMCMD_LOAD_RELOCATOR:
+        case FUJICMD_LOAD_RELOCATOR:
             Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
             rs232_send_firmware(packet.command);
             break;
 
-        case RS232_MODEMCMD_LOAD_HANDLER:
+        case FUJICMD_LOAD_HANDLER:
             Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
             rs232_send_firmware(packet.command);
             break;
 
 #ifdef OBSOLETE
-        case RS232_MODEMCMD_TYPE1_POLL:
+        case FUJICMD_TYPE1_POLL:
             Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
             // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
             if (cmdFrame.aux1 == 1 || count_PollType1 == 16)
@@ -1842,44 +1824,44 @@ void rs232Modem::rs232_process(FujiBusPacket &packet)
             }
             break;
 
-        case RS232_MODEMCMD_TYPE3_POLL:
+        case FUJICMD_TYPE3_POLL:
             rs232_poll_3(cmdFrame.device, cmdFrame.aux1, cmdFrame.aux2);
             break;
 #endif /* OBSOLETE */
 
-        case RS232_MODEMCMD_CONTROL:
+        case FUJICMD_CONTROL:
             rs232_ack();
             rs232_control();
             break;
-        case RS232_MODEMCMD_CONFIGURE:
+        case FUJICMD_CONFIGURE:
             rs232_ack();
             rs232_config();
             break;
-        case RS232_MODEMCMD_SET_DUMP:
+        case FUJICMD_SET_DUMP:
             rs232_ack();
             rs232_set_dump(packet.fields[0]);
             break;
-        case RS232_MODEMCMD_LISTEN:
+        case FUJICMD_LISTEN:
             rs232_listen(packet.fields[0]);
             break;
-        case RS232_MODEMCMD_UNLISTEN:
+        case FUJICMD_UNLISTEN:
             rs232_unlisten();
             break;
-        case RS232_MODEMCMD_BAUDRATELOCK:
+        case FUJICMD_BAUDRATELOCK:
             rs232_baudlock(packet.fields[0], packet.fields[1]);
             break;
-        case RS232_MODEMCMD_AUTOANSWER:
+        case FUJICMD_AUTOANSWER:
             rs232_autoanswer(packet.fields[0]);
             break;
-        case RS232_MODEMCMD_STATUS:
+        case FUJICMD_STATUS:
             rs232_ack();
             rs232_status(static_cast<FujiStatusReq>(packet.fields[0]));
             break;
-        case RS232_MODEMCMD_WRITE:
+        case FUJICMD_WRITE:
             rs232_ack();
             rs232_write(packet.fields[0]);
             break;
-        case RS232_MODEMCMD_STREAM:
+        case FUJICMD_STREAM:
             rs232_ack();
             rs232_stream();
             break;

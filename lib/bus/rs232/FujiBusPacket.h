@@ -1,7 +1,9 @@
 #ifndef FUJIBUSPACKET_H
 #define FUJIBUSPACKET_H
 
-#include <string_view>
+#include "fuji_devices.h"
+#include "fuji_commands.h"
+
 #include <vector>
 #include <optional>
 #include <string>
@@ -10,20 +12,21 @@
 class FujiBusPacket
 {
 private:
-    std::string decodeSLIP(std::string_view input);
-    std::string encodeSLIP(std::string_view input);
-    bool parse(std::string_view input);
-    uint8_t calcChecksum(std::string_view buf);
+    std::string decodeSLIP(const std::string &input);
+    std::string encodeSLIP(const std::string &input);
+    bool parse(const std::string &input);
+    uint8_t calcChecksum(const std::string &buf);
 
 public:
-    unsigned int device, command;
+    FujiDeviceID device;
+    FujiCommandID command;
     unsigned int fieldSize;
     std::vector<unsigned int> fields;
     std::optional<std::string> data = nullptr;
 
-    FujiBusPacket(std::string_view input);
+    FujiBusPacket(const std::string &input);
     std::string serialize();
-    static std::unique_ptr<FujiBusPacket> fromSerialized(std::string_view input);
+    static std::unique_ptr<FujiBusPacket> fromSerialized(const std::string &input);
 };
 
 #endif /* FUJIBUSPACKET_H */

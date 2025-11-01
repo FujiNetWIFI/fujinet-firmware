@@ -33,21 +33,23 @@ bool NetworkProtocolTest::open(PeoplesUrlParser *urlParser, FujiTranslationMode 
 
     switch (translation_mode)
     {
-    case 0:
+    case TRANSLATION_MODE_NONE:
         Debug_printf("Atari Translation\r\n");
         test_data += "\x9b";
         break;
-    case 1:
+    case TRANSLATION_MODE_CR:
         Debug_printf("CR Translation\r\n");
         test_data += "\x0d";
         break;
-    case 2:
+    case TRANSLATION_MODE_LF:
         Debug_printf("LF Translation\r\n");
         test_data += "\x0a";
         break;
-    case 3:
+    case TRANSLATION_MODE_CRLF:
         Debug_printf("CRLF Translation\r\n");
         test_data += "\x0d\x0a";
+        break;
+    default:
         break;
     }
 

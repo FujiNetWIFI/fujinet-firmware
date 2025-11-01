@@ -66,7 +66,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rename(PeoplesUrlParser *url);
+    bool rename(PeoplesUrlParser *url) override;
 
     /**
      * @brief Delete file specified by incoming devicespec.
@@ -74,7 +74,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool del(PeoplesUrlParser *url);
+    bool del(PeoplesUrlParser *url) override;
 
     /**
      * @brief Make directory specified by incoming devicespec.
@@ -82,7 +82,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool mkdir(PeoplesUrlParser *url);
+    bool mkdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief Remove directory specified by incoming devicespec.
@@ -90,7 +90,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool rmdir(PeoplesUrlParser *url);
+    bool rmdir(PeoplesUrlParser *url) override;
 
     /**
      * @brief lock file specified by incoming devicespec.
@@ -98,7 +98,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool lock(PeoplesUrlParser *url);
+    bool lock(PeoplesUrlParser *url) override;
 
     /**
      * @brief unlock file specified by incoming devicespec.
@@ -106,7 +106,7 @@ public:
      * @param cmdFrame the command frame
      * @return TRUE on error, FALSE on success
      */
-    virtual bool unlock(PeoplesUrlParser *url);
+    bool unlock(PeoplesUrlParser *url) override;
 
 protected:
     /**
@@ -133,31 +133,31 @@ protected:
      * @brief Open file handle, set fd
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool open_file_handle();
+    bool open_file_handle() override;
 
     /**
      * @brief Open directory handle
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool open_dir_handle();
+    bool open_dir_handle() override;
 
     /**
      * @brief Do FTP mount
      * @param url the URL to mount
      * @return false on no error, true on error.
      */
-    virtual bool mount(PeoplesUrlParser *url);
+    bool mount(PeoplesUrlParser *url) override;
 
     /**
      * @brief Unmount FTP server specified in mountInfo.
      * @return  false on no error, true on error.
      */
-    virtual bool umount();
+    bool umount() override;
 
     /**
      * @brief Translate filesystem error codes to Atari error codes. Sets error in Protocol.
      */
-    virtual void fserror_to_error();
+    void fserror_to_error() override;
 
     /**
      * @brief Read from file handle
@@ -165,14 +165,14 @@ protected:
      * @param len the number of bytes requested
      * @return FALSE if success, TRUE if error
      */
-    virtual bool read_file_handle(uint8_t *buf, unsigned short len);
+    bool read_file_handle(uint8_t *buf, unsigned short len) override;
 
     /**
      * @brief read next directory entry.
      * @param buf the target buffer
      * @param len length of target buffer
      */
-    virtual bool read_dir_entry(char *buf, unsigned short len);
+    bool read_dir_entry(char *buf, unsigned short len) override;
 
     /**
      * @brief for len requested, break up into number of required
@@ -180,26 +180,26 @@ protected:
      * @param len Requested # of bytes.
      * @return TRUE on error, FALSE on success.
      */
-    virtual bool write_file_handle(uint8_t *buf, unsigned short len);
+    bool write_file_handle(uint8_t *buf, unsigned short len) override;
 
     /**
      * @brief close file handle
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool close_file_handle();
+    bool close_file_handle() override;
 
     /**
      * @brief Close directory handle
      * @return FALSE if successful, TRUE on error.
      */
-    virtual bool close_dir_handle();
+    bool close_dir_handle() override;
 
     /**
      * @brief return status from file (e.g. # of bytes remaining.)
      * @param Pointer to NetworkStatus object to inject new data.
      * @return FALSE if success, TRUE if error.
      */
-    virtual bool status_file(NetworkStatus *status);
+    bool status_file(NetworkStatus *status) override;
 
 private:
     /**
@@ -215,7 +215,7 @@ private:
     /**
      * @brief get status of file, filling in filesize. mount() must have already been called.
      */
-    virtual bool stat();
+    bool stat() override;
 };
 
 #endif /* NETWORKPROTOCOLFTP_H */

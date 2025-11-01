@@ -7,11 +7,6 @@
 
 #include "../../include/debug.h"
 
-
-#define RS232_APETIMECMD_GETTIME 0x93
-#define RS232_APETIMECMD_SETTZ 0x99
-#define RS232_APETIMECMD_GETTZTIME 0x9A
-
 char * ape_timezone = NULL;
 
 void rs232ApeTime::_rs232_get_time(bool use_timezone)
@@ -92,15 +87,15 @@ void rs232ApeTime::rs232_process(FujiBusPacket &packet)
 {
     switch (packet.command)
     {
-    case RS232_APETIMECMD_GETTIME:
+    case FUJICMD_GETTIME:
         rs232_ack();
         _rs232_get_time(false);
         break;
-    case RS232_APETIMECMD_SETTZ:
+    case FUJICMD_SETTZ:
         rs232_ack();
         _rs232_set_tz();
         break;
-    case RS232_APETIMECMD_GETTZTIME:
+    case FUJICMD_GETTZTIME:
         rs232_ack();
         _rs232_get_time(true);
         break;

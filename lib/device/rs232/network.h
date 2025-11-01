@@ -87,12 +87,14 @@ public:
      */
     virtual void rs232_write(uint16_t length);
 
+#ifdef OBSOLETE
     /**
      * RS232 Status Command. First try to populate NetworkStatus object from protocol. If protocol not instantiated,
      * or Protocol does not want to fill status buffer (e.g. due to unknown aux1/aux2 values), then try to deal
      * with them locally. Then serialize resulting NetworkStatus object to RS232.
      */
     virtual void rs232_setDirection(FujiDirection dir);
+#endif /* OBSOLETE */
 
     /**
      * RS232 Special, called as a default for any other RS232 command not processed by the other rs232_ functions.
@@ -214,7 +216,7 @@ private:
      * The Translation mode ORed into AUX2 for READ/WRITE/STATUS operations.
      * 0 = No Translation, 1 = CR<->EOL (Macintosh), 2 = LF<->EOL (UNIX), 3 = CR/LF<->EOL (PC/Windows)
      */
-    FujiTranslationMode trans_mode = TRANS_NONE;
+    FujiTranslationMode trans_mode = TRANSLATION_MODE_NONE;
 
     /**
      * Return value for DSTATS inquiry
@@ -342,6 +344,7 @@ private:
      */
     bool rs232_status_channel_json(NetworkStatus *ns);
 
+#ifdef OBSOLETE
     /**
      * @brief Do an inquiry to determine whether a protoocol supports a particular command.
      * The protocol will either return $00 - No Payload, $40 - Atari Read, $80 - Atari Write,
@@ -349,6 +352,7 @@ private:
      * Atari when making the N: RS232 call.
      */
     void rs232_special_inquiry();
+#endif /* OBSOLETE */
 
     /**
      * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
