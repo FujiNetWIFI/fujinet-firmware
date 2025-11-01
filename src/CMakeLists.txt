@@ -87,6 +87,7 @@ FILE(GLOB_RECURSE SOURCES
     ${CMAKE_SOURCE_DIR}/lib/bus/drivewire/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/h89/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/iec/*.cpp
+    ${CMAKE_SOURCE_DIR}/lib/bus/iwm/*.c
     ${CMAKE_SOURCE_DIR}/lib/bus/iwm/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/mac/*.cpp
     ${CMAKE_SOURCE_DIR}/lib/bus/rc2014bus/*.cpp
