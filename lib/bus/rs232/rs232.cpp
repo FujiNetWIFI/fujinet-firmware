@@ -200,7 +200,7 @@ void systemBus::_rs232_process_cmd()
     uint8_t ck = rs232_checksum((uint8_t *)&tempFrame, sizeof(tempFrame) - sizeof(tempFrame.cksum)); // Calculate Checksum
     if (ck == tempFrame.cksum)
     {
-        if (tempFrame.device == RS232_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
+        if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = _fujiDev->bootdisk();
 
@@ -327,29 +327,29 @@ void systemBus::setup()
 }
 
 // Add device to RS232 bus
-void systemBus::addDevice(virtualDevice *pDevice, int device_id)
+void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
-    if (device_id == RS232_DEVICEID_FUJINET)
+    if (device_id == FUJI_DEVICEID_FUJINET)
     {
         _fujiDev = (rs232Fuji *)pDevice;
     }
-    else if (device_id == RS232_DEVICEID_RS232)
+    else if (device_id == FUJI_DEVICEID_SERIAL)
     {
         _modemDev = (rs232Modem *)pDevice;
     }
-    else if (device_id >= RS232_DEVICEID_FN_NETWORK && device_id <= RS232_DEVICEID_FN_NETWORK_LAST)
+    else if (device_id >= FUJI_DEVICEID_NETWORK && device_id <= FUJI_DEVICEID_NETWORK_LAST)
     {
-        _netDev[device_id - RS232_DEVICEID_FN_NETWORK] = (rs232Network *)pDevice;
+        _netDev[device_id - FUJI_DEVICEID_NETWORK] = (rs232Network *)pDevice;
     }
-    else if (device_id == RS232_DEVICEID_MIDI)
+    else if (device_id == FUJI_DEVICEID_MIDI)
     {
         _udpDev = (rs232UDPStream *)pDevice;
     }
-    else if (device_id == RS232_DEVICEID_CPM)
+    else if (device_id == FUJI_DEVICEID_CPM)
     {
         _cpmDev = (rs232CPM *)pDevice;
     }
-    else if (device_id == RS232_DEVICEID_PRINTER)
+    else if (device_id == FUJI_DEVICEID_PRINTER)
     {
         _printerdev = (rs232Printer *)pDevice;
     }
@@ -377,7 +377,7 @@ int systemBus::numDevices()
     __END_IGNORE_UNUSEDVARS
 }
 
-void systemBus::changeDeviceId(virtualDevice *p, int device_id)
+void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -386,7 +386,7 @@ void systemBus::changeDeviceId(virtualDevice *p, int device_id)
     }
 }
 
-virtualDevice *systemBus::deviceById(int device_id)
+virtualDevice *systemBus::deviceById(fujiDeviceID_t device_id)
 {
     for (auto devicep : _daisyChain)
     {

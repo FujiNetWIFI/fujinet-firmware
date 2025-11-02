@@ -3,6 +3,7 @@
 
 #include "UARTChannel.h"
 #include "NetSIO.h"
+#include "fujiDeviceID.h"
 #include <forward_list>
 
 #define DELAY_T4 850
@@ -50,38 +51,6 @@ FN_HISPEED_INDEX=40 //  18,806 (18,806) baud
 #define COMMAND_FRAME_SPEED_CHANGE_THRESHOLD 2
 #define SERIAL_TIMEOUT 300
 
-#define SIO_DEVICEID_DISK 0x31
-#define SIO_DEVICEID_DISK_LAST 0x3F
-
-#define SIO_DEVICEID_PRINTER 0x40
-#define SIO_DEVICEID_PRINTER_LAST 0x43
-
-#define SIO_DEVICEID_FN_VOICE 0x43
-
-#define SIO_DEVICEID_APETIME 0x45
-
-#define SIO_DEVICEID_TYPE3POLL 0x4F
-
-#define SIO_DEVICEID_RS232 0x50
-#define SIO_DEVICEID_RS2323_LAST 0x53
-
-#define SIO_DEVICEID_CASSETTE 0x5F
-
-#define SIO_DEVICEID_FUJINET 0x70
-#define SIO_DEVICEID_FN_NETWORK 0x71
-#define SIO_DEVICEID_FN_NETWORK_LAST 0x78
-
-#define SIO_DEVICEID_MIDI 0x99
-
-// Not used, but for reference:
-#define SIO_DEVICEID_SIO2BT_NET 0x4E
-#define SIO_DEVICEID_SIO2BT_SMART 0x45 // Doubles as APETime and "High Score Submission" to URL
-#define SIO_DEVICEID_APE 0x45
-#define SIO_DEVICEID_ASPEQT 0x46
-#define SIO_DEVICEID_PCLINK 0x6F
-
-#define SIO_DEVICEID_CPM 0x5A
-
 union cmdFrame_t
 {
     struct
@@ -117,7 +86,7 @@ class virtualDevice
 protected:
     friend systemBus;
 
-    int _devnum;
+    fujiDeviceID_t _devnum;
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
@@ -208,7 +177,7 @@ public:
      * @brief get the SIO device Number (1-255)
      * @return The device number registered for this device
      */
-    int id() { return _devnum; };
+    fujiDeviceID_t id() { return _devnum; };
 
     /**
      * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
@@ -289,10 +258,10 @@ public:
     void shutdown();
 
     int numDevices();
-    void addDevice(virtualDevice *pDevice, int device_id);
+    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
     void remDevice(virtualDevice *pDevice);
-    virtualDevice *deviceById(int device_id);
-    void changeDeviceId(virtualDevice *pDevice, int device_id);
+    virtualDevice *deviceById(fujiDeviceID_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
 
     int getBaudrate();                                          // Gets current SIO baud rate setting
     void setBaudrate(int baud);                                 // Sets SIO to specific baud rate

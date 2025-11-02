@@ -254,7 +254,7 @@ void systemBus::_sio_process_cmd()
         // reset counter if checksum was correct
         _command_frame_counter = 0;
 #endif
-        if (tempFrame.device == SIO_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
+        if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
             _activeDev = _fujiDev->bootdisk();
             if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R' && _fujiDev->status_wait_enabled)
@@ -272,8 +272,8 @@ void systemBus::_sio_process_cmd()
         }
         else
         {
-            // Command SIO_DEVICEID_TYPE3POLL is a Type3 poll - send it to every device that cares
-            if (tempFrame.device == SIO_DEVICEID_TYPE3POLL)
+            // Command FUJI_DEVICEID_TYPE3POLL is a Type3 poll - send it to every device that cares
+            if (tempFrame.device == FUJI_DEVICEID_TYPE3POLL)
             {
                 Debug_println("SIO TYPE3 POLL");
                 for (auto devicep : _daisyChain)
@@ -538,33 +538,33 @@ void systemBus::setup()
 }
 
 // Add device to SIO bus
-void systemBus::addDevice(virtualDevice *pDevice, int device_id)
+void systemBus::addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id)
 {
-    if (device_id == SIO_DEVICEID_FUJINET)
+    if (device_id == FUJI_DEVICEID_FUJINET)
     {
         _fujiDev = (sioFuji *)pDevice;
     }
-    else if (device_id == SIO_DEVICEID_RS232)
+    else if (device_id == FUJI_DEVICEID_SERIAL)
     {
         _modemDev = (modem *)pDevice;
     }
-    else if (device_id >= SIO_DEVICEID_FN_NETWORK && device_id <= SIO_DEVICEID_FN_NETWORK_LAST)
+    else if (device_id >= FUJI_DEVICEID_NETWORK && device_id <= FUJI_DEVICEID_NETWORK_LAST)
     {
-        _netDev[device_id - SIO_DEVICEID_FN_NETWORK] = (sioNetwork *)pDevice;
+        _netDev[device_id - FUJI_DEVICEID_NETWORK] = (sioNetwork *)pDevice;
     }
-    else if (device_id == SIO_DEVICEID_MIDI)
+    else if (device_id == FUJI_DEVICEID_MIDI)
     {
         _udpDev = (sioUDPStream *)pDevice;
     }
-    else if (device_id == SIO_DEVICEID_CASSETTE)
+    else if (device_id == FUJI_DEVICEID_CASSETTE)
     {
         _cassetteDev = (sioCassette *)pDevice;
     }
-    else if (device_id == SIO_DEVICEID_CPM)
+    else if (device_id == FUJI_DEVICEID_CPM)
     {
         _cpmDev = (sioCPM *)pDevice;
     }
-    else if (device_id == SIO_DEVICEID_PRINTER)
+    else if (device_id == FUJI_DEVICEID_PRINTER)
     {
         _printerdev = (sioPrinter *)pDevice;
     }
@@ -592,7 +592,7 @@ int systemBus::numDevices()
     __END_IGNORE_UNUSEDVARS
 }
 
-void systemBus::changeDeviceId(virtualDevice *p, int device_id)
+void systemBus::changeDeviceId(virtualDevice *p, fujiDeviceID_t device_id)
 {
     for (auto devicep : _daisyChain)
     {
@@ -601,7 +601,7 @@ void systemBus::changeDeviceId(virtualDevice *p, int device_id)
     }
 }
 
-virtualDevice *systemBus::deviceById(int device_id)
+virtualDevice *systemBus::deviceById(fujiDeviceID_t device_id)
 {
     for (auto devicep : _daisyChain)
     {

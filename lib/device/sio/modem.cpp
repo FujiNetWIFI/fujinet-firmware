@@ -151,7 +151,7 @@ void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
         return;
     }
     // When AUX1 = 0x52 'R' and AUX == 1 or DEVICE == x050, it's a directed poll to "R1:"
-    if ((aux1 == 0x52 && aux2 == 0x01) || device == SIO_DEVICEID_RS232)
+    if ((aux1 == 0x52 && aux2 == 0x01) || device == FUJI_DEVICEID_SERIAL)
     {
         Debug_print("MODEM TYPE 4 \"R1:\" DIRECTED POLL\n");
         respond = true;
@@ -176,7 +176,7 @@ void modem::sio_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
     uint8_t type4response[4];
     type4response[0] = LOBYTE_FROM_UINT16(fsize);
     type4response[1] = HIBYTE_FROM_UINT16(fsize);
-    type4response[2] = SIO_DEVICEID_RS232;
+    type4response[2] = FUJI_DEVICEID_SERIAL;
     type4response[3] = 0;
 
     fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
