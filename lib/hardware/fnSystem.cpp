@@ -511,6 +511,7 @@ void SystemManager::update_hostname(const char *hostname)
 
 void SystemManager::update_firmware()
 {
+#ifdef ESP_PLATFORM
     Serial.printf("Stopping flash filesystem...\r\n");
     fsFlash.stop();
 
@@ -519,6 +520,7 @@ void SystemManager::update_firmware()
 
     Serial.println("Reboot to run update app and flash 'main.*.bin'...");
     reboot();
+#endif
 }
 
 const char *SystemManager::get_current_time_str()
