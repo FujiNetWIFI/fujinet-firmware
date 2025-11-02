@@ -8,7 +8,6 @@
 
 #include "fnSystem.h"
 #include "fnConfig.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 
 #include "utils.h"
@@ -463,7 +462,7 @@ void H89Modem::at_handle_answer()
         CRX = true;
 
         cmdMode = false;
-        fnUartBUS.flush();
+        //fnUartBUS.flush();
         answerHack = false;
     }
 }
@@ -1225,7 +1224,7 @@ void H89Modem::process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.commanddata = commanddata;
     cmdFrame.checksum = checksum;
 
-    fnUartDebug.printf("H89_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
+    Debug_printf("H89_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
 }
 
 #endif /* NEW_TARGET */

@@ -453,7 +453,7 @@ void H89Fuji::process(uint32_t commanddata, uint8_t checksum)
         H89_device_enabled_status();
         break;
     default:
-        fnUartDebug.printf("H89_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
+        Debug_printf("H89_process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
     }
 }
 
