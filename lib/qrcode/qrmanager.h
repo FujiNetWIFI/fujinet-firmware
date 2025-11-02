@@ -132,4 +132,6 @@ public:
     std::vector<uint8_t> code;
 };
 
+extern QRManager qrManager;
+
 #endif /* QRCODE_MANAGER_H */

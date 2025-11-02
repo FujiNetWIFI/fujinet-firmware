@@ -12,6 +12,8 @@
 
 #include "qrcode.h"
 
+QRManager qrManager;
+
 std::vector<uint8_t> QRManager::encode(const void* input, uint16_t length, uint8_t version, qr_ecc_t ecc)
 {
     code = std::vector<uint8_t>();

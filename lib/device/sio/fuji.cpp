@@ -43,7 +43,7 @@
 
 sioFuji theFuji; // global fuji device object
 
-//QRManager sioFuji::_qrManager = QRManager();
+//QRManager sioFuji::qrManager = QRManager();
 
 #ifdef ESP_PLATFORM
 std::unique_ptr<sioNetwork, PSRAMDeleter<sioNetwork>> sioNetDevs[MAX_NETWORK_DEVICES];
@@ -2203,7 +2203,7 @@ void sioFuji::sio_qrcode_input()
 
     std::vector<unsigned char> p(len);
     bus_to_peripheral(p.data(), len);
-    _qrManager.data += std::string((const char *)p.data(), len);
+    qrManager.data += std::string((const char *)p.data(), len);
     sio_complete();
 }
 
@@ -2217,27 +2217,27 @@ void sioFuji::sio_qrcode_encode()
     Debug_printf("FUJI: QRCODE ENCODE\n");
     Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
 
-    std::string url = _qrManager.data;
+    std::string url = qrManager.data;
 
     if (shorten) {
         url = fnHTTPD.shorten_url(url);
     }
 
-    _qrManager.version(version);
-    _qrManager.ecc((qr_ecc_t)ecc_mode);
-    _qrManager.output_mode = QR_OUTPUT_MODE_ATASCII;
-    _qrManager.encode();
+    qrManager.version(version);
+    qrManager.ecc((qr_ecc_t)ecc_mode);
+    qrManager.output_mode = QR_OUTPUT_MODE_ATASCII;
+    qrManager.encode();
 
-    _qrManager.data.clear();
+    qrManager.data.clear();
 
-    if (!_qrManager.code.size())
+    if (!qrManager.code.size())
     {
         Debug_printf("QR code encoding failed\n");
         sio_error();
         return;
     }
 
-    Debug_printf("Resulting QR code is: %u modules\n", _qrManager.code.size());
+    Debug_printf("Resulting QR code is: %u modules\n", qrManager.code.size());
     sio_complete();
 }
 
@@ -2247,15 +2247,15 @@ void sioFuji::sio_qrcode_length()
     uint8_t output_mode = sio_get_aux();
     Debug_printf("Output mode: %i\n", output_mode);
 
-    size_t len = _qrManager.size();
+    size_t len = qrManager.size();
 
     // A bit gross to have a side effect from length command, but not enough aux bytes
     // to specify version, ecc, *and* output mode for the encode command. Also can't
     // just wait for output command, because output mode determines buffer length,
-    if (len && (output_mode != _qrManager.output_mode)) {
-        _qrManager.output_mode = (ouput_mode_t)output_mode;
-        _qrManager.encode();
-        len = _qrManager.code.size();
+    if (len && (output_mode != qrManager.output_mode)) {
+        qrManager.output_mode = (ouput_mode_t)output_mode;
+        qrManager.encode();
+        len = qrManager.code.size();
     }
 
     uint8_t response[4] = {
@@ -2287,9 +2287,9 @@ void sioFuji::sio_qrcode_output()
         Debug_printf("Refusing to send a zero byte buffer. Aborting\n");
         return;
     }
-    else if (len > _qrManager.size())
+    else if (len > qrManager.size())
     {
-        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, _qrManager.code.size());
+        Debug_printf("Requested %u bytes, but buffer is only %u bytes, aborting.\n", len, qrManager.code.size());
         return;
     }
     else
@@ -2297,10 +2297,10 @@ void sioFuji::sio_qrcode_output()
         Debug_printf("Requested %u bytes\n", len);
     }
 
-    bus_to_computer(&_qrManager.code[0], len, false);
+    bus_to_computer(&qrManager.code[0], len, false);
 
-    _qrManager.code.clear();
-    _qrManager.code.shrink_to_fit();
+    qrManager.code.clear();
+    qrManager.code.shrink_to_fit();
 }
 
 

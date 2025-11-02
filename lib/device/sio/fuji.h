@@ -114,8 +114,6 @@ private:
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 
-    QRManager _qrManager = QRManager();
-
 protected:
     void sio_reset_fujinet();          // 0xFF
     void sio_net_get_ssid();           // 0xFE
