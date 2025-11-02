@@ -150,7 +150,7 @@ void main_setup(int argc, char *argv[])
     //You can change the baud rate and pin numbers similar to Serial.begin() here.
     console.begin(DEBUG_SPEED);
 #else
-    Serial.begin(DEBUG_SPEED);
+    Serial.begin(ChannelConfig().baud(DEBUG_SPEED).deviceID(FN_UART_DEBUG));
 #endif
 
 #ifdef DEBUG
@@ -273,11 +273,6 @@ void main_setup(int argc, char *argv[])
     SYSTEM_BUS.addDevice(ptr, SIO_DEVICEID_PRINTER + fnPrinters.get_port(0)); // P:
 
     sioR = new modem(ptrfs, Config.get_modem_sniffer_enabled()); // Config/User selected sniffer enable
-#ifdef ESP_PLATFORM
-    SYSTEM_BUS.set_uart(&fnUartBUS);
-#else
-    SYSTEM_BUS.set_uart(&fnSioCom);
-#endif
 
     SYSTEM_BUS.addDevice(sioR, SIO_DEVICEID_RS232); // R:
 

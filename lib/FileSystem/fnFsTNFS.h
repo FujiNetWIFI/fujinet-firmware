@@ -33,6 +33,7 @@ public:
     FileHandler * filehandler_open(const char* path, const char* mode = FILE_READ) override;
 #endif
 
+    bool is_started();
     bool exists(const char* path) override;
 
     bool remove(const char* path) override;

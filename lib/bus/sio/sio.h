@@ -1,22 +1,9 @@
 #ifndef SIO_H
 #define SIO_H
 
+#include "UARTChannel.h"
+#include "NetSIO.h"
 #include <forward_list>
-
-#ifdef ESP_PLATFORM
-#include <freertos/FreeRTOS.h>
-#include <freertos/queue.h>
-#else
-#include "sio/siocom/fnSioCom.h"
-#endif
-
-#ifdef ESP_PLATFORM
-#include "fnUART.h"
-#define MODEM_UART_T UARTManager
-#else
-// fnSioCom.h is included from bus.h
-#define MODEM_UART_T SioCom
-#endif
 
 #define DELAY_T4 850
 #define DELAY_T5 250
@@ -168,7 +155,7 @@ protected:
 #ifdef ESP_PLATFORM
     inline void sio_late_ack() { sio_ack(); };
 #else
-    void sio_late_ack();   
+    void sio_late_ack();
 #endif
 
     /**
@@ -196,7 +183,7 @@ protected:
     /**
      * @brief Return the two aux bytes in cmdFrame as a single 16-bit value, commonly used, for example to retrieve
      * a sector number, for disk, or a number of bytes waiting for the sioNetwork device.
-     * 
+     *
      * @return 16-bit value of DAUX1/DAUX2 in cmdFrame.
      */
     unsigned short sio_get_aux();
@@ -208,7 +195,7 @@ protected:
     virtual void sio_status() = 0;
 
     /**
-     * @brief All SIO devices repeatedly call this routine to fan out to other methods for each command. 
+     * @brief All SIO devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
     virtual void sio_process(uint32_t commanddata, uint8_t checksum) = 0;
@@ -282,12 +269,19 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
+    IOChannel *_port = nullptr;
+    UARTChannel _serial;
+    NetSIO _netsio;
+    int _commandPin;
+
 #ifndef ESP_PLATFORM
     bool _command_processed = false;
 #endif
 
     void _sio_process_cmd();
     void _sio_process_queue();
+
+    void configureGPIO();
 
 public:
     void setup();
@@ -316,25 +310,69 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
-#ifndef ESP_PLATFORM
-    void set_command_processed(bool processed);
-    void sio_empty_ack();                                       // for NetSIO, notify hub we are not interested to handle the command
-#endif
-
     sioCassette *getCassette() { return _cassetteDev; }
     sioPrinter *getPrinter() { return _printerdev; }
     sioCPM *getCPM() { return _cpmDev; }
 
     // I wish this codebase would make up its mind to use camel or snake casing.
     modem *get_modem() { return _modemDev; }
+    bool commandAsserted();
 
 #ifdef ESP_PLATFORM
     QueueHandle_t qSioMessages = nullptr;
 #endif
 
-    MODEM_UART_T* uart;             // UART manager to use.
-    void set_uart(MODEM_UART_T* _uart) { uart = _uart; }
+    // Everybody thinks "oh I know how a serial port works, I'll just
+    // access it directly and bypass the bus!" ಠ_ಠ
+    size_t read(void *buffer, size_t length) { return _port->read(buffer, length); }
+    size_t read() { return _port->read(); }
+    size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
+    size_t write(int n) { return _port->write(n); }
+    size_t available() { return _port->available(); }
+    void flushOutput() { _port->flushOutput(); }
+    void discardInput() { _port->discardInput(); }
+    size_t print(int n, int base = 10) { return _port->print(n, base); }
+    size_t print(const char *str) { return _port->print(str); }
+    size_t print(const std::string &str) { return _port->print(str); }
 
+#ifndef ESP_PLATFORM
+    // specific to NetSioPort
+#ifdef UNUSED
+    void set_netsio_host(const char *host, int port) { _netsio.set_netsio_host(host, port); }
+    const char* get_netsio_host(int &port) { return _netsio.get_netsio_host(port); }
+#endif /* UNUSED */
+    void netsio_empty_sync() { _netsio.sendEmptySync(); }
+    void netsio_late_sync(uint8_t c) { _netsio.setSyncAckByte(c); }
+    void netsio_write_size(int write_size) { _netsio.setWriteSize(write_size); }
+
+    void set_command_processed(bool processed);
+    void sio_empty_ack();                                       // for NetSIO, notify hub we are not interested to handle the command
+
+#ifdef UNUSED
+
+    // get/set SIO mode
+    SioCom::sio_mode get_sio_mode() { return _netsio.get_sio_mode(); }
+    void set_sio_mode(SioCom::sio_mode mode) { _netsio.set_sio_mode(mode); }
+    void reset_sio_port(SioCom::sio_mode mode) { _netsio.reset_sio_port(mode); }
+
+    bool poll(int ms) { return _netsio.poll(ms); }
+    bool command_asserted() { return _netsio.commandAsserted(); }
+#endif /* UNUSED */
+    void set_proceed(bool level) { _netsio.setProceed(level); }
+    void bus_idle(uint16_t ms) { _netsio.busIdle(ms); }
+#endif /* ESP_PLATFORM */
+
+    bool motor_asserted();
+
+    /* BoIP things */
+    bool isBoIP() { return _port == &_netsio; }
+    void setHost(const char *host, int port) { _netsio.setHost(host, port); }
+    void selectSerialPort(bool useSerial) {
+        if (useSerial)
+            _port = &_serial;
+        else
+            _port = &_netsio;
+    }
 };
 
 extern systemBus SYSTEM_BUS;

@@ -47,7 +47,6 @@
 
 #ifdef BUILD_RS232
 #include "rs232/rs232.h"
-#define FN_BUS_PORT fnUartBUS
 #endif
 
 #ifdef BUILD_CX16

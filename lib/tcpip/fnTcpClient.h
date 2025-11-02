@@ -14,7 +14,6 @@ class fnTcpClient
 {
 protected:
     std::string _rxBuffer;
-    int _fd;
     std::shared_ptr<fnTcpClientSocketHandle> _clientSocketHandle;
     bool _connected = false;
 

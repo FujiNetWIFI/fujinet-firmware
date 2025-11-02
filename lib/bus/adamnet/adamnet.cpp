@@ -78,24 +78,24 @@ uint8_t adamnet_checksum(uint8_t *buf, unsigned short len)
 void virtualDevice::adamnet_send(uint8_t b)
 {
     // Write the byte
-    fnUartBUS.write(b);
-    fnUartBUS.flush();
+    SYSTEM_BUS.write(b);
+    SYSTEM_BUS.flush();
 }
 
 void virtualDevice::adamnet_send_buffer(uint8_t *buf, unsigned short len)
 {
-    fnUartBUS.write(buf, len);
-    fnUartBUS.flush();
+    SYSTEM_BUS.write(buf, len);
+    SYSTEM_BUS.flush();
 }
 
 uint8_t virtualDevice::adamnet_recv()
 {
     uint8_t b;
 
-    while (fnUartBUS.available() <= 0)
+    while (SYSTEM_BUS.available() <= 0)
         fnSystem.yield();
 
-    b = fnUartBUS.read();
+    b = SYSTEM_BUS.read();
 
     return b;
 }
@@ -108,7 +108,7 @@ bool virtualDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
     start = current = esp_timer_get_time();
     elapsed = 0;
 
-    while (fnUartBUS.available() <= 0)
+    while (SYSTEM_BUS.available() <= 0)
     {
         current = esp_timer_get_time();
         elapsed = current - start;
@@ -116,9 +116,9 @@ bool virtualDevice::adamnet_recv_timeout(uint8_t *b, uint64_t dur)
             break;
     }
 
-    if (fnUartBUS.available() > 0)
+    if (SYSTEM_BUS.available() > 0)
     {
-        *b = (uint8_t)fnUartBUS.read();
+        *b = (uint8_t)SYSTEM_BUS.read();
         timeout = false;
     } // else
       //   Debug_printf("duration: %llu\n", elapsed);
@@ -143,7 +143,7 @@ void virtualDevice::adamnet_send_length(uint16_t l)
 
 unsigned short virtualDevice::adamnet_recv_buffer(uint8_t *buf, unsigned short len)
 {
-    return fnUartBUS.readBytes(buf, len);
+    return SYSTEM_BUS.read(buf, len);
 }
 
 uint32_t virtualDevice::adamnet_recv_blockno()
@@ -168,7 +168,7 @@ void virtualDevice::adamnet_response_ack(bool doNotWaitForIdle)
     {
         SYSTEM_BUS.wait_for_idle();
     }
-    
+
     if (t < 300)
     {
         adamnet_send(0x90 | _devnum);
@@ -183,7 +183,7 @@ void virtualDevice::adamnet_response_nack(bool doNotWaitForIdle)
     {
         SYSTEM_BUS.wait_for_idle();
     }
-    
+
     if (t < 300)
     {
         adamnet_send(0xC0 | _devnum);
@@ -203,12 +203,12 @@ void systemBus::wait_for_idle()
     do
     {
         // Wait for serial line to quiet down.
-        while (fnUartBUS.available() > 0)
-            fnUartBUS.read();
+        while (_port.available() > 0)
+            _port.read();
 
         start = current = esp_timer_get_time();
 
-        while ((fnUartBUS.available() <= 0) && (isIdle == false))
+        while ((_port.available() <= 0) && (isIdle == false))
         {
             current = esp_timer_get_time();
             dur = current - start;
@@ -221,7 +221,7 @@ void systemBus::wait_for_idle()
 
 void virtualDevice::adamnet_process(uint8_t b)
 {
-    fnUartDebug.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n", b);
+    fnDebugConsole.printf("adamnet_process() not implemented yet for this device. Cmd received: %02x\n", b);
 }
 
 void virtualDevice::adamnet_control_status()
@@ -262,14 +262,14 @@ void virtualDevice::adamnet_idle()
 
 //void virtualDevice::adamnet_status()
 //{
-//    fnUartDebug.printf("adamnet_status() not implemented yet for this device.\n");
+//    fnDebugConsole.printf("adamnet_status() not implemented yet for this device.\n");
 //}
 
 void systemBus::_adamnet_process_cmd()
 {
     uint8_t b;
 
-    b = fnUartBUS.read();
+    b = _port.read();
     start_time = esp_timer_get_time();
 
     uint8_t d = b & 0x0F;
@@ -311,7 +311,7 @@ void systemBus::service()
     _adamnet_process_queue();
 
     // Process anything waiting.
-    if (fnUartBUS.available() > 0)
+    if (_port.available() > 0)
         _adamnet_process_cmd();
 }
 
@@ -332,7 +332,9 @@ void systemBus::setup()
     gpio_isr_handler_add((gpio_num_t)PIN_ADAMNET_RESET, adamnet_reset_isr_handler, (void *)PIN_CARD_DETECT_FIX);
 
     // Set up UART
-    fnUartBUS.begin(ADAMNET_BAUDRATE);
+    _port.begin(ChannelConfig()
+                .baud(ADAMNET_BAUDRATE)
+                );
 }
 
 void systemBus::shutdown()

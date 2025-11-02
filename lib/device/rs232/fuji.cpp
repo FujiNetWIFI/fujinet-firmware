@@ -2,8 +2,6 @@
 
 #include "fuji.h"
 
-#include <driver/ledc.h>
-
 #include <cstdint>
 #include <cstring>
 
@@ -17,6 +15,7 @@
 #include "led.h"
 #include "utils.h"
 #include "string_utils.h"
+#include "compat_string.h"
 
 rs232Fuji theFuji; // global fuji device object
 
