@@ -771,7 +771,7 @@ uint8_t qrcode_initBytes(QRCode *qrcode, uint8_t *data, uint16_t length) {
 
     // If Version is 0, choose the smallest version that can hold the data
     if (qrcode->version == VERSION_AUTO) {
-        qrcode->version = qrcode_minVersion(qrcode->ecc, qrcode->mode, (char*)data, length);
+        qrcode->version = qrcode_minVersion(qrcode->mode, (char*)data, length);
     }
     else if (qrcode->version > 40 || qrcode->ecc > 3)
     {
@@ -899,9 +899,10 @@ uint16_t qrcode_dataCapacity(uint8_t version, uint8_t ecc) {
     return dataCapacity;
 }
 
-uint8_t qrcode_minVersion(uint8_t ecc, uint8_t mode, const char *data, uint16_t length) {
+uint8_t qrcode_minVersion(uint8_t mode, const char *data, uint16_t length) {
 
     uint8_t version = 1;
+    uint8_t ecc = ECC_HIGH;
     uint8_t lengthMode = getModeBits(version, mode);
     uint16_t lengthMax;
 
@@ -910,7 +911,13 @@ uint8_t qrcode_minVersion(uint8_t ecc, uint8_t mode, const char *data, uint16_t 
         lengthMax = qrcode_dataCapacity(version, ecc) - 2;
         //printf("Testing version[%d] ecc[%d] len[%d] lengthMode[%d] encoded[%d] max[%d]\n", version, ecc, length, lengthMode, lengthEncoded, lengthMax);
         if (lengthEncoded > lengthMax) {
-            version++;
+            if (ecc == 0)
+            {
+                version++;
+                ecc = ECC_HIGH;
+            }
+            else
+                ecc--;
         } else {
             break;
         }
