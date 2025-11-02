@@ -8,14 +8,6 @@
 #include "fnSystem.h"
 #include "utils.h"
 
-// TODO: merge/fix this at global level
-#ifdef ESP_PLATFORM
-#include "fnUART.h"
-#define FN_BUS_LINK fnUartBUS
-#else
-#define FN_BUS_LINK fnSioCom
-#endif
-
 void sioUDPStream::sio_enable_udpstream()
 {
     if (udpstream_port == MIDI_PORT)
@@ -47,7 +39,7 @@ void sioUDPStream::sio_enable_udpstream()
 #endif
 
         // Change baud rate
-        FN_BUS_LINK.set_baudrate(MIDI_BAUDRATE);
+        SYSTEM_BUS.setBaudrate(MIDI_BAUDRATE);
     }
 
     // Open the UDP connection
@@ -81,7 +73,7 @@ void sioUDPStream::sio_disable_udpstream()
 #ifdef ESP_PLATFORM
         ledc_stop(LEDC_ESP32XX_HIGH_SPEED, LEDC_CHANNEL_1, 0);
 #endif
-        FN_BUS_LINK.set_baudrate(SIO_STANDARD_BAUDRATE);
+        SYSTEM_BUS.setBaudrate(SIO_STANDARD_BAUDRATE);
     }
 #ifdef ESP_PLATFORM
     // Reset CKI pin back to output open drain high
@@ -101,7 +93,7 @@ void sioUDPStream::sio_handle_udpstream()
     {
         udpStream.read(buf_net, UDPSTREAM_BUFFER_SIZE);
         // Send to Atari UART
-        FN_BUS_LINK.write(buf_net, packetSize);
+        SYSTEM_BUS.write(buf_net, packetSize);
 #ifdef ESP_PLATFORM
         if (udpstreamIsServer)
         {
@@ -128,7 +120,7 @@ void sioUDPStream::sio_handle_udpstream()
 #endif
 
     // Read the data until there's a pause in the incoming stream
-    if (FN_BUS_LINK.available() > 0)
+    if (SYSTEM_BUS.available() > 0)
     {
         while (true)
         {
@@ -136,24 +128,24 @@ void sioUDPStream::sio_handle_udpstream()
 #ifdef ESP_PLATFORM
             if (fnSystem.digital_read(PIN_CMD) == DIGI_LOW)
 #else
-            if (FN_BUS_LINK.command_asserted())
+            if (SYSTEM_BUS.commandAsserted())
 #endif
             {
                 Debug_println("CMD Asserted in LOOP, stopping UDPStream");
                 sio_disable_udpstream();
                 return;
             }
-            if (FN_BUS_LINK.available() > 0)
+            if (SYSTEM_BUS.available() > 0)
             {
                 // Collect bytes read in our buffer
-                buf_stream[buf_stream_index] = (unsigned char)FN_BUS_LINK.read(); // TODO apc: check for error first
+                buf_stream[buf_stream_index] = (unsigned char)SYSTEM_BUS.read(); // TODO apc: check for error first
                 if (buf_stream_index < UDPSTREAM_BUFFER_SIZE - 1)
                     buf_stream_index++;
             }
             else
             {
                 fnSystem.delay_microseconds(UDPSTREAM_PACKET_TIMEOUT);
-                if (FN_BUS_LINK.available() <= 0)
+                if (SYSTEM_BUS.available() <= 0)
                     break;
             }
         }

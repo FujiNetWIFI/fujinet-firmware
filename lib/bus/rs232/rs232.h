@@ -1,8 +1,12 @@
 #ifndef RS232_H
 #define RS232_H
 
+#include "UARTChannel.h"
+
+#ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
+#endif /* ESP_PLATFORM */
 
 #include <forward_list>
 
@@ -144,7 +148,7 @@ protected:
     virtual void rs232_status() = 0;
 
     /**
-     * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command. 
+     * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
     virtual void rs232_process(cmdFrame_t *cmd_ptr) = 0;
@@ -216,6 +220,12 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
+#if FUJINET_OVER_USB
+    ACMChannel _port;
+#else /* ! FUJINET_OVER_USB */
+    UARTChannel _port;
+#endif /* FUJINET_OVER_USB */
+
     void _rs232_process_cmd();
     /* void _rs232_process_queue(); */
 
@@ -246,10 +256,21 @@ public:
     rs232Printer *getPrinter() { return _printerdev; }
     rs232CPM *getCPM() { return _cpmDev; }
 
-    QueueHandle_t qRs232Messages = nullptr;
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
+
+    // Everybody thinks "oh I know how a serial port works, I'll just
+    // access it directly and bypass the bus!" ಠ_ಠ
+    size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
+    size_t read() { return _port.read(); }
+    size_t write(const void *buffer, size_t length) { return _port.write(buffer, length); }
+    size_t write(int n) { return _port.write(n); }
+    size_t available() { return _port.available(); }
+    void flushOutput() { _port.flushOutput(); }
+    size_t print(int n, int base = 10) { return _port.print(n, base); }
+    size_t print(const char *str) { return _port.print(str); }
+    size_t print(const std::string &str) { return _port.print(str); }
 };
 
 extern systemBus SYSTEM_BUS;

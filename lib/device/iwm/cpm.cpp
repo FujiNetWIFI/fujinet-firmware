@@ -4,7 +4,6 @@
 #include "cpm.h"
 
 #include "fnSystem.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 #include "fuji.h"
 #include "fnFS.h"
@@ -27,7 +26,7 @@
 #include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
 #endif
 
-#define CPM_TASK_PRIORITY 20
+#define CPM_TASK_PRIORITY 10
 
 static void cpmTask(void *arg)
 {
@@ -42,9 +41,6 @@ static void cpmTask(void *arg)
         memset(newname, 0, sizeof(newname));
         memset(fcbname, 0, sizeof(fcbname));
         memset(pattern, 0, sizeof(pattern));
-#ifdef ESP_PLATFORM // OS
-        vTaskDelay(100);
-#endif
         _puts(CCPHEAD);
         _PatchCPM();
         _ccp();
@@ -107,7 +103,7 @@ void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
         if (cpmTaskHandle == NULL)
         {
             Debug_printf("!!! STARTING CP/M TASK!!!\n");
-            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
+            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 4096, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0);
         }
     }
 #endif
@@ -270,7 +266,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
                 {
                         break;
                 }
-                xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
+                xTaskCreatePinnedToCore(cpmTask, "cpmtask", 4096, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0);
 #endif
             }
             break;

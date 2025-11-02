@@ -5,7 +5,6 @@
 #include "compat_inet.h"
 #include "../../include/atascii.h"
 #include "modem.h"
-#include "../hardware/fnUART.h"
 #include "fnWiFi.h"
 #include "fnSystem.h"
 #include "../utils/utils.h"

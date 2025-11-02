@@ -17,7 +17,6 @@
 #include "fnSystem.h"
 #include "fnWiFi.h"
 #include "fnFsSD.h"
-#include "fnUART.h"
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
 
