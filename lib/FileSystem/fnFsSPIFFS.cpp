@@ -174,10 +174,10 @@ bool FileSystemSPIFFS::start()
 
 #ifdef ESP_PLATFORM
     esp_vfs_spiffs_conf_t conf = {
-      .base_path = _basepath,
-      .partition_label = "storage",
-      .max_files = 10, // from SPIFFS.h
-      .format_if_mount_failed = false
+        .base_path = _basepath,
+        .partition_label = "storage",
+        .max_files = 10, // from SPIFFS.h
+        .format_if_mount_failed = false
     };
     
     esp_err_t e = esp_vfs_spiffs_register(&conf);
@@ -185,7 +185,7 @@ bool FileSystemSPIFFS::start()
     if (e != ESP_OK)
     {
         Debug_printf("Failed to mount SPIFFS partition, err = %d\r\n", e);
-        _started = false;
+        //_started = false;
     }
     else
 #endif // ESP_PLATFORM
@@ -202,6 +202,35 @@ bool FileSystemSPIFFS::start()
     }
 
     return _started;
+}
+
+bool FileSystemSPIFFS::stop()
+{
+    if(!_started)
+        return true;
+
+#ifdef ESP_PLATFORM
+    esp_err_t e = esp_vfs_spiffs_unregister("storage");
+
+    if (e != ESP_OK)
+    {
+        Debug_printf("Failed to unmount SPIFFS partition, err = %d\r\n", e);
+    }
+    else
+#endif // ESP_PLATFORM
+    {
+        _started = false;
+        Debug_println("SPIFFS unmounted.");
+    #ifdef DEBUG
+        /*
+        size_t total = 0, used = 0;
+        esp_spiffs_info(NULL, &total, &used);
+        Debug_printf("  partition size: %u, used: %u, free: %u\r\n", total, used, total-used);
+        */
+    #endif
+    }
+
+    return !_started;
 }
 
 #endif // FLASH_SPIFFS

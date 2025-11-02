@@ -14,6 +14,7 @@ private:
 public:
     FileSystemLittleFS();
     bool start();
+    bool stop();
     
     fsType type() override { return FSTYPE_LITTLEFS; };
     const char * typestring() override { return type_to_string(FSTYPE_LITTLEFS); };
