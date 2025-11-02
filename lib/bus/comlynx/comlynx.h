@@ -174,7 +174,7 @@ protected:
      * @brief Do any tasks that can only be done when the bus is quiet
      */
     virtual void comlynx_idle();
-    
+
     /**
      * @brief send current status of device
      */
@@ -189,7 +189,7 @@ protected:
      * @brief send status response
      */
     virtual void comlynx_response_status();
-    
+
     /**
      * @brief command frame, used by network protocol, ultimately
      */
@@ -234,7 +234,7 @@ public:
      */
     uint8_t id() { return _devnum; }
 
-    
+
 };
 
 /**
@@ -247,7 +247,7 @@ private:
     virtualDevice *_activeDev = nullptr;
     lynxFuji *_fujiDev = nullptr;
     lynxPrinter *_printerDev = nullptr;
-   
+
 
     void _comlynx_process_cmd();
     void _comlynx_process_queue();
@@ -272,15 +272,15 @@ public:
     //int64_t comlynx_idle_time = 1000;
 
     int numDevices();
-    void addDevice(virtualDevice *pDevice, uint8_t device_id);
+    void addDevice(virtualDevice *pDevice, FujiDeviceID device_id);
     void remDevice(virtualDevice *pDevice);
-    void remDevice(uint8_t device_id);
-    bool deviceExists(uint8_t device_id);
-    void enableDevice(uint8_t device_id);
-    void disableDevice(uint8_t device_id);
-    virtualDevice *deviceById(uint8_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
-    bool deviceEnabled(uint8_t device_id);
+    void remDevice(FujiDeviceID device_id);
+    bool deviceExists(FujiDeviceID device_id);
+    void enableDevice(FujiDeviceID device_id);
+    void disableDevice(FujiDeviceID device_id);
+    virtualDevice *deviceById(FujiDeviceID device_id);
+    void changeDeviceId(virtualDevice *pDevice, FujiDeviceID device_id);
+    bool deviceEnabled(FujiDeviceID device_id);
     QueueHandle_t qComlynxMessages = nullptr;
     void setUDPHost(const char *newhost, int port);             // Set new host/ip & port for UDP Stream
 

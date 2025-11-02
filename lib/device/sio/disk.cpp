@@ -126,7 +126,7 @@ void sioDisk::sio_status()
 
     uint8_t _status[4];
     _status[0] = 0x00;
-    
+
     if (_disk != nullptr)
     {
         if (_disk->_disk_num_sectors == 1040)
@@ -319,7 +319,7 @@ void sioDisk::sio_process(uint32_t commanddata, uint8_t checksum)
     if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
         return;
 
-    if ((device_active == false && cmdFrame.device != SIO_DEVICEID_DISK) || // not active and not D1
+    if ((device_active == false && cmdFrame.device != FUJI_DEVICEID_DISK) || // not active and not D1
         (device_active == false && theFuji.boot_config == false)) // not active and not config boot
         return;
 

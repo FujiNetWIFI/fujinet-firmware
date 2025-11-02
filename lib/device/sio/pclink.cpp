@@ -710,7 +710,7 @@ do_pclink_init(int server_cold_start)
                         device[unit].status.stat = 0;
                         device[unit].status.err = 1;
                         device[unit].status.tmot = 0;
-                        device[unit].status.none = SIO_DEVICEID_PCLINK;
+                        device[unit].status.none = FUJI_DEVICEID_PCLINK;
                 }
         }
 }
@@ -1467,7 +1467,7 @@ do_pclink(uchar devno, uchar ccom, uchar caux1, uchar caux2)
                 do_pclink_init(0);
 
                 device[cunit].parbuf.handle = 0xff;
-                device[cunit].status.none = SIO_DEVICEID_PCLINK;
+                device[cunit].status.none = FUJI_DEVICEID_PCLINK;
                 device[cunit].status.err = 1;
                 goto complete;
         }
@@ -2668,7 +2668,7 @@ void sioPCLink::sio_process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.checksum = checksum;
 
     uchar cunit = cmdFrame.aux2 & 0x0f; /* PCLink ignores DUNIT */
-    uchar cdev = SIO_DEVICEID_PCLINK;
+    uchar cdev = FUJI_DEVICEID_PCLINK;
     uchar devno = cdev >> 4; // ??? magical 6
 
     if (!Config.get_pclink_enabled())
