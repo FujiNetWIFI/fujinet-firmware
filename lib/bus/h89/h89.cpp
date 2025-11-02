@@ -164,7 +164,7 @@ int systemBus::port_putc(uint8_t c)
  * @param len Length of buffer to send
  * @return number of bytes actually sent.
  */
-uint16_t systemBus::port_putbuf(void *buf, uint16_t len)
+uint16_t systemBus::port_putbuf(const void *buf, uint16_t len)
 {
     uint16_t l = 0;
     uint8_t *p = (uint8_t *)buf;

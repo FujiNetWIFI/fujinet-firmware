@@ -95,23 +95,6 @@ class systemBus
 private:
     std::map<uint8_t, virtualDevice *> _daisyChain;
 
-    int bus_available();
-    
-    // returns signed int with data or -1 if no data is available
-    int port_getc();
-
-    // return data if it arrives before timeout or -1 if timeout expires
-    int port_getc_timeout(uint16_t timeout);
-
-    // returns length of data received, if timeout expires returns all data received until then
-    uint16_t port_getbuf(void *buf, uint16_t len, uint16_t timeout);
-
-    // writes character to port
-    int port_putc(uint8_t c);
-
-    // writes data to port, returns number of bytes written
-    uint16_t port_putbuf(void *buf, uint16_t len);
-
 public:
     void setup(); // one time setup
     void service(); // this runs in a loop 
@@ -132,6 +115,23 @@ public:
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
+
+    int bus_available();
+    
+    // returns signed int with data or -1 if no data is available
+    int port_getc();
+
+    // return data if it arrives before timeout or -1 if timeout expires
+    int port_getc_timeout(uint16_t timeout);
+
+    // returns length of data received, if timeout expires returns all data received until then
+    uint16_t port_getbuf(void *buf, uint16_t len, uint16_t timeout);
+
+    // writes character to port
+    int port_putc(uint8_t c);
+
+    // writes data to port, returns number of bytes written
+    uint16_t port_putbuf(const void *buf, uint16_t len);
 };
 
 extern systemBus SYSTEM_BUS;
