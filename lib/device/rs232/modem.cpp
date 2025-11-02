@@ -1801,16 +1801,16 @@ void rs232Modem::rs232_process(FujiBusPacket &packet)
     {
         Debug_println("rs232Modem::rs232_process() called");
 
-        switch (packet.command)
+        switch (packet.command())
         {
         case FUJICMD_LOAD_RELOCATOR:
             Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
-            rs232_send_firmware(packet.command);
+            rs232_send_firmware(packet.command());
             break;
 
         case FUJICMD_LOAD_HANDLER:
             Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
-            rs232_send_firmware(packet.command);
+            rs232_send_firmware(packet.command());
             break;
 
 #ifdef OBSOLETE
@@ -1839,27 +1839,27 @@ void rs232Modem::rs232_process(FujiBusPacket &packet)
             break;
         case FUJICMD_SET_DUMP:
             rs232_ack();
-            rs232_set_dump(packet.fields[0]);
+            rs232_set_dump(packet.param(0));
             break;
         case FUJICMD_LISTEN:
-            rs232_listen(packet.fields[0]);
+            rs232_listen(packet.param(0));
             break;
         case FUJICMD_UNLISTEN:
             rs232_unlisten();
             break;
         case FUJICMD_BAUDRATELOCK:
-            rs232_baudlock(packet.fields[0], packet.fields[1]);
+            rs232_baudlock(packet.param(0), packet.param(1));
             break;
         case FUJICMD_AUTOANSWER:
-            rs232_autoanswer(packet.fields[0]);
+            rs232_autoanswer(packet.param(0));
             break;
         case FUJICMD_STATUS:
             rs232_ack();
-            rs232_status(static_cast<FujiStatusReq>(packet.fields[0]));
+            rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
             break;
         case FUJICMD_WRITE:
             rs232_ack();
-            rs232_write(packet.fields[0]);
+            rs232_write(packet.param(0));
             break;
         case FUJICMD_STREAM:
             rs232_ack();

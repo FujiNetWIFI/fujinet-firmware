@@ -131,6 +131,8 @@ enum FujiCommandID {
   FUJICMD_LOAD_RELOCATOR             = 0x21, // !
   FUJICMD_FORMAT                     = 0x21, // !
   FUJICMD_RENAME                     = 0x20,
+  FUJICMD_NAK                        = 0x15, // ASCII NAK
+  FUJICMD_ACK                        = 0x06, // ASCII ACK
   FUJICMD_SEND_ERROR                 = 0x02,
   FUJICMD_SEND_RESPONSE              = 0x01,
   FUJICMD_DEVICE_READY               = 0x00,

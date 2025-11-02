@@ -163,11 +163,13 @@ public:
      */
     FujiDeviceID id() { return _devnum; };
 
+#ifdef OBSOLETE
     /**
      * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
      * signifies the high speed RS232 divisor chosen by the user in their #FujiNet configuration.
      */
     virtual void rs232_high_speed();
+#endif /* OBSOLETE */
 
     /**
      * @brief Is this virtualDevice holding the virtual disk drive used to boot CONFIG?
@@ -258,17 +260,19 @@ public:
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 
+    void sendReplyPacket(FujiDeviceID source, bool ack, void *data, size_t length);
+
     // Everybody thinks "oh I know how a serial port works, I'll just
     // access it directly and bypass the bus!" ಠ_ಠ
-    size_t read(void *buffer, size_t length) { return _port.read(buffer, length); }
-    size_t read() { return _port.read(); }
-    size_t write(const void *buffer, size_t length) { return _port.write(buffer, length); }
-    size_t write(int n) { return _port.write(n); }
-    size_t available() { return _port.available(); }
-    void flushOutput() { _port.flushOutput(); }
-    size_t print(int n, int base = 10) { return _port.print(n, base); }
-    size_t print(const char *str) { return _port.print(str); }
-    size_t print(const std::string &str) { return _port.print(str); }
+    size_t read(void *buffer, size_t length);
+    size_t read();
+    size_t write(const void *buffer, size_t length);
+    size_t write(int n);
+    size_t available();
+    void flushOutput();
+    size_t print(int n, int base = 10);
+    size_t print(const char *str);
+    size_t print(const std::string &str);
 };
 
 extern systemBus SYSTEM_BUS;

@@ -186,11 +186,11 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
 {
     Debug_println("rs232Fuji::rs232_process() called");
 
-    switch (packet.command)
+    switch (packet.command())
     {
     case FUJICMD_STATUS:
         rs232_ack();
-        rs232_status(static_cast<FujiStatusReq>(packet.fields[0]));
+        rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
         break;
     case FUJICMD_RESET:
         rs232_ack();
@@ -202,11 +202,11 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_GET_SCAN_RESULT:
         rs232_ack();
-        fujicmd_net_scan_result(packet.fields[0]);
+        fujicmd_net_scan_result(packet.param(0));
         break;
     case FUJICMD_SET_SSID:
         rs232_ack();
-        rs232_net_set_ssid(packet.fields[0]);
+        rs232_net_set_ssid(packet.param(0));
         break;
     case FUJICMD_GET_SSID:
         rs232_ack();
@@ -218,20 +218,20 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_MOUNT_HOST:
         rs232_ack();
-        fujicmd_mount_host_success(packet.fields[0]);
+        fujicmd_mount_host_success(packet.param(0));
         break;
     case FUJICMD_MOUNT_IMAGE:
         rs232_ack();
-        fujicmd_mount_disk_image_success(packet.fields[0], packet.fields[1]);
+        fujicmd_mount_disk_image_success(packet.param(0), packet.param(1));
         break;
     case FUJICMD_OPEN_DIRECTORY:
         rs232_ack();
 #warning "FIXME - if data is missing then NAK"
-        fujicmd_open_directory_success(packet.fields[0], packet.data.value_or(""));
+        fujicmd_open_directory_success(packet.param(0), packet.data().value_or(""));
         break;
     case FUJICMD_READ_DIR_ENTRY:
         rs232_ack();
-        fujicmd_read_directory_entry(packet.fields[0], packet.fields[1]);
+        fujicmd_read_directory_entry(packet.param(0), packet.param(1));
         break;
     case FUJICMD_CLOSE_DIRECTORY:
         rs232_ack();
@@ -243,7 +243,7 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_SET_DIRECTORY_POSITION:
         rs232_ack();
-        fujicmd_set_directory_position(packet.fields[0]);
+        fujicmd_set_directory_position(packet.param(0));
         break;
     case FUJICMD_READ_HOST_SLOTS:
         rs232_ack();
@@ -267,7 +267,7 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_UNMOUNT_IMAGE:
         rs232_ack();
-        fujicmd_unmount_disk_image_success(packet.fields[0]);
+        fujicmd_unmount_disk_image_success(packet.param(0));
         break;
     case FUJICMD_GET_ADAPTERCONFIG:
         rs232_ack();
@@ -283,20 +283,20 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_SET_DEVICE_FULLPATH:
         rs232_ack();
-        fujicmd_set_device_filename_success(packet.fields[0], packet.fields[1],
-                                            packet.fields[2]);
+        fujicmd_set_device_filename_success(packet.param(0), packet.param(1),
+                                            packet.param(2));
         break;
     case FUJICMD_SET_HOST_PREFIX:
         rs232_ack();
-        fujicmd_set_host_prefix(packet.fields[0]);
+        fujicmd_set_host_prefix(packet.param(0));
         break;
     case FUJICMD_GET_HOST_PREFIX:
         rs232_ack();
-        fujicmd_get_host_prefix(packet.fields[0]);
+        fujicmd_get_host_prefix(packet.param(0));
         break;
     case FUJICMD_WRITE_APPKEY:
         rs232_ack();
-        fujicmd_write_app_key(packet.fields[0]);
+        fujicmd_write_app_key(packet.param(0));
         break;
     case FUJICMD_READ_APPKEY:
         rs232_ack();
@@ -312,17 +312,17 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_GET_DEVICE_FULLPATH:
         rs232_ack();
-        fujicmd_get_device_filename(packet.fields[0]);
+        fujicmd_get_device_filename(packet.param(0));
         break;
     case FUJICMD_CONFIG_BOOT:
         rs232_ack();
-        fujicmd_set_boot_config(packet.fields[0]);
+        fujicmd_set_boot_config(packet.param(0));
         break;
     case FUJICMD_COPY_FILE:
         rs232_ack();
 #warning "FIXME - if data is missing then NAK"
-        fujicmd_copy_file_success(packet.fields[0], packet.fields[1],
-                                  packet.data.value_or(""));
+        fujicmd_copy_file_success(packet.param(0), packet.param(1),
+                                  packet.data().value_or(""));
         break;
     case FUJICMD_MOUNT_ALL:
         rs232_ack();
@@ -330,12 +330,12 @@ void rs232Fuji::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_SET_BOOT_MODE:
         rs232_ack();
-        fujicmd_set_boot_mode(packet.fields[0], IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
+        fujicmd_set_boot_mode(packet.param(0), IMAGE_EXTENSION, MEDIATYPE_UNKNOWN, &bootdisk);
         break;
 #ifdef SYSTEM_BUS_IS_UDP
     case FUJICMD_ENABLE_UDPSTREAM:
         rs232_ack();
-        fujicmd_enable_udpstream(packet.fields[0]);
+        fujicmd_enable_udpstream(packet.param(0));
         break;
 #endif /* SYSTEM_BUS_IS_UDP */
     case FUJICMD_DEVICE_READY:

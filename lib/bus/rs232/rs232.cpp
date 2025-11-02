@@ -55,11 +55,12 @@ uint8_t rs232_checksum(uint8_t *buf, unsigned short len)
 }
 
 /*
-   RS232 WRITE to ATARI from DEVICE
+   RS232 WRITE to COMPUTER from DEVICE
    buf = buffer to send to Atari
    len = length of buffer
    err = along with data, send ERROR status to Atari rather than COMPLETE
 */
+#ifdef OBSOLETE
 void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 {
     // Write data frame to computer
@@ -82,6 +83,13 @@ void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
 
     SYSTEM_BUS.flushOutput();
 }
+#else /* ! OBSOLETE */
+void virtualDevice::bus_to_computer(uint8_t *buf, uint16_t len, bool err)
+{
+    SYSTEM_BUS.sendReplyPacket(_devnum, !err, buf, len);
+    return;
+}
+#endif /* OBSOLETE */
 
 /*
    RS232 READ from ATARI by DEVICE
@@ -134,10 +142,12 @@ void virtualDevice::rs232_nak()
 // RS232 ACK
 void virtualDevice::rs232_ack()
 {
+#ifdef OBSOLETE
     SYSTEM_BUS.write('A');
     fnSystem.delay_microseconds(DELAY_T5); //?
     SYSTEM_BUS.flushOutput();
     Debug_println("ACK!");
+#endif /* OBSOLETE */
 }
 
 // RS232 COMPLETE
@@ -151,11 +161,13 @@ void virtualDevice::rs232_complete()
 // RS232 ERROR
 void virtualDevice::rs232_error()
 {
+    abort();
     fnSystem.delay_microseconds(DELAY_T5);
     SYSTEM_BUS.write('E');
     Debug_println("ERROR!");
 }
 
+#ifdef OBSOLETE
 // RS232 HIGH SPEED REQUEST
 void virtualDevice::rs232_high_speed()
 {
@@ -163,6 +175,7 @@ void virtualDevice::rs232_high_speed()
     uint8_t hsd = SYSTEM_BUS.getHighSpeedIndex();
     bus_to_computer((uint8_t *)&hsd, 1, false);
 }
+#endif /* OBSOLETE */
 
 // Read and process a command frame from RS232
 void systemBus::_rs232_process_cmd()
@@ -198,12 +211,11 @@ void systemBus::_rs232_process_cmd()
     // Turn on the RS232 indicator LED
     fnLedManager.set(eLed::LED_BUS, true);
 
-    Debug_printf("\nCF: dev:%02x cmd:%02x fsz:%d fld:%d dlen:%d\n",
-                 tempFrame->device, tempFrame->command,
-                 tempFrame->fieldSize, tempFrame->fields.size(),
-                 tempFrame->data ? tempFrame->data->size() : -1);
+    Debug_printf("\nCF: dev:%02x cmd:%02x dlen:%d\n",
+                 tempFrame->device(), tempFrame->command(),
+                 tempFrame->data() ? tempFrame->data()->size() : -1);
 
-    if (tempFrame->device == FUJI_DEVICEID_DISK && _fujiDev != nullptr
+    if (tempFrame->device() == FUJI_DEVICEID_DISK && _fujiDev != nullptr
         && _fujiDev->boot_config)
     {
         _activeDev = &_fujiDev->bootdisk;
@@ -218,7 +230,7 @@ void systemBus::_rs232_process_cmd()
         // or go back to WAIT
         for (auto devicep : _daisyChain)
         {
-            if (tempFrame->device == devicep->_devnum)
+            if (tempFrame->device() == devicep->_devnum)
             {
                 _activeDev = devicep;
                 // handle command
@@ -404,6 +416,7 @@ void systemBus::shutdown()
     Debug_printf("All devices shut down.\n");
 }
 
+#ifdef OBSOLETE
 void systemBus::toggleBaudrate()
 {
     int baudrate = _rs232Baud == RS232_BAUDRATE ? _rs232BaudHigh : RS232_BAUDRATE;
@@ -415,6 +428,7 @@ void systemBus::toggleBaudrate()
     _rs232Baud = baudrate;
     _port.setBaudrate(_rs232Baud);
 }
+#endif /* OBSOLETE */
 
 int systemBus::getBaudrate()
 {
@@ -434,6 +448,7 @@ void systemBus::setBaudrate(int baud)
     _port.setBaudrate(baud);
 }
 
+#ifdef OBSOLETE
 // Set HRS232 index. Sets high speed RS232 baud and also returns that value.
 int systemBus::setHighSpeedIndex(int hrs232_index)
 {
@@ -457,4 +472,70 @@ void systemBus::setUDPHost(const char *hostname, int port)
 void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 {
 }
+#endif /* OBSOLETE */
+
+void systemBus::sendReplyPacket(FujiDeviceID source, bool ack, void *data, size_t length)
+{
+    FujiBusPacket packet(source, ack ? FUJICMD_ACK : FUJICMD_NAK,
+                         ack ? std::string(static_cast<const char*>(data), length) : nullptr);
+    std::string encoded = packet.serialize();
+    _port.write(encoded.data(), encoded.size());
+    return;
+}
+
+/* Convert direct bus access into bus packets? */
+size_t systemBus::read(void *buffer, size_t length)
+{
+    abort();
+    return _port.read(buffer, length);
+}
+
+size_t systemBus::read()
+{
+    abort();
+    return _port.read();
+}
+
+size_t systemBus::write(const void *buffer, size_t length)
+{
+    abort();
+    return _port.write(buffer, length);
+}
+
+size_t systemBus::write(int n)
+{
+    abort();
+    return _port.write(n);
+}
+
+size_t systemBus::available()
+{
+    abort();
+    return _port.available();
+}
+
+void systemBus::flushOutput()
+{
+    abort();
+    _port.flushOutput();
+}
+
+size_t systemBus::print(int n, int base)
+{
+    abort();
+    return _port.print(n, base);
+}
+
+size_t systemBus::print(const char *str)
+{
+    abort();
+    return _port.print(str);
+}
+
+size_t systemBus::print(const std::string &str)
+{
+    abort();
+    return _port.print(str);
+}
+
 #endif /* BUILD_RS232 */

@@ -853,26 +853,28 @@ void rs232Network::rs232_tell()
  */
 void rs232Network::rs232_process(FujiBusPacket &packet)
 {
-    switch (packet.command)
+    switch (packet.command())
     {
+#ifdef OBSOLETE
     case FUJICMD_HIGHSPEED:
         rs232_ack();
         rs232_high_speed();
         break;
+#endif /* OBSOLETE */
     case FUJICMD_OPEN:
-        rs232_open(static_cast<FujiTranslationMode>(packet.fields[0]), packet.fields[1]);
+        rs232_open(static_cast<FujiTranslationMode>(packet.param(0)), packet.param(1));
         break;
     case FUJICMD_CLOSE:
         rs232_close();
         break;
     case FUJICMD_READ:
-        rs232_read(packet.fields[0]);
+        rs232_read(packet.param(0));
         break;
     case FUJICMD_WRITE:
-        rs232_write(packet.fields[0]);
+        rs232_write(packet.param(0));
         break;
     case FUJICMD_STATUS:
-        rs232_status(static_cast<FujiStatusReq>(packet.fields[0]));
+        rs232_status(static_cast<FujiStatusReq>(packet.param(0)));
         break;
     case FUJICMD_PARSE:
         rs232_ack();
@@ -880,11 +882,11 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
         break;
     case FUJICMD_QUERY:
         rs232_ack();
-        rs232_set_json_query(static_cast<FujiTranslationMode>(packet.fields[1]));
+        rs232_set_json_query(static_cast<FujiTranslationMode>(packet.param(1)));
         break;
     case FUJICMD_JSON:
         rs232_ack();
-        rs232_set_channel_mode(static_cast<FujiChannelMode>(packet.fields[0]));
+        rs232_set_channel_mode(static_cast<FujiChannelMode>(packet.param(0)));
         break;
 #ifdef OBSOLETE
     case FUJICMD_SPECIAL_QUERY:
@@ -892,7 +894,7 @@ void rs232Network::rs232_process(FujiBusPacket &packet)
         break;
 #endif /* OBSOLETE */
     case FUJICMD_SEEK:
-        rs232_seek(packet.fields[0]);
+        rs232_seek(packet.param(0));
         break;
     case FUJICMD_TELL:
         rs232_tell();

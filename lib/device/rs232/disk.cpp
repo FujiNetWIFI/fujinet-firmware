@@ -239,20 +239,20 @@ void rs232Disk::rs232_process(FujiBusPacket &packet)
 {
     Debug_print("disk rs232_process()\n");
 
-    switch (packet.command)
+    switch (packet.command())
     {
     case FUJICMD_READ:
         rs232_ack();
-        rs232_read(packet.fields[0]);
+        rs232_read(packet.param(0));
         return;
     case FUJICMD_PUT:
         rs232_ack();
-        rs232_write(packet.fields[0], false);
+        rs232_write(packet.param(0), false);
         return;
     case FUJICMD_STATUS:
     case FUJICMD_WRITE:
         rs232_ack();
-        rs232_write(packet.fields[0], true);
+        rs232_write(packet.param(0), true);
         return;
     case FUJICMD_FORMAT:
     case FUJICMD_FORMAT_MEDIUM:
