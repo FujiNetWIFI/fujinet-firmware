@@ -41,7 +41,7 @@ void virtualDevice::process(uint32_t commanddata, uint8_t checksum)
     cmdFrame.checksum = checksum;
 
 
-    fnUartDebug.printf("process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
+    Debug_printf("process() not implemented yet for this device. Cmd received: %02x\n", cmdFrame.comnd);
 }
 
 #define ACK GPIO_NUM_15
@@ -123,139 +123,78 @@ uint16_t systemBus::port_getbuf(void *buf, uint16_t len, uint16_t timeout)
     return l;
 }
 
+/**
+ * @brief Put character
+ * @param c Character to send
+ * @return character sent, or -1 if not able to send.
+ */
+int systemBus::port_putc(uint8_t c)
+{
+    if (gpio_get_level(OE) == DIGI_HIGH)
+        return -1; // Output not enabled by computer. Abort.
+
+    // Wait for IBF to be low.
+    while(gpio_get_level(IBF) == DIGI_HIGH);
+
+    // Set data bits
+    gpio_set_level(D7,c & 0x80 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D6,c & 0x40 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D5,c & 0x20 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D4,c & 0x10 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D3,c & 0x08 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D2,c & 0x04 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D1,c & 0x02 ? DIGI_HIGH : DIGI_LOW);
+    gpio_set_level(D0,c & 0x01 ? DIGI_HIGH : DIGI_LOW);
+
+    // Strobe to trigger latch (inverted)
+    gpio_set_level(STB,DIGI_LOW);
+
+    // Wait for IBF to indicate that 8255 has accepted byte
+    while(gpio_get_level(IBF) == DIGI_LOW);
+
+    // Desert strobe
+    gpio_set_level(STB,DIGI_HIGH);
+    
+    return c;
+}
+
+/**
+ * @brief Put buffer
+ * @param buf pointer to buffer to send
+ * @param len Length of buffer to send
+ * @return number of bytes actually sent.
+ */
+uint16_t systemBus::port_putbuf(void *buf, uint16_t len)
+{
+    uint16_t l = 0;
+    uint8_t *p = (uint8_t *)buf;
+
+    while (len--)
+    {
+        int c = port_putc(*p++);
+
+        if (c<0)
+            break;
+
+        l++;
+    }
+    return l;
+}
+
 void systemBus::service()
 {
-    // printf("Set byte to: 0x%02X\r\n",xbyte);
+    const char msg[] = "THIS IS SENT FROM ESP32!\r\n";
 
-    // // This is the transmit routine
-    // gpio_set_level(D7,xbyte & 0x80 ? DIGI_HIGH : DIGI_LOW);
-    // gpio_set_level(D6,xbyte & 0x40 ? DIGI_HIGH : DIGI_LOW);
-    // gpio_set_level(D5,xbyte & 0x20 ? DIGI_HIGH : DIGI_LOW);
-    // gpio_set_level(D4,xbyte & 0x10 ? DIGI_HIGH : DIGI_LOW);
-    // gpio_set_level(D3,xbyte & 0x08 ? DIGI_HIGH : DIGI_LOW);
-    // gpio_set_level(D2,xbyte & 0x04 ? DIGI_HIGH : DIGI_LOW);
-    // gpio_set_level(D1,xbyte & 0x02 ? DIGI_HIGH : DIGI_LOW);
-    // gpio_set_level(D0,xbyte & 0x01 ? DIGI_HIGH : DIGI_LOW);
-
-
-    // // set STB to low
-    // printf("Set STB To low \r\n");
-    // gpio_set_level(STB,DIGI_LOW);
-
-    // // Wait for IBF to go HIGH
-    // printf("Wait for IBF to go HIGH\r\n");
-    // while(gpio_get_level(IBF) == DIGI_LOW);
-
-    // // set STB to high
-    // printf("Set STB to HIGH\r\n");
-    // gpio_set_level(STB,DIGI_HIGH);
-
-    // // Wait for IBF to go LOW
-    // printf("Wait for IBF to go LOW\r\n");
-    // while(gpio_get_level(IBF) == DIGI_HIGH);
-
-    // // Increment xbyte and go again...
-    // printf("Increment xbyte and go again...\r\n");
-    // xbyte++; 
-
-    ////////////////////////////////////////////////////////////////////////////
-
-    if (bus_available())
+    while(1)
     {
-        int c = port_getc();
-        Debug_printf("RX: '%c' 0x%02X\n",c,c);
+        port_putbuf((void *)msg,strlen(msg));
     }
-
-    ////////////////////////////////////////////////////////////////////////////
-    // THIS IS THE RECEIVE ROUTINE. IT WORKS!
-    // /STB is set high in ::setup()
-
-    // // Wait for /OBF to go high
-    // Debug_printf("Wait for OBF to go high.\r\n");
-    // while (gpio_get_level(GPIO_NUM_35) == DIGI_HIGH);
-
-    // Debug_printf("OBF Low\n Setting ACK LOW\r\n");
-
-    // // Set /ACK low.
-    // gpio_set_level(ACK,DIGI_LOW);
-    // quick_delay();
-
-    // Debug_printf("Waited 1us, sampling D0-D7\r\n");
-
-    // // sample and output bus state on console.
-    // printf("LOW: ");
-    // printf("%u",gpio_get_level(GPIO_NUM_13));
-    // printf("%u",gpio_get_level(GPIO_NUM_12));
-    // printf("%u",gpio_get_level(GPIO_NUM_14));
-    // printf("%u",gpio_get_level(GPIO_NUM_27));
-    // printf("%u",gpio_get_level(GPIO_NUM_26));
-    // printf("%u",gpio_get_level(GPIO_NUM_25));
-    // printf("%u",gpio_get_level(GPIO_NUM_33));
-    // printf("%u\n",gpio_get_level(GPIO_NUM_32));
-
-    // Debug_printf("Setting /ACK high again.\r\n");
-
-    // // Set /ACK high again.
-    // gpio_set_level(ACK,DIGI_HIGH);
-    // quick_delay();
-
-    // Debug_printf("Waiting for OBF to go high\r\n");
-
-    // // Wait for /OBF to go low
-    // while (gpio_get_level(GPIO_NUM_35) == DIGI_LOW);
-    
-    // Debug_printf("OBF now high. Sampling bus.\r\n");
-
-    // // sample and output bus state on console.
-    // printf(" HI: ");
-    // printf("%u",gpio_get_level(GPIO_NUM_13));
-    // printf("%u",gpio_get_level(GPIO_NUM_12));
-    // printf("%u",gpio_get_level(GPIO_NUM_14));
-    // printf("%u",gpio_get_level(GPIO_NUM_27));
-    // printf("%u",gpio_get_level(GPIO_NUM_26));
-    // printf("%u",gpio_get_level(GPIO_NUM_25));
-    // printf("%u",gpio_get_level(GPIO_NUM_33));
-    // printf("%u\n",gpio_get_level(GPIO_NUM_32));
-
-    // TX Firmware Pass 2 ///////////////////////////////////////////////////
-    
-    // xbyte = 0xAA;
-
-    // Debug_printf("Waiting for OE low\n");
-    // // Wait for OE to go low, then wait 1us
-    // while (gpio_get_level(OE) == DIGI_HIGH);
-    // esp_rom_delay_us(1);
-    // Debug_printf("OE low\n");
-
-    // while(1) // Loop forever.
-    // {
-    //     Debug_printf("%02X\n",xbyte);
-
-    //     // Write byte
-    //     gpio_set_level(D7,xbyte & 0x80 ? DIGI_HIGH : DIGI_LOW);
-    //     gpio_set_level(D6,xbyte & 0x40 ? DIGI_HIGH : DIGI_LOW);
-    //     gpio_set_level(D5,xbyte & 0x20 ? DIGI_HIGH : DIGI_LOW);
-    //     gpio_set_level(D4,xbyte & 0x10 ? DIGI_HIGH : DIGI_LOW);
-    //     gpio_set_level(D3,xbyte & 0x08 ? DIGI_HIGH : DIGI_LOW);
-    //     gpio_set_level(D2,xbyte & 0x04 ? DIGI_HIGH : DIGI_LOW);
-    //     gpio_set_level(D1,xbyte & 0x02 ? DIGI_HIGH : DIGI_LOW);
-    //     gpio_set_level(D0,xbyte & 0x01 ? DIGI_HIGH : DIGI_LOW);
-
-    //     // Set STB low
-    //     gpio_set_level(STB,DIGI_LOW);
-
-    //     // Wait IBF to go high
-    //     while(gpio_get_level(IBF) == DIGI_LOW);
-
-    //     // Increment and go back to next byte
-    //     xbyte++;
-    // }
 }
     
 void systemBus::setup()
 {
     Debug_println("H89 SETUP\n");
-    Debug_println("RX\n");
+    Debug_println("TX\n");
 
     // // Reset pins
     gpio_reset_pin(GPIO_NUM_0);
