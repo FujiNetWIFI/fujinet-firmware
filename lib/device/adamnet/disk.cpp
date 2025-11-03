@@ -155,7 +155,7 @@ void adamDisk::adamnet_control_send_block_num()
     }
 
     SYSTEM_BUS.start_time=esp_timer_get_time();
-    
+
     adamnet_response_ack();
 
     Debug_printf("BLOCK: %lu\n", blockNum);
@@ -193,7 +193,7 @@ void adamDisk::adamnet_response_status()
         status_response[4] = 0x40 | STATUS_NO_MEDIA;
     else
         status_response[4] = 0x40 | _media->_media_controller_status;
-    
+
     int64_t t = esp_timer_get_time() - SYSTEM_BUS.start_time;
 
     if (t < 300)

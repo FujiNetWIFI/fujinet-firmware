@@ -124,7 +124,7 @@ public:
      * @brief parse incoming data
      */
     void json_parse();
-    
+
     /**
      * @brief JSON Query
      * @param s size of query
@@ -217,7 +217,7 @@ private:
     /**
      * Error number, if status.bits.client_error is set.
      */
-    uint8_t err; 
+    uint8_t err;
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer

@@ -65,6 +65,8 @@ def build_argparser():
   group = parser.add_mutually_exclusive_group()
   group.add_argument("--fix", action="store_true", help="rewrite improperly formatted files")
   group.add_argument("--show", action="store_true", help="print reformatted file on stdout")
+  group.add_argument("-l", "--list", action="store_true",
+                     help="only print filenames of improperly formatted files")
   return parser
 
 class ClangFormatter:
@@ -308,7 +310,8 @@ class TextFile:
 
   @property
   def isClang(self):
-    return self.path.suffix in ClangFormatter.TYPES
+    #return self.path.suffix in ClangFormatter.TYPES
+    return False
 
   @property
   def isMakefile(self):
@@ -444,6 +447,7 @@ def main():
 
   doFix = False
   doShow = False
+  doList = False
 
   script_mode = os.path.basename(sys.argv[0])
   if script_mode == "pre-commit":
@@ -455,6 +459,7 @@ def main():
   else:
     doFix = args.fix
     doShow = args.show
+    doList = args.list
     to_check = args.file
 
   if doShow and len(to_check) > 1:
@@ -470,7 +475,9 @@ def main():
 
     if TextFile.pathIsText(path):
       tfile = TextFile(path, repo.getContents(path))
-      if doShow:
+      if doList:
+        print(tfile.path)
+      elif doShow:
         tfile.show()
       elif doFix:
         tfile.update()

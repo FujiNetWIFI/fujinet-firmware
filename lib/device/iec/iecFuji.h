@@ -354,7 +354,7 @@ protected:
     void mac_address();
     void bssid();
     void fn_version();
-    
+
     void enable_device_basic();
     void disable_device_basic();
 

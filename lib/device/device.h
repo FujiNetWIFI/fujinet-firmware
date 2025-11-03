@@ -13,7 +13,7 @@
 # include "sio/printerlist.h"
 # include "sio/siocpm.h"
 # include "sio/voice.h"
-# include "sio/fuji.h"
+# include "sio/sioFuji.h"
 
     sioClock clockDevice;
     sioVoice sioV;
@@ -32,7 +32,7 @@
 # include "drivewire/network.h"
 # include "drivewire/printer.h"
 # include "drivewire/printerlist.h"
-# include "drivewire/fuji.h"
+# include "drivewire/drivewireFuji.h"
 
     drivewireClock dwClock;
     drivewireModem *sioR;
@@ -46,7 +46,7 @@
 # include "rs232/printer.h"
 # include "rs232/printerlist.h"
 # include "rs232/rs232cpm.h"
-# include "rs232/fuji.h"
+# include "rs232/rs232Fuji.h"
 
     rs232ApeTime apeTime;
     rs232Modem *sioR;
@@ -61,7 +61,7 @@
 # include "iec/network.h"
 # include "iec/printer.h"
 # include "iec/printerlist.h"
-# include "iec/fuji.h"
+# include "iec/iecFuji.h"
 
     iecModem *sioR;
 #endif
@@ -72,7 +72,7 @@
 # include "adamnet/printer.h"
 # include "adamnet/printerlist.h"
 # include "adamnet/query_device.h"
-# include "adamnet/fuji.h"
+# include "adamnet/adamFuji.h"
 
 //# define NO_VIRTUAL_KEYBOARD
     adamModem *sioR;
@@ -86,7 +86,7 @@
 # include "comlynx/modem.h"
 # include "comlynx/printer.h"
 # include "comlynx/printerlist.h"
-# include "comlynx/fuji.h"
+# include "comlynx/lynxFuji.h"
 # include "comlynx/udpstream.h"
 
 //# define NO_VIRTUAL_KEYBOARD
@@ -98,7 +98,7 @@
 
 #ifdef BUILD_APPLE
 # include "iwm/disk.h"
-# include "iwm/fuji.h"
+# include "iwm/iwmFuji.h"
 # include "iwm/modem.h"
 # include "iwm/printer.h"
 # include "iwm/printerlist.h"
@@ -107,7 +107,7 @@
 
 #ifdef BUILD_MAC
 #include "mac/floppy.h"
-#include "mac/fuji.h"
+#include "mac/macFuji.h"
 #include "mac/modem.h"
 #include "mac/printer.h"
 #include "mac/printerlist.h"
@@ -120,23 +120,8 @@
 #include "s100spi/modem.h"
 #include "s100spi/printer.h"
 #include "s100spi/printerlist.h"
-#include "s100spi/fuji.h"
+#include "s100spi/s100spiFuji.h"
     s100spiModem *sioR;
-#endif
-
-#ifdef NEW_TARGET
-# include "new/keyboard.h"
-# include "new/modem.h"
-# include "new/printer.h"
-# include "new/printerlist.h"
-# include "new/query_device.h"
-# include "new/fuji.h"
-
-//# define NO_VIRTUAL_KEYBOARD
-    adamModem *sioR;
-    adamKeyboard *sioK;
-    adamQueryDevice *sioQ;
-    bool exists = false;
 #endif
 
 #ifdef BUILD_CX16
@@ -145,7 +130,7 @@
 //# include "cx16_i2c/network.h"
 # include "cx16_i2c/printer.h"
 # include "cx16_i2c/printerlist.h"
-# include "cx16_i2c/fuji.h"
+# include "cx16_i2c/cx16Fuji.h"
 
     cx16Modem *sioR;
 #endif
@@ -156,7 +141,7 @@
 # include "rc2014/modem.h"
 # include "rc2014/printer.h"
 # include "rc2014/printerlist.h"
-# include "rc2014/fuji.h"
+# include "rc2014/rc2014Fuji.h"
     rc2014Modem *sioR;
 #endif
 
@@ -166,7 +151,7 @@
 # include "h89/modem.h"
 # include "h89/printer.h"
 # include "h89/printerlist.h"
-# include "h89/fuji.h"
+# include "h89/H89Fuji.h"
     H89Modem *sioR;
 #endif
 

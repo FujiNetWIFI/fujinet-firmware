@@ -13,13 +13,13 @@ using namespace std;
 
 void sioVoice::sio_sam_presets(int pr)
 {
-//	DESCRIPTION          SPEED     PITCH     THROAT    MOUTH
-//	SAM                   72        64        128       128
-//	Elf                   72        64        110       160
-//	Little Robot          92        60        190       190
-//	Stuffy Guy            82        72        110       105
-//	Little Old Lady       82        32        145       145
-//	Extra-Terrestrial    100        64        150       200
+//      DESCRIPTION          SPEED     PITCH     THROAT    MOUTH
+//      SAM                   72        64        128       128
+//      Elf                   72        64        110       160
+//      Little Robot          92        60        190       190
+//      Stuffy Guy            82        72        110       105
+//      Little Old Lady       82        32        145       145
+//      Extra-Terrestrial    100        64        150       200
 
     switch (pr)
     {
@@ -77,14 +77,14 @@ void sioVoice::sio_sam_parameters()
     {
         string t = *it;
 
-        
+
         switch (t[0])
         {
 #ifdef ESP32S3_I2S_OUT
         case 0x01: // ^A i2sOut
             i2sOut = *(++it);
             break;
-#endif            
+#endif
 //        case 0x02: // ^B SampleRate
 //            samplerate = *(++it);
 //            break;
@@ -155,7 +155,7 @@ void sioVoice::sio_sam()
 
     if (sing == true)
         a[n++] = (char *)("-sing");
-    else 
+    else
         a[n++] = (char *)("-no-sing");
 
     if (!pitch.empty())

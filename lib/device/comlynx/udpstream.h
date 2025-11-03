@@ -37,7 +37,7 @@ public:
     bool redeye_mode = true;        // redeye UDP stream mode
     bool redeye_logon = true;       // in redeye logon phase
     uint16_t redeye_game = 0;       // redeye game ID
-    uint8_t redeye_players = 0;     // redeye number of players - not sure we need this    
+    uint8_t redeye_players = 0;     // redeye number of players - not sure we need this
     bool remap_game_id = false;     // should we be remapping the game id?
     uint16_t new_game_id = 0xFFFF;  // the new game ID to remap, set from Web GUI
 

@@ -182,9 +182,9 @@ private:
     long answerTimer;
     bool answered=false;
 
-    void comlynx_control_status() override;                 
+    void comlynx_control_status() override;
     void comlynx_process(uint8_t b) override;
-    
+
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command

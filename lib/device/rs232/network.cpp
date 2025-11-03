@@ -490,7 +490,7 @@ void rs232Network::rs232_set_prefix()
     {
         prefix.clear();
     }
-    else 
+    else
     {
         // Append trailing slash if not found
         if (prefixSpec_str.back() != '/')
@@ -926,7 +926,7 @@ bool rs232Network::instantiate_protocol()
     {
         protocolParser = new ProtocolParser();
     }
-    
+
     protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
@@ -952,7 +952,7 @@ void rs232Network::create_devicespec()
     bus_to_peripheral(devicespecBuf, sizeof(devicespecBuf));
     util_devicespec_fix_9b(devicespecBuf, sizeof(devicespecBuf));
     deviceSpec = string((char *)devicespecBuf);
-    
+
     /* Clear Prefix if a full URL with Protocol is specified. */
     if (deviceSpec.find("://") != string::npos)
     {
@@ -1074,7 +1074,7 @@ void rs232Network::processCommaFromDevicespec()
  * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
  */
 void rs232Network::rs232_assert_interrupt()
-{ 
+{
     fnSystem.digital_write(PIN_RS232_RI, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
 }
 

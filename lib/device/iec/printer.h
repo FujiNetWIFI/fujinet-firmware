@@ -72,7 +72,7 @@ public:
         "HTML printer",
         "HTML ATASCII printer"
     };
-    
+
 
     iecPrinter(uint8_t devnum, FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~iecPrinter();
@@ -99,11 +99,11 @@ private:
   //   0 if no data can be accepted (error)
   //  >0 if at least one uint8_t of data can be accepted
   virtual int8_t canWrite();
-    
+
   // called when the device received data
   // write() will only be called if the last call to canWrite() returned >0
   // write() must return within 1 millisecond
-  // the "eoi" parameter will be "true" if sender signaled that this is the last 
+  // the "eoi" parameter will be "true" if sender signaled that this is the last
   // data uint8_t of a transmission
   virtual void write(uint8_t data, bool eoi);
 

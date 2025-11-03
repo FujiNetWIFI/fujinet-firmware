@@ -20,7 +20,7 @@
 
 #include "../device/iwm/disk.h"
 #include "../device/iwm/disk2.h"
-#include "../device/iwm/fuji.h"
+#include "../device/iwm/iwmFuji.h"
 #include "../device/iwm/cpm.h"
 #include "../device/iwm/clock.h"
 
@@ -630,7 +630,7 @@ bool IRAM_ATTR systemBus::serviceDiskIIWrite()
     return false;
 
   Debug_printf("\r\nDisk II iwm queue receive %u %u %u %u",
-	       item.length, item.track_begin, item.track_end, item.track_numbits);
+               item.length, item.track_begin, item.track_end, item.track_numbits);
   // gap 1            = 16 * 10
   // sector header    = 10 * 8          [D5 AA 96] + 4 + [DE AA EB]
   // gap 2            = 7 * 10
@@ -644,7 +644,7 @@ bool IRAM_ATTR systemBus::serviceDiskIIWrite()
 
   bitlen = (item.track_end + item.track_numbits - item.track_begin) % item.track_numbits;
   Debug_printf("\r\nDisk II write Qtrack/sector: %i/%i  bit_len: %i",
-	       item.quarter_track, sector_num, bitlen);
+               item.quarter_track, sector_num, bitlen);
   if (bitlen) {
     decoded = (uint8_t *) malloc(item.length);
     decode_len = diskii_xface.iwm_decode_buffer(item.buffer, item.length,

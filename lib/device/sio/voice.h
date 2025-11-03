@@ -30,7 +30,7 @@ private:
 //    std::string samplerate;
 #ifdef ESP32S3_I2S_OUT
     std::string i2sOut;
-#endif    
+#endif
 
     void sio_sam();
     void sio_sam_parameters();
