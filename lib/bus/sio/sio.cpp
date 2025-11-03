@@ -210,7 +210,7 @@ void systemBus::_sio_process_cmd()
     tempFrame.commanddata = 0;
     tempFrame.checksum = 0;
 
-    if (SYSTEM_BUS.read((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
+    if (_port->read((uint8_t *)&tempFrame, sizeof(tempFrame)) != sizeof(tempFrame))
     {
         // Debug_println("Timeout waiting for data after CMD pin asserted");
         return;
@@ -440,7 +440,7 @@ void systemBus::service()
     {
         // flush UART input
 #ifdef ESP_PLATFORM
-        SYSTEM_BUS.discardInput();
+        _port->discardInput();
 #else
         if (!SYSTEM_BUS.isBoIP())
             _port->discardInput();
@@ -467,6 +467,7 @@ void systemBus::configureGPIO()
     // MTR PIN
     fnSystem.set_pin_mode(PIN_MTR, gpio_mode_t::GPIO_MODE_INPUT);
     // CMD PIN
+    fnSystem.set_pin_mode(PIN_CMD, gpio_mode_t::GPIO_MODE_INPUT);
     // configured by SerialSIO, not here
     // CKI PIN
     fnSystem.set_pin_mode(PIN_CKI, gpio_mode_t::GPIO_MODE_OUTPUT_OD);
