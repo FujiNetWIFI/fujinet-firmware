@@ -1,4 +1,4 @@
-#ifdef BUILD_COCO
+#if defined(BUILD_COCO) || defined(BUILD_RS232)
 
 #include "BeckerSocket.h"
 #include "fnSystem.h"
@@ -675,4 +675,4 @@ void BeckerSocket::setHost(std::string host, int port)
     _port = port;
 }
 
-#endif // BUILD_COCO
+#endif // BUILD_COCO || BUILD_RS232
