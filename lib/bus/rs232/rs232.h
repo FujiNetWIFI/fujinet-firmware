@@ -3,6 +3,7 @@
 
 #include "UARTChannel.h"
 #include "FujiBusPacket.h"
+#include "../drivewire/BeckerSocket.h"
 
 #ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>
@@ -216,11 +217,9 @@ private:
 
     bool useUltraHigh = false; // Use fujinet derived clock.
 
-#if FUJINET_OVER_USB
-    ACMChannel _port;
-#else /* ! FUJINET_OVER_USB */
-    UARTChannel _port;
-#endif /* FUJINET_OVER_USB */
+    IOChannel *_port;
+    UARTChannel _serial;
+    BeckerSocket _becker;
 
     void _rs232_process_cmd();
     /* void _rs232_process_queue(); */
