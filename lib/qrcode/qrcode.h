@@ -83,7 +83,7 @@ bool qrcode_getModule(QRCode *qrcode, uint8_t x, uint8_t y);
 
 uint8_t qrcode_determineMode(const char *data, uint16_t length);
 uint16_t qrcode_dataCapacity(uint8_t version, uint8_t ecc);
-uint8_t qrcode_minVersion(uint8_t ecc, uint8_t mode, const char *data, uint16_t length);
+uint8_t qrcode_minVersion(uint8_t mode, const char *data, uint16_t length);
 uint16_t qrcode_encodeBase45(unsigned char * dst, uint16_t *_max_dst_len, const unsigned char * src, uint16_t src_len);
 
 #ifdef __cplusplus

@@ -145,8 +145,6 @@ private:
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
     bool hash_is_hex_output = false;
 
-    QRManager _qrManager = QRManager();
-
 protected:
     void iwm_dummy_command();                     // control 0xAA
     void iwm_hello_world();                       // status 0xAA
