@@ -77,6 +77,7 @@
 #define FUJICMD_GET_DEVICE1_FULLPATH       0xA0
 #define FUJICMD_STATUS                     0x53
 #define FUJICMD_HSIO_INDEX                 0x3F
+#define FUJICMD_UPDATE_FIRMWARE            0x10
 #define FUJICMD_SEND_ERROR                 0x02
 #define FUJICMD_SEND_RESPONSE              0x01
 #define FUJICMD_DEVICE_READY               0x00
