@@ -71,6 +71,8 @@ private:
     // flow control
     int _credit;
 
+    void handle_write_sync(uint8_t c);
+
 protected:
     void suspend(int ms=5000);
     bool resume_test();
