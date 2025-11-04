@@ -2,6 +2,7 @@
 #define RS232_H
 
 #include "UARTChannel.h"
+#include "fujiDeviceID.h"
 
 #ifdef ESP_PLATFORM
 #include <freertos/FreeRTOS.h>
@@ -12,27 +13,6 @@
 
 #define RS232_BAUDRATE 9600
 //#define RS232_BAUDRATE 115200
-
-#define RS232_DEVICEID_DISK            0x31
-#define RS232_DEVICEID_DISK_LAST       0x3F
-
-#define RS232_DEVICEID_PRINTER         0x40
-#define RS232_DEVICEID_PRINTER_LAST    0x43
-
-#define RS232_DEVICEID_FN_VOICE        0x43
-
-#define RS232_DEVICEID_APETIME         0x45
-
-#define RS232_DEVICEID_RS232           0x50
-#define RS232_DEVICEID_RS2323_LAST     0x53
-
-#define RS232_DEVICEID_FUJINET         0x70
-#define RS232_DEVICEID_FN_NETWORK      0x71
-#define RS232_DEVICEID_FN_NETWORK_LAST 0x78
-
-#define RS232_DEVICEID_MIDI            0x99
-
-#define RS232_DEVICEID_CPM             0x5A
 
 #define DELAY_T4 800
 #define DELAY_T5 800
@@ -79,7 +59,7 @@ class virtualDevice
 protected:
     friend systemBus;
 
-    int _devnum;
+    fujiDeviceID_t _devnum;
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
@@ -161,7 +141,7 @@ public:
      * @brief get the RS232 device Number (1-255)
      * @return The device number registered for this device
      */
-    int id() { return _devnum; };
+    fujiDeviceID_t id() { return _devnum; };
 
     /**
      * @brief Command 0x3F '?' intended to return a single byte to the atari via bus_to_computer(), which
@@ -235,10 +215,10 @@ public:
     void shutdown();
 
     int numDevices();
-    void addDevice(virtualDevice *pDevice, int device_id);
+    void addDevice(virtualDevice *pDevice, fujiDeviceID_t device_id);
     void remDevice(virtualDevice *pDevice);
-    virtualDevice *deviceById(int device_id);
-    void changeDeviceId(virtualDevice *pDevice, int device_id);
+    virtualDevice *deviceById(fujiDeviceID_t device_id);
+    void changeDeviceId(virtualDevice *pDevice, fujiDeviceID_t device_id);
 
     int getBaudrate();                                          // Gets current RS232 baud rate setting
     void setBaudrate(int baud);                                 // Sets RS232 to specific baud rate
