@@ -52,6 +52,8 @@ void NetSIO::begin(std::string host, int port, int baud)
         end();
     }
 
+    discard_timeout_ms = 0;
+
     _baud = baud;
     _resume_time = 0;
     setHost(host, port);
