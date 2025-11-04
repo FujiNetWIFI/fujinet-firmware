@@ -35,8 +35,11 @@
 
 #include "qrcode.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+
 
 #if LOCK_VERSION == 0
 
@@ -64,14 +67,6 @@ static const uint16_t NUM_RAW_DATA_MODULES[40] = {
        7211, 7931, 8683, 9252, 10068, 10916, 11796, 12708, 13652, 14628, 15371, 16411, 17483, 18587,
     //    32,    33,    34,    35,    36,    37,    38,    39,    40
        19723, 20891, 22091, 23008, 24272, 25568, 26896, 28256, 29648
-};
-
-static const uint16_t NUM_ALPHANUMERIC_CAPACITY[4][40] = {
-  // 1, 2, 3, ...                                                                                                                                                                   ...40
-  { 25,47,77,114,154,195,224,279,335,395,468,535,619,667,758,854,938,1046,1153,1249,1352,1460,1588,1704,1853,1990,2132,2223,2369,2520,2677,2840,3009,3183,3351,3537,3729,3927,4087,4296 }, // ECC 0
-  { 20,38,61,90,122,154,178,221,262,311,366,419,483,528,600,656,734,816,909,970,1035,1134,1248,1326,1451,1542,1637,1732,1839,1994,2113,2238,2369,2506,2632,2780,2894,3054,3220,3391 },     // ECC 1
-  { 16,29,47,67,87,108,125,157,189,221,259,296,352,376,426,470,531,574,644,702,742,823,890,963,1041,1094,1172,1263,1322,1429,1499,1618,1700,1787,1867,1966,2071,2181,2298,2420 },          // ECC 2
-  { 10,20,35,50,64,84,93,122,143,174,200,227,259,283,321,365,408,452,493,557,587,640,672,744,779,864,910,958,1016,1080,1150,1226,1307,1394,1431,1530,1591,1658,1774,1852 }                 // ECC 3
 };
 
 // @TODO: Put other LOCK_VERSIONS here
@@ -105,6 +100,7 @@ static int abs(int value) {
     return value;
 }
 */
+
 
 static int8_t getAlphanumeric(char c) {
 
@@ -142,6 +138,7 @@ static bool isNumeric(const char *text, uint16_t length) {
     return true;
 }
 
+
 // We store the following tightly packed (less 8) in modeInfo
 //               <=9  <=26  <= 40
 // NUMERIC      ( 10,   12,    14);
@@ -165,6 +162,8 @@ static char getModeBits(uint8_t version, uint8_t mode) {
 
     return result;
 }
+
+
 
 typedef struct BitBucket {
     uint32_t bitOffsetOrWidth;
@@ -246,6 +245,7 @@ static bool bb_getBit(BitBucket *bitGrid, uint8_t x, uint8_t y) {
     uint32_t offset = y * bitGrid->bitOffsetOrWidth + x;
     return (bitGrid->data[offset >> 3] & (1 << (7 - (offset & 0x07)))) != 0;
 }
+
 
 // XORs the data modules in this QR Code with the given mask pattern. Due to XOR's mathematical
 // properties, calling applyMask(m) twice with the same value is equivalent to no change at all.
@@ -467,6 +467,7 @@ static void drawCodewords(BitBucket *modules, BitBucket *isFunction, BitBucket *
 }
 
 
+
 #define PENALTY_N1      3
 #define PENALTY_N2      3
 #define PENALTY_N3     40
@@ -564,6 +565,7 @@ static uint32_t getPenaltyScore(BitBucket *modules) {
     return result;
 }
 
+
 static uint8_t rs_multiply(uint8_t x, uint8_t y) {
     // Russian peasant multiplication
     // See: https://en.wikipedia.org/wiki/Ancient_Egyptian_multiplication
@@ -615,11 +617,10 @@ static void rs_getRemainder(uint8_t degree, uint8_t *coeff, uint8_t *data, uint8
 }
 
 
-static int8_t encodeDataCodewords(BitBucket *dataCodewords, const uint8_t *text, uint16_t length, uint8_t version) {
-    int8_t mode = MODE_BYTE;
+static void encodeDataCodewords(BitBucket *dataCodewords, const uint8_t *text, uint16_t length, uint8_t version, uint8_t mode) {
 
-    if (isNumeric((char*)text, length)) {
-        mode = MODE_NUMERIC;
+    if (mode == MODE_NUMERIC) {
+        //printf("Numeric Encoding\n");
         bb_appendBits(dataCodewords, 1 << MODE_NUMERIC, 4);
         bb_appendBits(dataCodewords, length, getModeBits(version, MODE_NUMERIC));
 
@@ -640,8 +641,8 @@ static int8_t encodeDataCodewords(BitBucket *dataCodewords, const uint8_t *text,
             bb_appendBits(dataCodewords, accumData, accumCount * 3 + 1);
         }
 
-    } else if (isAlphanumeric((char*)text, length)) {
-        mode = MODE_ALPHANUMERIC;
+    } else if (mode == MODE_ALPHANUMERIC) {
+        //printf("Alphanumeric Encoding\n");
         bb_appendBits(dataCodewords, 1 << MODE_ALPHANUMERIC, 4);
         bb_appendBits(dataCodewords, length, getModeBits(version, MODE_ALPHANUMERIC));
 
@@ -663,6 +664,7 @@ static int8_t encodeDataCodewords(BitBucket *dataCodewords, const uint8_t *text,
         }
 
     } else {
+        //printf("Byte Encoding\n");
         bb_appendBits(dataCodewords, 1 << MODE_BYTE, 4);
         bb_appendBits(dataCodewords, length, getModeBits(version, MODE_BYTE));
         for (uint16_t i = 0; i < length; i++) {
@@ -671,9 +673,8 @@ static int8_t encodeDataCodewords(BitBucket *dataCodewords, const uint8_t *text,
     }
 
     //bb_setBits(dataCodewords, length, 4, getModeBits(version, mode));
-
-    return mode;
 }
+
 
 static void performErrorCorrection(uint8_t version, uint8_t ecc, BitBucket *data) {
 
@@ -753,23 +754,42 @@ static void performErrorCorrection(uint8_t version, uint8_t ecc, BitBucket *data
 // The format bits can be determined by ECC_FORMAT_BITS >> (2 * ecc)
 static const uint8_t ECC_FORMAT_BITS = (0x02 << 6) | (0x03 << 4) | (0x00 << 2) | (0x01 << 0);
 
+
+
 uint16_t qrcode_getBufferSize(uint8_t version) {
     return bb_getGridSizeBytes(4 * version + 17);
 }
 
 // @TODO: Return error if data is too big.
-int8_t qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8_t ecc, uint8_t *data, uint16_t length) {
-    uint8_t size = version * 4 + 17;
-    qrcode->version = version;
-    qrcode->size = size;
-    qrcode->ecc = ecc;
-    qrcode->modules = modules;
+uint8_t qrcode_initBytes(QRCode *qrcode, uint8_t *data, uint16_t length) {
 
-    uint8_t eccFormatBits = (ECC_FORMAT_BITS >> (2 * ecc)) & 0x03;
+    // Determine mode
+    if ( qrcode->mode > 3 ) {
+        return 1; // Bad Mode
+    }
+    qrcode->mode = qrcode_determineMode((char*)data, length);
+
+    // If Version is 0, choose the smallest version that can hold the data
+    if (qrcode->version == VERSION_AUTO) {
+        qrcode->version = qrcode_minVersion(qrcode->ecc, qrcode->mode, (char*)data, length);
+    }
+    else if (qrcode->version > 40 || qrcode->ecc > 3)
+    {
+        return 2; // Bad Version
+    }
+
+    // If length is too big, return error
+    if (length > (qrcode_dataCapacity(qrcode->version, qrcode->ecc) - 2)) {
+        return 3; // Bad Length
+    }
+
+    qrcode->size = qrcode->version * 4 + 17;
+
+    uint8_t eccFormatBits = (ECC_FORMAT_BITS >> (2 * qrcode->ecc)) & 0x03;
 
 #if LOCK_VERSION == 0
-    uint16_t moduleCount = NUM_RAW_DATA_MODULES[version - 1];
-    uint16_t dataCapacity = moduleCount / 8 - NUM_ERROR_CORRECTION_CODEWORDS[eccFormatBits][version - 1];
+    uint16_t moduleCount = NUM_RAW_DATA_MODULES[qrcode->version - 1];
+    uint16_t dataCapacity = moduleCount / 8 - NUM_ERROR_CORRECTION_CODEWORDS[eccFormatBits][qrcode->version - 1];
 #else
     version = LOCK_VERSION;
     uint16_t moduleCount = NUM_RAW_DATA_MODULES;
@@ -781,10 +801,7 @@ int8_t qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8
     bb_initBuffer(&codewords, codewordBytes, (int32_t)sizeof(codewordBytes));
 
     // Place the data code words into the buffer
-    int8_t mode = encodeDataCodewords(&codewords, data, length, version);
-
-    if (mode < 0) { return -1; }
-    qrcode->mode = mode;
+    encodeDataCodewords(&codewords, data, length, qrcode->version, qrcode->mode);
 
     // Add terminator and pad up to a byte if applicable
     uint32_t padding = (dataCapacity * 8) - codewords.bitOffsetOrWidth;
@@ -797,16 +814,19 @@ int8_t qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8
         bb_appendBits(&codewords, padByte, 8);
     }
 
+    if (qrcode->modules != NULL) { free(qrcode->modules); }
+    qrcode->modules = malloc(qrcode_getBufferSize(qrcode->version));
+
     BitBucket modulesGrid;
-    bb_initGrid(&modulesGrid, modules, size);
+    bb_initGrid(&modulesGrid, qrcode->modules, qrcode->size);
 
     BitBucket isFunctionGrid;
-    uint8_t isFunctionGridBytes[bb_getGridSizeBytes(size)];
-    bb_initGrid(&isFunctionGrid, isFunctionGridBytes, size);
+    uint8_t isFunctionGridBytes[bb_getGridSizeBytes(qrcode->size)];
+    bb_initGrid(&isFunctionGrid, isFunctionGridBytes, qrcode->size);
 
     // Draw function patterns, draw all codewords, do masking
-    drawFunctionPatterns(&modulesGrid, &isFunctionGrid, version, eccFormatBits);
-    performErrorCorrection(version, eccFormatBits, &codewords);
+    drawFunctionPatterns(&modulesGrid, &isFunctionGrid, qrcode->version, eccFormatBits);
+    performErrorCorrection(qrcode->version, eccFormatBits, &codewords);
     drawCodewords(&modulesGrid, &isFunctionGrid, &codewords);
 
     // Find the best (lowest penalty) mask
@@ -834,12 +854,9 @@ int8_t qrcode_initBytes(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8
     return 0;
 }
 
-int8_t qrcode_initText(QRCode *qrcode, uint8_t *modules, uint8_t version, uint8_t ecc, const char *data) {
+uint8_t qrcode_initText(QRCode *qrcode, const char *data) {
     uint16_t len = strlen(data);
-    if (len > NUM_ALPHANUMERIC_CAPACITY[ecc][version-1]) {
-      return 1;
-    }
-    return qrcode_initBytes(qrcode, modules, version, ecc, (uint8_t*)data, len);
+    return qrcode_initBytes(qrcode, (uint8_t*)data, len);
 }
 
 bool qrcode_getModule(QRCode *qrcode, uint8_t x, uint8_t y) {
@@ -848,7 +865,7 @@ bool qrcode_getModule(QRCode *qrcode, uint8_t x, uint8_t y) {
     }
 
     uint32_t offset = y * qrcode->size + x;
-    return (qrcode->modules[offset >> 3] & (1 << (7 - (offset & 0x07)))) != 0;
+    return (qrcode->modules[offset >> 3] & (128 >> (offset & 0x07))) != 0;
 }
 
 /*
@@ -860,3 +877,88 @@ void qrcode_getHex(QRCode *qrcode, char *result) {
 
 }
 */
+
+
+uint8_t qrcode_determineMode(const char *data, uint16_t length) {
+
+    if (isNumeric(data, length)) {
+        return MODE_NUMERIC;
+    } else if (isAlphanumeric(data, length)) {
+        return MODE_ALPHANUMERIC;
+    }
+    return MODE_BYTE;
+}
+
+uint16_t qrcode_dataCapacity(uint8_t version, uint8_t ecc) {
+    uint8_t eccFormatBits = (ECC_FORMAT_BITS >> (2 * ecc)) & 0x03;
+
+    uint16_t moduleCount = NUM_RAW_DATA_MODULES[version - 1];
+    uint16_t dataCapacity = moduleCount / 8 - NUM_ERROR_CORRECTION_CODEWORDS[eccFormatBits][version - 1];
+    //printf("dataCapacity[%d]\n", dataCapacity);
+
+    return dataCapacity;
+}
+
+uint8_t qrcode_minVersion(uint8_t ecc, uint8_t mode, const char *data, uint16_t length) {
+
+    uint8_t version = 1;
+    uint8_t lengthMode = getModeBits(version, mode);
+    uint16_t lengthMax;
+
+    uint16_t lengthEncoded = (length * lengthMode) / 8;
+    do {
+        lengthMax = qrcode_dataCapacity(version, ecc) - 2;
+        //printf("Testing version[%d] ecc[%d] len[%d] lengthMode[%d] encoded[%d] max[%d]\n", version, ecc, length, lengthMode, lengthEncoded, lengthMax);
+        if (lengthEncoded > lengthMax) {
+            version++;
+        } else {
+            break;
+        }
+    } while (version <= 40);
+
+    //printf("Set version[%d] ecc[%d] len[%d] lengthMode[%d] encoded[%d] max[%d]\n", version, ecc, length, lengthMode, lengthEncoded, lengthMax);
+    return version;
+}
+
+// Encode data to base-45
+uint16_t qrcode_encodeBase45(unsigned char * dst, uint16_t *_max_dst_len, const unsigned char * src, uint16_t src_len) {
+    static const char BASE45_CHARSET[] = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ $%*+-./:";
+
+    //printf("_max_dst_len[%d] src_len[%d] src[%s]\n", *_max_dst_len, src_len, src);
+
+    size_t out_len = 0, max_dst_len;
+    max_dst_len = _max_dst_len ? *_max_dst_len : src_len * 4;
+
+    for (int i = 0; i < src_len; i += 2) {
+        if (src_len - i > 1) {
+            int x = ((src[i]) << 8) + src[i + 1];
+
+            unsigned char e = x / (45 * 45);
+            x %= 45 * 45;
+            unsigned char d = x / 45;
+            unsigned char c = x % 45;
+
+            if (out_len < max_dst_len && dst) dst[out_len] = BASE45_CHARSET[c];
+            out_len++;
+            if (out_len < max_dst_len && dst) dst[out_len] = BASE45_CHARSET[d];
+            out_len++;
+            if (out_len < max_dst_len && dst) dst[out_len] = BASE45_CHARSET[e];
+            out_len++;
+        } else {
+            int x = src[i];
+            unsigned char d = x / 45;
+            unsigned char c = x % 45;
+
+            if (out_len < max_dst_len && dst) dst[out_len] = BASE45_CHARSET[c];
+            out_len++;
+
+            if (out_len < max_dst_len && dst) dst[out_len] = BASE45_CHARSET[d];
+            out_len++;
+        }
+    }
+    /* Same non guarantee as strncpy et.al. */
+    if (out_len < max_dst_len && dst) dst[out_len] = 0;
+
+    if (_max_dst_len) *_max_dst_len = out_len;
+    return 0;
+}

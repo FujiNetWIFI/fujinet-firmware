@@ -15,27 +15,65 @@
 
 #include "qrcode.h"
 
-#define QR_OUTPUT_MODE_BYTES   0
-#define QR_OUTPUT_MODE_BINARY  1
-#define QR_OUTPUT_MODE_ATASCII 2
-#define QR_OUTPUT_MODE_BITMAP  3
+typedef enum {
+    QR_ECC_LOW,
+    QR_ECC_MEDIUM,
+    QR_ECC_QUARTILE,
+    QR_ECC_HIGH
+} qr_ecc_t;
+
+typedef enum {
+    QR_OUTPUT_MODE_ANSI,
+    QR_OUTPUT_MODE_BINARY,
+    QR_OUTPUT_MODE_BITMAP,
+    QR_OUTPUT_MODE_SVG,
+    QR_OUTPUT_MODE_ATASCII,
+    QR_OUTPUT_MODE_PETSCII
+} ouput_mode_t;
+
+
+#define ANSI_WHITE_BACKGROUND "\e[47m"
+#define ANSI_RESET "\e[0m"
+
+// SVG constants...
+#define SVG_SCALE    5                  // Nominal size of modules
+#define SVG_PADDING  4                  // White padding around QR code
 
 class QRManager {
+    QRCode qrcode{};
+
 public:
+
+    QRManager(uint8_t version = 0, qr_ecc_t ecc = QR_ECC_LOW, ouput_mode_t mode = QR_OUTPUT_MODE_BINARY) {
+        qrcode.version = version;
+        qrcode.ecc = ecc;
+
+        output_mode = mode;
+    };
+    ~QRManager() {
+        free(qrcode.modules);
+    }
+
     /**
     * encode - generate QR code as bytes
     * @src: Data to be encoded
     * @len: Length of the data to be encoded
     * @version: 1-40 (Size=17+4*Version)
     * @ecc: Error correction level (0=Low, 1=Medium, 2=Quartile, 3=High)
-    * @out_len: Pointer to output length variable, or %NULL if not used
     * Returns: Allocated buffer of out_len bytes of encoded data,
     * or nullptr on failure
     *
     * Returned buffer consists of a 1 or 0 for each QR module, indicating
     * whether it is on (black) or off (white).
     */
-    static std::vector<uint8_t> encode(const void* src, size_t len, size_t version, size_t ecc, size_t* out_len);
+    std::vector<uint8_t> encode(const void* input = nullptr, uint16_t length = 0, uint8_t version = 0, qr_ecc_t ecc = QR_ECC_LOW);;
+
+    /**
+    * to_ansi - Convert QR code in out_buf to ATASCII
+    *
+    * Replaces data in out_buf, with ATASCII code for drawing the QR code.
+    */
+    std::vector<uint8_t> to_ansi(void);
 
     /**
     * to_binary - Convert QR code in out_buf to compact binary format
@@ -44,7 +82,7 @@ public:
     * compact data where each bit represents a single QR module (pixel).
     * So a 21x21 QR code will be 56 bytes (21*21/8). Data is returned LSB->MSB.
     */
-    void to_binary(void);
+    std::vector<uint8_t> to_binary(void);
 
     /**
     * to_bitmap - Convert QR code in out_buf to compact binary format
@@ -55,7 +93,14 @@ public:
     * of each row are returned as 0s. A 21x21 QR code will be 63 bytes (3 bytes
     * per row of 21 bits (= 24 bits with 3 unused) * 21 rows).
     */
-    void to_bitmap(void);
+    std::vector<uint8_t> to_bitmap(void);
+
+    /**
+    * to_svg - Convert QR code in out_buf to SVG
+    *
+    * Replaces data in out_buf, with svg code for drawing the QR code.
+    */
+    std::vector<uint8_t> to_svg(uint8_t scale = SVG_SCALE, uint8_t padding = SVG_PADDING);
 
     /**
     * to_atascii - Convert QR code in out_buf to ATASCII
@@ -64,7 +109,7 @@ public:
     * ATASCII character can represent 4 bits. Atari newlines (0x9B) are
     * added at the end of each row to facilitate printing direct to screen.
     */
-    void to_atascii(void);
+    std::vector<uint8_t> to_atascii(void);
 
     /**
     * to_petscii - Convert QR code in out_buf to PETSCII
@@ -73,21 +118,17 @@ public:
     * PETSCII character can represent 4 bits. Carriage returns (0x0D) are
     * added at the end of each row to facilitate printing direct to screen.
     */
-   void to_petscii(void);
+    std::vector<uint8_t> to_petscii(void);
 
-    size_t size() { return version * 4 + 17; }
-    void set_buffer(const std::string& buffer) { in_buf = buffer; }
-    void clear_buffer() { in_buf.clear(); }
-    void add_buffer(const std::string& extra) { in_buf += extra; }
+    uint8_t version() { return qrcode.version; }
+    void version(uint8_t v) { qrcode.version = v; }
+    qr_ecc_t ecc() { return (qr_ecc_t)qrcode.ecc; }
+    void ecc(qr_ecc_t e) { qrcode.ecc = e; }
+    uint8_t size() { return qrcode.size; }
+    ouput_mode_t output_mode = QR_OUTPUT_MODE_BINARY;
 
-    std::string in_buf;
-    std::vector<uint8_t> out_buf;
-
-    uint8_t version = 1;
-    uint8_t ecc_mode = ECC_LOW;
-    uint8_t output_mode = QR_OUTPUT_MODE_BYTES;
+    std::string data;
+    std::vector<uint8_t> code;
 };
-
-extern QRManager qrManager;
 
 #endif /* QRCODE_MANAGER_H */

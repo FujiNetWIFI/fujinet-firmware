@@ -64,8 +64,6 @@ private:
     uint8_t response[1024];
     uint16_t response_len = 0;
 
-    systemBus *_comlynx_bus = nullptr;
-
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
@@ -123,6 +121,7 @@ protected:
     void comlynx_device_enable_status();   // 0xD1
     void comlynx_get_copy_status();        // 0xD0
 
+
     void comlynx_hello(); // test
 
     void comlynx_test_command();
@@ -137,9 +136,9 @@ protected:
 
 public:
     bool boot_config = true;
-
+    
     bool status_wait_enabled = true;
-
+    
     lynxDisk *bootdisk();
 
     lynxNetwork *network();
@@ -148,7 +147,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(systemBus *comlynxbus);
+    void setup();
 
     void image_rotate();
     int get_disk_id(int drive_slot);

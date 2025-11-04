@@ -20,6 +20,7 @@
 #include "fujiCmd.h"
 
 #include "hash.h"
+#include "../../qrcode/qrmanager.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8
@@ -85,8 +86,6 @@ struct appkey
 class sioFuji : public virtualDevice
 {
 private:
-    systemBus *_sio_bus;
-
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
@@ -114,6 +113,8 @@ private:
     mbedtls_sha512_context _sha512;
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+
+    QRManager _qrManager = QRManager();
 
 protected:
     void sio_reset_fujinet();          // 0xFF
@@ -212,7 +213,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(systemBus *siobus);
+    void setup();
 
     void image_rotate();
     int get_disk_id(int drive_slot);

@@ -22,6 +22,7 @@
 #include "string_utils.h"
 
 #include "compat_string.h"
+#include "../../qrcode/qrmanager.h"
 
 #define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40
@@ -396,13 +397,12 @@ uint8_t iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
 	// mediatype_t mt = MediaType::discover_mediatype(disk.filename);
 	// if (mt == mediatype_t::MEDIATYPE_PO)
 	// { // And now mount it
+	disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
 
 	if (options == DISK_ACCESS_MODE_WRITE)
 	{
 		disk_dev->readonly = false;
 	}
-
-	disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
 
 	return SP_ERR_NOERROR;
 }
@@ -669,11 +669,11 @@ void iwmFuji::image_rotate()
 		{
 			int swap = get_disk_dev(n - 1)->id();
 			Debug_printf("setting slot %d to ID %hx\n", n, swap);
-			_iwm_bus->changeDeviceId(get_disk_dev(n), swap); // to do!
+			SYSTEM_BUS.changeDeviceId(get_disk_dev(n), swap); // to do!
 		}
 
 		// The first slot gets the device ID of the last slot
-		_iwm_bus->changeDeviceId(get_disk_dev(0), last_id);
+		SYSTEM_BUS.changeDeviceId(get_disk_dev(0), last_id);
 	}
 }
 
@@ -1282,12 +1282,19 @@ void iwmFuji::insert_boot_device(uint8_t d)
 		break;
 	case 2:
 		Debug_printf("Mounting lobby server\n");
-		if (fnTNFS.start("tnfs.fujinet.online"))
+		if (!fnTNFS.is_started())
 		{
-			Debug_printf("opening lobby.\n");
-			boot_img = "/APPLE2/_lobby.po";
-			fBoot = fnTNFS.fnfile_open(boot_img);
+        	Debug_printf("Starting TNFS connection\n");
+			if (!fnTNFS.start("tnfs.fujinet.online"))
+			{	
+                Debug_printf("TNFS failed to start.\n");
+                return;
+            }
 		}
+		
+		Debug_printf("opening lobby.\n");
+		boot_img = "/APPLE2/_lobby.po";
+		fBoot = fnTNFS.fnfile_open(boot_img);
 		break;
 	default:
 		Debug_printf("Invalid boot mode: %d\n", d);
@@ -1309,7 +1316,7 @@ void iwmFuji::iwm_ctrl_enable_device()
 	unsigned char d = data_buffer[0]; // adamnet_recv();
 
 	Debug_printf("\nFuji cmd: ENABLE DEVICE");
-	IWM.enableDevice(d);
+	SYSTEM_BUS.enableDevice(d);
 }
 
 void iwmFuji::iwm_ctrl_disable_device()
@@ -1317,17 +1324,15 @@ void iwmFuji::iwm_ctrl_disable_device()
 	unsigned char d = data_buffer[0]; // adamnet_recv();
 
 	Debug_printf("\nFuji cmd: DISABLE DEVICE");
-	IWM.disableDevice(d);
+	SYSTEM_BUS.disableDevice(d);
 }
 
 iwmDisk *iwmFuji::bootdisk() { return _bootDisk; }
 
 // Initializes base settings and adds our devices to the SIO bus
-void iwmFuji::setup(iwmBus *iwmbus)
+void iwmFuji::setup()
 {
 	// set up Fuji device
-	_iwm_bus = iwmbus;
-
 	_populate_slots_from_config();
 
 	// Disable booting from CONFIG if our settings say to turn it off
@@ -1337,22 +1342,22 @@ void iwmFuji::setup(iwmBus *iwmbus)
 	status_wait_enabled = false; // to do - understand?
 
 	// add ourselves as a device
-	_iwm_bus->addDevice(this, iwm_fujinet_type_t::FujiNet);
+	SYSTEM_BUS.addDevice(this, iwm_fujinet_type_t::FujiNet);
 
 	theNetwork = new iwmNetwork();
-	_iwm_bus->addDevice(theNetwork, iwm_fujinet_type_t::Network);
+	SYSTEM_BUS.addDevice(theNetwork, iwm_fujinet_type_t::Network);
 
 	theClock = new iwmClock();
-	_iwm_bus->addDevice(theClock, iwm_fujinet_type_t::Clock);
+	SYSTEM_BUS.addDevice(theClock, iwm_fujinet_type_t::Clock);
 
 	theCPM = new iwmCPM();
-	_iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
+	SYSTEM_BUS.addDevice(theCPM, iwm_fujinet_type_t::CPM);
 
 	for (int i = MAX_SP_DEVICES - 1; i >= 0; i--)
 	{
 		DEVICE_TYPE *disk_dev = get_disk_dev(i);
 		disk_dev->set_disk_number('0' + i);
-		_iwm_bus->addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
+		SYSTEM_BUS.addDevice(disk_dev, iwm_fujinet_type_t::BlockDisk);
 	}
 
 	Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
@@ -1381,7 +1386,7 @@ void iwmFuji::send_status_reply_packet()
 	data[1] = 0; // block size 1
 	data[2] = 0; // block size 2
 	data[3] = 0; // block size 3
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmFuji::send_status_dib_reply_packet()
@@ -1394,7 +1399,7 @@ void iwmFuji::send_status_dib_reply_packet()
 		{ SP_TYPE_BYTE_FUJINET, SP_SUBTYPE_BYTE_FUJINET },      // type, subtype
 		{ 0x00, 0x01 }                                          // version.
 	);
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 void iwmFuji::send_stat_get_enable()
@@ -1428,7 +1433,7 @@ void iwmFuji::iwm_status(iwm_decoded_cmd_t cmd)
 	if (status_completed) return;
 
 	Debug_printf("\nStatus code complete, sending response");
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
 void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
@@ -1440,7 +1445,7 @@ void iwmFuji::iwm_ctrl(iwm_decoded_cmd_t cmd)
 	data_len = 512;
 
 	Debug_printf("\nDecoding Control Data Packet for code: 0x%02x\r\n", control_code);
-	IWM.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
+	SYSTEM_BUS.iwm_decode_data_packet((uint8_t *)data_buffer, data_len);
 	print_packet((uint8_t *)data_buffer, data_len);
 
 	auto it = control_handlers.find(control_code);
@@ -1546,50 +1551,44 @@ void iwmFuji::iwm_ctrl_qrcode_input()
     Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", data_len);
     std::vector<uint8_t> data(data_len, 0);
     std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
-    qrManager.in_buf += std::string((const char *)data.data(), data_len);
+    _qrManager.data += std::string((const char *)data.data(), data_len);
 }
 
 void iwmFuji::iwm_ctrl_qrcode_encode()
 {
-    size_t out_len = 0;
-
-    qrManager.output_mode = 0;
-    qrManager.version = data_buffer[0] & 0b01111111;
-    qrManager.ecc_mode = data_buffer[1];
+    uint8_t version = data_buffer[0] & 0b01111111;
+    uint8_t ecc_mode = data_buffer[1];
     bool shorten = data_buffer[2];
 
     Debug_printf("FUJI: QRCODE ENCODE\n");
-    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", qrManager.version, qrManager.ecc_mode, shorten ? "Y" : "N");
+    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
 
-    std::string url = qrManager.in_buf;
+    std::string url = _qrManager.data;
 
     if (shorten) {
         url = fnHTTPD.shorten_url(url);
     }
 
-    std::vector<uint8_t> p = QRManager::encode(
-        url.c_str(),
-        url.size(),
-        qrManager.version,
-        qrManager.ecc_mode,
-        &out_len
-    );
+	_qrManager.version(version);
+	_qrManager.ecc((qr_ecc_t)ecc_mode);
+	_qrManager.output_mode = QR_OUTPUT_MODE_BINARY;
+	_qrManager.encode();
 
-    qrManager.in_buf.clear();
+    _qrManager.data.clear();
 
-    if (!out_len)
+    if (!_qrManager.code.size())
     {
         Debug_printf("QR code encoding failed\n");
         return;
     }
 
-    Debug_printf("Resulting QR code is: %u modules\n", out_len);
+    Debug_printf("Resulting QR code is: %u modules\n", _qrManager.code.size());
 }
 
 void iwmFuji::iwm_stat_qrcode_length()
 {
     Debug_printf("FUJI: QRCODE LENGTH\n");
-    size_t len = qrManager.out_buf.size();
+    size_t len = _qrManager.code.size();
 	data_buffer[0] = (uint8_t)(len >> 0);
     data_buffer[1] = (uint8_t)(len >> 8);
 	data_len = 2;
@@ -1602,19 +1601,11 @@ void iwmFuji::iwm_ctrl_qrcode_output()
     uint8_t output_mode = data_buffer[0];
     Debug_printf("Output mode: %i\n", output_mode);
 
-    size_t len = qrManager.out_buf.size();
+    size_t len = _qrManager.code.size();
 
-    if (len && (output_mode != qrManager.output_mode)) {
-        if (output_mode == QR_OUTPUT_MODE_BINARY) {
-            qrManager.to_binary();
-        }
-        else if (output_mode == QR_OUTPUT_MODE_ATASCII) {
-            qrManager.to_atascii();
-        }
-        else if (output_mode == QR_OUTPUT_MODE_BITMAP) {
-            qrManager.to_bitmap();
-        }
-        qrManager.output_mode = output_mode;
+    if (len && (output_mode != _qrManager.output_mode)) {
+		_qrManager.output_mode = (ouput_mode_t)output_mode;
+		_qrManager.encode();
     }
 }
 
@@ -1623,11 +1614,11 @@ void iwmFuji::iwm_stat_qrcode_output()
     Debug_printf("FUJI: QRCODE OUTPUT STAT\n");
 	memset(data_buffer, 0, sizeof(data_buffer));
 
-	data_len = qrManager.out_buf.size();
-	memcpy(data_buffer, &qrManager.out_buf[0], data_len);
+	data_len = _qrManager.code.size();
+	memcpy(data_buffer, &_qrManager.code[0], data_len);
 
-	qrManager.out_buf.erase(qrManager.out_buf.begin(), qrManager.out_buf.begin() + data_len);
-    qrManager.out_buf.shrink_to_fit();
+	_qrManager.code.clear();
+    _qrManager.code.shrink_to_fit();
 }
 
 #endif /* BUILD_APPLE */

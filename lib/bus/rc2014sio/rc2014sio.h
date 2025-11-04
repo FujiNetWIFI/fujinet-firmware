@@ -12,22 +12,6 @@
 
 #define RC2014SIO_BAUDRATE 115200
 
-#define RC2014_DEVICEID_DISK 0x31
-#define RC2014_DEVICEID_DISK_LAST 0x3F
-
-#define RC2014_DEVICEID_PRINTER 0x41
-#define RC2014_DEVICEID_PRINTER_LAST 0x44
-
-
-#define RC2014_DEVICEID_FUJINET 0x70
-#define RC2014_DEVICEID_FN_NETWORK 0x71
-#define RC2014_DEVICEID_FN_NETWORK_LAST 0x78
-
-#define RC2014_DEVICEID_MODEM 0x50
-
-#define RC2014_DEVICEID_CPM 0x5A
-
-
 #define rc2014_RESET_DEBOUNCE_PERIOD 100 // in ms
 
 union cmdFrame_t
@@ -109,7 +93,7 @@ protected:
      */
     uint8_t rc2014_recv();
 
-    /** 
+    /**
      * How many bytes available?
     */
     int rc2014_recv_available();
@@ -185,7 +169,7 @@ protected:
     virtual void shutdown() {}
 
     /**
-     * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command. 
+     * @brief All RS232 devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
     virtual void rc2014_process(uint32_t commanddata, uint8_t checksum) = 0;
@@ -194,7 +178,7 @@ protected:
      * @brief Do any tasks that can only be done when the bus is quiet
      */
     virtual void rc2014_idle();
-    
+
     /**
      * @brief send current status of device
      */
@@ -204,12 +188,12 @@ protected:
      * @brief send status response
      */
     virtual void rc2014_response_status();
-    
+
     /**
      * @brief handle the uart stream when not used for command
     */
     virtual void rc2014_handle_stream();
-    
+
     /**
      * @brief command frame, used by network protocol, ultimately
      */
@@ -238,7 +222,7 @@ public:
      */
     uint8_t id() { return _devnum; }
 
-    
+
 };
 
 /**
@@ -270,23 +254,23 @@ public:
     int64_t start_time;
 
     int numDevices();
-    void addDevice(virtualDevice *pDevice, uint8_t device_id);
+    void addDevice(virtualDevice *pDevice, FujiDeviceID device_id);
     void remDevice(virtualDevice *pDevice);
-    void remDevice(uint8_t device_id);
-    bool deviceExists(uint8_t device_id);
-    void enableDevice(uint8_t device_id);
-    void disableDevice(uint8_t device_id);
-    bool enabledDeviceStatus(uint8_t device_id);
-    void streamDevice(uint8_t device_id);
+    void remDevice(FujiDeviceID device_id);
+    bool deviceExists(FujiDeviceID device_id);
+    void enableDevice(FujiDeviceID device_id);
+    void disableDevice(FujiDeviceID device_id);
+    bool enabledDeviceStatus(FujiDeviceID device_id);
+    void streamDevice(FujiDeviceID device_id);
     void streamDeactivate();
-    virtualDevice *deviceById(uint8_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
+    virtualDevice *deviceById(FujiDeviceID device_id);
+    void changeDeviceId(virtualDevice *pDevice, FujiDeviceID device_id);
     QueueHandle_t qrc2014Messages = nullptr;
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 };
 
-extern systemBus rc2014Bus;
+extern systemBus SYSTEM_BUS;
 
 #endif /* rc2014_H */

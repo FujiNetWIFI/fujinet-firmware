@@ -19,6 +19,9 @@
 #ifndef COCO_H
 #define COCO_H
 
+#include "BeckerSocket.h"
+#include "UARTChannel.h"
+
 #ifdef ESP32_PLATFORM
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
@@ -26,45 +29,43 @@
 
 #include <forward_list>
 #include <map>
-// fnUartBUS (Serial only) was replaced with fnDwCom (Serial|TCP/Becker)
-//#include <fnUART.h>
-#include "drivewire/dwcom/fnDwCom.h"
 #include "media.h"
 
 #define DRIVEWIRE_BAUDRATE 57600
 
 /* Operation Codes */
-#define		OP_NOP		0
+#define         OP_NOP          0
 #define     OP_JEFF     0xA5
 #define     OP_SERREAD  'C'
 #define     OP_SERREADM  'c'
 #define     OP_SERWRITE  0xC3
 #define     OP_SERWRITEM  0x64
-#define		OP_GETSTAT	'G'
-#define		OP_SETSTAT	'S'
-#define		OP_SERGETSTAT	'D'
-#define		OP_SERSETSTAT	'D'+128
-#define		OP_READ		'R'
-#define		OP_READEX	'R'+128
-#define		OP_WRITE	'W'
-#define		OP_REREAD	'r'
-#define		OP_REREADEX	'r'+128
-#define		OP_REWRITE	'w'
-#define		OP_INIT		'I'
-#define		OP_SERINIT	'E'
-#define		OP_SERTERM	'E'+128
+#define         OP_GETSTAT      'G'
+#define         OP_SETSTAT      'S'
+#define         OP_SERGETSTAT   'D'
+#define         OP_SERSETSTAT   'D'+128
+#define         OP_READ         'R'
+#define         OP_READEX       'R'+128
+#define         OP_WRITE        'W'
+#define         OP_REREAD       'r'
+#define         OP_REREADEX     'r'+128
+#define         OP_REWRITE      'w'
+#define         OP_INIT         'I'
+#define         OP_SERINIT      'E'
+#define         OP_SERTERM      'E'+128
 #define     OP_DWINIT   'Z'
-#define		OP_TERM		'T'
-#define		OP_TIME		'#'
+#define         OP_TERM         'T'
+#define         OP_TIME         '#'
 #define     OP_RESET3   0xF8
-#define		OP_RESET2	0xFE
-#define		OP_RESET1	0xFF
-#define		OP_PRINT	'P'
-#define		OP_PRINTFLUSH	'F'
+#define         OP_RESET2       0xFE
+#define         OP_RESET1       0xFF
+#define         OP_PRINT        'P'
+#define         OP_PRINTFLUSH   'F'
 #define     OP_VPORT_READ    'C'
 #define     OP_FUJI 0xE2
 #define     OP_NET 0xE3
 #define     OP_CPM 0xE4
+#define     OP_NAMEOBJ_MNT 0x01
 
 #define FEATURE_EMCEE    0x01
 #define FEATURE_DLOAD    0x02
@@ -81,26 +82,26 @@
 
 // struct dwTransferData
 // {
-// 	int		dw_protocol_vrsn;
-// 	FILE		*devpath;
-// 	FILE		*dskpath[4];
-// 	int		cocoType;
-// 	int		baudRate;
-// 	unsigned char	lastDrive;
-// 	uint32_t	readRetries;
-// 	uint32_t	writeRetries;
-// 	uint32_t	sectorsRead;
-// 	uint32_t	sectorsWritten;
-// 	unsigned char	lastOpcode;
-// 	unsigned char	lastLSN[3];
-// 	unsigned char	lastSector[256];
-// 	unsigned char	lastGetStat;
-// 	unsigned char	lastSetStat;
-// 	uint16_t	lastChecksum;
-// 	unsigned char	lastError;
-// 	FILE	*prtfp;
-// 	unsigned char	lastChar;
-// 	char	prtcmd[80];
+//      int             dw_protocol_vrsn;
+//      FILE            *devpath;
+//      FILE            *dskpath[4];
+//      int             cocoType;
+//      int             baudRate;
+//      unsigned char   lastDrive;
+//      uint32_t        readRetries;
+//      uint32_t        writeRetries;
+//      uint32_t        sectorsRead;
+//      uint32_t        sectorsWritten;
+//      unsigned char   lastOpcode;
+//      unsigned char   lastLSN[3];
+//      unsigned char   lastSector[256];
+//      unsigned char   lastGetStat;
+//      unsigned char   lastSetStat;
+//      uint16_t        lastChecksum;
+//      unsigned char   lastError;
+//      FILE    *prtfp;
+//      unsigned char   lastChar;
+//      char    prtcmd[80];
 // };
 
 // EXTERN char device[256];
@@ -112,7 +113,6 @@
 // EXTERN WINDOW *window0, *window1, *window2, *window3;
 // EXTERN struct dwTransferData datapack;
 // EXTERN int interactive;
-
 
 // This is here because the network protocol adapters speak this
 union cmdFrame_t
@@ -151,7 +151,7 @@ protected:
 
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
-    
+
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
 
@@ -165,11 +165,6 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
-
-    /**
-     * @brief Get the systemBus object that this virtualDevice is attached to.
-     */
-    systemBus get_bus();
 };
 
 enum drivewire_message : uint16_t
@@ -189,6 +184,10 @@ struct drivewire_message_t
 class systemBus
 {
 private:
+    IOChannel *_port = nullptr;
+    UARTChannel _serial;
+    BeckerSocket _becker;
+
     virtualDevice *_activeDev = nullptr;
     drivewireModem *_modemDev = nullptr;
     drivewireFuji *_fujiDev = nullptr;
@@ -197,9 +196,17 @@ private:
     drivewireCassette *_cassetteDev = nullptr;
     drivewireCPM *_cpmDev = nullptr;
     drivewirePrinter *_printerdev = nullptr;
+    FILE *pNamedObjFp;
+    uint8_t szNamedMount[256];
+    uint8_t bDragon;
 
     void _drivewire_process_cmd();
     void _drivewire_process_queue();
+
+#ifdef ESP_PLATFORM
+    void configureGPIO();
+    int readBaudSwitch();
+#endif /* ESP_PLATFORM */
 
     /**
      * @brief Current Baud Rate
@@ -247,6 +254,7 @@ private:
     void op_serwrite();
     void op_serwritem();
     void op_print();
+    void op_namedobj_mnt();
 
     // int readSector(struct dwTransferData *dp);
     // int writeSector(struct dwTransferData *dp);
@@ -318,11 +326,29 @@ public:
     // I wish this codebase would make up its mind to use camel or snake casing.
     drivewireModem *get_modem() { return _modemDev; }
 
+    // Everybody thinks "oh I know how a serial port works, I'll just
+    // access it directly and bypass the bus!" ಠ_ಠ
+    size_t read(void *buffer, size_t length) { return _port->read(buffer, length); }
+    size_t read() { return _port->read(); }
+    size_t write(const void *buffer, size_t length) { return _port->write(buffer, length); }
+    size_t write(int n) { return _port->write(n); }
+    size_t available() { return _port->available(); }
+    void flushOutput() { _port->flushOutput(); }
+
 #ifdef ESP32_PLATFORM
     QueueHandle_t qDrivewireMessages = nullptr;
 #endif
+
+    /* BoIP things */
+    void setHost(const char *host, int port) { _becker.setHost(host, port); }
+    void selectSerialPort(bool useSerial) {
+        if (useSerial)
+            _port = &_serial;
+        else
+            _port = &_becker;
+    }
 };
 
-extern systemBus DRIVEWIRE;
+extern systemBus SYSTEM_BUS;
 
 #endif // guard

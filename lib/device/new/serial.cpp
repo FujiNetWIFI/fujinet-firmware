@@ -65,7 +65,7 @@ void adamSerial::adamnet_response_status()
     if (!client.connected() && server->hasClient())
     {
         // Accept waiting connection
-        client = server->available();
+        client = server->client();
     }
 
     if (client.available())

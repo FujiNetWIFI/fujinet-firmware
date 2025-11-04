@@ -114,7 +114,7 @@ void adamFuji::adamnet_net_scan_networks()
     response[0] = _countScannedSSIDs;
     response_len = 1;
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
 
@@ -146,7 +146,7 @@ void adamFuji::adamnet_net_scan_result()
     memcpy(response, &detail, sizeof(detail));
     response_len = sizeof(detail);
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
 
@@ -183,7 +183,7 @@ void adamFuji::adamnet_net_get_ssid()
     memcpy(response, &cfg, sizeof(cfg));
     response_len = sizeof(cfg);
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
 
@@ -207,7 +207,7 @@ void adamFuji::adamnet_net_set_ssid(uint16_t s)
 
         adamnet_recv();
 
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_ack();
 
         bool save = true;
@@ -239,7 +239,7 @@ void adamFuji::adamnet_net_get_wifi_status()
     response[0] = wifiStatus;
     response_len = 1;
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
 
@@ -258,7 +258,7 @@ void adamFuji::adamnet_mount_host()
         hostMounted[hostSlot] = true;
     }
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
 
@@ -276,7 +276,7 @@ void adamFuji::adamnet_unmount_host()
         hostMounted[hostSlot] = false;
     }
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
 
@@ -290,7 +290,7 @@ void adamFuji::adamnet_disk_image_mount()
 
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     // TODO: Implement FETCH?
@@ -328,7 +328,7 @@ void adamFuji::adamnet_set_boot_config()
     boot_config = adamnet_recv();
     adamnet_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     Debug_printf("Boot config is now %d", boot_config);
@@ -349,7 +349,6 @@ void adamFuji::adamnet_copy_file()
     string copySpec;
     string sourcePath;
     string destPath;
-    uint8_t ck;
     FILE *sourceFile;
     FILE *destFile;
     char *dataBuf;
@@ -364,11 +363,11 @@ void adamFuji::adamnet_copy_file()
     sourceSlot = adamnet_recv();
     destSlot = adamnet_recv();
     adamnet_recv_buffer(csBuf, sizeof(csBuf));
-    ck = adamnet_recv();
+    adamnet_recv();
 
-    AdamNet.wait_for_idle();
-    fnUartBUS.write(0x9f); // ACK.
-    fnUartBUS.flush();
+    SYSTEM_BUS.wait_for_idle();
+    SYSTEM_BUS.write(0x9f); // ACK.
+    SYSTEM_BUS.flush();
 
     dataBuf = (char *)malloc(COPY_SIZE);
 
@@ -454,7 +453,7 @@ void adamFuji::adamnet_write_app_key()
 
     Debug_printf("Fuji Cmd: WRITE APPKEY %s\n", appkeyfilename);
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     fp = fnSDFAT.file_open(appkeyfilename, "w");
@@ -479,7 +478,7 @@ void adamFuji::adamnet_read_app_key()
     uint8_t key = adamnet_recv();
 
     adamnet_recv(); // CK
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     char appkeyfilename[30];
@@ -513,7 +512,7 @@ void adamFuji::adamnet_disk_image_umount()
     unsigned char ds = adamnet_recv();
     adamnet_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     _fnDisks[ds].disk_dev.unmount();
@@ -591,9 +590,6 @@ void adamFuji::image_rotate()
 
         count--;
 
-        // Save the device ID of the disk in the last slot
-        int last_id = count;
-
         for (int n = 0; n < count; n++)
         {
             _fnDisks[n].access_mode = accessmode_save[n + 1];
@@ -647,7 +643,7 @@ void adamFuji::adamnet_open_directory(uint16_t s)
 
     adamnet_recv(); // Grab checksum
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
 
     if (_current_open_directory_slot == -1)
     {
@@ -675,7 +671,7 @@ void adamFuji::adamnet_open_directory(uint16_t s)
     }
     else
     {
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_ack();
     }
 
@@ -816,7 +812,7 @@ void adamFuji::adamnet_read_directory_entry()
     }
     else
     {
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_ack();
     }
 }
@@ -832,7 +828,7 @@ void adamFuji::adamnet_get_directory_position()
     response_len = sizeof(pos);
     memcpy(response, &pos, sizeof(pos));
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
 
@@ -849,7 +845,7 @@ void adamFuji::adamnet_set_directory_position()
 
     adamnet_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     _fnHosts[_current_open_directory_slot].dir_seek(pos);
@@ -861,7 +857,7 @@ void adamFuji::adamnet_close_directory()
 
     adamnet_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     if (_current_open_directory_slot != -1)
@@ -878,7 +874,7 @@ void adamFuji::adamnet_get_adapter_config()
 
     adamnet_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     // Response to FUJICMD_GET_ADAPTERCONFIG
@@ -927,7 +923,7 @@ void adamFuji::adamnet_new_disk()
     if (new_disk_completed)
     {
         new_disk_completed = false;
-        AdamNet.start_time = esp_timer_get_time();
+        SYSTEM_BUS.start_time = esp_timer_get_time();
         adamnet_response_ack();
         return;
     }
@@ -963,7 +959,7 @@ void adamFuji::adamnet_read_host_slots()
     memcpy(response, hostSlots, sizeof(hostSlots));
     response_len = sizeof(hostSlots);
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 }
 
@@ -977,7 +973,7 @@ void adamFuji::adamnet_write_host_slots()
 
     adamnet_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     for (int i = 0; i < MAX_HOSTS; i++)
@@ -1036,7 +1032,7 @@ void adamFuji::adamnet_read_device_slots()
 
     adamnet_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     memcpy(response, &diskSlots, returnsize);
@@ -1059,7 +1055,7 @@ void adamFuji::adamnet_write_device_slots()
 
     adamnet_recv(); // ck
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     // Load the data into our current device array
@@ -1148,7 +1144,7 @@ void adamFuji::adamnet_set_device_filename(uint16_t s)
 
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     memcpy(_fnDisks[ds].filename, f, MAX_FILENAME_LEN);
@@ -1162,7 +1158,7 @@ void adamFuji::adamnet_get_device_filename()
 
     adamnet_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     memcpy(response, _fnDisks[ds].filename, 256);
@@ -1201,7 +1197,7 @@ void adamFuji::adamnet_enable_device()
 
     adamnet_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     switch (d)
@@ -1225,7 +1221,7 @@ void adamFuji::adamnet_enable_device()
 
     Config.save();
 
-    AdamNet.enableDevice(d);
+    SYSTEM_BUS.enableDevice(d);
 }
 
 void adamFuji::adamnet_disable_device()
@@ -1236,7 +1232,7 @@ void adamFuji::adamnet_disable_device()
 
     adamnet_recv();
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     switch (d)
@@ -1260,15 +1256,13 @@ void adamFuji::adamnet_disable_device()
 
     Config.save();
 
-    AdamNet.disableDevice(d);
+    SYSTEM_BUS.disableDevice(d);
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void adamFuji::setup(systemBus *siobus)
+void adamFuji::setup()
 {
     // set up Fuji device
-    _adamnet_bus = siobus;
-
     _populate_slots_from_config();
 
     // Disable booting from CONFIG if our settings say to turn it off
@@ -1277,10 +1271,10 @@ void adamFuji::setup(systemBus *siobus)
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
 
-    _adamnet_bus->addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
-    _adamnet_bus->addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
-    _adamnet_bus->addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
-    _adamnet_bus->addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
+    SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, ADAMNET_DEVICEID_DISK);
+    SYSTEM_BUS.addDevice(&_fnDisks[1].disk_dev, ADAMNET_DEVICEID_DISK + 1);
+    SYSTEM_BUS.addDevice(&_fnDisks[2].disk_dev, ADAMNET_DEVICEID_DISK + 2);
+    SYSTEM_BUS.addDevice(&_fnDisks[3].disk_dev, ADAMNET_DEVICEID_DISK + 3);
 
     // Read and enable devices
     _fnDisks[0].disk_dev.device_active = Config.get_device_slot_enable_1();
@@ -1311,9 +1305,9 @@ void adamFuji::setup(systemBus *siobus)
     theNetwork = new adamNetwork();
     theNetwork2 = new adamNetwork();
     theSerial = new adamSerial();
-    _adamnet_bus->addDevice(theNetwork, 0x09);  // temporary.
-    _adamnet_bus->addDevice(theNetwork2, 0x0A); // temporary
-    _adamnet_bus->addDevice(&theFuji, 0x0F);    // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(theNetwork, 0x09);  // temporary.
+    SYSTEM_BUS.addDevice(theNetwork2, 0x0A); // temporary
+    SYSTEM_BUS.addDevice(&theFuji, 0x0F);    // Fuji becomes the gateway device.
 }
 
 // Mount all
@@ -1395,7 +1389,7 @@ void adamFuji::adamnet_random_number()
 
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     response_len = sizeof(int);
@@ -1407,7 +1401,7 @@ void adamFuji::adamnet_get_time()
     Debug_println("FUJI GET TIME");
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     adamnet_response_ack();
 
     time_t tt = time(nullptr);
@@ -1417,7 +1411,7 @@ void adamFuji::adamnet_get_time()
 
     struct tm *now = localtime(&tt);
 
-	/*
+        /*
      NWD order has changed to match apple format
      Previously:
         response[0] = now->tm_mday;
@@ -1428,15 +1422,15 @@ void adamFuji::adamnet_get_time()
         response[5] = now->tm_sec;
     */
 
-	response[0] = (now->tm_year) / 100 + 19;
-	response[1] = now->tm_year % 100;
-	response[2] = now->tm_mon + 1;
-	response[3] = now->tm_mday;
-	response[4] = now->tm_hour;
-	response[5] = now->tm_min;
-	response[6] = now->tm_sec;
+        response[0] = (now->tm_year) / 100 + 19;
+        response[1] = now->tm_year % 100;
+        response[2] = now->tm_mon + 1;
+        response[3] = now->tm_mday;
+        response[4] = now->tm_hour;
+        response[5] = now->tm_min;
+        response[6] = now->tm_sec;
 
-	response_len = 7;
+        response_len = 7;
 
     Debug_printf("Sending %02X %02X %02X %02X %02X %02X %02X\n", response[0], response[1], response[2], response[3], response[4], response[5], response[6]);
 }
@@ -1446,15 +1440,15 @@ void adamFuji::adamnet_device_enable_status()
     uint8_t d = adamnet_recv();
     adamnet_recv(); // CK
 
-    AdamNet.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
 
-    if (AdamNet.deviceExists(d))
+    if (SYSTEM_BUS.deviceExists(d))
         adamnet_response_ack();
     else
         adamnet_response_nack();
 
     response_len = 1;
-    response[0] = AdamNet.deviceEnabled(d);
+    response[0] = SYSTEM_BUS.deviceEnabled(d);
 }
 
 adamDisk *adamFuji::bootdisk()

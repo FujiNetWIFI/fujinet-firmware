@@ -2,8 +2,6 @@
 
 #include "fuji.h"
 
-#include <driver/ledc.h>
-
 #include <cstdint>
 #include <cstring>
 
@@ -17,6 +15,7 @@
 #include "led.h"
 #include "utils.h"
 #include "string_utils.h"
+#include "compat_string.h"
 
 rs232Fuji theFuji; // global fuji device object
 
@@ -90,22 +89,22 @@ void rs232Fuji::rs232_status()
 
     if (cmdFrame.aux == STATUS_MOUNT_TIME)
     {
-	// Return drive slot mount status: 0 if unmounted, otherwise time when mounted
+        // Return drive slot mount status: 0 if unmounted, otherwise time when mounted
         time_t mount_status[MAX_DISK_DEVICES];
-	int idx;
+        int idx;
 
 
-	for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
-	    mount_status[idx] = _fnDisks[idx].disk_dev.mount_time;
+        for (idx = 0; idx < MAX_DISK_DEVICES; idx++)
+            mount_status[idx] = _fnDisks[idx].disk_dev.mount_time;
 
-	bus_to_computer((uint8_t *) mount_status, sizeof(mount_status), false);
+        bus_to_computer((uint8_t *) mount_status, sizeof(mount_status), false);
     }
     else
     {
-	char ret[4] = {0};
+        char ret[4] = {0};
 
-	Debug_printf("Status for what? %08lx\n", cmdFrame.aux);
-	bus_to_computer((uint8_t *)ret, sizeof(ret), false);
+        Debug_printf("Status for what? %08lx\n", cmdFrame.aux);
+        bus_to_computer((uint8_t *)ret, sizeof(ret), false);
     }
     return;
 }
@@ -743,17 +742,17 @@ void rs232Fuji::image_rotate()
         count--;
 
         // Save the device ID of the disk in the last slot
-        int last_id = _fnDisks[count].disk_dev.id();
+        fujiDeviceID_t last_id = _fnDisks[count].disk_dev.id();
 
         for (int n = count; n > 0; n--)
         {
-            int swap = _fnDisks[n - 1].disk_dev.id();
+            fujiDeviceID_t swap = _fnDisks[n - 1].disk_dev.id();
             Debug_printf("setting slot %d to ID %hx\n", n, swap);
-            _rs232_bus->changeDeviceId(&_fnDisks[n].disk_dev, swap);
+            SYSTEM_BUS.changeDeviceId(&_fnDisks[n].disk_dev, swap);
         }
 
         // The first slot gets the device ID of the last slot
-        _rs232_bus->changeDeviceId(&_fnDisks[0].disk_dev, last_id);
+        SYSTEM_BUS.changeDeviceId(&_fnDisks[0].disk_dev, last_id);
 
         // Say whatever disk is in D1:
         if (Config.get_general_rotation_sounds())
@@ -1392,11 +1391,11 @@ void rs232Fuji::rs232_set_rs232_external_clock()
 
     if (speed == 0)
     {
-        RS232.setUltraHigh(false, 0);
+        SYSTEM_BUS.setUltraHigh(false, 0);
     }
     else
     {
-        RS232.setUltraHigh(true, baudRate);
+        SYSTEM_BUS.setUltraHigh(true, baudRate);
     }
 
     rs232_complete();
@@ -1454,16 +1453,14 @@ void rs232Fuji::rs232_enable_udpstream()
         rs232_complete();
 
         // Start the UDP Stream
-        RS232.setUDPHost(host, port);
+        SYSTEM_BUS.setUDPHost(host, port);
     }
 }
 
 // Initializes base settings and adds our devices to the RS232 bus
-void rs232Fuji::setup(systemBus *rs232bus)
+void rs232Fuji::setup()
 {
     // set up Fuji device
-    _rs232_bus = rs232bus;
-
     _populate_slots_from_config();
 
     insert_boot_device(Config.get_general_boot_mode());
@@ -1476,10 +1473,11 @@ void rs232Fuji::setup(systemBus *rs232bus)
 
     // Add our devices to the RS232 bus
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        _rs232_bus->addDevice(&_fnDisks[i].disk_dev, RS232_DEVICEID_DISK + i);
+        SYSTEM_BUS.addDevice(&_fnDisks[i].disk_dev, (fujiDeviceID_t) (FUJI_DEVICEID_DISK + i));
 
     for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-        _rs232_bus->addDevice(&rs232NetDevs[i], RS232_DEVICEID_FN_NETWORK + i);
+        SYSTEM_BUS.addDevice(&rs232NetDevs[i],
+                             (fujiDeviceID_t) (FUJI_DEVICEID_NETWORK + i));
 
 }
 

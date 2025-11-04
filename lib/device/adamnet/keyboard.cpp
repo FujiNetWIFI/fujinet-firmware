@@ -25,7 +25,7 @@ adamKeyboard::~adamKeyboard()
 void adamKeyboard::adamnet_control_status()
 {
     uint8_t r[6] = {0x81, 0x01, 0x00, 0x00, 0x00, 0x01};
-    AdamNet.wait_for_idle();
+    SYSTEM_BUS.wait_for_idle();
     adamnet_send_buffer(r, sizeof(r));
 }
 
@@ -33,29 +33,29 @@ void adamKeyboard::adamnet_control_receive()
 {
     if (!client.connected() && server->hasClient())
     {
-        AdamNet.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         adamnet_send(0xC1); // NAK
-        client = server->available();
+        client = server->client();
     }
     else if (!client.connected())
     {
-        AdamNet.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         adamnet_send(0xC1); // NAK
     }
     else if (!kpQueue.empty())
     {
-        AdamNet.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         adamnet_send(0x91); // ACK
     }
     else if (client.available() > 0)
     {
-        AdamNet.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         adamnet_send(0x91); // ACK
         kpQueue.push(client.read());
     }
     else
     {
-        AdamNet.wait_for_idle();
+        SYSTEM_BUS.wait_for_idle();
         adamnet_send(0xC1); // NAK
     }
 }
@@ -71,7 +71,7 @@ void adamKeyboard::adamnet_control_clr()
 
 void adamKeyboard::adamnet_control_ready()
 {
-    AdamNet.wait_for_idle();
+    SYSTEM_BUS.wait_for_idle();
     adamnet_send(0x91); // Ack
 }
 

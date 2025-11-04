@@ -159,9 +159,9 @@ uint8_t iwm_slip::iwm_phase_vector()
 		return PHASE_IDLE;
 	}
 
-	std::fill(std::begin(IWM.command_packet.data), std::end(IWM.command_packet.data), 0);
+	std::fill(std::begin(SYSTEM_BUS.command_packet.data), std::end(SYSTEM_BUS.command_packet.data), 0);
 	// The request data is the raw bytes of the request object, we're only really interested in the header part
-	std::copy(request_data.begin(), request_data.begin() + 8, IWM.command_packet.data);
+	std::copy(request_data.begin(), request_data.begin() + 8, SYSTEM_BUS.command_packet.data);
 
 	// signal we have a command to process
 	sp_command_mode = sp_cmd_state_t::command;

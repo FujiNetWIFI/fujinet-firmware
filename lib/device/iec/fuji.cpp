@@ -96,7 +96,7 @@ iecFuji::iecFuji() : IECDevice()
 }
 
 // Initializes base settings and adds our devices to the SIO bus
-void iecFuji::setup(systemBus *bus)
+void iecFuji::setup()
 {
     //Debug_printf("iecFuji::setup()\r\n");
 
@@ -110,28 +110,28 @@ void iecFuji::setup(systemBus *bus)
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
 
     // 04-07 Printers / Plotters
-    if (bus->attachDevice(ptr))
+    if (SYSTEM_BUS.attachDevice(ptr))
         Debug_printf("Attached printer device #%d\r\n", 4);
 
     // 08-15 Drives
     for (int i = 0; i < MAX_DISK_DEVICES; i++)
     {
         _fnDisks[i].disk_dev.setDeviceNumber(BUS_DEVICEID_DISK+i);
-        if (bus->attachDevice(&_fnDisks[i].disk_dev))
+        if (SYSTEM_BUS.attachDevice(&_fnDisks[i].disk_dev))
             Debug_printf("Attached drive device #%d\r\n", BUS_DEVICEID_DISK+i);
     }
 
     // 16-19 Network Devices
-    if (bus->attachDevice(new iecNetwork(16)))     // 16-19 Network Devices
+    if (SYSTEM_BUS.attachDevice(new iecNetwork(16)))     // 16-19 Network Devices
         Debug_printf("Attached network device #%d\r\n", 16);
 
-    //Serial.print("CPM "); bus->addDevice(new iecCpm(), 20);             // 20-29 Other
-    if (bus->attachDevice(new iecClock(29)))
+    //Serial.print("CPM "); SYSTEM_BUS.addDevice(new iecCpm(), 20);             // 20-29 Other
+    if (SYSTEM_BUS.attachDevice(new iecClock(29)))
         Debug_printf("Attached clock device #%d\r\n", 29);
 
     // FujiNet
     setDeviceNumber(30);
-    if (bus->attachDevice(this))
+    if (SYSTEM_BUS.attachDevice(this))
         Debug_printf("Attached Meatloaf device #%d\r\n", 30);
 }
 
@@ -308,12 +308,81 @@ void iecFuji::process_cmd()
 
 void iecFuji::local_ip()
 {
+    char tmp[20];
+    Debug_printv("Getting local IP address");
     fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-    std::ostringstream ss;
-    ss << cfg.localIP[0] << "." << cfg.localIP[1] << "." << cfg.localIP[2] << "." << cfg.localIP[3];
-    set_fuji_iec_status(0, ss.str());
+    snprintf(tmp, sizeof(tmp), "%d.%d.%d.%d", cfg.localIP[0], cfg.localIP[1], cfg.localIP[2], cfg.localIP[3]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
 }
 
+void iecFuji::netmask()
+{
+    char tmp[20];
+    Debug_printv("Getting netmask");
+    fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+    snprintf(tmp, sizeof(tmp), "%d.%d.%d.%d", cfg.netmask[0], cfg.netmask[1], cfg.netmask[2], cfg.netmask[3]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
+}
+
+void iecFuji::gateway()
+{
+    char tmp[20];
+    Debug_printv("Getting gateway");
+    fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
+    snprintf((char*)tmp, sizeof(tmp), "%d.%d.%d.%d", cfg.gateway[0], cfg.gateway[1], cfg.gateway[2], cfg.gateway[3]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
+}
+
+void iecFuji::dns_ip()
+{
+    Debug_printv("Getting DNS IP");
+    fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
+    char tmp[20];
+    snprintf((char*)tmp, sizeof(tmp), "%d.%d.%d.%d", cfg.dnsIP[0], cfg.dnsIP[1], cfg.dnsIP[2], cfg.dnsIP[3]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
+}
+
+void iecFuji::mac_address()
+{
+    Debug_printv("Getting MAC address");
+    uint8_t mac[6];
+    fnWiFi.get_mac(mac);
+    char tmp[24];
+
+    snprintf(tmp, sizeof(tmp), "%02X-%02X-%02X-%02X-%02X-%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+    response = string(tmp);
+    response = mstr::toPETSCII2(response);
+    set_fuji_iec_status(0, response);
+}
+
+void iecFuji::bssid()
+{
+    Debug_printv("Getting BSSID");
+    uint8_t bssid[6];
+    fnWiFi.get_current_bssid(bssid);
+    char tmp[24];
+    snprintf(tmp, sizeof(tmp), "%02X-%02X-%02X-%02X-%02X-%02X", bssid[0], bssid[1], bssid[2], bssid[3], bssid[4], bssid[5]);
+    response = string(tmp);
+    set_fuji_iec_status(0, response);
+    response = mstr::toPETSCII2(response);
+}
+
+void iecFuji::fn_version()
+{
+    Debug_printv("Getting FujiNet version");
+    std::string ver = fnSystem.get_fujinet_version(true);
+    set_fuji_iec_status(0, ver);
+    response = ver;
+    response = mstr::toPETSCII2(response);
+}
 
 void iecFuji::process_basic_commands()
 {
@@ -388,6 +457,18 @@ void iecFuji::process_basic_commands()
         get_status_basic();
     else if (payload.find("localip") != std::string::npos)
         local_ip();
+    else if (payload.find("netmask") != std::string::npos)
+        netmask();
+    else if (payload.find("gateway") != std::string::npos)
+        gateway();
+    else if (payload.find("dnsip") != std::string::npos)
+        dns_ip();
+    else if (payload.find("macaddress") != std::string::npos)
+        mac_address();
+    else if (payload.find("bssid") != std::string::npos)
+        bssid();
+    else if (payload.find("fnversion") != std::string::npos)
+        fn_version();
     else if (payload.find("enable") != std::string::npos)
         enable_device_basic();
     else if (payload.find("disable") != std::string::npos)
@@ -662,6 +743,7 @@ void iecFuji::net_scan_result_basic()
     int i = atoi(pt[1].c_str());
     scan_result_t result = net_scan_result(i);
     response = std::to_string(result.rssi) + ",\"" + std::string(result.ssid) + "\"";
+    response = mstr::toPETSCII2(response);
     set_fuji_iec_status(0, "ok");
 }
 
@@ -736,7 +818,7 @@ void iecFuji::enable_device_basic()
     // Enable devices
     for (int i = 0; i < pt.size(); i++) {
         uint8_t device = atoi(pt[i].c_str());
-        auto d = IEC.findDevice(device, true);
+        auto d = SYSTEM_BUS.findDevice(device, true);
         if (d) {
             d->setActive(true);
             Debug_printv("Enable Device #%d [%d]", device, d->isActive());
@@ -752,7 +834,7 @@ void iecFuji::disable_device_basic()
     // Disable devices
     for (int i = 0; i < pt.size(); i++) {
         uint8_t device = atoi(pt[i].c_str());
-        auto d = IEC.findDevice(device, true);
+        auto d = SYSTEM_BUS.findDevice(device, true);
         if (d) {
             d->setActive(false);
             Debug_printv("Disable Device #%d [%d]", device, d->isActive());
@@ -786,6 +868,7 @@ void iecFuji::net_get_wifi_status_raw()
 void iecFuji::net_get_wifi_status_basic()
 {
     response = net_get_wifi_status() == 3 ? "connected" : "disconnected";
+    response = mstr::toPETSCII2(response);
     set_fuji_iec_status(0, "ok");
 }
 

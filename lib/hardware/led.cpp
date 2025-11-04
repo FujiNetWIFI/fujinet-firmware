@@ -2,6 +2,7 @@
 #include "led.h"
 
 #include "fnSystem.h"
+#include "fnLedStrip.h"
 
 #define BLINKING_TIME 100 // 200 ms
 
@@ -55,13 +56,13 @@ void LedManager::set(eLed led, bool on)
         switch (led)
         {
         case eLed::LED_BUS:
-            //fnLedStrip.set(stripLed::LED_STRIP_BUS, on);
+            fnLedStrip.set(LedStripManager::LED_STRIP_BUS, on);
             break;
         case eLed::LED_BT:
-            //fnLedStrip.set(stripLed::LED_STRIP_BT, on);
+            fnLedStrip.set(LedStripManager::LED_STRIP_BT, on);
             break;
         case eLed::LED_WIFI:
-            //fnLedStrip.set(stripLed::LED_STRIP_WIFI, on);
+            fnLedStrip.set(LedStripManager::LED_STRIP_WIFI, on);
             break;
         default:
             break;
@@ -91,13 +92,13 @@ void LedManager::toggle(eLed led)
         switch (led)
         {
         case eLed::LED_BUS:
-            //fnLedStrip.toggle(stripLed::LED_STRIP_BUS);
+            fnLedStrip.toggle(LedStripManager::LED_STRIP_BUS);
             break;
         case eLed::LED_BT:
-            //fnLedStrip.toggle(stripLed::LED_STRIP_BT);
+            fnLedStrip.toggle(LedStripManager::LED_STRIP_BT);
             break;
         case eLed::LED_WIFI:
-            //fnLedStrip.toggle(stripLed::LED_STRIP_WIFI);
+            fnLedStrip.toggle(LedStripManager::LED_STRIP_WIFI);
             break;
         default:
             break;
@@ -118,13 +119,13 @@ void LedManager::blink(eLed led, int count)
         switch (led)
         {
         case eLed::LED_BUS:
-            //fnLedStrip.blink(stripLed::LED_STRIP_BUS, count);
+            fnLedStrip.blink(LedStripManager::LED_STRIP_BUS, count);
             break;
         case eLed::LED_BT:
-            //fnLedStrip.blink(stripLed::LED_STRIP_BT, count);
+            fnLedStrip.blink(LedStripManager::LED_STRIP_BT, count);
             break;
         case eLed::LED_WIFI:
-            //fnLedStrip.blink(stripLed::LED_STRIP_WIFI, count);
+            fnLedStrip.blink(LedStripManager::LED_STRIP_WIFI, count);
             break;
         default:
             break;

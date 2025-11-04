@@ -248,7 +248,4 @@ void systemBus::shutdown()
     }
     Debug_printf("All devices shut down.\n");
 }
-
-systemBus CX16;
-
 #endif /* BUILD_CX16 */

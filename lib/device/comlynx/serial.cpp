@@ -35,7 +35,7 @@ void lynxSerial::comlynx_response_status()
 
 void lynxSerial::comlynx_control_ready()
 {
-    ComLynx.start_time=esp_timer_get_time();
+    SYSTEM_BUS.start_time=esp_timer_get_time();
 
     if (uxQueueMessagesWaiting(serial_out_queue))
         comlynx_response_nack();
@@ -54,7 +54,7 @@ void lynxSerial::comlynx_control_send()
     comlynx_recv_buffer(next.data, next.len);
     comlynx_recv();
 
-    ComLynx.start_time = esp_timer_get_time();
+    SYSTEM_BUS.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
     xQueueSend(serial_out_queue,&next,portMAX_DELAY);

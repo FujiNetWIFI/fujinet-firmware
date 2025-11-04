@@ -56,11 +56,11 @@ protected:
     virtual void reset() {};
 
     /**
-     * @brief All H89 devices repeatedly call this routine to fan out to other methods for each command. 
+     * @brief All H89 devices repeatedly call this routine to fan out to other methods for each command.
      * This is typcially implemented as a switch() statement.
      */
     virtual void process(uint32_t commanddata, uint8_t checksum) = 0;
-    
+
     /**
      * @brief send current status of device
      */
@@ -97,26 +97,26 @@ private:
 
 public:
     void setup(); // one time setup
-    void service(); // this runs in a loop 
+    void service(); // this runs in a loop
     void shutdown(); // shutdown
     void reset(); // reset
 
     int numDevices();
-    void addDevice(virtualDevice *pDevice, uint8_t device_id);
+    void addDevice(virtualDevice *pDevice, FujiDeviceID device_id);
     void remDevice(virtualDevice *pDevice);
-    void remDevice(uint8_t device_id);
-    bool deviceExists(uint8_t device_id);
-    void enableDevice(uint8_t device_id);
-    void disableDevice(uint8_t device_id);
-    bool enabledDeviceStatus(uint8_t device_id);
-    virtualDevice *deviceById(uint8_t device_id);
-    void changeDeviceId(virtualDevice *pDevice, uint8_t device_id);
+    void remDevice(FujiDeviceID device_id);
+    bool deviceExists(FujiDeviceID device_id);
+    void enableDevice(FujiDeviceID device_id);
+    void disableDevice(FujiDeviceID device_id);
+    bool enabledDeviceStatus(FujiDeviceID device_id);
+    virtualDevice *deviceById(FujiDeviceID device_id);
+    void changeDeviceId(virtualDevice *pDevice, FujiDeviceID device_id);
     QueueHandle_t qH89Messages = nullptr;
 
     bool shuttingDown = false;                                  // TRUE if we are in shutdown process
     bool getShuttingDown() { return shuttingDown; };
 };
 
-extern systemBus H89Bus;
+extern systemBus SYSTEM_BUS;
 
 #endif /* H89_H */

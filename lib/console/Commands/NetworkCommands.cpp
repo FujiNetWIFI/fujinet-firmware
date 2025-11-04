@@ -99,7 +99,7 @@ static void on_ping_end(esp_ping_handle_t hdl, void *args)
 	} else {
 		printf("\n--- %s ping statistics ---", inet6_ntoa(*ip_2_ip6(&target_addr)));
 	}
-	printf("%"PRIu32" packets transmitted, %"PRIu32" received, %"PRIu32"%% packet loss, time %"PRIu32"ms",
+	printf("%" PRIu32 " packets transmitted, %" PRIu32 " received, %" PRIu32 "%% packet loss, time %" PRIu32 "ms",
 			 transmitted, received, loss, total_time_ms);
 	// delete the ping sessions, so that we clean up all resources and can create a new ping session
 	// we don't have to call delete function in the callback, instead we can call delete function from other tasks

@@ -65,9 +65,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         FN_PRINTER_ENABLED,
         FN_MODEM_ENABLED,
         FN_MODEM_SNIFFER_ENABLED,
+#if !defined(ESP_PLATFORM) || defined(BUILD_RS232)
+        FN_SERIAL_PORT_BAUD,
+#endif
 #ifndef ESP_PLATFORM
         FN_SERIAL_PORT,
-        FN_SERIAL_PORT_BAUD,
         FN_SERIAL_COMMAND,
         FN_SERIAL_PROCEED,
         FN_SIO_HSTEXT,
@@ -183,9 +185,11 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         "FN_PRINTER_ENABLED",
         "FN_MODEM_ENABLED",
         "FN_MODEM_SNIFFER_ENABLED",
+#if !defined(ESP_PLATFORM) || defined(BUILD_RS232)
+        "FN_SERIAL_PORT_BAUD",
+#endif
 #ifndef ESP_PLATFORM
         "FN_SERIAL_PORT",
-        "FN_SERIAL_PORT_BAUD",
         "FN_SERIAL_COMMAND",
         "FN_SERIAL_PROCEED",
         "FN_SIO_HSTEXT",
@@ -375,21 +379,27 @@ const string fnHttpServiceParser::substitute_tag(const string &tag)
         break;
 #ifdef BUILD_ATARI
     case FN_SIO_HSINDEX:
-        resultstream << SIO.getHighSpeedIndex();
+        resultstream << SYSTEM_BUS.getHighSpeedIndex();
         break;
 #ifndef ESP_PLATFORM
     case FN_SIO_HSTEXT:
-        hsioindex = SIO.getHighSpeedIndex();
-        if (hsioindex == HSIO_DISABLED_INDEX)
+        hsioindex = SYSTEM_BUS.getHighSpeedIndex();
+        if (hsioindex == HSIO_INVALID_INDEX)
             resultstream << "HSIO Disabled";
         else
             resultstream << hsioindex;
         break;
 #endif
     case FN_SIO_HSBAUD:
-        resultstream << SIO.getHighSpeedBaud();
+        resultstream << SYSTEM_BUS.getHighSpeedBaud();
         break;
 #endif /* BUILD_ATARI */
+#if defined(BUILD_RS232)
+#warning "Why isn't this using Config.get_serial_baud() below?"
+    case FN_SERIAL_PORT_BAUD:
+        resultstream << Config.get_rs232_baud();
+        break;
+#endif
 #ifndef ESP_PLATFORM
     case FN_SERIAL_PORT:
         resultstream << Config.get_serial_port();

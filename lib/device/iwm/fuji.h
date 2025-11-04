@@ -110,8 +110,6 @@ private:
         uint8_t rssi;
     } detail;
 
-    iwmBus *_iwm_bus;
-
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
@@ -146,6 +144,8 @@ private:
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
     bool hash_is_hex_output = false;
+
+    QRManager _qrManager = QRManager();
 
 protected:
     void iwm_dummy_command();                     // control 0xAA
@@ -256,7 +256,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(iwmBus *iwmbus);
+    void setup();
 
     void image_rotate();
     int get_disk_id(int drive_slot);

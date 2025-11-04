@@ -100,8 +100,6 @@ class iecFuji : public IECDevice
 {
 //private:
 protected:
-    systemBus *_bus;
-
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
@@ -350,6 +348,13 @@ protected:
 
     // Commodore specific
     void local_ip();
+    void netmask();
+    void gateway();
+    void dns_ip();
+    void mac_address();
+    void bssid();
+    void fn_version();
+    
     void enable_device_basic();
     void disable_device_basic();
 
@@ -419,7 +424,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(systemBus *bus);
+    void setup();
 
     void image_rotate();
     int get_disk_id(int drive_slot);

@@ -250,6 +250,6 @@ public:
     QueueHandle_t qAdamNetMessages = nullptr;
 };
 
-extern systemBus AdamNet;
+extern systemBus SYSTEM_BUS;
 
 #endif /* ADAMNET_H */

@@ -9,38 +9,7 @@
 #include <string>
 #include <driver/i2c.h>
 
-#define CX16_DEVICEID_DISK 0x31
-#define CX16_DEVICEID_DISK_LAST 0x3F
-
-#define CX16_DEVICEID_PRINTER 0x40
-#define CX16_DEVICEID_PRINTER_LAST 0x43
-
-#define CX16_DEVICEID_FN_VOICE 0x43
-
-#define CX16_DEVICEID_APETIME 0x45
-
-#define CX16_DEVICEID_TYPE3POLL 0x4F
-
-#define CX16_DEVICEID_RS232 0x50
-#define CX16_DEVICEID_RS2323_LAST 0x53
-
-#define CX16_DEVICEID_CASSETTE 0x5F
-
-#define CX16_DEVICEID_FUJINET 0x70
-#define CX16_DEVICEID_FN_NETWORK 0x71
-#define CX16_DEVICEID_FN_NETWORK_LAST 0x78
-
-#define CX16_DEVICEID_MIDI 0x99
-
-#define CX16_DEVICEID_SIO2BT_NET 0x4E
-#define CX16_DEVICEID_SIO2BT_SMART 0x45 // Doubles as APETime and "High Score Submission" to URL
-#define CX16_DEVICEID_APE 0x45
-#define CX16_DEVICEID_ASPEQT 0x46
-#define CX16_DEVICEID_PCLINK 0x6F
-
-#define CX16_DEVICEID_CPM 0x5A
-
-#define I2C_SLAVE_TX_BUF_LEN 255 
+#define I2C_SLAVE_TX_BUF_LEN 255
 #define I2C_SLAVE_RX_BUF_LEN 32
 #define I2C_DEVICE_ID 0x70
 
@@ -48,29 +17,29 @@
  * | Address | R/W | Description
  * |---      |---  |---
  * | 0       | W   | Device ID
- * | 1       | W   | Command 
- * | 2       | W   | Aux1 
- * | 3       | W   | Aux2 
+ * | 1       | W   | Command
+ * | 2       | W   | Aux1
+ * | 3       | W   | Aux2
  * | 4       | W   | Checksum of addresses 0-3
  * | 5       | R   | (A)CK/(N)ACK
  * | 6       | R   | (C)OMPLETE/(E)RROR
  * | 7       | R/W | Payload Length (LO)
  * | 8       | R/W | Payload Length (HI)
- * | 9       | R/W | Payload Data (auto-increment) 
- * 
+ * | 9       | R/W | Payload Data (auto-increment)
+ *
  * Any write to address 0 will zero out all other addresses.
  * Read to address 0 to perform command
- * 
+ *
  * So the sequence to perform a command to the fujinet:
- * 
+ *
  * 1. Write addresses 0-4 for command frame.
  * 2. if a write payload is needed, write length lo/hi, then write payload data for # of bytes in length
  * 3. READ from address 0 to perform command.
  * 4. Check ACK/NAK
  * 5. Check COMPLETE/ERROR
- * 
+ *
  * Alternatively, to perform a command from fujinet to the CX16:
- * 
+ *
  * 1. Write addresses 0-4 for the command frame.
  * 2. If a read payload is expected, write length lo/hi.
  * 3. READ from address 0 to perform command.
@@ -129,7 +98,7 @@ protected:
     /**
      * @brief The passed in command frame, copied.
      */
-    cmdFrame_t cmdFrame;     
+    cmdFrame_t cmdFrame;
 
     /**
      * @brief Message queue
@@ -221,11 +190,6 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
-
-    /**
-     * @brief Get the systemBus object that this virtualDevice is attached to.
-     */
-    systemBus get_bus();
 };
 
 /**
@@ -342,7 +306,7 @@ public:
      * @param pDevice Pointer to virtualDevice
      * @param device_id The ID to assign to virtualDevice
      */
-    void addDevice(virtualDevice *pDevice, int device_id);
+    void addDevice(virtualDevice *pDevice, FujiDeviceID device_id);
 
     /**
      * @brief Remove device from bus
@@ -355,14 +319,14 @@ public:
      * @param device_id ID of device to return.
      * @return pointer to virtualDevice
      */
-    virtualDevice *deviceById(int device_id);
+    virtualDevice *deviceById(FujiDeviceID device_id);
 
     /**
      * @brief Change ID of a particular virtualDevice
      * @param pDevice pointer to virtualDevice
-     * @param device_id new device ID 
+     * @param device_id new device ID
      */
-    void changeDeviceId(virtualDevice *pDevice, int device_id);
+    void changeDeviceId(virtualDevice *pDevice, FujiDeviceID device_id);
 
     /**
      * @brief Are we shutting down?
@@ -374,6 +338,6 @@ public:
 /**
  * @brief Return
  */
-extern systemBus CX16;
+extern systemBus SYSTEM_BUS;
 
 #endif /* CX16_I2C_H */

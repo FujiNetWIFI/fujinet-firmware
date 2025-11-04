@@ -4,7 +4,6 @@
 #include "cpm.h"
 
 #include "fnSystem.h"
-#include "fnUART.h"
 #include "fnWiFi.h"
 #include "fuji.h"
 #include "fnFS.h"
@@ -27,7 +26,7 @@
 #include "../runcpm/ccp.h" // ccp.h - Defines a simple internal CCP
 #endif
 
-#define CPM_TASK_PRIORITY 20
+#define CPM_TASK_PRIORITY 10
 
 static void cpmTask(void *arg)
 {
@@ -42,9 +41,6 @@ static void cpmTask(void *arg)
         memset(newname, 0, sizeof(newname));
         memset(fcbname, 0, sizeof(fcbname));
         memset(pattern, 0, sizeof(pattern));
-#ifdef ESP_PLATFORM // OS
-        vTaskDelay(100);
-#endif
         _puts(CCPHEAD);
         _PatchCPM();
         _ccp();
@@ -68,7 +64,7 @@ void iwmCPM::send_status_reply_packet()
     data[1] = 0; // block size 1
     data[2] = 0; // block size 2
     data[3] = 0; // block size 3
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data, 4);
 }
 
 void iwmCPM::send_status_dib_reply_packet()
@@ -81,7 +77,7 @@ void iwmCPM::send_status_dib_reply_packet()
 		{ SP_TYPE_BYTE_FUJINET_CPM, SP_SUBTYPE_BYTE_FUJINET_CPM },  // type, subtype
 		{ 0x00, 0x01 }                                              // version.
 	);
-	IWM.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 
 }
 
@@ -107,7 +103,7 @@ void iwmCPM::iwm_open(iwm_decoded_cmd_t cmd)
         if (cpmTaskHandle == NULL)
         {
             Debug_printf("!!! STARTING CP/M TASK!!!\n");
-            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
+            xTaskCreatePinnedToCore(cpmTask, "cpmtask", 4096, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0);
         }
     }
 #endif
@@ -164,7 +160,7 @@ void iwmCPM::iwm_status(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nStatus code complete, sending response");
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
 }
 
 void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
@@ -205,7 +201,7 @@ void iwmCPM::iwm_read(iwm_decoded_cmd_t cmd)
     }
 
     Debug_printf("\r\nsending CPM read data packet ...");
-    IWM.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
+    SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, data_len);
     data_len = 0;
     memset(data_buffer, 0, sizeof(data_buffer));
 }
@@ -220,8 +216,8 @@ void iwmCPM::iwm_write(iwm_decoded_cmd_t cmd)
     //  to do - this blows up - check handshaking
 
     data_len = num_bytes;
-    IWM.iwm_decode_data_packet(data_buffer, data_len); // write data packet now read in ISR
-    // if (IWM.iwm_decode_data_packet(data_buffer, data_len))
+    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len); // write data packet now read in ISR
+    // if (SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len))
     // {
     //     Debug_printf("\r\nTIMEOUT in read packet!");
     //     return;
@@ -247,7 +243,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
     Debug_printf("\r\nCPM Device %02x Control Code %02x", id(), control_code);
     // Debug_printf("\r\nControl List is at %02x %02x", cmd.g7byte1 & 0x7f, cmd.g7byte2 & 0x7f);
     data_len = 512;
-    IWM.iwm_decode_data_packet(data_buffer, data_len);
+    SYSTEM_BUS.iwm_decode_data_packet(data_buffer, data_len);
     // Debug_printf("\r\nThere are %02x Odd Bytes and %02x 7-byte Groups", packet_buffer[11] & 0x7f, data_buffer[12] & 0x7f);
     print_packet(data_buffer);
 
@@ -270,7 +266,7 @@ void iwmCPM::iwm_ctrl(iwm_decoded_cmd_t cmd)
                 {
                         break;
                 }
-                xTaskCreatePinnedToCore(cpmTask, "cpmtask", 32768, NULL, CPM_TASK_PRIORITY, &cpmTaskHandle, 1);
+                xTaskCreatePinnedToCore(cpmTask, "cpmtask", 4096, this, CPM_TASK_PRIORITY, &cpmTaskHandle, 0);
 #endif
             }
             break;

@@ -58,8 +58,6 @@ struct appkey
 class rs232Fuji : public virtualDevice
 {
 private:
-    systemBus *_rs232_bus;
-
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
@@ -131,7 +129,7 @@ public:
 
     void insert_boot_device(uint8_t d);
 
-    void setup(systemBus *rs232bus);
+    void setup();
 
     void image_rotate();
     int get_disk_id(int drive_slot);

@@ -310,11 +310,13 @@ static int	_7z_compression_init_encoder(struct archive_write *, unsigned,
 		    int);
 static int	compression_init_encoder_zstd(struct archive *,
 		    struct la_zstream *, int, int);
+#ifdef UNUSED
 #if defined(HAVE_ZSTD_H)
 static int	compression_code_zstd(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end_zstd(struct archive *, struct la_zstream *);
 #endif
+#endif /* UNUSED */
 static int	compression_code(struct archive *,
 		    struct la_zstream *, enum la_zaction);
 static int	compression_end(struct archive *,
