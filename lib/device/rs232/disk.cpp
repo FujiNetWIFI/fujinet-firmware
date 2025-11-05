@@ -39,9 +39,9 @@ rs232Disk::rs232Disk()
 // Read disk data and send to computer
 void rs232Disk::rs232_read()
 {
-	Debug_printf("disk READ %lu\n", cmdFrame.aux);
+        Debug_printf("disk READ %lu\n", cmdFrame.aux);
 
-	if (_disk == nullptr)
+        if (_disk == nullptr)
     {
         rs232_error();
         return;
@@ -114,7 +114,7 @@ void rs232Disk::rs232_status()
               810 drive: $E0 = 224 vertical blanks (4 mins NTSC)
             XF551 drive: $FE = 254 veritcal blanks (4.5 mins NTSC)
 
-        #3 - Unused ($00)    
+        #3 - Unused ($00)
     */
     // TODO: Why $DF for second byte?
     // TODO: Set bit 4 of drive status and bit 6 of FDC status on read-only disk
@@ -219,7 +219,7 @@ mediatype_t rs232Disk::mount(fnFile *f, const char *filename, uint32_t disksize,
     case MEDIATYPE_UNKNOWN:
     default:
         device_active = true;
-	mount_time = time(NULL);
+        mount_time = time(NULL);
         _disk = new MediaTypeImg();
         return _disk->mount(f, disksize);
     }
@@ -244,7 +244,7 @@ void rs232Disk::unmount()
     {
         _disk->unmount();
         device_active = false;
-	mount_time = 0;
+        mount_time = 0;
     }
 }
 

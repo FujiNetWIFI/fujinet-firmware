@@ -191,7 +191,7 @@ private:
     void rs232_write();                            // $57, 'W', Write
     void rs232_stream();                           // $58, 'X', Concurrent/Stream
     void rs232_process(cmdFrame_t *cmd_ptr) override;
-    
+
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command

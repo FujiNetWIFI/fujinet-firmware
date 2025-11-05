@@ -14,7 +14,7 @@
 
 #ifdef BUILD_APPLE
 #include "iwm/printerlist.h"
-#include "iwm/fuji.h"
+#include "iwm/iwmFuji.h"
 #define PRINTER_CLASS iwmPrinter
 extern iwmFuji theFuji;
 #endif /* BUILD_APPLE */

@@ -86,7 +86,7 @@ public:
      * @brief send response
      */
     void send_response();
-    
+
     /**
      * Called for DRIVEWIRE Command 'O' to open a connection to a network protocol, allocate all buffers,
      */
@@ -101,7 +101,7 @@ public:
      * DRIVEWIRE Read command
      * Read # of bytes from the protocol adapter specified by the aux1/aux2 bytes, into the RX buffer. If we are short
      * fill the rest with nulls and return ERROR.
-     *  
+     *
      * @note It is the channel's responsibility to pad to required length.
      */
     virtual void read();
@@ -263,7 +263,7 @@ private:
      * The channel mode for the currently open DRIVEWIRE device. By default, it is PROTOCOL, which passes
      * read/write/status commands to the protocol. Otherwise, it's a special mode, e.g. to pass to
      * the JSON or XML parsers.
-     * 
+     *
      * @enum PROTOCOL Send to protocol
      * @enum JSON Send to JSON parser.
      */
@@ -295,7 +295,7 @@ private:
     void assert_interrupt();
 
     /**
-     * Return 16 bit value returned from command frame 
+     * Return 16 bit value returned from command frame
      */
     uint16_t get_daux() { return (uint16_t)((cmdFrame.aux1 * 256) + cmdFrame.aux2);}
 
@@ -322,11 +322,11 @@ private:
 
     /**
      * Preprocess a URL given aux1 open mode. This is used to work around various assumptions that different
-     * disk utility packages do when opening a device, such as adding wildcards for directory opens. 
-     * 
+     * disk utility packages do when opening a device, such as adding wildcards for directory opens.
+     *
      * The resulting URL is then sent into a URL Parser to get our URLParser object which is used in the rest
      * of drivewireNetwork.
-     * 
+     *
      * This function is a mess, because it has to be, maybe we can factor it out, later. -Thom
      */
     bool parseURL();
@@ -334,11 +334,11 @@ private:
     /**
      * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
      * and figure out one of three states:
-     * 
+     *
      * (1) we were passed D1:FOO.TXT,N:FOO.TXT, the second arg is ours.
      * (2) we were passed N:FOO.TXT,D1:FOO.TXT, the first arg is ours.
      * (3) we were passed N1:FOO.TXT,N2:FOO.TXT, get whichever one corresponds to our device ID.
-     * 
+     *
      * DeviceSpec will be transformed to only contain the relevant part of the deviceSpec, sans comma.
      */
     void processCommaFromDevicespec();
@@ -389,7 +389,7 @@ private:
 
     /**
      * @brief called to handle special protocol interactions when DSTATS=$00, meaning there is no payload.
-     * Essentially, call the protocol action 
+     * Essentially, call the protocol action
      * and based on the return, signal drivewire_complete() or error().
      */
     void special_00();

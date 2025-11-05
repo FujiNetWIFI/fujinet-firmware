@@ -35,10 +35,10 @@ lynxNetwork::lynxNetwork()
 {
     //status_response[1] = 0x00;
     //status_response[2] = 0x04; // 1024 bytes
-    
+
     status_response[1] = SERIAL_PACKET_SIZE % 256;
     status_response[2] = SERIAL_PACKET_SIZE / 256;
-    
+
     status_response[3] = 0x00; // Character device
 
     receiveBuffer = new string();
@@ -92,7 +92,7 @@ void lynxNetwork::open(unsigned short s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -229,7 +229,7 @@ void lynxNetwork::write(uint16_t num_bytes)
     memset(response, 0, sizeof(response));
 
     comlynx_recv_buffer(response, num_bytes);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -274,13 +274,13 @@ bool lynxNetwork::comlynx_write_channel(unsigned short num_bytes)
 void lynxNetwork::status()
 {
     NetworkStatus s;
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
         return;
     }
-    
+
     //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
 
@@ -338,7 +338,7 @@ void lynxNetwork::set_prefix(unsigned short s)
     memset(prefixSpec, 0, sizeof(prefixSpec));
 
     comlynx_recv_buffer(prefixSpec, s);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -402,7 +402,7 @@ void lynxNetwork::set_login(uint16_t s)
     memset(loginspec, 0, sizeof(loginspec));
 
     comlynx_recv_buffer(loginspec, s);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -425,7 +425,7 @@ void lynxNetwork::set_password(uint16_t s)
     memset(passwordspec, 0, sizeof(passwordspec));
 
     comlynx_recv_buffer(passwordspec, s);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -444,7 +444,7 @@ void lynxNetwork::del(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -475,7 +475,7 @@ void lynxNetwork::rename(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -503,7 +503,7 @@ void lynxNetwork::mkdir(uint16_t s)
 
     memset(response, 0, sizeof(response));
     comlynx_recv_buffer(response, s);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -528,7 +528,7 @@ void lynxNetwork::mkdir(uint16_t s)
 void lynxNetwork::channel_mode()
 {
     unsigned char m = comlynx_recv();
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -564,7 +564,7 @@ void lynxNetwork::json_query(unsigned short s)
     uint8_t *c = (uint8_t *) malloc(s+1);
 
     comlynx_recv_buffer(c, s);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -585,7 +585,7 @@ void lynxNetwork::json_query(unsigned short s)
 
     memset(in, 0, sizeof(in));
     comlynx_recv_buffer(in, s);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -616,7 +616,7 @@ void lynxNetwork::json_query(unsigned short s)
     }
 
     json.setReadQuery(inp_string, cmdFrame.aux2);
-    
+
     /*json_bytes_remaining = json->json_bytes_remaining;
 
     std::vector<uint8_t> tmp(json_bytes_remaining);
@@ -637,7 +637,7 @@ void lynxNetwork::json_parse()
         comlynx_response_nack();
         return;
     }
-    
+
     //ComLynx.start_time = esp_timer_get_time();
     comlynx_response_ack();
     json.parse();
@@ -981,7 +981,7 @@ void lynxNetwork::comlynx_response_send()
     // print response we're sending
     response[response_len] = '\0';
     Debug_printf("comlynx_response_send: %s\n",response);
-    
+
     // clear response for next time
     memset(response, 0, response_len);
     response_len = 0;
@@ -1031,7 +1031,7 @@ bool lynxNetwork::instantiate_protocol()
     {
         protocolParser = new ProtocolParser();
     }
-    
+
     protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)

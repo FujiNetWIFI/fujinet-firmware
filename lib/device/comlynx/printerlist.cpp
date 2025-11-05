@@ -21,7 +21,7 @@ void printerlist::set_ptr(int index, lynxPrinter *ptr)
 {
     if (ptr == NULL)
         return;
-        
+
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return;
     _printers[index].pPrinter = ptr;

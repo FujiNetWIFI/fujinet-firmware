@@ -1,7 +1,7 @@
 #ifdef BUILD_MAC
 #include "mac.h"
 #include "../../include/debug.h"
-#include "../device/mac/fuji.h"
+#include "../device/mac/macFuji.h"
 
 #include "mac_ll.h"
 
@@ -14,27 +14,27 @@ void systemBus::setup(void)
   // GPIO needs to read Head Select (SEL)
   floppy_ll.setup_gpio();
   Debug_printf("\r\nGPIO configured");
-  
+
   floppy_ll.setup_rmt();
   Debug_printf("\r\nRMT configured for Floppy Output");
 }
 
 /**
  * 699-0452-A Double Sided floppy requirement document
- * 
+ *
  * The host system can send four commands: /DIRTN,/STEP,
  * /MOTORON and EJECT. To send one of the control commands to the
  * drive, set CA2 to the value (a zero or a one) to which the host
  * system wishes the command to be set, and then set CAO, CA 1, and
  * SEL to the value which selects the desired command. Finally, bring
  * LSTRB first high and then low.
- * 
+ *
  *               SEL CA2 CA1 CA0   value
  * /DIRTN         0   0   0   0     0     increase track number
  * /DIRTN         0   1   0   0     4     decrease track number
  * /STEP          0   0   0   1     1     step the head in the direction
  * /STEP          0   1   0   1     5     probably not used
- * /MOTORON       0   0   1   0     2     turn motor on    
+ * /MOTORON       0   0   1   0     2     turn motor on
  * /MOTORON       0   1   1   0     6     turn motor off
  * EJECT          0   0   1   1     3     probably not used
  * EJECT          0   1   1   1     7     eject the disk
@@ -44,9 +44,9 @@ void systemBus::setup(void)
  * for DCD (HD20) the protocol is different.
  * need to read and write blocks
  * would be nice to fetch the image name so it can be displayed on the mac
- * 
+ *
  * block numbers are 3 bytes, 512 bytes/block - 8GB addressable, but MAC OS limites to 2 GB
- * 
+ *
 */
 
 uint8_t sector_buffer[512];
@@ -123,9 +123,9 @@ void systemBus::service(void)
       }
     }
     else // DCD
-    { 
+    {
       switch (c)
-      { 
+      {
       case 'A':
       case 'B':
       case 'C':

@@ -21,7 +21,7 @@ void printerlist::set_ptr(int index, adamPrinter *ptr)
 {
     if (ptr == NULL)
         return;
-        
+
     if(index < 0 || index >= PRINTERLIST_SIZE)
         return;
     _printers[index].pPrinter = ptr;

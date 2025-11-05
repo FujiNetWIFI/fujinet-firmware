@@ -92,7 +92,7 @@ void lynxFuji::comlynx_reset_fujinet()
         comlynx_response_nack();
         return;
     }
-         
+
     comlynx_response_ack();
     fnSystem.reboot();
 }
@@ -122,7 +122,7 @@ void lynxFuji::comlynx_net_scan_networks()
 void lynxFuji::comlynx_net_scan_result()
 {
     Debug_println("Fuji cmd: GET SCAN RESULT");
-  
+
     uint8_t n = comlynx_recv();
 
     // Get packet checksum
@@ -344,7 +344,7 @@ void lynxFuji::comlynx_disk_image_mount()
 void lynxFuji::comlynx_set_boot_config()
 {
     // does nothing on Lynx -SJ
-    
+
     /*
     Debug_printf("Boot config is now %d",boot_config);
 
@@ -513,7 +513,7 @@ void lynxFuji::mount_all()
 void lynxFuji::comlynx_set_boot_mode()
 {
     // does nothing on Lynx -SJ
-    
+
     /*
     uint8_t bm = comlynx_recv();
 
@@ -605,7 +605,7 @@ void lynxFuji::comlynx_read_app_key()
         response_len = 1; // if no file found set return length to 1 or lynx hangs waiting for response
         return;
     }
-    
+
     response_len = fread(response, sizeof(char), 64, fp);
     fclose(fp);
 
@@ -643,7 +643,7 @@ void lynxFuji::image_rotate()
 {
     Debug_println("Fuji cmd: IMAGE ROTATE");
 
-    // probably won't be needed on Lynx -SJ    
+    // probably won't be needed on Lynx -SJ
 
     int count = 0;
     // Find the first empty slot
@@ -685,7 +685,7 @@ void lynxFuji::comlynx_open_directory(uint16_t s)
     uint8_t hostSlot = comlynx_recv();
 
     s--;
-    s--;      
+    s--;
 
     comlynx_recv_buffer((uint8_t *)&dirpath, s);
 
@@ -1245,7 +1245,7 @@ void lynxFuji::comlynx_get_device_filename()
 void lynxFuji::insert_boot_device(uint8_t d)
 {
     // This isn't needed on Lynx -SJ
-    
+
     /*
     // TODO: Change this when CONFIG is ready.
     const char *config_atr = "/autorun.ddp";
@@ -1274,7 +1274,7 @@ void lynxFuji::comlynx_enable_device()
 {
     unsigned char d = comlynx_recv();
     Debug_printf("FUJI ENABLE DEVICE %02x\n",d);
-    
+
     // Get packet checksum
     if (!comlynx_recv_ck()) {
         comlynx_response_nack();
@@ -1335,7 +1335,7 @@ void lynxFuji::comlynx_disable_device()
             break;
     }
 
-    Config.save();    
+    Config.save();
     SYSTEM_BUS.disableDevice(d);
     comlynx_response_ack();
 }
@@ -1368,7 +1368,7 @@ void lynxFuji::comlynx_random_number()
 
     response_len = sizeof(int);
     *p = rand();
-    
+
     comlynx_response_ack();
 }
 
@@ -1463,7 +1463,7 @@ void lynxFuji::comlynx_hello()
 void lynxFuji::comlynx_enable_udpstream(uint16_t s)
 {
     char host[128];
-    
+
     s--;
 
     // Receive port #
@@ -1501,7 +1501,7 @@ void lynxFuji::comlynx_control_send()
 {
     // Reset the recvbuffer
     recvbuffer_len = 0;         // happens in recv_length, but may remove from there -SJ
-    
+
     uint16_t s = comlynx_recv_length();
     uint8_t c = comlynx_recv();
 
@@ -1620,8 +1620,8 @@ void lynxFuji::comlynx_control_send()
 
 void lynxFuji::comlynx_control_clr()
 {
-    uint8_t b; 
-    
+    uint8_t b;
+
     comlynx_send(0xBF);
     comlynx_send_length(response_len);
     comlynx_send_buffer(response, response_len);
@@ -1629,10 +1629,10 @@ void lynxFuji::comlynx_control_clr()
     b = comlynx_recv();             // get the ack or nack
     // ignore response from Lynx, if they didn't receive the data properly
     // they should resend the entire command -SJ
-    
+
     Debug_printf("comlynx_control_clr: %02X\n", b);
-    
-    // Reset response buffer    
+
+    // Reset response buffer
     memset(response, 0, sizeof(response));
     response_len = 0;
 }
@@ -1641,7 +1641,7 @@ void lynxFuji::comlynx_process(uint8_t b)
 {
     unsigned char c = b >> 4;
     //Debug_printf("%02x \n",c);
-    
+
     switch (c)
     {
     case MN_STATUS:

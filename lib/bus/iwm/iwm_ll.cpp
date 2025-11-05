@@ -12,7 +12,7 @@
 #include "iwm_ll.h"
 #include "iwm.h"
 #include "../device/iwm/disk2.h"
-#include "../device/iwm/fuji.h"
+#include "../device/iwm/iwmFuji.h"
 #include "fnSystem.h"
 #include "fnHardwareTimer.h"
 #include "../../include/debug.h"
@@ -1043,8 +1043,8 @@ void iwm_ll::disable_output()
 }
 
 size_t IRAM_ATTR encode_rmt_bitstream_forwarder(const void *src, size_t src_size,
-				      size_t symbols_written, size_t symbols_free,
-				      rmt_symbol_word_t *dest, bool *done, void *arg)
+                                      size_t symbols_written, size_t symbols_free,
+                                      rmt_symbol_word_t *dest, bool *done, void *arg)
 {
   iwm_diskii_ll *d2i = (iwm_diskii_ll *) arg;
   return d2i->encode_rmt_bitstream(src, src_size, symbols_written, symbols_free, dest, done);
@@ -1052,8 +1052,8 @@ size_t IRAM_ATTR encode_rmt_bitstream_forwarder(const void *src, size_t src_size
 
 //Convert track data to rmt format data.
 size_t IRAM_ATTR iwm_diskii_ll::encode_rmt_bitstream(const void *src, size_t src_size,
-				      size_t symbols_written, size_t symbols_free,
-				      rmt_symbol_word_t *dest, bool *done)
+                                      size_t symbols_written, size_t symbols_free,
+                                      rmt_symbol_word_t *dest, bool *done)
 {
   // *src is equal to *track_buffer
   // src_size is equal to track_numbits
@@ -1097,20 +1097,20 @@ size_t IRAM_ATTR iwm_diskii_ll::encode_rmt_bitstream(const void *src, size_t src
       window |= outbit;
       window &= 0x0f;
       if (window != 0)
-	outbit = window & 0x02;
+        outbit = window & 0x02;
       else
-	{
-	  const uint8_t MC3470[] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
+        {
+          const uint8_t MC3470[] = {0b01010000, 0b10110011, 0b01000010, 0b00000000, 0b10101101, 0b00000010, 0b01101000, 0b01000110, 0b00000001, 0b10010000, 0b00001000, 0b00111000, 0b00001000, 0b00100101, 0b10000100, 0b00001000, 0b10001000, 0b01100010, 0b10101000, 0b01101000, 0b10010000, 0b00100100, 0b00001011, 0b00110010, 0b11100000, 0b01000001, 0b10001010, 0b00000000, 0b11000001, 0b10001000, 0b10001000, 0b00000000};
 
-	  static int MC3470_byte_ctr;
-	  static int MC3470_bit_ctr;
+          static int MC3470_byte_ctr;
+          static int MC3470_bit_ctr;
 
-	  ++MC3470_bit_ctr %= 8;
-	  if (MC3470_bit_ctr == 0)
-	    ++MC3470_byte_ctr %= sizeof(MC3470);
+          ++MC3470_bit_ctr %= 8;
+          if (MC3470_bit_ctr == 0)
+            ++MC3470_byte_ctr %= sizeof(MC3470);
 
-	  outbit = (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
-	}
+          outbit = (MC3470[MC3470_byte_ctr] & (0x01 << MC3470_bit_ctr)) != 0;
+        }
 
       dest->val = bits[!!outbit].val;
     }
@@ -1144,7 +1144,7 @@ void iwm_diskii_ll::setup_rmt()
   };
 
   ESP_ERROR_CHECK(rmt_new_simple_encoder(&tx_encoder_config, &tx_encoder));
-  
+
 }
 
 bool IRAM_ATTR iwm_diskii_ll::nextbit()

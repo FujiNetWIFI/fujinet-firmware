@@ -29,9 +29,9 @@ protected:
     TaskHandle_t thPrinter;
 
     uint8_t _buffer[16];
-    
+
     void sio_write(uint8_t aux1, uint8_t aux2);
-    
+
     virtual void adamnet_control_status() override;
     virtual void adamnet_control_send();
     virtual void adamnet_control_ready() override;
@@ -96,7 +96,7 @@ public:
         "HTML printer",
         "HTML ATASCII printer"
     };
-    
+
     adamPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~adamPrinter();
 

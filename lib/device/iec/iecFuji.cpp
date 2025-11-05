@@ -1414,7 +1414,7 @@ void iecFuji::read_app_key_basic()
 
 // use ifdef to guard against calling hexdump if we're not using debug
 #ifdef DEBUG
-	Debug_printf("appkey data:\r\n%s\r\n", util_hexdump(response_data.data(), response_data.size()).c_str());
+        Debug_printf("appkey data:\r\n%s\r\n", util_hexdump(response_data.data(), response_data.size()).c_str());
 #endif
 
     response.assign(response_data.begin(), response_data.end());
@@ -1450,7 +1450,7 @@ void iecFuji::read_app_key_raw()
 
 // use ifdef to guard against calling hexdump if we're not using debug
 #ifdef DEBUG
-	Debug_printf("appkey data:\r\n%s\r\n", util_hexdump(responseV.data(), responseV.size()).c_str());
+        Debug_printf("appkey data:\r\n%s\r\n", util_hexdump(responseV.data(), responseV.size()).c_str());
 #endif
 
     set_fuji_iec_status(0, "");

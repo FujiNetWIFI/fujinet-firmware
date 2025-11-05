@@ -23,9 +23,9 @@ protected:
     TaskHandle_t thPrinter;
 
     uint8_t _buffer[16];
-    
+
     void sio_write(uint8_t aux1, uint8_t aux2);
-    
+
     virtual void comlynx_control_status() override;
     virtual void comlynx_control_send();
     virtual void comlynx_control_ready() override;
@@ -90,7 +90,7 @@ public:
         "HTML printer",
         "HTML ATASCII printer"
     };
-    
+
     lynxPrinter(FileSystem *filesystem, printer_type printer_type = PRINTER_FILE_TRIM);
     ~lynxPrinter();
 

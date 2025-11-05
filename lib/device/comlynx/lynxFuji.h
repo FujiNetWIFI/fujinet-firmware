@@ -136,9 +136,9 @@ protected:
 
 public:
     bool boot_config = true;
-    
+
     bool status_wait_enabled = true;
-    
+
     lynxDisk *bootdisk();
 
     lynxNetwork *network();

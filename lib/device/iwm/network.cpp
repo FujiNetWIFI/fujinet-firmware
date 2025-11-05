@@ -167,7 +167,7 @@ void iwmNetwork::close()
     current_network_data.receiveBuffer.clear();
     current_network_data.transmitBuffer.clear();
     current_network_data.specialBuffer.clear();
-    
+
 
     // technically not required as removing the item from the map will also remove the value
     if (current_network_data.protocol) current_network_data.protocol.reset();
@@ -515,7 +515,7 @@ void iwmNetwork::status()
 
     if (s.rxBytesWaiting > 512)
         s.rxBytesWaiting = 512;
-    
+
     data_buffer[0] = s.rxBytesWaiting & 0xFF;
     data_buffer[1] = s.rxBytesWaiting >> 8;
     data_buffer[2] = s.connected;

@@ -75,7 +75,7 @@ void drivewireCPM::send_response()
 
     // Clear the response
     response.clear();
-    response.shrink_to_fit();    
+    response.shrink_to_fit();
 }
 
 void drivewireCPM::boot()

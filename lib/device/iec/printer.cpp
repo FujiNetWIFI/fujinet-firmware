@@ -132,9 +132,9 @@ void iecPrinter::listen(uint8_t channel)
 }
 
 
-int8_t iecPrinter::canWrite() 
-{ 
-  return 1; 
+int8_t iecPrinter::canWrite()
+{
+  return 1;
 }
 
 
