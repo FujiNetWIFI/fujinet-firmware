@@ -32,6 +32,7 @@
 
 using namespace std;
 
+#ifdef ESP_PLATFORM
 /**
  * Static callback function for the interrupt rate limiting timer. It sets the interruptProceed
  * flag to true. This is set to false when the interrupt is serviced.
@@ -43,6 +44,7 @@ void onTimer(void *info)
     parent->interruptProceed = !parent->interruptProceed;
     portEXIT_CRITICAL_ISR(&parent->timerMux);
 }
+#endif /* ESP_PLATFORM */
 
 /**
  * Constructor
@@ -97,8 +99,10 @@ void rs232Network::rs232_open()
 
     channelMode = PROTOCOL;
 
+#ifdef ESP_PLATFORM
     // Delete timer if already extant.
     timer_stop();
+#endif /* ESP_PLATFORM */
 
     // persist aux1/aux2 values
     open_aux1 = cmdFrame.aux1;
@@ -148,8 +152,10 @@ void rs232Network::rs232_open()
         return;
     }
 
+#ifdef ESP_PLATFORM
     // Everything good, start the interrupt timer!
     timer_start();
+#endif
 
     // Go ahead and send an interrupt, so Atari knows to get status.
     rs232_assert_interrupt();
@@ -388,7 +394,7 @@ void rs232Network::rs232_status_local()
         Debug_printf("Netmask: %u.%u.%u.%u\n", ipNetmask[0], ipNetmask[1], ipNetmask[2], ipNetmask[3]);
         bus_to_computer(ipNetmask, 4, false);
         break;
-    case 3: // Gatway
+    case 3: // Gateway
         Debug_printf("Gateway: %u.%u.%u.%u\n", ipGateway[0], ipGateway[1], ipGateway[2], ipGateway[3]);
         bus_to_computer(ipGateway, 4, false);
         break;
@@ -903,8 +909,10 @@ void rs232Network::rs232_poll_interrupt()
 
         if (status.rxBytesWaiting > 0 || status.connected == 0)
             rs232_assert_interrupt();
+#ifdef ESP_PLATFORM
         else
             fnSystem.digital_write(PIN_RS232_RI,DIGI_HIGH);
+#endif /* ESP_PLATFORM */
 
         reservedSave = status.connected;
         errorSave = status.error;
@@ -997,6 +1005,7 @@ void rs232Network::parse_and_instantiate_protocol()
     }
 }
 
+#ifdef ESP_PLATFORM
 /**
  * Start the Interrupt rate limiting timer
  */
@@ -1025,6 +1034,7 @@ void rs232Network::timer_stop()
         rateTimerHandle = nullptr;
     }
 }
+#endif /* ESP_PLATFORM */
 
 /**
  * We were passed a COPY arg from DOS 2. This is complex, because we need to parse the comma,
@@ -1072,7 +1082,9 @@ void rs232Network::processCommaFromDevicespec()
  */
 void rs232Network::rs232_assert_interrupt()
 {
+#ifdef ESP_PlATFORM
     fnSystem.digital_write(PIN_RS232_RI, interruptProceed == true ? DIGI_HIGH : DIGI_LOW);
+#endif /* ESP_PLATFORM */
 }
 
 void rs232Network::rs232_set_translation()
@@ -1121,12 +1133,14 @@ void rs232Network::rs232_set_timer_rate()
 {
     timerRate = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
 
+#ifdef ESP_PLATFORM
     // Stop extant timer
     timer_stop();
 
     // Restart timer if we're running a protocol.
     if (protocol != nullptr)
         timer_start();
+#endif /* ESP_PLATFORM */
 
     rs232_complete();
 }

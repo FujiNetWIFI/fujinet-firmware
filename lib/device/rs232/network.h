@@ -41,10 +41,12 @@ public:
      */
     virtual ~rs232Network();
 
+#ifdef ESP_PLATFORM
     /**
      * The spinlock for the ESP32 hardware timers. Used for interrupt rate limiting.
      */
     portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+#endif /* ESP_PLATFORM */
 
     /**
      * Toggled by the rate limiting timer to indicate that the PROCEED interrupt should
@@ -176,10 +178,12 @@ private:
      */
     NetworkStatus status;
 
+#ifdef ESP_PLATFORM
     /**
      * ESP timer handle for the Interrupt rate limiting timer
      */
     esp_timer_handle_t rateTimerHandle = nullptr;
+#endif /* ESP_PLATFORM */
 
     /**
      * Devicespec passed to us, e.g. N:HTTP://WWW.GOOGLE.COM:80/
