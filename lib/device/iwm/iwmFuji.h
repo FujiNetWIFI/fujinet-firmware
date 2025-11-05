@@ -1,6 +1,9 @@
 #ifdef BUILD_APPLE
 #ifndef FUJI_H
 #define FUJI_H
+
+#include "fuji.h"
+
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -22,69 +25,9 @@
 #include "hash.h"
 #include "../../qrcode/qrmanager.h"
 
-#define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 6 // 4 SP devices + 2 DiskII devices
+#define MAX_SPDISK_DEVICES 4
 #define MAX_DISK2_DEVICES 2 // for now until we add 3.5" disks
-#define MAX_NETWORK_DEVICES 4
-#define MAX_SP_DEVICES (MAX_DISK_DEVICES - MAX_DISK2_DEVICES)
-
-#define MAX_SSID_LEN 32
-#define MAX_WIFI_PASS_LEN 64
-
-#define MAX_APPKEY_LEN 64
-
-#define READ_DEVICE_SLOTS_DISKS1 0x00
-#define READ_DEVICE_SLOTS_TAPE 0x10
-
-typedef struct
-{
-    char ssid[MAX_SSID_LEN + 1];
-    char hostname[64];
-    unsigned char localIP[4];
-    unsigned char gateway[4];
-    unsigned char netmask[4];
-    unsigned char dnsIP[4];
-    unsigned char macAddress[6];
-    unsigned char bssid[6];
-    char fn_version[15];
-} AdapterConfig;
-
-typedef struct
-{
-    char ssid[33];
-    char hostname[64];
-    unsigned char localIP[4];
-    unsigned char gateway[4];
-    unsigned char netmask[4];
-    unsigned char dnsIP[4];
-    unsigned char macAddress[6];
-    unsigned char bssid[6];
-    char fn_version[15];
-    char sLocalIP[16];
-    char sGateway[16];
-    char sNetmask[16];
-    char sDnsIP[16];
-    char sMacAddress[18];
-    char sBssid[18];
-} AdapterConfigExtended;
-
-enum appkey_mode : int8_t
-{
-    APPKEYMODE_INVALID = -1,
-    APPKEYMODE_READ = 0,
-    APPKEYMODE_WRITE,
-    APPKEYMODE_READ_256
-};
-
-struct appkey
-{
-    uint16_t creator = 0;
-    uint8_t app = 0;
-    uint8_t key = 0;
-    appkey_mode mode = APPKEYMODE_INVALID;
-    uint8_t reserved = 0;
-} __attribute__((packed));
-
+#define MAX_A2DISK_DEVICES (MAX_SPDISK_DEVICES + MAX_DISK2_DEVICES)
 
 using IWMCmdHandlers = std::function<void(iwm_decoded_cmd_t)>;
 using IWMControlHandlers = std::function<void()>;
@@ -111,7 +54,7 @@ private:
 
     fujiHost _fnHosts[MAX_HOSTS];
 
-    fujiDisk _fnDisks[MAX_DISK_DEVICES];
+    fujiDisk _fnDisks[MAX_A2DISK_DEVICES];
 #ifndef DEV_RELAY_SLIP
     iwmDisk2 _fnDisk2s[MAX_DISK2_DEVICES];
 #endif
@@ -267,9 +210,9 @@ public:
     fujiHost *set_slot_hostname(int host_slot, char *hostname);
     DEVICE_TYPE *get_disk_dev(int i) {
 #ifndef DEV_RELAY_SLIP
-      return i < MAX_SP_DEVICES
+      return i < MAX_SPDISK_DEVICES
         ? (DEVICE_TYPE *) &_fnDisks[i].disk_dev
-        : (DEVICE_TYPE *) &_fnDisk2s[i - MAX_SP_DEVICES];
+        : (DEVICE_TYPE *) &_fnDisk2s[i - MAX_SPDISK_DEVICES];
 #else
       return &_fnDisks[i].disk_dev;
 #endif

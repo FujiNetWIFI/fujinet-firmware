@@ -1353,7 +1353,7 @@ void iwmFuji::setup()
         theCPM = new iwmCPM();
         SYSTEM_BUS.addDevice(theCPM, iwm_fujinet_type_t::CPM);
 
-        for (int i = MAX_SP_DEVICES - 1; i >= 0; i--)
+        for (int i = MAX_SPDISK_DEVICES - 1; i >= 0; i--)
         {
                 DEVICE_TYPE *disk_dev = get_disk_dev(i);
                 disk_dev->set_disk_number('0' + i);

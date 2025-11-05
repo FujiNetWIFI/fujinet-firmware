@@ -353,6 +353,6 @@ public:
 
 extern systemBus SYSTEM_BUS;
 
-#define IWM_ACTIVE_DISK2 ((iwmDisk2 *) theFuji.get_disk_dev(MAX_SP_DEVICES + diskii_xface.iwm_active_drive() - 1))
+#define IWM_ACTIVE_DISK2 ((iwmDisk2 *) theFuji.get_disk_dev(MAX_SPDISK_DEVICES + diskii_xface.iwm_active_drive() - 1))
 #endif // guard
 #endif /* BUILD_APPLE */
