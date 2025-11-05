@@ -1,6 +1,7 @@
 #ifdef BUILD_ADAM
 
 #include "fuji.h"
+#include "fujiCommandID.h"
 
 #include <cstring>
 

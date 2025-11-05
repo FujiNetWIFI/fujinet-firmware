@@ -15,7 +15,6 @@
 
 #include "../fuji/fujiHost.h"
 #include "../fuji/fujiDisk.h"
-#include "../fuji/fujiCmd.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 5 // 4 DCD devices + 1 floppy devices
@@ -73,7 +72,7 @@ private:
     //uint8_t response[1024]; // use packet_buffer instead
     //uint16_t response_len;
 
-    // Response to SIO_FUJICMD_GET_SCAN_RESULT
+    // Response to FUJICMD_GET_SCAN_RESULT
     struct
     {
         char ssid[MAX_SSID_LEN + 1];

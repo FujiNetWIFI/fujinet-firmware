@@ -8,7 +8,6 @@
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
-#include "fujiCmd.h"
 
 #define MAX_HOSTS 8
 #define MAX_DISK_DEVICES 8

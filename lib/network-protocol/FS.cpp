@@ -5,6 +5,7 @@
  */
 
 #include "FS.h"
+#include "fujiCommandID.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -429,17 +430,17 @@ bool NetworkProtocolFS::perform_idempotent_80(PeoplesUrlParser *url, cmdFrame_t 
 #endif
     switch (cmdFrame->comnd)
     {
-    case FUJI_CMD_RENAME:
+    case FUJICMD_RENAME:
         return rename(url, cmdFrame);
-    case FUJI_CMD_DELETE:
+    case FUJICMD_DELETE:
         return del(url, cmdFrame);
-    case FUJI_CMD_LOCK:
+    case FUJICMD_LOCK:
         return lock(url, cmdFrame);
-    case FUJI_CMD_UNLOCK:
+    case FUJICMD_UNLOCK:
         return unlock(url, cmdFrame);
-    case FUJI_CMD_MKDIR:
+    case FUJICMD_MKDIR:
         return mkdir(url, cmdFrame);
-    case FUJI_CMD_RMDIR:
+    case FUJICMD_RMDIR:
         return rmdir(url, cmdFrame);
     default:
 #ifdef VERBOSE_PROTOCOL

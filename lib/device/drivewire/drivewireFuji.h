@@ -11,7 +11,6 @@
 
 #include "fujiHost.h"
 #include "fujiDisk.h"
-#include "fujiCmd.h"
 
 #include "hash.h"
 

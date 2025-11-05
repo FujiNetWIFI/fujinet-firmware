@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #include "fuji.h"
+#include "fujiCommandID.h"
 
 #include <cstdint>
 #include <cstring>

@@ -12,7 +12,6 @@
 
 #include "../fuji/fujiHost.h"
 #include "../fuji/fujiDisk.h"
-#include "../fuji/fujiCmd.h"
 
 #include "hash.h"
 

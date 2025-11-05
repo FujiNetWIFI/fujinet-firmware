@@ -10,7 +10,7 @@
 
 #include "fuji.h"
 
-#include "fujiCmd.h"
+#include "fujiCommandID.h"
 #include "httpService.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
