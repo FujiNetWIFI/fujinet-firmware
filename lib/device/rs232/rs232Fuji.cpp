@@ -18,6 +18,10 @@
 #include "string_utils.h"
 #include "compat_string.h"
 
+#ifndef ESP_PLATFORM // why ESP does not like it? it throws a linker error undefined reference to 'basename'
+#include <libgen.h>
+#endif /* ESP_PLATFORM */
+
 rs232Fuji platformFuji;
 rs232Fuji *theFuji = &platformFuji; // global fuji device object
 

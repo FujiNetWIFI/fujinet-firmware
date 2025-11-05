@@ -74,6 +74,7 @@ jobs:
           - APPLE
           - ATARI
           - COCO
+          - RS232
 
     # continue-on-error: true
     name: "${{ matrix.os.name }}: Target ${{ matrix.fujinet_target }}"
@@ -196,7 +197,7 @@ jobs:
       with:
         name: fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}
         path: build/fujinet-pc-${{ matrix.fujinet_target }}_${{ steps.version.outputs.fujinet }}_${{ matrix.os.target }}.tar
-        
+
   release:
     if: ${{ github.event_name == 'schedule' || github.event.inputs.prepRelease == 'true' }}
     # Create GitHub release
@@ -212,13 +213,13 @@ jobs:
 
     - name: Display structure of downloaded files
       run: ls -lR release
-      
+
     - name: Zip release files
       working-directory: release
       run: |
         for D in fujinet-pc-*_*ubuntu* fujinet-pc-*_*macos*; do gzip -9v $D/fujinet-pc-*_*.tar; done
         for D in fujinet-pc-*_*windows*; do (cd $D; F=(fujinet-pc-*_*.tar); tar -xvf $F; rm -f $F; zip -r ${F%.*}.zip fujinet-pc-*); done
-        
+
     - name: Prepare Release Draft
       if: ${{ github.event.inputs.prepRelease == 'true' }}
       uses: softprops/action-gh-release@v2
@@ -239,7 +240,7 @@ jobs:
             FujiNet-PC **${{ needs.build.outputs.fujinet_version }}** nightly builds for: Apple 2, Atari 8-bit and Tandy Color Computer
             ⚠️ There is NO guarantee that these builds work!! ⚠️
           tag_name: nightly_fn_pc_${{ needs.build.outputs.fujinet_version }}
-          prerelease: true 
+          prerelease: true
           make_latest: false
           files: |
             release/fujinet-pc-*_*/fujinet-pc-*_*.tar.gz

@@ -10,6 +10,8 @@
 
 #ifdef BUILD_RS232
 #include "rs232/disk.h"
+// MSYS2: DEVICE_TYPE is defined in winioctl.h
+#undef DEVICE_TYPE
 #define DEVICE_TYPE rs232Disk
 #endif
 
@@ -43,7 +45,7 @@
 #ifdef BUILD_S100
 #include "s100spi/disk.h"
 #define DEVICE_TYPE s100spiDisk
-#endif 
+#endif
 
 #ifdef NEW_TARGET
 #include "new/disk.h"
@@ -58,18 +60,18 @@
 #ifdef BUILD_RC2014
 #include "rc2014/disk.h"
 #define DEVICE_TYPE rc2014Disk
-#endif 
+#endif
 
 #ifdef BUILD_H89
 #include "h89/disk.h"
 #define DEVICE_TYPE H89Disk
-#endif 
+#endif
 
 #ifdef BUILD_COCO
 #include "drivewire/disk.h"
 // MSYS2: DEVICE_TYPE is defined in winioctl.h
 #undef DEVICE_TYPE
 #define DEVICE_TYPE drivewireDisk
-#endif 
+#endif
 
 #endif // DEVICE_DISK_H
