@@ -11,7 +11,7 @@
 
 #define PRINTER_UNSUPPORTED "Unsupported"
 
-class iwmPrinter : public iwmDevice
+class iwmPrinter : public virtualDevice
 {
 protected:
 

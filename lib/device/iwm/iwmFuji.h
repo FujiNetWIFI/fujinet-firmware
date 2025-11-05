@@ -33,7 +33,7 @@ using IWMCmdHandlers = std::function<void(iwm_decoded_cmd_t)>;
 using IWMControlHandlers = std::function<void()>;
 using IWMStatusHandlers = std::function<void()>;
 
-class iwmFuji : public iwmDevice
+class iwmFuji : public virtualDevice
 {
 private:
     bool isReady = false;
