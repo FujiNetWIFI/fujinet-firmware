@@ -52,6 +52,8 @@ void NetSIO::begin(std::string host, int port, int baud)
         end();
     }
 
+    discard_timeout_ms = 0;
+
     _baud = baud;
     _resume_time = 0;
     setHost(host, port);
@@ -565,28 +567,61 @@ void NetSIO::updateFIFO()
     return;
 }
 
+void NetSIO::handle_write_sync(uint8_t c)
+{
+    // handle pending sync request
+    if (_sync_write_size < 0)
+    {
+        // SYNC RESPONSE
+        // send byte (should be ACK/NAK) bundled in sync response
+        sendSyncResponse(NETSIO_ACK_SYNC, c, 0);
+        return;
+    }
+    else
+    {
+        // sio_late_ack() was not from whatever reason followed by bus_to_peripheral()
+        Debug_println("Warn: NetSIO late ACK without bus_to_peripheral");
+        // send late ACK byte
+        sendSyncResponse(NETSIO_ACK_SYNC, _sync_ack_byte, _sync_write_size);
+    }
+
+    return;
+}
+
 size_t NetSIO::dataOut(const void *buffer, size_t size)
 {
     int result;
     int to_send;
     int txbytes = 0;
     uint8_t txbuf[513];
+    uint8_t *ptr = (uint8_t *) buffer;
 
     if (!_initialized)
         return 0;
 
-    while (txbytes < size)
+    if (size && _sync_request_num >= 0)
+    {
+        handle_write_sync(ptr[0]);
+        ptr++;
+        size--;
+    }
+
+    while (size)
     {
         // send block
-        to_send = ((size-txbytes) > sizeof(txbuf)-1) ? sizeof(txbuf)-1 : (size-txbytes);
+        to_send = std::min(size, sizeof(txbuf) - 1);
         txbuf[0] = NETSIO_DATA_BLOCK;
-        memcpy(txbuf+1, ((uint8_t *)buffer)+txbytes, to_send);
+        memcpy(txbuf+1, ptr+txbytes, to_send);
         // ? calculate credit based on amount of data ?
         if (!wait_for_credit(1))
             break;
         result = write_sock(txbuf, to_send+1);
         if (result > 0)
-            txbytes += result-1;
+        {
+            result--;
+            txbytes += result;
+            size -= result;
+        }
         else if (result < 0)
             break;
     }
