@@ -9,7 +9,6 @@
 
 #include <cstring>
 #include <algorithm>
-#include <endian.h>
 
 #include "../../include/debug.h"
 #include "../../include/pinmap.h"
@@ -27,6 +26,7 @@
 #include "HTTP.h"
 #include "SSH.h"
 #include "SMB.h"
+#include "fuji_endian.h"
 
 #include "ProtocolParser.h"
 
