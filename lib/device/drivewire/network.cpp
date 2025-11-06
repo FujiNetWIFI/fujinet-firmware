@@ -18,7 +18,6 @@
 
 #include "status_error_codes.h"
 #include "Protocol.h"
-#ifdef UNUSED
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
