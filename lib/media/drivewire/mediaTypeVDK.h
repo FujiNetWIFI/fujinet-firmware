@@ -16,14 +16,14 @@ private:
 
 public:
     uint8_t _media_blockbuff[VDK_BLOCK_SIZE];
-    virtual bool read(uint32_t blockNum, uint16_t *readcount) override;
-    virtual bool write(uint32_t blockNum, bool verify) override;
+    bool read(uint32_t blockNum, uint16_t *readcount) override;
+    bool write(uint32_t blockNum, bool verify) override;
 
-    virtual bool format(uint16_t *responsesize) override;
+    bool format(uint16_t *responsesize) override;
 
-    virtual mediatype_t mount(fnFile *f, uint32_t disksize) override;
+    mediatype_t mount(fnFile *f, uint32_t disksize) override;
 
-    virtual uint8_t status() override;
+    uint8_t status() override;
 
     static bool create(FILE *f, uint32_t numBlock);
 
