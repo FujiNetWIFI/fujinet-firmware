@@ -82,12 +82,12 @@ void s100spiNetwork::open(unsigned short s)
     string d;
 
     s--; s--;
-    
+
     memset(response,0,sizeof(response));
     s100spi_recv_buffer(response, s);
     s100spi_recv(); // checksum
 
-    
+
     s100spi_response_ack();
 
     channelMode = PROTOCOL;
@@ -152,7 +152,7 @@ void s100spiNetwork::close()
 
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     statusByte.byte = 0x00;
@@ -210,7 +210,7 @@ void s100spiNetwork::write(uint16_t num_bytes)
     s100spi_recv_buffer(response, num_bytes);
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     *transmitBuffer += string((char *)response, num_bytes);
@@ -248,7 +248,7 @@ void s100spiNetwork::status()
 {
     NetworkStatus s;
     s100spi_recv(); // CK
-    
+
     s100spi_response_ack();
 
     switch (channelMode)
@@ -282,7 +282,7 @@ void s100spiNetwork::get_prefix()
 {
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     Debug_printf("s100spiNetwork::s100spi_getprefix(%s)\n", prefix.c_str());
@@ -303,7 +303,7 @@ void s100spiNetwork::set_prefix(unsigned short s)
     s100spi_recv_buffer(prefixSpec, s);
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     prefixSpec_str = string((const char *)prefixSpec);
@@ -362,7 +362,7 @@ void s100spiNetwork::set_login(uint16_t s)
     s100spi_recv_buffer(loginspec, s);
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     login = string((char *)loginspec, s);
@@ -380,7 +380,7 @@ void s100spiNetwork::set_password(uint16_t s)
     s100spi_recv_buffer(passwordspec, s);
     s100spi_recv(); // ck
 
-    
+
     s100spi_response_ack();
 
     password = string((char *)passwordspec, s);
@@ -394,7 +394,7 @@ void s100spiNetwork::del(uint16_t s)
     s100spi_recv_buffer(response, s);
     s100spi_recv(); // CK
 
-        
+
     s100spi_response_ack();
 
     d=string((char *)response,s);
@@ -420,7 +420,7 @@ void s100spiNetwork::rename(uint16_t s)
     s100spi_recv_buffer(response, s);
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     d=string((char *)response,s);
@@ -443,7 +443,7 @@ void s100spiNetwork::mkdir(uint16_t s)
     s100spi_recv_buffer(response,s);
     s100spi_recv(); // CK
 
-    
+
     s100spi_response_ack();
 
     d=string((char *)response,s);
@@ -507,7 +507,7 @@ void s100spiNetwork::s100spiNetwork_special_inquiry()
     // bus_to_computer(&inq_dstats, sizeof(inq_dstats), false); // never errors.
 }
 
-void s100spiNetwork::do_inquiry(unsigned char inq_cmd)
+void s100spiNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // // Reset inq_dstats
     // inq_dstats = 0xff;
@@ -761,7 +761,7 @@ void s100spiNetwork::s100spi_control_receive_channel()
 
 void s100spiNetwork::s100spi_control_receive()
 {
-    
+
 
     if (response_len > 0) // There is response data, go ahead and ack.
     {
@@ -818,7 +818,7 @@ bool s100spiNetwork::instantiate_protocol()
     {
         protocolParser = new ProtocolParser();
     }
-    
+
     protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
@@ -882,44 +882,14 @@ void s100spiNetwork::parse_and_instantiate_protocol(string d)
 
 void s100spiNetwork::s100spiNetwork_set_translation()
 {
-    // trans_aux2 = cmdFrame.aux2;
-    // s100spi_complete();
 }
 
 void s100spiNetwork::s100spiNetwork_set_timer_rate()
 {
-    // timerRate = (cmdFrame.aux2 * 256) + cmdFrame.aux1;
-
-    // // Stop extant timer
-    // timer_stop();
-
-    // // Restart timer if we're running a protocol.
-    // if (protocol != nullptr)
-    //     timer_start();
-
-    // s100spi_complete();
 }
 
 void s100spiNetwork::s100spiNetwork_do_idempotent_command_80()
 {
-    // s100spi_ack();
-
-    // parse_and_instantiate_protocol();
-
-    // if (protocol == nullptr)
-    // {
-    //     Debug_printf("Protocol = NULL\n");
-    //     s100spi_error();
-    //     return;
-    // }
-
-    // if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
-    // {
-    //     Debug_printf("perform_idempotent_80 failed\n");
-    //     s100spi_error();
-    // }
-    // else
-    //     s100spi_complete();
 }
 
 #endif /* NEW_TARGET */

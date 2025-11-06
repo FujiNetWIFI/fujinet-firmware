@@ -8,6 +8,7 @@
 #include "fnWiFi.h"
 #include "utils.h"
 #include "compat_string.h"
+#include <libgen.h>
 
 #define IMAGE_EXTENSION ".img"
 

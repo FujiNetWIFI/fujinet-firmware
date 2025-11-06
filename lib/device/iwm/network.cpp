@@ -526,7 +526,7 @@ void iwmNetwork::status()
 
 void iwmNetwork::iwm_status(iwm_decoded_cmd_t cmd)
 {
-    uint8_t status_code = get_status_code(cmd); //(cmd.g7byte3 & 0x7f) | ((cmd.grp7msb << 3) & 0x80); // status codes 00-FF
+    fujiCommandID_t status_code = get_status_code(cmd);
 
     // fujinet-lib (with unit-id support) sends the count of bytes for a status as 4 to cater for the network unit.
     // Older code sends 3 as the count, so we can detect if the network unit byte is there or not.

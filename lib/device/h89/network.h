@@ -171,7 +171,7 @@ private:
     /**
      * Error number, if status.bits.client_error is set.
      */
-    uint8_t err = 0; 
+    uint8_t err = 0;
 
     /**
      * ESP timer handle for the Interrupt rate limiting timer
@@ -363,7 +363,7 @@ private:
      * @brief Perform the inquiry, handle both local and protocol commands.
      * @param inq_cmd the command to check against.
      */
-    void do_inquiry(unsigned char inq_cmd);
+    void do_inquiry(fujiCommandID_t inq_cmd);
 
     /**
      * @brief set translation specified by aux1 to aux2_translation mode.

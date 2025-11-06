@@ -53,7 +53,7 @@ class macDevice
   friend systemBus;
 
 protected:
-  char _devnum;             
+  char _devnum;
   bool _initialized;
 
 public:
@@ -390,7 +390,7 @@ protected:
   virtual void iwm_read(iwm_decoded_cmd_t cmd){};
   virtual void iwm_write(iwm_decoded_cmd_t cmd){};
 
-  uint8_t get_status_code(iwm_decoded_cmd_t cmd) { return cmd.params[2]; }
+  fujiCommandID_t get_status_code(iwm_decoded_cmd_t cmd) { return cmd.params[2]; }
   uint16_t get_numbytes(iwm_decoded_cmd_t cmd) { return cmd.params[2] + (cmd.params[3] << 8); };
   uint32_t get_address(iwm_decoded_cmd_t cmd) { return cmd.params[4] + (cmd.params[5] << 8) + (cmd.params[6] << 16); }
 

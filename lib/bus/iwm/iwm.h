@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "fnFS.h"
+#include "fujiCommandID.h"
 
 enum {
   SP_CMD_STATUS         = 0x00,
@@ -239,7 +240,7 @@ protected:
   virtual void iwm_read(iwm_decoded_cmd_t cmd) {};
   virtual void iwm_write(iwm_decoded_cmd_t cmd) {};
 
-  uint8_t get_status_code(iwm_decoded_cmd_t cmd) {return cmd.params[2];}
+  fujiCommandID_t get_status_code(iwm_decoded_cmd_t cmd) {return (fujiCommandID_t) cmd.params[2];}
   uint16_t get_numbytes(iwm_decoded_cmd_t cmd) { return cmd.params[2] + (cmd.params[3] << 8); };
   uint32_t get_address(iwm_decoded_cmd_t cmd) { return cmd.params[4] + (cmd.params[5] << 8) + (cmd.params[6] << 16); }
 

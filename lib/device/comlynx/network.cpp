@@ -653,7 +653,7 @@ void lynxNetwork::comlynx_special_inquiry()
 {
 }
 
-void lynxNetwork::do_inquiry(unsigned char inq_cmd)
+void lynxNetwork::do_inquiry(fujiCommandID_t inq_cmd)
 {
     // Reset inq_dstats
     inq_dstats = 0xff;
