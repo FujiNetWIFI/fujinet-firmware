@@ -217,7 +217,7 @@ void sioDisk::sio_write_percom_block()
 mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type)
 {
     // TAPE or CASSETTE: use this function to send file info to cassette device
-    //  MediaType::discover_disktype(filename) can detect CAS and WAV files
+    //  MediaType::discover_mediatype(filename) can detect CAS and WAV files
     Debug_print("disk MOUNT\n");
 
     // Destroy any existing MediaType
@@ -229,7 +229,7 @@ mediatype_t sioDisk::mount(fnFile *f, const char *filename, uint32_t disksize, m
 
     // Determine MediaType based on filename extension
     if (disk_type == MEDIATYPE_UNKNOWN && filename != nullptr)
-        disk_type = MediaType::discover_disktype(filename);
+        disk_type = MediaType::discover_mediatype(filename);
 
     // Now mount based on MediaType
     switch (disk_type)

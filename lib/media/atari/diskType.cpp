@@ -143,7 +143,7 @@ void MediaType::unmount()
     }
 }
 
-mediatype_t MediaType::discover_disktype(const char *filename)
+mediatype_t MediaType::discover_mediatype(const char *filename)
 {
     int l = strlen(filename);
     if (l > 4 && filename[l - 4] == '.')

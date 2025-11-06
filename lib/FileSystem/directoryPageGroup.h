@@ -17,17 +17,17 @@ class DirectoryPageGroup {
 public:
     static const uint8_t HEADER_SIZE = 5;  // Flags(1) + EntryCount(1) + Size(2) + Index(1)
     static const uint8_t ENTRY_HEADER_SIZE = 8;  // Timestamp(4) + Size(3) + Flags/Type(1)
-    
+
     std::vector<uint8_t> data;
     uint8_t entry_count;
     bool is_last_group;
     uint8_t index;
-    
+
     DirectoryPageGroup() : entry_count(0), is_last_group(false) {
         // Pre-allocate space for header to avoid reallocation
         data.resize(HEADER_SIZE, 0);
     }
-    
+
     bool add_entry(fsdir_entry_t* f) {
         if (f == nullptr) {
             return false;
@@ -42,7 +42,7 @@ public:
 
         // Get pointer to where we'll write the entry
         size_t current_pos = data.size() - entry_size;
-        
+
         set_block_entry_details(f, &data[current_pos]);
         // WE DO ***NOT*** NEED TO ADD A TRAILING "/" TO THE FILENAME FOR DIRS!
         // we're already indicating this through flags.
@@ -78,7 +78,7 @@ private:
 
         // Pack timestamp
         struct tm *modtime = localtime(&f->modified_time);
-        
+
         // Byte 0: Year since 1970
         dest[bytes_written++] = modtime->tm_year - 70;  // Convert from years since 1900 to years since 1970
 
@@ -89,7 +89,7 @@ private:
         uint8_t flags = (f->isDir ? 0x80 : 0x00) |      // Directory flag in highest bit
                        ((modtime->tm_mon + 1) & 0x0F);   // Month 1-12
         dest[bytes_written++] = flags;
-        
+
         // Byte 2: DDDDD HHH (5 bits day 1-31, 3 high bits of hour)
         dest[bytes_written++] = ((modtime->tm_mday & 0x1F) << 3) |
                                ((modtime->tm_hour >> 2) & 0x07);
@@ -105,21 +105,8 @@ private:
         }
 
         // Media type (full byte)
-        uint8_t media_type = MediaType::discover_disktype(f->filename);
+        uint8_t media_type = MediaType::discover_mediatype(f->filename);
         dest[bytes_written++] = media_type;
-
-        // Debug_printf("Entry: %s\n", f->filename);
-        // Debug_printf("  Flags: 0x%02X (isDir=%d, month=%d)\n", 
-        //             flags, 
-        //             (flags & 0x80) ? 1 : 0,
-        //             flags & 0x0F);
-        // Debug_printf("  Date: %d/%02d/%02d %02d:%02d\n",
-        //             modtime->tm_year + 1900,
-        //             modtime->tm_mon + 1,
-        //             modtime->tm_mday,
-        //             modtime->tm_hour,
-        //             modtime->tm_min);
-        // Debug_printf("  Size: %lu, Media Type: 0x%02X\n", size, media_type);
 
         return bytes_written;
     }

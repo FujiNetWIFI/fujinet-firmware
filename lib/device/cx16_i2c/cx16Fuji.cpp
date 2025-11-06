@@ -834,7 +834,7 @@ void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t m
         dest[8] |= FF_TRUNC;
 
     // File type
-//    dest[9] = MediaType::discover_disktype(f->filename);
+//    dest[9] = MediaType::discover_mediatype(f->filename);
 }
 
 void cx16Fuji::read_directory_entry()
