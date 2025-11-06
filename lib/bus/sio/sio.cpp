@@ -256,7 +256,7 @@ void systemBus::_sio_process_cmd()
 #endif
         if (tempFrame.device == FUJI_DEVICEID_DISK && _fujiDev != nullptr && _fujiDev->boot_config)
         {
-            _activeDev = _fujiDev->bootdisk();
+            _activeDev = &_fujiDev->bootdisk;
             if (_activeDev->status_wait_count > 0 && tempFrame.comnd == 'R' && _fujiDev->status_wait_enabled)
             {
                 Debug_printf("Disabling CONFIG boot.\n");
@@ -337,7 +337,7 @@ void systemBus::_sio_process_queue()
         {
         case SIOMSG_DISKSWAP:
             if (_fujiDev != nullptr)
-                _fujiDev->image_rotate();
+                _fujiDev->fujicmd_image_rotate();
             break;
         case SIOMSG_DEBUG_TAPE:
             if (_fujiDev != nullptr)

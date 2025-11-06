@@ -31,19 +31,19 @@ class IECDevice
  public:
   // pinATN should preferrably be a pin that can handle external interrupts
   // (e.g. 2 or 3 on the Arduino UNO), if not then make sure the task() function
-  // gets called at least once evey millisecond, otherwise "device not present" 
+  // gets called at least once evey millisecond, otherwise "device not present"
   // errors may result
   IECDevice(uint8_t devnr = 0xFF);
 
   // call this to change the device number
   void setDeviceNumber(uint8_t devnr);
 
-#ifdef SUPPORT_JIFFY 
+#ifdef SUPPORT_JIFFY
   // call this to enable or disable JiffyDOS support for your device.
   bool enableJiffyDosSupport(bool enable);
 #endif
 
-#ifdef SUPPORT_DOLPHIN 
+#ifdef SUPPORT_DOLPHIN
   // call this to enable or disable DolphinDOS support for your device.
   // this function will fail if any of the pins used for ATN/CLK/DATA/RESET
   // are the same as the pins used for the parallel cable
@@ -51,7 +51,7 @@ class IECDevice
 #endif
 
 #ifdef SUPPORT_EPYX
-  // call this to enable or disable Expyx FastLoad support for your device. 
+  // call this to enable or disable Expyx FastLoad support for your device.
   bool enableEpyxFastLoadSupport(bool enable);
 #endif
 
@@ -114,7 +114,7 @@ class IECDevice
   // called when the device received data
   // write() will only be called if the last call to canWrite() returned >0
   // write() must return within 1 millisecond
-  // the "eoi" parameter will be "true" if sender signaled that this is the last 
+  // the "eoi" parameter will be "true" if sender signaled that this is the last
   // data byte of a transmission
   virtual void write(uint8_t data, bool eoi) {}
 
@@ -162,7 +162,7 @@ class IECDevice
   virtual bool epyxWriteSector(uint8_t track, uint8_t sector, uint8_t *buffer) { return false; }
 #endif
 
-#ifdef SUPPORT_DOLPHIN 
+#ifdef SUPPORT_DOLPHIN
   // call this to enable or disable DolphinDOS burst transmission mode
   // On the 1541, this gets enabled/disabled by the "XF+"/"XF-" command
   // (the IECFileDevice class handles this automatically)
@@ -193,5 +193,14 @@ class IECDevice
   IECBusHandler *m_handler;
 };
 
-#endif
+/* Compatibility with how devices work on other platforms, needed for fujiDevice */
+class virtualDevice : public IECDevice
+{
+protected:
+    uint8_t status_wait_count = 5;
 
+    virtual void shutdown() {};
+
+};
+
+#endif

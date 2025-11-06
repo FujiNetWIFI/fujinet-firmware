@@ -77,7 +77,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
 {
     drivewireModem *modem = (drivewireModem *)user_data; // somehow it thinks this is unused?
 
-    modem->telnet_event_handler(telnet, ev);    
+    modem->telnet_event_handler(telnet, ev);
 }
 
 
@@ -143,9 +143,6 @@ void drivewireModem::at_connect_resultCode(int modemBaud)
  */
 void drivewireModem::at_cmd_resultCode(int resultCode)
 {
-    // drivewire_send_int(resultCode);
-    // drivewire_send(ASCII_CR);
-    // drivewire_send(ASCII_LF);
 }
 
 /**
@@ -155,52 +152,18 @@ void drivewireModem::at_cmd_println()
 {
     if (cmdOutput == false)
         return;
-
-    // drivewire_send(ASCII_CR);
-    // drivewire_send(ASCII_LF);
-    // drivewire_flush();
 }
 
 void drivewireModem::at_cmd_println(const char *s, bool addEol)
 {
-    // if (cmdOutput == false)
-    //     return;
-
-    // drivewire_send_string(s);
-    // if (addEol)
-    // {
-    //     drivewire_send(ASCII_CR);
-    //     drivewire_send(ASCII_LF);
-    // }
-    // drivewire_flush();
 }
 
 void drivewireModem::at_cmd_println(int i, bool addEol)
 {
-    // if (cmdOutput == false)
-    //     return;
-
-    // drivewire_send_int(i);
-    // if (addEol)
-    // {
-    //     drivewire_send(ASCII_CR);
-    //     drivewire_send(ASCII_LF);
-    // }
-    // drivewire_flush();
 }
 
 void drivewireModem::at_cmd_println(std::string s, bool addEol)
 {
-    // if (cmdOutput == false)
-    //     return;
-
-    // drivewire_send_string(s);
-    // if (addEol)
-    // {
-    //     drivewire_send(ASCII_CR);
-    //     drivewire_send(ASCII_LF);
-    // }
-    // drivewire_flush();
 }
 
 void drivewireModem::at_handle_wificonnect()
@@ -210,12 +173,10 @@ void drivewireModem::at_handle_wificonnect()
     if (keyIndex != std::string::npos)
     {
         ssid = cmd.substr(13, keyIndex - 13 + 1);
-        //key = cmd.substring(keyIndex + 1, cmd.length());
         key = cmd.substr(keyIndex + 1);
     }
     else
     {
-        //ssid = cmd.substring(6, cmd.length());
         ssid = cmd.substr(6);
         key = "";
     }
@@ -260,7 +221,6 @@ void drivewireModem::at_handle_wificonnect()
 
 void drivewireModem::at_handle_port()
 {
-    //int port = cmd.substring(6).toInt();
     int port = std::stoi(cmd.substr(6));
     if (port > 65535 || port < 0)
     {
@@ -306,12 +266,9 @@ void drivewireModem::at_handle_get()
     }
     else
     {
-        //port = cmd.substring(portIndex + 1, pathIndex).toInt();
         port = std::stoi(cmd.substr(portIndex + 1, pathIndex - (portIndex + 1) + 1));
     }
-    //host = cmd.substring(12, portIndex);
     host = cmd.substr(12, portIndex - 12 + 1);
-    //path = cmd.substring(pathIndex, cmd.length());
     path = cmd.substr(pathIndex);
     if (path.empty())
         path = "/";
@@ -692,13 +649,11 @@ void drivewireModem::modemCommand()
             "ATPB",
             "ATO"};
 
-    //cmd.trim();
     util_string_trim(cmd);
     if (cmd.empty())
         return;
 
     std::string upperCaseCmd = cmd;
-    //upperCaseCmd.toUpperCase();
     util_string_toupper(upperCaseCmd);
 
     if (commandEcho == true)
@@ -707,8 +662,6 @@ void drivewireModem::modemCommand()
     Debug_printf("AT Cmd: %s\n", upperCaseCmd.c_str());
 
     // Replace EOL with CR
-    //if (upperCaseCmd.indexOf(ATASCII_EOL) != 0)
-    //    upperCaseCmd[upperCaseCmd.indexOf(ATASCII_EOL)] = ASCII_CR;
     int eol1 = upperCaseCmd.find(ATASCII_EOL);
     if (eol1 != std::string::npos)
         upperCaseCmd[eol1] = ASCII_CR;
@@ -756,8 +709,6 @@ void drivewireModem::modemCommand()
 
             if (listenPort > 0)
             {
-                //                tcpServer.stop();
-                //                tcpServer.begin(listenPort);
             }
         }
         else

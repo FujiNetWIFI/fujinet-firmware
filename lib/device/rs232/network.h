@@ -27,6 +27,11 @@
 #define OUTPUT_BUFFER_SIZE 65535
 #define SPECIAL_BUFFER_SIZE 256
 
+enum FujiChannelMode {
+    NETWORK_PROTOCOL = 0,
+    NETWORK_JSON     = 1,
+};
+
 class rs232Network : public virtualDevice
 {
 

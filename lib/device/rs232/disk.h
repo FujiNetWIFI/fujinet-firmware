@@ -5,6 +5,7 @@
 
 #include "bus.h"
 #include "media.h"
+#include "fujiHost.h"
 
 class rs232Disk : public virtualDevice
 {
@@ -24,6 +25,7 @@ private:
 
 public:
     time_t mount_time = 0;
+    fujiHost *host = nullptr;
 
     rs232Disk();
     mediatype_t mount(fnFile *f, const char *filename, uint32_t disksize, mediatype_t disk_type = MEDIATYPE_UNKNOWN);

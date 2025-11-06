@@ -1,34 +1,19 @@
 #ifdef BUILD_APPLE
-#include <algorithm>
-#include <array>
-#include <functional>
-#include <memory>
-#include <string>
-#include <utility>
-#include <vector>
-#include <cstring>
 
 #include "iwmFuji.h"
-
-#include "fujiCommandID.h"
 #include "httpService.h"
 #include "fnSystem.h"
-#include "fnConfig.h"
 #include "led.h"
-#include "fnWiFi.h"
-#include "fsFlash.h"
-#include "fnFsTNFS.h"
 #include "utils.h"
-#include "string_utils.h"
-
 #include "compat_string.h"
 #include "../../qrcode/qrmanager.h"
 
 #define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40
+#define IMAGE_EXTENSION ".po"
 
 iwmFuji platformFuji;
-iwmFuji *theFuji = &platformFuji; // Global fuji object.
+fujiDevice *theFuji = &platformFuji; // Global fuji object.
 
 iwmFuji::iwmFuji()
 {
@@ -54,12 +39,13 @@ iwmFuji::iwmFuji()
         { IWM_CTRL_SET_DCB, [this]()                   { this->iwm_dummy_command(); }},                 // 0x01
         { IWM_CTRL_SET_NEWLINE, [this]()               { this->iwm_dummy_command(); }},                 // 0x02
 
-        { FUJICMD_CLOSE_DIRECTORY, [this]()            { this->iwm_ctrl_close_directory(); }},          // 0xF5
-        { FUJICMD_CONFIG_BOOT, [this]()                { this->iwm_ctrl_set_boot_config(); }},          // 0xD9
-        { FUJICMD_COPY_FILE, [this]()                  { this->iwm_ctrl_copy_file(); }},                // 0xD8
+        { FUJICMD_CLOSE_DIRECTORY, [this]()            { this->fujicmd_close_directory(); }},          // 0xF5
+        { FUJICMD_GET_HOST_PREFIX, [this]()            { this->fujicmd_get_host_prefix(data_buffer[0]); }},                  // 0xE0
+        { FUJICMD_CONFIG_BOOT, [this]()                { this->fujicmd_set_boot_config(data_buffer[0]); }},          // 0xD9
+        { FUJICMD_COPY_FILE, [this]()                  { this->fujicmd_copy_file_success(data_buffer[0], data_buffer[1], (char *)&data_buffer[2]); }},                // 0xD8
         { FUJICMD_DISABLE_DEVICE, [this]()             { this->iwm_ctrl_disable_device(); }},           // 0xD4
         { FUJICMD_ENABLE_DEVICE, [this]()              { this->iwm_ctrl_enable_device(); }},            // 0xD5
-        { FUJICMD_GET_SCAN_RESULT, [this]()            { this->iwm_ctrl_net_scan_result(); }},          // 0xFC
+        { FUJICMD_GET_SCAN_RESULT, [this]()            { this->fujicmd_net_scan_result(data_buffer[0]); }},          // 0xFC
 
         { FUJICMD_HASH_INPUT, [this]()                 { this->iwm_ctrl_hash_input(); }},               // 0xC8
         { FUJICMD_HASH_COMPUTE, [this]()               { this->iwm_ctrl_hash_compute(true); }},         // 0xC7
@@ -72,30 +58,38 @@ iwmFuji::iwmFuji()
         { FUJICMD_QRCODE_ENCODE, [this]()              { this->iwm_ctrl_qrcode_encode(); }},            // 0xBD
         { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_ctrl_qrcode_output(); }},            // 0xBF
 
-        { FUJICMD_MOUNT_HOST, [this]()                 { this->iwm_ctrl_mount_host(); }},               // 0xF9
+        { FUJICMD_MOUNT_HOST, [this]()                 { this->fujicmd_mount_host_success(data_buffer[0]); }},               // 0xF9
         { FUJICMD_NEW_DISK, [this]()                   { this->iwm_ctrl_new_disk(); }},                 // 0xE7
-        { FUJICMD_OPEN_APPKEY, [this]()                { this->iwm_ctrl_open_app_key(); }},             // 0xDC
-        { FUJICMD_READ_DIR_ENTRY, [this]()             { this->iwm_ctrl_read_directory_entry(); }},     // 0xF6
-        { FUJICMD_SET_BOOT_MODE, [this]()              { this->iwm_ctrl_set_boot_mode(); }},            // 0xD6
-        { FUJICMD_SET_DEVICE_FULLPATH, [this]()        { this->iwm_ctrl_set_device_filename(); }},      // 0xE2
-        { FUJICMD_SET_DIRECTORY_POSITION, [this]()     { this->iwm_ctrl_set_directory_position(); }},   // 0xE4
-        { FUJICMD_SET_HOST_PREFIX, [this]()            { this->iwm_ctrl_set_host_prefix(); }},          // 0xE1
-        { FUJICMD_SET_SSID, [this]()                   { this->iwm_ctrl_net_set_ssid(); }},             // 0xFB
-        { FUJICMD_UNMOUNT_HOST, [this]()               { this->iwm_ctrl_unmount_host(); }},             // 0xE6
-        { FUJICMD_UNMOUNT_IMAGE, [this]()              { this->iwm_ctrl_disk_image_umount(); }},        // 0xE9
-        { FUJICMD_WRITE_APPKEY, [this]()               { this->iwm_ctrl_write_app_key(); }},            // 0xDE
-        { FUJICMD_WRITE_DEVICE_SLOTS, [this]()         { this->iwm_ctrl_write_device_slots(); }},       // 0xF1
-        { FUJICMD_WRITE_HOST_SLOTS, [this]()           { this->iwm_ctrl_write_host_slots(); }},         // 0xF3
+        { FUJICMD_OPEN_APPKEY, [this]()                { this->fujicmd_open_app_key(); }},             // 0xDC
+        { FUJICMD_READ_DIR_ENTRY, [this]()             { this->fujicmd_read_directory_entry(data_buffer[0], data_buffer[1]); }},     // 0xF6
+        { FUJICMD_SET_BOOT_MODE, [this]()              { this->fujicmd_set_boot_mode(data_buffer[0], IMAGE_EXTENSION, MEDIATYPE_PO, get_disk_dev(0)); }},            // 0xD6
+        { FUJICMD_SET_DEVICE_FULLPATH, [this]()        { this->fujicmd_set_device_filename_success(data_buffer[0], data_buffer[1], data_buffer[2]); }},      // 0xE2
+        { FUJICMD_SET_DIRECTORY_POSITION, [this]()     { this->fujicmd_set_directory_position(le16toh(*((uint16_t *) &data_buffer))); }},   // 0xE4
+        { FUJICMD_SET_HOST_PREFIX, [this]()            { this->fujicmd_set_host_prefix(data_buffer[0], (const char *) &data_buffer[1]); }},          // 0xE1
+        { FUJICMD_SET_SSID, [this]()                   { this->fujicmd_net_set_ssid_success((const char *) data_buffer, (const char *) &data_buffer[MAX_SSID_LEN + 1], false); }},             // 0xFB
+        { FUJICMD_UNMOUNT_HOST, [this]()               { this->fujicmd_unmount_host_success(data_buffer[0]); }},             // 0xE6
+        { FUJICMD_UNMOUNT_IMAGE, [this]()              { this->fujicmd_unmount_disk_image_success(data_buffer[0]); }},        // 0xE9
+        { FUJICMD_WRITE_APPKEY, [this]()               { this->fujicmd_write_app_key(data_len); }},            // 0xDE
+        { FUJICMD_WRITE_DEVICE_SLOTS, [this]()         { this->fujicmd_write_device_slots(MAX_A2DISK_DEVICES); }},       // 0xF1
+        { FUJICMD_WRITE_HOST_SLOTS, [this]()           { this->fujicmd_write_host_slots(); }},         // 0xF3
 
-        { FUJICMD_RESET,  [this]()                     { this->send_reply_packet(err_result); this->iwm_ctrl_reset_fujinet(); }},   // 0xFF
-        { IWM_CTRL_RESET, [this]()                     { this->send_reply_packet(err_result); this->iwm_ctrl_reset_fujinet(); }},   // 0x00
+        { FUJICMD_RESET,  [this]()                     {
+             this->send_reply_packet(err_result);
+             this->fujicmd_reset();
+         }},   // 0xFF
+        { IWM_CTRL_RESET, [this]()                     {
+             this->send_reply_packet(err_result);
+             this->fujicmd_reset();
+         }},   // 0x00
 #ifndef DEV_RELAY_SLIP
         { IWM_CTRL_CLEAR_ENSEEN, [this]()              { diskii_xface.d2_enable_seen = 0; err_result = SP_ERR_NOERROR; }},
 #endif
 
-        { FUJICMD_MOUNT_ALL, [&]()                     { err_result = (mount_all() ? SP_ERR_IOERROR : SP_ERR_NOERROR); }},          // 0xD7
-        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = iwm_ctrl_disk_image_mount(); }},  // 0xF8
-        { FUJICMD_OPEN_DIRECTORY, [&]()                { err_result = iwm_ctrl_open_directory(); }}     // 0xF7
+        { FUJICMD_MOUNT_ALL, [&]()                     {
+             err_result = fujicmd_mount_all_success() ? SP_ERR_NOERROR : SP_ERR_IOERROR;
+         }},          // 0xD7
+        { FUJICMD_MOUNT_IMAGE, [&]()                   { err_result = fujicmd_mount_disk_image_success(data_buffer[0], data_buffer[1]) ? SP_ERR_NOERROR : SP_ERR_NODRIVE; }},  // 0xF8
+        { FUJICMD_OPEN_DIRECTORY, [&]()                { err_result = fujicmd_open_directory_success(data_buffer[0], (char *) &data_buffer[1], sizeof(data_buffer) - 1) ? SP_ERR_NOERROR : SP_ERR_IOERROR; }}     // 0xF7
     };
 
     status_handlers = {
@@ -108,31 +102,31 @@ iwmFuji::iwmFuji()
 #endif
 
         { FUJICMD_DEVICE_ENABLE_STATUS, [this]()       { this->send_stat_get_enable(); }},                      // 0xD1
-        { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() { this->iwm_stat_get_adapter_config_extended(); }},      // 0xC4
-        { FUJICMD_GET_ADAPTERCONFIG, [this]()          { this->iwm_stat_get_adapter_config(); }},               // 0xE8
-        { FUJICMD_GET_DEVICE_FULLPATH, [this]()        { this->iwm_stat_get_device_filename(status_code); }},   // 0xDA
-        { FUJICMD_GET_DEVICE1_FULLPATH, [this]()       { this->iwm_stat_get_device_filename(status_code); }},   // 0xA0
-        { FUJICMD_GET_DEVICE2_FULLPATH, [this]()       { this->iwm_stat_get_device_filename(status_code); }},   // 0xA1
-        { FUJICMD_GET_DEVICE3_FULLPATH, [this]()       { this->iwm_stat_get_device_filename(status_code); }},   // 0xA2
-        { FUJICMD_GET_DEVICE4_FULLPATH, [this]()       { this->iwm_stat_get_device_filename(status_code); }},   // 0xA3
-        { FUJICMD_GET_DEVICE5_FULLPATH, [this]()       { this->iwm_stat_get_device_filename(status_code); }},   // 0xA4
-        { FUJICMD_GET_DEVICE6_FULLPATH, [this]()       { this->iwm_stat_get_device_filename(status_code); }},   // 0xA5
-        { FUJICMD_GET_DEVICE7_FULLPATH, [this]()       { this->iwm_stat_get_device_filename(status_code); }},   // 0xA6
-        { FUJICMD_GET_DEVICE8_FULLPATH, [this]()       { this->iwm_stat_get_device_filename(status_code); }},   // 0xA7
-        { FUJICMD_GET_DIRECTORY_POSITION, [this]()     { this->iwm_stat_get_directory_position(); }},           // 0xE5
-        { FUJICMD_GET_HOST_PREFIX, [this]()            { this->iwm_stat_get_host_prefix(); }},                  // 0xE0
+        { FUJICMD_GET_ADAPTERCONFIG_EXTENDED, [this]() { this->fujicmd_get_adapter_config_extended(); }},      // 0xC4
+        { FUJICMD_GET_ADAPTERCONFIG, [this]()          { this->fujicmd_get_adapter_config(); }},               // 0xE8
+        { FUJICMD_GET_DEVICE_FULLPATH, [this]()        { this->fujicmd_get_device_filename(data_buffer[0]); }},   // 0xDA
+        { FUJICMD_GET_DEVICE1_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA0
+        { FUJICMD_GET_DEVICE2_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA1
+        { FUJICMD_GET_DEVICE3_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA2
+        { FUJICMD_GET_DEVICE4_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA3
+        { FUJICMD_GET_DEVICE5_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA4
+        { FUJICMD_GET_DEVICE6_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA5
+        { FUJICMD_GET_DEVICE7_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA6
+        { FUJICMD_GET_DEVICE8_FULLPATH, [this]()       { this->fujicmd_get_device_filename(status_code - 160); }},   // 0xA7
+        { FUJICMD_GET_DIRECTORY_POSITION, [this]()     { this->fujicmd_get_directory_position(); }},           // 0xE5
+        { FUJICMD_GET_HOST_PREFIX, [this]()            { }},                  // 0xE0
         { FUJICMD_GET_SCAN_RESULT, [this]()            { this->iwm_stat_net_scan_result(); }},                  // 0xFC
-        { FUJICMD_GET_SSID, [this]()                   { this->iwm_stat_net_get_ssid(); }},                     // 0xFE
+        { FUJICMD_GET_SSID, [this]()                   { this->fujicmd_net_get_ssid(); }},                     // 0xFE
         { FUJICMD_GET_WIFI_ENABLED, [this]()           { this->iwm_stat_get_wifi_enabled(); }},                 // 0xEA
-        { FUJICMD_GET_WIFISTATUS, [this]()             { this->iwm_stat_net_get_wifi_status(); }},              // 0xFA
-        { FUJICMD_READ_APPKEY, [this]()                { this->iwm_stat_read_app_key(); }},                     // 0xDD
-        { FUJICMD_READ_DEVICE_SLOTS, [this]()          { this->iwm_stat_read_device_slots(); }},                // 0xF2
-        { FUJICMD_READ_DIR_ENTRY, [this]()             { this->iwm_stat_read_directory_entry(); }},             // 0xF6
-        { FUJICMD_READ_HOST_SLOTS, [this]()            { this->iwm_stat_read_host_slots(); }},                  // 0xF4
-        { FUJICMD_SCAN_NETWORKS, [this]()              { this->iwm_stat_net_scan_networks(); }},                // 0xFD
+        { FUJICMD_GET_WIFISTATUS, [this]()             { this->fujicmd_net_get_wifi_status(); }},              // 0xFA
+        { FUJICMD_READ_APPKEY, [this]()                { this->fujicmd_read_app_key(); }},                     // 0xDD
+        { FUJICMD_READ_DEVICE_SLOTS, [this]()          { this->fujicmd_read_device_slots(MAX_A2DISK_DEVICES); }},                // 0xF2
+        { FUJICMD_READ_DIR_ENTRY, [this]()             { }},             // 0xF6
+        { FUJICMD_READ_HOST_SLOTS, [this]()            { this->fujicmd_read_host_slots(); }},                  // 0xF4
+        { FUJICMD_SCAN_NETWORKS, [this]()              { this->fujicmd_net_scan_networks(); }},                // 0xFD
         { FUJICMD_QRCODE_LENGTH, [this]()              { this->iwm_stat_qrcode_length(); }},                    // 0xBE
         { FUJICMD_QRCODE_OUTPUT, [this]()              { this->iwm_stat_qrcode_output(); }},                    // 0xBE
-        { FUJICMD_STATUS, [this]()                     { this->iwm_stat_fuji_status(); }},                      // 0x53
+        { FUJICMD_STATUS, [this]()                     { this->fujicmd_status(); }},                      // 0x53
         { FUJICMD_GET_HEAP, [this]()                   { this->iwm_stat_get_heap(); }},                         // 0xC1
     };
 
@@ -193,78 +187,6 @@ void iwmFuji::iwm_hello_world()
         data_len = 11;
 }
 
-void iwmFuji::iwm_ctrl_reset_fujinet() // SP CTRL command
-{
-        Debug_printf("\r\nFuji cmd: REBOOT");
-        send_status_reply_packet();
-        // save device unit SP address somewhere and restore it after reboot?
-        fnSystem.reboot();
-}
-
-void iwmFuji::iwm_stat_net_get_ssid() // SP STATUS command
-{
-        Debug_printf("\r\nFuji cmd: GET SSID");
-
-        // Response to FUJICMD_GET_SSID
-        struct
-        {
-                char ssid[MAX_SSID_LEN + 1];
-                char password[MAX_WIFI_PASS_LEN];
-        } cfg;
-
-        memset(&cfg, 0, sizeof(cfg));
-
-        /*
-         We memcpy instead of strcpy because technically the SSID and phasephras aren't strings and aren't null terminated,
-         they're arrays of bytes officially and can contain any byte value - including a zero - at any point in the array.
-         However, we're not consistent about how we treat this in the different parts of the code.
-        */
-        std::string s = Config.get_wifi_ssid();
-        memcpy(cfg.ssid, s.c_str(), s.length() > sizeof(cfg.ssid) ? sizeof(cfg.ssid) : s.length());
-        Debug_printf("\r\nReturning SSID: %s", cfg.ssid);
-
-        s = Config.get_wifi_passphrase();
-        memcpy(cfg.password, s.c_str(), s.length() > sizeof(cfg.password) ? sizeof(cfg.password) : s.length());
-
-        // Move into response.
-        memcpy(data_buffer, &cfg, sizeof(cfg));
-        data_len = sizeof(cfg);
-} // 0xFE
-
-void iwmFuji::iwm_stat_net_scan_networks() // SP STATUS command
-{
-        Debug_printf("\r\nFuji cmd: SCAN NETWORKS");
-
-        isReady = false;
-
-        // if (scanStarted == false)
-        //{
-        _countScannedSSIDs = fnWiFi.scan_networks();
-        //    scanStarted = true;
-        setSSIDStarted = false;
-        //}
-
-        isReady = true;
-
-        data_buffer[0] = _countScannedSSIDs;
-        data_len = 1;
-} // 0xFD
-
-void iwmFuji::iwm_ctrl_net_scan_result() // SP STATUS command
-{
-        Debug_print("\r\nFuji cmd: GET SCAN RESULT");
-        // scanStarted = false;
-
-        uint8_t n = data_buffer[0];
-
-        memset(&detail, 0, sizeof(detail));
-
-        if (n < _countScannedSSIDs)
-                fnWiFi.get_scan_result(n, detail.ssid, &detail.rssi);
-
-        Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
-} // 0xFC
-
 void iwmFuji::iwm_stat_net_scan_result() // SP STATUS command
 {
         Debug_printf("SSID: %s - RSSI: %u\n", detail.ssid, detail.rssi);
@@ -274,685 +196,25 @@ void iwmFuji::iwm_stat_net_scan_result() // SP STATUS command
         data_len = sizeof(detail);
 } // 0xFC
 
-void iwmFuji::iwm_ctrl_net_set_ssid() // SP CTRL command
-{
-        Debug_printf("\r\nFuji cmd: SET SSID");
-        // if (!fnWiFi.connected() && setSSIDStarted == false)
-        //   {
-
-        // uint16_t s = data_len;
-        // s--;
-
-        // Data for FUJICMD_SET_SSID
-        struct
-        {
-                char ssid[MAX_SSID_LEN + 1];
-                char password[MAX_WIFI_PASS_LEN];
-        } cfg;
-
-        // to do - copy data over to cfg
-        memcpy(cfg.ssid, &data_buffer, sizeof(cfg.ssid));
-        memcpy(cfg.password, &data_buffer[sizeof(cfg.ssid)], sizeof(cfg.password));
-        // adamnet_recv_buffer((uint8_t *)&cfg, s);
-
-        bool save = false; // for now don't save - to do save if connection was succesful
-
-        // URL Decode SSID/PASSWORD to handle special chars FIXME
-    //mstr::urlDecode(cfg.ssid, sizeof(cfg.ssid));
-    //mstr::urlDecode(cfg.password, sizeof(cfg.password));
-
-        Debug_printf("\r\nConnecting to net: %s password: %s\n", cfg.ssid, cfg.password);
-
-// TODO: better
-#if ESP_OK != 0
-#error "ESP_OK != 0"
-#endif
-        if (fnWiFi.connect(cfg.ssid, cfg.password) == 0) // ESP_OK
-        {
-                Config.store_wifi_ssid(cfg.ssid, sizeof(cfg.ssid));
-                Config.store_wifi_passphrase(cfg.password, sizeof(cfg.password));
-        }
-        setSSIDStarted = true; // gets reset to false by scanning networks ... hmmm
-        // Only save these if we're asked to, otherwise assume it was a test for connectivity
-        // should only save if connection was successful - i think
-        if (save)
-        {
-                Config.save();
-        }
-        // }
-} // 0xFB
-
-// Get WiFi Status
-void iwmFuji::iwm_stat_net_get_wifi_status() // SP Status command
-{
-        Debug_printf("\r\nFuji cmd: GET WIFI STATUS");
-        // WL_CONNECTED = 3, WL_DISCONNECTED = 6
-        uint8_t wifiStatus = fnWiFi.connected() ? 3 : 6;
-        data_buffer[0] = wifiStatus;
-        data_len = 1;
-        Debug_printf("\r\nReturning Status: %d", wifiStatus);
-}
-
-// Mount Server
-void iwmFuji::iwm_ctrl_mount_host() // SP CTRL command
-{
-        unsigned char hostSlot = data_buffer[0]; // adamnet_recv();
-        Debug_printf("\r\nFuji cmd: MOUNT HOST no. %d", hostSlot);
-
-        if ((hostSlot < 8) && (hostMounted[hostSlot] == false))
-        {
-                _fnHosts[hostSlot].mount();
-                hostMounted[hostSlot] = true;
-        }
-}
-
-// UnMount Server
-void iwmFuji::iwm_ctrl_unmount_host() // SP CTRL command
-{
-        unsigned char hostSlot = data_buffer[0]; // adamnet_recv();
-        Debug_printf("\r\nFuji cmd: UNMOUNT HOST no. %d", hostSlot);
-
-        if ((hostSlot < 8) && (hostMounted[hostSlot] == false))
-        {
-                _fnHosts[hostSlot].umount();
-                hostMounted[hostSlot] = true;
-        }
-}
-
-// Disk Image Mount
-uint8_t iwmFuji::iwm_ctrl_disk_image_mount() // SP CTRL command
-{
-        Debug_printf("\r\nFuji cmd: MOUNT IMAGE");
-
-        uint8_t deviceSlot = data_buffer[0]; // adamnet_recv();
-        uint8_t options = data_buffer[1];        // adamnet_recv(); // DISK_ACCESS_MODE
-
-        // TODO: Implement FETCH?
-        char flag[4] = {'r', 'b', 0, 0};
-        if (options == DISK_ACCESS_MODE_WRITE)
-                flag[2] = '+';
-
-        // A couple of reference variables to make things much easier to read...
-        fujiDisk &disk = _fnDisks[deviceSlot];
-        fujiHost &host = _fnHosts[disk.host_slot];
-        DEVICE_TYPE *disk_dev = get_disk_dev(deviceSlot);
-
-        Debug_printf("\r\nSelecting '%s' from host #%u as %s on D%u:\n", disk.filename, disk.host_slot, flag, deviceSlot + 1);
-
-        disk_dev->host = &host;
-        disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-        if (disk.fileh == nullptr)
-        {
-                Debug_printf("\r\nFailed to open %s", disk.filename);
-                return SP_ERR_NODRIVE;
-        }
-
-        // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-        boot_config = false;
-
-        // We need the file size for loading XEX files and for CASSETTE, so get that too
-        disk.disk_size = host.file_size(disk.fileh);
-
-        // special handling for Disk ][ .woz images
-        // mediatype_t mt = MediaType::discover_mediatype(disk.filename);
-        // if (mt == mediatype_t::MEDIATYPE_PO)
-        // { // And now mount it
-        disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
-
-        if (options == DISK_ACCESS_MODE_WRITE)
-        {
-                disk_dev->readonly = false;
-        }
-
-        return SP_ERR_NOERROR;
-}
-
-// Toggle boot config on/off, aux1=0 is disabled, aux1=1 is enabled
-void iwmFuji::iwm_ctrl_set_boot_config() // SP CTRL command
-{
-        boot_config = data_buffer[0]; // adamnet_recv();
-
-        if (!boot_config)
-        {
-                fujiDisk &disk = _fnDisks[0];
-                if (disk.host_slot == INVALID_HOST_SLOT)
-                {
-                        get_disk_dev(0)->unmount();
-                        _fnDisks[0].reset();
-                }
-        }
-}
-
-// Do SIO copy
-void iwmFuji::iwm_ctrl_copy_file()
-{
-        std::string copySpec;
-        std::string sourcePath;
-        std::string destPath;
-        fnFile *sourceFile;
-        fnFile *destFile;
-        char *dataBuf;
-        unsigned char sourceSlot;
-        unsigned char destSlot;
-
-        sourceSlot = data_buffer[0];
-        destSlot = data_buffer[1];
-        copySpec = std::string((char *)&data_buffer[2]);
-        Debug_printf("copySpec: %s\n", copySpec.c_str());
-
-        // Chop up copyspec.
-        sourcePath = copySpec.substr(0, copySpec.find_first_of("|"));
-        destPath = copySpec.substr(copySpec.find_first_of("|") + 1);
-
-        // At this point, if last part of dest path is / then copy filename from source.
-        if (destPath.back() == '/')
-        {
-                Debug_printf("append source file\n");
-                std::string sourceFilename = sourcePath.substr(sourcePath.find_last_of("/") + 1);
-                destPath += sourceFilename;
-        }
-
-        // Mount hosts, if needed.
-        _fnHosts[sourceSlot].mount();
-        _fnHosts[destSlot].mount();
-
-        // Open files...
-        sourceFile = _fnHosts[sourceSlot].fnfile_open(sourcePath.c_str(), (char *)sourcePath.c_str(), sourcePath.size() + 1, "rb");
-        destFile = _fnHosts[destSlot].fnfile_open(destPath.c_str(), (char *)destPath.c_str(), destPath.size() + 1, "wb");
-
-        dataBuf = (char *)malloc(532);
-        size_t count = 0;
-        do
-        {
-                count = fnio::fread(dataBuf, 1, 532, sourceFile);
-                fnio::fwrite(dataBuf, 1, count, destFile);
-        } while (count > 0);
-
-        // copyEnd:
-        fnio::fclose(sourceFile);
-        fnio::fclose(destFile);
-        free(dataBuf);
-}
-
-// Mount all
-bool iwmFuji::mount_all()
-{
-        bool nodisks = true; // Check at the end if no disks are in a slot and disable config
-
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        {
-                fujiDisk &disk = _fnDisks[i];
-                fujiHost &host = _fnHosts[disk.host_slot];
-                DEVICE_TYPE *disk_dev = get_disk_dev(i);
-                char flag[4] = {'r', 'b', 0, 0};
-                if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-                        flag[2] = '+';
-
-        if (disk.host_slot != INVALID_HOST_SLOT && strlen(disk.filename) > 0)
-                {
-                        nodisks = false; // We have a disk in a slot
-
-                        if (host.mount() == false)
-                        {
-                                return true;
-                        }
-
-                        Debug_printf("Selecting '%s' from host #%u as %s on D%u:\n", disk.filename, disk.host_slot, flag, i + 1);
-
-                        disk.fileh = host.fnfile_open(disk.filename, disk.filename, sizeof(disk.filename), flag);
-
-                        if (disk.fileh == nullptr)
-                        {
-                                return true;
-                        }
-
-                        // We've gotten this far, so make sure our bootable CONFIG disk is disabled
-                        boot_config = false;
-
-                        // We need the file size for loading XEX files and for CASSETTE, so get that too
-                        disk.disk_size = host.file_size(disk.fileh);
-
-                        // And now mount it
-                        disk.disk_type = disk_dev->mount(disk.fileh, disk.filename, disk.disk_size);
-                        if (disk.access_mode == DISK_ACCESS_MODE_WRITE)
-                        {
-                                disk_dev->readonly = false;
-                        }
-                }
-        }
-
-        if (nodisks)
-        {
-                // No disks in a slot, disable config
-                boot_config = false;
-        }
-
-        // Go ahead and respond ok
-        return false;
-}
-
-// Set boot mode
-void iwmFuji::iwm_ctrl_set_boot_mode()
-{
-        uint8_t bm = data_buffer[0]; // adamnet_recv();
-
-        insert_boot_device(bm);
-        boot_config = true;
-}
-
-char *_generate_appkey_filename(appkey *info)
-{
-        static char filenamebuf[30];
-
-        snprintf(filenamebuf, sizeof(filenamebuf), "/FujiNet/%04hx%02hhx%02hhx.key", info->creator, info->app, info->key);
-        return filenamebuf;
-}
-
-/*
- Opens an "app key" for reading/writing - stores appkey name for subsequent read/write calls
-*/
-void iwmFuji::iwm_ctrl_open_app_key()
-{
-        int idx = 0;
-        FILE *fp;
-        uint8_t creatorL = data_buffer[idx++];
-        uint8_t creatorM = data_buffer[idx++];
-        uint8_t app = data_buffer[idx++];
-        uint8_t key = data_buffer[idx++];
-        uint8_t mode = data_buffer[idx++];
-
-        snprintf(_appkeyfilename, sizeof(_appkeyfilename), "/FujiNet/%02hhx%02hhx%02hhx%02hhx.key", creatorM, creatorL, app, key);
-        Debug_printf("\r\nFuji Cmd: OPEN APPKEY %s in mode %i\n", _appkeyfilename, mode);
-
-        // If reading, we will update the control stat length for the subsequent read_app_key status call
-        if (mode == 1) return;  // write mode
-
-        // set the appkey_size according to the mode, if mode is unknown, default to 64
-        appkey_size = get_value_or_default(mode_to_keysize, mode, 64);
-
-        fp = fnSDFAT.file_open(_appkeyfilename, "r");
-        if (fp == nullptr)
-        {
-                Debug_printf("iwm_ctrl_open_app_key ERROR: Could not read from SD Card.\r\n");
-
-                // Set stat buffer to 0 to signify the app key was not found
-                ctrl_stat_len=0;
-                return;
-        }
-
-        // don't need to do this if we're returning exact number of bytes
-        // // Clear out stat buffer before reading into it
-        // memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
-
-        // Read in the app key file data, to be sent in read_app_key call
-        ctrl_stat_len = fread(ctrl_stat_buffer, sizeof(char), appkey_size, fp);
-        fclose(fp);
-
-}
-
-/*
- Write an "app key" to SD (ONLY!) storage.
-*/
-void iwmFuji::iwm_ctrl_write_app_key()
-{
-        FILE *fp;
-    std::vector<uint8_t> data(appkey_size, 0);
-    std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
-
-        Debug_printf("\r\nFuji Cmd: WRITE APPKEY\n");
-
-
-        // Make sure we have a "/FujiNet" directory, since that's where we're putting these files
-        fnSDFAT.create_path("/FujiNet");
-
-        fp = fnSDFAT.file_open(_appkeyfilename, "w");
-        if (fp == nullptr)
-        {
-                Debug_printf("iwm_ctrl_write_app_key ERROR: Could not write to SD Card.\r\n");
-                return;
-        }
-
-        fwrite(data.data(), sizeof(uint8_t), data_len, fp);
-        fclose(fp);
-}
-
-/*
- Read an "app key" from SD (ONLY!) storage
-*/
-void iwmFuji::iwm_stat_read_app_key() // return the app key that was just read by the open() control command
-{
-        Debug_printf("\r\nFuji cmd: READ APP KEY");
-
-        memset(data_buffer, 0, sizeof(data_buffer));
-        memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
-        data_len = ctrl_stat_len;
-}
-
-// DEBUG TAPE
-void iwmFuji::debug_tape() {}
-
-// Disk Image Unmount
-void iwmFuji::iwm_ctrl_disk_image_umount()
-{
-        unsigned char ds = data_buffer[0]; // adamnet_recv();
-        DEVICE_TYPE *disk_dev = get_disk_dev(ds);
-        if (disk_dev->device_active)
-                disk_dev->switched = true;
-        disk_dev->unmount();
-        _fnDisks[ds].reset();
-}
-
 //==============================================================================================================================
 
-// Disk Image Rotate
-/*
-  We rotate disks my changing their disk device ID's. That prevents
-  us from having to unmount and re-mount devices.
-*/
-void iwmFuji::image_rotate()
+void iwmFuji::fujicmd_read_directory_entry(size_t maxlen, uint8_t addtl)
 {
-        Debug_printf("\r\nFuji cmd: IMAGE ROTATE");
+    fujiDevice::fujicmd_read_directory_entry(maxlen, addtl);
 
-        int count = 0;
-        // Find the first empty slot
-        while (_fnDisks[count].fileh != nullptr)
-                count++;
+    // Hack-o-rama to add file type character to beginning of
+    // path. - this was for Adam, but must keep for CONFIG
+    // compatability; in Apple 2 config will somehow have to work
+    // around these extra chars
 
-        if (count > 1)
-        {
-                count--;
+    // NOTE: Atari *does not* need this hack! Maybe Apple II CONFIG
+    // should be fixed instead?
 
-                // Save the device ID of the disk in the last slot
-                int last_id = get_disk_dev(count)->id();
-
-                for (int n = count; n > 0; n--)
-                {
-                        int swap = get_disk_dev(n - 1)->id();
-                        Debug_printf("setting slot %d to ID %hx\n", n, swap);
-                        SYSTEM_BUS.changeDeviceId(get_disk_dev(n), swap); // to do!
-                }
-
-                // The first slot gets the device ID of the last slot
-                SYSTEM_BUS.changeDeviceId(get_disk_dev(0), last_id);
-        }
-}
-
-// This gets called when we're about to shutdown/reboot
-void iwmFuji::shutdown()
-{
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
-                get_disk_dev(i)->unmount();
-}
-
-uint8_t iwmFuji::iwm_ctrl_open_directory()
-{
-        Debug_printf("\r\nFuji cmd: OPEN DIRECTORY");
-
-        uint8_t err_result = SP_ERR_NOERROR;
-
-        int idx = 0;
-        uint8_t hostSlot = data_buffer[idx++]; // adamnet_recv();
-
-        uint16_t s = data_len - 1; // two strings but not the slot number
-
-        memcpy((uint8_t *)&dirpath, (uint8_t *)&data_buffer[idx], s); // adamnet_recv_buffer((uint8_t *)&dirpath, s);
-
-        if (_current_open_directory_slot == -1)
-        {
-                // See if there's a search pattern after the directory path
-                const char *pattern = nullptr;
-                int pathlen = strnlen(dirpath, s);
-                if (pathlen < s - 3) // Allow for two NULLs and a 1-char pattern
-                {
-                        pattern = dirpath + pathlen + 1;
-                        int patternlen = strnlen(pattern, s - pathlen - 1);
-                        if (patternlen < 1)
-                                pattern = nullptr;
-                }
-
-                // Remove trailing slash
-                if (pathlen > 1 && dirpath[pathlen - 1] == '/')
-                        dirpath[pathlen - 1] = '\0';
-
-                Debug_printf("Opening directory: \"%s\", pattern: \"%s\"\n", dirpath, pattern ? pattern : "");
-
-                if (_fnHosts[hostSlot].dir_open(dirpath, pattern, 0))
-                        _current_open_directory_slot = hostSlot;
-                else
-                        err_result = SP_ERR_IOERROR;
-        }
-        return err_result;
-}
-
-void _set_additional_direntry_details(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
-{
-        // File modified date-time
-        struct tm *modtime = localtime(&f->modified_time);
-        modtime->tm_mon++;
-        modtime->tm_year -= 100;
-
-        dest[0] = modtime->tm_year;
-        dest[1] = modtime->tm_mon;
-        dest[2] = modtime->tm_mday;
-        dest[3] = modtime->tm_hour;
-        dest[4] = modtime->tm_min;
-        dest[5] = modtime->tm_sec;
-
-        // File size
-        uint32_t fsize = f->size;
-        dest[6] = fsize & 0xFF;
-        dest[7] = (fsize >> 8) & 0xFF;
-        dest[8] = (fsize >> 16) & 0xFF;
-        dest[9] = (fsize >> 24) & 0xFF;
-
-        // File flags
-#define FF_DIR 0x01
-#define FF_TRUNC 0x02
-
-        dest[10] = f->isDir ? FF_DIR : 0;
-
-        maxlen -= ADDITIONAL_DETAILS_BYTES; // Adjust the max return value with the number of additional bytes we're copying
-        if (f->isDir)                                           // Also subtract a byte for a terminating slash on directories
-                maxlen--;
-        if (strlen(f->filename) >= maxlen)
-                dest[11] |= FF_TRUNC;
-
-        // File type
-        dest[12] = MediaType::discover_mediatype(f->filename);
-
-        Debug_printf("Addtl: ");
-        for (int i = 0; i < ADDITIONAL_DETAILS_BYTES; i++)
-                Debug_printf("%02x ", dest[i]);
-        Debug_printf("\n");
-}
-
-void iwmFuji::iwm_ctrl_read_directory_entry()
-{
-        uint8_t maxlen = data_buffer[0];
-        uint8_t addtl = data_buffer[1];
-
-        // if (response[0] == 0x00) // to do - figure out the logic here?
-        // {
-        Debug_printf("Fuji cmd: READ DIRECTORY ENTRY (max=%hu)\n", maxlen);
-
-        fsdir_entry_t *f = _fnHosts[_current_open_directory_slot].dir_nextfile();
-
-        if (f != nullptr)
-        {
-                Debug_printf("::read_direntry \"%s\"\n", f->filename);
-
-                int bufsize = sizeof(dirpath);
-                char *filenamedest = dirpath;
-
-                // If 0x80 is set on AUX2, send back additional information
-                if (addtl & 0x80)
-                {
-                        _set_additional_direntry_details(f, (uint8_t *)dirpath, maxlen);
-                        // Adjust remaining size of buffer and file path destination
-                        bufsize = sizeof(dirpath) - ADDITIONAL_DETAILS_BYTES;
-                        filenamedest = dirpath + ADDITIONAL_DETAILS_BYTES;
-                }
-                else
-                {
-                        bufsize = maxlen;
-                }
-
-                int filelen;
-                // int filelen = strlcpy(filenamedest, f->filename, bufsize);
-                if (maxlen < 128)
-                {
-                        filelen = util_ellipsize(f->filename, filenamedest, bufsize - 1);
-                }
-                else
-                {
-                        filelen = strlcpy(filenamedest, f->filename, bufsize);
-                }
-
-                // Add a slash at the end of directory entries
-                if (f->isDir && filelen < (bufsize - 2))
-                {
-                        dirpath[filelen] = '/';
-                        dirpath[filelen + 1] = '\0';
-                        Debug_printf("::entry is dir - %s\n", dirpath);
-                }
-                // Hack-o-rama to add file type character to beginning of path. - this was for Adam, but must keep for CONFIG compatability
-                // in Apple 2 config will somehow have to work around these extra char's
-                if (maxlen == DIR_MAX_LEN)
-                {
-                        memmove(&dirpath[2], dirpath, 254);
-                        // if (strstr(dirpath, ".DDP") || strstr(dirpath, ".ddp"))
-                        // {
-                        //     dirpath[0] = 0x85;
-                        //     dirpath[1] = 0x86;
-                        // }
-                        // else if (strstr(dirpath, ".DSK") || strstr(dirpath, ".dsk"))
-                        // {
-                        //     dirpath[0] = 0x87;
-                        //     dirpath[1] = 0x88;
-                        // }
-                        // else if (strstr(dirpath, ".ROM") || strstr(dirpath, ".rom"))
-                        // {
-                        //     dirpath[0] = 0x89;
-                        //     dirpath[1] = 0x8a;
-                        // }
-                        // else if (strstr(dirpath, "/"))
-                        // {
-                        //     dirpath[0] = 0x83;
-                        //     dirpath[1] = 0x84;
-                        // }
-                        // else
-                        dirpath[0] = dirpath[1] = 0x20;
-                }
-        }
-        else
-        {
-                Debug_println("Reached end of of directory");
-                dirpath[0] = 0x7F;
-                dirpath[1] = 0x7F;
-        }
-        memset(ctrl_stat_buffer, 0, sizeof(ctrl_stat_buffer));
-        memcpy(ctrl_stat_buffer, dirpath, maxlen);
-        ctrl_stat_len = maxlen;
-        // }
-        // else
-        // {
-        //     AdamNet.start_time = esp_timer_get_time();
-        //     adamnet_response_ack();
-        // }
-}
-
-void iwmFuji::iwm_stat_read_directory_entry()
-{
-        Debug_printf("\r\nFuji cmd: READ DIRECTORY ENTRY");
-        memcpy(data_buffer, ctrl_stat_buffer, ctrl_stat_len);
-        data_len = ctrl_stat_len;
-}
-
-void iwmFuji::iwm_stat_get_directory_position()
-{
-        Debug_printf("\r\nFuji cmd: GET DIRECTORY POSITION");
-
-        uint16_t pos = _fnHosts[_current_open_directory_slot].dir_tell();
-
-        data_len = sizeof(pos);
-        memcpy(data_buffer, &pos, sizeof(pos));
-}
-
-void iwmFuji::iwm_ctrl_set_directory_position()
-{
-        Debug_printf("\nFuji cmd: SET DIRECTORY POSITION");
-
-        // DAUX1 and DAUX2 hold the position to seek to in low/high order
-        uint16_t pos = 0;
-
-        // adamnet_recv_buffer((uint8_t *)&pos, sizeof(uint16_t));
-        memcpy((uint8_t *)&pos, (uint8_t *)&data_buffer, sizeof(uint16_t));
-
-        Debug_printf("\npos is now %u", pos);
-
-        _fnHosts[_current_open_directory_slot].dir_seek(pos);
-}
-
-void iwmFuji::iwm_ctrl_close_directory()
-{
-        Debug_printf("\nFuji cmd: CLOSE DIRECTORY");
-
-        if (_current_open_directory_slot != -1)
-                _fnHosts[_current_open_directory_slot].dir_close();
-
-        _current_open_directory_slot = -1;
-        fnSystem.delay(100); // add delay because bad traces
-}
-
-void iwmFuji::iwm_stat_get_adapter_config_extended()
-{
-    // also return string versions of the data to save the host some computing
-        Debug_printf("Fuji cmd: GET ADAPTER CONFIG EXTENDED\r\n");
-    AdapterConfigExtended cfg;
-    memset(&cfg, 0, sizeof(cfg));       // ensures all strings are null terminated
-
-    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
-
-    if (!fnWiFi.connected())
+    if (data_buffer[0] != 0x7F && data_buffer[1] != 0x7F && maxlen == DIR_MAX_LEN)
     {
-        strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
+        memmove(&data_buffer[2], data_buffer, maxlen - 2);
+        data_buffer[0] = data_buffer[1] = 0x20;
     }
-    else
-    {
-        strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-        strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-        fnWiFi.get_current_bssid(cfg.bssid);
-        fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-        fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-    }
-
-    fnWiFi.get_mac(cfg.macAddress);
-
-    // convert fields to strings
-    strlcpy(cfg.sLocalIP, fnSystem.Net.get_ip4_address_str().c_str(), 16);
-    strlcpy(cfg.sGateway, fnSystem.Net.get_ip4_gateway_str().c_str(), 16);
-    strlcpy(cfg.sDnsIP,   fnSystem.Net.get_ip4_dns_str().c_str(),     16);
-    strlcpy(cfg.sNetmask, fnSystem.Net.get_ip4_mask_str().c_str(),    16);
-
-    snprintf(cfg.sMacAddress, sizeof(cfg.sMacAddress), "%02X:%02X:%02X:%02X:%02X:%02X", cfg.macAddress[0], cfg.macAddress[1], cfg.macAddress[2], cfg.macAddress[3], cfg.macAddress[4], cfg.macAddress[5]);
-    snprintf(cfg.sBssid, sizeof(cfg.sBssid), "%02X:%02X:%02X:%02X:%02X:%02X", cfg.bssid[0], cfg.bssid[1], cfg.bssid[2], cfg.bssid[3], cfg.bssid[4], cfg.bssid[5]);
-
-        memcpy(data_buffer, &cfg, sizeof(cfg));
-        data_len = sizeof(cfg);
-
-}
-
-void iwmFuji::iwm_stat_fuji_status()
-{
-        // Place holder for 4 bytes to fill the Fuji device status.
-        // TODO: decide what we want to tell the host.
-        // e.g.
-        // - are all devices working? maybe some bitmap
-        // - how many devices do we have?
-        char ret[4] = {0};
-        memcpy(data_buffer, &ret[0], 4);
-        data_len = 4;
 }
 
 void iwmFuji::iwm_stat_get_heap()
@@ -966,34 +228,6 @@ void iwmFuji::iwm_stat_get_heap()
     memcpy(data_buffer, &avail, sizeof(avail));
     data_len = sizeof(avail);
     return;
-}
-
-// Get network adapter configuration
-void iwmFuji::iwm_stat_get_adapter_config()
-{
-        Debug_printf("Fuji cmd: GET ADAPTER CONFIG\r\n");
-        AdapterConfig cfg;
-        memset(&cfg, 0, sizeof(cfg));
-
-        strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
-
-        if (!fnWiFi.connected())
-        {
-                strlcpy(cfg.ssid, "NOT CONNECTED", sizeof(cfg.ssid));
-        }
-        else
-        {
-                strlcpy(cfg.hostname, fnSystem.Net.get_hostname().c_str(), sizeof(cfg.hostname));
-                strlcpy(cfg.ssid, fnWiFi.get_current_ssid().c_str(), sizeof(cfg.ssid));
-                fnWiFi.get_current_bssid(cfg.bssid);
-                fnSystem.Net.get_ip4_info(cfg.localIP, cfg.netmask, cfg.gateway);
-                fnSystem.Net.get_ip4_dns_info(cfg.dnsIP);
-        }
-
-        fnWiFi.get_mac(cfg.macAddress);
-
-        memcpy(data_buffer, &cfg, sizeof(cfg));
-        data_len = sizeof(cfg);
 }
 
 //  Make new disk and shove into device slot
@@ -1037,85 +271,9 @@ void iwmFuji::iwm_ctrl_new_disk()
         fnio::fclose(disk.fileh);
 
         // Persist slots
-        _populate_config_from_slots();
+        populate_config_from_slots();
         Config.mark_dirty();
         Config.save();
-}
-
-// Send host slot data to computer
-void iwmFuji::iwm_stat_read_host_slots()
-{
-        Debug_printf("\nFuji cmd: READ HOST SLOTS");
-
-        // adamnet_recv(); // ck
-
-        char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-        memset(hostSlots, 0, sizeof(hostSlots));
-
-        for (int i = 0; i < MAX_HOSTS; i++)
-                strlcpy(hostSlots[i], _fnHosts[i].get_hostname(), MAX_HOSTNAME_LEN);
-
-        memcpy(data_buffer, hostSlots, sizeof(hostSlots));
-        data_len = sizeof(hostSlots);
-}
-
-// Read and save host slot data from computer
-void iwmFuji::iwm_ctrl_write_host_slots()
-{
-        Debug_printf("\nFuji cmd: WRITE HOST SLOTS");
-
-        char hostSlots[MAX_HOSTS][MAX_HOSTNAME_LEN];
-        // adamnet_recv_buffer((uint8_t *)hostSlots, sizeof(hostSlots));
-        memcpy((uint8_t *)hostSlots, data_buffer, sizeof(hostSlots));
-
-        for (int i = 0; i < MAX_HOSTS; i++)
-        {
-                hostMounted[i] = false;
-                _fnHosts[i].set_hostname(hostSlots[i]);
-        }
-        _populate_config_from_slots();
-        Config.save();
-}
-
-// Store host path prefix
-void iwmFuji::iwm_ctrl_set_host_prefix() { Debug_printf("\nFuji cmd: SET HOST PREFIX - NOT IMPLEMENTED"); }
-
-// Retrieve host path prefix
-void iwmFuji::iwm_stat_get_host_prefix() { Debug_printf("\nFuji cmd: GET HOST PREFIX - NOT IMPLEMENTED"); }
-
-// Send device slot data to computer
-void iwmFuji::iwm_stat_read_device_slots()
-{
-        Debug_printf("\nFuji cmd: READ DEVICE SLOTS");
-
-        struct disk_slot
-        {
-                uint8_t hostSlot;
-                uint8_t mode;
-                char filename[MAX_DISPLAY_FILENAME_LEN];
-        };
-        disk_slot diskSlots[MAX_DISK_DEVICES];
-
-        memset(&diskSlots, 0, sizeof(diskSlots));
-
-        int returnsize;
-
-        // Load the data from our current device array
-        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
-        {
-                diskSlots[i].mode = _fnDisks[i].access_mode;
-                diskSlots[i].hostSlot = _fnDisks[i].host_slot;
-                strlcpy(diskSlots[i].filename, _fnDisks[i].filename, MAX_DISPLAY_FILENAME_LEN);
-
-                DEVICE_TYPE *disk_dev = get_disk_dev(i);
-                if (disk_dev->device_active && !disk_dev->is_config_device)
-                    diskSlots[i].mode |= DISK_ACCESS_MODE_MOUNTED;
-        }
-
-        returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
-
-        memcpy(data_buffer, &diskSlots, returnsize);
-        data_len = returnsize;
 }
 
 // Get the wifi enabled value
@@ -1125,191 +283,6 @@ void iwmFuji::iwm_stat_get_wifi_enabled()
         Debug_printf("\nFuji cmd: GET WIFI ENABLED: %d", e);
         data_buffer[0] = e;
         data_len = 1;
-}
-
-// Read and save disk slot data from computer
-void iwmFuji::iwm_ctrl_write_device_slots()
-{
-        Debug_printf("\nFuji cmd: WRITE DEVICE SLOTS");
-
-        struct
-        {
-                uint8_t hostSlot;
-                uint8_t mode;
-                char filename[MAX_DISPLAY_FILENAME_LEN];
-        } diskSlots[MAX_DISK_DEVICES];
-
-        // adamnet_recv_buffer((uint8_t *)&diskSlots, sizeof(diskSlots));
-        memcpy((uint8_t *)&diskSlots, data_buffer, sizeof(diskSlots));
-
-        // Load the data into our current device array
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
-                _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
-
-        // Save the data to disk
-        _populate_config_from_slots();
-        Config.save();
-}
-
-// Temporary(?) function while we move from old config storage to new
-void iwmFuji::_populate_slots_from_config()
-{
-        for (int i = 0; i < MAX_HOSTS; i++)
-        {
-                if (Config.get_host_type(i) == fnConfig::host_types::HOSTTYPE_INVALID)
-                        _fnHosts[i].set_hostname("");
-                else
-                        _fnHosts[i].set_hostname(Config.get_host_name(i).c_str());
-        }
-
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
-        {
-                _fnDisks[i].reset();
-
-                if (Config.get_mount_host_slot(i) != HOST_SLOT_INVALID)
-                {
-                        if (Config.get_mount_host_slot(i) >= 0 && Config.get_mount_host_slot(i) <= MAX_HOSTS)
-                        {
-                                strlcpy(_fnDisks[i].filename, Config.get_mount_path(i).c_str(), sizeof(fujiDisk::filename));
-                                _fnDisks[i].host_slot = Config.get_mount_host_slot(i);
-                                if (Config.get_mount_mode(i) == fnConfig::mount_modes::MOUNTMODE_WRITE)
-                                        _fnDisks[i].access_mode = DISK_ACCESS_MODE_WRITE;
-                                else
-                                        _fnDisks[i].access_mode = DISK_ACCESS_MODE_READ;
-                        }
-                }
-        }
-}
-
-// Temporary(?) function while we move from old config storage to new
-void iwmFuji::_populate_config_from_slots()
-{
-        for (int i = 0; i < MAX_HOSTS; i++)
-        {
-                fujiHostType htype = _fnHosts[i].get_type();
-                const char *hname = _fnHosts[i].get_hostname();
-
-                if (hname[0] == '\0')
-                {
-                        Config.clear_host(i);
-                }
-                else
-                {
-                        Config.store_host(i, hname, htype == HOSTTYPE_TNFS ? fnConfig::host_types::HOSTTYPE_TNFS : fnConfig::host_types::HOSTTYPE_SD);
-                }
-        }
-
-        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
-        {
-                if (_fnDisks[i].host_slot >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
-                        Config.clear_mount(i);
-                else
-                        Config.store_mount(i, _fnDisks[i].host_slot, _fnDisks[i].filename,
-                                                           _fnDisks[i].access_mode == DISK_ACCESS_MODE_WRITE ? fnConfig::mount_modes::MOUNTMODE_WRITE : fnConfig::mount_modes::MOUNTMODE_READ);
-        }
-}
-
-// Write a 256 byte filename to the device slot
-uint8_t iwmFuji::iwm_ctrl_set_device_filename()
-{
-        uint8_t err_return = SP_ERR_NOERROR;
-        char f[MAX_FILENAME_LEN];
-        int idx = 0;
-        uint8_t deviceSlot = data_buffer[idx++];
-        uint8_t host = data_buffer[idx++];
-        uint8_t mode = data_buffer[idx++];
-
-        uint16_t s = data_len;
-        s -= 3;         // remove 3 bytes for other args
-
-        Debug_printf("\nSET DEVICE SLOT: %d, HOST: %d, MODE: %d", deviceSlot, host, mode);
-
-        memcpy((uint8_t *)&f, &data_buffer[idx], s);
-        Debug_printf("\nfilename: %s", f);
-
-        if (deviceSlot < MAX_DISK_DEVICES) {
-                memcpy(_fnDisks[deviceSlot].filename, f, MAX_FILENAME_LEN);
-
-        // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
-        if (strlen(_fnDisks[deviceSlot].filename) == 0) {
-            _fnDisks[deviceSlot].host_slot = INVALID_HOST_SLOT;
-        } else {
-            _fnDisks[deviceSlot].host_slot = host;
-        }
-
-                _fnDisks[deviceSlot].access_mode = mode;
-                _populate_config_from_slots();
-        }
-        else
-        {
-                Debug_println("\nBAD DEVICE SLOT");
-                err_return = SP_ERR_BADCTL;
-        }
-        return err_return;
-}
-
-// Get a 256 byte filename from device slot
-void iwmFuji::iwm_stat_get_device_filename(uint8_t s)
-{
-        int d = s - 160;
-
-        if (s == 0xDA)
-        {
-                Debug_print("Get filename generic unsupported for SmartPort\r\n");
-                return;
-        }
-
-        Debug_printf("Get Filename for Drive %i: %s\r\n", d, _fnDisks[d].filename);
-        data_len = MAX_FILENAME_LEN;
-        memcpy(data_buffer, _fnDisks[d].filename, data_len);
-}
-
-// Mounts the desired boot disk number
-void iwmFuji::insert_boot_device(uint8_t d)
-{
-        const char *boot_img = nullptr;
-        fnFile *fBoot = nullptr;
-        DEVICE_TYPE *disk_dev = get_disk_dev(0);
-
-        switch (d)
-        {
-        case 0:
-                boot_img = "/autorun.po";
-                fBoot = fsFlash.fnfile_open(boot_img);
-                break;
-        case 1:
-                boot_img = "/mount-and-boot.po";
-                fBoot = fsFlash.fnfile_open(boot_img);
-                break;
-        case 2:
-                Debug_printf("Mounting lobby server\n");
-                if (!fnTNFS.is_started())
-                {
-                Debug_printf("Starting TNFS connection\n");
-                        if (!fnTNFS.start("tnfs.fujinet.online"))
-                        {
-                Debug_printf("TNFS failed to start.\n");
-                return;
-            }
-                }
-
-                Debug_printf("opening lobby.\n");
-                boot_img = "/APPLE2/_lobby.po";
-                fBoot = fnTNFS.fnfile_open(boot_img);
-                break;
-        default:
-                Debug_printf("Invalid boot mode: %d\n", d);
-                return;
-        }
-
-        if (fBoot == nullptr)
-        {
-                Debug_printf("Failed to open boot disk image: %s\n", boot_img);
-                return;
-        }
-
-        disk_dev->mount(fBoot, boot_img, 143360, MEDIATYPE_PO);
-        disk_dev->is_config_device = true;
 }
 
 void iwmFuji::iwm_ctrl_enable_device()
@@ -1328,13 +301,10 @@ void iwmFuji::iwm_ctrl_disable_device()
         SYSTEM_BUS.disableDevice(d);
 }
 
-iwmDisk *iwmFuji::bootdisk() { return _bootDisk; }
-
 // Initializes base settings and adds our devices to the SIO bus
 void iwmFuji::setup()
 {
-        // set up Fuji device
-        _populate_slots_from_config();
+        populate_slots_from_config();
 
         // Disable booting from CONFIG if our settings say to turn it off
         boot_config = false; // to do - understand?
@@ -1362,19 +332,9 @@ void iwmFuji::setup()
         }
 
         Debug_printf("\nConfig General Boot Mode: %u\n", Config.get_general_boot_mode());
-        insert_boot_device(Config.get_general_boot_mode());
+        insert_boot_device(Config.get_general_boot_mode(), IMAGE_EXTENSION,
+                           MEDIATYPE_PO, get_disk_dev(0));
 
-}
-
-int iwmFuji::get_disk_id(int drive_slot) { return 0; }
-std::string iwmFuji::get_host_prefix(int host_slot) { return std::string(); }
-
-// Public method to update host in specific slot
-fujiHost *iwmFuji::set_slot_hostname(int host_slot, char *hostname)
-{
-    _fnHosts[host_slot].set_hostname(hostname);
-    _populate_config_from_slots();
-    return &_fnHosts[host_slot];
 }
 
 void iwmFuji::send_status_reply_packet()
@@ -1480,7 +440,7 @@ void iwmFuji::process(iwm_decoded_cmd_t cmd)
 void iwmFuji::handle_ctl_eject(uint8_t spid)
 {
         int ds = 255;
-        for (int i = 0; i < MAX_DISK_DEVICES; i++)
+        for (int i = 0; i < MAX_A2DISK_DEVICES; i++)
         {
                 if (theFuji->get_disk_dev(i)->id() == spid)
                 {
@@ -1492,7 +452,7 @@ void iwmFuji::handle_ctl_eject(uint8_t spid)
                 theFuji->get_disk(ds)->reset();
                 Config.clear_mount(ds);
                 Config.save();
-                theFuji->_populate_slots_from_config();
+                theFuji->populate_slots_from_config();
         }
 }
 
@@ -1552,44 +512,50 @@ void iwmFuji::iwm_ctrl_qrcode_input()
     Debug_printf("FUJI: QRCODE INPUT (len: %d)\n", data_len);
     std::vector<uint8_t> data(data_len, 0);
     std::copy(&data_buffer[0], &data_buffer[0] + data_len, data.begin());
-    _qrManager.data += std::string((const char *)data.data(), data_len);
+    qrManager.in_buf += std::string((const char *)data.data(), data_len);
 }
 
 void iwmFuji::iwm_ctrl_qrcode_encode()
 {
-    uint8_t version = data_buffer[0] & 0b01111111;
-    uint8_t ecc_mode = data_buffer[1];
+    size_t out_len = 0;
+
+    qrManager.output_mode = 0;
+    qrManager.version = data_buffer[0] & 0b01111111;
+    qrManager.ecc_mode = data_buffer[1];
     bool shorten = data_buffer[2];
 
     Debug_printf("FUJI: QRCODE ENCODE\n");
-    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", version, ecc_mode, shorten ? "Y" : "N");
+    Debug_printf("QR Version: %d, ECC: %d, Shorten: %s\n", qrManager.version, qrManager.ecc_mode, shorten ? "Y" : "N");
 
-    std::string url = _qrManager.data;
+    std::string url = qrManager.in_buf;
 
     if (shorten) {
         url = fnHTTPD.shorten_url(url);
     }
 
-        _qrManager.version(version);
-        _qrManager.ecc((qr_ecc_t)ecc_mode);
-        _qrManager.output_mode = QR_OUTPUT_MODE_BINARY;
-        _qrManager.encode();
+    std::vector<uint8_t> p = QRManager::encode(
+        url.c_str(),
+        url.size(),
+        qrManager.version,
+        qrManager.ecc_mode,
+        &out_len
+    );
 
-    _qrManager.data.clear();
+    qrManager.in_buf.clear();
 
-    if (!_qrManager.code.size())
+    if (!out_len)
     {
         Debug_printf("QR code encoding failed\n");
         return;
     }
 
-    Debug_printf("Resulting QR code is: %u modules\n", _qrManager.code.size());
+    Debug_printf("Resulting QR code is: %u modules\n", out_len);
 }
 
 void iwmFuji::iwm_stat_qrcode_length()
 {
     Debug_printf("FUJI: QRCODE LENGTH\n");
-    size_t len = _qrManager.code.size();
+    size_t len = qrManager.out_buf.size();
         data_buffer[0] = (uint8_t)(len >> 0);
     data_buffer[1] = (uint8_t)(len >> 8);
         data_len = 2;
@@ -1602,11 +568,19 @@ void iwmFuji::iwm_ctrl_qrcode_output()
     uint8_t output_mode = data_buffer[0];
     Debug_printf("Output mode: %i\n", output_mode);
 
-    size_t len = _qrManager.code.size();
+    size_t len = qrManager.out_buf.size();
 
-    if (len && (output_mode != _qrManager.output_mode)) {
-                _qrManager.output_mode = (ouput_mode_t)output_mode;
-                _qrManager.encode();
+    if (len && (output_mode != qrManager.output_mode)) {
+        if (output_mode == QR_OUTPUT_MODE_BINARY) {
+            qrManager.to_binary();
+        }
+        else if (output_mode == QR_OUTPUT_MODE_ATASCII) {
+            qrManager.to_atascii();
+        }
+        else if (output_mode == QR_OUTPUT_MODE_BITMAP) {
+            qrManager.to_bitmap();
+        }
+        qrManager.output_mode = output_mode;
     }
 }
 
@@ -1615,11 +589,79 @@ void iwmFuji::iwm_stat_qrcode_output()
     Debug_printf("FUJI: QRCODE OUTPUT STAT\n");
         memset(data_buffer, 0, sizeof(data_buffer));
 
-        data_len = _qrManager.code.size();
-        memcpy(data_buffer, &_qrManager.code[0], data_len);
+        data_len = qrManager.out_buf.size();
+        memcpy(data_buffer, &qrManager.out_buf[0], data_len);
 
-        _qrManager.code.clear();
-    _qrManager.code.shrink_to_fit();
+        qrManager.out_buf.erase(qrManager.out_buf.begin(), qrManager.out_buf.begin() + data_len);
+    qrManager.out_buf.shrink_to_fit();
+}
+
+void iwmFuji::fujicmd_reset()
+{
+    send_status_reply_packet();
+    fujiDevice::fujicmd_reset();
+}
+
+void iwmFuji::fujicmd_close_directory()
+{
+    fujiDevice::fujicmd_close_directory();
+    fnSystem.delay(100); // add delay because bad traces
+}
+
+// For some reason the directory entry structure that is sent back
+// isn't standardized across platforms.
+typedef struct {
+    uint8_t year, month, day, hour, minute, second;
+    uint32_t file_size;
+#define DIR_ENTRY_FLAGS
+#ifdef DIR_ENTRY_FLAGS
+    uint8_t flags, truncated;
+#ifdef DIR_ENTRY_TYPE
+    uint8_t file_type;
+#endif /* DIR_ENTRY_TYPE */
+#endif /* DIR_ENTRY_FLAGS */
+}  __attribute__((packed)) DirEntAttrib;
+
+size_t iwmFuji::setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen)
+{
+    DirEntAttrib *attrib = (DirEntAttrib *) dest;
+
+
+    // File modified date-time
+    struct tm *modtime = localtime(&f->modified_time);
+    attrib->year = modtime->tm_year - 100;
+    attrib->month = modtime->tm_mon + 1;
+    attrib->day = modtime->tm_mday;
+    attrib->hour = modtime->tm_hour;
+    attrib->minute = modtime->tm_min;
+    attrib->second = modtime->tm_sec;
+
+    attrib->file_size = htole32(f->size);
+
+#ifdef DIR_ENTRY_FLAGS
+    // File flags
+#define FF_DIR 0x01
+#define FF_TRUNC 0x02
+
+    attrib->flags = f->isDir ? FF_DIR : 0;
+
+    maxlen -= sizeof(*attrib); // Adjust the max return value with the number of additional
+                              // bytes we're copying
+    if (f->isDir)             // Also subtract a byte for a terminating slash on directories
+        maxlen--;
+    attrib->truncated = strlen(f->filename) >= maxlen ? FF_TRUNC : 0;
+
+#ifdef DIR_ENTRY_TYPE
+    // File type
+    attrib->file_type = MediaType::discover_mediatype(f->filename);
+#endif /* DIR_ENTRY_TYPE */
+#endif /* DIR_ENTRY_FLAGS */
+
+    Debug_printf("Addtl: ");
+    for (int i = 0; i < sizeof(*attrib); i++)
+        Debug_printf("%02x ", dest[i]);
+    Debug_printf("\n");
+    return sizeof(*attrib);
 }
 
 #endif /* BUILD_APPLE */

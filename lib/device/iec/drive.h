@@ -49,7 +49,7 @@ class iecChannelHandler
 
 class iecChannelHandlerFile : public iecChannelHandler
 {
- public: 
+ public:
   iecChannelHandlerFile(iecDrive *drive, MStream *stream, int fixLoadAddress = -1);
   virtual ~iecChannelHandlerFile();
 
@@ -67,7 +67,7 @@ class iecChannelHandlerFile : public iecChannelHandler
 
 class iecChannelHandlerDir : public iecChannelHandler
 {
- public: 
+ public:
   iecChannelHandlerDir(iecDrive *drive, MFile *dir);
   virtual ~iecChannelHandlerDir();
 
@@ -76,7 +76,7 @@ class iecChannelHandlerDir : public iecChannelHandler
 
  private:
   void addExtraInfo(std::string title, std::string text);
-  
+
   MFile   *m_dir;
   uint8_t  m_headerLine;
   std::vector<std::string> m_headers;
@@ -105,7 +105,7 @@ class driveMemory
     return true;
   }
 
-  bool setROM(std::string filename) { 
+  bool setROM(std::string filename) {
     // Check for ROM file in SD Card then Flash
     auto rom_file = MFSOwner::File("/sd/.rom/" + filename);
     if (rom_file == nullptr) {
@@ -123,14 +123,14 @@ class driveMemory
     return true;
   }
 
-  size_t read(uint16_t addr, uint8_t *data, size_t len) 
+  size_t read(uint16_t addr, uint8_t *data, size_t len)
   {
     // RAM
     if ( addr < 0x0FFF )
     {
       if ( addr >= 0x0800 )
         addr -= 0x0800; // RAM Mirror
-    
+
       if (addr + len > ram.size()) {
         // Handle bounds error
         return 0;
@@ -151,7 +151,7 @@ class driveMemory
           addr -= 0xC000;
         else if ( addr >= 0x8000 )
           addr -= 0x8000; // ROM Mirror
-      
+
         rom->seek(addr, SEEK_SET);
         return rom->read(data, len);
       }
@@ -167,7 +167,7 @@ class driveMemory
     {
       if ( addr >= 0x0800 )
         addr -= 0x0800; // RAM Mirror
-    
+
       if (addr + len > ram.size()) {
         // Handle bounds error
         return;
@@ -202,7 +202,7 @@ class driveMemory
           addr -= 0xC000;
         else if ( addr >= 0x8000 )
           addr -= 0x8000; // ROM Mirror
-      
+
         //rom->seek(addr, SEEK_SET);
 
         // Translate ROM functions to virtual drive functions
@@ -238,6 +238,11 @@ class iecDrive : public IECFileDevice
   //bool device_active = true;
   //virtual bool isActive() { return device_active; }
 
+  // needed for fujiDevice compatibility
+  bool switched = false; //indicate disk switched condition
+  bool readonly = true;  //write protected
+  fujiHost *host = nullptr;
+  bool is_config_device = false;
 
  private:
   // open file "name" on channel
@@ -257,7 +262,7 @@ class iecDrive : public IECFileDevice
   virtual uint8_t read(uint8_t channel, uint8_t *buffer, uint8_t bufferSize, bool *eoi);
 
   // called when the bus master reads from channel 15 and the status
-  // buffer is currently empty. this should populate buffer with an appropriate 
+  // buffer is currently empty. this should populate buffer with an appropriate
   // status message bufferSize is the maximum allowed length of the message
   virtual void getStatus(char *buffer, uint8_t bufferSize);
 

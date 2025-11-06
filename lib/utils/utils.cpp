@@ -262,7 +262,7 @@ std::string util_entry(std::string crunched, size_t fileSize, bool is_dir, bool 
     else
     {
         snprintf(e, sizeof(e),
-            "%-8s %-3s %10u  %2u-%02u-%02u  %2u:%02u%c",
+            "%-8s %-3s %10lu  %2u-%02u-%02u  %2u:%02u%c",
             basename.c_str(),
             ext.c_str(),
             fileSize,

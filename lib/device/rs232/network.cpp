@@ -6,6 +6,7 @@
 
 #include "network.h"
 #include "fujiCommandID.h"
+#include "fujiDevice.h"
 
 #include <cstring>
 #include <algorithm>

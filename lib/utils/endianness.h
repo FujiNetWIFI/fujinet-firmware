@@ -1,4 +1,5 @@
-
+#ifndef USE_ENDIAN_H
+#warning Use endian.h
 // Retruns a uint16 value given two bytes in high-low order
 #define UINT16_FROM_HILOBYTES(high, low) ((uint16_t)high << 8 | low)
 
@@ -13,3 +14,4 @@
 #define HIBYTE_FROM_UINT16(value) ((uint8_t)((value >> 8) & 0xFF))
 // Returns the low byte (LSB) of a uint16 value
 #define LOBYTE_FROM_UINT16(value) ((uint8_t)(value & 0xFF))
+#endif /* USE_ENDIAN_H */

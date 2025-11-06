@@ -35,21 +35,27 @@ void mac_ll::setup_gpio()
 // =========================================================================================
 
 // https://docs.espressif.com/projects/esp-idf/en/v3.3.5/api-reference/peripherals/rmt.html
+#ifdef NOT_IWM_LL_SUBCLASSS
 #define RMT_TX_CHANNEL rmt_channel_t::RMT_CHANNEL_0
 #define RMT_USEC (APB_CLK_FREQ / MHZ)
+#endif /* NOT_IWM_LL_SUBCLASS */
 
 void mac_floppy_ll::start()
 {
   // floppy_ll.set_output_to_rmt();
   // floppy_ll.enable_output();
+#ifdef NOT_IWM_LL_SUBCLASSS
   ESP_ERROR_CHECK(fnRMT.rmt_write_bitstream(RMT_TX_CHANNEL, track_buffer[0], track_numbits[0], track_bit_period));
+#endif /* NOT_IWM_LL_SUBCLASS */
   fnLedManager.set(LED_BUS, true);
   Debug_printf("\nstart floppy");
 }
 
 void mac_floppy_ll::stop()
 {
+#ifdef NOT_IWM_LL_SUBCLASSS
   fnRMT.rmt_tx_stop(RMT_TX_CHANNEL);
+#endif /* NOT_IWM_LL_SUBCLASS */
   // floppy_ll.disable_output();
   fnLedManager.set(LED_BUS, false);
   Debug_printf("\nstop floppy");
@@ -105,7 +111,6 @@ void IRAM_ATTR encode_rmt_bitstream(const void* src, rmt_item32_t* dest, size_t 
     *item_num = wanted_num;
 }
 
-
 /*
  * Initialize the RMT Tx channel
  */
@@ -123,14 +128,6 @@ void mac_floppy_ll::setup_rmt()
   config.channel = RMT_TX_CHANNEL;
 
  config.gpio_num = (gpio_num_t)SP_WRDATA;
-// #ifdef RMTTEST
-//   config.gpio_num = (gpio_num_t)SP_EXTRA;
-// #else
-//   if(fnSystem.hasbuffer())
-//     config.gpio_num = (gpio_num_t)SP_RDDATA;
-//   else
-//     config.gpio_num = (gpio_num_t)PIN_SD_HOST_MOSI;
-// #endif
 
   config.mem_block_num = 1;
   config.tx_config.loop_en = false;
@@ -143,6 +140,7 @@ void mac_floppy_ll::setup_rmt()
   ESP_ERROR_CHECK(fnRMT.rmt_driver_install(config.channel, 0, ESP_INTR_FLAG_IRAM));
   ESP_ERROR_CHECK(fnRMT.rmt_translator_init(config.channel, encode_rmt_bitstream));
 }
+#endif /* NOT_IWM_LL_SUBCLASS */
 
 bool IRAM_ATTR mac_floppy_ll::nextbit()
 {

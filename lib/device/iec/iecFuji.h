@@ -1,19 +1,23 @@
 #ifdef BUILD_IEC
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef IECFUJI_H
+#define IECFUJI_H
 
 #include "fujiDevice.h"
 
+#ifdef NOT_SUBCLASS
 #include <cstdint>
 #include <cstring>
 
 #include "bus.h"
 #include "network.h"
 #include "cassette.h"
+#endif /* NOT_SUBCLASS */
 #include "fnWiFi.h"
 
+#ifdef NOT_SUBCLASS
 #include "../fuji/fujiHost.h"
 #include "../fuji/fujiDisk.h"
+#include "../fuji/fujiCmd.h"
 
 #include "hash.h"
 
@@ -28,7 +32,9 @@ typedef struct
     char ssid[MAX_SSID_LEN + 1];
     char password[MAX_PASSPHRASE_LEN + 1];
 } net_config_t;
+#endif /* NOT_SUBCLASS */
 
+// Isn't this something global to all IEC devices and should be part of the bus?
 typedef enum
 {
     DEVICE_ERROR = -1,
@@ -40,10 +46,17 @@ typedef enum
 } device_state_t;
 
 
-class iecFuji : public IECDevice
+class iecFuji : public fujiDevice
 {
-//private:
 protected:
+    void transaction_complete() override {}
+    void transaction_error() override {}
+    bool transaction_get(void *data, size_t len) override {return false;}
+    void transaction_put(void *data, size_t len, bool err) override {}
+
+#ifdef UNUSED
+    systemBus *_bus;
+
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DISK_DEVICES];
@@ -57,10 +70,13 @@ protected:
     uint8_t _countScannedSSIDs = 0;
 
     appkey _current_appkey;
+#endif /* UNUSED */
 
     AdapterConfig cfg;
 
+#ifdef UNUSED
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+#endif /* UNUSED */
 
     std::vector<std::string> pt;
     std::string payloadRaw, payload, response;
@@ -77,14 +93,15 @@ protected:
 
     bool validate_parameters_and_setup(uint8_t& maxlen, uint8_t& addtlopts);
     bool validate_directory_slot();
+#ifdef NOT_SUBCLASS
     std::string process_directory_entry(uint8_t maxlen, uint8_t addtlopts);
+#endif /* NOT_SUBCLASS */
 
     // track what our current command is, -1 is none being processed.
     int current_fuji_cmd = -1;
     // track the last command for the status
     int last_command = -1;
 
-//protected:
     virtual void talk(uint8_t secondary) override;
     virtual void listen(uint8_t secondary) override;
     virtual void untalk() override;
@@ -99,115 +116,161 @@ protected:
     // is the cmd supported by RAW?
     bool is_supported(uint8_t cmd);
 
+#ifdef UNUSED
     // 0xFF
     void reset_device();
+#endif /* UNUSED */
 
     // 0xFE
+#ifdef NOT_SUBCLASS
     net_config_t net_get_ssid();
+#endif /* NOT_SUBCLASS */
     void net_get_ssid_basic();
     void net_get_ssid_raw();
 
     // 0xFD
+#ifdef NOT_SUBCLASS
     void net_scan_networks();
+#endif /* NOT_SUBCLASS */
     void net_scan_networks_basic();
     void net_scan_networks_raw();
 
     // 0xFC
+#ifdef NOT_SUBCLASS
     scan_result_t net_scan_result(int scan_num);
+#endif /* NOT_SUBCLASS */
     void net_scan_result_basic();
     void net_scan_result_raw();
 
     // 0xFB
+#ifdef NOT_SUBCLASS
     void net_set_ssid(bool store, net_config_t& net_config);
+#endif /* NOT_SUBCLASS */
     void net_set_ssid_basic(bool store = true);
     void net_set_ssid_raw(bool store = true);
 
     // 0xFA
+#ifdef NOT_SUBCLASS
     uint8_t net_get_wifi_status();
+#endif /* NOT_SUBCLASS */
     void net_get_wifi_status_basic();
     void net_get_wifi_status_raw();
 
     // 0xF9
+#ifdef NOT_SUBCLASS
     bool mount_host(int hs);
+#endif /* NOT_SUBCLASS */
     void mount_host_basic();
     void mount_host_raw();
 
     // 0xF8
-    bool disk_image_mount(uint8_t ds, uint8_t mode);
-    void disk_image_mount_basic();
-    void disk_image_mount_raw();
+#ifdef NOT_SUBCLASS
+    bool mount_disk_image(uint8_t ds, uint8_t mode);
+#endif /* NOT_SUBCLASS */
+    void mount_disk_image_basic();
+    void mount_disk_image_raw();
 
     // 0xF7
+#ifdef NOT_SUBCLASS
     bool open_directory(uint8_t hs, std::string dirpath, std::string pattern);
+#endif /* NOT_SUBCLASS */
     void open_directory_basic();
     void open_directory_raw();
 
     // 0xF6
+#ifdef NOT_SUBCLASS
     std::string read_directory_entry(uint8_t maxlen, uint8_t addtlopts);
+#endif /* NOT_SUBCLASS */
     void read_directory_entry_basic();
     void read_directory_entry_raw();
 
     // 0xF5
+#ifdef NOT_SUBCLASS
     void close_directory();
+#endif /* NOT_SUBCLASS */
     void close_directory_basic();
     void close_directory_raw();
 
     // 0xF4
-    // void read_host_slots(); // all handled in the basic/raw versions as they differ in functionality
+#ifdef NOT_SUBCLASS
+    void read_host_slots(); // all handled in the basic/raw versions as they differ in functionality
+#endif /* NOT_SUBCLASS */
     void read_host_slots_basic();
     void read_host_slots_raw();
 
     // 0xF3
-    // void write_host_slots(); // all handled in the basic/raw versions as they differ in functionality
+#ifdef NOT_SUBCLASS
+    void write_host_slots(); // all handled in the basic/raw versions as they differ in functionality
+#endif /* NOT_SUBCLASS */
     void write_host_slots_basic();
     void write_host_slots_raw();
 
     // 0xF2
-    // void read_device_slots();  // all handled in the basic/raw versions as they differ in functionality
+#ifdef NOT_SUBCLASS
+    void read_device_slots();  // all handled in the basic/raw versions as they differ in functionality
+#endif /* NOT_SUBCLASS */
     void read_device_slots_basic();
     void read_device_slots_raw();
 
     // 0xF1
+#ifdef NOT_SUBCLASS
     void write_device_slots();
+#endif /* NOT_SUBCLASS */
     void write_device_slots_basic();
     void write_device_slots_raw();
 
     // 0xF0
+#ifdef NOT_SUBCLASS
     void enable_udpstream();
+#endif /* NOT_SUBCLASS */
 
     // 0xEA
+#ifdef NOT_SUBCLASS
     uint8_t net_get_wifi_enabled();
+#endif /* NOT_SUBCLASS */
     void net_get_wifi_enabled_raw();
 
     // 0xE9
-    bool disk_image_umount(uint8_t deviceSlot);
-    void disk_image_umount_basic();
-    void disk_image_umount_raw();
+#ifdef NOT_SUBCLASS
+    bool unmount_disk_image(uint8_t deviceSlot);
+#endif /* NOT_SUBCLASS */
+    void unmount_disk_image_basic();
+    void unmount_disk_image_raw();
 
     // 0xE8
+#ifdef NOT_SUBCLASS
     void get_adapter_config();
+#endif /* NOT_SUBCLASS */
     void get_adapter_config_basic();
     void get_adapter_config_raw();
 
     // 0xC4
+#ifdef NOT_SUBCLASS
     AdapterConfigExtended get_adapter_config_extended();
+#endif /* NOT_SUBCLASS */
     void get_adapter_config_extended_raw();
 
     // 0xE7
     void new_disk();
 
     // 0xE6
+#ifdef NOT_SUBCLASS
     bool unmount_host(uint8_t hs);
+#endif /* NOT_SUBCLASS */
     void unmount_host_basic();
     void unmount_host_raw();
 
     // 0xE5
+#ifdef NOT_SUBCLASS
     uint16_t get_directory_position();
+#endif /* NOT_SUBCLASS */
     void get_directory_position_basic();
     void get_directory_position_raw();
 
     // 0xE4
+#ifdef NOT_SUBCLASS
     bool set_directory_position(uint16_t pos);
+#endif /* NOT_SUBCLASS */
     void set_directory_position_basic();
     void set_directory_position_raw();
 
@@ -215,54 +278,78 @@ protected:
     void set_hindex();
 
     // 0xE2
+#ifdef NOT_SUBCLASS
     void set_device_filename(uint8_t slot, uint8_t host, uint8_t mode, std::string filename);
+#endif /* NOT_SUBCLASS */
     void set_device_filename_basic();
     void set_device_filename_raw();
 
     // 0xE1
+#ifdef NOT_SUBCLASS
     void set_host_prefix();
+#endif /* NOT_SUBCLASS */
 
     // 0xE0
+#ifdef NOT_SUBCLASS
     void get_host_prefix();
+#endif /* NOT_SUBCLASS */
 
     // 0xDF
+#ifdef NOT_SUBCLASS
     void set_external_clock();
+#endif /* NOT_SUBCLASS */
 
     // 0xDE
+#ifdef NOT_SUBCLASS
     int write_app_key(std::vector<uint8_t>&& value);
+#endif /* NOT_SUBCLASS */
     void write_app_key_basic();
     void write_app_key_raw();
 
     // 0xDD
+#ifdef NOT_SUBCLASS
     int read_app_key(char *filename, std::vector<uint8_t>& file_data);
+#endif /* NOT_SUBCLASS */
     void read_app_key_basic();
     void read_app_key_raw();
 
     // 0xDC
+#ifdef NOT_SUBCLASS
     void open_app_key(uint16_t creator, uint8_t app, uint8_t key, appkey_mode mode, uint8_t reserved);
+#endif /* NOT_SUBCLASS */
     void open_app_key_basic();
     void open_app_key_raw();
 
     // 0xDB
+#ifdef NOT_SUBCLASS
     void close_app_key();
+#endif /* NOT_SUBCLASS */
     void close_app_key_basic();
     void close_app_key_raw();
 
     // 0xDA
+#ifdef NOT_SUBCLASS
     std::string get_device_filename(uint8_t ds);
+#endif /* NOT_SUBCLASS */
     void get_device_filename_basic();
     void get_device_filename_raw();
 
     // 0xD9
+#ifdef NOT_SUBCLASS
     void set_boot_config(bool should_boot_config);
+#endif /* NOT_SUBCLASS */
     void set_boot_config_basic();
     void set_boot_config_raw();
 
     // 0xD8
+#ifdef NOT_SUBCLASS
     void copy_file();
+#endif /* NOT_SUBCLASS */
 
     // 0xD6
+#ifdef NOT_SUBCLASS
     void set_boot_mode(uint8_t boot_device, bool should_boot_config);
+#endif /* NOT_SUBCLASS */
     void set_boot_mode_basic();
     void set_boot_mode_raw();
 
@@ -302,11 +389,13 @@ protected:
     void enable_device_basic();
     void disable_device_basic();
 
+#ifdef UNUSED
     int appkey_size = 64;
     std::map<int, int> mode_to_keysize = {
         {0, 64},
         {2, 256}
     };
+#endif /* UNUSED */
     bool check_appkey_creator(bool check_is_write);
 
     void set_fuji_iec_status(int8_t error, const std::string msg) {
@@ -358,6 +447,7 @@ protected:
     device_state_t state;
 
 public:
+#ifdef UNUSED
     bool boot_config = true;
 
     bool status_wait_enabled = true;
@@ -367,9 +457,11 @@ public:
     iecDrive *bootdisk();
 
     void insert_boot_device(uint8_t d);
+#endif /* UNUSED */
 
     void setup();
 
+#ifdef UNUSED
     void image_rotate();
     int get_disk_id(int drive_slot);
     std::string get_host_prefix(int host_slot);
@@ -388,11 +480,10 @@ public:
     // must be a global variable
     bool device_active = true;
     virtual bool isActive() { return device_active; }
+#endif /* UNUSED */
 
     iecFuji();
 };
 
-extern iecFuji *theFuji;
-
-#endif // FUJI_H
-#endif
+#endif // IECFUJI_H
+#endif /* BUILD_IEC */

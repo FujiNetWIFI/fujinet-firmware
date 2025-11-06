@@ -154,6 +154,8 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
+    bool switched = false; //indicate disk switched condition
+    bool readonly = false;  //write protected
 
     /**
      * @brief status wait counter
@@ -251,4 +253,4 @@ public:
 
 extern systemBus SYSTEM_BUS;
 
-#endif // guard
+#endif /* RS232_H */

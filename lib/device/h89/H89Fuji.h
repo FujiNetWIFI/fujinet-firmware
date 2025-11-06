@@ -1,5 +1,7 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef H89FUJI_H
+#define H89FUJI_H
+
+#include "fujiDevice.h"
 
 #include <cstdint>
 
@@ -113,4 +115,4 @@ public:
 
 extern H89Fuji *theFuji;
 
-#endif // FUJI_H
+#endif // H89FUJI_H

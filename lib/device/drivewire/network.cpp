@@ -5,6 +5,7 @@
  */
 
 #include "network.h"
+#include "fuji_endian.h"
 
 #include <cstring>
 #include <algorithm>
@@ -17,6 +18,7 @@
 
 #include "status_error_codes.h"
 #include "Protocol.h"
+#ifdef UNUSED
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -26,23 +28,10 @@
 #include "HTTP.h"
 #include "SSH.h"
 #include "SMB.h"
-#include "fuji_endian.h"
+#endif /* UNUSED */
+#include "IOChannel.h" // for GET_TIMESTAMP()
 
 using namespace std;
-
-/**
- * Static callback function for the interrupt rate limiting timer. It sets the interruptCD
- * flag to true. This is set to false when the interrupt is serviced.
- */
-#ifdef ESP_PLATFORM
-void onTimer(void *info)
-{
-    drivewireNetwork *parent = (drivewireNetwork *)info;
-    portENTER_CRITICAL_ISR(&parent->timerMux);
-    parent->interruptCD = !parent->interruptCD;
-    portEXIT_CRITICAL_ISR(&parent->timerMux);
-}
-#endif
 
 /**
  * Constructor
@@ -348,7 +337,7 @@ void drivewireNetwork::write()
         return;
     }
 
-    Debug_printf("sioNetwork::drivewire_write( %u bytes)\n", num_bytes);
+    Debug_printf("drivewireNetwork::drivewire_write( %u bytes)\n", num_bytes);
 
     // If protocol isn't connected, then return not connected.
     if (protocol == nullptr)
@@ -420,7 +409,9 @@ void drivewireNetwork::status_local()
     NDeviceStatus status {};
 
 
-    Debug_printf("drivewireNetwork::sio_status_local(%u)\n", cmdFrame.aux2);
+#ifdef TOO_MUCH_DEBUG
+    Debug_printf("drivewireNetwork::status_local(%u)\n", cmdFrame.aux2);
+#endif /* TOO_MUCH_DEBUG */
 
     fnSystem.Net.get_ip4_info((uint8_t *)ipAddress, (uint8_t *)ipNetmask, (uint8_t *)ipGateway);
     fnSystem.Net.get_ip4_dns_info((uint8_t *)ipDNS);
@@ -457,7 +448,6 @@ bool drivewireNetwork::status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? 1 : 136;
-    ns->rxBytesWaiting = json_bytes_remaining;
     return false; // for now
 }
 
@@ -468,7 +458,9 @@ void drivewireNetwork::status_channel()
 {
     NDeviceStatus status;
 
-    Debug_printf("drivewireNetwork::sio_status_channel(%u)\n", channelMode);
+#ifdef TOO_MUCH_DEBUG
+    Debug_printf("drivewireNetwork::status_channel(%u)\n", channelMode);
+#endif /* TOO_MUCH_DEBUG */
 
     switch (channelMode)
     {
@@ -484,11 +476,8 @@ void drivewireNetwork::status_channel()
         status_channel_json(&ns);
         break;
     }
-    // clear forced flag (first status after open)
-    protocol->forceStatus = false;
 
-    // Serialize status into status bytes (rxBytesWaiting sent big endian!)
-    size_t avail = ns.rxBytesWaiting;
+    size_t avail = protocol->available();
     avail = avail > 65535 ? 65535 : avail;
     status.avail = htobe16(avail);
     status.conn = ns.connected;
@@ -535,7 +524,7 @@ void drivewireNetwork::set_prefix()
 
     prefixSpec_str = string((const char *)tmp);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
-    Debug_printf("sioNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
+    Debug_printf("drivewireNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
 
     // If "NCD Nn:" then prefix is cleared completely
     if (prefixSpec_str.empty())
@@ -869,56 +858,12 @@ void drivewireNetwork::special_80()
  */
 bool drivewireNetwork::instantiate_protocol()
 {
-    if (urlParser == nullptr)
+    if (!protocolParser)
     {
-        Debug_printf("drivewireNetwork::open_protocol() - urlParser is NULL. Aborting.\n");
-        return false; // error.
+        protocolParser = new ProtocolParser();
     }
 
-    // Convert to uppercase
-    transform(urlParser->scheme.begin(), urlParser->scheme.end(), urlParser->scheme.begin(), ::toupper);
-
-    if (urlParser->scheme == "TCP")
-    {
-        protocol = new NetworkProtocolTCP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "UDP")
-    {
-        protocol = new NetworkProtocolUDP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TEST")
-    {
-        protocol = new NetworkProtocolTest(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TELNET")
-    {
-        protocol = new NetworkProtocolTELNET(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "TNFS")
-    {
-        protocol = new NetworkProtocolTNFS(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "FTP")
-    {
-        protocol = new NetworkProtocolFTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "HTTP" || urlParser->scheme == "HTTPS")
-    {
-        protocol = new NetworkProtocolHTTP(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SSH")
-    {
-        protocol = new NetworkProtocolSSH(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else if (urlParser->scheme == "SMB")
-    {
-        protocol = new NetworkProtocolSMB(receiveBuffer, transmitBuffer, specialBuffer);
-    }
-    else
-    {
-        Debug_printf("Invalid protocol: %s\n", urlParser->scheme.c_str());
-        return false; // invalid protocol.
-    }
+    protocol = protocolParser->createProtocol(urlParser->scheme, receiveBuffer, transmitBuffer, specialBuffer, &login, &password);
 
     if (protocol == nullptr)
     {
@@ -926,70 +871,21 @@ bool drivewireNetwork::instantiate_protocol()
         return false;
     }
 
-    if (!login.empty())
-    {
-        protocol->login = &login;
-        protocol->password = &password;
-    }
-
-    Debug_printf("drivewireNetwork::open_protocol() - Protocol %s opened.\n", urlParser->scheme.c_str());
+    Debug_printf("drivewireNetwork::instantiate_protocol() - Protocol %s created.\n", urlParser->scheme.c_str());
     return true;
-}
-
-/**
- * Called to pulse the PROCEED interrupt, rate limited by the interrupt timer.
- */
-void drivewireNetwork::assert_interrupt()
-{
-#ifdef ESP_PLATFORM
-    fnSystem.digital_write(PIN_CD, interruptCD == true ? DIGI_HIGH : DIGI_LOW);
-#else
-/* TODO: We'll get to this at a future date.
-
-    uint64_t ms = fnSystem.millis();
-    if (ms - lastInterruptMs >= timerRate)
-    {
-        interruptCD = !interruptCD;
-        fnSioCom.set_proceed(interruptCD);
-        lastInterruptMs = ms;
-    }
-    */
-#endif
 }
 
 /**
  * Check to see if PROCEED needs to be asserted, and assert if needed (continue toggling PROCEED).
  */
-void drivewireNetwork::poll_interrupt()
+bool drivewireNetwork::poll_interrupt()
 {
-    if (protocol != nullptr)
-    {
-        if (protocol->interruptEnable == false)
-            return;
-
-        /* assert interrupt if we need Status call from host to arrive */
-        if (protocol->forceStatus == true)
-        {
-            assert_interrupt();
-            return;
-        }
-
-        protocol->fromInterrupt = true;
-        protocol->status(&ns);
-        protocol->fromInterrupt = false;
-
-        if (ns.rxBytesWaiting > 0 || ns.connected == 0)
-            assert_interrupt();
-#ifndef ESP_PLATFORM
-else
-/* TODO: We'll get to this at a future date.
-            sio_clear_interrupt();
- */
-#endif
-
-        reservedSave = ns.connected;
-        errorSave = ns.error;
-    }
+    if (!protocol)
+        return false;
+    uint32_t now = GET_TIMESTAMP();
+    if (now - readAck < 5000)
+        return false;
+    return protocol->available() > 0;
 }
 
 void drivewireNetwork::send_error()
@@ -1224,7 +1120,7 @@ void drivewireNetwork::json_query()
 
 void drivewireNetwork::do_idempotent_command_80()
 {
-    Debug_printf("sioNetwork::do_idempotent_command_80()\r\n");
+    Debug_printf("drivewireNetwork::do_idempotent_command_80()\r\n");
 
     parse_and_instantiate_protocol();
 

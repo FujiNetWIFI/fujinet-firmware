@@ -52,7 +52,7 @@ public:
     const char* get_basepath();
 
     bool mount();
-    bool umount();
+    bool unmount_success();
 
     // Host prefixes are used for host file operations that take a path (file_exists, file_open, dir_open)
     void set_prefix(const char *prefix);

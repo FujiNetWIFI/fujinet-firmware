@@ -66,7 +66,6 @@
 
 #ifdef BUILD_COCO
 #include "drivewire/drivewire.h"
-#define FN_BUS_PORT fnDwCom
 #endif
 
 #endif // BUS_H

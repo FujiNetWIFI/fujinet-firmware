@@ -2,20 +2,22 @@
 #ifndef MAC_LL_H
 #define MAC_LL_H
 
-// #include <queue> 
-#include <driver/gpio.h> 
+// #include <queue>
+#include <driver/gpio.h>
 #include <esp_idf_version.h>
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
   #include <hal/gpio_ll.h>
 #endif
 // #include <driver/spi_master.h>
-// #include <freertos/semphr.h> 
+// #include <freertos/semphr.h>
 
 #include "../../include/pinmap.h"
+#ifdef NOT_IWM_LL_SUBCLASSS
 #include "fnRMTstream.h"
+#endif /* NOT_IWM_LL_SUBCLASS */
 
 // // #define SPI_II_LEN 27000        // 200 ms at 1 mbps for disk ii + some extra
-#define TRACK_LEN 10000              // guess for MOOF - should probably read it from MOOF file          
+#define TRACK_LEN 10000              // guess for MOOF - should probably read it from MOOF file
 // #define SPI_SP_LEN 6000         // should be long enough for 20.1 ms (for SoftSP) + some margin - call it 22 ms. 2051282*.022 =  45128.204 bits / 8 = 5641.0255 bytes
 // #define BLOCK_PACKET_LEN    604 //606
 
@@ -47,9 +49,9 @@
 // extern volatile sp_cmd_state_t sp_command_mode;
 
 /** ACK and REQ - Apple ][]
- * 
+ *
  * SmartPort ACK and REQ lines are used in a return-to-zero 4-phase handshake sequence.
- * 
+ *
  * how ACK works, my interpretation of the iigs firmware reference.
  * ACK is normally high-Z (deasserted) when device is ready to receive commands.
  * host will send (assert) REQ high to make a request and send a command.
@@ -57,27 +59,27 @@
  * host completes command handshake by sending REQ low (deassert).
  * device signals its ready for the next step (receive/send/status)
  * by sending ACK back high (deassert).
- * 
+ *
  * The sequence is:
- * 
+ *
  * step   REQ         ACK               smartport state
  * 0      deassert    deassert          idle
  * 1      assert      deassert          enabled, apple ii sending command or data to peripheral
  * 2      assert      assert            peripheral acknowledges it received data
  * 3      deassert    assert            apple ii does it's part to return to idle, peripheral is processing command or data
  * 0      deassert    deassert          peripheral returns to idle when it's ready for another command
- * 
+ *
  * Electrically, how ACK works with multiple devices on bus:
  * ACK is normally high-Z (pulled up?)
  * when a device receives a command addressed to it, and it is ready
  * to respond, it'll send ACK low. (To me, this seems like a perfect
  * scenario for open collector output but I think it's a 3-state line)
- * 
+ *
  * possible circuits:
  * Disk II physical interface - ACK uses the WPROT line, which is a tri-state ls125 buffer on the
- * Disk II analog card. There's no pull up/down/load resistor. This line drives the /SR input of the 
- * ls323 on the bus interface card. I surmise that WPROT goes low or is hi-z, which doesn't 
- * reset the ls125.  
+ * Disk II analog card. There's no pull up/down/load resistor. This line drives the /SR input of the
+ * ls323 on the bus interface card. I surmise that WPROT goes low or is hi-z, which doesn't
+ * reset the ls125.
  */
 
 class mac_ll
@@ -96,7 +98,7 @@ public:
 
 // class iwm_sp_ll : public iwm_ll
 // {
-// private:  
+// private:
 //   void set_output_to_spi();
 
 //   // SPI data handling
@@ -107,11 +109,11 @@ public:
 //   // SPI receiver
 //   spi_transaction_t rxtrans;
 //   spi_device_handle_t spirx;
-//   /** SPI data clock 
+//   /** SPI data clock
 //    * N  Clock MHz   /8 Bit rate (kHz)    Bit/Byte period (us)
-//    * 39	2.051282051	256.4102564	        3.9	31.2          256410 is only 0.3% faster than 255682
-//    * 40	2	          250.	                4.0	32
-//    * 41	1.951219512	243.902439	          4.1	32.8
+//    * 39      2.051282051     256.4102564             3.9     31.2          256410 is only 0.3% faster than 255682
+//    * 40      2                 250.                  4.0     32
+//    * 41      1.951219512     243.902439                4.1   32.8
 //   **/
 //   // const int f_spirx = APB_CLK_FREQ / 39; // 2051282 Hz or 2052kHz or 2.052 MHz - works for NTSC but ...
 //   const int f_spirx = APB_CLK_FREQ / 40; // 2 MHz - need slower rate for PAL
@@ -157,7 +159,7 @@ public:
 
 //   // hardware configuration setup
 //   void setup_spi();
-  
+
 // };
 
 // TO DO - enable/disable output
@@ -170,7 +172,9 @@ class mac_floppy_ll : public mac_ll
 {
 private:
   // RMT data handling
+#ifdef NOT_IWM_LL_SUBCLASSS
   fn_rmt_config_t config;
+#endif /* NOT_IWM_LL_SUBCLASS */
 
   // track bit information
   uint8_t *track_buffer[2] = {nullptr, nullptr}; //

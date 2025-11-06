@@ -211,6 +211,8 @@ protected:
   uint8_t _devnum; // assigned by Apple II during INIT
   bool _initialized;
 
+  uint8_t status_wait_count = 5;
+
    // void send_data_packet(); //encode smartport 512 byte data packet
   // void encode_data_packet(uint16_t num = 512); //encode smartport "num" byte data packet
   void send_init_reply_packet(uint8_t source, uint8_t status);
@@ -349,6 +351,9 @@ public:
   bool getShuttingDown() { return shuttingDown; };
   bool en35Host = false; // TRUE if we are connected to a host that supports the /EN35 signal
 
+  // For compatibility with other platforms, used by fujiDevice.cpp
+  void setUDPHost(const char *newhost, int port);
+  void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 };
 
 extern systemBus SYSTEM_BUS;

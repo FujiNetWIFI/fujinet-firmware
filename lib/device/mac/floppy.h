@@ -4,7 +4,7 @@
 
 #include "bus.h"
 #include "../media/media.h"
-/* 
+/*
 // drive state bits
 #define STAT_DIRTN   0b0000
 #define STAT_STEP    0b0001
@@ -12,7 +12,7 @@
 #define STAT_EJECT   0b0011
 #define STAT_DATAHD0 0b0100
         not assigned 0b0101
-#define STAT_SS      0b0110 
+#define STAT_SS      0b0110
 #define STAT_DRVIN   0b0111
 #define STAT_CSTIN   0b1000
 #define STAT_WRTPRT  0b1001
@@ -52,7 +52,7 @@ protected:
 
 public:
     bool readonly;
-    
+
     macFloppy() {};
     ~macFloppy() {};
 
@@ -85,7 +85,7 @@ public:
 #include "bus.h"
 #include "../media/media.h"
 
-class iwmDisk2 : public iwmDevice
+class iwmDisk2 : public virtualDevice
 {
 
 protected:

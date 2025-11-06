@@ -626,8 +626,6 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
 {
     queryparts qp;
     unsigned char hs, ds;
-    char flag[3] = {'r', 0, 0};
-    fnConfig::mount_mode_t mode = fnConfig::mount_modes::MOUNTMODE_READ;
 
     fnHTTPD.clearErrMsg();
 
@@ -674,45 +672,13 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
             fnHTTPD.addToErrMsg("<li>mode should be either 1 for read, or 2 for write.</li>");
         }
 
-        if (qp.query_parsed["mode"] == "2")
-        {
-            flag[1] = '+';
-            mode = fnConfig::mount_modes::MOUNTMODE_WRITE;
-        }
-
         if (theFuji->get_host(hs)->mount() == true)
         {
-            fujiDisk *disk = theFuji->get_disk(ds);
-            fujiHost *host = theFuji->get_host(hs);
-#ifdef BUILD_APPLE
-            DEVICE_TYPE *disk_dev = theFuji->get_disk_dev(ds);
-#else
-            DEVICE_TYPE *disk_dev = &disk->disk_dev;
-#endif
-
-            disk->fileh = host->fnfile_open(qp.query_parsed["filename"].c_str(), (char *)qp.query_parsed["filename"].c_str(), qp.query_parsed["filename"].length() + 1, flag);
-
-            if (disk->fileh == nullptr)
+            uint8_t mode = qp.query_parsed["mode"] == "2" ?
+                DISK_ACCESS_MODE_WRITE : DISK_ACCESS_MODE_READ;
+            if (!theFuji->fujicore_disk_image_mount_success(ds, mode))
             {
-                fnHTTPD.addToErrMsg("<li>Could not open file: " + qp.query_parsed["filename"] + "</li>");
-            }
-            else
-            {
-                // Make sure CONFIG boot is disabled.
-                theFuji->boot_config = false;
-#ifdef BUILD_ATARI
-                theFuji->status_wait_count = 0;
-#endif
-                strcpy(disk->filename,qp.query_parsed["filename"].c_str());
-                disk->disk_size = host->file_size(disk->fileh);
-                disk->disk_type = disk_dev->mount(disk->fileh, disk->filename, disk->disk_size);
-                #ifdef BUILD_APPLE
-                if(mode == fnConfig::mount_modes::MOUNTMODE_WRITE) {disk_dev->readonly = false;}
-                #endif
-                Config.store_mount(ds, hs, qp.query_parsed["filename"].c_str(), mode);
-                Config.save();
-                theFuji->_populate_slots_from_config(); // otherwise they don't show up in config.
-                disk_dev->device_active = true;
+                fnHTTPD.addToErrMsg("<li>Could not mount disk: " + qp.query_parsed["filename"] + "</li>");
             }
         }
         else
@@ -724,7 +690,7 @@ esp_err_t fnHttpService::get_handler_mount(httpd_req_t *req)
     {
         // Mount all the things
         Debug_printf("Mount all slots from webui\n");
-        theFuji->mount_all();
+        theFuji->fujicmd_mount_all_success();
     }
 
     if (!fnHTTPD.errMsgEmpty())
@@ -774,7 +740,7 @@ esp_err_t fnHttpService::get_handler_eject(httpd_req_t *req)
     theFuji->get_disk(ds)->reset();
     Config.clear_mount(ds);
     Config.save();
-    theFuji->_populate_slots_from_config(); // otherwise they don't show up in config.
+    theFuji->populate_slots_from_config(); // otherwise they don't show up in config.
     disk_dev->device_active = false;
 
     // Finally, scan all device slots, if all empty, and config enabled, enable the config device.
@@ -957,7 +923,7 @@ esp_err_t fnHttpService::get_handler_dir(httpd_req_t *req)
     httpd_resp_sendstr_chunk(req, chunk.c_str());
     chunk.clear();
 
-    theFuji->_populate_slots_from_config();
+    theFuji->populate_slots_from_config();
 
     if ((theFuji->get_host(hs)->mount() == true) && (theFuji->get_host(hs)->dir_open(qp.query_parsed["path"].c_str(), pattern.c_str())))
     {

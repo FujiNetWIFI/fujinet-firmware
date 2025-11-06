@@ -194,6 +194,8 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
+    bool switched = false; //indicate disk switched condition
+    bool readonly = true;  //write protected
 
     /**
      * @brief status wait counter

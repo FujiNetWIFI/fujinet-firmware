@@ -14,8 +14,10 @@ void systemBus::setup(void)
   floppy_ll.setup_gpio();
   Debug_printf("\r\nGPIO configured");
 
+#ifdef NOT_IWM_LL_SUBCLASS
   floppy_ll.setup_rmt();
   Debug_printf("\r\nRMT configured for Floppy Output");
+#endif /* NOT_IWM_LL_SUBCLASS */
 }
 
 /**

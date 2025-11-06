@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #include "disk.h"
+#include "fujiCommandID.h"
 
 #include <cstring>
 
@@ -8,24 +9,6 @@
 
 #include "fujiDevice.h"
 #include "utils.h"
-
-#define RS232_DISKCMD_FORMAT 0x21
-#define RS232_DISKCMD_FORMAT_MEDIUM 0x22
-#define RS232_DISKCMD_PUT 0x50
-#define RS232_DISKCMD_READ 0x52
-#define RS232_DISKCMD_STATUS 0x53
-#define RS232_DISKCMD_WRITE 0x57
-
-#define RS232_DISKCMD_HRS232_INDEX 0x3F
-#define RS232_DISKCMD_HRS232_FORMAT 0xA1
-#define RS232_DISKCMD_HRS232_FORMAT_MEDIUM 0xA2
-#define RS232_DISKCMD_HRS232_PUT 0xD0
-#define RS232_DISKCMD_HRS232_READ 0xD2
-#define RS232_DISKCMD_HRS232_STATUS 0xD3
-#define RS232_DISKCMD_HRS232_WRITE 0xD7
-
-#define RS232_DISKCMD_PERCOM_READ 0x4E
-#define RS232_DISKCMD_PERCOM_WRITE 0x4F
 
 rs232Disk::rs232Disk()
 {
@@ -256,41 +239,34 @@ bool rs232Disk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 // Process command
 void rs232Disk::rs232_process(cmdFrame_t *cmd_ptr)
 {
-    // if (_disk == nullptr || _disk->_disktype == MEDIATYPE_UNKNOWN)
-    //     return;
-
-    // if (device_active == false &&
-    //    (cmdFrame.comnd != RS232_DISKCMD_STATUS && cmdFrame.comnd != RS232_DISKCMD_HRS232_INDEX))
-    //    return;
-
     Debug_print("disk rs232_process()\n");
 
     cmdFrame = *cmd_ptr;
     switch (cmdFrame.comnd)
     {
-    case RS232_DISKCMD_READ:
+    case FUJICMD_READ:
         rs232_ack();
         rs232_read();
         return;
-    case RS232_DISKCMD_PUT:
+    case FUJICMD_PUT:
         rs232_ack();
         rs232_write(false);
         return;
-    case RS232_DISKCMD_STATUS:
-    case RS232_DISKCMD_WRITE:
+    case FUJICMD_STATUS:
+    case FUJICMD_WRITE:
         rs232_ack();
         rs232_write(true);
         return;
-    case RS232_DISKCMD_FORMAT:
-    case RS232_DISKCMD_FORMAT_MEDIUM:
+    case FUJICMD_FORMAT:
+    case FUJICMD_FORMAT_MEDIUM:
         rs232_ack();
         rs232_format();
         return;
-    case RS232_DISKCMD_PERCOM_READ:
+    case FUJICMD_PERCOM_READ:
         rs232_ack();
         rs232_read_percom_block();
         return;
-    case RS232_DISKCMD_PERCOM_WRITE:
+    case FUJICMD_PERCOM_WRITE:
         rs232_ack();
         rs232_write_percom_block();
         return;

@@ -1,72 +1,78 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef DRIVEWIREFUJI_H
+#define DRIVEWIREFUJI_H
 
 #include "fujiDevice.h"
 
+#ifdef UNUSED
 #include <cstdint>
 #include <cstring>
 #include <compat_string.h>
 #include "bus.h"
 #include "disk.h"
 #include "network.h"
+#endif /* UNUSED */
 #include "cassette.h"
 
+#ifdef UNUSED
 #include "fujiHost.h"
 #include "fujiDisk.h"
+#include "fujiCmd.h"
 
 #include "hash.h"
-
-#ifdef ESP32_PLATFORM
-#else
-#define ESP_OK  0
-#endif
+#endif /* UNUSED */
 
 #define MAX_DWDISK_DEVICES 4
 
-class drivewireFuji : public virtualDevice
+#define IMAGE_EXTENSION ".dsk"
+
+class drivewireFuji : public fujiDevice
 {
 private:
+#ifdef NOT_SUBCLASS
     bool wifiScanStarted = false;
 
     char dirpath[256];
+#endif /* NOT_SUBCLASS */
 
     std::string _response;
 
     uint8_t _errorCode;
 
+#ifdef NOT_SUBCLASS
     fujiHost _fnHosts[MAX_HOSTS];
 
     fujiDisk _fnDisks[MAX_DWDISK_DEVICES];
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
+#endif /* NOT_SUBCLASS */
 
 #ifdef ESP_PLATFORM
     drivewireCassette _cassetteDev;
 #endif
 
+#ifdef NOT_SUBCLASS
     int _current_open_directory_slot = -1;
-
-    drivewireDisk _bootDisk; // special disk drive just for configuration
 
     uint8_t bootMode = 0; // Boot mode 0 = CONFIG, 1 = MINI-BOOT
 
     uint8_t _countScannedSSIDs = 0;
 
     appkey _current_appkey;
+#endif /* NOT_SUBCLASS */
 
 protected:
-    void transaction_complete() {
+    void transaction_complete() override {
         _errorCode = 1;
         _response.clear();
         _response.shrink_to_fit();
     }
-    void transaction_error() {
+    void transaction_error() override {
         _errorCode = 144;
     }
-    bool transaction_get(void *data, size_t len) {
+    bool transaction_get(void *data, size_t len) override {
         return SYSTEM_BUS.read((uint8_t *) data, len) == len;
     }
-    void transaction_put(const void *data, size_t len, bool err=false) {
+    void transaction_put(const void *data, size_t len, bool err=false) override {
         transaction_complete();
         _response.append((char *) data, len);
         if (err)
@@ -75,6 +81,7 @@ protected:
 
     size_t setDirEntryDetails(fsdir_entry_t *f, uint8_t *dest, uint8_t maxlen);
 
+#ifdef NOT_SUBCLASS
     void reset_fujinet();          // 0xFF
     void net_get_ssid();           // 0xFE
     void net_scan_networks();      // 0xFD
@@ -94,7 +101,9 @@ protected:
     void net_get_wifi_enabled();   // 0xEA
     void disk_image_umount();      // 0xE9
     void get_adapter_config();     // 0xE8
+#endif /* NOT_SUBCLASS */
     void new_disk();               // 0xE7
+#ifdef NOT_SUBCLASS
     void unmount_host();           // 0xE6
     void get_directory_position(); // 0xE5
     void set_directory_position(); // 0xE4
@@ -111,6 +120,7 @@ protected:
     void set_boot_config();        // 0xD9
     void copy_file();              // 0xD8
     void set_boot_mode();          // 0xD6
+#endif /* NOT_SUBCLASS */
     void random();                 // 0xD3
     void base64_encode_input();    // 0xD0
     void base64_encode_compute();  // 0xCF
@@ -133,11 +143,13 @@ protected:
     void shutdown() override;
 
 public:
+#ifdef NOT_SUBCLASS
+    drivewireDisk bootdisk; // special disk drive just for configuration
+
     bool boot_config = true;
 
     bool status_wait_enabled = true;
-
-    drivewireDisk *bootdisk();
+#endif /* NOT_SUBCLASS */
 
     drivewireNetwork *network();
 
@@ -146,10 +158,13 @@ public:
 #endif
     void debug_tape();
 
+#ifdef NOT_SUBCLASS
     void insert_boot_device(uint8_t d);
+#endif /* NOT_SUBCLASS */
 
-    void setup();
+    void setup() override;
 
+#ifdef NOT_SUBCLASS
     void image_rotate();
     int get_disk_id(int drive_slot);
     std::string get_host_prefix(int host_slot);
@@ -160,14 +175,15 @@ public:
 
     void _populate_slots_from_config();
     void _populate_config_from_slots();
+#endif /* NOT_SUBCLASS */
 
     void process();
 
+#ifdef NOT_SUBCLASS
     void mount_all();              // 0xD7
+#endif /* NOT_SUBCLASS */
 
     drivewireFuji();
 };
 
-extern drivewireFuji *theFuji;
-
-#endif // FUJI_H
+#endif // DRIVEWIREFUJI_H

@@ -100,7 +100,7 @@ public:
 
 #define ANSWER_TIMER_MS 1000 // milliseconds to wait before issuing CONNECT command, to simulate carrier negotiation.
 
-class iwmModem : public iwmDevice
+class iwmModem : public virtualDevice
 {
 private:
 
@@ -182,7 +182,7 @@ private:
     int count_ReqRelocator = 0;
     int count_ReqHandler = 0;
     bool firmware_sent = false;
-  
+
     QueueHandle_t mrxq;
     QueueHandle_t mtxq;
     TaskHandle_t modemTask;
@@ -232,7 +232,7 @@ private:
 
     void send_extended_status_reply_packet() override{};
     void send_extended_status_dib_reply_packet() override{};
-    
+
     void crx_toggle(bool toggle);                // CRX active/inactive?
 
     void modemCommand(); // Execute modem AT command

@@ -37,7 +37,7 @@ static void _telnet_event_handler(telnet_t *telnet, telnet_event_t *ev, void *us
     {
     case TELNET_EV_DATA:
         if (ev->data.size && SYSTEM_BUS.write((uint8_t *)ev->data.buffer, ev->data.size) != ev->data.size)
-            Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to RS232.\n", ev->type);
+            Debug_printf("_telnet_event_handler(%d) - Could not write complete buffer to SYSTEM_BUS.\n", ev->type);
         break;
     case TELNET_EV_SEND:
         modem->get_tcp_client().write((uint8_t *)ev->data.buffer, ev->data.size);
@@ -1367,12 +1367,10 @@ void rs232Modem::rs232_handle_modem()
         }
 
         // In command mode - don't exchange with TCP but gather characters to a string
-        //if (RS232_UART.available() /*|| blockWritePending == true */ )
         if (SYSTEM_BUS.available() > 0)
         {
             // get char from Atari RS232
-            //char chr = RS232_UART.read();
-            char chr = SYSTEM_BUS.read();
+            uint8_t chr = SYSTEM_BUS.read();
 
             // Return, enter, new line, carriage return.. anything goes to end the command
             if ((chr == ASCII_LF) || (chr == ASCII_CR) || (chr == ATASCII_EOL))

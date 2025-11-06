@@ -1,5 +1,7 @@
-#ifndef FUJI_H
-#define FUJI_H
+#ifndef ADAMFUJI_H
+#define ADAMFUJI_H
+
+#include "fujiDevice.h"
 
 #include "fujiDevice.h"
 
@@ -136,4 +138,4 @@ public:
 extern adamFuji *theFuji;
 extern adamSerial *theSerial;
 
-#endif // FUJI_H
+#endif // ADAMFUJI_H

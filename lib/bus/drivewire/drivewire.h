@@ -34,38 +34,37 @@
 #define DRIVEWIRE_BAUDRATE 57600
 
 /* Operation Codes */
-#define         OP_NOP          0
-#define     OP_JEFF     0xA5
-#define     OP_SERREAD  'C'
-#define     OP_SERREADM  'c'
-#define     OP_SERWRITE  0xC3
-#define     OP_SERWRITEM  0x64
-#define         OP_GETSTAT      'G'
-#define         OP_SETSTAT      'S'
-#define         OP_SERGETSTAT   'D'
-#define         OP_SERSETSTAT   'D'+128
-#define         OP_READ         'R'
-#define         OP_READEX       'R'+128
-#define         OP_WRITE        'W'
-#define         OP_REREAD       'r'
-#define         OP_REREADEX     'r'+128
-#define         OP_REWRITE      'w'
-#define         OP_INIT         'I'
-#define         OP_SERINIT      'E'
-#define         OP_SERTERM      'E'+128
-#define     OP_DWINIT   'Z'
-#define         OP_TERM         'T'
-#define         OP_TIME         '#'
-#define     OP_RESET3   0xF8
-#define         OP_RESET2       0xFE
-#define         OP_RESET1       0xFF
-#define         OP_PRINT        'P'
-#define         OP_PRINTFLUSH   'F'
-#define     OP_VPORT_READ    'C'
-#define     OP_FUJI 0xE2
-#define     OP_NET 0xE3
-#define     OP_CPM 0xE4
-#define     OP_NAMEOBJ_MNT 0x01
+#define OP_NOP        0
+#define OP_JEFF       0xA5
+#define OP_SERREAD    'C'
+#define OP_SERREADM   'c'
+#define OP_SERWRITE   0xC3
+#define OP_SERWRITEM  0x64
+#define OP_GETSTAT    'G'
+#define OP_SETSTAT    'S'
+#define OP_SERGETSTAT 'D'
+#define OP_SERSETSTAT 'D'+128
+#define OP_READ       'R'
+#define OP_READEX     'R'+128
+#define OP_WRITE      'W'
+#define OP_REREAD     'r'
+#define OP_REREADEX   'r'+128
+#define OP_REWRITE    'w'
+#define OP_INIT       'I'
+#define OP_SERINIT    'E'
+#define OP_SERTERM    'E'+128
+#define OP_DWINIT     'Z'
+#define OP_TERM       'T'
+#define OP_TIME       '#'
+#define OP_RESET3     0xF8
+#define OP_RESET2     0xFE
+#define OP_RESET1     0xFF
+#define OP_PRINT      'P'
+#define OP_PRINTFLUSH 'F'
+#define OP_VPORT_READ 'C'
+#define OP_FUJI       0xE2
+#define OP_NET        0xE3
+#define OP_CPM        0xE4
 
 #define FEATURE_EMCEE    0x01
 #define FEATURE_DLOAD    0x02
@@ -152,6 +151,9 @@ protected:
     cmdFrame_t cmdFrame;
     bool listen_to_type3_polls = false;
 
+    // Unused, for compatibility with fujiDevice.cpp
+    uint8_t status_wait_count = 5;
+
     // Optional shutdown/reboot cleanup routine
     virtual void shutdown(){};
 
@@ -165,6 +167,12 @@ public:
      * @brief is device active (turned on?)
      */
     bool device_active = true;
+
+    fujiDeviceID_t id() { return _devnum; };
+
+    // Unused, for compatibility with fujiDevice.cpp
+    bool readonly = false;  //write protected
+    bool switched = false; //indicate disk switched condition
 };
 
 enum drivewire_message : uint16_t
@@ -339,14 +347,10 @@ public:
     QueueHandle_t qDrivewireMessages = nullptr;
 #endif
 
-    /* BoIP things */
-    void setHost(const char *host, int port) { _becker.setHost(host, port); }
-    void selectSerialPort(bool useSerial) {
-        if (useSerial)
-            _port = &_serial;
-        else
-            _port = &_becker;
-    }
+    // For compatibility with fujiDevice.cpp
+    void changeDeviceId(void *pDevice, int device_id);
+    void setUDPHost(const char *newhost, int port);
+    void setUltraHigh(bool _enable, int _ultraHighBaud = 0);
 };
 
 extern systemBus SYSTEM_BUS;
