@@ -268,7 +268,7 @@ std::string FNJSON::getValue(cJSON *item)
     }
     else
         ss << "UNKNOWN" + lineEnding;
-  
+
     return ss.str();
 }
 
@@ -276,7 +276,7 @@ std::string FNJSON::getValue(cJSON *item)
  * Return requested value
  */
 bool FNJSON::readValue(uint8_t *rx_buf, unsigned short len)
-{    
+{
     if (_item == nullptr)
         return true; // error
 
@@ -324,13 +324,13 @@ bool FNJSON::parse()
     while (ns.connected)
 #else
     // fujinet-pc closes before the data has been fully read, we need to ensure the data in the buffer is used
-    while (ns.connected || ns.rxBytesWaiting > 0)
+    while (ns.connected || _protocol->available() > 0)
 #endif
     {
         // don't try reading 0 bytes when there's no content.
-        if (ns.rxBytesWaiting > 0)
+        if (_protocol->available() > 0)
         {
-            _protocol->read(ns.rxBytesWaiting);
+            _protocol->read(_protocol->available());
             _parseBuffer += *_protocol->receiveBuffer;
             _protocol->receiveBuffer->clear();
         }
@@ -362,7 +362,9 @@ bool FNJSON::status(NetworkStatus *s)
 {
     // Debug_printf("FNJSON::status(%u) %s\r\n", json_bytes_remaining, getValue(_item).c_str());
     s->connected = true;
+#if 0
     s->rxBytesWaiting = json_bytes_remaining;
+#endif
     s->error = json_bytes_remaining == 0 ? 136 : 0;
     return false;
 }

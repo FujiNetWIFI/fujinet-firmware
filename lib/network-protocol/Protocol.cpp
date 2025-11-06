@@ -177,10 +177,8 @@ netProtoErr_t NetworkProtocol::status(NetworkStatus *status)
     if (fromInterrupt)
         return NETPROTO_ERR_NONE;
 
-    if (!is_write && receiveBuffer->length() == 0 && status->rxBytesWaiting > 0)
-        read(status->rxBytesWaiting);
-
-    status->rxBytesWaiting = receiveBuffer->length();
+    if (!is_write && receiveBuffer->length() == 0 && available() > 0)
+        read(available());
 
     return NETPROTO_ERR_NONE;
 }

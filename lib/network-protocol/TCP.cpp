@@ -214,7 +214,9 @@ netProtoErr_t NetworkProtocolTCP::status(NetworkStatus *status)
 
 void NetworkProtocolTCP::status_client(NetworkStatus *status)
 {
+#if 0
     status->rxBytesWaiting = (client.available() > 65535) ? 65535 : client.available();
+#endif
     status->connected = client.connected();
     status->error = client.connected() ? error : 136;
 }
@@ -228,6 +230,16 @@ void NetworkProtocolTCP::status_server(NetworkStatus *status)
         status->connected = server->hasClient();
         status->error = error;
     }
+}
+
+size_t NetworkProtocolTCP::available()
+{
+    if (!client.connected())
+        return 0;
+    size_t avail = receiveBuffer->size();
+    if (!avail)
+        avail = client.available();
+    return avail;
 }
 
 /**

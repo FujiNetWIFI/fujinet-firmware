@@ -413,7 +413,9 @@ bool rs232Network::rs232_status_channel_json(NetworkStatus *ns)
 {
     ns->connected = json_bytes_remaining > 0;
     ns->error = json_bytes_remaining > 0 ? 1 : 136;
+#ifdef OBSOLETE
     ns->rxBytesWaiting = json_bytes_remaining;
+#endif /* OBSOLETE */
     return false; // for now
 }
 
@@ -422,7 +424,7 @@ bool rs232Network::rs232_status_channel_json(NetworkStatus *ns)
  */
 void rs232Network::rs232_status_channel()
 {
-    uint8_t serialized_status[4] = {0, 0, 0, 0};
+    NDeviceStatus nstatus;
     bool err = false;
 
     Debug_printf("rs232Network::rs232_status_channel(%u)\n", channelMode);
@@ -444,16 +446,17 @@ void rs232Network::rs232_status_channel()
     }
 
     // Serialize status into status bytes
-    serialized_status[0] = status.rxBytesWaiting & 0xFF;
-    serialized_status[1] = status.rxBytesWaiting >> 8;
-    serialized_status[2] = status.connected;
-    serialized_status[3] = status.error;
+    size_t avail = protocol->available();
+    avail = avail > 65535 ? 65535 : avail;
+    nstatus.avail = htole16(avail);
+    nstatus.conn = status.connected;
+    nstatus.err = status.error;
 
     Debug_printf("rs232_status_channel() - BW: %u C: %u E: %u\n",
-                 status.rxBytesWaiting, status.connected, status.error);
+                 nstatus.avail, nstatus.conn, nstatus.err);
 
     // and send to computer
-    bus_to_computer(serialized_status, sizeof(serialized_status), err);
+    bus_to_computer((uint8_t *) &nstatus, sizeof(nstatus), err);
 }
 
 /**
@@ -907,7 +910,7 @@ void rs232Network::rs232_poll_interrupt()
         protocol->status(&status);
         protocol->fromInterrupt = false;
 
-        if (status.rxBytesWaiting > 0 || status.connected == 0)
+        if (protocol->available() > 0 || status.connected == 0)
             rs232_assert_interrupt();
 #ifdef ESP_PLATFORM
         else

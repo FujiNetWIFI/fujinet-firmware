@@ -296,12 +296,10 @@ netProtoErr_t NetworkProtocolFS::status_file(NetworkStatus *status)
     unsigned int remaining;
 
     if (aux1_open == 8) {
-        status->rxBytesWaiting = 0;
         remaining = fileSize;
     }
     else {
         remaining = fileSize + receiveBuffer->length();
-        status->rxBytesWaiting = remaining > WAITING_CAP ? WAITING_CAP : remaining;
     }
 
     status->connected = remaining > 0 ? 1 : 0;
@@ -320,7 +318,6 @@ netProtoErr_t NetworkProtocolFS::status_file(NetworkStatus *status)
 
 netProtoErr_t NetworkProtocolFS::status_dir(NetworkStatus *status)
 {
-    status->rxBytesWaiting = dirBuffer.length();
     status->connected = dirBuffer.length() > 0 ? 1 : 0;
     status->error = dirBuffer.length() > 0 ? error : NETWORK_ERROR_END_OF_FILE;
 

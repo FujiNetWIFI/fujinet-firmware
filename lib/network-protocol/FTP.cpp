@@ -212,7 +212,6 @@ netProtoErr_t NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short
 
 netProtoErr_t NetworkProtocolFTP::status_file(NetworkStatus *status)
 {
-    status->rxBytesWaiting = ftp->data_available() > 65535 ? 65535 : ftp->data_available();
     status->connected = ftp->data_connected();
     fserror_to_error();
     status->error = error;

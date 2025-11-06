@@ -59,6 +59,11 @@ typedef struct
     char sBssid[18];
 } __attribute__((packed)) AdapterConfigExtended;
 
+typedef struct {
+    uint16_t avail;
+    uint8_t conn, err;
+} NDeviceStatus;
+
 #ifdef BUILD_ATARI
 # include "sio/sioFuji.h"
 #endif

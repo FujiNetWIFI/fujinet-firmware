@@ -16,6 +16,8 @@
 #include "utils.h"
 
 #include "status_error_codes.h"
+#include "Protocol.h"
+#ifdef UNUSED
 #include "TCP.h"
 #include "UDP.h"
 #include "Test.h"
@@ -79,41 +81,6 @@ drivewireNetwork::~drivewireNetwork()
     protocol = nullptr;
 }
 
-/**
- * Start the Interrupt rate limiting timer
- */
-void drivewireNetwork::timer_start()
-{
-#ifdef ESP_PLATFORM
-    esp_timer_create_args_t tcfg;
-    tcfg.arg = this;
-    tcfg.callback = onTimer;
-    tcfg.dispatch_method = esp_timer_dispatch_t::ESP_TIMER_TASK;
-    tcfg.name = nullptr;
-    esp_timer_create(&tcfg, &rateTimerHandle);
-    esp_timer_start_periodic(rateTimerHandle, timerRate * 1000);
-#else
-    lastInterruptMs = fnSystem.millis() - timerRate;
-#endif
-}
-
-/**
- * Stop the Interrupt rate limiting timer
- */
-void drivewireNetwork::timer_stop()
-{
-#ifdef ESP_PLATFORM
-    // Delete existing timer
-    if (rateTimerHandle != nullptr)
-    {
-        Debug_println("Deleting existing rateTimer\n");
-        esp_timer_stop(rateTimerHandle);
-        esp_timer_delete(rateTimerHandle);
-        rateTimerHandle = nullptr;
-    }
-#endif
-}
-
 /** DRIVEWIRE COMMANDS ***************************************************************/
 
 void drivewireNetwork::ready()
@@ -128,7 +95,7 @@ void drivewireNetwork::ready()
  */
 void drivewireNetwork::open()
 {
-    Debug_printf("drivewireNetwork::sio_open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
+    Debug_printf("drivewireNetwork::open(%02x,%02x)\n",cmdFrame.aux1,cmdFrame.aux2);
 
     char tmp[256];
 
@@ -146,9 +113,6 @@ void drivewireNetwork::open()
     deviceSpec = std::string(tmp);
 
     channelMode = PROTOCOL;
-
-    // Delete timer if already extant.
-    timer_stop();
 
     // persist aux1/aux2 values
     open_aux1 = cmdFrame.aux1;
@@ -207,12 +171,6 @@ void drivewireNetwork::open()
         return;
     }
 
-    // Everything good, start the interrupt timer!
-    timer_start();
-
-    // Go ahead and send an interrupt, so CoCo knows to get ns.
-    protocol->forceStatus = true;
-
     // TODO: Finally, go ahead and let the parsers know
     json = new FNJSON();
     json->setLineEnding("\x0a");
@@ -231,7 +189,7 @@ void drivewireNetwork::open()
  */
 void drivewireNetwork::close()
 {
-    Debug_printf("drivewireNetwork::sio_close()\n");
+    Debug_printf("drivewireNetwork::close()\n");
 
     ns.reset();
 
@@ -283,6 +241,8 @@ void drivewireNetwork::read()
     uint8_t num_bytesh = cmdFrame.aux1;
     uint8_t num_bytesl = cmdFrame.aux2;
     uint16_t num_bytes = (num_bytesh * 256) + num_bytesl;
+
+    readAck = GET_TIMESTAMP();
 
     if (!num_bytes)
     {
@@ -576,7 +536,7 @@ void drivewireNetwork::set_prefix()
 
     prefixSpec_str = string((const char *)tmp);
     prefixSpec_str = prefixSpec_str.substr(prefixSpec_str.find_first_of(":") + 1);
-    Debug_printf("sioNetwork::sio_set_prefix(%s)\n", prefixSpec_str.c_str());
+    Debug_printf("sioNetwork::set_prefix(%s)\n", prefixSpec_str.c_str());
 
     // If "NCD Nn:" then prefix is cleared completely
     if (prefixSpec_str.empty())
@@ -1265,27 +1225,22 @@ void drivewireNetwork::json_query()
 
 void drivewireNetwork::do_idempotent_command_80()
 {
-    Debug_printf("sioNetwork::sio_do_idempotent_command_80()\r\n");
-// #ifdef ESP_PLATFORM // apc: isn't it already ACK'ed?
-//     sio_ack();
-// #endif
+    Debug_printf("sioNetwork::do_idempotent_command_80()\r\n");
 
     parse_and_instantiate_protocol();
 
     if (protocol == nullptr)
     {
         Debug_printf("Protocol = NULL\n");
-        //sio_error();
+        //error();
         return;
     }
 
     if (protocol->perform_idempotent_80(urlParser.get(), &cmdFrame) == true)
     {
         Debug_printf("perform_idempotent_80 failed\n");
-        // sio_error();
+        // error();
     }
-    // else
-    //     sio_complete();
 }
 
 void drivewireNetwork::process()
