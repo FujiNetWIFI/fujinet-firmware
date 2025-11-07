@@ -2,6 +2,8 @@
 #ifndef FUJI_H
 #define FUJI_H
 
+#include "fuji.h"
+
 #include <cstdint>
 #include <cstring>
 
@@ -14,63 +16,6 @@
 #include "../fuji/fujiDisk.h"
 
 #include "hash.h"
-
-#define MAX_HOSTS 8
-#define MAX_DISK_DEVICES 8
-#define MAX_NETWORK_DEVICES 4
-
-// only in BASIC:
-#define MAX_APPKEY_LEN 64
-
-typedef struct
-{
-    char ssid[33];
-    char password[64];
-    char hostname[64];
-    unsigned char localIP[4];
-    unsigned char gateway[4];
-    unsigned char netmask[4];
-    unsigned char dnsIP[4];
-    unsigned char macAddress[6];
-    unsigned char bssid[6];
-    char fn_version[15];
-} AdapterConfig;
-
-typedef struct
-{
-    char ssid[33];
-    char hostname[64];
-    unsigned char localIP[4];
-    unsigned char gateway[4];
-    unsigned char netmask[4];
-    unsigned char dnsIP[4];
-    unsigned char macAddress[6];
-    unsigned char bssid[6];
-    char fn_version[15];
-    char sLocalIP[16];
-    char sGateway[16];
-    char sNetmask[16];
-    char sDnsIP[16];
-    char sMacAddress[18];
-    char sBssid[18];
-} AdapterConfigExtended;
-
-enum appkey_mode : int8_t
-{
-    APPKEYMODE_INVALID = -1,
-    APPKEYMODE_READ = 0,
-    APPKEYMODE_WRITE,
-    APPKEYMODE_READ_256
-};
-
-struct appkey
-{
-    uint16_t creator = 0;
-    uint8_t app = 0;
-    uint8_t key = 0;
-    appkey_mode mode = APPKEYMODE_INVALID;
-    uint8_t reserved = 0;
-} __attribute__((packed));
 
 typedef struct
 {

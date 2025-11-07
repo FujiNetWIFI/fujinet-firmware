@@ -990,7 +990,7 @@ void rs232Fuji::rs232_get_adapter_config()
 
     memset(&cfg, 0, sizeof(cfg));
 
-    strlcpy(cfg.fn_verrs232n, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_verrs232n));
+    strlcpy(cfg.fn_version, fnSystem.get_fujinet_version(true), sizeof(cfg.fn_version));
 
     if (!fnWiFi.connected())
     {

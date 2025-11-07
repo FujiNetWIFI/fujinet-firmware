@@ -1,7 +1,7 @@
 #ifdef BUILD_IEC
 
 #include "iec.h"
-#include "../../device/iec/iecFuji.h"
+#include "fuji.h"
 
 #include <cstring>
 #include <memory>
