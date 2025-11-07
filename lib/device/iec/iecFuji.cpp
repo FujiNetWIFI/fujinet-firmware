@@ -1,6 +1,6 @@
 #ifdef BUILD_IEC
 
-#include "fuji.h"
+#include "iecFuji.h"
 #include "fujiCommandID.h"
 #include "../../../include/cbm_defines.h"
 

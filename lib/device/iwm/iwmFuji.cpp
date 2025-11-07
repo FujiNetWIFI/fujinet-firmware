@@ -8,7 +8,7 @@
 #include <vector>
 #include <cstring>
 
-#include "fuji.h"
+#include "iwmFuji.h"
 
 #include "fujiCommandID.h"
 #include "httpService.h"

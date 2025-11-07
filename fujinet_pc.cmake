@@ -246,7 +246,7 @@ set(SOURCES src/main.cpp
     lib/device/printer.h
     lib/device/modem.h
     lib/device/cassette.h
-    lib/device/fuji.h
+    lib/device/fujiDevice.h
     lib/device/network.h
     lib/device/udpstream.h
     lib/device/siocpm.h

@@ -12,7 +12,7 @@
 #include "fnConfig.h"
 #include "fnWiFi.h"
 #include "fnBluetooth.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 
 #include "led.h"
 
@@ -26,7 +26,7 @@ void KeyManager::setup()
 #ifdef PINMAP_ESP32S3
 
     if (PIN_BUTTON_A != GPIO_NUM_NC)
-    	fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
+        fnSystem.set_pin_mode(PIN_BUTTON_A, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_UP);
     else
         _keys[eKey::BUTTON_A].disabled = true;
 
@@ -88,7 +88,7 @@ void KeyManager::setup()
             fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
 #   else
         fnSystem.set_pin_mode(PIN_BUTTON_C, gpio_mode_t::GPIO_MODE_INPUT, SystemManager::pull_updown_t::PULL_NONE);
-#   endif        
+#   endif
         Debug_printf("Button C (Safe Reset) Enabled on IO%d\r\n", mButtonPin[eKey::BUTTON_C]);
     }
 
@@ -298,7 +298,7 @@ void KeyManager::_keystate_task(void *param)
                 adamnet_message_t msg;
                 msg.message_id = ADAMNETMSG_DISKSWAP;
                 xQueueSend(SYSTEM_BUS.qAdamNetMessages, &msg, 0);
-#endif /* BUILD_ADAM*/ 
+#endif /* BUILD_ADAM*/
             }
             break;
 

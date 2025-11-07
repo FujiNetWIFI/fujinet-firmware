@@ -10,7 +10,7 @@
 #include "fnWiFi.h"
 #include "fsFlash.h"
 #include "httpService.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 
 using namespace std;
 

@@ -14,7 +14,7 @@
 #include "fsFlash.h"
 #include "modem.h"
 #include "printer.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 
 #include "mongoose.h"
 #include "httpService.h"

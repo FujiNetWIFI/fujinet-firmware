@@ -7,7 +7,7 @@
 #include "fnSystem.h"
 #include "fnUART.h"
 #include "fnWiFi.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 #include "fnFS.h"
 #include "fnFsSD.h"
 

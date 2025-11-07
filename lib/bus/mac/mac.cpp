@@ -1,10 +1,9 @@
 #ifdef BUILD_MAC
 #include "mac.h"
-#include "../../include/debug.h"
-#include "../device/mac/macFuji.h"
-
 #include "mac_ll.h"
+#include "macFuji.h"
 
+#include "../../include/debug.h"
 
 void systemBus::setup(void)
 {

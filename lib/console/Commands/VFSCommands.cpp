@@ -13,7 +13,7 @@
 #include "../Helpers/PWDHelpers.h"
 #include "../ute/ute.h"
 
-#include "../device/fuji.h"
+#include "fujiDevice.h"
 #include "display.h"
 #include "meatloaf.h"
 #include "string_utils.h"
