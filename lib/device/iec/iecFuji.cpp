@@ -1,6 +1,7 @@
 #ifdef BUILD_IEC
 
 #include "fuji.h"
+#include "fujiCommandID.h"
 #include "../../../include/cbm_defines.h"
 
 #include <driver/ledc.h>

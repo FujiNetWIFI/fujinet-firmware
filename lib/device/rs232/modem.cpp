@@ -1,6 +1,7 @@
 #ifdef BUILD_RS232
 
 #include "modem.h"
+#include "fujiCommandID.h"
 
 #include "../../../include/debug.h"
 #include "../../../include/atascii.h"
@@ -14,31 +15,6 @@
 #include "utils.h"
 
 #define RECVBUFSIZE 1024
-
-#define RS232_MODEMCMD_LOAD_RELOCATOR 0x21
-#define RS232_MODEMCMD_LOAD_HANDLER 0x26
-#define RS232_MODEMCMD_TYPE1_POLL 0x3F
-#define RS232_MODEMCMD_TYPE3_POLL 0x40
-#define RS232_MODEMCMD_CONTROL 0x41
-#define RS232_MODEMCMD_CONFIGURE 0x42
-#define RS232_MODEMCMD_SET_DUMP 0x44
-#define RS232_MODEMCMD_LISTEN 0x4C
-#define RS232_MODEMCMD_UNLISTEN 0x4D
-#define RS232_MODEMCMD_BAUDRATELOCK 0x4E
-#define RS232_MODEMCMD_AUTOANSWER 0x4F
-#define RS232_MODEMCMD_STATUS 0x53
-#define RS232_MODEMCMD_WRITE 0x57
-#define RS232_MODEMCMD_STREAM 0x58
-
-#define FIRMWARE_850RELOCATOR "/850relocator.bin"
-#define FIRMWARE_850HANDLER "/850handler.bin"
-
-/* Tested this delay several times on an 800 with Incognito
-   using HRS232 routines. Anything much lower gave inconsistent
-   firmware loading. Delay is unnoticeable when running at
-   normal speed.
-*/
-#define DELAY_FIRMWARE_DELIVERY 5000
 
 /**
  * List of Telnet options to process
@@ -114,183 +90,6 @@ rs232Modem::~rs232Modem()
     {
         telnet_free(telnet);
     }
-}
-
-// 0x40 / '@' - TYPE 3 POLL
-void rs232Modem::rs232_poll_3(uint8_t device, uint8_t aux1, uint8_t aux2)
-{
-    bool respond = false;
-
-    // When AUX1 and AUX == 0x4E, it's a normal/general poll
-    // Since XL/XE OS always does this during boot, we're going to ignore these, otherwise
-    // we'd load our handler every time, and that's probably not desireable
-    if (aux1 == 0 && aux2 == 0)
-    {
-        Debug_printf("MODEM TYPE 3 POLL #%d\n", ++count_PollType3);
-        if (count_PollType3 == 26)
-        {
-            //Debug_print("RESPONDING to poll #26\n");
-            //respond = true;
-        }
-        else
-            return;
-    }
-    // When AUX1 and AUX == 0x4F, it's a request to reset the whole polling process
-    if (aux1 == 0x4F && aux2 == 0x4F)
-    {
-        Debug_print("MODEM TYPE 3 POLL <<RESET POLL>>\n");
-        count_PollType3 = 0;
-        firmware_sent = false;
-        return;
-    }
-    // When AUX1 and AUX == 0x4E, it's a request to reset poll counters
-    if (aux1 == 0x4E && aux2 == 0x4E)
-    {
-        Debug_print("MODEM TYPE 3 POLL <<NULL POLL>>\n");
-        count_PollType3 = 0;
-        return;
-    }
-    // When AUX1 = 0x52 'R' and AUX == 1 or DEVICE == x050, it's a directed poll to "R1:"
-    if ((aux1 == 0x52 && aux2 == 0x01) || device == FUJI_DEVICEID_SERIAL)
-    {
-        Debug_print("MODEM TYPE 4 \"R1:\" DIRECTED POLL\n");
-        respond = true;
-    }
-
-    // Get out if nothing above indicated we should respond to this poll
-    if (respond == false)
-        return;
-
-    // HACK TO GET IT TO COMPILE, TODO: FIX RS232
-    int filesize = 100;
-
-    // Simply return (without ACK) if we failed to get this
-    if (filesize < 0)
-        return;
-
-    Debug_println("Modem acknowledging Type 4 Poll");
-    rs232_ack();
-
-    // Acknowledge and return expected
-    uint16_t fsize = filesize;
-    uint8_t type4response[4];
-    type4response[0] = LOBYTE_FROM_UINT16(fsize);
-    type4response[1] = HIBYTE_FROM_UINT16(fsize);
-    type4response[2] = FUJI_DEVICEID_SERIAL;
-    type4response[3] = 0;
-
-    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
-
-    bus_to_computer(type4response, sizeof(type4response), false);
-
-    // TODO: Handle the subsequent request to load the handler properly by providing the relocation blocks
-}
-
-// 0x3F / '?' - TYPE 1 POLL
-void rs232Modem::rs232_poll_1()
-{
-    /*  From Altirra sources - rs232.cpp
-        Send back RS232 command for booting. This is a 12 uint8_t + chk block that
-        is meant to be written to the RS232 parameter block starting at DDEVIC ($0300).
-
-                The boot block MUST start at $0500. There are both BASIC-based and cart-based
-        loaders that use JSR $0506 to run the loader.
-    */
-
-    // According to documentation, we're only supposed to respond to this once
-    /*
-    if (count_PollType1 != 0)
-        return;
-    count_PollType1++;
-    */
-
-    // Get size of relocator
-    int filesize = fnSystem.load_firmware(FIRMWARE_850RELOCATOR, NULL);
-    // Simply return (without ACK) if we failed to get this
-    if (filesize < 0)
-        return;
-
-    // Acknoledge before continuing
-    rs232_ack();
-
-    uint8_t bootBlock[12] = {
-        0x50,       // DDEVIC
-        0x01,       // DUNIT
-        0x21,       // DCOMND = '!' (boot)
-        0x40,       // DSTATS
-        0x00, 0x05, // DBUFLO, DBUFHI == $0500
-        0x08,       // DTIMLO = 8 vblanks
-        0x00,       // not used
-        0x00, 0x00, // DBYTLO, DBYTHI
-        0x00,       // DAUX1
-        0x00,       // DAUX2
-    };
-
-    // Stuff the size into the block
-    uint32_t relsize = (uint32_t)filesize;
-    bootBlock[8] = (uint8_t)relsize;
-    bootBlock[9] = (uint8_t)(relsize >> 8);
-
-    Debug_println("Modem acknowledging Type 1 Poll");
-
-    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY * 2);
-
-    bus_to_computer(bootBlock, sizeof(bootBlock), false);
-}
-
-// 0x21 / '!' - RELOCATOR DOWNLOAD
-// 0x26 / '&' - HANDLER DOWNLOAD
-void rs232Modem::rs232_send_firmware(uint8_t loadcommand)
-{
-#ifdef FIRMWARE_VARIABLE_IS_USED
-    const char *firmware;
-#endif
-    if (loadcommand == RS232_MODEMCMD_LOAD_RELOCATOR)
-    {
-#ifdef FIRMWARE_VARIABLE_IS_USED
-        firmware = FIRMWARE_850RELOCATOR;
-#endif
-    }
-    else
-    {
-        if (loadcommand == RS232_MODEMCMD_LOAD_HANDLER)
-        {
-#ifdef FIRMWARE_VARIABLE_IS_USED
-            firmware = FIRMWARE_850HANDLER;
-#endif
-        }
-        else
-            return;
-    }
-
-    // Load firmware from file
-    // HACK TO GET RS232 TO COMPILE, TODO: FIX RS232
-    uint8_t *code = NULL;
-    int codesize = 100;
-
-    // NAK if we failed to get this
-    if (codesize < 0 || code == NULL)
-    {
-        rs232_nak();
-        return;
-    }
-    // Acknoledge before continuing
-    rs232_ack();
-
-    // We need a delay here when working in high-speed mode.
-    // Doesn't negatively affect normal speed operation.
-    fnSystem.delay_microseconds(DELAY_FIRMWARE_DELIVERY);
-
-    // Send it
-
-    Debug_printf("Modem sending %d bytes of %s code\n", codesize,
-                 loadcommand == RS232_MODEMCMD_LOAD_RELOCATOR ? "relocator" : "handler");
-
-    bus_to_computer(code, codesize, false);
-
-    // Free the buffer!
-    free(code);
-    DTR = XMT = RTS = 0;
 }
 
 // 0x57 / 'W' - WRITE
@@ -1816,63 +1615,39 @@ void rs232Modem::rs232_process(cmdFrame_t *cmd_ptr)
         cmdFrame = *cmd_ptr;
         switch (cmdFrame.comnd)
         {
-        case RS232_MODEMCMD_LOAD_RELOCATOR:
-            Debug_printf("MODEM $21 RELOCATOR #%d\n", ++count_ReqRelocator);
-            rs232_send_firmware(cmdFrame.comnd);
-            break;
-
-        case RS232_MODEMCMD_LOAD_HANDLER:
-            Debug_printf("MODEM $26 HANDLER DL #%d\n", ++count_ReqHandler);
-            rs232_send_firmware(cmdFrame.comnd);
-            break;
-
-        case RS232_MODEMCMD_TYPE1_POLL:
-            Debug_printf("MODEM TYPE 1 POLL #%d\n", ++count_PollType1);
-            // The 850 is only supposed to respond to this if AUX1 = 1 or on the 26th poll attempt
-            if (cmdFrame.aux1 == 1 || count_PollType1 == 16)
-            {
-                rs232_poll_1();
-                count_PollType1 = 0; // Reset the counter so we can respond again if asked
-            }
-            break;
-
-        case RS232_MODEMCMD_TYPE3_POLL:
-            rs232_poll_3(cmdFrame.device, cmdFrame.aux1, cmdFrame.aux2);
-            break;
-
-        case RS232_MODEMCMD_CONTROL:
+        case FUJICMD_CONTROL:
             rs232_ack();
             rs232_control();
             break;
-        case RS232_MODEMCMD_CONFIGURE:
+        case FUJICMD_CONFIGURE:
             rs232_ack();
             rs232_config();
             break;
-        case RS232_MODEMCMD_SET_DUMP:
+        case FUJICMD_SET_DUMP:
             rs232_ack();
             rs232_set_dump();
             break;
-        case RS232_MODEMCMD_LISTEN:
+        case FUJICMD_LISTEN:
             rs232_listen();
             break;
-        case RS232_MODEMCMD_UNLISTEN:
+        case FUJICMD_UNLISTEN:
             rs232_unlisten();
             break;
-        case RS232_MODEMCMD_BAUDRATELOCK:
+        case FUJICMD_BAUDRATELOCK:
             rs232_baudlock();
             break;
-        case RS232_MODEMCMD_AUTOANSWER:
+        case FUJICMD_AUTOANSWER:
             rs232_autoanswer();
             break;
-        case RS232_MODEMCMD_STATUS:
+        case FUJICMD_STATUS:
             rs232_ack();
             rs232_status();
             break;
-        case RS232_MODEMCMD_WRITE:
+        case FUJICMD_WRITE:
             rs232_ack();
             rs232_write();
             break;
-        case RS232_MODEMCMD_STREAM:
+        case FUJICMD_STREAM:
             rs232_ack();
             rs232_stream();
             break;
