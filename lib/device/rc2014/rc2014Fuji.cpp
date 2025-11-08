@@ -22,7 +22,8 @@
 // TODO:
 // - refactor rc2014_new_disk() before use
 
-rc2014Fuji theFuji;        // global fuji device object
+rc2014Fuji platformFuji;
+rc2014Fuji *theFuji = &platformFuji;        // global fuji device object
 rc2014Network *theNetwork; // global network device object (temporary)
 rc2014Printer *thePrinter; // global printer
 
@@ -1261,7 +1262,7 @@ void rc2014Fuji::setup(systemBus *siobus)
 
     theNetwork = new rc2014Network();
     _rc2014_bus->addDevice(theNetwork, RC2014_DEVICEID_FN_NETWORK); // temporary.
-    _rc2014_bus->addDevice(&theFuji, RC2014_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
+    _rc2014_bus->addDevice(theFuji, RC2014_DEVICEID_FUJINET);   // Fuji becomes the gateway device.
   //  _rc2014_bus->addDevice(&_fnModem, RC2014_DEVICEID_MODEM);
   //  _rc2014_bus->addDevice(&_fnCpm, RC2014_DEVICEID_CPM);
 

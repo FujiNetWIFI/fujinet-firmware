@@ -20,7 +20,8 @@
 
 #define COPY_SIZE 532
 
-lynxFuji theFuji;        // global fuji device object
+lynxFuji platformFuji;
+lynxFuji *theFuji = &platformFuji;        // global fuji device object
 lynxNetwork *theNetwork; // global network device object (temporary)
 lynxPrinter *thePrinter; // global printer
 lynxSerial *theSerial;   // global serial
@@ -1351,7 +1352,7 @@ void lynxFuji::setup()
     // Disable status_wait if our settings say to turn it off
     status_wait_enabled = false;
     SYSTEM_BUS.addDevice(&_fnDisks[0].disk_dev, 4);
-    SYSTEM_BUS.addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(theFuji, 0x0F);   // Fuji becomes the gateway device.
     theNetwork = new lynxNetwork();
     SYSTEM_BUS.addDevice(theNetwork, 0x09); // temporary.
 }

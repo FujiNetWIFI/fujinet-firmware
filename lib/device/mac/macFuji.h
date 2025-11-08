@@ -150,8 +150,8 @@ public:
     // 27-Aug-23 get it online: void handle_ctl_eject(uint8_t spid) {};
     std::string get_host_prefix(int host_slot);
 
-    fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
-    fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *get_host(int i) { return &_fnHosts[i]; }
+    fujiDisk *get_disk(int i) { return &_fnDisks[i]; }
     fujiHost *set_slot_hostname(int host_slot, char *hostname);
 
     void _populate_slots_from_config();
@@ -173,7 +173,7 @@ public:
 
 
 
-extern macFuji theFuji;
+extern macFuji *theFuji;
 
 #endif // guard
 #endif // BUILD_MAC

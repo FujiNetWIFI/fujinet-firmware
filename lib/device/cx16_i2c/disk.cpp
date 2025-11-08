@@ -27,9 +27,6 @@
 #define SIO_DISKCMD_PERCOM_READ 0x4E
 #define SIO_DISKCMD_PERCOM_WRITE 0x4F
 
-// External ref to fuji object.
-extern cx16Fuji theFuji;
-
 cx16Disk::cx16Disk()
 {
     device_active = false;
@@ -195,7 +192,7 @@ void cx16Disk::process(uint32_t commanddata, uint8_t checksum)
     case SIO_DISKCMD_HSIO_STATUS:
         if (is_config_device == true)
         {
-            if (theFuji.boot_config == true)
+            if (theFuji->boot_config == true)
             {
             }
         }

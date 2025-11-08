@@ -22,7 +22,8 @@
 
 #define COPY_SIZE 532
 
-adamFuji theFuji;         // global fuji device object
+adamFuji platformFuji;
+adamFuji *theFuji = &platformFuji;         // global fuji device object
 adamNetwork *theNetwork;  // global network device object (temporary)
 adamNetwork *theNetwork2; // another network device
 adamPrinter *thePrinter;  // global printer
@@ -1308,7 +1309,7 @@ void adamFuji::setup()
     theSerial = new adamSerial();
     SYSTEM_BUS.addDevice(theNetwork, 0x09);  // temporary.
     SYSTEM_BUS.addDevice(theNetwork2, 0x0A); // temporary
-    SYSTEM_BUS.addDevice(&theFuji, 0x0F);    // Fuji becomes the gateway device.
+    SYSTEM_BUS.addDevice(theFuji, 0x0F);    // Fuji becomes the gateway device.
 }
 
 // Mount all

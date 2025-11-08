@@ -205,8 +205,8 @@ public:
     void handle_ctl_eject(uint8_t spid);
     std::string get_host_prefix(int host_slot);
 
-    fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
-    fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *get_host(int i) { return &_fnHosts[i]; }
+    fujiDisk *get_disk(int i) { return &_fnDisks[i]; }
     fujiHost *set_slot_hostname(int host_slot, char *hostname);
     DEVICE_TYPE *get_disk_dev(int i) {
 #ifndef DEV_RELAY_SLIP
@@ -231,7 +231,7 @@ public:
     // virtual void startup_hack() override { Debug_printf("\n Fuji startup hack"); }
 };
 
-extern iwmFuji theFuji;
+extern iwmFuji *theFuji;
 
 #endif // FUJI_H
 #endif /* BUILD_APPLE */

@@ -29,7 +29,8 @@
 
 #define ADDITIONAL_DETAILS_BYTES 13
 
-drivewireFuji theFuji; // global fuji device object
+drivewireFuji platformFuji;
+drivewireFuji *theFuji = &platformFuji; // global fuji device object
 
 // drivewireDisk drivewireDiskDevs[MAX_HOSTS];
 drivewireNetwork drivewireNetDevs[MAX_NETWORK_DEVICES];
@@ -1660,7 +1661,7 @@ void drivewireFuji::hash_clear()
 // Initializes base settings and adds our devices to the DRIVEWIRE bus
 void drivewireFuji::setup()
 {
-    Debug_printf("theFuji.setup()\n");
+    Debug_printf("theFuji->setup()\n");
     // set up Fuji device
     _populate_slots_from_config();
 

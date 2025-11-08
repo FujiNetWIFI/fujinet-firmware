@@ -16,7 +16,6 @@
 #include "iwm/printerlist.h"
 #include "iwm/iwmFuji.h"
 #define PRINTER_CLASS iwmPrinter
-extern iwmFuji theFuji;
 #endif /* BUILD_APPLE */
 
 bool udpactivate = false;
@@ -284,7 +283,7 @@ void fnHttpServiceConfigurator::config_cassette_play(std::string play_record)
     // find cassette via thefuji object?
     Debug_printf("New play/record button value: %s\n", play_record.c_str());
     bool isRecord = util_string_value_is_true(play_record);
-    theFuji.cassette()->set_buttons(isRecord);
+    theFuji->cassette()->set_buttons(isRecord);
     Config.store_cassette_buttons(isRecord);
 
     Config.save();
@@ -295,7 +294,7 @@ void fnHttpServiceConfigurator::config_cassette_resistor(std::string resistor)
 {
 #ifdef BUILD_ATARI
     bool isPullDown = util_string_value_is_true(resistor);
-    theFuji.cassette()->set_pulldown(isPullDown);
+    theFuji->cassette()->set_pulldown(isPullDown);
     Config.store_cassette_pulldown(isPullDown);
 
     Config.save();

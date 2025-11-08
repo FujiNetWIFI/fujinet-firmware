@@ -20,7 +20,8 @@
 #include "utils.h"
 #include "string_utils.h"
 
-cx16Fuji theFuji; // global fuji device object
+cx16Fuji platformFuji;
+cx16Fuji *theFuji = &platformFuji; // global fuji device object
 
 using namespace std;
 

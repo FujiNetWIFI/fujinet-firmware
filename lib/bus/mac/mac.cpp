@@ -64,14 +64,14 @@ void systemBus::service(void)
       case 0:
         // set direction to increase track number
         Debug_printf("%c", 'I');
-        theFuji.get_disks(4)->disk_dev.set_dir(+1);
+        theFuji->get_disk(4)->disk_dev.set_dir(+1);
         // fnUartBUS.write('I');
         // fnUartBUS.flush();
         break;
       case 4:
         // set direction to decrease track number
         Debug_printf("%c", 'D');
-        theFuji.get_disks(4)->disk_dev.set_dir(-1);
+        theFuji->get_disk(4)->disk_dev.set_dir(-1);
         // fnUartBUS.write('D');
         // fnUartBUS.flush();
         break;
@@ -81,7 +81,7 @@ void systemBus::service(void)
         {
           t0 = fnSystem.micros();
           track_not_copied = true;
-          int track_position = theFuji.get_disks(4)->disk_dev.step();
+          int track_position = theFuji->get_disk(4)->disk_dev.step();
           if (track_position < 0)
           {
             fnUartBUS.write('N');
@@ -110,7 +110,7 @@ void systemBus::service(void)
         // eject
         Debug_printf("\neject - unmounting");
         floppy_ll.stop();
-        theFuji.get_disks(4)->disk_dev.unmount();
+        theFuji->get_disk(4)->disk_dev.unmount();
         fnUartBUS.write('E');
         // fnUartBUS.flush();
         break;
@@ -136,7 +136,7 @@ void systemBus::service(void)
       case 'R':
       case 'T':
       case 'W':
-        theFuji.get_disks(_active_DCD_disk)->disk_dev.process(c);
+        theFuji->get_disk(_active_DCD_disk)->disk_dev.process(c);
         break;
       default:
         break;
@@ -145,7 +145,7 @@ void systemBus::service(void)
   }
   if (track_not_copied && stepper_timeout())
   {
-    theFuji.get_disks(4)->disk_dev.update_track_buffers();
+    theFuji->get_disk(4)->disk_dev.update_track_buffers();
     track_not_copied = false;
     fnUartBUS.write('S');
   }
@@ -733,7 +733,7 @@ void IRAM_ATTR iwmBus::service()
     break;
   case iwm_enable_state_t::off2on:
     // need to start a counter and wait to turn on enable output after 1 ms only iff enable state is on
-    if (theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
+    if (theFuji->_fnDisk2s[diskii_xface.iwm_enable_states() - 1].device_active)
     {
       fnSystem.delay(1); // need a better way to figure out persistence
       if (iwm_drive_enabled() == iwm_enable_state_t::on)
@@ -750,7 +750,7 @@ void IRAM_ATTR iwmBus::service()
     return; // return so the SP code doesn't get checked
   case iwm_enable_state_t::on:
 #ifdef DEBUG
-    new_track = theFuji._fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
+    new_track = theFuji->_fnDisk2s[diskii_xface.iwm_enable_states() - 1].get_track_pos();
     if (old_track != new_track)
     {
       Debug_printf("\ntrk pos %03d on d%d", new_track, diskii_xface.iwm_enable_states());
@@ -817,7 +817,7 @@ void iwmBus::handle_init()
     // tell the Fuji it's device no.
     if (it == _daisyChain.begin())
     {
-      theFuji._devnum = command_packet.dest;
+      theFuji->_devnum = command_packet.dest;
     }
     // assign dev numbers
     pDevice = (*it);

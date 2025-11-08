@@ -27,7 +27,8 @@
 #define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40
 
-iwmFuji theFuji; // Global fuji object.
+iwmFuji platformFuji;
+iwmFuji *theFuji = &platformFuji; // Global fuji object.
 
 iwmFuji::iwmFuji()
 {
@@ -1481,17 +1482,17 @@ void iwmFuji::handle_ctl_eject(uint8_t spid)
         int ds = 255;
         for (int i = 0; i < MAX_DISK_DEVICES; i++)
         {
-                if (theFuji.get_disk_dev(i)->id() == spid)
+                if (theFuji->get_disk_dev(i)->id() == spid)
                 {
                         ds = i;
                 }
         }
         if (ds != 255)
         {
-                theFuji.get_disks(ds)->reset();
+                theFuji->get_disk(ds)->reset();
                 Config.clear_mount(ds);
                 Config.save();
-                theFuji._populate_slots_from_config();
+                theFuji->_populate_slots_from_config();
         }
 }
 
