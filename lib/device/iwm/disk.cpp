@@ -10,7 +10,7 @@
 // #include "fnFsSD.h"
 #include "fsFlash.h"
 #include "led.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 
 // #define LOCAL_TNFS
 
@@ -28,11 +28,11 @@ iwmDisk::~iwmDisk()
 // Bit 3: Format allowed
 // Bit 2: Media write protected
 // Bit 1: Currently interrupting (//c only)
-// Bit 0: Disk Switched 
+// Bit 0: Disk Switched
 uint8_t iwmDisk::create_status()
 {
   uint8_t status = 0b11101000;
-  status = (device_active) ? (status |   STATCODE_DEVICE_ONLINE) : 
+  status = (device_active) ? (status |   STATCODE_DEVICE_ONLINE) :
                              (status & ~(STATCODE_DEVICE_ONLINE));
   if (readonly)               status |=  STATCODE_WRITE_PROTECT;
   if (_disk != nullptr)       status |=  (1 << 4);
@@ -86,7 +86,7 @@ uint8_t iwmDisk::smartport_device_subtype()
 {
   if (_disk == nullptr)
     return SP_SUBTYPE_BYTE_SWITCHED;
-    
+
   if (_disk->num_blocks < 1601)
     return SP_SUBTYPE_BYTE_SWITCHED; // Floppy disk
   else
@@ -173,7 +173,7 @@ void iwmDisk::send_status_dib_reply_packet() // to do - abstract this out with p
     { smartport_device_type(), smartport_device_subtype() },    // type, subtype
     { 0x01, 0x0f }                                              // version.
   );
-	SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
+        SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
 //*****************************************************************************
@@ -210,10 +210,10 @@ void iwmDisk::send_extended_status_dib_reply_packet() //XXX! currently unused
   SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::ext_status, SP_ERR_NOERROR, data.data(), data.size());
 }
 
-void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd) 
+void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
 {
   err_result = SP_ERR_NOERROR;
-  uint8_t control_code = get_status_code(cmd); 
+  uint8_t control_code = get_status_code(cmd);
   Debug_printf("\nDisk Device %02x Control Code %02x", id(), control_code);
   // already called by ISR
   data_len = 512;
@@ -234,7 +234,7 @@ void iwmDisk::iwm_ctrl(iwm_decoded_cmd_t cmd)
     err_result = SP_ERR_BADCTL;
     break;
   }
-  send_reply_packet(err_result); 
+  send_reply_packet(err_result);
 }
 
 void iwmDisk::process(iwm_decoded_cmd_t cmd)
@@ -294,9 +294,9 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
 
   // source = cmd.dest; // we are the destination and will become the source // packet_buffer[6];
   Debug_printf("\r\nDrive %02x ", id());
-  
 
-  
+
+
   // LBH = cmd.grp7msb; //packet_buffer[16]; // high order bits
   // LBT = cmd.g7byte5; //packet_buffer[21]; // block number high
   // LBL = cmd.g7byte4; //packet_buffer[20]; // block number middle
@@ -336,7 +336,7 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
     send_reply_packet(SP_ERR_IOERROR);
     return; // todo - true or false?
   }
-  
+
   // send_data_packet();
   Debug_printf("\r\nsending block packet ...");
   if (SYSTEM_BUS.iwm_send_packet(id(), iwm_packet_type_t::data, 0, data_buffer, BLOCK_DATA_LEN))
@@ -346,8 +346,8 @@ void iwmDisk::iwm_readblock(iwm_decoded_cmd_t cmd)
 void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
 {
   uint8_t status = 0;
- 
- 
+
+
  //  uint8_t source = cmd.dest; // packet_buffer[6];
   // to do - actually we will already know that the cmd.dest == id(), so can just use id() here
   Debug_printf("\r\nDrive %02x ", id());
@@ -369,8 +369,8 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
   if (data_len == -1)
     iwm_return_ioerror();
   else
-    { // We have to return the error after ingesting the block to write or ProDOS doesn't correctly see the status. 
-      
+    { // We have to return the error after ingesting the block to write or ProDOS doesn't correctly see the status.
+
       if((!device_active)) {
         Debug_printf("iwm_writeblock while device offline!\r\n");
         send_reply_packet(SP_ERR_OFFLINE);
@@ -381,7 +381,7 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
         send_reply_packet(SP_ERR_NOWRITE);
         switched = false;
         return;
-      } 
+      }
       if(switched) {
         Debug_printf("iwm_writeblock while disk switched = true\r\nn");
         send_reply_packet(SP_ERR_OFFLINE);
@@ -396,7 +396,7 @@ void iwmDisk::iwm_writeblock(iwm_decoded_cmd_t cmd)
 
       uint16_t sdstato = BLOCK_DATA_LEN;
       _disk->write(block_num, &sdstato, data_buffer);
-      
+
       if (sdstato != BLOCK_DATA_LEN)
       {
         Debug_printf("\r\nFile Write err: %d bytes", sdstato);
@@ -512,7 +512,7 @@ void iwmDisk::unmount()
         delete _disk;
         _disk = nullptr;
         device_active = false;
-	is_config_device = false;
+        is_config_device = false;
         readonly = true;
         Debug_printf("Disk UNMOUNTED!!!!\r\n");
     }
@@ -520,12 +520,12 @@ void iwmDisk::unmount()
 
 bool iwmDisk::write_blank(fnFile *f, uint16_t sectorSize, uint16_t numSectors)
 {
-  
+
   return false;
 }
 
 /**
- * Used for writing ProDOS images which exist in multiples of 
+ * Used for writing ProDOS images which exist in multiples of
  * 512 byte blocks.
  */
 bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
@@ -575,7 +575,7 @@ bool iwmDisk::write_blank(fnFile *f, uint16_t numBlocks)
       unsigned char id[4] = {'2','I','M','G'};
       unsigned char creator[4] = {'F','U','J','I'};
       unsigned short header_size = 0x40; // 64 bytes
-      unsigned short version = 0x01; 
+      unsigned short version = 0x01;
       unsigned long format = 0x01; // Prodos order
       unsigned long flags = 0x00;
       unsigned long numBlocks = 0;

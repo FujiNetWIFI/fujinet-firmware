@@ -1,6 +1,6 @@
 #ifdef BUILD_CX16
 
-#include "fuji.h"
+#include "cx16Fuji.h"
 
 #include <driver/ledc.h>
 

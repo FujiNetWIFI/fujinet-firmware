@@ -10,7 +10,7 @@
 #include <esp_wifi.h>
 #include <esp_crc.h>
 
-#include "../device/fuji.h"
+#include "fujiDevice.h"
 #include "fnWiFi.h"
 
 #include "string_utils.h"
@@ -86,24 +86,24 @@ static void on_ping_timeout(esp_ping_handle_t hdl, void *args)
 static void on_ping_end(esp_ping_handle_t hdl, void *args)
 {
     ip_addr_t target_addr;
-	uint32_t transmitted;
-	uint32_t received;
-	uint32_t total_time_ms;
-	esp_ping_get_profile(hdl, ESP_PING_PROF_REQUEST, &transmitted, sizeof(transmitted));
-	esp_ping_get_profile(hdl, ESP_PING_PROF_REPLY, &received, sizeof(received));
-	esp_ping_get_profile(hdl, ESP_PING_PROF_IPADDR, &target_addr, sizeof(target_addr));
-	esp_ping_get_profile(hdl, ESP_PING_PROF_DURATION, &total_time_ms, sizeof(total_time_ms));
-	uint32_t loss = (uint32_t)((1 - ((float)received) / transmitted) * 100);
-	if (IP_IS_V4(&target_addr)) {
-		printf("\n--- %s ping statistics ---", inet_ntoa(*ip_2_ip4(&target_addr)));
-	} else {
-		printf("\n--- %s ping statistics ---", inet6_ntoa(*ip_2_ip6(&target_addr)));
-	}
-	printf("%" PRIu32 " packets transmitted, %" PRIu32 " received, %" PRIu32 "%% packet loss, time %" PRIu32 "ms",
-			 transmitted, received, loss, total_time_ms);
-	// delete the ping sessions, so that we clean up all resources and can create a new ping session
-	// we don't have to call delete function in the callback, instead we can call delete function from other tasks
-	esp_ping_delete_session(hdl);
+        uint32_t transmitted;
+        uint32_t received;
+        uint32_t total_time_ms;
+        esp_ping_get_profile(hdl, ESP_PING_PROF_REQUEST, &transmitted, sizeof(transmitted));
+        esp_ping_get_profile(hdl, ESP_PING_PROF_REPLY, &received, sizeof(received));
+        esp_ping_get_profile(hdl, ESP_PING_PROF_IPADDR, &target_addr, sizeof(target_addr));
+        esp_ping_get_profile(hdl, ESP_PING_PROF_DURATION, &total_time_ms, sizeof(total_time_ms));
+        uint32_t loss = (uint32_t)((1 - ((float)received) / transmitted) * 100);
+        if (IP_IS_V4(&target_addr)) {
+                printf("\n--- %s ping statistics ---", inet_ntoa(*ip_2_ip4(&target_addr)));
+        } else {
+                printf("\n--- %s ping statistics ---", inet6_ntoa(*ip_2_ip6(&target_addr)));
+        }
+        printf("%" PRIu32 " packets transmitted, %" PRIu32 " received, %" PRIu32 "%% packet loss, time %" PRIu32 "ms",
+                         transmitted, received, loss, total_time_ms);
+        // delete the ping sessions, so that we clean up all resources and can create a new ping session
+        // we don't have to call delete function in the callback, instead we can call delete function from other tasks
+        esp_ping_delete_session(hdl);
 }
 
 static int ping(int argc, char **argv)
@@ -178,10 +178,10 @@ static int ping(int argc, char **argv)
     esp_ping_start(ping);
 
     char c = 0;
-    
+
     uint16_t seqno;
     esp_ping_get_profile(ping, ESP_PING_PROF_SEQNO, &seqno, sizeof(seqno));
-    
+
     //Make stdin input non blocking so we can query for input AND check ping seqno
     int flags = fcntl(fileno(stdin), F_GETFL, 0);
     fcntl(fileno(stdin), F_SETFL, flags | O_NONBLOCK);
@@ -224,7 +224,7 @@ static void ipconfig_wlan()
     // if (status == WL_NO_SHIELD) {
     //     return;
     // }
-    
+
     // printf("\r\n");
     // printf("SSID: %s\r\n", fnWiFi.get_current_ssid().c_str());
     // printf("BSSID: %s\r\n", fnWiFi.get_current_bssid_str().c_str());
@@ -235,7 +235,7 @@ static void ipconfig_wlan()
     // printf("Subnet Mask: %s (/%d)\r\n", WiFi.subnetMask().toString().c_str(), WiFi.subnetCIDR());
     // printf("Gateway: %s\r\n", WiFi.gatewayIP().toString().c_str());
     // printf("IPv6: %s\r\n", WiFi.localIPv6().toString().c_str());
-    
+
     // printf("\r\n");
     // printf("Hostname: %s\r\n", WiFi.getHostname());
     // printf("DNS1: %s\r\n", WiFi.dnsIP(0).toString().c_str());
@@ -293,7 +293,7 @@ std::vector<std::string> getLocalUrl() {
   };
 }
 
-void serial_write(std::vector<uint8_t> &data) { 
+void serial_write(std::vector<uint8_t> &data) {
     // print buffer bytes
     for (int i = 0; i < data.size(); i++) {
         fprintf(stdout, "%c", data[i]);
@@ -301,8 +301,8 @@ void serial_write(std::vector<uint8_t> &data) {
 }
 
 
-void set_state(improv::State state) {  
-  
+void set_state(improv::State state) {
+
   std::vector<uint8_t> data = {'I', 'M', 'P', 'R', 'O', 'V'};
   data.resize(11);
   data[6] = improv::IMPROV_SERIAL_VERSION;
@@ -354,7 +354,7 @@ void set_error(improv::Error error) {
 void getAvailableWifiNetworks() {
 //   int networkNum = WiFi.scanNetworks();
 
-//   for (int id = 0; id < networkNum; ++id) { 
+//   for (int id = 0; id < networkNum; ++id) {
 //     std::vector<uint8_t> data = improv::build_rpc_response(
 //             improv::GET_WIFI_NETWORKS, {WiFi.SSID(id), String(WiFi.RSSI(id)), (WiFi.encryptionType(id) == WIFI_AUTH_OPEN ? "NO" : "YES")}, false);
 //     send_response(data);
@@ -432,7 +432,7 @@ static int improv_c(int argc, char **argv)
         } else {
             set_state(improv::State::STATE_AUTHORIZED);
         }
-        
+
         break;
         }
 
@@ -442,23 +442,23 @@ static int improv_c(int argc, char **argv)
             set_error(improv::Error::ERROR_INVALID_RPC);
             break;
         }
-        
+
         set_state(improv::STATE_PROVISIONING);
-        
+
         if (connectWifi(cmd.ssid, cmd.password)) {
 
             //blink_led(100, 3);
-            
+
             //TODO: Persist credentials here
 
-            set_state(improv::STATE_PROVISIONED);        
+            set_state(improv::STATE_PROVISIONED);
             std::vector<uint8_t> data = improv::build_rpc_response(improv::WIFI_SETTINGS, getLocalUrl(), false);
             send_response(data);
         } else {
             set_state(improv::STATE_STOPPED);
             set_error(improv::Error::ERROR_UNABLE_TO_CONNECT);
         }
-        
+
         break;
         }
 

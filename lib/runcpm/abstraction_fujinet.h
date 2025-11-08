@@ -22,7 +22,7 @@
 #include "fnTcpServer.h"
 #include "fnTcpClient.h"
 
-#include "fuji.h"
+#include "fujiDevice.h"
 
 #define HostOS 0x07 // FUJINET
 

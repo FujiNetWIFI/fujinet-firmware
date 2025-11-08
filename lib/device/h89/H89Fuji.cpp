@@ -1,6 +1,6 @@
 #ifdef BUILD_H89
 
-#include "fuji.h"
+#include "H89Fuji.h"
 
 #include <cstring>
 

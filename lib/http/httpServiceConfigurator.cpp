@@ -3,7 +3,7 @@
 #include "../../include/debug.h"
 
 #include "printer.h"
-#include "fuji.h"
+#include "fujiDevice.h"
 
 #include "fnSystem.h"
 #include "fnConfig.h"

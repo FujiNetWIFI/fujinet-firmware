@@ -2,7 +2,7 @@
 
 #include "compat_string.h"
 
-#include "fuji.h"
+#include "fujiDevice.h"
 #include "fnFsSD.h"
 #include "fnFsTNFS.h"
 #include "fnFsSMB.h"
@@ -89,7 +89,7 @@ int fnHttpServiceBrowser::browse_url_encode(const char *src, size_t src_len, cha
     for (i = j = 0; i < src_len && j + 1 < dst_len; i++, j++)
     {
         if ((src[i] < 'A' || src[i] > 'Z') &&
-            (src[i] < 'a' || src[i] > 'z') && 
+            (src[i] < 'a' || src[i] > 'z') &&
             (src[i] < '0' || src[i] > '9') &&
             src[i] != '-' && src[i] != '.' && src[i] != '_' && src[i] != '~')
         {
@@ -102,7 +102,7 @@ int fnHttpServiceBrowser::browse_url_encode(const char *src, size_t src_len, cha
             {
                 return -1;
             }
-        } else 
+        } else
         {
             dst[j] = src[i];
         }
@@ -131,7 +131,7 @@ int fnHttpServiceBrowser::browse_html_escape(const char *src, size_t src_len, ch
             {
                 return -1;
             }
-        } else 
+        } else
         {
             dst[j] = src[i];
         }
@@ -383,7 +383,7 @@ int fnHttpServiceBrowser::browse_listdrives(mg_connection *c, int slot, const ch
             drive_slot+1, slot_disk,
             // action=newmount&slot=..
             drive_slot+1, drive_slot+1,
-            (host_slot == HOST_SLOT_INVALID) ? "Nothing to do" : 
+            (host_slot == HOST_SLOT_INVALID) ? "Nothing to do" :
                 is_mounted ? "Eject current image" : "Mount current image",
             (host_slot == HOST_SLOT_INVALID) ? "none" : is_mounted ? "eject" : "mount",
             drive_slot+1,
@@ -393,7 +393,7 @@ int fnHttpServiceBrowser::browse_listdrives(mg_connection *c, int slot, const ch
                 (Config.get_host_name(host_slot) + " :: "+ Config.get_mount_path(drive_slot)).c_str(),
             // Mount mode: R / W or "Empty" for empty slot
             (host_slot == HOST_SLOT_INVALID) ? "Empty" :
-                Config.get_mount_mode(drive_slot) == fnConfig::mount_modes::MOUNTMODE_READ ? 
+                Config.get_mount_mode(drive_slot) == fnConfig::mount_modes::MOUNTMODE_READ ?
                     (is_mounted ? "R" : "R-") : (is_mounted ? "W" : "W-")
         );
     }
@@ -417,7 +417,7 @@ void fnHttpServiceBrowser::print_head(mg_connection *c, int slot)
         "a {color: black; text-decoration: none; border-radius: .2em; padding: .1em;} "
         "a:hover {background: gold; transition: background-color .4s;}"
         "</style></head>"
-        "<body><h1><a href=\"/\" title=\"Back to Config\">&#215;</a> Host %d</h1>", 
+        "<body><h1><a href=\"/\" title=\"Back to Config\">&#215;</a> Host %d</h1>",
         Config.get_general_label().c_str() ,slot+1, slot+1);
         // &#129128; &#129120; - nice wide leftwards arrow but not working in Safari
 }

@@ -16,7 +16,7 @@
 
 #include "../../include/debug.h"
 
-#include "fuji.h"
+#include "fujiDevice.h"
 #include "fnSystem.h"
 #include "fnConfig.h"
 #include "httpService.h"
@@ -275,11 +275,11 @@ int WiFiManager::test_connect(const char *ssid, const char *password)
 esp_err_t WiFiManager::block()
 {
     EventBits_t bits = xEventGroupWaitBits(wifi_event_group,
-		WIFI_NO_IP_YET_BIT | WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
-		pdFALSE,
-		pdFALSE,
-		30000 / portTICK_PERIOD_MS);
-		// portMAX_DELAY);
+                WIFI_NO_IP_YET_BIT | WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+                pdFALSE,
+                pdFALSE,
+                30000 / portTICK_PERIOD_MS);
+                // portMAX_DELAY);
 
     if (bits & WIFI_CONNECTED_BIT) {
         return ESP_OK;
@@ -317,7 +317,7 @@ uint8_t WiFiManager::scan_networks(uint8_t maxresults)
     scan_conf.scan_time.active.max = 300; // ms; 300 is what Arduino-ESP uses
     scan_conf.channel_bitmap.ghz_2_channels = 0xFFFF; // all channels
     scan_conf.channel_bitmap.ghz_5_channels = 0xFFFFFFFF; // all channels
-    
+
     bool temporary_disconnect = false;
     uint16_t result = 0;
     uint8_t final_count = 0;

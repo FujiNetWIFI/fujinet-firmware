@@ -1,7 +1,7 @@
 #ifndef FUJI_H
 #define FUJI_H
 
-#include "fuji.h"
+#include "fujiDevice.h"
 
 #include <cstdint>
 #include <cstring>
