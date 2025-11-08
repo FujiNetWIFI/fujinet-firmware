@@ -41,7 +41,8 @@
 #define FF_DIR 0x01
 #define FF_TRUNC 0x02
 
-sioFuji theFuji; // global fuji device object
+sioFuji platformFuji;
+sioFuji *theFuji = &platformFuji; // global fuji device object
 
 //QRManager sioFuji::_qrManager = QRManager();
 

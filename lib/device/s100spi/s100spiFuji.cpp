@@ -16,7 +16,8 @@
 
 #define ADDITIONAL_DETAILS_BYTES 12
 
-s100spiFuji theFuji;        // global fuji device object
+s100spiFuji platformFuji;
+s100spiFuji *theFuji = &platformFuji;        // global fuji device object
 s100spiNetwork *theNetwork; // global network device object (temporary)
 s100spiPrinter *thePrinter; // global printer
 
@@ -1018,7 +1019,7 @@ void s100spiFuji::setup(systemBus *siobus)
 
     theNetwork = new s100spiNetwork();
     _s100spi_bus->addDevice(theNetwork, 0x09); // temporary.
-    _s100spi_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
+    _s100spi_bus->addDevice(theFuji, 0x0F);   // Fuji becomes the gateway device.
 
     // Add our devices to the s100spi bus
     // for (int i = 0; i < 4; i++)

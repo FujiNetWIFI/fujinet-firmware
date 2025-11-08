@@ -15,7 +15,8 @@
 
 #define ADDITIONAL_DETAILS_BYTES 12
 
-H89Fuji theFuji;        // global fuji device object
+H89Fuji platformFuji;
+H89Fuji *theFuji = &platformFuji;        // global fuji device object
 H89Network *theNetwork; // global network device object (temporary)
 H89Printer *thePrinter; // global printer
 

@@ -15,7 +15,8 @@
 #define ADDITIONAL_DETAILS_BYTES 12
 #define DIR_MAX_LEN 40
 
-macFuji theFuji; // Global fuji object.
+macFuji platformFuji;
+macFuji *theFuji = &platformFuji; // Global fuji object.
 
 macFuji::macFuji()
 {
@@ -27,15 +28,6 @@ macFuji::macFuji()
   };
 
 }
-
-// void macFuji::startup_hack()
-// {
-//   Debug_printf("\n Fuji startup hack");
-//   for (int i = 0; i < MAX_DISK_DEVICES; i++)
-//   {
-//     _fnDisks[i].disk_dev.set_disk_number(i);
-//   }
-// }
 
 macFloppy *macFuji::bootdisk()
 {
@@ -56,15 +48,6 @@ void macFuji::setup(macBus *macbus)
   // Disable status_wait if our settings say to turn it off
   status_wait_enabled = false; // to do - understand?
 
-  //   theNetwork = new iwmNetwork();
-  //   _iwm_bus->addDevice(theNetwork,iwm_fujinet_type_t::Network);
-
-  //   theClock = new iwmClock();
-  //   _iwm_bus->addDevice(theClock, iwm_fujinet_type_t::Clock);
-
-  //   theCPM = new iwmCPM();
-  //   _iwm_bus->addDevice(theCPM, iwm_fujinet_type_t::CPM);
-
   //  27-aug-23 use something similar for Mac floppy/dcd disks
    for (int i = MAX_DISK_DEVICES - MAX_FLOPPY_DEVICES -1; i >= 0; i--)
    {
@@ -76,36 +59,6 @@ void macFuji::setup(macBus *macbus)
      _fnDisks[MAX_DISK_DEVICES - 1].disk_dev.set_disk_number('0' + i);
     //  _mac_bus->addDevice(&_fnDisks[i].disk_dev, mac_fujinet_type_t::Floppy);
    }
-
-
-  // to do AUTORUN
-  //   Debug_printf("\nConfig General Boot Mode: %u\n",Config.get_general_boot_mode());
-  //   if (Config.get_general_boot_mode() == 0)
-  //   {
-        // FILE *f = fsFlash.file_open("/autorun.moof");
-        // if (f!=nullptr)
-        //   _fnDisks[MAX_DISK_DEVICES - MAX_FLOPPY_DEVICES].disk_dev.mount(f, "/autorun.moof", MEDIATYPE_MOOF);
-        // else
-        //   Debug_printf("\nCould not open 'autorun.moof'");
-  //   }
-  //   else
-  //   {
-  //       FILE *f = fnSPIFFS.file_open("/mount-and-boot.po");
-  //        _fnDisks[0].disk_dev.mount(f, "/mount-and-boot.po", 512*256, MEDIATYPE_PO);
-  //   }
-
-  // theNetwork = new adamNetwork();
-  // theSerial = new adamSerial();
-  // _iwm_bus->addDevice(theNetwork, 0x09); // temporary.
-  // _iwm_bus->addDevice(theSerial, 0x0e);  // Serial port
-  // _iwm_bus->addDevice(&theFuji, 0x0F);   // Fuji becomes the gateway device.
-
-  // Add our devices to the AdamNet bus
-  // for (int i = 0; i < 4; i++)
-  //    _adamnet_bus->addDevice(&_fnDisks[i].disk_dev, ADAMNET_DEVICEID_DISK + i);
-
-  // for (int i = 0; i < MAX_NETWORK_DEVICES; i++)
-  //     _adamnet_bus->addDevice(&sioNetDevs[i], ADAMNET_DEVICEID_FN_NETWORK + i);
 }
 
 

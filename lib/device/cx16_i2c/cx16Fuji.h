@@ -85,8 +85,8 @@ public:
     int get_disk_id(int drive_slot);
     std::string get_host_prefix(int host_slot);
 
-    fujiHost *get_hosts(int i) { return &_fnHosts[i]; }
-    fujiDisk *get_disks(int i) { return &_fnDisks[i]; }
+    fujiHost *get_host(int i) { return &_fnHosts[i]; }
+    fujiDisk *get_disk(int i) { return &_fnDisks[i]; }
     fujiHost *set_slot_hostname(int host_slot, char *hostname);
 
     void _populate_slots_from_config();
@@ -97,6 +97,6 @@ public:
     cx16Fuji();
 };
 
-extern cx16Fuji theFuji;
+extern cx16Fuji *theFuji;
 
 #endif /* FUJI_H */

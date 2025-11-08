@@ -56,8 +56,6 @@ Console console;
 // fnKeyManager is declared and defined in keys.h/cpp
 // fnHTTPD is declared and defineid in HttpService.h/cpp
 
-// sioFuji theFuji; // moved to fuji.h/.cpp
-
 systemBus SYSTEM_BUS; // Global SYSTEM_BUS object
 
 #ifndef ESP_PLATFORM
@@ -237,8 +235,8 @@ void main_setup(int argc, char *argv[])
     // WiFi/BT auto connect moved to app_main()
 
 #ifdef BUILD_ATARI
-    theFuji.setup();
-    SYSTEM_BUS.addDevice(&theFuji, FUJI_DEVICEID_FUJINET); // the FUJINET!
+    theFuji->setup();
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET); // the FUJINET!
 
     if (Config.get_apetime_enabled() == true)
         SYSTEM_BUS.addDevice(&clockDevice, FUJI_DEVICEID_CLOCK); // Clock for Atari, APETime compatible, but extended for additional return types
@@ -286,7 +284,7 @@ void main_setup(int argc, char *argv[])
 #endif // BUILD_ATARI
 
 #ifdef BUILD_COCO
-    theFuji.setup();
+    theFuji->setup();
 
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
     drivewirePrinter::printer_type ptype = Config.get_printer_type(0);
@@ -307,20 +305,20 @@ void main_setup(int argc, char *argv[])
     // Setup IEC Bus
     SYSTEM_BUS.setup();
 
-    theFuji.setup();
+    theFuji->setup();
     //sioR = new iecModem(ptrfs, Config.get_modem_sniffer_enabled());
 
 #endif // BUILD_IEC
 
 #ifdef BUILD_LYNX
-    theFuji.setup();
+    theFuji->setup();
     SYSTEM_BUS.setup();
 #endif
 
 #ifdef BUILD_RS232
-    theFuji.setup();
+    theFuji->setup();
     SYSTEM_BUS.setup();
-    SYSTEM_BUS.addDevice(&theFuji, FUJI_DEVICEID_FUJINET);
+    SYSTEM_BUS.addDevice(theFuji, FUJI_DEVICEID_FUJINET);
     if (Config.get_apetime_enabled() == true)
         SYSTEM_BUS.addDevice(&apeTime, FUJI_DEVICEID_CLOCK); // Clock for Atari, APETime compatible, but extended for additional return types
 
@@ -339,7 +337,7 @@ void main_setup(int argc, char *argv[])
 #endif
 
 #ifdef BUILD_RC2014
-    theFuji.setup();
+    theFuji->setup();
     SYSTEM_BUS.setup();
 
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -360,7 +358,7 @@ void main_setup(int argc, char *argv[])
 #endif
 
 #ifdef BUILD_H89
-    theFuji.setup();
+    theFuji->setup();
     SYSTEM_BUS.setup();
 
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -381,7 +379,7 @@ void main_setup(int argc, char *argv[])
 #endif
 
 #ifdef BUILD_ADAM
-    theFuji.setup();
+    theFuji->setup();
     SYSTEM_BUS.setup();
     fnSDFAT.create_path("/FujiNet");
 
@@ -428,7 +426,7 @@ void main_setup(int argc, char *argv[])
     fnPrinters.set_entry(0, ptr, ptype, Config.get_printer_port(0));
     SYSTEM_BUS.addDevice(ptr, iwm_fujinet_type_t::Printer);
 
-    theFuji.setup();
+    theFuji->setup();
     SYSTEM_BUS.setup(); // save device unit SP address somewhere and restore it after reboot?
 
 #endif /* BUILD_APPLE */
@@ -438,13 +436,13 @@ void main_setup(int argc, char *argv[])
 
     sioR = new macModem(ptrfs, Config.get_modem_sniffer_enabled());
     SYSTEM_BUS.setup();
-    theFuji.setup();
+    theFuji->setup();
 
 #endif // BUILD_MAC
 
 #ifdef BUILD_CX16
-    theFuji.setup();
-    SYSTEM_BUS.addDevice(&theFuji, CX16_DEVICEID_FUJINET); // the FUJINET!
+    theFuji->setup();
+    SYSTEM_BUS.addDevice(theFuji, CX16_DEVICEID_FUJINET); // the FUJINET!
 
     // Create a new printer object, setting its output depending on whether we have SD or not
     FileSystem *ptrfs = fnSDFAT.running() ? (FileSystem *)&fnSDFAT : (FileSystem *)&fsFlash;
@@ -500,7 +498,7 @@ void main_setup(int argc, char *argv[])
 
 #ifdef BUILD_S100
 
-// theFuji.setup();
+// theFuji->setup();
 // SYSTEM_BUS.setup();
 
 #endif /* BUILD_S100*/

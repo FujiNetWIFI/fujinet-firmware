@@ -31,7 +31,8 @@
 #define FF_DIR 0x01
 #define FF_TRUNC 0x02
 
-iecFuji theFuji; // global fuji device object
+iecFuji platformFuji;
+iecFuji *theFuji = &platformFuji; // global fuji device object
 // iecNetwork sioNetDevs[MAX_NETWORK_DEVICES];
 
 bool _validate_host_slot(uint8_t slot, const char *dmsg = nullptr);

@@ -18,7 +18,8 @@
 #include "string_utils.h"
 #include "compat_string.h"
 
-rs232Fuji theFuji; // global fuji device object
+rs232Fuji platformFuji;
+rs232Fuji *theFuji = &platformFuji; // global fuji device object
 
 //rs232Disk rs232DiskDevs[MAX_HOSTS];
 rs232Network rs232NetDevs[MAX_NETWORK_DEVICES];
