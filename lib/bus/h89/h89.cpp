@@ -15,7 +15,7 @@
 #include "fnSystem.h"
 
 #include "led.h"
-#include "modem.h" 
+#include "modem.h"
 
 #include "driver/gpio.h"
 
@@ -28,8 +28,8 @@
 #define D6 GPIO_NUM_12
 #define D7 GPIO_NUM_13
 
-#define OE GPIO_NUM_0 
-#define DIR GPIO_NUM_2
+#define OE GPIO_NUM_0
+#define _DIR GPIO_NUM_2
 #define STB GPIO_NUM_4
 #define ACK GPIO_NUM_15
 #define IBF GPIO_NUM_34
@@ -52,8 +52,7 @@ void virtualDevice::process(uint32_t commanddata, uint8_t checksum)
  */
 int systemBus::bus_available()
 {
-    // OBF is inverted.
-    return !gpio_get_level(OBF);
+    return gpio_get_level(OBF);
 }
 
 /**
@@ -64,8 +63,13 @@ int systemBus::port_getc()
 {
     int val=0;
 
+    if (gpio_get_level(OE))
+    {
+        return -1;
+    }
+
     // Fail if nothing waiting.
-    if (!bus_available())
+    if (bus_available())
         return -1;
 
     gpio_set_level(ACK,DIGI_LOW);
@@ -78,7 +82,7 @@ int systemBus::port_getc()
     val |= gpio_get_level(D5) << 5;
     val |= gpio_get_level(D6) << 6;
     val |= gpio_get_level(D7) << 7;
-    
+
     gpio_set_level(ACK,DIGI_HIGH);
 
     return val;
@@ -130,9 +134,6 @@ uint16_t systemBus::port_getbuf(void *buf, uint16_t len, uint16_t timeout)
  */
 int systemBus::port_putc(uint8_t c)
 {
-    if (gpio_get_level(OE) == DIGI_HIGH)
-        return -1; // Output not enabled by computer. Abort.
-
     // Wait for IBF to be low.
     while(gpio_get_level(IBF) == DIGI_HIGH);
 
@@ -154,7 +155,7 @@ int systemBus::port_putc(uint8_t c)
 
     // Desert strobe
     gpio_set_level(STB,DIGI_HIGH);
-    
+
     return c;
 }
 
@@ -180,59 +181,81 @@ uint16_t systemBus::port_putbuf(const void *buf, uint16_t len)
     }
     return l;
 }
+ 
+uint8_t ctrl_state = 0;
+uint8_t ctrl_state_prev = 0;
+
+const char msg[] = "TEST FROM ESP32!\r\n";
 
 void systemBus::service()
 {
-    const char msg[] = "THIS IS SENT FROM ESP32!\r\n";
+    ctrl_state  = gpio_get_level(OBF);
+    ctrl_state |= gpio_get_level(ACK) << 1;
+    ctrl_state |= gpio_get_level(IBF) << 2;
+    ctrl_state |= gpio_get_level(STB) << 3;
 
-    while(1)
+    if (ctrl_state != ctrl_state_prev)
     {
-        port_putbuf((void *)msg,strlen(msg));
+        // Debug_printf("New ctrl_state = '%02X'\n",ctrl_state);
     }
+
+    ctrl_state_prev = ctrl_state;
+
+    if (bus_available())
+    {
+        while (bus_available())
+        {
+            int c = port_getc_timeout(10);
+            Debug_printf("%c",c);
+            //port_putc(c);
+        }
+    }
+
+    // port_putbuf(msg,strlen(msg));
 }
-    
+
 void systemBus::setup()
 {
     Debug_println("H89 SETUP\n");
-    Debug_println("TX\n");
+    Debug_println("COMMSTST\n\n");
 
-    // // Reset pins
-    gpio_reset_pin(GPIO_NUM_0);
-    gpio_reset_pin(GPIO_NUM_2);
-    gpio_reset_pin(GPIO_NUM_4);
-    gpio_reset_pin(GPIO_NUM_12);
-    gpio_reset_pin(GPIO_NUM_13);
-    gpio_reset_pin(GPIO_NUM_14);
-    gpio_reset_pin(GPIO_NUM_15);
-    gpio_reset_pin(GPIO_NUM_22);
-    gpio_reset_pin(GPIO_NUM_25);
-    gpio_reset_pin(GPIO_NUM_26);
-    gpio_reset_pin(GPIO_NUM_27);
-    gpio_reset_pin(GPIO_NUM_32);
-    gpio_reset_pin(GPIO_NUM_33);
-    gpio_reset_pin(GPIO_NUM_34);
+    // Reset these pins to INPUT.
+    gpio_reset_pin(OE);
+    gpio_reset_pin(_DIR);
+    gpio_reset_pin(STB);
+    gpio_reset_pin(D6);
+    gpio_reset_pin(D7);
+    gpio_reset_pin(D5);
+    gpio_reset_pin(ACK);
+    gpio_reset_pin(D2);
+    gpio_reset_pin(D3);
+    gpio_reset_pin(D4);
+    gpio_reset_pin(D0);
+    gpio_reset_pin(D1);
+    gpio_reset_pin(IBF);
+    gpio_reset_pin(OBF);
+    gpio_reset_pin(GPIO_NUM_22); // See if we can remove this?
 
-    gpio_set_direction(GPIO_NUM_0,GPIO_MODE_INPUT);
-    gpio_set_direction(GPIO_NUM_2,GPIO_MODE_INPUT);
-    gpio_set_direction(GPIO_NUM_4,GPIO_MODE_OUTPUT);
-    gpio_set_direction(GPIO_NUM_12,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_13,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_14,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_15,GPIO_MODE_OUTPUT);
-    gpio_set_direction(GPIO_NUM_22,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_25,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_26,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_27,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_32,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_33,GPIO_MODE_INPUT_OUTPUT);
-    gpio_set_direction(GPIO_NUM_34,GPIO_MODE_INPUT);
-    gpio_set_direction(GPIO_NUM_35,GPIO_MODE_INPUT);
+    // Adjust appropriate pins to INPUT, OUTPUT, or INPUT_OUTPUT.
+    gpio_set_direction(OE,GPIO_MODE_INPUT);
+    gpio_set_direction(_DIR,GPIO_MODE_INPUT);
+    gpio_set_direction(STB,GPIO_MODE_OUTPUT);
+    gpio_set_direction(D6,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(D7,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(D5,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(ACK,GPIO_MODE_OUTPUT);
+    gpio_set_direction(D2,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(D3,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(D4,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(D0,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(D1,GPIO_MODE_INPUT_OUTPUT);
+    gpio_set_direction(IBF,GPIO_MODE_INPUT);
+    gpio_set_direction(OBF,GPIO_MODE_INPUT);
+    gpio_set_direction(GPIO_NUM_22,GPIO_MODE_INPUT_OUTPUT); // can we remove this?
 
-    Debug_printf("Setting GPIO #15 (/ACK) to high.");
-    gpio_set_level(GPIO_NUM_15,DIGI_HIGH);
-
-    gpio_set_level(GPIO_NUM_4,DIGI_HIGH);
-    Debug_printf("GPIO #4 (/STB) SET HIGH.\n");
+    // Reset /ACK and /STB
+    gpio_set_level(ACK,DIGI_HIGH);
+    gpio_set_level(STB,DIGI_HIGH);
 
     Debug_printf("GPIO CONFIGURED\n");
 }
