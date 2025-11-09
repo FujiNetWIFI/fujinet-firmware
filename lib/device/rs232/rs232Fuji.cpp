@@ -8,7 +8,7 @@
 #include "fnWiFi.h"
 #include "utils.h"
 #include "compat_string.h"
-#include "fuji_endian.h"
+#include "../../../include/fuji_endian.h"
 
 #define IMAGE_EXTENSION ".img"
 

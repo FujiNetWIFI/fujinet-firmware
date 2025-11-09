@@ -398,7 +398,6 @@ if(FUJINET_TARGET STREQUAL "RS232")
     lib/device/rs232/printerlist.cpp lib/device/rs232/printerlist.h
     lib/device/rs232/rs232Fuji.cpp lib/device/rs232/rs232Fuji.h
     lib/device/rs232/rs232cpm.cpp lib/device/rs232/rs232cpm.h
-
     )
 endif()
 

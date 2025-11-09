@@ -16,7 +16,7 @@
 #include "fnDNS.h"
 #include "led.h"
 #include "utils.h"
-#include "fuji_endian.h"
+#include "../../include/fuji_endian.h"
 
 #ifdef ESP_PLATFORM
 #define SERIAL_DEVICE FN_UART_BUS
@@ -185,7 +185,9 @@ void systemBus::_rs232_process_cmd()
     {
         _modemDev->modemActive = false;
         Debug_println("Modem was active - resetting RS232 baud");
+#if !H89_HACKERY
         _serial.setBaudrate(_rs232Baud);
+#endif /* ! H89_HACKERY */
     }
 
     // Read CMD frame
@@ -294,50 +296,54 @@ void systemBus::setup()
 {
     Debug_printf("RS232 SETUP: Baud rate: %u\n",Config.get_rs232_baud());
 
-    // Set up UART
-#ifndef FUJINET_OVER_USB
     if (Config.get_boip_enabled())
     {
         Debug_printf("RS232 SETUP: BOIP host: %s\n", Config.get_boip_host().c_str());
         _becker.begin(Config.get_boip_host(), Config.get_rs232_baud());
         _port = &_becker;
     }
+    // Set up UART
     else {
+#if H89_HACKERY
+    _serial.begin();
+#else /* ! H89_HACKERY */
+#ifndef FUJINET_OVER_USB
         _serial.begin(ChannelConfig()
-                    .baud(Config.get_rs232_baud())
-                    .readTimeout(200)
-                    .deviceID(SERIAL_DEVICE))
+                      .baud(Config.get_rs232_baud())
+                      .readTimeout(200)
+                      .deviceID(SERIAL_DEVICE))
             ;
         _port = &_serial;
-    }
-
 #ifdef ESP_PLATFORM
-    // // INT PIN
-    // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
-    // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
-    // PROC PIN
-    fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_UP);
-    fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
-    // INVALID PIN
-    //fnSystem.set_pin_mode(PIN_RS232_INVALID, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
-    fnSystem.set_pin_mode(PIN_RS232_INVALID, gpio_mode_t::GPIO_MODE_INPUT);
-    // CMD PIN
-    //fnSystem.set_pin_mode(PIN_RS232_DTR, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
-    fnSystem.set_pin_mode(PIN_RS232_DTR, gpio_mode_t::GPIO_MODE_INPUT);
-    // CKI PIN
-    //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
-    // CKO PIN
+        // // INT PIN
+        // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
+        // fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
+        // PROC PIN
+        fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT, SystemManager::pull_updown_t::PULL_UP);
+        fnSystem.digital_write(PIN_RS232_RI, DIGI_HIGH);
+        // INVALID PIN
+        //fnSystem.set_pin_mode(PIN_RS232_INVALID, PINMODE_INPUT | PINMODE_PULLDOWN); // There's no PULLUP/PULLDOWN on pins 34-39
+        fnSystem.set_pin_mode(PIN_RS232_INVALID, gpio_mode_t::GPIO_MODE_INPUT);
+        // CMD PIN
+        //fnSystem.set_pin_mode(PIN_RS232_DTR, PINMODE_INPUT | PINMODE_PULLUP); // There's no PULLUP/PULLDOWN on pins 34-39
+        fnSystem.set_pin_mode(PIN_RS232_DTR, gpio_mode_t::GPIO_MODE_INPUT);
+        // CKI PIN
+        //fnSystem.set_pin_mode(PIN_CKI, PINMODE_OUTPUT);
+        // CKO PIN
 
-    fnSystem.set_pin_mode(PIN_RS232_CTS, gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_RS232_CTS,DIGI_LOW);
+        fnSystem.set_pin_mode(PIN_RS232_CTS, gpio_mode_t::GPIO_MODE_OUTPUT);
+        fnSystem.digital_write(PIN_RS232_CTS,DIGI_LOW);
 
-    fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
-    fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
+        fnSystem.set_pin_mode(PIN_RS232_DSR,gpio_mode_t::GPIO_MODE_OUTPUT);
+        fnSystem.digital_write(PIN_RS232_DSR,DIGI_LOW);
 #endif /* ESP_PLATFORM */
 #else /* FUJINET_OVER_USB */
-    _serial.begin();
-    _port = &_serial;
+        _serial.begin();
+        _port = &_serial;
 #endif /* FUJINET_OVER_USB */
+#endif /* H89_HACKERY */
+    }
+
 
     Debug_println("RS232 Setup Flush");
     _port->discardInput();
@@ -455,7 +461,9 @@ void systemBus::setBaudrate(int baud)
 
     Debug_printf("Changing baudrate from %d to %d\n", _rs232Baud, baud);
     _rs232Baud = baud;
+#if !H89_HACKERY
     _serial.setBaudrate(baud);
+#endif /* ! H89_HACKERY */
 }
 
 #ifdef OBSOLETE
@@ -487,7 +495,7 @@ void systemBus::setUltraHigh(bool _enable, int _ultraHighBaud)
 void systemBus::sendReplyPacket(FujiDeviceID source, bool ack, void *data, size_t length)
 {
     FujiBusPacket packet(source, ack ? FUJICMD_ACK : FUJICMD_NAK,
-                         ack ? std::string(static_cast<const char*>(data), length) : nullptr);
+                         ack ? std::string(static_cast<const char*>(data), length) : "");
     std::string encoded = packet.serialize();
     _port->write(encoded.data(), encoded.size());
     return;

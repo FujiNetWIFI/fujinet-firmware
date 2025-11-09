@@ -6,7 +6,7 @@
 
 #include "network.h"
 #include "fujiDevice.h"
-#include "fuji_endian.h"
+#include "../../../include/fuji_endian.h"
 
 #include <cstring>
 #include <algorithm>
@@ -29,7 +29,7 @@
 #include "SMB.h"
 
 #include "ProtocolParser.h"
-#include "fuji_endian.h"
+#include "../../../include/fuji_endian.h"
 
 using namespace std;
 

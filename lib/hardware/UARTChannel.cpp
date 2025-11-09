@@ -88,7 +88,7 @@ void UARTChannel::updateFIFO()
     return;
 }
 
-void UARTChannel::flush()
+void UARTChannel::flushOutput()
 {
     uart_wait_tx_done(_uart_num, MAX_FLUSH_WAIT_TICKS);
 }

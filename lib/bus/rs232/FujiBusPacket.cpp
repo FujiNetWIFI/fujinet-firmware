@@ -20,7 +20,7 @@ static uint8_t numFieldsTable[] = {0, 1, 2, 3, 4, 1, 2, 1};
 FujiBusPacket::FujiBusPacket(const std::string &slipEncoded)
 {
     if (!parse(slipEncoded))
-        throw std::invalid_argument("Invalid FujiBusPacket data");
+        _fieldSize = -1;
 
     return;
 }
@@ -199,10 +199,8 @@ std::string FujiBusPacket::serialize()
 
 std::unique_ptr<FujiBusPacket> FujiBusPacket::fromSerialized(const std::string &input)
 {
-    try {
-        return std::make_unique<FujiBusPacket>(input);
-    }
-    catch (const std::invalid_argument&) {
-        return nullptr;
-    }
+  auto packet = std::make_unique<FujiBusPacket>(input);
+  if (!packet->_fieldSize)
+    return nullptr;
+  return packet;
 }

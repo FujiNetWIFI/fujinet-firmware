@@ -54,7 +54,7 @@ void rs232ApeTime::_rs232_get_time(bool use_timezone)
 
 void rs232ApeTime::_rs232_set_tz()
 {
-    int bufsz;
+    int bufsz = 0;
 
     Debug_println("APETIME set TZ request");
 

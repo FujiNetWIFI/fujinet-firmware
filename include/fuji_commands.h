@@ -109,6 +109,7 @@ enum FujiCommandID {
   FUJICMD_PERCOM_READ                = 0x4E, // N
   FUJICMD_UNLISTEN                   = 0x4D, // M
   FUJICMD_LISTEN                     = 0x4C, // L
+  FUJICMD_G                          = 0x47, // G
   FUJICMD_SET_DUMP                   = 0x44, // D
   FUJICMD_CLOSE                      = 0x43, // C
   FUJICMD_CONFIGURE                  = 0x42, // B

@@ -1,7 +1,12 @@
 #ifndef RS232_H
 #define RS232_H
 
+#define H89_HACKERY 1
+
 #include "UARTChannel.h"
+#if H89_HACKERY
+#include "../h89/i8255Channel.h"
+#endif /* H89_HACKERY */
 #include "FujiBusPacket.h"
 #include "../drivewire/BeckerSocket.h"
 
@@ -226,7 +231,11 @@ private:
     bool useUltraHigh = false; // Use fujinet derived clock.
 
     IOChannel *_port;
+#if H89_HACKERY
+    i8255Channel _serial;
+#else
     UARTChannel _serial;
+#endif /* H89_HACKERY */
     BeckerSocket _becker;
 
     void _rs232_process_cmd();

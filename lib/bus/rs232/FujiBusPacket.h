@@ -1,8 +1,8 @@
 #ifndef FUJIBUSPACKET_H
 #define FUJIBUSPACKET_H
 
-#include "fuji_devices.h"
-#include "fuji_commands.h"
+#include "../../../include/fuji_devices.h"
+#include "../../../include/fuji_commands.h"
 
 #include <vector>
 #include <optional>
@@ -21,7 +21,7 @@ class FujiBusPacket
 private:
     FujiDeviceID _device;
     FujiCommandID _command;
-    unsigned int _fieldSize;
+    int _fieldSize;
     std::vector<unsigned int> _params;
     std::optional<std::string> _data = std::nullopt;
 
