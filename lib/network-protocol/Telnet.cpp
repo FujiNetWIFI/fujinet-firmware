@@ -1,6 +1,6 @@
 /**
  * NetworkProtocolTELNET
- * 
+ *
  * TELNET Protocol Adapter Implementation
  */
 
@@ -102,7 +102,7 @@ NetworkProtocolTELNET::~NetworkProtocolTELNET()
  * @param len number of bytes to read.
  * @return error flag. FALSE if successful, TRUE if error.
  */
-bool NetworkProtocolTELNET::read(unsigned short len)
+netProtoErr_t NetworkProtocolTELNET::read(unsigned short len)
 {
     std::vector<uint8_t> newData = std::vector<uint8_t>(len);
 
@@ -114,7 +114,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
         if (!client.connected())
         {
             error = NETWORK_ERROR_NOT_CONNECTED;
-            return true; // error
+            return NETPROTO_ERR_UNSPECIFIED; // error
         }
 
         // Do the read from client socket.
@@ -126,7 +126,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
         if (errno == ECONNRESET)
         {
             error = NETWORK_ERROR_CONNECTION_RESET;
-            return true;
+            return NETPROTO_ERR_UNSPECIFIED;
         }
     }
 
@@ -143,7 +143,7 @@ bool NetworkProtocolTELNET::read(unsigned short len)
  * @param len The # of bytes to transmit, len should not be larger than buffer.
  * @return Number of bytes written.
  */
-bool NetworkProtocolTELNET::write(unsigned short len)
+netProtoErr_t NetworkProtocolTELNET::write(unsigned short len)
 {
     Debug_printf("NetworkProtocolTELNET::write(%u)\r\n", len);
 
@@ -151,7 +151,7 @@ bool NetworkProtocolTELNET::write(unsigned short len)
     if (!client.connected())
     {
         error = NETWORK_ERROR_NOT_CONNECTED;
-        return len; // error
+        return NETPROTO_ERR_UNSPECIFIED; // error
     }
 
     // Call base class to do translation.
@@ -164,13 +164,13 @@ bool NetworkProtocolTELNET::write(unsigned short len)
     if (errno == ECONNRESET)
     {
         error = NETWORK_ERROR_CONNECTION_RESET;
-        return len;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     // Return success
     error = 1;
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 void NetworkProtocolTELNET::flush(const char *buf, unsigned short size)

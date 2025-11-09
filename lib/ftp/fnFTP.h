@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "fnTcpClient.h"
+#include "Protocol.h"
 
 using std::string;
 
@@ -42,13 +43,13 @@ public:
      * @param port port to login (default 21)
      * @return TRUE on error, FALSE on success
      */
-    bool login(const string &_username, const string &_password, const string &_hostname, unsigned short _port = 21);
+    netProtoErr_t login(const string &_username, const string &_password, const string &_hostname, unsigned short _port = 21);
 
     /**
      * Log out of FTP server, closes control connection.
      * @return TRUE on error, FALSE on success.
      */
-    bool logout();
+    netProtoErr_t logout();
 
     /**
      * Open file on FTP server
@@ -56,7 +57,7 @@ public:
      * @param stor TRUE means STOR, otherwise RETR
      * @return TRUE if error, FALSE if successful.
      */
-    bool open_file(string path, bool stor);
+    netProtoErr_t open_file(string path, bool stor);
 
     /**
      * Open directory on FTP server, grab it, and return back.
@@ -64,7 +65,7 @@ public:
      * @param pattern pattern to retrieve.
      * @return TRUE if error, FALSE if successful.
      */
-    bool open_directory(string path, string pattern);
+    netProtoErr_t open_directory(string path, string pattern);
 
     /**
      * Read and return one parsed line of directory
@@ -72,7 +73,7 @@ public:
      * @param filesize pointer to output filesize
      * @return TRUE if error, FALSE if successful
      */
-    bool read_directory(string& name, long& filesize, bool &is_dir);
+    netProtoErr_t read_directory(string& name, long& filesize, bool &is_dir);
 
     /**
      * Read file from data socket into buffer.
@@ -80,7 +81,7 @@ public:
      * @param len length of target buffer
      * @return TRUE if error, FALSE if successful.
      */
-    bool read_file(uint8_t* buf, unsigned short len);
+    netProtoErr_t read_file(uint8_t* buf, unsigned short len);
 
     /**
      * Write file from buffer into data socket.
@@ -88,12 +89,12 @@ public:
      * @param len length of source buffer
      * @return TRUE if error, FALSE if successful.
      */
-    bool write_file(uint8_t* buf, unsigned short len);
+    netProtoErr_t write_file(uint8_t* buf, unsigned short len);
 
     /**
      * @brief close data and/or control sockets.
      */
-    bool close();
+    netProtoErr_t close();
 
     /**
      * @brief parsed out response code from controlResponse
@@ -111,14 +112,14 @@ public:
      * @brief return if data connected
      * @return TRUE if connected, FALSE if disconnected
      */
-    bool data_connected();
+    netProtoErr_t data_connected();
 
 
     /**
      * Recovery FTP connection.
      * @return TRUE on error, FALSE on success
      */
-    bool reconnect();
+    netProtoErr_t reconnect();
 
 protected:
 private:
@@ -129,7 +130,7 @@ private:
 
     /* do STOR - file opened for write */
     bool _stor = false;
-    
+
     /* if to check control channel too while dealing with data channel */
     bool _expect_control_response = false;
 
@@ -170,7 +171,7 @@ private:
      * Directory buffer stream
      */
     std::stringstream dirBuffer;
-    
+
     /**
      * The data port returned by EPSV
      */
@@ -180,7 +181,7 @@ private:
      * read and parse control response
      * @return true on error, false on success.
      */
-    bool parse_response();
+    netProtoErr_t parse_response();
 
     /**
      * read single line of control response
@@ -193,7 +194,7 @@ private:
      * Port is set and returned in data_port variable.
      * @return TRUE if error, FALSE if successful.
      */
-    bool get_data_port();
+    netProtoErr_t get_data_port();
 
     /**
      * @brief Is response a positive preliminary reply?
