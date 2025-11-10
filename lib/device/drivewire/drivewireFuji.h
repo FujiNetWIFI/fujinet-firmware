@@ -21,6 +21,8 @@
 #define ESP_OK  0
 #endif
 
+#define MAX_DWDISK_DEVICES 4
+
 class drivewireFuji : public virtualDevice
 {
 private:
@@ -34,7 +36,7 @@ private:
 
     fujiHost _fnHosts[MAX_HOSTS];
 
-    fujiDisk _fnDisks[MAX_DISK_DEVICES];
+    fujiDisk _fnDisks[MAX_DWDISK_DEVICES];
 
     Hash::Algorithm algorithm = Hash::Algorithm::UNKNOWN;
 

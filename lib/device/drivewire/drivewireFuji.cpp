@@ -57,7 +57,7 @@ bool _validate_host_slot(uint8_t slot, const char *dmsg)
 
 bool _validate_device_slot(uint8_t slot, const char *dmsg)
 {
-    if (slot < MAX_DISK_DEVICES)
+    if (slot < MAX_DWDISK_DEVICES)
         return true;
 
     if (dmsg == NULL)
@@ -732,7 +732,7 @@ void drivewireFuji::disk_image_umount()
     Debug_printf("Fuji cmd: UNMOUNT IMAGE 0x%02X\n", deviceSlot);
 
     // Handle disk slots
-    if (deviceSlot < MAX_DISK_DEVICES)
+    if (deviceSlot < MAX_DWDISK_DEVICES)
     {
         _fnDisks[deviceSlot].disk_dev.unmount();
         _fnDisks[deviceSlot].disk_dev.device_active = false;
@@ -790,7 +790,7 @@ void drivewireFuji::image_rotate()
 // This gets called when we're about to shutdown/reboot
 void drivewireFuji::shutdown()
 {
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    for (int i = 0; i < MAX_DWDISK_DEVICES; i++)
         _fnDisks[i].disk_dev.unmount();
 }
 
@@ -1108,7 +1108,7 @@ void drivewireFuji::unmount_host()
     unsigned char hostSlot = SYSTEM_BUS.read();
 
     // Unmount any disks associated with host slot
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    for (int i = 0; i < MAX_DWDISK_DEVICES; i++)
     {
         if (_fnDisks[i].host_slot == hostSlot)
         {
@@ -1166,13 +1166,13 @@ void drivewireFuji::read_device_slots()
         uint8_t mode;
         char filename[MAX_DISPLAY_FILENAME_LEN];
     };
-    disk_slot diskSlots[MAX_DISK_DEVICES];
+    disk_slot diskSlots[MAX_DWDISK_DEVICES];
 
     int returnsize;
     char *filename;
 
     // Load the data from our current device array
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    for (int i = 0; i < MAX_DWDISK_DEVICES; i++)
     {
         diskSlots[i].mode = _fnDisks[i].access_mode;
         diskSlots[i].hostSlot = _fnDisks[i].host_slot;
@@ -1195,7 +1195,7 @@ void drivewireFuji::read_device_slots()
         }
     }
 
-    returnsize = sizeof(disk_slot) * MAX_DISK_DEVICES;
+    returnsize = sizeof(disk_slot) * MAX_DWDISK_DEVICES;
 
     response.clear();
     response.shrink_to_fit();
@@ -1215,12 +1215,12 @@ void drivewireFuji::write_device_slots()
         uint8_t hostSlot;
         uint8_t mode;
         char filename[MAX_DISPLAY_FILENAME_LEN];
-    } diskSlots[MAX_DISK_DEVICES];
+    } diskSlots[MAX_DWDISK_DEVICES];
 
     SYSTEM_BUS.read((uint8_t *)&diskSlots, sizeof(diskSlots));
 
     // Load the data into our current device array
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    for (int i = 0; i < MAX_DWDISK_DEVICES; i++)
         _fnDisks[i].reset(diskSlots[i].filename, diskSlots[i].hostSlot, diskSlots[i].mode);
 
     // Save the data to disk
@@ -1239,7 +1239,7 @@ void drivewireFuji::_populate_slots_from_config()
             _fnHosts[i].set_hostname(Config.get_host_name(i).c_str());
     }
 
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    for (int i = 0; i < MAX_DWDISK_DEVICES; i++)
     {
         _fnDisks[i].reset();
 
@@ -1278,7 +1278,7 @@ void drivewireFuji::_populate_config_from_slots()
         }
     }
 
-    for (int i = 0; i < MAX_DISK_DEVICES; i++)
+    for (int i = 0; i < MAX_DWDISK_DEVICES; i++)
     {
         if (_fnDisks[i].host_slot >= MAX_HOSTS || _fnDisks[i].filename[0] == '\0')
             Config.clear_mount(i);
@@ -1304,7 +1304,7 @@ void drivewireFuji::set_device_filename()
     Debug_printf("Fuji cmd: SET DEVICE SLOT 0x%02X/%02X/%02X FILENAME: %s\n", slot, host, mode, tmp);
 
     // Handle DISK slots
-    if (slot < MAX_DISK_DEVICES)
+    if (slot < MAX_DWDISK_DEVICES)
     {
         memcpy(_fnDisks[slot].filename, tmp, MAX_FILENAME_LEN);
         // If the filename is empty, mark this as an invalid host, so that mounting will ignore it too
