@@ -305,8 +305,7 @@ void systemBus::setup()
     // Set up UART
     else {
 #if H89_HACKERY
-    _serial.begin();
-    _port = &serial;
+        _serial.begin();
 #else /* ! H89_HACKERY */
 #ifndef FUJINET_OVER_USB
         _serial.begin(ChannelConfig()
@@ -314,7 +313,6 @@ void systemBus::setup()
                       .readTimeout(200)
                       .deviceID(SERIAL_DEVICE))
             ;
-        _port = &_serial;
 #ifdef ESP_PLATFORM
         // // INT PIN
         // fnSystem.set_pin_mode(PIN_RS232_RI, gpio_mode_t::GPIO_MODE_OUTPUT_OD, SystemManager::pull_updown_t::PULL_UP);
@@ -340,9 +338,9 @@ void systemBus::setup()
 #endif /* ESP_PLATFORM */
 #else /* FUJINET_OVER_USB */
         _serial.begin();
-        _port = &_serial;
 #endif /* FUJINET_OVER_USB */
 #endif /* H89_HACKERY */
+        _port = &_serial;
     }
 
 
