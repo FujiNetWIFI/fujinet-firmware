@@ -655,7 +655,7 @@ fnFTP::~fnFTP()
     data = nullptr;
 }
 
-bool fnFTP::login(const string &_username, const string &_password, const string &_hostname, unsigned short _port)
+netProtoErr_t fnFTP::login(const string &_username, const string &_password, const string &_hostname, unsigned short _port)
 {
     username = _username;
     password = _password;
@@ -669,7 +669,7 @@ bool fnFTP::login(const string &_username, const string &_password, const string
     {
         Debug_printf("Could not log in, errno = %u\r\n", errno);
         _statusCode = 421; // service not available
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     Debug_printf("Connected, waiting for 220.\r\n");
@@ -678,7 +678,7 @@ bool fnFTP::login(const string &_username, const string &_password, const string
     if (parse_response())
     {
         Debug_printf("Timed out waiting for 220 banner.\r\n");
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     Debug_printf("Sending USER.\r\n");
@@ -691,13 +691,13 @@ bool fnFTP::login(const string &_username, const string &_password, const string
     else
     {
         Debug_printf("Could not send username. Response was: %s\r\n", controlResponse.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     if (parse_response())
     {
         Debug_printf("Timed out waiting for 331 or 230.\r\n");
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     if (is_positive_intermediate_reply() && is_authentication())
@@ -709,7 +709,7 @@ bool fnFTP::login(const string &_username, const string &_password, const string
         if (parse_response())
         {
             Debug_printf("Timed out waiting for 230.\r\n");
-            return true;
+            return NETPROTO_ERR_UNSPECIFIED;
         }
     }
     else
@@ -725,13 +725,13 @@ bool fnFTP::login(const string &_username, const string &_password, const string
     else
     {
         Debug_printf("Could not finish log in. Response was: %s\r\n", controlResponse.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     if (parse_response())
     {
         Debug_printf("Timed out waiting for 200.\r\n");
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     if (is_positive_completion_reply() && is_syntax())
@@ -743,16 +743,16 @@ bool fnFTP::login(const string &_username, const string &_password, const string
         Debug_printf("Could not set image type. Ignoring.\r\n");
     }
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool fnFTP::logout()
+netProtoErr_t fnFTP::logout()
 {
     Debug_printf("fnFTP::logout()\r\n");
     if (!control->connected())
     {
         Debug_printf("Logout called when not connected.\r\n");
-        return false;
+        return NETPROTO_ERR_NONE;
     }
 
     if (data->connected())
@@ -771,22 +771,22 @@ bool fnFTP::logout()
 
     control->stop();
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool fnFTP::reconnect()
+netProtoErr_t fnFTP::reconnect()
 {
     Debug_println("Trying to re-login");
     if (control->connected()) logout();
     return login(username, password, hostname, control_port);
 }
 
-bool fnFTP::open_file(string path, bool stor)
+netProtoErr_t fnFTP::open_file(string path, bool stor)
 {
     if (!control->connected())
     {
         Debug_printf("fnFTP::open_file(%s) attempted while not logged in. Aborting.\r\n", path.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     int retries = 2;
@@ -800,7 +800,7 @@ bool fnFTP::open_file(string path, bool stor)
                 continue; // successfully reconnected
         }
         Debug_printf("fnFTP::open_file(%s, %s) could not get data port. Aborting.\n", path.c_str(), stor ? "STOR" : "RETR");
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     // Do command
@@ -816,7 +816,7 @@ bool fnFTP::open_file(string path, bool stor)
     if (parse_response())
     {
         Debug_printf("Timed out waiting for 150 response.\r\n");
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     if (is_positive_preliminary_reply() && is_filesystem_related())
@@ -824,21 +824,21 @@ bool fnFTP::open_file(string path, bool stor)
         _stor = stor;
         _expect_control_response = !stor;
         Debug_printf("Server began transfer.\r\n");
-        return false;
+        return NETPROTO_ERR_NONE;
     }
     else
     {
         Debug_printf("Server could not begin transfer. Response was: %s\r\n", controlResponse.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 }
 
-bool fnFTP::open_directory(string path, string pattern)
+netProtoErr_t fnFTP::open_directory(string path, string pattern)
 {
     if (!control->connected())
     {
         Debug_printf("fnFTP::open_directory(%s%s) attempted while not logged in. Aborting.\r\n", path.c_str(), pattern.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     int retries = 2;
@@ -852,7 +852,7 @@ bool fnFTP::open_directory(string path, string pattern)
                 continue; // successfully reconnected
         }
         Debug_printf("fnFTP::open_directory(%s%s) could not get data port, aborting.\n", path.c_str(), pattern.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     // perform LIST
@@ -861,7 +861,7 @@ bool fnFTP::open_directory(string path, string pattern)
     if (parse_response())
     {
         Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 150 response.\r\n", path.c_str(), pattern.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     Debug_printf("fnFTP::open_directory(%s%s) - %s\r\n", path.c_str(), pattern.c_str(), controlResponse.c_str());
@@ -874,7 +874,7 @@ bool fnFTP::open_directory(string path, string pattern)
     else
     {
         Debug_printf("Didn't get our 150\r\n");
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     uint8_t buf[256];
@@ -882,7 +882,7 @@ bool fnFTP::open_directory(string path, string pattern)
     // if (buf == nullptr)
     // {
     //     Debug_printf("fnFTP::open_directory() - Could not allocate 2048 bytes.\r\n");
-    //     return true;
+    //     return NETPROTO_ERR_UNSPECIFIED;
     // }
 
     int tmout_counter = 1 + FTP_TIMEOUT / 50;
@@ -927,13 +927,13 @@ bool fnFTP::open_directory(string path, string pattern)
     if (tmout_counter == 0 || (got_response == false && parse_response()))
     {
         Debug_printf("fnFTP::open_directory(%s%s) Timed out waiting for 226 response.\r\n", path.c_str(), pattern.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
-    return false; // all good.
+    return NETPROTO_ERR_NONE; // all good.
 }
 
-bool fnFTP::read_directory(string &name, long &filesize, bool &is_dir)
+netProtoErr_t fnFTP::read_directory(string &name, long &filesize, bool &is_dir)
 {
     string line;
     struct ftpparse parse;
@@ -941,7 +941,7 @@ bool fnFTP::read_directory(string &name, long &filesize, bool &is_dir)
     getline(dirBuffer, line);
 
     if (line.empty())
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
 
     //Debug_printf("fnFTP::read_directory - %s\r\n",line.c_str());
     line = line.substr(0, line.size() - 1);
@@ -950,35 +950,35 @@ bool fnFTP::read_directory(string &name, long &filesize, bool &is_dir)
     filesize = parse.size;
     is_dir = (parse.flagtrycwd == 1);
     Debug_printf("Name: \"%s\" size: %lu\r\n", name.c_str(), filesize);
-    return dirBuffer.eof();
+    return dirBuffer.eof() ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
 }
 
-bool fnFTP::read_file(uint8_t *buf, unsigned short len)
+netProtoErr_t fnFTP::read_file(uint8_t *buf, unsigned short len)
 {
     //Debug_printf("fnFTP::read_file(%p, %u)\r\n", buf, len);
     if (!data->connected() && data->available() == 0)
     {
         Debug_printf("fnFTP::read_file(%p,%u) - data socket not connected, aborting.\r\n", buf, len);
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
-    return len != data->read(buf, len);
+    return len != data->read(buf, len) ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
 }
 
-bool fnFTP::write_file(uint8_t *buf, unsigned short len)
+netProtoErr_t fnFTP::write_file(uint8_t *buf, unsigned short len)
 {
     //Debug_printf("fnFTP::write_file(%p,%u)\r\n", buf, len);
     if (!data->connected())
     {
         Debug_printf("fnFTP::write_file(%p,%u) - data socket not connected, aborting.\r\n", buf, len);
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
-    return len != data->write(buf, len);
+    return len != data->write(buf, len) ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
 }
 
-bool fnFTP::close()
+netProtoErr_t fnFTP::close()
 {
-    bool res = false;
+    netProtoErr_t res = NETPROTO_ERR_NONE;
     Debug_printf("fnFTP::close()\r\n");
     if (_stor)
     {
@@ -989,7 +989,7 @@ bool fnFTP::close()
         if (parse_response())
         {
             Debug_printf("Timed out waiting for 226.\r\n");
-            res = true;
+            res = NETPROTO_ERR_UNSPECIFIED;
         }
     }
     _stor = false;
@@ -1008,16 +1008,17 @@ int fnFTP::data_available()
     return data->available();
 }
 
-bool fnFTP::data_connected()
+netProtoErr_t fnFTP::data_connected()
 {
     if (_expect_control_response && control->available())
         _expect_control_response = parse_response();
-    return _expect_control_response || data->connected();
+    return (_expect_control_response || data->connected())
+        ? NETPROTO_ERR_UNSPECIFIED : NETPROTO_ERR_NONE;
 }
 
 /** FTP UTILITY FUNCTIONS **********************************************************************/
 
-bool fnFTP::parse_response()
+netProtoErr_t fnFTP::parse_response()
 {
     char respBuf[384];  // room for control message incl. file path and file size
     int num_read = 0;
@@ -1032,7 +1033,7 @@ bool fnFTP::parse_response()
         {
             // Timeout
             _statusCode = 421;  // service not available
-            return true;        // error
+            return NETPROTO_ERR_UNSPECIFIED;        // error
         }
         if (num_read >= 4)
         {
@@ -1053,7 +1054,7 @@ bool fnFTP::parse_response()
         // error - nothing above
         Debug_printf("fnFTP::parse_response() - failed\r\n");
         _statusCode = 501;  //syntax error
-        return true;        // error
+        return NETPROTO_ERR_UNSPECIFIED;        // error
     }
 
     // update control response and status code
@@ -1061,7 +1062,7 @@ bool fnFTP::parse_response()
     _statusCode = atoi(controlResponse.substr(0, 3).c_str());
     Debug_printf("fnFTP::parse_response() - %d, \"%s\"\r\n", _statusCode, controlResponse.c_str());
 
-    return false; // ok
+    return NETPROTO_ERR_NONE; // ok
 }
 
 int fnFTP::read_response_line(char *buf, int buflen)
@@ -1107,7 +1108,7 @@ int fnFTP::read_response_line(char *buf, int buflen)
     return num_read;
 }
 
-bool fnFTP::get_data_port()
+netProtoErr_t fnFTP::get_data_port()
 {
     size_t port_pos_beg, port_pos_end;
 
@@ -1121,26 +1122,26 @@ bool fnFTP::get_data_port()
     if (parse_response())
     {
         Debug_printf("Timed out waiting for response.\r\n");
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
 /*
     if (is_negative_permanent_reply())
     {
         Debug_printf("Server unable to reserve port. Response was: %s\r\n", controlResponse.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     if (is_negative_transient_reply())
     {
         Debug_printf("Cannot get data port. Response was: %s\r\n", controlResponse.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     if (is_negative_transient_reply())
     {
         Debug_printf("Cannot get data port. Response was: %s\n", controlResponse.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 */
 
@@ -1148,7 +1149,7 @@ bool fnFTP::get_data_port()
     if (_statusCode != 229)
     {
         Debug_printf("Cannot get data port. Response was: %s\n", controlResponse.c_str());
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
 
     // At this point, we have a port mapping trapped in (|||1234|), peel it out of there.
@@ -1162,14 +1163,14 @@ bool fnFTP::get_data_port()
     if (!data->connect(hostname.c_str(), data_port, FTP_TIMEOUT))
     {
         Debug_printf("Could not open data port %u, errno = %u\r\n", data_port, errno);
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
     }
     else
     {
         Debug_printf("Data port %u opened.\r\n", data_port);
     }
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /** FTP VERBS **********************************************************************************/

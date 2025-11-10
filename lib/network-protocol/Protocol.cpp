@@ -105,7 +105,7 @@ NetworkProtocol::~NetworkProtocol()
  * @param urlParser The URL object passed in to open.
  * @param cmdFrame The command frame to extract aux1/aux2/etc.
  */
-bool NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 {
     // Set translation mode, Bits 0-1 of aux2
     translation_mode = cmdFrame->aux2 & 0x7F; // we now have more xlation modes.
@@ -116,7 +116,7 @@ bool NetworkProtocol::open(PeoplesUrlParser *urlParser, cmdFrame_t *cmdFrame)
 
     opened_url = urlParser;
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
@@ -132,7 +132,7 @@ void NetworkProtocol::set_open_params(uint8_t p1, uint8_t p2)
 /**
  * @brief Close connection to the protocol.
  */
-bool NetworkProtocol::close()
+netProtoErr_t NetworkProtocol::close()
 {
     if (!transmitBuffer->empty())
         write(transmitBuffer->length());
@@ -143,9 +143,9 @@ bool NetworkProtocol::close()
     receiveBuffer->shrink_to_fit();
     transmitBuffer->shrink_to_fit();
     specialBuffer->shrink_to_fit();
-    
+
     error = 1;
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
@@ -153,14 +153,14 @@ bool NetworkProtocol::close()
  * @param len Number of bytes to read.
  * @return error flag. FALSE if successful, TRUE if error.
  */
-bool NetworkProtocol::read(unsigned short len)
+netProtoErr_t NetworkProtocol::read(unsigned short len)
 {
 #ifdef VERBOSE_PROTOCOL
     Debug_printf("NetworkProtocol::read(%u)\r\n", len);
 #endif
     translate_receive_buffer();
     error = 1;
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
@@ -168,9 +168,9 @@ bool NetworkProtocol::read(unsigned short len)
  * @param len The # of bytes to transmit, len should not be larger than buffer.
  * @return error flag. FALSE if successful, TRUE if error.
  */
-bool NetworkProtocol::write(unsigned short len)
+netProtoErr_t NetworkProtocol::write(unsigned short len)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
@@ -179,17 +179,17 @@ bool NetworkProtocol::write(unsigned short len)
  * @param rx_buf a pointer to the receive buffer (to call read())
  * @return error flag. FALSE if successful, TRUE if error.
  */
-bool NetworkProtocol::status(NetworkStatus *status)
+netProtoErr_t NetworkProtocol::status(NetworkStatus *status)
 {
-    if (fromInterrupt)   
-        return false;
- 
+    if (fromInterrupt)
+        return NETPROTO_ERR_NONE;
+
     if (!is_write && receiveBuffer->length() == 0 && status->rxBytesWaiting > 0)
         read(status->rxBytesWaiting);
 
     status->rxBytesWaiting = receiveBuffer->length();
 
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 /**
@@ -210,7 +210,7 @@ void NetworkProtocol::translate_receive_buffer()
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BELL, ATASCII_BUZZER);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_BACKSPACE, ATASCII_DEL);
     replace(receiveBuffer->begin(), receiveBuffer->end(), ASCII_TAB, ATASCII_TAB);
-    #endif   
+    #endif
 
     switch (translation_mode)
     {

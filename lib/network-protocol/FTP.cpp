@@ -1,6 +1,6 @@
 /**
  * NetworkProtocolFTP
- * 
+ *
  * Implementation
  */
 
@@ -33,9 +33,9 @@ NetworkProtocolFTP::~NetworkProtocolFTP()
     ftp = nullptr;
 }
 
-bool NetworkProtocolFTP::open_file_handle()
+netProtoErr_t NetworkProtocolFTP::open_file_handle()
 {
-    bool res;
+    netProtoErr_t res;
 
     switch (aux1_open)
     {
@@ -48,7 +48,7 @@ bool NetworkProtocolFTP::open_file_handle()
     case PROTOCOL_OPEN_APPEND:
     case PROTOCOL_OPEN_READWRITE:
         error = NETWORK_ERROR_NOT_IMPLEMENTED;
-        return true;
+        return NETPROTO_ERR_UNSPECIFIED;
         break;
     }
 
@@ -57,18 +57,18 @@ bool NetworkProtocolFTP::open_file_handle()
     return res;
 }
 
-bool NetworkProtocolFTP::open_dir_handle()
+netProtoErr_t NetworkProtocolFTP::open_dir_handle()
 {
-    bool res;
+    netProtoErr_t res;
 
     res = ftp->open_directory(dir, filename);
     fserror_to_error();
     return res;
 }
 
-bool NetworkProtocolFTP::mount(PeoplesUrlParser *url)
+netProtoErr_t NetworkProtocolFTP::mount(PeoplesUrlParser *url)
 {
-    bool res;
+    netProtoErr_t res;
 
     // Path isn't used
     res = ftp->login("anonymous", "fujinet@fujinet.online", url->host);
@@ -76,7 +76,7 @@ bool NetworkProtocolFTP::mount(PeoplesUrlParser *url)
     return res;
 }
 
-bool NetworkProtocolFTP::umount()
+netProtoErr_t NetworkProtocolFTP::umount()
 {
     return ftp->logout();
 }
@@ -157,18 +157,18 @@ void NetworkProtocolFTP::fserror_to_error()
     }
 }
 
-bool NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
+netProtoErr_t NetworkProtocolFTP::read_file_handle(uint8_t *buf, unsigned short len)
 {
-    bool res;
+    netProtoErr_t res;
 
     res = ftp->read_file(buf, len);
     fserror_to_error();
     return res;
 }
 
-bool NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
+netProtoErr_t NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
 {
-    bool res;
+    netProtoErr_t res;
     std::string filename;
     long filesz;
     bool is_dir;
@@ -185,33 +185,30 @@ bool NetworkProtocolFTP::read_dir_entry(char *buf, unsigned short len)
     return res;
 }
 
-bool NetworkProtocolFTP::close_file_handle()
+netProtoErr_t NetworkProtocolFTP::close_file_handle()
 {
-    bool res;
+    netProtoErr_t res;
 
     res = ftp->close();
     fserror_to_error();
     return res;
 }
 
-bool NetworkProtocolFTP::close_dir_handle()
+netProtoErr_t NetworkProtocolFTP::close_dir_handle()
 {
-    bool res;
+    netProtoErr_t res;
 
     res = ftp->close();
     fserror_to_error();
     return res;
 }
 
-bool NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
+netProtoErr_t NetworkProtocolFTP::write_file_handle(uint8_t *buf, unsigned short len)
 {
-    bool res;
-    
-    res = ftp->write_file(buf, len);
-    return res;
+    return ftp->write_file(buf, len);
 }
 
-bool NetworkProtocolFTP::status_file(NetworkStatus *status)
+netProtoErr_t NetworkProtocolFTP::status_file(NetworkStatus *status)
 {
     status->rxBytesWaiting = ftp->data_available() > 65535 ? 65535 : ftp->data_available();
     status->connected = ftp->data_connected();
@@ -219,7 +216,7 @@ bool NetworkProtocolFTP::status_file(NetworkStatus *status)
     status->error = error;
 
     NetworkProtocol::status(status);
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
 uint8_t NetworkProtocolFTP::special_inquiry(uint8_t cmd)
@@ -241,52 +238,52 @@ uint8_t NetworkProtocolFTP::special_inquiry(uint8_t cmd)
     return ret;
 }
 
-bool NetworkProtocolFTP::special_00(cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolFTP::special_00(cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolFTP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolFTP::special_40(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolFTP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolFTP::special_80(uint8_t *sp_buf, unsigned short len, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolFTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolFTP::rename(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolFTP::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolFTP::del(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolFTP::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolFTP::mkdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolFTP::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolFTP::rmdir(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolFTP::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolFTP::lock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolFTP::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
+netProtoErr_t NetworkProtocolFTP::unlock(PeoplesUrlParser *url, cmdFrame_t *cmdFrame)
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
 
-bool NetworkProtocolFTP::stat()
+netProtoErr_t NetworkProtocolFTP::stat()
 {
-    return false;
+    return NETPROTO_ERR_NONE;
 }
