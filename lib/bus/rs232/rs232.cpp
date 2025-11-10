@@ -306,6 +306,7 @@ void systemBus::setup()
     else {
 #if H89_HACKERY
     _serial.begin();
+    _port = &serial;
 #else /* ! H89_HACKERY */
 #ifndef FUJINET_OVER_USB
         _serial.begin(ChannelConfig()
