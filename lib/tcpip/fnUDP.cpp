@@ -99,6 +99,14 @@ bool fnUDP::begin(in_addr_t address, uint16_t port)
         return false;
     }
 
+    /* On macOS/BSD, SO_REUSEPORT is required to allow multiple processes to bind to the same port */
+#ifdef SO_REUSEPORT
+    if (setsockopt(udp_server, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof(yes)) < 0)
+    {
+        Debug_printf("could not set SO_REUSEPORT: %d\r\n", compat_getsockerr());
+    }
+#endif
+
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
 
